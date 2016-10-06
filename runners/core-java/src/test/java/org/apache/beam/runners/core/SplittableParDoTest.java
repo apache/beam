@@ -33,7 +33,6 @@ import java.util.List;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.coders.DefaultCoder;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.testing.RunnableOnService;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -55,11 +54,13 @@ import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
+import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
 
 /** Tests for {@link SplittableParDo}. */
+@RunWith(JUnit4.class)
 public class SplittableParDoTest {
   // ----------------- Tests for whether the transform sets boundedness correctly --------------
-  @DefaultCoder(SerializableCoder.class)
   private static class SomeRestriction implements Serializable {}
 
   private static class SomeRestrictionTracker implements RestrictionTracker<SomeRestriction> {
@@ -109,34 +110,48 @@ public class SplittableParDoTest {
     }
   }
 
+  private static PCollection<Integer> makeUnboundedCollection(Pipeline pipeline) {
+    return pipeline
+        .apply("unbounded", Create.of(1, 2, 3))
+        .setIsBoundedInternal(PCollection.IsBounded.UNBOUNDED);
+  }
+
+  private static PCollection<Integer> makeBoundedCollection(Pipeline pipeline) {
+    return pipeline
+        .apply("bounded", Create.of(1, 2, 3))
+        .setIsBoundedInternal(PCollection.IsBounded.BOUNDED);
+  }
+
   @Test
   @Category(RunnableOnService.class)
-  public void testBoundedness() {
-    DoFn<Integer, String> boundedFn = new BoundedFakeFn();
-    DoFn<Integer, String> unboundedFn = new UnboundedFakeFn();
-
+  public void testBoundednessForBoundedFn() {
     Pipeline pipeline = TestPipeline.create();
-    PCollection<Integer> boundedPC =
-        pipeline
-            .apply("bounded", Create.of(1, 2, 3))
-            .setIsBoundedInternal(PCollection.IsBounded.BOUNDED);
-    PCollection<Integer> unboundedPC =
-        pipeline
-            .apply("unbounded", Create.of(1, 2, 3))
-            .setIsBoundedInternal(PCollection.IsBounded.UNBOUNDED);
+    DoFn<Integer, String> boundedFn = new BoundedFakeFn();
+    assertEquals(
+        PCollection.IsBounded.BOUNDED,
+        makeBoundedCollection(pipeline)
+            .apply("bounded to bounded", new SplittableParDo<>(boundedFn))
+            .isBounded());
+    assertEquals(
+        PCollection.IsBounded.BOUNDED,
+        makeUnboundedCollection(pipeline)
+            .apply("bounded to unbounded", new SplittableParDo<>(boundedFn))
+            .isBounded());
+  }
 
+  @Test
+  @Category(RunnableOnService.class)
+  public void testBoundednessForUnboundedFn() {
+    Pipeline pipeline = TestPipeline.create();
+    DoFn<Integer, String> unboundedFn = new UnboundedFakeFn();
     assertEquals(
         PCollection.IsBounded.BOUNDED,
-        boundedPC.apply("bounded to bounded", new SplittableParDo<>(boundedFn)).isBounded());
+        makeBoundedCollection(pipeline)
+            .apply("unbounded to bounded", new SplittableParDo<>(unboundedFn))
+            .isBounded());
     assertEquals(
         PCollection.IsBounded.BOUNDED,
-        unboundedPC.apply("bounded to unbounded", new SplittableParDo<>(boundedFn)).isBounded());
-    assertEquals(
-        PCollection.IsBounded.BOUNDED,
-        boundedPC.apply("unbounded to bounded", new SplittableParDo<>(unboundedFn)).isBounded());
-    assertEquals(
-        PCollection.IsBounded.BOUNDED,
-        unboundedPC
+        makeUnboundedCollection(pipeline)
             .apply("unbounded to unbounded", new SplittableParDo<>(unboundedFn))
             .isBounded());
   }
@@ -150,15 +165,19 @@ public class SplittableParDoTest {
   private static class ProcessFnTester<
       InputT, OutputT, RestrictionT, TrackerT extends RestrictionTracker<RestrictionT>> {
     private final DoFnTester<
-            KeyedWorkItem<String, ElementRestriction<InputT, RestrictionT>>, OutputT>
+            KeyedWorkItem<String, ElementAndRestriction<InputT, RestrictionT>>, OutputT>
         tester;
     private Instant currentProcessingTime;
 
     ProcessFnTester(
-        Instant currentProcessingTime, DoFn<InputT, OutputT> fn, Coder<InputT> inputCoder)
+        Instant currentProcessingTime,
+        DoFn<InputT, OutputT> fn,
+        Coder<InputT> inputCoder,
+        Coder<RestrictionT> restrictionCoder)
         throws Exception {
       SplittableParDo.ProcessFn<InputT, OutputT, RestrictionT, TrackerT> processFn =
-          new SplittableParDo.ProcessFn<>(fn, inputCoder, IntervalWindow.getCoder());
+          new SplittableParDo.ProcessFn<>(
+              fn, inputCoder, restrictionCoder, IntervalWindow.getCoder());
       this.tester = DoFnTester.of(processFn);
       this.tester.startBundle();
       this.tester.advanceProcessingTime(currentProcessingTime);
@@ -170,13 +189,13 @@ public class SplittableParDoTest {
     void startElement(InputT element, RestrictionT restriction) throws Exception {
       startElement(
           WindowedValue.of(
-              ElementRestriction.of(element, restriction),
+              ElementAndRestriction.of(element, restriction),
               currentProcessingTime,
               GlobalWindow.INSTANCE,
               PaneInfo.ON_TIME_AND_ONLY_FIRING));
     }
 
-    void startElement(WindowedValue<ElementRestriction<InputT, RestrictionT>> windowedValue)
+    void startElement(WindowedValue<ElementAndRestriction<InputT, RestrictionT>> windowedValue)
         throws Exception {
       tester.processElement(KeyedWorkItems.elementsWorkItem("key", Arrays.asList(windowedValue)));
     }
@@ -192,7 +211,7 @@ public class SplittableParDoTest {
         return false;
       }
       tester.processElement(
-          KeyedWorkItems.<String, ElementRestriction<InputT, RestrictionT>>timersWorkItem(
+          KeyedWorkItems.<String, ElementAndRestriction<InputT, RestrictionT>>timersWorkItem(
               "key", timers));
       return true;
     }
@@ -235,7 +254,8 @@ public class SplittableParDoTest {
 
     Instant base = Instant.now();
     ProcessFnTester<Integer, String, SomeRestriction, SomeRestrictionTracker> tester =
-        new ProcessFnTester<>(base, fn, BigEndianIntegerCoder.of());
+        new ProcessFnTester<>(
+            base, fn, BigEndianIntegerCoder.of(), SerializableCoder.of(SomeRestriction.class));
 
     IntervalWindow w1 =
         new IntervalWindow(
@@ -249,7 +269,7 @@ public class SplittableParDoTest {
 
     tester.startElement(
         WindowedValue.of(
-            ElementRestriction.of(42, new SomeRestriction()),
+            ElementAndRestriction.of(42, new SomeRestriction()),
             base,
             Arrays.asList(w1, w2, w3),
             PaneInfo.ON_TIME_AND_ONLY_FIRING));
@@ -269,9 +289,7 @@ public class SplittableParDoTest {
     @ProcessElement
     public ProcessContinuation process(ProcessContext c, SomeRestrictionTracker tracker) {
       c.output(c.element().toString());
-      return resume()
-          .withResumeDelay(Duration.standardSeconds(5))
-          .withWatermark(c.timestamp());
+      return resume().withResumeDelay(Duration.standardSeconds(5)).withWatermark(c.timestamp());
     }
 
     @GetInitialRestriction
@@ -290,7 +308,8 @@ public class SplittableParDoTest {
     DoFn<Integer, String> fn = new SelfInitiatedResumeFn();
     Instant base = Instant.now();
     ProcessFnTester<Integer, String, SomeRestriction, SomeRestrictionTracker> tester =
-        new ProcessFnTester<>(base, fn, BigEndianIntegerCoder.of());
+        new ProcessFnTester<>(
+            base, fn, BigEndianIntegerCoder.of(), SerializableCoder.of(SomeRestriction.class));
 
     tester.startElement(42, new SomeRestriction());
     assertThat(tester.takeOutputElements(), contains("42"));
@@ -312,8 +331,7 @@ public class SplittableParDoTest {
     assertThat(tester.takeOutputElements(), contains("42"));
   }
 
-  @DefaultCoder(SerializableCoder.class)
-  private static class SomeCheckpoint {
+  private static class SomeCheckpoint implements Serializable {
     private int firstUnprocessedIndex;
 
     private SomeCheckpoint(int firstUnprocessedIndex) {
@@ -394,7 +412,8 @@ public class SplittableParDoTest {
     DoFn<Integer, String> fn = new CounterFn(3, 1);
     Instant base = Instant.now();
     ProcessFnTester<Integer, String, SomeCheckpoint, SomeCheckpointTracker> tester =
-        new ProcessFnTester<>(base, fn, BigEndianIntegerCoder.of());
+        new ProcessFnTester<>(
+            base, fn, BigEndianIntegerCoder.of(), SerializableCoder.of(SomeCheckpoint.class));
 
     tester.startElement(42, new SomeCheckpoint(0));
     assertThat(tester.takeOutputElements(), contains("42"));
@@ -418,7 +437,8 @@ public class SplittableParDoTest {
     int baseIndex = 42;
 
     ProcessFnTester<Integer, String, SomeCheckpoint, SomeCheckpointTracker> tester =
-        new ProcessFnTester<>(base, fn, BigEndianIntegerCoder.of());
+        new ProcessFnTester<>(
+            base, fn, BigEndianIntegerCoder.of(), SerializableCoder.of(SomeCheckpoint.class));
 
     List<String> elements;
 

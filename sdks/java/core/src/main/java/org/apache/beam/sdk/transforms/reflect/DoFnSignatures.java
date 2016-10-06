@@ -71,26 +71,9 @@ public class DoFnSignatures {
     TypeToken<? extends DoFn<?, ?>> fnToken = TypeToken.of(fnClass);
 
     // Extract the input and output type, and whether the fn is bounded.
-    PCollection.IsBounded isBounded = null;
     TypeToken<?> inputT = null;
     TypeToken<?> outputT = null;
     for (TypeToken<?> supertype : fnToken.getTypes()) {
-      if (supertype.getRawType().isAnnotationPresent(DoFn.Bounded.class)) {
-        errors.checkArgument(
-            isBounded == null,
-            "Both @%s and @%s specified",
-            DoFn.Bounded.class.getSimpleName(),
-            DoFn.Unbounded.class.getSimpleName());
-        isBounded = PCollection.IsBounded.BOUNDED;
-      }
-      if (supertype.getRawType().isAnnotationPresent(DoFn.Unbounded.class)) {
-        errors.checkArgument(
-            isBounded == null,
-            "Both @%s and @%s specified",
-            DoFn.Bounded.class.getSimpleName(),
-            DoFn.Unbounded.class.getSimpleName());
-        isBounded = PCollection.IsBounded.UNBOUNDED;
-      }
       if (!supertype.getRawType().equals(DoFn.class)) {
         continue;
       }
@@ -185,7 +168,43 @@ public class DoFnSignatures {
           newTracker = analyzeNewTrackerMethod(newTrackerErrors, fnToken, newTrackerMethod));
     }
 
+    builder.setIsBounded(inferBoundedness(fnToken, processElement, errors));
+
+    DoFnSignature signature = builder.build();
+
     // Additional validation for splittable DoFn's.
+    if (processElement.isSplittable()) {
+      verifySplittableMethods(signature, errors);
+    } else {
+      verifyUnsplittableMethods(errors, signature);
+    }
+
+    return signature;
+  }
+
+  private static PCollection.IsBounded inferBoundedness(
+      TypeToken<? extends DoFn> fnToken,
+      DoFnSignature.ProcessElementMethod processElement,
+      ErrorReporter errors) {
+    PCollection.IsBounded isBounded = null;
+    for (TypeToken<?> supertype : fnToken.getTypes()) {
+      if (supertype.getRawType().isAnnotationPresent(DoFn.Bounded.class)) {
+        errors.checkArgument(
+            isBounded == null,
+            "Both @%s and @%s specified",
+            DoFn.Bounded.class.getSimpleName(),
+            DoFn.Unbounded.class.getSimpleName());
+        isBounded = PCollection.IsBounded.BOUNDED;
+      }
+      if (supertype.getRawType().isAnnotationPresent(DoFn.Unbounded.class)) {
+        errors.checkArgument(
+            isBounded == null,
+            "Both @%s and @%s specified",
+            DoFn.Bounded.class.getSimpleName(),
+            DoFn.Unbounded.class.getSimpleName());
+        isBounded = PCollection.IsBounded.UNBOUNDED;
+      }
+    }
     if (processElement.isSplittable()) {
       if (isBounded == null) {
         isBounded =
@@ -193,84 +212,101 @@ public class DoFnSignatures {
                 ? PCollection.IsBounded.UNBOUNDED
                 : PCollection.IsBounded.BOUNDED;
       }
-      List<String> missingRequiredMethods = new ArrayList<>();
-      if (getInitialRestriction == null) {
-        missingRequiredMethods.add("@" + DoFn.GetInitialRestriction.class.getSimpleName());
-      }
-      if (newTracker == null) {
-        missingRequiredMethods.add("@" + DoFn.NewTracker.class.getSimpleName());
-      }
-      // @SplitRestriction and @GetRestrictionCoder are optional.
-      if (!missingRequiredMethods.isEmpty()) {
-        processElementErrors.throwIllegalArgument(
-            "Splittable, but does not define the following required methods: %s",
-            missingRequiredMethods);
-      }
-      processElementErrors.checkArgument(
-          processElement.trackerT().equals(newTracker.trackerT()),
-          "Has tracker type %s, but @%s method %s uses tracker type %s",
-          formatType(processElement.trackerT()),
-          DoFn.NewTracker.class.getSimpleName(),
-          format(newTrackerMethod),
-          formatType(newTracker.trackerT()));
-      getInitialRestrictionErrors.checkArgument(
-          getInitialRestriction.restrictionT().equals(newTracker.restrictionT()),
-          "Uses restriction type %s, but @%s method %s uses restriction type %s",
-          formatType(getInitialRestriction.restrictionT()),
-          DoFn.NewTracker.class.getSimpleName(),
-          format(newTrackerMethod),
-          formatType(newTracker.restrictionT()));
-      if (getRestrictionCoder != null) {
-        getInitialRestrictionErrors.checkArgument(
-            getRestrictionCoder
-                .coderT()
-                .isSubtypeOf(coderTypeOf(getInitialRestriction.restrictionT())),
-            "Uses restriction type %s, but @%s method %s returns %s "
-                + "which is not a subtype of %s",
-            formatType(getInitialRestriction.restrictionT()),
-            DoFn.GetRestrictionCoder.class.getSimpleName(),
-            format(getRestrictionCoderMethod),
-            formatType(getRestrictionCoder.coderT()),
-            formatType(coderTypeOf(getInitialRestriction.restrictionT())));
-      }
-      if (splitRestriction != null) {
-        getInitialRestrictionErrors.checkArgument(
-            splitRestriction.restrictionT().equals(getInitialRestriction.restrictionT()),
-            "Uses restriction type %s, but @%s method %s uses restriction type %s",
-            formatType(getInitialRestriction.restrictionT()),
-            DoFn.SplitRestriction.class.getSimpleName(),
-            format(splitRestrictionMethod),
-            formatType(splitRestriction.restrictionT()));
-      }
     } else {
-      processElementErrors.checkArgument(
+      errors.checkArgument(
           isBounded == null,
           "Non-splittable, but annotated as @"
               + ((isBounded == PCollection.IsBounded.BOUNDED)
                   ? DoFn.Bounded.class.getSimpleName()
                   : DoFn.Unbounded.class.getSimpleName()));
       isBounded = PCollection.IsBounded.BOUNDED;
+    }
+    return isBounded;
+  }
 
-      List<String> forbiddenMethods = new ArrayList<>();
-      if (getInitialRestriction != null) {
-        forbiddenMethods.add("@" + DoFn.GetInitialRestriction.class.getSimpleName());
-      }
-      if (splitRestriction != null) {
-        forbiddenMethods.add("@" + DoFn.SplitRestriction.class.getSimpleName());
-      }
-      if (newTracker != null) {
-        forbiddenMethods.add("@" + DoFn.NewTracker.class.getSimpleName());
-      }
-      if (getRestrictionCoder != null) {
-        forbiddenMethods.add("@" + DoFn.GetRestrictionCoder.class.getSimpleName());
-      }
-      processElementErrors.checkArgument(
-          forbiddenMethods.isEmpty(), "Non-splittable, but defines methods: %s", forbiddenMethods);
+  private static void verifySplittableMethods(DoFnSignature signature, ErrorReporter errors) {
+    DoFnSignature.ProcessElementMethod processElement = signature.processElement();
+    DoFnSignature.GetInitialRestrictionMethod getInitialRestriction =
+        signature.getInitialRestriction();
+    DoFnSignature.NewTrackerMethod newTracker = signature.newTracker();
+    DoFnSignature.GetRestrictionCoderMethod getRestrictionCoder = signature.getRestrictionCoder();
+    DoFnSignature.SplitRestrictionMethod splitRestriction = signature.splitRestriction();
+
+    ErrorReporter processElementErrors =
+        errors.forMethod(DoFn.ProcessElement.class, processElement.targetMethod());
+
+    List<String> missingRequiredMethods = new ArrayList<>();
+    if (getInitialRestriction == null) {
+      missingRequiredMethods.add("@" + DoFn.GetInitialRestriction.class.getSimpleName());
+    }
+    if (newTracker == null) {
+      missingRequiredMethods.add("@" + DoFn.NewTracker.class.getSimpleName());
+    }
+    if (!missingRequiredMethods.isEmpty()) {
+      processElementErrors.throwIllegalArgument(
+          "Splittable, but does not define the following required methods: %s",
+          missingRequiredMethods);
     }
 
-    builder.setIsBounded(isBounded);
+    processElementErrors.checkArgument(
+        processElement.trackerT().equals(newTracker.trackerT()),
+        "Has tracker type %s, but @%s method %s uses tracker type %s",
+        formatType(processElement.trackerT()),
+        DoFn.NewTracker.class.getSimpleName(),
+        format(newTracker.targetMethod()),
+        formatType(newTracker.trackerT()));
 
-    return builder.build();
+    ErrorReporter getInitialRestrictionErrors =
+        errors.forMethod(DoFn.GetInitialRestriction.class, getInitialRestriction.targetMethod());
+    TypeToken<?> restrictionT = getInitialRestriction.restrictionT();
+
+    getInitialRestrictionErrors.checkArgument(
+        restrictionT.equals(newTracker.restrictionT()),
+        "Uses restriction type %s, but @%s method %s uses restriction type %s",
+        formatType(restrictionT),
+        DoFn.NewTracker.class.getSimpleName(),
+        format(newTracker.targetMethod()),
+        formatType(newTracker.restrictionT()));
+
+    if (getRestrictionCoder != null) {
+      getInitialRestrictionErrors.checkArgument(
+          getRestrictionCoder.coderT().isSubtypeOf(coderTypeOf(restrictionT)),
+          "Uses restriction type %s, but @%s method %s returns %s "
+              + "which is not a subtype of %s",
+          formatType(restrictionT),
+          DoFn.GetRestrictionCoder.class.getSimpleName(),
+          format(getRestrictionCoder.targetMethod()),
+          formatType(getRestrictionCoder.coderT()),
+          formatType(coderTypeOf(restrictionT)));
+    }
+
+    if (splitRestriction != null) {
+      getInitialRestrictionErrors.checkArgument(
+          splitRestriction.restrictionT().equals(restrictionT),
+          "Uses restriction type %s, but @%s method %s uses restriction type %s",
+          formatType(restrictionT),
+          DoFn.SplitRestriction.class.getSimpleName(),
+          format(splitRestriction.targetMethod()),
+          formatType(splitRestriction.restrictionT()));
+    }
+  }
+
+  private static void verifyUnsplittableMethods(ErrorReporter errors, DoFnSignature signature) {
+    List<String> forbiddenMethods = new ArrayList<>();
+    if (signature.getInitialRestriction() != null) {
+      forbiddenMethods.add("@" + DoFn.GetInitialRestriction.class.getSimpleName());
+    }
+    if (signature.splitRestriction() != null) {
+      forbiddenMethods.add("@" + DoFn.SplitRestriction.class.getSimpleName());
+    }
+    if (signature.newTracker() != null) {
+      forbiddenMethods.add("@" + DoFn.NewTracker.class.getSimpleName());
+    }
+    if (signature.getRestrictionCoder() != null) {
+      forbiddenMethods.add("@" + DoFn.GetRestrictionCoder.class.getSimpleName());
+    }
+    errors.checkArgument(
+        forbiddenMethods.isEmpty(), "Non-splittable, but defines methods: %s", forbiddenMethods);
   }
 
   /**
@@ -453,22 +489,25 @@ public class DoFnSignatures {
       ErrorReporter errors, TypeToken<? extends DoFn> fnToken, Method m, TypeToken<?> inputT) {
     // Method is of the form:
     // @SplitRestriction
-    // List<RestrictionT> splitRestriction(InputT element, RestrictionT restriction);
+    // void splitRestriction(InputT element, RestrictionT restriction);
+    errors.checkArgument(void.class.equals(m.getReturnType()), "Must return void");
+
     Type[] params = m.getGenericParameterTypes();
-    errors.checkArgument(params.length == 2, "Must have exactly 2 arguments");
+    errors.checkArgument(params.length == 3, "Must have exactly 3 arguments");
     errors.checkArgument(
         fnToken.resolveType(params[0]).equals(inputT),
         "First argument must be the element type %s",
         formatType(inputT));
 
     TypeToken<?> restrictionT = fnToken.resolveType(params[1]);
-    TypeToken<? extends List<?>> expectedReturnT = listTypeOf(restrictionT);
-    TypeToken<?> returnT = fnToken.resolveType(m.getGenericReturnType());
+    TypeToken<?> receiverT = fnToken.resolveType(params[2]);
+    TypeToken<?> expectedReceiverT = outputReceiverTypeOf(restrictionT);
     errors.checkArgument(
-        returnT.equals(expectedReturnT),
-        "Must return %s, but returns %s",
-        formatType(expectedReturnT),
-        formatType(returnT));
+        receiverT.equals(expectedReceiverT),
+        "Third argument must be %s, but is %s",
+        formatType(expectedReceiverT),
+        formatType(receiverT));
+
     return DoFnSignature.SplitRestrictionMethod.create(m, restrictionT);
   }
 

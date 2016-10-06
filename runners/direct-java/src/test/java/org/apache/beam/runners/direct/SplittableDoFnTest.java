@@ -47,6 +47,8 @@ import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.joda.time.MutableDateTime;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
 
 /**
  * Tests for <a href="https://s.apache.org/splittable-do-fn>splittable</a> {@link DoFn} behavior
@@ -54,6 +56,7 @@ import org.junit.Test;
  *
  * <p>TODO: make this use @RunnableOnService.
  */
+@RunWith(JUnit4.class)
 public class SplittableDoFnTest {
   static class OffsetRange implements Serializable {
     public final int from;
@@ -118,10 +121,10 @@ public class SplittableDoFnTest {
     }
 
     @SplitRestriction
-    public List<OffsetRange> splitRange(String element, OffsetRange range) {
-      return Arrays.asList(
-          new OffsetRange(range.from, (range.from + range.to) / 2),
-          new OffsetRange((range.from + range.to) / 2, range.to));
+    public void splitRange(
+        String element, OffsetRange range, OutputReceiver<OffsetRange> receiver) {
+      receiver.output(new OffsetRange(range.from, (range.from + range.to) / 2));
+      receiver.output(new OffsetRange((range.from + range.to) / 2, range.to));
     }
 
     @NewTracker

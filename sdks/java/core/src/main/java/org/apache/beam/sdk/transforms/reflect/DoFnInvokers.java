@@ -179,13 +179,14 @@ public class DoFnInvokers {
     }
 
     @Override
-    public <RestrictionT> Coder<RestrictionT> invokeGetRestrictionCoder() {
+    public <RestrictionT> Coder<RestrictionT> invokeGetRestrictionCoder(
+        CoderRegistry coderRegistry) {
       throw new UnsupportedOperationException("OldDoFn is not splittable");
     }
 
     @Override
-    public <RestrictionT> List<RestrictionT> invokeSplitRestriction(
-        InputT element, RestrictionT restriction) {
+    public <RestrictionT> void invokeSplitRestriction(
+        InputT element, RestrictionT restriction, DoFn.OutputReceiver<RestrictionT> receiver) {
       throw new UnsupportedOperationException("OldDoFn is not splittable");
     }
 
@@ -251,20 +252,14 @@ public class DoFnInvokers {
   public static class DefaultSplitRestriction {
     /** Doesn't split the restriction. */
     @SuppressWarnings("unused")
-    public static <InputT, RestrictionT> List<RestrictionT> invokeSplitRestriction(
-        InputT element, RestrictionT restriction) {
-      return Collections.singletonList(restriction);
+    public static <InputT, RestrictionT> void invokeSplitRestriction(
+        InputT element, RestrictionT restriction, DoFn.OutputReceiver<RestrictionT> receiver) {
+      receiver.output(restriction);
     }
   }
 
-  /** Default implementation of {@link DoFn.SplitRestriction}, for delegation by bytebuddy. */
+  /** Default implementation of {@link DoFn.GetRestrictionCoder}, for delegation by bytebuddy. */
   public static class DefaultRestrictionCoder {
-    private static final CoderRegistry CODER_REGISTRY = new CoderRegistry();
-
-    static {
-      CODER_REGISTRY.registerStandardCoders();
-    }
-
     private final TypeToken<?> restrictionType;
 
     DefaultRestrictionCoder(TypeToken<?> restrictionType) {
@@ -273,9 +268,9 @@ public class DoFnInvokers {
 
     /** Doesn't split the restriction. */
     @SuppressWarnings({"unused", "unchecked"})
-    public <RestrictionT> Coder<RestrictionT> invokeGetRestrictionCoder()
+    public <RestrictionT> Coder<RestrictionT> invokeGetRestrictionCoder(CoderRegistry registry)
         throws CannotProvideCoderException {
-      return (Coder) CODER_REGISTRY.getCoder(TypeDescriptor.of(restrictionType.getType()));
+      return (Coder) registry.getCoder(TypeDescriptor.of(restrictionType.getType()));
     }
   }
 
@@ -285,6 +280,27 @@ public class DoFnInvokers {
 
     final TypeDescription clazzDescription = new TypeDescription.ForLoadedType(fnClass);
 
+    final Implementation splitRestrictionDelegation;
+    if (signature.splitRestriction() == null) {
+      splitRestrictionDelegation = MethodDelegation.to(DefaultSplitRestriction.class);
+    } else {
+      splitRestrictionDelegation =
+          new DowncastingParametersMethodDelegation(signature.splitRestriction().targetMethod());
+    }
+    final Implementation getRestrictionCoderDelegation;
+    if (signature.processElement().isSplittable()) {
+      if (signature.getRestrictionCoder() == null) {
+        getRestrictionCoderDelegation =
+            MethodDelegation.to(
+                new DefaultRestrictionCoder(signature.getInitialRestriction().restrictionT()));
+      } else {
+        getRestrictionCoderDelegation =
+            new DowncastingParametersMethodDelegation(
+                signature.getRestrictionCoder().targetMethod());
+      }
+    } else {
+      getRestrictionCoderDelegation = ExceptionMethod.throwing(UnsupportedOperationException.class);
+    }
     DynamicType.Builder<?> builder =
         new ByteBuddy()
             // Create subclasses inside the target class, to have access to
@@ -316,21 +332,9 @@ public class DoFnInvokers {
             .method(ElementMatchers.named("invokeGetInitialRestriction"))
             .intercept(delegateWithDowncastOrThrow(signature.getInitialRestriction()))
             .method(ElementMatchers.named("invokeSplitRestriction"))
-            .intercept(
-                (signature.splitRestriction() == null)
-                    ? MethodDelegation.to(DefaultSplitRestriction.class)
-                    : new DowncastingParametersMethodDelegation(
-                        signature.splitRestriction().targetMethod()))
+            .intercept(splitRestrictionDelegation)
             .method(ElementMatchers.named("invokeGetRestrictionCoder"))
-            .intercept(
-                signature.processElement().isSplittable()
-                    ? ((signature.getRestrictionCoder() == null)
-                        ? MethodDelegation.to(
-                            new DefaultRestrictionCoder(
-                                signature.getInitialRestriction().restrictionT()))
-                        : new DowncastingParametersMethodDelegation(
-                            signature.getRestrictionCoder().targetMethod()))
-                    : ExceptionMethod.throwing(UnsupportedOperationException.class))
+            .intercept(getRestrictionCoderDelegation)
             .method(ElementMatchers.named("invokeNewTracker"))
             .intercept(delegateWithDowncastOrThrow(signature.newTracker()));
 

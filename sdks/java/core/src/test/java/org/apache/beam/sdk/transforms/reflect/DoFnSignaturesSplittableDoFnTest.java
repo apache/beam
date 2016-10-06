@@ -101,10 +101,11 @@ public class DoFnSignaturesSplittableDoFnTest {
   }
 
   @Test
-  public void testInfersBoundedness() throws Exception {
-    class BaseFn extends DoFn<Integer, String> {
+  public void testInfersBoundednessFromAnnotation() throws Exception {
+    class BaseSplittableFn extends DoFn<Integer, String> {
       @ProcessElement
-      public void processElement(ProcessContext context, SomeRestrictionTracker tracker) {}
+      public void processElement(ProcessContext context, SomeRestrictionTracker tracker) {
+      }
 
       @GetInitialRestriction
       public SomeRestriction getInitialRestriction(Integer element) {
@@ -118,62 +119,77 @@ public class DoFnSignaturesSplittableDoFnTest {
     }
 
     @Bounded
-    class BoundedFn extends BaseFn {}
+    class BoundedSplittableFn extends BaseSplittableFn {
+    }
 
     @Unbounded
-    class UnboundedFn extends BaseFn {}
-
-    assertEquals(
-        PCollection.IsBounded.BOUNDED,
-        DoFnSignatures.INSTANCE.getOrParseSignature(BaseFn.class).isBounded());
-    assertEquals(
-        PCollection.IsBounded.BOUNDED,
-        DoFnSignatures.INSTANCE.getOrParseSignature(BoundedFn.class).isBounded());
-    assertEquals(
-        PCollection.IsBounded.UNBOUNDED,
-        DoFnSignatures.INSTANCE.getOrParseSignature(UnboundedFn.class).isBounded());
-
-    class BaseFnWithContinuation extends DoFn<Integer, String> {
-      @ProcessElement
-      public ProcessContinuation processElement(
-          ProcessContext context, SomeRestrictionTracker tracker) {
-        return null;
-      }
-
-      @GetInitialRestriction
-      public SomeRestriction getInitialRestriction(Integer element) {
-        return null;
-      }
-
-      @NewTracker
-      public SomeRestrictionTracker newTracker(SomeRestriction restriction) {
-        return null;
-      }
+    class UnboundedSplittableFn extends BaseSplittableFn {
     }
 
+    assertEquals(
+        PCollection.IsBounded.BOUNDED,
+        DoFnSignatures.INSTANCE.getOrParseSignature(BaseSplittableFn.class).isBounded());
+    assertEquals(
+        PCollection.IsBounded.BOUNDED,
+        DoFnSignatures.INSTANCE.getOrParseSignature(BoundedSplittableFn.class).isBounded());
+    assertEquals(
+        PCollection.IsBounded.UNBOUNDED,
+        DoFnSignatures.INSTANCE.getOrParseSignature(UnboundedSplittableFn.class).isBounded());
+  }
+
+  @Test
+  public void testUnsplittableIsBounded() throws Exception {
+    class UnsplittableFn extends DoFn<Integer, String> {
+      @ProcessElement
+      public void process(ProcessContext context) {
+      }
+    }
+    assertEquals(
+        PCollection.IsBounded.BOUNDED,
+        DoFnSignatures.INSTANCE.getOrParseSignature(UnsplittableFn.class).isBounded());
+
+  }
+
+  private static class BaseFnWithContinuation extends DoFn<Integer, String> {
+    @ProcessElement
+    public ProcessContinuation processElement(
+        ProcessContext context, SomeRestrictionTracker tracker) {
+      return null;
+    }
+
+    @GetInitialRestriction
+    public SomeRestriction getInitialRestriction(Integer element) {
+      return null;
+    }
+
+    @NewTracker
+    public SomeRestrictionTracker newTracker(SomeRestriction restriction) {
+      return null;
+    }
+  }
+
+  @Test
+  public void testSplittableIsBoundedByDefault() throws Exception {
+    assertEquals(
+        PCollection.IsBounded.UNBOUNDED,
+        DoFnSignatures.INSTANCE.getOrParseSignature(BaseFnWithContinuation.class).isBounded());
+  }
+
+  @Test
+  public void testSplittableRespectsBoundednessAnnotation() throws Exception {
     @Bounded
     class BoundedFnWithContinuation extends BaseFnWithContinuation {}
+
+    assertEquals(
+        PCollection.IsBounded.BOUNDED,
+        DoFnSignatures.INSTANCE.getOrParseSignature(BoundedFnWithContinuation.class).isBounded());
 
     @Unbounded
     class UnboundedFnWithContinuation extends BaseFnWithContinuation {}
 
     assertEquals(
         PCollection.IsBounded.UNBOUNDED,
-        DoFnSignatures.INSTANCE.getOrParseSignature(BaseFnWithContinuation.class).isBounded());
-    assertEquals(
-        PCollection.IsBounded.BOUNDED,
-        DoFnSignatures.INSTANCE.getOrParseSignature(BoundedFnWithContinuation.class).isBounded());
-    assertEquals(
-        PCollection.IsBounded.UNBOUNDED,
         DoFnSignatures.INSTANCE.getOrParseSignature(UnboundedFnWithContinuation.class).isBounded());
-
-    class UnsplittableFn extends DoFn<Integer, String> {
-      @ProcessElement
-      public void process(ProcessContext context) {}
-    }
-    assertEquals(
-        PCollection.IsBounded.BOUNDED,
-        DoFnSignatures.INSTANCE.getOrParseSignature(UnsplittableFn.class).isBounded());
   }
 
   @Test
@@ -216,9 +232,8 @@ public class DoFnSignaturesSplittableDoFnTest {
       }
 
       @SplitRestriction
-      public List<SomeRestriction> splitRestriction(Integer element, SomeRestriction restriction) {
-        return null;
-      }
+      public void splitRestriction(
+          Integer element, SomeRestriction restriction, OutputReceiver<SomeRestriction> receiver) {}
 
       @NewTracker
       public SomeRestrictionTracker newTracker(SomeRestriction restriction) {
@@ -261,9 +276,8 @@ public class DoFnSignaturesSplittableDoFnTest {
       }
 
       @SplitRestriction
-      public List<RestrictionT> splitRestriction(Integer element, RestrictionT restriction) {
-        return null;
-      }
+      public void splitRestriction(
+          Integer element, RestrictionT restriction, OutputReceiver<RestrictionT> receiver) {}
 
       @NewTracker
       public TrackerT newTracker(RestrictionT restriction) {
@@ -376,14 +390,14 @@ public class DoFnSignaturesSplittableDoFnTest {
 
   @Test
   public void testSplitRestrictionReturnsWrongType() throws Exception {
-    thrown.expectMessage("Must return List<SomeRestriction>, but returns List<String>");
+    thrown.expectMessage(
+        "Third argument must be OutputReceiver<SomeRestriction>, but is OutputReceiver<String>");
     DoFnSignatures.analyzeSplitRestrictionMethod(
         errors(),
         TypeToken.of(FakeDoFn.class),
         new AnonymousMethod() {
-          List<String> method(Integer element, SomeRestriction restriction) {
-            return null;
-          }
+          void method(
+              Integer element, SomeRestriction restriction, DoFn.OutputReceiver<String> receiver) {}
         }.getMethod(),
         TypeToken.of(Integer.class));
   }
@@ -401,24 +415,26 @@ public class DoFnSignaturesSplittableDoFnTest {
         errors(),
         TypeToken.of(FakeDoFn.class),
         new AnonymousMethod() {
-          List<SomeRestriction> method(String element, SomeRestriction restriction) {
-            return null;
-          }
+          void method(
+              String element,
+              SomeRestriction restriction,
+              DoFn.OutputReceiver<SomeRestriction> receiver) {}
         }.getMethod(),
         TypeToken.of(Integer.class));
   }
 
   @Test
   public void testSplitRestrictionWrongNumArguments() throws Exception {
-    thrown.expectMessage("Must have exactly 2 arguments");
+    thrown.expectMessage("Must have exactly 3 arguments");
     DoFnSignatures.analyzeSplitRestrictionMethod(
         errors(),
         TypeToken.of(FakeDoFn.class),
         new AnonymousMethod() {
-          private List<SomeRestriction> method(
-              Integer element, SomeRestriction restriction, Object extra) {
-            return null;
-          }
+          private void method(
+              Integer element,
+              SomeRestriction restriction,
+              DoFn.OutputReceiver<SomeRestriction> receiver,
+              Object extra) {}
         }.getMethod(),
         TypeToken.of(Integer.class));
   }
@@ -442,17 +458,18 @@ public class DoFnSignaturesSplittableDoFnTest {
       }
 
       @DoFn.SplitRestriction
-      public List<OtherRestriction> splitRestriction(
-          Integer element, OtherRestriction restriction) {
-        return null;
-      }
+      public void splitRestriction(
+          Integer element,
+          OtherRestriction restriction,
+          OutputReceiver<OtherRestriction> receiver) {}
     }
 
     thrown.expectMessage(
         "getInitialRestriction(Integer): Uses restriction type SomeRestriction, "
             + "but @SplitRestriction method ");
     thrown.expectMessage(
-        "splitRestriction(Integer, OtherRestriction) uses restriction type OtherRestriction");
+        "splitRestriction(Integer, OtherRestriction, OutputReceiver) "
+            + "uses restriction type OtherRestriction");
     DoFnSignatures.INSTANCE.getOrParseSignature(BadFn.class);
   }
 
@@ -470,9 +487,8 @@ public class DoFnSignaturesSplittableDoFnTest {
       }
 
       @SplitRestriction
-      public List<SomeRestriction> splitRestriction(Integer element, SomeRestriction restriction) {
-        return null;
-      }
+      public void splitRestriction(
+          Integer element, SomeRestriction restriction, OutputReceiver<SomeRestriction> receiver) {}
 
       @NewTracker
       public SomeRestrictionTracker newTracker(SomeRestriction restriction) {

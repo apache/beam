@@ -17,8 +17,8 @@
  */
 package org.apache.beam.sdk.transforms.reflect;
 
-import java.util.List;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 
@@ -56,11 +56,13 @@ public interface DoFnInvoker<InputT, OutputT> {
   <RestrictionT> RestrictionT invokeGetInitialRestriction(InputT element);
 
   /** Invoke the {@link DoFn.GetRestrictionCoder} method on the bound {@link DoFn}. */
-  <RestrictionT> Coder<RestrictionT> invokeGetRestrictionCoder();
+  <RestrictionT> Coder<RestrictionT> invokeGetRestrictionCoder(CoderRegistry coderRegistry);
 
   /** Invoke the {@link DoFn.SplitRestriction} method on the bound {@link DoFn}. */
-  <RestrictionT> List<RestrictionT> invokeSplitRestriction(
-      InputT element, RestrictionT restriction);
+  <RestrictionT> void invokeSplitRestriction(
+      InputT element,
+      RestrictionT restriction,
+      DoFn.OutputReceiver<RestrictionT> restrictionReceiver);
 
   /** Invoke the {@link DoFn.NewTracker} method on the bound {@link DoFn}. */
   <RestrictionT, TrackerT extends RestrictionTracker<RestrictionT>> TrackerT invokeNewTracker(

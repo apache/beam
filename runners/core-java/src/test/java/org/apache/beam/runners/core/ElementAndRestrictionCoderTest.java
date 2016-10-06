@@ -15,23 +15,32 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.coders;
+package org.apache.beam.runners.core;
 
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import org.apache.beam.sdk.coders.BigEndianLongCoder;
+import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.CoderException;
+import org.apache.beam.sdk.coders.ListCoder;
+import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.coders.VarIntCoder;
+import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.testing.CoderProperties;
 import org.apache.beam.sdk.util.CoderUtils;
-import org.apache.beam.sdk.values.KV;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/** Test case for {@link KvCoder}. */
+/**
+ * Tests for {@link ElementAndRestrictionCoder}. Parroted from {@link
+ * org.apache.beam.sdk.coders.KvCoderTest}.
+ */
 @RunWith(JUnit4.class)
-public class KvCoderTest {
+public class ElementAndRestrictionCoderTest {
   private static class CoderAndData<T> {
     Coder<T> coder;
     List<T> data;
@@ -59,8 +68,11 @@ public class KvCoderTest {
               Arrays.asList(-1L, 0L, 1L, 13L, Long.MAX_VALUE, Long.MIN_VALUE)),
           coderAndData(StringUtf8Coder.of(), Arrays.asList("", "hello", "goodbye", "1")),
           coderAndData(
-              KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of()),
-              Arrays.asList(KV.of("", -1), KV.of("hello", 0), KV.of("goodbye", Integer.MAX_VALUE))),
+              ElementAndRestrictionCoder.of(StringUtf8Coder.of(), VarIntCoder.of()),
+              Arrays.asList(
+                  ElementAndRestriction.of("", -1),
+                  ElementAndRestriction.of("hello", 0),
+                  ElementAndRestriction.of("goodbye", Integer.MAX_VALUE))),
           coderAndData(
               ListCoder.of(VarLongCoder.of()),
               Arrays.asList(Arrays.asList(1L, 2L, 3L), Collections.<Long>emptyList())));
@@ -75,39 +87,12 @@ public class KvCoderTest {
           Coder valueCoder = valueCoderAndData.coderAndData.coder;
           for (Object value : valueCoderAndData.coderAndData.data) {
             CoderProperties.coderDecodeEncodeEqual(
-                KvCoder.of(keyCoder, valueCoder), KV.of(key, value));
+                ElementAndRestrictionCoder.of(keyCoder, valueCoder),
+                ElementAndRestriction.of(key, value));
           }
         }
       }
     }
-  }
-
-  // If this changes, it implies the binary format has changed!
-  private static final String EXPECTED_ENCODING_ID = "";
-
-  @Test
-  public void testEncodingId() throws Exception {
-    CoderProperties.coderHasEncodingId(
-        KvCoder.of(VarIntCoder.of(), VarIntCoder.of()), EXPECTED_ENCODING_ID);
-  }
-
-  /** Homogeneously typed test value for ease of use with the wire format test utility. */
-  private static final Coder<KV<String, Integer>> TEST_CODER =
-      KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of());
-
-  private static final List<KV<String, Integer>> TEST_VALUES =
-      Arrays.asList(KV.of("", -1), KV.of("hello", 0), KV.of("goodbye", Integer.MAX_VALUE));
-
-  /**
-   * Generated data to check that the wire format has not changed. To regenerate, see {@link
-   * org.apache.beam.sdk.coders.PrintBase64Encodings}.
-   */
-  private static final List<String> TEST_ENCODINGS =
-      Arrays.asList("AP____8P", "BWhlbGxvAA", "B2dvb2RieWX_____Bw");
-
-  @Test
-  public void testWireFormatEncode() throws Exception {
-    CoderProperties.coderEncodesBase64(TEST_CODER, TEST_VALUES, TEST_ENCODINGS);
   }
 
   @Rule public ExpectedException thrown = ExpectedException.none();
@@ -115,8 +100,9 @@ public class KvCoderTest {
   @Test
   public void encodeNullThrowsCoderException() throws Exception {
     thrown.expect(CoderException.class);
-    thrown.expectMessage("cannot encode a null KV");
+    thrown.expectMessage("cannot encode a null ElementAndRestriction");
 
-    CoderUtils.encodeToBase64(TEST_CODER, null);
+    CoderUtils.encodeToBase64(
+        ElementAndRestrictionCoder.of(StringUtf8Coder.of(), VarIntCoder.of()), null);
   }
 }

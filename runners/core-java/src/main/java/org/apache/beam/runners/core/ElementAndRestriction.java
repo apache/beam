@@ -27,16 +27,16 @@ import org.apache.beam.sdk.transforms.DoFn;
  */
 @Experimental(Experimental.Kind.SPLITTABLE_DO_FN)
 @AutoValue
-public abstract class ElementRestriction<ElementT, RestrictionT> {
+public abstract class ElementAndRestriction<ElementT, RestrictionT> {
   /** The element to process. */
   public abstract ElementT element();
 
   /** The restriction applied to processing the element. */
   public abstract RestrictionT restriction();
 
-  /** Constructs the tuple. */
-  public static <InputT, RestrictionT> ElementRestriction<InputT, RestrictionT> of(
+  /** Constructs the {@link ElementAndRestriction}. */
+  public static <InputT, RestrictionT> ElementAndRestriction<InputT, RestrictionT> of(
       InputT element, RestrictionT restriction) {
-    return new AutoValue_ElementRestriction<>(element, restriction);
+    return new AutoValue_ElementAndRestriction<>(element, restriction);
   }
 }

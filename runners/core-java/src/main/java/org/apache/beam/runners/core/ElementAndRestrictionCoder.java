@@ -22,22 +22,26 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.CustomCoder;
+import org.apache.beam.sdk.coders.KvCoder;
 
-/** A {@link Coder} for {@link ElementRestriction}. */
+/** A {@link Coder} for {@link ElementAndRestriction}. Parroted from {@link KvCoder}. */
 @Experimental(Experimental.Kind.SPLITTABLE_DO_FN)
-public class ElementRestrictionCoder<ElementT, RestrictionT>
-    extends CustomCoder<ElementRestriction<ElementT, RestrictionT>> {
+public class ElementAndRestrictionCoder<ElementT, RestrictionT>
+    extends CustomCoder<ElementAndRestriction<ElementT, RestrictionT>> {
   private final Coder<ElementT> elementCoder;
   private final Coder<RestrictionT> restrictionCoder;
 
-  /** Creates an {@link ElementRestrictionCoder} from an element coder and a restriction coder. */
-  public static <ElementT, RestrictionT> ElementRestrictionCoder<ElementT, RestrictionT> of(
+  /**
+   * Creates an {@link ElementAndRestrictionCoder} from an element coder and a restriction coder.
+   */
+  public static <ElementT, RestrictionT> ElementAndRestrictionCoder<ElementT, RestrictionT> of(
       Coder<ElementT> elementCoder, Coder<RestrictionT> restrictionCoder) {
-    return new ElementRestrictionCoder<>(elementCoder, restrictionCoder);
+    return new ElementAndRestrictionCoder<>(elementCoder, restrictionCoder);
   }
 
-  private ElementRestrictionCoder(
+  private ElementAndRestrictionCoder(
       Coder<ElementT> elementCoder, Coder<RestrictionT> restrictionCoder) {
     this.elementCoder = elementCoder;
     this.restrictionCoder = restrictionCoder;
@@ -45,19 +49,22 @@ public class ElementRestrictionCoder<ElementT, RestrictionT>
 
   @Override
   public void encode(
-      ElementRestriction<ElementT, RestrictionT> value, OutputStream outStream, Context context)
+      ElementAndRestriction<ElementT, RestrictionT> value, OutputStream outStream, Context context)
       throws IOException {
+    if (value == null) {
+      throw new CoderException("cannot encode a null ElementAndRestriction");
+    }
     Context nestedContext = context.nested();
     elementCoder.encode(value.element(), outStream, nestedContext);
     restrictionCoder.encode(value.restriction(), outStream, nestedContext);
   }
 
   @Override
-  public ElementRestriction<ElementT, RestrictionT> decode(InputStream inStream, Context context)
+  public ElementAndRestriction<ElementT, RestrictionT> decode(InputStream inStream, Context context)
       throws IOException {
     Context nestedContext = context.nested();
     ElementT key = elementCoder.decode(inStream, nestedContext);
     RestrictionT value = restrictionCoder.decode(inStream, nestedContext);
-    return ElementRestriction.of(key, value);
+    return ElementAndRestriction.of(key, value);
   }
 }

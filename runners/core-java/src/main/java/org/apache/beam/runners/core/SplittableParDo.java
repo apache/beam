@@ -22,7 +22,6 @@ import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Iterables;
-import java.util.List;
 import java.util.UUID;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.Coder;
@@ -101,11 +100,13 @@ public class SplittableParDo<
   public PCollection<OutputT> apply(PCollection<InputT> input) {
     PCollection.IsBounded isFnBounded = signature.isBounded();
     Coder<RestrictionT> restrictionCoder =
-        DoFnInvokers.INSTANCE.newByteBuddyInvoker(fn).invokeGetRestrictionCoder();
-    Coder<ElementRestriction<InputT, RestrictionT>> splitCoder =
-        ElementRestrictionCoder.of(input.getCoder(), restrictionCoder);
+        DoFnInvokers.INSTANCE
+            .newByteBuddyInvoker(fn)
+            .invokeGetRestrictionCoder(input.getPipeline().getCoderRegistry());
+    Coder<ElementAndRestriction<InputT, RestrictionT>> splitCoder =
+        ElementAndRestrictionCoder.of(input.getCoder(), restrictionCoder);
 
-    PCollection<KeyedWorkItem<String, ElementRestriction<InputT, RestrictionT>>> keyedWorkItems =
+    PCollection<KeyedWorkItem<String, ElementAndRestriction<InputT, RestrictionT>>> keyedWorkItems =
         input
             .apply(
                 "Pair with initial restriction",
@@ -115,10 +116,10 @@ public class SplittableParDo<
             .setCoder(splitCoder)
             .apply(
                 "Assign unique key",
-                WithKeys.of(new RandomUniqueKeyFn<ElementRestriction<InputT, RestrictionT>>()))
+                WithKeys.of(new RandomUniqueKeyFn<ElementAndRestriction<InputT, RestrictionT>>()))
             .apply(
                 "Group by key",
-                new GBKIntoKeyedWorkItems<String, ElementRestriction<InputT, RestrictionT>>());
+                new GBKIntoKeyedWorkItems<String, ElementAndRestriction<InputT, RestrictionT>>());
     checkArgument(
         keyedWorkItems.getWindowingStrategy().getWindowFn() instanceof GlobalWindows,
         "GBKIntoKeyedWorkItems must produce a globally windowed collection, "
@@ -131,6 +132,7 @@ public class SplittableParDo<
                 new ProcessFn<InputT, OutputT, RestrictionT, TrackerT>(
                     fn,
                     input.getCoder(),
+                    restrictionCoder,
                     input.getWindowingStrategy().getWindowFn().windowCoder())))
         .setIsBoundedInternal(input.isBounded().and(isFnBounded))
         .setWindowingStrategyInternal(input.getWindowingStrategy());
@@ -152,7 +154,7 @@ public class SplittableParDo<
    * Pairs each input element with its initial restriction using the given splittable {@link DoFn}.
    */
   private static class PairWithRestrictionFn<InputT, OutputT, RestrictionT>
-      extends DoFn<InputT, ElementRestriction<InputT, RestrictionT>> {
+      extends DoFn<InputT, ElementAndRestriction<InputT, RestrictionT>> {
     private DoFn<InputT, OutputT> fn;
     private transient DoFnInvoker<InputT, OutputT> invoker;
 
@@ -168,7 +170,7 @@ public class SplittableParDo<
     @ProcessElement
     public void processElement(ProcessContext context) {
       context.output(
-          ElementRestriction.of(
+          ElementAndRestriction.of(
               context.element(),
               invoker.<RestrictionT>invokeGetInitialRestriction(context.element())));
     }
@@ -186,13 +188,12 @@ public class SplittableParDo<
   @VisibleForTesting
   static class ProcessFn<
           InputT, OutputT, RestrictionT, TrackerT extends RestrictionTracker<RestrictionT>>
-      extends OldDoFn<KeyedWorkItem<String, ElementRestriction<InputT, RestrictionT>>, OutputT> {
+      extends OldDoFn<KeyedWorkItem<String, ElementAndRestriction<InputT, RestrictionT>>, OutputT> {
     // Commit at least once every 10k output records.  This keeps the watermark advancing
     // smoothly, and ensures that not too much work will have to be reprocessed in the event of
     // a crash.
     // TODO: Also commit at least once every N seconds (runner-specific parameter).
-    @VisibleForTesting
-    static final int MAX_OUTPUTS_PER_BUNDLE = 10000;
+    @VisibleForTesting static final int MAX_OUTPUTS_PER_BUNDLE = 10000;
 
     /**
      * The state cell containing a watermark hold for the output of this {@link DoFn}. The hold is
@@ -232,14 +233,14 @@ public class SplittableParDo<
     ProcessFn(
         DoFn<InputT, OutputT> fn,
         Coder<InputT> elementCoder,
+        Coder<RestrictionT> restrictionCoder,
         Coder<? extends BoundedWindow> windowCoder) {
       this.fn = fn;
       this.windowCoder = windowCoder;
       elementTag =
           StateTags.value("element", WindowedValue.getFullCoder(elementCoder, this.windowCoder));
       DoFnInvoker<InputT, OutputT> invoker = DoFnInvokers.INSTANCE.newByteBuddyInvoker(fn);
-      restrictionTag =
-          StateTags.value("restriction", invoker.<RestrictionT>invokeGetRestrictionCoder());
+      restrictionTag = StateTags.value("restriction", restrictionCoder);
     }
 
     @Override
@@ -262,30 +263,32 @@ public class SplittableParDo<
       WatermarkHoldState<GlobalWindow> holdState =
           c.windowingInternals().stateInternals().state(stateNamespace, watermarkHoldTag);
 
-      ElementRestriction<WindowedValue<InputT>, RestrictionT> elementRestriction;
+      ElementAndRestriction<WindowedValue<InputT>, RestrictionT> elementAndRestriction;
       if (isSeedCall) {
         // The element and restriction are available in c.element().
-        WindowedValue<ElementRestriction<InputT, RestrictionT>> windowedValue =
+        WindowedValue<ElementAndRestriction<InputT, RestrictionT>> windowedValue =
             Iterables.getOnlyElement(c.element().elementsIterable());
         WindowedValue<InputT> element = windowedValue.withValue(windowedValue.getValue().element());
         elementState.write(element);
-        elementRestriction = ElementRestriction.of(element, windowedValue.getValue().restriction());
+        elementAndRestriction =
+            ElementAndRestriction.of(element, windowedValue.getValue().restriction());
       } else {
         // This is not the first ProcessElement call for this element/restriction - rather,
         // this is a timer firing, so we need to fetch the element and restriction from state.
         elementState.readLater();
         restrictionState.readLater();
-        elementRestriction = ElementRestriction.of(elementState.read(), restrictionState.read());
+        elementAndRestriction =
+            ElementAndRestriction.of(elementState.read(), restrictionState.read());
       }
 
-      final TrackerT tracker = invoker.invokeNewTracker(elementRestriction.restriction());
+      final TrackerT tracker = invoker.invokeNewTracker(elementAndRestriction.restriction());
       @SuppressWarnings("unchecked")
       final RestrictionT[] residual = (RestrictionT[]) new Object[1];
       // TODO: Only let the call run for a limited amount of time, rather than simply
       // producing a limited amount of output.
       DoFn.ProcessContinuation cont =
           invoker.invokeProcessElement(
-              makeContext(c, elementRestriction.element(), tracker, residual),
+              makeContext(c, elementAndRestriction.element(), tracker, residual),
               wrapTracker(tracker));
       if (residual[0] == null) {
         // This means the call completed unsolicited, and the context produced by makeContext()
@@ -389,62 +392,78 @@ public class SplittableParDo<
 
     /** Creates an {@link DoFn.ExtraContextFactory} that provides just the given tracker. */
     private DoFn.ExtraContextFactory<InputT, OutputT> wrapTracker(final TrackerT tracker) {
-      return new DoFn.ExtraContextFactory<InputT, OutputT>() {
-        @Override
-        public BoundedWindow window() {
-          // DoFnSignatures should have verified that this DoFn doesn't access extra context.
-          throw new IllegalStateException("Unexpected extra context access on a splittable DoFn");
-        }
+      return new ExtraContextFactoryForTracker<>(tracker);
+    }
 
-        @Override
-        public DoFn.InputProvider<InputT> inputProvider() {
-          // DoFnSignatures should have verified that this DoFn doesn't access extra context.
-          throw new IllegalStateException("Unexpected extra context access on a splittable DoFn");
-        }
+    private static class ExtraContextFactoryForTracker<
+            InputT, OutputT, TrackerT extends RestrictionTracker<?>>
+        implements DoFn.ExtraContextFactory<InputT, OutputT> {
+      private final TrackerT tracker;
 
-        @Override
-        public DoFn.OutputReceiver<OutputT> outputReceiver() {
-          // DoFnSignatures should have verified that this DoFn doesn't access extra context.
-          throw new IllegalStateException("Unexpected extra context access on a splittable DoFn");
-        }
+      ExtraContextFactoryForTracker(TrackerT tracker) {
+        this.tracker = tracker;
+      }
 
-        @Override
-        public WindowingInternals<InputT, OutputT> windowingInternals() {
-          // DoFnSignatures should have verified that this DoFn doesn't access extra context.
-          throw new IllegalStateException("Unexpected extra context access on a splittable DoFn");
-        }
+      @Override
+      public BoundedWindow window() {
+        // DoFnSignatures should have verified that this DoFn doesn't access extra context.
+        throw new IllegalStateException("Unexpected extra context access on a splittable DoFn");
+      }
 
-        @Override
-        public TrackerT restrictionTracker() {
-          return tracker;
-        }
-      };
+      @Override
+      public DoFn.InputProvider<InputT> inputProvider() {
+        // DoFnSignatures should have verified that this DoFn doesn't access extra context.
+        throw new IllegalStateException("Unexpected extra context access on a splittable DoFn");
+      }
+
+      @Override
+      public DoFn.OutputReceiver<OutputT> outputReceiver() {
+        // DoFnSignatures should have verified that this DoFn doesn't access extra context.
+        throw new IllegalStateException("Unexpected extra context access on a splittable DoFn");
+      }
+
+      @Override
+      public WindowingInternals<InputT, OutputT> windowingInternals() {
+        // DoFnSignatures should have verified that this DoFn doesn't access extra context.
+        throw new IllegalStateException("Unexpected extra context access on a splittable DoFn");
+      }
+
+      @Override
+      public TrackerT restrictionTracker() {
+        return tracker;
+      }
     }
   }
 
   /** Splits the restriction using the given {@link DoFn.SplitRestriction} method. */
   private static class SplitRestrictionFn<InputT, RestrictionT>
       extends DoFn<
-          ElementRestriction<InputT, RestrictionT>, ElementRestriction<InputT, RestrictionT>> {
-    private final DoFn<InputT, ?> fn;
+          ElementAndRestriction<InputT, RestrictionT>,
+          ElementAndRestriction<InputT, RestrictionT>> {
+    private final DoFn<InputT, ?> splittableFn;
     private transient DoFnInvoker<InputT, ?> invoker;
 
-    SplitRestrictionFn(DoFn<InputT, ?> fn) {
-      this.fn = fn;
+    SplitRestrictionFn(DoFn<InputT, ?> splittableFn) {
+      this.splittableFn = splittableFn;
     }
 
     @Setup
     public void setup() {
-      invoker = DoFnInvokers.INSTANCE.newByteBuddyInvoker(fn);
+      invoker = DoFnInvokers.INSTANCE.newByteBuddyInvoker(splittableFn);
     }
 
     @ProcessElement
-    public void processElement(ProcessContext c) {
-      List<RestrictionT> parts =
-          invoker.invokeSplitRestriction(c.element().element(), c.element().restriction());
-      for (RestrictionT part : parts) {
-        c.output(ElementRestriction.of(c.element().element(), part));
-      }
+    public void processElement(final ProcessContext c) {
+      final InputT element = c.element().element();
+      invoker.invokeSplitRestriction(
+          element,
+          c.element().restriction(),
+          new OutputReceiver<RestrictionT>() {
+            @Override
+            public void output(RestrictionT part) {
+              c.output(ElementAndRestriction.of(element, part));
+            }
+          });
     }
   }
 }
