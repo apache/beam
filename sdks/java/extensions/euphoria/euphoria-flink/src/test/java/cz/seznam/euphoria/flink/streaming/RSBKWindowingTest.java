@@ -11,12 +11,12 @@ import cz.seznam.euphoria.core.client.io.ListDataSink;
 import cz.seznam.euphoria.core.client.io.ListDataSource;
 import cz.seznam.euphoria.core.client.operator.MapElements;
 import cz.seznam.euphoria.core.client.operator.ReduceStateByKey;
-import cz.seznam.euphoria.core.client.operator.WindowedPair;
 import cz.seznam.euphoria.core.client.operator.state.ListStorage;
 import cz.seznam.euphoria.core.client.operator.state.ListStorageDescriptor;
 import cz.seznam.euphoria.core.client.operator.state.State;
 import cz.seznam.euphoria.core.client.operator.state.StorageProvider;
 import cz.seznam.euphoria.core.client.util.Pair;
+import cz.seznam.euphoria.core.client.util.Triple;
 import cz.seznam.euphoria.flink.TestFlinkExecutor;
 import org.junit.Test;
 
@@ -74,7 +74,7 @@ public class RSBKWindowingTest {
 
   @Test
   public void testEventWindowing() throws Exception {
-    ListDataSink<WindowedPair<TimeInterval, String, Pair<String, Integer>>> output
+    ListDataSink<Triple<TimeInterval, String, Pair<String, Integer>>> output
         = ListDataSink.get(1);
 
     ListDataSource<Pair<String, Integer>> source =
@@ -91,18 +91,21 @@ public class RSBKWindowingTest {
             .withFinalDelay(Duration.ofMillis(1000));
 
     Flow f = Flow.create("test-windowing");
-    ReduceStateByKey.of(f.createInput(source))
+    Dataset<Pair<String, Pair<String, Integer>>> reduced =
+        ReduceStateByKey.of(f.createInput(source))
         .keyBy(Pair::getFirst)
         .valueBy(e -> e)
-        .stateFactory((StateFactory<Pair<String, Integer>, AccState<Pair<String, Integer>>>) AccState::new)
+        .stateFactory((StateFactory<Pair<String, Integer>, AccState<Pair<String,
+            Integer>>>) AccState::new)
         .combineStateBy(AccState::combine)
         .windowBy(Time.of(Duration.ofMillis(5))
             // ~ event time
             .using((UnaryFunction<Pair<String, Integer>, Long>) what ->
                 (long) what.getSecond()))
         .setNumPartitions(1)
-        .outputWindowed()
-        .persist(output);
+        .output();
+
+    Util.extractWindows(reduced, TimeInterval.class).persist(output);
 
     new TestFlinkExecutor()
         .setAllowedLateness(Duration.ofMillis(0))
@@ -116,13 +119,13 @@ public class RSBKWindowingTest {
             "5: three/three/7"),
         output.getOutput(0)
             .stream()
-            .map(p -> p.getWindowLabel().getStartMillis() + ": " + p.getFirst() + "/" + p.getSecond().getFirst() + "/" + p.getSecond().getSecond())
+            .map(p -> p.getFirst().getStartMillis() + ": " + p.getSecond() + "/" + p.getThird().getFirst() + "/" + p.getThird().getSecond())
             .collect(Collectors.toList()));
   }
 
   @Test
   public void testEventWindowing_attachedWindowing() throws Exception {
-    ListDataSink<WindowedPair<TimeInterval, String, Pair<String, Integer>>> output
+    ListDataSink<Triple<TimeInterval, String, Pair<String, Integer>>> output
         = ListDataSink.get(1);
 
     ListDataSource<Pair<String, Integer>> source =
@@ -141,8 +144,7 @@ public class RSBKWindowingTest {
     Flow f = Flow.create("test-attached-windowing");
 
     Dataset<Pair<String, Pair<String, Integer>>> firstStep =
-        ReduceStateByKey.of(f
-            .createInput(source))
+        ReduceStateByKey.of(f.createInput(source))
             .keyBy(Pair::getFirst)
             .valueBy(e -> e)
             .stateFactory((StateFactory<Pair<String, Integer>, AccState<Pair<String, Integer>>>) AccState::new)
@@ -157,18 +159,21 @@ public class RSBKWindowingTest {
     Dataset<Pair<String, Integer>> secondStep =
         MapElements.of(firstStep).using(p -> p.getSecond()).output();
 
-    ReduceStateByKey.of(secondStep)
+    Dataset<Pair<String, Pair<String, Integer>>> reduced =
+        ReduceStateByKey.of(secondStep)
         .keyBy(Pair::getFirst)
         .valueBy(e -> e)
-        .stateFactory((StateFactory<Pair<String, Integer>, AccState<Pair<String, Integer>>>) AccState::new)
+        .stateFactory((StateFactory<Pair<String, Integer>, AccState<Pair<String,
+            Integer>>>) AccState::new)
         .combineStateBy(AccState::combine)
         .windowBy(Time.of(Duration.ofMillis(5))
             // ~ event time
             .using((UnaryFunction<Pair<String, Integer>, Long>) what ->
                 (long) what.getSecond()))
         .setNumPartitions(1)
-        .outputWindowed()
-        .persist(output);
+        .output();
+
+    Util.extractWindows(reduced, TimeInterval.class).persist(output);
 
     new TestFlinkExecutor()
         .setAllowedLateness(Duration.ofMillis(0))
@@ -182,7 +187,7 @@ public class RSBKWindowingTest {
             "5: three/three/7"),
         output.getOutput(0)
             .stream()
-            .map(p -> p.getWindowLabel().getStartMillis() + ": " + p.getFirst() + "/" + p.getSecond().getFirst() + "/" + p.getSecond().getSecond())
+            .map(p -> p.getFirst().getStartMillis() + ": " + p.getSecond() + "/" + p.getThird().getFirst() + "/" + p.getThird().getSecond())
             .collect(Collectors.toList()));
   }
 
