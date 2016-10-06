@@ -1,12 +1,13 @@
 package cz.seznam.euphoria.operator.test;
 
 import cz.seznam.euphoria.core.client.dataset.Dataset;
+import cz.seznam.euphoria.core.client.functional.UnaryFunctor;
 import cz.seznam.euphoria.core.client.io.Context;
 import cz.seznam.euphoria.core.client.io.DataSource;
 import cz.seznam.euphoria.core.client.io.ListDataSource;
+import cz.seznam.euphoria.core.client.operator.FlatMap;
 import cz.seznam.euphoria.core.client.operator.ReduceStateByKey;
 import cz.seznam.euphoria.core.client.operator.state.State;
-import cz.seznam.euphoria.core.client.operator.WindowedPair;
 import cz.seznam.euphoria.core.client.operator.state.ListStorage;
 import cz.seznam.euphoria.core.client.operator.state.ListStorageDescriptor;
 import cz.seznam.euphoria.core.client.operator.state.StorageProvider;
@@ -24,6 +25,17 @@ import static org.junit.Assert.*;
  * Test operator {@code ReduceStateByKey}.
  */
 public class ReduceStateByKeyTest extends OperatorTest {
+
+  static class WPair<W, K, V> extends Pair<K, V> {
+    private final W window;
+    WPair(W window, K first, V second) {
+      super(first, second);
+      this.window = window;
+    }
+    public W getWindow() {
+      return window;
+    }
+  }
 
   @Override
   protected List<TestCase> getTestCases() {
@@ -123,11 +135,11 @@ public class ReduceStateByKeyTest extends OperatorTest {
   }
 
   TestCase testSortWindowed() {
-    return new AbstractTestCase<Integer, Pair<Integer, Integer>>() {
+    return new AbstractTestCase<Integer, WPair<Integer, Integer, Integer>>() {
 
       @Override
-      protected Dataset<Pair<Integer, Integer>> getOutput(Dataset<Integer> input) {
-        return ReduceStateByKey.of(input)
+      protected Dataset<WPair<Integer, Integer, Integer>> getOutput(Dataset<Integer> input) {
+        Dataset<Pair<Integer, Integer>> output = ReduceStateByKey.of(input)
             .keyBy(e -> e % 3)
             .valueBy(e -> e)
             .stateFactory(SortState::new)
@@ -135,6 +147,10 @@ public class ReduceStateByKeyTest extends OperatorTest {
             .setNumPartitions(1)
             .setPartitioner(e -> 0)
             .windowBy(new ReduceByKeyTest.TestWindowing())
+            .output();
+        return FlatMap.of(output)
+            .using((UnaryFunctor<Pair<Integer, Integer>, WPair<Integer, Integer, Integer>>)
+                (elem, c) -> c.collect(new WPair<>((Integer) c.getWindow(), elem.getFirst(), elem.getSecond())))
             .output();
       }
 
@@ -154,17 +170,15 @@ public class ReduceStateByKeyTest extends OperatorTest {
       }
 
       @Override
-      public void validate(List<List<Pair<Integer, Integer>>> partitions) {
+      public void validate(List<List<WPair<Integer, Integer, Integer>>> partitions) {
         assertEquals(1, partitions.size());
-        List<Pair<Integer, Integer>> first = partitions.get(0);
+        List<WPair<Integer, Integer, Integer>> first = partitions.get(0);
         assertEquals(12, first.size());
 
         // map (window, key) -> list(data)
-        @SuppressWarnings("unchecked")
-        Map<Pair<Integer, Integer>, List<WindowedPair<Integer, Integer, Integer>>>
+        Map<Pair<Integer, Integer>, List<WPair<Integer, Integer, Integer>>>
             windowKeyMap = first.stream()
-            .map(p -> (WindowedPair<Integer, Integer, Integer>) p)
-            .collect(Collectors.groupingBy(p -> Pair.of(p.getWindowLabel(), p.getKey())));
+            .collect(Collectors.groupingBy(p -> Pair.of(p.getWindow(), p.getKey())));
 
         // two windows, three keys
         assertEquals(6, windowKeyMap.size());
@@ -193,7 +207,7 @@ public class ReduceStateByKeyTest extends OperatorTest {
 
       }
 
-      List<Integer> flatten(List<WindowedPair<Integer, Integer, Integer>> l) {
+      List<Integer> flatten(List<WPair<Integer, Integer, Integer>> l) {
         return l.stream().map(Pair::getSecond).collect(Collectors.toList());
       }
 
