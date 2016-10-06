@@ -1,16 +1,16 @@
 
 package cz.seznam.euphoria.core.client.operator;
 
-import cz.seznam.euphoria.core.client.operator.state.State;
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.dataset.GroupedDataset;
 import cz.seznam.euphoria.core.client.dataset.Partitioning;
-import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.dataset.windowing.WindowContext;
+import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.functional.CombinableReduceFunction;
 import cz.seznam.euphoria.core.client.functional.StateFactory;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
+import cz.seznam.euphoria.core.client.operator.state.State;
 import cz.seznam.euphoria.core.client.util.Pair;
 
 import java.util.Objects;
@@ -28,10 +28,10 @@ import java.util.Objects;
  */
 public class ReduceStateByKey<
     IN, KIN, WIN, KEY, VALUE, KEYOUT, OUT, STATE extends State<VALUE, OUT>,
-    WLABEL, W extends WindowContext<WLABEL>, PAIROUT extends Pair<KEYOUT, OUT>>
+    WLABEL, W extends WindowContext<WLABEL>>
     extends StateAwareWindowWiseSingleInputOperator<IN, WIN, KIN, KEY,
-    PAIROUT, WLABEL, W,
-        ReduceStateByKey<IN, KIN, WIN, KEY, VALUE, KEYOUT, OUT, STATE, WLABEL, W, PAIROUT>>
+        Pair<KEYOUT, OUT>, WLABEL, W,
+        ReduceStateByKey<IN, KIN, WIN, KEY, VALUE, KEYOUT, OUT, STATE, WLABEL, W>>
 {
 
   public static class OfBuilder {
@@ -203,16 +203,11 @@ public class ReduceStateByKey<
       this.windowing = windowing;
     }
 
-    @SuppressWarnings("unchecked")
     @Override
     public Dataset<Pair<KEY, OUT>> output() {
-      return (Dataset) outputWindowed();
-    }
-
-    public Dataset<WindowedPair<WLABEL, KEY, OUT>> outputWindowed() {
       Flow flow = input.getFlow();
 
-      ReduceStateByKey<IN, IN, WIN, KEY, VALUE, KEY, OUT, STATE, WLABEL, W, WindowedPair<WLABEL, KEY, OUT>>
+      ReduceStateByKey<IN, IN, WIN, KEY, VALUE, KEY, OUT, STATE, WLABEL, W>
           reduceStateByKey =
           new ReduceStateByKey<>(name, flow, input, keyExtractor, valueExtractor,
               windowing, stateFactory, stateCombiner, getPartitioning());
@@ -377,18 +372,12 @@ public class ReduceStateByKey<
       this.windowing = windowing;
     }
 
-    @SuppressWarnings("unchecked")
     @Override
     public Dataset<Pair<CompositeKey<IN, KEY>, OUT>> output() {
-      return (Dataset) outputWindowed();
-    }
-
-    public Dataset<WindowedPair<WLABEL, CompositeKey<IN, KEY>, OUT>> outputWindowed() {
       Flow flow = input.getFlow();
 
       ReduceStateByKey<IN, KIN, WIN, KEY, VALUE,
-                       CompositeKey<IN, KEY>, OUT, STATE,
-                       WLABEL, W, WindowedPair<WLABEL, CompositeKey<IN, KEY>, OUT>>
+          CompositeKey<IN, KEY>, OUT, STATE, WLABEL, W>
           reduceStateByKey =
           new ReduceStateByKey<>(name, flow, input, keyExtractor, valueExtractor,
               windowing, stateFactory, stateCombiner, getPartitioning());

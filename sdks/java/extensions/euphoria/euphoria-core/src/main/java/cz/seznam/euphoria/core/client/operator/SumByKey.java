@@ -17,11 +17,10 @@ import java.util.Objects;
  * Operator for summing of elements by key.
  */
 public class SumByKey<
-    IN, KEY, WLABEL, W extends WindowContext<WLABEL>,
-    PAIROUT extends Pair<KEY, Long>>
+    IN, KEY, WLABEL, W extends WindowContext<WLABEL>>
     extends StateAwareWindowWiseSingleInputOperator<
-        IN, IN, IN, KEY, PAIROUT, WLABEL, W,
-        SumByKey<IN, KEY, WLABEL, W, PAIROUT>> {
+        IN, IN, IN, KEY, Pair<KEY, Long>, WLABEL, W,
+        SumByKey<IN, KEY, WLABEL, W>> {
   
   public static class OfBuilder {
     private final String name;
@@ -104,14 +103,10 @@ public class SumByKey<
       this.valueExtractor = Objects.requireNonNull(valueExtractor);
       this.windowing = Objects.requireNonNull(windowing);
     }
-    @SuppressWarnings("unchecked")
     @Override
     public Dataset<Pair<KEY, Long>> output() {
-      return (Dataset) outputWindowed();
-    }
-    public Dataset<WindowedPair<WLABEL, KEY, Long>> outputWindowed() {
       Flow flow = input.getFlow();
-      SumByKey<IN, KEY, WLABEL, W, WindowedPair<WLABEL, KEY, Long>> sumByKey =
+      SumByKey<IN, KEY, WLABEL, W> sumByKey =
           new SumByKey<>(name, flow, input,
               keyExtractor, valueExtractor, windowing, getPartitioning());
       flow.add(sumByKey);
@@ -143,7 +138,7 @@ public class SumByKey<
 
   @Override
   public DAG<Operator<?, ?>> getBasicOps() {
-    ReduceByKey<IN, IN, KEY, Long, KEY, Long, WLABEL, W, ?> reduceByKey =
+    ReduceByKey<IN, IN, KEY, Long, KEY, Long, WLABEL, W> reduceByKey =
         new ReduceByKey<>(getName(), input.getFlow(), input,
         keyExtractor, valueExtractor, windowing, Sums.ofLongs(), getPartitioning());
     return DAG.of(reduceByKey);

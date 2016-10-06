@@ -208,7 +208,7 @@ public class TopPerKey<
     Flow flow = getFlow();
 
     ReduceStateByKey<IN, IN, IN, KEY, Pair<VALUE, SCORE>, KEY, Pair<VALUE, SCORE>,
-        MaxScored<VALUE, SCORE>, WLABEL, W, Pair<KEY, Pair<VALUE, SCORE>>>
+        MaxScored<VALUE, SCORE>, WLABEL, W>
         reduce =
         new ReduceStateByKey<>(getName() + "::ReduceStateByKey", flow, input,
             keyExtractor,

@@ -8,7 +8,6 @@ import cz.seznam.euphoria.core.client.functional.UnaryFunction;
 import cz.seznam.euphoria.core.client.io.Context;
 import cz.seznam.euphoria.core.client.operator.CompositeKey;
 import cz.seznam.euphoria.core.client.operator.ReduceStateByKey;
-import cz.seznam.euphoria.core.client.operator.WindowedPair;
 import cz.seznam.euphoria.core.client.operator.state.State;
 import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.flink.FlinkOperator;
@@ -61,7 +60,7 @@ class ReduceStateByKeyTranslator implements StreamingOperatorTranslator<ReduceSt
       valueExtractor = origOperator.getValueExtractor();
     }
 
-    DataStream<StreamingWindowedElement<?, WindowedPair>> folded;
+    DataStream<StreamingWindowedElement<?, Pair>> folded;
     // apply windowing first
     if (windowing == null) {
       WindowedStream windowedPairs =
@@ -98,7 +97,7 @@ class ReduceStateByKeyTranslator implements StreamingOperatorTranslator<ReduceSt
       LABEL, KEY, VALUEIN, VALUEOUT,
       W extends Window & WindowProperties<LABEL>>
       extends RichWindowFunction<ElementProvider<? extends Pair<KEY, VALUEIN>>,
-      StreamingWindowedElement<LABEL, WindowedPair<LABEL, KEY, VALUEOUT>>,
+      StreamingWindowedElement<LABEL, Pair<KEY, VALUEOUT>>,
       KEY,
       W> {
 
@@ -123,7 +122,7 @@ class ReduceStateByKeyTranslator implements StreamingOperatorTranslator<ReduceSt
         KEY key,
         W window,
         Iterable<ElementProvider<? extends Pair<KEY, VALUEIN>>> input,
-        Collector<StreamingWindowedElement<LABEL, WindowedPair<LABEL, KEY, VALUEOUT>>> out)
+        Collector<StreamingWindowedElement<LABEL, Pair<KEY, VALUEOUT>>> out)
         throws Exception {
 
       Iterator<ElementProvider<? extends Pair<KEY, VALUEIN>>> it = input.iterator();
@@ -136,8 +135,7 @@ class ReduceStateByKeyTranslator implements StreamingOperatorTranslator<ReduceSt
           new Context() {
             @Override
             public void collect(Object elem) {
-              out.collect(new StreamingWindowedElement(
-                  wid, WindowedPair.of(wid.getLabel(), key, elem))
+              out.collect(new StreamingWindowedElement(wid, Pair.of(key, elem))
                   // ~ forward the emission watermark
                   .withEmissionWatermark(emissionWatermark));
             }

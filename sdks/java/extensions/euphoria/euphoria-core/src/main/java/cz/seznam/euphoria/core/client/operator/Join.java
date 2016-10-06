@@ -1,12 +1,11 @@
 
 package cz.seznam.euphoria.core.client.operator;
 
-import cz.seznam.euphoria.core.client.operator.state.State;
-import cz.seznam.euphoria.core.client.dataset.windowing.Batch;
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.dataset.Partitioning;
-import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
+import cz.seznam.euphoria.core.client.dataset.windowing.Batch;
 import cz.seznam.euphoria.core.client.dataset.windowing.WindowContext;
+import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.functional.BinaryFunctor;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
@@ -14,6 +13,7 @@ import cz.seznam.euphoria.core.client.graph.DAG;
 import cz.seznam.euphoria.core.client.io.Context;
 import cz.seznam.euphoria.core.client.operator.state.ListStorage;
 import cz.seznam.euphoria.core.client.operator.state.ListStorageDescriptor;
+import cz.seznam.euphoria.core.client.operator.state.State;
 import cz.seznam.euphoria.core.client.operator.state.StorageProvider;
 import cz.seznam.euphoria.core.client.util.Either;
 import cz.seznam.euphoria.core.client.util.Pair;
@@ -26,12 +26,11 @@ import java.util.Objects;
 /**
  * Join two datasets by given key producing single new dataset.
  */
-public class Join<LEFT, RIGHT, KEY, OUT, WLABEL, W extends WindowContext<WLABEL>,
-                  PAIROUT extends Pair<KEY, OUT>>
+public class Join<LEFT, RIGHT, KEY, OUT, WLABEL, W extends WindowContext<WLABEL>>
     extends StateAwareWindowWiseOperator<Object, Either<LEFT, RIGHT>,
-    Either<LEFT, RIGHT>, KEY, PAIROUT, WLABEL, W,
-    Join<LEFT, RIGHT, KEY, OUT, WLABEL, W, PAIROUT>>
-    implements OutputBuilder<PAIROUT> {  
+    Either<LEFT, RIGHT>, KEY, Pair<KEY, OUT>, WLABEL, W,
+    Join<LEFT, RIGHT, KEY, OUT, WLABEL, W>>
+    implements OutputBuilder<Pair<KEY, OUT>> {
 
   public static class OfBuilder {
     private final String name;
@@ -163,18 +162,13 @@ public class Join<LEFT, RIGHT, KEY, OUT, WLABEL, W extends WindowContext<WLABEL>
       this.windowing = windowing;
     }
 
-    @SuppressWarnings("unchecked")
     @Override
     public Dataset<Pair<KEY, OUT>> output() {
-      return (Dataset) outputWindowed();
-    }
-
-    public Dataset<WindowedPair<WLABEL, KEY, OUT>> outputWindowed() {
       Flow flow = prev.left.getFlow();
-      Join<LEFT, RIGHT, KEY, OUT, WLABEL, W, WindowedPair<WLABEL, KEY, OUT>> join =
+      Join<LEFT, RIGHT, KEY, OUT, WLABEL, W> join =
           new Join<>(prev.name, flow, prev.left, prev.right,
-          windowing, prev.getPartitioning(),
-          prev.leftKeyExtractor, prev.rightKeyExtractor, prev.joinFunc, prev.outer);
+              windowing, prev.getPartitioning(),
+              prev.leftKeyExtractor, prev.rightKeyExtractor, prev.joinFunc, prev.outer);
       flow.add(join);
 
       return join.output();
@@ -193,7 +187,7 @@ public class Join<LEFT, RIGHT, KEY, OUT, WLABEL, W extends WindowContext<WLABEL>
 
   private final Dataset<LEFT> left;
   private final Dataset<RIGHT> right;
-  private final Dataset<PAIROUT> output;
+  private final Dataset<Pair<KEY, OUT>> output;
   private final BinaryFunctor<LEFT, RIGHT, OUT> functor;
   final UnaryFunction<LEFT, KEY> leftKeyExtractor;
   final UnaryFunction<RIGHT, KEY> rightKeyExtractor;
@@ -221,7 +215,7 @@ public class Join<LEFT, RIGHT, KEY, OUT, WLABEL, W extends WindowContext<WLABEL>
     this.rightKeyExtractor = rightKeyExtractor;
     this.functor = functor;
     @SuppressWarnings("unchecked")
-    Dataset<PAIROUT> output = createOutput((Dataset) left);
+    Dataset<Pair<KEY, OUT>> output = createOutput((Dataset) left);
     this.output = output;
     this.outer = outer;
   }
@@ -233,7 +227,7 @@ public class Join<LEFT, RIGHT, KEY, OUT, WLABEL, W extends WindowContext<WLABEL>
   }
 
   @Override
-  public Dataset<PAIROUT> output() {
+  public Dataset<Pair<KEY, OUT>> output() {
     return output;
   }
 
@@ -368,7 +362,7 @@ public class Join<LEFT, RIGHT, KEY, OUT, WLABEL, W extends WindowContext<WLABEL>
 
     ReduceStateByKey<Either<LEFT, RIGHT>, Either<LEFT, RIGHT>, Either<LEFT, RIGHT>,
         KEY, Either<LEFT, RIGHT>, KEY,
-        OUT, JoinState, WLABEL, W, ?> reduce;
+        OUT, JoinState, WLABEL, W> reduce;
 
     name = getName() + "::ReduceStateByKey";
     reduce = new ReduceStateByKey<>(

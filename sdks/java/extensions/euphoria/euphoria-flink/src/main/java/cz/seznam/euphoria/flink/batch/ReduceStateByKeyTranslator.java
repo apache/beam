@@ -10,7 +10,6 @@ import cz.seznam.euphoria.core.client.operator.CompositeKey;
 import cz.seznam.euphoria.core.client.operator.Operator;
 import cz.seznam.euphoria.core.client.operator.ReduceStateByKey;
 import cz.seznam.euphoria.core.client.operator.state.State;
-import cz.seznam.euphoria.core.client.operator.WindowedPair;
 import cz.seznam.euphoria.core.client.operator.state.StorageProvider;
 import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.core.util.Settings;
@@ -74,7 +73,7 @@ public class ReduceStateByKeyTranslator implements BatchOperatorTranslator<Reduc
           WindowID wid = wel.getWindowID();
           Object el = wel.get();
           return new WindowedElement(
-              wid, WindowedPair.of(wid.getLabel(), udfKey.apply(el), udfValue.apply(el)));
+              wid, Pair.of(udfKey.apply(el), udfValue.apply(el)));
         })
         .name(operator.getName() + "::map-input")
         // FIXME parallelism should be set to the same level as parent
@@ -123,7 +122,7 @@ public class ReduceStateByKeyTranslator implements BatchOperatorTranslator<Reduc
   }
 
   private static class TypedReducer
-          implements GroupReduceFunction<WindowedElement<?, WindowedPair>, WindowedElement<?, WindowedPair>>,
+          implements GroupReduceFunction<WindowedElement<?, Pair>, WindowedElement<?, Pair>>,
           ResultTypeQueryable<WindowedElement<?, Pair>>
   {
     private final Operator<?, ?> operator;
@@ -142,13 +141,13 @@ public class ReduceStateByKeyTranslator implements BatchOperatorTranslator<Reduc
 
     @Override
     @SuppressWarnings("unchecked")
-    public void reduce(Iterable<WindowedElement<?, WindowedPair>> values,
-                       org.apache.flink.util.Collector<WindowedElement<?, WindowedPair>> out)
+    public void reduce(Iterable<WindowedElement<?, Pair>> values,
+                       org.apache.flink.util.Collector<WindowedElement<?, Pair>> out)
     {
-      Iterator<WindowedElement<?, WindowedPair>> it = values.iterator();
+      Iterator<WindowedElement<?, Pair>> it = values.iterator();
 
       // read the first element to obtain window metadata and key
-      WindowedElement<?, WindowedPair> element = it.next();
+      WindowedElement<?, Pair> element = it.next();
       final WindowID wid = element.getWindowID();
       final Object key = element.get().getKey();
 
@@ -156,8 +155,7 @@ public class ReduceStateByKeyTranslator implements BatchOperatorTranslator<Reduc
           new Context() {
             @Override
             public void collect(Object elem) {
-              out.collect(new WindowedElement<>(
-                  wid, WindowedPair.of(wid.getLabel(), key, elem)));
+              out.collect(new WindowedElement<>(wid, Pair.of(key, elem)));
             }
             @Override
             public Object getWindow() {

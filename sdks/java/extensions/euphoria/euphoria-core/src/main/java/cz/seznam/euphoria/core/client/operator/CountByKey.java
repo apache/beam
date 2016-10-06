@@ -17,11 +17,10 @@ import java.util.Objects;
  * Operator counting elements with same key.
  */
 public class CountByKey<
-    IN, KEY, WLABEL, W extends WindowContext<WLABEL>,
-    PAIROUT extends Pair<KEY, Long>>
+    IN, KEY, WLABEL, W extends WindowContext<WLABEL>>
     extends StateAwareWindowWiseSingleInputOperator<
-        IN, IN, IN, KEY, PAIROUT,
-        WLABEL, W, CountByKey<IN, KEY, WLABEL, W, PAIROUT>> {
+        IN, IN, IN, KEY, Pair<KEY, Long>,
+        WLABEL, W, CountByKey<IN, KEY, WLABEL, W>> {
 
   public static class OfBuilder {
     private final String name;
@@ -78,13 +77,10 @@ public class CountByKey<
       this.prev = Objects.requireNonNull(prev);
       this.windowing = Objects.requireNonNull(windowing);
     }
-    @SuppressWarnings("unchecked")
+
     public Dataset<Pair<KEY, Long>> output() {
-      return (Dataset) outputWindowed();
-    }
-    public Dataset<WindowedPair<WLABEL, KEY, Long>> outputWindowed() {
       Flow flow = prev.input.getFlow();
-      CountByKey<IN, KEY, WLABEL, W, WindowedPair<WLABEL, KEY, Long>> count =
+      CountByKey<IN, KEY, WLABEL, W> count =
           new CountByKey<>(
               prev.name, flow, prev.input,
               prev.keyExtractor, windowing, prev.getPartitioning());
@@ -113,7 +109,7 @@ public class CountByKey<
 
   @Override
   public DAG<Operator<?, ?>> getBasicOps() {
-    SumByKey<IN, KEY, WLABEL, W, ?> sum = new SumByKey<>(
+    SumByKey<IN, KEY, WLABEL, W> sum = new SumByKey<>(
             getName(),
             input.getFlow(),
             input,

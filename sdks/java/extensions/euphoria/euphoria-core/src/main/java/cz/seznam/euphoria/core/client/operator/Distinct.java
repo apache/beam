@@ -17,9 +17,9 @@ import java.util.Objects;
 /**
  * Operator outputting distinct (based on equals) elements.
  */
-public class Distinct<IN, ELEM, WLABEL, W extends WindowContext<WLABEL>, OUT>
+public class Distinct<IN, ELEM, WLABEL, W extends WindowContext<WLABEL>>
     extends StateAwareWindowWiseSingleInputOperator<
-        IN, IN, IN, ELEM, OUT, WLABEL, W, Distinct<IN, ELEM, WLABEL, W, OUT>>
+        IN, IN, IN, ELEM, ELEM, WLABEL, W, Distinct<IN, ELEM, WLABEL, W>>
 {
 
   public static class OfBuilder {
@@ -72,25 +72,19 @@ public class Distinct<IN, ELEM, WLABEL, W extends WindowContext<WLABEL>, OUT>
   {
     private final WindowingBuilder<IN, ELEM> prev;
     private final Windowing<IN, WLABEL, W> windowing;
+
     OutputBuilder(WindowingBuilder<IN, ELEM> prev, Windowing<IN, WLABEL, W> windowing) {
       this.prev = Objects.requireNonNull(prev);
       this.windowing = Objects.requireNonNull(windowing);
     }
-    @SuppressWarnings("unchecked")
+
     @Override
     public Dataset<ELEM> output() {
-      return outputImpl(false);
-    }
-    @SuppressWarnings("unchecked")
-    public Dataset<Pair<WLABEL, IN>> outputWindowed() {
-      return outputImpl(true);
-    }
-    private Dataset outputImpl(boolean windowedOutput) {
       Flow flow = prev.input.getFlow();
-      Distinct<IN, ELEM, WLABEL, W, ?> distinct;
+      Distinct<IN, ELEM, WLABEL, W> distinct;
       distinct = new Distinct<>(
           prev.name, flow, prev.input, prev.mapper, windowing,
-          prev.getPartitioning(), windowedOutput);
+          prev.getPartitioning());
       flow.add(distinct);
       return distinct.output();
     }
@@ -104,29 +98,21 @@ public class Distinct<IN, ELEM, WLABEL, W extends WindowContext<WLABEL>, OUT>
     return new OfBuilder(name);
   }
 
-  private final boolean windowedOutput;
-
   Distinct(String name,
            Flow flow,
            Dataset<IN> input,
            UnaryFunction<IN, ELEM> mapper,
            Windowing<IN, WLABEL, W> windowing,
-           Partitioning<ELEM> partitioning,
-           boolean windowedOutput)
+           Partitioning<ELEM> partitioning)
   {
     super(name, flow, input, mapper, windowing, partitioning);
-    this.windowedOutput = windowedOutput;
-  }
-
-  public boolean isWindowedOutput() {
-    return windowedOutput;
   }
 
   @Override
   public DAG<Operator<?, ?>> getBasicOps() {
     Flow flow = input.getFlow();
     String name = getName() + "::" + "ReduceByKey";
-    ReduceByKey<IN, IN, ELEM, Void, IN, Void, WLABEL, W, WindowedPair<WLABEL, IN, Void>>
+    ReduceByKey<IN, IN, ELEM, Void, IN, Void, WLABEL, W>
         reduce;
     reduce = new ReduceByKey<>(name,
             flow, input, getKeyExtractor(), e -> null,
@@ -134,14 +120,8 @@ public class Distinct<IN, ELEM, WLABEL, W extends WindowContext<WLABEL>, OUT>
             (CombinableReduceFunction<Void>) e -> null, partitioning);
 
     reduce.setPartitioning(getPartitioning());
-    Dataset<WindowedPair<WLABEL, IN, Void>> reduced = reduce.output();
-    name = getName() + "::" + "Map";
-    MapElements format =
-        windowedOutput
-          ? new MapElements<>(
-              name, flow, reduced, t -> Pair.of(t.getWindowLabel(), t.getFirst()))
-          : new MapElements<>(
-            name, flow, reduced, WindowedPair::getFirst);
+    MapElements format = new MapElements<>(
+        getName() + "::" + "Map", flow, reduce.output(), Pair::getFirst);
 
     DAG<Operator<?, ?>> dag = DAG.of(reduce);
     dag.add(format, reduce);

@@ -8,18 +8,16 @@ import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.functional.ReduceFunction;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
 import cz.seznam.euphoria.core.client.functional.UnaryFunctor;
-import cz.seznam.euphoria.core.client.io.Context;
 import cz.seznam.euphoria.core.client.io.ListDataSink;
 import cz.seznam.euphoria.core.client.io.ListDataSource;
-import cz.seznam.euphoria.core.client.io.StdoutSink;
 import cz.seznam.euphoria.core.client.operator.FlatMap;
 import cz.seznam.euphoria.core.client.operator.MapElements;
 import cz.seznam.euphoria.core.client.operator.ReduceByKey;
 import cz.seznam.euphoria.core.client.operator.ReduceWindow;
 import cz.seznam.euphoria.core.client.operator.Repartition;
-import cz.seznam.euphoria.core.client.operator.WindowedPair;
 import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.core.client.util.Sums;
+import cz.seznam.euphoria.core.client.util.Triple;
 import cz.seznam.euphoria.core.executor.inmem.InMemExecutor;
 import cz.seznam.euphoria.guava.shaded.com.google.common.base.Joiner;
 import cz.seznam.euphoria.guava.shaded.com.google.common.collect.Iterables;
@@ -33,13 +31,12 @@ import java.util.Arrays;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
 import static cz.seznam.euphoria.core.util.Util.sorted;
 import static java.util.Arrays.asList;
-
-import java.util.Map;
 import static org.junit.Assert.*;
 
 public class WindowingTest {
@@ -293,16 +290,21 @@ public class WindowingTest {
             Pair.of("four", 2000000001004L)))
             .withReadDelay(Duration.ofMillis(100L)));
 
-    Dataset<WindowedPair<TimeInterval, String, Void>> distinctRBK =
+    Dataset<Pair<String, Void>> distinct =
         ReduceByKey.of(input)
         .keyBy(Pair::getFirst)
         .valueBy(e -> (Void) null)
         .combineBy(e -> null)
         .windowBy(Time.of(Duration.ofSeconds(1)).using(Pair::getSecond))
-        .outputWindowed();
+        .output();
 
-    Dataset<Pair<TimeInterval, Long>> counts = ReduceByKey.of(distinctRBK)
-        .keyBy(WindowedPair::getWindowLabel)
+    Dataset<TimeInterval> windows = FlatMap.of(distinct)
+        .using((UnaryFunctor<Pair<String, Void>, TimeInterval>)
+            (elem, context) -> context.collect((TimeInterval) context.getWindow()))
+        .output();
+
+    Dataset<Pair<TimeInterval, Long>> counts = ReduceByKey.of(windows)
+        .keyBy(e -> e)
         .valueBy(e -> 1L)
         .combineBy(Sums.ofLongs())
         .output();
@@ -488,32 +490,38 @@ public class WindowingTest {
         new Item("1-six",   22)))
         .withReadDelay(Duration.ofMillis(900)));
 
-    ListDataSink<WindowedPair<SessionInterval, Integer, HashSet<String>>> out
+    ListDataSink<Triple<SessionInterval, Integer, HashSet<String>>> out
         = ListDataSink.get(1);
 
-    ReduceByKey.of(input)
+    Dataset<Pair<Integer, HashSet<String>>> reduced =
+        ReduceByKey.of(input)
         .keyBy(e -> e.word.charAt(0) - '0')
         .valueBy(e -> e.word)
         .reduceBy(Sets::newHashSet)
         .windowBy(Session.of(Duration.ofSeconds(5))
             .using(e -> NOW + e.evtTs * 1_000L))
         .setNumPartitions(1)
-        .outputWindowed()
+        .output();
+
+    FlatMap.of(reduced)
+        .using((UnaryFunctor<Pair<Integer, HashSet<String>>, Triple<SessionInterval, Integer, HashSet<String>>>)
+            (elem, context) -> context.collect(Triple.of((SessionInterval) context.getWindow(), elem.getFirst(), elem.getSecond())))
+        .output()
         .persist(out);
 
     executor.waitForCompletion(flow);
 
     // ~ prepare the output for comparison
     List<String> flat = new ArrayList<>();
-    for (WindowedPair<SessionInterval, Integer, HashSet<String>> o : out.getOutput(0)) {
+    for (Triple<SessionInterval, Integer, HashSet<String>> o : out.getOutput(0)) {
       StringBuilder buf = new StringBuilder();
       buf.append("(")
-          .append((o.getWindowLabel().getStartMillis() - NOW) / 1_000L)
+          .append((o.getFirst().getStartMillis() - NOW) / 1_000L)
           .append("-")
-          .append((o.getWindowLabel().getEndMillis() - NOW) / 1_000L)
+          .append((o.getFirst().getEndMillis() - NOW) / 1_000L)
           .append("): ");
-      buf.append(o.getFirst()).append(": ");
-      ArrayList<String> xs = new ArrayList<>(o.getSecond());
+      buf.append(o.getSecond()).append(": ");
+      ArrayList<String> xs = new ArrayList<>(o.getThird());
       xs.sort(Comparator.naturalOrder());
       Joiner.on(", ").appendTo(buf, xs);
       flat.add(buf.toString());

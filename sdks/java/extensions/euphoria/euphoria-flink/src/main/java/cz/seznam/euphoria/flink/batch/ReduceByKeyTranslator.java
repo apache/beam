@@ -7,7 +7,6 @@ import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
 import cz.seznam.euphoria.core.client.operator.CompositeKey;
 import cz.seznam.euphoria.core.client.operator.ReduceByKey;
-import cz.seznam.euphoria.core.client.operator.WindowedPair;
 import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.flink.FlinkOperator;
 import cz.seznam.euphoria.flink.Utils;
@@ -61,8 +60,7 @@ public class ReduceByKeyTranslator implements BatchOperatorTranslator<ReduceByKe
           for (WindowID wid : assigned) {
             Object el = wel.get();
             c.collect(new WindowedElement(
-                wid, WindowedPair.of(wid.getLabel(),
-                udfKey.apply(el), udfValue.apply(el))));
+                wid, Pair.of(udfKey.apply(el), udfValue.apply(el))));
           }
         })
         .name(operator.getName() + "::map-input")
@@ -136,8 +134,9 @@ public class ReduceByKeyTranslator implements BatchOperatorTranslator<ReduceByKe
     reduce(WindowedElement<?, Pair> p1, WindowedElement<?, Pair> p2) {
       WindowID<?> wid = p1.getWindowID();
       return new WindowedElement<>(wid,
-        WindowedPair.of(wid.getLabel(), p1.get().getKey(),
-          reducer.apply(Arrays.asList(p1.get().getSecond(), p2.get().getSecond()))));
+        Pair.of(
+            p1.get().getKey(),
+            reducer.apply(Arrays.asList(p1.get().getSecond(), p2.get().getSecond()))));
     }
 
     @Override
