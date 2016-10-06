@@ -31,6 +31,7 @@ import java.util.Set;
 import java.util.concurrent.BlockingQueue;
 
 import static java.util.Objects.requireNonNull;
+import java.util.function.Supplier;
 
 class ReduceStateByKeyReducer implements Runnable {
 
@@ -39,8 +40,10 @@ class ReduceStateByKeyReducer implements Runnable {
   private static final class KeyedElementCollector extends WindowedElementCollector {
     private final Object key;
 
-    KeyedElementCollector(Collector<Datum> wrap, WindowID window, Object key) {
-      super(wrap);
+    KeyedElementCollector(
+        Context<Datum> wrap, WindowID window, Object key,
+        Supplier<Long> stampSupplier) {
+      super(wrap, stampSupplier);
       this.key = key;
       this.windowID = window;
     }
@@ -141,6 +144,38 @@ class ReduceStateByKeyReducer implements Runnable {
     }
   } // ~ end of WindowRegistry
 
+  // statistics related to the running operator
+  private final class ProcessingStats {
+
+    final ProcessingState processing;
+    long watermarkPassed = -1;
+    long maxElementStamp = -1;
+    long lastLogTime = -1;
+
+    ProcessingStats(ProcessingState processing) {
+      this.processing = processing;
+    }
+
+    void update(long elementStamp) {
+      watermarkPassed = processing.triggering.getCurrentTimestamp();
+      if (maxElementStamp < elementStamp) {
+        maxElementStamp = elementStamp;
+      }
+      long now = System.currentTimeMillis();
+      if (lastLogTime + 5000 < now) {
+        log();
+        lastLogTime = now;
+      }
+    }
+    private void log() {
+      LOG.info("Reducer {} processing stats: at watermark {}, maxElementStamp {}",
+          new Object[] {
+            ReduceStateByKeyReducer.this.name,
+            watermarkPassed,
+            maxElementStamp});
+    }
+  }
+
   private final class ProcessingState {
 
     final StorageProvider storageProvider;
@@ -152,6 +187,8 @@ class ReduceStateByKeyReducer implements Runnable {
     final TriggerScheduler triggering;
     final StateFactory stateFactory;
     final CombinableReduceFunction stateCombiner;
+
+    final ProcessingStats stats = new ProcessingStats(this);
 
     // do we have bounded input?
     // if so, do not register windows for triggering, just trigger
@@ -273,7 +310,9 @@ class ReduceStateByKeyReducer implements Runnable {
         } else {
           // ~ if no such window yet ... set it up
           wStore = new WindowStorage(wctx, (State) stateFactory.apply(
-              new KeyedElementCollector(stateOutput, window, itemKey),
+              new KeyedElementCollector(
+                  stateOutput, window, itemKey,
+                  processing.triggering::getCurrentTimestamp),
               storageProvider));
           wRegistry.setWindowStorage(window, itemKey, wStore);
         }
@@ -474,7 +513,6 @@ class ReduceStateByKeyReducer implements Runnable {
         // ~ make sure to avoid race-conditions with triggers from another
         // thread (i.e. processing-time-trigger-scheduler)
         synchronized (processing) {
-          watermarkStrategy.emitIfNeeded(processing::emitWatermark);
           if (item.isElement()) {
             processInput(item);
           } else if (item.isEndOfStream()) {
@@ -556,7 +594,7 @@ class ReduceStateByKeyReducer implements Runnable {
 
   private void processWatermark(Datum.Watermark watermark) {
     // update current stamp
-    long stamp = watermark.getWatermark();
+    long stamp = watermark.getStamp();
     processing.updateStamp(stamp);
   }
 

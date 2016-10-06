@@ -14,8 +14,8 @@ import cz.seznam.euphoria.core.client.dataset.windowing.WindowedElement;
 class Datum extends WindowedElement<Object, Object> {
 
   @SuppressWarnings("unchecked")
-  static Datum of(WindowID windowID, Object element) {
-    return new Datum(windowID, element);
+  static Datum of(WindowID windowID, Object element, long stamp) {
+    return new Datum(windowID, element, stamp);
   }
 
   static Datum endOfStream() {
@@ -32,6 +32,9 @@ class Datum extends WindowedElement<Object, Object> {
   }
 
   static class EndOfStream extends Datum {
+    EndOfStream() {
+      super(Long.MAX_VALUE);
+    }
     @Override
     public boolean isEndOfStream() {
       return true;
@@ -43,12 +46,8 @@ class Datum extends WindowedElement<Object, Object> {
   }
 
   static class Watermark extends Datum {
-    final long stamp;
     Watermark(long stamp) {
-      this.stamp = stamp;
-    }
-    long getWatermark() {
-      return stamp;
+      super(stamp);
     }
     @Override
     public boolean isWatermark() {
@@ -61,18 +60,13 @@ class Datum extends WindowedElement<Object, Object> {
   }
 
   static class WindowTrigger extends Datum {
-    final long stamp;
     @SuppressWarnings("unchecked")
     WindowTrigger(WindowID windowID, long stamp) {
-      super(windowID, null);
-      this.stamp = stamp;
+      super(windowID, null, stamp);
     }
     @Override
     public boolean isWindowTrigger() {
       return true;
-    }
-    public long getStamp() {
-      return stamp;
     }
     @Override
     public String toString() {
@@ -80,14 +74,27 @@ class Datum extends WindowedElement<Object, Object> {
     }
   }
 
-  private Datum() {
+  // timestamp of the event
+  long stamp;
+
+  private Datum(long stamp) {
     super(null, null);
+    this.stamp = stamp;
   }
 
-  private Datum(WindowID<Object> windowID, Object element) {
+  private Datum(WindowID<Object> windowID, Object element, long stamp) {
     super(windowID, element);
+    this.stamp = stamp;
   }
 
+  /** Get timestamp of the event. */
+  public long getStamp() {
+    return stamp;
+  }
+
+  void setStamp(long stamp) {
+    this.stamp = stamp;
+  }
 
   /** Is this regular element message? */
   public boolean isElement() {

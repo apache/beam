@@ -253,12 +253,9 @@ public class WindowingTest {
             .sorted(Comparator.comparing(Pair::getFirst))
             .collect(Collectors.toList());
     assertEquals(3, ordered.size());
-    // ~ if no threads got blocked (e.g. system overload) we shall receive an
-    // output element approx. every 3*READ_DELAY (READ_DELAY for every read
-    // element from the input source times window-of-3-items) except for the very
-    // last item which is triggered earlier due to "end-of-stream"
+    // ~ test that we receive the first element earlier than the second one
     assertSmaller(
-        ordered.get(0).getFirst() + 2 * READ_DELAY.toMillis(), ordered.get(1).getFirst());
+        ordered.get(0).getFirst(), ordered.get(1).getFirst());
     assertEquals(Sets.newHashSet("!", "r-one", "r-two", "r-three"),
                  ordered.get(0).getSecond().getSecond());
     assertEquals(Sets.newHashSet("!", "s-one", "s-two", "s-three"),
