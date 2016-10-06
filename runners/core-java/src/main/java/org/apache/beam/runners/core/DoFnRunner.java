@@ -52,7 +52,7 @@ public interface DoFnRunner<InputT, OutputT> {
     /**
      * Gets this object as a {@link OldDoFn}.
      *
-     * Most implementors of this interface are expected to be {@link OldDoFn} instances, and will
+     * <p>Most implementors of this interface are expected to be {@link OldDoFn} instances, and will
      * return themselves.
      */
     OldDoFn<KeyedWorkItem<K, InputT>, KV<K, OutputT>> asDoFn();

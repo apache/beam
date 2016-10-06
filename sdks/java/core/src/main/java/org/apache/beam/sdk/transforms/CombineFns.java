@@ -67,7 +67,7 @@ public class CombineFns {
    * <p>The same {@link TupleTag} cannot be used in a composition multiple times.
    *
    * <p>Example:
-   * <pre><code>
+   * <pre>{@code
    * PCollection<KV<K, Integer>> latencies = ...;
    *
    * TupleTag<Integer> maxLatencyTag = new TupleTag<Integer>();
@@ -97,7 +97,7 @@ public class CombineFns {
    *             c.output(...some T...);
    *           }
    *         }));
-   * </code></pre>
+   * }</pre>
    */
   public static ComposeKeyedCombineFnBuilder composeKeyed() {
     return new ComposeKeyedCombineFnBuilder();
@@ -110,7 +110,7 @@ public class CombineFns {
    * <p>The same {@link TupleTag} cannot be used in a composition multiple times.
    *
    * <p>Example:
-   * <pre><code>
+   * <pre><{@code
    * PCollection<Integer> globalLatencies = ...;
    *
    * TupleTag<Integer> maxLatencyTag = new TupleTag<Integer>();
@@ -140,7 +140,7 @@ public class CombineFns {
    *             c.output(...some T...);
    *           }
    *         }));
-   * </code></pre>
+   * }</pre>
    */
   public static ComposeCombineFnBuilder compose() {
     return new ComposeCombineFnBuilder();

@@ -30,7 +30,7 @@ import java.util.List;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.io.UnboundedSource;
 
-/***
+/**
  * Checkpoint representing a total progress in a set of shards in single stream.
  * The set of shards covered by {@link KinesisReaderCheckpoint} may or may not be equal to set of
  * all shards present in the stream.
@@ -59,7 +59,7 @@ class KinesisReaderCheckpoint implements Iterable<ShardCheckpoint>, UnboundedSou
                 }));
     }
 
-    /***
+    /**
      * Splits given multi-shard checkpoint into partitions of approximately equal size.
      *
      * @param desiredNumSplits - upper limit for number of partitions to generate.

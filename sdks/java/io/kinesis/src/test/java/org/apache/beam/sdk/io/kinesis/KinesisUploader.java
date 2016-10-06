@@ -32,7 +32,7 @@ import com.google.common.collect.Lists;
 import java.nio.ByteBuffer;
 import java.util.List;
 
-/***
+/**
  * Sends records to Kinesis in reliable way.
  */
 public class KinesisUploader {

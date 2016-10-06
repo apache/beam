@@ -96,8 +96,8 @@ public class WordCount {
 
   /**
    * Options supported by {@link WordCount}.
-   * <p>
-   * Inherits standard configuration options.
+   *
+   * <p>Inherits standard configuration options.
    */
   public interface Options extends PipelineOptions, FlinkPipelineOptions {
     @Description("Path of the file to read from")

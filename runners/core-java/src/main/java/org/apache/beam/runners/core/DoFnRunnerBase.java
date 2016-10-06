@@ -62,7 +62,7 @@ import org.joda.time.format.PeriodFormat;
 /**
  * A base implementation of {@link DoFnRunner}.
  *
- * <p> Sub-classes should override {@link #invokeProcessElement}.
+ * <p>Sub-classes should override {@link #invokeProcessElement}.
  */
 public abstract class DoFnRunnerBase<InputT, OutputT> implements DoFnRunner<InputT, OutputT> {
 

@@ -23,7 +23,7 @@ import static com.google.common.collect.Queues.newArrayDeque;
 import java.util.Deque;
 import java.util.Iterator;
 
-/***
+/**
  * Very simple implementation of round robin algorithm.
  */
 class RoundRobin<T> implements Iterable<T> {

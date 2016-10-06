@@ -108,7 +108,7 @@ import org.slf4j.LoggerFactory;
  * <p>Although most applications consumer single topic, the source can be configured to consume
  * multiple topics or even a specific set of {@link TopicPartition}s.
  *
- * <p> To configure a Kafka source, you must specify at the minimum Kafka <tt>bootstrapServers</tt>
+ * <p>To configure a Kafka source, you must specify at the minimum Kafka <tt>bootstrapServers</tt>
  * and one or more topics to consume. The following example illustrates various options for
  * configuring the source :
  *
@@ -157,7 +157,7 @@ import org.slf4j.LoggerFactory;
  *
  * <h3>Writing to Kafka</h3>
  *
- * KafkaIO sink supports writing key-value pairs to a Kafka topic. Users can also write
+ * <p>KafkaIO sink supports writing key-value pairs to a Kafka topic. Users can also write
  * just the values. To configure a Kafka sink, you must specify at the minimum Kafka
  * <tt>bootstrapServers</tt> and the topic to write to. The following example illustrates various
  * options for configuring the sink:
@@ -179,7 +179,7 @@ import org.slf4j.LoggerFactory;
  *    );
  * }</pre>
  *
- * Often you might want to write just values without any keys to Kafka. Use {@code values()} to
+ * <p>Often you might want to write just values without any keys to Kafka. Use {@code values()} to
  * write records with default empty(null) key:
  *
  * <pre>{@code
@@ -499,8 +499,8 @@ public class KafkaIO {
     }
 
     /**
-     * Creates an {@link UnboundedSource<KafkaRecord<K, V>, ?>} with the configuration in
-     * {@link TypedRead}. Primary use case is unit tests, should not be used in an
+     * Creates an {@link UnboundedSource UnboundedSource&lt;KafkaRecord&lt;K, V&gt;, ?&gt;} with the
+     * configuration in {@link TypedRead}. Primary use case is unit tests, should not be used in an
      * application.
      */
     @VisibleForTesting
@@ -633,7 +633,7 @@ public class KafkaIO {
      * {@code min(desiredNumSplits, totalNumPartitions)}, though better not to depend on the exact
      * count.
      *
-     * <p> It is important to assign the partitions deterministically so that we can support
+     * <p>It is important to assign the partitions deterministically so that we can support
      * resuming a split from last checkpoint. The Kafka partitions are sorted by
      * {@code <topic, partition>} and then assigned to splits in round-robin order.
      */
@@ -1297,8 +1297,8 @@ public class KafkaIO {
   }
 
   /**
-   * Same as Write<K, V> without a Key. Null is used for key as it is the convention is Kafka
-   * when there is no key specified. Majority of Kafka writers don't specify a key.
+   * Same as {@code Write<K, V>} without a Key. Null is used for key as it is the convention is
+   * Kafka when there is no key specified. Majority of Kafka writers don't specify a key.
    */
   private static class KafkaValueWrite<V> extends PTransform<PCollection<V>, PDone> {
 

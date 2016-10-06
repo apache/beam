@@ -299,7 +299,7 @@ public abstract class OldDoFn<InputT, OutputT> implements Serializable, HasDispl
    * timestamps can only be shifted forward to future.  For infinite
    * skew, return {@code Duration.millis(Long.MAX_VALUE)}.
    *
-   * <p> Note that producing an element whose timestamp is less than the
+   * <p>Note that producing an element whose timestamp is less than the
    * current timestamp may result in late data, i.e. returning a non-zero
    * value here does not impact watermark calculations used for firing
    * windows.
