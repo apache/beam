@@ -320,7 +320,7 @@ class GcsBufferedReader(object):
     """
     line = self.readline()
     if not line:
-      raise StopIteration()
+      raise StopIteration
     return line
 
   def read(self, size=-1):

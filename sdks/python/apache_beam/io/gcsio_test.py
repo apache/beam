@@ -356,20 +356,11 @@ class TestGCSIO(unittest.TestCase):
 
     f = self.gcs.open(file_name)
 
-    stop_it_thrown = False
     read_lines = 0
-    while True:
-      try:
-        next(f)
-        read_lines += 1
-        if read_lines > 10:
-          break
-      except StopIteration:
-        stop_it_thrown = True
-        break
+    for line in f:
+      read_lines += 1
 
     self.assertEqual(read_lines, line_count)
-    self.assertTrue(stop_it_thrown)
 
   def test_file_read_line(self):
     file_name = 'gs://gcsio-test/read_line_file'
