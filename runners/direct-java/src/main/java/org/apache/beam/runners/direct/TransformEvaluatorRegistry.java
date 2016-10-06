@@ -24,7 +24,6 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
-import javax.annotation.Nullable;
 import org.apache.beam.runners.direct.DirectGroupByKey.DirectGroupAlsoByWindow;
 import org.apache.beam.runners.direct.DirectGroupByKey.DirectGroupByKeyOnly;
 import org.apache.beam.runners.direct.DirectRunner.CommittedBundle;
@@ -78,12 +77,16 @@ class TransformEvaluatorRegistry implements TransformEvaluatorFactory {
 
   @Override
   public <InputT> TransformEvaluator<InputT> forApplication(
-      AppliedPTransform<?, ?, ?> application, @Nullable CommittedBundle<?> inputBundle)
+      AppliedPTransform<?, ?, ?> application, CommittedBundle<?> inputBundle)
       throws Exception {
     checkState(
         !finished.get(), "Tried to get an evaluator for a finished TransformEvaluatorRegistry");
-    TransformEvaluatorFactory factory = factories.get(application.getTransform().getClass());
+    TransformEvaluatorFactory factory = getFactory(application);
     return factory.forApplication(application, inputBundle);
+  }
+
+  private TransformEvaluatorFactory getFactory(AppliedPTransform<?, ?, ?> application) {
+    return factories.get(application.getTransform().getClass());
   }
 
   @Override

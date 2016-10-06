@@ -800,6 +800,17 @@ public class WatermarkManager {
     return transformToWatermarks.get(transform);
   }
 
+  public void initialize(
+      Map<AppliedPTransform<?, ?, ?>, ? extends Iterable<CommittedBundle<?>>> initialBundles) {
+    for (Map.Entry<AppliedPTransform<?, ?, ?>, ? extends Iterable<CommittedBundle<?>>> rootEntry :
+        initialBundles.entrySet()) {
+      TransformWatermarks rootWms = transformToWatermarks.get(rootEntry.getKey());
+      for (CommittedBundle<?> initialBundle : rootEntry.getValue()) {
+        rootWms.addPending(initialBundle);
+      }
+    }
+  }
+
   /**
    * Updates the watermarks of a transform with one or more inputs.
    *
