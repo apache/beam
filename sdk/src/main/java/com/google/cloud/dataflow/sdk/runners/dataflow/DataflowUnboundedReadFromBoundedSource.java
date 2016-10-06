@@ -103,7 +103,14 @@ public class DataflowUnboundedReadFromBoundedSource<T> extends PTransform<PInput
 
   @Override
   public String getKindString() {
-    return "Read(" + approximateSimpleName(source.getClass()) + ")";
+    String sourceName;
+    if (source.getClass().isAnonymousClass()) {
+      sourceName = "AnonymousSource";
+    } else {
+      sourceName = approximateSimpleName(source.getClass());
+    }
+
+    return "Read(" + sourceName + ")";
   }
 
   @Override
@@ -179,6 +186,13 @@ public class DataflowUnboundedReadFromBoundedSource<T> extends PTransform<PInput
     @Override
     public Coder<Checkpoint<T>> getCheckpointMarkCoder() {
       return new CheckpointCoder<>(boundedSource.getDefaultOutputCoder());
+    }
+
+    @Override
+    public void populateDisplayData(DisplayData.Builder builder) {
+      super.populateDisplayData(builder);
+      builder.add(DisplayData.item("source", boundedSource.getClass()));
+      builder.include(boundedSource);
     }
 
     @VisibleForTesting

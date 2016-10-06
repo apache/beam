@@ -40,10 +40,11 @@ public class DisplayDataEvaluator {
   private final PipelineOptions options;
 
   /**
-   * Create a new {@link DisplayDataEvaluator} using {@link TestPipeline#testingPipelineOptions()}.
+   * Create a new {@link DisplayDataEvaluator} using options returned from
+   * {@link #getDefaultOptions()}.
    */
   public static DisplayDataEvaluator create() {
-    return create(TestPipeline.testingPipelineOptions());
+    return create(getDefaultOptions());
   }
 
   /**
@@ -51,6 +52,13 @@ public class DisplayDataEvaluator {
    */
   public static DisplayDataEvaluator create(PipelineOptions pipelineOptions) {
     return new DisplayDataEvaluator(pipelineOptions);
+  }
+
+  /**
+   * The default {@link PipelineOptions} which will be used by {@link #create()}.
+   */
+  public static PipelineOptions getDefaultOptions() {
+    return TestPipeline.testingPipelineOptions();
   }
 
   private DisplayDataEvaluator(PipelineOptions options) {
@@ -89,8 +97,8 @@ public class DisplayDataEvaluator {
 
     Pipeline pipeline = Pipeline.create(options);
     pipeline
-      .apply(input)
-      .apply(root);
+      .apply("Input", input)
+      .apply("Transform", root);
 
     PrimitiveDisplayDataPTransformVisitor visitor = new PrimitiveDisplayDataPTransformVisitor(root);
     pipeline.traverseTopologically(visitor);
@@ -108,7 +116,7 @@ public class DisplayDataEvaluator {
       final PTransform<? super PBegin, ? extends POutput> root) {
     Pipeline pipeline = Pipeline.create(options);
     pipeline
-        .apply(root);
+        .apply("SourceTransform", root);
 
     return displayDataForPipeline(pipeline, root);
   }
