@@ -1,14 +1,15 @@
 package cz.seznam.euphoria.flink.streaming;
 
+import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.dataset.windowing.TimeInterval;
 import cz.seznam.euphoria.core.client.dataset.windowing.TimeSliding;
 import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.io.ListDataSink;
 import cz.seznam.euphoria.core.client.io.ListDataSource;
 import cz.seznam.euphoria.core.client.operator.ReduceByKey;
-import cz.seznam.euphoria.core.client.operator.WindowedPair;
 import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.core.client.util.Sums;
+import cz.seznam.euphoria.core.client.util.Triple;
 import cz.seznam.euphoria.flink.TestFlinkExecutor;
 import cz.seznam.euphoria.guava.shaded.com.google.common.base.Joiner;
 import org.junit.Test;
@@ -23,7 +24,7 @@ import static org.junit.Assert.assertEquals;
 public class RBKTimeSlidingTest {
   @Test
   public void testEventWindowing() throws Exception {
-    ListDataSink<WindowedPair<TimeInterval, String, Long>> output = ListDataSink.get(2);
+    ListDataSink<Triple<TimeInterval, String, Long>> output = ListDataSink.get(2);
 
     ListDataSource<Pair<String, Integer>> source =
         ListDataSource.unbounded(
@@ -41,7 +42,8 @@ public class RBKTimeSlidingTest {
             .withFinalDelay(Duration.ofMillis(1000));
 
     Flow f = Flow.create("test-windowing");
-    ReduceByKey.of(f.createInput(source))
+    Dataset<Pair<String, Long>> reduced =
+        ReduceByKey.of(f.createInput(source))
         .keyBy(Pair::getFirst)
         .valueBy(e -> 1L)
         .combineBy(Sums.ofLongs())
@@ -50,8 +52,9 @@ public class RBKTimeSlidingTest {
             .using(e -> (long) e.getSecond()))
         .setNumPartitions(2)
         .setPartitioner(element -> element.equals("aaa") ? 1 : 0)
-        .outputWindowed()
-        .persist(output);
+        .output();
+
+    Util.extractWindows(reduced, TimeInterval.class).persist(output);
 
 //    new InMemExecutor()
 //        .setTriggeringSchedulerSupplier(() -> new WatermarkTriggerScheduler(0))
@@ -74,7 +77,7 @@ public class RBKTimeSlidingTest {
 
   @Test
   public void testEventWindowing_NonCombining() throws Exception {
-    ListDataSink<WindowedPair<TimeInterval, String, Long>> output = ListDataSink.get(2);
+    ListDataSink<Triple<TimeInterval, String, Long>> output = ListDataSink.get(2);
 
     ListDataSource<Pair<String, Integer>> source =
         ListDataSource.unbounded(
@@ -92,7 +95,8 @@ public class RBKTimeSlidingTest {
             .withFinalDelay(Duration.ofMillis(1000));
 
     Flow f = Flow.create("test-attached-windowing");
-    ReduceByKey.of(f.createInput(source))
+    Dataset<Pair<String, Long>> reduced =
+        ReduceByKey.of(f.createInput(source))
         .keyBy(Pair::getFirst)
         .valueBy(e -> 1L)
         .reduceBy(xs -> {
@@ -107,8 +111,9 @@ public class RBKTimeSlidingTest {
             .using(e -> (long) e.getSecond()))
         .setNumPartitions(2)
         .setPartitioner(element -> element.equals("aaa") ? 1 : 0)
-        .outputWindowed()
-        .persist(output);
+        .output();
+
+    Util.extractWindows(reduced, TimeInterval.class).persist(output);
 
     new TestFlinkExecutor()
         .setAllowedLateness(Duration.ofMillis(0))
@@ -127,20 +132,20 @@ public class RBKTimeSlidingTest {
   }
 
   private <K extends Comparable<K>, V>
-  String flatten(List<WindowedPair<TimeInterval, K, V>> xs) {
+  String flatten(List<Triple<TimeInterval, K, V>> xs) {
     return Joiner.on(", ").join(
         xs.stream().sorted((a, b) -> {
           int cmp = Long.compare(
-              a.getWindowLabel().getStartMillis(),
-              b.getWindowLabel().getStartMillis());
+              a.getFirst().getStartMillis(),
+              b.getFirst().getStartMillis());
           if (cmp == 0) {
-            cmp = a.getFirst().compareTo(b.getFirst());
+            cmp = a.getSecond().compareTo(b.getSecond());
           }
           return cmp;
         })
-        .map(p -> "[" + p.getWindowLabel().getStartMillis()
-                      + "," + p.getWindowLabel().getEndMillis()
-                      + "): " + p.getFirst() + "=" + p.getSecond())
+        .map(p -> "[" + p.getFirst().getStartMillis()
+                      + "," + p.getFirst().getEndMillis()
+                      + "): " + p.getSecond() + "=" + p.getThird())
         .collect(Collectors.toList()));
   }
 }
