@@ -148,6 +148,7 @@
                       [
                       "--project=apache-beam-testing",
                       "--tempLocation=gs://temp-storage-for-end-to-end-tests",
+                      "--tempRoot=gs://temp-storage-for-end-to-end-tests",
                       "--runner=org.apache.beam.runners.direct.DirectRunner"
                       ]
                     </beamTestPipelineOptions>
