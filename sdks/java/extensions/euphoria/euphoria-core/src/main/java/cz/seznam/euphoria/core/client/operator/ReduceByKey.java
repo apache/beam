@@ -31,11 +31,10 @@ import java.util.Objects;
  * @param <OUT> Type of output value
  */
 public class ReduceByKey<
-    IN, KIN, KEY, VALUE, KEYOUT, OUT, WLABEL, W extends WindowContext<WLABEL>,
-    PAIROUT extends Pair<KEYOUT, OUT>>
+    IN, KIN, KEY, VALUE, KEYOUT, OUT, WLABEL, W extends WindowContext<WLABEL>>
     extends StateAwareWindowWiseSingleInputOperator<
-        IN, IN, KIN, KEY, PAIROUT, WLABEL, W,
-        ReduceByKey<IN, KIN, KEY, VALUE, KEYOUT, OUT, WLABEL, W, PAIROUT>>
+        IN, IN, KIN, KEY, Pair<KEYOUT, OUT>, WLABEL, W,
+        ReduceByKey<IN, KIN, KEY, VALUE, KEYOUT, OUT, WLABEL, W>>
 {
 
   public static class OfBuilder {
@@ -148,14 +147,6 @@ public class ReduceByKey<
               reducer, null, this)
           .output();
     }
-
-    @SuppressWarnings("unchecked")
-    public <W> Dataset<WindowedPair<W, KEY, OUT>> outputWindowed() {
-      return (Dataset) new DatasetBuilder5<>(name, input, keyExtractor, valueExtractor,
-              reducer, null, this)
-          .outputWindowed();
-    }
-
   }
 
   public static class DatasetBuilder5<
@@ -189,18 +180,13 @@ public class ReduceByKey<
       this.windowing = windowing;
     }
 
-    @SuppressWarnings("unchecked")
     @Override
     public Dataset<Pair<KEY, OUT>> output() {
-      return (Dataset) outputWindowed();
-    }
-
-    public Dataset<WindowedPair<WLABEL, KEY, OUT>> outputWindowed() {
       Flow flow = input.getFlow();
-      ReduceByKey<IN, IN, KEY, VALUE, KEY, OUT, WLABEL, W, WindowedPair<WLABEL, KEY, OUT>>
+      ReduceByKey<IN, IN, KEY, VALUE, KEY, OUT, WLABEL, W>
           reduce =
-              new ReduceByKey<>(name, flow, input, keyExtractor, valueExtractor,
-                      windowing, reducer, getPartitioning());
+          new ReduceByKey<>(name, flow, input, keyExtractor, valueExtractor,
+              windowing, reducer, getPartitioning());
       flow.add(reduce);
       return reduce.output();
     }
@@ -330,19 +316,13 @@ public class ReduceByKey<
       this.windowing = windowing;
     }
 
-    @SuppressWarnings("unchecked")
     @Override
     public Dataset<Pair<CompositeKey<IN, KEY>, OUT>> output() {
-      return (Dataset) outputWindowed();
-    }
-
-    public Dataset<WindowedPair<WLABEL, CompositeKey<IN, KEY>, OUT>> outputWindowed() {
       Flow flow = input.getFlow();
-      ReduceByKey<IN, KIN, KEY, VALUE, CompositeKey<IN, KEY>,
-                  OUT, WLABEL, W, WindowedPair<WLABEL, CompositeKey<IN, KEY>, OUT>>
+      ReduceByKey<IN, KIN, KEY, VALUE, CompositeKey<IN, KEY>, OUT, WLABEL, W>
           reduce =
-              new ReduceByKey<>(name, flow, input, keyExtractor, valueExtractor,
-                      windowing, reducer, getPartitioning());
+          new ReduceByKey<>(name, flow, input, keyExtractor, valueExtractor,
+              windowing, reducer, getPartitioning());
       flow.add(reduce);
       return reduce.output();
     }

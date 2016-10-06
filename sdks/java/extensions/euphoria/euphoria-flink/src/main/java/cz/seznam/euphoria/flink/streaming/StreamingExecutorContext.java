@@ -4,7 +4,6 @@ import cz.seznam.euphoria.core.client.dataset.windowing.WindowContext;
 import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
 import cz.seznam.euphoria.core.client.graph.DAG;
-import cz.seznam.euphoria.core.client.operator.WindowedPair;
 import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.flink.ExecutorContext;
 import cz.seznam.euphoria.flink.FlinkOperator;
@@ -56,7 +55,7 @@ public class StreamingExecutorContext
    * {@link StreamingWindowedElement#emissionWatermark} of the windows to attach to.
    */
   <T, LABEL, KEY, VALUE>
-  WindowedStream<StreamingWindowedElement<LABEL, WindowedPair<LABEL, KEY, VALUE>>,
+  WindowedStream<StreamingWindowedElement<LABEL, Pair<KEY, VALUE>>,
       KEY, AttachedWindow<LABEL>>
   attachedWindowStream(DataStream<StreamingWindowedElement<LABEL, T>> input,
                        UnaryFunction<T, KEY> keyFn,

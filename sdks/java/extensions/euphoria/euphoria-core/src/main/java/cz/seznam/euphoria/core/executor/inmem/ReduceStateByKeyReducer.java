@@ -8,9 +8,7 @@ import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.functional.CombinableReduceFunction;
 import cz.seznam.euphoria.core.client.functional.StateFactory;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
-import cz.seznam.euphoria.core.client.io.Context;
 import cz.seznam.euphoria.core.client.operator.ReduceStateByKey;
-import cz.seznam.euphoria.core.client.operator.WindowedPair;
 import cz.seznam.euphoria.core.client.operator.state.State;
 import cz.seznam.euphoria.core.client.operator.state.StorageProvider;
 import cz.seznam.euphoria.core.client.triggers.Trigger;
@@ -49,8 +47,7 @@ class ReduceStateByKeyReducer implements Runnable {
 
     @Override
     public void collect(Object elem) {
-      // XXX WindowedPair.of(..) -> Pair.of(key, elem)
-      super.collect(WindowedPair.of(windowID.getLabel(), key, elem));
+      super.collect(Pair.of(key, elem));
     }
   } // ~ end of KeyedElementCollector
 
