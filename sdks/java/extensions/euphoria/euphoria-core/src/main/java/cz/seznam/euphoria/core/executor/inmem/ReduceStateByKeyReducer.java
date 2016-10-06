@@ -89,6 +89,7 @@ class ReduceStateByKeyReducer implements Runnable {
     }
   } // ~ end of WindowStorage
 
+  @SuppressWarnings("unchecked")
   private static final class WindowRegistry {
 
     final Map<WindowID, Map<Object, WindowStorage>> windows = new HashMap<>();
@@ -114,7 +115,7 @@ class ReduceStateByKeyReducer implements Runnable {
       return null;
     }
 
-    void setWindowStorage(WindowID window, Object itemKey, WindowStorage storage) {
+    void setWindowStorage(WindowID window, Object itemKey, WindowStorage storage) {     
       Map<Object, WindowStorage> keys = windows.get(window);
       if (keys == null) {
         windows.put(window, keys = new HashMap<>());
@@ -195,7 +196,8 @@ class ReduceStateByKeyReducer implements Runnable {
     // windows at the end of input
     private final boolean isBounded;
 
-    private Set<WindowID> flushedWindows = new HashSet<>();
+    // flushed windows with the time of the flush
+    private Map<WindowID, Long> flushedWindows = new HashMap<>();
 
     @SuppressWarnings("unchecked")
     private ProcessingState(
@@ -217,12 +219,12 @@ class ReduceStateByKeyReducer implements Runnable {
       this.maxKeyStatesPerWindow = maxKeyStatesPerWindow;
     }
 
-    Set<WindowID> takeFlushedWindows() {
+    Map<WindowID, Long> takeFlushedWindows() {
       if (flushedWindows.isEmpty()) {
-        return Collections.emptySet();
+        return Collections.emptyMap();
       }
-      Set<WindowID> flushed = flushedWindows;
-      flushedWindows = new HashSet<>();
+      Map<WindowID, Long> flushed = flushedWindows;
+      flushedWindows = new HashMap<>();
       return flushed;
     }
 
@@ -236,7 +238,7 @@ class ReduceStateByKeyReducer implements Runnable {
     }
 
     /**
-     * Flushes (emits result) the specified window
+     * Flushes (emits result) the specified window.
      */
     void flushWindow(WindowID window, Object itemKey) {
       WindowStorage state = wRegistry.getWindowStorage(window, itemKey);
@@ -246,7 +248,7 @@ class ReduceStateByKeyReducer implements Runnable {
       state.state.flush();
       // ~ remember we flushed the window such that we can emit one
       // notification to downstream operators for all keys in this window
-      flushedWindows.add(window);
+      flushedWindows.put(window, getCurrentWatermark());
     }
 
     /**
@@ -267,9 +269,9 @@ class ReduceStateByKeyReducer implements Runnable {
     void flushAndCloseAllWindows() {
       for (Map.Entry<WindowID, Map<Object, WindowStorage>> windowState : wRegistry.windows.entrySet()) {
         for (Map.Entry<Object, WindowStorage> itemState : windowState.getValue().entrySet()) {
-          State state = itemState.getValue().state;
-          state.flush();
-          state.close();
+          try (State state = itemState.getValue().state) {
+            state.flush();
+          }
         }
       }
       wRegistry.windows.clear();
@@ -535,11 +537,15 @@ class ReduceStateByKeyReducer implements Runnable {
 
   private void notifyFlushedWindows() throws InterruptedException {
     // ~ send notifications to downstream operators about flushed windows
-    long stamp = getCurrentWatermark();
-    for (WindowID w : processing.takeFlushedWindows()) {
-      output.put(Datum.windowTrigger(w, stamp));
-      output.put(Datum.watermark(stamp));
+    long max = 0;
+    for (Map.Entry<WindowID, Long> w : processing.takeFlushedWindows().entrySet()) {
+      output.put(Datum.windowTrigger(w.getKey(), w.getValue()));
+      long flushTime = w.getValue();
+      if (flushTime > max) {
+        max = flushTime;
+      }
     }
+    output.put(Datum.watermark(max));
   }
 
   private void processInput(WindowedElement element) {

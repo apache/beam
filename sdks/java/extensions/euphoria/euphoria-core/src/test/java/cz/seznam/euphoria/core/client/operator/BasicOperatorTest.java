@@ -1,6 +1,7 @@
 package cz.seznam.euphoria.core.client.operator;
 
 import cz.seznam.euphoria.core.client.dataset.Dataset;
+import cz.seznam.euphoria.core.client.dataset.windowing.Session;
 import cz.seznam.euphoria.core.client.dataset.windowing.Time;
 import cz.seznam.euphoria.core.client.dataset.windowing.TimeInterval;
 import cz.seznam.euphoria.core.client.flow.Flow;
@@ -192,7 +193,7 @@ public class BasicOperatorTest {
         .valueBy(Triple::getSecond)
         .combineBy(Sums.ofLongs())
         .windowBy(Time.of(Duration.ofSeconds(10))
-            .earlyTriggering(Duration.ofSeconds(1))
+            .earlyTriggering(Duration.ofMillis(1_003))
             .using(e -> (long) e.getThird()))
         .output();
 
@@ -218,6 +219,73 @@ public class BasicOperatorTest {
     //  ~ second (final) window
     results.containsAll(asList("one-4", "three-2", "two-5"));
   }
+
+  @Test
+  public void testWordCountStreamEarlyTriggeredInSession() throws Exception {
+    ListDataSource<Pair<String, Integer>> input =
+        ListDataSource.unbounded(asList(
+            Pair.of("one", 150),
+            Pair.of("two", 450),
+            Pair.of("three", 999),
+            Pair.of("four", 1111),
+            Pair.of("four", 1500),
+            Pair.of("two", 1777),
+            Pair.of("two", 1999),
+            Pair.of("one", 4003),
+            Pair.of("one", 4158),
+            Pair.of("one", 4899),
+            Pair.of("two", 5001),
+            Pair.of("two", 5123),
+            Pair.of("three", 5921)));
+
+    Flow flow = Flow.create("Test");
+    Dataset<Pair<String, Integer>> lines = flow.createInput(input);
+
+    // expand it to words
+    Dataset<Triple<String, Long, Integer>> words = FlatMap.of(lines)
+        .using((Pair<String, Integer> p, Context<Triple<String, Long, Integer>> out) -> {
+          for (String word : p.getFirst().split(" ")) {
+            out.collect(Triple.of(word, 1L, p.getSecond()));
+          }
+        })
+        .output();
+
+    // reduce it to counts, use windowing, so the output is batch or stream
+    // depending on the type of input
+    Dataset<Pair<String, Long>> streamOutput = ReduceByKey
+        .of(words)
+        .keyBy(Triple::getFirst)
+        .valueBy(Triple::getSecond)
+        .combineBy(Sums.ofLongs())
+        .windowBy(Session.of(Duration.ofSeconds(10))
+            .earlyTriggering(Duration.ofMillis(1_003))
+            .using(e -> (long) e.getThird()))
+        .output();
+
+
+    ListDataSink<Pair<String, Long>> s = ListDataSink.get(1);
+    streamOutput.persist(s);
+
+    executor.setTriggeringSchedulerSupplier(() -> new WatermarkTriggerScheduler(0));
+    executor.waitForCompletion(flow);
+
+    @SuppressWarnings("unchecked")
+    List<Pair<String, Long>> f = s.getOutput(0);
+
+    // ~ assert the total amount of data produced
+    assertTrue(f.size() >= 8); // at least one early triggered result + end of window
+
+    // ~ take only unique results (window can be triggered arbitrary times)
+    Set<String> results = new HashSet<>(sublist(f, 0, -1, false));
+
+    // ~ first window - early triggered
+    results.containsAll(asList("four-2", "one-1", "three-1", "two-3"));
+
+    //  ~ second (final) window
+    results.containsAll(asList("one-4", "three-2", "two-5"));
+
+  }
+
 
   private List<String> sublist(
       List<? extends Pair<String, Long>> xs, int start, int len) {

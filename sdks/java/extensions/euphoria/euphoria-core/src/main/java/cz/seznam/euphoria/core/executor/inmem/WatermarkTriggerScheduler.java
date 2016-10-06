@@ -44,7 +44,7 @@ public class WatermarkTriggerScheduler<W, K> implements TriggerScheduler<W, K> {
   @Override
   @SuppressWarnings("unchecked")
   public void updateStamp(long stamp) {
-    if (currentWatermark < stamp) {      
+    if (currentWatermark < stamp) {
       final long triggeringStamp = stamp - watermarkDuration;
 
       // fire all triggers that passed watermark duration
@@ -63,10 +63,6 @@ public class WatermarkTriggerScheduler<W, K> implements TriggerScheduler<W, K> {
             Triggerable<W, K> purged = purge(w, currentWatermark);
             purged.fire(currentWatermark, w);
           });
-
-      // remove all expired events
-      headMap.keySet().stream().collect(Collectors.toList())
-          .forEach(scheduledEvents::remove);
 
       // and set the final watermark
       currentWatermark = stamp;
@@ -101,7 +97,7 @@ public class WatermarkTriggerScheduler<W, K> implements TriggerScheduler<W, K> {
       for (long stamp : Lists.newArrayList(stamps)) {
         purge(window, stamp);
       }
-    }
+    }    
   }
 
   @Override
@@ -132,6 +128,12 @@ public class WatermarkTriggerScheduler<W, K> implements TriggerScheduler<W, K> {
     if (eventsForWindow.isEmpty()) {
       scheduledEvents.remove(stamp);
     }
+
+    if (scheduled.isEmpty()) {
+      eventStampsForWindow.remove(w);
+    }
+
+
     return event.getSecond();
   }
 
