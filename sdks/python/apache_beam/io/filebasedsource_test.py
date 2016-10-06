@@ -406,7 +406,7 @@ class TestFileBasedSource(unittest.TestCase):
     _, lines = write_data(10)
     filename = tempfile.NamedTemporaryFile(
         delete=False, prefix=tempfile.template, suffix='.bz2').name
-    with gzip.GzipFile(filename, 'wb') as f:
+    with bz2.BZ2File(filename, 'wb') as f:
       f.write('\n'.join(lines))
 
     pipeline = beam.Pipeline('DirectPipelineRunner')
