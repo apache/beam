@@ -1,5 +1,6 @@
 package cz.seznam.euphoria.flink.streaming;
 
+import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.dataset.windowing.Time;
 import cz.seznam.euphoria.core.client.dataset.windowing.TimeInterval;
 import cz.seznam.euphoria.core.client.flow.Flow;
@@ -8,7 +9,6 @@ import cz.seznam.euphoria.core.client.functional.UnaryFunction;
 import cz.seznam.euphoria.core.client.io.ListDataSink;
 import cz.seznam.euphoria.core.client.io.ListDataSource;
 import cz.seznam.euphoria.core.client.operator.ReduceByKey;
-import cz.seznam.euphoria.core.client.operator.WindowedPair;
 import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.core.client.util.Sums;
 import cz.seznam.euphoria.core.client.util.Triple;
@@ -32,7 +32,7 @@ import static org.junit.Assert.assertEquals;
 public class RBKTimeWindowTest {
   @Test
   public void testEventWindowing() throws Exception {
-    ListDataSink<WindowedPair<TimeInterval, String, Long>> output = ListDataSink.get(1);
+    ListDataSink<Triple<TimeInterval, String, Long>> output = ListDataSink.get(1);
 
     ListDataSource<Pair<String, Integer>> source =
         ListDataSource.unbounded(
@@ -47,7 +47,8 @@ public class RBKTimeWindowTest {
             .withReadDelay(Duration.ofMillis(200));
 
     Flow f = Flow.create("test-attached-windowing");
-    ReduceByKey.of(f.createInput(source))
+    Dataset<Pair<String, Long>> reduced =
+        ReduceByKey.of(f.createInput(source))
         .keyBy(Pair::getFirst)
         .valueBy(e -> 1L)
         .combineBy(Sums.ofLongs())
@@ -55,8 +56,9 @@ public class RBKTimeWindowTest {
             // ~ event time
             .using(e -> (long) e.getSecond()))
         .setNumPartitions(1)
-        .outputWindowed()
-        .persist(output);
+        .output();
+
+    Util.extractWindows(reduced, TimeInterval.class).persist(output);
 
     new TestFlinkExecutor()
         .setStateBackend(new RocksDBStateBackend("file:///tmp/flink-checkpoint"))
@@ -66,7 +68,7 @@ public class RBKTimeWindowTest {
         asList("0:one-2", "0:two-1", "5:three-1", "5:two-3"),
         output.getOutput(0)
             .stream()
-            .map(p -> p.getWindowLabel().getStartMillis() + ":" + p.getFirst() + "-" + p.getSecond())
+            .map(p -> p.getFirst().getStartMillis() + ":" + p.getSecond() + "-" + p.getThird())
             .sorted()
             .collect(Collectors.toList()));
 
@@ -74,7 +76,7 @@ public class RBKTimeWindowTest {
 
   @Test
   public void testEventWindowingEarlyTriggered() throws Exception {
-    ListDataSink<WindowedPair<TimeInterval, String, HashSet<String>>> output = ListDataSink.get(1);
+    ListDataSink<Triple<TimeInterval, String, HashSet<String>>> output = ListDataSink.get(1);
 
     ListDataSource<Pair<String, Integer>> source =
         ListDataSource.unbounded(
@@ -93,7 +95,8 @@ public class RBKTimeWindowTest {
             .withReadDelay(Duration.ofMillis(200));
 
     Flow f = Flow.create("test-attached-windowing");
-    ReduceByKey.of(f.createInput(source))
+    Dataset<Pair<String, HashSet<String>>> reduced =
+        ReduceByKey.of(f.createInput(source))
         .keyBy(e -> "")
         .valueBy((UnaryFunction<Pair<String, Integer>, HashSet<String>>) what ->
             Sets.newHashSet(what.getFirst()))
@@ -110,8 +113,9 @@ public class RBKTimeWindowTest {
             // ~ event time
             .using(e -> (long) e.getSecond()))
         .setNumPartitions(1)
-        .outputWindowed()
-        .persist(output);
+        .output();
+
+    Util.extractWindows(reduced, TimeInterval.class).persist(output);
 
     new TestFlinkExecutor()
         .setAutoWatermarkInterval(Duration.ofMillis(10))
@@ -129,9 +133,9 @@ public class RBKTimeWindowTest {
             .map(p -> {
               StringBuilder sb = new StringBuilder();
               sb.append(String.format("%02d: %02d => ",
-                  p.getWindowLabel().getStartMillis(),
-                  p.getSecond().size()));
-              ArrayList<String> xs = Lists.newArrayList(p.getSecond());
+                  p.getFirst().getStartMillis(),
+                  p.getThird().size()));
+              ArrayList<String> xs = Lists.newArrayList(p.getThird());
               xs.sort(String::compareTo);
               Joiner.on(", ").appendTo(sb, xs);
               return sb.toString();
@@ -142,7 +146,7 @@ public class RBKTimeWindowTest {
 
   @Test
   public void testEventWindowingNonCombining() throws Exception {
-    ListDataSink<WindowedPair<TimeInterval, String, String>> output = ListDataSink.get(2);
+    ListDataSink<Triple<TimeInterval, String, String>> output = ListDataSink.get(2);
 
     ListDataSource<Triple<String, String, Integer>> source =
         ListDataSource.unbounded(
@@ -163,7 +167,8 @@ public class RBKTimeWindowTest {
             .withFinalDelay(Duration.ofMillis(1000));
 
     Flow f = Flow.create("test-attached-windowing");
-    ReduceByKey.of(f.createInput(source))
+    Dataset<Pair<String, String>> reduced =
+        ReduceByKey.of(f.createInput(source))
         .keyBy(Triple::getFirst)
         .valueBy(Triple::getSecond)
         .combineBy(xs -> {
@@ -176,8 +181,9 @@ public class RBKTimeWindowTest {
             .using(e -> (long) e.getThird()))
         .setNumPartitions(2)
         .setPartitioner(element -> element.equals("aaa") ? 1 : 0)
-        .outputWindowed()
-        .persist(output);
+        .output();
+
+    Util.extractWindows(reduced, TimeInterval.class).persist(output);
 
     new TestFlinkExecutor()
         .setAllowedLateness(Duration.ofMillis(0))
@@ -192,9 +198,9 @@ public class RBKTimeWindowTest {
         fmt(output.getOutput(1)));
   }
 
-  private List<String> fmt(List<WindowedPair<TimeInterval, String, String>> xs) {
+  private List<String> fmt(List<Triple<TimeInterval, String, String>> xs) {
     return xs.stream()
-        .map(p -> p.getWindowLabel().getStartMillis() + ": " + p.getFirst() + "=" + p.getSecond())
+        .map(p -> p.getFirst().getStartMillis() + ": " + p.getSecond() + "=" + p.getThird())
         .sorted()
         .collect(Collectors.toList());
   }

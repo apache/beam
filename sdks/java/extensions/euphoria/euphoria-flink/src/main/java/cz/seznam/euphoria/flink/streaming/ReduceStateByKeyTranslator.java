@@ -5,10 +5,11 @@ import cz.seznam.euphoria.core.client.dataset.windowing.WindowID;
 import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.functional.StateFactory;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
+import cz.seznam.euphoria.core.client.io.Context;
 import cz.seznam.euphoria.core.client.operator.CompositeKey;
 import cz.seznam.euphoria.core.client.operator.ReduceStateByKey;
-import cz.seznam.euphoria.core.client.operator.state.State;
 import cz.seznam.euphoria.core.client.operator.WindowedPair;
+import cz.seznam.euphoria.core.client.operator.state.State;
 import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.flink.FlinkOperator;
 import cz.seznam.euphoria.flink.functions.PartitionerWrapper;
@@ -16,15 +17,14 @@ import cz.seznam.euphoria.flink.streaming.windowing.FlinkWindow;
 import cz.seznam.euphoria.flink.streaming.windowing.MultiWindowedElement;
 import cz.seznam.euphoria.flink.streaming.windowing.WindowProperties;
 import cz.seznam.euphoria.guava.shaded.com.google.common.collect.Iterables;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.WindowedStream;
-
-import java.util.Iterator;
-import org.apache.flink.api.common.functions.RichReduceFunction;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.functions.windowing.RichWindowFunction;
 import org.apache.flink.streaming.api.windowing.windows.Window;
 import org.apache.flink.util.Collector;
+
+import java.util.Iterator;
 
 class ReduceStateByKeyTranslator implements StreamingOperatorTranslator<ReduceStateByKey> {
 
@@ -133,14 +133,20 @@ class ReduceStateByKeyTranslator implements StreamingOperatorTranslator<ReduceSt
       long emissionWatermark = window.getEmissionWatermark();
 
       State state = stateFactory.apply(
-          e -> out.collect(new StreamingWindowedElement(
-              wid,
-              WindowedPair.of(
-                  wid.getLabel(),
-                  key,
-                  e))
-              // ~ forward the emission watermark
-              .withEmissionWatermark(emissionWatermark)), storageProvider);
+          new Context() {
+            @Override
+            public void collect(Object elem) {
+              out.collect(new StreamingWindowedElement(
+                  wid, WindowedPair.of(wid.getLabel(), key, elem))
+                  // ~ forward the emission watermark
+                  .withEmissionWatermark(emissionWatermark));
+            }
+            @Override
+            public Object getWindow() {
+              return wid.getLabel();
+            }
+          },
+          storageProvider);
 
       // add the first element to the state
       state.add(element.get().getValue());
