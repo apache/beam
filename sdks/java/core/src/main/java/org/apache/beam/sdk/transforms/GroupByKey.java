@@ -63,7 +63,7 @@ import org.apache.beam.sdk.values.PCollection.IsBounded;
  * {@code Coder} of the values of the input.
  *
  * <p>Example of use:
- * <pre><code>
+ * <pre>{@code
  * PCollection<KV<String, Doc>> urlDocPairs = ...;
  * PCollection<KV<String, Iterable<Doc>>> urlToDocs =
  *     urlDocPairs.apply(GroupByKey.<String, Doc>create());
@@ -75,7 +75,7 @@ import org.apache.beam.sdk.values.PCollection.IsBounded;
  *         Iterable<Doc> docsWithThatUrl = c.element().getValue();
  *         ... process all docs having that url ...
  *       }}));
- * </code></pre>
+ * }</pre>
  *
  * <p>{@code GroupByKey} is a key primitive in data-parallel
  * processing, since it is the main way to efficiently bring

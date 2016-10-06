@@ -198,7 +198,7 @@ class ProxyInvocationHandler implements InvocationHandler, HasDisplayData {
    * Backing implementation for {@link PipelineOptions#as(Class)}.
    *
    * @param iface The interface that the returned object needs to implement.
-   * @return An object that implements the interface <T>.
+   * @return An object that implements the interface {@code <T>}.
    */
   synchronized <T extends PipelineOptions> T as(Class<T> iface) {
     checkNotNull(iface);

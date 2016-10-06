@@ -31,7 +31,7 @@ import java.io.Serializable;
 import org.joda.time.Instant;
 
 
-/***
+/**
  * Checkpoint mark for single shard in the stream.
  * Current position in the shard is determined by either:
  * <ul>
@@ -96,7 +96,7 @@ class ShardCheckpoint implements Serializable {
         this.timestamp = timestamp;
     }
 
-    /***
+    /**
      * Used to compare {@link ShardCheckpoint} object to {@link KinesisRecord}. Depending
      * on the the underlying shardIteratorType, it will either compare the timestamp or the
      * {@link ExtendedSequenceNumber}.
@@ -151,7 +151,7 @@ class ShardCheckpoint implements Serializable {
         return shardIteratorType == AFTER_SEQUENCE_NUMBER && subSequenceNumber != null;
     }
 
-    /***
+    /**
      * Used to advance checkpoint mark to position after given {@link Record}.
      *
      * @param record

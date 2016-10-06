@@ -165,7 +165,7 @@ public final class TranslationUtils {
     }
   }
 
-  /***
+  /**
    * Create SideInputs as Broadcast variables.
    *
    * @param views   The {@link PCollectionView}s.

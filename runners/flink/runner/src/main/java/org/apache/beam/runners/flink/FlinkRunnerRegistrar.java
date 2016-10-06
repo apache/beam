@@ -27,10 +27,10 @@ import org.apache.beam.sdk.runners.PipelineRunnerRegistrar;
 
 
 /**
- * AuteService registrar - will register FlinkRunner and FlinkOptions
+ * AutoService registrar - will register FlinkRunner and FlinkOptions
  * as possible pipeline runner services.
  *
- * It ends up in META-INF/services and gets picked up by Dataflow.
+ * <p>It ends up in META-INF/services and gets picked up by Beam.
  *
  */
 public class FlinkRunnerRegistrar {

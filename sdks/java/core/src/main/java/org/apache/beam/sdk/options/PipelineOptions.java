@@ -93,7 +93,7 @@ import org.joda.time.format.DateTimeFormatter;
  *
  * <h2>Defining Your Own PipelineOptions</h2>
  *
- * Defining your own {@link PipelineOptions} is the way for you to make configuration
+ * <p>Defining your own {@link PipelineOptions} is the way for you to make configuration
  * options available for both local execution and execution via a {@link PipelineRunner}.
  * By having PipelineOptionsFactory as your command-line interpreter, you will provide
  * a standardized way for users to interact with your application via the command-line.
@@ -117,7 +117,7 @@ import org.joda.time.format.DateTimeFormatter;
  *
  * <h3>Restrictions</h3>
  *
- * Since PipelineOptions can be "cast" to multiple types dynamically using
+ * <p>Since PipelineOptions can be "cast" to multiple types dynamically using
  * {@link PipelineOptions#as(Class)}, a property must conform to the following set of restrictions:
  * <ul>
  *   <li>Any property with the same name must have the same return type for all derived
@@ -134,7 +134,7 @@ import org.joda.time.format.DateTimeFormatter;
  *
  * <h3>Annotations For PipelineOptions</h3>
  *
- * {@link Description @Description} can be used to annotate an interface or a getter
+ * <p>{@link Description @Description} can be used to annotate an interface or a getter
  * with useful information which is output when {@code --help}
  * is invoked via {@link PipelineOptionsFactory#fromArgs(String[])}.
  *
@@ -158,7 +158,7 @@ import org.joda.time.format.DateTimeFormatter;
  *
  * <h2>Registration Of PipelineOptions</h2>
  *
- * Registration of {@link PipelineOptions} by an application guarantees that the
+ * <p>Registration of {@link PipelineOptions} by an application guarantees that the
  * {@link PipelineOptions} is composable during execution of their {@link Pipeline} and
  * meets the restrictions listed above or will fail during registration. Registration
  * also lists the registered {@link PipelineOptions} when {@code --help}

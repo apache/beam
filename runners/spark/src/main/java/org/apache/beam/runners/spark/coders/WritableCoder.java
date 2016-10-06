@@ -37,7 +37,7 @@ import org.apache.hadoop.io.Writable;
 /**
  * A {@code WritableCoder} is a {@link Coder} for a Java class that implements {@link Writable}.
  *
- * <p> To use, specify the coder type on a PCollection:
+ * <p>To use, specify the coder type on a PCollection:
  * <pre>
  * {@code
  *   PCollection<MyRecord> records =

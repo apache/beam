@@ -34,7 +34,7 @@ import org.apache.beam.sdk.values.PCollectionView;
  * available in the SDK.
  *
  * @param <PrimitiveViewT> the type of the underlying primitive view, provided by the runner
- *        <ViewT> the type of the value(s) accessible via this {@link PCollectionView}
+ *        {@code <ViewT>} the type of the value(s) accessible via this {@link PCollectionView}
  */
 public abstract class ViewFn<PrimitiveViewT, ViewT> implements Serializable {
   /**
