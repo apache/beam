@@ -4,7 +4,7 @@ import cz.seznam.euphoria.core.client.dataset.windowing.WindowID;
 
 import java.util.Objects;
 
-final class KeyedWindow<W, K> {
+public final class KeyedWindow<W, K> {
   private final WindowID<W> window;
   private final K key;
 
@@ -24,9 +24,8 @@ final class KeyedWindow<W, K> {
   @Override
   public boolean equals(Object o) {
     if (o instanceof KeyedWindow) {
-      KeyedWindow ctx = (KeyedWindow) o;
-      return window.equals(ctx.window)
-          && (key != null ? key.equals(ctx.key) : ctx.key == null);
+      KeyedWindow other = (KeyedWindow) o;
+      return window.equals(other.window) && Objects.equals(key, other.key);
     }
     return false;
   }
