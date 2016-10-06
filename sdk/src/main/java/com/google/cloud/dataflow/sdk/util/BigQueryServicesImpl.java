@@ -281,8 +281,7 @@ public class BigQueryServicesImpl implements BigQueryServices {
     public Job getJob(JobReference jobRef) throws IOException, InterruptedException {
       BackOff backoff =
           FluentBackoff.DEFAULT
-              .withMaxRetries(MAX_RPC_RETRIES).withInitialBackoff(INITIAL_JOB_STATUS_POLL_BACKOFF)
-              .backoff();
+              .withMaxRetries(MAX_RPC_RETRIES).withInitialBackoff(INITIAL_RPC_BACKOFF).backoff();
       return getJob(jobRef, Sleeper.DEFAULT, backoff);
     }
 
