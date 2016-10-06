@@ -11,4 +11,10 @@ public interface Context<T> {
    */
   void collect(T elem);
 
+  /**
+   * Retrieves the window - if any - underlying the current
+   * execution of this context.
+   */
+  Object getWindow();
+
 }

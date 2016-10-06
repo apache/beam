@@ -41,7 +41,7 @@ class ReduceStateByKeyReducer implements Runnable {
   private static final class KeyedElementCollector extends WindowedElementCollector {
     private final Object key;
 
-    KeyedElementCollector(Context<Datum> wrap, WindowID window, Object key) {
+    KeyedElementCollector(Collector<Datum> wrap, WindowID window, Object key) {
       super(wrap);
       this.key = key;
       this.windowID = window;
@@ -49,6 +49,7 @@ class ReduceStateByKeyReducer implements Runnable {
 
     @Override
     public void collect(Object elem) {
+      // XXX WindowedPair.of(..) -> Pair.of(key, elem)
       super.collect(WindowedPair.of(windowID.getLabel(), key, elem));
     }
   } // ~ end of KeyedElementCollector
@@ -149,7 +150,7 @@ class ReduceStateByKeyReducer implements Runnable {
     final WindowRegistry wRegistry = new WindowRegistry();
     final int maxKeyStatesPerWindow;
 
-    final Context<Datum> stateOutput;
+    final Collector<Datum> stateOutput;
     final BlockingQueue<Datum> rawOutput;
     final TriggerScheduler triggering;
     final StateFactory stateFactory;
@@ -332,7 +333,7 @@ class ReduceStateByKeyReducer implements Runnable {
         // sure it happens in the scope of the merge target window
         for (WindowStorage ws : toCombine) {
           ((KeyedElementCollector) ws.state.getContext())
-              .assignWindowing(mergeWindow.getWindowID());
+              .setWindow(mergeWindow.getWindowID());
         }
         // ~ now merge the state and re-assign it to the merge-window
         State newState =

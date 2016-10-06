@@ -1,11 +1,11 @@
 
 package cz.seznam.euphoria.core.executor.inmem;
 
-import cz.seznam.euphoria.core.client.dataset.windowing.Batch;
 import cz.seznam.euphoria.core.client.dataset.Partitioning;
+import cz.seznam.euphoria.core.client.dataset.windowing.Batch;
 import cz.seznam.euphoria.core.client.dataset.windowing.MergingWindowing;
-import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.dataset.windowing.WindowID;
+import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.functional.CombinableReduceFunction;
 import cz.seznam.euphoria.core.client.functional.StateFactory;
@@ -13,7 +13,6 @@ import cz.seznam.euphoria.core.client.functional.UnaryFunction;
 import cz.seznam.euphoria.core.client.functional.UnaryFunctor;
 import cz.seznam.euphoria.core.client.graph.DAG;
 import cz.seznam.euphoria.core.client.graph.Node;
-import cz.seznam.euphoria.core.client.io.Context;
 import cz.seznam.euphoria.core.client.io.DataSink;
 import cz.seznam.euphoria.core.client.io.DataSource;
 import cz.seznam.euphoria.core.client.io.Partition;
@@ -135,8 +134,7 @@ public class InMemExecutor implements Executor {
     }
   }
 
-
-  static class QueueCollector implements Context<Datum> {
+  static class QueueCollector implements Collector<Datum> {
     static QueueCollector wrap(BlockingQueue<Datum> queue) {
       return new QueueCollector(queue);
     }
@@ -511,15 +509,15 @@ public class InMemExecutor implements Executor {
       final BlockingQueue<Datum> out = new ArrayBlockingQueue(5000);
       ret.add(QueueSupplier.wrap(out));
       executor.execute(() -> {
-        QueueCollector outQ = QueueCollector.wrap(out);
-        WindowedElementCollector outC = new WindowedElementCollector(outQ);
+        WindowedElementCollector outC =
+            new WindowedElementCollector(QueueCollector.wrap(out));
         for (;;) {
           try {
             // read input
             Datum item = s.get();
             if (item.isElement()) {
               // transform
-              outC.assignWindowing(item.getWindowID());
+              outC.setWindow(item.getWindowID());
               mapper.apply(item.get(), outC);
             } else {
               out.put(item);
