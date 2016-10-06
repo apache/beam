@@ -8,8 +8,10 @@ import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.functional.ReduceFunction;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
 import cz.seznam.euphoria.core.client.functional.UnaryFunctor;
+import cz.seznam.euphoria.core.client.io.Context;
 import cz.seznam.euphoria.core.client.io.ListDataSink;
 import cz.seznam.euphoria.core.client.io.ListDataSource;
+import cz.seznam.euphoria.core.client.io.StdoutSink;
 import cz.seznam.euphoria.core.client.operator.FlatMap;
 import cz.seznam.euphoria.core.client.operator.MapElements;
 import cz.seznam.euphoria.core.client.operator.ReduceByKey;
@@ -109,6 +111,13 @@ public class WindowingTest {
         .using(p -> p.getFirst() + "-" + p.getSecond())
         .output();
 
+    mapped = FlatMap.of(mapped)
+        .using((UnaryFunctor<String, String>) (elem, c) -> {
+          TimeInterval w = (TimeInterval) c.getWindow();
+          c.collect(w.getStartMillis() / 1000L + ": " + elem);
+        })
+        .output();
+
     ListDataSink<String> output = ListDataSink.get(1);
     mapped.persist(output);
 
@@ -118,9 +127,9 @@ public class WindowingTest {
 
     assertEquals(
         sorted(asList(
-        /* 1st second window */ "one-1", "two-3", "three-1", "four-2",
-        /* 2nd second window */ "one-3", "two-2", "three-2",
-        /* 3rd second window */ "one-2")),
+        /* 1st second window */ "1: one-1", "1: two-3", "1: three-1", "1: four-2",
+        /* 2nd second window */ "2: one-3", "2: two-2", "2: three-2",
+        /* 3rd second window */ "3: one-2")),
         sorted(output.getOutput(0)));
   }
 
