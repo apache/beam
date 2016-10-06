@@ -2,6 +2,7 @@ package cz.seznam.euphoria.flink.functions;
 
 import cz.seznam.euphoria.core.client.dataset.windowing.WindowedElement;
 import cz.seznam.euphoria.core.client.functional.UnaryFunctor;
+import cz.seznam.euphoria.core.client.io.Context;
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
@@ -25,8 +26,15 @@ public class UnaryFunctorWrapper<LABEL, IN, OUT>
                       Collector<WindowedElement<LABEL, OUT>> out)
       throws Exception
   {
-    f.apply(value.get(), elem -> {
-      out.collect(new WindowedElement<>(value.getWindowID(), elem));
+    f.apply(value.get(), new Context<OUT>() {
+      @Override
+      public void collect(OUT elem) {
+        out.collect(new WindowedElement<>(value.getWindowID(), elem));
+      }
+      @Override
+      public Object getWindow() {
+        return value.getWindowID().getLabel();
+      }
     });
   }
 

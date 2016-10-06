@@ -13,16 +13,14 @@ import cz.seznam.euphoria.core.client.operator.ReduceByKey;
 import cz.seznam.euphoria.core.client.operator.WindowedPair;
 import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.core.client.util.Sums;
+import cz.seznam.euphoria.core.client.util.Triple;
 import cz.seznam.euphoria.flink.TestFlinkExecutor;
-import cz.seznam.euphoria.guava.shaded.com.google.common.base.Joiner;
 import cz.seznam.euphoria.guava.shaded.com.google.common.collect.Lists;
 import org.junit.Test;
 
 import java.time.Duration;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
-import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
@@ -65,20 +63,21 @@ public class RBKAttachedWindowingTest {
         .setNumPartitions(2)
         .output();
 
-    ListDataSink<WindowedPair<TimeInterval, String, HashMap<String, Long>>> output
+    ListDataSink<Triple<TimeInterval, String, HashMap<String, Long>>> output
         = ListDataSink.get(1);
 
     // ~ reduce the output using attached windowing, i.e. producing
     // one output element per received window
-    Dataset<WindowedPair<TimeInterval, String, HashMap<String, Long>>>
+    Dataset<Pair<String, HashMap<String, Long>>>
         reduced = ReduceByKey
         .of(uniq)
         .keyBy(e -> "")
-        .valueBy(new ToHashMap<>())
+        .valueBy(new ToHashMap<>(Pair::getFirst, Pair::getSecond))
         .combineBy(new MergeHashMaps<>())
         .setNumPartitions(1)
-        .outputWindowed();
-    reduced.persist(output);
+        .output();
+
+    Util.extractWindows(reduced, TimeInterval.class).persist(output);
 
     new TestFlinkExecutor()
         .setAutoWatermarkInterval(Duration.ofMillis(10))
@@ -97,7 +96,7 @@ public class RBKAttachedWindowingTest {
                 toMap(Pair.of("foo", 1L)))),
         output.getOutput(0)
             .stream()
-            .map(wp -> Pair.of(wp.getWindowLabel(), wp.getSecond()))
+            .map(wp -> Pair.of(wp.getFirst(), wp.getThird()))
             .collect(Collectors.toList()));
   }
 
@@ -134,12 +133,12 @@ public class RBKAttachedWindowingTest {
             .setNumPartitions(2)
             .output();
 
-    ListDataSink<WindowedPair<TimeInterval, String, HashMap<String, Long>>> output
+    ListDataSink<Triple<TimeInterval, String, HashMap<String, Long>>> output
         = ListDataSink.get(1);
 
     // ~ reduce the output using attached windowing, i.e. producing
     // one output element per received window
-    Dataset<WindowedPair<TimeInterval, String, HashMap<String, Long>>>
+    Dataset<Pair<String, HashMap<String, Long>>>
         reduced = ReduceByKey
         .of(uniq)
         .keyBy(e -> "")
@@ -152,8 +151,9 @@ public class RBKAttachedWindowingTest {
           return m;
         })
         .setNumPartitions(1)
-        .outputWindowed();
-    reduced.persist(output);
+        .output();
+
+    Util.extractWindows(reduced, TimeInterval.class).persist(output);
 
     new TestFlinkExecutor()
         .setAutoWatermarkInterval(Duration.ofMillis(10))
@@ -172,7 +172,7 @@ public class RBKAttachedWindowingTest {
                 toMap(Pair.of("foo", 1L)))),
         output.getOutput(0)
             .stream()
-            .map(wp -> Pair.of(wp.getWindowLabel(), wp.getSecond()))
+            .map(wp -> Pair.of(wp.getFirst(), wp.getThird()))
             .collect(Collectors.toList()));
   }
 
@@ -184,12 +184,20 @@ public class RBKAttachedWindowingTest {
     return m;
   }
 
-  static class ToHashMap<K, V, P extends Pair<K, V>>
-      implements UnaryFunction<P, HashMap<K, V>> {
+  static class ToHashMap<K, V, E>
+      implements UnaryFunction<E, HashMap<K, V>> {
+    private final UnaryFunction<E, K> keyFn;
+    private final UnaryFunction<E, V> valFn;
+
+    ToHashMap(UnaryFunction<E, K> keyFn, UnaryFunction<E, V> valFn) {
+      this.keyFn = keyFn;
+      this.valFn = valFn;
+    }
+
     @Override
-    public HashMap<K, V> apply(P what) {
+    public HashMap<K, V> apply(E e) {
       HashMap<K, V> m = new HashMap<>();
-      m.put(what.getFirst(), what.getSecond());
+      m.put(keyFn.apply(e), valFn.apply(e));
       return m;
     }
   }
@@ -283,27 +291,30 @@ public class RBKAttachedWindowingTest {
             .output();
 
     // ~ count of query (effectively how many users used a given query)
-    Dataset<WindowedPair<TimeInterval, String, Long>> counted = ReduceByKey.of(distinctByUser)
-        .keyBy(e -> e.query)
-        .valueBy(e -> 1L)
-        .combineBy(Sums.ofLongs())
-        .setNumPartitions(10)
-        .outputWindowed();
+    Dataset<Triple<TimeInterval, String, Long>> counted =
+        Util.extractWindows(
+            ReduceByKey.of(distinctByUser)
+                .keyBy(e -> e.query)
+                .valueBy(e -> 1L)
+                .combineBy(Sums.ofLongs())
+                .setNumPartitions(10)
+                .output(),
+            TimeInterval.class);
 
     // ~ reduced (in attached windowing mode) and partitioned by the window start time
-    Dataset<WindowedPair<TimeInterval, Long, HashMap<String, Long>>>
-        reduced = ReduceByKey.of(counted)
-        .keyBy(e -> e.getWindowLabel().getStartMillis())
-        .valueBy(new ToHashMap<>())
+    Dataset<Pair<Long, HashMap<String, Long>>> reduced =
+        ReduceByKey.of(counted)
+        .keyBy(e -> e.getFirst().getStartMillis())
+        .valueBy(new ToHashMap<>(Triple::getSecond, Triple::getThird))
         .combineBy(new MergeHashMaps<>())
         // ~ partition by the input window start time
         .setNumPartitions(2)
         .setPartitioner(e -> (int) (e % 2))
-        .outputWindowed();
+        .output();
 
-    ListDataSink<WindowedPair<TimeInterval, Long, HashMap<String, Long>>> output =
+    ListDataSink<Triple<TimeInterval, Long, HashMap<String, Long>>> output =
         ListDataSink.get(2);
-    reduced.persist(output);
+    Util.extractWindows(reduced, TimeInterval.class).persist(output);
 
     new TestFlinkExecutor()
         .setAutoWatermarkInterval(Duration.ofMillis(10))
@@ -318,14 +329,14 @@ public class RBKAttachedWindowingTest {
                 toMap(Pair.of("one", 1L), Pair.of("two", 1L)))),
         output.getOutput(0)
             .stream()
-            .map(wp -> Pair.of(wp.getWindowLabel(), wp.getSecond()))
+            .map(wp -> Pair.of(wp.getFirst(), wp.getThird()))
             .collect(Collectors.toList()));
     assertEquals(
         Lists.newArrayList(
             Pair.of(new TimeInterval(5, 5), toMap(Pair.of("one", 3L), Pair.of("two", 2L)))),
         output.getOutput(1)
             .stream()
-            .map(wp -> Pair.of(wp.getWindowLabel(), wp.getSecond()))
+            .map(wp -> Pair.of(wp.getFirst(), wp.getThird()))
             .collect(Collectors.toList()));
   }
 }

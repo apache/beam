@@ -5,6 +5,7 @@ import cz.seznam.euphoria.core.client.dataset.windowing.WindowID;
 import cz.seznam.euphoria.core.client.dataset.windowing.WindowedElement;
 import cz.seznam.euphoria.core.client.functional.StateFactory;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
+import cz.seznam.euphoria.core.client.io.Context;
 import cz.seznam.euphoria.core.client.operator.CompositeKey;
 import cz.seznam.euphoria.core.client.operator.Operator;
 import cz.seznam.euphoria.core.client.operator.ReduceStateByKey;
@@ -152,12 +153,18 @@ public class ReduceStateByKeyTranslator implements BatchOperatorTranslator<Reduc
       final Object key = element.get().getKey();
 
       State state = stateFactory.apply(
-          e -> out.collect(new WindowedElement<>(
-              wid,
-              WindowedPair.of(
-                      wid.getLabel(),
-                      key,
-                      e))), stateStorageProvider);
+          new Context() {
+            @Override
+            public void collect(Object elem) {
+              out.collect(new WindowedElement<>(
+                  wid, WindowedPair.of(wid.getLabel(), key, elem)));
+            }
+            @Override
+            public Object getWindow() {
+              return wid.getLabel();
+            }
+          },
+          stateStorageProvider);
 
       // add the first element to the state
       state.add(element.get().getValue());
