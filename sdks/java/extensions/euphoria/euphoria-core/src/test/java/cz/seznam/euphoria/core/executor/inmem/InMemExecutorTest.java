@@ -11,6 +11,7 @@ import cz.seznam.euphoria.core.client.dataset.windowing.WindowID;
 import cz.seznam.euphoria.core.client.dataset.windowing.WindowedElement;
 import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
+import cz.seznam.euphoria.core.client.functional.UnaryFunctor;
 import cz.seznam.euphoria.core.client.io.Context;
 import cz.seznam.euphoria.core.client.io.ListDataSink;
 import cz.seznam.euphoria.core.client.io.ListDataSource;
@@ -21,14 +22,14 @@ import cz.seznam.euphoria.core.client.operator.MapElements;
 import cz.seznam.euphoria.core.client.operator.ReduceByKey;
 import cz.seznam.euphoria.core.client.operator.ReduceStateByKey;
 import cz.seznam.euphoria.core.client.operator.Repartition;
-import cz.seznam.euphoria.core.client.operator.state.State;
 import cz.seznam.euphoria.core.client.operator.Union;
-import cz.seznam.euphoria.core.client.operator.WindowedPair;
 import cz.seznam.euphoria.core.client.operator.state.ListStorage;
 import cz.seznam.euphoria.core.client.operator.state.ListStorageDescriptor;
+import cz.seznam.euphoria.core.client.operator.state.State;
 import cz.seznam.euphoria.core.client.operator.state.StorageProvider;
 import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.core.client.util.Sums;
+import cz.seznam.euphoria.core.client.util.Triple;
 import cz.seznam.euphoria.guava.shaded.com.google.common.collect.Lists;
 import org.junit.After;
 import org.junit.Before;
@@ -427,22 +428,27 @@ public class InMemExecutorTest {
         new SizedCountWindowing<>(i -> (i % 10) + 1);
 
     // the key for sort will be the last digit
-    Dataset<WindowedPair<CountLabel, Integer, Integer>> output = ReduceStateByKey.of(ints)
+    Dataset<Pair<Integer, Integer>> output =
+        ReduceStateByKey.of(ints)
         .keyBy(i -> i % 10)
         .valueBy(e -> e)
         .stateFactory(SortState::new)
         .combineStateBy(SortState::combine)
         .windowBy(windowing)
-        .outputWindowed();
+        .output();
 
     // collector of outputs
-    ListDataSink<WindowedPair<CountLabel, Integer, Integer>> outputSink = ListDataSink.get(2);
+    ListDataSink<Triple<CountLabel, Integer, Integer>> outputSink = ListDataSink.get(2);
 
-    output.persist(outputSink);
+    FlatMap.of(output)
+        .using((UnaryFunctor<Pair<Integer, Integer>, Triple<CountLabel, Integer, Integer>>)
+            (elem, context) -> context.collect(Triple.of((CountLabel) context.getWindow(), elem.getFirst(), elem.getSecond())))
+        .output()
+        .persist(outputSink);
 
     executor.waitForCompletion(flow);
 
-    List<List<WindowedPair<CountLabel, Integer, Integer>>> outputs = outputSink.getOutputs();
+    List<List<Triple<CountLabel, Integer, Integer>>> outputs = outputSink.getOutputs();
     assertEquals(2, outputs.size());
 
     // each partition should have 550 items in each window set
@@ -450,11 +456,11 @@ public class InMemExecutorTest {
     assertEquals(2 * 550, outputs.get(1).size());
 
     Set<Integer> firstKeys = outputs.get(0).stream()
-        .map(Pair::getFirst).distinct()
+        .map(Triple::getSecond).distinct()
         .collect(Collectors.toSet());
 
     // validate that the two partitions contain different keys
-    outputs.get(1).forEach(p -> assertFalse(firstKeys.contains(p.getFirst())));
+    outputs.get(1).forEach(p -> assertFalse(firstKeys.contains(p.getSecond())));
 
     outputs.forEach(this::checkKeyAlignedSortedList);
 
@@ -462,22 +468,22 @@ public class InMemExecutorTest {
 
 
   private void checkKeyAlignedSortedList(
-      List<WindowedPair<CountLabel, Integer, Integer>> list) {
+      List<Triple<CountLabel, Integer, Integer>> list) {
 
     Map<CountLabel, Map<Integer, List<Integer>>> sortedSequencesInWindow = new HashMap<>();
 
-    for (WindowedPair<CountLabel, Integer, Integer> p : list) {
+    for (Triple<CountLabel, Integer, Integer> p : list) {
       Map<Integer, List<Integer>> sortedSequences = sortedSequencesInWindow.get(
-          p.getWindowLabel());
+          p.getFirst());
       if (sortedSequences == null) {
-        sortedSequencesInWindow.put(p.getWindowLabel(),
+        sortedSequencesInWindow.put(p.getFirst(),
             sortedSequences = new HashMap<>());
       }
-      List<Integer> sorted = sortedSequences.get(p.getKey());
+      List<Integer> sorted = sortedSequences.get(p.getSecond());
       if (sorted == null) {
-        sortedSequences.put(p.getKey(), sorted = new ArrayList<>());
+        sortedSequences.put(p.getSecond(), sorted = new ArrayList<>());
       }
-      sorted.add(p.getValue());
+      sorted.add(p.getThird());
     }
 
     assertFalse(sortedSequencesInWindow.isEmpty());

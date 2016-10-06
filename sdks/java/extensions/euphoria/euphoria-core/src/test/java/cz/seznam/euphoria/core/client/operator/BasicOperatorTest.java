@@ -110,21 +110,21 @@ public class BasicOperatorTest {
         .using(toWordCountPair())
         .output();
 
-    Dataset<WindowedPair<TimeInterval, String, Long>> streamOutput =
+    Dataset<Pair<String, Long>> streamOutput =
         ReduceByKey.of(words)
         .keyBy(Pair::getFirst)
         .valueBy(Pair::getSecond)
         .combineBy(Sums.ofLongs())
         .windowBy(Time.of(Duration.ofSeconds(1)))
-        .outputWindowed();
+        .output();
 
-    ListDataSink<WindowedPair<TimeInterval, String, Long>> out =
+    ListDataSink<Triple<TimeInterval, String, Long>> out =
         ListDataSink.get(1);
 
-    MapElements.of(streamOutput)
-        .using(p -> {
+    FlatMap.of(streamOutput)
+        .using((Pair<String, Long> p, Context<Triple<TimeInterval, String, Long>> c) -> {
           // ~ just access the windowed pairs testifying their accessibility
-          return WindowedPair.of(p.getWindowLabel(), p.getFirst(), p.getSecond());
+          c.collect(Triple.of((TimeInterval) c.getWindow(), p.getFirst(), p.getSecond()));
         })
         .output()
         .persist(out);
@@ -132,7 +132,7 @@ public class BasicOperatorTest {
     executor.waitForCompletion(flow);
 
     @SuppressWarnings("unchecked")
-    List<WindowedPair<TimeInterval, String, Long>> fs =
+    List<Triple<TimeInterval, String, Long>> fs =
         new ArrayList<>(out.getOutput(0));
 
     // ~ assert the total amount of data produced
@@ -146,20 +146,20 @@ public class BasicOperatorTest {
   }
 
   private <F, S> long assertWindowedPairOutput(
-      List<WindowedPair<TimeInterval, F, S>> window,
+      List<Triple<TimeInterval, F, S>> window,
       long expectedIntervalMillis, String ... expectedFirstAndSecond)
   {
     assertEquals(
         asList(expectedFirstAndSecond),
         window.stream()
-            .map(p -> p.getFirst() + "-" + p.getSecond())
+            .map(p -> p.getSecond() + "-" + p.getThird())
             .sorted()
             .collect(toList()));
     // ~ assert the windowing label (all elements of the window are expected to have
     // the same window label)
     long[] starts = window.stream().mapToLong(p -> {
-      assertEquals(expectedIntervalMillis, p.getWindowLabel().getIntervalMillis());
-      return p.getWindowLabel().getStartMillis();
+      assertEquals(expectedIntervalMillis, p.getFirst().getIntervalMillis());
+      return p.getFirst().getStartMillis();
     }).distinct().toArray();
     assertEquals(1, starts.length);
     return starts[0];
@@ -345,9 +345,10 @@ public class BasicOperatorTest {
         .output();
 
     Dataset<Pair<TimeInterval, String>> output =
-        Distinct.of(words)
-        .windowBy(Time.of(Duration.ofSeconds(1)))
-        .outputWindowed();
+        FlatMap.of(Distinct.of(words).windowBy(Time.of(Duration.ofSeconds(1))).output())
+            .using((UnaryFunctor<String, Pair<TimeInterval, String>>) (elem, context) ->
+                context.collect(Pair.of((TimeInterval) context.getWindow(), elem)))
+        .output();
 
     ListDataSink<Pair<TimeInterval, String>> f = ListDataSink.get(1);
     output.persist(f);

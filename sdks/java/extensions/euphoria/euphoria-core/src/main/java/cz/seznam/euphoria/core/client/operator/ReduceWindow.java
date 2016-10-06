@@ -161,7 +161,7 @@ public class ReduceWindow<
   @Override
   public DAG<Operator<?, ?>> getBasicOps() {
     // implement this operator via `ReduceByKey`
-    ReduceByKey<IN, IN, Byte, VALUE, Void, OUT, WLABEL, W , Pair<Void, OUT>> reduceByKey;
+    ReduceByKey<IN, IN, Byte, VALUE, Void, OUT, WLABEL, W> reduceByKey;
     reduceByKey = new ReduceByKey<>(
         getName() + "::ReduceByKey", getFlow(), input,
         getKeyExtractor(), valueExtractor,
