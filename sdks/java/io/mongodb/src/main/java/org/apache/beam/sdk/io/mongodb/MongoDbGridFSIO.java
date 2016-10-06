@@ -42,6 +42,7 @@ import javax.annotation.Nullable;
 
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.SerializableCoder;
+import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -73,8 +74,6 @@ import org.joda.time.Instant;
  *   .withUri("mongodb://localhost:27017")
  *   .withDatabase("my-database")
  *   .withBucket("my-bucket"))
- *   .withParser(MongoDbGridFSIO.TEXT_PARSER)
- *   .withCoder(StringUtf8Coder.of())
  *
  * }</pre>
  *
@@ -123,7 +122,7 @@ public class MongoDbGridFSIO {
    * split the input file into Strings. It uses the timestamp of the file
    * for the event timestamp.
    */
-  public static final Parser<String> TEXT_PARSER = new Parser<String>() {
+  private static final Parser<String> TEXT_PARSER = new Parser<String>() {
     @Override
     public void parse(GridFSDBFile input, ParserCallback<String> callback)
         throws IOException {
@@ -137,9 +136,10 @@ public class MongoDbGridFSIO {
     }
   };
 
-  /** Read data from GridFS. */
-  public static <T> Read<T> read() {
-    return new AutoValue_MongoDbGridFSIO_Read.Builder<T>().build();
+  /** Read data from GridFS. Default behavior with String. */
+  public static Read<String> read() {
+    return new AutoValue_MongoDbGridFSIO_Read.Builder<String>().build()
+        .withParser(TEXT_PARSER).withCoder(StringUtf8Coder.of());
   }
 
   /**
@@ -185,9 +185,10 @@ public class MongoDbGridFSIO {
       return toBuilder().setBucket(bucket).build();
     }
 
-    public Read<T> withParser(Parser<T> parser) {
+    public <X> Read<X> withParser(Parser<X> parser) {
       checkNotNull(parser);
-      return toBuilder().setParser(parser).build();
+      Builder<X> builder = (Builder<X>) toBuilder();
+      return builder.setParser(parser).setCoder(null).build();
     }
 
     public Read<T> withCoder(Coder<T> coder) {

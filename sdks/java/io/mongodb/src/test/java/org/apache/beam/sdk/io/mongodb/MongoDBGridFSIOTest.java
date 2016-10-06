@@ -170,9 +170,7 @@ public class MongoDBGridFSIOTest implements Serializable {
     PCollection<String> output = pipeline.apply(
         MongoDbGridFSIO.<String>read()
             .withUri("mongodb://localhost:" + PORT)
-            .withDatabase(DATABASE)
-            .withParser(MongoDbGridFSIO.TEXT_PARSER)
-            .withCoder(StringUtf8Coder.of()));
+            .withDatabase(DATABASE));
 
     PAssert.thatSingleton(
         output.apply("Count All", Count.<String>globally()))
@@ -249,9 +247,7 @@ public class MongoDBGridFSIOTest implements Serializable {
     PipelineOptions options = PipelineOptionsFactory.create();
     MongoDbGridFSIO.Read<String> read = MongoDbGridFSIO.<String>read()
         .withUri("mongodb://localhost:" + PORT)
-        .withDatabase(DATABASE)
-        .withParser(MongoDbGridFSIO.TEXT_PARSER)
-        .withCoder(StringUtf8Coder.of());
+        .withDatabase(DATABASE);
 
     BoundedGridFSSource src = new BoundedGridFSSource(read, null);
 
