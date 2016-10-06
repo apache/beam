@@ -57,6 +57,7 @@ public class BigqueryMatcherTest {
   private final String query = "test-query";
 
   @Rule public ExpectedException thrown = ExpectedException.none();
+  @Rule public FastNanoClockAndSleeper fastClock = new FastNanoClockAndSleeper();
   @Mock private Bigquery mockBigqueryClient;
   @Mock private Bigquery.Jobs mockJobs;
   @Mock private Bigquery.Jobs.Query mockQuery;
@@ -70,12 +71,12 @@ public class BigqueryMatcherTest {
   }
 
   @Test
-  public void testBigqueryMatcherThatSucceeds() throws IOException {
+  public void testBigqueryMatcherThatSucceeds() throws Exception {
     BigqueryMatcher matcher = spy(
         new BigqueryMatcher(
             appName, projectId, query, "8d1bbbf1f523f924b98c88b00c5811e041c2f855"));
     doReturn(mockBigqueryClient).when(matcher).newBigqueryClient(anyString());
-    when(mockQuery.execute()).thenReturn(createResponseContainsTestData());
+    when(mockQuery.execute()).thenReturn(createResponseContainingTestData());
 
     assertThat(mockResult, matcher);
     verify(matcher).newBigqueryClient(eq(appName));
@@ -87,7 +88,7 @@ public class BigqueryMatcherTest {
     BigqueryMatcher matcher = spy(
         new BigqueryMatcher(appName, projectId, query, "incorrect-checksum"));
     doReturn(mockBigqueryClient).when(matcher).newBigqueryClient(anyString());
-    when(mockQuery.execute()).thenReturn(createResponseContainsTestData());
+    when(mockQuery.execute()).thenReturn(createResponseContainingTestData());
 
     try {
       assertThat(mockResult, matcher);
@@ -100,61 +101,34 @@ public class BigqueryMatcherTest {
   }
 
   @Test
-  public void testBigqueryMatcherFailsForServiecFails() throws IOException {
-    BigqueryMatcher matcher = spy(
-        new BigqueryMatcher(appName, projectId, query, "some-checksum"));
-    doReturn(mockBigqueryClient).when(matcher).newBigqueryClient(anyString());
-    when(mockQuery.execute()).thenThrow(new IOException());
-
-    try {
-      assertThat(mockResult, matcher);
-    } catch (AssertionError expected) {
-      assertThat(expected.getMessage(), containsString("BigQuery response is null"));
-      verify(matcher).newBigqueryClient(eq(appName));
-      verify(mockJobs, times(4)).query(eq(projectId), eq(new QueryRequest().setQuery(query)));
-      return;
-    }
-    // Note that fail throws an AssertionError which is why it is placed out here
-    // instead of inside the try-catch block.
-    fail("AssertionError is expected.");
+  public void testBigqueryMatcherFailsWhenResponseIsNull() throws IOException {
+    testMatcherFailsSinceInvalidQueryResponse(null);
   }
 
   @Test
-  public void testBigqueryMatcherFailsForNullRowsInResponse() throws IOException {
-    BigqueryMatcher matcher = spy(
-        new BigqueryMatcher(appName, projectId, query, "some-checksum"));
-    doReturn(mockBigqueryClient).when(matcher).newBigqueryClient(anyString());
-    when(mockQuery.execute()).thenReturn(new QueryResponse());
-
-    try {
-      assertThat(mockResult, matcher);
-    } catch (AssertionError expected) {
-      assertThat(expected.getMessage(),
-          containsString("rows that is from BigQuery response is null"));
-      verify(matcher).newBigqueryClient(eq(appName));
-      verify(mockJobs).query(eq(projectId), eq(new QueryRequest().setQuery(query)));
-      return;
-    }
-    // Note that fail throws an AssertionError which is why it is placed out here
-    // instead of inside the try-catch block.
-    fail("AssertionError is expected.");
+  public void testBigqueryMatcherFailsWhenNullRowsInResponse() throws IOException {
+    testMatcherFailsSinceInvalidQueryResponse(new QueryResponse());
   }
 
   @Test
-  public void testBigqueryMatcherFailsForEmptyRowsInResponse() throws IOException {
-    BigqueryMatcher matcher = spy(
-        new BigqueryMatcher(appName, projectId, query, "some-checksum"));
-    doReturn(mockBigqueryClient).when(matcher).newBigqueryClient(anyString());
-
+  public void testBigqueryMatcherFailsWhenEmptyRowsInResponse() throws IOException {
     QueryResponse response = new QueryResponse();
     response.setRows(Lists.<TableRow>newArrayList());
+
+    testMatcherFailsSinceInvalidQueryResponse(response);
+  }
+
+  private void testMatcherFailsSinceInvalidQueryResponse(QueryResponse response)
+      throws IOException {
+    BigqueryMatcher matcher = spy(
+        new BigqueryMatcher(appName, projectId, query, "some-checksum"));
+    doReturn(mockBigqueryClient).when(matcher).newBigqueryClient(anyString());
     when(mockQuery.execute()).thenReturn(response);
 
     try {
       assertThat(mockResult, matcher);
     } catch (AssertionError expected) {
-      assertThat(expected.getMessage(),
-          containsString("rows that is from BigQuery response is empty"));
+      assertThat(expected.getMessage(), containsString("Invalid BigQuery response:"));
       verify(matcher).newBigqueryClient(eq(appName));
       verify(mockJobs).query(eq(projectId), eq(new QueryRequest().setQuery(query)));
       return;
@@ -164,7 +138,27 @@ public class BigqueryMatcherTest {
     fail("AssertionError is expected.");
   }
 
-  private QueryResponse createResponseContainsTestData() {
+  @Test
+  public void testQueryWithRetriesWhenServiceFails() throws Exception {
+    BigqueryMatcher matcher = spy(
+        new BigqueryMatcher(appName, projectId, query, "some-checksum"));
+    when(mockQuery.execute()).thenThrow(new IOException());
+
+    thrown.expect(IOException.class);
+    thrown.expectMessage("Unable to get BigQuery response after retrying");
+
+    matcher.queryWithRetries(
+        mockBigqueryClient,
+        new QueryRequest(),
+        fastClock,
+        BigqueryMatcher.BACKOFF_FACTORY.backoff());
+
+    verify(matcher).newBigqueryClient(eq(appName));
+    verify(mockJobs, times(BigqueryMatcher.MAX_QUERY_RETRIES))
+        .query(eq(projectId), eq(new QueryRequest().setQuery(query)));
+  }
+
+  private QueryResponse createResponseContainingTestData() {
     TableCell field1 = new TableCell();
     field1.setV("abc");
     TableCell field2 = new TableCell();

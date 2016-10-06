@@ -23,6 +23,9 @@ import com.google.api.client.auth.oauth2.Credential;
 import com.google.api.client.googleapis.auth.oauth2.GoogleCredential;
 import com.google.api.client.http.HttpTransport;
 import com.google.api.client.json.JsonFactory;
+import com.google.api.client.util.BackOff;
+import com.google.api.client.util.BackOffUtils;
+import com.google.api.client.util.Sleeper;
 import com.google.api.services.bigquery.Bigquery;
 import com.google.api.services.bigquery.BigqueryScopes;
 import com.google.api.services.bigquery.model.QueryRequest;
@@ -38,11 +41,14 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.Collection;
 import java.util.List;
+import java.util.Objects;
 import javax.annotation.concurrent.NotThreadSafe;
 import org.apache.beam.sdk.PipelineResult;
+import org.apache.beam.sdk.util.FluentBackoff;
 import org.apache.beam.sdk.util.Transport;
 import org.hamcrest.Description;
 import org.hamcrest.TypeSafeMatcher;
+import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -60,7 +66,20 @@ public class BigqueryMatcher extends TypeSafeMatcher<PipelineResult>
     implements SerializableMatcher<PipelineResult> {
   private static final Logger LOG = LoggerFactory.getLogger(BigqueryMatcher.class);
 
-  private static final int MAX_QUERY_RETRY = 4;
+  // The maximum number of retries to execute a BigQuery RPC
+  static final int MAX_QUERY_RETRIES = 4;
+
+  // The initial backoff for executing a BigQuery RPC
+  private static final Duration INITIAL_BACKOFF = Duration.standardSeconds(1L);
+
+  // The total number of rows in query response to be formatted for debugging purpose
+  private static final int TOTAL_FORMATTED_ROWS = 20;
+
+  // The backoff factory with initial configs
+  static final FluentBackoff BACKOFF_FACTORY =
+      FluentBackoff.DEFAULT
+          .withMaxRetries(MAX_QUERY_RETRIES)
+          .withInitialBackoff(INITIAL_BACKOFF);
 
   private final String applicationName;
   private final String projectId;
@@ -87,14 +106,27 @@ public class BigqueryMatcher extends TypeSafeMatcher<PipelineResult>
     LOG.info("Verifying Bigquery data");
     Bigquery bigqueryClient = newBigqueryClient(applicationName);
 
-    LOG.info("Executing query: {}", query);
-    response = queryWithRetries(bigqueryClient);
+    // execute query
+    LOG.debug("Executing query: {}", query);
+    try {
+      QueryRequest queryContent = new QueryRequest();
+      queryContent.setQuery(query);
 
+      response = queryWithRetries(
+          bigqueryClient, queryContent, Sleeper.DEFAULT, BACKOFF_FACTORY.backoff());
+    } catch (Exception e) {
+      throw new RuntimeException("Failed to fetch BigQuery data.", e);
+    }
+
+    // validate BigQuery response
     if (response == null || response.getRows() == null || response.getRows().isEmpty()) {
       return false;
     }
+
+    // compute checksum
     actualChecksum = generateHash(response.getRows());
-    LOG.info("Generated a SHA1 checksum based on queried data: {}", actualChecksum);
+    LOG.debug("Generated a SHA1 checksum based on queried data: {}", actualChecksum);
+
     return expectedChecksum.equals(actualChecksum);
   }
 
@@ -107,6 +139,26 @@ public class BigqueryMatcher extends TypeSafeMatcher<PipelineResult>
     return new Bigquery.Builder(transport, jsonFactory, credential)
         .setApplicationName(applicationName)
         .build();
+  }
+
+  @VisibleForTesting
+  QueryResponse queryWithRetries(Bigquery bigqueryClient, QueryRequest queryContent,
+                                 Sleeper sleeper, BackOff backOff)
+      throws IOException, InterruptedException {
+    IOException lastException = null;
+    do {
+      try {
+        return bigqueryClient.jobs().query(projectId, queryContent).execute();
+      } catch (IOException e) {
+        // ignore and retry
+        LOG.warn("Ignore the error and retry the query.");
+        lastException = e;
+      }
+    } while(BackOffUtils.next(sleeper, backOff));
+    throw new IOException(
+        String.format(
+            "Unable to get BigQuery response after retrying %d times", MAX_QUERY_RETRIES),
+        lastException);
   }
 
   private void validateArgument(String name, String value) {
@@ -142,25 +194,6 @@ public class BigqueryMatcher extends TypeSafeMatcher<PipelineResult>
     return Hashing.combineUnordered(rowHashes).toString();
   }
 
-  private QueryResponse queryWithRetries(Bigquery bigqueryClient) {
-    QueryRequest queryContent = new QueryRequest();
-    queryContent.setQuery(query);
-    for (int i = 0; i < MAX_QUERY_RETRY; i++) {
-      try {
-        return bigqueryClient.jobs().query(projectId, queryContent).execute();
-      } catch (IOException e) {
-        LOG.warn("There were problems getting BigQuery response: {}", e.getMessage());
-        LOG.debug("Exception information: {}", e);
-        try {
-          Thread.sleep(1000L);
-        } catch (InterruptedException exp) {
-          throw new RuntimeException(exp);
-        }
-      }
-    }
-    return null;
-  }
-
   @Override
   public void describeTo(Description description) {
     description
@@ -172,31 +205,29 @@ public class BigqueryMatcher extends TypeSafeMatcher<PipelineResult>
   @Override
   public void describeMismatchSafely(PipelineResult pResult, Description description) {
     String info;
-    if (response == null) {
-      info = "BigQuery response is null";
-    } else if (response.getRows() == null) {
-      info = "rows that is from BigQuery response is null";
-    } else if (response.getRows().isEmpty()) {
-      info = "rows that is from BigQuery response is empty";
+    if (response == null || response.getRows() == null || response.getRows().isEmpty()) {
+      // invalid query response
+      info = String.format("Invalid BigQuery response: %s", Objects.toString(response));
     } else {
+      // checksum mismatch
       info = String.format("was (%s).%n"
           + "\tTotal number of rows are: %d.%n"
           + "\tQueried data details:%s",
-          actualChecksum, response.getTotalRows(), printRows(4));
+          actualChecksum, response.getTotalRows(), formatRows(TOTAL_FORMATTED_ROWS));
     }
     description.appendText(info);
   }
 
-  private String printRows(int rowNumber) {
+  private String formatRows(int totalNumRows) {
     StringBuilder samples = new StringBuilder();
     List<TableRow> rows = response.getRows();
-    for (int i = 0; i < rowNumber && i < rows.size(); i++) {
+    for (int i = 0; i < totalNumRows && i < rows.size(); i++) {
       samples.append("\n\t\t");
       for (TableCell field : rows.get(i).getF()) {
         samples.append(String.format("%-10s", field.getV()));
       }
     }
-    if (rows.size() > rowNumber) {
+    if (rows.size() > totalNumRows) {
       samples.append("\n\t\t....");
     }
     return samples.toString();
