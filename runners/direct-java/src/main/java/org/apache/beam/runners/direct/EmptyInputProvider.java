@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.direct;
 
 import java.util.Collection;
@@ -26,7 +25,7 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 
 /**
- * Created by tgroh on 10/6/16.
+ * A {@link RootInputProvider} that provides a singleton empty bundle.
  */
 class EmptyInputProvider implements RootInputProvider {
   private final EvaluationContext evaluationContext;

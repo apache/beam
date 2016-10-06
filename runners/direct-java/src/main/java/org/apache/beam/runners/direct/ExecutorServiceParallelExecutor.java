@@ -403,7 +403,8 @@ final class ExecutorServiceParallelExecutor implements PipelineExecutor {
           LOG.debug("Executor Update: {}", update);
           if (update.getBundle().isPresent()) {
             if (ExecutorState.ACTIVE == startingState
-                || (ExecutorState.PROCESSING == startingState && noWorkOutstanding)) {
+                || (ExecutorState.PROCESSING == startingState
+                    && noWorkOutstanding)) {
               scheduleConsumers(update);
             } else {
               allUpdates.offer(update);

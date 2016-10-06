@@ -139,7 +139,5 @@ final class BoundedReadEvaluatorFactory implements TransformEvaluatorFactory {
               .add(WindowedValue.valueInGlobalWindow(BoundedSourceShard.of(source)))
               .commit(BoundedWindow.TIMESTAMP_MAX_VALUE));
     }
-
-
   }
 }
