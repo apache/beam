@@ -128,7 +128,8 @@ public class FlattenEvaluatorFactoryTest {
 
     FlattenEvaluatorFactory factory = new FlattenEvaluatorFactory(evaluationContext);
     Collection<CommittedBundle<?>> initialInputs =
-        factory.getInitialInputs(flattened.getProducingTransformInternal());
+        new EmptyInputProvider(evaluationContext)
+            .getInitialInputs(flattened.getProducingTransformInternal());
     TransformEvaluator<Integer> emptyEvaluator =
         factory.forApplication(
             flattened.getProducingTransformInternal(), Iterables.getOnlyElement(initialInputs));

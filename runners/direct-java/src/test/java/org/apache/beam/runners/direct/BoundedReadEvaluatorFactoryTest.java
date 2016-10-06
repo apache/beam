@@ -86,7 +86,8 @@ public class BoundedReadEvaluatorFactoryTest {
     when(context.createBundle(longs)).thenReturn(outputBundle);
 
     Collection<CommittedBundle<?>> initialInputs =
-        factory.getInitialInputs(longs.getProducingTransformInternal());
+        new BoundedReadEvaluatorFactory.InputProvider(context)
+            .getInitialInputs(longs.getProducingTransformInternal());
     List<WindowedValue<?>> outputs = new ArrayList<>();
     for (CommittedBundle<?> shardBundle : initialInputs) {
       TransformEvaluator<?> evaluator =

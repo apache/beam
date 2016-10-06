@@ -17,15 +17,12 @@
  */
 package org.apache.beam.runners.direct;
 
-import java.util.Collection;
-import java.util.Collections;
 import org.apache.beam.runners.direct.DirectRunner.CommittedBundle;
 import org.apache.beam.runners.direct.DirectRunner.UncommittedBundle;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.Flatten.FlattenPCollectionList;
 import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
@@ -34,24 +31,11 @@ import org.apache.beam.sdk.values.PCollectionList;
  * The {@link DirectRunner} {@link TransformEvaluatorFactory} for the {@link Flatten}
  * {@link PTransform}.
  */
-class FlattenEvaluatorFactory implements RootTransformEvaluatorFactory {
+class FlattenEvaluatorFactory implements TransformEvaluatorFactory {
   private final EvaluationContext evaluationContext;
 
   FlattenEvaluatorFactory(EvaluationContext evaluationContext) {
     this.evaluationContext = evaluationContext;
-  }
-
-  /**
-   * {@inheritDoc}.
-   *
-   * <p>Returns a single empty bundle. {@link Flatten} on no inputs produces no outputs. This bundle
-   * ensures that any {@link PTransform PTransforms} that consume from the output of the provided
-   * {@link AppliedPTransform} have watermarks updated as appropriate.
-   */
-  @Override
-  public Collection<CommittedBundle<?>> getInitialInputs(AppliedPTransform<?, ?, ?> transform) {
-    return Collections.<CommittedBundle<?>>singleton(
-        evaluationContext.createRootBundle().commit(BoundedWindow.TIMESTAMP_MAX_VALUE));
   }
 
   @Override

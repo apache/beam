@@ -22,8 +22,6 @@ import com.google.common.annotations.VisibleForTesting;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ThreadLocalRandom;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.direct.DirectRunner.CommittedBundle;
@@ -46,12 +44,11 @@ import org.joda.time.Instant;
  * A {@link TransformEvaluatorFactory} that produces {@link TransformEvaluator TransformEvaluators}
  * for the {@link Unbounded Read.Unbounded} primitive {@link PTransform}.
  */
-class UnboundedReadEvaluatorFactory implements RootTransformEvaluatorFactory {
+class UnboundedReadEvaluatorFactory implements TransformEvaluatorFactory {
   // Occasionally close an existing reader and resume from checkpoint, to exercise close-and-resume
   @VisibleForTesting static final double DEFAULT_READER_REUSE_CHANCE = 0.95;
 
   private final EvaluationContext evaluationContext;
-  private final ConcurrentMap<AppliedPTransform<?, ?, ?>, UnboundedReadDeduplicator> deduplicators;
   private final double readerReuseChance;
 
   UnboundedReadEvaluatorFactory(EvaluationContext evaluationContext) {
@@ -61,29 +58,7 @@ class UnboundedReadEvaluatorFactory implements RootTransformEvaluatorFactory {
   @VisibleForTesting
   UnboundedReadEvaluatorFactory(EvaluationContext evaluationContext, double readerReuseChance) {
     this.evaluationContext = evaluationContext;
-    deduplicators = new ConcurrentHashMap<>();
     this.readerReuseChance = readerReuseChance;
-  }
-
-  @Override
-  public Collection<CommittedBundle<?>> getInitialInputs(AppliedPTransform<?, ?, ?> transform) {
-    return createInitialSplits((AppliedPTransform) transform);
-  }
-
-  private <OutputT> Collection<CommittedBundle<?>> createInitialSplits(
-      AppliedPTransform<?, ?, Read.Unbounded<OutputT>> transform) {
-    UnboundedSource<OutputT, ?> source = transform.getTransform().getSource();
-    UnboundedReadDeduplicator deduplicator =
-        source.requiresDeduping()
-            ? UnboundedReadDeduplicator.CachedIdDeduplicator.create()
-            : NeverDeduplicator.create();
-
-    UnboundedSourceShard<OutputT, ?> shard = UnboundedSourceShard.unstarted(source, deduplicator);
-    return Collections.<CommittedBundle<?>>singleton(
-        evaluationContext
-            .<UnboundedSourceShard<?, ?>>createRootBundle()
-            .add(WindowedValue.<UnboundedSourceShard<?, ?>>valueInGlobalWindow(shard))
-            .commit(BoundedWindow.TIMESTAMP_MAX_VALUE));
   }
 
   @SuppressWarnings({"unchecked", "rawtypes"})
@@ -267,6 +242,35 @@ class UnboundedReadEvaluatorFactory implements RootTransformEvaluatorFactory {
 
     UnboundedSourceShard<T, CheckpointT> withCheckpoint(CheckpointT newCheckpoint) {
       return of(getSource(), getDeduplicator(), getExistingReader(), newCheckpoint);
+    }
+  }
+
+  static class InputProvider implements RootInputProvider {
+    private final EvaluationContext evaluationContext;
+
+    InputProvider(EvaluationContext evaluationContext) {
+      this.evaluationContext = evaluationContext;
+    }
+
+    @Override
+    public Collection<CommittedBundle<?>> getInitialInputs(AppliedPTransform<?, ?, ?> transform) {
+      return createInitialSplits((AppliedPTransform) transform);
+    }
+
+    private <OutputT> Collection<CommittedBundle<?>> createInitialSplits(
+        AppliedPTransform<?, ?, Read.Unbounded<OutputT>> transform) {
+      UnboundedSource<OutputT, ?> source = transform.getTransform().getSource();
+      UnboundedReadDeduplicator deduplicator =
+          source.requiresDeduping()
+              ? UnboundedReadDeduplicator.CachedIdDeduplicator.create()
+              : NeverDeduplicator.create();
+
+      UnboundedSourceShard<OutputT, ?> shard = UnboundedSourceShard.unstarted(source, deduplicator);
+      return Collections.<CommittedBundle<?>>singleton(
+          evaluationContext
+              .<UnboundedSourceShard<?, ?>>createRootBundle()
+              .add(WindowedValue.<UnboundedSourceShard<?, ?>>valueInGlobalWindow(shard))
+              .commit(BoundedWindow.TIMESTAMP_MAX_VALUE));
     }
   }
 }

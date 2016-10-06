@@ -25,18 +25,17 @@ import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.PTransform;
 
 /**
- * A {@link TransformEvaluatorFactory} for {@link PTransform PTransforms} that are at the root of a
- * {@link Pipeline}. Provides a way to get initial inputs, which will cause the {@link PTransform}
- * to produce all of the appropriate output.
+ * Provides {@link CommittedBundle bundles} that will be provided to the
+ * {@link PTransform PTransforms} that are at the root of a {@link Pipeline}.
  */
-interface RootTransformEvaluatorFactory extends TransformEvaluatorFactory {
+interface RootInputProvider {
   /**
    * Get the initial inputs for the {@link AppliedPTransform}. The {@link AppliedPTransform} will be
    * provided with these {@link CommittedBundle bundles} as input when the {@link Pipeline} runs.
    *
    * <p>For source transforms, these should be sufficient that, when provided to the evaluators
-   * produced by {@link #forApplication(AppliedPTransform, CommittedBundle)}, all of the elements
-   * contained in the source are eventually produced.
+   * produced by {@link TransformEvaluatorFactory#forApplication(AppliedPTransform,
+   * CommittedBundle)}, all of the elements contained in the source are eventually produced.
    */
   Collection<CommittedBundle<?>> getInitialInputs(AppliedPTransform<?, ?, ?> transform);
 }

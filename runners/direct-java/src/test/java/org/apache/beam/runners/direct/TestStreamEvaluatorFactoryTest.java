@@ -81,7 +81,8 @@ public class TestStreamEvaluatorFactoryTest {
         .thenReturn(bundleFactory.createBundle(streamVals), bundleFactory.createBundle(streamVals));
 
     Collection<CommittedBundle<?>> initialInputs =
-        factory.getInitialInputs(streamVals.getProducingTransformInternal());
+        new TestStreamEvaluatorFactory.InputProvider(context)
+            .getInitialInputs(streamVals.getProducingTransformInternal());
     @SuppressWarnings("unchecked")
     CommittedBundle<TestStreamIndex<Integer>> initialBundle =
         (CommittedBundle<TestStreamIndex<Integer>>) Iterables.getOnlyElement(initialInputs);
