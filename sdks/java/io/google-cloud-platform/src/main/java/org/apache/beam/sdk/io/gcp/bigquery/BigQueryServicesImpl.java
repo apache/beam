@@ -97,8 +97,9 @@ class BigQueryServicesImpl implements BigQueryServices {
 
   @Override
   public BigQueryJsonReader getReaderFromQuery(
-      BigQueryOptions bqOptions, String query, String projectId, @Nullable Boolean flatten) {
-    return BigQueryJsonReaderImpl.fromQuery(bqOptions, query, projectId, flatten);
+      BigQueryOptions bqOptions, String query, String projectId, @Nullable Boolean flatten,
+      @Nullable Boolean useLegacySql) {
+    return BigQueryJsonReaderImpl.fromQuery(bqOptions, query, projectId, flatten, useLegacySql);
   }
 
   @VisibleForTesting
@@ -265,12 +266,11 @@ class BigQueryServicesImpl implements BigQueryServices {
     }
 
     @Override
-    public JobStatistics dryRunQuery(String projectId, String query)
+    public JobStatistics dryRunQuery(String projectId, JobConfigurationQuery queryConfig)
         throws InterruptedException, IOException {
       Job job = new Job()
           .setConfiguration(new JobConfiguration()
-              .setQuery(new JobConfigurationQuery()
-                  .setQuery(query))
+              .setQuery(queryConfig)
               .setDryRun(true));
       BackOff backoff =
           FluentBackoff.DEFAULT
@@ -279,7 +279,7 @@ class BigQueryServicesImpl implements BigQueryServices {
           client.jobs().insert(projectId, job),
           String.format(
               "Unable to dry run query: %s, aborting after %d retries.",
-              query, MAX_RPC_RETRIES),
+              queryConfig, MAX_RPC_RETRIES),
           Sleeper.DEFAULT,
           backoff).getStatistics();
     }
@@ -472,7 +472,7 @@ class BigQueryServicesImpl implements BigQueryServices {
      */
     @Override
     public void createDataset(
-        String projectId, String datasetId, String location, String description)
+        String projectId, String datasetId, @Nullable String location, @Nullable String description)
         throws IOException, InterruptedException {
       BackOff backoff =
           FluentBackoff.DEFAULT
@@ -483,19 +483,22 @@ class BigQueryServicesImpl implements BigQueryServices {
     private void createDataset(
         String projectId,
         String datasetId,
-        String location,
-        String description,
+        @Nullable String location,
+        @Nullable String description,
         Sleeper sleeper,
         BackOff backoff) throws IOException, InterruptedException {
       DatasetReference datasetRef = new DatasetReference()
           .setProjectId(projectId)
           .setDatasetId(datasetId);
 
-      Dataset dataset = new Dataset()
-          .setDatasetReference(datasetRef)
-          .setLocation(location)
-          .setFriendlyName(location)
-          .setDescription(description);
+      Dataset dataset = new Dataset().setDatasetReference(datasetRef);
+      if (location != null) {
+        dataset.setLocation(location);
+      }
+      if (description != null) {
+        dataset.setFriendlyName(description);
+        dataset.setDescription(description);
+      }
 
       Exception lastException;
       do {
@@ -697,10 +700,12 @@ class BigQueryServicesImpl implements BigQueryServices {
         BigQueryOptions bqOptions,
         String query,
         String projectId,
-        @Nullable Boolean flattenResults) {
+        @Nullable Boolean flattenResults,
+        @Nullable Boolean useLegacySql) {
       return new BigQueryJsonReaderImpl(
           BigQueryTableRowIterator.fromQuery(
-              query, projectId, Transport.newBigQueryClient(bqOptions).build(), flattenResults));
+              query, projectId, Transport.newBigQueryClient(bqOptions).build(), flattenResults,
+              useLegacySql));
     }
 
     private static BigQueryJsonReader fromTable(
