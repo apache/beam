@@ -576,8 +576,7 @@ public class InMemExecutorTest {
     // in 10s windows
 
     Dataset<Integer> input = flow.createInput(
-        ListDataSource.unbounded(sequenceInts(0, N))
-            .withReadDelay(Duration.ofMillis(2)));
+        ListDataSource.unbounded(sequenceInts(0, N)));
 
     ListDataSink<Pair<String, Long>> outputs = ListDataSink.get(2);
 

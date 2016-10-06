@@ -31,7 +31,7 @@ public class PeriodicTimeTrigger implements Trigger {
 
   @Override
   public TriggerResult onTimeEvent(long time, WindowContext w, TriggerContext ctx) {
-    if (time >= startTime && time <= lastFireTime && time % interval == 0) {
+    if (time >= startTime && time <= lastFireTime) {
       LOG.debug("Firing PeriodicTimeTrigger, time {}, window: {}", time, w.getWindowID());
       // ~ reschedule the trigger
       scheduleNext(time, w, ctx);
