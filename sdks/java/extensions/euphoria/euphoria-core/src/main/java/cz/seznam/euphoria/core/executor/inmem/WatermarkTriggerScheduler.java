@@ -2,7 +2,7 @@ package cz.seznam.euphoria.core.executor.inmem;
 
 import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.guava.shaded.com.google.common.collect.Iterables;
-
+import cz.seznam.euphoria.guava.shaded.com.google.common.collect.Lists;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -44,9 +44,8 @@ public class WatermarkTriggerScheduler<W, K> implements TriggerScheduler<W, K> {
   @Override
   @SuppressWarnings("unchecked")
   public void updateStamp(long stamp) {
-    if (currentWatermark < stamp) {
-      currentWatermark = stamp;
-      final long triggeringStamp = currentWatermark - watermarkDuration;
+    if (currentWatermark < stamp) {      
+      final long triggeringStamp = stamp - watermarkDuration;
 
       // fire all triggers that passed watermark duration
 
@@ -58,14 +57,19 @@ public class WatermarkTriggerScheduler<W, K> implements TriggerScheduler<W, K> {
           // need to collect to list to prevent ConcurrentModificationException
           .collect(Collectors.toList())
           .forEach(p -> {
+            // move the clock to the trigerring time
+            currentWatermark = p.getFirst();
             KeyedWindow<W, K> w = p.getSecond().getFirst();
-            Triggerable<W, K> purged = purge(w, p.getFirst());
-            purged.fire(p.getFirst(), w);
+            Triggerable<W, K> purged = purge(w, currentWatermark);
+            purged.fire(currentWatermark, w);
           });
 
       // remove all expired events
       headMap.keySet().stream().collect(Collectors.toList())
           .forEach(scheduledEvents::remove);
+
+      // and set the final watermark
+      currentWatermark = stamp;
     }
   }
 
@@ -93,7 +97,8 @@ public class WatermarkTriggerScheduler<W, K> implements TriggerScheduler<W, K> {
   public void cancel(KeyedWindow<W, K> window) {
     Set<Long> stamps = eventStampsForWindow.get(window);
     if (stamps != null) {
-      for (long stamp : stamps) {
+      // need copy here
+      for (long stamp : Lists.newArrayList(stamps)) {
         purge(window, stamp);
       }
     }

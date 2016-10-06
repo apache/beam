@@ -4,19 +4,22 @@ import cz.seznam.euphoria.core.client.dataset.windowing.WindowID;
 import cz.seznam.euphoria.core.client.io.Context;
 
 import java.util.Objects;
+import java.util.function.Supplier;
 
 class WindowedElementCollector<T> implements Context<T> {
-  private final Collector<Datum> wrap;
+  private final Context<Datum> wrap;
+  private final Supplier<Long> stampSupplier;
 
   protected WindowID<Object> windowID;
 
-  WindowedElementCollector(Collector<Datum> wrap) {
+  WindowedElementCollector(Context<Datum> wrap, Supplier<Long> stampSupplier) {
     this.wrap = Objects.requireNonNull(wrap);
+    this.stampSupplier = stampSupplier;
   }
 
   @Override
   public void collect(T elem) {
-    wrap.collect(Datum.of(windowID, elem));
+    wrap.collect(Datum.of(windowID, elem, stampSupplier.get()));
   }
 
   void setWindow(WindowID<Object> windowID) {
@@ -27,4 +30,5 @@ class WindowedElementCollector<T> implements Context<T> {
   public Object getWindow() {
     return windowID.getLabel();
   }
+
 }

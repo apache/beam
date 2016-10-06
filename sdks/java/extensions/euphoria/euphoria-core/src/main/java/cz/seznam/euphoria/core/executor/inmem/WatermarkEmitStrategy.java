@@ -16,11 +16,6 @@ public interface WatermarkEmitStrategy {
     final static ScheduledExecutorService scheduler = new ScheduledThreadPoolExecutor(1);
 
     @Override
-    public void emitIfNeeded(Runnable action) {
-      action.run();
-    }
-
-    @Override
     public void schedule(Runnable action) {
       scheduler.scheduleAtFixedRate(action, 100, 100, TimeUnit.MILLISECONDS);
     }
@@ -31,12 +26,6 @@ public interface WatermarkEmitStrategy {
     }
 
   }
-
-  /**
-   * Emit watermark to given collector if needed.
-   */
-  void emitIfNeeded(Runnable action);
-
 
   /**
    * Schedule for periodic emitting.
