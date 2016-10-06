@@ -102,6 +102,7 @@ public class InMemExecutor implements Executor {
       // we assign it to batch
       // which means null group, and batch label
       return Datum.of(new WindowID(Batch.Label.get()), next,
+          // ingestion time
           System.currentTimeMillis());
     }
   }
@@ -709,6 +710,8 @@ public class InMemExecutor implements Executor {
               int windowShift = 0;
               if (allowWindowBasedShuffling) {
                 if (windowing.isPresent()) {
+                  // FIXME: the time function inside windowing
+                  // must be part of the operator itself
                   targetWindows = windowing.get().assignWindowsToElement(datum);
                 } else {
                   targetWindows = Collections.singleton(datum.getWindowID());
