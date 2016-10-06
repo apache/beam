@@ -349,7 +349,7 @@ public class UnboundedSourceWrapper<
   @Override
   public byte[] snapshotState(long checkpointId, long checkpointTimestamp) throws Exception {
 
-    if (checkpointCoder == null) {
+    if (checkpointCoder == null || localSplitSources == null || localReaders == null) {
       // no checkpoint coder available in this source
       return null;
     }
