@@ -165,7 +165,7 @@ import javax.annotation.Nullable;
  * <p>To read from a BigQuery table, apply a {@link BigQueryIO.Read} transformation.
  * This produces a {@link PCollection} of {@link TableRow TableRows} as output:
  * <pre>{@code
- * PCollection<TableRow> shakespeare = pipeline.apply(
+ * PCollection<TableRow> weatherData = pipeline.apply(
  *     BigQueryIO.Read.named("Read")
  *                    .from("clouddataflow-readonly:samples.weather_stations"));
  * }</pre>
@@ -177,7 +177,7 @@ import javax.annotation.Nullable;
  * input transform.
  *
  * <pre>{@code
- * PCollection<TableRow> shakespeare = pipeline.apply(
+ * PCollection<TableRow> meanTemperatureData = pipeline.apply(
  *     BigQueryIO.Read.named("Read")
  *                    .fromQuery("SELECT year, mean_temp FROM [samples.weather_stations]"));
  * }</pre>
@@ -396,7 +396,7 @@ public class BigQueryIO {
       final boolean validate;
       @Nullable final Boolean flattenResults;
       @Nullable final Boolean useLegacySql;
-      @Nullable BigQueryServices testBigQueryServices;
+      @Nullable BigQueryServices bigQueryServices;
 
       private static final String QUERY_VALIDATION_FAILURE_ERROR =
           "Validation of query \"%1$s\" failed. If the query depends on an earlier stage of the"
@@ -410,20 +410,20 @@ public class BigQueryIO {
             true /* validate */,
             null /* flattenResults */,
             null /* useLegacySql */,
-            null /* testBigQueryServices */);
+            null /* bigQueryServices */);
       }
 
       private Bound(
           String name, @Nullable String query, @Nullable String jsonTableRef, boolean validate,
           @Nullable Boolean flattenResults, @Nullable Boolean useLegacySql,
-          @Nullable BigQueryServices testBigQueryServices) {
+          @Nullable BigQueryServices bigQueryServices) {
         super(name);
         this.jsonTableRef = jsonTableRef;
         this.query = query;
         this.validate = validate;
         this.flattenResults = flattenResults;
         this.useLegacySql = useLegacySql;
-        this.testBigQueryServices = testBigQueryServices;
+        this.bigQueryServices = bigQueryServices;
       }
 
       /**
@@ -434,7 +434,7 @@ public class BigQueryIO {
       public Bound named(String name) {
         return new Bound(
             name, query, jsonTableRef, validate, flattenResults, useLegacySql,
-            testBigQueryServices);
+            bigQueryServices);
       }
 
       /**
@@ -455,7 +455,7 @@ public class BigQueryIO {
       public Bound from(TableReference table) {
         return new Bound(
             name, query, toJsonString(table), validate, flattenResults, useLegacySql,
-            testBigQueryServices);
+            bigQueryServices);
       }
 
       /**
@@ -475,7 +475,7 @@ public class BigQueryIO {
         return new Bound(name, query, jsonTableRef, validate,
             MoreObjects.firstNonNull(flattenResults, Boolean.TRUE),
             MoreObjects.firstNonNull(useLegacySql, Boolean.TRUE),
-            testBigQueryServices);
+            bigQueryServices);
       }
 
       /**
@@ -484,7 +484,7 @@ public class BigQueryIO {
       public Bound withoutValidation() {
         return new Bound(
             name, query, jsonTableRef, false /* validate */, flattenResults, useLegacySql,
-            testBigQueryServices);
+            bigQueryServices);
       }
 
       /**
@@ -497,7 +497,7 @@ public class BigQueryIO {
       public Bound withoutResultFlattening() {
         return new Bound(
             name, query, jsonTableRef, validate, false /* flattenResults */, useLegacySql,
-            testBigQueryServices);
+            bigQueryServices);
       }
 
       /**
@@ -509,7 +509,7 @@ public class BigQueryIO {
       public Bound usingStandardSql() {
         return new Bound(
             name, query, jsonTableRef, validate, flattenResults, false /* useLegacySql */,
-            testBigQueryServices);
+            bigQueryServices);
       }
 
       @VisibleForTesting
@@ -533,7 +533,7 @@ public class BigQueryIO {
         checkArgument(
             !Strings.isNullOrEmpty(tempLocation),
             "BigQueryIO.Read needs a GCS temp location to store temp files.");
-        if (testBigQueryServices == null) {
+        if (bigQueryServices == null) {
           try {
             GcsPath.fromUri(tempLocation);
           } catch (IllegalArgumentException e) {
@@ -692,13 +692,13 @@ public class BigQueryIO {
       }
 
       /**
-       * Returns the table to write, or {@code null} if reading from a query instead.
+       * Returns the table to read, or {@code null} if reading from a query instead.
        *
-       * <p>If the table's project is not specified, use the default one.
+       * <p>If the table's project is not specified, use the executing project.
        */
       @Nullable private TableReference getTableWithDefaultProject(BigQueryOptions bqOptions) {
         TableReference table = getTable();
-        if (table != null && table.getProjectId() == null) {
+        if (table != null && Strings.isNullOrEmpty(table.getProjectId())) {
           // If user does not specify a project we assume the table to be located in
           // the default project.
           table.setProjectId(bqOptions.getProject());
@@ -709,6 +709,7 @@ public class BigQueryIO {
       /**
        * Returns the table to read, or {@code null} if reading from a query instead.
        */
+      @Nullable
       public TableReference getTable() {
         return fromJsonString(jsonTableRef, TableReference.class);
       }
@@ -744,10 +745,10 @@ public class BigQueryIO {
       }
 
       private BigQueryServices getBigQueryServices() {
-        if (testBigQueryServices == null) {
-          testBigQueryServices = new BigQueryServicesImpl();
+        if (bigQueryServices == null) {
+          bigQueryServices = new BigQueryServicesImpl();
         }
-        return testBigQueryServices;
+        return bigQueryServices;
       }
     }
 
@@ -887,14 +888,19 @@ public class BigQueryIO {
         String extractDestinationDir,
         BigQueryServices bqServices) {
       return new BigQueryQuerySource(
-          jobIdToken, query, queryTempTableRef, flattenResults, useLegacySql, extractDestinationDir,
+          jobIdToken,
+          query,
+          queryTempTableRef,
+          flattenResults,
+          useLegacySql,
+          extractDestinationDir,
           bqServices);
     }
 
     private final String query;
     private final String jsonQueryTempTable;
     private final Boolean flattenResults;
-    private final boolean useLegacySql;
+    private final Boolean useLegacySql;
     private transient AtomicReference<JobStatistics> dryRunJobStats;
 
     private BigQueryQuerySource(
@@ -1012,7 +1018,6 @@ public class BigQueryIO {
       if (parseStatus(job) != Status.SUCCEEDED) {
         throw new IOException("Query job failed: " + jobId);
       }
-      return;
     }
 
     private JobConfigurationQuery createBasicQueryConfig() {
@@ -1542,8 +1547,7 @@ public class BigQueryIO {
       // An option to indicate if table validation is desired. Default is true.
       final boolean validate;
 
-      // A fake or mock BigQueryServices for tests.
-      @Nullable private BigQueryServices testBigQueryServices;
+      @Nullable private BigQueryServices bigQueryServices;
 
       private static class TranslateTableSpecFunction implements
           SerializableFunction<BoundedWindow, TableReference> {
@@ -1574,14 +1578,14 @@ public class BigQueryIO {
             CreateDisposition.CREATE_IF_NEEDED,
             WriteDisposition.WRITE_EMPTY,
             true /* validate */,
-            null /* testBigQueryServices */);
+            null /* bigQueryServices */);
       }
 
       private Bound(String name, @Nullable String jsonTableRef,
           @Nullable SerializableFunction<BoundedWindow, TableReference> tableRefFunction,
           @Nullable String jsonSchema,
           CreateDisposition createDisposition, WriteDisposition writeDisposition, boolean validate,
-          @Nullable BigQueryServices testBigQueryServices) {
+          @Nullable BigQueryServices bigQueryServices) {
         super(name);
         this.jsonTableRef = jsonTableRef;
         this.tableRefFunction = tableRefFunction;
@@ -1589,7 +1593,7 @@ public class BigQueryIO {
         this.createDisposition = checkNotNull(createDisposition, "createDisposition");
         this.writeDisposition = checkNotNull(writeDisposition, "writeDisposition");
         this.validate = validate;
-        this.testBigQueryServices = testBigQueryServices;
+        this.bigQueryServices = bigQueryServices;
       }
 
       /**
@@ -1599,7 +1603,7 @@ public class BigQueryIO {
        */
       public Bound named(String name) {
         return new Bound(name, jsonTableRef, tableRefFunction, jsonSchema, createDisposition,
-            writeDisposition, validate, testBigQueryServices);
+            writeDisposition, validate, bigQueryServices);
       }
 
       /**
@@ -1619,7 +1623,7 @@ public class BigQueryIO {
        */
       public Bound to(TableReference table) {
         return new Bound(name, toJsonString(table), tableRefFunction, jsonSchema, createDisposition,
-            writeDisposition, validate, testBigQueryServices);
+            writeDisposition, validate, bigQueryServices);
       }
 
       /**
@@ -1648,7 +1652,7 @@ public class BigQueryIO {
       public Bound toTableReference(
           SerializableFunction<BoundedWindow, TableReference> tableRefFunction) {
         return new Bound(name, jsonTableRef, tableRefFunction, jsonSchema, createDisposition,
-            writeDisposition, validate, testBigQueryServices);
+            writeDisposition, validate, bigQueryServices);
       }
 
       /**
@@ -1659,7 +1663,7 @@ public class BigQueryIO {
        */
       public Bound withSchema(TableSchema schema) {
         return new Bound(name, jsonTableRef, tableRefFunction, toJsonString(schema),
-            createDisposition, writeDisposition, validate, testBigQueryServices);
+            createDisposition, writeDisposition, validate, bigQueryServices);
       }
 
       /**
@@ -1669,7 +1673,7 @@ public class BigQueryIO {
        */
       public Bound withCreateDisposition(CreateDisposition createDisposition) {
         return new Bound(name, jsonTableRef, tableRefFunction, jsonSchema, createDisposition,
-            writeDisposition, validate, testBigQueryServices);
+            writeDisposition, validate, bigQueryServices);
       }
 
       /**
@@ -1679,7 +1683,7 @@ public class BigQueryIO {
        */
       public Bound withWriteDisposition(WriteDisposition writeDisposition) {
         return new Bound(name, jsonTableRef, tableRefFunction, jsonSchema, createDisposition,
-            writeDisposition, validate, testBigQueryServices);
+            writeDisposition, validate, bigQueryServices);
       }
 
       /**
@@ -1689,7 +1693,7 @@ public class BigQueryIO {
        */
       public Bound withoutValidation() {
         return new Bound(name, jsonTableRef, tableRefFunction, jsonSchema, createDisposition,
-            writeDisposition, false, testBigQueryServices);
+            writeDisposition, false, bigQueryServices);
       }
 
       @VisibleForTesting
@@ -1740,13 +1744,7 @@ public class BigQueryIO {
 
         // The user specified a table.
         if (jsonTableRef != null && validate) {
-          TableReference table = getTable();
-
-          // If user does not specify a project we assume the table to be located in the project
-          // configured in BigQueryOptions.
-          if (Strings.isNullOrEmpty(table.getProjectId())) {
-            table.setProjectId(options.getProject());
-          }
+          TableReference table = getTableWithDefaultProject(options);
 
           // Check for destination table presence and emptiness for early failure notification.
           // Note that a presence check can fail when the table or dataset is created by an earlier
@@ -1778,7 +1776,7 @@ public class BigQueryIO {
           checkArgument(
               !Strings.isNullOrEmpty(tempLocation),
               "BigQueryIO.Write needs a GCS temp location to store temp files.");
-          if (testBigQueryServices == null) {
+          if (bigQueryServices == null) {
             try {
               GcsPath.fromUri(tempLocation);
             } catch (IllegalArgumentException e) {
@@ -1804,10 +1802,8 @@ public class BigQueryIO {
           return input.apply(new StreamWithDeDup(getTable(), tableRefFunction, getSchema()));
         }
 
-        TableReference table = fromJsonString(jsonTableRef, TableReference.class);
-        if (Strings.isNullOrEmpty(table.getProjectId())) {
-          table.setProjectId(options.getProject());
-        }
+        TableReference table = getTableWithDefaultProject(options);
+
         String jobIdToken = "beam_job_" + randomUUIDString();
         String tempLocation = options.getTempLocation();
         String tempFilePrefix;
@@ -1982,6 +1978,21 @@ public class BigQueryIO {
         return fromJsonString(jsonSchema, TableSchema.class);
       }
 
+      /**
+       * Returns the table to write, or {@code null} if writing with {@code tableRefFunction}.
+       *
+       * <p>If the table's project is not specified, use the executing project.
+       */
+      @Nullable private TableReference getTableWithDefaultProject(BigQueryOptions bqOptions) {
+        TableReference table = getTable();
+        if (table != null && Strings.isNullOrEmpty(table.getProjectId())) {
+          // If user does not specify a project we assume the table to be located in
+          // the default project.
+          table.setProjectId(bqOptions.getProject());
+        }
+        return table;
+      }
+
       /** Returns the table reference, or {@code null}. */
       @Nullable
       public TableReference getTable() {
@@ -1994,10 +2005,10 @@ public class BigQueryIO {
       }
 
       private BigQueryServices getBigQueryServices() {
-        if (testBigQueryServices == null) {
-          testBigQueryServices = new BigQueryServicesImpl();
+        if (bigQueryServices == null) {
+          bigQueryServices = new BigQueryServicesImpl();
         }
-        return testBigQueryServices;
+        return bigQueryServices;
       }
     }
 
