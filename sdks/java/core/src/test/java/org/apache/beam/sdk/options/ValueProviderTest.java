@@ -58,7 +58,7 @@ public class ValueProviderTest {
       new String[]{"--foo=baz"}).as(TestOptions.class);
     ValueProvider<String> provider = options.getFoo();
     assertEquals("baz", provider.get());
-    assertTrue(provider.shouldValidate());
+    assertTrue(provider.isAccessible());
   }
 
   @Test
@@ -67,7 +67,7 @@ public class ValueProviderTest {
       new String[]{"--list=1,2,3"}).as(TestOptions.class);
     ValueProvider<List<Integer>> provider = options.getList();
     assertEquals(ImmutableList.of(1, 2, 3), provider.get());
-    assertTrue(provider.shouldValidate());
+    assertTrue(provider.isAccessible());
   }
 
   @Test
@@ -76,21 +76,21 @@ public class ValueProviderTest {
       new String[]{"--bar=baz"}).as(TestOptions.class);
     ValueProvider<String> provider = options.getBar();
     assertEquals("baz", provider.get());
-    assertTrue(provider.shouldValidate());
+    assertTrue(provider.isAccessible());
   }
 
   @Test
   public void testStaticValueProvider() {
     ValueProvider<String> provider = StaticValueProvider.of("foo");
     assertEquals("foo", provider.get());
-    assertTrue(provider.shouldValidate());
+    assertTrue(provider.isAccessible());
   }
 
   @Test
   public void testNoDefaultRuntimeProvider() {
     TestOptions options = PipelineOptionsFactory.as(TestOptions.class);
     ValueProvider<String> provider = options.getFoo();
-    assertFalse(provider.shouldValidate());
+    assertFalse(provider.isAccessible());
 
     expectedException.expect(RuntimeException.class);
     expectedException.expectMessage("Not called from a runtime context");
@@ -101,7 +101,7 @@ public class ValueProviderTest {
   public void testDefaultRuntimeProvider() {
     TestOptions options = PipelineOptionsFactory.as(TestOptions.class);
     ValueProvider<String> provider = options.getBar();
-    assertTrue(provider.shouldValidate());
+    assertTrue(provider.isAccessible());
     assertEquals("bar", provider.get());
   }
 
@@ -117,7 +117,7 @@ public class ValueProviderTest {
     RuntimeValueProvider.setRuntimeOptions(runtime);
 
     ValueProvider<String> provider = options.getFoo();
-    assertFalse(provider.shouldValidate());
+    assertFalse(provider.isAccessible());
     assertEquals("quux", provider.get());
   }
 
@@ -133,7 +133,7 @@ public class ValueProviderTest {
     RuntimeValueProvider.setRuntimeOptions(runtime);
 
     ValueProvider<String> provider = options.getBar();
-    assertTrue(provider.shouldValidate());
+    assertTrue(provider.isAccessible());
     assertEquals("quux", provider.get());
   }
 
@@ -172,7 +172,7 @@ public class ValueProviderTest {
   @Test
   public void testSerializeDeserializeNoArg() throws Exception {
     TestOptions submitOptions = PipelineOptionsFactory.as(TestOptions.class);
-    assertFalse(submitOptions.getFoo().shouldValidate());
+    assertFalse(submitOptions.getFoo().isAccessible());
     ObjectMapper mapper = new ObjectMapper();
     String serializedOptions = mapper.writeValueAsString(submitOptions);
 
@@ -186,7 +186,7 @@ public class ValueProviderTest {
       .as(TestOptions.class);
 
     ValueProvider<String> vp = runtime.getFoo();
-    assertTrue(vp.shouldValidate());
+    assertTrue(vp.isAccessible());
     assertEquals("quux", vp.get());
     assertEquals(vp.getClass(), StaticValueProvider.class);
   }
@@ -196,7 +196,7 @@ public class ValueProviderTest {
     TestOptions submitOptions = PipelineOptionsFactory.fromArgs(
       new String[]{"--foo=baz"}).as(TestOptions.class);
     assertEquals("baz", submitOptions.getFoo().get());
-    assertTrue(submitOptions.getFoo().shouldValidate());
+    assertTrue(submitOptions.getFoo().isAccessible());
     ObjectMapper mapper = new ObjectMapper();
     String serializedOptions = mapper.writeValueAsString(submitOptions);
 
@@ -208,7 +208,7 @@ public class ValueProviderTest {
       .as(TestOptions.class);
 
     ValueProvider<String> vp = runtime.getFoo();
-    assertTrue(vp.shouldValidate());
+    assertTrue(vp.isAccessible());
     assertEquals("quux", vp.get());
   }
 }

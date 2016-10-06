@@ -56,17 +56,15 @@ public interface ValueProvider<T> {
   T get();
 
   /**
-   * Whether the contents of this {@link ValueProvider} is available to validation
+   * Whether the contents of this {@link ValueProvider} is available to
    * routines that run at graph construction time.
    */
-  boolean shouldValidate();
+  boolean isAccessible();
 
   /**
    * {@link StaticValueProvider} is an implementation of {@link ValueProvider} that
    * allows for a static value to be provided.
    */
-  @JsonSerialize(using = ValueProvider.Serializer.class)
-  @JsonDeserialize(using = ValueProvider.Deserializer.class)
   public static class StaticValueProvider<T> implements ValueProvider<T>, Serializable {
     @Nullable
     private final T value;
@@ -89,7 +87,7 @@ public interface ValueProvider<T> {
     }
 
     @Override
-    public boolean shouldValidate() {
+    public boolean isAccessible() {
       return true;
     }
   }
@@ -101,22 +99,21 @@ public interface ValueProvider<T> {
    *
    * <p>To enforce this contract, if there is no default, users must only call
    * {@link #get()} at execution time (after a call to {@link Pipeline#run}),
-   * which will provide the value of OPTIONS.
+   * which will provide the value of {@code optionsMap}.
    */
-  @JsonSerialize(using = ValueProvider.Serializer.class)
-  @JsonDeserialize(using = ValueProvider.Deserializer.class)
   public static class RuntimeValueProvider<T> implements ValueProvider<T>, Serializable {
     private static ConcurrentHashMap<Long, PipelineOptions> optionsMap =
       new ConcurrentHashMap<>();
 
     private final Class<? extends PipelineOptions> klass;
     private final String methodName;
+    @Nullable
     private final T defaultValue;
     private final Long optionsId;
 
     /**
      * Creates a {@link RuntimeValueProvider} that will query the provided
-     * optionsId for a value.
+     * {@code optionsId} for a value.
      */
     RuntimeValueProvider(String methodName, Class<? extends PipelineOptions> klass,
                          Long optionsId) {
@@ -128,7 +125,7 @@ public interface ValueProvider<T> {
 
     /**
      * Creates a {@link RuntimeValueProvider} that will query the provided
-     * optionsId for a value, or use the default if no value is available.
+     * {@code optionsId} for a value, or use the default if no value is available.
      */
     RuntimeValueProvider(String methodName, Class<? extends PipelineOptions> klass,
       T defaultValue, Long optionsId) {
@@ -138,6 +135,11 @@ public interface ValueProvider<T> {
       this.optionsId = optionsId;
     }
 
+    /**
+     * Once set, all {@code RuntimeValueProviders} will return {@code true}
+     * from {@code isAccessible()}. By default, the value is set when
+     * deserializing {@link PipelineOptions}.
+     */
     static void setRuntimeOptions(PipelineOptions runtimeOptions) {
       optionsMap.put(runtimeOptions.getOptionsId(), runtimeOptions);
     }
@@ -162,7 +164,7 @@ public interface ValueProvider<T> {
     }
 
     @Override
-    public boolean shouldValidate() {
+    public boolean isAccessible() {
       return defaultValue != null;
     }
   }
@@ -174,7 +176,7 @@ public interface ValueProvider<T> {
     @Override
     public void serialize(ValueProvider<?> value, JsonGenerator jgen,
                           SerializerProvider provider) throws IOException {
-      if (value.shouldValidate()) {
+      if (value.isAccessible()) {
         jgen.writeObject(value.get());
       } else {
         jgen.writeNull();
@@ -190,7 +192,7 @@ public interface ValueProvider<T> {
 
     private final JavaType innerType;
 
-    // A 0-arg constructor is required.
+    // A 0-arg constructor is required by the compiler.
     Deserializer() {
       this.innerType = null;
     }

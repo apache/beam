@@ -328,7 +328,6 @@ public interface PipelineOptions extends HasDisplayData {
     }
   }
 
-
   /**
    * Provides a unique ID for this {@link PipelineOptions} object, assigned at graph
    * construction time.
