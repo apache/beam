@@ -265,7 +265,7 @@ class TextSourceTest(unittest.TestCase):
     _, lines = write_data(15)
     file_name = tempfile.NamedTemporaryFile(
         delete=False, prefix=tempfile.template, suffix='.bz2').name
-    with bz2.BZFile(file_name, 'wb') as f:
+    with bz2.BZ2File(file_name, 'wb') as f:
       f.write('\n'.join(lines))
 
     pipeline = beam.Pipeline('DirectPipelineRunner')
@@ -289,7 +289,7 @@ class TextSourceTest(unittest.TestCase):
     _, lines = write_data(15)
     file_name = tempfile.NamedTemporaryFile(
         delete=False, prefix=tempfile.template).name
-    with bz2.BZFile(file_name, 'wb') as f:
+    with bz2.BZ2File(file_name, 'wb') as f:
       f.write('\n'.join(lines))
 
     pipeline = beam.Pipeline('DirectPipelineRunner')
