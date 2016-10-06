@@ -40,8 +40,10 @@ import com.google.common.hash.Hashing;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
+import javax.annotation.Nonnull;
 import javax.annotation.concurrent.NotThreadSafe;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.util.FluentBackoff;
@@ -182,14 +184,16 @@ public class BigqueryMatcher extends TypeSafeMatcher<PipelineResult>
     return credential;
   }
 
-  private String generateHash(List<TableRow> rows) {
+  private String generateHash(@Nonnull List<TableRow> rows) {
     List<HashCode> rowHashes = Lists.newArrayList();
     for (TableRow row : rows) {
-      List<HashCode> cellHashes = Lists.newArrayList();
+      List<String> cellsInOneRow = Lists.newArrayList();
       for (TableCell cell : row.getF()) {
-        cellHashes.add(Hashing.sha1().hashString(cell.toString(), StandardCharsets.UTF_8));
+        cellsInOneRow.add(Objects.toString(cell.getV()));
+        Collections.sort(cellsInOneRow);
       }
-      rowHashes.add(Hashing.combineUnordered(cellHashes));
+      rowHashes.add(
+          Hashing.sha1().hashString(cellsInOneRow.toString(), StandardCharsets.UTF_8));
     }
     return Hashing.combineUnordered(rowHashes).toString();
   }
@@ -222,13 +226,13 @@ public class BigqueryMatcher extends TypeSafeMatcher<PipelineResult>
     StringBuilder samples = new StringBuilder();
     List<TableRow> rows = response.getRows();
     for (int i = 0; i < totalNumRows && i < rows.size(); i++) {
-      samples.append("\n\t\t");
+      samples.append(String.format("%n\t\t"));
       for (TableCell field : rows.get(i).getF()) {
         samples.append(String.format("%-10s", field.getV()));
       }
     }
     if (rows.size() > totalNumRows) {
-      samples.append("\n\t\t....");
+      samples.append(String.format("%n\t\t..."));
     }
     return samples.toString();
   }

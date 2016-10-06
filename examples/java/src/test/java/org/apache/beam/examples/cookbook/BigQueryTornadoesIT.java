@@ -39,7 +39,7 @@ public class BigQueryTornadoesIT {
    */
   public interface BigQueryTornadoesITOptions
       extends TestPipelineOptions, BigQueryTornadoes.Options, BigQueryOptions {
-    @Default.String("043e8e6ee32384df0cda4c241b8ab897f2ce0f2f")
+    @Default.String("1ab4c7ec460b94bbb3c3885b178bf0e6bed56e1f")
     String getChecksum();
     void setChecksum(String value);
   }
