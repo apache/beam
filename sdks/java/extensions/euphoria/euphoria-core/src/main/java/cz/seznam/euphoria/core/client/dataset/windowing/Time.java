@@ -20,10 +20,11 @@ import java.util.Set;
 public class Time<T> implements Windowing<T, TimeInterval, Time.TimeWindowContext> {
 
   public static final class ProcessingTime<T> implements UnaryFunction<T, Long> {
+
     private static final ProcessingTime INSTANCE = new ProcessingTime();
 
     // singleton
-    private ProcessingTime() {}
+    private ProcessingTime() { }
 
     // ~ suppressing the warning is safe due to the returned
     // object not relying on the generic information in any way
@@ -36,6 +37,7 @@ public class Time<T> implements Windowing<T, TimeInterval, Time.TimeWindowContex
     public Long apply(T what) {
       return System.currentTimeMillis();
     }
+    
   } // ~ end of ProcessingTime
 
   public static class TimeWindowContext
@@ -90,7 +92,8 @@ public class Time<T> implements Windowing<T, TimeInterval, Time.TimeWindowContex
      * Function that will extract timestamp from data
      */
     public <T> TTime<T> using(UnaryFunction<T, Long> fn) {
-      return new TTime<>(this.durationMillis, earlyTriggeringPeriod, requireNonNull(fn));
+      return new TTime<>(this.durationMillis,
+          earlyTriggeringPeriod, requireNonNull(fn));
     }
   }
 
@@ -99,8 +102,8 @@ public class Time<T> implements Windowing<T, TimeInterval, Time.TimeWindowContex
   public static class TTime<T> extends Time<T> {
     TTime(long durationMillis,
           Duration earlyTriggeringPeriod,
-          UnaryFunction<T, Long> eventTimeFn)
-    {
+          UnaryFunction<T, Long> eventTimeFn) {
+      
       super(durationMillis, earlyTriggeringPeriod, eventTimeFn);
     }
   } // ~ end of EventTimeBased
@@ -113,7 +116,10 @@ public class Time<T> implements Windowing<T, TimeInterval, Time.TimeWindowContex
     return new UTime<>(duration.toMillis(), null);
   }
 
-  Time(long durationMillis, Duration earlyTriggeringPeriod, UnaryFunction<T, Long> eventTimeFn) {
+  Time(long durationMillis,
+      Duration earlyTriggeringPeriod,
+      UnaryFunction<T, Long> eventTimeFn) {
+    
     this.durationMillis = durationMillis;
     this.earlyTriggeringPeriod = earlyTriggeringPeriod;
     this.eventTimeFn = eventTimeFn;
@@ -136,6 +142,9 @@ public class Time<T> implements Windowing<T, TimeInterval, Time.TimeWindowContex
         earlyTriggeringPeriod);
   }
 
+  public Duration getEarlyTriggeringPeriod() {
+    return earlyTriggeringPeriod;
+  }
 
   public long getDuration() {
     return durationMillis;
