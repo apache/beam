@@ -58,7 +58,10 @@ import net.bytebuddy.jar.asm.Opcodes;
 import net.bytebuddy.jar.asm.Type;
 import net.bytebuddy.matcher.ElementMatchers;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.DoFn.ExtraContextFactory;
 import org.apache.beam.sdk.transforms.DoFn.ProcessElement;
+import org.apache.beam.sdk.transforms.DoFnAdapters;
+import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.util.UserCodeException;
 
 /** Dynamically generates {@link DoFnInvoker} instances for invoking a {@link DoFn}. */
@@ -76,6 +79,89 @@ public class DoFnInvokers {
       new LinkedHashMap<>();
 
   private DoFnInvokers() {}
+
+  /**
+   * Creates a {@link DoFnInvoker} for the given {@link Object}, which should be either a
+   * {@link DoFn} or an {@link OldDoFn}. The expected use would be to deserialize a user's
+   * function as an {@link Object} and then pass it to this method, so there is no need to
+   * statically specify what sort of object it is.
+   *
+   * @deprecated this is to be used only as a migration path for decoupling upgrades
+   */
+  @Deprecated
+  public DoFnInvoker<?, ?> invokerFor(Object deserializedFn) {
+    if (deserializedFn instanceof DoFn) {
+      return newByteBuddyInvoker((DoFn<?, ?>) deserializedFn);
+    } else if (deserializedFn instanceof OldDoFn){
+      return new OldDoFnInvoker<>((OldDoFn<?, ?>) deserializedFn);
+    } else {
+      throw new IllegalArgumentException(String.format(
+          "Cannot create a %s for %s; it should be either a %s or an %s.",
+          DoFnInvoker.class.getSimpleName(),
+          deserializedFn.toString(),
+          DoFn.class.getSimpleName(),
+          OldDoFn.class.getSimpleName()));
+    }
+  }
+
+  static class OldDoFnInvoker<InputT, OutputT> implements DoFnInvoker<InputT, OutputT> {
+
+    private final OldDoFn<InputT, OutputT> fn;
+
+    public OldDoFnInvoker(OldDoFn<InputT, OutputT> fn) {
+      this.fn = fn;
+    }
+
+    @Override
+    public void invokeProcessElement(
+        DoFn<InputT, OutputT>.ProcessContext c, ExtraContextFactory<InputT, OutputT> extra) {
+      OldDoFn<InputT, OutputT>.ProcessContext oldCtx =
+          DoFnAdapters.adaptProcessContext(fn, c, extra);
+      try {
+        fn.processElement(oldCtx);
+      } catch (Throwable exc) {
+        throw UserCodeException.wrap(exc);
+      }
+    }
+
+    @Override
+    public void invokeStartBundle(DoFn.Context c) {
+      OldDoFn<InputT, OutputT>.Context oldCtx = DoFnAdapters.adaptContext(fn, c);
+      try {
+        fn.startBundle(oldCtx);
+      } catch (Throwable exc) {
+        throw UserCodeException.wrap(exc);
+      }
+    }
+
+    @Override
+    public void invokeFinishBundle(DoFn.Context c) {
+      OldDoFn<InputT, OutputT>.Context oldCtx = DoFnAdapters.adaptContext(fn, c);
+      try {
+        fn.finishBundle(oldCtx);
+      } catch (Throwable exc) {
+        throw UserCodeException.wrap(exc);
+      }
+    }
+
+    @Override
+    public void invokeSetup() {
+      try {
+        fn.setup();
+      } catch (Throwable exc) {
+        throw UserCodeException.wrap(exc);
+      }
+    }
+
+    @Override
+    public void invokeTeardown() {
+      try {
+        fn.teardown();
+      } catch (Throwable exc) {
+        throw UserCodeException.wrap(exc);
+      }
+    }
+  }
 
   /** @return the {@link DoFnInvoker} for the given {@link DoFn}. */
   public <InputT, OutputT> DoFnInvoker<InputT, OutputT> newByteBuddyInvoker(
