@@ -70,11 +70,11 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.Redistribute;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.DisplayData.Builder;
 import org.apache.beam.sdk.util.FluentBackoff;
-import org.apache.beam.sdk.util.Rebundle;
 import org.apache.beam.sdk.util.RetryHttpRequestInitializer;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
@@ -437,7 +437,7 @@ public class DatastoreV1 {
           // number of splits dynamically based on the size of the data.
           .apply(ParDo.of(new SplitQueryFn(v1Options, numQuerySplits)))
           // Make sure each sub-query is read in parallel.
-          .apply(Rebundle.<Query>create())
+          .apply(Redistribute.<Query>arbitrarily())
           // Read entities from each sub-query.
           .apply(ParDo.of(new ReadFn(v1Options)));
     }

@@ -15,32 +15,49 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.util;
+package org.apache.beam.sdk.transforms;
 
 import java.util.concurrent.ThreadLocalRandom;
-import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.Values;
+import org.apache.beam.sdk.util.Reshuffle;
+import org.apache.beam.sdk.util.ValueWithRecordId;
+import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 
 /**
- * A {@link PTransform} that returns a {@link PCollection} equivalent to its input, but prevents
- * fusion of the surrounding transforms, so that the runner will split the returned {@link
- * PCollection} into bundles for parallel processing independently.
+ * {@link PTransform Transforms} that return a {@link PCollection} equivalent to their input, but
+ * which is distributed differently, in order to provide additional operational properties. See
+ * {@link #byKey} and {@link #arbitrarily}.
  */
-public abstract class Rebundle {
+public class Redistribute {
   /**
-   * Creates a {@link Rebundle} transform that produces a collection that the runner can split into
-   * bundles in an arbitrarily fashion.
+   * Redistributes the collection by key, providing some of the side effects of a {@link
+   * GroupByKey}, in particular: prevents fusion of the surrounding transforms, checkpointing and
+   * deduplication by id (see {@link ValueWithRecordId}).
+   *
+   * <p>Internally performs a {@link GroupByKey} so that the data is key-partitioned. Configures the
+   * {@link WindowingStrategy} so that no data is dropped, but doesn't affect the need for the user
+   * to specify allowed lateness and accumulation mode before a user-inserted GroupByKey.
+   *
+   * @param <K> The type of key being reshuffled on.
+   * @param <V> The type of value being reshuffled.
    */
-  public static <T> Default<T> create() {
-    return new Default<T>();
+  public static <K, V> PTransform<PCollection<KV<K, V>>, PCollection<KV<K, V>>> byKey() {
+    return Reshuffle.of();
   }
 
-  /** The default {@link Rebundle} transform. */
-  public static class Default<T> extends PTransform<PCollection<T>, PCollection<T>> {
+  /**
+   * Redistributes the collection in an arbitrary fashion, preventing fusion of the surrounding
+   * transforms.
+   *
+   * @param <T> Type of the value being redistributed.
+   */
+  public static <T> Arbitrarily<T> arbitrarily() {
+    return new Arbitrarily<>();
+  }
+
+  /** Implementation of {@link #arbitrarily}. */
+  public static class Arbitrarily<T> extends PTransform<PCollection<T>, PCollection<T>> {
     @Override
     public PCollection<T> apply(PCollection<T> input) {
       return input

@@ -32,8 +32,8 @@ import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.Redistribute;
 import org.apache.beam.sdk.transforms.display.DisplayData;
-import org.apache.beam.sdk.util.Rebundle;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
@@ -233,7 +233,7 @@ public class JdbcIO {
       return input
           .apply(Create.of(getQuery()))
           .apply(ParDo.of(new ReadFn<>(this))).setCoder(getCoder())
-          .apply(Rebundle.<T>create());
+          .apply(Redistribute.<T>arbitrarily());
     }
 
     @Override

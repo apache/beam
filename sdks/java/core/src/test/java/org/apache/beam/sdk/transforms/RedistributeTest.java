@@ -15,32 +15,32 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.util;
+package org.apache.beam.sdk.transforms;
 
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.RunnableOnService;
 import org.apache.beam.sdk.testing.TestPipeline;
-import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.util.ReshuffleTest;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 /**
- * Tests for {@link Rebundle}. Most operational properties (e.g. preservation of windows, handling
- * of late data etc.) are tested by {@link ReshuffleTest}.
+ * Tests for {@link Redistribute}. Most operational properties (e.g. preservation of windows,
+ * handling of late data etc.) are tested by {@link ReshuffleTest}.
  */
 @RunWith(JUnit4.class)
-public class RebundleTest {
+public class RedistributeTest {
   @Test
   @Category(RunnableOnService.class)
-  public void testRebundle() {
+  public void testRedistributeArbitrarily() {
     Pipeline pipeline = TestPipeline.create();
 
     String[] values = {"a", "b", "c", "d", "e", "f"};
 
-    PAssert.that(pipeline.apply(Create.of(values)).apply(Rebundle.<String>create()))
+    PAssert.that(pipeline.apply(Create.of(values)).apply(Redistribute.<String>arbitrarily()))
         .containsInAnyOrder(values);
 
     pipeline.run();
