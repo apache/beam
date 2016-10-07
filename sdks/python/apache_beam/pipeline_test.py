@@ -239,6 +239,7 @@ class PipelineTest(unittest.TestCase):
             'oom:combine/GroupByKey/group_by_key': 1,
             ('oom:check', None): 1,
             'assert_that/singleton': 1,
+            ('assert_that/WindowInto', None): 1,
             ('assert_that/Map(match)', None): 1,
             ('oom:combine/GroupByKey/group_by_window', None): 1,
             ('oom:combine/Combine/ParDo(CombineValuesDoFn)', None): 1})
