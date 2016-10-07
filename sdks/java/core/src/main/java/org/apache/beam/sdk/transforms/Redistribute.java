@@ -54,12 +54,12 @@ public class Redistribute {
    *
    * @param <T> Type of the value being redistributed.
    */
-  public static <T> Arbitrarily<T> arbitrarily() {
+  public static <T> PTransform<PCollection<T>, PCollection<T>> arbitrarily() {
     return new Arbitrarily<>();
   }
 
   /** Implementation of {@link #arbitrarily}. */
-  public static class Arbitrarily<T> extends PTransform<PCollection<T>, PCollection<T>> {
+  private static class Arbitrarily<T> extends PTransform<PCollection<T>, PCollection<T>> {
     @Override
     public PCollection<T> apply(PCollection<T> input) {
       return input
@@ -118,7 +118,8 @@ public class Redistribute {
   }
 
   /** Implementation of {@link #byKey}. */
-  public static class ByKey<K, V> extends PTransform<PCollection<KV<K, V>>, PCollection<KV<K, V>>> {
+  private static class ByKey<K, V>
+      extends PTransform<PCollection<KV<K, V>>, PCollection<KV<K, V>>> {
     @Override
     public PCollection<KV<K, V>> apply(PCollection<KV<K, V>> input) {
       WindowingStrategy<?, ?> originalStrategy = input.getWindowingStrategy();
