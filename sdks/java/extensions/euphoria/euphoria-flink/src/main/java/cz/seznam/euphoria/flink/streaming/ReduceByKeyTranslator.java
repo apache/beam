@@ -63,28 +63,28 @@ class ReduceByKeyTranslator implements StreamingOperatorTranslator<ReduceByKey> 
     // apply windowing first
     SingleOutputStreamOperator<StreamingWindowedElement<?, Pair>> reduced;
     if (windowing == null) {
-      WindowedStream windowedPairs =
+      WindowedStream windowed =
           context.attachedWindowStream((DataStream) input, keyExtractor, valueExtractor);
       if (origOperator.isCombinable()) {
         // reduce incrementally
-        reduced = windowedPairs.apply(
+        reduced = windowed.apply(
             new StreamingWindowedElementIncrementalReducer(reducer), new PassThroughWindowFunction<>());
       } else {
         // reduce all elements at once when the window is fired
-        reduced = windowedPairs.apply(
+        reduced = windowed.apply(
             new StreamingWindowedElementWindowedReducer(reducer, new PassThroughWindowFunction<>()));
       }
     } else {
-      WindowedStream windowedPairs = context.flinkWindow(
+      WindowedStream windowed = context.flinkWindow(
               (DataStream) input, keyExtractor, valueExtractor, windowing);
       if (origOperator.isCombinable()) {
         // reduce incrementally
-        reduced = windowedPairs.apply(
+        reduced = windowed.apply(
             new MultiWindowedElementIncrementalReducer(reducer), new MultiWindowedElementWindowFunction());
 
       } else {
         // reduce all elements at once when the window is fired
-        reduced = windowedPairs.apply(
+        reduced = windowed.apply(
             new MultiWindowedElementWindowedReducer(reducer, new MultiWindowedElementWindowFunction()));
       }
     }

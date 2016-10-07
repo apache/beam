@@ -123,7 +123,7 @@ public class BasicOperatorTest {
 
     FlatMap.of(streamOutput)
         .using((Pair<String, Long> p, Context<Triple<TimeInterval, String, Long>> c) -> {
-          // ~ just access the windowed pairs testifying their accessibility
+          // ~ just access the windows testifying their accessibility
           c.collect(Triple.of((TimeInterval) c.getWindow(), p.getFirst(), p.getSecond()));
         })
         .output()
@@ -138,14 +138,14 @@ public class BasicOperatorTest {
     // ~ assert the total amount of data produced
     assertEquals(7, fs.size());
 
-    long firstWindowStart = assertWindowedPairOutput(fs.subList(0, 4), 1000L,
+    long firstWindowStart = assertOutput0(fs.subList(0, 4), 1000L,
         "four-2", "one-1", "three-1", "two-3");
-    long secondWindowStart = assertWindowedPairOutput(fs.subList(4, fs.size()), 1000L,
+    long secondWindowStart = assertOutput0(fs.subList(4, fs.size()), 1000L,
         "one-3", "three-1", "two-2");
     assertTrue(firstWindowStart < secondWindowStart);
   }
 
-  private <F, S> long assertWindowedPairOutput(
+  private <F, S> long assertOutput0(
       List<Triple<TimeInterval, F, S>> window,
       long expectedIntervalMillis, String ... expectedFirstAndSecond)
   {
@@ -359,10 +359,27 @@ public class BasicOperatorTest {
     assertNotNull(out);
 
     long firstWindowStart =
-        assertWindowedOutput(out.subList(0, 4), 1000L, "four", "one", "three", "two");
+        assertOutput1(out.subList(0, 4), 1000L, "four", "one", "three", "two");
     long secondWindowStart =
-        assertWindowedOutput(out.subList(4, out.size()), 1000L, "one", "three", "two");
+        assertOutput1(out.subList(4, out.size()), 1000L, "one", "three", "two");
     assertTrue(firstWindowStart < secondWindowStart);
+  }
+
+  private <S> long assertOutput1(
+      List<Pair<TimeInterval, S>> window,
+      long expectedIntervalMillis, String ... expectedFirstAndSecond)
+  {
+    assertEquals(
+        asList(expectedFirstAndSecond),
+        window.stream().map(Pair::getSecond).sorted().collect(toList()));
+    // ~ assert the windowing label (all elements of the window are expected to have
+    // the same window label)
+    long[] starts = window.stream().mapToLong(p -> {
+      assertEquals(expectedIntervalMillis, p.getFirst().getIntervalMillis());
+      return p.getFirst().getStartMillis();
+    }).distinct().toArray();
+    assertEquals(1, starts.length);
+    return starts[0];
   }
 
   @Test
@@ -402,22 +419,5 @@ public class BasicOperatorTest {
     assertEquals(1, output.size());
     assertEquals(Sets.newHashSet(
         Arrays.asList("2-three", "2-one", "2-two", "2-four")), output.get(0));
-  }
-
-  private <S> long assertWindowedOutput(
-      List<Pair<TimeInterval, S>> window,
-      long expectedIntervalMillis, String ... expectedFirstAndSecond)
-  {
-    assertEquals(
-        asList(expectedFirstAndSecond),
-        window.stream().map(Pair::getSecond).sorted().collect(toList()));
-    // ~ assert the windowing label (all elements of the window are expected to have
-    // the same window label)
-    long[] starts = window.stream().mapToLong(p -> {
-      assertEquals(expectedIntervalMillis, p.getFirst().getIntervalMillis());
-      return p.getFirst().getStartMillis();
-    }).distinct().toArray();
-    assertEquals(1, starts.length);
-    return starts[0];
   }
 }
