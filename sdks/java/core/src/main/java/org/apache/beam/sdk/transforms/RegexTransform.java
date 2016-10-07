@@ -151,6 +151,31 @@ public class RegexTransform {
     return new ReplaceFirst(regex, replacement);
   }
 
+    /**
+   * Returns a {@link RegexTransform.Split} {@link PTransform} that splits a string
+   * on the regular expression and then outputs each item. It will not output empty
+   * items. Returns the group as a {@link PCollection}.
+   * a {@link PCollection}.
+   * @param regex
+   *          The regular expression to run
+   */
+  public static Split split(String regex) {
+    return split(regex, false);
+  }
+
+  /**
+   * Returns a {@link RegexTransform.Split} {@link PTransform} that splits a string
+   * on the regular expression and then outputs each item. Returns the group as a
+   * {@link PCollection}.
+   * @param regex
+   *          The regular expression to run
+   * @param outputEmpty
+   *          Should empty be output. True to output empties and false if not.
+   */
+  public static Split split(String regex, boolean outputEmpty) {
+    return new Split(regex, outputEmpty);
+  }
+
   /**
    * {@code RegexTransform.Matches<String>} takes a {@code PCollection<String>}
    * and returns a {@code PCollection<String>} representing the value
@@ -421,6 +446,58 @@ public class RegexTransform {
         public void processElement(ProcessContext c) throws Exception {
           Matcher m = pattern.matcher((String) c.element());
           c.output(m.replaceFirst(replacement));
+        }
+      }));
+    }
+  }
+
+  /**
+   * {@code RegexTransform.Split<String>} takes a {@code PCollection<String>} and
+   * returns a {@code PCollection<String>} with the input string split into
+   * individual items in a list. Each item is then output as a separate string.
+   *
+   * <p>
+   * This transform runs a Regex as part of a splint the entire input line. The split
+   * gives back an array of items. Each item is output as a separate item in the
+   * {@code PCollection<String>}.
+   * </p>
+   *
+   * <p>
+   * Depending on the Regex, a split can be an empty or
+   * "" string. You can pass in a parameter if you want empty strings or not.
+   * </p>
+   *
+   * <p>
+   * Example of use:
+   * <pre>
+   *  {@code
+   * PCollection<String> words = ...;
+   * PCollection<String> values =
+   *     words.apply(RegexTransform.split("\W*"));
+   * }
+   * </pre>
+   */
+  public static class Split
+      extends PTransform<PCollection<String>, PCollection<String>> {
+    Pattern pattern;
+    boolean outputEmpty;
+
+    public Split(String regex, boolean outputEmpty) {
+      this.pattern = Pattern.compile(regex);
+      this.outputEmpty = outputEmpty;
+    }
+
+    public PCollection<String> apply(PCollection<String> in) {
+      return in.apply(ParDo.of(new DoFn<String, String>() {
+        @ProcessElement
+        public void processElement(ProcessContext c) throws Exception {
+          String[] items = pattern.split(c.element());
+
+          for (String item : items) {
+            if (outputEmpty || !item.isEmpty()) {
+              c.output(item);
+            }
+          }
         }
       }));
     }

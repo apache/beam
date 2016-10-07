@@ -215,4 +215,48 @@ public class RegexTransformTest implements Serializable {
     PAssert.that(output).containsInAnyOrder("abc", "newjx", "newjy", "newjz", "def");
     p.run();
   }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void testSplits() {
+    TestPipeline p = TestPipeline.create();
+
+    PCollection<String> output = p
+        .apply(Create.of("The  quick   brown fox jumps over    the lazy dog"))
+        .apply(RegexTransform.split("\\W+"));
+
+    PAssert.that(output).containsInAnyOrder("The", "quick", "brown",
+      "fox", "jumps", "over", "the", "lazy", "dog");
+    p.run();
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void testSplitsWithEmpty() {
+    TestPipeline p = TestPipeline.create();
+
+    PCollection<String> output = p
+        .apply(Create.of("The  quick   brown fox jumps over    the lazy dog"))
+        .apply(RegexTransform.split("\\s", true));
+
+    String[] outputStr = "The  quick   brown fox jumps over    the lazy dog".split("\\s");
+
+    PAssert.that(output).containsInAnyOrder("The", "", "quick", "brown", "", "",
+      "fox", "jumps", "over", "", "", "", "the", "lazy", "dog");
+    p.run();
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void testSplitsWithoutEmpty() {
+    TestPipeline p = TestPipeline.create();
+
+    PCollection<String> output = p
+        .apply(Create.of("The  quick   brown fox jumps over    the lazy dog"))
+        .apply(RegexTransform.split("\\s", false));
+
+    PAssert.that(output).containsInAnyOrder("The", "quick", "brown",
+      "fox", "jumps", "over", "the", "lazy", "dog");
+    p.run();
+  }
 }
