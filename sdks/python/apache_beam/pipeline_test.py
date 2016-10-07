@@ -21,12 +21,12 @@ import gc
 import logging
 import unittest
 
-from apache_beam.io.iobase import NativeSource
 from apache_beam.pipeline import Pipeline
 from apache_beam.pipeline import PipelineOptions
 from apache_beam.pipeline import PipelineVisitor
 from apache_beam.pvalue import AsIter
 from apache_beam.pvalue import SideOutputValue
+from apache_beam.runners.dataflow.native_io.iobase import NativeSource
 from apache_beam.transforms import CombinePerKey
 from apache_beam.transforms import Create
 from apache_beam.transforms import FlatMap

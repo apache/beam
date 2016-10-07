@@ -43,7 +43,7 @@ from apache_beam.transforms import core
 from apache_beam.transforms import ptransform
 from apache_beam.transforms import window
 
-from apache_beam.runners.dataflow.native_io.iobase import *
+#from apache_beam.runners.dataflow.native_io.iobase import *
 
 
 # Encapsulates information about a bundle of a source generated when method
@@ -704,10 +704,10 @@ class Write(ptransform.PTransform):
     self.sink = sink
 
   def apply(self, pcoll):
-    from apache_beam.runners.dataflow.native_io import iobase as native_iobase
-    if isinstance(self.sink, native_iobase.NativeSink):
+    from apache_beam.runners.dataflow.native_io import iobase as dataflow_io
+    if isinstance(self.sink, dataflow_io.NativeSink):
       # A native sink
-      return pcoll | 'native_write' >> native_iobase._NativeWrite(self.sink)
+      return pcoll | 'native_write' >> dataflow_io._NativeWrite(self.sink)
     elif isinstance(self.sink, Sink):
       # A custom sink
       return pcoll | WriteImpl(self.sink)
