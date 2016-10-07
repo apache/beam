@@ -21,10 +21,8 @@ import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.auto.value.AutoValue;
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Function;
 import com.google.common.base.MoreObjects;
 import com.google.common.collect.ComparisonChain;
-import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
@@ -210,7 +208,13 @@ public class WatermarkManager {
 
     public AppliedPTransformInputWatermark(Collection<? extends Watermark> inputWatermarks) {
       this.inputWatermarks = inputWatermarks;
-      this.pendingElements = TreeMultiset.create(new WindowedValueByTimestampComparator());
+      // The ordering must order elements by timestamp, and must not compare two distinct elements
+      // as equal. This is built on the assumption that any element added as a pending element will
+      // be consumed without modifications.
+      Ordering<WindowedValue<?>> pendingElementComparator =
+          new WindowedValueByTimestampComparator().compound(Ordering.arbitrary());
+      this.pendingElements =
+          TreeMultiset.create(pendingElementComparator);
       this.objectTimers = new HashMap<>();
       currentWatermark = new AtomicReference<>(BoundedWindow.TIMESTAMP_MIN_VALUE);
     }
@@ -624,19 +628,6 @@ public class WatermarkManager {
       };
 
   private static final Ordering<Instant> INSTANT_ORDERING = Ordering.natural();
-
-  /**
-   * A function that takes a WindowedValue and returns the exploded representation of that
-   * {@link WindowedValue}.
-   */
-  private static final Function<WindowedValue<?>, ? extends Iterable<? extends WindowedValue<?>>>
-      EXPLODE_WINDOWS_FN =
-          new Function<WindowedValue<?>, Iterable<? extends WindowedValue<?>>>() {
-            @Override
-            public Iterable<? extends WindowedValue<?>> apply(WindowedValue<?> input) {
-              return input.explodeWindows();
-            }
-          };
 
   /**
    * For each (Object, PriorityQueue) pair in the provided map, remove each Timer that is before the
@@ -1128,17 +1119,13 @@ public class WatermarkManager {
     }
 
     private void removePending(CommittedBundle<?> bundle) {
-      inputWatermark.removePendingElements(elementsFromBundle(bundle));
+      inputWatermark.removePendingElements(bundle.getElements());
       synchronizedProcessingInputWatermark.removePending(bundle);
     }
 
     private void addPending(CommittedBundle<?> bundle) {
-      inputWatermark.addPendingElements(elementsFromBundle(bundle));
+      inputWatermark.addPendingElements(bundle.getElements());
       synchronizedProcessingInputWatermark.addPending(bundle);
-    }
-
-    private Iterable<? extends WindowedValue<?>> elementsFromBundle(CommittedBundle<?> bundle) {
-      return FluentIterable.from(bundle.getElements()).transformAndConcat(EXPLODE_WINDOWS_FN);
     }
 
     private Map<StructuralKey<?>, FiredTimers> extractFiredTimers() {
