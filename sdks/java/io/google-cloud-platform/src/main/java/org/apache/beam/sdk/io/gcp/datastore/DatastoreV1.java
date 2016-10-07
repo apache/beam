@@ -224,10 +224,12 @@ public class DatastoreV1 {
      */
     static final int QUERY_BATCH_LIMIT = 500;
 
-    @Nullable abstract String getProjectId();
-    @Nullable abstract Query getQuery();
-    @Nullable abstract String getNamespace();
-    abstract int getNumQuerySplits();
+    protected Read() {}
+
+    @Nullable public abstract String getProjectId();
+    @Nullable public abstract Query getQuery();
+    @Nullable public abstract String getNamespace();
+    public abstract int getNumQuerySplits();
 
     public abstract String toString();
 
