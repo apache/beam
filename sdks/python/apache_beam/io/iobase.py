@@ -43,8 +43,6 @@ from apache_beam.transforms import core
 from apache_beam.transforms import ptransform
 from apache_beam.transforms import window
 
-#from apache_beam.runners.dataflow.native_io.iobase import *
-
 
 # Encapsulates information about a bundle of a source generated when method
 # BoundedSource.split() is invoked.
@@ -813,3 +811,8 @@ class _RoundRobinKeyFn(core.DoFn):
     if self.counter >= self.count:
       self.counter -= self.count
     yield self.counter, context.element
+
+
+# For backwards compatibility.
+# pylint: disable=wrong-import-position
+from apache_beam.runners.dataflow.native_io.iobase import *

@@ -29,7 +29,6 @@ import zlib
 import apache_beam as beam
 from apache_beam import coders
 from apache_beam.io import fileio
-from apache_beam.io import iobase
 from apache_beam.runners.dataflow.native_io import iobase as dataflow_io
 
 # TODO: Add tests for file patterns (ie not just individual files) for both

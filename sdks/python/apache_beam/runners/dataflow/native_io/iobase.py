@@ -18,19 +18,10 @@
 """Dataflow native sources and sinks.
 """
 
-from collections import namedtuple
-
 import logging
-import random
-import uuid
 
 from apache_beam import pvalue
-from apache_beam.coders import PickleCoder
-from apache_beam.pvalue import AsIter
-from apache_beam.pvalue import AsSingleton
-from apache_beam.transforms import core
 from apache_beam.transforms import ptransform
-from apache_beam.transforms import window
 
 
 def _dict_printable_fields(dict_object, skip_fields):

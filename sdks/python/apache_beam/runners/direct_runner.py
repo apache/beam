@@ -242,7 +242,7 @@ class DirectPipelineRunner(PipelineRunner):
           transform_node.full_label] += len(read_result)
       self._cache.cache_output(transform_node, read_result)
 
-    # pylint: disable=import-at-top
+    # pylint: disable=wrong-import-position
     from apache_beam.io import iobase
 
     if isinstance(source, iobase.BoundedSource):
@@ -259,9 +259,9 @@ class DirectPipelineRunner(PipelineRunner):
   def run__NativeWrite(self, transform_node):
     sink = transform_node.transform.sink
 
-    # pylint: disable=import-at-top
+    # pylint: disable=wrong-import-position
     from apache_beam.io import fileio
-    
+
     if isinstance(sink, fileio.NativeTextFileSink):
       assert sink.num_shards in (0, 1)
       if sink.shard_name_template:
