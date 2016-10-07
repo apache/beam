@@ -18,16 +18,22 @@
 
 # This script generates Beam archetypes examples and starter projects,
 # and verifies they can be built with 'mvn clean install'.
-#
-# This script should be executed after all other travis verifications,
-# because it will generate artifacts and modifies pom files.
 
 set -e
 
 VERSION=$(mvn org.apache.maven.plugins:maven-help-plugin:2.1.1:evaluate -Dexpression=project.version | grep -v '\[')
 
-# mvn archetype:generate -pl sdks/java \
-mvn archetype:generate -pl sdks/java \
+# Creates the tmp directory for the generated projects, and removes it once the
+# script exists.
+mkdir /tmp/test-archetypes
+function cleanup {
+  rm -r /tmp/test-archetypes
+}
+trap cleanup EXIT
+
+# Generates and verifies archetypes projects.
+(cd /tmp/test-archetypes \
+  && mvn archetype:generate \
   -DarchetypeArtifactId=beam-sdks-java-maven-archetypes-examples \
   -DarchetypeGroupId=org.apache.beam \
   -DarchetypeVersion=$VERSION \
@@ -35,11 +41,13 @@ mvn archetype:generate -pl sdks/java \
   -DartifactId=test-beam-archetypes-examples \
   -Dversion="0.1" \
   -DinteractiveMode=false \
-  -Dpackage=org.apache.beam.examples
+  -Dpackage=org.apache.beam.examples \
+  -DarchetypeCatalog=local \
+  && cd /tmp/test-archetypes/test-beam-archetypes-examples \
+  && mvn clean install)
 
-mvn clean install -pl sdks/java/test-beam-archetypes-examples
-
-mvn archetype:generate -pl sdks/java \
+(cd /tmp/test-archetypes \
+  && mvn archetype:generate \
   -DarchetypeArtifactId=beam-sdks-java-maven-archetypes-starter \
   -DarchetypeGroupId=org.apache.beam \
   -DarchetypeVersion=$VERSION \
@@ -47,6 +55,7 @@ mvn archetype:generate -pl sdks/java \
   -DartifactId=test-beam-archetypes-starter \
   -Dversion="0.1" \
   -DinteractiveMode=false \
-  -Dpackage=org.apache.beam.starter
-
-mvn clean install -pl sdks/java/test-beam-archetypes-starter
+  -Dpackage=org.apache.beam.starter \
+  -DarchetypeCatalog=local \
+  && cd /tmp/test-archetypes/test-beam-archetypes-starter \
+  && mvn clean install)
