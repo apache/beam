@@ -230,7 +230,7 @@ public class ApexRunner extends PipelineRunner<ApexRunnerResult> {
    * Records that the {@link PTransform} requires a deterministic key coder.
    */
   private void recordViewUsesNonDeterministicKeyCoder(PTransform<?, ?> ptransform) {
-    throw new UnsupportedOperationException();
+    //throw new UnsupportedOperationException();
   }
 
   /**
@@ -369,7 +369,6 @@ public class ApexRunner extends PipelineRunner<ApexRunnerResult> {
 
     private final ApexRunner runner;
 
-    @SuppressWarnings("unused") // used via reflection in FlinkRunner#apply()
     public StreamingViewAsMap(ApexRunner runner, View.AsMap<K, V> transform) {
       this.runner = runner;
     }

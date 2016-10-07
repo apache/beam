@@ -185,8 +185,7 @@
               <systemPropertyVariables>
                 <beamTestPipelineOptions>
                   [
-                    "--runner=org.apache.beam.runners.apex.TestApexRunner",
-                    "--streaming=true"
+                    "--runner=org.apache.beam.runners.apex.TestApexRunner"
                   ]
                 </beamTestPipelineOptions>
               </systemPropertyVariables>

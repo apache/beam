@@ -36,6 +36,8 @@ import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
+import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.TupleTagList;
 
 import com.datatorrent.api.DAG;
 import com.datatorrent.lib.util.KryoCloneUtils;
@@ -129,6 +131,18 @@ public class ParDoBoundTranslatorTest {
     }
   }
 
+  private static Throwable runExpectingAssertionFailure(Pipeline pipeline) {
+    // We cannot use thrown.expect(AssertionError.class) because the AssertionError
+    // is first caught by JUnit and causes a test failure.
+    try {
+      pipeline.run();
+    } catch (AssertionError exc) {
+      return exc;
+    }
+    fail("assertion should have failed");
+    throw new RuntimeException("unreachable");
+  }
+
   @Test
   public void testAssertionFailure() throws Exception {
     ApexPipelineOptions options = PipelineOptionsFactory.create()
@@ -163,24 +177,13 @@ public class ParDoBoundTranslatorTest {
     pipeline.run();
   }
 
-  private static Throwable runExpectingAssertionFailure(Pipeline pipeline) {
-    // We cannot use thrown.expect(AssertionError.class) because the AssertionError
-    // is first caught by JUnit and causes a test failure.
-    try {
-      pipeline.run();
-    } catch (AssertionError exc) {
-      return exc;
-    }
-    fail("assertion should have failed");
-    throw new RuntimeException("unreachable");
-  }
-
   @Test
   public void testSerialization() throws Exception {
     ApexPipelineOptions options = PipelineOptionsFactory.create()
         .as(ApexPipelineOptions.class);
     ApexParDoOperator<Integer, Integer> operator = new ApexParDoOperator<>(options,
-        new Add(0), WindowingStrategy.globalDefault(), Collections.<PCollectionView<?>> emptyList());
+        new Add(0), new TupleTag<Integer>(), TupleTagList.empty().getAll(),
+        WindowingStrategy.globalDefault(), Collections.<PCollectionView<?>> emptyList());
     operator.setup(null);
     operator.beginWindow(0);
     WindowedValue<Integer> wv = WindowedValue.valueInGlobalWindow(0);

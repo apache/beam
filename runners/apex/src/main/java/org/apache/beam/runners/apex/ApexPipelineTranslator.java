@@ -22,6 +22,7 @@ import org.apache.beam.runners.apex.ApexRunner.CreateApexPCollectionView;
 import org.apache.beam.runners.apex.translators.CreateValuesTranslator;
 import org.apache.beam.runners.apex.translators.FlattenPCollectionTranslator;
 import org.apache.beam.runners.apex.translators.GroupByKeyTranslator;
+import org.apache.beam.runners.apex.translators.ParDoBoundMultiTranslator;
 import org.apache.beam.runners.apex.translators.ParDoBoundTranslator;
 import org.apache.beam.runners.apex.translators.ReadUnboundedTranslator;
 import org.apache.beam.runners.apex.translators.TransformTranslator;
@@ -66,6 +67,7 @@ public class ApexPipelineTranslator implements Pipeline.PipelineVisitor {
   static {
     // register TransformTranslators
     registerTransformTranslator(ParDo.Bound.class, new ParDoBoundTranslator());
+    registerTransformTranslator(ParDo.BoundMulti.class, new ParDoBoundMultiTranslator<>());
     registerTransformTranslator(Read.Unbounded.class, new ReadUnboundedTranslator());
     registerTransformTranslator(Read.Bounded.class, new ReadBoundedTranslator());
     registerTransformTranslator(GroupByKey.class, new GroupByKeyTranslator());

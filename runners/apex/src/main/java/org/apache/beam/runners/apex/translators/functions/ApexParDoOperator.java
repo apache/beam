@@ -15,11 +15,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.apex.translators.functions;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 import org.apache.beam.runners.apex.ApexPipelineOptions;
 import org.apache.beam.runners.apex.ApexRunner;
@@ -47,7 +47,6 @@ import org.apache.beam.sdk.util.state.InMemoryStateInternals;
 import org.apache.beam.sdk.util.state.StateInternals;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
-import org.apache.beam.sdk.values.TupleTagList;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -59,6 +58,7 @@ import com.datatorrent.api.annotation.OutputPortFieldAnnotation;
 import com.datatorrent.common.util.BaseOperator;
 import com.esotericsoftware.kryo.serializers.FieldSerializer.Bind;
 import com.google.common.collect.Iterables;
+import com.google.common.collect.Maps;
 import com.esotericsoftware.kryo.serializers.JavaSerializer;
 
 /**
@@ -68,43 +68,58 @@ public class ApexParDoOperator<InputT, OutputT> extends BaseOperator implements 
   private static final Logger LOG = LoggerFactory.getLogger(ApexParDoOperator.class);
   private boolean traceTuples = true;
 
-  private transient final TupleTag<OutputT> mainTag = new TupleTag<OutputT>();
-  private transient PushbackSideInputDoFnRunner<InputT, OutputT> pushbackDoFnRunner;
-
   @Bind(JavaSerializer.class)
   private final SerializablePipelineOptions pipelineOptions;
   @Bind(JavaSerializer.class)
   private final OldDoFn<InputT, OutputT> doFn;
   @Bind(JavaSerializer.class)
+  private final TupleTag<OutputT> mainOutputTag;
+  @Bind(JavaSerializer.class)
+  private final List<TupleTag<?>> sideOutputTags;
+  @Bind(JavaSerializer.class)
   private final WindowingStrategy<?, ?> windowingStrategy;
   @Bind(JavaSerializer.class)
-  List<PCollectionView<?>> sideInputs;
+  private final List<PCollectionView<?>> sideInputs;
+
 // TODO: not Kryo serializable, integrate codec
 //@Bind(JavaSerializer.class)
 private transient StateInternals<Void> sideInputStateInternals = InMemoryStateInternals.forKey(null);
-  private transient SideInputHandler sideInputHandler;
   // TODO: not Kryo serializable, integrate codec
   private List<WindowedValue<InputT>> pushedBack = new ArrayList<>();
   private LongMin pushedBackWatermark = new LongMin();
   private long currentInputWatermark = Long.MIN_VALUE;
   private long currentOutputWatermark = currentInputWatermark;
 
+  private transient PushbackSideInputDoFnRunner<InputT, OutputT> pushbackDoFnRunner;
+  private transient SideInputHandler sideInputHandler;
+  private transient Map<TupleTag<?>, DefaultOutputPort<ApexStreamTuple<?>>> sideOutputPortMapping = Maps.newHashMapWithExpectedSize(5);
+
   public ApexParDoOperator(
       ApexPipelineOptions pipelineOptions,
       OldDoFn<InputT, OutputT> doFn,
+      TupleTag<OutputT> mainOutputTag,
+      List<TupleTag<?>> sideOutputTags,
       WindowingStrategy<?, ?> windowingStrategy,
       List<PCollectionView<?>> sideInputs
       )
   {
     this.pipelineOptions = new SerializablePipelineOptions(pipelineOptions);
     this.doFn = doFn;
+    this.mainOutputTag = mainOutputTag;
+    this.sideOutputTags = sideOutputTags;
     this.windowingStrategy = windowingStrategy;
     this.sideInputs = sideInputs;
+
+    if (sideOutputTags != null && sideOutputTags.size() > sideOutputPorts.length) {
+      String msg = String.format("Too many side outputs (currently only supporting %s).",
+          sideOutputPorts.length);
+      throw new UnsupportedOperationException(msg);
+    }
   }
 
   @SuppressWarnings("unused") // for Kryo
   private ApexParDoOperator() {
-    this(null, null, null, null);
+    this(null, null, null, null, null, null);
   }
 
 
@@ -167,10 +182,28 @@ private transient StateInternals<Void> sideInputStateInternals = InMemoryStateIn
   @OutputPortFieldAnnotation(optional=true)
   public final transient DefaultOutputPort<ApexStreamTuple<?>> output = new DefaultOutputPort<>();
 
+  @OutputPortFieldAnnotation(optional=true)
+  public final transient DefaultOutputPort<ApexStreamTuple<?>> sideOutput1 = new DefaultOutputPort<>();
+  @OutputPortFieldAnnotation(optional=true)
+  public final transient DefaultOutputPort<ApexStreamTuple<?>> sideOutput2 = new DefaultOutputPort<>();
+  @OutputPortFieldAnnotation(optional=true)
+  public final transient DefaultOutputPort<ApexStreamTuple<?>> sideOutput3 = new DefaultOutputPort<>();
+  @OutputPortFieldAnnotation(optional=true)
+  public final transient DefaultOutputPort<ApexStreamTuple<?>> sideOutput4 = new DefaultOutputPort<>();
+  @OutputPortFieldAnnotation(optional=true)
+  public final transient DefaultOutputPort<ApexStreamTuple<?>> sideOutput5 = new DefaultOutputPort<>();
+
+  public final transient DefaultOutputPort<?>[] sideOutputPorts = {sideOutput1, sideOutput2, sideOutput3, sideOutput4, sideOutput5};
+
   @Override
   public <T> void output(TupleTag<T> tag, WindowedValue<T> tuple)
   {
-    output.emit(ApexStreamTuple.DataTuple.of(tuple));
+    DefaultOutputPort<ApexStreamTuple<?>> sideOutputPort = sideOutputPortMapping.get(tag);
+    if (sideOutputPort != null) {
+      sideOutputPort.emit(ApexStreamTuple.DataTuple.of(tuple));
+    } else {
+      output.emit(ApexStreamTuple.DataTuple.of(tuple));
+    }
     if (traceTuples) {
       LOG.debug("\nemitting {}\n", tuple);
     }
@@ -178,7 +211,10 @@ private transient StateInternals<Void> sideInputStateInternals = InMemoryStateIn
 
   private Iterable<WindowedValue<InputT>> processElementInReadyWindows(WindowedValue<InputT> elem) {
     try {
-      return pushbackDoFnRunner.processElementInReadyWindows(elem);
+      pushbackDoFnRunner.startBundle();
+      Iterable<WindowedValue<InputT>> pushedBack = pushbackDoFnRunner.processElementInReadyWindows(elem);
+      pushbackDoFnRunner.finishBundle();
+      return pushedBack;
     } catch (UserCodeException ue) {
       if (ue.getCause() instanceof AssertionError) {
         ApexRunner.assertionError = (AssertionError)ue.getCause();
@@ -220,13 +256,19 @@ private transient StateInternals<Void> sideInputStateInternals = InMemoryStateIn
       sideInputReader = sideInputHandler;
     }
 
+    for (int i=0; i < sideOutputTags.size(); i++) {
+      @SuppressWarnings("unchecked")
+      DefaultOutputPort<ApexStreamTuple<?>> port = (DefaultOutputPort<ApexStreamTuple<?>>)sideOutputPorts[i];
+      sideOutputPortMapping.put(sideOutputTags.get(i), port);
+    }
+
     DoFnRunner<InputT, OutputT> doFnRunner = DoFnRunners.createDefault(
         pipelineOptions.get(),
         doFn,
         sideInputReader,
         this,
-        mainTag,
-        TupleTagList.empty().getAll() /*sideOutputTags*/,
+        mainOutputTag,
+        sideOutputTags,
         new NoOpStepContext(),
         new NoOpAggregatorFactory(),
         windowingStrategy
@@ -246,7 +288,6 @@ private transient StateInternals<Void> sideInputStateInternals = InMemoryStateIn
   @Override
   public void beginWindow(long windowId)
   {
-    pushbackDoFnRunner.startBundle();
     /*
     Collection<Aggregator<?, ?>> aggregators = AggregatorRetriever.getAggregators(doFn);
     if (!aggregators.isEmpty()) {
@@ -258,7 +299,6 @@ private transient StateInternals<Void> sideInputStateInternals = InMemoryStateIn
   @Override
   public void endWindow()
   {
-    pushbackDoFnRunner.finishBundle();
   }
 
   /**

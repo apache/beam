@@ -98,6 +98,23 @@ public class TranslationContext {
   }
 
   /**
+   * Register operator and output ports for the given collections.
+   * @param operator
+   * @param ports
+   */
+  public void addOperator(Operator operator, Map<PCollection<?>, OutputPort<?>> ports) {
+    boolean first = true;
+    for (Map.Entry<PCollection<?>, OutputPort<?>> portEntry : ports.entrySet()) {
+      if (first) {
+        addOperator(operator, portEntry.getValue(), portEntry.getKey());
+        first = false;
+      } else {
+        this.streams.put(portEntry.getKey(), (Pair)new ImmutablePair<>(portEntry.getValue(), new ArrayList<>()));
+      }
+    }
+  }
+
+  /**
    * Add intermediate operator for the current transformation.
    * @param operator
    * @param port

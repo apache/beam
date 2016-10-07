@@ -80,6 +80,7 @@ public class FlattenPCollectionTranslator<T> implements
       if (firstCollection != null) {
         // push to next merge level
         remainingCollections.add(firstCollection);
+        firstCollection = null;
       }
       if (remainingCollections.size() > 1) {
         collections = remainingCollections;

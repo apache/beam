@@ -26,6 +26,7 @@ import org.slf4j.LoggerFactory;
 
 import com.datatorrent.api.DefaultInputPort;
 import com.datatorrent.api.DefaultOutputPort;
+import com.datatorrent.api.annotation.OutputPortFieldAnnotation;
 import com.datatorrent.common.util.BaseOperator;
 
 /**
@@ -109,5 +110,6 @@ public class ApexFlattenOperator<InputT> extends BaseOperator
   /**
    * Output port.
    */
+  @OutputPortFieldAnnotation(optional=true)
   public final transient DefaultOutputPort<ApexStreamTuple<WindowedValue<InputT>>> out = new DefaultOutputPort<ApexStreamTuple<WindowedValue<InputT>>>();
 }

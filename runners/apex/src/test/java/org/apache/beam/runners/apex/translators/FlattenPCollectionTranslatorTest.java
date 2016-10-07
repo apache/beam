@@ -31,15 +31,17 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 
-import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 
+import org.junit.Assert;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.HashSet;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
+import java.util.Set;
 
 /**
  * integration test for {@link FlattenPCollectionTranslator}.
@@ -49,41 +51,41 @@ public class FlattenPCollectionTranslatorTest {
 
   @Test
   public void test() throws Exception {
-    ApexPipelineOptions options =
-        PipelineOptionsFactory.as(ApexPipelineOptions.class);
+    ApexPipelineOptions options = PipelineOptionsFactory.as(ApexPipelineOptions.class);
     options.setApplicationName("FlattenPCollection");
     options.setRunner(ApexRunner.class);
     Pipeline p = Pipeline.create(options);
 
-    List<String> collection1 = Lists.newArrayList("1", "2", "3");
-    List<String> collection2 = Lists.newArrayList("4", "5");
-    List<String> expected = Lists.newArrayList("1", "2", "3", "4", "5");
-    PCollection<String> pc1 =
-        p.apply(Create.of(collection1).withCoder(StringUtf8Coder.of()));
-    PCollection<String> pc2 =
-        p.apply(Create.of(collection2).withCoder(StringUtf8Coder.of()));
-    PCollectionList<String> pcs = PCollectionList.of(pc1).and(pc2);
-    PCollection<String> actual = pcs.apply(Flatten.<String>pCollections());
+    String[][] collections = {
+        {"1"}, {"2"}, {"3"}, {"4"}, {"5"}
+    };
+
+    Set<String> expected = Sets.newHashSet();
+    List<PCollection<String>> pcList = new ArrayList<PCollection<String>>();
+    for (String[] collection : collections) {
+      pcList.add(p.apply(Create.of(collection).withCoder(StringUtf8Coder.of())));
+      expected.addAll(Arrays.asList(collection));
+    }
+
+    PCollection<String> actual = PCollectionList.of(pcList).apply(Flatten.<String>pCollections());
     actual.apply(ParDo.of(new EmbeddedCollector()));
 
     ApexRunnerResult result = (ApexRunnerResult)p.run();
     // TODO: verify translation
     result.getApexDAG();
     long timeout = System.currentTimeMillis() + 30000;
-    while (System.currentTimeMillis() < timeout) {
-      if (EmbeddedCollector.results.containsAll(expected)) {
-        break;
-      }
+    while (System.currentTimeMillis() < timeout && EmbeddedCollector.results.size() < expected.size()) {
       LOG.info("Waiting for expected results.");
-      Thread.sleep(1000);
+      Thread.sleep(500);
     }
-    org.junit.Assert.assertEquals(Sets.newHashSet(expected), EmbeddedCollector.results);
 
+    Assert.assertEquals("number results", expected.size(), EmbeddedCollector.results.size());
+    Assert.assertEquals(expected, Sets.newHashSet(EmbeddedCollector.results));
   }
 
   @SuppressWarnings("serial")
   private static class EmbeddedCollector extends OldDoFn<Object, Void> {
-    protected static final HashSet<Object> results = new HashSet<>();
+    protected static final ArrayList<Object> results = new ArrayList<>();
 
     public EmbeddedCollector() {
     }
