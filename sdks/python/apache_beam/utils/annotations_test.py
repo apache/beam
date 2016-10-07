@@ -17,8 +17,8 @@
 
 import unittest
 import warnings
-from annotations import deprecated
-from annotations import experimental
+from apache_beam.utils.annotations import deprecated
+from apache_beam.utils.annotations import experimental
 
 
 class AnnotationTests(unittest.TestCase):
