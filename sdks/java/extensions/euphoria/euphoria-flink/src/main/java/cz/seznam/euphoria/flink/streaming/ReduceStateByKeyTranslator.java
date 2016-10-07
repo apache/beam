@@ -63,18 +63,18 @@ class ReduceStateByKeyTranslator implements StreamingOperatorTranslator<ReduceSt
     DataStream<StreamingWindowedElement<?, Pair>> folded;
     // apply windowing first
     if (windowing == null) {
-      WindowedStream windowedPairs =
+      WindowedStream windowed =
           context.attachedWindowStream((DataStream) input, keyExtractor, valueExtractor);
       // equivalent operation to "left fold"
-      folded = windowedPairs.apply(new RSBKWindowFunction(storageProvider, stateFactory))
+      folded = windowed.apply(new RSBKWindowFunction(storageProvider, stateFactory))
           .name(operator.getName())
           .setParallelism(operator.getParallelism());
     } else {
       // FIXME merging windows not covered yet
       WindowedStream<MultiWindowedElement<?, Pair>, Object, FlinkWindow>
-          windowedPairs = context.flinkWindow((DataStream) input, keyExtractor, valueExtractor, windowing);
+          windowed = context.flinkWindow((DataStream) input, keyExtractor, valueExtractor, windowing);
       // equivalent operation to "left fold"
-      folded = windowedPairs.apply(new RSBKWindowFunction(storageProvider, stateFactory))
+      folded = windowed.apply(new RSBKWindowFunction(storageProvider, stateFactory))
           .name(operator.getName())
           .setParallelism(operator.getParallelism());
     }
