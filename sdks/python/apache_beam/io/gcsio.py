@@ -307,6 +307,22 @@ class GcsBufferedReader(object):
   def _get_object_metadata(self, get_request):
     return self.client.objects.Get(get_request)
 
+  def __iter__(self):
+    return self
+
+  def __next__(self):
+    """Read one line delimited by '\\n' from the file.
+    """
+    return self.next()
+
+  def next(self):
+    """Read one line delimited by '\\n' from the file.
+    """
+    line = self.readline()
+    if not line:
+      raise StopIteration
+    return line
+
   def read(self, size=-1):
     """Read data from a GCS file.
 
