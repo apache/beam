@@ -22,13 +22,18 @@
 # This script should be executed after all other travis verifications,
 # because it will generate artifacts and modifies pom files.
 
+set -e
+
+VERSION=$(mvn org.apache.maven.plugins:maven-help-plugin:2.1.1:evaluate -Dexpression=project.version | grep -v '\[')
+
+# mvn archetype:generate -pl sdks/java \
 mvn archetype:generate -pl sdks/java \
   -DarchetypeArtifactId=beam-sdks-java-maven-archetypes-examples \
   -DarchetypeGroupId=org.apache.beam \
-  -DarchetypeVersion=0.3.0-incubating-SNAPSHOT \
-  -DgroupId=com.example \
+  -DarchetypeVersion=$VERSION \
+  -DgroupId=org.apache.beam.example \
   -DartifactId=test-beam-archetypes-examples \
-  -Dversion="0.3.0-incubating-SNAPSHOT" \
+  -Dversion="0.1" \
   -DinteractiveMode=false \
   -Dpackage=org.apache.beam.examples
 
@@ -37,10 +42,10 @@ mvn clean install -pl sdks/java/test-beam-archetypes-examples
 mvn archetype:generate -pl sdks/java \
   -DarchetypeArtifactId=beam-sdks-java-maven-archetypes-starter \
   -DarchetypeGroupId=org.apache.beam \
-  -DarchetypeVersion=0.3.0-incubating-SNAPSHOT \
-  -DgroupId=com.starter \
+  -DarchetypeVersion=$VERSION \
+  -DgroupId=org.apache.beam.starter \
   -DartifactId=test-beam-archetypes-starter \
-  -Dversion="0.3.0-incubating-SNAPSHOT" \
+  -Dversion="0.1" \
   -DinteractiveMode=false \
   -Dpackage=org.apache.beam.starter
 
