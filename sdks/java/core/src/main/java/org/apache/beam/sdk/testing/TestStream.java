@@ -105,7 +105,7 @@ public final class TestStream<T> extends PTransform<PBegin, PCollection<T>> {
     @SafeVarargs
     public final Builder<T> addElements(T element, T... elements) {
       TimestampedValue<T> firstElement = TimestampedValue.of(element, currentWatermark);
-      @SuppressWarnings("unchecked")
+      @SuppressWarnings({"unchecked", "rawtypes"})
       TimestampedValue<T>[] remainingElements = new TimestampedValue[elements.length];
       for (int i = 0; i < elements.length; i++) {
         remainingElements[i] = TimestampedValue.of(elements[i], currentWatermark);

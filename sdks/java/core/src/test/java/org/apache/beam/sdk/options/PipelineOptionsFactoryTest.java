@@ -58,7 +58,7 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class PipelineOptionsFactoryTest {
   private static final String DEFAULT_RUNNER_NAME = "DirectRunner";
-  private static final Class<? extends PipelineRunner> REGISTERED_RUNNER =
+  private static final Class<? extends PipelineRunner<?>> REGISTERED_RUNNER =
       RegisteredTestRunner.class;
 
   @Rule public ExpectedException expectedException = ExpectedException.none();
@@ -753,7 +753,9 @@ public class PipelineOptionsFactoryTest {
     void setString(List<String> value);
     List<Integer> getInteger();
     void setInteger(List<Integer> value);
+    @SuppressWarnings("rawtypes")
     List getList();
+    @SuppressWarnings("rawtypes")
     void setList(List value);
   }
 
@@ -1242,7 +1244,7 @@ public class PipelineOptionsFactoryTest {
   }
 
   private static class RegisteredTestRunner extends PipelineRunner<PipelineResult> {
-    public static PipelineRunner fromOptions(PipelineOptions options) {
+    public static PipelineRunner<PipelineResult> fromOptions(PipelineOptions options) {
       return new RegisteredTestRunner();
     }
 

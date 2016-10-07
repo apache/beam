@@ -255,7 +255,7 @@ public class JmsIO {
     }
 
     @Override
-    public Coder getCheckpointMarkCoder() {
+    public Coder<JmsCheckpointMark> getCheckpointMarkCoder() {
       return AvroCoder.of(JmsCheckpointMark.class);
     }
 
@@ -319,6 +319,7 @@ public class JmsIO {
         }
 
         Map<String, Object> properties = new HashMap<>();
+        @SuppressWarnings("rawtypes")
         Enumeration propertyNames = message.getPropertyNames();
         while (propertyNames.hasMoreElements()) {
           String propertyName = (String) propertyNames.nextElement();

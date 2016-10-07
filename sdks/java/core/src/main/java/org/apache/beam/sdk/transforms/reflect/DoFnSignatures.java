@@ -49,8 +49,7 @@ public class DoFnSignatures {
   private final Map<Class<?>, DoFnSignature> signatureCache = new LinkedHashMap<>();
 
   /** @return the {@link DoFnSignature} for the given {@link DoFn}. */
-  public synchronized DoFnSignature getOrParseSignature(
-      @SuppressWarnings("rawtypes") Class<? extends DoFn> fn) {
+  public synchronized <FnT extends DoFn<?, ?>> DoFnSignature getOrParseSignature(Class<FnT> fn) {
     DoFnSignature signature = signatureCache.get(fn);
     if (signature == null) {
       signatureCache.put(fn, signature = parseSignature(fn));
@@ -59,14 +58,14 @@ public class DoFnSignatures {
   }
 
   /** Analyzes a given {@link DoFn} class and extracts its {@link DoFnSignature}. */
-  private static DoFnSignature parseSignature(Class<? extends DoFn> fnClass) {
+  private static DoFnSignature parseSignature(Class<? extends DoFn<?, ?>> fnClass) {
     DoFnSignature.Builder builder = DoFnSignature.builder();
 
     ErrorReporter errors = new ErrorReporter(null, fnClass.getName());
     errors.checkArgument(DoFn.class.isAssignableFrom(fnClass), "Must be subtype of DoFn");
     builder.setFnClass(fnClass);
 
-    TypeToken<? extends DoFn> fnToken = TypeToken.of(fnClass);
+    TypeToken<? extends DoFn<?, ?>> fnToken = TypeToken.of(fnClass);
 
     // Extract the input and output type, and whether the fn is bounded.
     TypeToken<?> inputT = null;
@@ -163,7 +162,7 @@ public class DoFnSignatures {
   @VisibleForTesting
   static DoFnSignature.ProcessElementMethod analyzeProcessElementMethod(
       ErrorReporter errors,
-      TypeToken<? extends DoFn> fnClass,
+      TypeToken<? extends DoFn<?, ?>> fnClass,
       Method m,
       TypeToken<?> inputT,
       TypeToken<?> outputT) {
@@ -228,7 +227,7 @@ public class DoFnSignatures {
   @VisibleForTesting
   static DoFnSignature.BundleMethod analyzeBundleMethod(
       ErrorReporter errors,
-      TypeToken<? extends DoFn> fnToken,
+      TypeToken<? extends DoFn<?, ?>> fnToken,
       Method m,
       TypeToken<?> inputT,
       TypeToken<?> outputT) {

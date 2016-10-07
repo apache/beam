@@ -2081,24 +2081,17 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
 
     static {
       DataflowPipelineTranslator.registerTransformTranslator(
-          StreamingPubsubIORead.class, new StreamingPubsubIOReadTranslator());
+          StreamingPubsubIORead.class, new StreamingPubsubIOReadTranslator<>());
     }
   }
 
   /**
    * Rewrite {@link StreamingPubsubIORead} to the appropriate internal node.
    */
-  private static class StreamingPubsubIOReadTranslator implements
-      TransformTranslator<StreamingPubsubIORead> {
+  private static class StreamingPubsubIOReadTranslator<T> implements
+      TransformTranslator<StreamingPubsubIORead<T>> {
     @Override
-    @SuppressWarnings({"rawtypes", "unchecked"})
     public void translate(
-        StreamingPubsubIORead transform,
-        TranslationContext context) {
-      translateTyped(transform, context);
-    }
-
-    private <T> void translateTyped(
         StreamingPubsubIORead<T> transform,
         TranslationContext context) {
       checkArgument(context.getPipelineOptions().isStreaming(),
@@ -2157,25 +2150,18 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
 
     static {
       DataflowPipelineTranslator.registerTransformTranslator(
-          StreamingPubsubIOWrite.class, new StreamingPubsubIOWriteTranslator());
+          StreamingPubsubIOWrite.class, new StreamingPubsubIOWriteTranslator<>());
     }
   }
 
   /**
    * Rewrite {@link StreamingPubsubIOWrite} to the appropriate internal node.
    */
-  private static class StreamingPubsubIOWriteTranslator implements
-      TransformTranslator<StreamingPubsubIOWrite> {
+  private static class StreamingPubsubIOWriteTranslator<T> implements
+      TransformTranslator<StreamingPubsubIOWrite<T>> {
 
     @Override
-    @SuppressWarnings({"rawtypes", "unchecked"})
     public void translate(
-        StreamingPubsubIOWrite transform,
-        TranslationContext context) {
-      translateTyped(transform, context);
-    }
-
-    private <T> void translateTyped(
         StreamingPubsubIOWrite<T> transform,
         TranslationContext context) {
       checkArgument(context.getPipelineOptions().isStreaming(),
