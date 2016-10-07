@@ -50,6 +50,10 @@ class CreatePCollectionView(PTransform):
     return input_type
 
   def apply(self, pcoll):
+    if not pcoll.windowing.is_default():
+      raise ValueError(
+          "Side inputs only supported for global windows, default triggering. "
+          "Found %s" % pcoll.windowing)
     return self.view
 
 
