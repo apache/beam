@@ -56,19 +56,19 @@ public class KafkaCheckpointMark implements UnboundedSource.CheckpointMark, Seri
    */
   public static class PartitionMark implements Serializable {
     private final TopicPartition topicPartition;
-    private final long offset;
+    private final long nextOffset;
 
     public PartitionMark(TopicPartition topicPartition, long offset) {
       this.topicPartition = topicPartition;
-      this.offset = offset;
+      this.nextOffset = offset;
     }
 
     public TopicPartition getTopicPartition() {
       return topicPartition;
     }
 
-    public long getOffset() {
-      return offset;
+    public long getNextOffset() {
+      return nextOffset;
     }
   }
 }
