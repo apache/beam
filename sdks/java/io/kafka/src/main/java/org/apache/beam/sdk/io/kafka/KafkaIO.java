@@ -925,18 +925,20 @@ public class KafkaIO {
       consumer = source.consumerFactoryFn.apply(source.consumerConfig);
       consumer.assign(source.assignedPartitions);
 
-      // seek to consumedOffset + 1 if it is set
       for (PartitionState p : partitionStates) {
-        if (p.consumedOffset >= 0) {
-          LOG.info("{}: resuming {} at {}", name, p.topicPartition, p.consumedOffset + 1);
+        if (p.consumedOffset >=  0) {
           consumer.seek(p.topicPartition, p.consumedOffset + 1);
         } else {
-          LOG.info("{}: resuming {} at default offset", name, p.topicPartition);
+          // set consumed offset to (next offset - 1), otherwise checkpoint would contain invalid
+          // offset until we read first record from this partition.
+          p.consumedOffset = consumer.position(p.topicPartition) - 1;
         }
+
+        LOG.info("{}: reading from {} at offset {}", name, p.topicPartition, p.consumedOffset + 1);
       }
 
-      // start consumer read loop.
-      // Note that consumer is not thread safe, should not accessed out side consumerPollLoop()
+      // Start consumer read loop.
+      // Note that consumer is not thread safe, should not be accessed out side consumerPollLoop().
       consumerPollThread.submit(
           new Runnable() {
             public void run() {
