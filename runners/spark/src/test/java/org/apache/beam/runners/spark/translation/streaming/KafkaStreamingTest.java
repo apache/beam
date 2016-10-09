@@ -23,7 +23,6 @@ import java.util.Collections;
 import java.util.Map;
 import java.util.Properties;
 import kafka.serializer.StringDecoder;
-import org.apache.beam.runners.spark.EvaluationResult;
 import org.apache.beam.runners.spark.SparkPipelineOptions;
 import org.apache.beam.runners.spark.io.KafkaIO;
 import org.apache.beam.runners.spark.translation.streaming.utils.EmbeddedKafkaCluster;
@@ -107,10 +106,7 @@ public class KafkaStreamingTest {
 
     PCollection<String> formattedKV = windowedWords.apply(ParDo.of(new FormatKVFn()));
 
-    PAssertStreaming.assertContents(formattedKV, EXPECTED);
-
-    EvaluationResult res = (EvaluationResult) p.run();
-    res.close();
+    PAssertStreaming.runAndAssertContents(p, formattedKV, EXPECTED);
   }
 
   @AfterClass
