@@ -19,7 +19,6 @@
 package org.apache.beam.runners.spark.translation;
 
 import java.io.Serializable;
-import org.apache.beam.runners.spark.EvaluationResult;
 import org.apache.beam.runners.spark.SparkPipelineOptions;
 import org.apache.beam.runners.spark.SparkRunner;
 import org.apache.beam.sdk.Pipeline;
@@ -61,7 +60,6 @@ public class DoFnOutputTest implements Serializable {
 
     PAssert.that(output).containsInAnyOrder("start", "a", "finish");
 
-    EvaluationResult res = (EvaluationResult) p.run();
-    res.close();
+    p.run();
   }
 }

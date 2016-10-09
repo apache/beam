@@ -66,7 +66,7 @@ import org.junit.rules.TemporaryFolder;
  * //TODO: after the runner supports recovering the state of Aggregators, update this test's
  * expected values for the recovered (second) run.
  */
-public class RecoverFromCheckpointStreamingTest {
+public class ResumeFromCheckpointStreamingTest {
   private static final EmbeddedKafkaCluster.EmbeddedZookeeper EMBEDDED_ZOOKEEPER =
       new EmbeddedKafkaCluster.EmbeddedZookeeper();
   private static final EmbeddedKafkaCluster EMBEDDED_KAFKA_CLUSTER =
@@ -91,7 +91,9 @@ public class RecoverFromCheckpointStreamingTest {
     /// this test actually requires to NOT reuse the context but rather to stop it and start again
     // from the checkpoint with a brand new context.
     System.setProperty("beam.spark.test.reuseSparkContext", "false");
-    // write to Kafka
+  }
+
+  private static void produce() {
     Properties producerProps = new Properties();
     producerProps.putAll(EMBEDDED_KAFKA_CLUSTER.getProps());
     producerProps.put("request.required.acks", 1);
@@ -99,11 +101,11 @@ public class RecoverFromCheckpointStreamingTest {
     Serializer<String> stringSerializer = new StringSerializer();
     try (@SuppressWarnings("unchecked") KafkaProducer<String, String> kafkaProducer =
         new KafkaProducer(producerProps, stringSerializer, stringSerializer)) {
-      for (Map.Entry<String, String> en : KAFKA_MESSAGES.entrySet()) {
-        kafkaProducer.send(new ProducerRecord<>(TOPIC, en.getKey(), en.getValue()));
-      }
-      kafkaProducer.close();
-    }
+          for (Map.Entry<String, String> en : KAFKA_MESSAGES.entrySet()) {
+            kafkaProducer.send(new ProducerRecord<>(TOPIC, en.getKey(), en.getValue()));
+          }
+          kafkaProducer.close();
+        }
   }
 
   @Test
@@ -116,18 +118,17 @@ public class RecoverFromCheckpointStreamingTest {
 
     // first run will read from Kafka backlog - "auto.offset.reset=smallest"
     EvaluationResult res = run(options);
-    res.close();
     long processedMessages1 = res.getAggregatorValue("processedMessages", Long.class);
     assertThat(String.format("Expected %d processed messages count but "
         + "found %d", EXPECTED_AGG_FIRST, processedMessages1), processedMessages1,
             equalTo(EXPECTED_AGG_FIRST));
 
-    // recovery should resume from last read offset, so nothing is read here.
+    // recovery should resume from last read offset, and read the second batch of input.
     res = runAgain(options);
-    res.close();
     long processedMessages2 = res.getAggregatorValue("processedMessages", Long.class);
     assertThat(String.format("Expected %d processed messages count but "
-        + "found %d", 0, processedMessages2), processedMessages2, equalTo(0L));
+        + "found %d", EXPECTED_AGG_FIRST, processedMessages2), processedMessages2,
+            equalTo(EXPECTED_AGG_FIRST));
   }
 
   private static EvaluationResult runAgain(SparkPipelineOptions options) {
@@ -138,6 +139,8 @@ public class RecoverFromCheckpointStreamingTest {
   }
 
   private static EvaluationResult run(SparkPipelineOptions options) {
+    // write to Kafka
+    produce();
     Map<String, String> kafkaParams = ImmutableMap.of(
             "metadata.broker.list", EMBEDDED_KAFKA_CLUSTER.getBrokerList(),
             "auto.offset.reset", "smallest"
@@ -152,9 +155,9 @@ public class RecoverFromCheckpointStreamingTest {
     PCollection<String> formattedKV = windowedWords.apply(ParDo.of(
         new FormatAsText()));
 
-    PAssertStreaming.assertContents(formattedKV, EXPECTED);
-
-    return  (EvaluationResult) p.run();
+    // requires a graceful stop so that checkpointing of the first run would finish successfully
+    // before stopping and attempting to resume.
+    return PAssertStreaming.runAndAssertContents(p, formattedKV, EXPECTED, true);
   }
 
   @AfterClass

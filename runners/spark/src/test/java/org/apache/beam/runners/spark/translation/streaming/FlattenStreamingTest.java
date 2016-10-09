@@ -20,7 +20,6 @@ package org.apache.beam.runners.spark.translation.streaming;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
-import org.apache.beam.runners.spark.EvaluationResult;
 import org.apache.beam.runners.spark.SparkPipelineOptions;
 import org.apache.beam.runners.spark.io.CreateStream;
 import org.apache.beam.runners.spark.translation.streaming.utils.PAssertStreaming;
@@ -77,10 +76,7 @@ public class FlattenStreamingTest {
     PCollectionList<String> list = PCollectionList.of(windowedW1).and(windowedW2);
     PCollection<String> union = list.apply(Flatten.<String>pCollections());
 
-    PAssertStreaming.assertContents(union, EXPECTED_UNION);
-
-    EvaluationResult res = (EvaluationResult) p.run();
-    res.close();
+    PAssertStreaming.runAndAssertContents(p, union, EXPECTED_UNION);
   }
 
   @Test
@@ -100,10 +96,7 @@ public class FlattenStreamingTest {
     PCollectionList<String> list = PCollectionList.of(windowedW1).and(windowedW2);
     PCollection<String> union = list.apply(Flatten.<String>pCollections());
 
-    PAssertStreaming.assertContents(union, EXPECTED_UNION);
-
-    EvaluationResult res = (EvaluationResult) p.run();
-    res.close();
+    PAssertStreaming.runAndAssertContents(p, union, EXPECTED_UNION);
   }
 
 }

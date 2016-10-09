@@ -95,8 +95,6 @@ public class MultiOutputWordCountTest {
     AggregatorValues<Integer> aggregatorValues = res.getAggregatorValues(countWords
         .getTotalWordsAggregator());
     Assert.assertEquals(18, Iterables.getOnlyElement(aggregatorValues.getValues()).intValue());
-
-    res.close();
   }
 
   /**

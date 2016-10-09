@@ -55,7 +55,6 @@ public class CombineGloballyTest {
     EvaluationResult res = (EvaluationResult) p.run();
     assertEquals("hi there,hi,hi sue bob,hi sue,,bob hi",
         Iterables.getOnlyElement(res.get(output)));
-    res.close();
   }
 
   /**
