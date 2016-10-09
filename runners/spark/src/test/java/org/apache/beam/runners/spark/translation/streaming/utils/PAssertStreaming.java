@@ -18,17 +18,23 @@
 package org.apache.beam.runners.spark.translation.streaming.utils;
 
 import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertThat;
 
 import java.io.Serializable;
 import org.apache.beam.runners.spark.EvaluationResult;
+import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.transforms.Aggregator;
 import org.apache.beam.sdk.transforms.GroupByKey;
-import org.apache.beam.sdk.transforms.MapElements;
-import org.apache.beam.sdk.transforms.SimpleFunction;
+import org.apache.beam.sdk.transforms.OldDoFn;
+import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.transforms.Values;
 import org.apache.beam.sdk.transforms.WithKeys;
 import org.apache.beam.sdk.values.PCollection;
 import org.junit.Assert;
+
+
 
 /**
  * Since PAssert doesn't propagate assert exceptions, use Aggregators to assert streaming
@@ -36,18 +42,9 @@ import org.junit.Assert;
  */
 public final class PAssertStreaming implements Serializable {
 
-  /**
-   * Copied aggregator names from {@link org.apache.beam.sdk.testing.PAssert}.
-   */
-  static final String SUCCESS_COUNTER = "PAssertSuccess";
-  static final String FAILURE_COUNTER = "PAssertFailure";
+  private static final String ASSERT_MARKER = "PAssertExecuted";
 
   private PAssertStreaming() {
-  }
-
-  public static void assertNoFailures(EvaluationResult res) {
-    int failures = res.getAggregatorValue(FAILURE_COUNTER, Integer.class);
-    Assert.assertEquals("Found " + failures + " failures, see the log for details", 0, failures);
   }
 
   /**
@@ -55,21 +52,39 @@ public final class PAssertStreaming implements Serializable {
    * Note that it is oblivious to windowing, so the assertion will apply indiscriminately to all
    * windows.
    */
-  public static <T> void assertContents(PCollection<T> actual, final T[] expected) {
+  public static <T> EvaluationResult runAndAssertContents(Pipeline p,
+                                                          PCollection<T> actual,
+                                                          T[] expected) {
     // Because PAssert does not support non-global windowing, but all our data is in one window,
     // we set up the assertion directly.
     actual
         .apply(WithKeys.<String, T>of("dummy"))
         .apply(GroupByKey.<String, T>create())
         .apply(Values.<Iterable<T>>create())
-        .apply(
-            MapElements.via(
-                new SimpleFunction<Iterable<T>, Void>() {
-                  @Override
-                  public Void apply(Iterable<T> input) {
-                    assertThat(input, containsInAnyOrder(expected));
-                    return null;
-                  }
-                }));
+        .apply(ParDo.of(new AssertDoFn<>(expected)));
+
+    // run the pipeline.
+    EvaluationResult res = (EvaluationResult) p.run();
+    res.close();
+    // validate assertion happened at least once.
+    int marker = res.getAggregatorValue(ASSERT_MARKER, Integer.class);
+    Assert.assertThat("Marker should be greater than zero.", marker, not(0));
+    return res;
+  }
+
+  private static class AssertDoFn<T> extends OldDoFn<Iterable<T>, Void> {
+    private final Aggregator<Integer, Integer> aggregator =
+        createAggregator(ASSERT_MARKER, new Sum.SumIntegerFn());
+    private final T[] expected;
+
+    AssertDoFn(T[] expected) {
+      this.expected = expected;
+    }
+
+    @Override
+    public void processElement(ProcessContext c) throws Exception {
+      assertThat(c.element(), containsInAnyOrder(expected));
+      aggregator.addValue(1);
+    }
   }
 }
