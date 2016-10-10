@@ -3,6 +3,7 @@ package cz.seznam.euphoria.flink.batch;
 import cz.seznam.euphoria.core.client.dataset.HashPartitioner;
 import cz.seznam.euphoria.core.client.dataset.windowing.WindowID;
 import cz.seznam.euphoria.core.client.dataset.windowing.WindowedElement;
+import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.functional.StateFactory;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
 import cz.seznam.euphoria.core.client.io.Context;
@@ -25,6 +26,8 @@ import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 
 import java.util.Iterator;
+import java.util.Set;
+
 import org.apache.flink.api.java.ExecutionEnvironment;
 
 public class ReduceStateByKeyTranslator implements BatchOperatorTranslator<ReduceStateByKey> {
@@ -49,6 +52,10 @@ public class ReduceStateByKeyTranslator implements BatchOperatorTranslator<Reduc
     ReduceStateByKey origOperator = operator.getOriginalOperator();
 
     final StateFactory<?, State> stateFactory = origOperator.getStateFactory();
+    final Windowing windowing =
+        origOperator.getWindowing() == null
+            ? AttachedWindowing.INSTANCE
+            : origOperator.getWindowing();
 
     final UnaryFunction udfKey;
     final UnaryFunction udfValue;
@@ -66,14 +73,15 @@ public class ReduceStateByKeyTranslator implements BatchOperatorTranslator<Reduc
       udfValue = origOperator.getValueExtractor();
     }
 
-    // FIXME event time window assigner should be applied
-    // extract key/value from data
-    DataSet tuples = (DataSet) input.map(i -> {
+    DataSet tuples = (DataSet) input.flatMap((i, c) -> {
           WindowedElement wel = (WindowedElement) i;
-          WindowID wid = wel.getWindowID();
-          Object el = wel.get();
-          return new WindowedElement(
-              wid, Pair.of(udfKey.apply(el), udfValue.apply(el)));
+          Set<WindowID> windows = windowing.assignWindowsToElement(wel);
+          for (WindowID window : windows) {
+            Object el = wel.get();
+            c.collect(new WindowedElement(
+                window,
+                Pair.of(udfKey.apply(el), udfValue.apply(el))));
+          }
         })
         .name(operator.getName() + "::map-input")
         // FIXME parallelism should be set to the same level as parent

@@ -40,8 +40,9 @@ public class ReduceStateByKeyTest extends OperatorTest {
   @Override
   protected List<TestCase> getTestCases() {
     return Arrays.asList(
-        testBatchSort(),
-        testSortWindowed()
+        testBatchSortNoWindow(),
+        testSortWindowed(false),
+        testSortWindowed(true)
     );
   }
 
@@ -92,7 +93,7 @@ public class ReduceStateByKeyTest extends OperatorTest {
 
   }
 
-  TestCase testBatchSort() {
+  TestCase testBatchSortNoWindow() {
     return new AbstractTestCase<Integer, Pair<String, Integer>>() {
 
       @Override
@@ -134,7 +135,7 @@ public class ReduceStateByKeyTest extends OperatorTest {
     };
   }
 
-  TestCase testSortWindowed() {
+  TestCase testSortWindowed(boolean batch) {
     return new AbstractTestCase<Integer, WPair<Integer, Integer, Integer>>() {
 
       @Override
@@ -156,12 +157,19 @@ public class ReduceStateByKeyTest extends OperatorTest {
 
       @Override
       protected DataSource<Integer> getDataSource() {
-        return ListDataSource.unbounded(
-            Arrays.asList(9, 8, 10, 11 /* third window, key 0, 2, 1, 2 */,
-                          5, 6, 7, 4 /* second window, key 2, 0, 1, 1 */),
-            Arrays.asList(8, 9 /* third window, key 2, 0 */,
-                          6, 5 /* second window, key 0, 2 */)
-        );
+        if (batch) {
+          return ListDataSource.bounded(
+              Arrays.asList(9, 8, 10, 11 /* third window, key 0, 2, 1, 2 */,
+                  5, 6, 7, 4 /* second window, key 2, 0, 1, 1 */),
+              Arrays.asList(8, 9 /* third window, key 2, 0 */,
+                  6, 5 /* second window, key 0, 2 */));
+        } else {
+          return ListDataSource.unbounded(
+              Arrays.asList(9, 8, 10, 11 /* third window, key 0, 2, 1, 2 */,
+                  5, 6, 7, 4 /* second window, key 2, 0, 1, 1 */),
+              Arrays.asList(8, 9 /* third window, key 2, 0 */,
+                  6, 5 /* second window, key 0, 2 */));
+        }
       }
 
       @Override
