@@ -79,11 +79,9 @@ public class MqttIOTest implements Serializable {
     PAssert.thatSingleton(output.apply("Count", Count.<byte[]>globally()))
         .isEqualTo(10L);
     PAssert.that(output).satisfies(new SerializableFunction<Iterable<byte[]>, Void>() {
-
-      int count = 0;
-
       @Override
       public Void apply(Iterable<byte[]> input) {
+        int count = 0;
         for (byte[] element : input) {
           String inputString = new String(element);
           Assert.assertEquals("This is test " + count, inputString);
@@ -108,8 +106,8 @@ public class MqttIOTest implements Serializable {
           client.connect();
           for (int i = 0; i < 10; i++) {
             MqttMessage message = new MqttMessage();
-            message.setQos(0);
-            message.setRetained(false);
+            message.setQos(2);
+            message.setRetained(true);
             message.setPayload(("This is test " + i).getBytes());
             client.publish("READ_TOPIC", message);
           }
@@ -167,9 +165,7 @@ public class MqttIOTest implements Serializable {
 
       @Override
       public void messageArrived(String topic, MqttMessage message) throws Exception {
-        synchronized (messages) {
           messages.add(message);
-        }
       }
 
       @Override
