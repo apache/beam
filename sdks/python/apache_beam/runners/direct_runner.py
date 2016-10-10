@@ -30,8 +30,6 @@ import logging
 
 from apache_beam import coders
 from apache_beam import error
-from apache_beam.io import fileio
-from apache_beam.io import iobase
 from apache_beam.pvalue import DictPCollectionView
 from apache_beam.pvalue import EmptySideInput
 from apache_beam.pvalue import IterablePCollectionView
@@ -244,6 +242,9 @@ class DirectPipelineRunner(PipelineRunner):
           transform_node.full_label] += len(read_result)
       self._cache.cache_output(transform_node, read_result)
 
+    # pylint: disable=wrong-import-position
+    from apache_beam.io import iobase
+
     if isinstance(source, iobase.BoundedSource):
       # Getting a RangeTracker for the default range of the source and reading
       # the full source using that.
@@ -257,6 +258,10 @@ class DirectPipelineRunner(PipelineRunner):
   @skip_if_cached
   def run__NativeWrite(self, transform_node):
     sink = transform_node.transform.sink
+
+    # pylint: disable=wrong-import-position
+    from apache_beam.io import fileio
+
     if isinstance(sink, fileio.NativeTextFileSink):
       assert sink.num_shards in (0, 1)
       if sink.shard_name_template:

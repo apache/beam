@@ -29,6 +29,7 @@ from apache_beam.runners.common import DoFnRunner
 from apache_beam.runners.common import DoFnState
 from apache_beam.runners.inprocess.inprocess_watermark_manager import InProcessWatermarkManager
 from apache_beam.runners.inprocess.inprocess_transform_result import InProcessTransformResult
+from apache_beam.runners.dataflow.native_io.iobase import _NativeWrite  # pylint: disable=protected-access
 from apache_beam.transforms import core
 from apache_beam.transforms import sideinputs
 from apache_beam.transforms.window import GlobalWindows
@@ -54,7 +55,7 @@ class TransformEvaluatorRegistry(object):
         core.ParDo: _ParDoEvaluator,
         core.GroupByKeyOnly: _GroupByKeyOnlyEvaluator,
         sideinputs.CreatePCollectionView: _CreatePCollectionViewEvaluator,
-        io.iobase._NativeWrite: _NativeWriteEvaluator,  # pylint: disable=protected-access
+        _NativeWrite: _NativeWriteEvaluator,
     }
 
   def for_application(
@@ -98,7 +99,7 @@ class TransformEvaluatorRegistry(object):
     """
     return isinstance(applied_ptransform.transform,
                       (core.GroupByKeyOnly, sideinputs.CreatePCollectionView,
-                       io.iobase._NativeWrite))  # pylint: disable=protected-access
+                       _NativeWrite))
 
 
 class _TransformEvaluator(object):

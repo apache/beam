@@ -29,7 +29,7 @@ import zlib
 import apache_beam as beam
 from apache_beam import coders
 from apache_beam.io import fileio
-from apache_beam.io import iobase
+from apache_beam.runners.dataflow.native_io import iobase as dataflow_io
 
 # TODO: Add tests for file patterns (ie not just individual files) for both
 # uncompressed
@@ -316,7 +316,7 @@ class TestTextFileSource(unittest.TestCase):
     else:
       self.assertIsNotNone(actual_response.stop_position)
       self.assertIsInstance(actual_response.stop_position,
-                            iobase.ReaderPosition)
+                            dataflow_io.ReaderPosition)
       self.assertIsNotNone(actual_response.stop_position.byte_offset)
       self.assertEqual(expected_response.stop_position.byte_offset,
                        actual_response.stop_position.byte_offset)
@@ -338,8 +338,8 @@ class TestTextFileSource(unittest.TestCase):
       for percent_complete in percents_complete:
         self.try_splitting_reader_at(
             reader,
-            iobase.DynamicSplitRequest(
-                iobase.ReaderProgress(percent_complete=percent_complete)),
+            dataflow_io.DynamicSplitRequest(
+                dataflow_io.ReaderProgress(percent_complete=percent_complete)),
             None)
 
       # Cursor passed beginning of file.
@@ -349,8 +349,8 @@ class TestTextFileSource(unittest.TestCase):
       for percent_complete in percents_complete:
         self.try_splitting_reader_at(
             reader,
-            iobase.DynamicSplitRequest(
-                iobase.ReaderProgress(percent_complete=percent_complete)),
+            dataflow_io.DynamicSplitRequest(
+                dataflow_io.ReaderProgress(percent_complete=percent_complete)),
             None)
 
   def test_zlib_file_unsplittable(self):
@@ -368,8 +368,8 @@ class TestTextFileSource(unittest.TestCase):
       for percent_complete in percents_complete:
         self.try_splitting_reader_at(
             reader,
-            iobase.DynamicSplitRequest(
-                iobase.ReaderProgress(percent_complete=percent_complete)),
+            dataflow_io.DynamicSplitRequest(
+                dataflow_io.ReaderProgress(percent_complete=percent_complete)),
             None)
 
       # Cursor passed beginning of file.
@@ -379,8 +379,8 @@ class TestTextFileSource(unittest.TestCase):
       for percent_complete in percents_complete:
         self.try_splitting_reader_at(
             reader,
-            iobase.DynamicSplitRequest(
-                iobase.ReaderProgress(percent_complete=percent_complete)),
+            dataflow_io.DynamicSplitRequest(
+                dataflow_io.ReaderProgress(percent_complete=percent_complete)),
             None)
 
   def test_update_stop_position_for_percent_complete(self):
@@ -397,33 +397,35 @@ class TestTextFileSource(unittest.TestCase):
       # Splitting at end of the range should be unsuccessful
       self.try_splitting_reader_at(
           reader,
-          iobase.DynamicSplitRequest(iobase.ReaderProgress(percent_complete=0)),
+          dataflow_io.DynamicSplitRequest(
+              dataflow_io.ReaderProgress(percent_complete=0)),
           None)
       self.try_splitting_reader_at(
           reader,
-          iobase.DynamicSplitRequest(iobase.ReaderProgress(percent_complete=1)),
+          dataflow_io.DynamicSplitRequest(
+              dataflow_io.ReaderProgress(percent_complete=1)),
           None)
 
       # Splitting at positions on or before start offset of the last record
       self.try_splitting_reader_at(
           reader,
-          iobase.DynamicSplitRequest(
-              iobase.ReaderProgress(percent_complete=0.2)),
+          dataflow_io.DynamicSplitRequest(
+              dataflow_io.ReaderProgress(percent_complete=0.2)),
           None)
       self.try_splitting_reader_at(
           reader,
-          iobase.DynamicSplitRequest(
-              iobase.ReaderProgress(percent_complete=0.4)),
+          dataflow_io.DynamicSplitRequest(
+              dataflow_io.ReaderProgress(percent_complete=0.4)),
           None)
 
       # Splitting at a position after the start offset of the last record should
       # be successful
       self.try_splitting_reader_at(
           reader,
-          iobase.DynamicSplitRequest(
-              iobase.ReaderProgress(percent_complete=0.6)),
-          iobase.DynamicSplitResultWithPosition(
-              iobase.ReaderPosition(byte_offset=15)))
+          dataflow_io.DynamicSplitRequest(
+              dataflow_io.ReaderProgress(percent_complete=0.6)),
+          dataflow_io.DynamicSplitResultWithPosition(
+              dataflow_io.ReaderPosition(byte_offset=15)))
 
   def test_update_stop_position_percent_complete_for_position(self):
     lines = ['aaaa', 'bbbb', 'cccc', 'dddd', 'eeee']
@@ -439,28 +441,28 @@ class TestTextFileSource(unittest.TestCase):
       # Splitting at end of the range should be unsuccessful
       self.try_splitting_reader_at(
           reader,
-          iobase.DynamicSplitRequest(
-              iobase.ReaderProgress(position=iobase.ReaderPosition(
+          dataflow_io.DynamicSplitRequest(
+              dataflow_io.ReaderProgress(position=dataflow_io.ReaderPosition(
                   byte_offset=0))),
           None)
       self.try_splitting_reader_at(
           reader,
-          iobase.DynamicSplitRequest(
-              iobase.ReaderProgress(position=iobase.ReaderPosition(
+          dataflow_io.DynamicSplitRequest(
+              dataflow_io.ReaderProgress(position=dataflow_io.ReaderPosition(
                   byte_offset=25))),
           None)
 
       # Splitting at positions on or before start offset of the last record
       self.try_splitting_reader_at(
           reader,
-          iobase.DynamicSplitRequest(
-              iobase.ReaderProgress(position=iobase.ReaderPosition(
+          dataflow_io.DynamicSplitRequest(
+              dataflow_io.ReaderProgress(position=dataflow_io.ReaderPosition(
                   byte_offset=5))),
           None)
       self.try_splitting_reader_at(
           reader,
-          iobase.DynamicSplitRequest(
-              iobase.ReaderProgress(position=iobase.ReaderPosition(
+          dataflow_io.DynamicSplitRequest(
+              dataflow_io.ReaderProgress(position=dataflow_io.ReaderPosition(
                   byte_offset=10))),
           None)
 
@@ -468,11 +470,11 @@ class TestTextFileSource(unittest.TestCase):
       # be successful
       self.try_splitting_reader_at(
           reader,
-          iobase.DynamicSplitRequest(
-              iobase.ReaderProgress(position=iobase.ReaderPosition(
+          dataflow_io.DynamicSplitRequest(
+              dataflow_io.ReaderProgress(position=dataflow_io.ReaderPosition(
                   byte_offset=15))),
-          iobase.DynamicSplitResultWithPosition(
-              iobase.ReaderPosition(byte_offset=15)))
+          dataflow_io.DynamicSplitResultWithPosition(
+              dataflow_io.ReaderPosition(byte_offset=15)))
 
   def run_update_stop_position_exhaustive(self, lines, newline):
     """An exhaustive test for dynamic splitting.
@@ -551,13 +553,13 @@ class TestTextFileSource(unittest.TestCase):
       elif records_to_read == 0:
         expected_split_response = None  # unstarted
       else:
-        expected_split_response = iobase.DynamicSplitResultWithPosition(
-            stop_position=iobase.ReaderPosition(byte_offset=stop_offset))
+        expected_split_response = dataflow_io.DynamicSplitResultWithPosition(
+            stop_position=dataflow_io.ReaderPosition(byte_offset=stop_offset))
 
       split_response = self.try_splitting_reader_at(
           reader,
-          iobase.DynamicSplitRequest(progress=iobase.ReaderProgress(
-              iobase.ReaderPosition(byte_offset=stop_offset))),
+          dataflow_io.DynamicSplitRequest(progress=dataflow_io.ReaderProgress(
+              dataflow_io.ReaderPosition(byte_offset=stop_offset))),
           expected_split_response)
 
       # Reading remaining records from the updated reader.

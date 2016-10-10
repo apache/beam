@@ -32,6 +32,7 @@ import weakref
 from apache_beam import coders
 from apache_beam.io import iobase
 from apache_beam.io import range_trackers
+from apache_beam.runners.dataflow.native_io import iobase as dataflow_io
 
 __all__ = ['TextFileSource', 'TextFileSink']
 
@@ -106,7 +107,7 @@ class CompressionTypes(object):
     return cls.UNCOMPRESSED
 
 
-class NativeFileSource(iobase.NativeSource):
+class NativeFileSource(dataflow_io.NativeSource):
   """A source implemented by Dataflow service from a GCS or local file or files.
 
   This class is to be only inherited by sources natively implemented by Cloud
@@ -185,7 +186,7 @@ class NativeFileSource(iobase.NativeSource):
     return NativeFileSourceReader(self)
 
 
-class NativeFileSourceReader(iobase.NativeSourceReader,
+class NativeFileSourceReader(dataflow_io.NativeSourceReader,
                              coders.observable.ObservableMixin):
   """The source reader for a NativeFileSource.
 
@@ -302,7 +303,7 @@ class NativeFileSourceReader(iobase.NativeSourceReader,
     raise NotImplementedError
 
   def get_progress(self):
-    return iobase.ReaderProgress(position=iobase.ReaderPosition(
+    return dataflow_io.ReaderProgress(position=dataflow_io.ReaderPosition(
         byte_offset=self.range_tracker.last_record_start))
 
   def request_dynamic_split(self, dynamic_split_request):
@@ -328,7 +329,7 @@ class NativeFileSourceReader(iobase.NativeSourceReader,
               'of work to be completed is out of the valid range (0, '
               '1). Requested: %r', dynamic_split_request)
           return
-        split_position = iobase.ReaderPosition()
+        split_position = dataflow_io.ReaderPosition()
         split_position.byte_offset = (
             self.range_tracker.position_at_fraction(percent_complete))
       else:
@@ -339,7 +340,7 @@ class NativeFileSourceReader(iobase.NativeSourceReader,
         return
 
     if self.range_tracker.try_split(split_position.byte_offset):
-      return iobase.DynamicSplitResultWithPosition(split_position)
+      return dataflow_io.DynamicSplitResultWithPosition(split_position)
     else:
       return
 
@@ -964,7 +965,7 @@ class TextFileSink(FileSink):
       file_handle.write('\n')
 
 
-class NativeFileSink(iobase.NativeSink):
+class NativeFileSink(dataflow_io.NativeSink):
   """A sink implemented by Dataflow service to a GCS or local file or files.
 
   This class is to be only inherited by sinks natively implemented by Cloud
@@ -1021,7 +1022,7 @@ class NativeFileSink(iobase.NativeSink):
             self.compression_type == other.compression_type)
 
 
-class NativeFileSinkWriter(iobase.NativeSinkWriter):
+class NativeFileSinkWriter(dataflow_io.NativeSinkWriter):
   """The sink writer for a NativeFileSink.
 
   This class is to be only inherited by sink writers natively implemented by
@@ -1127,7 +1128,7 @@ class TextFileReader(NativeFileSourceReader):
       yield False, self.source.coder.decode(line), delta_offset
 
 
-class TextMultiFileReader(iobase.NativeSourceReader):
+class TextMultiFileReader(dataflow_io.NativeSourceReader):
   """A reader for a multi-file text source."""
 
   def __init__(self, source):

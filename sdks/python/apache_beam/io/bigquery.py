@@ -116,7 +116,7 @@ from apache_beam import coders
 from apache_beam.internal import auth
 from apache_beam.internal.json_value import from_json_value
 from apache_beam.internal.json_value import to_json_value
-from apache_beam.io import iobase
+from apache_beam.runners.dataflow.native_io import iobase as dataflow_io
 from apache_beam.utils import retry
 from apache_beam.utils.options import GoogleCloudOptions
 
@@ -280,7 +280,7 @@ def _parse_table_reference(table, dataset=None, project=None):
 # BigQuerySource, BigQuerySink.
 
 
-class BigQuerySource(iobase.NativeSource):
+class BigQuerySource(dataflow_io.NativeSource):
   """A source based on a BigQuery table."""
 
   def __init__(self, table=None, dataset=None, project=None, query=None,
@@ -345,7 +345,7 @@ class BigQuerySource(iobase.NativeSource):
         source=self, test_bigquery_client=test_bigquery_client)
 
 
-class BigQuerySink(iobase.NativeSink):
+class BigQuerySink(dataflow_io.NativeSink):
   """A sink based on a BigQuery table."""
 
   def __init__(self, table, dataset=None, project=None, schema=None,
@@ -459,7 +459,7 @@ class BigQuerySink(iobase.NativeSink):
 # BigQueryReader, BigQueryWriter.
 
 
-class BigQueryReader(iobase.NativeSourceReader):
+class BigQueryReader(dataflow_io.NativeSourceReader):
   """A reader for a BigQuery source."""
 
   def __init__(self, source, test_bigquery_client=None):
@@ -516,7 +516,7 @@ class BigQueryReader(iobase.NativeSourceReader):
           yield row
 
 
-class BigQueryWriter(iobase.NativeSinkWriter):
+class BigQueryWriter(dataflow_io.NativeSinkWriter):
   """The sink writer for a BigQuerySink."""
 
   def __init__(self, sink, test_bigquery_client=None, buffer_size=None):
