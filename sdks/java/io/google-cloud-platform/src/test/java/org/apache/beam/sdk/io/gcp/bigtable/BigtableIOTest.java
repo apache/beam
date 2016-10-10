@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.gcp.bigtable;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Verify.verifyNotNull;
 import static org.apache.beam.sdk.testing.SourceTestUtils.assertSourcesEqualReferenceSource;
 import static org.apache.beam.sdk.testing.SourceTestUtils.assertSplitAtFractionExhaustive;
@@ -222,6 +223,7 @@ public class BigtableIOTest {
   public void testReadingEmptyTable() throws Exception {
     final String table = "TEST-EMPTY-TABLE";
     service.createTable(table);
+    service.setupSampleRowKeys(table, 1, 1L);
 
     runReadTest(defaultRead.withTableId(table), new ArrayList<Row>());
     logged.verifyInfo("Closing reader after reading 0 records.");
@@ -234,8 +236,9 @@ public class BigtableIOTest {
     final int numRows = 1001;
     List<Row> testRows = makeTableData(table, numRows);
 
+    service.setupSampleRowKeys(table, 3, 1000L);
     runReadTest(defaultRead.withTableId(table), testRows);
-    logged.verifyInfo(String.format("Closing reader after reading %d records.", numRows));
+    logged.verifyInfo(String.format("Closing reader after reading %d records.", numRows / 3));
   }
 
   /** A {@link Predicate} that a {@link Row Row's} key matches the given regex. */
@@ -284,6 +287,7 @@ public class BigtableIOTest {
     ByteKey startKey = ByteKey.copyFrom("key000000100".getBytes());
     ByteKey endKey = ByteKey.copyFrom("key000000300".getBytes());
 
+    service.setupSampleRowKeys(table, numRows / 10, "key000000100".length());
     // Test prefix: [beginning, startKey).
     final ByteKeyRange prefixRange = ByteKeyRange.ALL_KEYS.withEndKey(startKey);
     List<Row> prefixRows = filterToRange(testRows, prefixRange);
@@ -336,6 +340,7 @@ public class BigtableIOTest {
 
     RowFilter filter =
         RowFilter.newBuilder().setRowKeyRegexFilter(ByteString.copyFromUtf8(regex)).build();
+    service.setupSampleRowKeys(table, 5, 10L);
 
     runReadTest(
         defaultRead.withTableId(table).withRowFilter(filter), Lists.newArrayList(filteredRows));
@@ -743,7 +748,7 @@ public class BigtableIOTest {
     @Override
     public List<SampleRowKeysResponse> getSampleRowKeys(BigtableSource source) {
       List<SampleRowKeysResponse> samples = sampleRowKeys.get(source.getTableId());
-      checkArgument(samples != null, "No samples found for table %s", source.getTableId());
+      checkNotNull(samples, "No samples found for table %s", source.getTableId());
       return samples;
     }
 
