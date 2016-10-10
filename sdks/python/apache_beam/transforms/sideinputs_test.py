@@ -30,7 +30,8 @@ class SideInputsTest(unittest.TestCase):
     p = beam.Pipeline('DirectPipelineRunner')
     pc = p | beam.Create([0, 1]) | beam.WindowInto(window.FixedWindows(10))
     with self.assertRaises(ValueError):
-      res = pc | beam.Map(lambda x, side: None, side=beam.pvalue.AsIter(pc))
+      # pylint: disable=expression-not-assigned
+      pc | beam.Map(lambda x, side: None, side=beam.pvalue.AsIter(pc))
 
 
 if __name__ == '__main__':
