@@ -12,13 +12,15 @@ import cz.seznam.euphoria.core.client.io.ListDataSource;
 import cz.seznam.euphoria.core.client.operator.ReduceByKey;
 import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.core.client.util.Sums;
+
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Set;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
 
 /**
  * Test operator {@code ReduceByKey}.
@@ -30,7 +32,9 @@ public class ReduceByKeyTest extends OperatorTest {
     return Arrays.asList(
         testEventTime(true),
         testEventTime(false),
-        testStreamReduceWithWindowing()
+        testStreamReduceWithWindowing(),
+        testReduceWithoutWindowing(true),
+        testReduceWithoutWindowing(false)
     );
   }
 
@@ -174,4 +178,46 @@ public class ReduceByKeyTest extends OperatorTest {
     };
   }
 
+  TestCase testReduceWithoutWindowing(boolean batch) {
+    return new AbstractTestCase<String, Pair<String, Long>>() {
+      @Override
+      protected DataSource<String> getDataSource() {
+        String[] words =
+            "one two three four one two three four one two three one two one".split(" ");
+        return batch
+            ? ListDataSource.bounded(Arrays.asList(words))
+            : ListDataSource.unbounded(Arrays.asList(words));
+      }
+
+      @Override
+      public int getNumOutputPartitions() {
+        return 1;
+      }
+
+      @Override
+      public void validate(List<List<Pair<String, Long>>> partitions) {
+        assertEquals(1, partitions.size());
+        HashMap<String, Long> actual = new HashMap<>();
+        for (Pair<String, Long> p : partitions.get(0)) {
+          actual.put(p.getFirst(), p.getSecond());
+        }
+
+        HashMap<String, Long> expected = new HashMap<>();
+        expected.put("one", 5L);
+        expected.put("two", 4L);
+        expected.put("three", 3L);
+        expected.put("four", 2L);
+        assertEquals(expected, actual);
+      }
+
+      @Override
+      protected Dataset<Pair<String, Long>> getOutput(Dataset<String> input) {
+        return ReduceByKey.of(input)
+            .keyBy(e -> e)
+            .valueBy(e -> 1L)
+            .combineBy(Sums.ofLongs())
+            .output();
+      }
+    };
+  }
 }
