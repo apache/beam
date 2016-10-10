@@ -542,11 +542,11 @@ public class BigQueryIO {
         // For these cases the withoutValidation method can be used to disable the check.
         if (validate && table != null) {
           // Check for source table presence for early failure notification.
-          DatasetService datasetService = bigQueryServices.getDatasetService(bqOptions);
+          DatasetService datasetService = getBigQueryServices().getDatasetService(bqOptions);
           verifyDatasetPresence(datasetService, table);
           verifyTablePresence(datasetService, table);
         } else if (validate && query != null) {
-          JobService jobService = bigQueryServices.getJobService(bqOptions);
+          JobService jobService = getBigQueryServices().getJobService(bqOptions);
           try {
             jobService.dryRunQuery(
                 bqOptions.getProject(),
