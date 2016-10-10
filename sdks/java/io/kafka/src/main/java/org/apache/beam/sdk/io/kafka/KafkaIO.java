@@ -782,6 +782,9 @@ public class KafkaIO {
         Executors.newSingleThreadScheduledExecutor();
     private static final int OFFSET_UPDATE_INTERVAL_SECONDS = 5;
 
+    private static final long UNINITIALIZED_CONSUMED_OFFSET = -1;
+    private static final long EMPTY_PARTITION_CONSUMED_OFFSET = -100;
+
     /** watermark before any records have been read. */
     private static Instant initialWatermark = new Instant(Long.MIN_VALUE);
 
@@ -792,7 +795,7 @@ public class KafkaIO {
     // maintains state of each assigned partition (buffered records, consumed offset, etc)
     private static class PartitionState {
       private final TopicPartition topicPartition;
-      private long consumedOffset;
+      private long consumedOffset; // TODO: simpler to track next offset than consumed offset.
       private long latestOffset;
       private Iterator<ConsumerRecord<byte[], byte[]>> recordIter = Collections.emptyIterator();
 
@@ -803,7 +806,7 @@ public class KafkaIO {
       PartitionState(TopicPartition partition, long offset) {
         this.topicPartition = partition;
         this.consumedOffset = offset;
-        this.latestOffset = -1;
+        this.latestOffset = UNINITIALIZED_CONSUMED_OFFSET;
       }
 
       // update consumedOffset and avgRecordSize
@@ -825,8 +828,8 @@ public class KafkaIO {
 
       synchronized long approxBacklogInBytes() {
         // Note that is an an estimate of uncompressed backlog.
-        // Messages on Kafka might be comressed.
-        if (latestOffset < 0 || consumedOffset < 0) {
+        if (latestOffset == UNINITIALIZED_CONSUMED_OFFSET
+            || consumedOffset == UNINITIALIZED_CONSUMED_OFFSET) {
           return UnboundedReader.BACKLOG_UNKNOWN;
         }
         if (latestOffset <= consumedOffset || consumedOffset < 0) {
@@ -846,7 +849,7 @@ public class KafkaIO {
       partitionStates = ImmutableList.copyOf(Lists.transform(source.assignedPartitions,
           new Function<TopicPartition, PartitionState>() {
             public PartitionState apply(TopicPartition tp) {
-              return new PartitionState(tp, -1L);
+              return new PartitionState(tp, UNINITIALIZED_CONSUMED_OFFSET);
             }
         }));
 
@@ -926,12 +929,14 @@ public class KafkaIO {
       consumer.assign(source.assignedPartitions);
 
       for (PartitionState p : partitionStates) {
-        if (p.consumedOffset >=  0) {
-          consumer.seek(p.topicPartition, p.consumedOffset + 1);
+        if (p.consumedOffset >= 0 || p.consumedOffset == EMPTY_PARTITION_CONSUMED_OFFSET) {
+          consumer.seek(p.topicPartition, Math.max(p.consumedOffset + 1, 0L));
         } else {
           // set consumed offset to (next offset - 1), otherwise checkpoint would contain invalid
           // offset until we read first record from this partition.
-          p.consumedOffset = consumer.position(p.topicPartition) - 1;
+          long nextOffset = consumer.position(p.topicPartition);
+          p.consumedOffset = nextOffset == 0
+              ? EMPTY_PARTITION_CONSUMED_OFFSET : nextOffset - 1;
         }
 
         LOG.info("{}: reading from {} at offset {}", name, p.topicPartition, p.consumedOffset + 1);
@@ -1061,7 +1066,7 @@ public class KafkaIO {
           p.setLatestOffset(offset);
         } catch (Exception e) {
           LOG.warn("{}: exception while fetching latest offsets. ignored.",  this, e);
-          p.setLatestOffset(-1L); // reset
+          p.setLatestOffset(UNINITIALIZED_CONSUMED_OFFSET); // reset
         }
 
         LOG.debug("{}: latest offset update for {} : {} (consumed offset {}, avg record size {})",
