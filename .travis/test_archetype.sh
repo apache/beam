@@ -43,6 +43,7 @@ trap cleanup EXIT
   -DinteractiveMode=false \
   -Dpackage=org.apache.beam.examples \
   -DarchetypeCatalog=local \
+  -DarchetypeRepository=local \
   && cd /tmp/test-archetypes/test-beam-archetypes-examples \
   && mvn clean install)
 
@@ -57,5 +58,6 @@ trap cleanup EXIT
   -DinteractiveMode=false \
   -Dpackage=org.apache.beam.starter \
   -DarchetypeCatalog=local \
+  -DarchetypeRepository=local \
   && cd /tmp/test-archetypes/test-beam-archetypes-starter \
   && mvn clean install)
