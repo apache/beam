@@ -65,9 +65,10 @@ public interface DirectOptions extends PipelineOptions, ApplicationNameOptions {
   void setEnforceEncodability(boolean test);
 
   @Default.InstanceFactory(AvailableParallelismFactory.class)
-  @Description("Controls the amount of target parallelism the DirectRunner will use. Defaults to"
-      + " the greater of the number of available processors as returned by the Runtime and 3. Must"
-      + " be a value greater than zero.")
+  @Description(
+      "Controls the amount of target parallelism the DirectRunner will use. Defaults to"
+          + " the greater of the number of available processors and 3. Must be a value greater"
+          + " than zero.")
   int getTargetParallelism();
   void setTargetParallelism(int target);
 

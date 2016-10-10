@@ -17,8 +17,6 @@
  */
 package org.apache.beam.runners.direct;
 
-import static com.google.common.base.Preconditions.checkState;
-
 import com.google.auto.value.AutoValue;
 import com.google.common.base.MoreObjects;
 import com.google.common.base.Optional;
@@ -169,10 +167,6 @@ final class ExecutorServiceParallelExecutor implements PipelineExecutor {
       ConcurrentLinkedQueue<CommittedBundle<?>> pending = new ConcurrentLinkedQueue<>();
       try {
         Collection<CommittedBundle<?>> initialInputs = rootInputProvider.getInitialInputs(root, 1);
-        checkState(
-            !initialInputs.isEmpty(),
-            "All root transforms must have initial inputs. Got 0 for %s",
-            root.getFullName());
         pending.addAll(initialInputs);
       } catch (Exception e) {
         throw UserCodeException.wrap(e);

@@ -136,7 +136,7 @@ public class BoundedReadEvaluatorFactoryTest {
         new BoundedReadEvaluatorFactory.InputProvider(context)
             .getInitialInputs(longs.getProducingTransformInternal(), 3);
 
-    assertThat(initialInputs, hasSize(allOf(greaterThanOrEqualTo(2), lessThanOrEqualTo(4))));
+    assertThat(initialInputs, hasSize(allOf(greaterThanOrEqualTo(3), lessThanOrEqualTo(4))));
 
     Collection<BoundedSource<Long>> sources = new ArrayList<>();
     for (CommittedBundle<?> initialInput : initialInputs) {

@@ -147,13 +147,6 @@ final class BoundedReadEvaluatorFactory implements TransformEvaluatorFactory {
           source.splitIntoBundles(bytesPerBundle, options);
       ImmutableList.Builder<CommittedBundle<BoundedSourceShard<OutputT>>> shards =
           ImmutableList.builder();
-      if (bundles.isEmpty()) {
-        LOG.debug("Splits of source {} were empty, using empty split");
-        shards.add(
-            evaluationContext
-                .<BoundedSourceShard<OutputT>>createRootBundle()
-                .commit(BoundedWindow.TIMESTAMP_MAX_VALUE));
-      }
       for (BoundedSource<OutputT> bundle : bundles) {
         CommittedBundle<BoundedSourceShard<OutputT>> inputShard =
             evaluationContext

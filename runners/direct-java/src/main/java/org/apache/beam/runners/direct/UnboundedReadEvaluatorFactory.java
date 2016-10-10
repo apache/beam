@@ -274,13 +274,6 @@ class UnboundedReadEvaluatorFactory implements TransformEvaluatorFactory {
               : NeverDeduplicator.create();
 
       ImmutableList.Builder<CommittedBundle<?>> initialShards = ImmutableList.builder();
-      if (splits.isEmpty()) {
-        LOG.debug("Splits of source {} were empty, using empty split");
-        initialShards.add(
-            evaluationContext
-                .<UnboundedSourceShard<OutputT, ?>>createRootBundle()
-                .commit(BoundedWindow.TIMESTAMP_MAX_VALUE));
-      }
       for (UnboundedSource<OutputT, ?> split : splits) {
         UnboundedSourceShard<OutputT, ?> shard =
             UnboundedSourceShard.unstarted(split, deduplicator);
