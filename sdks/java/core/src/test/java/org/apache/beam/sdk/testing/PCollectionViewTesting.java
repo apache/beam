@@ -245,13 +245,6 @@ public final class PCollectionViewTesting {
       return (TupleTag) tag;
     }
 
-    @SuppressWarnings({"unchecked", "rawtypes"})
-    @Override
-    @Deprecated
-    public ViewT fromIterableInternal(Iterable<WindowedValue<?>> contents) {
-      return getViewFn().apply(contents);
-    }
-
     @Override
     public ViewFn<Iterable<WindowedValue<?>>, ViewT> getViewFn() {
       // Safe cast; runners must maintain type safety
