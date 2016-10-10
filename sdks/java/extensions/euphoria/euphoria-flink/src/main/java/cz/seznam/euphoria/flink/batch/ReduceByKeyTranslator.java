@@ -35,7 +35,10 @@ public class ReduceByKeyTranslator implements BatchOperatorTranslator<ReduceByKe
 
     ReduceByKey origOperator = operator.getOriginalOperator();
     final UnaryFunction<Iterable, Object> reducer = origOperator.getReducer();
-    final Windowing windowing = origOperator.getWindowing();
+    final Windowing windowing =
+        origOperator.getWindowing() == null
+        ? AttachedWindowing.INSTANCE
+        : origOperator.getWindowing();
 
     final UnaryFunction udfKey;
     final UnaryFunction udfValue;
