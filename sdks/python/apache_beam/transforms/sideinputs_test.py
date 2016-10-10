@@ -23,6 +23,7 @@ import unittest
 import apache_beam as beam
 from apache_beam.transforms import window
 
+
 class SideInputsTest(unittest.TestCase):
 
   # TODO(BEAM-733): Actually support this.
