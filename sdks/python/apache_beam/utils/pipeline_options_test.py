@@ -30,9 +30,9 @@ class PipelineOptionsTest(unittest.TestCase):
        'expected': {'num_workers': 5, 'mock_flag': False, 'mock_option': None}},
       {
           'flags': [
-              '--profile', '--profile_location', 'gs://bucket/', 'ignored'],
+              '--profile_cpu', '--profile_location', 'gs://bucket/', 'ignored'],
           'expected': {
-              'profile': True, 'profile_location': 'gs://bucket/',
+              'profile_cpu': True, 'profile_location': 'gs://bucket/',
               'mock_flag': False, 'mock_option': None}
       },
       {'flags': ['--num_workers', '5', '--mock_flag'],
