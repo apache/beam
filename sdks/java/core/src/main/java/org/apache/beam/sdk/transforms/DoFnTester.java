@@ -771,7 +771,7 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
   /** The original OldDoFn under test, if started. */
   OldDoFn<InputT, OutputT> fn;
 
-  /** The ListOutputManager to examine the outputs. */
+  /** The outputs from the {@link DoFn} under test. */
   private Map<TupleTag<?>, List<WindowedValue<?>>> outputs;
 
   /** The state of processing of the {@link DoFn} under test. */

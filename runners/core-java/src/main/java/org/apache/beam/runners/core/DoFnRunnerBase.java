@@ -95,37 +95,6 @@ public abstract class DoFnRunnerBase<InputT, OutputT> implements DoFnRunner<Inpu
         windowingStrategy == null ? null : windowingStrategy.getWindowFn());
   }
 
-  /**
-   * An implementation of {@code OutputManager} using simple lists, for testing and in-memory
-   * contexts such as the {@code DirectRunner}.
-   */
-  public static class ListOutputManager implements OutputManager {
-
-    private Map<TupleTag<?>, List<WindowedValue<?>>> outputLists = Maps.newHashMap();
-
-    @Override
-    public <T> void output(TupleTag<T> tag, WindowedValue<T> output) {
-      @SuppressWarnings({"rawtypes", "unchecked"})
-      List<WindowedValue<T>> outputList = (List) outputLists.get(tag);
-
-      if (outputList == null) {
-        outputList = Lists.newArrayList();
-        @SuppressWarnings({"rawtypes", "unchecked"})
-        List<WindowedValue<?>> untypedList = (List) outputList;
-        outputLists.put(tag, untypedList);
-      }
-
-      outputList.add(output);
-    }
-
-    public <T> List<WindowedValue<T>> getOutput(TupleTag<T> tag) {
-      // Safe cast by design, inexpressible in Java without rawtypes
-      @SuppressWarnings({"rawtypes", "unchecked"})
-      List<WindowedValue<T>> outputList = (List) outputLists.get(tag);
-      return (outputList != null) ? outputList : Collections.<WindowedValue<T>>emptyList();
-    }
-  }
-
   @Override
   public void startBundle() {
     // This can contain user code. Wrap it in case it throws an exception.
