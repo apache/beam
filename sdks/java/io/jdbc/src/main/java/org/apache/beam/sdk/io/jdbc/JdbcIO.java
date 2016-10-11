@@ -136,7 +136,7 @@ public class JdbcIO {
    * properties allowing to create a {@link DataSource}.
    */
   @AutoValue
-  abstract static class DataSourceConfiguration implements Serializable {
+  public abstract static class DataSourceConfiguration implements Serializable {
     @Nullable abstract String getDriverClassName();
     @Nullable abstract String getUrl();
     @Nullable abstract String getUsername();
