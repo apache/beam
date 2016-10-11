@@ -138,6 +138,7 @@ public class ReduceWindow<
       Windowing<IN, WLABEL, W> windowing,
       ReduceFunction<VALUE, OUT> reducer,
       int numPartitions) {
+    
     super(name, flow, input, e -> B_ZERO, windowing,
         new Partitioning<Byte>() {
           @Override

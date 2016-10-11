@@ -7,12 +7,12 @@ import java.util.Objects;
 import java.util.function.Supplier;
 
 class WindowedElementCollector<T> implements Context<T> {
-  private final Context<Datum> wrap;
+  private final Collector<Datum> wrap;
   private final Supplier<Long> stampSupplier;
 
   protected WindowID<Object> windowID;
 
-  WindowedElementCollector(Context<Datum> wrap, Supplier<Long> stampSupplier) {
+  WindowedElementCollector(Collector<Datum> wrap, Supplier<Long> stampSupplier) {
     this.wrap = Objects.requireNonNull(wrap);
     this.stampSupplier = stampSupplier;
   }

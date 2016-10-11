@@ -10,6 +10,7 @@ import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.functional.CombinableReduceFunction;
 import cz.seznam.euphoria.core.client.functional.StateFactory;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
+import cz.seznam.euphoria.core.client.io.Context;
 import cz.seznam.euphoria.core.client.operator.ReduceStateByKey;
 import cz.seznam.euphoria.core.client.operator.state.State;
 import cz.seznam.euphoria.core.client.operator.state.StorageProvider;
@@ -44,7 +45,7 @@ class ReduceStateByKeyReducer implements Runnable {
     private final Object key;
 
     KeyedElementCollector(
-        Context<Datum> wrap, WindowID window, Object key,
+        Collector<Datum> wrap, WindowID window, Object key,
         Supplier<Long> stampSupplier) {
       super(wrap, stampSupplier);
       this.key = key;
