@@ -27,14 +27,6 @@ from apache_beam.transforms.util import assert_that, equal_to
 
 class SideInputsTest(unittest.TestCase):
 
-  # TODO(BEAM-733): Actually support this.
-  def test_no_sideinput_windowing(self):
-    p = beam.Pipeline('DirectPipelineRunner')
-    pc = p | beam.Create([0, 1]) | beam.WindowInto(window.FixedWindows(10))
-    with self.assertRaises(ValueError):
-      # pylint: disable=expression-not-assigned
-      pc | beam.Map(lambda x, side: None, side=beam.pvalue.AsIter(pc))
-
   def run_windowed_side_inputs(self, elements, main_window_fn,
                                side_window_fn=None,
                                side_input_type=beam.pvalue.AsList,

@@ -143,6 +143,9 @@ class BoundedWindow(object):
   def __init__(self, end):
     self.end = Timestamp.of(end)
 
+  def max_timestamp(self):
+    return self.end.predecessor()
+
   def __cmp__(self, other):
     # Order first by endpoint, then arbitrarily.
     return cmp(self.end, other.end) or cmp(hash(self), hash(other))
