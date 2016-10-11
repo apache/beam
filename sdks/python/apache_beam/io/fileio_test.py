@@ -466,8 +466,8 @@ class TestTextFileSource(unittest.TestCase):
       for percent_complete in percents_complete:
         self.try_splitting_reader_at(
             reader,
-            iobase.DynamicSplitRequest(
-                iobase.ReaderProgress(percent_complete=percent_complete)),
+            dataflow_io.DynamicSplitRequest(
+                dataflow_io.ReaderProgress(percent_complete=percent_complete)),
             None)
 
       # Cursor passed beginning of file.
@@ -477,8 +477,8 @@ class TestTextFileSource(unittest.TestCase):
       for percent_complete in percents_complete:
         self.try_splitting_reader_at(
             reader,
-            iobase.DynamicSplitRequest(
-                iobase.ReaderProgress(percent_complete=percent_complete)),
+            dataflow_io.DynamicSplitRequest(
+                dataflow_io.ReaderProgress(percent_complete=percent_complete)),
             None)
 
   def test_zlib_file_unsplittable(self):
