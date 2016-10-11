@@ -60,6 +60,10 @@ import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
+import org.apache.beam.sdk.util.state.StateSpec;
+import org.apache.beam.sdk.util.state.StateSpecs;
+import org.apache.beam.sdk.util.state.ValueState;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PCollectionView;
@@ -1448,6 +1452,29 @@ public class ParDoTest implements Serializable {
     DisplayData displayData = DisplayData.from(parDo);
     assertThat(displayData, includesDisplayDataFrom(fn));
     assertThat(displayData, hasDisplayItem("fn", fn.getClass()));
+  }
+
+  /**
+   * A test that we properly reject {@link DoFn} implementations that
+   * include {@link DoFn.StateId} annotations, for now.
+   */
+  @Test
+  public void testUnsupportedState() {
+    thrown.expect(UnsupportedOperationException.class);
+    thrown.expectMessage("cannot yet be used with state");
+
+    DoFn<KV<String, String>, KV<String, String>> fn =
+        new DoFn<KV<String, String>, KV<String, String>>() {
+
+      @StateId("foo")
+      private final StateSpec<Object, ValueState<Integer>> intState =
+          StateSpecs.value(VarIntCoder.of());
+
+      @ProcessElement
+      public void processElement(ProcessContext c) { }
+    };
+
+    ParDo.of(fn);
   }
 
   @Test

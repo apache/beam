@@ -19,15 +19,20 @@ package org.apache.beam.sdk.transforms.reflect;
 
 import com.google.auto.value.AutoValue;
 import com.google.common.reflect.TypeToken;
+import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import javax.annotation.Nullable;
+import javax.swing.plaf.nimbus.State;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFn.ProcessContinuation;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
+import org.apache.beam.sdk.util.state.StateSpec;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.TypeDescriptor;
 
 /**
  * Describes the signature of a {@link DoFn}, in particular, which features it uses, which extra
@@ -45,6 +50,9 @@ public abstract class DoFnSignature {
 
   /** Details about this {@link DoFn}'s {@link DoFn.ProcessElement} method. */
   public abstract ProcessElementMethod processElement();
+
+  /** Details about the state cells that this {@link DoFn} declares. Immutable. */
+  public abstract Map<String, StateDeclaration> stateDeclarations();
 
   /** Details about this {@link DoFn}'s {@link DoFn.StartBundle} method. */
   @Nullable
@@ -95,6 +103,7 @@ public abstract class DoFnSignature {
     abstract Builder setSplitRestriction(SplitRestrictionMethod splitRestriction);
     abstract Builder setGetRestrictionCoder(GetRestrictionCoderMethod getRestrictionCoder);
     abstract Builder setNewTracker(NewTrackerMethod newTracker);
+    abstract Builder setStateDeclarations(Map<String, StateDeclaration> stateDeclarations);
     abstract DoFnSignature build();
   }
 
@@ -160,6 +169,22 @@ public abstract class DoFnSignature {
 
     static BundleMethod create(Method targetMethod) {
       return new AutoValue_DoFnSignature_BundleMethod(targetMethod);
+    }
+  }
+
+  /**
+   * Describes a state declaration; a field of type {@link StateSpec} annotated with
+   * {@link DoFn.StateId}.
+   */
+  @AutoValue
+  public abstract static class StateDeclaration {
+    public abstract String id();
+    public abstract Field field();
+    public abstract TypeDescriptor<? extends State<?>> stateType();
+
+    static StateDeclaration create(
+        String id, Field field, TypeDescriptor<? extends State<?>> stateType) {
+      return new AutoValue_DoFnSignature_StateDeclaration(id, field, stateType);
     }
   }
 

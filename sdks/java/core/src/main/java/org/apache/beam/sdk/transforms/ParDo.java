@@ -29,6 +29,7 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.runners.PipelineRunner;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.DisplayData.Builder;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.util.SerializableUtils;
@@ -519,6 +520,7 @@ public class ParDo {
    * properties can be set on it first.
    */
   public static <InputT, OutputT> Bound<InputT, OutputT> of(DoFn<InputT, OutputT> fn) {
+    validate(fn);
     return of(adapt(fn), fn.getClass());
   }
 
@@ -544,8 +546,32 @@ public class ParDo {
     return new Unbound().of(fn, fnClass);
   }
 
-  private static <InputT, OutputT> OldDoFn<InputT, OutputT>
-      adapt(DoFn<InputT, OutputT> fn) {
+  /**
+   * Perform common validations of the {@link DoFn}, for example ensuring that state is used
+   * correctly and that its features can be supported.
+   */
+  private static <InputT, OutputT> void validate(DoFn<InputT, OutputT> fn) {
+    DoFnSignature signature = DoFnSignatures.INSTANCE.getOrParseSignature((Class) fn.getClass());
+
+    // To be removed when the features are complete and runners have their own adequate
+    // rejection logic
+    if (!signature.stateDeclarations().isEmpty()) {
+      throw new UnsupportedOperationException(
+          String.format("Found %s annotations on %s, but %s cannot yet be used with state.",
+              DoFn.StateId.class.getSimpleName(),
+              fn.getClass().getName(),
+              DoFn.class.getSimpleName()));
+    }
+
+    // State is semantically incompatible with splitting
+    if (!signature.stateDeclarations().isEmpty()) {
+      throw new UnsupportedOperationException(
+          String.format("%s is splittable and uses state, but these are not compatible",
+              fn.getClass().getName()));
+    }
+  }
+
+  private static <InputT, OutputT> OldDoFn<InputT, OutputT> adapt(DoFn<InputT, OutputT> fn) {
     return DoFnAdapters.toOldDoFn(fn);
   }
 
@@ -622,6 +648,7 @@ public class ParDo {
      * still be specified.
      */
     public <InputT, OutputT> Bound<InputT, OutputT> of(DoFn<InputT, OutputT> fn) {
+      validate(fn);
       return of(adapt(fn), fn.getClass());
     }
 
@@ -838,6 +865,7 @@ public class ParDo {
      * more properties can still be specified.
      */
     public <InputT> BoundMulti<InputT, OutputT> of(DoFn<InputT, OutputT> fn) {
+      validate(fn);
       return of(adapt(fn), fn.getClass());
     }
 
