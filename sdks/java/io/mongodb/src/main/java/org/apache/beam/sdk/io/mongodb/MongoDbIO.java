@@ -51,11 +51,11 @@ import org.slf4j.LoggerFactory;
  * <h3>Reading from MongoDB</h3>
  *
  * <p>MongoDbIO source returns a bounded collection of String as {@code PCollection<String>}.
- * The String is the JSON form of the MongoDB Document.</p>
+ * The String is the JSON form of the MongoDB Document.
  *
  * <p>To configure the MongoDB source, you have to provide the connection URI, the database name
  * and the collection name. The following example illustrates various options for configuring the
- * source:</p>
+ * source:
  *
  * <pre>{@code
  *
@@ -282,9 +282,8 @@ public class MongoDbIO {
      *   <li>_id: 109</li>
      *   <li>_id: 256</li>
      * </ul>
-     * </p>
      *
-     * This method will generate a list of range filters performing the following splits:
+     * <p>This method will generate a list of range filters performing the following splits:
      * <ul>
      *   <li>from the beginning of the collection up to _id 56, so basically data with
      *   _id lower than 56</li>

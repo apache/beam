@@ -59,7 +59,7 @@ import org.slf4j.LoggerFactory;
  * EvaluationResult result = SparkRunner.create().run(p);
  * }
  *
- * To create a pipeline runner to run against a different spark cluster, with a custom master url
+ * <p>To create a pipeline runner to run against a different spark cluster, with a custom master url
  * we would do the following:
  *
  * {@code

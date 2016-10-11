@@ -185,6 +185,7 @@ public abstract class FileBasedSink<T> extends Sink<T> {
    * {@link FileBasedSink#fileNamingTemplate}.
    *
    * <h2>Temporary Bundle File Handling:</h2>
+   *
    * <p>{@link FileBasedSink.FileBasedWriteOperation#temporaryFileRetention} controls the behavior
    * for managing temporary files. By default, temporary files will be removed. Subclasses can
    * provide a different value to the constructor.

@@ -22,7 +22,7 @@ import org.apache.beam.sdk.transforms.DoFn;
 /**
  * Interface for invoking the {@code DoFn} processing methods.
  *
- * Instantiating a {@link DoFnInvoker} associates it with a specific {@link DoFn} instance,
+ * <p>Instantiating a {@link DoFnInvoker} associates it with a specific {@link DoFn} instance,
  * referred to as the bound {@link DoFn}.
  */
 public interface DoFnInvoker<InputT, OutputT> {

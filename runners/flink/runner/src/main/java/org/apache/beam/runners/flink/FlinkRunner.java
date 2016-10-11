@@ -65,7 +65,6 @@ import org.slf4j.LoggerFactory;
  * A {@link PipelineRunner} that executes the operations in the
  * pipeline by first translating them to a Flink Plan and then executing them either locally
  * or on a Flink cluster, depending on the configuration.
- * <p>
  */
 public class FlinkRunner extends PipelineRunner<FlinkRunnerResult> {
 

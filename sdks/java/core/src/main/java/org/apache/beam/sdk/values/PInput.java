@@ -46,7 +46,7 @@ public interface PInput {
   public Collection<? extends PValue> expand();
 
   /**
-   * <p>After building, finalizes this {@code PInput} to make it ready for
+   * After building, finalizes this {@code PInput} to make it ready for
    * being used as an input to a {@link org.apache.beam.sdk.transforms.PTransform}.
    *
    * <p>Automatically invoked whenever {@code apply()} is invoked on

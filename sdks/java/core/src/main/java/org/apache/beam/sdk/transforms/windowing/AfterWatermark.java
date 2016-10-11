@@ -30,7 +30,7 @@ import org.apache.beam.sdk.util.TimeDomain;
 import org.joda.time.Instant;
 
 /**
- * <p>{@code AfterWatermark} triggers fire based on progress of the system watermark. This time is a
+ * {@code AfterWatermark} triggers fire based on progress of the system watermark. This time is a
  * lower-bound, sometimes heuristically established, on event times that have been fully processed
  * by the pipeline.
  *
@@ -54,7 +54,7 @@ import org.joda.time.Instant;
  *
  * <p>The watermark is the clock that defines {@link TimeDomain#EVENT_TIME}.
  *
- * Additionaly firings before or after the watermark can be requested by calling
+ * <p>Additionaly firings before or after the watermark can be requested by calling
  * {@code AfterWatermark.pastEndOfWindow.withEarlyFirings(OnceTrigger)} or
  * {@code AfterWatermark.pastEndOfWindow.withEarlyFirings(OnceTrigger)}.
  */

@@ -158,11 +158,10 @@ public class DirectRunner
      * Return a new {@link CommittedBundle} that is like this one, except calls to
      * {@link #getElements()} will return the provided elements. This bundle is unchanged.
      *
-     * <p>
-     * The value of the {@link #getSynchronizedProcessingOutputWatermark() synchronized processing
-     * output watermark} of the returned {@link CommittedBundle} is equal to the value returned from
-     * the current bundle. This is used to ensure a {@link PTransform} that could not complete
-     * processing on input elements properly holds the synchronized processing time to the
+     * <p>The value of the {@link #getSynchronizedProcessingOutputWatermark() synchronized
+     * processing output watermark} of the returned {@link CommittedBundle} is equal to the value
+     * returned from the current bundle. This is used to ensure a {@link PTransform} that could not
+     * complete processing on input elements properly holds the synchronized processing time to the
      * appropriate value.
      */
     CommittedBundle<T> withElements(Iterable<WindowedValue<T>> elements);
@@ -322,7 +321,7 @@ public class DirectRunner
   /**
    * The result of running a {@link Pipeline} with the {@link DirectRunner}.
    *
-   * Throws {@link UnsupportedOperationException} for all methods.
+   * <p>Throws {@link UnsupportedOperationException} for all methods.
    */
   public static class DirectPipelineResult implements PipelineResult {
     private final PipelineExecutor executor;
@@ -389,7 +388,7 @@ public class DirectRunner
      * {@link DirectOptions#isShutdownUnboundedProducersWithMaxWatermark()} set to false,
      * this method will never return.
      *
-     * See also {@link PipelineExecutor#awaitCompletion()}.
+     * <p>See also {@link PipelineExecutor#awaitCompletion()}.
      */
     public State awaitCompletion() throws Throwable {
       if (!state.isTerminal()) {

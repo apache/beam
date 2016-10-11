@@ -139,7 +139,7 @@ class ViewEvaluatorFactory implements TransformEvaluatorFactory {
   /**
    * An in-process implementation of the {@link CreatePCollectionView} primitive.
    *
-   * This implementation requires the input {@link PCollection} to be an iterable
+   * <p>This implementation requires the input {@link PCollection} to be an iterable
    * of {@code WindowedValue<ElemT>}, which is provided
    * to {@link PCollectionView#getViewFn()} for conversion to {@link ViewT}.
    */
