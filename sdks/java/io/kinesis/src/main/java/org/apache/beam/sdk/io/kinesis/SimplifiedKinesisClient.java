@@ -36,7 +36,7 @@ import java.util.List;
 import java.util.concurrent.Callable;
 import org.joda.time.Instant;
 
-/***
+/**
  * Wraps {@link AmazonKinesis} class providing much simpler interface and
  * proper error handling.
  */
@@ -91,7 +91,7 @@ class SimplifiedKinesisClient {
         });
     }
 
-    /***
+    /**
      * Gets records from Kinesis and deaggregates them if needed.
      *
      * @return list of deaggregated records
@@ -102,7 +102,7 @@ class SimplifiedKinesisClient {
         return getRecords(shardIterator, streamName, shardId, null);
     }
 
-    /***
+    /**
      * Gets records from Kinesis and deaggregates them if needed.
      *
      * @return list of deaggregated records
@@ -126,7 +126,7 @@ class SimplifiedKinesisClient {
         });
     }
 
-    /***
+    /**
      * Wraps Amazon specific exceptions into more friendly format.
      *
      * @throws TransientKinesisException              - in case of recoverable situation, i.e.

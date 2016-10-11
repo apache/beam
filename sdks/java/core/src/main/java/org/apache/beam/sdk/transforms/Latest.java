@@ -36,15 +36,15 @@ import org.apache.beam.sdk.values.TimestampedValue;
  * in a {@link PCollection}.
  *
  * <p>Example 1: compute the latest value for each session:
- * <pre><code>
+ * <pre>{@code
  * PCollection<Long> input = ...;
  * PCollection<Long> sessioned = input
  *    .apply(Window.<Long>into(Sessions.withGapDuration(Duration.standardMinutes(5)));
  * PCollection<Long> latestValues = sessioned.apply(Latest.<Long>globally());
- * </code></pre>
+ * }</pre>
  *
  * <p>Example 2: track a latest computed value in an aggregator:
- * <pre><code>
+ * <pre>{@code
  * class MyDoFn extends DoFn<String, String> {
  *  private Aggregator<TimestampedValue<Double>, Double> latestValue =
  *    createAggregator("latestValue", new Latest.LatestFn<Double>());
@@ -56,7 +56,7 @@ import org.apache.beam.sdk.values.TimestampedValue;
  *    // ..
  *  }
  * }
- * </code></pre>
+ * }</pre>
  *
  * <p>For elements with the same timestamp, the element chosen for output is arbitrary.
  */
@@ -135,8 +135,8 @@ public class Latest {
   }
 
   /**
-   * Returns a {@link PTransform} that takes as input a {@link PCollection<T>} and returns a
-   * {@link PCollection<T>} whose contents is the latest element according to its event time, or
+   * Returns a {@link PTransform} that takes as input a {@code PCollection<T>} and returns a
+   * {@code PCollection<T>} whose contents is the latest element according to its event time, or
    * {@literal null} if there are no elements.
    *
    * @param <T> The type of the elements being combined.

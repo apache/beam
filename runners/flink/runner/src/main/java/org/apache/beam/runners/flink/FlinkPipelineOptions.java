@@ -35,10 +35,10 @@ public interface FlinkPipelineOptions
 
   /**
    * List of local files to make available to workers.
-   * <p>
-   * Jars are placed on the worker's classpath.
-   * <p>
-   * The default value is the list of jars from the main program's classpath.
+   *
+   * <p>Jars are placed on the worker's classpath.
+   *
+   * <p>The default value is the list of jars from the main program's classpath.
    */
   @Description("Jar-Files to send to all workers and put on the classpath. "
       + "The default value is all files from the classpath.")

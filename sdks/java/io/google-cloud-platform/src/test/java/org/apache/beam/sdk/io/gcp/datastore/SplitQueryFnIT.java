@@ -35,13 +35,13 @@ import org.junit.runners.JUnit4;
 /**
  * Integration tests for {@link DatastoreV1.Read.SplitQueryFn}.
  *
- * <p> It is hard to mock the exact behavior of Cloud Datastore, especially for the statistics
+ * <p>It is hard to mock the exact behavior of Cloud Datastore, especially for the statistics
  * queries. Also the fact that DatastoreIO falls back gracefully when querying statistics fails,
  * makes it hard to catch these issues in production. This test here ensures we interact with
  * the Cloud Datastore directly, query the actual stats and verify that the SplitQueryFn generates
  * the expected number of query splits.
  *
- * <p> These tests are brittle as they rely on statistics data in Cloud Datastore. If the data
+ * <p>These tests are brittle as they rely on statistics data in Cloud Datastore. If the data
  * gets lost or changes then they will begin failing and this test should be disabled.
  * At the time of writing, the Cloud Datastore has the following statistics,
  * <ul>

@@ -672,7 +672,7 @@ public class Combine {
    * An abstract subclass of {@link CombineFn} for implementing combiners that are more
    * easily and efficiently expressed as binary operations on <code>int</code>s
    *
-   * <p> It uses {@code int[0]} as the mutable accumulator.
+   * <p>It uses {@code int[0]} as the mutable accumulator.
    */
   public abstract static class BinaryCombineIntegerFn extends CombineFn<Integer, int[], Integer> {
 
@@ -774,7 +774,7 @@ public class Combine {
    * An abstract subclass of {@link CombineFn} for implementing combiners that are more
    * easily and efficiently expressed as binary operations on <code>long</code>s.
    *
-   * <p> It uses {@code long[0]} as the mutable accumulator.
+   * <p>It uses {@code long[0]} as the mutable accumulator.
    */
   public abstract static class BinaryCombineLongFn extends CombineFn<Long, long[], Long> {
     /**
@@ -873,7 +873,7 @@ public class Combine {
    * An abstract subclass of {@link CombineFn} for implementing combiners that are more
    * easily and efficiently expressed as binary operations on <code>double</code>s.
    *
-   * <p> It uses {@code double[0]} as the mutable accumulator.
+   * <p>It uses {@code double[0]} as the mutable accumulator.
    */
   public abstract static class BinaryCombineDoubleFn extends CombineFn<Double, double[], Double> {
 

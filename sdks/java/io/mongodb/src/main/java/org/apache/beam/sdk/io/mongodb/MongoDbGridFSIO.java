@@ -66,19 +66,17 @@ import org.joda.time.Instant;
  * and the bucket name.  If unspecified, the default values from the GridFS driver are used.</p>
  *
  * <p>The following example illustrates various options for configuring the
- * source:</p>
+ * source:
  *
  * <pre>{@code
- *
  * pipeline.apply(MongoDbGridFSIO.<String>read()
  *   .withUri("mongodb://localhost:27017")
  *   .withDatabase("my-database")
  *   .withBucket("my-bucket"))
- *
  * }</pre>
  *
  * <p>The source also accepts an optional configuration: {@code withQueryFilter()} allows you to
- * define a JSON filter to get subset of files in the database.</p>
+ * define a JSON filter to get subset of files in the database.
  *
  * <p>There is also an optional {@code Parser} (and associated {@code Coder}) that can be
  * specified that can be used to parse the InputStream into objects usable with Beam. By default,

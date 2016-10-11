@@ -84,14 +84,14 @@ import org.apache.beam.sdk.values.TypedPValue;
  *     provided, will be called on the discarded instance.</li>
  * </ol>
  *
- * Each of the calls to any of the {@link DoFn DoFn's} processing
+ * <p>Each of the calls to any of the {@link DoFn DoFn's} processing
  * methods can produce zero or more output elements. All of the
  * of output elements from all of the {@link DoFn} instances
  * are included in the output {@link PCollection}.
  *
  * <p>For example:
  *
- * <pre><code>
+ * <pre><{@code
  * PCollection<String> lines = ...;
  * PCollection<String> words =
  *     lines.apply(ParDo.of(new DoFn<String, String>() {
@@ -110,7 +110,7 @@ import org.apache.beam.sdk.values.TypedPValue;
  *           Integer length = word.length();
  *           c.output(length);
  *         }}));
- * </code></pre>
+ * }</pre>
  *
  * <p>Each output element has the same timestamp and is in the same windows
  * as its corresponding input element, and the output {@code PCollection}
@@ -146,7 +146,7 @@ import org.apache.beam.sdk.values.TypedPValue;
  * the {@link DoFn} operations via {@link DoFn.ProcessContext#sideInput sideInput}.
  * For example:
  *
- * <pre><code>
+ * <pre>{@code
  * PCollection<String> words = ...;
  * PCollection<Integer> maxWordLengthCutOff = ...; // Singleton PCollection
  * final PCollectionView<Integer> maxWordLengthCutOffView =
@@ -162,7 +162,7 @@ import org.apache.beam.sdk.values.TypedPValue;
  *             c.output(word);
  *           }
  *         }}));
- * </code></pre>
+ * }</pre>
  *
  * <h2>Side Outputs</h2>
  *
@@ -179,7 +179,7 @@ import org.apache.beam.sdk.values.TypedPValue;
  * {@link DoFn.Context#output}, while an element is added to a side output
  * {@link PCollection} using {@link DoFn.Context#sideOutput}. For example:
  *
- * <pre><code>
+ * <pre>{@code
  * PCollection<String> words = ...;
  * // Select words whose length is below a cut off,
  * // plus the lengths of words that are above the cut off.
@@ -230,7 +230,7 @@ import org.apache.beam.sdk.values.TypedPValue;
  *     results.get(wordLengthsAboveCutOffTag);
  * PCollection<String> markedWords =
  *     results.get(markedWordsTag);
- * </code></pre>
+ * }</pre>
  *
  * <h2>Properties May Be Specified In Any Order</h2>
  *

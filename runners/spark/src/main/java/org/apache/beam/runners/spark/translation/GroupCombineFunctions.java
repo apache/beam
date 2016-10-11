@@ -52,7 +52,7 @@ import scala.Tuple2;
  */
 public class GroupCombineFunctions {
 
-  /***
+  /**
    * Apply {@link GroupByKeyViaGroupByKeyOnly.GroupByKeyOnly} to a Spark RDD.
    */
   public static <K, V> JavaRDD<WindowedValue<KV<K, Iterable<V>>>> groupByKeyOnly(
@@ -71,7 +71,7 @@ public class GroupCombineFunctions {
         .map(WindowingHelpers.<KV<K, Iterable<V>>>windowFunction());
   }
 
-  /***
+  /**
    * Apply {@link GroupByKeyViaGroupByKeyOnly.GroupAlsoByWindow} to a Spark RDD.
    */
   public static <K, V, W extends BoundedWindow> JavaRDD<WindowedValue<KV<K, Iterable<V>>>>

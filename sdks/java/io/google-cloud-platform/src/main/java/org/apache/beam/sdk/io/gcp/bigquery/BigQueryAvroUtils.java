@@ -84,7 +84,7 @@ class BigQueryAvroUtils {
   /**
    * Utility function to convert from an Avro {@link GenericRecord} to a BigQuery {@link TableRow}.
    *
-   * See <a href="https://cloud.google.com/bigquery/exporting-data-from-bigquery#config">
+   * <p>See <a href="https://cloud.google.com/bigquery/exporting-data-from-bigquery#config">
    * "Avro format"</a> for more information.
    */
   static TableRow convertGenericRecordToTableRow(GenericRecord record, TableSchema schema) {
