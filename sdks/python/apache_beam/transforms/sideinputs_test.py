@@ -22,6 +22,7 @@ import unittest
 
 import apache_beam as beam
 from apache_beam.transforms import window
+from apache_beam.transforms.util import assert_that, equal_to
 
 
 class SideInputsTest(unittest.TestCase):
@@ -33,6 +34,36 @@ class SideInputsTest(unittest.TestCase):
     with self.assertRaises(ValueError):
       # pylint: disable=expression-not-assigned
       pc | beam.Map(lambda x, side: None, side=beam.pvalue.AsIter(pc))
+
+  def run_windowed_side_inputs(self, elements, main_window_fn,
+                               side_window_fn=None,
+                               side_input_type=beam.pvalue.AsList,
+                               combine_fn=None,
+                               expected=None):
+    with beam.Pipeline('DirectPipelineRunner') as p:
+      pcoll = p | beam.Create(elements) | beam.Map(
+          lambda t: window.TimestampedValue(t, t))
+      main = pcoll | 'WindowMain' >> beam.WindowInto(main_window_fn)
+      side = pcoll | 'WindowSide' >> beam.WindowInto(
+          side_window_fn or main_window_fn)
+      if combine_fn is not None:
+        side |= beam.CombineGlobally(combine_fn)
+      res = main | beam.Map(lambda x, s: (x, s), side_input_type(side))
+      if side_input_type in (beam.pvalue.AsIter, beam.pvalue.AsList):
+        res |= beam.Map(lambda (x, s): (x, sorted(s)))
+      assert_that(res, equal_to(expected))
+
+  def test_global_global_windows(self):
+    self.run_windowed_side_inputs(
+        [1, 2, 3],
+        window.GlobalWindows(),
+        expected=[(1, [1, 2, 3]), (2, [1, 2, 3]), (3, [1, 2, 3])])
+
+  def test_same_fixed_windows(self):
+    self.run_windowed_side_inputs(
+        [1, 2, 11],
+        window.FixedWindows(10),
+        expected=[(1, [1, 2]), (2, [1, 2]), (11, [11])])
 
 
 if __name__ == '__main__':
