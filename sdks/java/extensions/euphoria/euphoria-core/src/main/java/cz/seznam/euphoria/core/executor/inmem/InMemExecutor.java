@@ -511,13 +511,13 @@ public class InMemExecutor implements Executor {
       final BlockingQueue<Datum> out = new ArrayBlockingQueue(5000);
       ret.add(QueueSupplier.wrap(out));
       executor.execute(() -> {
-        QueueCollector outQ = QueueCollector.wrap(out);        
+        Collector collector = QueueCollector.wrap(out);
         for (;;) {
           try {
             // read input
             Datum item = s.get();
             WindowedElementCollector outC = new WindowedElementCollector(
-                outQ, item::getStamp);
+                collector, item::getStamp);
             if (item.isElement()) {
               // transform
               outC.setWindow(item.getWindowID());

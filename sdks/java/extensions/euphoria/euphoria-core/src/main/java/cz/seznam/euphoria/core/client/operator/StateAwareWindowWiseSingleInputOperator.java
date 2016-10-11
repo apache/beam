@@ -47,6 +47,7 @@ public class StateAwareWindowWiseSingleInputOperator<
     return input;
   }
 
+  @Override
   public Dataset<OUT> output() {
     return output;
   }

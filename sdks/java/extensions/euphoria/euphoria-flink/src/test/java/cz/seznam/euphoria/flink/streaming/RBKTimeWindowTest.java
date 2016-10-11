@@ -115,19 +115,22 @@ public class RBKTimeWindowTest {
         .setNumPartitions(1)
         .output();
 
-    Util.extractWindows(reduced, TimeInterval.class).persist(output);
+    Dataset<Triple<TimeInterval, String, HashSet<String>>> extracted;
+    extracted = Util.extractWindows(reduced, TimeInterval.class);
+    extracted.persist(output);
 
     new TestFlinkExecutor()
         .setAutoWatermarkInterval(Duration.ofMillis(10))
         .waitForCompletion(f);
 
     assertEquals(
-        asList("00: 02 => one, two",
-                      "00: 04 => four, one, three, two",
-                      "00: 05 => five, four, one, three, two",
-                      "06: 03 => eight, seven, six",
-                      "06: 05 => eight, nine, seven, six, ten",
-                      "06: 06 => eight, eleven, nine, seven, six, ten"),
+        asList(
+            "00: 02 => one, two",
+            "00: 04 => four, one, three, two",
+            "00: 05 => five, four, one, three, two",
+            "06: 03 => eight, seven, six",
+            "06: 05 => eight, nine, seven, six, ten",
+            "06: 06 => eight, eleven, nine, seven, six, ten"),
         output.getOutput(0)
             .stream()
             .map(p -> {
