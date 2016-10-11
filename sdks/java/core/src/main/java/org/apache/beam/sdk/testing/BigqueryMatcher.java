@@ -40,6 +40,7 @@ import com.google.common.hash.Hashing;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import javax.annotation.concurrent.NotThreadSafe;
@@ -185,11 +186,13 @@ public class BigqueryMatcher extends TypeSafeMatcher<PipelineResult>
   private String generateHash(List<TableRow> rows) {
     List<HashCode> rowHashes = Lists.newArrayList();
     for (TableRow row : rows) {
-      List<HashCode> cellHashes = Lists.newArrayList();
+      List<String> cellsInOneRow = Lists.newArrayList();
       for (TableCell cell : row.getF()) {
-        cellHashes.add(Hashing.sha1().hashString(cell.toString(), StandardCharsets.UTF_8));
+        cellsInOneRow.add(Objects.toString(cell.getV()));
+        Collections.sort(cellsInOneRow);
       }
-      rowHashes.add(Hashing.combineUnordered(cellHashes));
+      rowHashes.add(
+          Hashing.sha1().hashString(cellsInOneRow.toString(), StandardCharsets.UTF_8));
     }
     return Hashing.combineUnordered(rowHashes).toString();
   }

@@ -42,7 +42,7 @@ public class WindowedWordCountIT {
    */
   public interface WindowedWordCountITOptions
       extends Options, TestPipelineOptions, StreamingOptions {
-    @Default.String("fab70a9f3308aecc0ecce9fc6440457bb0929722")
+    @Default.String("ff54f6f42b2afeb146206c1e8e915deaee0362b4")
     String getChecksum();
     void setChecksum(String value);
   }

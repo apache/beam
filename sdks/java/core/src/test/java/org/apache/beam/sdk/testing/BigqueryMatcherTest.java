@@ -74,7 +74,7 @@ public class BigqueryMatcherTest {
   public void testBigqueryMatcherThatSucceeds() throws Exception {
     BigqueryMatcher matcher = spy(
         new BigqueryMatcher(
-            appName, projectId, query, "8d1bbbf1f523f924b98c88b00c5811e041c2f855"));
+            appName, projectId, query, "9bb47f5c90d2a99cad526453dff5ed5ec74650dc"));
     doReturn(mockBigqueryClient).when(matcher).newBigqueryClient(anyString());
     when(mockQuery.execute()).thenReturn(createResponseContainingTestData());
 
