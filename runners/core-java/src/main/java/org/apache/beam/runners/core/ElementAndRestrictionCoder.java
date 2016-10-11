@@ -26,7 +26,7 @@ import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 
-/** A {@link Coder} for {@link ElementAndRestriction}. Parroted from {@link KvCoder}. */
+/** A {@link Coder} for {@link ElementAndRestriction}. */
 @Experimental(Experimental.Kind.SPLITTABLE_DO_FN)
 public class ElementAndRestrictionCoder<ElementT, RestrictionT>
     extends CustomCoder<ElementAndRestriction<ElementT, RestrictionT>> {
@@ -54,17 +54,15 @@ public class ElementAndRestrictionCoder<ElementT, RestrictionT>
     if (value == null) {
       throw new CoderException("cannot encode a null ElementAndRestriction");
     }
-    Context nestedContext = context.nested();
-    elementCoder.encode(value.element(), outStream, nestedContext);
-    restrictionCoder.encode(value.restriction(), outStream, nestedContext);
+    elementCoder.encode(value.element(), outStream, context.nested());
+    restrictionCoder.encode(value.restriction(), outStream, context);
   }
 
   @Override
   public ElementAndRestriction<ElementT, RestrictionT> decode(InputStream inStream, Context context)
       throws IOException {
-    Context nestedContext = context.nested();
-    ElementT key = elementCoder.decode(inStream, nestedContext);
-    RestrictionT value = restrictionCoder.decode(inStream, nestedContext);
+    ElementT key = elementCoder.decode(inStream, context.nested());
+    RestrictionT value = restrictionCoder.decode(inStream, context);
     return ElementAndRestriction.of(key, value);
   }
 }
