@@ -370,9 +370,12 @@ class ProfilingOptions(PipelineOptions):
 
   @classmethod
   def _add_argparse_args(cls, parser):
-    parser.add_argument('--profile',
+    parser.add_argument('--profile_cpu',
                         action='store_true',
-                        help='Enable work item profiling')
+                        help='Enable work item CPU profiling.')
+    parser.add_argument('--profile_memory',
+                        action='store_true',
+                        help='Enable work item heap profiling.')
     parser.add_argument('--profile_location',
                         default=None,
                         help='GCS path for saving profiler data.')
