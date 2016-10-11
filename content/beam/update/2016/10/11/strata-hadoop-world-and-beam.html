@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+
+  <head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <title>Strata+Hadoop World and Beam</title>
+  <meta name="description" content="Tyler Akidau and I gave a three-hour tutorial on Apache Beam at Strata+Hadoop World 2016. We had a plethora of help from our TAs: Kenn Knowles, Reuven Lax, F...">
+
+  <link rel="stylesheet" href="/styles/site.css">
+  <link rel="stylesheet" href="/css/theme.css">
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/2.2.0/jquery.min.js"></script>
+  <script src="/js/bootstrap.min.js"></script>
+  <link rel="canonical" href="http://beam.incubator.apache.org/beam/update/2016/10/11/strata-hadoop-world-and-beam.html" data-proofer-ignore>
+  <link rel="alternate" type="application/rss+xml" title="Apache Beam (incubating)" href="http://beam.incubator.apache.org/feed.xml">
+  <script>
+    (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+    (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+    m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+    })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+
+    ga('create', 'UA-73650088-1', 'auto');
+    ga('send', 'pageview');
+
+  </script>
+  <link rel="shortcut icon" type="image/x-icon" href="/images/favicon.ico">
+</head>
+
+
+  <body role="document">
+
+    <nav class="navbar navbar-default navbar-fixed-top">
+  <div class="container">
+    <div class="navbar-header">
+      <a href="/" class="navbar-brand" >
+        <img alt="Brand" style="height: 25px" src="/images/beam_logo_navbar.png">
+      </a>
+      <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#navbar" aria-expanded="false" aria-controls="navbar">
+        <span class="sr-only">Toggle navigation</span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+      </button>
+    </div>
+    <div id="navbar" class="navbar-collapse collapse">
+      <ul class="nav navbar-nav">
+        <li class="dropdown">
+		  <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">Use <span class="caret"></span></a>
+		  <ul class="dropdown-menu">
+			  <li><a href="/use">User Hub</a></li>
+			  <li role="separator" class="divider"></li>
+			  <li class="dropdown-header">General</li>
+			  <li><a href="/use/beam-overview/">Beam Overview</a></li>
+			  <li><a href="/use/quickstart/">Quickstart</a></li>  
+			  <li><a href="/use/releases">Release Information</a></li>
+			  <li role="separator" class="divider"></li>
+			  <li class="dropdown-header">Example Walkthroughs</li>
+			  <li><a href="/use/walkthroughs/">WordCount</a></li>
+			  <li><a href="/use/walkthroughs/">Mobile Gaming</a></li>
+			  <li role="separator" class="divider"></li>
+			  <li class="dropdown-header">Support</li>
+			  <li><a href="/use/mailing-lists/">Mailing Lists</a></li>
+              <li><a href="/use/issue-tracking/">Issue Tracking</a></li>
+			  <li><a href="http://stackoverflow.com/questions/tagged/apache-beam">Beam on StackOverflow</a></li>
+              <li><a href="http://apachebeam.slack.com">Beam Slack Channel</a></li>
+		  </ul>
+	    </li>
+        <li class="dropdown">
+		  <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">Learn <span class="caret"></span></a>
+		  <ul class="dropdown-menu">
+			  <li><a href="/learn">Learner Hub</a></li>
+			  <li role="separator" class="divider"></li>
+			  <li class="dropdown-header">Beam Concepts</li>
+			  <li><a href="/learn/programming-guide/">Programming Guide</a></li>
+			  <li><a href="/learn/presentation-materials/">Presentation Materials</a></li>
+			  <li><a href="/learn/resources/">Additional Resources</a></li>
+			  <li role="separator" class="divider"></li>
+			  <li class="dropdown-header">SDKs</li>
+			  <li><a href="/learn/sdks/java/">Java SDK</a></li>
+			  <li><a href="/learn/sdks/javadoc/">Java SDK API Reference</a></li>
+			  <li role="separator" class="divider"></li>
+			  <li class="dropdown-header">Runners</li>
+			  <li><a href="/learn/runners/capability-matrix/">Capability Matrix</a></li>
+			  <li><a href="/learn/runners/direct/">Direct Runner</a></li>
+			  <li><a href="/learn/runners/flink/">Apache Flink Runner</a></li>
+			  <li><a href="/learn/runners/spark/">Apache Spark Runner</a></li>
+			  <li><a href="/learn/runners/dataflow/">Cloud Dataflow Runner</a></li>
+		  </ul>
+	    </li>
+        <li class="dropdown">
+		  <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">Contribute <span class="caret"></span></a>
+		  <ul class="dropdown-menu">
+			  <li><a href="/contribute">Contributor Hub</a></li>
+			  <li role="separator" class="divider"></li>
+			  <li class="dropdown-header">Basics</li>
+			  <li><a href="/contribute/contribution-guide/">Contribution Guide</a></li>
+			  <li><a href="/contribute/testing/">Testing</a></li>
+			  <li><a href="/use/mailing-lists/">Mailing Lists</a></li>
+              <li><a href="/contribute/source-repository/">Source Repository</a></li>
+              <li><a href="/use/issue-tracking/">Issue Tracking</a></li>
+              <li role="separator" class="divider"></li>
+			  <li class="dropdown-header">Technical Resources</li>
+			  <li><a href="https://goo.gl/nk5OM0">Technical Vision</a></li>
+		  </ul>
+	    </li>
+        <li><a href="/blog">Blog</a></li>
+        <li class="dropdown">
+          <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">Project<span class="caret"></span></a>
+          <ul class="dropdown-menu">
+            <li><a href="/project/logos/">Logos and design</a></li>
+            <li><a href="/project/public-meetings/">Public Meetings</a></li>
+			<li><a href="/project/team/">Team</a></li>
+          </ul>
+        </li>
+      </ul>
+      <ul class="nav navbar-nav navbar-right">
+        <li class="dropdown">
+          <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false"><img src="https://www.apache.org/foundation/press/kit/feather_small.png" alt="Apache Logo" style="height:24px;">Apache Software Foundation<span class="caret"></span></a>
+          <ul class="dropdown-menu dropdown-menu-right">
+            <li><a href="http://www.apache.org/">ASF Homepage</a></li>
+            <li><a href="http://www.apache.org/licenses/">License</a></li>
+            <li><a href="http://www.apache.org/security/">Security</a></li>
+            <li><a href="http://www.apache.org/foundation/thanks.html">Thanks</a></li>
+            <li><a href="http://www.apache.org/foundation/sponsorship.html">Sponsorship</a></li>
+            <li><a href="https://www.apache.org/foundation/policies/conduct">Code of Conduct</a></li>
+          </ul>
+        </li>
+      </ul>
+    </div><!--/.nav-collapse -->
+  </div>
+</nav>
+
+
+<link rel="stylesheet" href="">
+
+
+    <div class="container" role="main">
+
+      <div class="row">
+        
+
+<article class="post" itemscope itemtype="http://schema.org/BlogPosting">
+
+  <header class="post-header">
+    <h1 class="post-title" itemprop="name headline">Strata+Hadoop World and Beam</h1>
+    <p class="post-meta"><time datetime="2016-10-11T10:00:00-07:00" itemprop="datePublished">Oct 11, 2016</time> •  Jesse Anderson [<a href="https://twitter.com/jessetanderson">@jessetanderson</a>]
+</p>
+  </header>
+
+  <div class="post-content" itemprop="articleBody">
+    <p>Tyler Akidau and I gave a <a href="http://conferences.oreilly.com/strata/hadoop-big-data-ny/public/schedule/detail/52129">three-hour tutorial</a> on Apache Beam at Strata+Hadoop World 2016. We had a plethora of help from our TAs: Kenn Knowles, Reuven Lax, Felipe Hoffa, Slava Chernyak, and Jamie Grier. There were a total of 66 people that attended the session.<!--more--></p>
+
+<p><img src="/images/blog/IMG_20160927_170956.jpg" alt="Exercise time" /></p>
+
+<p>If you want to take a look at the tutorial materials, we’ve put them up <a href="https://github.com/eljefe6a/beamexample">on GitHub</a>. This includes the <a href="https://github.com/eljefe6a/beamexample/blob/master/BeamTutorial/slides.pdf">actual slides</a> as well as the <a href="https://github.com/eljefe6a/beamexample/tree/master/BeamTutorial/src/main/java/org/apache/beam/examples/tutorial/game">exercises</a> that we covered. If you’re looking to learn a little about Beam, this is a good way to start. The exercises are based on an imaginary mobile game and the data needs processing and are based on code in the <a href="https://github.com/apache/incubator-beam/tree/master/examples/java8/src/main/java/org/apache/beam/examples/complete/game">Beam examples directory</a>. The code has TODOs for where you need to fill in code or there are full sample solutions to look over our code. You can run these examples on your own machine.</p>
+
+<p>I want to share some of takeaways I had about Beam during the conference.</p>
+
+<p>The Data Engineers are looking to Beam as a way to <a href="https://www.oreilly.com/ideas/future-proof-and-scale-proof-your-code">future-proof</a>, meaning that code is portable between the various Big Data frameworks. In fact, many of the attendees were still on Hadoop MapReduce and looking to transition to a new framework. They’re realizing that continually rewriting code isn’t the most productive approach.</p>
+
+<p>Data Scientists are really interested in using Beam. They interested in having a single API for doing analysis instead of several different APIs. We talked about Beam’s progress on the Python API. If you want to take a peek, it’s being actively developed on a <a href="https://github.com/apache/incubator-beam/tree/python-sdk">feature branch</a>. As Beam matures, we’re looking to add other supported languages.</p>
+
+<p>We heard <a href="https://twitter.com/jessetanderson/status/781124173108305920">loud and clear</a> from Beam users that great runner support is crucial to adoption. We have great Apache Flink support. During the conference we had some more volunteers offer their help on the Spark runner.</p>
+
+<p>On management and thought leader side, Beam went from “what’s Beam?” at previous conferences to “I’m interested in Beam.” or “I’ve formed an informed opinion on Beam.” at this conference. This is one of the metrics I look for in early technology adoption.</p>
+
+<p><img src="/images/blog/IMG_20160927_170455.jpg" alt="So much brainpower answering questions" /></p>
+
+<p>We rounded out the tutorial with live demonstrations of Beam running on Apache Spark, Apache Flink, the local runner, and DataFlow runner. Then, we brought in the big brainpower and had a Q and A session.</p>
+
+<p>If you’re attending a conference, we encourage you to look for a Beam session. If you want to use these materials to give your own Beam talk, we’re happy to help you. You can reach out to us on the <a href="http://beam.incubator.apache.org/use/mailing-lists/">user mailing list</a>.</p>
+
+
+  </div>
+
+</article>
+
+      </div>
+
+
+    <hr>
+  <div class="row">
+      <div class="col-xs-12">
+          <footer>
+              <p class="text-center">&copy; Copyright 2016
+                <a href="http://www.apache.org">The Apache Software Foundation.</a> All Rights Reserved.</p>
+                <p class="text-center"><a href="/privacy_policy">Privacy Policy</a> |
+                <a href="/feed.xml">RSS Feed</a></p>
+          </footer>
+      </div>
+  </div>
+  <!-- container div end -->
+</div>
+
+
+  </body>
+
+</html>

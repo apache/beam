@@ -6,9 +6,45 @@
 </description>
     <link>http://beam.incubator.apache.org/</link>
     <atom:link href="http://beam.incubator.apache.org/feed.xml" rel="self" type="application/rss+xml"/>
-    <pubDate>Wed, 28 Sep 2016 13:36:18 -0700</pubDate>
-    <lastBuildDate>Wed, 28 Sep 2016 13:36:18 -0700</lastBuildDate>
-    <generator>Jekyll v3.2.0</generator>
+    <pubDate>Tue, 11 Oct 2016 10:20:34 -0700</pubDate>
+    <lastBuildDate>Tue, 11 Oct 2016 10:20:34 -0700</lastBuildDate>
+    <generator>Jekyll v3.3.0</generator>
+    
+      <item>
+        <title>Strata+Hadoop World and Beam</title>
+        <description>&lt;p&gt;Tyler Akidau and I gave a &lt;a href=&quot;http://conferences.oreilly.com/strata/hadoop-big-data-ny/public/schedule/detail/52129&quot;&gt;three-hour tutorial&lt;/a&gt; on Apache Beam at Strata+Hadoop World 2016. We had a plethora of help from our TAs: Kenn Knowles, Reuven Lax, Felipe Hoffa, Slava Chernyak, and Jamie Grier. There were a total of 66 people that attended the session.&lt;!--more--&gt;&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/images/blog/IMG_20160927_170956.jpg&quot; alt=&quot;Exercise time&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;If you want to take a look at the tutorial materials, we’ve put them up &lt;a href=&quot;https://github.com/eljefe6a/beamexample&quot;&gt;on GitHub&lt;/a&gt;. This includes the &lt;a href=&quot;https://github.com/eljefe6a/beamexample/blob/master/BeamTutorial/slides.pdf&quot;&gt;actual slides&lt;/a&gt; as well as the &lt;a href=&quot;https://github.com/eljefe6a/beamexample/tree/master/BeamTutorial/src/main/java/org/apache/beam/examples/tutorial/game&quot;&gt;exercises&lt;/a&gt; that we covered. If you’re looking to learn a little about Beam, this is a good way to start. The exercises are based on an imaginary mobile game and the data needs processing and are based on code in the &lt;a href=&quot;https://github.com/apache/incubator-beam/tree/master/examples/java8/src/main/java/org/apache/beam/examples/complete/game&quot;&gt;Beam examples directory&lt;/a&gt;. The code has TODOs for where you need to fill in code or there are full sample solutions to look over our code. You can run these examples on your own machine.&lt;/p&gt;
+
+&lt;p&gt;I want to share some of takeaways I had about Beam during the conference.&lt;/p&gt;
+
+&lt;p&gt;The Data Engineers are looking to Beam as a way to &lt;a href=&quot;https://www.oreilly.com/ideas/future-proof-and-scale-proof-your-code&quot;&gt;future-proof&lt;/a&gt;, meaning that code is portable between the various Big Data frameworks. In fact, many of the attendees were still on Hadoop MapReduce and looking to transition to a new framework. They’re realizing that continually rewriting code isn’t the most productive approach.&lt;/p&gt;
+
+&lt;p&gt;Data Scientists are really interested in using Beam. They interested in having a single API for doing analysis instead of several different APIs. We talked about Beam’s progress on the Python API. If you want to take a peek, it’s being actively developed on a &lt;a href=&quot;https://github.com/apache/incubator-beam/tree/python-sdk&quot;&gt;feature branch&lt;/a&gt;. As Beam matures, we’re looking to add other supported languages.&lt;/p&gt;
+
+&lt;p&gt;We heard &lt;a href=&quot;https://twitter.com/jessetanderson/status/781124173108305920&quot;&gt;loud and clear&lt;/a&gt; from Beam users that great runner support is crucial to adoption. We have great Apache Flink support. During the conference we had some more volunteers offer their help on the Spark runner.&lt;/p&gt;
+
+&lt;p&gt;On management and thought leader side, Beam went from “what’s Beam?” at previous conferences to “I’m interested in Beam.” or “I’ve formed an informed opinion on Beam.” at this conference. This is one of the metrics I look for in early technology adoption.&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/images/blog/IMG_20160927_170455.jpg&quot; alt=&quot;So much brainpower answering questions&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;We rounded out the tutorial with live demonstrations of Beam running on Apache Spark, Apache Flink, the local runner, and DataFlow runner. Then, we brought in the big brainpower and had a Q and A session.&lt;/p&gt;
+
+&lt;p&gt;If you’re attending a conference, we encourage you to look for a Beam session. If you want to use these materials to give your own Beam talk, we’re happy to help you. You can reach out to us on the &lt;a href=&quot;http://beam.incubator.apache.org/use/mailing-lists/&quot;&gt;user mailing list&lt;/a&gt;.&lt;/p&gt;
+
+</description>
+        <pubDate>Tue, 11 Oct 2016 10:00:00 -0700</pubDate>
+        <link>http://beam.incubator.apache.org/beam/update/2016/10/11/strata-hadoop-world-and-beam.html</link>
+        <guid isPermaLink="true">http://beam.incubator.apache.org/beam/update/2016/10/11/strata-hadoop-world-and-beam.html</guid>
+        
+        
+        <category>beam</category>
+        
+        <category>update</category>
+        
+      </item>
     
       <item>
         <title>Apache Beam: Six Months in Incubation</title>
@@ -272,7 +308,7 @@ PCollection&amp;lt;O&amp;gt; output = input
   &lt;/li&gt;
 &lt;/ul&gt;
 
-&lt;p&gt;As Apache Beam grows, so will this repository of presentation materials. We are excited to add new materials as the Apache Beam ecosystem grows with new runners, SDKs, and so on. If you are interested in contributing content or have a request, please see the &lt;a href=&quot;/learn/presentation-materials/&quot;&gt;Apache Beam presentation materials&lt;/a&gt; page or email the &lt;a href=&quot;&amp;#109;&amp;#097;&amp;#105;&amp;#108;&amp;#116;&amp;#111;:&amp;#117;&amp;#115;&amp;#101;&amp;#114;&amp;#064;&amp;#098;&amp;#101;&amp;#097;&amp;#109;&amp;#046;&amp;#105;&amp;#110;&amp;#099;&amp;#117;&amp;#098;&amp;#097;&amp;#116;&amp;#111;&amp;#114;&amp;#046;&amp;#097;&amp;#112;&amp;#097;&amp;#099;&amp;#104;&amp;#101;&amp;#046;&amp;#111;&amp;#114;&amp;#103;&quot;&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;user@beam.incubator.apache.org&lt;/code&gt;&lt;/a&gt; mailing list with your ideas or questions.&lt;/p&gt;
+&lt;p&gt;As Apache Beam grows, so will this repository of presentation materials. We are excited to add new materials as the Apache Beam ecosystem grows with new runners, SDKs, and so on. If you are interested in contributing content or have a request, please see the &lt;a href=&quot;/learn/presentation-materials/&quot;&gt;Apache Beam presentation materials&lt;/a&gt; page or email the &lt;a href=&quot;mailto:user@beam.incubator.apache.org&quot;&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;user@beam.incubator.apache.org&lt;/code&gt;&lt;/a&gt; mailing list with your ideas or questions.&lt;/p&gt;
 </description>
         <pubDate>Sun, 03 Apr 2016 11:00:00 -0700</pubDate>
         <link>http://beam.incubator.apache.org/beam/capability/2016/04/03/presentation-materials.html</link>
