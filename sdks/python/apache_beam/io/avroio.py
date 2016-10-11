@@ -287,7 +287,7 @@ class WriteToAvro(beam.transforms.PTransform):
       A WriteToAvro transform usable for writing.
     """
     self._args = (file_path_prefix, schema, codec, file_name_suffix, num_shards,
-                 shard_name_template, mime_type)
+                  shard_name_template, mime_type)
 
   def apply(self, pcoll):
     return pcoll | beam.io.iobase.Write(_AvroSink(*self._args))
@@ -324,3 +324,4 @@ class _AvroSink(fileio.FileSink):
 
   def write_record(self, writer, value):
     writer.append(value)
+
