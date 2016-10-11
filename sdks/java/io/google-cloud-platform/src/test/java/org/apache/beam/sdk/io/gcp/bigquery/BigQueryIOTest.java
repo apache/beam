@@ -76,8 +76,6 @@ import java.util.NoSuchElementException;
 import java.util.Set;
 import javax.annotation.Nullable;
 import org.apache.avro.Schema;
-import org.apache.avro.Schema.Field;
-import org.apache.avro.Schema.Type;
 import org.apache.avro.file.DataFileWriter;
 import org.apache.avro.generic.GenericDatumWriter;
 import org.apache.avro.generic.GenericRecord;
@@ -779,22 +777,11 @@ public class BigQueryIOTest implements Serializable {
         new SerializableFunction<Void, Schema>() {
           @Override
           public Schema apply(Void input) {
-            return Schema.createRecord(
-                "TestTableRow",
-                "Table Rows in BigQueryIOTest",
-                "org.apache.beam.sdk.io.gcp.bigquery",
-                false,
+            return BigQueryAvroUtils.toGenericAvroSchema(
+                "sometable",
                 ImmutableList.of(
-                    new Field(
-                        "name",
-                        Schema.createUnion(Schema.create(Type.STRING), Schema.create(Type.NULL)),
-                        "The name field",
-                        ""),
-                    new Field(
-                        "number",
-                        Schema.createUnion(Schema.create(Type.LONG), Schema.create(Type.NULL)),
-                        "The number field",
-                        0)));
+                    new TableFieldSchema().setName("name").setType("STRING"),
+                    new TableFieldSchema().setName("number").setType("INTEGER")));
           }
         };
     Collection<Map<String, Object>> records =
