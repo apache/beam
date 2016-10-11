@@ -12,5 +12,5 @@ The Beam code walkthroughs are currently in development (per [BEAM-194](https://
 In the meantime, you can visit the similar walkthroughs in the [Google Cloud Dataflow](https://cloud.google.com/dataflow/docs) documentation for references purposes.
 
 * [WordCount Walkthrough](/use/wordcount-example/)
-* [Mobile Gaming Walkthrough](https://cloud.google.com/dataflow/examples/gaming-example)
+* [Mobile Gaming Walkthrough](/use/mobile-gaming-example/)
 
