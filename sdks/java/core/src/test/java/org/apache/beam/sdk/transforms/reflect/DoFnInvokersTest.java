@@ -38,6 +38,7 @@ import java.util.List;
 import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.DoFn.GetInitialRestriction;
 import org.apache.beam.sdk.transforms.DoFn.ProcessContinuation;
 import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.transforms.reflect.testhelper.DoFnInvokersTestHelper;
@@ -221,14 +222,23 @@ public class DoFnInvokersTest {
   public void testDoFnWithReturn() throws Exception {
     class MockFn extends DoFn<String, String> {
       @DoFn.ProcessElement
-      public ProcessContinuation processElement(ProcessContext c, InputProvider<String> o)
+      public ProcessContinuation processElement(ProcessContext c, SomeRestrictionTracker tracker)
           throws Exception {
+        return null;
+      }
+
+      @GetInitialRestriction
+      public SomeRestriction getInitialRestriction(String element) {
+        return null;
+      }
+
+      @NewTracker
+      public SomeRestrictionTracker newTracker(SomeRestriction restriction) {
         return null;
       }
     }
     MockFn fn = mock(MockFn.class);
-    when(fn.processElement(mockContext, mockInputProvider))
-        .thenReturn(ProcessContinuation.resume());
+    when(fn.processElement(mockContext, null)).thenReturn(ProcessContinuation.resume());
     assertEquals(ProcessContinuation.resume(), invokeProcessElement(fn));
   }
 
@@ -498,11 +508,21 @@ public class DoFnInvokersTest {
             new DoFn<Integer, Integer>() {
               @ProcessElement
               public ProcessContinuation processElement(
-                  @SuppressWarnings("unused") ProcessContext c) {
+                  @SuppressWarnings("unused") ProcessContext c, SomeRestrictionTracker tracker) {
                 throw new IllegalArgumentException("bogus");
               }
+
+              @GetInitialRestriction
+              public SomeRestriction getInitialRestriction(Integer element) {
+                return null;
+              }
+
+              @NewTracker
+              public SomeRestrictionTracker newTracker(SomeRestriction restriction) {
+                return null;
+              }
             })
-        .invokeProcessElement(null, null);
+        .invokeProcessElement(null, new DoFn.FakeExtraContextFactory<Integer, Integer>());
   }
 
   @Test

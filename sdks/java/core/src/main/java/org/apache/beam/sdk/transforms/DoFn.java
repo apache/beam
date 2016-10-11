@@ -31,6 +31,7 @@ import java.lang.annotation.Target;
 import java.util.HashMap;
 import java.util.Map;
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -311,12 +312,12 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
     <RestrictionT> RestrictionTracker<RestrictionT> restrictionTracker();
   }
 
-  /** A placeholder for testing handling of output types during {@link DoFn} reflection. */
+  /** Receives values of the given type. */
   public interface OutputReceiver<T> {
     void output(T output);
   }
 
-  /** A placeholder for testing handling of input types during {@link DoFn} reflection. */
+  /** Provides a single value of the given type. */
   public interface InputProvider<T> {
     T get();
   }
@@ -485,7 +486,10 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
    * Annotation for the method that returns the coder to use for the restriction of a <a
    * href="https://s.apache.org/splittable-do-fn">splittable</a> {@link DoFn}.
    *
-   * <p>If not defined, a coder will be inferred using standard coder inference rules.
+   * <p>If not defined, a coder will be inferred using standard coder inference rules and the
+   * pipeline's {@link Pipeline#getCoderRegistry coder registry}.
+   *
+   * <p>This method will be called only at pipeline construction time.
    *
    * <p>Signature: {@code Coder<RestrictionT> getRestrictionCoder();}
    */

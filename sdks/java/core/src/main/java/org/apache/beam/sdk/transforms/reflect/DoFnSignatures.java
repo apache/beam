@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.transforms.reflect;
 
+import static com.google.common.base.Preconditions.checkState;
+
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.reflect.TypeParameter;
 import com.google.common.reflect.TypeToken;
@@ -182,27 +184,39 @@ public class DoFnSignatures {
     return signature;
   }
 
+  /**
+   * Infers the boundedness of the {@link DoFn.ProcessElement} method (whether or not it performs a
+   * bounded amount of work per element) using the following criteria:
+   *
+   * <ol>
+   * <li>If the {@link DoFn} is not splittable, then it is bounded, it must not be annotated as
+   *     {@link DoFn.Bounded} or {@link DoFn.Unbounded}, and {@link DoFn.ProcessElement} must return
+   *     {@code void}.
+   * <li>If the {@link DoFn} (or any of its supertypes) is annotated as {@link DoFn.Bounded} or
+   *     {@link DoFn.Unbounded}, use that. Only one of these must be specified.
+   * <li>If {@link DoFn.ProcessElement} returns {@link DoFn.ProcessContinuation}, assume it is
+   *     unbounded. Otherwise (if it returns {@code void}), assume it is bounded.
+   * <li>If {@link DoFn.ProcessElement} returns {@code void}, but the {@link DoFn} is annotated
+   *     {@link DoFn.Unbounded}, this is an error.
+   * </ol>
+   */
   private static PCollection.IsBounded inferBoundedness(
       TypeToken<? extends DoFn> fnToken,
       DoFnSignature.ProcessElementMethod processElement,
       ErrorReporter errors) {
     PCollection.IsBounded isBounded = null;
     for (TypeToken<?> supertype : fnToken.getTypes()) {
-      if (supertype.getRawType().isAnnotationPresent(DoFn.Bounded.class)) {
+      if (supertype.getRawType().isAnnotationPresent(DoFn.Bounded.class)
+          || supertype.getRawType().isAnnotationPresent(DoFn.Unbounded.class)) {
         errors.checkArgument(
             isBounded == null,
             "Both @%s and @%s specified",
             DoFn.Bounded.class.getSimpleName(),
             DoFn.Unbounded.class.getSimpleName());
-        isBounded = PCollection.IsBounded.BOUNDED;
-      }
-      if (supertype.getRawType().isAnnotationPresent(DoFn.Unbounded.class)) {
-        errors.checkArgument(
-            isBounded == null,
-            "Both @%s and @%s specified",
-            DoFn.Bounded.class.getSimpleName(),
-            DoFn.Unbounded.class.getSimpleName());
-        isBounded = PCollection.IsBounded.UNBOUNDED;
+        isBounded =
+            supertype.getRawType().isAnnotationPresent(DoFn.Bounded.class)
+                ? PCollection.IsBounded.BOUNDED
+                : PCollection.IsBounded.UNBOUNDED;
       }
     }
     if (processElement.isSplittable()) {
@@ -219,11 +233,23 @@ public class DoFnSignatures {
               + ((isBounded == PCollection.IsBounded.BOUNDED)
                   ? DoFn.Bounded.class.getSimpleName()
                   : DoFn.Unbounded.class.getSimpleName()));
+      checkState(!processElement.hasReturnValue(), "Should have been inferred splittable");
       isBounded = PCollection.IsBounded.BOUNDED;
     }
     return isBounded;
   }
 
+  /**
+   * Verifies properties related to methods of splittable {@link DoFn}:
+   *
+   * <ul>
+   * <li>Must declare the required {@link DoFn.GetInitialRestriction} and {@link DoFn.NewTracker}
+   *     methods.
+   * <li>Types of restrictions and trackers must match exactly between {@link DoFn.ProcessElement},
+   *     {@link DoFn.GetInitialRestriction}, {@link DoFn.NewTracker}, {@link
+   *     DoFn.GetRestrictionCoder}, {@link DoFn.SplitRestriction}.
+   * </ul>
+   */
   private static void verifySplittableMethods(DoFnSignature signature, ErrorReporter errors) {
     DoFnSignature.ProcessElementMethod processElement = signature.processElement();
     DoFnSignature.GetInitialRestrictionMethod getInitialRestriction =
@@ -291,6 +317,11 @@ public class DoFnSignatures {
     }
   }
 
+  /**
+   * Verifies that a non-splittable {@link DoFn} does not declare any methods that only make sense
+   * for splittable {@link DoFn}: {@link DoFn.GetInitialRestriction}, {@link DoFn.SplitRestriction},
+   * {@link DoFn.NewTracker}, {@link DoFn.GetRestrictionCoder}.
+   */
   private static void verifyUnsplittableMethods(ErrorReporter errors, DoFnSignature signature) {
     List<String> forbiddenMethods = new ArrayList<>();
     if (signature.getInitialRestriction() != null) {

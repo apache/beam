@@ -104,8 +104,7 @@ public class DoFnSignaturesSplittableDoFnTest {
   public void testInfersBoundednessFromAnnotation() throws Exception {
     class BaseSplittableFn extends DoFn<Integer, String> {
       @ProcessElement
-      public void processElement(ProcessContext context, SomeRestrictionTracker tracker) {
-      }
+      public void processElement(ProcessContext context, SomeRestrictionTracker tracker) {}
 
       @GetInitialRestriction
       public SomeRestriction getInitialRestriction(Integer element) {
@@ -119,12 +118,10 @@ public class DoFnSignaturesSplittableDoFnTest {
     }
 
     @Bounded
-    class BoundedSplittableFn extends BaseSplittableFn {
-    }
+    class BoundedSplittableFn extends BaseSplittableFn {}
 
     @Unbounded
-    class UnboundedSplittableFn extends BaseSplittableFn {
-    }
+    class UnboundedSplittableFn extends BaseSplittableFn {}
 
     assertEquals(
         PCollection.IsBounded.BOUNDED,
@@ -141,13 +138,11 @@ public class DoFnSignaturesSplittableDoFnTest {
   public void testUnsplittableIsBounded() throws Exception {
     class UnsplittableFn extends DoFn<Integer, String> {
       @ProcessElement
-      public void process(ProcessContext context) {
-      }
+      public void process(ProcessContext context) {}
     }
     assertEquals(
         PCollection.IsBounded.BOUNDED,
         DoFnSignatures.INSTANCE.getOrParseSignature(UnsplittableFn.class).isBounded());
-
   }
 
   private static class BaseFnWithContinuation extends DoFn<Integer, String> {
@@ -477,9 +472,7 @@ public class DoFnSignaturesSplittableDoFnTest {
   public void testUnsplittableMustNotDefineExtraMethods() throws Exception {
     class BadFn extends DoFn<Integer, String> {
       @ProcessElement
-      public ProcessContinuation processElement(ProcessContext context) {
-        return null;
-      }
+      public void processElement(ProcessContext context) {}
 
       @GetInitialRestriction
       public SomeRestriction getInitialRestriction(Integer element) {

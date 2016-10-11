@@ -17,7 +17,9 @@
  */
 package org.apache.beam.runners.core;
 
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import org.apache.beam.sdk.coders.BigEndianLongCoder;
@@ -33,14 +35,15 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
-import org.junit.runners.JUnit4;
+import org.junit.runners.Parameterized;
+import org.junit.runners.Parameterized.Parameter;
 
 /**
  * Tests for {@link ElementAndRestrictionCoder}. Parroted from {@link
  * org.apache.beam.sdk.coders.KvCoderTest}.
  */
-@RunWith(JUnit4.class)
-public class ElementAndRestrictionCoderTest {
+@RunWith(Parameterized.class)
+public class ElementAndRestrictionCoderTest<K, V> {
   private static class CoderAndData<T> {
     Coder<T> coder;
     List<T> data;
@@ -77,22 +80,38 @@ public class ElementAndRestrictionCoderTest {
               ListCoder.of(VarLongCoder.of()),
               Arrays.asList(Arrays.asList(1L, 2L, 3L), Collections.<Long>emptyList())));
 
-  @Test
-  @SuppressWarnings("rawtypes")
-  public void testDecodeEncodeEqual() throws Exception {
+  @Parameterized.Parameters(name = "{index}: keyCoder={0} key={1} valueCoder={2} value={3}")
+  public static Collection<Object[]> data() {
+    List<Object[]> parameters = new ArrayList<>();
     for (AnyCoderAndData keyCoderAndData : TEST_DATA) {
       Coder keyCoder = keyCoderAndData.coderAndData.coder;
       for (Object key : keyCoderAndData.coderAndData.data) {
         for (AnyCoderAndData valueCoderAndData : TEST_DATA) {
           Coder valueCoder = valueCoderAndData.coderAndData.coder;
           for (Object value : valueCoderAndData.coderAndData.data) {
-            CoderProperties.coderDecodeEncodeEqual(
-                ElementAndRestrictionCoder.of(keyCoder, valueCoder),
-                ElementAndRestriction.of(key, value));
+            parameters.add(new Object[] {keyCoder, key, valueCoder, value});
           }
         }
       }
     }
+    return parameters;
+  }
+
+  @Parameter(0)
+  public Coder<K> keyCoder;
+  @Parameter(1)
+  public K key;
+  @Parameter(2)
+  public Coder<V> valueCoder;
+  @Parameter(3)
+  public V value;
+
+  @Test
+  @SuppressWarnings("rawtypes")
+  public void testDecodeEncodeEqual() throws Exception {
+    CoderProperties.coderDecodeEncodeEqual(
+        ElementAndRestrictionCoder.of(keyCoder, valueCoder),
+        ElementAndRestriction.of(key, value));
   }
 
   @Rule public ExpectedException thrown = ExpectedException.none();

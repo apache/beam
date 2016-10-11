@@ -55,7 +55,10 @@ public interface DoFnInvoker<InputT, OutputT> {
   /** Invoke the {@link DoFn.GetInitialRestriction} method on the bound {@link DoFn}. */
   <RestrictionT> RestrictionT invokeGetInitialRestriction(InputT element);
 
-  /** Invoke the {@link DoFn.GetRestrictionCoder} method on the bound {@link DoFn}. */
+  /**
+   * Invoke the {@link DoFn.GetRestrictionCoder} method on the bound {@link DoFn}. Called only
+   * during pipeline construction time.
+   */
   <RestrictionT> Coder<RestrictionT> invokeGetRestrictionCoder(CoderRegistry coderRegistry);
 
   /** Invoke the {@link DoFn.SplitRestriction} method on the bound {@link DoFn}. */

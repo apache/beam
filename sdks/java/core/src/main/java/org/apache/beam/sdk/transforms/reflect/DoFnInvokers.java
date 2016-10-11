@@ -91,10 +91,10 @@ public class DoFnInvokers {
   private DoFnInvokers() {}
 
   /**
-   * Creates a {@link DoFnInvoker} for the given {@link Object}, which should be either a
-   * {@link DoFn} or an {@link OldDoFn}. The expected use would be to deserialize a user's
-   * function as an {@link Object} and then pass it to this method, so there is no need to
-   * statically specify what sort of object it is.
+   * Creates a {@link DoFnInvoker} for the given {@link Object}, which should be either a {@link
+   * DoFn} or an {@link OldDoFn}. The expected use would be to deserialize a user's function as an
+   * {@link Object} and then pass it to this method, so there is no need to statically specify what
+   * sort of object it is.
    *
    * @deprecated this is to be used only as a migration path for decoupling upgrades
    */
@@ -102,15 +102,16 @@ public class DoFnInvokers {
   public DoFnInvoker<?, ?> invokerFor(Object deserializedFn) {
     if (deserializedFn instanceof DoFn) {
       return newByteBuddyInvoker((DoFn<?, ?>) deserializedFn);
-    } else if (deserializedFn instanceof OldDoFn){
+    } else if (deserializedFn instanceof OldDoFn) {
       return new OldDoFnInvoker<>((OldDoFn<?, ?>) deserializedFn);
     } else {
-      throw new IllegalArgumentException(String.format(
-          "Cannot create a %s for %s; it should be either a %s or an %s.",
-          DoFnInvoker.class.getSimpleName(),
-          deserializedFn.toString(),
-          DoFn.class.getSimpleName(),
-          OldDoFn.class.getSimpleName()));
+      throw new IllegalArgumentException(
+          String.format(
+              "Cannot create a %s for %s; it should be either a %s or an %s.",
+              DoFnInvoker.class.getSimpleName(),
+              deserializedFn.toString(),
+              DoFn.class.getSimpleName(),
+              OldDoFn.class.getSimpleName()));
     }
   }
 
@@ -192,7 +193,7 @@ public class DoFnInvokers {
 
     @Override
     public <RestrictionT, TrackerT extends RestrictionTracker<RestrictionT>>
-    TrackerT invokeNewTracker(RestrictionT restriction) {
+        TrackerT invokeNewTracker(RestrictionT restriction) {
       throw new UnsupportedOperationException("OldDoFn is not splittable");
     }
   }
@@ -201,8 +202,8 @@ public class DoFnInvokers {
   @SuppressWarnings({"unchecked", "rawtypes"})
   public <InputT, OutputT> DoFnInvoker<InputT, OutputT> newByteBuddyInvoker(
       DoFn<InputT, OutputT> fn) {
-    return newByteBuddyInvoker(DoFnSignatures.INSTANCE.getOrParseSignature(
-        (Class) fn.getClass()), fn);
+    return newByteBuddyInvoker(
+        DoFnSignatures.INSTANCE.getOrParseSignature((Class) fn.getClass()), fn);
   }
 
   /** @return the {@link DoFnInvoker} for the given {@link DoFn}. */
@@ -280,27 +281,6 @@ public class DoFnInvokers {
 
     final TypeDescription clazzDescription = new TypeDescription.ForLoadedType(fnClass);
 
-    final Implementation splitRestrictionDelegation;
-    if (signature.splitRestriction() == null) {
-      splitRestrictionDelegation = MethodDelegation.to(DefaultSplitRestriction.class);
-    } else {
-      splitRestrictionDelegation =
-          new DowncastingParametersMethodDelegation(signature.splitRestriction().targetMethod());
-    }
-    final Implementation getRestrictionCoderDelegation;
-    if (signature.processElement().isSplittable()) {
-      if (signature.getRestrictionCoder() == null) {
-        getRestrictionCoderDelegation =
-            MethodDelegation.to(
-                new DefaultRestrictionCoder(signature.getInitialRestriction().restrictionT()));
-      } else {
-        getRestrictionCoderDelegation =
-            new DowncastingParametersMethodDelegation(
-                signature.getRestrictionCoder().targetMethod());
-      }
-    } else {
-      getRestrictionCoderDelegation = ExceptionMethod.throwing(UnsupportedOperationException.class);
-    }
     DynamicType.Builder<?> builder =
         new ByteBuddy()
             // Create subclasses inside the target class, to have access to
@@ -332,9 +312,9 @@ public class DoFnInvokers {
             .method(ElementMatchers.named("invokeGetInitialRestriction"))
             .intercept(delegateWithDowncastOrThrow(signature.getInitialRestriction()))
             .method(ElementMatchers.named("invokeSplitRestriction"))
-            .intercept(splitRestrictionDelegation)
+            .intercept(splitRestrictionDelegation(signature))
             .method(ElementMatchers.named("invokeGetRestrictionCoder"))
-            .intercept(getRestrictionCoderDelegation)
+            .intercept(getRestrictionCoderDelegation(signature))
             .method(ElementMatchers.named("invokeNewTracker"))
             .intercept(delegateWithDowncastOrThrow(signature.newTracker()));
 
@@ -347,6 +327,28 @@ public class DoFnInvokers {
                 .load(DoFnInvokers.class.getClassLoader(), ClassLoadingStrategy.Default.INJECTION)
                 .getLoaded();
     return res;
+  }
+
+  private static Implementation getRestrictionCoderDelegation(DoFnSignature signature) {
+    if (signature.processElement().isSplittable()) {
+      if (signature.getRestrictionCoder() == null) {
+        return MethodDelegation.to(
+            new DefaultRestrictionCoder(signature.getInitialRestriction().restrictionT()));
+      } else {
+        return new DowncastingParametersMethodDelegation(
+            signature.getRestrictionCoder().targetMethod());
+      }
+    } else {
+      return ExceptionMethod.throwing(UnsupportedOperationException.class);
+    }
+  }
+
+  private static Implementation splitRestrictionDelegation(DoFnSignature signature) {
+    if (signature.splitRestriction() == null) {
+      return MethodDelegation.to(DefaultSplitRestriction.class);
+    } else {
+      return new DowncastingParametersMethodDelegation(signature.splitRestriction().targetMethod());
+    }
   }
 
   /** Delegates to the given method if available, or does nothing. */
