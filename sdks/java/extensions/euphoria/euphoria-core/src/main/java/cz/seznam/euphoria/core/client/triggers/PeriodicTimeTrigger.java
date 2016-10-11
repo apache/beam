@@ -45,7 +45,10 @@ public class PeriodicTimeTrigger implements Trigger {
    */
   private boolean scheduleNext(long currentTime, WindowContext w, TriggerContext ctx) {
     long fire = currentTime + interval;
-    boolean result = ctx.scheduleTriggerAt(fire, w, this);
-    return result;
+    if (fire <= lastFireTime) {
+      boolean result = ctx.scheduleTriggerAt(fire, w, this);
+      return result;
+    }
+    return false;
   }
 }
