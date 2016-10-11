@@ -3,8 +3,7 @@ package cz.seznam.euphoria.core.executor.inmem;
 import cz.seznam.euphoria.core.client.dataset.windowing.MergingWindowing;
 import cz.seznam.euphoria.core.client.dataset.windowing.Time;
 import cz.seznam.euphoria.core.client.dataset.windowing.Time.ProcessingTime;
-import cz.seznam.euphoria.core.client.dataset.windowing.WindowContext;
-import cz.seznam.euphoria.core.client.dataset.windowing.WindowID;
+import cz.seznam.euphoria.core.client.dataset.windowing.Window;
 import cz.seznam.euphoria.core.client.dataset.windowing.WindowedElement;
 import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.functional.CombinableReduceFunction;
@@ -12,8 +11,12 @@ import cz.seznam.euphoria.core.client.functional.StateFactory;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
 import cz.seznam.euphoria.core.client.io.Context;
 import cz.seznam.euphoria.core.client.operator.ReduceStateByKey;
+import cz.seznam.euphoria.core.client.operator.state.ListStorage;
+import cz.seznam.euphoria.core.client.operator.state.ListStorageDescriptor;
 import cz.seznam.euphoria.core.client.operator.state.State;
 import cz.seznam.euphoria.core.client.operator.state.StorageProvider;
+import cz.seznam.euphoria.core.client.operator.state.ValueStorage;
+import cz.seznam.euphoria.core.client.operator.state.ValueStorageDescriptor;
 import cz.seznam.euphoria.core.client.triggers.Trigger;
 import cz.seznam.euphoria.core.client.triggers.TriggerContext;
 import cz.seznam.euphoria.core.client.util.Pair;
@@ -44,12 +47,11 @@ class ReduceStateByKeyReducer implements Runnable {
   private static final class KeyedElementCollector extends WindowedElementCollector {
     private final Object key;
 
-    KeyedElementCollector(
-        Collector<Datum> wrap, WindowID window, Object key,
+    KeyedElementCollector(Collector<Datum> wrap, Window window, Object key,
         Supplier<Long> stampSupplier) {
       super(wrap, stampSupplier);
       this.key = key;
-      this.windowID = window;
+      this.window = window;
     }
 
     @Override
@@ -66,48 +68,48 @@ class ReduceStateByKeyReducer implements Runnable {
     }
 
     @Override
-    public boolean scheduleTriggerAt(long stamp, WindowContext w, Trigger trigger) {
-      KeyedWindow kw = new KeyedWindow<>(w.getWindowID(), itemKey);
+    public boolean registerTimer(long stamp, Window window) {
+      KeyedWindow kw = new KeyedWindow<>(window, itemKey);
       return triggering.scheduleAt(
-          stamp, kw, guardTriggerable(createTriggerHandler(trigger)));
+              stamp, kw, guardTriggerable(createTriggerHandler(trigger)));
+    }
+
+    @Override
+    public void deleteTimer(long stamp, Window window) {
+      triggering.cancel(stamp, new KeyedWindow<>(window, itemKey));
     }
 
     @Override
     public long getCurrentTimestamp() {
       return triggering.getCurrentTimestamp();
     }
+
+    @Override
+    public <T> ValueStorage<T> getValueStorage(ValueStorageDescriptor<T> descriptor) {
+      return null;
+    }
+
+    @Override
+    public <T> ListStorage<T> getListStorage(ListStorageDescriptor<T> descriptor) {
+      return null;
+    }
   } // ~ end of ElementContext
-
-  // ~ storage of a single window's (internal) state
-  private static final class WindowStorage {
-    private final WindowContext windowContext;
-    private State state;
-
-    public WindowStorage(WindowContext windowContext, State state) {
-      this.windowContext = windowContext;
-      this.state = state;
-    }
-
-    void addValue(Object itemValue) {
-      this.state.add(itemValue);
-    }
-  } // ~ end of WindowStorage
 
   @SuppressWarnings("unchecked")
   private static final class WindowRegistry {
 
-    final Map<WindowID, Map<Object, WindowStorage>> windows = new HashMap<>();
-    final Map<Object, Set<WindowID>> keyMap = new HashMap<>();
+    final Map<Window, Map<Object, State>> windows = new HashMap<>();
+    final Map<Object, Set<Window>> keyMap = new HashMap<>();
 
-    WindowStorage removeWindowStorage(WindowID window, Object itemKey) {
-      Map<Object, WindowStorage> keys = windows.get(window);
+    State removeWindowState(Window window, Object itemKey) {
+      Map<Object, State> keys = windows.get(window);
       if (keys != null) {
-        WindowStorage state = keys.remove(itemKey);
+        State state = keys.remove(itemKey);
         // ~ garbage collect on windows level
         if (keys.isEmpty()) {
           windows.remove(window);
         }
-        Set<WindowID> actives = keyMap.get(itemKey);
+        Set<Window> actives = keyMap.get(itemKey);
         if (actives != null) {
           actives.remove(window);
           if (actives.isEmpty()) {
@@ -119,32 +121,32 @@ class ReduceStateByKeyReducer implements Runnable {
       return null;
     }
 
-    void setWindowStorage(WindowID window, Object itemKey, WindowStorage storage) {     
-      Map<Object, WindowStorage> keys = windows.get(window);
+    void setWindowState(Window window, Object itemKey, State state) {
+      Map<Object, State> keys = windows.get(window);
       if (keys == null) {
         windows.put(window, keys = new HashMap<>());
       }
-      keys.put(itemKey, storage);
-      Set<WindowID> actives = keyMap.get(itemKey);
+      keys.put(itemKey, state);
+      Set<Window> actives = keyMap.get(itemKey);
       if (actives == null) {
         keyMap.put(itemKey, actives = new HashSet<>());
       }
       actives.add(window);
     }
 
-    WindowStorage getWindowStorage(WindowID window, Object itemKey) {
-      Map<Object, WindowStorage> keys = windows.get(window);
+    State getWindowState(Window window, Object itemKey) {
+      Map<Object, State> keys = windows.get(window);
       if (keys != null) {
         return keys.get(itemKey);
       }
       return null;
     }
 
-    Map<Object, WindowStorage> getWindowStorages(WindowID window) {
+    Map<Object, State> getWindowStates(Window window) {
       return windows.get(window);
     }
 
-    Set<WindowID> getActivesForKey(Object itemKey) {
+    Set<Window> getActivesForKey(Object itemKey) {
       return keyMap.get(itemKey);
     }
   } // ~ end of WindowRegistry
@@ -179,7 +181,7 @@ class ReduceStateByKeyReducer implements Runnable {
             watermarkPassed,
             maxElementStamp});
     }
-  }
+  } // ~ end of ProcessingStats
 
   private final class ProcessingState {
 
@@ -201,7 +203,7 @@ class ReduceStateByKeyReducer implements Runnable {
     private final boolean isBounded;
 
     // flushed windows with the time of the flush
-    private Map<WindowID, Long> flushedWindows = new HashMap<>();
+    private Map<Window, Long> flushedWindows = new HashMap<>();
 
     @SuppressWarnings("unchecked")
     private ProcessingState(
@@ -223,11 +225,11 @@ class ReduceStateByKeyReducer implements Runnable {
       this.maxKeyStatesPerWindow = maxKeyStatesPerWindow;
     }
 
-    Map<WindowID, Long> takeFlushedWindows() {
+    Map<Window, Long> takeFlushedWindows() {
       if (flushedWindows.isEmpty()) {
         return Collections.emptyMap();
       }
-      Map<WindowID, Long> flushed = flushedWindows;
+      Map<Window, Long> flushed = flushedWindows;
       flushedWindows = new HashMap<>();
       return flushed;
     }
@@ -244,12 +246,12 @@ class ReduceStateByKeyReducer implements Runnable {
     /**
      * Flushes (emits result) the specified window.
      */
-    void flushWindow(WindowID window, Object itemKey) {
-      WindowStorage state = wRegistry.getWindowStorage(window, itemKey);
+    void flushWindow(Window window, Object itemKey) {
+      State state = wRegistry.getWindowState(window, itemKey);
       if (state == null) {
         return;
       }
-      state.state.flush();
+      state.flush();
       // ~ remember we flushed the window such that we can emit one
       // notification to downstream operators for all keys in this window
       flushedWindows.put(window, getCurrentWatermark());
@@ -258,12 +260,12 @@ class ReduceStateByKeyReducer implements Runnable {
     /**
      * Purges the specified window.
      */
-    WindowStorage purgeWindow(WindowID window, Object itemKey) {
-      WindowStorage state = wRegistry.removeWindowStorage(window, itemKey);
+    State purgeWindow(Window window, Object itemKey) {
+      State state = wRegistry.removeWindowState(window, itemKey);
       if (state == null) {
         return null;
       }
-      state.state.close();
+      state.close();
       return state;
     }
 
@@ -271,98 +273,71 @@ class ReduceStateByKeyReducer implements Runnable {
      * Flushes and closes all window storages and clear the window registry.
      */
     void flushAndCloseAllWindows() {
-      for (Map.Entry<WindowID, Map<Object, WindowStorage>> windowState : wRegistry.windows.entrySet()) {
-        for (Map.Entry<Object, WindowStorage> itemState : windowState.getValue().entrySet()) {
-          try (State state = itemState.getValue().state) {
-            state.flush();
-          }
+      for (Map.Entry<Window, Map<Object, State>> windowState : wRegistry.windows.entrySet()) {
+        for (Map.Entry<Object, State> itemState : windowState.getValue().entrySet()) {
+          State state = itemState.getValue();
+          state.flush();
+          state.close();
         }
       }
       wRegistry.windows.clear();
     }
 
-    WindowStorage lookupWindowState(WindowID window, Object itemKey) {
-      return wRegistry.getWindowStorage(window, itemKey);
+    State lookupWindowState(Window window, Object itemKey) {
+      return wRegistry.getWindowState(window, itemKey);
     }
 
-    WindowStorage getWindowStateForUpdate(WindowID window, Object itemKey) {
-      WindowStorage wStore = wRegistry.getWindowStorage(window, itemKey);
-      if (wStore == null) {
-        WindowContext wctx = windowing.createWindowContext(window);
-
-        Trigger.TriggerResult triggerState = Trigger.TriggerResult.NOOP;
-        if (!isBounded) {
-          // ~ default policy is to NOOP with current window
-          triggerState = Trigger.TriggerResult.NOOP;
-
-          // ~ give the window a chance to register triggers
-          List<Trigger> triggers = wctx.createTriggers();
-          if (!triggers.isEmpty()) {
-            // ~ default policy for time-triggered window
-            triggerState = Trigger.TriggerResult.PASSED;
-          }
-          ElementTriggerContext ectx = new ElementTriggerContext(itemKey);
-          for (Trigger t : triggers) {
-            Trigger.TriggerResult result = t.schedule(wctx, ectx);
-            if (result == Trigger.TriggerResult.NOOP) {
-              triggerState = Trigger.TriggerResult.NOOP;
-            }
-          }
-        }
-        if (triggerState == Trigger.TriggerResult.PASSED) {
-          // the window should have been already triggered
-          // just discard the element, no other option for now
-          return null;
-        } else {
-          // ~ if no such window yet ... set it up
-          wStore = new WindowStorage(wctx, (State) stateFactory.apply(
-              new KeyedElementCollector(
-                  stateOutput, window, itemKey,
-                  processing.triggering::getCurrentTimestamp),
-              storageProvider));
-          wRegistry.setWindowStorage(window, itemKey, wStore);
-        }
+    State getWindowStateForUpdate(Window window, Object itemKey) {
+      State state = wRegistry.getWindowState(window, itemKey);
+      if (state == null) {
+        // ~ if no such window yet ... set it up
+        state = (State) stateFactory.apply(
+                new KeyedElementCollector(
+                    stateOutput, window, itemKey,
+                    processing.triggering::getCurrentTimestamp),
+                storageProvider);
+        wRegistry.setWindowState(window, itemKey, state);
       }
-      return wStore;
+      return state;
     }
 
-    Collection<WindowContext> getActivesForKey(Object itemKey) {
-      Set<WindowID> actives = wRegistry.getActivesForKey(itemKey);
+    Collection<Window> getActivesForKey(Object itemKey) {
+      Set<Window> actives = wRegistry.getActivesForKey(itemKey);
       if (actives == null || actives.isEmpty()) {
         return Collections.emptyList();
       } else {
-        List<WindowContext> ctxs = new ArrayList<>(actives.size());
-        for (WindowID active : actives) {
-          WindowStorage state = wRegistry.getWindowStorage(active, itemKey);
+        List<Window> ctxs = new ArrayList<>(actives.size());
+        for (Window active : actives) {
+          State state = wRegistry.getWindowState(active, itemKey);
           Objects.requireNonNull(state, () -> "no storage for active window?! (key: " + itemKey + " / window: " + active + ")");
-          ctxs.add(state.windowContext);
+          ctxs.add(active);
         }
         return ctxs;
       }
     }
 
     boolean mergeWindows(
-        Collection<WindowContext> toBeMerged, WindowContext mergeWindow, Object itemKey) {
+            Collection<Window> toBeMerged, Window mergeWindow, Object itemKey) {
 
-      WindowStorage mergeWindowState =
-          getWindowStateForUpdate(mergeWindow.getWindowID(), itemKey);
+      State mergeWindowState =
+          getWindowStateForUpdate(mergeWindow, itemKey);
       if (mergeWindowState == null) {
         LOG.warn("No window storage for {}; triggering discarded it!", mergeWindow);
-        for (WindowContext w : toBeMerged) {
-          purgeWindow(w.getWindowID(), itemKey);
+        for (Window w : toBeMerged) {
+          purgeWindow(w, itemKey);
         }
         return false;
       }
 
-      List<WindowStorage> toCombine = new ArrayList<>(toBeMerged.size());
-      for (WindowContext toMerge : toBeMerged) {
+      List<State> toCombine = new ArrayList<>(toBeMerged.size());
+      for (Window toMerge : toBeMerged) {
         // ~ skip "self merge requests" to prevent removing its window storage
-        if (toMerge.getWindowID().equals(mergeWindowState.windowContext.getWindowID())) {
+        if (toMerge.equals(mergeWindow)) {
           continue;
         }
         // ~ remove the toMerge window and merge its state into the mergeWindow
-        WindowStorage toMergeState =
-            wRegistry.removeWindowStorage(toMerge.getWindowID(), itemKey);
+        State toMergeState =
+            wRegistry.removeWindowState(toMerge, itemKey);
         if (toMergeState != null) {
           toCombine.add(toMergeState);
         }
@@ -373,14 +348,13 @@ class ReduceStateByKeyReducer implements Runnable {
         toCombine.add(0, mergeWindowState);
         // ~ if any of the states emits any data during the merge, we'll make
         // sure it happens in the scope of the merge target window
-        for (WindowStorage ws : toCombine) {
-          ((KeyedElementCollector) ws.state.getContext())
-              .setWindow(mergeWindow.getWindowID());
+        for (State ws : toCombine) {
+          ((KeyedElementCollector) ws.getContext()).setWindow(mergeWindow);
         }
         // ~ now merge the state and re-assign it to the merge-window
-        State newState =
-            (State) stateCombiner.apply(Iterables.transform(toCombine, ws -> ws.state));
+        State newState =(State) stateCombiner.apply(toCombine);
         mergeWindowState.state = newState;
+
       }
 
       return true;
@@ -395,13 +369,13 @@ class ReduceStateByKeyReducer implements Runnable {
     void onUpstreamWindowTrigger(WindowID windowID, long stamp) {
       LOG.debug("Updating trigger of window {} to {}", windowID, stamp);
 
-      Map<Object, WindowStorage> ws = wRegistry.getWindowStorages(windowID);
+      Map<Object, WindowStorage> ws = wRegistry.getWindowStates(windowID);
       if (ws == null || ws.isEmpty()) {
         return;
       }
 
       for (Map.Entry<Object, WindowStorage> e : ws.entrySet()) {
-        KeyedWindow kw = new KeyedWindow(e.getValue().windowContext.getWindowID(), e.getKey());
+        KeyedWindow kw = new KeyedWindow(e.getValue().window.getWindowID(), e.getKey());
         triggering.cancel(kw);
 
         Triggerable t = guardTriggerable((timestamp, window) -> {
@@ -437,6 +411,8 @@ class ReduceStateByKeyReducer implements Runnable {
   private final WatermarkEmitStrategy watermarkStrategy;
   private final String name;
 
+  private final Trigger trigger;
+
   // ~ both of these are guarded by "processing"
   private final ProcessingState processing;
   private final TriggerScheduler triggering;
@@ -467,6 +443,7 @@ class ReduceStateByKeyReducer implements Runnable {
     this.stateFactory = requireNonNull(operator.getStateFactory());
     this.stateCombiner = requireNonNull(operator.getStateCombiner());
     this.watermarkStrategy = requireNonNull(watermarkStrategy);
+    this.trigger = windowing.getTrigger();
     this.triggering = requireNonNull(triggering);
     this.processing = new ProcessingState(
         output, triggering,
@@ -492,7 +469,7 @@ class ReduceStateByKeyReducer implements Runnable {
       if (w == null) {
         throw new IllegalStateException("Window already gone?! (" + kw + ")");
       }
-      Trigger.TriggerResult result = t.onTimeEvent(timestamp, w.windowContext, ectx);
+      Trigger.TriggerResult result = t.onTimeEvent(timestamp, w.window, ectx);
 
       // Flush window (emit the internal state to output)
       if (result.isFlush()) {
@@ -546,7 +523,7 @@ class ReduceStateByKeyReducer implements Runnable {
   private void notifyFlushedWindows() throws InterruptedException {
     // ~ send notifications to downstream operators about flushed windows
     long max = 0;
-    for (Map.Entry<WindowID, Long> w : processing.takeFlushedWindows().entrySet()) {
+    for (Map.Entry<Window, Long> w : processing.takeFlushedWindows().entrySet()) {
       output.put(Datum.windowTrigger(w.getKey(), w.getValue()));
       long flushTime = w.getValue();
       if (flushTime > max) {
@@ -561,9 +538,9 @@ class ReduceStateByKeyReducer implements Runnable {
     Object itemKey = keyExtractor.apply(item);
     Object itemValue = valueExtractor.apply(item);
 
-    Set<WindowID<Object>> windows = windowing.assignWindowsToElement(element);
-    for (WindowID window : windows) {
-      WindowStorage windowState =
+    Set<Window> windows = windowing.assignWindowsToElement(element);
+    for (Window window : windows) {
+      State windowState =
           processing.getWindowStateForUpdate(window, itemKey);
       if (windowState != null) {
         windowState.addValue(itemValue);
@@ -577,16 +554,16 @@ class ReduceStateByKeyReducer implements Runnable {
       }
 
       if (windowing instanceof MergingWindowing) {
-        Collection<WindowContext> actives = processing.getActivesForKey(itemKey);
+        Collection<Window> actives = processing.getActivesForKey(itemKey);
         if (actives == null || actives.isEmpty()) {
           // nothing to do
         } else {
           MergingWindowing mwindowing = (MergingWindowing) this.windowing;
 
-          Collection<Pair<Collection<WindowContext>, WindowContext>> merges =
+          Collection<Pair<Collection<Window>, Window>> merges =
               mwindowing.mergeWindows(actives);
           if (merges != null && !merges.isEmpty()) {
-            for (Pair<Collection<WindowContext>, WindowContext> merge : merges) {
+            for (Pair<Collection<Window>, Window> merge : merges) {
               boolean merged = processing.mergeWindows(
                   merge.getFirst(), merge.getSecond(), itemKey);
               if (merged) {
@@ -617,7 +594,7 @@ class ReduceStateByKeyReducer implements Runnable {
       // reregister trigger of given window
       // FIXME: move this to windowing itself so that attached windowing
       // can be implemented 'natively' as instance of generic windowing
-      processing.onUpstreamWindowTrigger(trigger.getWindowID(), trigger.getStamp());
+      processing.onUpstreamWindowTrigger(trigger.getWindow(), trigger.getStamp());
     }
   }
 

@@ -1,14 +1,15 @@
-
 package cz.seznam.euphoria.core.client.dataset.windowing;
 
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
+import cz.seznam.euphoria.core.client.triggers.AfterFirstCompositeTrigger;
+import cz.seznam.euphoria.core.client.triggers.PeriodicTimeTrigger;
 import cz.seznam.euphoria.core.client.triggers.TimeTrigger;
 import cz.seznam.euphoria.core.client.triggers.Trigger;
 
 import java.time.Duration;
-import java.util.ArrayList;
 import static java.util.Collections.singleton;
-import java.util.List;
+
+import java.util.Arrays;
 
 import static java.util.Objects.requireNonNull;
 import java.util.Optional;
@@ -17,7 +18,7 @@ import java.util.Set;
 /**
  * Time based tumbling windowing.
  */
-public class Time<T> implements Windowing<T, TimeInterval, Time.TimeWindowContext> {
+public class Time<T> implements Windowing<T, TimeInterval> {
 
   public static final class ProcessingTime<T> implements UnaryFunction<T, Long> {
 
@@ -37,39 +38,8 @@ public class Time<T> implements Windowing<T, TimeInterval, Time.TimeWindowContex
     public Long apply(T what) {
       return System.currentTimeMillis();
     }
-    
+
   } // ~ end of ProcessingTime
-
-  public static class TimeWindowContext
-      extends EarlyTriggeredWindowContext<TimeInterval> {
-
-    private final long fireStamp;
-
-    TimeWindowContext(long startMillis, long intervalMillis, Duration earlyTriggering) {
-      super(
-          new WindowID<>(new TimeInterval(startMillis, intervalMillis)),
-          earlyTriggering, startMillis, startMillis + intervalMillis);
-      this.fireStamp = startMillis + intervalMillis;
-    }
-
-    @Override
-    public List<Trigger> createTriggers() {
-      List<Trigger> triggers = new ArrayList<>(1);
-      if (isEarlyTriggered()) {
-        triggers.add(getEarlyTrigger());
-      }
-
-      triggers.add(new TimeTrigger(fireStamp));
-
-      return triggers;
-    }
-
-    @Override
-    public String toString() {
-      return "TimeWindowContext(" + fireStamp + ")";
-    }
-
-  } // ~ end of TimeWindowContext
 
   // ~  an untyped variant of the Time windowing; does not dependent
   // on the input elements type
@@ -95,7 +65,7 @@ public class Time<T> implements Windowing<T, TimeInterval, Time.TimeWindowContex
       return new TTime<>(this.durationMillis,
           earlyTriggeringPeriod, requireNonNull(fn));
     }
-  }
+  } // ~ end of UTime
 
   // ~ a typed variant of the Time windowing; depends on the type of
   // input elements
@@ -106,7 +76,7 @@ public class Time<T> implements Windowing<T, TimeInterval, Time.TimeWindowContex
       
       super(durationMillis, earlyTriggeringPeriod, eventTimeFn);
     }
-  } // ~ end of EventTimeBased
+  } // ~ end of TTime
 
   final long durationMillis;
   final Duration earlyTriggeringPeriod;
@@ -126,20 +96,23 @@ public class Time<T> implements Windowing<T, TimeInterval, Time.TimeWindowContex
   }
 
   @Override
-  public Set<WindowID<TimeInterval>> assignWindowsToElement(
+  public Set<TimeInterval> assignWindowsToElement(
       WindowedElement<?, T> input) {
     long ts = eventTimeFn.apply(input.get());
-    return singleton(new WindowID<>(new TimeInterval(
-        ts - (ts + durationMillis) % durationMillis, durationMillis)));
+
+    long start = ts - (ts + durationMillis) % durationMillis;
+    long end = start + durationMillis;
+    return singleton(new TimeInterval(start, end));
   }
 
-  
   @Override
-  public TimeWindowContext createWindowContext(WindowID<TimeInterval> id) {
-    return new TimeWindowContext(
-        id.getLabel().getStartMillis(),
-        id.getLabel().getIntervalMillis(),
-        earlyTriggeringPeriod);
+  public Trigger<T, TimeInterval> getTrigger() {
+    if (earlyTriggeringPeriod != null) {
+      return new AfterFirstCompositeTrigger<>(Arrays.asList(
+              new TimeTrigger<>(),
+              new PeriodicTimeTrigger<>(earlyTriggeringPeriod.toMillis())));
+    }
+    return new TimeTrigger<>();
   }
 
   public Duration getEarlyTriggeringPeriod() {
@@ -167,6 +140,5 @@ public class Time<T> implements Windowing<T, TimeInterval, Time.TimeWindowContex
     return Optional.empty();
   }
 
-  
 }
 

@@ -1,7 +1,7 @@
 
 package cz.seznam.euphoria.core.executor.inmem;
 
-import cz.seznam.euphoria.core.client.dataset.windowing.WindowID;
+import cz.seznam.euphoria.core.client.dataset.windowing.Window;
 import cz.seznam.euphoria.core.client.dataset.windowing.WindowedElement;
 
 /**
@@ -11,11 +11,11 @@ import cz.seznam.euphoria.core.client.dataset.windowing.WindowedElement;
  *  * end-of-stream marks
  *  * watermarks
  */
-class Datum extends WindowedElement<Object, Object> {
+class Datum extends WindowedElement<Window, Object> {
 
   @SuppressWarnings("unchecked")
-  static Datum of(WindowID windowID, Object element, long stamp) {
-    return new Datum(windowID, element, stamp);
+  static Datum of(Window window, Object element, long stamp) {
+    return new Datum(window, element, stamp);
   }
 
   static Datum endOfStream() {
@@ -27,8 +27,8 @@ class Datum extends WindowedElement<Object, Object> {
   }
 
   @SuppressWarnings("unchecked")
-  static Datum windowTrigger(WindowID windowID, long stamp) {
-    return new WindowTrigger(windowID, stamp);
+  static Datum windowTrigger(Window window, long stamp) {
+    return new WindowTrigger(window, stamp);
   }
 
   static class EndOfStream extends Datum {
@@ -61,8 +61,9 @@ class Datum extends WindowedElement<Object, Object> {
 
   static class WindowTrigger extends Datum {
     @SuppressWarnings("unchecked")
-    WindowTrigger(WindowID windowID, long stamp) {
-      super(windowID, null, stamp);
+    WindowTrigger(Window window, long stamp) {
+      super(window, null, stamp);
+      this.stamp = stamp;
     }
     @Override
     public boolean isWindowTrigger() {
@@ -70,7 +71,7 @@ class Datum extends WindowedElement<Object, Object> {
     }
     @Override
     public String toString() {
-      return "WindowTrigger(" + getWindowID() + ", " + stamp + ")";
+      return "WindowTrigger(" + getWindow() + ", " + stamp + ")";
     }
   }
 
@@ -82,9 +83,9 @@ class Datum extends WindowedElement<Object, Object> {
     this.stamp = stamp;
   }
 
-  private Datum(WindowID<Object> windowID, Object element, long stamp) {
-    super(windowID, element);
-    this.stamp = stamp;
+  private Datum(Window window, Object element, long stamp) {
+    super(window, element);
+      this.stamp = stamp;
   }
 
   /** Get timestamp of the event. */
@@ -118,10 +119,7 @@ class Datum extends WindowedElement<Object, Object> {
 
   @Override
   public String toString() {
-    return "Datum(" + this.getWindowID() + ", " + stamp + ", " + get() + ")";
+    return "Datum(" + this.getWindow() + ", " + stamp + ", " + get() + ")";
   }
-
-
-
 
 }

@@ -1,48 +1,26 @@
 package cz.seznam.euphoria.core.executor.inmem;
 
-import cz.seznam.euphoria.core.client.dataset.windowing.WindowContext;
-import cz.seznam.euphoria.core.client.dataset.windowing.WindowID;
+import cz.seznam.euphoria.core.client.dataset.windowing.Window;
 import cz.seznam.euphoria.core.client.dataset.windowing.WindowedElement;
 import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
+import cz.seznam.euphoria.core.client.triggers.Trigger;
 
 import java.util.Collections;
 import java.util.Set;
 
-class AttachedWindowing implements
-    Windowing<Object, Object, AttachedWindowing.AttachedWindowContext> {
-
-  static class AttachedWindowContext extends WindowContext<Object> {
-
-    AttachedWindowContext(Object label) {
-      super(new WindowID<>(label));
-    }
-    
-    AttachedWindowContext(WindowID<Object> id) {
-      super(id);
-    }
-
-    @Override
-    public String toString() {
-      return "AttachedWindowContext(" + getWindowID() + ")";
-    }
-    
-  }
+class AttachedWindowing<T, W extends Window> implements Windowing<T, W> {
 
   static final AttachedWindowing INSTANCE = new AttachedWindowing();
 
   @Override
-  @SuppressWarnings("unchecked")
-  public Set<WindowID<Object>> assignWindowsToElement(
-      WindowedElement<?, Object> input) {
-    return Collections.singleton((WindowID) input.getWindowID());
+  public Set<W> assignWindowsToElement(WindowedElement<?, T> input) {
+    return Collections.singleton((W) input.getWindow());
   }
-
 
   @Override
-  public AttachedWindowContext createWindowContext(WindowID<Object> id) {
-    return new AttachedWindowContext(id);
+  public Trigger<T, W> getTrigger() {
+    return null;
   }
-
 
   private AttachedWindowing() {}
   
