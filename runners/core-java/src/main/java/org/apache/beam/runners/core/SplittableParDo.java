@@ -98,7 +98,7 @@ public class SplittableParDo<
 
   @Override
   public PCollection<OutputT> apply(PCollection<InputT> input) {
-    PCollection.IsBounded isFnBounded = signature.isBounded();
+    PCollection.IsBounded isFnBounded = signature.isBoundedWorkPerElement();
     Coder<RestrictionT> restrictionCoder =
         DoFnInvokers.INSTANCE
             .newByteBuddyInvoker(fn)

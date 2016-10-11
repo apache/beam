@@ -41,7 +41,7 @@ public abstract class DoFnSignature {
   public abstract Class<? extends DoFn<?, ?>> fnClass();
 
   /** Whether this {@link DoFn} does a bounded amount of work per element. */
-  public abstract PCollection.IsBounded isBounded();
+  public abstract PCollection.IsBounded isBoundedWorkPerElement();
 
   /** Details about this {@link DoFn}'s {@link DoFn.ProcessElement} method. */
   public abstract ProcessElementMethod processElement();
@@ -85,7 +85,7 @@ public abstract class DoFnSignature {
   @AutoValue.Builder
   abstract static class Builder {
     abstract Builder setFnClass(Class<? extends DoFn<?, ?>> fnClass);
-    abstract Builder setIsBounded(PCollection.IsBounded isBounded);
+    abstract Builder setIsBoundedWorkPerElement(PCollection.IsBounded isBounded);
     abstract Builder setProcessElement(ProcessElementMethod processElement);
     abstract Builder setStartBundle(BundleMethod startBundle);
     abstract Builder setFinishBundle(BundleMethod finishBundle);

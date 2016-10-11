@@ -27,8 +27,8 @@ import java.util.List;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.DoFn.Bounded;
-import org.apache.beam.sdk.transforms.DoFn.Unbounded;
+import org.apache.beam.sdk.transforms.DoFn.BoundedWorkPerElement;
+import org.apache.beam.sdk.transforms.DoFn.UnboundedWorkPerElement;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignaturesTestUtils.AnonymousMethod;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignaturesTestUtils.FakeDoFn;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
@@ -117,21 +117,27 @@ public class DoFnSignaturesSplittableDoFnTest {
       }
     }
 
-    @Bounded
+    @BoundedWorkPerElement
     class BoundedSplittableFn extends BaseSplittableFn {}
 
-    @Unbounded
+    @UnboundedWorkPerElement
     class UnboundedSplittableFn extends BaseSplittableFn {}
 
     assertEquals(
         PCollection.IsBounded.BOUNDED,
-        DoFnSignatures.INSTANCE.getOrParseSignature(BaseSplittableFn.class).isBounded());
+        DoFnSignatures.INSTANCE
+            .getOrParseSignature(BaseSplittableFn.class)
+            .isBoundedWorkPerElement());
     assertEquals(
         PCollection.IsBounded.BOUNDED,
-        DoFnSignatures.INSTANCE.getOrParseSignature(BoundedSplittableFn.class).isBounded());
+        DoFnSignatures.INSTANCE
+            .getOrParseSignature(BoundedSplittableFn.class)
+            .isBoundedWorkPerElement());
     assertEquals(
         PCollection.IsBounded.UNBOUNDED,
-        DoFnSignatures.INSTANCE.getOrParseSignature(UnboundedSplittableFn.class).isBounded());
+        DoFnSignatures.INSTANCE
+            .getOrParseSignature(UnboundedSplittableFn.class)
+            .isBoundedWorkPerElement());
   }
 
   @Test
@@ -142,7 +148,9 @@ public class DoFnSignaturesSplittableDoFnTest {
     }
     assertEquals(
         PCollection.IsBounded.BOUNDED,
-        DoFnSignatures.INSTANCE.getOrParseSignature(UnsplittableFn.class).isBounded());
+        DoFnSignatures.INSTANCE
+            .getOrParseSignature(UnsplittableFn.class)
+            .isBoundedWorkPerElement());
   }
 
   private static class BaseFnWithContinuation extends DoFn<Integer, String> {
@@ -167,29 +175,35 @@ public class DoFnSignaturesSplittableDoFnTest {
   public void testSplittableIsBoundedByDefault() throws Exception {
     assertEquals(
         PCollection.IsBounded.UNBOUNDED,
-        DoFnSignatures.INSTANCE.getOrParseSignature(BaseFnWithContinuation.class).isBounded());
+        DoFnSignatures.INSTANCE
+            .getOrParseSignature(BaseFnWithContinuation.class)
+            .isBoundedWorkPerElement());
   }
 
   @Test
   public void testSplittableRespectsBoundednessAnnotation() throws Exception {
-    @Bounded
+    @BoundedWorkPerElement
     class BoundedFnWithContinuation extends BaseFnWithContinuation {}
 
     assertEquals(
         PCollection.IsBounded.BOUNDED,
-        DoFnSignatures.INSTANCE.getOrParseSignature(BoundedFnWithContinuation.class).isBounded());
+        DoFnSignatures.INSTANCE
+            .getOrParseSignature(BoundedFnWithContinuation.class)
+            .isBoundedWorkPerElement());
 
-    @Unbounded
+    @UnboundedWorkPerElement
     class UnboundedFnWithContinuation extends BaseFnWithContinuation {}
 
     assertEquals(
         PCollection.IsBounded.UNBOUNDED,
-        DoFnSignatures.INSTANCE.getOrParseSignature(UnboundedFnWithContinuation.class).isBounded());
+        DoFnSignatures.INSTANCE
+            .getOrParseSignature(UnboundedFnWithContinuation.class)
+            .isBoundedWorkPerElement());
   }
 
   @Test
   public void testUnsplittableButDeclaresBounded() throws Exception {
-    @Bounded
+    @BoundedWorkPerElement
     class SomeFn extends DoFn<Integer, String> {
       @ProcessElement
       public void process(ProcessContext context) {}
@@ -201,7 +215,7 @@ public class DoFnSignaturesSplittableDoFnTest {
 
   @Test
   public void testUnsplittableButDeclaresUnbounded() throws Exception {
-    @Unbounded
+    @UnboundedWorkPerElement
     class SomeFn extends DoFn<Integer, String> {
       @ProcessElement
       public void process(ProcessContext context) {}
