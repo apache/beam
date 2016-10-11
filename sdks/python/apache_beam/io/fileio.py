@@ -18,6 +18,7 @@
 
 from __future__ import absolute_import
 
+import bz2
 import glob
 import logging
 from multiprocessing.pool import ThreadPool
@@ -76,6 +77,9 @@ class CompressionTypes(object):
   # ZLIB compression (deflate with ZLIB headers).
   ZLIB = _CompressionType('zlib')
 
+  # BZIP2 compression  (deflate with BZIP2 headers)
+  BZIP2 = _CompressionType('bz2')
+
   # Uncompressed (i.e., may be split).
   UNCOMPRESSED = _CompressionType('uncompressed')
 
@@ -92,14 +96,17 @@ class CompressionTypes(object):
   def mime_type(cls, compression_type, default='application/octet-stream'):
     mime_types_by_compression_type = {
         cls.GZIP: 'application/x-gzip',
-        cls.ZLIB: 'application/octet-stream'
+        cls.ZLIB: 'application/octet-stream',
+        cls.BZIP2: 'application/x-bz2',
     }
     return mime_types_by_compression_type.get(compression_type, default)
 
   @classmethod
   def detect_compression_type(cls, file_path):
     """Returns the compression type of a file (based on its suffix)"""
-    compression_types_by_suffix = {'.gz': cls.GZIP, '.z': cls.ZLIB}
+    compression_types_by_suffix = {'.gz': cls.GZIP,
+                                   '.z': cls.ZLIB,
+                                   '.bz2': cls.BZIP2}
     lowercased_path = file_path.lower()
     for suffix, compression_type in compression_types_by_suffix.iteritems():
       if lowercased_path.endswith(suffix):
@@ -596,14 +603,21 @@ class _CompressedFile(object):
     self._compression_type = compression_type
 
     if self._readable():
-      self._decompressor = zlib.decompressobj(self._type_mask[compression_type])
+      if self._compression_type == CompressionTypes.BZIP2:
+        self._decompressor = bz2.BZ2Decompressor()
+      else:
+        self._decompressor = zlib.decompressobj(
+            self._type_mask[compression_type])
     else:
       self._decompressor = None
 
     if self._writeable():
-      self._compressor = zlib.compressobj(zlib.Z_DEFAULT_COMPRESSION,
-                                          zlib.DEFLATED,
-                                          self._type_mask[compression_type])
+      if self._compression_type == CompressionTypes.BZIP2:
+        self._compressor = bz2.BZ2Compressor()
+      else:
+        self._compressor = zlib.compressobj(zlib.Z_DEFAULT_COMPRESSION,
+                                            zlib.DEFLATED,
+                                            self._type_mask[compression_type])
     else:
       self._compressor = None
 
@@ -638,9 +652,12 @@ class _CompressedFile(object):
       buf = self._file.read(self._read_size)
       if buf:
         self._data += self._decompressor.decompress(buf)
-      else:
-        # EOF reached, flush.
+      elif self._compression_type != CompressionTypes.BZIP2:
+        # EOF reached, flush. BZIP2 does not have this flush method,
+        # because of it's block nature
         self._data += self._decompressor.flush()
+        return
+      else:
         return
 
   def _read_from_internal_buffer(self, num_bytes):
