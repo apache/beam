@@ -1,5 +1,7 @@
 package cz.seznam.euphoria.core.client.dataset.windowing;
 
+import cz.seznam.euphoria.core.client.triggers.Trigger;
+
 import java.io.ObjectStreamException;
 import java.io.Serializable;
 import java.util.Collections;
@@ -10,18 +12,18 @@ import java.util.Set;
  * batch processing.
  */
 public final class Batch<T>
-    implements Windowing<T, Batch.Label, Batch.BatchWindowContext> {
+    implements Windowing<T, Batch.BatchWindow> {
 
-  public static final class Label implements Serializable, Comparable<Label> {
-    static final Label INSTANCE = new Label();
+  public static final class BatchWindow extends Window implements Comparable<BatchWindow> {
+    static final BatchWindow INSTANCE = new BatchWindow();
 
-    public static Label get() { return INSTANCE; }
+    public static BatchWindow get() { return INSTANCE; }
 
-    private Label() {}
+    private BatchWindow() {}
 
     @Override
     public boolean equals(Object other) {
-      return other instanceof Label;
+      return other instanceof BatchWindow;
     }
 
     @Override
@@ -34,37 +36,23 @@ public final class Batch<T>
     }
 
     @Override
-    public int compareTo(Label o) {
+    public int compareTo(BatchWindow o) {
       return 0;
     }
   } // ~ end of Label
-
-  public static class BatchWindowContext extends WindowContext<Label> {
-
-    static final BatchWindowContext INSTANCE = new BatchWindowContext();
-    static final Set<BatchWindowContext> INSTANCE_SET = Collections.singleton(INSTANCE);
-
-    private BatchWindowContext() {
-      super(new WindowID<>(Label.INSTANCE));
-    }
-
-    private Object readResolve() throws ObjectStreamException {
-      return INSTANCE;
-    }
-  } // ~ end of BatchWindow
 
   private final static Batch<?> INSTANCE = new Batch<>();
   private Batch() {}
 
   @Override
-  public Set<WindowID<Label>> assignWindowsToElement(
+  public Set<BatchWindow> assignWindowsToElement(
       WindowedElement<?, T> input) {
-    return Collections.singleton(new WindowID<>(Label.INSTANCE));
+    return Collections.singleton(BatchWindow.INSTANCE);
   }
 
   @Override
-  public BatchWindowContext createWindowContext(WindowID<Label> label) {
-    return BatchWindowContext.INSTANCE;
+  public Trigger<T, BatchWindow> getTrigger() {
+    return null;
   }
 
   @SuppressWarnings("unchecked")

@@ -1,10 +1,12 @@
 
 package cz.seznam.euphoria.core.executor.inmem;
 
+import cz.seznam.euphoria.core.client.dataset.windowing.Window;
+
 /**
  * Schedules and fires registered triggers according to internal time.
  */
-public interface TriggerScheduler<W, K> {
+public interface TriggerScheduler<W extends Window, K> {
 
   /**
    * Fire specific trigger on given time.
@@ -29,9 +31,9 @@ public interface TriggerScheduler<W, K> {
   void cancelAll();
 
   /**
-   * Cancel all tasks scheduled for specified window
+   * Cancel previously registered timer
    */
-  void cancel(KeyedWindow<W, K> window);
+  void cancel(long stamp, KeyedWindow<W, K> window);
 
   /**
    * Update the internal timestamp (optional operation).

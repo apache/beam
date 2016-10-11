@@ -4,18 +4,18 @@ package cz.seznam.euphoria.core.client.dataset.windowing;
  * A single data element flowing in dataset. Every such element
  * is associated with a windowing identifier, i.e. a tuple of window group and label.
  */
-public class WindowedElement<LABEL, T> {
+public class WindowedElement<W extends Window, T> {
 
-  final WindowID<LABEL> windowID;
+  final W window;
   final T element;
 
-  public WindowedElement(WindowID<LABEL> windowID, T element) {
-    this.windowID = windowID;
+  public WindowedElement(W window, T element) {
+    this.window = window;
     this.element = element;
   }
   
-  public WindowID<LABEL> getWindowID() {
-    return windowID;
+  public W getWindow() {
+    return window;
   }
 
   public T get() {
@@ -25,7 +25,7 @@ public class WindowedElement<LABEL, T> {
   @Override
   public String toString() {
     return "WindowedElement{" +
-        "windowID=" + windowID +
+        "window=" + window +
         ", element=" + element +
         '}';
   }
