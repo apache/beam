@@ -1,10 +1,9 @@
-
 package cz.seznam.euphoria.core.executor.inmem;
 
 import cz.seznam.euphoria.core.client.dataset.Partitioning;
 import cz.seznam.euphoria.core.client.dataset.windowing.Batch;
 import cz.seznam.euphoria.core.client.dataset.windowing.MergingWindowing;
-import cz.seznam.euphoria.core.client.dataset.windowing.WindowID;
+import cz.seznam.euphoria.core.client.dataset.windowing.Window;
 import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.functional.CombinableReduceFunction;
@@ -101,7 +100,7 @@ public class InMemExecutor implements Executor {
       Object next = this.reader.next();
       // we assign it to batch
       // which means null group, and batch label
-      return Datum.of(new WindowID(Batch.Label.get()), next,
+      return Datum.of(Batch.BatchWindow.get(), next,
           // ingestion time
           System.currentTimeMillis());
     }
@@ -520,7 +519,7 @@ public class InMemExecutor implements Executor {
                 collector, item::getStamp);
             if (item.isElement()) {
               // transform
-              outC.setWindow(item.getWindowID());
+              outC.setWindow(item.getWindow());
               mapper.apply(item.get(), outC);
             } else {
               out.put(item);
@@ -708,7 +707,7 @@ public class InMemExecutor implements Executor {
                   (oldVal, newVal) -> oldVal < newVal ? newVal : oldVal);
               // determine partition
               Object key = keyExtractor.apply(datum.get());
-              final Set<WindowID> targetWindows;
+              final Set<Window> targetWindows;
               int windowShift = 0;
               if (allowWindowBasedShuffling) {
                 if (windowing.isPresent()) {
@@ -716,7 +715,7 @@ public class InMemExecutor implements Executor {
                   // must be part of the operator itself
                   targetWindows = windowing.get().assignWindowsToElement(datum);
                 } else {
-                  targetWindows = Collections.singleton(datum.getWindowID());
+                  targetWindows = Collections.singleton(datum.getWindow());
                 }
 
                 if (!isMergingWindowing && targetWindows.size() == 1) {

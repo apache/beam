@@ -1,37 +1,46 @@
 package cz.seznam.euphoria.core.client.triggers;
 
-import cz.seznam.euphoria.core.client.dataset.windowing.WindowContext;
+import cz.seznam.euphoria.core.client.dataset.windowing.TimeInterval;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
  * A {@link Trigger} that fires once the time passes the end of the window.
  */
-public class TimeTrigger implements Trigger {
+public class TimeTrigger<T> implements Trigger<T, TimeInterval> {
 
   private static final Logger LOG = LoggerFactory.getLogger(TimeTrigger.class);
 
-  private final long end;
-
-  public TimeTrigger(long end) {
-    this.end = end;
+  @Override
+  public TriggerResult onElement(long time, T element, TimeInterval window, TriggerContext ctx) {
+    return registerTimer(window, ctx);
   }
 
   @Override
-  public TriggerResult schedule(WindowContext w, TriggerContext ctx) {
-    if (ctx.scheduleTriggerAt(end, w, this)) {
-      return TriggerResult.NOOP;
-    }
-
-    return TriggerResult.PASSED;
-  }
-
-  @Override
-  public TriggerResult onTimeEvent(long time, WindowContext w, TriggerContext ctx) {
-    if (time == end) {
-      LOG.debug("Firing TimeTrigger, time {}, window: {}", time, w.getWindowID());
+  public TriggerResult onTimeEvent(long time, TimeInterval window, TriggerContext ctx) {
+    if (time == window.getEndMillis()) {
+      LOG.debug("Firing TimeTrigger, time {}, window: {}", time, window);
       return TriggerResult.FLUSH_AND_PURGE;
     }
     return TriggerResult.NOOP;
+  }
+
+  @Override
+  public void onClear(TimeInterval window, TriggerContext ctx) {
+    ctx.deleteTimer(window.getEndMillis(), window);
+  }
+
+  @Override
+  public TriggerResult onMerge(TimeInterval window, TriggerContext.TriggerMergeContext ctx) {
+    return registerTimer(window, ctx);
+  }
+
+  private TriggerResult registerTimer(TimeInterval window, TriggerContext ctx) {
+    if (ctx.registerTimer(window.getEndMillis(), window)) {
+      return TriggerResult.NOOP;
+    }
+
+    // if the time already passed discard the late coming element
+    return TriggerResult.PURGE;
   }
 }

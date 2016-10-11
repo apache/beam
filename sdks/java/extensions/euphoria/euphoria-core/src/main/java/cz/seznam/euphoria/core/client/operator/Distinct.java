@@ -5,7 +5,7 @@ import cz.seznam.euphoria.core.client.dataset.windowing.Batch;
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.dataset.Partitioning;
 import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
-import cz.seznam.euphoria.core.client.dataset.windowing.WindowContext;
+import cz.seznam.euphoria.core.client.dataset.windowing.Window;
 import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.functional.CombinableReduceFunction;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
@@ -17,9 +17,9 @@ import java.util.Objects;
 /**
  * Operator outputting distinct (based on equals) elements.
  */
-public class Distinct<IN, ELEM, WLABEL, W extends WindowContext<WLABEL>>
+public class Distinct<IN, ELEM, W extends Window>
     extends StateAwareWindowWiseSingleInputOperator<
-        IN, IN, IN, ELEM, ELEM, WLABEL, W, Distinct<IN, ELEM, WLABEL, W>>
+        IN, IN, IN, ELEM, ELEM, W, Distinct<IN, ELEM, W>>
 {
 
   public static class OfBuilder {
@@ -57,8 +57,8 @@ public class Distinct<IN, ELEM, WLABEL, W extends WindowContext<WLABEL>>
     public <ELEM> WindowingBuilder<IN, ELEM> mapped(UnaryFunction<IN, ELEM> mapper) {
       return new WindowingBuilder<>(name, input, mapper);
     }
-    public <WLABEL, W extends WindowContext<WLABEL>> OutputBuilder<IN, ELEM, WLABEL, W>
-    windowBy(Windowing<IN, WLABEL, W> windowing) {
+    public <W extends Window> OutputBuilder<IN, ELEM, W>
+    windowBy(Windowing<IN, W> windowing) {
       return new OutputBuilder<>(this, windowing);
     }
     @Override
@@ -67,13 +67,13 @@ public class Distinct<IN, ELEM, WLABEL, W extends WindowContext<WLABEL>>
     }
   }
 
-  public static class OutputBuilder<IN, ELEM, WLABEL, W extends WindowContext<WLABEL>>
+  public static class OutputBuilder<IN, ELEM, W extends Window>
       implements cz.seznam.euphoria.core.client.operator.OutputBuilder<ELEM>
   {
     private final WindowingBuilder<IN, ELEM> prev;
-    private final Windowing<IN, WLABEL, W> windowing;
+    private final Windowing<IN, W> windowing;
 
-    OutputBuilder(WindowingBuilder<IN, ELEM> prev, Windowing<IN, WLABEL, W> windowing) {
+    OutputBuilder(WindowingBuilder<IN, ELEM> prev, Windowing<IN, W> windowing) {
       this.prev = Objects.requireNonNull(prev);
       this.windowing = Objects.requireNonNull(windowing);
     }
@@ -81,7 +81,7 @@ public class Distinct<IN, ELEM, WLABEL, W extends WindowContext<WLABEL>>
     @Override
     public Dataset<ELEM> output() {
       Flow flow = prev.input.getFlow();
-      Distinct<IN, ELEM, WLABEL, W> distinct;
+      Distinct<IN, ELEM, W> distinct;
       distinct = new Distinct<>(
           prev.name, flow, prev.input, prev.mapper, windowing,
           prev.getPartitioning());
@@ -102,7 +102,7 @@ public class Distinct<IN, ELEM, WLABEL, W extends WindowContext<WLABEL>>
            Flow flow,
            Dataset<IN> input,
            UnaryFunction<IN, ELEM> mapper,
-           Windowing<IN, WLABEL, W> windowing,
+           Windowing<IN, W> windowing,
            Partitioning<ELEM> partitioning)
   {
     super(name, flow, input, mapper, windowing, partitioning);
@@ -112,7 +112,7 @@ public class Distinct<IN, ELEM, WLABEL, W extends WindowContext<WLABEL>>
   public DAG<Operator<?, ?>> getBasicOps() {
     Flow flow = input.getFlow();
     String name = getName() + "::" + "ReduceByKey";
-    ReduceByKey<IN, IN, ELEM, Void, IN, Void, WLABEL, W>
+    ReduceByKey<IN, IN, ELEM, Void, IN, Void, W>
         reduce;
     reduce = new ReduceByKey<>(name,
             flow, input, getKeyExtractor(), e -> null,

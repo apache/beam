@@ -5,7 +5,7 @@ import cz.seznam.euphoria.core.client.operator.state.StorageProvider;
 import cz.seznam.euphoria.core.client.operator.state.ValueStorage;
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
-import cz.seznam.euphoria.core.client.dataset.windowing.WindowContext;
+import cz.seznam.euphoria.core.client.dataset.windowing.Window;
 import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.functional.CombinableReduceFunction;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
@@ -20,11 +20,10 @@ import java.util.Iterator;
 import static java.util.Objects.requireNonNull;
 
 public class TopPerKey<
-        IN, KEY, VALUE, SCORE extends Comparable<SCORE>,
-        WLABEL, W extends WindowContext<WLABEL>>
+        IN, KEY, VALUE, SCORE extends Comparable<SCORE>, W extends Window>
     extends StateAwareWindowWiseSingleInputOperator<
-        IN, IN, IN, KEY, Triple<KEY, VALUE, SCORE>, WLABEL, W,
-    TopPerKey<IN, KEY, VALUE, SCORE, WLABEL, W>> {
+        IN, IN, IN, KEY, Triple<KEY, VALUE, SCORE>, W,
+    TopPerKey<IN, KEY, VALUE, SCORE, W>> {
   
   private static final class MaxScored<V, C extends Comparable<C>>
       extends State<Pair<V, C>, Pair<V, C>> {
@@ -139,9 +138,9 @@ public class TopPerKey<
       this.scoreFn = scoreFn;
     }
 
-    public <WLABEL, W extends WindowContext<WLABEL>>
-    OutputBuilder<IN, K, V, S, WLABEL, W>
-    windowBy(Windowing<IN, WLABEL, W> windowing)
+    public <W extends Window>
+    OutputBuilder<IN, K, V, S, W>
+    windowBy(Windowing<IN, W> windowing)
     {
       return new OutputBuilder<>(input, keyFn, valueFn, scoreFn, requireNonNull(windowing));
     }
@@ -153,18 +152,18 @@ public class TopPerKey<
   }
 
   public static class OutputBuilder<
-      IN, K, V, S extends Comparable<S>, WLABEL, W extends WindowContext<WLABEL>>
+      IN, K, V, S extends Comparable<S>, W extends Window>
       implements cz.seznam.euphoria.core.client.operator.OutputBuilder<Triple<K, V, S>>
   {
     private final Dataset<IN> input;
     private final UnaryFunction<IN, K> keyFn;
     private final UnaryFunction<IN, V> valueFn;
     private final UnaryFunction<IN, S> scoreFn;
-    private final Windowing<IN, WLABEL, W> windowing;
+    private final Windowing<IN, W> windowing;
 
     OutputBuilder(Dataset<IN> input, UnaryFunction<IN, K> keyFn,
                   UnaryFunction<IN, V> valueFn, UnaryFunction<IN, S> scoreFn,
-                  Windowing<IN, WLABEL, W> windowing)
+                  Windowing<IN, W> windowing)
     {
       this.input = input;
       this.keyFn = keyFn;
@@ -176,7 +175,7 @@ public class TopPerKey<
     @Override
     public Dataset<Triple<K, V, S>> output() {
       Flow flow = input.getFlow();
-      TopPerKey<IN, K, V, S, WLABEL, W> top =
+      TopPerKey<IN, K, V, S, W> top =
           new TopPerKey<>(flow, input, keyFn, valueFn, scoreFn, windowing);
       flow.add(top);
       return top.output();
@@ -196,7 +195,7 @@ public class TopPerKey<
             UnaryFunction<IN, KEY> keyFn,
             UnaryFunction<IN, VALUE> valueFn,
             UnaryFunction<IN, SCORE> scoreFn,
-            Windowing<IN, WLABEL, W> windowing)
+            Windowing<IN, W> windowing)
   {
     super("Top", flow, input, keyFn, windowing);
     this.valueFn = valueFn;
@@ -208,7 +207,7 @@ public class TopPerKey<
     Flow flow = getFlow();
 
     ReduceStateByKey<IN, IN, IN, KEY, Pair<VALUE, SCORE>, KEY, Pair<VALUE, SCORE>,
-        MaxScored<VALUE, SCORE>, WLABEL, W>
+        MaxScored<VALUE, SCORE>, W>
         reduce =
         new ReduceStateByKey<>(getName() + "::ReduceStateByKey", flow, input,
             keyExtractor,

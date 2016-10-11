@@ -4,7 +4,7 @@ package cz.seznam.euphoria.core.client.operator;
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.dataset.Partitioning;
 import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
-import cz.seznam.euphoria.core.client.dataset.windowing.WindowContext;
+import cz.seznam.euphoria.core.client.dataset.windowing.Window;
 import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
 
@@ -15,16 +15,16 @@ import java.util.Collections;
  * Operator operating on window level with state information.
  */
 public class StateAwareWindowWiseSingleInputOperator<
-    IN, WIN, KIN, KEY, OUT, WLABEL, W extends WindowContext<WLABEL>,
-    OP extends StateAwareWindowWiseSingleInputOperator<IN, WIN, KIN, KEY, OUT, WLABEL, W, OP>>
-    extends StateAwareWindowWiseOperator<IN, WIN, KIN, KEY, OUT, WLABEL, W, OP> {
+    IN, WIN, KIN, KEY, OUT, W extends Window,
+    OP extends StateAwareWindowWiseSingleInputOperator<IN, WIN, KIN, KEY, OUT, W, OP>>
+    extends StateAwareWindowWiseOperator<IN, WIN, KIN, KEY, OUT, W, OP> {
 
   protected final Dataset<IN> input;
   private final Dataset<OUT> output;
 
   protected StateAwareWindowWiseSingleInputOperator(
           String name, Flow flow, Dataset<IN> input, UnaryFunction<KIN, KEY> extractor,
-          Windowing<WIN, WLABEL, W> windowing /* optional */,
+          Windowing<WIN, W> windowing /* optional */,
           Partitioning<KEY> partitioning) {
     
     super(name, flow, windowing, extractor, partitioning);
@@ -34,7 +34,7 @@ public class StateAwareWindowWiseSingleInputOperator<
 
   protected StateAwareWindowWiseSingleInputOperator(
       String name, Flow flow, Dataset<IN> input, UnaryFunction<KIN, KEY> extractor,
-      Windowing<WIN, WLABEL, W> windowing) {
+      Windowing<WIN, W> windowing) {
     this(name, flow, input, extractor, windowing, input.getPartitioning());
   }
 

@@ -1,16 +1,13 @@
 
 package cz.seznam.euphoria.core.client.dataset.windowing;
 
-import java.io.Serializable;
-import java.util.Objects;
-
-public final class TimeInterval implements Serializable, Comparable<TimeInterval> {
+public final class TimeInterval extends Window implements Comparable<TimeInterval> {
   private final long startMillis;
-  private final long intervalMillis;
+  private final long endMillis;
 
-  public TimeInterval(long startMillis, long intervalMillis) {
+  public TimeInterval(long startMillis, long endMillis) {
     this.startMillis = startMillis;
-    this.intervalMillis = intervalMillis;
+    this.endMillis = endMillis;
   }
 
   public long getStartMillis() {
@@ -18,33 +15,48 @@ public final class TimeInterval implements Serializable, Comparable<TimeInterval
   }
 
   public long getEndMillis() {
-    return startMillis + intervalMillis;
+    return endMillis;
   }
 
-  public long getIntervalMillis() {
-    return intervalMillis;
+  /**
+   * Returns {@code true} if this window intersects the given window.
+   */
+  boolean intersects(TimeInterval that) {
+    return this.startMillis < that.endMillis
+            && this.endMillis > that.startMillis;
+  }
+
+  /**
+   * Returns the minimal window covers both this window and the given window.
+   */
+  TimeInterval cover(TimeInterval that) {
+    return new TimeInterval(
+            Math.min(this.startMillis, that.startMillis),
+            Math.max(this.endMillis, that.endMillis));
   }
 
   @Override
   public boolean equals(Object o) {
-    if (o instanceof TimeInterval) {
-      TimeInterval that = (TimeInterval) o;
-      return this.startMillis == that.startMillis
-          && this.intervalMillis == that.intervalMillis;
-    }
-    return false;
+    if (this == o) return true;
+    if (!(o instanceof TimeInterval)) return false;
+
+    TimeInterval that = (TimeInterval) o;
+
+    return startMillis == that.startMillis && endMillis == that.endMillis;
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(startMillis, intervalMillis);
+    int result = (int) (startMillis ^ (startMillis >>> 32));
+    result = 31 * result + (int) (endMillis ^ (endMillis >>> 32));
+    return result;
   }
 
   @Override
   public String toString() {
     return "TimeInterval{" +
         "startMillis=" + startMillis +
-        ", intervalMillis=" + intervalMillis +
+        ", endMillis=" + endMillis +
         '}';
   }
 
@@ -54,7 +66,7 @@ public final class TimeInterval implements Serializable, Comparable<TimeInterval
     if (cmp != 0) {
       return cmp < 0 ? -1 : 1;
     }
-    cmp = intervalMillis - o.intervalMillis;
+    cmp = endMillis - o.endMillis;
     if (cmp == 0)
       return 0;
     return cmp < 0 ? -1 : 1;

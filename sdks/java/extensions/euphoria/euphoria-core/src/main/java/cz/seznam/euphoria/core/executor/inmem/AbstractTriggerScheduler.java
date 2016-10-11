@@ -4,7 +4,6 @@ import cz.seznam.euphoria.guava.shaded.com.google.common.collect.ArrayListMultim
 import cz.seznam.euphoria.guava.shaded.com.google.common.collect.Multimap;
 import cz.seznam.euphoria.guava.shaded.com.google.common.collect.Multimaps;
 import cz.seznam.euphoria.guava.shaded.com.google.common.util.concurrent.ThreadFactoryBuilder;
-import cz.seznam.euphoria.core.client.dataset.windowing.WindowContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

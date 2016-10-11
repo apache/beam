@@ -4,7 +4,7 @@ package cz.seznam.euphoria.core.client.operator;
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.dataset.Partitioner;
 import cz.seznam.euphoria.core.client.dataset.Partitioning;
-import cz.seznam.euphoria.core.client.dataset.windowing.WindowContext;
+import cz.seznam.euphoria.core.client.dataset.windowing.Window;
 import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.functional.CombinableReduceFunction;
@@ -17,10 +17,10 @@ import cz.seznam.euphoria.core.client.util.Pair;
  * Reduce all elements in window.
  */
 public class ReduceWindow<
-    IN, VALUE, OUT, WLABEL, W extends WindowContext<WLABEL>>
+    IN, VALUE, OUT, W extends Window>
     extends StateAwareWindowWiseSingleInputOperator<
-        IN, IN, IN, Byte, OUT, WLABEL, W,
-            ReduceWindow<IN, VALUE, OUT, WLABEL, W>> {
+        IN, IN, IN, Byte, OUT, W,
+            ReduceWindow<IN, VALUE, OUT, W>> {
   
   public static class OfBuilder {
     final String name;
@@ -84,7 +84,7 @@ public class ReduceWindow<
     final UnaryFunction<T, VALUE> valueExtractor;    
     final ReduceFunction<VALUE, OUT> reducer;
     int numPartitions = -1;
-    Windowing<T, ?, ?> windowing;
+    Windowing<T, ?> windowing;
 
     public OutputBuilder(
         String name,
@@ -99,13 +99,13 @@ public class ReduceWindow<
     @SuppressWarnings("unchecked")
     public Dataset<OUT> output() {
       Flow flow = input.getFlow();
-      ReduceWindow<T, VALUE, OUT, ?, ?> operator = new ReduceWindow<>(
+      ReduceWindow<T, VALUE, OUT, ?> operator = new ReduceWindow<>(
           name, flow, input, valueExtractor, (Windowing) windowing, reducer, numPartitions);
       flow.add(operator);
       return operator.output();
     }
-    public <LABEL, W extends WindowContext<LABEL>> OutputBuilder<T, VALUE, OUT>
-    windowBy(Windowing<T, LABEL, W> windowing) {
+    public <W extends Window> OutputBuilder<T, VALUE, OUT>
+    windowBy(Windowing<T, W> windowing) {
       this.windowing = windowing;
       return this;
     }
@@ -135,7 +135,7 @@ public class ReduceWindow<
       Flow flow,
       Dataset<IN> input,
       UnaryFunction<IN, VALUE> valueExtractor,
-      Windowing<IN, WLABEL, W> windowing,
+      Windowing<IN, W> windowing,
       ReduceFunction<VALUE, OUT> reducer,
       int numPartitions) {
     
@@ -162,7 +162,7 @@ public class ReduceWindow<
   @Override
   public DAG<Operator<?, ?>> getBasicOps() {
     // implement this operator via `ReduceByKey`
-    ReduceByKey<IN, IN, Byte, VALUE, Void, OUT, WLABEL, W> reduceByKey;
+    ReduceByKey<IN, IN, Byte, VALUE, Void, OUT, W> reduceByKey;
     reduceByKey = new ReduceByKey<>(
         getName() + "::ReduceByKey", getFlow(), input,
         getKeyExtractor(), valueExtractor,

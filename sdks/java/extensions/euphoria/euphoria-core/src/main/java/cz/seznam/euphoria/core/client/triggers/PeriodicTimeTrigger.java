@@ -1,54 +1,70 @@
 package cz.seznam.euphoria.core.client.triggers;
 
-import cz.seznam.euphoria.core.client.dataset.windowing.WindowContext;
+import cz.seznam.euphoria.core.client.dataset.windowing.TimeInterval;
+import cz.seznam.euphoria.core.client.operator.state.ValueStorage;
+import cz.seznam.euphoria.core.client.operator.state.ValueStorageDescriptor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
  * A {@link Trigger} that is periodically fired based on given time interval.
+ * Used to implement "early triggering" functionality.
  */
-public class PeriodicTimeTrigger implements Trigger {
+public class PeriodicTimeTrigger<T> implements Trigger<T, TimeInterval> {
 
   private static final Logger LOG = LoggerFactory.getLogger(PeriodicTimeTrigger.class);
 
+  /** Next fire stamp (when merging the lowest timestamp is taken) */
+  private final ValueStorageDescriptor<Long> fireTimeDescriptor =
+          ValueStorageDescriptor.of("fire-time", Long.class, null, Math::min);
+
   private final long interval;
-  private final long startTime;
-  private final long lastFireTime;
 
-  public PeriodicTimeTrigger(long interval, long startTime, long lastFireTime) {
+  public PeriodicTimeTrigger(long interval) {
     this.interval = interval;
-    this.startTime = startTime;
-    this.lastFireTime = lastFireTime;
   }
 
   @Override
-  public TriggerResult schedule(WindowContext w, TriggerContext ctx) {
-    if (scheduleNext(startTime, w, ctx)) {
-      return TriggerResult.NOOP;
-    }
-    return TriggerResult.PASSED;
-  }
+  public TriggerResult onElement(long time, T element, TimeInterval window, TriggerContext ctx) {
+    ValueStorage<Long> fireStamp = ctx.getValueStorage(fireTimeDescriptor);
 
-  @Override
-  public TriggerResult onTimeEvent(long time, WindowContext w, TriggerContext ctx) {
-    if (time >= startTime && time <= lastFireTime) {
-      LOG.debug("Firing PeriodicTimeTrigger, time {}, window: {}", time, w.getWindowID());
-      // ~ reschedule the trigger
-      scheduleNext(time, w, ctx);
-      return TriggerResult.FLUSH;
+    if (fireStamp.get() == null) {
+      // register first timer
+      long start = time - (time % interval);
+      long nextFireTimestamp = start + interval;
+
+      ctx.registerTimer(nextFireTimestamp, window);
+      fireStamp.set(nextFireTimestamp);
     }
+
     return TriggerResult.NOOP;
   }
 
-  /**
-   * @return {@code false} when end of window reached.
-   */
-  private boolean scheduleNext(long currentTime, WindowContext w, TriggerContext ctx) {
-    long fire = currentTime + interval;
-    if (fire <= lastFireTime) {
-      boolean result = ctx.scheduleTriggerAt(fire, w, this);
-      return result;
+  @Override
+  public TriggerResult onTimeEvent(long time, TimeInterval window, TriggerContext ctx) {
+    ValueStorage<Long> fireStamp = ctx.getValueStorage(fireTimeDescriptor);
+
+    if (fireStamp.get().equals(time)) {
+      LOG.debug("Firing PeriodicTimeTrigger, time {}, window: {}", time, window);
+      ctx.registerTimer(time + interval, window);
+      fireStamp.set(time + interval);
+
+      return TriggerResult.FLUSH;
     }
-    return false;
+
+    return TriggerResult.NOOP;
+  }
+
+  @Override
+  public void onClear(TimeInterval window, TriggerContext ctx) {
+    ValueStorage<Long> fireStamp = ctx.getValueStorage(fireTimeDescriptor);
+    ctx.deleteTimer(fireStamp.get(), window);
+    fireStamp.clear();
+  }
+
+  @Override
+  public TriggerResult onMerge(TimeInterval window, TriggerContext.TriggerMergeContext ctx) {
+    ctx.mergeStoredState(fireTimeDescriptor);
+    return TriggerResult.NOOP;
   }
 }

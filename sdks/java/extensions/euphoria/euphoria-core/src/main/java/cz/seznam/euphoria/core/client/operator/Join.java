@@ -4,8 +4,8 @@ package cz.seznam.euphoria.core.client.operator;
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.dataset.Partitioning;
 import cz.seznam.euphoria.core.client.dataset.windowing.Batch;
-import cz.seznam.euphoria.core.client.dataset.windowing.WindowContext;
 import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
+import cz.seznam.euphoria.core.client.dataset.windowing.Window;
 import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.functional.BinaryFunctor;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
@@ -26,10 +26,10 @@ import java.util.Objects;
 /**
  * Join two datasets by given key producing single new dataset.
  */
-public class Join<LEFT, RIGHT, KEY, OUT, WLABEL, W extends WindowContext<WLABEL>>
+public class Join<LEFT, RIGHT, KEY, OUT, W extends Window>
     extends StateAwareWindowWiseOperator<Object, Either<LEFT, RIGHT>,
-    Either<LEFT, RIGHT>, KEY, Pair<KEY, OUT>, WLABEL, W,
-    Join<LEFT, RIGHT, KEY, OUT, WLABEL, W>>
+    Either<LEFT, RIGHT>, KEY, Pair<KEY, OUT>, W,
+    Join<LEFT, RIGHT, KEY, OUT, W>>
     implements OutputBuilder<Pair<KEY, OUT>> {
 
   public static class OfBuilder {
@@ -140,23 +140,23 @@ public class Join<LEFT, RIGHT, KEY, OUT, WLABEL, W extends WindowContext<WLABEL>
       return new OutputBuilder<>(this, Batch.get()).output();
     }
 
-    public <WLABEL, W extends WindowContext<WLABEL>>
-    OutputBuilder<LEFT, RIGHT, KEY, OUT, WLABEL, W>
-    windowBy(Windowing<Either<LEFT, RIGHT>, WLABEL, W> windowing)
+    public <W extends Window>
+    OutputBuilder<LEFT, RIGHT, KEY, OUT, W>
+    windowBy(Windowing<Either<LEFT, RIGHT>, W> windowing)
     {
       return new OutputBuilder<>(this, windowing);
     }
   }
 
   public static class OutputBuilder<
-      LEFT, RIGHT, KEY, OUT, WLABEL, W extends WindowContext<WLABEL>>
+      LEFT, RIGHT, KEY, OUT, W extends Window>
       implements cz.seznam.euphoria.core.client.operator.OutputBuilder<Pair<KEY, OUT>> {
     
     private final WindowingBuilder<LEFT, RIGHT, KEY, OUT> prev;
-    private final Windowing<Either<LEFT, RIGHT>, WLABEL, W> windowing;
+    private final Windowing<Either<LEFT, RIGHT>, W> windowing;
 
     OutputBuilder(WindowingBuilder<LEFT, RIGHT, KEY, OUT> prev,
-                  Windowing<Either<LEFT, RIGHT>, WLABEL, W> windowing) {
+                  Windowing<Either<LEFT, RIGHT>, W> windowing) {
       
       this.prev = prev;
       this.windowing = windowing;
@@ -165,7 +165,7 @@ public class Join<LEFT, RIGHT, KEY, OUT, WLABEL, W extends WindowContext<WLABEL>
     @Override
     public Dataset<Pair<KEY, OUT>> output() {
       Flow flow = prev.left.getFlow();
-      Join<LEFT, RIGHT, KEY, OUT, WLABEL, W> join =
+      Join<LEFT, RIGHT, KEY, OUT, W> join =
           new Join<>(prev.name, flow, prev.left, prev.right,
               windowing, prev.getPartitioning(),
               prev.leftKeyExtractor, prev.rightKeyExtractor, prev.joinFunc, prev.outer);
@@ -196,7 +196,7 @@ public class Join<LEFT, RIGHT, KEY, OUT, WLABEL, W extends WindowContext<WLABEL>
   Join(String name,
       Flow flow,
       Dataset<LEFT> left, Dataset<RIGHT> right,
-      Windowing<Either<LEFT, RIGHT>, WLABEL, W> windowing,
+      Windowing<Either<LEFT, RIGHT>, W> windowing,
       Partitioning<KEY> partitioning,
       UnaryFunction<LEFT, KEY> leftKeyExtractor,
       UnaryFunction<RIGHT, KEY> rightKeyExtractor,
@@ -362,7 +362,7 @@ public class Join<LEFT, RIGHT, KEY, OUT, WLABEL, W extends WindowContext<WLABEL>
 
     ReduceStateByKey<Either<LEFT, RIGHT>, Either<LEFT, RIGHT>, Either<LEFT, RIGHT>,
         KEY, Either<LEFT, RIGHT>, KEY,
-        OUT, JoinState, WLABEL, W> reduce;
+        OUT, JoinState, W> reduce;
 
     name = getName() + "::ReduceStateByKey";
     reduce = new ReduceStateByKey<>(
