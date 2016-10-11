@@ -69,7 +69,6 @@
         <artifactId>maven-failsafe-plugin</artifactId>
         <configuration>
           <useManifestOnlyJar>false</useManifestOnlyJar>
-          <redirectTestOutputToFile>true</redirectTestOutputToFile>
         </configuration>
         <executions>
           <execution>
