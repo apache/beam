@@ -4,7 +4,7 @@ package cz.seznam.euphoria.core.client.operator;
 import cz.seznam.euphoria.core.client.dataset.windowing.Batch;
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.dataset.Partitioning;
-import cz.seznam.euphoria.core.client.dataset.windowing.WindowContext;
+import cz.seznam.euphoria.core.client.dataset.windowing.Window;
 import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
@@ -16,11 +16,9 @@ import java.util.Objects;
 /**
  * Operator counting elements with same key.
  */
-public class CountByKey<
-    IN, KEY, WLABEL, W extends WindowContext<WLABEL>>
+public class CountByKey<IN, KEY, W extends Window>
     extends StateAwareWindowWiseSingleInputOperator<
-        IN, IN, IN, KEY, Pair<KEY, Long>,
-        WLABEL, W, CountByKey<IN, KEY, WLABEL, W>> {
+        IN, IN, IN, KEY, Pair<KEY, Long>, W, CountByKey<IN, KEY, W>> {
 
   public static class OfBuilder {
     private final String name;
@@ -59,8 +57,8 @@ public class CountByKey<
       this.input = Objects.requireNonNull(input);
       this.keyExtractor = Objects.requireNonNull(keyExtractor);
     }
-    public <WLABEL, W extends WindowContext<WLABEL>> OutputBuilder<IN, KEY, WLABEL, W>
-    windowBy(Windowing<IN, WLABEL, W> windowing)
+    public <W extends Window> OutputBuilder<IN, KEY, W>
+    windowBy(Windowing<IN, W> windowing)
     {
       return new OutputBuilder<>(this, windowing);
     }
@@ -68,11 +66,11 @@ public class CountByKey<
       return new OutputBuilder<>(this, Batch.get()).output();
     }
   }
-  public static class OutputBuilder<IN, KEY, WLABEL, W extends WindowContext<WLABEL>> {
+  public static class OutputBuilder<IN, KEY, W extends Window> {
     private final WindowingBuilder<IN, KEY> prev;
-    private final Windowing<IN, WLABEL, W> windowing;
+    private final Windowing<IN, W> windowing;
     OutputBuilder(WindowingBuilder<IN, KEY> prev,
-                  Windowing<IN, WLABEL, W> windowing)
+                  Windowing<IN, W> windowing)
     {
       this.prev = Objects.requireNonNull(prev);
       this.windowing = Objects.requireNonNull(windowing);
@@ -80,7 +78,7 @@ public class CountByKey<
 
     public Dataset<Pair<KEY, Long>> output() {
       Flow flow = prev.input.getFlow();
-      CountByKey<IN, KEY, WLABEL, W> count =
+      CountByKey<IN, KEY, W> count =
           new CountByKey<>(
               prev.name, flow, prev.input,
               prev.keyExtractor, windowing, prev.getPartitioning());
@@ -101,7 +99,7 @@ public class CountByKey<
       Flow flow,
       Dataset<IN> input,
       UnaryFunction<IN, KEY> extractor,
-      Windowing<IN, WLABEL, W> windowing,
+      Windowing<IN, W> windowing,
       Partitioning<KEY> partitioning)
   {
     super(name, flow, input, extractor, windowing, partitioning);
@@ -109,7 +107,7 @@ public class CountByKey<
 
   @Override
   public DAG<Operator<?, ?>> getBasicOps() {
-    SumByKey<IN, KEY, WLABEL, W> sum = new SumByKey<>(
+    SumByKey<IN, KEY, W> sum = new SumByKey<>(
             getName(),
             input.getFlow(),
             input,

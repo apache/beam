@@ -6,9 +6,7 @@ import cz.seznam.euphoria.core.client.io.Context;
 import cz.seznam.euphoria.core.client.triggers.TimeTrigger;
 import cz.seznam.euphoria.core.client.triggers.Trigger;
 import java.time.Duration;
-import java.util.Collections;
 import java.util.HashSet;
-import java.util.List;
 import static java.util.Objects.requireNonNull;
 import java.util.Optional;
 import java.util.Set;
@@ -17,26 +15,7 @@ import java.util.Set;
  * Time sliding windowing.
  */
 public final class TimeSliding<T>
-    implements Windowing<T, TimeInterval, TimeSliding.SlidingWindowContext> {
-
-  public static class SlidingWindowContext extends WindowContext<TimeInterval> {
-
-    private SlidingWindowContext(WindowID<TimeInterval> interval) {
-      super(interval);
-    }
-
-    @Override
-    public List<Trigger> createTriggers() {
-      TimeInterval it = getWindowID().getLabel();
-      return Collections.singletonList(
-          new TimeTrigger(it.getStartMillis() + it.getIntervalMillis()));
-    }
-
-    @Override
-    public String toString() {
-      return "SlidingWindow{interval=" + getWindowID().getLabel() + '}';
-    }
-  }
+    implements Windowing<T, TimeInterval> {
 
   public static <T> TimeSliding<T> of(Duration duration, Duration step) {
     return new TimeSliding<>(duration.toMillis(), step.toMillis(),
@@ -75,21 +54,21 @@ public final class TimeSliding<T>
   }
 
   @Override
-  public Set<WindowID<TimeInterval>> assignWindowsToElement(
+  public Set<TimeInterval> assignWindowsToElement(
       WindowedElement<?, T> input) {
     long evtTime = eventTimeFn.apply(input.get());
-    Set<WindowID<TimeInterval>> ret = new HashSet<>();
+    Set<TimeInterval> ret = new HashSet<>();
     for (long start = evtTime - evtTime % this.slide;
          start > evtTime - this.duration;
          start -= this.slide) {
-      ret.add(new WindowID<>(new TimeInterval(start, this.duration)));
+      ret.add(new TimeInterval(start, start + this.duration));
     }
     return ret;
   }
 
   @Override
-  public SlidingWindowContext createWindowContext(WindowID<TimeInterval> id) {
-    return new SlidingWindowContext(id);
+  public Trigger<T, TimeInterval> getTrigger() {
+    return new TimeTrigger<>();
   }
 
   @Override
