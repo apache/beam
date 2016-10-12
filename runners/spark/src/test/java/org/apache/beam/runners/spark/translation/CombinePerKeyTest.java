@@ -59,7 +59,6 @@ public class CombinePerKeyTest {
         for (KV<String, Long> kv : res.get(cnts)) {
             actualCnts.put(kv.getKey(), kv.getValue());
         }
-        res.close();
         Assert.assertEquals(8, actualCnts.size());
         Assert.assertEquals(Long.valueOf(2L), actualCnts.get("the"));
     }

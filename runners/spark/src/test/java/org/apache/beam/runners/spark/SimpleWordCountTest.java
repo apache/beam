@@ -78,8 +78,7 @@ public class SimpleWordCountTest {
 
     PAssert.that(output).containsInAnyOrder(EXPECTED_COUNT_SET);
 
-    EvaluationResult res = (EvaluationResult) p.run();
-    res.close();
+    p.run();
 
     assertThat(InMemoryMetrics.<Double>valueOf("emptyLines"), is(1d));
   }
@@ -100,8 +99,7 @@ public class SimpleWordCountTest {
     File outputFile = testFolder.newFile();
     output.apply("WriteCounts", TextIO.Write.to(outputFile.getAbsolutePath()).withoutSharding());
 
-    EvaluationResult res = (EvaluationResult) p.run();
-    res.close();
+    p.run();
 
     assertThat(Sets.newHashSet(FileUtils.readLines(outputFile)),
         containsInAnyOrder(EXPECTED_COUNT_SET.toArray()));

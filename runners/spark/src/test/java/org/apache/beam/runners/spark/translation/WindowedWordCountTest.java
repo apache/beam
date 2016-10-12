@@ -21,7 +21,6 @@ package org.apache.beam.runners.spark.translation;
 import com.google.common.collect.ImmutableList;
 import java.util.Arrays;
 import java.util.List;
-import org.apache.beam.runners.spark.EvaluationResult;
 import org.apache.beam.runners.spark.SparkRunner;
 import org.apache.beam.runners.spark.examples.WordCount;
 import org.apache.beam.sdk.Pipeline;
@@ -67,8 +66,7 @@ public class WindowedWordCountTest {
 
     PAssert.that(output).containsInAnyOrder(EXPECTED_FIXED_SEPARATE_COUNT_SET);
 
-    EvaluationResult res = (EvaluationResult) p.run();
-    res.close();
+    p.run();
   }
 
   private static final List<String> EXPECTED_FIXED_SAME_COUNT_SET =
@@ -89,8 +87,7 @@ public class WindowedWordCountTest {
 
     PAssert.that(output).containsInAnyOrder(EXPECTED_FIXED_SAME_COUNT_SET);
 
-    EvaluationResult res = (EvaluationResult) p.run();
-    res.close();
+    p.run();
   }
 
   private static final List<String> EXPECTED_SLIDING_COUNT_SET =
@@ -113,8 +110,7 @@ public class WindowedWordCountTest {
 
     PAssert.that(output).containsInAnyOrder(EXPECTED_SLIDING_COUNT_SET);
 
-    EvaluationResult res = (EvaluationResult) p.run();
-    res.close();
+    p.run();
   }
 
 }

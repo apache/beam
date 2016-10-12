@@ -53,7 +53,6 @@ public class DeDupTest {
 
     PAssert.that(output).containsInAnyOrder(EXPECTED_SET);
 
-    EvaluationResult res = (EvaluationResult) p.run();
-    res.close();
+    p.run();
   }
 }

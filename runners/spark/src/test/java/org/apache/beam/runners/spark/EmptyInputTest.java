@@ -48,7 +48,6 @@ public class EmptyInputTest {
 
     EvaluationResult res = (EvaluationResult) p.run();
     assertEquals("", Iterables.getOnlyElement(res.get(output)));
-    res.close();
   }
 
   /**
