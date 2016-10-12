@@ -238,15 +238,8 @@ public class InMemExecutor implements Executor {
 
   private boolean allowWindowBasedShuffling = false;
 
-  private volatile int reduceStateByKeyMaxKeysPerWindow = -1;
-
   private StorageProvider storageProvider = new InMemStorageProvider();
 
-  public InMemExecutor setReduceStateByKeyMaxKeysPerWindow(int maxKeyPerWindow) {
-    this.reduceStateByKeyMaxKeysPerWindow = maxKeyPerWindow;
-    return this;
-  }
-  
   /**
    * Set supplier for watermark emit strategy used in state operations.
    * Defaults to {@code WatermarkEmitStrategy.Default}.
@@ -613,14 +606,15 @@ public class InMemExecutor implements Executor {
           reduceStateByKey,
           reduceStateByKey.getName() + "#part-" + (i++),
           q, output, keyExtractor, valueExtractor,
-          // if using attached windowing, we have to use watermark triggering
-          windowing != null
-              ? triggerSchedulerSupplier.get()
-              : new WatermarkTriggerScheduler(watermarkDuration),
+          // ~ on batch input we use a noop trigger scheduler
+          // ~ if using attached windowing, we have to use watermark triggering
+          reduceStateByKey.input().isBounded()
+            ? new NoopTriggerScheduler()
+            : (windowing != null
+                  ? triggerSchedulerSupplier.get()
+                  : new WatermarkTriggerScheduler(watermarkDuration)),
           watermarkEmitStrategySupplier.get(),
-          storageProvider,
-          reduceStateByKey.input().isBounded(),
-          reduceStateByKeyMaxKeysPerWindow));
+          storageProvider));
     }
     return outputSuppliers;
   }

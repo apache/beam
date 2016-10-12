@@ -151,7 +151,7 @@ public class ReduceStateByKeyTest extends OperatorTest {
             .output();
         return FlatMap.of(output)
             .using((UnaryFunctor<Pair<Integer, Integer>, WPair<Integer, Integer, Integer>>)
-                (elem, c) -> c.collect(new WPair<>((Integer) c.getWindow(), elem.getFirst(), elem.getSecond())))
+                (elem, c) -> c.collect(new WPair<>(((IntWindow) c.getWindow()).getValue(), elem.getFirst(), elem.getSecond())))
             .output();
       }
 
