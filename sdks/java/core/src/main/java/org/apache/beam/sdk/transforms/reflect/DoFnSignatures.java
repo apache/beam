@@ -170,7 +170,7 @@ public class DoFnSignatures {
           newTracker = analyzeNewTrackerMethod(newTrackerErrors, fnToken, newTrackerMethod));
     }
 
-    builder.setIsBoundedWorkPerElement(inferBoundedness(fnToken, processElement, errors));
+    builder.setIsBoundedPerElement(inferBoundedness(fnToken, processElement, errors));
 
     DoFnSignature signature = builder.build();
 
@@ -190,15 +190,15 @@ public class DoFnSignatures {
    *
    * <ol>
    * <li>If the {@link DoFn} is not splittable, then it is bounded, it must not be annotated as
-   *     {@link DoFn.BoundedWorkPerElement} or {@link DoFn.UnboundedWorkPerElement}, and {@link
+   *     {@link DoFn.BoundedPerElement} or {@link DoFn.UnboundedPerElement}, and {@link
    *     DoFn.ProcessElement} must return {@code void}.
    * <li>If the {@link DoFn} (or any of its supertypes) is annotated as {@link
-   *     DoFn.BoundedWorkPerElement} or {@link DoFn.UnboundedWorkPerElement}, use that. Only one of
+   *     DoFn.BoundedPerElement} or {@link DoFn.UnboundedPerElement}, use that. Only one of
    *     these must be specified.
    * <li>If {@link DoFn.ProcessElement} returns {@link DoFn.ProcessContinuation}, assume it is
    *     unbounded. Otherwise (if it returns {@code void}), assume it is bounded.
    * <li>If {@link DoFn.ProcessElement} returns {@code void}, but the {@link DoFn} is annotated
-   *     {@link DoFn.UnboundedWorkPerElement}, this is an error.
+   *     {@link DoFn.UnboundedPerElement}, this is an error.
    * </ol>
    */
   private static PCollection.IsBounded inferBoundedness(
@@ -207,15 +207,15 @@ public class DoFnSignatures {
       ErrorReporter errors) {
     PCollection.IsBounded isBounded = null;
     for (TypeToken<?> supertype : fnToken.getTypes()) {
-      if (supertype.getRawType().isAnnotationPresent(DoFn.BoundedWorkPerElement.class)
-          || supertype.getRawType().isAnnotationPresent(DoFn.UnboundedWorkPerElement.class)) {
+      if (supertype.getRawType().isAnnotationPresent(DoFn.BoundedPerElement.class)
+          || supertype.getRawType().isAnnotationPresent(DoFn.UnboundedPerElement.class)) {
         errors.checkArgument(
             isBounded == null,
             "Both @%s and @%s specified",
-            DoFn.BoundedWorkPerElement.class.getSimpleName(),
-            DoFn.UnboundedWorkPerElement.class.getSimpleName());
+            DoFn.BoundedPerElement.class.getSimpleName(),
+            DoFn.UnboundedPerElement.class.getSimpleName());
         isBounded =
-            supertype.getRawType().isAnnotationPresent(DoFn.BoundedWorkPerElement.class)
+            supertype.getRawType().isAnnotationPresent(DoFn.BoundedPerElement.class)
                 ? PCollection.IsBounded.BOUNDED
                 : PCollection.IsBounded.UNBOUNDED;
       }
@@ -232,8 +232,8 @@ public class DoFnSignatures {
           isBounded == null,
           "Non-splittable, but annotated as @"
               + ((isBounded == PCollection.IsBounded.BOUNDED)
-                  ? DoFn.BoundedWorkPerElement.class.getSimpleName()
-                  : DoFn.UnboundedWorkPerElement.class.getSimpleName()));
+                  ? DoFn.BoundedPerElement.class.getSimpleName()
+                  : DoFn.UnboundedPerElement.class.getSimpleName()));
       checkState(!processElement.hasReturnValue(), "Should have been inferred splittable");
       isBounded = PCollection.IsBounded.BOUNDED;
     }

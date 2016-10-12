@@ -468,10 +468,10 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
    *     indicate whether there is more work to be done for the current element.
    * <li>Its {@link ProcessElement} method <i>must not</i> use any extra context parameters, such as
    *     {@link BoundedWindow}.
-   * <li>The {@link DoFn} itself <i>may</i> be annotated with {@link BoundedWorkPerElement} or
-   *     {@link UnboundedWorkPerElement}, but not both at the same time. If it's not annotated with
-   *     either of these, it's assumed to be {@link BoundedWorkPerElement} if its {@link
-   *     ProcessElement} method returns {@code void} and {@link UnboundedWorkPerElement} if it
+   * <li>The {@link DoFn} itself <i>may</i> be annotated with {@link BoundedPerElement} or
+   *     {@link UnboundedPerElement}, but not both at the same time. If it's not annotated with
+   *     either of these, it's assumed to be {@link BoundedPerElement} if its {@link
+   *     ProcessElement} method returns {@code void} and {@link UnboundedPerElement} if it
    *     returns a {@link ProcessContinuation}.
    * </ul>
    *
@@ -586,7 +586,7 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
   @Retention(RetentionPolicy.RUNTIME)
   @Target(ElementType.TYPE)
   @Experimental(Kind.SPLITTABLE_DO_FN)
-  public @interface BoundedWorkPerElement {}
+  public @interface BoundedPerElement {}
 
   /**
    * Annotation on a <a href="https://s.apache.org/splittable-do-fn">splittable</a> {@link DoFn}
@@ -598,7 +598,7 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
   @Retention(RetentionPolicy.RUNTIME)
   @Target(ElementType.TYPE)
   @Experimental(Kind.SPLITTABLE_DO_FN)
-  public @interface UnboundedWorkPerElement {}
+  public @interface UnboundedPerElement {}
 
   // This can't be put into ProcessContinuation itself due to the following problem:
   // http://ternarysearch.blogspot.com/2013/07/static-initialization-deadlock.html

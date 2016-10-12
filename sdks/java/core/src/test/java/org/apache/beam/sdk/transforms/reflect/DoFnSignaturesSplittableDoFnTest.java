@@ -27,8 +27,8 @@ import java.util.List;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.DoFn.BoundedWorkPerElement;
-import org.apache.beam.sdk.transforms.DoFn.UnboundedWorkPerElement;
+import org.apache.beam.sdk.transforms.DoFn.BoundedPerElement;
+import org.apache.beam.sdk.transforms.DoFn.UnboundedPerElement;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignaturesTestUtils.AnonymousMethod;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignaturesTestUtils.FakeDoFn;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
@@ -117,27 +117,27 @@ public class DoFnSignaturesSplittableDoFnTest {
       }
     }
 
-    @BoundedWorkPerElement
+    @BoundedPerElement
     class BoundedSplittableFn extends BaseSplittableFn {}
 
-    @UnboundedWorkPerElement
+    @UnboundedPerElement
     class UnboundedSplittableFn extends BaseSplittableFn {}
 
     assertEquals(
         PCollection.IsBounded.BOUNDED,
         DoFnSignatures.INSTANCE
             .getOrParseSignature(BaseSplittableFn.class)
-            .isBoundedWorkPerElement());
+            .isBoundedPerElement());
     assertEquals(
         PCollection.IsBounded.BOUNDED,
         DoFnSignatures.INSTANCE
             .getOrParseSignature(BoundedSplittableFn.class)
-            .isBoundedWorkPerElement());
+            .isBoundedPerElement());
     assertEquals(
         PCollection.IsBounded.UNBOUNDED,
         DoFnSignatures.INSTANCE
             .getOrParseSignature(UnboundedSplittableFn.class)
-            .isBoundedWorkPerElement());
+            .isBoundedPerElement());
   }
 
   @Test
@@ -150,7 +150,7 @@ public class DoFnSignaturesSplittableDoFnTest {
         PCollection.IsBounded.BOUNDED,
         DoFnSignatures.INSTANCE
             .getOrParseSignature(UnsplittableFn.class)
-            .isBoundedWorkPerElement());
+            .isBoundedPerElement());
   }
 
   private static class BaseFnWithContinuation extends DoFn<Integer, String> {
@@ -177,33 +177,33 @@ public class DoFnSignaturesSplittableDoFnTest {
         PCollection.IsBounded.UNBOUNDED,
         DoFnSignatures.INSTANCE
             .getOrParseSignature(BaseFnWithContinuation.class)
-            .isBoundedWorkPerElement());
+            .isBoundedPerElement());
   }
 
   @Test
   public void testSplittableRespectsBoundednessAnnotation() throws Exception {
-    @BoundedWorkPerElement
+    @BoundedPerElement
     class BoundedFnWithContinuation extends BaseFnWithContinuation {}
 
     assertEquals(
         PCollection.IsBounded.BOUNDED,
         DoFnSignatures.INSTANCE
             .getOrParseSignature(BoundedFnWithContinuation.class)
-            .isBoundedWorkPerElement());
+            .isBoundedPerElement());
 
-    @UnboundedWorkPerElement
+    @UnboundedPerElement
     class UnboundedFnWithContinuation extends BaseFnWithContinuation {}
 
     assertEquals(
         PCollection.IsBounded.UNBOUNDED,
         DoFnSignatures.INSTANCE
             .getOrParseSignature(UnboundedFnWithContinuation.class)
-            .isBoundedWorkPerElement());
+            .isBoundedPerElement());
   }
 
   @Test
   public void testUnsplittableButDeclaresBounded() throws Exception {
-    @BoundedWorkPerElement
+    @BoundedPerElement
     class SomeFn extends DoFn<Integer, String> {
       @ProcessElement
       public void process(ProcessContext context) {}
@@ -215,7 +215,7 @@ public class DoFnSignaturesSplittableDoFnTest {
 
   @Test
   public void testUnsplittableButDeclaresUnbounded() throws Exception {
-    @UnboundedWorkPerElement
+    @UnboundedPerElement
     class SomeFn extends DoFn<Integer, String> {
       @ProcessElement
       public void process(ProcessContext context) {}
