@@ -18,7 +18,7 @@
 package org.apache.beam.sdk.io;
 
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
-import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.includesDisplayDataFrom;
+import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.includesDisplayDataFor;
 import static org.hamcrest.Matchers.anyOf;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
@@ -274,7 +274,7 @@ public class WriteTest {
     DisplayData displayData = DisplayData.from(write);
 
     assertThat(displayData, hasDisplayItem("sink", sink.getClass()));
-    assertThat(displayData, includesDisplayDataFrom(sink));
+    assertThat(displayData, includesDisplayDataFor("sink", sink));
   }
 
   @Test
@@ -288,7 +288,7 @@ public class WriteTest {
     Write.Bound<String> write = Write.to(sink).withNumShards(1);
     DisplayData displayData = DisplayData.from(write);
     assertThat(displayData, hasDisplayItem("sink", sink.getClass()));
-    assertThat(displayData, includesDisplayDataFrom(sink));
+    assertThat(displayData, includesDisplayDataFor("sink", sink));
     assertThat(displayData, hasDisplayItem("numShards", 1));
   }
 

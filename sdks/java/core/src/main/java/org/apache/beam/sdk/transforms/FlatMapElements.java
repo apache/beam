@@ -119,7 +119,7 @@ extends PTransform<PCollection<? extends InputT>, PCollection<OutputT>> {
   //////////////////////////////////////////////////////////////////////////////////////////////////
 
   private final SimpleFunction<InputT, ? extends Iterable<OutputT>> fn;
-  private final DisplayData.Item<?> fnClassDisplayData;
+  private final DisplayData.ItemSpec<?> fnClassDisplayData;
 
   private FlatMapElements(
       SimpleFunction<InputT, ? extends Iterable<OutputT>> fn,
@@ -166,7 +166,9 @@ extends PTransform<PCollection<? extends InputT>, PCollection<OutputT>> {
   @Override
   public void populateDisplayData(DisplayData.Builder builder) {
     super.populateDisplayData(builder);
-    builder.include(fn).add(fnClassDisplayData);
+    builder
+        .include("flatMapFn", fn)
+        .add(fnClassDisplayData);
   }
 
   /**

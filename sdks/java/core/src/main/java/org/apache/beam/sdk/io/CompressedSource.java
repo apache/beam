@@ -390,7 +390,7 @@ public class CompressedSource<T> extends FileBasedSource<T> {
   public void populateDisplayData(DisplayData.Builder builder) {
     // We explicitly do not register base-class data, instead we use the delegate inner source.
     builder
-        .include(sourceDelegate)
+        .include("source", sourceDelegate)
         .add(DisplayData.item("source", sourceDelegate.getClass())
           .withLabel("Read Source"));
 
