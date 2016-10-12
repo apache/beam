@@ -198,10 +198,6 @@ public class KafkaIOTest {
       this.offsetResetStrategy = offsetResetStrategy;
     }
 
-    public ConsumerFactoryFn(List<String> topics, int partitionsPerTopic, int numElements) {
-      this(topics, partitionsPerTopic, numElements, OffsetResetStrategy.EARLIEST);
-    }
-
     public Consumer<byte[], byte[]> apply(Map<String, Object> config) {
       return mkMockConsumer(topics, partitionsPerTopic, numElements, offsetResetStrategy);
     }
@@ -220,7 +216,8 @@ public class KafkaIOTest {
     KafkaIO.Read<Integer, Long> reader = KafkaIO.read()
         .withBootstrapServers("none")
         .withTopics(topics)
-        .withConsumerFactoryFn(new ConsumerFactoryFn(topics, 10, numElements)) // 20 partitions
+        .withConsumerFactoryFn(new ConsumerFactoryFn(
+            topics, 10, numElements, OffsetResetStrategy.EARLIEST)) // 20 partitions
         .withKeyCoder(BigEndianIntegerCoder.of())
         .withValueCoder(BigEndianLongCoder.of())
         .withMaxNumRecords(numElements);
@@ -294,7 +291,8 @@ public class KafkaIOTest {
     KafkaIO.TypedRead<byte[], Long> reader = KafkaIO.read()
         .withBootstrapServers("none")
         .withTopicPartitions(ImmutableList.of(new TopicPartition("test", 5)))
-        .withConsumerFactoryFn(new ConsumerFactoryFn(topics, 10, numElements)) // 10 partitions
+        .withConsumerFactoryFn(new ConsumerFactoryFn(
+            topics, 10, numElements, OffsetResetStrategy.EARLIEST)) // 10 partitions
         .withValueCoder(BigEndianLongCoder.of())
         .withMaxNumRecords(numElements / 10);
 
@@ -445,7 +443,7 @@ public class KafkaIOTest {
     // Similar to testUnboundedSourceCheckpointMark(), but verifies that source resumes
     // properly from empty partitions, without missing messages added since checkpoint.
 
-    // Initialize consumer with than number of partitions so that some of them are empty.
+    // Initialize consumer with fewer elements than number of partitions so that some are empty.
     int initialNumElements = 5;
     UnboundedSource<KafkaRecord<Integer, Long>, KafkaCheckpointMark> source =
         mkKafkaReadTransform(initialNumElements, new ValueAsTimestampFn())
