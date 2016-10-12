@@ -1,8 +1,8 @@
 package cz.seznam.euphoria.core.executor.inmem;
 
+import cz.seznam.euphoria.core.client.dataset.windowing.Window;
 import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.guava.shaded.com.google.common.collect.Iterables;
-import cz.seznam.euphoria.guava.shaded.com.google.common.collect.Lists;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -17,7 +17,8 @@ import java.util.stream.Collectors;
  * Trigger scheduler based on watermarks. Uses event-time instead of real
  * wall-clock time.
  */
-public class WatermarkTriggerScheduler<W, K> implements TriggerScheduler<W, K> {
+public class WatermarkTriggerScheduler<W extends Window, K>
+    implements TriggerScheduler<W, K> {
 
   // how delayed is the watermark time after the event time (how long are
   // we going to accept latecomers)
@@ -90,14 +91,8 @@ public class WatermarkTriggerScheduler<W, K> implements TriggerScheduler<W, K> {
   }
 
   @Override
-  public void cancel(KeyedWindow<W, K> window) {
-    Set<Long> stamps = eventStampsForWindow.get(window);
-    if (stamps != null) {
-      // need copy here
-      for (long stamp : Lists.newArrayList(stamps)) {
-        purge(window, stamp);
-      }
-    }    
+  public void cancel(long timestamp, KeyedWindow<W, K> window) {
+    purge(window, timestamp);
   }
 
   @Override

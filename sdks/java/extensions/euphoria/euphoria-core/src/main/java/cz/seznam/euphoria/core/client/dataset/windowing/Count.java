@@ -14,7 +14,7 @@ import java.util.Set;
 /**
  * Count tumbling windowing.
  */
-public final class Count<T> implements MergingWindowing<T, Count.CountWindow> {
+public final class Count<T> implements Windowing<T, Batch.BatchWindow> {
 
   private final int maxCount;
 
@@ -22,38 +22,14 @@ public final class Count<T> implements MergingWindowing<T, Count.CountWindow> {
     this.maxCount = maxCount;
   }
 
-  public static final class CountWindow extends Window
-          implements Serializable {
-
-
-    // ~ no equals/hashCode ... every instance is unique
-    @Override
-    public int hashCode() {
-      return 0;
-    }
-
-    @Override
-    public boolean equals(Object obj) {
-      return false;
-    }
-  } // ~ end of Counted
-
   @Override
-  public Set<CountWindow> assignWindowsToElement(
-      WindowedElement<?, T> input) {
-    return singleton(new CountWindow());
+  public Set<Batch.BatchWindow> assignWindowsToElement(WindowedElement<?, T> input) {
+    return singleton(Batch.BatchWindow.get());
   }
 
   @Override
-  public Trigger<T, CountWindow> getTrigger() {
+  public Trigger<T, Batch.BatchWindow> getTrigger() {
     return new CountTrigger<>(maxCount);
-  }
-
-  @Override
-  public Collection<Pair<Collection<CountWindow>, CountWindow>>
-  mergeWindows(Collection<CountWindow> actives)
-  {
-    return Collections.singletonList(Pair.of(actives, new CountWindow()));
   }
 
   public static <T> Count<T> of(int count) {
