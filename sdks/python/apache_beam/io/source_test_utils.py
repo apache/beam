@@ -48,7 +48,6 @@ from collections import namedtuple
 import logging
 
 from multiprocessing.pool import ThreadPool
-from apache_beam.internal import pickler
 from apache_beam.io import iobase
 
 
@@ -81,7 +80,7 @@ def readFromSource(source, start_position=None, stop_position=None):
   values = []
   range_tracker = source.get_range_tracker(start_position, stop_position)
   assert isinstance(range_tracker, iobase.RangeTracker)
-  reader = _copy_source(source).read(range_tracker)
+  reader = source.read(range_tracker)
   for value in reader:
     values.append(value)
 
@@ -173,7 +172,7 @@ def assertSplitAtFractionBehavior(source, num_items_to_read_before_split,
     source while the second value of the tuple will be '-1'.
   """
   assert isinstance(source, iobase.BoundedSource)
-  expected_items = readFromSource(_copy_source(source), None, None)
+  expected_items = readFromSource(source, None, None)
   return _assertSplitAtFractionBehavior(
       source, expected_items, num_items_to_read_before_split, split_fraction,
       expected_outcome)
@@ -186,7 +185,7 @@ def _assertSplitAtFractionBehavior(
   range_tracker = source.get_range_tracker(start_position, stop_position)
   assert isinstance(range_tracker, iobase.RangeTracker)
   current_items = []
-  reader = _copy_source(source).read(range_tracker)
+  reader = source.read(range_tracker)
   # Reading 'num_items_to_read_before_split' items.
   reader_iter = iter(reader)
   for _ in range(num_items_to_read_before_split):
@@ -536,7 +535,7 @@ def _assertSplitAtFractionConcurrent(
 
   range_tracker = source.get_range_tracker(None, None)
   stop_position_before_split = range_tracker.stop_position()
-  reader = _copy_source(source).read(range_tracker)
+  reader = source.read(range_tracker)
   reader_iter = iter(reader)
 
   current_items = []
@@ -575,7 +574,3 @@ def _assertSplitAtFractionConcurrent(
       primary_range, residual_range, split_fraction)
 
   return res[1] > 0
-
-
-def _copy_source(source):
-  return pickler.loads(pickler.dumps(source))

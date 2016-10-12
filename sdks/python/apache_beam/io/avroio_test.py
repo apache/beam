@@ -110,7 +110,7 @@ class TestAvro(unittest.TestCase):
     return file_name_prefix + os.path.sep + 'mytemp*'
 
   def _run_avro_test(self, pattern, desired_bundle_size, perform_splitting,
-                     expected_result):
+                     expected_result, test_reentrancy=False):
     source = AvroSource(pattern)
 
     read_records = []
@@ -128,9 +128,23 @@ class TestAvro(unittest.TestCase):
           (split.source, split.start_position, split.stop_position)
           for split in splits
       ]
+      if test_reentrancy:
+        for source_info in sources_info:
+          reader_iter = source_info[0].read(source_info[0].get_range_tracker(
+              source_info[1], source_info[2]))
+          try:
+            next(reader_iter)
+          except StopIteration:
+            # Ignoring empty bundle
+            pass
+
       source_test_utils.assertSourcesEqualReferenceSource((source, None, None),
                                                           sources_info)
     else:
+      if test_reentrancy:
+        reader_iter = source.read(source.get_range_tracker(None, None))
+        next(reader_iter)
+
       read_records = source_test_utils.readFromSource(source, None, None)
       self.assertItemsEqual(expected_result, read_records)
 
@@ -143,6 +157,18 @@ class TestAvro(unittest.TestCase):
     file_name = self._write_data()
     expected_result = self.RECORDS
     self._run_avro_test(file_name, 100, True, expected_result)
+
+  def test_read_reentrant_without_splitting(self):
+    file_name = self._write_data()
+    expected_result = self.RECORDS
+    self._run_avro_test(file_name, None, False, expected_result,
+                        test_reentrancy=True)
+
+  def test_read_reantrant_with_splitting(self):
+    file_name = self._write_data()
+    expected_result = self.RECORDS
+    self._run_avro_test(file_name, 100, True, expected_result,
+                        test_reentrancy=True)
 
   def test_read_without_splitting_multiple_blocks(self):
     file_name = self._write_data(count=12000)
