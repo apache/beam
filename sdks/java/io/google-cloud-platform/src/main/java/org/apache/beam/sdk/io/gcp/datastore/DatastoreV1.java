@@ -802,7 +802,7 @@ public class DatastoreV1 {
       builder
           .addIfNotNull(DisplayData.item("projectId", projectId)
               .withLabel("Output Project"))
-          .include(mutationFn);
+          .include("mutationFn", mutationFn);
     }
 
     public String getProjectId() {

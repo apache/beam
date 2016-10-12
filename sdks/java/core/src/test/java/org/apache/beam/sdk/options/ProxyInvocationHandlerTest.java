@@ -24,6 +24,7 @@ import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasType
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasValue;
 import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.hasItem;
+import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -34,6 +35,7 @@ import static org.junit.Assert.assertTrue;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonValue;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableList;
@@ -48,11 +50,17 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.testing.NeedsRunner;
+import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.hamcrest.Matchers;
 import org.joda.time.Instant;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
+import org.junit.internal.matchers.ThrowableMessageMatcher;
 import org.junit.rules.ExpectedException;
 import org.junit.rules.ExternalResource;
 import org.junit.rules.TestRule;
@@ -753,6 +761,38 @@ public class ProxyInvocationHandlerTest {
 
     Object getObject();
     void setObject(Object value);
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void pipelineOptionsDisplayDataExceptionShouldFail() {
+    Object brokenValueType = new Object() {
+      @JsonValue
+      public int getValue () {
+        return 42;
+      }
+
+      @Override
+      public String toString() {
+        throw new RuntimeException("oh noes!!");
+      }
+    };
+
+    Pipeline p = TestPipeline.create();
+    p.getOptions().as(ObjectPipelineOptions.class).setValue(brokenValueType);
+
+    p.apply(Create.of(1, 2, 3));
+
+    expectedException.expectMessage(
+        ProxyInvocationHandler.PipelineOptionsDisplayData.class.getName());
+    expectedException.expectCause(ThrowableMessageMatcher.hasMessage(is("oh noes!!")));
+    p.run();
+  }
+
+  /** {@link PipelineOptions} to inject bad object implementations. */
+  public interface ObjectPipelineOptions extends PipelineOptions {
+    Object getValue();
+    void setValue(Object value);
   }
 
   @Test

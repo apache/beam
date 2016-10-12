@@ -19,6 +19,7 @@ package org.apache.beam.runners.direct;
 
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertThat;
+import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -102,10 +103,10 @@ public class ForwardingPTransformTest {
 
   @Test
   public void populateDisplayDataDelegates() {
-    DisplayData.Builder builder = mock(DisplayData.Builder.class);
-    doThrow(RuntimeException.class).when(delegate).populateDisplayData(builder);
+    doThrow(RuntimeException.class)
+        .when(delegate).populateDisplayData(any(DisplayData.Builder.class));
 
     thrown.expect(RuntimeException.class);
-    forwarding.populateDisplayData(builder);
+    DisplayData.from(forwarding);
   }
 }

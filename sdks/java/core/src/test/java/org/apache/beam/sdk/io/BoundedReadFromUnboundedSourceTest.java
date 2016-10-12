@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.io;
 
-import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.includesDisplayDataFrom;
+import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.includesDisplayDataFor;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
@@ -74,7 +74,7 @@ public class BoundedReadFromUnboundedSourceTest implements Serializable{
     };
 
     BoundedReadFromUnboundedSource<KV<Integer, Integer>> read = Read.from(src).withMaxNumRecords(5);
-    assertThat(DisplayData.from(read), includesDisplayDataFrom(src));
+    assertThat(DisplayData.from(read), includesDisplayDataFor("source", src));
   }
 
   private static class Checker

@@ -119,7 +119,7 @@ public class BoundedReadFromUnboundedSource<T> extends PTransform<PBegin, PColle
           .withLabel("Maximum Read Records"), Long.MAX_VALUE)
         .addIfNotNull(DisplayData.item("maxReadTime", maxReadTime)
           .withLabel("Maximum Read Time"))
-        .include(source);
+        .include("source", source);
   }
 
   private static class UnboundedToBoundedSourceAdapter<T>
@@ -204,8 +204,7 @@ public class BoundedReadFromUnboundedSource<T> extends PTransform<PBegin, PColle
 
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {
-      builder.add(DisplayData.item("source", source.getClass()));
-      builder.include(source);
+      builder.delegate(source);
     }
 
     private class Reader extends BoundedReader<ValueWithRecordId<T>> {

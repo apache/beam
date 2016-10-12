@@ -120,7 +120,7 @@ public class DataflowUnboundedReadFromBoundedSource<T> extends PTransform<PBegin
     // We explicitly do not register base-class data, instead we use the delegate inner source.
     builder
         .add(DisplayData.item("source", source.getClass()))
-        .include(source);
+        .include("source", source);
   }
 
   /**
@@ -195,7 +195,7 @@ public class DataflowUnboundedReadFromBoundedSource<T> extends PTransform<PBegin
     public void populateDisplayData(DisplayData.Builder builder) {
       super.populateDisplayData(builder);
       builder.add(DisplayData.item("source", boundedSource.getClass()));
-      builder.include(boundedSource);
+      builder.include("source", boundedSource);
     }
 
     @VisibleForTesting
