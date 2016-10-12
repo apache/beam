@@ -17,31 +17,18 @@
  */
 package org.apache.beam.sdk.util;
 
-import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.transforms.windowing.Window;
+import org.apache.beam.sdk.transforms.Redistribute;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
-import org.joda.time.Duration;
 
 /**
- * A {@link PTransform} that returns a {@link PCollection} equivalent to its input but operationally
- * provides some of the side effects of a {@link GroupByKey}, in particular preventing fusion of
- * the surrounding transforms, checkpointing and deduplication by id (see
- * {@link ValueWithRecordId}).
+ * A synonym for {@link Redistribute#byKey()}.
  *
- * <p>Performs a {@link GroupByKey} so that the data is key-partitioned. Configures the
- * {@link WindowingStrategy} so that no data is dropped, but doesn't affect the need for
- * the user to specify allowed lateness and accumulation mode before a user-inserted GroupByKey.
- *
- * @param <K> The type of key being reshuffled on.
- * @param <V> The type of value being reshuffled.
+ * @deprecated Use {@link Redistribute#byKey()} instead.
  */
+@Deprecated
 public class Reshuffle<K, V> extends PTransform<PCollection<KV<K, V>>, PCollection<KV<K, V>>> {
-
   private Reshuffle() {
   }
 
@@ -51,32 +38,6 @@ public class Reshuffle<K, V> extends PTransform<PCollection<KV<K, V>>, PCollecti
 
   @Override
   public PCollection<KV<K, V>> apply(PCollection<KV<K, V>> input) {
-    WindowingStrategy<?, ?> originalStrategy = input.getWindowingStrategy();
-    // If the input has already had its windows merged, then the GBK that performed the merge
-    // will have set originalStrategy.getWindowFn() to InvalidWindows, causing the GBK contained
-    // here to fail. Instead, we install a valid WindowFn that leaves all windows unchanged.
-    Window.Bound<KV<K, V>> rewindow =
-        Window.<KV<K, V>>into(
-                new IdentityWindowFn<>(
-                    originalStrategy.getWindowFn().windowCoder()))
-            .triggering(new ReshuffleTrigger<>())
-            .discardingFiredPanes()
-            .withAllowedLateness(Duration.millis(BoundedWindow.TIMESTAMP_MAX_VALUE.getMillis()));
-
-    return input.apply(rewindow)
-        .apply(GroupByKey.<K, V>create())
-        // Set the windowing strategy directly, so that it doesn't get counted as the user having
-        // set allowed lateness.
-        .setWindowingStrategyInternal(originalStrategy)
-        .apply("ExpandIterable", ParDo.of(
-            new DoFn<KV<K, Iterable<V>>, KV<K, V>>() {
-              @ProcessElement
-              public void processElement(ProcessContext c) {
-                K key = c.element().getKey();
-                for (V value : c.element().getValue()) {
-                  c.output(KV.of(key, value));
-                }
-              }
-            }));
+    return input.apply(Redistribute.<K, V>byKey());
   }
 }

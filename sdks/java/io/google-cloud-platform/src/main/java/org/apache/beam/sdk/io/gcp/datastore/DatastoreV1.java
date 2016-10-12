@@ -67,13 +67,11 @@ import org.apache.beam.sdk.options.GcpOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.Flatten;
-import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.Redistribute;
 import org.apache.beam.sdk.transforms.SimpleFunction;
-import org.apache.beam.sdk.transforms.Values;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.DisplayData.Builder;
 import org.apache.beam.sdk.util.FluentBackoff;
@@ -433,36 +431,15 @@ public class DatastoreV1 {
       V1Options v1Options = V1Options.from(getProjectId(), getQuery(),
           getNamespace());
 
-      /*
-       * This composite transform involves the following steps:
-       *   1. Create a singleton of the user provided {@code query} and apply a {@link ParDo} that
-       *   splits the query into {@code numQuerySplits} and assign each split query a unique
-       *   {@code Integer} as the key. The resulting output is of the type
-       *   {@code PCollection<KV<Integer, Query>>}.
-       *
-       *   If the value of {@code numQuerySplits} is less than or equal to 0, then the number of
-       *   splits will be computed dynamically based on the size of the data for the {@code query}.
-       *
-       *   2. The resulting {@code PCollection} is sharded using a {@link GroupByKey} operation. The
-       *   queries are extracted from they {@code KV<Integer, Iterable<Query>>} and flattened to
-       *   output a {@code PCollection<Query>}.
-       *
-       *   3. In the third step, a {@code ParDo} reads entities for each query and outputs
-       *   a {@code PCollection<Entity>}.
-       */
-      PCollection<KV<Integer, Query>> queries = input
+      return input
           .apply(Create.of(query))
-          .apply(ParDo.of(new SplitQueryFn(v1Options, numQuerySplits)));
-
-      PCollection<Query> shardedQueries = queries
-          .apply(GroupByKey.<Integer, Query>create())
-          .apply(Values.<Iterable<Query>>create())
-          .apply(Flatten.<Query>iterables());
-
-      PCollection<Entity> entities = shardedQueries
+          // Split the query into sub-queries. If numQuerySplits <= 0, this will compute
+          // number of splits dynamically based on the size of the data.
+          .apply(ParDo.of(new SplitQueryFn(v1Options, numQuerySplits)))
+          // Make sure each sub-query is read in parallel.
+          .apply(Redistribute.<Query>arbitrarily())
+          // Read entities from each sub-query.
           .apply(ParDo.of(new ReadFn(v1Options)));
-
-      return entities;
     }
 
     @Override
@@ -531,7 +508,7 @@ public class DatastoreV1 {
      * keys and outputs them as {@link KV}.
      */
     @VisibleForTesting
-    static class SplitQueryFn extends DoFn<Query, KV<Integer, Query>> {
+    static class SplitQueryFn extends DoFn<Query, Query> {
       private final V1Options options;
       // number of splits to make for a given query
       private final int numSplits;
@@ -562,12 +539,11 @@ public class DatastoreV1 {
 
       @ProcessElement
       public void processElement(ProcessContext c) throws Exception {
-        int key = 1;
         Query query = c.element();
 
         // If query has a user set limit, then do not split.
         if (query.hasLimit()) {
-          c.output(KV.of(key, query));
+          c.output(query);
           return;
         }
 
@@ -591,7 +567,7 @@ public class DatastoreV1 {
 
         // assign unique keys to query splits.
         for (Query subquery : querySplits) {
-          c.output(KV.of(key++, subquery));
+          c.output(subquery);
         }
       }
 

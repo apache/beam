@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.util;
+package org.apache.beam.sdk.transforms;
 
 import static org.junit.Assert.assertEquals;
 
@@ -28,8 +28,6 @@ import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.RunnableOnService;
 import org.apache.beam.sdk.testing.TestPipeline;
-import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.Sessions;
 import org.apache.beam.sdk.transforms.windowing.Window;
@@ -42,32 +40,44 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 /**
- * Tests for {@link Reshuffle}.
+ * Tests for {@link Redistribute}.
  */
 @RunWith(JUnit4.class)
-public class ReshuffleTest {
+public class RedistributeTest {
+  @Test
+  @Category(RunnableOnService.class)
+  public void testRedistributeArbitrarily() {
+    Pipeline pipeline = TestPipeline.create();
+
+    String[] values = {"a", "b", "c", "d", "e", "f"};
+
+    PAssert.that(pipeline.apply(Create.of(values)).apply(Redistribute.<String>arbitrarily()))
+        .containsInAnyOrder(values);
+
+    pipeline.run();
+  }
 
   private static final List<KV<String, Integer>> ARBITRARY_KVS = ImmutableList.of(
-        KV.of("k1", 3),
-        KV.of("k5", Integer.MAX_VALUE),
-        KV.of("k5", Integer.MIN_VALUE),
-        KV.of("k2", 66),
-        KV.of("k1", 4),
-        KV.of("k2", -33),
-        KV.of("k3", 0));
+      KV.of("k1", 3),
+      KV.of("k5", Integer.MAX_VALUE),
+      KV.of("k5", Integer.MIN_VALUE),
+      KV.of("k2", 66),
+      KV.of("k1", 4),
+      KV.of("k2", -33),
+      KV.of("k3", 0));
 
   // TODO: test with more than one value per key
   private static final List<KV<String, Integer>> GBK_TESTABLE_KVS = ImmutableList.of(
-        KV.of("k1", 3),
-        KV.of("k2", 4));
+      KV.of("k1", 3),
+      KV.of("k2", 4));
 
   private static final List<KV<String, Iterable<Integer>>> GROUPED_TESTABLE_KVS = ImmutableList.of(
-        KV.of("k1", (Iterable<Integer>) ImmutableList.of(3)),
-        KV.of("k2", (Iterable<Integer>) ImmutableList.of(4)));
+      KV.of("k1", (Iterable<Integer>) ImmutableList.of(3)),
+      KV.of("k2", (Iterable<Integer>) ImmutableList.of(4)));
 
   @Test
   @Category(RunnableOnService.class)
-  public void testJustReshuffle() {
+  public void testJustRedistributeByKey() {
     Pipeline pipeline = TestPipeline.create();
 
     PCollection<KV<String, Integer>> input = pipeline
@@ -75,7 +85,7 @@ public class ReshuffleTest {
             .withCoder(KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of())));
 
     PCollection<KV<String, Integer>> output = input
-        .apply(Reshuffle.<String, Integer>of());
+        .apply(Redistribute.<String, Integer>byKey());
 
     PAssert.that(output).containsInAnyOrder(ARBITRARY_KVS);
 
@@ -88,7 +98,7 @@ public class ReshuffleTest {
 
   @Test
   @Category(RunnableOnService.class)
-  public void testReshuffleAfterSessionsAndGroupByKey() {
+  public void testRedistributeByKeyAfterSessionsAndGroupByKey() {
     Pipeline pipeline = TestPipeline.create();
 
     PCollection<KV<String, Iterable<Integer>>> input = pipeline
@@ -99,7 +109,7 @@ public class ReshuffleTest {
         .apply(GroupByKey.<String, Integer>create());
 
     PCollection<KV<String, Iterable<Integer>>> output = input
-        .apply(Reshuffle.<String, Iterable<Integer>>of());
+        .apply(Redistribute.<String, Iterable<Integer>>byKey());
 
     PAssert.that(output).containsInAnyOrder(GROUPED_TESTABLE_KVS);
 
@@ -112,7 +122,7 @@ public class ReshuffleTest {
 
   @Test
   @Category(RunnableOnService.class)
-  public void testReshuffleAfterFixedWindowsAndGroupByKey() {
+  public void testRedistributeByKeyAfterFixedWindowsAndGroupByKey() {
     Pipeline pipeline = TestPipeline.create();
 
     PCollection<KV<String, Iterable<Integer>>> input = pipeline
@@ -123,7 +133,7 @@ public class ReshuffleTest {
         .apply(GroupByKey.<String, Integer>create());
 
     PCollection<KV<String, Iterable<Integer>>> output = input
-        .apply(Reshuffle.<String, Iterable<Integer>>of());
+        .apply(Redistribute.<String, Iterable<Integer>>byKey());
 
     PAssert.that(output).containsInAnyOrder(GROUPED_TESTABLE_KVS);
 
@@ -136,7 +146,7 @@ public class ReshuffleTest {
 
   @Test
   @Category(RunnableOnService.class)
-  public void testReshuffleAfterSlidingWindowsAndGroupByKey() {
+  public void testRedistributeByKeyAfterSlidingWindowsAndGroupByKey() {
     Pipeline pipeline = TestPipeline.create();
 
     PCollection<KV<String, Iterable<Integer>>> input = pipeline
@@ -147,7 +157,7 @@ public class ReshuffleTest {
         .apply(GroupByKey.<String, Integer>create());
 
     PCollection<KV<String, Iterable<Integer>>> output = input
-        .apply(Reshuffle.<String, Iterable<Integer>>of());
+        .apply(Redistribute.<String, Iterable<Integer>>byKey());
 
     PAssert.that(output).containsInAnyOrder(GROUPED_TESTABLE_KVS);
 
@@ -160,7 +170,7 @@ public class ReshuffleTest {
 
   @Test
   @Category(RunnableOnService.class)
-  public void testReshuffleAfterFixedWindows() {
+  public void testRedistributeByKeyAfterFixedWindows() {
     Pipeline pipeline = TestPipeline.create();
 
     PCollection<KV<String, Integer>> input = pipeline
@@ -170,7 +180,7 @@ public class ReshuffleTest {
             FixedWindows.of(Duration.standardMinutes(10L))));
 
     PCollection<KV<String, Integer>> output = input
-        .apply(Reshuffle.<String, Integer>of());
+        .apply(Redistribute.<String, Integer>byKey());
 
     PAssert.that(output).containsInAnyOrder(ARBITRARY_KVS);
 
@@ -181,10 +191,9 @@ public class ReshuffleTest {
     pipeline.run();
   }
 
-
   @Test
   @Category(RunnableOnService.class)
-  public void testReshuffleAfterSlidingWindows() {
+  public void testRedistributeByKeyAfterSlidingWindows() {
     Pipeline pipeline = TestPipeline.create();
 
     PCollection<KV<String, Integer>> input = pipeline
@@ -194,7 +203,7 @@ public class ReshuffleTest {
             FixedWindows.of(Duration.standardMinutes(10L))));
 
     PCollection<KV<String, Integer>> output = input
-        .apply(Reshuffle.<String, Integer>of());
+        .apply(Redistribute.<String, Integer>byKey());
 
     PAssert.that(output).containsInAnyOrder(ARBITRARY_KVS);
 
