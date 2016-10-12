@@ -96,6 +96,8 @@ class EvaluationContext {
 
   private final AggregatorContainer mergedAggregators;
 
+  private final DirectMetrics metrics;
+
   public static EvaluationContext create(
       DirectOptions options,
       Clock clock,
@@ -130,6 +132,7 @@ class EvaluationContext {
 
     this.applicationStateInternals = new ConcurrentHashMap<>();
     this.mergedAggregators = AggregatorContainer.create();
+    this.metrics = new DirectMetrics();
 
     this.callbackExecutor =
         WatermarkCallbackExecutor.create(MoreExecutors.directExecutor());
@@ -161,6 +164,8 @@ class EvaluationContext {
       TransformResult result) {
     Iterable<? extends CommittedBundle<?>> committedBundles =
         commitBundles(result.getOutputBundles());
+    metrics.commitLogical(completedBundle, result.getLogicalMetricUpdates());
+
     // Update watermarks and timers
     EnumSet<OutputType> outputTypes = EnumSet.copyOf(result.getOutputTypes());
     if (Iterables.isEmpty(committedBundles)) {
@@ -365,6 +370,11 @@ class EvaluationContext {
    */
   public AggregatorContainer getAggregatorContainer() {
     return mergedAggregators;
+  }
+
+  /** Returns the metrics container for this pipeline. */
+  public DirectMetrics getMetrics() {
+    return metrics;
   }
 
   @VisibleForTesting
