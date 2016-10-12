@@ -2,6 +2,7 @@
 package cz.seznam.euphoria.core.client.dataset.windowing;
 
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
+import cz.seznam.euphoria.core.client.io.Context;
 import cz.seznam.euphoria.core.client.triggers.TimeTrigger;
 import cz.seznam.euphoria.core.client.triggers.Trigger;
 import java.time.Duration;
@@ -40,6 +41,11 @@ public final class TimeSliding<T>
   public static <T> TimeSliding<T> of(Duration duration, Duration step) {
     return new TimeSliding<>(duration.toMillis(), step.toMillis(),
         Time.ProcessingTime.get());
+  }
+
+  /** Helper method to extract window label from context. */
+  public static TimeInterval getLabel(Context<?> context) {
+    return (TimeInterval) context.getWindow();
   }
 
   private final long duration;
