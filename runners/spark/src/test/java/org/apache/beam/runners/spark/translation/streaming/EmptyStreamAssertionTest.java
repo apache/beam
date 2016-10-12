@@ -43,7 +43,7 @@ import org.junit.Test;
 public class EmptyStreamAssertionTest implements Serializable {
 
   private static final String EXPECTED_ERR =
-      "Marker should be greater than zero.\n"
+      "Success aggregator should be greater than zero.\n"
           + "Expected: not <0>\n"
           + "     but: was <0>";
 
