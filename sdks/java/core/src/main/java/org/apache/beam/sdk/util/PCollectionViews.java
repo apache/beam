@@ -458,12 +458,6 @@ public class PCollectionViews {
       return untypedViewFn;
     }
 
-    @Override
-    @Deprecated
-    public ViewT fromIterableInternal(Iterable<WindowedValue<?>> elements) {
-      return getViewFn().apply(elements);
-    }
-
     /**
      * Returns a unique {@link TupleTag} identifying this {@link PCollectionView}.
      *

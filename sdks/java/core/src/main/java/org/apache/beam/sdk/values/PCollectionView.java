@@ -52,13 +52,6 @@ public interface PCollectionView<T> extends PValue, Serializable {
   public TupleTag<Iterable<WindowedValue<?>>> getTagInternal();
 
   /**
-   * @deprecated use {@link #getViewFn()} for now, but eventually get the needed information via the
-   *     side input specification on the {@link ParDo} transform.
-   */
-  @Deprecated
-  public T fromIterableInternal(Iterable<WindowedValue<?>> contents);
-
-  /**
    * @deprecated this method will be removed entirely. The {@link ViewFn} for a side input is an
    *     attribute of the side input's specification with a {@link ParDo} transform, which will
    *     obtain this specification via a package-private channel.
