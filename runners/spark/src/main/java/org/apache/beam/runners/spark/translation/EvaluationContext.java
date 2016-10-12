@@ -277,7 +277,8 @@ public class EvaluationContext implements EvaluationResult {
   }
 
   @Override
-  public void close() {
+  public void close(boolean gracefully) {
+    // graceful stop is used for streaming.
     SparkContextFactory.stopSparkContext(jsc);
   }
 

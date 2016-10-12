@@ -178,7 +178,7 @@ public class StreamingEvaluationContext extends EvaluationContext {
   }
 
   @Override
-  public void close() {
+  public void close(boolean gracefully) {
     if (timeout > 0) {
       jssc.awaitTerminationOrTimeout(timeout);
     } else {
@@ -186,9 +186,9 @@ public class StreamingEvaluationContext extends EvaluationContext {
     }
     // stop streaming context gracefully, so checkpointing (and other computations) get to
     // finish before shutdown.
-    jssc.stop(false, true);
+    jssc.stop(false, gracefully);
     state = State.DONE;
-    super.close();
+    super.close(false);
   }
 
   private State state = State.RUNNING;
