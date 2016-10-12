@@ -6,9 +6,9 @@
 </description>
     <link>http://beam.incubator.apache.org/</link>
     <atom:link href="http://beam.incubator.apache.org/feed.xml" rel="self" type="application/rss+xml"/>
-    <pubDate>Tue, 11 Oct 2016 10:20:34 -0700</pubDate>
-    <lastBuildDate>Tue, 11 Oct 2016 10:20:34 -0700</lastBuildDate>
-    <generator>Jekyll v3.3.0</generator>
+    <pubDate>Wed, 12 Oct 2016 14:03:58 -0700</pubDate>
+    <lastBuildDate>Wed, 12 Oct 2016 14:03:58 -0700</lastBuildDate>
+    <generator>Jekyll v3.2.0</generator>
     
       <item>
         <title>Strata+Hadoop World and Beam</title>
@@ -16,7 +16,7 @@
 
 &lt;p&gt;&lt;img src=&quot;/images/blog/IMG_20160927_170956.jpg&quot; alt=&quot;Exercise time&quot; /&gt;&lt;/p&gt;
 
-&lt;p&gt;If you want to take a look at the tutorial materials, we’ve put them up &lt;a href=&quot;https://github.com/eljefe6a/beamexample&quot;&gt;on GitHub&lt;/a&gt;. This includes the &lt;a href=&quot;https://github.com/eljefe6a/beamexample/blob/master/BeamTutorial/slides.pdf&quot;&gt;actual slides&lt;/a&gt; as well as the &lt;a href=&quot;https://github.com/eljefe6a/beamexample/tree/master/BeamTutorial/src/main/java/org/apache/beam/examples/tutorial/game&quot;&gt;exercises&lt;/a&gt; that we covered. If you’re looking to learn a little about Beam, this is a good way to start. The exercises are based on an imaginary mobile game and the data needs processing and are based on code in the &lt;a href=&quot;https://github.com/apache/incubator-beam/tree/master/examples/java8/src/main/java/org/apache/beam/examples/complete/game&quot;&gt;Beam examples directory&lt;/a&gt;. The code has TODOs for where you need to fill in code or there are full sample solutions to look over our code. You can run these examples on your own machine.&lt;/p&gt;
+&lt;p&gt;If you want to take a look at the tutorial materials, we’ve put them up &lt;a href=&quot;https://github.com/eljefe6a/beamexample&quot;&gt;on GitHub&lt;/a&gt;. This includes the &lt;a href=&quot;https://github.com/eljefe6a/beamexample/blob/master/BeamTutorial/slides.pdf&quot;&gt;actual slides&lt;/a&gt; as well as the &lt;a href=&quot;https://github.com/eljefe6a/beamexample/tree/master/BeamTutorial/src/main/java/org/apache/beam/examples/tutorial/game&quot;&gt;exercises&lt;/a&gt; that we covered. If you’re looking to learn a little about Beam, this is a good way to start. The exercises are based on an imaginary mobile game where data needs processing and are based on code in the &lt;a href=&quot;https://github.com/apache/incubator-beam/tree/master/examples/java8/src/main/java/org/apache/beam/examples/complete/game&quot;&gt;Beam examples directory&lt;/a&gt;. The code has TODOs for where you need to fill in code or there are full sample solutions to look over our code. You can run these examples on your own machine or on a cluster using a runner that Beam supports.&lt;/p&gt;
 
 &lt;p&gt;I want to share some of takeaways I had about Beam during the conference.&lt;/p&gt;
 
@@ -32,7 +32,7 @@
 
 &lt;p&gt;We rounded out the tutorial with live demonstrations of Beam running on Apache Spark, Apache Flink, the local runner, and DataFlow runner. Then, we brought in the big brainpower and had a Q and A session.&lt;/p&gt;
 
-&lt;p&gt;If you’re attending a conference, we encourage you to look for a Beam session. If you want to use these materials to give your own Beam talk, we’re happy to help you. You can reach out to us on the &lt;a href=&quot;http://beam.incubator.apache.org/use/mailing-lists/&quot;&gt;user mailing list&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;If you’re attending a conference, we encourage you to look for a Beam session. If you want to use these materials to give your own Beam talk or tutorial, we’re happy to help you. In addition to this tutorial, we have &lt;a href=&quot;/learn/presentation-materials/&quot;&gt;other presentation materials&lt;/a&gt;. You can reach out to us on the &lt;a href=&quot;http://beam.incubator.apache.org/use/mailing-lists/&quot;&gt;user mailing list&lt;/a&gt;.&lt;/p&gt;
 
 </description>
         <pubDate>Tue, 11 Oct 2016 10:00:00 -0700</pubDate>
@@ -308,7 +308,7 @@ PCollection&amp;lt;O&amp;gt; output = input
   &lt;/li&gt;
 &lt;/ul&gt;
 
-&lt;p&gt;As Apache Beam grows, so will this repository of presentation materials. We are excited to add new materials as the Apache Beam ecosystem grows with new runners, SDKs, and so on. If you are interested in contributing content or have a request, please see the &lt;a href=&quot;/learn/presentation-materials/&quot;&gt;Apache Beam presentation materials&lt;/a&gt; page or email the &lt;a href=&quot;mailto:user@beam.incubator.apache.org&quot;&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;user@beam.incubator.apache.org&lt;/code&gt;&lt;/a&gt; mailing list with your ideas or questions.&lt;/p&gt;
+&lt;p&gt;As Apache Beam grows, so will this repository of presentation materials. We are excited to add new materials as the Apache Beam ecosystem grows with new runners, SDKs, and so on. If you are interested in contributing content or have a request, please see the &lt;a href=&quot;/learn/presentation-materials/&quot;&gt;Apache Beam presentation materials&lt;/a&gt; page or email the &lt;a href=&quot;&amp;#109;&amp;#097;&amp;#105;&amp;#108;&amp;#116;&amp;#111;:&amp;#117;&amp;#115;&amp;#101;&amp;#114;&amp;#064;&amp;#098;&amp;#101;&amp;#097;&amp;#109;&amp;#046;&amp;#105;&amp;#110;&amp;#099;&amp;#117;&amp;#098;&amp;#097;&amp;#116;&amp;#111;&amp;#114;&amp;#046;&amp;#097;&amp;#112;&amp;#097;&amp;#099;&amp;#104;&amp;#101;&amp;#046;&amp;#111;&amp;#114;&amp;#103;&quot;&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;user@beam.incubator.apache.org&lt;/code&gt;&lt;/a&gt; mailing list with your ideas or questions.&lt;/p&gt;
 </description>
         <pubDate>Sun, 03 Apr 2016 11:00:00 -0700</pubDate>
         <link>http://beam.incubator.apache.org/beam/capability/2016/04/03/presentation-materials.html</link>
