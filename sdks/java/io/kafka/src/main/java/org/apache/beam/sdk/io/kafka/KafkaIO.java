@@ -927,12 +927,12 @@ public class KafkaIO {
         if (p.nextOffset >= 0) {
           consumer.seek(p.topicPartition, p.nextOffset);
         } else {
-          // set consumed offset to (next offset - 1), otherwise checkpoint would contain invalid
-          // offset until we read first record from this partition.
+          // Set nextOffset to current position, otherwise checkpoint would contain invalid
+          // offset (making checkpoints incorrect) until we read first record from this partition.
           p.nextOffset = consumer.position(p.topicPartition);
         }
 
-        LOG.info("{}: reading from {} at offset {}", name, p.topicPartition, p.nextOffset);
+        LOG.info("{}: reading from {} starting at offset {}", name, p.topicPartition, p.nextOffset);
       }
 
       // Start consumer read loop.
