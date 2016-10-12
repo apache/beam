@@ -484,6 +484,7 @@ public class BigQueryIOTest implements Serializable {
     @Override
     public void deleteTable(String projectId, String datasetId, String tableId)
         throws IOException, InterruptedException {
+      throw new UnsupportedOperationException("Unsupported");
     }
 
     @Override
@@ -496,27 +497,27 @@ public class BigQueryIOTest implements Serializable {
     @Override
     public Dataset getDataset(
         String projectId, String datasetId) throws IOException, InterruptedException {
-      return null;
+      throw new UnsupportedOperationException("Unsupported");
     }
 
     @Override
     public void createDataset(
         String projectId, String datasetId, String location, String description)
         throws IOException, InterruptedException {
-
+      throw new UnsupportedOperationException("Unsupported");
     }
 
     @Override
     public void deleteDataset(String projectId, String datasetId)
         throws IOException, InterruptedException {
-
+      throw new UnsupportedOperationException("Unsupported");
     }
 
     @Override
     public long insertAll(
         TableReference ref, List<TableRow> rowList, @Nullable List<String> insertIdList)
         throws IOException, InterruptedException {
-      return 0;
+      throw new UnsupportedOperationException("Unsupported");
     }
   }
 
