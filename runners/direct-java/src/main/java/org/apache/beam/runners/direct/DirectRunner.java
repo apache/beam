@@ -42,6 +42,7 @@ import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.io.Write;
+import org.apache.beam.sdk.metrics.MetricResults;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.runners.PipelineRunner;
 import org.apache.beam.sdk.testing.TestStream;
@@ -378,6 +379,12 @@ public class DirectRunner
               .toString();
         }
       };
+    }
+
+    @Override
+    public MetricResults metrics() {
+      throw new UnsupportedOperationException(
+          "The DirectRunner does not currently support metrics.");
     }
 
     /**
