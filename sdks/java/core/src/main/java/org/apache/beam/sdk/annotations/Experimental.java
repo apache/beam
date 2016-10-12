@@ -83,5 +83,8 @@ public @interface Experimental {
      * Do not use: API is unstable and runner support is incomplete.
      */
     SPLITTABLE_DO_FN,
+
+    /** Metrics-related experimental APIs. */
+    METRICS
   }
 }
