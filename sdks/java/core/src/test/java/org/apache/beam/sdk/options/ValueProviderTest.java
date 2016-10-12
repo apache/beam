@@ -101,8 +101,7 @@ public class ValueProviderTest {
   public void testDefaultRuntimeProvider() {
     TestOptions options = PipelineOptionsFactory.as(TestOptions.class);
     ValueProvider<String> provider = options.getBar();
-    assertTrue(provider.isAccessible());
-    assertEquals("bar", provider.get());
+    assertFalse(provider.isAccessible());
   }
 
   @Test
@@ -117,7 +116,7 @@ public class ValueProviderTest {
     RuntimeValueProvider.setRuntimeOptions(runtime);
 
     ValueProvider<String> provider = options.getFoo();
-    assertFalse(provider.isAccessible());
+    assertTrue(provider.isAccessible());
     assertEquals("quux", provider.get());
   }
 

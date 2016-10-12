@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.options;
 
+import static com.google.common.base.MoreObjects.firstNonNull;
 import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.fasterxml.jackson.core.JsonGenerator;
@@ -148,16 +149,14 @@ public interface ValueProvider<T> {
     public T get() {
       PipelineOptions options = optionsMap.get(optionsId);
       if (options == null) {
-        if (defaultValue != null) {
-          return defaultValue;
-        }
         throw new RuntimeException("Not called from a runtime context.");
       }
       try {
         Method method = klass.getMethod(methodName);
         PipelineOptions methodOptions = options.as(klass);
         InvocationHandler handler = Proxy.getInvocationHandler(methodOptions);
-        return ((ValueProvider<T>) handler.invoke(methodOptions, method, null)).get();
+        T value = ((ValueProvider<T>) handler.invoke(methodOptions, method, null)).get();
+        return firstNonNull(value, defaultValue);
       } catch (Throwable e) {
         throw new RuntimeException("Unable to load runtime value.", e);
       }
@@ -165,7 +164,8 @@ public interface ValueProvider<T> {
 
     @Override
     public boolean isAccessible() {
-      return defaultValue != null;
+      PipelineOptions options = optionsMap.get(optionsId);
+      return options != null;
     }
   }
 
@@ -205,8 +205,8 @@ public interface ValueProvider<T> {
     public JsonDeserializer<?> createContextual(DeserializationContext ctxt,
                                                 BeanProperty property)
         throws JsonMappingException {
-      checkNotNull(ctxt);
-      JavaType type = checkNotNull(ctxt.getContextualType());
+      checkNotNull(ctxt, "Null DeserializationContext.");
+      JavaType type = checkNotNull(ctxt.getContextualType(), "Invalid type: %s", getClass());
       JavaType[] params = type.findTypeParameters(ValueProvider.class);
       if (params.length != 1) {
         throw new RuntimeException(
@@ -220,7 +220,7 @@ public interface ValueProvider<T> {
     public ValueProvider<?> deserialize(JsonParser jp, DeserializationContext ctxt)
         throws IOException, JsonProcessingException {
       JsonDeserializer dser = ctxt.findRootValueDeserializer(
-        checkNotNull(innerType));
+        checkNotNull(innerType, "Invalid %s: innerType is null. Serialization error?", getClass()));
       Object o = dser.deserialize(jp, ctxt);
       return StaticValueProvider.of(o);
     }
