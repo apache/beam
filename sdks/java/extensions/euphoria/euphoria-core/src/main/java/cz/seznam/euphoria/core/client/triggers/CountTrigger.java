@@ -23,9 +23,10 @@ public class CountTrigger<T, W extends Window> implements Trigger<T, W> {
     ValueStorage<Long> count = ctx.getValueStorage(countDesc);
 
     count.set(count.get() + 1L);
+
     if (count.get() >= maxCount) {
       count.clear();
-      return TriggerResult.FLUSH;
+      return TriggerResult.FLUSH_AND_PURGE;
     }
     return TriggerResult.NOOP;
   }
@@ -47,7 +48,7 @@ public class CountTrigger<T, W extends Window> implements Trigger<T, W> {
 
     if (count.get() >= maxCount) {
       count.clear();
-      return TriggerResult.FLUSH;
+      return TriggerResult.FLUSH_AND_PURGE;
     }
     return TriggerResult.NOOP;
   }

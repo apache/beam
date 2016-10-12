@@ -18,6 +18,10 @@ public final class TimeInterval extends Window implements Comparable<TimeInterva
     return endMillis;
   }
 
+  public long getDurationMillis() {
+    return endMillis - startMillis;
+  }
+
   /**
    * Returns {@code true} if this window intersects the given window.
    */

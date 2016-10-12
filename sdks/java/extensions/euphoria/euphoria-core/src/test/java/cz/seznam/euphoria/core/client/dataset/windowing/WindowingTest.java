@@ -3,13 +3,13 @@ package cz.seznam.euphoria.core.client.dataset.windowing;
 
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.dataset.Partitioner;
-import cz.seznam.euphoria.core.client.dataset.windowing.Session.SessionInterval;
 import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.functional.ReduceFunction;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
 import cz.seznam.euphoria.core.client.functional.UnaryFunctor;
 import cz.seznam.euphoria.core.client.io.ListDataSink;
 import cz.seznam.euphoria.core.client.io.ListDataSource;
+import cz.seznam.euphoria.core.client.io.StdoutSink;
 import cz.seznam.euphoria.core.client.operator.FlatMap;
 import cz.seznam.euphoria.core.client.operator.MapElements;
 import cz.seznam.euphoria.core.client.operator.ReduceByKey;
@@ -19,6 +19,8 @@ import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.core.client.util.Sums;
 import cz.seznam.euphoria.core.client.util.Triple;
 import cz.seznam.euphoria.core.executor.inmem.InMemExecutor;
+import cz.seznam.euphoria.core.executor.inmem.WatermarkEmitStrategy;
+import cz.seznam.euphoria.core.executor.inmem.WatermarkTriggerScheduler;
 import cz.seznam.euphoria.guava.shaded.com.google.common.base.Joiner;
 import cz.seznam.euphoria.guava.shaded.com.google.common.collect.Iterables;
 import cz.seznam.euphoria.guava.shaded.com.google.common.collect.Sets;
@@ -118,6 +120,7 @@ public class WindowingTest {
     ListDataSink<String> output = ListDataSink.get(1);
     mapped.persist(output);
 
+    executor.setTriggeringSchedulerSupplier(() -> new WatermarkTriggerScheduler(0));
     executor.waitForCompletion(flow);
 
     assertEquals(1, output.getOutputs().size());
@@ -391,75 +394,54 @@ public class WindowingTest {
         out.getOutput(0).get(2));
   }
 
-  @SuppressWarnings("unchecked")
-  <LABEL, T> Set<WindowID<LABEL>> assignWindows(
-      Windowing<T, LABEL, ?> windowing, T elem) {
-    return windowing.assignWindowsToElement(
-        new WindowedElement(new WindowID(null), elem));
+  <W extends Window, T> Set<W> assignWindows(Windowing<T, W> windowing, T elem) {
+    return windowing.assignWindowsToElement(new WindowedElement<>(null, elem));
   }
 
   @Test
   public void testWindowing_SessionMergeWindows() {
-    Session<Long> windowing =
-        Session.of(Duration.ofSeconds(10))
-            .using(e -> e);
+    Session<Long> windowing = Session.of(Duration.ofSeconds(10)).using(e -> e);
 
-    WindowID<SessionInterval> w1 = assertSessionWindow(
+    TimeInterval w1 = assertSessionWindow(
         assignWindows(windowing, 1_000L), 1_000L, 11_000L);
-    WindowID<SessionInterval> w2 = assertSessionWindow(
+    TimeInterval w2 = assertSessionWindow(
         assignWindows(windowing, 10_000L), 10_000L, 20_000L);
-    WindowID<SessionInterval> w3 = assertSessionWindow(
+    TimeInterval w3 = assertSessionWindow(
         assignWindows(windowing, 21_000L), 21_000L, 31_000L);
     // ~ a small window which is fully contained in w1
-    WindowID<SessionInterval> w4 = new WindowID<>(
-        new SessionInterval(3_000L, 8_000L));
+    TimeInterval w4 = new TimeInterval(3_000L, 8_000L);
 
-
-    
-    Map<WindowID<SessionInterval>, WindowID<SessionInterval>> merges;
-    merges = windowing.mergeWindows(
-        Arrays
-            .asList(w4, w3, w2, w1)
+    Map<TimeInterval, TimeInterval> merges =
+        windowing.mergeWindows(Arrays.asList(w4, w3, w2, w1))
             .stream()
-            .map(windowing::createWindowContext)
-            .collect(Collectors.toList()))
-        .stream()
-        .flatMap(p -> {
-          return p.getFirst().stream()
-              .map(w -> Pair.of(w.getWindowID(), p.getSecond().getWindowID()));
-        })
-        .collect(Collectors.toMap(Pair::getFirst, Pair::getSecond));
+            .flatMap(p -> p.getFirst().stream().map(w -> Pair.of(w, p.getSecond())))
+            .collect(Collectors.toMap(Pair::getFirst, Pair::getSecond));
 
     assertEquals(3L, merges.size());
     assertNotNull(merges.get(w1));
     assertNotNull(merges.get(w4));
     assertNotNull(merges.get(w2));
 
-    Set<WindowID<SessionInterval>> target = merges.values().stream().
-        collect(Collectors.toSet());
+    Set<TimeInterval> target = merges.values().stream().collect(Collectors.toSet());
     assertEquals(1, target.size());
-    WindowID<SessionInterval> targetWindow = target.iterator().next();
+    TimeInterval targetWindow = target.iterator().next();
     assertSessionWindow(targetWindow, 1_000L, 20_000L);
   }
 
-  private WindowID<Session.SessionInterval> assertSessionWindow(
-      Set<WindowID<Session.SessionInterval>> window,
-      long expectedStartMillis, long expectedEndMillis)
-  {
-    WindowID<SessionInterval> w = Iterables.getOnlyElement(window);
+  private TimeInterval assertSessionWindow(
+      Set<TimeInterval> window, long expectedStartMillis, long expectedEndMillis) {
+    TimeInterval w = Iterables.getOnlyElement(window);
     assertSessionWindow(w, expectedStartMillis, expectedEndMillis);
     return w;
   }
 
   private void assertSessionWindow(
-      WindowID<Session.SessionInterval> window,
+      TimeInterval window,
       long expectedStartMillis, long expectedEndMillis) {
 
     assertNotNull(window);
-    SessionInterval label = window.getLabel();
-    assertNotNull(label);
-    assertEquals(expectedStartMillis, label.getStartMillis());
-    assertEquals(expectedEndMillis, label.getEndMillis());
+    assertEquals(expectedStartMillis, window.getStartMillis());
+    assertEquals(expectedEndMillis, window.getEndMillis());
   }
 
   @Test
@@ -480,7 +462,7 @@ public class WindowingTest {
         new Item("1-six",   22)))
         .withReadDelay(Duration.ofMillis(900)));
 
-    ListDataSink<Triple<SessionInterval, Integer, HashSet<String>>> out
+    ListDataSink<Triple<TimeInterval, Integer, HashSet<String>>> out
         = ListDataSink.get(1);
 
     Dataset<Pair<Integer, HashSet<String>>> reduced =
@@ -494,8 +476,8 @@ public class WindowingTest {
         .output();
 
     FlatMap.of(reduced)
-        .using((UnaryFunctor<Pair<Integer, HashSet<String>>, Triple<SessionInterval, Integer, HashSet<String>>>)
-            (elem, context) -> context.collect(Triple.of((SessionInterval) context.getWindow(), elem.getFirst(), elem.getSecond())))
+        .using((UnaryFunctor<Pair<Integer, HashSet<String>>, Triple<TimeInterval, Integer, HashSet<String>>>)
+            (elem, context) -> context.collect(Triple.of((TimeInterval) context.getWindow(), elem.getFirst(), elem.getSecond())))
         .output()
         .persist(out);
 
@@ -503,7 +485,7 @@ public class WindowingTest {
 
     // ~ prepare the output for comparison
     List<String> flat = new ArrayList<>();
-    for (Triple<SessionInterval, Integer, HashSet<String>> o : out.getOutput(0)) {
+    for (Triple<TimeInterval, Integer, HashSet<String>> o : out.getOutput(0)) {
       StringBuilder buf = new StringBuilder();
       buf.append("(")
           .append((o.getFirst().getStartMillis() - NOW) / 1_000L)
@@ -545,16 +527,16 @@ public class WindowingTest {
     };
 
     for (long event : data) {
-      Set<WindowID<TimeInterval>> labels = windowing
+      Set<TimeInterval> labels = windowing
           .assignWindowsToElement(new WindowedElement<>(
-              new WindowID<>(Batch.Label.get()), (Long) event));
+              Batch.BatchWindow.get(), (Long) event));
       // verify window count
       assertEquals(3, labels.size());
       // verify that each window contains the original event
-      for (WindowID<TimeInterval> l : labels) {
+      for (TimeInterval l : labels) {
         long stamp = event * 1000L;
-        assertTrue(stamp >= l.getLabel().getStartMillis());
-        assertTrue(stamp <= l.getLabel().getEndMillis());
+        assertTrue(stamp >= l.getStartMillis());
+        assertTrue(stamp <= l.getEndMillis());
       }
     }
 

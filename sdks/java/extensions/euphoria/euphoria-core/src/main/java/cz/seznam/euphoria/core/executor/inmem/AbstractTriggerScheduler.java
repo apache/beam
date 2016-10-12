@@ -66,6 +66,7 @@ public abstract class AbstractTriggerScheduler implements TriggerScheduler {
 
   @Override
   public void close() {
+    cancelAll();
     activeTasks.clear();
     if (scheduler != null) {
       scheduler.shutdownNow();
@@ -74,28 +75,31 @@ public abstract class AbstractTriggerScheduler implements TriggerScheduler {
 
   @Override
   public void cancelAll() {
-    cancelAllImpl();
-  }
-
-  final List<ScheduledTriggerTask> cancelAllImpl() {
     synchronized (activeTasks) {
-      List<ScheduledTriggerTask> canceled = new ArrayList<>();
       for (ScheduledTriggerTask t : activeTasks.values()) {
-        canceled.add(t);
         t.cancel();
       }
       activeTasks.clear();
-      return canceled;
     }
   }
 
   @Override
-  public void cancel(KeyedWindow w) {
+  public void cancel(long stamp, KeyedWindow w) {
     synchronized (activeTasks) {
       Collection<ScheduledTriggerTask> tasks = activeTasks.get(w);
       if (tasks != null && !tasks.isEmpty()) {
-        tasks.stream().forEach(ScheduledTriggerTask::cancel);
-        activeTasks.removeAll(w);
+        List<ScheduledTriggerTask> canceled = new ArrayList<>();
+        for (ScheduledTriggerTask task : tasks) {
+          if (task.getTimestamp() == stamp) {
+            task.cancel();
+            canceled.add(task);
+          }
+        }
+        tasks.removeAll(canceled);
+        if (tasks.isEmpty()) {
+          // ~ garbage collect
+          activeTasks.removeAll(w);
+        }
       }
     }
   }

@@ -2,14 +2,14 @@
 package cz.seznam.euphoria.operator.test;
 
 import cz.seznam.euphoria.core.client.dataset.Dataset;
-import cz.seznam.euphoria.core.client.dataset.windowing.WindowID;
-import cz.seznam.euphoria.core.client.dataset.windowing.WindowContext;
 import cz.seznam.euphoria.core.client.dataset.windowing.WindowedElement;
 import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.io.Context;
 import cz.seznam.euphoria.core.client.io.ListDataSource;
 import cz.seznam.euphoria.core.client.operator.Join;
+import cz.seznam.euphoria.core.client.triggers.NoopTrigger;
+import cz.seznam.euphoria.core.client.triggers.Trigger;
 import cz.seznam.euphoria.core.client.util.Either;
 import cz.seznam.euphoria.core.client.util.Pair;
 import java.util.Arrays;
@@ -156,21 +156,14 @@ public class JoinTest extends OperatorTest {
     };
   }
 
-  
-  static class JoinWindowContext extends WindowContext<Integer> {
-    JoinWindowContext(WindowID<Integer> wid) {
-      super(wid);
-    }
-  }
-
   /**
    * Stable windowing for test purposes.
    */
-  static class EvenOddWindowing implements
-      Windowing<Either<Integer, Long>, Integer, JoinWindowContext> {
+  static class EvenOddWindowing
+      implements Windowing<Either<Integer, Long>, IntWindow> {
 
     @Override
-    public Set<WindowID<Integer>> assignWindowsToElement(
+    public Set<IntWindow> assignWindowsToElement(
         WindowedElement<?, Either<Integer, Long>> input) {
       int element;
       Either<Integer, Long> unwrapped = input.get();
@@ -180,12 +173,12 @@ public class JoinTest extends OperatorTest {
         element = (int) (long) unwrapped.right();
       }
       final int label = element % 2 == 0 ? 0 : element;
-      return Collections.singleton(new WindowID<>(label));
+      return Collections.singleton(new IntWindow(label));
     }
 
     @Override
-    public JoinWindowContext createWindowContext(WindowID<Integer> wid) {
-      return new JoinWindowContext(wid);
+    public Trigger<Either<Integer, Long>, IntWindow> getTrigger() {
+      return NoopTrigger.get();
     }
   }
 

@@ -16,9 +16,11 @@ public class InMemStorageProvider implements StorageProvider {
 
   private static class InMemValueStateStorage<T> implements ValueStorage<T> {
 
+    private final T defVal;
     T value;
 
     InMemValueStateStorage(T defVal) {
+      this.defVal = defVal;
       this.value = defVal;
     }
 
@@ -34,7 +36,7 @@ public class InMemStorageProvider implements StorageProvider {
 
     @Override
     public void clear() {
-      this.value = null;
+      this.value = defVal;
     }
   }
 
