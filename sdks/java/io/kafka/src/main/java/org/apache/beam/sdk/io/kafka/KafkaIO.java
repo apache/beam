@@ -830,7 +830,7 @@ public class KafkaIO {
         if (latestOffset < 0 || nextOffset < 0) {
           return UnboundedReader.BACKLOG_UNKNOWN;
         }
-        return (long) ((latestOffset - nextOffset) * avgRecordSize);
+        return Math.max(0, (long) ((latestOffset - nextOffset) * avgRecordSize));
       }
     }
 

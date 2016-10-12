@@ -486,7 +486,7 @@ public class KafkaIOTest {
     reader.start();
 
     // Verify in any order. As the partitions are unevenly read, the returned records are not in a
-    // simple order. Note that testUnboundedSourceCheckpointMark() verifies round robin consumption.
+    // simple order. Note that testUnboundedSourceCheckpointMark() verifies round-robin oder.
 
     List<Long> expected = new ArrayList<>();
     List<Long> actual = new ArrayList<>();
