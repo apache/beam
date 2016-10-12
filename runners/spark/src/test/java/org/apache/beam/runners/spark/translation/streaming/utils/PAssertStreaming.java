@@ -18,12 +18,14 @@
 package org.apache.beam.runners.spark.translation.streaming.utils;
 
 import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertThat;
 
 import java.io.Serializable;
 import org.apache.beam.runners.spark.EvaluationResult;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.transforms.Aggregator;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.OldDoFn;
@@ -33,7 +35,8 @@ import org.apache.beam.sdk.transforms.Values;
 import org.apache.beam.sdk.transforms.WithKeys;
 import org.apache.beam.sdk.values.PCollection;
 import org.junit.Assert;
-
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 
 /**
@@ -41,8 +44,7 @@ import org.junit.Assert;
  * success/failure counters.
  */
 public final class PAssertStreaming implements Serializable {
-
-  private static final String ASSERT_MARKER = "PAssertExecuted";
+  private static final Logger LOG = LoggerFactory.getLogger(PAssertStreaming.class);
 
   private PAssertStreaming() {
   }
@@ -54,7 +56,8 @@ public final class PAssertStreaming implements Serializable {
    */
   public static <T> EvaluationResult runAndAssertContents(Pipeline p,
                                                           PCollection<T> actual,
-                                                          T[] expected) {
+                                                          T[] expected,
+                                                          boolean stopGracefully) {
     // Because PAssert does not support non-global windowing, but all our data is in one window,
     // we set up the assertion directly.
     actual
@@ -65,16 +68,33 @@ public final class PAssertStreaming implements Serializable {
 
     // run the pipeline.
     EvaluationResult res = (EvaluationResult) p.run();
-    res.close();
-    // validate assertion happened at least once.
-    int marker = res.getAggregatorValue(ASSERT_MARKER, Integer.class);
-    Assert.assertThat("Marker should be greater than zero.", marker, not(0));
+    res.close(stopGracefully);
+    // validate assertion succeeded (at least once).
+    int success = res.getAggregatorValue(PAssert.SUCCESS_COUNTER, Integer.class);
+    Assert.assertThat("Success aggregator should be greater than zero.", success, not(0));
+    // validate assertion didn't fail.
+    int failure = res.getAggregatorValue(PAssert.FAILURE_COUNTER, Integer.class);
+    Assert.assertThat("Failure aggregator should be zero.", failure, is(0));
+
+    LOG.info("PAssertStreaming had {} successful assertion and {} failed.", success, failure);
     return res;
   }
 
+  /**
+   * Default to stop immediately, useful for most tests except for the once that may require
+   * to finish writing checkpoints for example.
+   */
+  public static <T> EvaluationResult runAndAssertContents(Pipeline p,
+                                                          PCollection<T> actual,
+                                                          T[] expected) {
+    return runAndAssertContents(p, actual, expected, false);
+  }
+
   private static class AssertDoFn<T> extends OldDoFn<Iterable<T>, Void> {
-    private final Aggregator<Integer, Integer> aggregator =
-        createAggregator(ASSERT_MARKER, new Sum.SumIntegerFn());
+    private final Aggregator<Integer, Integer> success =
+        createAggregator(PAssert.SUCCESS_COUNTER, new Sum.SumIntegerFn());
+    private final Aggregator<Integer, Integer> failure =
+        createAggregator(PAssert.FAILURE_COUNTER, new Sum.SumIntegerFn());
     private final T[] expected;
 
     AssertDoFn(T[] expected) {
@@ -83,8 +103,14 @@ public final class PAssertStreaming implements Serializable {
 
     @Override
     public void processElement(ProcessContext c) throws Exception {
-      assertThat(c.element(), containsInAnyOrder(expected));
-      aggregator.addValue(1);
+      try {
+        assertThat(c.element(), containsInAnyOrder(expected));
+        success.addValue(1);
+      } catch (Throwable t) {
+        failure.addValue(1);
+        LOG.error("PAssert failed expectations.", t);
+        // don't throw t because it will fail this bundle and the failure count will be lost.
+      }
     }
   }
 }
