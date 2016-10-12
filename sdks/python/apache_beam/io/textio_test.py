@@ -198,6 +198,43 @@ class TextSourceTest(unittest.TestCase):
     self.assertEqual(
         [float(i) / 10 for i in range(0, 10)], fraction_consumed_report)
 
+  def test_read_reentrant_without_splitting(self):
+    file_name, expected_data = write_data(10)
+    assert len(expected_data) == 10
+    source1 = TextSource(file_name, 0, CompressionTypes.UNCOMPRESSED, True,
+                         coders.StrUtf8Coder())
+    reader_iter = source1.read(source1.get_range_tracker(None, None))
+    next(reader_iter)
+    next(reader_iter)
+
+    source2 = TextSource(file_name, 0, CompressionTypes.UNCOMPRESSED, True,
+                         coders.StrUtf8Coder())
+    source_test_utils.assertSourcesEqualReferenceSource((source1, None, None),
+                                                        [(source2, None, None)])
+
+  def test_read_reentrant_after_splitting(self):
+    file_name, expected_data = write_data(10)
+    assert len(expected_data) == 10
+    source = TextSource(file_name, 0, CompressionTypes.UNCOMPRESSED, True,
+                        coders.StrUtf8Coder())
+    splits1 = [split for split in source.split(desired_bundle_size=100000)]
+    assert len(splits1) == 1
+    reader_iter = splits1[0].source.read(
+        splits1[0].source.get_range_tracker(
+            splits1[0].start_position, splits1[0].stop_position))
+    next(reader_iter)
+    next(reader_iter)
+
+    splits2 = [split for split in source.split(desired_bundle_size=100000)]
+    assert len(splits2) == 1
+    source_test_utils.assertSourcesEqualReferenceSource(
+        (splits1[0].source,
+         splits1[0].start_position,
+         splits1[0].stop_position),
+        [(splits2[0].source,
+          splits2[0].start_position,
+          splits2[0].stop_position)])
+
   def test_dynamic_work_rebalancing(self):
     file_name, expected_data = write_data(15)
     assert len(expected_data) == 15
