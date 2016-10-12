@@ -137,6 +137,17 @@ public class JdbcIOTest implements Serializable {
   }
 
   @Test
+  public void testDataSourceConfigurationUsername() throws Exception {
+    JdbcIO.DataSourceConfiguration config = JdbcIO.DataSourceConfiguration.create(
+        "org.apache.derby.jdbc.ClientDriver",
+        "jdbc:derby://localhost:1527/target/beam",
+        "sa", "sa");
+    try (Connection conn = config.getConnection()) {
+      assertTrue(conn.isValid(0));
+    }
+  }
+
+  @Test
   @Category(NeedsRunner.class)
   public void testRead() throws Exception {
     TestPipeline pipeline = TestPipeline.create();

@@ -157,6 +157,7 @@ public class JdbcIO {
       checkNotNull(url, "url");
       checkNotNull(username, "username");
       checkNotNull(password, "password");
+      checkArgument(password.length() > 0, "password");
       return new AutoValue_JdbcIO_DataSourceConfiguration(
           driverClassName, url, username, password, null);
     }
@@ -190,9 +191,9 @@ public class JdbcIO {
         basicDataSource.setPassword(getPassword());
         dataSource = basicDataSource;
       }
-      return (getUsername() == null)
-          ? dataSource.getConnection()
-          : dataSource.getConnection(getUsername(), getPassword());
+      return (getDataSource() != null && getUsername() != null)
+          ? dataSource.getConnection(getUsername(), getPassword())
+          : dataSource.getConnection();
     }
   }
 
