@@ -1494,7 +1494,7 @@ public class ParDoTest implements Serializable {
     // Without an override, applying it directly must fail.
     Pipeline p = TestPipeline.create();
 
-    thrown.expect(any(IllegalArgumentException.class));
+    thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage("Splittable DoFn not supported by the current runner");
 
     p.apply(Create.of(1, 2, 3)).apply(ParDo.of(new TestSplittableDoFn()));
@@ -1506,7 +1506,7 @@ public class ParDoTest implements Serializable {
     // Without an override, applying it directly must fail.
     Pipeline p = TestPipeline.create();
 
-    thrown.expect(any(IllegalArgumentException.class));
+    thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage("Splittable DoFn not supported by the current runner");
 
     p.apply(Create.of(1, 2, 3))
