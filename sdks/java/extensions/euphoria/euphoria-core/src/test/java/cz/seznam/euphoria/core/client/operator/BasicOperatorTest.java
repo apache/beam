@@ -159,7 +159,7 @@ public class BasicOperatorTest {
     // ~ assert the windowing label (all elements of the window are expected to have
     // the same window label)
     long[] starts = window.stream().mapToLong(p -> {
-      assertEquals(expectedIntervalMillis, p.getFirst().getIntervalMillis());
+      assertEquals(expectedIntervalMillis, p.getFirst().getDurationMillis());
       return p.getFirst().getStartMillis();
     }).distinct().toArray();
     assertEquals(1, starts.length);
@@ -443,7 +443,7 @@ public class BasicOperatorTest {
     // ~ assert the windowing label (all elements of the window are expected to have
     // the same window label)
     long[] starts = window.stream().mapToLong(p -> {
-      assertEquals(expectedIntervalMillis, p.getFirst().getIntervalMillis());
+      assertEquals(expectedIntervalMillis, p.getFirst().getDurationMillis());
       return p.getFirst().getStartMillis();
     }).distinct().toArray();
     assertEquals(1, starts.length);
@@ -479,13 +479,13 @@ public class BasicOperatorTest {
         .allowWindowBasedShuffling()
         .waitForCompletion(flow);
 
-    List<HashSet<String>> output = f.getOutput(2);
-    assertEquals(1, output.size());
-    assertEquals(Sets.newHashSet(
-        Arrays.asList("1-one", "1-two", "1-three", "1-four")), output.get(0));
-    output = f.getOutput(3);
+    List<HashSet<String>> output = f.getOutput(0);
     assertEquals(1, output.size());
     assertEquals(Sets.newHashSet(
         Arrays.asList("2-three", "2-one", "2-two", "2-four")), output.get(0));
+    output = f.getOutput(3);
+    assertEquals(1, output.size());
+    assertEquals(Sets.newHashSet(
+        Arrays.asList("1-one", "1-two", "1-three", "1-four")), output.get(0));
   }
 }

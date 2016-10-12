@@ -3,13 +3,13 @@ package cz.seznam.euphoria.operator.test;
 
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.dataset.windowing.Time;
-import cz.seznam.euphoria.core.client.dataset.windowing.WindowContext;
-import cz.seznam.euphoria.core.client.dataset.windowing.WindowID;
 import cz.seznam.euphoria.core.client.dataset.windowing.WindowedElement;
 import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.io.DataSource;
 import cz.seznam.euphoria.core.client.io.ListDataSource;
 import cz.seznam.euphoria.core.client.operator.ReduceByKey;
+import cz.seznam.euphoria.core.client.triggers.NoopTrigger;
+import cz.seznam.euphoria.core.client.triggers.Trigger;
 import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.core.client.util.Sums;
 
@@ -104,26 +104,16 @@ public class ReduceByKeyTest extends OperatorTest {
 
     };
   }
-  
-  static class TestWindowContext extends WindowContext<Integer> {
 
-    public TestWindowContext(int label) {
-      super(new WindowID<>(label));
-    }
-  }
-
-  static class TestWindowing
-      implements Windowing<Integer, Integer, TestWindowContext> {
-
+  static class TestWindowing implements Windowing<Integer, IntWindow> {
     @Override
-    public Set<WindowID<Integer>> assignWindowsToElement(
-        WindowedElement<?, Integer> input) {
-      return Collections.singleton(new WindowID<>(input.get() / 4));
+    public Set<IntWindow> assignWindowsToElement(WindowedElement<?, Integer> input) {
+      return Collections.singleton(new IntWindow(input.get() / 4));
     }
 
     @Override
-    public TestWindowContext createWindowContext(WindowID<Integer> wid) {
-      return new TestWindowContext(wid.getLabel());
+    public Trigger<Integer, IntWindow> getTrigger() {
+      return NoopTrigger.get();
     }
   }
 
