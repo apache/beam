@@ -447,7 +447,6 @@ public class PipelineOptionsFactory {
   private static final ObjectMapper MAPPER = new ObjectMapper();
   private static final ClassLoader CLASS_LOADER;
 
-  @VisibleForTesting static final SortedSet<String> SUPPORTED_PIPELINE_RUNNER_NAMES;
   private static final Map<String, Class<? extends PipelineRunner<?>>> SUPPORTED_PIPELINE_RUNNERS;
 
   /** Classes that are used as the boundary in the stack trace to find the callers class name. */
@@ -523,10 +522,8 @@ public class PipelineOptionsFactory {
     // Store the list of all available pipeline runners.
     ImmutableMap.Builder<String, Class<? extends PipelineRunner<?>>> builder =
         ImmutableMap.builder();
-    ImmutableSortedSet.Builder<String> runnerClasses = ImmutableSortedSet.naturalOrder();
     for (PipelineRunnerRegistrar registrar : pipelineRunnerRegistrars) {
       for (Class<? extends PipelineRunner<?>> klass : registrar.getPipelineRunners()) {
-        runnerClasses.add(klass.getSimpleName());
         String runnerName = klass.getSimpleName().toLowerCase();
         builder.put(runnerName, klass);
         if (runnerName.endsWith("runner")) {
@@ -535,7 +532,6 @@ public class PipelineOptionsFactory {
       }
     }
     SUPPORTED_PIPELINE_RUNNERS = builder.build();
-    SUPPORTED_PIPELINE_RUNNER_NAMES = runnerClasses.build();
     initializeRegistry();
   }
 
@@ -1434,18 +1430,20 @@ public class PipelineOptionsFactory {
           } else {
             try {
               Class<?> runnerClass = Class.forName(runner);
-              checkArgument(
-                  PipelineRunner.class.isAssignableFrom(runnerClass),
-                  "Class '%s' does not implement PipelineRunner. Supported pipeline runners %s",
-                  runner,
-                  SUPPORTED_PIPELINE_RUNNER_NAMES);
+              if (!(PipelineRunner.class.isAssignableFrom(runnerClass))) {
+                throw new IllegalArgumentException(
+                    String.format(
+                        "Class '%s' does not implement PipelineRunner. "
+                            + "Supported pipeline runners %s",
+                        runner, getSupportedRunners()));
+              }
               convertedOptions.put("runner", runnerClass);
             } catch (ClassNotFoundException e) {
-              String msg = String.format(
-                  "Unknown 'runner' specified '%s', supported pipeline runners %s",
-                  runner,
-                  SUPPORTED_PIPELINE_RUNNER_NAMES);
-                throw new IllegalArgumentException(msg, e);
+              String msg =
+                  String.format(
+                      "Unknown 'runner' specified '%s', supported pipeline runners %s",
+                      runner, getSupportedRunners());
+              throw new IllegalArgumentException(msg, e);
             }
           }
         } else if ((returnType.isArray() && (SIMPLE_TYPES.contains(returnType.getComponentType())
@@ -1499,5 +1497,14 @@ public class PipelineOptionsFactory {
       }
     }
     return convertedOptions;
+  }
+
+  @VisibleForTesting
+  static Set<String> getSupportedRunners() {
+    ImmutableSortedSet.Builder<String> supportedRunners = ImmutableSortedSet.naturalOrder();
+    for (Class<? extends PipelineRunner<?>> runner : SUPPORTED_PIPELINE_RUNNERS.values()) {
+      supportedRunners.add(runner.getSimpleName());
+    }
+    return supportedRunners.build();
   }
 }

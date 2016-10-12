@@ -943,9 +943,7 @@ public class PipelineOptionsFactoryTest {
         "Unknown 'runner' specified 'UnknownRunner', supported " + "pipeline runners");
     Set<String> registeredRunners = PipelineOptionsFactory.getRegisteredRunners().keySet();
     assertThat(registeredRunners, hasItem(REGISTERED_RUNNER.getSimpleName().toLowerCase()));
-    for (String registeredRunner : PipelineOptionsFactory.SUPPORTED_PIPELINE_RUNNER_NAMES) {
-      expectedException.expectMessage(registeredRunner);
-    }
+    expectedException.expectMessage(PipelineOptionsFactory.getSupportedRunners().toString());
 
     PipelineOptionsFactory.fromArgs(args).create();
   }
