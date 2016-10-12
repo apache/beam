@@ -72,6 +72,7 @@ public class TransformExecutorTest {
   private RegisteringCompletionCallback completionCallback;
   private TransformExecutorService transformEvaluationState;
   private BundleFactory bundleFactory;
+  @Mock private DirectMetrics metrics;
   @Mock private EvaluationContext evaluationContext;
   @Mock private TransformEvaluatorRegistry registry;
 
@@ -90,6 +91,8 @@ public class TransformExecutorTest {
     TestPipeline p = TestPipeline.create();
     created = p.apply(Create.of("foo", "spam", "third"));
     downstream = created.apply(WithKeys.<Integer, String>of(3));
+
+    when(evaluationContext.getMetrics()).thenReturn(metrics);
   }
 
   @Test
@@ -116,6 +119,7 @@ public class TransformExecutorTest {
 
     TransformExecutor<Object> executor =
         TransformExecutor.create(
+            evaluationContext,
             registry,
             Collections.<ModelEnforcementFactory>emptyList(),
             null,
@@ -135,6 +139,7 @@ public class TransformExecutorTest {
 
     TransformExecutor<Object> executor =
         TransformExecutor.create(
+            evaluationContext,
             registry,
             Collections.<ModelEnforcementFactory>emptyList(),
             null,
@@ -177,6 +182,7 @@ public class TransformExecutorTest {
 
     TransformExecutor<String> executor =
         TransformExecutor.create(
+            evaluationContext,
             registry,
             Collections.<ModelEnforcementFactory>emptyList(),
             inputBundle,
@@ -219,6 +225,7 @@ public class TransformExecutorTest {
 
     TransformExecutor<String> executor =
         TransformExecutor.create(
+            evaluationContext,
             registry,
             Collections.<ModelEnforcementFactory>emptyList(),
             inputBundle,
@@ -254,6 +261,7 @@ public class TransformExecutorTest {
 
     TransformExecutor<String> executor =
         TransformExecutor.create(
+            evaluationContext,
             registry,
             Collections.<ModelEnforcementFactory>emptyList(),
             inputBundle,
@@ -294,6 +302,7 @@ public class TransformExecutorTest {
 
     TransformExecutor<String> executor =
         TransformExecutor.create(
+            evaluationContext,
             registry,
             Collections.<ModelEnforcementFactory>emptyList(),
             null,
@@ -335,6 +344,7 @@ public class TransformExecutorTest {
     TestEnforcementFactory enforcement = new TestEnforcementFactory();
     TransformExecutor<String> executor =
         TransformExecutor.create(
+            evaluationContext,
             registry,
             Collections.<ModelEnforcementFactory>singleton(enforcement),
             inputBundle,
@@ -392,6 +402,7 @@ public class TransformExecutorTest {
 
     TransformExecutor<byte[]> executor =
         TransformExecutor.create(
+            evaluationContext,
             registry,
             Collections.<ModelEnforcementFactory>singleton(ImmutabilityEnforcementFactory.create()),
             inputBundle,
@@ -448,6 +459,7 @@ public class TransformExecutorTest {
 
     TransformExecutor<byte[]> executor =
         TransformExecutor.create(
+            evaluationContext,
             registry,
             Collections.<ModelEnforcementFactory>singleton(ImmutabilityEnforcementFactory.create()),
             inputBundle,

@@ -43,6 +43,7 @@ import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.io.Write;
 import org.apache.beam.sdk.metrics.MetricResults;
+import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.runners.PipelineRunner;
 import org.apache.beam.sdk.testing.TestStream;
@@ -226,6 +227,7 @@ public class DirectRunner
 
   @Override
   public DirectPipelineResult run(Pipeline pipeline) {
+    MetricsEnvironment.setMetricsSupported(true);
     ConsumerTrackingPipelineVisitor consumerTrackingVisitor = new ConsumerTrackingPipelineVisitor();
     pipeline.traverseTopologically(consumerTrackingVisitor);
     for (PValue unfinalized : consumerTrackingVisitor.getUnfinalizedPValues()) {
@@ -268,8 +270,7 @@ public class DirectRunner
 
     Map<Aggregator<?, ?>, Collection<PTransform<?, ?>>> aggregatorSteps =
         pipeline.getAggregatorSteps();
-    DirectPipelineResult result =
-        new DirectPipelineResult(executor, context, aggregatorSteps);
+    DirectPipelineResult result = new DirectPipelineResult(executor, context, aggregatorSteps);
     if (options.isBlockOnRun()) {
       try {
         result.awaitCompletion();
@@ -383,8 +384,7 @@ public class DirectRunner
 
     @Override
     public MetricResults metrics() {
-      throw new UnsupportedOperationException(
-          "The DirectRunner does not currently support metrics.");
+      return evaluationContext.getMetrics();
     }
 
     /**
