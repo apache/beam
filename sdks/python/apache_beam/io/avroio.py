@@ -324,4 +324,3 @@ class _AvroSink(fileio.FileSink):
 
   def write_record(self, writer, value):
     writer.append(value)
-
