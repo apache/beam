@@ -1824,7 +1824,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
       // outputting to all the outputs defined above.
       PCollectionTuple outputTuple = input
            .apply("GBKaSVForData", new GroupByKeyHashAndSortByKeyAndWindow<K, V, W>(ismCoder))
-           .apply(ParDo.of(new ToIsmRecordForMapLikeDoFn<K, V, W>(
+           .apply(ParDo.of(new ToIsmRecordForMapLikeDoFn<>(
                    outputForSizeTag, outputForEntrySetTag,
                    windowCoder, inputCoder.getKeyCoder(), ismCoder, uniqueKeysExpected))
                        .withOutputTags(mainOutputTag,
@@ -2116,7 +2116,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
       if (overriddenTransform.getIdLabel() != null) {
         context.addInput(PropertyNames.PUBSUB_ID_LABEL, overriddenTransform.getIdLabel());
       }
-      context.addValueOnlyOutput(PropertyNames.OUTPUT, context.getOutput(transform));
+      context.addValueOnlyOutput(context.getOutput(transform));
     }
   }
 
@@ -2215,10 +2215,10 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
       source.validate();
 
       if (source.requiresDeduping()) {
-        return Pipeline.applyTransform(input, new ReadWithIds<T>(source))
+        return Pipeline.applyTransform(input, new ReadWithIds<>(source))
             .apply(new Deduplicate<T>());
       } else {
-        return Pipeline.applyTransform(input, new ReadWithIds<T>(source))
+        return Pipeline.applyTransform(input, new ReadWithIds<>(source))
             .apply("StripIds", ParDo.of(new ValueWithRecordId.StripIdsDoFn<T>()));
       }
     }
@@ -2348,7 +2348,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
 
     public static <T> StreamingPCollectionViewWriterFn<T> create(
         PCollectionView<?> view, Coder<T> dataCoder) {
-      return new StreamingPCollectionViewWriterFn<T>(view, dataCoder);
+      return new StreamingPCollectionViewWriterFn<>(view, dataCoder);
     }
 
     private StreamingPCollectionViewWriterFn(PCollectionView<?> view, Coder<T> dataCoder) {
@@ -2648,7 +2648,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
   private static class Concatenate<T> extends CombineFn<T, List<T>, List<T>> {
     @Override
     public List<T> createAccumulator() {
-      return new ArrayList<T>();
+      return new ArrayList<>();
     }
 
     @Override

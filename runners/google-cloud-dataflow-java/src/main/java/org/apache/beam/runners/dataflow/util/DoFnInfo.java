@@ -18,10 +18,12 @@
 package org.apache.beam.runners.dataflow.util;
 
 import java.io.Serializable;
+import java.util.Map;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.values.PCollectionView;
+import org.apache.beam.sdk.values.TupleTag;
 
 /**
  * Wrapper class holding the necessary information to serialize a {@link OldDoFn}.
@@ -34,20 +36,24 @@ public class DoFnInfo<InputT, OutputT> implements Serializable {
   private final WindowingStrategy<?, ?> windowingStrategy;
   private final Iterable<PCollectionView<?>> sideInputViews;
   private final Coder<InputT> inputCoder;
+  private final Map<Long, TupleTag<?>> outputMap;
 
   public DoFnInfo(OldDoFn<InputT, OutputT> doFn, WindowingStrategy<?, ?> windowingStrategy) {
     this.doFn = doFn;
     this.windowingStrategy = windowingStrategy;
     this.sideInputViews = null;
     this.inputCoder = null;
+    this.outputMap = null;
   }
 
   public DoFnInfo(OldDoFn<InputT, OutputT> doFn, WindowingStrategy<?, ?> windowingStrategy,
-                  Iterable<PCollectionView<?>> sideInputViews, Coder<InputT> inputCoder) {
+                  Iterable<PCollectionView<?>> sideInputViews, Coder<InputT> inputCoder,
+                  Map<Long, TupleTag<?>> outputMap) {
     this.doFn = doFn;
     this.windowingStrategy = windowingStrategy;
     this.sideInputViews = sideInputViews;
     this.inputCoder = inputCoder;
+    this.outputMap = outputMap;
   }
 
   public OldDoFn<InputT, OutputT> getDoFn() {
@@ -65,5 +71,8 @@ public class DoFnInfo<InputT, OutputT> implements Serializable {
   public Coder<InputT> getInputCoder() {
     return inputCoder;
   }
-}
 
+  public Map<Long, TupleTag<?>> getOutputMap() {
+    return outputMap;
+  }
+}
