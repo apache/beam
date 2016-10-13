@@ -37,7 +37,7 @@ import java.util.regex.Pattern;
 import org.apache.avro.file.CodecFactory;
 
 /**
- * A wrapper allows  {@link org.apache.avro.file.CodecFactory}s to be serialized using Java's
+ * A wrapper that allows {@link org.apache.avro.file.CodecFactory}s to be serialized using Java's
  * standard serialization mechanisms.
  */
 class SerializableAvroCodecFactory implements Externalizable {
