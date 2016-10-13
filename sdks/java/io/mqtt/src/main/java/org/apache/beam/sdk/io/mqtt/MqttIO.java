@@ -61,18 +61,18 @@ import org.slf4j.LoggerFactory;
  *
  * <h3>Reading from a MQTT broker</h3>
  *
- * <p>MqttIO source returns an unbounded collection of {@code byte[]} as
- * {@code PCollection<byte[]>}, where {@code byte[]} is the MQTT message payload.</p>
+ * <p>MqttIO source returns an unbounded {@link PCollection} containing MQTT message
+ * payloads (as {@code byte[]}).</p>
  *
  * <p>To configure a MQTT source, you have to provide a MQTT connection configuration including
- * {@code ClientId}, a {@code ServerURI}, and eventually a {@code Topic} pattern. The following
+ * {@code ClientId}, a {@code ServerURI}, and a {@code Topic} pattern. The following
  * example illustrates various options for configuring the source:</p>
  *
  * <pre>{@code
  *
  * pipeline.apply(
  *   MqttIO.read()
- *    .withMqttConnectionConfiguration(MqttIO.MqttConnectionConfiguration.create(
+ *    .withConnectionConfiguration(MqttIO.ConnectionConfiguration.create(
  *      "tcp://host:11883",
  *      "my_client_id",
  *      "my_topic"))
@@ -86,7 +86,7 @@ import org.slf4j.LoggerFactory;
  * <p>To configure a MQTT sink, as for the read, you have to specify a MQTT connection
  * configuration with {@code ClientId}, {@code ServerURI}, {@code Topic}.</p>
  *
- * <p>Eventually, you can also specify the {@code Retained} and {@code QoS} of the MQTT
+ * <p>Optionally, you can also specify the {@code Retained} and {@code QoS} of the MQTT
  * message.</p>
  *
  * <p>For instance:</p>
@@ -96,7 +96,7 @@ import org.slf4j.LoggerFactory;
  * pipeline
  *   .apply(...) // provide PCollection<byte[]>
  *   .MqttIO.write()
- *     .withMqttConnectionConfiguration(MqttIO.MqttConnectionConfiguration.create(
+ *     .withConnectionConfiguration(MqttIO.ConnectionConfiguration.create(
  *       "tcp://host:11883",
  *       "my_client_id",
  *       "my_topic"))
@@ -128,18 +128,18 @@ public class MqttIO {
    * A POJO describing a MQTT connection.
    */
   @AutoValue
-  public abstract static class MqttConnectionConfiguration implements Serializable {
+  public abstract static class ConnectionConfiguration implements Serializable {
 
     @Nullable abstract String serverUri();
     @Nullable abstract String clientId();
     @Nullable abstract String topic();
 
-    public static MqttConnectionConfiguration create(String serverUri, String clientId,
-                                                     String topic) {
+    public static ConnectionConfiguration create(String serverUri, String clientId,
+                                                 String topic) {
       checkNotNull(serverUri, "serverUri");
       checkNotNull(clientId, "clientId");
       checkNotNull(topic, "topic");
-      return new AutoValue_MqttIO_MqttConnectionConfiguration(serverUri, clientId, topic);
+      return new AutoValue_MqttIO_ConnectionConfiguration(serverUri, clientId, topic);
     }
 
     private void populateDisplayData(DisplayData.Builder builder) {
@@ -148,7 +148,7 @@ public class MqttIO {
       builder.add(DisplayData.item("topic", topic()));
     }
 
-    private MqttClient getClient() throws Exception {
+    private MqttClient getClient() throws MqttException {
       MqttClient client = new MqttClient(serverUri(), clientId());
       client.connect();
       return client;
@@ -162,15 +162,15 @@ public class MqttIO {
   @AutoValue
   public abstract static class Read extends PTransform<PBegin, PCollection<byte[]>> {
 
-    @Nullable abstract MqttConnectionConfiguration mqttConnectionConfiguration();
-    @Nullable abstract long maxNumRecords();
+    @Nullable abstract ConnectionConfiguration connectionConfiguration();
+    abstract long maxNumRecords();
     @Nullable abstract Duration maxReadTime();
 
     abstract Builder toBuilder();
 
     @AutoValue.Builder
     abstract static class Builder {
-      abstract Builder setMqttConnectionConfiguration(MqttConnectionConfiguration config);
+      abstract Builder setConnectionConfiguration(ConnectionConfiguration config);
       abstract Builder setMaxNumRecords(long maxNumRecords);
       abstract Builder setMaxReadTime(Duration maxReadTime);
       abstract Read build();
@@ -178,24 +178,16 @@ public class MqttIO {
 
     /**
      * Define the MQTT connection configuration used to connect to the MQTT broker.
-     *
-     * @param configuration A {@link MqttConnectionConfiguration} instance.
-     * @return The {@link Read} {@link PTransform} with the corresponding MQTT connection
-     * configuration.
      */
-    public Read withMqttConnectionConfiguration(MqttConnectionConfiguration configuration) {
-      checkNotNull(configuration, "MqttConnectionConfiguration");
-      return toBuilder().setMqttConnectionConfiguration(configuration).build();
+    public Read withConnectionConfiguration(ConnectionConfiguration configuration) {
+      checkNotNull(configuration, "ConnectionConfiguration");
+      return toBuilder().setConnectionConfiguration(configuration).build();
     }
 
     /**
      * Define the max number of records received by the {@link Read}.
-     * When this max number of records is lower then {@code Long.MAX_VALUE}, the {@link Read}
+     * When this max number of records is lower than {@code Long.MAX_VALUE}, the {@link Read}
      * will provide a bounded {@link PCollection}.
-     *
-     * @param maxNumRecords The max number of records received.
-     * @return The {@link Read} {@link PTransform} with the corresponding max num records
-     * configuration.
      */
     public Read withMaxNumRecords(long maxNumRecords) {
       checkArgument(maxReadTime() == null,
@@ -207,10 +199,6 @@ public class MqttIO {
      * Define the max read time (duration) while the {@link Read} will receive messages.
      * When this max read time is not null, the {@link Read} will provide a bounded
      * {@link PCollection}.
-     *
-     * @param maxReadTime The max read time duration.
-     * @return The {@link Read} {@link PTransform} with the corresponding max read time
-     * configuration.
      */
     public Read withMaxReadTime(Duration maxReadTime) {
       checkArgument(maxNumRecords() == Long.MAX_VALUE,
@@ -237,13 +225,13 @@ public class MqttIO {
 
     @Override
     public void validate(PBegin input) {
-      // validation is performed in the MqttConnectionConfiguration create()
+      // validation is performed in the ConnectionConfiguration create()
     }
 
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {
       super.populateDisplayData(builder);
-      mqttConnectionConfiguration().populateDisplayData(builder);
+      connectionConfiguration().populateDisplayData(builder);
       builder.add(DisplayData.item("maxNumRecords", maxNumRecords()));
       builder.addIfNotNull(DisplayData.item("maxReadTime", maxReadTime()));
     }
@@ -260,7 +248,7 @@ public class MqttIO {
     }
 
     @Override
-    public UnboundedReader createReader(PipelineOptions options,
+    public UnboundedReader<byte[]> createReader(PipelineOptions options,
                                         CheckpointMark checkpointMark) {
       return new UnboundedMqttReader(this);
     }
@@ -301,8 +289,8 @@ public class MqttIO {
    */
   private static class MqttMessageWithTimestamp {
 
-    private MqttMessage message;
-    private Instant timestamp;
+    private final MqttMessage message;
+    private final Instant timestamp;
 
     public MqttMessageWithTimestamp(MqttMessage message, Instant timestamp) {
       this.message = message;
@@ -330,15 +318,15 @@ public class MqttIO {
       LOGGER.debug("Starting MQTT reader");
       Read spec = source.spec;
       try {
-        client = spec.mqttConnectionConfiguration().getClient();
-        client.subscribe(spec.mqttConnectionConfiguration().topic());
+        client = spec.connectionConfiguration().getClient();
+        client.subscribe(spec.connectionConfiguration().topic());
         client.setCallback(new MqttCallback() {
           @Override
           public void connectionLost(Throwable cause) {
             LOGGER.warn("MQTT connection lost", cause);
             try {
               close();
-            } catch (Exception e) {
+            } catch (IOException e) {
               // nothing to do
             }
           }
@@ -355,7 +343,7 @@ public class MqttIO {
           }
         });
         return advance();
-      } catch (Exception e) {
+      } catch (MqttException e) {
         throw new IOException(e);
       }
     }
@@ -363,17 +351,20 @@ public class MqttIO {
     @Override
     public boolean advance() throws IOException {
       LOGGER.debug("Taking from the pending queue ({})", queue.size());
+      MqttMessageWithTimestamp message = null;
       try {
-        MqttMessageWithTimestamp message = queue.poll(5, TimeUnit.SECONDS);
-        if (message == null) {
-          return false;
-        }
-        current = message.message.getPayload();
-        currentTimestamp = message.timestamp;
-        return true;
+        message = queue.poll(5, TimeUnit.SECONDS);
       } catch (InterruptedException e) {
         throw new IOException(e);
       }
+      if (message == null) {
+        current = null;
+        currentTimestamp = null;
+        return false;
+      }
+      current = message.message.getPayload();
+      currentTimestamp = message.timestamp;
+      return true;
     }
 
     @Override
@@ -443,7 +434,7 @@ public class MqttIO {
   @AutoValue
   public abstract static class Write extends PTransform<PCollection<byte[]>, PDone> {
 
-    @Nullable abstract MqttConnectionConfiguration mqttConnectionConfiguration();
+    @Nullable abstract ConnectionConfiguration connectionConfiguration();
     @Nullable abstract int qos();
     @Nullable abstract boolean retained();
 
@@ -451,7 +442,7 @@ public class MqttIO {
 
     @AutoValue.Builder
     abstract static class Builder {
-      abstract Builder setMqttConnectionConfiguration(MqttConnectionConfiguration configuration);
+      abstract Builder setConnectionConfiguration(ConnectionConfiguration configuration);
       abstract Builder setQos(int qos);
       abstract Builder setRetained(boolean retained);
       abstract Write build();
@@ -459,12 +450,9 @@ public class MqttIO {
 
     /**
      * Define MQTT connection configuration used to connect to the MQTT broker.
-     *
-     * @param configuration The {@link MqttConnectionConfiguration} instance.
-     * @return The {@link Write} {@link PTransform} with the corresponding connection configuration.
      */
-    public Write withMqttConnectionConfiguration(MqttConnectionConfiguration configuration) {
-      return toBuilder().setMqttConnectionConfiguration(configuration).build();
+    public Write withConnectionConfiguration(ConnectionConfiguration configuration) {
+      return toBuilder().setConnectionConfiguration(configuration).build();
     }
 
     /**
@@ -477,33 +465,31 @@ public class MqttIO {
      * but should only be used for messages which are not valuable - note that
      * if the server cannot process the message (for example, there
      * is an authorization problem), then an
-     * {@link MqttCallback#deliveryComplete(IMqttDeliveryToken)}.
+     * {@link MqttCallback#deliveryComplete(IMqttDeliveryToken)} won't be called.
      * Also known as "fire and forget".</li>
      *
      * <li>Quality of Service 1 - indicates that a message should
      * be delivered at least once (one or more times).  The message can only be delivered safely if
-     * it can be persisted, so the application must supply a means of
-     * persistence using {@code MqttConnectOptions}.
-     * If a persistence mechanism is not specified, the message will not be
+     * it can be persisted on the broker.
+     * If the broker can't persist the message, the message will not be
      * delivered in the event of a client failure.
      * The message will be acknowledged across the network.
      * This is the default QoS.</li>
      *
      * <li>Quality of Service 2 - indicates that a message should
-     * be delivered once. The message will be persisted to disk, and will
+     * be delivered once. The message will be persisted to disk on the broker, and will
      * be subject to a two-phase acknowledgement across the network.
      * The message can only be delivered safely if
-     * it can be persisted, so the application must supply a means of
-     * persistence using {@code MqttConnectOptions}.
-     * If a persistence mechanism is not specified, the message will not be
+     * it can be persisted on the broker.
+     * If a persistence mechanism is not specified on the broker, the message will not be
      * delivered in the event of a client failure.</li>
      * </ul>
      *
-     * If persistence is not configured, QoS 1 and 2 messages will still be delivered
+     * <p>If persistence is not configured, QoS 1 and 2 messages will still be delivered
      * in the event of a network or server problem as the client will hold state in memory.
      * If the MQTT client is shutdown or fails and persistence is not configured then
      * delivery of QoS 1 and 2 messages can not be maintained as client-side state will
-     * be lost.
+     * be lost.</p>
      *
      * @param qos The quality of service value.
      * @return The {@link Write} {@link PTransform} with the corresponding QoS configuration.
@@ -532,12 +518,12 @@ public class MqttIO {
 
     @Override
     public void validate(PCollection<byte[]> input) {
-      // validation is performed in the MqttConnectionConfiguration create()
+      // validation is performed in the ConnectionConfiguration create()
     }
 
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {
-      mqttConnectionConfiguration().populateDisplayData(builder);
+      connectionConfiguration().populateDisplayData(builder);
       builder.add(DisplayData.item("qos", qos()));
       builder.add(DisplayData.item("retained", retained()));
     }
@@ -554,7 +540,7 @@ public class MqttIO {
 
       @Setup
       public void createMqttClient() throws Exception {
-        client = spec.mqttConnectionConfiguration().getClient();
+        client = spec.connectionConfiguration().getClient();
       }
 
       @ProcessElement
@@ -564,7 +550,7 @@ public class MqttIO {
         message.setQos(spec.qos());
         message.setRetained(spec.retained());
         message.setPayload(payload);
-        client.publish(spec.mqttConnectionConfiguration().topic(), message);
+        client.publish(spec.connectionConfiguration().topic(), message);
       }
 
       @Teardown

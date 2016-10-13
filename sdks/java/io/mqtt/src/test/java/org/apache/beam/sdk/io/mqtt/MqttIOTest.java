@@ -69,8 +69,8 @@ public class MqttIOTest implements Serializable {
 
     PCollection<byte[]> output = pipeline.apply(
         MqttIO.read()
-            .withMqttConnectionConfiguration(
-                MqttIO.MqttConnectionConfiguration.create(
+            .withConnectionConfiguration(
+                MqttIO.ConnectionConfiguration.create(
                     "tcp://localhost:11883",
                     "BEAM_PIPELINE",
                     "READ_TOPIC"))
@@ -141,8 +141,8 @@ public class MqttIOTest implements Serializable {
     // be persisted to disk, and will be subject to a two-phase ack.
     pipeline.apply(Create.of(data))
         .apply(MqttIO.write()
-            .withMqttConnectionConfiguration(
-                MqttIO.MqttConnectionConfiguration.create(
+            .withConnectionConfiguration(
+                MqttIO.ConnectionConfiguration.create(
                     "tcp://localhost:11883",
                     "BEAM_PIPELINE",
                     "WRITE_TOPIC"))
