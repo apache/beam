@@ -978,19 +978,19 @@ public class DataflowPipelineTranslatorTest implements Serializable {
 
   private static void assertAllStepOutputsHaveUniqueIds(Job job)
       throws Exception {
-    List<String> outputNames = new ArrayList<>();
+    List<Long> outputIds = new ArrayList<>();
     for (Step step : job.getSteps()) {
       List<Map<String, Object>> outputInfoList =
           (List<Map<String, Object>>) step.getProperties().get(PropertyNames.OUTPUT_INFO);
       if (outputInfoList != null) {
         for (Map<String, Object> outputInfo : outputInfoList) {
-          outputNames.add(Structs.getString(outputInfo, PropertyNames.OUTPUT_NAME));
+          outputIds.add(Long.parseLong(Structs.getString(outputInfo, PropertyNames.OUTPUT_NAME)));
         }
       }
     }
-    Set<String> uniqueOutputNames = new HashSet<>(outputNames);
-    outputNames.removeAll(uniqueOutputNames);
-    assertTrue(String.format("Found duplicate outputs %s", outputNames),
-        outputNames.size() == 0);
+    Set<Long> uniqueOutputNames = new HashSet<>(outputIds);
+    outputIds.removeAll(uniqueOutputNames);
+    assertTrue(String.format("Found duplicate output ids %s", outputIds),
+        outputIds.size() == 0);
   }
 }
