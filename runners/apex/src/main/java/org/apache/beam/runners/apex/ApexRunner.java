@@ -72,7 +72,7 @@ public class ApexRunner extends PipelineRunner<ApexRunnerResult> {
   private final ApexPipelineOptions options;
 
   /**
-   * TODO: this isn't thread sa
+   * TODO: this isn't thread safe and may cause issues when tests run in parallel
    * Holds any most resent assertion error that was raised while processing elements.
    * Used in the unit test driver in embedded to propagate the exception.
    */
@@ -89,7 +89,6 @@ public class ApexRunner extends PipelineRunner<ApexRunnerResult> {
   @Override
   public <OutputT extends POutput, InputT extends PInput> OutputT apply(
       PTransform<InputT, OutputT> transform, InputT input) {
-//System.out.println("transform: " + transform);
 
     if (Window.Bound.class.equals(transform.getClass())) {
       return (OutputT) ((PCollection) input).apply(

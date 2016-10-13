@@ -22,8 +22,11 @@ import java.util.List;
 import java.util.Map;
 
 import org.apache.beam.runners.apex.translators.functions.ApexParDoOperator;
+import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.util.WindowedValue.FullWindowedValueCoder;
+import org.apache.beam.sdk.util.WindowedValue.WindowedValueCoder;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PCollectionView;
@@ -43,10 +46,15 @@ public class ParDoBoundMultiTranslator<InputT, OutputT> implements TransformTran
   public void translate(ParDo.BoundMulti<InputT, OutputT> transform, TranslationContext context) {
     OldDoFn<InputT, OutputT> doFn = transform.getFn();
     PCollectionTuple output = context.getOutput();
+    PCollection<InputT> input = context.getInput();
     List<PCollectionView<?>> sideInputs = transform.getSideInputs();
+    Coder<InputT> inputCoder = input.getCoder();
+    WindowedValueCoder<InputT> wvInputCoder = FullWindowedValueCoder.of(inputCoder,
+        input.getWindowingStrategy().getWindowFn().windowCoder());
+
     ApexParDoOperator<InputT, OutputT> operator = new ApexParDoOperator<>(context.getPipelineOptions(),
         doFn, transform.getMainOutputTag(), transform.getSideOutputTags().getAll(),
-        context.<PCollection<?>>getInput().getWindowingStrategy(), sideInputs);
+        context.<PCollection<?>>getInput().getWindowingStrategy(), sideInputs, wvInputCoder);
 
     Map<TupleTag<?>, PCollection<?>> outputs = output.getAll();
     Map<PCollection<?>, OutputPort<?>> ports = Maps.newHashMapWithExpectedSize(outputs.size());

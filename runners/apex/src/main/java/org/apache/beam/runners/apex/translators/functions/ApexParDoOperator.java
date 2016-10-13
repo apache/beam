@@ -26,11 +26,14 @@ import org.apache.beam.runners.apex.ApexRunner;
 import org.apache.beam.runners.apex.translators.utils.ApexStreamTuple;
 import org.apache.beam.runners.apex.translators.utils.NoOpStepContext;
 import org.apache.beam.runners.apex.translators.utils.SerializablePipelineOptions;
+import org.apache.beam.runners.apex.translators.utils.ValueAndCoderKryoSerializable;
 import org.apache.beam.runners.core.DoFnRunner;
 import org.apache.beam.runners.core.DoFnRunners;
 import org.apache.beam.runners.core.PushbackSideInputDoFnRunner;
 import org.apache.beam.runners.core.SideInputHandler;
 import org.apache.beam.runners.core.DoFnRunners.OutputManager;
+import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.ListCoder;
 import org.apache.beam.sdk.repackaged.com.google.common.base.Throwables;
 import org.apache.beam.sdk.transforms.Aggregator;
 import org.apache.beam.sdk.transforms.Aggregator.AggregatorFactory;
@@ -84,8 +87,7 @@ public class ApexParDoOperator<InputT, OutputT> extends BaseOperator implements 
 // TODO: not Kryo serializable, integrate codec
 //@Bind(JavaSerializer.class)
 private transient StateInternals<Void> sideInputStateInternals = InMemoryStateInternals.forKey(null);
-  // TODO: not Kryo serializable, integrate codec
-  private List<WindowedValue<InputT>> pushedBack = new ArrayList<>();
+  private final ValueAndCoderKryoSerializable<List<WindowedValue<InputT>>> pushedBack;
   private LongMin pushedBackWatermark = new LongMin();
   private long currentInputWatermark = Long.MIN_VALUE;
   private long currentOutputWatermark = currentInputWatermark;
@@ -100,7 +102,8 @@ private transient StateInternals<Void> sideInputStateInternals = InMemoryStateIn
       TupleTag<OutputT> mainOutputTag,
       List<TupleTag<?>> sideOutputTags,
       WindowingStrategy<?, ?> windowingStrategy,
-      List<PCollectionView<?>> sideInputs
+      List<PCollectionView<?>> sideInputs,
+      Coder<WindowedValue<InputT>> inputCoder
       )
   {
     this.pipelineOptions = new SerializablePipelineOptions(pipelineOptions);
@@ -110,18 +113,27 @@ private transient StateInternals<Void> sideInputStateInternals = InMemoryStateIn
     this.windowingStrategy = windowingStrategy;
     this.sideInputs = sideInputs;
 
-    if (sideOutputTags != null && sideOutputTags.size() > sideOutputPorts.length) {
+    if (sideOutputTags.size() > sideOutputPorts.length) {
       String msg = String.format("Too many side outputs (currently only supporting %s).",
           sideOutputPorts.length);
       throw new UnsupportedOperationException(msg);
     }
+
+    Coder<List<WindowedValue<InputT>>> coder = ListCoder.of(inputCoder);
+    this.pushedBack = new ValueAndCoderKryoSerializable<>(new ArrayList<WindowedValue<InputT>>(), coder);
+
   }
 
   @SuppressWarnings("unused") // for Kryo
   private ApexParDoOperator() {
-    this(null, null, null, null, null, null);
+    this.pipelineOptions = null;
+    this.doFn = null;
+    this.mainOutputTag = null;
+    this.sideOutputTags = null;
+    this.windowingStrategy = null;
+    this.sideInputs = null;
+    this.pushedBack = null;
   }
-
 
   public final transient DefaultInputPort<ApexStreamTuple<WindowedValue<InputT>>> input = new DefaultInputPort<ApexStreamTuple<WindowedValue<InputT>>>()
   {
@@ -137,7 +149,7 @@ private transient StateInternals<Void> sideInputStateInternals = InMemoryStateIn
         Iterable<WindowedValue<InputT>> justPushedBack = processElementInReadyWindows(t.getValue());
         for (WindowedValue<InputT> pushedBackValue : justPushedBack) {
           pushedBackWatermark.add(pushedBackValue.getTimestamp().getMillis());
-          pushedBack.add(pushedBackValue);
+          pushedBack.get().add(pushedBackValue);
         }
       }
     }
@@ -162,16 +174,16 @@ private transient StateInternals<Void> sideInputStateInternals = InMemoryStateIn
       sideInputHandler.addSideInputValue(sideInput, t.getValue());
 
       List<WindowedValue<InputT>> newPushedBack = new ArrayList<>();
-      for (WindowedValue<InputT> elem : pushedBack) {
+      for (WindowedValue<InputT> elem : pushedBack.get()) {
         Iterable<WindowedValue<InputT>> justPushedBack = processElementInReadyWindows(elem);
         Iterables.addAll(newPushedBack, justPushedBack);
       }
 
-      pushedBack.clear();
+      pushedBack.get().clear();
       pushedBackWatermark.clear();
       for (WindowedValue<InputT> pushedBackValue : newPushedBack) {
         pushedBackWatermark.add(pushedBackValue.getTimestamp().getMillis());
-        pushedBack.add(pushedBackValue);
+        pushedBack.get().add(pushedBackValue);
       }
 
       // potentially emit watermark
