@@ -392,7 +392,14 @@ public class KafkaIOTest {
   private static void advanceOnce(UnboundedReader<?> reader) throws IOException {
     while (!reader.advance()) {
       // very rarely will there be more than one attempts.
-      // in case of a bug we might end up looping forever, and test will fail with a timeout.
+      // In case of a bug we might end up looping forever, and test will fail with a timeout.
+
+      // Avoid hard cpu spinning in case of a test failure.
+      try {
+        Thread.sleep(1);
+      } catch (InterruptedException e) {
+        throw new RuntimeException(e);
+      }
     }
   }
 
