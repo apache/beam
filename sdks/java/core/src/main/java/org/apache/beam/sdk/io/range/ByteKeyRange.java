@@ -62,9 +62,9 @@ import org.slf4j.LoggerFactory;
  * <p>Key interpolation, fraction estimation, and range splitting are all interpreted in these
  * floating-point semantics. See the respective implementations for further details. <b>Note:</b>
  * the underlying implementations of these functions use {@link BigInteger} and {@link BigDecimal},
- * so they can be slow and should not be called in hot loops. Dataflow's dynamic work
- * rebalancing will only invoke these functions during periodic control operations, so they are not
- * called on the critical path.
+ * so they can be slow and should not be called in hot loops. Dynamic work rebalancing will only
+ * invoke these functions during periodic control operations, so they are not called on the critical
+ * path.
  *
  * @see ByteKey
  */

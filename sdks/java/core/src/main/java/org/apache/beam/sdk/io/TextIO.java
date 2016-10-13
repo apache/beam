@@ -72,8 +72,7 @@ import org.apache.beam.sdk.values.PDone;
  * PCollection<String> lines =
  *     p.apply(TextIO.Read.from("/local/path/to/file.txt"));
  *
- * // A fully-specified Read from a GCS file (runs locally and via the
- * // Google Cloud Dataflow service):
+ * // A fully-specified Read from a GCS file:
  * PCollection<Integer> numbers =
  *     p.apply("ReadNumbers", TextIO.Read
  *         .from("gs://my_bucket/path/to/numbers-*.txt")
@@ -97,23 +96,13 @@ import org.apache.beam.sdk.values.PDone;
  * PCollection<String> lines = ...;
  * lines.apply(TextIO.Write.to("/path/to/file.txt"));
  *
- * // A fully-specified Write to a sharded GCS file (runs locally and via the
- * // Google Cloud Dataflow service):
+ * // A fully-specified Write to a sharded GCS file:
  * PCollection<Integer> numbers = ...;
  * numbers.apply("WriteNumbers", TextIO.Write
  *      .to("gs://my_bucket/path/to/numbers")
  *      .withSuffix(".txt")
  *      .withCoder(TextualIntegerCoder.of()));
  * }</pre>
- *
- * <h3>Permissions</h3>
- *
- * <p>When run using the {@code DirectRunner}, your pipeline can read and write text files
- * on your local drive and remote text files on Google Cloud Storage that you have access to using
- * your {@code gcloud} credentials. When running in the Dataflow service, the pipeline can only
- * read and write files from GCS. For more information about permissions, see the Cloud Dataflow
- * documentation on <a href="https://cloud.google.com/dataflow/security-and-permissions">Security
- * and Permissions</a>.
  */
 public class TextIO {
   /** The default coder, which returns each line of the input file as a string. */
