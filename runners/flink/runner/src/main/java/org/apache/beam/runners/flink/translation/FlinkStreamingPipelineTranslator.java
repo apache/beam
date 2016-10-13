@@ -52,6 +52,7 @@ public class FlinkStreamingPipelineTranslator extends FlinkPipelineTranslator {
   @Override
   public CompositeBehavior enterCompositeTransform(TransformTreeNode node) {
     LOG.info(genSpaces(this.depth) + "enterCompositeTransform- " + formatNodeName(node));
+    this.depth++;
 
     PTransform<?, ?> transform = node.getTransform();
     if (transform != null) {
@@ -64,7 +65,6 @@ public class FlinkStreamingPipelineTranslator extends FlinkPipelineTranslator {
         return CompositeBehavior.DO_NOT_ENTER_TRANSFORM;
       }
     }
-    this.depth++;
     return CompositeBehavior.ENTER_TRANSFORM;
   }
 
