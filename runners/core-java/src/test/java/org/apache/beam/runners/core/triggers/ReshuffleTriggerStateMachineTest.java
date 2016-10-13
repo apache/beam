@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.util;
+package org.apache.beam.runners.core.triggers;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -24,7 +24,6 @@ import static org.junit.Assert.assertTrue;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
-import org.apache.beam.sdk.transforms.windowing.Trigger;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Test;
@@ -32,28 +31,30 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 /**
- * Tests for {@link ReshuffleTrigger}.
+ * Tests for {@link ReshuffleTriggerStateMachine}.
  */
 @RunWith(JUnit4.class)
-public class ReshuffleTriggerTest {
+public class ReshuffleTriggerStateMachineTest {
 
-  /** Public so that other tests can instantiate {@link ReshuffleTrigger}. */
-  public static <W extends BoundedWindow> ReshuffleTrigger<W> forTest() {
-    return new ReshuffleTrigger<>();
+  /** Public so that other tests can instantiate {@link ReshuffleTriggerStateMachine}. */
+  public static <W extends BoundedWindow> ReshuffleTriggerStateMachine forTest() {
+    return new ReshuffleTriggerStateMachine();
   }
 
   @Test
   public void testShouldFire() throws Exception {
-    TriggerTester<Integer, IntervalWindow> tester = TriggerTester.forTrigger(
-        new ReshuffleTrigger<IntervalWindow>(), FixedWindows.of(Duration.millis(100)));
+    TriggerStateMachineTester<Integer, IntervalWindow> tester =
+        TriggerStateMachineTester.forTrigger(
+            new ReshuffleTriggerStateMachine(), FixedWindows.of(Duration.millis(100)));
     IntervalWindow arbitraryWindow = new IntervalWindow(new Instant(300), new Instant(400));
     assertTrue(tester.shouldFire(arbitraryWindow));
   }
 
   @Test
   public void testOnTimer() throws Exception {
-    TriggerTester<Integer, IntervalWindow> tester = TriggerTester.forTrigger(
-        new ReshuffleTrigger<IntervalWindow>(), FixedWindows.of(Duration.millis(100)));
+    TriggerStateMachineTester<Integer, IntervalWindow> tester =
+        TriggerStateMachineTester.forTrigger(
+            new ReshuffleTriggerStateMachine(), FixedWindows.of(Duration.millis(100)));
     IntervalWindow arbitraryWindow = new IntervalWindow(new Instant(100), new Instant(200));
     tester.fireIfShouldFire(arbitraryWindow);
     assertFalse(tester.isMarkedFinished(arbitraryWindow));
@@ -61,7 +62,7 @@ public class ReshuffleTriggerTest {
 
   @Test
   public void testToString() {
-    Trigger trigger = new ReshuffleTrigger<>();
-    assertEquals("ReshuffleTrigger()", trigger.toString());
+    TriggerStateMachine trigger = new ReshuffleTriggerStateMachine();
+    assertEquals("ReshuffleTriggerStateMachine()", trigger.toString());
   }
 }

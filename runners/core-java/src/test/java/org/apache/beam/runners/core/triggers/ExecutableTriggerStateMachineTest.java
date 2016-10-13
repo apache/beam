@@ -15,40 +15,36 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.util;
+package org.apache.beam.runners.core.triggers;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertSame;
 
 import java.util.Arrays;
-import java.util.List;
-import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.transforms.windowing.Trigger;
-import org.joda.time.Instant;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 /**
- * Tests for {@link ExecutableTrigger}.
+ * Tests for {@link ExecutableTriggerStateMachine}.
  */
 @RunWith(JUnit4.class)
-public class ExecutableTriggerTest {
+public class ExecutableTriggerStateMachineTest {
 
   @Test
   public void testIndexAssignmentLeaf() throws Exception {
-    StubTrigger t1 = new StubTrigger();
-    ExecutableTrigger executable = ExecutableTrigger.create(t1);
+    StubStateMachine t1 = new StubStateMachine();
+    ExecutableTriggerStateMachine executable = ExecutableTriggerStateMachine.create(t1);
     assertEquals(0, executable.getTriggerIndex());
   }
 
   @Test
   public void testIndexAssignmentOneLevel() throws Exception {
-    StubTrigger t1 = new StubTrigger();
-    StubTrigger t2 = new StubTrigger();
-    StubTrigger t = new StubTrigger(t1, t2);
+    StubStateMachine t1 = new StubStateMachine();
+    StubStateMachine t2 = new StubStateMachine();
+    StubStateMachine t = new StubStateMachine(t1, t2);
 
-    ExecutableTrigger executable = ExecutableTrigger.create(t);
+    ExecutableTriggerStateMachine executable = ExecutableTriggerStateMachine.create(t);
 
     assertEquals(0, executable.getTriggerIndex());
     assertEquals(1, executable.subTriggers().get(0).getTriggerIndex());
@@ -59,17 +55,17 @@ public class ExecutableTriggerTest {
 
   @Test
   public void testIndexAssignmentTwoLevel() throws Exception {
-    StubTrigger t11 = new StubTrigger();
-    StubTrigger t12 = new StubTrigger();
-    StubTrigger t13 = new StubTrigger();
-    StubTrigger t14 = new StubTrigger();
-    StubTrigger t21 = new StubTrigger();
-    StubTrigger t22 = new StubTrigger();
-    StubTrigger t1 = new StubTrigger(t11, t12, t13, t14);
-    StubTrigger t2 = new StubTrigger(t21, t22);
-    StubTrigger t = new StubTrigger(t1, t2);
+    StubStateMachine t11 = new StubStateMachine();
+    StubStateMachine t12 = new StubStateMachine();
+    StubStateMachine t13 = new StubStateMachine();
+    StubStateMachine t14 = new StubStateMachine();
+    StubStateMachine t21 = new StubStateMachine();
+    StubStateMachine t22 = new StubStateMachine();
+    StubStateMachine t1 = new StubStateMachine(t11, t12, t13, t14);
+    StubStateMachine t2 = new StubStateMachine(t21, t22);
+    StubStateMachine t = new StubStateMachine(t1, t2);
 
-    ExecutableTrigger executable = ExecutableTrigger.create(t);
+    ExecutableTriggerStateMachine executable = ExecutableTriggerStateMachine.create(t);
 
     assertEquals(0, executable.getTriggerIndex());
     assertEquals(1, executable.subTriggers().get(0).getTriggerIndex());
@@ -84,10 +80,10 @@ public class ExecutableTriggerTest {
     assertSame(t2, executable.getSubTriggerContaining(7).getSpec());
   }
 
-  private static class StubTrigger extends Trigger {
+  private static class StubStateMachine extends TriggerStateMachine {
 
     @SafeVarargs
-    protected StubTrigger(Trigger... subTriggers) {
+    protected StubStateMachine(TriggerStateMachine... subTriggers) {
       super(Arrays.asList(subTriggers));
     }
 
@@ -99,21 +95,6 @@ public class ExecutableTriggerTest {
 
     @Override
     public void clear(TriggerContext c) throws Exception {
-    }
-
-    @Override
-    public Instant getWatermarkThatGuaranteesFiring(BoundedWindow window) {
-      return BoundedWindow.TIMESTAMP_MAX_VALUE;
-    }
-
-    @Override
-    public boolean isCompatible(Trigger other) {
-      return false;
-    }
-
-    @Override
-    public Trigger getContinuationTrigger(List<Trigger> continuationTriggers) {
-      return this;
     }
 
     @Override
