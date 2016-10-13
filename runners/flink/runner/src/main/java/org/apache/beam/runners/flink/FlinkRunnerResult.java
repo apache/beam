@@ -33,8 +33,11 @@ import org.joda.time.Duration;
  * {@link org.apache.beam.sdk.transforms.Aggregator}s.
  */
 public class FlinkRunnerResult implements PipelineResult {
+
   private final Map<String, Object> aggregators;
+
   private final long runtime;
+
   public FlinkRunnerResult(Map<String, Object> aggregators, long runtime) {
     this.aggregators = (aggregators == null || aggregators.isEmpty())
         ? Collections.<String, Object>emptyMap()
@@ -44,7 +47,7 @@ public class FlinkRunnerResult implements PipelineResult {
 
   @Override
   public State getState() {
-    return null;
+    return State.DONE;
   }
 
   @Override
@@ -85,7 +88,7 @@ public class FlinkRunnerResult implements PipelineResult {
 
   @Override
   public State waitUntilFinish(Duration duration) {
-    throw new UnsupportedOperationException("FlinkRunnerResult does not support waitUntilFinish.");
+    return State.DONE;
   }
 
   @Override
