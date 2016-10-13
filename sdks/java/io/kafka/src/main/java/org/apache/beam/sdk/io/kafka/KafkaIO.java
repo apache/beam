@@ -924,11 +924,13 @@ public class KafkaIO {
       consumer.assign(source.assignedPartitions);
 
       for (PartitionState p : partitionStates) {
-        if (p.nextOffset >= 0) {
+        if (p.nextOffset != UNINITIALIZED_OFFSET) {
           consumer.seek(p.topicPartition, p.nextOffset);
         } else {
-          // Set nextOffset to current position, otherwise checkpoint would contain invalid
-          // offset (making checkpoints incorrect) until we read first record from this partition.
+          // nextOffset is unininitialized here, meaning start reading from latest record as of now
+          // ('latest' is the default, and is configurable). Remember the current position without
+          // waiting until the first record read. This ensures checkpoint is accurate even if the
+          // reader is closed before reading any records.
           p.nextOffset = consumer.position(p.topicPartition);
         }
 
@@ -989,10 +991,10 @@ public class KafkaIO {
           }
 
           ConsumerRecord<byte[], byte[]> rawRecord = pState.recordIter.next();
-          long next = pState.nextOffset;
+          long expected = pState.nextOffset;
           long offset = rawRecord.offset();
 
-          if (offset < next) { // -- (a)
+          if (offset < expected) { // -- (a)
             // this can happen when compression is enabled in Kafka (seems to be fixed in 0.10)
             // should we check if the offset is way off from consumedOffset (say > 1M)?
             LOG.warn("{}: ignoring already consumed offset {} for {}",
@@ -1001,9 +1003,9 @@ public class KafkaIO {
           }
 
           // sanity check
-          if (offset != next) {
+          if (offset != expected) {
             LOG.warn("{}: gap in offsets for {} at {}. {} records missing.",
-                this, pState.topicPartition, next, offset - next);
+                this, pState.topicPartition, expected, offset - expected);
           }
 
           if (curRecord == null) {

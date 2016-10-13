@@ -130,7 +130,7 @@ public class KafkaIOTest {
               tp.topic(),
               tp.partition(),
               offsets[pIdx]++,
-              ByteBuffer.wrap(new byte[8]).putInt(i).array(),    // key is 4 byte record id
+              ByteBuffer.wrap(new byte[4]).putInt(i).array(),    // key is 4 byte record id
               ByteBuffer.wrap(new byte[8]).putLong(i).array())); // value is 8 byte record id
     }
 
