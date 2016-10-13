@@ -23,6 +23,7 @@ import java.util.Map;
 import org.apache.beam.sdk.AggregatorRetrievalException;
 import org.apache.beam.sdk.AggregatorValues;
 import org.apache.beam.sdk.PipelineResult;
+import org.apache.beam.sdk.metrics.MetricResults;
 import org.apache.beam.sdk.transforms.Aggregator;
 import org.joda.time.Duration;
 
@@ -85,5 +86,10 @@ public class FlinkRunnerResult implements PipelineResult {
   @Override
   public State waitUntilFinish(Duration duration) {
     throw new UnsupportedOperationException("FlinkRunnerResult does not support waitUntilFinish.");
+  }
+
+  @Override
+  public MetricResults metrics() {
+    throw new UnsupportedOperationException("The FlinkRunner does not currently support metrics.");
   }
 }

@@ -25,6 +25,9 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.atomic.AtomicReference;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.direct.DirectRunner.CommittedBundle;
+import org.apache.beam.sdk.metrics.MetricUpdates;
+import org.apache.beam.sdk.metrics.MetricsContainer;
+import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.util.WindowedValue;
 
@@ -38,6 +41,7 @@ import org.apache.beam.sdk.util.WindowedValue;
  */
 class TransformExecutor<T> implements Runnable {
   public static <T> TransformExecutor<T> create(
+      EvaluationContext context,
       TransformEvaluatorFactory factory,
       Iterable<? extends ModelEnforcementFactory> modelEnforcements,
       CommittedBundle<T> inputBundle,
@@ -45,6 +49,7 @@ class TransformExecutor<T> implements Runnable {
       CompletionCallback completionCallback,
       TransformExecutorService transformEvaluationState) {
     return new TransformExecutor<>(
+        context,
         factory,
         modelEnforcements,
         inputBundle,
@@ -63,10 +68,12 @@ class TransformExecutor<T> implements Runnable {
 
   private final CompletionCallback onComplete;
   private final TransformExecutorService transformEvaluationState;
+  private final EvaluationContext context;
 
   private final AtomicReference<Thread> thread;
 
   private TransformExecutor(
+      EvaluationContext context,
       TransformEvaluatorFactory factory,
       Iterable<? extends ModelEnforcementFactory> modelEnforcements,
       CommittedBundle<T> inputBundle,
@@ -82,11 +89,14 @@ class TransformExecutor<T> implements Runnable {
     this.onComplete = completionCallback;
 
     this.transformEvaluationState = transformEvaluationState;
+    this.context = context;
     this.thread = new AtomicReference<>();
   }
 
   @Override
   public void run() {
+    MetricsContainer metricsContainer = new MetricsContainer(transform.getFullName());
+    MetricsEnvironment.setMetricsContainer(metricsContainer);
     checkState(
         thread.compareAndSet(null, Thread.currentThread()),
         "Tried to execute %s for %s on thread %s, but is already executing on thread %s",
@@ -108,9 +118,9 @@ class TransformExecutor<T> implements Runnable {
         return;
       }
 
-      processElements(evaluator, enforcements);
+      processElements(evaluator, metricsContainer, enforcements);
 
-      finishBundle(evaluator, enforcements);
+      finishBundle(evaluator, metricsContainer, enforcements);
     } catch (Throwable t) {
       onComplete.handleThrowable(inputBundle, t);
       if (t instanceof RuntimeException) {
@@ -118,6 +128,10 @@ class TransformExecutor<T> implements Runnable {
       }
       throw new RuntimeException(t);
     } finally {
+      // Report the physical metrics from the end of this step.
+      context.getMetrics().commitPhysical(inputBundle, metricsContainer.getCumulative());
+
+      MetricsEnvironment.unsetMetricsContainer();
       transformEvaluationState.complete(this);
     }
   }
@@ -127,7 +141,9 @@ class TransformExecutor<T> implements Runnable {
    * necessary {@link ModelEnforcement ModelEnforcements}.
    */
   private void processElements(
-      TransformEvaluator<T> evaluator, Collection<ModelEnforcement<T>> enforcements)
+      TransformEvaluator<T> evaluator,
+      MetricsContainer metricsContainer,
+      Collection<ModelEnforcement<T>> enforcements)
       throws Exception {
     if (inputBundle != null) {
       for (WindowedValue<T> value : inputBundle.getElements()) {
@@ -136,6 +152,13 @@ class TransformExecutor<T> implements Runnable {
         }
 
         evaluator.processElement(value);
+
+        // Report the physical metrics after each element
+        MetricUpdates deltas = metricsContainer.getUpdates();
+        if (deltas != null) {
+          context.getMetrics().updatePhysical(inputBundle, deltas);
+          metricsContainer.commitUpdates();
+        }
 
         for (ModelEnforcement<T> enforcement : enforcements) {
           enforcement.afterElement(value);
@@ -152,9 +175,11 @@ class TransformExecutor<T> implements Runnable {
    *         {@link TransformEvaluator#finishBundle()}
    */
   private TransformResult finishBundle(
-      TransformEvaluator<T> evaluator, Collection<ModelEnforcement<T>> enforcements)
+      TransformEvaluator<T> evaluator, MetricsContainer metricsContainer,
+      Collection<ModelEnforcement<T>> enforcements)
       throws Exception {
-    TransformResult result = evaluator.finishBundle();
+    TransformResult result = evaluator.finishBundle()
+        .withLogicalMetricUpdates(metricsContainer.getCumulative());
     CommittedResult outputs = onComplete.handleResult(inputBundle, result);
     for (ModelEnforcement<T> enforcement : enforcements) {
       enforcement.afterFinish(inputBundle, result, outputs.getOutputs());

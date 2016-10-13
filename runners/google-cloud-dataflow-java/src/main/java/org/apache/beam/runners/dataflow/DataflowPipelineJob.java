@@ -42,6 +42,7 @@ import org.apache.beam.runners.dataflow.util.MonitoringUtil;
 import org.apache.beam.sdk.AggregatorRetrievalException;
 import org.apache.beam.sdk.AggregatorValues;
 import org.apache.beam.sdk.PipelineResult;
+import org.apache.beam.sdk.metrics.MetricResults;
 import org.apache.beam.sdk.transforms.Aggregator;
 import org.apache.beam.sdk.util.FluentBackoff;
 import org.joda.time.Duration;
@@ -424,6 +425,12 @@ public class DataflowPipelineJob implements PipelineResult {
       throw new AggregatorRetrievalException(
           "IOException when retrieving Aggregator values for Aggregator " + aggregator, e);
     }
+  }
+
+  @Override
+  public MetricResults metrics() {
+    throw new UnsupportedOperationException(
+        "The DataflowRunner does not currently support metrics.");
   }
 
   private <OutputT> Map<String, OutputT> fromMetricUpdates(Aggregator<?, OutputT> aggregator)
