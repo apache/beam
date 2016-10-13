@@ -108,6 +108,6 @@ public class JoinExamplesTest {
 
     PCollection<String> output = JoinExamples.joinEvents(input1, input2);
     PAssert.that(output).containsInAnyOrder(JOINED_EVENTS);
-    p.run();
+    p.run().waitUntilFinish();
   }
 }

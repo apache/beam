@@ -191,7 +191,7 @@ public class HourlyTeamScore extends UserScore {
             configureWindowedTableWrite()));
 
 
-    pipeline.run();
+    pipeline.run().waitUntilFinish();
   }
   // [END DocInclude_HTSMain]
 

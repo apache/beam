@@ -91,6 +91,6 @@ public class DeDupExample {
      .apply(RemoveDuplicates.<String>create())
      .apply("DedupedShakespeare", TextIO.Write.to(options.getOutput()));
 
-    p.run();
+    p.run().waitUntilFinish();
   }
 }

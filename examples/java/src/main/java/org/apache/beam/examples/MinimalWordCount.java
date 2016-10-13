@@ -119,6 +119,6 @@ public class MinimalWordCount {
      .apply(TextIO.Write.to("gs://YOUR_OUTPUT_BUCKET/AND_OUTPUT_PREFIX"));
 
     // Run the pipeline.
-    p.run();
+    p.run().waitUntilFinish();
   }
 }

@@ -69,7 +69,7 @@ public class GameStatsTest implements Serializable {
     // Check the set of spammers.
     PAssert.that(output).containsInAnyOrder(SPAMMERS);
 
-    p.run();
+    p.run().waitUntilFinish();
   }
 
 }

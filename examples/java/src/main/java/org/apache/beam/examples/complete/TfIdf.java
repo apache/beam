@@ -417,6 +417,6 @@ public class TfIdf {
         .apply(new ComputeTfIdf())
         .apply(new WriteTfIdf(options.getOutput()));
 
-    pipeline.run();
+    pipeline.run().waitUntilFinish();
   }
 }

@@ -59,7 +59,7 @@ public class DeDupExampleTest {
 
     PAssert.that(output)
         .containsInAnyOrder("k1", "k5", "k2", "k3");
-    p.run();
+    p.run().waitUntilFinish();
   }
 
   @Test
@@ -77,6 +77,6 @@ public class DeDupExampleTest {
         input.apply(RemoveDuplicates.<String>create());
 
     PAssert.that(output).empty();
-    p.run();
+    p.run().waitUntilFinish();
   }
 }
