@@ -895,7 +895,7 @@ public class DataflowRunnerTest {
             // Note: This is about the minimum needed to fake out a
             // translation. This obviously isn't a real translation.
             context.addStep(transform, "TestTranslate");
-            context.addOutput("output", context.getOutput(transform));
+            context.addOutput(context.getOutput(transform));
           }
         });
 
@@ -1098,7 +1098,7 @@ public class DataflowRunnerTest {
 
     DoFnTester<KV<Integer, Iterable<KV<KV<Long, IntervalWindow>, WindowedValue<Long>>>>,
                IsmRecord<WindowedValue<Long>>> doFnTester =
-        DoFnTester.of(new BatchViewAsMultimap.ToIsmRecordForMapLikeDoFn<Long, Long, IntervalWindow>(
+        DoFnTester.of(new BatchViewAsMultimap.ToIsmRecordForMapLikeDoFn<>(
             outputForSizeTag,
             outputForEntrySetTag,
             windowCoder,
@@ -1198,7 +1198,7 @@ public class DataflowRunnerTest {
 
     DoFnTester<KV<Integer, Iterable<KV<KV<Long, IntervalWindow>, WindowedValue<Long>>>>,
                IsmRecord<WindowedValue<Long>>> doFnTester =
-        DoFnTester.of(new BatchViewAsMultimap.ToIsmRecordForMapLikeDoFn<Long, Long, IntervalWindow>(
+        DoFnTester.of(new BatchViewAsMultimap.ToIsmRecordForMapLikeDoFn<>(
             outputForSizeTag,
             outputForEntrySetTag,
             windowCoder,
