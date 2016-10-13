@@ -72,7 +72,7 @@ def create_groups(group_ids, corpus, word, ignore_corpus, ignore_word):
           | beam.FlatMap(
               'attach word',
               attach_word_fn,
-              AsIter(word),
+              AsList(word),
               AsSingleton(ignore_word)))
 
 
