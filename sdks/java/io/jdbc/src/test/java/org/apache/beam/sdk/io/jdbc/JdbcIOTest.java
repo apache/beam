@@ -141,7 +141,7 @@ public class JdbcIOTest implements Serializable {
     JdbcIO.DataSourceConfiguration config = JdbcIO.DataSourceConfiguration.create(
         "org.apache.derby.jdbc.ClientDriver",
         "jdbc:derby://localhost:1527/target/beam",
-        "sa", "sa");
+        "sa", null);
     try (Connection conn = config.getConnection()) {
       assertTrue(conn.isValid(0));
     }

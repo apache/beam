@@ -155,9 +155,6 @@ public class JdbcIO {
         String driverClassName, String url, String username, String password) {
       checkNotNull(driverClassName, "driverClassName");
       checkNotNull(url, "url");
-      checkNotNull(username, "username");
-      checkNotNull(password, "password");
-      checkArgument(password.length() > 0, "password");
       return new AutoValue_JdbcIO_DataSourceConfiguration(
           driverClassName, url, username, password, null);
     }
