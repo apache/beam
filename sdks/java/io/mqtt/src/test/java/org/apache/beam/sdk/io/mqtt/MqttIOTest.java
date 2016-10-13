@@ -81,11 +81,12 @@ public class MqttIOTest implements Serializable {
     PAssert.that(output).satisfies(new SerializableFunction<Iterable<byte[]>, Void>() {
       @Override
       public Void apply(Iterable<byte[]> input) {
-        int count = 0;
         for (byte[] element : input) {
           String inputString = new String(element);
-          Assert.assertEquals("This is test " + count, inputString);
-          count++;
+          Assert.assertTrue(inputString.startsWith("This is test "));
+          int count = Integer.parseInt(inputString.substring("This is test ".length()));
+          Assert.assertTrue(count < 10);
+          Assert.assertTrue(count >= 0);
         }
         return null;
       }
