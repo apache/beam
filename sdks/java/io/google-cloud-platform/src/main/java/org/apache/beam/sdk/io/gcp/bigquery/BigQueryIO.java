@@ -119,6 +119,7 @@ import org.apache.beam.sdk.util.gcsfs.GcsPath;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollection.IsBounded;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PDone;
@@ -1750,7 +1751,7 @@ public class BigQueryIO {
 
         // In a streaming job, or when a tablespec function is defined, we use StreamWithDeDup
         // and BigQuery's streaming import API.
-        if (options.isStreaming() || tableRefFunction != null) {
+        if (input.isBounded() == IsBounded.UNBOUNDED || tableRefFunction != null) {
           return input.apply(
               new StreamWithDeDup(getTable(), tableRefFunction, getSchema(), bqServices));
         }
