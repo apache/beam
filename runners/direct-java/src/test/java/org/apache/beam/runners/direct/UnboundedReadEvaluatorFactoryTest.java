@@ -131,9 +131,11 @@ public class UnboundedReadEvaluatorFactoryTest {
       assertThat(shard.getTimestamp(), equalTo(BoundedWindow.TIMESTAMP_MIN_VALUE));
       assertThat(shard.getWindows(), Matchers.<BoundedWindow>contains(GlobalWindow.INSTANCE));
       UnboundedSource<Long, ?> shardSource = shard.getValue().getSource();
-      readItems.addAll(SourceTestUtils.readNItemsFromUnstartedReader(shardSource.createReader(
-          PipelineOptionsFactory.create(),
-          null), readPerSplit));
+      readItems.addAll(
+          SourceTestUtils.readNItemsFromUnstartedReader(
+              shardSource.createReader(
+                  PipelineOptionsFactory.create(), null /* No starting checkpoint */),
+              readPerSplit));
     }
     assertThat(readItems, containsInAnyOrder(expectedOutputs.toArray(new Long[0])));
   }
