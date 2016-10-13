@@ -309,7 +309,9 @@ public class EvaluationContext implements EvaluationResult {
   @Override
   public State waitUntilFinish(Duration duration)
       throws IOException, InterruptedException {
-    throw new UnsupportedOperationException(
-        "Spark runner EvaluationContext does not support waitUntilFinish.");
+    // This is no-op, since Spark runner is blocking.
+    // It needs to be updated once SparkRunner supports non-blocking execution:
+    // https://issues.apache.org/jira/browse/BEAM-595
+    return State.DONE;
   }
 }
