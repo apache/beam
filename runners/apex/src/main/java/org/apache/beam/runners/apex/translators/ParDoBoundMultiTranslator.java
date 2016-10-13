@@ -18,6 +18,10 @@
 
 package org.apache.beam.runners.apex.translators;
 
+import static com.google.common.base.Preconditions.checkArgument;
+
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -63,20 +67,55 @@ public class ParDoBoundMultiTranslator<InputT, OutputT> implements TransformTran
       ports.put(outputEntry.getValue(), operator.sideOutputPorts[i++]);
     }
     context.addOperator(operator, ports);
-
     context.addStream(context.getInput(), operator.input);
     if (!sideInputs.isEmpty()) {
-      Operator.InputPort<?>[] sideInputPorts = {operator.sideInput1};
-      for (i=0; i<sideInputs.size(); i++) {
+      addSideInputs(operator, sideInputs, context);
+    }
+  }
+
+  static void addSideInputs(ApexParDoOperator<?, ?> operator, List<PCollectionView<?>> sideInputs, TranslationContext context) {
+    Operator.InputPort<?>[] sideInputPorts = {operator.sideInput1};
+    if (sideInputs.size() > sideInputPorts.length) {
+      //  String msg = String.format("Too many side inputs in %s (currently only supporting %s).",
+      //      transform.toString(), sideInputPorts.length);
+      //  throw new UnsupportedOperationException(msg);
+      PCollection<?> unionCollection = unionSideInputs(sideInputs, context);
+      context.addStream(unionCollection, sideInputPorts[0]);
+    } else {
+      for (int i=0; i<sideInputs.size(); i++) {
         // the number of input ports for side inputs are fixed and each port can only take one input.
         // more (optional) ports can be added to give reasonable capacity or an explicit union operation introduced.
-        if (i == sideInputPorts.length) {
-          String msg = String.format("Too many side inputs in %s (currently only supporting %s).",
-              transform.toString(), sideInputPorts.length);
-          throw new UnsupportedOperationException(msg);
-        }
         context.addStream(context.getViewInput(sideInputs.get(i)), sideInputPorts[i]);
       }
     }
   }
+
+  private static PCollection<?> unionSideInputs(List<PCollectionView<?>> sideInputs, TranslationContext context) {
+    checkArgument(sideInputs.size() > 1, "requires multiple side inputs");
+    // flatten and assign union tag
+    List<PCollection<Object>> sourceCollections = new ArrayList<>();
+    Map<PCollection<?>, Integer> unionTags = new HashMap<>();
+    PCollection<Object> firstSideInput = context.getViewInput(sideInputs.get(0));
+    for (int i=0; i < sideInputs.size(); i++) {
+      PCollectionView<?> sideInput = sideInputs.get(i);
+      PCollection<?> sideInputCollection = context.getViewInput(sideInput);
+      if (!sideInputCollection.getWindowingStrategy().equals(firstSideInput.getWindowingStrategy())) {
+        // TODO: check how to handle this in stream codec
+        //String msg = "Multiple side inputs with different window strategies.";
+        //throw new UnsupportedOperationException(msg);
+      }
+      if (!sideInputCollection.getCoder().equals(firstSideInput.getCoder())) {
+        String msg = "Multiple side inputs with different coders.";
+        throw new UnsupportedOperationException(msg);
+      }
+      sourceCollections.add(context.<PCollection<Object>>getViewInput(sideInput));
+      unionTags.put(sideInputCollection, i);
+    }
+
+    PCollection<Object> resultCollection = FlattenPCollectionTranslator.intermediateCollection(firstSideInput, firstSideInput.getCoder());
+    FlattenPCollectionTranslator.flattenCollections(sourceCollections, unionTags, resultCollection, context);
+    return resultCollection;
+
+  }
+
 }

@@ -19,6 +19,7 @@ package org.apache.beam.runners.apex;
 
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
+import org.apache.beam.sdk.metrics.MetricResults;
 
 import java.io.IOException;
 
@@ -70,6 +71,12 @@ public class ApexRunnerResult implements PipelineResult {
 
   @Override
   public State waitUntilFinish() throws IOException, InterruptedException
+  {
+    throw new UnsupportedOperationException();
+  }
+
+  @Override
+  public MetricResults metrics()
   {
     throw new UnsupportedOperationException();
   }

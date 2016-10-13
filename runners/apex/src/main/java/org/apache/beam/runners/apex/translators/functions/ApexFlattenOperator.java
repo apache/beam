@@ -41,6 +41,9 @@ public class ApexFlattenOperator<InputT> extends BaseOperator
   private long inputWM2;
   private long outputWM;
 
+  public int data1Tag;
+  public int data2Tag;
+
   /**
    * Data input port 1.
    */
@@ -69,6 +72,10 @@ public class ApexFlattenOperator<InputT> extends BaseOperator
       }
       if (traceTuples) {
         LOG.debug("\nemitting {}\n", tuple);
+      }
+
+      if (data1Tag > 0 && tuple instanceof ApexStreamTuple.DataTuple) {
+        ((ApexStreamTuple.DataTuple<?>)tuple).setUnionTag(data1Tag);
       }
       out.emit(tuple);
     }
@@ -102,6 +109,10 @@ public class ApexFlattenOperator<InputT> extends BaseOperator
       }
       if (traceTuples) {
         LOG.debug("\nemitting {}\n", tuple);
+      }
+
+      if (data2Tag > 0 && tuple instanceof ApexStreamTuple.DataTuple) {
+        ((ApexStreamTuple.DataTuple<?>)tuple).setUnionTag(data2Tag);
       }
       out.emit(tuple);
     }

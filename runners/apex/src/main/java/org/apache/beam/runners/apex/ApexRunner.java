@@ -74,7 +74,7 @@ public class ApexRunner extends PipelineRunner<ApexRunnerResult> {
   /**
    * TODO: this isn't thread safe and may cause issues when tests run in parallel
    * Holds any most resent assertion error that was raised while processing elements.
-   * Used in the unit test driver in embedded to propagate the exception.
+   * Used in the unit test driver in embedded mode to propagate the exception.
    */
   public static volatile AssertionError assertionError;
 
@@ -100,6 +100,8 @@ public class ApexRunner extends PipelineRunner<ApexRunnerResult> {
               WindowingStrategy.globalDefault(),
               PCollection.IsBounded.BOUNDED);
 // TODO: replace this with a mapping
+////
+
     } else if (Combine.GloballyAsSingletonView.class.equals(transform.getClass())) {
       PTransform<InputT, OutputT> customTransform = (PTransform)new StreamingCombineGloballyAsSingletonView<InputT, OutputT>(this,
           (Combine.GloballyAsSingletonView)transform);
@@ -109,6 +111,7 @@ public class ApexRunner extends PipelineRunner<ApexRunnerResult> {
       PTransform<InputT, OutputT> customTransform = (PTransform)new StreamingViewAsSingleton<InputT>(this,
           (View.AsSingleton)transform);
       return Pipeline.applyTransform(input, customTransform);
+/*
     } else if (View.AsIterable.class.equals(transform.getClass())) {
       PTransform<InputT, OutputT> customTransform = (PTransform)new StreamingViewAsIterable<InputT>(this,
           (View.AsIterable)transform);
@@ -125,6 +128,8 @@ public class ApexRunner extends PipelineRunner<ApexRunnerResult> {
       PTransform<InputT, OutputT> customTransform = new StreamingViewAsMultimap(this,
           (View.AsMultimap)transform);
       return Pipeline.applyTransform(input, customTransform);
+*/
+////
     } else {
       return super.apply(transform, input);
     }

@@ -37,6 +37,7 @@ import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.View.CreatePCollectionView;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PValue;
 import org.slf4j.Logger;
@@ -74,7 +75,8 @@ public class ApexPipelineTranslator implements Pipeline.PipelineVisitor {
     registerTransformTranslator(Flatten.FlattenPCollectionList.class,
         new FlattenPCollectionTranslator());
     registerTransformTranslator(Create.Values.class, new CreateValuesTranslator());
-    registerTransformTranslator(CreateApexPCollectionView.class, new CreatePCollectionViewTranslator());
+    registerTransformTranslator(CreateApexPCollectionView.class, new CreateApexPCollectionViewTranslator());
+    registerTransformTranslator(CreatePCollectionView.class, new CreatePCollectionViewTranslator());
   }
 
   public ApexPipelineTranslator(TranslationContext translationContext) {
@@ -151,12 +153,25 @@ public class ApexPipelineTranslator implements Pipeline.PipelineVisitor {
 
   }
 
-  private static class CreatePCollectionViewTranslator<ElemT, ViewT> implements TransformTranslator<CreateApexPCollectionView<ElemT, ViewT>>
+  private static class CreateApexPCollectionViewTranslator<ElemT, ViewT> implements TransformTranslator<CreateApexPCollectionView<ElemT, ViewT>>
   {
     private static final long serialVersionUID = 1L;
 
     @Override
     public void translate(CreateApexPCollectionView<ElemT, ViewT> transform, TranslationContext context)
+    {
+      PCollectionView<ViewT> view = transform.getView();
+      context.addView(view);
+      LOG.debug("view {}", view.getName());
+    }
+  }
+
+  private static class CreatePCollectionViewTranslator<ElemT, ViewT> implements TransformTranslator<CreatePCollectionView<ElemT, ViewT>>
+  {
+    private static final long serialVersionUID = 1L;
+
+    @Override
+    public void translate(CreatePCollectionView<ElemT, ViewT> transform, TranslationContext context)
     {
       PCollectionView<ViewT> view = transform.getView();
       context.addView(view);

@@ -32,8 +32,6 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 
-import com.datatorrent.api.Operator;
-
 /**
  * {@link ParDo.Bound} is translated to Apex operator that wraps the {@link DoFn}
  */
@@ -57,17 +55,7 @@ public class ParDoBoundTranslator<InputT, OutputT> implements
     context.addOperator(operator, operator.output);
     context.addStream(context.getInput(), operator.input);
     if (!sideInputs.isEmpty()) {
-      Operator.InputPort<?>[] sideInputPorts = {operator.sideInput1};
-      for (int i=0; i<sideInputs.size(); i++) {
-        // the number of input ports for side inputs are fixed and each port can only take one input.
-        // more (optional) ports can be added to give reasonable capacity or an explicit union operation introduced.
-        if (i == sideInputPorts.length) {
-          String msg = String.format("Too many side inputs in %s (currently only supporting %s).",
-              transform.toString(), sideInputPorts.length);
-          throw new UnsupportedOperationException(msg);
-        }
-        context.addStream(context.getViewInput(sideInputs.get(i)), sideInputPorts[i]);
-      }
+       ParDoBoundMultiTranslator.addSideInputs(operator, sideInputs, context);
     }
   }
 }

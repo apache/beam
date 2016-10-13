@@ -34,7 +34,6 @@ import org.apache.beam.runners.core.SideInputHandler;
 import org.apache.beam.runners.core.DoFnRunners.OutputManager;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.ListCoder;
-import org.apache.beam.sdk.repackaged.com.google.common.base.Throwables;
 import org.apache.beam.sdk.transforms.Aggregator;
 import org.apache.beam.sdk.transforms.Aggregator.AggregatorFactory;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
@@ -60,6 +59,7 @@ import com.datatorrent.api.annotation.InputPortFieldAnnotation;
 import com.datatorrent.api.annotation.OutputPortFieldAnnotation;
 import com.datatorrent.common.util.BaseOperator;
 import com.esotericsoftware.kryo.serializers.FieldSerializer.Bind;
+import com.google.common.base.Throwables;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Maps;
 import com.esotericsoftware.kryo.serializers.JavaSerializer;
@@ -158,8 +158,6 @@ private transient StateInternals<Void> sideInputStateInternals = InMemoryStateIn
   @InputPortFieldAnnotation(optional=true)
   public final transient DefaultInputPort<ApexStreamTuple<WindowedValue<Iterable<?>>>> sideInput1 = new DefaultInputPort<ApexStreamTuple<WindowedValue<Iterable<?>>>>()
   {
-    private final int sideInputIndex = 0;
-
     @Override
     public void process(ApexStreamTuple<WindowedValue<Iterable<?>>> t)
     {
@@ -167,9 +165,16 @@ private transient StateInternals<Void> sideInputStateInternals = InMemoryStateIn
         // ignore side input watermarks
         return;
       }
-      if (traceTuples) {
-        LOG.debug("\nsideInput {}\n", t.getValue());
+
+      int sideInputIndex = 0;
+      if (t instanceof ApexStreamTuple.DataTuple) {
+        sideInputIndex = ((ApexStreamTuple.DataTuple<?>)t).getUnionTag();
       }
+
+      if (traceTuples) {
+        LOG.debug("\nsideInput {} {}\n", sideInputIndex, t.getValue());
+      }
+
       PCollectionView<?> sideInput = sideInputs.get(sideInputIndex);
       sideInputHandler.addSideInputValue(sideInput, t.getValue());
 

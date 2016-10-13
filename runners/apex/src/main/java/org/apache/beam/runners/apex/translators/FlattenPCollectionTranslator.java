@@ -20,6 +20,7 @@ package org.apache.beam.runners.apex.translators;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 
 import org.apache.beam.runners.apex.translators.functions.ApexFlattenOperator;
 import org.apache.beam.runners.apex.translators.io.ApexReadUnboundedInputOperator;
@@ -53,9 +54,25 @@ public class FlattenPCollectionTranslator<T> implements
       ApexReadUnboundedInputOperator<T, ?> operator = new ApexReadUnboundedInputOperator<>(
           unboundedSource, context.getPipelineOptions());
       context.addOperator(operator, operator.output);
-      return;
+    } else {
+      PCollection<T> output = context.getOutput();
+      Map<PCollection<?>, Integer> unionTags = Collections.emptyMap();
+      flattenCollections(collections, unionTags, output, context);
     }
+  }
 
+  /**
+   * Flatten the given collections into the given result collection. Translates
+   * into a cascading merge with 2 input ports per operator. The optional union
+   * tags can be used to identify the source in the result stream, used to
+   * channel multiple side inputs to a single Apex operator port.
+   *
+   * @param collections
+   * @param unionTags
+   * @param finalCollection
+   * @param context
+   */
+  static <T> void flattenCollections(List<PCollection<T>> collections, Map<PCollection<?>, Integer> unionTags, PCollection<T> finalCollection, TranslationContext context) {
     List<PCollection<T>> remainingCollections = Lists.newArrayList();
     PCollection<T> firstCollection = null;
     while (!collections.isEmpty()) {
@@ -65,14 +82,23 @@ public class FlattenPCollectionTranslator<T> implements
         } else {
           ApexFlattenOperator<T> operator = new ApexFlattenOperator<>();
           context.addStream(firstCollection, operator.data1);
+          Integer unionTag = unionTags.get(firstCollection);
+          operator.data1Tag = (unionTag != null) ? unionTag : 0;
           context.addStream(collection, operator.data2);
+          unionTag = unionTags.get(collection);
+          operator.data2Tag = (unionTag != null) ? unionTag : 0;
+
+          if (!collection.getCoder().equals(firstCollection.getCoder())) {
+              throw new UnsupportedOperationException("coders don't match");
+          }
+
           if (collections.size() > 2) {
-            PCollection<T> resultCollection = intermediateCollection(collection, collection.getCoder());
-            context.addOperator(operator, operator.out, resultCollection);
-            remainingCollections.add(resultCollection);
+            PCollection<T> intermediateCollection = intermediateCollection(collection, collection.getCoder());
+            context.addOperator(operator, operator.out, intermediateCollection);
+            remainingCollections.add(intermediateCollection);
           } else {
             // final stream merge
-            context.addOperator(operator, operator.out);
+            context.addOperator(operator, operator.out, finalCollection);
           }
           firstCollection = null;
         }
@@ -91,7 +117,7 @@ public class FlattenPCollectionTranslator<T> implements
     }
   }
 
-  public static <T> PCollection<T> intermediateCollection(PCollection<T> input, Coder<T> outputCoder) {
+  static <T> PCollection<T> intermediateCollection(PCollection<T> input, Coder<T> outputCoder) {
     PCollection<T> output = PCollection.createPrimitiveOutputInternal(input.getPipeline(), input.getWindowingStrategy(), input.isBounded());
     output.setCoder(outputCoder);
     return output;

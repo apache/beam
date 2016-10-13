@@ -50,15 +50,17 @@ public interface ApexStreamTuple<T>
    */
   class DataTuple<T> implements ApexStreamTuple<T>
   {
+    private int unionTag;
     private T value;
 
     public static <T> DataTuple<T> of(T value) {
-      return new DataTuple<>(value);
+      return new DataTuple<>(value, 0);
     }
 
-    private DataTuple(T value)
+    private DataTuple(T value, int unionTag)
     {
       this.value = value;
+      this.unionTag = unionTag;
     }
 
     @Override
@@ -70,6 +72,16 @@ public interface ApexStreamTuple<T>
     public void setValue(T value)
     {
       this.value = value;
+    }
+
+    public int getUnionTag()
+    {
+      return unionTag;
+    }
+
+    public void setUnionTag(int unionTag)
+    {
+      this.unionTag = unionTag;
     }
 
     @Override
@@ -91,7 +103,7 @@ public interface ApexStreamTuple<T>
 
     public TimestampedTuple(long timestamp, T value)
     {
-      super(value);
+      super(value, 0);
       this.timestamp = timestamp;
     }
 
@@ -152,6 +164,7 @@ public interface ApexStreamTuple<T>
         new DataOutputStream(outStream).writeLong(((WatermarkTuple<?>)value).getTimestamp());
       } else {
         outStream.write(0);
+        outStream.write(((DataTuple<?>)value).unionTag);
         valueCoder.encode(value.getValue(), outStream, context);
       }
     }
@@ -164,7 +177,8 @@ public interface ApexStreamTuple<T>
       if (b == 1) {
         return new WatermarkTuple<T>(new DataInputStream(inStream).readLong());
       } else {
-        return new DataTuple<T>(valueCoder.decode(inStream, context));
+        int unionTag = inStream.read();
+        return new DataTuple<T>(valueCoder.decode(inStream, context), unionTag);
       }
     }
 
