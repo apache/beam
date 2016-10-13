@@ -42,8 +42,8 @@ public interface DirectOptions extends PipelineOptions, ApplicationNameOptions {
   @Description(
       "If the pipeline should block awaiting completion of the pipeline. If set to true, "
           + "a call to Pipeline#run() will block until all PTransforms are complete. Otherwise, "
-          + "the Pipeline will execute asynchronously. If set to false, the completion of the "
-          + "pipeline can be awaited on by use of DirectPipelineResult#awaitCompletion().")
+          + "the Pipeline will execute asynchronously. If set to false, use "
+          + "PipelineResult#waitUntilFinish() to block until the Pipeline is complete.")
   boolean isBlockOnRun();
 
   void setBlockOnRun(boolean b);
