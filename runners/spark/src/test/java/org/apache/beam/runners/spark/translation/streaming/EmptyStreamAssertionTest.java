@@ -17,70 +17,60 @@
  */
 package org.apache.beam.runners.spark.translation.streaming;
 
-import com.google.common.collect.Lists;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
+
 import java.io.Serializable;
-import java.util.Arrays;
-import java.util.List;
+import java.util.Collections;
 import org.apache.beam.runners.spark.SparkPipelineOptions;
-import org.apache.beam.runners.spark.examples.WordCount;
 import org.apache.beam.runners.spark.io.CreateStream;
 import org.apache.beam.runners.spark.translation.streaming.utils.PAssertStreaming;
 import org.apache.beam.runners.spark.translation.streaming.utils.TestOptionsForStreaming;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
-import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.PCollection;
 import org.joda.time.Duration;
 import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+
 
 
 /**
- * Simple word count streaming test.
+ * Test that {@link PAssertStreaming} can tell if the stream is empty.
  */
-public class SimpleStreamingWordCountTest implements Serializable {
+public class EmptyStreamAssertionTest implements Serializable {
 
-  @Rule
-  public TemporaryFolder checkpointParentDir = new TemporaryFolder();
+  private static final String EXPECTED_ERR =
+      "Success aggregator should be greater than zero.\n"
+          + "Expected: not <0>\n"
+          + "     but: was <0>";
 
   @Rule
   public TestOptionsForStreaming commonOptions = new TestOptionsForStreaming();
 
-  private static final String[] WORDS = {"hi there", "hi", "hi sue bob", "hi sue", "", "bob hi"};
-
-  private static final List<Iterable<String>> MANY_WORDS =
-      Lists.<Iterable<String>>newArrayList(Arrays.asList(WORDS), Arrays.asList(WORDS));
-
-  private static final String[] EXPECTED_WORD_COUNTS = {"hi: 10", "there: 2", "sue: 4", "bob: 4"};
-
-  private static final Duration BATCH_INTERVAL = Duration.standardSeconds(1);
-
-  private static final Duration windowDuration = BATCH_INTERVAL.multipliedBy(2);
-
   @Test
   public void testFixedWindows() throws Exception {
-
-    SparkPipelineOptions options = commonOptions.withTmpCheckpointDir(
-        checkpointParentDir.newFolder(getClass().getSimpleName()));
-
-    // override defaults
-    options.setBatchIntervalMillis(BATCH_INTERVAL.getMillis());
-    // graceful stop is on, so no worries about the timeout and window being equal
-    options.setTimeout(windowDuration.getMillis());
+    SparkPipelineOptions options = commonOptions.getOptions();
+    Duration windowDuration = new Duration(options.getBatchIntervalMillis());
 
     Pipeline pipeline = Pipeline.create(options);
 
     PCollection<String> output =
         pipeline
-            .apply(CreateStream.fromQueue(MANY_WORDS))
+            .apply(CreateStream.fromQueue(Collections.<Iterable<String>>emptyList()))
             .setCoder(StringUtf8Coder.of())
-            .apply(Window.<String>into(FixedWindows.of(windowDuration)))
-            .apply(new WordCount.CountWords())
-            .apply(MapElements.via(new WordCount.FormatAsTextFn()));
+            .apply(Window.<String>into(FixedWindows.of(windowDuration)));
 
-    PAssertStreaming.runAndAssertContents(pipeline, output, EXPECTED_WORD_COUNTS);
+    try {
+      PAssertStreaming.runAndAssertContents(pipeline, output, new String[0]);
+    } catch (AssertionError e) {
+      assertTrue("Expected error message: " + EXPECTED_ERR + " but got: " + e.getMessage(),
+          e.getMessage().equals(EXPECTED_ERR));
+      return;
+    }
+    fail("assertion should have failed");
+    throw new RuntimeException("unreachable");
   }
 }
