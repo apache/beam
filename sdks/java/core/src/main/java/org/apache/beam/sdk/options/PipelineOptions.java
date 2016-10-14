@@ -26,6 +26,7 @@ import com.google.common.base.MoreObjects;
 import java.lang.reflect.Proxy;
 import java.util.ServiceLoader;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.concurrent.atomic.AtomicLong;
 import javax.annotation.concurrent.ThreadSafe;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.options.GoogleApiDebugOptions.GoogleApiTracer;
@@ -325,6 +326,28 @@ public interface PipelineOptions extends HasDisplayData {
       String randomPart = Integer.toHexString(ThreadLocalRandom.current().nextInt());
       return String.format("%s-%s-%s-%s",
           normalizedAppName, normalizedUserName, datePart, randomPart);
+    }
+  }
+
+  /**
+   * Provides a unique ID for this {@link PipelineOptions} object, assigned at graph
+   * construction time.
+   */
+  @Hidden
+  @Default.InstanceFactory(AtomicLongFactory.class)
+  Long getOptionsId();
+  void setOptionsId(Long id);
+
+  /**
+   * {@link DefaultValueFactory} which supplies an ID that is guaranteed to be unique
+   * within the given process.
+   */
+  class AtomicLongFactory implements DefaultValueFactory<Long> {
+    private static final AtomicLong NEXT_ID = new AtomicLong(0);
+
+    @Override
+    public Long create(PipelineOptions options) {
+      return NEXT_ID.getAndIncrement();
     }
   }
 }
