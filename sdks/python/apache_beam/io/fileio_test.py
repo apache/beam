@@ -481,6 +481,36 @@ class TestTextFileSource(unittest.TestCase):
                 dataflow_io.ReaderProgress(percent_complete=percent_complete)),
             None)
 
+  def test_bzip2_file_unsplittable(self):
+    lines = ['aaaa', 'bbbb', 'cccc', 'dddd', 'eeee']
+    compressor = bz2.BZ2Compressor()
+    data = compressor.compress('\n'.join(lines)) + compressor.flush()
+    source = fileio.TextFileSource(
+        file_path=self.create_temp_file(data),
+        compression_type=fileio.CompressionTypes.BZIP2)
+
+    with source.reader() as reader:
+      percents_complete = [x / 100.0 for x in range(101)]
+
+      # Cursor at beginning of file.
+      for percent_complete in percents_complete:
+        self.try_splitting_reader_at(
+            reader,
+            iobase.DynamicSplitRequest(
+                iobase.ReaderProgress(percent_complete=percent_complete)),
+            None)
+
+      # Cursor passed beginning of file.
+      reader_iter = iter(reader)
+      next(reader_iter)
+      next(reader_iter)
+      for percent_complete in percents_complete:
+        self.try_splitting_reader_at(
+            reader,
+            iobase.DynamicSplitRequest(
+                iobase.ReaderProgress(percent_complete=percent_complete)),
+            None)
+
   def test_zlib_file_unsplittable(self):
     lines = ['aaaa', 'bbbb', 'cccc', 'dddd', 'eeee']
     compressor = zlib.compressobj(-1, zlib.DEFLATED, zlib.MAX_WBITS)
