@@ -139,7 +139,7 @@ public class DoFnSignaturesTest {
     DoFnSignatures.INSTANCE.getSignature(
         new DoFn<String, String>() {
           @StateId("foo")
-          String bizzle = "bazzle";
+          private final String bizzle = "bazzle";
 
           @ProcessElement
           public void foo(ProcessContext context) {}
@@ -162,7 +162,8 @@ public class DoFnSignaturesTest {
                   StateSpecs.value(VarIntCoder.of());
 
               @StateId("my-state-id")
-              StateSpec<Object, ValueState<Long>> myfield2 = StateSpecs.value(VarLongCoder.of());
+              private final StateSpec<Object, ValueState<Long>> myfield2 =
+                  StateSpecs.value(VarLongCoder.of());
 
               @ProcessElement
               public void foo(ProcessContext context) {}
@@ -244,6 +245,7 @@ public class DoFnSignaturesTest {
         decl.stateType(),
         Matchers.<TypeDescriptor<?>>equalTo(new TypeDescriptor<ValueState<Integer>>() {}));
   }
+
 
   private static class DoFnForTestSimpleStateIdNamedDoFn extends DoFn<KV<String, Integer>, Long> {
     @StateId("foo")
