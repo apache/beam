@@ -20,12 +20,15 @@ package org.apache.beam.sdk.transforms.reflect;
 import static org.apache.beam.sdk.transforms.reflect.DoFnSignaturesTestUtils.errors;
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.fail;
 
 import com.google.common.reflect.TypeToken;
+import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.DoFn.TimerId;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.StateParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignaturesTestUtils.FakeDoFn;
 import org.apache.beam.sdk.util.TimeDomain;
 import org.apache.beam.sdk.util.TimerSpec;
@@ -33,6 +36,7 @@ import org.apache.beam.sdk.util.TimerSpecs;
 import org.apache.beam.sdk.util.state.StateSpec;
 import org.apache.beam.sdk.util.state.StateSpecs;
 import org.apache.beam.sdk.util.state.ValueState;
+import org.apache.beam.sdk.util.state.WatermarkHoldState;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.hamcrest.Matchers;
@@ -378,6 +382,103 @@ public class DoFnSignaturesTest {
   }
 
   @Test
+  public void testStateParameterNoAnnotation() throws Exception {
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage("missing StateId annotation");
+    thrown.expectMessage("myProcessElement");
+    thrown.expectMessage("index 1");
+    DoFnSignature sig =
+        DoFnSignatures.INSTANCE.getSignature(
+            new DoFn<KV<String, Integer>, Long>() {
+              @ProcessElement
+              public void myProcessElement(
+                  ProcessContext context, ValueState<Integer> noAnnotation) {}
+            }.getClass());
+  }
+
+  @Test
+  public void testStateParameterUndeclared() throws Exception {
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage("undeclared");
+    thrown.expectMessage("my-state-id");
+    thrown.expectMessage("myProcessElement");
+    thrown.expectMessage("index 1");
+    DoFnSignature sig =
+        DoFnSignatures.INSTANCE.getSignature(
+            new DoFn<KV<String, Integer>, Long>() {
+              @ProcessElement
+              public void myProcessElement(
+                  ProcessContext context, @StateId("my-state-id") ValueState<Integer> undeclared) {}
+            }.getClass());
+  }
+
+  @Test
+  public void testStateParameterDuplicate() throws Exception {
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage("duplicates");
+    thrown.expectMessage("my-state-id");
+    thrown.expectMessage("myProcessElement");
+    thrown.expectMessage("index 2");
+    DoFnSignature sig =
+        DoFnSignatures.INSTANCE.getSignature(
+            new DoFn<KV<String, Integer>, Long>() {
+              @StateId("my-state-id")
+              private final StateSpec<Object, ValueState<Integer>> myfield =
+                  StateSpecs.value(VarIntCoder.of());
+
+              @ProcessElement
+              public void myProcessElement(
+                  ProcessContext context,
+                  @StateId("my-state-id") ValueState<Integer> one,
+                  @StateId("my-state-id") ValueState<Integer> two) {}
+            }.getClass());
+  }
+
+  @Test
+  public void testStateParameterWrongStateType() throws Exception {
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage("WatermarkHoldState");
+    thrown.expectMessage("but is a reference to");
+    thrown.expectMessage("ValueState");
+    thrown.expectMessage("my-state-id");
+    thrown.expectMessage("myProcessElement");
+    thrown.expectMessage("index 1");
+    DoFnSignature sig =
+        DoFnSignatures.INSTANCE.getSignature(
+            new DoFn<KV<String, Integer>, Long>() {
+              @StateId("my-state-id")
+              private final StateSpec<Object, ValueState<Integer>> myfield =
+                  StateSpecs.value(VarIntCoder.of());
+
+              @ProcessElement
+              public void myProcessElement(
+                  ProcessContext context, @StateId("my-state-id") WatermarkHoldState watermark) {}
+            }.getClass());
+  }
+
+  @Test
+  public void testStateParameterWrongGenericType() throws Exception {
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage("ValueState<java.lang.String>");
+    thrown.expectMessage("but is a reference to");
+    thrown.expectMessage("ValueState<java.lang.Integer>");
+    thrown.expectMessage("my-state-id");
+    thrown.expectMessage("myProcessElement");
+    thrown.expectMessage("index 1");
+    DoFnSignature sig =
+        DoFnSignatures.INSTANCE.getSignature(
+            new DoFn<KV<String, Integer>, Long>() {
+              @StateId("my-state-id")
+              private final StateSpec<Object, ValueState<Integer>> myfield =
+                  StateSpecs.value(VarIntCoder.of());
+
+              @ProcessElement
+              public void myProcessElement(
+                  ProcessContext context, @StateId("my-state-id") ValueState<String> stringState) {}
+            }.getClass());
+  }
+
+  @Test
   public void testSimpleStateIdAnonymousDoFn() throws Exception {
     DoFnSignature sig =
         DoFnSignatures.INSTANCE.getSignature(
@@ -398,6 +499,97 @@ public class DoFnSignaturesTest {
     assertThat(
         decl.stateType(),
         Matchers.<TypeDescriptor<?>>equalTo(new TypeDescriptor<ValueState<Integer>>() {}));
+  }
+
+  @Test
+  public void testUsageOfStateDeclaredInSuperclass() throws Exception {
+    DoFnDeclaringState fn =
+        new DoFnDeclaringState() {
+          @ProcessElement
+          public void process(
+              ProcessContext context,
+              @StateId(DoFnDeclaringState.STATE_ID) ValueState<Integer> state) {}
+        };
+
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage("process");
+    thrown.expectMessage("declared in a different class");
+    thrown.expectMessage(DoFnDeclaringState.STATE_ID);
+    thrown.expectMessage(fn.getClass().getSimpleName());
+    DoFnSignature sig = DoFnSignatures.INSTANCE.getSignature(fn.getClass());
+  }
+
+  @Test
+  public void testDeclOfStateUsedInSuperclass() throws Exception {
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage("process");
+    thrown.expectMessage("declared in a different class");
+    thrown.expectMessage(DoFnUsingState.STATE_ID);
+    DoFnSignature sig =
+        DoFnSignatures.INSTANCE.getSignature(
+            new DoFnUsingState() {
+              @StateId(DoFnUsingState.STATE_ID)
+              private final StateSpec<Object, ValueState<Integer>> spec =
+                  StateSpecs.value(VarIntCoder.of());
+            }.getClass());
+  }
+
+  @Test
+  public void testDeclAndUsageOfStateInSuperclass() throws Exception {
+    DoFnSignature sig =
+        DoFnSignatures.INSTANCE.getSignature(
+            new DoFnOverridingAbstractStateUse().getClass());
+
+    assertThat(sig.stateDeclarations().size(), equalTo(1));
+    assertThat(sig.processElement().extraParameters().size(), equalTo(1));
+
+    DoFnSignature.StateDeclaration decl =
+        sig.stateDeclarations().get(DoFnOverridingAbstractStateUse.STATE_ID);
+    StateParameter stateParam =
+        (StateParameter) sig.processElement().extraParameters().get(0);
+
+    assertThat(
+        decl.field(),
+        equalTo(DoFnDeclaringStateAndAbstractUse.class.getDeclaredField("myStateSpec")));
+
+    // The method we pull out is the superclass method; this is what allows validation to remain
+    // simple. The later invokeDynamic instruction causes it to invoke the actual implementation.
+    assertThat(stateParam.referent(), equalTo(decl));
+  }
+
+  /**
+   * Assuming the proper parsing of declarations, testing elsewhere, this test ensures that
+   * a simple reference to such a declaration is correctly resolved.
+   */
+  @Test
+  public void testSimpleStateIdRefAnonymousDoFn() throws Exception {
+    DoFnSignature sig =
+        DoFnSignatures.INSTANCE.getSignature(
+            new DoFn<KV<String, Integer>, Long>() {
+              @StateId("foo")
+              private final StateSpec<Object, ValueState<Integer>> bizzleDecl =
+                  StateSpecs.value(VarIntCoder.of());
+
+              @ProcessElement
+              public void foo(ProcessContext context, @StateId("foo") ValueState<Integer> bizzle) {}
+            }.getClass());
+
+    assertThat(sig.processElement().extraParameters().size(), equalTo(1));
+
+    final DoFnSignature.StateDeclaration decl = sig.stateDeclarations().get("foo");
+    sig.processElement().extraParameters().get(0).match(new Parameter.Cases.WithDefault<Void>() {
+      @Override
+      protected Void dispatchDefault(Parameter p) {
+        fail(String.format("Expected a state parameter but got %s", p));
+        return null;
+      }
+
+      @Override
+      public Void dispatch(StateParameter stateParam) {
+        assertThat(stateParam.referent(), equalTo(decl));
+        return null;
+      }
+    });
   }
 
   @Test
@@ -443,6 +635,40 @@ public class DoFnSignaturesTest {
 
     @ProcessElement
     public void foo(ProcessContext context) {}
+  }
+
+  private abstract static class DoFnDeclaringState extends DoFn<KV<String, Integer>, Long> {
+
+    public static final String STATE_ID = "my-state-id";
+
+    @StateId(STATE_ID)
+    private final StateSpec<Object, ValueState<Integer>> bizzle =
+        StateSpecs.value(VarIntCoder.of());
+  }
+
+  private abstract static class DoFnUsingState extends DoFn<KV<String, Integer>, Long> {
+    public static final String STATE_ID = "my-state-id";
+    @ProcessElement
+    public void process(ProcessContext context, @StateId(STATE_ID) ValueState<Integer> state) {}
+  }
+
+  private abstract static class DoFnDeclaringStateAndAbstractUse
+      extends DoFn<KV<String, Integer>, Long> {
+    public static final String STATE_ID = "my-state-id";
+    @StateId(STATE_ID)
+    private final StateSpec<Object, ValueState<String>> myStateSpec =
+        StateSpecs.value(StringUtf8Coder.of());
+
+    @ProcessElement
+    public abstract void processWithState(
+        ProcessContext context, @StateId(STATE_ID) ValueState<String> state);
+  }
+
+  private static class DoFnOverridingAbstractStateUse extends
+      DoFnDeclaringStateAndAbstractUse {
+
+    @Override
+    public void processWithState(ProcessContext c, ValueState<String> state) {}
   }
 
   private static class DoFnForTestGenericStatefulDoFn<T> extends DoFn<KV<String, T>, Long> {

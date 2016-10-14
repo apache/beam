@@ -18,6 +18,8 @@
 package org.apache.beam.sdk.transforms.reflect;
 
 import com.google.auto.value.AutoValue;
+import com.google.common.base.Predicates;
+import com.google.common.collect.Iterables;
 import com.google.common.reflect.TypeToken;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
@@ -27,8 +29,15 @@ import java.util.Map;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.DoFn.InputProvider;
+import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
 import org.apache.beam.sdk.transforms.DoFn.ProcessContinuation;
+import org.apache.beam.sdk.transforms.DoFn.StateId;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.BoundedWindowParameter;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.StateParameter;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.util.Timer;
 import org.apache.beam.sdk.util.TimerSpec;
 import org.apache.beam.sdk.util.state.State;
 import org.apache.beam.sdk.util.state.StateSpec;
@@ -123,12 +132,178 @@ public abstract class DoFnSignature {
     Method targetMethod();
   }
 
-  /** A type of optional parameter of the {@link DoFn.ProcessElement} method. */
-  public enum Parameter {
-    BOUNDED_WINDOW,
-    INPUT_PROVIDER,
-    OUTPUT_RECEIVER,
-    RESTRICTION_TRACKER
+  /** A descriptor for an optional parameter of the {@link DoFn.ProcessElement} method. */
+  public abstract static class Parameter {
+
+    // Private as no extensions other than those nested here are permitted
+    private Parameter() {}
+
+    /**
+     * Performs case analysis on this {@link Parameter}, processing it with the appropriate
+     * {@link Cases#dispatch} case of the provided {@link Cases} object.
+     */
+    public <ResultT> ResultT match(Cases<ResultT> cases) {
+      // This could be done with reflection, but since the number of cases is small and known,
+      // they are simply inlined.
+      if (this instanceof BoundedWindowParameter) {
+        return cases.dispatch((BoundedWindowParameter) this);
+      } else if (this instanceof RestrictionTrackerParameter) {
+        return cases.dispatch((RestrictionTrackerParameter) this);
+      } else if (this instanceof InputProviderParameter) {
+        return cases.dispatch((InputProviderParameter) this);
+      } else if (this instanceof OutputReceiverParameter) {
+        return cases.dispatch((OutputReceiverParameter) this);
+      } else if (this instanceof StateParameter) {
+        return cases.dispatch((StateParameter) this);
+      } else {
+        throw new IllegalStateException(
+            String.format("Attempt to case match on unknown %s subclass %s",
+                Parameter.class.getCanonicalName(), this.getClass().getCanonicalName()));
+      }
+    }
+
+    /**
+     * An interface for destructuring a {@link Parameter}.
+     */
+    public interface Cases<ResultT> {
+      ResultT dispatch(BoundedWindowParameter p);
+      ResultT dispatch(InputProviderParameter p);
+      ResultT dispatch(OutputReceiverParameter p);
+      ResultT dispatch(RestrictionTrackerParameter p);
+      ResultT dispatch(StateParameter p);
+
+      /**
+       * A base class for a visitor with a default method for cases it is not interested in.
+       */
+      public abstract static class WithDefault<ResultT> implements Cases<ResultT> {
+
+        protected abstract ResultT dispatchDefault(Parameter p);
+
+        @Override
+        public ResultT dispatch(BoundedWindowParameter p) {
+          return dispatchDefault(p);
+        }
+
+        @Override
+        public ResultT dispatch(InputProviderParameter p) {
+          return dispatchDefault(p);
+        }
+
+        @Override
+        public ResultT dispatch(OutputReceiverParameter p) {
+          return dispatchDefault(p);
+        }
+
+        @Override
+        public ResultT dispatch(RestrictionTrackerParameter p) {
+          return dispatchDefault(p);
+        }
+
+        @Override
+        public ResultT dispatch(StateParameter p) {
+          return dispatchDefault(p);
+        }
+      }
+    }
+
+    // These parameter descriptors are constant
+    private static final BoundedWindowParameter BOUNDED_WINDOW_PARAMETER =
+        new AutoValue_DoFnSignature_Parameter_BoundedWindowParameter();
+    private static final RestrictionTrackerParameter RESTRICTION_TRACKER_PARAMETER =
+        new AutoValue_DoFnSignature_Parameter_RestrictionTrackerParameter();
+    private static final InputProviderParameter INPUT_PROVIDER_PARAMETER =
+        new AutoValue_DoFnSignature_Parameter_InputProviderParameter();
+    private static final OutputReceiverParameter OUTPUT_RECEIVER_PARAMETER =
+        new AutoValue_DoFnSignature_Parameter_OutputReceiverParameter();
+
+    /**
+     * Returns a {@link BoundedWindowParameter}.
+     */
+    public static BoundedWindowParameter boundedWindow() {
+      return BOUNDED_WINDOW_PARAMETER;
+    }
+
+    /**
+     * Returns an {@link InputProviderParameter}.
+     */
+    public static InputProviderParameter inputProvider() {
+      return INPUT_PROVIDER_PARAMETER;
+    }
+
+    /**
+     * Returns an {@link OutputReceiverParameter}.
+     */
+    public static OutputReceiverParameter outputReceiver() {
+      return OUTPUT_RECEIVER_PARAMETER;
+    }
+
+    /**
+     * Returns a {@link RestrictionTrackerParameter}.
+     */
+    public static RestrictionTrackerParameter restrictionTracker() {
+      return RESTRICTION_TRACKER_PARAMETER;
+    }
+
+    /**
+     * Returns a {@link StateParameter} referring to the given {@link StateDeclaration}.
+     */
+    public static StateParameter stateParameter(StateDeclaration decl) {
+      return new AutoValue_DoFnSignature_Parameter_StateParameter(decl);
+    }
+
+    /**
+     * Descriptor for a {@link Parameter} of type {@link BoundedWindow}.
+     *
+     * <p>All such descriptors are equal.
+     */
+    @AutoValue
+    public abstract static class BoundedWindowParameter extends Parameter {
+      BoundedWindowParameter() {}
+    }
+
+    /**
+     * Descriptor for a {@link Parameter} of type {@link InputProvider}.
+     *
+     * <p>All such descriptors are equal.
+     */
+    @AutoValue
+    public abstract static class InputProviderParameter extends Parameter {
+      InputProviderParameter() {}
+    }
+
+    /**
+     * Descriptor for a {@link Parameter} of type {@link OutputReceiver}.
+     *
+     * <p>All such descriptors are equal.
+     */
+    @AutoValue
+    public abstract static class OutputReceiverParameter extends Parameter {
+      OutputReceiverParameter() {}
+    }
+
+    /**
+     * Descriptor for a {@link Parameter} of a subclass of {@link RestrictionTracker}.
+     *
+     * <p>All such descriptors are equal.
+     */
+    @AutoValue
+    public abstract static class RestrictionTrackerParameter extends Parameter {
+      // Package visible for AutoValue
+      RestrictionTrackerParameter() {}
+    }
+
+    /**
+     * Descriptor for a {@link Parameter} of a subclass of {@link State}, with an id indicated by
+     * its {@link StateId} annotation.
+     *
+     * <p>All descriptors for the same declared state are equal.
+     */
+    @AutoValue
+    public abstract static class StateParameter extends Parameter {
+      // Package visible for AutoValue
+      StateParameter() {}
+      public abstract StateDeclaration referent();
+    }
   }
 
   /** Describes a {@link DoFn.ProcessElement} method. */
@@ -157,16 +332,26 @@ public abstract class DoFnSignature {
           targetMethod, Collections.unmodifiableList(extraParameters), trackerT, hasReturnValue);
     }
 
-    /** Whether this {@link DoFn} uses a Single Window. */
-    public boolean usesSingleWindow() {
-      return extraParameters().contains(Parameter.BOUNDED_WINDOW);
+    /**
+     * Whether this {@link DoFn} observes - directly or indirectly - the window that an element
+     * resides in.
+     *
+     * <p>{@link State} and {@link Timer} parameters indirectly observe the window, because
+     * they are each scoped to a single window.
+     */
+    public boolean observesWindow() {
+      return Iterables.any(
+          extraParameters(),
+          Predicates.or(
+              Predicates.instanceOf(BoundedWindowParameter.class),
+              Predicates.instanceOf(StateParameter.class)));
     }
 
     /**
      * Whether this {@link DoFn} is <a href="https://s.apache.org/splittable-do-fn">splittable</a>.
      */
     public boolean isSplittable() {
-      return extraParameters().contains(Parameter.RESTRICTION_TRACKER);
+      return extraParameters().contains(Parameter.restrictionTracker());
     }
   }
 

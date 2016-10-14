@@ -80,15 +80,15 @@ public class DoFnSignaturesSplittableDoFnTest {
             });
 
     assertTrue(signature.isSplittable());
-    assertTrue(signature.extraParameters().contains(DoFnSignature.Parameter.RESTRICTION_TRACKER));
+    assertTrue(signature.extraParameters().contains(DoFnSignature.Parameter.restrictionTracker()));
     assertEquals(SomeRestrictionTracker.class, signature.trackerT().getRawType());
   }
 
   @Test
   public void testSplittableProcessElementMustNotHaveOtherParams() throws Exception {
     thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage("must not have any extra context arguments");
-    thrown.expectMessage("BOUNDED_WINDOW");
+    thrown.expectMessage("must not have any extra arguments");
+    thrown.expectMessage("BoundedWindow");
 
     DoFnSignature.ProcessElementMethod signature =
         analyzeProcessElementMethod(

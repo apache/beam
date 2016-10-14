@@ -44,6 +44,7 @@ import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.OnTimerMethod;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.StateDeclaration;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.TimerDeclaration;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
@@ -165,7 +166,8 @@ public class DoFnSignatures {
         errors.forMethod(DoFn.ProcessElement.class, processElementMethod);
     DoFnSignature.ProcessElementMethod processElement =
         analyzeProcessElementMethod(
-            processElementErrors, fnToken, processElementMethod, inputT, outputT);
+            processElementErrors, fnToken, processElementMethod, inputT, outputT,
+            stateDeclarations);
     builder.setProcessElement(processElement);
 
     if (startBundleMethod != null) {
@@ -444,7 +446,8 @@ public class DoFnSignatures {
       TypeToken<? extends DoFn<?, ?>> fnClass,
       Method m,
       TypeToken<?> inputT,
-      TypeToken<?> outputT) {
+      TypeToken<?> outputT,
+      Map<String, StateDeclaration> stateDeclarations) {
     errors.checkArgument(
         void.class.equals(m.getReturnType())
             || DoFn.ProcessContinuation.class.equals(m.getReturnType()),
@@ -464,6 +467,7 @@ public class DoFnSignatures {
         formatType(processContextToken));
 
     List<DoFnSignature.Parameter> extraParameters = new ArrayList<>();
+    Map<String, DoFnSignature.Parameter> stateParameters = new HashMap<>();
     TypeToken<?> trackerT = null;
 
     TypeToken<?> expectedInputProviderT = inputProviderTypeOf(inputT);
@@ -473,13 +477,13 @@ public class DoFnSignatures {
       Class<?> rawType = paramT.getRawType();
       if (rawType.equals(BoundedWindow.class)) {
         errors.checkArgument(
-            !extraParameters.contains(DoFnSignature.Parameter.BOUNDED_WINDOW),
+            !extraParameters.contains(DoFnSignature.Parameter.boundedWindow()),
             "Multiple %s parameters",
             BoundedWindow.class.getSimpleName());
-        extraParameters.add(DoFnSignature.Parameter.BOUNDED_WINDOW);
+        extraParameters.add(DoFnSignature.Parameter.boundedWindow());
       } else if (rawType.equals(DoFn.InputProvider.class)) {
         errors.checkArgument(
-            !extraParameters.contains(DoFnSignature.Parameter.INPUT_PROVIDER),
+            !extraParameters.contains(DoFnSignature.Parameter.inputProvider()),
             "Multiple %s parameters",
             DoFn.InputProvider.class.getSimpleName());
         errors.checkArgument(
@@ -488,10 +492,10 @@ public class DoFnSignatures {
             DoFn.InputProvider.class.getSimpleName(),
             formatType(paramT),
             formatType(expectedInputProviderT));
-        extraParameters.add(DoFnSignature.Parameter.INPUT_PROVIDER);
+        extraParameters.add(DoFnSignature.Parameter.inputProvider());
       } else if (rawType.equals(DoFn.OutputReceiver.class)) {
         errors.checkArgument(
-            !extraParameters.contains(DoFnSignature.Parameter.OUTPUT_RECEIVER),
+            !extraParameters.contains(DoFnSignature.Parameter.outputReceiver()),
             "Multiple %s parameters",
             DoFn.OutputReceiver.class.getSimpleName());
         errors.checkArgument(
@@ -500,14 +504,79 @@ public class DoFnSignatures {
             DoFn.OutputReceiver.class.getSimpleName(),
             formatType(paramT),
             formatType(expectedOutputReceiverT));
-        extraParameters.add(DoFnSignature.Parameter.OUTPUT_RECEIVER);
+        extraParameters.add(DoFnSignature.Parameter.outputReceiver());
       } else if (RestrictionTracker.class.isAssignableFrom(rawType)) {
         errors.checkArgument(
-            !extraParameters.contains(DoFnSignature.Parameter.RESTRICTION_TRACKER),
+            !extraParameters.contains(DoFnSignature.Parameter.restrictionTracker()),
             "Multiple %s parameters",
             RestrictionTracker.class.getSimpleName());
-        extraParameters.add(DoFnSignature.Parameter.RESTRICTION_TRACKER);
+        extraParameters.add(DoFnSignature.Parameter.restrictionTracker());
         trackerT = paramT;
+      } else if (State.class.isAssignableFrom(rawType)) {
+        // m.getParameters() is not available until Java 8
+        Annotation[] annotations = m.getParameterAnnotations()[i];
+        String id = null;
+        for (Annotation anno : annotations) {
+          if (anno.annotationType().equals(DoFn.StateId.class)) {
+            id = ((DoFn.StateId) anno).value();
+            break;
+          }
+        }
+        errors.checkArgument(
+            id != null,
+            "%s parameter of type %s at index %s missing %s annotation",
+            fnClass.getRawType().getName(),
+            params[i],
+            i,
+            DoFn.StateId.class.getSimpleName());
+
+        errors.checkArgument(
+            !stateParameters.containsKey(id),
+            "%s parameter of type %s at index %s duplicates %s(\"%s\") on other parameter",
+            fnClass.getRawType().getName(),
+            params[i],
+            i,
+            DoFn.StateId.class.getSimpleName(),
+            id);
+
+        // By static typing this is already a well-formed State subclass
+        TypeDescriptor<? extends State> stateType =
+            (TypeDescriptor<? extends State>)
+                TypeDescriptor.of(fnClass.getType())
+                    .resolveType(params[i]);
+
+        StateDeclaration stateDecl = stateDeclarations.get(id);
+        errors.checkArgument(
+            stateDecl != null,
+            "%s parameter of type %s at index %s references undeclared %s \"%s\"",
+            fnClass.getRawType().getName(),
+            params[i],
+            i,
+            DoFn.StateId.class.getSimpleName(),
+            id);
+
+        errors.checkArgument(
+            stateDecl.stateType().equals(stateType),
+            "%s parameter at index %s has type %s but is a reference to StateId %s of type %s",
+            fnClass.getRawType().getName(),
+            i,
+            params[i],
+            id,
+            stateDecl.stateType());
+
+        errors.checkArgument(
+            stateDecl.field().getDeclaringClass().equals(m.getDeclaringClass()),
+            "Method %s has State parameter at index %s for state %s"
+                + " declared in a different class %s."
+                + " State may be referenced only in the class where it is declared.",
+            m,
+            i,
+            id,
+            stateDecl.field().getDeclaringClass().getName());
+
+        DoFnSignature.Parameter.StateParameter stateParameter = Parameter.stateParameter(stateDecl);
+        stateParameters.put(id, stateParameter);
+        extraParameters.add(stateParameter);
       } else {
         List<String> allowedParamTypes =
             Arrays.asList(
@@ -520,10 +589,10 @@ public class DoFnSignatures {
     }
 
     // A splittable DoFn can not have any other extra context parameters.
-    if (extraParameters.contains(DoFnSignature.Parameter.RESTRICTION_TRACKER)) {
+    if (extraParameters.contains(DoFnSignature.Parameter.restrictionTracker())) {
       errors.checkArgument(
           extraParameters.size() == 1,
-          "Splittable DoFn must not have any extra context arguments apart from %s, but has: %s",
+          "Splittable DoFn must not have any extra arguments apart from BoundedWindow, but has: %s",
           trackerT,
           extraParameters);
     }
