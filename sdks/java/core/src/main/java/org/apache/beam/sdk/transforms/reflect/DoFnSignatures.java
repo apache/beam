@@ -20,9 +20,12 @@ package org.apache.beam.sdk.transforms.reflect;
 import static com.google.common.base.Preconditions.checkState;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.reflect.TypeParameter;
 import com.google.common.reflect.TypeToken;
 import java.lang.annotation.Annotation;
+import java.lang.reflect.AnnotatedElement;
+import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.lang.reflect.ParameterizedType;
@@ -30,18 +33,21 @@ import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.Collections;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import javax.annotation.Nullable;
+import javax.swing.plaf.nimbus.State;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
+import org.apache.beam.sdk.util.state.StateSpec;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.TypeDescriptor;
 
 /**
  * Parses a {@link DoFn} and computes its {@link DoFnSignature}. See {@link #getOrParseSignature}.
@@ -53,7 +59,12 @@ public class DoFnSignatures {
 
   private final Map<Class<?>, DoFnSignature> signatureCache = new LinkedHashMap<>();
 
-  /** @return the {@link DoFnSignature} for the given {@link DoFn}. */
+  /** @return the {@link DoFnSignature} for the given {@link DoFn} instance. */
+  public <FnT extends DoFn<?, ?>> DoFnSignature signatureForDoFn(FnT fn) {
+    return getOrParseSignature(fn.getClass());
+  }
+
+  /** @return the {@link DoFnSignature} for the given {@link DoFn} subclass. */
   public synchronized <FnT extends DoFn<?, ?>> DoFnSignature getOrParseSignature(Class<FnT> fn) {
     DoFnSignature signature = signatureCache.get(fn);
     if (signature == null) {
@@ -171,6 +182,8 @@ public class DoFnSignatures {
     }
 
     builder.setIsBoundedPerElement(inferBoundedness(fnToken, processElement, errors));
+
+    builder.setStateDeclarations(analyzeStateDeclarations(errors, fnClass));
 
     DoFnSignature signature = builder.build();
 
@@ -592,31 +605,127 @@ public class DoFnSignatures {
 
   private static Collection<Method> declaredMethodsWithAnnotation(
       Class<? extends Annotation> anno, Class<?> startClass, Class<?> stopClass) {
-    Collection<Method> matches = new ArrayList<>();
+    return declaredMembersWithAnnotation(anno, startClass, stopClass, GET_METHODS);
+  }
+
+  private static Collection<Field> declaredFieldsWithAnnotation(
+      Class<? extends Annotation> anno, Class<?> startClass, Class<?> stopClass) {
+    return declaredMembersWithAnnotation(anno, startClass, stopClass, GET_FIELDS);
+  }
+
+  private static interface MemberGetter<MemberT> {
+    public MemberT[] getMembers(Class<?> clazz);
+  }
+
+  // Class::getDeclaredMethods for Java 7
+  private static final MemberGetter<Method> GET_METHODS =
+      new MemberGetter<Method>() {
+        @Override
+        public Method[] getMembers(Class<?> clazz) {
+          return clazz.getDeclaredMethods();
+        }
+      };
+
+  // Class::getDeclaredFields for Java 7
+  private static final MemberGetter<Field> GET_FIELDS =
+      new MemberGetter<Field>() {
+        @Override
+        public Field[] getMembers(Class<?> clazz) {
+          return clazz.getDeclaredFields();
+        }
+      };
+
+  private static <MemberT extends AnnotatedElement>
+      Collection<MemberT> declaredMembersWithAnnotation(
+          Class<? extends Annotation> anno,
+          Class<?> startClass,
+          Class<?> stopClass,
+          MemberGetter<MemberT> getter) {
+    Collection<MemberT> matches = new ArrayList<>();
 
     Class<?> clazz = startClass;
     LinkedHashSet<Class<?>> interfaces = new LinkedHashSet<>();
 
     // First, find all declared methods on the startClass and parents (up to stopClass)
     while (clazz != null && !clazz.equals(stopClass)) {
-      for (Method method : clazz.getDeclaredMethods()) {
-        if (method.isAnnotationPresent(anno)) {
-          matches.add(method);
+      for (MemberT member : getter.getMembers(clazz)) {
+        if (member.isAnnotationPresent(anno)) {
+          matches.add(member);
         }
       }
 
-      Collections.addAll(interfaces, clazz.getInterfaces());
+      // Add all interfaces, including transitive
+      for (TypeDescriptor<?> iface : TypeDescriptor.of(clazz).getInterfaces()) {
+        interfaces.add(iface.getRawType());
+      }
 
       clazz = clazz.getSuperclass();
     }
 
     // Now, iterate over all the discovered interfaces
-    for (Method method : ReflectHelpers.getClosureOfMethodsOnInterfaces(interfaces)) {
-      if (method.isAnnotationPresent(anno)) {
-        matches.add(method);
+    for (Class<?> iface : interfaces) {
+      for (MemberT member : getter.getMembers(iface)) {
+        if (member.isAnnotationPresent(anno)) {
+          matches.add(member);
+        }
       }
     }
     return matches;
+  }
+
+  private static ImmutableMap<String, DoFnSignature.StateDeclaration> analyzeStateDeclarations(
+      ErrorReporter errors,
+      Class<?> fnClazz) {
+
+    Map<String, DoFnSignature.StateDeclaration> declarations = new HashMap<>();
+
+    for (Field field : declaredFieldsWithAnnotation(DoFn.StateId.class, fnClazz, DoFn.class)) {
+      String id = field.getAnnotation(DoFn.StateId.class).value();
+
+      if (declarations.containsKey(id)) {
+        errors.throwIllegalArgument(
+            "Duplicate %s \"%s\", used on both of [%s] and [%s]",
+            DoFn.StateId.class.getSimpleName(),
+            id,
+            field.toString(),
+            declarations.get(id).field().toString());
+        continue;
+      }
+
+      Class<?> stateSpecRawType = field.getType();
+      if (!(stateSpecRawType.equals(StateSpec.class))) {
+        errors.throwIllegalArgument(
+                "%s annotation on non-%s field [%s] that has class %s",
+            DoFn.StateId.class.getSimpleName(),
+            StateSpec.class.getSimpleName(),
+            field.toString(),
+            stateSpecRawType.getName());
+        continue;
+      }
+
+      if (!Modifier.isFinal(field.getModifiers())) {
+        errors.throwIllegalArgument(
+            "Non-final field %s annotated with %s. State declarations must be final.",
+            field.toString(),
+            DoFn.StateId.class.getSimpleName());
+        continue;
+      }
+
+      Type stateSpecType = field.getGenericType();
+
+      // By static typing this is already a well-formed State subclass
+      TypeDescriptor<? extends State<?>> stateType =
+          (TypeDescriptor<? extends State<?>>)
+              TypeDescriptor.of(fnClazz)
+                  .resolveType(
+                      TypeDescriptor.of(
+                              ((ParameterizedType) stateSpecType).getActualTypeArguments()[1])
+                          .getType());
+
+      declarations.put(id, DoFnSignature.StateDeclaration.create(id, field, stateType));
+    }
+
+    return  ImmutableMap.copyOf(declarations);
   }
 
   private static Method findAnnotatedMethod(

@@ -44,6 +44,8 @@ import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.WindowingInternals;
+import org.apache.beam.sdk.util.state.State;
+import org.apache.beam.sdk.util.state.StateSpec;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
@@ -394,6 +396,48 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
 
   /////////////////////////////////////////////////////////////////////////////
 
+  /**
+   * Annotation for declaring and dereferencing state cells.
+   *
+   * <p><i>Not currently supported by any runner</i>.
+   *
+   * <p>To declare a state cell, create a field of type {@link StateSpec} annotated with a {@link
+   * StateId}. To use the cell during processing, add a parameter of the appropriate {@link State}
+   * subclass to your {@link ProcessElement @ProcessElement} method, and annotate it with {@link
+   * StateId}. See the following code for an example:
+   *
+   * <pre>{@code
+   * new DoFn<KV<Key, Foo>, Baz>() {
+   *   @StateId("my-state-id")
+   *   private final StateSpec<K, ValueState<MyState>> myStateSpec =
+   *       StateSpecs.value(new MyStateCoder());
+   *
+   *   @ProcessElement
+   *   public void processElement(
+   *       ProcessContext c,
+   *       @StateId("my-state-id") ValueState<MyState> myState) {
+   *     myState.read();
+   *     myState.write(...);
+   *   }
+   * }
+   * }</pre>
+   *
+   * <p>State is subject to the following validity conditions:
+   *
+   * <ul>
+   * <li>Each state ID must be declared at most once.
+   * <li>Any state referenced in a parameter must be declared with the same state type.
+   * <li>State declarations must be final.
+   * </ul>
+   */
+  @Documented
+  @Retention(RetentionPolicy.RUNTIME)
+  @Target({ElementType.FIELD, ElementType.PARAMETER})
+  @Experimental(Kind.STATE)
+  public @interface StateId {
+    /** The state ID. */
+    String value();
+  }
 
   /**
    * Annotation for the method to use to prepare an instance for processing bundles of elements. The
