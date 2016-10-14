@@ -25,8 +25,6 @@ import org.apache.commons.lang.NotImplementedException;
 import org.joda.time.Duration;
 
 import java.io.IOException;
-import java.util.Collections;
-import java.util.Map;
 
 /**
  * Result of executing a {@link org.apache.beam.sdk.Pipeline} with Flink. This
