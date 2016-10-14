@@ -36,23 +36,20 @@ public class DoFnInfo<InputT, OutputT> implements Serializable {
   private final WindowingStrategy<?, ?> windowingStrategy;
   private final Iterable<PCollectionView<?>> sideInputViews;
   private final Coder<InputT> inputCoder;
+  private final long mainOutput;
   private final Map<Long, TupleTag<?>> outputMap;
 
-  public DoFnInfo(OldDoFn<InputT, OutputT> doFn, WindowingStrategy<?, ?> windowingStrategy) {
-    this.doFn = doFn;
-    this.windowingStrategy = windowingStrategy;
-    this.sideInputViews = null;
-    this.inputCoder = null;
-    this.outputMap = null;
-  }
-
-  public DoFnInfo(OldDoFn<InputT, OutputT> doFn, WindowingStrategy<?, ?> windowingStrategy,
-                  Iterable<PCollectionView<?>> sideInputViews, Coder<InputT> inputCoder,
-                  Map<Long, TupleTag<?>> outputMap) {
+  public DoFnInfo(OldDoFn<InputT, OutputT> doFn,
+      WindowingStrategy<?, ?> windowingStrategy,
+      Iterable<PCollectionView<?>> sideInputViews,
+      Coder<InputT> inputCoder,
+      long mainOutput,
+      Map<Long, TupleTag<?>> outputMap) {
     this.doFn = doFn;
     this.windowingStrategy = windowingStrategy;
     this.sideInputViews = sideInputViews;
     this.inputCoder = inputCoder;
+    this.mainOutput = mainOutput;
     this.outputMap = outputMap;
   }
 
@@ -70,6 +67,10 @@ public class DoFnInfo<InputT, OutputT> implements Serializable {
 
   public Coder<InputT> getInputCoder() {
     return inputCoder;
+  }
+
+  public long getMainOutput() {
+    return mainOutput;
   }
 
   public Map<Long, TupleTag<?>> getOutputMap() {

@@ -42,6 +42,8 @@ import com.google.api.services.dataflow.model.Job;
 import com.google.api.services.dataflow.model.Step;
 import com.google.api.services.dataflow.model.WorkerPool;
 import com.google.common.base.Supplier;
+import com.google.common.collect.BiMap;
+import com.google.common.collect.ImmutableBiMap;
 import com.google.common.collect.ImmutableMap;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -955,12 +957,16 @@ public class DataflowPipelineTranslator {
               TranslationContext context) {
             context.addStep(transform, "ParallelDo");
             translateInputs(context.getInput(transform), transform.getSideInputs(), context);
-            translateFn(transform.getFn(),
+            BiMap<Long, TupleTag<?>> outputMap =
+                translateOutputs(context.getOutput(transform), context);
+            translateFn(
+                transform.getFn(),
                 context.getInput(transform).getWindowingStrategy(),
                 transform.getSideInputs(),
                 context.getInput(transform).getCoder(),
                 context,
-                translateOutputs(context.getOutput(transform), context));
+                outputMap.inverse().get(transform.getMainOutputTag()),
+                outputMap);
           }
         });
 
@@ -979,14 +985,16 @@ public class DataflowPipelineTranslator {
               TranslationContext context) {
             context.addStep(transform, "ParallelDo");
             translateInputs(context.getInput(transform), transform.getSideInputs(), context);
+            long mainOutput = context.addOutput(context.getOutput(transform));
             translateFn(
                 transform.getFn(),
                 context.getInput(transform).getWindowingStrategy(),
                 transform.getSideInputs(),
                 context.getInput(transform).getCoder(),
                 context,
-                ImmutableMap.<Long, TupleTag<?>>of(context.addOutput(context.getOutput(transform)),
-                    new TupleTag<>(PropertyNames.OUTPUT)));
+                mainOutput,
+                ImmutableMap.<Long, TupleTag<?>>of(mainOutput,
+                  new TupleTag<>(PropertyNames.OUTPUT)));
 
           }
         });
@@ -1050,18 +1058,19 @@ public class DataflowPipelineTranslator {
       Iterable<PCollectionView<?>> sideInputs,
       Coder inputCoder,
       TranslationContext context,
+      long mainOutput,
       Map<Long, TupleTag<?>> outputMap) {
     context.addInput(PropertyNames.USER_FN, fn.getClass().getName());
     context.addInput(
         PropertyNames.SERIALIZED_FN,
         byteArrayToJsonString(serializeToByteArray(
-            new DoFnInfo(fn, windowingStrategy, sideInputs, inputCoder, outputMap))));
+            new DoFnInfo(fn, windowingStrategy, sideInputs, inputCoder, mainOutput, outputMap))));
   }
 
-  private static Map<Long, TupleTag<?>> translateOutputs(
+  private static BiMap<Long, TupleTag<?>> translateOutputs(
       PCollectionTuple outputs,
       TranslationContext context) {
-    ImmutableMap.Builder<Long, TupleTag<?>> mapBuilder = ImmutableMap.builder();
+    ImmutableBiMap.Builder<Long, TupleTag<?>> mapBuilder = ImmutableBiMap.builder();
     for (Map.Entry<TupleTag<?>, PCollection<?>> entry
              : outputs.getAll().entrySet()) {
       TupleTag<?> tag = entry.getKey();
