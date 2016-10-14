@@ -46,7 +46,7 @@ class ParDoOverrideFactory implements PTransformOverrideFactory {
       // This is an OldDoFn, hence not splittable.
       return transform;
     }
-    DoFnSignature signature = DoFnSignatures.INSTANCE.getOrParseSignature(fn.getClass());
+    DoFnSignature signature = DoFnSignatures.INSTANCE.getSignature(fn.getClass());
     if (!signature.processElement().isSplittable()) {
       return transform;
     }

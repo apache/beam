@@ -66,7 +66,7 @@ public class DoFnSignaturesTest {
     thrown.expectMessage("bar()");
     thrown.expectMessage("baz()");
     thrown.expectMessage(getClass().getName() + "$");
-    DoFnSignatures.INSTANCE.getOrParseSignature(
+    DoFnSignatures.INSTANCE.getSignature(
         new DoFn<String, String>() {
           @ProcessElement
           public void foo() {}
@@ -86,7 +86,7 @@ public class DoFnSignaturesTest {
     thrown.expectMessage("bar(Context)");
     thrown.expectMessage("baz(Context)");
     thrown.expectMessage(getClass().getName() + "$");
-    DoFnSignatures.INSTANCE.getOrParseSignature(
+    DoFnSignatures.INSTANCE.getSignature(
         new DoFn<String, String>() {
           @ProcessElement
           public void foo(ProcessContext context) {}
@@ -105,7 +105,7 @@ public class DoFnSignaturesTest {
     thrown.expectMessage("startBundle()");
     thrown.expectMessage("Must be public");
     thrown.expectMessage(getClass().getName() + "$");
-    DoFnSignatures.INSTANCE.getOrParseSignature(
+    DoFnSignatures.INSTANCE.getSignature(
         new DoFn<String, String>() {
           @ProcessElement
           public void processElement() {}
@@ -121,7 +121,7 @@ public class DoFnSignaturesTest {
     thrown.expectMessage("finishBundle()");
     thrown.expectMessage("Must be public");
     thrown.expectMessage(getClass().getName() + "$");
-    DoFnSignatures.INSTANCE.getOrParseSignature(
+    DoFnSignatures.INSTANCE.getSignature(
         new DoFn<String, String>() {
           @ProcessElement
           public void processElement() {}
@@ -136,7 +136,7 @@ public class DoFnSignaturesTest {
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage("StateId");
     thrown.expectMessage("StateSpec");
-    DoFnSignatures.INSTANCE.getOrParseSignature(
+    DoFnSignatures.INSTANCE.getSignature(
         new DoFn<String, String>() {
           @StateId("foo")
           String bizzle = "bazzle";
@@ -155,7 +155,7 @@ public class DoFnSignaturesTest {
     thrown.expectMessage("myfield1");
     thrown.expectMessage("myfield2");
     DoFnSignature sig =
-        DoFnSignatures.INSTANCE.getOrParseSignature(
+        DoFnSignatures.INSTANCE.getSignature(
             new DoFn<KV<String, Integer>, Long>() {
               @StateId("my-state-id")
               private final StateSpec<Object, ValueState<Integer>> myfield1 =
@@ -176,7 +176,7 @@ public class DoFnSignaturesTest {
     thrown.expectMessage("Non-final field");
     thrown.expectMessage("myfield");
     DoFnSignature sig =
-        DoFnSignatures.INSTANCE.getOrParseSignature(
+        DoFnSignatures.INSTANCE.getSignature(
             new DoFn<KV<String, Integer>, Long>() {
               @StateId("my-state-id")
               private StateSpec<Object, ValueState<Integer>> myfield =
@@ -190,7 +190,7 @@ public class DoFnSignaturesTest {
   @Test
   public void testSimpleStateIdAnonymousDoFn() throws Exception {
     DoFnSignature sig =
-        DoFnSignatures.INSTANCE.getOrParseSignature(
+        DoFnSignatures.INSTANCE.getSignature(
             new DoFn<KV<String, Integer>, Long>() {
               @StateId("foo")
               private final StateSpec<Object, ValueState<Integer>> bizzle =

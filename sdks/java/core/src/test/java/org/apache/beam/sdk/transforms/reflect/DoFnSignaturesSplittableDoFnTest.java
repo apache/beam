@@ -126,17 +126,17 @@ public class DoFnSignaturesSplittableDoFnTest {
     assertEquals(
         PCollection.IsBounded.BOUNDED,
         DoFnSignatures.INSTANCE
-            .getOrParseSignature(BaseSplittableFn.class)
+            .getSignature(BaseSplittableFn.class)
             .isBoundedPerElement());
     assertEquals(
         PCollection.IsBounded.BOUNDED,
         DoFnSignatures.INSTANCE
-            .getOrParseSignature(BoundedSplittableFn.class)
+            .getSignature(BoundedSplittableFn.class)
             .isBoundedPerElement());
     assertEquals(
         PCollection.IsBounded.UNBOUNDED,
         DoFnSignatures.INSTANCE
-            .getOrParseSignature(UnboundedSplittableFn.class)
+            .getSignature(UnboundedSplittableFn.class)
             .isBoundedPerElement());
   }
 
@@ -149,7 +149,7 @@ public class DoFnSignaturesSplittableDoFnTest {
     assertEquals(
         PCollection.IsBounded.BOUNDED,
         DoFnSignatures.INSTANCE
-            .getOrParseSignature(UnsplittableFn.class)
+            .getSignature(UnsplittableFn.class)
             .isBoundedPerElement());
   }
 
@@ -176,7 +176,7 @@ public class DoFnSignaturesSplittableDoFnTest {
     assertEquals(
         PCollection.IsBounded.UNBOUNDED,
         DoFnSignatures.INSTANCE
-            .getOrParseSignature(BaseFnWithContinuation.class)
+            .getSignature(BaseFnWithContinuation.class)
             .isBoundedPerElement());
   }
 
@@ -188,7 +188,7 @@ public class DoFnSignaturesSplittableDoFnTest {
     assertEquals(
         PCollection.IsBounded.BOUNDED,
         DoFnSignatures.INSTANCE
-            .getOrParseSignature(BoundedFnWithContinuation.class)
+            .getSignature(BoundedFnWithContinuation.class)
             .isBoundedPerElement());
 
     @UnboundedPerElement
@@ -197,7 +197,7 @@ public class DoFnSignaturesSplittableDoFnTest {
     assertEquals(
         PCollection.IsBounded.UNBOUNDED,
         DoFnSignatures.INSTANCE
-            .getOrParseSignature(UnboundedFnWithContinuation.class)
+            .getSignature(UnboundedFnWithContinuation.class)
             .isBoundedPerElement());
   }
 
@@ -210,7 +210,7 @@ public class DoFnSignaturesSplittableDoFnTest {
     }
 
     thrown.expectMessage("Non-splittable, but annotated as @Bounded");
-    DoFnSignatures.INSTANCE.getOrParseSignature(SomeFn.class);
+    DoFnSignatures.INSTANCE.getSignature(SomeFn.class);
   }
 
   @Test
@@ -222,7 +222,7 @@ public class DoFnSignaturesSplittableDoFnTest {
     }
 
     thrown.expectMessage("Non-splittable, but annotated as @Unbounded");
-    DoFnSignatures.INSTANCE.getOrParseSignature(SomeFn.class);
+    DoFnSignatures.INSTANCE.getSignature(SomeFn.class);
   }
 
   /** Tests a splittable {@link DoFn} that defines all methods in their full form, correctly. */
@@ -255,7 +255,7 @@ public class DoFnSignaturesSplittableDoFnTest {
       }
     }
 
-    DoFnSignature signature = DoFnSignatures.INSTANCE.getOrParseSignature(GoodSplittableDoFn.class);
+    DoFnSignature signature = DoFnSignatures.INSTANCE.getSignature(GoodSplittableDoFn.class);
     assertEquals(SomeRestrictionTracker.class, signature.processElement().trackerT().getRawType());
     assertTrue(signature.processElement().isSplittable());
     assertTrue(signature.processElement().hasReturnValue());
@@ -300,7 +300,7 @@ public class DoFnSignaturesSplittableDoFnTest {
     }
 
     DoFnSignature signature =
-        DoFnSignatures.INSTANCE.getOrParseSignature(
+        DoFnSignatures.INSTANCE.getSignature(
             new GoodGenericSplittableDoFn<
                 SomeRestriction, SomeRestrictionTracker, SomeRestrictionCoder>() {}.getClass());
     assertEquals(SomeRestrictionTracker.class, signature.processElement().trackerT().getRawType());
@@ -324,7 +324,7 @@ public class DoFnSignaturesSplittableDoFnTest {
     thrown.expectMessage(
         "Splittable, but does not define the following required methods: "
             + "[@GetInitialRestriction, @NewTracker]");
-    DoFnSignatures.INSTANCE.getOrParseSignature(BadFn.class);
+    DoFnSignatures.INSTANCE.getSignature(BadFn.class);
   }
 
   @Test
@@ -344,7 +344,7 @@ public class DoFnSignaturesSplittableDoFnTest {
 
     thrown.expectMessage(
         "Returns void, but must return a subtype of RestrictionTracker<SomeRestriction>");
-    DoFnSignatures.INSTANCE.getOrParseSignature(BadFn.class);
+    DoFnSignatures.INSTANCE.getSignature(BadFn.class);
   }
 
   @Test
@@ -367,7 +367,7 @@ public class DoFnSignaturesSplittableDoFnTest {
     thrown.expectMessage(
         "getInitialRestriction(Integer): Uses restriction type String, but @NewTracker method");
     thrown.expectMessage("newTracker(SomeRestriction) uses restriction type SomeRestriction");
-    DoFnSignatures.INSTANCE.getOrParseSignature(BadFn.class);
+    DoFnSignatures.INSTANCE.getSignature(BadFn.class);
   }
 
   @Test
@@ -394,7 +394,7 @@ public class DoFnSignaturesSplittableDoFnTest {
 
     thrown.expectMessage(
         "getRestrictionCoder() returns KvCoder which is not a subtype of Coder<SomeRestriction>");
-    DoFnSignatures.INSTANCE.getOrParseSignature(BadFn.class);
+    DoFnSignatures.INSTANCE.getSignature(BadFn.class);
   }
 
   @Test
@@ -479,7 +479,7 @@ public class DoFnSignaturesSplittableDoFnTest {
     thrown.expectMessage(
         "splitRestriction(Integer, OtherRestriction, OutputReceiver) "
             + "uses restriction type OtherRestriction");
-    DoFnSignatures.INSTANCE.getOrParseSignature(BadFn.class);
+    DoFnSignatures.INSTANCE.getSignature(BadFn.class);
   }
 
   @Test
@@ -511,7 +511,7 @@ public class DoFnSignaturesSplittableDoFnTest {
     thrown.expectMessage(
         "Non-splittable, but defines methods: "
             + "[@GetInitialRestriction, @SplitRestriction, @NewTracker, @GetRestrictionCoder]");
-    DoFnSignatures.INSTANCE.getOrParseSignature(BadFn.class);
+    DoFnSignatures.INSTANCE.getSignature(BadFn.class);
   }
 
   @Test
