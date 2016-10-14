@@ -93,11 +93,11 @@ public class AfterWatermarkStateMachine {
       this.lateTrigger = lateTrigger;
     }
 
-    public TriggerStateMachine withEarlyFirings(OnceTriggerStateMachine earlyTrigger) {
+    public AfterWatermarkEarlyAndLate withEarlyFirings(OnceTriggerStateMachine earlyTrigger) {
       return new AfterWatermarkEarlyAndLate(earlyTrigger, lateTrigger);
     }
 
-    public TriggerStateMachine withLateFirings(OnceTriggerStateMachine lateTrigger) {
+    public AfterWatermarkEarlyAndLate withLateFirings(OnceTriggerStateMachine lateTrigger) {
       return new AfterWatermarkEarlyAndLate(earlyTrigger, lateTrigger);
     }
 
