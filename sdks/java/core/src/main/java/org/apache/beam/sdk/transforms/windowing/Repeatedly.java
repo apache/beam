@@ -49,10 +49,16 @@ public class Repeatedly extends Trigger {
     return new Repeatedly(repeated);
   }
 
-  private Repeatedly(Trigger repeated) {
-    super(Arrays.asList(repeated));
+  private Trigger repeatedTrigger;
+
+  private Repeatedly(Trigger repeatedTrigger) {
+    super(Arrays.asList(repeatedTrigger));
+    this.repeatedTrigger = repeatedTrigger;
   }
 
+  public Trigger getRepeatedTrigger() {
+    return repeatedTrigger;
+  }
 
   @Override
   public void onElement(OnElementContext c) throws Exception {
