@@ -65,7 +65,6 @@ import java.io.FileFilter;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
-import java.io.ObjectStreamException;
 import java.io.Serializable;
 import java.nio.channels.Channels;
 import java.nio.channels.WritableByteChannel;
@@ -470,10 +469,6 @@ public class BigQueryIOTest implements Serializable {
       }
       return copy;
     }
-
-    private void readObjectNoData() throws ObjectStreamException {
-    }
-
   }
 
   /** A fake dataset service that can be serialized, for use in testReadFromTable. */
@@ -597,9 +592,6 @@ public class BigQueryIOTest implements Serializable {
       }
       return copy;
     }
-
-    private void readObjectNoData() throws ObjectStreamException {}
-
   }
 
   @Rule public transient ExpectedException thrown = ExpectedException.none();
