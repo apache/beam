@@ -680,7 +680,8 @@ class _CompressedFile(object):
     if self._file is None:
       return
 
-    self.flush()
+    if self._writeable():
+      self._file.write(self._compressor.flush())
     self._file.close()
 
   def flush(self):
