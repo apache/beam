@@ -85,6 +85,14 @@ public class AfterWatermark {
     @Nullable
     private final OnceTrigger lateTrigger;
 
+    public OnceTrigger getEarlyTrigger() {
+      return earlyTrigger;
+    }
+
+    public OnceTrigger getLateTrigger() {
+      return lateTrigger;
+    }
+
     @SuppressWarnings("unchecked")
     public AfterWatermarkEarlyAndLate(OnceTrigger earlyTrigger, OnceTrigger lateTrigger) {
       super(lateTrigger == null
