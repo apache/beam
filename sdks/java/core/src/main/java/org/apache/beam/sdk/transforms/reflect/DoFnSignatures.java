@@ -50,7 +50,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
 
 /**
- * Parses a {@link DoFn} and computes its {@link DoFnSignature}. See {@link #getOrParseSignature}.
+ * Parses a {@link DoFn} and computes its {@link DoFnSignature}. See {@link #getSignature}.
  */
 public class DoFnSignatures {
   public static final DoFnSignatures INSTANCE = new DoFnSignatures();
@@ -61,11 +61,11 @@ public class DoFnSignatures {
 
   /** @return the {@link DoFnSignature} for the given {@link DoFn} instance. */
   public <FnT extends DoFn<?, ?>> DoFnSignature signatureForDoFn(FnT fn) {
-    return getOrParseSignature(fn.getClass());
+    return getSignature(fn.getClass());
   }
 
   /** @return the {@link DoFnSignature} for the given {@link DoFn} subclass. */
-  public synchronized <FnT extends DoFn<?, ?>> DoFnSignature getOrParseSignature(Class<FnT> fn) {
+  public synchronized <FnT extends DoFn<?, ?>> DoFnSignature getSignature(Class<FnT> fn) {
     DoFnSignature signature = signatureCache.get(fn);
     if (signature == null) {
       signatureCache.put(fn, signature = parseSignature(fn));

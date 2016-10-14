@@ -551,7 +551,7 @@ public class ParDo {
    * correctly and that its features can be supported.
    */
   private static <InputT, OutputT> void validate(DoFn<InputT, OutputT> fn) {
-    DoFnSignature signature = DoFnSignatures.INSTANCE.getOrParseSignature((Class) fn.getClass());
+    DoFnSignature signature = DoFnSignatures.INSTANCE.getSignature((Class) fn.getClass());
 
     // To be removed when the features are complete and runners have their own adequate
     // rejection logic
@@ -1040,7 +1040,7 @@ public class ParDo {
       return false;
     }
     return DoFnSignatures.INSTANCE
-        .getOrParseSignature(fn.getClass())
+        .getSignature(fn.getClass())
         .processElement()
         .isSplittable();
   }

@@ -203,7 +203,7 @@ public class DoFnInvokers {
   public <InputT, OutputT> DoFnInvoker<InputT, OutputT> newByteBuddyInvoker(
       DoFn<InputT, OutputT> fn) {
     return newByteBuddyInvoker(
-        DoFnSignatures.INSTANCE.getOrParseSignature((Class) fn.getClass()), fn);
+        DoFnSignatures.INSTANCE.getSignature((Class) fn.getClass()), fn);
   }
 
   /** @return the {@link DoFnInvoker} for the given {@link DoFn}. */
@@ -218,7 +218,7 @@ public class DoFnInvokers {
       @SuppressWarnings("unchecked")
       DoFnInvoker<InputT, OutputT> invoker =
           (DoFnInvoker<InputT, OutputT>)
-              getOrGenerateByteBuddyInvokerConstructor(signature).newInstance(fn);
+              getByteBuddyInvokerConstructor(signature).newInstance(fn);
       return invoker;
     } catch (InstantiationException
         | IllegalAccessException
@@ -230,10 +230,12 @@ public class DoFnInvokers {
   }
 
   /**
-   * Returns a generated constructor for a {@link DoFnInvoker} for the given {@link DoFn} class and
-   * caches it.
+   * Returns a generated constructor for a {@link DoFnInvoker} for the given {@link DoFn} class.
+   *
+   * <p>These are cached such that at most one {@link DoFnInvoker} class exists for a given
+   * {@link DoFn} class.
    */
-  private synchronized Constructor<?> getOrGenerateByteBuddyInvokerConstructor(
+  private synchronized Constructor<?> getByteBuddyInvokerConstructor(
       DoFnSignature signature) {
     Class<? extends DoFn<?, ?>> fnClass = signature.fnClass();
     Constructor<?> constructor = byteBuddyInvokerConstructorCache.get(fnClass);
