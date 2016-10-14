@@ -490,7 +490,7 @@ public abstract class Trigger implements Serializable {
    * <p>Note that if {@code t1} is {@link OnceTrigger}, then {@code t1.orFinally(t2)} is the same
    * as {@code AfterFirst.of(t1, t2)}.
    */
-  public Trigger orFinally(OnceTrigger until) {
+  public OrFinallyTrigger orFinally(OnceTrigger until) {
     return new OrFinallyTrigger(this, until);
   }
 

@@ -34,7 +34,7 @@ public final class Never {
    * Returns a trigger which never fires. Output will be produced from the using {@link GroupByKey}
    * when the {@link BoundedWindow} closes.
    */
-  public static OnceTrigger ever() {
+  public static NeverTrigger ever() {
     // NeverTrigger ignores all inputs and is Window-type independent.
     return new NeverTrigger();
   }

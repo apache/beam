@@ -42,7 +42,7 @@ public class AfterFirst extends OnceTrigger {
   /**
    * Returns an {@code AfterFirst} {@code Trigger} with the given subtriggers.
    */
-  public static OnceTrigger of(OnceTrigger... triggers) {
+  public static AfterFirst of(OnceTrigger... triggers) {
     return new AfterFirst(Arrays.<Trigger>asList(triggers));
   }
 

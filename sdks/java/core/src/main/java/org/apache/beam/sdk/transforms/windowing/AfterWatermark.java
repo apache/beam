@@ -102,11 +102,11 @@ public class AfterWatermark {
       this.lateTrigger = lateTrigger;
     }
 
-    public Trigger withEarlyFirings(OnceTrigger earlyTrigger) {
+    public AfterWatermarkEarlyAndLate withEarlyFirings(OnceTrigger earlyTrigger) {
       return new AfterWatermarkEarlyAndLate(earlyTrigger, lateTrigger);
     }
 
-    public Trigger withLateFirings(OnceTrigger lateTrigger) {
+    public AfterWatermarkEarlyAndLate withLateFirings(OnceTrigger lateTrigger) {
       return new AfterWatermarkEarlyAndLate(earlyTrigger, lateTrigger);
     }
 
