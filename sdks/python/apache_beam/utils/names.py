@@ -49,6 +49,7 @@ class PropertyNames(object):
   BIGQUERY_PROJECT = 'project'
   BIGQUERY_SCHEMA = 'schema'
   BIGQUERY_WRITE_DISPOSITION = 'write_disposition'
+  DISPLAY_DATA = 'display_data'
   ELEMENT = 'element'
   ELEMENTS = 'elements'
   ENCODING = 'encoding'
