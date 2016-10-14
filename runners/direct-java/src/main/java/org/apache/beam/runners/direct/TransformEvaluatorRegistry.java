@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.direct;
 
+import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
 
 import com.google.common.collect.ImmutableMap;
@@ -81,12 +82,11 @@ class TransformEvaluatorRegistry implements TransformEvaluatorFactory {
       throws Exception {
     checkState(
         !finished.get(), "Tried to get an evaluator for a finished TransformEvaluatorRegistry");
-    TransformEvaluatorFactory factory = getFactory(application);
+    Class<? extends PTransform> transformClass = application.getTransform().getClass();
+    TransformEvaluatorFactory factory =
+        checkNotNull(
+            factories.get(transformClass), "No evaluator for PTransform type %s", transformClass);
     return factory.forApplication(application, inputBundle);
-  }
-
-  private TransformEvaluatorFactory getFactory(AppliedPTransform<?, ?, ?> application) {
-    return factories.get(application.getTransform().getClass());
   }
 
   @Override

@@ -36,6 +36,11 @@ interface RootInputProvider {
    * <p>For source transforms, these should be sufficient that, when provided to the evaluators
    * produced by {@link TransformEvaluatorFactory#forApplication(AppliedPTransform,
    * CommittedBundle)}, all of the elements contained in the source are eventually produced.
+   *
+   * @param transform the {@link AppliedPTransform} to get initial inputs for.
+   * @param targetParallelism the target amount of parallelism to obtain from the source. Must be
+   *                          greater than or equal to 1.
    */
-  Collection<CommittedBundle<?>> getInitialInputs(AppliedPTransform<?, ?, ?> transform);
+  Collection<CommittedBundle<?>> getInitialInputs(
+      AppliedPTransform<?, ?, ?> transform, int targetParallelism) throws Exception;
 }

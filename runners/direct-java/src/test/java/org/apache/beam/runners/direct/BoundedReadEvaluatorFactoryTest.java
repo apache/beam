@@ -17,10 +17,14 @@
  */
 package org.apache.beam.runners.direct;
 
+import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.emptyIterable;
 import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.greaterThanOrEqualTo;
+import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.lessThanOrEqualTo;
 import static org.junit.Assert.assertThat;
 import static org.mockito.Mockito.when;
 
@@ -43,9 +47,11 @@ import org.apache.beam.sdk.io.CountingSource;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.testing.SourceTestUtils;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollection;
 import org.hamcrest.Matchers;
@@ -56,6 +62,8 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
+import org.mockito.invocation.InvocationOnMock;
+import org.mockito.stubbing.Answer;
 
 /**
  * Tests for {@link BoundedReadEvaluatorFactory}.
@@ -87,7 +95,7 @@ public class BoundedReadEvaluatorFactoryTest {
 
     Collection<CommittedBundle<?>> initialInputs =
         new BoundedReadEvaluatorFactory.InputProvider(context)
-            .getInitialInputs(longs.getProducingTransformInternal());
+            .getInitialInputs(longs.getProducingTransformInternal(), 1);
     List<WindowedValue<?>> outputs = new ArrayList<>();
     for (CommittedBundle<?> shardBundle : initialInputs) {
       TransformEvaluator<?> evaluator =
@@ -112,6 +120,37 @@ public class BoundedReadEvaluatorFactoryTest {
         outputs,
         Matchers.<WindowedValue<?>>containsInAnyOrder(
             gw(1L), gw(2L), gw(4L), gw(8L), gw(9L), gw(7L), gw(6L), gw(5L), gw(3L), gw(0L)));
+  }
+
+  @Test
+  public void getInitialInputsSplitsIntoBundles() throws Exception {
+    when(context.createRootBundle())
+        .thenAnswer(
+            new Answer<UncommittedBundle<?>>() {
+              @Override
+              public UncommittedBundle<?> answer(InvocationOnMock invocation) throws Throwable {
+                return bundleFactory.createRootBundle();
+              }
+            });
+    Collection<CommittedBundle<?>> initialInputs =
+        new BoundedReadEvaluatorFactory.InputProvider(context)
+            .getInitialInputs(longs.getProducingTransformInternal(), 3);
+
+    assertThat(initialInputs, hasSize(allOf(greaterThanOrEqualTo(3), lessThanOrEqualTo(4))));
+
+    Collection<BoundedSource<Long>> sources = new ArrayList<>();
+    for (CommittedBundle<?> initialInput : initialInputs) {
+      Iterable<WindowedValue<BoundedSourceShard<Long>>> shards =
+          (Iterable) initialInput.getElements();
+      WindowedValue<BoundedSourceShard<Long>> shard = Iterables.getOnlyElement(shards);
+      assertThat(shard.getWindows(), Matchers.<BoundedWindow>contains(GlobalWindow.INSTANCE));
+      assertThat(shard.getTimestamp(), equalTo(BoundedWindow.TIMESTAMP_MIN_VALUE));
+      sources.add(shard.getValue().getSource());
+    }
+
+    SourceTestUtils.assertSourcesEqualReferenceSource(source,
+        (List<? extends BoundedSource<Long>>) sources,
+        PipelineOptionsFactory.create());
   }
 
   @Test

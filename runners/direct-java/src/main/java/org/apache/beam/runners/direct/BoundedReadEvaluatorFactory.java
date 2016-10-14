@@ -18,28 +18,32 @@
 package org.apache.beam.runners.direct;
 
 import com.google.auto.value.AutoValue;
+import com.google.common.collect.ImmutableList;
 import java.io.IOException;
 import java.util.Collection;
-import java.util.Collections;
+import java.util.List;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.direct.DirectRunner.CommittedBundle;
 import org.apache.beam.runners.direct.DirectRunner.UncommittedBundle;
 import org.apache.beam.runners.direct.StepTransformResult.Builder;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.BoundedSource.BoundedReader;
-import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.io.Read.Bounded;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollection;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * A {@link TransformEvaluatorFactory} that produces {@link TransformEvaluator TransformEvaluators}
  * for the {@link Bounded Read.Bounded} primitive {@link PTransform}.
  */
 final class BoundedReadEvaluatorFactory implements TransformEvaluatorFactory {
+  private static final Logger LOG = LoggerFactory.getLogger(BoundedReadEvaluatorFactory.class);
   private final EvaluationContext evaluationContext;
 
   BoundedReadEvaluatorFactory(EvaluationContext evaluationContext) {
@@ -126,18 +130,32 @@ final class BoundedReadEvaluatorFactory implements TransformEvaluatorFactory {
     }
 
     @Override
-    public Collection<CommittedBundle<?>> getInitialInputs(AppliedPTransform<?, ?, ?> transform) {
-      return createInitialSplits((AppliedPTransform) transform);
+    public Collection<CommittedBundle<?>> getInitialInputs(
+        AppliedPTransform<?, ?, ?> transform, int targetParallelism) throws Exception {
+      return createInitialSplits((AppliedPTransform) transform, targetParallelism);
     }
 
-    private <OutputT> Collection<CommittedBundle<?>> createInitialSplits(
-        AppliedPTransform<?, ?, Read.Bounded<OutputT>> transform) {
+    private <OutputT>
+        Collection<CommittedBundle<BoundedSourceShard<OutputT>>> createInitialSplits(
+            AppliedPTransform<?, ?, Bounded<OutputT>> transform, int targetParallelism)
+            throws Exception {
       BoundedSource<OutputT> source = transform.getTransform().getSource();
-      return Collections.<CommittedBundle<?>>singleton(
-          evaluationContext
-              .<BoundedSourceShard<OutputT>>createRootBundle()
-              .add(WindowedValue.valueInGlobalWindow(BoundedSourceShard.of(source)))
-              .commit(BoundedWindow.TIMESTAMP_MAX_VALUE));
+      PipelineOptions options = evaluationContext.getPipelineOptions();
+      long estimatedBytes = source.getEstimatedSizeBytes(options);
+      long bytesPerBundle = estimatedBytes / targetParallelism;
+      List<? extends BoundedSource<OutputT>> bundles =
+          source.splitIntoBundles(bytesPerBundle, options);
+      ImmutableList.Builder<CommittedBundle<BoundedSourceShard<OutputT>>> shards =
+          ImmutableList.builder();
+      for (BoundedSource<OutputT> bundle : bundles) {
+        CommittedBundle<BoundedSourceShard<OutputT>> inputShard =
+            evaluationContext
+                .<BoundedSourceShard<OutputT>>createRootBundle()
+                .add(WindowedValue.valueInGlobalWindow(BoundedSourceShard.of(bundle)))
+                .commit(BoundedWindow.TIMESTAMP_MAX_VALUE);
+        shards.add(inputShard);
+      }
+      return shards.build();
     }
   }
 }

@@ -21,8 +21,6 @@ import java.util.Collection;
 import java.util.Collections;
 import org.apache.beam.runners.direct.DirectRunner.CommittedBundle;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
-import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 
 /**
  * A {@link RootInputProvider} that provides a singleton empty bundle.
@@ -37,13 +35,11 @@ class EmptyInputProvider implements RootInputProvider {
   /**
    * {@inheritDoc}.
    *
-   * <p>Returns a single empty bundle. This bundle ensures that any {@link PTransform PTransforms}
-   * that consume from the output of the provided {@link AppliedPTransform} have watermarks updated
-   * as appropriate.
+   * <p>Returns an empty collection.
    */
   @Override
-  public Collection<CommittedBundle<?>> getInitialInputs(AppliedPTransform<?, ?, ?> transform) {
-    return Collections.<CommittedBundle<?>>singleton(
-        evaluationContext.createRootBundle().commit(BoundedWindow.TIMESTAMP_MAX_VALUE));
+  public Collection<CommittedBundle<?>> getInitialInputs(
+      AppliedPTransform<?, ?, ?> transform, int targetParallelism) {
+    return Collections.emptyList();
   }
 }
