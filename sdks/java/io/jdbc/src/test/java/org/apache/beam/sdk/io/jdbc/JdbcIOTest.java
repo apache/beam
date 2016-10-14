@@ -137,11 +137,33 @@ public class JdbcIOTest implements Serializable {
   }
 
   @Test
-  public void testDataSourceConfigurationUsername() throws Exception {
+  public void testDataSourceConfigurationUsernameAndPassword() throws Exception {
+    JdbcIO.DataSourceConfiguration config = JdbcIO.DataSourceConfiguration.create(
+        "org.apache.derby.jdbc.ClientDriver",
+        "jdbc:derby://localhost:1527/target/beam",
+        "sa", "sa");
+    try (Connection conn = config.getConnection()) {
+      assertTrue(conn.isValid(0));
+    }
+  }
+
+  @Test
+  public void testDataSourceConfigurationNullPassword() throws Exception {
     JdbcIO.DataSourceConfiguration config = JdbcIO.DataSourceConfiguration.create(
         "org.apache.derby.jdbc.ClientDriver",
         "jdbc:derby://localhost:1527/target/beam",
         "sa", null);
+    try (Connection conn = config.getConnection()) {
+      assertTrue(conn.isValid(0));
+    }
+  }
+
+  @Test
+  public void testDataSourceConfigurationNullUsernameAndPassword() throws Exception {
+    JdbcIO.DataSourceConfiguration config = JdbcIO.DataSourceConfiguration.create(
+        "org.apache.derby.jdbc.ClientDriver",
+        "jdbc:derby://localhost:1527/target/beam",
+        null, null);
     try (Connection conn = config.getConnection()) {
       assertTrue(conn.isValid(0));
     }

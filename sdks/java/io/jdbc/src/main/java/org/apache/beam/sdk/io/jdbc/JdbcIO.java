@@ -152,7 +152,7 @@ public class JdbcIO {
 
     /** Configuration using the given driver, url, username and password. */
     public static DataSourceConfiguration create(
-        String driverClassName, String url, String username, String password) {
+        String driverClassName, String url, @Nullable String username, @Nullable String password) {
       checkNotNull(driverClassName, "driverClassName");
       checkNotNull(url, "url");
       return new AutoValue_JdbcIO_DataSourceConfiguration(
@@ -177,20 +177,18 @@ public class JdbcIO {
     }
 
     Connection getConnection() throws Exception {
-      DataSource dataSource;
       if (getDataSource() != null) {
-        dataSource = getDataSource();
+        return (getUsername() != null)
+            ? getDataSource().getConnection(getUsername(), getPassword())
+            : getDataSource().getConnection();
       } else {
         BasicDataSource basicDataSource = new BasicDataSource();
         basicDataSource.setDriverClassName(getDriverClassName());
         basicDataSource.setUrl(getUrl());
         basicDataSource.setUsername(getUsername());
         basicDataSource.setPassword(getPassword());
-        dataSource = basicDataSource;
+        return basicDataSource.getConnection();
       }
-      return (getDataSource() != null && getUsername() != null)
-          ? dataSource.getConnection(getUsername(), getPassword())
-          : dataSource.getConnection();
     }
   }
 
