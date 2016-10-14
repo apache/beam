@@ -39,8 +39,10 @@ public final class Never {
     return new NeverTrigger();
   }
 
-  // package-private in order to check identity for string formatting.
-  static class NeverTrigger extends OnceTrigger {
+  /**
+   * The actual trigger class for {@link Never} triggers.
+   */
+  public static class NeverTrigger extends OnceTrigger {
     protected NeverTrigger() {
       super(null);
     }
