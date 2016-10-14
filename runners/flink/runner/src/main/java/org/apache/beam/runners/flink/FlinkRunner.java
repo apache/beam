@@ -34,6 +34,7 @@ import java.util.SortedSet;
 import java.util.TreeSet;
 
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.coders.KvCoder;
@@ -66,7 +67,7 @@ import org.slf4j.LoggerFactory;
  * pipeline by first translating them to a Flink Plan and then executing them either locally
  * or on a Flink cluster, depending on the configuration.
  */
-public class FlinkRunner extends PipelineRunner<FlinkRunnerResult> {
+public class FlinkRunner extends PipelineRunner<PipelineResult> {
 
   private static final Logger LOG = LoggerFactory.getLogger(FlinkRunner.class);
 
@@ -133,7 +134,7 @@ public class FlinkRunner extends PipelineRunner<FlinkRunnerResult> {
   }
 
   @Override
-  public FlinkRunnerResult run(Pipeline pipeline) {
+  public PipelineResult run(Pipeline pipeline) {
     logWarningIfPCollectionViewHasNonDeterministicKeyCoder(pipeline);
 
     LOG.info("Executing pipeline using FlinkRunner.");
@@ -154,8 +155,7 @@ public class FlinkRunner extends PipelineRunner<FlinkRunnerResult> {
 
     if (result instanceof DetachedEnvironment.DetachedJobExecutionResult) {
       LOG.info("Pipeline submitted in Detached mode");
-      Map<String, Object> accumulators = Collections.emptyMap();
-      return new FlinkRunnerResult(accumulators, -1L);
+      return new FlinkDetachedRunnerResult();
     } else {
       LOG.info("Execution finished in {} msecs", result.getNetRuntime());
       Map<String, Object> accumulators = result.getAllAccumulatorResults();
