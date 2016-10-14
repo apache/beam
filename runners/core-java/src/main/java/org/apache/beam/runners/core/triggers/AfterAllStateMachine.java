@@ -20,6 +20,7 @@ package org.apache.beam.runners.core.triggers;
 import static com.google.common.base.Preconditions.checkArgument;
 
 import com.google.common.base.Joiner;
+import com.google.common.collect.ImmutableList;
 import java.util.Arrays;
 import java.util.List;
 import org.apache.beam.runners.core.triggers.TriggerStateMachine.OnceTriggerStateMachine;
@@ -43,6 +44,10 @@ public class AfterAllStateMachine extends OnceTriggerStateMachine {
   @SafeVarargs
   public static OnceTriggerStateMachine of(OnceTriggerStateMachine... triggers) {
     return new AfterAllStateMachine(Arrays.<TriggerStateMachine>asList(triggers));
+  }
+
+  public static OnceTriggerStateMachine of(Iterable<? extends TriggerStateMachine> triggers) {
+    return new AfterAllStateMachine(ImmutableList.copyOf(triggers));
   }
 
   @Override
