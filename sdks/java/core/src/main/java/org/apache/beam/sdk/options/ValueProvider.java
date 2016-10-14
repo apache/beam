@@ -108,6 +108,7 @@ public interface ValueProvider<T> {
 
     private final Class<? extends PipelineOptions> klass;
     private final String methodName;
+    private final String propertyName;
     @Nullable
     private final T defaultValue;
     private final Long optionsId;
@@ -116,9 +117,10 @@ public interface ValueProvider<T> {
      * Creates a {@link RuntimeValueProvider} that will query the provided
      * {@code optionsId} for a value.
      */
-    RuntimeValueProvider(String methodName, Class<? extends PipelineOptions> klass,
-                         Long optionsId) {
+    RuntimeValueProvider(String methodName, String propertyName,
+                         Class<? extends PipelineOptions> klass, Long optionsId) {
       this.methodName = methodName;
+      this.propertyName = propertyName;
       this.klass = klass;
       this.defaultValue = null;
       this.optionsId = optionsId;
@@ -128,9 +130,11 @@ public interface ValueProvider<T> {
      * Creates a {@link RuntimeValueProvider} that will query the provided
      * {@code optionsId} for a value, or use the default if no value is available.
      */
-    RuntimeValueProvider(String methodName, Class<? extends PipelineOptions> klass,
+    RuntimeValueProvider(String methodName, String propertyName,
+                         Class<? extends PipelineOptions> klass,
       T defaultValue, Long optionsId) {
       this.methodName = methodName;
+      this.propertyName = propertyName;
       this.klass = klass;
       this.defaultValue = defaultValue;
       this.optionsId = optionsId;
@@ -166,6 +170,13 @@ public interface ValueProvider<T> {
     public boolean isAccessible() {
       PipelineOptions options = optionsMap.get(optionsId);
       return options != null;
+    }
+
+    /**
+     * Returns the property name that corresponds to this provider.
+     */
+    public String propertyName() {
+      return propertyName;
     }
   }
 
