@@ -118,7 +118,7 @@ set up your machine's Python development environment.
 #### Install ``pip``
 
 `pip` is Python's package manager.  If you already have `pip` installed
-(type `pip -V` to check), skip this step.
+(type `pip -V` to check), please make sure to have at least version 7.0.0.
 
 There are several ways to install `pip`; use whichever works for you.
 
