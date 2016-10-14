@@ -17,9 +17,15 @@
 
 """Apache Beam SDK for Python setup file."""
 
+from distutils.version import StrictVersion
+
 import os
 import platform
+import warnings
+
 import setuptools
+
+from pkg_resources import get_distribution, DistributionNotFound
 
 
 def get_version():
@@ -40,6 +46,30 @@ PACKAGE_LONG_DESCRIPTION = '''
 TBD
 '''
 
+REQUIRED_PIP_VERSION = '7.0.0'
+_PIP_VERSION = get_distribution('pip').version
+if StrictVersion(_PIP_VERSION) < StrictVersion(REQUIRED_PIP_VERSION):
+  warnings.warn(
+      "You are using version {0} of pip. " \
+      "However, version {1} is recommended.".format(
+          _PIP_VERSION, REQUIRED_PIP_VERSION
+      )
+  )
+
+
+REQUIRED_CYTHON_VERSION = '0.23.2'
+try:
+  _CYTHON_VERSION = get_distribution('cython').version
+  if StrictVersion(_CYTHON_VERSION) < StrictVersion(REQUIRED_CYTHON_VERSION):
+    warnings.warn(
+        "You are using version {0} of cython. " \
+        "However, version {1} is recommended.".format(
+            _CYTHON_VERSION, REQUIRED_CYTHON_VERSION
+        )
+    )
+except DistributionNotFound:
+  # do nothing if Cython is not installed
+  pass
 
 # Currently all compiled modules are optional  (for performance only).
 if platform.system() == 'Windows':
