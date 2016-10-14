@@ -564,7 +564,7 @@ public class ParDo {
     }
 
     // State is semantically incompatible with splitting
-    if (!signature.stateDeclarations().isEmpty()) {
+    if (!signature.stateDeclarations().isEmpty() && signature.processElement().isSplittable()) {
       throw new UnsupportedOperationException(
           String.format("%s is splittable and uses state, but these are not compatible",
               fn.getClass().getName()));
