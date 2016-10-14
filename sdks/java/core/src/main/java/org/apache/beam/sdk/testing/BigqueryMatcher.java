@@ -43,6 +43,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
+import javax.annotation.Nonnull;
 import javax.annotation.concurrent.NotThreadSafe;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.util.FluentBackoff;
@@ -183,7 +184,7 @@ public class BigqueryMatcher extends TypeSafeMatcher<PipelineResult>
     return credential;
   }
 
-  private String generateHash(List<TableRow> rows) {
+  private String generateHash(@Nonnull List<TableRow> rows) {
     List<HashCode> rowHashes = Lists.newArrayList();
     for (TableRow row : rows) {
       List<String> cellsInOneRow = Lists.newArrayList();
