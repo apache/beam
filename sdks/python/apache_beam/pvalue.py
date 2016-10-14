@@ -276,8 +276,8 @@ class SingletonPCollectionView(PCollectionView):
       return head[0]
     else:
       raise ValueError(
-        'PCollection with more than one element accessed as '
-        'a singleton view.')
+          'PCollection with more than one element accessed as '
+          'a singleton view.')
 
 
 class IterablePCollectionView(PCollectionView):

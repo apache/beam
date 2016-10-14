@@ -101,7 +101,7 @@ class SideInputsTest(unittest.TestCase):
         [1, 2, 11],
         window.FixedWindows(10),
         side_input_type=beam.pvalue.AsIter,
-        expected=[(1, [1, 2]), (2, [1, 2]), (11, [11])])    
+        expected=[(1, [1, 2]), (2, [1, 2]), (11, [11])])
 
   def test_windowed_singleton(self):
     self.run_windowed_side_inputs(

@@ -170,7 +170,7 @@ def default_window_mapping_fn(target_window_fn):
   else:
     def map_via_end(source_window):
       return list(target_window_fn.assign(
-        window.WindowFn.AssignContext(source_window.max_timestamp())))[-1]
+          window.WindowFn.AssignContext(source_window.max_timestamp())))[-1]
     return map_via_end
 
 
@@ -188,14 +188,17 @@ class SideInputMap(object):
     if window not in self._cache:
       target_window = self._window_mapping_fn(window)
       self._cache[window] = self._view_class.from_iterable(
-        _FilteringIterable(self._iterable, target_window), self._view_options)
+          _FilteringIterable(self._iterable, target_window), self._view_options)
     return self._cache[window]
+
+  def is_globally_windowed(self):
+    return self._window_mapping_fn == _global_window_mapping_fn
 
 
 class _FilteringIterable(object):
   """An iterable containing only those values in the given window.
   """
-  
+
   def __init__(self, iterable, target_window):
     self._iterable = iterable
     self._target_window = target_window

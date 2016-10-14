@@ -33,7 +33,6 @@ from random import randrange
 
 import apache_beam as beam
 
-from apache_beam.pvalue import AsIter
 from apache_beam.pvalue import AsList
 from apache_beam.pvalue import AsSingleton
 from apache_beam.utils.options import PipelineOptions

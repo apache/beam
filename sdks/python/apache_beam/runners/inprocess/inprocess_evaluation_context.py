@@ -22,11 +22,6 @@ from __future__ import absolute_import
 import collections
 import threading
 
-from apache_beam.pvalue import DictPCollectionView
-from apache_beam.pvalue import EmptySideInput
-from apache_beam.pvalue import IterablePCollectionView
-from apache_beam.pvalue import ListPCollectionView
-from apache_beam.pvalue import SingletonPCollectionView
 from apache_beam.transforms import sideinputs
 from apache_beam.runners.inprocess.clock import Clock
 from apache_beam.runners.inprocess.inprocess_watermark_manager import InProcessWatermarkManager

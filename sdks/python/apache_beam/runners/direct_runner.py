@@ -30,11 +30,6 @@ import logging
 
 from apache_beam import coders
 from apache_beam import error
-from apache_beam.pvalue import DictPCollectionView
-from apache_beam.pvalue import EmptySideInput
-from apache_beam.pvalue import IterablePCollectionView
-from apache_beam.pvalue import ListPCollectionView
-from apache_beam.pvalue import SingletonPCollectionView
 from apache_beam.runners.common import DoFnRunner
 from apache_beam.runners.common import DoFnState
 from apache_beam.runners.runner import PipelineResult
