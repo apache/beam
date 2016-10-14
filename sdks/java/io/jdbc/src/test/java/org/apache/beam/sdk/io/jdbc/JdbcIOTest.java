@@ -119,8 +119,8 @@ public class JdbcIOTest implements Serializable {
 
   @Test
   public void testDataSourceConfigurationDataSource() throws Exception {
-    JdbcIO.DataSourceConfiguration config = JdbcIO.DataSourceConfiguration.create(
-        dataSource);
+    JdbcIO.DataSourceConfiguration config = JdbcIO.DataSourceConfiguration.builder()
+        .setDataSource(dataSource).build();
     try (Connection conn = config.getConnection()) {
       assertTrue(conn.isValid(0));
     }
@@ -128,9 +128,9 @@ public class JdbcIOTest implements Serializable {
 
   @Test
   public void testDataSourceConfigurationDriverAndUrl() throws Exception {
-    JdbcIO.DataSourceConfiguration config = JdbcIO.DataSourceConfiguration.create(
-        "org.apache.derby.jdbc.ClientDriver",
-        "jdbc:derby://localhost:1527/target/beam");
+    JdbcIO.DataSourceConfiguration config = JdbcIO.DataSourceConfiguration.builder()
+        .setDriverClassName("org.apache.derby.jdbc.ClientDriver")
+        .setUrl("jdbc:derby://localhost:1527/target/beam").build();
     try (Connection conn = config.getConnection()) {
       assertTrue(conn.isValid(0));
     }
@@ -138,10 +138,11 @@ public class JdbcIOTest implements Serializable {
 
   @Test
   public void testDataSourceConfigurationUsernameAndPassword() throws Exception {
-    JdbcIO.DataSourceConfiguration config = JdbcIO.DataSourceConfiguration.create(
-        "org.apache.derby.jdbc.ClientDriver",
-        "jdbc:derby://localhost:1527/target/beam",
-        "sa", "sa");
+    JdbcIO.DataSourceConfiguration config = JdbcIO.DataSourceConfiguration.builder()
+        .setDriverClassName("org.apache.derby.jdbc.ClientDriver")
+        .setUrl("jdbc:derby://localhost:1527/target/beam")
+        .setUsername("sa")
+        .setPassword("sa").build();
     try (Connection conn = config.getConnection()) {
       assertTrue(conn.isValid(0));
     }
@@ -149,10 +150,11 @@ public class JdbcIOTest implements Serializable {
 
   @Test
   public void testDataSourceConfigurationNullPassword() throws Exception {
-    JdbcIO.DataSourceConfiguration config = JdbcIO.DataSourceConfiguration.create(
-        "org.apache.derby.jdbc.ClientDriver",
-        "jdbc:derby://localhost:1527/target/beam",
-        "sa", null);
+    JdbcIO.DataSourceConfiguration config = JdbcIO.DataSourceConfiguration.builder()
+        .setDriverClassName("org.apache.derby.jdbc.ClientDriver")
+        .setUrl("jdbc:derby://localhost:1527/target/beam")
+        .setUsername("sa")
+        .setPassword(null).build();
     try (Connection conn = config.getConnection()) {
       assertTrue(conn.isValid(0));
     }
@@ -160,10 +162,11 @@ public class JdbcIOTest implements Serializable {
 
   @Test
   public void testDataSourceConfigurationNullUsernameAndPassword() throws Exception {
-    JdbcIO.DataSourceConfiguration config = JdbcIO.DataSourceConfiguration.create(
-        "org.apache.derby.jdbc.ClientDriver",
-        "jdbc:derby://localhost:1527/target/beam",
-        null, null);
+    JdbcIO.DataSourceConfiguration config = JdbcIO.DataSourceConfiguration.builder()
+        .setDriverClassName("org.apache.derby.jdbc.ClientDriver")
+        .setUrl("jdbc:derby://localhost:1527/target/beam")
+        .setUsername(null)
+        .setPassword(null).build();
     try (Connection conn = config.getConnection()) {
       assertTrue(conn.isValid(0));
     }
@@ -176,7 +179,8 @@ public class JdbcIOTest implements Serializable {
 
     PCollection<KV<String, Integer>> output = pipeline.apply(
         JdbcIO.<KV<String, Integer>>read()
-            .withDataSourceConfiguration(JdbcIO.DataSourceConfiguration.create(dataSource))
+            .withDataSourceConfiguration(JdbcIO.DataSourceConfiguration.builder()
+                .setDataSource(dataSource).build())
             .withQuery("select name,id from BEAM")
             .withRowMapper(new JdbcIO.RowMapper<KV<String, Integer>>() {
               @Override
@@ -219,9 +223,9 @@ public class JdbcIOTest implements Serializable {
     }
     pipeline.apply(Create.of(data))
         .apply(JdbcIO.<KV<Integer, String>>write()
-            .withDataSourceConfiguration(JdbcIO.DataSourceConfiguration.create(
-                "org.apache.derby.jdbc.ClientDriver",
-                "jdbc:derby://localhost:1527/target/beam"))
+            .withDataSourceConfiguration(JdbcIO.DataSourceConfiguration.builder()
+                .setDriverClassName("org.apache.derby.jdbc.ClientDriver")
+                .setUrl("jdbc:derby://localhost:1527/target/beam").build())
             .withStatement("insert into BEAM values(?, ?)")
             .withPreparedStatementSetter(new JdbcIO.PreparedStatementSetter<KV<Integer, String>>() {
               public void setParameters(KV<Integer, String> element, PreparedStatement statement)
@@ -252,9 +256,9 @@ public class JdbcIOTest implements Serializable {
 
     pipeline.apply(Create.of(new ArrayList<KV<Integer, String>>()))
         .apply(JdbcIO.<KV<Integer, String>>write()
-            .withDataSourceConfiguration(JdbcIO.DataSourceConfiguration.create(
-                "org.apache.derby.jdbc.ClientDriver",
-                "jdbc:derby://localhost:1527/target/beam"))
+            .withDataSourceConfiguration(JdbcIO.DataSourceConfiguration.builder()
+                .setDriverClassName("org.apache.derby.jdbc.ClientDriver")
+                .setUrl("jdbc:derby://localhost:1527/target/beam").build())
             .withStatement("insert into BEAM values(?, ?)")
             .withPreparedStatementSetter(new JdbcIO.PreparedStatementSetter<KV<Integer, String>>() {
               public void setParameters(KV<Integer, String> element, PreparedStatement statement)
