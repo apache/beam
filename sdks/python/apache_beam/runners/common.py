@@ -150,7 +150,7 @@ class DoFnRunner(Receiver):
       if self.has_windowed_side_inputs and len(element.windows) > 1:
         for w in element.windows:
           self.context.set_element(
-              WindowedValue(element.value, element.timestamp, w))
+              WindowedValue(element.value, element.timestamp, (w,)))
           self._process_outputs(element, self.dofn_process(self.context))
       else:
         self.context.set_element(element)
