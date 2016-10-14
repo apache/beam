@@ -25,6 +25,9 @@ bin/
 # committed.
 dependency-reduced-pom.xml
 
+# Hotspot VM leaves this log in a non-target directory when java crashes
+hs_err_pid*.log
+
 # Ignore files that end with '~', since they are most likely auto-save files
 # produced by a text editor.
 *~
