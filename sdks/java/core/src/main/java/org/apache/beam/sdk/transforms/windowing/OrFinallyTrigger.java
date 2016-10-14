@@ -35,6 +35,21 @@ class OrFinallyTrigger extends Trigger {
     super(Arrays.asList(actual, until));
   }
 
+  /**
+   * The main trigger, which will continue firing until the "until" trigger fires. See
+   * {@link #getUntilTrigger()}
+   */
+  public Trigger getMainTrigger() {
+    return subTriggers().get(ACTUAL);
+  }
+
+  /**
+   * The trigger that signals termination of this trigger.
+   */
+  public OnceTrigger getUntilTrigger() {
+    return (OnceTrigger) subTriggers().get(UNTIL);
+  }
+
   @Override
   public void onElement(OnElementContext c) throws Exception {
     c.trigger().subTrigger(ACTUAL).invokeOnElement(c);
