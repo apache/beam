@@ -234,7 +234,7 @@ final class ExecutorServiceParallelExecutor implements PipelineExecutor {
   }
 
   @Override
-  public void awaitCompletion() throws Throwable {
+  public void awaitCompletion() throws Exception {
     VisibleExecutorUpdate update;
     do {
       // Get an update; don't block forever if another thread has handled it
@@ -243,8 +243,8 @@ final class ExecutorServiceParallelExecutor implements PipelineExecutor {
         // there are no updates to process and no updates will ever be published because the
         // executor is shutdown
         return;
-      } else if (update != null && update.throwable.isPresent()) {
-        throw update.throwable.get();
+      } else if (update != null && update.exception.isPresent()) {
+        throw update.exception.get();
       }
     } while (update == null || !update.isDone());
     executorService.shutdown();
@@ -253,7 +253,7 @@ final class ExecutorServiceParallelExecutor implements PipelineExecutor {
   /**
    * The base implementation of {@link CompletionCallback} that provides implementations for
    * {@link #handleResult(CommittedBundle, TransformResult)} and
-   * {@link #handleThrowable(CommittedBundle, Throwable)}.
+   * {@link #handleException(CommittedBundle, Exception)}.
    */
   private class TimerIterableCompletionCallback implements CompletionCallback {
     private final Iterable<TimerData> timers;
@@ -296,8 +296,8 @@ final class ExecutorServiceParallelExecutor implements PipelineExecutor {
     }
 
     @Override
-    public final void handleThrowable(CommittedBundle<?> inputBundle, Throwable t) {
-      allUpdates.offer(ExecutorUpdate.fromThrowable(t));
+    public final void handleException(CommittedBundle<?> inputBundle, Exception e) {
+      allUpdates.offer(ExecutorUpdate.fromException(e));
       outstandingWork.decrementAndGet();
     }
   }
@@ -315,14 +315,14 @@ final class ExecutorServiceParallelExecutor implements PipelineExecutor {
       return new AutoValue_ExecutorServiceParallelExecutor_ExecutorUpdate(
           Optional.of(bundle),
           consumers,
-          Optional.<Throwable>absent());
+          Optional.<Exception>absent());
     }
 
-    public static ExecutorUpdate fromThrowable(Throwable t) {
+    public static ExecutorUpdate fromException(Exception e) {
       return new AutoValue_ExecutorServiceParallelExecutor_ExecutorUpdate(
           Optional.<CommittedBundle<?>>absent(),
           Collections.<AppliedPTransform<?, ?, ?>>emptyList(),
-          Optional.of(t));
+          Optional.of(e));
     }
 
     /**
@@ -336,7 +336,7 @@ final class ExecutorServiceParallelExecutor implements PipelineExecutor {
      */
     public abstract Collection<AppliedPTransform<?, ?, ?>> getConsumers();
 
-    public abstract Optional<? extends Throwable> getException();
+    public abstract Optional<? extends Exception> getException();
   }
 
   /**
@@ -344,10 +344,10 @@ final class ExecutorServiceParallelExecutor implements PipelineExecutor {
    * return normally or throw an exception.
    */
   private static class VisibleExecutorUpdate {
-    private final Optional<? extends Throwable> throwable;
+    private final Optional<? extends Exception> exception;
     private final boolean done;
 
-    public static VisibleExecutorUpdate fromThrowable(Throwable e) {
+    public static VisibleExecutorUpdate fromException(Exception e) {
       return new VisibleExecutorUpdate(false, e);
     }
 
@@ -355,8 +355,8 @@ final class ExecutorServiceParallelExecutor implements PipelineExecutor {
       return new VisibleExecutorUpdate(true, null);
     }
 
-    private VisibleExecutorUpdate(boolean done, @Nullable Throwable exception) {
-      this.throwable = Optional.fromNullable(exception);
+    private VisibleExecutorUpdate(boolean done, @Nullable Exception exception) {
+      this.exception = Optional.fromNullable(exception);
       this.done = done;
     }
 
@@ -410,7 +410,7 @@ final class ExecutorServiceParallelExecutor implements PipelineExecutor {
               allUpdates.offer(update);
             }
           } else if (update.getException().isPresent()) {
-            visibleUpdates.offer(VisibleExecutorUpdate.fromThrowable(update.getException().get()));
+            visibleUpdates.offer(VisibleExecutorUpdate.fromException(update.getException().get()));
             exceptionThrown = true;
           }
         }
@@ -418,12 +418,12 @@ final class ExecutorServiceParallelExecutor implements PipelineExecutor {
       } catch (InterruptedException e) {
         Thread.currentThread().interrupt();
         LOG.error("Monitor died due to being interrupted");
-        while (!visibleUpdates.offer(VisibleExecutorUpdate.fromThrowable(e))) {
+        while (!visibleUpdates.offer(VisibleExecutorUpdate.fromException(e))) {
           visibleUpdates.poll();
         }
-      } catch (Throwable t) {
-        LOG.error("Monitor thread died due to throwable", t);
-        while (!visibleUpdates.offer(VisibleExecutorUpdate.fromThrowable(t))) {
+      } catch (Exception t) {
+        LOG.error("Monitor thread died due to exception", t);
+        while (!visibleUpdates.offer(VisibleExecutorUpdate.fromException(t))) {
           visibleUpdates.poll();
         }
       } finally {
@@ -478,7 +478,7 @@ final class ExecutorServiceParallelExecutor implements PipelineExecutor {
         try {
           registry.cleanup();
         } catch (Exception e) {
-          visibleUpdates.add(VisibleExecutorUpdate.fromThrowable(e));
+          visibleUpdates.add(VisibleExecutorUpdate.fromException(e));
         }
         if (evaluationContext.isDone()) {
           while (!visibleUpdates.offer(VisibleExecutorUpdate.finished())) {

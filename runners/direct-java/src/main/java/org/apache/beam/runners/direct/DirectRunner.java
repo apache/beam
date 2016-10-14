@@ -403,18 +403,10 @@ public class DirectRunner
      *
      * <p>See also {@link PipelineExecutor#awaitCompletion()}.
      */
-    public State awaitCompletion() throws Throwable {
+    public State awaitCompletion() throws Exception {
       if (!state.isTerminal()) {
-        try {
-          executor.awaitCompletion();
-          state = State.DONE;
-        } catch (InterruptedException e) {
-          Thread.currentThread().interrupt();
-          throw e;
-        } catch (Throwable t) {
-          state = State.FAILED;
-          throw t;
-        }
+        executor.awaitCompletion();
+        state = State.DONE;
       }
       return state;
     }
