@@ -633,7 +633,7 @@ class _CompressedFile(object):
           assert not self._decompressor.unused_data, 'Possible file corruption.'
           try:
             # EOF implies that the underlying BZIP2 stream must also have
-            # reached EFO. We expect this to raise an EOFError and we catch it
+            # reached EOF. We expect this to raise an EOFError and we catch it
             # below. Any other kind of error though would be problematic.
             self._decompressor.decompress('dummy')
             assert False, 'Possible file corruption.'
