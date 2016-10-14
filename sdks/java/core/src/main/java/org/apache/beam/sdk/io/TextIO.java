@@ -667,7 +667,7 @@ public class TextIO {
        */
       public Bound<T> withHeader(@Nullable String header) {
         return new Bound<>(name, filenamePrefix, filenameSuffix, header, footer, coder, numShards,
-            shardTemplate, false, writableByteChannelFactory);
+            shardTemplate, validate, writableByteChannelFactory);
       }
 
       /**
@@ -682,7 +682,7 @@ public class TextIO {
        */
       public Bound<T> withFooter(@Nullable String footer) {
         return new Bound<>(name, filenamePrefix, filenameSuffix, header, footer, coder, numShards,
-            shardTemplate, false, writableByteChannelFactory);
+            shardTemplate, validate, writableByteChannelFactory);
       }
 
       /**

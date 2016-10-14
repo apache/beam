@@ -35,6 +35,7 @@ import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.hasSize;
+import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.startsWith;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -554,6 +555,30 @@ public class TextIOTest {
     assertThat(displayData, hasDisplayItem("numShards", 100));
     assertThat(displayData, hasDisplayItem("validation", false));
     assertThat(displayData, hasDisplayItem("writableByteChannelFactory", "UNCOMPRESSED"));
+  }
+
+  @Test
+  public void testWriteDisplayDataValidateThenHeader() {
+    TextIO.Write.Bound<?> write = TextIO.Write
+        .to("foo")
+        .withHeader("myHeader");
+
+    DisplayData displayData = DisplayData.from(write);
+
+    assertThat(displayData, hasDisplayItem("fileHeader", "myHeader"));
+    assertThat(displayData, not(hasDisplayItem("validation", false)));
+  }
+
+  @Test
+  public void testWriteDisplayDataValidateThenFooter() {
+    TextIO.Write.Bound<?> write = TextIO.Write
+        .to("foo")
+        .withFooter("myFooter");
+
+    DisplayData displayData = DisplayData.from(write);
+
+    assertThat(displayData, hasDisplayItem("fileFooter", "myFooter"));
+    assertThat(displayData, not(hasDisplayItem("validation", false)));
   }
 
   @Test
