@@ -30,7 +30,7 @@ import org.joda.time.Instant;
 public class DefaultTrigger extends Trigger{
 
   private DefaultTrigger() {
-    super(null);
+    super();
   }
 
   /**
