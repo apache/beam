@@ -43,5 +43,5 @@ interface PipelineExecutor {
    * @throws Throwable whenever an executor thread throws anything, transfers the throwable to the
    *                   waiting thread and rethrows it
    */
-  void awaitCompletion() throws Throwable;
+  void awaitCompletion() throws Exception;
 }
