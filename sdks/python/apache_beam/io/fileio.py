@@ -62,30 +62,22 @@ class _CompressionType(object):
 
 class CompressionTypes(object):
   """Enum-like class representing known compression types."""
-
   # Detect compression based on filename extension.
   #
   # The following extensions are currently recognized by auto-detection:
-  #   .gz (implies GZIP as described below)
-  #   .z  (implies ZLIB as described below).
+  #   .bz2 (implies BZIP2 as described below).
+  #   .gz  (implies GZIP as described below)
   # Any non-recognized extension implies UNCOMPRESSED as described below.
   AUTO = _CompressionType('auto')
+
+  # BZIP2 compression.
+  BZIP2 = _CompressionType('bzip2')
 
   # GZIP compression (deflate with GZIP headers).
   GZIP = _CompressionType('gzip')
 
-  # ZLIB compression (deflate with ZLIB headers).
-  ZLIB = _CompressionType('zlib')
-
-  # BZIP2 compression  (deflate with BZIP2 headers)
-  BZIP2 = _CompressionType('bz2')
-
   # Uncompressed (i.e., may be split).
   UNCOMPRESSED = _CompressionType('uncompressed')
-
-  # TODO: Remove this backwards-compatibility soon.
-  # Deprecated. Use UNCOMPRESSED instead.
-  NO_COMPRESSION = UNCOMPRESSED
 
   @classmethod
   def is_valid_compression_type(cls, compression_type):
@@ -95,18 +87,15 @@ class CompressionTypes(object):
   @classmethod
   def mime_type(cls, compression_type, default='application/octet-stream'):
     mime_types_by_compression_type = {
-        cls.GZIP: 'application/x-gzip',
-        cls.ZLIB: 'application/octet-stream',
         cls.BZIP2: 'application/x-bz2',
+        cls.GZIP: 'application/x-gzip',
     }
     return mime_types_by_compression_type.get(compression_type, default)
 
   @classmethod
   def detect_compression_type(cls, file_path):
     """Returns the compression type of a file (based on its suffix)"""
-    compression_types_by_suffix = {'.gz': cls.GZIP,
-                                   '.z': cls.ZLIB,
-                                   '.bz2': cls.BZIP2}
+    compression_types_by_suffix = {'.bz2': cls.BZIP2, '.gz': cls.GZIP}
     lowercased_path = file_path.lower()
     for suffix, compression_type in compression_types_by_suffix.iteritems():
       if lowercased_path.endswith(suffix):
@@ -173,16 +162,10 @@ class NativeFileSource(dataflow_io.NativeSource):
     self.mime_type = mime_type
 
   def __eq__(self, other):
-    # TODO: Remove this backwards-compatibility soon.
-    def equiv_autos(lhs, rhs):
-      return ((lhs == 'AUTO' and rhs == CompressionTypes.AUTO) or
-              (lhs == CompressionTypes.AUTO and rhs == 'AUTO'))
-
     return (self.file_path == other.file_path and
             self.start_offset == other.start_offset and
             self.end_offset == other.end_offset and
-            (self.compression_type == other.compression_type or
-             equiv_autos(self.compression_type, other.compression_type)) and
+            self.compression_type == other.compression_type and
             self.coder == other.coder and self.mime_type == other.mime_type)
 
   @property
@@ -234,12 +217,10 @@ class NativeFileSourceReader(dataflow_io.NativeSourceReader,
                                                            self.end_offset)
 
     # Position to the appropriate start_offset.
-    if self.start_offset > 0:
-      if ChannelFactory.is_compressed(self.file):
-        # TODO: Turns this warning into an exception soon.
-        logging.warning(
-            'Encountered initial split starting at (%s) for compressed source.',
-            self.start_offset)
+    if self.start_offset > 0 and ChannelFactory.is_compressed(self.file):
+      raise ValueError(
+          'Unexpected positive start_offset (%s) for a compressed source: %s',
+          self.start_offset, self.source)
     self.seek_to_true_start_offset()
 
     return self
@@ -249,14 +230,11 @@ class NativeFileSourceReader(dataflow_io.NativeSourceReader,
 
   def __iter__(self):
     if self.current_offset > 0 and ChannelFactory.is_compressed(self.file):
-      # When compression is enabled both initial and dynamic splitting should be
-      # prevented. Here we prevent initial splitting by ignoring all splits
-      # other than the split that starts at byte 0.
-      #
-      # TODO: Turns this warning into an exception soon.
-      logging.warning('Ignoring split starting at (%s) for compressed source.',
-                      self.current_offset)
-      return
+      # When compression is enabled both initial and dynamic splitting should
+      # not be allowed.
+      raise ValueError(
+          'Unespected split starting at (%s) for compressed source: %s',
+          self.current_offset, self.source)
 
     while True:
       if not self.range_tracker.try_claim(record_start=self.current_offset):
@@ -318,10 +296,6 @@ class NativeFileSourceReader(dataflow_io.NativeSourceReader,
       # When compression is enabled both initial and dynamic splitting should be
       # prevented. Here we prevent dynamic splitting by ignoring all dynamic
       # split requests at the reader.
-      #
-      # TODO: Turns this warning into an exception soon.
-      logging.warning('FileBasedReader cannot be split since it is compressed. '
-                      'Requested: %r', dynamic_split_request)
       return
 
     assert dynamic_split_request is not None
@@ -463,13 +437,9 @@ class ChannelFactory(object):
            compression_type=CompressionTypes.AUTO):
     if compression_type == CompressionTypes.AUTO:
       compression_type = CompressionTypes.detect_compression_type(path)
-    elif compression_type == 'AUTO':
-      # TODO: Remove this backwards-compatibility soon.
-      compression_type = CompressionTypes.detect_compression_type(path)
-    else:
-      if not CompressionTypes.is_valid_compression_type(compression_type):
-        raise TypeError('compression_type must be CompressionType object but '
-                        'was %s' % type(compression_type))
+    elif not CompressionTypes.is_valid_compression_type(compression_type):
+      raise TypeError('compression_type must be CompressionType object but '
+                      'was %s' % type(compression_type))
 
     if path.startswith('gs://'):
       # pylint: disable=wrong-import-order, wrong-import-position
@@ -584,10 +554,10 @@ class ChannelFactory(object):
 
 class _CompressedFile(object):
   """Somewhat limited file wrapper for easier handling of compressed files."""
-  _type_mask = {
-      CompressionTypes.GZIP: zlib.MAX_WBITS | 16,
-      CompressionTypes.ZLIB: zlib.MAX_WBITS,
-  }
+
+  # The bit mask to use for the wbits parameters of the GZIP compressor and
+  # decompressor objects.
+  _gzip_mask = zlib.MAX_WBITS | 16
 
   def __init__(self,
                fileobj,
@@ -606,8 +576,7 @@ class _CompressedFile(object):
       if self._compression_type == CompressionTypes.BZIP2:
         self._decompressor = bz2.BZ2Decompressor()
       else:
-        self._decompressor = zlib.decompressobj(
-            self._type_mask[compression_type])
+        self._decompressor = zlib.decompressobj(self._gzip_mask)
     else:
       self._decompressor = None
 
@@ -616,8 +585,7 @@ class _CompressedFile(object):
         self._compressor = bz2.BZ2Compressor()
       else:
         self._compressor = zlib.compressobj(zlib.Z_DEFAULT_COMPRESSION,
-                                            zlib.DEFLATED,
-                                            self._type_mask[compression_type])
+                                            zlib.DEFLATED, self._gzip_mask)
     else:
       self._compressor = None
 
@@ -625,10 +593,14 @@ class _CompressedFile(object):
     if not CompressionTypes.is_valid_compression_type(compression_type):
       raise TypeError('compression_type must be CompressionType object but '
                       'was %s' % type(compression_type))
-    if (compression_type == CompressionTypes.AUTO or
-        compression_type == CompressionTypes.UNCOMPRESSED):
+    if compression_type in (CompressionTypes.AUTO, CompressionTypes.UNCOMPRESSED
+                           ):
       raise ValueError(
-          'cannot create object with unspecified or no compression')
+          'Cannot create object with unspecified or no compression')
+    if compression_type not in (CompressionTypes.BZIP2, CompressionTypes.GZIP):
+      raise ValueError(
+          'compression_type %s not supported for whole-file compression',
+          compression_type)
 
   def _readable(self):
     mode = self._file.mode
@@ -652,12 +624,23 @@ class _CompressedFile(object):
       buf = self._file.read(self._read_size)
       if buf:
         self._data += self._decompressor.decompress(buf)
-      elif self._compression_type != CompressionTypes.BZIP2:
-        # EOF reached, flush. BZIP2 does not have this flush method,
-        # because of it's block nature
-        self._data += self._decompressor.flush()
-        return
       else:
+        # EOF reached.
+        # Verify completeness and no corruption and flush (if needed by
+        # the underlying algorithm).
+        if self._compression_type == CompressionTypes.BZIP2:
+          # Having unused_data past end of stream would imply file corruption.
+          assert not self._decompressor.unused_data, 'Possible file corruption.'
+          try:
+            # EOF implies that the underlying BZIP2 stream must also have
+            # reached EOF. We expect this to raise an EOFError and we catch it
+            # below. Any other kind of error though would be problematic.
+            self._decompressor.decompress('dummy')
+            assert False, 'Possible file corruption.'
+          except EOFError:
+            pass  # All is as expected!
+        else:
+          self._data += self._decompressor.flush()
         return
 
   def _read_from_internal_buffer(self, num_bytes):
@@ -1014,8 +997,9 @@ class NativeFileSink(dataflow_io.NativeSink):
     self.file_name_suffix = file_name_suffix
     self.num_shards = num_shards
     # TODO: Update this when the service supports more patterns.
-    self.shard_name_template = ('-SSSSS-of-NNNNN' if shard_name_template is None
-                                else shard_name_template)
+    self.shard_name_template = (DEFAULT_SHARD_NAME_TEMPLATE if
+                                shard_name_template is None else
+                                shard_name_template)
     # TODO: Implement sink validation.
     self.validate = validate
     self.mime_type = mime_type

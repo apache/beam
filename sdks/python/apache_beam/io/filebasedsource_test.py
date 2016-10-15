@@ -15,14 +15,14 @@
 # limitations under the License.
 #
 
+import bz2
+import cStringIO as StringIO
 import gzip
 import logging
 import math
 import os
-import StringIO
 import tempfile
 import unittest
-import zlib
 
 import apache_beam as beam
 from apache_beam.io import filebasedsource
@@ -335,7 +335,22 @@ class TestFileBasedSource(unittest.TestCase):
     assert len(expected_data) == 200
     self._run_dataflow_test(pattern, expected_data, False)
 
-  def test_read_gzip_file(self):
+  def test_read_file_bzip2(self):
+    _, lines = write_data(10)
+    filename = tempfile.NamedTemporaryFile(
+        delete=False, prefix=tempfile.template).name
+    with bz2.BZ2File(filename, 'wb') as f:
+      f.write('\n'.join(lines))
+
+    pipeline = beam.Pipeline('DirectPipelineRunner')
+    pcoll = pipeline | 'Read' >> beam.Read(LineSource(
+        filename,
+        splittable=False,
+        compression_type=fileio.CompressionTypes.BZIP2))
+    assert_that(pcoll, equal_to(lines))
+    pipeline.run()
+
+  def test_read_file_gzip(self):
     _, lines = write_data(10)
     filename = tempfile.NamedTemporaryFile(
         delete=False, prefix=tempfile.template).name
@@ -350,29 +365,13 @@ class TestFileBasedSource(unittest.TestCase):
     assert_that(pcoll, equal_to(lines))
     pipeline.run()
 
-  def test_read_zlib_file(self):
-    _, lines = write_data(10)
-    compressobj = zlib.compressobj(
-        zlib.Z_DEFAULT_COMPRESSION, zlib.DEFLATED, zlib.MAX_WBITS)
-    compressed = compressobj.compress('\n'.join(lines)) + compressobj.flush()
-    filename = _write_prepared_data(compressed)
-
-    pipeline = beam.Pipeline('DirectPipelineRunner')
-    pcoll = pipeline | 'Read' >> beam.Read(LineSource(
-        filename,
-        splittable=False,
-        compression_type=fileio.CompressionTypes.ZLIB))
-    assert_that(pcoll, equal_to(lines))
-    pipeline.run()
-
-  def test_read_zlib_pattern(self):
+  def test_read_pattern_bzip2(self):
     _, lines = write_data(200)
     splits = [0, 34, 100, 140, 164, 188, 200]
     chunks = [lines[splits[i-1]:splits[i]] for i in xrange(1, len(splits))]
     compressed_chunks = []
     for c in chunks:
-      compressobj = zlib.compressobj(
-          zlib.Z_DEFAULT_COMPRESSION, zlib.DEFLATED, zlib.MAX_WBITS)
+      compressobj = bz2.BZ2Compressor()
       compressed_chunks.append(
           compressobj.compress('\n'.join(c)) + compressobj.flush())
     file_pattern = write_prepared_pattern(compressed_chunks)
@@ -380,11 +379,11 @@ class TestFileBasedSource(unittest.TestCase):
     pcoll = pipeline | 'Read' >> beam.Read(LineSource(
         file_pattern,
         splittable=False,
-        compression_type=fileio.CompressionTypes.ZLIB))
+        compression_type=fileio.CompressionTypes.BZIP2))
     assert_that(pcoll, equal_to(lines))
     pipeline.run()
 
-  def test_read_gzip_pattern(self):
+  def test_read_pattern_gzip(self):
     _, lines = write_data(200)
     splits = [0, 34, 100, 140, 164, 188, 200]
     chunks = [lines[splits[i-1]:splits[i]] for i in xrange(1, len(splits))]
@@ -403,7 +402,21 @@ class TestFileBasedSource(unittest.TestCase):
     assert_that(pcoll, equal_to(lines))
     pipeline.run()
 
-  def test_read_auto_single_file(self):
+  def test_read_auto_single_file_bzip2(self):
+    _, lines = write_data(10)
+    filename = tempfile.NamedTemporaryFile(
+        delete=False, prefix=tempfile.template, suffix='.bz2').name
+    with bz2.BZ2File(filename, 'wb') as f:
+      f.write('\n'.join(lines))
+
+    pipeline = beam.Pipeline('DirectPipelineRunner')
+    pcoll = pipeline | 'Read' >> beam.Read(LineSource(
+        filename,
+        compression_type=fileio.CompressionTypes.AUTO))
+    assert_that(pcoll, equal_to(lines))
+    pipeline.run()
+
+  def test_read_auto_single_file_gzip(self):
     _, lines = write_data(10)
     filename = tempfile.NamedTemporaryFile(
         delete=False, prefix=tempfile.template, suffix='.gz').name

@@ -16,8 +16,8 @@
 #
 """Implements a source for reading Avro files."""
 
+import cStringIO as StringIO
 import os
-import StringIO
 import zlib
 
 import avro
@@ -73,15 +73,10 @@ class ReadFromAvro(PTransform):
       **kwargs: Additional keyword arguments to be passed to the base class.
     """
     super(ReadFromAvro, self).__init__()
+    self._args = (file_pattern, min_bundle_size)
 
-    self._file_pattern = file_pattern
-    self._min_bundle_size = min_bundle_size
-
-  def apply(self, pcoll):
-    return pcoll.pipeline | Read(
-        _AvroSource(
-            file_pattern=self._file_pattern,
-            min_bundle_size=self._min_bundle_size))
+  def apply(self, pvalue):
+    return pvalue.pipeline | Read(_AvroSource(*self._args))
 
 
 class _AvroUtils(object):
@@ -247,24 +242,17 @@ class _AvroSource(filebasedsource.FileBasedSource):
           yield record
 
 
-_avro_codecs = {
-    fileio.CompressionTypes.UNCOMPRESSED: 'null',
-    fileio.CompressionTypes.ZLIB: 'deflate',
-    # fileio.CompressionTypes.SNAPPY: 'snappy',
-}
-
-
 class WriteToAvro(beam.transforms.PTransform):
   """A ``PTransform`` for writing avro files."""
 
   def __init__(self,
                file_path_prefix,
                schema,
+               codec='deflate',
                file_name_suffix='',
                num_shards=0,
                shard_name_template=None,
-               mime_type='application/x-avro',
-               compression_type=fileio.CompressionTypes.ZLIB):
+               mime_type='application/x-avro'):
     """Initialize a WriteToAvro transform.
 
     Args:
@@ -274,6 +262,8 @@ class WriteToAvro(beam.transforms.PTransform):
         only this argument is specified and num_shards, shard_name_template, and
         file_name_suffix use default values.
       schema: The schema to use, as returned by avro.schema.parse
+      codec: The codec to use for block-level compression. Any string supported
+        by the Avro specification is accepted (for example 'null').
       file_name_suffix: Suffix for the files written.
       append_trailing_newlines: indicate whether this sink should write an
         additional newline char after writing each element.
@@ -292,21 +282,15 @@ class WriteToAvro(beam.transforms.PTransform):
         generated. The default pattern used is '-SSSSS-of-NNNNN'.
       mime_type: The MIME type to use for the produced files, if the filesystem
         supports specifying MIME types.
-      compression_type: Used to handle compressed output files. Defaults to
-        CompressionTypes.ZLIB
 
     Returns:
       A WriteToAvro transform usable for writing.
     """
-    if compression_type not in _avro_codecs:
-      raise ValueError(
-          'Compression type %s not supported by avro.' % compression_type)
-    self.args = (file_path_prefix, schema, file_name_suffix, num_shards,
-                 shard_name_template, mime_type, compression_type)
+    self._args = (file_path_prefix, schema, codec, file_name_suffix, num_shards,
+                  shard_name_template, mime_type)
 
   def apply(self, pcoll):
-    # pylint: disable=expression-not-assigned
-    pcoll | beam.io.iobase.Write(_AvroSink(*self.args))
+    return pcoll | beam.io.iobase.Write(_AvroSink(*self._args))
 
 
 class _AvroSink(fileio.FileSink):
@@ -315,11 +299,11 @@ class _AvroSink(fileio.FileSink):
   def __init__(self,
                file_path_prefix,
                schema,
+               codec,
                file_name_suffix,
                num_shards,
                shard_name_template,
-               mime_type,
-               compression_type):
+               mime_type):
     super(_AvroSink, self).__init__(
         file_path_prefix,
         file_name_suffix=file_name_suffix,
@@ -327,16 +311,16 @@ class _AvroSink(fileio.FileSink):
         shard_name_template=shard_name_template,
         coder=None,
         mime_type=mime_type,
-        # Compression happens at the block level, not the file level.
+        # Compression happens at the block level using the supplied codec, and
+        # not at the file level.
         compression_type=fileio.CompressionTypes.UNCOMPRESSED)
-    self.schema = schema
-    self.avro_compression_type = compression_type
+    self._schema = schema
+    self._codec = codec
 
   def open(self, temp_path):
     file_handle = super(_AvroSink, self).open(temp_path)
     return avro.datafile.DataFileWriter(
-        file_handle, avro.io.DatumWriter(), self.schema,
-        _avro_codecs[self.avro_compression_type])
+        file_handle, avro.io.DatumWriter(), self._schema, self._codec)
 
   def write_record(self, writer, value):
     writer.append(value)
