@@ -39,6 +39,8 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.ValueProvider;
+import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.util.IOChannelFactory;
 import org.apache.beam.sdk.util.IOChannelUtils;
@@ -77,7 +79,7 @@ public abstract class FileBasedSource<T> extends OffsetBasedSource<T> {
   // Package-private for testing.
   static final int THREAD_POOL_SIZE = 128;
 
-  private final String fileOrPatternSpec;
+  private final ValueProvider<String> fileOrPatternSpec;
   private final Mode mode;
 
   /**
@@ -101,7 +103,7 @@ public abstract class FileBasedSource<T> extends OffsetBasedSource<T> {
   public FileBasedSource(String fileOrPatternSpec, long minBundleSize) {
     super(0, Long.MAX_VALUE, minBundleSize);
     mode = Mode.FILEPATTERN;
-    this.fileOrPatternSpec = fileOrPatternSpec;
+    this.fileOrPatternSpec = StaticValueProvider.of(fileOrPatternSpec);
   }
 
   /**
@@ -124,10 +126,10 @@ public abstract class FileBasedSource<T> extends OffsetBasedSource<T> {
       long startOffset, long endOffset) {
     super(startOffset, endOffset, minBundleSize);
     mode = Mode.SINGLE_FILE_OR_SUBRANGE;
-    this.fileOrPatternSpec = fileName;
+    this.fileOrPatternSpec = StaticValueProvider.of(fileName);
   }
 
-  public final String getFileOrPatternSpec() {
+  public final ValueProvider<String> getFileOrPatternSpec() {
     return fileOrPatternSpec;
   }
 
@@ -274,7 +276,9 @@ public abstract class FileBasedSource<T> extends OffsetBasedSource<T> {
   @Override
   public void populateDisplayData(DisplayData.Builder builder) {
     super.populateDisplayData(builder);
-    builder.add(DisplayData.item("filePattern", getFileOrPatternSpec())
+    String patternDisplay = getFileOrPatternSpec().isAccessible() ?
+      getFileOrPatternSpec().get() : getFileOrPatternSpec().toString();
+    builder.add(DisplayData.item("filePattern", patternDisplay)
       .withLabel("File Pattern"));
   }
 
@@ -493,8 +497,8 @@ public abstract class FileBasedSource<T> extends OffsetBasedSource<T> {
     @Override
     protected final boolean startImpl() throws IOException {
       FileBasedSource<T> source = getCurrentSource();
-      IOChannelFactory factory = IOChannelUtils.getFactory(source.getFileOrPatternSpec());
-      this.channel = factory.open(source.getFileOrPatternSpec());
+      IOChannelFactory factory = IOChannelUtils.getFactory(source.getFileOrPatternSpec().get());
+      this.channel = factory.open(source.getFileOrPatternSpec().get());
 
       if (channel instanceof SeekableByteChannel) {
         SeekableByteChannel seekChannel = (SeekableByteChannel) channel;
