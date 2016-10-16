@@ -46,8 +46,29 @@ class _TextSource(filebasedsource.FileBasedSource):
     # buffer that should be read.
 
     def __init__(self, data, position):
-      self.data = data
-      self.position = position
+      self._data = data
+      self._position = position
+
+    @property
+    def data(self):
+      return self._data
+
+    @data.setter
+    def data(self, value):
+      assert isinstance(value, bytes)
+      self._data = value
+
+    @property
+    def position(self):
+      return self._position
+
+    @position.setter
+    def position(self, value):
+      assert isinstance(value, (int, long))
+      if value > len(self._data):
+        raise ValueError('Cannot set position to %d since it\'s larger than '
+                         'size of data %d.', value, len(self._data))
+      self._position = value
 
   def __init__(self, file_pattern, min_bundle_size,
                compression_type, strip_trailing_newlines, coder,
@@ -119,9 +140,11 @@ class _TextSource(filebasedsource.FileBasedSource):
       # array.
       next_lf = read_buffer.data.find('\n', current_pos)
       if next_lf >= 0:
-        if read_buffer.data[next_lf - 1] == '\r':
+        if next_lf > 0 and read_buffer.data[next_lf - 1] == '\r':
+          # Found a '\r\n'. Accepting that as the next separator.
           return (next_lf - 1, next_lf + 1)
         else:
+          # Found a '\n'. Accepting that as the next separator.
           return (next_lf, next_lf + 1)
 
       current_pos = len(read_buffer.data)

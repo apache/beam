@@ -94,11 +94,10 @@ class BoundedSource(object):
 
   **Mutability**
 
-  A ``BoundedSource`` object should be fully mutated before being submitted
-  for reading. A ``BoundedSource`` object should not be mutated while
+  A ``BoundedSource`` object should not be mutated while
   its methods (for example, ``read()``) are being invoked by a runner. Runner
   implementations may invoke methods of ``BoundedSource`` objects through
-  multi-threaded and/or re-entrant execution modes.
+  multi-threaded and/or reentrant execution modes.
   """
 
   def estimate_size(self):

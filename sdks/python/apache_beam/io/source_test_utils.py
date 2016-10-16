@@ -151,6 +151,61 @@ def assertSourcesEqualReferenceSource(reference_source_info, sources_info):
         'same set of records.')
 
 
+def assertReentrantReadsSucceed(source_info):
+  """Tests if a given source can be read in a reentrant manner.
+
+  Assume that given source produces the set of values {v1, v2, v3, ... vn}. For
+  i in range [1, n-1] this method performs a reentrant read after reading i
+  elements and verifies that both the original and reentrant read produce the
+  expected set of values.
+
+  Args:
+    source_info: a three-tuple that gives the reference
+                 ``iobase.BoundedSource``, position to start reading at, and a
+                 position to stop reading at.
+  Raises:
+    ValueError: if source is too trivial or reentrant read result in an
+                incorrect read.
+  """
+
+  source, start_position, stop_position = source_info
+  assert isinstance(source, iobase.BoundedSource)
+
+  expected_values = [val for val in source.read(source.get_range_tracker(
+      start_position, stop_position))]
+  if len(expected_values) < 2:
+    raise ValueError('Source is too trivial since it produces only %d '
+                     'values. Please give a source that reads at least 2 '
+                     'values.', len(expected_values))
+
+  for i in range(1, len(expected_values) - 1):
+    read_iter = source.read(source.get_range_tracker(
+        start_position, stop_position))
+    original_read = []
+    for _ in range(i):
+      original_read.append(next(read_iter))
+
+    # Reentrant read
+    reentrant_read = [val for val in source.read(
+        source.get_range_tracker(start_position, stop_position))]
+
+    # Continuing original read.
+    for val in read_iter:
+      original_read.append(val)
+
+    if sorted(original_read) != sorted(expected_values):
+      raise ValueError('Source did not produce expected values when '
+                       'performing a reentrant read after reading %d values. '
+                       'Expected %r received %r.',
+                       i, expected_values, original_read)
+
+    if sorted(reentrant_read) != sorted(expected_values):
+      raise ValueError('A reentrant read of source after reading %d values '
+                       'did not produce expected values. Expected %r '
+                       'received %r.',
+                       i, expected_values, reentrant_read)
+
+
 def assertSplitAtFractionBehavior(source, num_items_to_read_before_split,
                                   split_fraction, expected_outcome):
   """Verifies the behaviour of splitting a source at a given fraction.
