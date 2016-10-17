@@ -45,7 +45,7 @@ import javax.annotation.Nullable;
  */
 public final class MonitoringUtil {
 
-  private static final String GCLOUD_DATAFLOW_PREFIX = "gcloud alpha dataflow";
+  private static final String GCLOUD_DATAFLOW_PREFIX = "gcloud beta dataflow";
   private static final String ENDPOINT_OVERRIDE_ENV_VAR =
       "CLOUDSDK_API_ENDPOINT_OVERRIDES_DATAFLOW";
 
