@@ -39,6 +39,13 @@ from apache_beam.utils.options import PipelineOptions
 
 
 class RunnerTest(unittest.TestCase):
+  default_properties = [
+      '--dataflow_endpoint=ignored',
+      '--job_name=test-job',
+      '--project=test-project',
+      '--staging_location=ignored',
+      '--temp_location=/dev/null',
+      '--no_auth=True']
 
   def test_create_runner(self):
     self.assertTrue(
@@ -54,14 +61,7 @@ class RunnerTest(unittest.TestCase):
   def test_remote_runner_translation(self):
     remote_runner = DataflowPipelineRunner()
     p = Pipeline(remote_runner,
-                 options=PipelineOptions([
-                     '--dataflow_endpoint=ignored',
-                     '--job_name=test-job',
-                     '--project=test-project',
-                     '--staging_location=ignored',
-                     '--temp_location=/dev/null',
-                     '--no_auth=True'
-                 ]))
+                 options=PipelineOptions(self.default_properties))
 
     (p | 'create' >> ptransform.Create([1, 2, 3])  # pylint: disable=expression-not-assigned
      | 'do' >> ptransform.FlatMap(lambda x: [(x, x)])
@@ -72,14 +72,7 @@ class RunnerTest(unittest.TestCase):
   def test_remote_runner_display_data(self):
     remote_runner = DataflowPipelineRunner()
     p = Pipeline(remote_runner,
-                 options=PipelineOptions([
-                     '--dataflow_endpoint=ignored',
-                     '--job_name=test-job',
-                     '--project=test-project',
-                     '--staging_location=ignored',
-                     '--temp_location=/dev/null',
-                     '--no_auth=True'
-                 ]))
+                 options=PipelineOptions(self.default_properties))
 
     class SpecialParDo(beam.ParDo):
       def __init__(self, fn, now, *args, **kwargs):
