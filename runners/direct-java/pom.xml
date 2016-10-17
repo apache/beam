@@ -75,6 +75,7 @@
             <groupId>org.apache.beam</groupId>
             <artifactId>beam-runners-core-java</artifactId>
             <type>test-jar</type>
+            <version>${project.version}</version>
           </dependency>
         </dependencies>
         <executions>
@@ -90,7 +91,7 @@
               <failIfNoTests>true</failIfNoTests>
               <dependenciesToScan>
                 <dependency>org.apache.beam:beam-sdks-java-core</dependency>
-                <dependency>org.apache.beam:beam-runners-java-core</dependency>
+                <dependency>org.apache.beam:beam-runners-core-java</dependency>
               </dependenciesToScan>
               <systemPropertyVariables>
                 <beamTestPipelineOptions>
