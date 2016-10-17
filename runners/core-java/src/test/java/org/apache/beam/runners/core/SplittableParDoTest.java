@@ -128,12 +128,14 @@ public class SplittableParDoTest {
     Pipeline pipeline = TestPipeline.create();
     DoFn<Integer, String> boundedFn = new BoundedFakeFn();
     assertEquals(
+        "Applying a bounded SDF to a bounded collection produces a bounded collection",
         PCollection.IsBounded.BOUNDED,
         makeBoundedCollection(pipeline)
             .apply("bounded to bounded", new SplittableParDo<>(boundedFn))
             .isBounded());
     assertEquals(
-        PCollection.IsBounded.BOUNDED,
+        "Applying a bounded SDF to an unbounded collection produces an unbounded collection",
+        PCollection.IsBounded.UNBOUNDED,
         makeUnboundedCollection(pipeline)
             .apply("bounded to unbounded", new SplittableParDo<>(boundedFn))
             .isBounded());
@@ -145,12 +147,14 @@ public class SplittableParDoTest {
     Pipeline pipeline = TestPipeline.create();
     DoFn<Integer, String> unboundedFn = new UnboundedFakeFn();
     assertEquals(
-        PCollection.IsBounded.BOUNDED,
+        "Applying an unbounded SDF to a bounded collection produces a bounded collection",
+        PCollection.IsBounded.UNBOUNDED,
         makeBoundedCollection(pipeline)
             .apply("unbounded to bounded", new SplittableParDo<>(unboundedFn))
             .isBounded());
     assertEquals(
-        PCollection.IsBounded.BOUNDED,
+        "Applying an unbounded SDF to an unbounded collection produces an unbounded collection",
+        PCollection.IsBounded.UNBOUNDED,
         makeUnboundedCollection(pipeline)
             .apply("unbounded to unbounded", new SplittableParDo<>(unboundedFn))
             .isBounded());
