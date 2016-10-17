@@ -106,6 +106,12 @@ public abstract class FileBasedSource<T> extends OffsetBasedSource<T> {
     this.fileOrPatternSpec = StaticValueProvider.of(fileOrPatternSpec);
   }
 
+  public FileBasedSource(ValueProvider<String> fileOrPatternSpec, long minBundleSize) {
+    super(0, Long.MAX_VALUE, minBundleSize);
+    mode = Mode.FILEPATTERN;
+    this.fileOrPatternSpec = fileOrPatternSpec;
+  }
+
   /**
    * Create a {@code FileBasedSource} based on a single file. This constructor must be used when
    * creating a new {@code FileBasedSource} for a subrange of a single file.
@@ -129,7 +135,11 @@ public abstract class FileBasedSource<T> extends OffsetBasedSource<T> {
     this.fileOrPatternSpec = StaticValueProvider.of(fileName);
   }
 
-  public final ValueProvider<String> getFileOrPatternSpec() {
+  public final String getFileOrPatternSpec() {
+    return fileOrPatternSpec.get();
+  }
+
+  public final ValueProvider<String> getFileOrPatternSpecProvider() {
     return fileOrPatternSpec;
   }
 
@@ -151,7 +161,7 @@ public abstract class FileBasedSource<T> extends OffsetBasedSource<T> {
         end,
         getEndOffset());
 
-    FileBasedSource<T> source = createForSubrangeOfFile(fileOrPatternSpec, start, end);
+    FileBasedSource<T> source = createForSubrangeOfFile(fileOrPatternSpec.get(), start, end);
     if (start > 0 || end != Long.MAX_VALUE) {
       checkArgument(source.getMode() == Mode.SINGLE_FILE_OR_SUBRANGE,
           "Source created for the range [%s,%s) must be a subrange source", start, end);
@@ -188,12 +198,12 @@ public abstract class FileBasedSource<T> extends OffsetBasedSource<T> {
     // we perform the size estimation of files and file patterns using the interface provided by
     // IOChannelFactory.
 
-    IOChannelFactory factory = IOChannelUtils.getFactory(fileOrPatternSpec);
-    if (mode == Mode.FILEPATTERN) {
+    if (mode == Mode.FILEPATTERN && fileOrPatternSpec.isAccessible()) {
+      IOChannelFactory factory = IOChannelUtils.getFactory(fileOrPatternSpec.get());
       // TODO Implement a more efficient parallel/batch size estimation mechanism for file patterns.
       long startTime = System.currentTimeMillis();
       long totalSize = 0;
-      Collection<String> inputs = factory.match(fileOrPatternSpec);
+      Collection<String> inputs = factory.match(fileOrPatternSpec.get());
       if (inputs.size() <= MAX_NUMBER_OF_FILES_FOR_AN_EXACT_STAT) {
         totalSize = getExactTotalSizeOfFiles(inputs, factory);
         LOG.debug("Size estimation of all files of pattern {} took {} ms",
@@ -276,8 +286,9 @@ public abstract class FileBasedSource<T> extends OffsetBasedSource<T> {
   @Override
   public void populateDisplayData(DisplayData.Builder builder) {
     super.populateDisplayData(builder);
-    String patternDisplay = getFileOrPatternSpec().isAccessible() ?
-      getFileOrPatternSpec().get() : getFileOrPatternSpec().toString();
+    String patternDisplay = getFileOrPatternSpecProvider().isAccessible()
+      ? getFileOrPatternSpecProvider().get()
+      : getFileOrPatternSpecProvider().toString();
     builder.add(DisplayData.item("filePattern", patternDisplay)
       .withLabel("File Pattern"));
   }
@@ -311,7 +322,7 @@ public abstract class FileBasedSource<T> extends OffsetBasedSource<T> {
       ListeningExecutorService service =
           MoreExecutors.listeningDecorator(Executors.newFixedThreadPool(THREAD_POOL_SIZE));
       try {
-        for (final String file : FileBasedSource.expandFilePattern(fileOrPatternSpec)) {
+        for (final String file : FileBasedSource.expandFilePattern(fileOrPatternSpec.get())) {
           futures.add(createFutureForFileSplit(file, desiredBundleSizeBytes, options, service));
         }
         List<? extends FileBasedSource<T>> splitResults =
@@ -350,8 +361,8 @@ public abstract class FileBasedSource<T> extends OffsetBasedSource<T> {
     // We split a file-based source into subranges only if the file is efficiently seekable.
     // If a file is not efficiently seekable it would be highly inefficient to create and read a
     // source based on a subrange of that file.
-    IOChannelFactory factory = IOChannelUtils.getFactory(fileOrPatternSpec);
-    return factory.isReadSeekEfficient(fileOrPatternSpec);
+    IOChannelFactory factory = IOChannelUtils.getFactory(fileOrPatternSpec.get());
+    return factory.isReadSeekEfficient(fileOrPatternSpec.get());
   }
 
   @Override
@@ -361,7 +372,7 @@ public abstract class FileBasedSource<T> extends OffsetBasedSource<T> {
 
     if (mode == Mode.FILEPATTERN) {
       long startTime = System.currentTimeMillis();
-      Collection<String> files = FileBasedSource.expandFilePattern(fileOrPatternSpec);
+      Collection<String> files = FileBasedSource.expandFilePattern(fileOrPatternSpec.get());
       List<FileBasedReader<T>> fileReaders = new ArrayList<>();
       for (String fileName : files) {
         long endOffset;
@@ -391,9 +402,9 @@ public abstract class FileBasedSource<T> extends OffsetBasedSource<T> {
   public String toString() {
     switch (mode) {
       case FILEPATTERN:
-        return fileOrPatternSpec;
+        return fileOrPatternSpec.get();
       case SINGLE_FILE_OR_SUBRANGE:
-        return fileOrPatternSpec + " range " + super.toString();
+        return fileOrPatternSpec.get() + " range " + super.toString();
       default:
         throw new IllegalStateException("Unexpected mode: " + mode);
     }
@@ -424,8 +435,8 @@ public abstract class FileBasedSource<T> extends OffsetBasedSource<T> {
     checkArgument(
             mode != Mode.FILEPATTERN, "Cannot determine the exact end offset of a file pattern");
     if (getEndOffset() == Long.MAX_VALUE) {
-      IOChannelFactory factory = IOChannelUtils.getFactory(fileOrPatternSpec);
-      return factory.getSizeBytes(fileOrPatternSpec);
+      IOChannelFactory factory = IOChannelUtils.getFactory(fileOrPatternSpec.get());
+      return factory.getSizeBytes(fileOrPatternSpec.get());
     } else {
       return getEndOffset();
     }
@@ -497,8 +508,8 @@ public abstract class FileBasedSource<T> extends OffsetBasedSource<T> {
     @Override
     protected final boolean startImpl() throws IOException {
       FileBasedSource<T> source = getCurrentSource();
-      IOChannelFactory factory = IOChannelUtils.getFactory(source.getFileOrPatternSpec().get());
-      this.channel = factory.open(source.getFileOrPatternSpec().get());
+      IOChannelFactory factory = IOChannelUtils.getFactory(source.getFileOrPatternSpec());
+      this.channel = factory.open(source.getFileOrPatternSpec());
 
       if (channel instanceof SeekableByteChannel) {
         SeekableByteChannel seekChannel = (SeekableByteChannel) channel;

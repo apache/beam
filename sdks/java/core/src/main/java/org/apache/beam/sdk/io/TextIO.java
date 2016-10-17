@@ -264,7 +264,7 @@ public class TextIO {
 
       @Override
       public PCollection<T> apply(PBegin input) {
-        
+
         if (filepattern.get() == null) {
           throw new IllegalStateException("need to set the filepattern of a TextIO.Read transform");
         }
@@ -293,20 +293,20 @@ public class TextIO {
       protected FileBasedSource<T> getSource() {
         switch (compressionType) {
           case UNCOMPRESSED:
-            return new TextSource<T>(filepattern, coder);
+            return new TextSource<T>(filepattern.get(), coder);
           case AUTO:
-            return CompressedSource.from(new TextSource<T>(filepattern, coder));
+            return CompressedSource.from(new TextSource<T>(filepattern.get(), coder));
           case BZIP2:
             return
-                CompressedSource.from(new TextSource<T>(filepattern, coder))
+                CompressedSource.from(new TextSource<T>(filepattern.get(), coder))
                     .withDecompression(CompressedSource.CompressionMode.BZIP2);
           case GZIP:
             return
-                CompressedSource.from(new TextSource<T>(filepattern, coder))
+                CompressedSource.from(new TextSource<T>(filepattern.get(), coder))
                     .withDecompression(CompressedSource.CompressionMode.GZIP);
           case ZIP:
             return
-                CompressedSource.from(new TextSource<T>(filepattern, coder))
+                CompressedSource.from(new TextSource<T>(filepattern.get(), coder))
                     .withDecompression(CompressedSource.CompressionMode.ZIP);
           default:
             throw new IllegalArgumentException("Unknown compression type: " + compressionType);
