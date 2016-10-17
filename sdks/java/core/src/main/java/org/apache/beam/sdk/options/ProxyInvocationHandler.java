@@ -134,10 +134,6 @@ class ProxyInvocationHandler implements InvocationHandler, HasDisplayData {
       @SuppressWarnings("unchecked")
       Class<? extends PipelineOptions> clazz = (Class<? extends PipelineOptions>) args[0];
       return as(clazz);
-    } else if (args != null && "cloneAs".equals(method.getName()) && args[0] instanceof Class) {
-      @SuppressWarnings("unchecked")
-      Class<? extends PipelineOptions> clazz = (Class<? extends PipelineOptions>) args[0];
-      return cloneAs(proxy, clazz);
     } else if (args != null && "populateDisplayData".equals(method.getName())
         && args[0] instanceof DisplayData.Builder) {
       @SuppressWarnings("unchecked")
@@ -220,24 +216,6 @@ class ProxyInvocationHandler implements InvocationHandler, HasDisplayData {
               .build());
     }
     return interfaceToProxyCache.getInstance(iface);
-  }
-
-  /**
-   * Backing implementation for {@link PipelineOptions#cloneAs(Class)}.
-   *
-   * @return A copy of the PipelineOptions.
-   */
-  synchronized <T extends PipelineOptions> T cloneAs(Object proxy, Class<T> iface) {
-    PipelineOptions clonedOptions;
-    try {
-      clonedOptions = MAPPER.readValue(MAPPER.writeValueAsBytes(proxy), PipelineOptions.class);
-    } catch (IOException e) {
-      throw new IllegalStateException("Failed to serialize the pipeline options to JSON.", e);
-    }
-    for (Class<? extends PipelineOptions> knownIface : knownInterfaces) {
-      clonedOptions.as(knownIface);
-    }
-    return clonedOptions.as(iface);
   }
 
   /**
