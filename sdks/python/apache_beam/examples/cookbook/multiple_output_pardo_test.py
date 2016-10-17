@@ -34,7 +34,7 @@ class MultipleOutputParDoTest(unittest.TestCase):
       ('whole', 1), ('world', 1), ('fantastic', 1), ('point', 1), ('view', 1)]
 
   def test_multiple_output_pardo(self):
-    p = beam.Pipeline('BlockingDataflowPipelineRunner')
+    p = beam.Pipeline('DirectPipelineRunner')
     sample_text = p | beam.Create(self.SAMPLE_TEXT)
     results = sample_text | beam.ParDo(multiple_output_pardo.SplitLinesToWordsFn()).with_outputs('tag_short_words', 'tag_character_count', main='words')
     result_count = (results.tag_character_count
