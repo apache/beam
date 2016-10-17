@@ -25,7 +25,9 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
 
-
+/**
+ * Apex {@link PipelineRunner} for testing.
+ */
 public class TestApexRunner extends PipelineRunner<ApexRunnerResult> {
 
   private ApexRunner delegate;
@@ -38,13 +40,14 @@ public class TestApexRunner extends PipelineRunner<ApexRunnerResult> {
   }
 
   public static TestApexRunner fromOptions(PipelineOptions options) {
-    ApexPipelineOptions apexOptions = PipelineOptionsValidator.validate(ApexPipelineOptions.class, options);
+    ApexPipelineOptions apexOptions = PipelineOptionsValidator
+        .validate(ApexPipelineOptions.class, options);
     return new TestApexRunner(apexOptions);
   }
 
   @Override
   public <OutputT extends POutput, InputT extends PInput>
-      OutputT apply(PTransform<InputT,OutputT> transform, InputT input) {
+      OutputT apply(PTransform<InputT, OutputT> transform, InputT input) {
     return delegate.apply(transform, input);
   }
 

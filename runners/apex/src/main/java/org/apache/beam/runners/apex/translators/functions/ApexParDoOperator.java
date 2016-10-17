@@ -17,6 +17,18 @@
  */
 package org.apache.beam.runners.apex.translators.functions;
 
+import com.datatorrent.api.Context.OperatorContext;
+import com.datatorrent.api.DefaultInputPort;
+import com.datatorrent.api.DefaultOutputPort;
+import com.datatorrent.api.annotation.InputPortFieldAnnotation;
+import com.datatorrent.api.annotation.OutputPortFieldAnnotation;
+import com.datatorrent.common.util.BaseOperator;
+import com.esotericsoftware.kryo.serializers.FieldSerializer.Bind;
+import com.esotericsoftware.kryo.serializers.JavaSerializer;
+import com.google.common.base.Throwables;
+import com.google.common.collect.Iterables;
+import com.google.common.collect.Maps;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -29,9 +41,9 @@ import org.apache.beam.runners.apex.translators.utils.SerializablePipelineOption
 import org.apache.beam.runners.apex.translators.utils.ValueAndCoderKryoSerializable;
 import org.apache.beam.runners.core.DoFnRunner;
 import org.apache.beam.runners.core.DoFnRunners;
+import org.apache.beam.runners.core.DoFnRunners.OutputManager;
 import org.apache.beam.runners.core.PushbackSideInputDoFnRunner;
 import org.apache.beam.runners.core.SideInputHandler;
-import org.apache.beam.runners.core.DoFnRunners.OutputManager;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.ListCoder;
 import org.apache.beam.sdk.transforms.Aggregator;
@@ -51,18 +63,6 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import com.datatorrent.api.Context.OperatorContext;
-import com.datatorrent.api.DefaultInputPort;
-import com.datatorrent.api.DefaultOutputPort;
-import com.datatorrent.api.annotation.InputPortFieldAnnotation;
-import com.datatorrent.api.annotation.OutputPortFieldAnnotation;
-import com.datatorrent.common.util.BaseOperator;
-import com.esotericsoftware.kryo.serializers.FieldSerializer.Bind;
-import com.google.common.base.Throwables;
-import com.google.common.collect.Iterables;
-import com.google.common.collect.Maps;
-import com.esotericsoftware.kryo.serializers.JavaSerializer;
 
 /**
  * Apex operator for Beam {@link DoFn}.
@@ -85,8 +85,8 @@ public class ApexParDoOperator<InputT, OutputT> extends BaseOperator implements 
   private final List<PCollectionView<?>> sideInputs;
 
 // TODO: not Kryo serializable, integrate codec
-//@Bind(JavaSerializer.class)
-private transient StateInternals<Void> sideInputStateInternals = InMemoryStateInternals.forKey(null);
+  private transient StateInternals<Void> sideInputStateInternals = InMemoryStateInternals
+      .forKey(null);
   private final ValueAndCoderKryoSerializable<List<WindowedValue<InputT>>> pushedBack;
   private LongMin pushedBackWatermark = new LongMin();
   private long currentInputWatermark = Long.MIN_VALUE;
@@ -94,7 +94,8 @@ private transient StateInternals<Void> sideInputStateInternals = InMemoryStateIn
 
   private transient PushbackSideInputDoFnRunner<InputT, OutputT> pushbackDoFnRunner;
   private transient SideInputHandler sideInputHandler;
-  private transient Map<TupleTag<?>, DefaultOutputPort<ApexStreamTuple<?>>> sideOutputPortMapping = Maps.newHashMapWithExpectedSize(5);
+  private transient Map<TupleTag<?>, DefaultOutputPort<ApexStreamTuple<?>>> sideOutputPortMapping =
+      Maps.newHashMapWithExpectedSize(5);
 
   public ApexParDoOperator(
       ApexPipelineOptions pipelineOptions,
@@ -104,8 +105,7 @@ private transient StateInternals<Void> sideInputStateInternals = InMemoryStateIn
       WindowingStrategy<?, ?> windowingStrategy,
       List<PCollectionView<?>> sideInputs,
       Coder<WindowedValue<InputT>> inputCoder
-      )
-  {
+      ) {
     this.pipelineOptions = new SerializablePipelineOptions(pipelineOptions);
     this.doFn = doFn;
     this.mainOutputTag = mainOutputTag;
@@ -120,7 +120,8 @@ private transient StateInternals<Void> sideInputStateInternals = InMemoryStateIn
     }
 
     Coder<List<WindowedValue<InputT>>> coder = ListCoder.of(inputCoder);
-    this.pushedBack = new ValueAndCoderKryoSerializable<>(new ArrayList<WindowedValue<InputT>>(), coder);
+    this.pushedBack = new ValueAndCoderKryoSerializable<>(new ArrayList<WindowedValue<InputT>>(),
+        coder);
 
   }
 
@@ -135,13 +136,12 @@ private transient StateInternals<Void> sideInputStateInternals = InMemoryStateIn
     this.pushedBack = null;
   }
 
-  public final transient DefaultInputPort<ApexStreamTuple<WindowedValue<InputT>>> input = new DefaultInputPort<ApexStreamTuple<WindowedValue<InputT>>>()
-  {
+  public final transient DefaultInputPort<ApexStreamTuple<WindowedValue<InputT>>> input =
+      new DefaultInputPort<ApexStreamTuple<WindowedValue<InputT>>>() {
     @Override
-    public void process(ApexStreamTuple<WindowedValue<InputT>> t)
-    {
+    public void process(ApexStreamTuple<WindowedValue<InputT>> t) {
       if (t instanceof ApexStreamTuple.WatermarkTuple) {
-        processWatermark((ApexStreamTuple.WatermarkTuple<?>)t);
+        processWatermark((ApexStreamTuple.WatermarkTuple<?>) t);
       } else {
         if (traceTuples) {
           LOG.debug("\ninput {}\n", t.getValue());
@@ -155,12 +155,11 @@ private transient StateInternals<Void> sideInputStateInternals = InMemoryStateIn
     }
   };
 
-  @InputPortFieldAnnotation(optional=true)
-  public final transient DefaultInputPort<ApexStreamTuple<WindowedValue<Iterable<?>>>> sideInput1 = new DefaultInputPort<ApexStreamTuple<WindowedValue<Iterable<?>>>>()
-  {
+  @InputPortFieldAnnotation(optional = true)
+  public final transient DefaultInputPort<ApexStreamTuple<WindowedValue<Iterable<?>>>> sideInput1 =
+      new DefaultInputPort<ApexStreamTuple<WindowedValue<Iterable<?>>>>() {
     @Override
-    public void process(ApexStreamTuple<WindowedValue<Iterable<?>>> t)
-    {
+    public void process(ApexStreamTuple<WindowedValue<Iterable<?>>> t) {
       if (t instanceof ApexStreamTuple.WatermarkTuple) {
         // ignore side input watermarks
         return;
@@ -168,7 +167,7 @@ private transient StateInternals<Void> sideInputStateInternals = InMemoryStateIn
 
       int sideInputIndex = 0;
       if (t instanceof ApexStreamTuple.DataTuple) {
-        sideInputIndex = ((ApexStreamTuple.DataTuple<?>)t).getUnionTag();
+        sideInputIndex = ((ApexStreamTuple.DataTuple<?>) t).getUnionTag();
       }
 
       if (traceTuples) {
@@ -196,25 +195,30 @@ private transient StateInternals<Void> sideInputStateInternals = InMemoryStateIn
     }
   };
 
-  @OutputPortFieldAnnotation(optional=true)
+  @OutputPortFieldAnnotation(optional = true)
   public final transient DefaultOutputPort<ApexStreamTuple<?>> output = new DefaultOutputPort<>();
 
-  @OutputPortFieldAnnotation(optional=true)
-  public final transient DefaultOutputPort<ApexStreamTuple<?>> sideOutput1 = new DefaultOutputPort<>();
-  @OutputPortFieldAnnotation(optional=true)
-  public final transient DefaultOutputPort<ApexStreamTuple<?>> sideOutput2 = new DefaultOutputPort<>();
-  @OutputPortFieldAnnotation(optional=true)
-  public final transient DefaultOutputPort<ApexStreamTuple<?>> sideOutput3 = new DefaultOutputPort<>();
-  @OutputPortFieldAnnotation(optional=true)
-  public final transient DefaultOutputPort<ApexStreamTuple<?>> sideOutput4 = new DefaultOutputPort<>();
-  @OutputPortFieldAnnotation(optional=true)
-  public final transient DefaultOutputPort<ApexStreamTuple<?>> sideOutput5 = new DefaultOutputPort<>();
+  @OutputPortFieldAnnotation(optional = true)
+  public final transient DefaultOutputPort<ApexStreamTuple<?>> sideOutput1 =
+      new DefaultOutputPort<>();
+  @OutputPortFieldAnnotation(optional = true)
+  public final transient DefaultOutputPort<ApexStreamTuple<?>> sideOutput2 =
+      new DefaultOutputPort<>();
+  @OutputPortFieldAnnotation(optional = true)
+  public final transient DefaultOutputPort<ApexStreamTuple<?>> sideOutput3 =
+      new DefaultOutputPort<>();
+  @OutputPortFieldAnnotation(optional = true)
+  public final transient DefaultOutputPort<ApexStreamTuple<?>> sideOutput4 =
+      new DefaultOutputPort<>();
+  @OutputPortFieldAnnotation(optional = true)
+  public final transient DefaultOutputPort<ApexStreamTuple<?>> sideOutput5 =
+      new DefaultOutputPort<>();
 
-  public final transient DefaultOutputPort<?>[] sideOutputPorts = {sideOutput1, sideOutput2, sideOutput3, sideOutput4, sideOutput5};
+  public final transient DefaultOutputPort<?>[] sideOutputPorts = {sideOutput1, sideOutput2,
+      sideOutput3, sideOutput4, sideOutput5};
 
   @Override
-  public <T> void output(TupleTag<T> tag, WindowedValue<T> tuple)
-  {
+  public <T> void output(TupleTag<T> tag, WindowedValue<T> tuple) {
     DefaultOutputPort<ApexStreamTuple<?>> sideOutputPort = sideOutputPortMapping.get(tag);
     if (sideOutputPort != null) {
       sideOutputPort.emit(ApexStreamTuple.DataTuple.of(tuple));
@@ -229,19 +233,19 @@ private transient StateInternals<Void> sideInputStateInternals = InMemoryStateIn
   private Iterable<WindowedValue<InputT>> processElementInReadyWindows(WindowedValue<InputT> elem) {
     try {
       pushbackDoFnRunner.startBundle();
-      Iterable<WindowedValue<InputT>> pushedBack = pushbackDoFnRunner.processElementInReadyWindows(elem);
+      Iterable<WindowedValue<InputT>> pushedBack = pushbackDoFnRunner
+          .processElementInReadyWindows(elem);
       pushbackDoFnRunner.finishBundle();
       return pushedBack;
     } catch (UserCodeException ue) {
       if (ue.getCause() instanceof AssertionError) {
-        ApexRunner.assertionError = (AssertionError)ue.getCause();
+        ApexRunner.assertionError = (AssertionError) ue.getCause();
       }
       throw ue;
     }
   }
 
-  private void processWatermark(ApexStreamTuple.WatermarkTuple<?> mark)
-  {
+  private void processWatermark(ApexStreamTuple.WatermarkTuple<?> mark) {
     this.currentInputWatermark = mark.getTimestamp();
 
     if (sideInputs.isEmpty()) {
@@ -264,8 +268,7 @@ private transient StateInternals<Void> sideInputStateInternals = InMemoryStateIn
   }
 
   @Override
-  public void setup(OperatorContext context)
-  {
+  public void setup(OperatorContext context) {
     this.traceTuples = ApexStreamTuple.Logging.isDebugEnabled(pipelineOptions.get(), this);
     SideInputReader sideInputReader = NullSideInputReader.of(sideInputs);
     if (!sideInputs.isEmpty()) {
@@ -273,9 +276,10 @@ private transient StateInternals<Void> sideInputStateInternals = InMemoryStateIn
       sideInputReader = sideInputHandler;
     }
 
-    for (int i=0; i < sideOutputTags.size(); i++) {
+    for (int i = 0; i < sideOutputTags.size(); i++) {
       @SuppressWarnings("unchecked")
-      DefaultOutputPort<ApexStreamTuple<?>> port = (DefaultOutputPort<ApexStreamTuple<?>>)sideOutputPorts[i];
+      DefaultOutputPort<ApexStreamTuple<?>> port = (DefaultOutputPort<ApexStreamTuple<?>>)
+          sideOutputPorts[i];
       sideOutputPortMapping.put(sideOutputTags.get(i), port);
     }
 
@@ -297,25 +301,18 @@ private transient StateInternals<Void> sideInputStateInternals = InMemoryStateIn
     try {
       doFn.setup();
     } catch (Exception e) {
-      Throwables.propagate(e);
+      Throwables.propagateIfPossible(e);
+      throw new RuntimeException(e);
     }
 
   }
 
   @Override
-  public void beginWindow(long windowId)
-  {
-    /*
-    Collection<Aggregator<?, ?>> aggregators = AggregatorRetriever.getAggregators(doFn);
-    if (!aggregators.isEmpty()) {
-      System.out.println("\n" + Thread.currentThread().getName() + "\n" +AggregatorRetriever.getAggregators(doFn) + "\n");
-    }
-    */
+  public void beginWindow(long windowId) {
   }
 
   @Override
-  public void endWindow()
-  {
+  public void endWindow() {
   }
 
   /**
@@ -334,32 +331,27 @@ private transient StateInternals<Void> sideInputStateInternals = InMemoryStateIn
       return new NoOpAggregator<InputT, OutputT>();
     }
 
-    private static class NoOpAggregator<InputT, OutputT> implements Aggregator<InputT, OutputT>, java.io.Serializable
-    {
+    private static class NoOpAggregator<InputT, OutputT> implements Aggregator<InputT, OutputT>,
+        java.io.Serializable {
       private static final long serialVersionUID = 1L;
 
       @Override
-      public void addValue(InputT value)
-      {
+      public void addValue(InputT value) {
       }
 
       @Override
-      public String getName()
-      {
+      public String getName() {
         // TODO Auto-generated method stub
         return null;
       }
 
       @Override
-      public CombineFn<InputT, ?, OutputT> getCombineFn()
-      {
+      public CombineFn<InputT, ?, OutputT> getCombineFn() {
         // TODO Auto-generated method stub
         return null;
       }
 
     };
-
-
   }
 
   private static class LongMin {

@@ -21,6 +21,11 @@ package org.apache.beam.runners.apex.translators;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
+import com.datatorrent.api.DAG;
+import com.datatorrent.lib.util.KryoCloneUtils;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
+
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
@@ -56,11 +61,6 @@ import org.junit.runners.JUnit4;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.datatorrent.api.DAG;
-import com.datatorrent.lib.util.KryoCloneUtils;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Sets;
-
 /**
  * integration test for {@link ParDoBoundTranslator}.
  */
@@ -83,7 +83,7 @@ public class ParDoBoundTranslatorTest {
         .apply(ParDo.of(new Add(5)))
         .apply(ParDo.of(new EmbeddedCollector()));
 
-    ApexRunnerResult result = (ApexRunnerResult)p.run();
+    ApexRunnerResult result = (ApexRunnerResult) p.run();
     DAG dag = result.getApexDAG();
 
     DAG.OperatorMeta om = dag.getOperatorMeta("Create.Values");
@@ -96,13 +96,13 @@ public class ParDoBoundTranslatorTest {
 
     long timeout = System.currentTimeMillis() + 30000;
     while (System.currentTimeMillis() < timeout) {
-      if (EmbeddedCollector.results.containsAll(expected)) {
+      if (EmbeddedCollector.RESULTS.containsAll(expected)) {
         break;
       }
       LOG.info("Waiting for expected results.");
       Thread.sleep(1000);
     }
-    Assert.assertEquals(Sets.newHashSet(expected), EmbeddedCollector.results);
+    Assert.assertEquals(Sets.newHashSet(expected), EmbeddedCollector.RESULTS);
   }
 
   @SuppressWarnings("serial")
@@ -121,14 +121,14 @@ public class ParDoBoundTranslatorTest {
 
   @SuppressWarnings("serial")
   private static class EmbeddedCollector extends OldDoFn<Object, Void> {
-    protected static final HashSet<Object> results = new HashSet<>();
+    protected static final HashSet<Object> RESULTS = new HashSet<>();
 
     public EmbeddedCollector() {
     }
 
     @Override
     public void processElement(ProcessContext c) throws Exception {
-      results.add(c.element());
+      RESULTS.add(c.element());
     }
   }
 

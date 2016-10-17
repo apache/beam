@@ -18,11 +18,11 @@
 
 package org.apache.beam.runners.apex.translators;
 
+import com.datatorrent.api.InputOperator;
+
 import org.apache.beam.runners.apex.translators.io.ApexReadUnboundedInputOperator;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.io.UnboundedSource;
-
-import com.datatorrent.api.InputOperator;
 
 /**
  * {@link Read.Unbounded} is translated to Apex {@link InputOperator}

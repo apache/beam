@@ -18,6 +18,11 @@
 
 package org.apache.beam.runners.apex;
 
+import com.datatorrent.api.DAG;
+
+import java.util.HashMap;
+import java.util.Map;
+
 import org.apache.beam.runners.apex.ApexRunner.CreateApexPCollectionView;
 import org.apache.beam.runners.apex.translators.CreateValuesTranslator;
 import org.apache.beam.runners.apex.translators.FlattenPCollectionTranslator;
@@ -43,18 +48,13 @@ import org.apache.beam.sdk.values.PValue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.HashMap;
-import java.util.Map;
-
 /**
  * {@link ApexPipelineTranslator} translates {@link Pipeline} objects
  * into Apex logical plan {@link DAG}.
  */
 @SuppressWarnings({"rawtypes", "unchecked"})
 public class ApexPipelineTranslator implements Pipeline.PipelineVisitor {
-
-  private static final Logger LOG = LoggerFactory.getLogger(
-      ApexPipelineTranslator.class);
+  private static final Logger LOG = LoggerFactory.getLogger(ApexPipelineTranslator.class);
 
   /**
    * A map from {@link PTransform} subclass to the corresponding
@@ -75,8 +75,10 @@ public class ApexPipelineTranslator implements Pipeline.PipelineVisitor {
     registerTransformTranslator(Flatten.FlattenPCollectionList.class,
         new FlattenPCollectionTranslator());
     registerTransformTranslator(Create.Values.class, new CreateValuesTranslator());
-    registerTransformTranslator(CreateApexPCollectionView.class, new CreateApexPCollectionViewTranslator());
-    registerTransformTranslator(CreatePCollectionView.class, new CreatePCollectionViewTranslator());
+    registerTransformTranslator(CreateApexPCollectionView.class,
+        new CreateApexPCollectionViewTranslator());
+    registerTransformTranslator(CreatePCollectionView.class,
+        new CreatePCollectionViewTranslator());
   }
 
   public ApexPipelineTranslator(TranslationContext translationContext) {
@@ -134,7 +136,7 @@ public class ApexPipelineTranslator implements Pipeline.PipelineVisitor {
    * Returns the {@link TransformTranslator} to use for instances of the
    * specified PTransform class, or null if none registered.
    */
-  private <TransformT extends PTransform<?,?>>
+  private <TransformT extends PTransform<?, ?>>
   TransformTranslator<TransformT> getTransformTranslator(Class<TransformT> transformClass) {
     return transformTranslators.get(transformClass);
   }
@@ -145,7 +147,8 @@ public class ApexPipelineTranslator implements Pipeline.PipelineVisitor {
     @Override
     public void translate(Read.Bounded<T> transform, TranslationContext context) {
       // TODO: adapter is visibleForTesting
-      BoundedToUnboundedSourceAdapter unboundedSource = new BoundedToUnboundedSourceAdapter<>(transform.getSource());
+      BoundedToUnboundedSourceAdapter unboundedSource = new BoundedToUnboundedSourceAdapter<>(
+          transform.getSource());
       ApexReadUnboundedInputOperator<T, ?> operator = new ApexReadUnboundedInputOperator<>(
           unboundedSource, context.getPipelineOptions());
       context.addOperator(operator, operator.output);
@@ -153,26 +156,26 @@ public class ApexPipelineTranslator implements Pipeline.PipelineVisitor {
 
   }
 
-  private static class CreateApexPCollectionViewTranslator<ElemT, ViewT> implements TransformTranslator<CreateApexPCollectionView<ElemT, ViewT>>
-  {
+  private static class CreateApexPCollectionViewTranslator<ElemT, ViewT>
+      implements TransformTranslator<CreateApexPCollectionView<ElemT, ViewT>> {
     private static final long serialVersionUID = 1L;
 
     @Override
-    public void translate(CreateApexPCollectionView<ElemT, ViewT> transform, TranslationContext context)
-    {
+    public void translate(CreateApexPCollectionView<ElemT, ViewT> transform,
+        TranslationContext context) {
       PCollectionView<ViewT> view = transform.getView();
       context.addView(view);
       LOG.debug("view {}", view.getName());
     }
   }
 
-  private static class CreatePCollectionViewTranslator<ElemT, ViewT> implements TransformTranslator<CreatePCollectionView<ElemT, ViewT>>
-  {
+  private static class CreatePCollectionViewTranslator<ElemT, ViewT>
+      implements TransformTranslator<CreatePCollectionView<ElemT, ViewT>> {
     private static final long serialVersionUID = 1L;
 
     @Override
-    public void translate(CreatePCollectionView<ElemT, ViewT> transform, TranslationContext context)
-    {
+    public void translate(CreatePCollectionView<ElemT, ViewT> transform,
+        TranslationContext context) {
       PCollectionView<ViewT> view = transform.getView();
       context.addView(view);
       LOG.debug("view {}", view.getName());

@@ -17,29 +17,31 @@
  */
 package org.apache.beam.runners.apex.translators.utils;
 
-import org.apache.beam.runners.apex.ApexPipelineOptions;
-import org.apache.beam.sdk.options.Default;
-import org.apache.beam.sdk.options.Description;
-import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.junit.BeforeClass;
-import org.junit.Test;
-
-import com.datatorrent.common.util.FSStorageAgent;
-import com.esotericsoftware.kryo.serializers.JavaSerializer;
-import com.esotericsoftware.kryo.serializers.FieldSerializer.Bind;
-
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 
+import com.datatorrent.common.util.FSStorageAgent;
+import com.esotericsoftware.kryo.serializers.FieldSerializer.Bind;
+import com.esotericsoftware.kryo.serializers.JavaSerializer;
+
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
+
+import org.apache.beam.runners.apex.ApexPipelineOptions;
+import org.apache.beam.sdk.options.Default;
+import org.apache.beam.sdk.options.Description;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.junit.BeforeClass;
+import org.junit.Test;
 
 /**
  * Tests the serialization of PipelineOptions.
  */
 public class PipelineOptionsTest {
 
+  /**
+   * Interface for testing.
+   */
   public interface MyOptions extends ApexPipelineOptions {
     @Description("Bla bla bla")
     @Default.String("Hello")
@@ -60,7 +62,7 @@ public class PipelineOptionsTest {
 
   private static MyOptions options;
 
-  private final static String[] args = new String[]{"--testOption=nothing"};
+  private static final String[] args = new String[]{"--testOption=nothing"};
 
   @BeforeClass
   public static void beforeTest() {
@@ -74,7 +76,7 @@ public class PipelineOptionsTest {
     FSStorageAgent.store(bos, wrapper);
 
     ByteArrayInputStream bis = new ByteArrayInputStream(bos.toByteArray());
-    MyOptionsWrapper wrapperCopy = (MyOptionsWrapper)FSStorageAgent.retrieve(bis);
+    MyOptionsWrapper wrapperCopy = (MyOptionsWrapper) FSStorageAgent.retrieve(bis);
     assertNotNull(wrapperCopy.options);
     assertEquals("nothing", wrapperCopy.options.get().as(MyOptions.class).getTestOption());
   }

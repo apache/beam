@@ -18,9 +18,22 @@
 
 package org.apache.beam.runners.apex.translators;
 
+import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
+
+import java.io.IOException;
+import java.io.Serializable;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.List;
+import java.util.NoSuchElementException;
+
+import javax.annotation.Nullable;
+
 import org.apache.beam.runners.apex.ApexPipelineOptions;
-import org.apache.beam.runners.apex.ApexRunnerResult;
 import org.apache.beam.runners.apex.ApexRunner;
+import org.apache.beam.runners.apex.ApexRunnerResult;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
@@ -35,28 +48,13 @@ import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.OutputTimeFns;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
-
-import com.datatorrent.api.DAG;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Sets;
-
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Assert;
 import org.junit.Test;
 
-import java.io.IOException;
-import java.io.Serializable;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.List;
-import java.util.NoSuchElementException;
-
-import javax.annotation.Nullable;
-
 /**
- * integration test for {@link GroupByKeyTranslator}.
+ * Integration test for {@link GroupByKeyTranslator}.
  */
 public class GroupByKeyTranslatorTest {
 
@@ -94,31 +92,30 @@ public class GroupByKeyTranslatorTest {
         .apply(ParDo.of(new EmbeddedCollector()))
         ;
 
-    ApexRunnerResult result = (ApexRunnerResult)p.run();
-    // TODO: verify translation
-    DAG dag = result.getApexDAG();
+    ApexRunnerResult result = (ApexRunnerResult) p.run();
+    result.getApexDAG();
 
     long timeout = System.currentTimeMillis() + 30000;
     while (System.currentTimeMillis() < timeout) {
-      if (EmbeddedCollector.results.containsAll(expected)) {
+      if (EmbeddedCollector.RESULTS.containsAll(expected)) {
         break;
       }
       Thread.sleep(1000);
     }
-    Assert.assertEquals(Sets.newHashSet(expected), EmbeddedCollector.results);
+    Assert.assertEquals(Sets.newHashSet(expected), EmbeddedCollector.RESULTS);
 
   }
 
   @SuppressWarnings("serial")
   private static class EmbeddedCollector extends OldDoFn<Object, Void> {
-    protected static final HashSet<Object> results = new HashSet<>();
+    protected static final HashSet<Object> RESULTS = new HashSet<>();
 
     public EmbeddedCollector() {
     }
 
     @Override
     public void processElement(ProcessContext c) throws Exception {
-      results.add(c.element());
+      RESULTS.add(c.element());
     }
   }
 

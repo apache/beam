@@ -17,6 +17,8 @@
  */
 package org.apache.beam.runners.apex.translators.utils;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 import java.io.Externalizable;
 import java.io.IOException;
 import java.io.ObjectInput;
@@ -25,37 +27,34 @@ import java.io.ObjectOutput;
 import org.apache.beam.runners.apex.ApexPipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-
 /**
- * A wrapper to enable serialization of {@link PipelineOptions} 
+ * A wrapper to enable serialization of {@link PipelineOptions}.
  */
 public class SerializablePipelineOptions implements Externalizable {
 
   private transient ApexPipelineOptions pipelineOptions;
-  
+
   public SerializablePipelineOptions(ApexPipelineOptions pipelineOptions) {
     this.pipelineOptions = pipelineOptions;
   }
 
   public SerializablePipelineOptions() {
   }
-  
+
   public ApexPipelineOptions get() {
     return this.pipelineOptions;
   }
-  
+
   @Override
-  public void writeExternal(ObjectOutput out) throws IOException
-  {
+  public void writeExternal(ObjectOutput out) throws IOException {
     out.writeUTF(new ObjectMapper().writeValueAsString(pipelineOptions));
   }
 
   @Override
-  public void readExternal(ObjectInput in) throws IOException, ClassNotFoundException
-  {
+  public void readExternal(ObjectInput in) throws IOException, ClassNotFoundException {
     String s = in.readUTF();
-    this.pipelineOptions = new ObjectMapper().readValue(s, PipelineOptions.class).as(ApexPipelineOptions.class);
+    this.pipelineOptions = new ObjectMapper().readValue(s, PipelineOptions.class)
+        .as(ApexPipelineOptions.class);
   }
 
 }

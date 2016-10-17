@@ -19,6 +19,17 @@ package org.apache.beam.runners.apex.translators;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
+import com.datatorrent.api.Context.PortContext;
+import com.datatorrent.api.DAG;
+import com.datatorrent.api.Operator;
+import com.datatorrent.api.Operator.InputPort;
+import com.datatorrent.api.Operator.OutputPort;
+
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
 import org.apache.beam.runners.apex.ApexPipelineOptions;
 import org.apache.beam.runners.apex.translators.utils.ApexStreamTuple;
 import org.apache.beam.runners.apex.translators.utils.CoderAdapterStreamCodec;
@@ -33,17 +44,6 @@ import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
-
-import com.datatorrent.api.DAG;
-import com.datatorrent.api.Operator;
-import com.datatorrent.api.Context.PortContext;
-import com.datatorrent.api.Operator.InputPort;
-import com.datatorrent.api.Operator.OutputPort;
-
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
 
 /**
  * Maintains context data for {@link TransformTranslator}s.
@@ -64,7 +64,7 @@ public class TranslationContext {
   public <InputT extends PInput> InputT getViewInput(PCollectionView<?> view) {
     PInput input = this.viewInputs.get(view);
     checkArgument(input != null, "unknown view " + view.getName());
-    return (InputT)input;
+    return (InputT) input;
   }
 
   public TranslationContext(ApexPipelineOptions pipelineOptions) {
@@ -109,13 +109,14 @@ public class TranslationContext {
         addOperator(operator, portEntry.getValue(), portEntry.getKey());
         first = false;
       } else {
-        this.streams.put(portEntry.getKey(), (Pair)new ImmutablePair<>(portEntry.getValue(), new ArrayList<>()));
+        this.streams.put(portEntry.getKey(), (Pair) new ImmutablePair<>(portEntry.getValue(),
+            new ArrayList<>()));
       }
     }
   }
 
   /**
-   * Add intermediate operator for the current transformation.
+   * Add the operator with its output port for the given result {link PCollection}.
    * @param operator
    * @param port
    * @param output
@@ -124,9 +125,11 @@ public class TranslationContext {
     // Apex DAG requires a unique operator name
     // use the transform's name and make it unique
     String name = getCurrentTransform().getFullName();
-    for (int i=1; this.operators.containsKey(name); name = getCurrentTransform().getFullName() + i++);
+    for (int i = 1; this.operators.containsKey(name); i++) {
+      name = getCurrentTransform().getFullName() + i;
+    }
     this.operators.put(name, operator);
-    this.streams.put(output, (Pair)new ImmutablePair<>(port, new ArrayList<>()));
+    this.streams.put(output, (Pair) new ImmutablePair<>(port, new ArrayList<>()));
   }
 
   public void addStream(PInput input, InputPort inputPort) {
@@ -140,11 +143,12 @@ public class TranslationContext {
       dag.addOperator(nameAndOperator.getKey(), nameAndOperator.getValue());
     }
     int streamIndex = 0;
-    for (Map.Entry<PCollection, Pair<OutputPort<?>, List<InputPort<?>>>> streamEntry : this.streams.entrySet()) {
+    for (Map.Entry<PCollection, Pair<OutputPort<?>, List<InputPort<?>>>> streamEntry : this.
+        streams.entrySet()) {
       List<InputPort<?>> sinksList = streamEntry.getValue().getRight();
       InputPort[] sinks = sinksList.toArray(new InputPort[sinksList.size()]);
       if (sinks.length > 0) {
-        dag.addStream("stream"+streamIndex++, streamEntry.getValue().getLeft(), sinks);
+        dag.addStream("stream" + streamIndex++, streamEntry.getValue().getLeft(), sinks);
         for (InputPort port : sinks) {
           PCollection pc = streamEntry.getKey();
           Coder coder = pc.getCoder();

@@ -16,16 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.beam.runners.apex.translators;
-
-
-import java.io.Serializable;
-
-import org.apache.beam.sdk.transforms.PTransform;
-
 /**
- * Translates {@link PTransform} to Apex functions.
+ * Implementation of the Beam runner for Apache Apex.
  */
-public interface TransformTranslator<T extends PTransform<?, ?>> extends Serializable {
-  void translate(T transform, TranslationContext context);
-}
+package org.apache.beam.runners.apex.translators;

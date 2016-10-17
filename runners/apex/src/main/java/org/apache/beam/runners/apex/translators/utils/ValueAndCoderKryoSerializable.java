@@ -17,26 +17,24 @@
  */
 package org.apache.beam.runners.apex.translators.utils;
 
-import java.io.IOException;
-
-import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.coders.Coder.Context;
-
 import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.KryoSerializable;
 import com.esotericsoftware.kryo.io.Input;
 import com.esotericsoftware.kryo.io.Output;
 import com.esotericsoftware.kryo.serializers.JavaSerializer;
-import com.google.common.base.Throwables;
+
+import java.io.IOException;
+
+import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.Coder.Context;
 
 
 /**
  * A {@link KryoSerializable} holder that uses the specified {@link Coder}.
  * @param <T>
  */
-public class ValueAndCoderKryoSerializable<T> implements KryoSerializable
-{
-  private static JavaSerializer JAVA_SERIALIZER = new JavaSerializer();
+public class ValueAndCoderKryoSerializable<T> implements KryoSerializable {
+  private static final JavaSerializer JAVA_SERIALIZER = new JavaSerializer();
   private T value;
   private Coder<T> coder;
 
@@ -54,27 +52,25 @@ public class ValueAndCoderKryoSerializable<T> implements KryoSerializable
   }
 
   @Override
-  public void write(Kryo kryo, Output output)
-  {
+  public void write(Kryo kryo, Output output) {
     try {
       kryo.writeClass(output, coder.getClass());
       kryo.writeObject(output, coder, JAVA_SERIALIZER);
       coder.encode(value, output, Context.OUTER);
     } catch (IOException e) {
-      Throwables.propagate(e);
+      throw new RuntimeException(e);
     }
   }
 
   @Override
-  public void read(Kryo kryo, Input input)
-  {
+  public void read(Kryo kryo, Input input) {
     try {
       @SuppressWarnings("unchecked")
       Class<Coder<T>> type = kryo.readClass(input).getType();
       coder = kryo.readObject(input, type, JAVA_SERIALIZER);
       value = coder.decode(input, Context.OUTER);
     } catch (IOException e) {
-      Throwables.propagate(e);
+      throw new RuntimeException(e);
     }
   }
 

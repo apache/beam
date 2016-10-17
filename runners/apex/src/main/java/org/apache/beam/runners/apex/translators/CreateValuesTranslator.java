@@ -25,12 +25,10 @@ import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.values.PBegin;
 
-import com.google.common.base.Throwables;
-
 
 /**
  * Wraps elements from Create.Values into an {@link UnboundedSource}.
- * mainly used for test
+ * mainly used for testing
  */
 public class CreateValuesTranslator<T> implements TransformTranslator<Create.Values<T>> {
   private static final long serialVersionUID = 1451000241832745629L;
@@ -39,12 +37,12 @@ public class CreateValuesTranslator<T> implements TransformTranslator<Create.Val
   public void translate(Create.Values<T> transform, TranslationContext context) {
     try {
       UnboundedSource<T, ?> unboundedSource = new ValuesSource<>(transform.getElements(),
-          transform.getDefaultOutputCoder((PBegin)context.getInput()));
-      ApexReadUnboundedInputOperator<T, ?> operator = new ApexReadUnboundedInputOperator<>(unboundedSource,
-          context.getPipelineOptions());
+          transform.getDefaultOutputCoder((PBegin) context.getInput()));
+      ApexReadUnboundedInputOperator<T, ?> operator = new ApexReadUnboundedInputOperator<>(
+          unboundedSource, context.getPipelineOptions());
       context.addOperator(operator, operator.output);
     } catch (CannotProvideCoderException e) {
-      Throwables.propagate(e);
+      throw new RuntimeException(e);
     }
   }
 }

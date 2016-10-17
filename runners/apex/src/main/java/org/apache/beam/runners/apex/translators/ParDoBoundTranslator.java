@@ -33,7 +33,7 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 
 /**
- * {@link ParDo.Bound} is translated to Apex operator that wraps the {@link DoFn}
+ * {@link ParDo.Bound} is translated to {link ApexParDoOperator} that wraps the {@link DoFn}.
  */
 public class ParDoBoundTranslator<InputT, OutputT> implements
     TransformTranslator<ParDo.Bound<InputT, OutputT>> {
@@ -49,7 +49,8 @@ public class ParDoBoundTranslator<InputT, OutputT> implements
     WindowedValueCoder<InputT> wvInputCoder = FullWindowedValueCoder.of(inputCoder,
         input.getWindowingStrategy().getWindowFn().windowCoder());
 
-    ApexParDoOperator<InputT, OutputT> operator = new ApexParDoOperator<>(context.getPipelineOptions(),
+    ApexParDoOperator<InputT, OutputT> operator = new ApexParDoOperator<>(
+        context.getPipelineOptions(),
         doFn, new TupleTag<OutputT>(), TupleTagList.empty().getAll() /*sideOutputTags*/,
         output.getWindowingStrategy(), sideInputs, wvInputCoder);
     context.addOperator(operator, operator.output);

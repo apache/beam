@@ -18,9 +18,16 @@
 
 package org.apache.beam.runners.apex.translators;
 
+import com.google.common.collect.Sets;
+
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Set;
+
 import org.apache.beam.runners.apex.ApexPipelineOptions;
-import org.apache.beam.runners.apex.ApexRunnerResult;
 import org.apache.beam.runners.apex.ApexRunner;
+import org.apache.beam.runners.apex.ApexRunnerResult;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -30,21 +37,13 @@ import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
-
-import com.google.common.collect.Sets;
-
 import org.junit.Assert;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Set;
-
 /**
- * integration test for {@link FlattenPCollectionTranslator}.
+ * Integration test for {@link FlattenPCollectionTranslator}.
  */
 public class FlattenPCollectionTranslatorTest {
   private static final Logger LOG = LoggerFactory.getLogger(FlattenPCollectionTranslatorTest.class);
@@ -70,29 +69,30 @@ public class FlattenPCollectionTranslatorTest {
     PCollection<String> actual = PCollectionList.of(pcList).apply(Flatten.<String>pCollections());
     actual.apply(ParDo.of(new EmbeddedCollector()));
 
-    ApexRunnerResult result = (ApexRunnerResult)p.run();
+    ApexRunnerResult result = (ApexRunnerResult) p.run();
     // TODO: verify translation
     result.getApexDAG();
     long timeout = System.currentTimeMillis() + 30000;
-    while (System.currentTimeMillis() < timeout && EmbeddedCollector.results.size() < expected.size()) {
+    while (System.currentTimeMillis() < timeout
+        && EmbeddedCollector.RESULTS.size() < expected.size()) {
       LOG.info("Waiting for expected results.");
       Thread.sleep(500);
     }
 
-    Assert.assertEquals("number results", expected.size(), EmbeddedCollector.results.size());
-    Assert.assertEquals(expected, Sets.newHashSet(EmbeddedCollector.results));
+    Assert.assertEquals("number results", expected.size(), EmbeddedCollector.RESULTS.size());
+    Assert.assertEquals(expected, Sets.newHashSet(EmbeddedCollector.RESULTS));
   }
 
   @SuppressWarnings("serial")
   private static class EmbeddedCollector extends OldDoFn<Object, Void> {
-    protected static final ArrayList<Object> results = new ArrayList<>();
+    protected static final ArrayList<Object> RESULTS = new ArrayList<>();
 
     public EmbeddedCollector() {
     }
 
     @Override
     public void processElement(ProcessContext c) throws Exception {
-      results.add(c.element());
+      RESULTS.add(c.element());
     }
   }
 

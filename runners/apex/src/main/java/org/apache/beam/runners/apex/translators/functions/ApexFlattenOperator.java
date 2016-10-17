@@ -17,23 +17,22 @@
  */
 package org.apache.beam.runners.apex.translators.functions;
 
-import org.apache.beam.runners.apex.translators.utils.ApexStreamTuple;
-import org.apache.beam.runners.apex.translators.utils.ApexStreamTuple.WatermarkTuple;
-import org.apache.beam.sdk.transforms.Flatten;
-import org.apache.beam.sdk.util.WindowedValue;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.datatorrent.api.DefaultInputPort;
 import com.datatorrent.api.DefaultOutputPort;
 import com.datatorrent.api.annotation.OutputPortFieldAnnotation;
 import com.datatorrent.common.util.BaseOperator;
 
+import org.apache.beam.runners.apex.translators.utils.ApexStreamTuple;
+import org.apache.beam.runners.apex.translators.utils.ApexStreamTuple.WatermarkTuple;
+import org.apache.beam.sdk.util.WindowedValue;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 /**
  * Apex operator for Beam {@link Flatten.FlattenPCollectionList}.
  */
-public class ApexFlattenOperator<InputT> extends BaseOperator
-{
+public class ApexFlattenOperator<InputT> extends BaseOperator {
+
   private static final Logger LOG = LoggerFactory.getLogger(ApexFlattenOperator.class);
   private boolean traceTuples = true;
 
@@ -47,16 +46,15 @@ public class ApexFlattenOperator<InputT> extends BaseOperator
   /**
    * Data input port 1.
    */
-  public final transient DefaultInputPort<ApexStreamTuple<WindowedValue<InputT>>> data1 = new DefaultInputPort<ApexStreamTuple<WindowedValue<InputT>>>()
-  {
+  public final transient DefaultInputPort<ApexStreamTuple<WindowedValue<InputT>>> data1 =
+      new DefaultInputPort<ApexStreamTuple<WindowedValue<InputT>>>() {
     /**
      * Emits to port "out"
      */
     @Override
-    public void process(ApexStreamTuple<WindowedValue<InputT>> tuple)
-    {
+    public void process(ApexStreamTuple<WindowedValue<InputT>> tuple) {
       if (tuple instanceof WatermarkTuple) {
-        WatermarkTuple<?> wmTuple = (WatermarkTuple<?>)tuple;
+        WatermarkTuple<?> wmTuple = (WatermarkTuple<?>) tuple;
         if (wmTuple.getTimestamp() > inputWM1) {
           inputWM1 = wmTuple.getTimestamp();
           if (inputWM1 <= inputWM2) {
@@ -75,7 +73,7 @@ public class ApexFlattenOperator<InputT> extends BaseOperator
       }
 
       if (data1Tag > 0 && tuple instanceof ApexStreamTuple.DataTuple) {
-        ((ApexStreamTuple.DataTuple<?>)tuple).setUnionTag(data1Tag);
+        ((ApexStreamTuple.DataTuple<?>) tuple).setUnionTag(data1Tag);
       }
       out.emit(tuple);
     }
@@ -84,16 +82,15 @@ public class ApexFlattenOperator<InputT> extends BaseOperator
   /**
    * Data input port 2.
    */
-  public final transient DefaultInputPort<ApexStreamTuple<WindowedValue<InputT>>> data2 = new DefaultInputPort<ApexStreamTuple<WindowedValue<InputT>>>()
-  {
+  public final transient DefaultInputPort<ApexStreamTuple<WindowedValue<InputT>>> data2 =
+      new DefaultInputPort<ApexStreamTuple<WindowedValue<InputT>>>() {
     /**
      * Emits to port "out"
      */
     @Override
-    public void process(ApexStreamTuple<WindowedValue<InputT>> tuple)
-    {
+    public void process(ApexStreamTuple<WindowedValue<InputT>> tuple) {
       if (tuple instanceof WatermarkTuple) {
-        WatermarkTuple<?> wmTuple = (WatermarkTuple<?>)tuple;
+        WatermarkTuple<?> wmTuple = (WatermarkTuple<?>) tuple;
         if (wmTuple.getTimestamp() > inputWM2) {
           inputWM2 = wmTuple.getTimestamp();
           if (inputWM2 <= inputWM1) {
@@ -112,7 +109,7 @@ public class ApexFlattenOperator<InputT> extends BaseOperator
       }
 
       if (data2Tag > 0 && tuple instanceof ApexStreamTuple.DataTuple) {
-        ((ApexStreamTuple.DataTuple<?>)tuple).setUnionTag(data2Tag);
+        ((ApexStreamTuple.DataTuple<?>) tuple).setUnionTag(data2Tag);
       }
       out.emit(tuple);
     }
@@ -121,6 +118,7 @@ public class ApexFlattenOperator<InputT> extends BaseOperator
   /**
    * Output port.
    */
-  @OutputPortFieldAnnotation(optional=true)
-  public final transient DefaultOutputPort<ApexStreamTuple<WindowedValue<InputT>>> out = new DefaultOutputPort<ApexStreamTuple<WindowedValue<InputT>>>();
+  @OutputPortFieldAnnotation(optional = true)
+  public final transient DefaultOutputPort<ApexStreamTuple<WindowedValue<InputT>>> out =
+    new DefaultOutputPort<ApexStreamTuple<WindowedValue<InputT>>>();
 }

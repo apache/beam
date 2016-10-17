@@ -19,6 +19,8 @@ package org.apache.beam.runners.apex.translators.utils;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
+import com.datatorrent.api.Operator;
+
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
@@ -32,24 +34,25 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.StandardCoder;
 
-import com.datatorrent.api.Operator;
-
-public interface ApexStreamTuple<T>
-{
+/**
+ * The common interface for all objects transmitted through streams.
+ *
+ * @param <T> The actual payload type.
+ */
+public interface ApexStreamTuple<T> {
   /**
-   * Gets the value of the tuple
+   * Gets the value of the tuple.
    *
    * @return
    */
   T getValue();
 
   /**
-   * Plain tuple class
+   * Data tuple class.
    *
    * @param <T>
    */
-  class DataTuple<T> implements ApexStreamTuple<T>
-  {
+  class DataTuple<T> implements ApexStreamTuple<T> {
     private int unionTag;
     private T value;
 
@@ -57,86 +60,73 @@ public interface ApexStreamTuple<T>
       return new DataTuple<>(value, 0);
     }
 
-    private DataTuple(T value, int unionTag)
-    {
+    private DataTuple(T value, int unionTag) {
       this.value = value;
       this.unionTag = unionTag;
     }
 
     @Override
-    public T getValue()
-    {
+    public T getValue() {
       return value;
     }
 
-    public void setValue(T value)
-    {
+    public void setValue(T value) {
       this.value = value;
     }
 
-    public int getUnionTag()
-    {
+    public int getUnionTag() {
       return unionTag;
     }
 
-    public void setUnionTag(int unionTag)
-    {
+    public void setUnionTag(int unionTag) {
       this.unionTag = unionTag;
     }
 
     @Override
-    public String toString()
-    {
+    public String toString() {
       return value.toString();
     }
 
   }
 
   /**
-   * Tuple that includes a timestamp
+   * Tuple that includes a timestamp.
    *
    * @param <T>
    */
-  class TimestampedTuple<T> extends DataTuple<T>
-  {
+  class TimestampedTuple<T> extends DataTuple<T> {
     private long timestamp;
 
-    public TimestampedTuple(long timestamp, T value)
-    {
+    public TimestampedTuple(long timestamp, T value) {
       super(value, 0);
       this.timestamp = timestamp;
     }
 
-    public long getTimestamp()
-    {
+    public long getTimestamp() {
       return timestamp;
     }
 
-    public void setTimestamp(long timestamp)
-    {
+    public void setTimestamp(long timestamp) {
       this.timestamp = timestamp;
     }
   }
 
   /**
-   * Tuple that represents a watermark
+   * Tuple that represents a watermark.
    *
    * @param <T>
    */
-  class WatermarkTuple<T> extends TimestampedTuple<T>
-  {
+  class WatermarkTuple<T> extends TimestampedTuple<T> {
     public static <T> WatermarkTuple<T> of(long timestamp) {
       return new WatermarkTuple<>(timestamp);
     }
 
-    protected WatermarkTuple(long timestamp)
-    {
+    protected WatermarkTuple(long timestamp) {
       super(timestamp, null);
     }
 
     @Override
-    public String toString()
-    {
+    public String toString() {
       return "[Watermark " + getTimestamp() + "]";
     }
   }
@@ -161,18 +151,17 @@ public interface ApexStreamTuple<T>
         throws CoderException, IOException {
       if (value instanceof WatermarkTuple) {
         outStream.write(1);
-        new DataOutputStream(outStream).writeLong(((WatermarkTuple<?>)value).getTimestamp());
+        new DataOutputStream(outStream).writeLong(((WatermarkTuple<?>) value).getTimestamp());
       } else {
         outStream.write(0);
-        outStream.write(((DataTuple<?>)value).unionTag);
+        outStream.write(((DataTuple<?>) value).unionTag);
         valueCoder.encode(value.getValue(), outStream, context);
       }
     }
 
     @Override
     public ApexStreamTuple<T> decode(InputStream inStream, Context context)
-        throws CoderException, IOException
-    {
+        throws CoderException, IOException {
       int b = inStream.read();
       if (b == 1) {
         return new WatermarkTuple<T>(new DataInputStream(inStream).readLong());
@@ -183,14 +172,12 @@ public interface ApexStreamTuple<T>
     }
 
     @Override
-    public List<? extends Coder<?>> getCoderArguments()
-    {
+    public List<? extends Coder<?>> getCoderArguments() {
       return Arrays.<Coder<?>>asList(valueCoder);
     }
 
     @Override
-    public void verifyDeterministic() throws NonDeterministicException
-    {
+    public void verifyDeterministic() throws NonDeterministicException {
       verifyDeterministic(
           this.getClass().getSimpleName() + " requires a deterministic valueCoder",
           valueCoder);
@@ -205,10 +192,12 @@ public interface ApexStreamTuple<T>
 
   }
 
-  final class Logging
-  {
-    public static boolean isDebugEnabled(ApexPipelineOptions options, Operator operator)
-    {
+  /**
+   * Central if data tuples received on and emitted from ports should be logged.
+   * Should be called in setup and value cached in operator.
+   */
+  final class Logging {
+    public static boolean isDebugEnabled(ApexPipelineOptions options, Operator operator) {
       return options.isTupleTracingEnabled();
     }
   }

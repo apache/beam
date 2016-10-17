@@ -18,6 +18,17 @@
 
 package org.apache.beam.runners.apex.translators.io;
 
+import com.datatorrent.api.Context.OperatorContext;
+import com.datatorrent.api.DefaultOutputPort;
+import com.datatorrent.api.InputOperator;
+import com.datatorrent.api.annotation.OutputPortFieldAnnotation;
+import com.datatorrent.common.util.BaseOperator;
+import com.esotericsoftware.kryo.serializers.FieldSerializer.Bind;
+import com.esotericsoftware.kryo.serializers.JavaSerializer;
+import com.google.common.base.Throwables;
+
+import java.io.IOException;
+
 import org.apache.beam.runners.apex.ApexPipelineOptions;
 import org.apache.beam.runners.apex.translators.utils.ApexStreamTuple;
 import org.apache.beam.runners.apex.translators.utils.ApexStreamTuple.DataTuple;
@@ -26,27 +37,15 @@ import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.WindowedValue;
-
 import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.datatorrent.api.Context.OperatorContext;
-import com.datatorrent.api.annotation.OutputPortFieldAnnotation;
-import com.google.common.base.Throwables;
-import com.datatorrent.api.DefaultOutputPort;
-import com.datatorrent.api.InputOperator;
-import com.datatorrent.common.util.BaseOperator;
-import com.esotericsoftware.kryo.serializers.FieldSerializer.Bind;
-import com.esotericsoftware.kryo.serializers.JavaSerializer;
-
-import java.io.IOException;
-
 /**
  * Apex input operator that wraps Beam {@link UnboundedSource}.
  */
-public class ApexReadUnboundedInputOperator<OutputT, CheckpointMarkT extends UnboundedSource.CheckpointMark>
-    implements InputOperator {
+public class ApexReadUnboundedInputOperator<OutputT, CheckpointMarkT
+    extends UnboundedSource.CheckpointMark> implements InputOperator {
   private static final Logger LOG = LoggerFactory.getLogger(
       ApexReadUnboundedInputOperator.class);
   private boolean traceTuples = false;
@@ -58,10 +57,12 @@ public class ApexReadUnboundedInputOperator<OutputT, CheckpointMarkT extends Unb
   private final UnboundedSource<OutputT, CheckpointMarkT> source;
   private transient UnboundedSource.UnboundedReader<OutputT> reader;
   private transient boolean available = false;
-  @OutputPortFieldAnnotation(optional=true)
-  public final transient DefaultOutputPort<ApexStreamTuple<WindowedValue<OutputT>>> output = new DefaultOutputPort<>();
+  @OutputPortFieldAnnotation(optional = true)
+  public final transient DefaultOutputPort<ApexStreamTuple<WindowedValue<OutputT>>> output =
+      new DefaultOutputPort<>();
 
-  public ApexReadUnboundedInputOperator(UnboundedSource<OutputT, CheckpointMarkT> source, ApexPipelineOptions options) {
+  public ApexReadUnboundedInputOperator(UnboundedSource<OutputT, CheckpointMarkT> source,
+      ApexPipelineOptions options) {
     this.pipelineOptions = new SerializablePipelineOptions(options);
     this.source = source;
   }
@@ -72,8 +73,7 @@ public class ApexReadUnboundedInputOperator<OutputT, CheckpointMarkT extends Unb
   }
 
   @Override
-  public void beginWindow(long windowId)
-  {
+  public void beginWindow(long windowId) {
     if (!available && source instanceof ValuesSource) {
       // if it's a Create and the input was consumed, emit final watermark
       emitWatermarkIfNecessary(GlobalWindow.TIMESTAMP_MAX_VALUE.getMillis());
@@ -95,37 +95,33 @@ public class ApexReadUnboundedInputOperator<OutputT, CheckpointMarkT extends Unb
   }
 
   @Override
-  public void endWindow()
-  {
+  public void endWindow() {
   }
 
   @Override
-  public void setup(OperatorContext context)
-  {
+  public void setup(OperatorContext context) {
     this.traceTuples = ApexStreamTuple.Logging.isDebugEnabled(pipelineOptions.get(), this);
     try {
       reader = source.createReader(this.pipelineOptions.get(), null);
       available = reader.start();
     } catch (IOException e) {
-      Throwables.propagate(e);
+      throw new RuntimeException(e);
     }
   }
 
   @Override
-  public void teardown()
-  {
+  public void teardown() {
     try {
       if (reader != null) {
         reader.close();
       }
     } catch (IOException e) {
-      Throwables.propagate(e);
+      throw new RuntimeException(e);
     }
   }
 
   @Override
-  public void emitTuples()
-  {
+  public void emitTuples() {
     try {
       if (!available) {
         available = reader.advance();
@@ -141,7 +137,8 @@ public class ApexReadUnboundedInputOperator<OutputT, CheckpointMarkT extends Unb
             data, timestamp, GlobalWindow.INSTANCE, PaneInfo.NO_FIRING)));
       }
     } catch (Exception e) {
-      Throwables.propagate(e);
+      Throwables.propagateIfPossible(e);
+      throw new RuntimeException(e);
     }
   }
 

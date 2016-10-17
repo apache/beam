@@ -18,9 +18,20 @@
 
 package org.apache.beam.runners.apex.translators;
 
+import com.datatorrent.api.DAG;
+import com.google.common.collect.ContiguousSet;
+import com.google.common.collect.DiscreteDomain;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Range;
+import com.google.common.collect.Sets;
+
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+
 import org.apache.beam.runners.apex.ApexPipelineOptions;
-import org.apache.beam.runners.apex.ApexRunnerResult;
 import org.apache.beam.runners.apex.ApexRunner;
+import org.apache.beam.runners.apex.ApexRunnerResult;
 import org.apache.beam.runners.apex.translators.io.ApexReadUnboundedInputOperator;
 import org.apache.beam.runners.apex.translators.utils.CollectionSource;
 import org.apache.beam.sdk.Pipeline;
@@ -30,22 +41,10 @@ import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.transforms.ParDo;
-
-import com.datatorrent.api.DAG;
-import com.google.common.collect.ContiguousSet;
-import com.google.common.collect.DiscreteDomain;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Range;
-import com.google.common.collect.Sets;
-
 import org.junit.Assert;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
 
 /**
  * integration test for {@link ReadUnboundedTranslator}.
@@ -57,7 +56,7 @@ public class ReadUnboundTranslatorTest {
   public void test() throws Exception {
     ApexPipelineOptions options = PipelineOptionsFactory.create()
         .as(ApexPipelineOptions.class);
-    EmbeddedCollector.results.clear();
+    EmbeddedCollector.RESULTS.clear();
     options.setApplicationName("ReadUnbound");
     options.setRunner(ApexRunner.class);
     Pipeline p = Pipeline.create(options);
@@ -67,7 +66,7 @@ public class ReadUnboundTranslatorTest {
     p.apply(Read.from(source))
         .apply(ParDo.of(new EmbeddedCollector()));
 
-    ApexRunnerResult result = (ApexRunnerResult)p.run();
+    ApexRunnerResult result = (ApexRunnerResult) p.run();
     DAG dag = result.getApexDAG();
     DAG.OperatorMeta om = dag.getOperatorMeta("Read(CollectionSource)");
     Assert.assertNotNull(om);
@@ -75,20 +74,20 @@ public class ReadUnboundTranslatorTest {
 
     long timeout = System.currentTimeMillis() + 30000;
     while (System.currentTimeMillis() < timeout) {
-      if (EmbeddedCollector.results.containsAll(collection)) {
+      if (EmbeddedCollector.RESULTS.containsAll(collection)) {
         break;
       }
       LOG.info("Waiting for expected results.");
       Thread.sleep(1000);
     }
-    Assert.assertEquals(Sets.newHashSet(collection), EmbeddedCollector.results);
+    Assert.assertEquals(Sets.newHashSet(collection), EmbeddedCollector.RESULTS);
   }
 
   @Test
   public void testReadBounded() throws Exception {
     ApexPipelineOptions options = PipelineOptionsFactory.create()
         .as(ApexPipelineOptions.class);
-    EmbeddedCollector.results.clear();
+    EmbeddedCollector.RESULTS.clear();
     options.setApplicationName("ReadBounded");
     options.setRunner(ApexRunner.class);
     Pipeline p = Pipeline.create(options);
@@ -97,7 +96,7 @@ public class ReadUnboundTranslatorTest {
     p.apply(Read.from(CountingSource.upTo(10)))
         .apply(ParDo.of(new EmbeddedCollector()));
 
-    ApexRunnerResult result = (ApexRunnerResult)p.run();
+    ApexRunnerResult result = (ApexRunnerResult) p.run();
     DAG dag = result.getApexDAG();
     DAG.OperatorMeta om = dag.getOperatorMeta("Read(BoundedCountingSource)");
     Assert.assertNotNull(om);
@@ -105,25 +104,25 @@ public class ReadUnboundTranslatorTest {
 
     long timeout = System.currentTimeMillis() + 30000;
     while (System.currentTimeMillis() < timeout) {
-      if (EmbeddedCollector.results.containsAll(expected)) {
+      if (EmbeddedCollector.RESULTS.containsAll(expected)) {
         break;
       }
       LOG.info("Waiting for expected results.");
       Thread.sleep(1000);
     }
-    Assert.assertEquals(Sets.newHashSet(expected), EmbeddedCollector.results);
+    Assert.assertEquals(Sets.newHashSet(expected), EmbeddedCollector.RESULTS);
   }
 
   @SuppressWarnings("serial")
   private static class EmbeddedCollector extends OldDoFn<Object, Void> {
-    protected static final HashSet<Object> results = new HashSet<>();
+    protected static final HashSet<Object> RESULTS = new HashSet<>();
 
     public EmbeddedCollector() {
     }
 
     @Override
     public void processElement(ProcessContext c) throws Exception {
-      results.add(c.element());
+      RESULTS.add(c.element());
     }
   }
 

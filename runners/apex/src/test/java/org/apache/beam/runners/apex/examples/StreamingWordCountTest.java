@@ -21,8 +21,8 @@ package org.apache.beam.runners.apex.examples;
 import java.util.concurrent.ConcurrentHashMap;
 
 import org.apache.beam.runners.apex.ApexPipelineOptions;
-import org.apache.beam.runners.apex.ApexRunnerResult;
 import org.apache.beam.runners.apex.ApexRunner;
+import org.apache.beam.runners.apex.ApexRunnerResult;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -37,7 +37,6 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.joda.time.Duration;
 import org.junit.Assert;
-import org.junit.Ignore;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -76,8 +75,8 @@ public class StreamingWordCountTest {
 
     @ProcessElement
     public void processElement(ProcessContext c) {
-      String row = c.element().getKey() + " - " + c.element().getValue() +
-          " @ " + c.timestamp().toString();
+      String row = c.element().getKey() + " - " + c.element().getValue()
+          + " @ " + c.timestamp().toString();
       LOG.debug("output {}", row);
       c.output(row);
       RESULTS.put(c.element().getKey(), c.element().getValue());
@@ -103,17 +102,19 @@ public class StreamingWordCountTest {
 
     wordCounts.apply(ParDo.of(new FormatAsStringFn()));
 
-    ApexRunnerResult result = (ApexRunnerResult)p.run();
+    ApexRunnerResult result = (ApexRunnerResult) p.run();
     Assert.assertNotNull(result.getApexDAG().getOperatorMeta("Read(UnboundedTextSource)"));
     long timeout = System.currentTimeMillis() + 30000;
     while (System.currentTimeMillis() < timeout) {
-      if (FormatAsStringFn.RESULTS.containsKey("foo") && FormatAsStringFn.RESULTS.containsKey("bar")) {
+      if (FormatAsStringFn.RESULTS.containsKey("foo")
+          && FormatAsStringFn.RESULTS.containsKey("bar")) {
         break;
       }
       Thread.sleep(1000);
     }
     result.cancel();
-    Assert.assertTrue(FormatAsStringFn.RESULTS.containsKey("foo") && FormatAsStringFn.RESULTS.containsKey("bar"));
+    Assert.assertTrue(
+        FormatAsStringFn.RESULTS.containsKey("foo") && FormatAsStringFn.RESULTS.containsKey("bar"));
     FormatAsStringFn.RESULTS.clear();
 
   }

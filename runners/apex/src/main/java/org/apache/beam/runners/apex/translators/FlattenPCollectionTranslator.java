@@ -18,6 +18,8 @@
 
 package org.apache.beam.runners.apex.translators;
 
+import com.google.common.collect.Lists;
+
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -31,8 +33,6 @@ import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
-
-import com.google.common.collect.Lists;
 
 /**
  * {@link Flatten.FlattenPCollectionList} translation to Apex operator.
@@ -72,7 +72,8 @@ public class FlattenPCollectionTranslator<T> implements
    * @param finalCollection
    * @param context
    */
-  static <T> void flattenCollections(List<PCollection<T>> collections, Map<PCollection<?>, Integer> unionTags, PCollection<T> finalCollection, TranslationContext context) {
+  static <T> void flattenCollections(List<PCollection<T>> collections, Map<PCollection<?>,
+      Integer> unionTags, PCollection<T> finalCollection, TranslationContext context) {
     List<PCollection<T>> remainingCollections = Lists.newArrayList();
     PCollection<T> firstCollection = null;
     while (!collections.isEmpty()) {
@@ -93,7 +94,8 @@ public class FlattenPCollectionTranslator<T> implements
           }
 
           if (collections.size() > 2) {
-            PCollection<T> intermediateCollection = intermediateCollection(collection, collection.getCoder());
+            PCollection<T> intermediateCollection = intermediateCollection(collection,
+                collection.getCoder());
             context.addOperator(operator, operator.out, intermediateCollection);
             remainingCollections.add(intermediateCollection);
           } else {
@@ -118,7 +120,8 @@ public class FlattenPCollectionTranslator<T> implements
   }
 
   static <T> PCollection<T> intermediateCollection(PCollection<T> input, Coder<T> outputCoder) {
-    PCollection<T> output = PCollection.createPrimitiveOutputInternal(input.getPipeline(), input.getWindowingStrategy(), input.isBounded());
+    PCollection<T> output = PCollection.createPrimitiveOutputInternal(input.getPipeline(),
+        input.getWindowingStrategy(), input.isBounded());
     output.setCoder(outputCoder);
     return output;
   }

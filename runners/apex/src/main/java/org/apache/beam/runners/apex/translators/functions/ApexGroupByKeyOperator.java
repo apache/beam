@@ -17,6 +17,20 @@
  */
 package org.apache.beam.runners.apex.translators.functions;
 
+import static com.google.common.base.Preconditions.checkNotNull;
+
+import com.datatorrent.api.Context.OperatorContext;
+import com.datatorrent.api.DefaultInputPort;
+import com.datatorrent.api.DefaultOutputPort;
+import com.datatorrent.api.Operator;
+import com.datatorrent.api.StreamCodec;
+import com.datatorrent.api.annotation.OutputPortFieldAnnotation;
+import com.esotericsoftware.kryo.serializers.FieldSerializer.Bind;
+import com.esotericsoftware.kryo.serializers.JavaSerializer;
+import com.google.common.base.Throwables;
+import com.google.common.collect.HashMultimap;
+import com.google.common.collect.Multimap;
+
 import java.io.IOException;
 import java.io.Serializable;
 import java.nio.ByteBuffer;
@@ -61,19 +75,6 @@ import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.datatorrent.api.Context.OperatorContext;
-import com.datatorrent.api.DefaultInputPort;
-import com.datatorrent.api.DefaultOutputPort;
-import com.datatorrent.api.Operator;
-import com.datatorrent.api.StreamCodec;
-import com.datatorrent.api.annotation.OutputPortFieldAnnotation;
-import com.esotericsoftware.kryo.serializers.FieldSerializer.Bind;
-import com.esotericsoftware.kryo.serializers.JavaSerializer;
-import com.google.common.base.Preconditions;
-import com.google.common.base.Throwables;
-import com.google.common.collect.HashMultimap;
-import com.google.common.collect.Multimap;
-
 /**
  * Apex operator for Beam {@link GroupByKey}.
  * This operator expects the input stream already partitioned by K,
@@ -82,8 +83,7 @@ import com.google.common.collect.Multimap;
  * @param <K>
  * @param <V>
  */
-public class ApexGroupByKeyOperator<K, V> implements Operator
-{
+public class ApexGroupByKeyOperator<K, V> implements Operator {
   private static final Logger LOG = LoggerFactory.getLogger(ApexGroupByKeyOperator.class);
   private boolean traceTuples = true;
 
@@ -98,7 +98,7 @@ public class ApexGroupByKeyOperator<K, V> implements Operator
   private final SerializablePipelineOptions serializedOptions;
   @Bind(JavaSerializer.class)
 // TODO: InMemoryStateInternals not serializable
-transient  private Map<ByteBuffer, StateInternals<K>> perKeyStateInternals = new HashMap<>();
+  private transient Map<ByteBuffer, StateInternals<K>> perKeyStateInternals = new HashMap<>();
   private Map<ByteBuffer, Set<TimerInternals.TimerData>> activeTimers = new HashMap<>();
 
   private transient ProcessContext context;
@@ -106,19 +106,19 @@ transient  private Map<ByteBuffer, StateInternals<K>> perKeyStateInternals = new
   private transient ApexTimerInternals timerInternals = new ApexTimerInternals();
   private Instant inputWatermark = new Instant(0);
 
-  public final transient DefaultInputPort<ApexStreamTuple<WindowedValue<KV<K, V>>>> input = new DefaultInputPort<ApexStreamTuple<WindowedValue<KV<K, V>>>>()
-  {
+  public final transient DefaultInputPort<ApexStreamTuple<WindowedValue<KV<K, V>>>> input =
+      new DefaultInputPort<ApexStreamTuple<WindowedValue<KV<K, V>>>>() {
     @Override
-    public void process(ApexStreamTuple<WindowedValue<KV<K, V>>> t)
-    {
+    public void process(ApexStreamTuple<WindowedValue<KV<K, V>>> t) {
       try {
         if (t instanceof ApexStreamTuple.WatermarkTuple) {
-          ApexStreamTuple.WatermarkTuple<?> mark = (ApexStreamTuple.WatermarkTuple<?>)t;
+          ApexStreamTuple.WatermarkTuple<?> mark = (ApexStreamTuple.WatermarkTuple<?>) t;
           processWatermark(mark);
           if (traceTuples) {
             LOG.debug("\nemitting watermark {}\n", mark.getTimestamp());
           }
-          output.emit(ApexStreamTuple.WatermarkTuple.<WindowedValue<KV<K, Iterable<V>>>>of(mark.getTimestamp()));
+          output.emit(ApexStreamTuple.WatermarkTuple.<WindowedValue<KV<K, Iterable<V>>>>of(
+              mark.getTimestamp()));
           return;
         }
         if (traceTuples) {
@@ -126,53 +126,49 @@ transient  private Map<ByteBuffer, StateInternals<K>> perKeyStateInternals = new
         }
         processElement(t.getValue());
       } catch (Exception e) {
-        Throwables.propagate(e);
+        Throwables.propagateIfPossible(e);
+        throw new RuntimeException(e);
       }
     }
   };
 
-  @OutputPortFieldAnnotation(optional=true)
-  public final transient DefaultOutputPort<ApexStreamTuple<WindowedValue<KV<K, Iterable<V>>>>> output = new DefaultOutputPort<>();
+  @OutputPortFieldAnnotation(optional = true)
+  public final transient DefaultOutputPort<ApexStreamTuple<WindowedValue<KV<K, Iterable<V>>>>>
+      output = new DefaultOutputPort<>();
 
   @SuppressWarnings("unchecked")
-  public ApexGroupByKeyOperator(ApexPipelineOptions pipelineOptions, PCollection<KV<K, V>> input)
-  {
-    Preconditions.checkNotNull(pipelineOptions);
+  public ApexGroupByKeyOperator(ApexPipelineOptions pipelineOptions, PCollection<KV<K, V>> input) {
+    checkNotNull(pipelineOptions);
     this.serializedOptions = new SerializablePipelineOptions(pipelineOptions);
-    this.windowingStrategy = (WindowingStrategy<V, BoundedWindow>)input.getWindowingStrategy();
-    this.keyCoder = ((KvCoder<K, V>)input.getCoder()).getKeyCoder();
-    this.valueCoder = ((KvCoder<K, V>)input.getCoder()).getValueCoder();
+    this.windowingStrategy = (WindowingStrategy<V, BoundedWindow>) input.getWindowingStrategy();
+    this.keyCoder = ((KvCoder<K, V>) input.getCoder()).getKeyCoder();
+    this.valueCoder = ((KvCoder<K, V>) input.getCoder()).getValueCoder();
   }
 
   @SuppressWarnings("unused") // for Kryo
-  private ApexGroupByKeyOperator()
-  {
+  private ApexGroupByKeyOperator() {
     this.serializedOptions = null;
   }
 
   @Override
-  public void beginWindow(long l)
-  {
+  public void beginWindow(long l) {
   }
 
   @Override
-  public void endWindow()
-  {
+  public void endWindow() {
   }
 
   @Override
-  public void setup(OperatorContext context)
-  {
+  public void setup(OperatorContext context) {
     this.traceTuples = ApexStreamTuple.Logging.isDebugEnabled(serializedOptions.get(), this);
     StateInternalsFactory<K> stateInternalsFactory = new GroupByKeyStateInternalsFactory();
-    this.fn = GroupAlsoByWindowViaWindowSetDoFn.create(this.windowingStrategy, stateInternalsFactory,
-        SystemReduceFn.<K, V, BoundedWindow>buffering(this.valueCoder));
+    this.fn = GroupAlsoByWindowViaWindowSetDoFn.create(this.windowingStrategy,
+        stateInternalsFactory, SystemReduceFn.<K, V, BoundedWindow>buffering(this.valueCoder));
     this.context = new ProcessContext(fn, this.timerInternals);
   }
 
   @Override
-  public void teardown()
-  {
+  public void teardown() {
   }
 
   /**
@@ -181,14 +177,16 @@ transient  private Map<ByteBuffer, StateInternals<K>> perKeyStateInternals = new
    * We keep these timers in a Set, so that they are deduplicated, as the same
    * timer can be registered multiple times.
    */
-  private Multimap<ByteBuffer, TimerInternals.TimerData> getTimersReadyToProcess(long currentWatermark) {
+  private Multimap<ByteBuffer, TimerInternals.TimerData> getTimersReadyToProcess(
+      long currentWatermark) {
 
     // we keep the timers to return in a different list and launch them later
     // because we cannot prevent a trigger from registering another trigger,
     // which would lead to concurrent modification exception.
     Multimap<ByteBuffer, TimerInternals.TimerData> toFire = HashMultimap.create();
 
-    Iterator<Map.Entry<ByteBuffer, Set<TimerInternals.TimerData>>> it = activeTimers.entrySet().iterator();
+    Iterator<Map.Entry<ByteBuffer, Set<TimerInternals.TimerData>>> it =
+        activeTimers.entrySet().iterator();
     while (it.hasNext()) {
       Map.Entry<ByteBuffer, Set<TimerInternals.TimerData>> keyWithTimers = it.next();
 
@@ -223,18 +221,15 @@ transient  private Map<ByteBuffer, StateInternals<K>> perKeyStateInternals = new
     fn.processElement(context);
   }
 
-  private StateInternals<K> getStateInternalsForKey(K key)
-  {
+  private StateInternals<K> getStateInternalsForKey(K key) {
     final ByteBuffer keyBytes;
     try {
       keyBytes = ByteBuffer.wrap(CoderUtils.encodeToByteArray(keyCoder, key));
     } catch (CoderException e) {
-      throw Throwables.propagate(e);
+      throw new RuntimeException(e);
     }
     StateInternals<K> stateInternals = perKeyStateInternals.get(keyBytes);
     if (stateInternals == null) {
-      //Coder<? extends BoundedWindow> windowCoder = this.windowingStrategy.getWindowFn().windowCoder();
-      //OutputTimeFn<? super BoundedWindow> outputTimeFn = this.windowingStrategy.getOutputTimeFn();
       stateInternals = InMemoryStateInternals.forKey(key);
       perKeyStateInternals.put(keyBytes, stateInternals);
     }
@@ -246,7 +241,7 @@ transient  private Map<ByteBuffer, StateInternals<K>> perKeyStateInternals = new
     try {
       keyBytes = ByteBuffer.wrap(CoderUtils.encodeToByteArray(keyCoder, key));
     } catch (CoderException e) {
-      throw Throwables.propagate(e);
+      throw new RuntimeException(e);
     }
     Set<TimerInternals.TimerData> timersForKey = activeTimers.get(keyBytes);
     if (timersForKey == null) {
@@ -261,7 +256,7 @@ transient  private Map<ByteBuffer, StateInternals<K>> perKeyStateInternals = new
     try {
       keyBytes = ByteBuffer.wrap(CoderUtils.encodeToByteArray(keyCoder, key));
     } catch (CoderException e) {
-      throw Throwables.propagate(e);
+      throw new RuntimeException(e);
     }
     Set<TimerInternals.TimerData> timersForKey = activeTimers.get(keyBytes);
     if (timersForKey != null) {
@@ -276,7 +271,8 @@ transient  private Map<ByteBuffer, StateInternals<K>> perKeyStateInternals = new
 
   private void processWatermark(ApexStreamTuple.WatermarkTuple<?> mark) throws Exception {
     this.inputWatermark = new Instant(mark.getTimestamp());
-    Multimap<ByteBuffer, TimerInternals.TimerData> timers = getTimersReadyToProcess(mark.getTimestamp());
+    Multimap<ByteBuffer, TimerInternals.TimerData> timers = getTimersReadyToProcess(
+        mark.getTimestamp());
     if (!timers.isEmpty()) {
       for (ByteBuffer keyBytes : timers.keySet()) {
         K key = CoderUtils.decodeFromByteArray(keyCoder, keyBytes.array());
@@ -287,7 +283,8 @@ transient  private Map<ByteBuffer, StateInternals<K>> perKeyStateInternals = new
     }
   }
 
-  private class ProcessContext extends GroupAlsoByWindowViaWindowSetDoFn<K, V, Iterable<V>, ?, KeyedWorkItem<K, V>>.ProcessContext {
+  private class ProcessContext extends GroupAlsoByWindowViaWindowSetDoFn<K, V, Iterable<V>, ?,
+      KeyedWorkItem<K, V>>.ProcessContext {
 
     private final ApexTimerInternals timerInternals;
     private StateInternals<K> stateInternals;
@@ -296,7 +293,7 @@ transient  private Map<ByteBuffer, StateInternals<K>> perKeyStateInternals = new
     public ProcessContext(OldDoFn<KeyedWorkItem<K, V>, KV<K, Iterable<V>>> function,
                           ApexTimerInternals timerInternals) {
       function.super();
-      this.timerInternals = Preconditions.checkNotNull(timerInternals);
+      this.timerInternals = checkNotNull(timerInternals);
     }
 
     public void setElement(KeyedWorkItem<K, V> element, StateInternals<K> stateForKey) {
@@ -311,7 +308,8 @@ transient  private Map<ByteBuffer, StateInternals<K>> perKeyStateInternals = new
 
     @Override
     public Instant timestamp() {
-      throw new UnsupportedOperationException("timestamp() is not available when processing KeyedWorkItems.");
+      throw new UnsupportedOperationException(
+          "timestamp() is not available when processing KeyedWorkItems.");
     }
 
     @Override
@@ -333,7 +331,8 @@ transient  private Map<ByteBuffer, StateInternals<K>> perKeyStateInternals = new
 
     @Override
     public PaneInfo pane() {
-      throw new UnsupportedOperationException("pane() is not available when processing KeyedWorkItems.");
+      throw new UnsupportedOperationException(
+          "pane() is not available when processing KeyedWorkItems.");
     }
 
     @Override
@@ -352,11 +351,13 @@ transient  private Map<ByteBuffer, StateInternals<K>> perKeyStateInternals = new
         }
 
         @Override
-        public void outputWindowedValue(KV<K, Iterable<V>> output, Instant timestamp, Collection<? extends BoundedWindow> windows, PaneInfo pane) {
+        public void outputWindowedValue(KV<K, Iterable<V>> output, Instant timestamp,
+            Collection<? extends BoundedWindow> windows, PaneInfo pane) {
           if (traceTuples) {
             LOG.debug("\nemitting {} timestamp {}\n", output, timestamp);
           }
-          ApexGroupByKeyOperator.this.output.emit(ApexStreamTuple.DataTuple.of(WindowedValue.of(output, timestamp, windows, pane)));
+          ApexGroupByKeyOperator.this.output.emit(ApexStreamTuple.DataTuple.of(
+              WindowedValue.of(output, timestamp, windows, pane)));
         }
 
         @Override
@@ -375,7 +376,8 @@ transient  private Map<ByteBuffer, StateInternals<K>> perKeyStateInternals = new
         }
 
         @Override
-        public <T> void writePCollectionViewData(TupleTag<?> tag, Iterable<WindowedValue<T>> data, Coder<T> elemCoder) throws IOException {
+        public <T> void writePCollectionViewData(TupleTag<?> tag, Iterable<WindowedValue<T>> data,
+            Coder<T> elemCoder) throws IOException {
           throw new RuntimeException("writePCollectionViewData() not available in Streaming mode.");
         }
 
@@ -404,7 +406,8 @@ transient  private Map<ByteBuffer, StateInternals<K>> perKeyStateInternals = new
     }
 
     @Override
-    protected <AggInputT, AggOutputT> Aggregator<AggInputT, AggOutputT> createAggregatorInternal(String name, Combine.CombineFn<AggInputT, ?, AggOutputT> combiner) {
+    protected <AggInputT, AggOutputT> Aggregator<AggInputT, AggOutputT> createAggregatorInternal(
+        String name, Combine.CombineFn<AggInputT, ?, AggOutputT> combiner) {
       throw new UnsupportedOperationException();
     }
   }
@@ -416,52 +419,44 @@ transient  private Map<ByteBuffer, StateInternals<K>> perKeyStateInternals = new
   public class ApexTimerInternals implements TimerInternals {
 
     @Override
-    public void setTimer(TimerData timerKey)
-    {
+    public void setTimer(TimerData timerKey) {
       registerActiveTimer(context.element().key(), timerKey);
     }
 
     @Override
-    public void deleteTimer(TimerData timerKey)
-    {
+    public void deleteTimer(TimerData timerKey) {
       unregisterActiveTimer(context.element().key(), timerKey);
     }
 
     @Override
-    public Instant currentProcessingTime()
-    {
+    public Instant currentProcessingTime() {
       return Instant.now();
     }
 
     @Override
-    public Instant currentSynchronizedProcessingTime()
-    {
+    public Instant currentSynchronizedProcessingTime() {
       // TODO Auto-generated method stub
       return null;
     }
 
     @Override
-    public Instant currentInputWatermarkTime()
-    {
+    public Instant currentInputWatermarkTime() {
       return inputWatermark;
     }
 
     @Override
-    public Instant currentOutputWatermarkTime()
-    {
+    public Instant currentOutputWatermarkTime() {
       // TODO Auto-generated method stub
       return null;
     }
-
   }
 
-  private class GroupByKeyStateInternalsFactory implements StateInternalsFactory<K>, Serializable
-  {
+  private class GroupByKeyStateInternalsFactory implements StateInternalsFactory<K>, Serializable {
+    private static final long serialVersionUID = 1L;
+
     @Override
-    public StateInternals<K> stateInternalsForKey(K key)
-    {
+    public StateInternals<K> stateInternalsForKey(K key) {
       return getStateInternalsForKey(key);
     }
   }
-
 }

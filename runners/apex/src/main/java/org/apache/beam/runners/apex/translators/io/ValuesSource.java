@@ -18,16 +18,6 @@
 
 package org.apache.beam.runners.apex.translators.io;
 
-import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.coders.IterableCoder;
-import org.apache.beam.sdk.coders.Coder.Context;
-import org.apache.beam.sdk.io.UnboundedSource;
-import org.apache.beam.sdk.options.PipelineOptions;
-
-import org.joda.time.Instant;
-
-import com.google.common.base.Throwables;
-
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -37,8 +27,15 @@ import java.util.NoSuchElementException;
 
 import javax.annotation.Nullable;
 
+import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.Coder.Context;
+import org.apache.beam.sdk.coders.IterableCoder;
+import org.apache.beam.sdk.io.UnboundedSource;
+import org.apache.beam.sdk.options.PipelineOptions;
+import org.joda.time.Instant;
+
 /**
- * unbounded source that reads from a Java {@link Iterable}.
+ * Unbounded source that reads from a Java {@link Iterable}.
  */
 public class ValuesSource<T> extends UnboundedSource<T, UnboundedSource.CheckpointMark> {
   private static final long serialVersionUID = 1L;
@@ -52,7 +49,7 @@ public class ValuesSource<T> extends UnboundedSource<T, UnboundedSource.Checkpoi
     try {
       iterableCoder.encode(values, bos, Context.OUTER);
     } catch (IOException ex) {
-      Throwables.propagate(ex);
+      throw new RuntimeException(ex);
     }
     this.codedValues = bos.toByteArray();
   }
@@ -71,7 +68,7 @@ public class ValuesSource<T> extends UnboundedSource<T, UnboundedSource.Checkpoi
       Iterable<T> values = this.iterableCoder.decode(bis, Context.OUTER);
       return new ValuesReader<>(values, this);
     } catch (IOException ex) {
-      throw Throwables.propagate(ex);
+      throw new RuntimeException(ex);
     }
   }
 
