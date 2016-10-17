@@ -34,7 +34,7 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.SerializableCoder;
-import org.apache.beam.sdk.testing.RunnableOnService;
+import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -123,7 +123,6 @@ public class SplittableParDoTest {
   }
 
   @Test
-  @Category(RunnableOnService.class)
   public void testBoundednessForBoundedFn() {
     Pipeline pipeline = TestPipeline.create();
     DoFn<Integer, String> boundedFn = new BoundedFakeFn();
@@ -142,7 +141,6 @@ public class SplittableParDoTest {
   }
 
   @Test
-  @Category(RunnableOnService.class)
   public void testBoundednessForUnboundedFn() {
     Pipeline pipeline = TestPipeline.create();
     DoFn<Integer, String> unboundedFn = new UnboundedFakeFn();
