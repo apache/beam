@@ -49,7 +49,7 @@ public class GBKIntoKeyedWorkItems<KeyT, InputT>
         input.getWindowingStrategy().getWindowFn().windowCoder());
     PCollection<KeyedWorkItem<KeyT, InputT>> collection = PCollection.createPrimitiveOutputInternal(
         input.getPipeline(), input.getWindowingStrategy(), input.isBounded());
-    collection.setCoder((Coder) coder);
+    collection.setCoder(coder);
     return collection;
   }
 }
