@@ -27,9 +27,8 @@ import org.joda.time.Duration;
 import java.io.IOException;
 
 /**
- * Result of executing a {@link org.apache.beam.sdk.Pipeline} with Flink. This
- * has methods to query to job runtime and the final values of
- * {@link Aggregator}s.
+ * Result of a detached execution of a {@link org.apache.beam.sdk.Pipeline} with Flink.
+ * In detached execution, results and job execution are currently unavailable.
  */
 public class FlinkDetachedRunnerResult implements PipelineResult {
 
