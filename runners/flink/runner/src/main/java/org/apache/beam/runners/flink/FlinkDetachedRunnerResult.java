@@ -17,6 +17,8 @@
  */
 package org.apache.beam.runners.flink;
 
+import java.io.IOException;
+
 import org.apache.beam.sdk.AggregatorRetrievalException;
 import org.apache.beam.sdk.AggregatorValues;
 import org.apache.beam.sdk.PipelineResult;
@@ -24,7 +26,6 @@ import org.apache.beam.sdk.transforms.Aggregator;
 import org.apache.commons.lang.NotImplementedException;
 import org.joda.time.Duration;
 
-import java.io.IOException;
 
 /**
  * Result of a detached execution of a {@link org.apache.beam.sdk.Pipeline} with Flink.
