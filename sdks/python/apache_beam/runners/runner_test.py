@@ -112,7 +112,8 @@ class RunnerTest(unittest.TestCase):
                       'value': DisplayDataItem._format_value(now, 'TIMESTAMP'),
                       'key': 'a_time'},
                      {'type': 'JAVA_CLASS', 'namespace': nspace+'SpecialParDo',
-                      'value': nspace+'SpecialParDo', 'key': 'a_class'},
+                      'value': nspace+'SpecialParDo', 'key': 'a_class',
+                      'shortValue': 'SpecialParDo'},
                      {'type': 'INTEGER', 'namespace': nspace+'SpecialDoFn',
                       'value': 42, 'key': 'dofn_value'}]
     expected_data = sorted(expected_data, key=lambda x: x['namespace']+x['key'])
