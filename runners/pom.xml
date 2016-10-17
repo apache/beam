@@ -37,6 +37,7 @@
     <module>direct-java</module>
     <module>flink</module>
     <module>spark</module>
+    <module>apex</module>
   </modules>
 
   <profiles>
