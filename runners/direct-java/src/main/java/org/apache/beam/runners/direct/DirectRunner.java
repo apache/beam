@@ -22,7 +22,6 @@ import com.google.common.base.Supplier;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
-import java.io.IOException;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.EnumSet;
@@ -420,14 +419,34 @@ public class DirectRunner extends PipelineRunner<DirectPipelineResult> {
      * {@link DirectOptions#isShutdownUnboundedProducersWithMaxWatermark()} set to false,
      * this method will never return.
      *
-     * <p>See also {@link PipelineExecutor#awaitCompletion()}.
+     * <p>See also {@link PipelineExecutor#waitUntilFinish(Duration)}.
      */
     @Override
     public State waitUntilFinish() {
-      if (!state.isTerminal()) {
+      return waitUntilFinish(Duration.ZERO);
+    }
+
+    @Override
+    public State cancel() {
+      this.state = executor.getPipelineState();
+      if (!this.state.isTerminal()) {
+        executor.stop();
+        this.state = executor.getPipelineState();
+      }
+      return executor.getPipelineState();
+    }
+
+    @Override
+    public State waitUntilFinish(Duration duration) {
+      State startState = this.state;
+      if (!startState.isTerminal()) {
         try {
-          executor.awaitCompletion();
-          state = State.DONE;
+          state = executor.waitUntilFinish(duration);
+        } catch (UserCodeException uce) {
+          // Emulates the behavior of Pipeline#run(), where a stack trace caused by a
+          // UserCodeException is truncated and replaced with the stack starting at the call to
+          // waitToFinish
+          throw new Pipeline.PipelineExecutionException(uce.getCause());
         } catch (Exception e) {
           if (e instanceof InterruptedException) {
             Thread.currentThread().interrupt();
@@ -438,19 +457,7 @@ public class DirectRunner extends PipelineRunner<DirectPipelineResult> {
           throw new RuntimeException(e);
         }
       }
-      return state;
-    }
-
-    @Override
-    public State cancel() throws IOException {
-      throw new UnsupportedOperationException("DirectPipelineResult does not support cancel.");
-    }
-
-    @Override
-    public State waitUntilFinish(Duration duration) {
-      throw new UnsupportedOperationException(
-          "DirectPipelineResult does not support waitUntilFinish with a Duration parameter. See"
-              + " BEAM-596.");
+      return this.state;
     }
   }
 
