@@ -43,8 +43,8 @@ class MultipleOutputParDoTest(unittest.TestCase):
                     | 'count chars' >> beam.Map(lambda (_, counts): sum(counts)))
     result_words = results.words | 'count words' >> multiple_output_pardo.CountWords()
     result_short_words = results.tag_short_words | 'count short words' >> multiple_output_pardo.CountWords() 
-    assert_that(sorted(result_words), equal_to(sorted(self.EXPECTED_WORDS)))
-    assert_that(sorted(result_short_words), equal_to(sorted(self.EXPECTED_SHORT_WORDS)), label='assert:tag_short_words')       
+    assert_that(result_words, equal_to(self.EXPECTED_WORDS))
+    assert_that(result_short_words, equal_to(self.EXPECTED_SHORT_WORDS), label='assert:tag_short_words')       
     assert_that(result_count, equal_to(len(''.join(self.SAMPLE_TEXT.split('\n')))), label='assert:tag_character_count')   
     p.run()
      
