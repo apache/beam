@@ -32,11 +32,8 @@ __all__ = ['HasDisplayData', 'DisplayDataItem', 'DisplayData']
 class HasDisplayData(object):
   """ Basic interface for elements that contain display data.
 
-  It contains only the display_data method.
+  It contains only the display_data method and a namespace method.
   """
-  def __init__(self, *args, **kwargs):
-    super(HasDisplayData, self).__init__(*args, **kwargs)
-
   def display_data(self):
     return {}
 
@@ -45,36 +42,31 @@ class HasDisplayData(object):
 
 
 class DisplayData(object):
-  def __init__(self, namespace='__main__'):
+  def __init__(self, namespace, display_data_dict):
     self.namespace = namespace
     self.items = []
+    self.populate_items(display_data_dict)
 
   def populate_items(self, display_data_dict):
     for key, element in display_data_dict.items():
       if isinstance(element, HasDisplayData):
-        subcomponent_display_data = DisplayData(element._namespace())
-        subcomponent_display_data.populate_items(element.display_data())
+        subcomponent_display_data = DisplayData(element._namespace(),
+                                                element.display_data())
         self.items += subcomponent_display_data.items
         continue
 
-      if isinstance(element, dict):
-        self.items.append(
-            DisplayDataItem(self.namespace,
-                            key,
-                            DisplayDataItem._get_value_type(element['value']),
-                            element['value'],
-                            shortValue=element.get('shortValue'),
-                            url=element.get('url'),
-                            label=element.get('label')))
+      if isinstance(element, DisplayDataItem):
+        element.key = key
+        element.namespace = self.namespace
+        self.items.append(element)
         continue
 
       # If it's not a HasDisplayData element,
       # nor a dictionary, then it's a simple value
       self.items.append(
-          DisplayDataItem(self.namespace,
-                          key,
-                          DisplayDataItem._get_value_type(element),
-                          element))
+          DisplayDataItem(element,
+                          namespace=self.namespace,
+                          key=key))
 
   def output(self):
     return [item.get_dict() for item in self.items]
@@ -85,9 +77,7 @@ class DisplayData(object):
       raise ValueError('Element of class {}.{} does not subclass HasDisplayData'
                        .format(has_display_data.__module__,
                                has_display_data.__class__.__name__))
-    display_data = cls(has_display_data._namespace())
-    display_data.populate_items(has_display_data.display_data())
-    return display_data
+    return cls(has_display_data._namespace(), has_display_data.display_data())
 
 
 class DisplayDataItem(object):
@@ -97,31 +87,36 @@ class DisplayDataItem(object):
               timedelta:'DURATION',
               datetime:'TIMESTAMP'}
 
-  def __init__(self, namespace, key, type_, value,
-               shortValue=None, url=None, label=None):
-    if key is None:
-      raise ValueError('Key must not be None')
-    if value is None:
-      raise ValueError('Value must not be None')
-    if type_ is None:
-      raise ValueError('Value {} is of an unsupported type.'.format(value))
-
+  def __init__(self, value, url=None, label=None,
+               namespace=None, key=None, shortValue=None):
     self.namespace = namespace
     self.key = key
-    self.type = type_
+    self.type = self._get_value_type(value)
+    self.shortValue = (shortValue if shortValue is not None else
+                       self._get_short_value(value, self.type))
     self.value = value
-    self.shortValue = shortValue
     self.url = url
     self.label = label
 
+  def is_valid(self):
+    if self.key is None:
+      raise ValueError('Key must not be None')
+    if self.namespace is None:
+      raise ValueError('Namespace must not be None')
+    if self.value is None:
+      raise ValueError('Value must not be None')
+    if self.type is None:
+      raise ValueError('Value {} is of an unsupported type.'.format(self.value))
+
   def get_dict(self):
+    self.is_valid()
+
     res = {'key': self.key,
            'namespace': self.namespace,
            'type': self.type}
 
     if self.url is not None:
       res['url'] = self.url
-    # TODO: What to do about shortValue? No special processing?
     if self.shortValue is not None:
       res['shortValue'] = self.shortValue
     if self.label is not None:
@@ -142,6 +137,12 @@ class DisplayDataItem(object):
     if type_ == 'TIMESTAMP':
       res = calendar.timegm(value.timetuple())*1000 + value.microsecond//1000
     return res
+
+  @classmethod
+  def _get_short_value(cls, value, type_):
+    if type_ == 'JAVA_CLASS':
+      return value.__name__
+    return None
 
   @classmethod
   def _get_value_type(cls, value):

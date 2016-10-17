@@ -263,6 +263,10 @@ class DataflowPipelineRunner(PipelineRunner):
     # cache always contain the tag.
     for tag in side_tags:
       self._cache.cache_output(transform_node, tag, step)
+
+    step.add_property(
+        PropertyNames.DISPLAY_DATA,
+        DisplayData.create_from(transform_node.transform).output())
     return step
 
   def run_Create(self, transform_node):
@@ -287,9 +291,6 @@ class DataflowPipelineRunner(PipelineRunner):
             '%s.%s' % (transform_node.full_label, PropertyNames.OUT)),
           PropertyNames.ENCODING: step.encoding,
           PropertyNames.OUTPUT_NAME: PropertyNames.OUT}])
-    step.add_property(
-        PropertyNames.DISPLAY_DATA,
-        DisplayData.create_from(transform).output())
 
   def run_CreatePCollectionView(self, transform_node):
     step = self._add_step(TransformNames.COLLECTION_TO_SINGLETON,
@@ -308,9 +309,6 @@ class DataflowPipelineRunner(PipelineRunner):
             '%s.%s' % (transform_node.full_label, PropertyNames.OUT)),
           PropertyNames.ENCODING: step.encoding,
           PropertyNames.OUTPUT_NAME: PropertyNames.OUT}])
-    step.add_property(
-        PropertyNames.DISPLAY_DATA,
-        DisplayData.create_from(transform_node.transform).output())
 
   def run_Flatten(self, transform_node):
     step = self._add_step(TransformNames.FLATTEN,
@@ -330,9 +328,6 @@ class DataflowPipelineRunner(PipelineRunner):
             '%s.%s' % (transform_node.full_label, PropertyNames.OUT)),
           PropertyNames.ENCODING: step.encoding,
           PropertyNames.OUTPUT_NAME: PropertyNames.OUT}])
-    step.add_property(
-        PropertyNames.DISPLAY_DATA,
-        DisplayData.create_from(transform_node.transform).output())
 
   def apply_GroupByKey(self, transform, pcoll):
     # Infer coder of parent.
@@ -374,9 +369,6 @@ class DataflowPipelineRunner(PipelineRunner):
     windowing = transform_node.transform.get_windowing(
         transform_node.inputs)
     step.add_property(PropertyNames.SERIALIZED_FN, pickler.dumps(windowing))
-    step.add_property(
-        PropertyNames.DISPLAY_DATA,
-        DisplayData.create_from(transform_node.transform).output())
 
   def run_ParDo(self, transform_node):
     transform = transform_node.transform
@@ -437,9 +429,6 @@ class DataflowPipelineRunner(PipelineRunner):
                '%s_%s' % (PropertyNames.OUT, side_tag))})
 
     step.add_property(PropertyNames.OUTPUT_INFO, outputs)
-    step.add_property(
-        PropertyNames.DISPLAY_DATA,
-        DisplayData.create_from(transform).output())
 
   @staticmethod
   def _pardo_fn_data(transform_node, get_label):
@@ -488,9 +477,6 @@ class DataflowPipelineRunner(PipelineRunner):
          PropertyNames.ENCODING: step.encoding,
          PropertyNames.OUTPUT_NAME: PropertyNames.OUT})
     step.add_property(PropertyNames.OUTPUT_INFO, outputs)
-    step.add_property(
-        PropertyNames.DISPLAY_DATA,
-        DisplayData.create_from(transform).output())
 
   def run_Read(self, transform_node):
     transform = transform_node.transform
@@ -565,9 +551,6 @@ class DataflowPipelineRunner(PipelineRunner):
             '%s.%s' % (transform_node.full_label, PropertyNames.OUT)),
           PropertyNames.ENCODING: step.encoding,
           PropertyNames.OUTPUT_NAME: PropertyNames.OUT}])
-    step.add_property(
-        PropertyNames.DISPLAY_DATA,
-        DisplayData.create_from(transform).output())
 
   def run__NativeWrite(self, transform_node):
     transform = transform_node.transform
@@ -637,9 +620,6 @@ class DataflowPipelineRunner(PipelineRunner):
         {'@type': 'OutputReference',
          PropertyNames.STEP_NAME: input_step.proto.name,
          PropertyNames.OUTPUT_NAME: input_step.get_output(input_tag)})
-    step.add_property(
-        PropertyNames.DISPLAY_DATA,
-        DisplayData.create_from(transform).output())
 
 
 class DataflowPipelineResult(PipelineResult):

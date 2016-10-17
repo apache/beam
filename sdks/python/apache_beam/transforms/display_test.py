@@ -59,9 +59,9 @@ class DisplayDataTest(unittest.TestCase):
       def display_data(self):
         return {'static_integer': 120,
                 'static_string': 'static me!',
-                'complex_url': {'value': 'github.com',
-                                'url': 'http://github.com',
-                                'label': 'The URL'},
+                'complex_url': DisplayDataItem('github.com',
+                                               url='http://github.com',
+                                               label='The URL'),
                 'python_class': HasDisplayData,
                 'my_dd': self.my_display_data}
 
@@ -79,8 +79,8 @@ class DisplayDataTest(unittest.TestCase):
         {'type': 'TIMESTAMP', 'namespace': nspace, 'key': 'my_dd',
          'value': DisplayDataItem._format_value(now, 'TIMESTAMP')},
         {'type': 'JAVA_CLASS', 'namespace': nspace,
-         'value': 'apache_beam.transforms.display.display_data.HasDisplayData',
-         'key': 'python_class'},
+         'shortValue': 'HasDisplayData', 'key': 'python_class',
+         'value': 'apache_beam.transforms.display.HasDisplayData'},
         {'type': 'INTEGER', 'namespace': nspace,
          'value': 120, 'key': 'static_integer'},
         {'type': 'STRING', 'namespace': nspace,
