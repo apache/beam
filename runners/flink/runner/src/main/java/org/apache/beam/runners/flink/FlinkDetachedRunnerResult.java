@@ -33,6 +33,8 @@ import java.io.IOException;
  */
 public class FlinkDetachedRunnerResult implements PipelineResult {
 
+  FlinkDetachedRunnerResult() {}
+
   @Override
   public State getState() {
     return State.UNKNOWN;
