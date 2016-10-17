@@ -45,7 +45,7 @@ class MultipleOutputParDoTest(unittest.TestCase):
     result_short_words = results.tag_short_words | 'count short words' >> multiple_output_pardo.CountWords() 
     assert_that(sorted(result_words), equal_to(sorted(self.EXPECTED_WORDS)))
     assert_that(sorted(result_short_words), equal_to(sorted(self.EXPECTED_SHORT_WORDS)), label='assert:tag_short_words')       
-    assert_that(result_count,len(''.join(self.SAMPLE_TEXT.split('\n'))), label='assert:tag_character_count')   
+    assert_that(result_count, equal_to(len(''.join(self.SAMPLE_TEXT.split('\n')))), label='assert:tag_character_count')   
     p.run()
      
 if __name__ == '__main__':
