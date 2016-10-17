@@ -132,6 +132,13 @@ public class TextIO {
     }
 
     /**
+     * Same as {@code from(filepattern)}, but accepting a {@link ValueProvider}.
+     */
+    public static Bound<String> from(ValueProvider<String> filepattern) {
+      return new Bound<>(DEFAULT_TEXT_CODER).from(filepattern);
+    }
+
+    /**
      * Returns a transform for reading text files that uses the given
      * {@code Coder<T>} to decode each of the lines of the file into a
      * value of type {@code T}.
@@ -219,6 +226,13 @@ public class TextIO {
       public Bound<T> from(String filepattern) {
         return new Bound<>(name, StaticValueProvider.of(filepattern), coder, validate,
                            compressionType);
+      }
+
+      /**
+       * Same as {@code from(filepattern)}, but accepting a {@link ValueProvider}.
+       */
+      public Bound<T> from(ValueProvider<String> filepattern) {
+        return new Bound<>(name, filepattern, coder, validate, compressionType);
       }
 
       /**
