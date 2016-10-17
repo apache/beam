@@ -110,6 +110,10 @@ import org.apache.beam.sdk.values.PDone;
  *     .withSuffix(".avro"));
  * } </pre>
  *
+ * <p>By default, {@link AvroIO.Write} produces output files that are compressed using the
+ * {@link org.apache.avro.file.DeflateCodec CodecFactory.deflateCodec(6)}. This default can
+ * be changed or overridden using {@link AvroIO.Write#withCodec}.
+ *
  * <p><h3>Permissions</h3>
  * Permission requirements depend on the {@link PipelineRunner} that is used to execute the
  * Dataflow job. Please refer to the documentation of corresponding {@link PipelineRunner}s for
