@@ -18,6 +18,7 @@
 package org.apache.beam.runners.flink;
 
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.PipelineOptionsValidator;
@@ -29,7 +30,7 @@ import org.apache.beam.sdk.values.POutput;
 /**
  * Test Flink runner.
  */
-public class TestFlinkRunner extends PipelineRunner<FlinkRunnerResult> {
+public class TestFlinkRunner extends PipelineRunner<PipelineResult> {
 
   private FlinkRunner delegate;
 
@@ -59,11 +60,9 @@ public class TestFlinkRunner extends PipelineRunner<FlinkRunnerResult> {
   }
 
   @Override
-  public FlinkRunnerResult run(Pipeline pipeline) {
+  public PipelineResult run(Pipeline pipeline) {
     try {
-      FlinkRunnerResult result = delegate.run(pipeline);
-
-      return result;
+      return delegate.run(pipeline);
     } catch (Throwable e) {
       // Special case hack to pull out assertion errors from PAssert; instead there should
       // probably be a better story along the lines of UserCodeException.
