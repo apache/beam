@@ -97,7 +97,7 @@ public abstract class AfterDelayFromFirstElementStateMachine extends OnceTrigger
   }
 
   /**
-   * The time domain according for which this trigger sets timers.
+   * The time domain according to which this trigger sets timers.
    */
   public TimeDomain getTimeDomain() {
     return timeDomain;
