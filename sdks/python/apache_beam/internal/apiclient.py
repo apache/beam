@@ -37,6 +37,7 @@ from apache_beam.utils import retry
 from apache_beam.utils.dependency import get_required_container_version
 from apache_beam.utils.dependency import get_sdk_name_and_version
 from apache_beam.utils.names import PropertyNames
+from apache_beam.utils.options import DebugOptions
 from apache_beam.utils.options import GoogleCloudOptions
 from apache_beam.utils.options import StandardOptions
 from apache_beam.utils.options import WorkerOptions
@@ -107,6 +108,7 @@ class Environment(object):
     self.standard_options = options.view_as(StandardOptions)
     self.google_cloud_options = options.view_as(GoogleCloudOptions)
     self.worker_options = options.view_as(WorkerOptions)
+    self.debug_options = options.view_as(DebugOptions)
     self.proto = dataflow.Environment()
     self.proto.clusterManagerApiService = COMPUTE_API_SERVICE
     self.proto.dataset = '%s/cloud_dataflow' % BIGQUERY_API_SERVICE
@@ -141,6 +143,10 @@ class Environment(object):
             value=to_json_value(job_type)),
         dataflow.Environment.VersionValue.AdditionalProperty(
             key='major', value=to_json_value(environment_version))])
+    # Experiments
+    if self.debug_options.experiments:
+      for experiment in self.debug_options.experiments:
+        self.proto.experiments.append(experiment)
     # Worker pool(s) information.
     package_descriptors = []
     for package in packages:
