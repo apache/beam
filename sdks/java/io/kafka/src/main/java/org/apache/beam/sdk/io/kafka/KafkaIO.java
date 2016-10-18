@@ -756,9 +756,7 @@ public class KafkaIO {
     private Iterator<PartitionState> curBatch = Collections.emptyIterator();
 
     private static final Duration KAFKA_POLL_TIMEOUT = Duration.millis(1000);
-    // how long to wait for new records from kafka consumer inside start()
-    private static final Duration START_NEW_RECORDS_POLL_TIMEOUT = Duration.standardSeconds(5);
-    // how long to wait for new records from kafka consumer inside advance()
+    // how long to wait for new records from kafka consumer.
     private static final Duration NEW_RECORDS_POLL_TIMEOUT = Duration.millis(10);
 
     // Use a separate thread to read Kafka messages. Kafka Consumer does all its work including
@@ -968,7 +966,7 @@ public class KafkaIO {
 
       // Wait for longer than normal when fetching a batch to improve chances a record is available
       // when start() returns.
-      nextBatch(START_NEW_RECORDS_POLL_TIMEOUT);
+      nextBatch(NEW_RECORDS_POLL_TIMEOUT);
       return advance();
     }
 
