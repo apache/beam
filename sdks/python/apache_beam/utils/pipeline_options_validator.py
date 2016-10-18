@@ -145,8 +145,9 @@ class PipelineOptionsValidator(object):
     """Validates job_name and project arguments."""
     errors = []
     job_name = view.job_name
-    if (job_name is None or
-        not self.is_full_string_match(self.JOB_PATTERN, job_name)):
+    if job_name is None:
+      errors.extend(self._validate_error(self.ERR_MISSING_OPTION, 'job_name'))
+    elif not self.is_full_string_match(self.JOB_PATTERN, job_name):
       errors.extend(self._validate_error(self.ERR_INVALID_JOB_NAME, job_name))
 
     project = view.project
