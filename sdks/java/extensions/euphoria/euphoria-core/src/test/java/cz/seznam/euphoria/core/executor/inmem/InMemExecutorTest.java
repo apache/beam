@@ -21,6 +21,7 @@ import cz.seznam.euphoria.core.client.operator.GroupByKey;
 import cz.seznam.euphoria.core.client.operator.MapElements;
 import cz.seznam.euphoria.core.client.operator.ReduceByKey;
 import cz.seznam.euphoria.core.client.operator.ReduceStateByKey;
+import cz.seznam.euphoria.core.client.operator.ReduceWindow;
 import cz.seznam.euphoria.core.client.operator.Repartition;
 import cz.seznam.euphoria.core.client.operator.Union;
 import cz.seznam.euphoria.core.client.operator.state.ListStorage;
@@ -578,10 +579,9 @@ public class InMemExecutorTest {
     Dataset<Integer> input = flow.createInput(
         ListDataSource.unbounded(sequenceInts(0, N)));
 
-    ListDataSink<Pair<String, Long>> outputs = ListDataSink.get(2);
+    ListDataSink<Long> outputs = ListDataSink.get(2);
 
-    ReduceByKey.of(input)
-        .keyBy(e -> "") // reduce all
+    ReduceWindow.of(input)
         .valueBy(e -> 1L)
         .combineBy(Sums.ofLongs())
         .windowBy(Time.of(Duration.ofSeconds(10)).using(e -> e * 1000L))
@@ -602,8 +602,7 @@ public class InMemExecutorTest {
     Thread.sleep(1000L);
 
     // the data in first unfinished partition
-    List<Pair<String, Long>> output = new ArrayList<>(
-        outputs.getUncommittedOutputs().get(0));
+    List<Long> output = new ArrayList<>(outputs.getUncommittedOutputs().get(0));
 
 
     // after one second we should have something about 500 elements read,
@@ -611,14 +610,14 @@ public class InMemExecutorTest {
     assertTrue("Should have at least 40 windows, got "
         + output.size(), 40 <= output.size());
     assertTrue("All but (at most) one window should have size 10",
-        output.stream().filter(w -> w.getSecond() != 10).count() <= 1);
+        output.stream().filter(w -> w != 10).count() <= 1);
 
     exec.join();
 
     output = outputs.getOutputs().get(0);
 
     output.forEach(w -> assertEquals("Each window should have 10 elements, got "
-        + w.getSecond(), 10L, (long) w.getSecond()));
+        + w, 10L, (long) w));
 
     // we have 2000 elements split into 200 windows
     assertEquals(200, output.size());
@@ -637,10 +636,9 @@ public class InMemExecutorTest {
     Dataset<Integer> input = flow.createInput(
         ListDataSource.unbounded(reversed(sequenceInts(0, N))));
 
-    ListDataSink<Pair<String, Long>> outputs = ListDataSink.get(2);
+    ListDataSink<Long> outputs = ListDataSink.get(2);
 
-    ReduceByKey.of(input)
-        .keyBy(e -> "") // reduce all
+    ReduceWindow.of(input)
         .valueBy(e -> 1L)
         .combineBy(Sums.ofLongs())
         .windowBy(Time.of(Duration.ofSeconds(10)).using(e -> e * 1000L))
@@ -656,7 +654,7 @@ public class InMemExecutorTest {
 
     // there should be only one element on output - the first element
     // all other windows are discarded
-    List<Pair<String, Long>> output = outputs.getOutputs().get(0);
+    List<Long> output = outputs.getOutputs().get(0);
     assertEquals(1, output.size());
   }
 
@@ -674,8 +672,7 @@ public class InMemExecutorTest {
 
     // first add some fake operator operating on processing time
     // doing virtually nothing
-    Dataset<Pair<String, Set<Integer>>> reduced = ReduceByKey.of(input)
-        .keyBy(e -> "")
+    Dataset<Set<Integer>> reduced = ReduceWindow.of(input)
         .reduceBy((Iterable<Integer> values) -> {
           Set<Integer> grp = new TreeSet<>();
           for (Integer i : values) {
@@ -686,20 +683,19 @@ public class InMemExecutorTest {
         .windowBy(Batch.get())
         .output();
 
-    // explode it back to the original input (more maybe reordered)
+    // explode it back to the original input (maybe reordered)
     // and store it as the original input, process it further in
     // the same way as in `testWithWatermarkAndEventTime'
     input = FlatMap.of(reduced)
-        .using((Pair<String, Set<Integer>> grp, Context<Integer> c) -> {
-          for (Integer i : grp.getSecond()) {
+        .using((Set<Integer> grp, Context<Integer> c) -> {
+          for (Integer i : grp) {
             c.collect(i);
           }
         }).output();
 
-    ListDataSink<Pair<String, Long>> outputs = ListDataSink.get(2);
+    ListDataSink<Long> outputs = ListDataSink.get(2);
 
-    ReduceByKey.of(input)
-        .keyBy(e -> "") // reduce all
+    ReduceWindow.of(input)
         .valueBy(e -> 1L)
         .combineBy(Sums.ofLongs())
         .windowBy(Time.of(Duration.ofSeconds(10)).using(e -> e * 1000L))
@@ -714,8 +710,7 @@ public class InMemExecutorTest {
     executor.waitForCompletion(flow);
 
     // the data in first unfinished partition
-    List<Pair<String, Long>> output = new ArrayList<>(
-        outputs.getUncommittedOutputs().get(0));
+    List<Long> output = new ArrayList<>(outputs.getUncommittedOutputs().get(0));
 
 
     // after one second we should have something about 500 elements read,
@@ -723,12 +718,12 @@ public class InMemExecutorTest {
     assertTrue("Should have at least 40 windows, got "
         + output.size(), 40 <= output.size());
     assertTrue("All but (at most) one window should have size 10",
-        output.stream().filter(w -> w.getSecond() != 10).count() <= 1);
+        output.stream().filter(w -> w != 10).count() <= 1);
 
     output = outputs.getOutputs().get(0);
 
     output.forEach(w -> assertEquals("Each window should have 10 elements, got "
-        + w.getSecond(), 10L, (long) w.getSecond()));
+        + w, 10L, (long) w));
 
     // we have 2000 elements split into 200 windows
     assertEquals(200, output.size());

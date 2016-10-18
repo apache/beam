@@ -72,7 +72,7 @@ public class HadoopDataSource<K, V> implements DataSource<Pair<K, V>> {
       return merged
           .stream()
           .map(s -> new HadoopPartition<>(keyClass, valueClass, hadoopFormatCls,
-              conf, s.toArray(new InputSplit[] { })))
+              conf, s.toArray(new InputSplit[s.size()])))
           .collect(Collectors.toList());
     }
     // do not merge splits
@@ -177,7 +177,6 @@ public class HadoopDataSource<K, V> implements DataSource<Pair<K, V>> {
         currentReader = null;
       }
       while (nextReader < inputSplits.length) {
-        System.err.println(" ** moving to next reader " + nextReader);
         InputSplit split = inputSplits[nextReader++];
         RecordReader reader = inputFormat.createRecordReader(split, ctx);
         reader.initialize(split, ctx);

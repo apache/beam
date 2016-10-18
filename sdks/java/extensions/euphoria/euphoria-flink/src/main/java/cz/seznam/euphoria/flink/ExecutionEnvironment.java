@@ -95,8 +95,7 @@ public class ExecutionEnvironment {
   public static Mode determineMode(Flow flow) {
     // check if sources are bounded or not
     for (Dataset<?> ds : flow.sources()) {
-      // FIXME
-      if (true || !ds.isBounded()) {
+      if (!ds.isBounded()) {
         return Mode.STREAMING;
       }
     }
