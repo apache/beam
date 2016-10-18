@@ -82,8 +82,9 @@ class DoFnRunner(Receiver):
                      if isinstance(side_input, sideinputs.SideInputMap)
                      else {global_window: side_input}
                      for side_input in side_inputs]
-      if side_inputs and all(side_input.is_globally_windowed()
-                             for side_input in side_inputs):
+      if side_inputs and all(
+          isinstance(side_input, dict) or side_input.is_globally_windowed()
+          for side_input in side_inputs):
         args, kwargs = util.insert_values_in_args(
             args, kwargs, [side_input[global_window]
                            for side_input in side_inputs])

@@ -178,7 +178,8 @@ class SideInputMap(object):
   """Represents a mapping of windows to side input values."""
 
   def __init__(self, view_class, view_options, iterable):
-    self._window_mapping_fn = view_options['window_mapping_fn']
+    self._window_mapping_fn = view_options.get(
+        'window_mapping_fn', _global_window_mapping_fn)
     self._view_class = view_class
     self._view_options = view_options
     self._iterable = iterable
@@ -207,3 +208,7 @@ class _FilteringIterable(object):
     for wv in self._iterable:
       if self._target_window in wv.windows:
         yield wv.value
+
+  def __reduce__(self):
+    # Pickle self as an already filtered list.
+    return list, (list(self),)

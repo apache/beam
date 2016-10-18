@@ -27,12 +27,15 @@ from apache_beam.transforms.util import assert_that, equal_to
 
 class SideInputsTest(unittest.TestCase):
 
+  def create_pipeline(self):
+    return beam.Pipeline('DirectPipelineRunner')
+
   def run_windowed_side_inputs(self, elements, main_window_fn,
                                side_window_fn=None,
                                side_input_type=beam.pvalue.AsList,
                                combine_fn=None,
                                expected=None):
-    with beam.Pipeline('DirectPipelineRunner') as p:
+    with self.create_pipeline() as p:
       pcoll = p | beam.Create(elements) | beam.Map(
           lambda t: window.TimestampedValue(t, t))
       main = pcoll | 'WindowMain' >> beam.WindowInto(main_window_fn)
