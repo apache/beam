@@ -31,7 +31,7 @@ import org.joda.time.Instant;
 public class ReshuffleTrigger<W extends BoundedWindow> extends Trigger {
 
   public ReshuffleTrigger() {
-    super(null);
+    super();
   }
 
   @Override

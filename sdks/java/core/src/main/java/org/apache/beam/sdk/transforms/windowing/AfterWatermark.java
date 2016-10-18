@@ -85,6 +85,14 @@ public class AfterWatermark {
     @Nullable
     private final OnceTrigger lateTrigger;
 
+    public OnceTrigger getEarlyTrigger() {
+      return earlyTrigger;
+    }
+
+    public OnceTrigger getLateTrigger() {
+      return lateTrigger;
+    }
+
     @SuppressWarnings("unchecked")
     public AfterWatermarkEarlyAndLate(OnceTrigger earlyTrigger, OnceTrigger lateTrigger) {
       super(lateTrigger == null
@@ -94,11 +102,11 @@ public class AfterWatermark {
       this.lateTrigger = lateTrigger;
     }
 
-    public Trigger withEarlyFirings(OnceTrigger earlyTrigger) {
+    public AfterWatermarkEarlyAndLate withEarlyFirings(OnceTrigger earlyTrigger) {
       return new AfterWatermarkEarlyAndLate(earlyTrigger, lateTrigger);
     }
 
-    public Trigger withLateFirings(OnceTrigger lateTrigger) {
+    public AfterWatermarkEarlyAndLate withLateFirings(OnceTrigger lateTrigger) {
       return new AfterWatermarkEarlyAndLate(earlyTrigger, lateTrigger);
     }
 

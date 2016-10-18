@@ -82,7 +82,7 @@ public abstract class AfterDelayFromFirstElementStateMachine extends OnceTrigger
    */
   protected final List<SerializableFunction<Instant, Instant>> timestampMappers;
 
-  private final TimeDomain timeDomain;
+  protected final TimeDomain timeDomain;
 
   public AfterDelayFromFirstElementStateMachine(
       TimeDomain timeDomain,
@@ -94,6 +94,21 @@ public abstract class AfterDelayFromFirstElementStateMachine extends OnceTrigger
 
   private Instant getTargetTimestamp(OnElementContext c) {
     return computeTargetTimestamp(c.currentProcessingTime());
+  }
+
+  /**
+   * The time domain according to which this trigger sets timers.
+   */
+  public TimeDomain getTimeDomain() {
+    return timeDomain;
+  }
+
+  /**
+   * The mapping functions applied to the arrival time of an element to determine when to
+   * set a wake-up timer for triggering.
+   */
+  public List<SerializableFunction<Instant, Instant>> getTimestampMappers() {
+    return timestampMappers;
   }
 
   /**

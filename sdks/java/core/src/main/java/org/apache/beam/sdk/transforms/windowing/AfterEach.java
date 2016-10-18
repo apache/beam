@@ -54,7 +54,7 @@ public class AfterEach extends Trigger {
    * Returns an {@code AfterEach} {@code Trigger} with the given subtriggers.
    */
   @SafeVarargs
-  public static Trigger inOrder(Trigger... triggers) {
+  public static AfterEach inOrder(Trigger... triggers) {
     return new AfterEach(Arrays.<Trigger>asList(triggers));
   }
 

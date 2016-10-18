@@ -26,13 +26,28 @@ import org.joda.time.Instant;
 /**
  * Executes the {@code actual} trigger until it finishes or until the {@code until} trigger fires.
  */
-class OrFinallyTrigger extends Trigger {
+public class OrFinallyTrigger extends Trigger {
 
   private static final int ACTUAL = 0;
   private static final int UNTIL = 1;
 
   @VisibleForTesting OrFinallyTrigger(Trigger actual, Trigger.OnceTrigger until) {
     super(Arrays.asList(actual, until));
+  }
+
+  /**
+   * The main trigger, which will continue firing until the "until" trigger fires. See
+   * {@link #getUntilTrigger()}
+   */
+  public Trigger getMainTrigger() {
+    return subTriggers().get(ACTUAL);
+  }
+
+  /**
+   * The trigger that signals termination of this trigger.
+   */
+  public OnceTrigger getUntilTrigger() {
+    return (OnceTrigger) subTriggers().get(UNTIL);
   }
 
   @Override
