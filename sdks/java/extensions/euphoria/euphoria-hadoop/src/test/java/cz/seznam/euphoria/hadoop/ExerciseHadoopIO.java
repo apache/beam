@@ -16,7 +16,6 @@ import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.Text;
 
 import java.net.URI;
-import org.junit.Test;
 
 public class ExerciseHadoopIO {
 
@@ -53,10 +52,5 @@ public class ExerciseHadoopIO {
     executor.waitForCompletion(flow);
   }
 
-  @Test
-  public void test() throws Exception {
-    System.err.println(" *** wtf");
-    main(new String[] { });
-  }
   
 }

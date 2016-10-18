@@ -636,6 +636,8 @@ public class InMemExecutor implements Executor {
     int numInputPartitions = suppliers.size();
     final boolean isMergingWindowing = windowing.isPresent()
         && windowing.get() instanceof MergingWindowing;
+    final boolean hasTimeAssignment = windowing.isPresent()
+        && windowing.get().getTimestampAssigner().isPresent();
     
     final int outputPartitions = partitioning.getNumPartitions() > 0
         ? partitioning.getNumPartitions() : numInputPartitions;
@@ -698,7 +700,7 @@ public class InMemExecutor implements Executor {
               datum.setStamp((long) assigner.apply(datum.get()));
             }
 
-            if (!handleMetaData(datum, ret, readerId, clocks, false)) {
+            if (!handleMetaData(datum, ret, readerId, clocks, !hasTimeAssignment)) {
 
               // extract element's timestamp if available
               long elementStamp = datum.getStamp();
@@ -794,12 +796,12 @@ public class InMemExecutor implements Executor {
       List<BlockingQueue<Datum>> downstream,
       int readerId,
       List<VectorClock> clocks,
-      boolean acceptWatermarks) {
+      boolean allowWatermarks) {
 
 
-    // update vector clocks by the watermark
-    // if any update occurs, emit the updates time downstream
-    if (acceptWatermarks || !item.isWatermark()) {
+    if (allowWatermarks || !item.isWatermark()) {
+      // update vector clocks by the watermark
+      // if any update occurs, emit the updates time downstream
       int i = 0;
       long stamp = item.getStamp();
       for (VectorClock clock : clocks) {
@@ -817,6 +819,9 @@ public class InMemExecutor implements Executor {
         i++;
       }
     }
+
+    // watermark already handled
+    if (item.isWatermark()) return true;
 
     // do not hadle elements
     if (item.isElement()) return false;
