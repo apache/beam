@@ -182,7 +182,7 @@ public class WindowingTest {
 
   @Test
   public void testAttachedWindowing_ContinuousOutput() {
-    final Duration READ_DELAY = Duration.ofMillis(37L);
+    final Duration READ_DELAY = Duration.ofMillis(73L);
     Flow flow = Flow.create("Test");
 
     // ~ one partition; supplying every READ_DELAYS a new element
@@ -192,9 +192,7 @@ public class WindowingTest {
     ).withReadDelay(READ_DELAY));
 
     // ~ emits after 3 input elements received due to "count windowing"
-    Dataset<Pair<String, HashSet<String>>> first = ReduceByKey.of(input)
-        .keyBy(e -> "")
-        .valueBy(e -> e)
+    Dataset<HashSet<String>> first = ReduceWindow.of(input)
         .reduceBy(Sets::newHashSet)
         .windowBy(Count.of(3))
         .output();
@@ -203,7 +201,7 @@ public class WindowingTest {
     // serving merely as another operator in the pipeline; must emit its
     // inputs elements as soon they arrive (note: this is a
     // non-window-wise operator)
-    Dataset<Pair<String, HashSet<String>>> mediator = MapElements.of(first)
+    Dataset<HashSet<String>> mediator = MapElements.of(first)
         .using(e -> e)
         .output();
 
@@ -213,9 +211,7 @@ public class WindowingTest {
     // further, the operator is supposed to emit the windows as soon as possible,
     // i.e. once the last item for a window from the preceding window-wise operator
     // is received.
-    Dataset<Pair<String, HashSet<String>>> second = ReduceByKey.of(mediator)
-        .keyBy(Pair::getFirst)
-        .valueBy(Pair::getSecond)
+    Dataset<HashSet<String>> second = ReduceWindow.of(mediator)
         .reduceBy(what -> {
           HashSet<String> s = new HashSet<>();
           s.add("!");
@@ -228,12 +224,11 @@ public class WindowingTest {
 
     // ~ consume the output and put a timestamp on each element. emits output
     // itself as soon as it receives input, due to the operator's streaming nature.
-    Dataset<Pair<Long, Pair<String, HashSet<String>>>> third =
-        MapElements.of(second)
+    Dataset<Pair<Long, HashSet<String>>> third = MapElements.of(second)
         .using(what -> Pair.of(System.currentTimeMillis(), what))
         .output();
 
-    ListDataSink<Pair<Long, Pair<String, HashSet<String>>>> output = ListDataSink.get(1);
+    ListDataSink<Pair<Long, HashSet<String>>> output = ListDataSink.get(1);
     third.persist(output);
 
     executor.waitForCompletion(flow);
@@ -244,10 +239,8 @@ public class WindowingTest {
       assertNotNull(x);
       assertNotNull(x.getFirst());
       assertNotNull(x.getSecond());
-      assertNotNull(x.getSecond().getFirst());
-      assertNotNull(x.getSecond().getSecond());
     });
-    List<Pair<Long, Pair<String, HashSet<String>>>> ordered =
+    List<Pair<Long, HashSet<String>>> ordered =
         output.getOutput(0)
             .stream()
             .sorted(Comparator.comparing(Pair::getFirst))
@@ -255,13 +248,13 @@ public class WindowingTest {
     assertEquals(3, ordered.size());
     // ~ test that we receive the first element earlier than the second one
     assertSmaller(
-        ordered.get(0).getFirst(), ordered.get(1).getFirst());
+        ordered.get(0).getFirst() + 2 * READ_DELAY.toMillis(), ordered.get(1).getFirst());
     assertEquals(Sets.newHashSet("!", "r-one", "r-two", "r-three"),
-                 ordered.get(0).getSecond().getSecond());
+                 ordered.get(0).getSecond());
     assertEquals(Sets.newHashSet("!", "s-one", "s-two", "s-three"),
-                 ordered.get(1).getSecond().getSecond());
+                 ordered.get(1).getSecond());
     assertEquals(Sets.newHashSet("!", "t-one"),
-                 ordered.get(2).getSecond().getSecond());
+                 ordered.get(2).getSecond());
   }
 
   private void assertSmaller(long x, long y) {
@@ -532,5 +525,38 @@ public class WindowingTest {
             "(2-7): 2: 2-one",
             "(20-25): 2: 2-three")),
         flat);
+  }
+
+  @Test
+  public void testTimeSlidingLabelAssignment() {
+
+    TimeSliding<Long> windowing = TimeSliding
+        .of(Duration.ofHours(1), Duration.ofMinutes(20))
+        .using(e -> e * 1000L);
+
+    long[] data = {
+      3590,
+      3600,
+      3610,
+      3800,
+      7190,
+      7200,
+      7210
+    };
+
+    for (long event : data) {
+      Set<WindowID<TimeInterval>> labels = windowing
+          .assignWindowsToElement(new WindowedElement<>(
+              new WindowID<>(Batch.Label.get()), (Long) event));
+      // verify window count
+      assertEquals(3, labels.size());
+      // verify that each window contains the original event
+      for (WindowID<TimeInterval> l : labels) {
+        long stamp = event * 1000L;
+        assertTrue(stamp >= l.getLabel().getStartMillis());
+        assertTrue(stamp <= l.getLabel().getEndMillis());
+      }
+    }
+
   }
 }

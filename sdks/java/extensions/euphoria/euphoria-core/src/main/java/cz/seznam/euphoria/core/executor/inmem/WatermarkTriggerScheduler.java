@@ -61,10 +61,7 @@ public class WatermarkTriggerScheduler<W, K> implements TriggerScheduler<W, K> {
             currentWatermark = p.getFirst();
             KeyedWindow<W, K> w = p.getSecond().getFirst();
             Triggerable<W, K> purged = purge(w, currentWatermark);
-            // FIXME: why this can be null????
-            if (purged != null) {
-              purged.fire(currentWatermark, w);
-            }
+            purged.fire(currentWatermark, w);
           });
 
       // and set the final watermark

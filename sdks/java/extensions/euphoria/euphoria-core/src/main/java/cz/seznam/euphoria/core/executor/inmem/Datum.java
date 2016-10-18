@@ -116,5 +116,12 @@ class Datum extends WindowedElement<Object, Object> {
     return false;
   }
 
+  @Override
+  public String toString() {
+    return "Datum(" + this.getWindowID() + ", " + stamp + ", " + get() + ")";
+  }
+
+
+
 
 }
