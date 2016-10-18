@@ -60,6 +60,47 @@ To contribute code to Apache Beam, you’ll have to do a few administrative step
 
 ### One-time Setup
 
+#### Intellij
+
+#### Eclipse
+ 
+Use a recent eclipse version that includes m2e. Currently we recommend Eclipse Neon.
+Start eclipse with a fresh workspace in a separate directory from your checkout.
+
+##### Install the m2e apt support
+
+Beam uses apt annotation processing to provide auto generated code. One example is the usage of [google auto value](https://github.com/google/auto/tree/master/value). By default m2e does not support this and you will see compile errors.
+
+Install m2e-apt
+
+	Help 
+	-> Eclipse Marketplace 
+	-> Search for "m2 apt" 
+	-> Install m2e-apt 1.2 or higher
+	
+
+Activate the apt processing
+
+	Window 
+	-> Preferences 
+	-> Maven 
+	-> Annotation processing 
+	-> Switch to Experimental: Delegate annoation processing ... 
+	-> Ok
+
+##### Import the beam projects
+
+	File 
+	-> Import... 
+	-> Existing Maven Projects 
+	-> Browse to the directory you cloned into and select incubator-beam 
+	-> make sure all beam projects are selected 
+	-> Finalize
+
+You now should have all the beam projects imported into eclipse and should see no compile errors.
+ 
+
+
 #### [Potentially] Submit Contributor License Agreement
 Apache Software Foundation (ASF) desires that all contributors of ideas, code, or documentation to the Apache projects complete, sign, and submit an [Individual Contributor License Agreement](https://www.apache.org/licenses/icla.txt) (ICLA). The purpose of this agreement is to clearly define the terms under which intellectual property has been contributed to the ASF and thereby allow us to defend the project should there be a legal dispute regarding the software at some future time.
 
