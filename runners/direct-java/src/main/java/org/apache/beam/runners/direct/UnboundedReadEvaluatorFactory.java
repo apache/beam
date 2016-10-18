@@ -139,6 +139,16 @@ class UnboundedReadEvaluatorFactory implements TransformEvaluatorFactory {
               .addUnprocessedElements(
                   Collections.singleton(
                       WindowedValue.timestampedValueInGlobalWindow(residual, watermark)));
+        } else if (reader.getWatermark().isBefore(BoundedWindow.TIMESTAMP_MAX_VALUE)) {
+          // If the reader had no elements available, but the shard is not done, reuse it later
+          resultBuilder.addUnprocessedElements(
+              Collections.<WindowedValue<?>>singleton(
+                  element.withValue(
+                      UnboundedSourceShard.of(
+                          shard.getSource(),
+                          shard.getDeduplicator(),
+                          reader,
+                          shard.getCheckpoint()))));
         }
       } catch (IOException e) {
         if (reader != null) {
