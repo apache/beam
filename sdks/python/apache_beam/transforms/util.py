@@ -21,6 +21,8 @@
 from __future__ import absolute_import
 
 from apache_beam.pvalue import AsIter as AllOf
+from apache_beam.transforms import core
+from apache_beam.transforms import window
 from apache_beam.transforms.core import CombinePerKey, Create, Flatten, GroupByKey, Map
 from apache_beam.transforms.ptransform import PTransform
 from apache_beam.transforms.ptransform import ptransform_fn
@@ -220,8 +222,9 @@ def assert_that(actual, matcher, label='assert_that'):
   class AssertThat(PTransform):
 
     def apply(self, pipeline):
-      return pipeline | 'singleton' >> Create([None]) | Map(match,
-                                                            AllOf(actual))
+      return pipeline | 'singleton' >> Create([None]) | Map(
+          match,
+          AllOf(actual | core.WindowInto(window.GlobalWindows())))
 
     def default_label(self):
       return label
