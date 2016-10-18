@@ -34,6 +34,7 @@ import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableListMultimap;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.ImmutableSortedSet;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.ListMultimap;
@@ -446,6 +447,7 @@ public class PipelineOptionsFactory {
   private static final Class<?>[] EMPTY_CLASS_ARRAY = new Class[0];
   private static final ObjectMapper MAPPER = new ObjectMapper();
   private static final ClassLoader CLASS_LOADER;
+
   private static final Map<String, Class<? extends PipelineRunner<?>>> SUPPORTED_PIPELINE_RUNNERS;
 
   /** Classes that are used as the boundary in the stack trace to find the callers class name. */
@@ -514,16 +516,20 @@ public class PipelineOptionsFactory {
 
     CLASS_LOADER = findClassLoader();
 
-    // Store the list of all available pipeline runners.
-    ImmutableMap.Builder<String, Class<? extends PipelineRunner<?>>> builder =
-            ImmutableMap.builder();
     Set<PipelineRunnerRegistrar> pipelineRunnerRegistrars =
         Sets.newTreeSet(ObjectsClassComparator.INSTANCE);
     pipelineRunnerRegistrars.addAll(
         Lists.newArrayList(ServiceLoader.load(PipelineRunnerRegistrar.class, CLASS_LOADER)));
+    // Store the list of all available pipeline runners.
+    ImmutableMap.Builder<String, Class<? extends PipelineRunner<?>>> builder =
+        ImmutableMap.builder();
     for (PipelineRunnerRegistrar registrar : pipelineRunnerRegistrars) {
       for (Class<? extends PipelineRunner<?>> klass : registrar.getPipelineRunners()) {
-        builder.put(klass.getSimpleName(), klass);
+        String runnerName = klass.getSimpleName().toLowerCase();
+        builder.put(runnerName, klass);
+        if (runnerName.endsWith("runner")) {
+          builder.put(runnerName.substring(0, runnerName.length() - "Runner".length()), klass);
+        }
       }
     }
     SUPPORTED_PIPELINE_RUNNERS = builder.build();
@@ -1420,24 +1426,25 @@ public class PipelineOptionsFactory {
         JavaType type = MAPPER.getTypeFactory().constructType(method.getGenericReturnType());
         if ("runner".equals(entry.getKey())) {
           String runner = Iterables.getOnlyElement(entry.getValue());
-          if (SUPPORTED_PIPELINE_RUNNERS.containsKey(runner)) {
-            convertedOptions.put("runner", SUPPORTED_PIPELINE_RUNNERS.get(runner));
+          if (SUPPORTED_PIPELINE_RUNNERS.containsKey(runner.toLowerCase())) {
+            convertedOptions.put("runner", SUPPORTED_PIPELINE_RUNNERS.get(runner.toLowerCase()));
           } else {
             try {
               Class<?> runnerClass = Class.forName(runner);
-              checkArgument(
-                  PipelineRunner.class.isAssignableFrom(runnerClass),
-                  "Class '%s' does not implement PipelineRunner. Supported pipeline runners %s",
-                  runner,
-                  Sets.newTreeSet(SUPPORTED_PIPELINE_RUNNERS.keySet()));
+              if (!(PipelineRunner.class.isAssignableFrom(runnerClass))) {
+                throw new IllegalArgumentException(
+                    String.format(
+                        "Class '%s' does not implement PipelineRunner. "
+                            + "Supported pipeline runners %s",
+                        runner, getSupportedRunners()));
+              }
               convertedOptions.put("runner", runnerClass);
             } catch (ClassNotFoundException e) {
               String msg =
                   String.format(
                       "Unknown 'runner' specified '%s', supported pipeline runners %s",
-                      runner,
-                      Sets.newTreeSet(SUPPORTED_PIPELINE_RUNNERS.keySet()));
-                throw new IllegalArgumentException(msg, e);
+                      runner, getSupportedRunners());
+              throw new IllegalArgumentException(msg, e);
             }
           }
         } else if ((returnType.isArray() && (SIMPLE_TYPES.contains(returnType.getComponentType())
@@ -1497,5 +1504,14 @@ public class PipelineOptionsFactory {
       }
     }
     return convertedOptions;
+  }
+
+  @VisibleForTesting
+  static Set<String> getSupportedRunners() {
+    ImmutableSortedSet.Builder<String> supportedRunners = ImmutableSortedSet.naturalOrder();
+    for (Class<? extends PipelineRunner<?>> runner : SUPPORTED_PIPELINE_RUNNERS.values()) {
+      supportedRunners.add(runner.getSimpleName());
+    }
+    return supportedRunners.build();
   }
 }

@@ -73,7 +73,22 @@ public class PipelineOptionsFactoryTest {
   @Test
   public void testAutomaticRegistrationOfRunners() {
     assertEquals(REGISTERED_RUNNER,
-        PipelineOptionsFactory.getRegisteredRunners().get(REGISTERED_RUNNER.getSimpleName()));
+        PipelineOptionsFactory.getRegisteredRunners()
+            .get(REGISTERED_RUNNER.getSimpleName().toLowerCase()));
+  }
+
+  @Test
+  public void testAutomaticRegistrationInculdesWithoutRunnerSuffix() {
+    // Sanity check to make sure the substring works appropriately
+    assertEquals("RegisteredTest",
+        REGISTERED_RUNNER.getSimpleName()
+            .substring(0, REGISTERED_RUNNER.getSimpleName().length() - "Runner".length()));
+    Map<String, Class<? extends PipelineRunner<?>>> registered =
+        PipelineOptionsFactory.getRegisteredRunners();
+    assertEquals(REGISTERED_RUNNER,
+        registered.get(REGISTERED_RUNNER.getSimpleName()
+            .toLowerCase()
+            .substring(0, REGISTERED_RUNNER.getSimpleName().length() - "Runner".length())));
   }
 
   @Test
@@ -927,10 +942,8 @@ public class PipelineOptionsFactoryTest {
     expectedException.expectMessage(
         "Unknown 'runner' specified 'UnknownRunner', supported " + "pipeline runners");
     Set<String> registeredRunners = PipelineOptionsFactory.getRegisteredRunners().keySet();
-    assertThat(registeredRunners, hasItem(REGISTERED_RUNNER.getSimpleName()));
-    for (String registeredRunner : registeredRunners) {
-      expectedException.expectMessage(registeredRunner);
-    }
+    assertThat(registeredRunners, hasItem(REGISTERED_RUNNER.getSimpleName().toLowerCase()));
+    expectedException.expectMessage(PipelineOptionsFactory.getSupportedRunners().toString());
 
     PipelineOptionsFactory.fromArgs(args).create();
   }
