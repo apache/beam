@@ -21,6 +21,7 @@ package org.apache.beam.runners.spark.io;
 import static com.google.common.base.Preconditions.checkArgument;
 
 import java.io.IOException;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import org.apache.beam.runners.spark.translation.SparkRuntimeContext;
@@ -56,8 +57,9 @@ public class SourceRDD {
     private final int numPartitions;
 
     // to satisfy Scala API.
-    private static final scala.collection.immutable.List<Dependency<?>> NIL =
-        scala.collection.immutable.List.empty();
+    private static final scala.collection.immutable.Seq<Dependency<?>> NIL =
+        scala.collection.JavaConversions
+          .asScalaBuffer(Collections.<Dependency<?>>emptyList()).toList();
 
     public Bounded(SparkContext sc,
                    BoundedSource<T> source,

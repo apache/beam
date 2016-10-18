@@ -34,6 +34,7 @@ import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -137,7 +138,7 @@ final class BoundedReadEvaluatorFactory implements TransformEvaluatorFactory {
 
     private <OutputT>
         Collection<CommittedBundle<BoundedSourceShard<OutputT>>> createInitialSplits(
-            AppliedPTransform<?, ?, Bounded<OutputT>> transform, int targetParallelism)
+            AppliedPTransform<PBegin, ?, Bounded<OutputT>> transform, int targetParallelism)
             throws Exception {
       BoundedSource<OutputT> source = transform.getTransform().getSource();
       PipelineOptions options = evaluationContext.getPipelineOptions();
