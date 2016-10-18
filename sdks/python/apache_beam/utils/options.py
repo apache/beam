@@ -364,6 +364,15 @@ class DebugOptions(PipelineOptions):
     parser.add_argument('--dataflow_job_file',
                         default=None,
                         help='Debug file to write the workflow specification.')
+    parser.add_argument(
+        '--experiment',
+        dest='experiments',
+        action='append',
+        default=None,
+        help=
+        ('Runners may provide a number of experimental features that can be '
+         'enabled with this flag. Please sync with the owners of the runner '
+         'before enabling any experiments.'))
 
 
 class ProfilingOptions(PipelineOptions):
