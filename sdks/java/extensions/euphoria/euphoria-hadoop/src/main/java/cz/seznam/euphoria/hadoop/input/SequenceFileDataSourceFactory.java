@@ -9,15 +9,15 @@ import org.apache.hadoop.mapreduce.lib.input.SequenceFileInputFormat;
 
 public class SequenceFileDataSourceFactory<K extends Writable, V extends Writable> {
 
+  @SuppressWarnings("unchecked")
   public HadoopDataSource<K, V> get(Path path) {
 
     Configuration conf = new Configuration();
     conf.set(FileInputFormat.INPUT_DIR, path.toString());
 
-    return
-      new HadoopDataSource<>(
+    return new HadoopDataSource<>(
+        (Class) Writable.class, (Class) Writable.class,
         (Class) SequenceFileInputFormat.class,
-        new SerializableWritable<>(conf)
-      );
+        new SerializableWritable<>(conf));
   }
 }

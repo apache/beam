@@ -11,9 +11,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.time.Duration;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.Future;
 
 /**
@@ -28,6 +30,7 @@ public class FlinkExecutor implements Executor {
   private Optional<AbstractStateBackend> stateBackend = Optional.empty();
   private Duration autoWatermarkInterval = Duration.ofMillis(200);
   private Duration allowedLateness = Duration.ofMillis(0);
+  private final Set<Class<?>> registeredClasses = new HashSet<>();
 
   public FlinkExecutor() {
     this(false);
@@ -58,7 +61,9 @@ public class FlinkExecutor implements Executor {
 
       LOG.info("Running flow in {} mode", mode);
 
-      ExecutionEnvironment environment = new ExecutionEnvironment(mode, localEnv);
+      ExecutionEnvironment environment = new ExecutionEnvironment(
+          mode, localEnv, registeredClasses);
+      
       Settings settings = flow.getSettings();
 
       if (mode == ExecutionEnvironment.Mode.STREAMING && stateBackend.isPresent()) {
@@ -139,6 +144,14 @@ public class FlinkExecutor implements Executor {
    */
   public FlinkExecutor setAllowedLateness(Duration lateness) {
     this.allowedLateness = Objects.requireNonNull(lateness);
+    return this;
+  }
+
+  /**
+   * Register given class to flink.
+   */
+  public FlinkExecutor registerClass(Class<?> cls) {
+    registeredClasses.add(cls);
     return this;
   }
 }
