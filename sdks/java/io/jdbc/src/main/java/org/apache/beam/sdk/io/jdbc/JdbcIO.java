@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.jdbc;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.auto.value.AutoValue;
@@ -146,9 +147,7 @@ public class JdbcIO {
     @Nullable abstract String getPassword();
     @Nullable abstract DataSource getDataSource();
 
-    static Builder builder() {
-      return new AutoValue_JdbcIO_DataSourceConfiguration.Builder();
-    }
+    abstract Builder builder();
 
     @AutoValue.Builder
     abstract static class Builder {
@@ -158,6 +157,31 @@ public class JdbcIO {
       abstract Builder setPassword(String password);
       abstract Builder setDataSource(DataSource dataSource);
       abstract DataSourceConfiguration build();
+    }
+
+    public static DataSourceConfiguration create(DataSource dataSource) {
+      checkNotNull(dataSource, "dataSource");
+      checkArgument(dataSource instanceof Serializable, "dataSource must be Serializable");
+      return new AutoValue_JdbcIO_DataSourceConfiguration.Builder()
+          .setDataSource(dataSource)
+          .build();
+    }
+
+    public static DataSourceConfiguration create(String driverClassName, String url) {
+      checkNotNull(driverClassName, "driverClassName");
+      checkNotNull(url, "url");
+      return new AutoValue_JdbcIO_DataSourceConfiguration.Builder()
+          .setDriverClassName(driverClassName)
+          .setUrl(url)
+          .build();
+    }
+
+    public DataSourceConfiguration withUsername(String username) {
+      return builder().setUsername(username).build();
+    }
+
+    public DataSourceConfiguration withPassword(String password) {
+      return builder().setPassword(password).build();
     }
 
     private void populateDisplayData(DisplayData.Builder builder) {
