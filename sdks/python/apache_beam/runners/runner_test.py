@@ -111,7 +111,7 @@ class RunnerTest(unittest.TestCase):
     expected_data = [{'type': 'TIMESTAMP', 'namespace': nspace+'SpecialParDo',
                       'value': DisplayDataItem._format_value(now, 'TIMESTAMP'),
                       'key': 'a_time'},
-                     {'type': 'JAVA_CLASS', 'namespace': nspace+'SpecialParDo',
+                     {'type': 'STRING', 'namespace': nspace+'SpecialParDo',
                       'value': nspace+'SpecialParDo', 'key': 'a_class',
                       'shortValue': 'SpecialParDo'},
                      {'type': 'INTEGER', 'namespace': nspace+'SpecialDoFn',

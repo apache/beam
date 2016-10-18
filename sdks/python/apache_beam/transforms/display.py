@@ -17,6 +17,19 @@
 
 """
 DisplayData, its classes, interfaces and methods.
+
+The classes in this module allow users and transform developers to define
+static display data to be displayed when a pipeline runs. PTransforms, DoFns
+and other pipeline components are subclasses of the HasDisplayData mixin. To
+add static display data to a component, you can override the display_data
+method of the HasDisplayData class.
+
+Available classes:
+- HasDisplayData - Components that inherit from this class can have static
+    display data shown in the UI.
+- DisplayDataItem - This class represents static display data elements.
+- DisplayData - Internal class that is used to create display data and
+    communicate it to the API.
 """
 
 from __future__ import absolute_import
@@ -30,11 +43,30 @@ __all__ = ['HasDisplayData', 'DisplayDataItem', 'DisplayData']
 
 
 class HasDisplayData(object):
-  """ Basic interface for elements that contain display data.
+  """ Basic mixin for elements that contain display data.
 
-  It contains only the display_data method and a namespace method.
+  It implements only the display_data method and a _namespace method.
   """
+
   def display_data(self):
+    """ Returns the display data associated to a pipeline component.
+
+    It should be reimplemented in pipeline components that wish to have
+    static display data.
+
+    Returns:
+      A dictionary containing key:value pairs. The value might be an
+      integer, float or string value; a DisplayDataItem for values that
+      have more data (e.g. short value, label, url); or a HasDisplayData
+      instance that has more display data that should be picked up. For
+      example::
+
+      { 'key1': 'string_value',
+        'key2': 1234,
+        'key3': 3.14159265,
+        'key4': DisplayDataItem('apache.org', url='http://apache.org'),
+        'key5': subComponent }
+    """
     return {}
 
   def _namespace(self):
@@ -42,12 +74,17 @@ class HasDisplayData(object):
 
 
 class DisplayData(object):
+  """ Static display data associated with a pipeline component.
+  """
+
   def __init__(self, namespace, display_data_dict):
     self.namespace = namespace
     self.items = []
     self.populate_items(display_data_dict)
 
   def populate_items(self, display_data_dict):
+    """ Populates the list of display data items.
+    """
     for key, element in display_data_dict.items():
       if isinstance(element, HasDisplayData):
         subcomponent_display_data = DisplayData(element._namespace(),
@@ -69,10 +106,21 @@ class DisplayData(object):
                           key=key))
 
   def output(self):
+    """ Returns the JSON-API list of display data items to send to the runner.
+    """
     return [item.get_dict() for item in self.items]
 
   @classmethod
   def create_from(cls, has_display_data):
+    """ Creates DisplayData from a HasDisplayData instance.
+
+    Returns:
+      A DisplayData instance with populated items.
+
+    Raises:
+      ValueError: If the has_display_data argument is not an instance of
+        HasDisplayData.
+    """
     if not isinstance(has_display_data, HasDisplayData):
       raise ValueError('Element of class {}.{} does not subclass HasDisplayData'
                        .format(has_display_data.__module__,
@@ -81,6 +129,11 @@ class DisplayData(object):
 
 
 class DisplayDataItem(object):
+  """ A DisplayDataItem represents a unit of static display data.
+
+  Each item is identified by a key and the namespace of the component the
+  display item belongs to.
+  """
   typeDict = {str:'STRING',
               int:'INTEGER',
               float:'FLOAT',
@@ -99,6 +152,12 @@ class DisplayDataItem(object):
     self.label = label
 
   def is_valid(self):
+    """ Checks that all the necessary fields of the DisplayDataItem are
+    filled in. It checks that neither key, namespace, value or type are None.
+
+    Raises:
+      ValueError: If the item does not have a key, namespace, value or type.
+    """
     if self.key is None:
       raise ValueError('Key must not be None')
     if self.namespace is None:
@@ -109,11 +168,22 @@ class DisplayDataItem(object):
       raise ValueError('Value {} is of an unsupported type.'.format(self.value))
 
   def get_dict(self):
+    """ Returns the internal-API dictionary representing the DisplayDataItem.
+
+    Returns:
+      A dictionary. The internal-API dictionary representing the
+      DisplayDataItem
+
+    Raises:
+     ValueError: if the item is not valid.
+    """
     self.is_valid()
 
     res = {'key': self.key,
            'namespace': self.namespace,
-           'type': self.type}
+           'type': self.type if self.type != 'JAVA_CLASS' else 'STRING'}
+    # TODO: Python Class types should not be special-cased once
+    # the Fn API is in.
 
     if self.url is not None:
       res['url'] = self.url
@@ -129,6 +199,15 @@ class DisplayDataItem(object):
 
   @classmethod
   def _format_value(cls, value, type_):
+    """ Returns the API representation of a value given its type.
+
+    Args:
+      value: The value of the item that needs to be shortened.
+      type_(string): The type of the value.
+
+    Returns:
+      A formatted value in the form of a float, int, or string.
+    """
     res = value
     if type_ == 'JAVA_CLASS':
       res = '{}.{}'.format(value.__module__, value.__name__)
@@ -140,12 +219,34 @@ class DisplayDataItem(object):
 
   @classmethod
   def _get_short_value(cls, value, type_):
+    """ Calculates the short value for an item.
+
+    Args:
+      value: The value of the item that needs to be shortened.
+      type_(string): The type of the value.
+
+    Returns:
+      The unqualified name of a class if type_ is 'CLASS'. None otherwise.
+    """
     if type_ == 'JAVA_CLASS':
       return value.__name__
     return None
 
   @classmethod
   def _get_value_type(cls, value):
+    """ Infers the type of a given value.
+
+    Args:
+      value: The value whose type needs to be inferred. For 'DURATION' and
+        'TIMESTAMP', the corresponding Python type is datetime.timedelta and
+        datetime.datetime respectively. For Python classes, the API type is
+        just 'STRING' at the moment.
+
+    Returns:
+      One of 'STRING', 'INTEGER', 'FLOAT', 'JAVA_CLASS', 'DURATION', or
+      'TIMESTAMP', depending on the type of the value.
+    """
+    #TODO: Fix Args: documentation once the Python classes handling has changed
     type_ = cls.typeDict.get(type(value))
     if type_ is None:
       type_ = 'JAVA_CLASS' if inspect.isclass(value) else None

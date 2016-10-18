@@ -78,7 +78,7 @@ class DisplayDataTest(unittest.TestCase):
          'key': 'complex_url', 'type': 'STRING'},
         {'type': 'TIMESTAMP', 'namespace': nspace, 'key': 'my_dd',
          'value': DisplayDataItem._format_value(now, 'TIMESTAMP')},
-        {'type': 'JAVA_CLASS', 'namespace': nspace,
+        {'type': 'STRING', 'namespace': nspace,
          'shortValue': 'HasDisplayData', 'key': 'python_class',
          'value': 'apache_beam.transforms.display.HasDisplayData'},
         {'type': 'INTEGER', 'namespace': nspace,
