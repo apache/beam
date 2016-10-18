@@ -144,6 +144,20 @@ class TestAvro(unittest.TestCase):
     expected_result = self.RECORDS
     self._run_avro_test(file_name, 100, True, expected_result)
 
+  def test_read_reentrant_without_splitting(self):
+    file_name = self._write_data()
+    source = AvroSource(file_name)
+    source_test_utils.assertReentrantReadsSucceed((source, None, None))
+
+  def test_read_reantrant_with_splitting(self):
+    file_name = self._write_data()
+    source = AvroSource(file_name)
+    splits = [
+        split for split in source.split(desired_bundle_size=100000)]
+    assert len(splits) == 1
+    source_test_utils.assertReentrantReadsSucceed(
+        (splits[0].source, splits[0].start_position, splits[0].stop_position))
+
   def test_read_without_splitting_multiple_blocks(self):
     file_name = self._write_data(count=12000)
     expected_result = self.RECORDS * 2000

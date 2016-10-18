@@ -91,6 +91,13 @@ class BoundedSource(object):
       positions passed to the method ``get_range_tracker()`` are ``None``
   (2) Method read() will be invoked with the ``RangeTracker`` obtained in the
       previous step.
+
+  **Mutability**
+
+  A ``BoundedSource`` object should not be mutated while
+  its methods (for example, ``read()``) are being invoked by a runner. Runner
+  implementations may invoke methods of ``BoundedSource`` objects through
+  multi-threaded and/or reentrant execution modes.
   """
 
   def estimate_size(self):

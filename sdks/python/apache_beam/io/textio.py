@@ -41,14 +41,41 @@ class _TextSource(filebasedsource.FileBasedSource):
 
   DEFAULT_READ_BUFFER_SIZE = 8192
 
+  class ReadBuffer(object):
+    # A buffer that gives the buffered data and next position in the
+    # buffer that should be read.
+
+    def __init__(self, data, position):
+      self._data = data
+      self._position = position
+
+    @property
+    def data(self):
+      return self._data
+
+    @data.setter
+    def data(self, value):
+      assert isinstance(value, bytes)
+      self._data = value
+
+    @property
+    def position(self):
+      return self._position
+
+    @position.setter
+    def position(self, value):
+      assert isinstance(value, (int, long))
+      if value > len(self._data):
+        raise ValueError('Cannot set position to %d since it\'s larger than '
+                         'size of data %d.', value, len(self._data))
+      self._position = value
+
   def __init__(self, file_pattern, min_bundle_size,
                compression_type, strip_trailing_newlines, coder,
                buffer_size=DEFAULT_READ_BUFFER_SIZE):
     super(_TextSource, self).__init__(file_pattern, min_bundle_size,
                                       compression_type=compression_type)
-    self._buffer = ''
-    self._next_position_in_buffer = 0
-    self._file = None
+
     self._strip_trailing_newlines = strip_trailing_newlines
     self._compression_type = compression_type
     self._coder = coder
@@ -57,7 +84,9 @@ class _TextSource(filebasedsource.FileBasedSource):
   def read_records(self, file_name, range_tracker):
     start_offset = range_tracker.start_position()
 
-    self._file = self.open_file(file_name)
+    read_buffer = _TextSource.ReadBuffer('', 0)
+    file_to_read = self.open_file(file_name)
+
     try:
       if start_offset > 0:
         # Seeking to one position before the start index and ignoring the
@@ -65,98 +94,102 @@ class _TextSource(filebasedsource.FileBasedSource):
         # belongs to the current bundle, hence ignoring that is incorrect.
         # Seeking to one byte before prevents that.
 
-        self._file.seek(start_offset - 1)
-        sep_bounds = self._find_separator_bounds()
+        file_to_read.seek(start_offset - 1)
+        sep_bounds = self._find_separator_bounds(file_to_read, read_buffer)
         if not sep_bounds:
           # Could not find a separator after (start_offset - 1). This means that
           # none of the records within the file belongs to the current source.
           return
 
         _, sep_end = sep_bounds
-        self._buffer = self._buffer[sep_end:]
+        read_buffer.data = read_buffer.data[sep_end:]
         next_record_start_position = start_offset -1 + sep_end
       else:
         next_record_start_position = 0
 
       while range_tracker.try_claim(next_record_start_position):
-        record, num_bytes_to_next_record = self._read_record()
+        record, num_bytes_to_next_record = self._read_record(file_to_read,
+                                                             read_buffer)
         yield self._coder.decode(record)
         if num_bytes_to_next_record < 0:
           break
         next_record_start_position += num_bytes_to_next_record
     finally:
-      self._file.close()
+      file_to_read.close()
 
-  def _find_separator_bounds(self):
-    # Determines the start and end positions within 'self._buffer' of the next
-    # separator starting from 'self._next_position_in_buffer'.
+  def _find_separator_bounds(self, file_to_read, read_buffer):
+    # Determines the start and end positions within 'read_buffer.data' of the
+    # next separator starting from position 'read_buffer.position'.
     # Currently supports following separators.
     # * '\n'
     # * '\r\n'
     # This method may increase the size of buffer but it will not decrease the
     # size of it.
 
-    current_pos = self._next_position_in_buffer
+    current_pos = read_buffer.position
 
     while True:
-      if current_pos >= len(self._buffer):
+      if current_pos >= len(read_buffer.data):
         # Ensuring that there are enough bytes to determine if there is a '\n'
         # at current_pos.
-        if not self._try_to_ensure_num_bytes_in_buffer(current_pos + 1):
+        if not self._try_to_ensure_num_bytes_in_buffer(
+            file_to_read, read_buffer, current_pos + 1):
           return
 
       # Using find() here is more efficient than a linear scan of the byte
       # array.
-      next_lf = self._buffer.find('\n', current_pos)
+      next_lf = read_buffer.data.find('\n', current_pos)
       if next_lf >= 0:
-        if self._buffer[next_lf - 1] == '\r':
+        if next_lf > 0 and read_buffer.data[next_lf - 1] == '\r':
+          # Found a '\r\n'. Accepting that as the next separator.
           return (next_lf - 1, next_lf + 1)
         else:
+          # Found a '\n'. Accepting that as the next separator.
           return (next_lf, next_lf + 1)
 
-      current_pos = len(self._buffer)
+      current_pos = len(read_buffer.data)
 
-  def _try_to_ensure_num_bytes_in_buffer(self, num_bytes):
+  def _try_to_ensure_num_bytes_in_buffer(
+      self, file_to_read, read_buffer, num_bytes):
     # Tries to ensure that there are at least num_bytes bytes in the buffer.
     # Returns True if this can be fulfilled, returned False if this cannot be
     # fulfilled due to reaching EOF.
-    while len(self._buffer) < num_bytes:
-      read_data = self._file.read(self._buffer_size)
+    while len(read_buffer.data) < num_bytes:
+      read_data = file_to_read.read(self._buffer_size)
       if not read_data:
         return False
 
-      self._buffer += read_data
+      read_buffer.data += read_data
 
     return True
 
-  def _read_record(self):
+  def _read_record(self, file_to_read, read_buffer):
     # Returns a tuple containing the current_record and number of bytes to the
     # next record starting from 'self._next_position_in_buffer'. If EOF is
     # reached, returns a tuple containing the current record and -1.
 
-    if self._next_position_in_buffer > self._buffer_size:
-      # Buffer is too large. Truncating it and adjusting
-      # self._next_position_in_buffer.
-      self._buffer = self._buffer[self._next_position_in_buffer:]
-      self._next_position_in_buffer = 0
+    if read_buffer.position > self._buffer_size:
+      # read_buffer is too large. Truncating and adjusting it.
+      read_buffer.data = read_buffer.data[read_buffer.position:]
+      read_buffer.position = 0
 
-    record_start_position_in_buffer = self._next_position_in_buffer
-    sep_bounds = self._find_separator_bounds()
-    self._next_position_in_buffer = sep_bounds[1] if sep_bounds else len(
-        self._buffer)
+    record_start_position_in_buffer = read_buffer.position
+    sep_bounds = self._find_separator_bounds(file_to_read, read_buffer)
+    read_buffer.position = sep_bounds[1] if sep_bounds else len(
+        read_buffer.data)
 
     if not sep_bounds:
       # Reached EOF. Bytes up to the EOF is the next record. Returning '-1' for
       # the starting position of the next record.
-      return (self._buffer[record_start_position_in_buffer:], -1)
+      return (read_buffer.data[record_start_position_in_buffer:], -1)
 
     if self._strip_trailing_newlines:
       # Current record should not contain the separator.
-      return (self._buffer[record_start_position_in_buffer:sep_bounds[0]],
+      return (read_buffer.data[record_start_position_in_buffer:sep_bounds[0]],
               sep_bounds[1] - record_start_position_in_buffer)
     else:
       # Current record should contain the separator.
-      return (self._buffer[record_start_position_in_buffer:sep_bounds[1]],
+      return (read_buffer.data[record_start_position_in_buffer:sep_bounds[1]],
               sep_bounds[1] - record_start_position_in_buffer)
 
 

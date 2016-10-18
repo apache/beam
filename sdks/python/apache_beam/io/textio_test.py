@@ -198,6 +198,23 @@ class TextSourceTest(unittest.TestCase):
     self.assertEqual(
         [float(i) / 10 for i in range(0, 10)], fraction_consumed_report)
 
+  def test_read_reentrant_without_splitting(self):
+    file_name, expected_data = write_data(10)
+    assert len(expected_data) == 10
+    source = TextSource(file_name, 0, CompressionTypes.UNCOMPRESSED, True,
+                        coders.StrUtf8Coder())
+    source_test_utils.assertReentrantReadsSucceed((source, None, None))
+
+  def test_read_reentrant_after_splitting(self):
+    file_name, expected_data = write_data(10)
+    assert len(expected_data) == 10
+    source = TextSource(file_name, 0, CompressionTypes.UNCOMPRESSED, True,
+                        coders.StrUtf8Coder())
+    splits = [split for split in source.split(desired_bundle_size=100000)]
+    assert len(splits) == 1
+    source_test_utils.assertReentrantReadsSucceed(
+        (splits[0].source, splits[0].start_position, splits[0].stop_position))
+
   def test_dynamic_work_rebalancing(self):
     file_name, expected_data = write_data(15)
     assert len(expected_data) == 15
