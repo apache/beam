@@ -188,7 +188,7 @@ class SideInputMap(object):
   def __getitem__(self, window):
     if window not in self._cache:
       target_window = self._window_mapping_fn(window)
-      self._cache[window] = self._view_class.from_iterable(
+      self._cache[window] = self._view_class._from_runtime_iterable(
           _FilteringIterable(self._iterable, target_window), self._view_options)
     return self._cache[window]
 

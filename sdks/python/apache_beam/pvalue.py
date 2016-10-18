@@ -268,7 +268,7 @@ class SingletonPCollectionView(PCollectionView):
       return base
 
   @staticmethod
-  def from_iterable(it, options):
+  def _from_runtime_iterable(it, options):
     head = list(itertools.islice(it, 2))
     if len(head) == 0:
       return options.get('default', EmptySideInput())
@@ -284,7 +284,7 @@ class IterablePCollectionView(PCollectionView):
   """A PCollectionView that can be treated as an iterable."""
 
   @staticmethod
-  def from_iterable(it, options):
+  def _from_runtime_iterable(it, options):
     return it
 
 
@@ -292,7 +292,7 @@ class ListPCollectionView(PCollectionView):
   """A PCollectionView that can be treated as a list."""
 
   @staticmethod
-  def from_iterable(it, options):
+  def _from_runtime_iterable(it, options):
     return list(it)
 
 
@@ -300,7 +300,7 @@ class DictPCollectionView(PCollectionView):
   """A PCollectionView that can be treated as a dict."""
 
   @staticmethod
-  def from_iterable(it, options):
+  def _from_runtime_iterable(it, options):
     return dict(it)
 
 
