@@ -10,6 +10,7 @@ import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
 import org.apache.hadoop.mapreduce.lib.input.TextInputFormat;
 
 import java.net.URI;
+import org.apache.hadoop.io.Writable;
 
 public class HadoopTextFileSourceFactory implements DataSourceFactory {
 
@@ -22,6 +23,7 @@ public class HadoopTextFileSourceFactory implements DataSourceFactory {
     conf.set(FileInputFormat.INPUT_DIR, uri.toString());
 
     return (DataSource<T>) new HadoopDataSource(
-            TextInputFormat.class, new SerializableWritable<>(conf));
+        Writable.class, Writable.class,
+        TextInputFormat.class, new SerializableWritable<>(conf));
   }
 }

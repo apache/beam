@@ -55,7 +55,7 @@ public class ListDataSink<T> implements DataSink<T> {
   private final List<ListWriter> writers = Collections.synchronizedList(new ArrayList<>());
 
   @SuppressWarnings("unchecked")
-  private ListDataSink(int numPartitions) {
+  protected ListDataSink(int numPartitions) {
     List<List<T>> outputs = new ArrayList<>();
 
     for (int i = 0; i < numPartitions; i++) {

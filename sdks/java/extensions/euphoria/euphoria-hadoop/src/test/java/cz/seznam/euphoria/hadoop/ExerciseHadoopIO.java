@@ -12,11 +12,11 @@ import cz.seznam.euphoria.core.executor.Executor;
 import cz.seznam.euphoria.core.executor.inmem.InMemExecutor;
 import cz.seznam.euphoria.core.util.Settings;
 import cz.seznam.euphoria.hadoop.input.HadoopTextFileSourceFactory;
-import cz.seznam.euphoria.hadoop.output.HadoopTextFileSinkFactory;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.Text;
 
 import java.net.URI;
+import org.junit.Test;
 
 public class ExerciseHadoopIO {
 
@@ -24,10 +24,6 @@ public class ExerciseHadoopIO {
     Settings settings = new Settings();
     settings.setClass("euphoria.io.datasource.factory.webhdfs",
             HadoopTextFileSourceFactory.class);
-    settings.setClass("euphoria.io.datasink.factory.stdout",
-            StdoutSink.Factory.class);
-    settings.setClass("euphoria.io.datasink.factory.hdfs",
-            HadoopTextFileSinkFactory.class);
 
     Flow flow = Flow.create("Test", settings);
 
@@ -51,13 +47,16 @@ public class ExerciseHadoopIO {
             .output();
 
     // produce the output
-    wordCount.persist(URI.create("stdout:///"));
-
-    // write output to HDFS
-    //wordCount.persist(URI.create("hdfs://gin.dev/tmp/euphoria-test"));
-
+    wordCount.persist(new StdoutSink<>(false, "\n"));
 
     Executor executor = new InMemExecutor();
     executor.waitForCompletion(flow);
   }
+
+  @Test
+  public void test() throws Exception {
+    System.err.println(" *** wtf");
+    main(new String[] { });
+  }
+  
 }

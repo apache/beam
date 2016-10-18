@@ -1,13 +1,25 @@
 package cz.seznam.euphoria.flink;
 
 import cz.seznam.euphoria.core.client.dataset.Dataset;
+import cz.seznam.euphoria.core.client.dataset.windowing.Batch;
+import cz.seznam.euphoria.core.client.dataset.windowing.WindowedElement;
 import cz.seznam.euphoria.core.client.flow.Flow;
+import cz.seznam.euphoria.core.util.Settings;
+import cz.seznam.euphoria.flink.streaming.StreamingWindowedElement;
+import cz.seznam.euphoria.guava.shaded.com.google.common.collect.Sets;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Unified interface for Flink batch and stream execution environments.
  */
 public class ExecutionEnvironment {
+
+  private static final Logger LOG = LoggerFactory.getLogger(ExecutionEnvironment.class);
 
   private org.apache.flink.api.java.ExecutionEnvironment batchEnv;
   private StreamExecutionEnvironment streamEnv;
@@ -24,14 +36,25 @@ public class ExecutionEnvironment {
     STREAMING
   }
 
-  public ExecutionEnvironment(Mode mode, boolean local) {
+  public ExecutionEnvironment(
+      Mode mode, boolean local, Set<Class<?>> registeredClasses) {
+
+    Set<Class<?>> toRegister = getClassesToRegister(registeredClasses);
+    
     if (mode == Mode.BATCH) {
       batchEnv = local ? org.apache.flink.api.java.ExecutionEnvironment.createLocalEnvironment() :
               org.apache.flink.api.java.ExecutionEnvironment.getExecutionEnvironment();
+      // add type passed through
+      toRegister.add(WindowedElement.class);
+      toRegister.forEach(batchEnv::registerType);
     } else {
       streamEnv = local ? StreamExecutionEnvironment.createLocalEnvironment() :
               StreamExecutionEnvironment.getExecutionEnvironment();
+      // in streaming we pass through StreamingWindowedElement
+      toRegister.add(StreamingWindowedElement.class);
+      toRegister.forEach(streamEnv::registerType);
     }
+    LOG.info("Registered classes {} within flink's runtime", toRegister);
   }
 
 
@@ -72,7 +95,8 @@ public class ExecutionEnvironment {
   public static Mode determineMode(Flow flow) {
     // check if sources are bounded or not
     for (Dataset<?> ds : flow.sources()) {
-      if (!ds.isBounded()) {
+      // FIXME
+      if (true || !ds.isBounded()) {
         return Mode.STREAMING;
       }
     }
@@ -80,5 +104,15 @@ public class ExecutionEnvironment {
     // default mode is batch
     return Mode.BATCH;
   }
+
+
+  private Set<Class<?>> getClassesToRegister(Set<Class<?>> registeredClasses) {
+    HashSet<Class<?>> ret = Sets.newHashSet(registeredClasses);
+    ret.add(Batch.Label.class);
+    ret.add(WindowedElement.class);
+    ret.add(StreamExecutionEnvironment.class);
+    return ret;
+  }
+
 
 }

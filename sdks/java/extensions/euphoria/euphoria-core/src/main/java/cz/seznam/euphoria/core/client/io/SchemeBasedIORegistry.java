@@ -20,6 +20,7 @@ public class SchemeBasedIORegistry extends IORegistry {
     return factory.get(uri, settings);
   }
 
+  @Override
   public <T> DataSink<T> openSink(URI uri, Settings settings) throws Exception {
     String name = SCHEME_SINK_PREFIX + uri.getScheme();
     DataSinkFactory factory = getInstance(settings, name, DataSinkFactory.class);
