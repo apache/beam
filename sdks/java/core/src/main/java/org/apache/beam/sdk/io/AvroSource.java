@@ -36,7 +36,6 @@ import java.nio.channels.SeekableByteChannel;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Map;
-import java.util.Objects;
 import java.util.WeakHashMap;
 import java.util.zip.Inflater;
 import java.util.zip.InflaterInputStream;
@@ -276,12 +275,18 @@ public class AvroSource<T> extends BlockBasedSource<T> {
       }
       codec = metadata.getCodec();
       syncMarker = metadata.getSyncMarker();
-
-      // Only store both the read and file schema if they differ
-      if (!Objects.equals(readSchemaString, metadata.getSchemaString())) {
-        fileSchemaString = internSchemaString(metadata.getSchemaString());
+      fileSchemaString = metadata.getSchemaString();
+      // If the source was created with a null schema, use the schema that we read from the file's
+      // metadata.
+      if (readSchemaString == null) {
+        readSchemaString = metadata.getSchemaString();
       }
     }
+    // Note that if the fileSchemaString is equivalent to the readSchemaString, "intern"ing
+    // the string will occur within the constructor and return the same reference as the
+    // readSchemaString. This allows for Java to have an efficient serialization since it
+    // will only encode the schema once while just storing pointers to the encoded version
+    // within this source.
     return new AvroSource<>(fileName, getMinBundleSize(), start, end, readSchemaString, type,
         codec, syncMarker, fileSchemaString);
   }
@@ -311,7 +316,7 @@ public class AvroSource<T> extends BlockBasedSource<T> {
   @VisibleForTesting
   Schema getReadSchema() {
     if (readSchemaString == null) {
-      return getFileSchema();
+      return null;
     }
 
     // If the schema has not been parsed, parse it.
@@ -323,14 +328,13 @@ public class AvroSource<T> extends BlockBasedSource<T> {
 
   @VisibleForTesting
   Schema getFileSchema() {
-    String schemaString = fileSchemaString == null ? readSchemaString : fileSchemaString;
-    if (schemaString == null) {
+    if (fileSchemaString == null) {
       return null;
     }
 
     // If the schema has not been parsed, parse it.
     if (fileSchema == null) {
-      fileSchema = internOrParseSchemaString(schemaString);
+      fileSchema = internOrParseSchemaString(fileSchemaString);
     }
     return fileSchema;
   }
