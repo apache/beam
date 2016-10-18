@@ -80,7 +80,7 @@ class PipelineOptionsTest(unittest.TestCase):
           PipelineOptionsTest.MockOptions).mock_option,
                        case['expected']['mock_option'])
 
-  def test_option_with_spcae(self):
+  def test_option_with_space(self):
     options = PipelineOptions(flags=['--option with space= value with space'])
     self.assertEqual(
         getattr(options.view_as(PipelineOptionsTest.MockOptions),
@@ -100,6 +100,14 @@ class PipelineOptionsTest(unittest.TestCase):
     options.view_as(PipelineOptionsTest.MockOptions).mock_flag = True
     self.assertEqual(options.get_all_options()['num_workers'], 5)
     self.assertEqual(options.get_all_options()['mock_flag'], True)
+
+  def test_experiments(self):
+    options = PipelineOptions(['--experiment', 'abc', '--experiment', 'def'])
+    self.assertEqual(
+        sorted(options.get_all_options()['experiments']), ['abc', 'def'])
+
+    options = PipelineOptions(flags=[''])
+    self.assertEqual(options.get_all_options()['experiments'], None)
 
 
 if __name__ == '__main__':
