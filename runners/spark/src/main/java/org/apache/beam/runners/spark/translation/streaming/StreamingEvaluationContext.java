@@ -20,6 +20,7 @@ package org.apache.beam.runners.spark.translation.streaming;
 
 import com.google.common.collect.Iterables;
 
+import java.io.IOException;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.Map;
@@ -45,6 +46,7 @@ import org.apache.spark.api.java.function.VoidFunction;
 import org.apache.spark.streaming.api.java.JavaDStream;
 import org.apache.spark.streaming.api.java.JavaDStreamLike;
 import org.apache.spark.streaming.api.java.JavaStreamingContext;
+import org.joda.time.Duration;
 
 
 /**
@@ -196,6 +198,26 @@ public class StreamingEvaluationContext extends EvaluationContext {
   @Override
   public State getState() {
     return state;
+  }
+
+  @Override
+  public State cancel() throws IOException {
+    throw new UnsupportedOperationException(
+        "Spark runner StreamingEvaluationContext does not support cancel.");
+  }
+
+  @Override
+  public State waitUntilFinish()
+      throws IOException, InterruptedException {
+    throw new UnsupportedOperationException(
+        "Spark runner StreamingEvaluationContext does not support waitUntilFinish.");
+  }
+
+  @Override
+  public State waitUntilFinish(Duration duration)
+      throws IOException, InterruptedException {
+    throw new UnsupportedOperationException(
+        "Spark runner StreamingEvaluationContext does not support waitUntilFinish.");
   }
 
   //---------------- override in order to expose in package
