@@ -340,7 +340,8 @@ public class WindowingTest {
 
     Dataset<String> input = flow.createInput(ListDataSource.unbounded(
         asList("0-one 1-two 0-three 1-four 0-five 1-six 0-seven".split(" "))
-    ).withReadDelay(READ_DELAY));
+    ).withReadDelay(READ_DELAY)
+     .withFinalDelay(READ_DELAY.multipliedBy(2)));
 
     // ~ create windows of size three
     Dataset<Pair<String, Set<String>>> first =
