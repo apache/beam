@@ -55,17 +55,20 @@ import org.apache.commons.dbcp2.BasicDataSource;
  * type returned by the provided {@link RowMapper}.
  *
  * <p>To configure the JDBC source, you have to provide a {@link DataSourceConfiguration} using
- * {@link DataSourceConfiguration#builder()} with either a {@link DataSource} (which must be
- * {@link Serializable}) or the parameters needed to create it (driver class name, url, and
- * optionally username and password). For example:
+ * {@link DataSourceConfiguration#create(DataSource)} or
+ * {@link DataSourceConfiguration#create(String, String)} with either a
+ * {@link DataSource} (which must be {@link Serializable}) or the parameters needed to create it
+ * (driver class name and url). Optionally, {@link DataSourceConfiguration#withUsername(String)} and
+ * {@link DataSourceConfiguration#withPassword(String)} allows you to define DataSource username
+ * and password.
+ * For example:
  *
  * <pre>{@code
  * pipeline.apply(JdbcIO.<KV<Integer, String>>read()
- *   .withDataSourceConfiguration(JdbcIO.DataSourceConfiguration.builder()
- *        .setDriverClassName("com.mysql.jdbc.Driver")
- *        .setUrl("jdbc:mysql://hostname:3306/mydb")
- *        .setUsername("username")
- *        .setPassword("password").build())
+ *   .withDataSourceConfiguration(JdbcIO.DataSourceConfiguration.create(
+ *          "com.mysql.jdbc.Driver", "jdbc:mysql://hostname:3306/mydb")
+ *        .withUsername("username")
+ *        .withPassword("password"))
  *   .withQuery("select id,name from Person")
  *   .withRowMapper(new JdbcIO.RowMapper<KV<Integer, String>>() {
  *     public KV<Integer, String> mapRow(ResultSet resultSet) throws Exception {
@@ -86,11 +89,10 @@ import org.apache.commons.dbcp2.BasicDataSource;
  * pipeline
  *   .apply(...)
  *   .apply(JdbcIO.<KV<Integer, String>>write()
- *      .withDataSourceConfiguration(JdbcIO.DataSourceConfiguration.builder()
- *          .setDriverClassName("com.mysql.jdbc.Driver")
- *          .setUrl("jdbc:mysql://hostname:3306/mydb")
- *          .setUsername("username")
- *          .setPassword("password").build())
+ *      .withDataSourceConfiguration(JdbcIO.DataSourceConfiguration.create(
+ *            "com.mysql.jdbc.Driver", "jdbc:mysql://hostname:3306/mydb")
+ *          .withUsername("username")
+ *          .withPassword("password"))
  *      .withStatement("insert into Person values(?, ?)")
  *      .withPreparedStatementSetter(new JdbcIO.PreparedStatementSetter<KV<Integer, String>>() {
  *        public void setParameters(KV<Integer, String> element, PreparedStatement query) {
