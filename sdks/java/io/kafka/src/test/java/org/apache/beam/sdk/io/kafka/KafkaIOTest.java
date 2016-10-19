@@ -389,7 +389,10 @@ public class KafkaIOTest {
   // Kafka records are read in a separate thread inside the reader. As a result advance() might not
   // read any records even from the mock consumer, especially for the first record.
   // This is a helper method to loop until we read a record.
-  private static void advanceOnce(UnboundedReader<?> reader) throws IOException {
+  private static void advanceOnce(UnboundedReader<?> reader, boolean isStarted) throws IOException {
+    if (!isStarted && reader.start()) {
+      return;
+    }
     while (!reader.advance()) {
       // very rarely will there be more than one attempts.
       // In case of a bug we might end up looping forever, and test will fail with a timeout.
@@ -418,9 +421,8 @@ public class KafkaIOTest {
     final int numToSkip = 20; // one from each partition.
 
     // advance numToSkip elements
-    reader.start();
-    for (int l = 1; l < numToSkip; ++l) {
-      advanceOnce(reader);
+    for (int i = 0; i < numToSkip; ++i) {
+      advanceOnce(reader, i > 0);
     }
 
     // Confirm that we get the expected element in sequence before checkpointing.
@@ -435,13 +437,10 @@ public class KafkaIOTest {
     // Confirm that we get the next elements in sequence.
     // This also confirms that Reader interleaves records from each partitions by the reader.
 
-    reader.start();
     for (int i = numToSkip; i < numElements; i++) {
+      advanceOnce(reader, i > numToSkip);
       assertEquals(i, (long) reader.getCurrent().getKV().getValue());
       assertEquals(i, reader.getCurrentTimestamp().getMillis());
-      if ((i + 1) < numElements) {
-        advanceOnce(reader);
-      }
     }
   }
 
@@ -460,9 +459,8 @@ public class KafkaIOTest {
 
     UnboundedReader<KafkaRecord<Integer, Long>> reader = source.createReader(null, null);
 
-    reader.start();
-    for (int l = 1; l < initialNumElements; ++l) {
-      advanceOnce(reader);
+    for (int l = 0; l < initialNumElements; ++l) {
+      advanceOnce(reader, l > 0);
     }
 
     // Checkpoint and restart, and confirm that the source continues correctly.
@@ -490,19 +488,15 @@ public class KafkaIOTest {
 
     reader = source.createReader(null, mark);
 
-    reader.start();
-
     // Verify in any order. As the partitions are unevenly read, the returned records are not in a
     // simple order. Note that testUnboundedSourceCheckpointMark() verifies round-robin oder.
 
     List<Long> expected = new ArrayList<>();
     List<Long> actual = new ArrayList<>();
     for (long i = initialNumElements; i < numElements; i++) {
+      advanceOnce(reader, i > initialNumElements);
       expected.add(i);
       actual.add(reader.getCurrent().getKV().getValue());
-      if ((i + 1) < numElements) {
-        advanceOnce(reader);
-      }
     }
     assertThat(actual, IsIterableContainingInAnyOrder.containsInAnyOrder(expected.toArray()));
   }
