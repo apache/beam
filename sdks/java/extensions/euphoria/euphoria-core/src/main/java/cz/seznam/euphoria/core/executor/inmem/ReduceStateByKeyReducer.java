@@ -619,10 +619,7 @@ class ReduceStateByKeyReducer implements Runnable {
     this.stateFactory = requireNonNull(operator.getStateFactory());
     this.stateCombiner = requireNonNull(operator.getStateCombiner());
     this.watermarkStrategy = requireNonNull(watermarkStrategy);
-    this.trigger =
-        windowing.getTrigger() == null
-            ? NoopTrigger.get()
-            : windowing.getTrigger();
+    this.trigger = requireNonNull(windowing.getTrigger());
     this.scheduler = requireNonNull(scheduler);
     this.processing = new ProcessingState(
         output, scheduler,

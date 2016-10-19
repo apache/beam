@@ -1,5 +1,6 @@
 package cz.seznam.euphoria.core.client.dataset.windowing;
 
+import cz.seznam.euphoria.core.client.triggers.NoopTrigger;
 import cz.seznam.euphoria.core.client.triggers.Trigger;
 
 import java.io.ObjectStreamException;
@@ -52,7 +53,7 @@ public final class Batch<T>
 
   @Override
   public Trigger<T, BatchWindow> getTrigger() {
-    return null;
+    return NoopTrigger.get();
   }
 
   @SuppressWarnings("unchecked")

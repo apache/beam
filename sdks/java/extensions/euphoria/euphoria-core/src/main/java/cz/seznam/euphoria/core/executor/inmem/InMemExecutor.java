@@ -582,10 +582,8 @@ public class InMemExecutor implements Executor {
         reduceStateByKeyNode.getSingleParentOrNull().get(),
         reduceStateByKeyNode.get());
 
-    final StateFactory stateFactory = reduceStateByKey.getStateFactory();
     final Partitioning partitioning = reduceStateByKey.getPartitioning();
     final Windowing windowing = reduceStateByKey.getWindowing();
-    final CombinableReduceFunction stateCombiner = reduceStateByKey.getStateCombiner();
 
     List<BlockingQueue<Datum>> repartitioned = repartitionSuppliers(
         suppliers, keyExtractor, partitioning,
