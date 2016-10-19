@@ -47,7 +47,8 @@ public final class SparkContextFactory {
   public static synchronized JavaSparkContext getSparkContext(SparkPipelineOptions options) {
     // reuse should be ignored if the context is provided.
     if (Boolean.getBoolean(TEST_REUSE_SPARK_CONTEXT) && !options.getUsesProvidedSparkContext()) {
-      if (sparkContext == null) {
+      // if the context is null or stopped for some reason, re-create it.
+      if (sparkContext == null || sparkContext.sc().isStopped()) {
         sparkContext = createSparkContext(options);
         sparkMaster = options.getSparkMaster();
       } else if (!options.getSparkMaster().equals(sparkMaster)) {

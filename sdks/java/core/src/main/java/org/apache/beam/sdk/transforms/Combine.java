@@ -1417,6 +1417,20 @@ public class Combine {
       return fn;
     }
 
+    /**
+     * Returns the side inputs used by this Combine operation.
+     */
+    public List<PCollectionView<?>> getSideInputs() {
+      return sideInputs;
+    }
+
+    /**
+     * Returns whether or not this transformation applies a default value.
+     */
+    public boolean isInsertDefault() {
+      return insertDefault;
+    }
+
     @Override
     public PCollection<OutputT> apply(PCollection<InputT> input) {
       PCollection<KV<Void, InputT>> withKeys = input

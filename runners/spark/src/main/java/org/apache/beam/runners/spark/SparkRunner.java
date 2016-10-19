@@ -23,7 +23,6 @@ import org.apache.beam.runners.core.GroupByKeyViaGroupByKeyOnly;
 import org.apache.beam.runners.spark.translation.EvaluationContext;
 import org.apache.beam.runners.spark.translation.SparkContextFactory;
 import org.apache.beam.runners.spark.translation.SparkPipelineTranslator;
-import org.apache.beam.runners.spark.translation.SparkProcessContext;
 import org.apache.beam.runners.spark.translation.TransformEvaluator;
 import org.apache.beam.runners.spark.translation.TransformTranslator;
 import org.apache.beam.runners.spark.translation.streaming.SparkRunnerStreamingContextFactory;
@@ -37,6 +36,7 @@ import org.apache.beam.sdk.runners.TransformTreeNode;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PInput;
@@ -56,7 +56,7 @@ import org.slf4j.LoggerFactory;
  *
  * {@code
  * Pipeline p = [logic for pipeline creation]
- * EvaluationResult result = SparkRunner.create().run(p);
+ * EvaluationResult result = (EvaluationResult) p.run();
  * }
  *
  * <p>To create a pipeline runner to run against a different spark cluster, with a custom master url
@@ -66,7 +66,7 @@ import org.slf4j.LoggerFactory;
  * Pipeline p = [logic for pipeline creation]
  * SparkPipelineOptions options = SparkPipelineOptionsFactory.create();
  * options.setSparkMaster("spark://host:port");
- * EvaluationResult result = SparkRunner.create(options).run(p);
+ * EvaluationResult result = (EvaluationResult) p.run();
  * }
  */
 public final class SparkRunner extends PipelineRunner<EvaluationResult> {
@@ -172,12 +172,11 @@ public final class SparkRunner extends PipelineRunner<EvaluationResult> {
       // Scala doesn't declare checked exceptions in the bytecode, and the Java compiler
       // won't let you catch something that is not declared, so we can't catch
       // SparkException here. Instead we do an instanceof check.
-      // Then we find the cause by seeing if it's a user exception (wrapped by our
-      // SparkProcessException), or just use the SparkException cause.
+      // Then we find the cause by seeing if it's a user exception (wrapped by Beam's
+      // UserCodeException), or just use the SparkException cause.
       if (e instanceof SparkException && e.getCause() != null) {
-        if (e.getCause() instanceof SparkProcessContext.SparkProcessException
-            && e.getCause().getCause() != null) {
-          throw new RuntimeException(e.getCause().getCause());
+        if (e.getCause() instanceof UserCodeException && e.getCause().getCause() != null) {
+          throw UserCodeException.wrap(e.getCause().getCause());
         } else {
           throw new RuntimeException(e.getCause());
         }
