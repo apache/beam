@@ -339,7 +339,7 @@ p.run()
 
 ### Combiner Examples
 
-Combiner transforms use functions such as sum, min, or max (or any "reducing" function) to combine multiple values of a PCollection into a single value.
+Combiner transforms use "reducing" functions, such as sum, min, or max, to combine multiple values of a `PCollection` into a single value.
 
 ```python
 import apache_beam as beam
