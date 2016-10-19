@@ -128,7 +128,7 @@ class FileBasedSource(iobase.BoundedSource):
       return [fileio.ChannelFactory.size_in_bytes(file_names[0])]
     else:
       pool = ThreadPool(
-        min(MAX_NUM_THREADS_FOR_SIZE_ESTIMATION, len(file_names)))
+          min(MAX_NUM_THREADS_FOR_SIZE_ESTIMATION, len(file_names)))
       try:
         return pool.map(fileio.ChannelFactory.size_in_bytes, file_names)
       finally:
