@@ -95,7 +95,6 @@ REQUIRED_PACKAGES = [
     'pyyaml>=3.10',
     ]
 
-
 setuptools.setup(
     name=PACKAGE_NAME,
     version=PACKAGE_VERSION,
