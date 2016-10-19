@@ -2,7 +2,7 @@ package cz.seznam.euphoria.operator.test;
 
 import cz.seznam.euphoria.core.client.dataset.windowing.Window;
 
-class IntWindow extends Window {
+class IntWindow extends Window implements Comparable<IntWindow> {
   private int val;
 
   IntWindow(int val) {
@@ -25,5 +25,11 @@ class IntWindow extends Window {
   @Override
   public int hashCode() {
     return val;
+  }
+
+
+  @Override
+  public int compareTo(IntWindow o) {
+    return val - o.val;
   }
 }

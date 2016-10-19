@@ -89,9 +89,9 @@ public class RBKAttachedWindowingTest {
         Lists.newArrayList(
             Pair.of(new TimeInterval(0, 10),
                 toMap(Pair.of("one", 2L), Pair.of("two", 2L), Pair.of("three", 1L))),
-            Pair.of(new TimeInterval(10, 10),
+            Pair.of(new TimeInterval(10, 20),
                 toMap(Pair.of("one", 3L), Pair.of("two", 1L), Pair.of("quux", 2L))),
-            Pair.of(new TimeInterval(20, 10),
+            Pair.of(new TimeInterval(20, 30),
                 toMap(Pair.of("foo", 1L)))),
         output.getOutput(0)
             .stream()
@@ -165,9 +165,9 @@ public class RBKAttachedWindowingTest {
         Lists.newArrayList(
             Pair.of(new TimeInterval(0, 10),
                 toMap(Pair.of("one", 2L), Pair.of("two", 2L), Pair.of("three", 1L))),
-            Pair.of(new TimeInterval(10, 10),
+            Pair.of(new TimeInterval(10, 20),
                 toMap(Pair.of("one", 3L), Pair.of("two", 1L), Pair.of("quux", 2L))),
-            Pair.of(new TimeInterval(20, 10),
+            Pair.of(new TimeInterval(20, 30),
                 toMap(Pair.of("foo", 1L)))),
         output.getOutput(0)
             .stream()
@@ -324,7 +324,7 @@ public class RBKAttachedWindowingTest {
         Lists.newArrayList(
             Pair.of(new TimeInterval(0, 5),
                 toMap(Pair.of("one", 2L), Pair.of("two", 4L), Pair.of("three", 1L))),
-            Pair.of(new TimeInterval(10, 5),
+            Pair.of(new TimeInterval(10, 15),
                 toMap(Pair.of("one", 1L), Pair.of("two", 1L)))),
         output.getOutput(0)
             .stream()
@@ -332,7 +332,7 @@ public class RBKAttachedWindowingTest {
             .collect(Collectors.toList()));
     assertEquals(
         Lists.newArrayList(
-            Pair.of(new TimeInterval(5, 5), toMap(Pair.of("one", 3L), Pair.of("two", 2L)))),
+            Pair.of(new TimeInterval(5, 10), toMap(Pair.of("one", 3L), Pair.of("two", 2L)))),
         output.getOutput(1)
             .stream()
             .map(wp -> Pair.of(wp.getFirst(), wp.getThird()))

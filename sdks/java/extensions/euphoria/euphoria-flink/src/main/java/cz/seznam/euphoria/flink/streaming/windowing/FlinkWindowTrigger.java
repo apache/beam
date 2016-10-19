@@ -1,32 +1,22 @@
 package cz.seznam.euphoria.flink.streaming.windowing;
 
-import cz.seznam.euphoria.core.client.dataset.windowing.WindowContext;
-import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
-import java.util.List;
-import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.api.common.state.ValueState;
-import org.apache.flink.api.common.state.ValueStateDescriptor;
-import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer;
+import cz.seznam.euphoria.core.client.dataset.windowing.Window;
 import org.apache.flink.streaming.api.windowing.triggers.Trigger;
 import org.apache.flink.streaming.api.windowing.triggers.TriggerResult;
 
-import java.util.Objects;
 
+public class FlinkWindowTrigger<WID extends Window, T> extends Trigger<T, FlinkWindow<WID>> {
 
-public class FlinkWindowTrigger<LABEL, T> extends Trigger<T, FlinkWindow<LABEL>> {
+  private final cz.seznam.euphoria.core.client.triggers.Trigger<T, WID> euphoriaTrigger;
 
-  private final Windowing<T, LABEL, ?> windowing;
-  private final ValueStateDescriptor<WindowContext<LABEL>> windowState;
-
-  public FlinkWindowTrigger(Windowing windowing, ExecutionConfig cfg) {
-    this.windowing = Objects.requireNonNull(windowing);
-    this.windowState = new ValueStateDescriptor<>(
-        "window-context", new KryoSerializer(WindowContext.class, cfg), null);
+  public FlinkWindowTrigger(
+          cz.seznam.euphoria.core.client.triggers.Trigger<T, WID> trigger) {
+    this.euphoriaTrigger = trigger;
   }
 
   @Override
   public TriggerResult onElement(
-      T element, long timestamp, FlinkWindow<LABEL> window, TriggerContext ctx)
+      T element, long timestamp, FlinkWindow<WID> window, TriggerContext ctx)
       throws Exception {
     return trackEmissionWatermark(
         window, ctx, onElementImpl(element, timestamp, window, ctx));
@@ -34,74 +24,42 @@ public class FlinkWindowTrigger<LABEL, T> extends Trigger<T, FlinkWindow<LABEL>>
 
   @Override
   public TriggerResult onProcessingTime(long time,
-                                        FlinkWindow<LABEL> window,
+                                        FlinkWindow<WID> window,
                                         TriggerContext ctx) throws Exception {
     return trackEmissionWatermark(window, ctx, onTimeEvent(time, window, ctx));
   }
 
   @Override
   public TriggerResult onEventTime(long time,
-                                   FlinkWindow<LABEL> window,
+                                   FlinkWindow<WID> window,
                                    TriggerContext ctx) throws Exception {
 
     return trackEmissionWatermark(window, ctx, onTimeEvent(time, window, ctx));
   }
 
   private TriggerResult onElementImpl(
-      T element, long timestamp, FlinkWindow<LABEL> window, TriggerContext ctx)
+      T element, long timestamp, FlinkWindow<WID> window, TriggerContext ctx)
       throws Exception {
 
-    ValueState<WindowContext<LABEL>> state = ctx.getPartitionedState(windowState);
-    WindowContext<LABEL> wContext = state.value();
-    if (wContext == null) {
-      wContext = windowing.createWindowContext(window.getWindowID());
-
-      List<cz.seznam.euphoria.core.client.triggers.Trigger> triggers;
-      triggers = wContext.createTriggers();
-      // if all registered triggers are "PASSED", then we have to purge the window
-      // if no triggers exist, than we have to CONTINUE
-      TriggerResult tr = triggers.isEmpty() ? TriggerResult.CONTINUE : TriggerResult.PURGE;
-      for (cz.seznam.euphoria.core.client.triggers.Trigger t : triggers) {
-        cz.seznam.euphoria.core.client.triggers.Trigger.TriggerResult sched;
-        sched = t.schedule(wContext, new TriggerContextWrapper(ctx));
-        if (sched != cz.seznam.euphoria.core.client.triggers.Trigger.TriggerResult.PASSED) {
-          tr = translateResult(sched);
-        }
-      }
-      if (!tr.isPurge()) {
-        state.update(wContext);
-      }
-      return tr;
-    } else {
-      return TriggerResult.CONTINUE;
-    }
+    // pass onElement event to the original euphoria trigger
+    return translateResult(
+            euphoriaTrigger.onElement(
+                    timestamp, element, window.getWindowID(), new TriggerContextWrapper(ctx)));
   }
 
   private TriggerResult onTimeEvent(long time,
-                                    FlinkWindow<LABEL> window,
+                                    FlinkWindow<WID> window,
                                     TriggerContext ctx) throws Exception {
-
-    ValueState<WindowContext<LABEL>> state = ctx.getPartitionedState(windowState);
-    WindowContext<LABEL> wContext = state.value();
-    if (wContext == null) {
-      wContext = windowing.createWindowContext(window.getWindowID());
-    }
 
     if (time >= window.maxTimestamp()) {
       // fire all windows at the final watermark
       return TriggerResult.FIRE_AND_PURGE;
     }
 
-    @SuppressWarnings("unchecked")
-    TriggerContextWrapper triggerContext = new TriggerContextWrapper(ctx);
-    TriggerResult r = TriggerResult.CONTINUE;
-    for (cz.seznam.euphoria.core.client.triggers.Trigger trigger : wContext.createTriggers()) {
-      r = TriggerResult.merge(r, translateResult(trigger.onTimeEvent(time, wContext, triggerContext)));
-    }
-    if (!r.isPurge()) {
-      state.update(wContext);
-    }
-    return r;
+    // pass onTimeEvent to the original euphoria trigger
+    return translateResult(
+            euphoriaTrigger.onTimeEvent(
+                    time, window.getWindowID(), new TriggerContextWrapper(ctx)));
   }
 
   private TriggerResult translateResult(
@@ -116,14 +74,12 @@ public class FlinkWindowTrigger<LABEL, T> extends Trigger<T, FlinkWindow<LABEL>>
         return TriggerResult.CONTINUE;
       case PURGE:
         return TriggerResult.PURGE;
-      case PASSED:
-        return TriggerResult.CONTINUE;
       default:
         throw new IllegalStateException("Unknown result:" + euphoriaResult.name());
     }
   }
 
-  private TriggerResult trackEmissionWatermark(FlinkWindow<LABEL> window,
+  private TriggerResult trackEmissionWatermark(FlinkWindow<WID> window,
                                                TriggerContext ctx,
                                                TriggerResult r)
   {
@@ -134,9 +90,10 @@ public class FlinkWindowTrigger<LABEL, T> extends Trigger<T, FlinkWindow<LABEL>>
   }
 
   @Override
-  public void clear(FlinkWindow window, TriggerContext ctx) throws Exception {
-    // ~ clear our partitions state - if any
-    ctx.getPartitionedState(windowState).clear();
+  public void clear(FlinkWindow<WID> window, TriggerContext ctx) throws Exception {
+    euphoriaTrigger.onClear(window.getWindowID(), new TriggerContextWrapper(ctx));
+
+
     // ~ our flink-window-ids windows have maxTimestamp == Long.MAX_VALUE; need to
     // clean-up the registered clean-up trigger to avoid mem-leak in long running
     // streams
