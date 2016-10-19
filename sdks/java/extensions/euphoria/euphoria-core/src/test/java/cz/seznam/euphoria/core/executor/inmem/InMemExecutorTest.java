@@ -1,12 +1,12 @@
-
 package cz.seznam.euphoria.core.executor.inmem;
 
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.dataset.GroupedDataset;
 import cz.seznam.euphoria.core.client.dataset.windowing.Batch;
-import cz.seznam.euphoria.core.client.dataset.windowing.MergingWindowing;
 import cz.seznam.euphoria.core.client.dataset.windowing.Time;
+import cz.seznam.euphoria.core.client.dataset.windowing.Window;
 import cz.seznam.euphoria.core.client.dataset.windowing.WindowedElement;
+import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
 import cz.seznam.euphoria.core.client.functional.UnaryFunctor;
@@ -26,10 +26,15 @@ import cz.seznam.euphoria.core.client.operator.state.ListStorage;
 import cz.seznam.euphoria.core.client.operator.state.ListStorageDescriptor;
 import cz.seznam.euphoria.core.client.operator.state.State;
 import cz.seznam.euphoria.core.client.operator.state.StorageProvider;
+import cz.seznam.euphoria.core.client.operator.state.ValueStorage;
+import cz.seznam.euphoria.core.client.operator.state.ValueStorageDescriptor;
+import cz.seznam.euphoria.core.client.triggers.Trigger;
+import cz.seznam.euphoria.core.client.triggers.TriggerContext;
 import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.core.client.util.Sums;
 import cz.seznam.euphoria.core.client.util.Triple;
 import cz.seznam.euphoria.guava.shaded.com.google.common.collect.Lists;
+import cz.seznam.euphoria.guava.shaded.com.google.common.collect.Sets;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -37,15 +42,13 @@ import org.junit.Test;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
 import static org.junit.Assert.*;
@@ -295,211 +298,195 @@ public class InMemExecutorTest {
     public void close() {
       data.clear();
     }
+  } // ~ end of SortState
 
-  }
+  static class SizedCountWindow extends Window {
+    final int size;
 
-  static class CountLabel {
-    final int count;
-    int get() { return count; }
-    // on purpose no hashcode or equals
-    CountLabel(int count) { this.count = count; }
+    int get() {
+      return size;
+    }
+
+    SizedCountWindow(int size) {
+      this.size = size;
+    }
+
     @Override
-    public String toString() { return String.valueOf(count); }
+    public String toString() {
+      return String.valueOf(size);
+    }
+
+    @Override
+    public boolean equals(Object o) {
+      if (o instanceof SizedCountWindow) {
+        SizedCountWindow that = (SizedCountWindow) o;
+        return size == that.size;
+      }
+      return false;
+    }
+
+    @Override
+    public int hashCode() {
+      return size;
+    }
+  } // ~ end of SizedCountWindow
+
+  static class SizedCountWindowing<T>
+      implements Windowing<T, SizedCountWindow> {
+
+    final UnaryFunction<T, Integer> size;
+
+    SizedCountWindowing(UnaryFunction<T, Integer> size) {
+      this.size = size;
+    }
+
+    @Override
+    public Set<SizedCountWindow> assignWindowsToElement(WindowedElement<?, T> input) {
+      int sz = size.apply(input.get());
+      return Sets.newHashSet(new SizedCountWindow(sz), new SizedCountWindow(2 * sz));
+    }
+
+    @Override
+    public Trigger<T, SizedCountWindow> getTrigger() {
+      return new SizedCountTrigger<T>();
+    }
+  } // ~ end of SizedCountWindowing
+
+  static class SizedCountTrigger<T> implements Trigger<T, SizedCountWindow> {
+    private final ValueStorageDescriptor<Long> countDesc =
+        ValueStorageDescriptor.of("count", Long.class, 0L, (x, y) -> x + y );
+
+    @Override
+    public TriggerResult onElement(long time, T element, SizedCountWindow window, TriggerContext ctx) {
+      ValueStorage<Long> cnt = ctx.getValueStorage(countDesc);
+      cnt.set(cnt.get() + 1L);
+      if (cnt.get() >= window.get()) {
+        return TriggerResult.FLUSH_AND_PURGE;
+      }
+      return TriggerResult.NOOP;
+    }
+
+    @Override
+    public TriggerResult onTimeEvent(long time, SizedCountWindow window,
+                                     TriggerContext ctx) {
+      return TriggerResult.NOOP;
+    }
+
+    @Override
+    public void onClear(SizedCountWindow window, TriggerContext ctx) {
+      ctx.getValueStorage(countDesc).clear();
+    }
+
+    @Override
+    public TriggerResult onMerge(SizedCountWindow window, TriggerContext.TriggerMergeContext ctx) {
+      ctx.mergeStoredState(countDesc);
+      return TriggerResult.NOOP;
+    }
+  } // ~ end of SizedCountTrigger
+
+  @Test
+  public void testReduceByKeyWithSortStateAndCustomWindowing() {
+    Dataset<Integer> ints = flow.createInput(
+        ListDataSource.unbounded(
+            reversed(sequenceInts(0, 100)),
+            reversed(sequenceInts(100, 1100))));
+
+    SizedCountWindowing<Integer> windowing =
+        new SizedCountWindowing<>(i -> (i % 10) + 1);
+
+    // the key for sort will be the last digit
+    Dataset<Pair<Integer, Integer>> output =
+        ReduceStateByKey.of(ints)
+        .keyBy(i -> i % 10)
+        .valueBy(e -> e)
+        .stateFactory(SortState::new)
+        .combineStateBy(SortState::combine)
+        .windowBy(windowing)
+        .output();
+
+    // collector of outputs
+    ListDataSink<Triple<SizedCountWindow, Integer, Integer>> outputSink = ListDataSink.get(2);
+
+    FlatMap.of(output)
+        .using((UnaryFunctor<Pair<Integer, Integer>, Triple<SizedCountWindow, Integer, Integer>>)
+            (elem, context) -> context.collect(Triple.of((SizedCountWindow) context.getWindow(), elem.getFirst(), elem.getSecond())))
+        .output()
+        .persist(outputSink);
+
+    executor.waitForCompletion(flow);
+
+    List<List<Triple<SizedCountWindow, Integer, Integer>>> outputs = outputSink.getOutputs();
+    assertEquals(2, outputs.size());
+
+    // each partition should have 550 items in each window set
+    assertEquals(2 * 550, outputs.get(0).size());
+    assertEquals(2 * 550, outputs.get(1).size());
+
+    Set<Integer> firstKeys = outputs.get(0).stream()
+        .map(Triple::getSecond).distinct()
+        .collect(Collectors.toSet());
+
+    // validate that the two partitions contain different keys
+    outputs.get(1).forEach(p -> assertFalse(firstKeys.contains(p.getSecond())));
+
+    checkKeyAlignedSortedList(outputs.get(0));
+    checkKeyAlignedSortedList(outputs.get(1));
   }
-
-
-// XXX
-//  private static class CountWindowContext
-//      extends WindowContext<CountLabel> {
-//
-//    final int maxSize;
-//    int size = 1;
-//
-//    public CountWindowContext(WindowID<CountLabel> wid, int maxSize) {
-//      super(wid);
-//      this.maxSize = maxSize;
-//    }
-//
-//    public CountWindowContext(int maxSize) {
-//      this(new WindowID(new CountLabel(maxSize)), maxSize);
-//    }
-//
-//    public CountWindowContext(CountLabel label) {
-//      this(new WindowID(label), label.get());
-//    }
-//
-//
-//    @Override
-//    public String toString() {
-//      return "CountWindowContext(" + getWindowID() + ", " + size + ")";
-//    }
-//
-//
-//  }
-//
-//
-//  static class SizedCountWindowing<T> implements
-//      MergingWindowing<T, CountLabel, CountWindowContext> {
-//
-//    final UnaryFunction<T, Integer> size;
-//
-//    SizedCountWindowing(UnaryFunction<T, Integer> size) {
-//      this.size = size;
-//    }
-//
-//    @Override
-//    public Collection<Pair<Collection<CountWindowContext>, CountWindowContext>> mergeWindows(
-//        Collection<CountWindowContext> actives) {
-//
-//      // we will merge together only windows with the same window size
-//
-//      List<Pair<Collection<CountWindowContext>, CountWindowContext>> ret
-//          = new ArrayList<>();
-//
-//      Map<Integer, List<CountWindowContext>> toMergeMap = new HashMap<>();
-//      Map<Integer, AtomicInteger> currentSizeMap = new HashMap<>();
-//
-//      for (CountWindowContext w : actives) {
-//        final int wSize = w.maxSize;
-//        AtomicInteger currentSize = currentSizeMap.get(wSize);
-//        if (currentSize == null) {
-//          currentSize = new AtomicInteger(0);
-//          currentSizeMap.put(wSize, currentSize);
-//          toMergeMap.put(wSize, new ArrayList<>());
-//        }
-//        if (currentSize.get() + w.size <= wSize) {
-//          currentSize.addAndGet(w.size);
-//          toMergeMap.get(wSize).add(w);
-//        } else {
-//          List<CountWindowContext> toMerge = toMergeMap.get(wSize);
-//          if (!toMerge.isEmpty()) {
-//            CountWindowContext res = new CountWindowContext(currentSize.get());
-//            res.size = currentSize.get();
-//            ret.add(Pair.of(new ArrayList<>(toMerge), res));
-//            toMerge.clear();
-//          }
-//          toMerge.add(w);
-//          currentSize.set(w.size);
-//        }
-//      }
-//
-//      for (List<CountWindowContext> toMerge : toMergeMap.values()) {
-//        if (!toMerge.isEmpty()) {
-//          CountWindowContext first = toMerge.get(0);
-//          CountWindowContext res = new CountWindowContext(first.maxSize);
-//          res.size = currentSizeMap.get(first.maxSize).get();
-//          ret.add(Pair.of(toMerge, res));
-//        }
-//      }
-//      return ret;
-//    }
-//
-//    @Override
-//    public Set<WindowID<CountLabel>> assignWindowsToElement(WindowedElement<?, T> input) {
-//      int sz = size.apply(input.get());
-//      return new HashSet<>(Arrays.asList(
-//          new WindowID<>(new CountLabel(sz)),
-//          new WindowID<>(new CountLabel(2 * sz))));
-//    }
-//
-//
-//    @Override
-//    public boolean isComplete(CountWindowContext window) {
-//      return window.size == window.maxSize;
-//    }
-//
-//    @Override
-//    public CountWindowContext createWindowContext(WindowID<CountLabel> wid) {
-//      return new CountWindowContext(wid, wid.getLabel().get());
-//    }
-//
-//  }
-//
-//
-//  @Test
-//  public void testReduceByKeyWithSortStateAndCustomWindowing() {
-//    Dataset<Integer> ints = flow.createInput(
-//        ListDataSource.unbounded(
-//            reversed(sequenceInts(0, 100)),
-//            reversed(sequenceInts(100, 1100))));
-//
-//    SizedCountWindowing<Integer> windowing =
-//        new SizedCountWindowing<>(i -> (i % 10) + 1);
-//
-//    // the key for sort will be the last digit
-//    Dataset<Pair<Integer, Integer>> output =
-//        ReduceStateByKey.of(ints)
-//        .keyBy(i -> i % 10)
-//        .valueBy(e -> e)
-//        .stateFactory(SortState::new)
-//        .combineStateBy(SortState::combine)
-//        .windowBy(windowing)
-//        .output();
-//
-//    // collector of outputs
-//    ListDataSink<Triple<CountLabel, Integer, Integer>> outputSink = ListDataSink.get(2);
-//
-//    FlatMap.of(output)
-//        .using((UnaryFunctor<Pair<Integer, Integer>, Triple<CountLabel, Integer, Integer>>)
-//            (elem, context) -> context.collect(Triple.of((CountLabel) context.getWindow(), elem.getFirst(), elem.getSecond())))
-//        .output()
-//        .persist(outputSink);
-//
-//    executor.waitForCompletion(flow);
-//
-//    List<List<Triple<CountLabel, Integer, Integer>>> outputs = outputSink.getOutputs();
-//    assertEquals(2, outputs.size());
-//
-//    // each partition should have 550 items in each window set
-//    assertEquals(2 * 550, outputs.get(0).size());
-//    assertEquals(2 * 550, outputs.get(1).size());
-//
-//    Set<Integer> firstKeys = outputs.get(0).stream()
-//        .map(Triple::getSecond).distinct()
-//        .collect(Collectors.toSet());
-//
-//    // validate that the two partitions contain different keys
-//    outputs.get(1).forEach(p -> assertFalse(firstKeys.contains(p.getSecond())));
-//
-//    outputs.forEach(this::checkKeyAlignedSortedList);
-//
-//  }
-
 
   private void checkKeyAlignedSortedList(
-      List<Triple<CountLabel, Integer, Integer>> list) {
+      List<Triple<SizedCountWindow, Integer, Integer>> list) {
 
-    Map<CountLabel, Map<Integer, List<Integer>>> sortedSequencesInWindow = new HashMap<>();
+    Map<SizedCountWindow, Map<Integer, List<Integer>>> byWindow = new HashMap<>();
 
-    for (Triple<CountLabel, Integer, Integer> p : list) {
-      Map<Integer, List<Integer>> sortedSequences = sortedSequencesInWindow.get(
-          p.getFirst());
-      if (sortedSequences == null) {
-        sortedSequencesInWindow.put(p.getFirst(),
-            sortedSequences = new HashMap<>());
+    for (Triple<SizedCountWindow, Integer, Integer> p : list) {
+      Map<Integer, List<Integer>> byKey = byWindow.get(p.getFirst());
+      if (byKey == null) {
+        byWindow.put(p.getFirst(), byKey = new HashMap<>());
       }
-      List<Integer> sorted = sortedSequences.get(p.getSecond());
+      List<Integer> sorted = byKey.get(p.getSecond());
       if (sorted == null) {
-        sortedSequences.put(p.getSecond(), sorted = new ArrayList<>());
+        byKey.put(p.getSecond(), sorted = new ArrayList<>());
       }
       sorted.add(p.getThird());
     }
 
-    assertFalse(sortedSequencesInWindow.isEmpty());
+    assertFalse(byWindow.isEmpty());
     int totalCount = 0;
-    for (Map.Entry<CountLabel, Map<Integer, List<Integer>>> we : sortedSequencesInWindow.entrySet()) {
-      assertFalse(we.getValue().isEmpty());
-      for (Map.Entry<Integer, List<Integer>> e : we.getValue().entrySet()) {
+    List<SizedCountWindow> iterOrder =
+        byWindow.keySet()
+            .stream()
+            .sorted(Comparator.comparing(SizedCountWindow::get))
+            .collect(Collectors.toList());
+    for (SizedCountWindow w : iterOrder) {
+      Map<Integer, List<Integer>> wkeys = byWindow.get(w);
+      assertNotNull(wkeys);
+      assertFalse(wkeys.isEmpty());
+      for (Map.Entry<Integer, List<Integer>> e : wkeys.entrySet()) {
         // now, each list must be sorted
-        int last = -1;
-        for (int i : e.getValue()) {
-          assertTrue("Sequence " + e.getValue() + " is not sorted", last < i);
-          last = i;
-          totalCount++;
-        }
+        assertAscendingWindows(e.getValue(), w, e.getKey());
+        totalCount += e.getValue().size();
       }
     }
     assertEquals(1100, totalCount);
+  }
+
+  private static void assertAscendingWindows(
+      List<Integer> xs, SizedCountWindow window, Integer key) {
+    List<List<Integer>> windows = Lists.partition(xs, window.get());
+    assertFalse(windows.isEmpty());
+    int totalSeen = 0;
+    for (List<Integer> windowData : windows) {
+      int last = -1;
+      for (int x : windowData) {
+        if (last > x) {
+          fail(String.format("Sequence not ascending for (window: %s / key: %d): %s",
+              window, key, xs));
+        }
+        last = x;
+        totalSeen += 1;
+      }
+    }
+    assertEquals(xs.size(), totalSeen);
   }
 
   // reverse given list
