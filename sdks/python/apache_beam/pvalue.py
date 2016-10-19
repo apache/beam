@@ -27,6 +27,7 @@ produced when the pipeline gets executed.
 from __future__ import absolute_import
 
 import collections
+import itertools
 
 
 class PValue(object):
@@ -227,9 +228,10 @@ class SideOutputValue(object):
 class PCollectionView(PValue):
   """An immutable view of a PCollection that can be used as a side input."""
 
-  def __init__(self, pipeline):
+  def __init__(self, pipeline, window_mapping_fn):
     """Initializes a PCollectionView. Do not call directly."""
     super(PCollectionView, self).__init__(pipeline)
+    self._window_mapping_fn = window_mapping_fn
 
   @property
   def windowing(self):
@@ -246,34 +248,60 @@ class PCollectionView(PValue):
     Returns:
       Tuple of options for the given view.
     """
-    return ()
+    return {'window_mapping_fn': self._window_mapping_fn}
 
 
 class SingletonPCollectionView(PCollectionView):
   """A PCollectionView that contains a single object."""
 
-  def __init__(self, pipeline, has_default, default_value):
-    super(SingletonPCollectionView, self).__init__(pipeline)
+  def __init__(self, pipeline, has_default, default_value,
+               window_mapping_fn):
+    super(SingletonPCollectionView, self).__init__(pipeline, window_mapping_fn)
     self.has_default = has_default
     self.default_value = default_value
 
   def _view_options(self):
-    return (self.has_default, self.default_value)
+    base = super(SingletonPCollectionView, self)._view_options()
+    if self.has_default:
+      return dict(base, default=self.default_value)
+    else:
+      return base
+
+  @staticmethod
+  def _from_runtime_iterable(it, options):
+    head = list(itertools.islice(it, 2))
+    if len(head) == 0:
+      return options.get('default', EmptySideInput())
+    elif len(head) == 1:
+      return head[0]
+    else:
+      raise ValueError(
+          'PCollection with more than one element accessed as '
+          'a singleton view.')
 
 
 class IterablePCollectionView(PCollectionView):
   """A PCollectionView that can be treated as an iterable."""
-  pass
+
+  @staticmethod
+  def _from_runtime_iterable(it, options):
+    return it
 
 
 class ListPCollectionView(PCollectionView):
   """A PCollectionView that can be treated as a list."""
-  pass
+
+  @staticmethod
+  def _from_runtime_iterable(it, options):
+    return list(it)
 
 
 class DictPCollectionView(PCollectionView):
   """A PCollectionView that can be treated as a dict."""
-  pass
+
+  @staticmethod
+  def _from_runtime_iterable(it, options):
+    return dict(it)
 
 
 def _get_cached_view(pipeline, key):

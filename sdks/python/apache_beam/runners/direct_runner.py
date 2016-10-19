@@ -30,19 +30,13 @@ import logging
 
 from apache_beam import coders
 from apache_beam import error
-from apache_beam.io import fileio
-from apache_beam.io import iobase
-from apache_beam.pvalue import DictPCollectionView
-from apache_beam.pvalue import EmptySideInput
-from apache_beam.pvalue import IterablePCollectionView
-from apache_beam.pvalue import ListPCollectionView
-from apache_beam.pvalue import SingletonPCollectionView
 from apache_beam.runners.common import DoFnRunner
 from apache_beam.runners.common import DoFnState
 from apache_beam.runners.runner import PipelineResult
 from apache_beam.runners.runner import PipelineRunner
 from apache_beam.runners.runner import PipelineState
 from apache_beam.runners.runner import PValueCache
+from apache_beam.transforms import sideinputs
 from apache_beam.transforms.window import GlobalWindows
 from apache_beam.transforms.window import WindowedValue
 from apache_beam.typehints.typecheck import OutputCheckWrapperDoFn
@@ -109,29 +103,7 @@ class DirectPipelineRunner(PipelineRunner):
     transform = transform_node.transform
     view = transform.view
     values = self._cache.get_pvalue(transform_node.inputs[0])
-    if isinstance(view, SingletonPCollectionView):
-      has_default, default_value = view._view_options()  # pylint: disable=protected-access
-      if len(values) == 0:
-        if has_default:
-          result = default_value
-        else:
-          result = EmptySideInput()
-      elif len(values) == 1:
-        # TODO(ccy): Figure out whether side inputs should ever be given as
-        # windowed values
-        result = values[0].value
-      else:
-        raise ValueError(('PCollection with more than one element accessed as '
-                          'a singleton view: %s.') % view)
-    elif isinstance(view, IterablePCollectionView):
-      result = [v.value for v in values]
-    elif isinstance(view, ListPCollectionView):
-      result = [v.value for v in values]
-    elif isinstance(view, DictPCollectionView):
-      result = dict(v.value for v in values)
-    else:
-      raise NotImplementedError
-
+    result = sideinputs.SideInputMap(type(view), view._view_options(), values)
     self._cache.cache_output(transform_node, result)
 
   @skip_if_cached
@@ -244,6 +216,9 @@ class DirectPipelineRunner(PipelineRunner):
           transform_node.full_label] += len(read_result)
       self._cache.cache_output(transform_node, read_result)
 
+    # pylint: disable=wrong-import-position
+    from apache_beam.io import iobase
+
     if isinstance(source, iobase.BoundedSource):
       # Getting a RangeTracker for the default range of the source and reading
       # the full source using that.
@@ -257,6 +232,10 @@ class DirectPipelineRunner(PipelineRunner):
   @skip_if_cached
   def run__NativeWrite(self, transform_node):
     sink = transform_node.transform.sink
+
+    # pylint: disable=wrong-import-position
+    from apache_beam.io import fileio
+
     if isinstance(sink, fileio.NativeTextFileSink):
       assert sink.num_shards in (0, 1)
       if sink.shard_name_template:

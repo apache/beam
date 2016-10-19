@@ -24,6 +24,8 @@ import sys
 from apache_beam.internal import util
 from apache_beam.pvalue import SideOutputValue
 from apache_beam.transforms import core
+from apache_beam.transforms import sideinputs
+from apache_beam.transforms import window
 from apache_beam.transforms.window import TimestampedValue
 from apache_beam.transforms.window import WindowFn
 from apache_beam.utils.windowed_value import WindowedValue
@@ -69,24 +71,45 @@ class DoFnRunner(Receiver):
                # Preferred alternative to context
                # TODO(robertwb): Remove once all runners are updated.
                state=None):
+    self.has_windowed_side_inputs = False  # Set to True in one case below.
     if not args and not kwargs:
       self.dofn = fn
       self.dofn_process = fn.process
     else:
-      args, kwargs = util.insert_values_in_args(args, kwargs, side_inputs)
+      global_window = window.GlobalWindow()
+      # TODO(robertwb): Remove when all runners pass side input maps.
+      side_inputs = [side_input
+                     if isinstance(side_input, sideinputs.SideInputMap)
+                     else {global_window: side_input}
+                     for side_input in side_inputs]
+      if side_inputs and all(
+          isinstance(side_input, dict) or side_input.is_globally_windowed()
+          for side_input in side_inputs):
+        args, kwargs = util.insert_values_in_args(
+            args, kwargs, [side_input[global_window]
+                           for side_input in side_inputs])
+        side_inputs = []
+      if side_inputs:
+        self.has_windowed_side_inputs = True
+
+        def process(context):
+          w = context.windows[0]
+          cur_args, cur_kwargs = util.insert_values_in_args(
+              args, kwargs, [side_input[w] for side_input in side_inputs])
+          return fn.process(context, *cur_args, **cur_kwargs)
+        self.dofn_process = process
+      elif kwargs:
+        self.dofn_process = lambda context: fn.process(context, *args, **kwargs)
+      else:
+        self.dofn_process = lambda context: fn.process(context, *args)
 
       class CurriedFn(core.DoFn):
 
-        def start_bundle(self, context):
-          return fn.start_bundle(context)
+        start_bundle = staticmethod(fn.start_bundle)
+        process = staticmethod(self.dofn_process)
+        finish_bundle = staticmethod(fn.finish_bundle)
 
-        def process(self, context):
-          return fn.process(context, *args, **kwargs)
-
-        def finish_bundle(self, context):
-          return fn.finish_bundle(context)
       self.dofn = CurriedFn()
-      self.dofn_process = lambda context: fn.process(context, *args, **kwargs)
 
     self.window_fn = windowing.windowfn
     self.tagged_receivers = tagged_receivers
@@ -133,8 +156,14 @@ class DoFnRunner(Receiver):
   def process(self, element):
     try:
       self.logging_context.enter()
-      self.context.set_element(element)
-      self._process_outputs(element, self.dofn_process(self.context))
+      if self.has_windowed_side_inputs and len(element.windows) > 1:
+        for w in element.windows:
+          self.context.set_element(
+              WindowedValue(element.value, element.timestamp, (w,)))
+          self._process_outputs(element, self.dofn_process(self.context))
+      else:
+        self.context.set_element(element)
+        self._process_outputs(element, self.dofn_process(self.context))
     except BaseException as exn:
       self.reraise_augmented(exn)
     finally:

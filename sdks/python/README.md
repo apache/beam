@@ -64,7 +64,8 @@ For a further, detailed introduction, please read the
 
 ### Set up your environment
 
-You may need to set up your machine's Python development environment.
+`pip` is Python's package manager.  If you already have `pip` installed
+(type `pip -V` to check), please make sure to have at least version 7.0.0.
 
 #### Install `pip`
 

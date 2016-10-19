@@ -116,7 +116,7 @@ from apache_beam import coders
 from apache_beam.internal import auth
 from apache_beam.internal.json_value import from_json_value
 from apache_beam.internal.json_value import to_json_value
-from apache_beam.io import iobase
+from apache_beam.runners.dataflow.native_io import iobase as dataflow_io
 from apache_beam.utils import retry
 from apache_beam.utils.options import GoogleCloudOptions
 
@@ -136,6 +136,8 @@ __all__ = [
     'BigQuerySink',
     ]
 
+JSON_COMPLIANCE_ERROR = 'NAN, INF and -INF values are not JSON compliant.'
+
 
 class RowAsDictJsonCoder(coders.Coder):
   """A coder for a table row (represented as a dict) to/from a JSON string.
@@ -145,7 +147,14 @@ class RowAsDictJsonCoder(coders.Coder):
   """
 
   def encode(self, table_row):
-    return json.dumps(table_row)
+    # The normal error when dumping NAN/INF values is:
+    # ValueError: Out of range float values are not JSON compliant
+    # This code will catch this error to emit an error that explains
+    # to the programmer that they have used NAN/INF values.
+    try:
+      return json.dumps(table_row, allow_nan=False)
+    except ValueError as e:
+      raise ValueError('%s. %s' % (e, JSON_COMPLIANCE_ERROR))
 
   def decode(self, encoded_table_row):
     return json.loads(encoded_table_row)
@@ -173,10 +182,14 @@ class TableRowJsonCoder(coders.Coder):
       raise AttributeError(
           'The TableRowJsonCoder requires a table schema for '
           'encoding operations. Please specify a table_schema argument.')
-    return json.dumps(
-        collections.OrderedDict(
-            zip(self.field_names,
-                [from_json_value(f.v) for f in table_row.f])))
+    try:
+      return json.dumps(
+          collections.OrderedDict(
+              zip(self.field_names,
+                  [from_json_value(f.v) for f in table_row.f])),
+          allow_nan=False)
+    except ValueError as e:
+      raise ValueError('%s. %s' % (e, JSON_COMPLIANCE_ERROR))
 
   def decode(self, encoded_table_row):
     od = json.loads(
@@ -267,7 +280,7 @@ def _parse_table_reference(table, dataset=None, project=None):
 # BigQuerySource, BigQuerySink.
 
 
-class BigQuerySource(iobase.NativeSource):
+class BigQuerySource(dataflow_io.NativeSource):
   """A source based on a BigQuery table."""
 
   def __init__(self, table=None, dataset=None, project=None, query=None,
@@ -332,7 +345,7 @@ class BigQuerySource(iobase.NativeSource):
         source=self, test_bigquery_client=test_bigquery_client)
 
 
-class BigQuerySink(iobase.NativeSink):
+class BigQuerySink(dataflow_io.NativeSink):
   """A sink based on a BigQuery table."""
 
   def __init__(self, table, dataset=None, project=None, schema=None,
@@ -428,7 +441,6 @@ class BigQuerySink(iobase.NativeSink):
           fs['fields'] = schema_list_as_object(f.fields)
         fields.append(fs)
       return fields
-
     return json.dumps(
         {'fields': schema_list_as_object(self.table_schema.fields)})
 
@@ -447,7 +459,7 @@ class BigQuerySink(iobase.NativeSink):
 # BigQueryReader, BigQueryWriter.
 
 
-class BigQueryReader(iobase.NativeSourceReader):
+class BigQueryReader(dataflow_io.NativeSourceReader):
   """A reader for a BigQuery source."""
 
   def __init__(self, source, test_bigquery_client=None):
@@ -504,7 +516,7 @@ class BigQueryReader(iobase.NativeSourceReader):
           yield row
 
 
-class BigQueryWriter(iobase.NativeSinkWriter):
+class BigQueryWriter(dataflow_io.NativeSinkWriter):
   """The sink writer for a BigQuerySink."""
 
   def __init__(self, sink, test_bigquery_client=None, buffer_size=None):

@@ -15,13 +15,18 @@
 # limitations under the License.
 #
 
+import json
 import logging
 import os
 import tempfile
 import unittest
 
+import apache_beam as beam
+from apache_beam.io import avroio
 from apache_beam.io import filebasedsource
 from apache_beam.io import source_test_utils
+from apache_beam.transforms.util import assert_that
+from apache_beam.transforms.util import equal_to
 
 # Importing following private class for testing purposes.
 from apache_beam.io.avroio import _AvroSource as AvroSource
@@ -29,15 +34,23 @@ from apache_beam.io.avroio import _AvroSource as AvroSource
 import avro.datafile
 from avro.datafile import DataFileWriter
 from avro.io import DatumWriter
-import avro.schema as avro_schema
+import avro.schema
 
 
 class TestAvro(unittest.TestCase):
+
+  _temp_files = []
 
   def setUp(self):
     # Reducing the size of thread pools. Without this test execution may fail in
     # environments with limited amount of resources.
     filebasedsource.MAX_NUM_THREADS_FOR_SIZE_ESTIMATION = 2
+
+  def tearDown(self):
+    for path in self._temp_files:
+      if os.path.exists(path):
+        os.remove(path)
+    self._temp_files = []
 
   RECORDS = [{'name': 'Thomas',
               'favorite_number': 1,
@@ -55,30 +68,33 @@ class TestAvro(unittest.TestCase):
                                          'favorite_number': 6,
                                          'favorite_color': 'Green'}]
 
+  SCHEMA = avro.schema.parse('''
+  {"namespace": "example.avro",
+   "type": "record",
+   "name": "User",
+   "fields": [
+       {"name": "name", "type": "string"},
+       {"name": "favorite_number",  "type": ["int", "null"]},
+       {"name": "favorite_color", "type": ["string", "null"]}
+   ]
+  }
+  ''')
+
   def _write_data(self,
                   directory=None,
                   prefix=tempfile.template,
                   codec='null',
                   count=len(RECORDS)):
-    schema = ('{\"namespace\": \"example.avro\",'
-              '\"type\": \"record\",'
-              '\"name\": \"User\",'
-              '\"fields\": ['
-              '{\"name\": \"name\", \"type\": \"string\"},'
-              '{\"name\": \"favorite_number\",  \"type\": [\"int\", \"null\"]},'
-              '{\"name\": \"favorite_color\", \"type\": [\"string\", \"null\"]}'
-              ']}')
-
-    schema = avro_schema.parse(schema)
 
     with tempfile.NamedTemporaryFile(
         delete=False, dir=directory, prefix=prefix) as f:
-      writer = DataFileWriter(f, DatumWriter(), schema, codec=codec)
+      writer = DataFileWriter(f, DatumWriter(), self.SCHEMA, codec=codec)
       len_records = len(self.RECORDS)
       for i in range(count):
         writer.append(self.RECORDS[i % len_records])
       writer.close()
 
+      self._temp_files.append(f.name)
       return f.name
 
   def _write_pattern(self, num_files):
@@ -127,6 +143,20 @@ class TestAvro(unittest.TestCase):
     file_name = self._write_data()
     expected_result = self.RECORDS
     self._run_avro_test(file_name, 100, True, expected_result)
+
+  def test_read_reentrant_without_splitting(self):
+    file_name = self._write_data()
+    source = AvroSource(file_name)
+    source_test_utils.assertReentrantReadsSucceed((source, None, None))
+
+  def test_read_reantrant_with_splitting(self):
+    file_name = self._write_data()
+    source = AvroSource(file_name)
+    splits = [
+        split for split in source.split(desired_bundle_size=100000)]
+    assert len(splits) == 1
+    source_test_utils.assertReentrantReadsSucceed(
+        (splits[0].source, splits[0].start_position, splits[0].stop_position))
 
   def test_read_without_splitting_multiple_blocks(self):
     file_name = self._write_data(count=12000)
@@ -197,7 +227,7 @@ class TestAvro(unittest.TestCase):
 
   def test_corrupted_file(self):
     file_name = self._write_data()
-    with open(file_name, 'r') as f:
+    with open(file_name, 'rb') as f:
       data = bytearray(f.read())
 
     # Corrupt the last character of the file which is also the last character of
@@ -213,6 +243,42 @@ class TestAvro(unittest.TestCase):
     with self.assertRaises(ValueError) as exn:
       source_test_utils.readFromSource(source, None, None)
       self.assertEqual(0, exn.exception.message.find('Unexpected sync marker'))
+
+  def test_source_transform(self):
+    path = self._write_data()
+    with beam.Pipeline('DirectPipelineRunner') as p:
+      assert_that(p | avroio.ReadFromAvro(path), equal_to(self.RECORDS))
+
+  def test_sink_transform(self):
+    with tempfile.NamedTemporaryFile() as dst:
+      path = dst.name
+      with beam.Pipeline('DirectPipelineRunner') as p:
+        # pylint: disable=expression-not-assigned
+        p | beam.Create(self.RECORDS) | avroio.WriteToAvro(path, self.SCHEMA)
+      with beam.Pipeline('DirectPipelineRunner') as p:
+        # json used for stable sortability
+        readback = p | avroio.ReadFromAvro(path + '*') | beam.Map(json.dumps)
+        assert_that(readback, equal_to([json.dumps(r) for r in self.RECORDS]))
+
+  def test_sink_transform_snappy(self):
+    try:
+      import snappy  # pylint: disable=unused-variable
+      with tempfile.NamedTemporaryFile() as dst:
+        path = dst.name
+        with beam.Pipeline('DirectPipelineRunner') as p:
+          # pylint: disable=expression-not-assigned
+          p | beam.Create(self.RECORDS) | avroio.WriteToAvro(
+              path,
+              self.SCHEMA,
+              codec='snappy')
+        with beam.Pipeline('DirectPipelineRunner') as p:
+          # json used for stable sortability
+          readback = p | avroio.ReadFromAvro(path + '*') | beam.Map(json.dumps)
+          assert_that(readback, equal_to([json.dumps(r) for r in self.RECORDS]))
+    except ImportError:
+      logging.warning(
+          'Skipped test_sink_transform_snappy since snappy appears to not be '
+          'installed.')
 
 
 if __name__ == '__main__':

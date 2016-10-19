@@ -23,10 +23,10 @@ pipelines, during remote execution.
 from __future__ import absolute_import
 
 from apache_beam import coders
-from apache_beam.io import iobase
+from apache_beam.runners.dataflow.native_io import iobase as dataflow_io
 
 
-class PubSubSource(iobase.NativeSource):
+class PubSubSource(dataflow_io.NativeSource):
   """Source for reading from a given Cloud Pub/Sub topic.
 
   Attributes:
@@ -59,7 +59,7 @@ class PubSubSource(iobase.NativeSource):
         'PubSubSource is not supported in local execution.')
 
 
-class PubSubSink(iobase.NativeSink):
+class PubSubSink(dataflow_io.NativeSink):
   """Sink for writing to a given Cloud Pub/Sub topic."""
 
   def __init__(self, topic, coder=coders.StrUtf8Coder()):

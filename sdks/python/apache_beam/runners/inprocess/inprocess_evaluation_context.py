@@ -22,11 +22,7 @@ from __future__ import absolute_import
 import collections
 import threading
 
-from apache_beam.pvalue import DictPCollectionView
-from apache_beam.pvalue import EmptySideInput
-from apache_beam.pvalue import IterablePCollectionView
-from apache_beam.pvalue import ListPCollectionView
-from apache_beam.pvalue import SingletonPCollectionView
+from apache_beam.transforms import sideinputs
 from apache_beam.runners.inprocess.clock import Clock
 from apache_beam.runners.inprocess.inprocess_watermark_manager import InProcessWatermarkManager
 from apache_beam.runners.inprocess.inprocess_executor import TransformExecutor
@@ -105,28 +101,7 @@ class _InProcessSideInputsContainer(object):
     Raises:
       ValueError: If values cannot be converted into the requested form.
     """
-    if isinstance(view, SingletonPCollectionView):
-      has_default, default_value = view._view_options()  # pylint: disable=protected-access
-      if len(values) == 0:
-        if has_default:
-          result = default_value
-        else:
-          result = EmptySideInput()
-      elif len(values) == 1:
-        result = values[0].value
-      else:
-        raise ValueError(
-            ('PCollection with more than one element accessed as '
-             'a singleton view: %s.') % view)
-    elif isinstance(view, IterablePCollectionView):
-      result = [v.value for v in values]
-    elif isinstance(view, ListPCollectionView):
-      result = [v.value for v in values]
-    elif isinstance(view, DictPCollectionView):
-      result = dict(v.value for v in values)
-    else:
-      raise NotImplementedError
-    return result
+    return sideinputs.SideInputMap(type(view), view._view_options(), values)
 
 
 class InProcessEvaluationContext(object):

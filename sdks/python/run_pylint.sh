@@ -33,6 +33,17 @@ set -o pipefail
 git remote set-branches --add origin $BASE_BRANCH
 git fetch
 
+# Following generated files are excluded from lint checks.
+EXCLUDED_GENERATED_FILES=(
+"apache_beam/internal/windmill_pb2.py"
+"apache_beam/internal/windmill_service_pb2.py"
+"apache_beam/internal/clients/bigquery/bigquery_v2_client.py"
+"apache_beam/internal/clients/bigquery/bigquery_v2_messages.py"
+"apache_beam/internal/clients/dataflow/dataflow_v1b3_client.py"
+"apache_beam/internal/clients/dataflow/dataflow_v1b3_messages.py"
+"apache_beam/internal/clients/storage/storage_v1_client.py"
+"apache_beam/internal/clients/storage/storage_v1_messages.py")
+
 # Get the name of the files that changed compared to the HEAD of the branch.
 # Use diff-filter to exclude deleted files. (i.e. Do not try to lint files that
 # does not exist any more.) Filter the output to .py files only. Rewrite the
@@ -41,12 +52,21 @@ CHANGED_FILES=$(git diff --name-only --diff-filter=ACMRTUXB origin/$BASE_BRANCH 
                 | { grep ".py$" || true; }  \
                 | sed 's/sdks\/python\///g')
 
-if test "$CHANGED_FILES"; then
+FILES_TO_CHECK=""
+for file in $CHANGED_FILES;
+do
+if [[ " ${EXCLUDED_GENERATED_FILES[@]} " =~ " ${file} " ]]; then
+  echo "Excluded file " $file " from lint checks"
+else
+  FILES_TO_CHECK="$FILES_TO_CHECK $file"
+fi
+done
+
+if test "$FILES_TO_CHECK"; then
   echo "Running pylint on changed files:"
-  echo "$CHANGED_FILES"
-  pylint $CHANGED_FILES
+  pylint $FILES_TO_CHECK
   echo "Running pep8 on changed files:"
-  pep8 $CHANGED_FILES
+  pep8 $FILES_TO_CHECK
 else
   echo "Not running pylint. No eligible files."
 fi

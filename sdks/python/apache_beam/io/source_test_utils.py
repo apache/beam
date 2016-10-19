@@ -48,7 +48,6 @@ from collections import namedtuple
 import logging
 
 from multiprocessing.pool import ThreadPool
-from apache_beam.internal import pickler
 from apache_beam.io import iobase
 
 
@@ -66,7 +65,7 @@ SplitFractionStatistics = namedtuple(
     'successful_fractions non_trivial_fractions')
 
 
-def readFromSource(source, start_position, stop_position):
+def readFromSource(source, start_position=None, stop_position=None):
   """Reads elements from the given ```BoundedSource```.
 
   Only reads elements within the given position range.
@@ -81,7 +80,7 @@ def readFromSource(source, start_position, stop_position):
   values = []
   range_tracker = source.get_range_tracker(start_position, stop_position)
   assert isinstance(range_tracker, iobase.RangeTracker)
-  reader = _copy_source(source).read(range_tracker)
+  reader = source.read(range_tracker)
   for value in reader:
     values.append(value)
 
@@ -152,6 +151,61 @@ def assertSourcesEqualReferenceSource(reference_source_info, sources_info):
         'same set of records.')
 
 
+def assertReentrantReadsSucceed(source_info):
+  """Tests if a given source can be read in a reentrant manner.
+
+  Assume that given source produces the set of values {v1, v2, v3, ... vn}. For
+  i in range [1, n-1] this method performs a reentrant read after reading i
+  elements and verifies that both the original and reentrant read produce the
+  expected set of values.
+
+  Args:
+    source_info: a three-tuple that gives the reference
+                 ``iobase.BoundedSource``, position to start reading at, and a
+                 position to stop reading at.
+  Raises:
+    ValueError: if source is too trivial or reentrant read result in an
+                incorrect read.
+  """
+
+  source, start_position, stop_position = source_info
+  assert isinstance(source, iobase.BoundedSource)
+
+  expected_values = [val for val in source.read(source.get_range_tracker(
+      start_position, stop_position))]
+  if len(expected_values) < 2:
+    raise ValueError('Source is too trivial since it produces only %d '
+                     'values. Please give a source that reads at least 2 '
+                     'values.', len(expected_values))
+
+  for i in range(1, len(expected_values) - 1):
+    read_iter = source.read(source.get_range_tracker(
+        start_position, stop_position))
+    original_read = []
+    for _ in range(i):
+      original_read.append(next(read_iter))
+
+    # Reentrant read
+    reentrant_read = [val for val in source.read(
+        source.get_range_tracker(start_position, stop_position))]
+
+    # Continuing original read.
+    for val in read_iter:
+      original_read.append(val)
+
+    if sorted(original_read) != sorted(expected_values):
+      raise ValueError('Source did not produce expected values when '
+                       'performing a reentrant read after reading %d values. '
+                       'Expected %r received %r.',
+                       i, expected_values, original_read)
+
+    if sorted(reentrant_read) != sorted(expected_values):
+      raise ValueError('A reentrant read of source after reading %d values '
+                       'did not produce expected values. Expected %r '
+                       'received %r.',
+                       i, expected_values, reentrant_read)
+
+
 def assertSplitAtFractionBehavior(source, num_items_to_read_before_split,
                                   split_fraction, expected_outcome):
   """Verifies the behaviour of splitting a source at a given fraction.
@@ -173,7 +227,7 @@ def assertSplitAtFractionBehavior(source, num_items_to_read_before_split,
     source while the second value of the tuple will be '-1'.
   """
   assert isinstance(source, iobase.BoundedSource)
-  expected_items = readFromSource(_copy_source(source), None, None)
+  expected_items = readFromSource(source, None, None)
   return _assertSplitAtFractionBehavior(
       source, expected_items, num_items_to_read_before_split, split_fraction,
       expected_outcome)
@@ -186,7 +240,7 @@ def _assertSplitAtFractionBehavior(
   range_tracker = source.get_range_tracker(start_position, stop_position)
   assert isinstance(range_tracker, iobase.RangeTracker)
   current_items = []
-  reader = _copy_source(source).read(range_tracker)
+  reader = source.read(range_tracker)
   # Reading 'num_items_to_read_before_split' items.
   reader_iter = iter(reader)
   for _ in range(num_items_to_read_before_split):
@@ -201,43 +255,42 @@ def _assertSplitAtFractionBehavior(
   if split_result is not None:
     if len(split_result) != 2:
       raise ValueError('Split result must be a tuple that contains split '
-                       'position and split fraction. Received: %r',
-                       split_result)
+                       'position and split fraction. Received: %r' %
+                       (split_result,))
 
     if range_tracker.stop_position() != split_result[0]:
       raise ValueError('After a successful split, the stop position of the '
                        'RangeTracker must be the same as the returned split '
                        'position. Observed %r and %r which are different.',
-                       range_tracker.stop_position(), split_result[0])
+                       range_tracker.stop_position() % (split_result[0],))
 
     if split_fraction < 0 or split_fraction > 1:
       raise ValueError('Split fraction must be within the range [0,1]',
-                       'Observed split fraction was %r.', split_result[1])
+                       'Observed split fraction was %r.' % (split_result[1],))
 
   stop_position_after_split = range_tracker.stop_position()
   if split_result and stop_position_after_split == stop_position_before_split:
     raise ValueError('Stop position %r did not change after a successful '
-                     'split of source %r at fraction %r.',
-                     stop_position_before_split, source, split_fraction)
+                     'split of source %r at fraction %r.' %
+                     (stop_position_before_split, source, split_fraction))
 
   if expected_outcome == ExpectedSplitOutcome.MUST_SUCCEED_AND_BE_CONSISTENT:
     if not split_result:
       raise ValueError('Expected split of source %r at fraction %r to be '
                        'successful after reading %d elements. But '
-                       'the split failed.',
-                       source, split_fraction,
-                       num_items_to_read_before_split)
+                       'the split failed.' %
+                       (source, split_fraction, num_items_to_read_before_split))
   elif expected_outcome == ExpectedSplitOutcome.MUST_FAIL:
     if split_result:
       raise ValueError('Expected split of source %r at fraction %r after '
                        'reading %d elements to fail. But splitting '
-                       'succeeded with result %r.',
-                       source, split_fraction,
-                       num_items_to_read_before_split, split_result)
+                       'succeeded with result %r.' %
+                       (source, split_fraction, num_items_to_read_before_split,
+                        split_result))
 
   elif (expected_outcome !=
         ExpectedSplitOutcome.MUST_BE_CONSISTENT_IF_SUCCEEDS):
-    raise ValueError('Unknown type of expected outcome: %r',
+    raise ValueError('Unknown type of expected outcome: %r'%
                      expected_outcome)
   current_items.extend([value for value in reader_iter])
 
@@ -537,7 +590,7 @@ def _assertSplitAtFractionConcurrent(
 
   range_tracker = source.get_range_tracker(None, None)
   stop_position_before_split = range_tracker.stop_position()
-  reader = _copy_source(source).read(range_tracker)
+  reader = source.read(range_tracker)
   reader_iter = iter(reader)
 
   current_items = []
@@ -576,7 +629,3 @@ def _assertSplitAtFractionConcurrent(
       primary_range, residual_range, split_fraction)
 
   return res[1] > 0
-
-
-def _copy_source(source):
-  return pickler.loads(pickler.dumps(source))

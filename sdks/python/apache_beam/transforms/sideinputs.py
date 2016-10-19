@@ -27,6 +27,7 @@ from __future__ import absolute_import
 from apache_beam import pvalue
 from apache_beam import typehints
 from apache_beam.transforms.ptransform import PTransform
+from apache_beam.transforms import window
 
 # Type variables
 K = typehints.TypeVariable('K')
@@ -74,7 +75,8 @@ class ViewAsSingleton(PTransform):
     return (pcoll
             | CreatePCollectionView(
                 pvalue.SingletonPCollectionView(
-                    pcoll.pipeline, self.has_default, self.default_value))
+                    pcoll.pipeline, self.has_default, self.default_value,
+                    default_window_mapping_fn(pcoll.windowing.windowfn)))
             .with_input_types(input_type)
             .with_output_types(output_type))
 
@@ -97,7 +99,9 @@ class ViewAsIterable(PTransform):
     output_type = typehints.Iterable[input_type]
     return (pcoll
             | CreatePCollectionView(
-                pvalue.IterablePCollectionView(pcoll.pipeline))
+                pvalue.IterablePCollectionView(
+                    pcoll.pipeline,
+                    default_window_mapping_fn(pcoll.windowing.windowfn)))
             .with_input_types(input_type)
             .with_output_types(output_type))
 
@@ -119,7 +123,9 @@ class ViewAsList(PTransform):
     input_type = pcoll.element_type
     output_type = typehints.List[input_type]
     return (pcoll
-            | CreatePCollectionView(pvalue.ListPCollectionView(pcoll.pipeline))
+            | CreatePCollectionView(pvalue.ListPCollectionView(
+                pcoll.pipeline,
+                default_window_mapping_fn(pcoll.windowing.windowfn)))
             .with_input_types(input_type)
             .with_output_types(output_type))
 
@@ -146,6 +152,63 @@ class ViewAsDict(PTransform):
     output_type = typehints.Dict[key_type, value_type]
     return (pcoll
             | CreatePCollectionView(
-                pvalue.DictPCollectionView(pcoll.pipeline))
+                pvalue.DictPCollectionView(
+                    pcoll.pipeline,
+                    default_window_mapping_fn(pcoll.windowing.windowfn)))
             .with_input_types(input_type)
             .with_output_types(output_type))
+
+
+# Top-level function so we can identify it later.
+def _global_window_mapping_fn(w, global_window=window.GlobalWindow()):
+  return global_window
+
+
+def default_window_mapping_fn(target_window_fn):
+  if target_window_fn == window.GlobalWindows():
+    return _global_window_mapping_fn
+  else:
+    def map_via_end(source_window):
+      return list(target_window_fn.assign(
+          window.WindowFn.AssignContext(source_window.max_timestamp())))[-1]
+    return map_via_end
+
+
+class SideInputMap(object):
+  """Represents a mapping of windows to side input values."""
+
+  def __init__(self, view_class, view_options, iterable):
+    self._window_mapping_fn = view_options.get(
+        'window_mapping_fn', _global_window_mapping_fn)
+    self._view_class = view_class
+    self._view_options = view_options
+    self._iterable = iterable
+    self._cache = {}
+
+  def __getitem__(self, window):
+    if window not in self._cache:
+      target_window = self._window_mapping_fn(window)
+      self._cache[window] = self._view_class._from_runtime_iterable(
+          _FilteringIterable(self._iterable, target_window), self._view_options)
+    return self._cache[window]
+
+  def is_globally_windowed(self):
+    return self._window_mapping_fn == _global_window_mapping_fn
+
+
+class _FilteringIterable(object):
+  """An iterable containing only those values in the given window.
+  """
+
+  def __init__(self, iterable, target_window):
+    self._iterable = iterable
+    self._target_window = target_window
+
+  def __iter__(self):
+    for wv in self._iterable:
+      if self._target_window in wv.windows:
+        yield wv.value
+
+  def __reduce__(self):
+    # Pickle self as an already filtered list.
+    return list, (list(self),)

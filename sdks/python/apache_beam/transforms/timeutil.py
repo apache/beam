@@ -58,6 +58,10 @@ class Timestamp(object):
       return seconds
     return Timestamp(seconds)
 
+  def predecessor(self):
+    """Returns the largest timestamp smaller than self."""
+    return Timestamp(micros=self.micros - 1)
+
   def __repr__(self):
     micros = self.micros
     sign = ''

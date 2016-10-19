@@ -138,10 +138,10 @@ class OffsetRangeTracker(iobase.RangeTracker):
         return
 
       logging.debug('Agreeing to split %r at %d', self, split_offset)
-      self._stop_offset = split_offset
 
       split_fraction = (float(split_offset - self._start_offset) / (
           self._stop_offset - self._start_offset))
+      self._stop_offset = split_offset
 
       return self._stop_offset, split_fraction
 

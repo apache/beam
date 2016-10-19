@@ -248,6 +248,9 @@ class GoogleCloudOptions(PipelineOptions):
                         default=None,
                         help='Path to a file containing the P12 service '
                         'credentials.')
+    parser.add_argument('--service_account_email',
+                        default=None,
+                        help='Identity to run virtual machines as.')
     parser.add_argument('--no_auth', dest='no_auth', type=bool, default=False)
 
   def validate(self, validator):
@@ -361,15 +364,27 @@ class DebugOptions(PipelineOptions):
     parser.add_argument('--dataflow_job_file',
                         default=None,
                         help='Debug file to write the workflow specification.')
+    parser.add_argument(
+        '--experiment',
+        dest='experiments',
+        action='append',
+        default=None,
+        help=
+        ('Runners may provide a number of experimental features that can be '
+         'enabled with this flag. Please sync with the owners of the runner '
+         'before enabling any experiments.'))
 
 
 class ProfilingOptions(PipelineOptions):
 
   @classmethod
   def _add_argparse_args(cls, parser):
-    parser.add_argument('--profile',
+    parser.add_argument('--profile_cpu',
                         action='store_true',
-                        help='Enable work item profiling')
+                        help='Enable work item CPU profiling.')
+    parser.add_argument('--profile_memory',
+                        action='store_true',
+                        help='Enable work item heap profiling.')
     parser.add_argument('--profile_location',
                         default=None,
                         help='GCS path for saving profiler data.')
@@ -439,14 +454,14 @@ class SetupOptions(PipelineOptions):
         action='append',
         default=None,
         help=
-        ('Local path to a Python package file. The file is expected to be a '
-         'compressed tarball with the suffix \'.tar.gz\' which can be '
-         'installed using the easy_install command of the standard setuptools '
-         'package. Multiple --extra_package options can be specified if more '
-         'than one package is needed. During job submission the files will be '
-         'staged in the staging area (--staging_location option) and the '
-         'workers will install them in same order they were specified on the '
-         'command line.'))
+        ('Local path to a Python package file. The file is expected to be (1) '
+         'a package tarball (".tar") or (2) a compressed package tarball '
+         '(".tar.gz") which can be installed using the "pip install" command '
+         'of the standard pip package. Multiple --extra_package options can '
+         'be specified if more than one package is needed. During job '
+         'submission, the files will be staged in the staging area '
+         '(--staging_location option) and the workers will install them in '
+         'same order they were specified on the command line.'))
 
 # TODO(silviuc): Add --files_to_stage option.
 # This could potentially replace the --requirements_file and --setup_file.

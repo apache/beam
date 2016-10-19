@@ -36,6 +36,7 @@ cdef class DoFnRunner(Receiver):
   cdef object tagged_receivers
   cdef LoggingContext logging_context
   cdef object step_name
+  cdef bint has_windowed_side_inputs
 
   cdef Receiver main_receivers
 

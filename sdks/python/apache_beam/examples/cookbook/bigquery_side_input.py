@@ -33,7 +33,6 @@ from random import randrange
 
 import apache_beam as beam
 
-from apache_beam.pvalue import AsIter
 from apache_beam.pvalue import AsList
 from apache_beam.pvalue import AsSingleton
 from apache_beam.utils.options import PipelineOptions
@@ -72,7 +71,7 @@ def create_groups(group_ids, corpus, word, ignore_corpus, ignore_word):
           | beam.FlatMap(
               'attach word',
               attach_word_fn,
-              AsIter(word),
+              AsList(word),
               AsSingleton(ignore_word)))
 
 

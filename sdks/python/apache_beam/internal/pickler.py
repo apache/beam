@@ -31,6 +31,7 @@ import logging
 import sys
 import traceback
 import types
+import zlib
 
 import dill
 
@@ -182,20 +183,22 @@ logging.getLogger('dill').setLevel(logging.WARN)
 # encoding.  This should be cleaned up.
 def dumps(o):
   try:
-    return base64.b64encode(dill.dumps(o))
+    s = dill.dumps(o)
   except Exception:          # pylint: disable=broad-except
     dill.dill._trace(True)   # pylint: disable=protected-access
-    return base64.b64encode(dill.dumps(o))
+    s = dill.dumps(o)
   finally:
     dill.dill._trace(False)  # pylint: disable=protected-access
+  return base64.b64encode(zlib.compress(s))
 
 
-def loads(s):
+def loads(encoded):
+  s = zlib.decompress(base64.b64decode(encoded))
   try:
-    return dill.loads(base64.b64decode(s))
+    return dill.loads(s)
   except Exception:          # pylint: disable=broad-except
     dill.dill._trace(True)   # pylint: disable=protected-access
-    return dill.loads(base64.b64decode(s))
+    return dill.loads(s)
   finally:
     dill.dill._trace(False)  # pylint: disable=protected-access
 

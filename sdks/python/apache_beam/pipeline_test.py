@@ -21,12 +21,12 @@ import gc
 import logging
 import unittest
 
-from apache_beam.io.iobase import NativeSource
 from apache_beam.pipeline import Pipeline
 from apache_beam.pipeline import PipelineOptions
 from apache_beam.pipeline import PipelineVisitor
 from apache_beam.pvalue import AsIter
 from apache_beam.pvalue import SideOutputValue
+from apache_beam.runners.dataflow.native_io.iobase import NativeSource
 from apache_beam.transforms import CombinePerKey
 from apache_beam.transforms import Create
 from apache_beam.transforms import FlatMap
@@ -239,6 +239,7 @@ class PipelineTest(unittest.TestCase):
             'oom:combine/GroupByKey/group_by_key': 1,
             ('oom:check', None): 1,
             'assert_that/singleton': 1,
+            ('assert_that/WindowInto', None): 1,
             ('assert_that/Map(match)', None): 1,
             ('oom:combine/GroupByKey/group_by_window', None): 1,
             ('oom:combine/Combine/ParDo(CombineValuesDoFn)', None): 1})

@@ -16,24 +16,28 @@
 #
 """Implements a source for reading Avro files."""
 
+import cStringIO as StringIO
 import os
-import StringIO
 import zlib
 
+import avro
 from avro import datafile
 from avro import io as avroio
 from avro import schema
 
+import apache_beam as beam
 from apache_beam.io import filebasedsource
+from apache_beam.io import fileio
 from apache_beam.io.iobase import Read
 from apache_beam.transforms import PTransform
+
+__all__ = ['ReadFromAvro', 'WriteToAvro']
 
 
 class ReadFromAvro(PTransform):
   """A ``PTransform`` for reading avro files."""
 
-  def __init__(self, label=None, file_pattern=None, min_bundle_size=0,
-               **kwargs):
+  def __init__(self, file_pattern=None, min_bundle_size=0):
     """Initializes ``ReadFromAvro``.
 
     Uses source '_AvroSource' to read a set of Avro files defined by a given
@@ -68,16 +72,11 @@ class ReadFromAvro(PTransform):
                        splitting the input into bundles.
       **kwargs: Additional keyword arguments to be passed to the base class.
     """
-    super(ReadFromAvro, self).__init__(label, **kwargs)
+    super(ReadFromAvro, self).__init__()
+    self._args = (file_pattern, min_bundle_size)
 
-    self._file_pattern = file_pattern
-    self._min_bundle_size = min_bundle_size
-
-  def apply(self, pcoll):
-    return pcoll.pipeline | Read(
-        _AvroSource(
-            file_pattern=self._file_pattern,
-            min_bundle_size=self._min_bundle_size))
+  def apply(self, pvalue):
+    return pvalue.pipeline | Read(_AvroSource(*self._args))
 
 
 class _AvroUtils(object):
@@ -241,3 +240,87 @@ class _AvroSource(filebasedsource.FileBasedSource):
                                                 sync_marker)
         for record in block.records():
           yield record
+
+
+class WriteToAvro(beam.transforms.PTransform):
+  """A ``PTransform`` for writing avro files."""
+
+  def __init__(self,
+               file_path_prefix,
+               schema,
+               codec='deflate',
+               file_name_suffix='',
+               num_shards=0,
+               shard_name_template=None,
+               mime_type='application/x-avro'):
+    """Initialize a WriteToAvro transform.
+
+    Args:
+      file_path_prefix: The file path to write to. The files written will begin
+        with this prefix, followed by a shard identifier (see num_shards), and
+        end in a common extension, if given by file_name_suffix. In most cases,
+        only this argument is specified and num_shards, shard_name_template, and
+        file_name_suffix use default values.
+      schema: The schema to use, as returned by avro.schema.parse
+      codec: The codec to use for block-level compression. Any string supported
+        by the Avro specification is accepted (for example 'null').
+      file_name_suffix: Suffix for the files written.
+      append_trailing_newlines: indicate whether this sink should write an
+        additional newline char after writing each element.
+      num_shards: The number of files (shards) used for output. If not set, the
+        service will decide on the optimal number of shards.
+        Constraining the number of shards is likely to reduce
+        the performance of a pipeline.  Setting this value is not recommended
+        unless you require a specific number of output files.
+      shard_name_template: A template string containing placeholders for
+        the shard number and shard count. Currently only '' and
+        '-SSSSS-of-NNNNN' are patterns accepted by the service.
+        When constructing a filename for a particular shard number, the
+        upper-case letters 'S' and 'N' are replaced with the 0-padded shard
+        number and shard count respectively.  This argument can be '' in which
+        case it behaves as if num_shards was set to 1 and only one file will be
+        generated. The default pattern used is '-SSSSS-of-NNNNN'.
+      mime_type: The MIME type to use for the produced files, if the filesystem
+        supports specifying MIME types.
+
+    Returns:
+      A WriteToAvro transform usable for writing.
+    """
+    self._args = (file_path_prefix, schema, codec, file_name_suffix, num_shards,
+                  shard_name_template, mime_type)
+
+  def apply(self, pcoll):
+    return pcoll | beam.io.iobase.Write(_AvroSink(*self._args))
+
+
+class _AvroSink(fileio.FileSink):
+  """A sink to avro files."""
+
+  def __init__(self,
+               file_path_prefix,
+               schema,
+               codec,
+               file_name_suffix,
+               num_shards,
+               shard_name_template,
+               mime_type):
+    super(_AvroSink, self).__init__(
+        file_path_prefix,
+        file_name_suffix=file_name_suffix,
+        num_shards=num_shards,
+        shard_name_template=shard_name_template,
+        coder=None,
+        mime_type=mime_type,
+        # Compression happens at the block level using the supplied codec, and
+        # not at the file level.
+        compression_type=fileio.CompressionTypes.UNCOMPRESSED)
+    self._schema = schema
+    self._codec = codec
+
+  def open(self, temp_path):
+    file_handle = super(_AvroSink, self).open(temp_path)
+    return avro.datafile.DataFileWriter(
+        file_handle, avro.io.DatumWriter(), self._schema, self._codec)
+
+  def write_record(self, writer, value):
+    writer.append(value)
