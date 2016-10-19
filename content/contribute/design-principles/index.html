@@ -6,7 +6,7 @@
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <meta name="viewport" content="width=device-width, initial-scale=1">
 
-  <title>Apache Beam (incubating)</title>
+  <title>Design Principles in Beam</title>
   <meta name="description" content="Apache Beam is an open source, unified model and set of language-specific SDKs for defining and executing data processing workflows, and also data ingestion and integration flows, supporting Enterprise Integration Patterns (EIPs) and Domain Specific Languages (DSLs). Dataflow pipelines simplify the mechanics of large-scale batch and streaming data processing and can run on a number of runtimes like Apache Flink, Apache Spark, and Google Cloud Dataflow (a cloud service). Beam also brings DSL in different languages, allowing users to easily implement their data integration processes.
 ">
 
@@ -14,7 +14,7 @@
   <link rel="stylesheet" href="/css/theme.css">
   <script src="https://ajax.googleapis.com/ajax/libs/jquery/2.2.0/jquery.min.js"></script>
   <script src="/js/bootstrap.min.js"></script>
-  <link rel="canonical" href="http://beam.incubator.apache.org/coming-soon.html" data-proofer-ignore>
+  <link rel="canonical" href="http://beam.incubator.apache.org/contribute/design-principles/" data-proofer-ignore>
   <link rel="alternate" type="application/rss+xml" title="Apache Beam (incubating)" href="http://beam.incubator.apache.org/feed.xml">
   <script>
     (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
@@ -142,11 +142,73 @@
     <div class="container" role="main">
 
       <div class="row">
-        <h1 id="documentation-coming-soon">Documentation Coming Soon</h1>
+        <h1 id="design-principles-in-the-apache-beam-project">Design Principles in the Apache Beam Project</h1>
 
-<p>You’ve reached a page that’s still in draft, or otherwise being developed! Please bear with us as we improve the documentation for Apache Beam.</p>
+<p>Joshua Bloch’s <a href="https://www.infoq.com/articles/API-Design-Joshua-Bloch">API Design Bumper Stickers</a> are a great list of what makes for good API design. In addition, we have specific design principles we follow in Beam.</p>
 
-<p><a href="/">Go Back</a> to the main Beam site.</p>
+<ul id="markdown-toc">
+  <li><a href="#use-cases" id="markdown-toc-use-cases">Use cases</a>    <ul>
+      <li><a href="#unify-the-model" id="markdown-toc-unify-the-model">Unify the model</a></li>
+      <li><a href="#separate-data-shapes-and-runtime-requirements" id="markdown-toc-separate-data-shapes-and-runtime-requirements">Separate data shapes and runtime requirements</a></li>
+      <li><a href="#make-efficient-things-easy-rather-than-make-easy-things-efficient" id="markdown-toc-make-efficient-things-easy-rather-than-make-easy-things-efficient">Make efficient things easy, rather than make easy things efficient</a></li>
+    </ul>
+  </li>
+  <li><a href="#usability" id="markdown-toc-usability">Usability</a>    <ul>
+      <li><a href="#validate-early" id="markdown-toc-validate-early">Validate Early</a></li>
+      <li><a href="#public-apis-like-diamonds-are-forever-at-least-until-the-next-major-version" id="markdown-toc-public-apis-like-diamonds-are-forever-at-least-until-the-next-major-version">Public APIs, like diamonds, are forever (at least until the next major version)</a></li>
+      <li><a href="#examples-should-be-pedagogical" id="markdown-toc-examples-should-be-pedagogical">Examples should be pedagogical</a></li>
+    </ul>
+  </li>
+  <li><a href="#extensibility" id="markdown-toc-extensibility">Extensibility</a>    <ul>
+      <li><a href="#use-ptransforms-for-modularity" id="markdown-toc-use-ptransforms-for-modularity">Use PTransforms for modularity</a></li>
+      <li><a href="#keep-beam-sdks-consistent" id="markdown-toc-keep-beam-sdks-consistent">Keep Beam SDKs consistent</a></li>
+      <li><a href="#when-in-rome-python-do-as-the-romans-pythonians-do" id="markdown-toc-when-in-rome-python-do-as-the-romans-pythonians-do">When in <del>Rome</del> Python, do as the <del>Romans</del> Pythonians do</a></li>
+      <li><a href="#encourage-dsls" id="markdown-toc-encourage-dsls">Encourage DSLs</a></li>
+      <li><a href="#design-for-the-model-not-specific-runners" id="markdown-toc-design-for-the-model-not-specific-runners">Design for the model, not specific runners</a></li>
+    </ul>
+  </li>
+</ul>
+
+<h2 id="use-cases">Use cases</h2>
+
+<h3 id="unify-the-model">Unify the model</h3>
+<p>Provide one model that works over both bounded (aka. batch) and unbounded (aka. streaming) datasets. Pay special attention to windows / triggers / state / timers, which often trip up folks used to a batch world.  Provide users with the right abstractions to adjust latency and completeness guarantees to cover both traditional batch and streaming use cases.</p>
+
+<h3 id="separate-data-shapes-and-runtime-requirements">Separate data shapes and runtime requirements</h3>
+<p>The model should focus on letting users describe their data and processing, without exposing any details of a specific runtime system. For example, bounded and unbounded describe the shape of data, but batch and streaming describe the behavior of specific runtime systems. Good test cases are to imagine a mythical micro-batching runner that sits somewhere between batch and streaming or a engine that dynamically switches between streaming and batch depending on the backlog.</p>
+
+<h3 id="make-efficient-things-easy-rather-than-make-easy-things-efficient">Make efficient things easy, rather than make easy things efficient</h3>
+<p>Don’t prevent efficiency for ease of use. Design APIs that provide the information necessary for efficiently executing at scale. Provide class hierarchies and wrappers to make the common cases simpler.</p>
+
+<h2 id="usability">Usability</h2>
+
+<h3 id="validate-early">Validate Early</h3>
+<p>Validate constraints on graph shape, runner requirements, etc as early in the compile time - construction time - submission time - execution time spectrum as reasonably possible in order to provide a smoother user experience.</p>
+
+<h3 id="public-apis-like-diamonds-are-forever-at-least-until-the-next-major-version">Public APIs, like diamonds, are forever (at least until the next major version)</h3>
+<p>Backwards incompatible changes can only be made in the next major version. Because of the burden major versions place on users (code has to be modified, conflicting dependency nightmares, etc), we aim to do this infrequently. Clearly mark APIs that are considered experimental (may change at any point) and deprecated (will be removed in the next major version). Consider what APIs are more amenable to future changes (abstract classes vs. interfaces, etc.)</p>
+
+<h3 id="examples-should-be-pedagogical">Examples should be pedagogical</h3>
+<p>Canonical examples help people ingrain the principles. Design examples that teach complex concepts in modular chunks. If you can’t explain the concept easily, then the API isn’t right. Examples should withstand random copy-pasting.</p>
+
+<h2 id="extensibility">Extensibility</h2>
+
+<h3 id="use-ptransforms-for-modularity">Use PTransforms for modularity</h3>
+<p>Composite transformations (transformations formed by a subgraph of other transformations) are treated as first class objects. They can be named and applied directly in any pipeline to nicely encapsulate concepts. This removes the artificial separation between those built into PCollection and those provided by users. In addition, PTransforms can be used as a clear concept in graphical monitoring and provide a way to scope metadata like aggregators, logging, and resources. Use these when building pipelines.</p>
+
+<h3 id="keep-beam-sdks-consistent">Keep Beam SDKs consistent</h3>
+<p>Beam SDKs should expose the complete set of concepts in the programming model. They should all use the same set of abstractions and be able to share conceptual documentation.</p>
+
+<h3 id="when-in-rome-python-do-as-the-romans-pythonians-do">When in <del>Rome</del> Python, do as the <del>Romans</del> Pythonians do</h3>
+<p>Each SDK must feel right to those who live and breath that language. Adapt the general Beam concepts into language-dependent styles when the benefits clearly outweigh the drawbacks.</p>
+
+<h3 id="encourage-dsls">Encourage DSLs</h3>
+<p>Many use cases or user communities can be served by provided ‘wrapper’ SDKs that provide a simpler or domain-specific set of abstractions that then build on a Beam SDK and take advantage of Beam Runners.</p>
+
+<h3 id="design-for-the-model-not-specific-runners">Design for the model, not specific runners</h3>
+
+<p>The Beam APIs should serve all runners. Behind every runner-specific hook, there is a general principle in the model. Design APIs that generalize across multiple runners.</p>
+
 
       </div>
 
