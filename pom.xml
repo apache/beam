@@ -138,6 +138,7 @@
   <packaging>pom</packaging>
 
   <modules>
+    <module>model</module>
     <module>sdks</module>
     <!-- Expose Dataflow runner as top level module to satisfy dependencies in sdks/java/maven-archetypes 
       and examples/java. Until these are refactored out, we need to modify the build order. -->
