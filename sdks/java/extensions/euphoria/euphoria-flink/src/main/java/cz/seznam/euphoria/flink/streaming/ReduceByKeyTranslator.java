@@ -1,7 +1,6 @@
 package cz.seznam.euphoria.flink.streaming;
 
 import cz.seznam.euphoria.core.client.dataset.HashPartitioner;
-import cz.seznam.euphoria.core.client.dataset.windowing.WindowID;
 import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
 import cz.seznam.euphoria.core.client.operator.CompositeKey;
@@ -129,7 +128,7 @@ class ReduceByKeyTranslator implements StreamingOperatorTranslator<ReduceByKey> 
       Object v2 = p2.get().getSecond();
       StreamingWindowedElement<?, Pair>
           out = new StreamingWindowedElement<>(
-            p1.getWindowID(),
+            p1.getWindow(),
             Pair.of(p1.get().getKey(), reducer.apply(Arrays.asList(v1, v2))));
       // ~ forward the emission watermark - if any
       out.withEmissionWatermark(p1.getEmissionWatermark());
@@ -175,7 +174,7 @@ class ReduceByKeyTranslator implements StreamingOperatorTranslator<ReduceByKey> 
 
       // read the first element to obtain window metadata
       StreamingWindowedElement<?, Pair> element = it.next();
-      WindowID<?> wid = element.getWindowID();
+      cz.seznam.euphoria.core.client.dataset.windowing.Window wid = element.getWindow();
       long emissionWatermark = element.getEmissionWatermark();
 
       // concat the already read element with rest of the opened iterator
@@ -203,9 +202,10 @@ class ReduceByKeyTranslator implements StreamingOperatorTranslator<ReduceByKey> 
    * {@link MultiWindowedElement}s. Assumes the result is emitted using
    * {@link MultiWindowedElementWindowFunction}.
    */
-  private static class MultiWindowedElementIncrementalReducer<LABEL, KEY, VALUE>
-      implements ReduceFunction<MultiWindowedElement<LABEL, Pair<KEY, VALUE>>>,
-      ResultTypeQueryable<MultiWindowedElement<LABEL, Pair<KEY, VALUE>>> {
+  private static class MultiWindowedElementIncrementalReducer<
+          WID extends cz.seznam.euphoria.core.client.dataset.windowing.Window, KEY, VALUE>
+      implements ReduceFunction<MultiWindowedElement<WID, Pair<KEY, VALUE>>>,
+      ResultTypeQueryable<MultiWindowedElement<WID, Pair<KEY, VALUE>>> {
 
     final UnaryFunction<Iterable<VALUE>, VALUE> reducer;
 
@@ -214,20 +214,20 @@ class ReduceByKeyTranslator implements StreamingOperatorTranslator<ReduceByKey> 
     }
 
     @Override
-    public MultiWindowedElement<LABEL, Pair<KEY, VALUE>> reduce(
-        MultiWindowedElement<LABEL, Pair<KEY, VALUE>> p1,
-        MultiWindowedElement<LABEL, Pair<KEY, VALUE>> p2) {
+    public MultiWindowedElement<WID, Pair<KEY, VALUE>> reduce(
+        MultiWindowedElement<WID, Pair<KEY, VALUE>> p1,
+        MultiWindowedElement<WID, Pair<KEY, VALUE>> p2) {
 
       VALUE v1 = p1.get().getSecond();
       VALUE v2 = p2.get().getSecond();
-      Set<WindowID<LABEL>> s = Collections.emptySet();
+      Set<WID> s = Collections.emptySet();
       return new MultiWindowedElement<>(s,
           Pair.of(p1.get().getFirst(), reducer.apply(Arrays.asList(v1, v2))));
     }
 
     @Override
     @SuppressWarnings("unchecked")
-    public TypeInformation<MultiWindowedElement<LABEL, Pair<KEY, VALUE>>>
+    public TypeInformation<MultiWindowedElement<WID, Pair<KEY, VALUE>>>
     getProducedType() {
       return TypeInformation.of((Class) MultiWindowedElement.class);
     }
@@ -236,33 +236,35 @@ class ReduceByKeyTranslator implements StreamingOperatorTranslator<ReduceByKey> 
   /**
    * Performs non-incremental reduction (in case of non-combining reduce).
    */
-  private static class MultiWindowedElementWindowedReducer<LABEL, KEY, VALUEIN, VALUEOUT>
+  private static class MultiWindowedElementWindowedReducer<
+          WID extends cz.seznam.euphoria.core.client.dataset.windowing.Window,
+          KEY, VALUEIN, VALUEOUT>
       implements WindowFunction<
       MultiWindowedElement<?, Pair<KEY, VALUEIN>>,
-      StreamingWindowedElement<LABEL, Pair<KEY, VALUEOUT>>,
+      StreamingWindowedElement<WID, Pair<KEY, VALUEOUT>>,
       KEY,
-      FlinkWindow<LABEL>> {
+      FlinkWindow<WID>> {
 
     private final UnaryFunction<Iterable<VALUEIN>, VALUEOUT> reducer;
-    private final MultiWindowedElementWindowFunction<LABEL, KEY, VALUEOUT> emissionFunction;
+    private final MultiWindowedElementWindowFunction<WID, KEY, VALUEOUT> emissionFunction;
 
     public MultiWindowedElementWindowedReducer(
         UnaryFunction<Iterable<VALUEIN>, VALUEOUT> reducer,
-        MultiWindowedElementWindowFunction<LABEL, KEY, VALUEOUT> emissionFunction) {
+        MultiWindowedElementWindowFunction<WID, KEY, VALUEOUT> emissionFunction) {
       this.reducer = reducer;
       this.emissionFunction = emissionFunction;
     }
 
     @Override
     public void apply(KEY key,
-                      FlinkWindow<LABEL> window,
+                      FlinkWindow<WID> window,
                       Iterable<MultiWindowedElement<?, Pair<KEY, VALUEIN>>> input,
-                      Collector<StreamingWindowedElement<LABEL, Pair<KEY, VALUEOUT>>> collector)
+                      Collector<StreamingWindowedElement<WID, Pair<KEY, VALUEOUT>>> collector)
         throws Exception {
 
       VALUEOUT reducedValue = reducer.apply(new IteratorIterable<>(
           Iterators.transform(input.iterator(), e -> e.get().getValue())));
-      MultiWindowedElement<Object, Pair<KEY, VALUEOUT>> reduced =
+      MultiWindowedElement<WID, Pair<KEY, VALUEOUT>> reduced =
           new MultiWindowedElement<>(Collections.emptySet(), Pair.of(key, reducedValue));
       this.emissionFunction.apply(key, window,
           Collections.singletonList(reduced), collector);

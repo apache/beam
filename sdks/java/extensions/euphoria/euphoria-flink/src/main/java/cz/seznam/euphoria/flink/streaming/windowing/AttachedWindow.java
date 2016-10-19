@@ -1,30 +1,30 @@
 package cz.seznam.euphoria.flink.streaming.windowing;
 
-import cz.seznam.euphoria.core.client.dataset.windowing.WindowID;
+
 import cz.seznam.euphoria.flink.streaming.StreamingWindowedElement;
 import org.apache.flink.streaming.api.windowing.windows.Window;
 
 import java.util.Objects;
 
-public class AttachedWindow<LABEL>
+public class AttachedWindow<WID extends cz.seznam.euphoria.core.client.dataset.windowing.Window>
     extends Window
-    implements WindowProperties<LABEL> {
+    implements WindowProperties<WID> {
 
-  private final WindowID<LABEL> id;
+  private final WID wid;
   private final long emissionWatermark;
 
-  public AttachedWindow(StreamingWindowedElement<LABEL, ?> element) {
-    this(element.getWindowID(), element.getEmissionWatermark());
+  public AttachedWindow(StreamingWindowedElement<WID, ?> element) {
+    this(element.getWindow(), element.getEmissionWatermark());
   }
 
-  public AttachedWindow(WindowID<LABEL> id, long emissionWatermark) {
-    this.id = Objects.requireNonNull(id);
+  public AttachedWindow(WID wid, long emissionWatermark) {
+    this.wid = Objects.requireNonNull(wid);
     this.emissionWatermark = emissionWatermark;
   }
 
   @Override
-  public WindowID<LABEL> getWindowID() {
-    return id;
+  public WID getWindowID() {
+    return wid;
   }
 
   @Override
@@ -41,20 +41,20 @@ public class AttachedWindow<LABEL>
   public boolean equals(Object o) {
     if (o instanceof AttachedWindow) {
       AttachedWindow<?> that = (AttachedWindow<?>) o;
-      return this.id.equals(that.id);
+      return this.wid.equals(that.wid);
     }
     return false;
   }
 
   @Override
   public int hashCode() {
-    return id.hashCode();
+    return wid.hashCode();
   }
 
   @Override
   public String toString() {
     return "AttachedWindow{" +
-        "id=" + id +
+        "wid=" + wid +
         ", emissionWatermark=" + emissionWatermark +
         '}';
   }

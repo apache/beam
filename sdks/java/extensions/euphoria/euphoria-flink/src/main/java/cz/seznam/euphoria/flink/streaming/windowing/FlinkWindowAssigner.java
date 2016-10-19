@@ -1,7 +1,6 @@
 package cz.seznam.euphoria.flink.streaming.windowing;
 
-import cz.seznam.euphoria.core.client.dataset.windowing.WindowContext;
-import cz.seznam.euphoria.core.client.dataset.windowing.WindowID;
+import cz.seznam.euphoria.core.client.dataset.windowing.Window;
 import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -10,18 +9,17 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.windowing.assigners.WindowAssigner;
 import org.apache.flink.streaming.api.windowing.triggers.Trigger;
 
-import java.util.ArrayList;
 import java.util.Collection;
-import java.util.List;
+import java.util.stream.Collectors;
 
-public class FlinkWindowAssigner<T, LABEL>
-    extends WindowAssigner<MultiWindowedElement<LABEL, T>, FlinkWindow<LABEL>> {
+public class FlinkWindowAssigner<T, WID extends Window>
+    extends WindowAssigner<MultiWindowedElement<WID, T>, FlinkWindow<WID>> {
 
-  private final Windowing<?, LABEL, ? extends WindowContext<LABEL>> windowing;
+  private final Windowing<T, WID> windowing;
   private final ExecutionConfig cfg;
 
   public FlinkWindowAssigner(
-      Windowing<?, LABEL, ? extends WindowContext<LABEL>> windowing,
+      Windowing<T, WID> windowing,
       ExecutionConfig cfg) {
     
     this.windowing = windowing;
@@ -29,25 +27,25 @@ public class FlinkWindowAssigner<T, LABEL>
   }
 
   @Override
-  public Collection<FlinkWindow<LABEL>> assignWindows(
-      MultiWindowedElement<LABEL, T> element,
+  public Collection<FlinkWindow<WID>> assignWindows(
+      MultiWindowedElement<WID, T> element,
       long timestamp, WindowAssignerContext context) {
 
-    List<FlinkWindow<LABEL>> ws = new ArrayList<>(element.windows().size());
-    for (WindowID<LABEL> window : element.windows()) {
-      ws.add(new FlinkWindow<>(windowing.createWindowContext(window)));
-    }
-    return ws;
+    // map collection of Euphoria WIDs to FlinkWindows
+    return element.windows().stream().map(
+            FlinkWindow::new).collect(Collectors.toList());
   }
 
   @Override
-  public Trigger<MultiWindowedElement<LABEL, T>, FlinkWindow<LABEL>> getDefaultTrigger(
+  @SuppressWarnings("unchecked")
+  public Trigger<MultiWindowedElement<WID, T>, FlinkWindow<WID>> getDefaultTrigger(
       StreamExecutionEnvironment env) {
-    return new FlinkWindowTrigger<>(windowing, cfg);
+    return new FlinkWindowTrigger<>(
+            (cz.seznam.euphoria.core.client.triggers.Trigger) windowing.getTrigger());
   }
 
   @Override
-  public TypeSerializer<FlinkWindow<LABEL>> getWindowSerializer(ExecutionConfig executionConfig) {
+  public TypeSerializer<FlinkWindow<WID>> getWindowSerializer(ExecutionConfig executionConfig) {
     return new KryoSerializer<>((Class) FlinkWindow.class, executionConfig);
   }
 

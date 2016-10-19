@@ -1,7 +1,7 @@
 package cz.seznam.euphoria.flink.batch;
 
 import cz.seznam.euphoria.core.client.dataset.HashPartitioner;
-import cz.seznam.euphoria.core.client.dataset.windowing.WindowID;
+import cz.seznam.euphoria.core.client.dataset.windowing.Window;
 import cz.seznam.euphoria.core.client.dataset.windowing.WindowedElement;
 import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
@@ -59,8 +59,8 @@ public class ReduceByKeyTranslator implements BatchOperatorTranslator<ReduceByKe
     // extract key/value from data
     DataSet<WindowedElement> tuples = (DataSet) input.flatMap((i, c) -> {
           WindowedElement wel = (WindowedElement) i;
-          Set<WindowID> assigned = windowing.assignWindowsToElement(wel);
-          for (WindowID wid : assigned) {
+          Set<Window> assigned = windowing.assignWindowsToElement(wel);
+          for (Window wid : assigned) {
             Object el = wel.get();
             c.collect(new WindowedElement(
                 wid, Pair.of(udfKey.apply(el), udfValue.apply(el))));
@@ -111,7 +111,7 @@ public class ReduceByKeyTranslator implements BatchOperatorTranslator<ReduceByKe
         WindowedElement<?, ? extends Pair<KEY, ?>> value) {
       
       return (ComparablePair) ComparablePair.of(
-          value.getWindowID().getLabel(), value.get().getKey());
+          value.getWindow(), value.get().getKey());
     }
 
     @Override
@@ -135,7 +135,7 @@ public class ReduceByKeyTranslator implements BatchOperatorTranslator<ReduceByKe
     @Override
     public WindowedElement<?, Pair>
     reduce(WindowedElement<?, Pair> p1, WindowedElement<?, Pair> p2) {
-      WindowID<?> wid = p1.getWindowID();
+      Window wid = p1.getWindow();
       return new WindowedElement<>(wid,
         Pair.of(
             p1.get().getKey(),

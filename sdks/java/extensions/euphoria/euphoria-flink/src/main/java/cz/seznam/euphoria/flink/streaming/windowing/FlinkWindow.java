@@ -1,23 +1,22 @@
 package cz.seznam.euphoria.flink.streaming.windowing;
 
-import cz.seznam.euphoria.core.client.dataset.windowing.WindowContext;
-import cz.seznam.euphoria.core.client.dataset.windowing.WindowID;
+
 import org.apache.flink.streaming.api.windowing.windows.Window;
 
 /**
- * A presentation of {@link cz.seznam.euphoria.core.client.dataset.windowing.WindowID}
+ * A presentation of {@link cz.seznam.euphoria.core.client.dataset.windowing.Window}
  * to Flink.
  */
-public class FlinkWindow<LABEL> extends Window
-  implements WindowProperties<LABEL>
+public class FlinkWindow<WID extends cz.seznam.euphoria.core.client.dataset.windowing.Window>
+        extends Window implements WindowProperties<WID>
 {
 
-  private final WindowID<LABEL> windowID;
+  private final WID wid;
 
   private transient long emissionWatermark = Long.MIN_VALUE;
 
-  public FlinkWindow(WindowContext<LABEL> euphoriaContext) {
-    this.windowID = euphoriaContext.getWindowID();
+  public FlinkWindow(WID wid) {
+    this.wid = wid;
   }
 
   @Override
@@ -36,27 +35,27 @@ public class FlinkWindow<LABEL> extends Window
   }
 
   @Override
-  public WindowID<LABEL> getWindowID() {
-    return windowID;
+  public WID getWindowID() {
+    return wid;
   }
 
   @Override
   public boolean equals(Object obj) {
     if (obj == this) return true;
     if (!(obj instanceof FlinkWindow)) return false;
-    WindowID<?> thatTindowID = ((FlinkWindow) obj).getWindowID();
+    WID thatTindowID = ((FlinkWindow<WID>) obj).getWindowID();
     return thatTindowID.equals(this.getWindowID());
   }
 
   @Override
   public int hashCode() {    
-    return windowID.hashCode();
+    return wid.hashCode();
   }
 
   @Override
   public String toString() {
     return "FlinkWindow{" +
-        "windowID=" + windowID +
+        "wid=" + wid +
         ", emissionWatermark=" + emissionWatermark +
         '}';
   }

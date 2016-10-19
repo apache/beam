@@ -1,8 +1,7 @@
 package cz.seznam.euphoria.flink.streaming.windowing;
 
 import cz.seznam.euphoria.core.client.dataset.windowing.Time;
-import cz.seznam.euphoria.core.client.dataset.windowing.WindowContext;
-import cz.seznam.euphoria.core.client.dataset.windowing.WindowID;
+import cz.seznam.euphoria.core.client.dataset.windowing.Window;
 import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
 import cz.seznam.euphoria.core.client.util.Pair;
@@ -32,38 +31,38 @@ public class StreamWindower {
   }
 
   @SuppressWarnings("unchecked")
-  public <GROUP, LABEL, T, KEY, VALUE>
-  WindowedStream<StreamingWindowedElement<LABEL, Pair<KEY, VALUE>>,
+  public <WID extends Window, T, KEY, VALUE>
+  WindowedStream<StreamingWindowedElement<WID, Pair<KEY, VALUE>>,
                  KEY,
-                 AttachedWindow<LABEL>>
-  attachedWindow(DataStream<StreamingWindowedElement<LABEL, T>> input,
+                 AttachedWindow<WID>>
+  attachedWindow(DataStream<StreamingWindowedElement<WID, T>> input,
                       UnaryFunction<T, KEY> keyFn,
                       UnaryFunction<T, VALUE> valFn)
   {
-    DataStream<StreamingWindowedElement<LABEL, Pair<KEY, VALUE>>> mapped
+    DataStream<StreamingWindowedElement<WID, Pair<KEY, VALUE>>> mapped
         = input.map(i -> {
           T elem = i.get();
           KEY key = keyFn.apply(elem);
           VALUE val = valFn.apply(elem);
-          WindowID<LABEL> wid = i.getWindowID();
+          WID wid = i.getWindow();
           return new StreamingWindowedElement<>(wid, Pair.of(key, val))
               // ~ forward the emission watermark
               .withEmissionWatermark(i.getEmissionWatermark());
         })
         .setParallelism(input.getParallelism())
         .returns((Class) StreamingWindowedElement.class);
-    final KeyedStream<StreamingWindowedElement<LABEL, Pair<KEY, VALUE>>, KEY> keyed;
+    final KeyedStream<StreamingWindowedElement<WID, Pair<KEY, VALUE>>, KEY> keyed;
     keyed = mapped.keyBy(Utils.wrapQueryable(new WeKeySelector<>()));
     return keyed.window(new AttachedWindowAssigner<>());
   }
 
   @SuppressWarnings("unchecked")
-  public <T, LABEL, GROUP, KEY, VALUE>
-  WindowedStream<MultiWindowedElement<LABEL, Pair<KEY, VALUE>>, KEY, FlinkWindow<LABEL>>
+  public <T, WID extends Window, KEY, VALUE>
+  WindowedStream<MultiWindowedElement<WID, Pair<KEY, VALUE>>, KEY, FlinkWindow<WID>>
   window(DataStream<StreamingWindowedElement<?, T>> input,
       UnaryFunction<T, KEY> keyFn,
       UnaryFunction<T, VALUE> valFn,
-      Windowing<T, LABEL, ? extends WindowContext<LABEL>> windowing) {
+      Windowing<T, WID> windowing) {
 
     Optional<UnaryFunction<T, Long>> tsAssign = windowing.getTimestampAssigner();
     if (tsAssign.isPresent()) {
@@ -74,18 +73,18 @@ public class StreamWindower {
       }
     }
 
-    DataStream<MultiWindowedElement<LABEL, Pair<KEY, VALUE>>>
+    DataStream<MultiWindowedElement<WID, Pair<KEY, VALUE>>>
         elementsWithWindow =
         input.map(i -> new MultiWindowedElement<>(
-                windowing.assignWindowsToElement(i),
+                windowing.assignWindowsToElement((StreamingWindowedElement) i),
                 Pair.of(keyFn.apply(i.get()), valFn.apply(i.get()))))
         .setParallelism(input.getParallelism())
         .returns((Class) MultiWindowedElement.class);
 
     // XXX try to get rid of the Pair<KEY,VALUE>; prefer merely VALUE
-    KeyedStream<MultiWindowedElement<LABEL, Pair<KEY, VALUE>>, KEY> keyed
+    KeyedStream<MultiWindowedElement<WID, Pair<KEY, VALUE>>, KEY> keyed
         = elementsWithWindow.keyBy(
-            Utils.wrapQueryable((MultiWindowedElement<LABEL, Pair<KEY, VALUE>> in)
+            Utils.wrapQueryable((MultiWindowedElement<WID, Pair<KEY, VALUE>> in)
                 -> in.get().getFirst()));
 
     return keyed.window((WindowAssigner)
@@ -97,11 +96,11 @@ public class StreamWindower {
     return org.apache.flink.streaming.api.windowing.time.Time.milliseconds(millis);
   }
 
-  static final class WeKeySelector<LABEL, KEY, VALUE> implements
-      KeySelector<StreamingWindowedElement<LABEL, Pair<KEY, VALUE>>, KEY>
+  static final class WeKeySelector<WID extends Window, KEY, VALUE> implements
+      KeySelector<StreamingWindowedElement<WID, Pair<KEY, VALUE>>, KEY>
   {
     @Override
-    public KEY getKey(StreamingWindowedElement<LABEL, Pair<KEY, VALUE>> value)
+    public KEY getKey(StreamingWindowedElement<WID, Pair<KEY, VALUE>> value)
           throws Exception
     {
       return value.get().getKey();

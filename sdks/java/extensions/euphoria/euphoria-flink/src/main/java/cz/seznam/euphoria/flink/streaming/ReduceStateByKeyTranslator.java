@@ -1,7 +1,6 @@
 package cz.seznam.euphoria.flink.streaming;
 
 import cz.seznam.euphoria.core.client.dataset.HashPartitioner;
-import cz.seznam.euphoria.core.client.dataset.windowing.WindowID;
 import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.functional.StateFactory;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
@@ -94,12 +93,12 @@ class ReduceStateByKeyTranslator implements StreamingOperatorTranslator<ReduceSt
   }
 
   private static class RSBKWindowFunction<
-      LABEL, KEY, VALUEIN, VALUEOUT,
-      W extends Window & WindowProperties<LABEL>>
-      extends RichWindowFunction<ElementProvider<? extends Pair<KEY, VALUEIN>>,
-      StreamingWindowedElement<LABEL, Pair<KEY, VALUEOUT>>,
-      KEY,
-      W> {
+          WID extends cz.seznam.euphoria.core.client.dataset.windowing.Window,
+          KEY, VALUEIN, VALUEOUT,
+          W extends Window & WindowProperties<WID>>
+          extends RichWindowFunction<ElementProvider<? extends Pair<KEY, VALUEIN>>,
+          StreamingWindowedElement<WID, Pair<KEY, VALUEOUT>>,
+          KEY, W> {
 
     private final StateFactory<?, State> stateFactory;
     private final FlinkStreamingStateStorageProvider storageProvider;
@@ -122,16 +121,16 @@ class ReduceStateByKeyTranslator implements StreamingOperatorTranslator<ReduceSt
         KEY key,
         W window,
         Iterable<ElementProvider<? extends Pair<KEY, VALUEIN>>> input,
-        Collector<StreamingWindowedElement<LABEL, Pair<KEY, VALUEOUT>>> out)
+        Collector<StreamingWindowedElement<WID, Pair<KEY, VALUEOUT>>> out)
         throws Exception {
 
       Iterator<ElementProvider<? extends Pair<KEY, VALUEIN>>> it = input.iterator();
       // read the first element to obtain window metadata and key
       ElementProvider<? extends Pair<KEY, VALUEIN>> element = it.next();
-      WindowID<LABEL> wid = window.getWindowID();
+      WID wid = window.getWindowID();
       long emissionWatermark = window.getEmissionWatermark();
 
-      State state = stateFactory.apply(
+      State<VALUEIN, VALUEOUT> state = stateFactory.apply(
           new Context() {
             @Override
             public void collect(Object elem) {
@@ -141,7 +140,7 @@ class ReduceStateByKeyTranslator implements StreamingOperatorTranslator<ReduceSt
             }
             @Override
             public Object getWindow() {
-              return wid.getLabel();
+              return wid;
             }
           },
           storageProvider);
