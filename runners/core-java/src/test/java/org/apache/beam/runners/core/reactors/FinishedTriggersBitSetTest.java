@@ -15,29 +15,27 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.util;
+package org.apache.beam.runners.core.reactors;
 
 import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.theInstance;
 import static org.junit.Assert.assertThat;
 
-import java.util.HashSet;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 /**
- * Tests for {@link FinishedTriggersSet}.
+ * Tests for {@link FinishedTriggersBitSet}.
  */
 @RunWith(JUnit4.class)
-public class FinishedTriggersSetTest {
+public class FinishedTriggersBitSetTest {
   /**
    * Tests that after a trigger is set to finished, it reads back as finished.
    */
   @Test
   public void testSetGet() {
-    FinishedTriggersProperties.verifyGetAfterSet(
-        FinishedTriggersSet.fromSet(new HashSet<ExecutableTrigger>()));
+    FinishedTriggersProperties.verifyGetAfterSet(FinishedTriggersBitSet.emptyWithCapacity(1));
   }
 
   /**
@@ -46,15 +44,12 @@ public class FinishedTriggersSetTest {
    */
   @Test
   public void testClearRecursively() {
-    FinishedTriggersProperties.verifyClearRecursively(
-        FinishedTriggersSet.fromSet(new HashSet<ExecutableTrigger>()));
+    FinishedTriggersProperties.verifyClearRecursively(FinishedTriggersBitSet.emptyWithCapacity(1));
   }
 
   @Test
   public void testCopy() throws Exception {
-    FinishedTriggersSet finishedSet =
-        FinishedTriggersSet.fromSet(new HashSet<ExecutableTrigger>());
-    assertThat(finishedSet.copy().getFinishedTriggers(),
-        not(theInstance(finishedSet.getFinishedTriggers())));
+    FinishedTriggersBitSet finishedSet = FinishedTriggersBitSet.emptyWithCapacity(10);
+    assertThat(finishedSet.copy().getBitSet(), not(theInstance(finishedSet.getBitSet())));
   }
 }

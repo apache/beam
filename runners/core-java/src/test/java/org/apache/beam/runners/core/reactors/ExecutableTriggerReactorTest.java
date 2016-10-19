@@ -15,40 +15,36 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.util;
+package org.apache.beam.runners.core.reactors;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertSame;
 
 import java.util.Arrays;
-import java.util.List;
-import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.transforms.windowing.Trigger;
-import org.joda.time.Instant;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 /**
- * Tests for {@link ExecutableTrigger}.
+ * Tests for {@link ExecutableTriggerReactor}.
  */
 @RunWith(JUnit4.class)
-public class ExecutableTriggerTest {
+public class ExecutableTriggerReactorTest {
 
   @Test
   public void testIndexAssignmentLeaf() throws Exception {
-    StubTrigger t1 = new StubTrigger();
-    ExecutableTrigger executable = ExecutableTrigger.create(t1);
+    StubReactor t1 = new StubReactor();
+    ExecutableTriggerReactor executable = ExecutableTriggerReactor.create(t1);
     assertEquals(0, executable.getTriggerIndex());
   }
 
   @Test
   public void testIndexAssignmentOneLevel() throws Exception {
-    StubTrigger t1 = new StubTrigger();
-    StubTrigger t2 = new StubTrigger();
-    StubTrigger t = new StubTrigger(t1, t2);
+    StubReactor t1 = new StubReactor();
+    StubReactor t2 = new StubReactor();
+    StubReactor t = new StubReactor(t1, t2);
 
-    ExecutableTrigger executable = ExecutableTrigger.create(t);
+    ExecutableTriggerReactor executable = ExecutableTriggerReactor.create(t);
 
     assertEquals(0, executable.getTriggerIndex());
     assertEquals(1, executable.subTriggers().get(0).getTriggerIndex());
@@ -59,17 +55,17 @@ public class ExecutableTriggerTest {
 
   @Test
   public void testIndexAssignmentTwoLevel() throws Exception {
-    StubTrigger t11 = new StubTrigger();
-    StubTrigger t12 = new StubTrigger();
-    StubTrigger t13 = new StubTrigger();
-    StubTrigger t14 = new StubTrigger();
-    StubTrigger t21 = new StubTrigger();
-    StubTrigger t22 = new StubTrigger();
-    StubTrigger t1 = new StubTrigger(t11, t12, t13, t14);
-    StubTrigger t2 = new StubTrigger(t21, t22);
-    StubTrigger t = new StubTrigger(t1, t2);
+    StubReactor t11 = new StubReactor();
+    StubReactor t12 = new StubReactor();
+    StubReactor t13 = new StubReactor();
+    StubReactor t14 = new StubReactor();
+    StubReactor t21 = new StubReactor();
+    StubReactor t22 = new StubReactor();
+    StubReactor t1 = new StubReactor(t11, t12, t13, t14);
+    StubReactor t2 = new StubReactor(t21, t22);
+    StubReactor t = new StubReactor(t1, t2);
 
-    ExecutableTrigger executable = ExecutableTrigger.create(t);
+    ExecutableTriggerReactor executable = ExecutableTriggerReactor.create(t);
 
     assertEquals(0, executable.getTriggerIndex());
     assertEquals(1, executable.subTriggers().get(0).getTriggerIndex());
@@ -84,10 +80,10 @@ public class ExecutableTriggerTest {
     assertSame(t2, executable.getSubTriggerContaining(7).getSpec());
   }
 
-  private static class StubTrigger extends Trigger {
+  private static class StubReactor extends TriggerReactor {
 
     @SafeVarargs
-    protected StubTrigger(Trigger... subTriggers) {
+    protected StubReactor(TriggerReactor... subTriggers) {
       super(Arrays.asList(subTriggers));
     }
 
@@ -99,21 +95,6 @@ public class ExecutableTriggerTest {
 
     @Override
     public void clear(TriggerContext c) throws Exception {
-    }
-
-    @Override
-    public Instant getWatermarkThatGuaranteesFiring(BoundedWindow window) {
-      return BoundedWindow.TIMESTAMP_MAX_VALUE;
-    }
-
-    @Override
-    public boolean isCompatible(Trigger other) {
-      return false;
-    }
-
-    @Override
-    public Trigger getContinuationTrigger(List<Trigger> continuationTriggers) {
-      return this;
     }
 
     @Override
