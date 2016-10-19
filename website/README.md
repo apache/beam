@@ -27,6 +27,7 @@ Before working with the Jekyll code, you will need to install Jekyll:
     $ gem install jekyll
     $ gem install jekyll-redirect-from
     $ gem install html-proofer
+    $ gem install bundler
 
 *If you are on a Mac, you may need to install
 [Ruby Gems](https://rubygems.org/pages/download).*
@@ -76,4 +77,3 @@ distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
-
