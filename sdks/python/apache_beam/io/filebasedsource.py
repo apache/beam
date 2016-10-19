@@ -122,11 +122,17 @@ class FileBasedSource(iobase.BoundedSource):
   @staticmethod
   def _estimate_sizes_in_parallel(file_names):
 
-    def _calculate_size_of_file(file_name):
-      return fileio.ChannelFactory.size_in_bytes(file_name)
-
-    return ThreadPool(MAX_NUM_THREADS_FOR_SIZE_ESTIMATION).map(
-        _calculate_size_of_file, file_names)
+    if not file_names:
+      return []
+    elif len(file_names) == 1:
+      return [fileio.ChannelFactory.size_in_bytes(file_names[0])]
+    else:
+      pool = ThreadPool(
+          min(MAX_NUM_THREADS_FOR_SIZE_ESTIMATION, len(file_names)))
+      try:
+        return pool.map(fileio.ChannelFactory.size_in_bytes, file_names)
+      finally:
+        pool.terminate()
 
   def split(
       self, desired_bundle_size=None, start_position=None, stop_position=None):
