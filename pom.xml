@@ -143,6 +143,7 @@
       and examples/java. Until these are refactored out, we need to modify the build order. -->
     <module>runners/google-cloud-dataflow-java</module>
     <module>runners</module>
+    <module>integration/java</module>
     <!-- sdks/java/maven-archetypes has several dependencies on the DataflowPipelineRunner. 
       Until these are refactored out or a released artifact exists, we need to modify the 
       build order. -->
