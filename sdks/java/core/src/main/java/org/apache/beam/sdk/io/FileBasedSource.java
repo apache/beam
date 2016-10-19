@@ -106,6 +106,11 @@ public abstract class FileBasedSource<T> extends OffsetBasedSource<T> {
     this.fileOrPatternSpec = StaticValueProvider.of(fileOrPatternSpec);
   }
 
+  /**
+   * Create a {@code FileBaseSource} based on a file or a file pattern specification.
+   * Same as the {@code String} constructor, but accepting a {@link ValueProvider}
+   * to allow for runtime configuration of the source.
+   */
   public FileBasedSource(ValueProvider<String> fileOrPatternSpec, long minBundleSize) {
     super(0, Long.MAX_VALUE, minBundleSize);
     mode = Mode.FILEPATTERN;
@@ -198,7 +203,9 @@ public abstract class FileBasedSource<T> extends OffsetBasedSource<T> {
     // we perform the size estimation of files and file patterns using the interface provided by
     // IOChannelFactory.
 
-    if (mode == Mode.FILEPATTERN && fileOrPatternSpec.isAccessible()) {
+    if (mode == Mode.FILEPATTERN) {
+      checkState(fileOrPatternSpec.isAccessible(),
+                 "Size estimation should be done at execution time.");
       IOChannelFactory factory = IOChannelUtils.getFactory(fileOrPatternSpec.get());
       // TODO Implement a more efficient parallel/batch size estimation mechanism for file patterns.
       long startTime = System.currentTimeMillis();
@@ -322,6 +329,8 @@ public abstract class FileBasedSource<T> extends OffsetBasedSource<T> {
       ListeningExecutorService service =
           MoreExecutors.listeningDecorator(Executors.newFixedThreadPool(THREAD_POOL_SIZE));
       try {
+        checkState(fileOrPatternSpec.isAccessible(),
+                   "Bundle splitting should only happen at execution time.");
         for (final String file : FileBasedSource.expandFilePattern(fileOrPatternSpec.get())) {
           futures.add(createFutureForFileSplit(file, desiredBundleSizeBytes, options, service));
         }
@@ -402,9 +411,9 @@ public abstract class FileBasedSource<T> extends OffsetBasedSource<T> {
   public String toString() {
     switch (mode) {
       case FILEPATTERN:
-        return fileOrPatternSpec.get();
+        return fileOrPatternSpec.toString();
       case SINGLE_FILE_OR_SUBRANGE:
-        return fileOrPatternSpec.get() + " range " + super.toString();
+        return fileOrPatternSpec.toString() + " range " + super.toString();
       default:
         throw new IllegalStateException("Unexpected mode: " + mode);
     }

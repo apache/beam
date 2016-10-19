@@ -279,7 +279,7 @@ public class TextIO {
       @Override
       public PCollection<T> apply(PBegin input) {
 
-        if (filepattern.get() == null) {
+        if (filepattern == null) {
           throw new IllegalStateException("need to set the filepattern of a TextIO.Read transform");
         }
 
@@ -307,20 +307,20 @@ public class TextIO {
       protected FileBasedSource<T> getSource() {
         switch (compressionType) {
           case UNCOMPRESSED:
-            return new TextSource<T>(filepattern.get(), coder);
+            return new TextSource<T>(filepattern, coder);
           case AUTO:
-            return CompressedSource.from(new TextSource<T>(filepattern.get(), coder));
+            return CompressedSource.from(new TextSource<T>(filepattern, coder));
           case BZIP2:
             return
-                CompressedSource.from(new TextSource<T>(filepattern.get(), coder))
+                CompressedSource.from(new TextSource<T>(filepattern, coder))
                     .withDecompression(CompressedSource.CompressionMode.BZIP2);
           case GZIP:
             return
-                CompressedSource.from(new TextSource<T>(filepattern.get(), coder))
+                CompressedSource.from(new TextSource<T>(filepattern, coder))
                     .withDecompression(CompressedSource.CompressionMode.GZIP);
           case ZIP:
             return
-                CompressedSource.from(new TextSource<T>(filepattern.get(), coder))
+                CompressedSource.from(new TextSource<T>(filepattern, coder))
                     .withDecompression(CompressedSource.CompressionMode.ZIP);
           default:
             throw new IllegalArgumentException("Unknown compression type: " + compressionType);
@@ -331,7 +331,8 @@ public class TextIO {
       public void populateDisplayData(DisplayData.Builder builder) {
         super.populateDisplayData(builder);
 
-        String filepatternDisplay = filepattern.get();
+        String filepatternDisplay = filepattern.isAccessible()
+          ? filepattern.get() : filepattern.toString();
         builder
             .add(DisplayData.item("compressionType", compressionType.toString())
               .withLabel("Compression Type"))
@@ -830,6 +831,12 @@ public class TextIO {
 
     @VisibleForTesting
     TextSource(String fileSpec, Coder<T> coder) {
+      super(fileSpec, 1L);
+      this.coder = coder;
+    }
+
+    @VisibleForTesting
+    TextSource(ValueProvider<String> fileSpec, Coder<T> coder) {
       super(fileSpec, 1L);
       this.coder = coder;
     }
