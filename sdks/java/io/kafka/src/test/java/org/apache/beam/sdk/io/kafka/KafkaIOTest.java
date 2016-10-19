@@ -497,7 +497,7 @@ public class KafkaIOTest {
       advanceOnce(reader, i > initialNumElements);
       expected.add(i);
       actual.add(reader.getCurrent().getKV().getValue());
-     }
+    }
     assertThat(actual, IsIterableContainingInAnyOrder.containsInAnyOrder(expected.toArray()));
   }
 
