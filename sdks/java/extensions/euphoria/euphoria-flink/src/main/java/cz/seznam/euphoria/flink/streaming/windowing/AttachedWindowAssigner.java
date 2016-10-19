@@ -1,5 +1,6 @@
 package cz.seznam.euphoria.flink.streaming.windowing;
 
+import cz.seznam.euphoria.core.client.dataset.windowing.Window;
 import cz.seznam.euphoria.flink.streaming.StreamingWindowedElement;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -11,26 +12,26 @@ import org.apache.flink.streaming.api.windowing.triggers.Trigger;
 import java.util.Collection;
 import java.util.Collections;
 
-public class AttachedWindowAssigner<LABEL, T>
-    extends WindowAssigner<StreamingWindowedElement<LABEL, T>,
-                           AttachedWindow<LABEL>>
+public class AttachedWindowAssigner<WID extends Window, T>
+    extends WindowAssigner<StreamingWindowedElement<WID, T>,
+                           AttachedWindow<WID>>
 {
   @Override
-  public Collection<AttachedWindow<LABEL>>
-  assignWindows(StreamingWindowedElement<LABEL, T> element,
+  public Collection<AttachedWindow<WID>>
+  assignWindows(StreamingWindowedElement<WID, T> element,
                 long timestamp,
                 WindowAssignerContext context) {
     return Collections.singleton(new AttachedWindow<>(element));
   }
 
   @Override
-  public Trigger<StreamingWindowedElement<LABEL, T>, AttachedWindow<LABEL>>
+  public Trigger<StreamingWindowedElement<WID, T>, AttachedWindow<WID>>
   getDefaultTrigger(StreamExecutionEnvironment env) {
     return new AttachedWindowTrigger<>();
   }
 
   @Override
-  public TypeSerializer<AttachedWindow<LABEL>> getWindowSerializer(ExecutionConfig executionConfig) {
+  public TypeSerializer<AttachedWindow<WID>> getWindowSerializer(ExecutionConfig executionConfig) {
     return new KryoSerializer<>((Class) AttachedWindow.class, executionConfig);
   }
 

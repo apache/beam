@@ -1,6 +1,6 @@
 package cz.seznam.euphoria.flink.streaming.windowing;
 
-import cz.seznam.euphoria.core.client.dataset.windowing.WindowID;
+import cz.seznam.euphoria.core.client.dataset.windowing.Window;
 import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.flink.streaming.StreamingWindowedElement;
 import org.apache.flink.streaming.api.functions.windowing.WindowFunction;
@@ -12,21 +12,21 @@ import org.apache.flink.util.Collector;
  * the emitted window-id stored on the elements corresponds correctly to the
  * emitted window.
  */
-public class MultiWindowedElementWindowFunction<LABEL, KEY, VALUE>
+public class MultiWindowedElementWindowFunction<WID extends Window, KEY, VALUE>
     implements WindowFunction<
     MultiWindowedElement<?, Pair<KEY, VALUE>>,
-    StreamingWindowedElement<LABEL, Pair<KEY, VALUE>>,
+    StreamingWindowedElement<WID, Pair<KEY, VALUE>>,
     KEY,
-    FlinkWindow<LABEL>> {
+    FlinkWindow<WID>> {
 
   @Override
   public void apply(
       KEY key,
-      FlinkWindow<LABEL> window,
+      FlinkWindow<WID> window,
       Iterable<MultiWindowedElement<?, Pair<KEY, VALUE>>> input,
-      Collector<StreamingWindowedElement<LABEL, Pair<KEY, VALUE>>> out) {
+      Collector<StreamingWindowedElement<WID, Pair<KEY, VALUE>>> out) {
     for (MultiWindowedElement<?, Pair<KEY, VALUE>> i : input) {
-      WindowID<LABEL> wid = window.getWindowID();
+      WID wid = window.getWindowID();
       out.collect(
           new StreamingWindowedElement<>(
               wid,

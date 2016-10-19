@@ -1,7 +1,6 @@
 package cz.seznam.euphoria.flink.streaming.io;
 
 import cz.seznam.euphoria.core.client.dataset.windowing.Batch;
-import cz.seznam.euphoria.core.client.dataset.windowing.WindowID;
 import cz.seznam.euphoria.core.client.io.DataSource;
 import cz.seznam.euphoria.core.client.io.Partition;
 import cz.seznam.euphoria.core.client.io.Reader;
@@ -23,8 +22,8 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
 public class DataSourceWrapper<T>
-        extends RichParallelSourceFunction<StreamingWindowedElement<Batch.Label, T>>
-        implements ResultTypeQueryable<StreamingWindowedElement<Batch.Label, T>>
+        extends RichParallelSourceFunction<StreamingWindowedElement<Batch.BatchWindow, T>>
+        implements ResultTypeQueryable<StreamingWindowedElement<Batch.BatchWindow, T>>
 {
   private final DataSource<T> dataSource;
   private volatile boolean isRunning = true;
@@ -36,7 +35,7 @@ public class DataSourceWrapper<T>
   }
 
   @Override
-  public void run(SourceContext<StreamingWindowedElement<Batch.Label, T>> ctx)
+  public void run(SourceContext<StreamingWindowedElement<Batch.BatchWindow, T>> ctx)
       throws Exception
   {
     StreamingRuntimeContext runtimeContext =
@@ -90,8 +89,8 @@ public class DataSourceWrapper<T>
     }
   }
 
-  private StreamingWindowedElement<Batch.Label, T> toWindowedElement(T elem) {
-    return new StreamingWindowedElement<>(new WindowID<>(Batch.Label.get()), elem);
+  private StreamingWindowedElement<Batch.BatchWindow, T> toWindowedElement(T elem) {
+    return new StreamingWindowedElement<>(Batch.BatchWindow.get(), elem);
   }
 
   @Override
@@ -104,7 +103,7 @@ public class DataSourceWrapper<T>
 
   @Override
   @SuppressWarnings("unchecked")
-  public TypeInformation<StreamingWindowedElement<Batch.Label, T>> getProducedType() {
+  public TypeInformation<StreamingWindowedElement<Batch.BatchWindow, T>> getProducedType() {
     return TypeInformation.of((Class) StreamingWindowedElement.class);
   }
 
