@@ -457,7 +457,7 @@ final class ExecutorServiceParallelExecutor implements PipelineExecutor {
               CommittedBundle<?> bundle =
                   evaluationContext
                       .createKeyedBundle(keyTimers.getKey(), (PCollection) transform.getInput())
-                      .add(WindowedValue.valueInGlobalWindow(work))
+                      .add(WindowedValue.valueInEmptyWindows(work))
                       .commit(evaluationContext.now());
               scheduleConsumption(transform, bundle, new TimerIterableCompletionCallback(delivery));
               state.set(ExecutorState.ACTIVE);
