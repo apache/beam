@@ -3,7 +3,7 @@ rvm:
   - 2.1
 script:
   - bundle exec jekyll build
-  - bundle exec htmlproofer ./content --allow-hash-href --check-html --file-ignore /javadoc/
+  - bundle exec htmlproofer ./content --allow-hash-href --check-html --file-ignore /javadoc/ --url-ignore "/repository.apache.org/"
 env:
   global:
     - NOKOGIRI_USE_SYSTEM_LIBRARIES=true # speeds up installation of html-proofer
