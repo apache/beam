@@ -59,7 +59,7 @@ class HasDisplayData(object):
       integer, float or string value; a DisplayDataItem for values that
       have more data (e.g. short value, label, url); or a HasDisplayData
       instance that has more display data that should be picked up. For
-      example::
+      example:
 
       { 'key1': 'string_value',
         'key2': 1234,
@@ -181,7 +181,7 @@ class DisplayDataItem(object):
 
     res = {'key': self.key,
            'namespace': self.namespace,
-           'type': self.type if self.type != 'JAVA_CLASS' else 'STRING'}
+           'type': self.type if self.type != 'CLASS' else 'STRING'}
     # TODO: Python Class types should not be special-cased once
     # the Fn API is in.
 
@@ -209,7 +209,7 @@ class DisplayDataItem(object):
       A formatted value in the form of a float, int, or string.
     """
     res = value
-    if type_ == 'JAVA_CLASS':
+    if type_ == 'CLASS':
       res = '{}.{}'.format(value.__module__, value.__name__)
     if type_ == 'DURATION':
       res = value.total_seconds()*1000
@@ -228,7 +228,7 @@ class DisplayDataItem(object):
     Returns:
       The unqualified name of a class if type_ is 'CLASS'. None otherwise.
     """
-    if type_ == 'JAVA_CLASS':
+    if type_ == 'CLASS':
       return value.__name__
     return None
 
@@ -243,11 +243,11 @@ class DisplayDataItem(object):
         just 'STRING' at the moment.
 
     Returns:
-      One of 'STRING', 'INTEGER', 'FLOAT', 'JAVA_CLASS', 'DURATION', or
+      One of 'STRING', 'INTEGER', 'FLOAT', 'CLASS', 'DURATION', or
       'TIMESTAMP', depending on the type of the value.
     """
     #TODO: Fix Args: documentation once the Python classes handling has changed
     type_ = cls.typeDict.get(type(value))
     if type_ is None:
-      type_ = 'JAVA_CLASS' if inspect.isclass(value) else None
+      type_ = 'CLASS' if inspect.isclass(value) else None
     return type_
