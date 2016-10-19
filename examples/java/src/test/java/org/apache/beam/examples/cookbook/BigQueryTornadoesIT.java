@@ -18,7 +18,10 @@
 
 package org.apache.beam.examples.cookbook;
 
+import org.apache.beam.sdk.options.BigQueryOptions;
+import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.testing.BigqueryMatcher;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestPipelineOptions;
 import org.junit.Test;
@@ -35,7 +38,10 @@ public class BigQueryTornadoesIT {
    * Options for the BigQueryTornadoes Integration Test.
    */
   public interface BigQueryTornadoesITOptions
-      extends TestPipelineOptions, BigQueryTornadoes.Options {
+      extends TestPipelineOptions, BigQueryTornadoes.Options, BigQueryOptions {
+    @Default.String("1ab4c7ec460b94bbb3c3885b178bf0e6bed56e1f")
+    String getChecksum();
+    void setChecksum(String value);
   }
 
   @Test
@@ -45,6 +51,12 @@ public class BigQueryTornadoesIT {
         TestPipeline.testingPipelineOptions().as(BigQueryTornadoesITOptions.class);
     options.setOutput(String.format("%s.%s",
         "BigQueryTornadoesIT", "monthly_tornadoes_" + System.currentTimeMillis()));
+
+    String query =
+        String.format("SELECT month, tornado_count FROM [%s]", options.getOutput());
+    options.setOnSuccessMatcher(
+        new BigqueryMatcher(
+            options.getAppName(), options.getProject(), query, options.getChecksum()));
 
     BigQueryTornadoes.main(TestPipeline.convertToArgs(options));
   }
