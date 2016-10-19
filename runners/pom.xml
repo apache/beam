@@ -55,6 +55,13 @@
             <plugin>
               <groupId>org.apache.maven.plugins</groupId>
               <artifactId>maven-surefire-plugin</artifactId>
+              <dependencies>
+                <dependency>
+                  <groupId>org.apache.beam</groupId>
+                  <artifactId>beam-sdks-java-core</artifactId>
+                  <type>test-jar</type>
+                </dependency>
+              </dependencies>
               <executions>
                 <execution>
                   <id>runnable-on-service-tests</id>

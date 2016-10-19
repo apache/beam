@@ -72,7 +72,7 @@
                     <parallel>none</parallel>
                     <failIfNoTests>true</failIfNoTests>
                     <dependenciesToScan>
-                      <dependency>org.apache.beam:java-sdk-all</dependency>
+                      <dependency>org.apache.beam:beam-sdks-java-core</dependency>
                     </dependenciesToScan>
                     <excludes>
                       org.apache.beam.sdk.io.BoundedReadFromUnboundedSourceTest
