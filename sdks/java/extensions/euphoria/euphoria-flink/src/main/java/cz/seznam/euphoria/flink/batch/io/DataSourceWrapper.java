@@ -1,7 +1,6 @@
 package cz.seznam.euphoria.flink.batch.io;
 
 import cz.seznam.euphoria.core.client.dataset.windowing.Batch;
-import cz.seznam.euphoria.core.client.dataset.windowing.WindowID;
 import cz.seznam.euphoria.core.client.dataset.windowing.WindowedElement;
 import cz.seznam.euphoria.core.client.io.DataSource;
 import cz.seznam.euphoria.core.client.io.Partition;
@@ -18,7 +17,7 @@ import java.io.IOException;
 import java.util.List;
 
 public class DataSourceWrapper<T>
-        implements InputFormat<WindowedElement<Batch.Label, T>,
+        implements InputFormat<WindowedElement<Batch.BatchWindow, T>,
         PartitionWrapper<T>>,
         ResultTypeQueryable<T>
 
@@ -74,11 +73,11 @@ public class DataSourceWrapper<T>
   }
 
   @Override
-  public WindowedElement<Batch.Label, T> nextRecord(
-      WindowedElement<Batch.Label, T> reuse)
+  public WindowedElement<Batch.BatchWindow, T> nextRecord(
+      WindowedElement<Batch.BatchWindow, T> reuse)
       throws IOException
   {
-    return new WindowedElement<>(new WindowID<>(Batch.Label.get()), reader.next());
+    return new WindowedElement<>(Batch.BatchWindow.get(), reader.next());
   }
 
   @Override

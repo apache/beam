@@ -1,7 +1,7 @@
 package cz.seznam.euphoria.flink.batch;
 
 import cz.seznam.euphoria.core.client.dataset.HashPartitioner;
-import cz.seznam.euphoria.core.client.dataset.windowing.WindowID;
+import cz.seznam.euphoria.core.client.dataset.windowing.Window;
 import cz.seznam.euphoria.core.client.dataset.windowing.WindowedElement;
 import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.functional.StateFactory;
@@ -75,8 +75,8 @@ public class ReduceStateByKeyTranslator implements BatchOperatorTranslator<Reduc
 
     DataSet tuples = (DataSet) input.flatMap((i, c) -> {
           WindowedElement wel = (WindowedElement) i;
-          Set<WindowID> windows = windowing.assignWindowsToElement(wel);
-          for (WindowID window : windows) {
+          Set<Window> windows = windowing.assignWindowsToElement(wel);
+          for (Window window : windows) {
             Object el = wel.get();
             c.collect(new WindowedElement(
                 window,
@@ -113,18 +113,18 @@ public class ReduceStateByKeyTranslator implements BatchOperatorTranslator<Reduc
     return reduced;
   }
 
-  private static class TypedKeySelector<LABEL, KEY>
-      implements KeySelector<WindowedElement<LABEL, ? extends Pair<KEY, ?>>, ComparablePair<LABEL, KEY>>,
-      ResultTypeQueryable<ComparablePair<LABEL, KEY>>
+  private static class TypedKeySelector<WID extends Window, KEY>
+      implements KeySelector<WindowedElement<WID, ? extends Pair<KEY, ?>>, ComparablePair<WID, KEY>>,
+      ResultTypeQueryable<ComparablePair<WID, KEY>>
   {
     @Override
-    public ComparablePair<LABEL, KEY> getKey(WindowedElement<LABEL, ? extends Pair<KEY, ?>> value) {
-      return ComparablePair.of(value.getWindowID().getLabel(), value.get().getKey());
+    public ComparablePair<WID, KEY> getKey(WindowedElement<WID, ? extends Pair<KEY, ?>> value) {
+      return ComparablePair.of(value.getWindow(), value.get().getKey());
     }
 
     @Override
     @SuppressWarnings("unchecked")
-    public TypeInformation<ComparablePair<LABEL, KEY>> getProducedType() {
+    public TypeInformation<ComparablePair<WID, KEY>> getProducedType() {
       return TypeInformation.of((Class) ComparablePair.class);
     }
   }
@@ -156,7 +156,7 @@ public class ReduceStateByKeyTranslator implements BatchOperatorTranslator<Reduc
 
       // read the first element to obtain window metadata and key
       WindowedElement<?, Pair> element = it.next();
-      final WindowID wid = element.getWindowID();
+      final Window wid = element.getWindow();
       final Object key = element.get().getKey();
 
       State state = stateFactory.apply(
@@ -167,7 +167,7 @@ public class ReduceStateByKeyTranslator implements BatchOperatorTranslator<Reduc
             }
             @Override
             public Object getWindow() {
-              return wid.getLabel();
+              return wid;
             }
           },
           stateStorageProvider);
