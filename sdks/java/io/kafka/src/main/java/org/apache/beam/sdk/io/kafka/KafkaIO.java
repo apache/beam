@@ -892,7 +892,7 @@ public class KafkaIO {
       try {
         // poll available records, wait (if necessary) up to the specified timeout.
         records = availableRecordsQueue.poll(NEW_RECORDS_POLL_TIMEOUT.getMillis(),
-            TimeUnit.MILLISECONDS);
+                                             TimeUnit.MILLISECONDS);
       } catch (InterruptedException e) {
         Thread.currentThread().interrupt();
         LOG.warn("{}: Unexpected", this, e);
