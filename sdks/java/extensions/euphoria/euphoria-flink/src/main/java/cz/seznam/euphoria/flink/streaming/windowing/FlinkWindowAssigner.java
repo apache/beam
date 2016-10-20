@@ -16,14 +16,9 @@ public class FlinkWindowAssigner<T, WID extends Window>
     extends WindowAssigner<MultiWindowedElement<WID, T>, FlinkWindow<WID>> {
 
   private final Windowing<T, WID> windowing;
-  private final ExecutionConfig cfg;
 
-  public FlinkWindowAssigner(
-      Windowing<T, WID> windowing,
-      ExecutionConfig cfg) {
-    
+  public FlinkWindowAssigner(Windowing<T, WID> windowing) {
     this.windowing = windowing;
-    this.cfg = cfg;
   }
 
   @Override
@@ -40,11 +35,11 @@ public class FlinkWindowAssigner<T, WID extends Window>
   @SuppressWarnings("unchecked")
   public Trigger<MultiWindowedElement<WID, T>, FlinkWindow<WID>> getDefaultTrigger(
       StreamExecutionEnvironment env) {
-    return new FlinkWindowTrigger<>(
-            (cz.seznam.euphoria.core.client.triggers.Trigger) windowing.getTrigger());
+    return new FlinkWindowTrigger(windowing.getTrigger());
   }
 
   @Override
+  @SuppressWarnings("unchecked")
   public TypeSerializer<FlinkWindow<WID>> getWindowSerializer(ExecutionConfig executionConfig) {
     return new KryoSerializer<>((Class) FlinkWindow.class, executionConfig);
   }

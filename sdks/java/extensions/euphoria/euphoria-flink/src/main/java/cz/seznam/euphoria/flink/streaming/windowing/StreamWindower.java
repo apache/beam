@@ -81,14 +81,12 @@ public class StreamWindower {
         .setParallelism(input.getParallelism())
         .returns((Class) MultiWindowedElement.class);
 
-    // XXX try to get rid of the Pair<KEY,VALUE>; prefer merely VALUE
     KeyedStream<MultiWindowedElement<WID, Pair<KEY, VALUE>>, KEY> keyed
         = elementsWithWindow.keyBy(
             Utils.wrapQueryable((MultiWindowedElement<WID, Pair<KEY, VALUE>> in)
                 -> in.get().getFirst()));
 
-    return keyed.window((WindowAssigner)
-        new FlinkWindowAssigner<>(windowing, keyed.getExecutionConfig()));
+    return keyed.window((WindowAssigner) new FlinkWindowAssigner<>(windowing));
   }
 
   private static org.apache.flink.streaming.api.windowing.time.Time
