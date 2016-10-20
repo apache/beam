@@ -21,13 +21,15 @@ import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisp
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasKey;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasLabel;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasNamespace;
+import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasPath;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasType;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasValue;
-import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.includesDisplayDataFrom;
+import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.includesDisplayDataFor;
 import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.everyItem;
 import static org.hamcrest.Matchers.hasItem;
+import static org.hamcrest.Matchers.hasItems;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.isA;
@@ -51,11 +53,10 @@ import java.io.Serializable;
 import java.util.Collection;
 import java.util.Map;
 import java.util.regex.Pattern;
-import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.display.DisplayData.Builder;
 import org.apache.beam.sdk.transforms.display.DisplayData.Item;
+import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.values.PCollection;
 import org.hamcrest.CustomTypeSafeMatcher;
 import org.hamcrest.FeatureMatcher;
@@ -115,8 +116,8 @@ public class DisplayDataTest implements Serializable {
           @Override
           public void populateDisplayData(DisplayData.Builder builder) {
             builder
-                .include(subComponent1)
-                .include(subComponent2)
+                .include("p1", subComponent1)
+                .include("p2", subComponent2)
                 .add(DisplayData.item("minSproggles", 200)
                   .withLabel("Minimum Required Sproggles"))
                 .add(DisplayData.item("fireLasers", true))
@@ -174,7 +175,7 @@ public class DisplayDataTest implements Serializable {
               }
             });
 
-    Map<DisplayData.Identifier, DisplayData.Item<?>> map = data.asMap();
+    Map<DisplayData.Identifier, DisplayData.Item> map = data.asMap();
     assertEquals(map.size(), 1);
     assertThat(data, hasDisplayItem("foo", "bar"));
     assertEquals(map.values(), data.items());
@@ -194,10 +195,10 @@ public class DisplayDataTest implements Serializable {
     });
 
     @SuppressWarnings("unchecked")
-    DisplayData.Item<?> item = (DisplayData.Item<?>) data.items().toArray()[0];
+    DisplayData.Item item = (DisplayData.Item) data.items().toArray()[0];
 
     @SuppressWarnings("unchecked")
-    Matcher<Item<?>> matchesAllOf = Matchers.allOf(
+    Matcher<Item> matchesAllOf = Matchers.allOf(
         hasNamespace(DisplayDataTest.class),
         hasKey("now"),
         hasType(DisplayData.Type.TIMESTAMP),
@@ -327,6 +328,82 @@ public class DisplayDataTest implements Serializable {
     DisplayData.from(component); // should not throw
   }
 
+  @Test
+  public void testRootPath() {
+    DisplayData.Path root = DisplayData.Path.root();
+    assertThat(root.getComponents(), Matchers.empty());
+  }
+
+  @Test
+  public void testExtendPath() {
+    DisplayData.Path a = DisplayData.Path.root().extend("a");
+    assertThat(a.getComponents(), hasItems("a"));
+
+    DisplayData.Path b = a.extend("b");
+    assertThat(b.getComponents(), hasItems("a", "b"));
+  }
+
+  @Test
+  public void testExtendNullPathValidation() {
+    DisplayData.Path root = DisplayData.Path.root();
+    thrown.expect(NullPointerException.class);
+    root.extend(null);
+  }
+
+  @Test
+  public void testExtendEmptyPathValidation() {
+    DisplayData.Path root = DisplayData.Path.root();
+    thrown.expect(IllegalArgumentException.class);
+    root.extend("");
+  }
+
+  @Test
+  public void testAbsolute() {
+    DisplayData.Path path = DisplayData.Path.absolute("a", "b", "c");
+    assertThat(path.getComponents(), hasItems("a", "b", "c"));
+  }
+
+  @Test
+  public void testAbsoluteValidationNullFirstPath() {
+    thrown.expect(NullPointerException.class);
+    DisplayData.Path.absolute(null, "foo", "bar");
+  }
+
+  @Test
+  public void testAbsoluteValidationEmptyFirstPath() {
+    thrown.expect(IllegalArgumentException.class);
+    DisplayData.Path.absolute("", "foo", "bar");
+  }
+
+  @Test
+  public void testAbsoluteValidationNullSubsequentPath() {
+    thrown.expect(NullPointerException.class);
+    DisplayData.Path.absolute("a", "b", null, "c");
+  }
+
+  @Test
+  public void testAbsoluteValidationEmptySubsequentPath() {
+    thrown.expect(IllegalArgumentException.class);
+    DisplayData.Path.absolute("a", "b", "", "c");
+  }
+
+  @Test
+  public void testPathToString() {
+    assertEquals("root string", "[]", DisplayData.Path.root().toString());
+    assertEquals("single component", "[a]", DisplayData.Path.absolute("a").toString());
+    assertEquals("hierarchy", "[a/b/c]", DisplayData.Path.absolute("a", "b", "c").toString());
+  }
+
+  @Test
+  public void testPathEquality() {
+    new EqualsTester()
+        .addEqualityGroup(DisplayData.Path.root(), DisplayData.Path.root())
+        .addEqualityGroup(DisplayData.Path.root().extend("a"), DisplayData.Path.absolute("a"))
+        .addEqualityGroup(
+            DisplayData.Path.root().extend("a").extend("b"),
+            DisplayData.Path.absolute("a", "b"))
+        .testEquals();
+  }
 
   @Test
   public void testIncludes() {
@@ -343,69 +420,56 @@ public class DisplayDataTest implements Serializable {
             new HasDisplayData() {
               @Override
               public void populateDisplayData(DisplayData.Builder builder) {
-                builder.include(subComponent);
+                builder.include("p", subComponent);
               }
             });
 
-    assertThat(data, includesDisplayDataFrom(subComponent));
+    assertThat(data, includesDisplayDataFor("p", subComponent));
   }
 
   @Test
-  public void testIncludesNamespaceOverride() {
-    final HasDisplayData subComponent = new HasDisplayData() {
-        @Override
-        public void populateDisplayData(DisplayData.Builder builder) {
-          builder.add(DisplayData.item("foo", "bar"));
-        }
-    };
-
-    final HasDisplayData namespaceOverride = new HasDisplayData(){
-      @Override
-      public void populateDisplayData(Builder builder) {
-      }
-    };
-
-    DisplayData data = DisplayData.from(new HasDisplayData() {
-      @Override
-      public void populateDisplayData(DisplayData.Builder builder) {
-        builder.include(subComponent, namespaceOverride.getClass());
-      }
-    });
-
-    assertThat(data, includesDisplayDataFrom(subComponent, namespaceOverride.getClass()));
-  }
-
-  @Test
-  public void testNamespaceOverrideMultipleLevels() {
-    final HasDisplayData componentA = new HasDisplayData() {
+  public void testIncludeSameComponentAtDifferentPaths() {
+    final HasDisplayData subComponent1 = new HasDisplayData() {
       @Override
       public void populateDisplayData(Builder builder) {
         builder.add(DisplayData.item("foo", "bar"));
       }
     };
-
-    final HasDisplayData componentB = new HasDisplayData() {
+    final HasDisplayData subComponent2 = new HasDisplayData() {
       @Override
       public void populateDisplayData(Builder builder) {
-        builder
-            .add(DisplayData.item("foo", "bar"))
-            .include(componentA);
+        builder.add(DisplayData.item("foo2", "bar2"));
       }
     };
 
-    final HasDisplayData componentC = new HasDisplayData() {
+    HasDisplayData component = new HasDisplayData() {
       @Override
       public void populateDisplayData(Builder builder) {
         builder
-            .add(DisplayData.item("foo", "bar"))
-            .include(componentB, "overrideB");
+            .include("p1", subComponent1)
+            .include("p2", subComponent2);
+
       }
     };
 
-    DisplayData data = DisplayData.from(componentC);
-    assertThat(data, hasDisplayItem(hasNamespace(componentC.getClass())));
-    assertThat(data, hasDisplayItem(hasNamespace("overrideB")));
-    assertThat(data, hasDisplayItem(hasNamespace(componentA.getClass())));
+    DisplayData data = DisplayData.from(component);
+    assertThat(data, includesDisplayDataFor("p1", subComponent1));
+    assertThat(data, includesDisplayDataFor("p2", subComponent2));
+  }
+
+  @Test
+  public void testIncludesComponentsAtSamePath() {
+    HasDisplayData component = new HasDisplayData() {
+      @Override
+      public void populateDisplayData(Builder builder) {
+        builder
+            .include("p", new NoopDisplayData())
+            .include("p", new NoopDisplayData());
+      }
+    };
+
+    thrown.expectCause(isA(IllegalArgumentException.class));
+    DisplayData.from(component);
   }
 
   @Test
@@ -416,7 +480,7 @@ public class DisplayDataTest implements Serializable {
       @Override
       public void populateDisplayData(Builder builder) {
         builder.add(DisplayData.item("foo", "bar")
-            .withNamespace((Class<?>) null));
+            .withNamespace(null));
       }
     });
   }
@@ -425,10 +489,14 @@ public class DisplayDataTest implements Serializable {
   public void testIdentifierEquality() {
     new EqualsTester()
         .addEqualityGroup(
-            DisplayData.Identifier.of(DisplayDataTest.class, "1"),
-            DisplayData.Identifier.of(DisplayDataTest.class, "1"))
-        .addEqualityGroup(DisplayData.Identifier.of(Object.class, "1"))
-        .addEqualityGroup(DisplayData.Identifier.of(DisplayDataTest.class, "2"))
+            DisplayData.Identifier.of(DisplayData.Path.absolute("a"), DisplayDataTest.class, "1"),
+            DisplayData.Identifier.of(DisplayData.Path.absolute("a"), DisplayDataTest.class, "1"))
+        .addEqualityGroup(
+            DisplayData.Identifier.of(DisplayData.Path.absolute("b"), DisplayDataTest.class, "1"))
+        .addEqualityGroup(
+            DisplayData.Identifier.of(DisplayData.Path.absolute("a"), Object.class, "1"))
+        .addEqualityGroup(
+            DisplayData.Identifier.of(DisplayData.Path.absolute("a"), DisplayDataTest.class, "2"))
         .testEquals();
   }
 
@@ -466,30 +534,6 @@ public class DisplayDataTest implements Serializable {
   }
 
   @Test
-  public void testAnonymousClassNamespace() {
-    DisplayData data =
-        DisplayData.from(
-            new HasDisplayData() {
-              @Override
-              public void populateDisplayData(DisplayData.Builder builder) {
-                builder.add(DisplayData.item("foo", "bar"));
-              }
-            });
-
-    DisplayData.Item<?> item = (DisplayData.Item<?>) data.items().toArray()[0];
-    final Pattern anonClassRegex = Pattern.compile(
-        Pattern.quote(DisplayDataTest.class.getName()) + "\\$\\d+$");
-    assertThat(item.getNamespace(), new CustomTypeSafeMatcher<String>(
-        "anonymous class regex: " + anonClassRegex) {
-      @Override
-      protected boolean matchesSafely(String item) {
-        java.util.regex.Matcher m = anonClassRegex.matcher(item);
-        return m.matches();
-      }
-    });
-  }
-
-  @Test
   public void testAcceptsKeysWithDifferentNamespaces() {
     DisplayData data =
         DisplayData.from(
@@ -498,7 +542,7 @@ public class DisplayDataTest implements Serializable {
               public void populateDisplayData(DisplayData.Builder builder) {
                 builder
                     .add(DisplayData.item("foo", "bar"))
-                    .include(
+                    .include("p",
                         new HasDisplayData() {
                           @Override
                           public void populateDisplayData(DisplayData.Builder builder) {
@@ -551,7 +595,7 @@ public class DisplayDataTest implements Serializable {
     };
 
     DisplayData data = DisplayData.from(component);
-    assertEquals(String.format("%s:foo=bar", component.getClass().getName()), data.toString());
+    assertEquals(String.format("[]%s:foo=bar", component.getClass().getName()), data.toString());
   }
 
   @Test
@@ -576,7 +620,7 @@ public class DisplayDataTest implements Serializable {
         new HasDisplayData() {
           @Override
           public void populateDisplayData(Builder builder) {
-            builder.include(componentA);
+            builder.include("p", componentA);
           }
         };
 
@@ -588,13 +632,38 @@ public class DisplayDataTest implements Serializable {
   }
 
   @Test
+  public void testHandlesIncludeCyclesDifferentInstances() {
+    HasDisplayData component =
+        new DelegatingDisplayData(
+          new DelegatingDisplayData(
+              new NoopDisplayData()));
+
+    DisplayData data = DisplayData.from(component);
+    assertThat(data.items(), hasSize(2));
+  }
+
+  private class DelegatingDisplayData implements HasDisplayData {
+    private final HasDisplayData subComponent;
+    public DelegatingDisplayData(HasDisplayData subComponent) {
+      this.subComponent = subComponent;
+    }
+
+    @Override
+    public void populateDisplayData(Builder builder) {
+      builder
+          .add(DisplayData.item("subComponent", subComponent.getClass()))
+          .include("p", subComponent);
+    }
+  }
+
+  @Test
   public void testIncludesSubcomponentsWithObjectEquality() {
     DisplayData data = DisplayData.from(new HasDisplayData() {
       @Override
       public void populateDisplayData(DisplayData.Builder builder) {
         builder
-          .include(new EqualsEverything("foo1", "bar1"))
-          .include(new EqualsEverything("foo2", "bar2"));
+          .include("p1", new EqualsEverything("foo1", "bar1"))
+          .include("p2", new EqualsEverything("foo2", "bar2"));
       }
     });
 
@@ -626,6 +695,44 @@ public class DisplayDataTest implements Serializable {
     }
   }
 
+  @Test
+  public void testDelegate() {
+    final HasDisplayData subcomponent = new HasDisplayData() {
+      @Override
+      public void populateDisplayData(Builder builder) {
+        builder.add(DisplayData.item("subCompKey", "foo"));
+      }
+    };
+
+    final HasDisplayData wrapped = new HasDisplayData() {
+      @Override
+      public void populateDisplayData(Builder builder) {
+        builder
+            .add(DisplayData.item("wrappedKey", "bar"))
+            .include("p", subcomponent);
+      }
+    };
+
+    HasDisplayData wrapper = new HasDisplayData() {
+      @Override
+      public void populateDisplayData(Builder builder) {
+        builder.delegate(wrapped);
+      }
+    };
+
+    DisplayData data = DisplayData.from(wrapper);
+    assertThat(data, hasDisplayItem(allOf(
+        hasKey("wrappedKey"),
+        hasNamespace(wrapped.getClass()),
+        hasPath(/* root */)
+    )));
+    assertThat(data, hasDisplayItem(allOf(
+        hasKey("subCompKey"),
+        hasNamespace(subcomponent.getClass()),
+        hasPath("p")
+    )));
+  }
+
   abstract static class IncludeSubComponent implements HasDisplayData {
     HasDisplayData subComponent;
 
@@ -633,7 +740,7 @@ public class DisplayDataTest implements Serializable {
     public void populateDisplayData(DisplayData.Builder builder) {
       builder
           .add(DisplayData.item("id", getId()))
-          .include(subComponent);
+          .include(getId(), subComponent);
     }
 
     abstract String getId();
@@ -657,7 +764,7 @@ public class DisplayDataTest implements Serializable {
               }
             });
 
-    Collection<Item<?>> items = data.items();
+    Collection<Item> items = data.items();
     assertThat(
         items, hasItem(allOf(hasKey("string"), hasType(DisplayData.Type.STRING))));
     assertThat(
@@ -813,7 +920,7 @@ public class DisplayDataTest implements Serializable {
           @Override
           public void populateDisplayData(DisplayData.Builder builder) {
             builder
-              .include(subComponent)
+              .include("p", subComponent)
               .add(DisplayData.item("alpha", "bravo"));
           }
         };
@@ -840,26 +947,31 @@ public class DisplayDataTest implements Serializable {
         new HasDisplayData() {
           @Override
           public void populateDisplayData(Builder builder) {
-            builder.include(null);
+            builder.include("p", null);
           }
         });
   }
 
   @Test
-  public void testIncludeNullNamespace() {
-    final HasDisplayData subComponent = new HasDisplayData() {
-      @Override
-      public void populateDisplayData(Builder builder) {
-      }
-    };
-
+  public void testIncludeNullPath() {
     thrown.expectCause(isA(NullPointerException.class));
     DisplayData.from(new HasDisplayData() {
-        @Override
-        public void populateDisplayData(Builder builder) {
-          builder.include(subComponent, (Class<?>) null);
-        }
-      });
+      @Override
+      public void populateDisplayData(Builder builder) {
+        builder.include(null, new NoopDisplayData());
+      }
+    });
+  }
+
+  @Test
+  public void testIncludeEmptyPath() {
+    thrown.expectCause(isA(IllegalArgumentException.class));
+    DisplayData.from(new HasDisplayData() {
+      @Override
+      public void populateDisplayData(Builder builder) {
+        builder.include("", new NoopDisplayData());
+      }
+    });
   }
 
   @Test
@@ -964,6 +1076,44 @@ public class DisplayDataTest implements Serializable {
         quoted("DisplayDataTest"), "baz", "http://abc"));
   }
 
+
+  @Test
+  public void testJsonSerializationAnonymousClassNamespace() throws IOException {
+    HasDisplayData component = new HasDisplayData() {
+      @Override
+      public void populateDisplayData(Builder builder) {
+        builder.add(DisplayData.item("foo", "bar"));
+      }
+    };
+    DisplayData data = DisplayData.from(component);
+
+    JsonNode json = MAPPER.readTree(MAPPER.writeValueAsBytes(data));
+    String namespace = json.elements().next().get("namespace").asText();
+    final Pattern anonClassRegex = Pattern.compile(
+        Pattern.quote(DisplayDataTest.class.getName()) + "\\$\\d+$");
+    assertThat(namespace, new CustomTypeSafeMatcher<String>(
+        "anonymous class regex: " + anonClassRegex) {
+      @Override
+      protected boolean matchesSafely(String item) {
+        java.util.regex.Matcher m = anonClassRegex.matcher(item);
+        return m.matches();
+      }
+    });
+  }
+
+  @Test
+  public void testCanSerializeItemSpecReference() {
+    DisplayData.ItemSpec<?> spec = DisplayData.item("clazz", DisplayDataTest.class);
+    SerializableUtils.ensureSerializable(new HoldsItemSpecReference(spec));
+  }
+
+  private static class HoldsItemSpecReference implements Serializable {
+    private final DisplayData.ItemSpec<?> spec;
+    public HoldsItemSpecReference(DisplayData.ItemSpec<?> spec) {
+      this.spec = spec;
+    }
+  }
+
   /**
    * Verify that {@link DisplayData.Builder} can recover from exceptions thrown in user code.
    * This is not used within the Beam SDK since we want all code to produce valid DisplayData.
@@ -993,14 +1143,14 @@ public class DisplayDataTest implements Serializable {
             .add(DisplayData.item("c", "c"));
 
         try {
-          builder.include(failingComponent);
+          builder.include("p", failingComponent);
           fail("Expected exception not thrown");
         } catch (RuntimeException e) {
           // Expected
         }
 
         builder
-            .include(safeComponent)
+            .include("p", safeComponent)
             .add(DisplayData.item("d", "d"));
       }
     });
@@ -1033,7 +1183,7 @@ public class DisplayDataTest implements Serializable {
     HasDisplayData component = new HasDisplayData() {
       @Override
       public void populateDisplayData(Builder builder) {
-        builder.include(new HasDisplayData() {
+        builder.include("p", new HasDisplayData() {
           @Override
           public void populateDisplayData(Builder builder) {
             throw cause;
@@ -1044,18 +1194,6 @@ public class DisplayDataTest implements Serializable {
 
     thrown.expectCause(is(cause));
     DisplayData.from(component);
-  }
-
-  private static class IdentityTransform<T> extends PTransform<PCollection<T>, PCollection<T>> {
-    @Override
-    public PCollection<T> apply(PCollection<T> input) {
-      return input.apply(ParDo.of(new DoFn<T, T>() {
-        @ProcessElement
-        public void processElement(ProcessContext c) throws Exception {
-          c.output(c.element());
-        }
-      }));
-    }
   }
 
   private String quoted(Object obj) {
@@ -1101,21 +1239,26 @@ public class DisplayDataTest implements Serializable {
     return hasItem(jsonNode);
   }
 
-  private static Matcher<DisplayData.Item<?>> hasUrl(Matcher<String> urlMatcher) {
-    return new FeatureMatcher<DisplayData.Item<?>, String>(
+  private static class NoopDisplayData implements HasDisplayData {
+    @Override
+    public void populateDisplayData(Builder builder) {}
+  }
+
+  private static Matcher<DisplayData.Item> hasUrl(Matcher<String> urlMatcher) {
+    return new FeatureMatcher<DisplayData.Item, String>(
         urlMatcher, "display item with url", "URL") {
       @Override
-      protected String featureValueOf(DisplayData.Item<?> actual) {
+      protected String featureValueOf(DisplayData.Item actual) {
         return actual.getLinkUrl();
       }
     };
   }
 
-  private static  <T> Matcher<DisplayData.Item<?>> hasShortValue(Matcher<T> valueStringMatcher) {
-    return new FeatureMatcher<DisplayData.Item<?>, T>(
+  private static  <T> Matcher<DisplayData.Item> hasShortValue(Matcher<T> valueStringMatcher) {
+    return new FeatureMatcher<DisplayData.Item, T>(
         valueStringMatcher, "display item with short value", "short value") {
       @Override
-      protected T featureValueOf(DisplayData.Item<?> actual) {
+      protected T featureValueOf(DisplayData.Item actual) {
         @SuppressWarnings("unchecked")
         T shortValue = (T) actual.getShortValue();
         return shortValue;
