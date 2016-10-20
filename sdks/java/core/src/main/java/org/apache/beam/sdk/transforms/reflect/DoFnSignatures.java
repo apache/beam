@@ -704,7 +704,7 @@ public class DoFnSignatures {
     return declaredMembersWithAnnotation(anno, startClass, stopClass, GET_FIELDS);
   }
 
-  private static interface MemberGetter<MemberT> {
+  private interface MemberGetter<MemberT> {
     public MemberT[] getMembers(Class<?> clazz);
   }
 

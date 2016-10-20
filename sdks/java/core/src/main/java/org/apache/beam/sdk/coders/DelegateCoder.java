@@ -48,7 +48,7 @@ public final class DelegateCoder<T, IntermediateT> extends CustomCoder<T> {
    * A {@link DelegateCoder.CodingFunction CodingFunction&lt;InputT, OutputT&gt;} is a serializable
    * function from {@code InputT} to {@code OutputT} that may throw any {@link Exception}.
    */
-  public static interface CodingFunction<InputT, OutputT> extends Serializable {
+  public interface CodingFunction<InputT, OutputT> extends Serializable {
      public abstract OutputT apply(InputT input) throws Exception;
   }
 

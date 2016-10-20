@@ -1026,7 +1026,7 @@ public class Combine {
      * The type of mutable accumulator values used by this
      * {@code AccumulatingCombineFn}.
      */
-    public abstract static interface Accumulator<InputT, AccumT, OutputT> {
+    public abstract interface Accumulator<InputT, AccumT, OutputT> {
       /**
        * Adds the given input value to this accumulator, modifying
        * this accumulator.
