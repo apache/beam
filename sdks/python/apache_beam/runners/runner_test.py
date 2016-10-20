@@ -74,9 +74,11 @@ class RunnerTest(unittest.TestCase):
     p = Pipeline(remote_runner,
                  options=PipelineOptions(self.default_properties))
 
+    # TODO: Should not subclass ParDo. Switch to PTransform as soon as
+    # composite transforms support display data.
     class SpecialParDo(beam.ParDo):
-      def __init__(self, fn, now, *args, **kwargs):
-        super(SpecialParDo, self).__init__(fn, *args, **kwargs)
+      def __init__(self, fn, now):
+        super(SpecialParDo, self).__init__(fn)
         self.fn = fn
         self.now = now
 

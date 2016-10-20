@@ -50,8 +50,8 @@ class DisplayDataTest(unittest.TestCase):
     It does not test subcomponent inclusion
     """
     class MyDoFn(beam.DoFn):
-      def __init__(self, *args, **kwargs):
-        self.my_display_data = kwargs.get('display_data', None)
+      def __init__(self, my_display_data=None):
+        self.my_display_data = my_display_data
 
       def process(self, context):
         yield context.element + 1
@@ -66,13 +66,13 @@ class DisplayDataTest(unittest.TestCase):
                 'my_dd': self.my_display_data}
 
     now = datetime.now()
-    fn = MyDoFn(display_data=now)
+    fn = MyDoFn(my_display_data=now)
     dd = DisplayData.create_from(fn)
     dd_dicts = sorted([item.get_dict() for item in dd.items],
                       key=lambda x: x['namespace']+x['key'])
 
     nspace = '{}.{}'.format(fn.__module__, fn.__class__.__name__)
-    expected_items = [
+    expected_items = sorted([
         {'url': 'http://github.com', 'namespace': nspace,
          'value': 'github.com', 'label': 'The URL',
          'key': 'complex_url', 'type': 'STRING'},
@@ -84,14 +84,13 @@ class DisplayDataTest(unittest.TestCase):
         {'type': 'INTEGER', 'namespace': nspace,
          'value': 120, 'key': 'static_integer'},
         {'type': 'STRING', 'namespace': nspace,
-         'value': 'static me!', 'key': 'static_string'}]
-    expected_items = sorted(expected_items,
+         'value': 'static me!', 'key': 'static_string'}],
                             key=lambda x: x['namespace']+x['key'])
 
     self.assertEqual(dd_dicts, expected_items)
 
   def test_subcomponent(self):
-    class SpecialParDo(beam.ParDo):
+    class SpecialParDo(beam.PTransform):
       def __init__(self, fn):
         self.fn = fn
 

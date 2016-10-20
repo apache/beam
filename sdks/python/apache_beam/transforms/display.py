@@ -80,9 +80,9 @@ class DisplayData(object):
   def __init__(self, namespace, display_data_dict):
     self.namespace = namespace
     self.items = []
-    self.populate_items(display_data_dict)
+    self._populate_items(display_data_dict)
 
-  def populate_items(self, display_data_dict):
+  def _populate_items(self, display_data_dict):
     """ Populates the list of display data items.
     """
     for key, element in display_data_dict.items():
@@ -104,11 +104,6 @@ class DisplayData(object):
           DisplayDataItem(element,
                           namespace=self.namespace,
                           key=key))
-
-  def output(self):
-    """ Returns the JSON-API list of display data items to send to the runner.
-    """
-    return [item.get_dict() for item in self.items]
 
   @classmethod
   def create_from(cls, has_display_data):
@@ -159,13 +154,15 @@ class DisplayDataItem(object):
       ValueError: If the item does not have a key, namespace, value or type.
     """
     if self.key is None:
-      raise ValueError('Key must not be None')
+      raise ValueError('Invalid DisplayDataItem. Key must not be None')
     if self.namespace is None:
-      raise ValueError('Namespace must not be None')
+      raise ValueError('Invalid DisplayDataItem. Namespace must not be None')
     if self.value is None:
-      raise ValueError('Value must not be None')
+      raise ValueError('Invalid DisplayDataItem. Value must not be None')
     if self.type is None:
-      raise ValueError('Value {} is of an unsupported type.'.format(self.value))
+      raise ValueError(
+          'Invalid DisplayDataItem. Value {} is of an unsupported type.'
+          .format(self.value))
 
   def get_dict(self):
     """ Returns the internal-API dictionary representing the DisplayDataItem.
@@ -196,6 +193,11 @@ class DisplayDataItem(object):
 
   def __repr__(self):
     return 'DisplayDataItem({})'.format(json.dumps(self.get_dict()))
+
+  def __eq__(self, other):
+    if isinstance(other, self.__class__):
+      return self.get_dict() == other.get_dict()
+    return False
 
   @classmethod
   def _format_value(cls, value, type_):
