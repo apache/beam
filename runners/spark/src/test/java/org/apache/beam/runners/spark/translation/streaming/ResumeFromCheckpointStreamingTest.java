@@ -157,7 +157,7 @@ public class ResumeFromCheckpointStreamingTest {
 
     // requires a graceful stop so that checkpointing of the first run would finish successfully
     // before stopping and attempting to resume.
-    return PAssertStreaming.runAndAssertContents(p, formattedKV, EXPECTED, true);
+    return PAssertStreaming.runAndAssertContents(p, formattedKV, EXPECTED);
   }
 
   @AfterClass
