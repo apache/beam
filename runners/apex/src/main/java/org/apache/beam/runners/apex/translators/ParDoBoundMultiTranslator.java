@@ -68,9 +68,19 @@ public class ParDoBoundMultiTranslator<InputT, OutputT>
 
     Map<TupleTag<?>, PCollection<?>> outputs = output.getAll();
     Map<PCollection<?>, OutputPort<?>> ports = Maps.newHashMapWithExpectedSize(outputs.size());
-    int i = 0;
     for (Map.Entry<TupleTag<?>, PCollection<?>> outputEntry : outputs.entrySet()) {
-      ports.put(outputEntry.getValue(), operator.sideOutputPorts[i++]);
+      if (outputEntry.getKey() == transform.getMainOutputTag()) {
+        ports.put(outputEntry.getValue(), operator.output);
+      } else {
+        int portIndex = 0;
+        for (TupleTag<?> tag : transform.getSideOutputTags().getAll()) {
+          if (tag == outputEntry.getKey()) {
+            ports.put(outputEntry.getValue(), operator.sideOutputPorts[portIndex]);
+            break;
+          }
+          portIndex++;
+        }
+      }
     }
     context.addOperator(operator, ports);
     context.addStream(context.getInput(), operator.input);

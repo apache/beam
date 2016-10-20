@@ -34,7 +34,7 @@ import org.slf4j.LoggerFactory;
 public class ApexFlattenOperator<InputT> extends BaseOperator {
 
   private static final Logger LOG = LoggerFactory.getLogger(ApexFlattenOperator.class);
-  private boolean traceTuples = true;
+  private boolean traceTuples = false;
 
   private long inputWM1;
   private long inputWM2;
@@ -121,4 +121,5 @@ public class ApexFlattenOperator<InputT> extends BaseOperator {
   @OutputPortFieldAnnotation(optional = true)
   public final transient DefaultOutputPort<ApexStreamTuple<WindowedValue<InputT>>> out =
     new DefaultOutputPort<ApexStreamTuple<WindowedValue<InputT>>>();
+
 }
