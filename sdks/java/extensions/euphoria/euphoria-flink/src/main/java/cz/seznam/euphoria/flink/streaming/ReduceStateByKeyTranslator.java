@@ -26,9 +26,6 @@ import java.util.Iterator;
 
 class ReduceStateByKeyTranslator implements StreamingOperatorTranslator<ReduceStateByKey> {
 
-  FlinkStreamingStateStorageProvider storageProvider
-      = new FlinkStreamingStateStorageProvider();
-
   @Override
   @SuppressWarnings("unchecked")
   public DataStream<?> translate(FlinkOperator<ReduceStateByKey> operator,
@@ -58,6 +55,9 @@ class ReduceStateByKeyTranslator implements StreamingOperatorTranslator<ReduceSt
       keyExtractor = origOperator.getKeyExtractor();
       valueExtractor = origOperator.getValueExtractor();
     }
+
+    FlinkStreamingStateStorageProvider storageProvider
+        = new FlinkStreamingStateStorageProvider();
 
     DataStream<StreamingWindowedElement<?, Pair>> folded;
     // apply windowing first
