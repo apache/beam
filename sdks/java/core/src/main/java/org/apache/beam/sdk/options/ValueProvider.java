@@ -33,7 +33,6 @@ import com.fasterxml.jackson.databind.SerializerProvider;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.fasterxml.jackson.databind.deser.ContextualDeserializer;
-
 import java.io.IOException;
 import java.io.Serializable;
 import java.lang.reflect.InvocationHandler;
@@ -41,6 +40,7 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.util.concurrent.ConcurrentHashMap;
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.transforms.SerializableFunction;
 
 /**
  * {@link ValueProvider} is an interface which abstracts the notion of
@@ -90,6 +90,40 @@ public interface ValueProvider<T> {
     @Override
     public boolean isAccessible() {
       return true;
+    }
+  }
+
+  /**
+   * {@link NestedValueProvider} is an implementation of {@link ValueProvider} that
+   * allows for wrapping another {@link ValueProvider} object.
+   */
+  static class NestedValueProvider<T, X> implements ValueProvider<T>, Serializable {
+
+    private final ValueProvider<X> value;
+    private final SerializableFunction<X, T> translator;
+
+    NestedValueProvider(ValueProvider<X> value, SerializableFunction<X, T> translator) {
+      this.value = checkNotNull(value);
+      this.translator = checkNotNull(translator);
+    }
+
+    /**
+     * Creates a {@link NestedValueProvider} that wraps the provided value.
+     */
+    public static <T, X> NestedValueProvider<T, X> of(
+        ValueProvider<X> value, SerializableFunction<X, T> translator) {
+      NestedValueProvider<T, X> factory = new NestedValueProvider<T, X>(value, translator);
+      return factory;
+    }
+
+    @Override
+    public T get() {
+      return translator.apply(value.get());
+    }
+
+    @Override
+    public boolean isAccessible() {
+      return value.isAccessible();
     }
   }
 
