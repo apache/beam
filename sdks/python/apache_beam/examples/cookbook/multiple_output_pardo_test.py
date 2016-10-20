@@ -28,7 +28,7 @@ from apache_beam.transforms.util import DataflowAssertException
 
 class MultipleOutputParDoTest(unittest.TestCase):
 
-  SAMPLE_TEXT = ['A whole new world\nA new fantastic point of view']
+  SAMPLE_TEXT = 'A whole new world\nA new fantastic point of view'
   EXPECTED_SHORT_WORDS = [('A', 2), ('new', 2), ('of', 1)]
   EXPECTED_WORDS = [
       ('whole', 1), ('world', 1), ('fantastic', 1), ('point', 1), ('view', 1)]
