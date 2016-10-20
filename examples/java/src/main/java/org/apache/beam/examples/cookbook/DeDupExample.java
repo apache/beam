@@ -67,7 +67,7 @@ public class DeDupExample {
     void setOutput(String value);
 
     /** Returns gs://${TEMP_LOCATION}/"deduped.txt". */
-    public static class OutputFactory implements DefaultValueFactory<String> {
+    class OutputFactory implements DefaultValueFactory<String> {
       @Override
       public String create(PipelineOptions options) {
         if (options.getTempLocation() != null) {

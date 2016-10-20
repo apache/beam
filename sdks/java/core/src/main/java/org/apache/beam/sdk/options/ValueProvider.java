@@ -66,7 +66,7 @@ public interface ValueProvider<T> {
    * {@link StaticValueProvider} is an implementation of {@link ValueProvider} that
    * allows for a static value to be provided.
    */
-  public static class StaticValueProvider<T> implements ValueProvider<T>, Serializable {
+  class StaticValueProvider<T> implements ValueProvider<T>, Serializable {
     @Nullable
     private final T value;
 
@@ -102,7 +102,7 @@ public interface ValueProvider<T> {
    * {@link #get()} at execution time (after a call to {@link Pipeline#run}),
    * which will provide the value of {@code optionsMap}.
    */
-  public static class RuntimeValueProvider<T> implements ValueProvider<T>, Serializable {
+  class RuntimeValueProvider<T> implements ValueProvider<T>, Serializable {
     private static ConcurrentHashMap<Long, PipelineOptions> optionsMap =
       new ConcurrentHashMap<>();
 
@@ -172,7 +172,7 @@ public interface ValueProvider<T> {
   /**
    * Serializer for {@link ValueProvider}.
    */
-  static class Serializer extends JsonSerializer<ValueProvider<?>> {
+  class Serializer extends JsonSerializer<ValueProvider<?>> {
     @Override
     public void serialize(ValueProvider<?> value, JsonGenerator jgen,
                           SerializerProvider provider) throws IOException {
@@ -187,7 +187,7 @@ public interface ValueProvider<T> {
   /**
    * Deserializer for {@link ValueProvider}, which handles type marshalling.
    */
-  static class Deserializer extends JsonDeserializer<ValueProvider<?>>
+  class Deserializer extends JsonDeserializer<ValueProvider<?>>
     implements ContextualDeserializer {
 
     private final JavaType innerType;

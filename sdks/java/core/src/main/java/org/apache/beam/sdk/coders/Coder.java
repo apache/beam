@@ -63,7 +63,7 @@ import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
  */
 public interface Coder<T> extends Serializable {
   /** The context in which encoding or decoding is being done. */
-  public static class Context {
+  class Context {
     /**
      * The outer context: the value being encoded or decoded takes
      * up the remainder of the record/stream contents.
@@ -257,7 +257,7 @@ public interface Coder<T> extends Serializable {
    * Exception thrown by {@link Coder#verifyDeterministic()} if the encoding is
    * not deterministic, including details of why the encoding is not deterministic.
    */
-  public static class NonDeterministicException extends Exception {
+  class NonDeterministicException extends Exception {
     private Coder<?> coder;
     private List<String> reasons;
 

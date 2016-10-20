@@ -166,7 +166,7 @@ public class WordCount {
     /**
      * Returns "gs://${YOUR_TEMP_DIRECTORY}/counts.txt" as the default destination.
      */
-    public static class OutputFactory implements DefaultValueFactory<String> {
+    class OutputFactory implements DefaultValueFactory<String> {
       @Override
       public String create(PipelineOptions options) {
         String tempLocation = options.getTempLocation();

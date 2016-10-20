@@ -79,7 +79,7 @@ public abstract class FileBasedSink<T> extends Sink<T> {
   /**
    * Directly supported file output compression types.
    */
-  public static enum CompressionType implements WritableByteChannelFactory {
+  public enum CompressionType implements WritableByteChannelFactory {
     /**
      * No compression, or any other transformation, will be used.
      */

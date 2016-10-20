@@ -111,6 +111,10 @@ page at http://checkstyle.sourceforge.net/config.html -->
       <property name="illegalPkgs" value="avro.shaded, com.google.api.client.repackaged, com.google.appengine.repackaged, io.netty.util.internal"/>
     </module>
 
+    <module name="RedundantModifier">
+      <property name="tokens" value="VARIABLE_DEF, ANNOTATION_FIELD_DEF, CLASS_DEF, ENUM_DEF"/>
+    </module>
+
     <!--
         IllegalImport cannot blacklist classes, and c.g.api.client.util is used for some shaded
         code and some useful code. So we need to fall back to Regexp.

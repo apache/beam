@@ -226,7 +226,7 @@ public interface PipelineOptions extends HasDisplayData {
   /**
    * Enumeration of the possible states for a given check.
    */
-  public static enum CheckEnabled {
+  enum CheckEnabled {
     OFF,
     WARNING,
     ERROR
@@ -299,7 +299,7 @@ public interface PipelineOptions extends HasDisplayData {
    * <p>The normalization makes sure that the name matches the pattern of
    * [a-z]([-a-z0-9]*[a-z0-9])?.
    */
-  static class JobNameFactory implements DefaultValueFactory<String> {
+  class JobNameFactory implements DefaultValueFactory<String> {
     private static final DateTimeFormatter FORMATTER =
         DateTimeFormat.forPattern("MMddHHmmss").withZone(DateTimeZone.UTC);
 
