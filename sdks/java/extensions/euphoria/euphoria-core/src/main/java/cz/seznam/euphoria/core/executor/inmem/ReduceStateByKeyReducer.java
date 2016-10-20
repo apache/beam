@@ -20,7 +20,6 @@ import cz.seznam.euphoria.core.client.operator.state.StorageDescriptorBase;
 import cz.seznam.euphoria.core.client.operator.state.StorageProvider;
 import cz.seznam.euphoria.core.client.operator.state.ValueStorage;
 import cz.seznam.euphoria.core.client.operator.state.ValueStorageDescriptor;
-import cz.seznam.euphoria.core.client.triggers.NoopTrigger;
 import cz.seznam.euphoria.core.client.triggers.Trigger;
 import cz.seznam.euphoria.core.client.triggers.TriggerContext;
 import cz.seznam.euphoria.core.client.util.Pair;
@@ -38,6 +37,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.BlockingQueue;
 import java.util.function.Supplier;
@@ -192,13 +192,18 @@ class ReduceStateByKeyReducer implements Runnable {
       MergingStorageDescriptor descr = (MergingStorageDescriptor) storageDescriptor;
       BinaryFunction mergeFn = descr.getMerger();
 
-      Storage target = processing.triggerStorage.getStorage(this.getScope(), storageDescriptor);
-      assert target != null;
-      for (KeyedWindow m : this.mergeSources) {
-        Storage src = processing.triggerStorage.removeStorage(m, storageDescriptor);
-        if (src != null) {
-          mergeFn.apply(target, src);
-        }
+      // merge all existing (non null) trigger states
+      Optional<Storage> merged = this.mergeSources.stream()
+              .map(w -> processing.triggerStorage.getStorage(w, storageDescriptor))
+              .filter(s -> s != null)
+              .reduce((x, y) -> {
+                mergeFn.apply(x, y);
+                return x;
+              });
+
+      // store newly created trigger state (if any) to the storage
+      if (merged.isPresent()) {
+        processing.triggerStorage.putStorage(this.getScope(), storageDescriptor, merged.get());
       }
     }
   } // ~ end of MergingElementTriggerContext
@@ -341,6 +346,13 @@ class ReduceStateByKeyReducer implements Runnable {
     Storage getStorage(KeyedWindow scope, StorageDescriptorBase descriptor) {
       StorageKey skey = storageKey(scope, descriptor);
       return (Storage) store.get(skey);
+    }
+
+    void putStorage(KeyedWindow scope,
+                    StorageDescriptorBase descriptor,
+                    Storage storage) {
+
+      store.put(storageKey(scope, descriptor), storage);
     }
 
     <T> ValueStorage<T> getValueStorage(
