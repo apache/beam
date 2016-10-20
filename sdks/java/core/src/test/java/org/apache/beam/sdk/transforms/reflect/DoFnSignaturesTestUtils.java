@@ -61,6 +61,7 @@ class DoFnSignaturesTestUtils {
         method.getMethod(),
         TypeToken.of(Integer.class),
         TypeToken.of(String.class),
+        Collections.EMPTY_MAP,
         Collections.EMPTY_MAP);
   }
 }
