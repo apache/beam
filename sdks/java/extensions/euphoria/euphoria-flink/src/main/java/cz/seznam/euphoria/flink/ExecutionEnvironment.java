@@ -107,7 +107,7 @@ public class ExecutionEnvironment {
 
   private Set<Class<?>> getClassesToRegister(Set<Class<?>> registeredClasses) {
     HashSet<Class<?>> ret = Sets.newHashSet(registeredClasses);
-    ret.add(Batch.Label.class);
+    ret.add(Batch.BatchWindow.class);
     ret.add(WindowedElement.class);
     ret.add(StreamExecutionEnvironment.class);
     return ret;
