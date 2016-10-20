@@ -94,6 +94,49 @@ public interface ValueProvider<T> {
   }
 
   /**
+   * {@link NestedValueProvider} is an implementation of {@link ValueProvider} that
+   * allows for wrapping another {@link ValueProvider} object.
+   */
+  public static class NestedValueProvider<T, X> implements ValueProvider<T>, Serializable {
+
+    /**
+     * An interface that provides a translator for a {@link NestedValueProvider}
+     * to produce a value from a deferred {@link ValueProvider}.
+     */
+    public static interface DeferrableTranslator<V, W> extends Serializable {
+      public V createValue(W from);
+    }
+
+    @Nullable
+    private final ValueProvider<X> value;
+    private final DeferrableTranslator<T, X> translator;
+
+    NestedValueProvider(@Nullable ValueProvider<X> value, DeferrableTranslator<T, X> translator) {
+      this.value = value;
+      this.translator = translator;
+    }
+
+    /**
+     * Creates a {@link NestedValueProvider} that wraps the provided value.
+     */
+    public static <T, X> NestedValueProvider<T, X> of(
+        ValueProvider<X> value, DeferrableTranslator<T, X> translator) {
+      NestedValueProvider<T, X> factory = new NestedValueProvider<T, X>(value, translator);
+      return factory;
+    }
+
+    @Override
+    public T get() {
+      return translator.createValue(value.get());
+    }
+
+    @Override
+    public boolean isAccessible() {
+      return value.isAccessible();
+    }
+  }
+
+  /**
    * {@link RuntimeValueProvider} is an implementation of {@link ValueProvider} that
    * allows for a value to be provided at execution time rather than at graph
    * construction time.

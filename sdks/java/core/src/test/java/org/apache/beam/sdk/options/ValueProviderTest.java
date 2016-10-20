@@ -26,6 +26,7 @@ import static org.junit.Assert.assertTrue;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableList;
 import java.util.List;
+import org.apache.beam.sdk.options.ValueProvider.NestedValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.RuntimeValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.junit.Rule;
@@ -209,5 +210,36 @@ public class ValueProviderTest {
     ValueProvider<String> vp = runtime.getFoo();
     assertTrue(vp.isAccessible());
     assertEquals("quux", vp.get());
+  }
+
+  @Test
+  public void testNestedValueProviderStatic() throws Exception {
+    ValueProvider<String> svp = StaticValueProvider.of("foo");
+    ValueProvider<String> nvp = NestedValueProvider.of(
+      svp, new NestedValueProvider.DeferrableTranslator<String, String>() {
+        @Override
+        public String createValue(String from) {
+          return from + "bar";
+        }
+      });
+    assertTrue(nvp.isAccessible());
+    assertEquals("foobar", nvp.get());
+  }
+
+  @Test
+  public void testNestedValueProviderRuntime() throws Exception {
+    TestOptions options = PipelineOptionsFactory.as(TestOptions.class);
+    ValueProvider<String> rvp = options.getBar();
+    ValueProvider<String> nvp = NestedValueProvider.of(
+      rvp, new NestedValueProvider.DeferrableTranslator<String, String>() {
+        @Override
+        public String createValue(String from) {
+          return from + "bar";
+        }
+      });
+    assertFalse(nvp.isAccessible());
+    expectedException.expect(RuntimeException.class);
+    expectedException.expectMessage("Not called from a runtime context");
+    nvp.get();
   }
 }
