@@ -449,7 +449,7 @@ class SetupOptions(PipelineOptions):
          'tarball from here. If the string "default", '
          'a standard SDK location is used. If empty, no SDK is copied.'))
     parser.add_argument(
-        '--extra_package',
+        '--extra_package', '--extra_packages',
         dest='extra_packages',
         action='append',
         default=None,

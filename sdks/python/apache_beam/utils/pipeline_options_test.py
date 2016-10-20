@@ -109,6 +109,17 @@ class PipelineOptionsTest(unittest.TestCase):
     options = PipelineOptions(flags=[''])
     self.assertEqual(options.get_all_options()['experiments'], None)
 
+  def test_extra_package(self):
+    options = PipelineOptions(['--extra_package', 'abc',
+                               '--extra_packages', 'def',
+                               '--extra_packages', 'ghi'])
+    self.assertEqual(
+        sorted(options.get_all_options()['extra_packages']),
+        ['abc', 'def', 'ghi'])
+
+    options = PipelineOptions(flags=[''])
+    self.assertEqual(options.get_all_options()['extra_packages'], None)
+
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
