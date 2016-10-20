@@ -231,7 +231,7 @@ public interface PipelineOptions extends HasDisplayData {
   /**
    * Enumeration of the possible states for a given check.
    */
-  public static enum CheckEnabled {
+  enum CheckEnabled {
     OFF,
     WARNING,
     ERROR;

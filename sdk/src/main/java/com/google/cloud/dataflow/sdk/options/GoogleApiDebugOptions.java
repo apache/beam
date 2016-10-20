@@ -54,7 +54,7 @@ public interface GoogleApiDebugOptions extends PipelineOptions {
   /**
    * A {@link GoogleClientRequestInitializer} that adds the trace destination to Google API calls.
    */
-  public static class GoogleApiTracer extends HashMap<String, String>
+  class GoogleApiTracer extends HashMap<String, String>
       implements GoogleClientRequestInitializer {
     /**
      * Creates a {@link GoogleApiTracer} that sets the trace destination on all

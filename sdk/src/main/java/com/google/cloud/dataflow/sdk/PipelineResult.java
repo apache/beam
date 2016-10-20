@@ -46,7 +46,7 @@ public interface PipelineResult {
   // TODO: method to retrieve error messages.
 
   /** Named constants for common values for the job state. */
-  public enum State {
+  enum State {
 
     /** The job state could not be obtained or was not specified. */
     UNKNOWN(false, false),

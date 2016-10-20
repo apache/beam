@@ -177,7 +177,7 @@ public class UserScore {
   /**
    * Options supported by {@link UserScore}.
    */
-  public static interface Options extends PipelineOptions {
+  public interface Options extends PipelineOptions {
 
     @Description("Path to the data file(s) containing game data.")
     // The default maps to two large Google Cloud Storage files (each ~12GB) holding two subsequent

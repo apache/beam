@@ -29,7 +29,7 @@ public class PipelineOptionsValidatorTest {
   public ExpectedException expectedException = ExpectedException.none();
 
   /** A test interface with an {@link Validation.Required} annotation. */
-  public static interface Required extends PipelineOptions {
+  public interface Required extends PipelineOptions {
     @Validation.Required
     @Description("Fake Description")
     String getObject();
@@ -79,7 +79,7 @@ public class PipelineOptionsValidatorTest {
   }
 
   /** A test interface that overrides the parent's method. */
-  public static interface SubClassValidation extends Required {
+  public interface SubClassValidation extends Required {
     @Override
     String getObject();
     @Override
@@ -98,7 +98,7 @@ public class PipelineOptionsValidatorTest {
   }
 
   /** A test interface with a required group. */
-  public static interface GroupRequired extends PipelineOptions {
+  public interface GroupRequired extends PipelineOptions {
     @Validation.Required(groups = {"ham"})
     String getFoo();
     void setFoo(String foo);
@@ -136,7 +136,7 @@ public class PipelineOptionsValidatorTest {
   }
 
   /** A test interface with a member in multiple required groups. */
-  public static interface MultiGroupRequired extends PipelineOptions {
+  public interface MultiGroupRequired extends PipelineOptions {
     @Validation.Required(groups = {"spam", "ham"})
     String getFoo();
     void setFoo(String foo);
@@ -159,7 +159,7 @@ public class PipelineOptionsValidatorTest {
     PipelineOptionsValidator.validate(MultiGroupRequired.class, multiGroupRequired);
   }
 
-  private static interface LeftOptions extends PipelineOptions {
+  private interface LeftOptions extends PipelineOptions {
     @Validation.Required(groups = {"left"})
     String getFoo();
     void setFoo(String foo);
@@ -173,7 +173,7 @@ public class PipelineOptionsValidatorTest {
     void setBoth(String both);
   }
 
-  private static interface RightOptions extends PipelineOptions {
+  private interface RightOptions extends PipelineOptions {
     @Validation.Required(groups = {"right"})
     String getFoo();
     void setFoo(String foo);
@@ -187,7 +187,7 @@ public class PipelineOptionsValidatorTest {
     void setBoth(String both);
   }
 
-  private static interface JoinedOptions extends LeftOptions, RightOptions {}
+  private interface JoinedOptions extends LeftOptions, RightOptions {}
 
   @Test
   public void testWhenOptionIsDefinedInMultipleSuperInterfacesAndIsNotPresentFailsRequirement() {
@@ -241,7 +241,7 @@ public class PipelineOptionsValidatorTest {
     PipelineOptionsValidator.validate(JoinedOptions.class, options);
   }
 
-  private static interface SuperOptions extends PipelineOptions {
+  private interface SuperOptions extends PipelineOptions {
     @Validation.Required(groups = {"super"})
     String getFoo();
     void setFoo(String foo);
@@ -255,7 +255,7 @@ public class PipelineOptionsValidatorTest {
     void setSuperclassObj(String sup);
   }
 
-  private static interface SubOptions extends SuperOptions {
+  private interface SubOptions extends SuperOptions {
     @Override
     @Validation.Required(groups = {"sub"})
     String getFoo();

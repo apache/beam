@@ -48,7 +48,7 @@ public class StateSampler implements Closeable {
   /**
    * An interface for scheduling state sampling.
    */
-  public static interface SampleScheduler {
+  public interface SampleScheduler {
     Closeable scheduleSampling(StateSampler sampler);
   }
 
@@ -413,7 +413,7 @@ public class StateSampler implements Closeable {
    * Callbacks which supposed to be called sequentially upon {@link StateSampler#run}.
    * They should be registered via {@link #addSamplingCallback}.
    */
-  public static interface SamplingCallback {
+  public interface SamplingCallback {
     /**
      * The entrance method of the callback, it is called in {@link StateSampler#run},
      * once per sample. This method should be thread safe.
@@ -422,6 +422,6 @@ public class StateSampler implements Closeable {
      * @param kind The kind associated with the state, see {@link StateKind}.
      * @param elapsedMs Milliseconds since last sample.
      */
-    public void run(int state, StateKind kind, long elapsedMs);
+    void run(int state, StateKind kind, long elapsedMs);
   }
 }

@@ -157,7 +157,7 @@ public class DebuggingWordCount {
    * <p>Inherits standard configuration options and all options defined in
    * {@link WordCount.WordCountOptions}.
    */
-  public static interface WordCountOptions extends WordCount.WordCountOptions {
+  public interface WordCountOptions extends WordCount.WordCountOptions {
 
     @Description("Regex filter pattern to use in DebuggingWordCount. "
         + "Only words matching this pattern will be counted.")

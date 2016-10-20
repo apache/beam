@@ -36,5 +36,5 @@ public interface PipelineRunnerRegistrar {
   /**
    * Get the set of {@link PipelineRunner PipelineRunners} to register.
    */
-  public Iterable<Class<? extends PipelineRunner<?>>> getPipelineRunners();
+  Iterable<Class<? extends PipelineRunner<?>>> getPipelineRunners();
 }

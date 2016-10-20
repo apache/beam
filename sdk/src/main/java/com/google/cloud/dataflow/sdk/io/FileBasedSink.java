@@ -578,7 +578,7 @@ public abstract class FileBasedSink<T> extends Sink<T> {
    * copy-if-existing and do not throw exceptions on file not found to enable retries of these
    * operations in the case of transient error.
    */
-  private static interface FileOperations {
+  private interface FileOperations {
     /**
      * Copy a collection of files from one location to another.
      *
@@ -587,12 +587,12 @@ public abstract class FileBasedSink<T> extends Sink<T> {
      * @param srcFilenames the source filenames.
      * @param destFilenames the destination filenames.
      */
-    public void copy(List<String> srcFilenames, List<String> destFilenames) throws IOException;
+     void copy(List<String> srcFilenames, List<String> destFilenames) throws IOException;
 
     /**
      * Remove a collection of files.
      */
-    public void remove(Collection<String> filenames) throws IOException;
+    void remove(Collection<String> filenames) throws IOException;
   }
 
   /**

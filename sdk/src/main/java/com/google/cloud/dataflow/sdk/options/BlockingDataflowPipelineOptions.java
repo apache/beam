@@ -40,7 +40,7 @@ public interface BlockingDataflowPipelineOptions extends DataflowPipelineOptions
   /**
    * Returns a default of {@link System#out}.
    */
-  public static class StandardOutputFactory implements DefaultValueFactory<PrintStream> {
+  class StandardOutputFactory implements DefaultValueFactory<PrintStream> {
     @Override
     public PrintStream create(PipelineOptions options) {
       return System.out;

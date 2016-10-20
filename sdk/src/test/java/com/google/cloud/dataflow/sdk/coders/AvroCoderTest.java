@@ -232,7 +232,7 @@ public class AvroCoderTest {
     SerializableUtils.ensureSerializable(coder);
   }
 
-  private final void assertDeterministic(AvroCoder<?> coder) {
+  private void assertDeterministic(AvroCoder<?> coder) {
     try {
       coder.verifyDeterministic();
     } catch (NonDeterministicException e) {
@@ -240,7 +240,7 @@ public class AvroCoderTest {
     }
   }
 
-  private final void assertNonDeterministic(AvroCoder<?> coder,
+  private void assertNonDeterministic(AvroCoder<?> coder,
       Matcher<String> reason1) {
     try {
       coder.verifyDeterministic();

@@ -151,7 +151,7 @@ public class DatastoreWordCount {
    *
    * <p>Inherits standard configuration options.
    */
-  public static interface Options extends PipelineOptions {
+  public interface Options extends PipelineOptions {
     @Description("Path of the file to read from and store to Cloud Datastore")
     @Default.String("gs://dataflow-samples/shakespeare/kinglear.txt")
     String getInput();

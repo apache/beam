@@ -131,7 +131,7 @@ class InMemoryWatermarkManager {
    * timestamp which indicates we have received all of the data and there will be no more on-time or
    * late data. This value is represented by {@link InMemoryWatermarkManager#THE_END_OF_TIME}.
    */
-  private static interface Watermark {
+  private interface Watermark {
     /**
      * Returns the current value of this watermark.
      */
@@ -149,7 +149,7 @@ class InMemoryWatermarkManager {
   /**
    * The result of computing a {@link Watermark}.
    */
-  private static enum WatermarkUpdate {
+  private enum WatermarkUpdate {
     /** The watermark is later than the value at the previous time it was computed. */
     ADVANCED(true),
     /** The watermark is equal to the value at the previous time it was computed. */

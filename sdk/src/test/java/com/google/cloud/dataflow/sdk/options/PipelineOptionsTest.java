@@ -46,7 +46,7 @@ public class PipelineOptionsTest {
   @Rule public ExpectedException expectedException = ExpectedException.none();
 
   /** Interfaces used for testing that {@link PipelineOptions#as(Class)} functions. */
-  private static interface DerivedTestOptions extends BaseTestOptions {
+  private interface DerivedTestOptions extends BaseTestOptions {
     int getDerivedValue();
     void setDerivedValue(int derivedValue);
 
@@ -57,7 +57,7 @@ public class PipelineOptionsTest {
     void setIgnoredValue(Set<String> ignoredValue);
   }
 
-  private static interface ConflictedTestOptions extends BaseTestOptions {
+  private interface ConflictedTestOptions extends BaseTestOptions {
     String getDerivedValue();
     void setDerivedValue(String derivedValue);
 
@@ -68,7 +68,7 @@ public class PipelineOptionsTest {
     void setIgnoredValue(Set<String> ignoredValue);
   }
 
-  private static interface BaseTestOptions extends PipelineOptions {
+  private interface BaseTestOptions extends PipelineOptions {
     List<Boolean> getBaseValue();
     void setBaseValue(List<Boolean> baseValue);
 

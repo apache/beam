@@ -189,7 +189,7 @@ public class TopWikipediaSessions {
    *
    * <p>Inherits standard Dataflow configuration options.
    */
-  private static interface Options extends PipelineOptions {
+  private interface Options extends PipelineOptions {
     @Description(
       "Input specified as a GCS path containing a BigQuery table exported as json")
     @Default.String(EXPORTED_WIKI_TABLE)

@@ -102,7 +102,7 @@ public class PipelineOptionsFactoryTest {
   }
 
   /** A simple test interface. */
-  public static interface TestPipelineOptions extends PipelineOptions {
+  public interface TestPipelineOptions extends PipelineOptions {
     String getTestPipelineOption();
     void setTestPipelineOption(String value);
   }
@@ -127,7 +127,7 @@ public class PipelineOptionsFactoryTest {
   }
 
   /** A test interface missing a getter. */
-  public static interface MissingGetter extends PipelineOptions {
+  public interface MissingGetter extends PipelineOptions {
     void setObject(Object value);
   }
 
@@ -142,7 +142,7 @@ public class PipelineOptionsFactoryTest {
   }
 
   /** A test interface missing multiple getters. */
-  public static interface MissingMultipleGetters extends MissingGetter {
+  public interface MissingMultipleGetters extends MissingGetter {
     void setOtherObject(Object value);
   }
 
@@ -159,7 +159,7 @@ public class PipelineOptionsFactoryTest {
   }
 
   /** A test interface missing a setter. */
-  public static interface MissingSetter extends PipelineOptions {
+  public interface MissingSetter extends PipelineOptions {
     Object getObject();
   }
 
@@ -174,7 +174,7 @@ public class PipelineOptionsFactoryTest {
   }
 
   /** A test interface missing multiple setters. */
-  public static interface MissingMultipleSetters extends MissingSetter {
+  public interface MissingMultipleSetters extends MissingSetter {
     Object getOtherObject();
   }
 
@@ -191,7 +191,7 @@ public class PipelineOptionsFactoryTest {
   }
 
   /** A test interface missing a setter and a getter. */
-  public static interface MissingGettersAndSetters extends MissingGetter {
+  public interface MissingGettersAndSetters extends MissingGetter {
     Object getOtherObject();
   }
 
@@ -208,7 +208,7 @@ public class PipelineOptionsFactoryTest {
   }
 
   /** A test interface with a type mismatch between the getter and setter. */
-  public static interface GetterSetterTypeMismatch extends PipelineOptions {
+  public interface GetterSetterTypeMismatch extends PipelineOptions {
     boolean getValue();
     void setValue(int value);
   }
@@ -224,7 +224,7 @@ public class PipelineOptionsFactoryTest {
   }
 
   /** A test interface with multiple type mismatches between getters and setters. */
-  public static interface MultiGetterSetterTypeMismatch extends GetterSetterTypeMismatch {
+  public interface MultiGetterSetterTypeMismatch extends GetterSetterTypeMismatch {
     long getOther();
     void setOther(String other);
   }
@@ -242,7 +242,7 @@ public class PipelineOptionsFactoryTest {
   }
 
   /** A test interface representing a composite interface. */
-  public static interface CombinedObject extends MissingGetter, MissingSetter {
+  public interface CombinedObject extends MissingGetter, MissingSetter {
   }
 
   @Test
@@ -251,8 +251,8 @@ public class PipelineOptionsFactoryTest {
   }
 
   /** A test interface that contains a non-bean style method. */
-  public static interface ExtraneousMethod extends PipelineOptions {
-    public String extraneousMethod(int value, String otherValue);
+  public interface ExtraneousMethod extends PipelineOptions {
+    String extraneousMethod(int value, String otherValue);
   }
 
   @Test
@@ -267,7 +267,7 @@ public class PipelineOptionsFactoryTest {
   }
 
   /** A test interface that has a conflicting return type with its parent. */
-  public static interface ReturnTypeConflict extends CombinedObject {
+  public interface ReturnTypeConflict extends CombinedObject {
     @Override
     String getObject();
     void setObject(String value);
@@ -287,13 +287,13 @@ public class PipelineOptionsFactoryTest {
   }
 
   /** An interface to provide multiple methods with return type conflicts. */
-  public static interface MultiReturnTypeConflictBase extends CombinedObject {
+  public interface MultiReturnTypeConflictBase extends CombinedObject {
     Object getOther();
     void setOther(Object object);
   }
 
   /** A test interface that has multiple conflicting return types with its parent. */
-  public static interface MultiReturnTypeConflict extends MultiReturnTypeConflictBase {
+  public interface MultiReturnTypeConflict extends MultiReturnTypeConflictBase {
     @Override
     String getObject();
     void setObject(String value);
@@ -329,7 +329,7 @@ public class PipelineOptionsFactoryTest {
   }
 
   /** Test interface that has {@link JsonIgnore @JsonIgnore} on a setter for a property. */
-  public static interface SetterWithJsonIgnore extends PipelineOptions {
+  public interface SetterWithJsonIgnore extends PipelineOptions {
     String getValue();
     @JsonIgnore
     void setValue(String value);
@@ -345,7 +345,7 @@ public class PipelineOptionsFactoryTest {
   }
 
   /** Test interface that has {@link JsonIgnore @JsonIgnore} on multiple setters. */
-  public static interface MultiSetterWithJsonIgnore extends SetterWithJsonIgnore {
+  public interface MultiSetterWithJsonIgnore extends SetterWithJsonIgnore {
     Integer getOther();
     @JsonIgnore
     void setOther(Integer other);
@@ -369,7 +369,7 @@ public class PipelineOptionsFactoryTest {
    * This class is has a conflicting field with {@link CombinedObject} that doesn't have
    * {@link JsonIgnore @JsonIgnore}.
    */
-  public static interface GetterWithJsonIgnore extends PipelineOptions {
+  public interface GetterWithJsonIgnore extends PipelineOptions {
     @JsonIgnore
     Object getObject();
     void setObject(Object value);
@@ -392,7 +392,7 @@ public class PipelineOptionsFactoryTest {
     options.as(CombinedObject.class);
   }
 
-  private static interface MultiGetters extends PipelineOptions {
+  private interface MultiGetters extends PipelineOptions {
     Object getObject();
     void setObject(Object value);
 
@@ -404,7 +404,7 @@ public class PipelineOptionsFactoryTest {
     void setConsistent(Void consistent);
   }
 
-  private static interface MultipleGettersWithInconsistentJsonIgnore extends PipelineOptions {
+  private interface MultipleGettersWithInconsistentJsonIgnore extends PipelineOptions {
     @JsonIgnore
     Object getObject();
     void setObject(Object value);
@@ -464,7 +464,7 @@ public class PipelineOptionsFactoryTest {
   }
 
   /** A test interface containing all the primitives. */
-  public static interface Primitives extends PipelineOptions {
+  public interface Primitives extends PipelineOptions {
     boolean getBoolean();
     void setBoolean(boolean value);
     char getChar();
@@ -530,7 +530,7 @@ public class PipelineOptionsFactoryTest {
   }
 
   /** A test interface containing all supported objects. */
-  public static interface Objects extends PipelineOptions {
+  public interface Objects extends PipelineOptions {
     Boolean getBoolean();
     void setBoolean(Boolean value);
     Character getChar();
@@ -627,7 +627,7 @@ public class PipelineOptionsFactoryTest {
   }
 
   /** A test interface containing all supported array return types. */
-  public static interface Arrays extends PipelineOptions {
+  public interface Arrays extends PipelineOptions {
     boolean[] getBoolean();
     void setBoolean(boolean[] value);
     char[] getChar();
@@ -766,7 +766,7 @@ public class PipelineOptionsFactoryTest {
   }
 
   /** A test interface containing all supported List return types. */
-  public static interface Lists extends PipelineOptions {
+  public interface Lists extends PipelineOptions {
     List<String> getString();
     void setString(List<String> value);
   }

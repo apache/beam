@@ -220,25 +220,25 @@ public class Pipeline {
      * Called for each composite transform after all topological predecessors have been visited
      * but before any of its component transforms.
      */
-    public void enterCompositeTransform(TransformTreeNode node);
+    void enterCompositeTransform(TransformTreeNode node);
 
     /**
      * Called for each composite transform after all of its component transforms and their outputs
      * have been visited.
      */
-    public void leaveCompositeTransform(TransformTreeNode node);
+    void leaveCompositeTransform(TransformTreeNode node);
 
     /**
      * Called for each primitive transform after all of its topological predecessors
      * and inputs have been visited.
      */
-    public void visitTransform(TransformTreeNode node);
+    void visitTransform(TransformTreeNode node);
 
     /**
      * Called for each value after the transform that produced the value has been
      * visited.
      */
-    public void visitValue(PValue value, TransformTreeNode producer);
+    void visitValue(PValue value, TransformTreeNode producer);
   }
 
   /**

@@ -29,20 +29,20 @@ interface BundleFactory {
    * Create an {@link UncommittedBundle} from an empty input. Elements added to the bundle belong to
    * the {@code output} {@link PCollection}.
    */
-  public <T> UncommittedBundle<T> createRootBundle(PCollection<T> output);
+  <T> UncommittedBundle<T> createRootBundle(PCollection<T> output);
 
   /**
    * Create an {@link UncommittedBundle} from the specified input. Elements added to the bundle
    * belong to the {@code output} {@link PCollection}.
    */
-  public <T> UncommittedBundle<T> createBundle(CommittedBundle<?> input, PCollection<T> output);
+  <T> UncommittedBundle<T> createBundle(CommittedBundle<?> input, PCollection<T> output);
 
   /**
    * Create an {@link UncommittedBundle} with the specified keys at the specified step. For use by
    * {@link InProcessGroupByKeyOnly} {@link PTransform PTransforms}. Elements added to the bundle
    * belong to the {@code output} {@link PCollection}.
    */
-  public <K, T> UncommittedBundle<T> createKeyedBundle(
+  <K, T> UncommittedBundle<T> createKeyedBundle(
       CommittedBundle<?> input, StructuralKey<K> key, PCollection<T> output);
 }
 

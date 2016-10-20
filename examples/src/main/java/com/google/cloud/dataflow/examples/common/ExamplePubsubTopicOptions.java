@@ -32,7 +32,7 @@ public interface ExamplePubsubTopicOptions extends DataflowPipelineOptions {
   /**
    * Returns a default Pub/Sub topic based on the project and the job names.
    */
-  static class PubsubTopicFactory implements DefaultValueFactory<String> {
+  class PubsubTopicFactory implements DefaultValueFactory<String> {
     @Override
     public String create(PipelineOptions options) {
       DataflowPipelineOptions dataflowPipelineOptions =

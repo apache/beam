@@ -155,7 +155,7 @@ public interface DataflowPipelineDebugOptions extends PipelineOptions {
   void setDataflowClient(Dataflow value);
 
   /** Returns the default Dataflow client built from the passed in PipelineOptions. */
-  public static class DataflowClientFactory implements DefaultValueFactory<Dataflow> {
+  class DataflowClientFactory implements DefaultValueFactory<Dataflow> {
     @Override
     public Dataflow create(PipelineOptions options) {
         return Transport.newDataflowClient(options.as(DataflowPipelineOptions.class)).build();
@@ -241,7 +241,7 @@ public interface DataflowPipelineDebugOptions extends PipelineOptions {
    * Creates a {@link PathValidator} object using the class specified in
    * {@link #getPathValidatorClass()}.
    */
-  public static class PathValidatorFactory implements DefaultValueFactory<PathValidator> {
+  class PathValidatorFactory implements DefaultValueFactory<PathValidator> {
       @Override
       public PathValidator create(PipelineOptions options) {
       DataflowPipelineDebugOptions debugOptions = options.as(DataflowPipelineDebugOptions.class);
@@ -257,7 +257,7 @@ public interface DataflowPipelineDebugOptions extends PipelineOptions {
    * Creates a {@link Stager} object using the class specified in
    * {@link #getStagerClass()}.
    */
-  public static class StagerFactory implements DefaultValueFactory<Stager> {
+  class StagerFactory implements DefaultValueFactory<Stager> {
       @Override
       public Stager create(PipelineOptions options) {
       DataflowPipelineDebugOptions debugOptions = options.as(DataflowPipelineDebugOptions.class);

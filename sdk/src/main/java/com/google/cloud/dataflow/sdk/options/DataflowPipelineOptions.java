@@ -98,7 +98,7 @@ public interface DataflowPipelineOptions extends
    * <p>This job name factory is only able to generate one unique name per second per application
    * and user combination.
    */
-  public static class JobNameFactory implements DefaultValueFactory<String> {
+  class JobNameFactory implements DefaultValueFactory<String> {
     private static final DateTimeFormatter FORMATTER =
         DateTimeFormat.forPattern("MMddHHmmss").withZone(DateTimeZone.UTC);
 

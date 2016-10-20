@@ -160,7 +160,7 @@ public class WordCount {
    *
    * <p>Inherits standard configuration options.
    */
-  public static interface WordCountOptions extends PipelineOptions {
+  public interface WordCountOptions extends PipelineOptions {
     @Description("Path of the file to read from")
     @Default.String("gs://dataflow-samples/shakespeare/kinglear.txt")
     String getInputFile();
@@ -174,7 +174,7 @@ public class WordCount {
     /**
      * Returns "gs://${YOUR_STAGING_DIRECTORY}/counts.txt" as the default destination.
      */
-    public static class OutputFactory implements DefaultValueFactory<String> {
+    class OutputFactory implements DefaultValueFactory<String> {
       @Override
       public String create(PipelineOptions options) {
         DataflowPipelineOptions dataflowOptions = options.as(DataflowPipelineOptions.class);

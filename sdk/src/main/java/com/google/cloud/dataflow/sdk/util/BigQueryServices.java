@@ -42,22 +42,22 @@ public interface BigQueryServices extends Serializable {
   /**
    * Returns a real, mock, or fake {@link JobService}.
    */
-  public JobService getJobService(BigQueryOptions bqOptions);
+  JobService getJobService(BigQueryOptions bqOptions);
 
   /**
    * Returns a real, mock, or fake {@link DatasetService}.
    */
-  public DatasetService getDatasetService(BigQueryOptions bqOptions);
+  DatasetService getDatasetService(BigQueryOptions bqOptions);
 
   /**
    * Returns a real, mock, or fake {@link BigQueryJsonReader} to read tables.
    */
-  public BigQueryJsonReader getReaderFromTable(BigQueryOptions bqOptions, TableReference tableRef);
+  BigQueryJsonReader getReaderFromTable(BigQueryOptions bqOptions, TableReference tableRef);
 
   /**
    * Returns a real, mock, or fake {@link BigQueryJsonReader} to query tables.
    */
-  public BigQueryJsonReader getReaderFromQuery(
+  BigQueryJsonReader getReaderFromQuery(
       BigQueryOptions bqOptions, String query, String projectId, @Nullable Boolean flatten,
       @Nullable Boolean useLegacySql);
 

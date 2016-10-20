@@ -86,7 +86,7 @@ public interface GcsOptions extends
    * Returns the default {@link ExecutorService} to use within the Dataflow SDK. The
    * {@link ExecutorService} is compatible with AppEngine.
    */
-  public static class ExecutorServiceFactory implements DefaultValueFactory<ExecutorService> {
+  class ExecutorServiceFactory implements DefaultValueFactory<ExecutorService> {
     @SuppressWarnings("deprecation")  // IS_APP_ENGINE is deprecated for internal use only.
     @Override
     public ExecutorService create(PipelineOptions options) {
