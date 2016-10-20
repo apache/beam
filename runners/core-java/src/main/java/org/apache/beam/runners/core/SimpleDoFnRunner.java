@@ -79,7 +79,7 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
 
   private final TupleTag<OutputT> mainOutputTag;
 
-  private final boolean ignoresWindow;
+  private final boolean observesWindow;
 
   public SimpleDoFnRunner(
       PipelineOptions options,
@@ -92,8 +92,8 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
       AggregatorFactory aggregatorFactory,
       WindowingStrategy<?, ?> windowingStrategy) {
     this.fn = fn;
-    this.ignoresWindow =
-        !DoFnSignatures.INSTANCE.getSignature(fn.getClass()).processElement().usesSingleWindow();
+    this.observesWindow =
+        DoFnSignatures.INSTANCE.getSignature(fn.getClass()).processElement().observesWindow();
     this.invoker = DoFnInvokers.INSTANCE.newByteBuddyInvoker(fn);
     this.outputManager = outputManager;
     this.mainOutputTag = mainOutputTag;
@@ -123,7 +123,7 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
 
   @Override
   public void processElement(WindowedValue<InputT> compressedElem) {
-    if (ignoresWindow) {
+    if (observesWindow) {
       invokeProcessElement(compressedElem);
     } else {
       for (WindowedValue<InputT> elem : compressedElem.explodeWindows()) {
