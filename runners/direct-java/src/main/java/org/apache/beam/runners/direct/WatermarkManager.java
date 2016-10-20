@@ -131,7 +131,7 @@ public class WatermarkManager {
    * timestamp which indicates we have received all of the data and there will be no more on-time or
    * late data. This value is represented by {@link WatermarkManager#THE_END_OF_TIME}.
    */
-  private static interface Watermark {
+  private interface Watermark {
     /**
      * Returns the current value of this watermark.
      */

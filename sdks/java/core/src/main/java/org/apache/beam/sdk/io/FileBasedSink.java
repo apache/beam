@@ -680,7 +680,7 @@ public abstract class FileBasedSink<T> extends Sink<T> {
    * copy-if-existing and do not throw exceptions on file not found to enable retries of these
    * operations in the case of transient error.
    */
-  private static interface FileOperations {
+  private interface FileOperations {
     /**
      * Copy a collection of files from one location to another.
      *

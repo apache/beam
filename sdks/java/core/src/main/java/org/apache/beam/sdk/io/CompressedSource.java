@@ -71,7 +71,7 @@ public class CompressedSource<T> extends FileBasedSource<T> {
   /**
    * Factory interface for creating channels that decompress the content of an underlying channel.
    */
-  public static interface DecompressingChannelFactory extends Serializable {
+  public interface DecompressingChannelFactory extends Serializable {
     /**
      * Given a channel, create a channel that decompresses the content read from the channel.
      * @throws IOException
@@ -84,7 +84,7 @@ public class CompressedSource<T> extends FileBasedSource<T> {
    * Factory interface for creating channels that decompress the content of an underlying channel,
    * based on both the channel and the file name.
    */
-  private static interface FileNameBasedDecompressingChannelFactory
+  private interface FileNameBasedDecompressingChannelFactory
       extends DecompressingChannelFactory {
     /**
      * Given a channel, create a channel that decompresses the content read from the channel.
