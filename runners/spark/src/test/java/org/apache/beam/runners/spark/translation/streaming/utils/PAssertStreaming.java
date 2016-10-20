@@ -81,13 +81,13 @@ public final class PAssertStreaming implements Serializable {
   }
 
   /**
-   * Default to stop immediately, useful for most tests except for the once that may require
-   * to finish writing checkpoints for example.
+   * Default to stop gracefully so that tests will finish processing even if slower for reasons
+   * such as a slow runtime environment.
    */
   public static <T> EvaluationResult runAndAssertContents(Pipeline p,
                                                           PCollection<T> actual,
                                                           T[] expected) {
-    return runAndAssertContents(p, actual, expected, false);
+    return runAndAssertContents(p, actual, expected, true);
   }
 
   private static class AssertDoFn<T> extends OldDoFn<Iterable<T>, Void> {
