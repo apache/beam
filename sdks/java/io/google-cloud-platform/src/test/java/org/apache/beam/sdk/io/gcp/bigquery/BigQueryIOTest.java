@@ -950,7 +950,7 @@ public class BigQueryIOTest implements Serializable {
     assertThat(displayData, hasDisplayItem("validation", false));
   }
 
-  private void testWriteValidatesDataset(boolean streaming) throws Exception {
+  private void testWriteValidatesDataset(boolean unbounded) throws Exception {
     String projectId = "someproject";
     String datasetId = "somedataset";
 
@@ -969,13 +969,8 @@ public class BigQueryIOTest implements Serializable {
     tableRef.setDatasetId(datasetId);
     tableRef.setTableId("sometable");
 
-    thrown.expect(RuntimeException.class);
-    // Message will be one of following depending on the execution environment.
-    thrown.expectMessage(
-        Matchers.either(Matchers.containsString("Unable to confirm BigQuery dataset presence"))
-            .or(Matchers.containsString("BigQuery dataset not found for table")));
     PCollection<TableRow> tableRows;
-    if (streaming) {
+    if (unbounded) {
       tableRows =
           p.apply(CountingInput.unbounded())
               .apply(
@@ -990,6 +985,12 @@ public class BigQueryIOTest implements Serializable {
     } else {
       tableRows = p.apply(Create.<TableRow>of().withCoder(TableRowJsonCoder.of()));
     }
+
+    thrown.expect(RuntimeException.class);
+    // Message will be one of following depending on the execution environment.
+    thrown.expectMessage(
+        Matchers.either(Matchers.containsString("Unable to confirm BigQuery dataset presence"))
+            .or(Matchers.containsString("BigQuery dataset not found for table")));
     tableRows
         .apply(
             BigQueryIO.Write.to(tableRef)
