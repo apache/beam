@@ -313,6 +313,17 @@ public class DoFnSignaturesTest {
 
   @Test
   public void testSimpleTimerIdNamedDoFn() throws Exception {
+    class DoFnForTestSimpleTimerIdNamedDoFn extends DoFn<KV<String, Integer>, Long> {
+      @TimerId("foo")
+      private final TimerSpec bizzle = TimerSpecs.timer(TimeDomain.EVENT_TIME);
+
+      @ProcessElement
+      public void foo(ProcessContext context) {}
+
+      @OnTimer("foo")
+      public void onFoo() {}
+    }
+
     // Test classes at the bottom of the file
     DoFnSignature sig =
         DoFnSignatures.INSTANCE.signatureForDoFn(new DoFnForTestSimpleTimerIdNamedDoFn());
@@ -536,17 +547,21 @@ public class DoFnSignaturesTest {
 
   @Test
   public void testDeclAndUsageOfStateInSuperclass() throws Exception {
+    class DoFnOverridingAbstractStateUse extends DoFnDeclaringStateAndAbstractUse {
+
+      @Override
+      public void processWithState(ProcessContext c, ValueState<String> state) {}
+    }
+
     DoFnSignature sig =
-        DoFnSignatures.INSTANCE.getSignature(
-            new DoFnOverridingAbstractStateUse().getClass());
+        DoFnSignatures.INSTANCE.getSignature(new DoFnOverridingAbstractStateUse().getClass());
 
     assertThat(sig.stateDeclarations().size(), equalTo(1));
     assertThat(sig.processElement().extraParameters().size(), equalTo(1));
 
     DoFnSignature.StateDeclaration decl =
         sig.stateDeclarations().get(DoFnOverridingAbstractStateUse.STATE_ID);
-    StateParameter stateParam =
-        (StateParameter) sig.processElement().extraParameters().get(0);
+    StateParameter stateParam = (StateParameter) sig.processElement().extraParameters().get(0);
 
     assertThat(
         decl.field(),
@@ -594,6 +609,15 @@ public class DoFnSignaturesTest {
 
   @Test
   public void testSimpleStateIdNamedDoFn() throws Exception {
+    class DoFnForTestSimpleStateIdNamedDoFn extends DoFn<KV<String, Integer>, Long> {
+      @StateId("foo")
+      private final StateSpec<Object, ValueState<Integer>> bizzle =
+          StateSpecs.value(VarIntCoder.of());
+
+      @ProcessElement
+      public void foo(ProcessContext context) {}
+    }
+
     // Test classes at the bottom of the file
     DoFnSignature sig =
         DoFnSignatures.INSTANCE.signatureForDoFn(new DoFnForTestSimpleStateIdNamedDoFn());
@@ -611,6 +635,16 @@ public class DoFnSignaturesTest {
 
   @Test
   public void testGenericStatefulDoFn() throws Exception {
+    class DoFnForTestGenericStatefulDoFn<T> extends DoFn<KV<String, T>, Long> {
+      // Note that in order to have a coder for T it will require initialization in the constructor,
+      // but that isn't important for this test
+      @StateId("foo")
+      private final StateSpec<Object, ValueState<T>> bizzle = null;
+
+      @ProcessElement
+      public void foo(ProcessContext context) {}
+    }
+
     // Test classes at the bottom of the file
     DoFn<KV<String, Integer>, Long> myDoFn = new DoFnForTestGenericStatefulDoFn<Integer>(){};
 
@@ -625,16 +659,6 @@ public class DoFnSignaturesTest {
     assertThat(
         decl.stateType(),
         Matchers.<TypeDescriptor<?>>equalTo(new TypeDescriptor<ValueState<Integer>>() {}));
-  }
-
-
-  private static class DoFnForTestSimpleStateIdNamedDoFn extends DoFn<KV<String, Integer>, Long> {
-    @StateId("foo")
-    private final StateSpec<Object, ValueState<Integer>> bizzle =
-        StateSpecs.value(VarIntCoder.of());
-
-    @ProcessElement
-    public void foo(ProcessContext context) {}
   }
 
   private abstract static class DoFnDeclaringState extends DoFn<KV<String, Integer>, Long> {
@@ -662,34 +686,6 @@ public class DoFnSignaturesTest {
     @ProcessElement
     public abstract void processWithState(
         ProcessContext context, @StateId(STATE_ID) ValueState<String> state);
-  }
-
-  private static class DoFnOverridingAbstractStateUse extends
-      DoFnDeclaringStateAndAbstractUse {
-
-    @Override
-    public void processWithState(ProcessContext c, ValueState<String> state) {}
-  }
-
-  private static class DoFnForTestGenericStatefulDoFn<T> extends DoFn<KV<String, T>, Long> {
-    // Note that in order to have a coder for T it will require initialization in the constructor,
-    // but that isn't important for this test
-    @StateId("foo")
-    private final StateSpec<Object, ValueState<T>> bizzle = null;
-
-    @ProcessElement
-    public void foo(ProcessContext context) {}
-  }
-
-  private static class DoFnForTestSimpleTimerIdNamedDoFn extends DoFn<KV<String, Integer>, Long> {
-    @TimerId("foo")
-    private final TimerSpec bizzle = TimerSpecs.timer(TimeDomain.EVENT_TIME);
-
-    @ProcessElement
-    public void foo(ProcessContext context) {}
-
-    @OnTimer("foo")
-    public void onFoo() {}
   }
 
   private abstract static class DoFnDeclaringMyTimerId extends DoFn<KV<String, Integer>, Long> {
