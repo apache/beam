@@ -264,9 +264,13 @@ class DataflowPipelineRunner(PipelineRunner):
     for tag in side_tags:
       self._cache.cache_output(transform_node, tag, step)
 
+    # Finally, we add the display data items to the pipeline step.
+    # If the transform contains no display data then an empty list is added.
     step.add_property(
         PropertyNames.DISPLAY_DATA,
-        DisplayData.create_from(transform_node.transform).output())
+        [item.get_dict() for item in
+         DisplayData.create_from(transform_node.transform).items])
+
     return step
 
   def run_Create(self, transform_node):
