@@ -563,10 +563,27 @@ public class ParDo {
               DoFn.class.getSimpleName()));
     }
 
+    // To be removed when the features are complete and runners have their own adequate
+    // rejection logic
+    if (!signature.timerDeclarations().isEmpty()) {
+      throw new UnsupportedOperationException(
+          String.format("Found %s annotations on %s, but %s cannot yet be used with timers.",
+              DoFn.TimerId.class.getSimpleName(),
+              fn.getClass().getName(),
+              DoFn.class.getSimpleName()));
+    }
+
     // State is semantically incompatible with splitting
-    if (!signature.stateDeclarations().isEmpty()) {
+    if (!signature.stateDeclarations().isEmpty() && signature.processElement().isSplittable()) {
       throw new UnsupportedOperationException(
           String.format("%s is splittable and uses state, but these are not compatible",
+              fn.getClass().getName()));
+    }
+
+    // Timers are semantically incompatible with splitting
+    if (!signature.timerDeclarations().isEmpty() && signature.processElement().isSplittable()) {
+      throw new UnsupportedOperationException(
+          String.format("%s is splittable and uses timers, but these are not compatible",
               fn.getClass().getName()));
     }
   }

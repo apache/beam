@@ -30,6 +30,7 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFn.ProcessContinuation;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
+import org.apache.beam.sdk.util.TimerSpec;
 import org.apache.beam.sdk.util.state.StateSpec;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
@@ -70,6 +71,9 @@ public abstract class DoFnSignature {
   @Nullable
   public abstract LifecycleMethod teardown();
 
+  /** Timer declarations present on the {@link DoFn} class. Immutable. */
+  public abstract Map<String, TimerDeclaration> timerDeclarations();
+
   /** Details about this {@link DoFn}'s {@link DoFn.GetInitialRestriction} method. */
   @Nullable
   public abstract GetInitialRestrictionMethod getInitialRestriction();
@@ -85,6 +89,10 @@ public abstract class DoFnSignature {
   /** Details about this {@link DoFn}'s {@link DoFn.NewTracker} method. */
   @Nullable
   public abstract NewTrackerMethod newTracker();
+
+  /** Details about this {@link DoFn}'s {@link DoFn.OnTimer} methods. */
+  @Nullable
+  public abstract Map<String, OnTimerMethod> onTimerMethods();
 
   static Builder builder() {
     return new AutoValue_DoFnSignature.Builder();
@@ -104,6 +112,8 @@ public abstract class DoFnSignature {
     abstract Builder setGetRestrictionCoder(GetRestrictionCoderMethod getRestrictionCoder);
     abstract Builder setNewTracker(NewTrackerMethod newTracker);
     abstract Builder setStateDeclarations(Map<String, StateDeclaration> stateDeclarations);
+    abstract Builder setTimerDeclarations(Map<String, TimerDeclaration> timerDeclarations);
+    abstract Builder setOnTimerMethods(Map<String, OnTimerMethod> onTimerMethods);
     abstract DoFnSignature build();
   }
 
@@ -159,6 +169,41 @@ public abstract class DoFnSignature {
       return extraParameters().contains(Parameter.RESTRICTION_TRACKER);
     }
   }
+
+  /** Describes a {@link DoFn.OnTimer} method. */
+  @AutoValue
+  public abstract static class OnTimerMethod implements DoFnMethod {
+
+    /** The id on the method's {@link DoFn.TimerId} annotation. */
+    public abstract String id();
+
+    /** The annotated method itself. */
+    @Override
+    public abstract Method targetMethod();
+
+    /** Types of optional parameters of the annotated method, in the order they appear. */
+    public abstract List<Parameter> extraParameters();
+
+    static OnTimerMethod create(Method targetMethod, String id, List<Parameter> extraParameters) {
+      return new AutoValue_DoFnSignature_OnTimerMethod(
+          id, targetMethod, Collections.unmodifiableList(extraParameters));
+    }
+  }
+
+  /**
+   * Describes a timer declaration; a field of type {@link TimerSpec} annotated with
+   * {@DoFn.TimerId}.
+   */
+  @AutoValue
+  public abstract static class TimerDeclaration {
+    public abstract String id();
+    public abstract Field field();
+
+    static TimerDeclaration create(String id, Field field) {
+      return new AutoValue_DoFnSignature_TimerDeclaration(id, field);
+    }
+  }
+
 
   /** Describes a {@link DoFn.StartBundle} or {@link DoFn.FinishBundle} method. */
   @AutoValue

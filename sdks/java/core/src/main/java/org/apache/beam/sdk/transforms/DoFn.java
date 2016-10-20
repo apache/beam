@@ -43,6 +43,8 @@ import org.apache.beam.sdk.transforms.reflect.DoFnInvoker;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
+import org.apache.beam.sdk.util.Timer;
+import org.apache.beam.sdk.util.TimerSpec;
 import org.apache.beam.sdk.util.WindowingInternals;
 import org.apache.beam.sdk.util.state.State;
 import org.apache.beam.sdk.util.state.StateSpec;
@@ -399,12 +401,13 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
   /**
    * Annotation for declaring and dereferencing state cells.
    *
-   * <p><i>Not currently supported by any runner</i>.
+   * <p><i>Not currently supported by any runner. When ready, the feature will work as described
+   * here.</i>
    *
    * <p>To declare a state cell, create a field of type {@link StateSpec} annotated with a {@link
    * StateId}. To use the cell during processing, add a parameter of the appropriate {@link State}
-   * subclass to your {@link ProcessElement @ProcessElement} method, and annotate it with {@link
-   * StateId}. See the following code for an example:
+   * subclass to your {@link ProcessElement @ProcessElement} or {@link OnTimer @OnTimer} method, and
+   * annotate it with {@link StateId}. See the following code for an example:
    *
    * <pre>{@code
    * new DoFn<KV<Key, Foo>, Baz>() {
@@ -436,6 +439,77 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
   @Experimental(Kind.STATE)
   public @interface StateId {
     /** The state ID. */
+    String value();
+  }
+
+  /**
+   * Annotation for declaring and dereferencing timers.
+   *
+   * <p><i>Not currently supported by any runner. When ready, the feature will work as described
+   * here.</i>
+   *
+   * <p>To declare a timer, create a field of type {@link TimerSpec} annotated with a {@link
+   * TimerId}. To use the cell during processing, add a parameter of the type {@link Timer} to your
+   * {@link ProcessElement @ProcessElement} or {@link OnTimer @OnTimer} method, and annotate it with
+   * {@link TimerId}. See the following code for an example:
+   *
+   * <pre>{@code
+   * new DoFn<KV<Key, Foo>, Baz>() {
+   *   @TimerId("my-timer-id")
+   *   private final TimerSpec myTimer = TimerSpecs.timerForDomain(TimeDomain.EVENT_TIME);
+   *
+   *   @ProcessElement
+   *   public void processElement(
+   *       ProcessContext c,
+   *       @TimerId("my-timer-id") Timer myTimer) {
+   *     myTimer.setForNowPlus(Duration.standardSeconds(...));
+   *   }
+   *
+   *   @OnTimer("my-timer-id")
+   *   public void onMyTimer() {
+   *     ...
+   *   }
+   * }
+   * }</pre>
+   *
+   * <p>Timers are subject to the following validity conditions:
+   *
+   * <ul>
+   * <li>Each timer must have a distinct id.
+   * <li>Any timer referenced in a parameter must be declared.
+   * <li>Timer declarations must be final.
+   * <li>All declared timers must have a corresponding callback annotated with {@link
+   *     OnTimer @OnTimer}.
+   * </ul>
+   */
+  @Documented
+  @Retention(RetentionPolicy.RUNTIME)
+  @Target({ElementType.FIELD, ElementType.PARAMETER})
+  @Experimental(Kind.TIMERS)
+  public @interface TimerId {
+    /** The timer ID. */
+    String value();
+  }
+
+  /**
+   * Annotation for registering a callback for a timer.
+   *
+   * <p><i>Not currently supported by any runner. When ready, the feature will work as described
+   * here.</i>
+   *
+   * <p>See the javadoc for {@link TimerId} for use in a full example.
+   *
+   * <p>The method annotated with {@code @OnTimer} may have parameters according to the same logic
+   * as {@link ProcessElement}, but limited to the {@link BoundedWindow}, {@link State} subclasses,
+   * and {@link Timer}. State and timer parameters must be annotated with their {@link StateId} and
+   * {@link TimerId} respectively.
+   */
+  @Documented
+  @Retention(RetentionPolicy.RUNTIME)
+  @Target(ElementType.METHOD)
+  @Experimental(Kind.TIMERS)
+  public @interface OnTimer {
+    /** The timer ID. */
     String value();
   }
 

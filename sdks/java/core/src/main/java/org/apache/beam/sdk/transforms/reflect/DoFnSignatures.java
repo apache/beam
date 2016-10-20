@@ -21,6 +21,7 @@ import static com.google.common.base.Preconditions.checkState;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Maps;
 import com.google.common.reflect.TypeParameter;
 import com.google.common.reflect.TypeToken;
 import java.lang.annotation.Annotation;
@@ -33,6 +34,7 @@ import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -42,8 +44,12 @@ import javax.annotation.Nullable;
 import javax.swing.plaf.nimbus.State;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature.OnTimerMethod;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature.StateDeclaration;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature.TimerDeclaration;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.util.TimerSpec;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
 import org.apache.beam.sdk.util.state.StateSpec;
 import org.apache.beam.sdk.values.PCollection;
@@ -96,6 +102,14 @@ public class DoFnSignatures {
     }
     errors.checkNotNull(inputT, "Unable to determine input type");
 
+    // Find the state and timer declarations in advance of validating
+    // method parameter lists
+    Map<String, StateDeclaration> stateDeclarations = analyzeStateDeclarations(errors, fnClass);
+    builder.setStateDeclarations(stateDeclarations);
+
+    Map<String, TimerDeclaration> timerDeclarations = analyzeTimerDeclarations(errors, fnClass);
+    builder.setTimerDeclarations(timerDeclarations);
+
     Method processElementMethod =
         findAnnotatedMethod(errors, DoFn.ProcessElement.class, fnClass, true);
     Method startBundleMethod = findAnnotatedMethod(errors, DoFn.StartBundle.class, fnClass, false);
@@ -111,6 +125,41 @@ public class DoFnSignatures {
     Method getRestrictionCoderMethod =
         findAnnotatedMethod(errors, DoFn.GetRestrictionCoder.class, fnClass, false);
     Method newTrackerMethod = findAnnotatedMethod(errors, DoFn.NewTracker.class, fnClass, false);
+
+    Collection<Method> onTimerMethods =
+        declaredMethodsWithAnnotation(DoFn.OnTimer.class, fnClass, DoFn.class);
+    HashMap<String, DoFnSignature.OnTimerMethod> onTimerMethodMap =
+            Maps.newHashMapWithExpectedSize(onTimerMethods.size());
+    for (Method onTimerMethod : onTimerMethods) {
+      String id = onTimerMethod.getAnnotation(DoFn.OnTimer.class).value();
+      errors.checkArgument(
+          timerDeclarations.containsKey(id),
+          "Callback %s is for for undeclared timer %s",
+          onTimerMethod,
+          id);
+
+      TimerDeclaration timerDecl = timerDeclarations.get(id);
+      errors.checkArgument(
+          timerDecl.field().getDeclaringClass().equals(onTimerMethod.getDeclaringClass()),
+          "Callback %s is for timer %s declared in a different class %s."
+              + " Timer callbacks must be declared in the same lexical scope as their timer",
+          onTimerMethod,
+          id,
+          timerDecl.field().getDeclaringClass().getCanonicalName());
+
+      onTimerMethodMap.put(id, OnTimerMethod.create(onTimerMethod, id, Collections.EMPTY_LIST));
+    }
+    builder.setOnTimerMethods(onTimerMethodMap);
+
+    // Check the converse - that all timers have a callback. This could be relaxed to only
+    // those timers used in methods, once method parameter lists support timers.
+    for (TimerDeclaration decl : timerDeclarations.values()) {
+      errors.checkArgument(
+          onTimerMethodMap.containsKey(decl.id()),
+          "No callback registered via %s for timer %s",
+          DoFn.OnTimer.class.getSimpleName(),
+          decl.id());
+    }
 
     ErrorReporter processElementErrors =
         errors.forMethod(DoFn.ProcessElement.class, processElementMethod);
@@ -182,8 +231,6 @@ public class DoFnSignatures {
     }
 
     builder.setIsBoundedPerElement(inferBoundedness(fnToken, processElement, errors));
-
-    builder.setStateDeclarations(analyzeStateDeclarations(errors, fnClass));
 
     DoFnSignature signature = builder.build();
 
@@ -554,6 +601,50 @@ public class DoFnSignatures {
         formatType(receiverT));
 
     return DoFnSignature.SplitRestrictionMethod.create(m, restrictionT);
+  }
+
+  private static ImmutableMap<String, TimerDeclaration> analyzeTimerDeclarations(
+      ErrorReporter errors, Class<?> fnClazz) {
+    Map<String, DoFnSignature.TimerDeclaration> declarations = new HashMap<>();
+    for (Field field : declaredFieldsWithAnnotation(DoFn.TimerId.class, fnClazz, DoFn.class)) {
+      String id = field.getAnnotation(DoFn.TimerId.class).value();
+      validateTimerField(errors, declarations, id, field);
+      declarations.put(id, DoFnSignature.TimerDeclaration.create(id, field));
+    }
+
+    return ImmutableMap.copyOf(declarations);
+  }
+
+  /**
+   * Returns successfully if the field is valid, otherwise throws an exception via
+   * its {@link ErrorReporter} parameter describing validation failures for the
+   * timer declaration.
+   */
+  private static void validateTimerField(
+      ErrorReporter errors, Map<String, TimerDeclaration> declarations, String id, Field field) {
+    if (declarations.containsKey(id)) {
+      errors.throwIllegalArgument(
+          "Duplicate %s \"%s\", used on both of [%s] and [%s]",
+          DoFn.TimerId.class.getSimpleName(),
+          id,
+          field.toString(),
+          declarations.get(id).field().toString());
+    }
+
+    Class<?> timerSpecRawType = field.getType();
+    if (!(timerSpecRawType.equals(TimerSpec.class))) {
+      errors.throwIllegalArgument(
+          "%s annotation on non-%s field [%s]",
+          DoFn.TimerId.class.getSimpleName(),
+          TimerSpec.class.getSimpleName(),
+          field.toString());
+    }
+
+    if (!Modifier.isFinal(field.getModifiers())) {
+      errors.throwIllegalArgument(
+          "Non-final field %s annotated with %s. Timer declarations must be final.",
+          field.toString(), DoFn.TimerId.class.getSimpleName());
+    }
   }
 
   /** Generates a type token for {@code Coder<T>} given {@code T}. */
