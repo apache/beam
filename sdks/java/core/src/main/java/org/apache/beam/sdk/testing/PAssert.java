@@ -1182,7 +1182,7 @@ public class PAssert {
    * should verify the assertion..
    */
   private interface AssertRelation<ActualT, ExpectedT> extends Serializable {
-    public SerializableFunction<ActualT, Void> assertFor(ExpectedT input);
+    SerializableFunction<ActualT, Void> assertFor(ExpectedT input);
   }
 
   /**

@@ -76,7 +76,7 @@ public class CompressedSource<T> extends FileBasedSource<T> {
      * Given a channel, create a channel that decompresses the content read from the channel.
      * @throws IOException
      */
-    public ReadableByteChannel createDecompressingChannel(ReadableByteChannel channel)
+    ReadableByteChannel createDecompressingChannel(ReadableByteChannel channel)
         throws IOException;
   }
 

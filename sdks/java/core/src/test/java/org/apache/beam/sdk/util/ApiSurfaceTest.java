@@ -107,7 +107,7 @@ public class ApiSurfaceTest {
     return anyOf((Iterable) ALLOWED_PACKAGES).matches(clazz);
   }
 
-  private static final Matcher<Class<?>> inPackage(String packageName) {
+  private static Matcher<Class<?>> inPackage(String packageName) {
     return new ClassInPackage(packageName);
   }
 
