@@ -75,6 +75,23 @@ import org.joda.time.Instant;
 @Deprecated
 public abstract class OldDoFn<InputT, OutputT> implements Serializable, HasDisplayData {
 
+  public DoFn<InputT, OutputT> toDoFn() {
+    if (this instanceof RequiresWindowAccess) {
+      throw new UnsupportedOperationException(
+          String.format(
+              "Cannot convert %s to %s because it implements %s."
+                  + " Please convert your %s to a %s directly.",
+              getClass(),
+              DoFn.class.getSimpleName(),
+              RequiresWindowAccess.class.getSimpleName(),
+              OldDoFn.class.getSimpleName(),
+              DoFn.class.getSimpleName()));
+    }
+
+    // No parameters as it just accesses `this`
+    return new AdaptedDoFn();
+  }
+
   /**
    * Information accessible to all methods in this {@code OldDoFn}.
    * Used primarily to output elements.
@@ -585,6 +602,172 @@ public abstract class OldDoFn<InputT, OutputT> implements Serializable, HasDispl
             && Objects.equals(this.combineFn.getClass(), that.combineFn.getClass());
       }
       return false;
+    }
+  }
+
+  /**
+   * A {@link Context} for an {@link OldDoFn} via a context for a proper {@link DoFn}.
+   */
+  private class AdaptedContext extends Context {
+
+    private final DoFn<InputT, OutputT>.Context newContext;
+
+    public AdaptedContext(
+        DoFn<InputT, OutputT>.Context newContext) {
+      this.newContext = newContext;
+    }
+
+    @Override
+    public PipelineOptions getPipelineOptions() {
+      return newContext.getPipelineOptions();
+    }
+
+    @Override
+    public void output(OutputT output) {
+      newContext.output(output);
+    }
+
+    @Override
+    public void outputWithTimestamp(OutputT output, Instant timestamp) {
+      newContext.outputWithTimestamp(output, timestamp);
+    }
+
+    @Override
+    public <T> void sideOutput(TupleTag<T> tag, T output) {
+      newContext.sideOutput(tag, output);
+    }
+
+    @Override
+    public <T> void sideOutputWithTimestamp(TupleTag<T> tag, T output, Instant timestamp) {
+      newContext.sideOutputWithTimestamp(tag, output, timestamp);
+    }
+
+    @Override
+    protected <AggInputT, AggOutputT> Aggregator<AggInputT, AggOutputT> createAggregatorInternal(
+        String name, CombineFn<AggInputT, ?, AggOutputT> combiner) {
+      return null;
+    }
+  }
+
+  /**
+   * A {@link ProcessContext} for an {@link OldDoFn} via a context for a proper {@link DoFn}.
+   */
+  private class AdaptedProcessContext extends ProcessContext {
+
+    private final DoFn<InputT, OutputT>.ProcessContext newContext;
+
+    public AdaptedProcessContext(
+        DoFn<InputT, OutputT>.ProcessContext newContext) {
+      this.newContext = newContext;
+    }
+
+    @Override
+    public InputT element() {
+      return newContext.element();
+    }
+
+    @Override
+    public <T> T sideInput(PCollectionView<T> view) {
+      return newContext.sideInput(view);
+    }
+
+    @Override
+    public Instant timestamp() {
+      return newContext.timestamp();
+    }
+
+    @Override
+    public BoundedWindow window() {
+      throw new UnsupportedOperationException(String.format(
+          "%s.%s.windowingInternals() is no longer supported. Please convert your %s to a %s",
+          OldDoFn.class.getSimpleName(),
+          OldDoFn.ProcessContext.class.getSimpleName(),
+          OldDoFn.class.getSimpleName(),
+          DoFn.class.getSimpleName()));
+    }
+
+    @Override
+    public PaneInfo pane() {
+      return newContext.pane();
+    }
+
+    @Override
+    public WindowingInternals<InputT, OutputT> windowingInternals() {
+      throw new UnsupportedOperationException(String.format(
+          "%s.%s.windowingInternals() is no longer supported. Please convert your %s to a %s",
+          OldDoFn.class.getSimpleName(),
+          OldDoFn.ProcessContext.class.getSimpleName(),
+          OldDoFn.class.getSimpleName(),
+          DoFn.class.getSimpleName()));
+    }
+
+    @Override
+    public PipelineOptions getPipelineOptions() {
+      return newContext.getPipelineOptions();
+    }
+
+    @Override
+    public void output(OutputT output) {
+      newContext.output(output);
+    }
+
+    @Override
+    public void outputWithTimestamp(OutputT output, Instant timestamp) {
+      newContext.outputWithTimestamp(output, timestamp);
+    }
+
+    @Override
+    public <T> void sideOutput(TupleTag<T> tag, T output) {
+      newContext.sideOutput(tag, output);
+    }
+
+    @Override
+    public <T> void sideOutputWithTimestamp(TupleTag<T> tag, T output, Instant timestamp) {
+      newContext.sideOutputWithTimestamp(tag, output, timestamp);
+    }
+
+    @Override
+    protected <AggInputT, AggOutputT> Aggregator<AggInputT, AggOutputT> createAggregatorInternal(
+        String name, CombineFn<AggInputT, ?, AggOutputT> combiner) {
+      return null;
+    }
+  }
+
+  private class AdaptedDoFn extends DoFn<InputT, OutputT> {
+
+    @StartBundle
+    public void startBundle(DoFn.Context c) throws Exception {
+      OldDoFn.this.startBundle(OldDoFn.this.new AdaptedContext(c));
+    }
+
+    @ProcessElement
+    public void processElement(DoFn.ProcessContext c) throws Exception {
+      OldDoFn.this.processElement(OldDoFn.this.new AdaptedProcessContext(c));
+    }
+
+    @FinishBundle
+    public void finishBundle(DoFn.Context c) throws Exception {
+      OldDoFn.this.finishBundle(OldDoFn.this.new AdaptedContext(c));
+    }
+
+    @Override
+    public Duration getAllowedTimestampSkew() {
+      return OldDoFn.this.getAllowedTimestampSkew();
+    }
+
+    @Override
+    public void populateDisplayData(DisplayData.Builder builder) {
+      OldDoFn.this.populateDisplayData(builder);
+    }
+
+    @Override
+    protected TypeDescriptor<InputT> getInputTypeDescriptor() {
+      return OldDoFn.this.getInputTypeDescriptor();
+    }
+
+    @Override
+    protected TypeDescriptor<OutputT> getOutputTypeDescriptor() {
+      return OldDoFn.this.getOutputTypeDescriptor();
     }
   }
 }
