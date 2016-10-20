@@ -19,6 +19,7 @@ package org.apache.beam.sdk.transforms.reflect;
 
 import com.google.common.reflect.TypeToken;
 import java.lang.reflect.Method;
+import java.util.Collections;
 import java.util.NoSuchElementException;
 import org.apache.beam.sdk.transforms.DoFn;
 
@@ -59,6 +60,7 @@ class DoFnSignaturesTestUtils {
         TypeToken.of(FakeDoFn.class),
         method.getMethod(),
         TypeToken.of(Integer.class),
-        TypeToken.of(String.class));
+        TypeToken.of(String.class),
+        Collections.EMPTY_MAP);
   }
 }
