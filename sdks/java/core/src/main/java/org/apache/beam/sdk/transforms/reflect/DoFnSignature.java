@@ -179,7 +179,7 @@ public abstract class DoFnSignature {
       /**
        * A base class for a visitor with a default method for cases it is not interested in.
        */
-      public abstract static class WithDefault<ResultT> implements Cases<ResultT> {
+      abstract class WithDefault<ResultT> implements Cases<ResultT> {
 
         protected abstract ResultT dispatchDefault(Parameter p);
 

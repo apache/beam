@@ -84,7 +84,7 @@ public interface PipelineResult {
   // TODO: method to retrieve error messages.
 
   /** Named constants for common values for the job state. */
-  public enum State {
+  enum State {
 
     /** The job state could not be obtained or was not specified. */
     UNKNOWN(false, false),
@@ -111,7 +111,7 @@ public interface PipelineResult {
 
     private final boolean hasReplacement;
 
-    private State(boolean terminal, boolean hasReplacement) {
+    State(boolean terminal, boolean hasReplacement) {
       this.terminal = terminal;
       this.hasReplacement = hasReplacement;
     }

@@ -49,7 +49,7 @@ public class AttemptAndTimeBoundedExponentialBackOff extends AttemptBoundedExpon
    * the number of attempts and the time bound for the BackOff are reset, but an alternative
    * ResetPolicy may be set to only reset one of these two.
    */
-  public static enum ResetPolicy {
+  public enum ResetPolicy {
     ALL,
     ATTEMPTS,
     TIMER

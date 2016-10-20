@@ -835,7 +835,7 @@ public class DoFnSignatures {
   }
 
   private interface MemberGetter<MemberT> {
-    public MemberT[] getMembers(Class<?> clazz);
+    MemberT[] getMembers(Class<?> clazz);
   }
 
   // Class::getDeclaredMethods for Java 7

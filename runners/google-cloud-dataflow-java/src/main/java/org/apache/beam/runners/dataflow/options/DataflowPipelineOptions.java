@@ -82,7 +82,7 @@ public interface DataflowPipelineOptions
   /**
    * Returns a default staging location under {@link GcpOptions#getGcpTempLocation}.
    */
-  public static class StagingLocationFactory implements DefaultValueFactory<String> {
+  class StagingLocationFactory implements DefaultValueFactory<String> {
 
     @Override
     public String create(PipelineOptions options) {

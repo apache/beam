@@ -216,7 +216,7 @@ public abstract class OldDoFn<InputT, OutputT> implements Serializable, HasDispl
       aggregatorsAreFinal = true;
     }
 
-    private final <AggInputT, AggOutputT> void setupDelegateAggregator(
+    private <AggInputT, AggOutputT> void setupDelegateAggregator(
         DelegatingAggregator<AggInputT, AggOutputT> aggregator) {
 
       Aggregator<AggInputT, AggOutputT> delegate = createAggregatorInternal(

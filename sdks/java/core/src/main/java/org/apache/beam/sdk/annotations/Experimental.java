@@ -45,12 +45,12 @@ import java.lang.annotation.Target;
     ElementType.TYPE})
 @Documented
 public @interface Experimental {
-  public Kind value() default Kind.UNSPECIFIED;
+  Kind value() default Kind.UNSPECIFIED;
 
   /**
    * An enumeration of various kinds of experimental APIs.
    */
-  public enum Kind {
+  enum Kind {
     /** Generic group of experimental APIs. This is the default value. */
     UNSPECIFIED,
 

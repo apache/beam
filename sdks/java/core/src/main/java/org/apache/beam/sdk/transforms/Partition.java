@@ -78,7 +78,7 @@ public class Partition<T> extends PTransform<PCollection<T>, PCollectionList<T>>
      * @return index of the selected partition (in the range
      * {@code [0..numPartitions-1]})
      */
-    public int partitionFor(T elem, int numPartitions);
+    int partitionFor(T elem, int numPartitions);
   }
 
   /**

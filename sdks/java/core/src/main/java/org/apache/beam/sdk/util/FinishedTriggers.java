@@ -25,20 +25,20 @@ public interface FinishedTriggers {
   /**
    * Returns {@code true} if the trigger is finished.
    */
-  public boolean isFinished(ExecutableTrigger trigger);
+  boolean isFinished(ExecutableTrigger trigger);
 
   /**
    * Sets the fact that the trigger is finished.
    */
-  public void setFinished(ExecutableTrigger trigger, boolean value);
+  void setFinished(ExecutableTrigger trigger, boolean value);
 
   /**
    * Sets the trigger and all of its subtriggers to unfinished.
    */
-  public void clearRecursively(ExecutableTrigger trigger);
+  void clearRecursively(ExecutableTrigger trigger);
 
   /**
    * Create an independent copy of this mutable {@link FinishedTriggers}.
    */
-  public FinishedTriggers copy();
+  FinishedTriggers copy();
 }

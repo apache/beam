@@ -247,7 +247,7 @@ public class PipelineOptionsFactoryTest {
 
   /** A test interface that contains a non-bean style method. */
   public interface ExtraneousMethod extends PipelineOptions {
-    public String extraneousMethod(int value, String otherValue);
+    String extraneousMethod(int value, String otherValue);
   }
 
   @Test
