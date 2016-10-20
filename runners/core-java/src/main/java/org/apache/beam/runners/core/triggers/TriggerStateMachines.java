@@ -38,6 +38,7 @@ import org.apache.beam.sdk.transforms.windowing.OrFinallyTrigger;
 import org.apache.beam.sdk.transforms.windowing.Repeatedly;
 import org.apache.beam.sdk.transforms.windowing.Trigger;
 import org.apache.beam.sdk.transforms.windowing.Trigger.OnceTrigger;
+import org.apache.beam.sdk.util.ReshuffleTrigger;
 import org.apache.beam.sdk.util.TimeDomain;
 import org.joda.time.Instant;
 
@@ -98,6 +99,10 @@ public class TriggerStateMachines {
 
     private TriggerStateMachine evaluateSpecific(DefaultTrigger v) {
       return DefaultTriggerStateMachine.of();
+    }
+
+    private TriggerStateMachine evaluateSpecific(ReshuffleTrigger v) {
+      return new ReshuffleTriggerStateMachine();
     }
 
     private OnceTriggerStateMachine evaluateSpecific(AfterWatermark.FromEndOfWindow v) {
