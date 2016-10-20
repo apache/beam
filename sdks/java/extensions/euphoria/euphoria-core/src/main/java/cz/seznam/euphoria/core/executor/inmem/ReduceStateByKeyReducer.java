@@ -733,8 +733,8 @@ class ReduceStateByKeyReducer implements Runnable {
 
       State windowState = processing.getWindowStateForUpdate(pitctx.getScope());
       windowState.add(itemValue);
-      // XXX timestamp
-      Trigger.TriggerResult result = trigger.onElement(0L, item, window, pitctx);
+      Trigger.TriggerResult result =
+          trigger.onElement(getCurrentElementTime(), item, window, pitctx);
       // ~ handle trigger result
       handleTriggerResult(result, pitctx);
 
