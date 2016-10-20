@@ -36,10 +36,10 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 /**
- * Tests for {@link SimpleDoFnRunner} functionality.
+ * Tests for {@link SimpleOldDoFnRunner} functionality.
  */
 @RunWith(JUnit4.class)
-public class SimpleDoFnRunnerTest {
+public class SimpleOldDoFnRunnerTest {
   @Rule
   public ExpectedException thrown = ExpectedException.none();
 
@@ -68,7 +68,7 @@ public class SimpleDoFnRunnerTest {
     // Pass in only necessary parameters for the test
     List<TupleTag<?>> sideOutputTags = Arrays.asList();
     StepContext context = mock(StepContext.class);
-    return new SimpleDoFnRunner<>(
+    return new SimpleOldDoFnRunner<>(
           null, fn, null, null, null, sideOutputTags, context, null, null);
   }
 

@@ -60,14 +60,14 @@ import org.joda.time.format.PeriodFormat;
  * @param <InputT> the type of the {@link OldDoFn} (main) input elements
  * @param <OutputT> the type of the {@link OldDoFn} (main) output elements
  */
-public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, OutputT> {
+class SimpleOldDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, OutputT> {
 
   /** The {@link OldDoFn} being run. */
   private final OldDoFn<InputT, OutputT> fn;
   /** The context used for running the {@link OldDoFn}. */
   private final DoFnContext<InputT, OutputT> context;
 
-  public SimpleDoFnRunner(PipelineOptions options, OldDoFn<InputT, OutputT> fn,
+  public SimpleOldDoFnRunner(PipelineOptions options, OldDoFn<InputT, OutputT> fn,
       SideInputReader sideInputReader,
       OutputManager outputManager,
       TupleTag<OutputT> mainOutputTag, List<TupleTag<?>> sideOutputTags, StepContext stepContext,

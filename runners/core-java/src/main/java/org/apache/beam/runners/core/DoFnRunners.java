@@ -62,7 +62,7 @@ public class DoFnRunners {
       StepContext stepContext,
       AggregatorFactory aggregatorFactory,
       WindowingStrategy<?, ?> windowingStrategy) {
-    return new SimpleDoFnRunner<>(
+    return new SimpleOldDoFnRunner<>(
         options,
         fn,
         sideInputReader,
