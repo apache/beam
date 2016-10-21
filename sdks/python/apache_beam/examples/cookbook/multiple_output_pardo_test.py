@@ -35,8 +35,7 @@ class MultipleOutputParDoTest(unittest.TestCase):
   def test_multiple_output_pardo(self):
     p = beam.Pipeline('DirectPipelineRunner')
     sample_text = p | beam.Create(self.SAMPLE_TEXT_Iterable)
-    results = sample_text 
-                    | beam.ParDo(multiple_output_pardo.SplitLinesToWordsFn()).with_outputs('tag_short_words', 'tag_character_count', main='words')
+    results = sample_text | beam.ParDo(multiple_output_pardo.SplitLinesToWordsFn()).with_outputs('tag_short_words', 'tag_character_count', main='words')
     result_count = (results.tag_character_count
                     | 'pair_with_key' >> beam.Map(lambda x: ('chars_temp_key', x))
                     | beam.GroupByKey()
