@@ -125,11 +125,11 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
   @Override
   public void processElement(WindowedValue<InputT> compressedElem) {
     if (observesWindow) {
-      invokeProcessElement(compressedElem);
-    } else {
       for (WindowedValue<InputT> elem : compressedElem.explodeWindows()) {
         invokeProcessElement(elem);
       }
+    } else {
+      invokeProcessElement(compressedElem);
     }
   }
 
