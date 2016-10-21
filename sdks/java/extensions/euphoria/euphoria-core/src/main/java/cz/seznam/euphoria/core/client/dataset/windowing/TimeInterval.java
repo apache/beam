@@ -70,9 +70,10 @@ public final class TimeInterval extends Window implements Comparable<TimeInterva
     if (cmp != 0) {
       return cmp < 0 ? -1 : 1;
     }
-    cmp = endMillis - o.endMillis;
-    if (cmp == 0)
+    cmp = intervalMillis - o.intervalMillis;
+    if (cmp == 0) {
       return 0;
+    }
     return cmp < 0 ? -1 : 1;
   }
 }

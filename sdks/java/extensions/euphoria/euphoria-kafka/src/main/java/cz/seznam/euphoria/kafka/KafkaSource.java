@@ -19,6 +19,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.net.URI;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
@@ -27,6 +28,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 import static java.util.Objects.requireNonNull;
+import org.apache.kafka.clients.consumer.ConsumerRecords;
 
 public class KafkaSource implements DataSource<Pair<byte[], byte[]>> {
 
@@ -34,14 +36,19 @@ public class KafkaSource implements DataSource<Pair<byte[], byte[]>> {
 
   static final class ConsumerReader
       extends AbstractIterator<Pair<byte[], byte[]>>
-      implements Reader<Pair<byte[], byte[]>>
-  {
+      implements Reader<Pair<byte[], byte[]>> {
+    
     private final Consumer<byte[], byte[]> c;
+    private final boolean stopAtCurrentOffset;
+    private final long now;
+    
     private Iterator<ConsumerRecord<byte[], byte[]>> next;
     private int uncommittedCount = 0;
 
-    ConsumerReader(Consumer<byte[], byte[]> c) {
+    ConsumerReader(Consumer<byte[], byte[]> c, boolean stopAtCurrentOffset) {
       this.c = c;
+      this.stopAtCurrentOffset = stopAtCurrentOffset;
+      this.now = System.currentTimeMillis();
     }
 
     @Override
@@ -49,9 +56,21 @@ public class KafkaSource implements DataSource<Pair<byte[], byte[]>> {
       while (next == null || !next.hasNext()) {
         commitIfNeeded();
         LOG.debug("Polling for next consumer records: {}", c.assignment());
-        next = c.poll(500).iterator();
+        ConsumerRecords<byte[], byte[]> polled = c.poll(500);
+        next = polled.iterator();
       }
       ConsumerRecord<byte[], byte[]> r = this.next.next();
+      if (stopAtCurrentOffset) {
+        long messageStamp = r.timestamp();
+        if (messageStamp > now) {
+          LOG.info(
+              "Terminating polling of topic, passed initial timestamp {} with value {}",
+              now, messageStamp);
+          commitIfNeeded();
+          endOfData();
+          return null;
+        }
+      }      
       ++uncommittedCount;
       return Pair.of(r.key(), r.value());
     }
@@ -79,10 +98,14 @@ public class KafkaSource implements DataSource<Pair<byte[], byte[]>> {
     private final Settings config;
     private final long startOffset;
 
+    // should we stop reading when reaching the current offset?
+    private final boolean stopAtCurrentOffset;
+
     KafkaPartition(String brokerList, String topicId,
                    int partition, String host,
                    Settings config /* optional */,
-                   long startOffset)
+                   long startOffset,
+                   boolean stopAtCurrentOffset)
     {
       this.brokerList = brokerList;
       this.topicId = topicId;
@@ -90,6 +113,7 @@ public class KafkaSource implements DataSource<Pair<byte[], byte[]>> {
       this.host = host;
       this.config = config;
       this.startOffset = startOffset;
+      this.stopAtCurrentOffset = stopAtCurrentOffset;
     }
 
     @Override
@@ -102,11 +126,14 @@ public class KafkaSource implements DataSource<Pair<byte[], byte[]>> {
       Consumer<byte[], byte[]> c =
           KafkaUtils.newConsumer(brokerList, config);
       TopicPartition tp = new TopicPartition(topicId, partition);
-      c.assign(Lists.newArrayList(tp));
+      ArrayList<TopicPartition> partitionList = Lists.newArrayList(tp);
+      c.assign(partitionList);
       if (startOffset > 0) {
         c.seek(tp, startOffset);
+      } else if (startOffset == 0) {
+        c.seekToBeginning(partitionList);
       }
-      return new ConsumerReader(c);
+      return new ConsumerReader(c, stopAtCurrentOffset);
     }
   }
 
@@ -115,14 +142,20 @@ public class KafkaSource implements DataSource<Pair<byte[], byte[]>> {
     private final String topicId;
     private final Settings config; // ~ optional
     private final long offsetTimestamp; // ~ effective iff > 0
+    private final boolean stopAtCurrentOffset;
 
     AllPartitionsConsumer(
-        String brokerList, String topicId, Settings config, long offsetTimestamp)
-    {
+        String brokerList,
+        String topicId,
+        Settings config,
+        long offsetTimestamp,
+        boolean stopAtCurrentOffset) {
+
       this.brokerList = brokerList;
       this.topicId = topicId;
       this.config = config;
       this.offsetTimestamp = offsetTimestamp;
+      this.stopAtCurrentOffset = stopAtCurrentOffset;
     }
 
     @Override
@@ -145,7 +178,7 @@ public class KafkaSource implements DataSource<Pair<byte[], byte[]>> {
           c.seek(new TopicPartition(topicId, off.getKey()), off.getValue());
         }
       }
-      return new ConsumerReader(c);
+      return new ConsumerReader(c, stopAtCurrentOffset);
     }
   }
 
@@ -161,7 +194,7 @@ public class KafkaSource implements DataSource<Pair<byte[], byte[]>> {
       return (DataSource<T>) new KafkaSource(brokers, topic, cconfig);
     }
   }
-
+  
   // ~ -----------------------------------------------------------------------------
 
   private final String brokerList;
@@ -177,14 +210,26 @@ public class KafkaSource implements DataSource<Pair<byte[], byte[]>> {
   @Override
   public List<Partition<Pair<byte[], byte[]>>> getPartitions() {
     long offsetTimestamp = -1L;
+    boolean stopAtCurrentOffset = false;
     if (config != null) {
       offsetTimestamp = config.getLong("reset.offset.timestamp", -1L);
-      LOG.info("Resetting offset of kafka topic {} to {}",
-          topicId, offsetTimestamp);
-    }
-    if (config != null && config.getBoolean("single.reader.only", false)) {
-      return Collections.singletonList(
-          new AllPartitionsConsumer(brokerList, topicId, config, offsetTimestamp));
+      if (offsetTimestamp > 0) {
+        LOG.info("Resetting offset of kafka topic {} to {}",
+            topicId, offsetTimestamp);
+      } else if (offsetTimestamp == 0) {
+        LOG.info("Going to read the whole contents of kafka topic {}",
+            topicId);
+      }
+      stopAtCurrentOffset = config.getBoolean(
+          "stop.at.current", stopAtCurrentOffset);
+      if (stopAtCurrentOffset) {
+        LOG.info("Will stop polling kafka topic at current timestamp");
+      }
+      if (config.getBoolean("single.reader.only", false)) {
+        return Collections.singletonList(
+          new AllPartitionsConsumer(brokerList, topicId,
+              config, offsetTimestamp, stopAtCurrentOffset));
+      }
     }
     try (Consumer<?, ?> c = KafkaUtils.newConsumer(brokerList, config)) {
       final Map<Integer, Long> offs;
@@ -196,13 +241,16 @@ public class KafkaSource implements DataSource<Pair<byte[], byte[]>> {
         throw new RuntimeException(e);
       }
       List<PartitionInfo> ps = c.partitionsFor(topicId);
+      final boolean stopAtCurrent = stopAtCurrentOffset;
+      final long defaultOffsetTimestamp = offsetTimestamp;
       return ps.stream().map(p ->
           // ~ XXX a leader might not be available (check p.leader().id() == -1)
           // ... fail in this situation
           new KafkaPartition(
               brokerList, topicId, p.partition(),
               p.leader().host(), config,
-              offs.getOrDefault(p.partition(), -1L)))
+              offs.getOrDefault(p.partition(), defaultOffsetTimestamp),
+              stopAtCurrent))
           .collect(Collectors.toList());
     }
   }
