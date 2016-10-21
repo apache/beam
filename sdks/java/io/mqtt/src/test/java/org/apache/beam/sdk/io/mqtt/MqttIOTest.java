@@ -107,7 +107,7 @@ public class MqttIOTest implements Serializable {
           client.connect();
           for (int i = 0; i < 10; i++) {
             MqttMessage message = new MqttMessage();
-            message.setQos(2);
+            message.setQos(1);
             message.setRetained(true);
             message.setPayload(("This is test " + i).getBytes());
             client.publish("READ_TOPIC", message);
