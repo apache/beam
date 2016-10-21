@@ -40,10 +40,8 @@ class MultipleOutputParDoTest(unittest.TestCase):
                     | 'pair_with_key' >> beam.Map(lambda x: ('chars_temp_key', x))
                     | beam.GroupByKey()
                     | 'count chars' >> beam.Map(lambda (_, counts): sum(counts)))
-    result_words = results.words 
-                    | 'count words' >> multiple_output_pardo.CountWords()
-    result_short_words = results.tag_short_words 
-                    | 'count short words' >> multiple_output_pardo.CountWords()
+    result_words = results.words | 'count words' >> multiple_output_pardo.CountWords()
+    result_short_words = results.tag_short_words | 'count short words' >> multiple_output_pardo.CountWords()
     beam.assert_that(result_words, beam.equal_to(self.EXPECTED_WORDS))
     beam.assert_that(result_short_words, beam.equal_to(self.EXPECTED_SHORT_WORDS), label='assert:tag_short_words')     
     beam.assert_that(result_count, beam.equal_to([self.text_len])), label='assert:tag_character_count')
