@@ -29,8 +29,8 @@ from apache_beam.transforms.util import DataflowAssertException
 class MultipleOutputParDoTest(unittest.TestCase):
 
   SAMPLE_TEXT = 'A whole new world\nA new fantastic point of view'
-  text_len = len(''.join(SAMPLE_TEXT.split('\n')))
-  SAMPLE_TEXT_Iterable = [SAMPLE_TEXT.replace('\n', ' ')]
+  text_len = len(' '.join(SAMPLE_TEXT.split('\n')))
+  SAMPLE_TEXT_Iterable = [SAMPLE_TEXT]
   EXPECTED_SHORT_WORDS = ['A: 2', 'new: 2', 'of: 1']  
   EXPECTED_WORDS = ['fantastic: 1', 'point: 1', 'view: 1', 'whole: 1', 'world: 1']
   def test_multiple_output_pardo(self):
