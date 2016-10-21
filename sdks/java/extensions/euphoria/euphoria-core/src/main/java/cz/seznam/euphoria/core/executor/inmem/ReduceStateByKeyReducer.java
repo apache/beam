@@ -37,7 +37,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.BlockingQueue;
 import java.util.function.Supplier;
@@ -192,19 +191,27 @@ class ReduceStateByKeyReducer implements Runnable {
       MergingStorageDescriptor descr = (MergingStorageDescriptor) storageDescriptor;
       BinaryFunction mergeFn = descr.getMerger();
 
+      // create a new instance of storage
+      Storage merged;
+      if (descr instanceof ValueStorageDescriptor) {
+        merged = getValueStorage((ValueStorageDescriptor) descr);
+      } else if (descr instanceof ListStorageDescriptor) {
+        merged = getListStorage((ListStorageDescriptor) descr);
+      } else {
+        throw new IllegalStateException("Cannot merge states for " + descr);
+      }
+
       // merge all existing (non null) trigger states
-      Optional<Storage> merged = this.mergeSources.stream()
+      merged = this.mergeSources.stream()
               .map(w -> processing.triggerStorage.getStorage(w, storageDescriptor))
               .filter(s -> s != null)
-              .reduce((x, y) -> {
+              .reduce(merged, (x, y) -> {
                 mergeFn.apply(x, y);
                 return x;
               });
 
-      // store newly created trigger state (if any) to the storage
-      if (merged.isPresent()) {
-        processing.triggerStorage.putStorage(this.getScope(), storageDescriptor, merged.get());
-      }
+      // store newly created trigger state to the storage
+      processing.triggerStorage.putStorage(this.getScope(), storageDescriptor, merged);
     }
   } // ~ end of MergingElementTriggerContext
 
