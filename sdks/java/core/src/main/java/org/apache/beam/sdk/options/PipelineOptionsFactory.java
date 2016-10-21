@@ -958,7 +958,7 @@ public class PipelineOptionsFactory {
   /**
    * Validates that a given class conforms to the following properties:
    * <ul>
-   *   <li>Any property with the same name must have the same return type for all derived
+   *   <li>Any method with the same name must have the same return type for all derived
    *       interfaces of {@link PipelineOptions}.
    *   <li>Every bean property of any interface derived from {@link PipelineOptions} must have a
    *       getter and setter method.
@@ -997,14 +997,14 @@ public class PipelineOptionsFactory {
     // Verify that each property has a matching read and write method.
     validateGettersSetters(iface, descriptors);
 
-    // Verify all methods are known.
-    validateMethodsAreKnown(iface, klass, descriptors);
+    // Verify all methods are bean methods or known methods.
+    validateMethodsAreEitherBeanMethodOrKnownMethod(iface, klass, descriptors);
 
     return descriptors;
   }
 
   /**
-   * Validates that any property with the same name must have the same return type for all derived
+   * Validates that any method with the same name must have the same return type for all derived
    * interfaces of {@link PipelineOptions}.
    *
    * @param iface The interface to validate.
@@ -1044,7 +1044,7 @@ public class PipelineOptionsFactory {
    *       this property must be annotated with {@link JsonIgnore @JsonIgnore}.
    * </ul>
    *
-   * @param allInterfaceMethods All interface methods that derived from {@link PipelineOptions}.
+   * @param allInterfaceMethods All interface methods that derive from {@link PipelineOptions}.
    * @param descriptors The list of {@link PropertyDescriptor}s representing all valid bean
    * properties of {@code iface}.
    */
@@ -1110,8 +1110,7 @@ public class PipelineOptionsFactory {
   }
 
   /**
-   * Validates that every bean property of any interface derived from {@link PipelineOptions}
-   * must have a getter and setter method.
+   * Validates that every bean property of the given interface must have both a getter and setter.
    *
    * @param iface The interface to validate.
    * @param descriptors The list of {@link PropertyDescriptor}s representing all valid bean
@@ -1143,12 +1142,13 @@ public class PipelineOptionsFactory {
   }
 
   /**
-   * Validates that every method is known.
+   * Validates that every non-static or synthetic method is either a known method such as
+   * {@link PipelineOptions#as} or a bean property.
    *
    * @param iface The interface to validate.
    * @param klass The proxy class representing the interface.
    */
-  private static void validateMethodsAreKnown(
+  private static void validateMethodsAreEitherBeanMethodOrKnownMethod(
       Class<? extends PipelineOptions> iface,
       Class<? extends PipelineOptions> klass,
       List<PropertyDescriptor> descriptors) {
