@@ -16,7 +16,7 @@ public class PeriodicTimeTrigger<T> implements Trigger<T, TimeInterval> {
 
   /** Next fire stamp (when merging the lowest timestamp is taken) */
   private final ValueStorageDescriptor<Long> fireTimeDescriptor =
-          ValueStorageDescriptor.of("fire-time", Long.class, null, Math::min);
+          ValueStorageDescriptor.of("fire-time", Long.class, Long.MAX_VALUE, Math::min);
 
   private final long interval;
 
@@ -28,7 +28,7 @@ public class PeriodicTimeTrigger<T> implements Trigger<T, TimeInterval> {
   public TriggerResult onElement(long time, T element, TimeInterval window, TriggerContext ctx) {
     ValueStorage<Long> fireStamp = ctx.getValueStorage(fireTimeDescriptor);
 
-    if (fireStamp.get() == null) {
+    if (fireStamp.get() == Long.MAX_VALUE) {
       // register first timer
       long start = time - (time % interval);
       long nextFireTimestamp = start + interval;
