@@ -228,6 +228,7 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
       this.stepContext = stepContext;
       this.aggregatorFactory = aggregatorFactory;
       this.windowFn = windowFn;
+      super.setupDelegateAggregators();
     }
 
     //////////////////////////////////////////////////////////////////////////////
