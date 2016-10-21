@@ -50,7 +50,7 @@ class MultipleOutputParDoTest(unittest.TestCase):
     res_sh_wrd = (res.tag_short_words 
                   | 'count short words' >> multiple_output_pardo.CountWords())
     beam.assert_that(res, 
-                     beam.equal_to(self.EXPECTED_WORDS))
+                     beam.equal_to(self.EXP_WORDS))
     beam.assert_that(res_sh_wrd, 
                      beam.equal_to(self.EXPECTED_SHORT_WORDS), 
                      label='assert:tag_short_words')   
