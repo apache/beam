@@ -441,6 +441,124 @@ public class PipelineOptionsFactoryTest {
     options.as(MultipleGettersWithInconsistentJsonIgnore.class);
   }
 
+  /** Test interface that has {@link Default @Default} on a setter for a property. */
+  public interface SetterWithDefault extends PipelineOptions {
+    String getValue();
+    @Default.String("abc")
+    void setValue(String value);
+  }
+
+  @Test
+  public void testSetterAnnotatedWithDefault() throws Exception {
+    expectedException.expect(IllegalArgumentException.class);
+    expectedException.expectMessage(
+        "Expected setter for property [value] to not be marked with @Default on ["
+            + "org.apache.beam.sdk.options.PipelineOptionsFactoryTest$SetterWithDefault]");
+    PipelineOptionsFactory.as(SetterWithDefault.class);
+  }
+
+  /** Test interface that has {@link Default @Default} on multiple setters. */
+  public interface MultiSetterWithDefault extends SetterWithDefault {
+    Integer getOther();
+    @Default.String("abc")
+    void setOther(Integer other);
+  }
+
+  @Test
+  public void testMultipleSettersAnnotatedWithDefault() throws Exception {
+    expectedException.expect(IllegalArgumentException.class);
+    expectedException.expectMessage("Found setters marked with @Default:");
+    expectedException.expectMessage(
+        "property [other] should not be marked with @Default on ["
+            + "org.apache.beam.sdk.options.PipelineOptionsFactoryTest$MultiSetterWithDefault]");
+    expectedException.expectMessage(
+        "property [value] should not be marked with @Default on ["
+            + "org.apache.beam.sdk.options.PipelineOptionsFactoryTest$SetterWithDefault]");
+    PipelineOptionsFactory.as(MultiSetterWithDefault.class);
+  }
+
+  /**
+   * This class is has a conflicting field with {@link CombinedObject} that doesn't have
+   * {@link Default @Default}.
+   */
+  public interface GetterWithDefault extends PipelineOptions {
+    @Default.Integer(1)
+    Object getObject();
+    void setObject(Object value);
+  }
+
+  @Test
+  public void testNotAllGettersAnnotatedWithDefault() throws Exception {
+    // Initial construction is valid.
+    GetterWithDefault options = PipelineOptionsFactory.as(GetterWithDefault.class);
+
+    expectedException.expect(IllegalArgumentException.class);
+    expectedException.expectMessage(
+        "Expected getter for property [object] to be marked with @Default on all ["
+            + "org.apache.beam.sdk.options.PipelineOptionsFactoryTest$GetterWithDefault, "
+            + "org.apache.beam.sdk.options.PipelineOptionsFactoryTest$MissingSetter], "
+            + "found only on [org.apache.beam.sdk.options."
+            + "PipelineOptionsFactoryTest$GetterWithDefault]");
+
+    // When we attempt to convert, we should error at this moment.
+    options.as(CombinedObject.class);
+  }
+
+  private interface MultiGettersWithDefault extends PipelineOptions {
+    Object getObject();
+    void setObject(Object value);
+
+    @Default.Integer(1)
+    Integer getOther();
+    void setOther(Integer value);
+
+    Void getConsistent();
+    void setConsistent(Void consistent);
+  }
+
+  private interface MultipleGettersWithInconsistentDefault extends PipelineOptions {
+    @Default.Boolean(true)
+    Object getObject();
+    void setObject(Object value);
+
+    Integer getOther();
+    void setOther(Integer value);
+
+    Void getConsistent();
+    void setConsistent(Void consistent);
+  }
+
+  @Test
+  public void testMultipleGettersWithInconsistentDefault() {
+    // Initial construction is valid.
+    MultiGettersWithDefault options = PipelineOptionsFactory.as(MultiGettersWithDefault.class);
+
+    expectedException.expect(IllegalArgumentException.class);
+    expectedException.expectMessage("Property getters are inconsistently marked with @Default:");
+    expectedException.expectMessage(
+        "property [object] to be marked on all");
+    expectedException.expectMessage("found only on [org.apache.beam.sdk.options."
+        + "PipelineOptionsFactoryTest$MultiGettersWithDefault]");
+    expectedException.expectMessage(
+        "property [other] to be marked on all");
+    expectedException.expectMessage("found only on [org.apache.beam.sdk.options."
+        + "PipelineOptionsFactoryTest$MultipleGettersWithInconsistentDefault]");
+
+    expectedException.expectMessage(Matchers.anyOf(
+        containsString(java.util.Arrays.toString(new String[]
+            {"org.apache.beam.sdk.options."
+                + "PipelineOptionsFactoryTest$MultipleGettersWithInconsistentDefault",
+                "org.apache.beam.sdk.options.PipelineOptionsFactoryTest$MultiGettersWithDefault"})),
+        containsString(java.util.Arrays.toString(new String[]
+            {"org.apache.beam.sdk.options.PipelineOptionsFactoryTest$MultiGettersWithDefault",
+                "org.apache.beam.sdk.options."
+                    + "PipelineOptionsFactoryTest$MultipleGettersWithInconsistentDefault"}))));
+    expectedException.expectMessage(not(containsString("property [consistent]")));
+
+    // When we attempt to convert, we should error immediately
+    options.as(MultipleGettersWithInconsistentDefault.class);
+  }
+
   @Test
   public void testAppNameIsNotOverriddenWhenPassedInViaCommandLine() {
     ApplicationNameOptions options = PipelineOptionsFactory
