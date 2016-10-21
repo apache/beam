@@ -29,8 +29,8 @@ public class PeriodicTimeTrigger<T> implements Trigger<T, TimeInterval> {
     ValueStorage<Long> fireStamp = ctx.getValueStorage(fireTimeDescriptor);
 
     if (fireStamp.get() == Long.MAX_VALUE) {
-      // register first timer
-      long start = time - (time % interval);
+      // register first timer aligned with window start
+      long start = window.getStartMillis() - (window.getStartMillis() % interval);
       long nextFireTimestamp = start + interval;
 
       ctx.registerTimer(nextFireTimestamp, window);
