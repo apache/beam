@@ -511,6 +511,7 @@ public abstract class OldDoFn<InputT, OutputT> implements Serializable, HasDispl
     public AdaptedContext(
         DoFn<InputT, OutputT>.Context newContext) {
       this.newContext = newContext;
+      super.setupDelegateAggregators();
     }
 
     @Override
@@ -541,7 +542,7 @@ public abstract class OldDoFn<InputT, OutputT> implements Serializable, HasDispl
     @Override
     protected <AggInputT, AggOutputT> Aggregator<AggInputT, AggOutputT> createAggregatorInternal(
         String name, CombineFn<AggInputT, ?, AggOutputT> combiner) {
-      return null;
+      return newContext.createAggregator(name, combiner);
     }
   }
 
@@ -625,7 +626,7 @@ public abstract class OldDoFn<InputT, OutputT> implements Serializable, HasDispl
     @Override
     protected <AggInputT, AggOutputT> Aggregator<AggInputT, AggOutputT> createAggregatorInternal(
         String name, CombineFn<AggInputT, ?, AggOutputT> combiner) {
-      return null;
+      return newContext.createAggregator(name, combiner);
     }
   }
 
