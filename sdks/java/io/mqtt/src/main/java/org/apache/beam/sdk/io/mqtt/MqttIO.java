@@ -279,7 +279,7 @@ public class MqttIO {
     }
 
     @Override
-    public Coder getDefaultOutputCoder() {
+    public Coder<byte[]> getDefaultOutputCoder() {
       return ByteArrayCoder.of();
     }
   }
@@ -324,11 +324,6 @@ public class MqttIO {
           @Override
           public void connectionLost(Throwable cause) {
             LOGGER.warn("MQTT connection lost", cause);
-            try {
-              close();
-            } catch (IOException e) {
-              // nothing to do
-            }
           }
 
           @Override
@@ -490,6 +485,10 @@ public class MqttIO {
      * If the MQTT client is shutdown or fails and persistence is not configured then
      * delivery of QoS 1 and 2 messages can not be maintained as client-side state will
      * be lost.</p>
+     *
+     * <p>For now, MqttIO fully supports QoS 0 and 1 (delivery at least once). QoS 2 is for now
+     * limited and use with care, as it can result to duplication of message (delivery exactly
+     * once).</p>
      *
      * @param qos The quality of service value.
      * @return The {@link Write} {@link PTransform} with the corresponding QoS configuration.
