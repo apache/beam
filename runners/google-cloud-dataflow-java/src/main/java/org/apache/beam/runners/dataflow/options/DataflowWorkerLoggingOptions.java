@@ -35,7 +35,7 @@ public interface DataflowWorkerLoggingOptions extends PipelineOptions {
   /**
    * The set of log levels that can be used on the Dataflow worker.
    */
-  public enum Level {
+  enum Level {
     /** Special level used to turn off logging. */
     OFF,
 
@@ -133,7 +133,7 @@ public interface DataflowWorkerLoggingOptions extends PipelineOptions {
    * corresponding name. Note that by specifying multiple overrides, the exact name followed by the
    * closest parent takes precedence.
    */
-  public static class WorkerLogLevelOverrides extends HashMap<String, Level> {
+  class WorkerLogLevelOverrides extends HashMap<String, Level> {
     /**
      * Overrides the default log level for the passed in class.
      *

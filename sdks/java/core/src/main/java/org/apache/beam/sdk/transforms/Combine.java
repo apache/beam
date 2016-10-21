@@ -1026,24 +1026,24 @@ public class Combine {
      * The type of mutable accumulator values used by this
      * {@code AccumulatingCombineFn}.
      */
-    public abstract interface Accumulator<InputT, AccumT, OutputT> {
+    public interface Accumulator<InputT, AccumT, OutputT> {
       /**
        * Adds the given input value to this accumulator, modifying
        * this accumulator.
        */
-      public abstract void addInput(InputT input);
+      void addInput(InputT input);
 
       /**
        * Adds the input values represented by the given accumulator
        * into this accumulator.
        */
-      public abstract void mergeAccumulator(AccumT other);
+      void mergeAccumulator(AccumT other);
 
       /**
        * Returns the output value that is the result of combining all
        * the input values represented by this accumulator.
        */
-      public abstract OutputT extractOutput();
+      OutputT extractOutput();
     }
 
     @Override

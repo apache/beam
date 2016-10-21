@@ -149,7 +149,7 @@ public class WatermarkManager {
   /**
    * The result of computing a {@link Watermark}.
    */
-  private static enum WatermarkUpdate {
+  private enum WatermarkUpdate {
     /** The watermark is later than the value at the previous time it was computed. */
     ADVANCED(true),
     /** The watermark is equal to the value at the previous time it was computed. */
