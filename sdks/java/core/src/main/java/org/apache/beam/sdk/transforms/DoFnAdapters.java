@@ -278,6 +278,7 @@ public class DoFnAdapters {
     private ContextAdapter(DoFn<InputT, OutputT> fn, OldDoFn<InputT, OutputT>.Context context) {
       fn.super();
       this.context = context;
+      super.setupDelegateAggregators();
     }
 
     @Override
