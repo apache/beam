@@ -33,7 +33,7 @@
     <dependency>
       <groupId>org.apache.kafka</groupId>
       <artifactId>kafka_2.10</artifactId>
-      <version>0.9.0.1</version>
+      <version>0.10.0.0</version>
       <exclusions>
         <exclusion>
           <!-- we prefer the user to choose amongst the slf4j-api impls herself -->
