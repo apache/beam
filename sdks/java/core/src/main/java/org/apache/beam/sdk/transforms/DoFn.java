@@ -35,7 +35,6 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.transforms.Aggregator.AggregatorFactory;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.HasDisplayData;
@@ -216,9 +215,11 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
             String name, CombineFn<AggInputT, ?, AggOutputT> combiner);
 
     /**
-     * Sets up {@link Aggregator}s created by the {@link DoFn} so they are usable within this context.
+     * Sets up {@link Aggregator}s created by the {@link DoFn} so they are usable within this
+     * context.
      *
-     * <p>This method should be called by runners before the {@link StartBundle @StartBundle} method.
+     * <p>This method should be called by runners before the {@link StartBundle @StartBundle}
+     * method.
      */
     @Experimental(Kind.AGGREGATOR)
     protected final void setupDelegateAggregators() {
