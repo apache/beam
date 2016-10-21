@@ -209,7 +209,7 @@ public final class SparkRunner extends PipelineRunner<EvaluationResult> {
         @SuppressWarnings("unchecked")
         Class<PTransform<?, ?>> transformClass =
             (Class<PTransform<?, ?>>) node.getTransform().getClass();
-        if (translator.hasTranslation(transformClass) && !shouldDiffer(node)) {
+        if (translator.hasTranslation(transformClass) && !shouldDefer(node)) {
           LOG.info("Entering directly-translatable composite transform: '{}'", node.getFullName());
           LOG.debug("Composite transform class: '{}'", transformClass);
           doVisitTransform(node);
@@ -219,9 +219,9 @@ public final class SparkRunner extends PipelineRunner<EvaluationResult> {
       return CompositeBehavior.ENTER_TRANSFORM;
     }
 
-    private boolean shouldDiffer(TransformTreeNode node) {
+    private boolean shouldDefer(TransformTreeNode node) {
       PInput input = node.getInput();
-      // if the input is not a PCollection, or it is but with non merging windows, don't differ.
+      // if the input is not a PCollection, or it is but with non merging windows, don't defer.
       if (!(input instanceof PCollection)
           || ((PCollection) input).getWindowingStrategy().getWindowFn().isNonMerging()) {
         return false;
@@ -237,9 +237,9 @@ public final class SparkRunner extends PipelineRunner<EvaluationResult> {
         List<PCollectionView<?>> sideInputs = ((Combine.Globally<?, ?>) transform).getSideInputs();
         hasSideInput = sideInputs != null && !sideInputs.isEmpty();
       }
-      // differ is sideInputs are defined.
+      // defer if sideInputs are defined.
       if (hasSideInput) {
-        LOG.info("Differing combine transformation {} for job {}", transform,
+        LOG.info("Deferring combine transformation {} for job {}", transform,
             ctxt.getPipeline().getOptions().getJobName());
         return true;
       }
