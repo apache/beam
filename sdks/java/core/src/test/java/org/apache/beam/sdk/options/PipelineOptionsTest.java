@@ -17,9 +17,11 @@
  */
 package org.apache.beam.sdk.options;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.google.common.collect.ImmutableMap;
 import java.util.List;
 import java.util.Set;
 import org.junit.Rule;
@@ -69,5 +71,28 @@ public class PipelineOptionsTest {
   public void testDynamicAs() {
     BaseTestOptions options = PipelineOptionsFactory.create().as(BaseTestOptions.class);
     assertNotNull(options);
+  }
+
+  private static interface ValueProviderOptions extends PipelineOptions {
+    ValueProvider<Boolean> getBool();
+    void setBool(ValueProvider<Boolean> value);
+
+    ValueProvider<String> getString();
+    void setString(ValueProvider<String> value);
+
+    String getNotAValueProvider();
+    void setNotAValueProvider(String value);
+  }
+
+  @Test
+  public void testOutputRuntimeOptions() {
+    ValueProviderOptions options =
+        PipelineOptionsFactory.fromArgs(
+      new String[]{"--string=baz"}).as(ValueProviderOptions.class);
+    assertEquals(options.outputRuntimeOptions(), ImmutableMap.of(
+                   "string",
+                   ImmutableMap.of("type", String.class, "default", "baz"),
+                   "bool",
+                   ImmutableMap.of("type", Boolean.class)));
   }
 }
