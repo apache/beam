@@ -1,0 +1,802 @@
+<!DOCTYPE html>
+<html lang="en">
+
+  <head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <title>Beam Release Guide</title>
+  <meta name="description" content="Apache Beam is an open source, unified model and set of language-specific SDKs for defining and executing data processing workflows, and also data ingestion and integration flows, supporting Enterprise Integration Patterns (EIPs) and Domain Specific Languages (DSLs). Dataflow pipelines simplify the mechanics of large-scale batch and streaming data processing and can run on a number of runtimes like Apache Flink, Apache Spark, and Google Cloud Dataflow (a cloud service). Beam also brings DSL in different languages, allowing users to easily implement their data integration processes.
+">
+
+  <link rel="stylesheet" href="/styles/site.css">
+  <link rel="stylesheet" href="/css/theme.css">
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/2.2.0/jquery.min.js"></script>
+  <script src="/js/bootstrap.min.js"></script>
+  <link rel="canonical" href="http://beam.incubator.apache.org/contribute/release-guide/" data-proofer-ignore>
+  <link rel="alternate" type="application/rss+xml" title="Apache Beam (incubating)" href="http://beam.incubator.apache.org/feed.xml">
+  <script>
+    (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+    (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+    m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+    })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+
+    ga('create', 'UA-73650088-1', 'auto');
+    ga('send', 'pageview');
+
+  </script>
+  <link rel="shortcut icon" type="image/x-icon" href="/images/favicon.ico">
+</head>
+
+
+  <body role="document">
+
+    <nav class="navbar navbar-default navbar-fixed-top">
+  <div class="container">
+    <div class="navbar-header">
+      <a href="/" class="navbar-brand" >
+        <img alt="Brand" style="height: 25px" src="/images/beam_logo_navbar.png">
+      </a>
+      <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#navbar" aria-expanded="false" aria-controls="navbar">
+        <span class="sr-only">Toggle navigation</span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+      </button>
+    </div>
+    <div id="navbar" class="navbar-collapse collapse">
+      <ul class="nav navbar-nav">
+        <li class="dropdown">
+		  <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">Use <span class="caret"></span></a>
+		  <ul class="dropdown-menu">
+			  <li><a href="/use">User Hub</a></li>
+			  <li role="separator" class="divider"></li>
+			  <li class="dropdown-header">General</li>
+			  <li><a href="/use/beam-overview/">Beam Overview</a></li>
+			  <li><a href="/use/quickstart/">Quickstart</a></li>
+			  <li><a href="/use/releases">Release Information</a></li>
+			  <li role="separator" class="divider"></li>
+			  <li class="dropdown-header">Example Walkthroughs</li>
+			  <li><a href="/use/walkthroughs/">WordCount</a></li>
+			  <li><a href="/use/walkthroughs/">Mobile Gaming</a></li>
+			  <li role="separator" class="divider"></li>
+			  <li class="dropdown-header">Support</li>
+			  <li><a href="/use/mailing-lists/">Mailing Lists</a></li>
+              <li><a href="/use/issue-tracking/">Issue Tracking</a></li>
+			  <li><a href="http://stackoverflow.com/questions/tagged/apache-beam">Beam on StackOverflow</a></li>
+              <li><a href="http://apachebeam.slack.com">Beam Slack Channel</a></li>
+		  </ul>
+	    </li>
+        <li class="dropdown">
+		  <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">Learn <span class="caret"></span></a>
+		  <ul class="dropdown-menu">
+			  <li><a href="/learn">Learner Hub</a></li>
+			  <li role="separator" class="divider"></li>
+			  <li class="dropdown-header">Beam Concepts</li>
+			  <li><a href="/learn/programming-guide/">Programming Guide</a></li>
+			  <li><a href="/learn/presentation-materials/">Presentation Materials</a></li>
+			  <li><a href="/learn/resources/">Additional Resources</a></li>
+			  <li role="separator" class="divider"></li>
+			  <li class="dropdown-header">SDKs</li>
+			  <li><a href="/learn/sdks/java/">Java SDK</a></li>
+			  <li><a href="/learn/sdks/javadoc/">Java SDK API Reference</a></li>
+			  <li role="separator" class="divider"></li>
+			  <li class="dropdown-header">Runners</li>
+			  <li><a href="/learn/runners/capability-matrix/">Capability Matrix</a></li>
+			  <li><a href="/learn/runners/direct/">Direct Runner</a></li>
+			  <li><a href="/learn/runners/flink/">Apache Flink Runner</a></li>
+			  <li><a href="/learn/runners/spark/">Apache Spark Runner</a></li>
+			  <li><a href="/learn/runners/dataflow/">Cloud Dataflow Runner</a></li>
+		  </ul>
+	    </li>
+        <li class="dropdown">
+		  <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">Contribute <span class="caret"></span></a>
+		  <ul class="dropdown-menu">
+			  <li><a href="/contribute">Contributor Hub</a></li>
+			  <li role="separator" class="divider"></li>
+			  <li class="dropdown-header">Basics</li>
+			  <li><a href="/contribute/contribution-guide/">Contribution Guide</a></li>
+			  <li><a href="/contribute/work-in-progress/">Work In Progress</a></li>
+			  <li><a href="/use/mailing-lists/">Mailing Lists</a></li>
+              <li><a href="/contribute/source-repository/">Source Repository</a></li>
+              <li><a href="/use/issue-tracking/">Issue Tracking</a></li>
+              <li role="separator" class="divider"></li>
+			  <li class="dropdown-header">Technical References</li>
+			  <li><a href="/contribute/testing/">Testing</a></li>
+              <li><a href="/contribute/design-principles/">Design Principles</a></li>
+			  <li><a href="https://goo.gl/nk5OM0">Technical Vision</a></li>
+        <li role="separator" class="divider"></li>
+			  <li class="dropdown-header">Committer Resources</li>
+        <li><a href="/contribute/release-guide/">Release Guide</a></li>
+		  </ul>
+	    </li>
+        <li><a href="/blog">Blog</a></li>
+        <li class="dropdown">
+          <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">Project<span class="caret"></span></a>
+          <ul class="dropdown-menu">
+            <li><a href="/project/logos/">Logos and design</a></li>
+            <li><a href="/project/public-meetings/">Public Meetings</a></li>
+			<li><a href="/project/team/">Team</a></li>
+          </ul>
+        </li>
+      </ul>
+      <ul class="nav navbar-nav navbar-right">
+        <li class="dropdown">
+          <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false"><img src="https://www.apache.org/foundation/press/kit/feather_small.png" alt="Apache Logo" style="height:24px;">Apache Software Foundation<span class="caret"></span></a>
+          <ul class="dropdown-menu dropdown-menu-right">
+            <li><a href="http://www.apache.org/">ASF Homepage</a></li>
+            <li><a href="http://www.apache.org/licenses/">License</a></li>
+            <li><a href="http://www.apache.org/security/">Security</a></li>
+            <li><a href="http://www.apache.org/foundation/thanks.html">Thanks</a></li>
+            <li><a href="http://www.apache.org/foundation/sponsorship.html">Sponsorship</a></li>
+            <li><a href="https://www.apache.org/foundation/policies/conduct">Code of Conduct</a></li>
+          </ul>
+        </li>
+      </ul>
+    </div><!--/.nav-collapse -->
+  </div>
+</nav>
+
+
+<link rel="stylesheet" href="">
+
+
+    <div class="container" role="main">
+
+      <div class="row">
+        <h1 id="apache-beam-release-guide">Apache Beam Release Guide</h1>
+
+<ul id="markdown-toc">
+  <li><a href="#introduction" id="markdown-toc-introduction">Introduction</a></li>
+  <li><a href="#overview" id="markdown-toc-overview">Overview</a></li>
+  <li><a href="#decide-to-release" id="markdown-toc-decide-to-release">Decide to release</a>    <ul>
+      <li><a href="#checklist-to-proceed-to-the-next-step" id="markdown-toc-checklist-to-proceed-to-the-next-step">Checklist to proceed to the next step</a></li>
+    </ul>
+  </li>
+  <li><a href="#prepare-for-the-release" id="markdown-toc-prepare-for-the-release">Prepare for the release</a>    <ul>
+      <li><a href="#one-time-setup-instructions" id="markdown-toc-one-time-setup-instructions">One-time setup instructions</a>        <ul>
+          <li><a href="#gpg-key" id="markdown-toc-gpg-key">GPG Key</a></li>
+          <li><a href="#access-to-apache-nexus-repository" id="markdown-toc-access-to-apache-nexus-repository">Access to Apache Nexus repository</a></li>
+          <li><a href="#website-development-setup" id="markdown-toc-website-development-setup">Website development setup</a></li>
+        </ul>
+      </li>
+      <li><a href="#create-a-new-version-in-jira" id="markdown-toc-create-a-new-version-in-jira">Create a new version in JIRA</a></li>
+      <li><a href="#triage-release-blocking-issues-in-jira" id="markdown-toc-triage-release-blocking-issues-in-jira">Triage release-blocking issues in JIRA</a></li>
+      <li><a href="#review-release-notes-in-jira" id="markdown-toc-review-release-notes-in-jira">Review Release Notes in JIRA</a></li>
+      <li><a href="#create-a-release-branch" id="markdown-toc-create-a-release-branch">Create a release branch</a></li>
+      <li><a href="#checklist-to-proceed-to-the-next-step-1" id="markdown-toc-checklist-to-proceed-to-the-next-step-1">Checklist to proceed to the next step</a></li>
+    </ul>
+  </li>
+  <li><a href="#build-a-release-candidate" id="markdown-toc-build-a-release-candidate">Build a release candidate</a>    <ul>
+      <li><a href="#build-and-stage-java-artifacts-with-maven" id="markdown-toc-build-and-stage-java-artifacts-with-maven">Build and stage Java artifacts with Maven</a></li>
+      <li><a href="#stage-source-release-on-distapacheorg" id="markdown-toc-stage-source-release-on-distapacheorg">Stage source release on dist.apache.org</a></li>
+      <li><a href="#build-the-api-reference" id="markdown-toc-build-the-api-reference">Build the API reference</a></li>
+      <li><a href="#propose-a-pull-request-for-website-updates" id="markdown-toc-propose-a-pull-request-for-website-updates">Propose a pull request for website updates</a></li>
+      <li><a href="#checklist-to-proceed-to-the-next-step-2" id="markdown-toc-checklist-to-proceed-to-the-next-step-2">Checklist to proceed to the next step</a></li>
+    </ul>
+  </li>
+  <li><a href="#vote-on-the-release-candidate" id="markdown-toc-vote-on-the-release-candidate">Vote on the release candidate</a>    <ul>
+      <li><a href="#checklist-to-proceed-to-the-finalization-step" id="markdown-toc-checklist-to-proceed-to-the-finalization-step">Checklist to proceed to the finalization step</a></li>
+    </ul>
+  </li>
+  <li><a href="#fix-any-issues" id="markdown-toc-fix-any-issues">Fix any issues</a>    <ul>
+      <li><a href="#checklist-to-proceed-to-the-next-step-3" id="markdown-toc-checklist-to-proceed-to-the-next-step-3">Checklist to proceed to the next step</a></li>
+    </ul>
+  </li>
+  <li><a href="#finalize-the-release" id="markdown-toc-finalize-the-release">Finalize the release</a>    <ul>
+      <li><a href="#deploy-artifacts-to-maven-central-repository" id="markdown-toc-deploy-artifacts-to-maven-central-repository">Deploy artifacts to Maven Central Repository</a>        <ul>
+          <li><a href="#deploy-source-release-to-distapacheorg" id="markdown-toc-deploy-source-release-to-distapacheorg">Deploy source release to dist.apache.org</a></li>
+        </ul>
+      </li>
+      <li><a href="#git-tag" id="markdown-toc-git-tag">Git tag</a></li>
+      <li><a href="#merge-website-pull-request" id="markdown-toc-merge-website-pull-request">Merge website pull request</a></li>
+      <li><a href="#mark-the-version-as-released-in-jira" id="markdown-toc-mark-the-version-as-released-in-jira">Mark the version as released in JIRA</a></li>
+      <li><a href="#checklist-to-proceed-to-the-next-step-4" id="markdown-toc-checklist-to-proceed-to-the-next-step-4">Checklist to proceed to the next step</a></li>
+    </ul>
+  </li>
+  <li><a href="#promote-the-release" id="markdown-toc-promote-the-release">Promote the release</a>    <ul>
+      <li><a href="#apache-mailing-lists" id="markdown-toc-apache-mailing-lists">Apache mailing lists</a></li>
+      <li><a href="#asf-press-release" id="markdown-toc-asf-press-release">ASF press release</a></li>
+      <li><a href="#beam-blog" id="markdown-toc-beam-blog">Beam blog</a></li>
+      <li><a href="#social-media" id="markdown-toc-social-media">Social media</a></li>
+      <li><a href="#checklist-to-declare-the-process-completed" id="markdown-toc-checklist-to-declare-the-process-completed">Checklist to declare the process completed</a></li>
+    </ul>
+  </li>
+  <li><a href="#improve-the-process" id="markdown-toc-improve-the-process">Improve the process</a></li>
+</ul>
+
+<h2 id="introduction">Introduction</h2>
+
+<p>The Apache Beam project periodically declares and publishes releases. A release is one or more packages of the project artifact(s) that are approved for general public distribution and use. They may come with various degrees of caveat regarding their perceived quality and potential for change, such as “alpha”, “beta”, “incubating”, “stable”, etc.</p>
+
+<p>The Beam community treats releases with great importance. They are a public face of the project and most users interact with the project only through the releases. Releases are signed off by the entire Beam community in a public vote.</p>
+
+<p>Each release is executed by a <em>Release Manager</em>, who is selected among the <a href="/project/team">Beam committers</a>. This document describes the process that the Release Manager follows to perform a release. Any changes to this process should be discussed and adopted on the <a href="/use/mailing-lists">dev@ mailing list</a>.</p>
+
+<p>Please remember that publishing software has legal consequences. This guide complements the foundation-wide <a href="http://www.apache.org/dev/release.html">Product Release Policy</a> and <a href="http://www.apache.org/dev/release-distribution">Release Distribution Policy</a>.</p>
+
+<h2 id="overview">Overview</h2>
+
+<p><img src="/images/release-guide-1.png" alt="Alt text" title="Release Process" width="100%" /></p>
+
+<p>The release process consists of several steps:</p>
+
+<ol>
+  <li>Decide to release</li>
+  <li>Prepare for the release</li>
+  <li>Build a release candidate</li>
+  <li>Vote on the release candidate</li>
+  <li>If necessary, fix any issues and go back to step 3.</li>
+  <li>Finalize the release</li>
+  <li>Promote the release</li>
+</ol>
+
+<hr />
+
+<h2 id="decide-to-release">Decide to release</h2>
+
+<p>Deciding to release and selecting a Release Manager is the first step of the release process. This is a consensus-based decision of the entire community.</p>
+
+<p>Anybody can propose a release on the dev@ mailing list, giving a solid argument and nominating a committer as the Release Manager (including themselves). There’s no formal process, no vote requirements, and no timing requirements. Any objections should be resolved by consensus before starting the release.</p>
+
+<p>In general, the community prefers to have a rotating set of 3-5 Release Managers. Keeping a small core set of managers allows enough people to build expertise in this area and improve processes over time, without Release Managers needing to re-learn the processes for each release. That said, if you are a committer interested in serving the community in this way, please reach out to the community on the dev@ mailing list.</p>
+
+<h3 id="checklist-to-proceed-to-the-next-step">Checklist to proceed to the next step</h3>
+
+<ol>
+  <li>Community agrees to release</li>
+  <li>Community selects a Release Manager</li>
+</ol>
+
+<hr />
+
+<h2 id="prepare-for-the-release">Prepare for the release</h2>
+
+<p>Before your first release, you should perform one-time configuration steps. This will set up your security keys for signing the release and access to various release repositories.</p>
+
+<p>To prepare for each release, you should audit the project status in the JIRA issue tracker, and do necessary bookkeeping. Finally, you should create a release branch from which individual release candidates will be built.</p>
+
+<h3 id="one-time-setup-instructions">One-time setup instructions</h3>
+
+<h4 id="gpg-key">GPG Key</h4>
+
+<p>You need to have a GPG key to sign the release artifacts. Please be aware of the ASF-wide <a href="https://www.apache.org/dev/release-signing.html">release signing guidelines</a>. If you don’t have a GPG key associated with your Apache account, please create one according to the guidelines.</p>
+
+<p>Determine your Apache GPG Key and Key ID, as follows:</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>gpg --list-keys
+</code></pre>
+</div>
+
+<p>This will list your GPG keys. One of these should reflect your Apache account, for example:</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>--------------------------------------------------
+pub   2048R/845E6689 2016-02-23
+uid                  Nomen Nescio &lt;anonymous@apache.org&gt;
+sub   2048R/BA4D50BE 2016-02-23
+</code></pre>
+</div>
+
+<p>Here, the key ID is the 8-digit hex string in the <code class="highlighter-rouge">pub</code> line: <code class="highlighter-rouge">845E6689</code>.</p>
+
+<p>Now, add your Apache GPG key to the Beam’s <code class="highlighter-rouge">KEYS</code> file both in <a href="https://dist.apache.org/repos/dist/dev/incubator/beam/KEYS"><code class="highlighter-rouge">dev</code></a> and <a href="https://dist.apache.org/repos/dist/release/incubator/beam/KEYS"><code class="highlighter-rouge">release</code></a> repositories at <code class="highlighter-rouge">dist.apache.org</code>. Follow the instructions listed at the top of these files.</p>
+
+<p>Configure <code class="highlighter-rouge">git</code> to use this key when signing code by giving it your key ID, as follows:</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>git config --global user.signingkey 845E6689
+</code></pre>
+</div>
+
+<p>You may drop the <code class="highlighter-rouge">--global</code> option if you’d prefer to use this key for the current repository only.</p>
+
+<h4 id="access-to-apache-nexus-repository">Access to Apache Nexus repository</h4>
+
+<p>Configure access to the <a href="http://repository.apache.org/">Apache Nexus repository</a>, which enables final deployment of releases to the Maven Central Repository.</p>
+
+<ol>
+  <li>You log in with your Apache account.</li>
+  <li>Confirm you have appropriate access by finding <code class="highlighter-rouge">org.apache.beam</code> under <code class="highlighter-rouge">Staging Profiles</code>.</li>
+  <li>Navigate to your <code class="highlighter-rouge">Profile</code> (top right dropdown menu of the page).</li>
+  <li>Choose <code class="highlighter-rouge">User Token</code> from the dropdown, then click <code class="highlighter-rouge">Access User Token</code>. Copy a snippet of the Maven XML configuration block.</li>
+  <li>
+    <p>Insert this snippet twice into your global Maven <code class="highlighter-rouge">settings.xml</code> file, typically <code class="highlighter-rouge">${HOME}/.m2/settings.xml</code>. The end result should look like this, where <code class="highlighter-rouge">TOKEN_NAME</code> and <code class="highlighter-rouge">TOKEN_PASSWORD</code> are your secret tokens:</p>
+
+    <div class="highlighter-rouge"><pre class="highlight"><code> &lt;settings&gt;
+   &lt;servers&gt;
+     &lt;server&gt;
+       &lt;id&gt;apache.releases.https&lt;/id&gt;
+       &lt;username&gt;TOKEN_NAME&lt;/username&gt;
+       &lt;password&gt;TOKEN_PASSWORD&lt;/password&gt;
+     &lt;/server&gt;
+     &lt;server&gt;
+       &lt;id&gt;apache.snapshots.https&lt;/id&gt;
+       &lt;username&gt;TOKEN_NAME&lt;/username&gt;
+       &lt;password&gt;TOKEN_PASSWORD&lt;/password&gt;
+     &lt;/server&gt;
+   &lt;/servers&gt;
+ &lt;/settings&gt;
+</code></pre>
+    </div>
+  </li>
+</ol>
+
+<h4 id="website-development-setup">Website development setup</h4>
+
+<p>Get ready for updating the Beam website by following the <a href="/contribute/contribution-guide/#website">website development instructions</a>.</p>
+
+<h3 id="create-a-new-version-in-jira">Create a new version in JIRA</h3>
+
+<p>When contributors resolve an issue in JIRA, they are tagging it with a release that will contain their changes. With the release currently underway, new issues should be resolved against a subsequent future release. Therefore, you should create a release item for this subsequent release, as follows:</p>
+
+<ol>
+  <li>In JIRA, navigate to the <a href="https://issues.apache.org/jira/plugins/servlet/project-config/BEAM/versions"><code class="highlighter-rouge">Beam &gt; Administration &gt; Versions</code></a>.</li>
+  <li>Add a new release: choose the next minor version number compared to the one currently underway, select today’s date as the <code class="highlighter-rouge">Start Date</code>, and choose <code class="highlighter-rouge">Add</code>.</li>
+</ol>
+
+<h3 id="triage-release-blocking-issues-in-jira">Triage release-blocking issues in JIRA</h3>
+
+<p>There could be outstanding release-blocking issues, which should be triaged before proceeding to build a release candidate. We track them by assigning a specific <code class="highlighter-rouge">Fix version</code> field even before the issue resolved.</p>
+
+<p>The list of release-blocking issues is available at the <a href="https://issues.apache.org/jira/browse/BEAM/?selectedTab=com.atlassian.jira.jira-projects-plugin:versions-panel">version status page</a>. Triage each unresolved issue with one of the following resolutions:</p>
+
+<ul>
+  <li>If the issue has been resolved and JIRA was not updated, resolve it accordingly.</li>
+  <li>If the issue has not been resolved and it is acceptable to defer this until the next release, update the <code class="highlighter-rouge">Fix Version</code> field to the new version you just created. Please consider discussing this with stakeholders and the dev@ mailing list, as appropriate.</li>
+  <li>If the issue has not been resolved and it is not acceptable to release until it is fixed, the release cannot proceed. Instead, work with the Beam community to resolve the issue.</li>
+</ul>
+
+<h3 id="review-release-notes-in-jira">Review Release Notes in JIRA</h3>
+
+<p>JIRA automatically generates Release Notes based on the <code class="highlighter-rouge">Fix Version</code> field applied to issues. Release Notes are intended for Beam users (not Beam committers/contributors). You should ensure that Release Notes are informative and useful.</p>
+
+<p>Open the release notes from the <a href="https://issues.apache.org/jira/browse/BEAM/?selectedTab=com.atlassian.jira.jira-projects-plugin:versions-panel">version status page</a> by choosing the release underway and clicking Release Notes.</p>
+
+<p>You should verify that the issues listed automatically by JIRA are appropriate to appear in the Release Notes. Specifically, issues should:</p>
+
+<ul>
+  <li>Be appropriately classified as <code class="highlighter-rouge">Bug</code>, <code class="highlighter-rouge">New Feature</code>, <code class="highlighter-rouge">Improvement</code>, etc.</li>
+  <li>Represent noteworthy user-facing changes, such as new functionality, backward-incompatible API changes, or performance improvements.</li>
+  <li>Have occurred since the previous release; an issue that was introduced and fixed between releases should not appear in the Release Notes.</li>
+  <li>Have an issue title that makes sense when read on its own.</li>
+</ul>
+
+<p>Adjust any of the above properties to the improve clarity and presentation of the Release Notes.</p>
+
+<h3 id="create-a-release-branch">Create a release branch</h3>
+
+<p>Release candidates are built from a release branch. As a final step in preparation for the release, you should create the release branch, push it to the code repository, and update version information on the original branch.</p>
+
+<p>Check out the version of the codebase from which you start the release. For a new minor or major release, this may be <code class="highlighter-rouge">HEAD</code> of the <code class="highlighter-rouge">master</code> branch. To build a hotfix/incremental release, instead of the <code class="highlighter-rouge">master</code> branch, use the release tag of the release being patched. (Please make sure your cloned repository is up-to-date before starting.)</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>git checkout &lt;master branch OR release tag&gt;
+</code></pre>
+</div>
+
+<p>Set up a few environment variables to simplify Maven commands that follow. (We use <code class="highlighter-rouge">bash</code> Unix syntax in this guide.)</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>VERSION="1.2.3-incubating"
+NEXT_VERSION="1.2.4-incubating"
+BRANCH_NAME="release-${VERSION}"
+DEVELOPMENT_VERSION="${NEXT_VERSION}-SNAPSHOT"
+</code></pre>
+</div>
+
+<p>Version represents the release currently underway, while next version specifies the anticipated next version to be released from that branch. Normally, 1.2.0 is followed by 1.3.0, while 1.2.3 is followed by 1.2.4.</p>
+
+<p>Use Maven release plugin to create the release branch and update the current branch to use the new development version. This command applies for the new major or minor version. (Warning: this command automatically pushes changes to the code repository.)</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>mvn release:branch \
+    -DbranchName=${BRANCH_NAME} \
+    -DdevelopmentVersion=${DEVELOPMENT_VERSION}
+</code></pre>
+</div>
+
+<p>However, if you are doing an incremental/hotfix release, please run the following command after checking out the release tag of the release being patched.</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>mvn release:branch \
+    -DbranchName=${BRANCH_NAME} \
+    -DupdateWorkingCopyVersions=false \
+    -DupdateBranchVersions=true \
+    -DreleaseVersion="${VERSION}-SNAPSHOT"
+</code></pre>
+</div>
+
+<p>Check out the release branch.</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>git checkout ${BRANCH_NAME}
+</code></pre>
+</div>
+
+<p>The rest of this guide assumes that commands are run in the root of a repository on <code class="highlighter-rouge">${BRANCH_NAME}</code> with the above environment variables set.</p>
+
+<h3 id="checklist-to-proceed-to-the-next-step-1">Checklist to proceed to the next step</h3>
+
+<ol>
+  <li>Release Manager’s GPG key is published to <code class="highlighter-rouge">dist.apache.org</code></li>
+  <li>Release Manager’s GPG key is configured in <code class="highlighter-rouge">git</code> configuration</li>
+  <li>Release Manager has <code class="highlighter-rouge">org.apache.beam</code> listed under <code class="highlighter-rouge">Staging Profiles</code> in Nexus</li>
+  <li>Release Manager’s Nexus User Token is configured in <code class="highlighter-rouge">settings.xml</code></li>
+  <li>JIRA release item for the subsequent release has been created</li>
+  <li>There are no release blocking JIRA issues</li>
+  <li>Release Notes in JIRA have been audited and adjusted</li>
+  <li>Release branch has been created</li>
+  <li>Originating branch has the version information updated to the new version</li>
+</ol>
+
+<hr />
+
+<h2 id="build-a-release-candidate">Build a release candidate</h2>
+
+<p>The core of the release process is the build-vote-fix cycle. Each cycle produces one release candidate. The Release Manager repeats this cycle until the community approves one release candidate, which is then finalized.</p>
+
+<h3 id="build-and-stage-java-artifacts-with-maven">Build and stage Java artifacts with Maven</h3>
+
+<p>Set up a few environment variables to simplify Maven commands that follow. This identifies the release candidate being built. Start with <code class="highlighter-rouge">RC_NUM</code> equal to <code class="highlighter-rouge">1</code> and increment it for each candidate.</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>RC_NUM="1"
+TAG="v${VERSION}-RC${RC_NUM}"
+</code></pre>
+</div>
+
+<p>Use Maven release plugin to build the release artifacts, as follows:</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>mvn release:prepare \
+    -Dresume=false \
+    -DreleaseVersion=${VERSION} \
+    -Dtag=${TAG} \
+    -DupdateWorkingCopyVersions=false
+</code></pre>
+</div>
+
+<p>Use Maven release plugin to stage these artifacts on the Apache Nexus repository, as follows:</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>mvn release:perform
+</code></pre>
+</div>
+
+<p>Review all staged artifacts. They should contain all relevant parts for each module, including <code class="highlighter-rouge">pom.xml</code>, jar, test jar, source, test source, javadoc, etc. Artifact names should follow <a href="https://search.maven.org/#search%7Cga%7C1%7Cg%3A%22org.apache.beam%22">the existing format</a> in which artifact name mirrors directory structure, e.g., <code class="highlighter-rouge">beam-sdks-java-io-kafka</code>. Carefully review any new artifacts.</p>
+
+<p>Close the staging repository on Apache Nexus. When prompted for a description, enter “Apache Beam, version X, release candidate Y”.</p>
+
+<h3 id="stage-source-release-on-distapacheorg">Stage source release on dist.apache.org</h3>
+
+<p>Copy the source release to the dev repository of <code class="highlighter-rouge">dist.apache.org</code>.</p>
+
+<ol>
+  <li>
+    <p>If you have not already, check out the Beam section of the <code class="highlighter-rouge">dev</code> repository on <code class="highlighter-rouge">dist.apache.org</code> via Subversion. In a fresh directory:</p>
+
+    <div class="highlighter-rouge"><pre class="highlight"><code> svn co https://dist.apache.org/repos/dist/dev/incubator/beam
+</code></pre>
+    </div>
+  </li>
+  <li>
+    <p>Make a directory for the new release:</p>
+
+    <div class="highlighter-rouge"><pre class="highlight"><code> mkdir beam/${VERSION}
+</code></pre>
+    </div>
+  </li>
+  <li>
+    <p>Copy and rename the Beam source distribution, hashes, and GPG signature:</p>
+
+    <div class="highlighter-rouge"><pre class="highlight"><code> cp ${BEAM_ROOT}/target/beam-parent-${VERSION}-source-release.zip beam/${VERSION}/apache-beam-${VERSION}-source-release.zip
+ cp ${BEAM_ROOT}/target/beam-parent-${VERSION}-source-release.zip.asc beam/${VERSION}/apache-beam-${VERSION}-source-release.zip.asc
+ cp ${BEAM_ROOT}/target/beam-parent-${VERSION}-source-release.zip.md5 beam/${VERSION}/apache-beam-${VERSION}-source-release.zip.md5
+ cp ${BEAM_ROOT}/target/beam-parent-${VERSION}-source-release.zip.sha1 beam/${VERSION}/apache-beam-${VERSION}-source-release.zip.sha1
+</code></pre>
+    </div>
+  </li>
+  <li>
+    <p>Add and commit all the files.</p>
+
+    <div class="highlighter-rouge"><pre class="highlight"><code> svn add beam/${VERSION}
+ svn commit
+</code></pre>
+    </div>
+  </li>
+  <li>
+    <p>Verify that files are <a href="https://dist.apache.org/repos/dist/dev/incubator/beam">present</a>.</p>
+  </li>
+</ol>
+
+<h3 id="build-the-api-reference">Build the API reference</h3>
+
+<p>Beam publishes API reference manual for each release on the website. For Java SDK, that’s Javadoc.</p>
+
+<p>Check out release candidate, as follows:</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>git checkout ${TAG}
+</code></pre>
+</div>
+
+<p>Use Maven Javadoc plugin to generate the new Java reference manual, as follows:</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>mvn -DskipTests clean package javadoc:aggregate \
+    -Ddoctitle="Apache Beam SDK for Java, version ${VERSION}" \
+    -Dwindowtitle="Apache Beam SDK for Java, version ${VERSION}" \
+    -Dmaven.javadoc.failOnError=false \
+    -DexcludePackageNames="org.apache.beam.examples,org.apache.beam.runners.dataflow.internal,org.apache.beam.runners.flink.examples,org.apache.beam.runners.flink.translation,org.apache.beam.runners.spark.examples,org.apache.beam.runners.spark.translation"
+</code></pre>
+</div>
+
+<p>By default, the Javadoc will be generated in <code class="highlighter-rouge">target/site/apidocs/</code>. Let <code class="highlighter-rouge">${JAVADOC_ROOT}</code> be the absolute path to <code class="highlighter-rouge">apidocs</code>. (<a href="https://github.com/apache/incubator-beam/pull/1015">Pull request #1015</a> will hopefully simplify this process.)</p>
+
+<p>Please carefully review the generated Javadoc. Check for completeness and presence of all relevant packages and <code class="highlighter-rouge">package-info.java</code>; consider adding less relevant packages to the <code class="highlighter-rouge">excludePackageNames</code> configuration. The index page is generated at <code class="highlighter-rouge">${JAVADOC_ROOT}/index.html</code>.</p>
+
+<h3 id="propose-a-pull-request-for-website-updates">Propose a pull request for website updates</h3>
+
+<p>The final step of building the candidate is to propose a website pull request.</p>
+
+<p>Add the new release to the <a href="/use/releases/">Apache Beam Releases</a> page, as follows:</p>
+
+<ul>
+  <li>Update the <code class="highlighter-rouge">&lt;version&gt;</code> tags in the sample <code class="highlighter-rouge">pom.xml</code> snippet to the new release.</li>
+  <li>Add the new version to the <code class="highlighter-rouge">Release Notes</code> section below, along with links to the source code download and the Release Notes in JIRA.</li>
+</ul>
+
+<p>Add the new Javadoc to <a href="/learn/sdks/javadoc/">SDK API Reference page</a> page, as follows:</p>
+
+<ul>
+  <li>Copy the generated Javadoc into the website repository: <code class="highlighter-rouge">cp -r ${JAVADOC_ROOT} learn/sdks/javadoc/${VERSION}</code>.</li>
+  <li>Update the Javadoc link on this page to point to the new version.</li>
+</ul>
+
+<p>Finally, propose a pull request with these changes. (Don’t merge before finalizing the release.)</p>
+
+<h3 id="checklist-to-proceed-to-the-next-step-2">Checklist to proceed to the next step</h3>
+
+<ol>
+  <li>Maven artifacts deployed to the staging repository of <a href="https://repository.apache.org/content/repositories/">repository.apache.org</a></li>
+  <li>Source distribution deployed to the dev repository of <a href="https://dist.apache.org/repos/dist/dev/incubator/beam/">dist.apache.org</a></li>
+  <li>Website pull request proposed to list the <a href="/use/releases/">release</a> and publish the <a href="/learn/sdks/javadoc/">API reference manual</a></li>
+</ol>
+
+<hr />
+
+<h2 id="vote-on-the-release-candidate">Vote on the release candidate</h2>
+
+<p>Once you have built and individually reviewed the release candidate, please share it for the community-wide review. Please review foundation-wide <a href="http://www.apache.org/foundation/voting.html">voting guidelines</a> for more information.</p>
+
+<p>Start the review-and-vote thread on the dev@ mailing list. Here’s an email template; please adjust as you see fit.</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>From: Release Manager
+To: dev@beam.incubator.apache.org
+Subject: [VOTE] Release 1.2.3, release candidate #3
+
+Hi everyone,
+Please review and vote on the release candidate #3 for the version 1.2.3, as follows:
+[ ] +1, Approve the release
+[ ] -1, Do not approve the release (please provide specific comments)
+
+
+The complete staging area is available for your review, which includes:
+* JIRA release notes [1],
+* the official Apache source release to be deployed to dist.apache.org [2],
+* all artifacts to be deployed to the Maven Central Repository [3],
+* source code tag "v1.2.3-RC3" [4],
+* website pull request listing the release and publishing the API reference manual [5].
+
+The vote will be open for at least 72 hours. It is adopted by majority approval, with at least 3 PPMC affirmative votes.
+
+Thanks,
+Release Manager
+
+[1] link
+[2] link
+[3] link
+[4] link
+[5] link
+</code></pre>
+</div>
+
+<p>If there are any issues found in the release candidate, reply on the vote thread to cancel the vote. There’s no need to wait 72 hours. Proceed to the <code class="highlighter-rouge">Fix Issues</code> step below and address the problem. However, some issues don’t require cancellation. For example, if an issue is found in the website pull request, just correct it on the spot and the vote can continue as-is.</p>
+
+<p>If there are no issues, reply on the vote thread to close the voting. Then, tally the votes in a separate email. Here’s an email template; please adjust as you see fit.</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>From: Release Manager
+To: dev@beam.incubator.apache.org
+Subject: [RESULT] [VOTE] Release 1.2.3, release candidate #3
+
+I'm happy to announce that we have unanimously approved this release.
+
+There are XXX approving votes, XXX of which are binding:
+* approver 1
+* approver 2
+* approver 3
+* approver 4
+
+There are no disapproving votes.
+
+Thanks everyone!
+</code></pre>
+</div>
+
+<p>While in incubation, the Apache Incubator PMC must also vote on each release, using the same process as above. Start the review and vote thread on the <code class="highlighter-rouge">general@incubator.apache.org</code> list.</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>From: Release Manager
+To: general@incubator.apache.org
+Cc: dev@beam.incubator.apache.org
+Subject: [VOTE] Apache Beam release 1.2.3-incubating
+
+Hi everyone,
+Please review and vote on the release candidate #3 for the Apache Beam version 1.2.30-incubating, as follows:
+[ ] +1, Approve the release
+[ ] -1, Do not approve the release (please provide specific comments)
+
+
+The complete staging area is available for your review, which includes:
+* JIRA release notes [1],
+* the official Apache source release to be deployed to dist.apache.org [2],
+* all artifacts to be deployed to the Maven Central Repository [3],
+* source code tag "v1.2.3-RC3" [4],
+* website pull request listing the release and publishing the API reference manual [5].
+
+The Apache Beam community has unanimously approved this release [6].
+
+As customary, the vote will be open for at least 72 hours. It is adopted by
+a majority approval with at least three PMC affirmative votes. If approved,
+we will proceed with the release.
+
+Thanks!
+
+[1] link
+[2] link
+[3] link
+[4] link
+[5] link
+[6] lists.apache.org permalink to the vote result thread, e.g.,  https://lists.apache.org/thread.html/32c991987e0abf2a09cd8afad472cf02e482af02ac35418ee8731940@%3Cdev.beam.apache.org%3E
+</code></pre>
+</div>
+
+<p>If passed, close the voting and summarize the results.</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>From: Release Manager
+To: general@incubator.apache.org
+Cc: dev@beam.incubator.apache.org
+Subject: [RESULT] [VOTE] Apache Beam release 1.2.3-incubating
+
+There are XXX approving votes, all of which are binding:
+* approver 1
+* approver 2
+* approver 3
+* approver 4
+
+There are no disapproving votes.
+
+We'll proceed with this release as staged.
+
+Thanks everyone!
+</code></pre>
+</div>
+
+<h3 id="checklist-to-proceed-to-the-finalization-step">Checklist to proceed to the finalization step</h3>
+
+<ol>
+  <li>Community votes to release the proposed candidate</li>
+  <li>While in incubation, Apache Incubator PMC votes to release the proposed candidate</li>
+</ol>
+
+<hr />
+
+<h2 id="fix-any-issues">Fix any issues</h2>
+
+<p>Any issues identified during the community review and vote should be fixed in this step.</p>
+
+<p>Code changes should be proposed as standard pull requests to the <code class="highlighter-rouge">master</code> branch and reviewed using the normal contributing process. Then, relevant changes should be cherry-picked into the release branch. The cherry-pick commits should then be proposed as the pull requests against the release branch, again reviewed and merged using the normal contributing process.</p>
+
+<p>Once all issues have been resolved, you should go back and build a new release candidate with these changes.</p>
+
+<h3 id="checklist-to-proceed-to-the-next-step-3">Checklist to proceed to the next step</h3>
+
+<ol>
+  <li>Issues identified during vote have been resolved, with fixes committed to the release branch.</li>
+</ol>
+
+<hr />
+
+<h2 id="finalize-the-release">Finalize the release</h2>
+
+<p>Once the release candidate has been reviewed and approved by the community, the release should be finalized. This involves the final deployment of the release candidate to the release repositories, merging of the website changes, etc.</p>
+
+<h3 id="deploy-artifacts-to-maven-central-repository">Deploy artifacts to Maven Central Repository</h3>
+
+<p>Use the Apache Nexus repository to release the staged binary artifacts to the Maven Central repository. In the <code class="highlighter-rouge">Staging Repositories</code> section, find the relevant release candidate <code class="highlighter-rouge">orgapachebeam-XXX</code> entry and click <code class="highlighter-rouge">Release</code>. Drop all other release candidates that are not being released.</p>
+
+<h4 id="deploy-source-release-to-distapacheorg">Deploy source release to dist.apache.org</h4>
+
+<p>Copy the source release from the <code class="highlighter-rouge">dev</code> repository to the <code class="highlighter-rouge">release</code> repository at <code class="highlighter-rouge">dist.apache.org</code> using Subversion.</p>
+
+<h3 id="git-tag">Git tag</h3>
+
+<p>Create a new Git tag for the released version by copying the tag for the final release candidate, as follows:</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>git tag -s “v${VERSION}” ${TAG}
+</code></pre>
+</div>
+
+<h3 id="merge-website-pull-request">Merge website pull request</h3>
+
+<p>Merge the website pull request to <a href="/use/releases/">list the release</a> and publish the <a href="/learn/sdks/javadoc/">API reference manual</a> created earlier.</p>
+
+<h3 id="mark-the-version-as-released-in-jira">Mark the version as released in JIRA</h3>
+
+<p>In JIRA, inside <a href="https://issues.apache.org/jira/plugins/servlet/project-config/BEAM/versions">version management</a>, hover over the current release and a settings menu will appear. Click <code class="highlighter-rouge">Release</code>, and select today’s date.</p>
+
+<h3 id="checklist-to-proceed-to-the-next-step-4">Checklist to proceed to the next step</h3>
+
+<ul>
+  <li>Maven artifacts released and indexed in the <a href="https://search.maven.org/#search%7Cga%7C1%7Cg%3A%22org.apache.beam%22">Maven Central Repository</a></li>
+  <li>Source distribution available in the release repository of <a href="https://dist.apache.org/repos/dist/release/incubator/beam/">dist.apache.org</a></li>
+  <li>Website pull request to <a href="/use/releases/">list the release</a> and publish the <a href="/learn/sdks/javadoc/">API reference manual</a> merged</li>
+  <li>Release tagged in the source code repository</li>
+  <li>Release version finalized in JIRA</li>
+</ul>
+
+<hr />
+
+<h2 id="promote-the-release">Promote the release</h2>
+
+<p>Once the release has been finalized, the last step of the process is to promote the release within the project and beyond.</p>
+
+<h3 id="apache-mailing-lists">Apache mailing lists</h3>
+
+<p>Announce on the dev@ mailing list that the release has been finished.</p>
+
+<p>Announce on the release on the user@ mailing list, listing major improvements and contributions.</p>
+
+<p>While in incubation, announce the release on the Incubator’s general@ mailing list.</p>
+
+<h3 id="asf-press-release">ASF press release</h3>
+
+<p>After incubation, use reporter.apache.org to promote the release.</p>
+
+<h3 id="beam-blog">Beam blog</h3>
+
+<p>Major or otherwise important releases should have a blog post. Write one if needed for this particular release. Minor releases that don’t introduce new major functionality don’t necessarily need to be blogged.</p>
+
+<h3 id="social-media">Social media</h3>
+
+<p>Tweet, post on Facebook, LinkedIn, and other platforms. Ask other contributors to do the same.</p>
+
+<h3 id="checklist-to-declare-the-process-completed">Checklist to declare the process completed</h3>
+
+<ol>
+  <li>Release announced on the user@ mailing list.</li>
+  <li>While in incubation, release announced on the Incubator’s general@ mailing list.</li>
+  <li>Blog post published, if applicable.</li>
+  <li>After incubation, Apache Software Foundation press release published.</li>
+  <li>Release announced on social media.</li>
+  <li>Completion declared on the dev@ mailing list.</li>
+</ol>
+
+<hr />
+
+<h2 id="improve-the-process">Improve the process</h2>
+
+<p>It is important that we improve the release processes over time. Once you’ve finished the release, please take a step back and look what areas of this process and be improved. Perhaps some part of the process can be simplified. Perhaps parts of this guide can be clarified.</p>
+
+<p>If we have specific ideas, please start a discussion on the dev@ mailing list and/or propose a pull request to update this guide. Thanks!</p>
+
+      </div>
+
+
+    <hr>
+  <div class="row">
+      <div class="col-xs-12">
+          <footer>
+              <p class="text-center">&copy; Copyright 2016
+                <a href="http://www.apache.org">The Apache Software Foundation.</a> All Rights Reserved.</p>
+                <p class="text-center"><a href="/privacy_policy">Privacy Policy</a> |
+                <a href="/feed.xml">RSS Feed</a></p>
+          </footer>
+      </div>
+  </div>
+  <!-- container div end -->
+</div>
+
+
+  </body>
+
+</html>
