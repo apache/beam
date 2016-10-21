@@ -73,6 +73,10 @@ import org.joda.time.Instant;
 public abstract class OldDoFn<InputT, OutputT> implements Serializable, HasDisplayData {
 
   public DoFn<InputT, OutputT> toDoFn() {
+    DoFn<InputT, OutputT> doFn = DoFnAdapters.getDoFn(this);
+    if (doFn != null) {
+      return doFn;
+    }
     if (this instanceof RequiresWindowAccess) {
       // No parameters as it just accesses `this`
       return new AdaptedRequiresWindowAccessDoFn();
@@ -553,8 +557,7 @@ public abstract class OldDoFn<InputT, OutputT> implements Serializable, HasDispl
 
     private final DoFn<InputT, OutputT>.ProcessContext newContext;
 
-    public AdaptedProcessContext(
-        DoFn<InputT, OutputT>.ProcessContext newContext) {
+    public AdaptedProcessContext(DoFn<InputT, OutputT>.ProcessContext newContext) {
       this.newContext = newContext;
     }
 
@@ -632,19 +635,29 @@ public abstract class OldDoFn<InputT, OutputT> implements Serializable, HasDispl
 
   private class AdaptedDoFn extends DoFn<InputT, OutputT> {
 
+    @Setup
+    public void setup() throws Exception {
+      OldDoFn.this.setup();
+    }
+
     @StartBundle
-    public void startBundle(DoFn.Context c) throws Exception {
+    public void startBundle(Context c) throws Exception {
       OldDoFn.this.startBundle(OldDoFn.this.new AdaptedContext(c));
     }
 
     @ProcessElement
-    public void processElement(DoFn.ProcessContext c) throws Exception {
+    public void processElement(ProcessContext c) throws Exception {
       OldDoFn.this.processElement(OldDoFn.this.new AdaptedProcessContext(c));
     }
 
     @FinishBundle
-    public void finishBundle(DoFn.Context c) throws Exception {
+    public void finishBundle(Context c) throws Exception {
       OldDoFn.this.finishBundle(OldDoFn.this.new AdaptedContext(c));
+    }
+
+    @Teardown
+    public void teardown() throws Exception {
+      OldDoFn.this.teardown();
     }
 
     @Override
