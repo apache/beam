@@ -38,9 +38,7 @@ class MultipleOutputParDoTest(unittest.TestCase):
     res = (sample_text 
            | beam.ParDo(multiple_output_pardo.SplitLinesToWordsFn())
            .with_outputs(
-             'tag_short_words', 
-             'tag_character_count', 
-             main='words'))
+             'tag_short_words', 'tag_character_count', main='words'))
     res_cnt= (res.tag_character_count 
               | 'pair_with_key' >> beam.Map(lambda x: ('chars_temp_key', x))
               | beam.GroupByKey()
@@ -49,7 +47,7 @@ class MultipleOutputParDoTest(unittest.TestCase):
                  | 'count words' >> multiple_output_pardo.CountWords())
     res_sh_wrd = (res.tag_short_words 
                   | 'count short words' >> multiple_output_pardo.CountWords())
-    beam.assert_that(res, 
+    beam.assert_that(res_words, 
                      beam.equal_to(self.EXP_WORDS))
     beam.assert_that(res_sh_wrd, 
                      beam.equal_to(self.EXPECTED_SHORT_WORDS), 
