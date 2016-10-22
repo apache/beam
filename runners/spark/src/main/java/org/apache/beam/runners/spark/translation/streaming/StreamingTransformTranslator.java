@@ -26,9 +26,6 @@ import java.util.Map;
 import java.util.Set;
 import kafka.serializer.Decoder;
 import org.apache.beam.runners.core.AssignWindowsDoFn;
-import org.apache.beam.runners.core.GroupByKeyViaGroupByKeyOnly;
-import org.apache.beam.runners.core.GroupByKeyViaGroupByKeyOnly.GroupAlsoByWindow;
-import org.apache.beam.runners.core.GroupByKeyViaGroupByKeyOnly.GroupByKeyOnly;
 import org.apache.beam.runners.spark.aggregators.AccumulatorSingleton;
 import org.apache.beam.runners.spark.aggregators.NamedAggregators;
 import org.apache.beam.runners.spark.io.ConsoleIO;
@@ -50,6 +47,7 @@ import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.CombineWithContext;
 import org.apache.beam.sdk.transforms.Flatten;
+import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -82,6 +80,7 @@ import org.apache.spark.streaming.api.java.JavaStreamingContext;
 import org.apache.spark.streaming.kafka.KafkaUtils;
 
 import scala.Tuple2;
+
 
 
 /**
@@ -231,10 +230,10 @@ public final class StreamingTransformTranslator {
     };
   }
 
-  private static <K, V> TransformEvaluator<GroupByKeyOnly<K, V>> gbko() {
-    return new TransformEvaluator<GroupByKeyOnly<K, V>>() {
+  private static <K, V> TransformEvaluator<GroupByKey<K, V>> groupByKey() {
+    return new TransformEvaluator<GroupByKey<K, V>>() {
       @Override
-      public void evaluate(GroupByKeyOnly<K, V> transform, EvaluationContext context) {
+      public void evaluate(GroupByKey<K, V> transform, EvaluationContext context) {
         StreamingEvaluationContext sec = (StreamingEvaluationContext) context;
 
         @SuppressWarnings("unchecked")
@@ -244,48 +243,22 @@ public final class StreamingTransformTranslator {
         @SuppressWarnings("unchecked")
         final KvCoder<K, V> coder = (KvCoder<K, V>) sec.getInput(transform).getCoder();
 
+        final SparkRuntimeContext runtimeContext = sec.getRuntimeContext();
+        final WindowingStrategy<?, ?> windowingStrategy =
+            sec.getInput(transform).getWindowingStrategy();
+
         JavaDStream<WindowedValue<KV<K, Iterable<V>>>> outStream =
             dStream.transform(new Function<JavaRDD<WindowedValue<KV<K, V>>>,
                 JavaRDD<WindowedValue<KV<K, Iterable<V>>>>>() {
           @Override
           public JavaRDD<WindowedValue<KV<K, Iterable<V>>>> call(
               JavaRDD<WindowedValue<KV<K, V>>> rdd) throws Exception {
-            return GroupCombineFunctions.groupByKeyOnly(rdd, coder);
+            final Accumulator<NamedAggregators> accum =
+                AccumulatorSingleton.getInstance(new JavaSparkContext(rdd.context()));
+            return GroupCombineFunctions.groupByKey(rdd, accum, coder, runtimeContext,
+                windowingStrategy);
           }
         });
-        sec.setStream(transform, outStream);
-      }
-    };
-  }
-
-  private static <K, V, W extends BoundedWindow>
-      TransformEvaluator<GroupAlsoByWindow<K, V>> gabw() {
-    return new TransformEvaluator<GroupAlsoByWindow<K, V>>() {
-      @Override
-      public void evaluate(final GroupAlsoByWindow<K, V> transform, EvaluationContext context) {
-        final StreamingEvaluationContext sec = (StreamingEvaluationContext) context;
-        final SparkRuntimeContext runtimeContext = sec.getRuntimeContext();
-        @SuppressWarnings("unchecked")
-        JavaDStream<WindowedValue<KV<K, Iterable<WindowedValue<V>>>>> dStream =
-            (JavaDStream<WindowedValue<KV<K, Iterable<WindowedValue<V>>>>>)
-                sec.getStream(transform);
-
-        @SuppressWarnings("unchecked")
-        final KvCoder<K, Iterable<WindowedValue<V>>> inputKvCoder =
-            (KvCoder<K, Iterable<WindowedValue<V>>>) sec.getInput(transform).getCoder();
-
-        JavaDStream<WindowedValue<KV<K, Iterable<V>>>> outStream =
-            dStream.transform(new Function<JavaRDD<WindowedValue<KV<K,
-                Iterable<WindowedValue<V>>>>>, JavaRDD<WindowedValue<KV<K, Iterable<V>>>>>() {
-              @Override
-              public JavaRDD<WindowedValue<KV<K, Iterable<V>>>> call(JavaRDD<WindowedValue<KV<K,
-                  Iterable<WindowedValue<V>>>>> rdd) throws Exception {
-                final Accumulator<NamedAggregators> accum =
-                    AccumulatorSingleton.getInstance(new JavaSparkContext(rdd.context()));
-                return GroupCombineFunctions.groupAlsoByWindow(rdd, transform, runtimeContext,
-                    accum, inputKvCoder);
-              }
-            });
         sec.setStream(transform, outStream);
       }
     };
@@ -485,8 +458,7 @@ public final class StreamingTransformTranslator {
       .newHashMap();
 
   static {
-    EVALUATORS.put(GroupByKeyViaGroupByKeyOnly.GroupByKeyOnly.class, gbko());
-    EVALUATORS.put(GroupByKeyViaGroupByKeyOnly.GroupAlsoByWindow.class, gabw());
+    EVALUATORS.put(GroupByKey.class, groupByKey());
     EVALUATORS.put(Combine.GroupedValues.class, combineGrouped());
     EVALUATORS.put(Combine.Globally.class, combineGlobally());
     EVALUATORS.put(Combine.PerKey.class, combinePerKey());

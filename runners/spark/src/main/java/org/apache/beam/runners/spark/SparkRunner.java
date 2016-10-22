@@ -20,7 +20,6 @@ package org.apache.beam.runners.spark;
 
 import java.util.Collection;
 import java.util.List;
-import org.apache.beam.runners.core.GroupByKeyViaGroupByKeyOnly;
 import org.apache.beam.runners.spark.translation.EvaluationContext;
 import org.apache.beam.runners.spark.translation.SparkContextFactory;
 import org.apache.beam.runners.spark.translation.SparkPipelineTranslator;
@@ -36,7 +35,6 @@ import org.apache.beam.sdk.runners.PipelineRunner;
 import org.apache.beam.sdk.runners.TransformTreeNode;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.Combine;
-import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.beam.sdk.values.PBegin;
@@ -113,23 +111,6 @@ public final class SparkRunner extends PipelineRunner<EvaluationResult> {
         PipelineOptionsValidator.validate(SparkPipelineOptions.class, options);
     return new SparkRunner(sparkOptions);
   }
-
-  /**
-   * Overrides for this runner.
-   */
-  @SuppressWarnings("rawtypes")
-  @Override
-  public <OutputT extends POutput, InputT extends PInput> OutputT apply(
-      PTransform<InputT, OutputT> transform, InputT input) {
-
-    if (transform instanceof GroupByKey) {
-      return (OutputT) ((PCollection) input).apply(
-          new GroupByKeyViaGroupByKeyOnly((GroupByKey) transform));
-    } else {
-      return super.apply(transform, input);
-    }
-  }
-
 
   /**
    * No parameter constructor defaults to running this pipeline in Spark's local mode, in a single
