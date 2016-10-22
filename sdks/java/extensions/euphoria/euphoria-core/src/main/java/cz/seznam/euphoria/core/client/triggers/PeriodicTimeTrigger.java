@@ -65,6 +65,10 @@ public class PeriodicTimeTrigger<T> implements Trigger<T, TimeInterval> {
   @Override
   public TriggerResult onMerge(TimeInterval window, TriggerContext.TriggerMergeContext ctx) {
     ctx.mergeStoredState(fireTimeDescriptor);
+    // register timer according to merged state
+    ValueStorage<Long> fireStamp = ctx.getValueStorage(fireTimeDescriptor);
+    ctx.registerTimer(fireStamp.get(), window);
+
     return TriggerResult.NOOP;
   }
 }
