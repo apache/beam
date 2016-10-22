@@ -479,6 +479,10 @@ public class DataflowPipelineTranslator {
       workerPools.add(workerPool);
       environment.setWorkerPools(workerPools);
 
+      if (options.getServiceAccount() != null) {
+        environment.setServiceAccountEmail(options.getServiceAccount());
+      }
+
       pipeline.traverseTopologically(this);
       return job;
     }
