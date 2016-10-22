@@ -36,12 +36,12 @@ import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.RunnableOnService;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Count;
+import org.apache.beam.sdk.transforms.Distinct;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.Max;
 import org.apache.beam.sdk.transforms.Min;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.RemoveDuplicates;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.values.PCollection;
@@ -66,7 +66,7 @@ public class CountingSourceTest {
       .isEqualTo(numElements);
     // Unique count == numElements
     PAssert
-      .thatSingleton(input.apply(RemoveDuplicates.<Long>create())
+      .thatSingleton(input.apply(Distinct.<Long>create())
                           .apply("UniqueCount", Count.<Long>globally()))
       .isEqualTo(numElements);
     // Min == 0
@@ -177,7 +177,7 @@ public class CountingSourceTest {
 
     PCollection<Long> diffs = input
         .apply("TimestampDiff", ParDo.of(new ElementValueDiff()))
-        .apply("RemoveDuplicateTimestamps", RemoveDuplicates.<Long>create());
+        .apply("DistinctTimestamps", Distinct.<Long>create());
     // This assert also confirms that diffs only has one unique value.
     PAssert.thatSingleton(diffs).isEqualTo(0L);
 
@@ -204,7 +204,7 @@ public class CountingSourceTest {
     PCollection<Long> diffs =
         input
             .apply("TimestampDiff", ParDo.of(new ElementValueDiff()))
-            .apply("RemoveDuplicateTimestamps", RemoveDuplicates.<Long>create());
+            .apply("DistinctTimestamps", Distinct.<Long>create());
     // This assert also confirms that diffs only has one unique value.
     PAssert.thatSingleton(diffs).isEqualTo(0L);
 
