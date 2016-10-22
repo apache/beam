@@ -57,7 +57,6 @@ import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
-import org.apache.beam.sdk.util.AppliedCombineFn;
 import org.apache.beam.sdk.util.CombineFnUtil;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowingStrategy;
@@ -141,13 +140,10 @@ public final class TransformTranslator {
         PCollection<? extends KV<K, ? extends Iterable<InputT>>> input =
             context.getInput(transform);
         WindowingStrategy<?, ?> windowingStrategy = input.getWindowingStrategy();
-        AppliedCombineFn<? super K, ? super InputT, ?, OutputT> appliedFn = transform
-            .getAppliedFn(context.getPipeline().getCoderRegistry(), input.getCoder(),
-                windowingStrategy);
         @SuppressWarnings("unchecked")
         CombineWithContext.KeyedCombineFnWithContext<K, InputT, ?, OutputT> fn =
             (CombineWithContext.KeyedCombineFnWithContext<K, InputT, ?, OutputT>)
-                CombineFnUtil.toFnWithContext(appliedFn.getFn());
+                CombineFnUtil.toFnWithContext(transform.getFn());
 
         @SuppressWarnings("unchecked")
         JavaRDDLike<WindowedValue<KV<K, Iterable<InputT>>>, ?> inRDD =

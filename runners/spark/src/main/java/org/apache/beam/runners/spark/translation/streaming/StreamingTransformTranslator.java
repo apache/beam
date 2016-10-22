@@ -56,7 +56,6 @@ import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.SlidingWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
-import org.apache.beam.sdk.util.AppliedCombineFn;
 import org.apache.beam.sdk.util.CombineFnUtil;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowingStrategy;
@@ -275,12 +274,10 @@ public final class StreamingTransformTranslator {
         PCollection<? extends KV<K, ? extends Iterable<InputT>>> input =
             sec.getInput(transform);
         WindowingStrategy<?, ?> windowingStrategy = input.getWindowingStrategy();
-        AppliedCombineFn<? super K, ? super InputT, ?, OutputT> appliedFn = transform
-            .getAppliedFn(context.getPipeline().getCoderRegistry(), input.getCoder(),
-                windowingStrategy);
         @SuppressWarnings("unchecked")
-        CombineWithContext.KeyedCombineFnWithContext<K, InputT, ?, OutputT> fn =
-            (CombineWithContext.KeyedCombineFnWithContext<K, InputT, ?, OutputT>) appliedFn.getFn();
+        final CombineWithContext.KeyedCombineFnWithContext<K, InputT, ?, OutputT> fn =
+            (CombineWithContext.KeyedCombineFnWithContext<K, InputT, ?, OutputT>)
+                CombineFnUtil.toFnWithContext(transform.getFn());
 
         @SuppressWarnings("unchecked")
         JavaDStream<WindowedValue<KV<K, Iterable<InputT>>>> dStream =
