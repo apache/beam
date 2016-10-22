@@ -40,10 +40,10 @@ import org.junit.runners.JUnit4;
  * Tests for RemovedDuplicates.
  */
 @RunWith(JUnit4.class)
-public class RemoveDuplicatesTest {
+public class DistinctTest {
   @Test
   @Category(RunnableOnService.class)
-  public void testRemoveDuplicates() {
+  public void testDistinct() {
     List<String> strings = Arrays.asList(
         "k1",
         "k5",
@@ -60,7 +60,7 @@ public class RemoveDuplicatesTest {
             .withCoder(StringUtf8Coder.of()));
 
     PCollection<String> output =
-        input.apply(RemoveDuplicates.<String>create());
+        input.apply(Distinct.<String>create());
 
     PAssert.that(output)
         .containsInAnyOrder("k1", "k5", "k2", "k3");
@@ -69,7 +69,7 @@ public class RemoveDuplicatesTest {
 
   @Test
   @Category(RunnableOnService.class)
-  public void testRemoveDuplicatesEmpty() {
+  public void testDistinctEmpty() {
     List<String> strings = Arrays.asList();
 
     Pipeline p = TestPipeline.create();
@@ -79,7 +79,7 @@ public class RemoveDuplicatesTest {
             .withCoder(StringUtf8Coder.of()));
 
     PCollection<String> output =
-        input.apply(RemoveDuplicates.<String>create());
+        input.apply(Distinct.<String>create());
 
     PAssert.that(output).empty();
     p.run();
@@ -109,7 +109,7 @@ public class RemoveDuplicatesTest {
 
   @Test
   @Category(RunnableOnService.class)
-  public void testRemoveDuplicatesWithRepresentativeValue() {
+  public void testDistinctWithRepresentativeValue() {
     List<KV<String, String>> strings = Arrays.asList(
         KV.of("k1", "v1"),
         KV.of("k1", "v2"),
@@ -120,7 +120,7 @@ public class RemoveDuplicatesTest {
     PCollection<KV<String, String>> input = p.apply(Create.of(strings));
 
     PCollection<KV<String, String>> output =
-        input.apply(RemoveDuplicates.withRepresentativeValueFn(new Keys()));
+        input.apply(Distinct.withRepresentativeValueFn(new Keys()));
 
 
     PAssert.that(output).satisfies(new Checker());

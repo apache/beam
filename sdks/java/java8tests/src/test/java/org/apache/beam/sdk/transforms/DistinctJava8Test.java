@@ -38,10 +38,10 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 /**
- * Java 8 tests for {@link RemoveDuplicates}.
+ * Java 8 tests for {@link Distinct}.
  */
 @RunWith(JUnit4.class)
-public class RemoveDuplicatesJava8Test {
+public class DistinctJava8Test {
 
   @Rule
   public ExpectedException thrown = ExpectedException.none();
@@ -58,7 +58,7 @@ public class RemoveDuplicatesJava8Test {
     PCollection<String> dupes =
         p.apply(Create.of("foo", "foos", "barbaz", "barbaz", "bazbar", "foo"));
     PCollection<String> deduped =
-        dupes.apply(RemoveDuplicates.withRepresentativeValueFn((String s) -> s.length())
+        dupes.apply(Distinct.withRepresentativeValueFn((String s) -> s.length())
                                     .withRepresentativeType(TypeDescriptor.of(Integer.class)));
 
     PAssert.that(deduped).satisfies((Iterable<String> strs) -> {
@@ -99,6 +99,6 @@ public class RemoveDuplicatesJava8Test {
     // Thrown when applying a transform to the internal WithKeys that withRepresentativeValueFn is
     // implemented with
     dupes.apply("RemoveRepresentativeDupes",
-        RemoveDuplicates.withRepresentativeValueFn((String s) -> s.length()));
+        Distinct.withRepresentativeValueFn((String s) -> s.length()));
   }
 }

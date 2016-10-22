@@ -25,7 +25,7 @@ import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.RunnableOnService;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.transforms.RemoveDuplicates;
+import org.apache.beam.sdk.transforms.Distinct;
 import org.apache.beam.sdk.values.PCollection;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -38,7 +38,7 @@ public class DeDupExampleTest {
 
   @Test
   @Category(RunnableOnService.class)
-  public void testRemoveDuplicates() {
+  public void testDistinct() {
     List<String> strings = Arrays.asList(
         "k1",
         "k5",
@@ -55,7 +55,7 @@ public class DeDupExampleTest {
             .withCoder(StringUtf8Coder.of()));
 
     PCollection<String> output =
-        input.apply(RemoveDuplicates.<String>create());
+        input.apply(Distinct.<String>create());
 
     PAssert.that(output)
         .containsInAnyOrder("k1", "k5", "k2", "k3");
@@ -64,7 +64,7 @@ public class DeDupExampleTest {
 
   @Test
   @Category(RunnableOnService.class)
-  public void testRemoveDuplicatesEmpty() {
+  public void testDistinctEmpty() {
     List<String> strings = Arrays.asList();
 
     Pipeline p = TestPipeline.create();
@@ -74,7 +74,7 @@ public class DeDupExampleTest {
             .withCoder(StringUtf8Coder.of()));
 
     PCollection<String> output =
-        input.apply(RemoveDuplicates.<String>create());
+        input.apply(Distinct.<String>create());
 
     PAssert.that(output).empty();
     p.run().waitUntilFinish();

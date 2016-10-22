@@ -22,7 +22,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
 
 /**
- * {@code RemoveDuplicates<T>} takes a {@code PCollection<T>} and
+ * {@code Distinct<T>} takes a {@code PCollection<T>} and
  * returns a {@code PCollection<T>} that has all the elements of the
  * input but with duplicate elements removed such that each element is
  * unique within each window.
@@ -52,26 +52,26 @@ import org.apache.beam.sdk.values.TypeDescriptor;
  * <pre> {@code
  * PCollection<String> words = ...;
  * PCollection<String> uniqueWords =
- *     words.apply(RemoveDuplicates.<String>create());
+ *     words.apply(Distinct.<String>create());
  * } </pre>
  *
  * @param <T> the type of the elements of the input and output
  * {@code PCollection}s
  */
-public class RemoveDuplicates<T> extends PTransform<PCollection<T>,
+public class Distinct<T> extends PTransform<PCollection<T>,
                                                     PCollection<T>> {
   /**
-   * Returns a {@code RemoveDuplicates<T>} {@code PTransform}.
+   * Returns a {@code Distinct<T>} {@code PTransform}.
    *
    * @param <T> the type of the elements of the input and output
    * {@code PCollection}s
    */
-  public static <T> RemoveDuplicates<T> create() {
-    return new RemoveDuplicates<T>();
+  public static <T> Distinct<T> create() {
+    return new Distinct<T>();
   }
 
   /**
-   * Returns a {@code RemoveDuplicates<T, IdT>} {@code PTransform}.
+   * Returns a {@code Distinct<T, IdT>} {@code PTransform}.
    *
    * @param <T> the type of the elements of the input and output
    * {@code PCollection}s
@@ -102,10 +102,10 @@ public class RemoveDuplicates<T> extends PTransform<PCollection<T>,
   }
 
   /**
-   * A {@link RemoveDuplicates} {@link PTransform} that uses a {@link SerializableFunction} to
+   * A {@link Distinct} {@link PTransform} that uses a {@link SerializableFunction} to
    * obtain a representative value for each input element.
    *
-   * <p>Construct via {@link RemoveDuplicates#withRepresentativeValueFn(SerializableFunction)}.
+   * <p>Construct via {@link Distinct#withRepresentativeValueFn(SerializableFunction)}.
    *
    * @param <T> the type of input and output element
    * @param <IdT> the type of representative values used to dedup
@@ -144,7 +144,7 @@ public class RemoveDuplicates<T> extends PTransform<PCollection<T>,
      * the specified output type descriptor.
      *
      * <p>Required for use of
-     * {@link RemoveDuplicates#withRepresentativeValueFn(SerializableFunction)}
+     * {@link Distinct#withRepresentativeValueFn(SerializableFunction)}
      * in Java 8 with a lambda as the fn.
      *
      * @param type a {@link TypeDescriptor} describing the representative type of this
