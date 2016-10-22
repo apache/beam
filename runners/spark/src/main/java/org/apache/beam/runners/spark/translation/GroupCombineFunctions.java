@@ -20,11 +20,9 @@ package org.apache.beam.runners.spark.translation;
 
 
 import com.google.common.collect.Lists;
-
 import java.util.Collections;
 import java.util.Map;
 import org.apache.beam.runners.core.GroupAlsoByWindowsViaOutputBufferDoFn;
-import org.apache.beam.runners.core.GroupByKeyViaGroupByKeyOnly;
 import org.apache.beam.runners.core.SystemReduceFn;
 import org.apache.beam.runners.spark.aggregators.NamedAggregators;
 import org.apache.beam.runners.spark.coders.CoderHelpers;
@@ -38,6 +36,7 @@ import org.apache.beam.sdk.transforms.CombineWithContext;
 import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
+import org.apache.beam.sdk.util.ReifyTimestampAndWindowsDoFn;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.values.KV;
@@ -60,54 +59,45 @@ import scala.Tuple2;
 public class GroupCombineFunctions {
 
   /**
-   * Apply {@link GroupByKeyViaGroupByKeyOnly.GroupByKeyOnly} to a Spark RDD.
+   * Apply {@link org.apache.beam.sdk.transforms.GroupByKey} to a Spark RDD.
    */
-  public static <K, V> JavaRDD<WindowedValue<KV<K, Iterable<V>>>> groupByKeyOnly(
-      JavaRDD<WindowedValue<KV<K, V>>> rdd, KvCoder<K, V> coder) {
+  public static <K, V,  W extends BoundedWindow> JavaRDD<WindowedValue<KV<K,
+      Iterable<V>>>> groupByKey(JavaRDD<WindowedValue<KV<K, V>>> rdd,
+                                Accumulator<NamedAggregators> accum,
+                                KvCoder<K, V> coder,
+                                SparkRuntimeContext runtimeContext,
+                                WindowingStrategy<?, W> windowingStrategy) {
+    //--- coders.
     final Coder<K> keyCoder = coder.getKeyCoder();
     final Coder<V> valueCoder = coder.getValueCoder();
+    final WindowedValue.WindowedValueCoder<V> wvCoder = WindowedValue.FullWindowedValueCoder.of(
+        valueCoder, windowingStrategy.getWindowFn().windowCoder());
+
+    //--- groupByKey.
     // Use coders to convert objects in the PCollection to byte arrays, so they
     // can be transferred over the network for the shuffle.
-    return rdd.map(WindowingHelpers.<KV<K, V>>unwindowFunction())
-        .mapToPair(TranslationUtils.<K, V>toPairFunction())
-        .mapToPair(CoderHelpers.toByteFunction(keyCoder, valueCoder))
-        .groupByKey()
-        .mapToPair(CoderHelpers.fromByteFunctionIterable(keyCoder, valueCoder))
-        // empty windows are OK here, see GroupByKey#evaluateHelper in the SDK
-        .map(TranslationUtils.<K, Iterable<V>>fromPairFunction())
-        .map(WindowingHelpers.<KV<K, Iterable<V>>>windowFunction());
-  }
+    JavaRDD<WindowedValue<KV<K, Iterable<WindowedValue<V>>>>> groupedByKey =
+        rdd.mapPartitions(new DoFnFunction<KV<K, V>, KV<K, WindowedValue<V>>>(null,
+                new ReifyTimestampAndWindowsDoFn<K, V>(), runtimeContext, null, null))
+            .map(WindowingHelpers.<KV<K, WindowedValue<V>>>unwindowFunction())
+            .mapToPair(TranslationUtils.<K, WindowedValue<V>>toPairFunction())
+            .mapToPair(CoderHelpers.toByteFunction(keyCoder, wvCoder))
+            .groupByKey()
+            .mapToPair(CoderHelpers.fromByteFunctionIterable(keyCoder, wvCoder))
+            // empty windows are OK here, see GroupByKey#evaluateHelper in the SDK
+            .map(TranslationUtils.<K, Iterable<WindowedValue<V>>>fromPairFunction())
+            .map(WindowingHelpers.<KV<K, Iterable<WindowedValue<V>>>>windowFunction());
 
-  /**
-   * Apply {@link GroupByKeyViaGroupByKeyOnly.GroupAlsoByWindow} to a Spark RDD.
-   */
-  public static <K, V, W extends BoundedWindow> JavaRDD<WindowedValue<KV<K, Iterable<V>>>>
-  groupAlsoByWindow(JavaRDD<WindowedValue<KV<K, Iterable<WindowedValue<V>>>>> rdd,
-                    GroupByKeyViaGroupByKeyOnly.GroupAlsoByWindow<K, V> transform,
-                    SparkRuntimeContext runtimeContext,
-                    Accumulator<NamedAggregators> accum,
-                    KvCoder<K, Iterable<WindowedValue<V>>> inputKvCoder) {
-    //--- coders.
-    Coder<Iterable<WindowedValue<V>>> inputValueCoder = inputKvCoder.getValueCoder();
-    IterableCoder<WindowedValue<V>> inputIterableValueCoder =
-        (IterableCoder<WindowedValue<V>>) inputValueCoder;
-    Coder<WindowedValue<V>> inputIterableElementCoder = inputIterableValueCoder.getElemCoder();
-    WindowedValue.WindowedValueCoder<V> inputIterableWindowedValueCoder =
-        (WindowedValue.WindowedValueCoder<V>) inputIterableElementCoder;
-    Coder<V> inputIterableElementValueCoder = inputIterableWindowedValueCoder.getValueCoder();
-
-    @SuppressWarnings("unchecked")
-    WindowingStrategy<?, W> windowingStrategy =
-        (WindowingStrategy<?, W>) transform.getWindowingStrategy();
+    //--- now group also by window.
     @SuppressWarnings("unchecked")
     WindowFn<Object, W> windowFn = (WindowFn<Object, W>) windowingStrategy.getWindowFn();
-
     // GroupAlsoByWindow current uses a dummy in-memory StateInternals
     OldDoFn<KV<K, Iterable<WindowedValue<V>>>, KV<K, Iterable<V>>> gabwDoFn =
         new GroupAlsoByWindowsViaOutputBufferDoFn<K, V, Iterable<V>, W>(
             windowingStrategy, new TranslationUtils.InMemoryStateInternalsFactory<K>(),
-                SystemReduceFn.<K, V, W>buffering(inputIterableElementValueCoder));
-    return rdd.mapPartitions(new DoFnFunction<>(accum, gabwDoFn, runtimeContext, null, windowFn));
+                SystemReduceFn.<K, V, W>buffering(valueCoder));
+    return groupedByKey.mapPartitions(new DoFnFunction<>(accum, gabwDoFn, runtimeContext, null,
+        windowFn));
   }
 
   /**
