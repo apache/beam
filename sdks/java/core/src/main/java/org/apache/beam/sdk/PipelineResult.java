@@ -52,23 +52,17 @@ public interface PipelineResult {
    *     Provide a value less than 1 ms for an infinite wait.
    *
    * @return The final state of the pipeline or null on timeout.
-   * @throws IOException If there is a persistent problem getting job
-   *   information.
-   * @throws InterruptedException if the thread is interrupted.
    * @throws UnsupportedOperationException if the runner does not support cancellation.
    */
-  State waitUntilFinish(Duration duration) throws IOException, InterruptedException;
+  State waitUntilFinish(Duration duration);
 
   /**
    * Waits until the pipeline finishes and returns the final status.
    *
    * @return The final state of the pipeline.
-   * @throws IOException If there is a persistent problem getting job
-   *   information.
-   * @throws InterruptedException if the thread is interrupted.
    * @throws UnsupportedOperationException if the runner does not support cancellation.
    */
-  State waitUntilFinish() throws IOException, InterruptedException;
+  State waitUntilFinish();
 
   /**
    * Retrieves the current value of the provided {@link Aggregator}.
