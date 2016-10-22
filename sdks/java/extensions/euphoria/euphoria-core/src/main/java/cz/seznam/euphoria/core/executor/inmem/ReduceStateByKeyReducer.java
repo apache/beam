@@ -202,16 +202,12 @@ class ReduceStateByKeyReducer implements Runnable {
       }
 
       // merge all existing (non null) trigger states
-      merged = this.mergeSources.stream()
-              .map(w -> processing.triggerStorage.getStorage(w, storageDescriptor))
-              .filter(s -> s != null)
-              .reduce(merged, (x, y) -> {
-                mergeFn.apply(x, y);
-                return x;
-              });
-
-      // store newly created trigger state to the storage
-      processing.triggerStorage.putStorage(this.getScope(), storageDescriptor, merged);
+      for (KeyedWindow w : this.mergeSources) {
+        Storage s = processing.triggerStorage.getStorage(w, storageDescriptor);
+        if (s != null) {
+          mergeFn.apply(merged, s);
+        }
+      }
     }
   } // ~ end of MergingElementTriggerContext
 
