@@ -3,16 +3,12 @@ package cz.seznam.euphoria.core.client.triggers;
 import cz.seznam.euphoria.core.client.dataset.windowing.TimeInterval;
 import cz.seznam.euphoria.core.client.operator.state.ValueStorage;
 import cz.seznam.euphoria.core.client.operator.state.ValueStorageDescriptor;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * A {@link Trigger} that is periodically fired based on given time interval.
  * Used to implement "early triggering" functionality.
  */
 public class PeriodicTimeTrigger<T> implements Trigger<T, TimeInterval> {
-
-  private static final Logger LOG = LoggerFactory.getLogger(PeriodicTimeTrigger.class);
 
   /** Next fire stamp (when merging the lowest timestamp is taken) */
   private final ValueStorageDescriptor<Long> fireTimeDescriptor =
@@ -45,7 +41,6 @@ public class PeriodicTimeTrigger<T> implements Trigger<T, TimeInterval> {
     ValueStorage<Long> fireStamp = ctx.getValueStorage(fireTimeDescriptor);
 
     if (fireStamp.get().equals(time)) {
-      LOG.debug("Firing PeriodicTimeTrigger, time {}, window: {}", time, window);
       ctx.registerTimer(time + interval, window);
       fireStamp.set(time + interval);
 
