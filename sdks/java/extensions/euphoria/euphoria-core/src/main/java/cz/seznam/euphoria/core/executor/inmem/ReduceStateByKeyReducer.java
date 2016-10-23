@@ -42,7 +42,7 @@ import java.util.concurrent.BlockingQueue;
 import java.util.function.Supplier;
 
 import static java.util.Objects.requireNonNull;
-import static java.util.stream.Collectors.toList;
+import static java.util.stream.Collectors.toSet;
 
 class ReduceStateByKeyReducer implements Runnable {
 
@@ -351,13 +351,6 @@ class ReduceStateByKeyReducer implements Runnable {
       return (Storage) store.get(skey);
     }
 
-    void putStorage(KeyedWindow scope,
-                    StorageDescriptorBase descriptor,
-                    Storage storage) {
-
-      store.put(storageKey(scope, descriptor), storage);
-    }
-
     <T> ValueStorage<T> getValueStorage(
         KeyedWindow scope, ValueStorageDescriptor<T> descriptor)
     {
@@ -490,67 +483,53 @@ class ReduceStateByKeyReducer implements Runnable {
       return state;
     }
 
-    Collection<Window> getActivesForKey(Object itemKey) {
+    // ~ returns a freely modifable collection of windows actively
+    // for the given item key
+    Set<Window> getActivesForKey(Object itemKey) {
       Set<Window> actives = wRegistry.getActivesForKey(itemKey);
       if (actives == null || actives.isEmpty()) {
-        return Collections.emptyList();
+        return new HashSet<>();
       } else {
-        List<Window> ctxs = new ArrayList<>(actives.size());
-        for (Window active : actives) {
-          State state = wRegistry.getWindowState(active, itemKey);
-          Objects.requireNonNull(state, () -> "no storage for active window?! (key: " + itemKey + " / window: " + active + ")");
-          ctxs.add(active);
-        }
-        return ctxs;
+        return new HashSet<>(actives);
       }
     }
 
-    Trigger.TriggerResult mergeWindows(Collection<Window> toBeMerged, KeyedWindow tkw) {
-
-      State mergeWindowState = getWindowStateForUpdate(tkw);
-
-      List<Pair<KeyedWindow, State>> toCombine = new ArrayList<>(toBeMerged.size());
-      for (Window toMerge : toBeMerged) {
-        // ~ skip "self merge requests" to prevent removing its window storage
-        if (toMerge.equals(tkw.window())) {
-          continue;
+    // ~ merges window states for sources and places it on 'target'
+    // ~ returns a list of windows which were merged and actually removed
+    Set<KeyedWindow> mergeWindowStates(Collection<Window> sources, KeyedWindow target) {
+      // ~ first find the states to be merged
+      List<Pair<Window, State>> combine = new ArrayList<>(sources.size() + 1);
+      for (Window source : sources) {
+        State state;
+        if (source.equals(target.window())) {
+          state = wRegistry.getWindowState(target);
+        } else {
+          state = wRegistry.removeWindowState(new KeyedWindow<>(source, target.key()));
         }
-        // ~ remove the toMerge window and merge its state into the mergeWindow
-        KeyedWindow<Window, Object> wkw = new KeyedWindow<>(toMerge, tkw.key());
-        State toMergeState = wRegistry.removeWindowState(wkw);
-        if (toMergeState != null) {
-          toCombine.add(Pair.of(wkw, toMergeState));
+        if (state != null) {
+          combine.add(Pair.of(source, state));
         }
       }
-      Trigger.TriggerResult tr = Trigger.TriggerResult.NOOP;
-      if (!toCombine.isEmpty()) {
-        // ~ merge trigger states
-        tr = trigger.onMerge(tkw.window(),
-            new MergingElementTriggerContext(
-                tkw, toCombine.stream().map(Pair::getFirst).collect(toList())));
-        // ~ clear trigger states for the merged windows
-        for (Pair<KeyedWindow, State> ws : toCombine) {
-          KeyedWindow wkw = ws.getFirst();
-          trigger.onClear(wkw.window(), new ElementTriggerContext(wkw));
-        }
-        // ~ now merge the windows' state
-        ArrayList<State> states = new ArrayList<>(toCombine.size() + 1);
-        // ~ add the merge window to the list of windows to combine;
-        // by definition, we'll have it at the very first position in the list
-        states.add(mergeWindowState);
-        // ~ if any of the states emits any data during the merge, we'll make
-        // sure it happens in the scope of the merge target window
-        for (Pair<KeyedWindow, State> tc : toCombine) {
-          State st = tc.getSecond();
-          states.add(st);
-          ((KeyedElementCollector) st.getContext()).setWindow(tkw.window());
-        }
-        // ~ now merge the state and re-assign it to the merge-window
-        State newState = (State) stateCombiner.apply(states);
-        wRegistry.setWindowState(tkw, newState);
-
+      // ~ prepare for the state merge
+      List<State> statesToCombine = new ArrayList<>(combine.size());
+      // ~ if any of the states emits any data during the merge, we'll make
+      // sure it happens in the scope of the merge target window
+      for (Pair<Window, State> c : combine) {
+        State s = c.getSecond();
+        statesToCombine.add(s);
+        ((KeyedElementCollector) s.getContext()).setWindow(target.window());
       }
-      return tr;
+      // ~ now merge the state and re-assign it to the merge-window
+      if (!statesToCombine.isEmpty()) {
+        State newTargetState = (State) stateCombiner.apply(statesToCombine);
+        wRegistry.setWindowState(target, newTargetState);
+      }
+      // ~ finally return a list of windows which were actually merged and removed
+      return combine.stream()
+          .map(Pair::getFirst)
+          .filter(w -> !w.equals(target.window()))
+          .map(w -> new KeyedWindow<>(w, target.key()))
+          .collect(toSet());
     }
 
     /** Update current timestamp by given watermark. */
@@ -734,17 +713,24 @@ class ReduceStateByKeyReducer implements Runnable {
     output.put(Datum.watermark(max));
   }
 
-  private final ElementTriggerContext pitctx = new ElementTriggerContext(null);
+  private void processInput(WindowedElement element) {
+    if (windowing instanceof MergingWindowing) {
+      processInputMerging(element);
+    } else {
+      processInputNonMerging(element);
+    }
+  }
 
   @SuppressWarnings("unchecked")
-  private void processInput(WindowedElement element) {
+  private void processInputNonMerging(WindowedElement element) {
     Object item = element.get();
     Object itemKey = keyExtractor.apply(item);
     Object itemValue = valueExtractor.apply(item);
 
     Set<Window> windows = windowing.assignWindowsToElement(element);
     for (Window window : windows) {
-      pitctx.setScope(new KeyedWindow(window, itemKey));
+      ElementTriggerContext pitctx =
+          new ElementTriggerContext(new KeyedWindow(window, itemKey));
 
       State windowState = processing.getWindowStateForUpdate(pitctx.getScope());
       windowState.add(itemValue);
@@ -752,25 +738,63 @@ class ReduceStateByKeyReducer implements Runnable {
           trigger.onElement(getCurrentElementTime(), item, window, pitctx);
       // ~ handle trigger result
       handleTriggerResult(result, pitctx);
+    }
+  }
 
-      // ~ deal with window merging if required
-      if (windowing instanceof MergingWindowing) {
-        Collection<Window> actives = processing.getActivesForKey(itemKey);
-        if (actives == null || actives.isEmpty()) {
-          // nothing to do
-        } else {
-          Collection<Pair<Collection<Window>, Window>> merges =
-              ((MergingWindowing) this.windowing).mergeWindows(actives);
-          if (merges != null && !merges.isEmpty()) {
-            for (Pair<Collection<Window>, Window> merge : merges) {
-              KeyedWindow tkw = new KeyedWindow<>(merge.getSecond(), itemKey);
-              Trigger.TriggerResult tr = processing.mergeWindows(merge.getFirst(), tkw);
-              pitctx.setScope(tkw);
-              handleTriggerResult(tr, pitctx);
-            }
-          }
+  @SuppressWarnings("unchecked")
+  private void processInputMerging(WindowedElement element) {
+    assert windowing instanceof MergingWindowing;
+
+    Object item = element.get();
+    Object itemKey = keyExtractor.apply(item);
+    Object itemValue = valueExtractor.apply(item);
+
+    Set<Window> windows = windowing.assignWindowsToElement(element);
+    for (Window window : windows) {
+
+      // ~ first try to merge the new window into the set of existing ones
+
+      Set<Window> current = processing.getActivesForKey(itemKey);
+      current.add(window);
+
+      Collection<Pair<Collection<Window>, Window>> cmds =
+          ((MergingWindowing) windowing).mergeWindows(current);
+
+      Trigger.TriggerResult tr = Trigger.TriggerResult.NOOP;
+      for (Pair<Collection<Window>, Window> cmd : cmds) {
+        Collection<Window> srcs = cmd.getFirst();
+        Window trgt = cmd.getSecond();
+
+        // ~ if the new window was merged, continue processing the merge
+        // target as the window the new input element should be placed into
+        if (srcs.contains(window)) {
+          window = trgt;
+        }
+
+        // ~ merge window (item) states
+        Set<KeyedWindow> merged =
+            processing.mergeWindowStates(srcs, new KeyedWindow(trgt, itemKey));
+
+        // ~ merge window trigger states
+        tr = Trigger.TriggerResult.merge(tr, trigger.onMerge(
+            trgt,
+            new MergingElementTriggerContext(new KeyedWindow(trgt, itemKey), merged)));
+        // ~ clear window trigger states for the merged winndows
+        for (KeyedWindow w : merged) {
+          trigger.onClear(w.window(), new ElementTriggerContext(w));
         }
       }
+
+      // ~ only now, add the element to the new window
+
+      ElementTriggerContext pitctx =
+          new ElementTriggerContext(new KeyedWindow(window, itemKey));
+      State windowState = processing.getWindowStateForUpdate(pitctx.getScope());
+      windowState.add(itemValue);
+      tr = Trigger.TriggerResult.merge(
+          tr, trigger.onElement(getCurrentElementTime(), item, window, pitctx));
+      // ~ handle trigger result
+      handleTriggerResult(tr, pitctx);
     }
   }
 
@@ -825,7 +849,4 @@ class ReduceStateByKeyReducer implements Runnable {
   private long getCurrentElementTime() {
     return currentElementTime;
   }
-
-
-
 }
