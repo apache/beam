@@ -138,11 +138,11 @@
       <scope>test</scope>
     </dependency-->
     <!-- Optional Pipeline Registration -->
-    <!--dependency>
+    <dependency>
       <groupId>com.google.auto.service</groupId>
       <artifactId>auto-service</artifactId>
       <optional>true</optional>
-    </dependency-->
+    </dependency>
   </dependencies>
 
   <build>
@@ -183,7 +183,7 @@
               <systemPropertyVariables>
                 <beamTestPipelineOptions>
                   [
-                    "--runner=org.apache.beam.runners.apex.TestApexRunner"
+                    "--runner=TestApexRunner"
                   ]
                 </beamTestPipelineOptions>
               </systemPropertyVariables>

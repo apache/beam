@@ -134,7 +134,7 @@ public interface ApexStreamTuple<T> {
   /**
    * Coder for {@link ApexStreamTuple}.
    */
-  public static class ApexStreamTupleCoder<T> extends StandardCoder<ApexStreamTuple<T>> {
+  class ApexStreamTupleCoder<T> extends StandardCoder<ApexStreamTuple<T>> {
     private static final long serialVersionUID = 1L;
     final Coder<T> valueCoder;
 
