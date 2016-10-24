@@ -101,9 +101,7 @@ public abstract class FileBasedSource<T> extends OffsetBasedSource<T> {
    * @param minBundleSize minimum bundle size in bytes.
    */
   public FileBasedSource(String fileOrPatternSpec, long minBundleSize) {
-    super(0, Long.MAX_VALUE, minBundleSize);
-    mode = Mode.FILEPATTERN;
-    this.fileOrPatternSpec = StaticValueProvider.of(fileOrPatternSpec);
+    this(StaticValueProvider.of(fileOrPatternSpec), 0);
   }
 
   /**
@@ -166,6 +164,8 @@ public abstract class FileBasedSource<T> extends OffsetBasedSource<T> {
         end,
         getEndOffset());
 
+    checkState(fileOrPatternSpec.isAccessible(),
+               "Subrange creation should only happen at execution time.");
     FileBasedSource<T> source = createForSubrangeOfFile(fileOrPatternSpec.get(), start, end);
     if (start > 0 || end != Long.MAX_VALUE) {
       checkArgument(source.getMode() == Mode.SINGLE_FILE_OR_SUBRANGE,
@@ -517,8 +517,9 @@ public abstract class FileBasedSource<T> extends OffsetBasedSource<T> {
     @Override
     protected final boolean startImpl() throws IOException {
       FileBasedSource<T> source = getCurrentSource();
-      IOChannelFactory factory = IOChannelUtils.getFactory(source.getFileOrPatternSpec());
-      this.channel = factory.open(source.getFileOrPatternSpec());
+      IOChannelFactory factory = IOChannelUtils.getFactory(
+        source.getFileOrPatternSpecProvider().get());
+      this.channel = factory.open(source.getFileOrPatternSpecProvider().get());
 
       if (channel instanceof SeekableByteChannel) {
         SeekableByteChannel seekChannel = (SeekableByteChannel) channel;
