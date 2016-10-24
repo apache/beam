@@ -108,21 +108,21 @@
     <dependency>
       <groupId>org.apache.beam</groupId>
       <artifactId>beam-sdks-java-core</artifactId>
-      <version>0.3.0-incubating-SNAPSHOT</version>
+      <version>0.4.0-incubating-SNAPSHOT</version>
     </dependency>
 
     <!-- Adds a dependency on a specific version of the Dataflow runnner. -->
     <dependency>
       <groupId>org.apache.beam</groupId>
       <artifactId>beam-runners-direct-java</artifactId>
-      <version>0.3.0-incubating-SNAPSHOT</version>
+      <version>0.4.0-incubating-SNAPSHOT</version>
       <scope>runtime</scope>
     </dependency>
 
     <dependency>
       <groupId>org.apache.beam</groupId>
       <artifactId>beam-runners-google-cloud-dataflow-java</artifactId>
-      <version>0.3.0-incubating-SNAPSHOT</version>
+      <version>0.4.0-incubating-SNAPSHOT</version>
       <scope>runtime</scope>
     </dependency>
 
@@ -130,7 +130,7 @@
     <dependency>
       <groupId>org.apache.beam</groupId>
       <artifactId>beam-sdks-java-io-google-cloud-platform</artifactId>
-      <version>0.3.0-incubating-SNAPSHOT</version>
+      <version>0.4.0-incubating-SNAPSHOT</version>
     </dependency>
 
     <dependency>
