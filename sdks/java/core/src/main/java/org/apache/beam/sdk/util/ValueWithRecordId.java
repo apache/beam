@@ -31,7 +31,7 @@ import java.util.Objects;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.StandardCoder;
-import org.apache.beam.sdk.transforms.OldDoFn;
+import org.apache.beam.sdk.transforms.DoFn;
 
 /**
  * Immutable struct containing a value as well as a unique id identifying the value.
@@ -136,9 +136,9 @@ public class ValueWithRecordId<ValueT> {
     ByteArrayCoder idCoder;
   }
 
-  /** {@link OldDoFn} to turn a {@code ValueWithRecordId<T>} back to the value {@code T}. */
-  public static class StripIdsDoFn<T> extends OldDoFn<ValueWithRecordId<T>, T> {
-    @Override
+  /** {@link DoFn} to turn a {@code ValueWithRecordId<T>} back to the value {@code T}. */
+  public static class StripIdsDoFn<T> extends DoFn<ValueWithRecordId<T>, T> {
+    @ProcessElement
     public void processElement(ProcessContext c) {
       c.output(c.element().getValue());
     }
