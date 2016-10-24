@@ -27,7 +27,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
-import java.util.Random;
 import java.util.UUID;
 
 class KafkaUtils {
@@ -58,18 +57,13 @@ class KafkaUtils {
   }
 
   public static Consumer<byte[], byte[]>
-  newConsumer(String brokerList, Settings config)
+  newConsumer(String brokerList, String groupId, Settings config)
   {
     Properties ps = toProperties(config);
     ps.setProperty(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, brokerList);
     ps.setProperty(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
     ps.setProperty(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, ByteArrayDeserializer.class.getName());
-    if (ps.getProperty(ConsumerConfig.GROUP_ID_CONFIG) == null) {
-      final String name = "euphoria.group-id-" + UUID.randomUUID().toString();
-      LOG.warn("Autogenerating name of consumer's {} to {}",
-          ConsumerConfig.GROUP_ID_CONFIG, name);
-      ps.setProperty(ConsumerConfig.GROUP_ID_CONFIG, name);
-    }
+    ps.setProperty(ConsumerConfig.GROUP_ID_CONFIG, groupId);
     if (ps.getProperty(ConsumerConfig.CLIENT_ID_CONFIG) == null) {
       final String name = "euphoria.client-id-" + UUID.randomUUID().toString();
       LOG.warn("Autogenerating name of consumer's {} to {}",
