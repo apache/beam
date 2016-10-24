@@ -28,6 +28,8 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 import static java.util.Objects.requireNonNull;
+import java.util.UUID;
+import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 
 public class KafkaSource implements DataSource<Pair<byte[], byte[]>> {
@@ -39,16 +41,14 @@ public class KafkaSource implements DataSource<Pair<byte[], byte[]>> {
       implements Reader<Pair<byte[], byte[]>> {
     
     private final Consumer<byte[], byte[]> c;
-    private final boolean stopAtCurrentOffset;
-    private final long now;
+    private final long stopReadingAtStamp;
     
     private Iterator<ConsumerRecord<byte[], byte[]>> next;
     private int uncommittedCount = 0;
 
-    ConsumerReader(Consumer<byte[], byte[]> c, boolean stopAtCurrentOffset) {
+    ConsumerReader(Consumer<byte[], byte[]> c, long stopReadingAtStamp) {
       this.c = c;
-      this.stopAtCurrentOffset = stopAtCurrentOffset;
-      this.now = System.currentTimeMillis();
+      this.stopReadingAtStamp = stopReadingAtStamp;
     }
 
     @Override
@@ -60,12 +60,12 @@ public class KafkaSource implements DataSource<Pair<byte[], byte[]>> {
         next = polled.iterator();
       }
       ConsumerRecord<byte[], byte[]> r = this.next.next();
-      if (stopAtCurrentOffset) {
+      if (stopReadingAtStamp > 0) {
         long messageStamp = r.timestamp();
-        if (messageStamp > now) {
+        if (messageStamp > stopReadingAtStamp) {
           LOG.info(
               "Terminating polling of topic, passed initial timestamp {} with value {}",
-              now, messageStamp);
+              stopReadingAtStamp, messageStamp);
           commitIfNeeded();
           endOfData();
           return null;
@@ -93,27 +93,30 @@ public class KafkaSource implements DataSource<Pair<byte[], byte[]>> {
   static final class KafkaPartition implements Partition<Pair<byte[], byte[]>> {
     private final String brokerList;
     private final String topicId;
+    private final String groupId;
     private final int partition;
     private final String host;
     private final Settings config;
     private final long startOffset;
 
     // should we stop reading when reaching the current offset?
-    private final boolean stopAtCurrentOffset;
+    private final long stopReadingAtStamp;
 
     KafkaPartition(String brokerList, String topicId,
+                   String groupId,
                    int partition, String host,
                    Settings config /* optional */,
                    long startOffset,
-                   boolean stopAtCurrentOffset)
+                   long stopReadingAtStamp)
     {
       this.brokerList = brokerList;
       this.topicId = topicId;
+      this.groupId = groupId;
       this.partition = partition;
       this.host = host;
       this.config = config;
       this.startOffset = startOffset;
-      this.stopAtCurrentOffset = stopAtCurrentOffset;
+      this.stopReadingAtStamp = stopReadingAtStamp;
     }
 
     @Override
@@ -124,7 +127,7 @@ public class KafkaSource implements DataSource<Pair<byte[], byte[]>> {
     @Override
     public Reader<Pair<byte[], byte[]>> openReader() throws IOException {
       Consumer<byte[], byte[]> c =
-          KafkaUtils.newConsumer(brokerList, config);
+          KafkaUtils.newConsumer(brokerList, groupId, config);
       TopicPartition tp = new TopicPartition(topicId, partition);
       ArrayList<TopicPartition> partitionList = Lists.newArrayList(tp);
       c.assign(partitionList);
@@ -133,29 +136,32 @@ public class KafkaSource implements DataSource<Pair<byte[], byte[]>> {
       } else if (startOffset == 0) {
         c.seekToBeginning(partitionList);
       }
-      return new ConsumerReader(c, stopAtCurrentOffset);
+      return new ConsumerReader(c, stopReadingAtStamp);
     }
   }
 
   static final class AllPartitionsConsumer implements Partition<Pair<byte[], byte[]>> {
     private final String brokerList;
     private final String topicId;
+    private final String groupId;
     private final Settings config; // ~ optional
     private final long offsetTimestamp; // ~ effective iff > 0
-    private final boolean stopAtCurrentOffset;
+    private final long stopReadingAtStamp;
 
     AllPartitionsConsumer(
         String brokerList,
         String topicId,
+        String groupId,
         Settings config,
         long offsetTimestamp,
-        boolean stopAtCurrentOffset) {
+        long stopReadingStamp) {
 
       this.brokerList = brokerList;
       this.topicId = topicId;
+      this.groupId = groupId;
       this.config = config;
       this.offsetTimestamp = offsetTimestamp;
-      this.stopAtCurrentOffset = stopAtCurrentOffset;
+      this.stopReadingAtStamp = stopReadingStamp;
     }
 
     @Override
@@ -165,7 +171,9 @@ public class KafkaSource implements DataSource<Pair<byte[], byte[]>> {
 
     @Override
     public Reader<Pair<byte[], byte[]>> openReader() throws IOException {
-      Consumer<byte[], byte[]> c = KafkaUtils.newConsumer(brokerList, config);
+      Consumer<byte[], byte[]> c = KafkaUtils.newConsumer(
+          brokerList, groupId, config);
+      
       c.assign(
           c.partitionsFor(topicId)
               .stream()
@@ -178,7 +186,7 @@ public class KafkaSource implements DataSource<Pair<byte[], byte[]>> {
           c.seek(new TopicPartition(topicId, off.getKey()), off.getValue());
         }
       }
-      return new ConsumerReader(c, stopAtCurrentOffset);
+      return new ConsumerReader(c, stopReadingAtStamp);
     }
   }
 
@@ -191,7 +199,16 @@ public class KafkaSource implements DataSource<Pair<byte[], byte[]>> {
 
       String cname = URIParams.of(uri).getStringParam("cfg", null);
       Settings cconfig =  cname == null ? null : settings.nested(cname);
-      return (DataSource<T>) new KafkaSource(brokers, topic, cconfig);
+      final String groupId;
+      if (cconfig == null
+          || cconfig.getString(ConsumerConfig.GROUP_ID_CONFIG, null) == null) {
+        groupId = "euphoria.group-id-" + UUID.randomUUID().toString();
+        LOG.warn("Autogenerating name of consumer's {} to {}",
+            ConsumerConfig.GROUP_ID_CONFIG, groupId);
+      } else {
+        groupId = cconfig.getString(ConsumerConfig.GROUP_ID_CONFIG);
+      }
+      return (DataSource<T>) new KafkaSource(brokers, topic, groupId, cconfig);
     }
   }
   
@@ -199,18 +216,24 @@ public class KafkaSource implements DataSource<Pair<byte[], byte[]>> {
 
   private final String brokerList;
   private final String topicId;
+  private final String groupId;
   private final Settings config; // ~ optional
 
-  KafkaSource(String brokerList, String topicId, Settings config) {
+  KafkaSource(
+      String brokerList,
+      String topicId,
+      String groupId,
+      Settings config) {
     this.brokerList = requireNonNull(brokerList);
     this.topicId = requireNonNull(topicId);
+    this.groupId = requireNonNull(groupId);
     this.config = config;
   }
 
   @Override
   public List<Partition<Pair<byte[], byte[]>>> getPartitions() {
     long offsetTimestamp = -1L;
-    boolean stopAtCurrentOffset = false;
+    long stopReadingAtStamp = Long.MAX_VALUE;
     if (config != null) {
       offsetTimestamp = config.getLong("reset.offset.timestamp", -1L);
       if (offsetTimestamp > 0) {
@@ -220,18 +243,21 @@ public class KafkaSource implements DataSource<Pair<byte[], byte[]>> {
         LOG.info("Going to read the whole contents of kafka topic {}",
             topicId);
       }
-      stopAtCurrentOffset = config.getBoolean(
-          "stop.at.current", stopAtCurrentOffset);
-      if (stopAtCurrentOffset) {
-        LOG.info("Will stop polling kafka topic at current timestamp");
+      if (config.getBoolean("stop.at.current", false)) {
+        stopReadingAtStamp = System.currentTimeMillis();
+        LOG.info("Will stop polling kafka topic at current timestamp {}",
+            stopReadingAtStamp);
       }
       if (config.getBoolean("single.reader.only", false)) {
         return Collections.singletonList(
-          new AllPartitionsConsumer(brokerList, topicId,
-              config, offsetTimestamp, stopAtCurrentOffset));
+          new AllPartitionsConsumer(brokerList, topicId, groupId,
+              config, offsetTimestamp, stopReadingAtStamp));
       }
     }
-    try (Consumer<?, ?> c = KafkaUtils.newConsumer(brokerList, config)) {
+    try (Consumer<?, ?> c = KafkaUtils.newConsumer(
+        brokerList, "euphoria.partition-probe-" + UUID.randomUUID().toString(),
+        config)) {
+      
       final Map<Integer, Long> offs;
       try {
         offs = offsetTimestamp > 0
@@ -241,16 +267,16 @@ public class KafkaSource implements DataSource<Pair<byte[], byte[]>> {
         throw new RuntimeException(e);
       }
       List<PartitionInfo> ps = c.partitionsFor(topicId);
-      final boolean stopAtCurrent = stopAtCurrentOffset;
+      final long stopAtStamp = stopReadingAtStamp;
       final long defaultOffsetTimestamp = offsetTimestamp;
       return ps.stream().map(p ->
           // ~ XXX a leader might not be available (check p.leader().id() == -1)
           // ... fail in this situation
           new KafkaPartition(
-              brokerList, topicId, p.partition(),
+              brokerList, topicId, groupId, p.partition(),
               p.leader().host(), config,
               offs.getOrDefault(p.partition(), defaultOffsetTimestamp),
-              stopAtCurrent))
+              stopAtStamp))
           .collect(Collectors.toList());
     }
   }
