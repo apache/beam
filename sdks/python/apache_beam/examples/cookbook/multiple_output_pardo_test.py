@@ -27,6 +27,7 @@ from apache_beam.examples.cookbook import multiple_output_pardo
 
 class MultipleOutputParDoTest(unittest.TestCase):
 
+
   SAMPLE_TEXT = 'A whole new world\nA new point'
   text_len = len(' '.join(SAMPLE_TEXT.split('\n')))
   SAMPLE_TEXT_Iterable = [SAMPLE_TEXT]
