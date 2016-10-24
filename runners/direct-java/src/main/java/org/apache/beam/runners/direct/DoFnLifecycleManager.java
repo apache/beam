@@ -21,17 +21,17 @@ package org.apache.beam.runners.direct;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
-import java.util.ArrayList;
+import com.google.common.cache.RemovalListener;
+import com.google.common.cache.RemovalNotification;
 import java.util.Collection;
-import java.util.Iterator;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import org.apache.beam.sdk.runners.PipelineRunner;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFn.Setup;
 import org.apache.beam.sdk.transforms.DoFn.Teardown;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvokers;
 import org.apache.beam.sdk.util.SerializableUtils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Manages {@link DoFn} setup, teardown, and serialization.
@@ -42,16 +42,18 @@ import org.slf4j.LoggerFactory;
  * clearing all cached {@link DoFn DoFns}.
  */
 class DoFnLifecycleManager {
-  private static final Logger LOG = LoggerFactory.getLogger(DoFnLifecycleManager.class);
-
   public static DoFnLifecycleManager of(DoFn<?, ?> original) {
     return new DoFnLifecycleManager(original);
   }
 
   private final LoadingCache<Thread, DoFn<?, ?>> outstanding;
+  private final ConcurrentMap<Thread, Exception> thrownOnTeardown;
 
   private DoFnLifecycleManager(DoFn<?, ?> original) {
-    this.outstanding = CacheBuilder.newBuilder().build(new DeserializingCacheLoader(original));
+    this.outstanding = CacheBuilder.newBuilder()
+        .removalListener(new TeardownRemovedFnListener())
+        .build(new DeserializingCacheLoader(original));
+    thrownOnTeardown = new ConcurrentHashMap<>();
   }
 
   public DoFn<?, ?> get() throws Exception {
@@ -61,8 +63,15 @@ class DoFnLifecycleManager {
 
   public void remove() throws Exception {
     Thread currentThread = Thread.currentThread();
-    DoFn<?, ?> fn = outstanding.asMap().remove(currentThread);
-    DoFnInvokers.INSTANCE.invokerFor(fn).invokeTeardown();
+    outstanding.invalidate(currentThread);
+    // Block until the invalidate is fully completed
+    outstanding.cleanUp();
+    // Remove to try too avoid reporting the same teardown exception twice. May still double-report,
+    // but the second will be suppressed.
+    Exception thrown = thrownOnTeardown.remove(currentThread);
+    if (thrown != null) {
+      throw thrown;
+    }
   }
 
   /**
@@ -73,21 +82,13 @@ class DoFnLifecycleManager {
    * DoFn.Teardown @Teardown} method, and the {@link PipelineRunner} should throw an exception.
    */
   public Collection<Exception> removeAll() throws Exception {
-    Iterator<DoFn<?, ?>> fns = outstanding.asMap().values().iterator();
-    Collection<Exception> thrown = new ArrayList<>();
-    while (fns.hasNext()) {
-      DoFn<?, ?> fn = fns.next();
-      fns.remove();
-      try {
-        DoFnInvokers.INSTANCE.invokerFor(fn).invokeTeardown();
-      } catch (Exception e) {
-        thrown.add(e);
-      }
-    }
-    return thrown;
+    outstanding.invalidateAll();
+    // Make sure all of the teardowns are run
+    outstanding.cleanUp();
+    return thrownOnTeardown.values();
   }
 
-  private class DeserializingCacheLoader extends CacheLoader<Thread, DoFn<?, ?>> {
+  private static class DeserializingCacheLoader extends CacheLoader<Thread, DoFn<?, ?>> {
     private final byte[] original;
 
     public DeserializingCacheLoader(DoFn<?, ?> original) {
@@ -100,6 +101,17 @@ class DoFnLifecycleManager {
           "DoFn Copy in thread " + key.getName());
       DoFnInvokers.INSTANCE.invokerFor(fn).invokeSetup();
       return fn;
+    }
+  }
+
+  private class TeardownRemovedFnListener implements RemovalListener<Thread, DoFn<?, ?>> {
+    @Override
+    public void onRemoval(RemovalNotification<Thread, DoFn<?, ?>> notification) {
+      try {
+        DoFnInvokers.INSTANCE.newByteBuddyInvoker(notification.getValue()).invokeTeardown();
+      } catch (Exception e) {
+        thrownOnTeardown.put(notification.getKey(), e);
+      }
     }
   }
 }
