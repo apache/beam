@@ -101,7 +101,7 @@ public abstract class FileBasedSource<T> extends OffsetBasedSource<T> {
    * @param minBundleSize minimum bundle size in bytes.
    */
   public FileBasedSource(String fileOrPatternSpec, long minBundleSize) {
-    this(StaticValueProvider.of(fileOrPatternSpec), 0);
+    this(StaticValueProvider.of(fileOrPatternSpec), minBundleSize);
   }
 
   /**
