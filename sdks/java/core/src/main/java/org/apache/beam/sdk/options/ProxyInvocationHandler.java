@@ -493,12 +493,15 @@ class ProxyInvocationHandler implements InvocationHandler {
       }
     }
     if (method.getReturnType().equals(ValueProvider.class)) {
+      String propertyName = gettersToPropertyNames.get(method.getName());
       return defaultObject == null
         ? new RuntimeValueProvider(
-          method.getName(), (Class<? extends PipelineOptions>) method.getDeclaringClass(),
+          method.getName(), propertyName,
+          (Class<? extends PipelineOptions>) method.getDeclaringClass(),
           proxy.getOptionsId())
         : new RuntimeValueProvider(
-          method.getName(), (Class<? extends PipelineOptions>) method.getDeclaringClass(),
+          method.getName(), propertyName,
+          (Class<? extends PipelineOptions>) method.getDeclaringClass(),
           defaultObject, proxy.getOptionsId());
     } else if (defaultObject != null) {
       return defaultObject;

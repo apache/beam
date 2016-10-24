@@ -98,6 +98,13 @@ public class ValueProviderTest {
   }
 
   @Test
+  public void testRuntimePropertyName() {
+    TestOptions options = PipelineOptionsFactory.as(TestOptions.class);
+    ValueProvider<String> provider = options.getFoo();
+    assertEquals("foo", ((RuntimeValueProvider) provider).propertyName());
+  }
+
+  @Test
   public void testDefaultRuntimeProvider() {
     TestOptions options = PipelineOptionsFactory.as(TestOptions.class);
     ValueProvider<String> provider = options.getBar();
