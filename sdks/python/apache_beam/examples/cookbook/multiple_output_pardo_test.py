@@ -61,7 +61,7 @@ class MultipleOutputParDoTest(unittest.TestCase):
                      label='assert:tag_short_words')
     beam.assert_that(results_cnt,
                      beam.equal_to([len(' '.join(self.SAMPLE_TEXT.split('\n')))]
-                                   ),
+                                  ),
                      label='assert:tag_character_count')
     p.run()
 
