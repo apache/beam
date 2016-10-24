@@ -21,6 +21,7 @@ package org.apache.beam.runners.direct;
 import static com.google.common.base.Preconditions.checkState;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.isA;
 import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.theInstance;
 import static org.junit.Assert.assertThat;
@@ -34,8 +35,11 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.util.UserCodeException;
 import org.hamcrest.Matchers;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
@@ -44,6 +48,8 @@ import org.junit.runners.JUnit4;
  */
 @RunWith(JUnit4.class)
 public class DoFnLifecycleManagerTest {
+  @Rule public ExpectedException thrown = ExpectedException.none();
+
   private TestFn fn = new TestFn();
   private DoFnLifecycleManager mgr = DoFnLifecycleManager.of(fn);
 
@@ -105,6 +111,17 @@ public class DoFnLifecycleManagerTest {
   }
 
   @Test
+  public void teardownThrowsRemoveThrows() throws Exception {
+    TestFn obtained = (TestFn) mgr.get();
+    obtained.teardown();
+
+    thrown.expect(UserCodeException.class);
+    thrown.expectCause(isA(IllegalStateException.class));
+    thrown.expectMessage("Cannot call teardown: already torn down");
+    mgr.remove();
+  }
+
+  @Test
   public void teardownAllOnRemoveAll() throws Exception {
     CountDownLatch startSignal = new CountDownLatch(1);
     ExecutorService executor = Executors.newCachedThreadPool();
@@ -118,6 +135,38 @@ public class DoFnLifecycleManagerTest {
       fns.add(future.get(1L, TimeUnit.SECONDS));
     }
     mgr.removeAll();
+
+    for (TestFn fn : fns) {
+      assertThat(fn.setupCalled, is(true));
+      assertThat(fn.teardownCalled, is(true));
+    }
+  }
+
+  @Test
+  public void removeAndRemoveAllConcurrent() throws Exception {
+    CountDownLatch startSignal = new CountDownLatch(1);
+    ExecutorService executor = Executors.newCachedThreadPool();
+    List<Future<TestFn>> futures = new ArrayList<>();
+    for (int i = 0; i < 10; i++) {
+      futures.add(executor.submit(new GetFnCallable(mgr, startSignal)));
+    }
+    startSignal.countDown();
+    List<TestFn> fns = new ArrayList<>();
+    for (Future<TestFn> future : futures) {
+      fns.add(future.get(1L, TimeUnit.SECONDS));
+    }
+    CountDownLatch removeSignal = new CountDownLatch(1);
+    List<Future<Void>> removeFutures = new ArrayList<>();
+    for (int i = 0; i < 5; i++) {
+      // These will reuse the threads used in the GetFns
+      removeFutures.add(executor.submit(new TeardownFnCallable(mgr, removeSignal)));
+    }
+    removeSignal.countDown();
+    assertThat(mgr.removeAll(), Matchers.<Exception>emptyIterable());
+    for (Future<Void> removed : removeFutures) {
+      // Should not have thrown an exception.
+      removed.get();
+    }
 
     for (TestFn fn : fns) {
       assertThat(fn.setupCalled, is(true));
@@ -141,6 +190,23 @@ public class DoFnLifecycleManagerTest {
     }
   }
 
+  private static class TeardownFnCallable implements Callable<Void> {
+    private final DoFnLifecycleManager mgr;
+    private final CountDownLatch startSignal;
+
+    private TeardownFnCallable(DoFnLifecycleManager mgr, CountDownLatch startSignal) {
+      this.mgr = mgr;
+      this.startSignal = startSignal;
+    }
+
+    @Override
+    public Void call() throws Exception {
+      startSignal.await();
+      // Will throw an exception if the TestFn has already been removed from this thread
+      mgr.remove();
+      return null;
+    }
+  }
 
   private static class TestFn extends DoFn<Object, Object> {
     boolean setupCalled = false;
@@ -148,8 +214,8 @@ public class DoFnLifecycleManagerTest {
 
     @Setup
     public void setup() {
-      checkState(!setupCalled);
-      checkState(!teardownCalled);
+      checkState(!setupCalled, "Cannot call setup: already set up");
+      checkState(!teardownCalled, "Cannot call setup: already torn down");
 
       setupCalled = true;
     }
@@ -160,8 +226,8 @@ public class DoFnLifecycleManagerTest {
 
     @Teardown
     public void teardown() {
-      checkState(setupCalled);
-      checkState(!teardownCalled);
+      checkState(setupCalled, "Cannot call teardown: not set up");
+      checkState(!teardownCalled, "Cannot call teardown: already torn down");
 
       teardownCalled = true;
     }
