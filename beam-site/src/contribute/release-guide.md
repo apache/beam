@@ -207,6 +207,12 @@ Set up a few environment variables to simplify Maven commands that follow. This 
     RC_NUM="1"
     TAG="v${VERSION}-RC${RC_NUM}"
 
+Before running the command to prepare the release you might have to start `gpg-agent` so that your key can be unlocked by your passphrase for signing the release. You can do this with something like this:
+
+    eval $(gpg-agent --daemon --no-grab --write-env-file $HOME/.gpg-agent-info)
+    export GPG_TTY=$(tty)
+    export GPG_AGENT_INFO
+
 Use Maven release plugin to build the release artifacts, as follows:
 
     mvn release:prepare \
