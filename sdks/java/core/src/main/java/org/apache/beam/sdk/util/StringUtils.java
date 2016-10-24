@@ -96,7 +96,7 @@ public class StringUtils {
   }
 
   private static final String[] STANDARD_NAME_SUFFIXES =
-      new String[]{"OldDoFn", "Fn"};
+      new String[]{"OldDoFn", "DoFn", "Fn"};
 
   /**
    * Pattern to match a non-anonymous inner class.
