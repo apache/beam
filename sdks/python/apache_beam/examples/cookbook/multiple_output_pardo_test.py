@@ -25,8 +25,8 @@ from apache_beam.examples.cookbook import multiple_output_pardo
 #from apache_beam.transforms.util import assert_that
 #from apache_beam.transforms.util import DataflowAssertException
 
-class MultipleOutputParDoTest(unittest.TestCase):
 
+class MultipleOutputParDoTest(unittest.TestCase):
 
   SAMPLE_TEXT = 'A whole new world\nA new point'
   text_len = len(' '.join(SAMPLE_TEXT.split('\n')))
