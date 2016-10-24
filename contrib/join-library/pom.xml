@@ -71,6 +71,7 @@
         <version>2.17</version>
         <configuration>
           <configLocation>../../checkstyle.xml</configLocation>
+          <suppressionsLocation>../../suppressions.xml</suppressionsLocation>
           <consoleOutput>true</consoleOutput>
           <failOnViolation>true</failOnViolation>
           <includeTestSourceDirectory>true</includeTestSourceDirectory>
