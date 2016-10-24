@@ -38,7 +38,7 @@ class MultipleOutputParDoTest(unittest.TestCase):
     sample_text = p | beam.Create(self.SAMPLE_TEXT_Iterable)
     res = (sample_text
            | beam.ParDo(multiple_output_pardo.SplitLinesToWordsFn())
-           .with_outputs('tag_short_words', 'tag_character_count', main='words'))
+           .with_outputs('tag_short_words','tag_character_count',main='words'))
     res_cnt = (res.tag_character_count
                | 'pair_with_key' >> beam.Map(lambda x: ('chars_temp_key', x))
                | beam.GroupByKey()
