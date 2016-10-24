@@ -35,8 +35,8 @@
   <modules>
     <module>core-java</module>
     <module>direct-java</module>
-    <module>google-cloud-dataflow-java</module>
     <module>flink</module>
+    <module>google-cloud-dataflow-java</module>
     <module>spark</module>
   </modules>
 
