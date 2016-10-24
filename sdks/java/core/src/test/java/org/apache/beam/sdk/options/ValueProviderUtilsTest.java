@@ -30,7 +30,7 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class ValueProviderUtilsTest {
   /** A test interface. */
-  public static interface TestOptions extends PipelineOptions {
+  public interface TestOptions extends PipelineOptions {
     String getString();
     void setString(String value);
 
