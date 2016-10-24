@@ -26,48 +26,47 @@ from apache_beam.examples.cookbook import multiple_output_pardo
 
 class MultipleOutputParDoTest(unittest.TestCase):
 
-    SAMPLE_TEXT = 'A whole new world\nA new point'
-    EXPECTED_SHORT_WORDS = ['A: 2', 'new: 2']
-    EXPECTED_WORDS = ['point: 1', 'whole: 1', 'world: 1']
+  SAMPLE_TEXT = 'A whole new world\nA new point'
+  EXPECTED_SHORT_WORDS = ['A: 2', 'new: 2']
+  EXPECTED_WORDS = ['point: 1', 'whole: 1', 'world: 1']
 
-    def test_multiple_output_pardo(self):
-        p = beam.Pipeline('DirectPipelineRunner')
+  def test_multiple_output_pardo(self):
+    p = beam.Pipeline('DirectPipelineRunner')
 
-        sample_text = p | beam.Create([self.SAMPLE_TEXT])
+    sample_text = p | beam.Create([self.SAMPLE_TEXT])
 
-        results = (sample_text
-                   | beam.ParDo(multiple_output_pardo.SplitLinesToWordsFn())
-                   .with_outputs('tag_short_words',
-                                 'tag_character_count',
-                                 main='words'))
+    results = (sample_text
+               | beam.ParDo(multiple_output_pardo.SplitLinesToWordsFn())
+               .with_outputs('tag_short_words',
+                             'tag_character_count',
+                             main='words'))
 
-        results_cnt = (results.tag_character_count
-                       | 'pair_with_key' >> beam.Map(
-            lambda x: ('chars_temp_key', x))
-                       | beam.GroupByKey()
-                       | 'count chars' >> beam.Map(
-            lambda (_, counts): sum(counts)))
+    results_cnt = (results.tag_character_count
+                   | 'pair_with_key' >> beam.Map(lambda x: ('chars_temp_key', x)
+                                                 )
+                   | beam.GroupByKey()
+                   | 'count chars' >> beam.Map(lambda (_, counts): sum(counts)))
 
-        results_words = (results.words
-                         | 'count words' >> multiple_output_pardo.CountWords())
+    results_words = (results.words
+                     | 'count words' >> multiple_output_pardo.CountWords())
 
-        res_short_words = (results.tag_short_words
-                           | 'count short words' >>
-                           multiple_output_pardo.CountWords())
+    res_short_words = (results.tag_short_words
+                       | 'count short words' >>
+                       multiple_output_pardo.CountWords())
 
-        beam.assert_that(results_words,
-                         beam.equal_to(self.EXPECTED_WORDS),
-                         label='assert:words')
-        beam.assert_that(res_short_words,
-                         beam.equal_to(self.EXPECTED_SHORT_WORDS),
-                         label='assert:tag_short_words')
-        beam.assert_that(results_cnt,
-                         beam.equal_to(
-                             [len(' '.join(self.SAMPLE_TEXT.split('\n')))]),
-                         label='assert:tag_character_count')
-        p.run()
+    beam.assert_that(results_words,
+                     beam.equal_to(self.EXPECTED_WORDS),
+                     label='assert:words')
+    beam.assert_that(res_short_words,
+                     beam.equal_to(self.EXPECTED_SHORT_WORDS),
+                     label='assert:tag_short_words')
+    beam.assert_that(results_cnt,
+                     beam.equal_to(
+                       [len(' '.join(self.SAMPLE_TEXT.split('\n')))]),
+                     label='assert:tag_character_count')
+    p.run()
 
 
 if __name__ == '__main__':
-    logging.getLogger().setLevel(logging.INFO)
-    unittest.main()
+  logging.getLogger().setLevel(logging.INFO)
+  unittest.main()
