@@ -48,7 +48,7 @@ public class DataSinkOutputFormat<K, V> extends OutputFormat<K, V> {
 
     @Override
     public void close(TaskAttemptContext tac) throws IOException {
-      // will be closed in {@code OutputCommitter}
+      writer.flush();
     }
 
   }
@@ -119,16 +119,16 @@ public class DataSinkOutputFormat<K, V> extends OutputFormat<K, V> {
       @Override
       public void commitTask(TaskAttemptContext tac) throws IOException {
         if (writer != null) {
-          writer.close();
           writer.commit();
+          writer.close();
         }
       }
 
       @Override
       public void abortTask(TaskAttemptContext tac) throws IOException {
         if (writer != null) {
-          writer.close();
           writer.rollback();
+          writer.close();
         }
       }
 

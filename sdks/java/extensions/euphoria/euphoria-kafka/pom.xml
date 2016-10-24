@@ -10,9 +10,14 @@
     <relativePath>../pom.xml</relativePath>
   </parent>
 
-  <artifactId>euphoria-kafka</artifactId>
+  <properties>
+    <kafka.major>0.10</kafka.major>
+    <kafka.version>0.10.0.1</kafka.version>
+  </properties>
+
+  <artifactId>euphoria-kafka_${kafka.major}</artifactId>
   <packaging>jar</packaging>
-  <name>euphoria-kafka-${project.version}</name>
+  <name>${project.artifactId}-${project.version}</name>
 
   <dependencies>
     <dependency>
@@ -33,10 +38,10 @@
     <dependency>
       <groupId>org.apache.kafka</groupId>
       <artifactId>kafka_2.10</artifactId>
-      <version>0.10.0.0</version>
+      <version>${kafka.version}</version>
       <exclusions>
         <exclusion>
-          <!-- we prefer the user to choose amongst the slf4j-api impls herself -->
+          <!-- we prefer the user to choose amongst the slf4j-api impls himself -->
           <groupId>log4j</groupId>
           <artifactId>log4j</artifactId>
         </exclusion>

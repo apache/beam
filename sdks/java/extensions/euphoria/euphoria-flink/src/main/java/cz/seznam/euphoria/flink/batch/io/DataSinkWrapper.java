@@ -37,6 +37,7 @@ public class DataSinkWrapper<T>
   @Override
   public void close() throws IOException {
     if (writer != null) {
+      writer.flush();
       writer.commit();
       writer.close();
     }

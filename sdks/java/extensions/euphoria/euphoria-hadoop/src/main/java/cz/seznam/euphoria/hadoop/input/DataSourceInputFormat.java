@@ -6,17 +6,11 @@ import cz.seznam.euphoria.core.client.io.Partition;
 import cz.seznam.euphoria.core.client.io.Reader;
 import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.hadoop.utils.Serializer;
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
 import java.util.List;
 import java.util.Set;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import org.apache.commons.codec.binary.Base64;
 import org.apache.hadoop.conf.Configuration;
@@ -81,22 +75,17 @@ public class DataSourceInputFormat<K, V> extends InputFormat<K, V> {
     @Override
     public void write(DataOutput d) throws IOException {
       // use java serialization
-      ByteArrayOutputStream baos = new ByteArrayOutputStream();
-      try (ObjectOutputStream oos = new ObjectOutputStream(baos)) {
-        oos.writeObject(partition);
-      }
-      byte[] serialized = baos.toByteArray();
+      byte[] serialized = Serializer.toBytes(partition);
       WritableUtils.writeVInt(d, serialized.length);
       d.write(serialized);
     }
 
     @Override
     public void readFields(DataInput di) throws IOException {
-      byte[] serialized = new byte[WritableUtils.readVInt(di)];
-      di.readFully(serialized);
-      ByteArrayInputStream bais = new ByteArrayInputStream(serialized);
-      try (ObjectInputStream ois = new ObjectInputStream(bais)) {
-        this.partition = (Partition<Pair<K, V>>) ois.readObject();
+      try {
+        byte[] serialized = new byte[WritableUtils.readVInt(di)];
+        di.readFully(serialized);
+        this.partition = Serializer.fromBytes(serialized);
       } catch (ClassNotFoundException ex) {
         throw new IOException(ex);
       }
