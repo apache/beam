@@ -57,8 +57,8 @@ import org.apache.beam.sdk.util.SideInputReader;
 import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowingStrategy;
-import org.apache.beam.sdk.util.state.InMemoryStateInternals;
 import org.apache.beam.sdk.util.state.StateInternals;
+import org.apache.beam.sdk.util.state.StateInternalsFactory;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.slf4j.Logger;
@@ -84,9 +84,7 @@ public class ApexParDoOperator<InputT, OutputT> extends BaseOperator implements 
   @Bind(JavaSerializer.class)
   private final List<PCollectionView<?>> sideInputs;
 
-// TODO: not Kryo serializable, integrate codec
-  private transient StateInternals<Void> sideInputStateInternals = InMemoryStateInternals
-      .forKey(null);
+  private final StateInternals<Void> sideInputStateInternals;
   private final ValueAndCoderKryoSerializable<List<WindowedValue<InputT>>> pushedBack;
   private LongMin pushedBackWatermark = new LongMin();
   private long currentInputWatermark = Long.MIN_VALUE;
@@ -104,7 +102,8 @@ public class ApexParDoOperator<InputT, OutputT> extends BaseOperator implements 
       List<TupleTag<?>> sideOutputTags,
       WindowingStrategy<?, ?> windowingStrategy,
       List<PCollectionView<?>> sideInputs,
-      Coder<WindowedValue<InputT>> inputCoder
+      Coder<WindowedValue<InputT>> inputCoder,
+      StateInternalsFactory<Void> stateInternalsFactory
       ) {
     this.pipelineOptions = new SerializablePipelineOptions(pipelineOptions);
     this.doFn = doFn;
@@ -112,6 +111,7 @@ public class ApexParDoOperator<InputT, OutputT> extends BaseOperator implements 
     this.sideOutputTags = sideOutputTags;
     this.windowingStrategy = windowingStrategy;
     this.sideInputs = sideInputs;
+    this.sideInputStateInternals = stateInternalsFactory.stateInternalsForKey(null);
 
     if (sideOutputTags.size() > sideOutputPorts.length) {
       String msg = String.format("Too many side outputs (currently only supporting %s).",
@@ -134,6 +134,7 @@ public class ApexParDoOperator<InputT, OutputT> extends BaseOperator implements 
     this.windowingStrategy = null;
     this.sideInputs = null;
     this.pushedBack = null;
+    this.sideInputStateInternals = null;
   }
 
   public final transient DefaultInputPort<ApexStreamTuple<WindowedValue<InputT>>> input =

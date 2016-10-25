@@ -31,6 +31,7 @@ import java.util.List;
 import java.util.Map;
 
 import org.apache.beam.runners.apex.ApexPipelineOptions;
+import org.apache.beam.runners.apex.translators.utils.ApexStateInternals;
 import org.apache.beam.runners.apex.translators.utils.ApexStreamTuple;
 import org.apache.beam.runners.apex.translators.utils.CoderAdapterStreamCodec;
 import org.apache.beam.sdk.coders.Coder;
@@ -38,6 +39,7 @@ import org.apache.beam.sdk.runners.TransformTreeNode;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.util.WindowedValue.FullWindowedValueCoder;
+import org.apache.beam.sdk.util.state.StateInternalsFactory;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PInput;
@@ -163,6 +165,14 @@ public class TranslationContext {
         }
       }
     }
+  }
+
+  /**
+   * Return the {@link StateInternalsFactory} for the pipeline translation.
+   * @return
+   */
+  public <K> StateInternalsFactory<K> stateInternalsFactory() {
+    return new ApexStateInternals.ApexStateInternalsFactory();
   }
 
 }

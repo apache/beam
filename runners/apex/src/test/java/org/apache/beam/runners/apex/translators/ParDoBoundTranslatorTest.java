@@ -22,6 +22,7 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 import com.datatorrent.api.DAG;
+import com.datatorrent.api.Sink;
 import com.datatorrent.lib.util.KryoCloneUtils;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
@@ -37,6 +38,7 @@ import org.apache.beam.runners.apex.ApexRunnerResult;
 import org.apache.beam.runners.apex.TestApexRunner;
 import org.apache.beam.runners.apex.translators.functions.ApexParDoOperator;
 import org.apache.beam.runners.apex.translators.io.ApexReadUnboundedInputOperator;
+import org.apache.beam.runners.apex.translators.utils.ApexStateInternals;
 import org.apache.beam.runners.apex.translators.utils.ApexStreamTuple;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
@@ -107,14 +109,22 @@ public class ParDoBoundTranslatorTest {
 
   @SuppressWarnings("serial")
   private static class Add extends OldDoFn<Integer, Integer> {
-    private final Integer number;
+    private Integer number;
+    private PCollectionView<Integer> sideInputView;
 
-    public Add(Integer number) {
+    private Add(Integer number) {
       this.number = number;
+    }
+
+    private Add(PCollectionView<Integer> sideInputView) {
+      this.sideInputView = sideInputView;
     }
 
     @Override
     public void processElement(ProcessContext c) throws Exception {
+      if (sideInputView != null) {
+        number = c.sideInput(sideInputView);
+      }
       c.output(c.element() + number);
     }
   }
@@ -190,17 +200,51 @@ public class ParDoBoundTranslatorTest {
             .apply(Sum.integersGlobally().asSingletonView());
 
     ApexParDoOperator<Integer, Integer> operator = new ApexParDoOperator<>(options,
-        new Add(0), new TupleTag<Integer>(), TupleTagList.empty().getAll(),
+        new Add(singletonView), new TupleTag<Integer>(), TupleTagList.empty().getAll(),
         WindowingStrategy.globalDefault(),
         Collections.<PCollectionView<?>>singletonList(singletonView),
-        coder);
+        coder,
+        new ApexStateInternals.ApexStateInternalsFactory<Void>()
+        );
     operator.setup(null);
     operator.beginWindow(0);
-    WindowedValue<Integer> wv = WindowedValue.valueInGlobalWindow(0);
-    operator.input.process(ApexStreamTuple.DataTuple.of(wv));
-    operator.input.process(ApexStreamTuple.WatermarkTuple.<WindowedValue<Integer>>of(0));
-    operator.endWindow();
-    Assert.assertNotNull("Serialization", KryoCloneUtils.cloneObject(operator));
+    WindowedValue<Integer> wv1 = WindowedValue.valueInGlobalWindow(1);
+    WindowedValue<Iterable<?>> sideInput = WindowedValue.<Iterable<?>>valueInGlobalWindow(
+        Lists.<Integer>newArrayList(22));
+    operator.input.process(ApexStreamTuple.DataTuple.of(wv1)); // pushed back input
 
+    final List<Object> results = Lists.newArrayList();
+    Sink<Object> sink =  new Sink<Object>() {
+      @Override
+      public void put(Object tuple) {
+        results.add(tuple);
+      }
+      @Override
+      public int getCount(boolean reset) {
+        return 0;
+      }
+    };
+
+    // verify pushed back input checkpointing
+    Assert.assertNotNull("Serialization", operator = KryoCloneUtils.cloneObject(operator));
+    operator.output.setSink(sink);
+    operator.setup(null);
+    operator.beginWindow(1);
+    WindowedValue<Integer> wv2 = WindowedValue.valueInGlobalWindow(2);
+    operator.sideInput1.process(ApexStreamTuple.DataTuple.of(sideInput));
+    Assert.assertEquals("number outputs", 1, results.size());
+    Assert.assertEquals("result", WindowedValue.valueInGlobalWindow(23),
+        ((ApexStreamTuple.DataTuple) results.get(0)).getValue());
+
+    // verify side input checkpointing
+    results.clear();
+    Assert.assertNotNull("Serialization", operator = KryoCloneUtils.cloneObject(operator));
+    operator.output.setSink(sink);
+    operator.setup(null);
+    operator.beginWindow(2);
+    operator.input.process(ApexStreamTuple.DataTuple.of(wv2));
+    Assert.assertEquals("number outputs", 1, results.size());
+    Assert.assertEquals("result", WindowedValue.valueInGlobalWindow(24),
+        ((ApexStreamTuple.DataTuple) results.get(0)).getValue());
   }
 }

@@ -64,7 +64,9 @@ public class ParDoBoundMultiTranslator<InputT, OutputT>
     ApexParDoOperator<InputT, OutputT> operator = new ApexParDoOperator<>(
         context.getPipelineOptions(),
         doFn, transform.getMainOutputTag(), transform.getSideOutputTags().getAll(),
-        context.<PCollection<?>>getInput().getWindowingStrategy(), sideInputs, wvInputCoder);
+        context.<PCollection<?>>getInput().getWindowingStrategy(), sideInputs, wvInputCoder,
+        context.<Void>stateInternalsFactory()
+        );
 
     Map<TupleTag<?>, PCollection<?>> outputs = output.getAll();
     Map<PCollection<?>, OutputPort<?>> ports = Maps.newHashMapWithExpectedSize(outputs.size());
