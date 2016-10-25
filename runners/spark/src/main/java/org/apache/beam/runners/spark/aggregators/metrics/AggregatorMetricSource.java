@@ -29,17 +29,18 @@ import org.apache.spark.metrics.source.Source;
  */
 public class AggregatorMetricSource implements Source {
 
-  private static final String SOURCE_NAME = "NamedAggregators";
+  private final String sourceName;
 
   private final MetricRegistry metricRegistry = new MetricRegistry();
 
-  public AggregatorMetricSource(final NamedAggregators aggregators) {
-    metricRegistry.register(SOURCE_NAME, AggregatorMetric.of(aggregators));
+  public AggregatorMetricSource(final String appName, final NamedAggregators aggregators) {
+    sourceName = appName;
+    metricRegistry.register("Beam", AggregatorMetric.of(aggregators));
   }
 
   @Override
   public String sourceName() {
-    return SOURCE_NAME;
+    return sourceName;
   }
 
   @Override

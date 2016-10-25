@@ -118,8 +118,13 @@ public class WithNamedAggregatorsSupport extends MetricRegistry {
       @Override
       public Map<String, Gauge> apply(final Map.Entry<String, Metric> entry) {
         final NamedAggregators agg = ((AggregatorMetric) entry.getValue()).getNamedAggregators();
+        final String parentName = entry.getKey();
         final Map<String, Gauge> gaugeMap = Maps.transformEntries(agg.renderAll(), toGauge());
-        return Maps.filterValues(gaugeMap, Predicates.notNull());
+        final Map<String, Gauge> fullNameGaugeMap = Maps.newLinkedHashMap();
+        for (String shortName : gaugeMap.keySet()) {
+          fullNameGaugeMap.put(parentName + "." + shortName, gaugeMap.get(shortName));
+        }
+        return Maps.filterValues(fullNameGaugeMap, Predicates.notNull());
       }
     };
   }
