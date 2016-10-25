@@ -36,7 +36,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
-import org.apache.avro.reflect.Nullable;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -145,10 +145,6 @@ public class DisplayData implements Serializable {
     }
 
     return builder.toString();
-  }
-
-  private static String namespaceOf(Class<?> clazz) {
-    return clazz.getName();
   }
 
   /**
