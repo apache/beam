@@ -22,6 +22,7 @@ import static com.google.common.base.Strings.isNullOrEmpty;
 
 import java.io.IOException;
 import org.apache.beam.runners.dataflow.DataflowRunner;
+import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.options.ApplicationNameOptions;
 import org.apache.beam.sdk.options.BigQueryOptions;
 import org.apache.beam.sdk.options.Default;
@@ -29,6 +30,7 @@ import org.apache.beam.sdk.options.DefaultValueFactory;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.GcpOptions;
 import org.apache.beam.sdk.options.GcsOptions;
+import org.apache.beam.sdk.options.Hidden;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PubsubOptions;
 import org.apache.beam.sdk.options.StreamingOptions;
@@ -78,6 +80,16 @@ public interface DataflowPipelineOptions
           + "this pipeline, preserving state.")
   boolean isUpdate();
   void setUpdate(boolean value);
+
+  /**
+   * Run the job as a specific service account, instead of the default GCE robot.
+   */
+  @Hidden
+  @Experimental
+  @Description(
+      "Run the job as a specific service account, instead of the default GCE robot.")
+  String getServiceAccount();
+  void setServiceAccount(String value);
 
   /**
    * Returns a default staging location under {@link GcpOptions#getGcpTempLocation}.
