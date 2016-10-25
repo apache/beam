@@ -423,7 +423,7 @@ public class AutoComplete {
    *
    * <p>Inherits standard Dataflow configuration options.
    */
-  private static interface Options extends ExamplePubsubTopicOptions, ExampleBigQueryTableOptions {
+  private interface Options extends ExamplePubsubTopicOptions, ExampleBigQueryTableOptions {
     @Description("Input text file")
     @Validation.Required
     String getInputFile();

@@ -37,12 +37,12 @@ import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.cloud.dataflow.sdk.values.PCollection;
 import com.google.cloud.dataflow.sdk.values.TimestampedValue;
 import com.google.common.collect.ImmutableMap;
-import java.io.Serializable;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+import java.io.Serializable;
 
 /**
  * Tests for {@link LeaderBoard}.

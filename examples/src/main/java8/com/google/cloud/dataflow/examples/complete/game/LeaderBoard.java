@@ -40,14 +40,15 @@ import com.google.cloud.dataflow.sdk.transforms.windowing.Window;
 import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.cloud.dataflow.sdk.values.PCollection;
 import com.google.common.annotations.VisibleForTesting;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.TimeZone;
 import org.joda.time.DateTimeZone;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.TimeZone;
+
 
 /**
  * This class is the third in a series of four pipelines that tell a story in a 'gaming' domain,
@@ -102,7 +103,7 @@ public class LeaderBoard extends HourlyTeamScore {
   /**
    * Options supported by {@link LeaderBoard}.
    */
-  static interface Options extends HourlyTeamScore.Options, DataflowExampleOptions {
+  interface Options extends HourlyTeamScore.Options, DataflowExampleOptions {
 
     @Description("Pub/Sub topic to read from")
     @Validation.Required
@@ -142,8 +143,10 @@ public class LeaderBoard extends HourlyTeamScore {
             c -> c.element().getValue()));
     tableConfigure.put("window_start",
         new WriteWindowedToBigQuery.FieldInfo<KV<String, Integer>>("STRING",
-          c -> { IntervalWindow w = (IntervalWindow) c.window();
-                 return fmt.print(w.start()); }));
+          c -> {
+            IntervalWindow w = (IntervalWindow) c.window();
+            return fmt.print(w.start());
+        }));
     tableConfigure.put("processing_time",
         new WriteWindowedToBigQuery.FieldInfo<KV<String, Integer>>(
             "STRING", c -> fmt.print(Instant.now())));

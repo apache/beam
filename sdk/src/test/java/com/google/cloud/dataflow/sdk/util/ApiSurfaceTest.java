@@ -92,9 +92,9 @@ public class ApiSurfaceTest {
     assertThat(apiSurface.getExposedClasses(), containsInAnyOrder(expectedExposed.toArray()));
   }
 
-  private static interface Exposed { }
+  private interface Exposed { }
 
-  private static interface ExposedReturnType {
+  private interface ExposedReturnType {
     Exposed zero();
   }
 
@@ -103,7 +103,7 @@ public class ApiSurfaceTest {
     assertExposed(ExposedReturnType.class, Exposed.class);
   }
 
-  private static interface ExposedParameterTypeVarBound {
+  private interface ExposedParameterTypeVarBound {
     <T extends Exposed> void getList(T whatever);
   }
 
@@ -112,7 +112,7 @@ public class ApiSurfaceTest {
     assertExposed(ExposedParameterTypeVarBound.class, Exposed.class);
   }
 
-  private static interface ExposedWildcardBound {
+  private interface ExposedWildcardBound {
     void acceptList(List<? extends Exposed> arg);
   }
 
@@ -121,7 +121,7 @@ public class ApiSurfaceTest {
     assertExposed(ExposedWildcardBound.class, Exposed.class);
   }
 
-  private static interface ExposedActualTypeArgument extends List<Exposed> { }
+  private interface ExposedActualTypeArgument extends List<Exposed> { }
 
   @Test
   public void testExposedActualTypeArgument() throws Exception {
@@ -137,8 +137,8 @@ public class ApiSurfaceTest {
     assertThat(apiSurface.getExposedClasses(), emptyIterable());
   }
 
-  private static interface PrunedPattern { }
-  private static interface NotPruned extends PrunedPattern { }
+  private interface PrunedPattern { }
+  private interface NotPruned extends PrunedPattern { }
 
   @Test
   public void testprunedPattern() throws Exception {
@@ -147,7 +147,7 @@ public class ApiSurfaceTest {
     assertThat(apiSurface.getExposedClasses(), containsInAnyOrder((Class) NotPruned.class));
   }
 
-  private static interface ExposedTwice {
+  private interface ExposedTwice {
     Exposed zero();
     Exposed one();
   }
@@ -157,7 +157,7 @@ public class ApiSurfaceTest {
     assertExposed(ExposedTwice.class, Exposed.class);
   }
 
-  private static interface ExposedCycle {
+  private interface ExposedCycle {
     ExposedCycle zero(Exposed foo);
   }
 
@@ -166,7 +166,7 @@ public class ApiSurfaceTest {
     assertExposed(ExposedCycle.class, Exposed.class);
   }
 
-  private static interface ExposedGenericCycle {
+  private interface ExposedGenericCycle {
     Exposed zero(List<ExposedGenericCycle> foo);
   }
 
@@ -175,7 +175,7 @@ public class ApiSurfaceTest {
     assertExposed(ExposedGenericCycle.class, Exposed.class);
   }
 
-  private static interface ExposedArrayCycle {
+  private interface ExposedArrayCycle {
     Exposed zero(ExposedArrayCycle[] foo);
   }
 

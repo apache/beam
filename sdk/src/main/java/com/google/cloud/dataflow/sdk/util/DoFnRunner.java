@@ -27,18 +27,18 @@ public interface DoFnRunner<InputT, OutputT> {
   /**
    * Prepares and calls {@link DoFn#startBundle}.
    */
-  public void startBundle();
+  void startBundle();
 
   /**
    * Calls {@link DoFn#processElement} with a {@link ProcessContext} containing the current element.
    */
-  public void processElement(WindowedValue<InputT> elem);
+  void processElement(WindowedValue<InputT> elem);
 
   /**
    * Calls {@link DoFn#finishBundle} and performs additional tasks, such as
    * flushing in-memory states.
    */
-  public void finishBundle();
+  void finishBundle();
 
   /**
    * An internal interface for signaling that a {@link DoFn} requires late data dropping.

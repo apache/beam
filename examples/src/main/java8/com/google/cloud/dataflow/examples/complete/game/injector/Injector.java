@@ -245,7 +245,7 @@ class Injector {
     TeamInfo team = randomTeam(liveTeams);
     String teamName = team.getTeamName();
     String user;
-    int PARSE_ERROR_RATE = 900000;
+    final int parseErrorRate = 900000;
 
     String robot = team.getRobot();
     // If the team has an associated robot team member...
@@ -264,7 +264,7 @@ class Injector {
     String event = user + "," + teamName + "," + random.nextInt(MAX_SCORE);
     // Randomly introduce occasional parse errors. You can see a custom counter tracking the number
     // of such errors in the Dataflow Monitoring UI, as the example pipeline runs.
-    if (random.nextInt(PARSE_ERROR_RATE) == 0) {
+    if (random.nextInt(parseErrorRate) == 0) {
       System.out.println("Introducing a parse error.");
       event = "THIS LINE REPRESENTS CORRUPT DATA AND WILL CAUSE A PARSE ERROR";
     }

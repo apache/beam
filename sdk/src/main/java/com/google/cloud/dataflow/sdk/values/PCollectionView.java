@@ -45,20 +45,20 @@ public interface PCollectionView<T> extends PValue, Serializable {
   /**
    * A unique identifier, for internal use.
    */
-  public TupleTag<Iterable<WindowedValue<?>>> getTagInternal();
+  TupleTag<Iterable<WindowedValue<?>>> getTagInternal();
 
   /**
    * For internal use only.
    */
-  public T fromIterableInternal(Iterable<WindowedValue<?>> contents);
+  T fromIterableInternal(Iterable<WindowedValue<?>> contents);
 
   /**
    * For internal use only.
    */
-  public WindowingStrategy<?, ?> getWindowingStrategyInternal();
+  WindowingStrategy<?, ?> getWindowingStrategyInternal();
 
   /**
    * For internal use only.
    */
-  public Coder<Iterable<WindowedValue<?>>> getCoderInternal();
+  Coder<Iterable<WindowedValue<?>>> getCoderInternal();
 }

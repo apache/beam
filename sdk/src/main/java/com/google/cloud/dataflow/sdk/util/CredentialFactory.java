@@ -25,5 +25,5 @@ import java.security.GeneralSecurityException;
  * Construct an oauth credential to be used by the SDK and the SDK workers.
  */
 public interface CredentialFactory {
-  public Credential getCredential() throws IOException, GeneralSecurityException;
+  Credential getCredential() throws IOException, GeneralSecurityException;
 }

@@ -139,7 +139,7 @@ public interface GcpOptions extends GoogleApiDebugOptions, PipelineOptions {
   /**
    * Returns the default credential directory of ${user.home}/.store/data-flow.
    */
-  public static class CredentialDirFactory implements DefaultValueFactory<String> {
+  class CredentialDirFactory implements DefaultValueFactory<String> {
     @Override
     public String create(PipelineOptions options) {
       File home = new File(System.getProperty("user.home"));
@@ -180,7 +180,7 @@ public interface GcpOptions extends GoogleApiDebugOptions, PipelineOptions {
    * Attempts to infer the default project based upon the environment this application
    * is executing within. Currently this only supports getting the default project from gcloud.
    */
-  public static class DefaultProjectFactory implements DefaultValueFactory<String> {
+  class DefaultProjectFactory implements DefaultValueFactory<String> {
     private static final Logger LOG = LoggerFactory.getLogger(DefaultProjectFactory.class);
 
     @Override
@@ -250,7 +250,7 @@ public interface GcpOptions extends GoogleApiDebugOptions, PipelineOptions {
    * Attempts to load the GCP credentials. See
    * {@link CredentialFactory#getCredential()} for more details.
    */
-  public static class GcpUserCredentialsFactory implements DefaultValueFactory<Credential> {
+  class GcpUserCredentialsFactory implements DefaultValueFactory<Credential> {
     @Override
     public Credential create(PipelineOptions options) {
       GcpOptions gcpOptions = options.as(GcpOptions.class);

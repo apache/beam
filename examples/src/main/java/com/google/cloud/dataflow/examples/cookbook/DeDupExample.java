@@ -57,7 +57,7 @@ public class DeDupExample {
    *
    * <p>Inherits standard configuration options.
    */
-  private static interface Options extends PipelineOptions {
+  private interface Options extends PipelineOptions {
     @Description("Path to the directory or GCS prefix containing files to read from")
     @Default.String("gs://dataflow-samples/shakespeare/*")
     String getInput();
@@ -69,7 +69,7 @@ public class DeDupExample {
     void setOutput(String value);
 
     /** Returns gs://${STAGING_LOCATION}/"deduped.txt". */
-    public static class OutputFactory implements DefaultValueFactory<String> {
+    class OutputFactory implements DefaultValueFactory<String> {
       @Override
       public String create(PipelineOptions options) {
         DataflowPipelineOptions dataflowOptions = options.as(DataflowPipelineOptions.class);

@@ -84,7 +84,7 @@ public final class PCollectionViewTesting {
    * A specialization of {@link SerializableFunction} just for putting together
    * {@link PCollectionView} instances.
    */
-  public static interface ViewFn<ElemT, ViewT>
+  public interface ViewFn<ElemT, ViewT>
       extends SerializableFunction<Iterable<WindowedValue<ElemT>>, ViewT> { }
 
   /**

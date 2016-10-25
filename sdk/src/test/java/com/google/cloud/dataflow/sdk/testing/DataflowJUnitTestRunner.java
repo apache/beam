@@ -114,7 +114,7 @@ public class DataflowJUnitTestRunner {
     }
   }
 
-  private static final Class<?> findClass(
+  private static Class<?> findClass(
       final String simpleName, Set<ClassPath.ClassInfo> classes)
       throws ClassNotFoundException {
     Iterable<ClassPath.ClassInfo> matches =

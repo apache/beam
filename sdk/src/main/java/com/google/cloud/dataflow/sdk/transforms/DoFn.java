@@ -214,7 +214,7 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
       aggregatorsAreFinal = true;
     }
 
-    private final <AggInputT, AggOutputT> void setupDelegateAggregator(
+    private <AggInputT, AggOutputT> void setupDelegateAggregator(
         DelegatingAggregator<AggInputT, AggOutputT> aggregator) {
 
       Aggregator<AggInputT, AggOutputT> delegate = createAggregatorInternal(

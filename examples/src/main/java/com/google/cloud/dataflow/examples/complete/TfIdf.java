@@ -93,7 +93,7 @@ public class TfIdf {
    *
    * <p>Inherits standard configuration options.
    */
-  private static interface Options extends PipelineOptions {
+  private interface Options extends PipelineOptions {
     @Description("Path to the directory or GCS prefix containing files to read from")
     @Default.String("gs://dataflow-samples/shakespeare/")
     String getInput();

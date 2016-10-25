@@ -539,7 +539,7 @@ public class DirectPipelineRunner
    * An evaluator of a PTransform.
    */
   public interface TransformEvaluator<TransformT extends PTransform> {
-    public void evaluate(TransformT transform,
+    void evaluate(TransformT transform,
                          EvaluationContext context);
   }
 
@@ -776,7 +776,7 @@ public class DirectPipelineRunner
     /**
      * Gets the step name for this transform.
      */
-    public String getStepName(PTransform<?, ?> transform);
+    String getStepName(PTransform<?, ?> transform);
   }
 
 

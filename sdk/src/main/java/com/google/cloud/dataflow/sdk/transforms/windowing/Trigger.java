@@ -169,13 +169,13 @@ public abstract class Trigger<W extends BoundedWindow> implements Serializable, 
   public interface MergingTriggerInfo<W extends BoundedWindow> extends TriggerInfo<W> {
 
     /** Return true if the trigger is finished in any window being merged. */
-    public abstract boolean finishedInAnyMergingWindow();
+    boolean finishedInAnyMergingWindow();
 
     /** Return true if the trigger is finished in all windows being merged. */
-    public abstract boolean finishedInAllMergingWindows();
+    boolean finishedInAllMergingWindows();
 
     /** Return the merging windows in which the trigger is finished. */
-    public abstract Iterable<W> getFinishedMergingWindows();
+    Iterable<W> getFinishedMergingWindows();
   }
 
   /**

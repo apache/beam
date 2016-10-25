@@ -59,7 +59,7 @@ public abstract class Counter<T> {
   /**
    * Possible kinds of counter aggregation.
    */
-  public static enum AggregationKind {
+  public enum AggregationKind {
 
     /**
      * Computes the sum of all added values.
@@ -295,7 +295,7 @@ public abstract class Counter<T> {
    *
    * @param <T> the type of the aggregate
    */
-  public static interface CounterMean<T> {
+  public interface CounterMean<T> {
     /**
      * Gets the aggregate value of this {@code CounterMean}.
      */

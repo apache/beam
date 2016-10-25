@@ -131,7 +131,7 @@ public abstract class WindowFn<T, W extends BoundedWindow>
    *
    * <p>Authors of custom {@code WindowFn}s should override this.
    */
-  public abstract W getSideInputWindow(final BoundedWindow window);
+  public abstract W getSideInputWindow(BoundedWindow window);
 
   /**
    * @deprecated Implement {@link #getOutputTimeFn} to return one of the appropriate
