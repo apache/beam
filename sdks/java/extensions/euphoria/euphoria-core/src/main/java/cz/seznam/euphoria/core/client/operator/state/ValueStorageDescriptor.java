@@ -1,4 +1,3 @@
-
 package cz.seznam.euphoria.core.client.operator.state;
 
 import cz.seznam.euphoria.core.client.functional.BinaryFunction;
@@ -8,7 +7,7 @@ import cz.seznam.euphoria.core.client.functional.BinaryFunction;
  */
 public class ValueStorageDescriptor<T> extends StorageDescriptorBase {
 
-  private static final class MergingValueStorageDescriptor<T>
+  public static final class MergingValueStorageDescriptor<T>
       extends ValueStorageDescriptor<T>
       implements MergingStorageDescriptor<T> {
 
@@ -24,11 +23,14 @@ public class ValueStorageDescriptor<T> extends StorageDescriptorBase {
     @Override
     public BinaryFunction<ValueStorage<T>, ValueStorage<T>, Void> getMerger() {
       return (l, r) -> {
-        l.set(merger.apply(l.get(), r.get()));
+        l.set(getValueMerger().apply(l.get(), r.get()));
         return null;
       };
     }
 
+    public BinaryFunction<T, T, T> getValueMerger() {
+      return merger;
+    }
   }
 
   /** Get descriptor of value storage without merging. */
