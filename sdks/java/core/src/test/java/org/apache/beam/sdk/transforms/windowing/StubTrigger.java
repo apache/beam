@@ -42,23 +42,6 @@ abstract class StubTrigger extends Trigger.OnceTrigger {
   }
 
   @Override
-  protected void onOnlyFiring(TriggerContext context) throws Exception {
-  }
-
-  @Override
-  public void onElement(OnElementContext c) throws Exception {
-  }
-
-  @Override
-  public void onMerge(OnMergeContext c) throws Exception {
-  }
-
-  @Override
-  public boolean shouldFire(TriggerContext context) throws Exception {
-    return false;
-  }
-
-  @Override
   protected Trigger getContinuationTrigger(List<Trigger> continuationTriggers) {
     return null;
   }
