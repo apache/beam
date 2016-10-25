@@ -32,6 +32,7 @@ import org.apache.beam.runners.apex.translators.TranslationContext;
 import org.apache.beam.runners.core.AssignWindows;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.PipelineOptionsValidator;
 import org.apache.beam.sdk.runners.PipelineRunner;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.Create;
@@ -75,7 +76,9 @@ public class ApexRunner extends PipelineRunner<ApexRunnerResult> {
   }
 
   public static ApexRunner fromOptions(PipelineOptions options) {
-    return new ApexRunner((ApexPipelineOptions) options);
+    ApexPipelineOptions apexPipelineOptions =
+            PipelineOptionsValidator.validate(ApexPipelineOptions.class, options);
+    return new ApexRunner(apexPipelineOptions);
   }
 
   @Override
