@@ -1,25 +1,36 @@
 package cz.seznam.euphoria.operator.test;
 
 import cz.seznam.euphoria.core.client.dataset.Dataset;
+import cz.seznam.euphoria.core.client.dataset.windowing.Session;
+import cz.seznam.euphoria.core.client.dataset.windowing.TimeInterval;
+import cz.seznam.euphoria.core.client.functional.StateFactory;
 import cz.seznam.euphoria.core.client.functional.UnaryFunctor;
 import cz.seznam.euphoria.core.client.io.Context;
 import cz.seznam.euphoria.core.client.io.DataSource;
 import cz.seznam.euphoria.core.client.io.ListDataSource;
 import cz.seznam.euphoria.core.client.operator.FlatMap;
 import cz.seznam.euphoria.core.client.operator.ReduceStateByKey;
-import cz.seznam.euphoria.core.client.operator.state.State;
 import cz.seznam.euphoria.core.client.operator.state.ListStorage;
 import cz.seznam.euphoria.core.client.operator.state.ListStorageDescriptor;
+import cz.seznam.euphoria.core.client.operator.state.State;
 import cz.seznam.euphoria.core.client.operator.state.StorageProvider;
 import cz.seznam.euphoria.core.client.util.Pair;
+import cz.seznam.euphoria.core.client.util.Triple;
 import cz.seznam.euphoria.guava.shaded.com.google.common.collect.Lists;
+
+import java.time.Duration;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.Comparator;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-import static org.junit.Assert.*;
+import static cz.seznam.euphoria.operator.test.Util.sorted;
+import static java.util.Arrays.asList;
+import static org.junit.Assert.assertEquals;
 
 /**
  * Test operator {@code ReduceStateByKey}.
@@ -42,7 +53,8 @@ public class ReduceStateByKeyTest extends OperatorTest {
     return Arrays.asList(
         testBatchSortNoWindow(),
         testSortWindowed(false),
-        testSortWindowed(true)
+        testSortWindowed(true),
+        testSessionWindowing0()
     );
   }
 
@@ -222,5 +234,120 @@ public class ReduceStateByKeyTest extends OperatorTest {
     };
   }
 
+  // ---------------------------------------------------------------------------------
+
+  private static class AccState<VALUE> extends State<VALUE, VALUE> {
+    final ListStorage<VALUE> reducableValues;
+    AccState(Context<VALUE> context,
+             StorageProvider storageProvider)
+    {
+      super(context, storageProvider);
+      reducableValues = storageProvider.getListStorage(
+          ListStorageDescriptor.of("vals", (Class) Object.class));
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public void add(VALUE element) {
+      reducableValues.add(element);
+    }
+
+    @Override
+    public void flush() {
+      for (VALUE value : reducableValues.get()) {
+        getContext().collect(value);
+      }
+    }
+
+    void add(AccState other) {
+      this.reducableValues.addAll(other.reducableValues.get());
+    }
+
+    @Override
+    public void close() {
+      reducableValues.clear();
+    }
+
+    public static <VALUE> AccState<VALUE> combine(Iterable<AccState<VALUE>> xs) {
+      Iterator<AccState<VALUE>> iter = xs.iterator();
+      AccState<VALUE> first = iter.next();
+      while (iter.hasNext()) {
+        first.add(iter.next());
+      }
+      return first;
+    }
+  }
+
+  TestCase<Triple<TimeInterval, Integer, String>> testSessionWindowing0() {
+    return new AbstractTestCase<Pair<String, Integer>, Triple<TimeInterval, Integer, String>>() {
+      @Override
+      protected DataSource<Pair<String, Integer>> getDataSource() {
+        return ListDataSource.unbounded(asList(
+            Pair.of("1-one",   1),
+            Pair.of("2-one",   2),
+            Pair.of("1-two",   4),
+            Pair.of("1-three", 8),
+            Pair.of("1-four",  10),
+            Pair.of("2-two",   10),
+            Pair.of("1-five",  18),
+            Pair.of("2-three", 20),
+            Pair.of("1-six",   22)));
+      }
+
+      @Override
+      protected Dataset<Triple<TimeInterval, Integer, String>>
+      getOutput(Dataset<Pair<String, Integer>> input) {
+        Dataset<Pair<Integer, String>> reduced =
+            ReduceStateByKey.of(input)
+                .keyBy(e -> e.getFirst().charAt(0) - '0')
+                .valueBy(Pair::getFirst)
+                .stateFactory((StateFactory<String, AccState<String>>) AccState::new)
+                .combineStateBy(AccState::combine)
+                .windowBy(Session.of(Duration.ofSeconds(5))
+                    .using((Pair<String, Integer> e) -> e.getSecond() * 1_000L))
+                .setNumPartitions(1)
+                .output();
+
+        return FlatMap.of(reduced)
+            .using((UnaryFunctor<Pair<Integer, String>, Triple<TimeInterval, Integer, String>>)
+                (elem, context) -> context.collect(Triple.of((TimeInterval) context.getWindow(), elem.getFirst(), elem.getSecond())))
+            .output();
+      }
+
+      @Override
+      public int getNumOutputPartitions() {
+        return 1;
+      }
+
+      @Override
+      public void validate(List<List<Triple<TimeInterval, Integer, String>>> partitions) {
+        // ~ prepare the output for comparison
+        List<String> flat = new ArrayList<>();
+        for (Triple<TimeInterval, Integer, String> o : partitions.get(0)) {
+          String buf = "(" +
+              o.getFirst().getStartMillis() / 1_000L +
+              "-" +
+              o.getFirst().getEndMillis() / 1_000L +
+              "): " +
+              o.getSecond() + ": " + o.getThird();
+          flat.add(buf);
+        }
+        flat.sort(Comparator.naturalOrder());
+        assertEquals(
+            sorted(asList(
+                "(1-15): 1: 1-four",
+                "(1-15): 1: 1-one",
+                "(1-15): 1: 1-three",
+                "(1-15): 1: 1-two",
+                "(10-15): 2: 2-two",
+                "(18-27): 1: 1-five",
+                "(18-27): 1: 1-six",
+                "(2-7): 2: 2-one",
+                "(20-25): 2: 2-three"),
+                Comparator.naturalOrder()),
+            flat);
+      }
+    };
+  }
 
 }
