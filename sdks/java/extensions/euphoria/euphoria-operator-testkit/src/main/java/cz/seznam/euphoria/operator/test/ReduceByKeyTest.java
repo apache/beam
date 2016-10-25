@@ -9,11 +9,9 @@ import cz.seznam.euphoria.core.client.dataset.windowing.TimeInterval;
 import cz.seznam.euphoria.core.client.dataset.windowing.Window;
 import cz.seznam.euphoria.core.client.dataset.windowing.WindowedElement;
 import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
-import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
 import cz.seznam.euphoria.core.client.functional.UnaryFunctor;
 import cz.seznam.euphoria.core.client.io.DataSource;
-import cz.seznam.euphoria.core.client.io.ListDataSink;
 import cz.seznam.euphoria.core.client.io.ListDataSource;
 import cz.seznam.euphoria.core.client.operator.FlatMap;
 import cz.seznam.euphoria.core.client.operator.ReduceByKey;
@@ -25,12 +23,9 @@ import cz.seznam.euphoria.core.client.triggers.TriggerContext;
 import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.core.client.util.Sums;
 import cz.seznam.euphoria.core.client.util.Triple;
-import cz.seznam.euphoria.core.executor.inmem.WatermarkTriggerScheduler;
 import cz.seznam.euphoria.guava.shaded.com.google.common.base.Joiner;
-import cz.seznam.euphoria.guava.shaded.com.google.common.collect.Iterables;
 import cz.seznam.euphoria.guava.shaded.com.google.common.collect.Lists;
 import cz.seznam.euphoria.guava.shaded.com.google.common.collect.Sets;
-import org.junit.Test;
 
 import java.time.Duration;
 import java.util.ArrayList;
@@ -43,11 +38,10 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.stream.Collectors;
 
+import static cz.seznam.euphoria.operator.test.Util.sorted;
 import static java.util.Arrays.asList;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
 
 /**
  * Test operator {@code ReduceByKey}.
@@ -427,12 +421,6 @@ public class ReduceByKeyTest extends OperatorTest {
             }));
       }
     };
-  }
-
-  public static <T> List<T> sorted(Collection<T> xs, Comparator<T> c) {
-    ArrayList<T> list = new ArrayList<>(xs);
-    list.sort(c);
-    return list;
   }
 
   TestCase<Triple<TimeInterval,Integer,HashSet<String>>> testSessionWindowing0() {
