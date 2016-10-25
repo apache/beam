@@ -8,7 +8,10 @@ import cz.seznam.euphoria.core.client.operator.state.ValueStorageDescriptor;
 import cz.seznam.euphoria.core.client.triggers.TriggerContext;
 import cz.seznam.euphoria.flink.storage.Descriptors;
 import cz.seznam.euphoria.flink.storage.FlinkListStorage;
+import cz.seznam.euphoria.flink.storage.FlinkReducingValueStorage;
 import cz.seznam.euphoria.flink.storage.FlinkValueStorage;
+import org.apache.flink.api.common.state.ReducingState;
+import org.apache.flink.api.common.state.ReducingStateDescriptor;
 import org.apache.flink.streaming.api.windowing.triggers.Trigger;
 
 /**
@@ -21,6 +24,10 @@ public class TriggerContextWrapper implements TriggerContext {
 
   public TriggerContextWrapper(Trigger.TriggerContext flinkContext) {
     this.flinkContext = flinkContext;
+  }
+
+  Trigger.TriggerContext getFlinkContext() {
+    return flinkContext;
   }
 
   @Override
@@ -45,6 +52,13 @@ public class TriggerContextWrapper implements TriggerContext {
 
   @Override
   public <T> ValueStorage<T> getValueStorage(ValueStorageDescriptor<T> descriptor) {
+    if (descriptor instanceof ValueStorageDescriptor.MergingValueStorageDescriptor) {
+      @SuppressWarnings("unchecked")
+      ReducingStateDescriptor<T> from = Descriptors.<T>from(
+          (ValueStorageDescriptor.MergingValueStorageDescriptor<T>) descriptor);
+      ReducingState<T> state = getFlinkContext().getPartitionedState(from);
+      return new FlinkReducingValueStorage<T>(state, descriptor.getDefaultValue());
+    }
     return new FlinkValueStorage<>(
         flinkContext.getPartitionedState(Descriptors.from(descriptor)));
   }

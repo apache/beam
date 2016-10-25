@@ -1,5 +1,6 @@
 package cz.seznam.euphoria.flink.streaming.windowing;
 
+import cz.seznam.euphoria.core.client.dataset.windowing.MergingWindowing;
 import cz.seznam.euphoria.core.client.dataset.windowing.Time;
 import cz.seznam.euphoria.core.client.dataset.windowing.Window;
 import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
@@ -86,7 +87,13 @@ public class StreamWindower {
             Utils.wrapQueryable((MultiWindowedElement<WID, Pair<KEY, VALUE>> in)
                 -> in.get().getFirst()));
 
-    return keyed.window((WindowAssigner) new FlinkWindowAssigner<>(windowing));
+    WindowAssigner wassign;
+    if (windowing instanceof MergingWindowing) {
+      wassign = new FlinkMergingWindowAssigner((MergingWindowing) windowing);
+    } else {
+      wassign = new FlinkWindowAssigner<>(windowing);
+    }
+    return keyed.window(wassign);
   }
 
   private static org.apache.flink.streaming.api.windowing.time.Time
