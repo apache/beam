@@ -208,8 +208,8 @@ public class EncodabilityEnforcementFactoryTest {
         Collections.<CommittedBundle<?>>emptyList());
   }
 
-  private static class Record {}
-  private static class RecordNoEncodeCoder extends AtomicCoder<Record> {
+  static class Record {}
+  static class RecordNoEncodeCoder extends AtomicCoder<Record> {
 
     @Override
     public void encode(
@@ -228,7 +228,7 @@ public class EncodabilityEnforcementFactoryTest {
     }
   }
 
-  private static class RecordNoDecodeCoder extends AtomicCoder<Record> {
+  static class RecordNoDecodeCoder extends AtomicCoder<Record> {
     @Override
     public void encode(
         Record value,
