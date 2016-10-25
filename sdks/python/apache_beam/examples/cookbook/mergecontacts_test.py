@@ -102,9 +102,9 @@ class MergeContactsTest(unittest.TestCase):
   def test_mergecontacts(self):
     p = beam.Pipeline('DirectPipelineRunner')
     
-    contacts_email = p | beam.Create(self.CONTACTS_EMAIL)
-    contacts_phone = p | beam.Create(self.CONTACTS_PHONE)
-    contacts_snailmail = p | beam.Create(self.CONTACTS_SNAILMAIL)
+    contacts_email = p | beam.Create([self.CONTACTS_EMAIL])
+    contacts_phone = p | beam.Create([self.CONTACTS_PHONE])
+    contacts_snailmail = p | beam.Create([self.CONTACTS_SNAILMAIL])
 
     email = (contacts_email
              | beam.Map('backslash_email', lambda x: re.sub(r'\\', r'\\\\', x))
@@ -143,13 +143,13 @@ class MergeContactsTest(unittest.TestCase):
     num_nomads = nomads | 'nomads' >> beam.combiners.Count.Globally()
 
     beam.assert_that(self.normalize_tsv_results(result_tsv_lines),
-                     beam.equal_to(self.EXPECTED_TSV),
+                     beam.equal_to([self.EXPECTED_TSV]),
                      label='assert:tag_tsv_results')
-    beam.assert_that(num_luddites, beam.equal_to(self.EXPECTED_LUDDITES),
+    beam.assert_that(num_luddites, beam.equal_to([self.EXPECTED_LUDDITES]),
                      label='assert:tag_num_luddites')
-    beam.assert_that(num_writers, beam.equal_to(self.EXPECTED_WRITERS),
+    beam.assert_that(num_writers, beam.equal_to([self.EXPECTED_WRITERS]),
                      label='assert:tag_num_writers')
-    beam.assert_that(num_nomads, beam.equal_to(self.EXPECTED_NOMADS),
+    beam.assert_that(num_nomads, beam.equal_to([self.EXPECTED_NOMADS]),
                      label='assert:tag_num_nomads')
 
 
