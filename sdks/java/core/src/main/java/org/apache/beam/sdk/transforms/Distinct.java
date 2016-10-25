@@ -23,9 +23,8 @@ import org.apache.beam.sdk.values.TypeDescriptor;
 
 /**
  * {@code Distinct<T>} takes a {@code PCollection<T>} and
- * returns a {@code PCollection<T>} that has all the elements of the
- * input but with duplicate elements removed such that each element is
- * unique within each window.
+ * returns a {@code PCollection<T>} that has all distinct elements of the
+ * input. Thus, each element is unique within each window.
  *
  * <p>Two values of type {@code T} are compared for equality <b>not</b> by
  * regular Java {@link Object#equals}, but instead by first encoding
