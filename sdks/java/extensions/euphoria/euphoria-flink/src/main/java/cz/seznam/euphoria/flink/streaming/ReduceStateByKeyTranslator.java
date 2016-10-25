@@ -69,7 +69,6 @@ class ReduceStateByKeyTranslator implements StreamingOperatorTranslator<ReduceSt
           .name(operator.getName())
           .setParallelism(operator.getParallelism());
     } else {
-      // FIXME merging windows not covered yet
       WindowedStream<MultiWindowedElement<?, Pair>, Object, FlinkWindow>
           windowed = context.flinkWindow((DataStream) input, keyExtractor, valueExtractor, windowing);
       // equivalent operation to "left fold"
