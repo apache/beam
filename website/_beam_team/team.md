@@ -16,37 +16,37 @@ members:
     time_zone: "+2"
   - name: Ben Chambers
     apache_id: bchambers
-    email: bchambers [at] google [dot] com
+    email: bchambers [at] apache [dot] org
     organization: Google
     roles: committer, PPMC
     time_zone: "-8"
   - name: Craig Chambers
     apache_id:
-    email: chambers [at] google [dot] com
+    email:
     organization: Google
     roles: committer, PPMC
     time_zone: "-8"
   - name: Dan Halperin
     apache_id: dhalperi
-    email: dhalperi [at] google [dot] com
+    email: dhalperi [at] apache [dot] org
     organization: Google
     roles: committer, PPMC
     time_zone: "-8"
   - name: Davor Bonaci
     apache_id: davor
-    email: davor [at] google [dot] com
+    email: davor [at] apache [dot] org
     organization: Google
     roles: committer, PPMC
     time_zone: "-8"
   - name: Frances Perry
     apache_id: frances
-    email: fjp [at] google [dot] com
+    email: frances [at] apache [dot] org
     organization: Google
     roles: committer, PPMC
     time_zone: "-8"
   - name: James Malone
     apache_id: jamesmalone
-    email: jamesmalone [at] google [dot] com
+    email: jamesmalone [at] apache [dot] org
     organization: Google
     roles: committer, PPMC
     time_zone: "-8"
@@ -56,6 +56,12 @@ members:
     organization: Talend
     roles: champion, committer, PPMC
     time_zone: "+1"
+  - name: Jesse Anderson
+    apache_id:
+    email: jesse [at] smokinghand [dot] com
+    organization: Smoking Hand
+    roles: committer
+    time_zone: "-8"
   - name: Josh Wills
     apache_id: jwills
     email: jwills [at] apache [dot] org
@@ -70,13 +76,13 @@ members:
     time_zone: "+1"
   - name: Kenneth Knowles
     apache_id: kenn
-    email: klk [at] google [dot] com
+    email: kenn [at] apache [dot] org
     organization: Google
     roles: committer, PPMC
     time_zone: "-8"
   - name: Luke Cwik
     apache_id: lcwik
-    email: lcwik [at] google [dot] com
+    email: lcwik [at] apache [dot] org
     organization: Google
     roles: committer, PPMC
     time_zone: "-8"
@@ -92,6 +98,18 @@ members:
     organization: data Artisans
     roles: committer, PPMC
     time_zone: "+1"
+  - name: Thomas Groh
+    apache_id:
+    email:
+    organization: Google
+    roles: committer
+    time_zone: "-8"
+  - name: Thomas Weise
+    apache_id: thw
+    email: thw [at] apache [dot] org
+    organization: DataTorrent
+    roles: committer
+    time_zone: "-8"
   - name: Tom White
     apache_id: tomwhite
     email: tom [at] cloudera [dot] com
@@ -100,13 +118,13 @@ members:
     time_zone: "-8"
   - name: Tyler Akidau
     apache_id: takidau
-    email: takidau [at] google [dot] com
+    email: takidau [at] apache [dot] org
     organization: Google
     roles: committer, PPMC
     time_zone: "-8"
   - name: Robert Bradshaw
     apache_id: robertwb
-    email: robertwb [at] google [dot] com
+    email: robertwb [at] apache [dot] org
     organization: Google
     roles: committer, PPMC
     time_zone: "-8"
