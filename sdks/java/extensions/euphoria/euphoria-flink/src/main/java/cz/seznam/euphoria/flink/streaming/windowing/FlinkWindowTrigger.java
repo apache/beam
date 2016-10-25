@@ -93,10 +93,21 @@ public class FlinkWindowTrigger<WID extends Window, T> extends Trigger<T, FlinkW
   public void clear(FlinkWindow<WID> window, TriggerContext ctx) throws Exception {
     euphoriaTrigger.onClear(window.getWindowID(), new TriggerContextWrapper(ctx));
 
-
     // ~ our flink-window-ids windows have maxTimestamp == Long.MAX_VALUE; need to
     // clean-up the registered clean-up trigger to avoid mem-leak in long running
     // streams
     ctx.deleteEventTimeTimer(window.maxTimestamp());
+  }
+
+  @Override
+  public boolean canMerge() {
+    return true;
+  }
+
+  @Override
+  public TriggerResult onMerge(FlinkWindow<WID> window, OnMergeContext ctx)
+      throws Exception {
+    return translateResult(euphoriaTrigger.onMerge(
+        window.getWindowID(), new TriggerMergeContextWrapper(ctx)));
   }
 }

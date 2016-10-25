@@ -21,6 +21,10 @@ public class FlinkWindowAssigner<T, WID extends Window>
     this.windowing = windowing;
   }
 
+  Windowing<T, WID> getWindowing() {
+    return this.windowing;
+  }
+
   @Override
   public Collection<FlinkWindow<WID>> assignWindows(
       MultiWindowedElement<WID, T> element,

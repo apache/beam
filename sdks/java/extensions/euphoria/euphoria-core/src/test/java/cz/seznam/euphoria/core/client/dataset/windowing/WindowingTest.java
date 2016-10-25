@@ -13,28 +13,18 @@ import cz.seznam.euphoria.core.client.operator.MapElements;
 import cz.seznam.euphoria.core.client.operator.ReduceByKey;
 import cz.seznam.euphoria.core.client.operator.ReduceWindow;
 import cz.seznam.euphoria.core.client.operator.Repartition;
-import cz.seznam.euphoria.core.client.operator.state.ValueStorage;
-import cz.seznam.euphoria.core.client.operator.state.ValueStorageDescriptor;
-import cz.seznam.euphoria.core.client.triggers.Trigger;
-import cz.seznam.euphoria.core.client.triggers.TriggerContext;
 import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.core.client.util.Sums;
-import cz.seznam.euphoria.core.client.util.Triple;
 import cz.seznam.euphoria.core.executor.inmem.InMemExecutor;
 import cz.seznam.euphoria.core.executor.inmem.WatermarkTriggerScheduler;
-import cz.seznam.euphoria.guava.shaded.com.google.common.base.Joiner;
 import cz.seznam.euphoria.guava.shaded.com.google.common.collect.Iterables;
-import cz.seznam.euphoria.guava.shaded.com.google.common.collect.Lists;
 import cz.seznam.euphoria.guava.shaded.com.google.common.collect.Sets;
 import org.junit.Before;
 import org.junit.Test;
 
 import java.time.Duration;
-import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.Comparator;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -450,71 +440,6 @@ public class WindowingTest {
   }
 
   @Test
-  public void testWindowing_SessionWindowing0() throws Exception {
-    final long NOW = System.currentTimeMillis() + 15_000L;
-
-    Flow flow = Flow.create("Test");
-
-    Dataset<Item> input = flow.createInput(ListDataSource.unbounded(asList(
-        new Item("1-one",   1),
-        new Item("2-one",   2),
-        new Item("1-two",   4),
-        new Item("1-three", 8),
-        new Item("1-four",  10),
-        new Item("2-two",   10),
-        new Item("1-five",  18),
-        new Item("2-three", 20),
-        new Item("1-six",   22)))
-        .withReadDelay(Duration.ofMillis(900)));
-
-    ListDataSink<Triple<TimeInterval, Integer, HashSet<String>>> out
-        = ListDataSink.get(1);
-
-    Dataset<Pair<Integer, HashSet<String>>> reduced =
-        ReduceByKey.of(input)
-        .keyBy(e -> e.word.charAt(0) - '0')
-        .valueBy(e -> e.word)
-        .reduceBy(Sets::newHashSet)
-        .windowBy(Session.of(Duration.ofSeconds(5))
-            .using(e -> NOW + e.evtTs * 1_000L))
-        .setNumPartitions(1)
-        .output();
-
-    FlatMap.of(reduced)
-        .using((UnaryFunctor<Pair<Integer, HashSet<String>>, Triple<TimeInterval, Integer, HashSet<String>>>)
-            (elem, context) -> context.collect(Triple.of((TimeInterval) context.getWindow(), elem.getFirst(), elem.getSecond())))
-        .output()
-        .persist(out);
-
-    executor.waitForCompletion(flow);
-
-    // ~ prepare the output for comparison
-    List<String> flat = new ArrayList<>();
-    for (Triple<TimeInterval, Integer, HashSet<String>> o : out.getOutput(0)) {
-      StringBuilder buf = new StringBuilder();
-      buf.append("(")
-          .append((o.getFirst().getStartMillis() - NOW) / 1_000L)
-          .append("-")
-          .append((o.getFirst().getEndMillis() - NOW) / 1_000L)
-          .append("): ");
-      buf.append(o.getSecond()).append(": ");
-      ArrayList<String> xs = new ArrayList<>(o.getThird());
-      xs.sort(Comparator.naturalOrder());
-      Joiner.on(", ").appendTo(buf, xs);
-      flat.add(buf.toString());
-    }
-    flat.sort(Comparator.naturalOrder());
-    assertEquals(
-        sorted(asList(
-            "(1-15): 1: 1-four, 1-one, 1-three, 1-two",
-            "(10-15): 2: 2-two",
-            "(18-27): 1: 1-five, 1-six",
-            "(2-7): 2: 2-one",
-            "(20-25): 2: 2-three")),
-        flat);
-  }
-
-  @Test
   public void testTimeSlidingLabelAssignment() {
 
     TimeSliding<Long> windowing = TimeSliding
@@ -544,174 +469,5 @@ public class WindowingTest {
         assertTrue(stamp <= l.getEndMillis());
       }
     }
-  }
-
-  // ~ -----------------------------------------------------------------------
-
-  // ~ every instance is unique: this allows us to exercise merging
-  static final class CWindow extends Window {
-    private final int bucket;
-
-    public CWindow(int bucket) {
-      this.bucket = bucket;
-    }
-
-    @Override
-    public int hashCode() {
-      return System.identityHashCode(this);
-    }
-
-    @Override
-    public boolean equals(Object obj) {
-      return this == obj;
-    }
-
-    @Override
-    public String toString() {
-      return "CWindow{" +
-          "bucket=" + bucket +
-          ", identity=" + Integer.toHexString(System.identityHashCode(this)) +
-          '}';
-    }
-  }
-
-  // count windowing; firing based on window.bucket (size of the window)
-  static final class CWindowTrigger<T> implements Trigger<T, CWindow> {
-    private final ValueStorageDescriptor<Long> countDesc =
-        ValueStorageDescriptor.of("count", Long.class, 0L, (x, y) -> x + y);
-
-    @Override
-    public TriggerResult onElement(long time, T element, CWindow w, TriggerContext ctx) {
-      ValueStorage<Long> cnt = ctx.getValueStorage(countDesc);
-      cnt.set(cnt.get() + 1);
-      if (cnt.get() >= w.bucket) {
-        return TriggerResult.FLUSH_AND_PURGE;
-      }
-      return TriggerResult.NOOP;
-    }
-
-    @Override
-    public TriggerResult onTimeEvent(long time, CWindow w, TriggerContext ctx) {
-      return TriggerResult.NOOP;
-    }
-
-    @Override
-    public void onClear(CWindow window, TriggerContext ctx) {
-      ctx.getValueStorage(countDesc).clear();
-    }
-
-    @Override
-    public TriggerResult onMerge(CWindow w, TriggerContext.TriggerMergeContext ctx) {
-      ctx.mergeStoredState(countDesc);
-      if (ctx.getValueStorage(countDesc).get() >= w.bucket) {
-        return TriggerResult.FLUSH_AND_PURGE;
-      }
-      return TriggerResult.NOOP;
-    }
-  }
-
-  static final class CWindowing<T> implements MergingWindowing<T, CWindow> {
-    UnaryFunction<T, Integer> typeFn;
-
-    CWindowing(UnaryFunction<T, Integer> typeFn) {
-      this.typeFn = typeFn;
-    }
-
-    @Override
-    public Set<CWindow> assignWindowsToElement(WindowedElement<?, T> input) {
-      return Sets.newHashSet(new CWindow(typeFn.apply(input.get())));
-    }
-
-    @Override
-    public Collection<Pair<Collection<CWindow>, CWindow>>
-    mergeWindows(Collection<CWindow> actives) {
-      Map<Integer, List<CWindow>> byMergeType = new HashMap<>();
-      for (CWindow cw : actives) {
-        byMergeType.computeIfAbsent(cw.bucket, k -> new ArrayList<>()).add(cw);
-      }
-      List<Pair<Collection<CWindow>, CWindow>> merges = new ArrayList<>();
-      for (List<CWindow> siblings : byMergeType.values()) {
-        if (siblings.size() >= 2) {
-          merges.add(Pair.of(siblings.subList(1, siblings.size()), siblings.get(0)));
-        }
-      }
-      return merges;
-    }
-
-    @Override
-    public Trigger<T, CWindow> getTrigger() {
-      return new CWindowTrigger<T>();
-    }
-  }
-
-  @Test
-  public void testMergingAndTriggering() {
-    Flow f = Flow.create("test");
-    Dataset<Triple<String, Integer, Long>> input =
-        f.createInput(ListDataSource.unbounded(asList(
-            Triple.of("a", 3,      10L),
-            Triple.of("a", 2,      20L),
-            Triple.of("a", 2,     200L),
-            Triple.of("a", 2,      30L),
-            Triple.of("b", 3,      10L),
-            Triple.of("b", 4,      20L),
-            Triple.of("a", 3,     100L),
-            Triple.of("c", 3,   1_000L),
-            Triple.of("b", 4,     200L),
-            Triple.of("a", 3,   1_000L),
-            Triple.of("a", 3,  10_000L),
-            Triple.of("b", 4,   2_000L),
-            Triple.of("b", 4,  20_000L),
-            Triple.of("b", 4, 200_000L),
-            Triple.of("a", 3, 100_000L)
-        )));
-
-    Dataset<Pair<String, Long>> reduced =
-        ReduceByKey.of(input)
-        .keyBy(Triple::getFirst)
-        .valueBy(Triple::getThird)
-        .combineBy(Sums.ofLongs())
-        .windowBy(new CWindowing<>(Triple::getSecond))
-        .output();
-
-    ListDataSink<Triple<String, Integer, Long>> out = ListDataSink.get(1);
-    FlatMap.of(reduced)
-        .using((UnaryFunctor<Pair<String, Long>, Triple<String, Integer, Long>>)
-            (elem, context) -> {
-              int bucket = ((CWindow) context.getWindow()).bucket;
-              context.collect(Triple.of(elem.getFirst(), bucket, elem.getSecond()));
-            })
-        .output()
-        .persist(out);
-
-
-    executor.waitForCompletion(f);
-
-    System.out.println(out.getOutput(0));
-
-    // expected:
-    //   w:3  => [a:10L + a:100L + a:1000L], [a:10000L + a:100000L]
-    //   w:2  => [a:20L + a:200L] [a:30L]
-    //   w:3  => [b:10L]
-    //   w:4  => [b:20L + b:200L + b:2000L + b:20000L]
-    //   w:4  => [b:200000L]
-    //   w:3  => [c:1000L]
-    assertEquals(
-        Lists.newArrayList(
-            Triple.of("a",  2,      30L),
-            Triple.of("a",  2,     220L),
-            Triple.of("a",  3,   1_110L),
-            Triple.of("a",  3, 110_000L),
-            Triple.of("b",  3,      10L),
-            Triple.of("b",  4,  22_220L),
-            Triple.of("b",  4, 200_000L),
-            Triple.of("c",  3,   1_000L)),
-        sorted(out.getOutput(0), (o1, o2) -> {
-          int cmp = o1.getFirst().compareTo(o2.getFirst());
-          if (cmp == 0) {
-            cmp = Long.compare(o1.getThird(), o2.getThird());
-          }
-          return cmp;
-        }));
   }
 }
