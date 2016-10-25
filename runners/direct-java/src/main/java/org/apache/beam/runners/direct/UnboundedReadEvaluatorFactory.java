@@ -38,6 +38,7 @@ import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
@@ -74,7 +75,7 @@ class UnboundedReadEvaluatorFactory implements TransformEvaluatorFactory {
   }
 
   private <OutputT> TransformEvaluator<?> createEvaluator(
-      AppliedPTransform<?, PCollection<OutputT>, Read.Unbounded<OutputT>> application) {
+      AppliedPTransform<PBegin, PCollection<OutputT>, Read.Unbounded<OutputT>> application) {
     return new UnboundedReadEvaluator<>(
         application, evaluationContext, readerReuseChance);
   }
@@ -138,6 +139,16 @@ class UnboundedReadEvaluatorFactory implements TransformEvaluatorFactory {
               .addUnprocessedElements(
                   Collections.singleton(
                       WindowedValue.timestampedValueInGlobalWindow(residual, watermark)));
+        } else if (reader.getWatermark().isBefore(BoundedWindow.TIMESTAMP_MAX_VALUE)) {
+          // If the reader had no elements available, but the shard is not done, reuse it later
+          resultBuilder.addUnprocessedElements(
+              Collections.<WindowedValue<?>>singleton(
+                  element.withValue(
+                      UnboundedSourceShard.of(
+                          shard.getSource(),
+                          shard.getDeduplicator(),
+                          reader,
+                          shard.getCheckpoint()))));
         }
       } catch (IOException e) {
         if (reader != null) {
@@ -263,7 +274,7 @@ class UnboundedReadEvaluatorFactory implements TransformEvaluatorFactory {
     }
 
     private <OutputT> Collection<CommittedBundle<?>> createInitialSplits(
-        AppliedPTransform<?, ?, Unbounded<OutputT>> transform, int targetParallelism)
+        AppliedPTransform<PBegin, ?, Unbounded<OutputT>> transform, int targetParallelism)
         throws Exception {
       UnboundedSource<OutputT, ?> source = transform.getTransform().getSource();
       List<? extends UnboundedSource<OutputT, ?>> splits =

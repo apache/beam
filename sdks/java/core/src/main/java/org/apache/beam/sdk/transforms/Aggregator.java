@@ -73,8 +73,10 @@ public interface Aggregator<InputT, OutputT> {
   CombineFn<InputT, ?, OutputT> getCombineFn();
 
   /**
-   * A factory for creating aggregators.
+   * @deprecated this is for use only by runners and exists only for a migration period. Please
+   * use the identical interface in org.apache.beam.runners.core
    */
+  @Deprecated
   interface AggregatorFactory {
     /**
      * Create an aggregator with the given {@code name} and {@link CombineFn}.
@@ -87,11 +89,4 @@ public interface Aggregator<InputT, OutputT> {
         Class<?> fnClass, ExecutionContext.StepContext stepContext,
         String aggregatorName, CombineFn<InputT, AccumT, OutputT> combine);
   }
-
-  // TODO: Consider the following additional API conveniences:
-  // - In addition to createAggregator(), consider adding getAggregator() to
-  //   avoid the need to store the aggregator locally in a DoFn, i.e., create
-  //   if not already present.
-  // - Add a shortcut for the most common aggregator:
-  //   c.createAggregator("name", new Sum.SumIntegerFn()).
 }

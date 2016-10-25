@@ -224,6 +224,13 @@ class DirectMetrics extends MetricResults {
 
   @AutoValue
   abstract static class DirectMetricResult<T> implements MetricResult<T> {
+    // need to define these here so they appear in the correct order
+    // and the generated constructor is usable and consistent
+    public abstract MetricName name();
+    public abstract String step();
+    public abstract T committed();
+    public abstract T attempted();
+
     public static <T> MetricResult<T> create(MetricName name, String scope,
         T committed, T attempted) {
       return new AutoValue_DirectMetrics_DirectMetricResult<T>(

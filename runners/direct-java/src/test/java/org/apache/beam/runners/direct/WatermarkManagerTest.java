@@ -1452,7 +1452,7 @@ public class WatermarkManagerTest implements Serializable {
     return bundle.commit(BoundedWindow.TIMESTAMP_MAX_VALUE);
   }
 
-  private final CommittedResult result(
+  private CommittedResult result(
       AppliedPTransform<?, ?, ?> transform,
       @Nullable CommittedBundle<?> unprocessedBundle,
       Iterable<? extends CommittedBundle<?>> bundles) {

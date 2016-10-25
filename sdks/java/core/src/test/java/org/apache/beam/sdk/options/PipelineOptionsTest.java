@@ -17,17 +17,9 @@
  */
 package org.apache.beam.sdk.options;
 
-import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNotSame;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Sets;
-import java.io.IOException;
 import java.util.List;
 import java.util.Set;
 import org.junit.Rule;
@@ -42,7 +34,7 @@ public class PipelineOptionsTest {
   @Rule public ExpectedException expectedException = ExpectedException.none();
 
   /** Interfaces used for testing that {@link PipelineOptions#as(Class)} functions. */
-  private static interface DerivedTestOptions extends BaseTestOptions {
+  private interface DerivedTestOptions extends BaseTestOptions {
     int getDerivedValue();
     void setDerivedValue(int derivedValue);
 
@@ -53,7 +45,7 @@ public class PipelineOptionsTest {
     void setIgnoredValue(Set<String> ignoredValue);
   }
 
-  private static interface ConflictedTestOptions extends BaseTestOptions {
+  private interface ConflictedTestOptions extends BaseTestOptions {
     String getDerivedValue();
     void setDerivedValue(String derivedValue);
 
@@ -64,7 +56,7 @@ public class PipelineOptionsTest {
     void setIgnoredValue(Set<String> ignoredValue);
   }
 
-  private static interface BaseTestOptions extends PipelineOptions {
+  private interface BaseTestOptions extends PipelineOptions {
     List<Boolean> getBaseValue();
     void setBaseValue(List<Boolean> baseValue);
 
@@ -77,40 +69,5 @@ public class PipelineOptionsTest {
   public void testDynamicAs() {
     BaseTestOptions options = PipelineOptionsFactory.create().as(BaseTestOptions.class);
     assertNotNull(options);
-  }
-
-  @Test
-  public void testCloneAs() throws IOException {
-    DerivedTestOptions options = PipelineOptionsFactory.create().as(DerivedTestOptions.class);
-    options.setBaseValue(Lists.<Boolean>newArrayList());
-    options.setIgnoredValue(Sets.<String>newHashSet());
-    options.getIgnoredValue().add("ignoredString");
-    options.setDerivedValue(0);
-
-    BaseTestOptions clonedOptions = options.cloneAs(BaseTestOptions.class);
-    assertNotSame(clonedOptions, options);
-    assertNotSame(clonedOptions.getBaseValue(), options.getBaseValue());
-
-    clonedOptions.getBaseValue().add(true);
-    assertFalse(clonedOptions.getBaseValue().isEmpty());
-    assertTrue(options.getBaseValue().isEmpty());
-
-    assertNull(clonedOptions.getIgnoredValue());
-
-    ObjectMapper mapper = new ObjectMapper();
-    mapper.readValue(mapper.writeValueAsBytes(clonedOptions), PipelineOptions.class);
-  }
-
-  @Test
-  public void testCloneAsConflicted() throws Exception {
-    DerivedTestOptions options = PipelineOptionsFactory.create().as(DerivedTestOptions.class);
-    options.setBaseValue(Lists.<Boolean>newArrayList());
-    options.setIgnoredValue(Sets.<String>newHashSet());
-    options.getIgnoredValue().add("ignoredString");
-    options.setDerivedValue(0);
-
-    expectedException.expect(IllegalArgumentException.class);
-    expectedException.expectMessage("incompatible return types");
-    options.cloneAs(ConflictedTestOptions.class);
   }
 }

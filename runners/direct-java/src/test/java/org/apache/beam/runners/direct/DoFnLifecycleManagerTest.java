@@ -33,7 +33,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
-import org.apache.beam.sdk.transforms.OldDoFn;
+import org.apache.beam.sdk.transforms.DoFn;
 import org.hamcrest.Matchers;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -101,7 +101,7 @@ public class DoFnLifecycleManagerTest {
     assertThat(obtained.setupCalled, is(true));
     assertThat(obtained.teardownCalled, is(true));
 
-    assertThat(mgr.get(), not(Matchers.<OldDoFn<?, ?>>theInstance(obtained)));
+    assertThat(mgr.get(), not(Matchers.<DoFn<?, ?>>theInstance(obtained)));
   }
 
   @Test
@@ -142,11 +142,11 @@ public class DoFnLifecycleManagerTest {
   }
 
 
-  private static class TestFn extends OldDoFn<Object, Object> {
+  private static class TestFn extends DoFn<Object, Object> {
     boolean setupCalled = false;
     boolean teardownCalled = false;
 
-    @Override
+    @Setup
     public void setup() {
       checkState(!setupCalled);
       checkState(!teardownCalled);
@@ -154,11 +154,11 @@ public class DoFnLifecycleManagerTest {
       setupCalled = true;
     }
 
-    @Override
+    @ProcessElement
     public void processElement(ProcessContext c) throws Exception {
     }
 
-    @Override
+    @Teardown
     public void teardown() {
       checkState(setupCalled);
       checkState(!teardownCalled);

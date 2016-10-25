@@ -34,7 +34,7 @@
   <url>http://beam.incubator.apache.org</url>
   <inceptionYear>2016</inceptionYear>
 
-  <version>0.3.0-incubating-SNAPSHOT</version>
+  <version>0.4.0-incubating-SNAPSHOT</version>
 
   <licenses>
     <license>
@@ -92,13 +92,13 @@
 
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-    <beam.javadoc_opts/>
+    <beam.javadoc_opts />
 
     <!-- Disable integration tests by default -->
     <skipITs>true</skipITs>
 
     <!-- Do not add additional surefire arguments by default -->
-    <beamSurefireArgline/>
+    <beamSurefireArgline />
 
     <!-- If updating dependencies, please update any relevant javadoc offlineLinks -->
     <avro.version>1.8.1</avro.version>
@@ -139,9 +139,6 @@
 
   <modules>
     <module>sdks</module>
-    <!-- Expose Dataflow runner as top level module to satisfy dependencies in sdks/java/maven-archetypes 
-      and examples/java. Until these are refactored out, we need to modify the build order. -->
-    <module>runners/google-cloud-dataflow-java</module>
     <module>runners</module>
     <!-- sdks/java/maven-archetypes has several dependencies on the DataflowPipelineRunner. 
       Until these are refactored out or a released artifact exists, we need to modify the 
@@ -691,13 +688,13 @@
         <groupId>org.apache.beam</groupId>
         <artifactId>beam-sdks-java-core</artifactId>
         <version>${project.version}</version>
-        <type>test-jar</type>
+        <classifier>tests</classifier>
         <scope>test</scope>
       </dependency>
 
       <dependency>
         <groupId>org.apache.beam</groupId>
-        <artifactId>beam-sdks-java-core</artifactId>
+        <artifactId>beam-runners-core-java</artifactId>
         <version>${project.version}</version>
         <classifier>tests</classifier>
         <scope>test</scope>
@@ -1023,7 +1020,7 @@
                     </goals>
                   </pluginExecutionFilter>
                   <action>
-                    <ignore/>
+                    <ignore />
                   </action>
                 </pluginExecution>
                 <pluginExecution>
@@ -1037,7 +1034,7 @@
                     </goals>
                   </pluginExecutionFilter>
                   <action>
-                    <ignore/>
+                    <ignore />
                   </action>
                 </pluginExecution>
               </pluginExecutions>

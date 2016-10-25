@@ -20,6 +20,7 @@ package org.apache.beam.runners.spark.translation.streaming;
 
 import com.google.common.collect.Iterables;
 
+import java.io.IOException;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.Map;
@@ -45,6 +46,7 @@ import org.apache.spark.api.java.function.VoidFunction;
 import org.apache.spark.streaming.api.java.JavaDStream;
 import org.apache.spark.streaming.api.java.JavaDStreamLike;
 import org.apache.spark.streaming.api.java.JavaStreamingContext;
+import org.joda.time.Duration;
 
 
 /**
@@ -90,6 +92,7 @@ public class StreamingEvaluationContext extends EvaluationContext {
             WindowedValue.getValueOnlyCoder(coder);
         // create the DStream from queue
         Queue<JavaRDD<WindowedValue<T>>> rddQueue = new LinkedBlockingQueue<>();
+        JavaRDD<WindowedValue<T>> lastRDD = null;
         for (Iterable<T> v : values) {
           Iterable<WindowedValue<T>> windowedValues =
               Iterables.transform(v, WindowingHelpers.<T>windowValueFunction());
@@ -97,10 +100,14 @@ public class StreamingEvaluationContext extends EvaluationContext {
               CoderHelpers.toByteArrays(windowedValues, windowCoder)).map(
                   CoderHelpers.fromByteFunction(windowCoder));
           rddQueue.offer(rdd);
+          lastRDD = rdd;
         }
-        // create dstream from queue, one at a time, no defaults
-        // mainly for unit test so no reason to have this configurable
-        dStream = jssc.queueStream(rddQueue, true);
+        // create dstream from queue, one at a time,
+        // with last as default in case batches repeat (graceful stops for example).
+        // if the stream is empty, avoid creating a default empty RDD.
+        // mainly for unit test so no reason to have this configurable.
+        dStream = lastRDD != null ? jssc.queueStream(rddQueue, true, lastRDD)
+            : jssc.queueStream(rddQueue, true);
       }
       return dStream;
     }
@@ -196,6 +203,26 @@ public class StreamingEvaluationContext extends EvaluationContext {
   @Override
   public State getState() {
     return state;
+  }
+
+  @Override
+  public State cancel() throws IOException {
+    throw new UnsupportedOperationException(
+        "Spark runner StreamingEvaluationContext does not support cancel.");
+  }
+
+  @Override
+  public State waitUntilFinish()
+      throws IOException, InterruptedException {
+    throw new UnsupportedOperationException(
+        "Spark runner StreamingEvaluationContext does not support waitUntilFinish.");
+  }
+
+  @Override
+  public State waitUntilFinish(Duration duration)
+      throws IOException, InterruptedException {
+    throw new UnsupportedOperationException(
+        "Spark runner StreamingEvaluationContext does not support waitUntilFinish.");
   }
 
   //---------------- override in order to expose in package

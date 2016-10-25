@@ -127,7 +127,7 @@ public class Read {
       builder
           .add(DisplayData.item("source", source.getClass())
             .withLabel("Read Source"))
-          .include(source);
+          .include("source", source);
     }
   }
 
@@ -194,7 +194,7 @@ public class Read {
       builder
           .add(DisplayData.item("source", source.getClass())
             .withLabel("Read Source"))
-          .include(source);
+          .include("source", source);
     }
   }
 }

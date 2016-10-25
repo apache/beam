@@ -161,7 +161,7 @@ public class GameStats extends LeaderBoard {
   /**
    * Options supported by {@link GameStats}.
    */
-  static interface Options extends LeaderBoard.Options {
+  interface Options extends LeaderBoard.Options {
     @Description("Numeric value of fixed window duration for user analysis, in minutes")
     @Default.Integer(60)
     Integer getFixedWindowDuration();

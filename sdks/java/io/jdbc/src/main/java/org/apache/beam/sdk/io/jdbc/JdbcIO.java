@@ -55,15 +55,20 @@ import org.apache.commons.dbcp2.BasicDataSource;
  * type returned by the provided {@link RowMapper}.
  *
  * <p>To configure the JDBC source, you have to provide a {@link DataSourceConfiguration} using
- * {@link DataSourceConfiguration#create} with either a {@link DataSource} (which must be
- * {@link Serializable}) or the parameters needed to create it (driver class name, url, and
- * optionally username and password). For example:
+ * {@link DataSourceConfiguration#create(DataSource)} or
+ * {@link DataSourceConfiguration#create(String, String)} with either a
+ * {@link DataSource} (which must be {@link Serializable}) or the parameters needed to create it
+ * (driver class name and url). Optionally, {@link DataSourceConfiguration#withUsername(String)} and
+ * {@link DataSourceConfiguration#withPassword(String)} allows you to define DataSource username
+ * and password.
+ * For example:
  *
  * <pre>{@code
  * pipeline.apply(JdbcIO.<KV<Integer, String>>read()
  *   .withDataSourceConfiguration(JdbcIO.DataSourceConfiguration.create(
- *       "com.mysql.jdbc.Driver", "jdbc:mysql://hostname:3306/mydb",
- *       "username", "password"))
+ *          "com.mysql.jdbc.Driver", "jdbc:mysql://hostname:3306/mydb")
+ *        .withUsername("username")
+ *        .withPassword("password"))
  *   .withQuery("select id,name from Person")
  *   .withRowMapper(new JdbcIO.RowMapper<KV<Integer, String>>() {
  *     public KV<Integer, String> mapRow(ResultSet resultSet) throws Exception {
@@ -85,8 +90,9 @@ import org.apache.commons.dbcp2.BasicDataSource;
  *   .apply(...)
  *   .apply(JdbcIO.<KV<Integer, String>>write()
  *      .withDataSourceConfiguration(JdbcIO.DataSourceConfiguration.create(
- *         "com.mysql.jdbc.Driver", "jdbc:mysql://hostname:3306/mydb",
- *         "username", "password"))
+ *            "com.mysql.jdbc.Driver", "jdbc:mysql://hostname:3306/mydb")
+ *          .withUsername("username")
+ *          .withPassword("password"))
  *      .withStatement("insert into Person values(?, ?)")
  *      .withPreparedStatementSetter(new JdbcIO.PreparedStatementSetter<KV<Integer, String>>() {
  *        public void setParameters(KV<Integer, String> element, PreparedStatement query) {
@@ -143,29 +149,41 @@ public class JdbcIO {
     @Nullable abstract String getPassword();
     @Nullable abstract DataSource getDataSource();
 
-    /** Configuration using a {@link Serializable} {@link DataSource}. */
+    abstract Builder builder();
+
+    @AutoValue.Builder
+    abstract static class Builder {
+      abstract Builder setDriverClassName(String driverClassName);
+      abstract Builder setUrl(String url);
+      abstract Builder setUsername(String username);
+      abstract Builder setPassword(String password);
+      abstract Builder setDataSource(DataSource dataSource);
+      abstract DataSourceConfiguration build();
+    }
+
     public static DataSourceConfiguration create(DataSource dataSource) {
       checkNotNull(dataSource, "dataSource");
       checkArgument(dataSource instanceof Serializable, "dataSource must be Serializable");
-      return new AutoValue_JdbcIO_DataSourceConfiguration(null, null, null, null, dataSource);
+      return new AutoValue_JdbcIO_DataSourceConfiguration.Builder()
+          .setDataSource(dataSource)
+          .build();
     }
 
-    /** Configuration using the given driver, url, username and password. */
-    public static DataSourceConfiguration create(
-        String driverClassName, String url, String username, String password) {
-      checkNotNull(driverClassName, "driverClassName");
-      checkNotNull(url, "url");
-      checkNotNull(username, "username");
-      checkNotNull(password, "password");
-      return new AutoValue_JdbcIO_DataSourceConfiguration(
-          driverClassName, url, username, password, null);
-    }
-
-    /** Configuration using the given driver and url, without a username and password. */
     public static DataSourceConfiguration create(String driverClassName, String url) {
       checkNotNull(driverClassName, "driverClassName");
       checkNotNull(url, "url");
-      return new AutoValue_JdbcIO_DataSourceConfiguration(driverClassName, url, null, null, null);
+      return new AutoValue_JdbcIO_DataSourceConfiguration.Builder()
+          .setDriverClassName(driverClassName)
+          .setUrl(url)
+          .build();
+    }
+
+    public DataSourceConfiguration withUsername(String username) {
+      return builder().setUsername(username).build();
+    }
+
+    public DataSourceConfiguration withPassword(String password) {
+      return builder().setPassword(password).build();
     }
 
     private void populateDisplayData(DisplayData.Builder builder) {
@@ -179,20 +197,18 @@ public class JdbcIO {
     }
 
     Connection getConnection() throws Exception {
-      DataSource dataSource;
       if (getDataSource() != null) {
-        dataSource = getDataSource();
+        return (getUsername() != null)
+            ? getDataSource().getConnection(getUsername(), getPassword())
+            : getDataSource().getConnection();
       } else {
         BasicDataSource basicDataSource = new BasicDataSource();
         basicDataSource.setDriverClassName(getDriverClassName());
         basicDataSource.setUrl(getUrl());
         basicDataSource.setUsername(getUsername());
         basicDataSource.setPassword(getPassword());
-        dataSource = basicDataSource;
+        return basicDataSource.getConnection();
       }
-      return (getUsername() == null)
-          ? dataSource.getConnection()
-          : dataSource.getConnection(getUsername(), getPassword());
     }
   }
 

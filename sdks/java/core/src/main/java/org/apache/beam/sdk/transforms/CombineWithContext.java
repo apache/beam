@@ -171,8 +171,7 @@ public class CombineWithContext {
 
         @Override
         public void populateDisplayData(DisplayData.Builder builder) {
-          super.populateDisplayData(builder);
-          CombineFnWithContext.this.populateDisplayData(builder);
+          builder.delegate(CombineFnWithContext.this);
         }
       };
     }

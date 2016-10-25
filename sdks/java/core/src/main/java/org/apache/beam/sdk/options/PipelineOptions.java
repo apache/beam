@@ -211,14 +211,6 @@ public interface PipelineOptions extends HasDisplayData {
   <T extends PipelineOptions> T as(Class<T> kls);
 
   /**
-   * Makes a deep clone of this object, and transforms the cloned object into the specified
-   * type {@code kls}. See {@link #as} for more information about the conversion.
-   *
-   * <p>Properties that are marked with {@code @JsonIgnore} will not be cloned.
-   */
-  <T extends PipelineOptions> T cloneAs(Class<T> kls);
-
-  /**
    * The pipeline runner that will be used to execute the pipeline.
    * For registered runners, the class name can be specified, otherwise the fully
    * qualified name needs to be specified.
@@ -234,7 +226,7 @@ public interface PipelineOptions extends HasDisplayData {
   /**
    * Enumeration of the possible states for a given check.
    */
-  public static enum CheckEnabled {
+  enum CheckEnabled {
     OFF,
     WARNING,
     ERROR
@@ -307,7 +299,7 @@ public interface PipelineOptions extends HasDisplayData {
    * <p>The normalization makes sure that the name matches the pattern of
    * [a-z]([-a-z0-9]*[a-z0-9])?.
    */
-  static class JobNameFactory implements DefaultValueFactory<String> {
+  class JobNameFactory implements DefaultValueFactory<String> {
     private static final DateTimeFormatter FORMATTER =
         DateTimeFormat.forPattern("MMddHHmmss").withZone(DateTimeZone.UTC);
 

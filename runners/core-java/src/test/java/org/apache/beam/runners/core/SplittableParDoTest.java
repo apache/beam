@@ -34,7 +34,6 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.SerializableCoder;
-import org.apache.beam.sdk.testing.RunnableOnService;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -53,7 +52,6 @@ import org.apache.beam.sdk.values.TimestampedValue;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Test;
-import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
@@ -123,34 +121,36 @@ public class SplittableParDoTest {
   }
 
   @Test
-  @Category(RunnableOnService.class)
   public void testBoundednessForBoundedFn() {
     Pipeline pipeline = TestPipeline.create();
     DoFn<Integer, String> boundedFn = new BoundedFakeFn();
     assertEquals(
+        "Applying a bounded SDF to a bounded collection produces a bounded collection",
         PCollection.IsBounded.BOUNDED,
         makeBoundedCollection(pipeline)
             .apply("bounded to bounded", new SplittableParDo<>(boundedFn))
             .isBounded());
     assertEquals(
-        PCollection.IsBounded.BOUNDED,
+        "Applying a bounded SDF to an unbounded collection produces an unbounded collection",
+        PCollection.IsBounded.UNBOUNDED,
         makeUnboundedCollection(pipeline)
             .apply("bounded to unbounded", new SplittableParDo<>(boundedFn))
             .isBounded());
   }
 
   @Test
-  @Category(RunnableOnService.class)
   public void testBoundednessForUnboundedFn() {
     Pipeline pipeline = TestPipeline.create();
     DoFn<Integer, String> unboundedFn = new UnboundedFakeFn();
     assertEquals(
-        PCollection.IsBounded.BOUNDED,
+        "Applying an unbounded SDF to a bounded collection produces a bounded collection",
+        PCollection.IsBounded.UNBOUNDED,
         makeBoundedCollection(pipeline)
             .apply("unbounded to bounded", new SplittableParDo<>(unboundedFn))
             .isBounded());
     assertEquals(
-        PCollection.IsBounded.BOUNDED,
+        "Applying an unbounded SDF to an unbounded collection produces an unbounded collection",
+        PCollection.IsBounded.UNBOUNDED,
         makeUnboundedCollection(pipeline)
             .apply("unbounded to unbounded", new SplittableParDo<>(unboundedFn))
             .isBounded());

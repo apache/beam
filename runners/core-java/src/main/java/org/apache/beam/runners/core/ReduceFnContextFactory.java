@@ -80,7 +80,7 @@ class ReduceFnContextFactory<K, InputT, OutputT, W extends BoundedWindow> {
   }
 
   /** Where should we look for state associated with a given window? */
-  public static enum StateStyle {
+  public enum StateStyle {
     /** All state is associated with the window itself. */
     DIRECT,
     /** State is associated with the 'state address' windows tracked by the active window set. */

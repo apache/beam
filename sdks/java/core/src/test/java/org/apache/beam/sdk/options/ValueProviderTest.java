@@ -40,7 +40,7 @@ public class ValueProviderTest {
   @Rule public ExpectedException expectedException = ExpectedException.none();
 
   /** A test interface. */
-  public static interface TestOptions extends PipelineOptions {
+  public interface TestOptions extends PipelineOptions {
     @Default.String("bar")
     ValueProvider<String> getBar();
     void setBar(ValueProvider<String> bar);
@@ -98,6 +98,13 @@ public class ValueProviderTest {
   }
 
   @Test
+  public void testRuntimePropertyName() {
+    TestOptions options = PipelineOptionsFactory.as(TestOptions.class);
+    ValueProvider<String> provider = options.getFoo();
+    assertEquals("foo", ((RuntimeValueProvider) provider).propertyName());
+  }
+
+  @Test
   public void testDefaultRuntimeProvider() {
     TestOptions options = PipelineOptionsFactory.as(TestOptions.class);
     ValueProvider<String> provider = options.getBar();
@@ -137,7 +144,7 @@ public class ValueProviderTest {
   }
 
   /** A test interface. */
-  public static interface BadOptionsRuntime extends PipelineOptions {
+  public interface BadOptionsRuntime extends PipelineOptions {
     RuntimeValueProvider<String> getBar();
     void setBar(RuntimeValueProvider<String> bar);
   }
@@ -153,7 +160,7 @@ public class ValueProviderTest {
   }
 
   /** A test interface. */
-  public static interface BadOptionsStatic extends PipelineOptions {
+  public interface BadOptionsStatic extends PipelineOptions {
     StaticValueProvider<String> getBar();
     void setBar(StaticValueProvider<String> bar);
   }

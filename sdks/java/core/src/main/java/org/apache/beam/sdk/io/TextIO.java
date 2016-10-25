@@ -667,7 +667,7 @@ public class TextIO {
        */
       public Bound<T> withHeader(@Nullable String header) {
         return new Bound<>(name, filenamePrefix, filenameSuffix, header, footer, coder, numShards,
-            shardTemplate, false, writableByteChannelFactory);
+            shardTemplate, validate, writableByteChannelFactory);
       }
 
       /**
@@ -682,7 +682,7 @@ public class TextIO {
        */
       public Bound<T> withFooter(@Nullable String footer) {
         return new Bound<>(name, filenamePrefix, filenameSuffix, header, footer, coder, numShards,
-            shardTemplate, false, writableByteChannelFactory);
+            shardTemplate, validate, writableByteChannelFactory);
       }
 
       /**
@@ -794,7 +794,7 @@ public class TextIO {
   /**
    * Possible text file compression types.
    */
-  public static enum CompressionType {
+  public enum CompressionType {
     /**
      * Automatically determine the compression type based on filename extension.
      */
@@ -818,7 +818,7 @@ public class TextIO {
 
     private String filenameSuffix;
 
-    private CompressionType(String suffix) {
+    CompressionType(String suffix) {
       this.filenameSuffix = suffix;
     }
 

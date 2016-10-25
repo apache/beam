@@ -67,7 +67,7 @@ public class CombineFnBase {
      * shuffle step, so a compact and efficient representation may have
      * significant performance benefits.
      */
-    public Coder<AccumT> getAccumulatorCoder(CoderRegistry registry, Coder<InputT> inputCoder)
+    Coder<AccumT> getAccumulatorCoder(CoderRegistry registry, Coder<InputT> inputCoder)
         throws CannotProvideCoderException;
 
     /**
@@ -79,18 +79,18 @@ public class CombineFnBase {
      * {@code Pipeline}'s {@code CoderRegistry} to try to infer the
      * Coder for {@code OutputT} values.
      */
-    public Coder<OutputT> getDefaultOutputCoder(CoderRegistry registry, Coder<InputT> inputCoder)
+    Coder<OutputT> getDefaultOutputCoder(CoderRegistry registry, Coder<InputT> inputCoder)
         throws CannotProvideCoderException;
 
     /**
      * Returns the error message for not supported default values in Combine.globally().
      */
-    public String getIncompatibleGlobalWindowErrorMessage();
+    String getIncompatibleGlobalWindowErrorMessage();
 
     /**
      * Returns the default value when there are no values added to the accumulator.
      */
-    public OutputT defaultValue();
+    OutputT defaultValue();
 
     /**
      * Converts this {@code GloballyCombineFn} into an equivalent
@@ -99,7 +99,7 @@ public class CombineFnBase {
      *
      * @param <K> the type of the (ignored) keys
      */
-    public <K> PerKeyCombineFn<K, InputT, AccumT, OutputT> asKeyedFn();
+    <K> PerKeyCombineFn<K, InputT, AccumT, OutputT> asKeyedFn();
   }
 
   /**
@@ -132,7 +132,7 @@ public class CombineFnBase {
      * shuffle step, so a compact and efficient representation may have
      * significant performance benefits.
      */
-    public Coder<AccumT> getAccumulatorCoder(CoderRegistry registry, Coder<K> keyCoder,
+    Coder<AccumT> getAccumulatorCoder(CoderRegistry registry, Coder<K> keyCoder,
         Coder<InputT> inputCoder) throws CannotProvideCoderException;
 
     /**
@@ -144,14 +144,13 @@ public class CombineFnBase {
      * enclosing {@code Pipeline}'s {@code CoderRegistry} to try to
      * infer the Coder for {@code OutputT} values.
      */
-    public Coder<OutputT> getDefaultOutputCoder(CoderRegistry registry, Coder<K> keyCoder,
+    Coder<OutputT> getDefaultOutputCoder(CoderRegistry registry, Coder<K> keyCoder,
         Coder<InputT> inputCoder) throws CannotProvideCoderException;
 
     /**
      * Returns the a regular {@link GlobalCombineFn} that operates on a specific key.
      */
-    public abstract GlobalCombineFn<InputT, AccumT, OutputT> forKey(
-        final K key, final Coder<K> keyCoder);
+    GlobalCombineFn<InputT, AccumT, OutputT> forKey(K key, Coder<K> keyCoder);
   }
 
   /**

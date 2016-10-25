@@ -582,7 +582,7 @@ public class BigtableIO {
 
       @Override
       public void populateDisplayData(DisplayData.Builder builder) {
-        Write.this.populateDisplayData(builder);
+        builder.delegate(Write.this);
       }
 
       ///////////////////////////////////////////////////////////////////////////////

@@ -97,6 +97,21 @@ public abstract class AfterDelayFromFirstElement extends OnceTrigger {
   }
 
   /**
+   * The time domain according for which this trigger sets timers.
+   */
+  public TimeDomain getTimeDomain() {
+    return timeDomain;
+  }
+
+  /**
+   * The mapping functions applied to the arrival time of an element to determine when to
+   * set a wake-up timer for triggering.
+   */
+  public List<SerializableFunction<Instant, Instant>> getTimestampMappers() {
+    return timestampMappers;
+  }
+
+  /**
    * Aligns timestamps to the smallest multiple of {@code size} since the {@code offset} greater
    * than the timestamp.
    *

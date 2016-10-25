@@ -49,6 +49,13 @@ private static final StateTag<Object, AccumulatorCombiningState<Long, long[], Lo
   }
 
   /**
+   * The number of elements after which this trigger may fire.
+   */
+  public int getElementCount() {
+    return countElems;
+  }
+
+  /**
    * Creates a trigger that fires when the pane contains at least {@code countElems} elements.
    */
   public static AfterPaneStateMachine elementCountAtLeast(int countElems) {

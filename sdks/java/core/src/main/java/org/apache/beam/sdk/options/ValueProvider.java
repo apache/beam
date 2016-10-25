@@ -66,7 +66,7 @@ public interface ValueProvider<T> {
    * {@link StaticValueProvider} is an implementation of {@link ValueProvider} that
    * allows for a static value to be provided.
    */
-  public static class StaticValueProvider<T> implements ValueProvider<T>, Serializable {
+  class StaticValueProvider<T> implements ValueProvider<T>, Serializable {
     @Nullable
     private final T value;
 
@@ -102,12 +102,13 @@ public interface ValueProvider<T> {
    * {@link #get()} at execution time (after a call to {@link Pipeline#run}),
    * which will provide the value of {@code optionsMap}.
    */
-  public static class RuntimeValueProvider<T> implements ValueProvider<T>, Serializable {
+  class RuntimeValueProvider<T> implements ValueProvider<T>, Serializable {
     private static ConcurrentHashMap<Long, PipelineOptions> optionsMap =
       new ConcurrentHashMap<>();
 
     private final Class<? extends PipelineOptions> klass;
     private final String methodName;
+    private final String propertyName;
     @Nullable
     private final T defaultValue;
     private final Long optionsId;
@@ -116,9 +117,10 @@ public interface ValueProvider<T> {
      * Creates a {@link RuntimeValueProvider} that will query the provided
      * {@code optionsId} for a value.
      */
-    RuntimeValueProvider(String methodName, Class<? extends PipelineOptions> klass,
-                         Long optionsId) {
+    RuntimeValueProvider(String methodName, String propertyName,
+                         Class<? extends PipelineOptions> klass, Long optionsId) {
       this.methodName = methodName;
+      this.propertyName = propertyName;
       this.klass = klass;
       this.defaultValue = null;
       this.optionsId = optionsId;
@@ -128,9 +130,11 @@ public interface ValueProvider<T> {
      * Creates a {@link RuntimeValueProvider} that will query the provided
      * {@code optionsId} for a value, or use the default if no value is available.
      */
-    RuntimeValueProvider(String methodName, Class<? extends PipelineOptions> klass,
+    RuntimeValueProvider(String methodName, String propertyName,
+                         Class<? extends PipelineOptions> klass,
       T defaultValue, Long optionsId) {
       this.methodName = methodName;
+      this.propertyName = propertyName;
       this.klass = klass;
       this.defaultValue = defaultValue;
       this.optionsId = optionsId;
@@ -167,12 +171,19 @@ public interface ValueProvider<T> {
       PipelineOptions options = optionsMap.get(optionsId);
       return options != null;
     }
+
+    /**
+     * Returns the property name that corresponds to this provider.
+     */
+    public String propertyName() {
+      return propertyName;
+    }
   }
 
   /**
    * Serializer for {@link ValueProvider}.
    */
-  static class Serializer extends JsonSerializer<ValueProvider<?>> {
+  class Serializer extends JsonSerializer<ValueProvider<?>> {
     @Override
     public void serialize(ValueProvider<?> value, JsonGenerator jgen,
                           SerializerProvider provider) throws IOException {
@@ -187,7 +198,7 @@ public interface ValueProvider<T> {
   /**
    * Deserializer for {@link ValueProvider}, which handles type marshalling.
    */
-  static class Deserializer extends JsonDeserializer<ValueProvider<?>>
+  class Deserializer extends JsonDeserializer<ValueProvider<?>>
     implements ContextualDeserializer {
 
     private final JavaType innerType;

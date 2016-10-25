@@ -18,12 +18,15 @@
 
 package org.apache.beam.runners.direct;
 
+import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.instanceOf;
 
 import com.google.common.collect.ImmutableList;
 import java.util.ArrayList;
 import java.util.Collection;
-import org.apache.beam.sdk.transforms.OldDoFn;
+import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.util.UserCodeException;
 import org.hamcrest.BaseMatcher;
 import org.hamcrest.Description;
 import org.hamcrest.Matcher;
@@ -51,9 +54,15 @@ public class DoFnLifecycleManagersTest {
     third.get();
 
     final Collection<Matcher<? super Throwable>> suppressions = new ArrayList<>();
-    suppressions.add(new ThrowableMessageMatcher("foo"));
-    suppressions.add(new ThrowableMessageMatcher("bar"));
-    suppressions.add(new ThrowableMessageMatcher("baz"));
+    suppressions.add(allOf(
+        instanceOf(UserCodeException.class),
+        new CausedByMatcher(new ThrowableMessageMatcher("foo"))));
+    suppressions.add(allOf(
+        instanceOf(UserCodeException.class),
+        new CausedByMatcher(new ThrowableMessageMatcher("bar"))));
+    suppressions.add(allOf(
+        instanceOf(UserCodeException.class),
+        new CausedByMatcher(new ThrowableMessageMatcher("baz"))));
 
     thrown.expect(
         new BaseMatcher<Exception>() {
@@ -90,18 +99,18 @@ public class DoFnLifecycleManagersTest {
     DoFnLifecycleManagers.removeAllFromManagers(ImmutableList.of(first, second, third));
   }
 
-  private static class ThrowsInCleanupFn extends OldDoFn<Object, Object> {
+  private static class ThrowsInCleanupFn extends DoFn<Object, Object> {
     private final String message;
 
     private ThrowsInCleanupFn(String message) {
       this.message = message;
     }
 
-    @Override
+    @ProcessElement
     public void processElement(ProcessContext c) throws Exception {
     }
 
-    @Override
+    @Teardown
     public void teardown() throws Exception {
       throw new Exception(message);
     }
@@ -130,9 +139,32 @@ public class DoFnLifecycleManagersTest {
     }
   }
 
+  private static class CausedByMatcher extends BaseMatcher<Throwable> {
+    private final Matcher<Throwable> causeMatcher;
 
-  private static class EmptyFn extends OldDoFn<Object, Object> {
+    public CausedByMatcher(
+        Matcher<Throwable> causeMatcher) {
+      this.causeMatcher = causeMatcher;
+    }
+
     @Override
+    public boolean matches(Object item) {
+      if (!(item instanceof UserCodeException)) {
+        return false;
+      }
+      UserCodeException that = (UserCodeException) item;
+      return causeMatcher.matches(that.getCause());
+    }
+
+    @Override
+    public void describeTo(Description description) {
+      description.appendText("a throwable with a cause ").appendDescriptionOf(causeMatcher);
+    }
+  }
+
+
+  private static class EmptyFn extends DoFn<Object, Object> {
+    @ProcessElement
     public void processElement(ProcessContext c) throws Exception {
     }
   }

@@ -142,7 +142,7 @@ public class NullableCoder<T> extends StandardCoder<T> {
       @Nullable T value, ElementByteSizeObserver observer, Context context) throws Exception {
     observer.update(1);
     if (value != null) {
-      valueCoder.registerByteSizeObserver(value, observer, context.nested());
+      valueCoder.registerByteSizeObserver(value, observer, context);
     }
   }
 
@@ -163,7 +163,7 @@ public class NullableCoder<T> extends StandardCoder<T> {
       // If valueCoder is a StandardCoder then we can ask it directly for the encoded size of
       // the value, adding 1 byte to count the null indicator.
       return 1  + ((StandardCoder<T>) valueCoder)
-          .getEncodedElementByteSize(value, context.nested());
+          .getEncodedElementByteSize(value, context);
     }
 
     // If value is not a StandardCoder then fall back to the default StandardCoder behavior
@@ -181,6 +181,6 @@ public class NullableCoder<T> extends StandardCoder<T> {
     if (value == null) {
       return true;
     }
-    return valueCoder.isRegisterByteSizeObserverCheap(value, context.nested());
+    return valueCoder.isRegisterByteSizeObserverCheap(value, context);
   }
 }

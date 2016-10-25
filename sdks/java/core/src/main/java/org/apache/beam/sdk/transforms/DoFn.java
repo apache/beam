@@ -36,13 +36,14 @@ import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
-import org.apache.beam.sdk.transforms.OldDoFn.DelegatingAggregator;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.HasDisplayData;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvoker;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
+import org.apache.beam.sdk.util.Timer;
+import org.apache.beam.sdk.util.TimerSpec;
 import org.apache.beam.sdk.util.WindowingInternals;
 import org.apache.beam.sdk.util.state.State;
 import org.apache.beam.sdk.util.state.StateSpec;
@@ -212,6 +213,32 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
     protected abstract <AggInputT, AggOutputT>
         Aggregator<AggInputT, AggOutputT> createAggregator(
             String name, CombineFn<AggInputT, ?, AggOutputT> combiner);
+
+    /**
+     * Sets up {@link Aggregator}s created by the {@link DoFn} so they are usable within this
+     * context.
+     *
+     * <p>This method should be called by runners before the {@link StartBundle @StartBundle}
+     * method.
+     */
+    @Experimental(Kind.AGGREGATOR)
+    protected final void setupDelegateAggregators() {
+      for (DelegatingAggregator<?, ?> aggregator : aggregators.values()) {
+        setupDelegateAggregator(aggregator);
+      }
+
+      aggregatorsAreFinal = true;
+    }
+
+    private <AggInputT, AggOutputT> void setupDelegateAggregator(
+        DelegatingAggregator<AggInputT, AggOutputT> aggregator) {
+
+      Aggregator<AggInputT, AggOutputT> delegate = createAggregator(
+          aggregator.getName(), aggregator.getCombineFn());
+
+      aggregator.setDelegate(delegate);
+    }
+
   }
 
   /**
@@ -399,12 +426,13 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
   /**
    * Annotation for declaring and dereferencing state cells.
    *
-   * <p><i>Not currently supported by any runner</i>.
+   * <p><i>Not currently supported by any runner. When ready, the feature will work as described
+   * here.</i>
    *
    * <p>To declare a state cell, create a field of type {@link StateSpec} annotated with a {@link
    * StateId}. To use the cell during processing, add a parameter of the appropriate {@link State}
-   * subclass to your {@link ProcessElement @ProcessElement} method, and annotate it with {@link
-   * StateId}. See the following code for an example:
+   * subclass to your {@link ProcessElement @ProcessElement} or {@link OnTimer @OnTimer} method, and
+   * annotate it with {@link StateId}. See the following code for an example:
    *
    * <pre>{@code
    * new DoFn<KV<Key, Foo>, Baz>() {
@@ -436,6 +464,77 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
   @Experimental(Kind.STATE)
   public @interface StateId {
     /** The state ID. */
+    String value();
+  }
+
+  /**
+   * Annotation for declaring and dereferencing timers.
+   *
+   * <p><i>Not currently supported by any runner. When ready, the feature will work as described
+   * here.</i>
+   *
+   * <p>To declare a timer, create a field of type {@link TimerSpec} annotated with a {@link
+   * TimerId}. To use the cell during processing, add a parameter of the type {@link Timer} to your
+   * {@link ProcessElement @ProcessElement} or {@link OnTimer @OnTimer} method, and annotate it with
+   * {@link TimerId}. See the following code for an example:
+   *
+   * <pre>{@code
+   * new DoFn<KV<Key, Foo>, Baz>() {
+   *   @TimerId("my-timer-id")
+   *   private final TimerSpec myTimer = TimerSpecs.timerForDomain(TimeDomain.EVENT_TIME);
+   *
+   *   @ProcessElement
+   *   public void processElement(
+   *       ProcessContext c,
+   *       @TimerId("my-timer-id") Timer myTimer) {
+   *     myTimer.setForNowPlus(Duration.standardSeconds(...));
+   *   }
+   *
+   *   @OnTimer("my-timer-id")
+   *   public void onMyTimer() {
+   *     ...
+   *   }
+   * }
+   * }</pre>
+   *
+   * <p>Timers are subject to the following validity conditions:
+   *
+   * <ul>
+   * <li>Each timer must have a distinct id.
+   * <li>Any timer referenced in a parameter must be declared.
+   * <li>Timer declarations must be final.
+   * <li>All declared timers must have a corresponding callback annotated with {@link
+   *     OnTimer @OnTimer}.
+   * </ul>
+   */
+  @Documented
+  @Retention(RetentionPolicy.RUNTIME)
+  @Target({ElementType.FIELD, ElementType.PARAMETER})
+  @Experimental(Kind.TIMERS)
+  public @interface TimerId {
+    /** The timer ID. */
+    String value();
+  }
+
+  /**
+   * Annotation for registering a callback for a timer.
+   *
+   * <p><i>Not currently supported by any runner. When ready, the feature will work as described
+   * here.</i>
+   *
+   * <p>See the javadoc for {@link TimerId} for use in a full example.
+   *
+   * <p>The method annotated with {@code @OnTimer} may have parameters according to the same logic
+   * as {@link ProcessElement}, but limited to the {@link BoundedWindow}, {@link State} subclasses,
+   * and {@link Timer}. State and timer parameters must be annotated with their {@link StateId} and
+   * {@link TimerId} respectively.
+   */
+  @Documented
+  @Retention(RetentionPolicy.RUNTIME)
+  @Target(ElementType.METHOD)
+  @Experimental(Kind.TIMERS)
+  public @interface OnTimer {
+    /** The timer ID. */
     String value();
   }
 
@@ -701,31 +800,31 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
   }
 
   /**
-   * Returns an {@link Aggregator} with aggregation logic specified by the
-   * {@link CombineFn} argument. The name provided must be unique across
-   * {@link Aggregator}s created within the {@link DoFn}. Aggregators can only be created
-   * during pipeline construction.
+   * Returns an {@link Aggregator} with aggregation logic specified by the {@link CombineFn}
+   * argument. The name provided must be unique across {@link Aggregator}s created within the {@link
+   * DoFn}. Aggregators can only be created during pipeline construction.
    *
    * @param name the name of the aggregator
    * @param combiner the {@link CombineFn} to use in the aggregator
-   * @return an aggregator for the provided name and combiner in the scope of
-   *         this {@link DoFn}
+   * @return an aggregator for the provided name and combiner in the scope of this {@link DoFn}
    * @throws NullPointerException if the name or combiner is null
-   * @throws IllegalArgumentException if the given name collides with another
-   *         aggregator in this scope
+   * @throws IllegalArgumentException if the given name collides with another aggregator in this
+   *     scope
    * @throws IllegalStateException if called during pipeline execution.
    */
-  public final <AggInputT, AggOutputT> Aggregator<AggInputT, AggOutputT>
-      createAggregator(String name, Combine.CombineFn<? super AggInputT, ?, AggOutputT> combiner) {
+  public final <AggInputT, AggOutputT> Aggregator<AggInputT, AggOutputT> createAggregator(
+      String name, Combine.CombineFn<? super AggInputT, ?, AggOutputT> combiner) {
     checkNotNull(name, "name cannot be null");
     checkNotNull(combiner, "combiner cannot be null");
-    checkArgument(!aggregators.containsKey(name),
+    checkArgument(
+        !aggregators.containsKey(name),
         "Cannot create aggregator with name %s."
-        + " An Aggregator with that name already exists within this scope.",
+            + " An Aggregator with that name already exists within this scope.",
         name);
-    checkState(!aggregatorsAreFinal,
+    checkState(
+        !aggregatorsAreFinal,
         "Cannot create an aggregator during pipeline execution."
-        + " Aggregators should be registered during pipeline construction.");
+            + " Aggregators should be registered during pipeline construction.");
 
     DelegatingAggregator<AggInputT, AggOutputT> aggregator =
         new DelegatingAggregator<>(name, combiner);

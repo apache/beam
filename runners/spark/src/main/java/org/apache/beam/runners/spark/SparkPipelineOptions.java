@@ -37,7 +37,7 @@ import org.apache.spark.streaming.api.java.JavaStreamingListener;
 public interface SparkPipelineOptions extends PipelineOptions, StreamingOptions,
                                               ApplicationNameOptions {
   @Description("The url of the spark master to connect to, (e.g. spark://host:port, local[4]).")
-  @Default.String("local[1]")
+  @Default.String("local[4]")
   String getSparkMaster();
   void setSparkMaster(String master);
 
@@ -63,7 +63,7 @@ public interface SparkPipelineOptions extends PipelineOptions, StreamingOptions,
    * For testing purposes only. Production applications should use a reliable
    * filesystem such as HDFS/S3/GS.
    */
-  static class TmpCheckpointDirFactory implements DefaultValueFactory<String> {
+  class TmpCheckpointDirFactory implements DefaultValueFactory<String> {
     @Override
     public String create(PipelineOptions options) {
       SparkPipelineOptions sparkPipelineOptions = options.as(SparkPipelineOptions.class);
@@ -100,7 +100,7 @@ public interface SparkPipelineOptions extends PipelineOptions, StreamingOptions,
   void setListeners(List<JavaStreamingListener> listeners);
 
   /** Returns an empty list, top avoid handling null. */
-  static class EmptyListenersList implements DefaultValueFactory<List<JavaStreamingListener>> {
+  class EmptyListenersList implements DefaultValueFactory<List<JavaStreamingListener>> {
     @Override
     public List<JavaStreamingListener> create(PipelineOptions options) {
       return new ArrayList<>();

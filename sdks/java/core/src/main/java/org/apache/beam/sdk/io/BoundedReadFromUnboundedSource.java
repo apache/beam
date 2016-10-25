@@ -45,10 +45,8 @@ import org.joda.time.Instant;
 /**
  * {@link PTransform} that reads a bounded amount of data from an {@link UnboundedSource},
  * specified as one or both of a maximum number of elements or a maximum period of time to read.
- *
- * <p>Created by {@link Read}.
  */
-class BoundedReadFromUnboundedSource<T> extends PTransform<PBegin, PCollection<T>> {
+public class BoundedReadFromUnboundedSource<T> extends PTransform<PBegin, PCollection<T>> {
   private final UnboundedSource<T, ?> source;
   private final long maxNumRecords;
   private final Duration maxReadTime;
@@ -121,7 +119,7 @@ class BoundedReadFromUnboundedSource<T> extends PTransform<PBegin, PCollection<T
           .withLabel("Maximum Read Records"), Long.MAX_VALUE)
         .addIfNotNull(DisplayData.item("maxReadTime", maxReadTime)
           .withLabel("Maximum Read Time"))
-        .include(source);
+        .include("source", source);
   }
 
   private static class UnboundedToBoundedSourceAdapter<T>
@@ -206,8 +204,7 @@ class BoundedReadFromUnboundedSource<T> extends PTransform<PBegin, PCollection<T
 
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {
-      builder.add(DisplayData.item("source", source.getClass()));
-      builder.include(source);
+      builder.delegate(source);
     }
 
     private class Reader extends BoundedReader<ValueWithRecordId<T>> {
