@@ -32,16 +32,16 @@ matrix:
   include:
     # On OSX, run with default JDK only.
     - os: osx
-      env: MAVEN_OVERRIDE=""
+      env: MAVEN_OVERRIDE="--settings=.travis/settings.xml"
     # On Linux, run with specific JDKs only.
     - os: linux
-      env: CUSTOM_JDK="oraclejdk8" MAVEN_OVERRIDE="-DbeamSurefireArgline='-Xmx512m'"
+      env: CUSTOM_JDK="oraclejdk8" MAVEN_OVERRIDE="--settings=.travis/settings.xml -DbeamSurefireArgline='-Xmx512m'"
     - os: linux
-      env: CUSTOM_JDK="oraclejdk7" MAVEN_OVERRIDE="-DbeamSurefireArgline='-Xmx512m'"
+      env: CUSTOM_JDK="oraclejdk7" MAVEN_OVERRIDE="--settings=.travis/settings.xml -DbeamSurefireArgline='-Xmx512m'"
     - os: linux
-      env: CUSTOM_JDK="oraclejdk7" MAVEN_OVERRIDE="-DbeamSurefireArgline='-Xmx512m' -Peclipse-jdt"
+      env: CUSTOM_JDK="oraclejdk7" MAVEN_OVERRIDE="--settings=.travis/settings.xml -DbeamSurefireArgline='-Xmx512m' -Peclipse-jdt"
     - os: linux
-      env: CUSTOM_JDK="openjdk7" MAVEN_OVERRIDE="-DbeamSurefireArgline='-Xmx512m'"
+      env: CUSTOM_JDK="openjdk7" MAVEN_OVERRIDE="--settings=.travis/settings.xml -DbeamSurefireArgline='-Xmx512m'"
 
 before_install:
   - echo 'MAVEN_OPTS="$MAVEN_OPTS -Xmx1024m -XX:MaxPermSize=512m -XX:+BytecodeVerificationLocal"' >> ~/.mavenrc
@@ -56,7 +56,7 @@ install:
   - rm -rf "$HOME/.m2/repository/org/apache/beam"
 
 script:
-  - travis_retry mvn --settings .travis/settings.xml --batch-mode --update-snapshots --no-snapshot-updates $MAVEN_OVERRIDE verify
+  - travis_retry mvn --batch-mode --update-snapshots --no-snapshot-updates $MAVEN_OVERRIDE verify
   - travis_retry .travis/test_wordcount.sh
 
 cache:
