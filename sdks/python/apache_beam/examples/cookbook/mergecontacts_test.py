@@ -18,9 +18,10 @@
 """Test for the mergecontacts example."""
 
 import logging
-import tempfile
+import re
 import unittest
 
+import apache_beam as beam
 from apache_beam.examples.cookbook import mergecontacts
 
 
@@ -81,11 +82,9 @@ class MergeContactsTest(unittest.TestCase):
                               '1 writers',
                               '3 nomads',
                               ''])
-
-  def create_temp_file(self, contents):
-    with tempfile.NamedTemporaryFile(delete=False) as f:
-      f.write(contents)
-      return f.name
+  EXPECTED_LUDDITES = 2
+  EXPECTED_WRITERS = 1
+  EXPECTED_NOMADS = 3
 
   def normalize_tsv_results(self, tsv_data):
     """Sort .tsv file data so we can compare it with expected output."""
@@ -101,22 +100,57 @@ class MergeContactsTest(unittest.TestCase):
     return '\n'.join(sorted(lines_out)) + '\n'
 
   def test_mergecontacts(self):
-    path_email = self.create_temp_file(self.CONTACTS_EMAIL)
-    path_phone = self.create_temp_file(self.CONTACTS_PHONE)
-    path_snailmail = self.create_temp_file(self.CONTACTS_SNAILMAIL)
+    p = beam.Pipeline('DirectPipelineRunner')
+    
+    contacts_email = p | beam.Create(self.CONTACTS_EMAIL)
+    contacts_phone = p | beam.Create(self.CONTACTS_PHONE)
+    contacts_snailmail = p | beam.Create(self.CONTACTS_SNAILMAIL)
 
-    result_prefix = self.create_temp_file('')
+    email = (contacts_email
+             | beam.Map('backslash_email', lambda x: re.sub(r'\\', r'\\\\', x))
+             | beam.Map('escape_quotes_email', lambda x: re.sub(r'"', r'\"', x))
+             | beam.Map('split_email', lambda x: re.split(r'\t+', x, 1)))
+    phone = (contacts_phone
+             | beam.Map('backslash_phone', lambda x: re.sub(r'\\', r'\\\\', x))
+             | beam.Map('escape_quotes_phone', lambda x: re.sub(r'"', r'\"', x))
+             | beam.Map('split_phone', lambda x: re.split(r'\t+', x, 1)))
+    snailmail = (contacts_snailmail
+                 | beam.Map('backslash_snailmail',
+                            lambda x: re.sub(r'\\', r'\\\\', x))
+                 | beam.Map('escape_quotes_snailmail',
+                            lambda x: re.sub(r'"', r'\"', x))
+                 | beam.Map('split_snailmail', 
+                            lambda x: re.split(r'\t+', x, 1)))
+    
+    grouped = (email, phone, snailmail) | 'group_by_name' >> beam.CoGroupByKey()
+    
+    result_tsv_lines = (grouped 
+                        | beam.Map(lambda (name, (email, phone, snailmail)): '\t'
+                                   .join(['"%s"' % name,
+                                          '"%s"' % ','.join(email),
+                                          '"%s"' % ','.join(phone),
+                                          '"%s"' % next(iter(snailmail), '')])))
+    
+    luddites = (grouped | beam.Filter(lambda (name, (email, phone, snailmail)):
+                                      not next(iter(email), None)))
+    writers = (grouped | beam.Filter(lambda (name, (email, phone, snailmail)):
+                                     not next(iter(phone), None)))
+    nomads = (grouped | beam.Filter(lambda (name, (email, phone, snailmail)):
+                                    not next(iter(snailmail), None)))
+    
+    num_luddites = luddites | 'luddites' >> beam.combiners.Count.Globally()
+    num_writers = writers | 'writers' >> beam.combiners.Count.Globally()
+    num_nomads = nomads | 'nomads' >> beam.combiners.Count.Globally()
 
-    mergecontacts.run([
-        '--input_email=%s' % path_email,
-        '--input_phone=%s' % path_phone,
-        '--input_snailmail=%s' % path_snailmail,
-        '--output_tsv=%s.tsv' % result_prefix,
-        '--output_stats=%s.stats' % result_prefix], assert_results=(2, 1, 3))
-
-    with open('%s.tsv-00000-of-00001' % result_prefix) as f:
-      contents = f.read()
-      self.assertEqual(self.EXPECTED_TSV, self.normalize_tsv_results(contents))
+    beam.assert_that(self.normalize_tsv_results(result_tsv_lines),
+                     beam.equal_to(self.EXPECTED_TSV),
+                     label='assert:tag_tsv_results')
+    beam.assert_that(num_luddites, beam.equal_to(self.EXPECTED_LUDDITES),
+                     label='assert:tag_num_luddites')
+    beam.assert_that(num_writers, beam.equal_to(self.EXPECTED_WRITERS),
+                     label='assert:tag_num_writers')
+    beam.assert_that(num_nomads, beam.equal_to(self.EXPECTED_NOMADS),
+                     label='assert:tag_num_nomads')
 
 
 if __name__ == '__main__':
