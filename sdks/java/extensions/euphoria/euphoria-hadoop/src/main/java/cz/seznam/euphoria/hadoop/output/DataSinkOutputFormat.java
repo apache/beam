@@ -81,13 +81,6 @@ public class DataSinkOutputFormat<K, V> extends OutputFormat<K, V> {
     return new HadoopRecordWriter<>(writer);
   }
 
-  public void instantiateWriter(TaskAttemptContext tac) throws IOException {
-    if (writer == null) {
-      instantiateSink(tac);
-      writer = sink.openWriter(tac.getTaskAttemptID().getId());
-    }
-  }
-
   @Override
   public void checkOutputSpecs(JobContext jc)
       throws IOException, InterruptedException {
@@ -104,11 +97,12 @@ public class DataSinkOutputFormat<K, V> extends OutputFormat<K, V> {
 
       @Override
       public void setupJob(JobContext jc) throws IOException {
-        // nop
+        instantiateSink(jc);
       }
 
       @Override
       public void setupTask(TaskAttemptContext tac) throws IOException {
+        instantiateWriter(tac);
       }
 
       @Override
@@ -146,6 +140,14 @@ public class DataSinkOutputFormat<K, V> extends OutputFormat<K, V> {
       }
 
     };
+  }
+
+
+  private void instantiateWriter(TaskAttemptContext tac) throws IOException {
+    if (writer == null) {
+      instantiateSink(tac);
+      writer = sink.openWriter(tac.getTaskAttemptID().getId());
+    }
   }
 
   private void instantiateSink(JobContext jc) throws IOException {
