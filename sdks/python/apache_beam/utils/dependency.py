@@ -63,6 +63,7 @@ import tempfile
 
 from apache_beam import utils
 from apache_beam import version as beam_version
+from apache_beam.error import DataflowError
 from apache_beam.internal import pickler
 from apache_beam.utils import names
 from apache_beam.utils import processes
@@ -354,6 +355,7 @@ def stage_job_resources(
         sdk_remote_location = 'pypi'
       else:
         sdk_remote_location = setup_options.sdk_location
+
       _stage_dataflow_sdk_tarball(sdk_remote_location, staged_path, temp_dir)
       resources.append(names.DATAFLOW_SDK_TARBALL_FILE)
     else:
@@ -435,7 +437,13 @@ def _stage_dataflow_sdk_tarball(sdk_remote_location, staged_path, temp_dir):
     _dependency_file_copy(sdk_remote_location, staged_path)
   elif sdk_remote_location == 'pypi':
     logging.info('Staging the SDK tarball from PyPI to %s', staged_path)
-    _dependency_file_copy(_download_pypi_sdk_package(temp_dir), staged_path)
+    import pkg_resources as pkg
+    try:
+      _dependency_file_copy(_download_pypi_sdk_package(temp_dir), staged_path)
+    except pkg.DistributionNotFound:
+      raise RuntimeError('Unable to stage SDK tarball. '
+                         'Provide --sdk_location, check remote location, '
+                         'or provide google-cloud-dataflow repository.')
   else:
     raise RuntimeError(
         'The --sdk_location option was used with an unsupported '
