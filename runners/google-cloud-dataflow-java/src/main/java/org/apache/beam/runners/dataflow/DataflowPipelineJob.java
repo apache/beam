@@ -167,15 +167,24 @@ public class DataflowPipelineJob implements PipelineResult {
 
   @Override
   @Nullable
-  public State waitUntilFinish() throws IOException, InterruptedException {
+  public State waitUntilFinish() {
     return waitUntilFinish(Duration.millis(-1));
   }
 
   @Override
   @Nullable
-  public State waitUntilFinish(Duration duration)
-          throws IOException, InterruptedException {
-    return waitUntilFinish(duration, new MonitoringUtil.LoggingHandler());
+  public State waitUntilFinish(Duration duration) {
+    try {
+      return waitUntilFinish(duration, new MonitoringUtil.LoggingHandler());
+    } catch (Exception e) {
+      if (e instanceof InterruptedException) {
+        Thread.currentThread().interrupt();
+      }
+      if (e instanceof RuntimeException) {
+        throw (RuntimeException) e;
+      }
+      throw new RuntimeException(e);
+    }
   }
 
   /**
