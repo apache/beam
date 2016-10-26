@@ -97,7 +97,8 @@ public class DataflowGroupByKeyTest {
                         input.getPipeline(),
                         WindowingStrategy.globalDefault(),
                         PCollection.IsBounded.UNBOUNDED)
-                    .setTypeDescriptorInternal(new TypeDescriptor<KV<String, Integer>>() {});
+                    .setTypeDescriptor(new TypeDescriptor<KV<String, Integer>>() {
+                    });
               }
             });
 
