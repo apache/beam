@@ -120,6 +120,9 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
      * should be in, throwing an exception if the {@code WindowFn} attempts
      * to access any information about the input element. The output element
      * will have a timestamp of negative infinity.
+     *
+     * <p><i>Note:</i> A splittable {@link DoFn} is not allowed to output from
+     * {@link StartBundle} or {@link FinishBundle} methods.
      */
     public abstract void output(OutputT output);
 
@@ -142,6 +145,9 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
      * should be in, throwing an exception if the {@code WindowFn} attempts
      * to access any information about the input element except for the
      * timestamp.
+     *
+     * <p><i>Note:</i> A splittable {@link DoFn} is not allowed to output from
+     * {@link StartBundle} or {@link FinishBundle} methods.
      */
     public abstract void outputWithTimestamp(OutputT output, Instant timestamp);
 
@@ -168,6 +174,9 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
      * to access any information about the input element. The output element
      * will have a timestamp of negative infinity.
      *
+     * <p><i>Note:</i> A splittable {@link DoFn} is not allowed to output from
+     * {@link StartBundle} or {@link FinishBundle} methods.
+     *
      * @see ParDo#withOutputTags
      */
     public abstract <T> void sideOutput(TupleTag<T> tag, T output);
@@ -191,6 +200,9 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
      * should be in, throwing an exception if the {@code WindowFn} attempts
      * to access any information about the input element except for the
      * timestamp.
+     *
+     * <p><i>Note:</i> A splittable {@link DoFn} is not allowed to output from
+     * {@link StartBundle} or {@link FinishBundle} methods.
      *
      * @see ParDo#withOutputTags
      */

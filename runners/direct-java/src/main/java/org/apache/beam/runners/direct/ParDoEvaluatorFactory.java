@@ -57,6 +57,7 @@ final class ParDoEvaluatorFactory<InputT, OutputT> implements TransformEvaluator
   public <T> TransformEvaluator<T> forApplication(
       AppliedPTransform<?, ?, ?> application, CommittedBundle<?> inputBundle) throws Exception {
 
+    @SuppressWarnings("unchecked")
     AppliedPTransform<PCollection<InputT>, PCollectionTuple, ParDo.BoundMulti<InputT, OutputT>>
         parDoApplication =
             (AppliedPTransform<
@@ -93,13 +94,12 @@ final class ParDoEvaluatorFactory<InputT, OutputT> implements TransformEvaluator
    */
   @SuppressWarnings({"unchecked", "rawtypes"})
   TransformEvaluator<InputT> createEvaluator(
-        AppliedPTransform<PCollection<?>, PCollectionTuple, ?>
-        application,
-        StructuralKey<?> inputBundleKey,
-        DoFn<InputT, OutputT> doFn,
-        List<PCollectionView<?>> sideInputs,
-        TupleTag<OutputT> mainOutputTag,
-        List<TupleTag<?>> sideOutputTags)
+      AppliedPTransform<PCollection<InputT>, PCollectionTuple, ?> application,
+      StructuralKey<?> inputBundleKey,
+      DoFn<InputT, OutputT> doFn,
+      List<PCollectionView<?>> sideInputs,
+      TupleTag<OutputT> mainOutputTag,
+      List<TupleTag<?>> sideOutputTags)
       throws Exception {
     String stepName = evaluationContext.getStepName(application);
     DirectStepContext stepContext =
@@ -107,21 +107,40 @@ final class ParDoEvaluatorFactory<InputT, OutputT> implements TransformEvaluator
             .getExecutionContext(application, inputBundleKey)
             .getOrCreateStepContext(stepName, stepName);
 
-    DoFnLifecycleManager fnManager = fnClones.getUnchecked(doFn);
+    DoFnLifecycleManager fnManager = getManagerForCloneOf(doFn);
 
+    return DoFnLifecycleManagerRemovingTransformEvaluator.wrapping(
+        createParDoEvaluator(
+            application,
+            sideInputs,
+            mainOutputTag,
+            sideOutputTags,
+            stepContext,
+            fnManager.<InputT, OutputT>get(),
+            fnManager),
+        fnManager);
+  }
+
+  ParDoEvaluator<InputT, OutputT> createParDoEvaluator(
+      AppliedPTransform<PCollection<InputT>, PCollectionTuple, ?> application,
+      List<PCollectionView<?>> sideInputs,
+      TupleTag<OutputT> mainOutputTag,
+      List<TupleTag<?>> sideOutputTags,
+      DirectStepContext stepContext,
+      DoFn<InputT, OutputT> fn,
+      DoFnLifecycleManager fnManager)
+      throws Exception {
     try {
-      return DoFnLifecycleManagerRemovingTransformEvaluator.wrapping(
-          ParDoEvaluator.<InputT, OutputT>create(
-              evaluationContext,
-              stepContext,
-              application,
-              application.getInput().getWindowingStrategy(),
-              fnManager.get(),
-              sideInputs,
-              mainOutputTag,
-              sideOutputTags,
-              application.getOutput().getAll()),
-          fnManager);
+      return ParDoEvaluator.create(
+          evaluationContext,
+          stepContext,
+          application,
+          application.getInput().getWindowingStrategy(),
+          fn,
+          sideInputs,
+          mainOutputTag,
+          sideOutputTags,
+          application.getOutput().getAll());
     } catch (Exception e) {
       try {
         fnManager.remove();
@@ -133,5 +152,9 @@ final class ParDoEvaluatorFactory<InputT, OutputT> implements TransformEvaluator
       }
       throw e;
     }
+  }
+
+  public DoFnLifecycleManager getManagerForCloneOf(DoFn<?, ?> fn) {
+    return fnClones.getUnchecked(fn);
   }
 }

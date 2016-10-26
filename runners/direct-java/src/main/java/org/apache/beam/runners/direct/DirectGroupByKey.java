@@ -65,7 +65,7 @@ class DirectGroupByKey<K, V>
             KeyedWorkItemCoder.of(
                 inputCoder.getKeyCoder(),
                 inputCoder.getValueCoder(),
-                input.getWindowingStrategy().getWindowFn().windowCoder()))
+                inputWindowingStrategy.getWindowFn().windowCoder()))
 
         // Group each key's values by window, merging windows as needed.
         .apply(
