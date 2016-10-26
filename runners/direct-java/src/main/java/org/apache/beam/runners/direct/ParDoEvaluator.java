@@ -29,7 +29,6 @@ import org.apache.beam.runners.core.DoFnRunners;
 import org.apache.beam.runners.core.DoFnRunners.OutputManager;
 import org.apache.beam.runners.core.PushbackSideInputDoFnRunner;
 import org.apache.beam.runners.direct.DirectExecutionContext.DirectStepContext;
-import org.apache.beam.runners.direct.DirectRunner.CommittedBundle;
 import org.apache.beam.runners.direct.DirectRunner.UncommittedBundle;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.util.ReadyCheckingSideInputReader;
@@ -44,16 +43,12 @@ class ParDoEvaluator<T> implements TransformEvaluator<T> {
   public static <InputT, OutputT> ParDoEvaluator<InputT> create(
       EvaluationContext evaluationContext,
       DirectStepContext stepContext,
-      CommittedBundle<InputT> inputBundle,
       AppliedPTransform<PCollection<InputT>, ?, ?> application,
       Serializable fn, // may be OldDoFn or DoFn
       List<PCollectionView<?>> sideInputs,
       TupleTag<OutputT> mainOutputTag,
       List<TupleTag<?>> sideOutputTags,
       Map<TupleTag<?>, PCollection<?>> outputs) {
-    DirectExecutionContext executionContext =
-        evaluationContext.getExecutionContext(application, inputBundle.getKey());
-
     AggregatorContainer.Mutator aggregatorChanges = evaluationContext.getAggregatorMutator();
 
     Map<TupleTag<?>, UncommittedBundle<?>> outputBundles = new HashMap<>();

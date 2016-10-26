@@ -33,8 +33,6 @@ import org.apache.beam.sdk.transforms.WithKeys;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
-import org.apache.beam.sdk.values.PInput;
-import org.apache.beam.sdk.values.POutput;
 
 /**
  * The {@link DirectRunner} {@link TransformEvaluatorFactory} for the
@@ -95,18 +93,13 @@ class ViewEvaluatorFactory implements TransformEvaluatorFactory {
     };
   }
 
-  public static class ViewOverrideFactory implements PTransformOverrideFactory {
+  public static class ViewOverrideFactory<ElemT, ViewT>
+      implements PTransformOverrideFactory<
+          PCollection<ElemT>, PCollectionView<ViewT>, CreatePCollectionView<ElemT, ViewT>> {
     @Override
-    public <InputT extends PInput, OutputT extends POutput>
-        PTransform<InputT, OutputT> override(PTransform<InputT, OutputT> transform) {
-      if (transform instanceof CreatePCollectionView) {
-
-      }
-      @SuppressWarnings({"rawtypes", "unchecked"})
-      PTransform<InputT, OutputT> createView =
-          (PTransform<InputT, OutputT>)
-              new DirectCreatePCollectionView<>((CreatePCollectionView) transform);
-      return createView;
+    public PTransform<PCollection<ElemT>, PCollectionView<ViewT>> override(
+        CreatePCollectionView<ElemT, ViewT> transform) {
+      return new DirectCreatePCollectionView<>(transform);
     }
   }
 
