@@ -160,6 +160,11 @@
           <li><a href="#obtain-a-github-account" id="markdown-toc-obtain-a-github-account">Obtain a GitHub account</a></li>
           <li><a href="#fork-the-repository-on-github" id="markdown-toc-fork-the-repository-on-github">Fork the repository on GitHub</a></li>
           <li><a href="#clone-the-repository-locally" id="markdown-toc-clone-the-repository-locally">Clone the repository locally</a></li>
+          <li><a href="#optional-ide-setup" id="markdown-toc-optional-ide-setup">[Optional] IDE Setup</a>            <ul>
+              <li><a href="#intellij" id="markdown-toc-intellij">Intellij</a></li>
+              <li><a href="#eclipse" id="markdown-toc-eclipse">Eclipse</a></li>
+            </ul>
+          </li>
         </ul>
       </li>
       <li><a href="#create-a-branch-in-your-fork" id="markdown-toc-create-a-branch-in-your-fork">Create a branch in your fork</a></li>
@@ -286,6 +291,52 @@ $ cd incubator-beam
 </div>
 
 <p>You are now ready to start developing!</p>
+
+<h4 id="optional-ide-setup">[Optional] IDE Setup</h4>
+
+<p>Depending on your preferred development environment, you may need to prepare it to develop Beam code.</p>
+
+<h5 id="intellij">Intellij</h5>
+
+<p><em>If you are an Intellij user, please contribute instructions! See <a href="https://issues.apache.org/jira/browse/BEAM-835">BEAM-835</a>.</em></p>
+
+<h5 id="eclipse">Eclipse</h5>
+
+<p>Use a recent eclipse version that includes m2e. Currently we recommend Eclipse Neon.
+Start eclipse with a fresh workspace in a separate directory from your checkout.</p>
+
+<ol>
+  <li>
+    <p>Install m2e-apt: Beam uses apt annotation processing to provide auto generated code. One example is the usage of <a href="https://github.com/google/auto/tree/master/value">google auto value</a>. By default m2e does not support this and you will see compile errors.</p>
+
+    <p>Help
+ -&gt; Eclipse Marketplace
+ -&gt; Search for “m2 apt”
+ -&gt; Install m2e-apt 1.2 or higher</p>
+  </li>
+  <li>
+    <p>Activate the apt processing</p>
+
+    <p>Window
+ -&gt; Preferences
+ -&gt; Maven
+ -&gt; Annotation processing
+ -&gt; Switch to Experimental: Delegate annotation processing …
+ -&gt; Ok</p>
+  </li>
+  <li>
+    <p>Import the beam projects</p>
+
+    <p>File
+ -&gt; Import…
+ -&gt; Existing Maven Projects
+ -&gt; Browse to the directory you cloned into and select incubator-beam
+ -&gt; make sure all beam projects are selected
+ -&gt; Finalize</p>
+  </li>
+</ol>
+
+<p>You now should have all the beam projects imported into eclipse and should see no compile errors.</p>
 
 <h3 id="create-a-branch-in-your-fork">Create a branch in your fork</h3>
 <p>You’ll work on your contribution in a branch in your own (forked) repository. Create a local branch, initialized with the state of the branch you expect your changes to be merged into. Keep in mind that we use several branches, including <code class="highlighter-rouge">master</code>, feature-specific, and release-specific branches. If you are unsure, initialize with the state of the <code class="highlighter-rouge">master</code> branch.</p>
