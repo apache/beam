@@ -20,12 +20,9 @@ package org.apache.beam.runners.spark.aggregators.metrics.sink;
 
 import com.codahale.metrics.MetricFilter;
 import com.codahale.metrics.MetricRegistry;
-
 import com.google.common.base.Predicates;
 import com.google.common.collect.Iterables;
-
 import java.util.Properties;
-
 import org.apache.beam.runners.spark.aggregators.metrics.WithNamedAggregatorsSupport;
 import org.apache.spark.metrics.sink.Sink;
 
