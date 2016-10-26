@@ -360,7 +360,7 @@
 
       <dependency>
         <groupId>cz.seznam.euphoria</groupId>
-        <artifactId>euphoria-kafka</artifactId>
+        <artifactId>euphoria-kafka_0.10</artifactId>
         <version>${project.version}</version>
       </dependency>
 
