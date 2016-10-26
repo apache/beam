@@ -33,14 +33,14 @@ import org.apache.gearpump.cluster.embedded.EmbeddedCluster;
  */
 public class TestGearpumpRunner extends PipelineRunner<GearpumpPipelineResult> {
 
-  private final GearpumpPipelineRunner delegate;
+  private final GearpumpRunner delegate;
   private final EmbeddedCluster cluster;
 
   private TestGearpumpRunner(GearpumpPipelineOptions options) {
     cluster = EmbeddedCluster.apply();
     cluster.start();
     options.setEmbeddedCluster(cluster);
-    delegate = GearpumpPipelineRunner.fromOptions(options);
+    delegate = GearpumpRunner.fromOptions(options);
   }
 
   public static TestGearpumpRunner fromOptions(PipelineOptions options) {

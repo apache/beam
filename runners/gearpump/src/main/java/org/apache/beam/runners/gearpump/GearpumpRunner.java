@@ -55,21 +55,21 @@ import org.apache.gearpump.streaming.dsl.javaapi.JavaStreamApp;
  * and then executing them on a Gearpump cluster.
  */
 @SuppressWarnings({"rawtypes", "unchecked"})
-public class GearpumpPipelineRunner extends PipelineRunner<GearpumpPipelineResult> {
+public class GearpumpRunner extends PipelineRunner<GearpumpPipelineResult> {
 
   private final GearpumpPipelineOptions options;
 
   private static final String GEARPUMP_SERIALIZERS = "gearpump.serializers";
   private static final String DEFAULT_APPNAME = "beam_gearpump_app";
 
-  public GearpumpPipelineRunner(GearpumpPipelineOptions options) {
+  public GearpumpRunner(GearpumpPipelineOptions options) {
     this.options = options;
   }
 
-  public static GearpumpPipelineRunner fromOptions(PipelineOptions options) {
+  public static GearpumpRunner fromOptions(PipelineOptions options) {
     GearpumpPipelineOptions pipelineOptions =
         PipelineOptionsValidator.validate(GearpumpPipelineOptions.class, options);
-    return new GearpumpPipelineRunner(pipelineOptions);
+    return new GearpumpRunner(pipelineOptions);
   }
 
 

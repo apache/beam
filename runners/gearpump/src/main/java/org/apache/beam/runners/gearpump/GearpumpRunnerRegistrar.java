@@ -28,16 +28,16 @@ import org.apache.beam.sdk.runners.PipelineRunnerRegistrar;
 
 /**
  * Contains the {@link PipelineRunnerRegistrar} and {@link PipelineOptionsRegistrar} for the
- * {@link GearpumpPipelineRunner}.
+ * {@link GearpumpRunner}.
  *
  * {@link AutoService} will register Gearpump's implementations of the {@link PipelineRunner}
  * and {@link PipelineOptions} as available pipeline runner services.
  */
-public class GearpumpPipelineRunnerRegistrar {
-  private GearpumpPipelineRunnerRegistrar() { }
+public class GearpumpRunnerRegistrar {
+  private GearpumpRunnerRegistrar() { }
 
   /**
-   * Registers the {@link GearpumpPipelineRunner}.
+   * Registers the {@link GearpumpRunner}.
    */
   @AutoService(PipelineRunnerRegistrar.class)
   public static class Runner implements PipelineRunnerRegistrar {
