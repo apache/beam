@@ -119,7 +119,7 @@ public abstract class TypedPValue<T> extends PValueBase implements PValue {
    * reflective type information will lead to better {@link Coder}
    * inference.
    */
-  public TypedPValue<T> setTypeDescriptorInternal(TypeDescriptor<T> typeDescriptor) {
+  public TypedPValue<T> setTypeDescriptor(TypeDescriptor<T> typeDescriptor) {
     this.typeDescriptor = typeDescriptor;
     return this;
   }
