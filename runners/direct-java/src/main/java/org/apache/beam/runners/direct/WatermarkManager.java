@@ -1003,11 +1003,9 @@ public class WatermarkManager {
 
   private static class PerKeyHolds {
     private final Map<Object, KeyedHold> keyedHolds;
-    private final PriorityQueue<KeyedHold> allHolds;
 
     private PerKeyHolds() {
       this.keyedHolds = new HashMap<>();
-      this.allHolds = new PriorityQueue<>();
     }
 
     /**
@@ -1015,7 +1013,13 @@ public class WatermarkManager {
      * there are no holds within this {@link PerKeyHolds}.
      */
     public Instant getMinHold() {
-      return allHolds.isEmpty() ? THE_END_OF_TIME.get() : allHolds.peek().getTimestamp();
+      Instant min = THE_END_OF_TIME.get();
+      for (KeyedHold hold : keyedHolds.values()) {
+        if (hold.getTimestamp().isBefore(min)) {
+          min = hold.getTimestamp();
+        }
+      }
+      return min;
     }
 
     /**
@@ -1023,20 +1027,15 @@ public class WatermarkManager {
      * the same key.
      */
     public void updateHold(@Nullable Object key, Instant newHold) {
-      removeHold(key);
       KeyedHold newKeyedHold = KeyedHold.of(key, newHold);
       keyedHolds.put(key, newKeyedHold);
-      allHolds.offer(newKeyedHold);
     }
 
     /**
      * Removes the hold of the provided key.
      */
     public void removeHold(Object key) {
-      KeyedHold oldHold = keyedHolds.get(key);
-      if (oldHold != null) {
-        allHolds.remove(oldHold);
-      }
+      keyedHolds.remove(key);
     }
   }
 
