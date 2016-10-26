@@ -77,4 +77,3 @@ public class DoFnInfo<InputT, OutputT> implements Serializable {
     return outputMap;
   }
 }
-

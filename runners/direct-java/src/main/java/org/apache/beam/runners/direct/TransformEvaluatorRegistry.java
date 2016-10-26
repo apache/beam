@@ -116,41 +116,4 @@ class TransformEvaluatorRegistry implements TransformEvaluatorFactory {
       throw toThrow;
     }
   }
-
-  @Override
-  public void cleanup() throws Exception {
-    Collection<Exception> thrownInCleanup = new ArrayList<>();
-    for (TransformEvaluatorFactory factory : factories.values()) {
-      try {
-        factory.cleanup();
-      } catch (Exception e) {
-        if (e instanceof InterruptedException) {
-          Thread.currentThread().interrupt();
-        }
-        thrownInCleanup.add(e);
-      }
-    }
-    finished.set(true);
-    if (!thrownInCleanup.isEmpty()) {
-      LOG.error("Exceptions {} thrown while cleaning up evaluators", thrownInCleanup);
-      Exception toThrow = null;
-      for (Exception e : thrownInCleanup) {
-        if (toThrow == null) {
-          toThrow = e;
-        } else {
-          toThrow.addSuppressed(e);
-        }
-      }
-      throw toThrow;
-    }
-  }
-
-  /**
-   * A factory to create Transform Evaluator Registries.
-   */
-  public static class Factory {
-    public TransformEvaluatorRegistry create() {
-      return TransformEvaluatorRegistry.defaultRegistry();
-    }
-  }
 }

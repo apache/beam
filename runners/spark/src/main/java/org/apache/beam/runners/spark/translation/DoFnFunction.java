@@ -45,8 +45,6 @@ public class DoFnFunction<InputT, OutputT>
     implements FlatMapFunction<Iterator<WindowedValue<InputT>>, WindowedValue<OutputT>> {
   private final Accumulator<NamedAggregators> accum;
   private final OldDoFn<InputT, OutputT> mFunction;
-  private static final Logger LOG = LoggerFactory.getLogger(DoFnFunction.class);
-
   private final SparkRuntimeContext mRuntimeContext;
   private final Map<TupleTag<?>, KV<WindowingStrategy<?, ?>, BroadcastHelper<?>>> mSideInputs;
   private final WindowFn<Object, ?> windowFn;

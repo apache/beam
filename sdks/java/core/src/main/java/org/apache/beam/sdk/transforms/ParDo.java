@@ -670,18 +670,6 @@ public class ParDo {
 
     /**
      * Returns a new {@link ParDo} {@link PTransform} that's like this
-     * transform but which will invoke the given {@link DoFn}
-     * function, and which has its input and output types bound. Does
-     * not modify this transform. The resulting {@link PTransform} is
-     * sufficiently specified to be applied, but more properties can
-     * still be specified.
-     */
-    public <InputT, OutputT> Bound<InputT, OutputT> of(DoFn<InputT, OutputT> fn) {
-      return of(adapt(fn), fn.getClass());
-    }
-
-    /**
-     * Returns a new {@link ParDo} {@link PTransform} that's like this
      * transform but that will invoke the given {@link OldDoFn}
      * function, and that has its input and output types bound. Does
      * not modify this transform. The resulting {@link PTransform} is

@@ -17,6 +17,6 @@
  */
 
 /**
- * Transforms for reading and writing from Amazon Kinesis.
+ * Flink Beam runner exemple.
  */
-package org.apache.beam.sdk.io.kinesis;
+package org.apache.beam.runners.flink.examples.streaming;

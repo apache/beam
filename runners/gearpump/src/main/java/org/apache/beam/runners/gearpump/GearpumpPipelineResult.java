@@ -23,6 +23,7 @@ import org.apache.beam.sdk.AggregatorRetrievalException;
 import org.apache.beam.sdk.AggregatorValues;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
+import org.apache.beam.sdk.metrics.MetricResults;
 import org.apache.beam.sdk.transforms.Aggregator;
 
 import org.joda.time.Duration;
@@ -58,6 +59,11 @@ public class GearpumpPipelineResult implements PipelineResult {
     throw new AggregatorRetrievalException(
         "PipelineResult getAggregatorValues not supported in Gearpump pipeline",
         new UnsupportedOperationException());
+  }
+
+  @Override
+  public MetricResults metrics() {
+    return null;
   }
 
 }

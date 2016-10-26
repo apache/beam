@@ -53,8 +53,6 @@ import org.apache.gearpump.streaming.dsl.javaapi.JavaStreamApp;
  * A {@link PipelineRunner} that executes the operations in the
  * pipeline by first translating them to Gearpump Stream DSL
  * and then executing them on a Gearpump cluster.
- * <p>>
- * This is based on DataflowPipelineRunner.
  */
 @SuppressWarnings({"rawtypes", "unchecked"})
 public class GearpumpPipelineRunner extends PipelineRunner<GearpumpPipelineResult> {

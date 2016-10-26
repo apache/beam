@@ -465,26 +465,4 @@ public class DirectRunner
       return NanosOffsetClock.create();
     }
   }
-
-  /**
-   * A {@link Supplier} that creates a {@link ExecutorService} based on
-   * {@link Executors#newFixedThreadPool(int)}.
-   */
-  private static class FixedThreadPoolSupplier implements Supplier<ExecutorService> {
-    @Override
-    public ExecutorService get() {
-      return Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
-    }
-  }
-
-
-  /**
-   * A {@link Supplier} that creates a {@link NanosOffsetClock}.
-   */
-  private static class NanosOffsetClockSupplier implements Supplier<Clock> {
-    @Override
-    public Clock get() {
-      return NanosOffsetClock.create();
-    }
-  }
 }

@@ -423,20 +423,6 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
 
   /////////////////////////////////////////////////////////////////////////////
 
-
-  /**
-   * Annotation for the method to use to prepare an instance for processing bundles of elements. The
-   * method annotated with this must satisfy the following constraints
-   * <ul>
-   *   <li>It must have zero arguments.
-   * </ul>
-   */
-  @Documented
-  @Retention(RetentionPolicy.RUNTIME)
-  @Target(ElementType.METHOD)
-  public @interface Setup {
-  }
-
   /**
    * Annotation for declaring and dereferencing state cells.
    *

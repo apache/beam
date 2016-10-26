@@ -16,7 +16,15 @@
  * limitations under the License.
  */
 
+package org.apache.beam.runners.gearpump.translators;
+
+import java.io.Serializable;
+
+import org.apache.beam.sdk.transforms.PTransform;
+
 /**
- * Internal implementation of the Beam runner for Apache Flink.
+ * translates {@link PTransform} to Gearpump functions.
  */
-package org.apache.beam.runners.flink;
+public interface TransformTranslator<T extends PTransform> extends Serializable {
+  void translate(T transform, TranslationContext context);
+}
