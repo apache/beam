@@ -28,7 +28,7 @@ import org.apache.beam.sdk.util.state.CopyOnAccessInMemoryStateInternals;
 /**
  * Execution Context for the {@link DirectRunner}.
  *
- * This implementation is not thread safe. A new {@link DirectExecutionContext} must be created
+ * <p>This implementation is not thread safe. A new {@link DirectExecutionContext} must be created
  * for each thread that requires it.
  */
 class DirectExecutionContext

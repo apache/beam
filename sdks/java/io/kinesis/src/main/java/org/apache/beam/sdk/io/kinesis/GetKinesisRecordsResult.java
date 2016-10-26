@@ -24,7 +24,7 @@ import com.google.common.base.Function;
 import java.util.List;
 import javax.annotation.Nullable;
 
-/***
+/**
  * Represents the output of 'get' operation on Kinesis stream.
  */
 class GetKinesisRecordsResult {

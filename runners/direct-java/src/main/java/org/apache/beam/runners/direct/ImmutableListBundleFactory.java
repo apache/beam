@@ -32,8 +32,10 @@ import org.joda.time.Instant;
  * A factory that produces bundles that perform no additional validation.
  */
 class ImmutableListBundleFactory implements BundleFactory {
+  private static final ImmutableListBundleFactory FACTORY = new ImmutableListBundleFactory();
+
   public static ImmutableListBundleFactory create() {
-    return new ImmutableListBundleFactory();
+    return FACTORY;
   }
 
   private ImmutableListBundleFactory() {}
@@ -111,7 +113,7 @@ class ImmutableListBundleFactory implements BundleFactory {
         StructuralKey<?> key,
         Iterable<WindowedValue<T>> committedElements,
         Instant synchronizedCompletionTime) {
-      return new AutoValue_ImmutableListBundleFactory_CommittedImmutableListBundle(
+      return new AutoValue_ImmutableListBundleFactory_CommittedImmutableListBundle<>(
           pcollection, key, committedElements, synchronizedCompletionTime);
     }
 
@@ -122,6 +124,16 @@ class ImmutableListBundleFactory implements BundleFactory {
           getKey(),
           ImmutableList.copyOf(elements),
           getSynchronizedProcessingOutputWatermark());
+    }
+
+    @Override
+    public int hashCode() {
+      return System.identityHashCode(this);
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+      return this == obj;
     }
   }
 }

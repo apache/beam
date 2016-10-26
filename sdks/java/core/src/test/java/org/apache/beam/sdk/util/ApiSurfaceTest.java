@@ -76,6 +76,7 @@ public class ApiSurfaceTest {
           inPackage("org.apache.beam"),
           inPackage("com.google.api.client"),
           inPackage("com.google.api.services.bigquery"),
+          inPackage("com.google.api.services.cloudresourcemanager"),
           inPackage("com.google.api.services.dataflow"),
           inPackage("com.google.api.services.pubsub"),
           inPackage("com.google.api.services.storage"),
@@ -88,6 +89,9 @@ public class ApiSurfaceTest {
           inPackage("com.google.rpc"),
           inPackage("com.google.type"),
           inPackage("com.fasterxml.jackson.annotation"),
+          inPackage("com.fasterxml.jackson.core"),
+          inPackage("com.fasterxml.jackson.databind"),
+          inPackage("com.fasterxml.jackson.deser"),
           inPackage("io.grpc"),
           inPackage("org.apache.avro"),
           inPackage("org.apache.commons.logging"), // via BigTable
@@ -103,7 +107,7 @@ public class ApiSurfaceTest {
     return anyOf((Iterable) ALLOWED_PACKAGES).matches(clazz);
   }
 
-  private static final Matcher<Class<?>> inPackage(String packageName) {
+  private static Matcher<Class<?>> inPackage(String packageName) {
     return new ClassInPackage(packageName);
   }
 
@@ -144,9 +148,9 @@ public class ApiSurfaceTest {
     assertThat(apiSurface.getExposedClasses(), containsInAnyOrder(expectedExposed.toArray()));
   }
 
-  private static interface Exposed { }
+  private interface Exposed { }
 
-  private static interface ExposedReturnType {
+  private interface ExposedReturnType {
     Exposed zero();
   }
 
@@ -155,7 +159,7 @@ public class ApiSurfaceTest {
     assertExposed(ExposedReturnType.class, Exposed.class);
   }
 
-  private static interface ExposedParameterTypeVarBound {
+  private interface ExposedParameterTypeVarBound {
     <T extends Exposed> void getList(T whatever);
   }
 
@@ -164,7 +168,7 @@ public class ApiSurfaceTest {
     assertExposed(ExposedParameterTypeVarBound.class, Exposed.class);
   }
 
-  private static interface ExposedWildcardBound {
+  private interface ExposedWildcardBound {
     void acceptList(List<? extends Exposed> arg);
   }
 
@@ -173,7 +177,7 @@ public class ApiSurfaceTest {
     assertExposed(ExposedWildcardBound.class, Exposed.class);
   }
 
-  private static interface ExposedActualTypeArgument extends List<Exposed> { }
+  private interface ExposedActualTypeArgument extends List<Exposed> { }
 
   @Test
   public void testExposedActualTypeArgument() throws Exception {
@@ -189,8 +193,8 @@ public class ApiSurfaceTest {
     assertThat(apiSurface.getExposedClasses(), emptyIterable());
   }
 
-  private static interface PrunedPattern { }
-  private static interface NotPruned extends PrunedPattern { }
+  private interface PrunedPattern { }
+  private interface NotPruned extends PrunedPattern { }
 
   @Test
   public void testprunedPattern() throws Exception {
@@ -199,7 +203,7 @@ public class ApiSurfaceTest {
     assertThat(apiSurface.getExposedClasses(), containsInAnyOrder((Class) NotPruned.class));
   }
 
-  private static interface ExposedTwice {
+  private interface ExposedTwice {
     Exposed zero();
     Exposed one();
   }
@@ -209,7 +213,7 @@ public class ApiSurfaceTest {
     assertExposed(ExposedTwice.class, Exposed.class);
   }
 
-  private static interface ExposedCycle {
+  private interface ExposedCycle {
     ExposedCycle zero(Exposed foo);
   }
 
@@ -218,7 +222,7 @@ public class ApiSurfaceTest {
     assertExposed(ExposedCycle.class, Exposed.class);
   }
 
-  private static interface ExposedGenericCycle {
+  private interface ExposedGenericCycle {
     Exposed zero(List<ExposedGenericCycle> foo);
   }
 
@@ -227,7 +231,7 @@ public class ApiSurfaceTest {
     assertExposed(ExposedGenericCycle.class, Exposed.class);
   }
 
-  private static interface ExposedArrayCycle {
+  private interface ExposedArrayCycle {
     Exposed zero(ExposedArrayCycle[] foo);
   }
 

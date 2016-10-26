@@ -27,7 +27,7 @@ import static org.junit.Assert.fail;
 
 import java.util.ArrayList;
 import java.util.List;
-import org.apache.beam.sdk.transforms.OldDoFn;
+import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.hamcrest.Matchers;
 import org.junit.Before;
@@ -50,7 +50,7 @@ public class DoFnLifecycleManagerRemovingTransformEvaluatorTest {
   @Test
   public void delegatesToUnderlying() throws Exception {
     RecordingTransformEvaluator underlying = new RecordingTransformEvaluator();
-    OldDoFn<?, ?> original = lifecycleManager.get();
+    DoFn<?, ?> original = lifecycleManager.get();
     TransformEvaluator<Object> evaluator =
         DoFnLifecycleManagerRemovingTransformEvaluator.wrapping(underlying, lifecycleManager);
     WindowedValue<Object> first = WindowedValue.valueInGlobalWindow(new Object());
@@ -67,7 +67,7 @@ public class DoFnLifecycleManagerRemovingTransformEvaluatorTest {
   @Test
   public void removesOnExceptionInProcessElement() throws Exception {
     ThrowingTransformEvaluator underlying = new ThrowingTransformEvaluator();
-    OldDoFn<?, ?> original = lifecycleManager.get();
+    DoFn<?, ?> original = lifecycleManager.get();
     assertThat(original, not(nullValue()));
     TransformEvaluator<Object> evaluator =
         DoFnLifecycleManagerRemovingTransformEvaluator.wrapping(underlying, lifecycleManager);
@@ -75,7 +75,7 @@ public class DoFnLifecycleManagerRemovingTransformEvaluatorTest {
     try {
       evaluator.processElement(WindowedValue.valueInGlobalWindow(new Object()));
     } catch (Exception e) {
-      assertThat(lifecycleManager.get(), not(Matchers.<OldDoFn<?, ?>>theInstance(original)));
+      assertThat(lifecycleManager.get(), not(Matchers.<DoFn<?, ?>>theInstance(original)));
       return;
     }
     fail("Expected ThrowingTransformEvaluator to throw on method call");
@@ -84,7 +84,7 @@ public class DoFnLifecycleManagerRemovingTransformEvaluatorTest {
   @Test
   public void removesOnExceptionInFinishBundle() throws Exception {
     ThrowingTransformEvaluator underlying = new ThrowingTransformEvaluator();
-    OldDoFn<?, ?> original = lifecycleManager.get();
+    DoFn<?, ?> original = lifecycleManager.get();
     // the LifecycleManager is set when the evaluator starts
     assertThat(original, not(nullValue()));
     TransformEvaluator<Object> evaluator =
@@ -94,7 +94,7 @@ public class DoFnLifecycleManagerRemovingTransformEvaluatorTest {
       evaluator.finishBundle();
     } catch (Exception e) {
       assertThat(lifecycleManager.get(),
-          Matchers.not(Matchers.<OldDoFn<?, ?>>theInstance(original)));
+          Matchers.not(Matchers.<DoFn<?, ?>>theInstance(original)));
       return;
     }
     fail("Expected ThrowingTransformEvaluator to throw on method call");
@@ -134,8 +134,8 @@ public class DoFnLifecycleManagerRemovingTransformEvaluatorTest {
   }
 
 
-  private static class TestFn extends OldDoFn<Object, Object> {
-    @Override
+  private static class TestFn extends DoFn<Object, Object> {
+    @ProcessElement
     public void processElement(ProcessContext c) throws Exception {
     }
   }

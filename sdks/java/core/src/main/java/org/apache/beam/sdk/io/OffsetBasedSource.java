@@ -146,8 +146,8 @@ public abstract class OffsetBasedSource<T> extends BoundedSource<T> {
         this.endOffset >= 0,
         "End offset has value %s, must be non-negative", this.endOffset);
     checkArgument(
-        this.startOffset < this.endOffset,
-        "Start offset %s must be before end offset %s",
+        this.startOffset <= this.endOffset,
+        "Start offset %s may not be larger than end offset %s",
         this.startOffset, this.endOffset);
     checkArgument(
         this.minBundleSize >= 0,
@@ -248,7 +248,9 @@ public abstract class OffsetBasedSource<T> extends BoundedSource<T> {
      * Returns the <i>starting</i> offset of the {@link Source.Reader#getCurrent current record},
      * which has been read by the last successful {@link Source.Reader#start} or
      * {@link Source.Reader#advance} call.
+     *
      * <p>If no such call has been made yet, the return value is unspecified.
+     *
      * <p>See {@link RangeTracker} for description of offset semantics.
      */
     protected abstract long getCurrentOffset() throws NoSuchElementException;

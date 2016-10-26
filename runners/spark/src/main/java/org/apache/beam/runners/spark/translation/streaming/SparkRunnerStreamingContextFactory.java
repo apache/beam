@@ -33,6 +33,8 @@ import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.streaming.Duration;
 import org.apache.spark.streaming.api.java.JavaStreamingContext;
 import org.apache.spark.streaming.api.java.JavaStreamingContextFactory;
+import org.apache.spark.streaming.api.java.JavaStreamingListener;
+import org.apache.spark.streaming.api.java.JavaStreamingListenerWrapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -88,6 +90,12 @@ public class SparkRunnerStreamingContextFactory implements JavaStreamingContextF
               + "or file:///path/to/dir for local mode.", e);
     }
     jssc.checkpoint(checkpointDir);
+
+    // register listeners.
+    for (JavaStreamingListener listener: options.getListeners()) {
+      LOG.info("Registered listener {}." + listener.getClass().getSimpleName());
+      jssc.addStreamingListener(new JavaStreamingListenerWrapper(listener));
+    }
 
     return jssc;
   }

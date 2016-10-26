@@ -53,6 +53,11 @@ page at http://checkstyle.sourceforge.net/config.html -->
     <property name="severity" value="error"/>
   </module>
 
+  <!-- Prevent *Tests.java as tools may not pick them up -->
+  <module name="RegexpOnFilename">
+    <property name="fileNamePattern" value=".*Tests\.java$" />
+  </module>
+
   <!-- Allow use of comment to suppress javadocstyle -->
   <module name="SuppressionCommentFilter">
     <property name="offCommentFormat" value="CHECKSTYLE.OFF\: ([\w\|]+)"/>
@@ -103,7 +108,14 @@ page at http://checkstyle.sourceforge.net/config.html -->
     </module>
 
     <module name="IllegalImport">
-      <property name="illegalPkgs" value="avro.shaded, com.google.api.client.repackaged, com.google.appengine.repackaged, io.netty.util.internal"/>
+      <property name="illegalPkgs" value="autovalue.shaded, avro.shaded, com.google.api.client.repackaged, com.google.appengine.repackaged, io.netty.util.internal"/>
+    </module>
+
+    <module name="RedundantModifier">
+      <!-- Checks for redundant modifiers on various symbol definitions.
+        See: http://checkstyle.sourceforge.net/config_modifier.html#RedundantModifier
+      -->
+      <property name="tokens" value="METHOD_DEF, VARIABLE_DEF, ANNOTATION_FIELD_DEF, INTERFACE_DEF, CLASS_DEF, ENUM_DEF"/>
     </module>
 
     <!--
@@ -147,6 +159,9 @@ page at http://checkstyle.sourceforge.net/config.html -->
       <property name="allowThrowsTagsForSubclasses" value="true"/>
       <property name="allowUndeclaredRTE" value="true"/>
     </module>
+
+    <!-- Check that paragraph tags are used correctly in Javadoc. -->
+    <module name="JavadocParagraph"/>
 
     <module name="JavadocType">
       <property name="scope" value="protected"/>

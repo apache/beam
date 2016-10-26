@@ -49,14 +49,7 @@ public interface PCollectionView<T> extends PValue, Serializable {
    *     obtain that information via a package-private channel.
    */
   @Deprecated
-  public TupleTag<Iterable<WindowedValue<?>>> getTagInternal();
-
-  /**
-   * @deprecated use {@link #getViewFn()} for now, but eventually get the needed information via the
-   *     side input specification on the {@link ParDo} transform.
-   */
-  @Deprecated
-  public T fromIterableInternal(Iterable<WindowedValue<?>> contents);
+  TupleTag<Iterable<WindowedValue<?>>> getTagInternal();
 
   /**
    * @deprecated this method will be removed entirely. The {@link ViewFn} for a side input is an
@@ -64,7 +57,7 @@ public interface PCollectionView<T> extends PValue, Serializable {
    *     obtain this specification via a package-private channel.
    */
   @Deprecated
-  public ViewFn<Iterable<WindowedValue<?>>, T> getViewFn();
+  ViewFn<Iterable<WindowedValue<?>>, T> getViewFn();
 
   /**
    * @deprecated this method will be removed entirely. The {@link PCollection} underlying a side
@@ -73,7 +66,7 @@ public interface PCollectionView<T> extends PValue, Serializable {
    *     channel.
    */
   @Deprecated
-  public WindowingStrategy<?, ?> getWindowingStrategyInternal();
+  WindowingStrategy<?, ?> getWindowingStrategyInternal();
 
   /**
    * @deprecated this method will be removed entirely. The {@link PCollection} underlying a side
@@ -81,5 +74,5 @@ public interface PCollectionView<T> extends PValue, Serializable {
    *     ParDo} transform, which will obtain that information via a package-private channel.
    */
   @Deprecated
-  public Coder<Iterable<WindowedValue<?>>> getCoderInternal();
+  Coder<Iterable<WindowedValue<?>>> getCoderInternal();
 }

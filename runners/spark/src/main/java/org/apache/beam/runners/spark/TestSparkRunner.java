@@ -37,17 +37,17 @@ import org.apache.beam.sdk.values.POutput;
  *
  * {@code
  * Pipeline p = [logic for pipeline creation]
- * EvaluationResult result = SparkRunner.create().run(p);
+ * EvaluationResult result = (EvaluationResult) p.run();
  * }
  *
- * To create a pipeline runner to run against a different spark cluster, with a custom master url we
- * would do the following:
+ * <p>To create a pipeline runner to run against a different spark cluster, with a custom master url
+ * we would do the following:
  *
  * {@code
  * Pipeline p = [logic for pipeline creation]
  * SparkPipelineOptions options = SparkPipelineOptionsFactory.create();
  * options.setSparkMaster("spark://host:port");
- * EvaluationResult result = SparkRunner.create(options).run(p);
+ * EvaluationResult result = (EvaluationResult) p.run();
  * }
  */
 public final class TestSparkRunner extends PipelineRunner<EvaluationResult> {

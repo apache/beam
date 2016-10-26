@@ -18,12 +18,7 @@
 package org.apache.beam.sdk.transforms.windowing;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
 
-import org.apache.beam.sdk.util.TriggerTester;
-import org.apache.beam.sdk.util.TriggerTester.SimpleTriggerTester;
-import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -34,78 +29,6 @@ import org.junit.runners.JUnit4;
  */
 @RunWith(JUnit4.class)
 public class AfterPaneTest {
-
-  SimpleTriggerTester<IntervalWindow> tester;
-  /**
-   * Tests that the trigger does fire when enough elements are in a window, and that it only
-   * fires that window (no leakage).
-   */
-  @Test
-  public void testAfterPaneElementCountFixedWindows() throws Exception {
-    tester = TriggerTester.forTrigger(
-        AfterPane.elementCountAtLeast(2),
-        FixedWindows.of(Duration.millis(10)));
-
-    tester.injectElements(1); // [0, 10)
-    IntervalWindow window = new IntervalWindow(new Instant(0), new Instant(10));
-    assertFalse(tester.shouldFire(window));
-
-    tester.injectElements(2); // [0, 10)
-    tester.injectElements(11); // [10, 20)
-
-    assertTrue(tester.shouldFire(window)); // ready to fire
-    tester.fireIfShouldFire(window); // and finished
-    assertTrue(tester.isMarkedFinished(window));
-
-    // But don't finish the other window
-    assertFalse(tester.isMarkedFinished(new IntervalWindow(new Instant(10), new Instant(20))));
-  }
-
-  @Test
-  public void testClear() throws Exception {
-    SimpleTriggerTester<IntervalWindow> tester = TriggerTester.forTrigger(
-        AfterPane.elementCountAtLeast(2),
-        FixedWindows.of(Duration.millis(10)));
-
-    tester.injectElements(1, 2, 3);
-    IntervalWindow window = new IntervalWindow(new Instant(0), new Instant(10));
-    tester.clearState(window);
-    tester.assertCleared(window);
-  }
-
-  @Test
-  public void testAfterPaneElementCountSessions() throws Exception {
-    tester = TriggerTester.forTrigger(
-        AfterPane.elementCountAtLeast(2),
-        Sessions.withGapDuration(Duration.millis(10)));
-
-    tester.injectElements(
-        1, // in [1, 11)
-        2); // in [2, 12)
-
-    assertFalse(tester.shouldFire(new IntervalWindow(new Instant(1), new Instant(11))));
-    assertFalse(tester.shouldFire(new IntervalWindow(new Instant(2), new Instant(12))));
-
-    tester.mergeWindows();
-
-    IntervalWindow mergedWindow = new IntervalWindow(new Instant(1), new Instant(12));
-    assertTrue(tester.shouldFire(mergedWindow));
-    tester.fireIfShouldFire(mergedWindow);
-    assertTrue(tester.isMarkedFinished(mergedWindow));
-
-    // Because we closed the previous window, we don't have it around to merge with. So there
-    // will be a new FIRE_AND_FINISH result.
-    tester.injectElements(
-        7,  // in [7, 17)
-        9); // in [9, 19)
-
-    tester.mergeWindows();
-
-    IntervalWindow newMergedWindow = new IntervalWindow(new Instant(7), new Instant(19));
-    assertTrue(tester.shouldFire(newMergedWindow));
-    tester.fireIfShouldFire(newMergedWindow);
-    assertTrue(tester.isMarkedFinished(newMergedWindow));
-  }
 
   @Test
   public void testFireDeadline() throws Exception {

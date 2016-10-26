@@ -81,7 +81,7 @@ import org.slf4j.LoggerFactory;
  *
  * <h3>Writing to a JMS destination</h3>
  *
- * JmsIO sink supports writing text messages to a JMS destination on a broker.
+ * <p>JmsIO sink supports writing text messages to a JMS destination on a broker.
  * To configure a JMS sink, you must specify a {@link javax.jms.ConnectionFactory} and a
  * {@link javax.jms.Destination} name.
  * For instance:
@@ -175,7 +175,7 @@ public class JmsIO {
      * that they can be stored in all JNDI naming contexts. In addition, it is recommended that
      * these implementations follow the JavaBeansTM design patterns."
      *
-     * So, a {@link ConnectionFactory} implementation is serializable.
+     * <p>So, a {@link ConnectionFactory} implementation is serializable.
      */
     protected ConnectionFactory connectionFactory;
     @Nullable
@@ -201,8 +201,8 @@ public class JmsIO {
     }
 
     /**
-     * Creates an {@link UnboundedSource<JmsRecord, ?>} with the configuration in
-     * {@link Read}. Primary use case is unit tests, should not be used in an
+     * Creates an {@link UnboundedSource UnboundedSource&lt;JmsRecord, ?&gt;} with the configuration
+     * in {@link Read}. Primary use case is unit tests, should not be used in an
      * application.
      */
     @VisibleForTesting
@@ -255,7 +255,7 @@ public class JmsIO {
     }
 
     @Override
-    public Coder getCheckpointMarkCoder() {
+    public Coder<JmsCheckpointMark> getCheckpointMarkCoder() {
       return AvroCoder.of(JmsCheckpointMark.class);
     }
 
@@ -319,6 +319,7 @@ public class JmsIO {
         }
 
         Map<String, Object> properties = new HashMap<>();
+        @SuppressWarnings("rawtypes")
         Enumeration propertyNames = message.getPropertyNames();
         while (propertyNames.hasMoreElements()) {
           String propertyName = (String) propertyNames.nextElement();

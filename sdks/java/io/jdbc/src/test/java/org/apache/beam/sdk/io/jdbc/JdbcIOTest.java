@@ -119,8 +119,7 @@ public class JdbcIOTest implements Serializable {
 
   @Test
   public void testDataSourceConfigurationDataSource() throws Exception {
-    JdbcIO.DataSourceConfiguration config = JdbcIO.DataSourceConfiguration.create(
-        dataSource);
+    JdbcIO.DataSourceConfiguration config = JdbcIO.DataSourceConfiguration.create(dataSource);
     try (Connection conn = config.getConnection()) {
       assertTrue(conn.isValid(0));
     }
@@ -131,6 +130,42 @@ public class JdbcIOTest implements Serializable {
     JdbcIO.DataSourceConfiguration config = JdbcIO.DataSourceConfiguration.create(
         "org.apache.derby.jdbc.ClientDriver",
         "jdbc:derby://localhost:1527/target/beam");
+    try (Connection conn = config.getConnection()) {
+      assertTrue(conn.isValid(0));
+    }
+  }
+
+  @Test
+  public void testDataSourceConfigurationUsernameAndPassword() throws Exception {
+    JdbcIO.DataSourceConfiguration config = JdbcIO.DataSourceConfiguration.create(
+        "org.apache.derby.jdbc.ClientDriver",
+        "jdbc:derby://localhost:1527/target/beam")
+        .withUsername("sa")
+        .withPassword("sa");
+    try (Connection conn = config.getConnection()) {
+      assertTrue(conn.isValid(0));
+    }
+  }
+
+  @Test
+  public void testDataSourceConfigurationNullPassword() throws Exception {
+    JdbcIO.DataSourceConfiguration config = JdbcIO.DataSourceConfiguration.create(
+        "org.apache.derby.jdbc.ClientDriver",
+        "jdbc:derby://localhost:1527/target/beam")
+        .withUsername("sa")
+        .withPassword(null);
+    try (Connection conn = config.getConnection()) {
+      assertTrue(conn.isValid(0));
+    }
+  }
+
+  @Test
+  public void testDataSourceConfigurationNullUsernameAndPassword() throws Exception {
+    JdbcIO.DataSourceConfiguration config = JdbcIO.DataSourceConfiguration.create(
+        "org.apache.derby.jdbc.ClientDriver",
+        "jdbc:derby://localhost:1527/target/beam")
+        .withUsername(null)
+        .withPassword(null);
     try (Connection conn = config.getConnection()) {
       assertTrue(conn.isValid(0));
     }

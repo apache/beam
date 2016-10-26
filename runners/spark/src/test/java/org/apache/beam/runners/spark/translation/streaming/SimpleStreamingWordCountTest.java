@@ -21,7 +21,6 @@ import com.google.common.collect.Lists;
 import java.io.Serializable;
 import java.util.Arrays;
 import java.util.List;
-import org.apache.beam.runners.spark.EvaluationResult;
 import org.apache.beam.runners.spark.SparkPipelineOptions;
 import org.apache.beam.runners.spark.examples.WordCount;
 import org.apache.beam.runners.spark.io.CreateStream;
@@ -63,7 +62,6 @@ public class SimpleStreamingWordCountTest implements Serializable {
 
   @Test
   public void testFixedWindows() throws Exception {
-
     SparkPipelineOptions options = commonOptions.withTmpCheckpointDir(
         checkpointParentDir.newFolder(getClass().getSimpleName()));
 
@@ -82,9 +80,6 @@ public class SimpleStreamingWordCountTest implements Serializable {
             .apply(new WordCount.CountWords())
             .apply(MapElements.via(new WordCount.FormatAsTextFn()));
 
-    PAssertStreaming.assertContents(output, EXPECTED_WORD_COUNTS);
-
-    EvaluationResult res = (EvaluationResult) pipeline.run();
-    res.close();
+    PAssertStreaming.runAndAssertContents(pipeline, output, EXPECTED_WORD_COUNTS);
   }
 }

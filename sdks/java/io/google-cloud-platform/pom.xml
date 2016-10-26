@@ -22,7 +22,7 @@
   <parent>
     <groupId>org.apache.beam</groupId>
     <artifactId>beam-sdks-java-io-parent</artifactId>
-    <version>0.3.0-incubating-SNAPSHOT</version>
+    <version>0.4.0-incubating-SNAPSHOT</version>
     <relativePath>../pom.xml</relativePath>
   </parent>
 
@@ -69,7 +69,6 @@
         <artifactId>maven-failsafe-plugin</artifactId>
         <configuration>
           <useManifestOnlyJar>false</useManifestOnlyJar>
-          <redirectTestOutputToFile>true</redirectTestOutputToFile>
         </configuration>
         <executions>
           <execution>
@@ -212,6 +211,12 @@
     <dependency>
       <groupId>org.apache.avro</groupId>
       <artifactId>avro</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>com.google.auto.value</groupId>
+      <artifactId>auto-value</artifactId>
+      <scope>provided</scope>
     </dependency>
 
     <!--  test -->

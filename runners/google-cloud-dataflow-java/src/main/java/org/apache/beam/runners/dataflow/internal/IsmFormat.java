@@ -240,8 +240,9 @@ public class IsmFormat {
     }
 
     /** Returns the key coder at the specified index. */
-    public Coder getKeyComponentCoder(int index) {
-      return keyComponentCoders.get(index);
+    @SuppressWarnings("unchecked")
+    public <T> Coder<T> getKeyComponentCoder(int index) {
+      return (Coder<T>) keyComponentCoders.get(index);
     }
 
     /** Returns the value coder. */
@@ -293,7 +294,7 @@ public class IsmFormat {
     /**
      * Computes the shard id for the given key component(s).
      *
-     * The shard keys are encoded into their byte representations and hashed using the
+     * <p>The shard keys are encoded into their byte representations and hashed using the
      * <a href="http://smhasher.googlecode.com/svn/trunk/MurmurHash3.cpp">
      * 32-bit murmur3 algorithm, x86 variant</a> (little-endian variant),
      * using {@code 1225801234} as the seed value. We ensure that shard ids for
@@ -306,7 +307,7 @@ public class IsmFormat {
     /**
      * Computes the shard id for the given key component(s).
      *
-     * Mutates {@code keyBytes} such that when returned, contains the encoded
+     * <p>Mutates {@code keyBytes} such that when returned, contains the encoded
      * version of the key components.
      */
     public <V, T> int encodeAndHash(List<?> keyComponents, RandomAccessData keyBytesToMutate) {
@@ -316,7 +317,7 @@ public class IsmFormat {
     /**
      * Computes the shard id for the given key component(s).
      *
-     * Mutates {@code keyBytes} such that when returned, contains the encoded
+     * <p>Mutates {@code keyBytes} such that when returned, contains the encoded
      * version of the key components. Also, mutates {@code keyComponentByteOffsetsToMutate} to
      * store the location where each key component's encoded byte representation ends within
      * {@code keyBytes}.
@@ -618,7 +619,7 @@ public class IsmFormat {
   /**
    * A coder for {@link IsmShard}s.
    *
-   * The shard descriptor is encoded as:
+   * <p>The shard descriptor is encoded as:
    * <ul>
    *   <li>id (variable length integer encoding)</li>
    *   <li>blockOffset (variable length long encoding)</li>

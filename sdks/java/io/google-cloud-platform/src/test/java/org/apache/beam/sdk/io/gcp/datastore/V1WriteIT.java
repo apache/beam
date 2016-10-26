@@ -54,7 +54,7 @@ public class V1WriteIT {
   /**
    * An end-to-end test for {@link DatastoreV1.Write}.
    *
-   * Write some test entities to datastore through a dataflow pipeline.
+   * <p>Write some test entities to Cloud Datastore.
    * Read and count all the entities. Verify that the count matches the
    * number of entities written.
    */

@@ -37,12 +37,12 @@ import org.apache.beam.sdk.values.TupleTag;
  * <p>BaseExecutionContext is generic to allow implementing subclasses to return a concrete subclass
  * of {@link StepContext} from {@link #getOrCreateStepContext(String, String)} and
  * {@link #getAllStepContexts()} without forcing each subclass to override the method, e.g.
- * <pre>
+ * <pre>{@code
  * @Override
  * StreamingModeExecutionContext.StepContext getOrCreateStepContext(...) {
  *   return (StreamingModeExecutionContext.StepContext) super.getOrCreateStepContext(...);
  * }
- * </pre>
+ * }</pre>
  *
  * <p>When a subclass of {@code BaseExecutionContext} has been downcast, the return types of
  * {@link #createStepContext(String, String)},

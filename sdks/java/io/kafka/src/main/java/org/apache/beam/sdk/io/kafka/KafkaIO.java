@@ -108,7 +108,7 @@ import org.slf4j.LoggerFactory;
  * <p>Although most applications consumer single topic, the source can be configured to consume
  * multiple topics or even a specific set of {@link TopicPartition}s.
  *
- * <p> To configure a Kafka source, you must specify at the minimum Kafka <tt>bootstrapServers</tt>
+ * <p>To configure a Kafka source, you must specify at the minimum Kafka <tt>bootstrapServers</tt>
  * and one or more topics to consume. The following example illustrates various options for
  * configuring the source :
  *
@@ -157,7 +157,7 @@ import org.slf4j.LoggerFactory;
  *
  * <h3>Writing to Kafka</h3>
  *
- * KafkaIO sink supports writing key-value pairs to a Kafka topic. Users can also write
+ * <p>KafkaIO sink supports writing key-value pairs to a Kafka topic. Users can also write
  * just the values. To configure a Kafka sink, you must specify at the minimum Kafka
  * <tt>bootstrapServers</tt> and the topic to write to. The following example illustrates various
  * options for configuring the sink:
@@ -179,7 +179,7 @@ import org.slf4j.LoggerFactory;
  *    );
  * }</pre>
  *
- * Often you might want to write just values without any keys to Kafka. Use {@code values()} to
+ * <p>Often you might want to write just values without any keys to Kafka. Use {@code values()} to
  * write records with default empty(null) key:
  *
  * <pre>{@code
@@ -499,8 +499,8 @@ public class KafkaIO {
     }
 
     /**
-     * Creates an {@link UnboundedSource<KafkaRecord<K, V>, ?>} with the configuration in
-     * {@link TypedRead}. Primary use case is unit tests, should not be used in an
+     * Creates an {@link UnboundedSource UnboundedSource&lt;KafkaRecord&lt;K, V&gt;, ?&gt;} with the
+     * configuration in {@link TypedRead}. Primary use case is unit tests, should not be used in an
      * application.
      */
     @VisibleForTesting
@@ -633,7 +633,7 @@ public class KafkaIO {
      * {@code min(desiredNumSplits, totalNumPartitions)}, though better not to depend on the exact
      * count.
      *
-     * <p> It is important to assign the partitions deterministically so that we can support
+     * <p>It is important to assign the partitions deterministically so that we can support
      * resuming a split from last checkpoint. The Kafka partitions are sorted by
      * {@code <topic, partition>} and then assigned to splits in round-robin order.
      */
@@ -756,9 +756,6 @@ public class KafkaIO {
     private Iterator<PartitionState> curBatch = Collections.emptyIterator();
 
     private static final Duration KAFKA_POLL_TIMEOUT = Duration.millis(1000);
-    // how long to wait for new records from kafka consumer inside start()
-    private static final Duration START_NEW_RECORDS_POLL_TIMEOUT = Duration.standardSeconds(5);
-    // how long to wait for new records from kafka consumer inside advance()
     private static final Duration NEW_RECORDS_POLL_TIMEOUT = Duration.millis(10);
 
     // Use a separate thread to read Kafka messages. Kafka Consumer does all its work including
@@ -782,6 +779,8 @@ public class KafkaIO {
         Executors.newSingleThreadScheduledExecutor();
     private static final int OFFSET_UPDATE_INTERVAL_SECONDS = 5;
 
+    private static final long UNINITIALIZED_OFFSET = -1;
+
     /** watermark before any records have been read. */
     private static Instant initialWatermark = new Instant(Long.MIN_VALUE);
 
@@ -792,7 +791,7 @@ public class KafkaIO {
     // maintains state of each assigned partition (buffered records, consumed offset, etc)
     private static class PartitionState {
       private final TopicPartition topicPartition;
-      private long consumedOffset;
+      private long nextOffset;
       private long latestOffset;
       private Iterator<ConsumerRecord<byte[], byte[]>> recordIter = Collections.emptyIterator();
 
@@ -800,15 +799,15 @@ public class KafkaIO {
       private double avgRecordSize = 0;
       private static final int movingAvgWindow = 1000; // very roughly avg of last 1000 elements
 
-      PartitionState(TopicPartition partition, long offset) {
+      PartitionState(TopicPartition partition, long nextOffset) {
         this.topicPartition = partition;
-        this.consumedOffset = offset;
-        this.latestOffset = -1;
+        this.nextOffset = nextOffset;
+        this.latestOffset = UNINITIALIZED_OFFSET;
       }
 
       // update consumedOffset and avgRecordSize
       void recordConsumed(long offset, int size) {
-        consumedOffset = offset;
+        nextOffset = offset + 1;
 
         // this is always updated from single thread. probably not worth making it an AtomicDouble
         if (avgRecordSize <= 0) {
@@ -825,14 +824,10 @@ public class KafkaIO {
 
       synchronized long approxBacklogInBytes() {
         // Note that is an an estimate of uncompressed backlog.
-        // Messages on Kafka might be comressed.
-        if (latestOffset < 0 || consumedOffset < 0) {
+        if (latestOffset < 0 || nextOffset < 0) {
           return UnboundedReader.BACKLOG_UNKNOWN;
         }
-        if (latestOffset <= consumedOffset || consumedOffset < 0) {
-          return 0;
-        }
-        return (long) ((latestOffset - consumedOffset - 1) * avgRecordSize);
+        return Math.max(0, (long) ((latestOffset - nextOffset) * avgRecordSize));
       }
     }
 
@@ -846,7 +841,7 @@ public class KafkaIO {
       partitionStates = ImmutableList.copyOf(Lists.transform(source.assignedPartitions,
           new Function<TopicPartition, PartitionState>() {
             public PartitionState apply(TopicPartition tp) {
-              return new PartitionState(tp, -1L);
+              return new PartitionState(tp, UNINITIALIZED_OFFSET);
             }
         }));
 
@@ -866,7 +861,7 @@ public class KafkaIO {
               "checkpointed partition %s and assigned partition %s don't match",
               ckptMark.getTopicPartition(), assigned);
 
-          partitionStates.get(i).consumedOffset = ckptMark.getOffset();
+          partitionStates.get(i).nextOffset = ckptMark.getNextOffset();
         }
       }
     }
@@ -890,12 +885,13 @@ public class KafkaIO {
       LOG.info("{}: Returning from consumer pool loop", this);
     }
 
-    private void nextBatch(Duration timeout) {
+    private void nextBatch() {
       curBatch = Collections.emptyIterator();
 
       ConsumerRecords<byte[], byte[]> records;
       try {
-        records = availableRecordsQueue.poll(timeout.getMillis(),
+        // poll available records, wait (if necessary) up to the specified timeout.
+        records = availableRecordsQueue.poll(NEW_RECORDS_POLL_TIMEOUT.getMillis(),
                                              TimeUnit.MILLISECONDS);
       } catch (InterruptedException e) {
         Thread.currentThread().interrupt();
@@ -925,18 +921,22 @@ public class KafkaIO {
       consumer = source.consumerFactoryFn.apply(source.consumerConfig);
       consumer.assign(source.assignedPartitions);
 
-      // seek to consumedOffset + 1 if it is set
       for (PartitionState p : partitionStates) {
-        if (p.consumedOffset >= 0) {
-          LOG.info("{}: resuming {} at {}", name, p.topicPartition, p.consumedOffset + 1);
-          consumer.seek(p.topicPartition, p.consumedOffset + 1);
+        if (p.nextOffset != UNINITIALIZED_OFFSET) {
+          consumer.seek(p.topicPartition, p.nextOffset);
         } else {
-          LOG.info("{}: resuming {} at default offset", name, p.topicPartition);
+          // nextOffset is unininitialized here, meaning start reading from latest record as of now
+          // ('latest' is the default, and is configurable). Remember the current position without
+          // waiting until the first record read. This ensures checkpoint is accurate even if the
+          // reader is closed before reading any records.
+          p.nextOffset = consumer.position(p.topicPartition);
         }
+
+        LOG.info("{}: reading from {} starting at offset {}", name, p.topicPartition, p.nextOffset);
       }
 
-      // start consumer read loop.
-      // Note that consumer is not thread safe, should not accessed out side consumerPollLoop()
+      // Start consumer read loop.
+      // Note that consumer is not thread safe, should not be accessed out side consumerPollLoop().
       consumerPollThread.submit(
           new Runnable() {
             public void run() {
@@ -964,9 +964,7 @@ public class KafkaIO {
             }
           }, 0, OFFSET_UPDATE_INTERVAL_SECONDS, TimeUnit.SECONDS);
 
-      // Wait for longer than normal when fetching a batch to improve chances a record is available
-      // when start() returns.
-      nextBatch(START_NEW_RECORDS_POLL_TIMEOUT);
+      nextBatch();
       return advance();
     }
 
@@ -989,10 +987,10 @@ public class KafkaIO {
           }
 
           ConsumerRecord<byte[], byte[]> rawRecord = pState.recordIter.next();
-          long consumed = pState.consumedOffset;
+          long expected = pState.nextOffset;
           long offset = rawRecord.offset();
 
-          if (consumed >= 0 && offset <= consumed) { // -- (a)
+          if (offset < expected) { // -- (a)
             // this can happen when compression is enabled in Kafka (seems to be fixed in 0.10)
             // should we check if the offset is way off from consumedOffset (say > 1M)?
             LOG.warn("{}: ignoring already consumed offset {} for {}",
@@ -1001,9 +999,9 @@ public class KafkaIO {
           }
 
           // sanity check
-          if (consumed >= 0 && (offset - consumed) != 1) {
-            LOG.warn("{}: gap in offsets for {} after {}. {} records missing.",
-                this, pState.topicPartition, consumed, offset - consumed - 1);
+          if (offset != expected) {
+            LOG.warn("{}: gap in offsets for {} at {}. {} records missing.",
+                this, pState.topicPartition, expected, offset - expected);
           }
 
           if (curRecord == null) {
@@ -1030,7 +1028,7 @@ public class KafkaIO {
           return true;
 
         } else { // -- (b)
-          nextBatch(NEW_RECORDS_POLL_TIMEOUT);
+          nextBatch();
 
           if (!curBatch.hasNext()) {
             return false;
@@ -1059,11 +1057,11 @@ public class KafkaIO {
           p.setLatestOffset(offset);
         } catch (Exception e) {
           LOG.warn("{}: exception while fetching latest offsets. ignored.",  this, e);
-          p.setLatestOffset(-1L); // reset
+          p.setLatestOffset(UNINITIALIZED_OFFSET); // reset
         }
 
-        LOG.debug("{}: latest offset update for {} : {} (consumed offset {}, avg record size {})",
-            this, p.topicPartition, p.latestOffset, p.consumedOffset, p.avgRecordSize);
+        LOG.debug("{}: latest offset update for {} : {} (consumer offset {}, avg record size {})",
+            this, p.topicPartition, p.latestOffset, p.nextOffset, p.avgRecordSize);
       }
 
       LOG.debug("{}:  backlog {}", this, getSplitBacklogBytes());
@@ -1086,7 +1084,7 @@ public class KafkaIO {
           Lists.transform(partitionStates,
               new Function<PartitionState, PartitionMark>() {
                 public PartitionMark apply(PartitionState p) {
-                  return new PartitionMark(p.topicPartition, p.consumedOffset);
+                  return new PartitionMark(p.topicPartition, p.nextOffset);
                 }
               }
           )));
@@ -1297,8 +1295,8 @@ public class KafkaIO {
   }
 
   /**
-   * Same as Write<K, V> without a Key. Null is used for key as it is the convention is Kafka
-   * when there is no key specified. Majority of Kafka writers don't specify a key.
+   * Same as {@code Write<K, V>} without a Key. Null is used for key as it is the convention is
+   * Kafka when there is no key specified. Majority of Kafka writers don't specify a key.
    */
   private static class KafkaValueWrite<V> extends PTransform<PCollection<V>, PDone> {
 

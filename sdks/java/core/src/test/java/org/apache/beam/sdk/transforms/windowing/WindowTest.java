@@ -19,7 +19,7 @@ package org.apache.beam.sdk.transforms.windowing;
 
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasKey;
-import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.includesDisplayDataFrom;
+import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.includesDisplayDataFor;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.isOneOf;
 import static org.hamcrest.Matchers.not;
@@ -256,7 +256,7 @@ public class WindowTest implements Serializable {
     DisplayData displayData = DisplayData.from(window);
 
     assertThat(displayData, hasDisplayItem("windowFn", windowFn.getClass()));
-    assertThat(displayData, includesDisplayDataFrom(windowFn));
+    assertThat(displayData, includesDisplayDataFor("windowFn", windowFn));
 
     assertThat(displayData, hasDisplayItem("trigger", triggerBuilder.toString()));
     assertThat(displayData,

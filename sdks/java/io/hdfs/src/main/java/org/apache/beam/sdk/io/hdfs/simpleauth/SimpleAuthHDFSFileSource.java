@@ -33,7 +33,7 @@ import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
 /**
  * Source for Hadoop/HDFS with Simple Authentication.
  *
- * Allows to set arbitrary username as HDFS user, which is used for reading from HDFS.
+ * <p>Allows to set arbitrary username as HDFS user, which is used for reading from HDFS.
  */
 public class SimpleAuthHDFSFileSource<K, V> extends HDFSFileSource<K, V> {
   private final String username;
@@ -93,10 +93,7 @@ public class SimpleAuthHDFSFileSource<K, V> extends HDFSFileSource<K, V> {
       Class<K> keyClass,
       Class<V> valueClass,
       String username) {
-    @SuppressWarnings("unchecked")
-    HDFSFileSource<K, V> source = (HDFSFileSource<K, V>)
-        new SimpleAuthHDFSFileSource(filepattern, formatClass, keyClass, valueClass, username);
-    return source;
+    return new SimpleAuthHDFSFileSource<>(filepattern, formatClass, keyClass, valueClass, username);
   }
 
   @Override

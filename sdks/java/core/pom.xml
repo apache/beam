@@ -22,7 +22,7 @@
   <parent>
     <groupId>org.apache.beam</groupId>
     <artifactId>beam-sdks-java-parent</artifactId>
-    <version>0.3.0-incubating-SNAPSHOT</version>
+    <version>0.4.0-incubating-SNAPSHOT</version>
     <relativePath>../pom.xml</relativePath>
   </parent>
 
@@ -60,7 +60,7 @@
             <subpackages>org.apache.beam.sdk</subpackages>
             <additionalparam>-exclude
               org.apache.beam.sdk.runners.worker:org.apache.beam.sdk.runners.dataflow:org.apache.beam.sdk.util:org.apache.beam.sdk.runners.inprocess
-              ${dataflow.javadoc_opts}</additionalparam>
+              ${beam.javadoc_opts}</additionalparam>
             <use>false</use>
             <quiet>true</quiet>
             <bottom><![CDATA[<br>]]></bottom>
@@ -365,6 +365,11 @@
     <dependency>
       <groupId>com.google.apis</groupId>
       <artifactId>google-api-services-bigquery</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>com.google.apis</groupId>
+      <artifactId>google-api-services-cloudresourcemanager</artifactId>
     </dependency>
 
     <dependency>

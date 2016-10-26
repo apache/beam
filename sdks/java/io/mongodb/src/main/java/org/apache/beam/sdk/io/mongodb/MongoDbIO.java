@@ -47,16 +47,16 @@ import org.slf4j.LoggerFactory;
 
 /**
  * IO to read and write data on MongoDB.
- * <p>
+ *
  * <h3>Reading from MongoDB</h3>
- * <p>
+ *
  * <p>MongoDbIO source returns a bounded collection of String as {@code PCollection<String>}.
- * The String is the JSON form of the MongoDB Document.</p>
- * <p>
+ * The String is the JSON form of the MongoDB Document.
+ *
  * <p>To configure the MongoDB source, you have to provide the connection URI, the database name
  * and the collection name. The following example illustrates various options for configuring the
- * source:</p>
- * <p>
+ * source:
+ *
  * <pre>{@code
  *
  * pipeline.apply(MongoDbIO.read()
@@ -68,17 +68,17 @@ import org.slf4j.LoggerFactory;
  *   // rest of the settings are optional
  *
  * }</pre>
- * <p>
+ *
  * <p>The source also accepts an optional configuration: {@code withFilter()} allows you to
  * define a JSON filter to get subset of data.</p>
- * <p>
+ *
  * <h3>Writing to MongoDB</h3>
- * <p>
+ *
  * <p>MongoDB sink supports writing of Document (as JSON String) in a MongoDB.</p>
- * <p>
+ *
  * <p>To configure a MongoDB sink, you must specify a connection {@code URI}, a {@code Database}
  * name, a {@code Collection} name. For instance:</p>
- * <p>
+ *
  * <pre>{@code
  *
  * pipeline
@@ -91,8 +91,6 @@ import org.slf4j.LoggerFactory;
  *
  * }</pre>
  */
-// TODO instead of JSON String, does it make sense to populate the PCollection with BSON Document or
-//  DBObject ??
 public class MongoDbIO {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(MongoDbIO.class);
@@ -284,9 +282,8 @@ public class MongoDbIO {
      *   <li>_id: 109</li>
      *   <li>_id: 256</li>
      * </ul>
-     * </p>
      *
-     * This method will generate a list of range filters performing the following splits:
+     * <p>This method will generate a list of range filters performing the following splits:
      * <ul>
      *   <li>from the beginning of the collection up to _id 56, so basically data with
      *   _id lower than 56</li>

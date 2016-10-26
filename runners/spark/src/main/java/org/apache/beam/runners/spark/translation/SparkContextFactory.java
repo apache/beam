@@ -19,6 +19,7 @@
 package org.apache.beam.runners.spark.translation;
 
 import org.apache.beam.runners.spark.SparkPipelineOptions;
+import org.apache.beam.runners.spark.coders.BeamSparkRunnerRegistrator;
 import org.apache.spark.SparkConf;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.serializer.KryoSerializer;
@@ -47,7 +48,8 @@ public final class SparkContextFactory {
   public static synchronized JavaSparkContext getSparkContext(SparkPipelineOptions options) {
     // reuse should be ignored if the context is provided.
     if (Boolean.getBoolean(TEST_REUSE_SPARK_CONTEXT) && !options.getUsesProvidedSparkContext()) {
-      if (sparkContext == null) {
+      // if the context is null or stopped for some reason, re-create it.
+      if (sparkContext == null || sparkContext.sc().isStopped()) {
         sparkContext = createSparkContext(options);
         sparkMaster = options.getSparkMaster();
       } else if (!options.getSparkMaster().equals(sparkMaster)) {
@@ -84,7 +86,9 @@ public final class SparkContextFactory {
         conf.setMaster(options.getSparkMaster());
       }
       conf.setAppName(options.getAppName());
-      conf.set("spark.serializer", KryoSerializer.class.getCanonicalName());
+      // register immutable collections serializers because the SDK uses them.
+      conf.set("spark.kryo.registrator", BeamSparkRunnerRegistrator.class.getName());
+      conf.set("spark.serializer", KryoSerializer.class.getName());
       return new JavaSparkContext(conf);
     }
   }

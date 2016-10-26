@@ -26,6 +26,7 @@ import com.google.common.base.MoreObjects;
 import java.lang.reflect.Proxy;
 import java.util.ServiceLoader;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.concurrent.atomic.AtomicLong;
 import javax.annotation.concurrent.ThreadSafe;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.options.GoogleApiDebugOptions.GoogleApiTracer;
@@ -93,7 +94,7 @@ import org.joda.time.format.DateTimeFormatter;
  *
  * <h2>Defining Your Own PipelineOptions</h2>
  *
- * Defining your own {@link PipelineOptions} is the way for you to make configuration
+ * <p>Defining your own {@link PipelineOptions} is the way for you to make configuration
  * options available for both local execution and execution via a {@link PipelineRunner}.
  * By having PipelineOptionsFactory as your command-line interpreter, you will provide
  * a standardized way for users to interact with your application via the command-line.
@@ -117,7 +118,7 @@ import org.joda.time.format.DateTimeFormatter;
  *
  * <h3>Restrictions</h3>
  *
- * Since PipelineOptions can be "cast" to multiple types dynamically using
+ * <p>Since PipelineOptions can be "cast" to multiple types dynamically using
  * {@link PipelineOptions#as(Class)}, a property must conform to the following set of restrictions:
  * <ul>
  *   <li>Any property with the same name must have the same return type for all derived
@@ -134,7 +135,7 @@ import org.joda.time.format.DateTimeFormatter;
  *
  * <h3>Annotations For PipelineOptions</h3>
  *
- * {@link Description @Description} can be used to annotate an interface or a getter
+ * <p>{@link Description @Description} can be used to annotate an interface or a getter
  * with useful information which is output when {@code --help}
  * is invoked via {@link PipelineOptionsFactory#fromArgs(String[])}.
  *
@@ -158,7 +159,7 @@ import org.joda.time.format.DateTimeFormatter;
  *
  * <h2>Registration Of PipelineOptions</h2>
  *
- * Registration of {@link PipelineOptions} by an application guarantees that the
+ * <p>Registration of {@link PipelineOptions} by an application guarantees that the
  * {@link PipelineOptions} is composable during execution of their {@link Pipeline} and
  * meets the restrictions listed above or will fail during registration. Registration
  * also lists the registered {@link PipelineOptions} when {@code --help}
@@ -210,14 +211,6 @@ public interface PipelineOptions extends HasDisplayData {
   <T extends PipelineOptions> T as(Class<T> kls);
 
   /**
-   * Makes a deep clone of this object, and transforms the cloned object into the specified
-   * type {@code kls}. See {@link #as} for more information about the conversion.
-   *
-   * <p>Properties that are marked with {@code @JsonIgnore} will not be cloned.
-   */
-  <T extends PipelineOptions> T cloneAs(Class<T> kls);
-
-  /**
    * The pipeline runner that will be used to execute the pipeline.
    * For registered runners, the class name can be specified, otherwise the fully
    * qualified name needs to be specified.
@@ -233,7 +226,7 @@ public interface PipelineOptions extends HasDisplayData {
   /**
    * Enumeration of the possible states for a given check.
    */
-  public static enum CheckEnabled {
+  enum CheckEnabled {
     OFF,
     WARNING,
     ERROR
@@ -279,13 +272,14 @@ public interface PipelineOptions extends HasDisplayData {
    * as the {@link Default}. However, it should still be used if available, and a user is required
    * to explicitly set the {@code --runner} property if they wish to use an alternative runner.
    */
-  class DirectRunner implements DefaultValueFactory<Class<? extends PipelineRunner>> {
+  class DirectRunner implements DefaultValueFactory<Class<? extends PipelineRunner<?>>> {
     @Override
-    public Class<? extends PipelineRunner> create(PipelineOptions options) {
+    public Class<? extends PipelineRunner<?>> create(PipelineOptions options) {
       try {
         @SuppressWarnings({"unchecked", "rawtypes"})
-        Class<? extends PipelineRunner> direct = (Class<? extends PipelineRunner>) Class.forName(
-            "org.apache.beam.runners.direct.DirectRunner");
+        Class<? extends PipelineRunner<?>> direct =
+            (Class<? extends PipelineRunner<?>>)
+                Class.forName("org.apache.beam.runners.direct.DirectRunner");
         return direct;
       } catch (ClassNotFoundException e) {
         throw new IllegalArgumentException(String.format(
@@ -305,7 +299,7 @@ public interface PipelineOptions extends HasDisplayData {
    * <p>The normalization makes sure that the name matches the pattern of
    * [a-z]([-a-z0-9]*[a-z0-9])?.
    */
-  static class JobNameFactory implements DefaultValueFactory<String> {
+  class JobNameFactory implements DefaultValueFactory<String> {
     private static final DateTimeFormatter FORMATTER =
         DateTimeFormat.forPattern("MMddHHmmss").withZone(DateTimeZone.UTC);
 
@@ -324,6 +318,28 @@ public interface PipelineOptions extends HasDisplayData {
       String randomPart = Integer.toHexString(ThreadLocalRandom.current().nextInt());
       return String.format("%s-%s-%s-%s",
           normalizedAppName, normalizedUserName, datePart, randomPart);
+    }
+  }
+
+  /**
+   * Provides a unique ID for this {@link PipelineOptions} object, assigned at graph
+   * construction time.
+   */
+  @Hidden
+  @Default.InstanceFactory(AtomicLongFactory.class)
+  Long getOptionsId();
+  void setOptionsId(Long id);
+
+  /**
+   * {@link DefaultValueFactory} which supplies an ID that is guaranteed to be unique
+   * within the given process.
+   */
+  class AtomicLongFactory implements DefaultValueFactory<Long> {
+    private static final AtomicLong NEXT_ID = new AtomicLong(0);
+
+    @Override
+    public Long create(PipelineOptions options) {
+      return NEXT_ID.getAndIncrement();
     }
   }
 }

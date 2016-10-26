@@ -75,7 +75,6 @@ import org.junit.experimental.categories.Category;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-
 /**
  * Test on the MongoDbGridFSIO.
  */
@@ -169,7 +168,7 @@ public class MongoDBGridFSIOTest implements Serializable {
     TestPipeline pipeline = TestPipeline.create();
 
     PCollection<String> output = pipeline.apply(
-        MongoDbGridFSIO.read()
+        MongoDbGridFSIO.<String>read()
             .withUri("mongodb://localhost:" + PORT)
             .withDatabase(DATABASE));
 
@@ -199,7 +198,7 @@ public class MongoDBGridFSIOTest implements Serializable {
     TestPipeline pipeline = TestPipeline.create();
 
     PCollection<KV<String, Integer>> output = pipeline.apply(
-        MongoDbGridFSIO.read()
+        MongoDbGridFSIO.<KV<String, Integer>>read()
             .withUri("mongodb://localhost:" + PORT)
             .withDatabase(DATABASE)
             .withBucket("mapBucket")
@@ -223,8 +222,8 @@ public class MongoDBGridFSIOTest implements Serializable {
                 }
               }
             })
-            .allowedTimestampSkew(new Duration(3601000L)))
-            .setCoder(KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of()));
+            .withSkew(new Duration(3601000L))
+            .withCoder(KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of())));
 
     PAssert.thatSingleton(output.apply("Count All", Count.<KV<String, Integer>>globally()))
         .isEqualTo(50100L);
@@ -246,11 +245,11 @@ public class MongoDBGridFSIOTest implements Serializable {
   @Test
   public void testSplit() throws Exception {
     PipelineOptions options = PipelineOptionsFactory.create();
-    MongoDbGridFSIO.Read<String> read = MongoDbGridFSIO.read()
+    MongoDbGridFSIO.Read<String> read = MongoDbGridFSIO.<String>read()
         .withUri("mongodb://localhost:" + PORT)
         .withDatabase(DATABASE);
 
-    BoundedGridFSSource src = read.getSource();
+    BoundedGridFSSource src = new BoundedGridFSSource(read, null);
 
     // make sure 2 files can fit in
     long desiredBundleSizeBytes = (src.getEstimatedSizeBytes(options) * 2L) / 5L + 1000;

@@ -59,8 +59,9 @@ import org.slf4j.LoggerFactory;
  * and consume unbounded {@link PCollection PCollections}.
  *
  * <h3>Permissions</h3>
+ *
  * <p>Permission requirements depend on the {@link PipelineRunner} that is used to execute the
- * Dataflow job. Please refer to the documentation of corresponding
+ * Beam pipeline. Please refer to the documentation of corresponding
  * {@link PipelineRunner PipelineRunners} for more details.
  */
 public class PubsubIO {
@@ -374,9 +375,9 @@ public class PubsubIO {
      * <p>See {@link PubsubIO.PubsubTopic#fromPath(String)} for more details on the format
      * of the {@code topic} string.
      *
-     * <p>Dataflow will start reading data published on this topic from the time the pipeline is
-     * started. Any data published on the topic before the pipeline is started will not be read by
-     * Dataflow.
+     * <p>The Beam runner will start reading data published on this topic from the time the pipeline
+     * is started. Any data published on the topic before the pipeline is started will not be read
+     * by the runner.
      */
     public static Bound<String> topic(String topic) {
       return new Bound<>(DEFAULT_PUBSUB_CODER).topic(topic);
@@ -432,9 +433,9 @@ public class PubsubIO {
      * parameter specifies the attribute name. The value of the attribute can be any string
      * that uniquely identifies this record.
      *
-     * <p>If {@code idLabel} is not provided, Dataflow cannot guarantee that no duplicate data will
-     * be delivered on the Pub/Sub stream. In this case, deduplication of the stream will be
-     * strictly best effort.
+     * <p>Pub/Sub cannot guarantee that no duplicate data will be delivered on the Pub/Sub stream.
+     * If {@code idLabel} is not provided, Beam cannot guarantee that no duplicate data will
+     * be delivered, and deduplication of the stream will be strictly best effort.
      */
     public static Bound<String> idLabel(String idLabel) {
       return new Bound<>(DEFAULT_PUBSUB_CODER).idLabel(idLabel);
@@ -791,8 +792,7 @@ public class PubsubIO {
 
         @Override
         public void populateDisplayData(DisplayData.Builder builder) {
-          super.populateDisplayData(builder);
-          Bound.this.populateDisplayData(builder);
+          builder.delegate(Bound.this);
         }
       }
     }
@@ -829,7 +829,7 @@ public class PubsubIO {
      * representing the number of milliseconds since the Unix epoch. For example, if using the Joda
      * time classes, {@link Instant#Instant(long)} can be used to parse this value.
      *
-     * <p>If the output from this sink is being read by another Dataflow source, then
+     * <p>If the output from this sink is being read by another Beam pipeline, then
      * {@link PubsubIO.Read#timestampLabel(String)} can be used to ensure the other source reads
      * these timestamps from the appropriate attribute.
      */
@@ -842,7 +842,7 @@ public class PubsubIO {
      * published messages in an attribute with the specified name. The value of the attribute is an
      * opaque string.
      *
-     * <p>If the the output from this sink is being read by another Dataflow source, then
+     * <p>If the the output from this sink is being read by another Beam pipeline, then
      * {@link PubsubIO.Read#idLabel(String)} can be used to ensure that* the other source reads
      * these unique identifiers from the appropriate attribute.
      */
@@ -1042,7 +1042,7 @@ public class PubsubIO {
         @Override
         public void populateDisplayData(DisplayData.Builder builder) {
           super.populateDisplayData(builder);
-          Bound.this.populateDisplayData(builder);
+          builder.delegate(Bound.this);
         }
       }
     }

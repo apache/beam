@@ -19,7 +19,6 @@ package org.apache.beam.sdk.transforms.windowing;
 
 import java.util.List;
 import java.util.Objects;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.util.TimeDomain;
@@ -35,12 +34,6 @@ import org.joda.time.Instant;
  */
 @Experimental(Experimental.Kind.TRIGGER)
 public class AfterProcessingTime extends AfterDelayFromFirstElement {
-
-  @Override
-  @Nullable
-  public Instant getCurrentTime(Trigger.TriggerContext context) {
-    return context.currentProcessingTime();
-  }
 
   private AfterProcessingTime(List<SerializableFunction<Instant, Instant>> transforms) {
     super(TimeDomain.PROCESSING_TIME, transforms);

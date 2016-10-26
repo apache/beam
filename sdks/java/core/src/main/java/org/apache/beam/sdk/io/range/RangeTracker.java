@@ -192,6 +192,7 @@ public interface RangeTracker<PositionT> {
    *   <li>Otherwise, updates the last-consumed position to {@code recordStart} and returns
    *   {@code true}.
    * </ul>
+   *
    * <p>This method MUST be called on all split point records. It may be called on every record.
    */
   boolean tryReturnRecordAt(boolean isAtSplitPoint, PositionT recordStart);

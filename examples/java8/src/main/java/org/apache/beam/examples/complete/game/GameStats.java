@@ -62,21 +62,21 @@ import org.slf4j.LoggerFactory;
  * New concepts: session windows and finding session duration; use of both
  * singleton and non-singleton side inputs.
  *
- * <p> This pipeline builds on the {@link LeaderBoard} functionality, and adds some "business
+ * <p>This pipeline builds on the {@link LeaderBoard} functionality, and adds some "business
  * intelligence" analysis: abuse detection and usage patterns. The pipeline derives the Mean user
  * score sum for a window, and uses that information to identify likely spammers/robots. (The robots
  * have a higher click rate than the human users). The 'robot' users are then filtered out when
  * calculating the team scores.
  *
- * <p> Additionally, user sessions are tracked: that is, we find bursts of user activity using
+ * <p>Additionally, user sessions are tracked: that is, we find bursts of user activity using
  * session windows. Then, the mean session duration information is recorded in the context of
  * subsequent fixed windowing. (This could be used to tell us what games are giving us greater
  * user retention).
  *
- * <p> Run {@code org.apache.beam.examples.complete.game.injector.Injector} to generate
+ * <p>Run {@code org.apache.beam.examples.complete.game.injector.Injector} to generate
  * pubsub data for this pipeline. The {@code Injector} documentation provides more detail.
  *
- * <p> To execute this pipeline using the Dataflow service, specify the pipeline configuration
+ * <p>To execute this pipeline using the Dataflow service, specify the pipeline configuration
  * like this:
  * <pre>{@code
  *   --project=YOUR_PROJECT_ID
@@ -161,7 +161,7 @@ public class GameStats extends LeaderBoard {
   /**
    * Options supported by {@link GameStats}.
    */
-  static interface Options extends LeaderBoard.Options {
+  interface Options extends LeaderBoard.Options {
     @Description("Numeric value of fixed window duration for user analysis, in minutes")
     @Default.Integer(60)
     Integer getFixedWindowDuration();

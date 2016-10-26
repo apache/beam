@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.direct;
 
+import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
 
 import com.google.common.collect.ImmutableMap;
@@ -24,7 +25,6 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
-import javax.annotation.Nullable;
 import org.apache.beam.runners.direct.DirectGroupByKey.DirectGroupAlsoByWindow;
 import org.apache.beam.runners.direct.DirectGroupByKey.DirectGroupByKeyOnly;
 import org.apache.beam.runners.direct.DirectRunner.CommittedBundle;
@@ -78,11 +78,14 @@ class TransformEvaluatorRegistry implements TransformEvaluatorFactory {
 
   @Override
   public <InputT> TransformEvaluator<InputT> forApplication(
-      AppliedPTransform<?, ?, ?> application, @Nullable CommittedBundle<?> inputBundle)
+      AppliedPTransform<?, ?, ?> application, CommittedBundle<?> inputBundle)
       throws Exception {
     checkState(
         !finished.get(), "Tried to get an evaluator for a finished TransformEvaluatorRegistry");
-    TransformEvaluatorFactory factory = factories.get(application.getTransform().getClass());
+    Class<? extends PTransform> transformClass = application.getTransform().getClass();
+    TransformEvaluatorFactory factory =
+        checkNotNull(
+            factories.get(transformClass), "No evaluator for PTransform type %s", transformClass);
     return factory.forApplication(application, inputBundle);
   }
 
