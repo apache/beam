@@ -63,7 +63,6 @@ import tempfile
 
 from apache_beam import utils
 from apache_beam import version as beam_version
-from apache_beam.error import DataflowError
 from apache_beam.internal import pickler
 from apache_beam.utils import names
 from apache_beam.utils import processes
@@ -355,7 +354,6 @@ def stage_job_resources(
         sdk_remote_location = 'pypi'
       else:
         sdk_remote_location = setup_options.sdk_location
-
       _stage_dataflow_sdk_tarball(sdk_remote_location, staged_path, temp_dir)
       resources.append(names.DATAFLOW_SDK_TARBALL_FILE)
     else:
