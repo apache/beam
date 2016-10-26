@@ -20,6 +20,19 @@ package org.apache.beam.sdk.io.hdfs;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 
+import com.google.common.base.Function;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Lists;
+import java.io.Externalizable;
+import java.io.IOException;
+import java.io.ObjectInput;
+import java.io.ObjectOutput;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
+import java.util.List;
+import java.util.ListIterator;
+import java.util.NoSuchElementException;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
@@ -27,11 +40,6 @@ import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.values.KV;
-
-import com.google.common.base.Function;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Lists;
-
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.Path;
@@ -45,18 +53,6 @@ import org.apache.hadoop.mapreduce.TaskAttemptContext;
 import org.apache.hadoop.mapreduce.TaskAttemptID;
 import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
 import org.apache.hadoop.mapreduce.task.TaskAttemptContextImpl;
-
-import java.io.Externalizable;
-import java.io.IOException;
-import java.io.ObjectInput;
-import java.io.ObjectOutput;
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
-import java.util.List;
-import java.util.ListIterator;
-import java.util.NoSuchElementException;
-
-import javax.annotation.Nullable;
 
 /**
  * A {@code BoundedSource} for reading files resident in a Hadoop filesystem (HDFS) using a
@@ -89,7 +85,8 @@ import javax.annotation.Nullable;
  * }
  * </pre>
  *
- * Implementation note: Since Hadoop's {@link org.apache.hadoop.mapreduce.lib.input.FileInputFormat}
+ * <p>Implementation note: Since Hadoop's
+ * {@link org.apache.hadoop.mapreduce.lib.input.FileInputFormat}
  * determines the input splits, this class extends {@link BoundedSource} rather than
  * {@link org.apache.beam.sdk.io.OffsetBasedSource}, since the latter
  * dictates input splits.
@@ -124,10 +121,7 @@ public class HDFSFileSource<K, V> extends BoundedSource<KV<K, V>> {
    */
   public static <K, V, T extends FileInputFormat<K, V>> HDFSFileSource<K, V> from(
       String filepattern, Class<T> formatClass, Class<K> keyClass, Class<V> valueClass) {
-    @SuppressWarnings("unchecked")
-    HDFSFileSource<K, V> source = (HDFSFileSource<K, V>)
-        new HDFSFileSource(filepattern, formatClass, keyClass, valueClass);
-    return source;
+    return new HDFSFileSource<>(filepattern, formatClass, keyClass, valueClass);
   }
 
   /**
@@ -275,7 +269,7 @@ public class HDFSFileSource<K, V> extends BoundedSource<KV<K, V>> {
 
     private final BoundedSource<KV<K, V>> source;
     private final String filepattern;
-    private final Class formatClass;
+    private final Class<? extends FileInputFormat<?, ?>> formatClass;
     protected Job job;
 
     private FileInputFormat<?, ?> format;

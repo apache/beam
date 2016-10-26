@@ -99,7 +99,7 @@ public class WithKeys<K, V> extends PTransform<PCollection<V>,
   /**
    * Return a {@link WithKeys} that is like this one with the specified key type descriptor.
    *
-   * For use with lambdas in Java 8, either this method must be called with an appropriate type
+   * <p>For use with lambdas in Java 8, either this method must be called with an appropriate type
    * descriptor or {@link PCollection#setCoder(Coder)} must be called on the output
    * {@link PCollection}.
    */
@@ -113,11 +113,10 @@ public class WithKeys<K, V> extends PTransform<PCollection<V>,
   @Override
   public PCollection<KV<K, V>> apply(PCollection<V> in) {
     PCollection<KV<K, V>> result =
-        in.apply("AddKeys", ParDo.of(new DoFn<V, KV<K, V>>() {
-          @ProcessElement
-          public void processElement(ProcessContext c) {
-            c.output(KV.of(fn.apply(c.element()),
-                c.element()));
+        in.apply("AddKeys", MapElements.via(new SimpleFunction<V, KV<K, V>>() {
+          @Override
+          public KV<K, V> apply(V element) {
+            return KV.of(fn.apply(element), element);
           }
         }));
 

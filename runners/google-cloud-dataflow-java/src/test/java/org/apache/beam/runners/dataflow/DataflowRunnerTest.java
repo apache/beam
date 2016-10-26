@@ -18,7 +18,6 @@
 package org.apache.beam.runners.dataflow;
 
 import static org.apache.beam.sdk.util.WindowedValue.valueInGlobalWindow;
-
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
@@ -38,6 +37,28 @@ import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import com.google.api.services.dataflow.Dataflow;
+import com.google.api.services.dataflow.model.DataflowPackage;
+import com.google.api.services.dataflow.model.Job;
+import com.google.api.services.dataflow.model.ListJobsResponse;
+import com.google.common.base.Throwables;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
+import java.io.File;
+import java.io.IOException;
+import java.net.URL;
+import java.net.URLClassLoader;
+import java.nio.channels.FileChannel;
+import java.nio.channels.SeekableByteChannel;
+import java.nio.file.Files;
+import java.nio.file.StandardOpenOption;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
+import java.util.regex.Pattern;
 import org.apache.beam.runners.dataflow.DataflowRunner.BatchViewAsList;
 import org.apache.beam.runners.dataflow.DataflowRunner.BatchViewAsMap;
 import org.apache.beam.runners.dataflow.DataflowRunner.BatchViewAsMultimap;
@@ -55,7 +76,6 @@ import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
 import org.apache.beam.sdk.coders.BigEndianLongCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.VarLongCoder;
-import org.apache.beam.sdk.io.AvroIO;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -81,20 +101,10 @@ import org.apache.beam.sdk.util.WindowedValue.FullWindowedValueCoder;
 import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.util.gcsfs.GcsPath;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PDone;
-import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TupleTag;
-
-import com.google.api.services.dataflow.Dataflow;
-import com.google.api.services.dataflow.model.DataflowPackage;
-import com.google.api.services.dataflow.model.Job;
-import com.google.api.services.dataflow.model.ListJobsResponse;
-import com.google.common.base.Throwables;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
-
 import org.hamcrest.Description;
 import org.hamcrest.Matchers;
 import org.hamcrest.TypeSafeMatcher;
@@ -110,22 +120,6 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
-
-import java.io.File;
-import java.io.IOException;
-import java.net.URL;
-import java.net.URLClassLoader;
-import java.nio.channels.FileChannel;
-import java.nio.channels.SeekableByteChannel;
-import java.nio.file.Files;
-import java.nio.file.StandardOpenOption;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
-import java.util.regex.Pattern;
 
 /**
  * Tests for the {@link DataflowRunner}.
@@ -193,9 +187,9 @@ public class DataflowRunnerTest {
    * Build a mock {@link GcsUtil} with return values.
    *
    * @param bucketExist first return value
-   * @param bucketExists next return values
+   * @param bucketAccessible next return values
    */
-  private GcsUtil buildMockGcsUtil(Boolean bucketExist, Boolean... bucketExists)
+  private GcsUtil buildMockGcsUtil(Boolean bucketExist, Boolean... bucketAccessible)
       throws IOException {
     GcsUtil mockGcsUtil = mock(GcsUtil.class);
     when(mockGcsUtil.create(any(GcsPath.class), anyString()))
@@ -215,7 +209,8 @@ public class DataflowRunnerTest {
         return ImmutableList.of((GcsPath) invocation.getArguments()[0]);
       }
     });
-    when(mockGcsUtil.bucketExists(any(GcsPath.class))).thenReturn(bucketExist, bucketExists);
+    when(mockGcsUtil.bucketAccessible(any(GcsPath.class)))
+        .thenReturn(bucketExist, bucketAccessible);
     return mockGcsUtil;
   }
 
@@ -797,6 +792,43 @@ public class DataflowRunnerTest {
     }
   }
 
+  @Test
+  public void testGcsUploadBufferSizeIsUnsetForBatchWhenDefault() throws IOException {
+    DataflowPipelineOptions batchOptions = buildPipelineOptions();
+    batchOptions.setRunner(DataflowRunner.class);
+    Pipeline.create(batchOptions);
+    assertNull(batchOptions.getGcsUploadBufferSizeBytes());
+  }
+
+  @Test
+  public void testGcsUploadBufferSizeIsSetForStreamingWhenDefault() throws IOException {
+    DataflowPipelineOptions streamingOptions = buildPipelineOptions();
+    streamingOptions.setStreaming(true);
+    streamingOptions.setRunner(DataflowRunner.class);
+    Pipeline.create(streamingOptions);
+    assertEquals(
+        DataflowRunner.GCS_UPLOAD_BUFFER_SIZE_BYTES_DEFAULT,
+        streamingOptions.getGcsUploadBufferSizeBytes().intValue());
+  }
+
+  @Test
+  public void testGcsUploadBufferSizeUnchangedWhenNotDefault() throws IOException {
+    int gcsUploadBufferSizeBytes = 12345678;
+    DataflowPipelineOptions batchOptions = buildPipelineOptions();
+    batchOptions.setGcsUploadBufferSizeBytes(gcsUploadBufferSizeBytes);
+    batchOptions.setRunner(DataflowRunner.class);
+    Pipeline.create(batchOptions);
+    assertEquals(gcsUploadBufferSizeBytes, batchOptions.getGcsUploadBufferSizeBytes().intValue());
+
+    DataflowPipelineOptions streamingOptions = buildPipelineOptions();
+    streamingOptions.setStreaming(true);
+    streamingOptions.setGcsUploadBufferSizeBytes(gcsUploadBufferSizeBytes);
+    streamingOptions.setRunner(DataflowRunner.class);
+    Pipeline.create(streamingOptions);
+    assertEquals(
+        gcsUploadBufferSizeBytes, streamingOptions.getGcsUploadBufferSizeBytes().intValue());
+  }
+
   /**
    * A fake PTransform for testing.
    */
@@ -863,7 +895,7 @@ public class DataflowRunnerTest {
             // Note: This is about the minimum needed to fake out a
             // translation. This obviously isn't a real translation.
             context.addStep(transform, "TestTranslate");
-            context.addOutput("output", context.getOutput(transform));
+            context.addOutput(context.getOutput(transform));
           }
         });
 
@@ -939,7 +971,7 @@ public class DataflowRunnerTest {
     return options;
   }
 
-  private void testUnsupportedSource(PTransform<PInput, ?> source, String name, boolean streaming)
+  private void testUnsupportedSource(PTransform<PBegin, ?> source, String name, boolean streaming)
       throws Exception {
     String mode = streaming ? "streaming" : "batch";
     thrown.expect(UnsupportedOperationException.class);
@@ -954,28 +986,6 @@ public class DataflowRunnerTest {
   @Test
   public void testReadUnboundedUnsupportedInBatch() throws Exception {
     testUnsupportedSource(Read.from(new TestCountingSource(1)), "Read.Unbounded", false);
-  }
-
-  private void testUnsupportedSink(
-      PTransform<PCollection<String>, PDone> sink, String name, boolean streaming)
-          throws Exception {
-    thrown.expect(UnsupportedOperationException.class);
-    thrown.expectMessage(
-        "The DataflowRunner in streaming mode does not support " + name);
-
-    Pipeline p = Pipeline.create(makeOptions(streaming));
-    p.apply(Create.of("foo")).apply(sink);
-    p.run();
-  }
-
-  @Test
-  public void testAvroIOSinkUnsupportedInStreaming() throws Exception {
-    testUnsupportedSink(AvroIO.Write.to("foo").withSchema(String.class), "AvroIO.Write", true);
-  }
-
-  @Test
-  public void testTextIOSinkUnsupportedInStreaming() throws Exception {
-    testUnsupportedSink(TextIO.Write.to("foo"), "TextIO.Write", true);
   }
 
   @Test
@@ -1088,7 +1098,7 @@ public class DataflowRunnerTest {
 
     DoFnTester<KV<Integer, Iterable<KV<KV<Long, IntervalWindow>, WindowedValue<Long>>>>,
                IsmRecord<WindowedValue<Long>>> doFnTester =
-        DoFnTester.of(new BatchViewAsMultimap.ToIsmRecordForMapLikeDoFn<Long, Long, IntervalWindow>(
+        DoFnTester.of(new BatchViewAsMultimap.ToIsmRecordForMapLikeDoFn<>(
             outputForSizeTag,
             outputForEntrySetTag,
             windowCoder,
@@ -1188,7 +1198,7 @@ public class DataflowRunnerTest {
 
     DoFnTester<KV<Integer, Iterable<KV<KV<Long, IntervalWindow>, WindowedValue<Long>>>>,
                IsmRecord<WindowedValue<Long>>> doFnTester =
-        DoFnTester.of(new BatchViewAsMultimap.ToIsmRecordForMapLikeDoFn<Long, Long, IntervalWindow>(
+        DoFnTester.of(new BatchViewAsMultimap.ToIsmRecordForMapLikeDoFn<>(
             outputForSizeTag,
             outputForEntrySetTag,
             windowCoder,

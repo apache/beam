@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.flink.examples.streaming;
 
+import java.io.IOException;
 import org.apache.beam.runners.flink.FlinkRunner;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.io.UnboundedSocketSource;
 import org.apache.beam.sdk.Pipeline;
@@ -27,7 +28,7 @@ import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.Aggregator;
 import org.apache.beam.sdk.transforms.Count;
-import org.apache.beam.sdk.transforms.OldDoFn;
+import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.transforms.windowing.AfterWatermark;
@@ -35,12 +36,9 @@ import org.apache.beam.sdk.transforms.windowing.SlidingWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
-
 import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.io.IOException;
 
 /**
  * To run the example, first open a socket on a terminal by executing the command:
@@ -59,19 +57,20 @@ public class WindowedWordCount {
   static final long WINDOW_SIZE = 10;  // Default window duration in seconds
   static final long SLIDE_SIZE = 5;  // Default window slide in seconds
 
-  static class FormatAsStringFn extends OldDoFn<KV<String, Long>, String> {
-    @Override
+  static class FormatAsStringFn extends DoFn<KV<String, Long>, String> {
+    @ProcessElement
     public void processElement(ProcessContext c) {
-      String row = c.element().getKey() + " - " + c.element().getValue() + " @ " + c.timestamp().toString();
+      String row = c.element().getKey() + " - " + c.element().getValue() + " @ "
+          + c.timestamp().toString();
       c.output(row);
     }
   }
 
-  static class ExtractWordsFn extends OldDoFn<String, String> {
+  static class ExtractWordsFn extends DoFn<String, String> {
     private final Aggregator<Long, Long> emptyLines =
         createAggregator("emptyLines", new Sum.SumLongFn());
 
-    @Override
+    @ProcessElement
     public void processElement(ProcessContext c) {
       if (c.element().trim().isEmpty()) {
         emptyLines.addValue(1L);
@@ -89,7 +88,11 @@ public class WindowedWordCount {
     }
   }
 
-  public interface StreamingWordCountOptions extends org.apache.beam.runners.flink.examples.WordCount.Options {
+  /**
+   * Pipeline options.
+   */
+  public interface StreamingWordCountOptions
+      extends org.apache.beam.runners.flink.examples.WordCount.Options {
     @Description("Sliding window duration, in seconds")
     @Default.Long(WINDOW_SIZE)
     Long getWindowSize();
@@ -104,7 +107,8 @@ public class WindowedWordCount {
   }
 
   public static void main(String[] args) throws IOException {
-    StreamingWordCountOptions options = PipelineOptionsFactory.fromArgs(args).withValidation().as(StreamingWordCountOptions.class);
+    StreamingWordCountOptions options = PipelineOptionsFactory.fromArgs(args).withValidation()
+        .as(StreamingWordCountOptions.class);
     options.setStreaming(true);
     options.setWindowSize(10L);
     options.setSlide(5L);
@@ -113,8 +117,8 @@ public class WindowedWordCount {
     options.setExecutionRetryDelay(3000L);
     options.setRunner(FlinkRunner.class);
 
-    LOG.info("Windpwed WordCount with Sliding Windows of " + options.getWindowSize() +
-        " sec. and a slide of " + options.getSlide());
+    LOG.info("Windpwed WordCount with Sliding Windows of " + options.getWindowSize()
+        + " sec. and a slide of " + options.getSlide());
 
     Pipeline pipeline = Pipeline.create(options);
 
@@ -122,7 +126,8 @@ public class WindowedWordCount {
         .apply("StreamingWordCount",
             Read.from(new UnboundedSocketSource<>("localhost", 9999, '\n', 3)))
         .apply(ParDo.of(new ExtractWordsFn()))
-        .apply(Window.<String>into(SlidingWindows.of(Duration.standardSeconds(options.getWindowSize()))
+        .apply(Window.<String>into(SlidingWindows.of(
+            Duration.standardSeconds(options.getWindowSize()))
             .every(Duration.standardSeconds(options.getSlide())))
             .triggering(AfterWatermark.pastEndOfWindow()).withAllowedLateness(Duration.ZERO)
             .discardingFiredPanes());

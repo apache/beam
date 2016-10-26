@@ -19,15 +19,11 @@ package org.apache.beam.runners.flink.translation.functions;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
+import com.google.common.collect.Iterables;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.util.WindowedValue;
-
-import com.google.common.collect.Iterables;
-
 import org.joda.time.Instant;
-
-import java.util.Collection;
 
 /**
  * {@link org.apache.beam.sdk.transforms.windowing.WindowFn.AssignContext} for

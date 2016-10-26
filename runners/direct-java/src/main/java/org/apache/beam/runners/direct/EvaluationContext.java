@@ -19,6 +19,17 @@ package org.apache.beam.runners.direct;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Iterables;
+import com.google.common.util.concurrent.MoreExecutors;
+import java.util.Collection;
+import java.util.EnumSet;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
+import javax.annotation.Nullable;
 import org.apache.beam.runners.direct.CommittedResult.OutputType;
 import org.apache.beam.runners.direct.DirectGroupByKey.DirectGroupByKeyOnly;
 import org.apache.beam.runners.direct.DirectRunner.CommittedBundle;
@@ -42,22 +53,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollection.IsBounded;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PValue;
-
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Iterables;
-import com.google.common.util.concurrent.MoreExecutors;
-
 import org.joda.time.Instant;
-
-import java.util.Collection;
-import java.util.EnumSet;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
-
-import javax.annotation.Nullable;
 
 /**
  * The evaluation context for a specific pipeline being executed by the
@@ -100,26 +96,30 @@ class EvaluationContext {
 
   private final AggregatorContainer mergedAggregators;
 
+  private final DirectMetrics metrics;
+
   public static EvaluationContext create(
       DirectOptions options,
+      Clock clock,
       BundleFactory bundleFactory,
       Collection<AppliedPTransform<?, ?, ?>> rootTransforms,
       Map<PValue, Collection<AppliedPTransform<?, ?, ?>>> valueToConsumers,
       Map<AppliedPTransform<?, ?, ?>, String> stepNames,
       Collection<PCollectionView<?>> views) {
     return new EvaluationContext(
-        options, bundleFactory, rootTransforms, valueToConsumers, stepNames, views);
+        options, clock, bundleFactory, rootTransforms, valueToConsumers, stepNames, views);
   }
 
   private EvaluationContext(
       DirectOptions options,
+      Clock clock,
       BundleFactory bundleFactory,
       Collection<AppliedPTransform<?, ?, ?>> rootTransforms,
       Map<PValue, Collection<AppliedPTransform<?, ?, ?>>> valueToConsumers,
       Map<AppliedPTransform<?, ?, ?>, String> stepNames,
       Collection<PCollectionView<?>> views) {
     this.options = checkNotNull(options);
-    this.clock = options.getClock();
+    this.clock = clock;
     this.bundleFactory = checkNotNull(bundleFactory);
     checkNotNull(rootTransforms);
     checkNotNull(valueToConsumers);
@@ -132,9 +132,15 @@ class EvaluationContext {
 
     this.applicationStateInternals = new ConcurrentHashMap<>();
     this.mergedAggregators = AggregatorContainer.create();
+    this.metrics = new DirectMetrics();
 
     this.callbackExecutor =
         WatermarkCallbackExecutor.create(MoreExecutors.directExecutor());
+  }
+
+  public void initialize(
+      Map<AppliedPTransform<?, ?, ?>, ? extends Iterable<CommittedBundle<?>>> initialInputs) {
+    watermarkManager.initialize(initialInputs);
   }
 
   /**
@@ -158,6 +164,8 @@ class EvaluationContext {
       TransformResult result) {
     Iterable<? extends CommittedBundle<?>> committedBundles =
         commitBundles(result.getOutputBundles());
+    metrics.commitLogical(completedBundle, result.getLogicalMetricUpdates());
+
     // Update watermarks and timers
     EnumSet<OutputType> outputTypes = EnumSet.copyOf(result.getOutputTypes());
     if (Iterables.isEmpty(committedBundles)) {
@@ -228,16 +236,16 @@ class EvaluationContext {
   /**
    * Create a {@link UncommittedBundle} for use by a source.
    */
-  public <T> UncommittedBundle<T> createRootBundle(PCollection<T> output) {
-    return bundleFactory.createRootBundle(output);
+  public <T> UncommittedBundle<T> createRootBundle() {
+    return bundleFactory.createRootBundle();
   }
 
   /**
    * Create a {@link UncommittedBundle} whose elements belong to the specified {@link
    * PCollection}.
    */
-  public <T> UncommittedBundle<T> createBundle(CommittedBundle<?> input, PCollection<T> output) {
-    return bundleFactory.createBundle(input, output);
+  public <T> UncommittedBundle<T> createBundle(PCollection<T> output) {
+    return bundleFactory.createBundle(output);
   }
 
   /**
@@ -245,8 +253,8 @@ class EvaluationContext {
    * {@link DirectGroupByKeyOnly} {@link PTransform PTransforms}.
    */
   public <K, T> UncommittedBundle<T> createKeyedBundle(
-      CommittedBundle<?> input, StructuralKey<K> key, PCollection<T> output) {
-    return bundleFactory.createKeyedBundle(input, key, output);
+      StructuralKey<K> key, PCollection<T> output) {
+    return bundleFactory.createKeyedBundle(key, output);
   }
 
   /**
@@ -364,6 +372,11 @@ class EvaluationContext {
     return mergedAggregators;
   }
 
+  /** Returns the metrics container for this pipeline. */
+  public DirectMetrics getMetrics() {
+    return metrics;
+  }
+
   @VisibleForTesting
   void forceRefresh() {
     watermarkManager.refreshAll();
@@ -432,5 +445,9 @@ class EvaluationContext {
 
   public Instant now() {
     return clock.now();
+  }
+
+  Clock getClock() {
+    return clock;
   }
 }

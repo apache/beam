@@ -17,6 +17,9 @@
  */
 package org.apache.beam.examples.cookbook;
 
+import com.google.api.services.bigquery.model.TableRow;
+import java.util.Arrays;
+import java.util.List;
 import org.apache.beam.examples.cookbook.JoinExamples.ExtractCountryInfoFn;
 import org.apache.beam.examples.cookbook.JoinExamples.ExtractEventDataFn;
 import org.apache.beam.sdk.Pipeline;
@@ -27,18 +30,12 @@ import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFnTester;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
-
-import com.google.api.services.bigquery.model.TableRow;
-
 import org.hamcrest.CoreMatchers;
 import org.junit.Assert;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-
-import java.util.Arrays;
-import java.util.List;
 
 /** Unit tests for {@link JoinExamples}. */
 @RunWith(JUnit4.class)

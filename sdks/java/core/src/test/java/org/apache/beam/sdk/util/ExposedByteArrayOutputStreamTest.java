@@ -22,12 +22,11 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotSame;
 import static org.junit.Assert.assertSame;
 
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
 
 /** Unit tests for {@link ExposedByteArrayOutputStream}. */
 @RunWith(JUnit4.class)

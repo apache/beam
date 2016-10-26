@@ -22,6 +22,16 @@ import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertThat;
 
+import com.google.common.collect.Iterables;
+import com.google.common.collect.Lists;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+import java.io.IOException;
+import java.io.Serializable;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Map;
+import java.util.NoSuchElementException;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
@@ -49,6 +59,7 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.transforms.windowing.Never;
+import org.apache.beam.sdk.transforms.windowing.PaneInfo.Timing;
 import org.apache.beam.sdk.transforms.windowing.Trigger;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.transforms.windowing.Window.ClosingBehavior;
@@ -62,23 +73,9 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PDone;
-
-import com.google.common.collect.Iterables;
-import com.google.common.collect.Lists;
-
 import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.io.IOException;
-import java.io.Serializable;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Map;
-import java.util.NoSuchElementException;
-
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 
 /**
  * An assertion on the contents of a {@link PCollection} incorporated into the pipeline. Such an
@@ -174,6 +171,13 @@ public class PAssert {
      * specified window.
      */
     IterableAssert<T> inCombinedNonLatePanes(BoundedWindow window);
+
+    /**
+     * Creates a new {@link IterableAssert} like this one, but with the assertion restricted to only
+     * run on panes in the {@link GlobalWindow} that were emitted before the {@link GlobalWindow}
+     * closed. These panes have {@link Timing#EARLY}.
+     */
+    IterableAssert<T> inEarlyGlobalWindowPanes();
 
     /**
      * Asserts that the iterable in question contains the provided elements.
@@ -349,7 +353,7 @@ public class PAssert {
     private final SimpleFunction<Iterable<WindowedValue<T>>, Iterable<T>> paneExtractor;
 
     public PCollectionContentsAssert(PCollection<T> actual) {
-      this(actual, IntoGlobalWindow.<T>of(), PaneExtractors.<T>onlyPane());
+      this(actual, IntoGlobalWindow.<T>of(), PaneExtractors.<T>allPanes());
     }
 
     public PCollectionContentsAssert(
@@ -379,6 +383,11 @@ public class PAssert {
     @Override
     public PCollectionContentsAssert<T> inCombinedNonLatePanes(BoundedWindow window) {
       return withPane(window, PaneExtractors.<T>nonLatePanes());
+    }
+
+    @Override
+    public IterableAssert<T> inEarlyGlobalWindowPanes() {
+      return withPane(GlobalWindow.INSTANCE, PaneExtractors.<T>earlyPanes());
     }
 
     private PCollectionContentsAssert<T> withPane(
@@ -555,6 +564,11 @@ public class PAssert {
     @Override
     public PCollectionSingletonIterableAssert<T> inCombinedNonLatePanes(BoundedWindow window) {
       return withPanes(window, PaneExtractors.<Iterable<T>>nonLatePanes());
+    }
+
+    @Override
+    public IterableAssert<T> inEarlyGlobalWindowPanes() {
+      return withPanes(GlobalWindow.INSTANCE, PaneExtractors.<Iterable<T>>earlyPanes());
     }
 
     private PCollectionSingletonIterableAssert<T> withPanes(
@@ -1048,14 +1062,7 @@ public class PAssert {
 
     @ProcessElement
     public void processElement(ProcessContext c) {
-      try {
-        doChecks(c.element(), checkerFn, success, failure);
-      } catch (Throwable t) {
-        // Suppress exception in streaming
-        if (!c.getPipelineOptions().as(StreamingOptions.class).isStreaming()) {
-          throw t;
-        }
-      }
+      doChecks(c.element(), checkerFn, success, failure);
     }
   }
 
@@ -1080,15 +1087,8 @@ public class PAssert {
 
     @ProcessElement
     public void processElement(ProcessContext c) {
-      try {
-        ActualT actualContents = Iterables.getOnlyElement(c.element());
-        doChecks(actualContents, checkerFn, success, failure);
-      } catch (Throwable t) {
-        // Suppress exception in streaming
-        if (!c.getPipelineOptions().as(StreamingOptions.class).isStreaming()) {
-          throw t;
-        }
-      }
+      ActualT actualContents = Iterables.getOnlyElement(c.element());
+      doChecks(actualContents, checkerFn, success, failure);
     }
   }
 
@@ -1181,8 +1181,8 @@ public class PAssert {
    * {@code assertFor(Expected)} which returns a {@code SerializableFunction<Actual, Void>} that
    * should verify the assertion..
    */
-  private static interface AssertRelation<ActualT, ExpectedT> extends Serializable {
-    public SerializableFunction<ActualT, Void> assertFor(ExpectedT input);
+  private interface AssertRelation<ActualT, ExpectedT> extends Serializable {
+    SerializableFunction<ActualT, Void> assertFor(ExpectedT input);
   }
 
   /**

@@ -17,20 +17,18 @@
  */
 package org.apache.beam.sdk.io.gcp.bigtable;
 
-import org.apache.beam.sdk.io.gcp.bigtable.BigtableIO.BigtableSource;
-import org.apache.beam.sdk.values.KV;
-
 import com.google.bigtable.v2.MutateRowResponse;
 import com.google.bigtable.v2.Mutation;
 import com.google.bigtable.v2.Row;
 import com.google.bigtable.v2.SampleRowKeysResponse;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.protobuf.ByteString;
-
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.List;
 import java.util.NoSuchElementException;
+import org.apache.beam.sdk.io.gcp.bigtable.BigtableIO.BigtableSource;
+import org.apache.beam.sdk.values.KV;
 
 /**
  * An interface for real or fake implementations of Cloud Bigtable.
@@ -52,9 +50,16 @@ interface BigtableService extends Serializable {
         throws IOException;
 
     /**
-     * Closes the writer.
+     * Flushes the writer.
      *
      * @throws IOException if any writes did not succeed
+     */
+    void flush() throws IOException;
+
+    /**
+     * Closes the writer.
+     *
+     * @throws IOException if there is an error closing the writer
      */
     void close() throws IOException;
   }

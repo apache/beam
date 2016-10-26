@@ -19,9 +19,6 @@ package org.apache.beam.runners.dataflow.util;
 
 import static org.apache.beam.runners.dataflow.util.TimeUtil.fromCloudTime;
 
-import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
-import org.apache.beam.sdk.PipelineResult.State;
-
 import com.google.api.services.dataflow.Dataflow;
 import com.google.api.services.dataflow.Dataflow.Projects.Jobs.Messages;
 import com.google.api.services.dataflow.model.JobMessage;
@@ -29,11 +26,6 @@ import com.google.api.services.dataflow.model.ListJobMessagesResponse;
 import com.google.common.base.MoreObjects;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableMap;
-
-import org.joda.time.Instant;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
@@ -42,15 +34,19 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
-
 import javax.annotation.Nullable;
+import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
+import org.apache.beam.sdk.PipelineResult.State;
+import org.joda.time.Instant;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * A helper class for monitoring jobs submitted to the service.
  */
 public final class MonitoringUtil {
 
-  private static final String GCLOUD_DATAFLOW_PREFIX = "gcloud alpha dataflow";
+  private static final String GCLOUD_DATAFLOW_PREFIX = "gcloud beta dataflow";
   private static final String ENDPOINT_OVERRIDE_ENV_VAR =
       "CLOUDSDK_API_ENDPOINT_OVERRIDES_DATAFLOW";
 

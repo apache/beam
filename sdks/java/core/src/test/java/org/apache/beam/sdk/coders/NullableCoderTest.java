@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.coders;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.theInstance;
 import static org.junit.Assert.assertEquals;
@@ -24,20 +25,21 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
-import org.apache.beam.sdk.testing.CoderProperties;
-
 import com.google.common.collect.ImmutableList;
-
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
+import org.apache.beam.sdk.coders.Coder.Context;
+import org.apache.beam.sdk.testing.CoderProperties;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-
-import java.io.ByteArrayInputStream;
-import java.io.InputStream;
-import java.util.Arrays;
-import java.util.List;
 
 /** Unit tests for {@link NullableCoder}. */
 @RunWith(JUnit4.class)
@@ -79,14 +81,15 @@ public class NullableCoderTest {
    * @see org.apache.beam.sdk.coders.PrintBase64Encodings
    */
   private static final List<String> TEST_ENCODINGS = Arrays.asList(
-      "AQA",
-      "AQFh",
-      "AQIxMw",
-      "AQVoZWxsbw",
+      "AQ",
+      "AWE",
+      "ATEz",
+      "AWhlbGxv",
       "AA",
-      "AShhIGxvbmdlciBzdHJpbmcgd2l0aCBzcGFjZXMgYW5kIGFsbCB0aGF0",
-      "ARlhIHN0cmluZyB3aXRoIGEgCiBuZXdsaW5l",
-      "AQ_jgrnjgr_jg6rjg7PjgrA");
+      "AWEgbG9uZ2VyIHN0cmluZyB3aXRoIHNwYWNlcyBhbmQgYWxsIHRoYXQ",
+      "AWEgc3RyaW5nIHdpdGggYSAKIG5ld2xpbmU",
+      "AeOCueOCv-ODquODs-OCsA"
+  );
 
   @Test
   public void testWireFormatEncode() throws Exception {
@@ -98,6 +101,17 @@ public class NullableCoderTest {
     NullableCoder<Double> coder = NullableCoder.of(DoubleCoder.of());
     assertEquals(1, coder.getEncodedElementByteSize(null, Coder.Context.OUTER));
     assertEquals(9, coder.getEncodedElementByteSize(5.0, Coder.Context.OUTER));
+  }
+
+  @Test
+  public void testEncodedSizeNested() throws Exception {
+    NullableCoder<String> varLenCoder = NullableCoder.of(StringUtf8Coder.of());
+
+    assertEquals(1, varLenCoder.getEncodedElementByteSize(null, Context.OUTER));
+    assertEquals(1, varLenCoder.getEncodedElementByteSize(null, Context.NESTED));
+
+    assertEquals(5, varLenCoder.getEncodedElementByteSize("spam", Context.OUTER));
+    assertEquals(6, varLenCoder.getEncodedElementByteSize("spam", Context.NESTED));
   }
 
   @Test
@@ -138,8 +152,37 @@ public class NullableCoderTest {
   }
 
   @Test
+  public void testSubcoderRecievesEntireStream() throws Exception {
+    NullableCoder<String> coder = NullableCoder.of(new EntireStreamExpectingCoder());
+
+    CoderProperties.coderDecodeEncodeEqualInContext(coder, Context.OUTER, null);
+    CoderProperties.coderDecodeEncodeEqualInContext(coder, Context.OUTER, "foo");
+  }
+
+  @Test
   public void testNestedNullableCoder() {
     NullableCoder<Double> coder = NullableCoder.of(DoubleCoder.of());
     assertThat(NullableCoder.of(coder), theInstance(coder));
+  }
+
+  private static class EntireStreamExpectingCoder extends DeterministicStandardCoder<String> {
+    @Override
+    public void encode(
+        String value, OutputStream outStream, Context context) throws IOException {
+      checkArgument(context.isWholeStream, "Expected to get entire stream");
+      StringUtf8Coder.of().encode(value, outStream, context);
+    }
+
+    @Override
+    public String decode(InputStream inStream, Context context)
+        throws CoderException, IOException {
+      checkArgument(context.isWholeStream, "Expected to get entire stream");
+      return StringUtf8Coder.of().decode(inStream, context);
+    }
+
+    @Override
+    public List<? extends Coder<?>> getCoderArguments() {
+      return Collections.emptyList();
+    }
   }
 }

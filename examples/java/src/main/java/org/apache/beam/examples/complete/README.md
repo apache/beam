@@ -43,14 +43,14 @@ This directory contains end-to-end example pipelines that perform complex data p
   <code>Windowing</code> to perform time-based aggregations of data.
   </li>
   <li><a href="https://github.com/GoogleCloudPlatform/DataflowJavaSDK/blob/master/examples/src/main/java/com/google/cloud/dataflow/examples/complete/TrafficMaxLaneFlow.java">TrafficMaxLaneFlow</a>
-  &mdash; A streaming Cloud Dataflow example using BigQuery output in the
+  &mdash; A streaming Beam Example using BigQuery output in the
   <code>traffic sensor</code> domain. Demonstrates the Cloud Dataflow streaming
   runner, sliding windows, Cloud Pub/Sub topic ingestion, the use of the
   <code>AvroCoder</code> to encode a custom class, and custom
   <code>Combine</code> transforms.
   </li>
   <li><a href="https://github.com/GoogleCloudPlatform/DataflowJavaSDK/blob/master/examples/src/main/java/com/google/cloud/dataflow/examples/complete/TrafficRoutes.java">TrafficRoutes</a>
-  &mdash; A streaming Cloud Dataflow example using BigQuery output in the
+  &mdash; A streaming Beam Example using BigQuery output in the
   <code>traffic sensor</code> domain. Demonstrates the Cloud Dataflow streaming
   runner, <code>GroupByKey</code>, keyed state, sliding windows, and Cloud
   Pub/Sub topic ingestion.

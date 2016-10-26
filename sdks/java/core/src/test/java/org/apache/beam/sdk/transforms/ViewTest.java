@@ -18,13 +18,25 @@
 package org.apache.beam.sdk.transforms;
 
 import static com.google.common.base.Preconditions.checkArgument;
-
+import static org.apache.beam.sdk.values.KV.of;
 import static org.hamcrest.Matchers.isA;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
+import com.google.common.collect.ImmutableList;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.io.Serializable;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
+import java.util.NoSuchElementException;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.Pipeline.PipelineExecutionException;
 import org.apache.beam.sdk.coders.Coder;
@@ -50,9 +62,6 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TypeDescriptor;
-
-import com.google.common.collect.ImmutableList;
-
 import org.hamcrest.Matchers;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -63,18 +72,6 @@ import org.junit.internal.matchers.ThrowableMessageMatcher;
 import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.io.Serializable;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.Map.Entry;
-import java.util.NoSuchElementException;
 
 /**
  * Tests for {@link View}. See also {@link ParDoTest}, which
@@ -100,8 +97,8 @@ public class ViewTest implements Serializable {
     PCollection<Integer> output =
         pipeline.apply("Create123", Create.of(1, 2, 3))
             .apply("OutputSideInputs",
-                ParDo.withSideInputs(view).of(new OldDoFn<Integer, Integer>() {
-                  @Override
+                ParDo.withSideInputs(view).of(new DoFn<Integer, Integer>() {
+                  @ProcessElement
                   public void processElement(ProcessContext c) {
                     c.output(c.sideInput(view));
                   }
@@ -131,8 +128,8 @@ public class ViewTest implements Serializable {
             TimestampedValue.of(3, new Instant(12))))
             .apply("MainWindowInto", Window.<Integer>into(FixedWindows.of(Duration.millis(10))))
             .apply("OutputSideInputs",
-                ParDo.withSideInputs(view).of(new OldDoFn<Integer, Integer>() {
-                  @Override
+                ParDo.withSideInputs(view).of(new DoFn<Integer, Integer>() {
+                  @ProcessElement
                   public void processElement(ProcessContext c) {
                     c.output(c.sideInput(view));
                   }
@@ -153,8 +150,8 @@ public class ViewTest implements Serializable {
             .apply(View.<Integer>asSingleton());
 
     pipeline.apply("Create123", Create.of(1, 2, 3))
-        .apply("OutputSideInputs", ParDo.withSideInputs(view).of(new OldDoFn<Integer, Integer>() {
-          @Override
+        .apply("OutputSideInputs", ParDo.withSideInputs(view).of(new DoFn<Integer, Integer>() {
+          @ProcessElement
           public void processElement(ProcessContext c) {
             c.output(c.sideInput(view));
           }
@@ -178,8 +175,8 @@ public class ViewTest implements Serializable {
     final PCollectionView<Integer> view = oneTwoThree.apply(View.<Integer>asSingleton());
 
     oneTwoThree.apply(
-        "OutputSideInputs", ParDo.withSideInputs(view).of(new OldDoFn<Integer, Integer>() {
-          @Override
+        "OutputSideInputs", ParDo.withSideInputs(view).of(new DoFn<Integer, Integer>() {
+          @ProcessElement
           public void processElement(ProcessContext c) {
             c.output(c.sideInput(view));
           }
@@ -205,8 +202,8 @@ public class ViewTest implements Serializable {
     PCollection<Integer> output =
         pipeline.apply("CreateMainInput", Create.of(29, 31))
             .apply("OutputSideInputs",
-                ParDo.withSideInputs(view).of(new OldDoFn<Integer, Integer>() {
-                  @Override
+                ParDo.withSideInputs(view).of(new DoFn<Integer, Integer>() {
+                  @ProcessElement
                   public void processElement(ProcessContext c) {
                     checkArgument(c.sideInput(view).size() == 4);
                     checkArgument(c.sideInput(view).get(0) == c.sideInput(view).get(0));
@@ -246,8 +243,8 @@ public class ViewTest implements Serializable {
             .apply("MainWindowInto", Window.<Integer>into(FixedWindows.of(Duration.millis(10))))
             .apply(
                 "OutputSideInputs",
-                ParDo.withSideInputs(view).of(new OldDoFn<Integer, Integer>() {
-                  @Override
+                ParDo.withSideInputs(view).of(new DoFn<Integer, Integer>() {
+                  @ProcessElement
                   public void processElement(ProcessContext c) {
                     checkArgument(c.sideInput(view).size() == 4);
                     checkArgument(c.sideInput(view).get(0) == c.sideInput(view).get(0));
@@ -274,8 +271,8 @@ public class ViewTest implements Serializable {
     PCollection<Integer> results =
         pipeline.apply("Create1", Create.of(1))
             .apply("OutputSideInputs",
-                ParDo.withSideInputs(view).of(new OldDoFn<Integer, Integer>() {
-                  @Override
+                ParDo.withSideInputs(view).of(new DoFn<Integer, Integer>() {
+                  @ProcessElement
                   public void processElement(ProcessContext c) {
                     assertTrue(c.sideInput(view).isEmpty());
                     assertFalse(c.sideInput(view).iterator().hasNext());
@@ -283,7 +280,7 @@ public class ViewTest implements Serializable {
                   }
                 }));
 
-    // Pass at least one value through to guarantee that OldDoFn executes.
+    // Pass at least one value through to guarantee that DoFn executes.
     PAssert.that(results).containsInAnyOrder(1);
 
     pipeline.run();
@@ -300,8 +297,8 @@ public class ViewTest implements Serializable {
     PCollection<Integer> output =
         pipeline.apply("CreateMainInput", Create.of(29))
             .apply("OutputSideInputs",
-                ParDo.withSideInputs(view).of(new OldDoFn<Integer, Integer>() {
-                  @Override
+                ParDo.withSideInputs(view).of(new DoFn<Integer, Integer>() {
+                  @ProcessElement
                   public void processElement(ProcessContext c) {
                     try {
                       c.sideInput(view).clear();
@@ -329,7 +326,7 @@ public class ViewTest implements Serializable {
                   }
                 }));
 
-    // Pass at least one value through to guarantee that OldDoFn executes.
+    // Pass at least one value through to guarantee that DoFn executes.
     PAssert.that(output).containsInAnyOrder(11);
 
     pipeline.run();
@@ -347,8 +344,8 @@ public class ViewTest implements Serializable {
     PCollection<Integer> output =
         pipeline.apply("CreateMainInput", Create.of(29, 31))
             .apply("OutputSideInputs",
-                ParDo.withSideInputs(view).of(new OldDoFn<Integer, Integer>() {
-                  @Override
+                ParDo.withSideInputs(view).of(new DoFn<Integer, Integer>() {
+                  @ProcessElement
                   public void processElement(ProcessContext c) {
                     for (Integer i : c.sideInput(view)) {
                       c.output(i);
@@ -387,8 +384,8 @@ public class ViewTest implements Serializable {
                     TimestampedValue.of(35, new Instant(11))))
             .apply("MainWindowInto", Window.<Integer>into(FixedWindows.of(Duration.millis(10))))
             .apply("OutputSideInputs",
-                ParDo.withSideInputs(view).of(new OldDoFn<Integer, Integer>() {
-                  @Override
+                ParDo.withSideInputs(view).of(new DoFn<Integer, Integer>() {
+                  @ProcessElement
                   public void processElement(ProcessContext c) {
                     for (Integer i : c.sideInput(view)) {
                       c.output(i);
@@ -413,15 +410,15 @@ public class ViewTest implements Serializable {
     PCollection<Integer> results =
         pipeline.apply("Create1", Create.of(1))
             .apply("OutputSideInputs",
-                ParDo.withSideInputs(view).of(new OldDoFn<Integer, Integer>() {
-                  @Override
+                ParDo.withSideInputs(view).of(new DoFn<Integer, Integer>() {
+                  @ProcessElement
                   public void processElement(ProcessContext c) {
                     assertFalse(c.sideInput(view).iterator().hasNext());
                     c.output(1);
                   }
                 }));
 
-    // Pass at least one value through to guarantee that OldDoFn executes.
+    // Pass at least one value through to guarantee that DoFn executes.
     PAssert.that(results).containsInAnyOrder(1);
 
     pipeline.run();
@@ -438,8 +435,8 @@ public class ViewTest implements Serializable {
     PCollection<Integer> output =
         pipeline.apply("CreateMainInput", Create.of(29))
             .apply("OutputSideInputs",
-                ParDo.withSideInputs(view).of(new OldDoFn<Integer, Integer>() {
-                  @Override
+                ParDo.withSideInputs(view).of(new DoFn<Integer, Integer>() {
+                  @ProcessElement
                   public void processElement(ProcessContext c) {
                     Iterator<Integer> iterator = c.sideInput(view).iterator();
                     while (iterator.hasNext()) {
@@ -453,7 +450,7 @@ public class ViewTest implements Serializable {
                   }
                 }));
 
-    // Pass at least one value through to guarantee that OldDoFn executes.
+    // Pass at least one value through to guarantee that DoFn executes.
     PAssert.that(output).containsInAnyOrder(11);
 
     pipeline.run();
@@ -472,11 +469,11 @@ public class ViewTest implements Serializable {
         pipeline.apply("CreateMainInput", Create.of("apple", "banana", "blackberry"))
             .apply(
                 "OutputSideInputs",
-                ParDo.withSideInputs(view).of(new OldDoFn<String, KV<String, Integer>>() {
-                  @Override
+                ParDo.withSideInputs(view).of(new DoFn<String, KV<String, Integer>>() {
+                  @ProcessElement
                   public void processElement(ProcessContext c) {
                     for (Integer v : c.sideInput(view).get(c.element().substring(0, 1))) {
-                      c.output(KV.of(c.element(), v));
+                      c.output(of(c.element(), v));
                     }
                   }
                 }));
@@ -500,8 +497,8 @@ public class ViewTest implements Serializable {
         pipeline.apply("CreateMainInput", Create.of(2 /* size */))
             .apply(
                 "OutputSideInputs",
-                ParDo.withSideInputs(view).of(new OldDoFn<Integer, KV<String, Integer>>() {
-                  @Override
+                ParDo.withSideInputs(view).of(new DoFn<Integer, KV<String, Integer>>() {
+                  @ProcessElement
                   public void processElement(ProcessContext c) {
                     assertEquals((int) c.element(), c.sideInput(view).size());
                     assertEquals((int) c.element(), c.sideInput(view).entrySet().size());
@@ -554,11 +551,11 @@ public class ViewTest implements Serializable {
         pipeline.apply("CreateMainInput", Create.of("apple", "banana", "blackberry"))
             .apply(
                 "OutputSideInputs",
-                ParDo.withSideInputs(view).of(new OldDoFn<String, KV<String, Integer>>() {
-                  @Override
+                ParDo.withSideInputs(view).of(new DoFn<String, KV<String, Integer>>() {
+                  @ProcessElement
                   public void processElement(ProcessContext c) {
                     for (Integer v : c.sideInput(view).get(c.element().substring(0, 1))) {
-                      c.output(KV.of(c.element(), v));
+                      c.output(of(c.element(), v));
                     }
                   }
                 }));
@@ -591,13 +588,13 @@ public class ViewTest implements Serializable {
                                               TimestampedValue.of("blackberry", new Instant(16))))
             .apply("MainWindowInto", Window.<String>into(FixedWindows.of(Duration.millis(10))))
             .apply("OutputSideInputs", ParDo.withSideInputs(view).of(
-                                           new OldDoFn<String, KV<String, Integer>>() {
-                                             @Override
+                                           new DoFn<String, KV<String, Integer>>() {
+                                             @ProcessElement
                                              public void processElement(ProcessContext c) {
                                                for (Integer v :
                                                    c.sideInput(view)
                                                        .get(c.element().substring(0, 1))) {
-                                                 c.output(KV.of(c.element(), v));
+                                                 c.output(of(c.element(), v));
                                                }
                                              }
                                            }));
@@ -629,8 +626,8 @@ public class ViewTest implements Serializable {
                                               TimestampedValue.of(1 /* size */, new Instant(16))))
             .apply("MainWindowInto", Window.<Integer>into(FixedWindows.of(Duration.millis(10))))
             .apply("OutputSideInputs", ParDo.withSideInputs(view).of(
-                                           new OldDoFn<Integer, KV<String, Integer>>() {
-                                             @Override
+                                           new DoFn<Integer, KV<String, Integer>>() {
+                                             @ProcessElement
                                              public void processElement(ProcessContext c) {
                                                assertEquals((int) c.element(),
                                                    c.sideInput(view).size());
@@ -674,13 +671,13 @@ public class ViewTest implements Serializable {
                                               TimestampedValue.of("blackberry", new Instant(16))))
             .apply("MainWindowInto", Window.<String>into(FixedWindows.of(Duration.millis(10))))
             .apply("OutputSideInputs", ParDo.withSideInputs(view).of(
-                                           new OldDoFn<String, KV<String, Integer>>() {
-                                             @Override
+                                           new DoFn<String, KV<String, Integer>>() {
+                                             @ProcessElement
                                              public void processElement(ProcessContext c) {
                                                for (Integer v :
                                                    c.sideInput(view)
                                                        .get(c.element().substring(0, 1))) {
-                                                 c.output(KV.of(c.element(), v));
+                                                 c.output(of(c.element(), v));
                                                }
                                              }
                                            }));
@@ -704,8 +701,8 @@ public class ViewTest implements Serializable {
     PCollection<Integer> results =
         pipeline.apply("Create1", Create.of(1))
             .apply("OutputSideInputs",
-                ParDo.withSideInputs(view).of(new OldDoFn<Integer, Integer>() {
-                  @Override
+                ParDo.withSideInputs(view).of(new DoFn<Integer, Integer>() {
+                  @ProcessElement
                   public void processElement(ProcessContext c) {
                     assertTrue(c.sideInput(view).isEmpty());
                     assertTrue(c.sideInput(view).entrySet().isEmpty());
@@ -714,7 +711,7 @@ public class ViewTest implements Serializable {
                   }
                 }));
 
-    // Pass at least one value through to guarantee that OldDoFn executes.
+    // Pass at least one value through to guarantee that DoFn executes.
     PAssert.that(results).containsInAnyOrder(1);
 
     pipeline.run();
@@ -734,8 +731,8 @@ public class ViewTest implements Serializable {
     PCollection<Integer> results =
         pipeline.apply("Create1", Create.of(1))
             .apply("OutputSideInputs",
-                ParDo.withSideInputs(view).of(new OldDoFn<Integer, Integer>() {
-                  @Override
+                ParDo.withSideInputs(view).of(new DoFn<Integer, Integer>() {
+                  @ProcessElement
                   public void processElement(ProcessContext c) {
                     assertTrue(c.sideInput(view).isEmpty());
                     assertTrue(c.sideInput(view).entrySet().isEmpty());
@@ -744,7 +741,7 @@ public class ViewTest implements Serializable {
                   }
                 }));
 
-    // Pass at least one value through to guarantee that OldDoFn executes.
+    // Pass at least one value through to guarantee that DoFn executes.
     PAssert.that(results).containsInAnyOrder(1);
 
     pipeline.run();
@@ -763,8 +760,8 @@ public class ViewTest implements Serializable {
         pipeline.apply("CreateMainInput", Create.of("apple"))
             .apply(
                 "OutputSideInputs",
-                ParDo.withSideInputs(view).of(new OldDoFn<String, KV<String, Integer>>() {
-                  @Override
+                ParDo.withSideInputs(view).of(new DoFn<String, KV<String, Integer>>() {
+                  @ProcessElement
                   public void processElement(ProcessContext c) {
                     try {
                       c.sideInput(view).clear();
@@ -792,7 +789,7 @@ public class ViewTest implements Serializable {
                   }
                 }));
 
-    // Pass at least one value through to guarantee that OldDoFn executes.
+    // Pass at least one value through to guarantee that DoFn executes.
     PAssert.that(output).containsInAnyOrder(KV.of("apple", 1));
 
     pipeline.run();
@@ -811,11 +808,11 @@ public class ViewTest implements Serializable {
         pipeline.apply("CreateMainInput", Create.of("apple", "banana", "blackberry"))
             .apply(
                 "OutputSideInputs",
-                ParDo.withSideInputs(view).of(new OldDoFn<String, KV<String, Integer>>() {
-                  @Override
+                ParDo.withSideInputs(view).of(new DoFn<String, KV<String, Integer>>() {
+                  @ProcessElement
                   public void processElement(ProcessContext c) {
                     c.output(
-                        KV.of(c.element(), c.sideInput(view).get(c.element().substring(0, 1))));
+                        of(c.element(), c.sideInput(view).get(c.element().substring(0, 1))));
                   }
                 }));
 
@@ -838,8 +835,8 @@ public class ViewTest implements Serializable {
         pipeline.apply("CreateMainInput", Create.of(2 /* size */))
             .apply(
                 "OutputSideInputs",
-                ParDo.withSideInputs(view).of(new OldDoFn<Integer, KV<String, Integer>>() {
-                  @Override
+                ParDo.withSideInputs(view).of(new DoFn<Integer, KV<String, Integer>>() {
+                  @ProcessElement
                   public void processElement(ProcessContext c) {
                     assertEquals((int) c.element(), c.sideInput(view).size());
                     assertEquals((int) c.element(), c.sideInput(view).entrySet().size());
@@ -870,11 +867,11 @@ public class ViewTest implements Serializable {
         pipeline.apply("CreateMainInput", Create.of("apple", "banana", "blackberry"))
             .apply(
                 "OutputSideInputs",
-                ParDo.withSideInputs(view).of(new OldDoFn<String, KV<String, Integer>>() {
-                  @Override
+                ParDo.withSideInputs(view).of(new DoFn<String, KV<String, Integer>>() {
+                  @ProcessElement
                   public void processElement(ProcessContext c) {
                     c.output(
-                        KV.of(c.element(), c.sideInput(view).get(c.element().substring(0, 1))));
+                        of(c.element(), c.sideInput(view).get(c.element().substring(0, 1))));
                   }
                 }));
 
@@ -906,8 +903,8 @@ public class ViewTest implements Serializable {
                                               TimestampedValue.of("blackberry", new Instant(16))))
             .apply("MainWindowInto", Window.<String>into(FixedWindows.of(Duration.millis(10))))
             .apply("OutputSideInputs", ParDo.withSideInputs(view).of(
-                                           new OldDoFn<String, KV<String, Integer>>() {
-                                             @Override
+                                           new DoFn<String, KV<String, Integer>>() {
+                                             @ProcessElement
                                              public void processElement(ProcessContext c) {
                                                c.output(KV.of(
                                                    c.element(),
@@ -943,8 +940,8 @@ public class ViewTest implements Serializable {
                                               TimestampedValue.of(1 /* size */, new Instant(16))))
             .apply("MainWindowInto", Window.<Integer>into(FixedWindows.of(Duration.millis(10))))
             .apply("OutputSideInputs", ParDo.withSideInputs(view).of(
-                                           new OldDoFn<Integer, KV<String, Integer>>() {
-                                             @Override
+                                           new DoFn<Integer, KV<String, Integer>>() {
+                                             @ProcessElement
                                              public void processElement(ProcessContext c) {
                                                assertEquals((int) c.element(),
                                                    c.sideInput(view).size());
@@ -988,10 +985,10 @@ public class ViewTest implements Serializable {
                                               TimestampedValue.of("blackberry", new Instant(16))))
             .apply("MainWindowInto", Window.<String>into(FixedWindows.of(Duration.millis(10))))
             .apply("OutputSideInputs", ParDo.withSideInputs(view).of(
-                                           new OldDoFn<String, KV<String, Integer>>() {
-                                             @Override
+                                           new DoFn<String, KV<String, Integer>>() {
+                                             @ProcessElement
                                              public void processElement(ProcessContext c) {
-                                               c.output(KV.of(
+                                               c.output(of(
                                                    c.element(),
                                                    c.sideInput(view).get(
                                                        c.element().substring(0, 1))));
@@ -1017,8 +1014,8 @@ public class ViewTest implements Serializable {
     PCollection<Integer> results =
         pipeline.apply("Create1", Create.of(1))
             .apply("OutputSideInputs",
-                ParDo.withSideInputs(view).of(new OldDoFn<Integer, Integer>() {
-                  @Override
+                ParDo.withSideInputs(view).of(new DoFn<Integer, Integer>() {
+                  @ProcessElement
                   public void processElement(ProcessContext c) {
                     assertTrue(c.sideInput(view).isEmpty());
                     assertTrue(c.sideInput(view).entrySet().isEmpty());
@@ -1027,7 +1024,7 @@ public class ViewTest implements Serializable {
                   }
                 }));
 
-    // Pass at least one value through to guarantee that OldDoFn executes.
+    // Pass at least one value through to guarantee that DoFn executes.
     PAssert.that(results).containsInAnyOrder(1);
 
     pipeline.run();
@@ -1046,8 +1043,8 @@ public class ViewTest implements Serializable {
     PCollection<Integer> results =
         pipeline.apply("Create1", Create.of(1))
             .apply("OutputSideInputs",
-                ParDo.withSideInputs(view).of(new OldDoFn<Integer, Integer>() {
-                  @Override
+                ParDo.withSideInputs(view).of(new DoFn<Integer, Integer>() {
+                  @ProcessElement
                   public void processElement(ProcessContext c) {
                     assertTrue(c.sideInput(view).isEmpty());
                     assertTrue(c.sideInput(view).entrySet().isEmpty());
@@ -1056,7 +1053,7 @@ public class ViewTest implements Serializable {
                   }
                 }));
 
-    // Pass at least one value through to guarantee that OldDoFn executes.
+    // Pass at least one value through to guarantee that DoFn executes.
     PAssert.that(results).containsInAnyOrder(1);
 
     pipeline.run();
@@ -1080,8 +1077,8 @@ public class ViewTest implements Serializable {
         pipeline.apply("CreateMainInput", Create.of("apple", "banana", "blackberry"))
             .apply(
                 "OutputSideInputs",
-                ParDo.withSideInputs(view).of(new OldDoFn<String, KV<String, Integer>>() {
-                  @Override
+                ParDo.withSideInputs(view).of(new DoFn<String, KV<String, Integer>>() {
+                  @ProcessElement
                   public void processElement(ProcessContext c) {
                     c.output(
                         KV.of(c.element(), c.sideInput(view).get(c.element().substring(0, 1))));
@@ -1111,8 +1108,8 @@ public class ViewTest implements Serializable {
         pipeline.apply("CreateMainInput", Create.of("apple"))
             .apply(
                 "OutputSideInputs",
-                ParDo.withSideInputs(view).of(new OldDoFn<String, KV<String, Integer>>() {
-                  @Override
+                ParDo.withSideInputs(view).of(new DoFn<String, KV<String, Integer>>() {
+                  @ProcessElement
                   public void processElement(ProcessContext c) {
                     try {
                       c.sideInput(view).clear();
@@ -1139,7 +1136,7 @@ public class ViewTest implements Serializable {
                   }
                 }));
 
-    // Pass at least one value through to guarantee that OldDoFn executes.
+    // Pass at least one value through to guarantee that DoFn executes.
     PAssert.that(output).containsInAnyOrder(KV.of("apple", 1));
 
     pipeline.run();
@@ -1158,8 +1155,8 @@ public class ViewTest implements Serializable {
     PCollection<KV<String, Integer>> output =
         pipeline.apply("CreateMainInput", Create.of("apple", "banana", "blackberry"))
             .apply("Output",
-                ParDo.withSideInputs(view).of(new OldDoFn<String, KV<String, Integer>>() {
-                  @Override
+                ParDo.withSideInputs(view).of(new DoFn<String, KV<String, Integer>>() {
+                  @ProcessElement
                   public void processElement(ProcessContext c) {
                     c.output(KV
                         .of(c.element(), c.sideInput(view).get(c.element().substring(0, 1))));
@@ -1193,8 +1190,8 @@ public class ViewTest implements Serializable {
                                        TimestampedValue.of("C", new Instant(7))))
             .apply("WindowMainInput", Window.<String>into(FixedWindows.of(Duration.millis(10))))
             .apply("OutputMainAndSideInputs", ParDo.withSideInputs(view).of(
-                                                  new OldDoFn<String, String>() {
-                                                    @Override
+                                                  new DoFn<String, String>() {
+                                                    @ProcessElement
                                                     public void processElement(ProcessContext c) {
                                                       c.output(c.element() + c.sideInput(view));
                                                     }
@@ -1226,8 +1223,8 @@ public class ViewTest implements Serializable {
                                        TimestampedValue.of("C", new Instant(7))))
             .apply("WindowMainInput", Window.<String>into(FixedWindows.of(Duration.millis(10))))
             .apply("OutputMainAndSideInputs", ParDo.withSideInputs(view).of(
-                                                  new OldDoFn<String, String>() {
-                                                    @Override
+                                                  new DoFn<String, String>() {
+                                                    @ProcessElement
                                                     public void processElement(ProcessContext c) {
                                                       c.output(c.element() + c.sideInput(view));
                                                     }
@@ -1257,8 +1254,8 @@ public class ViewTest implements Serializable {
                                        TimestampedValue.of("C", new Instant(7))))
             .apply("WindowMainInput", Window.<String>into(FixedWindows.of(Duration.millis(10))))
             .apply("OutputMainAndSideInputs", ParDo.withSideInputs(view).of(
-                                                  new OldDoFn<String, String>() {
-                                                    @Override
+                                                  new DoFn<String, String>() {
+                                                    @ProcessElement
                                                     public void processElement(ProcessContext c) {
                                                       c.output(c.element() + c.sideInput(view));
                                                     }
@@ -1287,8 +1284,8 @@ public class ViewTest implements Serializable {
         p.apply("CreateMainInput", Create.of(""))
             .apply(
                 "OutputMainAndSideInputs",
-                ParDo.withSideInputs(view).of(new OldDoFn<String, String>() {
-                  @Override
+                ParDo.withSideInputs(view).of(new DoFn<String, String>() {
+                  @ProcessElement
                   public void processElement(ProcessContext c) {
                     c.output(c.element() + c.sideInput(view));
                   }
@@ -1305,8 +1302,8 @@ public class ViewTest implements Serializable {
     Pipeline pipeline = TestPipeline.create();
     final PCollectionView<Iterable<Integer>> view1 =
         pipeline.apply("CreateVoid1", Create.of((Void) null).withCoder(VoidCoder.of()))
-            .apply("OutputOneInteger", ParDo.of(new OldDoFn<Void, Integer>() {
-              @Override
+            .apply("OutputOneInteger", ParDo.of(new DoFn<Void, Integer>() {
+              @ProcessElement
               public void processElement(ProcessContext c) {
                 c.output(17);
               }
@@ -1317,8 +1314,8 @@ public class ViewTest implements Serializable {
         pipeline.apply("CreateVoid2", Create.of((Void) null).withCoder(VoidCoder.of()))
             .apply(
                 "OutputSideInput",
-                ParDo.withSideInputs(view1).of(new OldDoFn<Void, Iterable<Integer>>() {
-                  @Override
+                ParDo.withSideInputs(view1).of(new DoFn<Void, Iterable<Integer>>() {
+                  @ProcessElement
                   public void processElement(ProcessContext c) {
                     c.output(c.sideInput(view1));
                   }
@@ -1328,8 +1325,8 @@ public class ViewTest implements Serializable {
     PCollection<Integer> output =
         pipeline.apply("CreateVoid3", Create.of((Void) null).withCoder(VoidCoder.of()))
             .apply("ReadIterableSideInput",
-                ParDo.withSideInputs(view2).of(new OldDoFn<Void, Integer>() {
-                  @Override
+                ParDo.withSideInputs(view2).of(new DoFn<Void, Integer>() {
+                  @ProcessElement
                   public void processElement(ProcessContext c) {
                     for (Iterable<Integer> input : c.sideInput(view2)) {
                       for (Integer i : input) {

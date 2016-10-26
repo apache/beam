@@ -20,7 +20,6 @@ package org.apache.beam.sdk.options;
 import com.google.api.client.googleapis.services.AbstractGoogleClient;
 import com.google.api.client.googleapis.services.AbstractGoogleClientRequest;
 import com.google.api.client.googleapis.services.GoogleClientRequestInitializer;
-
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
@@ -55,7 +54,7 @@ public interface GoogleApiDebugOptions extends PipelineOptions {
   /**
    * A {@link GoogleClientRequestInitializer} that adds the trace destination to Google API calls.
    */
-  public static class GoogleApiTracer extends HashMap<String, String>
+  class GoogleApiTracer extends HashMap<String, String>
       implements GoogleClientRequestInitializer {
     /**
      * Creates a {@link GoogleApiTracer} that sets the trace destination on all

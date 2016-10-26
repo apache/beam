@@ -38,18 +38,6 @@
     <!--[BEAM-398] Possible double check of field-->
   </Match>
   <Match>
-    <Class name="org.apache.beam.sdk.coders.JAXBCoder"/>
-    <Field name="jaxbContext"/>
-    <Bug pattern="IS2_INCONSISTENT_SYNC"/>
-    <!--[BEAM-398] Inconsistent synchronization-->
-  </Match>
-  <Match>
-    <Class name="org.apache.beam.sdk.coders.StandardCoder"/>
-    <Method name="toString"/>
-    <Bug pattern="SBSC_USE_STRINGBUFFER_CONCATENATION"/>
-    <!--[BEAM-401] Method invokes inefficient new String(String) constructor-->
-  </Match>
-  <Match>
     <Class name="org.apache.beam.sdk.io.range.OffsetRangeTracker"/>
     <Field name="done"/>
     <Bug pattern="IS2_INCONSISTENT_SYNC"/>
@@ -116,25 +104,19 @@
     <!--[BEAM-412] Non-transient non-serializable instance field in serializable class-->
   </Match>
   <Match>
-    <Class name="org.apache.beam.sdk.util.BitSetCoder"/>
-    <Field name="byteArrayCoder"/>
-    <Bug pattern="SE_TRANSIENT_FIELD_NOT_RESTORED"/>
-    <!--[BEAM-418] Transient field that isn't set by deserialization. -->
-  </Match>
-  <Match>
     <Class name="org.apache.beam.sdk.util.CombineFnUtil$NonSerializableBoundedKeyedCombineFn"/>
     <Field name="context"/>
     <Bug pattern="SE_BAD_FIELD"/>
     <!--[BEAM-419] Non-transient non-serializable instance field in serializable class-->
   </Match>
   <Match>
-    <Class name="org.apache.beam.sdk.util.WatermarkHold"/>
+    <Class name="org.apache.beam.runners.core.WatermarkHold"/>
     <Field name="timerInternals"/>
     <Bug pattern="SE_BAD_FIELD"/>
     <!--[BEAM-420] Non-transient non-serializable instance field in serializable class-->
   </Match>
   <Match>
-    <Class name="org.apache.beam.sdk.util.state.StateTags$CombiningValueStateTag"/>
+    <Class name="org.apache.beam.sdk.util.state.StateSpecs$CombiningValueStateSpec"/>
     <Method name="equals"/>
     <Bug pattern="EQ_DOESNT_OVERRIDE_EQUALS"/>
     <!--[BEAM-421] Class doesn't override equals in superclass-->

@@ -17,9 +17,15 @@
  */
 package org.apache.beam.sdk.testing;
 
+import com.google.common.base.Function;
+import com.google.common.base.MoreObjects;
+import com.google.common.collect.Iterables;
+import com.google.common.collect.Lists;
+import java.util.List;
+import java.util.Objects;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.IterableCoder;
-import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.transforms.ViewFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
@@ -29,17 +35,8 @@ import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PValueBase;
 import org.apache.beam.sdk.values.TupleTag;
-
-import com.google.common.base.Function;
-import com.google.common.base.MoreObjects;
-import com.google.common.collect.Iterables;
-import com.google.common.collect.Lists;
-
 import org.joda.time.Duration;
 import org.joda.time.Instant;
-
-import java.util.List;
-import java.util.Objects;
 
 /**
  * Methods for creating and using {@link PCollectionView} instances.
@@ -83,16 +80,9 @@ public final class PCollectionViewTesting {
       DEFAULT_NONEMPTY_WINDOW.maxTimestamp().plus(DEFAULT_WINDOW_MSECS));
 
   /**
-   * A specialization of {@link SerializableFunction} just for putting together
-   * {@link PCollectionView} instances.
-   */
-  public static interface ViewFn<ElemT, ViewT>
-      extends SerializableFunction<Iterable<WindowedValue<ElemT>>, ViewT> { }
-
-  /**
    * A {@link ViewFn} that returns the provided contents as a fully lazy iterable.
    */
-  public static class IdentityViewFn<T> implements ViewFn<T, Iterable<T>> {
+  public static class IdentityViewFn<T> extends ViewFn<Iterable<WindowedValue<T>>, Iterable<T>> {
     @Override
     public Iterable<T> apply(Iterable<WindowedValue<T>> contents) {
       return Iterables.transform(contents, new Function<WindowedValue<T>, T>() {
@@ -110,7 +100,7 @@ public final class PCollectionViewTesting {
    * <p>Only for use in testing scenarios with small collections. If there are more elements
    * provided than {@code Integer.MAX_VALUE} then behavior is unpredictable.
    */
-  public static class LengthViewFn<T> implements ViewFn<T, Long> {
+  public static class LengthViewFn<T> extends ViewFn<Iterable<WindowedValue<T>>, Long> {
     @Override
     public Long apply(Iterable<WindowedValue<T>> contents) {
       return (long) Iterables.size(contents);
@@ -120,7 +110,8 @@ public final class PCollectionViewTesting {
   /**
    * A {@link ViewFn} that always returns the value with which it is instantiated.
    */
-  public static class ConstantViewFn<ElemT, ViewT> implements ViewFn<ElemT, ViewT> {
+  public static class ConstantViewFn<ElemT, ViewT>
+      extends ViewFn<Iterable<WindowedValue<ElemT>>, ViewT> {
     private ViewT value;
 
     public ConstantViewFn(ViewT value) {
@@ -148,7 +139,7 @@ public final class PCollectionViewTesting {
    */
   public static <ElemT, ViewT> PCollectionView<ViewT> testingView(
       TupleTag<Iterable<WindowedValue<ElemT>>> tag,
-      ViewFn<ElemT, ViewT> viewFn,
+      ViewFn<Iterable<WindowedValue<ElemT>>, ViewT> viewFn,
       Coder<ElemT> elemCoder) {
     return testingView(
         tag,
@@ -178,7 +169,7 @@ public final class PCollectionViewTesting {
    */
   public static <ElemT, ViewT> PCollectionView<ViewT> testingView(
       TupleTag<Iterable<WindowedValue<ElemT>>> tag,
-      ViewFn<ElemT, ViewT> viewFn,
+      ViewFn<Iterable<WindowedValue<ElemT>>, ViewT> viewFn,
       Coder<ElemT> elemCoder,
       WindowingStrategy<?, ?> windowingStrategy) {
     return new PCollectionViewFromParts<>(
@@ -233,13 +224,13 @@ public final class PCollectionViewTesting {
       extends PValueBase
       implements PCollectionView<ViewT> {
     private TupleTag<Iterable<WindowedValue<ElemT>>> tag;
-    private ViewFn<ElemT, ViewT> viewFn;
+    private ViewFn<Iterable<WindowedValue<ElemT>>, ViewT> viewFn;
     private WindowingStrategy<?, ?> windowingStrategy;
     private Coder<Iterable<WindowedValue<ElemT>>> coder;
 
     public PCollectionViewFromParts(
         TupleTag<Iterable<WindowedValue<ElemT>>> tag,
-        ViewFn<ElemT, ViewT> viewFn,
+        ViewFn<Iterable<WindowedValue<ElemT>>, ViewT> viewFn,
         WindowingStrategy<?, ?> windowingStrategy,
         Coder<Iterable<WindowedValue<ElemT>>> coder) {
       this.tag = tag;
@@ -254,10 +245,12 @@ public final class PCollectionViewTesting {
       return (TupleTag) tag;
     }
 
-    @SuppressWarnings({"unchecked", "rawtypes"})
     @Override
-    public ViewT fromIterableInternal(Iterable<WindowedValue<?>> contents) {
-      return (ViewT) viewFn.apply((Iterable) contents);
+    public ViewFn<Iterable<WindowedValue<?>>, ViewT> getViewFn() {
+      // Safe cast; runners must maintain type safety
+      @SuppressWarnings({"unchecked", "rawtypes"})
+      ViewFn<Iterable<WindowedValue<?>>, ViewT> untypedViewFn = (ViewFn) viewFn;
+      return untypedViewFn;
     }
 
     @Override

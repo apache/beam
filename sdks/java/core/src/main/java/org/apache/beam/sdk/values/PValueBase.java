@@ -17,13 +17,12 @@
  */
 package org.apache.beam.sdk.values;
 
+import java.util.Collection;
+import java.util.Collections;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.util.StringUtils;
-
-import java.util.Collection;
-import java.util.Collections;
 
 /**
  * A {@link PValueBase} is an abstract base class that provides

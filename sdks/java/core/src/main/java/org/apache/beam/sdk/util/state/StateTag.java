@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.util.state;
 
+import java.io.IOException;
+import java.io.Serializable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.Coder;
@@ -27,12 +29,10 @@ import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.OutputTimeFn;
 
-import java.io.IOException;
-import java.io.Serializable;
-
 /**
- * An address for persistent state. This includes a unique identifier for the location, the
- * information necessary to encode the value, and details about the intended access pattern.
+ * An address and specification for a persistent state cell. This includes a unique identifier for
+ * the location, the information necessary to encode the value, and details about the intended
+ * access pattern.
  *
  * <p>State can be thought of as a sparse table, with each {@code StateTag} defining a column
  * that has cells of type {@code StateT}.
@@ -46,53 +46,66 @@ import java.io.Serializable;
 @Experimental(Kind.STATE)
 public interface StateTag<K, StateT extends State> extends Serializable {
 
-  /**
-   * Visitor for binding a {@link StateTag} and to the associated {@link State}.
-   *
-   * @param <K> the type of key this binder embodies.
-   */
-  public interface StateBinder<K> {
-    <T> ValueState<T> bindValue(StateTag<? super K, ValueState<T>> address, Coder<T> coder);
-
-    <T> BagState<T> bindBag(StateTag<? super K, BagState<T>> address, Coder<T> elemCoder);
-
-    <InputT, AccumT, OutputT> AccumulatorCombiningState<InputT, AccumT, OutputT>
-    bindCombiningValue(
-        StateTag<? super K, AccumulatorCombiningState<InputT, AccumT, OutputT>> address,
-        Coder<AccumT> accumCoder, CombineFn<InputT, AccumT, OutputT> combineFn);
-
-    <InputT, AccumT, OutputT> AccumulatorCombiningState<InputT, AccumT, OutputT>
-    bindKeyedCombiningValue(
-        StateTag<? super K, AccumulatorCombiningState<InputT, AccumT, OutputT>> address,
-        Coder<AccumT> accumCoder, KeyedCombineFn<? super K, InputT, AccumT, OutputT> combineFn);
-
-    <InputT, AccumT, OutputT> AccumulatorCombiningState<InputT, AccumT, OutputT>
-    bindKeyedCombiningValueWithContext(
-        StateTag<? super K, AccumulatorCombiningState<InputT, AccumT, OutputT>> address,
-        Coder<AccumT> accumCoder,
-        KeyedCombineFnWithContext<? super K, InputT, AccumT, OutputT> combineFn);
-
-    /**
-     * Bind to a watermark {@link StateTag}.
-     *
-     * <p>This accepts the {@link OutputTimeFn} that dictates how watermark hold timestamps
-     * added to the returned {@link WatermarkHoldState} are to be combined.
-     */
-    <W extends BoundedWindow> WatermarkHoldState<W> bindWatermark(
-        StateTag<? super K, WatermarkHoldState<W>> address,
-        OutputTimeFn<? super W> outputTimeFn);
-  }
-
   /** Append the UTF-8 encoding of this tag to the given {@link Appendable}. */
   void appendTo(Appendable sb) throws IOException;
 
   /**
-   * Returns the user-provided name of this state cell.
+   * An identifier for the state cell that this tag references.
    */
   String getId();
 
   /**
-   * Use the {@code binder} to create an instance of {@code StateT} appropriate for this address.
+   * The specification for the state stored in the referenced cell.
    */
+  StateSpec<K, StateT> getSpec();
+
+  /**
+   * Bind this state tag. See {@link StateSpec#bind}.
+   *
+   * @deprecated Use the {@link StateSpec#bind} method via {@link #getSpec} for now.
+   */
+  @Deprecated
   StateT bind(StateBinder<? extends K> binder);
+
+  /**
+   * Visitor for binding a {@link StateSpec} and to the associated {@link State}.
+   *
+   * @param <K> the type of key this binder embodies.
+   * @deprecated for migration only; runners should reference the top level {@link StateBinder}
+   * and move towards {@link StateSpec} rather than {@link StateTag}.
+   */
+  @Deprecated
+  public interface StateBinder<K> {
+    <T> ValueState<T> bindValue(StateTag<? super K, ValueState<T>> spec, Coder<T> coder);
+
+    <T> BagState<T> bindBag(StateTag<? super K, BagState<T>> spec, Coder<T> elemCoder);
+
+    <InputT, AccumT, OutputT> AccumulatorCombiningState<InputT, AccumT, OutputT> bindCombiningValue(
+        StateTag<? super K, AccumulatorCombiningState<InputT, AccumT, OutputT>> spec,
+        Coder<AccumT> accumCoder,
+        CombineFn<InputT, AccumT, OutputT> combineFn);
+
+    <InputT, AccumT, OutputT>
+    AccumulatorCombiningState<InputT, AccumT, OutputT> bindKeyedCombiningValue(
+        StateTag<? super K, AccumulatorCombiningState<InputT, AccumT, OutputT>> spec,
+        Coder<AccumT> accumCoder,
+        KeyedCombineFn<? super K, InputT, AccumT, OutputT> combineFn);
+
+    <InputT, AccumT, OutputT>
+    AccumulatorCombiningState<InputT, AccumT, OutputT> bindKeyedCombiningValueWithContext(
+        StateTag<? super K, AccumulatorCombiningState<InputT, AccumT, OutputT>> spec,
+        Coder<AccumT> accumCoder,
+        KeyedCombineFnWithContext<? super K, InputT, AccumT, OutputT>
+            combineFn);
+
+    /**
+     * Bind to a watermark {@link StateSpec}.
+     *
+     * <p>This accepts the {@link OutputTimeFn} that dictates how watermark hold timestamps added to
+     * the returned {@link WatermarkHoldState} are to be combined.
+     */
+    <W extends BoundedWindow> WatermarkHoldState<W> bindWatermark(
+        StateTag<? super K, WatermarkHoldState<W>> spec,
+        OutputTimeFn<? super W> outputTimeFn);
+  }
 }

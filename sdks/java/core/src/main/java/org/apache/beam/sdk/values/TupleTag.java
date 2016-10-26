@@ -20,18 +20,15 @@ package org.apache.beam.sdk.values;
 import static org.apache.beam.sdk.util.Structs.addBoolean;
 import static org.apache.beam.sdk.util.Structs.addString;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.google.common.collect.HashMultiset;
+import com.google.common.collect.Multiset;
+import java.io.Serializable;
+import java.util.Random;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.util.CloudObject;
 import org.apache.beam.sdk.util.PropertyNames;
-
-import com.google.common.collect.HashMultiset;
-import com.google.common.collect.Multiset;
-
-import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonProperty;
-
-import java.io.Serializable;
-import java.util.Random;
 
 /**
  * A {@link TupleTag} is a typed tag to use as the key of a

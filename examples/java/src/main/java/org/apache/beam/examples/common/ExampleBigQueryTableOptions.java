@@ -17,13 +17,12 @@
  */
 package org.apache.beam.examples.common;
 
+import com.google.api.services.bigquery.model.TableSchema;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.DefaultValueFactory;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.GcpOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
-
-import com.google.api.services.bigquery.model.TableSchema;
 
 /**
  * Options that can be used to configure BigQuery tables in Beam examples.
@@ -47,11 +46,10 @@ public interface ExampleBigQueryTableOptions extends GcpOptions {
   /**
    * Returns the job name as the default BigQuery table name.
    */
-  static class BigQueryTableFactory implements DefaultValueFactory<String> {
+  class BigQueryTableFactory implements DefaultValueFactory<String> {
     @Override
     public String create(PipelineOptions options) {
-      return options.as(ExampleOptions.class).getNormalizedUniqueName()
-          .replace('-', '_');
+      return options.getJobName().replace('-', '_');
     }
   }
 }

@@ -17,10 +17,9 @@
  */
 package org.apache.beam.sdk.util;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 
 /**
  * {@link ByteArrayOutputStream} special cased to treat writes of a single byte-array specially.
@@ -61,6 +60,7 @@ public class ExposedByteArrayOutputStream extends ByteArrayOutputStream {
    * Write {@code b} to the stream and take the ownership of {@code b}.
    * If the stream is empty, {@code b} itself will be used as the content of the stream and
    * no content copy will be involved.
+   *
    * <p><i>Note: After passing any byte array to this method, it must not be modified again.</i>
    *
    * @throws IOException

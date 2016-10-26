@@ -17,19 +17,18 @@
  */
 package org.apache.beam.sdk.transforms;
 
+import java.lang.reflect.ParameterizedType;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
-
-import java.lang.reflect.ParameterizedType;
 
 /**
  * {@code PTransform}s for mapping a simple function that returns iterables over the elements of a
  * {@link PCollection} and merging the results.
  */
 public class FlatMapElements<InputT, OutputT>
-extends PTransform<PCollection<InputT>, PCollection<OutputT>> {
+extends PTransform<PCollection<? extends InputT>, PCollection<OutputT>> {
   /**
    * For a {@code SerializableFunction<InputT, ? extends Iterable<OutputT>>} {@code fn},
    * returns a {@link PTransform} that applies {@code fn} to every element of the input
@@ -120,7 +119,7 @@ extends PTransform<PCollection<InputT>, PCollection<OutputT>> {
   //////////////////////////////////////////////////////////////////////////////////////////////////
 
   private final SimpleFunction<InputT, ? extends Iterable<OutputT>> fn;
-  private final DisplayData.Item<?> fnClassDisplayData;
+  private final DisplayData.ItemSpec<?> fnClassDisplayData;
 
   private FlatMapElements(
       SimpleFunction<InputT, ? extends Iterable<OutputT>> fn,
@@ -130,7 +129,7 @@ extends PTransform<PCollection<InputT>, PCollection<OutputT>> {
   }
 
   @Override
-  public PCollection<OutputT> apply(PCollection<InputT> input) {
+  public PCollection<OutputT> apply(PCollection<? extends InputT> input) {
     return input.apply(
         "FlatMap",
         ParDo.of(
@@ -167,7 +166,9 @@ extends PTransform<PCollection<InputT>, PCollection<OutputT>> {
   @Override
   public void populateDisplayData(DisplayData.Builder builder) {
     super.populateDisplayData(builder);
-    builder.add(fnClassDisplayData);
+    builder
+        .include("flatMapFn", fn)
+        .add(fnClassDisplayData);
   }
 
   /**

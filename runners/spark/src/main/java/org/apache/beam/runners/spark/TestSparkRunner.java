@@ -18,33 +18,36 @@
 
 package org.apache.beam.runners.spark;
 
+import static org.hamcrest.MatcherAssert.assertThat;
+
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsValidator;
 import org.apache.beam.sdk.runners.PipelineRunner;
+import org.apache.beam.sdk.testing.TestPipelineOptions;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
 
 /**
  * The SparkRunner translate operations defined on a pipeline to a representation executable
- * by Spark, and then submitting the job to Spark to be executed. If we wanted to run a dataflow
+ * by Spark, and then submitting the job to Spark to be executed. If we wanted to run a Beam
  * pipeline with the default options of a single threaded spark instance in local mode, we would do
  * the following:
  *
  * {@code
  * Pipeline p = [logic for pipeline creation]
- * EvaluationResult result = SparkRunner.create().run(p);
+ * EvaluationResult result = (EvaluationResult) p.run();
  * }
  *
- * To create a pipeline runner to run against a different spark cluster, with a custom master url we
- * would do the following:
+ * <p>To create a pipeline runner to run against a different spark cluster, with a custom master url
+ * we would do the following:
  *
  * {@code
  * Pipeline p = [logic for pipeline creation]
  * SparkPipelineOptions options = SparkPipelineOptionsFactory.create();
  * options.setSparkMaster("spark://host:port");
- * EvaluationResult result = SparkRunner.create(options).run(p);
+ * EvaluationResult result = (EvaluationResult) p.run();
  * }
  */
 public final class TestSparkRunner extends PipelineRunner<EvaluationResult> {
@@ -70,6 +73,10 @@ public final class TestSparkRunner extends PipelineRunner<EvaluationResult> {
 
   @Override
   public EvaluationResult run(Pipeline pipeline) {
-    return delegate.run(pipeline);
+    TestPipelineOptions testPipelineOptions = pipeline.getOptions().as(TestPipelineOptions.class);
+    EvaluationResult result = delegate.run(pipeline);
+    assertThat(result, testPipelineOptions.getOnCreateMatcher());
+    assertThat(result, testPipelineOptions.getOnSuccessMatcher());
+    return result;
   }
 }

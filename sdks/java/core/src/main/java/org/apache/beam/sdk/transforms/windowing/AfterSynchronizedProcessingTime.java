@@ -17,25 +17,18 @@
  */
 package org.apache.beam.sdk.transforms.windowing;
 
-import org.apache.beam.sdk.transforms.SerializableFunction;
-import org.apache.beam.sdk.util.TimeDomain;
-
 import com.google.common.base.Objects;
-
-import org.joda.time.Instant;
-
 import java.util.Collections;
 import java.util.List;
+import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.util.TimeDomain;
+import org.joda.time.Instant;
 
-import javax.annotation.Nullable;
-
-class AfterSynchronizedProcessingTime extends AfterDelayFromFirstElement {
-
-  @Override
-  @Nullable
-  public Instant getCurrentTime(Trigger.TriggerContext context) {
-    return context.currentSynchronizedProcessingTime();
-  }
+/**
+ * A trigger that fires after synchronized processing time has reached a shared
+ * threshold between upstream workers.
+ */
+public class AfterSynchronizedProcessingTime extends AfterDelayFromFirstElement {
 
   public AfterSynchronizedProcessingTime() {
     super(TimeDomain.SYNCHRONIZED_PROCESSING_TIME,

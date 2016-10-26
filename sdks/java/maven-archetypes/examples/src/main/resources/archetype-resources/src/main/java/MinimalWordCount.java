@@ -17,14 +17,15 @@
  */
 package ${package};
 
-import org.apache.beam.runners.dataflow.BlockingDataflowRunner;
-import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.TextIO;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.Count;
-import org.apache.beam.sdk.transforms.OldDoFn;
+import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.values.KV;
 
 
@@ -48,26 +49,33 @@ import org.apache.beam.sdk.values.KV;
  *   4. Writing data to Cloud Storage as text files
  * </pre>
  *
- * <p>To execute this pipeline, first edit the code to set your project ID, the staging
+ * <p>To execute this pipeline, first edit the code to set your project ID, the temp
  * location, and the output location. The specified GCS bucket(s) must already exist.
  *
- * <p>Then, run the pipeline as described in the README. It will be deployed and run using the
- * Dataflow service. No args are required to run the pipeline. You can see the results in your
+ * <p>Then, run the pipeline as described in the README. It will be deployed and run with the
+ * selected runner. No args are required to run the pipeline. You can see the results in your
  * output bucket in the GCS browser.
  */
 public class MinimalWordCount {
 
   public static void main(String[] args) {
-    // Create a DataflowPipelineOptions object. This object lets us set various execution
+    // Create a PipelineOptions object. This object lets us set various execution
     // options for our pipeline, such as the associated Cloud Platform project and the location
     // in Google Cloud Storage to stage files.
-    DataflowPipelineOptions options = PipelineOptionsFactory.create()
-      .as(DataflowPipelineOptions.class);
-    options.setRunner(BlockingDataflowRunner.class);
-    // CHANGE 1/3: Your project ID is required in order to run your pipeline on the Google Cloud.
-    options.setProject("SET_YOUR_PROJECT_ID_HERE");
-    // CHANGE 2/3: Your Google Cloud Storage path is required for staging local files.
-    options.setStagingLocation("gs://SET_YOUR_BUCKET_NAME_HERE/AND_STAGING_DIRECTORY");
+    PipelineOptions options = PipelineOptionsFactory.create();
+
+    // In order to run your pipeline, you need to make following runner specific changes:
+    //
+    // CHANGE 1/3: Select a Beam runner, such as DataflowRunner or FlinkRunner.
+    // CHANGE 2/3: Specify runner-required options.
+    // For DataflowRunner, set project and temp location as follows:
+    //   DataflowPipelineOptions dataflowOptions = options.as(DataflowPipelineOptions.class);
+    //   dataflowOptions.setRunner(DataflowRunner.class);
+    //   dataflowOptions.setProject("SET_YOUR_PROJECT_ID_HERE");
+    //   dataflowOptions.setTempLocation("gs://SET_YOUR_BUCKET_NAME_HERE/AND_TEMP_DIRECTORY");
+    // For FlinkRunner, set the runner as follows. See {@code FlinkPipelineOptions}
+    // for more details.
+    //   options.setRunner(FlinkRunner.class);
 
     // Create the Pipeline object with the options we defined above.
     Pipeline p = Pipeline.create(options);
@@ -77,13 +85,13 @@ public class MinimalWordCount {
     // Concept #1: Apply a root transform to the pipeline; in this case, TextIO.Read to read a set
     // of input text files. TextIO.Read returns a PCollection where each element is one line from
     // the input text (a set of Shakespeare's texts).
-    p.apply(TextIO.Read.from("gs://dataflow-samples/shakespeare/*"))
+    p.apply(TextIO.Read.from("gs://apache-beam-samples/shakespeare/*"))
      // Concept #2: Apply a ParDo transform to our PCollection of text lines. This ParDo invokes a
      // DoFn (defined in-line) on each element that tokenizes the text line into individual words.
      // The ParDo returns a PCollection<String>, where each element is an individual word in
      // Shakespeare's collected texts.
-     .apply("ExtractWords", ParDo.of(new OldDoFn<String, String>() {
-                       @Override
+     .apply("ExtractWords", ParDo.of(new DoFn<String, String>() {
+                       @ProcessElement
                        public void processElement(ProcessContext c) {
                          for (String word : c.element().split("[^a-zA-Z']+")) {
                            if (!word.isEmpty()) {
@@ -96,12 +104,12 @@ public class MinimalWordCount {
      // transform returns a new PCollection of key/value pairs, where each key represents a unique
      // word in the text. The associated value is the occurrence count for that word.
      .apply(Count.<String>perElement())
-     // Apply another ParDo transform that formats our PCollection of word counts into a printable
+     // Apply a MapElements transform that formats our PCollection of word counts into a printable
      // string, suitable for writing to an output file.
-     .apply("FormatResults", ParDo.of(new OldDoFn<KV<String, Long>, String>() {
+     .apply("FormatResults", MapElements.via(new SimpleFunction<KV<String, Long>, String>() {
                        @Override
-                       public void processElement(ProcessContext c) {
-                         c.output(c.element().getKey() + ": " + c.element().getValue());
+                       public String apply(KV<String, Long> input) {
+                         return input.getKey() + ": " + input.getValue();
                        }
                      }))
      // Concept #4: Apply a write transform, TextIO.Write, at the end of the pipeline.

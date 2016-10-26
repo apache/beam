@@ -19,6 +19,15 @@ package org.apache.beam.sdk;
 
 import static com.google.common.base.Preconditions.checkState;
 
+import com.google.common.collect.HashMultimap;
+import com.google.common.collect.Iterables;
+import com.google.common.collect.Multimap;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -26,6 +35,7 @@ import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.runners.PipelineRunner;
 import org.apache.beam.sdk.runners.TransformHierarchy;
 import org.apache.beam.sdk.runners.TransformTreeNode;
+import org.apache.beam.sdk.transforms.Aggregator;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -35,19 +45,8 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.PValue;
-
-import com.google.common.collect.HashMultimap;
-import com.google.common.collect.Iterables;
-import com.google.common.collect.Multimap;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
 
 /**
  * A {@link Pipeline} manages a directed acyclic graph of {@link PTransform PTransforms}, and the
@@ -224,31 +223,31 @@ public class Pipeline {
      *
      * <p>The return value controls whether or not child transforms are visited.
      */
-    public CompositeBehavior enterCompositeTransform(TransformTreeNode node);
+    CompositeBehavior enterCompositeTransform(TransformTreeNode node);
 
     /**
      * Called for each composite transform after all of its component transforms and their outputs
      * have been visited.
      */
-    public void leaveCompositeTransform(TransformTreeNode node);
+    void leaveCompositeTransform(TransformTreeNode node);
 
     /**
      * Called for each primitive transform after all of its topological predecessors
      * and inputs have been visited.
      */
-    public void visitPrimitiveTransform(TransformTreeNode node);
+    void visitPrimitiveTransform(TransformTreeNode node);
 
     /**
      * Called for each value after the transform that produced the value has been
      * visited.
      */
-    public void visitValue(PValue value, TransformTreeNode producer);
+    void visitValue(PValue value, TransformTreeNode producer);
 
     /**
      * Control enum for indicating whether or not a traversal should process the contents of
      * a composite transform or not.
      */
-    public enum CompositeBehavior {
+    enum CompositeBehavior {
       ENTER_TRANSFORM,
       DO_NOT_ENTER_TRANSFORM
     }
@@ -257,7 +256,7 @@ public class Pipeline {
      * Default no-op {@link PipelineVisitor} that enters all composite transforms.
      * User implementations can override just those methods they are interested in.
      */
-    public class Defaults implements PipelineVisitor {
+    class Defaults implements PipelineVisitor {
       @Override
       public CompositeBehavior enterCompositeTransform(TransformTreeNode node) {
         return CompositeBehavior.ENTER_TRANSFORM;
@@ -515,6 +514,14 @@ public class Pipeline {
       // A duplicate!  Retry.
       name = origName + suffixNum++;
     }
+  }
+
+  /**
+   * Returns a {@link Map} from each {@link Aggregator} in the {@link Pipeline} to the {@link
+   * PTransform PTransforms} in which it is used.
+   */
+  public Map<Aggregator<?, ?>, Collection<PTransform<?, ?>>> getAggregatorSteps() {
+    return new AggregatorPipelineExtractor(this).getAggregatorSteps();
   }
 
   /**

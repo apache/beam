@@ -17,16 +17,13 @@
  */
 package org.apache.beam.sdk.coders;
 
-import org.apache.beam.sdk.testing.CoderProperties;
-
 import com.google.api.services.bigquery.model.TableRow;
-
+import java.util.Arrays;
+import java.util.List;
+import org.apache.beam.sdk.testing.CoderProperties;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-
-import java.util.Arrays;
-import java.util.List;
 
 /**
  * Test case for {@link TableRowJsonCoder}.

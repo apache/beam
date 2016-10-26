@@ -18,30 +18,24 @@
 package org.apache.beam.sdk.util;
 
 import org.apache.beam.sdk.transforms.OldDoFn;
+import org.apache.beam.sdk.transforms.OldDoFn.RequiresWindowAccess;
 import org.apache.beam.sdk.values.KV;
 
 /**
- * OldDoFn that makes timestamps and window assignments explicit in the value part of each key/value
- * pair.
+ * {@link OldDoFn} that makes timestamps and window assignments explicit in the value part of each
+ * key/value pair.
  *
  * @param <K> the type of the keys of the input and output {@code PCollection}s
  * @param <V> the type of the values of the input {@code PCollection}
  */
 @SystemDoFnInternal
-public class ReifyTimestampAndWindowsDoFn<K, V>
-    extends OldDoFn<KV<K, V>, KV<K, WindowedValue<V>>> {
+public class ReifyTimestampAndWindowsDoFn<K, V> extends OldDoFn<KV<K, V>, KV<K, WindowedValue<V>>>
+    implements RequiresWindowAccess {
   @Override
-  public void processElement(ProcessContext c)
-      throws Exception {
+  public void processElement(ProcessContext c) throws Exception {
     KV<K, V> kv = c.element();
     K key = kv.getKey();
     V value = kv.getValue();
-    c.output(KV.of(
-        key,
-        WindowedValue.of(
-            value,
-            c.timestamp(),
-            c.windowingInternals().windows(),
-            c.pane())));
+    c.output(KV.of(key, WindowedValue.of(value, c.timestamp(), c.window(), c.pane())));
   }
 }

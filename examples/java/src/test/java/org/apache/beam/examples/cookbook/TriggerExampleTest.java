@@ -17,6 +17,13 @@
  */
 package org.apache.beam.examples.cookbook;
 
+import com.google.api.services.bigquery.model.TableRow;
+import com.google.common.base.Joiner;
+import com.google.common.collect.Lists;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
 import org.apache.beam.examples.cookbook.TriggerExample.ExtractFlowInfo;
 import org.apache.beam.examples.cookbook.TriggerExample.TotalFlow;
 import org.apache.beam.sdk.Pipeline;
@@ -32,11 +39,6 @@ import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TimestampedValue;
-
-import com.google.api.services.bigquery.model.TableRow;
-import com.google.common.base.Joiner;
-import com.google.common.collect.Lists;
-
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Assert;
@@ -44,11 +46,6 @@ import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
 
 /**
  * Unit Tests for {@link TriggerExample}.

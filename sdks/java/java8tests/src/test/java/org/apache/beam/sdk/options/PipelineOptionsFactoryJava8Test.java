@@ -34,7 +34,7 @@ import org.junit.runners.JUnit4;
 public class PipelineOptionsFactoryJava8Test {
   @Rule public ExpectedException thrown = ExpectedException.none();
 
-  private static interface OptionsWithDefaultMethod extends PipelineOptions {
+  private interface OptionsWithDefaultMethod extends PipelineOptions {
     default Number getValue() {
       return 1024;
     }
@@ -52,7 +52,7 @@ public class PipelineOptionsFactoryJava8Test {
     assertThat(optsWithDefault.getValue(), equalTo(Double.valueOf(12.25)));
   }
 
-  private static interface ExtendedOptionsWithDefault extends OptionsWithDefaultMethod {}
+  private interface ExtendedOptionsWithDefault extends OptionsWithDefaultMethod {}
 
   @Test
   public void testDefaultMethodInExtendedClassIgnoresDefaultImplementation() {
@@ -64,13 +64,13 @@ public class PipelineOptionsFactoryJava8Test {
     assertThat(extendedOptsWithDefault.getValue(), equalTo(Double.NEGATIVE_INFINITY));
   }
 
-  private static interface Options extends PipelineOptions {
+  private interface Options extends PipelineOptions {
     Number getValue();
 
     void setValue(Number value);
   }
 
-  private static interface SubtypeReturingOptions extends Options {
+  private interface SubtypeReturingOptions extends Options {
     @Override
     Integer getValue();
     void setValue(Integer value);

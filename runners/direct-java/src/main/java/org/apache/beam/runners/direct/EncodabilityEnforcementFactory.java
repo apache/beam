@@ -32,38 +32,48 @@ import org.apache.beam.sdk.values.PCollection;
  * {@link PCollection PCollection's} {@link Coder}.
  */
 class EncodabilityEnforcementFactory implements ModelEnforcementFactory {
+  // The factory proper is stateless
+  private static final EncodabilityEnforcementFactory INSTANCE =
+      new EncodabilityEnforcementFactory();
+
   public static EncodabilityEnforcementFactory create() {
-    return new EncodabilityEnforcementFactory();
+    return INSTANCE;
   }
 
   @Override
   public <T> ModelEnforcement<T> forBundle(
       CommittedBundle<T> input, AppliedPTransform<?, ?, ?> consumer) {
-    return new EncodabilityEnforcement<>(input);
+    return new EncodabilityEnforcement<>();
   }
 
   private static class EncodabilityEnforcement<T> extends AbstractModelEnforcement<T> {
-    private Coder<T> coder;
-
-    public EncodabilityEnforcement(CommittedBundle<T> input) {
-      coder = input.getPCollection().getCoder();
+    @Override
+    public void afterFinish(
+        CommittedBundle<T> input,
+        TransformResult result,
+        Iterable<? extends CommittedBundle<?>> outputs) {
+      for (CommittedBundle<?> bundle : outputs) {
+        ensureBundleEncodable(bundle);
+      }
     }
 
-    @Override
-    public void beforeElement(WindowedValue<T> element) {
-      try {
-        T clone = CoderUtils.clone(coder, element.getValue());
-        if (coder.consistentWithEquals()) {
-          checkArgument(
-              coder.structuralValue(element.getValue()).equals(coder.structuralValue(clone)),
-              "Coder %s of class %s does not maintain structural value equality"
-                  + " on input element %s",
-              coder,
-              coder.getClass().getSimpleName(),
-              element.getValue());
+    private <T> void ensureBundleEncodable(CommittedBundle<T> bundle) {
+      Coder<T> coder = bundle.getPCollection().getCoder();
+      for (WindowedValue<T> element : bundle.getElements()) {
+        try {
+          T clone = CoderUtils.clone(coder, element.getValue());
+          if (coder.consistentWithEquals()) {
+            checkArgument(
+                coder.structuralValue(element.getValue()).equals(coder.structuralValue(clone)),
+                "Coder %s of class %s does not maintain structural value equality"
+                    + " on input element %s",
+                coder,
+                coder.getClass().getSimpleName(),
+                element.getValue());
+          }
+        } catch (Exception e) {
+          throw UserCodeException.wrap(e);
         }
-      } catch (Exception e) {
-        throw UserCodeException.wrap(e);
       }
     }
   }

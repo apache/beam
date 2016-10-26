@@ -22,7 +22,7 @@
   <parent>
     <groupId>org.apache.beam</groupId>
     <artifactId>beam-sdks-java-parent</artifactId>
-    <version>0.3.0-incubating-SNAPSHOT</version>
+    <version>0.4.0-incubating-SNAPSHOT</version>
     <relativePath>../pom.xml</relativePath>
   </parent>
 
@@ -60,7 +60,7 @@
             <subpackages>org.apache.beam.sdk</subpackages>
             <additionalparam>-exclude
               org.apache.beam.sdk.runners.worker:org.apache.beam.sdk.runners.dataflow:org.apache.beam.sdk.util:org.apache.beam.sdk.runners.inprocess
-              ${dataflow.javadoc_opts}</additionalparam>
+              ${beam.javadoc_opts}</additionalparam>
             <use>false</use>
             <quiet>true</quiet>
             <bottom><![CDATA[<br>]]></bottom>
@@ -193,6 +193,10 @@
                   exclude 'org.apache.beam.**', and remove the second relocation. -->
                 <relocation>
                   <pattern>com.google.common</pattern>
+                  <excludes>
+                    <!-- com.google.common is too generic, need to exclude guava-testlib -->
+                    <exclude>com.google.common.**.testing.*</exclude>
+                  </excludes>
                   <shadedPattern>org.apache.beam.sdk.repackaged.com.google.common</shadedPattern>
                 </relocation>
                 <relocation>
@@ -304,11 +308,28 @@
       <artifactId>grpc-netty</artifactId>
     </dependency>
 
+    <dependency>
+      <groupId>io.grpc</groupId>
+      <artifactId>grpc-stub</artifactId>
+    </dependency>
+
     <!-- grpc-all does not obey IWYU, so we need to exclude from compile
          scope and depend on it at runtime. -->
     <dependency>
       <groupId>io.grpc</groupId>
       <artifactId>grpc-all</artifactId>
+      <scope>runtime</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>io.grpc</groupId>
+      <artifactId>grpc-protobuf-lite</artifactId>
+      <scope>runtime</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>com.google.protobuf</groupId>
+      <artifactId>protobuf-lite</artifactId>
       <scope>runtime</scope>
     </dependency>
 
@@ -333,22 +354,7 @@
 
     <dependency>
       <groupId>com.google.api.grpc</groupId>
-      <artifactId>grpc-pubsub-v1</artifactId>
-      <version>${pubsubgrpc.version}</version>
-      <exclusions>
-        <!-- Exclude an old version of guava that is being pulled in by a transitive 
-          dependency of google-api-client -->
-        <exclusion>
-          <groupId>com.google.guava</groupId>
-          <artifactId>guava-jdk5</artifactId>
-        </exclusion>
-        <!-- grpc-all does not obey IWYU, so we need to exclude from compile
-          scope and depend on it at runtime. -->
-        <exclusion>
-          <groupId>io.grpc</groupId>
-          <artifactId>grpc-all</artifactId>
-        </exclusion>
-      </exclusions>
+      <artifactId>grpc-google-pubsub-v1</artifactId>
     </dependency>
 
     <dependency>
@@ -359,6 +365,11 @@
     <dependency>
       <groupId>com.google.apis</groupId>
       <artifactId>google-api-services-bigquery</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>com.google.apis</groupId>
+      <artifactId>google-api-services-cloudresourcemanager</artifactId>
     </dependency>
 
     <dependency>
@@ -421,6 +432,8 @@
     </dependency>
 
     <dependency>
+      <!-- Note: when relocating guava, ensure guava-testlib is not also relocated by
+           excluding com.google.common.**.testing.* -->
       <groupId>com.google.guava</groupId>
       <artifactId>guava-testlib</artifactId>
       <scope>test</scope>

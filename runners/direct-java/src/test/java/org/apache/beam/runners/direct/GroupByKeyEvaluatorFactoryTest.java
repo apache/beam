@@ -22,6 +22,9 @@ import static org.junit.Assert.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import com.google.common.collect.HashMultiset;
+import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.Multiset;
 import org.apache.beam.runners.direct.DirectGroupByKey.DirectGroupByKeyOnly;
 import org.apache.beam.runners.direct.DirectRunner.CommittedBundle;
 import org.apache.beam.runners.direct.DirectRunner.UncommittedBundle;
@@ -36,11 +39,6 @@ import org.apache.beam.sdk.util.ReifyTimestampsAndWindows;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
-
-import com.google.common.collect.HashMultiset;
-import com.google.common.collect.ImmutableSet;
-import com.google.common.collect.Multiset;
-
 import org.hamcrest.BaseMatcher;
 import org.hamcrest.Description;
 import org.joda.time.Instant;
@@ -72,27 +70,27 @@ public class GroupByKeyEvaluatorFactoryTest {
         kvs.apply(new DirectGroupByKeyOnly<String, Integer>());
 
     CommittedBundle<KV<String, WindowedValue<Integer>>> inputBundle =
-        bundleFactory.createRootBundle(kvs).commit(Instant.now());
+        bundleFactory.createBundle(kvs).commit(Instant.now());
     EvaluationContext evaluationContext = mock(EvaluationContext.class);
     StructuralKey<String> fooKey = StructuralKey.of("foo", StringUtf8Coder.of());
     UncommittedBundle<KeyedWorkItem<String, Integer>> fooBundle =
-        bundleFactory.createKeyedBundle(null, fooKey, groupedKvs);
+        bundleFactory.createKeyedBundle(fooKey, groupedKvs);
 
     StructuralKey<String> barKey = StructuralKey.of("bar", StringUtf8Coder.of());
     UncommittedBundle<KeyedWorkItem<String, Integer>> barBundle =
-        bundleFactory.createKeyedBundle(null, barKey, groupedKvs);
+        bundleFactory.createKeyedBundle(barKey, groupedKvs);
 
     StructuralKey<String> bazKey = StructuralKey.of("baz", StringUtf8Coder.of());
     UncommittedBundle<KeyedWorkItem<String, Integer>> bazBundle =
-        bundleFactory.createKeyedBundle(null, bazKey, groupedKvs);
+        bundleFactory.createKeyedBundle(bazKey, groupedKvs);
 
-    when(evaluationContext.createKeyedBundle(inputBundle,
+    when(evaluationContext.createKeyedBundle(
         fooKey,
         groupedKvs)).thenReturn(fooBundle);
-    when(evaluationContext.createKeyedBundle(inputBundle,
+    when(evaluationContext.createKeyedBundle(
         barKey,
         groupedKvs)).thenReturn(barBundle);
-    when(evaluationContext.createKeyedBundle(inputBundle,
+    when(evaluationContext.createKeyedBundle(
         bazKey,
         groupedKvs)).thenReturn(bazBundle);
 
@@ -101,9 +99,8 @@ public class GroupByKeyEvaluatorFactoryTest {
     Coder<String> keyCoder =
         ((KvCoder<String, WindowedValue<Integer>>) kvs.getCoder()).getKeyCoder();
     TransformEvaluator<KV<String, WindowedValue<Integer>>> evaluator =
-        new GroupByKeyOnlyEvaluatorFactory()
-            .forApplication(
-                groupedKvs.getProducingTransformInternal(), inputBundle, evaluationContext);
+        new GroupByKeyOnlyEvaluatorFactory(evaluationContext)
+            .forApplication(groupedKvs.getProducingTransformInternal(), inputBundle);
 
     evaluator.processElement(WindowedValue.valueInEmptyWindows(gwValue(firstFoo)));
     evaluator.processElement(WindowedValue.valueInEmptyWindows(gwValue(secondFoo)));
@@ -117,7 +114,7 @@ public class GroupByKeyEvaluatorFactoryTest {
     assertThat(
         fooBundle.commit(Instant.now()).getElements(),
         contains(
-            new KeyedWorkItemMatcher<String, Integer>(
+            new KeyedWorkItemMatcher<>(
                 KeyedWorkItems.elementsWorkItem(
                     "foo",
                     ImmutableSet.of(
@@ -128,7 +125,7 @@ public class GroupByKeyEvaluatorFactoryTest {
     assertThat(
         barBundle.commit(Instant.now()).getElements(),
         contains(
-            new KeyedWorkItemMatcher<String, Integer>(
+            new KeyedWorkItemMatcher<>(
                 KeyedWorkItems.elementsWorkItem(
                     "bar",
                     ImmutableSet.of(
@@ -138,7 +135,7 @@ public class GroupByKeyEvaluatorFactoryTest {
     assertThat(
         bazBundle.commit(Instant.now()).getElements(),
         contains(
-            new KeyedWorkItemMatcher<String, Integer>(
+            new KeyedWorkItemMatcher<>(
                 KeyedWorkItems.elementsWorkItem(
                     "baz",
                     ImmutableSet.of(WindowedValue.valueInGlobalWindow(Integer.MAX_VALUE))),
@@ -154,7 +151,7 @@ public class GroupByKeyEvaluatorFactoryTest {
     private final KeyedWorkItem<K, V> myWorkItem;
     private final Coder<K> keyCoder;
 
-    public KeyedWorkItemMatcher(KeyedWorkItem<K, V> myWorkItem, Coder<K> keyCoder) {
+    KeyedWorkItemMatcher(KeyedWorkItem<K, V> myWorkItem, Coder<K> keyCoder) {
       this.myWorkItem = myWorkItem;
       this.keyCoder = keyCoder;
     }

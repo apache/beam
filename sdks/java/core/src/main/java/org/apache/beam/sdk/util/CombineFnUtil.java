@@ -17,6 +17,9 @@
  */
 package org.apache.beam.sdk.util;
 
+import java.io.IOException;
+import java.io.NotSerializableException;
+import java.io.ObjectOutputStream;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderRegistry;
@@ -29,10 +32,6 @@ import org.apache.beam.sdk.transforms.CombineWithContext.Context;
 import org.apache.beam.sdk.transforms.CombineWithContext.KeyedCombineFnWithContext;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.util.state.StateContext;
-
-import java.io.IOException;
-import java.io.NotSerializableException;
-import java.io.ObjectOutputStream;
 
 /**
  * Static utility methods that create combine function instances.

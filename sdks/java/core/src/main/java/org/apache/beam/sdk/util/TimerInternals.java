@@ -20,6 +20,17 @@ package org.apache.beam.sdk.util;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.google.common.base.MoreObjects;
+import com.google.common.collect.ComparisonChain;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Objects;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.InstantCoder;
@@ -28,21 +39,7 @@ import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.state.StateNamespace;
 import org.apache.beam.sdk.util.state.StateNamespaces;
-
-import com.google.common.base.MoreObjects;
-
-import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonProperty;
 import org.joda.time.Instant;
-
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Objects;
-
-import javax.annotation.Nullable;
 
 /**
  * Encapsulate interaction with time within the execution environment.
@@ -111,7 +108,7 @@ public interface TimerInternals {
    * <li>However will never be behind the global input watermark for any following computation.
    * </ol>
    *
-   * <p> In pictures:
+   * <p>In pictures:
    * <pre>
    *  |              |       |       |       |
    *  |              |   D   |   C   |   B   |   A
@@ -145,7 +142,7 @@ public interface TimerInternals {
   /**
    * Data about a timer as represented within {@link TimerInternals}.
    */
-  public static class TimerData implements Comparable<TimerData> {
+  class TimerData implements Comparable<TimerData> {
     private final StateNamespace namespace;
     private final Instant timestamp;
     private final TimeDomain domain;
@@ -205,16 +202,28 @@ public interface TimerInternals {
           .toString();
     }
 
+    /**
+     * {@inheritDoc}.
+     *
+     * <p>The ordering of {@link TimerData} that are not in the same namespace or domain is
+     * arbitrary.
+     */
     @Override
     public int compareTo(TimerData o) {
-      return Long.compare(timestamp.getMillis(), o.getTimestamp().getMillis());
+      ComparisonChain chain =
+          ComparisonChain.start().compare(timestamp, o.getTimestamp()).compare(domain, o.domain);
+      if (chain.result() == 0) {
+        // Obtaining the stringKey may be expensive; only do so if required
+        chain = chain.compare(namespace.stringKey(), o.namespace.stringKey());
+      }
+      return chain.result();
     }
   }
 
   /**
    * A {@link Coder} for {@link TimerData}.
    */
-  public class TimerDataCoder extends StandardCoder<TimerData> {
+  class TimerDataCoder extends StandardCoder<TimerData> {
     private static final StringUtf8Coder STRING_CODER = StringUtf8Coder.of();
     private static final InstantCoder INSTANT_CODER = InstantCoder.of();
     private final Coder<? extends BoundedWindow> windowCoder;

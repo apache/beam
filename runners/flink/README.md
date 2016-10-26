@@ -152,7 +152,7 @@ Maven project.
     mvn archetype:generate -DgroupId=com.mycompany.beam -DartifactId=beam-test \
         -DarchetypeArtifactId=maven-archetype-quickstart -DinteractiveMode=false
 
-The contents of the root `pom.xml` should be slightly changed aftewards (explanation below):
+The contents of the root `pom.xml` should be slightly changed afterwards (explanation below):
 
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
@@ -171,6 +171,14 @@ The contents of the root `pom.xml` should be slightly changed aftewards (explana
       <artifactId>beam-runners-flink_2.10</artifactId>
       <version>0.2.0-incubating-SNAPSHOT</version>
     </dependency>
+
+    <!-- Uncomment, if you want to use Flink's Kafka connector -->
+    <!--<dependency>
+      <groupId>org.apache.flink</groupId>
+      <artifactId>flink-connector-kafka-0.8_2.10</artifactId>
+      <version>1.0.3</version>
+    </dependency>-->
+
   </dependencies>
 
   <build>
@@ -191,9 +199,26 @@ The contents of the root `pom.xml` should be slightly changed aftewards (explana
                   <mainClass>org.apache.beam.runners.flink.examples.WordCount</mainClass>
                 </transformer>
               </transformers>
+              <filters>
+                <filter>
+                  <artifact>*:*</artifact>
+                  <excludes>
+                    <exclude>META-INF/LICENSE</exclude>
+                  </excludes>
+                </filter>
+              </filters>
             </configuration>
           </execution>
         </executions>
+      </plugin>
+
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-compiler-plugin</artifactId>
+        <configuration>
+          <source>1.7</source>
+          <target>1.7</target>
+        </configuration>
       </plugin>
 
     </plugins>

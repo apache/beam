@@ -18,6 +18,11 @@
 
 package org.apache.beam.sdk.io;
 
+import com.google.common.collect.ImmutableList;
+import com.google.common.hash.Hashing;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.PubsubUnboundedSink.RecordIdMethod;
 import org.apache.beam.sdk.testing.CoderProperties;
@@ -31,20 +36,12 @@ import org.apache.beam.sdk.util.PubsubClient.OutgoingMessage;
 import org.apache.beam.sdk.util.PubsubClient.TopicPath;
 import org.apache.beam.sdk.util.PubsubTestClient;
 import org.apache.beam.sdk.util.PubsubTestClient.PubsubTestClientFactory;
-
-import com.google.common.collect.ImmutableList;
-import com.google.common.hash.Hashing;
-
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
 
 /**
  * Test PubsubUnboundedSink.

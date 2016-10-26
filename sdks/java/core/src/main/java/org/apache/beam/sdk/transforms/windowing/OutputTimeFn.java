@@ -17,14 +17,11 @@
  */
 package org.apache.beam.sdk.transforms.windowing;
 
-import org.apache.beam.sdk.annotations.Experimental;
-
 import com.google.common.collect.Ordering;
-
-import org.joda.time.Instant;
-
 import java.io.Serializable;
 import java.util.Objects;
+import org.apache.beam.sdk.annotations.Experimental;
+import org.joda.time.Instant;
 
 /**
  * <b><i>(Experimental)</i></b> A function from timestamps of input values to the timestamp for a

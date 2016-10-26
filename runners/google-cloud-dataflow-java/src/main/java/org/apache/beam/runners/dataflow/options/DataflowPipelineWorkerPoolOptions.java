@@ -17,6 +17,9 @@
  */
 package org.apache.beam.runners.dataflow.options;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import java.util.List;
+import javax.annotation.Nullable;
 import org.apache.beam.runners.dataflow.DataflowRunner;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.options.Default;
@@ -24,10 +27,6 @@ import org.apache.beam.sdk.options.DefaultValueFactory;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.Hidden;
 import org.apache.beam.sdk.options.PipelineOptions;
-
-import com.fasterxml.jackson.annotation.JsonIgnore;
-
-import java.util.List;
 
 /**
  * Options that are used to configure the Dataflow pipeline worker pool.
@@ -50,7 +49,7 @@ public interface DataflowPipelineWorkerPoolOptions extends PipelineOptions {
    * Type of autoscaling algorithm to use.
    */
   @Experimental(Experimental.Kind.AUTOSCALING)
-  public enum AutoscalingAlgorithmType {
+  enum AutoscalingAlgorithmType {
     /** Use numWorkers machines. Do not autoscale the worker pool. */
     NONE("AUTOSCALING_ALGORITHM_NONE"),
 
@@ -125,7 +124,7 @@ public interface DataflowPipelineWorkerPoolOptions extends PipelineOptions {
    * Returns the default Docker container image that executes Dataflow worker harness, residing in
    * Google Container Registry.
    */
-  public static class WorkerHarnessContainerImageFactory
+  class WorkerHarnessContainerImageFactory
       implements DefaultValueFactory<String> {
     @Override
     public String create(PipelineOptions options) {
@@ -193,8 +192,11 @@ public interface DataflowPipelineWorkerPoolOptions extends PipelineOptions {
 
   /**
    * The policy for tearing down the workers spun up by the service.
+   *
+   * @deprecated Dataflow Service will only support TEARDOWN_ALWAYS policy in the future.
    */
-  public enum TeardownPolicy {
+  @Deprecated
+  enum TeardownPolicy {
     /**
      * All VMs created for a Dataflow job are deleted when the job finishes, regardless of whether
      * it fails or succeeds.
@@ -214,7 +216,7 @@ public interface DataflowPipelineWorkerPoolOptions extends PipelineOptions {
 
     private final String teardownPolicy;
 
-    private TeardownPolicy(String teardownPolicy) {
+    TeardownPolicy(String teardownPolicy) {
       this.teardownPolicy = teardownPolicy;
     }
 
@@ -260,4 +262,16 @@ public interface DataflowPipelineWorkerPoolOptions extends PipelineOptions {
       + "https://cloud.google.com/compute/docs/reference/latest/diskTypes")
   String getWorkerDiskType();
   void setWorkerDiskType(String value);
+
+  /**
+   * Specifies whether worker pools should be started with public IP addresses.
+   *
+   * <p>WARNING: This feature is experimental.  You must be whitelisted to use it.
+   */
+  @Description("Specifies whether worker pools should be started with public IP addresses. WARNING:"
+    + "This feature is experimental. You must be whitelisted to use it.")
+  @Experimental
+  @JsonIgnore
+  @Nullable Boolean getUsePublicIps();
+  void setUsePublicIps(@Nullable Boolean value);
 }

@@ -22,25 +22,22 @@ import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.withSettings;
 
+import com.google.common.collect.ImmutableList;
+import java.io.ByteArrayOutputStream;
+import java.io.NotSerializableException;
+import java.io.ObjectOutputStream;
+import java.util.List;
 import org.apache.beam.sdk.transforms.CombineWithContext.CombineFnWithContext;
 import org.apache.beam.sdk.transforms.CombineWithContext.Context;
 import org.apache.beam.sdk.transforms.CombineWithContext.KeyedCombineFnWithContext;
 import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.util.state.StateContexts;
-
-import com.google.common.collect.ImmutableList;
-
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-
-import java.io.ByteArrayOutputStream;
-import java.io.NotSerializableException;
-import java.io.ObjectOutputStream;
-import java.util.List;
 
 /**
  * Unit tests for {@link CombineFnUtil}.

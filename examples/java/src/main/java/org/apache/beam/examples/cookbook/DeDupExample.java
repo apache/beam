@@ -35,19 +35,17 @@ import org.apache.beam.sdk.util.gcsfs.GcsPath;
  * Demonstrates {@link org.apache.beam.sdk.io.TextIO.Read}/
  * {@link RemoveDuplicates}/{@link org.apache.beam.sdk.io.TextIO.Write}.
  *
- * <p>To execute this pipeline locally, specify general pipeline configuration:
- *   --project=YOUR_PROJECT_ID
- * and a local output file or output prefix on GCS:
+ * <p>To execute this pipeline locally, specify a local output file or output prefix on GCS:
  *   --output=[YOUR_LOCAL_FILE | gs://YOUR_OUTPUT_PREFIX]
  *
- * <p>To execute this pipeline using the Dataflow service, specify pipeline configuration:
- *   --project=YOUR_PROJECT_ID
- *   --tempLocation=gs://YOUR_TEMP_DIRECTORY
- *   --runner=BlockingDataflowRunner
- * and an output prefix on GCS:
- *   --output=gs://YOUR_OUTPUT_PREFIX
+ * <p>To change the runner, specify:
+ * <pre>{@code
+ *   --runner=YOUR_SELECTED_RUNNER
+ * }
+ * </pre>
+ * See examples/java/README.md for instructions about how to configure different runners.
  *
- * <p>The input defaults to {@code gs://dataflow-samples/shakespeare/*} and can be
+ * <p>The input defaults to {@code gs://apache-beam-samples/shakespeare/*} and can be
  * overridden with {@code --input}.
  */
 public class DeDupExample {
@@ -57,9 +55,9 @@ public class DeDupExample {
    *
    * <p>Inherits standard configuration options.
    */
-  private static interface Options extends PipelineOptions {
+  private interface Options extends PipelineOptions {
     @Description("Path to the directory or GCS prefix containing files to read from")
-    @Default.String("gs://dataflow-samples/shakespeare/*")
+    @Default.String("gs://apache-beam-samples/shakespeare/*")
     String getInput();
     void setInput(String value);
 
@@ -69,7 +67,7 @@ public class DeDupExample {
     void setOutput(String value);
 
     /** Returns gs://${TEMP_LOCATION}/"deduped.txt". */
-    public static class OutputFactory implements DefaultValueFactory<String> {
+    class OutputFactory implements DefaultValueFactory<String> {
       @Override
       public String create(PipelineOptions options) {
         if (options.getTempLocation() != null) {

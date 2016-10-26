@@ -21,11 +21,6 @@ import com.google.api.services.pubsub.Pubsub;
 import com.google.api.services.pubsub.model.PublishRequest;
 import com.google.api.services.pubsub.model.PubsubMessage;
 import com.google.common.collect.ImmutableMap;
-
-import org.joda.time.DateTimeZone;
-import org.joda.time.format.DateTimeFormat;
-import org.joda.time.format.DateTimeFormatter;
-
 import java.io.BufferedOutputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -36,28 +31,31 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Random;
 import java.util.TimeZone;
+import org.joda.time.DateTimeZone;
+import org.joda.time.format.DateTimeFormat;
+import org.joda.time.format.DateTimeFormatter;
 
 
 /**
  * This is a generator that simulates usage data from a mobile game, and either publishes the data
  * to a pubsub topic or writes it to a file.
  *
- * <p> The general model used by the generator is the following. There is a set of teams with team
+ * <p>The general model used by the generator is the following. There is a set of teams with team
  * members. Each member is scoring points for their team. After some period, a team will dissolve
  * and a new one will be created in its place. There is also a set of 'Robots', or spammer users.
  * They hop from team to team. The robots are set to have a higher 'click rate' (generate more
  * events) than the regular team members.
  *
- * <p> Each generated line of data has the following form:
+ * <p>Each generated line of data has the following form:
  * username,teamname,score,timestamp_in_ms,readable_time
  * e.g.:
  * user2_AsparagusPig,AsparagusPig,10,1445230923951,2015-11-02 09:09:28.224
  *
- * <p> The Injector writes either to a PubSub topic, or a file. It will use the PubSub topic if
+ * <p>The Injector writes either to a PubSub topic, or a file. It will use the PubSub topic if
  * specified. It takes the following arguments:
  * {@code Injector project-name (topic-name|none) (filename|none)}.
  *
- * <p> To run the Injector in the mode where it publishes to PubSub, you will need to authenticate
+ * <p>To run the Injector in the mode where it publishes to PubSub, you will need to authenticate
  * locally using project-based service account credentials to avoid running over PubSub
  * quota.
  * See https://developers.google.com/identity/protocols/application-default-credentials
@@ -76,7 +74,7 @@ import java.util.TimeZone;
  * </pre>
  * The pubsub topic will be created if it does not exist.
  *
- * <p> To run the injector in write-to-file-mode, set the topic name to "none" and specify the
+ * <p>To run the injector in write-to-file-mode, set the topic name to "none" and specify the
  * filename:
  * <pre>{@code
  * Injector <project-name> none <filename>

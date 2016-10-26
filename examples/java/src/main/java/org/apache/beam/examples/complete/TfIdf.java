@@ -17,6 +17,12 @@
  */
 package org.apache.beam.examples.complete;
 
+import java.io.File;
+import java.io.IOException;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.util.HashSet;
+import java.util.Set;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
@@ -45,47 +51,33 @@ import org.apache.beam.sdk.transforms.join.KeyedPCollectionTuple;
 import org.apache.beam.sdk.util.GcsUtil;
 import org.apache.beam.sdk.util.gcsfs.GcsPath;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PDone;
-import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.TupleTag;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.io.File;
-import java.io.IOException;
-import java.net.URI;
-import java.net.URISyntaxException;
-import java.util.HashSet;
-import java.util.Set;
 
 /**
  * An example that computes a basic TF-IDF search table for a directory or GCS prefix.
  *
  * <p>Concepts: joining data; side inputs; logging
  *
- * <p>To execute this pipeline locally, specify general pipeline configuration:
- * <pre>{@code
- *   --project=YOUR_PROJECT_ID
- * }</pre>
- * and a local output file or output prefix on GCS:
+ * <p>To execute this pipeline locally, specify a local output file or output prefix on GCS:
  * <pre>{@code
  *   --output=[YOUR_LOCAL_FILE | gs://YOUR_OUTPUT_PREFIX]
  * }</pre>
  *
- * <p>To execute this pipeline using the Dataflow service, specify pipeline configuration:
+ * <p>To change the runner, specify:
  * <pre>{@code
- *   --project=YOUR_PROJECT_ID
- *   --tempLocation=gs://YOUR_TEMP_DIRECTORY
- *   --runner=BlockingDataflowRunner
- * and an output prefix on GCS:
- *   --output=gs://YOUR_OUTPUT_PREFIX
- * }</pre>
+ *   --runner=YOUR_SELECTED_RUNNER
+ * }
+ * </pre>
+ * See examples/java/README.md for instructions about how to configure different runners.
  *
- * <p>The default input is {@code gs://dataflow-samples/shakespeare/} and can be overridden with
+ * <p>The default input is {@code gs://apache-beam-samples/shakespeare/} and can be overridden with
  * {@code --input}.
  */
 public class TfIdf {
@@ -94,9 +86,9 @@ public class TfIdf {
    *
    * <p>Inherits standard configuration options.
    */
-  private static interface Options extends PipelineOptions {
+  private interface Options extends PipelineOptions {
     @Description("Path to the directory or GCS prefix containing files to read from")
-    @Default.String("gs://dataflow-samples/shakespeare/")
+    @Default.String("gs://apache-beam-samples/shakespeare/")
     String getInput();
     void setInput(String value);
 
@@ -154,7 +146,7 @@ public class TfIdf {
    * from the documents tagged with which document they are from.
    */
   public static class ReadDocuments
-      extends PTransform<PInput, PCollection<KV<URI, String>>> {
+      extends PTransform<PBegin, PCollection<KV<URI, String>>> {
     private Iterable<URI> uris;
 
     public ReadDocuments(Iterable<URI> uris) {
@@ -167,7 +159,7 @@ public class TfIdf {
     }
 
     @Override
-    public PCollection<KV<URI, String>> apply(PInput input) {
+    public PCollection<KV<URI, String>> apply(PBegin input) {
       Pipeline pipeline = input.getPipeline();
 
       // Create one TextIO.Read transform for each document

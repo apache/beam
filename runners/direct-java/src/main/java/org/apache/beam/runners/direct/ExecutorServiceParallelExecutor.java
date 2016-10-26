@@ -17,6 +17,29 @@
  */
 package org.apache.beam.runners.direct;
 
+import com.google.auto.value.AutoValue;
+import com.google.common.base.MoreObjects;
+import com.google.common.base.Optional;
+import com.google.common.cache.CacheBuilder;
+import com.google.common.cache.CacheLoader;
+import com.google.common.cache.LoadingCache;
+import com.google.common.collect.Iterables;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Map;
+import java.util.Queue;
+import java.util.Set;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
+import javax.annotation.Nullable;
 import org.apache.beam.runners.direct.DirectRunner.CommittedBundle;
 import org.apache.beam.runners.direct.WatermarkManager.FiredTimers;
 import org.apache.beam.sdk.Pipeline;
@@ -26,38 +49,13 @@ import org.apache.beam.sdk.util.KeyedWorkItem;
 import org.apache.beam.sdk.util.KeyedWorkItems;
 import org.apache.beam.sdk.util.TimeDomain;
 import org.apache.beam.sdk.util.TimerInternals.TimerData;
+import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PValue;
-
-import com.google.auto.value.AutoValue;
-import com.google.common.base.MoreObjects;
-import com.google.common.base.Optional;
-import com.google.common.cache.CacheBuilder;
-import com.google.common.cache.CacheLoader;
-import com.google.common.cache.LoadingCache;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Iterables;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Map;
-import java.util.Queue;
-import java.util.Set;
-import java.util.concurrent.ArrayBlockingQueue;
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicLong;
-import java.util.concurrent.atomic.AtomicReference;
-
-import javax.annotation.Nullable;
 
 /**
  * An {@link PipelineExecutor} that uses an underlying {@link ExecutorService} and
@@ -70,6 +68,7 @@ final class ExecutorServiceParallelExecutor implements PipelineExecutor {
 
   private final Map<PValue, Collection<AppliedPTransform<?, ?, ?>>> valueToConsumers;
   private final Set<PValue> keyedPValues;
+  private final RootInputProvider rootInputProvider;
   private final TransformEvaluatorRegistry registry;
   @SuppressWarnings("rawtypes")
   private final Map<Class<? extends PTransform>, Collection<ModelEnforcementFactory>>
@@ -85,7 +84,8 @@ final class ExecutorServiceParallelExecutor implements PipelineExecutor {
   private final TransformExecutorService parallelExecutorService;
   private final CompletionCallback defaultCompletionCallback;
 
-  private Collection<AppliedPTransform<?, ?, ?>> rootNodes;
+  private final ConcurrentMap<AppliedPTransform<?, ?, ?>, ConcurrentLinkedQueue<CommittedBundle<?>>>
+      pendingRootBundles;
 
  private final AtomicReference<ExecutorState> state =
       new AtomicReference<>(ExecutorState.QUIESCENT);
@@ -103,18 +103,27 @@ final class ExecutorServiceParallelExecutor implements PipelineExecutor {
       ExecutorService executorService,
       Map<PValue, Collection<AppliedPTransform<?, ?, ?>>> valueToConsumers,
       Set<PValue> keyedPValues,
+      RootInputProvider rootInputProvider,
       TransformEvaluatorRegistry registry,
       @SuppressWarnings("rawtypes")
-      Map<Class<? extends PTransform>, Collection<ModelEnforcementFactory>> transformEnforcements,
+          Map<Class<? extends PTransform>, Collection<ModelEnforcementFactory>>
+              transformEnforcements,
       EvaluationContext context) {
     return new ExecutorServiceParallelExecutor(
-        executorService, valueToConsumers, keyedPValues, registry, transformEnforcements, context);
+        executorService,
+        valueToConsumers,
+        keyedPValues,
+        rootInputProvider,
+        registry,
+        transformEnforcements,
+        context);
   }
 
   private ExecutorServiceParallelExecutor(
       ExecutorService executorService,
       Map<PValue, Collection<AppliedPTransform<?, ?, ?>>> valueToConsumers,
       Set<PValue> keyedPValues,
+      RootInputProvider rootInputProvider,
       TransformEvaluatorRegistry registry,
       @SuppressWarnings("rawtypes")
       Map<Class<? extends PTransform>, Collection<ModelEnforcementFactory>> transformEnforcements,
@@ -122,6 +131,7 @@ final class ExecutorServiceParallelExecutor implements PipelineExecutor {
     this.executorService = executorService;
     this.valueToConsumers = valueToConsumers;
     this.keyedPValues = keyedPValues;
+    this.rootInputProvider = rootInputProvider;
     this.registry = registry;
     this.transformEnforcements = transformEnforcements;
     this.evaluationContext = context;
@@ -138,6 +148,7 @@ final class ExecutorServiceParallelExecutor implements PipelineExecutor {
     parallelExecutorService = TransformExecutorServices.parallel(executorService);
     defaultCompletionCallback =
         new TimerIterableCompletionCallback(Collections.<TimerData>emptyList());
+    this.pendingRootBundles = new ConcurrentHashMap<>();
   }
 
   private CacheLoader<StepAndKey, TransformExecutorService>
@@ -152,7 +163,17 @@ final class ExecutorServiceParallelExecutor implements PipelineExecutor {
 
   @Override
   public void start(Collection<AppliedPTransform<?, ?, ?>> roots) {
-    rootNodes = ImmutableList.copyOf(roots);
+    for (AppliedPTransform<?, ?, ?> root : roots) {
+      ConcurrentLinkedQueue<CommittedBundle<?>> pending = new ConcurrentLinkedQueue<>();
+      try {
+        Collection<CommittedBundle<?>> initialInputs = rootInputProvider.getInitialInputs(root, 1);
+        pending.addAll(initialInputs);
+      } catch (Exception e) {
+        throw UserCodeException.wrap(e);
+      }
+      pendingRootBundles.put(root, pending);
+    }
+    evaluationContext.initialize(pendingRootBundles);
     Runnable monitorRunnable = new MonitorRunnable();
     executorService.submit(monitorRunnable);
   }
@@ -167,13 +188,12 @@ final class ExecutorServiceParallelExecutor implements PipelineExecutor {
 
   private <T> void evaluateBundle(
       final AppliedPTransform<?, ?, ?> transform,
-      @Nullable final CommittedBundle<T> bundle,
+      final CommittedBundle<T> bundle,
       final CompletionCallback onComplete) {
     TransformExecutorService transformExecutor;
 
-    if (bundle != null && isKeyed(bundle.getPCollection())) {
-      final StepAndKey stepAndKey =
-          StepAndKey.of(transform, bundle == null ? null : bundle.getKey());
+    if (isKeyed(bundle.getPCollection())) {
+      final StepAndKey stepAndKey = StepAndKey.of(transform, bundle.getKey());
       // This executor will remain reachable until it has executed all scheduled transforms.
       // The TransformExecutors keep a strong reference to the Executor, the ExecutorService keeps
       // a reference to the scheduled TransformExecutor callable. Follow-up TransformExecutors
@@ -191,9 +211,9 @@ final class ExecutorServiceParallelExecutor implements PipelineExecutor {
 
     TransformExecutor<T> callable =
         TransformExecutor.create(
+            evaluationContext,
             registry,
             enforcements,
-            evaluationContext,
             bundle,
             transform,
             onComplete,
@@ -214,7 +234,7 @@ final class ExecutorServiceParallelExecutor implements PipelineExecutor {
   }
 
   @Override
-  public void awaitCompletion() throws Throwable {
+  public void awaitCompletion() throws Exception {
     VisibleExecutorUpdate update;
     do {
       // Get an update; don't block forever if another thread has handled it
@@ -223,8 +243,8 @@ final class ExecutorServiceParallelExecutor implements PipelineExecutor {
         // there are no updates to process and no updates will ever be published because the
         // executor is shutdown
         return;
-      } else if (update != null && update.throwable.isPresent()) {
-        throw update.throwable.get();
+      } else if (update != null && update.exception.isPresent()) {
+        throw update.exception.get();
       }
     } while (update == null || !update.isDone());
     executorService.shutdown();
@@ -233,7 +253,7 @@ final class ExecutorServiceParallelExecutor implements PipelineExecutor {
   /**
    * The base implementation of {@link CompletionCallback} that provides implementations for
    * {@link #handleResult(CommittedBundle, TransformResult)} and
-   * {@link #handleThrowable(CommittedBundle, Throwable)}.
+   * {@link #handleException(CommittedBundle, Exception)}.
    */
   private class TimerIterableCompletionCallback implements CompletionCallback {
     private final Iterable<TimerData> timers;
@@ -252,8 +272,16 @@ final class ExecutorServiceParallelExecutor implements PipelineExecutor {
       }
       CommittedBundle<?> unprocessedInputs = committedResult.getUnprocessedInputs();
       if (unprocessedInputs != null && !Iterables.isEmpty(unprocessedInputs.getElements())) {
-        allUpdates.offer(ExecutorUpdate.fromBundle(unprocessedInputs,
-            Collections.<AppliedPTransform<?, ?, ?>>singleton(committedResult.getTransform())));
+        if (inputBundle.getPCollection() == null) {
+          // TODO: Split this logic out of an if statement
+          pendingRootBundles.get(result.getTransform()).offer(unprocessedInputs);
+        } else {
+          allUpdates.offer(
+              ExecutorUpdate.fromBundle(
+                  unprocessedInputs,
+                  Collections.<AppliedPTransform<?, ?, ?>>singleton(
+                      committedResult.getTransform())));
+        }
       }
       if (!committedResult.getProducedOutputTypes().isEmpty()) {
         state.set(ExecutorState.ACTIVE);
@@ -268,8 +296,8 @@ final class ExecutorServiceParallelExecutor implements PipelineExecutor {
     }
 
     @Override
-    public final void handleThrowable(CommittedBundle<?> inputBundle, Throwable t) {
-      allUpdates.offer(ExecutorUpdate.fromThrowable(t));
+    public final void handleException(CommittedBundle<?> inputBundle, Exception e) {
+      allUpdates.offer(ExecutorUpdate.fromException(e));
       outstandingWork.decrementAndGet();
     }
   }
@@ -277,7 +305,7 @@ final class ExecutorServiceParallelExecutor implements PipelineExecutor {
   /**
    * An internal status update on the state of the executor.
    *
-   * Used to signal when the executor should be shut down (due to an exception).
+   * <p>Used to signal when the executor should be shut down (due to an exception).
    */
   @AutoValue
   abstract static class ExecutorUpdate {
@@ -287,14 +315,14 @@ final class ExecutorServiceParallelExecutor implements PipelineExecutor {
       return new AutoValue_ExecutorServiceParallelExecutor_ExecutorUpdate(
           Optional.of(bundle),
           consumers,
-          Optional.<Throwable>absent());
+          Optional.<Exception>absent());
     }
 
-    public static ExecutorUpdate fromThrowable(Throwable t) {
+    public static ExecutorUpdate fromException(Exception e) {
       return new AutoValue_ExecutorServiceParallelExecutor_ExecutorUpdate(
           Optional.<CommittedBundle<?>>absent(),
           Collections.<AppliedPTransform<?, ?, ?>>emptyList(),
-          Optional.of(t));
+          Optional.of(e));
     }
 
     /**
@@ -308,7 +336,7 @@ final class ExecutorServiceParallelExecutor implements PipelineExecutor {
      */
     public abstract Collection<AppliedPTransform<?, ?, ?>> getConsumers();
 
-    public abstract Optional<? extends Throwable> getException();
+    public abstract Optional<? extends Exception> getException();
   }
 
   /**
@@ -316,10 +344,10 @@ final class ExecutorServiceParallelExecutor implements PipelineExecutor {
    * return normally or throw an exception.
    */
   private static class VisibleExecutorUpdate {
-    private final Optional<? extends Throwable> throwable;
+    private final Optional<? extends Exception> exception;
     private final boolean done;
 
-    public static VisibleExecutorUpdate fromThrowable(Throwable e) {
+    public static VisibleExecutorUpdate fromException(Exception e) {
       return new VisibleExecutorUpdate(false, e);
     }
 
@@ -327,8 +355,8 @@ final class ExecutorServiceParallelExecutor implements PipelineExecutor {
       return new VisibleExecutorUpdate(true, null);
     }
 
-    private VisibleExecutorUpdate(boolean done, @Nullable Throwable exception) {
-      this.throwable = Optional.fromNullable(exception);
+    private VisibleExecutorUpdate(boolean done, @Nullable Exception exception) {
+      this.exception = Optional.fromNullable(exception);
       this.done = done;
     }
 
@@ -338,8 +366,6 @@ final class ExecutorServiceParallelExecutor implements PipelineExecutor {
   }
 
   private class MonitorRunnable implements Runnable {
-    // arbitrary termination condition to ensure progress in the presence of pushback
-    private final long maxTimeProcessingUpdatesNanos = TimeUnit.MILLISECONDS.toNanos(5L);
     private final String runnableName = String.format("%s$%s-monitor",
         evaluationContext.getPipelineOptions().getAppName(),
         ExecutorServiceParallelExecutor.class.getSimpleName());
@@ -376,14 +402,15 @@ final class ExecutorServiceParallelExecutor implements PipelineExecutor {
         for (ExecutorUpdate update : updates) {
           LOG.debug("Executor Update: {}", update);
           if (update.getBundle().isPresent()) {
-            if (ExecutorState.ACTIVE == startingState || (ExecutorState.PROCESSING == startingState
-                && noWorkOutstanding)) {
+            if (ExecutorState.ACTIVE == startingState
+                || (ExecutorState.PROCESSING == startingState
+                    && noWorkOutstanding)) {
               scheduleConsumers(update);
             } else {
               allUpdates.offer(update);
             }
           } else if (update.getException().isPresent()) {
-            visibleUpdates.offer(VisibleExecutorUpdate.fromThrowable(update.getException().get()));
+            visibleUpdates.offer(VisibleExecutorUpdate.fromException(update.getException().get()));
             exceptionThrown = true;
           }
         }
@@ -391,12 +418,12 @@ final class ExecutorServiceParallelExecutor implements PipelineExecutor {
       } catch (InterruptedException e) {
         Thread.currentThread().interrupt();
         LOG.error("Monitor died due to being interrupted");
-        while (!visibleUpdates.offer(VisibleExecutorUpdate.fromThrowable(e))) {
+        while (!visibleUpdates.offer(VisibleExecutorUpdate.fromException(e))) {
           visibleUpdates.poll();
         }
-      } catch (Throwable t) {
-        LOG.error("Monitor thread died due to throwable", t);
-        while (!visibleUpdates.offer(VisibleExecutorUpdate.fromThrowable(t))) {
+      } catch (Exception t) {
+        LOG.error("Monitor thread died due to exception", t);
+        while (!visibleUpdates.offer(VisibleExecutorUpdate.fromException(t))) {
           visibleUpdates.poll();
         }
       } finally {
@@ -409,7 +436,7 @@ final class ExecutorServiceParallelExecutor implements PipelineExecutor {
     }
 
     /**
-     * Fires any available timers. Returns true if at least one timer was fired.
+     * Fires any available timers.
      */
     private void fireTimers() throws Exception {
       try {
@@ -429,9 +456,8 @@ final class ExecutorServiceParallelExecutor implements PipelineExecutor {
               @SuppressWarnings({"unchecked", "rawtypes"})
               CommittedBundle<?> bundle =
                   evaluationContext
-                      .createKeyedBundle(
-                          null, keyTimers.getKey(), (PCollection) transform.getInput())
-                      .add(WindowedValue.valueInEmptyWindows(work))
+                      .createKeyedBundle(keyTimers.getKey(), (PCollection) transform.getInput())
+                      .add(WindowedValue.valueInGlobalWindow(work))
                       .commit(evaluationContext.now());
               scheduleConsumption(transform, bundle, new TimerIterableCompletionCallback(delivery));
               state.set(ExecutorState.ACTIVE);
@@ -447,13 +473,18 @@ final class ExecutorServiceParallelExecutor implements PipelineExecutor {
     private boolean shouldShutdown() {
       boolean shouldShutdown = exceptionThrown || evaluationContext.isDone();
       if (shouldShutdown) {
+        LOG.debug("Pipeline has terminated. Shutting down.");
+        executorService.shutdown();
+        try {
+          registry.cleanup();
+        } catch (Exception e) {
+          visibleUpdates.add(VisibleExecutorUpdate.fromException(e));
+        }
         if (evaluationContext.isDone()) {
-          LOG.debug("Pipeline is finished. Shutting down. {}");
           while (!visibleUpdates.offer(VisibleExecutorUpdate.finished())) {
             visibleUpdates.poll();
           }
         }
-        executorService.shutdown();
       }
       return shouldShutdown;
     }
@@ -467,9 +498,17 @@ final class ExecutorServiceParallelExecutor implements PipelineExecutor {
       // If any timers have fired, they will add more work; We don't need to add more
       if (state.get() == ExecutorState.QUIESCENT) {
         // All current TransformExecutors are blocked; add more work from the roots.
-        for (AppliedPTransform<?, ?, ?> root : rootNodes) {
-          if (!evaluationContext.isDone(root)) {
-            scheduleConsumption(root, null, defaultCompletionCallback);
+        for (Map.Entry<AppliedPTransform<?, ?, ?>, ConcurrentLinkedQueue<CommittedBundle<?>>>
+            pendingRootEntry : pendingRootBundles.entrySet()) {
+          Collection<CommittedBundle<?>> bundles = new ArrayList<>();
+          // Pull all available work off of the queue, then schedule it all, so this loop
+          // terminates
+          while (!pendingRootEntry.getValue().isEmpty()) {
+            CommittedBundle<?> bundle = pendingRootEntry.getValue().poll();
+            bundles.add(bundle);
+          }
+          for (CommittedBundle<?> bundle : bundles) {
+            scheduleConsumption(pendingRootEntry.getKey(), bundle, defaultCompletionCallback);
             state.set(ExecutorState.ACTIVE);
           }
         }

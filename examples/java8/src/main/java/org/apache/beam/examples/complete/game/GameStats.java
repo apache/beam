@@ -17,6 +17,9 @@
  */
 package org.apache.beam.examples.complete.game;
 
+import java.util.HashMap;
+import java.util.Map;
+import java.util.TimeZone;
 import org.apache.beam.examples.common.ExampleUtils;
 import org.apache.beam.examples.complete.game.utils.WriteWindowedToBigQuery;
 import org.apache.beam.sdk.Pipeline;
@@ -45,7 +48,6 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TypeDescriptors;
-
 import org.joda.time.DateTimeZone;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -54,31 +56,27 @@ import org.joda.time.format.DateTimeFormatter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.HashMap;
-import java.util.Map;
-import java.util.TimeZone;
-
 /**
  * This class is the fourth in a series of four pipelines that tell a story in a 'gaming'
  * domain, following {@link UserScore}, {@link HourlyTeamScore}, and {@link LeaderBoard}.
  * New concepts: session windows and finding session duration; use of both
  * singleton and non-singleton side inputs.
  *
- * <p> This pipeline builds on the {@link LeaderBoard} functionality, and adds some "business
+ * <p>This pipeline builds on the {@link LeaderBoard} functionality, and adds some "business
  * intelligence" analysis: abuse detection and usage patterns. The pipeline derives the Mean user
  * score sum for a window, and uses that information to identify likely spammers/robots. (The robots
  * have a higher click rate than the human users). The 'robot' users are then filtered out when
  * calculating the team scores.
  *
- * <p> Additionally, user sessions are tracked: that is, we find bursts of user activity using
+ * <p>Additionally, user sessions are tracked: that is, we find bursts of user activity using
  * session windows. Then, the mean session duration information is recorded in the context of
  * subsequent fixed windowing. (This could be used to tell us what games are giving us greater
  * user retention).
  *
- * <p> Run {@code org.apache.beam.examples.complete.game.injector.Injector} to generate
+ * <p>Run {@code org.apache.beam.examples.complete.game.injector.Injector} to generate
  * pubsub data for this pipeline. The {@code Injector} documentation provides more detail.
  *
- * <p> To execute this pipeline using the Dataflow service, specify the pipeline configuration
+ * <p>To execute this pipeline using the Dataflow service, specify the pipeline configuration
  * like this:
  * <pre>{@code
  *   --project=YOUR_PROJECT_ID
@@ -163,7 +161,7 @@ public class GameStats extends LeaderBoard {
   /**
    * Options supported by {@link GameStats}.
    */
-  static interface Options extends LeaderBoard.Options {
+  interface Options extends LeaderBoard.Options {
     @Description("Numeric value of fixed window duration for user analysis, in minutes")
     @Default.Integer(60)
     Integer getFixedWindowDuration();
@@ -195,21 +193,26 @@ public class GameStats extends LeaderBoard {
       configureWindowedWrite() {
     Map<String, WriteWindowedToBigQuery.FieldInfo<KV<String, Integer>>> tableConfigure =
         new HashMap<String, WriteWindowedToBigQuery.FieldInfo<KV<String, Integer>>>();
-    tableConfigure.put("team",
-        new WriteWindowedToBigQuery.FieldInfo<KV<String, Integer>>("STRING",
-            c -> c.element().getKey()));
-    tableConfigure.put("total_score",
-        new WriteWindowedToBigQuery.FieldInfo<KV<String, Integer>>("INTEGER",
-            c -> c.element().getValue()));
-    tableConfigure.put("window_start",
-        new WriteWindowedToBigQuery.FieldInfo<KV<String, Integer>>("STRING",
-          c -> {
-            IntervalWindow w = (IntervalWindow) c.window();
-            return fmt.print(w.start());
-          }));
-    tableConfigure.put("processing_time",
+    tableConfigure.put(
+        "team",
         new WriteWindowedToBigQuery.FieldInfo<KV<String, Integer>>(
-            "STRING", c -> fmt.print(Instant.now())));
+            "STRING", (c, w) -> c.element().getKey()));
+    tableConfigure.put(
+        "total_score",
+        new WriteWindowedToBigQuery.FieldInfo<KV<String, Integer>>(
+            "INTEGER", (c, w) -> c.element().getValue()));
+    tableConfigure.put(
+        "window_start",
+        new WriteWindowedToBigQuery.FieldInfo<KV<String, Integer>>(
+            "STRING",
+            (c, w) -> {
+              IntervalWindow window = (IntervalWindow) w;
+              return fmt.print(window.start());
+            }));
+    tableConfigure.put(
+        "processing_time",
+        new WriteWindowedToBigQuery.FieldInfo<KV<String, Integer>>(
+            "STRING", (c, w) -> fmt.print(Instant.now())));
     return tableConfigure;
   }
 
@@ -222,14 +225,17 @@ public class GameStats extends LeaderBoard {
 
     Map<String, WriteWindowedToBigQuery.FieldInfo<Double>> tableConfigure =
         new HashMap<String, WriteWindowedToBigQuery.FieldInfo<Double>>();
-    tableConfigure.put("window_start",
-        new WriteWindowedToBigQuery.FieldInfo<Double>("STRING",
-          c -> {
-            IntervalWindow w = (IntervalWindow) c.window();
-            return fmt.print(w.start());
-          }));
-    tableConfigure.put("mean_duration",
-        new WriteWindowedToBigQuery.FieldInfo<Double>("FLOAT", c -> c.element()));
+    tableConfigure.put(
+        "window_start",
+        new WriteWindowedToBigQuery.FieldInfo<Double>(
+            "STRING",
+            (c, w) -> {
+              IntervalWindow window = (IntervalWindow) w;
+              return fmt.print(window.start());
+            }));
+    tableConfigure.put(
+        "mean_duration",
+        new WriteWindowedToBigQuery.FieldInfo<Double>("FLOAT", (c, w) -> c.element()));
     return tableConfigure;
   }
 

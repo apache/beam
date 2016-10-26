@@ -17,16 +17,14 @@
  */
 package org.apache.beam.runners.flink.translation.functions;
 
-import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.sdk.values.PCollectionView;
-
-import org.apache.flink.api.common.functions.BroadcastVariableInitializer;
-
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.values.PCollectionView;
+import org.apache.flink.api.common.functions.BroadcastVariableInitializer;
 
 /**
  * {@link BroadcastVariableInitializer} that initializes the broadcast input as a {@code Map}
@@ -67,7 +65,7 @@ public class SideInputInitializer<ElemT, ViewT, W extends BoundedWindow>
       Iterable<WindowedValue<?>> elementsIterable =
           (List<WindowedValue<?>>) (List<?>) elements.getValue();
 
-      resultMap.put(elements.getKey(), view.fromIterableInternal(elementsIterable));
+      resultMap.put(elements.getKey(), view.getViewFn().apply(elementsIterable));
     }
 
     return resultMap;

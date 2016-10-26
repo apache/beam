@@ -23,6 +23,14 @@ import static org.apache.beam.sdk.TestUtils.LINES_ARRAY;
 import static org.apache.beam.sdk.TestUtils.NO_LINES;
 import static org.apache.beam.sdk.TestUtils.NO_LINES_ARRAY;
 
+import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.Iterables;
+import java.io.Serializable;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.List;
+import java.util.Set;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CollectionCoder;
@@ -41,9 +49,6 @@ import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.PCollectionView;
-
-import com.google.common.collect.ImmutableSet;
-
 import org.joda.time.Duration;
 import org.junit.Assert;
 import org.junit.Rule;
@@ -52,13 +57,6 @@ import org.junit.experimental.categories.Category;
 import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-
-import java.io.Serializable;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.List;
-import java.util.Set;
 
 /**
  * Tests for Flatten.
@@ -99,7 +97,7 @@ public class FlattenTest implements Serializable {
     PCollection<String> output =
         makePCollectionListOfStrings(p, inputs)
         .apply(Flatten.<String>pCollections())
-        .apply(ParDo.of(new IdentityFn<String>(){}));
+        .apply(ParDo.of(new IdentityFn<String>()));
 
     PAssert.that(output).containsInAnyOrder(flattenLists(inputs));
     p.run();
@@ -115,6 +113,25 @@ public class FlattenTest implements Serializable {
         .apply(Flatten.<String>pCollections()).setCoder(StringUtf8Coder.of());
 
     PAssert.that(output).empty();
+    p.run();
+  }
+
+  @Test
+  @Category(RunnableOnService.class)
+  public void testFlattenInputMultipleCopies() {
+    Pipeline p = TestPipeline.create();
+
+    PCollection<String> lines = p.apply("mkLines", Create.of(LINES));
+    PCollection<String> lines2 = p.apply("mkOtherLines", Create.of(LINES2));
+
+    PCollection<String> flattened = PCollectionList.of(lines)
+        .and(lines2)
+        .and(lines)
+        .and(lines)
+        .apply(Flatten.<String>pCollections());
+
+    PAssert.that(flattened).containsInAnyOrder(Iterables.concat(LINES, LINES, LINES, LINES2));
+
     p.run();
   }
 
@@ -152,7 +169,7 @@ public class FlattenTest implements Serializable {
     PCollection<String> output =
         PCollectionList.<String>empty(p)
         .apply(Flatten.<String>pCollections()).setCoder(StringUtf8Coder.of())
-        .apply(ParDo.of(new IdentityFn<String>(){}));
+        .apply(ParDo.of(new IdentityFn<String>()));
 
     PAssert.that(output).empty();
     p.run();

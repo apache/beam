@@ -22,7 +22,7 @@
   <parent>
     <groupId>org.apache.beam</groupId>
     <artifactId>beam-runners-flink-parent</artifactId>
-    <version>0.3.0-incubating-SNAPSHOT</version>
+    <version>0.4.0-incubating-SNAPSHOT</version>
     <relativePath>../pom.xml</relativePath>
   </parent>
 
@@ -52,11 +52,17 @@
                   <goal>test</goal>
                 </goals>
                 <configuration>
+                  <groups>org.apache.beam.sdk.testing.RunnableOnService</groups>
+                  <parallel>none</parallel>
+                  <failIfNoTests>true</failIfNoTests>
+                  <dependenciesToScan>
+                    <dependency>org.apache.beam:beam-sdks-java-core</dependency>
+                  </dependenciesToScan>
                   <systemPropertyVariables>
                     <beamTestPipelineOptions>
                       [
-                        "--runner=TestFlinkRunner",
-                        "--streaming=false"
+                      "--runner=TestFlinkRunner",
+                      "--streaming=false"
                       ]
                     </beamTestPipelineOptions>
                   </systemPropertyVariables>
@@ -71,7 +77,6 @@
                   <goal>test</goal>
                 </goals>
                 <configuration>
-                  <skip>true</skip>
                   <groups>org.apache.beam.sdk.testing.RunnableOnService</groups>
                   <parallel>none</parallel>
                   <failIfNoTests>true</failIfNoTests>
@@ -117,6 +122,14 @@
     <dependency>
       <groupId>org.apache.flink</groupId>
       <artifactId>flink-core</artifactId>
+      <version>${flink.version}</version>
+      <type>test-jar</type>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>org.apache.flink</groupId>
+      <artifactId>flink-runtime_2.10</artifactId>
       <version>${flink.version}</version>
       <type>test-jar</type>
       <scope>test</scope>
@@ -229,12 +242,10 @@
         </executions>
       </plugin>
 
-      <!-- Checkstyle errors for now
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-checkstyle-plugin</artifactId>
       </plugin>
-      -->
 
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>

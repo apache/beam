@@ -20,7 +20,8 @@ package org.apache.beam.runners.spark.io.hadoop;
 
 import static org.junit.Assert.assertEquals;
 
-import org.apache.beam.runners.spark.EvaluationResult;
+import java.io.File;
+import java.io.IOException;
 import org.apache.beam.runners.spark.SparkRunner;
 import org.apache.beam.runners.spark.coders.WritableCoder;
 import org.apache.beam.sdk.Pipeline;
@@ -29,7 +30,6 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
-
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.IntWritable;
@@ -44,9 +44,6 @@ import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
-
-import java.io.File;
-import java.io.IOException;
 
 /**
  * Pipeline on the Hadoop file format test.
@@ -92,8 +89,7 @@ public class HadoopFileFormatPipelineTest {
     HadoopIO.Write.Bound<IntWritable, Text> write = HadoopIO.Write.to(outputFile.getAbsolutePath(),
         outputFormatClass, IntWritable.class, Text.class);
     input.apply(write.withoutSharding());
-    EvaluationResult res = (EvaluationResult) p.run();
-    res.close();
+    p.run();
 
     IntWritable key = new IntWritable();
     Text value = new Text();

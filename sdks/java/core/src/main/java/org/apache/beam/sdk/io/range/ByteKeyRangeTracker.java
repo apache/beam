@@ -20,12 +20,10 @@ package org.apache.beam.sdk.io.range;
 import static com.google.common.base.MoreObjects.toStringHelper;
 import static com.google.common.base.Preconditions.checkState;
 
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.io.BoundedSource.BoundedReader;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import javax.annotation.Nullable;
 
 /**
  * A {@link RangeTracker} for {@link ByteKey ByteKeys} in {@link ByteKeyRange ByteKeyRanges}.
@@ -176,7 +174,7 @@ public final class ByteKeyRangeTracker implements RangeTracker<ByteKey> {
   }
 
   @Override
-  public String toString() {
+  public synchronized String toString() {
     return toStringHelper(ByteKeyRangeTracker.class)
         .add("range", range)
         .add("position", position)

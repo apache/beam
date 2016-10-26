@@ -17,17 +17,18 @@
  */
 package org.apache.beam.runners.direct;
 
+import java.io.Serializable;
+import java.util.Collections;
 import org.apache.beam.runners.direct.DirectRunner.CommittedBundle;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.transforms.OldDoFn;
+import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.util.IllegalMutationException;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollection;
-
 import org.joda.time.Instant;
 import org.junit.Before;
 import org.junit.Rule;
@@ -35,9 +36,6 @@ import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-
-import java.io.Serializable;
-import java.util.Collections;
 
 /**
  * Tests for {@link ImmutabilityEnforcementFactory}.
@@ -59,9 +57,9 @@ public class ImmutabilityEnforcementFactoryTest implements Serializable {
         p.apply(Create.of("foo".getBytes(), "spamhameggs".getBytes()))
             .apply(
                 ParDo.of(
-                    new OldDoFn<byte[], byte[]>() {
-                      @Override
-                      public void processElement(OldDoFn<byte[], byte[]>.ProcessContext c)
+                    new DoFn<byte[], byte[]>() {
+                      @ProcessElement
+                      public void processElement(ProcessContext c)
                           throws Exception {
                         c.element()[0] = 'b';
                       }
@@ -73,7 +71,7 @@ public class ImmutabilityEnforcementFactoryTest implements Serializable {
   public void unchangedSucceeds() {
     WindowedValue<byte[]> element = WindowedValue.valueInGlobalWindow("bar".getBytes());
     CommittedBundle<byte[]> elements =
-        bundleFactory.createRootBundle(pcollection).add(element).commit(Instant.now());
+        bundleFactory.createBundle(pcollection).add(element).commit(Instant.now());
 
     ModelEnforcement<byte[]> enforcement = factory.forBundle(elements, consumer);
     enforcement.beforeElement(element);
@@ -88,7 +86,7 @@ public class ImmutabilityEnforcementFactoryTest implements Serializable {
   public void mutatedDuringProcessElementThrows() {
     WindowedValue<byte[]> element = WindowedValue.valueInGlobalWindow("bar".getBytes());
     CommittedBundle<byte[]> elements =
-        bundleFactory.createRootBundle(pcollection).add(element).commit(Instant.now());
+        bundleFactory.createBundle(pcollection).add(element).commit(Instant.now());
 
     ModelEnforcement<byte[]> enforcement = factory.forBundle(elements, consumer);
     enforcement.beforeElement(element);
@@ -109,7 +107,7 @@ public class ImmutabilityEnforcementFactoryTest implements Serializable {
 
     WindowedValue<byte[]> element = WindowedValue.valueInGlobalWindow("bar".getBytes());
     CommittedBundle<byte[]> elements =
-        bundleFactory.createRootBundle(pcollection).add(element).commit(Instant.now());
+        bundleFactory.createBundle(pcollection).add(element).commit(Instant.now());
 
     ModelEnforcement<byte[]> enforcement = factory.forBundle(elements, consumer);
     enforcement.beforeElement(element);

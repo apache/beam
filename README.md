@@ -110,4 +110,5 @@ To get involved in Apache Beam:
 ## More Information
 
 * [Apache Beam](http://beam.incubator.apache.org)
-* [Getting Started with Apache Beam](http://beam.incubator.apache.org/getting_started/)
+* [Overview](http://beam.incubator.apache.org/use/beam-overview/)
+* [Quickstart](http://beam.incubator.apache.org/use/quickstart/)

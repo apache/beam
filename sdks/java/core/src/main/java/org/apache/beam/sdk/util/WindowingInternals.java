@@ -17,20 +17,19 @@
  */
 package org.apache.beam.sdk.util;
 
+import java.io.IOException;
+import java.util.Collection;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.state.StateInternals;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
-
 import org.joda.time.Instant;
 
-import java.io.IOException;
-import java.util.Collection;
-
 /**
- * Interface that may be required by some (internal) {@code OldDoFn}s to implement windowing. It
+ * Interface that may be required by some (internal) {@link DoFn}s to implement windowing. It
  * should not be necessary for general user code to interact with this at all.
  *
  * <p>This interface should be provided by runner implementors to support windowing on their runner.

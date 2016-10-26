@@ -1,0 +1,224 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package org.apache.beam.sdk.io.kinesis;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.failBecauseExceptionWasNotThrown;
+import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.reset;
+
+import com.amazonaws.AmazonServiceException;
+import com.amazonaws.AmazonServiceException.ErrorType;
+import com.amazonaws.services.kinesis.AmazonKinesis;
+import com.amazonaws.services.kinesis.model.DescribeStreamResult;
+import com.amazonaws.services.kinesis.model.ExpiredIteratorException;
+import com.amazonaws.services.kinesis.model.GetShardIteratorRequest;
+import com.amazonaws.services.kinesis.model.GetShardIteratorResult;
+import com.amazonaws.services.kinesis.model.LimitExceededException;
+import com.amazonaws.services.kinesis.model.ProvisionedThroughputExceededException;
+import com.amazonaws.services.kinesis.model.Shard;
+import com.amazonaws.services.kinesis.model.ShardIteratorType;
+import com.amazonaws.services.kinesis.model.StreamDescription;
+import java.util.List;
+import org.joda.time.Instant;
+import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.runners.MockitoJUnitRunner;
+
+/***
+ */
+@RunWith(MockitoJUnitRunner.class)
+public class SimplifiedKinesisClientTest {
+    private static final String STREAM = "stream";
+    private static final String SHARD_1 = "shard-01";
+    private static final String SHARD_2 = "shard-02";
+    private static final String SHARD_3 = "shard-03";
+    private static final String SHARD_ITERATOR = "iterator";
+    private static final String SEQUENCE_NUMBER = "abc123";
+
+    @Mock
+    private AmazonKinesis kinesis;
+    @InjectMocks
+    private SimplifiedKinesisClient underTest;
+
+    @Test
+    public void shouldReturnIteratorStartingWithSequenceNumber() throws Exception {
+        given(kinesis.getShardIterator(new GetShardIteratorRequest()
+                .withStreamName(STREAM)
+                .withShardId(SHARD_1)
+                .withShardIteratorType(ShardIteratorType.AT_SEQUENCE_NUMBER)
+                .withStartingSequenceNumber(SEQUENCE_NUMBER)
+        )).willReturn(new GetShardIteratorResult()
+                .withShardIterator(SHARD_ITERATOR));
+
+        String stream = underTest.getShardIterator(STREAM, SHARD_1,
+                ShardIteratorType.AT_SEQUENCE_NUMBER, SEQUENCE_NUMBER, null);
+
+        assertThat(stream).isEqualTo(SHARD_ITERATOR);
+    }
+
+    @Test
+    public void shouldReturnIteratorStartingWithTimestamp() throws Exception {
+        Instant timestamp = Instant.now();
+        given(kinesis.getShardIterator(new GetShardIteratorRequest()
+                .withStreamName(STREAM)
+                .withShardId(SHARD_1)
+                .withShardIteratorType(ShardIteratorType.AT_SEQUENCE_NUMBER)
+                .withTimestamp(timestamp.toDate())
+        )).willReturn(new GetShardIteratorResult()
+                .withShardIterator(SHARD_ITERATOR));
+
+        String stream = underTest.getShardIterator(STREAM, SHARD_1,
+                ShardIteratorType.AT_SEQUENCE_NUMBER, null, timestamp);
+
+        assertThat(stream).isEqualTo(SHARD_ITERATOR);
+    }
+
+    @Test
+    public void shouldHandleExpiredIterationExceptionForGetShardIterator() {
+        shouldHandleGetShardIteratorError(new ExpiredIteratorException(""),
+                ExpiredIteratorException.class);
+    }
+
+    @Test
+    public void shouldHandleLimitExceededExceptionForGetShardIterator() {
+        shouldHandleGetShardIteratorError(new LimitExceededException(""),
+                TransientKinesisException.class);
+    }
+
+    @Test
+    public void shouldHandleProvisionedThroughputExceededExceptionForGetShardIterator() {
+        shouldHandleGetShardIteratorError(new ProvisionedThroughputExceededException(""),
+                TransientKinesisException.class);
+    }
+
+    @Test
+    public void shouldHandleServiceErrorForGetShardIterator() {
+        shouldHandleGetShardIteratorError(newAmazonServiceException(ErrorType.Service),
+                TransientKinesisException.class);
+    }
+
+    @Test
+    public void shouldHandleClientErrorForGetShardIterator() {
+        shouldHandleGetShardIteratorError(newAmazonServiceException(ErrorType.Client),
+                RuntimeException.class);
+    }
+
+    @Test
+    public void shouldHandleUnexpectedExceptionForGetShardIterator() {
+        shouldHandleGetShardIteratorError(new NullPointerException(),
+                RuntimeException.class);
+    }
+
+    private void shouldHandleGetShardIteratorError(
+            Exception thrownException,
+            Class<? extends Exception> expectedExceptionClass) {
+        GetShardIteratorRequest request = new GetShardIteratorRequest()
+                .withStreamName(STREAM)
+                .withShardId(SHARD_1)
+                .withShardIteratorType(ShardIteratorType.LATEST);
+
+        given(kinesis.getShardIterator(request)).willThrow(thrownException);
+
+        try {
+            underTest.getShardIterator(STREAM, SHARD_1, ShardIteratorType.LATEST, null, null);
+            failBecauseExceptionWasNotThrown(expectedExceptionClass);
+        } catch (Exception e) {
+            assertThat(e).isExactlyInstanceOf(expectedExceptionClass);
+        } finally {
+            reset(kinesis);
+        }
+    }
+
+    @Test
+    public void shouldListAllShards() throws Exception {
+        Shard shard1 = new Shard().withShardId(SHARD_1);
+        Shard shard2 = new Shard().withShardId(SHARD_2);
+        Shard shard3 = new Shard().withShardId(SHARD_3);
+        given(kinesis.describeStream(STREAM, null)).willReturn(new DescribeStreamResult()
+                .withStreamDescription(new StreamDescription()
+                        .withShards(shard1, shard2)
+                        .withHasMoreShards(true)));
+        given(kinesis.describeStream(STREAM, SHARD_2)).willReturn(new DescribeStreamResult()
+                .withStreamDescription(new StreamDescription()
+                        .withShards(shard3)
+                        .withHasMoreShards(false)));
+
+        List<Shard> shards = underTest.listShards(STREAM);
+
+        assertThat(shards).containsOnly(shard1, shard2, shard3);
+    }
+
+    @Test
+    public void shouldHandleExpiredIterationExceptionForShardListing() {
+        shouldHandleShardListingError(new ExpiredIteratorException(""),
+                ExpiredIteratorException.class);
+    }
+
+    @Test
+    public void shouldHandleLimitExceededExceptionForShardListing() {
+        shouldHandleShardListingError(new LimitExceededException(""),
+                TransientKinesisException.class);
+    }
+
+    @Test
+    public void shouldHandleProvisionedThroughputExceededExceptionForShardListing() {
+        shouldHandleShardListingError(new ProvisionedThroughputExceededException(""),
+                TransientKinesisException.class);
+    }
+
+    @Test
+    public void shouldHandleServiceErrorForShardListing() {
+        shouldHandleShardListingError(newAmazonServiceException(ErrorType.Service),
+                TransientKinesisException.class);
+    }
+
+    @Test
+    public void shouldHandleClientErrorForShardListing() {
+        shouldHandleShardListingError(newAmazonServiceException(ErrorType.Client),
+                RuntimeException.class);
+    }
+
+    @Test
+    public void shouldHandleUnexpectedExceptionForShardListing() {
+        shouldHandleShardListingError(new NullPointerException(),
+                RuntimeException.class);
+    }
+
+    private void shouldHandleShardListingError(
+            Exception thrownException,
+            Class<? extends Exception> expectedExceptionClass) {
+        given(kinesis.describeStream(STREAM, null)).willThrow(thrownException);
+        try {
+            underTest.listShards(STREAM);
+            failBecauseExceptionWasNotThrown(expectedExceptionClass);
+        } catch (Exception e) {
+            assertThat(e).isExactlyInstanceOf(expectedExceptionClass);
+        } finally {
+            reset(kinesis);
+        }
+    }
+
+    private AmazonServiceException newAmazonServiceException(ErrorType errorType) {
+        AmazonServiceException exception = new AmazonServiceException("");
+        exception.setErrorType(errorType);
+        return exception;
+    }
+}

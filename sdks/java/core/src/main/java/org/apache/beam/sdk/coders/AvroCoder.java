@@ -19,11 +19,22 @@ package org.apache.beam.sdk.coders;
 
 import static org.apache.beam.sdk.util.Structs.addString;
 
-import org.apache.beam.sdk.util.CloudObject;
-import org.apache.beam.sdk.values.TypeDescriptor;
-
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.io.Serializable;
+import java.lang.reflect.Field;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.SortedMap;
+import java.util.SortedSet;
+import javax.annotation.Nullable;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericDatumReader;
 import org.apache.avro.generic.GenericDatumWriter;
@@ -45,22 +56,8 @@ import org.apache.avro.reflect.Union;
 import org.apache.avro.specific.SpecificData;
 import org.apache.avro.util.ClassUtils;
 import org.apache.avro.util.Utf8;
-
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.io.Serializable;
-import java.lang.reflect.Field;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.SortedMap;
-import java.util.SortedSet;
-
-import javax.annotation.Nullable;
+import org.apache.beam.sdk.util.CloudObject;
+import org.apache.beam.sdk.values.TypeDescriptor;
 
 /**
  * A {@link Coder} using Avro binary format.

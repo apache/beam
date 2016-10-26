@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.util;
 
 import com.google.api.client.auth.oauth2.Credential;
-
 import java.io.IOException;
 import java.security.GeneralSecurityException;
 
@@ -26,5 +25,5 @@ import java.security.GeneralSecurityException;
  * Construct an oauth credential to be used by the SDK and the SDK workers.
  */
 public interface CredentialFactory {
-  public Credential getCredential() throws IOException, GeneralSecurityException;
+  Credential getCredential() throws IOException, GeneralSecurityException;
 }

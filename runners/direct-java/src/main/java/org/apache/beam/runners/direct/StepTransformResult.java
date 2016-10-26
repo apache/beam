@@ -17,55 +17,26 @@
  */
 package org.apache.beam.runners.direct;
 
+import com.google.auto.value.AutoValue;
+import com.google.common.collect.ImmutableList;
+import java.util.Collection;
+import java.util.EnumSet;
+import java.util.Set;
 import org.apache.beam.runners.direct.CommittedResult.OutputType;
 import org.apache.beam.runners.direct.DirectRunner.UncommittedBundle;
 import org.apache.beam.runners.direct.WatermarkManager.TimerUpdate;
+import org.apache.beam.sdk.metrics.MetricUpdates;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.state.CopyOnAccessInMemoryStateInternals;
-
-import com.google.auto.value.AutoValue;
-import com.google.common.collect.ImmutableList;
-
 import org.joda.time.Instant;
-
-import java.util.Collection;
-import java.util.EnumSet;
-import java.util.Set;
-
-import javax.annotation.Nullable;
 
 /**
  * An immutable {@link TransformResult}.
  */
 @AutoValue
 public abstract class StepTransformResult implements TransformResult {
-  @Override
-  public abstract AppliedPTransform<?, ?, ?> getTransform();
-
-  @Override
-  public abstract Iterable<? extends UncommittedBundle<?>> getOutputBundles();
-
-  @Override
-  public abstract Iterable<? extends WindowedValue<?>> getUnprocessedElements();
-
-  @Override
-  @Nullable
-  public abstract AggregatorContainer.Mutator getAggregatorChanges();
-
-  @Override
-  public abstract Instant getWatermarkHold();
-
-  @Nullable
-  @Override
-  public abstract CopyOnAccessInMemoryStateInternals<?> getState();
-
-  @Override
-  public abstract TimerUpdate getTimerUpdate();
-
-  @Override
-  public abstract Set<OutputType> getOutputTypes();
 
   public static Builder withHold(AppliedPTransform<?, ?, ?> transform, Instant watermarkHold) {
     return new Builder(transform, watermarkHold);
@@ -75,6 +46,20 @@ public abstract class StepTransformResult implements TransformResult {
     return new Builder(transform, BoundedWindow.TIMESTAMP_MAX_VALUE);
   }
 
+  @Override
+  public TransformResult withLogicalMetricUpdates(MetricUpdates metricUpdates) {
+    return new AutoValue_StepTransformResult(
+        getTransform(),
+        getOutputBundles(),
+        getUnprocessedElements(),
+        getAggregatorChanges(),
+        metricUpdates,
+        getWatermarkHold(),
+        getState(),
+        getTimerUpdate(),
+        getOutputTypes());
+  }
+
   /**
    * A builder for creating instances of {@link StepTransformResult}.
    */
@@ -82,6 +67,7 @@ public abstract class StepTransformResult implements TransformResult {
     private final AppliedPTransform<?, ?, ?> transform;
     private final ImmutableList.Builder<UncommittedBundle<?>> bundlesBuilder;
     private final ImmutableList.Builder<WindowedValue<?>> unprocessedElementsBuilder;
+    private MetricUpdates metricUpdates;
     private CopyOnAccessInMemoryStateInternals<?> state;
     private TimerUpdate timerUpdate;
     private AggregatorContainer.Mutator aggregatorChanges;
@@ -95,6 +81,7 @@ public abstract class StepTransformResult implements TransformResult {
       this.producedOutputs = EnumSet.noneOf(OutputType.class);
       this.unprocessedElementsBuilder = ImmutableList.builder();
       this.timerUpdate = TimerUpdate.builder(null).build();
+      this.metricUpdates = MetricUpdates.EMPTY;
     }
 
     public StepTransformResult build() {
@@ -103,6 +90,7 @@ public abstract class StepTransformResult implements TransformResult {
           bundlesBuilder.build(),
           unprocessedElementsBuilder.build(),
           aggregatorChanges,
+          metricUpdates,
           watermarkHold,
           state,
           timerUpdate,
@@ -111,6 +99,11 @@ public abstract class StepTransformResult implements TransformResult {
 
     public Builder withAggregatorChanges(AggregatorContainer.Mutator aggregatorChanges) {
       this.aggregatorChanges = aggregatorChanges;
+      return this;
+    }
+
+    public Builder withMetricUpdates(MetricUpdates metricUpdates) {
+      this.metricUpdates = metricUpdates;
       return this;
     }
 
