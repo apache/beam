@@ -74,6 +74,7 @@ import java.util.SortedSet;
 import java.util.TreeMap;
 import java.util.TreeSet;
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.options.Validation.Required;
 import org.apache.beam.sdk.runners.PipelineRunner;
 import org.apache.beam.sdk.runners.PipelineRunnerRegistrar;
@@ -1058,37 +1059,66 @@ public class PipelineOptionsFactory {
     }
 
     // Verify that there is no getter with a mixed @JsonIgnore annotation.
-    validateGettersNoMixedAnnotations(
-        methodNameToAllMethodMap, descriptors, AnnotationPredicate.JSON_IGNORE);
+    validateGettersHaveConsistentAnnotation(
+        methodNameToAllMethodMap, descriptors, AnnotationPredicates.JSON_IGNORE);
 
     // Verify that there is no getter with a mixed @Default annotation.
-    validateGettersNoMixedAnnotations(
-        methodNameToAllMethodMap, descriptors, AnnotationPredicate.DEFAULT_VALUE);
+    validateGettersHaveConsistentAnnotation(
+        methodNameToAllMethodMap, descriptors, AnnotationPredicates.DEFAULT_VALUE);
 
     // Verify that no setter has @JsonIgnore.
-    validateSettersNoAnnotations(
-        methodNameToAllMethodMap, descriptors, AnnotationPredicate.JSON_IGNORE);
+    validateSettersDoNotHaveAnnotation(
+        methodNameToAllMethodMap, descriptors, AnnotationPredicates.JSON_IGNORE);
 
     // Verify that no setter has @Default.
-    validateSettersNoAnnotations(
-        methodNameToAllMethodMap, descriptors, AnnotationPredicate.DEFAULT_VALUE);
+    validateSettersDoNotHaveAnnotation(
+        methodNameToAllMethodMap, descriptors, AnnotationPredicates.DEFAULT_VALUE);
   }
 
   /**
    * Validates that getters don't have mixed annotation.
    */
-  private static void validateGettersNoMixedAnnotations(
+  private static void validateGettersHaveConsistentAnnotation(
       SortedSetMultimap<Method, Method> methodNameToAllMethodMap,
       List<PropertyDescriptor> descriptors,
-      AnnotationPredicate annotationPredicate) {
-    List<InconsistentlyAnnotatedGetters> incompletelyAnnotatedGetters = new ArrayList<>();
-    for (PropertyDescriptor descriptor : descriptors) {
+      final AnnotationPredicates annotationPredicates) {
+    List<InconsistentlyAnnotatedGetters> inconsistentlyAnnotatedGetters = new ArrayList<>();
+    for (final PropertyDescriptor descriptor : descriptors) {
       if (descriptor.getReadMethod() == null
           || IGNORED_METHODS.contains(descriptor.getReadMethod())) {
         continue;
       }
+
       SortedSet<Method> getters = methodNameToAllMethodMap.get(descriptor.getReadMethod());
-      SortedSet<Method> gettersWithTheAnnotation = Sets.filter(getters, annotationPredicate);
+      SortedSet<Method> gettersWithTheAnnotation =
+          Sets.filter(getters, annotationPredicates.forMethod);
+      Set<Annotation> propertyAnnotations = Sets.newLinkedHashSet(FluentIterable
+          .from(gettersWithTheAnnotation)
+          .transform(new Function<Method, Annotation>() {
+            @Nullable
+            @Override
+            public Annotation apply(@Nonnull Method method) {
+              FluentIterable<Annotation> methodAnnotations = FluentIterable
+                  .of(method.getAnnotations())
+                  .filter(annotationPredicates.forAnnotation);
+              int annotationCount = methodAnnotations.size();
+              if (annotationCount == 0) {
+                return null;
+              } else if (annotationCount == 1) {
+                return methodAnnotations.get(0);
+              } else {
+                throw new IllegalArgumentException(String.format(
+                    "Method [%s] is marked with multiple annotations: %s.",
+                    method.getName(),
+                    methodAnnotations));
+              }
+            }})
+          .filter(Predicates.notNull()));
+
+      checkArgument(propertyAnnotations.size() <= 1,
+          "Property [%s] is marked with multiple annotations: %s.",
+          descriptor.getName(),
+          propertyAnnotations);
 
       Iterable<String> getterClassNames = FluentIterable.from(getters)
           .transform(MethodToDeclaringClassFunction.INSTANCE)
@@ -1104,29 +1134,29 @@ public class PipelineOptionsFactory {
         err.descriptor = descriptor;
         err.getterClassNames = getterClassNames;
         err.gettersWithTheAnnotationClassNames = gettersWithTheAnnotationClassNames;
-        incompletelyAnnotatedGetters.add(err);
+        inconsistentlyAnnotatedGetters.add(err);
       }
     }
     throwForGettersWithInconsistentAnnotation(
-        incompletelyAnnotatedGetters, annotationPredicate.annotationClass);
+        inconsistentlyAnnotatedGetters, annotationPredicates.annotationClass);
   }
 
   /**
    * Validates that setters don't have the given annotation.
    */
-  private static void validateSettersNoAnnotations(
+  private static void validateSettersDoNotHaveAnnotation(
       SortedSetMultimap<Method, Method> methodNameToAllMethodMap,
       List<PropertyDescriptor> descriptors,
-      AnnotationPredicate annotationPredicate) {
+      final AnnotationPredicates annotationPredicates) {
     List<AnnotatedSetter> annotatedSetters = new ArrayList<>();
     for (PropertyDescriptor descriptor : descriptors) {
       if (descriptor.getWriteMethod() == null
           || IGNORED_METHODS.contains(descriptor.getWriteMethod())) {
         continue;
       }
-      SortedSet<Method> settersWithTheAnnotation =
-          Sets.filter(methodNameToAllMethodMap.get(descriptor.getWriteMethod()),
-              annotationPredicate);
+      SortedSet<Method> settersWithTheAnnotation = Sets.filter(
+          methodNameToAllMethodMap.get(descriptor.getWriteMethod()),
+          annotationPredicates.forMethod);
 
       Iterable<String> settersWithTheAnnotationClassNames =
           FluentIterable.from(settersWithTheAnnotation)
@@ -1140,7 +1170,7 @@ public class PipelineOptionsFactory {
         annotatedSetters.add(annotated);
       }
     }
-    throwForSettersWithTheAnnotation(annotatedSetters, annotationPredicate.annotationClass);
+    throwForSettersWithTheAnnotation(annotatedSetters, annotationPredicates.annotationClass);
   }
 
   /**
@@ -1398,42 +1428,59 @@ public class PipelineOptionsFactory {
   /**
    * A {@link Predicate} that returns true if the method is annotated with {@code annotationClass}.
    */
-  static class AnnotationPredicate implements Predicate<Method> {
-    static final AnnotationPredicate JSON_IGNORE = new AnnotationPredicate(
+  static class AnnotationPredicates {
+    static final AnnotationPredicates JSON_IGNORE = new AnnotationPredicates(
+        JsonIgnore.class,
+        new Predicate<Annotation>() {
+          @Override
+          public boolean apply(@Nonnull Annotation input) {
+            return input.annotationType().equals(JsonIgnore.class);
+          }
+        },
         new Predicate<Method>() {
           @Override
           public boolean apply(@Nonnull Method input) {
             return input.isAnnotationPresent(JsonIgnore.class);
+          }});
+
+    private static final Set<Class<?>> DEFAULT_ANNOTATION_CLASSES = Sets.newHashSet(
+        FluentIterable.of(Default.class.getDeclaredClasses())
+        .filter(new Predicate<Class<?>>() {
+          @Override
+          public boolean apply(@Nonnull Class<?> klass) {
+            return klass.isAnnotation();
+          }}));
+
+    static final AnnotationPredicates DEFAULT_VALUE = new AnnotationPredicates(
+        Default.class,
+        new Predicate<Annotation>() {
+          @Override
+          public boolean apply(@Nonnull Annotation input) {
+            return DEFAULT_ANNOTATION_CLASSES.contains(input.annotationType());
           }
         },
-        JsonIgnore.class);
-
-    static final AnnotationPredicate DEFAULT_VALUE = new AnnotationPredicate(
-        new Predicate<Method>() {
+        new Predicate<Method> () {
           @Override
           public boolean apply(@Nonnull Method input) {
-            for (Class<?> klass : Default.class.getDeclaredClasses()) {
-              if (klass.isAnnotation()
-                  && input.isAnnotationPresent((Class<? extends Annotation>) klass)) {
+            for (Annotation annotation : input.getAnnotations()) {
+              if (DEFAULT_ANNOTATION_CLASSES.contains(annotation.annotationType())) {
                 return true;
               }
             }
             return false;
-          }
-        },
-        Default.class);
+          }});
 
-    private final Predicate<Method> predicate;
-    private final Class<? extends Annotation> annotationClass;
+    final Class<? extends Annotation> annotationClass;
+    final Predicate<Annotation> forAnnotation;
+    final Predicate<Method> forMethod;
 
-    AnnotationPredicate(Predicate<Method> predicate, Class<? extends Annotation> annotationClass) {
-      this.predicate = predicate;
+    AnnotationPredicates(
+        Class<? extends Annotation> annotationClass,
+        Predicate<Annotation> forAnnotation,
+        Predicate<Method> forMethod) {
       this.annotationClass = annotationClass;
-    }
-
-    @Override
-    public boolean apply(Method input) {
-      return predicate.apply(input);
+      this.forAnnotation = forAnnotation;
+      this.forMethod = forMethod;
     }
   }
 

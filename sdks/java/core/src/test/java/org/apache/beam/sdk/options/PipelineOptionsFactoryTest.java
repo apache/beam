@@ -481,8 +481,38 @@ public class PipelineOptionsFactoryTest {
    * This class is has a conflicting field with {@link CombinedObject} that doesn't have
    * {@link Default @Default}.
    */
-  public interface GetterWithDefault extends PipelineOptions {
+  private interface GetterWithDefault extends PipelineOptions {
     @Default.Integer(1)
+    Object getObject();
+    void setObject(Object value);
+  }
+
+  /**
+   * This class is consistent with {@link GetterWithDefault} that has the same
+   * {@link Default @Default}.
+   */
+  private interface GetterWithConsistentDefault extends PipelineOptions {
+    @Default.Integer(1)
+    Object getObject();
+    void setObject(Object value);
+  }
+
+  /**
+   * This class is inconsistent with {@link GetterWithDefault} that has a different
+   * {@link Default @Default}.
+   */
+  private interface GetterWithInconsistentDefault extends PipelineOptions {
+    @Default.String("abc")
+    Object getObject();
+    void setObject(Object value);
+  }
+
+  /**
+   * This class is inconsistent with {@link GetterWithDefault} that has a different
+   * {@link Default @Default} value.
+   */
+  private interface GetterWithInconsistentDefaultValue extends PipelineOptions {
+    @Default.Integer(0)
     Object getObject();
     void setObject(Object value);
   }
@@ -502,6 +532,64 @@ public class PipelineOptionsFactoryTest {
 
     // When we attempt to convert, we should error at this moment.
     options.as(CombinedObject.class);
+  }
+
+  @Test
+  public void testGettersAnnotatedWithConsistentDefault() throws Exception {
+    GetterWithConsistentDefault options = PipelineOptionsFactory
+        .as(GetterWithDefault.class)
+        .as(GetterWithConsistentDefault.class);
+
+    assertEquals(1, options.getObject());
+  }
+
+  @Test
+  public void testGettersAnnotatedWithInconsistentDefault() throws Exception {
+    // Initial construction is valid.
+    GetterWithDefault options = PipelineOptionsFactory.as(GetterWithDefault.class);
+
+    expectedException.expect(IllegalArgumentException.class);
+    expectedException.expectMessage(
+        "Property [object] is marked with multiple annotations: ["
+            + "@org.apache.beam.sdk.options.Default$Integer(value=1), "
+            + "@org.apache.beam.sdk.options.Default$String(value=abc)].");
+
+    // When we attempt to convert, we should error at this moment.
+    options.as(GetterWithInconsistentDefault.class);
+  }
+
+  @Test
+  public void testGettersAnnotatedWithInconsistentDefaultValue() throws Exception {
+    // Initial construction is valid.
+    GetterWithDefault options = PipelineOptionsFactory.as(GetterWithDefault.class);
+
+    expectedException.expect(IllegalArgumentException.class);
+    expectedException.expectMessage(
+        "Property [object] is marked with multiple annotations: ["
+            + "@org.apache.beam.sdk.options.Default$Integer(value=1), "
+            + "@org.apache.beam.sdk.options.Default$Integer(value=0)].");
+
+    // When we attempt to convert, we should error at this moment.
+    options.as(GetterWithInconsistentDefaultValue.class);
+  }
+
+  private interface GettersWithMultipleDefault extends PipelineOptions {
+    @Default.String("abc")
+    @Default.Integer(0)
+    Object getObject();
+    void setObject(Object value);
+  }
+
+  @Test
+  public void testGettersWithMultipleDefaults() throws Exception {
+    expectedException.expect(IllegalArgumentException.class);
+    expectedException.expectMessage(
+        "Method [getObject] is marked with multiple annotations: ["
+            + "@org.apache.beam.sdk.options.Default$String(value=abc), "
+            + "@org.apache.beam.sdk.options.Default$Integer(value=0)].");
+
+    // When we attempt to create, we should error at this moment.
+    PipelineOptionsFactory.as(GettersWithMultipleDefault.class);
   }
 
   private interface MultiGettersWithDefault extends PipelineOptions {
