@@ -61,7 +61,6 @@ install:
 
 script:
   - travis_retry mvn --settings .travis/settings.xml --batch-mode --update-snapshots --no-snapshot-updates $MAVEN_OVERRIDE verify
-  - travis_retry .travis/test_wordcount.sh
 
 cache:
   directories:
