@@ -140,6 +140,15 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
     windowValues.put(window, value);
   }
 
+  @SuppressWarnings("unchecked")
+  public <K> StateInternals<K> getStateInternals() {
+    return (StateInternals<K>) stateInternals;
+  }
+
+  public TimerInternals getTimerInternals() {
+    return timerInternals;
+  }
+
   /**
    * When a {@link DoFnTester} should clone the {@link DoFn} under test and how it should manage
    * the lifecycle of the {@link DoFn}.
@@ -508,6 +517,20 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
     return MoreObjects.firstNonNull(elems, Collections.<WindowedValue<T>>emptyList());
   }
 
+  @SuppressWarnings({"unchecked", "rawtypes"})
+  public <T> List<WindowedValue<T>> getOrCreateOutput(TupleTag<T> tag) {
+    List<WindowedValue<T>> outputList = (List) outputs.get(tag);
+    if (outputList == null) {
+      outputList = new ArrayList<>();
+      outputs.put(tag, (List) outputList);
+    }
+    return outputList;
+  }
+
+  public TupleTag<OutputT> getMainOutputTag() {
+    return mainOutputTag;
+  }
+
   private TestContext createContext(OldDoFn<InputT, OutputT> fn) {
     return new TestContext();
   }
@@ -590,17 +613,7 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
     }
 
     public <T> void noteOutput(TupleTag<T> tag, WindowedValue<T> output) {
-      getOutputList(tag).add(output);
-    }
-
-    private <T> List<WindowedValue<T>> getOutputList(TupleTag<T> tag) {
-      @SuppressWarnings({"unchecked", "rawtypes"})
-      List<WindowedValue<T>> outputList = (List) outputs.get(tag);
-      if (outputList == null) {
-        outputList = new ArrayList<>();
-        outputs.put(tag, (List) outputList);
-      }
-      return outputList;
+      getOrCreateOutput(tag).add(output);
     }
   }
 

@@ -30,7 +30,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 import javax.annotation.Nullable;
-import org.apache.beam.runners.core.GBKIntoKeyedWorkItems;
+import org.apache.beam.runners.core.SplittableParDo;
 import org.apache.beam.runners.direct.DirectGroupByKey.DirectGroupAlsoByWindow;
 import org.apache.beam.runners.direct.DirectGroupByKey.DirectGroupByKeyOnly;
 import org.apache.beam.runners.direct.DirectRunner.DirectPipelineResult;
@@ -88,7 +88,7 @@ public class DirectRunner extends PipelineRunner<DirectPipelineResult> {
               .put(ParDo.Bound.class, new ParDoSingleViaMultiOverrideFactory())
               .put(ParDo.BoundMulti.class, new ParDoMultiOverrideFactory())
               .put(
-                  GBKIntoKeyedWorkItems.class,
+                  SplittableParDo.GBKIntoKeyedWorkItems.class,
                   new DirectGBKIntoKeyedWorkItemsOverrideFactory())
               .build();
 
@@ -307,8 +307,8 @@ public class DirectRunner extends PipelineRunner<DirectPipelineResult> {
     @SuppressWarnings("rawtypes")
     KeyedPValueTrackingVisitor keyedPValueVisitor =
         KeyedPValueTrackingVisitor.create(
-            ImmutableSet.<Class<? extends PTransform>>of(
-                GBKIntoKeyedWorkItems.class,
+            ImmutableSet.of(
+                SplittableParDo.GBKIntoKeyedWorkItems.class,
                 DirectGroupByKeyOnly.class,
                 DirectGroupAlsoByWindow.class));
     pipeline.traverseTopologically(keyedPValueVisitor);
