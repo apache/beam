@@ -45,13 +45,17 @@ import org.slf4j.LoggerFactory;
 class TransformEvaluatorRegistry implements TransformEvaluatorFactory {
   private static final Logger LOG = LoggerFactory.getLogger(TransformEvaluatorRegistry.class);
   public static TransformEvaluatorRegistry defaultRegistry(EvaluationContext ctxt) {
-    @SuppressWarnings("rawtypes")
+    @SuppressWarnings({"rawtypes"})
     ImmutableMap<Class<? extends PTransform>, TransformEvaluatorFactory> primitives =
         ImmutableMap.<Class<? extends PTransform>, TransformEvaluatorFactory>builder()
             .put(Read.Bounded.class, new BoundedReadEvaluatorFactory(ctxt))
             .put(Read.Unbounded.class, new UnboundedReadEvaluatorFactory(ctxt))
-            .put(ParDo.Bound.class, new ParDoSingleEvaluatorFactory(ctxt))
-            .put(ParDo.BoundMulti.class, new ParDoMultiEvaluatorFactory(ctxt))
+            .put(
+                ParDo.Bound.class,
+                new ParDoEvaluatorFactory<>(ctxt, new ParDoSingleEvaluatorHooks<>()))
+            .put(
+                ParDo.BoundMulti.class,
+                new ParDoEvaluatorFactory<>(ctxt, new ParDoMultiEvaluatorHooks<>()))
             .put(FlattenPCollectionList.class, new FlattenEvaluatorFactory(ctxt))
             .put(ViewEvaluatorFactory.WriteView.class, new ViewEvaluatorFactory(ctxt))
             .put(Window.Bound.class, new WindowEvaluatorFactory(ctxt))
