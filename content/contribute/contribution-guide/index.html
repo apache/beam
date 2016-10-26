@@ -224,7 +224,7 @@
 <h2 id="engage">Engage</h2>
 
 <h3 id="mailing-lists">Mailing list(s)</h3>
-<p>We discuss design and implementation issues on dev@beam.incubator.apache.org mailing list, which is archived <a href="https://lists.apache.org/list.html?dev@beam.apache.org">here</a>. Join by emailing <a href="&#109;&#097;&#105;&#108;&#116;&#111;:&#100;&#101;&#118;&#045;&#115;&#117;&#098;&#115;&#099;&#114;&#105;&#098;&#101;&#064;&#098;&#101;&#097;&#109;&#046;&#105;&#110;&#099;&#117;&#098;&#097;&#116;&#111;&#114;&#046;&#097;&#112;&#097;&#099;&#104;&#101;&#046;&#111;&#114;&#103;"><code class="highlighter-rouge">dev-subscribe@beam.incubator.apache.org</code></a>.</p>
+<p>We discuss design and implementation issues on dev@beam.incubator.apache.org mailing list, which is archived <a href="https://lists.apache.org/list.html?dev@beam.apache.org">here</a>. Join by emailing <a href="mailto:dev-subscribe@beam.incubator.apache.org"><code class="highlighter-rouge">dev-subscribe@beam.incubator.apache.org</code></a>.</p>
 
 <p>If interested, you can also join the other <a href="http://beam.incubator.apache.org/use/mailing-lists/">mailing lists</a> too.</p>
 
@@ -517,20 +517,11 @@ $ git merge --no-ff \
 
 <p>The Beam website is in the <a href="https://github.com/apache/incubator-beam-site">Beam Site GitHub mirror</a> repository in the <code class="highlighter-rouge">asf-site</code> branch (<em>not</em> <code class="highlighter-rouge">master</code>).</p>
 
-<p>The repository contains:</p>
-
-<ol>
-  <li><code class="highlighter-rouge">_&lt;directory&gt;</code>: the infrastructure for building, testing, and styling the website</li>
-  <li><code class="highlighter-rouge">_posts</code>: blog post entries</li>
-  <li><code class="highlighter-rouge">use/</code>, <code class="highlighter-rouge">learn/</code>, and <code class="highlighter-rouge">contribute/</code>: markdown files containing the bulk of the content</li>
-  <li><code class="highlighter-rouge">content/</code>: html generated from the markdown by jekyll (which is what is actually hosted on the website)</li>
-</ol>
-
 <p>Issues are tracked in the <a href="https://issues.apache.org/jira/browse/BEAM/component/12328906">website</a> component in JIRA.</p>
 
 <h4 id="one-time-setup-2">One-time Setup</h4>
 
-<p>The website uses <a href="http://jekyllrb.com">Jekyll</a>, a ruby-based development framework. The <a href="https://github.com/apache/incubator-beam-site/blob/asf-site/README.md">README file</a> in the website repository has more information on how to set up the required dependencies for your development environment.</p>
+<p>The <a href="https://github.com/apache/incubator-beam-site/blob/asf-site/README.md">README file</a> in the website repository has more information on how to set up the required dependencies for your development environment.</p>
 
 <p>The general guidelines for cloning a repository can be adjusted to use the <code class="highlighter-rouge">asf-site</code> branch of <code class="highlighter-rouge">incubator-beam-site</code>:</p>
 
@@ -546,7 +537,7 @@ $ git checkout -b &lt;my-branch&gt; origin/asf-site
 
 <p>While you are working on your pull request, you can test and develop live by running the following command in the root folder of the website:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>$ jekyll serve
+<div class="highlighter-rouge"><pre class="highlight"><code>$ bundle exec jekyll serve
 </code></pre>
 </div>
 
@@ -554,7 +545,7 @@ $ git checkout -b &lt;my-branch&gt; origin/asf-site
 
 <p>In addition, you can run the tests to valid your links using:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>$ rake test
+<div class="highlighter-rouge"><pre class="highlight"><code>$ bundle exec rake test
 </code></pre>
 </div>
 

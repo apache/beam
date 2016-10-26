@@ -26,8 +26,7 @@ body {
  */
 h1, h2, h3, h4, h5, h6,
 p, blockquote, pre,
-ul, ol, dl, figure,
-.highlight {
+ul, ol, dl, figure {
   margin-bottom: 15px; }
 
 /**
@@ -326,8 +325,7 @@ pre {
     color: #998;
     font-style: italic; }
   .highlight .err {
-    color: #a61717;
-    background-color: #e3d2d2; }
+    color: #a61717; }
   .highlight .k {
     font-weight: bold; }
   .highlight .o {

@@ -258,17 +258,17 @@ associated pane.</p>
 watermark and provide the result PCollection as input to the CalculateTeamScores
 PTransform:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>TestStream&lt;GameActionInfo&gt; infos = TestStream.create(AvroCoder.of(GameActionInfo.class))
-    .addElements(new GameActionInfo("sky", "blue", 12, new Instant(0L)),
-                 new GameActionInfo("navy", "blue", 3, new Instant(0L)),
-                 new GameActionInfo("navy", "blue", 3, new Instant(0L).plus(Duration.standardMinutes(3))))
-    // Move the watermark past the end the end of the window
-    .advanceWatermarkTo(new Instant(0L).plus(TEAM_WINDOW_DURATION)
-                                       .plus(Duration.standardMinutes(1)))
-    .advanceWatermarkToInfinity();
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">TestStream</span><span class="o">&lt;</span><span class="n">GameActionInfo</span><span class="o">&gt;</span> <span class="n">infos</span> <span class="o">=</span> <span class="n">TestStream</span><span class="o">.</span><span class="na">create</span><span class="o">(</span><span class="n">AvroCoder</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="n">GameActionInfo</span><span class="o">.</span><span class="na">class</span><span class="o">))</span>
+    <span class="o">.</span><span class="na">addElements</span><span class="o">(</span><span class="k">new</span> <span class="n">GameActionInfo</span><span class="o">(</span><span class="s">"sky"</span><span class="o">,</span> <span class="s">"blue"</span><span class="o">,</span> <span class="mi">12</span><span class="o">,</span> <span class="k">new</span> <span class="n">Instant</span><span class="o">(</span><span class="mi">0L</span><span class="o">)),</span>
+ <span class="err">                </span><span class="k">new</span> <span class="n">GameActionInfo</span><span class="o">(</span><span class="s">"navy"</span><span class="o">,</span> <span class="s">"blue"</span><span class="o">,</span> <span class="mi">3</span><span class="o">,</span> <span class="k">new</span> <span class="n">Instant</span><span class="o">(</span><span class="mi">0L</span><span class="o">)),</span>
+ <span class="err">                </span><span class="k">new</span> <span class="n">GameActionInfo</span><span class="o">(</span><span class="s">"navy"</span><span class="o">,</span> <span class="s">"blue"</span><span class="o">,</span> <span class="mi">3</span><span class="o">,</span> <span class="k">new</span> <span class="n">Instant</span><span class="o">(</span><span class="mi">0L</span><span class="o">).</span><span class="na">plus</span><span class="o">(</span><span class="n">Duration</span><span class="o">.</span><span class="na">standardMinutes</span><span class="o">(</span><span class="mi">3</span><span class="o">))))</span>
+ <span class="err">   </span><span class="c1">// Move the watermark past the end the end of the window</span>
+    <span class="o">.</span><span class="na">advanceWatermarkTo</span><span class="o">(</span><span class="k">new</span> <span class="n">Instant</span><span class="o">(</span><span class="mi">0L</span><span class="o">).</span><span class="na">plus</span><span class="o">(</span><span class="n">TEAM_WINDOW_DURATION</span><span class="o">)</span>
+ <span class="err">                               </span>       <span class="o">.</span><span class="na">plus</span><span class="o">(</span><span class="n">Duration</span><span class="o">.</span><span class="na">standardMinutes</span><span class="o">(</span><span class="mi">1</span><span class="o">)))</span>
+    <span class="o">.</span><span class="na">advanceWatermarkToInfinity</span><span class="o">();</span>
 
-PCollection&lt;KV&lt;String, Integer&gt;&gt; teamScores = p.apply(createEvents)
-    .apply(new CalculateTeamScores(TEAM_WINDOW_DURATION, ALLOWED_LATENESS));
+<span class="n">PCollection</span><span class="o">&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">Integer</span><span class="o">&gt;&gt;</span> <span class="n">teamScores</span> <span class="o">=</span> <span class="n">p</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">createEvents</span><span class="o">)</span>
+    <span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="k">new</span> <span class="n">CalculateTeamScores</span><span class="o">(</span><span class="n">TEAM_WINDOW_DURATION</span><span class="o">,</span> <span class="n">ALLOWED_LATENESS</span><span class="o">));</span>
 </code></pre>
 </div>
 
@@ -276,11 +276,11 @@ PCollection&lt;KV&lt;String, Integer&gt;&gt; teamScores = p.apply(createEvents)
 
 <p><img class="center-block" src="/images/blog/test-stream/elements-all-on-time.png" alt="Elements all arrive before the watermark, and are produced in the on-time pane" width="442" /></p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>// Only one value is emitted for the blue team
-PAssert.that(teamScores)
-       .inWindow(window)
-       .containsInAnyOrder(KV.of("blue", 18));
-p.run();
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="c1">// Only one value is emitted for the blue team</span>
+<span class="n">PAssert</span><span class="o">.</span><span class="na">that</span><span class="o">(</span><span class="n">teamScores</span><span class="o">)</span>
+       <span class="o">.</span><span class="na">inWindow</span><span class="o">(</span><span class="n">window</span><span class="o">)</span>
+       <span class="o">.</span><span class="na">containsInAnyOrder</span><span class="o">(</span><span class="n">KV</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="s">"blue"</span><span class="o">,</span> <span class="mi">18</span><span class="o">));</span>
+<span class="n">p</span><span class="o">.</span><span class="na">run</span><span class="o">();</span>
 </code></pre>
 </div>
 
@@ -292,27 +292,27 @@ of the window (shown below to the left of the red watermark), which demonstrates
 the system to be on time, as it arrives before the watermark passes the end of
 the window</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>TestStream&lt;GameActionInfo&gt; infos = TestStream.create(AvroCoder.of(GameActionInfo.class))
-    .addElements(new GameActionInfo("sky", "blue", 3, new Instant(0L)),
-                 new GameActionInfo("navy", "blue", 3, new Instant(0L).plus(Duration.standardMinutes(3))))
-    // Move the watermark up to "near" the end of the window
-    .advanceWatermarkTo(new Instant(0L).plus(TEAM_WINDOW_DURATION)
-                                       .minus(Duration.standardMinutes(1)))
-    .addElements(new GameActionInfo("sky", "blue", 12, Duration.ZERO))
-    .advanceWatermarkToInfinity();
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">TestStream</span><span class="o">&lt;</span><span class="n">GameActionInfo</span><span class="o">&gt;</span> <span class="n">infos</span> <span class="o">=</span> <span class="n">TestStream</span><span class="o">.</span><span class="na">create</span><span class="o">(</span><span class="n">AvroCoder</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="n">GameActionInfo</span><span class="o">.</span><span class="na">class</span><span class="o">))</span>
+    <span class="o">.</span><span class="na">addElements</span><span class="o">(</span><span class="k">new</span> <span class="n">GameActionInfo</span><span class="o">(</span><span class="s">"sky"</span><span class="o">,</span> <span class="s">"blue"</span><span class="o">,</span> <span class="mi">3</span><span class="o">,</span> <span class="k">new</span> <span class="n">Instant</span><span class="o">(</span><span class="mi">0L</span><span class="o">)),</span>
+ <span class="err">       </span>         <span class="k">new</span> <span class="n">GameActionInfo</span><span class="o">(</span><span class="s">"navy"</span><span class="o">,</span> <span class="s">"blue"</span><span class="o">,</span> <span class="mi">3</span><span class="o">,</span> <span class="k">new</span> <span class="n">Instant</span><span class="o">(</span><span class="mi">0L</span><span class="o">).</span><span class="na">plus</span><span class="o">(</span><span class="n">Duration</span><span class="o">.</span><span class="na">standardMinutes</span><span class="o">(</span><span class="mi">3</span><span class="o">))))</span>
+ <span class="err">   </span><span class="c1">// Move the watermark up to "near" the end of the window</span>
+    <span class="o">.</span><span class="na">advanceWatermarkTo</span><span class="o">(</span><span class="k">new</span> <span class="n">Instant</span><span class="o">(</span><span class="mi">0L</span><span class="o">).</span><span class="na">plus</span><span class="o">(</span><span class="n">TEAM_WINDOW_DURATION</span><span class="o">)</span>
+ <span class="err">               </span>       <span class="err">                </span><span class="o">.</span><span class="na">minus</span><span class="o">(</span><span class="n">Duration</span><span class="o">.</span><span class="na">standardMinutes</span><span class="o">(</span><span class="mi">1</span><span class="o">)))</span>
+    <span class="o">.</span><span class="na">addElements</span><span class="o">(</span><span class="k">new</span> <span class="n">GameActionInfo</span><span class="o">(</span><span class="s">"sky"</span><span class="o">,</span> <span class="s">"blue"</span><span class="o">,</span> <span class="mi">12</span><span class="o">,</span> <span class="n">Duration</span><span class="o">.</span><span class="na">ZERO</span><span class="o">))</span>
+    <span class="o">.</span><span class="na">advanceWatermarkToInfinity</span><span class="o">();</span>
 
-PCollection&lt;KV&lt;String, Integer&gt;&gt; teamScores = p.apply(createEvents)
-    .apply(new CalculateTeamScores(TEAM_WINDOW_DURATION, ALLOWED_LATENESS));
+<span class="n">PCollection</span><span class="o">&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">Integer</span><span class="o">&gt;&gt;</span> <span class="n">teamScores</span> <span class="o">=</span> <span class="n">p</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">createEvents</span><span class="o">)</span>
+    <span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="k">new</span> <span class="n">CalculateTeamScores</span><span class="o">(</span><span class="n">TEAM_WINDOW_DURATION</span><span class="o">,</span> <span class="n">ALLOWED_LATENESS</span><span class="o">));</span>
 </code></pre>
 </div>
 
 <p><img class="center-block" src="/images/blog/test-stream/elements-unobservably-late.png" alt="An element arrives late, but before the watermark passes the end of the window, and is produced in the on-time pane" width="442" /></p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>// Only one value is emitted for the blue team
-PAssert.that(teamScores)
-       .inWindow(window)
-       .containsInAnyOrder(KV.of("blue", 18));
-p.run();
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="c1">// Only one value is emitted for the blue team</span>
+<span class="n">PAssert</span><span class="o">.</span><span class="na">that</span><span class="o">(</span><span class="n">teamScores</span><span class="o">)</span>
+       <span class="o">.</span><span class="na">inWindow</span><span class="o">(</span><span class="n">window</span><span class="o">)</span>
+       <span class="o">.</span><span class="na">containsInAnyOrder</span><span class="o">(</span><span class="n">KV</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="s">"blue"</span><span class="o">,</span> <span class="mi">18</span><span class="o">));</span>
+<span class="n">p</span><span class="o">.</span><span class="na">run</span><span class="o">();</span>
 </code></pre>
 </div>
 
@@ -322,31 +322,31 @@ p.run();
 demonstrate the triggering behavior that causes the system to emit an on-time
 pane, and then after the late data arrives, a pane that refines the result.</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>TestStream&lt;GameActionInfo&gt; infos = TestStream.create(AvroCoder.of(GameActionInfo.class))
-    .addElements(new GameActionInfo("sky", "blue", 3, new Instant(0L)),
-                 new GameActionInfo("navy", "blue", 3, new Instant(0L).plus(Duration.standardMinutes(3))))
-    // Move the watermark up to "near" the end of the window
-    .advanceWatermarkTo(new Instant(0L).plus(TEAM_WINDOW_DURATION)
-                                       .minus(Duration.standardMinutes(1)))
-    .addElements(new GameActionInfo("sky", "blue", 12, Duration.ZERO))
-    .advanceWatermarkToInfinity();
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">TestStream</span><span class="o">&lt;</span><span class="n">GameActionInfo</span><span class="o">&gt;</span> <span class="n">infos</span> <span class="o">=</span> <span class="n">TestStream</span><span class="o">.</span><span class="na">create</span><span class="o">(</span><span class="n">AvroCoder</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="n">GameActionInfo</span><span class="o">.</span><span class="na">class</span><span class="o">))</span>
+    <span class="o">.</span><span class="na">addElements</span><span class="o">(</span><span class="k">new</span> <span class="n">GameActionInfo</span><span class="o">(</span><span class="s">"sky"</span><span class="o">,</span> <span class="s">"blue"</span><span class="o">,</span> <span class="mi">3</span><span class="o">,</span> <span class="k">new</span> <span class="n">Instant</span><span class="o">(</span><span class="mi">0L</span><span class="o">)),</span>
+       <span class="err">          </span><span class="k">new</span> <span class="n">GameActionInfo</span><span class="o">(</span><span class="s">"navy"</span><span class="o">,</span> <span class="s">"blue"</span><span class="o">,</span> <span class="mi">3</span><span class="o">,</span> <span class="k">new</span> <span class="n">Instant</span><span class="o">(</span><span class="mi">0L</span><span class="o">).</span><span class="na">plus</span><span class="o">(</span><span class="n">Duration</span><span class="o">.</span><span class="na">standardMinutes</span><span class="o">(</span><span class="mi">3</span><span class="o">))))</span>
+<span class="err"> </span> <span class="err">  </span><span class="c1">// Move the watermark up to "near" the end of the window</span>
+    <span class="o">.</span><span class="na">advanceWatermarkTo</span><span class="o">(</span><span class="k">new</span> <span class="n">Instant</span><span class="o">(</span><span class="mi">0L</span><span class="o">).</span><span class="na">plus</span><span class="o">(</span><span class="n">TEAM_WINDOW_DURATION</span><span class="o">)</span>
+<span class="err">                                </span>       <span class="o">.</span><span class="na">minus</span><span class="o">(</span><span class="n">Duration</span><span class="o">.</span><span class="na">standardMinutes</span><span class="o">(</span><span class="mi">1</span><span class="o">)))</span>
+    <span class="o">.</span><span class="na">addElements</span><span class="o">(</span><span class="k">new</span> <span class="n">GameActionInfo</span><span class="o">(</span><span class="s">"sky"</span><span class="o">,</span> <span class="s">"blue"</span><span class="o">,</span> <span class="mi">12</span><span class="o">,</span> <span class="n">Duration</span><span class="o">.</span><span class="na">ZERO</span><span class="o">))</span>
+    <span class="o">.</span><span class="na">advanceWatermarkToInfinity</span><span class="o">();</span>
 
-PCollection&lt;KV&lt;String, Integer&gt;&gt; teamScores = p.apply(createEvents)
-    .apply(new CalculateTeamScores(TEAM_WINDOW_DURATION, ALLOWED_LATENESS));
+<span class="n">PCollection</span><span class="o">&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">Integer</span><span class="o">&gt;&gt;</span> <span class="n">teamScores</span> <span class="o">=</span> <span class="n">p</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">createEvents</span><span class="o">)</span>
+    <span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="k">new</span> <span class="n">CalculateTeamScores</span><span class="o">(</span><span class="n">TEAM_WINDOW_DURATION</span><span class="o">,</span> <span class="n">ALLOWED_LATENESS</span><span class="o">));</span>
 </code></pre>
 </div>
 
 <p><img class="center-block" src="/images/blog/test-stream/elements-observably-late.png" alt="Elements all arrive before the watermark, and are produced in the on-time pane" width="442" /></p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>// An on-time pane is emitted with the events that arrived before the window closed
-PAssert.that(teamScores)
-       .inOnTimePane(window)
-       .containsInAnyOrder(KV.of("blue", 6));
-// The final pane contains the late refinement
-PAssert.that(teamScores)
-       .inFinalPane(window)
-       .containsInAnyOrder(KV.of("blue", 18));
-p.run();
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="c1">// An on-time pane is emitted with the events that arrived before the window closed</span>
+<span class="n">PAssert</span><span class="o">.</span><span class="na">that</span><span class="o">(</span><span class="n">teamScores</span><span class="o">)</span>
+       <span class="o">.</span><span class="na">inOnTimePane</span><span class="o">(</span><span class="n">window</span><span class="o">)</span>
+       <span class="o">.</span><span class="na">containsInAnyOrder</span><span class="o">(</span><span class="n">KV</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="s">"blue"</span><span class="o">,</span> <span class="mi">6</span><span class="o">));</span>
+<span class="c1">// The final pane contains the late refinement</span>
+<span class="n">PAssert</span><span class="o">.</span><span class="na">that</span><span class="o">(</span><span class="n">teamScores</span><span class="o">)</span>
+       <span class="o">.</span><span class="na">inFinalPane</span><span class="o">(</span><span class="n">window</span><span class="o">)</span>
+       <span class="o">.</span><span class="na">containsInAnyOrder</span><span class="o">(</span><span class="n">KV</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="s">"blue"</span><span class="o">,</span> <span class="mi">18</span><span class="o">));</span>
+<span class="n">p</span><span class="o">.</span><span class="na">run</span><span class="o">();</span>
 </code></pre>
 </div>
 
@@ -356,33 +356,33 @@ p.run();
 configured allowed lateness, we can demonstrate that the late element is dropped
 by the system.</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>TestStream&lt;GameActionInfo&gt; infos = TestStream.create(AvroCoder.of(GameActionInfo.class))
-    .addElements(new GameActionInfo("sky", "blue", 3, Duration.ZERO),
-                 new GameActionInfo("navy", "blue", 3, Duration.standardMinutes(3)))
-    // Move the watermark up to "near" the end of the window
-    .advanceWatermarkTo(new Instant(0).plus(TEAM_WINDOW_DURATION)
-                                         .plus(ALLOWED_LATENESS)
-                                         .plus(Duration.standardMinutes(1)))
-    .addElements(new GameActionInfo(
-                     "sky",
-                     "blue",
-                     12,
-                     new Instant(0).plus(TEAM_WINDOW_DURATION).minus(Duration.standardMinutes(1))))
-    .advanceWatermarkToInfinity();
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">TestStream</span><span class="o">&lt;</span><span class="n">GameActionInfo</span><span class="o">&gt;</span> <span class="n">infos</span> <span class="o">=</span> <span class="n">TestStream</span><span class="o">.</span><span class="na">create</span><span class="o">(</span><span class="n">AvroCoder</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="n">GameActionInfo</span><span class="o">.</span><span class="na">class</span><span class="o">))</span>
+    <span class="o">.</span><span class="na">addElements</span><span class="o">(</span><span class="k">new</span> <span class="n">GameActionInfo</span><span class="o">(</span><span class="s">"sky"</span><span class="o">,</span> <span class="s">"blue"</span><span class="o">,</span> <span class="mi">3</span><span class="o">,</span> <span class="n">Duration</span><span class="o">.</span><span class="na">ZERO</span><span class="o">),</span>
+        <span class="err">         </span><span class="k">new</span> <span class="n">GameActionInfo</span><span class="o">(</span><span class="s">"navy"</span><span class="o">,</span> <span class="s">"blue"</span><span class="o">,</span> <span class="mi">3</span><span class="o">,</span> <span class="n">Duration</span><span class="o">.</span><span class="na">standardMinutes</span><span class="o">(</span><span class="mi">3</span><span class="o">)))</span>
+<span class="err">    </span><span class="c1">// Move the watermark up to "near" the end of the window</span>
+    <span class="o">.</span><span class="na">advanceWatermarkTo</span><span class="o">(</span><span class="k">new</span> <span class="n">Instant</span><span class="o">(</span><span class="mi">0</span><span class="o">).</span><span class="na">plus</span><span class="o">(</span><span class="n">TEAM_WINDOW_DURATION</span><span class="o">)</span>
+ <span class="err">                                        </span><span class="o">.</span><span class="na">plus</span><span class="o">(</span><span class="n">ALLOWED_LATENESS</span><span class="o">)</span>
+ <span class="err">                                        </span><span class="o">.</span><span class="na">plus</span><span class="o">(</span><span class="n">Duration</span><span class="o">.</span><span class="na">standardMinutes</span><span class="o">(</span><span class="mi">1</span><span class="o">)))</span>
+    <span class="o">.</span><span class="na">addElements</span><span class="o">(</span><span class="k">new</span> <span class="n">GameActionInfo</span><span class="o">(</span>
+<span class="err">                     </span><span class="s">"sky"</span><span class="o">,</span>
+<span class="err">                     </span><span class="s">"blue"</span><span class="o">,</span>
+<span class="err">                     </span><span class="mi">12</span><span class="o">,</span>
+<span class="err">                     </span><span class="k">new</span> <span class="n">Instant</span><span class="o">(</span><span class="mi">0</span><span class="o">).</span><span class="na">plus</span><span class="o">(</span><span class="n">TEAM_WINDOW_DURATION</span><span class="o">).</span><span class="na">minus</span><span class="o">(</span><span class="n">Duration</span><span class="o">.</span><span class="na">standardMinutes</span><span class="o">(</span><span class="mi">1</span><span class="o">))))</span>
+    <span class="o">.</span><span class="na">advanceWatermarkToInfinity</span><span class="o">();</span>
 
-PCollection&lt;KV&lt;String, Integer&gt;&gt; teamScores = p.apply(createEvents)
-    .apply(new CalculateTeamScores(TEAM_WINDOW_DURATION, ALLOWED_LATENESS));
+<span class="n">PCollection</span><span class="o">&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">Integer</span><span class="o">&gt;&gt;</span> <span class="n">teamScores</span> <span class="o">=</span> <span class="n">p</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">createEvents</span><span class="o">)</span>
+    <span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="k">new</span> <span class="n">CalculateTeamScores</span><span class="o">(</span><span class="n">TEAM_WINDOW_DURATION</span><span class="o">,</span> <span class="n">ALLOWED_LATENESS</span><span class="o">));</span>
 </code></pre>
 </div>
 
 <p><img class="center-block" src="/images/blog/test-stream/elements-droppably-late.png" alt="Elements all arrive before the watermark, and are produced in the on-time pane" width="442" /></p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>// An on-time pane is emitted with the events that arrived before the window closed
-PAssert.that(teamScores)
-       .inWindow(window)
-       .containsInAnyOrder(KV.of("blue", 6));
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="c1">// An on-time pane is emitted with the events that arrived before the window closed</span>
+<span class="n">PAssert</span><span class="o">.</span><span class="na">that</span><span class="o">(</span><span class="n">teamScores</span><span class="o">)</span>
+       <span class="o">.</span><span class="na">inWindow</span><span class="o">(</span><span class="n">window</span><span class="o">)</span>
+       <span class="o">.</span><span class="na">containsInAnyOrder</span><span class="o">(</span><span class="n">KV</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="s">"blue"</span><span class="o">,</span> <span class="mi">6</span><span class="o">));</span>
 
-p.run();
+<span class="n">p</span><span class="o">.</span><span class="na">run</span><span class="o">();</span>
 </code></pre>
 </div>
 
@@ -392,29 +392,29 @@ triggers by advancing the processing time of the TestStream. If we add elements
 to an input PCollection, occasionally advancing the processing time clock, and
 apply <code class="highlighter-rouge">CalculateUserScores</code></p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>TestStream.create(AvroCoder.of(GameActionInfo.class))
-    .addElements(new GameActionInfo("scarlet", "red", 3, new Instant(0L)),
-                 new GameActionInfo("scarlet", "red", 2, new Instant(0L).plus(Duration.standardMinutes(1))))
-    .advanceProcessingTime(Duration.standardMinutes(12))
-    .addElements(new GameActionInfo("oxblood", "red", 2, new Instant(0L)).plus(Duration.standardSeconds(22)),
-                 new GameActionInfo("scarlet", "red", 4, new Instant(0L).plus(Duration.standardMinutes(2))))
-    .advanceProcessingTime(Duration.standardMinutes(15))
-    .advanceWatermarkToInfinity();
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">TestStream</span><span class="o">.</span><span class="na">create</span><span class="o">(</span><span class="n">AvroCoder</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="n">GameActionInfo</span><span class="o">.</span><span class="na">class</span><span class="o">))</span>
+ <span class="err">   </span><span class="o">.</span><span class="na">addElements</span><span class="o">(</span><span class="k">new</span> <span class="n">GameActionInfo</span><span class="o">(</span><span class="s">"scarlet"</span><span class="o">,</span> <span class="s">"red"</span><span class="o">,</span> <span class="mi">3</span><span class="o">,</span> <span class="k">new</span> <span class="n">Instant</span><span class="o">(</span><span class="mi">0L</span><span class="o">)),</span>
+ <span class="err">              </span>  <span class="k">new</span> <span class="n">GameActionInfo</span><span class="o">(</span><span class="s">"scarlet"</span><span class="o">,</span> <span class="s">"red"</span><span class="o">,</span> <span class="mi">2</span><span class="o">,</span> <span class="k">new</span> <span class="n">Instant</span><span class="o">(</span><span class="mi">0L</span><span class="o">).</span><span class="na">plus</span><span class="o">(</span><span class="n">Duration</span><span class="o">.</span><span class="na">standardMinutes</span><span class="o">(</span><span class="mi">1</span><span class="o">))))</span>
+    <span class="o">.</span><span class="na">advanceProcessingTime</span><span class="o">(</span><span class="n">Duration</span><span class="o">.</span><span class="na">standardMinutes</span><span class="o">(</span><span class="mi">12</span><span class="o">))</span>
+ <span class="err">   </span><span class="o">.</span><span class="na">addElements</span><span class="o">(</span><span class="k">new</span> <span class="n">GameActionInfo</span><span class="o">(</span><span class="s">"oxblood"</span><span class="o">,</span> <span class="s">"red"</span><span class="o">,</span> <span class="mi">2</span><span class="o">,</span> <span class="k">new</span> <span class="n">Instant</span><span class="o">(</span><span class="mi">0L</span><span class="o">)).</span><span class="na">plus</span><span class="o">(</span><span class="n">Duration</span><span class="o">.</span><span class="na">standardSeconds</span><span class="o">(</span><span class="mi">22</span><span class="o">)),</span>
+ <span class="err">              </span>  <span class="k">new</span> <span class="n">GameActionInfo</span><span class="o">(</span><span class="s">"scarlet"</span><span class="o">,</span> <span class="s">"red"</span><span class="o">,</span> <span class="mi">4</span><span class="o">,</span> <span class="k">new</span> <span class="n">Instant</span><span class="o">(</span><span class="mi">0L</span><span class="o">).</span><span class="na">plus</span><span class="o">(</span><span class="n">Duration</span><span class="o">.</span><span class="na">standardMinutes</span><span class="o">(</span><span class="mi">2</span><span class="o">))))</span>
+    <span class="o">.</span><span class="na">advanceProcessingTime</span><span class="o">(</span><span class="n">Duration</span><span class="o">.</span><span class="na">standardMinutes</span><span class="o">(</span><span class="mi">15</span><span class="o">))</span>
+    <span class="o">.</span><span class="na">advanceWatermarkToInfinity</span><span class="o">();</span>
 
-PCollection&lt;KV&lt;String, Integer&gt;&gt; userScores =
-    p.apply(infos).apply(new CalculateUserScores(ALLOWED_LATENESS));
+<span class="n">PCollection</span><span class="o">&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">Integer</span><span class="o">&gt;&gt;</span> <span class="n">userScores</span> <span class="o">=</span>
+ <span class="err">   </span><span class="n">p</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">infos</span><span class="o">).</span><span class="na">apply</span><span class="o">(</span><span class="k">new</span> <span class="n">CalculateUserScores</span><span class="o">(</span><span class="n">ALLOWED_LATENESS</span><span class="o">));</span>
 </code></pre>
 </div>
 
 <p><img class="center-block" src="/images/blog/test-stream/elements-processing-speculative.png" alt="Elements all arrive before the watermark, and are produced in the on-time pane" width="442" /></p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>PAssert.that(userScores)
-       .inEarlyGlobalWindowPanes()
-       .containsInAnyOrder(KV.of("scarlet", 5),
-                           KV.of("scarlet", 9),
-                           KV.of("oxblood", 2));
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">PAssert</span><span class="o">.</span><span class="na">that</span><span class="o">(</span><span class="n">userScores</span><span class="o">)</span>
+       <span class="o">.</span><span class="na">inEarlyGlobalWindowPanes</span><span class="o">()</span>
+       <span class="o">.</span><span class="na">containsInAnyOrder</span><span class="o">(</span><span class="n">KV</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="s">"scarlet"</span><span class="o">,</span> <span class="mi">5</span><span class="o">),</span>
+   <span class="err">                        </span><span class="n">KV</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="s">"scarlet"</span><span class="o">,</span> <span class="mi">9</span><span class="o">),</span>
+                           <span class="n">KV</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="s">"oxblood"</span><span class="o">,</span> <span class="mi">2</span><span class="o">));</span>
 
-p.run();
+<span class="n">p</span><span class="o">.</span><span class="na">run</span><span class="o">();</span>
 </code></pre>
 </div>
 
