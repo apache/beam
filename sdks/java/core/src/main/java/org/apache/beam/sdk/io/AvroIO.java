@@ -479,6 +479,8 @@ public class AvroIO {
       private static final String DEFAULT_SHARD_TEMPLATE = ShardNameTemplate.INDEX_OF_MAX;
       private static final SerializableAvroCodecFactory DEFAULT_CODEC =
           new SerializableAvroCodecFactory(CodecFactory.deflateCodec(6));
+      // This should be a multiple of 4 to not get a partial encoded byte.
+      private static final int METADATA_BYTES_MAX_LENGTH = 40;
 
       /** The filename to write to. */
       @Nullable
@@ -547,7 +549,8 @@ public class AvroIO {
           }
         }
         checkArgument(
-            badKeys.isEmpty(), "Metadata value must be String, Long, or byte[]. {}", badKeys);
+            badKeys.isEmpty(),
+            "Metadata value type must be one of String, Long, or byte[]. Found {}", badKeys);
         this.metadata = ImmutableMap.copyOf(metadata);
       }
 
@@ -851,7 +854,8 @@ public class AvroIO {
               builder.add(DisplayData.item(entry.getKey(), type, entry.getValue()));
             } else {
               String base64 = BaseEncoding.base64().encode((byte[]) entry.getValue());
-              String repr = base64.length() <= 40 ? base64 : base64.substring(0, 40) + "...";
+              String repr = base64.length() <= METADATA_BYTES_MAX_LENGTH ?
+                  base64 : base64.substring(0, METADATA_BYTES_MAX_LENGTH) + "...";
               builder.add(DisplayData.item(entry.getKey(), repr));
             }
           }
@@ -1013,6 +1017,10 @@ public class AvroIO {
             dataFileWriter.setMeta(entry.getKey(), (Long) v);
           } else if (v instanceof byte[]) {
             dataFileWriter.setMeta(entry.getKey(), (byte[]) v);
+          } else {
+            throw new IllegalStateException(
+                "Metadata value type must be one of String, Long, or byte[]. Found " +
+                    v.getClass().getSimpleName());
           }
         }
         dataFileWriter.create(coder.getSchema(), Channels.newOutputStream(channel));
