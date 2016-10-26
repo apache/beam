@@ -53,23 +53,31 @@ public class NamedAggregatorsTest {
   @Rule
   public ClearAggregatorsRule clearAggregators = new ClearAggregatorsRule();
 
+  private Pipeline createSparkPipeline() {
+    final SparkPipelineOptions options = PipelineOptionsFactory.as(SparkPipelineOptions.class);
+    options.setRunner(SparkRunner.class);
+    return Pipeline.create(options);
+  }
+
   private void runPipeline() {
-    final String[] wordsArray = { "hi there", "hi", "hi sue bob", "hi sue", "", "bob hi"};
-    final List<String> words = Arrays.asList(wordsArray);
-    final Set<String> expectedCountSet =
+
+    final List<String> words =
+        Arrays.asList("hi there", "hi", "hi sue bob", "hi sue", "", "bob hi");
+
+    final Set<String> expectedCounts =
         ImmutableSet.of("hi: 5", "there: 1", "sue: 2", "bob: 2");
 
-    SparkPipelineOptions options = PipelineOptionsFactory.as(SparkPipelineOptions.class);
-    options.setRunner(SparkRunner.class);
-    Pipeline p = Pipeline.create(options);
-    PCollection<String> inputWords = p.apply(Create.of(words).withCoder(StringUtf8Coder
-        .of()));
-    PCollection<String> output = inputWords.apply(new WordCount.CountWords())
+    final Pipeline pipeline = createSparkPipeline();
+
+    final PCollection<String> output =
+        pipeline
+        .apply(Create.of(words).withCoder(StringUtf8Coder.of()))
+        .apply(new WordCount.CountWords())
         .apply(MapElements.via(new WordCount.FormatAsTextFn()));
 
-    PAssert.that(output).containsInAnyOrder(expectedCountSet);
+    PAssert.that(output).containsInAnyOrder(expectedCounts);
 
-    EvaluationResult res = (EvaluationResult) p.run();
+    EvaluationResult res = (EvaluationResult) pipeline.run();
     res.close(true);
   }
 
