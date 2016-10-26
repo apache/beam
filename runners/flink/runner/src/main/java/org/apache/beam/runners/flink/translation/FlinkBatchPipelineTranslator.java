@@ -65,6 +65,7 @@ public class FlinkBatchPipelineTranslator extends FlinkPipelineTranslator {
   @Override
   public CompositeBehavior enterCompositeTransform(TransformTreeNode node) {
     LOG.info(genSpaces(this.depth) + "enterCompositeTransform- " + formatNodeName(node));
+    this.depth++;
 
     BatchTransformTranslator<?> translator = getTranslator(node);
 
@@ -73,7 +74,6 @@ public class FlinkBatchPipelineTranslator extends FlinkPipelineTranslator {
       LOG.info(genSpaces(this.depth) + "translated-" + formatNodeName(node));
       return CompositeBehavior.DO_NOT_ENTER_TRANSFORM;
     } else {
-      this.depth++;
       return CompositeBehavior.ENTER_TRANSFORM;
     }
   }

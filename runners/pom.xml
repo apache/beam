@@ -22,7 +22,7 @@
   <parent>
     <groupId>org.apache.beam</groupId>
     <artifactId>beam-parent</artifactId>
-    <version>0.3.0-incubating-SNAPSHOT</version>
+    <version>0.4.0-incubating-SNAPSHOT</version>
     <relativePath>../pom.xml</relativePath>
   </parent>
 
@@ -36,6 +36,7 @@
     <module>core-java</module>
     <module>direct-java</module>
     <module>flink</module>
+    <module>google-cloud-dataflow-java</module>
     <module>spark</module>
   </modules>
 

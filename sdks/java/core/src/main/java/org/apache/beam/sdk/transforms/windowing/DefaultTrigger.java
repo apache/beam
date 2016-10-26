@@ -19,7 +19,6 @@ package org.apache.beam.sdk.transforms.windowing;
 
 import java.util.List;
 import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.util.TimeDomain;
 import org.joda.time.Instant;
 
 /**
@@ -30,7 +29,7 @@ import org.joda.time.Instant;
 public class DefaultTrigger extends Trigger{
 
   private DefaultTrigger() {
-    super(null);
+    super();
   }
 
   /**
@@ -39,27 +38,6 @@ public class DefaultTrigger extends Trigger{
   public static DefaultTrigger of() {
     return new DefaultTrigger();
   }
-
-  @Override
-  public void onElement(OnElementContext c) throws Exception {
-    // If the end of the window has already been reached, then we are already ready to fire
-    // and do not need to set a wake-up timer.
-    if (!endOfWindowReached(c)) {
-      c.setTimer(c.window().maxTimestamp(), TimeDomain.EVENT_TIME);
-    }
-  }
-
-  @Override
-  public void onMerge(OnMergeContext c) throws Exception {
-    // If the end of the window has already been reached, then we are already ready to fire
-    // and do not need to set a wake-up timer.
-    if (!endOfWindowReached(c)) {
-      c.setTimer(c.window().maxTimestamp(), TimeDomain.EVENT_TIME);
-    }
-  }
-
-  @Override
-  public void clear(TriggerContext c) throws Exception { }
 
   @Override
   public Instant getWatermarkThatGuaranteesFiring(BoundedWindow window) {
@@ -76,17 +54,4 @@ public class DefaultTrigger extends Trigger{
   public Trigger getContinuationTrigger(List<Trigger> continuationTriggers) {
     return this;
   }
-
-  @Override
-  public boolean shouldFire(Trigger.TriggerContext context) throws Exception {
-    return endOfWindowReached(context);
-  }
-
-  private boolean endOfWindowReached(Trigger.TriggerContext context) {
-    return context.currentEventTime() != null
-        && context.currentEventTime().isAfter(context.window().maxTimestamp());
-  }
-
-  @Override
-  public void onFire(Trigger.TriggerContext context) throws Exception { }
 }

@@ -25,7 +25,6 @@ import java.util.Collections;
 import org.apache.beam.runners.direct.DirectExecutionContext.DirectStepContext;
 import org.apache.beam.runners.direct.DirectRunner.CommittedBundle;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
-import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo.Bound;
 import org.apache.beam.sdk.values.PCollection;
@@ -39,17 +38,20 @@ import org.slf4j.LoggerFactory;
  */
 class ParDoSingleEvaluatorFactory implements TransformEvaluatorFactory {
   private static final Logger LOG = LoggerFactory.getLogger(ParDoSingleEvaluatorFactory.class);
-  private final LoadingCache<AppliedPTransform<?, ?, Bound<?, ?>>, DoFnLifecycleManager> fnClones;
+  private final LoadingCache<AppliedPTransform<?, ?, ?>, DoFnLifecycleManager> fnClones;
+  private final EvaluationContext evaluationContext;
 
-  public ParDoSingleEvaluatorFactory() {
+  public ParDoSingleEvaluatorFactory(EvaluationContext evaluationContext) {
+    this.evaluationContext = evaluationContext;
     fnClones =
         CacheBuilder.newBuilder()
             .build(
-                new CacheLoader<AppliedPTransform<?, ?, Bound<?, ?>>, DoFnLifecycleManager>() {
+                new CacheLoader<AppliedPTransform<?, ?, ?>, DoFnLifecycleManager>() {
                   @Override
-                  public DoFnLifecycleManager load(AppliedPTransform<?, ?, Bound<?, ?>> key)
+                  public DoFnLifecycleManager load(AppliedPTransform<?, ?, ?> key)
                       throws Exception {
-                    return DoFnLifecycleManager.of(key.getTransform().getFn());
+                    Bound<?, ?> bound = (Bound<?, ?>) key.getTransform();
+                    return DoFnLifecycleManager.of(bound.getNewFn());
                   }
                 });
   }
@@ -57,11 +59,10 @@ class ParDoSingleEvaluatorFactory implements TransformEvaluatorFactory {
   @Override
   public <T> TransformEvaluator<T> forApplication(
       final AppliedPTransform<?, ?, ?> application,
-      CommittedBundle<?> inputBundle,
-      EvaluationContext evaluationContext) throws Exception {
+      CommittedBundle<?> inputBundle) throws Exception {
     @SuppressWarnings({"unchecked", "rawtypes"})
     TransformEvaluator<T> evaluator =
-        createSingleEvaluator((AppliedPTransform) application, inputBundle, evaluationContext);
+        createSingleEvaluator((AppliedPTransform) application, inputBundle);
     return evaluator;
   }
 
@@ -73,8 +74,8 @@ class ParDoSingleEvaluatorFactory implements TransformEvaluatorFactory {
   private <InputT, OutputT> TransformEvaluator<InputT> createSingleEvaluator(
       AppliedPTransform<PCollection<InputT>, PCollection<OutputT>, Bound<InputT, OutputT>>
           application,
-      CommittedBundle<InputT> inputBundle,
-      EvaluationContext evaluationContext) throws Exception {
+      CommittedBundle<InputT> inputBundle)
+      throws Exception {
     TupleTag<OutputT> mainOutputTag = new TupleTag<>("out");
     String stepName = evaluationContext.getStepName(application);
     DirectStepContext stepContext =
@@ -90,7 +91,7 @@ class ParDoSingleEvaluatorFactory implements TransformEvaluatorFactory {
               stepContext,
               inputBundle,
               application,
-              (OldDoFn) fnLocal.get(),
+              fnLocal.get(),
               application.getTransform().getSideInputs(),
               mainOutputTag,
               Collections.<TupleTag<?>>emptyList(),

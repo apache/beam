@@ -152,7 +152,7 @@ Maven project.
     mvn archetype:generate -DgroupId=com.mycompany.beam -DartifactId=beam-test \
         -DarchetypeArtifactId=maven-archetype-quickstart -DinteractiveMode=false
 
-The contents of the root `pom.xml` should be slightly changed aftewards (explanation below):
+The contents of the root `pom.xml` should be slightly changed afterwards (explanation below):
 
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
@@ -199,6 +199,14 @@ The contents of the root `pom.xml` should be slightly changed aftewards (explana
                   <mainClass>org.apache.beam.runners.flink.examples.WordCount</mainClass>
                 </transformer>
               </transformers>
+              <filters>
+                <filter>
+                  <artifact>*:*</artifact>
+                  <excludes>
+                    <exclude>META-INF/LICENSE</exclude>
+                  </excludes>
+                </filter>
+              </filters>
             </configuration>
           </execution>
         </executions>

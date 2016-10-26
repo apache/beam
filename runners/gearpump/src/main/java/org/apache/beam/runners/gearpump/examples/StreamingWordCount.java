@@ -19,7 +19,7 @@
 package org.apache.beam.runners.gearpump.examples;
 
 import org.apache.beam.runners.gearpump.GearpumpPipelineOptions;
-import org.apache.beam.runners.gearpump.GearpumpPipelineRunner;
+import org.apache.beam.runners.gearpump.GearpumpRunner;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -75,7 +75,7 @@ public class StreamingWordCount {
   public static void main(String[] args) {
     GearpumpPipelineOptions options = PipelineOptionsFactory
             .fromArgs(args).as(GearpumpPipelineOptions.class);
-    options.setRunner(GearpumpPipelineRunner.class);
+    options.setRunner(GearpumpRunner.class);
     options.setApplicationName("StreamingWordCount");
     options.setParallelism(1);
 

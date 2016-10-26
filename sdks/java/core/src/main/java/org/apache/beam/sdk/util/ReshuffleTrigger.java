@@ -31,14 +31,8 @@ import org.joda.time.Instant;
 public class ReshuffleTrigger<W extends BoundedWindow> extends Trigger {
 
   public ReshuffleTrigger() {
-    super(null);
+    super();
   }
-
-  @Override
-  public void onElement(Trigger.OnElementContext c) { }
-
-  @Override
-  public void onMerge(Trigger.OnMergeContext c) { }
 
   @Override
   protected Trigger getContinuationTrigger(List<Trigger> continuationTriggers) {
@@ -50,14 +44,6 @@ public class ReshuffleTrigger<W extends BoundedWindow> extends Trigger {
     throw new UnsupportedOperationException(
         "ReshuffleTrigger should not be used outside of Reshuffle");
   }
-
-  @Override
-  public boolean shouldFire(Trigger.TriggerContext context) throws Exception {
-    return true;
-  }
-
-  @Override
-  public void onFire(Trigger.TriggerContext context) throws Exception { }
 
   @Override
   public String toString() {

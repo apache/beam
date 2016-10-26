@@ -24,6 +24,8 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.Collections;
 import org.apache.beam.runners.direct.DirectRunner.CommittedBundle;
+import org.apache.beam.runners.direct.DirectRunner.UncommittedBundle;
+import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
@@ -32,10 +34,15 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.MapElements;
+import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollection;
 import org.joda.time.Instant;
+import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -51,16 +58,43 @@ public class EncodabilityEnforcementFactoryTest {
   private EncodabilityEnforcementFactory factory = EncodabilityEnforcementFactory.create();
   private BundleFactory bundleFactory = ImmutableListBundleFactory.create();
 
+  private PCollection<Record> inputPCollection;
+  private CommittedBundle<Record> inputBundle;
+  private PCollection<Record> outputPCollection;
+
+  @Before
+  public void setup() {
+    Pipeline p = TestPipeline.create();
+    inputPCollection = p.apply(Create.of(new Record()).withCoder(new RecordNoDecodeCoder()));
+    outputPCollection = inputPCollection.apply(ParDo.of(new IdentityDoFn()));
+
+    inputBundle =
+        bundleFactory
+            .<Record>createRootBundle()
+            .add(WindowedValue.valueInGlobalWindow(new Record()))
+            .commit(Instant.now());
+  }
+
   @Test
   public void encodeFailsThrows() {
     WindowedValue<Record> record = WindowedValue.valueInGlobalWindow(new Record());
 
     ModelEnforcement<Record> enforcement = createEnforcement(new RecordNoEncodeCoder(), record);
 
+    UncommittedBundle<Record> output =
+        bundleFactory.createBundle(outputPCollection).add(record);
+
+    enforcement.beforeElement(record);
+    enforcement.afterElement(record);
     thrown.expect(UserCodeException.class);
     thrown.expectCause(isA(CoderException.class));
     thrown.expectMessage("Encode not allowed");
-    enforcement.beforeElement(record);
+    enforcement.afterFinish(
+        inputBundle,
+        StepTransformResult.withoutHold(outputPCollection.getProducingTransformInternal())
+            .addOutput(output)
+            .build(),
+        Collections.<CommittedBundle<?>>singleton(output.commit(Instant.now())));
   }
 
   @Test
@@ -69,10 +103,20 @@ public class EncodabilityEnforcementFactoryTest {
 
     ModelEnforcement<Record> enforcement = createEnforcement(new RecordNoDecodeCoder(), record);
 
+    UncommittedBundle<Record> output =
+        bundleFactory.createBundle(outputPCollection).add(record);
+
+    enforcement.beforeElement(record);
+    enforcement.afterElement(record);
     thrown.expect(UserCodeException.class);
     thrown.expectCause(isA(CoderException.class));
     thrown.expectMessage("Decode not allowed");
-    enforcement.beforeElement(record);
+    enforcement.afterFinish(
+        inputBundle,
+        StepTransformResult.withoutHold(outputPCollection.getProducingTransformInternal())
+            .addOutput(output)
+            .build(),
+        Collections.<CommittedBundle<?>>singleton(output.commit(Instant.now())));
   }
 
   @Test
@@ -89,46 +133,57 @@ public class EncodabilityEnforcementFactoryTest {
     ModelEnforcement<Record> enforcement =
         createEnforcement(new RecordStructuralValueCoder(), record);
 
+    UncommittedBundle<Record> output =
+        bundleFactory.createBundle(outputPCollection).add(record);
+
+    enforcement.beforeElement(record);
+    enforcement.afterElement(record);
+
     thrown.expect(UserCodeException.class);
     thrown.expectCause(isA(IllegalArgumentException.class));
     thrown.expectMessage("does not maintain structural value equality");
     thrown.expectMessage(RecordStructuralValueCoder.class.getSimpleName());
     thrown.expectMessage("OriginalRecord");
-    enforcement.beforeElement(record);
+    enforcement.afterFinish(
+        inputBundle,
+        StepTransformResult.withoutHold(outputPCollection.getProducingTransformInternal())
+            .addOutput(output)
+            .build(),
+        Collections.<CommittedBundle<?>>singleton(output.commit(Instant.now())));
   }
 
   @Test
   public void notConsistentWithEqualsStructuralValueNotEqualSucceeds() {
-    TestPipeline p = TestPipeline.create();
-    PCollection<Record> unencodable =
-        p.apply(
-            Create.of(new Record())
-                .withCoder(new RecordNotConsistentWithEqualsStructuralValueCoder()));
-    AppliedPTransform<?, ?, ?> consumer =
-        unencodable.apply(Count.<Record>globally()).getProducingTransformInternal();
-
+    outputPCollection.setCoder(new RecordNotConsistentWithEqualsStructuralValueCoder());
     WindowedValue<Record> record = WindowedValue.<Record>valueInGlobalWindow(new Record());
 
-    CommittedBundle<Record> input =
-        bundleFactory.createRootBundle(unencodable).add(record).commit(Instant.now());
-    ModelEnforcement<Record> enforcement = factory.forBundle(input, consumer);
+    ModelEnforcement<Record> enforcement =
+        factory.forBundle(inputBundle, outputPCollection.getProducingTransformInternal());
+
+    UncommittedBundle<Record> output =
+        bundleFactory.createBundle(outputPCollection).add(record);
 
     enforcement.beforeElement(record);
     enforcement.afterElement(record);
     enforcement.afterFinish(
-        input,
-        StepTransformResult.withoutHold(consumer).build(),
-        Collections.<CommittedBundle<?>>emptyList());
+        inputBundle,
+        StepTransformResult.withoutHold(outputPCollection.getProducingTransformInternal())
+            .addOutput(output)
+            .build(),
+        Collections.<CommittedBundle<?>>singleton(output.commit(Instant.now())));
   }
 
-  private <T> ModelEnforcement<T> createEnforcement(Coder<T> coder, WindowedValue<T> record) {
+  private ModelEnforcement<Record> createEnforcement(
+      Coder<Record> coder, WindowedValue<Record> record) {
     TestPipeline p = TestPipeline.create();
-    PCollection<T> unencodable = p.apply(Create.<T>of().withCoder(coder));
-    AppliedPTransform<?, ?, ?> consumer =
-        unencodable.apply(Count.<T>globally()).getProducingTransformInternal();
-    CommittedBundle<T> input =
-        bundleFactory.createRootBundle(unencodable).add(record).commit(Instant.now());
-    ModelEnforcement<T> enforcement = factory.forBundle(input, consumer);
+    PCollection<Record> unencodable = p.apply(Create.<Record>of().withCoder(coder));
+    outputPCollection =
+        unencodable.apply(
+            MapElements.via(new SimpleIdentity()));
+    AppliedPTransform<?, ?, ?> consumer = outputPCollection.getProducingTransformInternal();
+    CommittedBundle<Record> input =
+        bundleFactory.createBundle(unencodable).add(record).commit(Instant.now());
+    ModelEnforcement<Record> enforcement = factory.forBundle(input, consumer);
     return enforcement;
   }
 
@@ -142,7 +197,7 @@ public class EncodabilityEnforcementFactoryTest {
     WindowedValue<Integer> value = WindowedValue.valueInGlobalWindow(1);
 
     CommittedBundle<Integer> input =
-        bundleFactory.createRootBundle(unencodable).add(value).commit(Instant.now());
+        bundleFactory.createBundle(unencodable).add(value).commit(Instant.now());
     ModelEnforcement<Integer> enforcement = factory.forBundle(input, consumer);
 
     enforcement.beforeElement(value);
@@ -153,38 +208,38 @@ public class EncodabilityEnforcementFactoryTest {
         Collections.<CommittedBundle<?>>emptyList());
   }
 
-  private static class Record {}
-  private static class RecordNoEncodeCoder extends AtomicCoder<Record> {
+  static class Record {}
+  static class RecordNoEncodeCoder extends AtomicCoder<Record> {
 
     @Override
     public void encode(
         Record value,
         OutputStream outStream,
         org.apache.beam.sdk.coders.Coder.Context context)
-        throws CoderException, IOException {
+        throws IOException {
       throw new CoderException("Encode not allowed");
     }
 
     @Override
     public Record decode(
         InputStream inStream, org.apache.beam.sdk.coders.Coder.Context context)
-        throws CoderException, IOException {
+        throws IOException {
       return null;
     }
   }
 
-  private static class RecordNoDecodeCoder extends AtomicCoder<Record> {
+  static class RecordNoDecodeCoder extends AtomicCoder<Record> {
     @Override
     public void encode(
         Record value,
         OutputStream outStream,
         org.apache.beam.sdk.coders.Coder.Context context)
-        throws CoderException, IOException {}
+        throws IOException {}
 
     @Override
     public Record decode(
         InputStream inStream, org.apache.beam.sdk.coders.Coder.Context context)
-        throws CoderException, IOException {
+        throws IOException {
       throw new CoderException("Decode not allowed");
     }
   }
@@ -252,4 +307,17 @@ public class EncodabilityEnforcementFactoryTest {
     }
   }
 
+  private static class IdentityDoFn extends DoFn<Record, Record> {
+    @ProcessElement
+    public void proc(ProcessContext ctxt) {
+      ctxt.output(ctxt.element());
+    }
+  }
+
+  private static class SimpleIdentity extends SimpleFunction<Record, Record> {
+    @Override
+    public Record apply(Record input) {
+      return input;
+    }
+  }
 }

@@ -53,7 +53,7 @@ import org.joda.time.Duration;
  * The utility class that sets up and tears down external resources,
  * and cancels the streaming pipelines once the program terminates.
  *
- * <p>It is used to run Beam examples, such as TrafficMaxLaneFlow and TrafficRoutes.
+ * <p>It is used to run Beam examples.
  */
 public class ExampleUtils {
 

@@ -21,7 +21,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasKey;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasType;
-import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.includesDisplayDataFrom;
+import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.includesDisplayDataFor;
 import static org.apache.beam.sdk.util.SerializableUtils.serializeToByteArray;
 import static org.apache.beam.sdk.util.StringUtils.byteArrayToJsonString;
 import static org.apache.beam.sdk.util.StringUtils.jsonStringToByteArray;
@@ -51,14 +51,19 @@ import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.RunnableOnService;
 import org.apache.beam.sdk.testing.TestPipeline;
-import org.apache.beam.sdk.transforms.OldDoFn.RequiresWindowAccess;
 import org.apache.beam.sdk.transforms.ParDo.Bound;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.DisplayData.Builder;
 import org.apache.beam.sdk.transforms.display.DisplayDataMatchers;
+import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
+import org.apache.beam.sdk.util.state.StateSpec;
+import org.apache.beam.sdk.util.state.StateSpecs;
+import org.apache.beam.sdk.util.state.ValueState;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PCollectionView;
@@ -85,13 +90,11 @@ public class ParDoTest implements Serializable {
   @Rule
   public transient ExpectedException thrown = ExpectedException.none();
 
-  private static class PrintingOldDoFn extends OldDoFn<String, String> implements
-      RequiresWindowAccess {
-
-    @Override
-    public void processElement(ProcessContext c) {
+  private static class PrintingDoFn extends DoFn<String, String> {
+    @ProcessElement
+    public void processElement(ProcessContext c, BoundedWindow window) {
       c.output(c.element() + ":" + c.timestamp().getMillis()
-          + ":" + c.window().maxTimestamp().getMillis());
+          + ":" + window.maxTimestamp().getMillis());
     }
   }
 
@@ -843,7 +846,7 @@ public class ParDoTest implements Serializable {
           output5.getName());
     }
 
-    assertEquals("ParDo(Printing)", ParDo.of(new PrintingOldDoFn()).getName());
+    assertEquals("ParDo(Printing)", ParDo.of(new PrintingDoFn()).getName());
 
     assertEquals(
         "ParMultiDo(SideOutputDummy)",
@@ -1376,7 +1379,7 @@ public class ParDoTest implements Serializable {
                     System.out.println("Finish: 3");
                   }
                 }))
-        .apply(ParDo.of(new PrintingOldDoFn()));
+        .apply(ParDo.of(new PrintingDoFn()));
 
     PAssert.that(output).satisfies(new Checker());
 
@@ -1427,7 +1430,7 @@ public class ParDoTest implements Serializable {
         hasType(DisplayData.Type.JAVA_CLASS),
         DisplayDataMatchers.hasValue(fn.getClass().getName()))));
 
-    assertThat(displayData, includesDisplayDataFrom(fn));
+    assertThat(displayData, includesDisplayDataFor("fn", fn));
   }
 
   @Test
@@ -1445,8 +1448,31 @@ public class ParDoTest implements Serializable {
     Bound<String, String> parDo = ParDo.of(fn);
 
     DisplayData displayData = DisplayData.from(parDo);
-    assertThat(displayData, includesDisplayDataFrom(fn));
+    assertThat(displayData, includesDisplayDataFor("fn", fn));
     assertThat(displayData, hasDisplayItem("fn", fn.getClass()));
+  }
+
+  /**
+   * A test that we properly reject {@link DoFn} implementations that
+   * include {@link DoFn.StateId} annotations, for now.
+   */
+  @Test
+  public void testUnsupportedState() {
+    thrown.expect(UnsupportedOperationException.class);
+    thrown.expectMessage("cannot yet be used with state");
+
+    DoFn<KV<String, String>, KV<String, String>> fn =
+        new DoFn<KV<String, String>, KV<String, String>>() {
+
+      @StateId("foo")
+      private final StateSpec<Object, ValueState<Integer>> intState =
+          StateSpecs.value(VarIntCoder.of());
+
+      @ProcessElement
+      public void processElement(ProcessContext c) { }
+    };
+
+    ParDo.of(fn);
   }
 
   @Test
@@ -1461,12 +1487,57 @@ public class ParDoTest implements Serializable {
       }
     };
 
-    ParDo.BoundMulti parDo = ParDo
-            .withOutputTags(new TupleTag(), TupleTagList.empty())
+    ParDo.BoundMulti<String, String> parDo = ParDo
+            .withOutputTags(new TupleTag<String>(), TupleTagList.empty())
             .of(fn);
 
     DisplayData displayData = DisplayData.from(parDo);
-    assertThat(displayData, includesDisplayDataFrom(fn));
+    assertThat(displayData, includesDisplayDataFor("fn", fn));
     assertThat(displayData, hasDisplayItem("fn", fn.getClass()));
+  }
+
+  private abstract static class SomeTracker implements RestrictionTracker<Object> {}
+  private static class TestSplittableDoFn extends DoFn<Integer, String> {
+    @ProcessElement
+    public void processElement(ProcessContext context, SomeTracker tracker) {}
+
+    @GetInitialRestriction
+    public Object getInitialRestriction(Integer element) {
+      return null;
+    }
+
+    @NewTracker
+    public SomeTracker newTracker(Object restriction) {
+      return null;
+    }
+  }
+
+  @Test
+  public void testRejectsSplittableDoFnByDefault() {
+    // ParDo with a splittable DoFn must be overridden by the runner.
+    // Without an override, applying it directly must fail.
+    Pipeline p = TestPipeline.create();
+
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage("Splittable DoFn not supported by the current runner");
+
+    p.apply(Create.of(1, 2, 3)).apply(ParDo.of(new TestSplittableDoFn()));
+  }
+
+  @Test
+  public void testMultiRejectsSplittableDoFnByDefault() {
+    // ParDo with a splittable DoFn must be overridden by the runner.
+    // Without an override, applying it directly must fail.
+    Pipeline p = TestPipeline.create();
+
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage("Splittable DoFn not supported by the current runner");
+
+    p.apply(Create.of(1, 2, 3))
+        .apply(
+            ParDo.of(new TestSplittableDoFn())
+                .withOutputTags(
+                    new TupleTag<String>("main") {},
+                    TupleTagList.of(new TupleTag<String>("side1") {})));
   }
 }

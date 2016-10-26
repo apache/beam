@@ -47,14 +47,19 @@ import org.apache.beam.sdk.values.POutput;
  * written.
  */
 class ViewEvaluatorFactory implements TransformEvaluatorFactory {
+  private final EvaluationContext context;
+
+  ViewEvaluatorFactory(EvaluationContext context) {
+    this.context = context;
+  }
+
   @Override
   public <T> TransformEvaluator<T> forApplication(
       AppliedPTransform<?, ?, ?> application,
-      DirectRunner.CommittedBundle<?> inputBundle,
-      EvaluationContext evaluationContext) {
+      DirectRunner.CommittedBundle<?> inputBundle) {
     @SuppressWarnings({"cast", "unchecked", "rawtypes"})
     TransformEvaluator<T> evaluator = createEvaluator(
-            (AppliedPTransform) application, evaluationContext);
+            (AppliedPTransform) application);
     return evaluator;
   }
 
@@ -63,8 +68,7 @@ class ViewEvaluatorFactory implements TransformEvaluatorFactory {
 
   private <InT, OuT> TransformEvaluator<Iterable<InT>> createEvaluator(
       final AppliedPTransform<PCollection<Iterable<InT>>, PCollectionView<OuT>, WriteView<InT, OuT>>
-          application,
-      EvaluationContext context) {
+          application) {
     PCollection<Iterable<InT>> input = application.getInput();
     final PCollectionViewWriter<InT, OuT> writer =
         context.createPCollectionViewWriter(input, application.getOutput());
@@ -135,7 +139,7 @@ class ViewEvaluatorFactory implements TransformEvaluatorFactory {
   /**
    * An in-process implementation of the {@link CreatePCollectionView} primitive.
    *
-   * This implementation requires the input {@link PCollection} to be an iterable
+   * <p>This implementation requires the input {@link PCollection} to be an iterable
    * of {@code WindowedValue<ElemT>}, which is provided
    * to {@link PCollectionView#getViewFn()} for conversion to {@link ViewT}.
    */

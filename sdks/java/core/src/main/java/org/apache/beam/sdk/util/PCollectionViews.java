@@ -261,10 +261,9 @@ public class PCollectionViews {
       }
       // Lazily decode the default value once
       synchronized (this) {
-        if (encodedDefaultValue != null) {
+        if (encodedDefaultValue != null && defaultValue == null) {
           try {
             defaultValue = CoderUtils.decodeFromByteArray(valueCoder, encodedDefaultValue);
-            encodedDefaultValue = null;
           } catch (IOException e) {
             throw new RuntimeException("Unexpected IOException: ", e);
           }
@@ -457,12 +456,6 @@ public class PCollectionViews {
       @SuppressWarnings({"rawtypes", "unchecked"})
       ViewFn<Iterable<WindowedValue<?>>, ViewT> untypedViewFn = (ViewFn) viewFn;
       return untypedViewFn;
-    }
-
-    @Override
-    @Deprecated
-    public ViewT fromIterableInternal(Iterable<WindowedValue<?>> elements) {
-      return getViewFn().apply(elements);
     }
 
     /**

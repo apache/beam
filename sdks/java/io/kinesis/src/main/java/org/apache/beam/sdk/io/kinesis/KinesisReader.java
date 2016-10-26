@@ -30,7 +30,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 
-/***
+/**
  * Reads data from multiple kinesis shards in a single thread.
  * It uses simple round robin algorithm when fetching data from shards.
  */
@@ -52,7 +52,7 @@ class KinesisReader extends UnboundedSource.UnboundedReader<KinesisRecord> {
         this.source = source;
     }
 
-    /***
+    /**
      * Generates initial checkpoint and instantiates iterators for shards.
      */
     @Override
@@ -74,7 +74,7 @@ class KinesisReader extends UnboundedSource.UnboundedReader<KinesisRecord> {
         return advance();
     }
 
-    /***
+    /**
      * Moves to the next record in one of the shards.
      * If current shard iterator can be move forward (i.e. there's a record present) then we do it.
      * If not, we iterate over shards in a round-robin manner.
@@ -106,7 +106,7 @@ class KinesisReader extends UnboundedSource.UnboundedReader<KinesisRecord> {
         return currentRecord.get();
     }
 
-    /***
+    /**
      * When {@link KinesisReader} was advanced to the current record.
      * We cannot use approximate arrival timestamp given for each record by Kinesis as it
      * is not guaranteed to be accurate - this could lead to mark some records as "late"
@@ -121,7 +121,7 @@ class KinesisReader extends UnboundedSource.UnboundedReader<KinesisRecord> {
     public void close() throws IOException {
     }
 
-    /***
+    /**
      * Current time.
      * We cannot give better approximation of the watermark with current semantics of
      * {@link KinesisReader#getCurrentTimestamp()}, because we don't know when the next

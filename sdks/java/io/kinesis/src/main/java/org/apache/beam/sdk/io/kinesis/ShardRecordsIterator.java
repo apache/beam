@@ -25,7 +25,7 @@ import java.util.Deque;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/***
+/**
  * Iterates over records in a single shard.
  * Under the hood records are retrieved from Kinesis in batches and stored in the in-memory queue.
  * Then the caller of {@link ShardRecordsIterator#next()} can read from queue one by one.
@@ -56,7 +56,7 @@ class ShardRecordsIterator {
         shardIterator = checkpoint.getShardIterator(kinesis);
     }
 
-    /***
+    /**
      * Returns record if there's any present.
      * Returns absent() if there are no new records at this time in the shard.
      */

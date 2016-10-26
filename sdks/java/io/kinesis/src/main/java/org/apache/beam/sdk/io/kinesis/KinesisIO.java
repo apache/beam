@@ -71,13 +71,13 @@ import org.joda.time.Instant;
  * (for example if you're using more sophisticated authorization methods like Amazon STS, etc.)
  * you can do it by implementing {@link KinesisClientProvider} class:
  *
- * <pre>{@code}
+ * <pre>{@code
  * public class MyCustomKinesisClientProvider implements KinesisClientProvider {
  *   @Override
  *   public AmazonKinesis get() {
  *     // set up your client here
  *   }
- * }
+ * }}
  * </pre>
  *
  * Usage is pretty straightforward:
@@ -105,7 +105,7 @@ import org.joda.time.Instant;
  *
  */
 public final class KinesisIO {
-    /***
+    /**
      * A {@link PTransform} that reads from a Kinesis stream.
      */
     public static final class Read {
@@ -118,7 +118,7 @@ public final class KinesisIO {
             this.initialPosition = checkNotNull(initialPosition, "initialPosition");
         }
 
-        /***
+        /**
          * Specify reading from streamName at some initial position.
          */
         public static Read from(String streamName, InitialPositionInStream initialPosition) {
@@ -126,7 +126,7 @@ public final class KinesisIO {
                     checkNotNull(initialPosition, "initialPosition")));
         }
 
-        /***
+        /**
          * Specify reading from streamName beginning at given {@link Instant}.
          * This {@link Instant} must be in the past, i.e. before {@link Instant#now()}.
          */
@@ -135,7 +135,7 @@ public final class KinesisIO {
                     checkNotNull(initialTimestamp, "initialTimestamp")));
         }
 
-        /***
+        /**
          * Allows to specify custom {@link KinesisClientProvider}.
          * {@link KinesisClientProvider} provides {@link AmazonKinesis} instances which are later
          * used for communication with Kinesis.
@@ -149,7 +149,7 @@ public final class KinesisIO {
                             initialPosition));
         }
 
-        /***
+        /**
          * Specify credential details and region to be used to read from Kinesis.
          * If you need more sophisticated credential protocol, then you should look at
          * {@link Read#using(KinesisClientProvider)}.
@@ -183,7 +183,9 @@ public final class KinesisIO {
 
             @Override
             public AmazonKinesis get() {
-                return new AmazonKinesisClient(getCredentialsProvider()).withRegion(region);
+                AmazonKinesisClient client = new AmazonKinesisClient(getCredentialsProvider());
+                client.withRegion(region);
+                return client;
             }
         }
     }

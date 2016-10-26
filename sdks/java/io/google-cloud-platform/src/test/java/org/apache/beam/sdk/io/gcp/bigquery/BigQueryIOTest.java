@@ -18,6 +18,8 @@
 package org.apache.beam.sdk.io.gcp.bigquery;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkNotNull;
+import static com.google.common.base.Preconditions.checkState;
 import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.fromJsonString;
 import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.toJsonString;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
@@ -32,7 +34,9 @@ import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.when;
 
+import com.google.api.client.json.GenericJson;
 import com.google.api.client.util.Data;
+import com.google.api.services.bigquery.model.Dataset;
 import com.google.api.services.bigquery.model.ErrorProto;
 import com.google.api.services.bigquery.model.Job;
 import com.google.api.services.bigquery.model.JobConfigurationExtract;
@@ -50,21 +54,36 @@ import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
 import com.google.common.base.Strings;
+import com.google.common.collect.HashBasedTable;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Table.Cell;
+import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.FileFilter;
 import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import java.io.Serializable;
+import java.nio.channels.Channels;
+import java.nio.channels.WritableByteChannel;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Set;
 import javax.annotation.Nullable;
+import org.apache.avro.Schema;
+import org.apache.avro.file.DataFileWriter;
+import org.apache.avro.generic.GenericDatumWriter;
+import org.apache.avro.generic.GenericRecord;
+import org.apache.avro.generic.GenericRecordBuilder;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.KvCoder;
@@ -72,6 +91,7 @@ import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.TableRowJsonCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.io.BoundedSource;
+import org.apache.beam.sdk.io.CountingInput;
 import org.apache.beam.sdk.io.CountingSource;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.BigQueryQuerySource;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.BigQueryTableSource;
@@ -101,8 +121,10 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFnTester;
+import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.DisplayDataEvaluator;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -110,7 +132,9 @@ import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.IOChannelFactory;
 import org.apache.beam.sdk.util.IOChannelUtils;
+import org.apache.beam.sdk.util.MimeTypes;
 import org.apache.beam.sdk.util.PCollectionViews;
+import org.apache.beam.sdk.util.Transport;
 import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
@@ -128,6 +152,7 @@ import org.junit.rules.ExpectedException;
 import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
@@ -142,6 +167,7 @@ public class BigQueryIOTest implements Serializable {
   private static final Map<Status, Job> JOB_STATUS_MAP = ImmutableMap.of(
       Status.SUCCEEDED, new Job().setStatus(new JobStatus()),
       Status.FAILED, new Job().setStatus(new JobStatus().setErrorResult(new ErrorProto())));
+
 
   private static class FakeBigQueryServices implements BigQueryServices {
 
@@ -182,7 +208,8 @@ public class BigQueryIOTest implements Serializable {
 
     @Override
     public BigQueryJsonReader getReaderFromQuery(
-        BigQueryOptions bqOptions, String query, String projectId, @Nullable Boolean flatten) {
+        BigQueryOptions bqOptions, String query, String projectId, @Nullable Boolean flatten,
+        @Nullable Boolean useLegacySql) {
       return new FakeBigQueryReader(jsonTableRowReturns);
     }
 
@@ -229,17 +256,21 @@ public class BigQueryIOTest implements Serializable {
 
     private Object[] startJobReturns;
     private Object[] pollJobReturns;
+    private Object[] getJobReturns;
     private String executingProject;
     // Both counts will be reset back to zeros after serialization.
     // This is a work around for DoFn's verifyUnmodified check.
     private transient int startJobCallsCount;
     private transient int pollJobStatusCallsCount;
+    private transient int getJobCallsCount;
 
     public FakeJobService() {
       this.startJobReturns = new Object[0];
       this.pollJobReturns = new Object[0];
+      this.getJobReturns = new Object[0];
       this.startJobCallsCount = 0;
       this.pollJobStatusCallsCount = 0;
+      this.getJobCallsCount = 0;
     }
 
     /**
@@ -250,6 +281,16 @@ public class BigQueryIOTest implements Serializable {
      */
     public FakeJobService startJobReturns(Object... startJobReturns) {
       this.startJobReturns = startJobReturns;
+      return this;
+    }
+
+    /**
+     * Sets the return values to mock {@link JobService#getJob}.
+     *
+     * <p>Throws if the {@link Object} is a {@link InterruptedException}, returns otherwise.
+     */
+    public FakeJobService getJobReturns(Object... getJobReturns) {
+      this.getJobReturns = getJobReturns;
       return this;
     }
 
@@ -274,25 +315,25 @@ public class BigQueryIOTest implements Serializable {
     @Override
     public void startLoadJob(JobReference jobRef, JobConfigurationLoad loadConfig)
         throws InterruptedException, IOException {
-      startJob(jobRef);
+      startJob(jobRef, loadConfig);
     }
 
     @Override
     public void startExtractJob(JobReference jobRef, JobConfigurationExtract extractConfig)
         throws InterruptedException, IOException {
-      startJob(jobRef);
+      startJob(jobRef, extractConfig);
     }
 
     @Override
     public void startQueryJob(JobReference jobRef, JobConfigurationQuery query)
         throws IOException, InterruptedException {
-      startJob(jobRef);
+      startJob(jobRef, query);
     }
 
     @Override
     public void startCopyJob(JobReference jobRef, JobConfigurationTableCopy copyConfig)
         throws IOException, InterruptedException {
-      startJob(jobRef);
+      startJob(jobRef, copyConfig);
     }
 
     @Override
@@ -322,7 +363,8 @@ public class BigQueryIOTest implements Serializable {
       }
     }
 
-    private void startJob(JobReference jobRef) throws IOException, InterruptedException {
+    private void startJob(JobReference jobRef, GenericJson config)
+        throws IOException, InterruptedException {
       if (!Strings.isNullOrEmpty(executingProject)) {
         checkArgument(
             jobRef.getProjectId().equals(executingProject),
@@ -336,6 +378,11 @@ public class BigQueryIOTest implements Serializable {
           throw (IOException) ret;
         } else if (ret instanceof InterruptedException) {
           throw (InterruptedException) ret;
+        } else if (ret instanceof SerializableFunction) {
+          SerializableFunction<GenericJson, Void> fn =
+              (SerializableFunction<GenericJson, Void>) ret;
+          fn.apply(config);
+          return;
         } else {
           return;
         }
@@ -346,9 +393,207 @@ public class BigQueryIOTest implements Serializable {
     }
 
     @Override
-    public JobStatistics dryRunQuery(String projectId, String query)
+    public JobStatistics dryRunQuery(String projectId, JobConfigurationQuery query)
         throws InterruptedException, IOException {
       throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public Job getJob(JobReference jobRef) throws InterruptedException {
+      if (!Strings.isNullOrEmpty(executingProject)) {
+        checkArgument(
+            jobRef.getProjectId().equals(executingProject),
+            "Project id: %s is not equal to executing project: %s",
+            jobRef.getProjectId(), executingProject);
+      }
+
+      if (getJobCallsCount < getJobReturns.length) {
+        Object ret = getJobReturns[getJobCallsCount++];
+        if (ret == null) {
+          return null;
+        } else if (ret instanceof Job) {
+          return (Job) ret;
+        } else if (ret instanceof InterruptedException) {
+          throw (InterruptedException) ret;
+        } else {
+          throw new RuntimeException("Unexpected return type: " + ret.getClass());
+        }
+      } else {
+        throw new RuntimeException(
+            "Exceeded expected number of calls: " + getJobReturns.length);
+      }
+    }
+
+    ////////////////////////////////// SERIALIZATION METHODS ////////////////////////////////////
+    private void writeObject(ObjectOutputStream out) throws IOException {
+      out.writeObject(replaceJobsWithBytes(startJobReturns));
+      out.writeObject(replaceJobsWithBytes(pollJobReturns));
+      out.writeObject(replaceJobsWithBytes(getJobReturns));
+      out.writeObject(executingProject);
+    }
+
+    private Object[] replaceJobsWithBytes(Object[] objs) {
+      Object[] copy = Arrays.copyOf(objs, objs.length);
+      for (int i = 0; i < copy.length; i++) {
+        checkArgument(
+            copy[i] == null || copy[i] instanceof Serializable || copy[i] instanceof Job,
+            "Only serializable elements and jobs can be added add to Job Returns");
+        if (copy[i] instanceof Job) {
+          try {
+            // Job is not serializable, so encode the job as a byte array.
+            copy[i] = Transport.getJsonFactory().toByteArray(copy[i]);
+          } catch (IOException e) {
+            throw new IllegalArgumentException(
+                String.format("Could not encode Job %s via available JSON factory", copy[i]));
+          }
+        }
+      }
+      return copy;
+    }
+
+    private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
+      this.startJobReturns = replaceBytesWithJobs(in.readObject());
+      this.pollJobReturns = replaceBytesWithJobs(in.readObject());
+      this.getJobReturns = replaceBytesWithJobs(in.readObject());
+      this.executingProject = (String) in.readObject();
+    }
+
+    private Object[] replaceBytesWithJobs(Object obj) throws IOException {
+      checkState(obj instanceof Object[]);
+      Object[] objs = (Object[]) obj;
+      Object[] copy = Arrays.copyOf(objs, objs.length);
+      for (int i = 0; i < copy.length; i++) {
+        if (copy[i] instanceof byte[]) {
+          Job job = Transport.getJsonFactory()
+              .createJsonParser(new ByteArrayInputStream((byte[]) copy[i]))
+              .parse(Job.class);
+          copy[i] = job;
+        }
+      }
+      return copy;
+    }
+  }
+
+  /** A fake dataset service that can be serialized, for use in testReadFromTable. */
+  private static class FakeDatasetService implements DatasetService, Serializable {
+    private com.google.common.collect.Table<String, String, Map<String, Table>> tables =
+        HashBasedTable.create();
+
+    public FakeDatasetService withTable(
+        String projectId, String datasetId, String tableId, Table table) throws IOException {
+      Map<String, Table> dataset = tables.get(projectId, datasetId);
+      if (dataset == null) {
+        dataset = new HashMap<>();
+        tables.put(projectId, datasetId, dataset);
+      }
+      dataset.put(tableId, table);
+      return this;
+    }
+
+    @Override
+    public Table getTable(String projectId, String datasetId, String tableId)
+        throws InterruptedException, IOException {
+      Map<String, Table> dataset =
+          checkNotNull(
+              tables.get(projectId, datasetId),
+              "Tried to get a table %s:%s.%s from %s, but no such table was set",
+              projectId,
+              datasetId,
+              tableId,
+              FakeDatasetService.class.getSimpleName());
+      return checkNotNull(dataset.get(tableId),
+          "Tried to get a table %s:%s.%s from %s, but no such table was set",
+          projectId,
+          datasetId,
+          tableId,
+          FakeDatasetService.class.getSimpleName());
+    }
+
+    @Override
+    public void deleteTable(String projectId, String datasetId, String tableId)
+        throws IOException, InterruptedException {
+      throw new UnsupportedOperationException("Unsupported");
+    }
+
+    @Override
+    public boolean isTableEmpty(String projectId, String datasetId, String tableId)
+        throws IOException, InterruptedException {
+      Long numBytes = getTable(projectId, datasetId, tableId).getNumBytes();
+      return numBytes == null || numBytes == 0L;
+    }
+
+    @Override
+    public Dataset getDataset(
+        String projectId, String datasetId) throws IOException, InterruptedException {
+      throw new UnsupportedOperationException("Unsupported");
+    }
+
+    @Override
+    public void createDataset(
+        String projectId, String datasetId, String location, String description)
+        throws IOException, InterruptedException {
+      throw new UnsupportedOperationException("Unsupported");
+    }
+
+    @Override
+    public void deleteDataset(String projectId, String datasetId)
+        throws IOException, InterruptedException {
+      throw new UnsupportedOperationException("Unsupported");
+    }
+
+    @Override
+    public long insertAll(
+        TableReference ref, List<TableRow> rowList, @Nullable List<String> insertIdList)
+        throws IOException, InterruptedException {
+      throw new UnsupportedOperationException("Unsupported");
+    }
+
+    ////////////////////////////////// SERIALIZATION METHODS ////////////////////////////////////
+    private void writeObject(ObjectOutputStream out) throws IOException {
+      out.writeObject(replaceTablesWithBytes(this.tables));
+    }
+
+    private com.google.common.collect.Table<String, String, Map<String, byte[]>>
+    replaceTablesWithBytes(
+        com.google.common.collect.Table<String, String, Map<String, Table>> toCopy)
+        throws IOException {
+      com.google.common.collect.Table<String, String, Map<String, byte[]>> copy =
+          HashBasedTable.create();
+      for (Cell<String, String, Map<String, Table>> cell : toCopy.cellSet()) {
+        HashMap<String, byte[]> dataset = new HashMap<>();
+        copy.put(cell.getRowKey(), cell.getColumnKey(), dataset);
+        for (Map.Entry<String, Table> dsTables : cell.getValue().entrySet()) {
+          dataset.put(
+              dsTables.getKey(), Transport.getJsonFactory().toByteArray(dsTables.getValue()));
+        }
+      }
+      return copy;
+    }
+
+    private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
+      com.google.common.collect.Table<String, String, Map<String, byte[]>> tablesTable =
+          (com.google.common.collect.Table<String, String, Map<String, byte[]>>) in.readObject();
+      this.tables = replaceBytesWithTables(tablesTable);
+    }
+
+    private com.google.common.collect.Table<String, String, Map<String, Table>>
+    replaceBytesWithTables(
+        com.google.common.collect.Table<String, String, Map<String, byte[]>> tablesTable)
+        throws IOException {
+      com.google.common.collect.Table<String, String, Map<String, Table>> copy =
+          HashBasedTable.create();
+      for (Cell<String, String, Map<String, byte[]>> cell : tablesTable.cellSet()) {
+        HashMap<String, Table> dataset = new HashMap<>();
+        copy.put(cell.getRowKey(), cell.getColumnKey(), dataset);
+        for (Map.Entry<String, byte[]> dsTables : cell.getValue().entrySet()) {
+          Table table =
+              Transport.getJsonFactory()
+                  .createJsonParser(new ByteArrayInputStream(dsTables.getValue()))
+                  .parse(Table.class);
+          dataset.put(dsTables.getKey(), table);
+        }
+      }
+      return copy;
     }
   }
 
@@ -359,8 +604,6 @@ public class BigQueryIOTest implements Serializable {
   public transient BigQueryServices.JobService mockJobService;
   @Mock private transient IOChannelFactory mockIOChannelFactory;
   @Mock(extraInterfaces = Serializable.class) private transient DatasetService mockDatasetService;
-
-  private transient BigQueryOptions bqOptions;
 
   private void checkReadTableObject(
       BigQueryIO.Read.Bound bound, String project, String dataset, String table) {
@@ -410,10 +653,6 @@ public class BigQueryIOTest implements Serializable {
 
   @Before
   public void setUp() throws IOException {
-    bqOptions = TestPipeline.testingPipelineOptions().as(BigQueryOptions.class);
-    bqOptions.setProject("defaultProject");
-    bqOptions.setTempLocation(testFolder.newFolder("BigQueryIOTest").getAbsolutePath());
-
     MockitoAnnotations.initMocks(this);
   }
 
@@ -468,8 +707,9 @@ public class BigQueryIOTest implements Serializable {
   public void testValidateReadSetsDefaultProject() throws Exception {
     String projectId = "someproject";
     String datasetId = "somedataset";
-    BigQueryOptions options = TestPipeline.testingPipelineOptions().as(BigQueryOptions.class);
-    options.setProject(projectId);
+    BigQueryOptions bqOptions = TestPipeline.testingPipelineOptions().as(BigQueryOptions.class);
+    bqOptions.setProject(projectId);
+    bqOptions.setTempLocation("gs://testbucket/testdir");
 
     FakeBigQueryServices fakeBqServices = new FakeBigQueryServices()
         .withJobService(mockJobService)
@@ -477,7 +717,7 @@ public class BigQueryIOTest implements Serializable {
     when(mockDatasetService.getDataset(projectId, datasetId)).thenThrow(
         new RuntimeException("Unable to confirm BigQuery dataset presence"));
 
-    Pipeline p = TestPipeline.create(options);
+    Pipeline p = TestPipeline.create(bqOptions);
 
     TableReference tableRef = new TableReference();
     tableRef.setDatasetId(datasetId);
@@ -493,24 +733,31 @@ public class BigQueryIOTest implements Serializable {
   }
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category(NeedsRunner.class)
   public void testBuildSourceWithoutTableQueryOrValidation() {
-    Pipeline p = TestPipeline.create();
+    BigQueryOptions bqOptions = TestPipeline.testingPipelineOptions().as(BigQueryOptions.class);
+    bqOptions.setProject("defaultProject");
+    bqOptions.setTempLocation("gs://testbucket/testdir");
+
+    Pipeline p = TestPipeline.create(bqOptions);
     thrown.expect(IllegalStateException.class);
     thrown.expectMessage(
-        "Invalid BigQuery read operation, either table reference or query has to be set");
+        "Invalid BigQueryIO.Read: one of table reference and query must be set");
     p.apply(BigQueryIO.Read.withoutValidation());
     p.run();
   }
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category(NeedsRunner.class)
   public void testBuildSourceWithTableAndQuery() {
-    Pipeline p = TestPipeline.create();
+    BigQueryOptions bqOptions = TestPipeline.testingPipelineOptions().as(BigQueryOptions.class);
+    bqOptions.setProject("defaultProject");
+    bqOptions.setTempLocation("gs://testbucket/testdir");
+
+    Pipeline p = TestPipeline.create(bqOptions);
     thrown.expect(IllegalStateException.class);
     thrown.expectMessage(
-        "Invalid BigQuery read operation. Specifies both a query and a table, only one of these"
-        + " should be provided");
+        "Invalid BigQueryIO.Read: table reference and query may not both be set");
     p.apply("ReadMyTable",
         BigQueryIO.Read
             .from("foo.com:project:somedataset.sometable")
@@ -519,13 +766,17 @@ public class BigQueryIOTest implements Serializable {
   }
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category(NeedsRunner.class)
   public void testBuildSourceWithTableAndFlatten() {
-    Pipeline p = TestPipeline.create();
+    BigQueryOptions bqOptions = TestPipeline.testingPipelineOptions().as(BigQueryOptions.class);
+    bqOptions.setProject("defaultProject");
+    bqOptions.setTempLocation("gs://testbucket/testdir");
+
+    Pipeline p = TestPipeline.create(bqOptions);
     thrown.expect(IllegalStateException.class);
     thrown.expectMessage(
-        "Invalid BigQuery read operation. Specifies a"
-              + " table with a result flattening preference, which is not configurable");
+        "Invalid BigQueryIO.Read: Specifies a table with a result flattening preference,"
+            + " which only applies to queries");
     p.apply("ReadMyTable",
         BigQueryIO.Read
             .from("foo.com:project:somedataset.sometable")
@@ -534,13 +785,17 @@ public class BigQueryIOTest implements Serializable {
   }
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category(NeedsRunner.class)
   public void testBuildSourceWithTableAndFlattenWithoutValidation() {
-    Pipeline p = TestPipeline.create();
+    BigQueryOptions bqOptions = TestPipeline.testingPipelineOptions().as(BigQueryOptions.class);
+    bqOptions.setProject("defaultProject");
+    bqOptions.setTempLocation("gs://testbucket/testdir");
+
+    Pipeline p = TestPipeline.create(bqOptions);
     thrown.expect(IllegalStateException.class);
     thrown.expectMessage(
-        "Invalid BigQuery read operation. Specifies a"
-              + " table with a result flattening preference, which is not configurable");
+        "Invalid BigQueryIO.Read: Specifies a table with a result flattening preference,"
+            + " which only applies to queries");
     p.apply(
         BigQueryIO.Read
             .from("foo.com:project:somedataset.sometable")
@@ -551,12 +806,78 @@ public class BigQueryIOTest implements Serializable {
 
   @Test
   @Category(NeedsRunner.class)
-  public void testReadFromTable() {
+  public void testBuildSourceWithTableAndSqlDialect() {
+    BigQueryOptions bqOptions = PipelineOptionsFactory.as(BigQueryOptions.class);
+    bqOptions.setProject("defaultProject");
+    bqOptions.setTempLocation("gs://testbucket/testdir");
+
+    Pipeline p = TestPipeline.create(bqOptions);
+    thrown.expect(IllegalStateException.class);
+    thrown.expectMessage(
+        "Invalid BigQueryIO.Read: Specifies a table with a SQL dialect preference,"
+            + " which only applies to queries");
+    p.apply(
+        BigQueryIO.Read
+            .from("foo.com:project:somedataset.sometable")
+            .usingStandardSql());
+    p.run();
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void testReadFromTable() throws IOException {
+    BigQueryOptions bqOptions = TestPipeline.testingPipelineOptions().as(BigQueryOptions.class);
+    bqOptions.setProject("defaultProject");
+    bqOptions.setTempLocation(testFolder.newFolder("BigQueryIOTest").getAbsolutePath());
+
+    Job job = new Job();
+    JobStatus status = new JobStatus();
+    job.setStatus(status);
+    JobStatistics jobStats = new JobStatistics();
+    job.setStatistics(jobStats);
+    JobStatistics4 extract = new JobStatistics4();
+    jobStats.setExtract(extract);
+    extract.setDestinationUriFileCounts(ImmutableList.of(1L));
+
+    Table sometable = new Table();
+    sometable.setSchema(
+        new TableSchema()
+            .setFields(
+                ImmutableList.of(
+                    new TableFieldSchema().setName("name").setType("STRING"),
+                    new TableFieldSchema().setName("number").setType("INTEGER"))));
+    sometable.setNumBytes(1024L * 1024L);
+    FakeDatasetService fakeDatasetService =
+        new FakeDatasetService()
+            .withTable("non-executing-project", "somedataset", "sometable", sometable);
+    SerializableFunction<Void, Schema> schemaGenerator =
+        new SerializableFunction<Void, Schema>() {
+          @Override
+          public Schema apply(Void input) {
+            return BigQueryAvroUtils.toGenericAvroSchema(
+                "sometable",
+                ImmutableList.of(
+                    new TableFieldSchema().setName("name").setType("STRING"),
+                    new TableFieldSchema().setName("number").setType("INTEGER")));
+          }
+        };
+    Collection<Map<String, Object>> records =
+        ImmutableList.<Map<String, Object>>builder()
+            .add(ImmutableMap.<String, Object>builder().put("name", "a").put("number", 1L).build())
+            .add(ImmutableMap.<String, Object>builder().put("name", "b").put("number", 2L).build())
+            .add(ImmutableMap.<String, Object>builder().put("name", "c").put("number", 3L).build())
+            .build();
+
+    SerializableFunction<GenericJson, Void> onStartJob =
+        new WriteExtractFiles(schemaGenerator, records);
+
     FakeBigQueryServices fakeBqServices = new FakeBigQueryServices()
         .withJobService(new FakeJobService()
-            .startJobReturns("done", "done")
-            .pollJobReturns(Status.UNKNOWN)
+            .startJobReturns(onStartJob, "done")
+            .pollJobReturns(job)
+            .getJobReturns((Job) null)
             .verifyExecutingProject(bqOptions.getProject()))
+        .withDatasetService(fakeDatasetService)
         .readerReturns(
             toJsonString(new TableRow().set("name", "a").set("number", 1)),
             toJsonString(new TableRow().set("name", "b").set("number", 2)),
@@ -583,6 +904,10 @@ public class BigQueryIOTest implements Serializable {
   @Test
   @Category(NeedsRunner.class)
   public void testWrite() throws Exception {
+    BigQueryOptions bqOptions = TestPipeline.testingPipelineOptions().as(BigQueryOptions.class);
+    bqOptions.setProject("defaultProject");
+    bqOptions.setTempLocation(testFolder.newFolder("BigQueryIOTest").getAbsolutePath());
+
     FakeBigQueryServices fakeBqServices = new FakeBigQueryServices()
         .withJobService(new FakeJobService()
             .startJobReturns("done", "done", "done")
@@ -617,6 +942,10 @@ public class BigQueryIOTest implements Serializable {
   @Test
   @Category(NeedsRunner.class)
   public void testWriteUnknown() throws Exception {
+    BigQueryOptions bqOptions = TestPipeline.testingPipelineOptions().as(BigQueryOptions.class);
+    bqOptions.setProject("defaultProject");
+    bqOptions.setTempLocation(testFolder.newFolder("BigQueryIOTest").getAbsolutePath());
+
     FakeBigQueryServices fakeBqServices = new FakeBigQueryServices()
         .withJobService(new FakeJobService()
             .startJobReturns("done", "done")
@@ -649,6 +978,7 @@ public class BigQueryIOTest implements Serializable {
         .from(tableSpec)
         .fromQuery("myQuery")
         .withoutResultFlattening()
+        .usingStandardSql()
         .withoutValidation();
 
     DisplayData displayData = DisplayData.from(read);
@@ -656,6 +986,7 @@ public class BigQueryIOTest implements Serializable {
     assertThat(displayData, hasDisplayItem("table", tableSpec));
     assertThat(displayData, hasDisplayItem("query", "myQuery"));
     assertThat(displayData, hasDisplayItem("flattenResults", false));
+    assertThat(displayData, hasDisplayItem("useLegacySql", false));
     assertThat(displayData, hasDisplayItem("validation", false));
   }
 
@@ -770,7 +1101,7 @@ public class BigQueryIOTest implements Serializable {
   }
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category(NeedsRunner.class)
   public void testBuildWriteWithoutTable() {
     Pipeline p = TestPipeline.create();
     thrown.expect(IllegalStateException.class);
@@ -862,13 +1193,12 @@ public class BigQueryIOTest implements Serializable {
     assertThat(displayData, hasDisplayItem("validation", false));
   }
 
-  private void testWriteValidatesDataset(boolean streaming) throws Exception {
+  private void testWriteValidatesDataset(boolean unbounded) throws Exception {
     String projectId = "someproject";
     String datasetId = "somedataset";
 
     BigQueryOptions options = TestPipeline.testingPipelineOptions().as(BigQueryOptions.class);
     options.setProject(projectId);
-    options.setStreaming(streaming);
 
     FakeBigQueryServices fakeBqServices = new FakeBigQueryServices()
         .withJobService(mockJobService)
@@ -882,17 +1212,34 @@ public class BigQueryIOTest implements Serializable {
     tableRef.setDatasetId(datasetId);
     tableRef.setTableId("sometable");
 
+    PCollection<TableRow> tableRows;
+    if (unbounded) {
+      tableRows =
+          p.apply(CountingInput.unbounded())
+              .apply(
+                  MapElements.via(
+                      new SimpleFunction<Long, TableRow>() {
+                        @Override
+                        public TableRow apply(Long input) {
+                          return null;
+                        }
+                      }))
+              .setCoder(TableRowJsonCoder.of());
+    } else {
+      tableRows = p.apply(Create.<TableRow>of().withCoder(TableRowJsonCoder.of()));
+    }
+
     thrown.expect(RuntimeException.class);
     // Message will be one of following depending on the execution environment.
     thrown.expectMessage(
         Matchers.either(Matchers.containsString("Unable to confirm BigQuery dataset presence"))
             .or(Matchers.containsString("BigQuery dataset not found for table")));
-    p.apply(Create.<TableRow>of().withCoder(TableRowJsonCoder.of()))
-     .apply(BigQueryIO.Write
-         .to(tableRef)
-         .withCreateDisposition(CreateDisposition.CREATE_IF_NEEDED)
-         .withSchema(new TableSchema())
-         .withTestServices(fakeBqServices));
+    tableRows
+        .apply(
+            BigQueryIO.Write.to(tableRef)
+                .withCreateDisposition(CreateDisposition.CREATE_IF_NEEDED)
+                .withSchema(new TableSchema())
+                .withTestServices(fakeBqServices));
   }
 
   @Test
@@ -1126,7 +1473,7 @@ public class BigQueryIOTest implements Serializable {
     String extractDestinationDir = "mock://tempLocation";
     TableReference destinationTable = BigQueryIO.parseTableSpec("project:data_set.table_name");
     BoundedSource<TableRow> bqSource = BigQueryQuerySource.create(
-        jobIdToken, "query", destinationTable, true /* flattenResults */,
+        jobIdToken, "query", destinationTable, true /* flattenResults */, true /* useLegacySql */,
         extractDestinationDir, fakeBqServices);
 
     List<TableRow> expected = ImmutableList.of(
@@ -1141,7 +1488,7 @@ public class BigQueryIOTest implements Serializable {
         .setProjectId("testProejct")
         .setDatasetId("testDataset")
         .setTableId("testTable");
-    when(mockJobService.dryRunQuery(anyString(), anyString()))
+    when(mockJobService.dryRunQuery(anyString(), Mockito.<JobConfigurationQuery>any()))
         .thenReturn(new JobStatistics().setQuery(
             new JobStatistics2()
                 .setTotalBytesProcessed(100L)
@@ -1178,6 +1525,94 @@ public class BigQueryIOTest implements Serializable {
         .startExtractJob(Mockito.<JobReference>any(), Mockito.<JobConfigurationExtract>any());
     Mockito.verify(mockDatasetService)
         .createDataset(anyString(), anyString(), anyString(), anyString());
+    ArgumentCaptor<JobConfigurationQuery> queryConfigArg =
+        ArgumentCaptor.forClass(JobConfigurationQuery.class);
+    Mockito.verify(mockJobService).dryRunQuery(anyString(), queryConfigArg.capture());
+    assertEquals(true, queryConfigArg.getValue().getFlattenResults());
+    assertEquals(true, queryConfigArg.getValue().getUseLegacySql());
+  }
+
+  @Test
+  public void testBigQueryNoTableQuerySourceInitSplit() throws Exception {
+    TableReference dryRunTable = new TableReference();
+
+    Job queryJob = new Job();
+    JobStatistics queryJobStats = new JobStatistics();
+    JobStatistics2 queryStats = new JobStatistics2();
+    queryStats.setReferencedTables(ImmutableList.of(dryRunTable));
+    queryJobStats.setQuery(queryStats);
+    queryJob.setStatus(new JobStatus())
+        .setStatistics(queryJobStats);
+
+    Job extractJob = new Job();
+    JobStatistics extractJobStats = new JobStatistics();
+    JobStatistics4 extractStats = new JobStatistics4();
+    extractStats.setDestinationUriFileCounts(ImmutableList.of(1L));
+    extractJobStats.setExtract(extractStats);
+    extractJob.setStatus(new JobStatus())
+        .setStatistics(extractJobStats);
+
+    FakeBigQueryServices fakeBqServices = new FakeBigQueryServices()
+        .withJobService(mockJobService)
+        .withDatasetService(mockDatasetService)
+        .readerReturns(
+            toJsonString(new TableRow().set("name", "a").set("number", "1")),
+            toJsonString(new TableRow().set("name", "b").set("number", "2")),
+            toJsonString(new TableRow().set("name", "c").set("number", "3")));
+
+    String jobIdToken = "testJobIdToken";
+    String extractDestinationDir = "mock://tempLocation";
+    TableReference destinationTable = BigQueryIO.parseTableSpec("project:data_set.table_name");
+    BoundedSource<TableRow> bqSource = BigQueryQuerySource.create(
+        jobIdToken, "query", destinationTable, true /* flattenResults */, true /* useLegacySql */,
+        extractDestinationDir, fakeBqServices);
+
+    List<TableRow> expected = ImmutableList.of(
+        new TableRow().set("name", "a").set("number", "1"),
+        new TableRow().set("name", "b").set("number", "2"),
+        new TableRow().set("name", "c").set("number", "3"));
+
+    PipelineOptions options = PipelineOptionsFactory.create();
+    options.setTempLocation(extractDestinationDir);
+
+    when(mockJobService.dryRunQuery(anyString(), Mockito.<JobConfigurationQuery>any()))
+        .thenReturn(new JobStatistics().setQuery(
+            new JobStatistics2()
+                .setTotalBytesProcessed(100L)));
+    when(mockDatasetService.getTable(
+        eq(destinationTable.getProjectId()),
+        eq(destinationTable.getDatasetId()),
+        eq(destinationTable.getTableId())))
+        .thenReturn(new Table().setSchema(new TableSchema()));
+    IOChannelUtils.setIOFactory("mock", mockIOChannelFactory);
+    when(mockIOChannelFactory.resolve(anyString(), anyString()))
+        .thenReturn("mock://tempLocation/output");
+    when(mockJobService.pollJob(Mockito.<JobReference>any(), Mockito.anyInt()))
+        .thenReturn(extractJob);
+
+    Assert.assertThat(
+        SourceTestUtils.readFromSource(bqSource, options),
+        CoreMatchers.is(expected));
+    SourceTestUtils.assertSplitAtFractionBehavior(
+        bqSource, 2, 0.3, ExpectedSplitOutcome.MUST_BE_CONSISTENT_IF_SUCCEEDS, options);
+
+    List<? extends BoundedSource<TableRow>> sources = bqSource.splitIntoBundles(100, options);
+    assertEquals(1, sources.size());
+    BoundedSource<TableRow> actual = sources.get(0);
+    assertThat(actual, CoreMatchers.instanceOf(TransformingSource.class));
+
+    Mockito.verify(mockJobService)
+        .startQueryJob(
+            Mockito.<JobReference>any(), Mockito.<JobConfigurationQuery>any());
+    Mockito.verify(mockJobService)
+        .startExtractJob(Mockito.<JobReference>any(), Mockito.<JobConfigurationExtract>any());
+    Mockito.verify(mockDatasetService)
+        .createDataset(anyString(), anyString(), anyString(), anyString());
+    ArgumentCaptor<JobConfigurationQuery> queryConfigArg =
+        ArgumentCaptor.forClass(JobConfigurationQuery.class);
+    Mockito.verify(mockJobService).dryRunQuery(anyString(), queryConfigArg.capture());
+    assertEquals(true, queryConfigArg.getValue().getFlattenResults());
+    assertEquals(true, queryConfigArg.getValue().getUseLegacySql());
   }
 
   @Test
@@ -1242,7 +1677,7 @@ public class BigQueryIOTest implements Serializable {
   }
 
   @Test
-  @Category(RunnableOnService.class)
+  @Category(NeedsRunner.class)
   public void testPassThroughThenCleanup() throws Exception {
     Pipeline p = TestPipeline.create();
 
@@ -1347,7 +1782,7 @@ public class BigQueryIOTest implements Serializable {
 
     DoFnTester<String, KV<Long, List<String>>> tester = DoFnTester.of(writePartition);
     tester.setSideInput(filesView, GlobalWindow.INSTANCE, files);
-    tester.processElement(bqOptions.getTempLocation());
+    tester.processElement(testFolder.newFolder("BigQueryIOTest").getAbsolutePath());
 
     List<KV<Long, List<String>>> partitions;
     if (expectedNumPartitions > 1) {
@@ -1428,6 +1863,10 @@ public class BigQueryIOTest implements Serializable {
 
   @Test
   public void testRemoveTemporaryFiles() throws Exception {
+    BigQueryOptions bqOptions = PipelineOptionsFactory.as(BigQueryOptions.class);
+    bqOptions.setProject("defaultProject");
+    bqOptions.setTempLocation(testFolder.newFolder("BigQueryIOTest").getAbsolutePath());
+
     int numFiles = 10;
     List<String> fileNames = Lists.newArrayList();
     String tempFilePrefix = bqOptions.getTempLocation() + "/";
@@ -1523,5 +1962,42 @@ public class BigQueryIOTest implements Serializable {
       public boolean accept(File pathname) {
         return pathname.isFile();
       }}).length);
+  }
+
+  private class WriteExtractFiles implements SerializableFunction<GenericJson, Void> {
+    private final SerializableFunction<Void, Schema> schemaGenerator;
+    private final Collection<Map<String, Object>> records;
+
+    private WriteExtractFiles(
+        SerializableFunction<Void, Schema> schemaGenerator,
+        Collection<Map<String, Object>> records) {
+      this.schemaGenerator = schemaGenerator;
+      this.records = records;
+    }
+
+    @Override
+    public Void apply(GenericJson input) {
+      List<String> destinations = (List<String>) input.get("destinationUris");
+      for (String destination : destinations) {
+        String newDest = destination.replace("*", "000000000000");
+        Schema schema = schemaGenerator.apply(null);
+        try (WritableByteChannel channel = IOChannelUtils.create(newDest, MimeTypes.BINARY);
+            DataFileWriter<GenericRecord> tableRowWriter =
+                new DataFileWriter<>(new GenericDatumWriter<GenericRecord>(schema))
+                    .create(schema, Channels.newOutputStream(channel))) {
+          for (Map<String, Object> record : records) {
+            GenericRecordBuilder genericRecordBuilder = new GenericRecordBuilder(schema);
+            for (Map.Entry<String, Object> field : record.entrySet()) {
+              genericRecordBuilder.set(field.getKey(), field.getValue());
+            }
+            tableRowWriter.append(genericRecordBuilder.build());
+          }
+        } catch (IOException e) {
+          throw new IllegalStateException(
+              String.format("Could not create destination for extract job %s", destination), e);
+        }
+      }
+      return null;
+    }
   }
 }

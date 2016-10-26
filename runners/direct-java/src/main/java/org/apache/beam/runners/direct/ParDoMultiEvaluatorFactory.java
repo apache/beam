@@ -1,5 +1,5 @@
 /*
- * Licensed to the Apache Software Foundation (ASF) under one
+* Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
  * regarding copyright ownership.  The ASF licenses this file
@@ -24,7 +24,7 @@ import java.util.Map;
 import org.apache.beam.runners.direct.DirectExecutionContext.DirectStepContext;
 import org.apache.beam.runners.direct.DirectRunner.CommittedBundle;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
-import org.apache.beam.sdk.transforms.OldDoFn;
+import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo.BoundMulti;
 import org.apache.beam.sdk.values.PCollection;
@@ -39,28 +39,28 @@ import org.slf4j.LoggerFactory;
  */
 class ParDoMultiEvaluatorFactory implements TransformEvaluatorFactory {
   private static final Logger LOG = LoggerFactory.getLogger(ParDoMultiEvaluatorFactory.class);
-  private final LoadingCache<AppliedPTransform<?, ?, BoundMulti<?, ?>>, DoFnLifecycleManager>
-      fnClones;
+  private final LoadingCache<AppliedPTransform<?, ?, ?>, DoFnLifecycleManager> fnClones;
+  private final EvaluationContext evaluationContext;
 
-  public ParDoMultiEvaluatorFactory() {
+  public ParDoMultiEvaluatorFactory(EvaluationContext evaluationContext) {
+    this.evaluationContext = evaluationContext;
     fnClones = CacheBuilder.newBuilder()
-        .build(new CacheLoader<AppliedPTransform<?, ?, BoundMulti<?, ?>>, DoFnLifecycleManager>() {
+        .build(new CacheLoader<AppliedPTransform<?, ?, ?>, DoFnLifecycleManager>() {
           @Override
-          public DoFnLifecycleManager load(AppliedPTransform<?, ?, BoundMulti<?, ?>> key)
+          public DoFnLifecycleManager load(AppliedPTransform<?, ?, ?> key)
               throws Exception {
-            return DoFnLifecycleManager.of(key.getTransform().getFn());
+            BoundMulti<?, ?> bound = (BoundMulti<?, ?>) key.getTransform();
+            return DoFnLifecycleManager.of(bound.getNewFn());
           }
         });
   }
 
   @Override
   public <T> TransformEvaluator<T> forApplication(
-      AppliedPTransform<?, ?, ?> application,
-      CommittedBundle<?> inputBundle,
-      EvaluationContext evaluationContext) throws Exception {
+      AppliedPTransform<?, ?, ?> application, CommittedBundle<?> inputBundle) throws Exception {
     @SuppressWarnings({"unchecked", "rawtypes"})
     TransformEvaluator<T> evaluator =
-        createMultiEvaluator((AppliedPTransform) application, inputBundle, evaluationContext);
+        createMultiEvaluator((AppliedPTransform) application, inputBundle);
     return evaluator;
   }
 
@@ -71,8 +71,7 @@ class ParDoMultiEvaluatorFactory implements TransformEvaluatorFactory {
 
   private <InT, OuT> TransformEvaluator<InT> createMultiEvaluator(
       AppliedPTransform<PCollection<InT>, PCollectionTuple, BoundMulti<InT, OuT>> application,
-      CommittedBundle<InT> inputBundle,
-      EvaluationContext evaluationContext) throws Exception {
+      CommittedBundle<InT> inputBundle) throws Exception {
     Map<TupleTag<?>, PCollection<?>> outputs = application.getOutput().getAll();
 
     DoFnLifecycleManager fnLocal = fnClones.getUnchecked((AppliedPTransform) application);
@@ -88,7 +87,7 @@ class ParDoMultiEvaluatorFactory implements TransformEvaluatorFactory {
               stepContext,
               inputBundle,
               application,
-              (OldDoFn) fnLocal.get(),
+              (DoFn) fnLocal.get(),
               application.getTransform().getSideInputs(),
               application.getTransform().getMainOutputTag(),
               application.getTransform().getSideOutputTags().getAll(),

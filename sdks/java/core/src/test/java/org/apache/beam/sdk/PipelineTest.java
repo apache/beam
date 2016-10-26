@@ -123,7 +123,7 @@ public class PipelineTest {
   }
 
   @Test
-  @Category(org.apache.beam.sdk.testing.RunnableOnService.class)
+  @Category(RunnableOnService.class)
   public void testMultipleApply() {
     PTransform<PCollection<? extends String>, PCollection<String>> myTransform =
         addSuffix("+");

@@ -49,7 +49,7 @@ public interface DataflowPipelineWorkerPoolOptions extends PipelineOptions {
    * Type of autoscaling algorithm to use.
    */
   @Experimental(Experimental.Kind.AUTOSCALING)
-  public enum AutoscalingAlgorithmType {
+  enum AutoscalingAlgorithmType {
     /** Use numWorkers machines. Do not autoscale the worker pool. */
     NONE("AUTOSCALING_ALGORITHM_NONE"),
 
@@ -124,7 +124,7 @@ public interface DataflowPipelineWorkerPoolOptions extends PipelineOptions {
    * Returns the default Docker container image that executes Dataflow worker harness, residing in
    * Google Container Registry.
    */
-  public static class WorkerHarnessContainerImageFactory
+  class WorkerHarnessContainerImageFactory
       implements DefaultValueFactory<String> {
     @Override
     public String create(PipelineOptions options) {
@@ -192,8 +192,11 @@ public interface DataflowPipelineWorkerPoolOptions extends PipelineOptions {
 
   /**
    * The policy for tearing down the workers spun up by the service.
+   *
+   * @deprecated Dataflow Service will only support TEARDOWN_ALWAYS policy in the future.
    */
-  public enum TeardownPolicy {
+  @Deprecated
+  enum TeardownPolicy {
     /**
      * All VMs created for a Dataflow job are deleted when the job finishes, regardless of whether
      * it fails or succeeds.
@@ -213,7 +216,7 @@ public interface DataflowPipelineWorkerPoolOptions extends PipelineOptions {
 
     private final String teardownPolicy;
 
-    private TeardownPolicy(String teardownPolicy) {
+    TeardownPolicy(String teardownPolicy) {
       this.teardownPolicy = teardownPolicy;
     }
 

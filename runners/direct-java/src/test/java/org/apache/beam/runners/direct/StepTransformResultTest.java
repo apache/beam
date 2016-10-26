@@ -55,7 +55,7 @@ public class StepTransformResultTest {
 
   @Test
   public void producedBundlesProducedOutputs() {
-    UncommittedBundle<Integer> bundle = bundleFactory.createRootBundle(pc);
+    UncommittedBundle<Integer> bundle = bundleFactory.createBundle(pc);
     TransformResult result = StepTransformResult.withoutHold(transform).addOutput(bundle)
         .build();
 
@@ -74,7 +74,7 @@ public class StepTransformResultTest {
   @Test
   public void producedBundlesAndAdditionalOutputProducedOutputs() {
     TransformResult result = StepTransformResult.withoutHold(transform)
-        .addOutput(bundleFactory.createRootBundle(pc))
+        .addOutput(bundleFactory.createBundle(pc))
         .withAdditionalOutput(OutputType.PCOLLECTION_VIEW)
         .build();
 

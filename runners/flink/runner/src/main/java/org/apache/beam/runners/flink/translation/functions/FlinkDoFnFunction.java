@@ -86,7 +86,7 @@ public class FlinkDoFnFunction<InputT, OutputT>
       // is in only one window
       for (WindowedValue<InputT> value : values) {
         for (WindowedValue<InputT> explodedValue : value.explodeWindows()) {
-          context = context.forWindowedValue(value);
+          context = context.forWindowedValue(explodedValue);
           doFn.processElement(context);
         }
       }

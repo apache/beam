@@ -31,7 +31,7 @@ import org.apache.hadoop.mapreduce.InputSplit;
 /**
  * Source for Avros on Hadoop/HDFS with Simple Authentication.
  *
- * Allows to set arbitrary username as HDFS user, which is used for reading Avro from HDFS.
+ * <p>Allows to set arbitrary username as HDFS user, which is used for reading Avro from HDFS.
  */
 public class SimpleAuthAvroHDFSFileSource<T> extends AvroHDFSFileSource<T> {
   // keep this field to pass Hadoop user between workers

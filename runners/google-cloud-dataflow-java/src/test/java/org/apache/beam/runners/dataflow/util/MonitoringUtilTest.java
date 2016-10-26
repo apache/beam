@@ -133,7 +133,7 @@ public class MonitoringUtilTest {
     options.setProject(PROJECT_ID);
     options.setGcpCredential(new TestCredential());
     String cancelCommand = MonitoringUtil.getGcloudCancelCommand(options, JOB_ID);
-    assertEquals("gcloud alpha dataflow jobs --project=someProject cancel 1234", cancelCommand);
+    assertEquals("gcloud beta dataflow jobs --project=someProject cancel 1234", cancelCommand);
   }
 
   @Test
@@ -147,7 +147,7 @@ public class MonitoringUtilTest {
     String cancelCommand = MonitoringUtil.getGcloudCancelCommand(options, JOB_ID);
     assertEquals(
         "CLOUDSDK_API_ENDPOINT_OVERRIDES_DATAFLOW=https://dataflow.googleapis.com/v0neverExisted/ "
-        + "gcloud alpha dataflow jobs --project=someProject cancel 1234",
+        + "gcloud beta dataflow jobs --project=someProject cancel 1234",
         cancelCommand);
   }
 

@@ -17,60 +17,69 @@
  */
 package org.apache.beam.runners.spark.translation.streaming;
 
-
+import com.google.common.collect.Lists;
 import java.io.Serializable;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
-import org.apache.beam.runners.spark.EvaluationResult;
 import org.apache.beam.runners.spark.SparkPipelineOptions;
-import org.apache.beam.runners.spark.SparkRunner;
 import org.apache.beam.runners.spark.examples.WordCount;
 import org.apache.beam.runners.spark.io.CreateStream;
 import org.apache.beam.runners.spark.translation.streaming.utils.PAssertStreaming;
+import org.apache.beam.runners.spark.translation.streaming.utils.TestOptionsForStreaming;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
-import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.spark.streaming.Durations;
 import org.joda.time.Duration;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
+
 
 /**
  * Simple word count streaming test.
  */
 public class SimpleStreamingWordCountTest implements Serializable {
 
-  private static final String[] WORDS_ARRAY = {
-      "hi there", "hi", "hi sue bob", "hi sue", "", "bob hi"};
-  private static final List<Iterable<String>> WORDS_QUEUE =
-      Collections.<Iterable<String>>singletonList(Arrays.asList(WORDS_ARRAY));
-  private static final String[] EXPECTED_COUNTS = {"hi: 5", "there: 1", "sue: 2", "bob: 2"};
-  private static final long TEST_TIMEOUT_MSEC = 1000L;
+  @Rule
+  public TemporaryFolder checkpointParentDir = new TemporaryFolder();
+
+  @Rule
+  public TestOptionsForStreaming commonOptions = new TestOptionsForStreaming();
+
+  private static final String[] WORDS = {"hi there", "hi", "hi sue bob", "hi sue", "", "bob hi"};
+
+  private static final List<Iterable<String>> MANY_WORDS =
+      Lists.<Iterable<String>>newArrayList(Arrays.asList(WORDS), Arrays.asList(WORDS));
+
+  private static final String[] EXPECTED_WORD_COUNTS = {"hi: 10", "there: 2", "sue: 4", "bob: 4"};
+
+  private static final Duration BATCH_INTERVAL = Duration.standardSeconds(1);
+
+  private static final Duration windowDuration = BATCH_INTERVAL.multipliedBy(2);
 
   @Test
-  public void testRun() throws Exception {
-    SparkPipelineOptions options =
-        PipelineOptionsFactory.as(SparkPipelineOptions.class);
-    options.setRunner(SparkRunner.class);
-    options.setStreaming(true);
-    options.setBatchIntervalMillis(Durations.seconds(1).milliseconds());
-    options.setTimeout(TEST_TIMEOUT_MSEC); // run for one interval
-    Pipeline p = Pipeline.create(options);
+  public void testFixedWindows() throws Exception {
+    SparkPipelineOptions options = commonOptions.withTmpCheckpointDir(
+        checkpointParentDir.newFolder(getClass().getSimpleName()));
 
-    PCollection<String> inputWords =
-        p.apply(CreateStream.fromQueue(WORDS_QUEUE)).setCoder(StringUtf8Coder.of());
-    PCollection<String> windowedWords = inputWords
-        .apply(Window.<String>into(FixedWindows.of(Duration.standardSeconds(1))));
+    // override defaults
+    options.setBatchIntervalMillis(BATCH_INTERVAL.getMillis());
+    // graceful stop is on, so no worries about the timeout and window being equal
+    options.setTimeout(windowDuration.getMillis());
 
-    PCollection<String> output = windowedWords.apply(new WordCount.CountWords())
-        .apply(MapElements.via(new WordCount.FormatAsTextFn()));
+    Pipeline pipeline = Pipeline.create(options);
 
-    PAssertStreaming.assertContents(output, EXPECTED_COUNTS);
-    EvaluationResult res = (EvaluationResult) p.run();
-    res.close();
+    PCollection<String> output =
+        pipeline
+            .apply(CreateStream.fromQueue(MANY_WORDS))
+            .setCoder(StringUtf8Coder.of())
+            .apply(Window.<String>into(FixedWindows.of(windowDuration)))
+            .apply(new WordCount.CountWords())
+            .apply(MapElements.via(new WordCount.FormatAsTextFn()));
+
+    PAssertStreaming.runAndAssertContents(pipeline, output, EXPECTED_WORD_COUNTS);
   }
 }

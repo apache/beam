@@ -92,16 +92,6 @@ public class ExecutableTriggerTest {
     }
 
     @Override
-    public void onElement(OnElementContext c) throws Exception { }
-
-    @Override
-    public void onMerge(OnMergeContext c) throws Exception { }
-
-    @Override
-    public void clear(TriggerContext c) throws Exception {
-    }
-
-    @Override
     public Instant getWatermarkThatGuaranteesFiring(BoundedWindow window) {
       return BoundedWindow.TIMESTAMP_MAX_VALUE;
     }
@@ -115,13 +105,5 @@ public class ExecutableTriggerTest {
     public Trigger getContinuationTrigger(List<Trigger> continuationTriggers) {
       return this;
     }
-
-    @Override
-    public boolean shouldFire(TriggerContext c) {
-      return false;
-    }
-
-    @Override
-    public void onFire(TriggerContext c) { }
   }
 }

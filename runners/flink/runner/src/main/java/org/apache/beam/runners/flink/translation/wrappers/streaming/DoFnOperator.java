@@ -17,7 +17,8 @@
  */
 package org.apache.beam.runners.flink.translation.wrappers.streaming;
 
-import avro.shaded.com.google.common.base.Preconditions;
+import static com.google.common.base.Preconditions.checkState;
+
 import com.google.common.collect.Iterables;
 import java.io.IOException;
 import java.io.Serializable;
@@ -192,14 +193,12 @@ public class DoFnOperator<InputT, FnOutputT, OutputT>
           .createStateBackend(operatorIdentifier,
               new GenericTypeInfo<>(ByteBuffer.class).createSerializer(new ExecutionConfig()));
 
-      Preconditions.checkState(
-          sideInputStateBackend != null,
-          "Side input state backend cannot be bull");
+      checkState(sideInputStateBackend != null, "Side input state backend cannot be null");
 
       if (restoredSideInputState != null) {
         @SuppressWarnings("unchecked,rawtypes")
         HashMap<String, KvStateSnapshot> castRestored = (HashMap) restoredSideInputState;
-        sideInputStateBackend.injectKeyValueStateSnapshots(castRestored, 0L);
+        sideInputStateBackend.injectKeyValueStateSnapshots(castRestored);
         restoredSideInputState = null;
       }
 
@@ -306,15 +305,19 @@ public class DoFnOperator<InputT, FnOutputT, OutputT>
             pushedBackDescriptor);
 
     List<WindowedValue<InputT>> newPushedBack = new ArrayList<>();
-    for (WindowedValue<InputT> elem: pushedBack.get()) {
 
-      // we need to set the correct key in case the operator is
-      // a (keyed) window operator
-      setKeyContextElement1(new StreamRecord<>(elem));
+    Iterable<WindowedValue<InputT>> pushedBackContents = pushedBack.get();
+    if (pushedBackContents != null) {
+      for (WindowedValue<InputT> elem : pushedBackContents) {
 
-      Iterable<WindowedValue<InputT>> justPushedBack =
-          pushbackDoFnRunner.processElementInReadyWindows(elem);
-      Iterables.addAll(newPushedBack, justPushedBack);
+        // we need to set the correct key in case the operator is
+        // a (keyed) window operator
+        setKeyContextElement1(new StreamRecord<>(elem));
+
+        Iterable<WindowedValue<InputT>> justPushedBack =
+            pushbackDoFnRunner.processElementInReadyWindows(elem);
+        Iterables.addAll(newPushedBack, justPushedBack);
+      }
     }
 
 
@@ -385,8 +388,8 @@ public class DoFnOperator<InputT, FnOutputT, OutputT>
   }
 
   @Override
-  public void restoreState(StreamTaskState state, long recoveryTimestamp) throws Exception {
-    super.restoreState(state, recoveryTimestamp);
+  public void restoreState(StreamTaskState state) throws Exception {
+    super.restoreState(state);
 
     @SuppressWarnings("unchecked,rawtypes")
     StateHandle<HashMap<String, KvStateSnapshot<?, ?, ?, ?, ?>>> sideInputStateHandle =

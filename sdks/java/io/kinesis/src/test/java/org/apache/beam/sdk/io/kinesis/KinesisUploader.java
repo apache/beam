@@ -22,7 +22,6 @@ import static com.google.common.collect.Lists.newArrayList;
 import com.amazonaws.auth.BasicAWSCredentials;
 import com.amazonaws.internal.StaticCredentialsProvider;
 import com.amazonaws.regions.Regions;
-import com.amazonaws.services.kinesis.AmazonKinesis;
 import com.amazonaws.services.kinesis.AmazonKinesisClient;
 import com.amazonaws.services.kinesis.model.PutRecordsRequest;
 import com.amazonaws.services.kinesis.model.PutRecordsRequestEntry;
@@ -33,7 +32,7 @@ import com.google.common.collect.Lists;
 import java.nio.ByteBuffer;
 import java.util.List;
 
-/***
+/**
  * Sends records to Kinesis in reliable way.
  */
 public class KinesisUploader {
@@ -41,7 +40,7 @@ public class KinesisUploader {
     public static final int MAX_NUMBER_OF_RECORDS_IN_BATCH = 499;
 
     public static void uploadAll(List<String> data, KinesisTestOptions options) {
-        AmazonKinesis client = new AmazonKinesisClient(
+        AmazonKinesisClient client = new AmazonKinesisClient(
                 new StaticCredentialsProvider(
                         new BasicAWSCredentials(
                                 options.getAwsAccessKey(), options.getAwsSecretKey()))

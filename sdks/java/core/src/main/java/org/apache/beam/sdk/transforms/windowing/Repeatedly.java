@@ -19,7 +19,6 @@ package org.apache.beam.sdk.transforms.windowing;
 
 import java.util.Arrays;
 import java.util.List;
-import org.apache.beam.sdk.util.ExecutableTrigger;
 import org.joda.time.Instant;
 
 /**
@@ -49,19 +48,15 @@ public class Repeatedly extends Trigger {
     return new Repeatedly(repeated);
   }
 
-  private Repeatedly(Trigger repeated) {
-    super(Arrays.asList(repeated));
+  private Trigger repeatedTrigger;
+
+  private Repeatedly(Trigger repeatedTrigger) {
+    super(Arrays.asList(repeatedTrigger));
+    this.repeatedTrigger = repeatedTrigger;
   }
 
-
-  @Override
-  public void onElement(OnElementContext c) throws Exception {
-    getRepeated(c).invokeOnElement(c);
-  }
-
-  @Override
-  public void onMerge(OnMergeContext c) throws Exception {
-    getRepeated(c).invokeOnMerge(c);
+  public Trigger getRepeatedTrigger() {
+    return repeatedTrigger;
   }
 
   @Override
@@ -76,26 +71,7 @@ public class Repeatedly extends Trigger {
   }
 
   @Override
-  public boolean shouldFire(Trigger.TriggerContext context) throws Exception {
-    return getRepeated(context).invokeShouldFire(context);
-  }
-
-  @Override
-  public void onFire(TriggerContext context) throws Exception {
-    getRepeated(context).invokeOnFire(context);
-
-    if (context.trigger().isFinished(REPEATED)) {
-      // Reset tree will recursively clear the finished bits, and invoke clear.
-      context.forTrigger(getRepeated(context)).trigger().resetTree();
-    }
-  }
-
-  @Override
   public String toString() {
     return String.format("Repeatedly.forever(%s)", subTriggers.get(REPEATED));
-  }
-
-  private ExecutableTrigger getRepeated(TriggerContext context) {
-    return context.trigger().subTrigger(REPEATED);
   }
 }

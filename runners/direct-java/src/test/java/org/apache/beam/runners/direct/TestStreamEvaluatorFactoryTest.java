@@ -19,22 +19,27 @@
 package org.apache.beam.runners.direct;
 
 import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.Matchers.is;
-import static org.hamcrest.Matchers.nullValue;
 import static org.junit.Assert.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import com.google.common.collect.Iterables;
-import org.apache.beam.sdk.coders.StringUtf8Coder;
+import java.util.Collection;
+import java.util.Collections;
+import org.apache.beam.runners.direct.DirectRunner.CommittedBundle;
+import org.apache.beam.runners.direct.TestStreamEvaluatorFactory.TestClock;
+import org.apache.beam.runners.direct.TestStreamEvaluatorFactory.TestStreamIndex;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestStream;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.TimestampedValue;
 import org.hamcrest.Matchers;
+import org.joda.time.Duration;
 import org.joda.time.Instant;
+import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -42,8 +47,16 @@ import org.junit.runners.JUnit4;
 /** Tests for {@link TestStreamEvaluatorFactory}. */
 @RunWith(JUnit4.class)
 public class TestStreamEvaluatorFactoryTest {
-  private TestStreamEvaluatorFactory factory = new TestStreamEvaluatorFactory();
-  private BundleFactory bundleFactory = ImmutableListBundleFactory.create();
+  private TestStreamEvaluatorFactory factory;
+  private BundleFactory bundleFactory;
+  private EvaluationContext context;
+
+  @Before
+  public void setup() {
+    context = mock(EvaluationContext.class);
+    factory = new TestStreamEvaluatorFactory(context);
+    bundleFactory = ImmutableListBundleFactory.create();
+  }
 
   /** Demonstrates that returned evaluators produce elements in sequence. */
   @Test
@@ -53,25 +66,85 @@ public class TestStreamEvaluatorFactoryTest {
         p.apply(
             TestStream.create(VarIntCoder.of())
                 .addElements(1, 2, 3)
-                .addElements(4, 5, 6)
+                .advanceWatermarkTo(new Instant(0))
+                .addElements(
+                    TimestampedValue.atMinimumTimestamp(4),
+                    TimestampedValue.atMinimumTimestamp(5),
+                    TimestampedValue.atMinimumTimestamp(6))
+                .advanceProcessingTime(Duration.standardMinutes(10))
                 .advanceWatermarkToInfinity());
 
-    EvaluationContext context = mock(EvaluationContext.class);
-    when(context.createRootBundle(streamVals))
-        .thenReturn(
-            bundleFactory.createRootBundle(streamVals), bundleFactory.createRootBundle(streamVals));
+    TestClock clock = new TestClock();
+    when(context.getClock()).thenReturn(clock);
+    when(context.createRootBundle()).thenReturn(bundleFactory.createRootBundle());
+    when(context.createBundle(streamVals))
+        .thenReturn(bundleFactory.createBundle(streamVals), bundleFactory.createBundle(streamVals));
 
-    TransformEvaluator<Object> firstEvaluator =
-        factory.forApplication(streamVals.getProducingTransformInternal(), null, context);
+    Collection<CommittedBundle<?>> initialInputs =
+        new TestStreamEvaluatorFactory.InputProvider(context)
+            .getInitialInputs(streamVals.getProducingTransformInternal(), 1);
+    @SuppressWarnings("unchecked")
+    CommittedBundle<TestStreamIndex<Integer>> initialBundle =
+        (CommittedBundle<TestStreamIndex<Integer>>) Iterables.getOnlyElement(initialInputs);
+
+    TransformEvaluator<TestStreamIndex<Integer>> firstEvaluator =
+        factory.forApplication(streamVals.getProducingTransformInternal(), initialBundle);
+    firstEvaluator.processElement(Iterables.getOnlyElement(initialBundle.getElements()));
     TransformResult firstResult = firstEvaluator.finishBundle();
 
-    TransformEvaluator<Object> secondEvaluator =
-        factory.forApplication(streamVals.getProducingTransformInternal(), null, context);
+    WindowedValue<TestStreamIndex<Integer>> firstResidual =
+        (WindowedValue<TestStreamIndex<Integer>>)
+            Iterables.getOnlyElement(firstResult.getUnprocessedElements());
+    assertThat(firstResidual.getValue().getIndex(), equalTo(1));
+    assertThat(firstResidual.getTimestamp(), equalTo(BoundedWindow.TIMESTAMP_MIN_VALUE));
+
+    CommittedBundle<TestStreamIndex<Integer>> secondBundle =
+        initialBundle.withElements(Collections.singleton(firstResidual));
+    TransformEvaluator<TestStreamIndex<Integer>> secondEvaluator =
+        factory.forApplication(streamVals.getProducingTransformInternal(), secondBundle);
+    secondEvaluator.processElement(firstResidual);
     TransformResult secondResult = secondEvaluator.finishBundle();
 
-    TransformEvaluator<Object> thirdEvaluator =
-        factory.forApplication(streamVals.getProducingTransformInternal(), null, context);
+    WindowedValue<TestStreamIndex<Integer>> secondResidual =
+        (WindowedValue<TestStreamIndex<Integer>>)
+            Iterables.getOnlyElement(secondResult.getUnprocessedElements());
+    assertThat(secondResidual.getValue().getIndex(), equalTo(2));
+    assertThat(secondResidual.getTimestamp(), equalTo(new Instant(0)));
+
+    CommittedBundle<TestStreamIndex<Integer>> thirdBundle =
+        secondBundle.withElements(Collections.singleton(secondResidual));
+    TransformEvaluator<TestStreamIndex<Integer>> thirdEvaluator =
+        factory.forApplication(streamVals.getProducingTransformInternal(), thirdBundle);
+    thirdEvaluator.processElement(secondResidual);
     TransformResult thirdResult = thirdEvaluator.finishBundle();
+
+    WindowedValue<TestStreamIndex<Integer>> thirdResidual =
+        (WindowedValue<TestStreamIndex<Integer>>)
+            Iterables.getOnlyElement(thirdResult.getUnprocessedElements());
+    assertThat(thirdResidual.getValue().getIndex(), equalTo(3));
+    assertThat(thirdResidual.getTimestamp(), equalTo(new Instant(0)));
+
+    Instant start = clock.now();
+    CommittedBundle<TestStreamIndex<Integer>> fourthBundle =
+        thirdBundle.withElements(Collections.singleton(thirdResidual));
+    TransformEvaluator<TestStreamIndex<Integer>> fourthEvaluator =
+        factory.forApplication(streamVals.getProducingTransformInternal(), fourthBundle);
+    fourthEvaluator.processElement(thirdResidual);
+    TransformResult fourthResult = fourthEvaluator.finishBundle();
+
+    assertThat(clock.now(), equalTo(start.plus(Duration.standardMinutes(10))));
+    WindowedValue<TestStreamIndex<Integer>> fourthResidual =
+        (WindowedValue<TestStreamIndex<Integer>>)
+            Iterables.getOnlyElement(fourthResult.getUnprocessedElements());
+    assertThat(fourthResidual.getValue().getIndex(), equalTo(4));
+    assertThat(fourthResidual.getTimestamp(), equalTo(new Instant(0)));
+
+    CommittedBundle<TestStreamIndex<Integer>> fifthBundle =
+        thirdBundle.withElements(Collections.singleton(fourthResidual));
+    TransformEvaluator<TestStreamIndex<Integer>> fifthEvaluator =
+        factory.forApplication(streamVals.getProducingTransformInternal(), fifthBundle);
+    fifthEvaluator.processElement(fourthResidual);
+    TransformResult fifthResult = fifthEvaluator.finishBundle();
 
     assertThat(
         Iterables.getOnlyElement(firstResult.getOutputBundles())
@@ -81,126 +154,18 @@ public class TestStreamEvaluatorFactoryTest {
             WindowedValue.valueInGlobalWindow(1),
             WindowedValue.valueInGlobalWindow(2),
             WindowedValue.valueInGlobalWindow(3)));
-    assertThat(firstResult.getWatermarkHold(), equalTo(BoundedWindow.TIMESTAMP_MIN_VALUE));
 
     assertThat(
-        Iterables.getOnlyElement(secondResult.getOutputBundles())
+        Iterables.getOnlyElement(thirdResult.getOutputBundles())
             .commit(Instant.now())
             .getElements(),
         Matchers.<WindowedValue<?>>containsInAnyOrder(
             WindowedValue.valueInGlobalWindow(4),
             WindowedValue.valueInGlobalWindow(5),
             WindowedValue.valueInGlobalWindow(6)));
-    assertThat(secondResult.getWatermarkHold(), equalTo(BoundedWindow.TIMESTAMP_MIN_VALUE));
 
-    assertThat(Iterables.isEmpty(thirdResult.getOutputBundles()), is(true));
-    assertThat(thirdResult.getWatermarkHold(), equalTo(BoundedWindow.TIMESTAMP_MAX_VALUE));
-  }
-
-  /** Demonstrates that at most one evaluator for an application is available at a time. */
-  @Test
-  public void onlyOneEvaluatorAtATime() throws Exception {
-    TestPipeline p = TestPipeline.create();
-    PCollection<Integer> streamVals =
-        p.apply(
-            TestStream.create(VarIntCoder.of()).addElements(4, 5, 6).advanceWatermarkToInfinity());
-
-    EvaluationContext context = mock(EvaluationContext.class);
-    TransformEvaluator<Object> firstEvaluator =
-        factory.forApplication(streamVals.getProducingTransformInternal(), null, context);
-
-    // create a second evaluator before the first is finished. The evaluator should not be available
-    TransformEvaluator<Object> secondEvaluator =
-        factory.forApplication(streamVals.getProducingTransformInternal(), null, context);
-    assertThat(secondEvaluator, is(nullValue()));
-  }
-
-  /**
-   * Demonstrates that multiple applications of the same {@link TestStream} produce separate
-   * evaluators.
-   */
-  @Test
-  public void multipleApplicationsMultipleEvaluators() throws Exception {
-    TestPipeline p = TestPipeline.create();
-    TestStream<Integer> stream =
-        TestStream.create(VarIntCoder.of()).addElements(2).advanceWatermarkToInfinity();
-    PCollection<Integer> firstVals = p.apply("Stream One", stream);
-    PCollection<Integer> secondVals = p.apply("Stream A", stream);
-
-    EvaluationContext context = mock(EvaluationContext.class);
-    when(context.createRootBundle(firstVals)).thenReturn(bundleFactory.createRootBundle(firstVals));
-    when(context.createRootBundle(secondVals))
-        .thenReturn(bundleFactory.createRootBundle(secondVals));
-
-    TransformEvaluator<Object> firstEvaluator =
-        factory.forApplication(firstVals.getProducingTransformInternal(), null, context);
-    // The two evaluators can exist independently
-    TransformEvaluator<Object> secondEvaluator =
-        factory.forApplication(secondVals.getProducingTransformInternal(), null, context);
-
-    TransformResult firstResult = firstEvaluator.finishBundle();
-    TransformResult secondResult = secondEvaluator.finishBundle();
-
-    assertThat(
-        Iterables.getOnlyElement(firstResult.getOutputBundles())
-            .commit(Instant.now())
-            .getElements(),
-        Matchers.<WindowedValue<?>>containsInAnyOrder(WindowedValue.valueInGlobalWindow(2)));
-    assertThat(firstResult.getWatermarkHold(), equalTo(BoundedWindow.TIMESTAMP_MIN_VALUE));
-
-    // They both produce equal results, and don't interfere with each other
-    assertThat(
-        Iterables.getOnlyElement(secondResult.getOutputBundles())
-            .commit(Instant.now())
-            .getElements(),
-        Matchers.<WindowedValue<?>>containsInAnyOrder(WindowedValue.valueInGlobalWindow(2)));
-    assertThat(secondResult.getWatermarkHold(), equalTo(BoundedWindow.TIMESTAMP_MIN_VALUE));
-  }
-
-  /**
-   * Demonstrates that multiple applications of different {@link TestStream} produce independent
-   * evaluators.
-   */
-  @Test
-  public void multipleStreamsMultipleEvaluators() throws Exception {
-    TestPipeline p = TestPipeline.create();
-    PCollection<Integer> firstVals =
-        p.apply(
-            "Stream One",
-            TestStream.create(VarIntCoder.of()).addElements(2).advanceWatermarkToInfinity());
-    PCollection<String> secondVals =
-        p.apply(
-            "Stream A",
-            TestStream.create(StringUtf8Coder.of())
-                .addElements("Two")
-                .advanceWatermarkToInfinity());
-
-    EvaluationContext context = mock(EvaluationContext.class);
-    when(context.createRootBundle(firstVals)).thenReturn(bundleFactory.createRootBundle(firstVals));
-    when(context.createRootBundle(secondVals))
-        .thenReturn(bundleFactory.createRootBundle(secondVals));
-
-    TransformEvaluator<Object> firstEvaluator =
-        factory.forApplication(firstVals.getProducingTransformInternal(), null, context);
-    // The two evaluators can exist independently
-    TransformEvaluator<Object> secondEvaluator =
-        factory.forApplication(secondVals.getProducingTransformInternal(), null, context);
-
-    TransformResult firstResult = firstEvaluator.finishBundle();
-    TransformResult secondResult = secondEvaluator.finishBundle();
-
-    assertThat(
-        Iterables.getOnlyElement(firstResult.getOutputBundles())
-            .commit(Instant.now())
-            .getElements(),
-        Matchers.<WindowedValue<?>>containsInAnyOrder(WindowedValue.valueInGlobalWindow(2)));
-    assertThat(firstResult.getWatermarkHold(), equalTo(BoundedWindow.TIMESTAMP_MIN_VALUE));
-
-    assertThat(
-        Iterables.getOnlyElement(secondResult.getOutputBundles())
-            .commit(Instant.now())
-            .getElements(),
-        Matchers.<WindowedValue<?>>containsInAnyOrder(WindowedValue.valueInGlobalWindow("Two")));
-    assertThat(secondResult.getWatermarkHold(), equalTo(BoundedWindow.TIMESTAMP_MIN_VALUE));
+    assertThat(fifthResult.getOutputBundles(), Matchers.emptyIterable());
+    assertThat(fifthResult.getWatermarkHold(), equalTo(BoundedWindow.TIMESTAMP_MAX_VALUE));
+    assertThat(fifthResult.getUnprocessedElements(), Matchers.emptyIterable());
   }
 }

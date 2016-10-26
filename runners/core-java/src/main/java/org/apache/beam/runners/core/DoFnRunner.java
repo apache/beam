@@ -31,19 +31,19 @@ public interface DoFnRunner<InputT, OutputT> {
   /**
    * Prepares and calls {@link OldDoFn#startBundle}.
    */
-  public void startBundle();
+  void startBundle();
 
   /**
    * Calls {@link OldDoFn#processElement} with a {@link ProcessContext} containing the current
    * element.
    */
-  public void processElement(WindowedValue<InputT> elem);
+  void processElement(WindowedValue<InputT> elem);
 
   /**
    * Calls {@link OldDoFn#finishBundle} and performs additional tasks, such as
    * flushing in-memory states.
    */
-  public void finishBundle();
+  void finishBundle();
 
   /**
    * An internal interface for signaling that a {@link OldDoFn} requires late data dropping.
@@ -52,7 +52,7 @@ public interface DoFnRunner<InputT, OutputT> {
     /**
      * Gets this object as a {@link OldDoFn}.
      *
-     * Most implementors of this interface are expected to be {@link OldDoFn} instances, and will
+     * <p>Most implementors of this interface are expected to be {@link OldDoFn} instances, and will
      * return themselves.
      */
     OldDoFn<KeyedWorkItem<K, InputT>, KV<K, OutputT>> asDoFn();

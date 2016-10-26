@@ -18,7 +18,8 @@
 
 package org.apache.beam.runners.gearpump.translators.utils;
 
-import com.google.common.base.Preconditions;
+import static org.apache.beam.sdk.repackaged.com.google.common.base.Preconditions.checkNotNull;
+
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Sets;
 
@@ -58,6 +59,7 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 
 import org.joda.time.Instant;
+
 
 /**
  * a serializable {@link SimpleDoFnRunner}.
@@ -330,20 +332,20 @@ public class GearpumpDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, O
 
     @Override
     public <T> void sideOutput(TupleTag<T> tag, T output) {
-      Preconditions.checkNotNull(tag, "TupleTag passed to sideOutput cannot be null");
+      checkNotNull(tag, "TupleTag passed to sideOutput cannot be null");
       sideOutputWindowedValue(tag, output, null, null, PaneInfo.NO_FIRING);
     }
 
     @Override
     public <T> void sideOutputWithTimestamp(TupleTag<T> tag, T output, Instant timestamp) {
-      Preconditions.checkNotNull(tag, "TupleTag passed to sideOutputWithTimestamp cannot be null");
+      checkNotNull(tag, "TupleTag passed to sideOutputWithTimestamp cannot be null");
       sideOutputWindowedValue(tag, output, timestamp, null, PaneInfo.NO_FIRING);
     }
 
     @Override
     protected <AggInputT, AggOutputT> Aggregator<AggInputT, AggOutputT> createAggregatorInternal(
         String name, Combine.CombineFn<AggInputT, ?, AggOutputT> combiner) {
-      Preconditions.checkNotNull(combiner,
+      checkNotNull(combiner,
           "Combiner passed to createAggregator cannot be null");
       throw new UnsupportedOperationException("aggregator not supported in Gearpump runner");
     }
@@ -386,7 +388,7 @@ public class GearpumpDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, O
 
     @Override
     public <T> T sideInput(PCollectionView<T> view) {
-      Preconditions.checkNotNull(view, "View passed to sideInput cannot be null");
+      checkNotNull(view, "View passed to sideInput cannot be null");
       Iterator<? extends BoundedWindow> windowIter = windows().iterator();
       BoundedWindow window;
       if (!windowIter.hasNext()) {
@@ -435,13 +437,13 @@ public class GearpumpDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, O
 
     @Override
     public <T> void sideOutput(TupleTag<T> tag, T output) {
-      Preconditions.checkNotNull(tag, "Tag passed to sideOutput cannot be null");
+      checkNotNull(tag, "Tag passed to sideOutput cannot be null");
       context.sideOutputWindowedValue(tag, windowedValue.withValue(output));
     }
 
     @Override
     public <T> void sideOutputWithTimestamp(TupleTag<T> tag, T output, Instant timestamp) {
-      Preconditions.checkNotNull(tag, "Tag passed to sideOutputWithTimestamp cannot be null");
+      checkNotNull(tag, "Tag passed to sideOutputWithTimestamp cannot be null");
       context.sideOutputWindowedValue(
           tag, output, timestamp, windowedValue.getWindows(), windowedValue.getPane());
     }

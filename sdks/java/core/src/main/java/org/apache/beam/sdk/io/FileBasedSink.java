@@ -20,11 +20,14 @@ package org.apache.beam.sdk.io;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
+import static com.google.common.base.Strings.isNullOrEmpty;
 
 import com.google.common.collect.Ordering;
+
 import java.io.File;
 import java.io.IOException;
 import java.io.Serializable;
+import java.nio.channels.Channels;
 import java.nio.channels.WritableByteChannel;
 import java.nio.file.Files;
 import java.nio.file.NoSuchFileException;
@@ -34,6 +37,10 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
+import java.util.zip.GZIPOutputStream;
+
+import javax.annotation.Nullable;
+
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -45,6 +52,7 @@ import org.apache.beam.sdk.util.GcsUtil.GcsUtilFactory;
 import org.apache.beam.sdk.util.IOChannelFactory;
 import org.apache.beam.sdk.util.IOChannelUtils;
 import org.apache.beam.sdk.util.MimeTypes;
+import org.apache.commons.compress.compressors.bzip2.BZip2CompressorOutputStream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -69,6 +77,64 @@ import org.slf4j.LoggerFactory;
  */
 public abstract class FileBasedSink<T> extends Sink<T> {
   /**
+   * Directly supported file output compression types.
+   */
+  public enum CompressionType implements WritableByteChannelFactory {
+    /**
+     * No compression, or any other transformation, will be used.
+     */
+    UNCOMPRESSED("", MimeTypes.TEXT) {
+      @Override
+      public WritableByteChannel create(WritableByteChannel channel) throws IOException {
+        return channel;
+      }
+    },
+    /**
+     * Provides GZip output transformation.
+     */
+    GZIP(".gz", MimeTypes.BINARY) {
+      @Override
+      public WritableByteChannel create(WritableByteChannel channel) throws IOException {
+        return Channels.newChannel(new GZIPOutputStream(Channels.newOutputStream(channel), true));
+      }
+    },
+    /**
+     * Provides BZip2 output transformation.
+     */
+    BZIP2(".bz2", MimeTypes.BINARY) {
+      @Override
+      public WritableByteChannel create(WritableByteChannel channel) throws IOException {
+        return Channels
+            .newChannel(new BZip2CompressorOutputStream(Channels.newOutputStream(channel)));
+      }
+    };
+
+    private String filenameSuffix;
+    private String mimeType;
+
+    private CompressionType(String suffix, String mimeType) {
+      this.filenameSuffix = suffix;
+      this.mimeType = mimeType;
+    }
+
+    @Override
+    public String getFilenameSuffix() {
+      return filenameSuffix;
+    }
+
+    @Override
+    public String getMimeType() {
+      return mimeType;
+    }
+  }
+
+  /**
+   * The {@link WritableByteChannelFactory} that is used to wrap the raw data output to the
+   * underlying channel. The default is to not compress the output using {@link #UNCOMPRESSED}.
+   */
+  protected final WritableByteChannelFactory writableByteChannelFactory;
+
+  /**
    * Base filename for final output files.
    */
   protected final String baseOutputFilename;
@@ -85,21 +151,48 @@ public abstract class FileBasedSink<T> extends Sink<T> {
   protected final String fileNamingTemplate;
 
   /**
-   * Construct a FileBasedSink with the given base output filename and extension.
+   * Construct a FileBasedSink with the given base output filename and extension. A
+   * {@link WritableByteChannelFactory} of type {@link CompressionType#UNCOMPRESSED} will be used.
    */
   public FileBasedSink(String baseOutputFilename, String extension) {
     this(baseOutputFilename, extension, ShardNameTemplate.INDEX_OF_MAX);
   }
 
   /**
+   * Construct a FileBasedSink with the given base output filename, extension, and
+   * {@link WritableByteChannelFactory}.
+   */
+  public FileBasedSink(String baseOutputFilename, String extension,
+      WritableByteChannelFactory writableByteChannelFactory) {
+    this(baseOutputFilename, extension, ShardNameTemplate.INDEX_OF_MAX, writableByteChannelFactory);
+  }
+
+  /**
    * Construct a FileBasedSink with the given base output filename, extension, and file naming
-   * template.
+   * template. A {@link WritableByteChannelFactory} of type {@link CompressionType#UNCOMPRESSED}
+   * will be used.
    *
    * <p>See {@link ShardNameTemplate} for a description of file naming templates.
    */
   public FileBasedSink(String baseOutputFilename, String extension, String fileNamingTemplate) {
+    this(baseOutputFilename, extension, fileNamingTemplate, CompressionType.UNCOMPRESSED);
+  }
+
+  /**
+   * Construct a FileBasedSink with the given base output filename, extension, file naming template,
+   * and {@link WritableByteChannelFactory}.
+   *
+   * <p>See {@link ShardNameTemplate} for a description of file naming templates.
+   */
+  public FileBasedSink(String baseOutputFilename, String extension, String fileNamingTemplate,
+      WritableByteChannelFactory writableByteChannelFactory) {
+    this.writableByteChannelFactory = writableByteChannelFactory;
     this.baseOutputFilename = baseOutputFilename;
-    this.extension = extension;
+    if (!isNullOrEmpty(writableByteChannelFactory.getFilenameSuffix())) {
+      this.extension = extension + getFileExtension(writableByteChannelFactory.getFilenameSuffix());
+    } else {
+      this.extension = extension;
+    }
     this.fileNamingTemplate = fileNamingTemplate;
   }
 
@@ -185,6 +278,7 @@ public abstract class FileBasedSink<T> extends Sink<T> {
    * {@link FileBasedSink#fileNamingTemplate}.
    *
    * <h2>Temporary Bundle File Handling:</h2>
+   *
    * <p>{@link FileBasedSink.FileBasedWriteOperation#temporaryFileRetention} controls the behavior
    * for managing temporary files. By default, temporary files will be removed. Subclasses can
    * provide a different value to the constructor.
@@ -491,7 +585,10 @@ public abstract class FileBasedSink<T> extends Sink<T> {
       filename = FileBasedWriteOperation.buildTemporaryFilename(
           getWriteOperation().baseTemporaryFilename, uId);
       LOG.debug("Opening {}.", filename);
-      channel = IOChannelUtils.create(filename, mimeType);
+      final WritableByteChannelFactory factory =
+          getWriteOperation().getSink().writableByteChannelFactory;
+      mimeType = factory.getMimeType();
+      channel = factory.create(IOChannelUtils.create(filename, mimeType));
       try {
         prepareWrite(channel);
         LOG.debug("Writing header to {}.", filename);
@@ -513,7 +610,7 @@ public abstract class FileBasedSink<T> extends Sink<T> {
     }
 
     /**
-     * Closes the channel and return the bundle result.
+     * Closes the channel and returns the bundle result.
      */
     @Override
     public final FileResult close() throws Exception {
@@ -583,7 +680,7 @@ public abstract class FileBasedSink<T> extends Sink<T> {
    * copy-if-existing and do not throw exceptions on file not found to enable retries of these
    * operations in the case of transient error.
    */
-  private static interface FileOperations {
+  private interface FileOperations {
     /**
      * Copy a collection of files from one location to another.
      *
@@ -592,12 +689,12 @@ public abstract class FileBasedSink<T> extends Sink<T> {
      * @param srcFilenames the source filenames.
      * @param destFilenames the destination filenames.
      */
-    public void copy(List<String> srcFilenames, List<String> destFilenames) throws IOException;
+     void copy(List<String> srcFilenames, List<String> destFilenames) throws IOException;
 
     /**
      * Remove a collection of files.
      */
-    public void remove(Collection<String> filenames) throws IOException;
+    void remove(Collection<String> filenames) throws IOException;
   }
 
   /**
@@ -672,5 +769,37 @@ public abstract class FileBasedSink<T> extends Sink<T> {
         LOG.debug("{} does not exist.", filename);
       }
     }
+  }
+
+  /**
+   * Implementations create instances of {@link WritableByteChannel} used by {@link FileBasedSink}
+   * and related classes to allow <em>decorating</em>, or otherwise transforming, the raw data that
+   * would normally be written directly to the {@link WritableByteChannel} passed into
+   * {@link WritableByteChannelFactory#create(WritableByteChannel)}.
+   *
+   * <p>Subclasses should override {@link #toString()} with something meaningful, as it is used when
+   * building {@link DisplayData}.
+   */
+  public interface WritableByteChannelFactory extends Serializable {
+    /**
+     * @param channel the {@link WritableByteChannel} to wrap
+     * @return the {@link WritableByteChannel} to be used during output
+     * @throws IOException
+     */
+    WritableByteChannel create(WritableByteChannel channel) throws IOException;
+
+    /**
+     * @return the MIME type that should be used for the files that will hold the output data
+     * @see MimeTypes
+     * @see <a href=
+     *      'http://www.iana.org/assignments/media-types/media-types.xhtml'>http://www.iana.org/assignments/media-types/media-types.xhtml</a>
+     */
+    String getMimeType();
+
+    /**
+     * @return an optional filename suffix, eg, ".gz" is returned by {@link CompressionType#GZIP}
+     */
+    @Nullable
+    String getFilenameSuffix();
   }
 }

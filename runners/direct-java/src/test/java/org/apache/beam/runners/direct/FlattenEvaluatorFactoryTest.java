@@ -23,12 +23,14 @@ import static org.junit.Assert.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import com.google.common.collect.Iterables;
 import org.apache.beam.runners.direct.DirectRunner.CommittedBundle;
 import org.apache.beam.runners.direct.DirectRunner.UncommittedBundle;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.Flatten;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollection;
@@ -55,26 +57,22 @@ public class FlattenEvaluatorFactoryTest {
     PCollection<Integer> flattened = list.apply(Flatten.<Integer>pCollections());
 
     CommittedBundle<Integer> leftBundle =
-        bundleFactory.createRootBundle(left).commit(Instant.now());
+        bundleFactory.createBundle(left).commit(Instant.now());
     CommittedBundle<Integer> rightBundle =
-        bundleFactory.createRootBundle(right).commit(Instant.now());
+        bundleFactory.createBundle(right).commit(Instant.now());
 
     EvaluationContext context = mock(EvaluationContext.class);
 
-    UncommittedBundle<Integer> flattenedLeftBundle = bundleFactory.createRootBundle(flattened);
-    UncommittedBundle<Integer> flattenedRightBundle = bundleFactory.createRootBundle(flattened);
+    UncommittedBundle<Integer> flattenedLeftBundle = bundleFactory.createBundle(flattened);
+    UncommittedBundle<Integer> flattenedRightBundle = bundleFactory.createBundle(flattened);
 
-    when(context.createBundle(leftBundle, flattened)).thenReturn(flattenedLeftBundle);
-    when(context.createBundle(rightBundle, flattened)).thenReturn(flattenedRightBundle);
+    when(context.createBundle(flattened)).thenReturn(flattenedLeftBundle, flattenedRightBundle);
 
-    FlattenEvaluatorFactory factory = new FlattenEvaluatorFactory();
+    FlattenEvaluatorFactory factory = new FlattenEvaluatorFactory(context);
     TransformEvaluator<Integer> leftSideEvaluator =
-        factory.forApplication(flattened.getProducingTransformInternal(), leftBundle, context);
+        factory.forApplication(flattened.getProducingTransformInternal(), leftBundle);
     TransformEvaluator<Integer> rightSideEvaluator =
-        factory.forApplication(
-            flattened.getProducingTransformInternal(),
-            rightBundle,
-            context);
+        factory.forApplication(flattened.getProducingTransformInternal(), rightBundle);
 
     leftSideEvaluator.processElement(WindowedValue.valueInGlobalWindow(1));
     rightSideEvaluator.processElement(WindowedValue.valueInGlobalWindow(-1));
@@ -123,15 +121,21 @@ public class FlattenEvaluatorFactoryTest {
 
     PCollection<Integer> flattened = list.apply(Flatten.<Integer>pCollections());
 
-    EvaluationContext context = mock(EvaluationContext.class);
+    EvaluationContext evaluationContext = mock(EvaluationContext.class);
+    when(evaluationContext.createBundle(flattened))
+        .thenReturn(bundleFactory.createBundle(flattened));
 
-    FlattenEvaluatorFactory factory = new FlattenEvaluatorFactory();
+    FlattenEvaluatorFactory factory = new FlattenEvaluatorFactory(evaluationContext);
     TransformEvaluator<Integer> emptyEvaluator =
-        factory.forApplication(flattened.getProducingTransformInternal(), null, context);
+        factory.forApplication(
+            flattened.getProducingTransformInternal(),
+            bundleFactory.createRootBundle().commit(BoundedWindow.TIMESTAMP_MAX_VALUE));
 
     TransformResult leftSideResult = emptyEvaluator.finishBundle();
 
-    assertThat(leftSideResult.getOutputBundles(), emptyIterable());
+    CommittedBundle<?> outputBundle =
+        Iterables.getOnlyElement(leftSideResult.getOutputBundles()).commit(Instant.now());
+    assertThat(outputBundle.getElements(), emptyIterable());
     assertThat(
         leftSideResult.getTransform(),
         Matchers.<AppliedPTransform<?, ?, ?>>equalTo(flattened.getProducingTransformInternal()));

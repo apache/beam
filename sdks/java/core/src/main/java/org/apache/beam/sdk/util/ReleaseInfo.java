@@ -40,7 +40,7 @@ public final class ReleaseInfo extends GenericJson {
   }
 
   /**
-   * Returns an instance of DataflowReleaseInfo.
+   * Returns an instance of {@link ReleaseInfo}.
    */
   public static ReleaseInfo getReleaseInfo() {
     return LazyInit.INSTANCE;
@@ -64,13 +64,13 @@ public final class ReleaseInfo extends GenericJson {
 
     try (InputStream in = ReleaseInfo.class.getResourceAsStream(PROPERTIES_PATH)) {
       if (in == null) {
-        LOG.warn("Dataflow properties resource not found: {}", resourcePath);
+        LOG.warn("Beam properties resource not found: {}", resourcePath);
         return;
       }
 
       properties.load(in);
     } catch (IOException e) {
-      LOG.warn("Error loading Dataflow properties resource: ", e);
+      LOG.warn("Error loading Beam properties resource: ", e);
     }
 
     for (String name : properties.stringPropertyNames()) {

@@ -23,19 +23,26 @@ import static org.junit.Assert.assertEquals;
 import com.google.auth.oauth2.GoogleCredentials;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Iterables;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.Timestamp;
 import com.google.pubsub.v1.PublishRequest;
 import com.google.pubsub.v1.PublishResponse;
-import com.google.pubsub.v1.PublisherGrpc;
+import com.google.pubsub.v1.PublisherGrpc.PublisherImplBase;
 import com.google.pubsub.v1.PubsubMessage;
 import com.google.pubsub.v1.PullRequest;
 import com.google.pubsub.v1.PullResponse;
 import com.google.pubsub.v1.ReceivedMessage;
-import com.google.pubsub.v1.SubscriberGrpc;
+import com.google.pubsub.v1.SubscriberGrpc.SubscriberImplBase;
 import io.grpc.ManagedChannel;
+import io.grpc.Server;
+import io.grpc.inprocess.InProcessChannelBuilder;
+import io.grpc.inprocess.InProcessServerBuilder;
+import io.grpc.stub.StreamObserver;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.ThreadLocalRandom;
 import org.apache.beam.sdk.util.PubsubClient.IncomingMessage;
 import org.apache.beam.sdk.util.PubsubClient.OutgoingMessage;
 import org.apache.beam.sdk.util.PubsubClient.SubscriptionPath;
@@ -52,12 +59,11 @@ import org.mockito.Mockito;
  */
 @RunWith(JUnit4.class)
 public class PubsubGrpcClientTest {
-  private ManagedChannel mockChannel;
+  private ManagedChannel inProcessChannel;
   private GoogleCredentials mockCredentials;
-  private PublisherGrpc.PublisherBlockingStub mockPublisherStub;
-  private SubscriberGrpc.SubscriberBlockingStub mockSubscriberStub;
 
   private PubsubClient client;
+  private String channelName;
 
   private static final TopicPath TOPIC = PubsubClient.topicPathFromName("testProject", "testTopic");
   private static final SubscriptionPath SUBSCRIPTION =
@@ -73,31 +79,24 @@ public class PubsubGrpcClientTest {
   private static final String ACK_ID = "testAckId";
 
   @Before
-  public void setup() throws IOException {
-    mockChannel = Mockito.mock(ManagedChannel.class);
+  public void setup() {
+    channelName = String.format("%s-%s",
+        PubsubGrpcClientTest.class.getName(), ThreadLocalRandom.current().nextInt());
+    inProcessChannel = InProcessChannelBuilder.forName(channelName).directExecutor().build();
     mockCredentials = Mockito.mock(GoogleCredentials.class);
-    mockPublisherStub =
-        Mockito.mock(PublisherGrpc.PublisherBlockingStub.class, Mockito.RETURNS_DEEP_STUBS);
-    mockSubscriberStub =
-        Mockito.mock(SubscriberGrpc.SubscriberBlockingStub.class, Mockito.RETURNS_DEEP_STUBS);
-    client = new PubsubGrpcClient(TIMESTAMP_LABEL, ID_LABEL, 0, mockChannel,
-                                  mockCredentials, mockPublisherStub, mockSubscriberStub);
+    client = new PubsubGrpcClient(TIMESTAMP_LABEL, ID_LABEL, 10, inProcessChannel, mockCredentials);
   }
 
   @After
   public void teardown() throws IOException {
     client.close();
-    client = null;
-    mockChannel = null;
-    mockCredentials = null;
-    mockPublisherStub = null;
-    mockSubscriberStub = null;
+    inProcessChannel.shutdownNow();
   }
 
   @Test
   public void pullOneMessage() throws IOException {
     String expectedSubscription = SUBSCRIPTION.getPath();
-    PullRequest expectedRequest =
+    final PullRequest expectedRequest =
         PullRequest.newBuilder()
                    .setSubscription(expectedSubscription)
                    .setReturnImmediately(true)
@@ -123,20 +122,37 @@ public class PubsubGrpcClientTest {
                        .setMessage(expectedPubsubMessage)
                        .setAckId(ACK_ID)
                        .build();
-    PullResponse expectedResponse =
+    final PullResponse response =
         PullResponse.newBuilder()
                     .addAllReceivedMessages(ImmutableList.of(expectedReceivedMessage))
                     .build();
-    Mockito.when(mockSubscriberStub.pull(expectedRequest))
-           .thenReturn(expectedResponse);
-    List<IncomingMessage> acutalMessages = client.pull(REQ_TIME, SUBSCRIPTION, 10, true);
-    assertEquals(1, acutalMessages.size());
-    IncomingMessage actualMessage = acutalMessages.get(0);
-    assertEquals(ACK_ID, actualMessage.ackId);
-    assertEquals(DATA, new String(actualMessage.elementBytes));
-    assertEquals(RECORD_ID, actualMessage.recordId);
-    assertEquals(REQ_TIME, actualMessage.requestTimeMsSinceEpoch);
-    assertEquals(MESSAGE_TIME, actualMessage.timestampMsSinceEpoch);
+
+    final List<PullRequest> requestsReceived = new ArrayList<>();
+    SubscriberImplBase subscriberImplBase = new SubscriberImplBase() {
+      @Override
+      public void pull(PullRequest request, StreamObserver<PullResponse> responseObserver) {
+        requestsReceived.add(request);
+        responseObserver.onNext(response);
+        responseObserver.onCompleted();
+      }
+    };
+    Server server = InProcessServerBuilder.forName(channelName)
+        .addService(subscriberImplBase)
+        .build()
+        .start();
+    try {
+      List<IncomingMessage> acutalMessages = client.pull(REQ_TIME, SUBSCRIPTION, 10, true);
+      assertEquals(1, acutalMessages.size());
+      IncomingMessage actualMessage = acutalMessages.get(0);
+      assertEquals(ACK_ID, actualMessage.ackId);
+      assertEquals(DATA, new String(actualMessage.elementBytes));
+      assertEquals(RECORD_ID, actualMessage.recordId);
+      assertEquals(REQ_TIME, actualMessage.requestTimeMsSinceEpoch);
+      assertEquals(MESSAGE_TIME, actualMessage.timestampMsSinceEpoch);
+      assertEquals(expectedRequest, Iterables.getOnlyElement(requestsReceived));
+    } finally {
+      server.shutdownNow();
+    }
   }
 
   @Test
@@ -149,20 +165,38 @@ public class PubsubGrpcClientTest {
                          ImmutableMap.of(TIMESTAMP_LABEL, String.valueOf(MESSAGE_TIME),
                                          ID_LABEL, RECORD_ID))
                      .build();
-    PublishRequest expectedRequest =
+    final PublishRequest expectedRequest =
         PublishRequest.newBuilder()
                       .setTopic(expectedTopic)
                       .addAllMessages(
                           ImmutableList.of(expectedPubsubMessage))
                       .build();
-    PublishResponse expectedResponse =
+    final PublishResponse response =
         PublishResponse.newBuilder()
                        .addAllMessageIds(ImmutableList.of(MESSAGE_ID))
                        .build();
-    Mockito.when(mockPublisherStub.publish(expectedRequest))
-           .thenReturn(expectedResponse);
-    OutgoingMessage actualMessage = new OutgoingMessage(DATA.getBytes(), MESSAGE_TIME, RECORD_ID);
-    int n = client.publish(TOPIC, ImmutableList.of(actualMessage));
-    assertEquals(1, n);
+
+    final List<PublishRequest> requestsReceived = new ArrayList<>();
+    PublisherImplBase publisherImplBase = new PublisherImplBase() {
+      @Override
+      public void publish(
+          PublishRequest request, StreamObserver<PublishResponse> responseObserver) {
+        requestsReceived.add(request);
+        responseObserver.onNext(response);
+        responseObserver.onCompleted();
+      }
+    };
+    Server server = InProcessServerBuilder.forName(channelName)
+        .addService(publisherImplBase)
+        .build()
+        .start();
+    try {
+      OutgoingMessage actualMessage = new OutgoingMessage(DATA.getBytes(), MESSAGE_TIME, RECORD_ID);
+      int n = client.publish(TOPIC, ImmutableList.of(actualMessage));
+      assertEquals(1, n);
+      assertEquals(expectedRequest, Iterables.getOnlyElement(requestsReceived));
+    } finally {
+      server.shutdownNow();
+    }
   }
 }

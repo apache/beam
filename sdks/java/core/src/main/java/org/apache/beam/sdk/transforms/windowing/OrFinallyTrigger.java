@@ -20,13 +20,12 @@ package org.apache.beam.sdk.transforms.windowing;
 import com.google.common.annotations.VisibleForTesting;
 import java.util.Arrays;
 import java.util.List;
-import org.apache.beam.sdk.util.ExecutableTrigger;
 import org.joda.time.Instant;
 
 /**
  * Executes the {@code actual} trigger until it finishes or until the {@code until} trigger fires.
  */
-class OrFinallyTrigger extends Trigger {
+public class OrFinallyTrigger extends Trigger {
 
   private static final int ACTUAL = 0;
   private static final int UNTIL = 1;
@@ -35,18 +34,19 @@ class OrFinallyTrigger extends Trigger {
     super(Arrays.asList(actual, until));
   }
 
-  @Override
-  public void onElement(OnElementContext c) throws Exception {
-    c.trigger().subTrigger(ACTUAL).invokeOnElement(c);
-    c.trigger().subTrigger(UNTIL).invokeOnElement(c);
+  /**
+   * The main trigger, which will continue firing until the "until" trigger fires. See
+   * {@link #getUntilTrigger()}
+   */
+  public Trigger getMainTrigger() {
+    return subTriggers().get(ACTUAL);
   }
 
-  @Override
-  public void onMerge(OnMergeContext c) throws Exception {
-    for (ExecutableTrigger subTrigger : c.trigger().subTriggers()) {
-      subTrigger.invokeOnMerge(c);
-    }
-    updateFinishedState(c);
+  /**
+   * The trigger that signals termination of this trigger.
+   */
+  public OnceTrigger getUntilTrigger() {
+    return (OnceTrigger) subTriggers().get(UNTIL);
   }
 
   @Override
@@ -68,38 +68,7 @@ class OrFinallyTrigger extends Trigger {
   }
 
   @Override
-  public boolean shouldFire(Trigger.TriggerContext context) throws Exception {
-    return context.trigger().subTrigger(ACTUAL).invokeShouldFire(context)
-        || context.trigger().subTrigger(UNTIL).invokeShouldFire(context);
-  }
-
-  @Override
-  public void onFire(Trigger.TriggerContext context) throws Exception {
-    ExecutableTrigger actualSubtrigger = context.trigger().subTrigger(ACTUAL);
-    ExecutableTrigger untilSubtrigger = context.trigger().subTrigger(UNTIL);
-
-    if (untilSubtrigger.invokeShouldFire(context)) {
-      untilSubtrigger.invokeOnFire(context);
-      actualSubtrigger.invokeClear(context);
-    } else {
-      // If until didn't fire, then the actual must have (or it is forbidden to call
-      // onFire) so we are done only if actual is done.
-      actualSubtrigger.invokeOnFire(context);
-      // Do not clear the until trigger, because it tracks data cross firings.
-    }
-    updateFinishedState(context);
-  }
-
-  @Override
   public String toString() {
     return String.format("%s.orFinally(%s)", subTriggers.get(ACTUAL), subTriggers.get(UNTIL));
-  }
-
-  private void updateFinishedState(TriggerContext c) throws Exception {
-    boolean anyStillFinished = false;
-    for (ExecutableTrigger subTrigger : c.trigger().subTriggers()) {
-      anyStillFinished |= c.forTrigger(subTrigger).trigger().isFinished();
-    }
-    c.trigger().setFinished(anyStillFinished);
   }
 }

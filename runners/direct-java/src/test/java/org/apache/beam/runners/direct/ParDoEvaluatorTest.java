@@ -37,7 +37,7 @@ import org.apache.beam.runners.direct.WatermarkManager.TimerUpdate;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.transforms.OldDoFn;
+import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -94,10 +94,9 @@ public class ParDoEvaluatorTest {
     PCollection<Integer> output = inputPc.apply(ParDo.of(fn).withSideInputs(singletonView));
 
     CommittedBundle<Integer> inputBundle =
-        bundleFactory.createRootBundle(inputPc).commit(Instant.now());
-    UncommittedBundle<Integer> outputBundle = bundleFactory.createBundle(inputBundle, output);
-    when(evaluationContext.createBundle(inputBundle, output))
-        .thenReturn(outputBundle);
+        bundleFactory.createBundle(inputPc).commit(Instant.now());
+    UncommittedBundle<Integer> outputBundle = bundleFactory.createBundle(output);
+    when(evaluationContext.createBundle(output)).thenReturn(outputBundle);
 
     ParDoEvaluator<Integer> evaluator =
         createEvaluator(singletonView, fn, inputBundle, output);
@@ -169,7 +168,7 @@ public class ParDoEvaluatorTest {
         ImmutableMap.<TupleTag<?>, PCollection<?>>of(mainOutputTag, output));
   }
 
-  private static class RecorderFn extends OldDoFn<Integer, Integer> {
+  private static class RecorderFn extends DoFn<Integer, Integer> {
     private Collection<Integer> processed;
     private final PCollectionView<Integer> view;
 
@@ -178,8 +177,8 @@ public class ParDoEvaluatorTest {
       this.view = view;
     }
 
-    @Override
-    public void processElement(OldDoFn<Integer, Integer>.ProcessContext c) throws Exception {
+    @ProcessElement
+    public void processElement(ProcessContext c) throws Exception {
       processed.add(c.element());
       c.output(c.element() + c.sideInput(view));
     }

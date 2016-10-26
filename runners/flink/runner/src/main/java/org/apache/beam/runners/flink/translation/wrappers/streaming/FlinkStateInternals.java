@@ -17,9 +17,9 @@
  */
 package org.apache.beam.runners.flink.translation.wrappers.streaming;
 
-import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import java.nio.ByteBuffer;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import org.apache.beam.runners.flink.translation.types.CoderTypeInformation;
@@ -307,10 +307,12 @@ public class FlinkStateInternals<K> implements StateInternals<K> {
     @Override
     public Iterable<T> read() {
       try {
-        return flinkStateBackend.getPartitionedState(
+        Iterable<T> result = flinkStateBackend.getPartitionedState(
             namespace.stringKey(),
             StringSerializer.INSTANCE,
             flinkStateDescriptor).get();
+
+        return result != null ? result : Collections.<T>emptyList();
       } catch (Exception e) {
         throw new RuntimeException("Error reading state.", e);
       }
@@ -326,7 +328,7 @@ public class FlinkStateInternals<K> implements StateInternals<K> {
                 namespace.stringKey(),
                 StringSerializer.INSTANCE,
                 flinkStateDescriptor).get();
-            return Iterables.isEmpty(result);
+            return result == null;
           } catch (Exception e) {
             throw new RuntimeException("Error reading state.", e);
           }

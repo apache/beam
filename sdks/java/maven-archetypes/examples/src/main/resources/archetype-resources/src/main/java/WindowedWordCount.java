@@ -17,23 +17,24 @@
  */
 package ${package};
 
+import ${package}.common.ExampleBigQueryTableOptions;
+import ${package}.common.ExampleOptions;
+import ${package}.common.ExampleUtils;
 import com.google.api.services.bigquery.model.TableFieldSchema;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
-import ${package}.common.DataflowExampleUtils;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
-import org.apache.beam.sdk.io.PubsubIO;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.sdk.transforms.OldDoFn;
+import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
@@ -41,8 +42,7 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+
 
 /**
  * An example that counts words in text, and can run over either unbounded or bounded input
@@ -54,58 +54,43 @@ import org.slf4j.LoggerFactory;
  *
  * <p>Basic concepts, also in the MinimalWordCount, WordCount, and DebuggingWordCount examples:
  * Reading text files; counting a PCollection; writing to GCS; executing a Pipeline both locally
- * and using the Dataflow service; defining DoFns; creating a custom aggregator;
+ * and using a selected runner; defining DoFns; creating a custom aggregator;
  * user-defined PTransforms; defining PipelineOptions.
  *
  * <p>New Concepts:
  * <pre>
  *   1. Unbounded and bounded pipeline input modes
  *   2. Adding timestamps to data
- *   3. PubSub topics as sources
- *   4. Windowing
- *   5. Re-using PTransforms over windowed PCollections
- *   6. Writing to BigQuery
+ *   3. Windowing
+ *   4. Re-using PTransforms over windowed PCollections
+ *   5. Writing to BigQuery
  * </pre>
  *
- * <p>To execute this pipeline locally, specify general pipeline configuration:
+ * <p>By default, the examples will run with the {@code DirectRunner}.
+ * To change the runner, specify:
  * <pre>{@code
- *   --project=YOUR_PROJECT_ID
+ *   --runner=YOUR_SELECTED_RUNNER
  * }
  * </pre>
- *
- * <p>To execute this pipeline using the Dataflow service, specify pipeline configuration:
- * <pre>{@code
- *   --project=YOUR_PROJECT_ID
- *   --stagingLocation=gs://YOUR_STAGING_DIRECTORY
- *   --runner=BlockingDataflowRunner
- * }
- * </pre>
+ * See examples/java/README.md for instructions about how to configure different runners.
  *
  * <p>Optionally specify the input file path via:
  * {@code --inputFile=gs://INPUT_PATH},
- * which defaults to {@code gs://dataflow-samples/shakespeare/kinglear.txt}.
+ * which defaults to {@code gs://apache-beam-samples/shakespeare/kinglear.txt}.
  *
  * <p>Specify an output BigQuery dataset and optionally, a table for the output. If you don't
  * specify the table, one will be created for you using the job name. If you don't specify the
- * dataset, a dataset called {@code dataflow-examples} must already exist in your project.
+ * dataset, a dataset called {@code beam_examples} must already exist in your project.
  * {@code --bigQueryDataset=YOUR-DATASET --bigQueryTable=YOUR-NEW-TABLE-NAME}.
- *
- * <p>Decide whether you want your pipeline to run with 'bounded' (such as files in GCS) or
- * 'unbounded' input (such as a PubSub topic). To run with unbounded input, set
- * {@code --unbounded=true}. Then, optionally specify the Google Cloud PubSub topic to read from
- * via {@code --pubsubTopic=projects/PROJECT_ID/topics/YOUR_TOPIC_NAME}. If the topic does not
- * exist, the pipeline will create one for you. It will delete this topic when it terminates.
- * The pipeline will automatically launch an auxiliary batch pipeline to populate the given PubSub
- * topic with the contents of the {@code --inputFile}, in order to make the example easy to run.
- * If you want to use an independently-populated PubSub topic, indicate this by setting
- * {@code --inputFile=""}. In that case, the auxiliary pipeline will not be started.
  *
  * <p>By default, the pipeline will do fixed windowing, on 1-minute windows.  You can
  * change this interval by setting the {@code --windowSize} parameter, e.g. {@code --windowSize=10}
  * for 10-minute windows.
+ *
+ * <p>The example will try to cancel the pipelines on the signal to terminate the process (CTRL-C)
+ * and then exits.
  */
 public class WindowedWordCount {
-    private static final Logger LOG = LoggerFactory.getLogger(WindowedWordCount.class);
     static final int WINDOW_SIZE = 1;  // Default window duration in minutes
 
   /**
@@ -116,14 +101,19 @@ public class WindowedWordCount {
    * his masterworks. Each line of the corpus will get a random associated timestamp somewhere in a
    * 2-hour period.
    */
-  static class AddTimestampFn extends OldDoFn<String, String> {
-    private static final long RAND_RANGE = 7200000; // 2 hours in ms
+  static class AddTimestampFn extends DoFn<String, String> {
+    private static final Duration RAND_RANGE = Duration.standardHours(2);
+    private final Instant minTimestamp;
 
-    @Override
+    AddTimestampFn() {
+      this.minTimestamp = new Instant(System.currentTimeMillis());
+    }
+
+    @ProcessElement
     public void processElement(ProcessContext c) {
       // Generate a timestamp that falls somewhere in the past two hours.
-      long randomTimestamp = System.currentTimeMillis()
-        - (int) (Math.random() * RAND_RANGE);
+      long randMillis = (long) (Math.random() * RAND_RANGE.getMillis());
+      Instant randomTimestamp = minTimestamp.plus(randMillis);
       /**
        * Concept #2: Set the data element with that timestamp.
        */
@@ -132,8 +122,8 @@ public class WindowedWordCount {
   }
 
   /** A DoFn that converts a Word and Count into a BigQuery table row. */
-  static class FormatAsTableRowFn extends OldDoFn<KV<String, Long>, TableRow> {
-    @Override
+  static class FormatAsTableRowFn extends DoFn<KV<String, Long>, TableRow> {
+    @ProcessElement
     public void processElement(ProcessContext c) {
       TableRow row = new TableRow()
           .set("word", c.element().getKey())
@@ -157,7 +147,7 @@ public class WindowedWordCount {
   }
 
   /**
-   * Concept #6: We'll stream the results to a BigQuery table. The BigQuery output source is one
+   * Concept #5: We'll stream the results to a BigQuery table. The BigQuery output source is one
    * that supports both bounded and unbounded data. This is a helper method that creates a
    * TableReference from input options, to tell the pipeline where to write its BigQuery results.
    */
@@ -173,56 +163,39 @@ public class WindowedWordCount {
    * Options supported by {@link WindowedWordCount}.
    *
    * <p>Inherits standard example configuration options, which allow specification of the BigQuery
-   * table and the PubSub topic, as well as the {@link WordCount.WordCountOptions} support for
+   * table, as well as the {@link WordCount.WordCountOptions} support for
    * specification of the input file.
    */
-  public static interface Options
-        extends WordCount.WordCountOptions, DataflowExampleUtils.DataflowExampleUtilsOptions {
+  public interface Options extends WordCount.WordCountOptions,
+      ExampleOptions, ExampleBigQueryTableOptions {
     @Description("Fixed window duration, in minutes")
     @Default.Integer(WINDOW_SIZE)
     Integer getWindowSize();
     void setWindowSize(Integer value);
-
-    @Description("Whether to run the pipeline with unbounded input")
-    boolean isUnbounded();
-    void setUnbounded(boolean value);
   }
 
   public static void main(String[] args) throws IOException {
     Options options = PipelineOptionsFactory.fromArgs(args).withValidation().as(Options.class);
     options.setBigQuerySchema(getSchema());
-    // DataflowExampleUtils creates the necessary input sources to simplify execution of this
-    // Pipeline.
-    DataflowExampleUtils exampleDataflowUtils = new DataflowExampleUtils(options,
-      options.isUnbounded());
+    // ExampleUtils creates the necessary input sources to simplify execution of this Pipeline.
+    ExampleUtils exampleUtils = new ExampleUtils(options);
+    exampleUtils.setup();
 
     Pipeline pipeline = Pipeline.create(options);
 
     /**
-     * Concept #1: the Dataflow SDK lets us run the same pipeline with either a bounded or
+     * Concept #1: the Beam SDK lets us run the same pipeline with either a bounded or
      * unbounded input source.
      */
-    PCollection<String> input;
-    if (options.isUnbounded()) {
-      LOG.info("Reading from PubSub.");
-      /**
-       * Concept #3: Read from the PubSub topic. A topic will be created if it wasn't
-       * specified as an argument. The data elements' timestamps will come from the pubsub
-       * injection.
-       */
-      input = pipeline
-          .apply(PubsubIO.Read.topic(options.getPubsubTopic()));
-    } else {
-      /** Else, this is a bounded pipeline. Read from the GCS file. */
-      input = pipeline
-          .apply(TextIO.Read.from(options.getInputFile()))
-          // Concept #2: Add an element timestamp, using an artificial time just to show windowing.
-          // See AddTimestampFn for more detail on this.
-          .apply(ParDo.of(new AddTimestampFn()));
-    }
+    PCollection<String> input = pipeline
+      /** Read from the GCS file. */
+      .apply(TextIO.Read.from(options.getInputFile()))
+      // Concept #2: Add an element timestamp, using an artificial time just to show windowing.
+      // See AddTimestampFn for more detail on this.
+      .apply(ParDo.of(new AddTimestampFn()));
 
     /**
-     * Concept #4: Window into fixed windows. The fixed window size for this example defaults to 1
+     * Concept #3: Window into fixed windows. The fixed window size for this example defaults to 1
      * minute (you can change this with a command-line option). See the documentation for more
      * information on how fixed windows work, and for information on the other types of windowing
      * available (e.g., sliding windows).
@@ -232,29 +205,25 @@ public class WindowedWordCount {
         FixedWindows.of(Duration.standardMinutes(options.getWindowSize()))));
 
     /**
-     * Concept #5: Re-use our existing CountWords transform that does not have knowledge of
+     * Concept #4: Re-use our existing CountWords transform that does not have knowledge of
      * windows over a PCollection containing windowed values.
      */
     PCollection<KV<String, Long>> wordCounts = windowedWords.apply(new WordCount.CountWords());
 
     /**
-     * Concept #6: Format the results for a BigQuery table, then write to BigQuery.
+     * Concept #5: Format the results for a BigQuery table, then write to BigQuery.
      * The BigQuery output source supports both bounded and unbounded data.
      */
     wordCounts.apply(ParDo.of(new FormatAsTableRowFn()))
-        .apply(BigQueryIO.Write.to(getTableReference(options)).withSchema(getSchema()));
+        .apply(BigQueryIO.Write
+          .to(getTableReference(options))
+          .withSchema(getSchema())
+          .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED)
+          .withWriteDisposition(BigQueryIO.Write.WriteDisposition.WRITE_APPEND));
 
     PipelineResult result = pipeline.run();
 
-    /**
-     * To mock unbounded input from PubSub, we'll now start an auxiliary 'injector' pipeline that
-     * runs for a limited time, and publishes to the input PubSub topic.
-     *
-     * With an unbounded input source, you will need to explicitly shut down this pipeline when you
-     * are done with it, so that you do not continue to be charged for the instances. You can do
-     * this via a ctrl-C from the command line, or from the developer's console UI for Dataflow
-     * pipelines. The PubSub topic will also be deleted at this time.
-     */
-    exampleDataflowUtils.mockUnboundedSource(options.getInputFile(), result);
+    // ExampleUtils will try to cancel the pipeline before the program exists.
+    exampleUtils.waitToFinish(result);
   }
 }

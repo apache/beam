@@ -29,6 +29,7 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.java.CollectionEnvironment;
 import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.slf4j.Logger;
@@ -219,6 +220,12 @@ public class FlinkPipelineExecutionEnvironment {
         throw new IllegalArgumentException("The checkpoint interval must be positive");
       }
       flinkStreamEnv.enableCheckpointing(checkpointInterval);
+    }
+
+    // State backend
+    final AbstractStateBackend stateBackend = options.getStateBackend();
+    if (stateBackend != null) {
+      flinkStreamEnv.setStateBackend(stateBackend);
     }
 
     return flinkStreamEnv;

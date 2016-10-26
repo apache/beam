@@ -29,11 +29,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import org.apache.beam.runners.spark.EvaluationResult;
+import org.apache.beam.runners.spark.aggregators.AccumulatorSingleton;
 import org.apache.beam.runners.spark.coders.CoderHelpers;
 import org.apache.beam.sdk.AggregatorRetrievalException;
 import org.apache.beam.sdk.AggregatorValues;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.metrics.MetricResults;
 import org.apache.beam.sdk.transforms.Aggregator;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -68,7 +70,7 @@ public class EvaluationContext implements EvaluationResult {
   public EvaluationContext(JavaSparkContext jsc, Pipeline pipeline) {
     this.jsc = jsc;
     this.pipeline = pipeline;
-    this.runtime = new SparkRuntimeContext(jsc, pipeline);
+    this.runtime = new SparkRuntimeContext(pipeline, jsc);
   }
 
   /**
@@ -136,7 +138,7 @@ public class EvaluationContext implements EvaluationResult {
     return jsc;
   }
 
-  protected Pipeline getPipeline() {
+  public Pipeline getPipeline() {
     return pipeline;
   }
 
@@ -144,7 +146,7 @@ public class EvaluationContext implements EvaluationResult {
     return runtime;
   }
 
-  protected void setCurrentTransform(AppliedPTransform<?, ?, ?> transform) {
+  public void setCurrentTransform(AppliedPTransform<?, ?, ?> transform) {
     this.currentTransform = transform;
   }
 
@@ -178,7 +180,7 @@ public class EvaluationContext implements EvaluationResult {
     pcollections.put((PValue) getOutput(transform), new RDDHolder<>(values, coder));
   }
 
-  void setPView(PValue view, Iterable<? extends WindowedValue<?>> value) {
+  public void setPView(PValue view, Iterable<? extends WindowedValue<?>> value) {
     pview.put(view, value);
   }
 
@@ -187,7 +189,7 @@ public class EvaluationContext implements EvaluationResult {
     return pcollections.containsKey(pvalue);
   }
 
-  protected JavaRDDLike<?, ?> getRDD(PValue pvalue) {
+  public JavaRDDLike<?, ?> getRDD(PValue pvalue) {
     RDDHolder<?> rddHolder = pcollections.get(pvalue);
     JavaRDDLike<?, ?> rdd = rddHolder.getRDD();
     leafRdds.remove(rddHolder);
@@ -211,7 +213,7 @@ public class EvaluationContext implements EvaluationResult {
     leafRdds.add(rddHolder);
   }
 
-  JavaRDDLike<?, ?> getInputRDD(PTransform<? extends PInput, ?> transform) {
+  protected JavaRDDLike<?, ?> getInputRDD(PTransform<? extends PInput, ?> transform) {
     return getRDD((PValue) getInput(transform));
   }
 
@@ -252,13 +254,18 @@ public class EvaluationContext implements EvaluationResult {
 
   @Override
   public <T> T getAggregatorValue(String named, Class<T> resultType) {
-    return runtime.getAggregatorValue(named, resultType);
+    return runtime.getAggregatorValue(AccumulatorSingleton.getInstance(jsc), named, resultType);
   }
 
   @Override
   public <T> AggregatorValues<T> getAggregatorValues(Aggregator<?, T> aggregator)
       throws AggregatorRetrievalException {
-    return runtime.getAggregatorValues(aggregator);
+    return runtime.getAggregatorValues(AccumulatorSingleton.getInstance(jsc), aggregator);
+  }
+
+  @Override
+  public MetricResults metrics() {
+    throw new UnsupportedOperationException("The SparkRunner does not currently support metrics.");
   }
 
   @Override
@@ -276,7 +283,8 @@ public class EvaluationContext implements EvaluationResult {
   }
 
   @Override
-  public void close() {
+  public void close(boolean gracefully) {
+    // graceful stop is used for streaming.
     SparkContextFactory.stopSparkContext(jsc);
   }
 
@@ -301,7 +309,9 @@ public class EvaluationContext implements EvaluationResult {
   @Override
   public State waitUntilFinish(Duration duration)
       throws IOException, InterruptedException {
-    throw new UnsupportedOperationException(
-        "Spark runner EvaluationContext does not support waitUntilFinish.");
+    // This is no-op, since Spark runner in batch is blocking.
+    // It needs to be updated once SparkRunner supports non-blocking execution:
+    // https://issues.apache.org/jira/browse/BEAM-595
+    return State.DONE;
   }
 }

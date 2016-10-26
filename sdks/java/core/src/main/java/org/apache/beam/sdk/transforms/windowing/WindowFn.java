@@ -128,7 +128,7 @@ public abstract class WindowFn<T, W extends BoundedWindow>
    *
    * <p>Authors of custom {@code WindowFn}s should override this.
    */
-  public abstract W getSideInputWindow(final BoundedWindow window);
+  public abstract W getSideInputWindow(BoundedWindow window);
 
   /**
    * Returns the output timestamp to use for data depending on the given

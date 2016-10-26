@@ -60,6 +60,8 @@ public interface EvaluationResult extends PipelineResult {
    * this EvaluationResult; once close() has been called,
    * {@link EvaluationResult#get(PCollection)} might
    * not work for subsequent calls.
+   *
+   * @param gracefully true if Spark should finish all ongoing work before closing.
    */
-  void close();
+  void close(boolean gracefully);
 }

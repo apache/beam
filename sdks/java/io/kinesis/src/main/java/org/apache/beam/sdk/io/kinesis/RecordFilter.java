@@ -24,9 +24,9 @@ import java.util.List;
 
 /**
  * Filters out records, which were already processed and checkpointed.
- * <p>
- * We need this step, because we can get iterators from Kinesis only with "sequenceNumber" accuracy,
- * not with "subSequenceNumber" accuracy.
+ *
+ * <p>We need this step, because we can get iterators from Kinesis only with "sequenceNumber"
+ * accuracy, not with "subSequenceNumber" accuracy.
  */
 class RecordFilter {
     public List<KinesisRecord> apply(List<KinesisRecord> records, ShardCheckpoint checkpoint) {

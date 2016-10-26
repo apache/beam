@@ -96,6 +96,8 @@ class EvaluationContext {
 
   private final AggregatorContainer mergedAggregators;
 
+  private final DirectMetrics metrics;
+
   public static EvaluationContext create(
       DirectOptions options,
       Clock clock,
@@ -130,9 +132,15 @@ class EvaluationContext {
 
     this.applicationStateInternals = new ConcurrentHashMap<>();
     this.mergedAggregators = AggregatorContainer.create();
+    this.metrics = new DirectMetrics();
 
     this.callbackExecutor =
         WatermarkCallbackExecutor.create(MoreExecutors.directExecutor());
+  }
+
+  public void initialize(
+      Map<AppliedPTransform<?, ?, ?>, ? extends Iterable<CommittedBundle<?>>> initialInputs) {
+    watermarkManager.initialize(initialInputs);
   }
 
   /**
@@ -156,6 +164,8 @@ class EvaluationContext {
       TransformResult result) {
     Iterable<? extends CommittedBundle<?>> committedBundles =
         commitBundles(result.getOutputBundles());
+    metrics.commitLogical(completedBundle, result.getLogicalMetricUpdates());
+
     // Update watermarks and timers
     EnumSet<OutputType> outputTypes = EnumSet.copyOf(result.getOutputTypes());
     if (Iterables.isEmpty(committedBundles)) {
@@ -226,16 +236,16 @@ class EvaluationContext {
   /**
    * Create a {@link UncommittedBundle} for use by a source.
    */
-  public <T> UncommittedBundle<T> createRootBundle(PCollection<T> output) {
-    return bundleFactory.createRootBundle(output);
+  public <T> UncommittedBundle<T> createRootBundle() {
+    return bundleFactory.createRootBundle();
   }
 
   /**
    * Create a {@link UncommittedBundle} whose elements belong to the specified {@link
    * PCollection}.
    */
-  public <T> UncommittedBundle<T> createBundle(CommittedBundle<?> input, PCollection<T> output) {
-    return bundleFactory.createBundle(input, output);
+  public <T> UncommittedBundle<T> createBundle(PCollection<T> output) {
+    return bundleFactory.createBundle(output);
   }
 
   /**
@@ -243,8 +253,8 @@ class EvaluationContext {
    * {@link DirectGroupByKeyOnly} {@link PTransform PTransforms}.
    */
   public <K, T> UncommittedBundle<T> createKeyedBundle(
-      CommittedBundle<?> input, StructuralKey<K> key, PCollection<T> output) {
-    return bundleFactory.createKeyedBundle(input, key, output);
+      StructuralKey<K> key, PCollection<T> output) {
+    return bundleFactory.createKeyedBundle(key, output);
   }
 
   /**
@@ -360,6 +370,11 @@ class EvaluationContext {
    */
   public AggregatorContainer getAggregatorContainer() {
     return mergedAggregators;
+  }
+
+  /** Returns the metrics container for this pipeline. */
+  public DirectMetrics getMetrics() {
+    return metrics;
   }
 
   @VisibleForTesting

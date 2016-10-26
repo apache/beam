@@ -166,7 +166,7 @@ public class WindowedWordCount {
    * table, as well as the {@link WordCount.WordCountOptions} support for
    * specification of the input file.
    */
-  public static interface Options extends WordCount.WordCountOptions,
+  public interface Options extends WordCount.WordCountOptions,
       ExampleOptions, ExampleBigQueryTableOptions {
     @Description("Fixed window duration, in minutes")
     @Default.Integer(WINDOW_SIZE)

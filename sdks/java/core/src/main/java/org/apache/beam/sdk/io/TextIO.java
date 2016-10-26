@@ -17,11 +17,13 @@
  */
 package org.apache.beam.sdk.io;
 
+import static com.google.common.base.MoreObjects.firstNonNull;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.protobuf.ByteString;
+
 import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.ByteBuffer;
@@ -32,11 +34,14 @@ import java.nio.channels.WritableByteChannel;
 import java.nio.charset.StandardCharsets;
 import java.util.NoSuchElementException;
 import java.util.regex.Pattern;
+
 import javax.annotation.Nullable;
+
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.Coder.Context;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VoidCoder;
+import org.apache.beam.sdk.io.FileBasedSink.WritableByteChannelFactory;
 import org.apache.beam.sdk.io.Read.Bounded;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -71,8 +76,7 @@ import org.apache.beam.sdk.values.PDone;
  * PCollection<String> lines =
  *     p.apply(TextIO.Read.from("/local/path/to/file.txt"));
  *
- * // A fully-specified Read from a GCS file (runs locally and via the
- * // Google Cloud Dataflow service):
+ * // A fully-specified Read from a GCS file:
  * PCollection<Integer> numbers =
  *     p.apply("ReadNumbers", TextIO.Read
  *         .from("gs://my_bucket/path/to/numbers-*.txt")
@@ -96,22 +100,21 @@ import org.apache.beam.sdk.values.PDone;
  * PCollection<String> lines = ...;
  * lines.apply(TextIO.Write.to("/path/to/file.txt"));
  *
- * // A fully-specified Write to a sharded GCS file (runs locally and via the
- * // Google Cloud Dataflow service):
+ * // A fully-specified Write to a sharded GCS file:
  * PCollection<Integer> numbers = ...;
  * numbers.apply("WriteNumbers", TextIO.Write
  *      .to("gs://my_bucket/path/to/numbers")
  *      .withSuffix(".txt")
  *      .withCoder(TextualIntegerCoder.of()));
- * }</pre>
  *
- * <h3>Permissions</h3>
- * <p>When run using the {@code DirectRunner}, your pipeline can read and write text files
- * on your local drive and remote text files on Google Cloud Storage that you have access to using
- * your {@code gcloud} credentials. When running in the Dataflow service, the pipeline can only
- * read and write files from GCS. For more information about permissions, see the Cloud Dataflow
- * documentation on <a href="https://cloud.google.com/dataflow/security-and-permissions">Security
- * and Permissions</a>.
+ * // Same as above, only with Gzip compression:
+ * PCollection<Integer> numbers = ...;
+ * numbers.apply("WriteNumbers", TextIO.Write
+ *      .to("gs://my_bucket/path/to/numbers")
+ *      .withSuffix(".txt")
+ *      .withCoder(TextualIntegerCoder.of())
+ *      .withWritableByteChannelFactory(FileBasedSink.CompressionType.GZIP));
+ * }</pre>
  */
 public class TextIO {
   /** The default coder, which returns each line of the input file as a string. */
@@ -229,7 +232,7 @@ public class TextIO {
 
       /**
        * Returns a new transform for reading from text files that's like this one but
-       * that uses the given {@link Coder Coder<X>} to decode each of the
+       * that uses the given {@link Coder Coder&lt;X&gt;} to decode each of the
        * lines of the file into a value of type {@code X}.
        *
        * <p>Does not modify this object.
@@ -286,40 +289,35 @@ public class TextIO {
           }
         }
 
-        // Create a source specific to the requested compression type.
-        final Bounded<T> read;
-        switch(compressionType) {
-          case UNCOMPRESSED:
-            read = org.apache.beam.sdk.io.Read.from(
-                new TextSource<T>(filepattern, coder));
-            break;
-          case AUTO:
-            read = org.apache.beam.sdk.io.Read.from(
-                CompressedSource.from(new TextSource<T>(filepattern, coder)));
-            break;
-          case BZIP2:
-            read = org.apache.beam.sdk.io.Read.from(
-                CompressedSource.from(new TextSource<T>(filepattern, coder))
-                                .withDecompression(CompressedSource.CompressionMode.BZIP2));
-            break;
-          case GZIP:
-            read = org.apache.beam.sdk.io.Read.from(
-                CompressedSource.from(new TextSource<T>(filepattern, coder))
-                                .withDecompression(CompressedSource.CompressionMode.GZIP));
-            break;
-          case ZIP:
-            read = org.apache.beam.sdk.io.Read.from(
-                CompressedSource.from(new TextSource<T>(filepattern, coder))
-                                .withDecompression(CompressedSource.CompressionMode.ZIP));
-            break;
-          default:
-            throw new IllegalArgumentException("Unknown compression mode: " + compressionType);
-        }
-
+        final Bounded<T> read = org.apache.beam.sdk.io.Read.from(getSource());
         PCollection<T> pcol = input.getPipeline().apply("Read", read);
         // Honor the default output coder that would have been used by this PTransform.
         pcol.setCoder(getDefaultOutputCoder());
         return pcol;
+      }
+
+      // Helper to create a source specific to the requested compression type.
+      protected FileBasedSource<T> getSource() {
+        switch (compressionType) {
+          case UNCOMPRESSED:
+            return new TextSource<T>(filepattern, coder);
+          case AUTO:
+            return CompressedSource.from(new TextSource<T>(filepattern, coder));
+          case BZIP2:
+            return
+                CompressedSource.from(new TextSource<T>(filepattern, coder))
+                    .withDecompression(CompressedSource.CompressionMode.BZIP2);
+          case GZIP:
+            return
+                CompressedSource.from(new TextSource<T>(filepattern, coder))
+                    .withDecompression(CompressedSource.CompressionMode.GZIP);
+          case ZIP:
+            return
+                CompressedSource.from(new TextSource<T>(filepattern, coder))
+                    .withDecompression(CompressedSource.CompressionMode.ZIP);
+          default:
+            throw new IllegalArgumentException("Unknown compression type: " + compressionType);
+        }
       }
 
       @Override
@@ -450,26 +448,41 @@ public class TextIO {
 
     /**
      * Returns a transform for writing to text files that adds a header string to the files
-     * it writes.
+     * it writes. Note that a newline character will be added after the header.
      *
      * <p>A {@code null} value will clear any previously configured header.
      *
      * @param header the string to be added as file header
      */
-    public static Bound<String> withHeader(String header) {
+    public static Bound<String> withHeader(@Nullable String header) {
       return new Bound<>(DEFAULT_TEXT_CODER).withHeader(header);
     }
 
     /**
      * Returns a transform for writing to text files that adds a footer string to the files
-     * it writes.
+     * it writes. Note that a newline character will be added after the header.
      *
      * <p>A {@code null} value will clear any previously configured footer.
      *
      * @param footer the string to be added as file footer
      */
-    public static Bound<String> withFooter(String footer) {
+    public static Bound<String> withFooter(@Nullable String footer) {
       return new Bound<>(DEFAULT_TEXT_CODER).withFooter(footer);
+    }
+
+    /**
+     * Returns a transform for writing to text files like this one but that has the given
+     * {@link WritableByteChannelFactory} to be used by the {@link FileBasedSink} during output. The
+     * default is value is {@link FileBasedSink.CompressionType#UNCOMPRESSED}.
+     *
+     * <p>A {@code null} value will reset the value to the default value mentioned above.
+     *
+     * @param writableByteChannelFactory the factory to be used during output
+     */
+    public static Bound<String> withWritableByteChannelFactory(
+        WritableByteChannelFactory writableByteChannelFactory) {
+      return new Bound<>(DEFAULT_TEXT_CODER)
+          .withWritableByteChannelFactory(writableByteChannelFactory);
     }
 
     // TODO: appendingNewlines, etc.
@@ -490,10 +503,10 @@ public class TextIO {
       private final String filenameSuffix;
 
       /** An optional header to add to each file. */
-      private final String header;
+      @Nullable private final String header;
 
       /** An optional footer to add to each file. */
-      private final String footer;
+      @Nullable private final String footer;
 
       /** The Coder to use to decode each line. */
       private final Coder<T> coder;
@@ -507,13 +520,21 @@ public class TextIO {
       /** An option to indicate if output validation is desired. Default is true. */
       private final boolean validate;
 
+      /**
+       * The {@link WritableByteChannelFactory} to be used by the {@link FileBasedSink}. Default is
+       * {@link FileBasedSink.CompressionType#UNCOMPRESSED}.
+       */
+      private final WritableByteChannelFactory writableByteChannelFactory;
+
       Bound(Coder<T> coder) {
-        this(null, null, "", null, null, coder, 0, DEFAULT_SHARD_TEMPLATE, true);
+        this(null, null, "", null, null, coder, 0, DEFAULT_SHARD_TEMPLATE, true,
+            FileBasedSink.CompressionType.UNCOMPRESSED);
       }
 
-      private Bound(String name, String filenamePrefix, String filenameSuffix, String header,
-                    String footer, Coder<T> coder, int numShards, String shardTemplate,
-                    boolean validate) {
+      private Bound(String name, String filenamePrefix, String filenameSuffix,
+          @Nullable String header, @Nullable String footer, Coder<T> coder, int numShards,
+          String shardTemplate, boolean validate,
+          WritableByteChannelFactory writableByteChannelFactory) {
         super(name);
         this.header = header;
         this.footer = footer;
@@ -523,6 +544,8 @@ public class TextIO {
         this.numShards = numShards;
         this.shardTemplate = shardTemplate;
         this.validate = validate;
+        this.writableByteChannelFactory =
+            firstNonNull(writableByteChannelFactory, FileBasedSink.CompressionType.UNCOMPRESSED);
       }
 
       /**
@@ -536,7 +559,7 @@ public class TextIO {
       public Bound<T> to(String filenamePrefix) {
         validateOutputComponent(filenamePrefix);
         return new Bound<>(name, filenamePrefix, filenameSuffix, header, footer, coder, numShards,
-            shardTemplate, validate);
+            shardTemplate, validate, writableByteChannelFactory);
       }
 
       /**
@@ -550,7 +573,7 @@ public class TextIO {
       public Bound<T> withSuffix(String nameExtension) {
         validateOutputComponent(nameExtension);
         return new Bound<>(name, filenamePrefix, nameExtension, header, footer, coder, numShards,
-            shardTemplate, validate);
+            shardTemplate, validate, writableByteChannelFactory);
       }
 
       /**
@@ -570,7 +593,7 @@ public class TextIO {
       public Bound<T> withNumShards(int numShards) {
         checkArgument(numShards >= 0);
         return new Bound<>(name, filenamePrefix, filenameSuffix, header, footer, coder, numShards,
-            shardTemplate, validate);
+            shardTemplate, validate, writableByteChannelFactory);
       }
 
       /**
@@ -583,7 +606,7 @@ public class TextIO {
        */
       public Bound<T> withShardNameTemplate(String shardTemplate) {
         return new Bound<>(name, filenamePrefix, filenameSuffix, header, footer, coder, numShards,
-            shardTemplate, validate);
+            shardTemplate, validate, writableByteChannelFactory);
       }
 
       /**
@@ -601,20 +624,20 @@ public class TextIO {
        */
       public Bound<T> withoutSharding() {
         return new Bound<>(name, filenamePrefix, filenameSuffix, header, footer, coder, 1, "",
-            validate);
+            validate, writableByteChannelFactory);
       }
 
       /**
        * Returns a transform for writing to text files that's like this one
-       * but that uses the given {@link Coder Coder<X>} to encode each of
-       * the elements of the input {@link PCollection PCollection<X>} into an
+       * but that uses the given {@link Coder Coder&lt;X&gt;} to encode each of
+       * the elements of the input {@link PCollection PCollection&lt;X&gt;} into an
        * output text line. Does not modify this object.
        *
        * @param <X> the type of the elements of the input {@link PCollection}
        */
       public <X> Bound<X> withCoder(Coder<X> coder) {
         return new Bound<>(name, filenamePrefix, filenameSuffix, header, footer, coder, numShards,
-            shardTemplate, validate);
+            shardTemplate, validate, writableByteChannelFactory);
       }
 
       /**
@@ -629,12 +652,12 @@ public class TextIO {
        */
       public Bound<T> withoutValidation() {
         return new Bound<>(name, filenamePrefix, filenameSuffix, header, footer, coder, numShards,
-            shardTemplate, false);
+            shardTemplate, false, writableByteChannelFactory);
       }
 
       /**
        * Returns a transform for writing to text files that adds a header string to the files
-       * it writes.
+       * it writes. Note that a newline character will be added after the header.
        *
        * <p>A {@code null} value will clear any previously configured header.
        *
@@ -642,14 +665,14 @@ public class TextIO {
        *
        * @param header the string to be added as file header
        */
-      public Bound<T> withHeader(String header) {
+      public Bound<T> withHeader(@Nullable String header) {
         return new Bound<>(name, filenamePrefix, filenameSuffix, header, footer, coder, numShards,
-            shardTemplate, false);
+            shardTemplate, validate, writableByteChannelFactory);
       }
 
       /**
        * Returns a transform for writing to text files that adds a footer string to the files
-       * it writes.
+       * it writes. Note that a newline character will be added after the header.
        *
        * <p>A {@code null} value will clear any previously configured footer.
        *
@@ -657,9 +680,26 @@ public class TextIO {
        *
        * @param footer the string to be added as file footer
        */
-      public Bound<T> withFooter(String footer) {
+      public Bound<T> withFooter(@Nullable String footer) {
         return new Bound<>(name, filenamePrefix, filenameSuffix, header, footer, coder, numShards,
-            shardTemplate, false);
+            shardTemplate, validate, writableByteChannelFactory);
+      }
+
+      /**
+       * Returns a transform for writing to text files like this one but that has the given
+       * {@link WritableByteChannelFactory} to be used by the {@link FileBasedSink} during output.
+       * The default is value is {@link FileBasedSink.CompressionType#UNCOMPRESSED}.
+       *
+       * <p>A {@code null} value will reset the value to the default value mentioned above.
+       *
+       * <p>Does not modify this object.
+       *
+       * @param writableByteChannelFactory the factory to be used during output
+       */
+      public Bound<T> withWritableByteChannelFactory(
+          WritableByteChannelFactory writableByteChannelFactory) {
+        return new Bound<>(name, filenamePrefix, filenameSuffix, header, footer, coder, numShards,
+            shardTemplate, validate, writableByteChannelFactory);
       }
 
       @Override
@@ -668,11 +708,10 @@ public class TextIO {
           throw new IllegalStateException(
               "need to set the filename prefix of a TextIO.Write transform");
         }
-
         org.apache.beam.sdk.io.Write.Bound<T> write =
             org.apache.beam.sdk.io.Write.to(
                 new TextSink<>(filenamePrefix, filenameSuffix, header, footer, shardTemplate,
-                    coder));
+                    coder, writableByteChannelFactory));
         if (getNumShards() > 0) {
           write = write.withNumShards(getNumShards());
         }
@@ -698,7 +737,10 @@ public class TextIO {
             .addIfNotNull(DisplayData.item("fileHeader", header)
               .withLabel("File Header"))
             .addIfNotNull(DisplayData.item("fileFooter", footer)
-                .withLabel("File Footer"));
+                .withLabel("File Footer"))
+            .add(DisplayData
+                .item("writableByteChannelFactory", writableByteChannelFactory.toString())
+                .withLabel("Compression/Transformation Type"));
       }
 
       /**
@@ -733,10 +775,12 @@ public class TextIO {
         return coder;
       }
 
+      @Nullable
       public String getHeader() {
         return header;
       }
 
+      @Nullable
       public String getFooter() {
         return footer;
       }
@@ -750,7 +794,7 @@ public class TextIO {
   /**
    * Possible text file compression types.
    */
-  public static enum CompressionType {
+  public enum CompressionType {
     /**
      * Automatically determine the compression type based on filename extension.
      */
@@ -774,7 +818,7 @@ public class TextIO {
 
     private String filenameSuffix;
 
-    private CompressionType(String suffix) {
+    CompressionType(String suffix) {
       this.filenameSuffix = suffix;
     }
 
@@ -805,7 +849,7 @@ public class TextIO {
   private TextIO() {}
 
   /**
-   * A {@link FileBasedSource} which can decode records delimited by new line characters.
+   * A {@link FileBasedSource} which can decode records delimited by newline characters.
    *
    * <p>This source splits the data into records using {@code UTF-8} {@code \n}, {@code \r}, or
    * {@code \r\n} as the delimiter. This source is not strict and supports decoding the last record
@@ -853,9 +897,9 @@ public class TextIO {
 
     /**
      * A {@link org.apache.beam.sdk.io.FileBasedSource.FileBasedReader FileBasedReader}
-     * which can decode records delimited by new line characters.
+     * which can decode records delimited by newline characters.
      *
-     * See {@link TextSource} for further details.
+     * <p>See {@link TextSource} for further details.
      */
     @VisibleForTesting
     static class TextBasedReader<T> extends FileBasedReader<T> {
@@ -987,7 +1031,7 @@ public class TextIO {
       /**
        * Decodes the current element updating the buffer to only contain the unconsumed bytes.
        *
-       * This invalidates the currently stored {@code startOfSeparatorInBuffer} and
+       * <p>This invalidates the currently stored {@code startOfSeparatorInBuffer} and
        * {@code endOfSeparatorInBuffer}.
        */
       private void decodeCurrentElement() throws IOException {
@@ -1016,21 +1060,23 @@ public class TextIO {
   }
 
   /**
-   * A {@link FileBasedSink} for text files. Produces text files with the new line separator
+   * A {@link FileBasedSink} for text files. Produces text files with the newline separator
    * {@code '\n'} represented in {@code UTF-8} format as the record separator.
    * Each record (including the last) is terminated.
    */
   @VisibleForTesting
   static class TextSink<T> extends FileBasedSink<T> {
     private final Coder<T> coder;
-    private final String header;
-    private final String footer;
+    @Nullable private final String header;
+    @Nullable private final String footer;
 
     @VisibleForTesting
     TextSink(
-        String baseOutputFilename, String extension, String header, String footer,
-        String fileNameTemplate, Coder<T> coder) {
-      super(baseOutputFilename, extension, fileNameTemplate);
+        String baseOutputFilename, String extension,
+        @Nullable String header, @Nullable String footer,
+        String fileNameTemplate, Coder<T> coder,
+        WritableByteChannelFactory writableByteChannelFactory) {
+      super(baseOutputFilename, extension, fileNameTemplate, writableByteChannelFactory);
       this.coder = coder;
       this.header = header;
       this.footer = footer;
@@ -1047,10 +1093,11 @@ public class TextIO {
      */
     private static class TextWriteOperation<T> extends FileBasedWriteOperation<T> {
       private final Coder<T> coder;
-      private final String header;
-      private final String footer;
+      @Nullable private final String header;
+      @Nullable private final String footer;
 
-      private TextWriteOperation(TextSink<T> sink, Coder<T> coder, String header, String footer) {
+      private TextWriteOperation(TextSink<T> sink, Coder<T> coder,
+          @Nullable String header, @Nullable String footer) {
         super(sink);
         this.coder = coder;
         this.header = header;
@@ -1070,20 +1117,12 @@ public class TextIO {
     private static class TextWriter<T> extends FileBasedWriter<T> {
       private static final byte[] NEWLINE = "\n".getBytes(StandardCharsets.UTF_8);
       private final Coder<T> coder;
-      private final String header;
-      private final String footer;
+      @Nullable private final String header;
+      @Nullable private final String footer;
       private OutputStream out;
 
-      public TextWriter(FileBasedWriteOperation<T> writeOperation, Coder<T> coder) {
-        this(writeOperation, coder, null, null);
-      }
-
-      public TextWriter(FileBasedWriteOperation<T> writeOperation, Coder<T> coder, String header) {
-        this(writeOperation, coder, header, null);
-      }
-
-      public TextWriter(FileBasedWriteOperation<T> writeOperation, Coder<T> coder, String header,
-                        String footer) {
+      public TextWriter(FileBasedWriteOperation<T> writeOperation, Coder<T> coder,
+          @Nullable String header, @Nullable String footer) {
         super(writeOperation);
         this.header = header;
         this.footer = footer;
@@ -1091,9 +1130,12 @@ public class TextIO {
         this.coder = coder;
       }
 
-      private void writeLine(String line) throws IOException {
-        if (line != null) {
-          out.write(line.getBytes(StandardCharsets.UTF_8));
+      /**
+       * Writes {@code value} followed by a newline if {@code value} is not null.
+       */
+      private void writeIfNotNull(@Nullable String value) throws IOException {
+        if (value != null) {
+          out.write(value.getBytes(StandardCharsets.UTF_8));
           out.write(NEWLINE);
         }
       }
@@ -1105,12 +1147,12 @@ public class TextIO {
 
       @Override
       protected void writeHeader() throws Exception {
-        writeLine(header);
+        writeIfNotNull(header);
       }
 
       @Override
       protected void writeFooter() throws Exception {
-        writeLine(footer);
+        writeIfNotNull(footer);
       }
 
       @Override

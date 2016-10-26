@@ -30,7 +30,7 @@ import org.apache.hadoop.security.UserGroupInformation;
  * A {@code Sink} for writing records to a Hadoop filesystem using a Hadoop file-based output
  * format with Simple Authentication.
  *
- * Allows arbitrary username as HDFS user, which is used for writing to HDFS.
+ * <p>Allows arbitrary username as HDFS user, which is used for writing to HDFS.
  *
  * @param <K> The type of keys to be written to the sink.
  * @param <V> The type of values to be written to the sink.
