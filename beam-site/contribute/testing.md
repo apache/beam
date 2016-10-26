@@ -170,20 +170,6 @@ details on those testing types.
    </td>
   </tr>
   <tr>
-   <td>Triggers
-   </td>
-   <td>Correctness
-   </td>
-   <td><a href="https://github.com/apache/incubator-beam/blob/master/sdks/java/core/src/test/java/org/apache/beam/sdk/util/TriggerTester.java">TriggerTester</a>
-   </td>
-   <td><a href="https://github.com/apache/incubator-beam/blob/master/sdks/java/core/src/test/java/org/apache/beam/sdk/transforms/windowing/AfterWatermarkTest.java">AfterWatermarkTest</a>
-   </td>
-   <td>Unit
-   </td>
-   <td>Precommit / Postcommit
-   </td>
-  </tr>
-  <tr>
    <td>Coders
    </td>
    <td>Encoding/decoding elements
