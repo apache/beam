@@ -91,6 +91,47 @@ Add your forked repository as an additional Git remote, where you’ll push your
 
 You are now ready to start developing!
 
+#### [Optional] IDE Setup
+
+Depending on your preferred development environment, you may need to prepare it to develop Beam code.
+
+##### Intellij
+
+_If you are an Intellij user, please contribute instructions! See [BEAM-835](https://issues.apache.org/jira/browse/BEAM-835)._
+
+##### Eclipse
+ 
+Use a recent eclipse version that includes m2e. Currently we recommend Eclipse Neon.
+Start eclipse with a fresh workspace in a separate directory from your checkout.
+
+1. Install m2e-apt: Beam uses apt annotation processing to provide auto generated code. One example is the usage of [google auto value](https://github.com/google/auto/tree/master/value). By default m2e does not support this and you will see compile errors.
+
+	Help
+	-> Eclipse Marketplace
+	-> Search for "m2 apt"
+	-> Install m2e-apt 1.2 or higher
+
+1. Activate the apt processing
+
+	Window
+	-> Preferences
+	-> Maven
+	-> Annotation processing
+	-> Switch to Experimental: Delegate annotation processing ...
+	-> Ok
+
+1. Import the beam projects
+
+	File
+	-> Import...
+	-> Existing Maven Projects
+	-> Browse to the directory you cloned into and select incubator-beam
+	-> make sure all beam projects are selected
+	-> Finalize
+
+You now should have all the beam projects imported into eclipse and should see no compile errors.
+
+
 ### Create a branch in your fork
 You’ll work on your contribution in a branch in your own (forked) repository. Create a local branch, initialized with the state of the branch you expect your changes to be merged into. Keep in mind that we use several branches, including `master`, feature-specific, and release-specific branches. If you are unsure, initialize with the state of the `master` branch.
 
