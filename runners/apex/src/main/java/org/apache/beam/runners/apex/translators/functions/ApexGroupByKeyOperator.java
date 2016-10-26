@@ -64,7 +64,6 @@ import org.apache.beam.sdk.util.TimerInternals;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowingInternals;
 import org.apache.beam.sdk.util.WindowingStrategy;
-import org.apache.beam.sdk.util.state.InMemoryStateInternals;
 import org.apache.beam.sdk.util.state.StateInternals;
 import org.apache.beam.sdk.util.state.StateInternalsFactory;
 import org.apache.beam.sdk.values.KV;
@@ -97,8 +96,8 @@ public class ApexGroupByKeyOperator<K, V> implements Operator {
   @Bind(JavaSerializer.class)
   private final SerializablePipelineOptions serializedOptions;
   @Bind(JavaSerializer.class)
-// TODO: InMemoryStateInternals not serializable
-  private transient Map<ByteBuffer, StateInternals<K>> perKeyStateInternals = new HashMap<>();
+  private final StateInternalsFactory<K> stateInternalsFactory;
+  private Map<ByteBuffer, StateInternals<K>> perKeyStateInternals = new HashMap<>();
   private Map<ByteBuffer, Set<TimerInternals.TimerData>> activeTimers = new HashMap<>();
 
   private transient ProcessContext context;
@@ -137,17 +136,20 @@ public class ApexGroupByKeyOperator<K, V> implements Operator {
       output = new DefaultOutputPort<>();
 
   @SuppressWarnings("unchecked")
-  public ApexGroupByKeyOperator(ApexPipelineOptions pipelineOptions, PCollection<KV<K, V>> input) {
+  public ApexGroupByKeyOperator(ApexPipelineOptions pipelineOptions, PCollection<KV<K, V>> input,
+      StateInternalsFactory<K> stateInternalsFactory) {
     checkNotNull(pipelineOptions);
     this.serializedOptions = new SerializablePipelineOptions(pipelineOptions);
     this.windowingStrategy = (WindowingStrategy<V, BoundedWindow>) input.getWindowingStrategy();
     this.keyCoder = ((KvCoder<K, V>) input.getCoder()).getKeyCoder();
     this.valueCoder = ((KvCoder<K, V>) input.getCoder()).getValueCoder();
+    this.stateInternalsFactory = stateInternalsFactory;
   }
 
   @SuppressWarnings("unused") // for Kryo
   private ApexGroupByKeyOperator() {
     this.serializedOptions = null;
+    this.stateInternalsFactory = null;
   }
 
   @Override
@@ -230,7 +232,7 @@ public class ApexGroupByKeyOperator<K, V> implements Operator {
     }
     StateInternals<K> stateInternals = perKeyStateInternals.get(keyBytes);
     if (stateInternals == null) {
-      stateInternals = InMemoryStateInternals.forKey(key);
+      stateInternals = stateInternalsFactory.stateInternalsForKey(key);
       perKeyStateInternals.put(keyBytes, stateInternals);
     }
     return stateInternals;

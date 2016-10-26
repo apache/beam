@@ -52,7 +52,9 @@ public class ParDoBoundTranslator<InputT, OutputT> implements
     ApexParDoOperator<InputT, OutputT> operator = new ApexParDoOperator<>(
         context.getPipelineOptions(),
         doFn, new TupleTag<OutputT>(), TupleTagList.empty().getAll() /*sideOutputTags*/,
-        output.getWindowingStrategy(), sideInputs, wvInputCoder);
+        output.getWindowingStrategy(), sideInputs, wvInputCoder,
+        context.<Void>stateInternalsFactory()
+        );
     context.addOperator(operator, operator.output);
     context.addStream(context.getInput(), operator.input);
     if (!sideInputs.isEmpty()) {

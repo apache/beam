@@ -33,7 +33,8 @@ public class GroupByKeyTranslator<K, V> implements TransformTranslator<GroupByKe
   public void translate(GroupByKey<K, V> transform, TranslationContext context) {
     PCollection<KV<K, V>> input = context.getInput();
     ApexGroupByKeyOperator<K, V> group = new ApexGroupByKeyOperator<>(context.getPipelineOptions(),
-        input);
+        input, context.<K>stateInternalsFactory()
+        );
     context.addOperator(group, group.output);
     context.addStream(input, group.input);
   }
