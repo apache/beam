@@ -198,7 +198,7 @@ public class KafkaSource implements DataSource<Pair<byte[], byte[]>> {
       String topic = uri.getPath().substring(1);
 
       String cname = URIParams.of(uri).getStringParam("cfg", null);
-      Settings cconfig =  cname == null ? null : settings.nested(cname);
+      Settings cconfig = cname == null ? null : settings.nested(cname);
       final String groupId;
       if (cconfig == null
           || cconfig.getString(ConsumerConfig.GROUP_ID_CONFIG, null) == null) {
@@ -243,8 +243,8 @@ public class KafkaSource implements DataSource<Pair<byte[], byte[]>> {
         LOG.info("Going to read the whole contents of kafka topic {}",
             topicId);
       }
-      if (config.getBoolean("stop.at.current", false)) {
-        stopReadingAtStamp = System.currentTimeMillis();
+      stopReadingAtStamp = config.getLong("stop.at.timestamp", stopReadingAtStamp);
+      if (stopReadingAtStamp < Long.MAX_VALUE) {
         LOG.info("Will stop polling kafka topic at current timestamp {}",
             stopReadingAtStamp);
       }
