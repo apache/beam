@@ -235,18 +235,56 @@ public class ProxyInvocationHandlerTest {
         .testEquals();
   }
 
-  @Test
-  public void testMultipleDefaultsThrow() throws Exception {
-    expectedException.expect(RuntimeException.class);
-    expectedException.expectMessage(
-        "Expected getter for property [string] to be marked with @Default on all "
-            + "[org.apache.beam.sdk.options.ProxyInvocationHandlerTest$DefaultAnnotations, "
-            + "org.apache.beam.sdk.options.ProxyInvocationHandlerTest$Simple], found only on "
-            + "[org.apache.beam.sdk.options.ProxyInvocationHandlerTest$DefaultAnnotations]");
+  /** A test interface for string with default. */
+  public interface StringWithDefault extends PipelineOptions {
+    @Default.String("testString")
+    String getString();
+    void setString(String value);
+  }
 
-    new ProxyInvocationHandler(Maps.<String, Object>newHashMap())
-        .as(Simple.class)
-        .as(DefaultAnnotations.class);
+  @Test
+  public void testToString() throws Exception {
+    ProxyInvocationHandler handler = new ProxyInvocationHandler(Maps.<String, Object>newHashMap());
+    StringWithDefault proxy = handler.as(StringWithDefault.class);
+    proxy.setString("stringValue");
+    DefaultAnnotations proxy2 = proxy.as(DefaultAnnotations.class);
+    proxy2.setLong(57L);
+    assertEquals("Current Settings:\n"
+            + "  long: 57\n"
+            + "  string: stringValue\n",
+        proxy.toString());
+  }
+
+  @Test
+  public void testToStringAfterDeserializationContainsJsonEntries() throws Exception {
+    ProxyInvocationHandler handler = new ProxyInvocationHandler(Maps.<String, Object>newHashMap());
+    StringWithDefault proxy = handler.as(StringWithDefault.class);
+    Long optionsId = proxy.getOptionsId();
+    proxy.setString("stringValue");
+    DefaultAnnotations proxy2 = proxy.as(DefaultAnnotations.class);
+    proxy2.setLong(57L);
+    assertEquals(String.format("Current Settings:\n"
+            + "  long: 57\n"
+            + "  optionsId: %d\n"
+            + "  string: \"stringValue\"\n", optionsId),
+        serializeDeserialize(PipelineOptions.class, proxy2).toString());
+  }
+
+  @Test
+  public void testToStringAfterDeserializationContainsOverriddenEntries() throws Exception {
+    ProxyInvocationHandler handler = new ProxyInvocationHandler(Maps.<String, Object>newHashMap());
+    StringWithDefault proxy = handler.as(StringWithDefault.class);
+    Long optionsId = proxy.getOptionsId();
+    proxy.setString("stringValue");
+    DefaultAnnotations proxy2 = proxy.as(DefaultAnnotations.class);
+    proxy2.setLong(57L);
+    Simple deserializedOptions = serializeDeserialize(Simple.class, proxy2);
+    deserializedOptions.setString("overriddenValue");
+    assertEquals(String.format("Current Settings:\n"
+            + "  long: 57\n"
+            + "  optionsId: %d\n"
+            + "  string: overriddenValue\n", optionsId),
+        deserializedOptions.toString());
   }
 
   /** A test interface containing an unknown method. */

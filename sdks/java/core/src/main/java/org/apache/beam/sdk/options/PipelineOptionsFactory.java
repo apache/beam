@@ -74,7 +74,6 @@ import java.util.SortedSet;
 import java.util.TreeMap;
 import java.util.TreeSet;
 import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.options.Validation.Required;
 import org.apache.beam.sdk.runners.PipelineRunner;
 import org.apache.beam.sdk.runners.PipelineRunnerRegistrar;
@@ -1092,33 +1091,45 @@ public class PipelineOptionsFactory {
       SortedSet<Method> getters = methodNameToAllMethodMap.get(descriptor.getReadMethod());
       SortedSet<Method> gettersWithTheAnnotation =
           Sets.filter(getters, annotationPredicates.forMethod);
-      Set<Annotation> propertyAnnotations = Sets.newLinkedHashSet(FluentIterable
+      Set<Annotation> distinctAnnotations = Sets.newLinkedHashSet(FluentIterable
           .from(gettersWithTheAnnotation)
-          .transform(new Function<Method, Annotation>() {
-            @Nullable
+          .transformAndConcat(new Function<Method, Iterable<? extends Annotation>>() {
+            @Nonnull
             @Override
-            public Annotation apply(@Nonnull Method method) {
-              FluentIterable<Annotation> methodAnnotations = FluentIterable
-                  .of(method.getAnnotations())
-                  .filter(annotationPredicates.forAnnotation);
-              int annotationCount = methodAnnotations.size();
-              if (annotationCount == 0) {
-                return null;
-              } else if (annotationCount == 1) {
-                return methodAnnotations.get(0);
-              } else {
-                throw new IllegalArgumentException(String.format(
-                    "Method [%s] is marked with multiple annotations: %s.",
-                    method.getName(),
-                    methodAnnotations));
-              }
-            }})
-          .filter(Predicates.notNull()));
+            public Iterable<? extends Annotation> apply(@Nonnull Method method) {
+              return FluentIterable.of(method.getAnnotations());
+            }
+          })
+          .filter(annotationPredicates.forAnnotation));
 
-      checkArgument(propertyAnnotations.size() <= 1,
-          "Property [%s] is marked with multiple annotations: %s.",
-          descriptor.getName(),
-          propertyAnnotations);
+
+      if (distinctAnnotations.size() > 1) {
+        throw new IllegalArgumentException(String.format(
+            "Property [%s] is marked with contradictory annotations. Found [%s].",
+            descriptor.getName(),
+            FluentIterable.from(gettersWithTheAnnotation)
+                .transformAndConcat(new Function<Method, Iterable<String>>() {
+                  @Nonnull
+                  @Override
+                  public Iterable<String> apply(final @Nonnull Method method) {
+                    return FluentIterable.of(method.getAnnotations())
+                        .filter(annotationPredicates.forAnnotation)
+                        .transform(new Function<Annotation, String>() {
+                          @Nonnull
+                          @Override
+                          public String apply(@Nonnull Annotation annotation) {
+                            return String.format(
+                                "[%s on %s.%s]",
+                                toStringForPrint(annotation),
+                                method.getDeclaringClass().getSimpleName(),
+                                method.getName());
+                          }
+                        });
+
+                  }
+                })
+                .join(Joiner.on(", "))));
+      }
 
       Iterable<String> getterClassNames = FluentIterable.from(getters)
           .transform(MethodToDeclaringClassFunction.INSTANCE)
@@ -1141,13 +1152,19 @@ public class PipelineOptionsFactory {
         inconsistentlyAnnotatedGetters, annotationPredicates.annotationClass);
   }
 
+  @VisibleForTesting
+  static String toStringForPrint(Annotation annotation) {
+    String toString = annotation.toString();
+    return toString.substring(toString.lastIndexOf('.') + 1).replace('$', '.');
+  }
+
   /**
    * Validates that setters don't have the given annotation.
    */
   private static void validateSettersDoNotHaveAnnotation(
       SortedSetMultimap<Method, Method> methodNameToAllMethodMap,
       List<PropertyDescriptor> descriptors,
-      final AnnotationPredicates annotationPredicates) {
+      AnnotationPredicates annotationPredicates) {
     List<AnnotatedSetter> annotatedSetters = new ArrayList<>();
     for (PropertyDescriptor descriptor : descriptors) {
       if (descriptor.getWriteMethod() == null
@@ -1434,7 +1451,7 @@ public class PipelineOptionsFactory {
         new Predicate<Annotation>() {
           @Override
           public boolean apply(@Nonnull Annotation input) {
-            return input.annotationType().equals(JsonIgnore.class);
+            return JsonIgnore.class.equals(input.annotationType());
           }
         },
         new Predicate<Method>() {

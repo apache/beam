@@ -369,6 +369,16 @@ public class PipelineOptionsFactoryTest {
     void setObject(Object value);
   }
 
+  /**
+   * This class is has a conflicting {@link JsonIgnore @JsonIgnore} value with
+   * {@link GetterWithJsonIgnore}.
+   */
+  public interface GetterWithInconsistentJsonIgnoreValue extends PipelineOptions {
+    @JsonIgnore(value = false)
+    Object getObject();
+    void setObject(Object value);
+  }
+
   @Test
   public void testNotAllGettersAnnotatedWithJsonIgnore() throws Exception {
     // Initial construction is valid.
@@ -501,7 +511,7 @@ public class PipelineOptionsFactoryTest {
    * This class is inconsistent with {@link GetterWithDefault} that has a different
    * {@link Default @Default}.
    */
-  private interface GetterWithInconsistentDefault extends PipelineOptions {
+  private interface GetterWithInconsistentDefaultType extends PipelineOptions {
     @Default.String("abc")
     Object getObject();
     void setObject(Object value);
@@ -550,12 +560,12 @@ public class PipelineOptionsFactoryTest {
 
     expectedException.expect(IllegalArgumentException.class);
     expectedException.expectMessage(
-        "Property [object] is marked with multiple annotations: ["
-            + "@org.apache.beam.sdk.options.Default$Integer(value=1), "
-            + "@org.apache.beam.sdk.options.Default$String(value=abc)].");
+        "Property [object] is marked with contradictory annotations. Found ["
+            + "[Default.Integer(value=1) on GetterWithDefault.getObject], "
+            + "[Default.String(value=abc) on GetterWithInconsistentDefaultType.getObject]].");
 
     // When we attempt to convert, we should error at this moment.
-    options.as(GetterWithInconsistentDefault.class);
+    options.as(GetterWithInconsistentDefaultType.class);
   }
 
   @Test
@@ -565,12 +575,27 @@ public class PipelineOptionsFactoryTest {
 
     expectedException.expect(IllegalArgumentException.class);
     expectedException.expectMessage(
-        "Property [object] is marked with multiple annotations: ["
-            + "@org.apache.beam.sdk.options.Default$Integer(value=1), "
-            + "@org.apache.beam.sdk.options.Default$Integer(value=0)].");
+        "Property [object] is marked with contradictory annotations. Found ["
+            + "[Default.Integer(value=1) on GetterWithDefault.getObject], "
+            + "[Default.Integer(value=0) on GetterWithInconsistentDefaultValue.getObject]].");
 
     // When we attempt to convert, we should error at this moment.
     options.as(GetterWithInconsistentDefaultValue.class);
+  }
+
+  @Test
+  public void testGettersAnnotatedWithInconsistentJsonIgnoreValue() throws Exception {
+    // Initial construction is valid.
+    GetterWithJsonIgnore options = PipelineOptionsFactory.as(GetterWithJsonIgnore.class);
+
+    expectedException.expect(IllegalArgumentException.class);
+    expectedException.expectMessage(
+        "Property [object] is marked with contradictory annotations. Found ["
+            + "[JsonIgnore(value=false) on GetterWithInconsistentJsonIgnoreValue.getObject], "
+            + "[JsonIgnore(value=true) on GetterWithJsonIgnore.getObject]].");
+
+    // When we attempt to convert, we should error at this moment.
+    options.as(GetterWithInconsistentJsonIgnoreValue.class);
   }
 
   private interface GettersWithMultipleDefault extends PipelineOptions {
@@ -584,9 +609,9 @@ public class PipelineOptionsFactoryTest {
   public void testGettersWithMultipleDefaults() throws Exception {
     expectedException.expect(IllegalArgumentException.class);
     expectedException.expectMessage(
-        "Method [getObject] is marked with multiple annotations: ["
-            + "@org.apache.beam.sdk.options.Default$String(value=abc), "
-            + "@org.apache.beam.sdk.options.Default$Integer(value=0)].");
+        "Property [object] is marked with contradictory annotations. Found ["
+            + "[Default.String(value=abc) on GettersWithMultipleDefault.getObject], "
+            + "[Default.Integer(value=0) on GettersWithMultipleDefault.getObject]].");
 
     // When we attempt to create, we should error at this moment.
     PipelineOptionsFactory.as(GettersWithMultipleDefault.class);
@@ -645,6 +670,19 @@ public class PipelineOptionsFactoryTest {
 
     // When we attempt to convert, we should error immediately
     options.as(MultipleGettersWithInconsistentDefault.class);
+  }
+
+  @Test
+  public void testToStringForPrint() throws Exception {
+    assertEquals(
+        "Default.Integer(value=1)",
+        PipelineOptionsFactory.toStringForPrint(
+            GetterWithDefault.class.getMethod("getObject").getAnnotations()[0]));
+
+    assertEquals(
+        "JsonIgnore(value=true)",
+        PipelineOptionsFactory.toStringForPrint(
+            GetterWithJsonIgnore.class.getMethod("getObject").getAnnotations()[0]));
   }
 
   @Test
