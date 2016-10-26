@@ -202,13 +202,17 @@ public class UserScore {
    * is passed to the {@link WriteToBigQuery} constructor to write user score sums.
    */
   protected static Map<String, WriteToBigQuery.FieldInfo<KV<String, Integer>>>
-    configureBigQueryWrite() {
+      configureBigQueryWrite() {
     Map<String, WriteToBigQuery.FieldInfo<KV<String, Integer>>> tableConfigure =
         new HashMap<String, WriteToBigQuery.FieldInfo<KV<String, Integer>>>();
-    tableConfigure.put("user",
-        new WriteToBigQuery.FieldInfo<KV<String, Integer>>("STRING", c -> c.element().getKey()));
-    tableConfigure.put("total_score",
-        new WriteToBigQuery.FieldInfo<KV<String, Integer>>("INTEGER", c -> c.element().getValue()));
+    tableConfigure.put(
+        "user",
+        new WriteToBigQuery.FieldInfo<KV<String, Integer>>(
+            "STRING", (c, w) -> c.element().getKey()));
+    tableConfigure.put(
+        "total_score",
+        new WriteToBigQuery.FieldInfo<KV<String, Integer>>(
+            "INTEGER", (c, w) -> c.element().getValue()));
     return tableConfigure;
   }
 
