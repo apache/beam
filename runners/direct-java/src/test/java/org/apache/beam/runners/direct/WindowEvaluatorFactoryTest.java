@@ -103,7 +103,7 @@ public class WindowEvaluatorFactoryTest {
     input = p.apply(Create.of(1L, 2L, 3L));
 
     bundleFactory = ImmutableListBundleFactory.create();
-    factory = new WindowEvaluatorFactory();
+    factory = new WindowEvaluatorFactory(evaluationContext);
   }
 
   @Test
@@ -286,7 +286,7 @@ public class WindowEvaluatorFactoryTest {
   private CommittedBundle<Long> createInputBundle() {
     CommittedBundle<Long> inputBundle =
         bundleFactory
-            .createRootBundle(input)
+            .createBundle(input)
             .add(valueInGlobalWindow)
             .add(valueInGlobalAndTwoIntervalWindows)
             .add(valueInIntervalWindow)
@@ -296,8 +296,8 @@ public class WindowEvaluatorFactoryTest {
 
   private UncommittedBundle<Long> createOutputBundle(
       PCollection<Long> output, CommittedBundle<Long> inputBundle) {
-    UncommittedBundle<Long> outputBundle = bundleFactory.createBundle(inputBundle, output);
-    when(evaluationContext.createBundle(inputBundle, output)).thenReturn(outputBundle);
+    UncommittedBundle<Long> outputBundle = bundleFactory.createBundle(output);
+    when(evaluationContext.createBundle(output)).thenReturn(outputBundle);
     return outputBundle;
   }
 
@@ -308,9 +308,7 @@ public class WindowEvaluatorFactoryTest {
       throws Exception {
     TransformEvaluator<Long> evaluator =
         factory.forApplication(
-            AppliedPTransform.of("Window", input, windowed, windowTransform),
-            inputBundle,
-            evaluationContext);
+            AppliedPTransform.of("Window", input, windowed, windowTransform), inputBundle);
 
     evaluator.processElement(valueInGlobalWindow);
     evaluator.processElement(valueInGlobalAndTwoIntervalWindows);

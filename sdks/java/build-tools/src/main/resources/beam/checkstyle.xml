@@ -53,11 +53,19 @@ page at http://checkstyle.sourceforge.net/config.html -->
     <property name="severity" value="error"/>
   </module>
 
+  <!-- Prevent *Tests.java as tools may not pick them up -->
+  <module name="RegexpOnFilename">
+    <property name="fileNamePattern" value=".*Tests\.java$" />
+  </module>
+
   <!-- Allow use of comment to suppress javadocstyle -->
   <module name="SuppressionCommentFilter">
     <property name="offCommentFormat" value="CHECKSTYLE.OFF\: ([\w\|]+)"/>
     <property name="onCommentFormat" value="CHECKSTYLE.ON\: ([\w\|]+)"/>
     <property name="checkFormat" value="$1"/>
+  </module>
+  <module name="SuppressionFilter">
+    <property name="file" value="${checkstyle.suppressions.file}" />
   </module>
 
   <!-- Check that every module has a package-info.java -->
@@ -100,7 +108,14 @@ page at http://checkstyle.sourceforge.net/config.html -->
     </module>
 
     <module name="IllegalImport">
-      <property name="illegalPkgs" value="com.google.api.client.repackaged, io.netty.util.internal"/>
+      <property name="illegalPkgs" value="autovalue.shaded, avro.shaded, com.google.api.client.repackaged, com.google.appengine.repackaged, io.netty.util.internal"/>
+    </module>
+
+    <module name="RedundantModifier">
+      <!-- Checks for redundant modifiers on various symbol definitions.
+        See: http://checkstyle.sourceforge.net/config_modifier.html#RedundantModifier
+      -->
+      <property name="tokens" value="METHOD_DEF, VARIABLE_DEF, ANNOTATION_FIELD_DEF, INTERFACE_DEF, CLASS_DEF, ENUM_DEF"/>
     </module>
 
     <!--
@@ -109,6 +124,14 @@ page at http://checkstyle.sourceforge.net/config.html -->
     -->
     <module name="RegexpSinglelineJava">
       <property name="format" value="com\.google\.api\.client\.util\.(ByteStreams|Charsets|Collections2|Joiner|Lists|Maps|Objects|Preconditions|Sets|Strings|Throwables)"/>
+    </module>
+
+    <!--
+         Require static importing from Preconditions.
+    -->
+    <module name="RegexpSinglelineJava">
+      <property name="format" value="^import com.google.common.base.Preconditions;$"/>
+      <property name="message" value="Static import functions from Guava Preconditions"/>
     </module>
 
     <module name="UnusedImports">
@@ -136,6 +159,9 @@ page at http://checkstyle.sourceforge.net/config.html -->
       <property name="allowThrowsTagsForSubclasses" value="true"/>
       <property name="allowUndeclaredRTE" value="true"/>
     </module>
+
+    <!-- Check that paragraph tags are used correctly in Javadoc. -->
+    <module name="JavadocParagraph"/>
 
     <module name="JavadocType">
       <property name="scope" value="protected"/>

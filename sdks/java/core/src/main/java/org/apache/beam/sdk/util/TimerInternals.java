@@ -108,7 +108,7 @@ public interface TimerInternals {
    * <li>However will never be behind the global input watermark for any following computation.
    * </ol>
    *
-   * <p> In pictures:
+   * <p>In pictures:
    * <pre>
    *  |              |       |       |       |
    *  |              |   D   |   C   |   B   |   A
@@ -142,7 +142,7 @@ public interface TimerInternals {
   /**
    * Data about a timer as represented within {@link TimerInternals}.
    */
-  public static class TimerData implements Comparable<TimerData> {
+  class TimerData implements Comparable<TimerData> {
     private final StateNamespace namespace;
     private final Instant timestamp;
     private final TimeDomain domain;
@@ -223,7 +223,7 @@ public interface TimerInternals {
   /**
    * A {@link Coder} for {@link TimerData}.
    */
-  public class TimerDataCoder extends StandardCoder<TimerData> {
+  class TimerDataCoder extends StandardCoder<TimerData> {
     private static final StringUtf8Coder STRING_CODER = StringUtf8Coder.of();
     private static final InstantCoder INSTANT_CODER = InstantCoder.of();
     private final Coder<? extends BoundedWindow> windowCoder;

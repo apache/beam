@@ -57,6 +57,6 @@ public abstract class ForwardingPTransform<InputT extends PInput, OutputT extend
 
   @Override
   public void populateDisplayData(DisplayData.Builder builder) {
-    delegate().populateDisplayData(builder);
+    builder.delegate(delegate());
   }
 }

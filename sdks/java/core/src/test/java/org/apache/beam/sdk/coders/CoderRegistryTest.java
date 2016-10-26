@@ -395,6 +395,7 @@ public class CoderRegistryTest {
   private static class TestGenericClass<TestGenericT> { }
 
   @Test
+  @SuppressWarnings("rawtypes")
   public void testSerializableTypeVariableDefaultCoder() throws Exception {
     CoderRegistry registry = new CoderRegistry();
 

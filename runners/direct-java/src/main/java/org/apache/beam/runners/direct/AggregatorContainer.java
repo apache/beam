@@ -17,8 +17,9 @@
  */
 package org.apache.beam.runners.direct;
 
+import static com.google.common.base.Preconditions.checkState;
+
 import com.google.auto.value.AutoValue;
-import com.google.common.base.Preconditions;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
@@ -54,7 +55,7 @@ public class AggregatorContainer {
 
     @Override
     public synchronized void addValue(InputT input) {
-      Preconditions.checkState(!committed, "Cannot addValue after committing");
+      checkState(!committed, "Cannot addValue after committing");
       if (accumulator == null) {
         accumulator = combiner.createAccumulator();
       }
@@ -132,7 +133,7 @@ public class AggregatorContainer {
     }
 
     public void commit() {
-      Preconditions.checkState(!committed, "Should not be already committed");
+      checkState(!committed, "Should not be already committed");
       committed = true;
 
       for (Map.Entry<AggregatorKey, AggregatorInfo<?, ?, ?>> entry : accumulatorDeltas.entrySet()) {
@@ -152,7 +153,7 @@ public class AggregatorContainer {
     public <InputT, AccumT, OutputT> Aggregator<InputT, OutputT> createAggregatorForDoFn(
         Class<?> fnClass, ExecutionContext.StepContext step,
         String name, CombineFn<InputT, AccumT, OutputT> combine) {
-      Preconditions.checkState(!committed, "Cannot create aggregators after committing");
+      checkState(!committed, "Cannot create aggregators after committing");
       AggregatorKey key = AggregatorKey.create(step.getStepName(), name);
       AggregatorInfo<?, ?, ?> aggregatorInfo = accumulatorDeltas.get(key);
       if (aggregatorInfo != null) {

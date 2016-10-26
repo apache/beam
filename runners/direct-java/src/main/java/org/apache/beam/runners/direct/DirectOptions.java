@@ -19,6 +19,7 @@ package org.apache.beam.runners.direct;
 
 import org.apache.beam.sdk.options.ApplicationNameOptions;
 import org.apache.beam.sdk.options.Default;
+import org.apache.beam.sdk.options.DefaultValueFactory;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptions;
 
@@ -41,18 +42,47 @@ public interface DirectOptions extends PipelineOptions, ApplicationNameOptions {
   @Description(
       "If the pipeline should block awaiting completion of the pipeline. If set to true, "
           + "a call to Pipeline#run() will block until all PTransforms are complete. Otherwise, "
-          + "the Pipeline will execute asynchronously. If set to false, the completion of the "
-          + "pipeline can be awaited on by use of DirectPipelineResult#awaitCompletion().")
+          + "the Pipeline will execute asynchronously. If set to false, use "
+          + "PipelineResult#waitUntilFinish() to block until the Pipeline is complete.")
   boolean isBlockOnRun();
 
   void setBlockOnRun(boolean b);
 
   @Default.Boolean(true)
   @Description(
-      "Controls whether the runner should ensure that all of the elements of every "
+      "Controls whether the DirectRunner should ensure that all of the elements of every "
           + "PCollection are not mutated. PTransforms are not permitted to mutate input elements "
           + "at any point, or output elements after they are output.")
-  boolean isTestImmutability();
+  boolean isEnforceImmutability();
 
-  void setTestImmutability(boolean test);
+  void setEnforceImmutability(boolean test);
+
+  @Default.Boolean(true)
+  @Description(
+      "Controls whether the DirectRunner should ensure that all of the elements of every "
+          + "PCollection are encodable. All elements in a PCollection must be encodable.")
+  boolean isEnforceEncodability();
+  void setEnforceEncodability(boolean test);
+
+  @Default.InstanceFactory(AvailableParallelismFactory.class)
+  @Description(
+      "Controls the amount of target parallelism the DirectRunner will use. Defaults to"
+          + " the greater of the number of available processors and 3. Must be a value greater"
+          + " than zero.")
+  int getTargetParallelism();
+  void setTargetParallelism(int target);
+
+  /**
+   * A {@link DefaultValueFactory} that returns the result of {@link Runtime#availableProcessors()}
+   * from the {@link #create(PipelineOptions)} method. Uses {@link Runtime#getRuntime()} to obtain
+   * the {@link Runtime}.
+   */
+  class AvailableParallelismFactory implements DefaultValueFactory<Integer> {
+    private static final int MIN_PARALLELISM = 3;
+
+    @Override
+    public Integer create(PipelineOptions options) {
+      return Math.max(Runtime.getRuntime().availableProcessors(), MIN_PARALLELISM);
+    }
+  }
 }

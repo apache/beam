@@ -17,7 +17,6 @@
  */
 package ${package};
 
-import ${package}.WordCount;
 import java.util.Arrays;
 import java.util.List;
 import java.util.regex.Pattern;
@@ -28,7 +27,7 @@ import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.transforms.Aggregator;
-import org.apache.beam.sdk.transforms.OldDoFn;
+import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.values.KV;
@@ -36,8 +35,9 @@ import org.apache.beam.sdk.values.PCollection;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+
 /**
- * An example that verifies word counts in Shakespeare and includes Dataflow best practices.
+ * An example that verifies word counts in Shakespeare and includes Beam best practices.
  *
  * <p>This class, {@link DebuggingWordCount}, is the third in a series of four successively more
  * detailed 'word count' examples. You may first want to take a look at {@link MinimalWordCount}
@@ -46,12 +46,12 @@ import org.slf4j.LoggerFactory;
  *
  * <p>Basic concepts, also in the MinimalWordCount and WordCount examples:
  * Reading text files; counting a PCollection; executing a Pipeline both locally
- * and using the Dataflow service; defining DoFns.
+ * and using a selected runner; defining DoFns.
  *
  * <p>New Concepts:
  * <pre>
  *   1. Logging to Cloud Logging
- *   2. Controlling Dataflow worker log levels
+ *   2. Controlling worker log levels
  *   3. Creating a custom aggregator
  *   4. Testing your Pipeline via PAssert
  * </pre>
@@ -62,12 +62,14 @@ import org.slf4j.LoggerFactory;
  * }
  * </pre>
  *
- * <p>To execute this pipeline using the Dataflow service and the additional logging discussed
- * below, specify pipeline configuration:
+ * <p>To change the runner, specify:
  * <pre>{@code
- *   --project=YOUR_PROJECT_ID
- *   --stagingLocation=gs://YOUR_STAGING_DIRECTORY
- *   --runner=BlockingDataflowRunner
+ *   --runner=YOUR_SELECTED_RUNNER
+ * }
+ * </pre>
+ *
+ * <p>To use the additional logging discussed below, specify:
+ * <pre>{@code
  *   --workerLogLevelOverrides={"org.apache.beam.examples":"DEBUG"}
  * }
  * </pre>
@@ -100,12 +102,12 @@ import org.slf4j.LoggerFactory;
  * that changing the default worker log level to TRACE or DEBUG will significantly increase
  * the amount of logs output.
  *
- * <p>The input file defaults to {@code gs://dataflow-samples/shakespeare/kinglear.txt} and can be
- * overridden with {@code --inputFile}.
+ * <p>The input file defaults to {@code gs://apache-beam-samples/shakespeare/kinglear.txt}
+ * and can be overridden with {@code --inputFile}.
  */
 public class DebuggingWordCount {
   /** A DoFn that filters for a specific key based upon a regular expression. */
-  public static class FilterTextFn extends OldDoFn<KV<String, Long>, KV<String, Long>> {
+  public static class FilterTextFn extends DoFn<KV<String, Long>, KV<String, Long>> {
     /**
      * Concept #1: The logger below uses the fully qualified class name of FilterTextFn
      * as the logger. All log statements emitted by this logger will be referenced by this name
@@ -131,7 +133,7 @@ public class DebuggingWordCount {
     private final Aggregator<Long, Long> unmatchedWords =
         createAggregator("umatchedWords", new Sum.SumLongFn());
 
-    @Override
+    @ProcessElement
     public void processElement(ProcessContext c) {
       if (filter.matcher(c.element().getKey()).matches()) {
         // Log at the "DEBUG" level each element that we match. When executing this pipeline
@@ -149,14 +151,14 @@ public class DebuggingWordCount {
       }
     }
   }
-  
+
   /**
    * Options supported by {@link DebuggingWordCount}.
    *
    * <p>Inherits standard configuration options and all options defined in
    * {@link WordCount.WordCountOptions}.
    */
-  public static interface WordCountOptions extends WordCount.WordCountOptions {
+  public interface WordCountOptions extends WordCount.WordCountOptions {
 
     @Description("Regex filter pattern to use in DebuggingWordCount. "
         + "Only words matching this pattern will be counted.")

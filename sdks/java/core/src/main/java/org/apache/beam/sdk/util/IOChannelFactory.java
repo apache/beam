@@ -98,5 +98,5 @@ public interface IOChannelFactory {
    * Where the {@code other} path has a root component then resolution is highly implementation
    * dependent and therefore unspecified.
    */
-  public String resolve(String path, String other) throws IOException;
+  String resolve(String path, String other) throws IOException;
 }

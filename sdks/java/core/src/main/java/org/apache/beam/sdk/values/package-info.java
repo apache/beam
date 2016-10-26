@@ -23,7 +23,7 @@
  *
  * <ul>
  *   <li>{@link org.apache.beam.sdk.values.PCollection} - an immutable collection of
- *     values of type {@code T} and the main representation for data in Dataflow.</li>
+ *     values of type {@code T} and the main representation for data in Beam.</li>
  *   <li>{@link org.apache.beam.sdk.values.PCollectionView} - an immutable view of a
  *     {@link org.apache.beam.sdk.values.PCollection} that can be accessed as a
  *     side input of a {@link org.apache.beam.sdk.transforms.ParDo}
@@ -38,7 +38,7 @@
  *     as input to {@link org.apache.beam.sdk.transforms.Flatten}.</li>
  * </ul>
  *
- * <p>And these classes for individual values play particular roles in Dataflow:
+ * <p>And these classes for individual values play particular roles in Beam:
  *
  * <ul>
  *   <li>{@link org.apache.beam.sdk.values.KV} - a key/value pair that is used by

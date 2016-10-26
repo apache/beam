@@ -17,7 +17,8 @@
  */
 package ${package};
 
-import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
+import com.google.common.base.Strings;
+import java.io.IOException;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.options.Default;
@@ -27,17 +28,19 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.Aggregator;
 import org.apache.beam.sdk.transforms.Count;
-import org.apache.beam.sdk.transforms.OldDoFn;
+import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.transforms.Sum;
-import org.apache.beam.sdk.util.gcsfs.GcsPath;
+import org.apache.beam.sdk.util.IOChannelFactory;
+import org.apache.beam.sdk.util.IOChannelUtils;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 
-
 /**
- * An example that counts words in Shakespeare and includes Dataflow best practices.
+ * An example that counts words in Shakespeare and includes Beam best practices.
  *
  * <p>This class, {@link WordCount}, is the second in a series of four successively more detailed
  * 'word count' examples. You may first want to take a look at {@link MinimalWordCount}.
@@ -45,8 +48,8 @@ import org.apache.beam.sdk.values.PCollection;
  * pipeline, for introduction of additional concepts.
  *
  * <p>For a detailed walkthrough of this example, see
- *   <a href="https://cloud.google.com/dataflow/java-sdk/wordcount-example">
- *   https://cloud.google.com/dataflow/java-sdk/wordcount-example
+ *   <a href="http://beam.incubator.apache.org/use/walkthroughs/">
+ *   http://beam.incubator.apache.org/use/walkthroughs/
  *   </a>
  *
  * <p>Basic concepts, also in the MinimalWordCount example:
@@ -54,39 +57,29 @@ import org.apache.beam.sdk.values.PCollection;
  *
  * <p>New Concepts:
  * <pre>
- *   1. Executing a Pipeline both locally and using the Dataflow service
+ *   1. Executing a Pipeline both locally and using the selected runner
  *   2. Using ParDo with static DoFns defined out-of-line
  *   3. Building a composite transform
  *   4. Defining your own pipeline options
  * </pre>
  *
- * <p>Concept #1: you can execute this pipeline either locally or using the Dataflow service.
+ * <p>Concept #1: you can execute this pipeline either locally or using the selected runner.
  * These are now command-line options and not hard-coded as they were in the MinimalWordCount
  * example.
- * To execute this pipeline locally, specify general pipeline configuration:
- * <pre>{@code
- *   --project=YOUR_PROJECT_ID
- * }
- * </pre>
- * and a local output file or output prefix on GCS:
+ * To execute this pipeline locally, specify a local output file or output prefix on GCS:
  * <pre>{@code
  *   --output=[YOUR_LOCAL_FILE | gs://YOUR_OUTPUT_PREFIX]
  * }</pre>
  *
- * <p>To execute this pipeline using the Dataflow service, specify pipeline configuration:
+ * <p>To change the runner, specify:
  * <pre>{@code
- *   --project=YOUR_PROJECT_ID
- *   --stagingLocation=gs://YOUR_STAGING_DIRECTORY
- *   --runner=BlockingDataflowRunner
+ *   --runner=YOUR_SELECTED_RUNNER
  * }
  * </pre>
- * and an output prefix on GCS:
- * <pre>{@code
- *   --output=gs://YOUR_OUTPUT_PREFIX
- * }</pre>
+ * See examples/java/README.md for instructions about how to configure different runners.
  *
- * <p>The input file defaults to {@code gs://dataflow-samples/shakespeare/kinglear.txt} and can be
- * overridden with {@code --inputFile}.
+ * <p>The input file defaults to {@code gs://apache-beam-samples/shakespeare/kinglear.txt}
+ * and can be overridden with {@code --inputFile}.
  */
 public class WordCount {
 
@@ -95,11 +88,11 @@ public class WordCount {
    * of-line. This DoFn tokenizes lines of text into individual words; we pass it to a ParDo in the
    * pipeline.
    */
-  static class ExtractWordsFn extends OldDoFn<String, String> {
+  static class ExtractWordsFn extends DoFn<String, String> {
     private final Aggregator<Long, Long> emptyLines =
         createAggregator("emptyLines", new Sum.SumLongFn());
 
-    @Override
+    @ProcessElement
     public void processElement(ProcessContext c) {
       if (c.element().trim().isEmpty()) {
         emptyLines.addValue(1L);
@@ -117,11 +110,11 @@ public class WordCount {
     }
   }
 
-  /** A DoFn that converts a Word and Count into a printable string. */
-  public static class FormatAsTextFn extends OldDoFn<KV<String, Long>, String> {
+  /** A SimpleFunction that converts a Word and Count into a printable string. */
+  public static class FormatAsTextFn extends SimpleFunction<KV<String, Long>, String> {
     @Override
-    public void processElement(ProcessContext c) {
-      c.output(c.element().getKey() + ": " + c.element().getValue());
+    public String apply(KV<String, Long> input) {
+      return input.getKey() + ": " + input.getValue();
     }
   }
 
@@ -159,9 +152,9 @@ public class WordCount {
    *
    * <p>Inherits standard configuration options.
    */
-  public static interface WordCountOptions extends PipelineOptions {
+  public interface WordCountOptions extends PipelineOptions {
     @Description("Path of the file to read from")
-    @Default.String("gs://dataflow-samples/shakespeare/kinglear.txt")
+    @Default.String("gs://apache-beam-samples/shakespeare/kinglear.txt")
     String getInputFile();
     void setInputFile(String value);
 
@@ -171,21 +164,25 @@ public class WordCount {
     void setOutput(String value);
 
     /**
-     * Returns "gs://${YOUR_STAGING_DIRECTORY}/counts.txt" as the default destination.
+     * Returns "gs://${YOUR_TEMP_DIRECTORY}/counts.txt" as the default destination.
      */
     public static class OutputFactory implements DefaultValueFactory<String> {
       @Override
       public String create(PipelineOptions options) {
-        DataflowPipelineOptions dataflowOptions = options.as(DataflowPipelineOptions.class);
-        if (dataflowOptions.getStagingLocation() != null) {
-          return GcsPath.fromUri(dataflowOptions.getStagingLocation())
-              .resolve("counts.txt").toString();
+        String tempLocation = options.getTempLocation();
+        if (!Strings.isNullOrEmpty(tempLocation)) {
+          try {
+            IOChannelFactory factory = IOChannelUtils.getFactory(tempLocation);
+            return factory.resolve(tempLocation, "counts.txt");
+          } catch (IOException e) {
+            throw new RuntimeException(
+                String.format("Failed to resolve temp location: %s", tempLocation));
+          }
         } else {
-          throw new IllegalArgumentException("Must specify --output or --stagingLocation");
+          throw new IllegalArgumentException("Must specify --output or --tempLocation");
         }
       }
     }
-
   }
 
   public static void main(String[] args) {
@@ -197,7 +194,7 @@ public class WordCount {
     // static FormatAsTextFn() to the ParDo transform.
     p.apply("ReadLines", TextIO.Read.from(options.getInputFile()))
      .apply(new CountWords())
-     .apply(ParDo.of(new FormatAsTextFn()))
+     .apply(MapElements.via(new FormatAsTextFn()))
      .apply("WriteCounts", TextIO.Write.to(options.getOutput()));
 
     p.run();

@@ -100,9 +100,7 @@ public class PubsubGrpcClient extends PubsubClient {
                                   idLabel,
                                   DEFAULT_TIMEOUT_S,
                                   channel,
-                                  credentials,
-                                  null /* publisher stub */,
-                                  null /* subscriber stub */);
+                                  credentials);
     }
 
     @Override
@@ -159,16 +157,12 @@ public class PubsubGrpcClient extends PubsubClient {
       @Nullable String idLabel,
       int timeoutSec,
       ManagedChannel publisherChannel,
-      GoogleCredentials credentials,
-      PublisherGrpc.PublisherBlockingStub cachedPublisherStub,
-      SubscriberGrpc.SubscriberBlockingStub cachedSubscriberStub) {
+      GoogleCredentials credentials) {
     this.timestampLabel = timestampLabel;
     this.idLabel = idLabel;
     this.timeoutSec = timeoutSec;
     this.publisherChannel = publisherChannel;
     this.credentials = credentials;
-    this.cachedPublisherStub = cachedPublisherStub;
-    this.cachedSubscriberStub = cachedSubscriberStub;
   }
 
   /**
@@ -189,13 +183,11 @@ public class PubsubGrpcClient extends PubsubClient {
     this.publisherChannel = null;
     // Gracefully shutdown the channel.
     publisherChannel.shutdown();
-    if (timeoutSec > 0) {
-      try {
-        publisherChannel.awaitTermination(timeoutSec, TimeUnit.SECONDS);
-      } catch (InterruptedException e) {
-        // Ignore.
-        Thread.currentThread().interrupt();
-      }
+    try {
+      publisherChannel.awaitTermination(timeoutSec, TimeUnit.SECONDS);
+    } catch (InterruptedException e) {
+      // Ignore.
+      Thread.currentThread().interrupt();
     }
   }
 
@@ -216,11 +208,7 @@ public class PubsubGrpcClient extends PubsubClient {
     if (cachedPublisherStub == null) {
       cachedPublisherStub = PublisherGrpc.newBlockingStub(newChannel());
     }
-    if (timeoutSec > 0) {
-      return cachedPublisherStub.withDeadlineAfter(timeoutSec, TimeUnit.SECONDS);
-    } else {
-      return cachedPublisherStub;
-    }
+    return cachedPublisherStub.withDeadlineAfter(timeoutSec, TimeUnit.SECONDS);
   }
 
   /**
@@ -230,11 +218,7 @@ public class PubsubGrpcClient extends PubsubClient {
     if (cachedSubscriberStub == null) {
       cachedSubscriberStub = SubscriberGrpc.newBlockingStub(newChannel());
     }
-    if (timeoutSec > 0) {
-      return cachedSubscriberStub.withDeadlineAfter(timeoutSec, TimeUnit.SECONDS);
-    } else {
-      return cachedSubscriberStub;
-    }
+    return cachedSubscriberStub.withDeadlineAfter(timeoutSec, TimeUnit.SECONDS);
   }
 
   @Override

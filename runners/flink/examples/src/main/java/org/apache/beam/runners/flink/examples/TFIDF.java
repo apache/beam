@@ -65,9 +65,9 @@ import org.slf4j.LoggerFactory;
 /**
  * An example that computes a basic TF-IDF search table for a directory or GCS prefix.
  *
- * <p> Concepts: joining data; side inputs; logging
+ * <p>Concepts: joining data; side inputs; logging
  *
- * <p> To execute this pipeline locally, specify general pipeline configuration:
+ * <p>To execute this pipeline locally, specify general pipeline configuration:
  * <pre>{@code
  *   --project=YOUR_PROJECT_ID
  * }</pre>
@@ -76,7 +76,7 @@ import org.slf4j.LoggerFactory;
  *   --output=[YOUR_LOCAL_FILE | gs://YOUR_OUTPUT_PREFIX]
  * }</pre>
  *
- * <p> To execute this pipeline using the Dataflow service, specify pipeline configuration:
+ * <p>To execute this pipeline using the Dataflow service, specify pipeline configuration:
  * <pre>{@code
  *   --project=YOUR_PROJECT_ID
  *   --stagingLocation=gs://YOUR_STAGING_DIRECTORY
@@ -85,14 +85,14 @@ import org.slf4j.LoggerFactory;
  *   --output=gs://YOUR_OUTPUT_PREFIX
  * }</pre>
  *
- * <p> The default input is {@code gs://dataflow-samples/shakespeare/} and can be overridden with
+ * <p>The default input is {@code gs://dataflow-samples/shakespeare/} and can be overridden with
  * {@code --input}.
  */
 public class TFIDF {
   /**
    * Options supported by {@link TFIDF}.
-   * <p>
-   * Inherits standard configuration options.
+   *
+   * <p>Inherits standard configuration options.
    */
   private interface Options extends PipelineOptions, FlinkPipelineOptions {
     @Description("Path to the directory or GCS prefix containing files to read from")

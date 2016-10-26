@@ -85,7 +85,8 @@ import org.apache.hadoop.mapreduce.task.TaskAttemptContextImpl;
  * }
  * </pre>
  *
- * Implementation note: Since Hadoop's {@link org.apache.hadoop.mapreduce.lib.input.FileInputFormat}
+ * <p>Implementation note: Since Hadoop's
+ * {@link org.apache.hadoop.mapreduce.lib.input.FileInputFormat}
  * determines the input splits, this class extends {@link BoundedSource} rather than
  * {@link org.apache.beam.sdk.io.OffsetBasedSource}, since the latter
  * dictates input splits.
@@ -120,10 +121,7 @@ public class HDFSFileSource<K, V> extends BoundedSource<KV<K, V>> {
    */
   public static <K, V, T extends FileInputFormat<K, V>> HDFSFileSource<K, V> from(
       String filepattern, Class<T> formatClass, Class<K> keyClass, Class<V> valueClass) {
-    @SuppressWarnings("unchecked")
-    HDFSFileSource<K, V> source = (HDFSFileSource<K, V>)
-        new HDFSFileSource(filepattern, formatClass, keyClass, valueClass);
-    return source;
+    return new HDFSFileSource<>(filepattern, formatClass, keyClass, valueClass);
   }
 
   /**
@@ -271,7 +269,7 @@ public class HDFSFileSource<K, V> extends BoundedSource<KV<K, V>> {
 
     private final BoundedSource<KV<K, V>> source;
     private final String filepattern;
-    private final Class formatClass;
+    private final Class<? extends FileInputFormat<?, ?>> formatClass;
     protected Job job;
 
     private FileInputFormat<?, ?> format;

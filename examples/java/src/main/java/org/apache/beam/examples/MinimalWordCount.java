@@ -75,8 +75,7 @@ public class MinimalWordCount {
     //   dataflowOptions.setTempLocation("gs://SET_YOUR_BUCKET_NAME_HERE/AND_TEMP_DIRECTORY");
     // For FlinkRunner, set the runner as follows. See {@code FlinkPipelineOptions}
     // for more details.
-    //   options.as(FlinkPipelineOptions.class)
-    //      .setRunner(FlinkRunner.class);
+    //   options.setRunner(FlinkRunner.class);
 
     // Create the Pipeline object with the options we defined above.
     Pipeline p = Pipeline.create(options);

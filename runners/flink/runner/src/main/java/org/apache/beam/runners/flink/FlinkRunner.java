@@ -33,6 +33,7 @@ import java.util.SortedSet;
 import java.util.TreeSet;
 
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.coders.KvCoder;
@@ -56,6 +57,7 @@ import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.PValue;
 
 import org.apache.flink.api.common.JobExecutionResult;
+import org.apache.flink.client.program.DetachedEnvironment;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -63,9 +65,8 @@ import org.slf4j.LoggerFactory;
  * A {@link PipelineRunner} that executes the operations in the
  * pipeline by first translating them to a Flink Plan and then executing them either locally
  * or on a Flink cluster, depending on the configuration.
- * <p>
  */
-public class FlinkRunner extends PipelineRunner<FlinkRunnerResult> {
+public class FlinkRunner extends PipelineRunner<PipelineResult> {
 
   private static final Logger LOG = LoggerFactory.getLogger(FlinkRunner.class);
 
@@ -132,7 +133,7 @@ public class FlinkRunner extends PipelineRunner<FlinkRunnerResult> {
   }
 
   @Override
-  public FlinkRunnerResult run(Pipeline pipeline) {
+  public PipelineResult run(Pipeline pipeline) {
     logWarningIfPCollectionViewHasNonDeterministicKeyCoder(pipeline);
 
     LOG.info("Executing pipeline using FlinkRunner.");
@@ -151,18 +152,22 @@ public class FlinkRunner extends PipelineRunner<FlinkRunnerResult> {
       throw new RuntimeException("Pipeline execution failed", e);
     }
 
-    LOG.info("Execution finished in {} msecs", result.getNetRuntime());
+    if (result instanceof DetachedEnvironment.DetachedJobExecutionResult) {
+      LOG.info("Pipeline submitted in Detached mode");
+      return new FlinkDetachedRunnerResult();
+    } else {
+      LOG.info("Execution finished in {} msecs", result.getNetRuntime());
+      Map<String, Object> accumulators = result.getAllAccumulatorResults();
+      if (accumulators != null && !accumulators.isEmpty()) {
+        LOG.info("Final aggregator values:");
 
-    Map<String, Object> accumulators = result.getAllAccumulatorResults();
-    if (accumulators != null && !accumulators.isEmpty()) {
-      LOG.info("Final aggregator values:");
-
-      for (Map.Entry<String, Object> entry : result.getAllAccumulatorResults().entrySet()) {
-        LOG.info("{} : {}", entry.getKey(), entry.getValue());
+        for (Map.Entry<String, Object> entry : result.getAllAccumulatorResults().entrySet()) {
+          LOG.info("{} : {}", entry.getKey(), entry.getValue());
+        }
       }
-    }
 
-    return new FlinkRunnerResult(accumulators, result.getNetRuntime());
+      return new FlinkRunnerResult(accumulators, result.getNetRuntime());
+    }
   }
 
   /**

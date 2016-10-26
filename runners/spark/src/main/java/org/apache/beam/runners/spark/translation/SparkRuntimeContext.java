@@ -20,17 +20,14 @@ package org.apache.beam.runners.spark.translation;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-
 import com.google.common.collect.ImmutableList;
-
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
-
 import org.apache.beam.runners.spark.SparkPipelineOptions;
-import org.apache.beam.runners.spark.aggregators.AggAccumParam;
+import org.apache.beam.runners.spark.aggregators.AccumulatorSingleton;
 import org.apache.beam.runners.spark.aggregators.NamedAggregators;
 import org.apache.beam.runners.spark.aggregators.metrics.AggregatorMetricSource;
 import org.apache.beam.sdk.AggregatorValues;
@@ -56,11 +53,6 @@ import org.apache.spark.metrics.MetricsSystem;
  * data flow program is launched.
  */
 public class SparkRuntimeContext implements Serializable {
-  /**
-   * An accumulator that is a map from names to aggregators.
-   */
-  private final Accumulator<NamedAggregators> accum;
-
   private final String serializedPipelineOptions;
 
   /**
@@ -69,10 +61,9 @@ public class SparkRuntimeContext implements Serializable {
   private final Map<String, Aggregator<?, ?>> aggregators = new HashMap<>();
   private transient CoderRegistry coderRegistry;
 
-  SparkRuntimeContext(JavaSparkContext jsc, Pipeline pipeline) {
-    final SparkPipelineOptions opts = pipeline.getOptions().as(SparkPipelineOptions.class);
-    accum = registerMetrics(jsc, opts);
-    serializedPipelineOptions = serializePipelineOptions(opts);
+  SparkRuntimeContext(Pipeline pipeline, JavaSparkContext jsc) {
+    this.serializedPipelineOptions = serializePipelineOptions(pipeline.getOptions());
+    registerMetrics(pipeline.getOptions().as(SparkPipelineOptions.class), jsc);
   }
 
   private static String serializePipelineOptions(PipelineOptions pipelineOptions) {
@@ -91,10 +82,9 @@ public class SparkRuntimeContext implements Serializable {
     }
   }
 
-  private Accumulator<NamedAggregators> registerMetrics(final JavaSparkContext jsc,
-                                                        final SparkPipelineOptions opts) {
-    final NamedAggregators initialValue = new NamedAggregators();
-    final Accumulator<NamedAggregators> accum = jsc.accumulator(initialValue, new AggAccumParam());
+  private void registerMetrics(final SparkPipelineOptions opts, final JavaSparkContext jsc) {
+    final Accumulator<NamedAggregators> accum = AccumulatorSingleton.getInstance(jsc);
+    final NamedAggregators initialValue = accum.value();
 
     if (opts.getEnableSparkSinks()) {
       final MetricsSystem metricsSystem = SparkEnv$.MODULE$.get().metricsSystem();
@@ -104,26 +94,28 @@ public class SparkRuntimeContext implements Serializable {
       metricsSystem.removeSource(aggregatorMetricSource);
       metricsSystem.registerSource(aggregatorMetricSource);
     }
-
-    return accum;
   }
 
   /**
    * Retrieves corresponding value of an aggregator.
    *
+   * @param accum          The Spark Accumulator holding all Aggregators.
    * @param aggregatorName Name of the aggregator to retrieve the value of.
    * @param typeClass      Type class of value to be retrieved.
    * @param <T>            Type of object to be returned.
    * @return The value of the aggregator.
    */
-  public <T> T getAggregatorValue(String aggregatorName, Class<T> typeClass) {
+  public <T> T getAggregatorValue(Accumulator<NamedAggregators> accum,
+                                  String aggregatorName,
+                                  Class<T> typeClass) {
     return accum.value().getValue(aggregatorName, typeClass);
   }
 
-  public <T> AggregatorValues<T> getAggregatorValues(Aggregator<?, T> aggregator) {
+  public <T> AggregatorValues<T> getAggregatorValues(Accumulator<NamedAggregators> accum,
+                                                     Aggregator<?, T> aggregator) {
     @SuppressWarnings("unchecked")
     Class<T> aggValueClass = (Class<T>) aggregator.getCombineFn().getOutputType().getRawType();
-    final T aggregatorValue = getAggregatorValue(aggregator.getName(), aggValueClass);
+    final T aggregatorValue = getAggregatorValue(accum, aggregator.getName(), aggValueClass);
     return new AggregatorValues<T>() {
       @Override
       public Collection<T> getValues() {
@@ -144,14 +136,16 @@ public class SparkRuntimeContext implements Serializable {
   /**
    * Creates and aggregator and associates it with the specified name.
    *
+   * @param accum     Spark Accumulator.
    * @param named     Name of aggregator.
    * @param combineFn Combine function used in aggregation.
-   * @param <InputT>      Type of inputs to aggregator.
-   * @param <InterT>   Intermediate data type
-   * @param <OutputT>     Type of aggregator outputs.
+   * @param <InputT>  Type of inputs to aggregator.
+   * @param <InterT>  Intermediate data type
+   * @param <OutputT> Type of aggregator outputs.
    * @return Specified aggregator
    */
   public synchronized <InputT, InterT, OutputT> Aggregator<InputT, OutputT> createAggregator(
+      Accumulator<NamedAggregators> accum,
       String named,
       Combine.CombineFn<? super InputT, InterT, OutputT> combineFn) {
     @SuppressWarnings("unchecked")

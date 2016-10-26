@@ -97,8 +97,9 @@ class BigQueryServicesImpl implements BigQueryServices {
 
   @Override
   public BigQueryJsonReader getReaderFromQuery(
-      BigQueryOptions bqOptions, String query, String projectId, @Nullable Boolean flatten) {
-    return BigQueryJsonReaderImpl.fromQuery(bqOptions, query, projectId, flatten);
+      BigQueryOptions bqOptions, String query, String projectId, @Nullable Boolean flatten,
+      @Nullable Boolean useLegacySql) {
+    return BigQueryJsonReaderImpl.fromQuery(bqOptions, query, projectId, flatten, useLegacySql);
   }
 
   @VisibleForTesting
@@ -265,12 +266,11 @@ class BigQueryServicesImpl implements BigQueryServices {
     }
 
     @Override
-    public JobStatistics dryRunQuery(String projectId, String query)
+    public JobStatistics dryRunQuery(String projectId, JobConfigurationQuery queryConfig)
         throws InterruptedException, IOException {
       Job job = new Job()
           .setConfiguration(new JobConfiguration()
-              .setQuery(new JobConfigurationQuery()
-                  .setQuery(query))
+              .setQuery(queryConfig)
               .setDryRun(true));
       BackOff backoff =
           FluentBackoff.DEFAULT
@@ -279,9 +279,55 @@ class BigQueryServicesImpl implements BigQueryServices {
           client.jobs().insert(projectId, job),
           String.format(
               "Unable to dry run query: %s, aborting after %d retries.",
-              query, MAX_RPC_RETRIES),
+              queryConfig, MAX_RPC_RETRIES),
           Sleeper.DEFAULT,
           backoff).getStatistics();
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * <p>Retries the RPC for at most {@code MAX_RPC_ATTEMPTS} times until it succeeds.
+     *
+     * @throws IOException if it exceeds max RPC retries.
+     */
+    @Override
+    public Job getJob(JobReference jobRef) throws IOException, InterruptedException {
+      BackOff backoff =
+          FluentBackoff.DEFAULT
+              .withMaxRetries(MAX_RPC_RETRIES).withInitialBackoff(INITIAL_RPC_BACKOFF).backoff();
+     return getJob(jobRef, Sleeper.DEFAULT, backoff);
+    }
+
+    @VisibleForTesting
+    public Job getJob(JobReference jobRef, Sleeper sleeper, BackOff backoff)
+        throws IOException, InterruptedException {
+      String jobId = jobRef.getJobId();
+      Exception lastException;
+      do {
+        try {
+          return client.jobs().get(jobRef.getProjectId(), jobId).execute();
+        } catch (GoogleJsonResponseException e) {
+          if (errorExtractor.itemNotFound(e)) {
+            LOG.info("No BigQuery job with job id {} found.", jobId);
+            return null;
+          }
+          LOG.warn(
+              "Ignoring the error encountered while trying to query the BigQuery job {}",
+              jobId, e);
+          lastException = e;
+        } catch (IOException e) {
+          LOG.warn(
+              "Ignoring the error encountered while trying to query the BigQuery job {}",
+              jobId, e);
+          lastException = e;
+        }
+      } while (nextBackOff(sleeper, backoff));
+      throw new IOException(
+          String.format(
+              "Unable to find BigQuery job: %s, aborting after %d retries.",
+              jobRef, MAX_RPC_RETRIES),
+          lastException);
     }
   }
 
@@ -426,7 +472,7 @@ class BigQueryServicesImpl implements BigQueryServices {
      */
     @Override
     public void createDataset(
-        String projectId, String datasetId, String location, String description)
+        String projectId, String datasetId, @Nullable String location, @Nullable String description)
         throws IOException, InterruptedException {
       BackOff backoff =
           FluentBackoff.DEFAULT
@@ -437,19 +483,22 @@ class BigQueryServicesImpl implements BigQueryServices {
     private void createDataset(
         String projectId,
         String datasetId,
-        String location,
-        String description,
+        @Nullable String location,
+        @Nullable String description,
         Sleeper sleeper,
         BackOff backoff) throws IOException, InterruptedException {
       DatasetReference datasetRef = new DatasetReference()
           .setProjectId(projectId)
           .setDatasetId(datasetId);
 
-      Dataset dataset = new Dataset()
-          .setDatasetReference(datasetRef)
-          .setLocation(location)
-          .setFriendlyName(location)
-          .setDescription(description);
+      Dataset dataset = new Dataset().setDatasetReference(datasetRef);
+      if (location != null) {
+        dataset.setLocation(location);
+      }
+      if (description != null) {
+        dataset.setFriendlyName(description);
+        dataset.setDescription(description);
+      }
 
       Exception lastException;
       do {
@@ -497,10 +546,9 @@ class BigQueryServicesImpl implements BigQueryServices {
           backoff);
     }
 
-    @Override
-    public long insertAll(
-        TableReference ref, List<TableRow> rowList, @Nullable List<String> insertIdList)
-        throws IOException, InterruptedException {
+    @VisibleForTesting
+    long insertAll(TableReference ref, List<TableRow> rowList, @Nullable List<String> insertIdList,
+        BackOff backoff, final Sleeper sleeper) throws IOException, InterruptedException {
       checkNotNull(ref, "ref");
       if (executor == null) {
         this.executor = options.as(GcsOptions.class).getExecutorService();
@@ -509,8 +557,6 @@ class BigQueryServicesImpl implements BigQueryServices {
         throw new AssertionError("If insertIdList is not null it needs to have at least "
             + "as many elements as rowList");
       }
-
-      BackOff backoff = INSERT_BACKOFF_FACTORY.backoff();
 
       long retTotalDataSize = 0;
       List<TableDataInsertAllResponse.InsertErrors> allErrors = new ArrayList<>();
@@ -561,7 +607,7 @@ class BigQueryServicesImpl implements BigQueryServices {
                         if (new ApiErrorExtractor().rateLimited(e)) {
                           LOG.info("BigQuery insertAll exceeded rate limit, retrying");
                           try {
-                            Thread.sleep(backoff.nextBackOffMillis());
+                            sleeper.sleep(backoff.nextBackOffMillis());
                           } catch (InterruptedException interrupted) {
                             throw new IOException(
                                 "Interrupted while waiting before retrying insertAll");
@@ -616,22 +662,30 @@ class BigQueryServicesImpl implements BigQueryServices {
           break;
         }
         try {
-          Thread.sleep(backoff.nextBackOffMillis());
+          sleeper.sleep(nextBackoffMillis);
         } catch (InterruptedException e) {
           Thread.currentThread().interrupt();
           throw new IOException(
               "Interrupted while waiting before retrying insert of " + retryRows);
         }
-        LOG.info("Retrying failed inserts to BigQuery");
         rowsToPublish = retryRows;
         idsToPublish = retryIds;
         allErrors.clear();
+        LOG.info("Retrying {} failed inserts to BigQuery", rowsToPublish.size());
       }
       if (!allErrors.isEmpty()) {
         throw new IOException("Insert failed: " + allErrors);
       } else {
         return retTotalDataSize;
       }
+    }
+
+    @Override
+    public long insertAll(
+        TableReference ref, List<TableRow> rowList, @Nullable List<String> insertIdList)
+        throws IOException, InterruptedException {
+          return insertAll(
+              ref, rowList, insertIdList, INSERT_BACKOFF_FACTORY.backoff(), Sleeper.DEFAULT);
     }
   }
 
@@ -646,10 +700,12 @@ class BigQueryServicesImpl implements BigQueryServices {
         BigQueryOptions bqOptions,
         String query,
         String projectId,
-        @Nullable Boolean flattenResults) {
+        @Nullable Boolean flattenResults,
+        @Nullable Boolean useLegacySql) {
       return new BigQueryJsonReaderImpl(
           BigQueryTableRowIterator.fromQuery(
-              query, projectId, Transport.newBigQueryClient(bqOptions).build(), flattenResults));
+              query, projectId, Transport.newBigQueryClient(bqOptions).build(), flattenResults,
+              useLegacySql));
     }
 
     private static BigQueryJsonReader fromTable(

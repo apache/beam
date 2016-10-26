@@ -125,7 +125,7 @@ import org.apache.beam.sdk.values.TypedPValue;
  * before the enclosing Pipeline is run.
  *
  * <p>A small number of PTransforms are implemented natively by the
- * Google Cloud Dataflow SDK; such PTransforms simply return an
+ * Apache Beam SDK; such PTransforms simply return an
  * output value as their apply implementation.
  * The majority of PTransforms are
  * implemented as composites of other PTransforms.  Such a PTransform
@@ -275,9 +275,9 @@ public abstract class PTransform<InputT extends PInput, OutputT extends POutput>
    * Returns the default {@code Coder} to use for the output of this
    * single-output {@code PTransform} when applied to the given input.
    *
-   * @throws CannotProvideCoderException if none can be inferred.
-   *
    * <p>By default, always throws.
+   *
+   * @throws CannotProvideCoderException if none can be inferred.
    */
   protected Coder<?> getDefaultOutputCoder(@SuppressWarnings("unused") InputT input)
       throws CannotProvideCoderException {
@@ -288,9 +288,9 @@ public abstract class PTransform<InputT extends PInput, OutputT extends POutput>
    * Returns the default {@code Coder} to use for the given output of
    * this single-output {@code PTransform} when applied to the given input.
    *
-   * @throws CannotProvideCoderException if none can be inferred.
-   *
    * <p>By default, always throws.
+   *
+   * @throws CannotProvideCoderException if none can be inferred.
    */
   public <T> Coder<T> getDefaultOutputCoder(
       InputT input, @SuppressWarnings("unused") TypedPValue<T> output)

@@ -47,15 +47,20 @@ import org.apache.beam.sdk.values.TupleTag;
  * {@link GroupByKeyOnly} {@link PTransform}.
  */
 class GroupAlsoByWindowEvaluatorFactory implements TransformEvaluatorFactory {
+  private final EvaluationContext evaluationContext;
+
+  GroupAlsoByWindowEvaluatorFactory(EvaluationContext evaluationContext) {
+    this.evaluationContext = evaluationContext;
+  }
+
   @Override
   public <InputT> TransformEvaluator<InputT> forApplication(
       AppliedPTransform<?, ?, ?> application,
-      CommittedBundle<?> inputBundle,
-      EvaluationContext evaluationContext) {
+      CommittedBundle<?> inputBundle) {
     @SuppressWarnings({"cast", "unchecked", "rawtypes"})
     TransformEvaluator<InputT> evaluator =
         createEvaluator(
-            (AppliedPTransform) application, (CommittedBundle) inputBundle, evaluationContext);
+            (AppliedPTransform) application, (CommittedBundle) inputBundle);
     return evaluator;
   }
 
@@ -68,8 +73,7 @@ class GroupAlsoByWindowEvaluatorFactory implements TransformEvaluatorFactory {
               PCollection<KV<K, Iterable<V>>>,
               DirectGroupAlsoByWindow<K, V>>
           application,
-      CommittedBundle<KeyedWorkItem<K, V>> inputBundle,
-      EvaluationContext evaluationContext) {
+      CommittedBundle<KeyedWorkItem<K, V>> inputBundle) {
     return new GroupAlsoByWindowEvaluator<>(
         evaluationContext, inputBundle, application);
   }

@@ -34,7 +34,7 @@ import org.apache.flink.util.Collector;
  * Encapsulates a {@link OldDoFn} that can emit to multiple
  * outputs inside a Flink {@link org.apache.flink.api.common.functions.RichMapPartitionFunction}.
  *
- * We get a mapping from {@link org.apache.beam.sdk.values.TupleTag} to output index
+ * <p>We get a mapping from {@link org.apache.beam.sdk.values.TupleTag} to output index
  * and must tag all outputs with the output number. Afterwards a filter will filter out
  * those elements that are not to be in a specific output.
  */

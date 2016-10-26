@@ -58,20 +58,26 @@ class ImmutabilityCheckingBundleFactory implements BundleFactory {
     this.underlying = checkNotNull(underlying);
   }
 
+  /**
+   * {@inheritDoc}.
+   *
+   * @return a root bundle created by the underlying {@link PCollection}. Root bundles belong to the
+   * runner, which is required to use the contents in a way that is mutation-safe.
+   */
   @Override
-  public <T> UncommittedBundle<T> createRootBundle(PCollection<T> output) {
-    return new ImmutabilityEnforcingBundle<>(underlying.createRootBundle(output));
+  public <T> UncommittedBundle<T> createRootBundle() {
+    return underlying.createRootBundle();
   }
 
   @Override
-  public <T> UncommittedBundle<T> createBundle(CommittedBundle<?> input, PCollection<T> output) {
-    return new ImmutabilityEnforcingBundle<>(underlying.createBundle(input, output));
+  public <T> UncommittedBundle<T> createBundle(PCollection<T> output) {
+    return new ImmutabilityEnforcingBundle<>(underlying.createBundle(output));
   }
 
   @Override
   public <K, T> UncommittedBundle<T> createKeyedBundle(
-      CommittedBundle<?> input, StructuralKey<K> key, PCollection<T> output) {
-    return new ImmutabilityEnforcingBundle<>(underlying.createKeyedBundle(input, key, output));
+      StructuralKey<K> key, PCollection<T> output) {
+    return new ImmutabilityEnforcingBundle<>(underlying.createKeyedBundle(key, output));
   }
 
   private static class ImmutabilityEnforcingBundle<T> implements UncommittedBundle<T> {

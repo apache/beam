@@ -34,6 +34,9 @@ import javax.annotation.Nullable;
 import org.apache.beam.runners.core.GroupByKeyViaGroupByKeyOnly.GroupByKeyOnly;
 import org.apache.beam.runners.core.ReduceFnContextFactory.OnTriggerCallbacks;
 import org.apache.beam.runners.core.ReduceFnContextFactory.StateStyle;
+import org.apache.beam.runners.core.triggers.ExecutableTriggerStateMachine;
+import org.apache.beam.runners.core.triggers.TriggerStateMachineContextFactory;
+import org.apache.beam.runners.core.triggers.TriggerStateMachineRunner;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.Aggregator;
 import org.apache.beam.sdk.transforms.windowing.AfterWatermark;
@@ -50,7 +53,6 @@ import org.apache.beam.sdk.util.NonMergingActiveWindowSet;
 import org.apache.beam.sdk.util.TimeDomain;
 import org.apache.beam.sdk.util.TimerInternals;
 import org.apache.beam.sdk.util.TimerInternals.TimerData;
-import org.apache.beam.sdk.util.TriggerContextFactory;
 import org.apache.beam.sdk.util.WindowTracing;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowingInternals;
@@ -59,6 +61,7 @@ import org.apache.beam.sdk.util.WindowingStrategy.AccumulationMode;
 import org.apache.beam.sdk.util.state.ReadableState;
 import org.apache.beam.sdk.util.state.StateInternals;
 import org.apache.beam.sdk.util.state.StateNamespaces.WindowNamespace;
+import org.apache.beam.sdk.util.state.TimerCallback;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.joda.time.Duration;
@@ -68,27 +71,27 @@ import org.joda.time.Instant;
  * Manages the execution of a {@link ReduceFn} after a {@link GroupByKeyOnly} has partitioned the
  * {@link PCollection} by key.
  *
- * <p>The {@link #onTrigger} relies on a {@link TriggerRunner} to manage the execution of
- * the triggering logic. The {@code ReduceFnRunner}s responsibilities are:
+ * <p>The {@link #onTrigger} relies on a {@link TriggerStateMachineRunner} to manage the execution
+ * of the triggering logic. The {@code ReduceFnRunner}s responsibilities are:
  *
  * <ul>
- * <li>Tracking the windows that are active (have buffered data) as elements arrive and
- * triggers are fired.
- * <li>Holding the watermark based on the timestamps of elements in a pane and releasing it
- * when the trigger fires.
+ * <li>Tracking the windows that are active (have buffered data) as elements arrive and triggers are
+ *     fired.
+ * <li>Holding the watermark based on the timestamps of elements in a pane and releasing it when the
+ *     trigger fires.
  * <li>Calling the appropriate callbacks on {@link ReduceFn} based on trigger execution, timer
- * firings, etc, and providing appropriate contexts to the {@link ReduceFn} for actions
- * such as output.
+ *     firings, etc, and providing appropriate contexts to the {@link ReduceFn} for actions such as
+ *     output.
  * <li>Scheduling garbage collection of state associated with a specific window, and making that
- * happen when the appropriate timer fires.
+ *     happen when the appropriate timer fires.
  * </ul>
  *
- * @param <K>       The type of key being processed.
- * @param <InputT>  The type of values associated with the key.
+ * @param <K> The type of key being processed.
+ * @param <InputT> The type of values associated with the key.
  * @param <OutputT> The output type that will be produced for each key.
- * @param <W>       The type of windows this operates on.
+ * @param <W> The type of windows this operates on.
  */
-public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
+public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> implements TimerCallback {
 
   /**
    * The {@link ReduceFnRunner} depends on most aspects of the {@link WindowingStrategy}.
@@ -164,7 +167,7 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
    * garbage collected.
    * </ul>
    */
-  private final TriggerRunner<W> triggerRunner;
+  private final TriggerStateMachineRunner<W> triggerRunner;
 
   /**
    * Store the output watermark holds for each window.
@@ -211,6 +214,7 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
   public ReduceFnRunner(
       K key,
       WindowingStrategy<?, W> windowingStrategy,
+      ExecutableTriggerStateMachine triggerStateMachine,
       StateInternals<K> stateInternals,
       TimerInternals timerInternals,
       WindowingInternals<?, KV<K, OutputT>> windowingInternals,
@@ -241,9 +245,9 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
 
     this.watermarkHold = new WatermarkHold<>(timerInternals, windowingStrategy);
     this.triggerRunner =
-        new TriggerRunner<>(
-            windowingStrategy.getTrigger(),
-            new TriggerContextFactory<>(
+        new TriggerStateMachineRunner<>(
+            triggerStateMachine,
+            new TriggerStateMachineContextFactory<>(
                 windowingStrategy.getWindowFn(), stateInternals, activeWindows));
   }
 
@@ -939,7 +943,7 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
     directContext.timers().deleteTimer(eow, TimeDomain.EVENT_TIME);
     Instant gc = garbageCollectionTime(directContext.window());
     if (gc.isAfter(eow)) {
-      directContext.timers().deleteTimer(eow, TimeDomain.EVENT_TIME);
+      directContext.timers().deleteTimer(gc, TimeDomain.EVENT_TIME);
     }
   }
 

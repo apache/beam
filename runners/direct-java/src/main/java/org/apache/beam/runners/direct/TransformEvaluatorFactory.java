@@ -35,26 +35,26 @@ public interface TransformEvaluatorFactory {
   /**
    * Create a new {@link TransformEvaluator} for the application of the {@link PTransform}.
    *
-   * <p>Any work that must be done before input elements are processed (such as calling
-   * {@code DoFn.StartBundle}) must be done before the
-   * {@link TransformEvaluator} is made available to the caller.
+   * <p>Any work that must be done before input elements are processed (such as calling {@code
+   * DoFn.StartBundle}) must be done before the {@link TransformEvaluator} is made available to the
+   * caller.
    *
    * <p>May return null if the application cannot produce an evaluator (for example, it is a
    * {@link Read} {@link PTransform} where all evaluators are in-use).
    *
    * @return An evaluator capable of processing the transform on the bundle, or null if no evaluator
-   * can be constructed.
+   *     can be constructed.
    * @throws Exception whenever constructing the underlying evaluator throws an exception
    */
-  @Nullable <InputT> TransformEvaluator<InputT> forApplication(
-      AppliedPTransform<?, ?, ?> application, @Nullable CommittedBundle<?> inputBundle,
-      EvaluationContext evaluationContext) throws Exception;
+  @Nullable
+  <InputT> TransformEvaluator<InputT> forApplication(
+      AppliedPTransform<?, ?, ?> application, CommittedBundle<?> inputBundle)
+      throws Exception;
 
   /**
-   * Cleans up any state maintained by this {@link TransformEvaluatorFactory}. Called after a
-   * {@link Pipeline} is shut down. No more calls to
-   * {@link #forApplication(AppliedPTransform, CommittedBundle, EvaluationContext)} will be made
-   * after a call to {@link #cleanup()}.
+   * Cleans up any state maintained by this {@link TransformEvaluatorFactory}. Called after a {@link
+   * Pipeline} is shut down. No more calls to {@link #forApplication(AppliedPTransform,
+   * CommittedBundle)} will be made after a call to {@link #cleanup()}.
    */
   void cleanup() throws Exception;
 }

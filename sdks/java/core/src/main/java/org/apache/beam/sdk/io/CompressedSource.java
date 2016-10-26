@@ -71,12 +71,12 @@ public class CompressedSource<T> extends FileBasedSource<T> {
   /**
    * Factory interface for creating channels that decompress the content of an underlying channel.
    */
-  public static interface DecompressingChannelFactory extends Serializable {
+  public interface DecompressingChannelFactory extends Serializable {
     /**
      * Given a channel, create a channel that decompresses the content read from the channel.
      * @throws IOException
      */
-    public ReadableByteChannel createDecompressingChannel(ReadableByteChannel channel)
+    ReadableByteChannel createDecompressingChannel(ReadableByteChannel channel)
         throws IOException;
   }
 
@@ -84,7 +84,7 @@ public class CompressedSource<T> extends FileBasedSource<T> {
    * Factory interface for creating channels that decompress the content of an underlying channel,
    * based on both the channel and the file name.
    */
-  private static interface FileNameBasedDecompressingChannelFactory
+  private interface FileNameBasedDecompressingChannelFactory
       extends DecompressingChannelFactory {
     /**
      * Given a channel, create a channel that decompresses the content read from the channel.
@@ -314,11 +314,11 @@ public class CompressedSource<T> extends FileBasedSource<T> {
       DecompressingChannelFactory channelFactory, String filePatternOrSpec, long minBundleSize,
       long startOffset, long endOffset) {
     super(filePatternOrSpec, minBundleSize, startOffset, endOffset);
-    checkArgument(
-        startOffset == 0,
-        "CompressedSources must start reading at offset 0. Requested offset: " + startOffset);
     this.sourceDelegate = sourceDelegate;
     this.channelFactory = channelFactory;
+    checkArgument(
+        isSplittable() || startOffset == 0,
+        "CompressedSources must start reading at offset 0. Requested offset: " + startOffset);
   }
 
   /**
@@ -339,7 +339,7 @@ public class CompressedSource<T> extends FileBasedSource<T> {
   @Override
   protected FileBasedSource<T> createForSubrangeOfFile(String fileName, long start, long end) {
     return new CompressedSource<>(sourceDelegate.createForSubrangeOfFile(fileName, start, end),
-        channelFactory, fileName, Long.MAX_VALUE, start, end);
+        channelFactory, fileName, sourceDelegate.getMinBundleSize(), start, end);
   }
 
   /**
@@ -348,7 +348,7 @@ public class CompressedSource<T> extends FileBasedSource<T> {
    * from the requested file name that the file is not compressed.
    */
   @Override
-  protected final boolean isSplittable() throws Exception {
+  protected final boolean isSplittable() {
     if (channelFactory instanceof FileNameBasedDecompressingChannelFactory) {
       FileNameBasedDecompressingChannelFactory fileNameBasedChannelFactory =
           (FileNameBasedDecompressingChannelFactory) channelFactory;
@@ -390,7 +390,7 @@ public class CompressedSource<T> extends FileBasedSource<T> {
   public void populateDisplayData(DisplayData.Builder builder) {
     // We explicitly do not register base-class data, instead we use the delegate inner source.
     builder
-        .include(sourceDelegate)
+        .include("source", sourceDelegate)
         .add(DisplayData.item("source", sourceDelegate.getClass())
           .withLabel("Read Source"));
 

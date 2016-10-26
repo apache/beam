@@ -44,6 +44,6 @@ public interface DataflowProfilingOptions {
   /**
    * Configuration the for profiling agent.
    */
-  public static class DataflowProfilingAgentConfiguration extends HashMap<String, Object> {
+  class DataflowProfilingAgentConfiguration extends HashMap<String, Object> {
   }
 }

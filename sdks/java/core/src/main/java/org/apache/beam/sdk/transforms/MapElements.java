@@ -103,7 +103,7 @@ extends PTransform<PCollection<? extends InputT>, PCollection<OutputT>> {
   ///////////////////////////////////////////////////////////////////
 
   private final SimpleFunction<InputT, OutputT> fn;
-  private final DisplayData.Item<?> fnClassDisplayData;
+  private final DisplayData.ItemSpec<?> fnClassDisplayData;
 
   private MapElements(SimpleFunction<InputT, OutputT> fn, Class<?> fnClass) {
     this.fn = fn;
@@ -123,7 +123,7 @@ extends PTransform<PCollection<? extends InputT>, PCollection<OutputT>> {
 
               @Override
               public void populateDisplayData(DisplayData.Builder builder) {
-                MapElements.this.populateDisplayData(builder);
+                builder.delegate(MapElements.this);
               }
 
               @Override
@@ -141,6 +141,8 @@ extends PTransform<PCollection<? extends InputT>, PCollection<OutputT>> {
   @Override
   public void populateDisplayData(DisplayData.Builder builder) {
     super.populateDisplayData(builder);
-    builder.include(fn).add(fnClassDisplayData);
+    builder
+        .include("mapFn", fn)
+        .add(fnClassDisplayData);
   }
 }

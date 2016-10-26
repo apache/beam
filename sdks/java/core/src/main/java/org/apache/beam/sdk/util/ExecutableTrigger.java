@@ -29,9 +29,13 @@ import org.apache.beam.sdk.transforms.windowing.Trigger.OnceTrigger;
 
 /**
  * A wrapper around a trigger used during execution. While an actual trigger may appear multiple
- * times (both in the same trigger expression and in other trigger expressions), the
- * {@code ExecutableTrigger} wrapped around them forms a tree (only one occurrence).
+ * times (both in the same trigger expression and in other trigger expressions), the {@code
+ * ExecutableTrigger} wrapped around them forms a tree (only one occurrence).
+ *
+ * @deprecated uses of {@link ExecutableTrigger} should be ported to
+ *     org.apache.beam.runners.core.triggers.ExecutableTriggerStateMachine.
  */
+@Deprecated
 public class ExecutableTrigger implements Serializable {
 
   /** Store the index assigned to this trigger. */
@@ -112,38 +116,6 @@ public class ExecutableTrigger implements Serializable {
       previous = subTrigger;
     }
     return previous;
-  }
-
-  /**
-   * Invoke the {@link Trigger#onElement} method for this trigger, ensuring that the bits are
-   * properly updated if the trigger finishes.
-   */
-  public void invokeOnElement(Trigger.OnElementContext c) throws Exception {
-    trigger.onElement(c.forTrigger(this));
-  }
-
-  /**
-   * Invoke the {@link Trigger#onMerge} method for this trigger, ensuring that the bits are properly
-   * updated.
-   */
-  public void invokeOnMerge(Trigger.OnMergeContext c) throws Exception {
-    Trigger.OnMergeContext subContext = c.forTrigger(this);
-    trigger.onMerge(subContext);
-  }
-
-  public boolean invokeShouldFire(Trigger.TriggerContext c) throws Exception {
-    return trigger.shouldFire(c.forTrigger(this));
-  }
-
-  public void invokeOnFire(Trigger.TriggerContext c) throws Exception {
-    trigger.onFire(c.forTrigger(this));
-  }
-
-  /**
-   * Invoke clear for the current this trigger.
-   */
-  public void invokeClear(Trigger.TriggerContext c) throws Exception {
-    trigger.clear(c.forTrigger(this));
   }
 
   /**

@@ -42,6 +42,7 @@ import org.apache.beam.runners.dataflow.util.MonitoringUtil;
 import org.apache.beam.sdk.AggregatorRetrievalException;
 import org.apache.beam.sdk.AggregatorValues;
 import org.apache.beam.sdk.PipelineResult;
+import org.apache.beam.sdk.metrics.MetricResults;
 import org.apache.beam.sdk.transforms.Aggregator;
 import org.apache.beam.sdk.util.FluentBackoff;
 import org.joda.time.Duration;
@@ -263,19 +264,27 @@ public class DataflowPipelineJob implements PipelineResult {
       }
 
       if (!hasError) {
-        // Reset the backoff.
+        // We can stop if the job is done.
+        if (state.isTerminal()) {
+          return state;
+        }
+
+        // The job is not done, so we must keep polling.
         backoff.reset();
-        // If duration is set, update the new cumulative sleep time to be the remaining
-        // part of the total input sleep duration.
+
+        // If a total duration for all backoff has been set, update the new cumulative sleep time to
+        // be the remaining total backoff duration, stopping if we have already exceeded the
+        // allotted time.
         if (duration.isLongerThan(Duration.ZERO)) {
           long nanosConsumed = nanoClock.nanoTime() - startNanos;
           Duration consumed = Duration.millis((nanosConsumed + 999999) / 1000000);
-          backoff =
-              MESSAGES_BACKOFF_FACTORY.withMaxCumulativeBackoff(duration.minus(consumed)).backoff();
-        }
-        // Check if the job is done.
-        if (state.isTerminal()) {
-          return state;
+          Duration remaining = duration.minus(consumed);
+          if (remaining.isLongerThan(Duration.ZERO)) {
+            backoff = MESSAGES_BACKOFF_FACTORY.withMaxCumulativeBackoff(remaining).backoff();
+          } else {
+            // If there is no time remaining, don't bother backing off.
+            backoff = BackOff.STOP_BACKOFF;
+          }
         }
       }
     } while(BackOffUtils.next(sleeper, backoff));
@@ -293,14 +302,21 @@ public class DataflowPipelineJob implements PipelineResult {
       dataflowOptions.getDataflowClient().projects().jobs()
           .update(projectId, jobId, content)
           .execute();
+      return State.CANCELLED;
     } catch (IOException e) {
-      String errorMsg = String.format(
-          "Failed to cancel the job, please go to the Developers Console to cancel it manually: %s",
-          MonitoringUtil.getJobMonitoringPageURL(getProjectId(), getJobId()));
-      LOG.warn(errorMsg);
-      throw new IOException(errorMsg, e);
+      State state = getState();
+      if (state.isTerminal()) {
+        LOG.warn("Job is already terminated. State is {}", state);
+        return state;
+      } else {
+        String errorMsg = String.format(
+            "Failed to cancel the job, "
+                + "please go to the Developers Console to cancel it manually: %s",
+            MonitoringUtil.getJobMonitoringPageURL(getProjectId(), getJobId()));
+        LOG.warn(errorMsg);
+        throw new IOException(errorMsg, e);
+      }
     }
-    return State.CANCELLED;
   }
 
   @Override
@@ -409,6 +425,12 @@ public class DataflowPipelineJob implements PipelineResult {
       throw new AggregatorRetrievalException(
           "IOException when retrieving Aggregator values for Aggregator " + aggregator, e);
     }
+  }
+
+  @Override
+  public MetricResults metrics() {
+    throw new UnsupportedOperationException(
+        "The DataflowRunner does not currently support metrics.");
   }
 
   private <OutputT> Map<String, OutputT> fromMetricUpdates(Aggregator<?, OutputT> aggregator)

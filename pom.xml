@@ -34,7 +34,7 @@
   <url>http://beam.incubator.apache.org</url>
   <inceptionYear>2016</inceptionYear>
 
-  <version>0.3.0-incubating-SNAPSHOT</version>
+  <version>0.4.0-incubating-SNAPSHOT</version>
 
   <licenses>
     <license>
@@ -92,7 +92,7 @@
 
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-    <dataflow.javadoc_opts />
+    <beam.javadoc_opts />
 
     <!-- Disable integration tests by default -->
     <skipITs>true</skipITs>
@@ -103,42 +103,42 @@
     <!-- If updating dependencies, please update any relevant javadoc offlineLinks -->
     <avro.version>1.8.1</avro.version>
     <bigquery.version>v2-rev295-1.22.0</bigquery.version>
-    <pubsubgrpc.version>0.0.2</pubsubgrpc.version>
+    <cloudresourcemanager.version>v1-rev6-1.22.0</cloudresourcemanager.version>
+    <pubsubgrpc.version>0.1.0</pubsubgrpc.version>
     <clouddebugger.version>v2-rev8-1.22.0</clouddebugger.version>
-    <dataflow.version>v1b3-rev36-1.22.0</dataflow.version>
+    <dataflow.version>v1b3-rev42-1.22.0</dataflow.version>
     <dataflow.proto.version>0.5.160222</dataflow.proto.version>
-    <datastore.client.version>1.1.0</datastore.client.version>
-    <datastore.proto.version>1.0.1</datastore.proto.version>
+    <datastore.client.version>1.2.0</datastore.client.version>
+    <datastore.proto.version>1.2.0</datastore.proto.version>
     <google-auto-service.version>1.0-rc2</google-auto-service.version>
     <google-auto-value.version>1.1</google-auto-value.version>
     <google-clients.version>1.22.0</google-clients.version>
     <google-cloud-bigdataoss.version>1.4.5</google-cloud-bigdataoss.version>
     <google-cloud-dataflow-java-proto-library-all.version>0.5.160304</google-cloud-dataflow-java-proto-library-all.version>
     <guava.version>19.0</guava.version>
-    <grpc.version>0.14.1</grpc.version>
+    <grpc.version>1.0.1</grpc.version>
     <hamcrest.version>1.3</hamcrest.version>
     <jackson.version>2.7.2</jackson.version>
     <findbugs.version>3.0.1</findbugs.version>
     <joda.version>2.4</joda.version>
     <junit.version>4.11</junit.version>
     <mockito.version>1.9.5</mockito.version>
-    <netty.version>4.1.1.Final</netty.version>
+    <netty.version>4.1.3.Final</netty.version>
     <os-maven-plugin.version>1.4.0.Final</os-maven-plugin.version>
-    <protobuf.version>3.0.0-beta-1</protobuf.version>
+    <protobuf.version>3.0.0</protobuf.version>
     <pubsub.version>v1-rev10-1.22.0</pubsub.version>
     <slf4j.version>1.7.14</slf4j.version>
     <stax2.version>3.1.4</stax2.version>
     <storage.version>v1-rev71-1.22.0</storage.version>
     <woodstox.version>4.4.1</woodstox.version>
+    
+    <compiler.error.flag>-Werror</compiler.error.flag>
   </properties>
 
   <packaging>pom</packaging>
 
   <modules>
     <module>sdks</module>
-    <!-- Expose Dataflow runner as top level module to satisfy dependencies in sdks/java/maven-archetypes 
-      and examples/java. Until these are refactored out, we need to modify the build order. -->
-    <module>runners/google-cloud-dataflow-java</module>
     <module>runners</module>
     <!-- sdks/java/maven-archetypes has several dependencies on the DataflowPipelineRunner. 
       Until these are refactored out or a released artifact exists, we need to modify the 
@@ -221,10 +221,37 @@
         <jdk>[1.8,)</jdk>
       </activation>
       <properties>
-        <dataflow.javadoc_opts>-Xdoclint:-missing</dataflow.javadoc_opts>
+        <beam.javadoc_opts>-Xdoclint:-missing</beam.javadoc_opts>
       </properties>
     </profile>
 
+    <profile>
+      <id>eclipse-jdt</id>
+      <properties>
+        <!-- Tycho doesn't support -Werror -->
+        <compiler.error.flag>-Xlint:all</compiler.error.flag>
+      </properties>
+      <build>
+        <pluginManagement>
+          <plugins>
+            <plugin>
+              <artifactId>maven-compiler-plugin</artifactId>
+              <configuration>
+                <compilerId>jdt</compilerId>
+              </configuration>
+              <dependencies>
+                <dependency>
+                  <groupId>org.eclipse.tycho</groupId>
+                  <artifactId>tycho-compiler-jdt</artifactId>
+                  <!-- 0.24.0 is last version to support Java7 -->
+                  <version>0.24.0</version>
+                </dependency>
+              </dependencies>
+            </plugin>
+          </plugins>
+        </pluginManagement>
+      </build>
+    </profile>
   </profiles>
 
   <dependencyManagement>
@@ -245,6 +272,12 @@
       <dependency>
         <groupId>org.apache.beam</groupId>
         <artifactId>beam-runners-core-java</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.apache.beam</groupId>
+        <artifactId>beam-runners-direct-java</artifactId>
         <version>${project.version}</version>
       </dependency>
 
@@ -286,7 +319,31 @@
 
       <dependency>
         <groupId>io.grpc</groupId>
+        <artifactId>grpc-protobuf</artifactId>
+        <version>${grpc.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>io.grpc</groupId>
+        <artifactId>grpc-protobuf-lite</artifactId>
+        <version>${grpc.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>com.google.protobuf</groupId>
+        <artifactId>protobuf-lite</artifactId>
+        <version>3.0.1</version>
+      </dependency>
+
+      <dependency>
+        <groupId>io.grpc</groupId>
         <artifactId>grpc-netty</artifactId>
+        <version>${grpc.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>io.grpc</groupId>
+        <artifactId>grpc-stub</artifactId>
         <version>${grpc.version}</version>
       </dependency>
 
@@ -424,12 +481,44 @@
 
       <dependency>
         <groupId>com.google.apis</groupId>
+        <artifactId>google-api-services-cloudresourcemanager</artifactId>
+        <version>${cloudresourcemanager.version}</version>
+        <exclusions>
+          <exclusion>
+            <groupId>com.google.guava</groupId>
+            <artifactId>guava-jdk5</artifactId>
+          </exclusion>
+        </exclusions>
+      </dependency>
+
+      <dependency>
+        <groupId>com.google.apis</groupId>
         <artifactId>google-api-services-pubsub</artifactId>
         <version>${pubsub.version}</version>
         <exclusions>
           <exclusion>
             <groupId>com.google.guava</groupId>
             <artifactId>guava-jdk5</artifactId>
+          </exclusion>
+        </exclusions>
+      </dependency>
+
+      <dependency>
+        <groupId>com.google.api.grpc</groupId>
+        <artifactId>grpc-google-pubsub-v1</artifactId>
+        <version>${pubsubgrpc.version}</version>
+        <exclusions>
+          <!-- Exclude an old version of guava that is being pulled in by a transitive
+            dependency of google-api-client -->
+          <exclusion>
+            <groupId>com.google.guava</groupId>
+            <artifactId>guava-jdk5</artifactId>
+          </exclusion>
+          <!-- grpc-all does not obey IWYU, so we need to exclude from compile
+            scope and depend on it at runtime. -->
+          <exclusion>
+            <groupId>io.grpc</groupId>
+            <artifactId>grpc-all</artifactId>
           </exclusion>
         </exclusions>
       </dependency>
@@ -599,13 +688,13 @@
         <groupId>org.apache.beam</groupId>
         <artifactId>beam-sdks-java-core</artifactId>
         <version>${project.version}</version>
-        <type>test-jar</type>
+        <classifier>tests</classifier>
         <scope>test</scope>
       </dependency>
 
       <dependency>
         <groupId>org.apache.beam</groupId>
-        <artifactId>beam-sdks-java-core</artifactId>
+        <artifactId>beam-runners-core-java</artifactId>
         <version>${project.version}</version>
         <classifier>tests</classifier>
         <scope>test</scope>
@@ -675,7 +764,7 @@
             <dependency>
               <groupId>com.puppycrawl.tools</groupId>
               <artifactId>checkstyle</artifactId>
-              <version>6.17</version>
+              <version>6.19</version>
             </dependency>
             <dependency>
               <groupId>org.apache.beam</groupId>
@@ -710,13 +799,13 @@
 
         <plugin>
           <artifactId>maven-compiler-plugin</artifactId>
-          <version>3.1</version>
+          <version>3.5.1</version>
           <configuration>
             <source>1.7</source>
             <target>1.7</target>
             <compilerArgs>
               <arg>-Xlint:all</arg>
-              <arg>-Werror</arg>
+              <arg>${compiler.error.flag}</arg>
               <!-- Override options warnings to support cross-compilation -->
               <arg>-Xlint:-options</arg>
               <!-- Temporary lint overrides, to be removed over time. -->
@@ -782,6 +871,7 @@
               <!-- Keep exclude sync with .gitignore -->
               <exclude>**/target/**/*</exclude>
               <exclude>**/dependency-reduced-pom.xml</exclude>
+              <exclude>**/hs_err_pid*.log</exclude>
               <exclude>.github/**/*</exclude>
               <exclude>**/*.iml</exclude>
               <exclude>**/package-list</exclude>
@@ -869,7 +959,7 @@
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-surefire-plugin</artifactId>
-          <version>2.18.1</version>
+          <version>2.19.1</version>
           <configuration>
             <useManifestOnlyJar>false</useManifestOnlyJar>
             <trimStackTrace>false</trimStackTrace>
@@ -880,7 +970,7 @@
             <dependency>
               <groupId>org.apache.maven.surefire</groupId>
               <artifactId>surefire-junit47</artifactId>
-              <version>2.18.1</version>
+              <version>2.19.1</version>
             </dependency>
           </dependencies>
         </plugin>
@@ -889,6 +979,10 @@
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-failsafe-plugin</artifactId>
           <version>2.19.1</version>
+          <configuration>
+            <trimStackTrace>false</trimStackTrace>
+            <redirectTestOutputToFile>true</redirectTestOutputToFile>
+          </configuration>
         </plugin>
 
         <!-- This plugin's configuration tells the m2e plugin how to import this 
