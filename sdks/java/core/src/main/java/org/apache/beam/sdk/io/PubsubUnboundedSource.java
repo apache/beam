@@ -228,8 +228,12 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
    */
   @VisibleForTesting
   static class PubsubCheckpoint<T> implements UnboundedSource.CheckpointMark {
-    /** The {@link SubscriptionPath} to the subscription the reader is reading from. */
-    @Nullable @VisibleForTesting String subscriptionPath;
+    /**
+     * The {@link SubscriptionPath} to the subscription the reader is reading from. May be
+     * {@code null} if the {@link PubsubUnboundedSource} contains the subscription.
+     */
+    @VisibleForTesting
+    @Nullable String subscriptionPath;
 
     /**
      * If the checkpoint is for persisting: the reader who's snapshotted state we are persisting.
