@@ -435,13 +435,7 @@ def _stage_dataflow_sdk_tarball(sdk_remote_location, staged_path, temp_dir):
     _dependency_file_copy(sdk_remote_location, staged_path)
   elif sdk_remote_location == 'pypi':
     logging.info('Staging the SDK tarball from PyPI to %s', staged_path)
-    import pkg_resources as pkg
-    try:
-      _dependency_file_copy(_download_pypi_sdk_package(temp_dir), staged_path)
-    except pkg.DistributionNotFound:
-      raise RuntimeError('Unable to stage SDK tarball. '
-                         'Provide --sdk_location, check remote location, '
-                         'or provide google-cloud-dataflow repository.')
+    _dependency_file_copy(_download_pypi_sdk_package(temp_dir), staged_path)
   else:
     raise RuntimeError(
         'The --sdk_location option was used with an unsupported '
@@ -482,7 +476,12 @@ def _download_pypi_sdk_package(temp_dir):
   """Downloads SDK package from PyPI and returns path to local path."""
   # TODO(silviuc): Handle apache-beam versions when we have official releases.
   import pkg_resources as pkg
-  version = pkg.get_distribution(GOOGLE_PACKAGE_NAME).version
+  try:
+    version = pkg.get_distribution(GOOGLE_PACKAGE_NAME).version
+  except pkg.DistributionNotFound:
+    raise RuntimeError('Please set --sdk_location or install a valid '
+                       '{} distribution.'.format(GOOGLE_PACKAGE_NAME))
+
   # Get a source distribution for the SDK package from PyPI.
   cmd_args = [
       _get_python_executable(), '-m', 'pip', 'install', '--download', temp_dir,
