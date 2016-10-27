@@ -235,7 +235,7 @@
             <artifactId>apache-rat-plugin</artifactId>
           </plugin>
           <plugin>
-            <groupId>org.apache.rat</groupId>
+            <groupId>org.apache.maven.plugins</groupId>
             <artifactId>maven-gpg-plugin</artifactId>
           </plugin>
         </plugins>
