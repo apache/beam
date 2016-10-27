@@ -543,8 +543,9 @@ public class ParDo {
     return new Unbound().of(fn, displayDataForFn(fn));
   }
 
-  private static <T> DisplayData.ItemSpec<? extends Class<?>> displayDataForFn(T fn) {
-    return DisplayData.item("fn", fn.getClass()).withLabel("Transform Function");
+  private static DisplayData.ItemSpecBase<?, ?> displayDataForFn(HasDisplayData fn) {
+    return DisplayData.nested("fn", fn)
+        .withLabel("Transform Function");
   }
 
   /**
@@ -684,7 +685,7 @@ public class ParDo {
     }
 
     private <InputT, OutputT> Bound<InputT, OutputT> of(
-        Serializable originalFn, DisplayData.ItemSpec<? extends Class<?>> fnDisplayData) {
+        Serializable originalFn, DisplayData.ItemSpecBase<?, ?> fnDisplayData) {
       return new Bound<>(name, originalFn, sideInputs, fnDisplayData);
     }
   }
@@ -706,13 +707,13 @@ public class ParDo {
     // Inherits name.
     private final List<PCollectionView<?>> sideInputs;
     private final Serializable fn;
-    private final DisplayData.ItemSpec<? extends Class<?>> fnDisplayData;
+    private final DisplayData.ItemSpecBase<?, ?> fnDisplayData;
 
     Bound(
         String name,
         Serializable fn,
         List<PCollectionView<?>> sideInputs,
-        DisplayData.ItemSpec<? extends Class<?>> fnDisplayData) {
+        DisplayData.ItemSpecBase<?, ?> fnDisplayData) {
       super(name);
       this.fn = SerializableUtils.clone(fn);
       this.fnDisplayData = fnDisplayData;
@@ -944,7 +945,7 @@ public class ParDo {
     }
 
     private <InputT> BoundMulti<InputT, OutputT> of(
-        Serializable fn, DisplayData.ItemSpec<? extends Class<?>> fnDisplayData) {
+        Serializable fn, DisplayData.ItemSpecBase<?, ?> fnDisplayData) {
       return new BoundMulti<>(name, fn, sideInputs, mainOutputTag, sideOutputTags, fnDisplayData);
     }
   }
@@ -966,7 +967,7 @@ public class ParDo {
     private final List<PCollectionView<?>> sideInputs;
     private final TupleTag<OutputT> mainOutputTag;
     private final TupleTagList sideOutputTags;
-    private final DisplayData.ItemSpec<? extends Class<?>> fnDisplayData;
+    private final DisplayData.ItemSpecBase<?, ?> fnDisplayData;
     private final Serializable fn;
 
     BoundMulti(
@@ -975,7 +976,7 @@ public class ParDo {
         List<PCollectionView<?>> sideInputs,
         TupleTag<OutputT> mainOutputTag,
         TupleTagList sideOutputTags,
-        DisplayData.ItemSpec<? extends Class<?>> fnDisplayData) {
+        DisplayData.ItemSpecBase<?, ?> fnDisplayData) {
       super(name);
       this.sideInputs = sideInputs;
       this.mainOutputTag = mainOutputTag;
@@ -1119,8 +1120,8 @@ public class ParDo {
   private static void populateDisplayData(
       DisplayData.Builder builder,
       HasDisplayData fn,
-      DisplayData.ItemSpec<? extends Class<?>> fnDisplayData) {
-    builder.include("fn", fn).add(fnDisplayData);
+      DisplayData.ItemSpecBase<?, ?> fnDisplayData) {
+    builder.add(fnDisplayData);
   }
 
   private static boolean isSplittable(OldDoFn<?, ?> oldDoFn) {

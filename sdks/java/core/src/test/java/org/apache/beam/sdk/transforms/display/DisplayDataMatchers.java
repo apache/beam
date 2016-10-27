@@ -199,7 +199,7 @@ public class DisplayDataMatchers {
         return DisplayData.from(new HasDisplayData() {
           @Override
           public void populateDisplayData(DisplayData.Builder builder) {
-            builder.include(path, subComponent);
+            builder.add(DisplayData.nested(path, subComponent));
           }
         });
       }
@@ -367,6 +367,28 @@ public class DisplayDataMatchers {
       @Override
       protected String featureValueOf(DisplayData.Item actual) {
         return actual.getLabel();
+      }
+    };
+  }
+
+  /**
+   * Creates a matcher that matches if the examined {@link DisplayData.Item} has the specified
+   * link url.
+   */
+  public static Matcher<DisplayData.Item> hasLinkUrl(String url) {
+    return hasLinkUrl(is(url));
+  }
+
+  /**
+   * Creates a matcher that matches if the examined {@link DisplayData.Item} has a link url matching
+   * the specified url matcher.
+   */
+  public static Matcher<DisplayData.Item> hasLinkUrl(Matcher<String> urlMatcher) {
+    return new FeatureMatcher<DisplayData.Item, String>(
+        urlMatcher, "display item with linkUrl", "linkUrl") {
+      @Override
+      protected String featureValueOf(DisplayData.Item actual) {
+        return actual.getLinkUrl();
       }
     };
   }

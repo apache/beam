@@ -1043,9 +1043,8 @@ public class CombineFns {
     for (int i = 0; i < combineFns.size(); i++) {
       HasDisplayData combineFn = combineFns.get(i);
       String token = "combineFn" + (i + 1);
-      builder.add(DisplayData.item(token, combineFn.getClass())
+      builder.add(DisplayData.nested(token, combineFn)
         .withLabel("Combine Function"));
-      builder.include(token, combineFn);
     }
   }
 }

@@ -18,6 +18,8 @@
 package org.apache.beam.sdk.transforms.display;
 
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
+import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasLabel;
+import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasLinkUrl;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasNamespace;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasPath;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasType;
@@ -107,12 +109,12 @@ public class DisplayDataMatchersTest {
     final HasDisplayData subComponent = new HasDisplayData() {
       @Override
       public void populateDisplayData(Builder builder) {
-        builder.include("b", new HasDisplayData() {
+        builder.add(DisplayData.nested("b", new HasDisplayData() {
           @Override
           public void populateDisplayData(Builder builder) {
             builder.add(DisplayData.item("foo", "bar"));
           }
-        });
+        }));
       }
     };
 
@@ -121,7 +123,7 @@ public class DisplayDataMatchersTest {
     assertThat(DisplayData.from(new HasDisplayData() {
       @Override
       public void populateDisplayData(Builder builder) {
-        builder.include("a", subComponent);
+        builder.add(DisplayData.nested("a", subComponent));
       }
     }), matcher);
   }
@@ -151,26 +153,26 @@ public class DisplayDataMatchersTest {
     HasDisplayData hasSubcomponent = new HasDisplayData() {
       @Override
       public void populateDisplayData(Builder builder) {
-        builder.include("p", subComponent);
+        builder.add(DisplayData.nested("p", subComponent));
       }
     };
 
     HasDisplayData wrongPath = new HasDisplayData() {
       @Override
       public void populateDisplayData(Builder builder) {
-        builder.include("q", subComponent);
+        builder.add(DisplayData.nested("q", subComponent));
       }
     };
 
     HasDisplayData deeplyNested = new HasDisplayData() {
       @Override
       public void populateDisplayData(Builder builder) {
-        builder.include("p", new HasDisplayData() {
+        builder.add(DisplayData.nested("p", new HasDisplayData() {
           @Override
           public void populateDisplayData(Builder builder) {
-            builder.include("p", subComponent);
+            builder.add(DisplayData.nested("p", subComponent));
           }
-        });
+        }));
       }
     };
 
@@ -190,6 +192,32 @@ public class DisplayDataMatchersTest {
     assertFalse("should not match identical display data from different component",
         matcher.matches(DisplayData.from(sameDisplayItemDifferentComponent)));
     assertThat(DisplayData.from(hasSubcomponent), matcher);
+  }
+
+  @Test
+  public void testHasLabel() {
+    DisplayData data = DisplayData.from(new HasDisplayData() {
+      @Override
+      public void populateDisplayData(Builder builder) {
+        builder.add(DisplayData.item("foo", "bar").withLabel("l"));
+      }
+    });
+
+    assertFalse("wrong label", hasDisplayItem(hasLabel("m")).matches(data));
+    assertThat(data, hasDisplayItem(hasLabel("l")));
+  }
+
+  @Test
+  public void testHasLinkurl() {
+    DisplayData data = DisplayData.from(new HasDisplayData() {
+      @Override
+      public void populateDisplayData(Builder builder) {
+        builder.add(DisplayData.item("foo", "bar").withLinkUrl("google.com"));
+      }
+    });
+
+    assertFalse("wrong url", hasDisplayItem(hasLinkUrl("foobar.com")).matches(data));
+    assertThat(data, hasDisplayItem(hasLinkUrl("google.com")));
   }
 
   private DisplayData createDisplayDataWithItem(final String key, final String value) {
