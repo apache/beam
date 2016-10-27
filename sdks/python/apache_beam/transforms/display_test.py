@@ -23,7 +23,9 @@ from datetime import datetime
 import unittest
 
 import apache_beam as beam
-from apache_beam.transforms.display import HasDisplayData, DisplayData, DisplayDataItem
+from apache_beam.transforms.display import HasDisplayData
+from apache_beam.transforms.display import DisplayData
+from apache_beam.transforms.display import DisplayDataItem
 
 
 class DisplayDataTest(unittest.TestCase):
@@ -68,26 +70,30 @@ class DisplayDataTest(unittest.TestCase):
     now = datetime.now()
     fn = MyDoFn(my_display_data=now)
     dd = DisplayData.create_from(fn)
-    dd_dicts = sorted([item.get_dict() for item in dd.items],
-                      key=lambda x: x['namespace']+x['key'])
 
     nspace = '{}.{}'.format(fn.__module__, fn.__class__.__name__)
-    expected_items = sorted([
-        {'url': 'http://github.com', 'namespace': nspace,
-         'value': 'github.com', 'label': 'The URL',
-         'key': 'complex_url', 'type': 'STRING'},
-        {'type': 'TIMESTAMP', 'namespace': nspace, 'key': 'my_dd',
-         'value': DisplayDataItem._format_value(now, 'TIMESTAMP')},
-        {'type': 'STRING', 'namespace': nspace,
-         'shortValue': 'HasDisplayData', 'key': 'python_class',
-         'value': 'apache_beam.transforms.display.HasDisplayData'},
-        {'type': 'INTEGER', 'namespace': nspace,
-         'value': 120, 'key': 'static_integer'},
-        {'type': 'STRING', 'namespace': nspace,
-         'value': 'static me!', 'key': 'static_string'}],
-                            key=lambda x: x['namespace']+x['key'])
+    expected_items = set([
+        DisplayDataItem(namespace=nspace,
+                        key='complex_url',
+                        value='github.com',
+                        label='The URL',
+                        url='http://github.com'),
+        DisplayDataItem(namespace=nspace,
+                        key='my_dd',
+                        value=now),
+        DisplayDataItem(namespace=nspace,
+                        key='python_class',
+                        shortValue='HasDisplayData',
+                        value='apache_beam.transforms.display.HasDisplayData'),
+        DisplayDataItem(namespace=nspace,
+                        key='static_integer',
+                        value=120),
+        DisplayDataItem(namespace=nspace,
+                        key='static_string',
+                        value='static me!'),
+    ])
 
-    self.assertEqual(dd_dicts, expected_items)
+    self.assertEqual(set(dd.items), expected_items)
 
   def test_subcomponent(self):
     class SpecialParDo(beam.PTransform):

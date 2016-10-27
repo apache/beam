@@ -199,6 +199,12 @@ class DisplayDataItem(object):
       return self.get_dict() == other.get_dict()
     return False
 
+  def __ne__(self, other):
+    return not self == other
+
+  def __hash__(self):
+    return hash(tuple(sorted(self.get_dict().items())))
+
   @classmethod
   def _format_value(cls, value, type_):
     """ Returns the API representation of a value given its type.
@@ -213,9 +219,9 @@ class DisplayDataItem(object):
     res = value
     if type_ == 'CLASS':
       res = '{}.{}'.format(value.__module__, value.__name__)
-    if type_ == 'DURATION':
+    elif type_ == 'DURATION':
       res = value.total_seconds()*1000
-    if type_ == 'TIMESTAMP':
+    elif type_ == 'TIMESTAMP':
       res = calendar.timegm(value.timetuple())*1000 + value.microsecond//1000
     return res
 
@@ -232,7 +238,8 @@ class DisplayDataItem(object):
     """
     if type_ == 'CLASS':
       return value.__name__
-    return None
+    else:
+      return None
 
   @classmethod
   def _get_value_type(cls, value):
