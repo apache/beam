@@ -29,7 +29,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-import org.apache.beam.runners.apex.translators.TranslationContext;
+import org.apache.beam.runners.apex.translation.ApexPipelineTranslator;
 import org.apache.beam.runners.core.AssignWindows;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
@@ -118,17 +118,15 @@ public class ApexRunner extends PipelineRunner<ApexRunnerResult> {
   }
 
   @Override
-  public ApexRunnerResult run(Pipeline pipeline) {
+  public ApexRunnerResult run(final Pipeline pipeline) {
 
-    final TranslationContext translationContext = new TranslationContext(options);
-    ApexPipelineTranslator translator = new ApexPipelineTranslator(translationContext);
-    translator.translate(pipeline);
+    final ApexPipelineTranslator translator = new ApexPipelineTranslator(options);
 
     StreamingApplication apexApp = new StreamingApplication() {
       @Override
       public void populateDAG(DAG dag, Configuration conf) {
         dag.setAttribute(DAGContext.APPLICATION_NAME, options.getApplicationName());
-        translationContext.populateDAG(dag);
+        translator.translate(pipeline, dag);
       }
     };
 
@@ -352,9 +350,6 @@ public class ApexRunner extends PipelineRunner<ApexRunnerResult> {
 
   /**
    * Combiner that combines {@code T}s into a single {@code List<T>} containing all inputs.
-   *
-   * <p>For internal use by {@link StreamingViewAsMap}, {@link StreamingViewAsMultimap},
-   * {@link StreamingViewAsList}, {@link StreamingViewAsIterable}.
    * They require the input {@link PCollection} fits in memory.
    * For a large {@link PCollection} this is expected to crash!
    *

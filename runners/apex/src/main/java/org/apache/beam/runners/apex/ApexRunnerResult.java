@@ -79,7 +79,7 @@ public class ApexRunnerResult implements PipelineResult {
 
   /**
    * Return the DAG executed by the pipeline.
-   * @return
+   * @return DAG from translation.
    */
   public DAG getApexDAG() {
     return apexDAG;
