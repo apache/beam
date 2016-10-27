@@ -831,6 +831,45 @@
             <!-- Another temp override, to be set to true in due course. -->
             <showDeprecation>false</showDeprecation>
           </configuration>
+          <executions>
+
+            <!--
+              Exclude package-info.java from main compilation to work around
+              https://jira.codehaus.org/browse/MCOMPILER-205
+            -->
+            <execution>
+              <id>default-compile</id>
+              <goals>
+                <goal>compile</goal>
+              </goals>
+              <phase>compile</phase>
+              <configuration>
+                <excludes>
+                  <exclude>**/package-info.java</exclude>
+                </excludes>
+              </configuration>
+            </execution>
+
+            <!-- 
+              Compile just package-info.java to avoid 
+              https://bugs.openjdk.java.net/browse/JDK-8022161
+            -->
+            <execution>
+              <id>compile-package-info</id>
+              <goals>
+                <goal>compile</goal>
+              </goals>
+              <phase>compile</phase>
+              <configuration>
+                <compilerArgs>
+                  <arg>-Xpkginfo:always</arg>
+                </compilerArgs>
+                <includes>
+                  <include>**/package-info.java</include>
+                </includes>
+              </configuration>
+            </execution>
+          </executions>
         </plugin>
 
         <plugin>
