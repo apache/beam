@@ -27,10 +27,14 @@ import tempfile
 import unittest
 import zlib
 
+import hamcrest as hc
+
 import apache_beam as beam
 from apache_beam import coders
 from apache_beam.io import fileio
 from apache_beam.runners.dataflow.native_io import iobase as dataflow_io
+from apache_beam.transforms.display import DisplayData
+from apache_beam.transforms.display_test import DisplayDataItemMatcher
 
 # TODO: Add tests for file patterns (ie not just individual files) for both
 # uncompressed
@@ -52,8 +56,9 @@ class TestTextFileSource(unittest.TestCase):
                         output_lines,
                         start_offset=None,
                         end_offset=None):
+    file_name = self.create_temp_file('\n'.join(input_lines))
     source = fileio.TextFileSource(
-        file_path=self.create_temp_file('\n'.join(input_lines)),
+        file_path=file_name,
         start_offset=start_offset,
         end_offset=end_offset)
     read_lines = []
@@ -61,6 +66,11 @@ class TestTextFileSource(unittest.TestCase):
       for line in reader:
         read_lines.append(line)
     self.assertEqual(read_lines, output_lines)
+    dd = DisplayData.create_from(source)
+    expected_items = [
+        DisplayDataItemMatcher('filePattern', file_name)]
+    hc.assert_that(dd.items,
+                   hc.contains_inanyorder(*expected_items))
 
   def progress_with_offsets(self,
                             input_lines,
@@ -592,6 +602,30 @@ class TestNativeTextFileSink(unittest.TestCase):
     with open(self.path, 'r') as f:
       self.assertEqual(f.read().splitlines(), self.lines)
 
+  def test_text_file_display_data(self):
+    sink = fileio.NativeTextFileSink(self.path)
+    dd = DisplayData.create_from(sink)
+    expected_items = [
+        DisplayDataItemMatcher(
+            'filePattern',
+            '{}{}'.format(self.path, '-SSSSS-of-NNNNN')),
+        DisplayDataItemMatcher(
+            'compression',
+            'auto')]
+    hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
+
+  def test_text_file_display_data_suffix(self):
+    sink = fileio.NativeTextFileSink(self.path, file_name_suffix='.pdf')
+    dd = DisplayData.create_from(sink)
+    expected_items = [
+        DisplayDataItemMatcher(
+            'filePattern',
+            '{}{}{}'.format(self.path, '-SSSSS-of-NNNNN', '.pdf')),
+        DisplayDataItemMatcher(
+            'compression',
+            'auto')]
+    hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
+
   def test_write_text_file_empty(self):
     sink = fileio.NativeTextFileSink(self.path)
     self._write_lines(sink, [])
@@ -606,6 +640,19 @@ class TestNativeTextFileSink(unittest.TestCase):
 
     with gzip.GzipFile(self.path, 'r') as f:
       self.assertEqual(f.read().splitlines(), self.lines)
+
+  def test_display_data_gzip_file(self):
+    sink = fileio.NativeTextFileSink(
+        self.path, compression_type=fileio.CompressionTypes.GZIP)
+    dd = DisplayData.create_from(sink)
+    expected_items = [
+        DisplayDataItemMatcher(
+            'filePattern',
+            '{}{}'.format(self.path, '-SSSSS-of-NNNNN')),
+        DisplayDataItemMatcher(
+            'compression',
+            'gzip')]
+    hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
 
   def test_write_text_gzip_file_auto(self):
     self.path = tempfile.NamedTemporaryFile(suffix='.gz').name
@@ -630,6 +677,19 @@ class TestNativeTextFileSink(unittest.TestCase):
 
     with bz2.BZ2File(self.path, 'r') as f:
       self.assertEqual(f.read().splitlines(), self.lines)
+
+  def test_display_data_bzip2_file(self):
+    sink = fileio.NativeTextFileSink(
+        self.path, compression_type=fileio.CompressionTypes.BZIP2)
+    dd = DisplayData.create_from(sink)
+    expected_items = [
+        DisplayDataItemMatcher(
+            'filePattern',
+            '{}{}'.format(self.path, '-SSSSS-of-NNNNN')),
+        DisplayDataItemMatcher(
+            'compression',
+            'bzip2')]
+    hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
 
   def test_write_text_bzip2_file_auto(self):
     self.path = tempfile.NamedTemporaryFile(suffix='.bz2').name
