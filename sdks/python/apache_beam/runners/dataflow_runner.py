@@ -35,6 +35,7 @@ from apache_beam.runners.runner import PipelineResult
 from apache_beam.runners.runner import PipelineRunner
 from apache_beam.runners.runner import PipelineState
 from apache_beam.runners.runner import PValueCache
+from apache_beam.transforms.display import DisplayData
 from apache_beam.typehints import typehints
 from apache_beam.utils import names
 from apache_beam.utils.names import PropertyNames
@@ -262,6 +263,14 @@ class DataflowPipelineRunner(PipelineRunner):
     # cache always contain the tag.
     for tag in side_tags:
       self._cache.cache_output(transform_node, tag, step)
+
+    # Finally, we add the display data items to the pipeline step.
+    # If the transform contains no display data then an empty list is added.
+    step.add_property(
+        PropertyNames.DISPLAY_DATA,
+        [item.get_dict() for item in
+         DisplayData.create_from(transform_node.transform).items])
+
     return step
 
   def run_Create(self, transform_node):
@@ -422,6 +431,7 @@ class DataflowPipelineRunner(PipelineRunner):
            PropertyNames.ENCODING: step.encoding,
            PropertyNames.OUTPUT_NAME: (
                '%s_%s' % (PropertyNames.OUT, side_tag))})
+
     step.add_property(PropertyNames.OUTPUT_INFO, outputs)
 
   @staticmethod

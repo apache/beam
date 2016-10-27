@@ -47,6 +47,7 @@ from apache_beam import pvalue
 from apache_beam import typehints
 from apache_beam.internal import pickler
 from apache_beam.internal import util
+from apache_beam.transforms.display import HasDisplayData
 from apache_beam.typehints import getcallargs_forhints
 from apache_beam.typehints import TypeCheckError
 from apache_beam.typehints import validate_composite_type_param
@@ -167,7 +168,7 @@ class ZipPValues(_PValueishTransform):
         self.visit(p, sibling, pairs, context)
 
 
-class PTransform(WithTypeHints):
+class PTransform(WithTypeHints, HasDisplayData):
   """A transform object used to modify one or more PCollections.
 
   Subclasses must define an apply() method that will be used when the transform
