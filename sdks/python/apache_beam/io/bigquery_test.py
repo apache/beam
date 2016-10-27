@@ -24,6 +24,7 @@ import datetime
 import unittest
 
 from apitools.base.py.exceptions import HttpError
+import hamcrest as hc
 import mock
 
 import apache_beam as beam
@@ -31,6 +32,8 @@ from apache_beam.internal.clients import bigquery
 from apache_beam.internal.json_value import to_json_value
 from apache_beam.io.bigquery import RowAsDictJsonCoder
 from apache_beam.io.bigquery import TableRowJsonCoder
+from apache_beam.transforms.display import DisplayData
+from apache_beam.transforms.display_test import DisplayDataItemMatcher
 from apache_beam.utils.options import PipelineOptions
 
 
@@ -112,6 +115,39 @@ class TestTableRowJsonCoder(unittest.TestCase):
 
 class TestBigQuerySource(unittest.TestCase):
 
+  def test_display_data_item_on_validate_true(self):
+    source = beam.io.BigQuerySource('dataset.table', validate=True)
+
+    dd = DisplayData.create_from(source)
+    expected_items = [
+        DisplayDataItemMatcher('validation', True),
+        DisplayDataItemMatcher('table', 'dataset.table')]
+    hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
+
+  def test_table_reference_display_data(self):
+    source = beam.io.BigQuerySource('dataset.table')
+    dd = DisplayData.create_from(source)
+    expected_items = [
+        DisplayDataItemMatcher('validation', False),
+        DisplayDataItemMatcher('table', 'dataset.table')]
+    hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
+
+    source = beam.io.BigQuerySource('project:dataset.table')
+    dd = DisplayData.create_from(source)
+    expected_items = [
+        DisplayDataItemMatcher('validation', False),
+        DisplayDataItemMatcher('table', 'project:dataset.table')]
+    hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
+
+    source = beam.io.BigQuerySource('xyz.com:project:dataset.table')
+    dd = DisplayData.create_from(source)
+    expected_items = [
+        DisplayDataItemMatcher('validation',
+                               False),
+        DisplayDataItemMatcher('table',
+                               'xyz.com:project:dataset.table')]
+    hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
+
   def test_parse_table_reference(self):
     source = beam.io.BigQuerySource('dataset.table')
     self.assertEqual(source.table_reference.datasetId, 'dataset')
@@ -127,19 +163,39 @@ class TestBigQuerySource(unittest.TestCase):
     self.assertEqual(source.table_reference.datasetId, 'dataset')
     self.assertEqual(source.table_reference.tableId, 'table')
 
-  def test_specify_query_without_table(self):
     source = beam.io.BigQuerySource(query='my_query')
     self.assertEqual(source.query, 'my_query')
     self.assertIsNone(source.table_reference)
     self.assertTrue(source.use_legacy_sql)
+
+  def test_query_only_display_data(self):
+    source = beam.io.BigQuerySource(query='my_query')
+    dd = DisplayData.create_from(source)
+    expected_items = [
+        DisplayDataItemMatcher('validation', False),
+        DisplayDataItemMatcher('query', 'my_query')]
+    hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
 
   def test_specify_query_sql_format(self):
     source = beam.io.BigQuerySource(query='my_query', use_legacy_sql=False)
     self.assertEqual(source.query, 'my_query')
     self.assertFalse(source.use_legacy_sql)
 
+  def test_specify_query_without_table(self):
+    source = beam.io.BigQuerySource(query='my_query')
+    self.assertEqual(source.query, 'my_query')
+    self.assertIsNone(source.table_reference)
+
 
 class TestBigQuerySink(unittest.TestCase):
+
+  def test_table_spec_display_data(self):
+    sink = beam.io.BigQuerySink('dataset.table')
+    dd = DisplayData.create_from(sink)
+    expected_items = [
+        DisplayDataItemMatcher('table', 'dataset.table'),
+        DisplayDataItemMatcher('validation', False)]
+    hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
 
   def test_parse_schema_descriptor(self):
     sink = beam.io.BigQuerySink(
@@ -150,9 +206,17 @@ class TestBigQuerySink(unittest.TestCase):
         field.name: field.type for field in sink.table_schema.fields}
     self.assertEqual({'n': 'INTEGER', 's': 'STRING'}, result_schema)
 
+  def test_project_table_display_data(self):
+    sinkq = beam.io.BigQuerySink('PROJECT:dataset.table')
+    dd = DisplayData.create_from(sinkq)
+    expected_items = [
+        DisplayDataItemMatcher('table', 'PROJECT:dataset.table'),
+        DisplayDataItemMatcher('validation', False)]
+    hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
+
   def test_simple_schema_as_json(self):
     sink = beam.io.BigQuerySink(
-        'dataset.table', schema='s:STRING, n:INTEGER')
+        'PROJECT:dataset.table', schema='s:STRING, n:INTEGER')
     self.assertEqual(
         json.dumps({'fields': [
             {'name': 's', 'type': 'STRING', 'mode': 'NULLABLE'},
