@@ -27,7 +27,7 @@ public interface PathValidator {
    * @param filepattern The file pattern to verify.
    * @return The post-validation filepattern.
    */
-  public String validateInputFilePatternSupported(String filepattern);
+  String validateInputFilePatternSupported(String filepattern);
 
   /**
    * Validate that an output file prefix is conforming.
@@ -35,7 +35,7 @@ public interface PathValidator {
    * @param filePrefix the file prefix to verify.
    * @return The post-validation filePrefix.
    */
-  public String validateOutputFilePrefixSupported(String filePrefix);
+  String validateOutputFilePrefixSupported(String filePrefix);
 
   /**
    * Validate that a path is a valid path and that the path
@@ -44,5 +44,5 @@ public interface PathValidator {
    * @param path The path to verify.
    * @return The post-validation path.
    */
-  public String verifyPath(String path);
+  String verifyPath(String path);
 }

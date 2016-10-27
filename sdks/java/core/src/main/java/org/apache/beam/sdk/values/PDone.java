@@ -17,11 +17,10 @@
  */
 package org.apache.beam.sdk.values;
 
-import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.transforms.PTransform;
-
 import java.util.Collection;
 import java.util.Collections;
+import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.transforms.PTransform;
 
 /**
  * {@link PDone} is the output of a {@link PTransform} that has a trivial result,

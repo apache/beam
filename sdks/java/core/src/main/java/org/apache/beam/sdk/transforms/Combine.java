@@ -19,6 +19,18 @@ package org.apache.beam.sdk.transforms;
 
 import static com.google.common.base.Preconditions.checkState;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Iterables;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Iterator;
+import java.util.List;
+import java.util.concurrent.ThreadLocalRandom;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
@@ -39,6 +51,7 @@ import org.apache.beam.sdk.transforms.CombineWithContext.Context;
 import org.apache.beam.sdk.transforms.CombineWithContext.KeyedCombineFnWithContext;
 import org.apache.beam.sdk.transforms.CombineWithContext.RequiresContextInternal;
 import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.apache.beam.sdk.transforms.display.DisplayData.Builder;
 import org.apache.beam.sdk.transforms.display.HasDisplayData;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
@@ -49,7 +62,6 @@ import org.apache.beam.sdk.util.PerKeyCombineFnRunners;
 import org.apache.beam.sdk.util.PropertyNames;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.util.WindowingStrategy;
-import org.apache.beam.sdk.util.common.Counter;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
@@ -58,21 +70,6 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.sdk.values.TypeDescriptor;
-
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Iterables;
-
-import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonProperty;
-
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Iterator;
-import java.util.List;
-import java.util.concurrent.ThreadLocalRandom;
 
 /**
  * {@code PTransform}s for combining {@code PCollection} elements
@@ -127,14 +124,14 @@ public class Combine {
     return globally(fn, displayDataForFn(fn));
   }
 
-  private static <T> DisplayData.Item<? extends Class<?>> displayDataForFn(T fn) {
+  private static <T> DisplayData.ItemSpec<? extends Class<?>> displayDataForFn(T fn) {
     return DisplayData.item("combineFn", fn.getClass())
         .withLabel("Combiner");
   }
 
   private static <InputT, OutputT> Globally<InputT, OutputT> globally(
       GlobalCombineFn<? super InputT, ?, OutputT> fn,
-      DisplayData.Item<? extends Class<?>> fnDisplayData) {
+      DisplayData.ItemSpec<? extends Class<?>> fnDisplayData) {
     return new Globally<>(fn, fnDisplayData, true, 0);
   }
 
@@ -203,7 +200,7 @@ public class Combine {
 
   private static <K, InputT, OutputT> PerKey<K, InputT, OutputT> perKey(
           PerKeyCombineFn<? super K, ? super InputT, ?, OutputT> fn,
-      DisplayData.Item<? extends Class<?>> fnDisplayData) {
+      DisplayData.ItemSpec<? extends Class<?>> fnDisplayData) {
     return new PerKey<>(fn, fnDisplayData, false /*fewKeys*/);
   }
 
@@ -213,7 +210,7 @@ public class Combine {
    */
   private static <K, InputT, OutputT> PerKey<K, InputT, OutputT> fewKeys(
       PerKeyCombineFn<? super K, ? super InputT, ?, OutputT> fn,
-      DisplayData.Item<? extends Class<?>> fnDisplayData) {
+      DisplayData.ItemSpec<? extends Class<?>> fnDisplayData) {
     return new PerKey<>(fn, fnDisplayData, true /*fewKeys*/);
   }
 
@@ -297,7 +294,7 @@ public class Combine {
 
   private static <K, InputT, OutputT> GroupedValues<K, InputT, OutputT> groupedValues(
       PerKeyCombineFn<? super K, ? super InputT, ?, OutputT> fn,
-      DisplayData.Item<? extends Class<?>> fnDisplayData) {
+      DisplayData.ItemSpec<? extends Class<?>> fnDisplayData) {
     return new GroupedValues<>(fn, fnDisplayData);
   }
 
@@ -524,7 +521,7 @@ public class Combine {
 
         @Override
         public void populateDisplayData(DisplayData.Builder builder) {
-          builder.include(CombineFn.this);
+          builder.delegate(CombineFn.this);
         }
       };
     }
@@ -675,7 +672,7 @@ public class Combine {
    * An abstract subclass of {@link CombineFn} for implementing combiners that are more
    * easily and efficiently expressed as binary operations on <code>int</code>s
    *
-   * <p> It uses {@code int[0]} as the mutable accumulator.
+   * <p>It uses {@code int[0]} as the mutable accumulator.
    */
   public abstract static class BinaryCombineIntegerFn extends CombineFn<Integer, int[], Integer> {
 
@@ -736,10 +733,6 @@ public class Combine {
       return new int[] { value };
     }
 
-    public Counter<Integer> getCounter(@SuppressWarnings("unused") String name) {
-      throw new UnsupportedOperationException("BinaryCombineIntegerFn does not support getCounter");
-    }
-
     private static final class ToIntegerCodingFunction
         implements DelegateCoder.CodingFunction<int[], Integer> {
       @Override
@@ -781,7 +774,7 @@ public class Combine {
    * An abstract subclass of {@link CombineFn} for implementing combiners that are more
    * easily and efficiently expressed as binary operations on <code>long</code>s.
    *
-   * <p> It uses {@code long[0]} as the mutable accumulator.
+   * <p>It uses {@code long[0]} as the mutable accumulator.
    */
   public abstract static class BinaryCombineLongFn extends CombineFn<Long, long[], Long> {
     /**
@@ -839,10 +832,6 @@ public class Combine {
       return new long[] { value };
     }
 
-    public Counter<Long> getCounter(@SuppressWarnings("unused") String name) {
-      throw new UnsupportedOperationException("BinaryCombineLongFn does not support getCounter");
-    }
-
     private static final class ToLongCodingFunction
         implements DelegateCoder.CodingFunction<long[], Long> {
       @Override
@@ -884,7 +873,7 @@ public class Combine {
    * An abstract subclass of {@link CombineFn} for implementing combiners that are more
    * easily and efficiently expressed as binary operations on <code>double</code>s.
    *
-   * <p> It uses {@code double[0]} as the mutable accumulator.
+   * <p>It uses {@code double[0]} as the mutable accumulator.
    */
   public abstract static class BinaryCombineDoubleFn extends CombineFn<Double, double[], Double> {
 
@@ -942,10 +931,6 @@ public class Combine {
 
     private static double[] wrap(double value) {
       return new double[] { value };
-    }
-
-    public Counter<Double> getCounter(@SuppressWarnings("unused") String name) {
-      throw new UnsupportedOperationException("BinaryCombineDoubleFn does not support getCounter");
     }
 
     private static final class ToDoubleCodingFunction
@@ -1041,24 +1026,24 @@ public class Combine {
      * The type of mutable accumulator values used by this
      * {@code AccumulatingCombineFn}.
      */
-    public abstract static interface Accumulator<InputT, AccumT, OutputT> {
+    public interface Accumulator<InputT, AccumT, OutputT> {
       /**
        * Adds the given input value to this accumulator, modifying
        * this accumulator.
        */
-      public abstract void addInput(InputT input);
+      void addInput(InputT input);
 
       /**
        * Adds the input values represented by the given accumulator
        * into this accumulator.
        */
-      public abstract void mergeAccumulator(AccumT other);
+      void mergeAccumulator(AccumT other);
 
       /**
        * Returns the output value that is the result of combining all
        * the input values represented by this accumulator.
        */
-      public abstract OutputT extractOutput();
+      OutputT extractOutput();
     }
 
     @Override
@@ -1273,7 +1258,7 @@ public class Combine {
 
         @Override
         public void populateDisplayData(DisplayData.Builder builder) {
-          builder.include(KeyedCombineFn.this);
+          builder.delegate(KeyedCombineFn.this);
         }
       };
     }
@@ -1340,13 +1325,13 @@ public class Combine {
       extends PTransform<PCollection<InputT>, PCollection<OutputT>> {
 
     private final GlobalCombineFn<? super InputT, ?, OutputT> fn;
-    private final DisplayData.Item<? extends Class<?>> fnDisplayData;
+    private final DisplayData.ItemSpec<? extends Class<?>> fnDisplayData;
     private final boolean insertDefault;
     private final int fanout;
     private final List<PCollectionView<?>> sideInputs;
 
     private Globally(GlobalCombineFn<? super InputT, ?, OutputT> fn,
-        DisplayData.Item<? extends Class<?>> fnDisplayData, boolean insertDefault, int fanout) {
+        DisplayData.ItemSpec<? extends Class<?>> fnDisplayData, boolean insertDefault, int fanout) {
       this.fn = fn;
       this.fnDisplayData = fnDisplayData;
       this.insertDefault = insertDefault;
@@ -1355,7 +1340,7 @@ public class Combine {
     }
 
     private Globally(String name, GlobalCombineFn<? super InputT, ?, OutputT> fn,
-        DisplayData.Item<? extends Class<?>> fnDisplayData, boolean insertDefault, int fanout) {
+        DisplayData.ItemSpec<? extends Class<?>> fnDisplayData, boolean insertDefault, int fanout) {
       super(name);
       this.fn = fn;
       this.fnDisplayData = fnDisplayData;
@@ -1365,7 +1350,7 @@ public class Combine {
     }
 
     private Globally(String name, GlobalCombineFn<? super InputT, ?, OutputT> fn,
-        DisplayData.Item<? extends Class<?>> fnDisplayData, boolean insertDefault, int fanout,
+        DisplayData.ItemSpec<? extends Class<?>> fnDisplayData, boolean insertDefault, int fanout,
         List<PCollectionView<?>> sideInputs) {
       super(name);
       this.fn = fn;
@@ -1425,6 +1410,27 @@ public class Combine {
           ImmutableList.copyOf(sideInputs));
     }
 
+    /**
+     * Returns the {@link GlobalCombineFn} used by this Combine operation.
+     */
+    public GlobalCombineFn<? super InputT, ?, OutputT> getFn() {
+      return fn;
+    }
+
+    /**
+     * Returns the side inputs used by this Combine operation.
+     */
+    public List<PCollectionView<?>> getSideInputs() {
+      return sideInputs;
+    }
+
+    /**
+     * Returns whether or not this transformation applies a default value.
+     */
+    public boolean isInsertDefault() {
+      return insertDefault;
+    }
+
     @Override
     public PCollection<OutputT> apply(PCollection<InputT> input) {
       PCollection<KV<Void, InputT>> withKeys = input
@@ -1473,9 +1479,9 @@ public class Combine {
       PCollection<OutputT> defaultIfEmpty = maybeEmpty.getPipeline()
           .apply("CreateVoid", Create.of((Void) null).withCoder(VoidCoder.of()))
           .apply("ProduceDefault", ParDo.withSideInputs(maybeEmptyView).of(
-              new OldDoFn<Void, OutputT>() {
-                @Override
-                public void processElement(OldDoFn<Void, OutputT>.ProcessContext c) {
+              new DoFn<Void, OutputT>() {
+                @ProcessElement
+                public void processElement(ProcessContext c) {
                   Iterator<OutputT> combined = c.sideInput(maybeEmptyView).iterator();
                   if (!combined.hasNext()) {
                     c.output(defaultValue);
@@ -1492,9 +1498,9 @@ public class Combine {
 
   private static void populateDisplayData(
       DisplayData.Builder builder, HasDisplayData fn,
-      DisplayData.Item<? extends Class<?>> fnDisplayItem) {
+      DisplayData.ItemSpec<? extends Class<?>> fnDisplayItem) {
     builder
-        .include(fn)
+        .include("combineFn", fn)
         .add(fnDisplayItem);
   }
 
@@ -1550,13 +1556,13 @@ public class Combine {
       extends PTransform<PCollection<InputT>, PCollectionView<OutputT>> {
 
     private final GlobalCombineFn<? super InputT, ?, OutputT> fn;
-    private final DisplayData.Item<? extends Class<?>> fnDisplayData;
+    private final DisplayData.ItemSpec<? extends Class<?>> fnDisplayData;
     private final boolean insertDefault;
     private final int fanout;
 
     private GloballyAsSingletonView(
         GlobalCombineFn<? super InputT, ?, OutputT> fn,
-        DisplayData.Item<? extends Class<?>> fnDisplayData, boolean insertDefault, int fanout) {
+        DisplayData.ItemSpec<? extends Class<?>> fnDisplayData, boolean insertDefault, int fanout) {
       this.fn = fn;
       this.fnDisplayData = fnDisplayData;
       this.insertDefault = insertDefault;
@@ -1755,14 +1761,14 @@ public class Combine {
   public static class PerKey<K, InputT, OutputT>
     extends PTransform<PCollection<KV<K, InputT>>, PCollection<KV<K, OutputT>>> {
 
-    private final transient PerKeyCombineFn<? super K, ? super InputT, ?, OutputT> fn;
-    private final DisplayData.Item<? extends Class<?>> fnDisplayData;
+    private final PerKeyCombineFn<? super K, ? super InputT, ?, OutputT> fn;
+    private final DisplayData.ItemSpec<? extends Class<?>> fnDisplayData;
     private final boolean fewKeys;
     private final List<PCollectionView<?>> sideInputs;
 
     private PerKey(
         PerKeyCombineFn<? super K, ? super InputT, ?, OutputT> fn,
-        DisplayData.Item<? extends Class<?>> fnDisplayData, boolean fewKeys) {
+        DisplayData.ItemSpec<? extends Class<?>> fnDisplayData, boolean fewKeys) {
       this.fn = fn;
       this.fnDisplayData = fnDisplayData;
       this.fewKeys = fewKeys;
@@ -1771,7 +1777,7 @@ public class Combine {
 
     private PerKey(String name,
         PerKeyCombineFn<? super K, ? super InputT, ?, OutputT> fn,
-        DisplayData.Item<? extends Class<?>> fnDisplayData,
+        DisplayData.ItemSpec<? extends Class<?>> fnDisplayData,
         boolean fewKeys, List<PCollectionView<?>> sideInputs) {
       super(name);
       this.fn = fn;
@@ -1782,7 +1788,7 @@ public class Combine {
 
     private PerKey(
         String name, PerKeyCombineFn<? super K, ? super InputT, ?, OutputT> fn,
-        DisplayData.Item<? extends Class<?>> fnDisplayData, boolean fewKeys) {
+        DisplayData.ItemSpec<? extends Class<?>> fnDisplayData, boolean fewKeys) {
       super(name);
       this.fn = fn;
       this.fnDisplayData = fnDisplayData;
@@ -1831,7 +1837,14 @@ public class Combine {
      */
     public PerKeyWithHotKeyFanout<K, InputT, OutputT> withHotKeyFanout(final int hotKeyFanout) {
       return new PerKeyWithHotKeyFanout<>(name, fn, fnDisplayData,
-          new SerializableFunction<K, Integer>() {
+          new SimpleFunction<K, Integer>() {
+            @Override
+            public void populateDisplayData(Builder builder) {
+              super.populateDisplayData(builder);
+              builder.add(DisplayData.item("fanout", hotKeyFanout)
+                  .withLabel("Key Fanout Size"));
+            }
+
             @Override
             public Integer apply(K unused) {
               return hotKeyFanout;
@@ -1874,13 +1887,13 @@ public class Combine {
   public static class PerKeyWithHotKeyFanout<K, InputT, OutputT>
       extends PTransform<PCollection<KV<K, InputT>>, PCollection<KV<K, OutputT>>> {
 
-    private final transient PerKeyCombineFn<? super K, ? super InputT, ?, OutputT> fn;
-    private final DisplayData.Item<? extends Class<?>> fnDisplayData;
+    private final PerKeyCombineFn<? super K, ? super InputT, ?, OutputT> fn;
+    private final DisplayData.ItemSpec<? extends Class<?>> fnDisplayData;
     private final SerializableFunction<? super K, Integer> hotKeyFanout;
 
     private PerKeyWithHotKeyFanout(String name,
         PerKeyCombineFn<? super K, ? super InputT, ?, OutputT> fn,
-        DisplayData.Item<? extends Class<?>> fnDisplayData,
+        DisplayData.ItemSpec<? extends Class<?>> fnDisplayData,
         SerializableFunction<? super K, Integer> hotKeyFanout) {
       super(name);
       this.fn = fn;
@@ -1920,7 +1933,7 @@ public class Combine {
           new InputOrAccum.InputOrAccumCoder<InputT, AccumT>(
               inputCoder.getValueCoder(), accumCoder);
 
-      // A CombineFn's mergeAccumulator can be applied in a tree-like fashon.
+      // A CombineFn's mergeAccumulator can be applied in a tree-like fashion.
       // Here we shard the key using an integer nonce, combine on that partial
       // set of values, then drop the nonce and do a final combine of the
       // aggregates.  We do this by splitting the original CombineFn into two,
@@ -1959,6 +1972,11 @@ public class Combine {
                   CoderRegistry registry, Coder<KV<K, Integer>> keyCoder, Coder<InputT> inputCoder)
                   throws CannotProvideCoderException {
                 return accumCoder;
+              }
+
+              @Override
+              public void populateDisplayData(DisplayData.Builder builder) {
+                builder.delegate(PerKeyWithHotKeyFanout.this);
               }
             };
         postCombine =
@@ -2004,6 +2022,10 @@ public class Combine {
                       throws CannotProvideCoderException {
                 return accumCoder;
               }
+              @Override
+              public void populateDisplayData(DisplayData.Builder builder) {
+                builder.delegate(PerKeyWithHotKeyFanout.this);
+              }
             };
       } else {
         final KeyedCombineFnWithContext<K, InputT, AccumT, OutputT> keyedFnWithContext =
@@ -2043,6 +2065,10 @@ public class Combine {
                   CoderRegistry registry, Coder<KV<K, Integer>> keyCoder, Coder<InputT> inputCoder)
                   throws CannotProvideCoderException {
                 return accumCoder;
+              }
+              @Override
+              public void populateDisplayData(DisplayData.Builder builder) {
+                builder.delegate(PerKeyWithHotKeyFanout.this);
               }
             };
         postCombine =
@@ -2089,6 +2115,10 @@ public class Combine {
                   throws CannotProvideCoderException {
                 return accumCoder;
               }
+              @Override
+              public void populateDisplayData(DisplayData.Builder builder) {
+                builder.delegate(PerKeyWithHotKeyFanout.this);
+              }
             };
       }
 
@@ -2097,15 +2127,15 @@ public class Combine {
       final TupleTag<KV<KV<K, Integer>, InputT>> hot = new TupleTag<>();
       final TupleTag<KV<K, InputT>> cold = new TupleTag<>();
       PCollectionTuple split = input.apply("AddNonce", ParDo.of(
-          new OldDoFn<KV<K, InputT>, KV<K, InputT>>() {
+          new DoFn<KV<K, InputT>, KV<K, InputT>>() {
             transient int counter;
-            @Override
+            @StartBundle
             public void startBundle(Context c) {
               counter = ThreadLocalRandom.current().nextInt(
                   Integer.MAX_VALUE);
             }
 
-            @Override
+            @ProcessElement
             public void processElement(ProcessContext c) {
               KV<K, InputT> kv = c.element();
               int spread = Math.max(1, hotKeyFanout.apply(kv.getKey()));
@@ -2133,15 +2163,15 @@ public class Combine {
           .setCoder(KvCoder.of(KvCoder.of(inputCoder.getKeyCoder(), VarIntCoder.of()),
                                inputCoder.getValueCoder()))
           .setWindowingStrategyInternal(preCombineStrategy)
-          .apply("PreCombineHot", Combine.perKey(hotPreCombine))
-          .apply("StripNonce", ParDo.of(
-              new OldDoFn<KV<KV<K, Integer>, AccumT>,
-                                     KV<K, InputOrAccum<InputT, AccumT>>>() {
+          .apply("PreCombineHot", Combine.perKey(hotPreCombine, fnDisplayData))
+          .apply("StripNonce", MapElements.via(
+              new SimpleFunction<KV<KV<K, Integer>, AccumT>,
+                       KV<K, InputOrAccum<InputT, AccumT>>>() {
                 @Override
-                public void processElement(ProcessContext c) {
-                  c.output(KV.of(
-                      c.element().getKey().getKey(),
-                      InputOrAccum.<InputT, AccumT>accum(c.element().getValue())));
+                public KV<K, InputOrAccum<InputT, AccumT>> apply(KV<KV<K, Integer>, AccumT> elem) {
+                  return KV.of(
+                      elem.getKey().getKey(),
+                      InputOrAccum.<InputT, AccumT>accum(elem.getValue()));
                 }
               }))
           .setCoder(KvCoder.of(inputCoder.getKeyCoder(), inputOrAccumCoder))
@@ -2150,12 +2180,12 @@ public class Combine {
       PCollection<KV<K, InputOrAccum<InputT, AccumT>>> preprocessedCold = split
           .get(cold)
           .setCoder(inputCoder)
-          .apply("PrepareCold", ParDo.of(
-              new OldDoFn<KV<K, InputT>, KV<K, InputOrAccum<InputT, AccumT>>>() {
+          .apply("PrepareCold", MapElements.via(
+              new SimpleFunction<KV<K, InputT>, KV<K, InputOrAccum<InputT, AccumT>>>() {
                 @Override
-                public void processElement(ProcessContext c) {
-                  c.output(KV.of(c.element().getKey(),
-                                 InputOrAccum.<InputT, AccumT>input(c.element().getValue())));
+                public KV<K, InputOrAccum<InputT, AccumT>> apply(KV<K, InputT> element) {
+                  return KV.of(element.getKey(),
+                                 InputOrAccum.<InputT, AccumT>input(element.getValue()));
                 }
               }))
           .setCoder(KvCoder.of(inputCoder.getKeyCoder(), inputOrAccumCoder));
@@ -2163,7 +2193,7 @@ public class Combine {
       // Combine the union of the pre-processed hot and cold key results.
       return PCollectionList.of(precombinedHot).and(preprocessedCold)
           .apply(Flatten.<KV<K, InputOrAccum<InputT, AccumT>>>pCollections())
-          .apply("PostCombine", Combine.perKey(postCombine));
+          .apply("PostCombine", Combine.perKey(postCombine, fnDisplayData));
     }
 
     @Override
@@ -2171,6 +2201,9 @@ public class Combine {
       super.populateDisplayData(builder);
 
       Combine.populateDisplayData(builder, fn, fnDisplayData);
+      if (hotKeyFanout instanceof HasDisplayData) {
+        builder.include("hotKeyFanout", (HasDisplayData) hotKeyFanout);
+      }
       builder.add(DisplayData.item("fanoutFn", hotKeyFanout.getClass())
         .withLabel("Fanout Function"));
     }
@@ -2316,12 +2349,12 @@ public class Combine {
                          PCollection<KV<K, OutputT>>> {
 
     private final PerKeyCombineFn<? super K, ? super InputT, ?, OutputT> fn;
-    private final DisplayData.Item<? extends Class<?>> fnDisplayData;
+    private final DisplayData.ItemSpec<? extends Class<?>> fnDisplayData;
     private final List<PCollectionView<?>> sideInputs;
 
     private GroupedValues(
         PerKeyCombineFn<? super K, ? super InputT, ?, OutputT> fn,
-        DisplayData.Item<? extends Class<?>> fnDisplayData) {
+        DisplayData.ItemSpec<? extends Class<?>> fnDisplayData) {
       this.fn = SerializableUtils.clone(fn);
       this.fnDisplayData = fnDisplayData;
       this.sideInputs = ImmutableList.of();
@@ -2329,7 +2362,7 @@ public class Combine {
 
     private GroupedValues(
         PerKeyCombineFn<? super K, ? super InputT, ?, OutputT> fn,
-        DisplayData.Item<? extends Class<?>> fnDisplayData,
+        DisplayData.ItemSpec<? extends Class<?>> fnDisplayData,
         List<PCollectionView<?>> sideInputs) {
       this.fn = SerializableUtils.clone(fn);
       this.fnDisplayData = fnDisplayData;
@@ -2369,7 +2402,7 @@ public class Combine {
 
             @Override
             public void populateDisplayData(DisplayData.Builder builder) {
-              Combine.GroupedValues.this.populateDisplayData(builder);
+              builder.delegate(Combine.GroupedValues.this);
             }
           }).withSideInputs(sideInputs));
 

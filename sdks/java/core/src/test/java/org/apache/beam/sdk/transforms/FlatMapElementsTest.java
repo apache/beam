@@ -18,10 +18,15 @@
 package org.apache.beam.sdk.transforms;
 
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
-
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertThat;
 
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableSet;
+import java.io.Serializable;
+import java.util.Collections;
+import java.util.List;
+import java.util.Set;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
@@ -30,21 +35,12 @@ import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
-
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableSet;
-
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-
-import java.io.Serializable;
-import java.util.Collections;
-import java.util.List;
-import java.util.Set;
 
 /**
  * Tests for {@link FlatMapElements}.
@@ -148,6 +144,25 @@ public class FlatMapElementsTest implements Serializable {
 
     FlatMapElements<?, ?> simpleMap = FlatMapElements.via(simpleFn);
     assertThat(DisplayData.from(simpleMap), hasDisplayItem("flatMapFn", simpleFn.getClass()));
+  }
+
+  @Test
+  public void testSimpleFunctionDisplayData() {
+    SimpleFunction<Integer, List<Integer>> simpleFn = new SimpleFunction<Integer, List<Integer>>() {
+      @Override
+      public List<Integer> apply(Integer input) {
+        return Collections.emptyList();
+      }
+
+      @Override
+      public void populateDisplayData(DisplayData.Builder builder) {
+        builder.add(DisplayData.item("foo", "baz"));
+      }
+    };
+
+    FlatMapElements<?, ?> simpleFlatMap = FlatMapElements.via(simpleFn);
+    assertThat(DisplayData.from(simpleFlatMap), hasDisplayItem("flatMapFn", simpleFn.getClass()));
+    assertThat(DisplayData.from(simpleFlatMap), hasDisplayItem("foo", "baz"));
   }
 
   @Test

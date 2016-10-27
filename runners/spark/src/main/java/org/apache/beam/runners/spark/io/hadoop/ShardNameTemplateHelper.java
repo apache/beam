@@ -20,6 +20,7 @@ package org.apache.beam.runners.spark.io.hadoop;
 
 import static org.apache.beam.runners.spark.io.hadoop.ShardNameBuilder.replaceShardNumber;
 
+import java.io.IOException;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
 import org.apache.hadoop.mapreduce.TaskID;
@@ -28,8 +29,6 @@ import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
-
 /**
  * Shard name template helper.
  */
@@ -37,9 +36,9 @@ public final class ShardNameTemplateHelper {
 
   private static final Logger LOG = LoggerFactory.getLogger(ShardNameTemplateHelper.class);
 
-  public static final String OUTPUT_FILE_PREFIX = "spark.dataflow.fileoutputformat.prefix";
-  public static final String OUTPUT_FILE_TEMPLATE = "spark.dataflow.fileoutputformat.template";
-  public static final String OUTPUT_FILE_SUFFIX = "spark.dataflow.fileoutputformat.suffix";
+  public static final String OUTPUT_FILE_PREFIX = "spark.beam.fileoutputformat.prefix";
+  public static final String OUTPUT_FILE_TEMPLATE = "spark.beam.fileoutputformat.template";
+  public static final String OUTPUT_FILE_SUFFIX = "spark.beam.fileoutputformat.suffix";
 
   private ShardNameTemplateHelper() {
   }

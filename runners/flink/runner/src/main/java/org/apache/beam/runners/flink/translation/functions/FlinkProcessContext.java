@@ -19,6 +19,13 @@ package org.apache.beam.runners.flink.translation.functions;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
+import com.google.common.collect.Iterables;
+import java.io.IOException;
+import java.io.Serializable;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Iterator;
+import java.util.Map;
 import org.apache.beam.runners.flink.translation.wrappers.SerializableFnAggregatorWrapper;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -34,18 +41,10 @@ import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.util.state.StateInternals;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
-
-import com.google.common.collect.Iterables;
-
+import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.util.Collector;
 import org.joda.time.Instant;
-
-import java.io.IOException;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Iterator;
-import java.util.Map;
 
 /**
  * {@link OldDoFn.ProcessContext} for our Flink Wrappers.
@@ -249,7 +248,7 @@ class FlinkProcessContext<InputT, OutputT>
             view.getTagInternal().getId(), new SideInputInitializer<>(view));
     ViewT result = sideInputs.get(sideInputWindow);
     if (result == null) {
-      result = view.fromIterableInternal(Collections.<WindowedValue<?>>emptyList());
+      result = view.getViewFn().apply(Collections.<WindowedValue<?>>emptyList());
     }
     return result;
   }
@@ -319,7 +318,13 @@ class FlinkProcessContext<InputT, OutputT>
   createAggregatorInternal(String name, Combine.CombineFn<AggInputT, ?, AggOutputT> combiner) {
     SerializableFnAggregatorWrapper<AggInputT, AggOutputT> wrapper =
         new SerializableFnAggregatorWrapper<>(combiner);
-    runtimeContext.addAccumulator(name, wrapper);
+    Accumulator<?, ?> existingAccum =
+        (Accumulator<AggInputT, Serializable>) runtimeContext.getAccumulator(name);
+    if (existingAccum != null) {
+      return wrapper;
+    } else {
+      runtimeContext.addAccumulator(name, wrapper);
+    }
     return wrapper;
   }
 }

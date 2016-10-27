@@ -17,13 +17,12 @@
  */
 package org.apache.beam.runners.dataflow;
 
+import java.util.ArrayList;
+import java.util.List;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.runners.TransformTreeNode;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PValue;
-
-import java.util.ArrayList;
-import java.util.List;
 
 /**
  * Provides a simple {@link org.apache.beam.sdk.Pipeline.PipelineVisitor}

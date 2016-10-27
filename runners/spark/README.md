@@ -63,8 +63,7 @@ The Spark runner provides support for batch processing of Beam bounded PCollecti
 ### Streaming
 
 The Spark runner currently provides partial support for stream processing of Beam unbounded PCollections as Spark [DStream](http://spark.apache.org/docs/latest/streaming-programming-guide.html#discretized-streams-dstreams)s.  
-Current implementation of *Windowing* takes the first window size in the pipeline and treats it as the Spark "batch interval", while following windows will be treated as *Processing Time* windows.  
-Further work is required to provide full support for the Beam Model *event-time* and *out-of-order* stream processing.
+Currently, both *FixedWindows* and *SlidingWindows* are supported, but only with processing-time triggers and discarding pane.  
 
 ### issue tracking
 

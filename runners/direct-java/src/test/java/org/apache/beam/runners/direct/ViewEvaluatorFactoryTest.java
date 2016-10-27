@@ -23,6 +23,7 @@ import static org.junit.Assert.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import com.google.common.collect.ImmutableList;
 import org.apache.beam.runners.direct.DirectRunner.CommittedBundle;
 import org.apache.beam.runners.direct.DirectRunner.PCollectionViewWriter;
 import org.apache.beam.sdk.coders.KvCoder;
@@ -38,9 +39,6 @@ import org.apache.beam.sdk.util.PCollectionViews;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
-
-import com.google.common.collect.ImmutableList;
-
 import org.joda.time.Instant;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -74,10 +72,10 @@ public class ViewEvaluatorFactoryTest {
     when(context.createPCollectionViewWriter(concat, view)).thenReturn(viewWriter);
 
     CommittedBundle<String> inputBundle =
-        bundleFactory.createRootBundle(input).commit(Instant.now());
+        bundleFactory.createBundle(input).commit(Instant.now());
     TransformEvaluator<Iterable<String>> evaluator =
-        new ViewEvaluatorFactory()
-            .forApplication(view.getProducingTransformInternal(), inputBundle, context);
+        new ViewEvaluatorFactory(context)
+            .forApplication(view.getProducingTransformInternal(), inputBundle);
 
     evaluator.processElement(
         WindowedValue.<Iterable<String>>valueInGlobalWindow(ImmutableList.of("foo", "bar")));

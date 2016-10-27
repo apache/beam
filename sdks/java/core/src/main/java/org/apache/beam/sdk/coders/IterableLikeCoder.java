@@ -19,11 +19,6 @@ package org.apache.beam.sdk.coders;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
-import org.apache.beam.sdk.util.BufferedElementCountingOutputStream;
-import org.apache.beam.sdk.util.VarInt;
-import org.apache.beam.sdk.util.common.ElementByteSizeObservableIterable;
-import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
-
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
@@ -35,6 +30,10 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Observable;
 import java.util.Observer;
+import org.apache.beam.sdk.util.BufferedElementCountingOutputStream;
+import org.apache.beam.sdk.util.VarInt;
+import org.apache.beam.sdk.util.common.ElementByteSizeObservableIterable;
+import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
 
 /**
  * An abstract base class with functionality for assembling a
@@ -141,19 +140,19 @@ public abstract class IterableLikeCoder<T, IterableT extends Iterable<T>>
         elements.add(elementCoder.decode(dataInStream, nestedContext));
       }
       return decodeToIterable(elements);
-    } else {
-      List<T> elements = new ArrayList<>();
-      long count;
-      // We don't know the size a priori.  Check if we're done with
-      // each block of elements.
-      while ((count = VarInt.decodeLong(dataInStream)) > 0) {
-        while (count > 0) {
-          elements.add(elementCoder.decode(dataInStream, nestedContext));
-          count -= 1;
-        }
-      }
-      return decodeToIterable(elements);
     }
+    List<T> elements = new ArrayList<>();
+    // We don't know the size a priori.  Check if we're done with
+    // each block of elements.
+    long count = VarInt.decodeLong(dataInStream);
+    while (count > 0L) {
+      elements.add(elementCoder.decode(dataInStream, nestedContext));
+      --count;
+      if (count == 0L) {
+          count = VarInt.decodeLong(dataInStream);
+      }
+    }
+    return decodeToIterable(elements);
   }
 
   @Override

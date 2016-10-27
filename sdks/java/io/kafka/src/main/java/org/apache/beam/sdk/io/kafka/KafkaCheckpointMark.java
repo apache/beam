@@ -17,15 +17,13 @@
  */
 package org.apache.beam.sdk.io.kafka;
 
-import org.apache.beam.sdk.coders.DefaultCoder;
-import org.apache.beam.sdk.coders.SerializableCoder;
-import org.apache.beam.sdk.io.UnboundedSource;
-
-import org.apache.kafka.common.TopicPartition;
-
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.List;
+import org.apache.beam.sdk.coders.DefaultCoder;
+import org.apache.beam.sdk.coders.SerializableCoder;
+import org.apache.beam.sdk.io.UnboundedSource;
+import org.apache.kafka.common.TopicPartition;
 
 /**
  * Checkpoint for an unbounded KafkaIO.Read. Consists of Kafka topic name, partition id,
@@ -58,19 +56,19 @@ public class KafkaCheckpointMark implements UnboundedSource.CheckpointMark, Seri
    */
   public static class PartitionMark implements Serializable {
     private final TopicPartition topicPartition;
-    private final long offset;
+    private final long nextOffset;
 
     public PartitionMark(TopicPartition topicPartition, long offset) {
       this.topicPartition = topicPartition;
-      this.offset = offset;
+      this.nextOffset = offset;
     }
 
     public TopicPartition getTopicPartition() {
       return topicPartition;
     }
 
-    public long getOffset() {
-      return offset;
+    public long getNextOffset() {
+      return nextOffset;
     }
   }
 }

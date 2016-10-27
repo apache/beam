@@ -17,10 +17,9 @@
  */
 package org.apache.beam.sdk.transforms.windowing;
 
-import org.joda.time.Instant;
-
 import java.util.Arrays;
 import java.util.Collection;
+import org.joda.time.Instant;
 
 /**
  * A {@link WindowFn} that places each value into exactly one window based on its timestamp and

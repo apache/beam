@@ -26,6 +26,19 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Iterables;
+import com.google.common.io.ByteStreams;
+import com.google.common.io.CountingInputStream;
+import com.google.common.io.CountingOutputStream;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.List;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.Coder.NonDeterministicException;
 import org.apache.beam.sdk.coders.CoderException;
@@ -37,20 +50,6 @@ import org.apache.beam.sdk.util.Structs;
 import org.apache.beam.sdk.util.UnownedInputStream;
 import org.apache.beam.sdk.util.UnownedOutputStream;
 import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Iterables;
-import com.google.common.io.ByteStreams;
-import com.google.common.io.CountingInputStream;
-import com.google.common.io.CountingOutputStream;
-
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.List;
 
 /**
  * Properties for use in {@link Coder} tests. These are implemented with junit assertions

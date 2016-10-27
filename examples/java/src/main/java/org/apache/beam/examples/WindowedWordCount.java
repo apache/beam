@@ -17,6 +17,13 @@
  */
 package org.apache.beam.examples;
 
+import com.google.api.services.bigquery.model.TableFieldSchema;
+import com.google.api.services.bigquery.model.TableReference;
+import com.google.api.services.bigquery.model.TableRow;
+import com.google.api.services.bigquery.model.TableSchema;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 import org.apache.beam.examples.common.ExampleBigQueryTableOptions;
 import org.apache.beam.examples.common.ExampleOptions;
 import org.apache.beam.examples.common.ExampleUtils;
@@ -33,18 +40,8 @@ import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
-
-import com.google.api.services.bigquery.model.TableFieldSchema;
-import com.google.api.services.bigquery.model.TableReference;
-import com.google.api.services.bigquery.model.TableRow;
-import com.google.api.services.bigquery.model.TableSchema;
-
 import org.joda.time.Duration;
 import org.joda.time.Instant;
-
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
 
 
 /**
@@ -57,7 +54,7 @@ import java.util.List;
  *
  * <p>Basic concepts, also in the MinimalWordCount, WordCount, and DebuggingWordCount examples:
  * Reading text files; counting a PCollection; writing to GCS; executing a Pipeline both locally
- * and using the Dataflow service; defining DoFns; creating a custom aggregator;
+ * and using a selected runner; defining DoFns; creating a custom aggregator;
  * user-defined PTransforms; defining PipelineOptions.
  *
  * <p>New Concepts:
@@ -69,27 +66,21 @@ import java.util.List;
  *   5. Writing to BigQuery
  * </pre>
  *
- * <p>To execute this pipeline locally, specify general pipeline configuration:
+ * <p>By default, the examples will run with the {@code DirectRunner}.
+ * To change the runner, specify:
  * <pre>{@code
- *   --project=YOUR_PROJECT_ID
+ *   --runner=YOUR_SELECTED_RUNNER
  * }
  * </pre>
- *
- * <p>To execute this pipeline using the Dataflow service, specify pipeline configuration:
- * <pre>{@code
- *   --project=YOUR_PROJECT_ID
- *   --tempLocation=gs://YOUR_TEMP_DIRECTORY
- *   --runner=BlockingDataflowRunner
- * }
- * </pre>
+ * See examples/java/README.md for instructions about how to configure different runners.
  *
  * <p>Optionally specify the input file path via:
  * {@code --inputFile=gs://INPUT_PATH},
- * which defaults to {@code gs://dataflow-samples/shakespeare/kinglear.txt}.
+ * which defaults to {@code gs://apache-beam-samples/shakespeare/kinglear.txt}.
  *
  * <p>Specify an output BigQuery dataset and optionally, a table for the output. If you don't
  * specify the table, one will be created for you using the job name. If you don't specify the
- * dataset, a dataset called {@code dataflow-examples} must already exist in your project.
+ * dataset, a dataset called {@code beam_examples} must already exist in your project.
  * {@code --bigQueryDataset=YOUR-DATASET --bigQueryTable=YOUR-NEW-TABLE-NAME}.
  *
  * <p>By default, the pipeline will do fixed windowing, on 1-minute windows.  You can
@@ -175,7 +166,7 @@ public class WindowedWordCount {
    * table, as well as the {@link WordCount.WordCountOptions} support for
    * specification of the input file.
    */
-  public static interface Options extends WordCount.WordCountOptions,
+  public interface Options extends WordCount.WordCountOptions,
       ExampleOptions, ExampleBigQueryTableOptions {
     @Description("Fixed window duration, in minutes")
     @Default.Integer(WINDOW_SIZE)
@@ -186,15 +177,14 @@ public class WindowedWordCount {
   public static void main(String[] args) throws IOException {
     Options options = PipelineOptionsFactory.fromArgs(args).withValidation().as(Options.class);
     options.setBigQuerySchema(getSchema());
-    // DataflowExampleUtils creates the necessary input sources to simplify execution of this
-    // Pipeline.
+    // ExampleUtils creates the necessary input sources to simplify execution of this Pipeline.
     ExampleUtils exampleUtils = new ExampleUtils(options);
     exampleUtils.setup();
 
     Pipeline pipeline = Pipeline.create(options);
 
     /**
-     * Concept #1: the Dataflow SDK lets us run the same pipeline with either a bounded or
+     * Concept #1: the Beam SDK lets us run the same pipeline with either a bounded or
      * unbounded input source.
      */
     PCollection<String> input = pipeline
@@ -233,7 +223,7 @@ public class WindowedWordCount {
 
     PipelineResult result = pipeline.run();
 
-    // dataflowUtils will try to cancel the pipeline before the program exists.
+    // ExampleUtils will try to cancel the pipeline before the program exists.
     exampleUtils.waitToFinish(result);
   }
 }

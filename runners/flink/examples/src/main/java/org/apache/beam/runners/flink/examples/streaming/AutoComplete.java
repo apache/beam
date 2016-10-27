@@ -17,6 +17,8 @@
  */
 package org.apache.beam.runners.flink.examples.streaming;
 
+import java.io.IOException;
+import java.util.List;
 import org.apache.beam.runners.flink.FlinkRunner;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.io.UnboundedSocketSource;
 import org.apache.beam.sdk.Pipeline;
@@ -29,7 +31,7 @@ import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.Aggregator;
 import org.apache.beam.sdk.transforms.Count;
-import org.apache.beam.sdk.transforms.OldDoFn;
+import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Filter;
 import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -40,17 +42,14 @@ import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.transforms.Top;
 import org.apache.beam.sdk.transforms.windowing.AfterWatermark;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
-
 import org.joda.time.Duration;
-
-import java.io.IOException;
-import java.util.List;
 
 /**
  * To run the example, first open a socket on a terminal by executing the command:
@@ -92,12 +91,13 @@ public class AutoComplete {
 
         // Map the KV outputs of Count into our own CompletionCandiate class.
         .apply("CreateCompletionCandidates", ParDo.of(
-            new OldDoFn<KV<String, Long>, CompletionCandidate>() {
+            new DoFn<KV<String, Long>, CompletionCandidate>() {
               private static final long serialVersionUID = 0;
 
-              @Override
+              @ProcessElement
               public void processElement(ProcessContext c) {
-                CompletionCandidate cand = new CompletionCandidate(c.element().getKey(), c.element().getValue());
+                CompletionCandidate cand = new CompletionCandidate(c.element().getKey(),
+                    c.element().getValue());
                 c.output(cand);
               }
             }));
@@ -155,7 +155,7 @@ public class AutoComplete {
   /**
    * Cheaper but higher latency.
    *
-   * <p> Returns two PCollections, the first is top prefixes of size greater
+   * <p>Returns two PCollections, the first is top prefixes of size greater
    * than minPrefix, and the second is top prefixes of size exactly
    * minPrefix.
    */
@@ -182,10 +182,10 @@ public class AutoComplete {
     }
 
     private static class FlattenTops
-        extends OldDoFn<KV<String, List<CompletionCandidate>>, CompletionCandidate> {
+        extends DoFn<KV<String, List<CompletionCandidate>>, CompletionCandidate> {
       private static final long serialVersionUID = 0;
 
-      @Override
+      @ProcessElement
       public void processElement(ProcessContext c) {
         for (CompletionCandidate cc : c.element().getValue()) {
           c.output(cc);
@@ -236,10 +236,10 @@ public class AutoComplete {
   }
 
   /**
-   * A OldDoFn that keys each candidate by all its prefixes.
+   * A DoFn that keys each candidate by all its prefixes.
    */
   private static class AllPrefixes
-      extends OldDoFn<CompletionCandidate, KV<String, CompletionCandidate>> {
+      extends DoFn<CompletionCandidate, KV<String, CompletionCandidate>> {
     private static final long serialVersionUID = 0;
 
     private final int minPrefix;
@@ -251,7 +251,7 @@ public class AutoComplete {
       this.minPrefix = minPrefix;
       this.maxPrefix = maxPrefix;
     }
-    @Override
+    @ProcessElement
       public void processElement(ProcessContext c) {
       String word = c.element().value;
       for (int i = minPrefix; i <= Math.min(word.length(), maxPrefix); i++) {
@@ -314,11 +314,11 @@ public class AutoComplete {
     }
   }
 
-  static class ExtractWordsFn extends OldDoFn<String, String> {
+  static class ExtractWordsFn extends DoFn<String, String> {
     private final Aggregator<Long, Long> emptyLines =
             createAggregator("emptyLines", new Sum.SumLongFn());
 
-    @Override
+    @ProcessElement
     public void processElement(ProcessContext c) {
       if (c.element().trim().isEmpty()) {
         emptyLines.addValue(1L);
@@ -337,21 +337,21 @@ public class AutoComplete {
   }
 
   /**
-   * Takes as input a the top candidates per prefix, and emits an entity
-   * suitable for writing to Datastore.
+   * Takes as input a the top candidates per prefix, and emits an entity suitable for writing to
+   * Datastore.
    */
-  static class FormatForPerTaskLocalFile extends OldDoFn<KV<String, List<CompletionCandidate>>, String>
-          implements OldDoFn.RequiresWindowAccess{
+  static class FormatForPerTaskLocalFile
+      extends DoFn<KV<String, List<CompletionCandidate>>, String> {
 
     private static final long serialVersionUID = 0;
 
-    @Override
-    public void processElement(ProcessContext c) {
+    @ProcessElement
+    public void processElement(ProcessContext c, BoundedWindow window) {
       StringBuilder str = new StringBuilder();
       KV<String, List<CompletionCandidate>> elem = c.element();
 
-      str.append(elem.getKey() +" @ "+ c.window() +" -> ");
-      for(CompletionCandidate cand: elem.getValue()) {
+      str.append(elem.getKey() + " @ " + window + " -> ");
+      for (CompletionCandidate cand: elem.getValue()) {
         str.append(cand.toString() + " ");
       }
       System.out.println(str.toString());
@@ -362,7 +362,7 @@ public class AutoComplete {
   /**
    * Options supported by this class.
    *
-   * <p> Inherits standard Dataflow configuration options.
+   * <p>Inherits standard Dataflow configuration options.
    */
   private interface Options extends WindowedWordCount.StreamingWordCountOptions {
     @Description("Whether to use the recursive algorithm")

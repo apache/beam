@@ -17,19 +17,16 @@
  */
 package org.apache.beam.runners.direct;
 
-import org.apache.beam.sdk.transforms.AppliedPTransform;
-import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.util.WindowingStrategy;
-
 import com.google.common.collect.ComparisonChain;
 import com.google.common.collect.Ordering;
-
-import org.joda.time.Instant;
-
 import java.util.PriorityQueue;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.Executor;
+import org.apache.beam.sdk.transforms.AppliedPTransform;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.util.WindowingStrategy;
+import org.joda.time.Instant;
 
 /**
  * Executes callbacks that occur based on the progression of the watermark per-step.

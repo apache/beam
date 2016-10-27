@@ -17,13 +17,13 @@
  */
 package org.apache.beam.sdk.values;
 
+import java.io.Serializable;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.View;
+import org.apache.beam.sdk.transforms.ViewFn;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowingStrategy;
-
-import java.io.Serializable;
 
 /**
  * A {@link PCollectionView PCollectionView&lt;T&gt;} is an immutable view of a {@link PCollection}
@@ -44,22 +44,35 @@ import java.io.Serializable;
  */
 public interface PCollectionView<T> extends PValue, Serializable {
   /**
-   * A unique identifier, for internal use.
+   * @deprecated this method will be removed entirely. The {@link PCollection} underlying a side
+   *     input, is part of the side input's specification with a {@link ParDo} transform, which will
+   *     obtain that information via a package-private channel.
    */
-  public TupleTag<Iterable<WindowedValue<?>>> getTagInternal();
+  @Deprecated
+  TupleTag<Iterable<WindowedValue<?>>> getTagInternal();
 
   /**
-   * For internal use only.
+   * @deprecated this method will be removed entirely. The {@link ViewFn} for a side input is an
+   *     attribute of the side input's specification with a {@link ParDo} transform, which will
+   *     obtain this specification via a package-private channel.
    */
-  public T fromIterableInternal(Iterable<WindowedValue<?>> contents);
+  @Deprecated
+  ViewFn<Iterable<WindowedValue<?>>, T> getViewFn();
 
   /**
-   * For internal use only.
+   * @deprecated this method will be removed entirely. The {@link PCollection} underlying a side
+   *     input, including its {@link WindowingStrategy}, is part of the side input's specification
+   *     with a {@link ParDo} transform, which will obtain that information via a package-private
+   *     channel.
    */
-  public WindowingStrategy<?, ?> getWindowingStrategyInternal();
+  @Deprecated
+  WindowingStrategy<?, ?> getWindowingStrategyInternal();
 
   /**
-   * For internal use only.
+   * @deprecated this method will be removed entirely. The {@link PCollection} underlying a side
+   *     input, including its {@link Coder}, is part of the side input's specification with a {@link
+   *     ParDo} transform, which will obtain that information via a package-private channel.
    */
-  public Coder<Iterable<WindowedValue<?>>> getCoderInternal();
+  @Deprecated
+  Coder<Iterable<WindowedValue<?>>> getCoderInternal();
 }

@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.util;
 
+import com.google.common.collect.Iterables;
+import java.util.Collection;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.Combine.KeyedCombineFn;
 import org.apache.beam.sdk.transforms.CombineFnBase.PerKeyCombineFn;
@@ -25,10 +27,6 @@ import org.apache.beam.sdk.transforms.CombineWithContext.KeyedCombineFnWithConte
 import org.apache.beam.sdk.transforms.CombineWithContext.RequiresContextInternal;
 import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-
-import com.google.common.collect.Iterables;
-
-import java.util.Collection;
 
 /**
  * Static utility methods that provide {@link PerKeyCombineFnRunner} implementations
@@ -52,7 +50,7 @@ public class PerKeyCombineFnRunners {
   /**
    * An implementation of {@link PerKeyCombineFnRunner} with {@link KeyedCombineFn}.
    *
-   * It forwards functions calls to the {@link KeyedCombineFn}.
+   * <p>It forwards functions calls to the {@link KeyedCombineFn}.
    */
   private static class KeyedCombineFnRunner<K, InputT, AccumT, OutputT>
       implements PerKeyCombineFnRunner<K, InputT, AccumT, OutputT> {
@@ -148,7 +146,7 @@ public class PerKeyCombineFnRunners {
   /**
    * An implementation of {@link PerKeyCombineFnRunner} with {@link KeyedCombineFnWithContext}.
    *
-   * It forwards functions calls to the {@link KeyedCombineFnWithContext}.
+   * <p>It forwards functions calls to the {@link KeyedCombineFnWithContext}.
    */
   private static class KeyedCombineFnWithContextRunner<K, InputT, AccumT, OutputT>
       implements PerKeyCombineFnRunner<K, InputT, AccumT, OutputT> {

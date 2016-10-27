@@ -17,22 +17,20 @@
  */
 package org.apache.beam.sdk.transforms.windowing;
 
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.Coder.NonDeterministicException;
 import org.apache.beam.sdk.transforms.GroupByKey;
-import org.apache.beam.sdk.transforms.OldDoFn;
+import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.util.WindowingStrategy.AccumulationMode;
 import org.apache.beam.sdk.values.PCollection;
-
 import org.joda.time.Duration;
-
-import javax.annotation.Nullable;
 
 /**
  * {@code Window} logically divides up or groups the elements of a
@@ -42,11 +40,11 @@ import javax.annotation.Nullable;
  * {@link org.apache.beam.sdk.transforms.GroupByKey GroupByKeys},
  * including one within composite transforms, will group by the combination of
  * keys and windows.
-
+ *
  * <p>See {@link org.apache.beam.sdk.transforms.GroupByKey}
  * for more information about how grouping with windows works.
  *
- * <h2> Windowing </h2>
+ * <h2>Windowing</h2>
  *
  * <p>Windowing a {@code PCollection} divides the elements into windows based
  * on the associated event time for each element. This is especially useful
@@ -60,13 +58,13 @@ import javax.annotation.Nullable;
  * The following example demonstrates how to use {@code Window} in a pipeline
  * that counts the number of occurrences of strings each minute:
  *
- * <pre> {@code
+ * <pre>{@code
  * PCollection<String> items = ...;
  * PCollection<String> windowed_items = items.apply(
  *   Window.<String>into(FixedWindows.of(Duration.standardMinutes(1))));
  * PCollection<KV<String, Long>> windowed_counts = windowed_items.apply(
  *   Count.<String>perElement());
- * } </pre>
+ * }</pre>
  *
  * <p>Let (data, timestamp) denote a data element along with its timestamp.
  * Then, if the input to this pipeline consists of
@@ -85,7 +83,7 @@ import javax.annotation.Nullable;
  * <p>Additionally, custom {@link WindowFn}s can be created, by creating new
  * subclasses of {@link WindowFn}.
  *
- * <h2> Triggers </h2>
+ * <h2>Triggers</h2>
  *
  * <p>{@link Window.Bound#triggering(Trigger)} allows specifying a trigger to control when
  * (in processing time) results for the given window can be produced. If unspecified, the default
@@ -105,7 +103,7 @@ import javax.annotation.Nullable;
  * (The use of watermark time to stop processing tends to be more robust if the data source is slow
  * for a few days, etc.)
  *
- * <pre> {@code
+ * <pre>{@code
  * PCollection<String> items = ...;
  * PCollection<String> windowed_items = items.apply(
  *   Window.<String>into(FixedWindows.of(Duration.standardMinutes(1)))
@@ -116,12 +114,12 @@ import javax.annotation.Nullable;
  *      .withAllowedLateness(Duration.standardDays(1)));
  * PCollection<KV<String, Long>> windowed_counts = windowed_items.apply(
  *   Count.<String>perElement());
- * } </pre>
+ * }</pre>
  *
  * <p>On the other hand, if we wanted to get early results every minute of processing
  * time (for which there were new elements in the given window) we could do the following:
  *
- * <pre> {@code
+ * <pre>{@code
  * PCollection<String> windowed_items = items.apply(
  *   Window.<String>into(FixedWindows.of(Duration.standardMinutes(1))
  *      .triggering(
@@ -130,7 +128,7 @@ import javax.annotation.Nullable;
  *              .withEarlyFirings(AfterProcessingTime
  *                  .pastFirstElementInPane().plusDelayOf(Duration.standardMinutes(1))))
  *      .withAllowedLateness(Duration.ZERO));
- * } </pre>
+ * }</pre>
  *
  * <p>After a {@link org.apache.beam.sdk.transforms.GroupByKey} the trigger is set to
  * a trigger that will preserve the intent of the upstream trigger.  See
@@ -580,7 +578,7 @@ public class Window {
         builder
             .add(DisplayData.item("windowFn", windowFn.getClass())
               .withLabel("Windowing Function"))
-            .include(windowFn);
+            .include("windowFn", windowFn);
       }
 
       if (allowedLateness != null) {
@@ -645,9 +643,9 @@ public class Window {
           // We first apply a (trivial) transform to the input PCollection to produce a new
           // PCollection. This ensures that we don't modify the windowing strategy of the input
           // which may be used elsewhere.
-          .apply("Identity", ParDo.of(new OldDoFn<T, T>() {
-            @Override public void processElement(ProcessContext c) {
-              c.output(c.element());
+          .apply("Identity", MapElements.via(new SimpleFunction<T, T>() {
+            @Override public T apply(T element) {
+              return element;
             }
           }))
           // Then we modify the windowing strategy.

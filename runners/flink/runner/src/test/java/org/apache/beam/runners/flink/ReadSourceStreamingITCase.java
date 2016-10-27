@@ -17,12 +17,12 @@
  */
 package org.apache.beam.runners.flink;
 
+import com.google.common.base.Joiner;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.CountingInput;
 import org.apache.beam.sdk.io.TextIO;
-import org.apache.beam.sdk.transforms.OldDoFn;
+import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
-import com.google.common.base.Joiner;
 import org.apache.flink.streaming.util.StreamingProgramTestBase;
 
 /**
@@ -59,8 +59,8 @@ public class ReadSourceStreamingITCase extends StreamingProgramTestBase {
 
     p
       .apply(CountingInput.upTo(10))
-      .apply(ParDo.of(new OldDoFn<Long, String>() {
-          @Override
+      .apply(ParDo.of(new DoFn<Long, String>() {
+          @ProcessElement
           public void processElement(ProcessContext c) throws Exception {
             c.output(c.element().toString());
           }

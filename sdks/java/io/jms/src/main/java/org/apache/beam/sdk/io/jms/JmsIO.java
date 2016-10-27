@@ -20,6 +20,22 @@ package org.apache.beam.sdk.io.jms;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 
+import com.google.common.annotations.VisibleForTesting;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Enumeration;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.NoSuchElementException;
+import javax.annotation.Nullable;
+import javax.jms.Connection;
+import javax.jms.ConnectionFactory;
+import javax.jms.Destination;
+import javax.jms.MessageConsumer;
+import javax.jms.MessageProducer;
+import javax.jms.Session;
+import javax.jms.TextMessage;
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.SerializableCoder;
@@ -35,31 +51,10 @@ import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
-import org.apache.beam.sdk.values.PInput;
-
-import com.google.common.annotations.VisibleForTesting;
-
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Enumeration;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.NoSuchElementException;
-
-import javax.annotation.Nullable;
-import javax.jms.Connection;
-import javax.jms.ConnectionFactory;
-import javax.jms.Destination;
-import javax.jms.MessageConsumer;
-import javax.jms.MessageProducer;
-import javax.jms.Session;
-import javax.jms.TextMessage;
 
 /**
  * An unbounded source for JMS destinations (queues or topics).
@@ -86,7 +81,7 @@ import javax.jms.TextMessage;
  *
  * <h3>Writing to a JMS destination</h3>
  *
- * JmsIO sink supports writing text messages to a JMS destination on a broker.
+ * <p>JmsIO sink supports writing text messages to a JMS destination on a broker.
  * To configure a JMS sink, you must specify a {@link javax.jms.ConnectionFactory} and a
  * {@link javax.jms.Destination} name.
  * For instance:
@@ -106,11 +101,11 @@ public class JmsIO {
   private static final Logger LOG = LoggerFactory.getLogger(JmsIO.class);
 
   public static Read read() {
-    return new Read();
+    return new Read(null, null, null, Long.MAX_VALUE, null);
   }
 
   public static Write write() {
-    return new Write();
+    return new Write(null, null, null);
   }
 
   /**
@@ -144,7 +139,7 @@ public class JmsIO {
       // handles unbounded source to bounded conversion if maxNumRecords is set.
       Unbounded<JmsRecord> unbounded = org.apache.beam.sdk.io.Read.from(createSource());
 
-      PTransform<PInput, PCollection<JmsRecord>> transform = unbounded;
+      PTransform<PBegin, PCollection<JmsRecord>> transform = unbounded;
 
       if (maxNumRecords != Long.MAX_VALUE) {
         transform = unbounded.withMaxNumRecords(maxNumRecords);
@@ -180,7 +175,7 @@ public class JmsIO {
      * that they can be stored in all JNDI naming contexts. In addition, it is recommended that
      * these implementations follow the JavaBeansTM design patterns."
      *
-     * So, a {@link ConnectionFactory} implementation is serializable.
+     * <p>So, a {@link ConnectionFactory} implementation is serializable.
      */
     protected ConnectionFactory connectionFactory;
     @Nullable
@@ -189,8 +184,6 @@ public class JmsIO {
     protected String topic;
     protected long maxNumRecords;
     protected Duration maxReadTime;
-
-    private Read() {}
 
     private Read(
         ConnectionFactory connectionFactory,
@@ -208,8 +201,8 @@ public class JmsIO {
     }
 
     /**
-     * Creates an {@link UnboundedSource<JmsRecord, ?>} with the configuration in
-     * {@link Read}. Primary use case is unit tests, should not be used in an
+     * Creates an {@link UnboundedSource UnboundedSource&lt;JmsRecord, ?&gt;} with the configuration
+     * in {@link Read}. Primary use case is unit tests, should not be used in an
      * application.
      */
     @VisibleForTesting
@@ -262,7 +255,7 @@ public class JmsIO {
     }
 
     @Override
-    public Coder getCheckpointMarkCoder() {
+    public Coder<JmsCheckpointMark> getCheckpointMarkCoder() {
       return AvroCoder.of(JmsCheckpointMark.class);
     }
 
@@ -326,6 +319,7 @@ public class JmsIO {
         }
 
         Map<String, Object> properties = new HashMap<>();
+        @SuppressWarnings("rawtypes")
         Enumeration propertyNames = message.getPropertyNames();
         while (propertyNames.hasMoreElements()) {
           String propertyName = (String) propertyNames.nextElement();
@@ -432,8 +426,6 @@ public class JmsIO {
     public Write withTopic(String topic) {
       return new Write(connectionFactory, queue, topic);
     }
-
-    private Write() {}
 
     private Write(ConnectionFactory connectionFactory, String queue, String topic) {
       this.connectionFactory = connectionFactory;

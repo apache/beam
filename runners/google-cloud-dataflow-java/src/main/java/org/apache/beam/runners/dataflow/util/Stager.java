@@ -18,7 +18,6 @@
 package org.apache.beam.runners.dataflow.util;
 
 import com.google.api.services.dataflow.model.DataflowPackage;
-
 import java.util.List;
 
 /**
@@ -26,5 +25,5 @@ import java.util.List;
  */
 public interface Stager {
   /* Stage files and return a list of packages. */
-  public List<DataflowPackage> stageFiles();
+  List<DataflowPackage> stageFiles();
 }

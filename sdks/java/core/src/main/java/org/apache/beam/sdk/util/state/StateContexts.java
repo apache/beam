@@ -17,12 +17,11 @@
  */
 package org.apache.beam.sdk.util.state;
 
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowingInternals;
 import org.apache.beam.sdk.values.PCollectionView;
-
-import javax.annotation.Nullable;
 
 /**
  * Factory that produces {@link StateContext} based on different inputs.

@@ -17,12 +17,10 @@
  */
 package org.apache.beam.sdk.util;
 
-import org.apache.beam.sdk.options.PipelineOptions;
-
 import com.google.api.client.auth.oauth2.Credential;
-
 import java.io.IOException;
 import java.security.GeneralSecurityException;
+import org.apache.beam.sdk.options.PipelineOptions;
 
 /**
  * Construct an oauth credential to be used by the SDK and the SDK workers.

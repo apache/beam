@@ -17,22 +17,19 @@
  */
 package org.apache.beam.sdk.options;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.google.cloud.hadoop.util.AbstractGoogleAsyncWriteChannel;
+import com.google.common.util.concurrent.MoreExecutors;
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.SynchronousQueue;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 import org.apache.beam.sdk.util.AppEngineEnvironment;
 import org.apache.beam.sdk.util.GcsPathValidator;
 import org.apache.beam.sdk.util.GcsUtil;
 import org.apache.beam.sdk.util.InstanceBuilder;
 import org.apache.beam.sdk.util.PathValidator;
-
-import com.google.cloud.hadoop.util.AbstractGoogleAsyncWriteChannel;
-import com.google.common.util.concurrent.MoreExecutors;
-import com.google.common.util.concurrent.ThreadFactoryBuilder;
-
-import com.fasterxml.jackson.annotation.JsonIgnore;
-
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.SynchronousQueue;
-import java.util.concurrent.ThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
 
 /**
  * Options used to configure Google Cloud Storage.
@@ -116,7 +113,7 @@ public interface GcsOptions extends
    * Returns the default {@link ExecutorService} to use within the Dataflow SDK. The
    * {@link ExecutorService} is compatible with AppEngine.
    */
-  public static class ExecutorServiceFactory implements DefaultValueFactory<ExecutorService> {
+  class ExecutorServiceFactory implements DefaultValueFactory<ExecutorService> {
     @SuppressWarnings("deprecation")  // IS_APP_ENGINE is deprecated for internal use only.
     @Override
     public ExecutorService create(PipelineOptions options) {
@@ -145,7 +142,7 @@ public interface GcsOptions extends
    * Creates a {@link PathValidator} object using the class specified in
    * {@link #getPathValidatorClass()}.
    */
-  public static class PathValidatorFactory implements DefaultValueFactory<PathValidator> {
+  class PathValidatorFactory implements DefaultValueFactory<PathValidator> {
     @Override
     public PathValidator create(PipelineOptions options) {
       GcsOptions gcsOptions = options.as(GcsOptions.class);

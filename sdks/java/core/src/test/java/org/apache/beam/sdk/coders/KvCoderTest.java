@@ -17,57 +17,67 @@
  */
 package org.apache.beam.sdk.coders;
 
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
 import org.apache.beam.sdk.testing.CoderProperties;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.values.KV;
-
-import com.google.common.collect.ImmutableMap;
-
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-
-/**
- * Test case for {@link KvCoder}.
- */
+/** Test case for {@link KvCoder}. */
 @RunWith(JUnit4.class)
 public class KvCoderTest {
+  private static class CoderAndData<T> {
+    Coder<T> coder;
+    List<T> data;
+  }
 
-  private static final Map<Coder<?>, Iterable<?>> TEST_DATA =
-      new ImmutableMap.Builder<Coder<?>, Iterable<?>>()
-      .put(VarIntCoder.of(),
-          Arrays.asList(-1, 0, 1, 13, Integer.MAX_VALUE, Integer.MIN_VALUE))
-      .put(BigEndianLongCoder.of(),
-          Arrays.asList(-1L, 0L, 1L, 13L, Long.MAX_VALUE, Long.MIN_VALUE))
-      .put(StringUtf8Coder.of(),
-          Arrays.asList("", "hello", "goodbye", "1"))
-      .put(KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of()),
-          Arrays.asList(KV.of("", -1), KV.of("hello", 0), KV.of("goodbye", Integer.MAX_VALUE)))
-      .put(ListCoder.of(VarLongCoder.of()),
-          Arrays.asList(
-              Arrays.asList(1L, 2L, 3L),
-              Collections.emptyList()))
-       .build();
+  private static class AnyCoderAndData {
+    private CoderAndData<?> coderAndData;
+  }
+
+  private static <T> AnyCoderAndData coderAndData(Coder<T> coder, List<T> data) {
+    CoderAndData<T> coderAndData = new CoderAndData<>();
+    coderAndData.coder = coder;
+    coderAndData.data = data;
+    AnyCoderAndData res = new AnyCoderAndData();
+    res.coderAndData = coderAndData;
+    return res;
+  }
+
+  private static final List<AnyCoderAndData> TEST_DATA =
+      Arrays.asList(
+          coderAndData(
+              VarIntCoder.of(), Arrays.asList(-1, 0, 1, 13, Integer.MAX_VALUE, Integer.MIN_VALUE)),
+          coderAndData(
+              BigEndianLongCoder.of(),
+              Arrays.asList(-1L, 0L, 1L, 13L, Long.MAX_VALUE, Long.MIN_VALUE)),
+          coderAndData(StringUtf8Coder.of(), Arrays.asList("", "hello", "goodbye", "1")),
+          coderAndData(
+              KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of()),
+              Arrays.asList(KV.of("", -1), KV.of("hello", 0), KV.of("goodbye", Integer.MAX_VALUE))),
+          coderAndData(
+              ListCoder.of(VarLongCoder.of()),
+              Arrays.asList(Arrays.asList(1L, 2L, 3L), Collections.<Long>emptyList())));
 
   @Test
+  @SuppressWarnings("rawtypes")
   public void testDecodeEncodeEqual() throws Exception {
-    for (Map.Entry<Coder<?>, Iterable<?>> entry : TEST_DATA.entrySet()) {
-      // The coder and corresponding values must be the same type.
-      // If someone messes this up in the above test data, the test
-      // will fail anyhow (unless the coder magically works on data
-      // it does not understand).
-      @SuppressWarnings("unchecked")
-      Coder<Object> coder = (Coder<Object>) entry.getKey();
-      Iterable<?> values = entry.getValue();
-      for (Object value : values) {
-        CoderProperties.coderDecodeEncodeEqual(coder, value);
+    for (AnyCoderAndData keyCoderAndData : TEST_DATA) {
+      Coder keyCoder = keyCoderAndData.coderAndData.coder;
+      for (Object key : keyCoderAndData.coderAndData.data) {
+        for (AnyCoderAndData valueCoderAndData : TEST_DATA) {
+          Coder valueCoder = valueCoderAndData.coderAndData.coder;
+          for (Object value : valueCoderAndData.coderAndData.data) {
+            CoderProperties.coderDecodeEncodeEqual(
+                KvCoder.of(keyCoder, valueCoder), KV.of(key, value));
+          }
+        }
       }
     }
   }
@@ -78,37 +88,29 @@ public class KvCoderTest {
   @Test
   public void testEncodingId() throws Exception {
     CoderProperties.coderHasEncodingId(
-        KvCoder.of(VarIntCoder.of(), VarIntCoder.of()),
-        EXPECTED_ENCODING_ID);
+        KvCoder.of(VarIntCoder.of(), VarIntCoder.of()), EXPECTED_ENCODING_ID);
   }
 
-  /**
-   * Homogeneously typed test value for ease of use with the wire format test utility.
-   */
+  /** Homogeneously typed test value for ease of use with the wire format test utility. */
   private static final Coder<KV<String, Integer>> TEST_CODER =
       KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of());
 
-  private static final List<KV<String, Integer>> TEST_VALUES = Arrays.asList(
-      KV.of("", -1),
-      KV.of("hello", 0),
-      KV.of("goodbye", Integer.MAX_VALUE));
+  private static final List<KV<String, Integer>> TEST_VALUES =
+      Arrays.asList(KV.of("", -1), KV.of("hello", 0), KV.of("goodbye", Integer.MAX_VALUE));
 
   /**
-   * Generated data to check that the wire format has not changed. To regenerate, see
-   * {@link org.apache.beam.sdk.coders.PrintBase64Encodings}.
+   * Generated data to check that the wire format has not changed. To regenerate, see {@link
+   * org.apache.beam.sdk.coders.PrintBase64Encodings}.
    */
-  private static final List<String> TEST_ENCODINGS = Arrays.asList(
-      "AP____8P",
-      "BWhlbGxvAA",
-      "B2dvb2RieWX_____Bw");
+  private static final List<String> TEST_ENCODINGS =
+      Arrays.asList("AP____8P", "BWhlbGxvAA", "B2dvb2RieWX_____Bw");
 
   @Test
   public void testWireFormatEncode() throws Exception {
     CoderProperties.coderEncodesBase64(TEST_CODER, TEST_VALUES, TEST_ENCODINGS);
   }
 
-  @Rule
-  public ExpectedException thrown = ExpectedException.none();
+  @Rule public ExpectedException thrown = ExpectedException.none();
 
   @Test
   public void encodeNullThrowsCoderException() throws Exception {

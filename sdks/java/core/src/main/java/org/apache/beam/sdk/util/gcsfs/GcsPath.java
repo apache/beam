@@ -21,7 +21,6 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Strings.isNullOrEmpty;
 
 import com.google.api.services.storage.model.StorageObject;
-
 import java.io.File;
 import java.io.IOException;
 import java.net.URI;
@@ -35,7 +34,6 @@ import java.nio.file.WatchService;
 import java.util.Iterator;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 

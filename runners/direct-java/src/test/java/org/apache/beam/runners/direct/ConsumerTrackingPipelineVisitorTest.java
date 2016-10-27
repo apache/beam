@@ -20,12 +20,14 @@ package org.apache.beam.runners.direct;
 import static org.hamcrest.Matchers.emptyIterable;
 import static org.junit.Assert.assertThat;
 
+import java.io.Serializable;
+import java.util.List;
 import org.apache.beam.sdk.io.CountingInput;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Flatten;
-import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.View;
@@ -35,16 +37,12 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.PValue;
-
 import org.hamcrest.Matchers;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-
-import java.io.Serializable;
-import java.util.List;
 
 /**
  * Tests for {@link ConsumerTrackingPipelineVisitor}.
@@ -62,9 +60,9 @@ public class ConsumerTrackingPipelineVisitorTest implements Serializable {
         p.apply("listCreate", Create.of("foo", "bar"))
             .apply(
                 ParDo.of(
-                    new OldDoFn<String, String>() {
-                      @Override
-                      public void processElement(OldDoFn<String, String>.ProcessContext c)
+                    new DoFn<String, String>() {
+                      @ProcessElement
+                      public void processElement(DoFn<String, String>.ProcessContext c)
                           throws Exception {
                         c.output(Integer.toString(c.element().length()));
                       }
@@ -109,9 +107,9 @@ public class ConsumerTrackingPipelineVisitorTest implements Serializable {
     PCollection<String> transformed =
         created.apply(
             ParDo.of(
-                new OldDoFn<String, String>() {
-                  @Override
-                  public void processElement(OldDoFn<String, String>.ProcessContext c)
+                new DoFn<String, String>() {
+                  @ProcessElement
+                  public void processElement(DoFn<String, String>.ProcessContext c)
                       throws Exception {
                     c.output(Integer.toString(c.element().length()));
                   }
@@ -140,9 +138,9 @@ public class ConsumerTrackingPipelineVisitorTest implements Serializable {
     PCollection<String> transformed =
         created.apply(
             ParDo.of(
-                new OldDoFn<String, String>() {
-                  @Override
-                  public void processElement(OldDoFn<String, String>.ProcessContext c)
+                new DoFn<String, String>() {
+                  @ProcessElement
+                  public void processElement(DoFn<String, String>.ProcessContext c)
                       throws Exception {
                     c.output(Integer.toString(c.element().length()));
                   }
@@ -157,9 +155,9 @@ public class ConsumerTrackingPipelineVisitorTest implements Serializable {
     p.apply(Create.of("1", "2", "3"))
         .apply(
             ParDo.of(
-                new OldDoFn<String, String>() {
-                  @Override
-                  public void processElement(OldDoFn<String, String>.ProcessContext c)
+                new DoFn<String, String>() {
+                  @ProcessElement
+                  public void processElement(DoFn<String, String>.ProcessContext c)
                       throws Exception {
                     c.output(Integer.toString(c.element().length()));
                   }
@@ -182,9 +180,9 @@ public class ConsumerTrackingPipelineVisitorTest implements Serializable {
     PCollection<String> transformed =
         created.apply(
             ParDo.of(
-                new OldDoFn<String, String>() {
-                  @Override
-                  public void processElement(OldDoFn<String, String>.ProcessContext c)
+                new DoFn<String, String>() {
+                  @ProcessElement
+                  public void processElement(DoFn<String, String>.ProcessContext c)
                       throws Exception {
                     c.output(Integer.toString(c.element().length()));
                   }

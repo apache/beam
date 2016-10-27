@@ -58,10 +58,10 @@ public class Values<V> extends PTransform<PCollection<? extends KV<?, V>>,
   @Override
   public PCollection<V> apply(PCollection<? extends KV<?, V>> in) {
     return
-        in.apply("Values", ParDo.of(new DoFn<KV<?, V>, V>() {
-          @ProcessElement
-          public void processElement(ProcessContext c) {
-            c.output(c.element().getValue());
+        in.apply("Values", MapElements.via(new SimpleFunction<KV<?, V>, V>() {
+          @Override
+          public V apply(KV<?, V> kv) {
+            return kv.getValue();
           }
         }));
   }

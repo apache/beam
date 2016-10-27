@@ -20,16 +20,14 @@ package org.apache.beam.sdk.util;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertSame;
 
+import java.util.Arrays;
+import java.util.List;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.Trigger;
-
 import org.joda.time.Instant;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-
-import java.util.Arrays;
-import java.util.List;
 
 /**
  * Tests for {@link ExecutableTrigger}.
@@ -94,16 +92,6 @@ public class ExecutableTriggerTest {
     }
 
     @Override
-    public void onElement(OnElementContext c) throws Exception { }
-
-    @Override
-    public void onMerge(OnMergeContext c) throws Exception { }
-
-    @Override
-    public void clear(TriggerContext c) throws Exception {
-    }
-
-    @Override
     public Instant getWatermarkThatGuaranteesFiring(BoundedWindow window) {
       return BoundedWindow.TIMESTAMP_MAX_VALUE;
     }
@@ -117,13 +105,5 @@ public class ExecutableTriggerTest {
     public Trigger getContinuationTrigger(List<Trigger> continuationTriggers) {
       return this;
     }
-
-    @Override
-    public boolean shouldFire(TriggerContext c) {
-      return false;
-    }
-
-    @Override
-    public void onFire(TriggerContext c) { }
   }
 }

@@ -20,12 +20,9 @@ package org.apache.beam.sdk.util;
 
 import static com.google.common.base.Preconditions.checkState;
 
-import org.apache.beam.sdk.options.PubsubOptions;
-
 import com.google.api.client.util.Clock;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
-
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -34,8 +31,8 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.options.PubsubOptions;
 
 /**
  * A (partial) implementation of {@link PubsubClient} for use by unit tests. Only suitable for
@@ -46,7 +43,7 @@ public class PubsubTestClient extends PubsubClient {
   /**
    * Mimic the state of the simulated Pubsub 'service'.
    *
-   * Note that the {@link PubsubTestClientFactory} is serialized/deserialized even when running
+   * <p>Note that the {@link PubsubTestClientFactory} is serialized/deserialized even when running
    * test pipelines. Meanwhile it is valid for multiple {@link PubsubTestClient}s to be created
    * from the same client factory and run in parallel. Thus we can't enforce aliasing of the
    * following data structures over all clients and must resort to a static.

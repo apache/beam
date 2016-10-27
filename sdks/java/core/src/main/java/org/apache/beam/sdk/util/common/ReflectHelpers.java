@@ -19,7 +19,6 @@ package org.apache.beam.sdk.util.common;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
-
 import static java.util.Arrays.asList;
 
 import com.google.common.base.Function;
@@ -27,7 +26,6 @@ import com.google.common.base.Joiner;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Queues;
-
 import java.lang.reflect.GenericArrayType;
 import java.lang.reflect.Method;
 import java.lang.reflect.ParameterizedType;
@@ -35,10 +33,7 @@ import java.lang.reflect.Type;
 import java.lang.reflect.TypeVariable;
 import java.lang.reflect.WildcardType;
 import java.util.Arrays;
-import java.util.Collections;
-import java.util.LinkedHashSet;
 import java.util.Queue;
-
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
@@ -154,26 +149,6 @@ public class ReflectHelpers {
       builder.append("[]");
     }
   };
-
-  /**
-   * Returns all interfaces of the given clazz.
-   * @param clazz
-   * @return
-   */
-  public static FluentIterable<Class<?>> getClosureOfInterfaces(Class<?> clazz) {
-    checkNotNull(clazz);
-    Queue<Class<?>> interfacesToProcess = Queues.newArrayDeque();
-    Collections.addAll(interfacesToProcess, clazz.getInterfaces());
-
-    LinkedHashSet<Class<?>> interfaces = new LinkedHashSet<>();
-    while (!interfacesToProcess.isEmpty()) {
-      Class<?> current = interfacesToProcess.remove();
-      if (interfaces.add(current)) {
-        Collections.addAll(interfacesToProcess, current.getInterfaces());
-      }
-    }
-    return FluentIterable.from(interfaces);
-  }
 
   /**
    * Returns all the methods visible from the provided interfaces.

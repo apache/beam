@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.hdfs.simpleauth;
 
+import java.security.PrivilegedExceptionAction;
 import org.apache.beam.sdk.io.Sink;
 import org.apache.beam.sdk.io.hdfs.HDFSFileSink;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -25,13 +26,11 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 import org.apache.hadoop.security.UserGroupInformation;
 
-import java.security.PrivilegedExceptionAction;
-
 /**
  * A {@code Sink} for writing records to a Hadoop filesystem using a Hadoop file-based output
  * format with Simple Authentication.
  *
- * Allows arbitrary username as HDFS user, which is used for writing to HDFS.
+ * <p>Allows arbitrary username as HDFS user, which is used for writing to HDFS.
  *
  * @param <K> The type of keys to be written to the sink.
  * @param <V> The type of values to be written to the sink.

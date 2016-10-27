@@ -21,13 +21,12 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
+import java.util.Arrays;
+import java.util.List;
 import org.joda.time.Instant;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-
-import java.util.Arrays;
-import java.util.List;
 
 /**
  * Tests for {@link Trigger}.
@@ -60,12 +59,6 @@ public class TriggerTest {
     }
 
     @Override
-    public void onElement(Trigger.OnElementContext c) { }
-
-    @Override
-    public void onMerge(Trigger.OnMergeContext c) { }
-
-    @Override
     protected Trigger getContinuationTrigger(
         List<Trigger> continuationTriggers) {
       return null;
@@ -75,14 +68,6 @@ public class TriggerTest {
     public Instant getWatermarkThatGuaranteesFiring(BoundedWindow window) {
       return null;
     }
-
-    @Override
-    public boolean shouldFire(Trigger.TriggerContext context) throws Exception {
-      return false;
-    }
-
-    @Override
-    public void onFire(Trigger.TriggerContext context) throws Exception { }
   }
 
   private static class Trigger2 extends Trigger {
@@ -92,12 +77,6 @@ public class TriggerTest {
     }
 
     @Override
-    public void onElement(Trigger.OnElementContext c) { }
-
-    @Override
-    public void onMerge(Trigger.OnMergeContext c) { }
-
-    @Override
     protected Trigger getContinuationTrigger(
         List<Trigger> continuationTriggers) {
       return null;
@@ -107,13 +86,5 @@ public class TriggerTest {
     public Instant getWatermarkThatGuaranteesFiring(BoundedWindow window) {
       return null;
     }
-
-    @Override
-    public boolean shouldFire(Trigger.TriggerContext context) throws Exception {
-      return false;
-    }
-
-    @Override
-    public void onFire(Trigger.TriggerContext context) throws Exception { }
   }
 }

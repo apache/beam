@@ -19,16 +19,15 @@ package org.apache.beam.sdk.runners;
 
 import static com.google.common.base.Preconditions.checkState;
 
-import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.values.PInput;
-import org.apache.beam.sdk.values.POutput;
-import org.apache.beam.sdk.values.PValue;
-
 import java.util.Deque;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.Map;
 import java.util.Set;
+import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.values.PInput;
+import org.apache.beam.sdk.values.POutput;
+import org.apache.beam.sdk.values.PValue;
 
 /**
  * Captures information about a collection of transformations and their

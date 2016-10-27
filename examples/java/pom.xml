@@ -22,7 +22,7 @@
   <parent>
     <groupId>org.apache.beam</groupId>
     <artifactId>beam-examples-parent</artifactId>
-    <version>0.3.0-incubating-SNAPSHOT</version>
+    <version>0.4.0-incubating-SNAPSHOT</version>
     <relativePath>../pom.xml</relativePath>
   </parent>
 
@@ -33,6 +33,231 @@
   artifact includes all Apache Beam Java SDK examples.</description>
 
   <packaging>jar</packaging>
+
+  <properties>
+    <spark.version>1.6.2</spark.version>
+  </properties>
+
+  <profiles>
+    <!--
+      A default profile that includes optional dependencies
+      on all of our runners. This is aimed at making it very
+      easy for users to run examples with any runner without
+      any configuration. It is not needed or desirable when
+      testing the examples with a particular runner.
+
+      This profile can be disabled on the command line
+      by specifying -P !include-runners.
+
+      This profile cannot be lifted to examples-parent because
+      it would be automatically deactivated when the Java 8
+      profile were activated.
+    -->
+    <profile>
+      <id>include-runners</id>
+      <activation>
+        <activeByDefault>true</activeByDefault>
+      </activation>
+      <dependencies>
+        <dependency>
+          <groupId>org.apache.beam</groupId>
+          <artifactId>beam-runners-direct-java</artifactId>
+          <version>${project.version}</version>
+          <scope>runtime</scope>
+          <optional>true</optional>
+        </dependency>
+
+        <dependency>
+          <groupId>org.apache.beam</groupId>
+          <artifactId>beam-runners-flink_2.10</artifactId>
+          <version>${project.version}</version>
+          <scope>runtime</scope>
+          <optional>true</optional>
+        </dependency>
+
+        <dependency>
+          <groupId>org.apache.beam</groupId>
+          <artifactId>beam-runners-google-cloud-dataflow-java</artifactId>
+          <version>${project.version}</version>
+          <scope>runtime</scope>
+          <optional>true</optional>
+        </dependency>
+
+        <dependency>
+          <groupId>org.apache.beam</groupId>
+          <artifactId>beam-runners-spark</artifactId>
+          <version>${project.version}</version>
+          <scope>runtime</scope>
+          <optional>true</optional>
+        </dependency>
+
+        <dependency>
+          <groupId>org.apache.spark</groupId>
+          <artifactId>spark-core_2.10</artifactId>
+          <version>${spark.version}</version>
+          <scope>runtime</scope>
+          <optional>true</optional>
+          <exclusions>
+            <exclusion>
+              <groupId>org.slf4j</groupId>
+              <artifactId>jul-to-slf4j</artifactId>
+            </exclusion>
+          </exclusions>
+        </dependency>
+
+        <dependency>
+          <groupId>org.apache.spark</groupId>
+          <artifactId>spark-streaming_2.10</artifactId>
+          <version>${spark.version}</version>
+          <scope>runtime</scope>
+          <optional>true</optional>
+        </dependency>
+      </dependencies>
+    </profile>
+    <profile>
+      <id>jenkins-precommit</id>
+      <properties>
+        <skipITs>false</skipITs>
+        <skipDefaultIT>true</skipDefaultIT>
+      </properties>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-failsafe-plugin</artifactId>
+            <configuration>
+              <useManifestOnlyJar>false</useManifestOnlyJar>
+            </configuration>
+            <executions>
+              <execution>
+                <id>direct-runner-integration-tests</id>
+                <goals>
+                  <goal>integration-test</goal>
+                  <goal>verify</goal>
+                </goals>
+                <configuration>
+                  <includes>
+                    <include>WordCountIT.java</include>
+                    <include>WindowedWordCountIT.java</include>
+                  </includes>
+                  <parallel>all</parallel>
+                  <threadCount>4</threadCount>
+                  <systemPropertyVariables>
+                    <beamTestPipelineOptions>
+                      [
+                      "--project=apache-beam-testing",
+                      "--tempLocation=gs://temp-storage-for-end-to-end-tests",
+                      "--tempRoot=gs://temp-storage-for-end-to-end-tests",
+                      "--runner=org.apache.beam.runners.direct.DirectRunner"
+                      ]
+                    </beamTestPipelineOptions>
+                  </systemPropertyVariables>
+                </configuration>
+              </execution>
+              <execution>
+                <id>flink-runner-integration-tests</id>
+                <goals>
+                  <goal>integration-test</goal>
+                  <goal>verify</goal>
+                </goals>
+                <configuration>
+                  <includes>
+                    <include>WordCountIT.java</include>
+                  </includes>
+                  <parallel>all</parallel>
+                  <threadCount>4</threadCount>
+                  <systemPropertyVariables>
+                    <beamTestPipelineOptions>
+                      [
+                      "--project=apache-beam-testing",
+                      "--tempRoot=gs://temp-storage-for-end-to-end-tests",
+                      "--runner=org.apache.beam.runners.flink.TestFlinkRunner"
+                      ]
+                    </beamTestPipelineOptions>
+                  </systemPropertyVariables>
+                </configuration>
+              </execution>
+              <execution>
+                <id>spark-runner-integration-tests</id>
+                <goals>
+                  <goal>integration-test</goal>
+                  <goal>verify</goal>
+                </goals>
+                <configuration>
+                  <includes>
+                    <include>WordCountIT.java</include>
+                  </includes>
+                  <parallel>all</parallel>
+                  <threadCount>4</threadCount>
+                  <systemPropertyVariables>
+                    <beamTestPipelineOptions>
+                      [
+                      "--project=apache-beam-testing",
+                      "--tempRoot=gs://temp-storage-for-end-to-end-tests",
+                      "--runner=org.apache.beam.runners.spark.TestSparkRunner"
+                      ]
+                    </beamTestPipelineOptions>
+                  </systemPropertyVariables>
+                </configuration>
+              </execution>
+              <execution>
+                <id>dataflow-runner-integration-tests</id>
+                <goals>
+                  <goal>integration-test</goal>
+                  <goal>verify</goal>
+                </goals>
+                <configuration>
+                  <includes>
+                    <include>WordCountIT.java</include>
+                    <include>WindowedWordCountIT.java</include>
+                  </includes>
+                  <parallel>all</parallel>
+                  <threadCount>4</threadCount>
+                  <systemPropertyVariables>
+                    <beamTestPipelineOptions>
+                      [
+                      "--project=apache-beam-testing",
+                      "--tempRoot=gs://temp-storage-for-end-to-end-tests",
+                      "--runner=org.apache.beam.runners.dataflow.testing.TestDataflowRunner"
+                      ]
+                    </beamTestPipelineOptions>
+                  </systemPropertyVariables>
+                </configuration>
+              </execution>
+            </executions>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+
+    <!--
+      This profile disables streaming integration tests which
+      have the @Category(StreamingIT.class) annotation.
+    -->
+    <profile>
+      <id>disable-streaming-ITs</id>
+      <activation><activeByDefault>false</activeByDefault></activation>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-failsafe-plugin</artifactId>
+            <executions>
+              <execution>
+                <goals>
+                  <goal>integration-test</goal>
+                  <goal>verify</goal>
+                </goals>
+                <configuration>
+                  <excludedGroups>org.apache.beam.sdk.testing.StreamingIT</excludedGroups>
+                </configuration>
+              </execution>
+            </executions>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+  </profiles>
 
   <build>
     <plugins>
@@ -71,7 +296,7 @@
           <doctitle>Apache Beam Examples</doctitle>
 
           <subpackages>org.apache.beam.examples</subpackages>
-          <additionalparam>-exclude org.apache.beam.sdk.runners.worker:org.apache.beam.sdk.runners.dataflow:org.apache.beam.sdk.util ${dataflow.javadoc_opts}</additionalparam>
+          <additionalparam>-exclude org.apache.beam.sdk.runners.worker:org.apache.beam.sdk.runners.dataflow:org.apache.beam.sdk.util ${beam.javadoc_opts}</additionalparam>
           <use>false</use>
           <quiet>true</quiet>
           <bottom><![CDATA[<br>]]></bottom>
@@ -178,7 +403,6 @@
         <artifactId>maven-failsafe-plugin</artifactId>
         <configuration>
           <useManifestOnlyJar>false</useManifestOnlyJar>
-          <redirectTestOutputToFile>true</redirectTestOutputToFile>
         </configuration>
         <executions>
           <execution>
@@ -187,6 +411,7 @@
               <goal>verify</goal>
             </goals>
             <configuration>
+              <skip>${skipDefaultIT}</skip>
               <parallel>all</parallel>
               <threadCount>4</threadCount>
               <systemPropertyVariables>
@@ -217,11 +442,6 @@
 
     <dependency>
       <groupId>com.google.apis</groupId>
-      <artifactId>google-api-services-dataflow</artifactId>
-    </dependency>
-
-    <dependency>
-      <groupId>com.google.apis</groupId>
       <artifactId>google-api-services-bigquery</artifactId>
     </dependency>
 
@@ -246,18 +466,13 @@
     </dependency>
 
     <dependency>
-      <groupId>com.google.code.findbugs</groupId>
-      <artifactId>annotations</artifactId>
+      <groupId>com.google.cloud.datastore</groupId>
+      <artifactId>datastore-v1-proto-client</artifactId>
     </dependency>
 
     <dependency>
       <groupId>com.google.cloud.datastore</groupId>
-      <artifactId>datastore-v1beta3-proto-client</artifactId>
-    </dependency>
-
-    <dependency>
-      <groupId>com.google.cloud.datastore</groupId>
-      <artifactId>datastore-v1beta3-protos</artifactId>
+      <artifactId>datastore-v1-protos</artifactId>
     </dependency>
 
     <dependency>
@@ -271,30 +486,10 @@
     </dependency>
 
     <dependency>
-      <groupId>org.apache.beam</groupId>
-      <artifactId>beam-runners-direct-java</artifactId>
-      <version>${project.version}</version>
-      <scope>runtime</scope>
-      <optional>true</optional>
-    </dependency>
-
-    <dependency>
-      <groupId>org.apache.beam</groupId>
-      <artifactId>beam-runners-google-cloud-dataflow-java</artifactId>
-      <version>${project.version}</version>
-    </dependency>
-
-    <dependency>
-      <groupId>org.apache.beam</groupId>
-      <artifactId>beam-runners-flink_2.10</artifactId>
-      <version>${project.version}</version>
-      <scope>runtime</scope>
-    </dependency>
-
-    <dependency>
       <groupId>org.slf4j</groupId>
       <artifactId>slf4j-jdk14</artifactId>
       <scope>runtime</scope>
+      <optional>true</optional>
     </dependency>
 
     <!-- Hamcrest and JUnit are required dependencies of PAssert,
@@ -308,6 +503,19 @@
     <dependency>
       <groupId>junit</groupId>
       <artifactId>junit</artifactId>
+    </dependency>
+
+    <!-- Test dependencies -->
+
+    <!--
+      For testing the example itself, use the direct runner. This is separate from
+      the use of RunnableOnService tests for testing a particular runner.
+    -->
+    <dependency>
+      <groupId>org.apache.beam</groupId>
+      <artifactId>beam-runners-direct-java</artifactId>
+      <version>${project.version}</version>
+      <scope>test</scope>
     </dependency>
 
     <dependency>

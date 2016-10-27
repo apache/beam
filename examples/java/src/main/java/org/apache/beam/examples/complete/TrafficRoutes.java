@@ -17,6 +17,19 @@
  */
 package org.apache.beam.examples.complete;
 
+import com.google.api.services.bigquery.model.TableFieldSchema;
+import com.google.api.services.bigquery.model.TableReference;
+import com.google.api.services.bigquery.model.TableRow;
+import com.google.api.services.bigquery.model.TableSchema;
+import com.google.common.collect.Lists;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Hashtable;
+import java.util.List;
+import java.util.Map;
+import org.apache.avro.reflect.Nullable;
 import org.apache.beam.examples.common.ExampleBigQueryTableOptions;
 import org.apache.beam.examples.common.ExampleOptions;
 import org.apache.beam.examples.common.ExampleUtils;
@@ -38,29 +51,13 @@ import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
-
-import com.google.api.services.bigquery.model.TableFieldSchema;
-import com.google.api.services.bigquery.model.TableReference;
-import com.google.api.services.bigquery.model.TableRow;
-import com.google.api.services.bigquery.model.TableSchema;
-import com.google.common.collect.Lists;
-
-import org.apache.avro.reflect.Nullable;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;
 
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.Hashtable;
-import java.util.List;
-import java.util.Map;
-
 /**
- * A Dataflow Example that runs in both batch and streaming modes with traffic sensor data.
+ * A Beam Example that runs in both batch and streaming modes with traffic sensor data.
  * You can configure the running mode by setting {@literal --streaming} to true or false.
  *
  * <p>Concepts: The batch and streaming runners, GroupByKey, sliding windows.
@@ -72,7 +69,7 @@ import java.util.Map;
  * <p>The pipeline reads traffic sensor data from {@literal --inputFile}.
  *
  * <p>The example is configured to use the default BigQuery table from the example common package
- * (there are no defaults for a general Dataflow pipeline).
+ * (there are no defaults for a general Beam pipeline).
  * You can override them by using the {@literal --bigQueryDataset}, and {@literal --bigQueryTable}
  * options. If the BigQuery table do not exist, the example will try to create them.
  *
@@ -316,7 +313,7 @@ public class TrafficRoutes {
   */
   private interface TrafficRoutesOptions extends ExampleOptions, ExampleBigQueryTableOptions {
     @Description("Path of the file to read from")
-    @Default.String("gs://dataflow-samples/traffic_sensor/"
+    @Default.String("gs://apache-beam-samples/traffic_sensor/"
         + "Freeways-5Minaa2010-01-01_to_2010-02-15_test2.csv")
     String getInputFile();
     void setInputFile(String value);
@@ -343,7 +340,7 @@ public class TrafficRoutes {
         .as(TrafficRoutesOptions.class);
 
     options.setBigQuerySchema(FormatStatsFn.getSchema());
-    // Using DataflowExampleUtils to set up required resources.
+    // Using ExampleUtils to set up required resources.
     ExampleUtils exampleUtils = new ExampleUtils(options);
     exampleUtils.setup();
 
@@ -368,7 +365,7 @@ public class TrafficRoutes {
     // Run the pipeline.
     PipelineResult result = pipeline.run();
 
-    // dataflowUtils will try to cancel the pipeline and the injector before the program exists.
+    // ExampleUtils will try to cancel the pipeline and the injector before the program exists.
     exampleUtils.waitToFinish(result);
   }
 

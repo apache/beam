@@ -17,6 +17,9 @@
  */
 package org.apache.beam.examples.complete.game;
 
+import java.io.Serializable;
+import java.util.Arrays;
+import java.util.List;
 import org.apache.beam.examples.complete.game.UserScore.ExtractAndSumScore;
 import org.apache.beam.examples.complete.game.UserScore.GameActionInfo;
 import org.apache.beam.examples.complete.game.UserScore.ParseEventFn;
@@ -32,16 +35,11 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptors;
-
 import org.junit.Assert;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-
-import java.io.Serializable;
-import java.util.Arrays;
-import java.util.List;
 
 /**
  * Tests of UserScore.

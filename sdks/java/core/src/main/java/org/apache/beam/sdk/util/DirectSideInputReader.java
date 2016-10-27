@@ -17,13 +17,12 @@
  */
 package org.apache.beam.sdk.util;
 
+import com.google.common.base.Predicate;
+import com.google.common.collect.Iterables;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
-
-import com.google.common.base.Predicate;
-import com.google.common.collect.Iterables;
 
 /**
  * Basic side input reader wrapping a {@link PTuple} of side input iterables. Encapsulates
@@ -60,9 +59,9 @@ public class DirectSideInputReader implements SideInputReader {
     }
 
     if (view.getWindowingStrategyInternal().getWindowFn() instanceof GlobalWindows) {
-      return view.fromIterableInternal(sideInputValues.get(tag));
+      return view.getViewFn().apply(sideInputValues.get(tag));
     } else {
-      return view.fromIterableInternal(
+      return view.getViewFn().apply(
           Iterables.filter(sideInputValues.get(tag),
               new Predicate<WindowedValue<?>>() {
                   @Override

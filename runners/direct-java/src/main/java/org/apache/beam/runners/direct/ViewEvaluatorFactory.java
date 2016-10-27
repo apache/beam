@@ -17,6 +17,8 @@
  */
 package org.apache.beam.runners.direct;
 
+import java.util.ArrayList;
+import java.util.List;
 import org.apache.beam.runners.direct.CommittedResult.OutputType;
 import org.apache.beam.runners.direct.DirectRunner.PCollectionViewWriter;
 import org.apache.beam.runners.direct.StepTransformResult.Builder;
@@ -34,9 +36,6 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
 
-import java.util.ArrayList;
-import java.util.List;
-
 /**
  * The {@link DirectRunner} {@link TransformEvaluatorFactory} for the
  * {@link CreatePCollectionView} primitive {@link PTransform}.
@@ -48,21 +47,28 @@ import java.util.List;
  * written.
  */
 class ViewEvaluatorFactory implements TransformEvaluatorFactory {
+  private final EvaluationContext context;
+
+  ViewEvaluatorFactory(EvaluationContext context) {
+    this.context = context;
+  }
+
   @Override
   public <T> TransformEvaluator<T> forApplication(
       AppliedPTransform<?, ?, ?> application,
-      DirectRunner.CommittedBundle<?> inputBundle,
-      EvaluationContext evaluationContext) {
+      DirectRunner.CommittedBundle<?> inputBundle) {
     @SuppressWarnings({"cast", "unchecked", "rawtypes"})
     TransformEvaluator<T> evaluator = createEvaluator(
-            (AppliedPTransform) application, evaluationContext);
+            (AppliedPTransform) application);
     return evaluator;
   }
 
+  @Override
+  public void cleanup() throws Exception {}
+
   private <InT, OuT> TransformEvaluator<Iterable<InT>> createEvaluator(
       final AppliedPTransform<PCollection<Iterable<InT>>, PCollectionView<OuT>, WriteView<InT, OuT>>
-          application,
-      EvaluationContext context) {
+          application) {
     PCollection<Iterable<InT>> input = application.getInput();
     final PCollectionViewWriter<InT, OuT> writer =
         context.createPCollectionViewWriter(input, application.getOutput());
@@ -133,8 +139,9 @@ class ViewEvaluatorFactory implements TransformEvaluatorFactory {
   /**
    * An in-process implementation of the {@link CreatePCollectionView} primitive.
    *
-   * This implementation requires the input {@link PCollection} to be an iterable, which is provided
-   * to {@link PCollectionView#fromIterableInternal(Iterable)}.
+   * <p>This implementation requires the input {@link PCollection} to be an iterable
+   * of {@code WindowedValue<ElemT>}, which is provided
+   * to {@link PCollectionView#getViewFn()} for conversion to {@link ViewT}.
    */
   public static final class WriteView<ElemT, ViewT>
       extends PTransform<PCollection<Iterable<ElemT>>, PCollectionView<ViewT>> {

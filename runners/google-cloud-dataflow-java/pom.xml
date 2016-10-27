@@ -22,7 +22,7 @@
   <parent>
     <groupId>org.apache.beam</groupId>
     <artifactId>beam-runners-parent</artifactId>
-    <version>0.3.0-incubating-SNAPSHOT</version>
+    <version>0.4.0-incubating-SNAPSHOT</version>
     <relativePath>../pom.xml</relativePath>
   </parent>
 
@@ -60,6 +60,16 @@
             <beamUseDummyRunner>true</beamUseDummyRunner>
           </systemPropertyVariables>
         </configuration>
+        <executions>
+          <execution>
+            <id>runnable-on-service-tests</id>
+            <configuration>
+              <excludes>
+                <exclude>org.apache.beam.sdk.transforms.FlattenTest</exclude>
+              </excludes>
+            </configuration>
+          </execution>
+        </executions>
       </plugin>
 
       <!-- Run CheckStyle pass on transforms, as they are release in
@@ -88,7 +98,7 @@
           <doctitle>Google Cloud Dataflow Runner for Java, version ${project.version}</doctitle>
 
           <subpackages>org.apache.beam.runners.dataflow</subpackages>
-          <additionalparam>-exclude org.apache.beam.sdk.runners.dataflow.internal:org.apache.beam.sdk.runners.dataflow.testing:org.apache.beam.sdk.runners.dataflow.util ${dataflow.javadoc_opts}</additionalparam>
+          <additionalparam>-exclude org.apache.beam.sdk.runners.dataflow.internal:org.apache.beam.sdk.runners.dataflow.testing:org.apache.beam.sdk.runners.dataflow.util ${beam.javadoc_opts}</additionalparam>
           <use>false</use>
           <quiet>true</quiet>
           <bottom><![CDATA[<br>]]></bottom>
@@ -185,6 +195,10 @@
                      the second relocation. -->
                 <relocation>
                   <pattern>com.google.common</pattern>
+                  <excludes>
+                    <!-- com.google.common is too generic, need to exclude guava-testlib -->
+                    <exclude>com.google.common.**.testing.*</exclude>
+                  </excludes>
                   <shadedPattern>org.apache.beam.sdk.repackaged.com.google.common</shadedPattern>
                 </relocation>
                 <relocation>
@@ -299,6 +313,8 @@
     </dependency>
 
     <dependency>
+      <!-- Note: when relocating guava, ensure guava-testlib is not also relocated by
+           excluding com.google.common.**.testing.* -->
       <groupId>com.google.guava</groupId>
       <artifactId>guava-testlib</artifactId>
       <scope>test</scope>
@@ -312,6 +328,12 @@
     <dependency>
       <groupId>com.google.protobuf</groupId>
       <artifactId>protobuf-java</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>com.google.protobuf</groupId>
+      <artifactId>protobuf-lite</artifactId>
+      <scope>runtime</scope>
     </dependency>
 
     <dependency>
@@ -380,7 +402,7 @@
     <dependency>
       <groupId>org.apache.beam</groupId>
       <artifactId>beam-sdks-java-core</artifactId>
-      <type>test-jar</type>
+      <classifier>tests</classifier>
       <scope>test</scope>
     </dependency>
 
@@ -392,7 +414,7 @@
 
     <dependency>
       <groupId>com.google.cloud.datastore</groupId>
-      <artifactId>datastore-v1beta3-protos</artifactId>
+      <artifactId>datastore-v1-protos</artifactId>
       <scope>test</scope>
     </dependency>
   </dependencies>

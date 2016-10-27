@@ -19,6 +19,14 @@ package org.apache.beam.sdk.io;
 
 import static com.google.common.base.Preconditions.checkState;
 
+import com.google.common.base.Strings;
+import java.io.IOException;
+import java.io.Serializable;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VoidCoder;
@@ -38,33 +46,22 @@ import org.apache.beam.sdk.util.PubsubClient.ProjectPath;
 import org.apache.beam.sdk.util.PubsubClient.SubscriptionPath;
 import org.apache.beam.sdk.util.PubsubClient.TopicPath;
 import org.apache.beam.sdk.util.PubsubJsonClient;
+import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
-import org.apache.beam.sdk.values.PInput;
-
-import com.google.common.base.Strings;
-
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.io.IOException;
-import java.io.Serializable;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-
-import javax.annotation.Nullable;
 
 /**
  * Read and Write {@link PTransform}s for Cloud Pub/Sub streams. These transforms create
  * and consume unbounded {@link PCollection PCollections}.
  *
  * <h3>Permissions</h3>
+ *
  * <p>Permission requirements depend on the {@link PipelineRunner} that is used to execute the
- * Dataflow job. Please refer to the documentation of corresponding
+ * Beam pipeline. Please refer to the documentation of corresponding
  * {@link PipelineRunner PipelineRunners} for more details.
  */
 public class PubsubIO {
@@ -378,9 +375,9 @@ public class PubsubIO {
      * <p>See {@link PubsubIO.PubsubTopic#fromPath(String)} for more details on the format
      * of the {@code topic} string.
      *
-     * <p>Dataflow will start reading data published on this topic from the time the pipeline is
-     * started. Any data published on the topic before the pipeline is started will not be read by
-     * Dataflow.
+     * <p>The Beam runner will start reading data published on this topic from the time the pipeline
+     * is started. Any data published on the topic before the pipeline is started will not be read
+     * by the runner.
      */
     public static Bound<String> topic(String topic) {
       return new Bound<>(DEFAULT_PUBSUB_CODER).topic(topic);
@@ -436,9 +433,9 @@ public class PubsubIO {
      * parameter specifies the attribute name. The value of the attribute can be any string
      * that uniquely identifies this record.
      *
-     * <p>If {@code idLabel} is not provided, Dataflow cannot guarantee that no duplicate data will
-     * be delivered on the Pub/Sub stream. In this case, deduplication of the stream will be
-     * strictly best effort.
+     * <p>Pub/Sub cannot guarantee that no duplicate data will be delivered on the Pub/Sub stream.
+     * If {@code idLabel} is not provided, Beam cannot guarantee that no duplicate data will
+     * be delivered, and deduplication of the stream will be strictly best effort.
      */
     public static Bound<String> idLabel(String idLabel) {
       return new Bound<>(DEFAULT_PUBSUB_CODER).idLabel(idLabel);
@@ -485,7 +482,7 @@ public class PubsubIO {
      * A {@link PTransform} that reads from a Cloud Pub/Sub source and returns
      * a unbounded {@link PCollection} containing the items from the stream.
      */
-    public static class Bound<T> extends PTransform<PInput, PCollection<T>> {
+    public static class Bound<T> extends PTransform<PBegin, PCollection<T>> {
       /** The Cloud Pub/Sub topic to read from. */
       @Nullable private final PubsubTopic topic;
 
@@ -614,7 +611,7 @@ public class PubsubIO {
       }
 
       @Override
-      public PCollection<T> apply(PInput input) {
+      public PCollection<T> apply(PBegin input) {
         if (topic == null && subscription == null) {
           throw new IllegalStateException("Need to set either the topic or the subscription for "
               + "a PubsubIO.Read transform");
@@ -795,8 +792,7 @@ public class PubsubIO {
 
         @Override
         public void populateDisplayData(DisplayData.Builder builder) {
-          super.populateDisplayData(builder);
-          Bound.this.populateDisplayData(builder);
+          builder.delegate(Bound.this);
         }
       }
     }
@@ -833,7 +829,7 @@ public class PubsubIO {
      * representing the number of milliseconds since the Unix epoch. For example, if using the Joda
      * time classes, {@link Instant#Instant(long)} can be used to parse this value.
      *
-     * <p>If the output from this sink is being read by another Dataflow source, then
+     * <p>If the output from this sink is being read by another Beam pipeline, then
      * {@link PubsubIO.Read#timestampLabel(String)} can be used to ensure the other source reads
      * these timestamps from the appropriate attribute.
      */
@@ -846,7 +842,7 @@ public class PubsubIO {
      * published messages in an attribute with the specified name. The value of the attribute is an
      * opaque string.
      *
-     * <p>If the the output from this sink is being read by another Dataflow source, then
+     * <p>If the the output from this sink is being read by another Beam pipeline, then
      * {@link PubsubIO.Read#idLabel(String)} can be used to ensure that* the other source reads
      * these unique identifiers from the appropriate attribute.
      */
@@ -1046,7 +1042,7 @@ public class PubsubIO {
         @Override
         public void populateDisplayData(DisplayData.Builder builder) {
           super.populateDisplayData(builder);
-          Bound.this.populateDisplayData(builder);
+          builder.delegate(Bound.this);
         }
       }
     }

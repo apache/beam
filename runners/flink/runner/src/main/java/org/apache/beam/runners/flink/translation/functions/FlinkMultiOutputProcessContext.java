@@ -17,6 +17,8 @@
  */
 package org.apache.beam.runners.flink.translation.functions;
 
+import java.util.Collection;
+import java.util.Map;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.transforms.join.RawUnionValue;
@@ -26,13 +28,9 @@ import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
-
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.util.Collector;
 import org.joda.time.Instant;
-
-import java.util.Collection;
-import java.util.Map;
 
 /**
  * {@link OldDoFn.ProcessContext} for {@link FlinkMultiOutputDoFnFunction} that supports

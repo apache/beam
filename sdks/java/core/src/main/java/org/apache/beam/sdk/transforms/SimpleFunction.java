@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.transforms;
 
+import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.apache.beam.sdk.transforms.display.HasDisplayData;
 import org.apache.beam.sdk.values.TypeDescriptor;
 
 /**
@@ -25,7 +27,7 @@ import org.apache.beam.sdk.values.TypeDescriptor;
  * {@link org.apache.beam.sdk.coders.Coder Coder} inference.
  */
 public abstract class SimpleFunction<InputT, OutputT>
-    implements SerializableFunction<InputT, OutputT> {
+    implements SerializableFunction<InputT, OutputT>, HasDisplayData {
 
   public static <InputT, OutputT>
       SimpleFunction<InputT, OutputT> fromSerializableFunctionWithOutputType(
@@ -35,7 +37,7 @@ public abstract class SimpleFunction<InputT, OutputT>
 
   /**
    * Returns a {@link TypeDescriptor} capturing what is known statically
-   * about the input type of this {@code OldDoFn} instance's most-derived
+   * about the input type of this {@link SimpleFunction} instance's most-derived
    * class.
    *
    * <p>See {@link #getOutputTypeDescriptor} for more discussion.
@@ -46,10 +48,10 @@ public abstract class SimpleFunction<InputT, OutputT>
 
   /**
    * Returns a {@link TypeDescriptor} capturing what is known statically
-   * about the output type of this {@code OldDoFn} instance's
+   * about the output type of this {@link SimpleFunction} instance's
    * most-derived class.
    *
-   * <p>In the normal case of a concrete {@code OldDoFn} subclass with
+   * <p>In the normal case of a concrete {@link SimpleFunction} subclass with
    * no generic type parameters of its own (including anonymous inner
    * classes), this will be a complete non-generic type, which is good
    * for choosing a default output {@code Coder<OutputT>} for the output
@@ -58,6 +60,15 @@ public abstract class SimpleFunction<InputT, OutputT>
   public TypeDescriptor<OutputT> getOutputTypeDescriptor() {
     return new TypeDescriptor<OutputT>(this) {};
   }
+
+  /**
+    * {@inheritDoc}
+    *
+    * <p>By default, does not register any display data. Implementors may override this method
+    * to provide their own display data.
+    */
+  @Override
+  public void populateDisplayData(DisplayData.Builder builder) {}
 
   /**
    * A {@link SimpleFunction} built from a {@link SerializableFunction}, having
@@ -75,6 +86,7 @@ public abstract class SimpleFunction<InputT, OutputT>
       this.fn = fn;
       this.outputType = outputType;
     }
+
 
     @Override
     public OutputT apply(InputT input) {

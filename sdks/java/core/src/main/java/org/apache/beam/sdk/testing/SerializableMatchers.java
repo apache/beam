@@ -17,27 +17,23 @@
  */
 package org.apache.beam.sdk.testing;
 
+import com.google.common.base.MoreObjects;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+import java.io.Serializable;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.List;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.ListCoder;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.beam.sdk.values.KV;
-
-import com.google.common.base.MoreObjects;
-
 import org.hamcrest.BaseMatcher;
 import org.hamcrest.Description;
 import org.hamcrest.Matcher;
 import org.hamcrest.Matchers;
-
-import java.io.Serializable;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.List;
-import javax.annotation.Nullable;
-
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 
 /**
  * Static class for building and using {@link SerializableMatcher} instances.
@@ -1051,14 +1047,14 @@ class SerializableMatchers implements Serializable {
    * the {@link Matcher} returned by {@link SerializableSupplier#get() get()} when it is invoked
    * during matching (which may occur on another machine, such as a Dataflow worker).
    *
-   * <code>
+   * <pre>{@code
    * return fromSupplier(new SerializableSupplier<Matcher<T>>() {
    *   *     @Override
    *     public Matcher<T> get() {
    *       return new MyMatcherForT();
    *     }
    * });
-   * </code>
+   * }</pre>
    */
   public static <T> SerializableMatcher<T> fromSupplier(
       SerializableSupplier<Matcher<T>> supplier) {

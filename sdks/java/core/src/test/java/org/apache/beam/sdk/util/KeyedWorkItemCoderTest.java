@@ -17,15 +17,13 @@
  */
 package org.apache.beam.sdk.util;
 
+import com.google.common.collect.ImmutableList;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.testing.CoderProperties;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.util.TimerInternals.TimerData;
 import org.apache.beam.sdk.util.state.StateNamespaces;
-
-import com.google.common.collect.ImmutableList;
-
 import org.joda.time.Instant;
 import org.junit.Test;
 import org.junit.runner.RunWith;

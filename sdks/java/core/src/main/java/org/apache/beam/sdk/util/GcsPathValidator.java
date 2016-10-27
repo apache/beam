@@ -19,11 +19,10 @@ package org.apache.beam.sdk.util;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
+import java.io.IOException;
 import org.apache.beam.sdk.options.GcsOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.util.gcsfs.GcsPath;
-
-import java.io.IOException;
 
 /**
  * GCP implementation of {@link PathValidator}. Only GCS paths are allowed.
@@ -76,7 +75,7 @@ public class GcsPathValidator implements PathValidator {
   private void verifyPathIsAccessible(String path, String errorMessage) {
     GcsPath gcsPath = getGcsPath(path);
     try {
-      checkArgument(gcpOptions.getGcsUtil().bucketExists(gcsPath),
+      checkArgument(gcpOptions.getGcsUtil().bucketAccessible(gcsPath),
         errorMessage, path);
     } catch (IOException e) {
       throw new RuntimeException(

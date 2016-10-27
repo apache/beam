@@ -20,7 +20,6 @@ package org.apache.beam.runners.dataflow;
 import static org.apache.beam.sdk.util.Structs.addObject;
 import static org.apache.beam.sdk.util.Structs.getDictionary;
 import static org.apache.beam.sdk.util.Structs.getString;
-
 import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.hasKey;
@@ -36,6 +35,27 @@ import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import com.google.api.services.dataflow.Dataflow;
+import com.google.api.services.dataflow.model.DataflowPackage;
+import com.google.api.services.dataflow.model.Job;
+import com.google.api.services.dataflow.model.Step;
+import com.google.api.services.dataflow.model.WorkerPool;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.Iterables;
+import java.io.IOException;
+import java.io.Serializable;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import org.apache.beam.runners.dataflow.DataflowPipelineTranslator.JobSpecification;
 import org.apache.beam.runners.dataflow.DataflowPipelineTranslator.TranslationContext;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineWorkerPoolOptions;
@@ -65,17 +85,6 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.TupleTag;
-
-import com.google.api.services.dataflow.Dataflow;
-import com.google.api.services.dataflow.model.DataflowPackage;
-import com.google.api.services.dataflow.model.Job;
-import com.google.api.services.dataflow.model.Step;
-import com.google.api.services.dataflow.model.WorkerPool;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.ImmutableSet;
-import com.google.common.collect.Iterables;
-
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
@@ -86,15 +95,6 @@ import org.junit.runners.JUnit4;
 import org.mockito.ArgumentMatcher;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
-
-import java.io.IOException;
-import java.io.Serializable;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
 
 /**
  * Tests for DataflowPipelineTranslator.
@@ -159,7 +159,7 @@ public class DataflowPipelineTranslatorTest implements Serializable {
         return ImmutableList.of((GcsPath) invocation.getArguments()[0]);
       }
     });
-    when(mockGcsUtil.bucketExists(any(GcsPath.class))).thenReturn(true);
+    when(mockGcsUtil.bucketAccessible(any(GcsPath.class))).thenReturn(true);
     when(mockGcsUtil.isGcsPatternSupported(anyString())).thenCallRealMethod();
 
     DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
@@ -469,6 +469,7 @@ public class DataflowPipelineTranslatorTest implements Serializable {
                 (DataflowRunner) pipeline.getRunner(),
                 Collections.<DataflowPackage>emptyList())
             .getJob();
+    assertAllStepOutputsHaveUniqueIds(job);
 
     List<Step> steps = job.getSteps();
     assertEquals(4, steps.size());
@@ -527,6 +528,7 @@ public class DataflowPipelineTranslatorTest implements Serializable {
     assertEquals(13, job.getSteps().size());
     Step step = job.getSteps().get(1);
     assertEquals(stepName, getString(step.getProperties(), PropertyNames.USER_NAME));
+    assertAllStepOutputsHaveUniqueIds(job);
     return step;
   }
 
@@ -641,7 +643,7 @@ public class DataflowPipelineTranslatorTest implements Serializable {
   }
 
   @Test
-  public void testMultiGraphPipelineSerialization() throws IOException {
+  public void testMultiGraphPipelineSerialization() throws Exception {
     Pipeline p = Pipeline.create(buildPipelineOptions());
 
     PCollection<Integer> input = p.begin()
@@ -654,8 +656,9 @@ public class DataflowPipelineTranslatorTest implements Serializable {
         PipelineOptionsFactory.as(DataflowPipelineOptions.class));
 
     // Check that translation doesn't fail.
-    t.translate(
+    JobSpecification jobSpecification = t.translate(
         p, (DataflowRunner) p.getRunner(), Collections.<DataflowPackage>emptyList());
+    assertAllStepOutputsHaveUniqueIds(jobSpecification.getJob());
   }
 
   @Test
@@ -696,10 +699,11 @@ public class DataflowPipelineTranslatorTest implements Serializable {
     applyRead(pipeline, "gs://bucket/foo[0-9]/baz");
 
     // Check that translation doesn't fail.
-    t.translate(
+    JobSpecification jobSpecification = t.translate(
         pipeline,
         (DataflowRunner) pipeline.getRunner(),
         Collections.<DataflowPackage>emptyList());
+    assertAllStepOutputsHaveUniqueIds(jobSpecification.getJob());
   }
 
   private void applyRead(Pipeline pipeline, String path) {
@@ -748,6 +752,7 @@ public class DataflowPipelineTranslatorTest implements Serializable {
                 (DataflowRunner) pipeline.getRunner(),
                 Collections.<DataflowPackage>emptyList())
             .getJob();
+    assertAllStepOutputsHaveUniqueIds(job);
 
     List<Step> steps = job.getSteps();
     assertEquals(2, steps.size());
@@ -757,7 +762,6 @@ public class DataflowPipelineTranslatorTest implements Serializable {
 
     Step collectionToSingletonStep = steps.get(1);
     assertEquals("CollectionToSingleton", collectionToSingletonStep.getKind());
-
   }
 
   @Test
@@ -780,6 +784,7 @@ public class DataflowPipelineTranslatorTest implements Serializable {
                 (DataflowRunner) pipeline.getRunner(),
                 Collections.<DataflowPackage>emptyList())
             .getJob();
+    assertAllStepOutputsHaveUniqueIds(job);
 
     List<Step> steps = job.getSteps();
     assertEquals(2, steps.size());
@@ -810,6 +815,7 @@ public class DataflowPipelineTranslatorTest implements Serializable {
                 (DataflowRunner) pipeline.getRunner(),
                 Collections.<DataflowPackage>emptyList())
             .getJob();
+    assertAllStepOutputsHaveUniqueIds(job);
 
     List<Step> steps = job.getSteps();
     assertEquals(5, steps.size());
@@ -843,6 +849,7 @@ public class DataflowPipelineTranslatorTest implements Serializable {
                 (DataflowRunner) pipeline.getRunner(),
                 Collections.<DataflowPackage>emptyList())
             .getJob();
+    assertAllStepOutputsHaveUniqueIds(job);
 
     List<Step> steps = job.getSteps();
     assertEquals(3, steps.size());
@@ -906,6 +913,7 @@ public class DataflowPipelineTranslatorTest implements Serializable {
                 (DataflowRunner) pipeline.getRunner(),
                 Collections.<DataflowPackage>emptyList())
             .getJob();
+    assertAllStepOutputsHaveUniqueIds(job);
 
     List<Step> steps = job.getSteps();
     assertEquals(3, steps.size());
@@ -966,5 +974,23 @@ public class DataflowPipelineTranslatorTest implements Serializable {
 
     assertEquals(expectedFn1DisplayData, ImmutableSet.copyOf(fn1displayData));
     assertEquals(expectedFn2DisplayData, ImmutableSet.copyOf(fn2displayData));
+  }
+
+  private static void assertAllStepOutputsHaveUniqueIds(Job job)
+      throws Exception {
+    List<Long> outputIds = new ArrayList<>();
+    for (Step step : job.getSteps()) {
+      List<Map<String, Object>> outputInfoList =
+          (List<Map<String, Object>>) step.getProperties().get(PropertyNames.OUTPUT_INFO);
+      if (outputInfoList != null) {
+        for (Map<String, Object> outputInfo : outputInfoList) {
+          outputIds.add(Long.parseLong(Structs.getString(outputInfo, PropertyNames.OUTPUT_NAME)));
+        }
+      }
+    }
+    Set<Long> uniqueOutputNames = new HashSet<>(outputIds);
+    outputIds.removeAll(uniqueOutputNames);
+    assertTrue(String.format("Found duplicate output ids %s", outputIds),
+        outputIds.size() == 0);
   }
 }

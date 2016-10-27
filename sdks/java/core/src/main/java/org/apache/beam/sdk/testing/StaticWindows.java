@@ -19,17 +19,15 @@ package org.apache.beam.sdk.testing;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
+import com.google.common.base.Supplier;
+import com.google.common.collect.Iterables;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Objects;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.NonMergingWindowFn;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
-
-import com.google.common.base.Supplier;
-import com.google.common.collect.Iterables;
-
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Objects;
 
 /**
  * A {@link WindowFn} that assigns all elements to a static collection of

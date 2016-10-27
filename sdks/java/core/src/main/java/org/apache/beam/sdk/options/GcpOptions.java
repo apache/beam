@@ -17,21 +17,12 @@
  */
 package org.apache.beam.sdk.options;
 
-import org.apache.beam.sdk.util.CredentialFactory;
-import org.apache.beam.sdk.util.GcpCredentialFactory;
-import org.apache.beam.sdk.util.InstanceBuilder;
-import org.apache.beam.sdk.util.PathValidator;
-
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.google.api.client.auth.oauth2.Credential;
 import com.google.api.client.googleapis.auth.oauth2.GoogleOAuthConstants;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Strings;
 import com.google.common.io.Files;
-
-import com.fasterxml.jackson.annotation.JsonIgnore;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -40,8 +31,13 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.util.CredentialFactory;
+import org.apache.beam.sdk.util.GcpCredentialFactory;
+import org.apache.beam.sdk.util.InstanceBuilder;
+import org.apache.beam.sdk.util.PathValidator;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Options used to configure Google Cloud Platform project and credentials.
@@ -144,7 +140,7 @@ public interface GcpOptions extends GoogleApiDebugOptions, PipelineOptions {
   /**
    * Returns the default credential directory of ${user.home}/.store/data-flow.
    */
-  public static class CredentialDirFactory implements DefaultValueFactory<String> {
+  class CredentialDirFactory implements DefaultValueFactory<String> {
     @Override
     public String create(PipelineOptions options) {
       File home = new File(System.getProperty("user.home"));
@@ -185,7 +181,7 @@ public interface GcpOptions extends GoogleApiDebugOptions, PipelineOptions {
    * Attempts to infer the default project based upon the environment this application
    * is executing within. Currently this only supports getting the default project from gcloud.
    */
-  public static class DefaultProjectFactory implements DefaultValueFactory<String> {
+  class DefaultProjectFactory implements DefaultValueFactory<String> {
     private static final Logger LOG = LoggerFactory.getLogger(DefaultProjectFactory.class);
 
     @Override
@@ -255,7 +251,7 @@ public interface GcpOptions extends GoogleApiDebugOptions, PipelineOptions {
    * Attempts to load the GCP credentials. See
    * {@link CredentialFactory#getCredential()} for more details.
    */
-  public static class GcpUserCredentialsFactory implements DefaultValueFactory<Credential> {
+  class GcpUserCredentialsFactory implements DefaultValueFactory<Credential> {
     @Override
     public Credential create(PipelineOptions options) {
       GcpOptions gcpOptions = options.as(GcpOptions.class);
@@ -307,7 +303,7 @@ public interface GcpOptions extends GoogleApiDebugOptions, PipelineOptions {
   /**
    * Returns {@link PipelineOptions#getTempLocation} as the default GCP temp location.
    */
-  public static class GcpTempLocationFactory implements DefaultValueFactory<String> {
+  class GcpTempLocationFactory implements DefaultValueFactory<String> {
 
     @Override
     @Nullable

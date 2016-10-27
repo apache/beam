@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.values;
 
 import com.google.common.reflect.TypeParameter;
-
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.util.List;
@@ -140,6 +139,30 @@ public class TypeDescriptors {
   }
 
   /**
+   * The {@link TypeDescriptor} for Character.
+   * This is the equivalent of:
+   * <pre>
+   * new TypeDescriptor&lt;Character&gt;() {};
+   * </pre>
+   * @return A {@link TypeDescriptor} for Character
+   */
+  public static TypeDescriptor<Character> characters() {
+    return new TypeDescriptor<Character>() {};
+  }
+
+  /**
+   * The {@link TypeDescriptor} for Byte.
+   * This is the equivalent of:
+   * <pre>
+   * new TypeDescriptor&lt;Byte&gt;() {};
+   * </pre>
+   * @return A {@link TypeDescriptor} for Byte
+   */
+  public static TypeDescriptor<Byte> bytes() {
+    return new TypeDescriptor<Byte>() {};
+  }
+
+  /**
    * The {@link TypeDescriptor} for nulls/Void.
    * This is the equivalent of:
    * <pre>
@@ -157,8 +180,8 @@ public class TypeDescriptors {
    * <pre>
    * new TypeDescriptor&lt;KV&lt;K,V&gt;&gt;() {};
    * </pre>
-   * <p>
-   * Example of use:
+   *
+   * <p>Example of use:
    * <pre>
    * {@code
    * PCollection<String> words = ...;
@@ -188,8 +211,8 @@ public class TypeDescriptors {
    * <pre>
    * new TypeDescriptor&lt;Set&lt;E&gt;&gt;() {};
    * </pre>
-   * <p>
-   * Example of use:
+   *
+   * <p>Example of use:
    * <pre>
    * {@code
    * PCollection<String> words = ...;
@@ -216,8 +239,8 @@ public class TypeDescriptors {
    * <pre>
    * new TypeDescriptor&lt;List&lt;E&gt;&gt;() {};
    * </pre>
-   * <p>
-   * Example of use:
+   *
+   * <p>Example of use:
    * <pre>
    * {@code
    * PCollection<String> words = ...;
@@ -244,8 +267,8 @@ public class TypeDescriptors {
    * <pre>
    * new TypeDescriptor&lt;Iterable&lt;E&gt;&gt;() {};
    * </pre>
-   * <p>
-   * Example of use:
+   *
+   * <p>Example of use:
    * <pre>
    * {@code
    * PCollection<String> words = ...;

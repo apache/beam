@@ -19,6 +19,12 @@ package org.apache.beam.sdk.util.state;
 
 import static com.google.common.base.Preconditions.checkState;
 
+import com.google.common.base.Optional;
+import com.google.common.collect.Iterables;
+import java.util.Collection;
+import java.util.HashSet;
+import java.util.Map;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.transforms.Combine.KeyedCombineFn;
@@ -28,17 +34,7 @@ import org.apache.beam.sdk.transforms.windowing.OutputTimeFn;
 import org.apache.beam.sdk.util.CombineFnUtil;
 import org.apache.beam.sdk.util.state.InMemoryStateInternals.InMemoryState;
 import org.apache.beam.sdk.util.state.StateTag.StateBinder;
-
-import com.google.common.base.Optional;
-import com.google.common.collect.Iterables;
-
 import org.joda.time.Instant;
-
-import java.util.Collection;
-import java.util.HashSet;
-import java.util.Map;
-
-import javax.annotation.Nullable;
 
 /**
  * {@link StateInternals} built on top of an underlying {@link StateTable} that contains instances
@@ -235,7 +231,7 @@ public class CopyOnAccessInMemoryStateInternals<K> implements StateInternals<K> 
       return binderFactory.forNamespace(namespace, c);
     }
 
-    private static interface StateBinderFactory<K> {
+    private interface StateBinderFactory<K> {
       StateBinder<K> forNamespace(StateNamespace namespace, StateContext<?> c);
     }
 

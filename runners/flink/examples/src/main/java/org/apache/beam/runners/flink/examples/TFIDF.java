@@ -17,6 +17,12 @@
  */
 package org.apache.beam.runners.flink.examples;
 
+import java.io.File;
+import java.io.IOException;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.util.HashSet;
+import java.util.Set;
 import org.apache.beam.runners.flink.FlinkPipelineOptions;
 import org.apache.beam.runners.flink.FlinkRunner;
 import org.apache.beam.sdk.Pipeline;
@@ -32,7 +38,7 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.Validation;
 import org.apache.beam.sdk.transforms.Count;
-import org.apache.beam.sdk.transforms.OldDoFn;
+import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.Keys;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -47,29 +53,21 @@ import org.apache.beam.sdk.transforms.join.KeyedPCollectionTuple;
 import org.apache.beam.sdk.util.GcsUtil;
 import org.apache.beam.sdk.util.gcsfs.GcsPath;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PDone;
-import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.TupleTag;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.io.File;
-import java.io.IOException;
-import java.net.URI;
-import java.net.URISyntaxException;
-import java.util.HashSet;
-import java.util.Set;
 
 /**
  * An example that computes a basic TF-IDF search table for a directory or GCS prefix.
  *
- * <p> Concepts: joining data; side inputs; logging
+ * <p>Concepts: joining data; side inputs; logging
  *
- * <p> To execute this pipeline locally, specify general pipeline configuration:
+ * <p>To execute this pipeline locally, specify general pipeline configuration:
  * <pre>{@code
  *   --project=YOUR_PROJECT_ID
  * }</pre>
@@ -78,7 +76,7 @@ import java.util.Set;
  *   --output=[YOUR_LOCAL_FILE | gs://YOUR_OUTPUT_PREFIX]
  * }</pre>
  *
- * <p> To execute this pipeline using the Dataflow service, specify pipeline configuration:
+ * <p>To execute this pipeline using the Dataflow service, specify pipeline configuration:
  * <pre>{@code
  *   --project=YOUR_PROJECT_ID
  *   --stagingLocation=gs://YOUR_STAGING_DIRECTORY
@@ -87,14 +85,14 @@ import java.util.Set;
  *   --output=gs://YOUR_OUTPUT_PREFIX
  * }</pre>
  *
- * <p> The default input is {@code gs://dataflow-samples/shakespeare/} and can be overridden with
+ * <p>The default input is {@code gs://dataflow-samples/shakespeare/} and can be overridden with
  * {@code --input}.
  */
 public class TFIDF {
   /**
    * Options supported by {@link TFIDF}.
-   * <p>
-   * Inherits standard configuration options.
+   *
+   * <p>Inherits standard configuration options.
    */
   private interface Options extends PipelineOptions, FlinkPipelineOptions {
     @Description("Path to the directory or GCS prefix containing files to read from")
@@ -156,7 +154,7 @@ public class TFIDF {
    * from the documents tagged with which document they are from.
    */
   public static class ReadDocuments
-      extends PTransform<PInput, PCollection<KV<URI, String>>> {
+      extends PTransform<PBegin, PCollection<KV<URI, String>>> {
     private static final long serialVersionUID = 0;
 
     private Iterable<URI> uris;
@@ -171,7 +169,7 @@ public class TFIDF {
     }
 
     @Override
-    public PCollection<KV<URI, String>> apply(PInput input) {
+    public PCollection<KV<URI, String>> apply(PBegin input) {
       Pipeline pipeline = input.getPipeline();
 
       // Create one TextIO.Read transform for each document
@@ -230,10 +228,10 @@ public class TFIDF {
       // Create a collection of pairs mapping a URI to each
       // of the words in the document associated with that that URI.
       PCollection<KV<URI, String>> uriToWords = uriToContent
-          .apply("SplitWords", ParDo.of(new OldDoFn<KV<URI, String>, KV<URI, String>>() {
+          .apply("SplitWords", ParDo.of(new DoFn<KV<URI, String>, KV<URI, String>>() {
             private static final long serialVersionUID = 0;
 
-            @Override
+            @ProcessElement
             public void processElement(ProcessContext c) {
               URI uri = c.element().getKey();
               String line = c.element().getValue();
@@ -275,10 +273,10 @@ public class TFIDF {
       // by the URI key.
       PCollection<KV<URI, KV<String, Long>>> uriToWordAndCount = uriAndWordToCount
           .apply("ShiftKeys", ParDo.of(
-              new OldDoFn<KV<KV<URI, String>, Long>, KV<URI, KV<String, Long>>>() {
+              new DoFn<KV<KV<URI, String>, Long>, KV<URI, KV<String, Long>>>() {
                 private static final long serialVersionUID = 0;
 
-                @Override
+                @ProcessElement
                 public void processElement(ProcessContext c) {
                   URI uri = c.element().getKey().getKey();
                   String word = c.element().getKey().getValue();
@@ -316,10 +314,10 @@ public class TFIDF {
       // divided by the total number of words in the document.
       PCollection<KV<String, KV<URI, Double>>> wordToUriAndTf = uriToWordAndCountAndTotal
           .apply("ComputeTermFrequencies", ParDo.of(
-              new OldDoFn<KV<URI, CoGbkResult>, KV<String, KV<URI, Double>>>() {
+              new DoFn<KV<URI, CoGbkResult>, KV<String, KV<URI, Double>>>() {
                 private static final long serialVersionUID = 0;
 
-                @Override
+                @ProcessElement
                 public void processElement(ProcessContext c) {
                   URI uri = c.element().getKey();
                   Long wordTotal = c.element().getValue().getOnly(wordTotalsTag);
@@ -339,14 +337,14 @@ public class TFIDF {
       // documents in which the word appears divided by the total
       // number of documents in the corpus. Note how the total number of
       // documents is passed as a side input; the same value is
-      // presented to each invocation of the OldDoFn.
+      // presented to each invocation of the DoFn.
       PCollection<KV<String, Double>> wordToDf = wordToDocCount
           .apply("ComputeDocFrequencies", ParDo
               .withSideInputs(totalDocuments)
-              .of(new OldDoFn<KV<String, Long>, KV<String, Double>>() {
+              .of(new DoFn<KV<String, Long>, KV<String, Double>>() {
                 private static final long serialVersionUID = 0;
 
-                @Override
+                @ProcessElement
                 public void processElement(ProcessContext c) {
                   String word = c.element().getKey();
                   Long documentCount = c.element().getValue();
@@ -375,10 +373,10 @@ public class TFIDF {
 
       return wordToUriAndTfAndDf
           .apply("ComputeTfIdf", ParDo.of(
-              new OldDoFn<KV<String, CoGbkResult>, KV<String, KV<URI, Double>>>() {
+              new DoFn<KV<String, CoGbkResult>, KV<String, KV<URI, Double>>>() {
                 private static final long serialVersionUID = 0;
 
-                @Override
+                @ProcessElement
                 public void processElement(ProcessContext c) {
                   String word = c.element().getKey();
                   Double df = c.element().getValue().getOnly(dfTag);
@@ -416,10 +414,10 @@ public class TFIDF {
     @Override
     public PDone apply(PCollection<KV<String, KV<URI, Double>>> wordToUriAndTfIdf) {
       return wordToUriAndTfIdf
-          .apply("Format", ParDo.of(new OldDoFn<KV<String, KV<URI, Double>>, String>() {
+          .apply("Format", ParDo.of(new DoFn<KV<String, KV<URI, Double>>, String>() {
             private static final long serialVersionUID = 0;
 
-            @Override
+            @ProcessElement
             public void processElement(ProcessContext c) {
               c.output(String.format("%s,\t%s,\t%f",
                   c.element().getKey(),

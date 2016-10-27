@@ -19,14 +19,13 @@ package org.apache.beam.runners.direct;
 
 import static com.google.common.base.Preconditions.checkState;
 
+import java.util.HashSet;
+import java.util.Set;
 import org.apache.beam.sdk.Pipeline.PipelineVisitor;
 import org.apache.beam.sdk.runners.TransformTreeNode;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PValue;
-
-import java.util.HashSet;
-import java.util.Set;
 
 /**
  * A pipeline visitor that tracks all keyed {@link PValue PValues}. A {@link PValue} is keyed if it

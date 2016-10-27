@@ -21,7 +21,6 @@ import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.protobuf.ByteString;
 import com.google.protobuf.ByteString.ByteIterator;
-
 import java.io.Serializable;
 
 /**

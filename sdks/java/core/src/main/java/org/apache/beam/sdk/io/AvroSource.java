@@ -21,14 +21,25 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
 
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.coders.AvroCoder;
-import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.runners.PipelineRunner;
-import org.apache.beam.sdk.util.AvroUtils;
-import org.apache.beam.sdk.util.AvroUtils.AvroMetadata;
-import org.apache.beam.sdk.values.PCollection;
-
+import com.google.common.annotations.VisibleForTesting;
+import java.io.ByteArrayInputStream;
+import java.io.EOFException;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InvalidObjectException;
+import java.io.ObjectStreamException;
+import java.io.PushbackInputStream;
+import java.nio.ByteBuffer;
+import java.nio.channels.Channels;
+import java.nio.channels.ReadableByteChannel;
+import java.nio.channels.SeekableByteChannel;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Map;
+import java.util.WeakHashMap;
+import java.util.zip.Inflater;
+import java.util.zip.InflaterInputStream;
+import javax.annotation.concurrent.GuardedBy;
 import org.apache.avro.Schema;
 import org.apache.avro.file.CodecFactory;
 import org.apache.avro.file.DataFileConstants;
@@ -39,26 +50,17 @@ import org.apache.avro.io.DatumReader;
 import org.apache.avro.io.DecoderFactory;
 import org.apache.avro.reflect.ReflectData;
 import org.apache.avro.reflect.ReflectDatumReader;
+import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.coders.AvroCoder;
+import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.runners.PipelineRunner;
+import org.apache.beam.sdk.util.AvroUtils;
+import org.apache.beam.sdk.util.AvroUtils.AvroMetadata;
+import org.apache.beam.sdk.values.PCollection;
 import org.apache.commons.compress.compressors.bzip2.BZip2CompressorInputStream;
 import org.apache.commons.compress.compressors.snappy.SnappyCompressorInputStream;
 import org.apache.commons.compress.compressors.xz.XZCompressorInputStream;
 import org.apache.commons.compress.utils.CountingInputStream;
-
-import java.io.ByteArrayInputStream;
-import java.io.EOFException;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.PushbackInputStream;
-import java.nio.ByteBuffer;
-import java.nio.channels.Channels;
-import java.nio.channels.ReadableByteChannel;
-import java.nio.channels.SeekableByteChannel;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.zip.Inflater;
-import java.util.zip.InflaterInputStream;
-
-import javax.annotation.concurrent.GuardedBy;
 
 // CHECKSTYLE.OFF: JavadocStyle
 /**
@@ -118,6 +120,7 @@ import javax.annotation.concurrent.GuardedBy;
  * }</pre>
  *
  * <h3>Permissions</h3>
+ *
  * <p>Permission requirements depend on the {@link PipelineRunner} that is used to execute the
  * Dataflow job. Please refer to the documentation of corresponding {@link PipelineRunner}s for
  * more details.
@@ -166,7 +169,7 @@ public class AvroSource<T> extends BlockBasedSource<T> {
    * to read records of the given type from a file pattern.
    */
   public static <T> Read.Bounded<T> readFromFileWithClass(String filePattern, Class<T> clazz) {
-    return Read.from(new AvroSource<T>(filePattern, DEFAULT_MIN_BUNDLE_SIZE,
+    return Read.from(new AvroSource<>(filePattern, DEFAULT_MIN_BUNDLE_SIZE,
         ReflectData.get().getSchema(clazz).toString(), clazz, null, null));
   }
 
@@ -220,14 +223,14 @@ public class AvroSource<T> extends BlockBasedSource<T> {
    * <p>Does not modify this object.
    */
   public AvroSource<T> withMinBundleSize(long minBundleSize) {
-    return new AvroSource<T>(
+    return new AvroSource<>(
         getFileOrPatternSpec(), minBundleSize, readSchemaString, type, codec, syncMarker);
   }
 
   private AvroSource(String fileNameOrPattern, long minBundleSize, String schema, Class<T> type,
       String codec, byte[] syncMarker) {
     super(fileNameOrPattern, minBundleSize);
-    this.readSchemaString = schema;
+    this.readSchemaString = internSchemaString(schema);
     this.codec = codec;
     this.syncMarker = syncMarker;
     this.type = type;
@@ -237,11 +240,11 @@ public class AvroSource<T> extends BlockBasedSource<T> {
   private AvroSource(String fileName, long minBundleSize, long startOffset, long endOffset,
       String schema, Class<T> type, String codec, byte[] syncMarker, String fileSchema) {
     super(fileName, minBundleSize, startOffset, endOffset);
-    this.readSchemaString = schema;
+    this.readSchemaString = internSchemaString(schema);
     this.codec = codec;
     this.syncMarker = syncMarker;
     this.type = type;
-    this.fileSchemaString = fileSchema;
+    this.fileSchemaString = internSchemaString(fileSchema);
   }
 
   @Override
@@ -279,13 +282,18 @@ public class AvroSource<T> extends BlockBasedSource<T> {
         readSchemaString = metadata.getSchemaString();
       }
     }
-    return new AvroSource<T>(fileName, getMinBundleSize(), start, end, readSchemaString, type,
+    // Note that if the fileSchemaString is equivalent to the readSchemaString, "intern"ing
+    // the string will occur within the constructor and return the same reference as the
+    // readSchemaString. This allows for Java to have an efficient serialization since it
+    // will only encode the schema once while just storing pointers to the encoded version
+    // within this source.
+    return new AvroSource<>(fileName, getMinBundleSize(), start, end, readSchemaString, type,
         codec, syncMarker, fileSchemaString);
   }
 
   @Override
   protected BlockBasedReader<T> createSingleFileReader(PipelineOptions options) {
-    return new AvroReader<T>(this);
+    return new AvroReader<>(this);
   }
 
   @Override
@@ -296,8 +304,7 @@ public class AvroSource<T> extends BlockBasedSource<T> {
   @Override
   public AvroCoder<T> getDefaultOutputCoder() {
     if (coder == null) {
-      Schema.Parser parser = new Schema.Parser();
-      coder = AvroCoder.of(type, parser.parse(readSchemaString));
+      coder = AvroCoder.of(type, internOrParseSchemaString(readSchemaString));
     }
     return coder;
   }
@@ -306,28 +313,28 @@ public class AvroSource<T> extends BlockBasedSource<T> {
     return readSchemaString;
   }
 
-  private Schema getReadSchema() {
+  @VisibleForTesting
+  Schema getReadSchema() {
     if (readSchemaString == null) {
       return null;
     }
 
     // If the schema has not been parsed, parse it.
     if (readSchema == null) {
-      Schema.Parser parser = new Schema.Parser();
-      readSchema = parser.parse(readSchemaString);
+      readSchema = internOrParseSchemaString(readSchemaString);
     }
     return readSchema;
   }
 
-  private Schema getFileSchema() {
+  @VisibleForTesting
+  Schema getFileSchema() {
     if (fileSchemaString == null) {
       return null;
     }
 
     // If the schema has not been parsed, parse it.
     if (fileSchema == null) {
-      Schema.Parser parser = new Schema.Parser();
-      fileSchema = parser.parse(fileSchemaString);
+      fileSchema = internOrParseSchemaString(fileSchemaString);
     }
     return fileSchema;
   }
@@ -349,6 +356,64 @@ public class AvroSource<T> extends BlockBasedSource<T> {
       return new GenericDatumReader<>(fileSchema, readSchema);
     } else {
       return new ReflectDatumReader<>(fileSchema, readSchema);
+    }
+  }
+
+  // A logical reference cache used to store schemas and schema strings to allow us to
+  // "intern" values and reduce the number of copies of equivalent objects.
+  private static final Map<String, Schema> schemaLogicalReferenceCache = new WeakHashMap<>();
+  private static final Map<String, String> schemaStringLogicalReferenceCache = new WeakHashMap<>();
+
+  // We avoid String.intern() because depending on the JVM, these may be added to the PermGenSpace
+  // which we want to avoid otherwise we could run out of PermGenSpace.
+  private static synchronized String internSchemaString(String schema) {
+    String internSchema = schemaStringLogicalReferenceCache.get(schema);
+    if (internSchema != null) {
+      return internSchema;
+    }
+    schemaStringLogicalReferenceCache.put(schema, schema);
+    return schema;
+  }
+
+  private static synchronized Schema internOrParseSchemaString(String schemaString) {
+    Schema schema = schemaLogicalReferenceCache.get(schemaString);
+    if (schema != null) {
+      return schema;
+    }
+    Schema.Parser parser = new Schema.Parser();
+    schema = parser.parse(schemaString);
+    schemaLogicalReferenceCache.put(schemaString, schema);
+    return schema;
+  }
+
+  // Reading the object from Java serialization typically does not go through the constructor,
+  // we use readResolve to replace the constructed instance with one which uses the constructor
+  // allowing us to intern any schemas.
+  @SuppressWarnings("unused")
+  private Object readResolve() throws ObjectStreamException {
+    switch (getMode()) {
+      case SINGLE_FILE_OR_SUBRANGE:
+        return new AvroSource<>(
+            getFileOrPatternSpec(),
+            getMinBundleSize(),
+            getStartOffset(),
+            getEndOffset(),
+            readSchemaString,
+            type,
+            codec,
+            syncMarker,
+            fileSchemaString);
+      case FILEPATTERN:
+        return new AvroSource<>(
+            getFileOrPatternSpec(),
+            getMinBundleSize(),
+            readSchemaString,
+            type,
+            codec,
+            syncMarker);
+        default:
+          throw new InvalidObjectException(
+              String.format("Unknown mode %s for AvroSource %s", getMode(), this));
     }
   }
 

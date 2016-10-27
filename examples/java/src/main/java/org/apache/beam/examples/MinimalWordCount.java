@@ -66,18 +66,16 @@ public class MinimalWordCount {
 
     // In order to run your pipeline, you need to make following runner specific changes:
     //
-    // CHANGE 1/3: Select a Beam runner, such as BlockingDataflowRunner
-    // or FlinkRunner.
+    // CHANGE 1/3: Select a Beam runner, such as DataflowRunner or FlinkRunner.
     // CHANGE 2/3: Specify runner-required options.
-    // For BlockingDataflowRunner, set project and temp location as follows:
+    // For DataflowRunner, set project and temp location as follows:
     //   DataflowPipelineOptions dataflowOptions = options.as(DataflowPipelineOptions.class);
-    //   dataflowOptions.setRunner(BlockingDataflowRunner.class);
+    //   dataflowOptions.setRunner(DataflowRunner.class);
     //   dataflowOptions.setProject("SET_YOUR_PROJECT_ID_HERE");
     //   dataflowOptions.setTempLocation("gs://SET_YOUR_BUCKET_NAME_HERE/AND_TEMP_DIRECTORY");
     // For FlinkRunner, set the runner as follows. See {@code FlinkPipelineOptions}
     // for more details.
-    //   options.as(FlinkPipelineOptions.class)
-    //      .setRunner(FlinkRunner.class);
+    //   options.setRunner(FlinkRunner.class);
 
     // Create the Pipeline object with the options we defined above.
     Pipeline p = Pipeline.create(options);
@@ -87,7 +85,7 @@ public class MinimalWordCount {
     // Concept #1: Apply a root transform to the pipeline; in this case, TextIO.Read to read a set
     // of input text files. TextIO.Read returns a PCollection where each element is one line from
     // the input text (a set of Shakespeare's texts).
-    p.apply(TextIO.Read.from("gs://dataflow-samples/shakespeare/*"))
+    p.apply(TextIO.Read.from("gs://apache-beam-samples/shakespeare/*"))
      // Concept #2: Apply a ParDo transform to our PCollection of text lines. This ParDo invokes a
      // DoFn (defined in-line) on each element that tokenizes the text line into individual words.
      // The ParDo returns a PCollection<String>, where each element is an individual word in

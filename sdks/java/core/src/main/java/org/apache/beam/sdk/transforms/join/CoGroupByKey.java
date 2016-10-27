@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.transforms.join;
 
+import java.util.ArrayList;
+import java.util.List;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -29,9 +31,6 @@ import org.apache.beam.sdk.transforms.join.KeyedPCollectionTuple.TaggedKeyedPCol
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
-
-import java.util.ArrayList;
-import java.util.List;
 
 /**
  * A {@link PTransform} that performs a {@link CoGroupByKey} on a tuple

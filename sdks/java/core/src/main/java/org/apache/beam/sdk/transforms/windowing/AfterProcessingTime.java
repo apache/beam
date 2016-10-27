@@ -17,16 +17,12 @@
  */
 package org.apache.beam.sdk.transforms.windowing;
 
+import java.util.List;
+import java.util.Objects;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.util.TimeDomain;
-
 import org.joda.time.Instant;
-
-import java.util.List;
-import java.util.Objects;
-
-import javax.annotation.Nullable;
 
 /**
  * {@code AfterProcessingTime} triggers fire based on the current processing time. They operate in
@@ -38,12 +34,6 @@ import javax.annotation.Nullable;
  */
 @Experimental(Experimental.Kind.TRIGGER)
 public class AfterProcessingTime extends AfterDelayFromFirstElement {
-
-  @Override
-  @Nullable
-  public Instant getCurrentTime(Trigger.TriggerContext context) {
-    return context.currentProcessingTime();
-  }
 
   private AfterProcessingTime(List<SerializableFunction<Instant, Instant>> transforms) {
     super(TimeDomain.PROCESSING_TIME, transforms);

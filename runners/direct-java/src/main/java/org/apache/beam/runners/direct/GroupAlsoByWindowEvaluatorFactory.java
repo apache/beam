@@ -17,7 +17,13 @@
  */
 package org.apache.beam.runners.direct;
 
+import com.google.common.collect.ImmutableMap;
+import java.util.Collections;
 import org.apache.beam.runners.core.GroupAlsoByWindowViaWindowSetDoFn;
+import org.apache.beam.runners.core.GroupByKeyViaGroupByKeyOnly;
+import org.apache.beam.runners.core.GroupByKeyViaGroupByKeyOnly.GroupAlsoByWindow;
+import org.apache.beam.runners.core.GroupByKeyViaGroupByKeyOnly.GroupByKeyOnly;
+import org.apache.beam.runners.core.SystemReduceFn;
 import org.apache.beam.runners.direct.DirectExecutionContext.DirectStepContext;
 import org.apache.beam.runners.direct.DirectGroupByKey.DirectGroupAlsoByWindow;
 import org.apache.beam.runners.direct.DirectRunner.CommittedBundle;
@@ -26,11 +32,7 @@ import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.util.GroupByKeyViaGroupByKeyOnly;
-import org.apache.beam.sdk.util.GroupByKeyViaGroupByKeyOnly.GroupAlsoByWindow;
-import org.apache.beam.sdk.util.GroupByKeyViaGroupByKeyOnly.GroupByKeyOnly;
 import org.apache.beam.sdk.util.KeyedWorkItem;
-import org.apache.beam.sdk.util.SystemReduceFn;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.util.state.StateInternals;
@@ -40,34 +42,38 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 
-import com.google.common.collect.ImmutableMap;
-
-import java.util.Collections;
-
 /**
  * The {@link DirectRunner} {@link TransformEvaluatorFactory} for the
  * {@link GroupByKeyOnly} {@link PTransform}.
  */
 class GroupAlsoByWindowEvaluatorFactory implements TransformEvaluatorFactory {
+  private final EvaluationContext evaluationContext;
+
+  GroupAlsoByWindowEvaluatorFactory(EvaluationContext evaluationContext) {
+    this.evaluationContext = evaluationContext;
+  }
+
   @Override
   public <InputT> TransformEvaluator<InputT> forApplication(
       AppliedPTransform<?, ?, ?> application,
-      CommittedBundle<?> inputBundle,
-      EvaluationContext evaluationContext) {
+      CommittedBundle<?> inputBundle) {
     @SuppressWarnings({"cast", "unchecked", "rawtypes"})
     TransformEvaluator<InputT> evaluator =
         createEvaluator(
-            (AppliedPTransform) application, (CommittedBundle) inputBundle, evaluationContext);
+            (AppliedPTransform) application, (CommittedBundle) inputBundle);
     return evaluator;
   }
+
+  @Override
+  public void cleanup() {}
 
   private <K, V> TransformEvaluator<KeyedWorkItem<K, V>> createEvaluator(
       AppliedPTransform<
               PCollection<KeyedWorkItem<K, V>>,
               PCollection<KV<K, Iterable<V>>>,
-              DirectGroupAlsoByWindow<K, V>> application,
-      CommittedBundle<KeyedWorkItem<K, V>> inputBundle,
-      EvaluationContext evaluationContext) {
+              DirectGroupAlsoByWindow<K, V>>
+          application,
+      CommittedBundle<KeyedWorkItem<K, V>> inputBundle) {
     return new GroupAlsoByWindowEvaluator<>(
         evaluationContext, inputBundle, application);
   }

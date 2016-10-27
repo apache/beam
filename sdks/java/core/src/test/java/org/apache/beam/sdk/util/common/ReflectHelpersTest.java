@@ -19,14 +19,12 @@ package org.apache.beam.sdk.util.common;
 
 import static org.junit.Assert.assertEquals;
 
+import java.util.List;
+import java.util.Map;
 import org.apache.beam.sdk.values.TypeDescriptor;
-
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-
-import java.util.List;
-import java.util.Map;
 
 /**
  * Tests for {@link ReflectHelpers}.

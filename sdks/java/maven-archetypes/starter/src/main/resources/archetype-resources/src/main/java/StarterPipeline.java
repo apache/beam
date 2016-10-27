@@ -22,7 +22,6 @@ import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.transforms.ParDo;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
