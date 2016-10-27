@@ -29,7 +29,7 @@ from apache_beam.coders import typecoders
 from apache_beam.internal import util
 from apache_beam.transforms import ptransform
 from apache_beam.transforms import window
-from apache_beam.transforms.display import HasDisplayData
+from apache_beam.transforms.display import HasDisplayData, DisplayDataItem
 from apache_beam.transforms.ptransform import PTransform
 from apache_beam.transforms.ptransform import PTransformWithSideInputs
 from apache_beam.transforms.window import MIN_TIMESTAMP
@@ -234,6 +234,16 @@ class CallableWrapperDoFn(DoFn):
       self.process = lambda context: fn(context.element)
 
     super(CallableWrapperDoFn, self).__init__()
+
+  def display_data(self):
+    # If the callable has a name, then it's likely a function, and
+    # we show its name.
+    # Otherwise, it might be an instance of a callable class. We
+    # show its class.
+    display_data_value = (self._fn.__name__ if hasattr(self._fn, '__name__')
+                          else self._fn.__class__)
+    return {'fn': DisplayDataItem(display_data_value,
+                                  label='Transform Function')}
 
   def __repr__(self):
     return 'CallableWrapperDoFn(%s)' % self._fn
@@ -580,6 +590,11 @@ class ParDo(PTransformWithSideInputs):
   def process_argspec_fn(self):
     return self.fn.process_argspec_fn()
 
+  def display_data(self):
+    return {'fn': DisplayDataItem(self.fn.__class__,
+                                  label='Transform Function'),
+            'fn_dd': self.fn}
+
   def apply(self, pcoll):
     self.side_output_tags = set()
     # TODO(robertwb): Change all uses of the dofn attribute to use fn instead.
@@ -696,6 +711,10 @@ def Map(fn_or_label, *args, **kwargs):  # pylint: disable=invalid-name
   else:
     wrapper = lambda x: [fn(x)]
 
+  # TODO. What about callable classes?
+  if hasattr(fn, '__name__'):
+    wrapper.__name__ = fn.__name__
+
   # Proxy the type-hint information from the original function to this new
   # wrapped function.
   get_type_hints(wrapper).input_types = get_type_hints(fn).input_types
@@ -739,6 +758,9 @@ def Filter(fn_or_label, *args, **kwargs):  # pylint: disable=invalid-name
         % (fn, 'first' if label is None else 'second'))
   wrapper = lambda x, *args, **kwargs: [x] if fn(x, *args, **kwargs) else []
 
+  # TODO: What about callable classes?
+  if hasattr(fn, '__name__'):
+    wrapper.__name__ = fn.__name__
   # Proxy the type-hint information from the function being wrapped, setting the
   # output type to be the same as the input type.
   get_type_hints(wrapper).input_types = get_type_hints(fn).input_types

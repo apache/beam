@@ -118,6 +118,7 @@ from apache_beam.internal import auth
 from apache_beam.internal.json_value import from_json_value
 from apache_beam.internal.json_value import to_json_value
 from apache_beam.runners.dataflow.native_io import iobase as dataflow_io
+from apache_beam.transforms.display import DisplayDataItem
 from apache_beam.utils import retry
 from apache_beam.utils.options import GoogleCloudOptions
 
@@ -342,6 +343,23 @@ class BigQuerySource(dataflow_io.NativeSource):
     self.validate = validate
     self.coder = coder or RowAsDictJsonCoder()
 
+  def display_data(self):
+    if self.query is not None:
+      res = {'query': DisplayDataItem(self.query, label='Query')}
+    else:
+      if self.table_reference.projectId is not None:
+        tableSpec = '{}:{}.{}'.format(self.table_reference.projectId,
+                                      self.table_reference.datasetId,
+                                      self.table_reference.tableId)
+      else:
+        tableSpec = '{}.{}'.format(self.table_reference.datasetId,
+                                   self.table_reference.tableId)
+      res = {'table': DisplayDataItem(tableSpec, label='Table')}
+
+    res['validation'] = DisplayDataItem(self.validate,
+                                        label='Validation Enabled')
+    return res
+
   @property
   def format(self):
     """Source format name required for remote execution."""
@@ -433,6 +451,20 @@ class BigQuerySink(dataflow_io.NativeSink):
         write_disposition)
     self.validate = validate
     self.coder = coder or RowAsDictJsonCoder()
+
+  def display_data(self):
+    res = {}
+    if self.table_reference is not None:
+      tableSpec = '{}.{}'.format(self.table_reference.datasetId,
+                                 self.table_reference.tableId)
+      if self.table_reference.projectId is not None:
+        tableSpec = '{}:{}'.format(self.table_reference.projectId,
+                                   tableSpec)
+      res['table'] = DisplayDataItem(tableSpec, label='Table')
+
+    res['validation'] = DisplayDataItem(self.validate,
+                                        label="Validation Enabled")
+    return res
 
   def schema_as_json(self):
     """Returns the TableSchema associated with the sink as a JSON string."""
