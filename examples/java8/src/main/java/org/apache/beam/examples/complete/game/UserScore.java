@@ -236,7 +236,7 @@ public class UserScore {
                                                    configureBigQueryWrite()));
 
     // Run the batch pipeline.
-    pipeline.run();
+    pipeline.run().waitUntilFinish();
   }
   // [END DocInclude_USMain]
 

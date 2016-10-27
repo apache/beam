@@ -105,7 +105,7 @@ public class HourlyTeamScoreTest implements Serializable {
 
       PAssert.that(output).containsInAnyOrder(FILTERED_EVENTS);
 
-    p.run();
+    p.run().waitUntilFinish();
   }
 
 }

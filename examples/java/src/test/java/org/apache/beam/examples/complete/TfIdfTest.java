@@ -61,6 +61,6 @@ public class TfIdfTest {
 
     PAssert.that(words).containsInAnyOrder(Arrays.asList("a", "m", "n", "b", "c", "d"));
 
-    pipeline.run();
+    pipeline.run().waitUntilFinish();
   }
 }
