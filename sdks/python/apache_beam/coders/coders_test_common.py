@@ -124,6 +124,8 @@ class CodersTest(unittest.TestCase):
     self.check_coder(coder, (), (1, 2, 3))
     self.check_coder(coder, [], [1, 2, 3])
     self.check_coder(coder, dict(), {'a': 'b'}, {0: dict(), 1: len})
+    self.check_coder(coder, set(), {'a', 'b'})
+    self.check_coder(coder, True, False)
     self.check_coder(coder, len)
     self.check_coder(coders.TupleCoder((coder,)), ('a',), (1,))
 
@@ -192,6 +194,13 @@ class CodersTest(unittest.TestCase):
 
   def test_utf8_coder(self):
     self.check_coder(coders.StrUtf8Coder(), 'a', u'ab\u00FF', u'\u0101\0')
+
+  def test_iterable_coder(self):
+    self.check_coder(coders.IterableCoder(coders.VarIntCoder()), [1], [-1, 0, 100])
+    self.check_coder(
+        coders.TupleCoder((coders.VarIntCoder(),
+                           coders.IterableCoder(coders.VarIntCoder()))),
+        (1, [1, 2, 3]))
 
   def test_nested_observables(self):
     class FakeObservableIterator(observable.ObservableMixin):
