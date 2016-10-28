@@ -17,6 +17,10 @@
  */
 package org.apache.beam.sdk.util;
 
+import static com.google.common.base.Preconditions.checkNotNull;
+
+import com.google.api.client.repackaged.com.google.common.base.Strings;
+import com.google.common.annotations.VisibleForTesting;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.nio.channels.WritableByteChannel;
@@ -29,8 +33,10 @@ import java.util.Map;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.options.GcsOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.util.IOChannelFactoryV2.CreateOptions;
 
 /**
  * Provides utilities for creating read and write channels.
@@ -39,6 +45,9 @@ public class IOChannelUtils {
   // TODO: add registration mechanism for adding new schemas.
   private static final Map<String, IOChannelFactory> FACTORY_MAP =
       Collections.synchronizedMap(new HashMap<String, IOChannelFactory>());
+
+  private static final Map<String, IOChannelFactoryConfigOptions> FACTORY_CONFIG_OPTIONS_MAP =
+      Collections.synchronizedMap(new HashMap<String, IOChannelFactoryConfigOptions>());
 
   // Pattern that matches shard placeholders within a shard template.
   private static final Pattern SHARD_FORMAT_RE = Pattern.compile("(S+|N+)");
@@ -65,12 +74,22 @@ public class IOChannelUtils {
     setIOFactory("file", new FileIOChannelFactory());
   }
 
+  public static WritableByteChannel create(
+      String filename,
+      String mimeType)
+      throws IOException {
+    return create(getGlobalConfigOptions(filename), filename, mimeType);
+  }
+
   /**
    * Creates a write channel for the given filename.
    */
-  public static WritableByteChannel create(String filename, String mimeType)
+  public static WritableByteChannel create(
+      IOChannelFactoryConfigOptions configOptions,
+      String filename,
+      String mimeType)
       throws IOException {
-    return getFactory(filename).create(filename, mimeType);
+    return getFactoryV2(configOptions).create(filename, new CreateOptions().setMimeType(mimeType));
   }
 
   /**
@@ -82,11 +101,18 @@ public class IOChannelUtils {
    * <p>Shard numbers are 0 based, meaning they start with 0 and end at the
    * number of shards - 1.
    */
-  public static WritableByteChannel create(String prefix, String shardTemplate,
-      String suffix, int numShards, String mimeType) throws IOException {
+  public static WritableByteChannel create(
+      IOChannelFactoryConfigOptions configOptions,
+      String prefix,
+      String shardTemplate,
+      String suffix,
+      int numShards,
+      String mimeType) throws IOException {
     if (numShards == 1) {
-      return create(constructName(prefix, shardTemplate, suffix, 0, 1),
-                    mimeType);
+      return create(
+          configOptions,
+          constructName(prefix, shardTemplate, suffix, 0, 1),
+          mimeType);
     }
 
     // It is the callers responsibility to close this channel.
@@ -102,7 +128,7 @@ public class IOChannelUtils {
         throw new IllegalArgumentException(
             "Shard name collision detected for: " + outputName);
       }
-      WritableByteChannel channel = create(outputName, mimeType);
+      WritableByteChannel channel = create(configOptions, outputName, mimeType);
       shardingChannel.addChannel(channel);
     }
 
@@ -163,30 +189,48 @@ public class IOChannelUtils {
   private static final Pattern URI_SCHEME_PATTERN = Pattern.compile(
       "(?<scheme>[a-zA-Z][-a-zA-Z0-9+.]*)://.*");
 
-  /**
-   * Returns the IOChannelFactory associated with an input specification.
-   */
-  public static IOChannelFactory getFactory(String spec) throws IOException {
+  private static String getScheme(String spec) {
     // The spec is almost, but not quite, a URI. In particular,
     // the reserved characters '[', ']', and '?' have meanings that differ
     // from their use in the URI spec. ('*' is not reserved).
     // Here, we just need the scheme, which is so circumscribed as to be
     // very easy to extract with a regex.
     Matcher matcher = URI_SCHEME_PATTERN.matcher(spec);
-
-    if (!matcher.matches()) {
-      return new FileIOChannelFactory();
-    }
-
-    String scheme = matcher.group("scheme");
-    IOChannelFactory ioFactory = FACTORY_MAP.get(scheme);
-    if (ioFactory != null) {
-      return ioFactory;
-    }
-
-    throw new IOException("Unable to find handler for " + spec);
+    return matcher.matches() ? matcher.group("scheme") : null;
   }
 
+  /**
+   * Returns the IOChannelFactory associated with an input specification.
+   */
+  public static IOChannelFactory getFactory(String spec) throws IOException {
+    String scheme = getScheme(spec);
+    if (Strings.isNullOrEmpty(scheme)) {
+      return new FileIOChannelFactory();
+    } else {
+      IOChannelFactory ioFactory = FACTORY_MAP.get(scheme);
+      if (ioFactory != null) {
+        return ioFactory;
+      }
+
+      throw new IOException("Unable to find handler for " + spec);
+    }
+  }
+
+  @VisibleForTesting
+  static IOChannelFactoryConfigOptions getGlobalConfigOptions(String spec) {
+    return FACTORY_CONFIG_OPTIONS_MAP.get(getScheme(spec));
+  }
+
+  // Retrieve the global config options based on the spec.
+  public static IOChannelFactoryV2 getFactoryV2(String spec) throws IOException {
+    return getFactoryV2(getGlobalConfigOptions(spec));
+  }
+
+  public static IOChannelFactoryV2 getFactoryV2(
+      IOChannelFactoryConfigOptions configOptions) throws IOException {
+    checkNotNull(configOptions);
+    throw new UnsupportedOperationException();
+  }
   /**
    * Resolve multiple {@code others} against the {@code path} sequentially.
    *

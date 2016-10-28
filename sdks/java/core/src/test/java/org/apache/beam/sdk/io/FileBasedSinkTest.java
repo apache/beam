@@ -307,7 +307,7 @@ public class FileBasedSinkTest {
     }
 
     // Copy input files to output files.
-    List<String> actual = writeOp.copyToOutputFiles(inputFilePaths, options);
+    List<String> actual = writeOp.renameToOutputFiles(inputFilePaths, options);
 
     // Assert that the expected paths are returned.
     assertThat(expectedOutputPaths, containsInAnyOrder(actual.toArray()));
