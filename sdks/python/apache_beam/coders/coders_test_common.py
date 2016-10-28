@@ -210,7 +210,8 @@ class CodersTest(unittest.TestCase):
         return iter([1, 2, 3])
 
     # Coder for elements from the observable iterator.
-    iter_coder = coders.VarIntCoder()
+    elem_coder = coders.VarIntCoder()
+    iter_coder = coders.TupleSequenceCoder(elem_coder)
 
     # Test nested WindowedValue observable.
     coder = coders.WindowedValueCoder(iter_coder)
@@ -223,14 +224,14 @@ class CodersTest(unittest.TestCase):
       value = coders.coder_impl.WindowedValue(observ, 0, [])
     self.assertEqual(
         coder.get_impl().get_estimated_size_and_observables(value)[1],
-        [(observ, iter_coder.get_impl())])
+        [(observ, elem_coder.get_impl())])
 
     # Test nested tuple observable.
     coder = coders.TupleCoder((coders.StrUtf8Coder(), iter_coder))
     value = (u'123', observ)
     self.assertEqual(
         coder.get_impl().get_estimated_size_and_observables(value)[1],
-        [(observ, iter_coder.get_impl())])
+        [(observ, elem_coder.get_impl())])
 
 
 if __name__ == '__main__':
