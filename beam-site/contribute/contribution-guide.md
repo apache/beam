@@ -289,9 +289,18 @@ Some larger features are developed on a feature branch before being merged into 
 
 To contribute code on a feature branch, use the same process as above, but replace `master` with the [name of the branch](/contribute/work-in-progress/#feature-branches).
 
-In additional, you'll want to frequently merge in changes from `master` in order to prevent life on the branch from deviating too far from reality. 
+Since feature branches are often used for new components, you may find that
+there is no [committer](/project/team/) familiar with all the details of the
+new language or runner. In that case, consider asking someone else familiar
+with the technology to do an initial review before looping in a committer for a
+final review and merge.
 
-Since feature branches are often used for new components, you may find that there is no [committer](/project/team/) familiar with all the details of the new language or runner. In that case, consider asking someone else familiar with the technology to do an initial review before looping in a committer for a final review and merge.
+If you are working on a feature branch, you'll also want to frequently merge in
+changes from `master` in order to prevent life on the branch from deviating too
+far from reality.  Like all changes, this should be done via pull request. It
+is permitted for a committer to self-merge such a pull request if there are no
+conflicts or test failures. If there are any conflicts of tests that need
+fixing, then those should get a full review from another committer.
 
 #### Merging into Master
 
