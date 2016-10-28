@@ -212,6 +212,15 @@ class FastPrimitivesCoderImpl(StreamCoderImpl):
   def __init__(self, fallback_coder_impl):
     self.fallback_coder_impl = fallback_coder_impl
 
+  def get_estimated_size_and_observables(self, value, nested=False):
+    if isinstance(value, observable.ObservableMixin):
+      # FastPrimitivesCoderImpl can presumably encode the elements too.
+      return 1, [(value, self)]
+    else:
+      out = ByteCountingOutputStream()
+      self.encode_to_stream(value, out, nested)
+      return out.get_count(), []
+
   def encode_to_stream(self, value, stream, nested):
     t = type(value)
     if t is NoneType:
