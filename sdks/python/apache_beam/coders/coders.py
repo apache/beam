@@ -520,6 +520,29 @@ class TupleSequenceCoder(FastCoder):
     return 'TupleSequenceCoder[%r]' % self._elem_coder
 
 
+class IterableCoder(FastCoder):
+  """Coder of iterables of homogeneous objects."""
+
+  def __init__(self, elem_coder):
+    self._elem_coder = elem_coder
+
+  def _create_impl(self):
+    return coder_impl.IterableCoderImpl(self._elem_coder.get_impl())
+
+  def is_deterministic(self):
+    return self._elem_coder.is_deterministic()
+
+  @staticmethod
+  def from_type_hint(typehint, registry):
+    return IterableCoder(registry.get_coder(typehint.inner_type))
+
+  def _get_component_coders(self):
+    return (self._elem_coder,)
+
+  def __repr__(self):
+    return 'IterableCoder[%r]' % self._elem_coder
+
+
 class WindowCoder(PickleCoder):
   """Coder for windows in windowed values."""
 

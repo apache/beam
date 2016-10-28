@@ -66,8 +66,8 @@ cdef class DeterministicPickleCoderImpl(CoderImpl):
 
 
 cdef object NoneType
-cdef char UNKNOWN_TYPE, NONE_TYPE, INT_TYPE, FLOAT_TYPE
-cdef char STR_TYPE, UNICODE_TYPE, LIST_TYPE, TUPLE_TYPE, DICT_TYPE
+cdef char UNKNOWN_TYPE, NONE_TYPE, INT_TYPE, FLOAT_TYPE, BOOL_TYPE
+cdef char STR_TYPE, UNICODE_TYPE, LIST_TYPE, TUPLE_TYPE, DICT_TYPE, SET_TYPE
 
 cdef class FastPrimitivesCoderImpl(StreamCoderImpl):
   cdef CoderImpl fallback_coder_impl
@@ -122,6 +122,10 @@ cdef class SequenceCoderImpl(StreamCoderImpl):
 
 
 cdef class TupleSequenceCoderImpl(SequenceCoderImpl):
+  pass
+
+
+cdef class IterableCoderImpl(SequenceCoderImpl):
   pass
 
 
