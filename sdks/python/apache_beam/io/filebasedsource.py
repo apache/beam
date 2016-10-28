@@ -87,7 +87,7 @@ class FileBasedSource(iobase.BoundedSource):
       self._splittable = False
     if not disable_validation and not self.validate():
       raise IOError(
-        'No files found based on the file pattern %s' % self._pattern)
+          'No files found based on the file pattern %s' % self._pattern)
 
   def _get_concat_source(self):
     if self._concat_source is None:

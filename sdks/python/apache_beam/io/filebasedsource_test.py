@@ -217,23 +217,23 @@ class TestFileBasedSource(unittest.TestCase):
 
   def test_validation_file_exists(self):
     file_name, _ = write_data(10)
-    fbs = LineSource(file_name)
+    LineSource(file_name)
 
   def test_validation_directory_non_empty(self):
     temp_dir = tempfile.mkdtemp()
     file_name, _ = write_data(10, directory=temp_dir)
-    fbs = LineSource(file_name)
+    LineSource(file_name)
 
   def test_validation_failing(self):
     no_files_found_error = 'No files found based on the file pattern*'
     with self.assertRaisesRegexp(IOError, no_files_found_error):
-      fbs = LineSource('dummy_pattern')
+      LineSource('dummy_pattern')
     with self.assertRaisesRegexp(IOError, no_files_found_error):
       temp_dir = tempfile.mkdtemp()
-      fbs = LineSource(os.path.join(temp_dir, '*'))
+      LineSource(os.path.join(temp_dir, '*'))
 
   def test_validation_file_missing_verification_disabled(self):
-    fbs = LineSource('dummy_pattern', disable_validation=True)
+    LineSource('dummy_pattern', disable_validation=True)
 
   def test_fully_read_single_file(self):
     file_name, expected_data = write_data(10)
