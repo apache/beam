@@ -72,9 +72,10 @@ class _TextSource(filebasedsource.FileBasedSource):
 
   def __init__(self, file_pattern, min_bundle_size,
                compression_type, strip_trailing_newlines, coder,
-               buffer_size=DEFAULT_READ_BUFFER_SIZE):
+               buffer_size=DEFAULT_READ_BUFFER_SIZE, disable_validation=False):
     super(_TextSource, self).__init__(file_pattern, min_bundle_size,
-                                      compression_type=compression_type)
+                                      compression_type=compression_type,
+                                      disable_validation=disable_validation)
 
     self._strip_trailing_newlines = strip_trailing_newlines
     self._compression_type = compression_type

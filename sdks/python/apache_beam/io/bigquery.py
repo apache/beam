@@ -65,7 +65,7 @@ input entails querying the table for all its rows. The coder argument on
 BigQuerySource controls the reading of the lines in the export files (i.e.,
 transform a JSON object into a PCollection element). The coder is not involved
 when the same table is read as a side input since there is no intermediate
-format involved.  We get the table rows directly from the BigQuery service with
+format involved. We get the table rows directly from the BigQuery service with
 a query.
 
 Users may provide a query to read from rather than reading all of a BigQuery

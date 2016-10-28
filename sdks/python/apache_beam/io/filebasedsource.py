@@ -43,7 +43,8 @@ class FileBasedSource(iobase.BoundedSource):
                file_pattern,
                min_bundle_size=0,
                compression_type=fileio.CompressionTypes.AUTO,
-               splittable=True):
+               splittable=True,
+               disable_validation=False):
     """Initializes ``FileBasedSource``.
 
     Args:
@@ -84,6 +85,9 @@ class FileBasedSource(iobase.BoundedSource):
     else:
       # We can't split compressed files efficiently so turn off splitting.
       self._splittable = False
+    if not disable_validation and not self.validate():
+      raise IOError(
+        'No files found based on the file pattern %s' % self._pattern)
 
   def _get_concat_source(self):
     if self._concat_source is None:
@@ -121,7 +125,6 @@ class FileBasedSource(iobase.BoundedSource):
 
   @staticmethod
   def _estimate_sizes_in_parallel(file_names):
-
     if not file_names:
       return []
     elif len(file_names) == 1:
@@ -133,6 +136,11 @@ class FileBasedSource(iobase.BoundedSource):
         return pool.map(fileio.ChannelFactory.size_in_bytes, file_names)
       finally:
         pool.terminate()
+
+  def validate(self):
+    """Validate if there are actual files in the specified glob pattern
+    """
+    return len(fileio.ChannelFactory.glob(self._pattern)) > 0
 
   def split(
       self, desired_bundle_size=None, start_position=None, stop_position=None):
