@@ -177,7 +177,7 @@ public class CountingSourceTest {
 
     PCollection<Long> diffs = input
         .apply("TimestampDiff", ParDo.of(new ElementValueDiff()))
-        .apply("RemoveDuplicateTimestamps", Distinct.<Long>create());
+        .apply("DistinctTimestamps", Distinct.<Long>create());
     // This assert also confirms that diffs only has one unique value.
     PAssert.thatSingleton(diffs).isEqualTo(0L);
 
@@ -204,7 +204,7 @@ public class CountingSourceTest {
     PCollection<Long> diffs =
         input
             .apply("TimestampDiff", ParDo.of(new ElementValueDiff()))
-            .apply("RemoveDuplicateTimestamps", Distinct.<Long>create());
+            .apply("DistinctTimestamps", Distinct.<Long>create());
     // This assert also confirms that diffs only has one unique value.
     PAssert.thatSingleton(diffs).isEqualTo(0L);
 

@@ -221,7 +221,7 @@ public class TFIDF {
       final PCollectionView<Long> totalDocuments =
           uriToContent
               .apply("GetURIs", Keys.<URI>create())
-              .apply("RemoveDuplicateDocs", Distinct.<URI>create())
+              .apply("DistinctDocs", Distinct.<URI>create())
               .apply(Count.<URI>globally())
               .apply(View.<Long>asSingleton());
 
@@ -251,7 +251,7 @@ public class TFIDF {
       // Compute a mapping from each word to the total
       // number of documents in which it appears.
       PCollection<KV<String, Long>> wordToDocCount = uriToWords
-          .apply("RemoveDuplicateWords", Distinct.<KV<URI, String>>create())
+          .apply("DistinctWords", Distinct.<KV<URI, String>>create())
           .apply(Values.<String>create())
           .apply("CountDocs", Count.<String>perElement());
 
