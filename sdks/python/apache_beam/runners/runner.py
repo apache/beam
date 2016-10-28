@@ -26,8 +26,7 @@ import shutil
 import tempfile
 
 
-_KNOWN_DIRECT_RUNNERS = ('DirectPipelineRunner', 'DiskCachedPipelineRunner',
-                         'EagerPipelineRunner')
+_KNOWN_DIRECT_RUNNERS = ('DirectPipelineRunner', 'EagerPipelineRunner')
 _KNOWN_DATAFLOW_RUNNERS = ('DataflowPipelineRunner',
                            'BlockingDataflowPipelineRunner')
 
@@ -47,7 +46,7 @@ def create_runner(runner_name):
     RuntimeError: if an invalid runner name is used.
   """
   if runner_name in _KNOWN_DIRECT_RUNNERS:
-    runner_name = 'apache_beam.runners.direct_runner.' + runner_name
+    runner_name = 'apache_beam.runners.direct.direct_runner.' + runner_name
   elif runner_name in _KNOWN_DATAFLOW_RUNNERS:
     runner_name = 'apache_beam.runners.dataflow_runner.' + runner_name
 
