@@ -44,7 +44,7 @@ class FileBasedSource(iobase.BoundedSource):
                min_bundle_size=0,
                compression_type=fileio.CompressionTypes.AUTO,
                splittable=True,
-               disable_validation=False):
+               validate=True):
     """Initializes ``FileBasedSource``.
 
     Args:
@@ -62,10 +62,13 @@ class FileBasedSource(iobase.BoundedSource):
                   the file, for example, for compressed files where currently
                   it is not possible to efficiently read a data range without
                   decompressing the whole file.
+      validate: Boolean flag to verify that the files exist during the pipeline
+                creation time.
     Raises:
       TypeError: when compression_type is not valid or if file_pattern is not a
                  string.
       ValueError: when compression and splittable files are specified.
+      IOError: when the file pattern specified yields an empty result.
     """
     if not isinstance(file_pattern, basestring):
       raise TypeError(
@@ -85,9 +88,8 @@ class FileBasedSource(iobase.BoundedSource):
     else:
       # We can't split compressed files efficiently so turn off splitting.
       self._splittable = False
-    if not disable_validation and not self.validate():
-      raise IOError(
-          'No files found based on the file pattern %s' % self._pattern)
+    if validate:
+      self._validate()
 
   def _get_concat_source(self):
     if self._concat_source is None:
@@ -137,10 +139,12 @@ class FileBasedSource(iobase.BoundedSource):
       finally:
         pool.terminate()
 
-  def validate(self):
+  def _validate(self):
     """Validate if there are actual files in the specified glob pattern
     """
-    return len(fileio.ChannelFactory.glob(self._pattern)) > 0
+    if len(fileio.ChannelFactory.glob(self._pattern)) <= 0:
+      raise IOError(
+          'No files found based on the file pattern %s' % self._pattern)
 
   def split(
       self, desired_bundle_size=None, start_position=None, stop_position=None):
