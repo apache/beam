@@ -24,7 +24,6 @@ import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.util.KeyedWorkItem;
 import org.apache.beam.sdk.util.KeyedWorkItemCoder;
-import org.apache.beam.sdk.util.ReifyTimestampsAndWindows;
 import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
@@ -52,7 +51,6 @@ class DirectGBKIntoKeyedWorkItemsOverrideFactory<KeyT, InputT>
       checkArgument(input.getCoder() instanceof KvCoder);
       KvCoder<KeyT, InputT> kvCoder = (KvCoder<KeyT, InputT>) input.getCoder();
       return input
-          .apply(new ReifyTimestampsAndWindows<KeyT, InputT>())
           // TODO: Perhaps windowing strategy should instead be set by ReifyTAW, or by DGBKO
           .setWindowingStrategyInternal(WindowingStrategy.globalDefault())
           .apply(new DirectGroupByKey.DirectGroupByKeyOnly<KeyT, InputT>())
