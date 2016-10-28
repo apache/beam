@@ -20,7 +20,7 @@
 from __future__ import absolute_import
 
 
-class InProcessTransformResult(object):
+class TransformResult(object):
   """The result of evaluating an AppliedPTransform with a TransformEvaluator."""
 
   def __init__(self, applied_ptransform, uncommitted_output_bundles, state,

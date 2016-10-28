@@ -27,7 +27,7 @@ from apache_beam.transforms.timeutil import MAX_TIMESTAMP
 from apache_beam.transforms.timeutil import MIN_TIMESTAMP
 
 
-class InProcessWatermarkManager(object):
+class WatermarkManager(object):
   """Tracks and updates watermarks for all AppliedPTransforms."""
 
   WATERMARK_POS_INF = MAX_TIMESTAMP
@@ -145,9 +145,9 @@ class TransformWatermarks(object):
   def __init__(self, clock):
     self._clock = clock
     self._input_transform_watermarks = []
-    self._input_watermark = InProcessWatermarkManager.WATERMARK_NEG_INF
-    self._output_watermark = InProcessWatermarkManager.WATERMARK_NEG_INF
-    self._earliest_hold = InProcessWatermarkManager.WATERMARK_POS_INF
+    self._input_watermark = WatermarkManager.WATERMARK_NEG_INF
+    self._output_watermark = WatermarkManager.WATERMARK_NEG_INF
+    self._earliest_hold = WatermarkManager.WATERMARK_POS_INF
     self._pending = set()  # Scheduled bundles targeted for this transform.
     self._fired_timers = False
     self._lock = threading.Lock()
@@ -175,7 +175,7 @@ class TransformWatermarks(object):
   def hold(self, value):
     with self._lock:
       if value is None:
-        value = InProcessWatermarkManager.WATERMARK_POS_INF
+        value = WatermarkManager.WATERMARK_POS_INF
       self._earliest_hold = value
 
   def add_pending(self, pending):
@@ -191,13 +191,13 @@ class TransformWatermarks(object):
 
   def refresh(self):
     with self._lock:
-      pending_holder = (InProcessWatermarkManager.WATERMARK_NEG_INF
+      pending_holder = (WatermarkManager.WATERMARK_NEG_INF
                         if self._pending else
-                        InProcessWatermarkManager.WATERMARK_POS_INF)
+                        WatermarkManager.WATERMARK_POS_INF)
 
       input_watermarks = [
           tw.output_watermark for tw in self._input_transform_watermarks]
-      input_watermarks.append(InProcessWatermarkManager.WATERMARK_POS_INF)
+      input_watermarks.append(WatermarkManager.WATERMARK_POS_INF)
       producer_watermark = min(input_watermarks)
 
       self._input_watermark = max(self._input_watermark,
@@ -218,7 +218,7 @@ class TransformWatermarks(object):
         return  False
 
       should_fire = (
-          self._earliest_hold < InProcessWatermarkManager.WATERMARK_POS_INF and
-          self._input_watermark == InProcessWatermarkManager.WATERMARK_POS_INF)
+          self._earliest_hold < WatermarkManager.WATERMARK_POS_INF and
+          self._input_watermark == WatermarkManager.WATERMARK_POS_INF)
       self._fired_timers = should_fire
       return should_fire

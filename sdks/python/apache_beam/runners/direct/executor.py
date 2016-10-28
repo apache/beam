@@ -311,7 +311,7 @@ class TransformExecutor(ExecutorService.CallableTask):
       self._transform_evaluation_state.complete(self)
 
 
-class InProcessExecutor(object):
+class Executor(object):
 
   def __init__(self, *args, **kwargs):
     self._executor = _ExecutorServiceParallelExecutor(*args, **kwargs)
@@ -324,7 +324,7 @@ class InProcessExecutor(object):
 
 
 class _ExecutorServiceParallelExecutor(object):
-  """An internal implementation for InProcessExecutor."""
+  """An internal implementation for Executor."""
 
   NUM_WORKERS = 1
 
