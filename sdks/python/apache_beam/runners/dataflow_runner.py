@@ -528,6 +528,8 @@ class DataflowPipelineRunner(PipelineRunner):
                             transform.source.table_reference.projectId)
       elif transform.source.query is not None:
         step.add_property(PropertyNames.BIGQUERY_QUERY, transform.source.query)
+        step.add_property(PropertyNames.BIGQUERY_USE_LEGACY_SQL,
+                          transform.source.use_legacy_sql)
       else:
         raise ValueError('BigQuery source %r must specify either a table or'
                          ' a query',
