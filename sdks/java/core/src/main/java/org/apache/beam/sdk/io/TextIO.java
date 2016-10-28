@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
 import static org.apache.beam.sdk.io.TextIO.CompressionType.UNCOMPRESSED;
 
@@ -206,8 +207,8 @@ public class TextIO {
         this(null, null, coder, true, TextIO.CompressionType.AUTO);
       }
 
-      private Bound(String name, ValueProvider<String> filepattern, Coder<T> coder,
-                    boolean validate, TextIO.CompressionType compressionType) {
+      private Bound(@Nullable String name, @Nullable ValueProvider<String> filepattern,
+          Coder<T> coder, boolean validate, TextIO.CompressionType compressionType) {
         super(name);
         this.coder = coder;
         this.filepattern = filepattern;
@@ -224,6 +225,7 @@ public class TextIO {
 
        */
       public Bound<T> from(String filepattern) {
+        checkNotNull(filepattern, "Filepattern cannot be empty.");
         return new Bound<>(name, StaticValueProvider.of(filepattern), coder, validate,
                            compressionType);
       }
@@ -232,6 +234,7 @@ public class TextIO {
        * Same as {@code from(filepattern)}, but accepting a {@link ValueProvider}.
        */
       public Bound<T> from(ValueProvider<String> filepattern) {
+        checkNotNull(filepattern, "Filepattern cannot be empty.");
         return new Bound<>(name, filepattern, coder, validate, compressionType);
       }
 
@@ -278,7 +281,6 @@ public class TextIO {
 
       @Override
       public PCollection<T> apply(PBegin input) {
-
         if (filepattern == null) {
           throw new IllegalStateException("need to set the filepattern of a TextIO.Read transform");
         }

@@ -370,6 +370,8 @@ public abstract class FileBasedSource<T> extends OffsetBasedSource<T> {
     // We split a file-based source into subranges only if the file is efficiently seekable.
     // If a file is not efficiently seekable it would be highly inefficient to create and read a
     // source based on a subrange of that file.
+    checkState(fileOrPatternSpec.isAccessible(),
+        "isSplittable should only be called at runtime.");
     IOChannelFactory factory = IOChannelUtils.getFactory(fileOrPatternSpec.get());
     return factory.isReadSeekEfficient(fileOrPatternSpec.get());
   }
