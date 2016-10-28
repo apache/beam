@@ -196,7 +196,8 @@ class CodersTest(unittest.TestCase):
     self.check_coder(coders.StrUtf8Coder(), 'a', u'ab\u00FF', u'\u0101\0')
 
   def test_iterable_coder(self):
-    self.check_coder(coders.IterableCoder(coders.VarIntCoder()), [1], [-1, 0, 100])
+    self.check_coder(coders.IterableCoder(coders.VarIntCoder()),
+                     [1], [-1, 0, 100])
     self.check_coder(
         coders.TupleCoder((coders.VarIntCoder(),
                            coders.IterableCoder(coders.VarIntCoder()))),
