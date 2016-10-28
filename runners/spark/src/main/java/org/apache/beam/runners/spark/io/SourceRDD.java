@@ -216,8 +216,10 @@ public class SourceRDD {
     private final MicrobatchSource<T, CheckpointMarkT> microbatchSource;
     private final SparkRuntimeContext runtimeContext;
 
+    // to satisfy Scala API.
     private static final scala.collection.immutable.List<Dependency<?>> NIL =
-        scala.collection.immutable.List.empty();
+        scala.collection.JavaConversions
+            .asScalaBuffer(Collections.<Dependency<?>>emptyList()).toList();
 
     public Unbounded(SparkContext sc,
                      SparkRuntimeContext runtimeContext,
