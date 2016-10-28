@@ -479,8 +479,9 @@ def _download_pypi_sdk_package(temp_dir):
   try:
     version = pkg.get_distribution(GOOGLE_PACKAGE_NAME).version
   except pkg.DistributionNotFound:
-    raise RuntimeError('Please set --sdk_location or install a valid '
-                       '{} distribution.'.format(GOOGLE_PACKAGE_NAME))
+    raise RuntimeError('Please set --sdk_location command-line option '
+                       'or install a valid {} distribution.'
+                       .format(GOOGLE_PACKAGE_NAME))
 
   # Get a source distribution for the SDK package from PyPI.
   cmd_args = [
