@@ -301,14 +301,12 @@ public class EvaluationContext implements EvaluationResult {
   }
 
   @Override
-  public State waitUntilFinish()
-      throws IOException, InterruptedException {
+  public State waitUntilFinish() {
     return waitUntilFinish(Duration.millis(-1));
   }
 
   @Override
-  public State waitUntilFinish(Duration duration)
-      throws IOException, InterruptedException {
+  public State waitUntilFinish(Duration duration) {
     // This is no-op, since Spark runner in batch is blocking.
     // It needs to be updated once SparkRunner supports non-blocking execution:
     // https://issues.apache.org/jira/browse/BEAM-595

@@ -18,6 +18,8 @@
 
 package org.apache.beam.runners.spark.translation.streaming;
 
+import static com.google.common.base.Preconditions.checkArgument;
+
 import com.google.common.base.Predicates;
 import com.google.common.collect.Iterables;
 import java.net.MalformedURLException;
@@ -61,6 +63,11 @@ public class SparkRunnerStreamingContextFactory implements JavaStreamingContextF
   @Override
   public JavaStreamingContext create() {
     LOG.info("Creating a new Spark Streaming Context");
+    // validate unbounded read properties.
+    checkArgument(options.getMinReadTimeMillis() < options.getBatchIntervalMillis(),
+        "Minimum read time has to be less than batch time.");
+    checkArgument(options.getReadTimePercentage() > 0 && options.getReadTimePercentage() < 1,
+        "Read time percentage is bound to (0, 1).");
 
     SparkPipelineTranslator translator = new StreamingTransformTranslator.Translator(
         new TransformTranslator.Translator());

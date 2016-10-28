@@ -32,10 +32,10 @@ import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.WriteDisposition;
 import org.apache.beam.sdk.options.GcpOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.transforms.OldDoFn;
+import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
 
@@ -44,30 +44,38 @@ import org.apache.beam.sdk.values.PDone;
  * the field names and types, as well as lambda functions that describe how to generate their
  * values.
  */
-public class WriteToBigQuery<T>
-    extends PTransform<PCollection<T>, PDone> {
+public class WriteToBigQuery<InputT>
+    extends PTransform<PCollection<InputT>, PDone> {
 
   protected String tableName;
-  protected Map<String, FieldInfo<T>> fieldInfo;
+  protected Map<String, FieldInfo<InputT>> fieldInfo;
 
   public WriteToBigQuery() {
   }
 
   public WriteToBigQuery(String tableName,
-      Map<String, FieldInfo<T>> fieldInfo) {
+      Map<String, FieldInfo<InputT>> fieldInfo) {
     this.tableName = tableName;
     this.fieldInfo = fieldInfo;
   }
 
+  /**
+   * A {@link Serializable} function from a {@link DoFn.ProcessContext}
+   * and {@link BoundedWindow} to the value for that field.
+   */
+  public interface FieldFn<InputT> extends Serializable {
+    Object apply(DoFn<InputT, TableRow>.ProcessContext context, BoundedWindow window);
+  }
+
   /** Define a class to hold information about output table field definitions. */
-  public static class FieldInfo<T> implements Serializable {
+  public static class FieldInfo<InputT> implements Serializable {
     // The BigQuery 'type' of the field
     private String fieldType;
     // A lambda function to generate the field value
-    private SerializableFunction<OldDoFn<T, TableRow>.ProcessContext, Object> fieldFn;
+    private FieldFn<InputT> fieldFn;
 
     public FieldInfo(String fieldType,
-        SerializableFunction<OldDoFn<T, TableRow>.ProcessContext, Object> fieldFn) {
+        FieldFn<InputT> fieldFn) {
       this.fieldType = fieldType;
       this.fieldFn = fieldFn;
     }
@@ -76,23 +84,22 @@ public class WriteToBigQuery<T>
       return this.fieldType;
     }
 
-    SerializableFunction<OldDoFn<T, TableRow>.ProcessContext, Object> getFieldFn() {
+    FieldFn<InputT> getFieldFn() {
       return this.fieldFn;
     }
   }
   /** Convert each key/score pair into a BigQuery TableRow as specified by fieldFn. */
-  protected class BuildRowFn extends OldDoFn<T, TableRow> {
+  protected class BuildRowFn extends DoFn<InputT, TableRow> {
 
-    @Override
-    public void processElement(ProcessContext c) {
+    @ProcessElement
+    public void processElement(ProcessContext c, BoundedWindow window) {
 
       TableRow row = new TableRow();
-      for (Map.Entry<String, FieldInfo<T>> entry : fieldInfo.entrySet()) {
+      for (Map.Entry<String, FieldInfo<InputT>> entry : fieldInfo.entrySet()) {
           String key = entry.getKey();
-          FieldInfo<T> fcnInfo = entry.getValue();
-          SerializableFunction<OldDoFn<T, TableRow>.ProcessContext, Object> fcn =
-            fcnInfo.getFieldFn();
-          row.set(key, fcn.apply(c));
+          FieldInfo<InputT> fcnInfo = entry.getValue();
+          FieldFn<InputT> fcn = fcnInfo.getFieldFn();
+          row.set(key, fcn.apply(c, window));
         }
       c.output(row);
     }
@@ -101,9 +108,9 @@ public class WriteToBigQuery<T>
   /** Build the output table schema. */
   protected TableSchema getSchema() {
     List<TableFieldSchema> fields = new ArrayList<>();
-    for (Map.Entry<String, FieldInfo<T>> entry : fieldInfo.entrySet()) {
+    for (Map.Entry<String, FieldInfo<InputT>> entry : fieldInfo.entrySet()) {
       String key = entry.getKey();
-      FieldInfo<T> fcnInfo = entry.getValue();
+      FieldInfo<InputT> fcnInfo = entry.getValue();
       String bqType = fcnInfo.getFieldType();
       fields.add(new TableFieldSchema().setName(key).setType(bqType));
     }
@@ -111,7 +118,7 @@ public class WriteToBigQuery<T>
   }
 
   @Override
-  public PDone apply(PCollection<T> teamAndScore) {
+  public PDone apply(PCollection<InputT> teamAndScore) {
     return teamAndScore
       .apply("ConvertToRow", ParDo.of(new BuildRowFn()))
       .apply(BigQueryIO.Write

@@ -319,7 +319,10 @@ public class DirectRunner
   }
 
   private BundleFactory createBundleFactory(DirectOptions pipelineOptions) {
-    BundleFactory bundleFactory = ImmutableListBundleFactory.create();
+    BundleFactory bundleFactory =
+        pipelineOptions.isEnforceEncodability()
+            ? CloningBundleFactory.create()
+            : ImmutableListBundleFactory.create();
     if (pipelineOptions.isEnforceImmutability()) {
       bundleFactory = ImmutabilityCheckingBundleFactory.create(bundleFactory);
     }
@@ -428,7 +431,7 @@ public class DirectRunner
     }
 
     @Override
-    public State waitUntilFinish(Duration duration) throws IOException {
+    public State waitUntilFinish(Duration duration) {
       throw new UnsupportedOperationException(
           "DirectPipelineResult does not support waitUntilFinish with a Duration parameter. See"
               + " BEAM-596.");
