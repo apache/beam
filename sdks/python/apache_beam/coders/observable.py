@@ -32,5 +32,7 @@ class ObservableMixin(object):
     self.observers.append(callback)
 
   def notify_observers(self, value, **kwargs):
-    for o in self.observers:
-      o(value, **kwargs)
+    # self.observers is almost always empty
+    if self.observers:
+      for o in self.observers:
+        o(value, **kwargs)
