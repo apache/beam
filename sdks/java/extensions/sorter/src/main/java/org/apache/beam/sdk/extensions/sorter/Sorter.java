@@ -29,17 +29,17 @@ import org.apache.beam.sdk.values.KV;
  *
  * <p>TODO: Support custom comparison functions.
  */
-public interface Sorter {
+interface Sorter {
 
   /**
    * Adds a given record to the sorter.
    *
-   * <p>Records can only be added before calling {@code sort()}.
+   * <p>Records can only be added before calling {@link #sort()}.
    */
   void add(KV<byte[], byte[]> record) throws IOException;
 
   /**
-   * Sorts the added elements and returns an {@code Iterable} over the sorted elements.
+   * Sorts the added elements and returns an {@link Iterable} over the sorted elements.
    *
    * <p>Can be called at most once.
    */

@@ -18,6 +18,9 @@
 
 package org.apache.beam.sdk.extensions.sorter;
 
+import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkState;
+
 import com.google.common.primitives.UnsignedBytes;
 import java.io.Serializable;
 import java.util.ArrayList;
@@ -29,7 +32,7 @@ import org.apache.beam.sdk.values.KV;
  * Sorts {@code <key, value>} pairs in memory. Based on the configured size of the memory buffer,
  * will reject additional pairs.
  */
-public class InMemorySorter implements Sorter {
+class InMemorySorter implements Sorter {
   /** {@code Options} contains configuration of the sorter. */
   public static class Options implements Serializable {
     private int memoryMB = 100;
@@ -88,17 +91,12 @@ public class InMemorySorter implements Sorter {
 
   @Override
   public void add(KV<byte[], byte[]> record) {
-    boolean successful = addIfRoom(record);
-    if (!successful) {
-      throw new IllegalStateException("No space remaining for in memory sorting");
-    }
+    checkArgument(addIfRoom(record), "No space remaining for in memory sorting");
   }
 
   /** Adds the record is there is room and returns true. Otherwise returns false. */
   public boolean addIfRoom(KV<byte[], byte[]> record) {
-    if (sortCalled) {
-      throw new IllegalStateException("Records can only be added before sort().");
-    }
+    checkState(!sortCalled, "Records can only be added before sort()");
 
     int recordBytes = estimateRecordBytes(record);
     if (roomInBuffer(numBytes + recordBytes, records.size() + 1)) {
@@ -112,9 +110,7 @@ public class InMemorySorter implements Sorter {
 
   @Override
   public Iterable<KV<byte[], byte[]>> sort() {
-    if (sortCalled) {
-      throw new IllegalStateException("sort() can only be called once.");
-    }
+    checkState(!sortCalled, "sort() can only be called once.");
 
     sortCalled = true;
 
@@ -161,7 +157,7 @@ public class InMemorySorter implements Sorter {
 
     try {
       return Integer.parseInt(bitsPerWord) / 8;
-    } catch (NumberFormatException e) {
+    } catch (Exception e) {
       // Can't determine whether 32 or 64 bit, so assume 64
       return 8;
     }

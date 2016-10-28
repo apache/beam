@@ -18,13 +18,15 @@
 
 package org.apache.beam.sdk.extensions.sorter;
 
+import static com.google.common.base.Preconditions.checkArgument;
+
 import java.io.IOException;
 import java.io.Serializable;
 import org.apache.beam.sdk.values.KV;
 
 /**
- * Sorter that will use in memory sorting until the values can't fit into memory and will then fall
- * back to external sorting.
+ * {@link Sorter} that will use in memory sorting until the values can't fit into memory and will
+ * then fall back to external sorting.
  */
 public class BufferedExternalSorter implements Sorter {
   /** Contains configuration for the sorter. */
@@ -34,9 +36,9 @@ public class BufferedExternalSorter implements Sorter {
 
     /** Sets the path to a temporary location where the sorter writes intermediate files. */
     public void setTempLocation(String tempLocation) {
-      if (tempLocation.startsWith("gs://")) {
-        throw new IllegalArgumentException("Sorter doesn't support GCS temporary location.");
-      }
+      checkArgument(
+          !tempLocation.startsWith("gs://"),
+          "BufferedExternalSorter does not support GCS temporary location");
 
       this.tempLocation = tempLocation;
     }
@@ -48,9 +50,10 @@ public class BufferedExternalSorter implements Sorter {
 
     /**
      * Sets the size of the memory buffer in megabytes. This controls both the buffer for initial in
-     * memory sorting and the buffer used when external sorting.
+     * memory sorting and the buffer used when external sorting. Must be greater than zero.
      */
     public void setMemoryMB(int memoryMB) {
+      checkArgument(memoryMB > 0, "memoryMB must be greater than zero");
       this.memoryMB = memoryMB;
     }
 

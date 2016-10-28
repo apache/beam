@@ -28,6 +28,10 @@
 
   <artifactId>beam-sdks-java-extensions-sorter</artifactId>
   <name>Apache Beam :: SDKs :: Java :: Extensions :: Sorter</name>
+  
+  <properties>
+    <hadoop.version>2.7.1</hadoop.version>
+  </properties>
 
   <build>
     <plugins>
@@ -57,6 +61,8 @@
         <artifactId>maven-jar-plugin</artifactId>
       </plugin>
 
+      <!-- Shading Hadoop dependency so that users may use their own version 
+           of Hadoop without interference from this module. -->
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-shade-plugin</artifactId>
@@ -139,28 +145,27 @@
     <dependency>
       <groupId>org.apache.hadoop</groupId>
       <artifactId>hadoop-client</artifactId>
-      <version>2.7.1</version>
+      <version>${hadoop.version}</version>
       <scope>provided</scope>
     </dependency>
     
     <dependency>
       <groupId>org.apache.hadoop</groupId>
       <artifactId>hadoop-mapreduce-client-core</artifactId>
-      <version>2.7.1</version>
+      <version>${hadoop.version}</version>
       <scope>provided</scope>
     </dependency>
     
     <dependency>
       <groupId>org.apache.hadoop</groupId>
       <artifactId>hadoop-common</artifactId>
-      <version>2.7.1</version>
+      <version>${hadoop.version}</version>
       <scope>provided</scope>
     </dependency>
     
     <dependency>
       <groupId>com.google.guava</groupId>
       <artifactId>guava</artifactId>
-      <version>19.0</version>
       <scope>compile</scope>
     </dependency>
 

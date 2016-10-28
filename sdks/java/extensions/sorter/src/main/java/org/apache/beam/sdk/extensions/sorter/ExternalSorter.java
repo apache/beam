@@ -18,6 +18,8 @@
 
 package org.apache.beam.sdk.extensions.sorter;
 
+import static com.google.common.base.Preconditions.checkState;
+
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
@@ -38,10 +40,10 @@ import org.apache.hadoop.io.SequenceFile.Writer;
 import org.apache.hadoop.mapred.JobConf;
 
 /** Does an external sort of the provided values using Hadoop's {@link SequenceFile}. */
-public class ExternalSorter implements Sorter {
+class ExternalSorter implements Sorter {
   private Options options;
 
-  /** Whether {@code sort()} was already called. */
+  /** Whether {@link #sort()} was already called. */
   private boolean sortCalled = false;
 
   /** SequenceFile Writer for writing all input data to a file. */
@@ -58,7 +60,7 @@ public class ExternalSorter implements Sorter {
 
   private boolean initialized = false;
 
-  /** {@code Options} contains configuration of the sorter. */
+  /** {@link Options} contains configuration of the sorter. */
   public static class Options implements Serializable {
     private String tempLocation = "/tmp";
     private int memoryMB = 100;
@@ -88,45 +90,29 @@ public class ExternalSorter implements Sorter {
     }
   }
 
-  /** Returns a {@code Sorter} configured with the given {@code options}. */
+  /** Returns a {@link Sorter} configured with the given {@link Options}. */
   public static ExternalSorter create(Options options) {
     return new ExternalSorter(options);
   }
 
-  /**
-   * Adds a given record to the sorter.
-   *
-   * <p>Records can only be added before calling {@code sort()}.
-   */
   @Override
   public void add(KV<byte[], byte[]> record) throws IOException {
+    checkState(!sortCalled, "Records can only be added before sort()");
+
     initHadoopSorter();
 
-    if (sortCalled) {
-      throw new IllegalStateException("Records can only be added before sort().");
-    }
-
-    BytesWritable key = new BytesWritable();
-    BytesWritable value = new BytesWritable();
-    key.set(record.getKey(), 0, record.getKey().length);
-    value.set(record.getValue(), 0, record.getValue().length);
+    BytesWritable key = new BytesWritable(record.getKey());
+    BytesWritable value = new BytesWritable(record.getValue());
 
     writer.append(key, value);
   }
 
-  /**
-   * Sorts the added elements and returns an {@code Iterable} over the sorted elements.
-   *
-   * <p>Can be called at most once.
-   */
   @Override
   public Iterable<KV<byte[], byte[]>> sort() throws IOException {
-    initHadoopSorter();
-
-    if (sortCalled) {
-      throw new IllegalStateException("sort() can only be called once.");
-    }
+    checkState(!sortCalled, "sort() can only be called once.");
     sortCalled = true;
+
+    initHadoopSorter();
 
     writer.close();
 
@@ -165,7 +151,7 @@ public class ExternalSorter implements Sorter {
     }
   }
 
-  /** An {@code Iterable} producing the iterators over sorted data. */
+  /** An {@link Iterable} producing the iterators over sorted data. */
   private class SortedRecordsIterable implements Iterable<KV<byte[], byte[]>> {
     @Override
     public Iterator<KV<byte[], byte[]>> iterator() {
@@ -173,11 +159,11 @@ public class ExternalSorter implements Sorter {
     }
   }
 
-  /** An {@code Iterator} producing the sorted data. */
+  /** An {@link Iterator} producing the sorted data. */
   private class SortedRecordsIterator implements Iterator<KV<byte[], byte[]>> {
     private RawKeyValueIterator iterator;
 
-    /** Next {@code KV} to return from {@code next()}. */
+    /** Next {@link KV} to return from {@link #next()}. */
     private KV<byte[], byte[]> nextKV = null;
 
     SortedRecordsIterator() {

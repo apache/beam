@@ -17,28 +17,26 @@
     under the License.
 -->
 
-Sorter
-============
+#Sorter
+This module provides the SortValues transform, which takes a `PCollection<KV<K,Iterable<V>>> and produces a PCollection<KV<K,Iterable<V>>>` where the `Iterable<V>` has been sorted for each key. It will efficiently and scalably sort the iterables, even if they are large (do not fit in memory).
 
-The provided Sorter can be used to sort large (more than can fit to memory)
-amounts of data within the context of a Beam pipeline. It will default to in
-memory sorting and spill to disk when the buffer is full.
+##Caveats
+* This transform performs value-only sorting; the iterable accompanying each key is sorted, but *there is no relationship between different keys*, as Beam does not support any defined relationship between different elements in a PCollection.
+* Each `Iterable<V>` is sorted on a single worker using local memory and disk. This means that `SortValues` may be a performance and/or scalability bottleneck when used in different pipelines. For example, users are discouraged from using `SortValues` on a `PCollection` of a single element to globally sort a large `PCollection`.
 
-ExternalSorter class implements the external sort algorithm (currently simply wrapping
-the one from Hadoop). InMemorySorter implements the in memory sort and
-BufferedExternalSorter uses fallback logic to combine the two.
+##Options
+* The user can customize the temporary location used if sorting requires spilling to disk and the maximum amount of memory to use by creating a custom instance of `BufferedExternalSorter.Options` to pass into `SortValues.create`.
 
-SortValues is a PTransform that uses the BufferedExternalSorter to perform secondary key sorting.
+##Using `SortValues`
+~~~~
+PCollection<KV<String, KV<String, Integer>>> input = ...
 
-Example of how to use sorter:
+// Group by primary key, bringing <SecondaryKey, Value> pairs for the same key together.
+PCollection<KV<String, Iterable<KV<String, Integer>>>> grouped =
+    input.apply(GroupByKey.<String, KV<String, Integer>>create());
 
-    PCollection<KV<String, KV<String, Integer>>> input = ...
-
-    // Group by primary key, bringing <SecondaryKey, Value> pairs for the same key together.
-    PCollection<KV<String, Iterable<KV<String, Integer>>>> grouped =
-        input.apply(GroupByKey.<String, KV<String, Integer>>create());
-
-    // For every primary key, sort the iterable of <SecondaryKey, Value> pairs by secondary key.
-    PCollection<KV<String, Iterable<KV<String, Integer>>>> groupedAndSorted =
-        grouped.apply(
-            SortValues.<String, String, Integer>create(new BufferedExternalSorter.Options()));
+// For every primary key, sort the iterable of <SecondaryKey, Value> pairs by secondary key.
+PCollection<KV<String, Iterable<KV<String, Integer>>>> groupedAndSorted =
+    grouped.apply(
+        SortValues.<String, String, Integer>create(new BufferedExternalSorter.Options()));
+~~~~
