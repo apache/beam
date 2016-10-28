@@ -31,9 +31,11 @@ import org.apache.beam.runners.core.PushbackSideInputDoFnRunner;
 import org.apache.beam.runners.direct.DirectExecutionContext.DirectStepContext;
 import org.apache.beam.runners.direct.DirectRunner.UncommittedBundle;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.ReadyCheckingSideInputReader;
 import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.util.state.CopyOnAccessInMemoryStateInternals;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
@@ -44,6 +46,7 @@ class ParDoEvaluator<InputT, OutputT> implements TransformEvaluator<InputT> {
       EvaluationContext evaluationContext,
       DirectStepContext stepContext,
       AppliedPTransform<PCollection<InputT>, ?, ?> application,
+      WindowingStrategy<?, ? extends BoundedWindow> windowingStrategy,
       Serializable fn, // may be OldDoFn or DoFn
       List<PCollectionView<?>> sideInputs,
       TupleTag<OutputT> mainOutputTag,
@@ -70,7 +73,7 @@ class ParDoEvaluator<InputT, OutputT> implements TransformEvaluator<InputT> {
             sideOutputTags,
             stepContext,
             aggregatorChanges,
-            application.getInput().getWindowingStrategy());
+            windowingStrategy);
     PushbackSideInputDoFnRunner<InputT, OutputT> runner =
         PushbackSideInputDoFnRunner.create(underlying, sideInputs, sideInputReader);
 

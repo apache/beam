@@ -27,8 +27,6 @@ import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.util.KeyedWorkItem;
 import org.apache.beam.sdk.util.KeyedWorkItemCoder;
-import org.apache.beam.sdk.util.ReifyTimestampsAndWindows;
-import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
@@ -55,13 +53,13 @@ class DirectGroupByKey<K, V>
     // merging windows as needed, using the windows assigned to the
     // key/value input elements and the window merge operation of the
     // window function associated with the input PCollection.
-    WindowingStrategy<?, ?> windowingStrategy = input.getWindowingStrategy();
+    WindowingStrategy<?, ?> inputWindowingStrategy = input.getWindowingStrategy();
+    // Update the windowing strategy as appropriate.
+    WindowingStrategy<?, ?> outputWindowingStrategy =
+        original.updateWindowingStrategy(inputWindowingStrategy);
 
     // By default, implement GroupByKey via a series of lower-level operations.
     return input
-        // Make each input element's timestamp and assigned windows
-        // explicit, in the value part.
-        .apply(new ReifyTimestampsAndWindows<K, V>())
         .apply(new DirectGroupByKeyOnly<K, V>())
         .setCoder(
             KeyedWorkItemCoder.of(
@@ -70,20 +68,20 @@ class DirectGroupByKey<K, V>
                 input.getWindowingStrategy().getWindowFn().windowCoder()))
 
         // Group each key's values by window, merging windows as needed.
-        .apply("GroupAlsoByWindow", new DirectGroupAlsoByWindow<K, V>(windowingStrategy))
+        .apply(
+            "GroupAlsoByWindow",
+            new DirectGroupAlsoByWindow<K, V>(inputWindowingStrategy, outputWindowingStrategy))
 
-        // And update the windowing strategy as appropriate.
-        .setWindowingStrategyInternal(original.updateWindowingStrategy(windowingStrategy))
         .setCoder(
             KvCoder.of(inputCoder.getKeyCoder(), IterableCoder.of(inputCoder.getValueCoder())));
   }
 
   static final class DirectGroupByKeyOnly<K, V>
-      extends PTransform<PCollection<KV<K, WindowedValue<V>>>, PCollection<KeyedWorkItem<K, V>>> {
+      extends PTransform<PCollection<KV<K, V>>, PCollection<KeyedWorkItem<K, V>>> {
     @Override
-    public PCollection<KeyedWorkItem<K, V>> apply(PCollection<KV<K, WindowedValue<V>>> input) {
-      return PCollection.<KeyedWorkItem<K, V>>createPrimitiveOutputInternal(
-          input.getPipeline(), input.getWindowingStrategy(), input.isBounded());
+    public PCollection<KeyedWorkItem<K, V>> apply(PCollection<KV<K, V>> input) {
+      return PCollection.createPrimitiveOutputInternal(
+          input.getPipeline(), WindowingStrategy.globalDefault(), input.isBounded());
     }
 
     DirectGroupByKeyOnly() {}
@@ -92,14 +90,18 @@ class DirectGroupByKey<K, V>
   static final class DirectGroupAlsoByWindow<K, V>
       extends PTransform<PCollection<KeyedWorkItem<K, V>>, PCollection<KV<K, Iterable<V>>>> {
 
-    private final WindowingStrategy<?, ?> windowingStrategy;
+    private final WindowingStrategy<?, ?> inputWindowingStrategy;
+    private final WindowingStrategy<?, ?> outputWindowingStrategy;
 
-    public DirectGroupAlsoByWindow(WindowingStrategy<?, ?> windowingStrategy) {
-      this.windowingStrategy = windowingStrategy;
+    public DirectGroupAlsoByWindow(
+        WindowingStrategy<?, ?> inputWindowingStrategy,
+        WindowingStrategy<?, ?> outputWindowingStrategy) {
+      this.inputWindowingStrategy = inputWindowingStrategy;
+      this.outputWindowingStrategy = outputWindowingStrategy;
     }
 
-    public WindowingStrategy<?, ?> getWindowingStrategy() {
-      return windowingStrategy;
+    public WindowingStrategy<?, ?> getInputWindowingStrategy() {
+      return inputWindowingStrategy;
     }
 
     private KeyedWorkItemCoder<K, V> getKeyedWorkItemCoder(Coder<KeyedWorkItem<K, V>> inputCoder) {
@@ -125,8 +127,8 @@ class DirectGroupByKey<K, V>
 
     @Override
     public PCollection<KV<K, Iterable<V>>> apply(PCollection<KeyedWorkItem<K, V>> input) {
-      return PCollection.<KV<K, Iterable<V>>>createPrimitiveOutputInternal(
-          input.getPipeline(), input.getWindowingStrategy(), input.isBounded());
+      return PCollection.createPrimitiveOutputInternal(
+          input.getPipeline(), outputWindowingStrategy, input.isBounded());
     }
   }
 }

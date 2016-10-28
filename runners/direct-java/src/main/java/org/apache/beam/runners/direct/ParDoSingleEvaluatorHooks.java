@@ -48,6 +48,7 @@ class ParDoSingleEvaluatorHooks<InputT, OutputT>
         evaluationContext,
         stepContext,
         application,
+        application.getInput().getWindowingStrategy(),
         fnLocal,
         transform.getSideInputs(),
         mainOutputTag,

@@ -152,10 +152,13 @@ public class ParDoEvaluatorTest {
     when(evaluationContext.getAggregatorContainer()).thenReturn(container);
     when(evaluationContext.getAggregatorMutator()).thenReturn(mutator);
 
+    AppliedPTransform<PCollection<Integer>, ?, ?> transform =
+        (AppliedPTransform<PCollection<Integer>, ?, ?>) output.getProducingTransformInternal();
     return ParDoEvaluator.create(
         evaluationContext,
         stepContext,
-        (AppliedPTransform<PCollection<Integer>, ?, ?>) output.getProducingTransformInternal(),
+        transform,
+        transform.getInput().getWindowingStrategy(),
         fn,
         ImmutableList.<PCollectionView<?>>of(singletonView),
         mainOutputTag,
