@@ -90,8 +90,8 @@ class DisplayDataTest(unittest.TestCase):
                         value=120),
         DisplayDataItem(namespace=nspace,
                         key='static_string',
-                        value='static me!')
-      ])
+                        value='static me!'),
+    ])
 
     self.assertEqual(set(dd.items), expected_items)
 
