@@ -32,12 +32,6 @@ public interface ApexPipelineOptions extends PipelineOptions, java.io.Serializab
 
   String getApplicationName();
 
-  @Description("set parallelism for Apex runner")
-  void setParallelism(int parallelism);
-
-  @Default.Integer(1)
-  int getParallelism();
-
   @Description("execute the pipeline with embedded cluster")
   void setEmbeddedExecution(boolean embedded);
 

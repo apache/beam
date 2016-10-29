@@ -21,6 +21,7 @@ import com.datatorrent.api.DAG;
 import com.datatorrent.api.LocalMode;
 
 import java.io.IOException;
+import java.lang.reflect.Field;
 
 import org.apache.beam.sdk.AggregatorRetrievalException;
 import org.apache.beam.sdk.AggregatorValues;
@@ -63,12 +64,12 @@ public class ApexRunnerResult implements PipelineResult {
 
   @Override
   public State waitUntilFinish(Duration duration) {
-    throw new UnsupportedOperationException();
+    return ApexRunnerResult.waitUntilFinished(ctrl, duration);
   }
 
   @Override
   public State waitUntilFinish() {
-    throw new UnsupportedOperationException();
+    return ApexRunnerResult.waitUntilFinished(ctrl, null);
   }
 
   @Override
@@ -82,6 +83,28 @@ public class ApexRunnerResult implements PipelineResult {
    */
   public DAG getApexDAG() {
     return apexDAG;
+  }
+
+  public static State waitUntilFinished(LocalMode.Controller ctrl, Duration duration) {
+    // we need to rely on internal field for now
+    // Apex should make it available through API in upcoming release.
+    long timeout = (duration == null || duration.getMillis() < 1) ? Long.MAX_VALUE
+        : System.currentTimeMillis() + duration.getMillis();
+    Field appDoneField;
+    try {
+      appDoneField = ctrl.getClass().getDeclaredField("appDone");
+      appDoneField.setAccessible(true);
+      while (!appDoneField.getBoolean(ctrl) && System.currentTimeMillis() < timeout) {
+        if (ApexRunner.assertionError != null) {
+          throw ApexRunner.assertionError;
+        }
+        Thread.sleep(500);
+      }
+      return appDoneField.getBoolean(ctrl) ? State.DONE : null;
+    } catch (NoSuchFieldException | SecurityException | IllegalArgumentException
+        | IllegalAccessException | InterruptedException e) {
+      throw new RuntimeException(e);
+    }
   }
 
 }

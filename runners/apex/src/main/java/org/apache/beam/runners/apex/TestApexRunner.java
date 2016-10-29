@@ -17,6 +17,8 @@
  */
 package org.apache.beam.runners.apex;
 
+import java.io.IOException;
+
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsValidator;
@@ -24,18 +26,19 @@ import org.apache.beam.sdk.runners.PipelineRunner;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
+import org.joda.time.Duration;
 
 /**
  * Apex {@link PipelineRunner} for testing.
  */
 public class TestApexRunner extends PipelineRunner<ApexRunnerResult> {
 
-  private ApexRunner delegate;
+  private static final int RUN_WAIT_MILLIS = 20000;
+  private final ApexRunner delegate;
 
   private TestApexRunner(ApexPipelineOptions options) {
     options.setEmbeddedExecution(true);
     //options.setEmbeddedExecutionDebugMode(false);
-    options.setRunMillis(20000);
     this.delegate = ApexRunner.fromOptions(options);
   }
 
@@ -53,7 +56,18 @@ public class TestApexRunner extends PipelineRunner<ApexRunnerResult> {
 
   @Override
   public ApexRunnerResult run(Pipeline pipeline) {
-    return delegate.run(pipeline);
+    ApexRunnerResult result = delegate.run(pipeline);
+    try {
+      // this is necessary for tests that just call run() and not waitUntilFinish
+      result.waitUntilFinish(Duration.millis(RUN_WAIT_MILLIS));
+      return result;
+    } finally {
+      try {
+        result.cancel();
+      } catch (IOException e) {
+        throw new RuntimeException(e);
+      }
+    }
   }
 
 }
