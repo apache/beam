@@ -16,6 +16,7 @@
 
 package com.google.cloud.dataflow.sdk.options;
 
+import com.google.cloud.dataflow.sdk.annotations.Experimental;
 import com.google.cloud.dataflow.sdk.runners.DataflowPipeline;
 import com.google.common.base.MoreObjects;
 
@@ -88,6 +89,16 @@ public interface DataflowPipelineOptions extends
   @Override
   @SuppressWarnings("deprecation") // base class member deprecated in favor of this one.
   void setUpdate(boolean value);
+
+  /**
+   * Run the job as a specific service account, instead of the default GCE robot.
+   */
+  @Hidden
+  @Experimental
+  @Description(
+      "Run the job as a specific service account, instead of the default GCE robot.")
+  String getServiceAccount();
+  void setServiceAccount(String value);
 
   /**
    * Returns a normalized job name constructed from {@link ApplicationNameOptions#getAppName()}, the
