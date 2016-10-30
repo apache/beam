@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io;
 
+import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
 
 import com.google.common.base.Strings;
@@ -31,6 +32,9 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.options.PubsubOptions;
+import org.apache.beam.sdk.options.ValueProvider;
+import org.apache.beam.sdk.options.ValueProvider.NestedValueProvider;
+import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.runners.PipelineRunner;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -249,6 +253,28 @@ public class PubsubIO {
       } else {
         return subscription;
       }
+    }
+  }
+
+  /**
+   * Simple {@link DeferrableTranslator} for {@link PubsubTopic}.
+   */
+  public static class TopicTranslator
+      implements NestedValueProvider.DeferrableTranslator<PubsubTopic, String> {
+    @Override
+    public PubsubTopic createValue(String from) {
+      return PubsubTopic.fromPath(from);
+    }
+  }
+
+  /**
+   * Simple {@link DeferrableTranslator} for {@link TopicPath}.
+   */
+  public static class TopicPathTranslator
+      implements NestedValueProvider.DeferrableTranslator<TopicPath, PubsubTopic> {
+    @Override
+    public TopicPath createValue(PubsubTopic from) {
+      return PubsubClient.topicPathFromName(from.project, from.topic);
     }
   }
 
@@ -484,7 +510,7 @@ public class PubsubIO {
      */
     public static class Bound<T> extends PTransform<PBegin, PCollection<T>> {
       /** The Cloud Pub/Sub topic to read from. */
-      @Nullable private final PubsubTopic topic;
+      @Nullable private final ValueProvider<PubsubTopic> topic;
 
       /** The Cloud Pub/Sub subscription to read from. */
       @Nullable private final PubsubSubscription subscription;
@@ -508,7 +534,7 @@ public class PubsubIO {
         this(null, null, null, null, coder, null, 0, null);
       }
 
-      private Bound(String name, PubsubSubscription subscription, PubsubTopic topic,
+      private Bound(String name, PubsubSubscription subscription, ValueProvider<PubsubTopic> topic,
           String timestampLabel, Coder<T> coder, String idLabel, int maxNumRecords,
           Duration maxReadTime) {
         super(name);
@@ -548,8 +574,11 @@ public class PubsubIO {
        * <p>Does not modify this object.
        */
       public Bound<T> topic(String topic) {
-        return new Bound<>(name, subscription, PubsubTopic.fromPath(topic), timestampLabel, coder,
-            idLabel, maxNumRecords, maxReadTime);
+        checkNotNull(topic);
+        return new Bound<>(name, subscription,
+            NestedValueProvider.of(
+                StaticValueProvider.of(topic), new TopicTranslator()),
+            timestampLabel, coder, idLabel, maxNumRecords, maxReadTime);
       }
 
       /**
@@ -630,9 +659,9 @@ public class PubsubIO {
                       .setCoder(coder);
         } else {
           @Nullable ProjectPath projectPath =
-              topic == null ? null : PubsubClient.projectPathFromId(topic.project);
-          @Nullable TopicPath topicPath =
-              topic == null ? null : PubsubClient.topicPathFromName(topic.project, topic.topic);
+              topic == null ? null : PubsubClient.projectPathFromId(topic.get().project);
+          @Nullable ValueProvider<TopicPath> topicPath =
+              topic == null ? null : NestedValueProvider.of(topic, new TopicPathTranslator());
           @Nullable SubscriptionPath subscriptionPath =
               subscription == null
                   ? null
@@ -648,7 +677,7 @@ public class PubsubIO {
       @Override
       public void populateDisplayData(DisplayData.Builder builder) {
         super.populateDisplayData(builder);
-        populateCommonDisplayData(builder, timestampLabel, idLabel, topic);
+        populateCommonDisplayData(builder, timestampLabel, idLabel, topic.get());
 
         builder
             .addIfNotNull(DisplayData.item("maxReadTime", maxReadTime)
@@ -668,6 +697,10 @@ public class PubsubIO {
       }
 
       public PubsubTopic getTopic() {
+        return topic.get();
+      }
+
+      public ValueProvider<PubsubTopic> getTopicProvider() {
         return topic;
       }
 

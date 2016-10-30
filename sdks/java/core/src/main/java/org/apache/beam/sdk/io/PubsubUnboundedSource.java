@@ -51,6 +51,7 @@ import org.apache.beam.sdk.coders.ListCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PubsubOptions;
+import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.transforms.Aggregator;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -1169,7 +1170,7 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
    * Otherwise {@link #subscription} must be null.
    */
   @Nullable
-  private final TopicPath topic;
+  private final ValueProvider<TopicPath> topic;
 
   /**
    * Subscription to read from. If {@literal null} then {@link #topic} must be given.
@@ -1208,7 +1209,7 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
       Clock clock,
       PubsubClientFactory pubsubFactory,
       @Nullable ProjectPath project,
-      @Nullable TopicPath topic,
+      @Nullable ValueProvider<TopicPath> topic,
       @Nullable SubscriptionPath subscription,
       Coder<T> elementCoder,
       @Nullable String timestampLabel,
@@ -1233,7 +1234,7 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
   public PubsubUnboundedSource(
       PubsubClientFactory pubsubFactory,
       @Nullable ProjectPath project,
-      @Nullable TopicPath topic,
+      @Nullable ValueProvider<TopicPath> topic,
       @Nullable SubscriptionPath subscription,
       Coder<T> elementCoder,
       @Nullable String timestampLabel,
@@ -1252,6 +1253,11 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
 
   @Nullable
   public TopicPath getTopic() {
+    return topic.get();
+  }
+
+  @Nullable
+  public ValueProvider<TopicPath> getTopicProvider() {
     return topic;
   }
 
@@ -1280,7 +1286,7 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
                                               .getOptions()
                                               .as(PubsubOptions.class))) {
           subscription =
-              pubsubClient.createRandomSubscription(project, topic, DEAULT_ACK_TIMEOUT_SEC);
+              pubsubClient.createRandomSubscription(project, topic.get(), DEAULT_ACK_TIMEOUT_SEC);
           LOG.warn("Created subscription {} to topic {}."
                    + " Note this subscription WILL NOT be deleted when the pipeline terminates",
                    subscription, topic);
