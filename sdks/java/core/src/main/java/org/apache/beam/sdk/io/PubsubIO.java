@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.io;
 
-import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
 
 import com.google.common.base.Strings;
@@ -574,7 +573,6 @@ public class PubsubIO {
        * <p>Does not modify this object.
        */
       public Bound<T> topic(String topic) {
-        checkNotNull(topic);
         return new Bound<>(name, subscription,
             NestedValueProvider.of(
                 StaticValueProvider.of(topic), new TopicTranslator()),
@@ -677,7 +675,9 @@ public class PubsubIO {
       @Override
       public void populateDisplayData(DisplayData.Builder builder) {
         super.populateDisplayData(builder);
-        populateCommonDisplayData(builder, timestampLabel, idLabel, topic.get());
+        PubsubTopic topicString =
+            topic == null ? null : topic.get();
+        populateCommonDisplayData(builder, timestampLabel, idLabel, topicString);
 
         builder
             .addIfNotNull(DisplayData.item("maxReadTime", maxReadTime)
@@ -697,7 +697,7 @@ public class PubsubIO {
       }
 
       public PubsubTopic getTopic() {
-        return topic.get();
+        return topic == null ? null : topic.get();
       }
 
       public ValueProvider<PubsubTopic> getTopicProvider() {
