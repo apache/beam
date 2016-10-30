@@ -45,6 +45,7 @@ import org.apache.beam.sdk.io.PubsubUnboundedSource.PubsubReader;
 import org.apache.beam.sdk.io.PubsubUnboundedSource.PubsubSource;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.testing.CoderProperties;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.util.CoderUtils;
@@ -91,8 +92,9 @@ public class PubsubUnboundedSourceTest {
     };
     factory = PubsubTestClient.createFactoryForPull(clock, SUBSCRIPTION, ACK_TIMEOUT_S, incoming);
     PubsubUnboundedSource<String> source =
-        new PubsubUnboundedSource<>(clock, factory, null, null, SUBSCRIPTION, StringUtf8Coder.of(),
-                                    TIMESTAMP_LABEL, ID_LABEL);
+        new PubsubUnboundedSource<>(
+            clock, factory, null, null, StaticValueProvider.of(SUBSCRIPTION),
+            StringUtf8Coder.of(), TIMESTAMP_LABEL, ID_LABEL);
     primSource = new PubsubSource<>(source);
   }
 
@@ -332,8 +334,8 @@ public class PubsubUnboundedSourceTest {
     PubsubUnboundedSource<String> source =
         new PubsubUnboundedSource<>(
             factory,
-            PubsubClient.projectPathFromId("my_project"),
-            topicPath,
+            StaticValueProvider.of(PubsubClient.projectPathFromId("my_project")),
+            StaticValueProvider.of(topicPath),
             null,
             StringUtf8Coder.of(),
             null,
@@ -363,8 +365,8 @@ public class PubsubUnboundedSourceTest {
     PubsubUnboundedSource<String> source =
         new PubsubUnboundedSource<>(
             factory,
-            PubsubClient.projectPathFromId("my_project"),
-            topicPath,
+            StaticValueProvider.of(PubsubClient.projectPathFromId("my_project")),
+            StaticValueProvider.of(topicPath),
             null,
             StringUtf8Coder.of(),
             null,
