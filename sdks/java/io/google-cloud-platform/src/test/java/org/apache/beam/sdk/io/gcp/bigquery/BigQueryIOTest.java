@@ -111,6 +111,7 @@ import org.apache.beam.sdk.options.BigQueryOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.StreamingOptions;
+import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.testing.ExpectedLogs;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
@@ -626,7 +627,7 @@ public class BigQueryIOTest implements Serializable {
   private void checkReadQueryObjectWithValidate(
       BigQueryIO.Read.Bound bound, String query, boolean validate) {
     assertNull(bound.getTable());
-    assertEquals(query, bound.query);
+    assertEquals(query, bound.getQuery());
     assertEquals(validate, bound.getValidate());
   }
 
@@ -707,27 +708,27 @@ public class BigQueryIOTest implements Serializable {
   public void testValidateReadSetsDefaultProject() throws Exception {
     String projectId = "someproject";
     String datasetId = "somedataset";
+    String tableId = "sometable";
     BigQueryOptions bqOptions = TestPipeline.testingPipelineOptions().as(BigQueryOptions.class);
     bqOptions.setProject(projectId);
     bqOptions.setTempLocation("gs://testbucket/testdir");
 
+    FakeDatasetService fakeDatasetService =
+        new FakeDatasetService().withTable(projectId, datasetId, tableId, null);
+
     FakeBigQueryServices fakeBqServices = new FakeBigQueryServices()
-        .withJobService(mockJobService)
-        .withDatasetService(mockDatasetService);
-    when(mockDatasetService.getDataset(projectId, datasetId)).thenThrow(
-        new RuntimeException("Unable to confirm BigQuery dataset presence"));
+        .withJobService(new FakeJobService())
+        .withDatasetService(fakeDatasetService);
 
     Pipeline p = TestPipeline.create(bqOptions);
 
     TableReference tableRef = new TableReference();
     tableRef.setDatasetId(datasetId);
-    tableRef.setTableId("sometable");
+    tableRef.setTableId(tableId);
 
     thrown.expect(RuntimeException.class);
     // Message will be one of following depending on the execution environment.
-    thrown.expectMessage(
-        Matchers.either(Matchers.containsString("Unable to confirm BigQuery dataset presence"))
-            .or(Matchers.containsString("BigQuery dataset not found for table")));
+    thrown.expectMessage(Matchers.containsString("Unsupported"));
     p.apply(BigQueryIO.Read.from(tableRef)
         .withTestServices(fakeBqServices));
   }
@@ -761,7 +762,7 @@ public class BigQueryIOTest implements Serializable {
     p.apply("ReadMyTable",
         BigQueryIO.Read
             .from("foo.com:project:somedataset.sometable")
-            .fromQuery("query"));
+        .fromQuery("query"));
     p.run();
   }
 
@@ -1371,7 +1372,8 @@ public class BigQueryIOTest implements Serializable {
     TableReference table = BigQueryIO.parseTableSpec("project.data_set.table_name");
     String extractDestinationDir = "mock://tempLocation";
     BoundedSource<TableRow> bqSource = BigQueryTableSource.create(
-        jobIdToken, table, extractDestinationDir, fakeBqServices, "project");
+        jobIdToken, StaticValueProvider.of(table), extractDestinationDir, fakeBqServices,
+        StaticValueProvider.of("project"));
 
     List<TableRow> expected = ImmutableList.of(
         new TableRow().set("name", "a").set("number", "1"),
@@ -1408,7 +1410,8 @@ public class BigQueryIOTest implements Serializable {
     TableReference table = BigQueryIO.parseTableSpec("project:data_set.table_name");
     String extractDestinationDir = "mock://tempLocation";
     BoundedSource<TableRow> bqSource = BigQueryTableSource.create(
-        jobIdToken, table, extractDestinationDir, fakeBqServices, "project");
+        jobIdToken, StaticValueProvider.of(table),
+        extractDestinationDir, fakeBqServices, StaticValueProvider.of("project"));
 
     List<TableRow> expected = ImmutableList.of(
         new TableRow().set("name", "a").set("number", "1"),
@@ -1473,7 +1476,8 @@ public class BigQueryIOTest implements Serializable {
     String extractDestinationDir = "mock://tempLocation";
     TableReference destinationTable = BigQueryIO.parseTableSpec("project:data_set.table_name");
     BoundedSource<TableRow> bqSource = BigQueryQuerySource.create(
-        jobIdToken, "query", destinationTable, true /* flattenResults */, true /* useLegacySql */,
+        jobIdToken, StaticValueProvider.of("query"), StaticValueProvider.of(destinationTable),
+        true /* flattenResults */, true /* useLegacySql */,
         extractDestinationDir, fakeBqServices);
 
     List<TableRow> expected = ImmutableList.of(
@@ -1564,7 +1568,8 @@ public class BigQueryIOTest implements Serializable {
     String extractDestinationDir = "mock://tempLocation";
     TableReference destinationTable = BigQueryIO.parseTableSpec("project:data_set.table_name");
     BoundedSource<TableRow> bqSource = BigQueryQuerySource.create(
-        jobIdToken, "query", destinationTable, true /* flattenResults */, true /* useLegacySql */,
+        jobIdToken, StaticValueProvider.of("query"), StaticValueProvider.of(destinationTable),
+        true /* flattenResults */, true /* useLegacySql */,
         extractDestinationDir, fakeBqServices);
 
     List<TableRow> expected = ImmutableList.of(

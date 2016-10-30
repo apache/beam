@@ -91,6 +91,8 @@ public class ApiSurfaceTest {
           inPackage("com.google.protobuf"),
           inPackage("com.google.type"),
           inPackage("com.fasterxml.jackson.annotation"),
+          inPackage("com.fasterxml.jackson.core"),
+          inPackage("com.fasterxml.jackson.databind"),
           inPackage("io.grpc"),
           inPackage("java"),
           inPackage("javax"),
