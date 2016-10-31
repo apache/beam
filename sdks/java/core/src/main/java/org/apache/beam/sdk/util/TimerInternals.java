@@ -50,16 +50,35 @@ import org.joda.time.Instant;
 public interface TimerInternals {
 
   /**
-   * Writes out a timer to be fired when the watermark reaches the given
-   * timestamp.
+   * Writes out a timer to be fired when the current time in the specified time domain reaches the
+   * target timestamp.
    *
-   * <p>The combination of {@code namespace}, {@code timestamp} and {@code domain} uniquely
-   * identify a timer. Multiple timers set for the same parameters can be safely deduplicated.
+   * <p>The combination of {@code namespace} and {@code timerId} uniquely identify a timer.
+   *
+   * <p>If a timer is set and then set again before it fires, later settings should clear the prior
+   * setting.
+   *
+   * <p>It is an error to set a timer for two different time domains.
+   */
+  void setTimer(StateNamespace namespace, String timerId, Instant target, TimeDomain timeDomain);
+
+  /**
+   * Writes out a timer to be fired when the watermark reaches the given timestamp, automatically
+   * generating an id for it from the provided {@link TimerData}.
+   *
+   * <p>The {@link TimerData} contains all the fields necessary to set the timer. The timer's ID
+   * is determinstically generated from the {@link TimerData}, so it may be canceled using
+   * the same {@link TimerData}.
    */
   void setTimer(TimerData timerKey);
 
   /**
    * Deletes the given timer.
+   */
+  void deleteTimer(StateNamespace namespace, String timerId);
+
+  /**
+   * Deletes the given timer, automatically inferring its ID from the {@link TimerData}.
    */
   void deleteTimer(TimerData timerKey);
 
