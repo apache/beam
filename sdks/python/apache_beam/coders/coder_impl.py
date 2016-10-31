@@ -214,6 +214,15 @@ class FastPrimitivesCoderImpl(StreamCoderImpl):
   def __init__(self, fallback_coder_impl):
     self.fallback_coder_impl = fallback_coder_impl
 
+  def get_estimated_size_and_observables(self, value, nested=False):
+    if isinstance(value, observable.ObservableMixin):
+      # FastPrimitivesCoderImpl can presumably encode the elements too.
+      return 1, [(value, self)]
+    else:
+      out = ByteCountingOutputStream()
+      self.encode_to_stream(value, out, nested)
+      return out.get_count(), []
+
   def encode_to_stream(self, value, stream, nested):
     t = type(value)
     if t is NoneType:
@@ -415,6 +424,7 @@ class AbstractComponentCoderImpl(StreamCoderImpl):
 
   def estimate_size(self, value, nested=False):
     """Estimates the encoded size of the given value, in bytes."""
+    # TODO(ccy): This ignores sizes of observable components.
     estimated_size, _ = (
         self.get_estimated_size_and_observables(value))
     return estimated_size
@@ -425,15 +435,11 @@ class AbstractComponentCoderImpl(StreamCoderImpl):
     estimated_size = 0
     observables = []
     for i in range(0, len(self._coder_impls)):
-      child_value = values[i]
-      if isinstance(child_value, observable.ObservableMixin):
-        observables.append((child_value, self._coder_impls[i]))
-      else:
-        c = self._coder_impls[i]  # type cast
-        child_size, child_observables = (
-            c.get_estimated_size_and_observables(child_value, nested=True))
-        estimated_size += child_size
-        observables += child_observables
+      c = self._coder_impls[i]  # type cast
+      child_size, child_observables = (
+          c.get_estimated_size_and_observables(values[i], nested=True))
+      estimated_size += child_size
+      observables += child_observables
     return estimated_size, observables
 
 
@@ -470,6 +476,7 @@ class SequenceCoderImpl(StreamCoderImpl):
 
   def estimate_size(self, value, nested=False):
     """Estimates the encoded size of the given value, in bytes."""
+    # TODO(ccy): This ignores element sizes.
     estimated_size, _ = (
         self.get_estimated_size_and_observables(value))
     return estimated_size
@@ -477,19 +484,19 @@ class SequenceCoderImpl(StreamCoderImpl):
   def get_estimated_size_and_observables(self, value, nested=False):
     """Returns estimated size of value along with any nested observables."""
     estimated_size = 0
-    observables = []
     # Size of 32-bit integer storing number of elements.
     estimated_size += 4
-    for elem in value:
-      if isinstance(elem, observable.ObservableMixin):
-        observables.append((elem, self._elem_coder))
-      else:
+    if isinstance(value, observable.ObservableMixin):
+      return estimated_size, [(value, self._elem_coder)]
+    else:
+      observables = []
+      for elem in value:
         child_size, child_observables = (
             self._elem_coder.get_estimated_size_and_observables(
                 elem, nested=True))
         estimated_size += child_size
         observables += child_observables
-    return estimated_size, observables
+      return estimated_size, observables
 
 
 class TupleSequenceCoderImpl(SequenceCoderImpl):
@@ -529,14 +536,11 @@ class WindowedValueCoderImpl(StreamCoderImpl):
     """Returns estimated size of value along with any nested observables."""
     estimated_size = 0
     observables = []
-    if isinstance(value.value, observable.ObservableMixin):
-      observables.append((value.value, self._value_coder))
-    else:
-      c = self._value_coder  # type cast
-      value_estimated_size, value_observables = (
-          c.get_estimated_size_and_observables(value.value, nested=True))
-      estimated_size += value_estimated_size
-      observables += value_observables
+    value_estimated_size, value_observables = (
+        self._value_coder.get_estimated_size_and_observables(
+            value.value, nested=True))
+    estimated_size += value_estimated_size
+    observables += value_observables
     estimated_size += (
         self._timestamp_coder.estimate_size(value.timestamp, nested=True))
     estimated_size += (
