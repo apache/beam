@@ -13,7 +13,7 @@ public class Descriptors {
   from(ValueStorageDescriptor.MergingValueStorageDescriptor<T> descriptor) {
     return new ReducingStateDescriptor<T>(
         descriptor.getName(),
-        new ReducingMerger<T>(descriptor.getValueMerger()),
+        new ReducingMerger<>(descriptor.getValueMerger()),
         descriptor.getValueClass());
   }
 
