@@ -202,9 +202,11 @@ INT_TYPE = 1
 FLOAT_TYPE = 2
 STR_TYPE = 3
 UNICODE_TYPE = 4
+BOOL_TYPE = 9
 LIST_TYPE = 5
 TUPLE_TYPE = 6
 DICT_TYPE = 7
+SET_TYPE = 8
 
 
 class FastPrimitivesCoderImpl(StreamCoderImpl):
@@ -229,18 +231,22 @@ class FastPrimitivesCoderImpl(StreamCoderImpl):
       unicode_value = value  # for typing
       stream.write_byte(UNICODE_TYPE)
       stream.write(unicode_value.encode('utf-8'), nested)
-    elif t is list or t is tuple:
-      stream.write_byte(LIST_TYPE if t is list else TUPLE_TYPE)
+    elif t is list or t is tuple or t is set:
+      stream.write_byte(
+          LIST_TYPE if t is list else TUPLE_TYPE if t is tuple else SET_TYPE)
       stream.write_var_int64(len(value))
       for e in value:
         self.encode_to_stream(e, stream, True)
     elif t is dict:
       dict_value = value  # for typing
       stream.write_byte(DICT_TYPE)
-      stream.write_var_int64(len(value))
+      stream.write_var_int64(len(dict_value))
       for k, v in dict_value.iteritems():
         self.encode_to_stream(k, stream, True)
         self.encode_to_stream(v, stream, True)
+    elif t is bool:
+      stream.write_byte(BOOL_TYPE)
+      stream.write_byte(value)
     else:
       stream.write_byte(UNKNOWN_TYPE)
       self.fallback_coder_impl.encode_to_stream(value, stream, nested)
@@ -257,13 +263,15 @@ class FastPrimitivesCoderImpl(StreamCoderImpl):
       return stream.read_all(nested)
     elif t == UNICODE_TYPE:
       return stream.read_all(nested).decode('utf-8')
-    elif t == LIST_TYPE or t == TUPLE_TYPE:
+    elif t == LIST_TYPE or t == TUPLE_TYPE or t == SET_TYPE:
       vlen = stream.read_var_int64()
       vlist = [self.decode_from_stream(stream, True) for _ in range(vlen)]
       if t == LIST_TYPE:
         return vlist
-      else:
+      elif t == TUPLE_TYPE:
         return tuple(vlist)
+      else:
+        return set(vlist)
     elif t == DICT_TYPE:
       vlen = stream.read_var_int64()
       v = {}
@@ -271,6 +279,8 @@ class FastPrimitivesCoderImpl(StreamCoderImpl):
         k = self.decode_from_stream(stream, True)
         v[k] = self.decode_from_stream(stream, True)
       return v
+    elif t == BOOL_TYPE:
+      return not not stream.read_byte()
     else:
       return self.fallback_coder_impl.decode_from_stream(stream, nested)
 
@@ -487,6 +497,13 @@ class TupleSequenceCoderImpl(SequenceCoderImpl):
 
   def _construct_from_sequence(self, components):
     return tuple(components)
+
+
+class IterableCoderImpl(SequenceCoderImpl):
+  """A coder for homogeneous iterable objects."""
+
+  def _construct_from_sequence(self, components):
+    return components
 
 
 class WindowedValueCoderImpl(StreamCoderImpl):
