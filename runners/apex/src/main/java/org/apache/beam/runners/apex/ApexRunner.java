@@ -51,6 +51,7 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
 import org.apache.hadoop.conf.Configuration;
+import org.joda.time.Duration;
 
 /**
  * A {@link PipelineRunner} that translates the
@@ -139,12 +140,8 @@ public class ApexRunner extends PipelineRunner<ApexRunnerResult> {
       lc.runAsync();
       if (options.getRunMillis() > 0) {
         try {
-          long timeout = System.currentTimeMillis() + options.getRunMillis();
-          while (System.currentTimeMillis() < timeout) {
-            if (assertionError != null) {
-              throw assertionError;
-            }
-          }
+          // this is necessary for tests that just call run() and not waitUntilFinish
+          ApexRunnerResult.waitUntilFinished(lc, Duration.millis(options.getRunMillis()));
         } finally {
           lc.shutdown();
         }

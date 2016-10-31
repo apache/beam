@@ -18,14 +18,17 @@
 
 package org.apache.beam.runners.apex.examples;
 
+import java.io.File;
 import java.util.concurrent.ConcurrentHashMap;
 
 import org.apache.beam.runners.apex.ApexPipelineOptions;
 import org.apache.beam.runners.apex.ApexRunner;
 import org.apache.beam.runners.apex.ApexRunnerResult;
+import org.apache.beam.runners.apex.examples.WordCount.WordCountOptions;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Aggregator;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -37,6 +40,7 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.joda.time.Duration;
 import org.junit.Assert;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -91,7 +95,7 @@ public class StreamingWordCountTest {
     ApexPipelineOptions options = PipelineOptionsFactory.fromArgs(args).withValidation()
         .as(ApexPipelineOptions.class);
     options.setApplicationName("StreamingWordCount");
-    options.setParallelism(1);
+    //options.setParallelism(1);
     Pipeline p = Pipeline.create(options);
 
     PCollection<KV<String, Long>> wordCounts =
@@ -110,12 +114,26 @@ public class StreamingWordCountTest {
           && FormatAsStringFn.RESULTS.containsKey("bar")) {
         break;
       }
-      Thread.sleep(1000);
+      result.waitUntilFinish(Duration.millis(1000));
     }
     result.cancel();
     Assert.assertTrue(
         FormatAsStringFn.RESULTS.containsKey("foo") && FormatAsStringFn.RESULTS.containsKey("bar"));
     FormatAsStringFn.RESULTS.clear();
 
+  }
+
+  @Ignore
+  @Test
+  public void testWordCountExample() throws Exception {
+    PipelineOptionsFactory.register(WordCountOptions.class);
+    WordCountOptions options = TestPipeline.testingPipelineOptions().as(WordCountOptions.class);
+    options.setRunner(ApexRunner.class);
+    options.setApplicationName("StreamingWordCount");
+    String inputFile = WordCount.class.getResource("/words.txt").getFile();
+    options.setInputFile(new File(inputFile).getAbsolutePath());
+    options.setOutput("target/wordcountresult.txt");
+    options.setTupleTracingEnabled(true);
+    WordCount.main(TestPipeline.convertToArgs(options));
   }
 }
