@@ -481,7 +481,7 @@
   </dependencyManagement>
 
   <properties>
-    <flink.version>1.1.2</flink.version>
+    <flink.version>1.1.3</flink.version>
   </properties>
 
 </project>
