@@ -41,8 +41,8 @@ MAX_NUM_THREADS_FOR_SIZE_ESTIMATION = 25
 class FileBasedSource(iobase.BoundedSource):
   """A ``BoundedSource`` for reading a file glob of a given type."""
 
-  MAX_NUMBER_OF_FILES_FOR_AN_EXACT_STAT = 100
-  FRACTION_OF_FILES_TO_STAT = 0.01
+  MIN_NUMBER_OF_FILES_TO_STAT = 100
+  MIN_FRACTION_OF_FILES_TO_STAT = 0.01
 
   def __init__(self,
                file_pattern,
@@ -149,17 +149,19 @@ class FileBasedSource(iobase.BoundedSource):
   def estimate_size(self):
     file_names = [f for f in fileio.ChannelFactory.glob(self._pattern)]
     if (len(file_names) <=
-        FileBasedSource.MAX_NUMBER_OF_FILES_FOR_AN_EXACT_STAT):
+        FileBasedSource.MIN_NUMBER_OF_FILES_TO_STAT):
       return sum(self._estimate_sizes_in_parallel(file_names))
     else:
       # Estimating size of a random sample.
-      sample_size = max(FileBasedSource.MAX_NUMBER_OF_FILES_FOR_AN_EXACT_STAT,
+      # TODO: better support distributions where file sizes are not
+      # approximately equal.
+      sample_size = max(FileBasedSource.MIN_NUMBER_OF_FILES_TO_STAT,
                         int(len(file_names) *
-                            FileBasedSource.FRACTION_OF_FILES_TO_STAT))
-      sample = [file_names[i] for i in sorted(
-          random.sample(xrange(len(file_names)), sample_size))]
+                            FileBasedSource.MIN_FRACTION_OF_FILES_TO_STAT))
+      sample = random.sample(file_names, sample_size)
+      estimate = self._estimate_sizes_in_parallel(sample)
       return int(
-          sum(self._estimate_sizes_in_parallel(sample)) *
+          sum(estimate) *
           (float(len(file_names)) / len(sample)))
 
   def read(self, range_tracker):

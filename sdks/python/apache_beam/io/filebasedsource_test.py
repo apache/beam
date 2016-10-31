@@ -258,14 +258,19 @@ class TestFileBasedSource(unittest.TestCase):
     self.assertEquals(17 * 6, fbs.estimate_size())
 
   def test_estimate_size_with_sampling_same_size(self):
-    num_files = 2 * FileBasedSource.MAX_NUMBER_OF_FILES_FOR_AN_EXACT_STAT
+    num_files = 2 * FileBasedSource.MIN_NUMBER_OF_FILES_TO_STAT
     pattern, _ = write_pattern([10] * num_files)
+    # Each line will be of length 6 since write_pattern() uses
+    # ('line' + line number + '\n') as data.
     self.assertEqual(
         6 * 10 * num_files, FileBasedSource(pattern).estimate_size())
 
   def test_estimate_size_with_sampling_different_sizes(self):
-    num_files = 2 * FileBasedSource.MAX_NUMBER_OF_FILES_FOR_AN_EXACT_STAT
-    base_size = 100
+    num_files = 2 * FileBasedSource.MIN_NUMBER_OF_FILES_TO_STAT
+
+    # Each line will be of length 8 since write_pattern() uses
+    # ('line' + line number + '\n') as data.
+    base_size = 500
     variance = 5
 
     sizes = []
@@ -273,11 +278,11 @@ class TestFileBasedSource(unittest.TestCase):
       sizes.append(int(random.uniform(base_size - variance,
                                       base_size + variance)))
     pattern, _ = write_pattern(sizes)
-    tolerance = 0.2
+    tolerance = 0.05
     self.assertAlmostEqual(
-        base_size * 6 * num_files,
+        base_size * 8 * num_files,
         FileBasedSource(pattern).estimate_size(),
-        delta=base_size * 6 * num_files * tolerance)
+        delta=base_size * 8 * num_files * tolerance)
 
   def test_splits_into_subranges(self):
     pattern, expected_data = write_pattern([5, 9, 6])

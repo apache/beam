@@ -492,19 +492,18 @@ class DataflowPipelineRunner(PipelineRunner):
 
     if not hasattr(transform.source, 'format'):
       # If a format is not set, we assume the source to be a custom source.
-      source_dict = dict()
-      spec_dict = dict()
+      source_dict = {}
 
-      spec_dict[names.SERIALIZED_SOURCE_KEY] = pickler.dumps(transform.source)
-      spec_dict['@type'] = names.SOURCE_TYPE
-      source_dict['spec'] = spec_dict
+      source_dict['spec'] = {
+          '@type': names.SOURCE_TYPE,
+          names.SERIALIZED_SOURCE_KEY: pickler.dumps(transform.source)
+      }
 
       try:
-        metadata_dict = dict()
-        metadata_dict['estimated_size_bytes'] = (
-            json_value.get_typed_value_descriptor(
-                transform.source.estimate_size()))
-        source_dict['metadata'] = metadata_dict
+        source_dict['metadata'] = {
+            'estimated_size_bytes': json_value.get_typed_value_descriptor(
+                transform.source.estimate_size())
+        }
       except Exception:  # pylint: disable=broad-except
         # Size estimation is best effort. So we log the error and continue.
         logging.info(
