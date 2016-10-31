@@ -29,4 +29,5 @@ public class NoopTriggerScheduler<W extends Window, K>
   public void close() {
 
   }
+
 }
