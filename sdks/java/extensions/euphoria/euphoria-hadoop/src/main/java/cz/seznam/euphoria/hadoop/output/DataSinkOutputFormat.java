@@ -146,7 +146,7 @@ public class DataSinkOutputFormat<K, V> extends OutputFormat<K, V> {
   private void instantiateWriter(TaskAttemptContext tac) throws IOException {
     if (writer == null) {
       instantiateSink(tac);
-      writer = sink.openWriter(tac.getTaskAttemptID().getId());
+      writer = sink.openWriter(tac.getTaskAttemptID().getTaskID().getId());
     }
   }
 
