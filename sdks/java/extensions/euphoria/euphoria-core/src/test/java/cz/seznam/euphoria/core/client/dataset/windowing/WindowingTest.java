@@ -328,6 +328,10 @@ public class WindowingTest {
     final Duration READ_DELAY = Duration.ofMillis(50L);
     Flow flow = Flow.create("Test");
 
+    executor.setTriggeringSchedulerSupplier(
+        () -> new WatermarkTriggerScheduler(1));
+
+
     Dataset<String> input = flow.createInput(ListDataSource.unbounded(
         asList("0-one 1-two 0-three 1-four 0-five 1-six 0-seven".split(" "))
     ).withReadDelay(READ_DELAY)

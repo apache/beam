@@ -9,4 +9,5 @@ public class ProcessingTimeTriggerScheduler extends AbstractTriggerScheduler {
   public long getCurrentTimestamp() {
     return System.currentTimeMillis();
   }
+
 }

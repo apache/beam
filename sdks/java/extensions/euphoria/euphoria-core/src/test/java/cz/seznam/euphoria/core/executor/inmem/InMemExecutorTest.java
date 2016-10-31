@@ -763,4 +763,40 @@ public class InMemExecutorTest {
         }).collect(Collectors.toList()));
   }
 
+  @Test
+  public void testWatermarkSchedulerWithLatecomers() {
+    int N = 2000;
+
+    // generate some small ints, use them as event time and count them
+    // in 10s windows
+
+    Dataset<Integer> input = flow.createInput(
+        ListDataSource.unbounded(reversed(sequenceInts(0, N))));
+
+    ListDataSink<Integer> outputs = ListDataSink.get(2);
+
+    ReduceWindow.of(input)
+        .valueBy(e -> e)
+        .combineBy(Sums.ofInts())
+        .windowBy(Time.of(Duration.ofSeconds(1)).using(e -> e * 1000L))
+        .setNumPartitions(1)
+        .output()
+        .persist(outputs);
+
+    // watermarking 4000 ms
+    executor.setTriggeringSchedulerSupplier(
+        () -> new WatermarkTriggerScheduler(4000));
+
+    executor.waitForCompletion(flow);
+
+    // there should be five windows at the output
+    // (1999, 1998, 1997, 1996 and 1995)
+    // all other windows are discarded
+    List<Integer> output = outputs.getOutputs().get(0);
+    // FIXME: there is something wrong with this
+    // why are the elements out of order?
+    assertEquals(Arrays.asList(1996, 1995, 1998, 1997, 1999), output);
+
+  }
+
 }
