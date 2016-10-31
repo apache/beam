@@ -45,6 +45,7 @@ import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.io.OutputStreamWriter;
 import java.io.Serializable;
+import java.net.ServerSocket;
 import java.util.List;
 import java.util.Random;
 import java.util.Scanner;
@@ -82,14 +83,38 @@ public class MongoDBGridFSIOTest implements Serializable {
   private static final Logger LOGGER = LoggerFactory.getLogger(MongoDBGridFSIOTest.class);
 
   private static final String MONGODB_LOCATION = "target/mongodb";
-  private static final int PORT = 27017;
   private static final String DATABASE = "gridfs";
 
   private static transient MongodExecutable mongodExecutable;
 
+  private static int port;
+
+  /**
+   * Looking for an available network port.
+   *
+   * @param min The min port number.
+   * @param max The max port number.
+   * @return The available port number.
+   */
+  private static int availablePort(int min, int max) {
+    for (int i = min; i <= max; i++) {
+      try {
+        ServerSocket socket = new ServerSocket(i);
+        int port = socket.getLocalPort();
+        socket.close();
+        return port;
+      } catch (Exception e) {
+        LOGGER.debug("Port {} is not available, trying next one ...", i);
+        continue; // try next port
+      }
+    }
+    throw new IllegalStateException("Can't find available network port");
+  }
+
   @BeforeClass
   public static void setup() throws Exception {
-    LOGGER.info("Starting MongoDB embedded instance");
+    port = availablePort(27017, 28017);
+    LOGGER.info("Starting MongoDB embedded instance on {}", port);
     try {
       Files.forceDelete(new File(MONGODB_LOCATION));
     } catch (Exception e) {
@@ -100,7 +125,7 @@ public class MongoDBGridFSIOTest implements Serializable {
         .version(Version.Main.PRODUCTION)
         .configServer(false)
         .replication(new Storage(MONGODB_LOCATION, null, 0))
-        .net(new Net("localhost", PORT, Network.localhostIsIPv6()))
+        .net(new Net("localhost", port, Network.localhostIsIPv6()))
         .cmdOptions(new MongoCmdOptionsBuilder()
             .syncDelay(10)
             .useNoPrealloc(true)
@@ -113,7 +138,7 @@ public class MongoDBGridFSIOTest implements Serializable {
 
     LOGGER.info("Insert test data");
 
-    Mongo client = new Mongo("localhost", PORT);
+    Mongo client = new Mongo("localhost", port);
     DB database = client.getDB(DATABASE);
     GridFS gridfs = new GridFS(database);
 
@@ -169,7 +194,7 @@ public class MongoDBGridFSIOTest implements Serializable {
 
     PCollection<String> output = pipeline.apply(
         MongoDbGridFSIO.<String>read()
-            .withUri("mongodb://localhost:" + PORT)
+            .withUri("mongodb://localhost:" + port)
             .withDatabase(DATABASE));
 
     PAssert.thatSingleton(
@@ -199,7 +224,7 @@ public class MongoDBGridFSIOTest implements Serializable {
 
     PCollection<KV<String, Integer>> output = pipeline.apply(
         MongoDbGridFSIO.<KV<String, Integer>>read()
-            .withUri("mongodb://localhost:" + PORT)
+            .withUri("mongodb://localhost:" + port)
             .withDatabase(DATABASE)
             .withBucket("mapBucket")
             .withParser(new MongoDbGridFSIO.Parser<KV<String, Integer>>() {
@@ -246,7 +271,7 @@ public class MongoDBGridFSIOTest implements Serializable {
   public void testSplit() throws Exception {
     PipelineOptions options = PipelineOptionsFactory.create();
     MongoDbGridFSIO.Read<String> read = MongoDbGridFSIO.<String>read()
-        .withUri("mongodb://localhost:" + PORT)
+        .withUri("mongodb://localhost:" + port)
         .withDatabase(DATABASE);
 
     BoundedGridFSSource src = new BoundedGridFSSource(read, null);
