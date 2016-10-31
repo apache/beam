@@ -14,7 +14,7 @@ import java.util.Collection;
 import static java.util.stream.Collectors.toList;
 import static java.util.stream.Collectors.toSet;
 
-public class FlinkMergingWindowAssigner<T, WID extends Window>
+public class FlinkMergingWindowAssigner<T, WID extends Window & Comparable<WID>>
   extends MergingWindowAssigner<MultiWindowedElement<WID, T>, FlinkWindow<WID>>
 {
   private final FlinkWindowAssigner<T, WID> wrap;
