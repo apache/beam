@@ -95,9 +95,36 @@ You are now ready to start developing!
 
 Depending on your preferred development environment, you may need to prepare it to develop Beam code.
 
-##### Intellij
+##### IntelliJ
 
-_If you are an Intellij user, please contribute instructions! See [BEAM-835](https://issues.apache.org/jira/browse/BEAM-835)._
+_This documentation is incomplete. If you are an Intellij user, please contribute instructions!
+See [BEAM-835](https://issues.apache.org/jira/browse/BEAM-835)._
+
+###### Checkstyle
+IntelliJ supports checkstyle within the IDE using the Checkstyle-IDEA plugin.
+
+1. Install the "Checkstyle-IDEA" plugin from the IntelliJ plugin repository.
+1. Configure the plugin by going to Settings -> Other Settings -> Checkstyle.
+1. Set the "Scan Scope" to "Only Java sources (including tests)".
+1. In the "Configuration File" pane, add a new configuration using the plus icon:
+    1. Set the "Description" to "Beam".
+    1. Select "Use a local Checkstyle file", and point it to
+      "sdks/java/build-tools/src/main/resources/beam/checkstyle.xml" within
+      your repository.
+    1. Check the box for "Store relative to project location", and click
+      "Next".
+    1. Configure the "checkstyle.suppressions.file" property value to
+      "suppressions.xml", and click "Next", then "Finish".
+1. Select "Beam" as the only active configuration file, and click "Apply" and
+   "OK".
+1. Checkstyle will now give warnings in the editor for any Checkstyle
+   violations.
+
+You can also scan an entire module by opening the Checkstyle tools window and
+clicking the "Check Module" button. The scan should report no errors.
+
+Note: Selecting "Check Project" may report some errors from the archetype
+modules as they are not configured for Checkstyle validation.
 
 ##### Eclipse
  
