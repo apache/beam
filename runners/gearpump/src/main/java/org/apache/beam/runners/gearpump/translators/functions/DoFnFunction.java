@@ -26,10 +26,10 @@ import java.util.List;
 import org.apache.beam.runners.core.DoFnRunner;
 import org.apache.beam.runners.core.DoFnRunners;
 import org.apache.beam.runners.gearpump.GearpumpPipelineOptions;
-import org.apache.beam.runners.gearpump.translators.utils.GearpumpDoFnRunner;
+import org.apache.beam.runners.gearpump.translators.utils.DoFnRunnerFactory;
+import org.apache.beam.runners.gearpump.translators.utils.NoOpAggregatorFactory;
 import org.apache.beam.runners.gearpump.translators.utils.NoOpStepContext;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.util.SideInputReader;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowingStrategy;
@@ -44,17 +44,17 @@ import org.apache.gearpump.streaming.javaapi.dsl.functions.FlatMapFunction;
 public class DoFnFunction<InputT, OutputT> implements
     FlatMapFunction<WindowedValue<InputT>, WindowedValue<OutputT>>, DoFnRunners.OutputManager {
 
-  private final TupleTag<OutputT> mainTag = new TupleTag<OutputT>() {
-  };
-  private final DoFnRunner<InputT, OutputT> doFnRunner;
+  private final TupleTag<OutputT> mainTag = new TupleTag<OutputT>() {};
   private List<WindowedValue<OutputT>> outputs = Lists.newArrayList();
+  private final DoFnRunnerFactory<InputT, OutputT> doFnRunnerFactory;
+  private DoFnRunner<InputT, OutputT> doFnRunner;
 
   public DoFnFunction(
       GearpumpPipelineOptions pipelineOptions,
-      OldDoFn<InputT, OutputT> doFn,
+      DoFn<InputT, OutputT> doFn,
       WindowingStrategy<?, ?> windowingStrategy,
       SideInputReader sideInputReader) {
-    this.doFnRunner = new GearpumpDoFnRunner<>(
+    this.doFnRunnerFactory = new DoFnRunnerFactory<>(
         pipelineOptions,
         doFn,
         sideInputReader,
@@ -62,6 +62,7 @@ public class DoFnFunction<InputT, OutputT> implements
         mainTag,
         TupleTagList.empty().getAll(),
         new NoOpStepContext(),
+        new NoOpAggregatorFactory(),
         windowingStrategy
     );
   }
@@ -69,6 +70,10 @@ public class DoFnFunction<InputT, OutputT> implements
   @Override
   public Iterator<WindowedValue<OutputT>> apply(WindowedValue<InputT> value) {
     outputs = Lists.newArrayList();
+
+    if (null == doFnRunner) {
+      doFnRunner = doFnRunnerFactory.createRunner();
+    }
 
     doFnRunner.startBundle();
     doFnRunner.processElement(value);

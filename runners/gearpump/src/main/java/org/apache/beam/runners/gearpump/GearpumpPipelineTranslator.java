@@ -108,7 +108,7 @@ public class GearpumpPipelineTranslator implements Pipeline.PipelineVisitor {
 
   @Override
   public void visitValue(PValue value, TransformTreeNode producer) {
-    LOG.info("visiting value {}", value);
+    LOG.debug("visiting value {}", value);
   }
 
   /**
