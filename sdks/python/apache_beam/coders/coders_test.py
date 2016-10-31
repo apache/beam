@@ -21,6 +21,7 @@ import logging
 import unittest
 
 from apache_beam import coders
+from apache_beam.coders import proto2_coder_test_messages_pb2 as test_message
 
 
 class PickleCoderTest(unittest.TestCase):
@@ -57,6 +58,38 @@ class CodersTest(unittest.TestCase):
         real_coder.encode('abc'), expected_coder.encode('abc'))
     self.assertEqual('abc', real_coder.decode(real_coder.encode('abc')))
 
+
+class ProtoCoderTest(unittest.TestCase):
+
+  def test_proto_coder(self):
+    ma = test_message.MessageA()
+    mb = ma.field2.add()
+    mb.field1 = True
+    ma.field1 = u'hello world'
+    expected_coder = coders.ProtoCoder(ma.__class__)
+    real_coder = coders.registry.get_coder(ma.__class__)
+    self.assertEqual(expected_coder, real_coder)
+    self.assertEqual(real_coder.encode(ma), expected_coder.encode(ma))
+    self.assertEqual(ma, real_coder.decode(real_coder.encode(ma)))
+
+
+class DummyClass(object):
+  "A class with no registered coder."
+  def __init__(self):
+    pass
+
+  def __eq__(self, other):
+    if isinstance(other, self.__class__):
+      return True
+    return False
+
+
+class FallbackCoderTest(unittest.TestCase):
+
+  def test_fallaback_path(self):
+    coder = coders.registry.get_coder(DummyClass)
+    self.assertEqual(coder, coders.FastPrimitivesCoder())
+    self.assertEqual(DummyClass(), coder.decode(coder.encode(DummyClass())))
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)

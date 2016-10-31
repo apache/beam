@@ -19,6 +19,7 @@
 
 import base64
 import cPickle as pickle
+import google.protobuf
 
 from apache_beam.coders import coder_impl
 
@@ -448,6 +449,30 @@ class Base64PickleCoder(Coder):
 
   def value_coder(self):
     return self
+
+
+class ProtoCoder(FastCoder):
+  "Coder for any protobuf message objects."
+
+  def __init__(self, proto_message_type):
+    self.proto_message_type = proto_message_type
+
+  def _create_impl(self):
+    return coder_impl.ProtoCoderImpl(self.proto_message_type)
+
+  def is_deterministic(self):
+    # TODO(vikasrk): A proto message can be deterministic if it does not contain
+    # a Map.
+    return False
+
+  @staticmethod
+  def from_type_hint(typehint, unused_registry):
+    if issubclass(typehint, google.protobuf.message.Message):
+      return ProtoCoder(typehint)
+    else:
+      err = ('Expected a subclass of google.protobuf.message.Message, '
+             'but got a %s' % typehint)
+      raise ValueError(err)
 
 
 class TupleCoder(FastCoder):

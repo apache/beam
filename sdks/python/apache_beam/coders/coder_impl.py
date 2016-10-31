@@ -196,6 +196,20 @@ class DeterministicPickleCoderImpl(CoderImpl):
     return self._pickle_coder.decode(encoded)
 
 
+class ProtoCoderImpl(CoderImpl):
+
+  def __init__(self, proto_message_type):
+    self.proto_message_type = proto_message_type
+
+  def encode(self, value):
+    return value.SerializeToString()
+
+  def decode(self, encoded):
+    proto_message = self.proto_message_type()
+    proto_message.ParseFromString(encoded)
+    return proto_message
+
+
 UNKNOWN_TYPE = 0xFF
 NONE_TYPE = 0
 INT_TYPE = 1
