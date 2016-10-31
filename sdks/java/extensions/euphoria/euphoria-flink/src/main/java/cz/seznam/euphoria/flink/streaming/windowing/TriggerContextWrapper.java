@@ -54,10 +54,10 @@ public class TriggerContextWrapper implements TriggerContext {
   public <T> ValueStorage<T> getValueStorage(ValueStorageDescriptor<T> descriptor) {
     if (descriptor instanceof ValueStorageDescriptor.MergingValueStorageDescriptor) {
       @SuppressWarnings("unchecked")
-      ReducingStateDescriptor<T> from = Descriptors.<T>from(
+      ReducingStateDescriptor<T> from = Descriptors.from(
           (ValueStorageDescriptor.MergingValueStorageDescriptor<T>) descriptor);
       ReducingState<T> state = getFlinkContext().getPartitionedState(from);
-      return new FlinkReducingValueStorage<T>(state, descriptor.getDefaultValue());
+      return new FlinkReducingValueStorage<>(state, descriptor.getDefaultValue());
     }
     return new FlinkValueStorage<>(
         flinkContext.getPartitionedState(Descriptors.from(descriptor)));
