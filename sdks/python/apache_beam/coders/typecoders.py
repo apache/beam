@@ -157,7 +157,7 @@ class CoderRegistry(object):
 
 
 class FirstOf(object):
-  "A class used to get the first matching coder from a list of coders"
+  "A class used to get the first matching coder from a list of coders."
 
   def __init__(self, coders):
     self._coders = coders
