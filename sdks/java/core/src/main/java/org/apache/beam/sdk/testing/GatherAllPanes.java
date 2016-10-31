@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.util;
+package org.apache.beam.sdk.testing;
 
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.GroupByKey;
@@ -27,6 +27,7 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.Never;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
+import org.apache.beam.sdk.util.IdentityWindowFn;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
@@ -38,8 +39,8 @@ import org.apache.beam.sdk.values.TypeDescriptor;
  * watermark passes the end of the window plus allowed lateness) even if the upstream triggers
  * closed the window earlier.
  */
-public class GatherAllPanes<T>
-    extends PTransform<PCollection<T>, PCollection<Iterable<WindowedValue<T>>>> {
+class GatherAllPanes<T>
+    extends PTransform<PCollection<T>, PCollection<Iterable<ValueInSingleWindow<T>>>> {
   /**
    * Gathers all panes of each window into a single output element.
    *
@@ -54,33 +55,34 @@ public class GatherAllPanes<T>
   private GatherAllPanes() {}
 
   @Override
-  public PCollection<Iterable<WindowedValue<T>>> apply(PCollection<T> input) {
+  public PCollection<Iterable<ValueInSingleWindow<T>>> apply(PCollection<T> input) {
     WindowFn<?, ?> originalWindowFn = input.getWindowingStrategy().getWindowFn();
 
     return input
         .apply(ParDo.of(new ReifyTimestampsAndWindowsFn<T>()))
         .setCoder(
-            WindowedValue.FullWindowedValueCoder.of(
+            ValueInSingleWindow.Coder.of(
                 input.getCoder(), input.getWindowingStrategy().getWindowFn().windowCoder()))
         .apply(
-            WithKeys.<Integer, WindowedValue<T>>of(0).withKeyType(new TypeDescriptor<Integer>() {}))
+            WithKeys.<Integer, ValueInSingleWindow<T>>of(0)
+                .withKeyType(new TypeDescriptor<Integer>() {}))
         .apply(
             Window.into(
-                    new IdentityWindowFn<KV<Integer, WindowedValue<T>>>(
+                    new IdentityWindowFn<KV<Integer, ValueInSingleWindow<T>>>(
                         originalWindowFn.windowCoder()))
                 .triggering(Never.ever())
                 .withAllowedLateness(input.getWindowingStrategy().getAllowedLateness())
                 .discardingFiredPanes())
         // all values have the same key so they all appear as a single output element
-        .apply(GroupByKey.<Integer, WindowedValue<T>>create())
-        .apply(Values.<Iterable<WindowedValue<T>>>create())
+        .apply(GroupByKey.<Integer, ValueInSingleWindow<T>>create())
+        .apply(Values.<Iterable<ValueInSingleWindow<T>>>create())
         .setWindowingStrategyInternal(input.getWindowingStrategy());
   }
 
-  private static class ReifyTimestampsAndWindowsFn<T> extends DoFn<T, WindowedValue<T>> {
+  private static class ReifyTimestampsAndWindowsFn<T> extends DoFn<T, ValueInSingleWindow<T>> {
     @DoFn.ProcessElement
     public void processElement(ProcessContext c, BoundedWindow window) {
-      c.output(WindowedValue.of(c.element(), c.timestamp(), window, c.pane()));
+      c.output(ValueInSingleWindow.of(c.element(), c.timestamp(), window, c.pane()));
     }
   }
 }

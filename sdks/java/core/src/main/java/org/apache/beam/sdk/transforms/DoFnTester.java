@@ -23,7 +23,6 @@ import static com.google.common.base.Preconditions.checkState;
 import com.google.common.base.Function;
 import com.google.common.base.MoreObjects;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -35,8 +34,10 @@ import java.util.Map;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.testing.ValueInSingleWindow;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.util.TimerInternals;
@@ -353,10 +354,10 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
   public List<TimestampedValue<OutputT>> peekOutputElementsWithTimestamp() {
     // TODO: Should we return an unmodifiable list?
     return Lists.transform(getImmutableOutput(mainOutputTag),
-        new Function<WindowedValue<OutputT>, TimestampedValue<OutputT>>() {
+        new Function<ValueInSingleWindow<OutputT>, TimestampedValue<OutputT>>() {
           @Override
           @SuppressWarnings("unchecked")
-          public TimestampedValue<OutputT> apply(WindowedValue<OutputT> input) {
+          public TimestampedValue<OutputT> apply(ValueInSingleWindow<OutputT> input) {
             return TimestampedValue.of(input.getValue(), input.getTimestamp());
           }
         });
@@ -378,8 +379,8 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
       TupleTag<OutputT> tag,
       BoundedWindow window) {
     ImmutableList.Builder<TimestampedValue<OutputT>> valuesBuilder = ImmutableList.builder();
-    for (WindowedValue<OutputT> value : getImmutableOutput(tag)) {
-      if (value.getWindows().contains(window)) {
+    for (ValueInSingleWindow<OutputT> value : getImmutableOutput(tag)) {
+      if (value.getWindow().equals(window)) {
         valuesBuilder.add(TimestampedValue.of(value.getValue(), value.getTimestamp()));
       }
     }
@@ -434,10 +435,10 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
   public <T> List<T> peekSideOutputElements(TupleTag<T> tag) {
     // TODO: Should we return an unmodifiable list?
     return Lists.transform(getImmutableOutput(tag),
-        new Function<WindowedValue<T>, T>() {
+        new Function<ValueInSingleWindow<T>, T>() {
           @SuppressWarnings("unchecked")
           @Override
-          public T apply(WindowedValue<T> input) {
+          public T apply(ValueInSingleWindow<T> input) {
             return input.getValue();
           }});
   }
@@ -510,16 +511,16 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
     return combiner.extractOutput(accumulator);
   }
 
-  private <T> List<WindowedValue<T>> getImmutableOutput(TupleTag<T> tag) {
+  private <T> List<ValueInSingleWindow<T>> getImmutableOutput(TupleTag<T> tag) {
     @SuppressWarnings({"unchecked", "rawtypes"})
-    List<WindowedValue<T>> elems = (List) outputs.get(tag);
+    List<ValueInSingleWindow<T>> elems = (List) outputs.get(tag);
     return ImmutableList.copyOf(
-        MoreObjects.firstNonNull(elems, Collections.<WindowedValue<T>>emptyList()));
+        MoreObjects.firstNonNull(elems, Collections.<ValueInSingleWindow<T>>emptyList()));
   }
 
   @SuppressWarnings({"unchecked", "rawtypes"})
-  public <T> List<WindowedValue<T>> getMutableOutput(TupleTag<T> tag) {
-    List<WindowedValue<T>> outputList = (List) outputs.get(tag);
+  public <T> List<ValueInSingleWindow<T>> getMutableOutput(TupleTag<T> tag) {
+    List<ValueInSingleWindow<T>> outputList = (List) outputs.get(tag);
     if (outputList == null) {
       outputList = new ArrayList<>();
       outputs.put(tag, (List) outputList);
@@ -612,23 +613,22 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
       sideOutputWithTimestamp(tag, output, BoundedWindow.TIMESTAMP_MIN_VALUE);
     }
 
-    public <T> void noteOutput(TupleTag<T> tag, WindowedValue<T> output) {
+    public <T> void noteOutput(TupleTag<T> tag, ValueInSingleWindow<T> output) {
       getMutableOutput(tag).add(output);
     }
   }
 
   private TestProcessContext createProcessContext(TimestampedValue<InputT> elem) {
-    WindowedValue<InputT> windowedValue = WindowedValue.timestampedValueInGlobalWindow(
-        elem.getValue(), elem.getTimestamp());
-
-    return new TestProcessContext(windowedValue);
+    return new TestProcessContext(
+        ValueInSingleWindow.of(
+            elem.getValue(), elem.getTimestamp(), GlobalWindow.INSTANCE, PaneInfo.NO_FIRING));
   }
 
   private class TestProcessContext extends OldDoFn<InputT, OutputT>.ProcessContext {
     private final TestContext context;
-    private final WindowedValue<InputT> element;
+    private final ValueInSingleWindow<InputT> element;
 
-    private TestProcessContext(WindowedValue<InputT> element) {
+    private TestProcessContext(ValueInSingleWindow<InputT> element) {
       fn.super();
       this.context = createContext(fn);
       this.element = element;
@@ -661,7 +661,7 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
 
     @Override
     public BoundedWindow window() {
-      return Iterables.getOnlyElement(element.getWindows());
+      return element.getWindow();
     }
 
     @Override
@@ -683,7 +683,10 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
             Instant timestamp,
             Collection<? extends BoundedWindow> windows,
             PaneInfo pane) {
-          context.noteOutput(mainOutputTag, WindowedValue.of(output, timestamp, windows, pane));
+          for (BoundedWindow window : windows) {
+            context.noteOutput(
+                mainOutputTag, ValueInSingleWindow.of(output, timestamp, window, pane));
+          }
         }
 
         @Override
@@ -693,7 +696,10 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
             Instant timestamp,
             Collection<? extends BoundedWindow> windows,
             PaneInfo pane) {
-          context.noteOutput(tag, WindowedValue.of(output, timestamp, windows, pane));
+          for (BoundedWindow window : windows) {
+            context.noteOutput(
+                tag, ValueInSingleWindow.of(output, timestamp, window, pane));
+          }
         }
 
         @Override
@@ -703,7 +709,7 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
 
         @Override
         public Collection<? extends BoundedWindow> windows() {
-          return element.getWindows();
+          return Collections.singleton(element.getWindow());
         }
 
         @Override
@@ -742,8 +748,8 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
 
     @Override
     public <T> void sideOutputWithTimestamp(TupleTag<T> tag, T output, Instant timestamp) {
-      context.noteOutput(tag,
-          WindowedValue.of(output, timestamp, element.getWindows(), element.getPane()));
+      context.noteOutput(
+          tag, ValueInSingleWindow.of(output, timestamp, element.getWindow(), element.getPane()));
     }
 
     @Override
@@ -803,7 +809,7 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
   OldDoFn<InputT, OutputT> fn;
 
   /** The outputs from the {@link DoFn} under test. */
-  private Map<TupleTag<?>, List<WindowedValue<?>>> outputs;
+  private Map<TupleTag<?>, List<ValueInSingleWindow<?>>> outputs;
 
   private InMemoryStateInternals<?> stateInternals;
   private InMemoryTimerInternals timerInternals;
