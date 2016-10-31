@@ -20,6 +20,7 @@ import cStringIO as StringIO
 import gzip
 import logging
 import math
+import random
 import os
 import tempfile
 import unittest
@@ -255,6 +256,28 @@ class TestFileBasedSource(unittest.TestCase):
     assert len(expected_data) == 17
     fbs = LineSource(pattern)
     self.assertEquals(17 * 6, fbs.estimate_size())
+
+  def test_estimate_size_with_sampling_same_size(self):
+    num_files = 2 * FileBasedSource.MAX_NUMBER_OF_FILES_FOR_AN_EXACT_STAT
+    pattern, _ = write_pattern([10] * num_files)
+    self.assertEqual(
+        6 * 10 * num_files, FileBasedSource(pattern).estimate_size())
+
+  def test_estimate_size_with_sampling_different_sizes(self):
+    num_files = 2 * FileBasedSource.MAX_NUMBER_OF_FILES_FOR_AN_EXACT_STAT
+    base_size = 100
+    variance = 5
+
+    sizes = []
+    for _ in xrange(num_files):
+      sizes.append(int(random.uniform(base_size - variance,
+                                      base_size + variance)))
+    pattern, _ = write_pattern(sizes)
+    tolerance = 0.2
+    self.assertAlmostEqual(
+        base_size * 6 * num_files,
+        FileBasedSource(pattern).estimate_size(),
+        delta=base_size * 6 * num_files * tolerance)
 
   def test_splits_into_subranges(self):
     pattern, expected_data = write_pattern([5, 9, 6])
