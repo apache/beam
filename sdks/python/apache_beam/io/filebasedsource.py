@@ -25,6 +25,8 @@ for more details.
 For an example implementation of ``FileBasedSource`` see ``avroio.AvroSource``.
 """
 
+import random
+
 from multiprocessing.pool import ThreadPool
 
 from apache_beam.internal import pickler
@@ -38,6 +40,9 @@ MAX_NUM_THREADS_FOR_SIZE_ESTIMATION = 25
 
 class FileBasedSource(iobase.BoundedSource):
   """A ``BoundedSource`` for reading a file glob of a given type."""
+
+  MIN_NUMBER_OF_FILES_TO_STAT = 100
+  MIN_FRACTION_OF_FILES_TO_STAT = 0.01
 
   def __init__(self,
                file_pattern,
@@ -142,7 +147,22 @@ class FileBasedSource(iobase.BoundedSource):
         stop_position=stop_position)
 
   def estimate_size(self):
-    return self._get_concat_source().estimate_size()
+    file_names = [f for f in fileio.ChannelFactory.glob(self._pattern)]
+    if (len(file_names) <=
+        FileBasedSource.MIN_NUMBER_OF_FILES_TO_STAT):
+      return sum(self._estimate_sizes_in_parallel(file_names))
+    else:
+      # Estimating size of a random sample.
+      # TODO: better support distributions where file sizes are not
+      # approximately equal.
+      sample_size = max(FileBasedSource.MIN_NUMBER_OF_FILES_TO_STAT,
+                        int(len(file_names) *
+                            FileBasedSource.MIN_FRACTION_OF_FILES_TO_STAT))
+      sample = random.sample(file_names, sample_size)
+      estimate = self._estimate_sizes_in_parallel(sample)
+      return int(
+          sum(estimate) *
+          (float(len(file_names)) / len(sample)))
 
   def read(self, range_tracker):
     return self._get_concat_source().read(range_tracker)
