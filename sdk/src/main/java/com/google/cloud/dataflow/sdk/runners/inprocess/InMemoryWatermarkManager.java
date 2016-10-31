@@ -51,7 +51,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.NavigableSet;
 import java.util.Objects;
-import java.util.PriorityQueue;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -382,7 +381,7 @@ class InMemoryWatermarkManager {
     private final Map<StructuralKey<?>, NavigableSet<TimerData>> processingTimers;
     private final Map<StructuralKey<?>, NavigableSet<TimerData>> synchronizedProcessingTimers;
 
-    private final PriorityQueue<TimerData> pendingTimers;
+    private final NavigableSet<TimerData> pendingTimers;
 
     private AtomicReference<Instant> earliestHold;
 
@@ -391,7 +390,7 @@ class InMemoryWatermarkManager {
       this.pendingBundles = new HashSet<>();
       this.processingTimers = new HashMap<>();
       this.synchronizedProcessingTimers = new HashMap<>();
-      this.pendingTimers = new PriorityQueue<>();
+      this.pendingTimers = new TreeSet<>();
       Instant initialHold = BoundedWindow.TIMESTAMP_MAX_VALUE;
       for (Watermark wm : inputWms) {
         initialHold = INSTANT_ORDERING.min(initialHold, wm.get());
@@ -460,7 +459,7 @@ class InMemoryWatermarkManager {
         }
       }
       if (!pendingTimers.isEmpty()) {
-        earliest = INSTANT_ORDERING.min(pendingTimers.peek().getTimestamp(), earliest);
+        earliest = INSTANT_ORDERING.min(pendingTimers.first().getTimestamp(), earliest);
       }
       return earliest;
     }
@@ -637,7 +636,7 @@ class InMemoryWatermarkManager {
           };
 
   /**
-   * For each (Object, PriorityQueue) pair in the provided map, remove each Timer that is before the
+   * For each (Object, NavigableSet) pair in the provided map, remove each Timer that is before the
    * latestTime argument and put in in the result with the same key, then remove all of the keys
    * which have no more pending timers.
    *
@@ -998,11 +997,11 @@ class InMemoryWatermarkManager {
 
   private static class PerKeyHolds {
     private final Map<Object, KeyedHold> keyedHolds;
-    private final PriorityQueue<KeyedHold> allHolds;
+    private final NavigableSet<KeyedHold> allHolds;
 
     private PerKeyHolds() {
       this.keyedHolds = new HashMap<>();
-      this.allHolds = new PriorityQueue<>();
+      this.allHolds = new TreeSet<>();
     }
 
     /**
@@ -1010,7 +1009,7 @@ class InMemoryWatermarkManager {
      * there are no holds within this {@link PerKeyHolds}.
      */
     public Instant getMinHold() {
-      return allHolds.isEmpty() ? THE_END_OF_TIME.get() : allHolds.peek().getTimestamp();
+      return allHolds.isEmpty() ? THE_END_OF_TIME.get() : allHolds.first().getTimestamp();
     }
 
     /**
@@ -1021,7 +1020,7 @@ class InMemoryWatermarkManager {
       removeHold(key);
       KeyedHold newKeyedHold = KeyedHold.of(key, newHold);
       keyedHolds.put(key, newKeyedHold);
-      allHolds.offer(newKeyedHold);
+      allHolds.add(newKeyedHold);
     }
 
     /**
