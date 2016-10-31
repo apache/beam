@@ -166,11 +166,12 @@ class ReduceStateByKeyReducer implements Runnable {
 
     @Override
     public <T> ListStorage<T> getListStorage(ListStorageDescriptor<T> descriptor) {
-      return new ClearingListStorage<T>(
+      return new ClearingListStorage<>(
           processing.triggerStorage.getListStorage(this.scope, descriptor),
           this.scope,
           descriptor);
     }
+    
   } // ~ end of ElementTriggerContext
 
   class MergingElementTriggerContext
