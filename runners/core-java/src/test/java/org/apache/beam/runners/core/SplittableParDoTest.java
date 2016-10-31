@@ -36,6 +36,7 @@ import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.testing.ValueInSingleWindow;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFnTester;
@@ -142,14 +143,15 @@ public class SplittableParDoTest {
         PCollection.IsBounded.BOUNDED,
         makeBoundedCollection(pipeline)
             .apply("bounded to bounded", new SplittableParDo<>(makeParDo(boundedFn)))
-            .get(MAIN_OUTPUT_TAG).isBounded());
+            .get(MAIN_OUTPUT_TAG)
+            .isBounded());
     assertEquals(
         "Applying a bounded SDF to an unbounded collection produces an unbounded collection",
         PCollection.IsBounded.UNBOUNDED,
         makeUnboundedCollection(pipeline)
-            .apply(
-                "bounded to unbounded", new SplittableParDo<>(makeParDo(boundedFn)))
-            .get(MAIN_OUTPUT_TAG).isBounded());
+            .apply("bounded to unbounded", new SplittableParDo<>(makeParDo(boundedFn)))
+            .get(MAIN_OUTPUT_TAG)
+            .isBounded());
   }
 
   @Test
@@ -160,18 +162,16 @@ public class SplittableParDoTest {
         "Applying an unbounded SDF to a bounded collection produces a bounded collection",
         PCollection.IsBounded.UNBOUNDED,
         makeBoundedCollection(pipeline)
-            .apply(
-                "unbounded to bounded",
-                new SplittableParDo<>(makeParDo(unboundedFn)))
-            .get(MAIN_OUTPUT_TAG).isBounded());
+            .apply("unbounded to bounded", new SplittableParDo<>(makeParDo(unboundedFn)))
+            .get(MAIN_OUTPUT_TAG)
+            .isBounded());
     assertEquals(
         "Applying an unbounded SDF to an unbounded collection produces an unbounded collection",
         PCollection.IsBounded.UNBOUNDED,
         makeUnboundedCollection(pipeline)
-            .apply(
-                "unbounded to unbounded",
-                new SplittableParDo<>(makeParDo(unboundedFn)))
-            .get(MAIN_OUTPUT_TAG).isBounded());
+            .apply("unbounded to unbounded", new SplittableParDo<>(makeParDo(unboundedFn)))
+            .get(MAIN_OUTPUT_TAG)
+            .isBounded());
   }
 
   // ------------------------------- Tests for ProcessFn ---------------------------------
@@ -224,9 +224,11 @@ public class SplittableParDoTest {
                 Instant timestamp,
                 Collection<? extends BoundedWindow> windows,
                 PaneInfo pane) {
-              tester
-                  .getMutableOutput(tester.getMainOutputTag())
-                  .add(WindowedValue.of(output, timestamp, windows, pane));
+              for (BoundedWindow window : windows) {
+                tester
+                    .getMutableOutput(tester.getMainOutputTag())
+                    .add(ValueInSingleWindow.of(output, timestamp, window, pane));
+              }
             }
 
             @Override
@@ -236,7 +238,11 @@ public class SplittableParDoTest {
                 Instant timestamp,
                 Collection<? extends BoundedWindow> windows,
                 PaneInfo pane) {
-              tester.getMutableOutput(tag).add(WindowedValue.of(output, timestamp, windows, pane));
+              for (BoundedWindow window : windows) {
+                tester
+                    .getMutableOutput(tag)
+                    .add(ValueInSingleWindow.of(output, timestamp, window, pane));
+              }
             }
           });
       // Do not clone since ProcessFn references non-serializable DoFnTester itself
