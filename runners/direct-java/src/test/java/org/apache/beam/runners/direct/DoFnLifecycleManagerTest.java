@@ -20,7 +20,6 @@ package org.apache.beam.runners.direct;
 
 import static com.google.common.base.Preconditions.checkState;
 import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.isA;
 import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.theInstance;
@@ -34,7 +33,9 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.reflect.DoFnInvoker;
 import org.apache.beam.sdk.util.UserCodeException;
 import org.hamcrest.Matchers;
 import org.junit.Rule;
@@ -50,47 +51,51 @@ import org.junit.runners.JUnit4;
 public class DoFnLifecycleManagerTest {
   @Rule public ExpectedException thrown = ExpectedException.none();
 
-  private TestFn fn = new TestFn();
-  private DoFnLifecycleManager mgr = DoFnLifecycleManager.of(fn);
+  private DoFnLifecycleManager mgr = DoFnLifecycleManager.of(new TestFn());
 
   @Test
   public void setupOnGet() throws Exception {
-    TestFn obtained = (TestFn) mgr.get();
+    DoFnInvoker obtained = mgr.get();
 
-    assertThat(obtained, not(theInstance(fn)));
-    assertThat(obtained.setupCalled, is(true));
-    assertThat(obtained.teardownCalled, is(false));
+    expectAlreadySetupException();
+    obtained.invokeSetup();
+    // should not have torn down yet
+    obtained.invokeTeardown();
   }
 
   @Test
   public void getMultipleCallsSingleSetupCall() throws Exception {
-    TestFn obtained = (TestFn) mgr.get();
-    TestFn secondObtained = (TestFn) mgr.get();
+    DoFnInvoker obtained = mgr.get();
+    DoFnInvoker secondObtained = mgr.get();
 
     assertThat(obtained, theInstance(secondObtained));
-    assertThat(obtained.setupCalled, is(true));
-    assertThat(obtained.teardownCalled, is(false));
+
+    expectAlreadySetupException();
+    obtained.invokeSetup();
+    // should not have torn down yet
+    obtained.invokeTeardown();
   }
 
   @Test
   public void getMultipleThreadsDifferentInstances() throws Exception {
     CountDownLatch startSignal = new CountDownLatch(1);
     ExecutorService executor = Executors.newCachedThreadPool();
-    List<Future<TestFn>> futures = new ArrayList<>();
+    List<Future<DoFnInvoker>> futures = new ArrayList<>();
     for (int i = 0; i < 10; i++) {
       futures.add(executor.submit(new GetFnCallable(mgr, startSignal)));
     }
     startSignal.countDown();
-    List<TestFn> fns = new ArrayList<>();
-    for (Future<TestFn> future : futures) {
-      fns.add(future.get(1L, TimeUnit.SECONDS));
+    List<DoFnInvoker> invokers = new ArrayList<>();
+    for (Future<DoFnInvoker> future : futures) {
+      invokers.add(future.get(1L, TimeUnit.SECONDS));
     }
 
-    for (TestFn fn : fns) {
-      assertThat(fn.setupCalled, is(true));
+    for (DoFnInvoker invoker: invokers) {
+      expectAlreadySetupException();
+      invoker.invokeSetup();
       int sameInstances = 0;
-      for (TestFn otherFn : fns) {
-        if (otherFn == fn) {
+      for (DoFnInvoker otherInvoker: invokers) {
+        if (otherInvoker == invoker) {
           sameInstances++;
         }
       }
@@ -100,24 +105,21 @@ public class DoFnLifecycleManagerTest {
 
   @Test
   public void teardownOnRemove() throws Exception {
-    TestFn obtained = (TestFn) mgr.get();
+    DoFnInvoker obtained = mgr.get();
     mgr.remove();
 
-    assertThat(obtained, not(theInstance(fn)));
-    assertThat(obtained.setupCalled, is(true));
-    assertThat(obtained.teardownCalled, is(true));
+    expectAlreadyTorndownException();
+    obtained.invokeTeardown();
 
-    assertThat(mgr.get(), not(Matchers.<DoFn<?, ?>>theInstance(obtained)));
+    assertThat(mgr.get(), not(Matchers.<DoFnInvoker<?, ?>>theInstance(obtained)));
   }
 
   @Test
   public void teardownThrowsRemoveThrows() throws Exception {
-    TestFn obtained = (TestFn) mgr.get();
-    obtained.teardown();
+    DoFnInvoker obtained = mgr.get();
+    obtained.invokeTeardown();
 
-    thrown.expect(UserCodeException.class);
-    thrown.expectCause(isA(IllegalStateException.class));
-    thrown.expectMessage("Cannot call teardown: already torn down");
+    expectAlreadyTorndownException();
     mgr.remove();
   }
 
@@ -125,20 +127,20 @@ public class DoFnLifecycleManagerTest {
   public void teardownAllOnRemoveAll() throws Exception {
     CountDownLatch startSignal = new CountDownLatch(1);
     ExecutorService executor = Executors.newCachedThreadPool();
-    List<Future<TestFn>> futures = new ArrayList<>();
+    List<Future<DoFnInvoker>> futures = new ArrayList<>();
     for (int i = 0; i < 10; i++) {
       futures.add(executor.submit(new GetFnCallable(mgr, startSignal)));
     }
     startSignal.countDown();
-    List<TestFn> fns = new ArrayList<>();
-    for (Future<TestFn> future : futures) {
-      fns.add(future.get(1L, TimeUnit.SECONDS));
+    List<DoFnInvoker> invokers = new ArrayList<>();
+    for (Future<DoFnInvoker> future : futures) {
+      invokers.add(future.get(1L, TimeUnit.SECONDS));
     }
     mgr.removeAll();
 
-    for (TestFn fn : fns) {
-      assertThat(fn.setupCalled, is(true));
-      assertThat(fn.teardownCalled, is(true));
+    for (DoFnInvoker invoker : invokers) {
+      expectAlreadyTorndownException();
+      invoker.invokeTeardown();
     }
   }
 
@@ -146,14 +148,14 @@ public class DoFnLifecycleManagerTest {
   public void removeAndRemoveAllConcurrent() throws Exception {
     CountDownLatch startSignal = new CountDownLatch(1);
     ExecutorService executor = Executors.newCachedThreadPool();
-    List<Future<TestFn>> futures = new ArrayList<>();
+    List<Future<DoFnInvoker>> futures = new ArrayList<>();
     for (int i = 0; i < 10; i++) {
       futures.add(executor.submit(new GetFnCallable(mgr, startSignal)));
     }
     startSignal.countDown();
-    List<TestFn> fns = new ArrayList<>();
-    for (Future<TestFn> future : futures) {
-      fns.add(future.get(1L, TimeUnit.SECONDS));
+    List<DoFnInvoker> invokers = new ArrayList<>();
+    for (Future<DoFnInvoker> future : futures) {
+      invokers.add(future.get(1L, TimeUnit.SECONDS));
     }
     CountDownLatch removeSignal = new CountDownLatch(1);
     List<Future<Void>> removeFutures = new ArrayList<>();
@@ -168,13 +170,25 @@ public class DoFnLifecycleManagerTest {
       removed.get();
     }
 
-    for (TestFn fn : fns) {
-      assertThat(fn.setupCalled, is(true));
-      assertThat(fn.teardownCalled, is(true));
+    for (DoFnInvoker invoker : invokers) {
+      expectAlreadyTorndownException();
+      invoker.invokeTeardown();
     }
   }
 
-  private static class GetFnCallable implements Callable<TestFn> {
+  private void expectAlreadySetupException() {
+    thrown.expect(UserCodeException.class);
+    thrown.expectCause(isA(IllegalStateException.class));
+    thrown.expectMessage("Cannot call setup: already set up");
+  }
+
+  private void expectAlreadyTorndownException() {
+    thrown.expect(UserCodeException.class);
+    thrown.expectCause(isA(IllegalStateException.class));
+    thrown.expectMessage("Cannot call teardown: already torn down");
+  }
+
+  private static class GetFnCallable implements Callable<DoFnInvoker> {
     private final DoFnLifecycleManager mgr;
     private final CountDownLatch startSignal;
 
@@ -184,9 +198,9 @@ public class DoFnLifecycleManagerTest {
     }
 
     @Override
-    public TestFn call() throws Exception {
+    public DoFnInvoker call() throws Exception {
       startSignal.await();
-      return (TestFn) mgr.get();
+      return mgr.get();
     }
   }
 
@@ -209,8 +223,8 @@ public class DoFnLifecycleManagerTest {
   }
 
   private static class TestFn extends DoFn<Object, Object> {
-    boolean setupCalled = false;
-    boolean teardownCalled = false;
+    private boolean setupCalled = false;
+    private boolean teardownCalled = false;
 
     @Setup
     public void setup() {
