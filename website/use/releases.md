@@ -17,12 +17,12 @@ Java with the `DirectRunner`, add the following dependencies to your
     <dependency>
       <groupId>org.apache.beam</groupId>
       <artifactId>beam-sdks-java-core</artifactId>
-      <version>0.2.0-incubating</version>
+      <version>0.3.0-incubating</version>
     </dependency>
     <dependency>
       <groupId>org.apache.beam</groupId>
       <artifactId>beam-runners-direct-java</artifactId>
-      <version>0.2.0-incubating</version>
+      <version>0.3.0-incubating</version>
       <scope>runtime</scope>
     </dependency>
 
@@ -31,6 +31,11 @@ connectors or other extensions, and additional runners to execute your pipeline
 at scale.
 
 ## Release Notes
+
+### 0.3.0-incubating
+[Source code download](https://www.apache.org/dyn/closer.cgi?filename=incubator/beam/0.3.0-incubating/apache-beam-0.3.0-incubating-source-release.zip&action=download)
+
+* Release notes are available [in JIRA](https://issues.apache.org/jira/secure/ReleaseNote.jspa?projectId=12319527&version=12338051).
 
 ### 0.2.0-incubating
 [Source code download](https://www.apache.org/dyn/closer.cgi?filename=incubator/beam/0.2.0-incubating/apache-beam-0.2.0-incubating-source-release.zip&action=download)
