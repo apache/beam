@@ -161,7 +161,10 @@
           <li><a href="#fork-the-repository-on-github" id="markdown-toc-fork-the-repository-on-github">Fork the repository on GitHub</a></li>
           <li><a href="#clone-the-repository-locally" id="markdown-toc-clone-the-repository-locally">Clone the repository locally</a></li>
           <li><a href="#optional-ide-setup" id="markdown-toc-optional-ide-setup">[Optional] IDE Setup</a>            <ul>
-              <li><a href="#intellij" id="markdown-toc-intellij">Intellij</a></li>
+              <li><a href="#intellij" id="markdown-toc-intellij">IntelliJ</a>                <ul>
+                  <li><a href="#checkstyle" id="markdown-toc-checkstyle">Checkstyle</a></li>
+                </ul>
+              </li>
               <li><a href="#eclipse" id="markdown-toc-eclipse">Eclipse</a></li>
             </ul>
           </li>
@@ -296,9 +299,41 @@ $ cd incubator-beam
 
 <p>Depending on your preferred development environment, you may need to prepare it to develop Beam code.</p>
 
-<h5 id="intellij">Intellij</h5>
+<h5 id="intellij">IntelliJ</h5>
 
-<p><em>If you are an Intellij user, please contribute instructions! See <a href="https://issues.apache.org/jira/browse/BEAM-835">BEAM-835</a>.</em></p>
+<p><em>This documentation is incomplete. If you are an Intellij user, please contribute instructions!
+See <a href="https://issues.apache.org/jira/browse/BEAM-835">BEAM-835</a>.</em></p>
+
+<h6 id="checkstyle">Checkstyle</h6>
+<p>IntelliJ supports checkstyle within the IDE using the Checkstyle-IDEA plugin.</p>
+
+<ol>
+  <li>Install the “Checkstyle-IDEA” plugin from the IntelliJ plugin repository.</li>
+  <li>Configure the plugin by going to Settings -&gt; Other Settings -&gt; Checkstyle.</li>
+  <li>Set the “Scan Scope” to “Only Java sources (including tests)”.</li>
+  <li>In the “Configuration File” pane, add a new configuration using the plus icon:
+    <ol>
+      <li>Set the “Description” to “Beam”.</li>
+      <li>Select “Use a local Checkstyle file”, and point it to
+   “sdks/java/build-tools/src/main/resources/beam/checkstyle.xml” within
+   your repository.</li>
+      <li>Check the box for “Store relative to project location”, and click
+   “Next”.</li>
+      <li>Configure the “checkstyle.suppressions.file” property value to
+   “suppressions.xml”, and click “Next”, then “Finish”.</li>
+    </ol>
+  </li>
+  <li>Select “Beam” as the only active configuration file, and click “Apply” and
+“OK”.</li>
+  <li>Checkstyle will now give warnings in the editor for any Checkstyle
+violations.</li>
+</ol>
+
+<p>You can also scan an entire module by opening the Checkstyle tools window and
+clicking the “Check Module” button. The scan should report no errors.</p>
+
+<p>Note: Selecting “Check Project” may report some errors from the archetype
+modules as they are not configured for Checkstyle validation.</p>
 
 <h5 id="eclipse">Eclipse</h5>
 
