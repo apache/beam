@@ -231,6 +231,8 @@ class ReadFromText(PTransform):
       strip_trailing_newlines: Indicates whether this source should remove
                                the newline char in each line it reads before
                                decoding that line.
+      validate: flag to verify that the files exist during the pipeline
+                creation time.
       coder: Coder used to decode each line.
     """
 

@@ -70,6 +70,8 @@ class ReadFromAvro(PTransform):
       file_pattern: the set of files to be read.
       min_bundle_size: the minimum size in bytes, to be considered when
                        splitting the input into bundles.
+      validate: flag to verify that the files exist during the pipeline
+                creation time.
       **kwargs: Additional keyword arguments to be passed to the base class.
     """
     super(ReadFromAvro, self).__init__()
