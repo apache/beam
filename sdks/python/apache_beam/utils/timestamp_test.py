@@ -21,8 +21,8 @@ from __future__ import absolute_import
 
 import unittest
 
-from apache_beam.transforms.timeutil import Duration
-from apache_beam.transforms.timeutil import Timestamp
+from apache_beam.utils.timestamp import Duration
+from apache_beam.utils.timestamp import Timestamp
 
 
 class TimestampTest(unittest.TestCase):
