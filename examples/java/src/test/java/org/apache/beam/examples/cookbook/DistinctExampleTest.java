@@ -32,7 +32,7 @@ import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/** Unit tests for {@link DeDupExample}. */
+/** Unit tests for {@link Distinct}. */
 @RunWith(JUnit4.class)
 public class DistinctExampleTest {
 
