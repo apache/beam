@@ -75,7 +75,6 @@
     <module>euphoria-kafka</module>
     <module>euphoria-hadoop</module>
     <module>euphoria-testapps</module>
-    <module>euphoria-ios</module>
     <module>euphoria-operator-testkit</module>
     <module>euphoria-flink</module>
   </modules>
