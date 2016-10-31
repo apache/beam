@@ -126,10 +126,12 @@ public class TestDataSinkOutputFormat {
 
   private TaskAttemptContext mockContext(Configuration conf, int taskId) {
     TaskAttemptContext ret = mock(TaskAttemptContext.class);
-    TaskAttemptID id = mock(TaskAttemptID.class);
+    TaskAttemptID mockAttemptId = mock(TaskAttemptID.class);
+    TaskID mockTaskId = mock(TaskID.class);
     when(ret.getConfiguration()).thenReturn(conf);
-    when(ret.getTaskAttemptID()).thenReturn(id);
-    when(id.getId()).thenReturn(taskId);
+    when(ret.getTaskAttemptID()).thenReturn(mockAttemptId);
+    when(mockAttemptId.getTaskID()).thenReturn(mockTaskId);
+    when(mockTaskId.getId()).thenReturn(taskId);
     return ret;
   }
 
