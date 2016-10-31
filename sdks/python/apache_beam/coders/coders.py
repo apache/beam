@@ -19,6 +19,7 @@
 
 import base64
 import cPickle as pickle
+import google.protobuf
 
 from apache_beam.coders import coder_impl
 
@@ -448,6 +449,39 @@ class Base64PickleCoder(Coder):
 
   def value_coder(self):
     return self
+
+
+class ProtoCoder(FastCoder):
+  """A Coder for Google Protocol Buffers.
+
+  It supports both Protocol Buffers syntax versions 2 and 3. However,
+  the runtime version of the python protobuf library must exactly match the
+  version of the protoc compiler what was used to generate the protobuf
+  messages.
+
+  ProtoCoder is registered in the global CoderRegistry as the default coder for
+  any protobuf Message object.
+
+  """
+
+  def __init__(self, proto_message_type):
+    self.proto_message_type = proto_message_type
+
+  def _create_impl(self):
+    return coder_impl.ProtoCoderImpl(self.proto_message_type)
+
+  def is_deterministic(self):
+    # TODO(vikasrk): A proto message can be deterministic if it does not contain
+    # a Map.
+    return False
+
+  @staticmethod
+  def from_type_hint(typehint, unused_registry):
+    if issubclass(typehint, google.protobuf.message.Message):
+      return ProtoCoder(typehint)
+    else:
+      raise ValueError(('Expected a subclass of google.protobuf.message.Message'
+                        ', but got a %s' % typehint))
 
 
 class TupleCoder(FastCoder):
