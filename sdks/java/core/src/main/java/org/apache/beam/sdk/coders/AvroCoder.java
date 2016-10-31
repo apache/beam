@@ -21,6 +21,7 @@ import static org.apache.beam.sdk.util.Structs.addString;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.google.common.base.Supplier;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.ObjectStreamException;
@@ -165,9 +166,7 @@ public class AvroCoder<T> extends StandardCoder<T> {
   };
 
   private final Class<T> type;
-  private transient Schema schema;
-
-  private final String schemaStr;
+  private final SerializableSchemaSupplier schemaSupplier;
 
   private final List<String> nonDeterministicReasons;
 
@@ -190,6 +189,43 @@ public class AvroCoder<T> extends StandardCoder<T> {
     }
   }
 
+  /**
+   * A {@link Serializable} object that holds the {@link String} version of a {@link Schema}.
+   * This is paired with the {@link SerializableSchemaSupplier} via {@link Serializable}'s usage
+   * of the {@link #readResolve} method.
+   */
+  private static class SerializableSchemaString implements Serializable {
+    private final String schema;
+    private SerializableSchemaString(String schema) {
+      this.schema = schema;
+    }
+
+    private Object readResolve() throws IOException, ClassNotFoundException {
+      return new SerializableSchemaSupplier(Schema.parse(schema));
+    }
+  }
+
+  /**
+   * A {@link Serializable} object that delegates to the {@link SerializableSchemaString} via
+   * {@link Serializable}'s usage of the {@link #writeReplace} method. Kryo doesn't utilize
+   * Java's serialization and hence is able to encode the {@link Schema} object directly.
+   */
+  private static class SerializableSchemaSupplier implements Serializable, Supplier<Schema> {
+    private final Schema schema;
+    private SerializableSchemaSupplier(Schema schema) {
+      this.schema = schema;
+    }
+
+    private Object writeReplace() {
+      return new SerializableSchemaString(schema.toString());
+    }
+
+    @Override
+    public Schema get() {
+      return schema;
+    }
+  }
+
   // Cache the old encoder/decoder and let the factories reuse them when possible. To be threadsafe,
   // these are ThreadLocal. This code does not need to be re-entrant as AvroCoder does not use
   // an inner coder.
@@ -200,8 +236,7 @@ public class AvroCoder<T> extends StandardCoder<T> {
 
   protected AvroCoder(Class<T> type, Schema schema) {
     this.type = type;
-    this.schema = schema;
-    this.schemaStr = schema.toString();
+    this.schemaSupplier = new SerializableSchemaSupplier(schema);
     nonDeterministicReasons = new AvroDeterminismChecker().check(TypeDescriptor.of(type), schema);
 
     // Decoder and Encoder start off null for each thread. They are allocated and potentially
@@ -293,7 +328,7 @@ public class AvroCoder<T> extends StandardCoder<T> {
   public CloudObject asCloudObject() {
     CloudObject result = super.asCloudObject();
     addString(result, "type", type.getName());
-    addString(result, "schema", getSchema().toString());
+    addString(result, "schema", schemaSupplier.get().toString());
     return result;
   }
 
@@ -319,9 +354,9 @@ public class AvroCoder<T> extends StandardCoder<T> {
   @Deprecated
   public DatumReader<T> createDatumReader() {
     if (type.equals(GenericRecord.class)) {
-      return new GenericDatumReader<>(getSchema());
+      return new GenericDatumReader<>(schemaSupplier.get());
     } else {
-      return new ReflectDatumReader<>(getSchema());
+      return new ReflectDatumReader<>(schemaSupplier.get());
     }
   }
 
@@ -334,9 +369,9 @@ public class AvroCoder<T> extends StandardCoder<T> {
   @Deprecated
   public DatumWriter<T> createDatumWriter() {
     if (type.equals(GenericRecord.class)) {
-      return new GenericDatumWriter<>(getSchema());
+      return new GenericDatumWriter<>(schemaSupplier.get());
     } else {
-      return new ReflectDatumWriter<>(getSchema());
+      return new ReflectDatumWriter<>(schemaSupplier.get());
     }
   }
 
@@ -344,19 +379,7 @@ public class AvroCoder<T> extends StandardCoder<T> {
    * Returns the schema used by this coder.
    */
   public Schema getSchema() {
-    return getMemoizedSchema();
-  }
-
-  /**
-   * Get the {@link Schema}, possibly initializing it lazily by parsing {@link
-   * AvroCoder#schemaStr}.
-   */
-  private Schema getMemoizedSchema() {
-    if (schema == null) {
-      Schema.Parser parser = new Schema.Parser();
-      schema = parser.parse(schemaStr);
-    }
-    return schema;
+    return schemaSupplier.get();
   }
 
   /**
