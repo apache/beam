@@ -39,6 +39,7 @@ class InMemorySorter implements Sorter {
 
     /** Sets the size of the memory buffer in megabytes. */
     public void setMemoryMB(int memoryMB) {
+      checkArgument(memoryMB > 0, "memoryMB must be greater than zero");
       this.memoryMB = memoryMB;
     }
 
@@ -59,10 +60,10 @@ class InMemorySorter implements Sorter {
    * and values.
    *
    * <ul>
-   * <li> Object reference within {@link ArrayList} (1 word),
-   * <li> A {@link KV} (2 words),
-   * <li> Two byte arrays (2 words for array lengths),
-   * <li> Per-object overhead (JVM-specific, guessing 2 words * 3 objects)
+   *   <li> Object reference within {@link ArrayList} (1 word),
+   *   <li> A {@link KV} (2 words),
+   *   <li> Two byte arrays (2 words for array lengths),
+   *   <li> Per-object overhead (JVM-specific, guessing 2 words * 3 objects)
    * </ul>
    */
   private static final int RECORD_MEMORY_OVERHEAD_ESTIMATE = 11 * NUM_BYTES_PER_WORD;
@@ -91,7 +92,7 @@ class InMemorySorter implements Sorter {
 
   @Override
   public void add(KV<byte[], byte[]> record) {
-    checkArgument(addIfRoom(record), "No space remaining for in memory sorting");
+    checkState(addIfRoom(record), "No space remaining for in memory sorting");
   }
 
   /** Adds the record is there is room and returns true. Otherwise returns false. */

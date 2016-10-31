@@ -27,9 +27,11 @@ import static org.junit.Assert.assertTrue;
 import com.google.common.primitives.UnsignedBytes;
 import java.util.Random;
 import org.apache.beam.sdk.values.KV;
+import org.junit.rules.ExpectedException;
 
 /** A set of basic tests for {@link Sorter}s. */
 public class SorterTestUtils {
+
   public static void testEmpty(Sorter sorter) throws Exception {
     assertThat(sorter.sort(), is(emptyIterable()));
   }
@@ -106,7 +108,9 @@ public class SorterTestUtils {
   }
 
   /** Tests trying to call add after calling sort. Should throw an exception. */
-  public static void testAddAfterSort(Sorter sorter) throws Exception {
+  public static void testAddAfterSort(Sorter sorter, ExpectedException thrown) throws Exception {
+    thrown.expect(IllegalStateException.class);
+    thrown.expectMessage(is("Records can only be added before sort()"));
     KV<byte[], byte[]> kv = KV.of(new byte[] {4, 7}, new byte[] {1, 2});
     sorter.add(kv);
     sorter.sort();
@@ -114,7 +118,9 @@ public class SorterTestUtils {
   }
 
   /** Tests trying to calling sort twice. Should throw an exception. */
-  public static void testSortTwice(Sorter sorter) throws Exception {
+  public static void testSortTwice(Sorter sorter, ExpectedException thrown) throws Exception {
+    thrown.expect(IllegalStateException.class);
+    thrown.expectMessage(is("sort() can only be called once."));
     KV<byte[], byte[]> kv = KV.of(new byte[] {4, 7}, new byte[] {1, 2});
     sorter.add(kv);
     sorter.sort();

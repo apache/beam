@@ -18,11 +18,11 @@
 -->
 
 #Sorter
-This module provides the SortValues transform, which takes a `PCollection<KV<K,Iterable<V>>> and produces a PCollection<KV<K,Iterable<V>>>` where the `Iterable<V>` has been sorted for each key. It will efficiently and scalably sort the iterables, even if they are large (do not fit in memory).
+This module provides the SortValues transform, which takes a `PCollection<KV<K, Iterable<KV<K2, V>>>>` and produces a `PCollection<KV<K, Iterable<KV<K2, V>>>>` where the `Iterable<<KV<K2, V>>>` has been sorted for each secondary key (`K2`). It will efficiently and scalably sort the iterables, even if they are large (do not fit in memory).
 
 ##Caveats
 * This transform performs value-only sorting; the iterable accompanying each key is sorted, but *there is no relationship between different keys*, as Beam does not support any defined relationship between different elements in a PCollection.
-* Each `Iterable<V>` is sorted on a single worker using local memory and disk. This means that `SortValues` may be a performance and/or scalability bottleneck when used in different pipelines. For example, users are discouraged from using `SortValues` on a `PCollection` of a single element to globally sort a large `PCollection`.
+* Each `Iterable<KV<K2, V>>` is sorted on a single worker using local memory and disk. This means that `SortValues` may be a performance and/or scalability bottleneck when used in different pipelines. For example, users are discouraged from using `SortValues` on a `PCollection` of a single element to globally sort a large `PCollection`.
 
 ##Options
 * The user can customize the temporary location used if sorting requires spilling to disk and the maximum amount of memory to use by creating a custom instance of `BufferedExternalSorter.Options` to pass into `SortValues.create`.

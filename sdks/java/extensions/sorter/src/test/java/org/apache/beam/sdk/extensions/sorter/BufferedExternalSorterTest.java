@@ -18,6 +18,8 @@
 
 package org.apache.beam.sdk.extensions.sorter;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.fail;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -29,23 +31,24 @@ import java.lang.reflect.Constructor;
 import java.util.Arrays;
 import org.apache.beam.sdk.extensions.sorter.SorterTestUtils.SorterGenerator;
 import org.apache.beam.sdk.values.KV;
-import org.junit.Assert;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
+import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
 
 /** Tests for {@link BufferedExternalSorter}. */
+@RunWith(JUnit4.class)
 public class BufferedExternalSorterTest {
+  @Rule public ExpectedException thrown = ExpectedException.none();
 
   @SuppressWarnings("unchecked")
   @Test
   public void testNoFallback() throws Exception {
     ExternalSorter mockExternalSorter = mock(ExternalSorter.class);
     InMemorySorter mockInMemorySorter = mock(InMemorySorter.class);
-    Constructor<BufferedExternalSorter> constructor =
-        BufferedExternalSorter.class
-            .getDeclaredConstructor(ExternalSorter.class, InMemorySorter.class);
-    constructor.setAccessible(true);
     BufferedExternalSorter testSorter =
-        constructor.newInstance(mockExternalSorter, mockInMemorySorter);
+        new BufferedExternalSorter(mockExternalSorter, mockInMemorySorter);
 
     KV<byte[], byte[]>[] kvs =
         new KV[] {
@@ -63,7 +66,7 @@ public class BufferedExternalSorterTest {
     testSorter.add(kvs[1]);
     testSorter.add(kvs[2]);
 
-    Assert.assertEquals(Arrays.asList(kvs[0], kvs[1], kvs[2]), testSorter.sort());
+    assertEquals(Arrays.asList(kvs[0], kvs[1], kvs[2]), testSorter.sort());
 
     // Verify external sorter was never called
     verify(mockExternalSorter, never()).add(any(KV.class));
@@ -75,8 +78,8 @@ public class BufferedExternalSorterTest {
     ExternalSorter mockExternalSorter = mock(ExternalSorter.class);
     InMemorySorter mockInMemorySorter = mock(InMemorySorter.class);
     Constructor<BufferedExternalSorter> constructor =
-        BufferedExternalSorter.class
-            .getDeclaredConstructor(ExternalSorter.class, InMemorySorter.class);
+        BufferedExternalSorter.class.getDeclaredConstructor(
+            ExternalSorter.class, InMemorySorter.class);
     constructor.setAccessible(true);
     BufferedExternalSorter testSorter =
         constructor.newInstance(mockExternalSorter, mockInMemorySorter);
@@ -99,7 +102,7 @@ public class BufferedExternalSorterTest {
     testSorter.add(kvs[1]);
     testSorter.add(kvs[2]);
 
-    Assert.assertEquals(Arrays.asList(kvs[0], kvs[1], kvs[2]), testSorter.sort());
+    assertEquals(Arrays.asList(kvs[0], kvs[1], kvs[2]), testSorter.sort());
 
     verify(mockExternalSorter, times(1)).add(kvs[0]);
     verify(mockExternalSorter, times(1)).add(kvs[1]);
@@ -155,15 +158,25 @@ public class BufferedExternalSorterTest {
         1000000);
   }
 
-  @Test(expected = RuntimeException.class)
+  @Test
   public void testAddAfterSort() throws Exception {
     SorterTestUtils.testAddAfterSort(
-        BufferedExternalSorter.create(new BufferedExternalSorter.Options()));
+        BufferedExternalSorter.create(new BufferedExternalSorter.Options()), thrown);
+    fail();
   }
 
-  @Test(expected = RuntimeException.class)
+  @Test
   public void testSortTwice() throws Exception {
     SorterTestUtils.testSortTwice(
-        BufferedExternalSorter.create(new BufferedExternalSorter.Options()));
+        BufferedExternalSorter.create(new BufferedExternalSorter.Options()), thrown);
+    fail();
+  }
+
+  @Test
+  public void testNegativeMemory() throws Exception {
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage("memoryMB must be greater than zero");
+    BufferedExternalSorter.Options options = new BufferedExternalSorter.Options();
+    options.setMemoryMB(-1);
   }
 }

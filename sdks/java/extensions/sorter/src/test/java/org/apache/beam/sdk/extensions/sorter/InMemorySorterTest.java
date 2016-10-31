@@ -18,13 +18,22 @@
 
 package org.apache.beam.sdk.extensions.sorter;
 
+import static org.hamcrest.Matchers.is;
+import static org.junit.Assert.fail;
+
 import org.apache.beam.sdk.extensions.sorter.SorterTestUtils.SorterGenerator;
 import org.apache.beam.sdk.values.KV;
 import org.junit.Assert;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
+import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
 
 /** Tests for {@link InMemorySorter}. */
+@RunWith(JUnit4.class)
 public class InMemorySorterTest {
+  @Rule public ExpectedException thrown = ExpectedException.none();
 
   @Test
   public void testEmpty() throws Exception {
@@ -59,14 +68,16 @@ public class InMemorySorterTest {
         10);
   }
 
-  @Test(expected = RuntimeException.class)
+  @Test
   public void testAddAfterSort() throws Exception {
-    SorterTestUtils.testAddAfterSort(InMemorySorter.create(new InMemorySorter.Options()));
+    SorterTestUtils.testAddAfterSort(InMemorySorter.create(new InMemorySorter.Options()), thrown);
+    fail();
   }
 
-  @Test(expected = RuntimeException.class)
+  @Test
   public void testSortTwice() throws Exception {
-    SorterTestUtils.testSortTwice(InMemorySorter.create(new InMemorySorter.Options()));
+    SorterTestUtils.testSortTwice(InMemorySorter.create(new InMemorySorter.Options()), thrown);
+    fail();
   }
 
   /**
@@ -74,8 +85,10 @@ public class InMemorySorterTest {
    *
    * @throws Exception
    */
-  @Test(expected = RuntimeException.class)
+  @Test
   public void testOutOfSpace() throws Exception {
+    thrown.expect(IllegalStateException.class);
+    thrown.expectMessage(is("No space remaining for in memory sorting"));
     SorterTestUtils.testRandom(
         new SorterGenerator() {
           @Override
@@ -119,5 +132,13 @@ public class InMemorySorterTest {
     }
 
     Assert.assertFalse(stillRoom);
+  }
+
+  @Test
+  public void testNegativeMemory() throws Exception {
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage("memoryMB must be greater than zero");
+    InMemorySorter.Options options = new InMemorySorter.Options();
+    options.setMemoryMB(-1);
   }
 }

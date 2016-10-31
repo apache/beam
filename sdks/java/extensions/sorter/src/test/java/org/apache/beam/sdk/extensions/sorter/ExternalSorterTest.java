@@ -18,14 +18,19 @@
 
 package org.apache.beam.sdk.extensions.sorter;
 
+import static org.junit.Assert.fail;
+
 import org.apache.beam.sdk.extensions.sorter.SorterTestUtils.SorterGenerator;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 /** Tests for Sorter. */
 @RunWith(JUnit4.class)
 public class ExternalSorterTest {
+  @Rule public ExpectedException thrown = ExpectedException.none();
 
   @Test
   public void testEmpty() throws Exception {
@@ -60,13 +65,23 @@ public class ExternalSorterTest {
         1000000);
   }
 
-  @Test(expected = RuntimeException.class)
+  @Test
   public void testAddAfterSort() throws Exception {
-    SorterTestUtils.testAddAfterSort(ExternalSorter.create(new ExternalSorter.Options()));
+    SorterTestUtils.testAddAfterSort(ExternalSorter.create(new ExternalSorter.Options()), thrown);
+    fail();
   }
 
-  @Test(expected = RuntimeException.class)
+  @Test
   public void testSortTwice() throws Exception {
-    SorterTestUtils.testSortTwice(ExternalSorter.create(new ExternalSorter.Options()));
+    SorterTestUtils.testSortTwice(ExternalSorter.create(new ExternalSorter.Options()), thrown);
+    fail();
+  }
+
+  @Test
+  public void testNegativeMemory() throws Exception {
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage("memoryMB must be greater than zero");
+    ExternalSorter.Options options = new ExternalSorter.Options();
+    options.setMemoryMB(-1);
   }
 }

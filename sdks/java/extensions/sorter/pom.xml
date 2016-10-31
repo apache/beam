@@ -66,7 +66,6 @@
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-shade-plugin</artifactId>
-        <version>2.4.1</version>
         <executions>
           <!-- In the first phase, we pick dependencies and relocate them. -->
           <execution>
@@ -80,6 +79,7 @@
               <artifactSet>
                 <includes>
                   <include>org.apache.hadoop:hadoop-client</include>
+                  <include>com.google.guava:guava</include>
                 </includes>
               </artifactSet>
               <filters>
@@ -96,6 +96,10 @@
                 <relocation>
                   <pattern>org.apache.hadoop</pattern>
                   <shadedPattern>org.apache.beam.repackaged.org.apache.hadoop</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>com.google.common</pattern>
+                  <shadedPattern>org.apache.beam.repackaged.com.google.common</shadedPattern>
                 </relocation>
               </relocations>
             </configuration>
@@ -115,6 +119,7 @@
               <artifactSet>
                 <excludes>
                   <exclude>org.apache.hadoop:hadoop-client</exclude>
+                  <exclude>com.google.guava:guava</exclude>
                 </excludes>
               </artifactSet>
               <filters>
@@ -144,36 +149,25 @@
 
     <dependency>
       <groupId>org.apache.hadoop</groupId>
-      <artifactId>hadoop-client</artifactId>
-      <version>${hadoop.version}</version>
-      <scope>provided</scope>
-    </dependency>
-    
-    <dependency>
-      <groupId>org.apache.hadoop</groupId>
       <artifactId>hadoop-mapreduce-client-core</artifactId>
       <version>${hadoop.version}</version>
-      <scope>provided</scope>
     </dependency>
     
     <dependency>
       <groupId>org.apache.hadoop</groupId>
       <artifactId>hadoop-common</artifactId>
       <version>${hadoop.version}</version>
-      <scope>provided</scope>
     </dependency>
     
     <dependency>
       <groupId>com.google.guava</groupId>
       <artifactId>guava</artifactId>
-      <scope>compile</scope>
     </dependency>
 
     <!-- test dependencies -->
     <dependency>
       <groupId>org.apache.beam</groupId>
       <artifactId>beam-runners-direct-java</artifactId>
-      <version>${project.version}</version>
       <scope>test</scope>
     </dependency>
     

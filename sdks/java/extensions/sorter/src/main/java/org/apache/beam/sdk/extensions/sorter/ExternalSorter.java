@@ -18,6 +18,7 @@
 
 package org.apache.beam.sdk.extensions.sorter;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 
 import java.io.ByteArrayInputStream;
@@ -81,6 +82,7 @@ class ExternalSorter implements Sorter {
 
     /** Sets the size of the memory buffer in megabytes. */
     public void setMemoryMB(int memoryMB) {
+      checkArgument(memoryMB > 0, "memoryMB must be greater than zero");
       this.memoryMB = memoryMB;
     }
 

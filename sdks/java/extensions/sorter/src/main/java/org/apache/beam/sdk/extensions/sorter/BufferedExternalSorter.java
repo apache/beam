@@ -68,7 +68,7 @@ public class BufferedExternalSorter implements Sorter {
 
   boolean inMemorySorterFull;
 
-  private BufferedExternalSorter(ExternalSorter externalSorter, InMemorySorter inMemorySorter) {
+  BufferedExternalSorter(ExternalSorter externalSorter, InMemorySorter inMemorySorter) {
     this.externalSorter = externalSorter;
     this.inMemorySorter = inMemorySorter;
   }
