@@ -33,7 +33,6 @@ import com.fasterxml.jackson.databind.SerializerProvider;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.fasterxml.jackson.databind.deser.ContextualDeserializer;
-
 import java.io.IOException;
 import java.io.Serializable;
 import java.lang.reflect.InvocationHandler;
@@ -41,6 +40,7 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.util.concurrent.ConcurrentHashMap;
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.transforms.SerializableFunction;
 
 /**
  * {@link ValueProvider} is an interface which abstracts the notion of
@@ -99,35 +99,26 @@ public interface ValueProvider<T> {
    */
   public static class NestedValueProvider<T, X> implements ValueProvider<T>, Serializable {
 
-    /**
-     * An interface that provides a translator for a {@link NestedValueProvider}
-     * to produce a value from a deferred {@link ValueProvider}.
-     */
-    public static interface DeferrableTranslator<V, W> extends Serializable {
-      public V createValue(W from);
-    }
-
-    @Nullable
     private final ValueProvider<X> value;
-    private final DeferrableTranslator<T, X> translator;
+    private final SerializableFunction<X, T> translator;
 
-    NestedValueProvider(@Nullable ValueProvider<X> value, DeferrableTranslator<T, X> translator) {
-      this.value = value;
-      this.translator = translator;
+    NestedValueProvider(ValueProvider<X> value, SerializableFunction<X, T> translator) {
+      this.value = checkNotNull(value);
+      this.translator = checkNotNull(translator);
     }
 
     /**
      * Creates a {@link NestedValueProvider} that wraps the provided value.
      */
     public static <T, X> NestedValueProvider<T, X> of(
-        ValueProvider<X> value, DeferrableTranslator<T, X> translator) {
+        ValueProvider<X> value, SerializableFunction<X, T> translator) {
       NestedValueProvider<T, X> factory = new NestedValueProvider<T, X>(value, translator);
       return factory;
     }
 
     @Override
     public T get() {
-      return translator.createValue(value.get());
+      return translator.apply(value.get());
     }
 
     @Override

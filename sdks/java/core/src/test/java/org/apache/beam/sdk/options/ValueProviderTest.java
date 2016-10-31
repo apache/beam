@@ -29,6 +29,7 @@ import java.util.List;
 import org.apache.beam.sdk.options.ValueProvider.NestedValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.RuntimeValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
+import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -216,9 +217,9 @@ public class ValueProviderTest {
   public void testNestedValueProviderStatic() throws Exception {
     ValueProvider<String> svp = StaticValueProvider.of("foo");
     ValueProvider<String> nvp = NestedValueProvider.of(
-      svp, new NestedValueProvider.DeferrableTranslator<String, String>() {
+      svp, new SerializableFunction<String, String>() {
         @Override
-        public String createValue(String from) {
+        public String apply(String from) {
           return from + "bar";
         }
       });
@@ -231,9 +232,9 @@ public class ValueProviderTest {
     TestOptions options = PipelineOptionsFactory.as(TestOptions.class);
     ValueProvider<String> rvp = options.getBar();
     ValueProvider<String> nvp = NestedValueProvider.of(
-      rvp, new NestedValueProvider.DeferrableTranslator<String, String>() {
+      rvp, new SerializableFunction<String, String>() {
         @Override
-        public String createValue(String from) {
+        public String apply(String from) {
           return from + "bar";
         }
       });
