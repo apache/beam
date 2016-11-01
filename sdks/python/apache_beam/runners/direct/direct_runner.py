@@ -156,6 +156,3 @@ class DirectPipelineResult(PipelineResult):
 class EagerPipelineRunner(DirectPipelineRunner):
 
   is_eager = True
-
-  def __init__(self):
-    super(EagerPipelineRunner, self).__init__()
