@@ -26,6 +26,7 @@ cimport libc.stdlib
 cimport libc.string
 
 from .stream cimport InputStream, OutputStream
+from apache_beam.utils cimport windowed_value
 
 
 cdef object loads, dumps, create_InputStream, create_OutputStream, ByteCountingOutputStream, get_varint_size
@@ -137,3 +138,6 @@ cdef class WindowedValueCoderImpl(StreamCoderImpl):
 
   @cython.locals(c=CoderImpl)
   cpdef get_estimated_size_and_observables(self, value, bint nested=?)
+
+  @cython.locals(wv=windowed_value.WindowedValue)
+  cpdef encode_to_stream(self, value, OutputStream stream, bint nested)
