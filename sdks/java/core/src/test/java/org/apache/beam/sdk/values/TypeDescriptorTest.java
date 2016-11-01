@@ -194,4 +194,16 @@ public class TypeDescriptorTest {
         new TypeToken<List<Set<String>>>() {}.getType(),
         rememberer.descriptorByInstance.getType());
   }
+
+  @Test
+  public void testWhere() throws Exception {
+    useWhereMethodToDefineTypeParam(new TypeDescriptor<String>() {});
+  }
+
+  private <T> void useWhereMethodToDefineTypeParam(TypeDescriptor<T> parameterType) {
+    TypeDescriptor<Set<T>> typeDescriptor = new TypeDescriptor<Set<T>>() {}.where(
+        new TypeParameter<T>() {}, parameterType);
+    assertEquals(new TypeToken<Set<String>>() {}.getType(),
+        typeDescriptor.getType());
+  }
 }
