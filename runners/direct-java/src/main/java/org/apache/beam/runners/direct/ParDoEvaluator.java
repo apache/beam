@@ -39,8 +39,8 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 
-class ParDoEvaluator<T> implements TransformEvaluator<T> {
-  public static <InputT, OutputT> ParDoEvaluator<InputT> create(
+class ParDoEvaluator<InputT, OutputT> implements TransformEvaluator<InputT> {
+  public static <InputT, OutputT> ParDoEvaluator<InputT, OutputT> create(
       EvaluationContext evaluationContext,
       DirectStepContext stepContext,
       AppliedPTransform<PCollection<InputT>, ?, ?> application,
@@ -86,17 +86,17 @@ class ParDoEvaluator<T> implements TransformEvaluator<T> {
 
   ////////////////////////////////////////////////////////////////////////////////////////////////
 
-  private final PushbackSideInputDoFnRunner<T, ?> fnRunner;
-  private final AppliedPTransform<PCollection<T>, ?, ?> transform;
+  private final PushbackSideInputDoFnRunner<InputT, ?> fnRunner;
+  private final AppliedPTransform<PCollection<InputT>, ?, ?> transform;
   private final AggregatorContainer.Mutator aggregatorChanges;
   private final Collection<UncommittedBundle<?>> outputBundles;
   private final DirectStepContext stepContext;
 
-  private final ImmutableList.Builder<WindowedValue<T>> unprocessedElements;
+  private final ImmutableList.Builder<WindowedValue<InputT>> unprocessedElements;
 
   private ParDoEvaluator(
-      PushbackSideInputDoFnRunner<T, ?> fnRunner,
-      AppliedPTransform<PCollection<T>, ?, ?> transform,
+      PushbackSideInputDoFnRunner<InputT, ?> fnRunner,
+      AppliedPTransform<PCollection<InputT>, ?, ?> transform,
       AggregatorContainer.Mutator aggregatorChanges,
       Collection<UncommittedBundle<?>> outputBundles,
       DirectStepContext stepContext) {
@@ -109,9 +109,9 @@ class ParDoEvaluator<T> implements TransformEvaluator<T> {
   }
 
   @Override
-  public void processElement(WindowedValue<T> element) {
+  public void processElement(WindowedValue<InputT> element) {
     try {
-      Iterable<WindowedValue<T>> unprocessed = fnRunner.processElementInReadyWindows(element);
+      Iterable<WindowedValue<InputT>> unprocessed = fnRunner.processElementInReadyWindows(element);
       unprocessedElements.addAll(unprocessed);
     } catch (Exception e) {
       throw UserCodeException.wrap(e);
