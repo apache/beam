@@ -176,9 +176,8 @@ public abstract class SparkProcessContext<InputT, OutputT, ValueT>
     }
   }
 
-  static <T> WindowedValue<T> noElementWindowedValue(final T output,
-                                                     final Instant timestamp,
-                                                     WindowFn<Object, ?> windowFn) {
+  static <T> WindowedValue<T> noElementWindowedValue(
+      final T output, final Instant timestamp, WindowFn<Object, ? extends BoundedWindow> windowFn) {
     WindowFn.AssignContext assignContext = windowFn.new AssignContext() {
 
       @Override
