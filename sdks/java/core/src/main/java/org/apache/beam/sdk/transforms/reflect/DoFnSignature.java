@@ -20,7 +20,6 @@ package org.apache.beam.sdk.transforms.reflect;
 import com.google.auto.value.AutoValue;
 import com.google.common.base.Predicates;
 import com.google.common.collect.Iterables;
-import com.google.common.reflect.TypeToken;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.Collections;
@@ -342,7 +341,7 @@ public abstract class DoFnSignature {
 
     /** Concrete type of the {@link RestrictionTracker} parameter, if present. */
     @Nullable
-    abstract TypeToken<?> trackerT();
+    abstract TypeDescriptor<?> trackerT();
 
     /** Whether this {@link DoFn} returns a {@link ProcessContinuation} or void. */
     public abstract boolean hasReturnValue();
@@ -350,7 +349,7 @@ public abstract class DoFnSignature {
     static ProcessElementMethod create(
         Method targetMethod,
         List<Parameter> extraParameters,
-        TypeToken<?> trackerT,
+        TypeDescriptor<?> trackerT,
         boolean hasReturnValue) {
       return new AutoValue_DoFnSignature_ProcessElementMethod(
           targetMethod, Collections.unmodifiableList(extraParameters), trackerT, hasReturnValue);
@@ -462,9 +461,9 @@ public abstract class DoFnSignature {
     public abstract Method targetMethod();
 
     /** Type of the returned restriction. */
-    abstract TypeToken<?> restrictionT();
+    abstract TypeDescriptor<?> restrictionT();
 
-    static GetInitialRestrictionMethod create(Method targetMethod, TypeToken<?> restrictionT) {
+    static GetInitialRestrictionMethod create(Method targetMethod, TypeDescriptor<?> restrictionT) {
       return new AutoValue_DoFnSignature_GetInitialRestrictionMethod(targetMethod, restrictionT);
     }
   }
@@ -477,9 +476,9 @@ public abstract class DoFnSignature {
     public abstract Method targetMethod();
 
     /** Type of the restriction taken and returned. */
-    abstract TypeToken<?> restrictionT();
+    abstract TypeDescriptor<?> restrictionT();
 
-    static SplitRestrictionMethod create(Method targetMethod, TypeToken<?> restrictionT) {
+    static SplitRestrictionMethod create(Method targetMethod, TypeDescriptor<?> restrictionT) {
       return new AutoValue_DoFnSignature_SplitRestrictionMethod(targetMethod, restrictionT);
     }
   }
@@ -492,13 +491,13 @@ public abstract class DoFnSignature {
     public abstract Method targetMethod();
 
     /** Type of the input restriction. */
-    abstract TypeToken<?> restrictionT();
+    abstract TypeDescriptor<?> restrictionT();
 
     /** Type of the returned {@link RestrictionTracker}. */
-    abstract TypeToken<?> trackerT();
+    abstract TypeDescriptor<?> trackerT();
 
     static NewTrackerMethod create(
-        Method targetMethod, TypeToken<?> restrictionT, TypeToken<?> trackerT) {
+        Method targetMethod, TypeDescriptor<?> restrictionT, TypeDescriptor<?> trackerT) {
       return new AutoValue_DoFnSignature_NewTrackerMethod(targetMethod, restrictionT, trackerT);
     }
   }
@@ -511,9 +510,9 @@ public abstract class DoFnSignature {
     public abstract Method targetMethod();
 
     /** Type of the returned {@link Coder}. */
-    abstract TypeToken<?> coderT();
+    abstract TypeDescriptor<?> coderT();
 
-    static GetRestrictionCoderMethod create(Method targetMethod, TypeToken<?> coderT) {
+    static GetRestrictionCoderMethod create(Method targetMethod, TypeDescriptor<?> coderT) {
       return new AutoValue_DoFnSignature_GetRestrictionCoderMethod(targetMethod, coderT);
     }
   }

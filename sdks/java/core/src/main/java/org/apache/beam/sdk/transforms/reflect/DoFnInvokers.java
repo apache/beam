@@ -19,7 +19,6 @@ package org.apache.beam.sdk.transforms.reflect;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
-import com.google.common.reflect.TypeToken;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -263,9 +262,9 @@ public class DoFnInvokers {
 
   /** Default implementation of {@link DoFn.GetRestrictionCoder}, for delegation by bytebuddy. */
   public static class DefaultRestrictionCoder {
-    private final TypeToken<?> restrictionType;
+    private final TypeDescriptor<?> restrictionType;
 
-    DefaultRestrictionCoder(TypeToken<?> restrictionType) {
+    DefaultRestrictionCoder(TypeDescriptor<?> restrictionType) {
       this.restrictionType = restrictionType;
     }
 
@@ -273,7 +272,7 @@ public class DoFnInvokers {
     @SuppressWarnings({"unused", "unchecked"})
     public <RestrictionT> Coder<RestrictionT> invokeGetRestrictionCoder(CoderRegistry registry)
         throws CannotProvideCoderException {
-      return (Coder) registry.getCoder(TypeDescriptor.of(restrictionType.getType()));
+      return (Coder) registry.getCoder(restrictionType);
     }
   }
 
