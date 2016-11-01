@@ -46,6 +46,8 @@ For example usages, see the unit tests of modules such as
 
 from collections import namedtuple
 import logging
+import threading
+import weakref
 
 from multiprocessing.pool import ThreadPool
 from apache_beam.io import iobase
@@ -85,6 +87,14 @@ def readFromSource(source, start_position=None, stop_position=None):
     values.append(value)
 
   return values
+
+
+def _ThreadPool(threads):
+  # ThreadPool crashes in old versions of Python (< 2.7.5) if created from a
+  # child thread. (http://bugs.python.org/issue10015)
+  if not hasattr(threading.current_thread(), '_children'):
+    threading.current_thread()._children = weakref.WeakKeyDictionary()
+  return ThreadPool(threads)
 
 
 def assertSourcesEqualReferenceSource(reference_source_info, sources_info):
@@ -545,7 +555,7 @@ def assertSplitAtFractionExhaustive(
     have_success = False
     have_failure = False
 
-    thread_pool = ThreadPool(2)
+    thread_pool = _ThreadPool(2)
     try:
       while True:
         num_trials += 1
@@ -606,7 +616,7 @@ def _assertSplitAtFractionConcurrent(
       return result
 
   inputs = []
-  pool = thread_pool if thread_pool else ThreadPool(2)
+  pool = thread_pool if thread_pool else _ThreadPool(2)
   try:
     inputs.append([True, reader_iter])
     inputs.append([False, range_tracker, split_fraction])
