@@ -97,7 +97,7 @@ public interface ValueProvider<T> {
    * {@link NestedValueProvider} is an implementation of {@link ValueProvider} that
    * allows for wrapping another {@link ValueProvider} object.
    */
-  static class NestedValueProvider<T, X> implements ValueProvider<T>, Serializable {
+  class NestedValueProvider<T, X> implements ValueProvider<T>, Serializable {
 
     private final ValueProvider<X> value;
     private final SerializableFunction<X, T> translator;
