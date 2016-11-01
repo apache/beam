@@ -82,12 +82,11 @@ public interface DataflowPipelineOptions
   void setUpdate(boolean value);
 
   /**
-   * Whether the runner should simply generate a template and exit.
+   * Where the runner should generate a template file.
    */
-  @Description("Whether the runner should simply generate a template and exit.")
-  // Default
-  boolean getTemplateRunner();
-  void setTemplateRunner(boolean value);
+  @Description("Where the runner should generate a template file.")
+  String getTemplateLocation();
+  void setTemplateLocation(String value);
 
   /**
    * Run the job as a specific service account, instead of the default GCE robot.

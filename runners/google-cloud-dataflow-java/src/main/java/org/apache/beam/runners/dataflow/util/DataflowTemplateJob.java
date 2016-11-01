@@ -25,11 +25,11 @@ import org.joda.time.Duration;
 /**
  * A {@link DataflowPipelineJob} that is returned when {@code --templateRunner} is set.
  */
-public class TemplateJob extends DataflowPipelineJob {
+public class DataflowTemplateJob extends DataflowPipelineJob {
   private static final String ERROR =
       "The result of template creation should not be used.";
 
-  public TemplateJob() {
+  public DataflowTemplateJob() {
     super(null, null, null, null);
   }
 

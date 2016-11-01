@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.dataflow;
 
+import static com.google.common.base.MoreObjects.firstNonNull;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.base.Strings.isNullOrEmpty;
@@ -87,9 +88,9 @@ import org.apache.beam.runners.dataflow.internal.ReadTranslator;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineDebugOptions;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineWorkerPoolOptions;
+import org.apache.beam.runners.dataflow.util.DataflowTemplateJob;
 import org.apache.beam.runners.dataflow.util.DataflowTransport;
 import org.apache.beam.runners.dataflow.util.MonitoringUtil;
-import org.apache.beam.runners.dataflow.util.TemplateJob;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.Pipeline.PipelineVisitor;
 import org.apache.beam.sdk.PipelineResult.State;
@@ -553,35 +554,34 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
       hooks.modifyEnvironmentBeforeSubmission(newJob.getEnvironment());
     }
 
-    if (!isNullOrEmpty(options.getDataflowJobFile())) {
+    if (!isNullOrEmpty(options.getDataflowJobFile())
+        || !isNullOrEmpty(options.getTemplateLocation())) {
+      boolean isTemplate = !isNullOrEmpty(options.getTemplateLocation());
+      if (isTemplate) {
+        checkArgument(isNullOrEmpty(options.getDataflowJobFile()),
+            "--dataflowJobFile and --templateLocation are mutually exclusive.");
+      }
+      String fileLocation = firstNonNull(
+          options.getTemplateLocation(), options.getDataflowJobFile());
+      String workSpecJson = DataflowPipelineTranslator.jobToString(newJob);
       try {
         WritableByteChannel writer =
-            IOChannelUtils.create(options.getDataflowJobFile(), MimeTypes.TEXT);
+            IOChannelUtils.create(fileLocation, MimeTypes.TEXT);
         PrintWriter printWriter = new PrintWriter(Channels.newOutputStream(writer));
-        String workSpecJson = DataflowPipelineTranslator.jobToString(newJob);
         printWriter.print(workSpecJson);
-        printWriter.flush();
-        printWriter.close();
-        LOG.info("Printed job specification to {}", options.getDataflowJobFile());
-      } catch (IllegalStateException ex) {
-        String error = "Cannot translate workflow spec to JSON.";
-        if (options.getTemplateRunner()) {
-          throw new RuntimeException(error, ex);
-        } else {
-          LOG.warn(error, ex);
-        }
+        LOG.info("Printed job specification to {}", fileLocation);
       } catch (IOException ex) {
         String error =
-            String.format("Cannot create output file at {}", options.getDataflowJobFile());
-        if (options.getTemplateRunner()) {
+            String.format("Cannot create output file at {}", fileLocation);
+        if (isTemplate) {
           throw new RuntimeException(error, ex);
         } else {
           LOG.warn(error, ex);
         }
       }
-      if (options.getTemplateRunner()) {
+      if (isTemplate) {
         LOG.info("Template successfully created.");
-        return new TemplateJob();
+        return new DataflowTemplateJob();
       }
     }
 

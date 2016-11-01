@@ -1447,7 +1447,7 @@ public class DataflowRunnerTest {
   }
 
   /**
-   * Tests that the {@link DataflowRunner} with {@code --templateRunner} returns normally
+   * Tests that the {@link DataflowRunner} with {@code --templateLocation} returns normally
    * when the runner issuccessfully run.
    */
   @Test
@@ -1458,9 +1458,8 @@ public class DataflowRunnerTest {
     options.setGcpCredential(new TestCredential());
     options.setPathValidatorClass(NoopPathValidator.class);
     options.setProject("test-project");
-    options.setDataflowJobFile(existingFile.getPath());
     options.setRunner(DataflowRunner.class);
-    options.setTemplateRunner(true);
+    options.setTemplateLocation(existingFile.getPath());
     options.setTempLocation(tmpFolder.getRoot().getPath());
     Pipeline p = Pipeline.create(options);
 
@@ -1469,7 +1468,7 @@ public class DataflowRunnerTest {
   }
 
   /**
-   * Tests that the {@link DataflowRunner} with {@code --templateRunner} throws the appropriate
+   * Tests that the {@link DataflowRunner} with {@code --templateLocation} throws the appropriate
    * exception when an output file is not writable.
    */
   @Test
@@ -1477,11 +1476,10 @@ public class DataflowRunnerTest {
     DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
     options.setJobName("TestJobName");
     options.setRunner(DataflowRunner.class);
-    options.setDataflowJobFile("//bad/path");
+    options.setTemplateLocation("//bad/path");
     options.setProject("test-project");
     options.setTempLocation(tmpFolder.getRoot().getPath());
     options.setGcpCredential(new TestCredential());
-    options.setTemplateRunner(true);
     options.setPathValidatorClass(NoopPathValidator.class);
     Pipeline p = Pipeline.create(options);
 
