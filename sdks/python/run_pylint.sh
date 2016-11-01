@@ -42,7 +42,8 @@ EXCLUDED_GENERATED_FILES=(
 "apache_beam/internal/clients/dataflow/dataflow_v1b3_client.py"
 "apache_beam/internal/clients/dataflow/dataflow_v1b3_messages.py"
 "apache_beam/internal/clients/storage/storage_v1_client.py"
-"apache_beam/internal/clients/storage/storage_v1_messages.py")
+"apache_beam/internal/clients/storage/storage_v1_messages.py"
+"apache_beam/coders/proto2_coder_test_messages_pb2.py")
 
 # Get the name of the files that changed compared to the HEAD of the branch.
 # Use diff-filter to exclude deleted files. (i.e. Do not try to lint files that

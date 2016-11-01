@@ -146,7 +146,9 @@ class CoderRegistry(object):
                    'and for custom key classes, by writing a '
                    'deterministic custom Coder. Please see the '
                    'documentation for more details.' % (key_coder, op_name))
-      if isinstance(key_coder, (coders.PickleCoder, self._fallback_coder)):
+      # TODO(vikasrk): Should we include other fallback coders?
+      if isinstance(key_coder, (coders.PickleCoder,
+                                coders.FastPrimitivesCoder)):
         if not silent:
           logging.warning(error_msg)
         return coders.DeterministicPickleCoder(key_coder, op_name)

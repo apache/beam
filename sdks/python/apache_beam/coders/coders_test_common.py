@@ -27,6 +27,8 @@ import coders
 import observable
 from apache_beam.utils import timestamp
 
+from apache_beam.coders import proto2_coder_test_messages_pb2 as test_message
+
 
 # Defined out of line for picklability.
 class CustomCoder(coders.Coder):
@@ -58,10 +60,12 @@ class CodersTest(unittest.TestCase):
                      coders.FastCoder,
                      coders.Base64PickleCoder,
                      coders.FloatCoder,
+                     coders.ProtoCoder,
                      coders.TimestampCoder,
                      coders.ToStringCoder,
                      coders.WindowCoder,
                      coders.WindowedValueCoder])
+
     assert not standard - cls.seen, standard - cls.seen
     assert not standard - cls.seen_nested, standard - cls.seen_nested
 
@@ -203,6 +207,13 @@ class CodersTest(unittest.TestCase):
         coders.TupleCoder((coders.VarIntCoder(),
                            coders.IterableCoder(coders.VarIntCoder()))),
         (1, [1, 2, 3]))
+
+  def test_proto_coder(self):
+    ma = test_message.MessageA()
+    mb = ma.field2.add()
+    mb.field1 = True
+    ma.field1 = u'hello world'
+    self.check_coder(coders.ProtoCoder(ma.__class__), ma)
 
   def test_nested_observables(self):
     class FakeObservableIterator(observable.ObservableMixin):
