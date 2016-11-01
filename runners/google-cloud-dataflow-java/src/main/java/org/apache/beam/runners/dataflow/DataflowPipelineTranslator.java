@@ -934,7 +934,7 @@ public class DataflowPipelineTranslator {
                 !windowingStrategy.getWindowFn().isNonMerging()
                 || (isStreaming && !transform.fewKeys())
                 // TODO: Allow combiner lifting on the non-default trigger, as appropriate.
-                || !(windowingStrategy.getTrigger().getSpec() instanceof DefaultTrigger);
+                || !(windowingStrategy.getTrigger() instanceof DefaultTrigger);
             context.addInput(
                 PropertyNames.DISALLOW_COMBINER_LIFTING, disallowCombinerLifting);
             context.addInput(
