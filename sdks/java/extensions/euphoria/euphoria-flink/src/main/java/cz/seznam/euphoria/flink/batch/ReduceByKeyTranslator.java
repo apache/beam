@@ -11,8 +11,11 @@ import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.flink.FlinkOperator;
 import cz.seznam.euphoria.flink.Utils;
 import cz.seznam.euphoria.flink.functions.ComparablePair;
+import cz.seznam.euphoria.flink.functions.IteratorIterable;
 import cz.seznam.euphoria.flink.functions.PartitionerWrapper;
 import cz.seznam.euphoria.guava.shaded.com.google.common.collect.Iterables;
+import cz.seznam.euphoria.guava.shaded.com.google.common.collect.Iterators;
+import org.apache.flink.api.common.functions.GroupReduceFunction;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.DataSet;
@@ -20,8 +23,11 @@ import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.Iterator;
 import java.util.Set;
 import org.apache.flink.api.java.operators.Operator;
+import org.apache.flink.util.Collector;
 
 public class ReduceByKeyTranslator implements BatchOperatorTranslator<ReduceByKey> {
 
@@ -76,9 +82,18 @@ public class ReduceByKeyTranslator implements BatchOperatorTranslator<ReduceByKe
     // FIXME: missing window merging here
 
     // XXX require keyExtractor to deliver `Comparable`s
-    Operator<WindowedElement<?, Pair>, ?> reduced = tuples
-        .groupBy((KeySelector) new TypedKeySelector<>())
-        .reduce(new TypedReducer(reducer))
+
+    Operator<WindowedElement<?, Pair>, ?> reduced;
+    if (origOperator.isCombinable()) {
+      reduced = tuples
+          .groupBy((KeySelector) new TypedKeySelector<>())
+          .reduce(new TypedReducer(reducer));
+    } else {
+      reduced = tuples
+          .groupBy((KeySelector) new TypedKeySelector<>())
+          .reduceGroup(new TypedGroupReducer(reducer));
+    }
+    reduced = reduced
         .setParallelism(operator.getParallelism())
         .name(operator.getName() + "::reduce");
 
@@ -147,5 +162,40 @@ public class ReduceByKeyTranslator implements BatchOperatorTranslator<ReduceByKe
     public TypeInformation<WindowedElement<?, Pair>> getProducedType() {
       return TypeInformation.of((Class) WindowedElement.class);
     }
-  }
+  } // ~ end of TypedReducer
+
+  private static class TypedGroupReducer
+          implements GroupReduceFunction<WindowedElement<?, Pair>, WindowedElement<?, Pair>>,
+          ResultTypeQueryable<WindowedElement<?, Pair>>
+  {
+    final UnaryFunction<Iterable, Object> reducer;
+
+    public TypedGroupReducer(UnaryFunction<Iterable, Object> reducer) {
+      this.reducer = reducer;
+    }
+
+    @Override
+    public void reduce(Iterable<WindowedElement<?, Pair>> input,
+                       Collector<WindowedElement<?, Pair>> collector)
+        throws Exception {
+      Iterator<WindowedElement<?, Pair>> inputIter = input.iterator();
+      // ~ get the first element (there is always at least one) to obtain window metadata
+      WindowedElement<?, Pair> first = inputIter.next();
+      // ~ re-construct the input unwrapped out of the window-element-envelopes
+      // for passing it to the user supplied reduce function
+      IteratorIterable<Object> unwrapped =
+          new IteratorIterable<>(Iterators.transform(
+              Iterators.concat(Iterators.singletonIterator(first), inputIter),
+              e -> e.get().getSecond()));
+      Object out = reducer.apply(unwrapped);
+      // ~ produce output
+      collector.collect(new WindowedElement<>(
+          first.getWindow(), Pair.of(first.get().getFirst(), out)));
+    }
+
+    @Override
+    public TypeInformation<WindowedElement<?, Pair>> getProducedType() {
+      return TypeInformation.of((Class) WindowedElement.class);
+    }
+  } // ~ end of TypedGroupReducer
 }

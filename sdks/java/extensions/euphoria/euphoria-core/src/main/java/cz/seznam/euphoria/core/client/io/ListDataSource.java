@@ -34,6 +34,12 @@ public class ListDataSource<T> implements DataSource<T> {
     return new ListDataSource<>(false, Lists.newArrayList(partitions));
   }
 
+  @SuppressWarnings("unchecked")
+  @SafeVarargs
+  public static <T> ListDataSource<T> of(boolean bounded, List<T> ... partitions) {
+    return new ListDataSource<>(bounded, Lists.newArrayList(partitions));
+  }
+
   final boolean bounded;
   long sleepMs = 0;
   long finalSleepMs = 0;

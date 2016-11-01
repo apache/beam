@@ -2,6 +2,7 @@
 package cz.seznam.euphoria.operator.test;
 
 import cz.seznam.euphoria.core.client.dataset.Dataset;
+import cz.seznam.euphoria.core.client.dataset.windowing.Count;
 import cz.seznam.euphoria.core.client.dataset.windowing.MergingWindowing;
 import cz.seznam.euphoria.core.client.dataset.windowing.Session;
 import cz.seznam.euphoria.core.client.dataset.windowing.Time;
@@ -42,6 +43,8 @@ import java.util.Set;
 import static cz.seznam.euphoria.operator.test.Util.sorted;
 import static java.util.Arrays.asList;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
 
 /**
  * Test operator {@code ReduceByKey}.
@@ -51,6 +54,8 @@ public class ReduceByKeyTest extends OperatorTest {
   @Override
   protected List<TestCase> getTestCases() {
     return Arrays.asList(
+        testReductionType0(true),
+        testReductionType0(false),
         testEventTime(true),
         testEventTime(false),
         testStreamReduceWithWindowing(),
@@ -59,6 +64,44 @@ public class ReduceByKeyTest extends OperatorTest {
         testSessionWindowing0(),
         testMergingAndTriggering()
     );
+  }
+
+  /** Validates the output type upon a `.reduceBy` operation on windows of size one. */
+  TestCase<Pair<Integer, HashSet<Integer>>> testReductionType0(boolean batch) {
+    return new AbstractTestCase<Integer, Pair<Integer, HashSet<Integer>>>() {
+      @Override
+      protected DataSource<Integer> getDataSource() {
+        return ListDataSource.of(batch, asList(1, 2, 3));
+      }
+
+      @Override
+      protected Dataset<Pair<Integer, HashSet<Integer>>>
+      getOutput(Dataset<Integer> input) {
+        return ReduceByKey.of(input)
+            .keyBy(e -> e % 4)
+            .valueBy(e -> e)
+            .reduceBy(Sets::newHashSet)
+            .windowBy(Count.of(1))
+            .output();
+      }
+
+      @Override
+      public int getNumOutputPartitions() {
+        return 1;
+      }
+
+      @Override
+      public void validate(List<List<Pair<Integer, HashSet<Integer>>>> partitions) {
+        List<Pair<Integer, HashSet<Integer>>> ps = partitions.get(0);
+        assertFalse(ps.isEmpty());
+        for (Pair<Integer, HashSet<Integer>> p : ps) {
+          assertNotNull(p.getSecond());
+          assertEquals(HashSet.class, p.getSecond().getClass());
+          assertEquals(1, p.getSecond().size());
+          assertEquals(p.getFirst(), p.getSecond().iterator().next());
+        }
+      }
+    };
   }
 
   TestCase testEventTime(boolean batch) {
