@@ -1119,10 +1119,9 @@ public class PipelineOptionsFactory {
                           @Override
                           public String apply(@Nonnull Annotation annotation) {
                             return String.format(
-                                "[%s on %s.%s]",
-                                toStringForPrint(annotation),
-                                method.getDeclaringClass().getSimpleName(),
-                                method.getName());
+                                "[%s on %s]",
+                                ReflectHelpers.toStringForPrint(annotation),
+                                ReflectHelpers.CLASS_AND_METHOD_FORMATTER.apply(method));
                           }
                         });
 
@@ -1150,12 +1149,6 @@ public class PipelineOptionsFactory {
     }
     throwForGettersWithInconsistentAnnotation(
         inconsistentlyAnnotatedGetters, annotationPredicates.annotationClass);
-  }
-
-  @VisibleForTesting
-  static String toStringForPrint(Annotation annotation) {
-    String toString = annotation.toString();
-    return toString.substring(toString.lastIndexOf('.') + 1).replace('$', '.');
   }
 
   /**

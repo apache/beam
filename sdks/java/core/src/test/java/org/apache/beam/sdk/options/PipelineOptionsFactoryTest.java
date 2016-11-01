@@ -561,8 +561,10 @@ public class PipelineOptionsFactoryTest {
     expectedException.expect(IllegalArgumentException.class);
     expectedException.expectMessage(
         "Property [object] is marked with contradictory annotations. Found ["
-            + "[Default.Integer(value=1) on GetterWithDefault.getObject], "
-            + "[Default.String(value=abc) on GetterWithInconsistentDefaultType.getObject]].");
+            + "[Default.Integer(value=1) on org.apache.beam.sdk.options.PipelineOptionsFactoryTest"
+            + "$GetterWithDefault#getObject()], "
+            + "[Default.String(value=abc) on org.apache.beam.sdk.options.PipelineOptionsFactoryTest"
+            + "$GetterWithInconsistentDefaultType#getObject()]].");
 
     // When we attempt to convert, we should error at this moment.
     options.as(GetterWithInconsistentDefaultType.class);
@@ -576,8 +578,10 @@ public class PipelineOptionsFactoryTest {
     expectedException.expect(IllegalArgumentException.class);
     expectedException.expectMessage(
         "Property [object] is marked with contradictory annotations. Found ["
-            + "[Default.Integer(value=1) on GetterWithDefault.getObject], "
-            + "[Default.Integer(value=0) on GetterWithInconsistentDefaultValue.getObject]].");
+            + "[Default.Integer(value=1) on org.apache.beam.sdk.options.PipelineOptionsFactoryTest"
+            + "$GetterWithDefault#getObject()], "
+            + "[Default.Integer(value=0) on org.apache.beam.sdk.options.PipelineOptionsFactoryTest"
+            + "$GetterWithInconsistentDefaultValue#getObject()]].");
 
     // When we attempt to convert, we should error at this moment.
     options.as(GetterWithInconsistentDefaultValue.class);
@@ -591,8 +595,10 @@ public class PipelineOptionsFactoryTest {
     expectedException.expect(IllegalArgumentException.class);
     expectedException.expectMessage(
         "Property [object] is marked with contradictory annotations. Found ["
-            + "[JsonIgnore(value=false) on GetterWithInconsistentJsonIgnoreValue.getObject], "
-            + "[JsonIgnore(value=true) on GetterWithJsonIgnore.getObject]].");
+            + "[JsonIgnore(value=false) on org.apache.beam.sdk.options.PipelineOptionsFactoryTest"
+            + "$GetterWithInconsistentJsonIgnoreValue#getObject()], "
+            + "[JsonIgnore(value=true) on org.apache.beam.sdk.options.PipelineOptionsFactoryTest"
+            + "$GetterWithJsonIgnore#getObject()]].");
 
     // When we attempt to convert, we should error at this moment.
     options.as(GetterWithInconsistentJsonIgnoreValue.class);
@@ -610,8 +616,10 @@ public class PipelineOptionsFactoryTest {
     expectedException.expect(IllegalArgumentException.class);
     expectedException.expectMessage(
         "Property [object] is marked with contradictory annotations. Found ["
-            + "[Default.String(value=abc) on GettersWithMultipleDefault.getObject], "
-            + "[Default.Integer(value=0) on GettersWithMultipleDefault.getObject]].");
+            + "[Default.String(value=abc) on org.apache.beam.sdk.options.PipelineOptionsFactoryTest"
+            + "$GettersWithMultipleDefault#getObject()], "
+            + "[Default.Integer(value=0) on org.apache.beam.sdk.options.PipelineOptionsFactoryTest"
+            + "$GettersWithMultipleDefault#getObject()]].");
 
     // When we attempt to create, we should error at this moment.
     PipelineOptionsFactory.as(GettersWithMultipleDefault.class);
@@ -670,19 +678,6 @@ public class PipelineOptionsFactoryTest {
 
     // When we attempt to convert, we should error immediately
     options.as(MultipleGettersWithInconsistentDefault.class);
-  }
-
-  @Test
-  public void testToStringForPrint() throws Exception {
-    assertEquals(
-        "Default.Integer(value=1)",
-        PipelineOptionsFactory.toStringForPrint(
-            GetterWithDefault.class.getMethod("getObject").getAnnotations()[0]));
-
-    assertEquals(
-        "JsonIgnore(value=true)",
-        PipelineOptionsFactory.toStringForPrint(
-            GetterWithJsonIgnore.class.getMethod("getObject").getAnnotations()[0]));
   }
 
   @Test

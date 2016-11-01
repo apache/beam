@@ -19,8 +19,11 @@ package org.apache.beam.sdk.util.common;
 
 import static org.junit.Assert.assertEquals;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import java.util.List;
 import java.util.Map;
+import org.apache.beam.sdk.options.Default;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -123,4 +126,26 @@ public class ReflectHelpersTest {
         ReflectHelpers.TYPE_SIMPLE_DESCRIPTION.apply(
             new TypeDescriptor<Map<? super InputT, ? extends OutputT>>() {}.getType()));
   }
+
+  private interface Options extends PipelineOptions {
+    @Default.Integer(1)
+    Integer getInteger();
+
+    @JsonIgnore
+    Object getObject();
+  }
+
+  @Test
+  public void testToStringForPrint() throws Exception {
+    assertEquals(
+        "Default.Integer(value=1)",
+        ReflectHelpers.toStringForPrint(
+            Options.class.getMethod("getInteger").getAnnotations()[0]));
+
+    assertEquals(
+        "JsonIgnore(value=true)",
+        ReflectHelpers.toStringForPrint(
+            Options.class.getMethod("getObject").getAnnotations()[0]));
+  }
+
 }
