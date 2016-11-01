@@ -1067,8 +1067,10 @@ public class DataflowPipelineTranslator {
     context.addInput(PropertyNames.USER_FN, fn.getClass().getName());
     context.addInput(
         PropertyNames.SERIALIZED_FN,
-        byteArrayToJsonString(serializeToByteArray(
-            new DoFnInfo(fn, windowingStrategy, sideInputs, inputCoder, mainOutput, outputMap))));
+        byteArrayToJsonString(
+            serializeToByteArray(
+                DoFnInfo.forFn(
+                    fn, windowingStrategy, sideInputs, inputCoder, mainOutput, outputMap))));
   }
 
   private static BiMap<Long, TupleTag<?>> translateOutputs(
