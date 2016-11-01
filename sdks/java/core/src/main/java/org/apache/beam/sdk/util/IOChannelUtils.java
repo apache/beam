@@ -29,7 +29,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import org.apache.beam.sdk.options.GcsOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 
 /**
@@ -61,8 +60,8 @@ public class IOChannelUtils {
    * to provide, e.g., credentials for GCS.
    */
   public static void registerStandardIOFactories(PipelineOptions options) {
-    setIOFactory("gs", new GcsIOChannelFactory(options.as(GcsOptions.class)));
-    setIOFactory("file", new FileIOChannelFactory());
+    setIOFactory("gs", GcsIOChannelFactory.fromOptions(options));
+    setIOFactory("file", FileIOChannelFactory.fromOptions(options));
   }
 
   /**
@@ -175,7 +174,7 @@ public class IOChannelUtils {
     Matcher matcher = URI_SCHEME_PATTERN.matcher(spec);
 
     if (!matcher.matches()) {
-      return new FileIOChannelFactory();
+      return FileIOChannelFactory.create();
     }
 
     String scheme = matcher.group("scheme");
