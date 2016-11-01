@@ -87,6 +87,22 @@ public class ReflectHelpers {
     }
   };
 
+  /**
+   * A {@link Function} that returns a concise string for a {@link Annotation}.
+   */
+  public static final Function<Annotation, String> ANNOTATION_CONCISE_STRING =
+      new Function<Annotation, String>() {
+        @Override
+        public String apply(@Nonnull Annotation annotation) {
+          String annotationName = annotation.annotationType().getName();
+          String annotationNameWithoutPackage =
+              annotationName.substring(annotationName.lastIndexOf('.') + 1).replace('$', '.');
+          String annotationToString = annotation.toString();
+          String values = annotationToString.substring(annotationToString.indexOf('('));
+          return String.format("%s%s", annotationNameWithoutPackage, values);
+        }
+      };
+
   /** A {@link Function} that formats types. */
   public static final Function<Type, String> TYPE_SIMPLE_DESCRIPTION =
       new Function<Type, String>() {
@@ -186,20 +202,5 @@ public class ReflectHelpers {
       interfacesToProcess.addAll(Arrays.asList(current.getInterfaces()));
     }
     return builder.build();
-  }
-
-  /**
-   * Returns a concise string for printing a {@link Annotation}.
-   *
-   * @param annotation The {@link Annotation} to print.
-   * @return a concise string representation that doesn't contain the package name.
-   */
-  public static String toStringForPrint(Annotation annotation) {
-    String annotationName = annotation.annotationType().getName();
-    String annotationNameWithoutPackage =
-        annotationName.substring(annotationName.lastIndexOf('.') + 1).replace('$', '.');
-    String annotationToString = annotation.toString();
-    String values = annotationToString.substring(annotationToString.indexOf('('));
-    return String.format("%s%s", annotationNameWithoutPackage, values);
   }
 }

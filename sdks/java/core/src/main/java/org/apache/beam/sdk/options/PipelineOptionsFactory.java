@@ -1120,7 +1120,7 @@ public class PipelineOptionsFactory {
                           public String apply(@Nonnull Annotation annotation) {
                             return String.format(
                                 "[%s on %s]",
-                                ReflectHelpers.toStringForPrint(annotation),
+                                ReflectHelpers.ANNOTATION_CONCISE_STRING.apply(annotation),
                                 ReflectHelpers.CLASS_AND_METHOD_FORMATTER.apply(method));
                           }
                         });

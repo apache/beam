@@ -139,12 +139,12 @@ public class ReflectHelpersTest {
   public void testToStringForPrint() throws Exception {
     assertEquals(
         "Default.Integer(value=1)",
-        ReflectHelpers.toStringForPrint(
+        ReflectHelpers.ANNOTATION_CONCISE_STRING.apply(
             Options.class.getMethod("getInteger").getAnnotations()[0]));
 
     assertEquals(
         "JsonIgnore(value=true)",
-        ReflectHelpers.toStringForPrint(
+        ReflectHelpers.ANNOTATION_CONCISE_STRING.apply(
             Options.class.getMethod("getObject").getAnnotations()[0]));
   }
 
