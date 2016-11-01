@@ -33,8 +33,8 @@ public class FileIOChannelFactoryRegistrarTest {
 
   @Test
   public void testServiceLoader() {
-    for (IOChannelFactoryRegistrar registrar :
-        Lists.newArrayList(ServiceLoader.load(IOChannelFactoryRegistrar.class).iterator())) {
+    for (IOChannelFactoryRegistrar registrar
+        : Lists.newArrayList(ServiceLoader.load(IOChannelFactoryRegistrar.class).iterator())) {
       if (registrar instanceof FileIOChannelFactoryRegistrar) {
         return;
       }

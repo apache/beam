@@ -34,9 +34,12 @@ import java.lang.reflect.Type;
 import java.lang.reflect.TypeVariable;
 import java.lang.reflect.WildcardType;
 import java.util.Arrays;
+import java.util.Comparator;
 import java.util.Queue;
+import java.util.ServiceLoader;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.util.IOChannelUtils;
 
 /**
  * Utilities for working with with {@link Class Classes} and {@link Method Methods}.
@@ -167,6 +170,15 @@ public class ReflectHelpers {
     }
   };
 
+  /** A {@link Comparator} that uses the object's classes canonical name to compare them. */
+  public static class ObjectsClassComparator implements Comparator<Object> {
+    public static final ObjectsClassComparator INSTANCE = new ObjectsClassComparator();
+    @Override
+    public int compare(Object o1, Object o2) {
+      return o1.getClass().getCanonicalName().compareTo(o2.getClass().getCanonicalName());
+    }
+  }
+
   /**
    * Returns all the methods visible from the provided interfaces.
    *
@@ -202,5 +214,22 @@ public class ReflectHelpers {
       interfacesToProcess.addAll(Arrays.asList(current.getInterfaces()));
     }
     return builder.build();
+  }
+
+  /**
+   * Finds the appropriate {@code ClassLoader} to be used by the
+   * {@link ServiceLoader#load} call, which by default would use the context
+   * {@code ClassLoader}, which can be null. The fallback is as follows: context
+   * ClassLoader, class ClassLoader and finaly the system ClassLoader.
+   */
+  public static ClassLoader findClassLoader() {
+    ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
+    if (classLoader == null) {
+      classLoader = IOChannelUtils.class.getClassLoader();
+    }
+    if (classLoader == null) {
+      classLoader = ClassLoader.getSystemClassLoader();
+    }
+    return classLoader;
   }
 }

@@ -48,7 +48,7 @@ public abstract class PipelineRunner<ResultT extends PipelineResult> {
     checkNotNull(options);
 
     // (Re-)register standard IO factories. Clobbers any prior credentials.
-    IOChannelUtils.registerStandardIOFactories(gcsOptions);
+    IOChannelUtils.registerIOFactoriesAllowOverride(gcsOptions);
 
     @SuppressWarnings("unchecked")
     PipelineRunner<? extends PipelineResult> result =

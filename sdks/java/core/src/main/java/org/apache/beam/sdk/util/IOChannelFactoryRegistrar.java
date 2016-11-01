@@ -22,7 +22,7 @@ import java.util.ServiceLoader;
 import org.apache.beam.sdk.options.PipelineOptions;
 
 /**
- * A registrar that creates {@link IOChannelFactory} from {@link PipelineOptions}.
+ * A registrar that creates {@link IOChannelFactory} instances from {@link PipelineOptions}.
  *
  * <p>{@link IOChannelFactory} creators have the ability to provide a registrar by creating
  * a {@link ServiceLoader} entry and a concrete implementation of this interface.
@@ -32,12 +32,17 @@ import org.apache.beam.sdk.options.PipelineOptions;
  */
 public interface IOChannelFactoryRegistrar {
   /**
-   * Create a {@link IOChannelFactory} with the given {@link PipelineOptions}.
+   * Create a {@link IOChannelFactory} from the given {@link PipelineOptions}.
    */
   IOChannelFactory fromOptions(PipelineOptions options);
 
   /**
-   * Get the scheme.
+   * Get the URI scheme which defines the namespace of the IOChannelFactoryRegistrar.
+   *
+   * <p>The scheme is required to be unique among all
+   * {@link IOChannelFactoryRegistrar IOChannelFactoryRegistrars}.
+   *
+   * @see <a href="https://www.ietf.org/rfc/rfc2396.txt">RFC 2396</a>
    */
   String getScheme();
 }

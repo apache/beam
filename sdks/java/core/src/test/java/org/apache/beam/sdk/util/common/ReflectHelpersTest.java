@@ -148,4 +148,37 @@ public class ReflectHelpersTest {
             Options.class.getMethod("getObject").getAnnotations()[0]));
   }
 
+  @Test
+  public void testFindProperClassLoaderIfContextClassLoaderIsNull() throws InterruptedException {
+    final ClassLoader[] classLoader = new ClassLoader[1];
+    Thread thread = new Thread(new Runnable() {
+
+      @Override
+      public void run() {
+        classLoader[0] = ReflectHelpers.findClassLoader();
+      }
+    });
+    thread.setContextClassLoader(null);
+    thread.start();
+    thread.join();
+    assertEquals(ReflectHelpers.class.getClassLoader(), classLoader[0]);
+  }
+
+  @Test
+  public void testFindProperClassLoaderIfContextClassLoaderIsAvailable()
+      throws InterruptedException {
+    final ClassLoader[] classLoader = new ClassLoader[1];
+    Thread thread = new Thread(new Runnable() {
+
+      @Override
+      public void run() {
+        classLoader[0] = ReflectHelpers.findClassLoader();
+      }
+    });
+    ClassLoader cl = new ClassLoader() {};
+    thread.setContextClassLoader(cl);
+    thread.start();
+    thread.join();
+    assertEquals(cl, classLoader[0]);
+  }
 }
