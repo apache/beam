@@ -1,24 +1,42 @@
-
 package cz.seznam.euphoria.core.client.triggers;
 
 import cz.seznam.euphoria.core.client.dataset.windowing.Window;
+import cz.seznam.euphoria.core.client.operator.state.ListStorageDescriptor;
+import cz.seznam.euphoria.core.client.operator.state.StorageDescriptorBase;
+import cz.seznam.euphoria.core.client.operator.state.ValueStorageDescriptor;
 
 import java.io.Serializable;
 
 /**
  * Trigger determines when a window result should be flushed.
  */
-public interface Trigger<T, W extends Window> extends Serializable {
+public interface Trigger<W extends Window> extends Serializable {
+
+  /**
+   * Determines whether this trigger implementation uses the trigger-context
+   * to persist temporary state for windows.
+   *
+   * <p>Processing with stateless triggers can be optimized in certain situations.
+   * Note that if this method returns {@code false} invocations to
+   * {@link TriggerContext#getListStorage(ListStorageDescriptor)},
+   * {@link TriggerContext#getValueStorage(ValueStorageDescriptor)},
+   * or {@link TriggerContext.TriggerMergeContext#mergeStoredState(StorageDescriptorBase)}
+   * may fail with an exception.
+   *
+   * <p>The default implementation always return {@code true}.
+   */
+  default boolean isStateful() {
+    return true;
+  }
 
   /**
    * Called for each element added to a window.
    *
    * @param time    Timestamp of the incoming element.
-   * @param element Incoming element.
    * @param window  Window into which the element is being added.
    * @param ctx     Context instance that can be used to register timers.
    */
-  TriggerResult onElement(long time, T element, W window, TriggerContext ctx);
+  TriggerResult onElement(long time, W window, TriggerContext ctx);
 
   /**
    * Called when a timer that was set using the trigger context fires.
@@ -33,7 +51,7 @@ public interface Trigger<T, W extends Window> extends Serializable {
    * @param window Window that for which the time expired.
    * @param ctx    Context instance that can be used to register timers.
    */
-  TriggerResult onTimeEvent(long time, W window, TriggerContext ctx);
+  TriggerResult onTimer(long time, W window, TriggerContext ctx);
 
   /**
    * Called when the given window is purged. Trigger is given chance to perform

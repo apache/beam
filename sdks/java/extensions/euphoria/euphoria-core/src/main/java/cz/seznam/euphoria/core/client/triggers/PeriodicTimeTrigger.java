@@ -8,7 +8,7 @@ import cz.seznam.euphoria.core.client.operator.state.ValueStorageDescriptor;
  * A {@link Trigger} that is periodically fired based on given time interval.
  * Used to implement "early triggering" functionality.
  */
-public class PeriodicTimeTrigger<T> implements Trigger<T, TimeInterval> {
+public class PeriodicTimeTrigger implements Trigger<TimeInterval> {
 
   /** Next fire stamp (when merging the lowest timestamp is taken) */
   private final ValueStorageDescriptor<Long> fireTimeDescriptor =
@@ -21,7 +21,7 @@ public class PeriodicTimeTrigger<T> implements Trigger<T, TimeInterval> {
   }
 
   @Override
-  public TriggerResult onElement(long time, T element, TimeInterval window, TriggerContext ctx) {
+  public TriggerResult onElement(long time, TimeInterval window, TriggerContext ctx) {
     ValueStorage<Long> fireStamp = ctx.getValueStorage(fireTimeDescriptor);
 
     if (fireStamp.get() == Long.MAX_VALUE) {
@@ -37,7 +37,7 @@ public class PeriodicTimeTrigger<T> implements Trigger<T, TimeInterval> {
   }
 
   @Override
-  public TriggerResult onTimeEvent(long time, TimeInterval window, TriggerContext ctx) {
+  public TriggerResult onTimer(long time, TimeInterval window, TriggerContext ctx) {
     ValueStorage<Long> fireStamp = ctx.getValueStorage(fireTimeDescriptor);
 
     if (fireStamp.get().equals(time)) {

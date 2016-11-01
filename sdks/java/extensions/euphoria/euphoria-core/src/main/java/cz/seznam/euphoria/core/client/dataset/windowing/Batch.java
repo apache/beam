@@ -4,7 +4,6 @@ import cz.seznam.euphoria.core.client.triggers.NoopTrigger;
 import cz.seznam.euphoria.core.client.triggers.Trigger;
 
 import java.io.ObjectStreamException;
-import java.io.Serializable;
 import java.util.Collections;
 import java.util.Set;
 
@@ -52,7 +51,7 @@ public final class Batch<T>
   }
 
   @Override
-  public Trigger<T, BatchWindow> getTrigger() {
+  public Trigger<BatchWindow> getTrigger() {
     return NoopTrigger.get();
   }
 

@@ -6,6 +6,9 @@ import org.apache.flink.api.java.DataSet;
 
 interface BatchOperatorTranslator<T extends Operator> {
 
+  String CFG_MAX_MEMORY_ELEMENTS_KEY = "euphoria.flink.batch.state.max.memory.elements";
+  int CFG_MAX_MEMORY_ELEMENTS_DEFAULT = 1000;
+
   /**
    * Translates Euphoria {@code FlinkOperator} to Flink transformation
    *

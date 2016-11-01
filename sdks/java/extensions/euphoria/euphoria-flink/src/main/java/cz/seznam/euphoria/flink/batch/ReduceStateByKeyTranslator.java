@@ -4,54 +4,54 @@ import cz.seznam.euphoria.core.client.dataset.HashPartitioner;
 import cz.seznam.euphoria.core.client.dataset.windowing.Window;
 import cz.seznam.euphoria.core.client.dataset.windowing.WindowedElement;
 import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
+import cz.seznam.euphoria.core.client.functional.CombinableReduceFunction;
 import cz.seznam.euphoria.core.client.functional.StateFactory;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
-import cz.seznam.euphoria.core.client.io.Context;
 import cz.seznam.euphoria.core.client.operator.CompositeKey;
-import cz.seznam.euphoria.core.client.operator.Operator;
 import cz.seznam.euphoria.core.client.operator.ReduceStateByKey;
 import cz.seznam.euphoria.core.client.operator.state.State;
 import cz.seznam.euphoria.core.client.operator.state.StorageProvider;
+import cz.seznam.euphoria.core.client.triggers.Trigger;
 import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.core.util.Settings;
 import cz.seznam.euphoria.flink.FlinkOperator;
 import cz.seznam.euphoria.flink.Utils;
-import cz.seznam.euphoria.flink.functions.ComparablePair;
+import cz.seznam.euphoria.flink.batch.greduce.GroupReducer;
 import cz.seznam.euphoria.flink.functions.PartitionerWrapper;
 import cz.seznam.euphoria.guava.shaded.com.google.common.collect.Iterables;
 import org.apache.flink.api.common.functions.GroupReduceFunction;
+import org.apache.flink.api.common.functions.MapFunction;
+import org.apache.flink.api.common.operators.Order;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.DataSet;
+import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.functions.KeySelector;
+import org.apache.flink.api.java.operators.FlatMapOperator;
+import org.apache.flink.api.java.operators.MapOperator;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 
-import java.util.Iterator;
 import java.util.Set;
-
-import org.apache.flink.api.java.ExecutionEnvironment;
 
 public class ReduceStateByKeyTranslator implements BatchOperatorTranslator<ReduceStateByKey> {
 
-  final static String CFG_MAX_MEMORY_ELEMENTS = "euphoria.flink.batch.state.max.memory.elements";
-  
   final StorageProvider stateStorageProvider;
 
   public ReduceStateByKeyTranslator(Settings settings, ExecutionEnvironment env) {
-    int maxMemoryElements = settings.getInt(CFG_MAX_MEMORY_ELEMENTS, 1000);
+    int maxMemoryElements = settings.getInt(CFG_MAX_MEMORY_ELEMENTS_KEY, CFG_MAX_MEMORY_ELEMENTS_DEFAULT);
     this.stateStorageProvider = new BatchStateStorageProvider(maxMemoryElements, env);
   }
 
   @Override
   @SuppressWarnings("unchecked")
   public DataSet translate(FlinkOperator<ReduceStateByKey> operator,
-                           BatchExecutorContext context)
-  {
-    DataSet<?> input =
-            Iterables.getOnlyElement(context.getInputStreams(operator));
+                           BatchExecutorContext context) {
+
+    // FIXME #16800 - parallelism should be set to the same level as parent until we reach "shuffling"
+
+    DataSet input = Iterables.getOnlyElement(context.getInputStreams(operator));
 
     ReduceStateByKey origOperator = operator.getOriginalOperator();
 
-    final StateFactory<?, State> stateFactory = origOperator.getStateFactory();
     final Windowing windowing =
         origOperator.getWindowing() == null
             ? AttachedWindowing.INSTANCE
@@ -60,44 +60,84 @@ public class ReduceStateByKeyTranslator implements BatchOperatorTranslator<Reduc
     final UnaryFunction udfKey;
     final UnaryFunction udfValue;
     if (origOperator.isGrouped()) {
-      UnaryFunction reduceKeyExtractor = origOperator.getKeyExtractor();
+      UnaryFunction kfn = origOperator.getKeyExtractor();
       udfKey = (UnaryFunction<Pair, CompositeKey>)
-              (Pair p) -> CompositeKey.of(
-                      p.getFirst(),
-                      reduceKeyExtractor.apply(p.getSecond()));
+              (Pair p) -> CompositeKey.of(p.getFirst(), kfn.apply(p.getSecond()));
       UnaryFunction vfn = origOperator.getValueExtractor();
-      udfValue = (UnaryFunction<Pair, Object>)
-              (Pair p) -> vfn.apply(p.getSecond());
+      udfValue = (UnaryFunction<Pair, Object>) (Pair p) -> vfn.apply(p.getSecond());
     } else {
       udfKey = origOperator.getKeyExtractor();
       udfValue = origOperator.getValueExtractor();
     }
 
-    DataSet tuples = (DataSet) input.flatMap((i, c) -> {
-          WindowedElement wel = (WindowedElement) i;
-          Set<Window> windows = windowing.assignWindowsToElement(wel);
-          for (Window window : windows) {
-            Object el = wel.get();
-            c.collect(new WindowedElement(
-                window,
-                Pair.of(udfKey.apply(el), udfValue.apply(el))));
-          }
-        })
-        .name(operator.getName() + "::map-input")
-        // FIXME parallelism should be set to the same level as parent
-        // since this "map-input" transformation is applied before shuffle
-        .setParallelism(operator.getParallelism())
-        .returns((Class) WindowedElement.class);
+    // ~ re-assign element timestamps
+    if (windowing.getTimestampAssigner().isPresent()) {
+      UnaryFunction<Object, Long> timestampAssigner =
+          (UnaryFunction<Object, Long>) windowing.getTimestampAssigner().get();
+      MapOperator<Object, StampedWindowElement> tsAssigned =
+          input.<StampedWindowElement>map((Object value) -> {
+            WindowedElement we = (WindowedElement) value;
+            long ts = timestampAssigner.apply(we.get());
+            return new StampedWindowElement<>(we.getWindow(), we.get(), ts);
+          });
+      input = tsAssigned
+          .name(operator.getName() + "::assign-timestamps")
+          .setParallelism(operator.getParallelism())
+          .returns((Class) StampedWindowElement.class);
+    } else {
+      // ~ FIXME #16648 - make sure we're dealing with StampedWindowedElements; we can
+      // drop this once only such elements are floating throughout the whole batch executor
+      MapOperator<Object, StampedWindowElement> mapped =
+          input.map((MapFunction) value -> {
+            WindowedElement we = (WindowedElement) value;
+            if (we instanceof StampedWindowElement) {
+              return we;
+            }
+            return new StampedWindowElement<>(we.getWindow(), we.get(), Long.MAX_VALUE);
+          });
+      input = mapped.name(operator.getName() + "::make-stamped-windowed-elements")
+          .setParallelism(operator.getParallelism())
+          .returns((Class) StampedWindowElement.class);
+    }
 
-    // TODO in case of merging widows elements should be sorted by window label first
-    // and windows having the same label should be given chance to merge
-    // FIXME require keyExtractor to deliver `Comparable`s
-    DataSet<WindowedElement<?, Pair>> reduced;
-    reduced = tuples.groupBy(new TypedKeySelector<>())
-        .reduceGroup(
-            new TypedReducer(origOperator, stateFactory, stateStorageProvider))
-        .setParallelism(operator.getParallelism())
-        .name(operator.getName() + "::reduce");
+    // ~ extract key/value from input elements and assign windows
+    DataSet<StampedWindowElement> tuples;
+    {
+      // FIXME require keyExtractor to deliver `Comparable`s
+
+      FlatMapOperator<Object, StampedWindowElement> wAssigned =
+          input.flatMap((i, c) -> {
+            StampedWindowElement wel = (StampedWindowElement) i;
+            Set<Window> assigned = windowing.assignWindowsToElement(wel);
+            for (Window wid : assigned) {
+              Object el = wel.get();
+              c.collect(new StampedWindowElement(
+                  wid,
+                  Pair.of(udfKey.apply(el), udfValue.apply(el)),
+                  wel.getTimestamp()));
+            }
+          });
+      tuples = wAssigned
+          .name(operator.getName() + "::map-input")
+          .setParallelism(operator.getParallelism())
+          .returns((Class) StampedWindowElement.class);
+    }
+
+    // ~ reduce the data now
+    DataSet<StampedWindowElement<?, Pair>> reduced =
+        tuples.groupBy((KeySelector)
+            Utils.wrapQueryable(
+                // ~ FIXME if the underlying windowing is "non merging" we can group by
+                // "key _and_ window", thus, better utilizing the available resources
+                (StampedWindowElement<?, Pair> we) -> (Comparable) we.get().getFirst(),
+                Comparable.class))
+            .sortGroup((KeySelector) Utils.wrapQueryable(
+                (KeySelector<StampedWindowElement<?, ?>, Long>)
+                    StampedWindowElement::getTimestamp, Long.class),
+                Order.ASCENDING)
+            .reduceGroup(new RSBKReducer(origOperator, stateStorageProvider, windowing))
+            .setParallelism(operator.getParallelism())
+            .name(operator.getName() + "::reduce");
 
     // apply custom partitioner if different from default HashPartitioner
     if (!(origOperator.getPartitioning().getPartitioner().getClass() == HashPartitioner.class)) {
@@ -105,7 +145,8 @@ public class ReduceStateByKeyTranslator implements BatchOperatorTranslator<Reduc
           .partitionCustom(new PartitionerWrapper<>(
               origOperator.getPartitioning().getPartitioner()),
               Utils.wrapQueryable(
-                  (WindowedElement<?, Pair> we) -> (Comparable) we.get().getKey(),
+                  (KeySelector<StampedWindowElement<?, Pair>, Comparable>)
+                      (StampedWindowElement<?, Pair> we) -> (Comparable) we.get().getKey(),
                   Comparable.class))
           .setParallelism(operator.getParallelism());
     }
@@ -113,80 +154,50 @@ public class ReduceStateByKeyTranslator implements BatchOperatorTranslator<Reduc
     return reduced;
   }
 
-  private static class TypedKeySelector<WID extends Window, KEY>
-      implements KeySelector<WindowedElement<WID, ? extends Pair<KEY, ?>>, ComparablePair<WID, KEY>>,
-      ResultTypeQueryable<ComparablePair<WID, KEY>>
+  static class RSBKReducer
+          implements GroupReduceFunction<StampedWindowElement<?, Pair>, StampedWindowElement<?, Pair>>,
+          ResultTypeQueryable<StampedWindowElement<?, Pair>>
   {
-    @Override
-    public ComparablePair<WID, KEY> getKey(WindowedElement<WID, ? extends Pair<KEY, ?>> value) {
-      return ComparablePair.of(value.getWindow(), value.get().getKey());
-    }
-
-    @Override
-    @SuppressWarnings("unchecked")
-    public TypeInformation<ComparablePair<WID, KEY>> getProducedType() {
-      return TypeInformation.of((Class) ComparablePair.class);
-    }
-  }
-
-  private static class TypedReducer
-          implements GroupReduceFunction<WindowedElement<?, Pair>, WindowedElement<?, Pair>>,
-          ResultTypeQueryable<WindowedElement<?, Pair>>
-  {
-    private final Operator<?, ?> operator;
     private final StateFactory<?, State> stateFactory;
+    private final CombinableReduceFunction<State> stateCombiner;
     private final StorageProvider stateStorageProvider;
+    private final Windowing windowing;
+    private final Trigger trigger;
 
-    public TypedReducer(
-        Operator<?, ?> operator,
-        StateFactory<?, State> stateFactory,
-        StorageProvider stateStorageProvider) {
+    RSBKReducer(
+        ReduceStateByKey operator,
+        StorageProvider stateStorageProvider,
+        Windowing windowing) {
 
-      this.operator = operator;
-      this.stateFactory = stateFactory;
+      this.stateFactory = operator.getStateFactory();
+      this.stateCombiner = operator.getStateCombiner();
       this.stateStorageProvider = stateStorageProvider;
+      this.windowing = windowing;
+      this.trigger = windowing.getTrigger();
     }
 
     @Override
     @SuppressWarnings("unchecked")
-    public void reduce(Iterable<WindowedElement<?, Pair>> values,
-                       org.apache.flink.util.Collector<WindowedElement<?, Pair>> out)
+    public void reduce(Iterable<StampedWindowElement<?, Pair>> values,
+                       org.apache.flink.util.Collector<StampedWindowElement<?, Pair>> out)
     {
-      Iterator<WindowedElement<?, Pair>> it = values.iterator();
-
-      // read the first element to obtain window metadata and key
-      WindowedElement<?, Pair> element = it.next();
-      final Window wid = element.getWindow();
-      final Object key = element.get().getKey();
-
-      State state = stateFactory.apply(
-          new Context() {
-            @Override
-            public void collect(Object elem) {
-              out.collect(new WindowedElement<>(wid, Pair.of(key, elem)));
-            }
-            @Override
-            public Object getWindow() {
-              return wid;
-            }
-          },
-          stateStorageProvider);
-
-      // add the first element to the state
-      state.add(element.get().getValue());
-
-      while (it.hasNext()) {
-        state.add(it.next().get().getValue());
+      GroupReducer reducer = new GroupReducer(
+          stateFactory,
+          stateCombiner,
+          stateStorageProvider,
+          windowing,
+          trigger,
+          elem -> out.collect((StampedWindowElement) elem));
+      for (StampedWindowElement value : values) {
+        reducer.process(value);
       }
-
-      state.flush();
-      state.close();
+      reducer.close();
     }
 
     @Override
     @SuppressWarnings("unchecked")
-    public TypeInformation<WindowedElement<?, Pair>> getProducedType() {
-      return TypeInformation.of((Class) WindowedElement.class);
+    public TypeInformation<StampedWindowElement<?, Pair>> getProducedType() {
+      return TypeInformation.of((Class) StampedWindowElement.class);
     }
   }
 }
