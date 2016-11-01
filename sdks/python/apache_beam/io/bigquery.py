@@ -108,6 +108,7 @@ import json
 import logging
 import re
 import time
+import datetime
 import uuid
 
 from apitools.base.py.exceptions import HttpError
@@ -838,8 +839,19 @@ class BigQueryWrapper(object):
       elif field.type == 'FLOAT':
         value = float(value)
       elif field.type == 'TIMESTAMP':
-        value = float(value)
+        # The UTC should come from the timezone library but this is a known
+        # issue in python 2.7 so we'll just hardcode it as we're reading using
+        # utcfromtimestamp. This is just to match the output from the dataflow
+        # runner with the local runner.
+        dt = datetime.datetime.utcfromtimestamp(float(value))
+        value = dt.strftime('%Y-%m-%d %H:%M:%S.%f UTC')
       elif field.type == 'BYTES':
+        value = value
+      elif field.type == 'DATE':
+        value = value
+      elif field.type == 'DATETIME':
+        value = value
+      elif field.type == 'TIME':
         value = value
       else:
         # Note that a schema field object supports also a RECORD type. However

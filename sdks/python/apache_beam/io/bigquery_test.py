@@ -20,6 +20,7 @@
 import json
 import logging
 import time
+import datetime
 import unittest
 
 from apitools.base.py.exceptions import HttpError
@@ -183,9 +184,25 @@ class TestBigQueryReader(unittest.TestCase):
 
   def get_test_rows(self):
     now = time.time()
+    dt = datetime.datetime.utcfromtimestamp(float(now))
+    ts = dt.strftime('%Y-%m-%d %H:%M:%S.%f UTC')
     expected_rows = [
-        {'i': 1, 's': 'abc', 'f': 2.3, 'b': True, 't': now},
-        {'i': 10, 's': 'xyz', 'f': -3.14, 'b': False}]
+        {
+            'i': 1,
+            's': 'abc',
+            'f': 2.3,
+            'b': True,
+            't': ts,
+            'dt': '2016-10-31',
+            'ts': '22:39:12.627498',
+            'dt_ts': '2008-12-25T07:30:00'
+        },
+        {
+            'i': 10,
+            's': 'xyz',
+            'f': -3.14,
+            'b': False
+        }]
     schema = bigquery.TableSchema(
         fields=[
             bigquery.TableFieldSchema(
@@ -197,7 +214,13 @@ class TestBigQueryReader(unittest.TestCase):
             bigquery.TableFieldSchema(
                 name='s', type='STRING', mode='REQUIRED'),
             bigquery.TableFieldSchema(
-                name='t', type='TIMESTAMP', mode='NULLABLE')])
+                name='t', type='TIMESTAMP', mode='NULLABLE'),
+            bigquery.TableFieldSchema(
+                name='dt', type='DATE', mode='NULLABLE'),
+            bigquery.TableFieldSchema(
+                name='ts', type='TIME', mode='NULLABLE'),
+            bigquery.TableFieldSchema(
+                name='dt_ts', type='DATETIME', mode='NULLABLE')])
     table_rows = [
         bigquery.TableRow(f=[
             bigquery.TableCell(v=to_json_value('true')),
@@ -206,12 +229,18 @@ class TestBigQueryReader(unittest.TestCase):
             bigquery.TableCell(v=to_json_value('abc')),
             # For timestamps cannot use str() because it will truncate the
             # number representing the timestamp.
-            bigquery.TableCell(v=to_json_value('%f' % now))]),
+            bigquery.TableCell(v=to_json_value('%f' % now)),
+            bigquery.TableCell(v=to_json_value('2016-10-31')),
+            bigquery.TableCell(v=to_json_value('22:39:12.627498')),
+            bigquery.TableCell(v=to_json_value('2008-12-25T07:30:00'))]),
         bigquery.TableRow(f=[
             bigquery.TableCell(v=to_json_value('false')),
             bigquery.TableCell(v=to_json_value(str(-3.14))),
             bigquery.TableCell(v=to_json_value(str(10))),
             bigquery.TableCell(v=to_json_value('xyz')),
+            bigquery.TableCell(v=None),
+            bigquery.TableCell(v=None),
+            bigquery.TableCell(v=None),
             bigquery.TableCell(v=None)])]
     return table_rows, schema, expected_rows
 
