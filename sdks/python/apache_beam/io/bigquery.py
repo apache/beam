@@ -315,7 +315,7 @@ class BigQuerySource(dataflow_io.NativeSource):
       useLegacySql: Specifies whether to use BigQuery's legacy
         SQL dialect for this query. The default value is true. If set to false,
         the query will use BigQuery's updated SQL dialect with improved
-        standards compliance. This parameter is forced to True for table inputs.
+        standards compliance. This parameter is ignored for table inputs.
 
     Raises:
       ValueError: if any of the following is true
