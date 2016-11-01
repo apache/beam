@@ -146,12 +146,13 @@ class CoderRegistry(object):
                    'and for custom key classes, by writing a '
                    'deterministic custom Coder. Please see the '
                    'documentation for more details.' % (key_coder, op_name))
-      # TODO(vikasrk): Should we include other fallback coders?
+      # TODO(vikasrk): PickleCoder will eventually be removed once its direct
+      # usage is stopped.
       if isinstance(key_coder, (coders.PickleCoder,
                                 coders.FastPrimitivesCoder)):
         if not silent:
           logging.warning(error_msg)
-        return coders.DeterministicPickleCoder(key_coder, op_name)
+        return coders.DeterministicFastPrimitivesCoder(key_coder, op_name)
       else:
         raise ValueError(error_msg)
     else:
