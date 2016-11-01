@@ -341,7 +341,7 @@ public abstract class DoFnSignature {
 
     /** Concrete type of the {@link RestrictionTracker} parameter, if present. */
     @Nullable
-    abstract TypeDescriptor<?> trackerT();
+    public abstract TypeDescriptor<?> trackerT();
 
     /** Whether this {@link DoFn} returns a {@link ProcessContinuation} or void. */
     public abstract boolean hasReturnValue();
@@ -461,7 +461,7 @@ public abstract class DoFnSignature {
     public abstract Method targetMethod();
 
     /** Type of the returned restriction. */
-    abstract TypeDescriptor<?> restrictionT();
+    public abstract TypeDescriptor<?> restrictionT();
 
     static GetInitialRestrictionMethod create(Method targetMethod, TypeDescriptor<?> restrictionT) {
       return new AutoValue_DoFnSignature_GetInitialRestrictionMethod(targetMethod, restrictionT);
@@ -476,7 +476,7 @@ public abstract class DoFnSignature {
     public abstract Method targetMethod();
 
     /** Type of the restriction taken and returned. */
-    abstract TypeDescriptor<?> restrictionT();
+    public abstract TypeDescriptor<?> restrictionT();
 
     static SplitRestrictionMethod create(Method targetMethod, TypeDescriptor<?> restrictionT) {
       return new AutoValue_DoFnSignature_SplitRestrictionMethod(targetMethod, restrictionT);
@@ -491,10 +491,10 @@ public abstract class DoFnSignature {
     public abstract Method targetMethod();
 
     /** Type of the input restriction. */
-    abstract TypeDescriptor<?> restrictionT();
+    public abstract TypeDescriptor<?> restrictionT();
 
     /** Type of the returned {@link RestrictionTracker}. */
-    abstract TypeDescriptor<?> trackerT();
+    public abstract TypeDescriptor<?> trackerT();
 
     static NewTrackerMethod create(
         Method targetMethod, TypeDescriptor<?> restrictionT, TypeDescriptor<?> trackerT) {
@@ -510,7 +510,7 @@ public abstract class DoFnSignature {
     public abstract Method targetMethod();
 
     /** Type of the returned {@link Coder}. */
-    abstract TypeDescriptor<?> coderT();
+    public abstract TypeDescriptor<?> coderT();
 
     static GetRestrictionCoderMethod create(Method targetMethod, TypeDescriptor<?> coderT) {
       return new AutoValue_DoFnSignature_GetRestrictionCoderMethod(targetMethod, coderT);
