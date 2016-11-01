@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.dataflow;
 
+import static com.google.common.base.MoreObjects.firstNonNull;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.base.Strings.isNullOrEmpty;
@@ -49,7 +50,6 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Multimap;
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -58,6 +58,8 @@ import java.io.Serializable;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.net.URLClassLoader;
+import java.nio.channels.Channels;
+import java.nio.channels.WritableByteChannel;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -86,6 +88,7 @@ import org.apache.beam.runners.dataflow.internal.ReadTranslator;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineDebugOptions;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineWorkerPoolOptions;
+import org.apache.beam.runners.dataflow.util.DataflowTemplateJob;
 import org.apache.beam.runners.dataflow.util.DataflowTransport;
 import org.apache.beam.runners.dataflow.util.MonitoringUtil;
 import org.apache.beam.sdk.Pipeline;
@@ -140,6 +143,7 @@ import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.IOChannelUtils;
 import org.apache.beam.sdk.util.InstanceBuilder;
+import org.apache.beam.sdk.util.MimeTypes;
 import org.apache.beam.sdk.util.PCollectionViews;
 import org.apache.beam.sdk.util.PathValidator;
 import org.apache.beam.sdk.util.PropertyNames;
@@ -550,16 +554,37 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
       hooks.modifyEnvironmentBeforeSubmission(newJob.getEnvironment());
     }
 
-    if (!isNullOrEmpty(options.getDataflowJobFile())) {
-      try (PrintWriter printWriter = new PrintWriter(
-          new File(options.getDataflowJobFile()))) {
-        String workSpecJson = DataflowPipelineTranslator.jobToString(newJob);
+    if (!isNullOrEmpty(options.getDataflowJobFile())
+        || !isNullOrEmpty(options.getTemplateLocation())) {
+      boolean isTemplate = !isNullOrEmpty(options.getTemplateLocation());
+      if (isTemplate) {
+        checkArgument(isNullOrEmpty(options.getDataflowJobFile()),
+            "--dataflowJobFile and --templateLocation are mutually exclusive.");
+      }
+      String fileLocation = firstNonNull(
+          options.getTemplateLocation(), options.getDataflowJobFile());
+      checkArgument(fileLocation.startsWith("/") || fileLocation.startsWith("gs://"),
+          String.format(
+              "Location must be local or on Cloud Storage, got {}.", fileLocation));
+      String workSpecJson = DataflowPipelineTranslator.jobToString(newJob);
+      try (
+          WritableByteChannel writer =
+              IOChannelUtils.create(fileLocation, MimeTypes.TEXT);
+          PrintWriter printWriter = new PrintWriter(Channels.newOutputStream(writer))) {
         printWriter.print(workSpecJson);
-        LOG.info("Printed workflow specification to {}", options.getDataflowJobFile());
-      } catch (IllegalStateException ex) {
-        LOG.warn("Cannot translate workflow spec to json for debug.");
-      } catch (FileNotFoundException ex) {
-        LOG.warn("Cannot create workflow spec output file.");
+        LOG.info("Printed job specification to {}", fileLocation);
+      } catch (IOException ex) {
+        String error =
+            String.format("Cannot create output file at {}", fileLocation);
+        if (isTemplate) {
+          throw new RuntimeException(error, ex);
+        } else {
+          LOG.warn(error, ex);
+        }
+      }
+      if (isTemplate) {
+        LOG.info("Template successfully created.");
+        return new DataflowTemplateJob();
       }
     }
 
