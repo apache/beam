@@ -39,6 +39,7 @@ import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.windowing.AfterWatermark;
 import org.apache.beam.sdk.util.CoderUtils;
@@ -256,23 +257,23 @@ public class PubsubIO {
   }
 
   /**
-   * Simple {@link DeferrableTranslator} for {@link PubsubTopic}.
+   * Simple {@link SerializableFunction} for {@link PubsubTopic}.
    */
   public static class TopicTranslator
-      implements NestedValueProvider.DeferrableTranslator<PubsubTopic, String> {
+      implements SerializableFunction<String, PubsubTopic> {
     @Override
-    public PubsubTopic createValue(String from) {
+    public PubsubTopic apply(String from) {
       return PubsubTopic.fromPath(from);
     }
   }
 
   /**
-   * Simple {@link DeferrableTranslator} for {@link TopicPath}.
+   * Simple {@link SerializableFunction} for {@link TopicPath}.
    */
   public static class TopicPathTranslator
-      implements NestedValueProvider.DeferrableTranslator<TopicPath, PubsubTopic> {
+      implements SerializableFunction<PubsubTopic, TopicPath> {
     @Override
-    public TopicPath createValue(PubsubTopic from) {
+    public TopicPath apply(PubsubTopic from) {
       return PubsubClient.topicPathFromName(from.project, from.topic);
     }
   }

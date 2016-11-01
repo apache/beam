@@ -1331,24 +1331,6 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
 
   @Override
   public PCollection<T> apply(PBegin input) {
-    if (subscription == null) {
-      try {
-        try (PubsubClient pubsubClient =
-                 pubsubFactory.newClient(timestampLabel, idLabel,
-                                         input.getPipeline()
-                                              .getOptions()
-                                              .as(PubsubOptions.class))) {
-          subscription =
-              pubsubClient.createRandomSubscription(project, topic.get(), DEAULT_ACK_TIMEOUT_SEC);
-          LOG.warn("Created subscription {} to topic {}."
-                   + " Note this subscription WILL NOT be deleted when the pipeline terminates",
-                   subscription, topic);
-        }
-      } catch (Exception e) {
-        throw new RuntimeException("Failed to create subscription: ", e);
-      }
-    }
-
     return input.getPipeline().begin()
                 .apply(Read.from(new PubsubSource<T>(this)))
                 .apply("PubsubUnboundedSource.Stats",
@@ -1360,7 +1342,7 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
       try (PubsubClient pubsubClient =
           pubsubFactory.newClient(timestampLabel, idLabel, options.as(PubsubOptions.class))) {
         SubscriptionPath subscriptionPath =
-            pubsubClient.createRandomSubscription(project, topic, DEAULT_ACK_TIMEOUT_SEC);
+            pubsubClient.createRandomSubscription(project, topic.get(), DEAULT_ACK_TIMEOUT_SEC);
         LOG.warn(
             "Created subscription {} to topic {}."
                 + " Note this subscription WILL NOT be deleted when the pipeline terminates",
