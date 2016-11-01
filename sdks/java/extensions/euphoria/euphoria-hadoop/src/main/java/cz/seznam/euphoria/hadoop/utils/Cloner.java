@@ -4,9 +4,7 @@ package cz.seznam.euphoria.hadoop.utils;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.util.Objects;
-import java.util.logging.Level;
-import java.util.logging.Logger;
+
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.serializer.Deserializer;
 import org.apache.hadoop.io.serializer.Serialization;
@@ -49,5 +47,4 @@ public interface Cloner<T> {
       }
     };
   }
-  
 }
