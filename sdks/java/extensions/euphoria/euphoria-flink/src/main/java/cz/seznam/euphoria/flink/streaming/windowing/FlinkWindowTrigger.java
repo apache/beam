@@ -7,10 +7,10 @@ import org.apache.flink.streaming.api.windowing.triggers.TriggerResult;
 
 public class FlinkWindowTrigger<WID extends Window, T> extends Trigger<T, FlinkWindow<WID>> {
 
-  private final cz.seznam.euphoria.core.client.triggers.Trigger<T, WID> euphoriaTrigger;
+  private final cz.seznam.euphoria.core.client.triggers.Trigger<WID> euphoriaTrigger;
 
   public FlinkWindowTrigger(
-          cz.seznam.euphoria.core.client.triggers.Trigger<T, WID> trigger) {
+          cz.seznam.euphoria.core.client.triggers.Trigger<WID> trigger) {
     this.euphoriaTrigger = trigger;
   }
 
@@ -44,7 +44,7 @@ public class FlinkWindowTrigger<WID extends Window, T> extends Trigger<T, FlinkW
     // pass onElement event to the original euphoria trigger
     return translateResult(
             euphoriaTrigger.onElement(
-                    timestamp, element, window.getWindowID(), new TriggerContextWrapper(ctx)));
+                    timestamp, window.getWindowID(), new TriggerContextWrapper(ctx)));
   }
 
   private TriggerResult onTimeEvent(long time,
@@ -56,9 +56,9 @@ public class FlinkWindowTrigger<WID extends Window, T> extends Trigger<T, FlinkW
       return TriggerResult.FIRE_AND_PURGE;
     }
 
-    // pass onTimeEvent to the original euphoria trigger
+    // pass onTimer to the original euphoria trigger
     return translateResult(
-            euphoriaTrigger.onTimeEvent(
+            euphoriaTrigger.onTimer(
                     time, window.getWindowID(), new TriggerContextWrapper(ctx)));
   }
 

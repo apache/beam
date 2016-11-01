@@ -10,7 +10,6 @@ import cz.seznam.euphoria.core.client.dataset.windowing.TimeInterval;
 import cz.seznam.euphoria.core.client.dataset.windowing.Window;
 import cz.seznam.euphoria.core.client.dataset.windowing.WindowedElement;
 import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
-import cz.seznam.euphoria.core.client.functional.UnaryFunction;
 import cz.seznam.euphoria.core.client.functional.UnaryFunctor;
 import cz.seznam.euphoria.core.client.io.DataSource;
 import cz.seznam.euphoria.core.client.io.ListDataSource;
@@ -39,12 +38,11 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import static cz.seznam.euphoria.operator.test.Util.sorted;
 import static java.util.Arrays.asList;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.*;
 
 /**
  * Test operator {@code ReduceByKey}.
@@ -61,8 +59,10 @@ public class ReduceByKeyTest extends OperatorTest {
         testStreamReduceWithWindowing(),
         testReduceWithoutWindowing(true),
         testReduceWithoutWindowing(false),
-        testSessionWindowing0(),
-        testMergingAndTriggering()
+        testSessionWindowing(true),
+        testSessionWindowing(false),
+        testMergingAndTriggering(true),
+        testMergingAndTriggering(false)
     );
   }
 
@@ -71,17 +71,17 @@ public class ReduceByKeyTest extends OperatorTest {
     return new AbstractTestCase<Integer, Pair<Integer, HashSet<Integer>>>() {
       @Override
       protected DataSource<Integer> getDataSource() {
-        return ListDataSource.of(batch, asList(1, 2, 3));
+        return ListDataSource.of(batch, asList(1, 2, 3, 4, 5, 6, 7, 9));
       }
 
       @Override
       protected Dataset<Pair<Integer, HashSet<Integer>>>
       getOutput(Dataset<Integer> input) {
         return ReduceByKey.of(input)
-            .keyBy(e -> e % 4)
+            .keyBy(e -> e % 2)
             .valueBy(e -> e)
             .reduceBy(Sets::newHashSet)
-            .windowBy(Count.of(1))
+            .windowBy(Count.of(3))
             .output();
       }
 
@@ -93,13 +93,26 @@ public class ReduceByKeyTest extends OperatorTest {
       @Override
       public void validate(List<List<Pair<Integer, HashSet<Integer>>>> partitions) {
         List<Pair<Integer, HashSet<Integer>>> ps = partitions.get(0);
-        assertFalse(ps.isEmpty());
+        HashMap<Integer, List<HashSet<Integer>>> byKey = new HashMap<>();
         for (Pair<Integer, HashSet<Integer>> p : ps) {
-          assertNotNull(p.getSecond());
-          assertEquals(HashSet.class, p.getSecond().getClass());
-          assertEquals(1, p.getSecond().size());
-          assertEquals(p.getFirst(), p.getSecond().iterator().next());
+          List<HashSet<Integer>> xs =
+              byKey.computeIfAbsent(p.getFirst(), k -> new ArrayList<>());
+          xs.add(p.getSecond());
         }
+
+        assertEquals(2, byKey.size());
+
+        assertNotNull(byKey.get(0));
+        assertEquals(1, byKey.get(0).size());
+        assertEquals(Sets.newHashSet(2, 4, 6), byKey.get(0).get(0));
+
+        // ~ cannot make any assumption about the order of the elements in the windows
+        // (on batch) since we have no event-time order for the test data; however, we
+        // can verify the window sizes
+        assertNotNull(byKey.get(1));
+        assertEquals(
+            Sets.newHashSet(3, 2),
+            byKey.get(1).stream().map(HashSet::size).collect(Collectors.toSet()));
       }
     };
   }
@@ -178,7 +191,7 @@ public class ReduceByKeyTest extends OperatorTest {
     }
 
     @Override
-    public Trigger<Integer, IntWindow> getTrigger() {
+    public Trigger<IntWindow> getTrigger() {
       return NoopTrigger.get();
     }
   }
@@ -324,12 +337,12 @@ public class ReduceByKeyTest extends OperatorTest {
   }
 
   // count windowing; firing based on window.bucket (size of the window)
-  static final class CWindowTrigger<T> implements Trigger<T, CWindow> {
+  static final class CWindowTrigger implements Trigger<CWindow> {
     private final ValueStorageDescriptor<Long> countDesc =
         ValueStorageDescriptor.of("count", Long.class, 0L, (x, y) -> x + y);
 
     @Override
-    public TriggerResult onElement(long time, T element, CWindow w, TriggerContext ctx) {
+    public TriggerResult onElement(long time, CWindow w, TriggerContext ctx) {
       ValueStorage<Long> cnt = ctx.getValueStorage(countDesc);
       cnt.set(cnt.get() + 1);
       if (cnt.get() >= w.bucket) {
@@ -339,7 +352,7 @@ public class ReduceByKeyTest extends OperatorTest {
     }
 
     @Override
-    public TriggerResult onTimeEvent(long time, CWindow w, TriggerContext ctx) {
+    public TriggerResult onTimer(long time, CWindow w, TriggerContext ctx) {
       return TriggerResult.NOOP;
     }
 
@@ -359,15 +372,15 @@ public class ReduceByKeyTest extends OperatorTest {
   }
 
   static final class CWindowing<T> implements MergingWindowing<T, CWindow> {
-    UnaryFunction<T, Integer> typeFn;
+    private final int size;
 
-    CWindowing(UnaryFunction<T, Integer> typeFn) {
-      this.typeFn = typeFn;
+    CWindowing(int size) {
+      this.size = size;
     }
 
     @Override
     public Set<CWindow> assignWindowsToElement(WindowedElement<?, T> input) {
-      return Sets.newHashSet(new CWindow(typeFn.apply(input.get())));
+      return Sets.newHashSet(new CWindow(size));
     }
 
     @Override
@@ -387,13 +400,13 @@ public class ReduceByKeyTest extends OperatorTest {
     }
 
     @Override
-    public Trigger<T, CWindow> getTrigger() {
-      return new CWindowTrigger<T>();
+    public Trigger<CWindow> getTrigger() {
+      return new CWindowTrigger();
     }
   }
 
-  TestCase<Triple<String,Integer,Long>> testMergingAndTriggering() {
-    return new AbstractTestCase<Triple<String, Integer, Long>, Triple<String, Integer, Long>>() {
+  TestCase<Pair<String, Long>> testMergingAndTriggering(boolean batch) {
+    return new AbstractTestCase<Pair<String, Long>, Pair<String, Long>>() {
 
       @Override
       public int getNumOutputPartitions() {
@@ -401,69 +414,47 @@ public class ReduceByKeyTest extends OperatorTest {
       }
 
       @Override
-      protected DataSource<Triple<String, Integer, Long>> getDataSource() {
-        return ListDataSource.unbounded(asList(
-            Triple.of("a", 3,      10L),
-            Triple.of("a", 2,      20L),
-            Triple.of("a", 2,     200L),
-            Triple.of("a", 2,      30L),
-            Triple.of("b", 3,      10L),
-            Triple.of("b", 4,      20L),
-            Triple.of("a", 3,     100L),
-            Triple.of("c", 3,   1_000L),
-            Triple.of("b", 4,     200L),
-            Triple.of("a", 3,   1_000L),
-            Triple.of("a", 3,  10_000L),
-            Triple.of("b", 4,   2_000L),
-            Triple.of("b", 4,  20_000L),
-            Triple.of("b", 4, 200_000L),
-            Triple.of("a", 3, 100_000L)
+      protected DataSource<Pair<String, Long>> getDataSource() {
+        return ListDataSource.of(batch, asList(
+            Pair.of("a",      20L),
+            Pair.of("c",    3000L),
+            Pair.of("b",      10L),
+            Pair.of("b",     100L),
+            Pair.of("a",    4000L),
+            Pair.of("c",     300L),
+            Pair.of("b",    1000L),
+            Pair.of("b",   50000L),
+            Pair.of("a",  100000L),
+            Pair.of("a",     800L),
+            Pair.of("a",      80L)
         ));
       }
 
       @Override
-      protected Dataset<Triple<String, Integer, Long>>
-      getOutput(Dataset<Triple<String, Integer, Long>> input) {
-        Dataset<Pair<String, Long>> reduced =
-            ReduceByKey.of(input)
-                .keyBy(Triple::getFirst)
-                .valueBy(Triple::getThird)
-                .combineBy(Sums.ofLongs())
-                .windowBy(new CWindowing<>(Triple::getSecond))
-                .output();
-        return FlatMap.of(reduced)
-            .using((UnaryFunctor<Pair<String, Long>, Triple<String, Integer, Long>>)
-                (elem, context) -> {
-                  int bucket = ((CWindow) context.getWindow()).bucket;
-                  context.collect(Triple.of(elem.getFirst(), bucket, elem.getSecond()));
-                })
+      protected Dataset<Pair<String, Long>>
+      getOutput(Dataset<Pair<String, Long>> input) {
+        return ReduceByKey.of(input)
+            .keyBy(Pair::getFirst)
+            .valueBy(Pair::getSecond)
+            .combineBy(Sums.ofLongs())
+            .windowBy(new CWindowing<>(3))
             .output();
       }
 
       @Override
-      public void validate(List<List<Triple<String, Integer, Long>>> partitions) {
+      public void validate(List<List<Pair<String, Long>>> partitions) {
         assertEquals(1, partitions.size());
-        // expected:
-        //   w:3  => [a:10L + a:100L + a:1000L], [a:10000L + a:100000L]
-        //   w:2  => [a:20L + a:200L] [a:30L]
-        //   w:3  => [b:10L]
-        //   w:4  => [b:20L + b:200L + b:2000L + b:20000L]
-        //   w:4  => [b:200000L]
-        //   w:3  => [c:1000L]
         assertEquals(
             Lists.newArrayList(
-                Triple.of("a",  2,      30L),
-                Triple.of("a",  2,     220L),
-                Triple.of("a",  3,   1_110L),
-                Triple.of("a",  3, 110_000L),
-                Triple.of("b",  3,      10L),
-                Triple.of("b",  4,  22_220L),
-                Triple.of("b",  4, 200_000L),
-                Triple.of("c",  3,   1_000L)),
+                Pair.of("a",         880L),
+                Pair.of("a",      104020L),
+                Pair.of("b",        1110L),
+                Pair.of("b",       50000L),
+                Pair.of("c",        3300L)),
             sorted(partitions.get(0), (o1, o2) -> {
               int cmp = o1.getFirst().compareTo(o2.getFirst());
               if (cmp == 0) {
-                cmp = Long.compare(o1.getThird(), o2.getThird());
+                cmp = Long.compare(o1.getSecond(), o2.getSecond());
               }
               return cmp;
             }));
@@ -471,11 +462,12 @@ public class ReduceByKeyTest extends OperatorTest {
     };
   }
 
-  TestCase<Triple<TimeInterval,Integer,HashSet<String>>> testSessionWindowing0() {
+  TestCase<Triple<TimeInterval,Integer,HashSet<String>>>
+  testSessionWindowing(boolean batch) {
     return new AbstractTestCase<Pair<String, Integer>, Triple<TimeInterval, Integer, HashSet<String>>>() {
       @Override
       protected DataSource<Pair<String, Integer>> getDataSource() {
-        return ListDataSource.unbounded(asList(
+        return ListDataSource.of(batch, asList(
             Pair.of("1-one",   1),
             Pair.of("2-one",   2),
             Pair.of("1-two",   4),

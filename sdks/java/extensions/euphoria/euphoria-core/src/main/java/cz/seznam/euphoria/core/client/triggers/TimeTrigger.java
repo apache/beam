@@ -7,17 +7,22 @@ import org.slf4j.LoggerFactory;
 /**
  * A {@link Trigger} that fires once the time passes the end of the window.
  */
-public class TimeTrigger<T> implements Trigger<T, TimeInterval> {
+public class TimeTrigger implements Trigger<TimeInterval> {
 
   private static final Logger LOG = LoggerFactory.getLogger(TimeTrigger.class);
 
   @Override
-  public TriggerResult onElement(long time, T element, TimeInterval window, TriggerContext ctx) {
+  public boolean isStateful() {
+    return false;
+  }
+
+  @Override
+  public TriggerResult onElement(long time, TimeInterval window, TriggerContext ctx) {
     return registerTimer(window, ctx);
   }
 
   @Override
-  public TriggerResult onTimeEvent(long time, TimeInterval window, TriggerContext ctx) {
+  public TriggerResult onTimer(long time, TimeInterval window, TriggerContext ctx) {
     if (time == window.getEndMillis()) {
       LOG.debug("Firing TimeTrigger, time {}, window: {}", time, window);
       return TriggerResult.FLUSH_AND_PURGE;

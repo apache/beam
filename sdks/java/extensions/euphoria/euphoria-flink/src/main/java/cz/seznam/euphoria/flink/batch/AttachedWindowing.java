@@ -3,6 +3,7 @@ package cz.seznam.euphoria.flink.batch;
 import cz.seznam.euphoria.core.client.dataset.windowing.Window;
 import cz.seznam.euphoria.core.client.dataset.windowing.WindowedElement;
 import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
+import cz.seznam.euphoria.core.client.triggers.NoopTrigger;
 import cz.seznam.euphoria.core.client.triggers.Trigger;
 
 import java.util.Collections;
@@ -19,7 +20,7 @@ class AttachedWindowing<T, W extends Window> implements Windowing<T, W> {
   }
 
   @Override
-  public Trigger<T, W> getTrigger() {
-    return null;
+  public Trigger<W> getTrigger() {
+    return NoopTrigger.get();
   }
 }

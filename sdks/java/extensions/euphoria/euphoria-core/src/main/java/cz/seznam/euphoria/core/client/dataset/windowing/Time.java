@@ -106,13 +106,13 @@ public class Time<T> implements Windowing<T, TimeInterval> {
   }
 
   @Override
-  public Trigger<T, TimeInterval> getTrigger() {
+  public Trigger<TimeInterval> getTrigger() {
     if (earlyTriggeringPeriod != null) {
       return new AfterFirstCompositeTrigger<>(Arrays.asList(
-              new TimeTrigger<>(),
-              new PeriodicTimeTrigger<>(earlyTriggeringPeriod.toMillis())));
+              new TimeTrigger(),
+              new PeriodicTimeTrigger(earlyTriggeringPeriod.toMillis())));
     }
-    return new TimeTrigger<>();
+    return new TimeTrigger();
   }
 
   public Duration getEarlyTriggeringPeriod() {
