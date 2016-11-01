@@ -20,7 +20,7 @@
 from apitools.base.py import extra_types
 
 
-def _get_typed_value_descriptor(obj):
+def get_typed_value_descriptor(obj):
   """Converts a basic type into a @type/value dictionary.
 
   Args:
@@ -80,7 +80,7 @@ def to_json_value(obj, with_type=False):
               key=k, value=to_json_value(v, with_type=with_type)))
     return extra_types.JsonValue(object_value=json_object)
   elif with_type:
-    return to_json_value(_get_typed_value_descriptor(obj), with_type=False)
+    return to_json_value(get_typed_value_descriptor(obj), with_type=False)
   elif isinstance(obj, basestring):
     return extra_types.JsonValue(string_value=obj)
   elif isinstance(obj, bool):
