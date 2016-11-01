@@ -32,6 +32,7 @@ from apache_beam.utils.timestamp import MIN_TIMESTAMP
 from apache_beam.utils.timestamp import Timestamp
 # pylint: enable=unused-import
 
+
 class TimeDomain(object):
   """Time domain for streaming timers."""
 
