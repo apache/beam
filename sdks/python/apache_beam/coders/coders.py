@@ -30,12 +30,10 @@ try:
   # Import dill from the pickler module to make sure our monkey-patching of dill
   # occurs.
   from apache_beam.internal.pickler import dill
-  from apache_beam.transforms.timeutil import Timestamp
 except ImportError:
   # We fall back to using the stock dill library in tests that don't use the
   # full Python SDK.
   import dill
-  Timestamp = collections.namedtuple('Timestamp', 'micros')
 
 
 def serialize_coder(coder):
@@ -265,7 +263,7 @@ class TimestampCoder(FastCoder):
   """A coder used for timeutil.Timestamp values."""
 
   def _create_impl(self):
-    return coder_impl.TimestampCoderImpl(Timestamp)
+    return coder_impl.TimestampCoderImpl()
 
   def is_deterministic(self):
     return True

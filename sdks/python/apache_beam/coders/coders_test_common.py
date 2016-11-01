@@ -25,6 +25,7 @@ import dill
 
 import coders
 import observable
+from apache_beam.utils import timestamp
 
 
 # Defined out of line for picklability.
@@ -160,13 +161,13 @@ class CodersTest(unittest.TestCase):
 
   def test_timestamp_coder(self):
     self.check_coder(coders.TimestampCoder(),
-                     *[coders.Timestamp(micros=x) for x in range(-100, 100)])
+                     *[timestamp.Timestamp(micros=x) for x in range(-100, 100)])
     self.check_coder(coders.TimestampCoder(),
-                     coders.Timestamp(micros=-1234567890),
-                     coders.Timestamp(micros=1234567890))
+                     timestamp.Timestamp(micros=-1234567890),
+                     timestamp.Timestamp(micros=1234567890))
     self.check_coder(coders.TimestampCoder(),
-                     coders.Timestamp(micros=-1234567890123456789),
-                     coders.Timestamp(micros=1234567890123456789))
+                     timestamp.Timestamp(micros=-1234567890123456789),
+                     timestamp.Timestamp(micros=1234567890123456789))
 
   def test_tuple_coder(self):
     self.check_coder(

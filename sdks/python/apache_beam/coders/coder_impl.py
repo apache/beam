@@ -29,15 +29,8 @@ import collections
 from types import NoneType
 
 from apache_beam.coders import observable
-
-
-# pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports
-try:
-  # Don't depend on the full dataflow sdk to test coders.
-  from apache_beam.transforms.window import WindowedValue
-except ImportError:
-  WindowedValue = collections.namedtuple(
-      'WindowedValue', ('value', 'timestamp', 'windows'))
+from apache_beam.utils.timestamp import Timestamp
+from apache_beam.utils.windowed_value import WindowedValue
 
 
 try:
@@ -326,8 +319,8 @@ class FloatCoderImpl(StreamCoderImpl):
 
 class TimestampCoderImpl(StreamCoderImpl):
 
-  def __init__(self, timestamp_class):
-    self.timestamp_class = timestamp_class
+  def __init__(self, timestamp_class=None):
+    self.timestamp_class = Timestamp#timestamp_class
 
   def encode_to_stream(self, value, out, nested):
     out.write_bigendian_int64(value.micros)
