@@ -27,7 +27,6 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import java.lang.reflect.Constructor;
 import java.util.Arrays;
 import org.apache.beam.sdk.extensions.sorter.SorterTestUtils.SorterGenerator;
 import org.apache.beam.sdk.values.KV;
@@ -77,12 +76,8 @@ public class BufferedExternalSorterTest {
   public void testFallback() throws Exception {
     ExternalSorter mockExternalSorter = mock(ExternalSorter.class);
     InMemorySorter mockInMemorySorter = mock(InMemorySorter.class);
-    Constructor<BufferedExternalSorter> constructor =
-        BufferedExternalSorter.class.getDeclaredConstructor(
-            ExternalSorter.class, InMemorySorter.class);
-    constructor.setAccessible(true);
     BufferedExternalSorter testSorter =
-        constructor.newInstance(mockExternalSorter, mockInMemorySorter);
+        new BufferedExternalSorter(mockExternalSorter, mockInMemorySorter);
 
     @SuppressWarnings("unchecked")
     KV<byte[], byte[]>[] kvs =
