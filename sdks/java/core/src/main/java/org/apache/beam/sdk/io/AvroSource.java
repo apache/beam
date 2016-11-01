@@ -56,6 +56,7 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.runners.PipelineRunner;
 import org.apache.beam.sdk.util.AvroUtils;
 import org.apache.beam.sdk.util.AvroUtils.AvroMetadata;
+import org.apache.beam.sdk.util.IOChannelFactoryV2.Metadata;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.commons.compress.compressors.bzip2.BZip2CompressorInputStream;
 import org.apache.commons.compress.compressors.snappy.SnappyCompressorInputStream;
@@ -267,7 +268,7 @@ public class AvroSource<T> extends BlockBasedSource<T> {
     if (codec == null || syncMarker == null || fileSchemaString == null) {
       AvroMetadata metadata;
       try {
-        Collection<String> files = FileBasedSource.expandFilePattern(fileName);
+        Collection<Metadata> files = expandFilePattern(fileName);
         checkArgument(files.size() <= 1, "More than 1 file matched %s");
         metadata = AvroUtils.readMetadataFromFile(fileName);
       } catch (IOException e) {

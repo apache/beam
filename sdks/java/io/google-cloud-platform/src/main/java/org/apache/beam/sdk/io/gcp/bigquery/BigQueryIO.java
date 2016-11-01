@@ -21,6 +21,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
 
+import autovalue.shaded.com.google.common.common.collect.Sets;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.api.client.json.JsonFactory;
@@ -41,6 +42,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Function;
 import com.google.common.base.MoreObjects;
 import com.google.common.base.Strings;
+import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.io.CountingOutputStream;
@@ -104,11 +106,8 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.DefaultTrigger;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
-import org.apache.beam.sdk.util.FileIOChannelFactory;
-import org.apache.beam.sdk.util.GcsIOChannelFactory;
-import org.apache.beam.sdk.util.GcsUtil;
-import org.apache.beam.sdk.util.GcsUtil.GcsUtilFactory;
-import org.apache.beam.sdk.util.IOChannelFactory;
+import org.apache.beam.sdk.util.IOChannelFactoryV2;
+import org.apache.beam.sdk.util.IOChannelFactoryV2.Metadata;
 import org.apache.beam.sdk.util.IOChannelUtils;
 import org.apache.beam.sdk.util.MimeTypes;
 import org.apache.beam.sdk.util.PropertyNames;
@@ -580,7 +579,7 @@ public class BigQueryIO {
         final String extractDestinationDir;
         String tempLocation = bqOptions.getTempLocation();
         try {
-          IOChannelFactory factory = IOChannelUtils.getFactory(tempLocation);
+          IOChannelFactoryV2 factory = IOChannelUtils.getFactoryV2(tempLocation);
           extractDestinationDir = factory.resolve(tempLocation, uuid);
         } catch (IOException e) {
           throw new RuntimeException(
@@ -622,14 +621,22 @@ public class BigQueryIO {
                 if (extractJob != null) {
                   extractFiles = getExtractFilePaths(extractDestinationDir, extractJob);
                 } else {
-                  IOChannelFactory factory = IOChannelUtils.getFactory(extractDestinationDir);
-                  Collection<String> dirMatch = factory.match(extractDestinationDir);
+                  IOChannelFactoryV2 factory = IOChannelUtils.getFactoryV2(extractDestinationDir);
+                  Collection<Metadata> dirMatch = factory.match(extractDestinationDir);
                   if (!dirMatch.isEmpty()) {
-                    extractFiles = factory.match(factory.resolve(extractDestinationDir, "*"));
+                    extractFiles = ImmutableList.copyOf(FluentIterable
+                        .from(factory.match(factory.resolve(extractDestinationDir, "*")))
+                        .transform(new Function<Metadata, String>() {
+                          @Override
+                          public String apply(Metadata input) {
+                            return input.uri;
+                          }
+                        }));
                   }
                 }
                 if (extractFiles != null && !extractFiles.isEmpty()) {
-                  new GcsUtilFactory().create(options).remove(extractFiles);
+                  IOChannelUtils.getFactoryV2(extractFiles.iterator().next())
+                      .bulkDelete(Sets.newHashSet(extractFiles));
                 }
               }};
         return input.getPipeline()
@@ -1297,7 +1304,7 @@ public class BigQueryIO {
     long filesCount = counts.get(0);
 
     ImmutableList.Builder<String> paths = ImmutableList.builder();
-    IOChannelFactory factory = IOChannelUtils.getFactory(extractDestinationDir);
+    IOChannelFactoryV2 factory = IOChannelUtils.getFactoryV2(extractDestinationDir);
     for (long i = 0; i < filesCount; ++i) {
       String filePath =
           factory.resolve(extractDestinationDir, String.format("%012d%s", i, ".avro"));
@@ -1762,7 +1769,7 @@ public class BigQueryIO {
         String tempLocation = options.getTempLocation();
         String tempFilePrefix;
         try {
-          IOChannelFactory factory = IOChannelUtils.getFactory(tempLocation);
+          IOChannelFactoryV2 factory = IOChannelUtils.getFactoryV2(tempLocation);
           tempFilePrefix = factory.resolve(
                   factory.resolve(tempLocation, "BigQueryWriteTemp"),
                   jobIdToken);
@@ -2164,21 +2171,8 @@ public class BigQueryIO {
           String tempFilePrefix,
           Collection<String> files)
           throws IOException {
-        IOChannelFactory factory = IOChannelUtils.getFactory(tempFilePrefix);
-        if (factory instanceof GcsIOChannelFactory) {
-          GcsUtil gcsUtil = new GcsUtil.GcsUtilFactory().create(options);
-          gcsUtil.remove(files);
-        } else if (factory instanceof FileIOChannelFactory) {
-          for (String filename : files) {
-            LOG.debug("Removing file {}", filename);
-            boolean exists = Files.deleteIfExists(Paths.get(filename));
-            if (!exists) {
-              LOG.debug("{} does not exist.", filename);
-            }
-          }
-        } else {
-          throw new IOException("Unrecognized file system.");
-        }
+        IOChannelFactoryV2 factory = IOChannelUtils.getFactoryV2(tempFilePrefix);
+        factory.bulkDelete(Sets.newHashSet(files));
       }
 
       @Override
