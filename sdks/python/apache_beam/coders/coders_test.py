@@ -86,8 +86,12 @@ class DummyClass(object):
 
 class FallbackCoderTest(unittest.TestCase):
 
-  def test_fallaback_path(self):
+  def test_default_fallback_path(self):
+    "Test fallback path picks a matching coder if no coder is registered"
+
     coder = coders.registry.get_coder(DummyClass)
+    # No matching coder, so picks the last fallback coder which is a
+    # FastPrimitivesCoder.
     self.assertEqual(coder, coders.FastPrimitivesCoder())
     self.assertEqual(DummyClass(), coder.decode(coder.encode(DummyClass())))
 
