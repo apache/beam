@@ -18,7 +18,6 @@
 """Collection of useful coders."""
 
 import base64
-import collections
 import cPickle as pickle
 
 from apache_beam.coders import coder_impl

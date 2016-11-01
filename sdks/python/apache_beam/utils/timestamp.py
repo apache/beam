@@ -19,9 +19,6 @@
 
 from __future__ import absolute_import
 
-from abc import ABCMeta
-from abc import abstractmethod
-
 import datetime
 
 
@@ -214,4 +211,3 @@ class Duration(object):
   def __mod__(self, other):
     other = Duration.of(other)
     return Duration(micros=self.micros % other.micros)
-

@@ -25,14 +25,13 @@ This module may be optionally compiled with Cython, using the corresponding
 coder_impl.pxd file for type hints.
 """
 
-import collections
 from types import NoneType
 
 from apache_beam.coders import observable
 from apache_beam.utils.timestamp import Timestamp
 from apache_beam.utils.windowed_value import WindowedValue
 
-
+# pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports
 try:
   from stream import InputStream as create_InputStream
   from stream import OutputStream as create_OutputStream
@@ -319,14 +318,11 @@ class FloatCoderImpl(StreamCoderImpl):
 
 class TimestampCoderImpl(StreamCoderImpl):
 
-  def __init__(self, timestamp_class=None):
-    self.timestamp_class = Timestamp#timestamp_class
-
   def encode_to_stream(self, value, out, nested):
     out.write_bigendian_int64(value.micros)
 
   def decode_from_stream(self, in_stream, nested):
-    return self.timestamp_class(micros=in_stream.read_bigendian_int64())
+    return Timestamp(micros=in_stream.read_bigendian_int64())
 
   def estimate_size(self, unused_value, nested=False):
     # A Timestamp is encoded as a 64-bit integer in 8 bytes, regardless of
