@@ -79,7 +79,7 @@ public abstract class FileBasedSink<T> extends Sink<T> {
   /**
    * Directly supported file output compression types.
    */
-  public static enum CompressionType implements WritableByteChannelFactory {
+  public enum CompressionType implements WritableByteChannelFactory {
     /**
      * No compression, or any other transformation, will be used.
      */
@@ -680,7 +680,7 @@ public abstract class FileBasedSink<T> extends Sink<T> {
    * copy-if-existing and do not throw exceptions on file not found to enable retries of these
    * operations in the case of transient error.
    */
-  private static interface FileOperations {
+  private interface FileOperations {
     /**
      * Copy a collection of files from one location to another.
      *
@@ -689,12 +689,12 @@ public abstract class FileBasedSink<T> extends Sink<T> {
      * @param srcFilenames the source filenames.
      * @param destFilenames the destination filenames.
      */
-    public void copy(List<String> srcFilenames, List<String> destFilenames) throws IOException;
+     void copy(List<String> srcFilenames, List<String> destFilenames) throws IOException;
 
     /**
      * Remove a collection of files.
      */
-    public void remove(Collection<String> filenames) throws IOException;
+    void remove(Collection<String> filenames) throws IOException;
   }
 
   /**
@@ -786,7 +786,7 @@ public abstract class FileBasedSink<T> extends Sink<T> {
      * @return the {@link WritableByteChannel} to be used during output
      * @throws IOException
      */
-    public WritableByteChannel create(WritableByteChannel channel) throws IOException;
+    WritableByteChannel create(WritableByteChannel channel) throws IOException;
 
     /**
      * @return the MIME type that should be used for the files that will hold the output data
@@ -794,12 +794,12 @@ public abstract class FileBasedSink<T> extends Sink<T> {
      * @see <a href=
      *      'http://www.iana.org/assignments/media-types/media-types.xhtml'>http://www.iana.org/assignments/media-types/media-types.xhtml</a>
      */
-    public String getMimeType();
+    String getMimeType();
 
     /**
      * @return an optional filename suffix, eg, ".gz" is returned by {@link CompressionType#GZIP}
      */
     @Nullable
-    public String getFilenameSuffix();
+    String getFilenameSuffix();
   }
 }

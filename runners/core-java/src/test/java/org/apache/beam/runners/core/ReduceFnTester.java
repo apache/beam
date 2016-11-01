@@ -38,6 +38,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import javax.annotation.Nullable;
+import org.apache.beam.runners.core.triggers.ExecutableTriggerStateMachine;
+import org.apache.beam.runners.core.triggers.TriggerStateMachine;
+import org.apache.beam.runners.core.triggers.TriggerStateMachineRunner;
+import org.apache.beam.runners.core.triggers.TriggerStateMachines;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.coders.IterableCoder;
@@ -59,7 +63,6 @@ import org.apache.beam.sdk.transforms.windowing.Trigger;
 import org.apache.beam.sdk.transforms.windowing.Window.ClosingBehavior;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.util.AppliedCombineFn;
-import org.apache.beam.sdk.util.ExecutableTrigger;
 import org.apache.beam.sdk.util.NullSideInputReader;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.util.SideInputReader;
@@ -106,6 +109,7 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
   private final TestWindowingInternals windowingInternals;
   private final Coder<OutputT> outputCoder;
   private final WindowingStrategy<Object, W> objectStrategy;
+  private final ExecutableTriggerStateMachine executableTriggerStateMachine;
   private final ReduceFn<String, InputT, OutputT, W> reduceFn;
   private final PipelineOptions options;
 
@@ -117,38 +121,99 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
    */
   private boolean autoAdvanceOutputWatermark = true;
 
-  private ExecutableTrigger executableTrigger;
-
   private final InMemoryLongSumAggregator droppedDueToClosedWindow =
       new InMemoryLongSumAggregator(GroupAlsoByWindowsDoFn.DROPPED_DUE_TO_CLOSED_WINDOW_COUNTER);
 
+  /**
+   * Creates a {@link ReduceFnTester} for the given {@link WindowingStrategy}, creating
+   * a {@link TriggerStateMachine} from its {@link Trigger}.
+   */
   public static <W extends BoundedWindow> ReduceFnTester<Integer, Iterable<Integer>, W>
       nonCombining(WindowingStrategy<?, W> windowingStrategy) throws Exception {
     return new ReduceFnTester<Integer, Iterable<Integer>, W>(
         windowingStrategy,
+        TriggerStateMachines.stateMachineForTrigger(windowingStrategy.getTrigger()),
         SystemReduceFn.<String, Integer, W>buffering(VarIntCoder.of()),
         IterableCoder.of(VarIntCoder.of()),
         PipelineOptionsFactory.create(),
         NullSideInputReader.empty());
   }
 
-  public static <W extends BoundedWindow> ReduceFnTester<Integer, Iterable<Integer>, W>
-      nonCombining(WindowFn<?, W> windowFn, Trigger trigger, AccumulationMode mode,
-          Duration allowedDataLateness, ClosingBehavior closingBehavior) throws Exception {
+  /**
+   * Creates a {@link ReduceFnTester} for the given {@link WindowingStrategy} and {@link
+   * TriggerStateMachine}, for mocking the interactions between {@link ReduceFnRunner} and the
+   * {@link TriggerStateMachine}.
+   *
+   * <p>Ignores the {@link Trigger} on the {@link WindowingStrategy}.
+   */
+  public static <W extends BoundedWindow>
+      ReduceFnTester<Integer, Iterable<Integer>, W> nonCombining(
+          WindowingStrategy<?, W> windowingStrategy, TriggerStateMachine triggerStateMachine)
+          throws Exception {
+    return new ReduceFnTester<>(
+        windowingStrategy,
+        triggerStateMachine,
+        SystemReduceFn.<String, Integer, W>buffering(VarIntCoder.of()),
+        IterableCoder.of(VarIntCoder.of()),
+        PipelineOptionsFactory.create(),
+        NullSideInputReader.empty());
+  }
+
+  public static <W extends BoundedWindow>
+      ReduceFnTester<Integer, Iterable<Integer>, W> nonCombining(
+          WindowFn<?, W> windowFn,
+          TriggerStateMachine triggerStateMachine,
+          AccumulationMode mode,
+          Duration allowedDataLateness,
+          ClosingBehavior closingBehavior)
+          throws Exception {
     WindowingStrategy<?, W> strategy =
         WindowingStrategy.of(windowFn)
             .withOutputTimeFn(OutputTimeFns.outputAtEarliestInputTimestamp())
-            .withTrigger(trigger)
             .withMode(mode)
             .withAllowedLateness(allowedDataLateness)
             .withClosingBehavior(closingBehavior);
-    return nonCombining(strategy);
+    return nonCombining(strategy, triggerStateMachine);
   }
 
-  public static <W extends BoundedWindow, AccumT, OutputT> ReduceFnTester<Integer, OutputT, W>
-      combining(WindowingStrategy<?, W> strategy,
+  /**
+   * Creates a {@link ReduceFnTester} for the given {@link WindowingStrategy} and
+   * {@link KeyedCombineFn}, creating a {@link TriggerStateMachine} from the
+   * {@link Trigger} in the {@link WindowingStrategy}.
+   */
+  public static <W extends BoundedWindow, AccumT, OutputT>
+      ReduceFnTester<Integer, OutputT, W> combining(
+          WindowingStrategy<?, W> strategy,
           KeyedCombineFn<String, Integer, AccumT, OutputT> combineFn,
-          Coder<OutputT> outputCoder) throws Exception {
+          Coder<OutputT> outputCoder)
+          throws Exception {
+
+    CoderRegistry registry = new CoderRegistry();
+    registry.registerStandardCoders();
+    AppliedCombineFn<String, Integer, AccumT, OutputT> fn =
+        AppliedCombineFn.<String, Integer, AccumT, OutputT>withInputCoder(
+            combineFn, registry, KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of()));
+
+    return combining(
+        strategy,
+        TriggerStateMachines.stateMachineForTrigger(strategy.getTrigger()),
+        combineFn,
+        outputCoder);
+  }
+
+  /**
+   * Creates a {@link ReduceFnTester} for the given {@link WindowingStrategy},
+   * {@link KeyedCombineFn}, and {@link TriggerStateMachine}, for mocking the interaction
+   * between {@link ReduceFnRunner} and the {@link TriggerStateMachine}.
+   * Ignores the {@link Trigger} in the {@link WindowingStrategy}.
+   */
+  public static <W extends BoundedWindow, AccumT, OutputT>
+  ReduceFnTester<Integer, OutputT, W> combining(
+      WindowingStrategy<?, W> strategy,
+      TriggerStateMachine triggerStateMachine,
+      KeyedCombineFn<String, Integer, AccumT, OutputT> combineFn,
+      Coder<OutputT> outputCoder)
+      throws Exception {
 
     CoderRegistry registry = new CoderRegistry();
     registry.registerStandardCoders();
@@ -158,18 +223,45 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
 
     return new ReduceFnTester<Integer, OutputT, W>(
         strategy,
+        triggerStateMachine,
         SystemReduceFn.<String, Integer, AccumT, OutputT, W>combining(StringUtf8Coder.of(), fn),
         outputCoder,
         PipelineOptionsFactory.create(),
         NullSideInputReader.empty());
   }
 
-  public static <W extends BoundedWindow, AccumT, OutputT> ReduceFnTester<Integer, OutputT, W>
-  combining(WindowingStrategy<?, W> strategy,
+  public static <W extends BoundedWindow, AccumT, OutputT>
+      ReduceFnTester<Integer, OutputT, W> combining(
+          WindowingStrategy<?, W> strategy,
+          KeyedCombineFnWithContext<String, Integer, AccumT, OutputT> combineFn,
+          Coder<OutputT> outputCoder,
+          PipelineOptions options,
+          SideInputReader sideInputReader)
+          throws Exception {
+    CoderRegistry registry = new CoderRegistry();
+    registry.registerStandardCoders();
+    AppliedCombineFn<String, Integer, AccumT, OutputT> fn =
+        AppliedCombineFn.<String, Integer, AccumT, OutputT>withInputCoder(
+            combineFn, registry, KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of()));
+
+    return combining(
+        strategy,
+        TriggerStateMachines.stateMachineForTrigger(strategy.getTrigger()),
+        combineFn,
+        outputCoder,
+        options,
+        sideInputReader);
+  }
+
+  public static <W extends BoundedWindow, AccumT, OutputT>
+  ReduceFnTester<Integer, OutputT, W> combining(
+      WindowingStrategy<?, W> strategy,
+      TriggerStateMachine triggerStateMachine,
       KeyedCombineFnWithContext<String, Integer, AccumT, OutputT> combineFn,
       Coder<OutputT> outputCoder,
       PipelineOptions options,
-      SideInputReader sideInputReader) throws Exception {
+      SideInputReader sideInputReader)
+      throws Exception {
     CoderRegistry registry = new CoderRegistry();
     registry.registerStandardCoders();
     AppliedCombineFn<String, Integer, AccumT, OutputT> fn =
@@ -178,29 +270,21 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
 
     return new ReduceFnTester<Integer, OutputT, W>(
         strategy,
+        triggerStateMachine,
         SystemReduceFn.<String, Integer, AccumT, OutputT, W>combining(StringUtf8Coder.of(), fn),
         outputCoder,
         options,
         sideInputReader);
   }
-  public static <W extends BoundedWindow, AccumT, OutputT> ReduceFnTester<Integer, OutputT, W>
-      combining(WindowFn<?, W> windowFn, Trigger trigger, AccumulationMode mode,
-          KeyedCombineFn<String, Integer, AccumT, OutputT> combineFn, Coder<OutputT> outputCoder,
-          Duration allowedDataLateness) throws Exception {
 
-    WindowingStrategy<?, W> strategy =
-        WindowingStrategy.of(windowFn)
-            .withOutputTimeFn(OutputTimeFns.outputAtEarliestInputTimestamp())
-            .withTrigger(trigger)
-            .withMode(mode)
-            .withAllowedLateness(allowedDataLateness);
-
-    return combining(strategy, combineFn, outputCoder);
-  }
-
-  private ReduceFnTester(WindowingStrategy<?, W> wildcardStrategy,
-      ReduceFn<String, InputT, OutputT, W> reduceFn, Coder<OutputT> outputCoder,
-      PipelineOptions options, SideInputReader sideInputReader) throws Exception {
+  private ReduceFnTester(
+      WindowingStrategy<?, W> wildcardStrategy,
+      TriggerStateMachine triggerStateMachine,
+      ReduceFn<String, InputT, OutputT, W> reduceFn,
+      Coder<OutputT> outputCoder,
+      PipelineOptions options,
+      SideInputReader sideInputReader)
+      throws Exception {
     @SuppressWarnings("unchecked")
     WindowingStrategy<Object, W> objectStrategy = (WindowingStrategy<Object, W>) wildcardStrategy;
 
@@ -208,8 +292,8 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
     this.reduceFn = reduceFn;
     this.windowFn = objectStrategy.getWindowFn();
     this.windowingInternals = new TestWindowingInternals(sideInputReader);
+    this.executableTriggerStateMachine = ExecutableTriggerStateMachine.create(triggerStateMachine);
     this.outputCoder = outputCoder;
-    this.executableTrigger = wildcardStrategy.getTrigger();
     this.options = options;
   }
 
@@ -226,16 +310,13 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
     return new ReduceFnRunner<>(
         KEY,
         objectStrategy,
+        executableTriggerStateMachine,
         stateInternals,
         timerInternals,
         windowingInternals,
         droppedDueToClosedWindow,
         reduceFn,
         options);
-  }
-
-  public ExecutableTrigger getTrigger() {
-    return executableTrigger;
   }
 
   public boolean isMarkedFinished(W window) {
@@ -250,7 +331,7 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
   public final void assertHasOnlyGlobalAndFinishedSetsFor(W... expectedWindows) {
     assertHasOnlyGlobalAndAllowedTags(
         ImmutableSet.copyOf(expectedWindows),
-        ImmutableSet.<StateTag<? super String, ?>>of(TriggerRunner.FINISHED_BITS_TAG));
+        ImmutableSet.<StateTag<? super String, ?>>of(TriggerStateMachineRunner.FINISHED_BITS_TAG));
   }
 
   @SafeVarargs
@@ -258,7 +339,7 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
     assertHasOnlyGlobalAndAllowedTags(
         ImmutableSet.copyOf(expectedWindows),
         ImmutableSet.<StateTag<? super String, ?>>of(
-            TriggerRunner.FINISHED_BITS_TAG, PaneInfoTracker.PANE_INFO_TAG,
+            TriggerStateMachineRunner.FINISHED_BITS_TAG, PaneInfoTracker.PANE_INFO_TAG,
             WatermarkHold.watermarkHoldTagForOutputTimeFn(objectStrategy.getOutputTimeFn()),
             WatermarkHold.EXTRA_HOLD_TAG));
   }

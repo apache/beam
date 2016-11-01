@@ -309,7 +309,7 @@ public final class PaneInfo {
    * A Coder for encoding PaneInfo instances.
    */
   public static class PaneInfoCoder extends AtomicCoder<PaneInfo> {
-    private static enum Encoding {
+    private enum Encoding {
       FIRST,
       ONE_INDEX,
       TWO_INDICES;

@@ -59,12 +59,6 @@ public class TriggerTest {
     }
 
     @Override
-    public void onElement(Trigger.OnElementContext c) { }
-
-    @Override
-    public void onMerge(Trigger.OnMergeContext c) { }
-
-    @Override
     protected Trigger getContinuationTrigger(
         List<Trigger> continuationTriggers) {
       return null;
@@ -74,14 +68,6 @@ public class TriggerTest {
     public Instant getWatermarkThatGuaranteesFiring(BoundedWindow window) {
       return null;
     }
-
-    @Override
-    public boolean shouldFire(Trigger.TriggerContext context) throws Exception {
-      return false;
-    }
-
-    @Override
-    public void onFire(Trigger.TriggerContext context) throws Exception { }
   }
 
   private static class Trigger2 extends Trigger {
@@ -91,12 +77,6 @@ public class TriggerTest {
     }
 
     @Override
-    public void onElement(Trigger.OnElementContext c) { }
-
-    @Override
-    public void onMerge(Trigger.OnMergeContext c) { }
-
-    @Override
     protected Trigger getContinuationTrigger(
         List<Trigger> continuationTriggers) {
       return null;
@@ -106,13 +86,5 @@ public class TriggerTest {
     public Instant getWatermarkThatGuaranteesFiring(BoundedWindow window) {
       return null;
     }
-
-    @Override
-    public boolean shouldFire(Trigger.TriggerContext context) throws Exception {
-      return false;
-    }
-
-    @Override
-    public void onFire(Trigger.TriggerContext context) throws Exception { }
   }
 }

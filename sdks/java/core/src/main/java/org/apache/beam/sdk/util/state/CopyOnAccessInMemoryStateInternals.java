@@ -231,7 +231,7 @@ public class CopyOnAccessInMemoryStateInternals<K> implements StateInternals<K> 
       return binderFactory.forNamespace(namespace, c);
     }
 
-    private static interface StateBinderFactory<K> {
+    private interface StateBinderFactory<K> {
       StateBinder<K> forNamespace(StateNamespace namespace, StateContext<?> c);
     }
 

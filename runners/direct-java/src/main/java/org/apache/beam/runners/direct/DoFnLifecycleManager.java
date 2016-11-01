@@ -21,83 +21,97 @@ package org.apache.beam.runners.direct;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
-import java.util.ArrayList;
+import com.google.common.cache.RemovalListener;
+import com.google.common.cache.RemovalNotification;
 import java.util.Collection;
-import java.util.Iterator;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import org.apache.beam.sdk.runners.PipelineRunner;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.OldDoFn;
+import org.apache.beam.sdk.transforms.DoFn.Setup;
+import org.apache.beam.sdk.transforms.DoFn.Teardown;
+import org.apache.beam.sdk.transforms.reflect.DoFnInvokers;
 import org.apache.beam.sdk.util.SerializableUtils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Manages {@link DoFn} setup, teardown, and serialization.
  *
  * <p>{@link DoFnLifecycleManager} is similar to a {@link ThreadLocal} storing a {@link DoFn}, but
- * calls the {@link DoFn} {@link Setup} the first time the {@link DoFn} is obtained and {@link
- * Teardown} whenever the {@link DoFn} is removed, and provides a method for clearing all cached
- * {@link DoFn DoFns}.
+ * calls the {@link DoFn} {@link Setup @Setup} method the first time the {@link DoFn} is obtained
+ * and {@link Teardown @Teardown} whenever the {@link DoFn} is removed, and provides a method for
+ * clearing all cached {@link DoFn DoFns}.
  */
 class DoFnLifecycleManager {
-  private static final Logger LOG = LoggerFactory.getLogger(DoFnLifecycleManager.class);
-
-  public static DoFnLifecycleManager of(OldDoFn<?, ?> original) {
+  public static DoFnLifecycleManager of(DoFn<?, ?> original) {
     return new DoFnLifecycleManager(original);
   }
 
-  private final LoadingCache<Thread, OldDoFn<?, ?>> outstanding;
+  private final LoadingCache<Thread, DoFn<?, ?>> outstanding;
+  private final ConcurrentMap<Thread, Exception> thrownOnTeardown;
 
-  private DoFnLifecycleManager(OldDoFn<?, ?> original) {
-    this.outstanding = CacheBuilder.newBuilder().build(new DeserializingCacheLoader(original));
+  private DoFnLifecycleManager(DoFn<?, ?> original) {
+    this.outstanding = CacheBuilder.newBuilder()
+        .removalListener(new TeardownRemovedFnListener())
+        .build(new DeserializingCacheLoader(original));
+    thrownOnTeardown = new ConcurrentHashMap<>();
   }
 
-  public OldDoFn<?, ?> get() throws Exception {
+  public DoFn<?, ?> get() throws Exception {
     Thread currentThread = Thread.currentThread();
     return outstanding.get(currentThread);
   }
 
   public void remove() throws Exception {
     Thread currentThread = Thread.currentThread();
-    OldDoFn<?, ?> fn = outstanding.asMap().remove(currentThread);
-    fn.teardown();
+    outstanding.invalidate(currentThread);
+    // Block until the invalidate is fully completed
+    outstanding.cleanUp();
+    // Remove to try too avoid reporting the same teardown exception twice. May still double-report,
+    // but the second will be suppressed.
+    Exception thrown = thrownOnTeardown.remove(currentThread);
+    if (thrown != null) {
+      throw thrown;
+    }
   }
 
   /**
    * Remove all {@link DoFn DoFns} from this {@link DoFnLifecycleManager}. Returns all exceptions
    * that were thrown while calling the remove methods.
    *
-   * <p>If the returned Collection is nonempty, an exception was thrown from at least one
-   * {@link DoFn#teardown()} method, and the {@link PipelineRunner} should throw an exception.
+   * <p>If the returned Collection is nonempty, an exception was thrown from at least one {@link
+   * DoFn.Teardown @Teardown} method, and the {@link PipelineRunner} should throw an exception.
    */
   public Collection<Exception> removeAll() throws Exception {
-    Iterator<OldDoFn<?, ?>> fns = outstanding.asMap().values().iterator();
-    Collection<Exception> thrown = new ArrayList<>();
-    while (fns.hasNext()) {
-      OldDoFn<?, ?> fn = fns.next();
-      fns.remove();
-      try {
-        fn.teardown();
-      } catch (Exception e) {
-        thrown.add(e);
-      }
-    }
-    return thrown;
+    outstanding.invalidateAll();
+    // Make sure all of the teardowns are run
+    outstanding.cleanUp();
+    return thrownOnTeardown.values();
   }
 
-  private class DeserializingCacheLoader extends CacheLoader<Thread, OldDoFn<?, ?>> {
+  private static class DeserializingCacheLoader extends CacheLoader<Thread, DoFn<?, ?>> {
     private final byte[] original;
 
-    public DeserializingCacheLoader(OldDoFn<?, ?> original) {
+    public DeserializingCacheLoader(DoFn<?, ?> original) {
       this.original = SerializableUtils.serializeToByteArray(original);
     }
 
     @Override
-    public OldDoFn<?, ?> load(Thread key) throws Exception {
-      OldDoFn<?, ?> fn = (OldDoFn<?, ?>) SerializableUtils.deserializeFromByteArray(original,
+    public DoFn<?, ?> load(Thread key) throws Exception {
+      DoFn<?, ?> fn = (DoFn<?, ?>) SerializableUtils.deserializeFromByteArray(original,
           "DoFn Copy in thread " + key.getName());
-      fn.setup();
+      DoFnInvokers.INSTANCE.invokerFor(fn).invokeSetup();
       return fn;
+    }
+  }
+
+  private class TeardownRemovedFnListener implements RemovalListener<Thread, DoFn<?, ?>> {
+    @Override
+    public void onRemoval(RemovalNotification<Thread, DoFn<?, ?>> notification) {
+      try {
+        DoFnInvokers.INSTANCE.newByteBuddyInvoker(notification.getValue()).invokeTeardown();
+      } catch (Exception e) {
+        thrownOnTeardown.put(notification.getKey(), e);
+      }
     }
   }
 }

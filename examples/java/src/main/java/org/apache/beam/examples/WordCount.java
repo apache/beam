@@ -152,7 +152,7 @@ public class WordCount {
    *
    * <p>Inherits standard configuration options.
    */
-  public static interface WordCountOptions extends PipelineOptions {
+  public interface WordCountOptions extends PipelineOptions {
     @Description("Path of the file to read from")
     @Default.String("gs://apache-beam-samples/shakespeare/kinglear.txt")
     String getInputFile();
@@ -166,7 +166,7 @@ public class WordCount {
     /**
      * Returns "gs://${YOUR_TEMP_DIRECTORY}/counts.txt" as the default destination.
      */
-    public static class OutputFactory implements DefaultValueFactory<String> {
+    class OutputFactory implements DefaultValueFactory<String> {
       @Override
       public String create(PipelineOptions options) {
         String tempLocation = options.getTempLocation();
@@ -197,6 +197,6 @@ public class WordCount {
      .apply(MapElements.via(new FormatAsTextFn()))
      .apply("WriteCounts", TextIO.Write.to(options.getOutput()));
 
-    p.run();
+    p.run().waitUntilFinish();
   }
 }

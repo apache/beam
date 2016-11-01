@@ -16,9 +16,8 @@
  * limitations under the License.
  */
 
-package org.apache.beam.runners.spark;
+package org.apache.beam.runners.spark.aggregators.metrics.sink;
 
-import org.apache.beam.runners.spark.aggregators.metrics.sink.InMemoryMetrics;
 import org.junit.rules.ExternalResource;
 
 /**

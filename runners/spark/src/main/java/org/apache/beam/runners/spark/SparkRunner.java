@@ -19,11 +19,10 @@
 package org.apache.beam.runners.spark;
 
 import java.util.Collection;
-import org.apache.beam.runners.core.GroupByKeyViaGroupByKeyOnly;
+import java.util.List;
 import org.apache.beam.runners.spark.translation.EvaluationContext;
 import org.apache.beam.runners.spark.translation.SparkContextFactory;
 import org.apache.beam.runners.spark.translation.SparkPipelineTranslator;
-import org.apache.beam.runners.spark.translation.SparkProcessContext;
 import org.apache.beam.runners.spark.translation.TransformEvaluator;
 import org.apache.beam.runners.spark.translation.TransformTranslator;
 import org.apache.beam.runners.spark.translation.streaming.SparkRunnerStreamingContextFactory;
@@ -35,10 +34,12 @@ import org.apache.beam.sdk.options.PipelineOptionsValidator;
 import org.apache.beam.sdk.runners.PipelineRunner;
 import org.apache.beam.sdk.runners.TransformTreeNode;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
-import org.apache.beam.sdk.transforms.GroupByKey;
+import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.PValue;
@@ -56,7 +57,7 @@ import org.slf4j.LoggerFactory;
  *
  * {@code
  * Pipeline p = [logic for pipeline creation]
- * EvaluationResult result = SparkRunner.create().run(p);
+ * EvaluationResult result = (EvaluationResult) p.run();
  * }
  *
  * <p>To create a pipeline runner to run against a different spark cluster, with a custom master url
@@ -66,7 +67,7 @@ import org.slf4j.LoggerFactory;
  * Pipeline p = [logic for pipeline creation]
  * SparkPipelineOptions options = SparkPipelineOptionsFactory.create();
  * options.setSparkMaster("spark://host:port");
- * EvaluationResult result = SparkRunner.create(options).run(p);
+ * EvaluationResult result = (EvaluationResult) p.run();
  * }
  */
 public final class SparkRunner extends PipelineRunner<EvaluationResult> {
@@ -112,23 +113,6 @@ public final class SparkRunner extends PipelineRunner<EvaluationResult> {
   }
 
   /**
-   * Overrides for this runner.
-   */
-  @SuppressWarnings("rawtypes")
-  @Override
-  public <OutputT extends POutput, InputT extends PInput> OutputT apply(
-      PTransform<InputT, OutputT> transform, InputT input) {
-
-    if (transform instanceof GroupByKey) {
-      return (OutputT) ((PCollection) input).apply(
-          new GroupByKeyViaGroupByKeyOnly((GroupByKey) transform));
-    } else {
-      return super.apply(transform, input);
-    }
-  }
-
-
-  /**
    * No parameter constructor defaults to running this pipeline in Spark's local mode, in a single
    * thread.
    */
@@ -172,12 +156,11 @@ public final class SparkRunner extends PipelineRunner<EvaluationResult> {
       // Scala doesn't declare checked exceptions in the bytecode, and the Java compiler
       // won't let you catch something that is not declared, so we can't catch
       // SparkException here. Instead we do an instanceof check.
-      // Then we find the cause by seeing if it's a user exception (wrapped by our
-      // SparkProcessException), or just use the SparkException cause.
+      // Then we find the cause by seeing if it's a user exception (wrapped by Beam's
+      // UserCodeException), or just use the SparkException cause.
       if (e instanceof SparkException && e.getCause() != null) {
-        if (e.getCause() instanceof SparkProcessContext.SparkProcessException
-            && e.getCause().getCause() != null) {
-          throw new RuntimeException(e.getCause().getCause());
+        if (e.getCause() instanceof UserCodeException && e.getCause().getCause() != null) {
+          throw UserCodeException.wrap(e.getCause().getCause());
         } else {
           throw new RuntimeException(e.getCause());
         }
@@ -207,7 +190,7 @@ public final class SparkRunner extends PipelineRunner<EvaluationResult> {
         @SuppressWarnings("unchecked")
         Class<PTransform<?, ?>> transformClass =
             (Class<PTransform<?, ?>>) node.getTransform().getClass();
-        if (translator.hasTranslation(transformClass)) {
+        if (translator.hasTranslation(transformClass) && !shouldDefer(node)) {
           LOG.info("Entering directly-translatable composite transform: '{}'", node.getFullName());
           LOG.debug("Composite transform class: '{}'", transformClass);
           doVisitTransform(node);
@@ -215,6 +198,34 @@ public final class SparkRunner extends PipelineRunner<EvaluationResult> {
         }
       }
       return CompositeBehavior.ENTER_TRANSFORM;
+    }
+
+    private boolean shouldDefer(TransformTreeNode node) {
+      PInput input = node.getInput();
+      // if the input is not a PCollection, or it is but with non merging windows, don't defer.
+      if (!(input instanceof PCollection)
+          || ((PCollection) input).getWindowingStrategy().getWindowFn().isNonMerging()) {
+        return false;
+      }
+      // so far we know that the input is a PCollection with merging windows.
+      // check for sideInput in case of a Combine transform.
+      PTransform<?, ?> transform = node.getTransform();
+      boolean hasSideInput = false;
+      if (transform instanceof Combine.PerKey) {
+        List<PCollectionView<?>> sideInputs = ((Combine.PerKey<?, ?, ?>) transform).getSideInputs();
+        hasSideInput = sideInputs != null && !sideInputs.isEmpty();
+      } else if (transform instanceof Combine.Globally) {
+        List<PCollectionView<?>> sideInputs = ((Combine.Globally<?, ?>) transform).getSideInputs();
+        hasSideInput = sideInputs != null && !sideInputs.isEmpty();
+      }
+      // defer if sideInputs are defined.
+      if (hasSideInput) {
+        LOG.info("Deferring combine transformation {} for job {}", transform,
+            ctxt.getPipeline().getOptions().getJobName());
+        return true;
+      }
+      // default.
+      return false;
     }
 
     @Override

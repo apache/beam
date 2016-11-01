@@ -58,7 +58,7 @@ public class WindowingStrategy<T, W extends BoundedWindow> implements Serializab
 
   private final WindowFn<T, W> windowFn;
   private final OutputTimeFn<? super W> outputTimeFn;
-  private final ExecutableTrigger trigger;
+  private final Trigger trigger;
   private final AccumulationMode mode;
   private final Duration allowedLateness;
   private final ClosingBehavior closingBehavior;
@@ -69,7 +69,7 @@ public class WindowingStrategy<T, W extends BoundedWindow> implements Serializab
 
   private WindowingStrategy(
       WindowFn<T, W> windowFn,
-      ExecutableTrigger trigger, boolean triggerSpecified,
+      Trigger trigger, boolean triggerSpecified,
       AccumulationMode mode, boolean modeSpecified,
       Duration allowedLateness, boolean allowedLatenessSpecified,
       OutputTimeFn<? super W> outputTimeFn, boolean outputTimeFnSpecified,
@@ -96,7 +96,7 @@ public class WindowingStrategy<T, W extends BoundedWindow> implements Serializab
   public static <T, W extends BoundedWindow> WindowingStrategy<T, W> of(
       WindowFn<T, W> windowFn) {
     return new WindowingStrategy<>(windowFn,
-        ExecutableTrigger.create(DefaultTrigger.<W>of()), false,
+        DefaultTrigger.of(), false,
         AccumulationMode.DISCARDING_FIRED_PANES, false,
         DEFAULT_ALLOWED_LATENESS, false,
         OutputTimeFns.outputAtEndOfWindow(), false,
@@ -107,7 +107,7 @@ public class WindowingStrategy<T, W extends BoundedWindow> implements Serializab
     return windowFn;
   }
 
-  public ExecutableTrigger getTrigger() {
+  public Trigger getTrigger() {
     return trigger;
   }
 
@@ -150,7 +150,7 @@ public class WindowingStrategy<T, W extends BoundedWindow> implements Serializab
   public WindowingStrategy<T, W> withTrigger(Trigger trigger) {
     return new WindowingStrategy<T, W>(
         windowFn,
-        ExecutableTrigger.create(trigger), true,
+        trigger, true,
         mode, modeSpecified,
         allowedLateness, allowedLatenessSpecified,
         outputTimeFn, outputTimeFnSpecified,

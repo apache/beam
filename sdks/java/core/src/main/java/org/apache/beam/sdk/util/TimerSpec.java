@@ -17,28 +17,14 @@
  */
 package org.apache.beam.sdk.util;
 
+import java.io.Serializable;
+import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
+
 /**
- * A mutable set which tracks whether any particular {@link ExecutableTrigger} is
- * finished.
+ * A specification for a {@link Timer}. This includes its {@link TimeDomain}.
  */
-public interface FinishedTriggers {
-  /**
-   * Returns {@code true} if the trigger is finished.
-   */
-  public boolean isFinished(ExecutableTrigger trigger);
-
-  /**
-   * Sets the fact that the trigger is finished.
-   */
-  public void setFinished(ExecutableTrigger trigger, boolean value);
-
-  /**
-   * Sets the trigger and all of its subtriggers to unfinished.
-   */
-  public void clearRecursively(ExecutableTrigger trigger);
-
-  /**
-   * Create an independent copy of this mutable {@link FinishedTriggers}.
-   */
-  public FinishedTriggers copy();
+@Experimental(Kind.TIMERS)
+public interface TimerSpec extends Serializable {
+  TimeDomain getTimeDomain();
 }

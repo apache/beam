@@ -86,7 +86,7 @@ import org.apache.beam.sdk.util.common.ReflectHelpers;
  * {@link PipelineOptions#as(Class)}.
  */
 @ThreadSafe
-class ProxyInvocationHandler implements InvocationHandler, HasDisplayData {
+class ProxyInvocationHandler implements InvocationHandler {
   private static final ObjectMapper MAPPER = new ObjectMapper();
   /**
    * No two instances of this class are considered equivalent hence we generate a random hash code.
@@ -138,8 +138,7 @@ class ProxyInvocationHandler implements InvocationHandler, HasDisplayData {
         && args[0] instanceof DisplayData.Builder) {
       @SuppressWarnings("unchecked")
       DisplayData.Builder builder = (DisplayData.Builder) args[0];
-      // Explicitly set display data namespace so thrown exceptions will have sensible type.
-      builder.include(this, PipelineOptions.class);
+      builder.delegate(new PipelineOptionsDisplayData());
       return Void.TYPE;
     }
     String methodName = method.getName();
@@ -243,88 +242,116 @@ class ProxyInvocationHandler implements InvocationHandler, HasDisplayData {
   }
 
   /**
-   * Populate display data. See {@link HasDisplayData#populateDisplayData}. All explicitly set
-   * pipeline options will be added as display data.
+   * Nested class to handle display data in order to set the display data namespace to something
+   * sensible.
    */
-  public void populateDisplayData(DisplayData.Builder builder) {
-    Set<PipelineOptionSpec> optionSpecs = PipelineOptionsReflector.getOptionSpecs(knownInterfaces);
-    Multimap<String, PipelineOptionSpec> optionsMap = buildOptionNameToSpecMap(optionSpecs);
+  class PipelineOptionsDisplayData implements HasDisplayData {
+    /**
+     * Populate display data. See {@link HasDisplayData#populateDisplayData}. All explicitly set
+     * pipeline options will be added as display data.
+     */
+    public void populateDisplayData(DisplayData.Builder builder) {
+      Set<PipelineOptionSpec> optionSpecs =
+          PipelineOptionsReflector.getOptionSpecs(knownInterfaces);
 
-    for (Map.Entry<String, BoundValue> option : options.entrySet()) {
-      BoundValue boundValue = option.getValue();
-      if (boundValue.isDefault()) {
-        continue;
-      }
+      Multimap<String, PipelineOptionSpec> optionsMap = buildOptionNameToSpecMap(optionSpecs);
 
-      Object value = boundValue.getValue() == null ? "" : boundValue.getValue();
-      DisplayData.Type type = DisplayData.inferType(value);
-      HashSet<PipelineOptionSpec> specs = new HashSet<>(optionsMap.get(option.getKey()));
-
-      for (PipelineOptionSpec optionSpec : specs) {
-        if (!optionSpec.shouldSerialize()) {
-          // Options that are excluded for serialization (i.e. those with @JsonIgnore) are also
-          // excluded from display data. These options are generally not useful for display.
+      for (Map.Entry<String, BoundValue> option : options.entrySet()) {
+        BoundValue boundValue = option.getValue();
+        if (boundValue.isDefault()) {
           continue;
         }
 
-        Class<?> pipelineInterface = optionSpec.getDefiningInterface();
-        if (type != null) {
-          builder.add(DisplayData.item(option.getKey(), type, value)
-              .withNamespace(pipelineInterface));
-        } else {
-          builder.add(DisplayData.item(option.getKey(), displayDataString(value))
-              .withNamespace(pipelineInterface));
+        DisplayDataValue resolved = DisplayDataValue.resolve(boundValue.getValue());
+        HashSet<PipelineOptionSpec> specs = new HashSet<>(optionsMap.get(option.getKey()));
+
+        for (PipelineOptionSpec optionSpec : specs) {
+          if (!optionSpec.shouldSerialize()) {
+            // Options that are excluded for serialization (i.e. those with @JsonIgnore) are also
+            // excluded from display data. These options are generally not useful for display.
+            continue;
+          }
+
+          builder.add(DisplayData.item(option.getKey(), resolved.getType(), resolved.getValue())
+              .withNamespace(optionSpec.getDefiningInterface()));
         }
       }
-    }
 
-    for (Map.Entry<String, JsonNode> jsonOption : jsonOptions.entrySet()) {
-      if (options.containsKey(jsonOption.getKey())) {
-        // Option overwritten since deserialization; don't re-write
-        continue;
-      }
+      for (Map.Entry<String, JsonNode> jsonOption : jsonOptions.entrySet()) {
+        if (options.containsKey(jsonOption.getKey())) {
+          // Option overwritten since deserialization; don't re-write
+          continue;
+        }
 
-      HashSet<PipelineOptionSpec> specs = new HashSet<>(optionsMap.get(jsonOption.getKey()));
-      if (specs.isEmpty()) {
-        builder.add(DisplayData.item(jsonOption.getKey(), jsonOption.getValue().toString())
-          .withNamespace(UnknownPipelineOptions.class));
-      } else {
+        HashSet<PipelineOptionSpec> specs = new HashSet<>(optionsMap.get(jsonOption.getKey()));
+        if (specs.isEmpty()) {
+          // No PipelineOptions interface for this key not currently loaded
+          builder.add(DisplayData.item(jsonOption.getKey(), jsonOption.getValue().toString())
+              .withNamespace(UnknownPipelineOptions.class));
+          continue;
+        }
+
         for (PipelineOptionSpec spec : specs) {
           if (!spec.shouldSerialize()) {
             continue;
           }
 
           Object value = getValueFromJson(jsonOption.getKey(), spec.getGetterMethod());
-          value = value == null ? "" : value;
-          DisplayData.Type type = DisplayData.inferType(value);
-          if (type != null) {
-            builder.add(DisplayData.item(jsonOption.getKey(), type, value)
-                .withNamespace(spec.getDefiningInterface()));
-          } else {
-            builder.add(DisplayData.item(jsonOption.getKey(), displayDataString(value))
-                .withNamespace(spec.getDefiningInterface()));
-          }
+          DisplayDataValue resolved = DisplayDataValue.resolve(value);
+          builder.add(DisplayData.item(jsonOption.getKey(), resolved.getType(), resolved.getValue())
+              .withNamespace(spec.getDefiningInterface()));
         }
       }
     }
   }
 
   /**
-   * {@link Object#toString()} wrapper to extract display data values for various types.
+   * Helper class to resolve a {@link DisplayData} type and value from {@link PipelineOptions}.
    */
-  private String displayDataString(Object value) {
-    checkNotNull(value, "value cannot be null");
-    if (!value.getClass().isArray()) {
-      return value.toString();
-    }
-    if (!value.getClass().getComponentType().isPrimitive()) {
-      return Arrays.deepToString((Object[]) value);
+  @AutoValue
+  abstract static class DisplayDataValue {
+    /**
+     * The resolved display data value. May differ from the input to {@link #resolve(Object)}
+     */
+    abstract Object getValue();
+
+    /** The resolved display data type. */
+    abstract DisplayData.Type getType();
+
+    /**
+     * Infer the value and {@link DisplayData.Type type} for the given
+     * {@link PipelineOptions} value.
+     */
+    static DisplayDataValue resolve(@Nullable Object value) {
+      DisplayData.Type type = DisplayData.inferType(value);
+
+      if (type == null) {
+        value = displayDataString(value);
+        type = DisplayData.Type.STRING;
+      }
+
+      return new AutoValue_ProxyInvocationHandler_DisplayDataValue(value, type);
     }
 
-    // At this point, we have some type of primitive array. Arrays.deepToString(..) requires an
-    // Object array, but will unwrap nested primitive arrays.
-    String wrapped = Arrays.deepToString(new Object[] {value});
-    return wrapped.substring(1, wrapped.length() - 1);
+    /**
+     * Safe {@link Object#toString()} wrapper to extract display data values for various types.
+     */
+    private static String displayDataString(@Nullable Object value) {
+      if (value == null) {
+        return "";
+      }
+      if (!value.getClass().isArray()) {
+        return value.toString();
+      }
+      if (!value.getClass().getComponentType().isPrimitive()) {
+        return Arrays.deepToString((Object[]) value);
+      }
+
+      // At this point, we have some type of primitive array. Arrays.deepToString(..) requires an
+      // Object array, but will unwrap nested primitive arrays.
+      String wrapped = Arrays.deepToString(new Object[]{value});
+      return wrapped.substring(1, wrapped.length() - 1);
+    }
   }
 
   /**
@@ -466,12 +493,15 @@ class ProxyInvocationHandler implements InvocationHandler, HasDisplayData {
       }
     }
     if (method.getReturnType().equals(ValueProvider.class)) {
+      String propertyName = gettersToPropertyNames.get(method.getName());
       return defaultObject == null
         ? new RuntimeValueProvider(
-          method.getName(), (Class<? extends PipelineOptions>) method.getDeclaringClass(),
+          method.getName(), propertyName,
+          (Class<? extends PipelineOptions>) method.getDeclaringClass(),
           proxy.getOptionsId())
         : new RuntimeValueProvider(
-          method.getName(), (Class<? extends PipelineOptions>) method.getDeclaringClass(),
+          method.getName(), propertyName,
+          (Class<? extends PipelineOptions>) method.getDeclaringClass(),
           defaultObject, proxy.getOptionsId());
     } else if (defaultObject != null) {
       return defaultObject;
@@ -587,7 +617,7 @@ class ProxyInvocationHandler implements InvocationHandler, HasDisplayData {
 
         List<Map<String, Object>> serializedDisplayData = Lists.newArrayList();
         DisplayData displayData = DisplayData.from(value);
-        for (DisplayData.Item<?> item : displayData.items()) {
+        for (DisplayData.Item item : displayData.items()) {
           @SuppressWarnings("unchecked")
           Map<String, Object> serializedItem = MAPPER.convertValue(item, Map.class);
           serializedDisplayData.add(serializedItem);

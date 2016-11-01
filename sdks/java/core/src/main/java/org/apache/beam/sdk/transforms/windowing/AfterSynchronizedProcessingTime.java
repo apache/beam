@@ -20,7 +20,6 @@ package org.apache.beam.sdk.transforms.windowing;
 import com.google.common.base.Objects;
 import java.util.Collections;
 import java.util.List;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.util.TimeDomain;
 import org.joda.time.Instant;
@@ -30,12 +29,6 @@ import org.joda.time.Instant;
  * threshold between upstream workers.
  */
 public class AfterSynchronizedProcessingTime extends AfterDelayFromFirstElement {
-
-  @Override
-  @Nullable
-  public Instant getCurrentTime(Trigger.TriggerContext context) {
-    return context.currentSynchronizedProcessingTime();
-  }
 
   public AfterSynchronizedProcessingTime() {
     super(TimeDomain.SYNCHRONIZED_PROCESSING_TIME,

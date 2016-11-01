@@ -62,7 +62,7 @@ public class DoFnAdapters {
   @SuppressWarnings({"unchecked", "rawtypes"})
   public static <InputT, OutputT> OldDoFn<InputT, OutputT> toOldDoFn(DoFn<InputT, OutputT> fn) {
     DoFnSignature signature = DoFnSignatures.INSTANCE.getSignature((Class) fn.getClass());
-    if (signature.processElement().usesSingleWindow()) {
+    if (signature.processElement().observesWindow()) {
       return new WindowDoFnAdapter<>(fn);
     } else {
       return new SimpleDoFnAdapter<>(fn);
@@ -246,7 +246,7 @@ public class DoFnAdapters {
 
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {
-      builder.include(fn);
+      builder.delegate(fn);
     }
 
     private void readObject(java.io.ObjectInputStream in)
@@ -278,6 +278,7 @@ public class DoFnAdapters {
     private ContextAdapter(DoFn<InputT, OutputT> fn, OldDoFn<InputT, OutputT>.Context context) {
       fn.super();
       this.context = context;
+      super.setupDelegateAggregators();
     }
 
     @Override

@@ -48,12 +48,6 @@ public final class Never {
     }
 
     @Override
-    public void onElement(OnElementContext c) {}
-
-    @Override
-    public void onMerge(OnMergeContext c) {}
-
-    @Override
     protected Trigger getContinuationTrigger(List<Trigger> continuationTriggers) {
       return this;
     }
@@ -61,17 +55,6 @@ public final class Never {
     @Override
     public Instant getWatermarkThatGuaranteesFiring(BoundedWindow window) {
       return BoundedWindow.TIMESTAMP_MAX_VALUE;
-    }
-
-    @Override
-    public boolean shouldFire(Trigger.TriggerContext context) {
-      return false;
-    }
-
-    @Override
-    protected void onOnlyFiring(Trigger.TriggerContext context) {
-      throw new UnsupportedOperationException(
-          String.format("%s should never fire", getClass().getSimpleName()));
     }
   }
 }

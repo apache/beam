@@ -67,6 +67,6 @@ public class MinimalWordCountJava8 {
      // CHANGE 3/3: The Google Cloud Storage path is required for outputting the results to.
      .apply(TextIO.Write.to("gs://YOUR_OUTPUT_BUCKET/AND_OUTPUT_PREFIX"));
 
-    p.run();
+    p.run().waitUntilFinish();
   }
 }

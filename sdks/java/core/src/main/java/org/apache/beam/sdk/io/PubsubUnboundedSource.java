@@ -48,6 +48,7 @@ import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.ListCoder;
+import org.apache.beam.sdk.coders.NullableCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PubsubOptions;
@@ -229,6 +230,13 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
   @VisibleForTesting
   static class PubsubCheckpoint<T> implements UnboundedSource.CheckpointMark {
     /**
+     * The {@link SubscriptionPath} to the subscription the reader is reading from. May be
+     * {@code null} if the {@link PubsubUnboundedSource} contains the subscription.
+     */
+    @VisibleForTesting
+    @Nullable String subscriptionPath;
+
+    /**
      * If the checkpoint is for persisting: the reader who's snapshotted state we are persisting.
      * If the checkpoint is for restoring: {@literal null}.
      * Not persisted in durable checkpoint.
@@ -256,11 +264,21 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
     final List<String> notYetReadIds;
 
     public PubsubCheckpoint(
-        @Nullable PubsubReader<T> reader, @Nullable List<String> safeToAckIds,
+        @Nullable String subscriptionPath,
+        @Nullable PubsubReader<T> reader,
+        @Nullable List<String> safeToAckIds,
         List<String> notYetReadIds) {
+      this.subscriptionPath = subscriptionPath;
       this.reader = reader;
       this.safeToAckIds = safeToAckIds;
       this.notYetReadIds = notYetReadIds;
+    }
+
+    @Nullable
+    private SubscriptionPath getSubscription() {
+      return subscriptionPath == null
+          ? null
+          : PubsubClient.subscriptionPathFromPath(subscriptionPath);
     }
 
     /**
@@ -336,22 +354,27 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
     }
   }
 
-  /**
-   * The coder for our checkpoints.
-   */
+  /** The coder for our checkpoints. */
   private static class PubsubCheckpointCoder<T> extends AtomicCoder<PubsubCheckpoint<T>> {
+    private static final Coder<String> SUBSCRIPTION_PATH_CODER =
+        NullableCoder.of(StringUtf8Coder.of());
     private static final Coder<List<String>> LIST_CODER = ListCoder.of(StringUtf8Coder.of());
 
     @Override
     public void encode(PubsubCheckpoint<T> value, OutputStream outStream, Context context)
         throws IOException {
+      SUBSCRIPTION_PATH_CODER.encode(
+          value.subscriptionPath,
+          outStream,
+          context.nested());
       LIST_CODER.encode(value.notYetReadIds, outStream, context);
     }
 
     @Override
     public PubsubCheckpoint<T> decode(InputStream inStream, Context context) throws IOException {
+      String path = SUBSCRIPTION_PATH_CODER.decode(inStream, context.nested());
       List<String> notYetReadIds = LIST_CODER.decode(inStream, context);
-      return new PubsubCheckpoint<>(null, null, notYetReadIds);
+      return new PubsubCheckpoint<>(path, null, null, notYetReadIds);
     }
   }
 
@@ -369,6 +392,8 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
      * For access to topic and checkpointCoder.
      */
     private final PubsubSource<T> outer;
+    @VisibleForTesting
+    final SubscriptionPath subscription;
 
     /**
      * Client on which to talk to Pubsub. Null if closed.
@@ -556,9 +581,10 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
     /**
      * Construct a reader.
      */
-    public PubsubReader(PubsubOptions options, PubsubSource<T> outer)
+    public PubsubReader(PubsubOptions options, PubsubSource<T> outer, SubscriptionPath subscription)
         throws IOException, GeneralSecurityException {
       this.outer = outer;
+      this.subscription = subscription;
       pubsubClient =
           outer.outer.pubsubFactory.newClient(outer.outer.timestampLabel, outer.outer.idLabel,
                                               options);
@@ -606,7 +632,7 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
      * CAUTION: Retains {@code ackIds}.
      */
     void ackBatch(List<String> ackIds) throws IOException {
-      pubsubClient.acknowledge(outer.outer.subscription, ackIds);
+      pubsubClient.acknowledge(subscription, ackIds);
       ackedIds.add(ackIds);
     }
 
@@ -616,7 +642,7 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
      * with the given {@code ockIds}. Does not retain {@code ackIds}.
      */
     public void nackBatch(long nowMsSinceEpoch, List<String> ackIds) throws IOException {
-      pubsubClient.modifyAckDeadline(outer.outer.subscription, ackIds, 0);
+      pubsubClient.modifyAckDeadline(subscription, ackIds, 0);
       numNacked.add(nowMsSinceEpoch, ackIds.size());
     }
 
@@ -627,7 +653,7 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
      */
     private void extendBatch(long nowMsSinceEpoch, List<String> ackIds) throws IOException {
       int extensionSec = (ackTimeoutMs * ACK_EXTENSION_PCT) / (100 * 1000);
-      pubsubClient.modifyAckDeadline(outer.outer.subscription, ackIds, extensionSec);
+      pubsubClient.modifyAckDeadline(subscription, ackIds, extensionSec);
       numExtendedDeadlines.add(nowMsSinceEpoch, ackIds.size());
     }
 
@@ -763,7 +789,7 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
       // BLOCKs until received.
       Collection<PubsubClient.IncomingMessage> receivedMessages =
           pubsubClient.pull(requestTimeMsSinceEpoch,
-                            outer.outer.subscription,
+                            subscription,
                             PULL_BATCH_SIZE, true);
       if (receivedMessages.isEmpty()) {
         // Nothing available yet. Try again later.
@@ -843,7 +869,7 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
                + "{} recent watermark skew, "
                + "{} recent late messages, "
                + "{} last reported watermark",
-               outer.outer.subscription,
+               subscription,
                numReceived,
                notYetRead.size(),
                notYetReadBytes,
@@ -869,7 +895,7 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
     @Override
     public boolean start() throws IOException {
       // Determine the ack timeout.
-      ackTimeoutMs = pubsubClient.ackDeadlineSeconds(outer.outer.subscription) * 1000;
+      ackTimeoutMs = pubsubClient.ackDeadlineSeconds(subscription) * 1000;
       return advance();
     }
 
@@ -1019,7 +1045,12 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
       for (PubsubClient.IncomingMessage incomingMessage : notYetRead) {
         snapshotNotYetReadIds.add(incomingMessage.ackId);
       }
-      return new PubsubCheckpoint<>(this, snapshotSafeToAckIds, snapshotNotYetReadIds);
+      if (outer.subscriptionPath == null) {
+        // need to include the subscription in case we resume, as it's not stored in the source.
+        return new PubsubCheckpoint<>(
+            subscription.getPath(), this, snapshotSafeToAckIds, snapshotNotYetReadIds);
+      }
+      return new PubsubCheckpoint<>(null, this, snapshotSafeToAckIds, snapshotNotYetReadIds);
     }
 
     @Override
@@ -1035,19 +1066,31 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
   @VisibleForTesting
   static class PubsubSource<T> extends UnboundedSource<T, PubsubCheckpoint<T>> {
     public final PubsubUnboundedSource<T> outer;
+    // The subscription to read from.
+    @VisibleForTesting
+    final SubscriptionPath subscriptionPath;
 
     public PubsubSource(PubsubUnboundedSource<T> outer) {
+      this(outer, outer.getSubscription());
+    }
+
+    private PubsubSource(PubsubUnboundedSource<T> outer, SubscriptionPath subscriptionPath) {
       this.outer = outer;
+      this.subscriptionPath = subscriptionPath;
     }
 
     @Override
     public List<PubsubSource<T>> generateInitialSplits(
         int desiredNumSplits, PipelineOptions options) throws Exception {
       List<PubsubSource<T>> result = new ArrayList<>(desiredNumSplits);
+      PubsubSource<T> splitSource = this;
+      if (subscriptionPath == null) {
+        splitSource = new PubsubSource<>(outer, outer.createRandomSubscription(options));
+      }
       for (int i = 0; i < desiredNumSplits * SCALE_OUT; i++) {
         // Since the source is immutable and Pubsub automatically shards we simply
         // replicate ourselves the requested number of times
-        result.add(this);
+        result.add(splitSource);
       }
       return result;
     }
@@ -1057,10 +1100,20 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
         PipelineOptions options,
         @Nullable PubsubCheckpoint<T> checkpoint) {
       PubsubReader<T> reader;
+      SubscriptionPath subscription = subscriptionPath;
+      if (subscription == null) {
+        if (checkpoint == null) {
+          // This reader has never been started and there was no call to #splitIntoBundles; create
+          // a single random subscription, which will be kept in the checkpoint.
+          subscription = outer.createRandomSubscription(options);
+        } else {
+          subscription = checkpoint.getSubscription();
+        }
+      }
       try {
-        reader = new PubsubReader<>(options.as(PubsubOptions.class), this);
+        reader = new PubsubReader<>(options.as(PubsubOptions.class), this, subscription);
       } catch (GeneralSecurityException | IOException e) {
-        throw new RuntimeException("Unable to subscribe to " + outer.subscription + ": ", e);
+        throw new RuntimeException("Unable to subscribe to " + subscriptionPath + ": ", e);
       }
       if (checkpoint != null) {
         // NACK all messages we may have lost.
@@ -1069,7 +1122,7 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
           checkpoint.nackAll(reader);
         } catch (IOException e) {
           LOG.error("Pubsub {} cannot have {} lost messages NACKed, ignoring: {}",
-                    outer.subscription, checkpoint.notYetReadIds.size(), e);
+                    subscriptionPath, checkpoint.notYetReadIds.size(), e);
         }
       }
       return reader;
@@ -1300,5 +1353,23 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
                 .apply(Read.from(new PubsubSource<T>(this)))
                 .apply("PubsubUnboundedSource.Stats",
                     ParDo.of(new StatsFn<T>(pubsubFactory, subscription, timestampLabel, idLabel)));
+  }
+
+  private SubscriptionPath createRandomSubscription(PipelineOptions options) {
+    try {
+      try (PubsubClient pubsubClient =
+          pubsubFactory.newClient(timestampLabel, idLabel, options.as(PubsubOptions.class))) {
+        SubscriptionPath subscriptionPath =
+            pubsubClient.createRandomSubscription(project, topic, DEAULT_ACK_TIMEOUT_SEC);
+        LOG.warn(
+            "Created subscription {} to topic {}."
+                + " Note this subscription WILL NOT be deleted when the pipeline terminates",
+            subscriptionPath,
+            topic);
+        return subscriptionPath;
+      }
+    } catch (Exception e) {
+      throw new RuntimeException("Failed to create subscription: ", e);
+    }
   }
 }

@@ -77,6 +77,27 @@ import org.apache.commons.dbcp2.BasicDataSource;
  *   })
  * }</pre>
  *
+ * <p>Query parameters can be configured using a user-provided {@link StatementPreparator}.
+ * For example:</p>
+ *
+ * <pre>{@code
+ * pipeline.apply(JdbcIO.<KV<Integer, String>>read()
+ *   .withDataSourceConfiguration(JdbcIO.DataSourceConfiguration.create(
+ *       "com.mysql.jdbc.Driver", "jdbc:mysql://hostname:3306/mydb",
+ *       "username", "password"))
+ *   .withQuery("select id,name from Person where name = ?")
+ *   .withStatementPreparator(new JdbcIO.StatementPreparator() {
+ *     public void setParameters(PreparedStatement preparedStatement) throws Exception {
+ *       preparedStatement.setString(1, "Darwin");
+ *     }
+ *   })
+ *   .withRowMapper(new JdbcIO.RowMapper<KV<Integer, String>>() {
+ *     public KV<Integer, String> mapRow(ResultSet resultSet) throws Exception {
+ *       return KV.of(resultSet.getInt(1), resultSet.getString(2));
+ *     }
+ *   })
+ * }</pre>
+ *
  * <h3>Writing to JDBC datasource</h3>
  *
  * <p>JDBC sink supports writing records into a database. It writes a {@link PCollection} to the
@@ -212,11 +233,20 @@ public class JdbcIO {
     }
   }
 
+  /**
+   * An interface used by the JdbcIO Write to set the parameters of the {@link PreparedStatement}
+   * used to setParameters into the database.
+   */
+  public interface StatementPreparator extends Serializable {
+    void setParameters(PreparedStatement preparedStatement) throws Exception;
+  }
+
   /** A {@link PTransform} to read data from a JDBC datasource. */
   @AutoValue
   public abstract static class Read<T> extends PTransform<PBegin, PCollection<T>> {
     @Nullable abstract DataSourceConfiguration getDataSourceConfiguration();
     @Nullable abstract String getQuery();
+    @Nullable abstract StatementPreparator getStatementPreparator();
     @Nullable abstract RowMapper<T> getRowMapper();
     @Nullable abstract Coder<T> getCoder();
 
@@ -226,6 +256,7 @@ public class JdbcIO {
     abstract static class Builder<T> {
       abstract Builder<T> setDataSourceConfiguration(DataSourceConfiguration config);
       abstract Builder<T> setQuery(String query);
+      abstract Builder<T> setStatementPreparator(StatementPreparator statementPreparator);
       abstract Builder<T> setRowMapper(RowMapper<T> rowMapper);
       abstract Builder<T> setCoder(Coder<T> coder);
       abstract Read<T> build();
@@ -239,6 +270,11 @@ public class JdbcIO {
     public Read<T> withQuery(String query) {
       checkNotNull(query, "query");
       return toBuilder().setQuery(query).build();
+    }
+
+    public Read<T> withStatementPrepator(StatementPreparator statementPreparator) {
+      checkNotNull(statementPreparator, "statementPreparator");
+      return toBuilder().setStatementPreparator(statementPreparator).build();
     }
 
     public Read<T> withRowMapper(RowMapper<T> rowMapper) {
@@ -311,6 +347,9 @@ public class JdbcIO {
       public void processElement(ProcessContext context) throws Exception {
         String query = context.element();
         try (PreparedStatement statement = connection.prepareStatement(query)) {
+          if (this.spec.getStatementPreparator() != null) {
+            this.spec.getStatementPreparator().setParameters(statement);
+          }
           try (ResultSet resultSet = statement.executeQuery()) {
             while (resultSet.next()) {
               context.output(spec.getRowMapper().mapRow(resultSet));

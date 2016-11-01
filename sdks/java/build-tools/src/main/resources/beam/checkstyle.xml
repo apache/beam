@@ -65,7 +65,7 @@ page at http://checkstyle.sourceforge.net/config.html -->
     <property name="checkFormat" value="$1"/>
   </module>
   <module name="SuppressionFilter">
-    <property name="file" value="${checkstyle.suppressions.file}" />
+    <property name="file" value="${checkstyle.suppressions.file}" default="suppressions.xml" />
   </module>
 
   <!-- Check that every module has a package-info.java -->
@@ -108,7 +108,14 @@ page at http://checkstyle.sourceforge.net/config.html -->
     </module>
 
     <module name="IllegalImport">
-      <property name="illegalPkgs" value="avro.shaded, com.google.api.client.repackaged, com.google.appengine.repackaged, io.netty.util.internal"/>
+      <property name="illegalPkgs" value="autovalue.shaded, avro.shaded, com.google.api.client.repackaged, com.google.appengine.repackaged, io.netty.util.internal"/>
+    </module>
+
+    <module name="RedundantModifier">
+      <!-- Checks for redundant modifiers on various symbol definitions.
+        See: http://checkstyle.sourceforge.net/config_modifier.html#RedundantModifier
+      -->
+      <property name="tokens" value="METHOD_DEF, VARIABLE_DEF, ANNOTATION_FIELD_DEF, INTERFACE_DEF, CLASS_DEF, ENUM_DEF"/>
     </module>
 
     <!--
@@ -280,7 +287,7 @@ page at http://checkstyle.sourceforge.net/config.html -->
 
     <module name="LineLength">
       <!-- Checks if a line is too long. -->
-      <property name="max" value="${com.puppycrawl.tools.checkstyle.checks.sizes.LineLength.max}" default="100"/>
+      <property name="max" value="100"/>
       <property name="severity" value="error"/>
 
       <!--
@@ -290,8 +297,7 @@ page at http://checkstyle.sourceforge.net/config.html -->
       -->
 
       <property name="ignorePattern"
-          value="${com.puppycrawl.tools.checkstyle.checks.sizes.LineLength.ignorePattern}"
-          default="^(package .*;\s*)|(import .*;\s*)|( *\* .*https?://.*)$"/>
+          value="^(package .*;\s*)|(import .*;\s*)|( *\* .*https?://.*)$"/>
     </module>
 
     <module name="LeftCurly">

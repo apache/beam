@@ -52,11 +52,7 @@ public abstract class BroadcastHelper<T> implements Serializable {
 
   public abstract T getValue();
 
-  public abstract boolean isBroadcasted();
-
   public abstract void broadcast(JavaSparkContext jsc);
-
-  public abstract void unregister();
 
   /**
    * A {@link BroadcastHelper} that relies on the underlying
@@ -81,19 +77,8 @@ public abstract class BroadcastHelper<T> implements Serializable {
     }
 
     @Override
-    public boolean isBroadcasted() {
-      return bcast != null;
-    }
-
-    @Override
     public void broadcast(JavaSparkContext jsc) {
       this.bcast = jsc.broadcast(value);
-    }
-
-    @Override
-    public void unregister() {
-      this.bcast.destroy();
-      this.bcast = null;
     }
   }
 
@@ -122,19 +107,8 @@ public abstract class BroadcastHelper<T> implements Serializable {
     }
 
     @Override
-    public boolean isBroadcasted() {
-      return bcast != null;
-    }
-
-    @Override
     public void broadcast(JavaSparkContext jsc) {
       this.bcast = jsc.broadcast(CoderHelpers.toByteArray(value, coder));
-    }
-
-    @Override
-    public void unregister() {
-      this.bcast.destroy();
-      this.bcast = null;
     }
 
     private T deserialize() {

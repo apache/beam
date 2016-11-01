@@ -86,7 +86,7 @@ public class HourlyTeamScore extends UserScore {
   /**
    * Options supported by {@link HourlyTeamScore}.
    */
-  static interface Options extends UserScore.Options {
+  interface Options extends UserScore.Options {
 
     @Description("Numeric value of fixed window duration, in minutes")
     @Default.Integer(60)
@@ -124,18 +124,22 @@ public class HourlyTeamScore extends UserScore {
       configureWindowedTableWrite() {
     Map<String, WriteWindowedToBigQuery.FieldInfo<KV<String, Integer>>> tableConfig =
         new HashMap<String, WriteWindowedToBigQuery.FieldInfo<KV<String, Integer>>>();
-    tableConfig.put("team",
-        new WriteWindowedToBigQuery.FieldInfo<KV<String, Integer>>("STRING",
-            c -> c.element().getKey()));
-    tableConfig.put("total_score",
-        new WriteWindowedToBigQuery.FieldInfo<KV<String, Integer>>("INTEGER",
-            c -> c.element().getValue()));
-    tableConfig.put("window_start",
-        new WriteWindowedToBigQuery.FieldInfo<KV<String, Integer>>("STRING",
-          c -> {
-            IntervalWindow w = (IntervalWindow) c.window();
-            return fmt.print(w.start());
-          }));
+    tableConfig.put(
+        "team",
+        new WriteWindowedToBigQuery.FieldInfo<KV<String, Integer>>(
+            "STRING", (c, w) -> c.element().getKey()));
+    tableConfig.put(
+        "total_score",
+        new WriteWindowedToBigQuery.FieldInfo<KV<String, Integer>>(
+            "INTEGER", (c, w) -> c.element().getValue()));
+    tableConfig.put(
+        "window_start",
+        new WriteWindowedToBigQuery.FieldInfo<KV<String, Integer>>(
+            "STRING",
+            (c, w) -> {
+              IntervalWindow window = (IntervalWindow) w;
+              return fmt.print(window.start());
+            }));
     return tableConfig;
   }
 
@@ -187,7 +191,7 @@ public class HourlyTeamScore extends UserScore {
             configureWindowedTableWrite()));
 
 
-    pipeline.run();
+    pipeline.run().waitUntilFinish();
   }
   // [END DocInclude_HTSMain]
 

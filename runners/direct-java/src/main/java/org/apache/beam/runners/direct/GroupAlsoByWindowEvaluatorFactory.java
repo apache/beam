@@ -86,6 +86,7 @@ class GroupAlsoByWindowEvaluatorFactory implements TransformEvaluatorFactory {
    */
   private static class GroupAlsoByWindowEvaluator<K, V>
       implements TransformEvaluator<KeyedWorkItem<K, V>> {
+    private static final TupleTag<Object> MAIN_OUTPUT_TAG = new TupleTag<Object>() {};
 
     private final TransformEvaluator<KeyedWorkItem<K, V>> gabwParDoEvaluator;
 
@@ -118,8 +119,6 @@ class GroupAlsoByWindowEvaluatorFactory implements TransformEvaluatorFactory {
               new ConstantStateInternalsFactory<K>(stateInternals),
               SystemReduceFn.<K, V, BoundedWindow>buffering(valueCoder));
 
-      TupleTag<KV<K, Iterable<V>>> mainOutputTag = new TupleTag<KV<K, Iterable<V>>>() {};
-
       // Not technically legit, as the application is not a ParDo
       this.gabwParDoEvaluator =
           ParDoEvaluator.create(
@@ -129,9 +128,10 @@ class GroupAlsoByWindowEvaluatorFactory implements TransformEvaluatorFactory {
               application,
               gabwDoFn,
               Collections.<PCollectionView<?>>emptyList(),
-              mainOutputTag,
+              MAIN_OUTPUT_TAG,
               Collections.<TupleTag<?>>emptyList(),
-              ImmutableMap.<TupleTag<?>, PCollection<?>>of(mainOutputTag, application.getOutput()));
+              ImmutableMap.<TupleTag<?>, PCollection<?>>of(
+                  MAIN_OUTPUT_TAG, application.getOutput()));
     }
 
     @Override

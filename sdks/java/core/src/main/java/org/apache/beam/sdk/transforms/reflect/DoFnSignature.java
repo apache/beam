@@ -18,6 +18,8 @@
 package org.apache.beam.sdk.transforms.reflect;
 
 import com.google.auto.value.AutoValue;
+import com.google.common.base.Predicates;
+import com.google.common.collect.Iterables;
 import com.google.common.reflect.TypeToken;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
@@ -25,11 +27,20 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import javax.annotation.Nullable;
-import javax.swing.plaf.nimbus.State;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.DoFn.InputProvider;
+import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
 import org.apache.beam.sdk.transforms.DoFn.ProcessContinuation;
+import org.apache.beam.sdk.transforms.DoFn.StateId;
+import org.apache.beam.sdk.transforms.DoFn.TimerId;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.BoundedWindowParameter;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.StateParameter;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.util.Timer;
+import org.apache.beam.sdk.util.TimerSpec;
+import org.apache.beam.sdk.util.state.State;
 import org.apache.beam.sdk.util.state.StateSpec;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
@@ -70,6 +81,9 @@ public abstract class DoFnSignature {
   @Nullable
   public abstract LifecycleMethod teardown();
 
+  /** Timer declarations present on the {@link DoFn} class. Immutable. */
+  public abstract Map<String, TimerDeclaration> timerDeclarations();
+
   /** Details about this {@link DoFn}'s {@link DoFn.GetInitialRestriction} method. */
   @Nullable
   public abstract GetInitialRestrictionMethod getInitialRestriction();
@@ -85,6 +99,10 @@ public abstract class DoFnSignature {
   /** Details about this {@link DoFn}'s {@link DoFn.NewTracker} method. */
   @Nullable
   public abstract NewTrackerMethod newTracker();
+
+  /** Details about this {@link DoFn}'s {@link DoFn.OnTimer} methods. */
+  @Nullable
+  public abstract Map<String, OnTimerMethod> onTimerMethods();
 
   static Builder builder() {
     return new AutoValue_DoFnSignature.Builder();
@@ -104,6 +122,8 @@ public abstract class DoFnSignature {
     abstract Builder setGetRestrictionCoder(GetRestrictionCoderMethod getRestrictionCoder);
     abstract Builder setNewTracker(NewTrackerMethod newTracker);
     abstract Builder setStateDeclarations(Map<String, StateDeclaration> stateDeclarations);
+    abstract Builder setTimerDeclarations(Map<String, TimerDeclaration> timerDeclarations);
+    abstract Builder setOnTimerMethods(Map<String, OnTimerMethod> onTimerMethods);
     abstract DoFnSignature build();
   }
 
@@ -113,12 +133,201 @@ public abstract class DoFnSignature {
     Method targetMethod();
   }
 
-  /** A type of optional parameter of the {@link DoFn.ProcessElement} method. */
-  public enum Parameter {
-    BOUNDED_WINDOW,
-    INPUT_PROVIDER,
-    OUTPUT_RECEIVER,
-    RESTRICTION_TRACKER
+  /** A descriptor for an optional parameter of the {@link DoFn.ProcessElement} method. */
+  public abstract static class Parameter {
+
+    // Private as no extensions other than those nested here are permitted
+    private Parameter() {}
+
+    /**
+     * Performs case analysis on this {@link Parameter}, processing it with the appropriate
+     * {@link Cases#dispatch} case of the provided {@link Cases} object.
+     */
+    public <ResultT> ResultT match(Cases<ResultT> cases) {
+      // This could be done with reflection, but since the number of cases is small and known,
+      // they are simply inlined.
+      if (this instanceof BoundedWindowParameter) {
+        return cases.dispatch((BoundedWindowParameter) this);
+      } else if (this instanceof RestrictionTrackerParameter) {
+        return cases.dispatch((RestrictionTrackerParameter) this);
+      } else if (this instanceof InputProviderParameter) {
+        return cases.dispatch((InputProviderParameter) this);
+      } else if (this instanceof OutputReceiverParameter) {
+        return cases.dispatch((OutputReceiverParameter) this);
+      } else if (this instanceof StateParameter) {
+        return cases.dispatch((StateParameter) this);
+      } else if (this instanceof TimerParameter) {
+        return cases.dispatch((TimerParameter) this);
+      } else {
+        throw new IllegalStateException(
+            String.format("Attempt to case match on unknown %s subclass %s",
+                Parameter.class.getCanonicalName(), this.getClass().getCanonicalName()));
+      }
+    }
+
+    /**
+     * An interface for destructuring a {@link Parameter}.
+     */
+    public interface Cases<ResultT> {
+      ResultT dispatch(BoundedWindowParameter p);
+      ResultT dispatch(InputProviderParameter p);
+      ResultT dispatch(OutputReceiverParameter p);
+      ResultT dispatch(RestrictionTrackerParameter p);
+      ResultT dispatch(StateParameter p);
+      ResultT dispatch(TimerParameter p);
+
+      /**
+       * A base class for a visitor with a default method for cases it is not interested in.
+       */
+      abstract class WithDefault<ResultT> implements Cases<ResultT> {
+
+        protected abstract ResultT dispatchDefault(Parameter p);
+
+        @Override
+        public ResultT dispatch(BoundedWindowParameter p) {
+          return dispatchDefault(p);
+        }
+
+        @Override
+        public ResultT dispatch(InputProviderParameter p) {
+          return dispatchDefault(p);
+        }
+
+        @Override
+        public ResultT dispatch(OutputReceiverParameter p) {
+          return dispatchDefault(p);
+        }
+
+        @Override
+        public ResultT dispatch(RestrictionTrackerParameter p) {
+          return dispatchDefault(p);
+        }
+
+        @Override
+        public ResultT dispatch(StateParameter p) {
+          return dispatchDefault(p);
+        }
+
+        @Override
+        public ResultT dispatch(TimerParameter p) {
+          return dispatchDefault(p);
+        }
+      }
+    }
+
+    // These parameter descriptors are constant
+    private static final BoundedWindowParameter BOUNDED_WINDOW_PARAMETER =
+        new AutoValue_DoFnSignature_Parameter_BoundedWindowParameter();
+    private static final RestrictionTrackerParameter RESTRICTION_TRACKER_PARAMETER =
+        new AutoValue_DoFnSignature_Parameter_RestrictionTrackerParameter();
+    private static final InputProviderParameter INPUT_PROVIDER_PARAMETER =
+        new AutoValue_DoFnSignature_Parameter_InputProviderParameter();
+    private static final OutputReceiverParameter OUTPUT_RECEIVER_PARAMETER =
+        new AutoValue_DoFnSignature_Parameter_OutputReceiverParameter();
+
+    /**
+     * Returns a {@link BoundedWindowParameter}.
+     */
+    public static BoundedWindowParameter boundedWindow() {
+      return BOUNDED_WINDOW_PARAMETER;
+    }
+
+    /**
+     * Returns an {@link InputProviderParameter}.
+     */
+    public static InputProviderParameter inputProvider() {
+      return INPUT_PROVIDER_PARAMETER;
+    }
+
+    /**
+     * Returns an {@link OutputReceiverParameter}.
+     */
+    public static OutputReceiverParameter outputReceiver() {
+      return OUTPUT_RECEIVER_PARAMETER;
+    }
+
+    /**
+     * Returns a {@link RestrictionTrackerParameter}.
+     */
+    public static RestrictionTrackerParameter restrictionTracker() {
+      return RESTRICTION_TRACKER_PARAMETER;
+    }
+
+    /**
+     * Returns a {@link StateParameter} referring to the given {@link StateDeclaration}.
+     */
+    public static StateParameter stateParameter(StateDeclaration decl) {
+      return new AutoValue_DoFnSignature_Parameter_StateParameter(decl);
+    }
+
+    public static TimerParameter timerParameter(TimerDeclaration decl) {
+      return new AutoValue_DoFnSignature_Parameter_TimerParameter(decl);
+    }
+
+    /**
+     * Descriptor for a {@link Parameter} of type {@link BoundedWindow}.
+     *
+     * <p>All such descriptors are equal.
+     */
+    @AutoValue
+    public abstract static class BoundedWindowParameter extends Parameter {
+      BoundedWindowParameter() {}
+    }
+
+    /**
+     * Descriptor for a {@link Parameter} of type {@link InputProvider}.
+     *
+     * <p>All such descriptors are equal.
+     */
+    @AutoValue
+    public abstract static class InputProviderParameter extends Parameter {
+      InputProviderParameter() {}
+    }
+
+    /**
+     * Descriptor for a {@link Parameter} of type {@link OutputReceiver}.
+     *
+     * <p>All such descriptors are equal.
+     */
+    @AutoValue
+    public abstract static class OutputReceiverParameter extends Parameter {
+      OutputReceiverParameter() {}
+    }
+
+    /**
+     * Descriptor for a {@link Parameter} of a subclass of {@link RestrictionTracker}.
+     *
+     * <p>All such descriptors are equal.
+     */
+    @AutoValue
+    public abstract static class RestrictionTrackerParameter extends Parameter {
+      // Package visible for AutoValue
+      RestrictionTrackerParameter() {}
+    }
+
+    /**
+     * Descriptor for a {@link Parameter} of a subclass of {@link State}, with an id indicated by
+     * its {@link StateId} annotation.
+     *
+     * <p>All descriptors for the same declared state are equal.
+     */
+    @AutoValue
+    public abstract static class StateParameter extends Parameter {
+      // Package visible for AutoValue
+      StateParameter() {}
+      public abstract StateDeclaration referent();
+    }
+
+    /**
+     * Descriptor for a {@link Parameter} of type {@link Timer}, with an id indicated by
+     * its {@link TimerId} annotation.
+     */
+    @AutoValue
+    public abstract static class TimerParameter extends Parameter {
+      // Package visible for AutoValue
+      TimerParameter() {}
+      public abstract TimerDeclaration referent();
+    }
   }
 
   /** Describes a {@link DoFn.ProcessElement} method. */
@@ -147,18 +356,63 @@ public abstract class DoFnSignature {
           targetMethod, Collections.unmodifiableList(extraParameters), trackerT, hasReturnValue);
     }
 
-    /** Whether this {@link DoFn} uses a Single Window. */
-    public boolean usesSingleWindow() {
-      return extraParameters().contains(Parameter.BOUNDED_WINDOW);
+    /**
+     * Whether this {@link DoFn} observes - directly or indirectly - the window that an element
+     * resides in.
+     *
+     * <p>{@link State} and {@link Timer} parameters indirectly observe the window, because
+     * they are each scoped to a single window.
+     */
+    public boolean observesWindow() {
+      return Iterables.any(
+          extraParameters(),
+          Predicates.or(
+              Predicates.instanceOf(BoundedWindowParameter.class),
+              Predicates.instanceOf(StateParameter.class)));
     }
 
     /**
      * Whether this {@link DoFn} is <a href="https://s.apache.org/splittable-do-fn">splittable</a>.
      */
     public boolean isSplittable() {
-      return extraParameters().contains(Parameter.RESTRICTION_TRACKER);
+      return extraParameters().contains(Parameter.restrictionTracker());
     }
   }
+
+  /** Describes a {@link DoFn.OnTimer} method. */
+  @AutoValue
+  public abstract static class OnTimerMethod implements DoFnMethod {
+
+    /** The id on the method's {@link DoFn.TimerId} annotation. */
+    public abstract String id();
+
+    /** The annotated method itself. */
+    @Override
+    public abstract Method targetMethod();
+
+    /** Types of optional parameters of the annotated method, in the order they appear. */
+    public abstract List<Parameter> extraParameters();
+
+    static OnTimerMethod create(Method targetMethod, String id, List<Parameter> extraParameters) {
+      return new AutoValue_DoFnSignature_OnTimerMethod(
+          id, targetMethod, Collections.unmodifiableList(extraParameters));
+    }
+  }
+
+  /**
+   * Describes a timer declaration; a field of type {@link TimerSpec} annotated with
+   * {@DoFn.TimerId}.
+   */
+  @AutoValue
+  public abstract static class TimerDeclaration {
+    public abstract String id();
+    public abstract Field field();
+
+    static TimerDeclaration create(String id, Field field) {
+      return new AutoValue_DoFnSignature_TimerDeclaration(id, field);
+    }
+  }
+
 
   /** Describes a {@link DoFn.StartBundle} or {@link DoFn.FinishBundle} method. */
   @AutoValue
@@ -180,10 +434,10 @@ public abstract class DoFnSignature {
   public abstract static class StateDeclaration {
     public abstract String id();
     public abstract Field field();
-    public abstract TypeDescriptor<? extends State<?>> stateType();
+    public abstract TypeDescriptor<? extends State> stateType();
 
     static StateDeclaration create(
-        String id, Field field, TypeDescriptor<? extends State<?>> stateType) {
+        String id, Field field, TypeDescriptor<? extends State> stateType) {
       return new AutoValue_DoFnSignature_StateDeclaration(id, field, stateType);
     }
   }

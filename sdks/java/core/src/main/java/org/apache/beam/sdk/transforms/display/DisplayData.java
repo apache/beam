@@ -21,18 +21,22 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.fasterxml.jackson.annotation.JsonGetter;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonValue;
 import com.google.auto.value.AutoValue;
+import com.google.common.base.Joiner;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import java.io.Serializable;
 import java.util.Collection;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
-import org.apache.avro.reflect.Nullable;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -48,12 +52,12 @@ import org.joda.time.format.ISODateTimeFormat;
  * interface.
  */
 public class DisplayData implements Serializable {
-  private static final DisplayData EMPTY = new DisplayData(Maps.<Identifier, Item<?>>newHashMap());
+  private static final DisplayData EMPTY = new DisplayData(Maps.<Identifier, Item>newHashMap());
   private static final DateTimeFormatter TIMESTAMP_FORMATTER = ISODateTimeFormat.dateTime();
 
-  private final ImmutableMap<Identifier, Item<?>> entries;
+  private final ImmutableMap<Identifier, Item> entries;
 
-  private DisplayData(Map<Identifier, Item<?>> entries) {
+  private DisplayData(Map<Identifier, Item> entries) {
     this.entries = ImmutableMap.copyOf(entries);
   }
 
@@ -71,7 +75,11 @@ public class DisplayData implements Serializable {
    */
   public static DisplayData from(HasDisplayData component) {
     checkNotNull(component, "component argument cannot be null");
-    return InternalBuilder.forRoot(component).build();
+
+    InternalBuilder builder = new InternalBuilder();
+    builder.include(Path.root(), component);
+
+    return builder.build();
   }
 
   /**
@@ -99,11 +107,11 @@ public class DisplayData implements Serializable {
   }
 
   @JsonValue
-  public Collection<Item<?>> items() {
+  public Collection<Item> items() {
     return entries.values();
   }
 
-  public Map<Identifier, Item<?>> asMap() {
+  public Map<Identifier, Item> asMap() {
     return entries;
   }
 
@@ -126,7 +134,7 @@ public class DisplayData implements Serializable {
   public String toString() {
     StringBuilder builder = new StringBuilder();
     boolean isFirstLine = true;
-    for (Item<?> entry : entries.values()) {
+    for (Item entry : entries.values()) {
       if (isFirstLine) {
         isFirstLine = false;
       } else {
@@ -139,80 +147,87 @@ public class DisplayData implements Serializable {
     return builder.toString();
   }
 
-  private static String namespaceOf(Class<?> clazz) {
-    return clazz.getName();
-  }
-
   /**
    * Utility to build up display data from a component and its included
    * subcomponents.
    */
   public interface Builder {
     /**
-     * Register display data from the specified subcomponent. For example, a {@link PTransform}
-     * which delegates to a user-provided function can implement {@link HasDisplayData} on the
-     * function and include it from the {@link PTransform}:
+     * Register display data from the specified subcomponent at the given path. For example, a
+     * {@link PTransform} which delegates to a user-provided function can implement
+     * {@link HasDisplayData} on the function and include it from the {@link PTransform}:
      *
      * <pre><code>{@literal @Override}
      * public void populateDisplayData(DisplayData.Builder builder) {
      *   super.populateDisplayData(builder);
      *
      *   builder
-     *     .add(DisplayData.item("userFn", userFn)) // To register the class name of the userFn
-     *     .include(userFn); // To allow the userFn to register additional display data
+     *     // To register the class name of the userFn
+     *     .add(DisplayData.item("userFn", userFn.getClass()))
+     *     // To allow the userFn to register additional display data
+     *     .include("userFn", userFn);
      * }
      * </code></pre>
      *
-     * <p>Using {@code include(subcomponent)} will associate each of the registered items with the
-     * namespace of the {@code subcomponent} being registered. To register display data in the
-     * current namespace, such as from a base class implementation, use
+     * <p>Using {@code include(path, subcomponent)} will associate each of the registered items with
+     * the namespace of the {@code subcomponent} being registered, with the specified path element
+     * relative to the current path. To register display data in the current path and namespace,
+     * such as from a base class implementation, use
      * {@code subcomponent.populateDisplayData(builder)} instead.
      *
      * @see HasDisplayData#populateDisplayData(DisplayData.Builder)
      */
-    Builder include(HasDisplayData subComponent);
+    Builder include(String path, HasDisplayData subComponent);
 
     /**
-     * Register display data from the specified subcomponent, overriding the namespace of
-     * subcomponent display items with the specified namespace.
+     * Register display data from the specified component on behalf of the current component.
+     * Display data items will be added with the subcomponent namespace but the current component
+     * path.
      *
-     * @see #include(HasDisplayData)
-     */
-    Builder include(HasDisplayData subComponent, Class<?> namespace);
-
-    /**
-     * Register display data from the specified subcomponent, overriding the namespace of
-     * subcomponent display items with the specified namespace.
+     * <p>This is useful for components which simply wrap other components and wish to retain the
+     * display data from the wrapped component. Such components should implement
+     * {@code populateDisplayData} as:
      *
-     * @see #include(HasDisplayData)
+     * <pre><code>{@literal @Override}
+     * public void populateDisplayData(DisplayData.Builder builder) {
+     *   builder.delegate(wrapped);
+     * }
+     * </code></pre>
      */
-    Builder include(HasDisplayData subComponent, String namespace);
+    Builder delegate(HasDisplayData component);
 
     /**
      * Register the given display item.
      */
-    Builder add(Item<?> item);
+    Builder add(ItemSpec<?> item);
 
     /**
      * Register the given display item if the value is not null.
      */
-    Builder addIfNotNull(Item<?> item);
+    Builder addIfNotNull(ItemSpec<?> item);
 
     /**
      * Register the given display item if the value is different than the specified default.
      */
-    <T> Builder addIfNotDefault(Item<T> item, @Nullable T defaultValue);
+    <T> Builder addIfNotDefault(ItemSpec<T> item, @Nullable T defaultValue);
   }
 
   /**
-   * {@link Item Items} are the unit of display data. Each item is identified by a given key
+   * {@link Item Items} are the unit of display data. Each item is identified by a given path, key,
    * and namespace from the component the display item belongs to.
    *
    * <p>{@link Item Items} are registered via {@link DisplayData.Builder#add}
    * within {@link HasDisplayData#populateDisplayData} implementations.
    */
   @AutoValue
-  public abstract static class Item<T> implements Serializable {
+  public abstract static class Item {
+
+    /**
+     * The path for the display item within a component hierarchy.
+     */
+    @Nullable
+    @JsonIgnore
+    public abstract Path getPath();
 
     /**
      * The namespace for the display item. The namespace defaults to the component which
@@ -220,7 +235,7 @@ public class DisplayData implements Serializable {
      */
     @Nullable
     @JsonGetter("namespace")
-    public abstract String getNamespace();
+    public abstract Class<?> getNamespace();
 
     /**
      * The key for the display item. Each display item is created with a key and value
@@ -240,11 +255,8 @@ public class DisplayData implements Serializable {
      * Retrieve the value of the display item. The value is translated from the input to
      * {@link DisplayData#item} into a format suitable for display. Translation is based on the
      * item's {@link #getType() type}.
-     *
-     * <p>The value will only be {@literal null} if the input value during creation was null.
      */
     @JsonGetter("value")
-    @Nullable
     public abstract Object getValue();
 
     /**
@@ -285,27 +297,104 @@ public class DisplayData implements Serializable {
     @Nullable
     public abstract String getLinkUrl();
 
-    private static <T> Item<T> create(String key, Type type, @Nullable T value) {
-      FormattedItemValue formatted = type.safeFormat(value);
-      return of(null, key, type, formatted.getLongValue(), formatted.getShortValue(), null, null);
+    private static Item create(ItemSpec<?> spec, Path path) {
+      checkNotNull(spec, "spec cannot be null");
+      checkNotNull(path, "path cannot be null");
+      Class<?> ns = checkNotNull(spec.getNamespace(), "namespace must be set");
+
+      return new AutoValue_DisplayData_Item(path, ns, spec.getKey(), spec.getType(),
+          spec.getValue(), spec.getShortValue(), spec.getLabel(), spec.getLinkUrl());
+    }
+
+    @Override
+    public String toString() {
+      return String.format("%s%s:%s=%s", getPath(), getNamespace().getName(), getKey(), getValue());
+    }
+  }
+
+  /**
+   * Specifies an {@link Item} to register as display data. Each item is identified by a given
+   * path, key, and namespace from the component the display item belongs to.
+   *
+   * <p>{@link Item Items} are registered via {@link DisplayData.Builder#add}
+   * within {@link HasDisplayData#populateDisplayData} implementations.
+   */
+  @AutoValue
+  public abstract static class ItemSpec<T> implements Serializable {
+    /**
+     * The namespace for the display item. If unset, defaults to the component which
+     * the display item is registered to.
+     */
+    @Nullable
+    public abstract Class<?> getNamespace();
+
+    /**
+     * The key for the display item. Each display item is created with a key and value
+     * via {@link DisplayData#item}.
+     */
+    public abstract String getKey();
+
+    /**
+     * The {@link DisplayData.Type} of display data. All display data conforms to a predefined set
+     * of allowed types.
+     */
+    public abstract Type getType();
+
+    /**
+     * The value of the display item. The value is translated from the input to
+     * {@link DisplayData#item} into a format suitable for display. Translation is based on the
+     * item's {@link #getType() type}.
+     */
+    @Nullable
+    public abstract Object getValue();
+
+    /**
+     * The optional short value for an item, or {@code null} if none is provided.
+     *
+     * <p>The short value is an alternative display representation for items having a long display
+     * value. For example, the {@link #getValue() value} for {@link Type#JAVA_CLASS} items contains
+     * the full class name with package, while the short value contains just the class name.
+     *
+     * <p>A {@link #getValue() value} will be provided for each display item, and some types may
+     * also provide a short-value. If a short value is provided, display data consumers may
+     * choose to display it instead of or in addition to the {@link #getValue() value}.
+     */
+    @Nullable
+    public abstract Object getShortValue();
+
+    /**
+     * The optional label for an item. The label is a human-readable description of what
+     * the metadata represents. UIs may choose to display the label instead of the item key.
+     */
+    @Nullable
+    public abstract String getLabel();
+
+    /**
+     * The optional link URL for an item. The URL points to an address where the reader
+     * can find additional context for the display data.
+     */
+    @Nullable
+    public abstract String getLinkUrl();
+
+    private static <T> ItemSpec<T> create(String key, Type type, @Nullable T value) {
+      return ItemSpec.<T>builder()
+          .setKey(key)
+          .setType(type)
+          .setRawValue(value)
+          .build();
     }
 
     /**
-     * Set the item {@link Item#getNamespace() namespace} from the given {@link Class}.
+     * Set the item {@link ItemSpec#getNamespace() namespace} from the given {@link Class}.
      *
-     * <p>This method does not alter the current instance, but instead returns a new {@link Item}
-     * with the namespace set.
+     * <p>This method does not alter the current instance, but instead returns a new
+     * {@link ItemSpec} with the namespace set.
      */
-    public Item<T> withNamespace(Class<?> namespace) {
+    public ItemSpec<T> withNamespace(Class<?> namespace) {
       checkNotNull(namespace, "namespace argument cannot be null");
-      return withNamespace(namespaceOf(namespace));
-    }
-
-    /** @see #withNamespace(Class) */
-    public Item<T> withNamespace(String namespace) {
-      checkNotNull(namespace, "namespace argument cannot be null");
-      return of(
-          namespace, getKey(), getType(), getValue(), getShortValue(), getLabel(), getLinkUrl());
+      return toBuilder()
+          .setNamespace(namespace)
+          .build();
     }
 
     /**
@@ -313,12 +402,13 @@ public class DisplayData implements Serializable {
      *
      * <p>Specifying a null value will clear the label if it was previously defined.
      *
-     * <p>This method does not alter the current instance, but instead returns a new {@link Item}
-     * with the label set.
+     * <p>This method does not alter the current instance, but instead returns a new
+     * {@link ItemSpec} with the label set.
      */
-    public Item<T> withLabel(String label) {
-      return of(
-          getNamespace(), getKey(), getType(), getValue(), getShortValue(), label, getLinkUrl());
+    public ItemSpec<T> withLabel(@Nullable String label) {
+      return toBuilder()
+          .setLabel(label)
+          .build();
     }
 
     /**
@@ -326,11 +416,13 @@ public class DisplayData implements Serializable {
      *
      * <p>Specifying a null value will clear the link url if it was previously defined.
      *
-     * <p>This method does not alter the current instance, but instead returns a new {@link Item}
-     * with the link url set.
+     * <p>This method does not alter the current instance, but instead returns a new
+     * {@link ItemSpec} with the link url set.
      */
-    public Item<T> withLinkUrl(String url) {
-      return of(getNamespace(), getKey(), getType(), getValue(), getShortValue(), getLabel(), url);
+    public ItemSpec<T> withLinkUrl(@Nullable String url) {
+      return toBuilder()
+          .setLinkUrl(url)
+          .build();
     }
 
     /**
@@ -339,84 +431,166 @@ public class DisplayData implements Serializable {
      * <p>This should only be used internally. It is useful to compare the value of a
      * {@link DisplayData.Item} to the value derived from a specified input.
      */
-    private Item<T> withValue(Object value) {
-      FormattedItemValue formatted = getType().safeFormat(value);
-      return of(getNamespace(), getKey(), getType(), formatted.getLongValue(),
-          formatted.getShortValue(), getLabel(), getLinkUrl());
-    }
-
-    private static <T> Item<T> of(
-        @Nullable String namespace,
-        String key,
-        Type type,
-        @Nullable Object value,
-        @Nullable Object shortValue,
-        @Nullable String label,
-        @Nullable String linkUrl) {
-      return new AutoValue_DisplayData_Item<>(
-          namespace, key, type, value, shortValue, label, linkUrl);
+    private ItemSpec<T> withValue(T value) {
+      return toBuilder()
+          .setRawValue(value)
+          .build();
     }
 
     @Override
     public String toString() {
       return String.format("%s:%s=%s", getNamespace(), getKey(), getValue());
     }
+
+    static <T> ItemSpec.Builder<T> builder() {
+      return new AutoValue_DisplayData_ItemSpec.Builder<>();
+    }
+
+    abstract ItemSpec.Builder<T> toBuilder();
+
+    @AutoValue.Builder
+    abstract static class Builder<T> {
+      public abstract ItemSpec.Builder<T> setKey(String key);
+      public abstract ItemSpec.Builder<T> setNamespace(@Nullable Class<?> namespace);
+      public abstract ItemSpec.Builder<T> setType(Type type);
+      public abstract ItemSpec.Builder<T> setValue(@Nullable Object longValue);
+      public abstract ItemSpec.Builder<T> setShortValue(@Nullable Object shortValue);
+      public abstract ItemSpec.Builder<T> setLabel(@Nullable String label);
+      public abstract ItemSpec.Builder<T> setLinkUrl(@Nullable String url);
+      public abstract ItemSpec<T> build();
+
+
+      abstract Type getType();
+
+      ItemSpec.Builder<T> setRawValue(@Nullable T value) {
+        FormattedItemValue formatted = getType().safeFormat(value);
+        return this
+            .setValue(formatted.getLongValue())
+            .setShortValue(formatted.getShortValue());
+      }
+    }
   }
 
   /**
    * Unique identifier for a display data item within a component.
-   * Identifiers are composed of the key they are registered with and a namespace generated from
-   * the class of the component which registered the item.
+   *
+   * <p>Identifiers are composed of:
+   *
+   * <ul>
+   *   <li>A {@link #getPath() path} based on the component hierarchy</li>
+   *   <li>The {@link #getKey() key} it is registered with</li>
+   *   <li>A {@link #getNamespace() namespace} generated from the class of the component which
+   *   registered the item.</li>
+   * </ul>
    *
    * <p>Display data registered with the same key from different components will have different
    * namespaces and thus will both be represented in the composed {@link DisplayData}. If a
    * single component registers multiple metadata items with the same key, only the most recent
    * item will be retained; previous versions are discarded.
    */
-  public static class Identifier {
-    private final String ns;
-    private final String key;
+  @AutoValue
+  public abstract static class Identifier {
+    public abstract Path getPath();
+    public abstract Class<?> getNamespace();
+    public abstract String getKey();
 
-    public static Identifier of(Class<?> namespace, String key) {
-      return of(namespaceOf(namespace), key);
-    }
-
-    public static Identifier of(String namespace, String key) {
-      return new Identifier(namespace, key);
-    }
-
-    private Identifier(String ns, String key) {
-      this.ns = ns;
-      this.key = key;
-    }
-
-    public String getNamespace() {
-      return ns;
-    }
-
-    public String getKey() {
-      return key;
-    }
-
-    @Override
-    public boolean equals(Object obj) {
-      if (obj instanceof Identifier) {
-        Identifier that = (Identifier) obj;
-        return Objects.equals(this.ns, that.ns)
-          && Objects.equals(this.key, that.key);
-      }
-
-      return false;
-    }
-
-    @Override
-    public int hashCode() {
-      return Objects.hash(ns, key);
+    public static Identifier of(Path path, Class<?> namespace, String key) {
+      return new AutoValue_DisplayData_Identifier(path, namespace, key);
     }
 
     @Override
     public String toString() {
-      return String.format("%s:%s", ns, key);
+      return String.format("%s%s:%s", getPath(), getNamespace(), getKey());
+    }
+  }
+
+  /**
+   * Structured path of registered display data within a component hierarchy.
+   *
+   * <p>Display data items registered directly by a component will have the {@link Path#root() root}
+   * path. If the component {@link Builder#include includes} a sub-component, its display data will
+   * be registered at the path specified. Each sub-component path is created by appending a child
+   * element to the path of its parent component, forming a hierarchy.
+   */
+  public static class Path {
+    private final ImmutableList<String> components;
+    private Path(ImmutableList<String> components) {
+      this.components = components;
+    }
+
+    /**
+     * Path for display data registered by a top-level component.
+     */
+    public static Path root() {
+      return new Path(ImmutableList.<String>of());
+    }
+
+    /**
+     * Construct a path from an absolute component path hierarchy.
+     *
+     * <p>For the root path, use {@link Path#root()}.
+     *
+     * @param firstPath Path of the first sub-component.
+     * @param paths Additional path components.
+     */
+    public static Path absolute(String firstPath, String... paths) {
+      ImmutableList.Builder<String> builder = ImmutableList.builder();
+
+      validatePathElement(firstPath);
+      builder.add(firstPath);
+      for (String path : paths) {
+        validatePathElement(path);
+        builder.add(path);
+      }
+
+      return new Path(builder.build());
+    }
+
+    /**
+     * Hierarchy list of component paths making up the full path, starting with the top-level child
+     * component path. For the {@link #root root} path, returns the empty list.
+     */
+    public List<String> getComponents() {
+      return components;
+    }
+
+    /**
+     * Extend the path by appending a sub-component path. The new path element is added to the end
+     * of the path hierarchy.
+     *
+     * <p>Returns a new {@link Path} instance; the originating {@link Path} is not modified.
+     */
+    public Path extend(String path) {
+      validatePathElement(path);
+      return new Path(ImmutableList.<String>builder()
+          .addAll(components.iterator())
+          .add(path)
+          .build());
+    }
+
+    private static void validatePathElement(String path) {
+      checkNotNull(path);
+      checkArgument(!"".equals(path), "path cannot be empty");
+    }
+
+    @Override
+    public String toString() {
+      StringBuilder b = new StringBuilder().append("[");
+      Joiner.on("/").appendTo(b, components);
+      b.append("]");
+      return b.toString();
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+      return obj instanceof Path
+          && Objects.equals(components, ((Path) obj).components);
+
+    }
+
+    @Override
+    public int hashCode() {
+      return components.hashCode();
     }
   }
 
@@ -551,64 +725,78 @@ public class DisplayData implements Serializable {
     Object getLongValue() {
       return this.longValue;
     }
-
     Object getShortValue() {
       return this.shortValue;
     }
   }
 
   private static class InternalBuilder implements Builder {
-    private final Map<Identifier, Item<?>> entries;
-    private final Set<Object> visited;
+    private final Map<Identifier, Item> entries;
+    private final Set<HasDisplayData> visitedComponents;
+    private final Map<Path, HasDisplayData> visitedPathMap;
 
-    private String latestNs;
+    private Path latestPath;
+    private Class<?> latestNs;
 
     private InternalBuilder() {
       this.entries = Maps.newHashMap();
-      this.visited = Sets.newIdentityHashSet();
-    }
-
-    private static InternalBuilder forRoot(HasDisplayData instance) {
-      InternalBuilder builder = new InternalBuilder();
-      builder.include(instance);
-      return builder;
+      this.visitedComponents = Sets.newIdentityHashSet();
+      this.visitedPathMap = Maps.newHashMap();
     }
 
     @Override
-    public Builder include(HasDisplayData subComponent) {
+    public Builder include(String path, HasDisplayData subComponent) {
       checkNotNull(subComponent, "subComponent argument cannot be null");
-      return include(subComponent, subComponent.getClass());
-    }
+      checkNotNull(path, "path argument cannot be null");
 
-    @Override
-    public Builder include(HasDisplayData subComponent, Class<?> namespace) {
-      checkNotNull(namespace, "Input namespace override cannot be null");
-      return include(subComponent, namespaceOf(namespace));
-    }
+      Path absolutePath = latestPath.extend(path);
 
-    @Override
-    public Builder include(HasDisplayData subComponent, String namespace) {
-      checkNotNull(subComponent, "subComponent argument cannot be null");
-      checkNotNull(namespace, "Input namespace override cannot be null");
-
-      boolean newComponent = visited.add(subComponent);
-      if (newComponent) {
-        String prevNs = this.latestNs;
-        this.latestNs = namespace;
-
-        try {
-          subComponent.populateDisplayData(this);
-        } catch (PopulateDisplayDataException e) {
-          // Don't re-wrap exceptions recursively.
-          throw e;
-        } catch (Throwable e) {
-          String msg = String.format("Error while populating display data for component: %s",
-              namespace);
-          throw new PopulateDisplayDataException(msg, e);
-        }
-
-        this.latestNs = prevNs;
+      HasDisplayData existingComponent = visitedPathMap.get(absolutePath);
+      if (existingComponent != null) {
+        throw new IllegalArgumentException(String.format("Specified path '%s' already used for "
+                + "subcomponent %s. Subcomponents must be included using unique paths.",
+            path, existingComponent));
       }
+
+      return include(absolutePath, subComponent);
+    }
+
+    @Override
+    public Builder delegate(HasDisplayData component) {
+      checkNotNull(component);
+
+      return include(latestPath, component);
+    }
+
+    private Builder include(Path path, HasDisplayData subComponent) {
+      if (visitedComponents.contains(subComponent)) {
+        // Component previously registered; ignore in order to break cyclic dependencies
+        return this;
+      }
+
+      // New component; add it.
+      visitedComponents.add(subComponent);
+      visitedPathMap.put(path, subComponent);
+      Class<?> namespace = subComponent.getClass();
+
+      Path prevPath = latestPath;
+      Class<?> prevNs = latestNs;
+      latestPath = path;
+      latestNs = namespace;
+
+      try {
+        subComponent.populateDisplayData(this);
+      } catch (PopulateDisplayDataException e) {
+        // Don't re-wrap exceptions recursively.
+        throw e;
+      } catch (Throwable e) {
+        String msg = String.format("Error while populating display data for component: %s",
+            namespace.getName());
+        throw new PopulateDisplayDataException(msg, e);
+      }
+
+      latestPath = prevPath;
+      latestNs = prevNs;
 
       return this;
     }
@@ -623,39 +811,41 @@ public class DisplayData implements Serializable {
     }
 
     @Override
-    public Builder add(Item<?> item) {
+    public Builder add(ItemSpec<?> item) {
       checkNotNull(item, "Input display item cannot be null");
       return addItemIf(true, item);
     }
 
     @Override
-    public Builder addIfNotNull(Item<?> item) {
+    public Builder addIfNotNull(ItemSpec<?> item) {
       checkNotNull(item, "Input display item cannot be null");
       return addItemIf(item.getValue() != null, item);
     }
 
     @Override
-    public <T> Builder addIfNotDefault(Item<T> item, @Nullable T defaultValue) {
+    public <T> Builder addIfNotDefault(ItemSpec<T> item, @Nullable T defaultValue) {
       checkNotNull(item, "Input display item cannot be null");
-      Item<T> defaultItem = item.withValue(defaultValue);
+      ItemSpec<T> defaultItem = item.withValue(defaultValue);
       return addItemIf(!Objects.equals(item, defaultItem), item);
     }
 
-    private Builder addItemIf(boolean condition, Item<?> item) {
+    private Builder addItemIf(boolean condition, ItemSpec<?> spec) {
       if (!condition) {
         return this;
       }
 
-      checkNotNull(item, "Input display item cannot be null");
-      checkNotNull(item.getValue(), "Input display value cannot be null");
-      if (item.getNamespace() == null) {
-        item = item.withNamespace(latestNs);
-      }
+      checkNotNull(spec, "Input display item cannot be null");
+      checkNotNull(spec.getValue(), "Input display value cannot be null");
 
-      Identifier id = Identifier.of(item.getNamespace(), item.getKey());
+      if (spec.getNamespace() == null) {
+        spec = spec.withNamespace(latestNs);
+      }
+      Item item = Item.create(spec, latestPath);
+
+      Identifier id = Identifier.of(item.getPath(), item.getNamespace(), item.getKey());
       checkArgument(!entries.containsKey(id),
-          "Display data key (%s) is not unique within the specified namespace (%s).",
-          item.getKey(), item.getNamespace());
+          "Display data key (%s) is not unique within the specified path and namespace: %s%s.",
+          item.getKey(), item.getPath(), item.getNamespace());
 
       entries.put(id, item);
       return this;
@@ -669,63 +859,63 @@ public class DisplayData implements Serializable {
   /**
    * Create a display item for the specified key and string value.
    */
-  public static Item<String> item(String key, @Nullable String value) {
+  public static ItemSpec<String> item(String key, @Nullable String value) {
     return item(key, Type.STRING, value);
   }
 
   /**
    * Create a display item for the specified key and integer value.
    */
-  public static Item<Integer> item(String key, @Nullable Integer value) {
+  public static ItemSpec<Integer> item(String key, @Nullable Integer value) {
     return item(key, Type.INTEGER, value);
   }
 
   /**
    * Create a display item for the specified key and integer value.
    */
-  public static Item<Long> item(String key, @Nullable Long value) {
+  public static ItemSpec<Long> item(String key, @Nullable Long value) {
     return item(key, Type.INTEGER, value);
   }
 
   /**
    * Create a display item for the specified key and floating point value.
    */
-  public static Item<Float> item(String key, @Nullable Float value) {
+  public static ItemSpec<Float> item(String key, @Nullable Float value) {
     return item(key, Type.FLOAT, value);
   }
 
   /**
    * Create a display item for the specified key and floating point value.
    */
-  public static Item<Double> item(String key, @Nullable Double value) {
+  public static ItemSpec<Double> item(String key, @Nullable Double value) {
     return item(key, Type.FLOAT, value);
   }
 
   /**
    * Create a display item for the specified key and boolean value.
    */
-  public static Item<Boolean> item(String key, @Nullable Boolean value) {
+  public static ItemSpec<Boolean> item(String key, @Nullable Boolean value) {
     return item(key, Type.BOOLEAN, value);
   }
 
   /**
    * Create a display item for the specified key and timestamp value.
    */
-  public static Item<Instant> item(String key, @Nullable Instant value) {
+  public static ItemSpec<Instant> item(String key, @Nullable Instant value) {
     return item(key, Type.TIMESTAMP, value);
   }
 
   /**
    * Create a display item for the specified key and duration value.
    */
-  public static Item<Duration> item(String key, @Nullable Duration value) {
+  public static ItemSpec<Duration> item(String key, @Nullable Duration value) {
     return item(key, Type.DURATION, value);
   }
 
   /**
    * Create a display item for the specified key and class value.
    */
-  public static <T> Item<Class<T>> item(String key, @Nullable Class<T> value) {
+  public static <T> ItemSpec<Class<T>> item(String key, @Nullable Class<T> value) {
     return item(key, Type.JAVA_CLASS, value);
   }
 
@@ -739,10 +929,10 @@ public class DisplayData implements Serializable {
    *
    *  @see Type#inferType(Object)
    */
-  public static <T> Item<T> item(String key, Type type, @Nullable T value) {
+  public static <T> ItemSpec<T> item(String key, Type type, @Nullable T value) {
     checkNotNull(key, "key argument cannot be null");
     checkNotNull(type, "type argument cannot be null");
 
-    return Item.create(key, type, value);
+    return ItemSpec.create(key, type, value);
   }
 }

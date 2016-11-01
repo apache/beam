@@ -99,7 +99,7 @@ public class AutoCompleteTest implements Serializable {
         KV.of("bl", parseList("blackberry:3", "blueberry:2")),
         KV.of("c", parseList("cherry:1")),
         KV.of("ch", parseList("cherry:1")));
-    p.run();
+    p.run().waitUntilFinish();
   }
 
   @Test
@@ -117,7 +117,7 @@ public class AutoCompleteTest implements Serializable {
         KV.of("x", parseList("x:3", "xy:2")),
         KV.of("xy", parseList("xy:2", "xyz:1")),
         KV.of("xyz", parseList("xyz:1")));
-    p.run();
+    p.run().waitUntilFinish();
   }
 
   @Test
@@ -153,7 +153,7 @@ public class AutoCompleteTest implements Serializable {
         // Window [2, 3)
         KV.of("x", parseList("xB:2")),
         KV.of("xB", parseList("xB:2")));
-    p.run();
+    p.run().waitUntilFinish();
   }
 
   private static List<CompletionCandidate> parseList(String... entries) {

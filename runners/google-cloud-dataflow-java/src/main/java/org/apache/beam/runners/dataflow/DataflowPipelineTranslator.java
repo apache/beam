@@ -218,7 +218,7 @@ public class DataflowPipelineTranslator {
    * mutating the {@link TranslationContext}.
    */
   public interface TransformTranslator<TransformT extends PTransform> {
-    public void translate(TransformT transform,
+    void translate(TransformT transform,
                           TranslationContext context);
   }
 
@@ -254,7 +254,7 @@ public class DataflowPipelineTranslator {
      * This step becomes "current" for the purpose of {@link #addInput} and
      * {@link #addOutput}.
      */
-    public void addStep(PTransform<?, ?> transform, String type);
+    void addStep(PTransform<?, ?> transform, String type);
 
     /**
      * Adds a pre-defined step to the Dataflow workflow. The given PTransform should be
@@ -263,46 +263,46 @@ public class DataflowPipelineTranslator {
      * <p>This is a low-level operation, when using this method it is up to
      * the caller to ensure that names do not collide.
      */
-    public void addStep(PTransform<?, ? extends PValue> transform, Step step);
+    void addStep(PTransform<?, ? extends PValue> transform, Step step);
 
     /**
      * Sets the encoding for the current Dataflow step.
      */
-    public void addEncodingInput(Coder<?> value);
+    void addEncodingInput(Coder<?> value);
 
     /**
      * Adds an input with the given name and value to the current
      * Dataflow step.
      */
-    public void addInput(String name, Boolean value);
+    void addInput(String name, Boolean value);
 
     /**
      * Adds an input with the given name and value to the current
      * Dataflow step.
      */
-    public void addInput(String name, String value);
+    void addInput(String name, String value);
 
     /**
      * Adds an input with the given name and value to the current
      * Dataflow step.
      */
-    public void addInput(String name, Long value);
+    void addInput(String name, Long value);
 
     /**
      * Adds an input with the given name to the previously added Dataflow
      * step, coming from the specified input PValue.
      */
-    public void addInput(String name, PInput value);
+    void addInput(String name, PInput value);
 
     /**
      * Adds an input that is a dictionary of strings to objects.
      */
-    public void addInput(String name, Map<String, Object> elements);
+    void addInput(String name, Map<String, Object> elements);
 
     /**
      * Adds an input that is a list of objects.
      */
-    public void addInput(String name, List<? extends Map<String, Object>> elements);
+    void addInput(String name, List<? extends Map<String, Object>> elements);
 
     /**
      * Adds an output to the previously added Dataflow step,
@@ -311,7 +311,7 @@ public class DataflowPipelineTranslator {
      * {@code PValue} is a {@code PCollection}, wraps its coder inside
      * a {@code WindowedValueCoder}.  Returns a pipeline level unique id.
      */
-    public long addOutput(PValue value);
+    long addOutput(PValue value);
 
     /**
      * Adds an output to the previously added Dataflow step,
@@ -320,7 +320,7 @@ public class DataflowPipelineTranslator {
      * {@code PValue} is a {@code PCollection}, wraps its coder inside
      * a {@code ValueOnlyCoder}.  Returns a pipeline level unique id.
      */
-    public long addValueOnlyOutput(PValue value);
+    long addValueOnlyOutput(PValue value);
 
     /**
      * Adds an output to the previously added CollectionToSingleton Dataflow step,
@@ -328,13 +328,13 @@ public class DataflowPipelineTranslator {
      * {@code PValue}.  This step requires special treatment for its
      * output encoding.  Returns a pipeline level unique id.
      */
-    public long addCollectionToSingletonOutput(PValue inputValue,
+    long addCollectionToSingletonOutput(PValue inputValue,
                                                PValue outputValue);
 
     /**
      * Encode a PValue reference as an output reference.
      */
-    public OutputReference asOutputReference(PValue value);
+    OutputReference asOutputReference(PValue value);
   }
 
 
@@ -478,6 +478,10 @@ public class DataflowPipelineTranslator {
 
       workerPools.add(workerPool);
       environment.setWorkerPools(workerPools);
+
+      if (options.getServiceAccount() != null) {
+        environment.setServiceAccountEmail(options.getServiceAccount());
+      }
 
       pipeline.traverseTopologically(this);
       return job;
@@ -930,7 +934,7 @@ public class DataflowPipelineTranslator {
                 !windowingStrategy.getWindowFn().isNonMerging()
                 || (isStreaming && !transform.fewKeys())
                 // TODO: Allow combiner lifting on the non-default trigger, as appropriate.
-                || !(windowingStrategy.getTrigger().getSpec() instanceof DefaultTrigger);
+                || !(windowingStrategy.getTrigger() instanceof DefaultTrigger);
             context.addInput(
                 PropertyNames.DISALLOW_COMBINER_LIFTING, disallowCombinerLifting);
             context.addInput(
@@ -1063,8 +1067,10 @@ public class DataflowPipelineTranslator {
     context.addInput(PropertyNames.USER_FN, fn.getClass().getName());
     context.addInput(
         PropertyNames.SERIALIZED_FN,
-        byteArrayToJsonString(serializeToByteArray(
-            new DoFnInfo(fn, windowingStrategy, sideInputs, inputCoder, mainOutput, outputMap))));
+        byteArrayToJsonString(
+            serializeToByteArray(
+                DoFnInfo.forFn(
+                    fn, windowingStrategy, sideInputs, inputCoder, mainOutput, outputMap))));
   }
 
   private static BiMap<Long, TupleTag<?>> translateOutputs(

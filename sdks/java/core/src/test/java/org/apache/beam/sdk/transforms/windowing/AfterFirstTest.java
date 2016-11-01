@@ -18,138 +18,18 @@
 package org.apache.beam.sdk.transforms.windowing;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
-import static org.mockito.Mockito.when;
 
 import org.apache.beam.sdk.transforms.windowing.Trigger.OnceTrigger;
-import org.apache.beam.sdk.util.TriggerTester;
-import org.apache.beam.sdk.util.TriggerTester.SimpleTriggerTester;
-import org.joda.time.Duration;
 import org.joda.time.Instant;
-import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-import org.mockito.Mock;
-import org.mockito.Mockito;
-import org.mockito.MockitoAnnotations;
 
 /**
  * Tests for {@link AfterFirst}.
  */
 @RunWith(JUnit4.class)
 public class AfterFirstTest {
-
-  @Mock private OnceTrigger mockTrigger1;
-  @Mock private OnceTrigger mockTrigger2;
-  private SimpleTriggerTester<IntervalWindow> tester;
-  private static Trigger.TriggerContext anyTriggerContext() {
-    return Mockito.<Trigger.TriggerContext>any();
-  }
-
-  @Before
-  public void initMocks() {
-    MockitoAnnotations.initMocks(this);
-  }
-
-  @Test
-  public void testNeitherShouldFireFixedWindows() throws Exception {
-    tester = TriggerTester.forTrigger(
-        AfterFirst.of(mockTrigger1, mockTrigger2), FixedWindows.of(Duration.millis(10)));
-
-    tester.injectElements(1);
-    IntervalWindow window = new IntervalWindow(new Instant(0), new Instant(10));
-
-    when(mockTrigger1.shouldFire(anyTriggerContext())).thenReturn(false);
-    when(mockTrigger2.shouldFire(anyTriggerContext())).thenReturn(false);
-
-    assertFalse(tester.shouldFire(window)); // should not fire
-    assertFalse(tester.isMarkedFinished(window)); // not finished
-  }
-
-  @Test
-  public void testOnlyT1ShouldFireFixedWindows() throws Exception {
-    tester = TriggerTester.forTrigger(
-        AfterFirst.of(mockTrigger1, mockTrigger2), FixedWindows.of(Duration.millis(10)));
-    tester.injectElements(1);
-    IntervalWindow window = new IntervalWindow(new Instant(1), new Instant(11));
-
-    when(mockTrigger1.shouldFire(anyTriggerContext())).thenReturn(true);
-    when(mockTrigger2.shouldFire(anyTriggerContext())).thenReturn(false);
-
-    assertTrue(tester.shouldFire(window)); // should fire
-
-    tester.fireIfShouldFire(window);
-    assertTrue(tester.isMarkedFinished(window));
-  }
-
-  @Test
-  public void testOnlyT2ShouldFireFixedWindows() throws Exception {
-    tester = TriggerTester.forTrigger(
-    AfterFirst.of(mockTrigger1, mockTrigger2), FixedWindows.of(Duration.millis(10)));
-    tester.injectElements(1);
-    IntervalWindow window = new IntervalWindow(new Instant(1), new Instant(11));
-
-    when(mockTrigger1.shouldFire(anyTriggerContext())).thenReturn(false);
-    when(mockTrigger2.shouldFire(anyTriggerContext())).thenReturn(true);
-    assertTrue(tester.shouldFire(window)); // should fire
-
-    tester.fireIfShouldFire(window); // now finished
-    assertTrue(tester.isMarkedFinished(window));
-  }
-
-  @Test
-  public void testBothShouldFireFixedWindows() throws Exception {
-    tester = TriggerTester.forTrigger(
-    AfterFirst.of(mockTrigger1, mockTrigger2), FixedWindows.of(Duration.millis(10)));
-    tester.injectElements(1);
-    IntervalWindow window = new IntervalWindow(new Instant(1), new Instant(11));
-
-    when(mockTrigger1.shouldFire(anyTriggerContext())).thenReturn(true);
-    when(mockTrigger2.shouldFire(anyTriggerContext())).thenReturn(true);
-    assertTrue(tester.shouldFire(window)); // should fire
-
-    tester.fireIfShouldFire(window);
-    assertTrue(tester.isMarkedFinished(window));
-  }
-
-  /**
-   * Tests that if the first trigger rewinds to be non-finished in the merged window,
-   * then it becomes the currently active trigger again, with real triggers.
-   */
-  @Test
-  public void testShouldFireAfterMerge() throws Exception {
-    tester = TriggerTester.forTrigger(
-        AfterEach.inOrder(
-            AfterFirst.of(AfterPane.elementCountAtLeast(5),
-                AfterWatermark.pastEndOfWindow()),
-            Repeatedly.forever(AfterPane.elementCountAtLeast(1))),
-        Sessions.withGapDuration(Duration.millis(10)));
-
-    // Finished the AfterFirst in the first window
-    tester.injectElements(1);
-    IntervalWindow firstWindow = new IntervalWindow(new Instant(1), new Instant(11));
-    assertFalse(tester.shouldFire(firstWindow));
-    tester.advanceInputWatermark(new Instant(11));
-    assertTrue(tester.shouldFire(firstWindow));
-    tester.fireIfShouldFire(firstWindow);
-
-    // Set up second window where it is not done
-    tester.injectElements(5);
-    IntervalWindow secondWindow = new IntervalWindow(new Instant(5), new Instant(15));
-    assertFalse(tester.shouldFire(secondWindow));
-
-    // Merge them, if the merged window were on the second trigger, it would be ready
-    tester.mergeWindows();
-    IntervalWindow mergedWindow = new IntervalWindow(new Instant(1), new Instant(15));
-    assertFalse(tester.shouldFire(mergedWindow));
-
-    // Now adding 3 more makes the AfterFirst ready to fire
-    tester.injectElements(1, 2, 3, 4, 5);
-    tester.mergeWindows();
-    assertTrue(tester.shouldFire(mergedWindow));
-  }
 
   @Test
   public void testFireDeadline() throws Exception {

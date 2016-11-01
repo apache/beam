@@ -37,7 +37,7 @@ import org.apache.spark.streaming.api.java.JavaStreamingListener;
 public interface SparkPipelineOptions extends PipelineOptions, StreamingOptions,
                                               ApplicationNameOptions {
   @Description("The url of the spark master to connect to, (e.g. spark://host:port, local[4]).")
-  @Default.String("local[1]")
+  @Default.String("local[4]")
   String getSparkMaster();
   void setSparkMaster(String master);
 
@@ -52,6 +52,17 @@ public interface SparkPipelineOptions extends PipelineOptions, StreamingOptions,
   Long getBatchIntervalMillis();
   void setBatchIntervalMillis(Long batchInterval);
 
+  @Description("Minimum time to spend on read, for each micro-batch.")
+  @Default.Long(200)
+  Long getMinReadTimeMillis();
+  void setMinReadTimeMillis(Long minReadTimeMillis);
+
+  @Description("A value between 0-1 to describe the percentage of a micro-batch dedicated "
+      + "to reading from UnboundedSource.")
+  @Default.Double(0.1)
+  Double getReadTimePercentage();
+  void setReadTimePercentage(Double readTimePercentage);
+
   @Description("A checkpoint directory for streaming resilience, ignored in batch. "
       + "For durability, a reliable filesystem such as HDFS/S3/GS is necessary.")
   @Default.InstanceFactory(TmpCheckpointDirFactory.class)
@@ -63,7 +74,7 @@ public interface SparkPipelineOptions extends PipelineOptions, StreamingOptions,
    * For testing purposes only. Production applications should use a reliable
    * filesystem such as HDFS/S3/GS.
    */
-  static class TmpCheckpointDirFactory implements DefaultValueFactory<String> {
+  class TmpCheckpointDirFactory implements DefaultValueFactory<String> {
     @Override
     public String create(PipelineOptions options) {
       SparkPipelineOptions sparkPipelineOptions = options.as(SparkPipelineOptions.class);
@@ -100,7 +111,7 @@ public interface SparkPipelineOptions extends PipelineOptions, StreamingOptions,
   void setListeners(List<JavaStreamingListener> listeners);
 
   /** Returns an empty list, top avoid handling null. */
-  static class EmptyListenersList implements DefaultValueFactory<List<JavaStreamingListener>> {
+  class EmptyListenersList implements DefaultValueFactory<List<JavaStreamingListener>> {
     @Override
     public List<JavaStreamingListener> create(PipelineOptions options) {
       return new ArrayList<>();

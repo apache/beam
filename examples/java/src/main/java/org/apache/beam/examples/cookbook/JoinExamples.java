@@ -154,7 +154,7 @@ public class JoinExamples {
    *
    * <p>Inherits standard configuration options.
    */
-  private static interface Options extends PipelineOptions {
+  private interface Options extends PipelineOptions {
     @Description("Path of the file to write to")
     @Validation.Required
     String getOutput();
@@ -170,7 +170,7 @@ public class JoinExamples {
     PCollection<TableRow> countryCodes = p.apply(BigQueryIO.Read.from(COUNTRY_CODES));
     PCollection<String> formattedResults = joinEvents(eventsTable, countryCodes);
     formattedResults.apply(TextIO.Write.to(options.getOutput()));
-    p.run();
+    p.run().waitUntilFinish();
   }
 
 }

@@ -55,7 +55,7 @@ public class DeDupExample {
    *
    * <p>Inherits standard configuration options.
    */
-  private static interface Options extends PipelineOptions {
+  private interface Options extends PipelineOptions {
     @Description("Path to the directory or GCS prefix containing files to read from")
     @Default.String("gs://apache-beam-samples/shakespeare/*")
     String getInput();
@@ -67,7 +67,7 @@ public class DeDupExample {
     void setOutput(String value);
 
     /** Returns gs://${TEMP_LOCATION}/"deduped.txt". */
-    public static class OutputFactory implements DefaultValueFactory<String> {
+    class OutputFactory implements DefaultValueFactory<String> {
       @Override
       public String create(PipelineOptions options) {
         if (options.getTempLocation() != null) {
@@ -91,6 +91,6 @@ public class DeDupExample {
      .apply(RemoveDuplicates.<String>create())
      .apply("DedupedShakespeare", TextIO.Write.to(options.getOutput()));
 
-    p.run();
+    p.run().waitUntilFinish();
   }
 }

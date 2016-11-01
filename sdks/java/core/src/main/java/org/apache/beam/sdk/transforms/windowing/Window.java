@@ -544,7 +544,7 @@ public class Window {
 
       // Make sure that the windowing strategy is complete & valid.
       if (outputStrategy.isTriggerSpecified()
-          && !(outputStrategy.getTrigger().getSpec() instanceof DefaultTrigger)) {
+          && !(outputStrategy.getTrigger() instanceof DefaultTrigger)) {
         if (!(outputStrategy.getWindowFn() instanceof GlobalWindows)
             && !outputStrategy.isAllowedLatenessSpecified()) {
           throw new IllegalArgumentException("Except when using GlobalWindows,"
@@ -578,7 +578,7 @@ public class Window {
         builder
             .add(DisplayData.item("windowFn", windowFn.getClass())
               .withLabel("Windowing Function"))
-            .include(windowFn);
+            .include("windowFn", windowFn);
       }
 
       if (allowedLateness != null) {

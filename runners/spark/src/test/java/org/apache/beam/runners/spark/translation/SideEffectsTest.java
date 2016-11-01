@@ -32,8 +32,6 @@ import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.junit.After;
-import org.junit.Before;
 import org.junit.Test;
 
 /**
@@ -63,24 +61,8 @@ public class SideEffectsTest implements Serializable {
       p.run();
       fail("Run should thrown an exception");
     } catch (RuntimeException e) {
+      assertTrue(e.getCause() instanceof UserException);
       assertNotNull(e.getCause());
-
-      // TODO: remove the version check (and the setup and teardown methods) when we no
-      // longer support Spark 1.3 or 1.4
-      String version = SparkContextFactory.getSparkContext(options).version();
-      if (!version.startsWith("1.3.") && !version.startsWith("1.4.")) {
-        assertTrue(e.getCause() instanceof UserException);
-      }
     }
-  }
-
-  @Before
-  public void setup() {
-    System.setProperty(SparkContextFactory.TEST_REUSE_SPARK_CONTEXT, "true");
-  }
-
-  @After
-  public void teardown() {
-    System.setProperty(SparkContextFactory.TEST_REUSE_SPARK_CONTEXT, "false");
   }
 }

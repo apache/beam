@@ -21,22 +21,24 @@ package org.apache.beam.runners.spark.translation;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
 import java.io.Serializable;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.runners.spark.util.BroadcastHelper;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.util.state.InMemoryStateInternals;
 import org.apache.beam.sdk.util.state.StateInternals;
 import org.apache.beam.sdk.util.state.StateInternalsFactory;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.spark.api.java.function.FlatMapFunction;
 import org.apache.spark.api.java.function.Function;
 import org.apache.spark.api.java.function.PairFunction;
 import org.apache.spark.streaming.api.java.JavaDStream;
@@ -66,7 +68,7 @@ public final class TranslationUtils {
   }
 
   /**
-   * A {@link Combine.GroupedValues} function applied to grouped KVs.
+   * A SparkKeyedCombineFn function applied to grouped KVs.
    *
    * @param <K>       Grouped key type.
    * @param <InputT>  Grouped values type.
@@ -74,18 +76,16 @@ public final class TranslationUtils {
    */
   public static class CombineGroupedValues<K, InputT, OutputT> implements
       Function<WindowedValue<KV<K, Iterable<InputT>>>, WindowedValue<KV<K, OutputT>>> {
-    private final Combine.KeyedCombineFn<K, InputT, ?, OutputT> keyed;
+    private final SparkKeyedCombineFn<K, InputT, ?, OutputT> fn;
 
-    public CombineGroupedValues(Combine.GroupedValues<K, InputT, OutputT> transform) {
-      //noinspection unchecked
-      keyed = (Combine.KeyedCombineFn<K, InputT, ?, OutputT>) transform.getFn();
+    public CombineGroupedValues(SparkKeyedCombineFn<K, InputT, ?, OutputT> fn) {
+      this.fn = fn;
     }
 
     @Override
     public WindowedValue<KV<K, OutputT>> call(WindowedValue<KV<K, Iterable<InputT>>> windowedKv)
         throws Exception {
-      KV<K, Iterable<InputT>> kv = windowedKv.getValue();
-      return WindowedValue.of(KV.of(kv.getKey(), keyed.apply(kv.getKey(), kv.getValue())),
+      return WindowedValue.of(KV.of(windowedKv.getValue().getKey(), fn.apply(windowedKv)),
           windowedKv.getTimestamp(), windowedKv.getWindows(), windowedKv.getPane());
     }
   }
@@ -145,6 +145,21 @@ public final class TranslationUtils {
     };
   }
 
+  /** A Flatmap iterator function, flattening iterators into their elements. */
+  public static <T> FlatMapFunction<Iterator<T>, T> flattenIter() {
+    return new FlatMapFunction<Iterator<T>, T>() {
+      @Override
+      public Iterable<T> call(final Iterator<T> t) throws Exception {
+        return new Iterable<T>() {
+          @Override
+          public Iterator<T> iterator() {
+            return t;
+          }
+        };
+      }
+    };
+  }
+
   /**
    * A utility class to filter {@link TupleTag}s.
    *
@@ -170,23 +185,27 @@ public final class TranslationUtils {
    *
    * @param views   The {@link PCollectionView}s.
    * @param context The {@link EvaluationContext}.
-   * @return a map of tagged {@link BroadcastHelper}s.
+   * @return a map of tagged {@link BroadcastHelper}s and their {@link WindowingStrategy}.
    */
-  public static Map<TupleTag<?>, BroadcastHelper<?>> getSideInputs(List<PCollectionView<?>> views,
-      EvaluationContext context) {
+  public static Map<TupleTag<?>, KV<WindowingStrategy<?, ?>, BroadcastHelper<?>>>
+      getSideInputs(List<PCollectionView<?>> views, EvaluationContext context) {
+
     if (views == null) {
       return ImmutableMap.of();
     } else {
-      Map<TupleTag<?>, BroadcastHelper<?>> sideInputs = Maps.newHashMap();
+      Map<TupleTag<?>, KV<WindowingStrategy<?, ?>, BroadcastHelper<?>>> sideInputs =
+          Maps.newHashMap();
       for (PCollectionView<?> view : views) {
         Iterable<? extends WindowedValue<?>> collectionView = context.getPCollectionView(view);
         Coder<Iterable<WindowedValue<?>>> coderInternal = view.getCoderInternal();
+        WindowingStrategy<?, ?> windowingStrategy = view.getWindowingStrategyInternal();
         @SuppressWarnings("unchecked")
         BroadcastHelper<?> helper =
             BroadcastHelper.create((Iterable<WindowedValue<?>>) collectionView, coderInternal);
         //broadcast side inputs
         helper.broadcast(context.getSparkContext());
-        sideInputs.put(view.getTagInternal(), helper);
+        sideInputs.put(view.getTagInternal(),
+            KV.<WindowingStrategy<?, ?>, BroadcastHelper<?>>of(windowingStrategy, helper));
       }
       return sideInputs;
     }

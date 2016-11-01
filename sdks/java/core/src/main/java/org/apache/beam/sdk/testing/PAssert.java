@@ -1181,8 +1181,8 @@ public class PAssert {
    * {@code assertFor(Expected)} which returns a {@code SerializableFunction<Actual, Void>} that
    * should verify the assertion..
    */
-  private static interface AssertRelation<ActualT, ExpectedT> extends Serializable {
-    public SerializableFunction<ActualT, Void> assertFor(ExpectedT input);
+  private interface AssertRelation<ActualT, ExpectedT> extends Serializable {
+    SerializableFunction<ActualT, Void> assertFor(ExpectedT input);
   }
 
   /**

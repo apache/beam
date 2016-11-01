@@ -36,6 +36,7 @@ import org.joda.time.Instant;
  * computation and key in a Windmill-like streaming environment.
  */
 public class InMemoryTimerInternals implements TimerInternals {
+
   /** At most one timer per timestamp is kept. */
   private Set<TimerData> existingTimers = new HashSet<>();
 
@@ -97,11 +98,22 @@ public class InMemoryTimerInternals implements TimerInternals {
   }
 
   @Override
+  public void setTimer(StateNamespace namespace, String timerId, Instant target,
+      TimeDomain timeDomain) {
+    throw new UnsupportedOperationException("Setting a timer by ID is not yet supported.");
+  }
+
+  @Override
   public void setTimer(TimerData timer) {
     WindowTracing.trace("TestTimerInternals.setTimer: {}", timer);
     if (existingTimers.add(timer)) {
       queue(timer.getDomain()).add(timer);
     }
+  }
+
+  @Override
+  public void deleteTimer(StateNamespace namespace, String timerId) {
+    throw new UnsupportedOperationException("Canceling a timer by ID is not yet supported.");
   }
 
   @Override
