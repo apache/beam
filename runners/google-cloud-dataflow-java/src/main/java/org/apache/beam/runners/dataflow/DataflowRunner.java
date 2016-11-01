@@ -49,7 +49,6 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Multimap;
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -58,6 +57,8 @@ import java.io.Serializable;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.net.URLClassLoader;
+import java.nio.channels.Channels;
+import java.nio.channels.WritableByteChannel;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -88,6 +89,7 @@ import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineWorkerPoolOptions;
 import org.apache.beam.runners.dataflow.util.DataflowTransport;
 import org.apache.beam.runners.dataflow.util.MonitoringUtil;
+import org.apache.beam.runners.dataflow.util.TemplateJob;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.Pipeline.PipelineVisitor;
 import org.apache.beam.sdk.PipelineResult.State;
@@ -140,6 +142,7 @@ import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.IOChannelUtils;
 import org.apache.beam.sdk.util.InstanceBuilder;
+import org.apache.beam.sdk.util.MimeTypes;
 import org.apache.beam.sdk.util.PCollectionViews;
 import org.apache.beam.sdk.util.PathValidator;
 import org.apache.beam.sdk.util.PropertyNames;
@@ -551,15 +554,34 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     }
 
     if (!isNullOrEmpty(options.getDataflowJobFile())) {
-      try (PrintWriter printWriter = new PrintWriter(
-          new File(options.getDataflowJobFile()))) {
+      try {
+        WritableByteChannel writer =
+            IOChannelUtils.create(options.getDataflowJobFile(), MimeTypes.TEXT);
+        PrintWriter printWriter = new PrintWriter(Channels.newOutputStream(writer));
         String workSpecJson = DataflowPipelineTranslator.jobToString(newJob);
         printWriter.print(workSpecJson);
-        LOG.info("Printed workflow specification to {}", options.getDataflowJobFile());
+        printWriter.flush();
+        printWriter.close();
+        LOG.info("Printed job specification to {}", options.getDataflowJobFile());
       } catch (IllegalStateException ex) {
-        LOG.warn("Cannot translate workflow spec to json for debug.");
-      } catch (FileNotFoundException ex) {
-        LOG.warn("Cannot create workflow spec output file.");
+        String error = "Cannot translate workflow spec to JSON.";
+        if (options.getTemplateRunner()) {
+          throw new RuntimeException(error, ex);
+        } else {
+          LOG.warn(error, ex);
+        }
+      } catch (IOException ex) {
+        String error =
+            String.format("Cannot create output file at {}", options.getDataflowJobFile());
+        if (options.getTemplateRunner()) {
+          throw new RuntimeException(error, ex);
+        } else {
+          LOG.warn(error, ex);
+        }
+      }
+      if (options.getTemplateRunner()) {
+        LOG.info("Template successfully created.");
+        return new TemplateJob();
       }
     }
 

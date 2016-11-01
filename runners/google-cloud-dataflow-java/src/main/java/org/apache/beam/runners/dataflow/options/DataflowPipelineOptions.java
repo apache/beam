@@ -82,6 +82,14 @@ public interface DataflowPipelineOptions
   void setUpdate(boolean value);
 
   /**
+   * Whether the runner should simply generate a template and exit.
+   */
+  @Description("Whether the runner should simply generate a template and exit.")
+  // Default
+  boolean getTemplateRunner();
+  void setTemplateRunner(boolean value);
+
+  /**
    * Run the job as a specific service account, instead of the default GCE robot.
    */
   @Hidden
