@@ -21,11 +21,12 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Set;
+import java.util.stream.Collectors;
 
 public class StreamingFlowTranslator extends FlowTranslator {
 
@@ -54,6 +55,13 @@ public class StreamingFlowTranslator extends FlowTranslator {
     this.env = Objects.requireNonNull(env);
     this.allowedLateness = Objects.requireNonNull(allowedLateness);
     this.autoWatermarkInterval = Objects.requireNonNull(autoWatermarkInterval);
+  }
+
+  @Override
+  protected Collection<TranslateAcceptor> getAcceptors() {
+    return TRANSLATORS.keySet()
+        .stream()
+        .map(cls -> new TranslateAcceptor(cls)).collect(Collectors.toList());
   }
 
   @Override
@@ -102,10 +110,5 @@ public class StreamingFlowTranslator extends FlowTranslator {
             });
 
     return sinks;
-  }
-
-  @Override
-  public Set<Class<? extends Operator<?, ?>>> getSupportedOperators() {
-    return TRANSLATORS.keySet();
   }
 }

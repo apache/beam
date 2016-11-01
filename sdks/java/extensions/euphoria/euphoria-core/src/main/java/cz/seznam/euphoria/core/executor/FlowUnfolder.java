@@ -1,5 +1,6 @@
 package cz.seznam.euphoria.core.executor;
 
+import cz.seznam.euphoria.core.client.functional.UnaryPredicate;
 import cz.seznam.euphoria.guava.shaded.com.google.common.collect.Iterables;
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.flow.Flow;
@@ -58,20 +59,44 @@ public class FlowUnfolder {
   public static DAG<Operator<?, ?>> unfold(Flow flow,
       Set<Class<? extends Operator<?, ?>>> operatorClasses)
       throws IllegalArgumentException {
-
-    DAG<Operator<?, ?>> dag = toDAG(flow);
-    return translate(dag, (Set) operatorClasses);
+    return unfold(flow, op -> operatorClasses.contains(op.getClass()));
   }
 
+  /**
+   * Unfolds the flow so that it contains only operators for which
+   * {@code wantTranslate} returns {@code true}. Operators for which
+   * {@code wantTranslate} doesn't return {@code true} are expanded
+   * into their {@link Operator#getBasicOps()} and {@code wantTranslate}
+   * will be recursively called on these. Hence, there is a certain set
+   * of basic operators which the {@code wantTranslate} function has to accept.
+   *
+   * @param flow the original flow to be unfolded
+   * @param wantTranslate user defined function determining which operators
+   *         the caller wants to translate itself without being further expanded
+   *         into their basic operations
+   *
+   * @return the unfolded/expanded version of the given flow
+   */
+  public static DAG<Operator<?, ?>> unfold(
+      Flow flow, UnaryPredicate<Operator<?, ?>> wantTranslate) {
+    DAG<Operator<?, ?>> dag = toDAG(flow);
+    return translate(dag, wantTranslate);
+  }
 
   /**
-   * Translates given DAG to DAG of allowed operators.
-   * @param dag Original DAG
-   * @param allowed set of allowed operators
+   * Translates the given DAG to a DAG of basic operators.
+   *
+   * @param dag the original DAG
+   * @param wantTranslate predicate determining whether a particular
+   *         operator instance will be translated separately and, thus,
+   *         should be left in the resulting DAG or whether it is to
+   *         be expanded into its basic ops.
    */
   @SuppressWarnings("unchecked")
-  private static DAG<Operator<?, ?>> translate(DAG<Operator<?, ?>> dag,
-      Set<Class> allowed) throws IllegalArgumentException {
+  private static DAG<Operator<?, ?>> translate(
+      DAG<Operator<?, ?>> dag,
+      UnaryPredicate<Operator<?, ?>> wantTranslate)
+      throws IllegalArgumentException {
 
     // create root nodes for all inputs
     DAG<Operator<?, ?>> ret = DAG.of();
@@ -91,7 +116,7 @@ public class FlowUnfolder {
         // this is added 'dummy' operator node, the operator has by definition no
         // parents
         ret.add(n.get());
-      } else if (allowed.contains((Class) n.get().getClass())) {
+      } else if (wantTranslate.apply(n.get())) {
         List<Operator<?, ?>> parents = getParents(n, datasetProducents);
         ret.add(n.get(), parents);
       } else {
@@ -108,7 +133,7 @@ public class FlowUnfolder {
           }
         }
 
-        DAG<Operator<?, ?>> modified = translate(basicOps, allowed);
+        DAG<Operator<?, ?>> modified = translate(basicOps, wantTranslate);
         
         modified.traverse().forEach(m -> {
           List<Operator<?, ?>> parents = getParents(m, datasetProducents);

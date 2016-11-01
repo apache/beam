@@ -38,7 +38,7 @@ public interface Windowing<T, W extends Window> extends Serializable {
    * Retrieve instance of {@link Trigger} associated with the current windowing
    * strategy.
    */
-  Trigger<T, W> getTrigger();
+  Trigger<W> getTrigger();
 
   /**
    * Retrieve time characteristic of this windowing.

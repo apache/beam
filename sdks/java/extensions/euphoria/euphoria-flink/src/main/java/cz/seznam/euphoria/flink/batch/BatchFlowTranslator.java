@@ -1,6 +1,7 @@
 package cz.seznam.euphoria.flink.batch;
 
 import cz.seznam.euphoria.core.client.flow.Flow;
+import cz.seznam.euphoria.core.client.functional.UnaryPredicate;
 import cz.seznam.euphoria.core.client.graph.DAG;
 import cz.seznam.euphoria.core.client.graph.Node;
 import cz.seznam.euphoria.core.client.io.DataSink;
@@ -15,22 +16,46 @@ import cz.seznam.euphoria.flink.FlinkOperator;
 import cz.seznam.euphoria.flink.FlowOptimizer;
 import cz.seznam.euphoria.flink.FlowTranslator;
 import cz.seznam.euphoria.flink.batch.io.DataSinkWrapper;
+import cz.seznam.euphoria.guava.shaded.com.google.common.base.Preconditions;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Set;
+import java.util.stream.Collectors;
 
 public class BatchFlowTranslator extends FlowTranslator {
 
-  // static mapping of Euphoria operators to corresponding Flink transformations
-  private static final Map<Class<? extends Operator<?, ?>>, BatchOperatorTranslator> TRANSLATORS =
-          new IdentityHashMap<>();
+  private static class Translation<O extends Operator<?, ?>> {
+    final BatchOperatorTranslator<O> translator;
+    final UnaryPredicate<O> accept;
 
+    private Translation(
+        BatchOperatorTranslator<O> translator, UnaryPredicate<O> accept) {
+      this.translator = Objects.requireNonNull(translator);
+      this.accept = accept;
+    }
+
+    static <O extends Operator<?, ?>> void set(
+        Map<Class, Translation> idx,
+        Class<O> type, BatchOperatorTranslator<O> translator)
+    {
+      set(idx, type, translator, null);
+    }
+
+    static <O extends Operator<?, ?>> void set(
+        Map<Class, Translation> idx,
+        Class<O> type, BatchOperatorTranslator<O> translator, UnaryPredicate<O> accept)
+    {
+      idx.put(type, new Translation<>(translator, accept));
+    }
+  }
+
+  private final Map<Class, Translation> translations = new IdentityHashMap<>();
   private final ExecutionEnvironment env;
   private final Settings settings;
 
@@ -38,16 +63,22 @@ public class BatchFlowTranslator extends FlowTranslator {
     this.settings = settings;
     this.env = Objects.requireNonNull(env);
 
-    // TODO add full support of all operators
     // basic operators
-    TRANSLATORS.put((Class) FlowUnfolder.InputOperator.class, new InputTranslator());
-    TRANSLATORS.put((Class) FlatMap.class, new FlatMapTranslator());
-    TRANSLATORS.put((Class) ReduceStateByKey.class, new ReduceStateByKeyTranslator(settings, env));
-    TRANSLATORS.put((Class) Union.class, new UnionTranslator());
+    Translation.set(translations, FlowUnfolder.InputOperator.class, new InputTranslator());
+    Translation.set(translations, FlatMap.class, new FlatMapTranslator());
+    Translation.set(translations, ReduceStateByKey.class, new ReduceStateByKeyTranslator(settings, env));
+    Translation.set(translations, Union.class, new UnionTranslator());
 
     // derived operators
-    TRANSLATORS.put((Class) ReduceByKey.class, new ReduceByKeyTranslator());
+    Translation.set(translations, ReduceByKey.class, new ReduceByKeyTranslator(),
+        ReduceByKeyTranslator::wantTranslate);
+  }
 
+  @Override
+  protected Collection<TranslateAcceptor> getAcceptors() {
+    return translations.entrySet().stream()
+        .map(e -> new TranslateAcceptor(e.getKey(), e.getValue().accept))
+        .collect(Collectors.toList());
   }
 
   @Override
@@ -68,13 +99,16 @@ public class BatchFlowTranslator extends FlowTranslator {
     // translate each operator to proper Flink transformation
     dag.traverse().map(Node::get).forEach(op -> {
       Operator<?, ?> originalOp = op.getOriginalOperator();
-      BatchOperatorTranslator translator = TRANSLATORS.get(originalOp.getClass());
-      if (translator == null) {
+      Translation tx = translations.get(originalOp.getClass());
+      if (tx == null) {
         throw new UnsupportedOperationException(
                 "Operator " + op.getClass().getSimpleName() + " not supported");
       }
+      // ~ verify the flowToDag translation
+      Preconditions.checkState(
+          tx.accept == null || Boolean.TRUE.equals(tx.accept.apply(originalOp)));
 
-      DataSet<?> out = translator.translate(op, executorContext);
+      DataSet<?> out = tx.translator.translate(op, executorContext);
 
       // save output of current operator to context
       executorContext.setOutput(op, out);
@@ -97,10 +131,5 @@ public class BatchFlowTranslator extends FlowTranslator {
             });
 
     return sinks;
-  }
-
-  @Override
-  public Set<Class<? extends Operator<?, ?>>> getSupportedOperators() {
-    return TRANSLATORS.keySet();
   }
 }

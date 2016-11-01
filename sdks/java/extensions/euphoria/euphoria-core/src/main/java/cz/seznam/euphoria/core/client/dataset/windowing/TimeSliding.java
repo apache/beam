@@ -67,8 +67,8 @@ public final class TimeSliding<T>
   }
 
   @Override
-  public Trigger<T, TimeInterval> getTrigger() {
-    return new TimeTrigger<>();
+  public Trigger<TimeInterval> getTrigger() {
+    return new TimeTrigger();
   }
 
   @Override
