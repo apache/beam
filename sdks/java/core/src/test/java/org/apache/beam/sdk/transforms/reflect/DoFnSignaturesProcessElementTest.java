@@ -96,9 +96,9 @@ public class DoFnSignaturesProcessElementTest {
   @Test
   public void testBadGenericsTwoArgs() throws Exception {
     thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage(
-        "Wrong type of OutputReceiver parameter: "
-            + "OutputReceiver<Integer>, should be OutputReceiver<String>");
+    thrown.expectMessage("OutputReceiver<Integer>");
+    thrown.expectMessage("should be");
+    thrown.expectMessage("OutputReceiver<String>");
 
     analyzeProcessElementMethod(
         new AnonymousMethod() {
@@ -112,9 +112,9 @@ public class DoFnSignaturesProcessElementTest {
   @Test
   public void testBadGenericWildCards() throws Exception {
     thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage(
-        "Wrong type of OutputReceiver parameter: "
-            + "OutputReceiver<? super Integer>, should be OutputReceiver<String>");
+    thrown.expectMessage("OutputReceiver<? super Integer>");
+    thrown.expectMessage("should be");
+    thrown.expectMessage("OutputReceiver<String>");
 
     analyzeProcessElementMethod(
         new AnonymousMethod() {
@@ -137,9 +137,9 @@ public class DoFnSignaturesProcessElementTest {
   @Test
   public void testBadTypeVariables() throws Exception {
     thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage(
-        "Wrong type of OutputReceiver parameter: "
-            + "OutputReceiver<InputT>, should be OutputReceiver<OutputT>");
+    thrown.expectMessage("OutputReceiver<InputT>");
+    thrown.expectMessage("should be");
+    thrown.expectMessage("OutputReceiver<OutputT>");
 
     DoFnSignatures.INSTANCE.getSignature(BadTypeVariables.class);
   }

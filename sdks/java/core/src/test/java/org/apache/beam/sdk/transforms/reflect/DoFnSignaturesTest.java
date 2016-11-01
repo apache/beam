@@ -21,6 +21,7 @@ import static org.apache.beam.sdk.transforms.reflect.DoFnSignaturesTestUtils.err
 import static org.hamcrest.Matchers.anyOf;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
@@ -29,11 +30,11 @@ import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.DoFn.OnTimer;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.StateParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.TimerParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignaturesTestUtils.FakeDoFn;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.TimeDomain;
 import org.apache.beam.sdk.util.Timer;
 import org.apache.beam.sdk.util.TimerSpec;
@@ -249,7 +250,7 @@ public class DoFnSignaturesTest {
   @Test
   public void testTimerParameterDuplicate() throws Exception {
     thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage("duplicates");
+    thrown.expectMessage("duplicate");
     thrown.expectMessage("my-id");
     thrown.expectMessage("myProcessElement");
     thrown.expectMessage("index 2");
@@ -288,6 +289,28 @@ public class DoFnSignaturesTest {
               @ProcessElement
               public void foo(ProcessContext context) {}
             }.getClass());
+  }
+
+  @Test
+  public void testWindowParamOnTimer() throws Exception {
+    final String timerId = "some-timer-id";
+
+    DoFnSignature sig =
+        DoFnSignatures.INSTANCE.getSignature(new DoFn<String, String>() {
+          @TimerId(timerId)
+          private final TimerSpec myfield1 = TimerSpecs.timer(TimeDomain.EVENT_TIME);
+
+          @ProcessElement
+          public void process(ProcessContext c) {}
+
+          @OnTimer(timerId)
+          public void onTimer(BoundedWindow w) {}
+        }.getClass());
+
+    assertThat(sig.onTimerMethods().get(timerId).extraParameters().size(), equalTo(1));
+    assertThat(
+        sig.onTimerMethods().get(timerId).extraParameters().get(0),
+        instanceOf(DoFnSignature.Parameter.BoundedWindowParameter.class));
   }
 
   @Test
@@ -525,7 +548,7 @@ public class DoFnSignaturesTest {
   @Test
   public void testStateParameterDuplicate() throws Exception {
     thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage("duplicates");
+    thrown.expectMessage("duplicate");
     thrown.expectMessage("my-id");
     thrown.expectMessage("myProcessElement");
     thrown.expectMessage("index 2");
@@ -549,7 +572,8 @@ public class DoFnSignaturesTest {
   public void testStateParameterWrongStateType() throws Exception {
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage("WatermarkHoldState");
-    thrown.expectMessage("but is a reference to");
+    thrown.expectMessage("reference to");
+    thrown.expectMessage("different type");
     thrown.expectMessage("ValueState");
     thrown.expectMessage("my-id");
     thrown.expectMessage("myProcessElement");
@@ -572,7 +596,8 @@ public class DoFnSignaturesTest {
   public void testStateParameterWrongGenericType() throws Exception {
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage("ValueState<java.lang.String>");
-    thrown.expectMessage("but is a reference to");
+    thrown.expectMessage("reference to");
+    thrown.expectMessage("different type");
     thrown.expectMessage("ValueState<java.lang.Integer>");
     thrown.expectMessage("my-id");
     thrown.expectMessage("myProcessElement");
