@@ -203,7 +203,7 @@ class DeterministicCoderImpl(CoderImpl):
         value, nested)
 
 
-class ProtoCoderImpl(CoderImpl):
+class ProtoCoderImpl(SimpleCoderImpl):
 
   def __init__(self, proto_message_type):
     self.proto_message_type = proto_message_type

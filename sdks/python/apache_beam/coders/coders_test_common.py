@@ -215,10 +215,17 @@ class CodersTest(unittest.TestCase):
 
   def test_proto_coder(self):
     ma = test_message.MessageA()
-    mb = ma.field2.add()
-    mb.field1 = True
+    mab = ma.field2.add()
+    mab.field1 = True
     ma.field1 = u'hello world'
-    self.check_coder(coders.ProtoCoder(ma.__class__), ma)
+
+    mb = test_message.MessageA()
+    mb.field1 = u'beam'
+
+    proto_coder = coders.ProtoCoder(ma.__class__)
+    self.check_coder(proto_coder, ma)
+    self.check_coder(coders.TupleCoder((proto_coder, coders.BytesCoder())),
+                     (ma, 'a'), (mb, 'b'))
 
   def test_nested_observables(self):
     class FakeObservableIterator(observable.ObservableMixin):
