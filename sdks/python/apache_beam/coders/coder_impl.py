@@ -29,7 +29,7 @@ from types import NoneType
 
 from apache_beam.coders import observable
 from apache_beam.utils.timestamp import Timestamp
-from apache_beam.utils.windowed_value import WindowedValue
+from apache_beam.utils import windowed_value
 
 # pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports
 try:
@@ -514,19 +514,28 @@ class WindowedValueCoderImpl(StreamCoderImpl):
   """A coder for windowed values."""
 
   def __init__(self, value_coder, timestamp_coder, window_coder):
+    # TODO(robertwb): Do we need the ability to customize timestamp_coder?
     self._value_coder = value_coder
     self._timestamp_coder = timestamp_coder
     self._windows_coder = TupleSequenceCoderImpl(window_coder)
 
   def encode_to_stream(self, value, out, nested):
-    self._value_coder.encode_to_stream(value.value, out, True)
-    self._timestamp_coder.encode_to_stream(value.timestamp, out, True)
-    self._windows_coder.encode_to_stream(value.windows, out, True)
+    wv = value  # type cast
+    self._value_coder.encode_to_stream(wv.value, out, True)
+    if isinstance(self._timestamp_coder, TimestampCoderImpl):
+      # Avoid creation of Timestamp object.
+      out.write_bigendian_int64(wv.timestamp_micros)
+    else:
+      self._timestamp_coder.encode_to_stream(wv.timestamp, out, True)
+    self._windows_coder.encode_to_stream(wv.windows, out, True)
 
   def decode_from_stream(self, in_stream, nested):
-    return WindowedValue(
+    return windowed_value.create(
         self._value_coder.decode_from_stream(in_stream, True),
-        self._timestamp_coder.decode_from_stream(in_stream, True),
+        # Avoid creation of Timestamp object.
+        in_stream.read_bigendian_int64()
+        if isinstance(self._timestamp_coder, TimestampCoderImpl)
+        else self._timestamp_coder.decode_from_stream(in_stream, True).micros,
         self._windows_coder.decode_from_stream(in_stream, True))
 
   def get_estimated_size_and_observables(self, value, nested=False):

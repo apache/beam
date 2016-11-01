@@ -26,6 +26,7 @@ import dill
 import coders
 import observable
 from apache_beam.utils import timestamp
+from apache_beam.utils import windowed_value
 
 
 # Defined out of line for picklability.
@@ -217,12 +218,7 @@ class CodersTest(unittest.TestCase):
     # Test nested WindowedValue observable.
     coder = coders.WindowedValueCoder(iter_coder)
     observ = FakeObservableIterator()
-    try:
-      value = coders.coder_impl.WindowedValue(observ)
-    except TypeError:
-      # We are running tests with a fake WindowedValue implementation so as to
-      # not pull in the rest of the SDK.
-      value = coders.coder_impl.WindowedValue(observ, 0, [])
+    value = windowed_value.WindowedValue(observ, 0, ())
     self.assertEqual(
         coder.get_impl().get_estimated_size_and_observables(value)[1],
         [(observ, elem_coder.get_impl())])
