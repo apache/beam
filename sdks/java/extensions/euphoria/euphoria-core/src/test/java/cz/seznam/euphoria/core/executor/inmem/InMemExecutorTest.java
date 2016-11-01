@@ -347,17 +347,17 @@ public class InMemExecutorTest {
     }
 
     @Override
-    public Trigger<T, SizedCountWindow> getTrigger() {
-      return new SizedCountTrigger<T>();
+    public Trigger<SizedCountWindow> getTrigger() {
+      return new SizedCountTrigger();
     }
   } // ~ end of SizedCountWindowing
 
-  static class SizedCountTrigger<T> implements Trigger<T, SizedCountWindow> {
+  static class SizedCountTrigger implements Trigger<SizedCountWindow> {
     private final ValueStorageDescriptor<Long> countDesc =
         ValueStorageDescriptor.of("count", Long.class, 0L, (x, y) -> x + y );
 
     @Override
-    public TriggerResult onElement(long time, T element, SizedCountWindow window, TriggerContext ctx) {
+    public TriggerResult onElement(long time, SizedCountWindow window, TriggerContext ctx) {
       ValueStorage<Long> cnt = ctx.getValueStorage(countDesc);
       cnt.set(cnt.get() + 1L);
       if (cnt.get() >= window.get()) {
@@ -367,8 +367,8 @@ public class InMemExecutorTest {
     }
 
     @Override
-    public TriggerResult onTimeEvent(long time, SizedCountWindow window,
-                                     TriggerContext ctx) {
+    public TriggerResult onTimer(long time, SizedCountWindow window,
+                                 TriggerContext ctx) {
       return TriggerResult.NOOP;
     }
 

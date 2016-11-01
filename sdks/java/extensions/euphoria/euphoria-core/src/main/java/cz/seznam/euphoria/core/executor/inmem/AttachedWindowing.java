@@ -19,7 +19,7 @@ class AttachedWindowing<T, W extends Window> implements Windowing<T, W> {
   }
 
   @Override
-  public Trigger<T, W> getTrigger() {
+  public Trigger<W> getTrigger() {
     return NoopTrigger.get();
   }
 

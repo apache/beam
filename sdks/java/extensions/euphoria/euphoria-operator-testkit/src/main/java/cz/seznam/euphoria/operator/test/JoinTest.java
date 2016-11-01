@@ -177,7 +177,7 @@ public class JoinTest extends OperatorTest {
     }
 
     @Override
-    public Trigger<Either<Integer, Long>, IntWindow> getTrigger() {
+    public Trigger<IntWindow> getTrigger() {
       return NoopTrigger.get();
     }
   }

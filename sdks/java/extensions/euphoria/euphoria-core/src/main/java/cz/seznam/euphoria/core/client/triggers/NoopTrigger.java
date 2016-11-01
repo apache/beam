@@ -5,24 +5,29 @@ import cz.seznam.euphoria.core.client.dataset.windowing.Window;
 /**
  * A trigger implementation which actually never fires any of the observed windows.
  */
-public final class NoopTrigger<T, W extends Window> implements Trigger<T, W> {
+public final class NoopTrigger<W extends Window> implements Trigger<W> {
 
   private static final NoopTrigger INSTANCE = new NoopTrigger();
 
   @SuppressWarnings("unchecked")
-  public static <T, W extends Window> NoopTrigger<T, W> get() {
+  public static <W extends Window> NoopTrigger<W> get() {
     return (NoopTrigger) INSTANCE;
   }
 
   private NoopTrigger() {}
 
   @Override
-  public TriggerResult onElement(long time, T element, W window, TriggerContext ctx) {
+  public boolean isStateful() {
+    return false;
+  }
+
+  @Override
+  public TriggerResult onElement(long time, W window, TriggerContext ctx) {
     return TriggerResult.NOOP;
   }
 
   @Override
-  public TriggerResult onTimeEvent(long time, W window, TriggerContext ctx) {
+  public TriggerResult onTimer(long time, W window, TriggerContext ctx) {
     return TriggerResult.NOOP;
   }
 

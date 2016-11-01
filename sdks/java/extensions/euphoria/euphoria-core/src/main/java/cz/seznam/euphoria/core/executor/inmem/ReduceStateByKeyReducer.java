@@ -635,7 +635,7 @@ class ReduceStateByKeyReducer implements Runnable {
       // ~ let trigger know about the time event and process window state
       // according to trigger result
       ElementTriggerContext ectx = new ElementTriggerContext(kw);
-      Trigger.TriggerResult result = trigger.onTimeEvent(timestamp, kw.window(), ectx);
+      Trigger.TriggerResult result = trigger.onTimer(timestamp, kw.window(), ectx);
       handleTriggerResult(result, ectx);
     });
   }
@@ -736,7 +736,7 @@ class ReduceStateByKeyReducer implements Runnable {
       State windowState = processing.getWindowStateForUpdate(pitctx.getScope());
       windowState.add(itemValue);
       Trigger.TriggerResult result =
-          trigger.onElement(getCurrentElementTime(), item, window, pitctx);
+          trigger.onElement(getCurrentElementTime(), window, pitctx);
       // ~ handle trigger result
       handleTriggerResult(result, pitctx);
     }
@@ -793,7 +793,7 @@ class ReduceStateByKeyReducer implements Runnable {
       State windowState = processing.getWindowStateForUpdate(pitctx.getScope());
       windowState.add(itemValue);
       tr = Trigger.TriggerResult.merge(
-          tr, trigger.onElement(getCurrentElementTime(), item, window, pitctx));
+          tr, trigger.onElement(getCurrentElementTime(), window, pitctx));
       // ~ handle trigger result
       handleTriggerResult(tr, pitctx);
     }

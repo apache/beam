@@ -88,14 +88,14 @@ public final class Session<T> implements
   }
 
   @Override
-  public Trigger<T, TimeInterval> getTrigger() {
+  public Trigger<TimeInterval> getTrigger() {
     if (earlyTriggeringPeriod != null) {
       return new AfterFirstCompositeTrigger<>(Arrays.asList(
-              new TimeTrigger<>(),
-              new PeriodicTimeTrigger<>(earlyTriggeringPeriod.toMillis())));
+              new TimeTrigger(),
+              new PeriodicTimeTrigger(earlyTriggeringPeriod.toMillis())));
     }
 
-    return new TimeTrigger<>();
+    return new TimeTrigger();
   }
 
   @Override

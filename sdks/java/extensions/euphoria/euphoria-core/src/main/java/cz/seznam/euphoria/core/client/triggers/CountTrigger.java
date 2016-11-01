@@ -7,7 +7,7 @@ import cz.seznam.euphoria.core.client.operator.state.ValueStorageDescriptor;
 /**
  * A {@link Trigger} that fires once the count of elements reaches given count.
  */
-public class CountTrigger<T, W extends Window> implements Trigger<T, W> {
+public class CountTrigger<W extends Window> implements Trigger<W> {
 
   private final ValueStorageDescriptor<Long> countDesc =
           ValueStorageDescriptor.of("count", Long.class, 0L, (x, y) -> x + y );
@@ -19,7 +19,7 @@ public class CountTrigger<T, W extends Window> implements Trigger<T, W> {
   }
 
   @Override
-  public TriggerResult onElement(long time, T element, W window, TriggerContext ctx) {
+  public TriggerResult onElement(long time, W window, TriggerContext ctx) {
     ValueStorage<Long> count = ctx.getValueStorage(countDesc);
 
     count.set(count.get() + 1L);
@@ -32,7 +32,7 @@ public class CountTrigger<T, W extends Window> implements Trigger<T, W> {
   }
 
   @Override
-  public TriggerResult onTimeEvent(long time, W window, TriggerContext ctx) {
+  public TriggerResult onTimer(long time, W window, TriggerContext ctx) {
     return TriggerResult.NOOP;
   }
 

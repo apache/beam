@@ -6,7 +6,7 @@ import java.io.Serializable;
 /**
  * Descriptor of storage.
  */
-// XXX rename to a mere 'StorageDescriptor'
+// FIXME rename to a mere 'StorageDescriptor'
 public abstract class StorageDescriptorBase implements Serializable {
 
   final String name;

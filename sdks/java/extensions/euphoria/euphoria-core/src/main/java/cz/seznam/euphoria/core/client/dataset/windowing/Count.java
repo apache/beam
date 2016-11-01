@@ -3,13 +3,10 @@ package cz.seznam.euphoria.core.client.dataset.windowing;
 
 import cz.seznam.euphoria.core.client.triggers.CountTrigger;
 import cz.seznam.euphoria.core.client.triggers.Trigger;
-import cz.seznam.euphoria.core.client.util.Pair;
-import java.io.Serializable;
-import java.util.Collection;
-import static java.util.Collections.singleton;
 
-import java.util.Collections;
 import java.util.Set;
+
+import static java.util.Collections.singleton;
 
 /**
  * Count tumbling windowing.
@@ -28,7 +25,7 @@ public final class Count<T> implements Windowing<T, Batch.BatchWindow> {
   }
 
   @Override
-  public Trigger<T, Batch.BatchWindow> getTrigger() {
+  public Trigger<Batch.BatchWindow> getTrigger() {
     return new CountTrigger<>(maxCount);
   }
 

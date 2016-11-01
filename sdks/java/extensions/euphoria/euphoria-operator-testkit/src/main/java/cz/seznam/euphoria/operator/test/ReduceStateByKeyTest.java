@@ -1,8 +1,12 @@
 package cz.seznam.euphoria.operator.test;
 
 import cz.seznam.euphoria.core.client.dataset.Dataset;
+import cz.seznam.euphoria.core.client.dataset.Partitioner;
+import cz.seznam.euphoria.core.client.dataset.windowing.Count;
 import cz.seznam.euphoria.core.client.dataset.windowing.Session;
+import cz.seznam.euphoria.core.client.dataset.windowing.Time;
 import cz.seznam.euphoria.core.client.dataset.windowing.TimeInterval;
+import cz.seznam.euphoria.core.client.dataset.windowing.TimeSliding;
 import cz.seznam.euphoria.core.client.functional.StateFactory;
 import cz.seznam.euphoria.core.client.functional.UnaryFunctor;
 import cz.seznam.euphoria.core.client.io.Context;
@@ -14,6 +18,8 @@ import cz.seznam.euphoria.core.client.operator.state.ListStorage;
 import cz.seznam.euphoria.core.client.operator.state.ListStorageDescriptor;
 import cz.seznam.euphoria.core.client.operator.state.State;
 import cz.seznam.euphoria.core.client.operator.state.StorageProvider;
+import cz.seznam.euphoria.core.client.operator.state.ValueStorage;
+import cz.seznam.euphoria.core.client.operator.state.ValueStorageDescriptor;
 import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.core.client.util.Triple;
 import cz.seznam.euphoria.guava.shaded.com.google.common.collect.Lists;
@@ -54,7 +60,14 @@ public class ReduceStateByKeyTest extends OperatorTest {
         testBatchSortNoWindow(),
         testSortWindowed(false),
         testSortWindowed(true),
-        testSessionWindowing0()
+        testCountWindowing(false),
+        testCountWindowing(true),
+        testTimeWindowing(false),
+        testTimeWindowing(true),
+        testTimeSlidingWindowing(false),
+        testTimeSlidingWindowing(true),
+        testSessionWindowing0(false),
+        testSessionWindowing0(true)
     );
   }
 
@@ -236,36 +249,134 @@ public class ReduceStateByKeyTest extends OperatorTest {
 
   // ---------------------------------------------------------------------------------
 
+  private static class CountState extends State<String, Long> {
+    final ValueStorage<Long> count;
+    CountState(Context<Long> context, StorageProvider storageProvider)
+    {
+      super(context, storageProvider);
+      this.count = storageProvider.getValueStorage(
+          ValueStorageDescriptor.of("count-state", Long.class, 0L));
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public void add(String element) {
+      count.set(count.get() + 1);
+    }
+
+    @Override
+    public void flush() {
+      getContext().collect(count.get());
+    }
+
+    void add(CountState other) {
+      count.set(count.get() + other.count.get());
+    }
+
+    @Override
+    public void close() {
+      count.clear();
+    }
+
+    public static CountState combine(Iterable<CountState> xs) {
+      Iterator<CountState> iter = xs.iterator();
+      CountState first = iter.next();
+      while (iter.hasNext()) {
+        first.add(iter.next());
+      }
+      return first;
+    }
+  }
+
+  TestCase<Pair<Integer, Long>> testCountWindowing(boolean batch) {
+    return new AbstractTestCase<Pair<String, Integer>, Pair<Integer, Long>>() {
+      @Override
+      protected DataSource<Pair<String, Integer>> getDataSource() {
+        return ListDataSource.of(batch, asList(
+            Pair.of("1-one",   1),
+            Pair.of("2-one",   2),
+            Pair.of("1-two",   4),
+            Pair.of("1-three", 8),
+            Pair.of("1-four",  10),
+            Pair.of("2-two",   10),
+            Pair.of("1-five",  18),
+            Pair.of("2-three", 20),
+            Pair.of("1-six",   22),
+            Pair.of("1-seven", 23),
+            Pair.of("1-eight", 23)));
+      }
+
+      @Override
+      protected Dataset<Pair<Integer, Long>>
+      getOutput(Dataset<Pair<String, Integer>> input) {
+        return ReduceStateByKey.of(input)
+            .keyBy(e -> e.getFirst().charAt(0) - '0')
+            .valueBy(Pair::getFirst)
+            .stateFactory((StateFactory<Long, CountState>) CountState::new)
+            .combineStateBy(CountState::combine)
+            // FIXME .timedBy(Pair::getSecond) and make the assertion in the validation phase stronger
+            .windowBy(Count.of(3))
+            .setNumPartitions(1)
+            .output();
+      }
+
+      @Override
+      public int getNumOutputPartitions() {
+        return 1;
+      }
+
+      @Override
+      public void validate(List<List<Pair<Integer, Long>>> partitions) {
+        // ~ prepare the output for comparison
+        List<String> flat = new ArrayList<>();
+        for (Pair<Integer, Long> o : partitions.get(0)) {
+          flat.add("[" + o.getFirst() + "]: " + o.getSecond());
+        }
+        flat.sort(Comparator.naturalOrder());
+        assertEquals(
+            sorted(asList(
+                "[1]: 3",
+                "[1]: 3",
+                "[1]: 2",
+                "[2]: 3"),
+                Comparator.naturalOrder()),
+            flat);
+      }
+    };
+  }
+
+  // ---------------------------------------------------------------------------------
+
   private static class AccState<VALUE> extends State<VALUE, VALUE> {
-    final ListStorage<VALUE> reducableValues;
+    final ListStorage<VALUE> vals;
     AccState(Context<VALUE> context,
              StorageProvider storageProvider)
     {
       super(context, storageProvider);
-      reducableValues = storageProvider.getListStorage(
+      vals = storageProvider.getListStorage(
           ListStorageDescriptor.of("vals", (Class) Object.class));
     }
 
     @Override
     @SuppressWarnings("unchecked")
     public void add(VALUE element) {
-      reducableValues.add(element);
+      vals.add(element);
     }
 
     @Override
     public void flush() {
-      for (VALUE value : reducableValues.get()) {
+      for (VALUE value : vals.get()) {
         getContext().collect(value);
       }
     }
 
     void add(AccState other) {
-      this.reducableValues.addAll(other.reducableValues.get());
+      this.vals.addAll(other.vals.get());
     }
 
     @Override
     public void close() {
-      reducableValues.clear();
+      vals.clear();
     }
 
     public static <VALUE> AccState<VALUE> combine(Iterable<AccState<VALUE>> xs) {
@@ -278,11 +389,147 @@ public class ReduceStateByKeyTest extends OperatorTest {
     }
   }
 
-  TestCase<Triple<TimeInterval, Integer, String>> testSessionWindowing0() {
+  TestCase<Triple<TimeInterval, Integer, String>> testTimeWindowing(boolean batch) {
     return new AbstractTestCase<Pair<String, Integer>, Triple<TimeInterval, Integer, String>>() {
       @Override
       protected DataSource<Pair<String, Integer>> getDataSource() {
-        return ListDataSource.unbounded(asList(
+        return ListDataSource.of(batch, asList(
+            Pair.of("1-one",   1),
+            Pair.of("2-one",   2),
+            Pair.of("1-two",   4),
+            Pair.of("1-three", 8),
+            Pair.of("1-four",  10),
+            Pair.of("2-two",   10),
+            Pair.of("1-five",  18),
+            Pair.of("2-three", 20),
+            Pair.of("1-six",   22)));
+      }
+
+      @Override
+      protected Dataset<Triple<TimeInterval, Integer, String>>
+      getOutput(Dataset<Pair<String, Integer>> input) {
+        Dataset<Pair<Integer, String>> reduced =
+            ReduceStateByKey.of(input)
+                .keyBy(e -> e.getFirst().charAt(0) - '0')
+                .valueBy(Pair::getFirst)
+                .stateFactory((StateFactory<String, AccState<String>>) AccState::new)
+                .combineStateBy(AccState::combine)
+                .windowBy(Time.of(Duration.ofSeconds(5))
+                    .using((Pair<String, Integer> e) -> e.getSecond() * 1_000L))
+                .setNumPartitions(1)
+                .output();
+
+        return FlatMap.of(reduced)
+            .using((UnaryFunctor<Pair<Integer, String>, Triple<TimeInterval, Integer, String>>)
+                (elem, context) -> context.collect(Triple.of((TimeInterval) context.getWindow(), elem.getFirst(), elem.getSecond())))
+            .output();
+      }
+
+      @Override
+      public int getNumOutputPartitions() {
+        return 1;
+      }
+
+      @Override
+      public void validate(List<List<Triple<TimeInterval, Integer, String>>> partitions) {
+        assertEquals(
+            sorted(asList(
+                "(0-5): 1: 1-one",
+                "(0-5): 1: 1-two",
+                "(0-5): 2: 2-one",
+                "(5-10): 1: 1-three",
+                "(10-15): 1: 1-four",
+                "(10-15): 2: 2-two",
+                "(15-20): 1: 1-five",
+                "(20-25): 2: 2-three",
+                "(20-25): 1: 1-six"),
+                Comparator.naturalOrder()),
+            prepareComparison(partitions.get(0)));
+      }
+    };
+  }
+
+  TestCase<Triple<TimeInterval, Integer, String>> testTimeSlidingWindowing(boolean batch) {
+    return new AbstractTestCase<Pair<String, Integer>, Triple<TimeInterval, Integer, String>>() {
+      @Override
+      protected DataSource<Pair<String, Integer>> getDataSource() {
+        return ListDataSource.of(batch, asList(
+            Pair.of("1-one",   1),
+            Pair.of("2-ten",   6),
+            Pair.of("1-two", 8),
+            Pair.of("1-three",  10),
+            Pair.of("2-eleven",   10),
+            Pair.of("1-four",  18),
+            Pair.of("2-twelve", 24),
+            Pair.of("1-five",   22)));
+      }
+
+      @Override
+      protected Dataset<Triple<TimeInterval, Integer, String>> getOutput(Dataset<Pair<String, Integer>> input) {
+        Dataset<Pair<Integer, String>> reduced =
+            ReduceStateByKey.of(input)
+                .keyBy(e -> e.getFirst().charAt(0) - '0')
+                .valueBy(e -> e.getFirst().substring(2))
+                .stateFactory((StateFactory<String, AccState<String>>) AccState::new)
+                .combineStateBy(AccState::combine)
+                .windowBy(TimeSliding.of(Duration.ofSeconds(10), Duration.ofSeconds(5))
+                    .using((Pair<String, Integer> e) -> e.getSecond() * 1_000L))
+                .setNumPartitions(2)
+                .setPartitioner(new Partitioner<Integer>() {
+                  @Override
+                  public int getPartition(Integer element) {
+                    assert element == 1 || element == 2;
+                    return element - 1;
+                  }
+                })
+                .output();
+
+        return FlatMap.of(reduced)
+            .using((UnaryFunctor<Pair<Integer, String>, Triple<TimeInterval, Integer, String>>)
+                (elem, context) -> context.collect(Triple.of((TimeInterval) context.getWindow(), elem.getFirst(), elem.getSecond())))
+            .output();
+      }
+
+      @Override
+      public int getNumOutputPartitions() {
+        return 2;
+      }
+
+      @Override
+      public void validate(List<List<Triple<TimeInterval, Integer, String>>> partitions) {
+        assertEquals(
+            sorted(asList(
+                "(-5-5): 1: one",
+                "(0-10): 1: one",
+                "(0-10): 1: two",
+                "(5-15): 1: two",
+                "(5-15): 1: three",
+                "(10-20): 1: three",
+                "(10-20): 1: four",
+                "(15-25): 1: four",
+                "(15-25): 1: five",
+                "(20-30): 1: five"),
+                Comparator.naturalOrder()),
+            prepareComparison(partitions.get(0)));
+        assertEquals(
+            sorted(asList(
+                "(0-10): 2: ten",
+                "(5-15): 2: ten",
+                "(5-15): 2: eleven",
+                "(10-20): 2: eleven",
+                "(15-25): 2: twelve",
+                "(20-30): 2: twelve"),
+                Comparator.naturalOrder()),
+            prepareComparison(partitions.get(1)));
+      }
+    };
+  }
+
+  TestCase<Triple<TimeInterval, Integer, String>> testSessionWindowing0(boolean batch) {
+    return new AbstractTestCase<Pair<String, Integer>, Triple<TimeInterval, Integer, String>>() {
+      @Override
+      protected DataSource<Pair<String, Integer>> getDataSource() {
+        return ListDataSource.of(batch, asList(
             Pair.of("1-one",   1),
             Pair.of("2-one",   2),
             Pair.of("1-two",   4),
@@ -321,18 +568,6 @@ public class ReduceStateByKeyTest extends OperatorTest {
 
       @Override
       public void validate(List<List<Triple<TimeInterval, Integer, String>>> partitions) {
-        // ~ prepare the output for comparison
-        List<String> flat = new ArrayList<>();
-        for (Triple<TimeInterval, Integer, String> o : partitions.get(0)) {
-          String buf = "(" +
-              o.getFirst().getStartMillis() / 1_000L +
-              "-" +
-              o.getFirst().getEndMillis() / 1_000L +
-              "): " +
-              o.getSecond() + ": " + o.getThird();
-          flat.add(buf);
-        }
-        flat.sort(Comparator.naturalOrder());
         assertEquals(
             sorted(asList(
                 "(1-15): 1: 1-four",
@@ -345,9 +580,24 @@ public class ReduceStateByKeyTest extends OperatorTest {
                 "(2-7): 2: 2-one",
                 "(20-25): 2: 2-three"),
                 Comparator.naturalOrder()),
-            flat);
+            prepareComparison(partitions.get(0)));
       }
     };
   }
 
+  // ~ formats the triples and orders the result in natural order
+  static List<String> prepareComparison(List<Triple<TimeInterval, Integer, String>> xs) {
+    List<String> flat = new ArrayList<>();
+    for (Triple<TimeInterval, Integer, String> o : xs) {
+      String buf = "(" +
+          o.getFirst().getStartMillis() / 1_000L +
+          "-" +
+          o.getFirst().getEndMillis() / 1_000L +
+          "): " +
+          o.getSecond() + ": " + o.getThird();
+      flat.add(buf);
+    }
+    flat.sort(Comparator.naturalOrder());
+    return flat;
+  }
 }
