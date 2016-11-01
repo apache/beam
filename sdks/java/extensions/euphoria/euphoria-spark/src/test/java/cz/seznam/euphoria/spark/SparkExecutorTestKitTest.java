@@ -16,4 +16,5 @@ public class SparkExecutorTestKitTest extends AllOperatorTest {
 
   @Override
   public void testReduceStateByKey() throws Exception {}
+
 }
