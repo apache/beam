@@ -41,6 +41,7 @@ import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.regex.Matcher;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -49,6 +50,22 @@ import org.slf4j.LoggerFactory;
  */
 public class FileIOChannelFactory implements IOChannelFactory {
   private static final Logger LOG = LoggerFactory.getLogger(FileIOChannelFactory.class);
+
+   /**
+   * Create a {@link FileIOChannelFactory} with the given {@link PipelineOptions}.
+   */
+  public static FileIOChannelFactory fromOptions(PipelineOptions options) {
+    return create();
+  }
+
+  /**
+   * Create a {@link FileIOChannelFactory}.
+   */
+  public static FileIOChannelFactory create() {
+    return new FileIOChannelFactory();
+  }
+
+  private FileIOChannelFactory() {}
 
   /**
    *  Converts the given file spec to a java {@link File}. If {@code spec} is actually a URI with
