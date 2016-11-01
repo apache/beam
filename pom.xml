@@ -243,8 +243,7 @@
                 <dependency>
                   <groupId>org.eclipse.tycho</groupId>
                   <artifactId>tycho-compiler-jdt</artifactId>
-                  <!-- 0.24.0 is last version to support Java7 -->
-                  <version>0.24.0</version>
+                  <version>0.26.0</version>
                 </dependency>
               </dependencies>
             </plugin>
