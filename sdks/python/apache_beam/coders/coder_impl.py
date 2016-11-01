@@ -152,6 +152,14 @@ class CallbackCoderImpl(CoderImpl):
   def estimate_size(self, value, nested=False):
     return self._get_nested_size(self._size_estimator(value), nested)
 
+  def get_estimated_size_and_observables(self, value, nested=False):
+    # TODO(robertwb): Remove this once all coders are correct.
+    if isinstance(value, observable.ObservableMixin):
+      # CallbackCoderImpl can presumably encode the elements too.
+      return 1, [(value, self)]
+    else:
+      return self.estimate_size(value, nested), []
+
 
 class DeterministicPickleCoderImpl(CoderImpl):
 
@@ -523,6 +531,10 @@ class WindowedValueCoderImpl(StreamCoderImpl):
 
   def get_estimated_size_and_observables(self, value, nested=False):
     """Returns estimated size of value along with any nested observables."""
+    if isinstance(value, observable.ObservableMixin):
+      # Should never be here.
+      # TODO(robertwb): Remove when coders are set correctly.
+      return 0, [(value, self._value_coder)]
     estimated_size = 0
     observables = []
     value_estimated_size, value_observables = (
