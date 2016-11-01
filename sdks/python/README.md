@@ -155,7 +155,6 @@ Some interesting classes to navigate to:
 
 Make sure you installed the package first. If not, run `python setup.py install`, then run pydoc with `pydoc -p 8888`.
 
-
 ## Simple Examples
 
 The following examples demonstrate some basic, fundamental concepts for using Apache Beam's Python SDK. For more detailed examples, Beam provides a [directory of examples](https://github.com/apache/incubator-beam/tree/python-sdk/sdks/python/apache_beam/examples) for Python.  
