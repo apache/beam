@@ -25,7 +25,6 @@ import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
-import com.google.common.reflect.TypeToken;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
@@ -66,12 +65,12 @@ public class DoFnSignaturesTest {
 
     DoFnSignatures.analyzeBundleMethod(
         errors(),
-        TypeToken.of(FakeDoFn.class),
+        TypeDescriptor.of(FakeDoFn.class),
         new DoFnSignaturesTestUtils.AnonymousMethod() {
           void method(DoFn<Integer, String>.Context c, int n) {}
         }.getMethod(),
-        TypeToken.of(Integer.class),
-        TypeToken.of(String.class));
+        TypeDescriptor.of(Integer.class),
+        TypeDescriptor.of(String.class));
   }
 
   @Test
