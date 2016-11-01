@@ -151,7 +151,7 @@ class CoderRegistry(object):
                                 coders.FastPrimitivesCoder)):
         if not silent:
           logging.warning(error_msg)
-        return coders.DeterministicPickleCoder(key_coder, op_name)
+        return coders.DeterministicCoder(key_coder, op_name)
       else:
         raise ValueError(error_msg)
     else:
