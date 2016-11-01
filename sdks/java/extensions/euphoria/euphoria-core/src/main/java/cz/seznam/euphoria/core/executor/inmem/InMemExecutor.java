@@ -6,8 +6,6 @@ import cz.seznam.euphoria.core.client.dataset.windowing.MergingWindowing;
 import cz.seznam.euphoria.core.client.dataset.windowing.Window;
 import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.flow.Flow;
-import cz.seznam.euphoria.core.client.functional.CombinableReduceFunction;
-import cz.seznam.euphoria.core.client.functional.StateFactory;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
 import cz.seznam.euphoria.core.client.functional.UnaryFunctor;
 import cz.seznam.euphoria.core.client.graph.DAG;
@@ -224,6 +222,7 @@ public class InMemExecutor implements Executor {
         @Override
         public Thread newThread(Runnable r) {
           Thread thread = factory.newThread(r);
+          thread.setDaemon(true);
           thread.setUncaughtExceptionHandler((Thread t, Throwable e) -> {
             e.printStackTrace(System.err);
           });
@@ -650,17 +649,12 @@ public class InMemExecutor implements Executor {
     // associated with each input partition - this strategy then emits
     // watermarks to downstream partitions based on elements flowing
     // through the partition
-    final WatermarkEmitStrategy[] emitStrategies;
-    WatermarkEmitStrategy[] tmp = null;
-    tmp = new WatermarkEmitStrategy[numInputPartitions];
-    for (int i = 0; i < numInputPartitions; i++) {
-      tmp[i] = watermarkEmitStrategySupplier.get();
+    WatermarkEmitStrategy[] emitStrategies = new WatermarkEmitStrategy[numInputPartitions];
+    for (int i = 0; i < emitStrategies.length; i++) {
+      emitStrategies[i] = watermarkEmitStrategySupplier.get();
     }
-    emitStrategies = tmp;
 
-    Optional<UnaryFunction> timestampAssigner = windowing.isPresent()
-        ? windowing.get().getTimestampAssigner()
-        : Optional.empty();
+    Optional<UnaryFunction> timestampAssigner = windowing.flatMap(Windowing::getTimestampAssigner);
 
     int i = 0;
     for (Supplier s : suppliers) {
