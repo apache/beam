@@ -305,9 +305,9 @@ class ReduceStateByKeyReducer implements Runnable {
 
   static final class ScopedStorage {
     final class StorageKey {
-      private Object itemKey;
-      private Window itemWindow;
-      private String storeId;
+      private final Object itemKey;
+      private final Window itemWindow;
+      private final String storeId;
 
       public StorageKey(Object itemKey, Window itemWindow, String storeId) {
         this.itemKey = itemKey;
@@ -462,9 +462,9 @@ class ReduceStateByKeyReducer implements Runnable {
     void flushAndCloseAllWindows() {
       for (Map.Entry<Window, Map<Object, State>> windowState : wRegistry.windows.entrySet()) {
         for (Map.Entry<Object, State> itemState : windowState.getValue().entrySet()) {
-          State state = itemState.getValue();
-          state.flush();
-          state.close();
+          try (State state = itemState.getValue()) {
+            state.flush();
+          }
         }
       }
       wRegistry.windows.clear();
