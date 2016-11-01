@@ -74,7 +74,7 @@ class ProtoCoderTest(unittest.TestCase):
 
 
 class DummyClass(object):
-  "A class with no registered coder."
+  """A class with no registered coder."""
   def __init__(self):
     pass
 
@@ -87,7 +87,7 @@ class DummyClass(object):
 class FallbackCoderTest(unittest.TestCase):
 
   def test_default_fallback_path(self):
-    "Test fallback path picks a matching coder if no coder is registered"
+    """Test fallback path picks a matching coder if no coder is registered."""
 
     coder = coders.registry.get_coder(DummyClass)
     # No matching coder, so picks the last fallback coder which is a

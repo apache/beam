@@ -171,7 +171,7 @@ class FirstOf(object):
         return coder.from_type_hint(typehint, self)
       except Exception as e:
         msg = ('%s could not provide a Coder for type %s: %s' %
-               (coder, typehint, str(e)))
+               (coder, typehint, e))
         messages.append(msg)
 
     raise ValueError('Cannot provide coder for %s: %s' %
