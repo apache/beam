@@ -162,7 +162,6 @@
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-shade-plugin</artifactId>
         <executions>
-          <!-- In the first phase, we pick dependencies and relocate them. -->
           <execution>
             <id>bundle-and-repackage</id>
             <phase>package</phase>
@@ -203,35 +202,6 @@
                   <shadedPattern>org.apache.beam.runners.direct.repackaged.com.google.thirdparty</shadedPattern>
                 </relocation>
               </relocations>
-            </configuration>
-          </execution>
-
-          <!-- In the second phase, we pick remaining dependencies and bundle
-               them without repackaging. -->
-          <execution>
-            <id>bundle-rest-without-repackaging</id>
-            <phase>package</phase>
-            <goals>
-              <goal>shade</goal>
-            </goals>
-            <configuration>
-              <shadeTestJar>true</shadeTestJar>
-              <finalName>${project.artifactId}-bundled-${project.version}</finalName>
-              <artifactSet>
-                <excludes>
-                  <exclude>com.google.guava:guava</exclude>
-                </excludes>
-              </artifactSet>
-              <filters>
-                <filter>
-                  <artifact>*:*</artifact>
-                  <excludes>
-                    <exclude>META-INF/*.SF</exclude>
-                    <exclude>META-INF/*.DSA</exclude>
-                    <exclude>META-INF/*.RSA</exclude>
-                  </excludes>
-                </filter>
-              </filters>
             </configuration>
           </execution>
         </executions>
