@@ -9,7 +9,7 @@ import java.io.Serializable;
 import java.util.Comparator;
 import java.util.Objects;
 
-final class KeyedWindow<W extends Window, K> {
+public final class KeyedWindow<W extends Window, K> {
   private final W window;
   private final K key;
 
