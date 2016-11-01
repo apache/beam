@@ -17,6 +17,9 @@
  */
 package org.apache.beam.sdk.util;
 
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.nio.channels.WritableByteChannel;
@@ -26,10 +29,12 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
+import java.util.ServiceLoader;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.util.common.ReflectHelpers;
 
 /**
  * Provides utilities for creating read and write channels.
@@ -42,6 +47,8 @@ public class IOChannelUtils {
   // Pattern that matches shard placeholders within a shard template.
   private static final Pattern SHARD_FORMAT_RE = Pattern.compile("(S+|N+)");
 
+  private static final ClassLoader CLASS_LOADER = ReflectHelpers.findClassLoader();
+
   /**
    * Associates a scheme with an {@link IOChannelFactory}.
    *
@@ -51,6 +58,7 @@ public class IOChannelUtils {
    * <p>For example, when reading from "gs://bucket/path", the scheme "gs" is
    * used to lookup the appropriate factory.
    */
+  @VisibleForTesting
   public static void setIOFactory(String scheme, IOChannelFactory factory) {
     FACTORY_MAP.put(scheme, factory);
   }
@@ -62,6 +70,15 @@ public class IOChannelUtils {
   public static void registerStandardIOFactories(PipelineOptions options) {
     setIOFactory("gs", GcsIOChannelFactory.fromOptions(options));
     setIOFactory("file", FileIOChannelFactory.fromOptions(options));
+    Set<IOChannelFactoryRegistrar> registrars =
+        Sets.newTreeSet(ReflectHelpers.ObjectsClassComparator.INSTANCE);
+    registrars.addAll(Lists.newArrayList(
+        ServiceLoader.load(IOChannelFactoryRegistrar.class, CLASS_LOADER)));
+    for (IOChannelFactoryRegistrar registrar : registrars) {
+      setIOFactory(
+          registrar.getScheme(),
+          registrar.fromOptions(options));
+    }
   }
 
   /**
