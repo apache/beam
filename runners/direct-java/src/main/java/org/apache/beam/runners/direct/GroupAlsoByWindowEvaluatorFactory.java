@@ -124,7 +124,6 @@ class GroupAlsoByWindowEvaluatorFactory implements TransformEvaluatorFactory {
           ParDoEvaluator.create(
               evaluationContext,
               stepContext,
-              inputBundle,
               application,
               gabwDoFn,
               Collections.<PCollectionView<?>>emptyList(),

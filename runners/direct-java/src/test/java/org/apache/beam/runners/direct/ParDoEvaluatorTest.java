@@ -159,7 +159,6 @@ public class ParDoEvaluatorTest {
     return ParDoEvaluator.create(
         evaluationContext,
         stepContext,
-        inputBundle,
         (AppliedPTransform<PCollection<Integer>, ?, ?>) output.getProducingTransformInternal(),
         fn,
         ImmutableList.<PCollectionView<?>>of(singletonView),
