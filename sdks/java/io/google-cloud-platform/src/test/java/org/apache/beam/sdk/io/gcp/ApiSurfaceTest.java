@@ -76,7 +76,7 @@ public class ApiSurfaceTest {
 
   @SuppressWarnings("unchecked")
   private static final Set<Matcher<? extends Class<?>>> ALLOWED_PACKAGES =
-      ImmutableSet.of(
+      ImmutableSet.<Matcher<? extends Class<?>>>of(
           inPackage("com.google.api.client.json"),
           inPackage("com.google.api.client.util"),
           inPackage("com.google.api.services.bigquery.model"),
