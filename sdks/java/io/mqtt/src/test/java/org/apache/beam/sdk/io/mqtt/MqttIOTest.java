@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.mqtt;
 
 import java.io.Serializable;
+import java.net.ServerSocket;
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.List;
@@ -44,6 +45,8 @@ import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Tests of {@link MqttIO}.
@@ -51,14 +54,24 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class MqttIOTest implements Serializable {
 
+  private static final Logger LOGGER = LoggerFactory.getLogger(MqttIOTest.class);
+
   private static transient BrokerService broker;
+
+  private static int port;
 
   @BeforeClass
   public static void startBroker() throws Exception {
+    LOGGER.info("Finding free network port");
+    ServerSocket socket = new ServerSocket(0);
+    port = socket.getLocalPort();
+    socket.close();
+
+    LOGGER.info("Starting ActiveMQ broker on {}", port);
     broker = new BrokerService();
     broker.setUseJmx(false);
     broker.setPersistenceAdapter(new MemoryPersistenceAdapter());
-    broker.addConnector(new URI("mqtt://localhost:11883"));
+    broker.addConnector(new URI("mqtt://localhost:" + port));
     broker.start();
   }
 
@@ -71,7 +84,7 @@ public class MqttIOTest implements Serializable {
         MqttIO.read()
             .withConnectionConfiguration(
                 MqttIO.ConnectionConfiguration.create(
-                    "tcp://localhost:11883",
+                    "tcp://localhost:" + port,
                     "BEAM_PIPELINE",
                     "READ_TOPIC"))
           .withMaxNumRecords(10));
@@ -103,7 +116,7 @@ public class MqttIOTest implements Serializable {
           // nothing to do
         }
         try {
-          MqttClient client = new MqttClient("tcp://localhost:11883", "publisher");
+          MqttClient client = new MqttClient("tcp://localhost:" + port, "publisher");
           client.connect();
           for (int i = 0; i < 10; i++) {
             MqttMessage message = new MqttMessage();
@@ -144,7 +157,7 @@ public class MqttIOTest implements Serializable {
         .apply(MqttIO.write()
             .withConnectionConfiguration(
                 MqttIO.ConnectionConfiguration.create(
-                    "tcp://localhost:11883",
+                    "tcp://localhost:" + port,
                     "BEAM_PIPELINE",
                     "WRITE_TOPIC"))
             .withQoS(2));
@@ -157,7 +170,7 @@ public class MqttIOTest implements Serializable {
   }
 
   private MqttClient receive(final List<MqttMessage> messages) throws MqttException {
-    MqttClient client = new MqttClient("tcp://localhost:11883", "receiver");
+    MqttClient client = new MqttClient("tcp://localhost:" + port, "receiver");
     MqttCallback callback = new MqttCallback() {
       @Override
       public void connectionLost(Throwable cause) {
