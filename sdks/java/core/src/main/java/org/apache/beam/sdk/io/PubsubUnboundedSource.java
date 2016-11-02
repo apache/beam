@@ -1216,7 +1216,7 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
    * Project under which to create a subscription if only the {@link #topic} was given.
    */
   @Nullable
-  private final ProjectPath project;
+  private final ValueProvider<ProjectPath> project;
 
   /**
    * Topic to read from. If {@literal null}, then {@link #subscription} must be given.
@@ -1261,7 +1261,7 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
   PubsubUnboundedSource(
       Clock clock,
       PubsubClientFactory pubsubFactory,
-      @Nullable ProjectPath project,
+      @Nullable ValueProvider<ProjectPath> project,
       @Nullable ValueProvider<TopicPath> topic,
       @Nullable SubscriptionPath subscription,
       Coder<T> elementCoder,
@@ -1286,7 +1286,7 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
    */
   public PubsubUnboundedSource(
       PubsubClientFactory pubsubFactory,
-      @Nullable ProjectPath project,
+      @Nullable ValueProvider<ProjectPath> project,
       @Nullable ValueProvider<TopicPath> topic,
       @Nullable SubscriptionPath subscription,
       Coder<T> elementCoder,
@@ -1301,12 +1301,12 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
 
   @Nullable
   public ProjectPath getProject() {
-    return project;
+    return project == null ? null : project.get();
   }
 
   @Nullable
   public TopicPath getTopic() {
-    return topic.get();
+    return topic == null ? null : topic.get();
   }
 
   @Nullable
@@ -1341,8 +1341,11 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
     try {
       try (PubsubClient pubsubClient =
           pubsubFactory.newClient(timestampLabel, idLabel, options.as(PubsubOptions.class))) {
+        checkState(project.isAccessible(), "createRandomSubscription must be called at runtime.");
+        checkState(topic.isAccessible(), "createRandomSubscription must be called at runtime.");
         SubscriptionPath subscriptionPath =
-            pubsubClient.createRandomSubscription(project, topic.get(), DEAULT_ACK_TIMEOUT_SEC);
+            pubsubClient.createRandomSubscription(
+                project.get(), topic.get(), DEAULT_ACK_TIMEOUT_SEC);
         LOG.warn(
             "Created subscription {} to topic {}."
                 + " Note this subscription WILL NOT be deleted when the pipeline terminates",

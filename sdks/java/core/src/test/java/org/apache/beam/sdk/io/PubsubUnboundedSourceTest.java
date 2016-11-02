@@ -333,7 +333,7 @@ public class PubsubUnboundedSourceTest {
     PubsubUnboundedSource<String> source =
         new PubsubUnboundedSource<>(
             factory,
-            PubsubClient.projectPathFromId("my_project"),
+            StaticValueProvider.of(PubsubClient.projectPathFromId("my_project")),
             StaticValueProvider.of(topicPath),
             null,
             StringUtf8Coder.of(),
@@ -364,7 +364,7 @@ public class PubsubUnboundedSourceTest {
     PubsubUnboundedSource<String> source =
         new PubsubUnboundedSource<>(
             factory,
-            PubsubClient.projectPathFromId("my_project"),
+            StaticValueProvider.of(PubsubClient.projectPathFromId("my_project")),
             StaticValueProvider.of(topicPath),
             null,
             StringUtf8Coder.of(),

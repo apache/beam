@@ -138,7 +138,7 @@ public class PubsubIO {
    * Populate common {@link DisplayData} between Pubsub source and sink.
    */
   private static void populateCommonDisplayData(DisplayData.Builder builder,
-      String timestampLabel, String idLabel, PubsubTopic topic) {
+      String timestampLabel, String idLabel, String topic) {
     builder
         .addIfNotNull(DisplayData.item("timestampLabel", timestampLabel)
             .withLabel("Timestamp Label Attribute"))
@@ -146,7 +146,7 @@ public class PubsubIO {
             .withLabel("ID Label Attribute"));
 
     if (topic != null) {
-      builder.add(DisplayData.item("topic", topic.asPath())
+      builder.add(DisplayData.item("topic", topic)
           .withLabel("Pubsub Topic"));
     }
   }
@@ -257,9 +257,9 @@ public class PubsubIO {
   }
 
   /**
-   * Simple {@link SerializableFunction} for {@link PubsubTopic}.
+   * Used to build a {@link ValueProvider} for {@link PubsubTopic}.
    */
-  public static class TopicTranslator
+  private static class TopicTranslator
       implements SerializableFunction<String, PubsubTopic> {
     @Override
     public PubsubTopic apply(String from) {
@@ -268,13 +268,24 @@ public class PubsubIO {
   }
 
   /**
-   * Simple {@link SerializableFunction} for {@link TopicPath}.
+   * Used to build a {@link ValueProvider} for {@link TopicPath}.
    */
-  public static class TopicPathTranslator
+  private static class TopicPathTranslator
       implements SerializableFunction<PubsubTopic, TopicPath> {
     @Override
     public TopicPath apply(PubsubTopic from) {
       return PubsubClient.topicPathFromName(from.project, from.topic);
+    }
+  }
+
+  /**
+   * Used to build a {@link ValueProvider} for {@link ProjectPath}.
+   */
+  private static class ProjectPathTranslator
+      implements SerializableFunction<PubsubTopic, ProjectPath> {
+    @Override
+    public ProjectPath apply(PubsubTopic from) {
+      return PubsubClient.projectPathFromId(from.project);
     }
   }
 
@@ -657,8 +668,8 @@ public class PubsubIO {
                       .apply(ParDo.of(new PubsubBoundedReader()))
                       .setCoder(coder);
         } else {
-          @Nullable ProjectPath projectPath =
-              topic == null ? null : PubsubClient.projectPathFromId(topic.get().project);
+          @Nullable ValueProvider<ProjectPath> projectPath =
+              topic == null ? null : NestedValueProvider.of(topic, new ProjectPathTranslator());
           @Nullable ValueProvider<TopicPath> topicPath =
               topic == null ? null : NestedValueProvider.of(topic, new TopicPathTranslator());
           @Nullable SubscriptionPath subscriptionPath =
@@ -676,8 +687,10 @@ public class PubsubIO {
       @Override
       public void populateDisplayData(DisplayData.Builder builder) {
         super.populateDisplayData(builder);
-        PubsubTopic topicString =
-            topic == null ? null : topic.get();
+        String topicString =
+            topic == null ? null
+            : topic.isAccessible() ? topic.get().asPath()
+            : topic.toString();
         populateCommonDisplayData(builder, timestampLabel, idLabel, topicString);
 
         builder
@@ -996,7 +1009,8 @@ public class PubsubIO {
       @Override
       public void populateDisplayData(DisplayData.Builder builder) {
         super.populateDisplayData(builder);
-        populateCommonDisplayData(builder, timestampLabel, idLabel, topic);
+        populateCommonDisplayData(builder, timestampLabel, idLabel,
+            topic == null ? null : topic.asPath());
       }
 
       @Override
