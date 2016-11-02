@@ -69,8 +69,7 @@ class ReduceStateByKeyTranslator implements SparkOperatorTranslator<ReduceStateB
             new CompositeKeyExtractor(keyExtractor, valueExtractor, windowing));
 
     JavaPairRDD<KeyedWindow, Object> sorted = tuples.repartitionAndSortWithinPartitions(
-            new PartitioningWrapper(
-                    operator.getPartitioning(), kw -> ((KeyedWindow) kw).key()),
+            new PartitioningWrapper(operator.getPartitioning()),
             // ~ comparing by hashcode will effectively group elements with
             // the same key to the one bucket
             Comparator.comparingInt(
