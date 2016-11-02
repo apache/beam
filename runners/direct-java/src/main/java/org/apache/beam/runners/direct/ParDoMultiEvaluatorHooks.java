@@ -45,6 +45,7 @@ class ParDoMultiEvaluatorHooks<InputT, OutputT>
         evaluationContext,
         stepContext,
         application,
+        application.getInput().getWindowingStrategy(),
         fnLocal,
         transform.getSideInputs(),
         transform.getMainOutputTag(),
