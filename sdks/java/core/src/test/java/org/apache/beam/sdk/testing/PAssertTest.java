@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.testing;
 
+import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
@@ -32,6 +33,8 @@ import java.util.regex.Pattern;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.CoderException;
+import org.apache.beam.sdk.coders.VarLongCoder;
+import org.apache.beam.sdk.io.CountingInput;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
@@ -355,6 +358,18 @@ public class PAssertTest implements Serializable {
     pipeline.run();
   }
 
+  @Test
+  @Category(RunnableOnService.class)
+  public void testEmpty() {
+    Pipeline p = TestPipeline.create();
+    PCollection<Long> vals =
+        p.apply(Create.<Long>of().withCoder(VarLongCoder.of()));
+
+    PAssert.that(vals).empty();
+
+    p.run();
+  }
+
   /**
    * Tests that {@code containsInAnyOrder} fails when and how it should.
    */
@@ -379,6 +394,18 @@ public class PAssertTest implements Serializable {
             + exc.getMessage()
             + "\"",
         expectedPattern.matcher(exc.getMessage()).find());
+  }
+
+  @Test
+  @Category(RunnableOnService.class)
+  public void testEmptyFalse() throws Exception {
+    Pipeline p = TestPipeline.create();
+    PCollection<Long> vals = p.apply(CountingInput.upTo(5L));
+    PAssert.that(vals).empty();
+
+    Throwable thrown = runExpectingAssertionFailure(p);
+
+    assertThat(thrown.getMessage(), containsString("Expected: iterable over [] in any order"));
   }
 
   private static Throwable runExpectingAssertionFailure(Pipeline pipeline) {
