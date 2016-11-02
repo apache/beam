@@ -79,7 +79,6 @@ $(document).ready(function() {
             },
             "toggle": function() {
                 var pref=localStorage.getItem(this.dbKey) || this.default;
-
                 // Adjusting active elements in navigation header.
                 $("." + this.wrapper + " li").removeClass("active").each(function() {
                     if ($(this).data("type") === pref) {
@@ -88,7 +87,7 @@ $(document).ready(function() {
                 });
 
                 // Swapping visibility of code blocks.
-                $("[class^=" + prefix).hide();
+                $(this.selector).hide();
                 $("." + pref).show();
             },
             "render": function(wrapper) {
