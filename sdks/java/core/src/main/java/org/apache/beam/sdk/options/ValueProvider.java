@@ -51,7 +51,7 @@ import org.apache.beam.sdk.transforms.SerializableFunction;
  */
 @JsonSerialize(using = ValueProvider.Serializer.class)
 @JsonDeserialize(using = ValueProvider.Deserializer.class)
-public interface ValueProvider<T> {
+public interface ValueProvider<T> extends Serializable {
   /**
    * Return the value wrapped by this {@link ValueProvider}.
    */

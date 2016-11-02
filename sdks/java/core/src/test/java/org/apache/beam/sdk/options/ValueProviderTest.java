@@ -29,6 +29,7 @@ import org.apache.beam.sdk.options.ValueProvider.NestedValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.RuntimeValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.util.SerializableUtils;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -249,5 +250,22 @@ public class ValueProviderTest {
     expectedException.expect(RuntimeException.class);
     expectedException.expectMessage("Not called from a runtime context");
     nvp.get();
+  }
+
+  private static class NonSerializable {}
+
+  private static class NonSerializableTranslator
+      implements SerializableFunction<String, NonSerializable> {
+    @Override
+    public NonSerializable apply(String from) {
+      return new NonSerializable();
+    }
+  }
+
+  @Test
+  public void testNestedValueProviderSerialize() throws Exception {
+    ValueProvider<NonSerializable> nvp = NestedValueProvider.of(
+        StaticValueProvider.of("foo"), new NonSerializableTranslator());
+    SerializableUtils.ensureSerializable(nvp);
   }
 }
