@@ -50,7 +50,9 @@ public class ApiSurfaceTest {
   public void testOurApiSurface() throws Exception {
     ApiSurface checkedApiSurface =
         ApiSurface.ofPackage("org.apache.beam.sdk.io.gcp")
-            .pruningPattern("org[.]apache[.]beam[.].*Test");
+            .pruningPattern("org[.]apache[.]beam[.].*Test.*")
+            .pruningPattern("org[.]apache[.]beam[.].*IT")
+            .pruningPattern("java[.]lang.*");
 
     Map<Class<?>, List<Class<?>>> disallowedClasses = Maps.newHashMap();
     for (Class<?> clazz : checkedApiSurface.getExposedClasses()) {
@@ -92,13 +94,9 @@ public class ApiSurfaceTest {
           inPackage("io.grpc"),
           inPackage("java"),
           inPackage("javax"),
-          inPackage("org.apache.avro"),
           inPackage("org.apache.beam"),
           inPackage("org.apache.commons.logging"), // via Bigtable
-          inPackage("org.hamcrest"), // via TestPipelineOptions
-          inPackage("org.joda.time"),
-          inPackage("org.junit"),
-          inPackage("sun"));
+          inPackage("org.joda.time"));
 
   @SuppressWarnings({"rawtypes", "unchecked"})
   private boolean classIsAllowed(Class<?> clazz) {
