@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.transforms.reflect;
 
 import static org.hamcrest.CoreMatchers.instanceOf;
+import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertSame;
@@ -45,6 +46,7 @@ import org.apache.beam.sdk.transforms.DoFn.ProcessContinuation;
 import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.transforms.reflect.testhelper.DoFnInvokersTestHelper;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.util.TimeDomain;
 import org.apache.beam.sdk.util.Timer;
@@ -55,6 +57,7 @@ import org.apache.beam.sdk.util.WindowingInternals;
 import org.apache.beam.sdk.util.state.StateSpec;
 import org.apache.beam.sdk.util.state.StateSpecs;
 import org.apache.beam.sdk.util.state.ValueState;
+import org.joda.time.Instant;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -93,6 +96,10 @@ public class DoFnInvokersTest {
 
   private ProcessContinuation invokeProcessElement(DoFn<String, String> fn) {
     return DoFnInvokers.invokerFor(fn).invokeProcessElement(mockArgumentProvider);
+  }
+
+  private void invokeOnTimer(String timerId, DoFn<String, String> fn) {
+    DoFnInvokers.invokerFor(fn).invokeOnTimer(timerId, mockArgumentProvider);
   }
 
   @Test
@@ -460,7 +467,79 @@ public class DoFnInvokersTest {
   }
 
   // ---------------------------------------------------------------------------------------
-  // Tests for ability to invoke private, inner and anonymous classes.
+  // Tests for ability to invoke @OnTimer for private, inner and anonymous classes.
+  // ---------------------------------------------------------------------------------------
+
+  private static final String TIMER_ID = "test-timer-id";
+
+  private static class PrivateDoFnWithTimers extends DoFn<String, String> {
+    @ProcessElement
+    public void processThis(ProcessContext c) {}
+
+    @TimerId(TIMER_ID)
+    private final TimerSpec myTimer = TimerSpecs.timer(TimeDomain.PROCESSING_TIME);
+
+    @OnTimer(TIMER_ID)
+    public void onTimer(BoundedWindow w) {}
+  }
+
+  @Test
+  public void testLocalPrivateDoFnWithTimers() throws Exception {
+    PrivateDoFnWithTimers fn = mock(PrivateDoFnWithTimers.class);
+    invokeOnTimer(TIMER_ID, fn);
+    verify(fn).onTimer(mockWindow);
+  }
+
+  @Test
+  public void testStaticPackagePrivateDoFnWithTimers() throws Exception {
+    DoFn<String, String> fn =
+        mock(DoFnInvokersTestHelper.newStaticPackagePrivateDoFnWithTimers().getClass());
+    invokeOnTimer(TIMER_ID, fn);
+    DoFnInvokersTestHelper.verifyStaticPackagePrivateDoFnWithTimers(fn, mockWindow);
+  }
+
+  @Test
+  public void testInnerPackagePrivateDoFnWithTimers() throws Exception {
+    DoFn<String, String> fn =
+        mock(new DoFnInvokersTestHelper().newInnerPackagePrivateDoFnWithTimers().getClass());
+    invokeOnTimer(TIMER_ID, fn);
+    DoFnInvokersTestHelper.verifyInnerPackagePrivateDoFnWithTimers(fn, mockWindow);
+  }
+
+  @Test
+  public void testStaticPrivateDoFnWithTimers() throws Exception {
+    DoFn<String, String> fn =
+        mock(DoFnInvokersTestHelper.newStaticPrivateDoFnWithTimers().getClass());
+    invokeOnTimer(TIMER_ID, fn);
+    DoFnInvokersTestHelper.verifyStaticPrivateDoFnWithTimers(fn, mockWindow);
+  }
+
+  @Test
+  public void testInnerPrivateDoFnWithTimers() throws Exception {
+    DoFn<String, String> fn =
+        mock(new DoFnInvokersTestHelper().newInnerPrivateDoFnWithTimers().getClass());
+    invokeOnTimer(TIMER_ID, fn);
+    DoFnInvokersTestHelper.verifyInnerPrivateDoFnWithTimers(fn, mockWindow);
+  }
+
+  @Test
+  public void testAnonymousInnerDoFnWithTimers() throws Exception {
+    DoFn<String, String> fn =
+        mock(new DoFnInvokersTestHelper().newInnerAnonymousDoFnWithTimers().getClass());
+    invokeOnTimer(TIMER_ID, fn);
+    DoFnInvokersTestHelper.verifyInnerAnonymousDoFnWithTimers(fn, mockWindow);
+  }
+
+  @Test
+  public void testStaticAnonymousDoFnWithTimersInOtherPackage() throws Exception {
+    // Can't use mockito for this one - the anonymous class is final and can't be mocked.
+    DoFn<String, String> fn = DoFnInvokersTestHelper.newStaticAnonymousDoFnWithTimers();
+    invokeOnTimer(TIMER_ID, fn);
+    DoFnInvokersTestHelper.verifyStaticAnonymousDoFnWithTimersInvoked(fn, mockWindow);
+  }
+
+  // ---------------------------------------------------------------------------------------
+  // Tests for ability to invoke @ProcessElement for private, inner and anonymous classes.
   // ---------------------------------------------------------------------------------------
 
   private static class PrivateDoFnClass extends DoFn<String, String> {
@@ -603,6 +682,62 @@ public class DoFnInvokersTest {
     thrown.expect(UserCodeException.class);
     thrown.expectMessage("bogus");
     invoker.invokeFinishBundle(null);
+  }
+
+  @Test
+  public void testOnTimerHelloWord() throws Exception {
+    final String timerId = "my-timer-id";
+
+    class SimpleTimerDoFn extends DoFn<String, String> {
+
+      public String status = "not yet";
+
+      @TimerId(timerId)
+      private final TimerSpec myTimer = TimerSpecs.timer(TimeDomain.PROCESSING_TIME);
+
+      @ProcessElement
+      public void process(ProcessContext c) {}
+
+      @OnTimer(timerId)
+      public void onMyTimer() {
+        status = "OK now";
+      }
+    }
+
+    SimpleTimerDoFn fn = new SimpleTimerDoFn();
+
+    DoFnInvoker<String, String> invoker = DoFnInvokers.invokerFor(fn);
+    invoker.invokeOnTimer(timerId, mockArgumentProvider);
+    assertThat(fn.status, equalTo("OK now"));
+  }
+
+  @Test
+  public void testOnTimerWithWindow() throws Exception {
+    final String timerId = "my-timer-id";
+    final IntervalWindow testWindow = new IntervalWindow(new Instant(0), new Instant(15));
+    when(mockArgumentProvider.window()).thenReturn(testWindow);
+
+    class SimpleTimerDoFn extends DoFn<String, String> {
+
+      public IntervalWindow window = null;
+
+      @TimerId(timerId)
+      private final TimerSpec myTimer = TimerSpecs.timer(TimeDomain.PROCESSING_TIME);
+
+      @ProcessElement
+      public void process(ProcessContext c) {}
+
+      @OnTimer(timerId)
+      public void onMyTimer(IntervalWindow w) {
+        window = w;
+      }
+    }
+
+    SimpleTimerDoFn fn = new SimpleTimerDoFn();
+
+    DoFnInvoker<String, String> invoker = DoFnInvokers.invokerFor(fn);
+    invoker.invokeOnTimer(timerId, mockArgumentProvider);
+    assertThat(fn.window, equalTo(testWindow));
   }
 
   private class OldDoFnIdentity extends OldDoFn<String, String> {

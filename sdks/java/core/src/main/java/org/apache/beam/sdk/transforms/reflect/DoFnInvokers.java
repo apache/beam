@@ -115,6 +115,12 @@ public class DoFnInvokers {
     }
 
     @Override
+    public void invokeOnTimer(String timerId, DoFn.ArgumentProvider<InputT, OutputT> arguments) {
+      throw new UnsupportedOperationException(
+          String.format("Timers are not supported for %s", OldDoFn.class.getSimpleName()));
+    }
+
+    @Override
     public void invokeStartBundle(DoFn.Context c) {
       OldDoFn<InputT, OutputT>.Context oldCtx = DoFnAdapters.adaptContext(fn, c);
       try {
