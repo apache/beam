@@ -563,11 +563,14 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
       }
       String fileLocation = firstNonNull(
           options.getTemplateLocation(), options.getDataflowJobFile());
+      checkArgument(fileLocation.startsWith("/") || fileLocation.startsWith("gs://"),
+          String.format(
+              "Location must be local or on Cloud Storage, got {}.", fileLocation));
       String workSpecJson = DataflowPipelineTranslator.jobToString(newJob);
-      try {
-        WritableByteChannel writer =
-            IOChannelUtils.create(fileLocation, MimeTypes.TEXT);
-        PrintWriter printWriter = new PrintWriter(Channels.newOutputStream(writer));
+      try (
+          WritableByteChannel writer =
+              IOChannelUtils.create(fileLocation, MimeTypes.TEXT);
+          PrintWriter printWriter = new PrintWriter(Channels.newOutputStream(writer))) {
         printWriter.print(workSpecJson);
         LOG.info("Printed job specification to {}", fileLocation);
       } catch (IOException ex) {

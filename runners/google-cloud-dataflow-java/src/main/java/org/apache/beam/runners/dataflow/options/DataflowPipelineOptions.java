@@ -82,9 +82,10 @@ public interface DataflowPipelineOptions
   void setUpdate(boolean value);
 
   /**
-   * Where the runner should generate a template file.
+   * Where the runner should generate a template file. Must either be local or Cloud Storage.
    */
-  @Description("Where the runner should generate a template file.")
+  @Description("Where the runner should generate a template file. "
+      + "Must either be local or Cloud Storage.")
   String getTemplateLocation();
   void setTemplateLocation(String value);
 
