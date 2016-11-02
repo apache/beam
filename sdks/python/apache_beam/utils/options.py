@@ -263,6 +263,10 @@ class GoogleCloudOptions(PipelineOptions):
                         default=None,
                         help='Identity to run virtual machines as.')
     parser.add_argument('--no_auth', dest='no_auth', type=bool, default=False)
+    # Option to run templated pipelines
+    parser.add_argument('--template_location',
+                        default=None,
+                        help='Save job to specified local or GCS location.')
 
   def validate(self, validator):
     errors = []
