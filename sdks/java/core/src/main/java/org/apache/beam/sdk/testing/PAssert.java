@@ -44,6 +44,7 @@ import org.apache.beam.sdk.runners.PipelineRunner;
 import org.apache.beam.sdk.transforms.Aggregator;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.Filter;
 import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.MapElements;
@@ -820,9 +821,6 @@ public class PAssert {
    * A transform that gathers the contents of a {@link PCollection} into a single main input
    * iterable in the global window. This requires a runner to support {@link GroupByKey} in the
    * global window, but not side inputs or other windowing or triggers.
-   *
-   * <p>If the {@link PCollection} is empty, this transform returns a {@link PCollection} containing
-   * a single empty iterable, even though in practice most runners will not produce any element.
    */
   private static class GroupGlobally<T>
       extends PTransform<PCollection<T>, PCollection<Iterable<WindowedValue<T>>>>
@@ -893,7 +891,8 @@ public class PAssert {
 
       return dummyAndContents
           .apply(Values.<Iterable<Iterable<WindowedValue<T>>>>create())
-          .apply(ParDo.of(new ConcatFn<WindowedValue<T>>()));
+          .apply(ParDo.of(new ConcatFn<WindowedValue<T>>()))
+          .apply(Filter.by(new RemoveEmpty<WindowedValue<T>>()));
     }
   }
 
@@ -901,6 +900,13 @@ public class PAssert {
     @ProcessElement
     public void processElement(ProcessContext c) throws Exception {
       c.output(Iterables.concat(c.element()));
+    }
+  }
+
+  private static final class RemoveEmpty<T> implements SerializableFunction<Iterable<T>, Boolean> {
+    @Override
+    public Boolean apply(Iterable<T> input) {
+      return input.iterator().hasNext();
     }
   }
 
