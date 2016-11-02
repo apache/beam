@@ -23,6 +23,7 @@ import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.WritableByteChannel;
 import java.nio.file.Path;
 import java.util.Collection;
+import java.util.List;
 
 /**
  * Defines a factory for working with read and write channels.
@@ -103,4 +104,9 @@ public interface IOChannelFactory {
 
   /** Converts the given string to a {@link Path}. */
   Path toPath(String path);
+
+  /**
+   * Rename files from {@code srcUris} to {@code destUris}.
+   */
+  void rename(List<String> srcUris, List<String> destUris) throws IOException;
 }
