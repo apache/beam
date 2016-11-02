@@ -214,7 +214,7 @@ public class ApproximateUniqueTest implements Serializable {
     PCollection<Long> approximate = input.apply(ApproximateUnique.<String>globally(sampleSize));
     final PCollectionView<Long> exact =
         input
-            .apply(RemoveDuplicates.<String>create())
+            .apply(Distinct.<String>create())
             .apply(Count.<String>globally())
             .apply(View.<Long>asSingleton());
 
