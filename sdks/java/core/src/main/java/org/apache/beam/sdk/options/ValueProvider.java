@@ -91,6 +91,11 @@ public interface ValueProvider<T> {
     public boolean isAccessible() {
       return true;
     }
+
+    @Override
+    public String toString() {
+      return String.format("StaticValueProvider: %s", value);
+    }
   }
 
   /**
@@ -124,6 +129,11 @@ public interface ValueProvider<T> {
     @Override
     public boolean isAccessible() {
       return value.isAccessible();
+    }
+
+    @Override
+    public String toString() {
+      return String.format("NestedValueProvider of (%s)", value);
     }
   }
 
@@ -211,6 +221,12 @@ public interface ValueProvider<T> {
      */
     public String propertyName() {
       return propertyName;
+    }
+
+    @Override
+    public String toString() {
+      return String.format(
+          "RuntimeValueProvider from property %s", propertyName);
     }
   }
 
