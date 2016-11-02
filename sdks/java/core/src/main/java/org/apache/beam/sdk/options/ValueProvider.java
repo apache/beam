@@ -33,6 +33,7 @@ import com.fasterxml.jackson.databind.SerializerProvider;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.fasterxml.jackson.databind.deser.ContextualDeserializer;
+import com.google.common.base.MoreObjects;
 import java.io.IOException;
 import java.io.Serializable;
 import java.lang.reflect.InvocationHandler;
@@ -91,6 +92,13 @@ public interface ValueProvider<T> {
     public boolean isAccessible() {
       return true;
     }
+
+    @Override
+    public String toString() {
+      return MoreObjects.toStringHelper(this)
+          .add("value", value)
+          .toString();
+    }
   }
 
   /**
@@ -124,6 +132,13 @@ public interface ValueProvider<T> {
     @Override
     public boolean isAccessible() {
       return value.isAccessible();
+    }
+
+    @Override
+    public String toString() {
+      return MoreObjects.toStringHelper(this)
+          .add("value", value)
+          .toString();
     }
   }
 
@@ -211,6 +226,15 @@ public interface ValueProvider<T> {
      */
     public String propertyName() {
       return propertyName;
+    }
+
+    @Override
+    public String toString() {
+      return MoreObjects.toStringHelper(this)
+          .add("propertyName", propertyName)
+          .add("default", defaultValue)
+          .add("value", isAccessible() ? get() : null)
+          .toString();
     }
   }
 
