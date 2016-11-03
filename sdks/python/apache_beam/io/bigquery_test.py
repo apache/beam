@@ -130,6 +130,12 @@ class TestBigQuerySource(unittest.TestCase):
     source = beam.io.BigQuerySource(query='my_query')
     self.assertEqual(source.query, 'my_query')
     self.assertIsNone(source.table_reference)
+    self.assertTrue(source.use_legacy_sql)
+
+  def test_specify_query_sql_format(self):
+    source = beam.io.BigQuerySource(query='my_query', use_legacy_sql=False)
+    self.assertEqual(source.query, 'my_query')
+    self.assertFalse(source.use_legacy_sql)
 
 
 class TestBigQuerySink(unittest.TestCase):
@@ -238,6 +244,24 @@ class TestBigQueryReader(unittest.TestCase):
         actual_rows.append(row)
     self.assertEqual(actual_rows, expected_rows)
     self.assertEqual(schema, reader.schema)
+    self.assertTrue(reader.use_legacy_sql)
+
+  def test_read_from_query_sql_format(self):
+    client = mock.Mock()
+    client.jobs.Insert.return_value = bigquery.Job(
+        jobReference=bigquery.JobReference(
+            jobId='somejob'))
+    table_rows, schema, expected_rows = self.get_test_rows()
+    client.jobs.GetQueryResults.return_value = bigquery.GetQueryResultsResponse(
+        jobComplete=True, rows=table_rows, schema=schema)
+    actual_rows = []
+    with beam.io.BigQuerySource(
+        query='query', use_legacy_sql=False).reader(client) as reader:
+      for row in reader:
+        actual_rows.append(row)
+    self.assertEqual(actual_rows, expected_rows)
+    self.assertEqual(schema, reader.schema)
+    self.assertFalse(reader.use_legacy_sql)
 
   def test_using_both_query_and_table_fails(self):
     with self.assertRaises(ValueError) as exn:
