@@ -77,8 +77,7 @@ public interface SparkPipelineOptions extends PipelineOptions, StreamingOptions,
   class TmpCheckpointDirFactory implements DefaultValueFactory<String> {
     @Override
     public String create(PipelineOptions options) {
-      SparkPipelineOptions sparkPipelineOptions = options.as(SparkPipelineOptions.class);
-      return "file:///tmp/" + sparkPipelineOptions.getJobName();
+      return "/tmp/" + options.as(SparkPipelineOptions.class).getJobName();
     }
   }
 
