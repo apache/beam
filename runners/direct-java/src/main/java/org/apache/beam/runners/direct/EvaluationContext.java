@@ -391,11 +391,9 @@ class EvaluationContext {
    * <p>This is a destructive operation. Timers will only appear in the result of this method once
    * for each time they are set.
    */
-  public Map<AppliedPTransform<?, ?, ?>, Map<StructuralKey<?>, FiredTimers>> extractFiredTimers() {
+  public Collection<FiredTimers> extractFiredTimers() {
     forceRefresh();
-    Map<AppliedPTransform<?, ?, ?>, Map<StructuralKey<?>, FiredTimers>> fired =
-        watermarkManager.extractFiredTimers();
-    return fired;
+    return watermarkManager.extractFiredTimers();
   }
 
   /**
