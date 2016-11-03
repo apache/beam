@@ -192,7 +192,7 @@ public class ParDoBoundTranslatorTest {
     Pipeline pipeline = Pipeline.create(options);
     PCollection<Integer> pcollection = pipeline.apply(Create.of(1, 2, 3, 4));
     PAssert.that(pcollection).containsInAnyOrder(2, 1, 4, 3);
-    // TODO: good candidate to terminate fast based on processed assertion vs. for auto-shutdown
+    // TODO: terminate faster based on processed assertion vs. auto-shutdown
     pipeline.run();
   }
 
@@ -263,8 +263,8 @@ public class ParDoBoundTranslatorTest {
     Pipeline pipeline = Pipeline.create(options);
 
     List<Integer> inputs = Arrays.asList(3, -42, 666);
-    final TupleTag<String> mainOutputTag = new TupleTag<String>("main");
-    final TupleTag<Void> sideOutputTag = new TupleTag<Void>("sideOutput");
+    final TupleTag<String> mainOutputTag = new TupleTag<>("main");
+    final TupleTag<Void> sideOutputTag = new TupleTag<>("sideOutput");
 
     PCollectionView<Integer> sideInput1 = pipeline
         .apply("CreateSideInput1", Create.of(11))

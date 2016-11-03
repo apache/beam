@@ -137,18 +137,6 @@ public class ApexRunner extends PipelineRunner<ApexRunnerResult> {
       }
       assertionError = null;
       lc.runAsync();
-      if (options.getRunMillis() > 0) {
-        try {
-          long timeout = System.currentTimeMillis() + options.getRunMillis();
-          while (System.currentTimeMillis() < timeout) {
-            if (assertionError != null) {
-              throw assertionError;
-            }
-          }
-        } finally {
-          lc.shutdown();
-        }
-      }
       return new ApexRunnerResult(lma.getDAG(), lc);
     } catch (Exception e) {
       Throwables.propagateIfPossible(e);

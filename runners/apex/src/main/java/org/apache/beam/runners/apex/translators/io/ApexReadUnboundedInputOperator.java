@@ -55,6 +55,7 @@ public class ApexReadUnboundedInputOperator<OutputT, CheckpointMarkT
   private final SerializablePipelineOptions pipelineOptions;
   @Bind(JavaSerializer.class)
   private final UnboundedSource<OutputT, CheckpointMarkT> source;
+  private final boolean isBoundedSource;
   private transient UnboundedSource.UnboundedReader<OutputT> reader;
   private transient boolean available = false;
   @OutputPortFieldAnnotation(optional = true)
@@ -65,16 +66,24 @@ public class ApexReadUnboundedInputOperator<OutputT, CheckpointMarkT
       ApexPipelineOptions options) {
     this.pipelineOptions = new SerializablePipelineOptions(options);
     this.source = source;
+    this.isBoundedSource = false;
+  }
+
+  public ApexReadUnboundedInputOperator(UnboundedSource<OutputT, CheckpointMarkT> source,
+      boolean isBoundedSource, ApexPipelineOptions options) {
+    this.pipelineOptions = new SerializablePipelineOptions(options);
+    this.source = source;
+    this.isBoundedSource = isBoundedSource;
   }
 
   @SuppressWarnings("unused") // for Kryo
   private ApexReadUnboundedInputOperator() {
-    this.pipelineOptions = null; this.source = null;
+    this.pipelineOptions = null; this.source = null; this.isBoundedSource = false;
   }
 
   @Override
   public void beginWindow(long windowId) {
-    if (!available && source instanceof ValuesSource) {
+    if (!available && (isBoundedSource || source instanceof ValuesSource)) {
       // if it's a Create and the input was consumed, emit final watermark
       emitWatermarkIfNecessary(GlobalWindow.TIMESTAMP_MAX_VALUE.getMillis());
       // terminate the stream (allows tests to finish faster)

@@ -150,7 +150,7 @@ public class ApexPipelineTranslator implements Pipeline.PipelineVisitor {
       BoundedToUnboundedSourceAdapter unboundedSource = new BoundedToUnboundedSourceAdapter<>(
           transform.getSource());
       ApexReadUnboundedInputOperator<T, ?> operator = new ApexReadUnboundedInputOperator<>(
-          unboundedSource, context.getPipelineOptions());
+          unboundedSource, true, context.getPipelineOptions());
       context.addOperator(operator, operator.output);
     }
 
