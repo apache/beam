@@ -14,6 +14,7 @@
   <link rel="stylesheet" href="/css/theme.css">
   <script src="https://ajax.googleapis.com/ajax/libs/jquery/2.2.0/jquery.min.js"></script>
   <script src="/js/bootstrap.min.js"></script>
+  <script src="/js/language-switch.js"></script>
   <link rel="canonical" href="http://beam.incubator.apache.org/learn/runners/capability-matrix/" data-proofer-ignore>
   <link rel="alternate" type="application/rss+xml" title="Apache Beam (incubating)" href="http://beam.incubator.apache.org/feed.xml">
   <script>
@@ -146,7 +147,7 @@
 
       <div class="row">
         <h1 id="beam-capability-matrix">Beam Capability Matrix</h1>
-<p><span style="font-size:11px;float:none">Last updated: 2016-10-27 22:11 PDT</span></p>
+<p><span style="font-size:11px;float:none">Last updated: 2016-11-03 14:37 PDT</span></p>
 
 <p>Apache Beam (incubating) provides a portable API layer for building sophisticated data-parallel processing engines that may be executed across a diversity of exeuction engines, or <i>runners</i>. The core concepts of this layer are based upon the Beam Model (formerly referred to as the <a href="http://www.vldb.org/pvldb/vol8/p1792-Akidau.pdf">Dataflow Model</a>), and implemented to varying degrees in each Beam runner. To help clarify the capabilities of individual runners, we’ve created the capability matrix below.</p>
 
@@ -1303,7 +1304,7 @@
     
     
 
-    <td width="25%" class="cap" style="background-color:#59f;border-color:#37d"><center><b>Yes: supported</b></center><br />The Runner uses Beam's Windowing and Triggering logic and code.
+    <td width="25%" class="cap" style="background-color:#59f;border-color:#37d"><center><b>Yes: supported</b></center><br />
 </td>
     
     
@@ -1328,7 +1329,7 @@
     
     
 
-    <td width="25%" class="cap" style="background-color:#59f;border-color:#37d"><center><b>Yes: supported</b></center><br />The Runner uses Beam's Windowing and Triggering logic and code.
+    <td width="25%" class="cap" style="background-color:#59f;border-color:#37d"><center><b>Yes: supported</b></center><br />
 </td>
     
     
@@ -1353,7 +1354,7 @@
     
     
 
-    <td width="25%" class="cap" style="background-color:#59f;border-color:#37d"><center><b>Yes: supported</b></center><br />The Runner uses Beam's Windowing and Triggering logic and code.
+    <td width="25%" class="cap" style="background-color:#59f;border-color:#37d"><center><b>Yes: supported</b></center><br />
 </td>
     
     
@@ -1378,7 +1379,7 @@
     
     
 
-    <td width="25%" class="cap" style="background-color:#59f;border-color:#37d"><center><b>Yes: supported</b></center><br />The Runner uses Beam's Windowing and Triggering logic and code.
+    <td width="25%" class="cap" style="background-color:#59f;border-color:#37d"><center><b>Yes: supported</b></center><br />
 </td>
     
     
@@ -1423,7 +1424,7 @@
     
     
 
-    <td width="25%" class="cap" style="background-color:#8c6;border-color:#6a4"><center><b>Yes: fully supported</b></center><br />The Runner uses Beam's Windowing and Triggering logic and code.
+    <td width="25%" class="cap" style="background-color:#8c6;border-color:#6a4"><center><b>Yes: fully supported</b></center><br />
 </td>
     
     
@@ -1448,7 +1449,7 @@
     
     
 
-    <td width="25%" class="cap" style="background-color:#8c6;border-color:#6a4"><center><b>Yes: fully supported</b></center><br />The Runner uses Beam's Windowing and Triggering logic and code.
+    <td width="25%" class="cap" style="background-color:#8c6;border-color:#6a4"><center><b>Yes: fully supported</b></center><br />
 </td>
     
     
@@ -1473,7 +1474,7 @@
     
     
 
-    <td width="25%" class="cap" style="background-color:#8c6;border-color:#6a4"><center><b>Yes: fully supported</b></center><br />The Runner uses Beam's Windowing and Triggering logic and code.
+    <td width="25%" class="cap" style="background-color:#8c6;border-color:#6a4"><center><b>Yes: fully supported</b></center><br />
 </td>
     
     
@@ -1498,7 +1499,7 @@
     
     
 
-    <td width="25%" class="cap" style="background-color:#8c6;border-color:#6a4"><center><b>Yes: fully supported</b></center><br />The Runner uses Beam's Windowing and Triggering logic and code.
+    <td width="25%" class="cap" style="background-color:#8c6;border-color:#6a4"><center><b>Yes: fully supported</b></center><br />
 </td>
     
     
@@ -1548,7 +1549,7 @@
     
     
 
-    <td width="25%" class="cap" style="background-color:#8c6;border-color:#6a4"><center><b>Yes: fully supported</b></center><br />The Runner uses Beam's Windowing and Triggering logic and code.
+    <td width="25%" class="cap" style="background-color:#8c6;border-color:#6a4"><center><b>Yes: fully supported</b></center><br />
 </td>
     
     
@@ -1573,7 +1574,7 @@
     
     
 
-    <td width="25%" class="cap" style="background-color:#8c6;border-color:#6a4"><center><b>Yes: fully supported</b></center><br />The Runner uses Beam's Windowing and Triggering logic and code.
+    <td width="25%" class="cap" style="background-color:#8c6;border-color:#6a4"><center><b>Yes: fully supported</b></center><br />
 </td>
     
     
@@ -1643,7 +1644,7 @@
     
     
 
-    <td width="25%" class="cap" style="background-color:#d77;border-color:#b55"><center><b>Yes: fully supported</b></center><br />The Runner uses Beam's Windowing and Triggering logic and code.
+    <td width="25%" class="cap" style="background-color:#d77;border-color:#b55"><center><b>Yes: fully supported</b></center><br />
 </td>
     
     
@@ -1668,7 +1669,7 @@
     
     
 
-    <td width="25%" class="cap" style="background-color:#d77;border-color:#b55"><center><b>Yes: fully supported</b></center><br />The Runner uses Beam's Windowing and Triggering logic and code.
+    <td width="25%" class="cap" style="background-color:#d77;border-color:#b55"><center><b>Yes: fully supported</b></center><br />
 </td>
     
     
