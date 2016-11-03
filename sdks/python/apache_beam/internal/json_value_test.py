@@ -76,7 +76,7 @@ class JsonValueTest(unittest.TestCase):
     except TypeError as e:
       pass
     except Exception as e:
-      self.fail('Unexpected exception raised:', e)
+      self.fail('Unexpected exception raised: {}'.format(e))
     else:
       self.fail('TypeError not raised.')
 
