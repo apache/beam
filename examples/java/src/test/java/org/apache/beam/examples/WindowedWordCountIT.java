@@ -17,9 +17,9 @@
  */
 package org.apache.beam.examples;
 
+import com.google.common.base.Strings;
 import java.io.IOException;
 import org.apache.beam.examples.WindowedWordCount.Options;
-import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.StreamingOptions;
 import org.apache.beam.sdk.testing.BigqueryMatcher;
@@ -37,12 +37,13 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class WindowedWordCountIT {
 
+  private static final String DEFAULT_OUTPUT_CHECKSUM = "ff54f6f42b2afeb146206c1e8e915deaee0362b4";
+
   /**
    * Options for the {@link WindowedWordCount} Integration Test.
    */
   public interface WindowedWordCountITOptions
       extends Options, TestPipelineOptions, StreamingOptions {
-    @Default.String("ff54f6f42b2afeb146206c1e8e915deaee0362b4")
     String getChecksum();
     void setChecksum(String value);
   }
@@ -66,9 +67,13 @@ public class WindowedWordCountIT {
 
     String query = String.format("SELECT word, SUM(count) FROM [%s:%s.%s] GROUP BY word",
         options.getProject(), options.getBigQueryDataset(), options.getBigQueryTable());
+    String outputChecksum =
+        Strings.isNullOrEmpty(options.getChecksum())
+            ? DEFAULT_OUTPUT_CHECKSUM
+            : options.getChecksum();
     options.setOnSuccessMatcher(
         new BigqueryMatcher(
-            options.getAppName(), options.getProject(), query, options.getChecksum()));
+            options.getAppName(), options.getProject(), query, outputChecksum));
 
     WindowedWordCount.main(TestPipeline.convertToArgs(options));
   }
