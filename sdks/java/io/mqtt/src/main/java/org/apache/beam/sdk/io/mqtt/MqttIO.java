@@ -23,6 +23,8 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import com.google.auto.value.AutoValue;
 
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
@@ -33,8 +35,10 @@ import java.util.concurrent.TimeUnit;
 
 import javax.annotation.Nullable;
 
+import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -62,11 +66,11 @@ import org.slf4j.LoggerFactory;
  * <h3>Reading from a MQTT broker</h3>
  *
  * <p>MqttIO source returns an unbounded {@link PCollection} containing MQTT message
- * payloads (as {@code byte[]}).</p>
+ * payloads (as {@code byte[]}).
  *
  * <p>To configure a MQTT source, you have to provide a MQTT connection configuration including
  * {@code ClientId}, a {@code ServerURI}, and a {@code Topic} pattern. The following
- * example illustrates various options for configuring the source:</p>
+ * example illustrates various options for configuring the source:
  *
  * <pre>{@code
  *
@@ -81,15 +85,15 @@ import org.slf4j.LoggerFactory;
  *
  * <h3>Writing to a MQTT broker</h3>
  *
- * <p>MqttIO sink supports writing {@code byte[]} to a topic on a MQTT broker.</p>
+ * <p>MqttIO sink supports writing {@code byte[]} to a topic on a MQTT broker.
  *
  * <p>To configure a MQTT sink, as for the read, you have to specify a MQTT connection
- * configuration with {@code ClientId}, {@code ServerURI}, {@code Topic}.</p>
+ * configuration with {@code ClientId}, {@code ServerURI}, {@code Topic}.
  *
  * <p>Optionally, you can also specify the {@code Retained} and {@code QoS} of the MQTT
- * message.</p>
+ * message.
  *
- * <p>For instance:</p>
+ * <p>For instance:
  *
  * <pre>{@code
  *
@@ -100,8 +104,6 @@ import org.slf4j.LoggerFactory;
  *       "tcp://host:11883",
  *       "my_client_id",
  *       "my_topic"))
- *     .withRetained(true)
- *     .withQoS(2)
  *
  * }</pre>
  */
@@ -232,7 +234,9 @@ public class MqttIO {
     public void populateDisplayData(DisplayData.Builder builder) {
       super.populateDisplayData(builder);
       connectionConfiguration().populateDisplayData(builder);
-      builder.add(DisplayData.item("maxNumRecords", maxNumRecords()));
+      if (maxNumRecords() != Long.MAX_VALUE) {
+        builder.add(DisplayData.item("maxNumRecords", maxNumRecords()));
+      }
       builder.addIfNotNull(DisplayData.item("maxReadTime", maxReadTime()));
     }
 
@@ -274,13 +278,32 @@ public class MqttIO {
     }
 
     @Override
-    public Coder getCheckpointMarkCoder() {
-      return VoidCoder.of();
+    public Coder<UnboundedSource.CheckpointMark> getCheckpointMarkCoder() {
+      return new CheckpointCoder();
     }
 
     @Override
     public Coder<byte[]> getDefaultOutputCoder() {
       return ByteArrayCoder.of();
+    }
+  }
+
+  /**
+   * Checkpoint coder acting as a {@link VoidCoder}.
+   */
+  private static class CheckpointCoder extends AtomicCoder<UnboundedSource.CheckpointMark> {
+
+    @Override
+    public void encode(UnboundedSource.CheckpointMark value, OutputStream outStream, Context
+        context) throws CoderException, IOException {
+      // nothing to write
+    }
+
+    @Override
+    public UnboundedSource.CheckpointMark decode(InputStream inStream, Context context) throws
+        CoderException, IOException {
+      // nothing to read
+      return null;
     }
   }
 
@@ -459,16 +482,16 @@ public class MqttIO {
      * and will not be acknowledged across the network. This QoS is the fastest,
      * but should only be used for messages which are not valuable - note that
      * if the server cannot process the message (for example, there
-     * is an authorization problem), then an
-     * {@link MqttCallback#deliveryComplete(IMqttDeliveryToken)} won't be called.
+     * is an authorization problem), then the message will be silently dropped.
      * Also known as "fire and forget".</li>
      *
      * <li>Quality of Service 1 - indicates that a message should
      * be delivered at least once (one or more times).  The message can only be delivered safely if
      * it can be persisted on the broker.
      * If the broker can't persist the message, the message will not be
-     * delivered in the event of a client failure.
-     * The message will be acknowledged across the network.
+     * delivered in the event of a subscriber failure.
+     * The {@link MqttIO.Write} with this QoS guarantee that all messages written to it will be
+     * delivered to subscribers at least once.
      * This is the default QoS.</li>
      *
      * <li>Quality of Service 2 - indicates that a message should
@@ -477,18 +500,19 @@ public class MqttIO {
      * The message can only be delivered safely if
      * it can be persisted on the broker.
      * If a persistence mechanism is not specified on the broker, the message will not be
-     * delivered in the event of a client failure.</li>
+     * delivered in the event of a client failure.
+     * This QoS is not supported by {@link MqttIO}.</li>
      * </ul>
      *
      * <p>If persistence is not configured, QoS 1 and 2 messages will still be delivered
      * in the event of a network or server problem as the client will hold state in memory.
      * If the MQTT client is shutdown or fails and persistence is not configured then
      * delivery of QoS 1 and 2 messages can not be maintained as client-side state will
-     * be lost.</p>
+     * be lost.
      *
      * <p>For now, MqttIO fully supports QoS 0 and 1 (delivery at least once). QoS 2 is for now
      * limited and use with care, as it can result to duplication of message (delivery exactly
-     * once).</p>
+     * once).
      *
      * @param qos The quality of service value.
      * @return The {@link Write} {@link PTransform} with the corresponding QoS configuration.
@@ -517,7 +541,7 @@ public class MqttIO {
 
     @Override
     public void validate(PCollection<byte[]> input) {
-      // validation is performed in the ConnectionConfiguration create()
+      checkArgument(qos() != 0 || qos() != 1, "Supported QoS are 0 and 1");
     }
 
     @Override
