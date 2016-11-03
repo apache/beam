@@ -2333,6 +2333,8 @@ public class BigQueryIO {
         throw new IllegalArgumentException(
             String.format(RESOURCE_NOT_FOUND_ERROR, "dataset", BigQueryIO.toTableSpec(table)),
             e);
+      } else if (e instanceof  RuntimeException) {
+        throw (RuntimeException) e;
       } else {
         throw new RuntimeException(
             String.format(UNABLE_TO_CONFIRM_PRESENCE_OF_RESOURCE_ERROR, "dataset",
@@ -2350,6 +2352,8 @@ public class BigQueryIO {
       if ((e instanceof IOException) && errorExtractor.itemNotFound((IOException) e)) {
         throw new IllegalArgumentException(
             String.format(RESOURCE_NOT_FOUND_ERROR, "table", BigQueryIO.toTableSpec(table)), e);
+      } else if (e instanceof  RuntimeException) {
+        throw (RuntimeException) e;
       } else {
         throw new RuntimeException(
             String.format(UNABLE_TO_CONFIRM_PRESENCE_OF_RESOURCE_ERROR, "table",

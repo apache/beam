@@ -129,9 +129,13 @@ public class Transport {
    */
   public static CloudResourceManager.Builder
       newCloudResourceManagerClient(CloudResourceManagerOptions options) {
+    Credentials credentials = options.getGcpCredential();
+    if (credentials == null) {
+      NullCredentialInitializer.throwNullCredentialException();
+    }
     return new CloudResourceManager.Builder(getTransport(), getJsonFactory(),
         chainHttpRequestInitializer(
-            options.getGcpCredential(),
+            credentials,
             // Do not log 404. It clutters the output and is possibly even required by the caller.
             new RetryHttpRequestInitializer(ImmutableList.of(404))))
         .setApplicationName(options.getAppName())
@@ -164,7 +168,8 @@ public class Transport {
   private static HttpRequestInitializer chainHttpRequestInitializer(
       Credentials credential, HttpRequestInitializer httpRequestInitializer) {
     if (credential == null) {
-      return httpRequestInitializer;
+      return new ChainingHttpRequestInitializer(
+          new NullCredentialInitializer(), httpRequestInitializer);
     } else {
       return new ChainingHttpRequestInitializer(
           new HttpCredentialsAdapter(credential),
