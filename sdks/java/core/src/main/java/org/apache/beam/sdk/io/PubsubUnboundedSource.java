@@ -1162,7 +1162,7 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
         createAggregator("elements", new Sum.SumLongFn());
 
     private final PubsubClientFactory pubsubFactory;
-    private final SubscriptionPath subscription;
+    private final ValueProvider<SubscriptionPath> subscription;
     @Nullable
     private final String timestampLabel;
     @Nullable
@@ -1170,7 +1170,7 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
 
     public StatsFn(
         PubsubClientFactory pubsubFactory,
-        SubscriptionPath subscription,
+        ValueProvider<SubscriptionPath> subscription,
         @Nullable
             String timestampLabel,
         @Nullable
@@ -1190,7 +1190,11 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
     @Override
     public void populateDisplayData(Builder builder) {
       super.populateDisplayData(builder);
-      builder.add(DisplayData.item("subscription", subscription.getPath()));
+        String subscriptionString =
+            subscription == null ? null
+            : subscription.isAccessible() ? subscription.get().getPath()
+            : subscription.toString();
+      builder.add(DisplayData.item("subscription", subscriptionString));
       builder.add(DisplayData.item("transport", pubsubFactory.getKind()));
       builder.addIfNotNull(DisplayData.item("timestampLabel", timestampLabel));
       builder.addIfNotNull(DisplayData.item("idLabel", idLabel));
@@ -1234,7 +1238,7 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
    * subscription is never deleted.
    */
   @Nullable
-  private SubscriptionPath subscription;
+  private ValueProvider<SubscriptionPath> subscription;
 
   /**
    * Coder for elements. Elements are effectively double-encoded: first to a byte array
@@ -1263,7 +1267,7 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
       PubsubClientFactory pubsubFactory,
       @Nullable ValueProvider<ProjectPath> project,
       @Nullable ValueProvider<TopicPath> topic,
-      @Nullable SubscriptionPath subscription,
+      @Nullable ValueProvider<SubscriptionPath> subscription,
       Coder<T> elementCoder,
       @Nullable String timestampLabel,
       @Nullable String idLabel) {
@@ -1288,7 +1292,7 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
       PubsubClientFactory pubsubFactory,
       @Nullable ValueProvider<ProjectPath> project,
       @Nullable ValueProvider<TopicPath> topic,
-      @Nullable SubscriptionPath subscription,
+      @Nullable ValueProvider<SubscriptionPath> subscription,
       Coder<T> elementCoder,
       @Nullable String timestampLabel,
       @Nullable String idLabel) {
@@ -1310,13 +1314,8 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
   }
 
   @Nullable
-  public ValueProvider<TopicPath> getTopicProvider() {
-    return topic;
-  }
-
-  @Nullable
   public SubscriptionPath getSubscription() {
-    return subscription;
+    return subscription == null ? null : subscription.get();
   }
 
   @Nullable

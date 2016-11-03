@@ -23,6 +23,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 
 import java.util.Set;
+import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.testing.RunnableOnService;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.DisplayDataEvaluator;
@@ -70,8 +71,8 @@ public class PubsubIOTest {
     String subscription = "projects/project/subscriptions/subscription";
     Duration maxReadTime = Duration.standardMinutes(5);
     PubsubIO.Read.Bound<String> read = PubsubIO.Read
-        .topic(topic)
-        .subscription(subscription)
+        .topic(StaticValueProvider.of(topic))
+        .subscription(StaticValueProvider.of(subscription))
         .timestampLabel("myTimestamp")
         .idLabel("myId")
         .maxNumRecords(1234)
