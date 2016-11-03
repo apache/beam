@@ -27,11 +27,11 @@ import java.util.Map;
 import org.apache.beam.runners.core.DoFnRunner;
 import org.apache.beam.runners.core.DoFnRunners;
 import org.apache.beam.runners.gearpump.GearpumpPipelineOptions;
-import org.apache.beam.runners.gearpump.translators.utils.GearpumpDoFnRunner;
+import org.apache.beam.runners.gearpump.translators.utils.DoFnRunnerFactory;
+import org.apache.beam.runners.gearpump.translators.utils.NoOpAggregatorFactory;
 import org.apache.beam.runners.gearpump.translators.utils.NoOpSideInputReader;
 import org.apache.beam.runners.gearpump.translators.utils.NoOpStepContext;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.util.SideInputReader;
 import org.apache.beam.sdk.util.WindowedValue;
@@ -64,7 +64,7 @@ public class ParDoBoundMultiTranslator<InputT, OutputT> implements
     JavaStream<WindowedValue<KV<TupleTag<OutputT>, OutputT>>> outputStream = inputStream.flatMap(
         new DoFnMultiFunction<>(
             context.getPipelineOptions(),
-            transform.getFn(),
+            transform.getNewFn(),
             transform.getMainOutputTag(),
             transform.getSideOutputTags(),
             inputT.getWindowingStrategy(),
@@ -87,18 +87,19 @@ public class ParDoBoundMultiTranslator<InputT, OutputT> implements
       FlatMapFunction<WindowedValue<InputT>, WindowedValue<KV<TupleTag<OutputT>, OutputT>>>,
       DoFnRunners.OutputManager {
 
-    private final DoFnRunner<InputT, OutputT> doFnRunner;
+    private final DoFnRunnerFactory<InputT, OutputT> doFnRunnerFactory;
+    private DoFnRunner<InputT, OutputT> doFnRunner;
     private final List<WindowedValue<KV<TupleTag<OutputT>, OutputT>>> outputs = Lists
         .newArrayList();
 
     public DoFnMultiFunction(
         GearpumpPipelineOptions pipelineOptions,
-        OldDoFn<InputT, OutputT> doFn,
+        DoFn<InputT, OutputT> doFn,
         TupleTag<OutputT> mainOutputTag,
         TupleTagList sideOutputTags,
         WindowingStrategy<?, ?> windowingStrategy,
         SideInputReader sideInputReader) {
-      this.doFnRunner = new GearpumpDoFnRunner<>(
+      this.doFnRunnerFactory = new DoFnRunnerFactory<>(
           pipelineOptions,
           doFn,
           sideInputReader,
@@ -106,12 +107,16 @@ public class ParDoBoundMultiTranslator<InputT, OutputT> implements
           mainOutputTag,
           sideOutputTags.getAll(),
           new NoOpStepContext(),
+          new NoOpAggregatorFactory(),
           windowingStrategy
       );
     }
 
     @Override
     public Iterator<WindowedValue<KV<TupleTag<OutputT>, OutputT>>> apply(WindowedValue<InputT> wv) {
+      if (null == doFnRunner) {
+        doFnRunner = doFnRunnerFactory.createRunner();
+      }
       doFnRunner.startBundle();
       doFnRunner.processElement(wv);
       doFnRunner.finishBundle();
