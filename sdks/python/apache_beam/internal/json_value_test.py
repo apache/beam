@@ -67,6 +67,19 @@ class JsonValueTest(unittest.TestCase):
   def test_none_from(self):
     self.assertIsNone(from_json_value(to_json_value(None)))
 
+  def test_long_value(self):
+    self.assertEquals(long(27), from_json_value(to_json_value(long(27))))
+
+  def test_too_long_value(self):
+    try:
+      to_json_value(long(1 << 63))
+    except TypeError as e:
+      pass
+    except Exception as e:
+      self.fail('Unexpected exception raised:', e)
+    else:
+      self.fail('TypeError not raised.')
+
 
 if __name__ == '__main__':
   unittest.main()
