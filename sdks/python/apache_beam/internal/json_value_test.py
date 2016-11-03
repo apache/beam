@@ -72,7 +72,7 @@ class JsonValueTest(unittest.TestCase):
 
   def test_too_long_value(self):
     try:
-      to_json_value(long(1 << 63))
+      to_json_value(long(1 << 64))
     except TypeError as e:
       pass
     except Exception as e:

@@ -20,7 +20,7 @@
 from apitools.base.py import extra_types
 
 
-_MAXINT64 = 2 << 63 - 1
+_MAXINT64 = 2 << 63
 _MININT64 = -(2 << 63)
 
 
@@ -92,7 +92,7 @@ def to_json_value(obj, with_type=False):
   elif isinstance(obj, int):
     return extra_types.JsonValue(integer_value=obj)
   elif isinstance(obj, long):
-    if _MININT64 < obj < _MAXINT64:
+    if _MININT64 <= obj <= _MAXINT64:
       return extra_types.JsonValue(integer_value=obj)
     else:
       raise TypeError('Can not encode {} as a 64-bit integer'.format(obj))
