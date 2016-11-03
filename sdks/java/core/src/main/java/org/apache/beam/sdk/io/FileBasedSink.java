@@ -603,6 +603,12 @@ public abstract class FileBasedSink<T> extends Sink<T> {
       return result;
     }
 
+    @Override
+    public final void abort() throws Exception {
+      IOChannelUtils.deleteIfExists(filename);
+      close();
+    }
+
     /**
      * Return the FileBasedWriteOperation that this Writer belongs to.
      */

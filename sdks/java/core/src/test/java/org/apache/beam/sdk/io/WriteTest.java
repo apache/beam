@@ -569,6 +569,11 @@ public class WriteTest {
       state = State.CLOSED;
       return new TestWriterResult(uId, elementsWritten);
     }
+
+    @Override
+    public void abort() throws Exception {
+      close();
+    }
   }
 
   /**

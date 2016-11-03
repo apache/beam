@@ -259,6 +259,14 @@ public abstract class Sink<T> implements Serializable, HasDisplayData {
     public abstract WriteT close() throws Exception;
 
     /**
+     * Aborts writing the bundle. Removes resources used for writing the bundle,
+     * and closes this {@link Writer}.
+     *
+     * <p>Called for each failed bundle.
+     */
+    public abstract void abort() throws Exception;
+
+    /**
      * Returns the write operation this writer belongs to.
      */
     public abstract WriteOperation<T, WriteT> getWriteOperation();

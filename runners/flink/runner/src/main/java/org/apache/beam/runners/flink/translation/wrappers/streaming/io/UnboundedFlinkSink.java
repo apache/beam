@@ -150,6 +150,11 @@ public class UnboundedFlinkSink<T> extends Sink<T> {
           }
 
           @Override
+          public void abort() throws Exception {
+            close();
+          }
+
+          @Override
           public WriteOperation<T, Object> getWriteOperation() {
             return null;
           }

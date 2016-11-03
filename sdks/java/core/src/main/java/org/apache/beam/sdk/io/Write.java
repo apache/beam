@@ -178,23 +178,7 @@ public class Write {
           writer.open(UUID.randomUUID().toString());
           LOG.debug("Done opening writer {} for operation {}", writer, writeOperationView);
         }
-        try {
-          writer.write(c.element());
-        } catch (Exception e) {
-          // Discard write result and close the write.
-          try {
-            writer.close();
-            // The writer does not need to be reset, as this DoFn cannot be reused.
-          } catch (Exception closeException) {
-            if (closeException instanceof InterruptedException) {
-              // Do not silently ignore interrupted state.
-              Thread.currentThread().interrupt();
-            }
-            // Do not mask the exception that caused the write to fail.
-            e.addSuppressed(closeException);
-          }
-          throw e;
-        }
+        writer.write(c.element());
       }
 
       @FinishBundle
@@ -203,6 +187,14 @@ public class Write {
           WriteT result = writer.close();
           c.output(result);
           // Reset state in case of reuse.
+          writer = null;
+        }
+      }
+
+      @Teardown
+      public void teardown() throws Exception {
+        if (writer != null) {
+          writer.abort();
           writer = null;
         }
       }
