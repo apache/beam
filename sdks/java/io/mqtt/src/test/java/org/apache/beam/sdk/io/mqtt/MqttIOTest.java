@@ -120,8 +120,7 @@ public class MqttIOTest implements Serializable {
           client.connect();
           for (int i = 0; i < 10; i++) {
             MqttMessage message = new MqttMessage();
-            message.setQos(1);
-            message.setRetained(true);
+            message.setQos(0);
             message.setPayload(("This is test " + i).getBytes());
             client.publish("READ_TOPIC", message);
           }
@@ -149,10 +148,6 @@ public class MqttIOTest implements Serializable {
     for (int i = 0; i < 100; i++) {
       data.add("Test".getBytes());
     }
-    // we use QoS 2 here to be sure the subscriber completely receive all messages before
-    // shutting down the MQTT broker.
-    // Quality of Service 2 indicates that a message should be delivered once. The message will
-    // be persisted to disk, and will be subject to a two-phase ack.
     pipeline.apply(Create.of(data))
         .apply(MqttIO.write()
             .withConnectionConfiguration(
