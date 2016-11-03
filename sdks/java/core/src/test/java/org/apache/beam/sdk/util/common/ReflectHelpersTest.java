@@ -128,23 +128,23 @@ public class ReflectHelpersTest {
   }
 
   private interface Options extends PipelineOptions {
-    @Default.Integer(1)
-    Integer getInteger();
+    @Default.String("package.OuterClass$InnerClass#method()")
+    String getString();
 
     @JsonIgnore
     Object getObject();
   }
 
   @Test
-  public void testToStringForPrint() throws Exception {
+  public void testAnnotationFormatter() throws Exception {
     assertEquals(
-        "Default.Integer(value=1)",
-        ReflectHelpers.ANNOTATION_CONCISE_STRING.apply(
-            Options.class.getMethod("getInteger").getAnnotations()[0]));
+        "Default.String(value=package.OuterClass$InnerClass#method())",
+        ReflectHelpers.ANNOTATION_FORMATTER.apply(
+            Options.class.getMethod("getString").getAnnotations()[0]));
 
     assertEquals(
         "JsonIgnore(value=true)",
-        ReflectHelpers.ANNOTATION_CONCISE_STRING.apply(
+        ReflectHelpers.ANNOTATION_FORMATTER.apply(
             Options.class.getMethod("getObject").getAnnotations()[0]));
   }
 

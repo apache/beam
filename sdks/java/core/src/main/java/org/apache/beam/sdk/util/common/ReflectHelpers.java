@@ -90,7 +90,7 @@ public class ReflectHelpers {
   /**
    * A {@link Function} that returns a concise string for a {@link Annotation}.
    */
-  public static final Function<Annotation, String> ANNOTATION_CONCISE_STRING =
+  public static final Function<Annotation, String> ANNOTATION_FORMATTER =
       new Function<Annotation, String>() {
         @Override
         public String apply(@Nonnull Annotation annotation) {
