@@ -22,7 +22,6 @@ import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.emptyIterable;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.not;
-import static org.hamcrest.Matchers.nullValue;
 import static org.junit.Assert.assertThat;
 
 import com.google.common.collect.ImmutableList;
@@ -68,6 +67,7 @@ import org.apache.beam.sdk.values.TimestampedValue;
 import org.hamcrest.BaseMatcher;
 import org.hamcrest.Description;
 import org.hamcrest.Matcher;
+import org.hamcrest.Matchers;
 import org.joda.time.Instant;
 import org.joda.time.ReadableInstant;
 import org.junit.Before;
@@ -915,12 +915,9 @@ public class WatermarkManagerTest implements Serializable {
         filteredDoubledWms.getSynchronizedProcessingOutputTime(),
         not(earlierThan(initialFilteredDoubledWm)));
 
-    Map<AppliedPTransform<?, ?, ?>, Map<StructuralKey<?>, FiredTimers>> firedTimers =
-        manager.extractFiredTimers();
+    Collection<FiredTimers> firedTimers = manager.extractFiredTimers();
     assertThat(
-        firedTimers.get(filtered.getProducingTransformInternal())
-            .get(key)
-            .getTimers(TimeDomain.PROCESSING_TIME),
+        Iterables.getOnlyElement(firedTimers).getTimers(),
         contains(pastTimer));
     // Our timer has fired, but has not been completed, so it holds our synchronized processing WM
     assertThat(filteredWms.getSynchronizedProcessingOutputTime(), not(laterThan(startTime)));
@@ -1099,10 +1096,9 @@ public class WatermarkManagerTest implements Serializable {
 
   @Test
   public void extractFiredTimersReturnsFiredEventTimeTimers() {
-    Map<AppliedPTransform<?, ?, ?>, Map<StructuralKey<?>, FiredTimers>> initialTimers =
-        manager.extractFiredTimers();
+    Collection<FiredTimers> initialTimers = manager.extractFiredTimers();
     // Watermarks haven't advanced
-    assertThat(initialTimers.entrySet(), emptyIterable());
+    assertThat(initialTimers, emptyIterable());
 
     // Advance WM of keyed past the first timer, but ahead of the second and third
     CommittedBundle<Integer> createdBundle = multiWindowedBundle(filtered);
@@ -1136,15 +1132,11 @@ public class WatermarkManagerTest implements Serializable {
         new Instant(1000L));
     manager.refreshAll();
 
-    Map<AppliedPTransform<?, ?, ?>, Map<StructuralKey<?>, FiredTimers>> firstTransformFiredTimers =
+    Collection<FiredTimers> firstFiredTimers =
         manager.extractFiredTimers();
-    assertThat(
-        firstTransformFiredTimers.get(filtered.getProducingTransformInternal()), not(nullValue()));
-    Map<StructuralKey<?>, FiredTimers> firstFilteredTimers =
-        firstTransformFiredTimers.get(filtered.getProducingTransformInternal());
-    assertThat(firstFilteredTimers.get(key), not(nullValue()));
-    FiredTimers firstFired = firstFilteredTimers.get(key);
-    assertThat(firstFired.getTimers(TimeDomain.EVENT_TIME), contains(earliestTimer));
+    assertThat(firstFiredTimers, not(Matchers.<FiredTimers>emptyIterable()));
+    FiredTimers firstFired = Iterables.getOnlyElement(firstFiredTimers);
+    assertThat(firstFired.getTimers(), contains(earliestTimer));
 
     manager.updateWatermarks(null,
         TimerUpdate.empty(),
@@ -1153,24 +1145,18 @@ public class WatermarkManagerTest implements Serializable {
             Collections.<CommittedBundle<?>>emptyList()),
         new Instant(50_000L));
     manager.refreshAll();
-    Map<AppliedPTransform<?, ?, ?>, Map<StructuralKey<?>, FiredTimers>> secondTransformFiredTimers =
-        manager.extractFiredTimers();
-    assertThat(
-        secondTransformFiredTimers.get(filtered.getProducingTransformInternal()), not(nullValue()));
-    Map<StructuralKey<?>, FiredTimers> secondFilteredTimers =
-        secondTransformFiredTimers.get(filtered.getProducingTransformInternal());
-    assertThat(secondFilteredTimers.get(key), not(nullValue()));
-    FiredTimers secondFired = secondFilteredTimers.get(key);
+    Collection<FiredTimers> secondFiredTimers = manager.extractFiredTimers();
+    assertThat(secondFiredTimers, not(Matchers.<FiredTimers>emptyIterable()));
+    FiredTimers secondFired = Iterables.getOnlyElement(secondFiredTimers);
     // Contains, in order, middleTimer and then lastTimer
-    assertThat(secondFired.getTimers(TimeDomain.EVENT_TIME), contains(middleTimer, lastTimer));
+    assertThat(secondFired.getTimers(), contains(middleTimer, lastTimer));
   }
 
   @Test
   public void extractFiredTimersReturnsFiredProcessingTimeTimers() {
-    Map<AppliedPTransform<?, ?, ?>, Map<StructuralKey<?>, FiredTimers>> initialTimers =
-        manager.extractFiredTimers();
+    Collection<FiredTimers> initialTimers = manager.extractFiredTimers();
     // Watermarks haven't advanced
-    assertThat(initialTimers.entrySet(), emptyIterable());
+    assertThat(initialTimers, emptyIterable());
 
     // Advance WM of keyed past the first timer, but ahead of the second and third
     CommittedBundle<Integer> createdBundle = multiWindowedBundle(filtered);
@@ -1204,15 +1190,10 @@ public class WatermarkManagerTest implements Serializable {
         new Instant(1000L));
     manager.refreshAll();
 
-    Map<AppliedPTransform<?, ?, ?>, Map<StructuralKey<?>, FiredTimers>> firstTransformFiredTimers =
-        manager.extractFiredTimers();
-    assertThat(
-        firstTransformFiredTimers.get(filtered.getProducingTransformInternal()), not(nullValue()));
-    Map<StructuralKey<?>, FiredTimers> firstFilteredTimers =
-        firstTransformFiredTimers.get(filtered.getProducingTransformInternal());
-    assertThat(firstFilteredTimers.get(key), not(nullValue()));
-    FiredTimers firstFired = firstFilteredTimers.get(key);
-    assertThat(firstFired.getTimers(TimeDomain.PROCESSING_TIME), contains(earliestTimer));
+    Collection<FiredTimers> firstFiredTimers = manager.extractFiredTimers();
+    assertThat(firstFiredTimers, not(Matchers.<FiredTimers>emptyIterable()));
+    FiredTimers firstFired = Iterables.getOnlyElement(firstFiredTimers);
+    assertThat(firstFired.getTimers(), contains(earliestTimer));
 
     clock.set(new Instant(50_000L));
     manager.updateWatermarks(null,
@@ -1222,24 +1203,19 @@ public class WatermarkManagerTest implements Serializable {
             Collections.<CommittedBundle<?>>emptyList()),
         new Instant(50_000L));
     manager.refreshAll();
-    Map<AppliedPTransform<?, ?, ?>, Map<StructuralKey<?>, FiredTimers>> secondTransformFiredTimers =
+    Collection<FiredTimers> secondFiredTimers =
         manager.extractFiredTimers();
-    assertThat(
-        secondTransformFiredTimers.get(filtered.getProducingTransformInternal()), not(nullValue()));
-    Map<StructuralKey<?>, FiredTimers> secondFilteredTimers =
-        secondTransformFiredTimers.get(filtered.getProducingTransformInternal());
-    assertThat(secondFilteredTimers.get(key), not(nullValue()));
-    FiredTimers secondFired = secondFilteredTimers.get(key);
+    assertThat(secondFiredTimers, not(Matchers.<FiredTimers>emptyIterable()));
+    FiredTimers secondFired = Iterables.getOnlyElement(secondFiredTimers);
     // Contains, in order, middleTimer and then lastTimer
-    assertThat(secondFired.getTimers(TimeDomain.PROCESSING_TIME), contains(middleTimer, lastTimer));
+    assertThat(secondFired.getTimers(), contains(middleTimer, lastTimer));
   }
 
   @Test
   public void extractFiredTimersReturnsFiredSynchronizedProcessingTimeTimers() {
-    Map<AppliedPTransform<?, ?, ?>, Map<StructuralKey<?>, FiredTimers>> initialTimers =
-        manager.extractFiredTimers();
+    Collection<FiredTimers> initialTimers = manager.extractFiredTimers();
     // Watermarks haven't advanced
-    assertThat(initialTimers.entrySet(), emptyIterable());
+    assertThat(initialTimers, emptyIterable());
 
     // Advance WM of keyed past the first timer, but ahead of the second and third
     CommittedBundle<Integer> createdBundle = multiWindowedBundle(filtered);
@@ -1273,16 +1249,11 @@ public class WatermarkManagerTest implements Serializable {
         new Instant(1000L));
     manager.refreshAll();
 
-    Map<AppliedPTransform<?, ?, ?>, Map<StructuralKey<?>, FiredTimers>> firstTransformFiredTimers =
+    Collection<FiredTimers> firstFiredTimers =
         manager.extractFiredTimers();
-    assertThat(
-        firstTransformFiredTimers.get(filtered.getProducingTransformInternal()), not(nullValue()));
-    Map<StructuralKey<?>, FiredTimers> firstFilteredTimers =
-        firstTransformFiredTimers.get(filtered.getProducingTransformInternal());
-    assertThat(firstFilteredTimers.get(key), not(nullValue()));
-    FiredTimers firstFired = firstFilteredTimers.get(key);
-    assertThat(
-        firstFired.getTimers(TimeDomain.SYNCHRONIZED_PROCESSING_TIME), contains(earliestTimer));
+    assertThat(firstFiredTimers, not(Matchers.<FiredTimers>emptyIterable()));
+    FiredTimers firstFired = Iterables.getOnlyElement(firstFiredTimers);
+    assertThat(firstFired.getTimers(), contains(earliestTimer));
 
     clock.set(new Instant(50_000L));
     manager.updateWatermarks(null,
@@ -1292,18 +1263,11 @@ public class WatermarkManagerTest implements Serializable {
             Collections.<CommittedBundle<?>>emptyList()),
         new Instant(50_000L));
     manager.refreshAll();
-    Map<AppliedPTransform<?, ?, ?>, Map<StructuralKey<?>, FiredTimers>> secondTransformFiredTimers =
-        manager.extractFiredTimers();
-    assertThat(
-        secondTransformFiredTimers.get(filtered.getProducingTransformInternal()), not(nullValue()));
-    Map<StructuralKey<?>, FiredTimers> secondFilteredTimers =
-        secondTransformFiredTimers.get(filtered.getProducingTransformInternal());
-    assertThat(secondFilteredTimers.get(key), not(nullValue()));
-    FiredTimers secondFired = secondFilteredTimers.get(key);
+    Collection<FiredTimers> secondFiredTimers = manager.extractFiredTimers();
+    assertThat(secondFiredTimers, not(Matchers.<FiredTimers>emptyIterable()));
+    FiredTimers secondFired = Iterables.getOnlyElement(secondFiredTimers);
     // Contains, in order, middleTimer and then lastTimer
-    assertThat(
-        secondFired.getTimers(TimeDomain.SYNCHRONIZED_PROCESSING_TIME),
-        contains(middleTimer, lastTimer));
+    assertThat(secondFired.getTimers(), contains(middleTimer, lastTimer));
   }
 
   @Test
