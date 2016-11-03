@@ -140,7 +140,7 @@ public class ApexReadUnboundedInputOperator<OutputT, CheckpointMarkT
         Instant timestamp = reader.getCurrentTimestamp();
         available = reader.advance();
         if (traceTuples) {
-          LOG.debug("\nemitting {}\n", data);
+          LOG.debug("\nemitting '{}' timestamp {}\n", data, timestamp);
         }
         output.emit(DataTuple.of(WindowedValue.of(
             data, timestamp, GlobalWindow.INSTANCE, PaneInfo.NO_FIRING)));
