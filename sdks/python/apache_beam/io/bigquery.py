@@ -108,6 +108,7 @@ import json
 import logging
 import re
 import time
+import datetime
 import uuid
 
 from apitools.base.py.exceptions import HttpError
@@ -830,16 +831,36 @@ class BigQueryWrapper(object):
       # return True for both!).
       value = from_json_value(cell.v)
       if field.type == 'STRING':
+        # Input: "XYZ" --> Output: "XYZ"
         value = value
       elif field.type == 'BOOLEAN':
+        # Input: "true" --> Output: True
         value = value == 'true'
       elif field.type == 'INTEGER':
+        # Input: "123" --> Output: 123
         value = int(value)
       elif field.type == 'FLOAT':
+        # Input: "1.23" --> Output: 1.23
         value = float(value)
       elif field.type == 'TIMESTAMP':
-        value = float(value)
+        # The UTC should come from the timezone library but this is a known
+        # issue in python 2.7 so we'll just hardcode it as we're reading using
+        # utcfromtimestamp. This is just to match the output from the dataflow
+        # runner with the local runner.
+        # Input: 1478134176.985864 --> Output: "2016-11-03 00:49:36.985864 UTC"
+        dt = datetime.datetime.utcfromtimestamp(float(value))
+        value = dt.strftime('%Y-%m-%d %H:%M:%S.%f UTC')
       elif field.type == 'BYTES':
+        # Input: "YmJi" --> Output: "YmJi"
+        value = value
+      elif field.type == 'DATE':
+        # Input: "2016-11-03" --> Output: "2016-11-03"
+        value = value
+      elif field.type == 'DATETIME':
+        # Input: "2016-11-03T00:49:36" --> Output: "2016-11-03T00:49:36"
+        value = value
+      elif field.type == 'TIME':
+        # Input: "00:49:36" --> Output: "00:49:36"
         value = value
       else:
         # Note that a schema field object supports also a RECORD type. However
