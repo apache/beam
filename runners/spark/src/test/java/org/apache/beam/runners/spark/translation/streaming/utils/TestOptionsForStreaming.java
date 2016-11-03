@@ -19,12 +19,13 @@
 package org.apache.beam.runners.spark.translation.streaming.utils;
 
 
-import java.io.File;
-import java.net.MalformedURLException;
+import java.io.IOException;
 import org.apache.beam.runners.spark.SparkPipelineOptions;
 import org.apache.beam.runners.spark.SparkRunner;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.junit.rules.ExternalResource;
+import org.junit.rules.TemporaryFolder;
+
 
 
 /**
@@ -41,11 +42,10 @@ public class TestOptionsForStreaming extends ExternalResource {
     options.setTimeout(1000L);
   }
 
-  public SparkPipelineOptions withTmpCheckpointDir(File checkpointDir)
-      throws MalformedURLException {
+  public SparkPipelineOptions withTmpCheckpointDir(TemporaryFolder parent)
+      throws IOException {
     // tests use JUnit's TemporaryFolder path in the form of: /.../junit/...
-    // so need to add the missing protocol.
-    options.setCheckpointDir(checkpointDir.toURI().toURL().toString());
+    options.setCheckpointDir(parent.newFolder(options.getJobName()).toURI().toURL().toString());
     return options;
   }
 

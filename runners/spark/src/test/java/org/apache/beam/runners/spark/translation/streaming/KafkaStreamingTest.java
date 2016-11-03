@@ -74,8 +74,7 @@ public class KafkaStreamingTest {
 
   @Test
   public void testEarliest2Topics() throws Exception {
-    SparkPipelineOptions options = commonOptions.withTmpCheckpointDir(
-        checkpointParentDir.newFolder(getClass().getSimpleName()));
+    SparkPipelineOptions options = commonOptions.withTmpCheckpointDir(checkpointParentDir);
     // It seems that the consumer's first "position" lookup (in unit test) takes +200 msec,
     // so to be on the safe side we'll set to 750 msec.
     options.setMinReadTimeMillis(750L);
@@ -122,8 +121,7 @@ public class KafkaStreamingTest {
 
   @Test
   public void testLatest() throws Exception {
-    SparkPipelineOptions options = commonOptions.withTmpCheckpointDir(
-        checkpointParentDir.newFolder(getClass().getSimpleName()));
+    SparkPipelineOptions options = commonOptions.withTmpCheckpointDir(checkpointParentDir);
     //--- setup
     final String topic = "topic";
     // messages.
