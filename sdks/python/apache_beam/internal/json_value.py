@@ -19,8 +19,10 @@
 
 from apitools.base.py import extra_types
 
+
 _MAXINT64 = 2 << 63 - 1
 _MININT64 = -(2 << 63)
+
 
 def get_typed_value_descriptor(obj):
   """Converts a basic type into a @type/value dictionary.
