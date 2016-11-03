@@ -228,15 +228,16 @@ class TestAvro(unittest.TestCase):
   def test_corrupted_file(self):
     file_name = self._write_data()
     with open(file_name, 'rb') as f:
-      data = bytearray(f.read())
+      data = f.read()
 
     # Corrupt the last character of the file which is also the last character of
     # the last sync_marker.
+    last_char_index = len(data) - 1
+    corrupted_data = data[:last_char_index]
+    corrupted_data += 'A' if data[last_char_index] == 'B' else 'B'
     with tempfile.NamedTemporaryFile(
         delete=False, prefix=tempfile.template) as f:
-      last_char_index = len(data) - 1
-      data[last_char_index] = 'A' if data[last_char_index] == 'B' else 'A'
-      f.write(data)
+      f.write(corrupted_data)
       corrupted_file_name = f.name
 
     source = AvroSource(corrupted_file_name)
