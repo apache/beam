@@ -987,6 +987,7 @@
               <exclude>**/hs_err_pid*.log</exclude>
               <exclude>.github/**/*</exclude>
               <exclude>**/*.iml</exclude>
+              <exclude>**/.idea/**/*</exclude>
               <exclude>**/package-list</exclude>
               <exclude>**/user.avsc</exclude>
               <exclude>**/test/resources/**/*.txt</exclude>
