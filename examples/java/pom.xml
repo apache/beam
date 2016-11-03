@@ -39,64 +39,27 @@
   </properties>
 
   <profiles>
-    <!--
-      A default profile that includes optional dependencies
-      on all of our runners. This is aimed at making it very
-      easy for users to run examples with any runner without
-      any configuration. It is not needed or desirable when
-      testing the examples with a particular runner.
-
-      This profile can be disabled on the command line
-      by specifying -P !include-runners.
-
-      This profile cannot be lifted to examples-parent because
-      it would be automatically deactivated when the Java 8
-      profile were activated.
-    -->
+    <!-- Include SparkRunner and deps with -P spark-runner -->
     <profile>
-      <id>include-runners</id>
-      <activation>
-        <activeByDefault>true</activeByDefault>
-      </activation>
+      <id>spark-runner</id>
       <dependencies>
-        <dependency>
-          <groupId>org.apache.beam</groupId>
-          <artifactId>beam-runners-direct-java</artifactId>
-          <version>${project.version}</version>
-          <scope>runtime</scope>
-          <optional>true</optional>
-        </dependency>
-
-        <dependency>
-          <groupId>org.apache.beam</groupId>
-          <artifactId>beam-runners-flink_2.10</artifactId>
-          <version>${project.version}</version>
-          <scope>runtime</scope>
-          <optional>true</optional>
-        </dependency>
-
-        <dependency>
-          <groupId>org.apache.beam</groupId>
-          <artifactId>beam-runners-google-cloud-dataflow-java</artifactId>
-          <version>${project.version}</version>
-          <scope>runtime</scope>
-          <optional>true</optional>
-        </dependency>
-
         <dependency>
           <groupId>org.apache.beam</groupId>
           <artifactId>beam-runners-spark</artifactId>
           <version>${project.version}</version>
           <scope>runtime</scope>
-          <optional>true</optional>
         </dependency>
-
+        <dependency>
+          <groupId>org.apache.spark</groupId>
+          <artifactId>spark-streaming_2.10</artifactId>
+          <version>${spark.version}</version>
+          <scope>runtime</scope>
+        </dependency>
         <dependency>
           <groupId>org.apache.spark</groupId>
           <artifactId>spark-core_2.10</artifactId>
           <version>${spark.version}</version>
           <scope>runtime</scope>
-          <optional>true</optional>
           <exclusions>
             <exclusion>
               <groupId>org.slf4j</groupId>
@@ -104,16 +67,35 @@
             </exclusion>
           </exclusions>
         </dependency>
+      </dependencies>
+    </profile>
 
+    <!-- Include FlinkRunner and deps with -P flink-runner -->
+    <profile>
+      <id>flink-runner</id>
+      <dependencies>
         <dependency>
-          <groupId>org.apache.spark</groupId>
-          <artifactId>spark-streaming_2.10</artifactId>
-          <version>${spark.version}</version>
+          <groupId>org.apache.beam</groupId>
+          <artifactId>beam-runners-flink_2.10</artifactId>
+          <version>${project.version}</version>
           <scope>runtime</scope>
-          <optional>true</optional>
         </dependency>
       </dependencies>
     </profile>
+
+    <!-- Include DataflowRunner and deps with -P dataflow-runner -->
+    <profile>
+      <id>dataflow-runner</id>
+      <dependencies>
+        <dependency>
+          <groupId>org.apache.beam</groupId>
+          <artifactId>beam-runners-google-cloud-dataflow-java</artifactId>
+          <scope>runtime</scope>
+        </dependency>
+      </dependencies>
+    </profile>
+
+    <!-- Custom set up for our Jenkins precommit tests that comment on GitHub -->
     <profile>
       <id>jenkins-precommit</id>
       <properties>
