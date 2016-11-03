@@ -79,6 +79,8 @@ import org.slf4j.LoggerFactory;
  * @param <T> the type of values written to the sink.
  */
 public abstract class FileBasedSink<T> extends Sink<T> {
+  private static final Logger LOG = LoggerFactory.getLogger(FileBasedWriteOperation.class);
+
   /**
    * Directly supported file output compression types.
    */
@@ -266,11 +268,11 @@ public abstract class FileBasedSink<T> extends Sink<T> {
    * FileBasedSinkWriter.
    *
    * <h2>Temporary and Output File Naming:</h2> During the write, bundles are written to temporary
-   * files using the baseTemporaryFilename that can be provided via the constructor of
+   * files using the tempDirectory that can be provided via the constructor of
    * FileBasedWriteOperation. These temporary files will be named
-   * {@code {baseTemporaryFilename}-temp-{bundleId}}, where bundleId is the unique id of the bundle.
-   * For example, if baseTemporaryFilename is "gs://my-bucket/my_temp_output", the output for a
-   * bundle with bundle id 15723 will be "gs://my-bucket/my_temp_output-temp-15723".
+   * {@code {tempDirectory}/{bundleId}}, where bundleId is the unique id of the bundle.
+   * For example, if tempDirectory is "gs://my-bucket/my_temp_output", the output for a
+   * bundle with bundle id 15723 will be "gs://my-bucket/my_temp_output/15723".
    *
    * <p>Final output files are written to baseOutputFilename with the format
    * {@code {baseOutputFilename}-0000i-of-0000n.{extension}} where n is the total number of bundles
@@ -294,8 +296,6 @@ public abstract class FileBasedSink<T> extends Sink<T> {
    * @param <T> the type of values written to the sink.
    */
   public abstract static class FileBasedWriteOperation<T> extends WriteOperation<T, FileResult> {
-    private static final Logger LOG = LoggerFactory.getLogger(FileBasedWriteOperation.class);
-
     /**
      * Options for handling of temporary output files.
      */
@@ -314,27 +314,21 @@ public abstract class FileBasedSink<T> extends Sink<T> {
      */
     protected final TemporaryFileRetention temporaryFileRetention;
 
-    /**
-     * Base filename used for temporary output files. Default is the baseOutputFilename.
-     */
-    protected final String baseTemporaryFilename;
+    /** Directory for temporary output files. */
+    protected final String tempDirectory;
 
-    /**
-     * Build a temporary filename using the temporary filename separator with the given prefix and
-     * suffix.
-     */
-    protected static final String buildTemporaryFilename(String prefix, String suffix) {
-      try {
-        IOChannelFactory factory = IOChannelUtils.getFactory(prefix);
-        return factory.resolve(prefix, suffix);
-      } catch (IOException e) {
-        throw new RuntimeException(e);
-      }
+    /** Constructs a temporary file path given the temporary directory and a filename. */
+    protected static String buildTemporaryFilename(String tempDirectory, String filename)
+        throws IOException {
+      return IOChannelUtils.getFactory(tempDirectory).resolve(tempDirectory, filename);
     }
 
     /**
-     * Construct a FileBasedWriteOperation using the same base filename for both temporary and
-     * output files.
+     * Constructs a FileBasedWriteOperation using the default strategy for generating a temporary
+     * directory from the base output filename.
+     *
+     * <p>Default is a uniquely named sibling of baseOutputFilename, e.g. if baseOutputFilename is
+     * /path/to/foo, the temporary directory will be /path/to/temp-beam-foo-$date.
      *
      * @param sink the FileBasedSink that will be used to configure this write operation.
      */
@@ -362,23 +356,23 @@ public abstract class FileBasedSink<T> extends Sink<T> {
      * Construct a FileBasedWriteOperation.
      *
      * @param sink the FileBasedSink that will be used to configure this write operation.
-     * @param baseTemporaryFilename the base filename to be used for temporary output files.
+     * @param tempDirectory the base directory to be used for temporary output files.
      */
-    public FileBasedWriteOperation(FileBasedSink<T> sink, String baseTemporaryFilename) {
-      this(sink, baseTemporaryFilename, TemporaryFileRetention.REMOVE);
+    public FileBasedWriteOperation(FileBasedSink<T> sink, String tempDirectory) {
+      this(sink, tempDirectory, TemporaryFileRetention.REMOVE);
     }
 
     /**
      * Create a new FileBasedWriteOperation.
      *
      * @param sink the FileBasedSink that will be used to configure this write operation.
-     * @param baseTemporaryFilename the base filename to be used for temporary output files.
+     * @param tempDirectory the base directory to be used for temporary output files.
      * @param temporaryFileRetention defines how temporary files are handled.
      */
-    public FileBasedWriteOperation(FileBasedSink<T> sink, String baseTemporaryFilename,
+    public FileBasedWriteOperation(FileBasedSink<T> sink, String tempDirectory,
         TemporaryFileRetention temporaryFileRetention) {
       this.sink = sink;
-      this.baseTemporaryFilename = baseTemporaryFilename;
+      this.tempDirectory = tempDirectory;
       this.temporaryFileRetention = temporaryFileRetention;
     }
 
@@ -487,21 +481,17 @@ public abstract class FileBasedSink<T> extends Sink<T> {
     }
 
     /**
-     * Removes temporary output files. Uses the temporary filename to find files to remove.
+     * Removes temporary output files. Uses the temporary directory to find files to remove.
      *
      * <p>Can be called from subclasses that override {@link FileBasedWriteOperation#finalize}.
      * <b>Note:</b>If finalize is overridden and does <b>not</b> rename or otherwise finalize
      * temporary files, this method will remove them.
      */
     protected final void removeTemporaryFiles(PipelineOptions options) throws IOException {
-      String pattern = buildTemporaryFilename(baseTemporaryFilename, "*");
-      LOG.debug("Finding temporary bundle output files matching {}.", pattern);
-      FileOperations fileOperations = FileOperationsFactory.getFileOperations(pattern, options);
-      IOChannelFactory factory = IOChannelUtils.getFactory(pattern);
-      Collection<String> matches = factory.match(pattern);
-      LOG.debug("{} temporary files matched {}", matches.size(), pattern);
-      LOG.debug("Removing {} files.", matches.size());
-      fileOperations.remove(matches);
+      LOG.debug("Removing temporary bundle output files in {}.", tempDirectory);
+      FileOperations fileOperations =
+          FileOperationsFactory.getFileOperations(tempDirectory, options);
+      fileOperations.removeDirectoryRecursively(tempDirectory);
     }
 
     /**
@@ -546,9 +536,7 @@ public abstract class FileBasedSink<T> extends Sink<T> {
     private String id;
 
     /**
-     * The filename of the output bundle. Equal to the
-     * {@link FileBasedSink.FileBasedWriteOperation#TEMPORARY_FILENAME_SEPARATOR} and id appended to
-     * the baseName.
+     * The filename of the output bundle - $tempDirectory/$id.
      */
     private String filename;
 
@@ -601,7 +589,7 @@ public abstract class FileBasedSink<T> extends Sink<T> {
     public final void open(String uId) throws Exception {
       this.id = uId;
       filename = FileBasedWriteOperation.buildTemporaryFilename(
-          getWriteOperation().baseTemporaryFilename, uId);
+          getWriteOperation().tempDirectory, uId);
       LOG.debug("Opening {}.", filename);
       final WritableByteChannelFactory factory =
           getWriteOperation().getSink().writableByteChannelFactory;
@@ -684,9 +672,9 @@ public abstract class FileBasedSink<T> extends Sink<T> {
         throws IOException {
       IOChannelFactory factory = IOChannelUtils.getFactory(spec);
       if (factory instanceof GcsIOChannelFactory) {
-        return new GcsOperations(options);
+        return new GcsOperations(factory, options);
       } else if (factory instanceof FileIOChannelFactory) {
-        return new LocalFileOperations();
+        return new LocalFileOperations(factory);
       } else {
         throw new IOException("Unrecognized file system.");
       }
@@ -709,10 +697,8 @@ public abstract class FileBasedSink<T> extends Sink<T> {
      */
      void copy(List<String> srcFilenames, List<String> destFilenames) throws IOException;
 
-    /**
-     * Remove a collection of files.
-     */
-    void remove(Collection<String> filenames) throws IOException;
+    /** Removes an empty directory. */
+    void removeDirectoryRecursively(String directory) throws IOException;
   }
 
   /**
@@ -721,7 +707,7 @@ public abstract class FileBasedSink<T> extends Sink<T> {
   private static class GcsOperations implements FileOperations {
     private final GcsUtil gcsUtil;
 
-    public GcsOperations(PipelineOptions options) {
+    public GcsOperations(IOChannelFactory factory, PipelineOptions options) {
       gcsUtil = new GcsUtilFactory().create(options);
     }
 
@@ -731,8 +717,13 @@ public abstract class FileBasedSink<T> extends Sink<T> {
     }
 
     @Override
-    public void remove(Collection<String> filenames) throws IOException {
-      gcsUtil.remove(filenames);
+    public void removeDirectoryRecursively(String directory) throws IOException {
+      IOChannelFactory factory = IOChannelUtils.getFactory(directory);
+      Collection<String> matches = factory.match(directory + "/*");
+      LOG.debug("Removing {} temporary files found under {}", matches.size(), directory);
+      gcsUtil.remove(matches);
+      // No need to remove the directory itself: GCS doesn't have directories, so if the directory
+      // is empty, then it already doesn't exist.
     }
   }
 
@@ -741,6 +732,12 @@ public abstract class FileBasedSink<T> extends Sink<T> {
    */
   private static class LocalFileOperations implements FileOperations {
     private static final Logger LOG = LoggerFactory.getLogger(LocalFileOperations.class);
+
+    private final IOChannelFactory factory;
+
+    public LocalFileOperations(IOChannelFactory factory) {
+      this.factory = factory;
+    }
 
     @Override
     public void copy(List<String> srcFilenames, List<String> destFilenames) throws IOException {
@@ -773,11 +770,18 @@ public abstract class FileBasedSink<T> extends Sink<T> {
     }
 
     @Override
-    public void remove(Collection<String> filenames) throws IOException {
-      for (String filename : filenames) {
+    public void removeDirectoryRecursively(String directory) throws IOException {
+      if (!new File(directory).exists()) {
+        LOG.debug("Directory {} already doesn't exist", directory);
+        return;
+      }
+      Collection<String> matches = factory.match(new File(directory, "*").getAbsolutePath());
+      LOG.debug("Removing {} temporary files found under {}", matches.size(), directory);
+      for (String filename : matches) {
         LOG.debug("Removing file {}", filename);
         removeOne(filename);
       }
+      removeOne(directory);
     }
 
     private void removeOne(String filename) throws IOException {

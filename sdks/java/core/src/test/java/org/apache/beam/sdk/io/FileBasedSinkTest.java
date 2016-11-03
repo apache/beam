@@ -67,7 +67,7 @@ public class FileBasedSinkTest {
   public TemporaryFolder tmpFolder = new TemporaryFolder();
 
   private String baseOutputFilename = "output";
-  private String baseTemporaryFilename = "temp";
+  private String tempDirectory = "temp";
 
   private String appendToTempFolder(String filename) {
     return Paths.get(tmpFolder.getRoot().getPath(), filename).toString();
@@ -77,8 +77,8 @@ public class FileBasedSinkTest {
     return appendToTempFolder(baseOutputFilename);
   }
 
-  private String getBaseTempFilename() {
-    return appendToTempFolder(baseTemporaryFilename);
+  private String getBaseTempDirectory() {
+    return appendToTempFolder(tempDirectory);
   }
 
   /**
@@ -89,7 +89,7 @@ public class FileBasedSinkTest {
   public void testWriter() throws Exception {
     String testUid = "testId";
     String expectedFilename =
-        getBaseTempFilename() + "/" + testUid;
+        getBaseTempDirectory() + "/" + testUid;
     SimpleSink.SimpleWriter writer = buildWriter();
 
     List<String> values = Arrays.asList("sympathetic vulture", "boresome hummingbird");
@@ -141,7 +141,7 @@ public class FileBasedSinkTest {
    */
   @Test
   public void testRemoveWithTempFilename() throws Exception {
-    testRemoveTemporaryFiles(3, baseTemporaryFilename);
+    testRemoveTemporaryFiles(3, tempDirectory);
   }
 
   /**
@@ -193,7 +193,8 @@ public class FileBasedSinkTest {
     runFinalize(writeOp, files, false);
 
     // create a temporary file
-    tmpFolder.newFile(baseTemporaryFilename + "/1");
+    tmpFolder.newFolder(tempDirectory);
+    tmpFolder.newFile(tempDirectory + "/1");
 
     runFinalize(writeOp, files, false);
   }
@@ -215,7 +216,7 @@ public class FileBasedSinkTest {
     List<File> temporaryFiles = new ArrayList<>();
     for (int i = 0; i < numFiles; i++) {
       String temporaryFilename =
-          FileBasedWriteOperation.buildTemporaryFilename(baseTemporaryFilename, "" + i);
+          FileBasedWriteOperation.buildTemporaryFilename(tempDirectory, "" + i);
       File tmpFile = new File(tmpFolder.getRoot(), temporaryFilename);
       tmpFile.getParentFile().mkdirs();
       assertTrue(tmpFile.createNewFile());
@@ -249,6 +250,10 @@ public class FileBasedSinkTest {
     for (int i = 0; i < numFiles; i++) {
       assertTrue(outputFiles.get(i).exists());
       assertEquals(retainTemporaryFiles, temporaryFiles.get(i).exists());
+    }
+
+    if (!retainTemporaryFiles) {
+      assertFalse(new File(writeOp.tempDirectory).exists());
     }
   }
 
@@ -505,7 +510,7 @@ public class FileBasedSinkTest {
     final FileBasedWriter<String> writer =
         writeOp.createWriter(null);
     final String expectedFilename =
-        writeOp.baseTemporaryFilename + "/" + testUid;
+        writeOp.tempDirectory + "/" + testUid;
 
     final List<String> expected = new ArrayList<>();
     expected.add("header");
@@ -617,7 +622,7 @@ public class FileBasedSinkTest {
   private SimpleSink.SimpleWriteOperation buildWriteOperation(
       TemporaryFileRetention fileRetention) {
     SimpleSink sink = buildSink();
-    return new SimpleSink.SimpleWriteOperation(sink, getBaseTempFilename(), fileRetention);
+    return new SimpleSink.SimpleWriteOperation(sink, getBaseTempDirectory(), fileRetention);
   }
 
   /**
@@ -634,7 +639,7 @@ public class FileBasedSinkTest {
   private SimpleSink.SimpleWriteOperation buildWriteOperation() {
     SimpleSink sink = buildSink();
     return new SimpleSink.SimpleWriteOperation(
-        sink, getBaseTempFilename(), TemporaryFileRetention.REMOVE);
+        sink, getBaseTempDirectory(), TemporaryFileRetention.REMOVE);
   }
 
   /**
