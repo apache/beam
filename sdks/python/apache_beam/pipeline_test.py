@@ -180,6 +180,43 @@ class PipelineTest(unittest.TestCase):
         ['a-x', 'b-x', 'c-x'],
         sorted(['a', 'b', 'c'] | 'AddSuffix' >> AddSuffix('-x')))
 
+  def test_memory_usage(self):
+    try:
+      import resource
+    except ImportError:
+      # Skip the test if resource module is not available (e.g. non-Unix os).
+      self.skipTest('resource module not available.')
+
+    def get_memory_usage_in_bytes():
+      return resource.getrusage(resource.RUSAGE_SELF).ru_maxrss * (2 ** 10)
+
+    def check_memory(value, memory_threshold):
+      memory_usage = get_memory_usage_in_bytes()
+      if memory_usage > memory_threshold:
+        raise RuntimeError(
+            'High memory usage: %d > %d' % (memory_usage, memory_threshold))
+      return value
+
+    len_elements = 1000000
+    num_elements = 10
+    num_maps = 100
+
+    pipeline = Pipeline('DirectPipelineRunner')
+
+    # Consumed memory should not be proportional to the number of maps.
+    memory_threshold = (
+        get_memory_usage_in_bytes() + (3 * len_elements * num_elements))
+
+    biglist = pipeline | 'oom:create' >> Create(
+        ['x' * len_elements] * num_elements)
+    for i in range(num_maps):
+      biglist = biglist | ('oom:addone-%d' % i) >> Map(lambda x: x + 'y')
+    result = biglist | 'oom:check' >> Map(check_memory, memory_threshold)
+    assert_that(result, equal_to(
+        ['x' * len_elements + 'y' * num_maps] * num_elements))
+
+    pipeline.run()
+
   def test_pipeline_as_context(self):
     def raise_exception(exn):
       raise exn
