@@ -1,8 +1,8 @@
 ---
 layout: default
 title: "Beam Presentation Materials"
-permalink: /learn/presentation-materials/
-redirect_from: /presentation-materials/
+permalink: /contribute/presentation-materials/
+redirect_from: /learn/presentation-materials/
 ---
 
 # Apache Beam Presentation Materials

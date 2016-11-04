@@ -1,13 +1,16 @@
 ---
 layout: default
-title: "Beam Mailing Lists"
-permalink: /use/mailing-lists/
-redirect_from: /mailing_lists/
+title: "Support"
+permalink: /get-started/support/
 ---
 
-# Apache Beam Mailing Lists
+# Support
 
-These are the mailing lists that have been established for this project.
+You can find different means of support in the sections below.
+
+## Mailing Lists
+
+The following are the mailing lists that have been established for the Apache Beam project.
 
 <table class="table table-hover">
   <thead>
@@ -47,3 +50,23 @@ These are the mailing lists that have been established for this project.
     </tr>
 </tbody>
 </table>
+
+## Issue Tracking
+
+Apache Beam project uses [JIRA](http://www.atlassian.com/software/jira) for issue tracking.
+
+Issues, bugs, and feature requests should be submitted to the following issue tracking system for this project.
+
+<code>
+<a href="https://issues.apache.org/jira/browse/BEAM">https://issues.apache.org/jira/browse/BEAM</a>
+</code>
+
+## Beam on Stack Overflow
+
+You can find answers to many questions about [Beam on Stack Overflow](http://stackoverflow.com/questions/tagged/apache-beam).
+
+## Beam Slack Channel
+
+You can participate in discussions and ask questions on the [Beam Slack Channel](https://apachebeam.slack.com/).
+
+

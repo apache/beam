@@ -1,7 +1,8 @@
 ---
 layout: default
 title: "Beam Team"
-permalink: /project/team/
+permalink: /contribute/team/
+redirect_from: /project/team/
 redirect_from: /team/
 ---
 

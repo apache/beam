@@ -1,7 +1,8 @@
 ---
 layout: default
 title: "Apache Direct Runner"
-permalink: /learn/runners/direct/
+permalink: /documentation/runners/direct/
+redirect-from: /learn/runners/direct/
 ---
 # Using the Direct Runner
 
