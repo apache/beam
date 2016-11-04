@@ -321,6 +321,8 @@ class OrderedPositionRangeTracker(iobase.RangeTracker):
       if self._stop_position is None or position < self._stop_position:
         self._last_claim = position
         return True
+      else:
+        return False
 
   def position_at_fraction(self, fraction):
     return self.fraction_to_position(
@@ -328,7 +330,7 @@ class OrderedPositionRangeTracker(iobase.RangeTracker):
 
   def try_split(self, position):
     with self._lock:
-      if ((self._stop_position is not None and position > self._stop_position)
+      if ((self._stop_position is not None and position >= self._stop_position)
           or (self._start_position is not None
               and position <= self._start_position)):
         raise ValueError("Split at '%s' not in range %s" % (
@@ -338,6 +340,8 @@ class OrderedPositionRangeTracker(iobase.RangeTracker):
             position, start=self._start_position, end=self._stop_position)
         self._stop_position = position
         return position, fraction
+      else:
+        return None
 
   def fraction_consumed(self):
     if self._last_claim is self.UNSTARTED:
@@ -435,7 +439,9 @@ class LexicographicKeyRangeTracker(OrderedPositionRangeTracker):
       istart = cls._string_to_int(start, prec)
       iend = cls._string_to_int(end, prec) if end else 1 << (prec * 8)
       ikey = istart + int((iend - istart) * fraction)
-      # Could happen due to rounding.
+      # Could be equal due to rounding.
+      # Adjust to ensure we never return the actual start and end
+      # unless fration is exatly 0 or 1.
       if ikey == istart:
         ikey += 1
       elif ikey == iend:

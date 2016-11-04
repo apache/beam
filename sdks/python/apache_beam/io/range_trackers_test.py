@@ -363,7 +363,8 @@ class OrderedPositionRangeTrackerTest(unittest.TestCase):
     self.assertTrue(tracker.try_claim(17))
     # but can't split before claimed 17,
     self.assertIsNone(tracker.try_split(16))
-    # nor claim anything after 18.
+    # nor claim anything at or after 18.
+    self.assertFalse(tracker.try_claim(18))
     self.assertFalse(tracker.try_claim(19))
 
   def test_claim_order(self):
@@ -381,7 +382,7 @@ class OrderedPositionRangeTrackerTest(unittest.TestCase):
     # Can't split before range.
     with self.assertRaises(ValueError):
       tracker.try_split(-5)
-    # Can't split at start position.
+    # Reject useless split at start position.
     with self.assertRaises(ValueError):
       tracker.try_split(10)
     # Can't split after range.
@@ -391,7 +392,10 @@ class OrderedPositionRangeTrackerTest(unittest.TestCase):
     # Can't split after modified range.
     with self.assertRaises(ValueError):
       tracker.try_split(17)
-
+    # Reject useless split at end position.
+    with self.assertRaises(ValueError):
+      tracker.try_split(15)
+    self.assertTrue(tracker.try_split(14))
 
 class UnsplittableRangeTrackerTest(unittest.TestCase):
 
