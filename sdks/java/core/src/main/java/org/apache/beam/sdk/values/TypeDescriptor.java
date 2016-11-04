@@ -289,6 +289,19 @@ public abstract class TypeDescriptor<T> implements Serializable {
   }
 
   /**
+   * Returns a set of {@link TypeDescriptor TypeDescriptor}, one for each
+   * superclass as well as each interface implemented by this class.
+   */
+  @SuppressWarnings("rawtypes")
+  public Iterable<TypeDescriptor> getTypes() {
+    List<TypeDescriptor> interfaces = Lists.newArrayList();
+    for (TypeToken<?> interfaceToken : token.getTypes()) {
+      interfaces.add(new SimpleTypeDescriptor<>(interfaceToken));
+    }
+    return interfaces;
+  }
+
+  /**
    * Returns a set of {@link TypeDescriptor}s, one for each
    * interface implemented by this class.
    */
