@@ -23,8 +23,6 @@ import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -52,6 +50,7 @@ import net.bytebuddy.implementation.bytecode.StackManipulation;
 import net.bytebuddy.implementation.bytecode.Throw;
 import net.bytebuddy.implementation.bytecode.assign.Assigner;
 import net.bytebuddy.implementation.bytecode.assign.TypeCasting;
+import net.bytebuddy.implementation.bytecode.constant.TextConstant;
 import net.bytebuddy.implementation.bytecode.member.FieldAccess;
 import net.bytebuddy.implementation.bytecode.member.MethodInvocation;
 import net.bytebuddy.implementation.bytecode.member.MethodReturn;
@@ -77,6 +76,7 @@ import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.Restrictio
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.StateParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.TimerParameter;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
+import org.apache.beam.sdk.util.Timer;
 import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.beam.sdk.values.TypeDescriptor;
 
@@ -503,15 +503,15 @@ public class DoFnInvokers {
     }
   }
 
-  private static StackManipulation simpleExtraContextParameter(
-    String methodName,
-    StackManipulation pushExtraContextFactory) {
+  /**
+   * This wrapper exists to convert checked exceptions to unchecked exceptions, since if this fails
+   * the library itself is malformed.
+   */
+  private static MethodDescription getExtraContextFactoryMethodDescription(
+      String methodName, Class<?>... parameterTypes) {
     try {
-      return new StackManipulation.Compound(
-        pushExtraContextFactory,
-        MethodInvocation.invoke(
-            new MethodDescription.ForLoadedMethod(
-                DoFn.ExtraContextFactory.class.getMethod(methodName))));
+    return new MethodDescription.ForLoadedMethod(
+                DoFn.ExtraContextFactory.class.getMethod(methodName, parameterTypes));
     } catch (Exception e) {
       throw new IllegalStateException(
           String.format(
@@ -521,47 +521,69 @@ public class DoFnInvokers {
     }
   }
 
+  private static StackManipulation simpleExtraContextParameter(
+    String methodName,
+    StackManipulation pushExtraContextFactory) {
+      return new StackManipulation.Compound(
+        pushExtraContextFactory,
+        MethodInvocation.invoke(getExtraContextFactoryMethodDescription(methodName)));
+  }
+
   private static StackManipulation getExtraContextParameter(
       DoFnSignature.Parameter parameter,
       final StackManipulation pushExtraContextFactory) {
 
-    return parameter.match(new Cases<StackManipulation>() {
+    return parameter.match(
+        new Cases<StackManipulation>() {
 
-      @Override
-      public StackManipulation dispatch(BoundedWindowParameter p) {
-        return simpleExtraContextParameter("window", pushExtraContextFactory);
-      }
+          @Override
+          public StackManipulation dispatch(BoundedWindowParameter p) {
+            return simpleExtraContextParameter("window", pushExtraContextFactory);
+          }
 
-      @Override
-      public StackManipulation dispatch(InputProviderParameter p) {
-        return simpleExtraContextParameter("inputProvider", pushExtraContextFactory);
-      }
+          @Override
+          public StackManipulation dispatch(InputProviderParameter p) {
+            return simpleExtraContextParameter("inputProvider", pushExtraContextFactory);
+          }
 
-      @Override
-      public StackManipulation dispatch(OutputReceiverParameter p) {
-        return simpleExtraContextParameter("outputReceiver", pushExtraContextFactory);
-      }
+          @Override
+          public StackManipulation dispatch(OutputReceiverParameter p) {
+            return simpleExtraContextParameter("outputReceiver", pushExtraContextFactory);
+          }
 
-      @Override
-      public StackManipulation dispatch(RestrictionTrackerParameter p) {
-        // ExtraContextFactory.restrictionTracker() returns a RestrictionTracker,
-        // but the @ProcessElement method expects a concrete subtype of it.
-        // Insert a downcast.
-        return new StackManipulation.Compound(
-            simpleExtraContextParameter("restrictionTracker", pushExtraContextFactory),
-            TypeCasting.to(new TypeDescription.ForLoadedType(p.trackerT().getRawType())));
-      }
+          @Override
+          public StackManipulation dispatch(RestrictionTrackerParameter p) {
+            // ExtraContextFactory.restrictionTracker() returns a RestrictionTracker,
+            // but the @ProcessElement method expects a concrete subtype of it.
+            // Insert a downcast.
+            return new StackManipulation.Compound(
+                simpleExtraContextParameter("restrictionTracker", pushExtraContextFactory),
+                TypeCasting.to(new TypeDescription.ForLoadedType(p.trackerT().getRawType())));
+          }
 
-      @Override
-      public StackManipulation dispatch(StateParameter p) {
-        throw new UnsupportedOperationException("State parameters are not yet supported.");
-      }
+          @Override
+          public StackManipulation dispatch(StateParameter p) {
+            return new StackManipulation.Compound(
+                // TOP = extraContextFactory.state(<id>)
+                pushExtraContextFactory,
+                new TextConstant(p.referent().id()),
+                MethodInvocation.invoke(
+                    getExtraContextFactoryMethodDescription("state", String.class)),
+                TypeCasting.to(
+                    new TypeDescription.ForLoadedType(p.referent().stateType().getRawType())));
+          }
 
-      @Override
-      public StackManipulation dispatch(TimerParameter p) {
-        throw new UnsupportedOperationException("Timer parameters are not yet supported.");
-      }
-    });
+          @Override
+          public StackManipulation dispatch(TimerParameter p) {
+            return new StackManipulation.Compound(
+                // TOP = extraContextFactory.state(<id>)
+                pushExtraContextFactory,
+                new TextConstant(p.referent().id()),
+                MethodInvocation.invoke(
+                    getExtraContextFactoryMethodDescription("timer", String.class)),
+                TypeCasting.to(new TypeDescription.ForLoadedType(Timer.class)));
+          }
+        });
   }
 
   /**

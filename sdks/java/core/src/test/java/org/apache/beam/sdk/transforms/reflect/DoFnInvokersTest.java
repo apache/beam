@@ -37,16 +37,23 @@ import java.util.Arrays;
 import java.util.List;
 import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.coders.CustomCoder;
+import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.DoFn.GetInitialRestriction;
 import org.apache.beam.sdk.transforms.DoFn.ExtraContextFactory;
 import org.apache.beam.sdk.transforms.DoFn.ProcessContinuation;
 import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.transforms.reflect.testhelper.DoFnInvokersTestHelper;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.util.TimeDomain;
+import org.apache.beam.sdk.util.Timer;
+import org.apache.beam.sdk.util.TimerSpec;
+import org.apache.beam.sdk.util.TimerSpecs;
 import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.beam.sdk.util.WindowingInternals;
+import org.apache.beam.sdk.util.state.StateSpec;
+import org.apache.beam.sdk.util.state.StateSpecs;
+import org.apache.beam.sdk.util.state.ValueState;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -171,6 +178,56 @@ public class DoFnInvokersTest {
     MockFn fn = mock(MockFn.class);
     assertEquals(ProcessContinuation.stop(), invokeProcessElement(fn));
     verify(fn).processElement(mockContext, mockWindow);
+  }
+
+  /**
+   * Tests that the generated {@link DoFnInvoker} passes the state parameter that it
+   * should.
+   */
+  @Test
+  public void testDoFnWithState() throws Exception {
+    ValueState<Integer> mockState = mock(ValueState.class);
+    final String stateId = "my-state-id-here";
+    when(extraContextFactory.state(stateId)).thenReturn(mockState);
+
+    class MockFn extends DoFn<String, String> {
+      @StateId(stateId)
+      private final StateSpec<Object, ValueState<Integer>> spec =
+          StateSpecs.value(VarIntCoder.of());
+
+      @ProcessElement
+      public void processElement(ProcessContext c, @StateId(stateId) ValueState<Integer> valueState)
+          throws Exception {}
+    }
+    MockFn fn = mock(MockFn.class);
+    assertEquals(ProcessContinuation.stop(), invokeProcessElement(fn));
+    verify(fn).processElement(mockContext, mockState);
+  }
+
+  /**
+   * Tests that the generated {@link DoFnInvoker} passes the timer parameter that it
+   * should.
+   */
+  @Test
+  public void testDoFnWithTimer() throws Exception {
+    Timer mockTimer = mock(Timer.class);
+    final String timerId = "my-timer-id-here";
+    when(extraContextFactory.timer(timerId)).thenReturn(mockTimer);
+
+    class MockFn extends DoFn<String, String> {
+      @TimerId(timerId)
+      private final TimerSpec spec = TimerSpecs.timer(TimeDomain.EVENT_TIME);
+
+      @ProcessElement
+      public void processElement(ProcessContext c, @TimerId(timerId) Timer timer)
+          throws Exception {}
+
+      @OnTimer(timerId)
+      public void onTimer() {}
+    }
+    MockFn fn = mock(MockFn.class);
+    assertEquals(ProcessContinuation.stop(), invokeProcessElement(fn));
+    verify(fn).processElement(mockContext, mockTimer);
   }
 
   @Test

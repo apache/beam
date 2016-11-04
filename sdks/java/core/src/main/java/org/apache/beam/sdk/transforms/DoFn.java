@@ -381,6 +381,16 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
      * the current {@link ProcessElement} call.
      */
     <RestrictionT> RestrictionTracker<RestrictionT> restrictionTracker();
+
+    /**
+     * Returns the state cell for the given {@link StateId}.
+     */
+    State state(String stateId);
+
+    /**
+     * Returns the timer for the given {@link TimerId}.
+     */
+    Timer timer(String timerId);
   }
 
   /** Receives values of the given type. */
@@ -413,6 +423,16 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
 
     @Override
     public WindowingInternals<InputT, OutputT> windowingInternals() {
+      return null;
+    }
+
+    @Override
+    public State state(String stateId) {
+      return null;
+    }
+
+    @Override
+    public Timer timer(String timerId) {
       return null;
     }
 
