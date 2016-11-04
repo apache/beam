@@ -398,3 +398,90 @@ class UnsplittableRangeTracker(iobase.RangeTracker):
 
   def fraction_consumed(self):
     return self._range_tracker.fraction_consumed()
+
+
+class LexicographicKeyRangeTracker(OrderedPositionRangeTracker):
+  """
+  A range tracker that tracks progress through a lexicographically
+  ordered keyspace of strings.
+  """
+
+  @classmethod
+  def fraction_to_position(cls, fraction, start=None, end=None):
+    """
+    Linearly interpolates a key that is lexicographically
+    fraction of the way between start and end.
+    """
+    assert 0 <= fraction <= 1, fraction
+    if start is None:
+      start = ''
+    if fraction == 1:
+      return end
+    elif fraction == 0:
+      return start
+    else:
+      if not end:
+        common_prefix_len = len(start) - len(start.lstrip('\xFF'))
+      else:
+        for ix, (s, e) in enumerate(zip(start, end)):
+          if s != e:
+            common_prefix_len = ix
+            break
+        else:
+          common_prefix_len = min(len(start), len(end))
+      # Convert the relative precision of fraction (~53 bits) to an absolute
+      # precision needed to represent values between start and end distinctly.
+      prec = common_prefix_len + int(-math.log(fraction, 256)) + 7
+      istart = cls._string_to_int(start, prec)
+      iend = cls._string_to_int(end, prec) if end else 1 << (prec * 8)
+      ikey = istart + int((iend - istart) * fraction)
+      # Could happen due to rounding.
+      if ikey == istart:
+        ikey += 1
+      elif ikey == iend:
+        ikey -= 1
+      return cls._string_from_int(ikey, prec).rstrip('\0')
+
+  @classmethod
+  def position_to_fraction(cls, key, start=None, end=None):
+    """
+    Returns the fraction of keys in the range [start, end) that
+    are less than the given key.
+    """
+    if not key:
+      return 0
+    if start is None:
+      start = ''
+    prec = len(start) + 7
+    if key.startswith(start):
+      # Higher absolute precision needed for very small values of fixed
+      # relative position.
+      prec = max(prec, len(key) - len(key[len(start):].strip('\0')) + 7)
+    istart = cls._string_to_int(start, prec)
+    ikey = cls._string_to_int(key, prec)
+    iend = cls._string_to_int(end, prec) if end else 1 << (prec * 8)
+    return float(ikey - istart) / (iend - istart)
+
+  @staticmethod
+  def _string_to_int(s, prec):
+    """
+    Returns int(256**prec * f) where f is the fraction
+    represented by interpreting '.' + s as a base-256
+    floating point number.
+    """
+    if not s:
+      return 0
+    elif len(s) < prec:
+      s += '\0' * (prec - len(s))
+    else:
+      s = s[:prec]
+    return int(s.encode('hex'), 16)
+
+  @staticmethod
+  def _string_from_int(i, prec):
+    """
+    Inverse of _string_to_int.
+    """
+    h = '%x' % i
+    return ('0' * (2 * prec - len(h)) + h).decode('hex')
+
