@@ -2,8 +2,9 @@
 layout: default
 title: "Beam Logos"
 permalink: /contribute/logos/
-redirect-from: /project/logos/
-redirect_from: /material/
+redirect_from:
+  - /project/logos/
+  - /material/
 ---
 
 # Apache Beam Logos
@@ -47,11 +48,11 @@ available in a number of fixed sizes and are optimized for web use.
 {% for type in site.data.logos.types %}
 <div class="col-md-2">
 <div class="row">
-<img style="height: 60px" src="{{ site.data.logos.logo-location }}/{{ color[0] }}/{{ type }}/beam-logo-{{ color[0] }}-{{ type }}.svg" alt="beam-logo-{{ color[0] }}-{{ type }}">
+<img style="height: 60px" src="{{ site.baseurl }}{{ site.data.logos.logo-location }}/{{ color[0] }}/{{ type }}/beam-logo-{{ color[0] }}-{{ type }}.svg" alt="beam-logo-{{ color[0] }}-{{ type }}">
 </div><br>
 <div class="row">
 {% for size in site.data.logos.sizes %}
-<a href="{{ site.data.logos.logo-location }}/{{ color[0] }}/{{ type }}/beam-logo-{{ color[0] }}-{{ type }}-{{ size }}.png">{{ size }}x{{ size }}</a>
+<a href="{{ site.baseurl }}{{ site.data.logos.logo-location }}/{{ color[0] }}/{{ type }}/beam-logo-{{ color[0] }}-{{ type }}-{{ size }}.png">{{ size }}x{{ size }}</a>
 {% unless forloop.last %},{% endunless %}
 {% endfor %}
 </div>
