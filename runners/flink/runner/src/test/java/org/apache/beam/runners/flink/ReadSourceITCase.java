@@ -55,7 +55,8 @@ public class ReadSourceITCase extends JavaProgramTestBase {
 
   @Override
   protected void postSubmit() throws Exception {
-    compareResultsByLinesInMemory(Joiner.on('\n').join(EXPECTED_RESULT), resultPath);
+    compareResultsByLinesInMemory(Joiner.on('\n')
+        .join(EXPECTED_RESULT), resultPath, new String[] {"temp-beam-"});
   }
 
   @Override
