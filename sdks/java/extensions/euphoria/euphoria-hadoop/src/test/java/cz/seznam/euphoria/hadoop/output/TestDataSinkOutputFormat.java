@@ -12,6 +12,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.io.NullWritable;
 import org.apache.hadoop.mapreduce.JobID;
 import org.apache.hadoop.mapreduce.OutputCommitter;
 import org.apache.hadoop.mapreduce.RecordWriter;
@@ -88,30 +89,30 @@ public class TestDataSinkOutputFormat {
     TaskAttemptContext second = mockContext(conf, 1);
 
     // instantiate the output format
-    DataSinkOutputFormat format = DataSinkOutputFormat.class.newInstance();
+    DataSinkOutputFormat<Long> format = DataSinkOutputFormat.class.newInstance();
 
     // validate
     format.checkOutputSpecs(first);
 
     // create record writer for the first partition
-    RecordWriter writer = format.getRecordWriter(first);
-    writer.write(1L, 2L);
+    RecordWriter<NullWritable, Long> writer = format.getRecordWriter(first);
+    writer.write(NullWritable.get(), 2L);
     writer.close(first);
     format.getOutputCommitter(first).commitTask(first);
 
-    // now the second partition, we need to create new instnace of outputformat
+    // now the second partition, we need to create new instance of output format
     format = DataSinkOutputFormat.class.newInstance();
     // validate
     format.checkOutputSpecs(second);
 
     // create record writer for the second partition
     writer = format.getRecordWriter(second);
-    writer.write(2L, 4L);
+    writer.write(NullWritable.get(), 4L);
     writer.close(second);
     OutputCommitter committer = format.getOutputCommitter(second);
     committer.commitTask(second);
 
-    // and now vlidate what was written
+    // and now validate what was written
     assertFalse(DummySink.isCommitted);
 
     committer.commitJob(second);
@@ -120,8 +121,8 @@ public class TestDataSinkOutputFormat {
     assertTrue(DummySink.outputs.isEmpty());
     assertEquals(2, DummySink.committed.size());
 
-    assertEquals(Arrays.asList(Pair.of(1L, 2L)), DummySink.committed.get(0));
-    assertEquals(Arrays.asList(Pair.of(2L, 4L)), DummySink.committed.get(1));
+    assertEquals(Arrays.asList(2L), DummySink.committed.get(0));
+    assertEquals(Arrays.asList(4L), DummySink.committed.get(1));
   }
 
   private TaskAttemptContext mockContext(Configuration conf, int taskId) {

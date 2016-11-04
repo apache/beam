@@ -14,6 +14,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.io.NullWritable;
 import org.apache.hadoop.mapreduce.InputFormat;
 import org.apache.hadoop.mapreduce.InputSplit;
 import org.apache.hadoop.mapreduce.RecordReader;
@@ -105,8 +106,8 @@ public class TestDataSourceInputFormat {
   public void testDataSource() throws Exception {
     DummySource<Pair<Long, Long>> source = new DummySource<>(
         () -> Pair.of(
-            (long) Math.round(Math.random() * Long.MAX_VALUE),
-            (long) Math.round(Math.random() * Long.MAX_VALUE)));
+                Math.round(Math.random() * Long.MAX_VALUE),
+                Math.round(Math.random() * Long.MAX_VALUE)));
     
     Configuration conf = new Configuration();
     TaskAttemptContext tac = mock(TaskAttemptContext.class);
@@ -114,11 +115,11 @@ public class TestDataSourceInputFormat {
     
     when(tac.getConfiguration()).thenReturn(conf);
 
-    InputFormat<Long, Long> inputFormat = new DataSourceInputFormat<>();
+    InputFormat<NullWritable, Pair<Long, Long>> inputFormat = new DataSourceInputFormat<>();
     List<InputSplit> splits = inputFormat.getSplits(tac);
     assertEquals(2, splits.size());
 
-    try (RecordReader<Long, Long> reader = inputFormat.createRecordReader(
+    try (RecordReader<NullWritable, Pair<Long, Long>> reader = inputFormat.createRecordReader(
         splits.get(0), tac)) {
       reader.initialize(splits.get(0), tac);
       assertTrue(reader.nextKeyValue());
@@ -128,7 +129,7 @@ public class TestDataSourceInputFormat {
       assertFalse(reader.nextKeyValue());
     }
 
-    try (RecordReader<Long, Long> reader = inputFormat.createRecordReader(
+    try (RecordReader<NullWritable, Pair<Long, Long>> reader = inputFormat.createRecordReader(
         splits.get(1), tac)) {
       reader.initialize(splits.get(1), tac);
       assertTrue(reader.nextKeyValue());
