@@ -50,8 +50,8 @@ categories:
             l3: "Uses Flink's keyBy for key grouping. When grouping by window in streaming (creating the panes) the Flink runner uses the Beam code. This guarantees support for all windowing and triggering mechanisms."
           - class: spark
             l1: 'Partially'
-            l2: group by window in batch only
-            l3: "Uses Spark's groupByKey for grouping. Grouping by window is currently only supported in batch."
+            l2: fully supported in batch mode
+            l3: "Using Spark's <tt>groupByKey</tt>. GroupByKey with multiple trigger firings in streaming mode is a work in progress." 
       - name: Flatten
         values:
           - class: model
@@ -88,7 +88,7 @@ categories:
           - class: spark
             l1: 'Yes'
             l2: fully supported
-            l3: Supports GroupedValues, Globally and PerKey.
+            l3: "Using Spark's <tt>combineByKey</tt> and <tt>aggregate</tt> functions."
 
       - name: Composite Transforms
         values:
@@ -124,9 +124,9 @@ categories:
             l2: some size restrictions in streaming
             l3: Batch mode supports a distributed implementation, but streaming mode may force some size restrictions. Neither mode is able to push lookups directly up into key-based sources.
           - class: spark
-            l1: 'Partially'
-            l2: not supported in streaming
-            l3: "Side input is actually a broadcast variable in Spark so it can't be updated during the life of a job. Spark-runner implementation of side input is more of an immutable, static, side input."
+            l1: 'Yes'
+            l2: fully supported
+            l3: "Using Spark's broadcast variables. In streaming mode, side inputs may update but only between micro-batches."
 
       - name: Source API
         values:
@@ -163,8 +163,8 @@ categories:
             l3: Current model is fully supported in batch. In streaming mode, <tt>Aggregators</tt> may undercount.
           - class: spark
             l1: 'Partially'
-            l2: streaming requires more testing
-            l3: "Uses Spark's <tt>AccumulatorParam</tt> mechanism"
+            l2: may overcount when tasks are retried in transformations.
+            l3: 'supported via <tt>AccumulatorParam</tt> mechanism. If a task retries, and the accumulator is not within a Spark "Action", an overcount is possible.'
 
       - name: Keyed State
         values:
@@ -228,8 +228,8 @@ categories:
             l2: supported
             l3: ''
           - class: spark
-            l1: Partially
-            l2: currently only supported in batch
+            l1: 'Yes'
+            l2: supported
             l3: ''
 
       - name: Sliding windows
@@ -247,8 +247,8 @@ categories:
             l2: supported
             l3: ''
           - class: spark
-            l1: 'Partially'
-            l2: currently only supported in batch
+            l1: 'Yes'
+            l2: supported
             l3: ''
 
       - name: Session windows
@@ -266,8 +266,8 @@ categories:
             l2: supported
             l3: ''
           - class: spark
-            l1: 'No'
-            l2: pending Spark engine support
+            l1: 'Yes'
+            l2: supported
             l3: ''
 
       - name: Custom windows
@@ -285,8 +285,8 @@ categories:
             l2: supported
             l3: ''
           - class: spark
-            l1: 'No'
-            l2: pending Spark engine support
+            l1: 'Yes'
+            l2: supported
             l3: ''
 
       - name: Custom merging windows
@@ -304,8 +304,8 @@ categories:
             l2: supported
             l3: ''
           - class: spark
-            l1: 'No'
-            l2: pending Spark engine support
+            l1: 'Yes'
+            l2: supported
             l3: ''
 
       - name: Timestamp control
@@ -323,8 +323,8 @@ categories:
             l2: supported
             l3: ''
           - class: spark
-            l1: 'No'
-            l2: pending Spark engine support
+            l1: 'Yes'
+            l2: supported
             l3: ''
 
 
