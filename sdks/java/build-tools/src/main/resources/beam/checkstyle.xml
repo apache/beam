@@ -42,7 +42,7 @@ page at http://checkstyle.sourceforge.net/config.html -->
   </module>
 
   <module name="RegexpSingleline">
-    <property name="format" value="[ \t]+$"/>
+    <property name="format" value="\s+$"/>
     <property name="message" value="Trailing whitespace"/>
     <property name="severity" value="error"/>
   </module>
