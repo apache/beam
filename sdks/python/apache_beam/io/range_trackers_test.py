@@ -319,6 +319,79 @@ class GroupedShuffleRangeTrackerTest(unittest.TestCase):
         self.bytes_to_position([3, 2, 1])))
 
 
+class OrderedPositionRangeTrackerTest(unittest.TestCase):
+
+  class DoubleRangeTracker(range_trackers.OrderedPositionRangeTracker):
+
+    @staticmethod
+    def fraction_to_position(fraction, start, end):
+      return start + (end - start) * fraction
+
+    @staticmethod
+    def position_to_fraction(pos, start, end):
+      return float(pos - start) / (end - start)
+
+  def test_try_claim(self):
+    tracker = self.DoubleRangeTracker(10, 20)
+    self.assertTrue(tracker.try_claim(10))
+    self.assertTrue(tracker.try_claim(15))
+    self.assertFalse(tracker.try_claim(20))
+    self.assertFalse(tracker.try_claim(25))
+
+  def test_fraction_consumed(self):
+    tracker = self.DoubleRangeTracker(10, 20)
+    self.assertEqual(0, tracker.fraction_consumed())
+    tracker.try_claim(10)
+    self.assertEqual(0, tracker.fraction_consumed())
+    tracker.try_claim(15)
+    self.assertEqual(.5, tracker.fraction_consumed())
+    tracker.try_claim(17)
+    self.assertEqual(.7, tracker.fraction_consumed())
+    tracker.try_claim(25)
+    self.assertEqual(.7, tracker.fraction_consumed())
+
+  def test_try_split(self):
+    tracker = self.DoubleRangeTracker(10, 20)
+    tracker.try_claim(15)
+    self.assertEqual(.5, tracker.fraction_consumed())
+    # Split at 18.
+    self.assertEqual((18, 0.8), tracker.try_split(18))
+    # Fraction consumed reflects smaller range.
+    self.assertEqual(.625, tracker.fraction_consumed())
+    # We can claim anything less than 18,
+    self.assertTrue(tracker.try_claim(17))
+    # but can't split before claimed 17,
+    self.assertIsNone(tracker.try_split(16))
+    # nor claim anything after 18.
+    self.assertFalse(tracker.try_claim(19))
+
+  def test_claim_order(self):
+    tracker = self.DoubleRangeTracker(10, 20)
+    tracker.try_claim(12)
+    tracker.try_claim(15)
+    with self.assertRaises(ValueError):
+      tracker.try_claim(13)
+
+  def test_out_of_range(self):
+    tracker = self.DoubleRangeTracker(10, 20)
+    # Can't claim before range.
+    with self.assertRaises(ValueError):
+      tracker.try_claim(-5)
+    # Can't split before range.
+    with self.assertRaises(ValueError):
+      tracker.try_split(-5)
+    # Can't split at start position.
+    with self.assertRaises(ValueError):
+      tracker.try_split(10)
+    # Can't split after range.
+    with self.assertRaises(ValueError):
+      tracker.try_split(25)
+    tracker.try_split(15)
+    # Can't split after modified range.
+    with self.assertRaises(ValueError):
+      tracker.try_split(17)
+
+
 class UnsplittableRangeTrackerTest(unittest.TestCase):
 
   def test_try_claim(self):
