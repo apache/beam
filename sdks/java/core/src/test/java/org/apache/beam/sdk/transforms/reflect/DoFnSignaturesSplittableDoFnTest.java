@@ -22,7 +22,6 @@ import static org.apache.beam.sdk.transforms.reflect.DoFnSignaturesTestUtils.err
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
-import com.google.common.reflect.TypeToken;
 import java.util.List;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
@@ -34,6 +33,7 @@ import org.apache.beam.sdk.transforms.reflect.DoFnSignaturesTestUtils.FakeDoFn;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.TypeDescriptor;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -88,7 +88,6 @@ public class DoFnSignaturesSplittableDoFnTest {
   public void testSplittableProcessElementMustNotHaveOtherParams() throws Exception {
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage("must not have any extra arguments");
-    thrown.expectMessage("BoundedWindow");
 
     DoFnSignature.ProcessElementMethod signature =
         analyzeProcessElementMethod(
@@ -403,12 +402,12 @@ public class DoFnSignaturesSplittableDoFnTest {
         "Third argument must be OutputReceiver<SomeRestriction>, but is OutputReceiver<String>");
     DoFnSignatures.analyzeSplitRestrictionMethod(
         errors(),
-        TypeToken.of(FakeDoFn.class),
+        TypeDescriptor.of(FakeDoFn.class),
         new AnonymousMethod() {
           void method(
               Integer element, SomeRestriction restriction, DoFn.OutputReceiver<String> receiver) {}
         }.getMethod(),
-        TypeToken.of(Integer.class));
+        TypeDescriptor.of(Integer.class));
   }
 
   @Test
@@ -422,14 +421,14 @@ public class DoFnSignaturesSplittableDoFnTest {
     thrown.expectMessage("First argument must be the element type Integer");
     DoFnSignatures.analyzeSplitRestrictionMethod(
         errors(),
-        TypeToken.of(FakeDoFn.class),
+        TypeDescriptor.of(FakeDoFn.class),
         new AnonymousMethod() {
           void method(
               String element,
               SomeRestriction restriction,
               DoFn.OutputReceiver<SomeRestriction> receiver) {}
         }.getMethod(),
-        TypeToken.of(Integer.class));
+        TypeDescriptor.of(Integer.class));
   }
 
   @Test
@@ -437,7 +436,7 @@ public class DoFnSignaturesSplittableDoFnTest {
     thrown.expectMessage("Must have exactly 3 arguments");
     DoFnSignatures.analyzeSplitRestrictionMethod(
         errors(),
-        TypeToken.of(FakeDoFn.class),
+        TypeDescriptor.of(FakeDoFn.class),
         new AnonymousMethod() {
           private void method(
               Integer element,
@@ -445,7 +444,7 @@ public class DoFnSignaturesSplittableDoFnTest {
               DoFn.OutputReceiver<SomeRestriction> receiver,
               Object extra) {}
         }.getMethod(),
-        TypeToken.of(Integer.class));
+        TypeDescriptor.of(Integer.class));
   }
 
   @Test
@@ -519,7 +518,7 @@ public class DoFnSignaturesSplittableDoFnTest {
     thrown.expectMessage("Must have a single argument");
     DoFnSignatures.analyzeNewTrackerMethod(
         errors(),
-        TypeToken.of(FakeDoFn.class),
+        TypeDescriptor.of(FakeDoFn.class),
         new AnonymousMethod() {
           private SomeRestrictionTracker method(SomeRestriction restriction, Object extra) {
             return null;
@@ -533,7 +532,7 @@ public class DoFnSignaturesSplittableDoFnTest {
         "Returns SomeRestrictionTracker, but must return a subtype of RestrictionTracker<String>");
     DoFnSignatures.analyzeNewTrackerMethod(
         errors(),
-        TypeToken.of(FakeDoFn.class),
+        TypeDescriptor.of(FakeDoFn.class),
         new AnonymousMethod() {
           private SomeRestrictionTracker method(String restriction) {
             return null;
