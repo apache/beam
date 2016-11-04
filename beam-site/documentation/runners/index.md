@@ -1,7 +1,8 @@
 ---
 layout: default
 title: "Beam Runners"
-permalink: /learn/sdks/
+permalink: /documentation/runners/
+redirect-from: /learn/runners/
 ---
 # Apache Beam Runners
 

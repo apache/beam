@@ -1,7 +1,8 @@
 ---
 layout: default
 title: "Use Beam"
-permalink: /use/
+permalink: /get-started/
+redirect_from: /use/
 redirect_from: /docs/use/
 ---
 

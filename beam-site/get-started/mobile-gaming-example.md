@@ -1,7 +1,8 @@
 ---
 layout: default
 title: "Beam Mobile Gaming Example"
-permalink: /use/mobile-gaming-example/
+permalink: /get-started/mobile-gaming-example/
+redirect_from: /use/mobile-gaming-example/
 ---
 
 # Apache Beam Mobile Gaming Pipeline Examples
@@ -537,3 +538,4 @@ This gives us a set of user sessions, each with an attached duration. We can the
 ```
 
 We can use the resulting information to find, for example, what times of day our users are playing the longest, or which stretches of the day are more likely to see shorter play sessions.
+

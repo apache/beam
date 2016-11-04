@@ -1,7 +1,8 @@
 ---
 layout: default
 title: "Apache Beam Capability Matrix"
-permalink: /learn/runners/capability-matrix/
+permalink: /documentation/runners/capability-matrix/
+redirect-from: /learn/runners/capability-matrix/
 redirect-from: /capability-matrix/
 ---
 

@@ -1,7 +1,8 @@
 ---
 layout: default
 title: "Beam WordCount Example"
-permalink: /use/wordcount-example/
+permalink: get-started/wordcount-example/
+redirect_from: /use/wordcount-example/
 ---
 
 # Apache Beam WordCount Example

@@ -1,7 +1,8 @@
 ---
 layout: default
 title: "Beam Programming Guide"
-permalink: /learn/programming-guide/
+permalink: /documentation/programming-guide/
+redirect-from: /learn/programming-guide/
 redirect_from: /docs/learn/programming-guide/
 ---
 
