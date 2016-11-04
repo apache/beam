@@ -286,6 +286,81 @@ class GroupedShuffleRangeTracker(iobase.RangeTracker):
                        ' that are interpreted by the service')
 
 
+class OrderedPositionRangeTracker(iobase.RangeTracker):
+  """
+  An abstract base class for range trackers whose positions are comparable.
+
+  Subclasses only need to implement the mapping from position ranges to and from the
+  closed interval [0, 1].
+  """
+
+  UNSTARTED = object()
+
+  def __init__(self, start_position=None, stop_position=None):
+    self._start_position = start_position
+    self._stop_position = stop_position
+    self._lock = threading.Lock()
+    self._last_claim = self.UNSTARTED
+
+  def start_position(self):
+    return self._start_position
+
+  def stop_position(self):
+    with self._lock:
+      return self._end_position
+
+  def try_claim(self, position):
+    with self._lock:
+      if self._last_claim is not self.UNSTARTED and position < self._last_claim:
+        raise ValueError(
+            "Positions must be claimed in order: "
+            "claim '%s' attempted after claim '%s'" % (
+                position, self._last_claim))
+      elif self._start_position is not None and position < self._start_position:
+        raise ValueError("Claim '%s' is before start '%s'" % (
+            position, self._start_position))
+      if self._stop_position is None or position < self._stop_position:
+        self._last_claim = position
+        return True
+
+  def position_at_fraction(self, fraction):
+    return self.fraction_to_position(
+      fraction, self._start_position, self._stop_position)
+
+  def try_split(self, position):
+    with self._lock:
+      if ((self._stop_position is not None and position > self._stop_position)
+          or (self._start_position is not None
+              and position <= self._start_position)):
+        raise ValueError("Split at '%s' not in range %s" % (
+            position, [self._start_position, self._stop_position]))
+      if self._last_claim is self.UNSTARTED or self._last_claim < position:
+        fraction = self.position_to_fraction(
+          position, start=self._start_position, end=self._stop_position)
+        self._stop_position = position
+        return position, fraction
+
+  def fraction_consumed(self):
+    if self._last_claim is self.UNSTARTED:
+      return 0
+    else:
+      return self.position_to_fraction(
+          self._last_claim, self._start_position, self._stop_position)
+
+  def position_to_fraction(self, pos, start, end):
+    """
+    Converts a position `pos` betweeen `start` and `end` (inclusive) to a
+    fraction between 0 and 1.
+    """
+    raise NotImplementedError
+
+  def fraction_to_position(self, fraction, start, end):
+    """
+    Converts a fraction between 0 and 1 to a position between start and end.
+    """
+    raise NotImplementedError
+
+
 class UnsplittableRangeTracker(iobase.RangeTracker):
   """A RangeTracker that always ignores split requests.
 
