@@ -47,7 +47,6 @@ import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.util.KeyedWorkItem;
 import org.apache.beam.sdk.util.KeyedWorkItems;
-import org.apache.beam.sdk.util.TimeDomain;
 import org.apache.beam.sdk.util.TimerInternals.TimerData;
 import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.beam.sdk.util.WindowedValue;
@@ -440,29 +439,23 @@ final class ExecutorServiceParallelExecutor implements PipelineExecutor {
      */
     private void fireTimers() throws Exception {
       try {
-        for (Map.Entry<
-               AppliedPTransform<?, ?, ?>, Map<StructuralKey<?>, FiredTimers>> transformTimers :
-            evaluationContext.extractFiredTimers().entrySet()) {
-          AppliedPTransform<?, ?, ?> transform = transformTimers.getKey();
-          for (Map.Entry<StructuralKey<?>, FiredTimers> keyTimers :
-              transformTimers.getValue().entrySet()) {
-            for (TimeDomain domain : TimeDomain.values()) {
-              Collection<TimerData> delivery = keyTimers.getValue().getTimers(domain);
-              if (delivery.isEmpty()) {
-                continue;
-              }
-              KeyedWorkItem<?, Object> work =
-                  KeyedWorkItems.timersWorkItem(keyTimers.getKey().getKey(), delivery);
-              @SuppressWarnings({"unchecked", "rawtypes"})
-              CommittedBundle<?> bundle =
-                  evaluationContext
-                      .createKeyedBundle(keyTimers.getKey(), (PCollection) transform.getInput())
-                      .add(WindowedValue.valueInGlobalWindow(work))
-                      .commit(evaluationContext.now());
-              scheduleConsumption(transform, bundle, new TimerIterableCompletionCallback(delivery));
-              state.set(ExecutorState.ACTIVE);
-            }
-          }
+        for (FiredTimers transformTimers : evaluationContext.extractFiredTimers()) {
+          Collection<TimerData> delivery = transformTimers.getTimers();
+          KeyedWorkItem<?, Object> work =
+              KeyedWorkItems.timersWorkItem(transformTimers.getKey().getKey(), delivery);
+          @SuppressWarnings({"unchecked", "rawtypes"})
+          CommittedBundle<?> bundle =
+              evaluationContext
+                  .createKeyedBundle(
+                      transformTimers.getKey(),
+                      (PCollection) transformTimers.getTransform().getInput())
+                  .add(WindowedValue.valueInGlobalWindow(work))
+                  .commit(evaluationContext.now());
+          scheduleConsumption(
+              transformTimers.getTransform(),
+              bundle,
+              new TimerIterableCompletionCallback(delivery));
+          state.set(ExecutorState.ACTIVE);
         }
       } catch (Exception e) {
         LOG.error("Internal Error while delivering timers", e);

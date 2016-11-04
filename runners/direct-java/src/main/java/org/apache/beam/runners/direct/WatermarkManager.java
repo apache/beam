@@ -740,14 +740,17 @@ public class WatermarkManager {
 
       wms =
           new TransformWatermarks(
-              inputWatermark, outputWatermark, inputProcessingWatermark, outputProcessingWatermark);
+              transform,
+              inputWatermark,
+              outputWatermark,
+              inputProcessingWatermark,
+              outputProcessingWatermark);
       transformToWatermarks.put(transform, wms);
     }
     return wms;
   }
 
-  private Collection<Watermark> getInputProcessingWatermarks(
-      AppliedPTransform<?, ?, ?> transform) {
+  private Collection<Watermark> getInputProcessingWatermarks(AppliedPTransform<?, ?, ?> transform) {
     ImmutableList.Builder<Watermark> inputWmsBuilder = ImmutableList.builder();
     Collection<? extends PValue> inputs = transform.getInput().expand();
     if (inputs.isEmpty()) {
@@ -924,15 +927,12 @@ public class WatermarkManager {
    * Returns a map of each {@link PTransform} that has pending timers to those timers. All of the
    * pending timers will be removed from this {@link WatermarkManager}.
    */
-  public Map<AppliedPTransform<?, ?, ?>, Map<StructuralKey<?>, FiredTimers>> extractFiredTimers() {
-    Map<AppliedPTransform<?, ?, ?>, Map<StructuralKey<?>, FiredTimers>> allTimers = new HashMap<>();
+  public Collection<FiredTimers> extractFiredTimers() {
+    Collection<FiredTimers> allTimers = new ArrayList<>();
     for (Map.Entry<AppliedPTransform<?, ?, ?>, TransformWatermarks> watermarksEntry :
         transformToWatermarks.entrySet()) {
-      Map<StructuralKey<?>, FiredTimers> keyFiredTimers =
-          watermarksEntry.getValue().extractFiredTimers();
-      if (!keyFiredTimers.isEmpty()) {
-        allTimers.put(watermarksEntry.getKey(), keyFiredTimers);
-      }
+      Collection<FiredTimers> firedTimers = watermarksEntry.getValue().extractFiredTimers();
+      allTimers.addAll(firedTimers);
     }
     return allTimers;
   }
@@ -1043,6 +1043,8 @@ public class WatermarkManager {
    * A reference to the input and output watermarks of an {@link AppliedPTransform}.
    */
   public class TransformWatermarks {
+    private final AppliedPTransform<?, ?, ?> transform;
+
     private final AppliedPTransformInputWatermark inputWatermark;
     private final AppliedPTransformOutputWatermark outputWatermark;
 
@@ -1053,10 +1055,12 @@ public class WatermarkManager {
     private Instant latestSynchronizedOutputWm;
 
     private TransformWatermarks(
+        AppliedPTransform<?, ?, ?> transform,
         AppliedPTransformInputWatermark inputWatermark,
         AppliedPTransformOutputWatermark outputWatermark,
         SynchronizedProcessingTimeInputWatermark inputSynchProcessingWatermark,
         SynchronizedProcessingTimeOutputWatermark outputSynchProcessingWatermark) {
+      this.transform = transform;
       this.inputWatermark = inputWatermark;
       this.outputWatermark = outputWatermark;
 
@@ -1128,7 +1132,7 @@ public class WatermarkManager {
       synchronizedProcessingInputWatermark.addPending(bundle);
     }
 
-    private Map<StructuralKey<?>, FiredTimers> extractFiredTimers() {
+    private Collection<FiredTimers> extractFiredTimers() {
       Map<StructuralKey<?>, List<TimerData>> eventTimeTimers =
           inputWatermark.extractFiredEventTimeTimers();
       Map<StructuralKey<?>, List<TimerData>> processingTimers;
@@ -1137,31 +1141,33 @@ public class WatermarkManager {
           TimeDomain.PROCESSING_TIME, clock.now());
       synchronizedTimers = synchronizedProcessingInputWatermark.extractFiredDomainTimers(
           TimeDomain.SYNCHRONIZED_PROCESSING_TIME, getSynchronizedProcessingInputTime());
-      Map<StructuralKey<?>, Map<TimeDomain, List<TimerData>>> groupedTimers = new HashMap<>();
-      groupFiredTimers(groupedTimers, eventTimeTimers, processingTimers, synchronizedTimers);
 
-      Map<StructuralKey<?>, FiredTimers> keyFiredTimers = new HashMap<>();
-      for (Map.Entry<StructuralKey<?>, Map<TimeDomain, List<TimerData>>> firedTimers :
-          groupedTimers.entrySet()) {
-        keyFiredTimers.put(firedTimers.getKey(), new FiredTimers(firedTimers.getValue()));
+      Map<StructuralKey<?>, List<TimerData>> timersPerKey =
+          groupFiredTimers(eventTimeTimers, processingTimers, synchronizedTimers);
+      Collection<FiredTimers> keyFiredTimers = new ArrayList<>(timersPerKey.size());
+      for (Map.Entry<StructuralKey<?>, List<TimerData>> firedTimers :
+          timersPerKey.entrySet()) {
+        keyFiredTimers.add(
+            new FiredTimers(transform, firedTimers.getKey(), firedTimers.getValue()));
       }
       return keyFiredTimers;
     }
 
     @SafeVarargs
-    private final void groupFiredTimers(
-        Map<StructuralKey<?>, Map<TimeDomain, List<TimerData>>> groupedToMutate,
+    private final Map<StructuralKey<?>, List<TimerData>> groupFiredTimers(
         Map<StructuralKey<?>, List<TimerData>>... timersToGroup) {
+      Map<StructuralKey<?>, List<TimerData>> groupedTimers = new HashMap<>();
       for (Map<StructuralKey<?>, List<TimerData>> subGroup : timersToGroup) {
         for (Map.Entry<StructuralKey<?>, List<TimerData>> newTimers : subGroup.entrySet()) {
-          Map<TimeDomain, List<TimerData>> grouped = groupedToMutate.get(newTimers.getKey());
+          List<TimerData> grouped = groupedTimers.get(newTimers.getKey());
           if (grouped == null) {
-            grouped = new HashMap<>();
-            groupedToMutate.put(newTimers.getKey(), grouped);
+            grouped = new ArrayList<>();
+            groupedTimers.put(newTimers.getKey(), grouped);
           }
-          grouped.put(newTimers.getValue().get(0).getDomain(), newTimers.getValue());
+          grouped.addAll(newTimers.getValue());
         }
       }
+      return groupedTimers;
     }
 
     private void updateTimers(TimerUpdate update) {
@@ -1334,10 +1340,25 @@ public class WatermarkManager {
    * {@link WatermarkManager}.
    */
   public static class FiredTimers {
-    private final Map<TimeDomain, ? extends Collection<TimerData>> timers;
+    /** The transform the timers were set at and will be delivered to. */
+    private final AppliedPTransform<?, ?, ?> transform;
+    /** The key the timers were set for and will be delivered to. */
+    private final StructuralKey<?> key;
+    private final Collection<TimerData> timers;
 
-    private FiredTimers(Map<TimeDomain, ? extends Collection<TimerData>> timers) {
+    private FiredTimers(
+        AppliedPTransform<?, ?, ?> transform, StructuralKey<?> key, Collection<TimerData> timers) {
+      this.transform = transform;
+      this.key = key;
       this.timers = timers;
+    }
+
+    public AppliedPTransform<?, ?, ?> getTransform() {
+      return transform;
+    }
+
+    public StructuralKey<?> getKey() {
+      return key;
     }
 
     /**
@@ -1346,12 +1367,8 @@ public class WatermarkManager {
      *
      * <p>Timers within a {@link TimeDomain} are guaranteed to be in order of increasing timestamp.
      */
-    public Collection<TimerData> getTimers(TimeDomain domain) {
-      Collection<TimerData> domainTimers = timers.get(domain);
-      if (domainTimers == null) {
-        return Collections.emptyList();
-      }
-      return domainTimers;
+    public Collection<TimerData> getTimers() {
+      return timers;
     }
 
     @Override
