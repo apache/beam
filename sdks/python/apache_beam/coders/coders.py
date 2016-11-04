@@ -480,9 +480,8 @@ class ProtoCoder(FastCoder):
     if issubclass(typehint, google.protobuf.message.Message):
       return ProtoCoder(typehint)
     else:
-      err = ('Expected a subclass of google.protobuf.message.Message, '
-             'but got a %s' % typehint)
-      raise ValueError(err)
+      raise ValueError(('Expected a subclass of google.protobuf.message.Message'
+                        ', but got a %s' % typehint))
 
 
 class TupleCoder(FastCoder):
