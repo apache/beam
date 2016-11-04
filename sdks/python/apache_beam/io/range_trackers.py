@@ -290,8 +290,8 @@ class OrderedPositionRangeTracker(iobase.RangeTracker):
   """
   An abstract base class for range trackers whose positions are comparable.
 
-  Subclasses only need to implement the mapping from position ranges to and from the
-  closed interval [0, 1].
+  Subclasses only need to implement the mapping from position ranges
+  to and from the closed interval [0, 1].
   """
 
   UNSTARTED = object()
@@ -324,7 +324,7 @@ class OrderedPositionRangeTracker(iobase.RangeTracker):
 
   def position_at_fraction(self, fraction):
     return self.fraction_to_position(
-      fraction, self._start_position, self._stop_position)
+        fraction, self._start_position, self._stop_position)
 
   def try_split(self, position):
     with self._lock:
@@ -335,7 +335,7 @@ class OrderedPositionRangeTracker(iobase.RangeTracker):
             position, [self._start_position, self._stop_position]))
       if self._last_claim is self.UNSTARTED or self._last_claim < position:
         fraction = self.position_to_fraction(
-          position, start=self._start_position, end=self._stop_position)
+            position, start=self._start_position, end=self._stop_position)
         self._stop_position = position
         return position, fraction
 
@@ -484,4 +484,3 @@ class LexicographicKeyRangeTracker(OrderedPositionRangeTracker):
     """
     h = '%x' % i
     return ('0' * (2 * prec - len(h)) + h).decode('hex')
-

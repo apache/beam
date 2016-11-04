@@ -422,8 +422,10 @@ class LexicographicKeyRangeTrackerTest(unittest.TestCase):
   Tests of LexicographicKeyRangeTracker.
   """
 
-  key_to_fraction = range_trackers.LexicographicKeyRangeTracker.position_to_fraction
-  fraction_to_key = range_trackers.LexicographicKeyRangeTracker.fraction_to_position
+  key_to_fraction = (
+      range_trackers.LexicographicKeyRangeTracker.position_to_fraction)
+  fraction_to_key = (
+      range_trackers.LexicographicKeyRangeTracker.fraction_to_position)
 
   def _check(self, fraction=None, key=None, start=None, end=None, delta=0):
     assert key is not None or fraction is not None
@@ -459,9 +461,11 @@ class LexicographicKeyRangeTrackerTest(unittest.TestCase):
 
   def test_key_to_fraction_common_prefix(self):
     self._check(
-        key='a' * 100 + 'b', start='a' * 100 + 'a', end='a' * 100 + 'c', fraction=0.5)
+        key='a' * 100 + 'b', start='a' * 100 + 'a', end='a' * 100 + 'c',
+        fraction=0.5)
     self._check(
-        key='a' * 100 + 'b', start='a' * 100 + 'a', end='a' * 100 + 'e', fraction=0.25)
+        key='a' * 100 + 'b', start='a' * 100 + 'a', end='a' * 100 + 'e',
+        fraction=0.25)
     self._check(
         key='\xFF' * 100 + '\x40', start='\xFF' * 100, end=None, fraction=0.25)
 
@@ -499,19 +503,20 @@ class LexicographicKeyRangeTrackerTest(unittest.TestCase):
                   delta=1e-14)
 
   def test_good_prec(self):
-    # There should be about 7 characters (~53 bits) of precision (beyond the common prefix
-    # of start and end).
+    # There should be about 7 characters (~53 bits) of precision
+    # (beyond the common prefix of start and end).
     self._check(1 / math.e, start='abc_abc', end='abc_xyz',
                 key='abc_i\xe0\xf4\x84\x86\x99\x96',
                 delta=1e-15)
-    # This remains true even if the start and end keys are given to high precision.
+    # This remains true even if the start and end keys are given to
+    # high precision.
     self._check(1 / math.e,
                 start='abcd_abc\0\0\0\0\0_______________abc',
                 end='abcd_xyz\0\0\0\0\0\0_______________abc',
                 key='abcd_i\xe0\xf4\x84\x86\x99\x96',
                 delta=1e-15)
-    # For very small fractions, however, higher precision is used to accurately represent
-    # small increments in the keyspace.
+    # For very small fractions, however, higher precision is used to
+    # accurately represent small increments in the keyspace.
     self._check(1e-20 / math.e, start='abcd_abc', end='abcd_xyz',
                 key='abcd_abc\x00\x00\x00\x00\x00\x01\x91#\x172N\xbb',
                 delta=1e-35)
