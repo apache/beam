@@ -33,9 +33,9 @@ import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
 import org.apache.beam.sdk.transforms.DoFn.ProcessContinuation;
 import org.apache.beam.sdk.transforms.DoFn.StateId;
 import org.apache.beam.sdk.transforms.DoFn.TimerId;
-import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.BoundedWindowParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.RestrictionTrackerParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.StateParameter;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.WindowParameter;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.Timer;
@@ -159,8 +159,8 @@ public abstract class DoFnSignature {
     public <ResultT> ResultT match(Cases<ResultT> cases) {
       // This could be done with reflection, but since the number of cases is small and known,
       // they are simply inlined.
-      if (this instanceof BoundedWindowParameter) {
-        return cases.dispatch((BoundedWindowParameter) this);
+      if (this instanceof WindowParameter) {
+        return cases.dispatch((WindowParameter) this);
       } else if (this instanceof RestrictionTrackerParameter) {
         return cases.dispatch((RestrictionTrackerParameter) this);
       } else if (this instanceof InputProviderParameter) {
@@ -182,7 +182,7 @@ public abstract class DoFnSignature {
      * An interface for destructuring a {@link Parameter}.
      */
     public interface Cases<ResultT> {
-      ResultT dispatch(BoundedWindowParameter p);
+      ResultT dispatch(WindowParameter p);
       ResultT dispatch(InputProviderParameter p);
       ResultT dispatch(OutputReceiverParameter p);
       ResultT dispatch(RestrictionTrackerParameter p);
@@ -197,7 +197,7 @@ public abstract class DoFnSignature {
         protected abstract ResultT dispatchDefault(Parameter p);
 
         @Override
-        public ResultT dispatch(BoundedWindowParameter p) {
+        public ResultT dispatch(WindowParameter p) {
           return dispatchDefault(p);
         }
 
@@ -229,17 +229,17 @@ public abstract class DoFnSignature {
     }
 
     // These parameter descriptors are constant
-    private static final BoundedWindowParameter BOUNDED_WINDOW_PARAMETER =
-        new AutoValue_DoFnSignature_Parameter_BoundedWindowParameter();
+    private static final WindowParameter BOUNDED_WINDOW_PARAMETER =
+        new AutoValue_DoFnSignature_Parameter_WindowParameter();
     private static final InputProviderParameter INPUT_PROVIDER_PARAMETER =
         new AutoValue_DoFnSignature_Parameter_InputProviderParameter();
     private static final OutputReceiverParameter OUTPUT_RECEIVER_PARAMETER =
         new AutoValue_DoFnSignature_Parameter_OutputReceiverParameter();
 
     /**
-     * Returns a {@link BoundedWindowParameter}.
+     * Returns a {@link WindowParameter}.
      */
-    public static BoundedWindowParameter boundedWindow() {
+    public static WindowParameter boundedWindow() {
       return BOUNDED_WINDOW_PARAMETER;
     }
 
@@ -281,8 +281,8 @@ public abstract class DoFnSignature {
      * <p>All such descriptors are equal.
      */
     @AutoValue
-    public abstract static class BoundedWindowParameter extends Parameter {
-      BoundedWindowParameter() {}
+    public abstract static class WindowParameter extends Parameter {
+      WindowParameter() {}
     }
 
     /**
@@ -380,7 +380,7 @@ public abstract class DoFnSignature {
       return Iterables.any(
           extraParameters(),
           Predicates.or(
-              Predicates.instanceOf(BoundedWindowParameter.class),
+              Predicates.instanceOf(WindowParameter.class),
               Predicates.instanceOf(StateParameter.class)));
     }
 

@@ -33,6 +33,7 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.StateParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.TimerParameter;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.WindowParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignaturesTestUtils.FakeDoFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.TimeDomain;
@@ -310,7 +311,7 @@ public class DoFnSignaturesTest {
     assertThat(sig.onTimerMethods().get(timerId).extraParameters().size(), equalTo(1));
     assertThat(
         sig.onTimerMethods().get(timerId).extraParameters().get(0),
-        instanceOf(DoFnSignature.Parameter.BoundedWindowParameter.class));
+        instanceOf(WindowParameter.class));
   }
 
   @Test
