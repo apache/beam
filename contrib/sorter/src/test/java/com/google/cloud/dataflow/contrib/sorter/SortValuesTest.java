@@ -95,7 +95,7 @@ public class SortValuesTest {
     }
   }
 
-  /** Matcher for KVs. Forked from Beam's com.google.cloud.dataflow/sdk/TestUtils.java */
+  /** Matcher for KVs. Forked from com.google.cloud.dataflow/sdk/TestUtils.java */
   public static class KvMatcher<K, V> extends TypeSafeMatcher<KV<? extends K, ? extends V>> {
     final Matcher<? super K> keyMatcher;
     final Matcher<? super V> valueMatcher;
