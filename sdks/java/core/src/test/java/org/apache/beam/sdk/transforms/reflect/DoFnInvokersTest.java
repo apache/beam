@@ -39,6 +39,7 @@ import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFn.GetInitialRestriction;
+import org.apache.beam.sdk.transforms.DoFn.ExtraContextFactory;
 import org.apache.beam.sdk.transforms.DoFn.ProcessContinuation;
 import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.transforms.reflect.testhelper.DoFnInvokersTestHelper;
@@ -67,41 +68,17 @@ public class DoFnInvokersTest {
   @Mock private DoFn.InputProvider<String> mockInputProvider;
   @Mock private DoFn.OutputReceiver<String> mockOutputReceiver;
   @Mock private WindowingInternals<String, String> mockWindowingInternals;
+  @Mock private ExtraContextFactory<String, String> extraContextFactory;
 
   @Mock private OldDoFn<String, String> mockOldDoFn;
-
-  private DoFn.ExtraContextFactory<String, String> extraContextFactory;
 
   @Before
   public void setUp() {
     MockitoAnnotations.initMocks(this);
-    this.extraContextFactory =
-        new DoFn.ExtraContextFactory<String, String>() {
-          @Override
-          public BoundedWindow window() {
-            return mockWindow;
-          }
-
-          @Override
-          public DoFn.InputProvider<String> inputProvider() {
-            return mockInputProvider;
-          }
-
-          @Override
-          public DoFn.OutputReceiver<String> outputReceiver() {
-            return mockOutputReceiver;
-          }
-
-          @Override
-          public WindowingInternals<String, String> windowingInternals() {
-            return mockWindowingInternals;
-          }
-
-          @Override
-          public <RestrictionT> RestrictionTracker<RestrictionT> restrictionTracker() {
-            return null;
-          }
-        };
+    when(extraContextFactory.window()).thenReturn(mockWindow);
+    when(extraContextFactory.inputProvider()).thenReturn(mockInputProvider);
+    when(extraContextFactory.outputReceiver()).thenReturn(mockOutputReceiver);
+    when(extraContextFactory.windowingInternals()).thenReturn(mockWindowingInternals);
   }
 
   private ProcessContinuation invokeProcessElement(DoFn<String, String> fn) {
