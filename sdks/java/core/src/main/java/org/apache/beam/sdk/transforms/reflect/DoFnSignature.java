@@ -34,6 +34,7 @@ import org.apache.beam.sdk.transforms.DoFn.ProcessContinuation;
 import org.apache.beam.sdk.transforms.DoFn.StateId;
 import org.apache.beam.sdk.transforms.DoFn.TimerId;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.BoundedWindowParameter;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.RestrictionTrackerParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.StateParameter;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -230,8 +231,6 @@ public abstract class DoFnSignature {
     // These parameter descriptors are constant
     private static final BoundedWindowParameter BOUNDED_WINDOW_PARAMETER =
         new AutoValue_DoFnSignature_Parameter_BoundedWindowParameter();
-    private static final RestrictionTrackerParameter RESTRICTION_TRACKER_PARAMETER =
-        new AutoValue_DoFnSignature_Parameter_RestrictionTrackerParameter();
     private static final InputProviderParameter INPUT_PROVIDER_PARAMETER =
         new AutoValue_DoFnSignature_Parameter_InputProviderParameter();
     private static final OutputReceiverParameter OUTPUT_RECEIVER_PARAMETER =
@@ -261,8 +260,8 @@ public abstract class DoFnSignature {
     /**
      * Returns a {@link RestrictionTrackerParameter}.
      */
-    public static RestrictionTrackerParameter restrictionTracker() {
-      return RESTRICTION_TRACKER_PARAMETER;
+    public static RestrictionTrackerParameter restrictionTracker(TypeDescriptor<?> trackerT) {
+      return new AutoValue_DoFnSignature_Parameter_RestrictionTrackerParameter(trackerT);
     }
 
     /**
@@ -315,6 +314,7 @@ public abstract class DoFnSignature {
     public abstract static class RestrictionTrackerParameter extends Parameter {
       // Package visible for AutoValue
       RestrictionTrackerParameter() {}
+      public abstract TypeDescriptor<?> trackerT();
     }
 
     /**
@@ -388,7 +388,8 @@ public abstract class DoFnSignature {
      * Whether this {@link DoFn} is <a href="https://s.apache.org/splittable-do-fn">splittable</a>.
      */
     public boolean isSplittable() {
-      return extraParameters().contains(Parameter.restrictionTracker());
+      return Iterables.any(
+          extraParameters(), Predicates.instanceOf(RestrictionTrackerParameter.class));
     }
   }
 

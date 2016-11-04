@@ -21,7 +21,9 @@ import static com.google.common.base.Preconditions.checkState;
 
 import com.google.auto.value.AutoValue;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Predicates;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Iterables;
 import com.google.common.collect.Maps;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.AnnotatedElement;
@@ -45,6 +47,7 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFn.StateId;
 import org.apache.beam.sdk.transforms.DoFn.TimerId;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.RestrictionTrackerParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.StateParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.TimerParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.StateDeclaration;
@@ -147,6 +150,12 @@ public class DoFnSignatures {
     private final List<Parameter> extraParameters = new ArrayList<>();
 
     private MethodAnalysisContext() {}
+
+    /** Indicates whether a {@link RestrictionTrackerParameter} is known in this context. */
+    public boolean hasRestrictionTrackerParameter() {
+      return Iterables.any(
+          extraParameters, Predicates.instanceOf(RestrictionTrackerParameter.class));
+    }
 
     /** State parameters declared in this context, keyed by {@link StateId}. */
     public Map<String, StateParameter> getStateParameters() {
@@ -663,7 +672,7 @@ public class DoFnSignatures {
     }
 
     // A splittable DoFn can not have any other extra context parameters.
-    if (methodContext.getExtraParameters().contains(DoFnSignature.Parameter.restrictionTracker())) {
+    if (methodContext.hasRestrictionTrackerParameter()) {
       errors.checkArgument(
           methodContext.getExtraParameters().size() == 1,
           "Splittable DoFn must not have any extra arguments, but has: %s",
@@ -724,10 +733,10 @@ public class DoFnSignatures {
 
     } else if (RestrictionTracker.class.isAssignableFrom(rawType)) {
       methodErrors.checkArgument(
-          !methodContext.getExtraParameters().contains(Parameter.restrictionTracker()),
+          !methodContext.hasRestrictionTrackerParameter(),
           "Multiple %s parameters",
           RestrictionTracker.class.getSimpleName());
-      return Parameter.restrictionTracker();
+      return Parameter.restrictionTracker(paramT);
 
     } else if (rawType.equals(Timer.class)) {
       // m.getParameters() is not available until Java 8
