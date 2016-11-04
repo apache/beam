@@ -125,6 +125,9 @@ class CoderRegistry(object):
         # In some old code, None is used for Any.
         # TODO(robertwb): Clean this up.
         pass
+      elif typehint is object:
+        # We explicitly want the fallback coder.
+        pass
       elif isinstance(typehint, typehints.TypeVariable):
         # TODO(robertwb): Clean this up when type inference is fully enabled.
         pass
