@@ -1,7 +1,8 @@
 ---
 layout: default
 title: "Learn about Beam"
-permalink: /learn/
+permalink: /documentation/
+redirect-from: /learn/
 redirect_from: /docs/learn/
 ---
 

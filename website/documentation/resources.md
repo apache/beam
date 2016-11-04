@@ -1,7 +1,8 @@
 ---
 layout: default
 title: "Beam Learning Resources"
-permalink: /learn/resources/
+permalink: /documentation/resources/
+redirect-from: /learn/resources/
 ---
 # Additional Resources for Learning about Apache Beam
 

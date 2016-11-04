@@ -69,7 +69,7 @@ Beam currently supports Runners that work with the following distributed process
 
 Interested in working with Apache Beam? Great! Here's how to get started:
 
-* If you are interested in using Beam for your data processing tasks, start with the [Use](/use/) section for and overview, quickstart, and examples. Then dive into the [Learn](/learn/) section to get up to speed on the details.
+* If you are interested in using Beam for your data processing tasks, use the [Get Started](/get-started/) section for an overview, quickstart, and examples. Then dive into the [Documentation](/documentatiion/) section to get up to speed on the details.
 * If you're interested in contributing to the Beam SDKs or Runners, start with the [Contribute](/contribute/) section.
 
 <hr>

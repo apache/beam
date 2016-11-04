@@ -1,7 +1,8 @@
 ---
 layout: default
 title: "Beam Logos"
-permalink: /project/logos/
+permalink: /contribute/logos/
+redirect-from: /project/logos/
 redirect_from: /material/
 ---
 

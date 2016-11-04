@@ -1,7 +1,8 @@
 ---
 layout: default
 title: "Cloud Dataflow Runner"
-permalink: /learn/runners/dataflow/
+permalink: /documentation/runners/dataflow/
+redirect-from: /learn/runners/dataflow/
 ---
 # Using the Cloud Dataflow Runner
 
