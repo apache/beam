@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <parent>
+    <artifactId>euphoria-parent</artifactId>
+    <groupId>cz.seznam.euphoria</groupId>
+    <version>0.5.0-SNAPSHOT</version>
+  </parent>
+  <modelVersion>4.0.0</modelVersion>
+
+  <artifactId>euphoria-spark</artifactId>
+  <packaging>jar</packaging>
+  <name>euphoria-spark-${project.version}</name>
+
+  <dependencies>
+    <dependency>
+      <groupId>cz.seznam.euphoria</groupId>
+      <artifactId>euphoria-core</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>cz.seznam.euphoria</groupId>
+      <artifactId>euphoria-hadoop</artifactId>
+    </dependency>
+
+    <!-- Spark dependencies -->
+    <dependency>
+      <groupId>org.apache.spark</groupId>
+      <artifactId>spark-core_2.10</artifactId>
+      <version>${spark.version}</version>
+    </dependency>
+
+    <!-- test -->
+    <dependency>
+      <groupId>cz.seznam.euphoria</groupId>
+      <artifactId>euphoria-operator-testkit</artifactId>
+      <version>${project.version}</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>junit</groupId>
+      <artifactId>junit</artifactId>
+      <scope>test</scope>
+    </dependency>
+  </dependencies>
+
+
+</project>
