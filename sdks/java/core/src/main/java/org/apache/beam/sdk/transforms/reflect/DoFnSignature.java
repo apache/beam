@@ -35,6 +35,7 @@ import org.apache.beam.sdk.transforms.DoFn.StateId;
 import org.apache.beam.sdk.transforms.DoFn.TimerId;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.RestrictionTrackerParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.StateParameter;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.TimerParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.WindowParameter;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -144,6 +145,10 @@ public abstract class DoFnSignature {
      * <p>Validation that these are allowed is external to this class.
      */
     List<Parameter> extraParameters();
+
+    /** The type of window expected by this method, if any. */
+    @Nullable
+    TypeDescriptor<? extends BoundedWindow> windowT();
   }
 
   /** A descriptor for an optional parameter of the {@link DoFn.ProcessElement} method. */
@@ -229,18 +234,14 @@ public abstract class DoFnSignature {
     }
 
     // These parameter descriptors are constant
-    private static final WindowParameter BOUNDED_WINDOW_PARAMETER =
-        new AutoValue_DoFnSignature_Parameter_WindowParameter();
     private static final InputProviderParameter INPUT_PROVIDER_PARAMETER =
         new AutoValue_DoFnSignature_Parameter_InputProviderParameter();
     private static final OutputReceiverParameter OUTPUT_RECEIVER_PARAMETER =
         new AutoValue_DoFnSignature_Parameter_OutputReceiverParameter();
 
-    /**
-     * Returns a {@link WindowParameter}.
-     */
-    public static WindowParameter boundedWindow() {
-      return BOUNDED_WINDOW_PARAMETER;
+    /** Returns a {@link WindowParameter}. */
+    public static WindowParameter boundedWindow(TypeDescriptor<? extends BoundedWindow> windowT) {
+      return new AutoValue_DoFnSignature_Parameter_WindowParameter(windowT);
     }
 
     /**
@@ -283,6 +284,7 @@ public abstract class DoFnSignature {
     @AutoValue
     public abstract static class WindowParameter extends Parameter {
       WindowParameter() {}
+      public abstract TypeDescriptor<? extends BoundedWindow> windowT();
     }
 
     /**
@@ -357,6 +359,10 @@ public abstract class DoFnSignature {
     @Nullable
     public abstract TypeDescriptor<?> trackerT();
 
+    /** The window type used by this method, if any. */
+    @Nullable
+    public abstract TypeDescriptor<? extends BoundedWindow> windowT();
+
     /** Whether this {@link DoFn} returns a {@link ProcessContinuation} or void. */
     public abstract boolean hasReturnValue();
 
@@ -364,9 +370,14 @@ public abstract class DoFnSignature {
         Method targetMethod,
         List<Parameter> extraParameters,
         TypeDescriptor<?> trackerT,
+        @Nullable TypeDescriptor<? extends BoundedWindow> windowT,
         boolean hasReturnValue) {
       return new AutoValue_DoFnSignature_ProcessElementMethod(
-          targetMethod, Collections.unmodifiableList(extraParameters), trackerT, hasReturnValue);
+          targetMethod,
+          Collections.unmodifiableList(extraParameters),
+          trackerT,
+          windowT,
+          hasReturnValue);
     }
 
     /**
@@ -381,6 +392,7 @@ public abstract class DoFnSignature {
           extraParameters(),
           Predicates.or(
               Predicates.instanceOf(WindowParameter.class),
+              Predicates.instanceOf(TimerParameter.class),
               Predicates.instanceOf(StateParameter.class)));
     }
 
@@ -404,13 +416,21 @@ public abstract class DoFnSignature {
     @Override
     public abstract Method targetMethod();
 
+    /** The window type used by this method, if any. */
+    @Nullable
+    public abstract TypeDescriptor<? extends BoundedWindow> windowT();
+
     /** Types of optional parameters of the annotated method, in the order they appear. */
     @Override
     public abstract List<Parameter> extraParameters();
 
-    static OnTimerMethod create(Method targetMethod, String id, List<Parameter> extraParameters) {
+    static OnTimerMethod create(
+        Method targetMethod,
+        String id,
+        TypeDescriptor<? extends BoundedWindow> windowT,
+        List<Parameter> extraParameters) {
       return new AutoValue_DoFnSignature_OnTimerMethod(
-          id, targetMethod, Collections.unmodifiableList(extraParameters));
+          id, targetMethod, windowT, Collections.unmodifiableList(extraParameters));
     }
   }
 

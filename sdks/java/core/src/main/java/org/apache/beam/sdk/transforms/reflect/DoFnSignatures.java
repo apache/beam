@@ -50,6 +50,7 @@ import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.RestrictionTrackerParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.StateParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.TimerParameter;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.WindowParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.StateDeclaration;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.TimerDeclaration;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
@@ -149,12 +150,27 @@ public class DoFnSignatures {
     private final Map<String, TimerParameter> timerParameters = new HashMap<>();
     private final List<Parameter> extraParameters = new ArrayList<>();
 
+    @Nullable
+    private TypeDescriptor<? extends BoundedWindow> windowT;
+
     private MethodAnalysisContext() {}
 
     /** Indicates whether a {@link RestrictionTrackerParameter} is known in this context. */
     public boolean hasRestrictionTrackerParameter() {
       return Iterables.any(
           extraParameters, Predicates.instanceOf(RestrictionTrackerParameter.class));
+    }
+
+    /** Indicates whether a {@link WindowParameter} is known in this context. */
+    public boolean hasWindowParameter() {
+      return Iterables.any(
+          extraParameters, Predicates.instanceOf(WindowParameter.class));
+    }
+
+    /** The window type, if any, used by this method. */
+    @Nullable
+    public TypeDescriptor<? extends BoundedWindow> getWindowType() {
+      return windowT;
     }
 
     /** State parameters declared in this context, keyed by {@link StateId}. */
@@ -599,6 +615,8 @@ public class DoFnSignatures {
 
     MethodAnalysisContext methodContext = MethodAnalysisContext.create();
 
+    @Nullable TypeDescriptor<? extends BoundedWindow> windowT = getWindowType(fnClass, m);
+
     List<DoFnSignature.Parameter> extraParameters = new ArrayList<>();
     TypeDescriptor<?> expectedOutputReceiverT = outputReceiverTypeOf(outputT);
     ErrorReporter onTimerErrors = errors.forMethod(DoFn.OnTimer.class, m);
@@ -618,7 +636,7 @@ public class DoFnSignatures {
               expectedOutputReceiverT));
     }
 
-    return DoFnSignature.OnTimerMethod.create(m, timerId, extraParameters);
+    return DoFnSignature.OnTimerMethod.create(m, timerId, windowT, extraParameters);
   }
 
   @VisibleForTesting
@@ -650,6 +668,7 @@ public class DoFnSignatures {
         formatType(processContextT));
 
     TypeDescriptor<?> trackerT = getTrackerType(fnClass, m);
+    TypeDescriptor<? extends BoundedWindow> windowT = getWindowType(fnClass, m);
     TypeDescriptor<?> expectedInputProviderT = inputProviderTypeOf(inputT);
     TypeDescriptor<?> expectedOutputReceiverT = outputReceiverTypeOf(outputT);
     for (int i = 1; i < params.length; ++i) {
@@ -684,6 +703,7 @@ public class DoFnSignatures {
         m,
         methodContext.getExtraParameters(),
         trackerT,
+        windowT,
         DoFn.ProcessContinuation.class.equals(m.getReturnType()));
   }
 
@@ -700,12 +720,12 @@ public class DoFnSignatures {
 
     ErrorReporter paramErrors = methodErrors.forParameter(param);
 
-    if (rawType.equals(BoundedWindow.class)) {
+    if (BoundedWindow.class.isAssignableFrom(rawType)) {
       methodErrors.checkArgument(
-          !methodContext.getExtraParameters().contains(Parameter.boundedWindow()),
+          !methodContext.hasWindowParameter(),
           "Multiple %s parameters",
           BoundedWindow.class.getSimpleName());
-      return Parameter.boundedWindow();
+      return Parameter.boundedWindow((TypeDescriptor<? extends BoundedWindow>) paramT);
     } else if (rawType.equals(DoFn.InputProvider.class)) {
       methodErrors.checkArgument(
           !methodContext.getExtraParameters().contains(Parameter.inputProvider()),
@@ -851,6 +871,19 @@ public class DoFnSignatures {
       TypeDescriptor<?> paramT = fnClass.resolveType(params[i]);
       if (RestrictionTracker.class.isAssignableFrom(paramT.getRawType())) {
         return paramT;
+      }
+    }
+    return null;
+  }
+
+  @Nullable
+  private static TypeDescriptor<? extends BoundedWindow> getWindowType(
+      TypeDescriptor<?> fnClass, Method method) {
+    Type[] params = method.getGenericParameterTypes();
+    for (int i = 0; i < params.length; i++) {
+      TypeDescriptor<?> paramT = fnClass.resolveType(params[i]);
+      if (BoundedWindow.class.isAssignableFrom(paramT.getRawType())) {
+        return (TypeDescriptor<? extends BoundedWindow>) paramT;
       }
     }
     return null;

@@ -510,8 +510,8 @@ public class DoFnInvokers {
   private static MethodDescription getExtraContextFactoryMethodDescription(
       String methodName, Class<?>... parameterTypes) {
     try {
-    return new MethodDescription.ForLoadedMethod(
-                DoFn.ExtraContextFactory.class.getMethod(methodName, parameterTypes));
+      return new MethodDescription.ForLoadedMethod(
+          DoFn.ExtraContextFactory.class.getMethod(methodName, parameterTypes));
     } catch (Exception e) {
       throw new IllegalStateException(
           String.format(
@@ -538,7 +538,9 @@ public class DoFnInvokers {
 
           @Override
           public StackManipulation dispatch(WindowParameter p) {
-            return simpleExtraContextParameter("window", pushExtraContextFactory);
+            return new StackManipulation.Compound(
+                simpleExtraContextParameter("window", pushExtraContextFactory),
+                TypeCasting.to(new TypeDescription.ForLoadedType(p.windowT().getRawType())));
           }
 
           @Override
