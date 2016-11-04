@@ -77,6 +77,7 @@ import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+import org.objenesis.strategy.StdInstantiatorStrategy;
 
 /** Tests for {@link AvroCoder}. */
 @RunWith(JUnit4.class)
@@ -188,7 +189,7 @@ public class AvroCoderTest {
 
     //Kryo instantiation
     Kryo kryo = new Kryo();
-    kryo.setInstantiatorStrategy(new org.objenesis.strategy.StdInstantiatorStrategy());
+    kryo.setInstantiatorStrategy(new StdInstantiatorStrategy());
 
     //Serialization of object without any memoization
     ByteArrayOutputStream coderWithoutMemoizationBos = new ByteArrayOutputStream();
