@@ -44,7 +44,7 @@ import org.apache.beam.sdk.transforms.DoFn.ProcessContinuation;
 import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.transforms.reflect.testhelper.DoFnInvokersTestHelper;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
-import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.util.TimeDomain;
 import org.apache.beam.sdk.util.Timer;
 import org.apache.beam.sdk.util.TimerSpec;
@@ -71,7 +71,7 @@ public class DoFnInvokersTest {
   @Rule public ExpectedException thrown = ExpectedException.none();
 
   @Mock private DoFn<String, String>.ProcessContext mockContext;
-  @Mock private BoundedWindow mockWindow;
+  @Mock private IntervalWindow mockWindow;
   @Mock private DoFn.InputProvider<String> mockInputProvider;
   @Mock private DoFn.OutputReceiver<String> mockOutputReceiver;
   @Mock private WindowingInternals<String, String> mockWindowingInternals;
@@ -173,7 +173,7 @@ public class DoFnInvokersTest {
   public void testDoFnWithWindow() throws Exception {
     class MockFn extends DoFn<String, String> {
       @DoFn.ProcessElement
-      public void processElement(ProcessContext c, BoundedWindow w) throws Exception {}
+      public void processElement(ProcessContext c, IntervalWindow w) throws Exception {}
     }
     MockFn fn = mock(MockFn.class);
     assertEquals(ProcessContinuation.stop(), invokeProcessElement(fn));

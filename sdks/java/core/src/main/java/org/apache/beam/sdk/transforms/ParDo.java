@@ -32,7 +32,10 @@ import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.DisplayData.Builder;
 import org.apache.beam.sdk.transforms.display.HasDisplayData;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature.MethodWithExtraParameters;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature.OnTimerMethod;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.util.StringUtils;
@@ -41,6 +44,7 @@ import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
+import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypedPValue;
 
 /**
@@ -548,6 +552,42 @@ public class ParDo {
   }
 
   /**
+   * Perform common validations of the {@link DoFn} against the input {@link PCollection}, for
+   * example ensuring that the window type expected by the {@link DoFn} matches the window type of
+   * the {@link PCollection}.
+   */
+  private static <InputT, OutputT> void validateWindowType(
+      PCollection<? extends InputT> input, Serializable fn) {
+    // No validation for OldDoFn
+    if (!(fn instanceof DoFn)) {
+      return;
+    }
+
+    DoFnSignature signature = DoFnSignatures.INSTANCE.getSignature((Class) fn.getClass());
+
+    TypeDescriptor<? extends BoundedWindow> actualWindowT =
+        input.getWindowingStrategy().getWindowFn().getWindowTypeDescriptor();
+
+    validateWindowTypeForMethod(actualWindowT, signature.processElement());
+    for (OnTimerMethod method : signature.onTimerMethods().values()) {
+      validateWindowTypeForMethod(actualWindowT, method);
+    }
+  }
+
+  private static void validateWindowTypeForMethod(
+      TypeDescriptor<? extends BoundedWindow> actualWindowT,
+      MethodWithExtraParameters methodSignature) {
+    if (methodSignature.windowT() != null) {
+      checkArgument(
+          methodSignature.windowT().isSupertypeOf(actualWindowT),
+          "%s expects window type %s, which is not a supertype of actual window type %s",
+          methodSignature.targetMethod(),
+          methodSignature.windowT(),
+          actualWindowT);
+    }
+  }
+
+  /**
    * Perform common validations of the {@link DoFn}, for example ensuring that state is used
    * correctly and that its features can be supported.
    */
@@ -768,6 +808,7 @@ public class ParDo {
     public PCollection<OutputT> apply(PCollection<? extends InputT> input) {
       checkArgument(
           !isSplittable(getOldFn()), "Splittable DoFn not supported by the current runner");
+      validateWindowType(input, fn);
       return PCollection.<OutputT>createPrimitiveOutputInternal(
               input.getPipeline(),
               input.getWindowingStrategy(),
@@ -1024,7 +1065,7 @@ public class ParDo {
     public PCollectionTuple apply(PCollection<? extends InputT> input) {
       checkArgument(
           !isSplittable(getOldFn()), "Splittable DoFn not supported by the current runner");
-
+      validateWindowType(input, fn);
       PCollectionTuple outputs = PCollectionTuple.ofPrimitiveOutputsInternal(
           input.getPipeline(),
           TupleTagList.of(mainOutputTag).and(sideOutputTags.getAll()),
