@@ -106,6 +106,15 @@
             </offlineLinks>
           </configuration>
         </plugin>
+
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-checkstyle-plugin</artifactId>
+          <configuration>
+            <!-- Set testSourceDirectory in order to exclude generated-test-sources -->
+            <testSourceDirectory>${project.basedir}/src/test/</testSourceDirectory>
+          </configuration>
+        </plugin>
       </plugins>
     </pluginManagement>
 
@@ -125,15 +134,6 @@
           <systemPropertyVariables>
             <beamUseDummyRunner>true</beamUseDummyRunner>
           </systemPropertyVariables>
-        </configuration>
-      </plugin>
-
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-checkstyle-plugin</artifactId>
-        <configuration>
-          <!-- Set testSourceDirectory in order to exclude generated-test-sources -->
-          <testSourceDirectory>${project.basedir}/src/test/</testSourceDirectory>
         </configuration>
       </plugin>
 
