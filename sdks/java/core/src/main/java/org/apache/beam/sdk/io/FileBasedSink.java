@@ -491,7 +491,7 @@ public abstract class FileBasedSink<T> extends Sink<T> {
       LOG.debug("Removing temporary bundle output files in {}.", tempDirectory);
       FileOperations fileOperations =
           FileOperationsFactory.getFileOperations(tempDirectory, options);
-      fileOperations.removeDirectoryRecursively(tempDirectory);
+      fileOperations.removeDirectoryAndFiles(tempDirectory);
     }
 
     /**
@@ -697,8 +697,8 @@ public abstract class FileBasedSink<T> extends Sink<T> {
      */
      void copy(List<String> srcFilenames, List<String> destFilenames) throws IOException;
 
-    /** Removes an empty directory. */
-    void removeDirectoryRecursively(String directory) throws IOException;
+    /** Removes a directory and the files in it (but not subdirectories). */
+    void removeDirectoryAndFiles(String directory) throws IOException;
   }
 
   /**
@@ -717,7 +717,7 @@ public abstract class FileBasedSink<T> extends Sink<T> {
     }
 
     @Override
-    public void removeDirectoryRecursively(String directory) throws IOException {
+    public void removeDirectoryAndFiles(String directory) throws IOException {
       IOChannelFactory factory = IOChannelUtils.getFactory(directory);
       Collection<String> matches = factory.match(directory + "/*");
       LOG.debug("Removing {} temporary files found under {}", matches.size(), directory);
@@ -770,7 +770,7 @@ public abstract class FileBasedSink<T> extends Sink<T> {
     }
 
     @Override
-    public void removeDirectoryRecursively(String directory) throws IOException {
+    public void removeDirectoryAndFiles(String directory) throws IOException {
       if (!new File(directory).exists()) {
         LOG.debug("Directory {} already doesn't exist", directory);
         return;
@@ -781,6 +781,7 @@ public abstract class FileBasedSink<T> extends Sink<T> {
         LOG.debug("Removing file {}", filename);
         removeOne(filename);
       }
+      LOG.debug("Removing directory {}", directory);
       removeOne(directory);
     }
 
