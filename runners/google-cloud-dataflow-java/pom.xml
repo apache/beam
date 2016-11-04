@@ -72,13 +72,6 @@
         </executions>
       </plugin>
 
-      <!-- Run CheckStyle pass on transforms, as they are release in
-           source form. -->
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-checkstyle-plugin</artifactId>
-      </plugin>
-
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-jar-plugin</artifactId>
