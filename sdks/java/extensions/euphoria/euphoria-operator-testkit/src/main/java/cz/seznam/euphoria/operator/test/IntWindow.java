@@ -30,6 +30,6 @@ class IntWindow extends Window implements Comparable<IntWindow> {
 
   @Override
   public int compareTo(IntWindow o) {
-    return val - o.val;
+    return Integer.compare(val, o.val);
   }
 }
