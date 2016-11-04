@@ -120,14 +120,6 @@
   <build>
     <plugins>
       <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-javadoc-plugin</artifactId>
-        <configuration>
-          <additionalparam>-Xdoclint:missing</additionalparam>
-        </configuration>
-      </plugin>
-
-      <plugin>
         <artifactId>maven-compiler-plugin</artifactId>
         <configuration>
           <source>1.8</source>

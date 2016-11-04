@@ -160,6 +160,9 @@
             <plugin>
               <groupId>org.apache.maven.plugins</groupId>
               <artifactId>maven-javadoc-plugin</artifactId>
+              <configuration>
+                <additionalparam>${beam.javadoc_opts}</additionalparam>
+              </configuration>
               <executions>
                 <execution>
                   <id>javadoc</id>
@@ -212,6 +215,11 @@
             <groupId>org.apache.rat</groupId>
             <artifactId>apache-rat-plugin</artifactId>
           </plugin>
+
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-javadoc-plugin</artifactId>
+          </plugin>
         </plugins>
       </build>
     </profile>
@@ -222,9 +230,10 @@
         <jdk>[1.8,)</jdk>
       </activation>
       <properties>
-        <beam.javadoc_opts>-Xdoclint:-missing</beam.javadoc_opts>
+        <beam.javadoc_opts>-Xdoclint:all -Xdoclint:-missing</beam.javadoc_opts>
       </properties>
     </profile>
+
     <profile>
       <id>java7-packageinfo</id>
       <activation>
