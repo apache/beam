@@ -85,7 +85,6 @@ class ConcatSource(iobase.BoundedSource):
       # to produce the same coder.
       return self._source_bundles[0].source.default_output_coder()
     else:
-      # Defaulting to PickleCoder.
       return super(ConcatSource, self).default_output_coder()
 
 

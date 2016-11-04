@@ -36,7 +36,7 @@ import random
 import uuid
 
 from apache_beam import pvalue
-from apache_beam.coders import PickleCoder
+from apache_beam import coders
 from apache_beam.pvalue import AsIter
 from apache_beam.pvalue import AsSingleton
 from apache_beam.transforms import core
@@ -176,7 +176,7 @@ class BoundedSource(object):
 
   def default_output_coder(self):
     """Coder that should be used for the records returned by the source."""
-    return PickleCoder()
+    return coders.registry.get_coder(object)
 
 
 class RangeTracker(object):
