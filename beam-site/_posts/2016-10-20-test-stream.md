@@ -47,7 +47,7 @@ from the Mobile Gaming example series.
 
 [LeaderBoard](https://github.com/apache/incubator-beam/blob/master/examples/java8/src/main/java/org/apache/beam/examples/complete/game/LeaderBoard.java#L177)
 is part of the [Beam mobile gaming examples](https://github.com/apache/incubator-beam/tree/master/examples/java8/src/main/java/org/apache/beam/examples/complete/game)
-(and [walkthroughs](http://beam.incubator.apache.org/use/walkthroughs/))
+(and [walkthroughs]({{ site.baseurl }}/get-started/mobile-gaming-example/))
 which produces a continuous accounting of user and team scores. User scores are
 calculated over the lifetime of the program, while team scores are calculated
 within fixed windows with a default duration of one hour. The LeaderBoard
@@ -60,7 +60,7 @@ be controlled within a test.
 ## Writing Deterministic Tests to Emulate Nondeterminism
 
 The Beam testing infrastructure provides the
-[PAssert](http://beam.incubator.apache.org/learn/sdks/javadoc/0.2.0-incubating/)
+[PAssert]({{ site.baseurl }}/documentation/sdks/javadoc/0.2.0-incubating/)
 methods, which assert properties about the contents of a PCollection from within
 a pipeline. We have expanded this infrastructure to include
 [TestStream](https://github.com/apache/incubator-beam/blob/master/sdks/java/core/src/main/java/org/apache/beam/sdk/testing/TestStream.java),
@@ -306,4 +306,4 @@ The addition of TestStream alongside window and pane-specific matchers in PAsser
 has enabled the testing of Pipelines which produce speculative and late panes.
 This permits tests for all styles of pipeline to be expressed directly within the
 Java SDK. If you have questions or comments, we’d love to hear them on the
-[mailing lists](http://beam.incubator.apache.org/use/mailing-lists/).
+[mailing lists]({{ site.baseurl }}/use/mailing-lists/).

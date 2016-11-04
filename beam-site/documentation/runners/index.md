@@ -2,7 +2,7 @@
 layout: default
 title: "Beam Runners"
 permalink: /documentation/runners/
-redirect-from: /learn/runners/
+redirect_from: /learn/runners/
 ---
 # Apache Beam Runners
 
