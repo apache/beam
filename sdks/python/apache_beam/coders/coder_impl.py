@@ -161,7 +161,7 @@ class CallbackCoderImpl(CoderImpl):
       return self.estimate_size(value, nested), []
 
 
-class DeterministicCoderImpl(CoderImpl):
+class DeterministicFastPrimitivesCoderImpl(CoderImpl):
 
   def __init__(self, coder, step_label):
     self._underlying_coder = coder

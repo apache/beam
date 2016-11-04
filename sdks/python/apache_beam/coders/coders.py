@@ -352,7 +352,7 @@ class DillCoder(_PickleCoderBase):
     return coder_impl.CallbackCoderImpl(maybe_dill_dumps, maybe_dill_loads)
 
 
-class DeterministicCoder(FastCoder):
+class DeterministicFastPrimitivesCoder(FastCoder):
   """Throws runtime errors when encoding non-deterministic values."""
 
   def __init__(self, coder, step_label):
@@ -360,7 +360,7 @@ class DeterministicCoder(FastCoder):
     self._step_label = step_label
 
   def _create_impl(self):
-    return coder_impl.DeterministicCoderImpl(
+    return coder_impl.DeterministicFastPrimitivesCoderImpl(
         self._underlying_coder.get_impl(), self._step_label)
 
   def is_deterministic(self):

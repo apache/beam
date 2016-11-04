@@ -104,8 +104,9 @@ class CodersTest(unittest.TestCase):
   def test_pickle_coder(self):
     self.check_coder(coders.PickleCoder(), 'a', 1, 1.5, (1, 2, 3))
 
-  def check_deterministic_coder(self, coder):
-    deterministic_coder = coders.DeterministicCoder(coder, 'step')
+  def test_deterministic_coder(self):
+    coder = coders.FastPrimitivesCoder()
+    deterministic_coder = coders.DeterministicFastPrimitivesCoder(coder, 'step')
     self.check_coder(deterministic_coder, 'a', 1, 1.5, (1, 2, 3))
     with self.assertRaises(TypeError):
       self.check_coder(deterministic_coder, dict())
@@ -114,12 +115,6 @@ class CodersTest(unittest.TestCase):
 
     self.check_coder(coders.TupleCoder((deterministic_coder, coder)),
                      (1, dict()), ('a', [dict()]))
-
-  def test_deterministic_coder_with_pickle_coder(self):
-    self.check_deterministic_coder(coders.PickleCoder())
-
-  def test_deterministic_coder_with_fast_primitives_coder(self):
-    self.check_deterministic_coder(coders.FastPrimitivesCoder())
 
   def test_dill_coder(self):
     cell_value = (lambda x: lambda: x)(0).func_closure[0]
