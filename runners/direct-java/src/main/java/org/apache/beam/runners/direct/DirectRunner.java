@@ -151,6 +151,11 @@ public class DirectRunner
     Iterable<WindowedValue<T>> getElements();
 
     /**
+     * Returns the minimum timestamp among all of the elements of this {@link CommittedBundle}.
+     */
+    Instant getMinTimestamp();
+
+    /**
      * Returns the processing time output watermark at the time the producing {@link PTransform}
      * committed this bundle. Downstream synchronized processing time watermarks cannot progress
      * past this point before consuming this bundle.

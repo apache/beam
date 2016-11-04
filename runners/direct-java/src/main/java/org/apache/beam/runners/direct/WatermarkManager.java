@@ -27,8 +27,6 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Ordering;
-import com.google.common.collect.SortedMultiset;
-import com.google.common.collect.TreeMultiset;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -55,7 +53,6 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.TimeDomain;
 import org.apache.beam.sdk.util.TimerInternals;
 import org.apache.beam.sdk.util.TimerInternals.TimerData;
-import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PValue;
 import org.joda.time.Instant;
@@ -123,6 +120,10 @@ import org.joda.time.Instant;
  * </pre>
  */
 public class WatermarkManager {
+  // The number of updates to apply in #tryApplyPendingUpdates
+  private static final int MAX_INCREMENTAL_UPDATES = 10;
+
+
   /**
    * The watermark of some {@link Pipeline} element, usually a {@link PTransform} or a
    * {@link PCollection}.
@@ -203,7 +204,7 @@ public class WatermarkManager {
    */
   private static class AppliedPTransformInputWatermark implements Watermark {
     private final Collection<? extends Watermark> inputWatermarks;
-    private final SortedMultiset<WindowedValue<?>> pendingElements;
+    private final NavigableSet<CommittedBundle<?>> pendingElements;
     private final Map<StructuralKey<?>, NavigableSet<TimerData>> objectTimers;
 
     private AtomicReference<Instant> currentWatermark;
@@ -213,10 +214,10 @@ public class WatermarkManager {
       // The ordering must order elements by timestamp, and must not compare two distinct elements
       // as equal. This is built on the assumption that any element added as a pending element will
       // be consumed without modifications.
-      Ordering<WindowedValue<?>> pendingElementComparator =
-          new WindowedValueByTimestampComparator().compound(Ordering.arbitrary());
+      Ordering<CommittedBundle<?>> pendingBundleComparator =
+          new BundleByElementTimestampComparator().compound(Ordering.arbitrary());
       this.pendingElements =
-          TreeMultiset.create(pendingElementComparator);
+          new TreeSet<>(pendingBundleComparator);
       this.objectTimers = new HashMap<>();
       currentWatermark = new AtomicReference<>(BoundedWindow.TIMESTAMP_MIN_VALUE);
     }
@@ -249,25 +250,20 @@ public class WatermarkManager {
         minInputWatermark = INSTANT_ORDERING.min(minInputWatermark, inputWatermark.get());
       }
       if (!pendingElements.isEmpty()) {
-        minInputWatermark = INSTANT_ORDERING.min(
-            minInputWatermark, pendingElements.firstEntry().getElement().getTimestamp());
+        minInputWatermark =
+            INSTANT_ORDERING.min(minInputWatermark, pendingElements.first().getMinTimestamp());
       }
       Instant newWatermark = INSTANT_ORDERING.max(oldWatermark, minInputWatermark);
       currentWatermark.set(newWatermark);
       return WatermarkUpdate.fromTimestamps(oldWatermark, newWatermark);
     }
 
-    private synchronized void addPendingElements(Iterable<? extends WindowedValue<?>> newPending) {
-      for (WindowedValue<?> pendingElement : newPending) {
-        pendingElements.add(pendingElement);
-      }
+    private synchronized void addPending(CommittedBundle<?> newPending) {
+      pendingElements.add(newPending);
     }
 
-    private synchronized void removePendingElements(
-        Iterable<? extends WindowedValue<?>> finishedElements) {
-      for (WindowedValue<?> finishedElement : finishedElements) {
-        pendingElements.remove(finishedElement);
-      }
+    private synchronized void removePending(CommittedBundle<?> completed) {
+      pendingElements.remove(completed);
     }
 
     private synchronized void updateTimers(TimerUpdate update) {
@@ -856,7 +852,7 @@ public class WatermarkManager {
   private void tryApplyPendingUpdates() {
     if (refreshLock.tryLock()) {
       try {
-        applyNUpdates(10);
+        applyNUpdates(MAX_INCREMENTAL_UPDATES);
       } finally {
         refreshLock.unlock();
       }
@@ -867,7 +863,7 @@ public class WatermarkManager {
    * Applies all pending updates to this {@link WatermarkManager}, causing the pending state
    * of all {@link TransformWatermarks} to be advanced as far as possible.
    */
-  private void applyPendingUpdates() {
+  private void applyAllPendingUpdates() {
     refreshLock.lock();
     try {
       applyNUpdates(-1);
@@ -944,7 +940,7 @@ public class WatermarkManager {
   synchronized void refreshAll() {
     refreshLock.lock();
     try {
-      applyPendingUpdates();
+      applyAllPendingUpdates();
       Set<AppliedPTransform<?, ?, ?>> toRefresh = pendingRefreshes;
       while (!toRefresh.isEmpty()) {
         toRefresh = refreshAllOf(toRefresh);
@@ -1180,12 +1176,12 @@ public class WatermarkManager {
     }
 
     private void removePending(CommittedBundle<?> bundle) {
-      inputWatermark.removePendingElements(bundle.getElements());
+      inputWatermark.removePending(bundle);
       synchronizedProcessingInputWatermark.removePending(bundle);
     }
 
     private void addPending(CommittedBundle<?> bundle) {
-      inputWatermark.addPendingElements(bundle.getElements());
+      inputWatermark.addPending(bundle);
       synchronizedProcessingInputWatermark.addPending(bundle);
     }
 
@@ -1434,11 +1430,11 @@ public class WatermarkManager {
     }
   }
 
-  private static class WindowedValueByTimestampComparator extends Ordering<WindowedValue<?>> {
+  private static class BundleByElementTimestampComparator extends Ordering<CommittedBundle<?>> {
     @Override
-    public int compare(WindowedValue<?> o1, WindowedValue<?> o2) {
+    public int compare(CommittedBundle<?> o1, CommittedBundle<?> o2) {
       return ComparisonChain.start()
-          .compare(o1.getTimestamp(), o2.getTimestamp())
+          .compare(o1.getMinTimestamp(), o2.getMinTimestamp())
           .result();
     }
   }
