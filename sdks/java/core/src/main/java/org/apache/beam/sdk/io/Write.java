@@ -191,6 +191,15 @@ public class Write {
         }
       }
 
+      /**
+       * Aborts the writer for failed bundles.
+       *
+       * <p>It only aborts the writer for failed bundles, since {@link #finishBundle} resets
+       * the writer to null.
+       *
+       * <p>However, if a bundle fails between finishBundle() is called and the bundle is committed,
+       * the writer cannot be aborted correctly. This is the known limitation of {@link Teardown}.
+       */
       @Teardown
       public void teardown() throws Exception {
         if (writer != null) {
