@@ -62,8 +62,6 @@ public class ExposedByteArrayOutputStream extends ByteArrayOutputStream {
    * no content copy will be involved.
    *
    * <p><i>Note: After passing any byte array to this method, it must not be modified again.</i>
-   *
-   * @throws IOException
    */
   @SuppressFBWarnings(value = "EI_EXPOSE_REP", justification = "Takes ownership of input buffer")
   public void writeAndOwn(byte[] b) throws IOException {

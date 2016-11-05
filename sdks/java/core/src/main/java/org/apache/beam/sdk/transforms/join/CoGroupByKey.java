@@ -43,7 +43,7 @@ import org.apache.beam.sdk.values.PCollectionList;
  * <p>Example of performing a {@link CoGroupByKey} followed by a
  * {@link ParDo} that consumes
  * the results:
- * <pre> {@code
+ * <pre>{@code
  * PCollection<KV<K, V1>> pt1 = ...;
  * PCollection<KV<K, V2>> pt2 = ...;
  *
@@ -57,7 +57,7 @@ import org.apache.beam.sdk.values.PCollectionList;
  * PCollection<T> finalResultCollection =
  *   coGbkResultCollection.apply(ParDo.of(
  *     new DoFn<KV<K, CoGbkResult>, T>() {
- *       @Override
+ *       {@literal @}ProcessElement
  *       public void processElement(ProcessContext c) {
  *         KV<K, CoGbkResult> e = c.element();
  *         Iterable<V1> pt1Vals = e.getValue().getAll(t1);
@@ -66,7 +66,7 @@ import org.apache.beam.sdk.values.PCollectionList;
  *         c.output(...some T...);
  *       }
  *     }));
- * } </pre>
+ * }</pre>
  *
  * @param <K> the type of the keys in the input and output
  * {@code PCollection}s

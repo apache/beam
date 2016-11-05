@@ -415,7 +415,7 @@ public abstract class DoFnSignature {
 
   /**
    * Describes a timer declaration; a field of type {@link TimerSpec} annotated with
-   * {@DoFn.TimerId}.
+   * {@link DoFn.TimerId}.
    */
   @AutoValue
   public abstract static class TimerDeclaration {
