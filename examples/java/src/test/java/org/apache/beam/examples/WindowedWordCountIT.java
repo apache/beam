@@ -42,7 +42,7 @@ public class WindowedWordCountIT {
   /**
    * Options for the {@link WindowedWordCount} Integration Test.
    */
-  public interface WindowedWordCountITOptions
+  private interface WindowedWordCountITOptions
       extends Options, TestPipelineOptions, StreamingOptions {
     String getChecksum();
     void setChecksum(String value);
