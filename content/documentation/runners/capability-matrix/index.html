@@ -140,7 +140,7 @@
 
       <div class="row">
         <h1 id="beam-capability-matrix">Beam Capability Matrix</h1>
-<p><span style="font-size:11px;float:none">Last updated: 2016-11-04 16:45 PDT</span></p>
+<p><span style="font-size:11px;float:none">Last updated: 2016-11-04 17:50 PDT</span></p>
 
 <p>Apache Beam (incubating) provides a portable API layer for building sophisticated data-parallel processing engines that may be executed across a diversity of exeuction engines, or <i>runners</i>. The core concepts of this layer are based upon the Beam Model (formerly referred to as the <a href="http://www.vldb.org/pvldb/vol8/p1792-Akidau.pdf">Dataflow Model</a>), and implemented to varying degrees in each Beam runner. To help clarify the capabilities of individual runners, we’ve created the capability matrix below.</p>
 
@@ -338,7 +338,7 @@
     
     
 
-    <td width="25%" class="cap-summary" style="background-color:#fe5;border-color:#ca1"><center><b>~</b></center>
+    <td width="25%" class="cap-summary" style="background-color:#ec3;border-color:#ca1"><center><b>&#x2713;</b></center>
 </td>
     
   </tr>
@@ -483,7 +483,7 @@
     
     
 
-    <td width="25%" class="cap-summary" style="background-color:#8cf;border-color:#37d"><center><b>~</b></center>
+    <td width="25%" class="cap-summary" style="background-color:#59f;border-color:#37d"><center><b>&#x2713;</b></center>
 </td>
     
   </tr>
@@ -508,7 +508,7 @@
     
     
 
-    <td width="25%" class="cap-summary" style="background-color:#8cf;border-color:#37d"><center><b>~</b></center>
+    <td width="25%" class="cap-summary" style="background-color:#59f;border-color:#37d"><center><b>&#x2713;</b></center>
 </td>
     
   </tr>
@@ -533,7 +533,7 @@
     
     
 
-    <td width="25%" class="cap-summary" style="background-color:#ddd;border-color:#37d"><center><b>&#x2715;</b></center>
+    <td width="25%" class="cap-summary" style="background-color:#59f;border-color:#37d"><center><b>&#x2713;</b></center>
 </td>
     
   </tr>
@@ -558,7 +558,7 @@
     
     
 
-    <td width="25%" class="cap-summary" style="background-color:#ddd;border-color:#37d"><center><b>&#x2715;</b></center>
+    <td width="25%" class="cap-summary" style="background-color:#59f;border-color:#37d"><center><b>&#x2713;</b></center>
 </td>
     
   </tr>
@@ -583,7 +583,7 @@
     
     
 
-    <td width="25%" class="cap-summary" style="background-color:#ddd;border-color:#37d"><center><b>&#x2715;</b></center>
+    <td width="25%" class="cap-summary" style="background-color:#59f;border-color:#37d"><center><b>&#x2713;</b></center>
 </td>
     
   </tr>
@@ -608,7 +608,7 @@
     
     
 
-    <td width="25%" class="cap-summary" style="background-color:#ddd;border-color:#37d"><center><b>&#x2715;</b></center>
+    <td width="25%" class="cap-summary" style="background-color:#59f;border-color:#37d"><center><b>&#x2713;</b></center>
 </td>
     
   </tr>
@@ -1007,7 +1007,7 @@
     
     
 
-    <td width="25%" class="cap" style="background-color:#fe5;border-color:#ca1"><center><b>Partially: group by window in batch only</b></center><br />Uses Spark's groupByKey for grouping. Grouping by window is currently only supported in batch.
+    <td width="25%" class="cap" style="background-color:#fe5;border-color:#ca1"><center><b>Partially: fully supported in batch mode</b></center><br />Using Spark's <tt>groupByKey</tt>. GroupByKey with multiple trigger firings in streaming mode is a work in progress.
 </td>
     
   </tr>
@@ -1057,7 +1057,7 @@
     
     
 
-    <td width="25%" class="cap" style="background-color:#ec3;border-color:#ca1"><center><b>Yes: fully supported</b></center><br />Supports GroupedValues, Globally and PerKey.
+    <td width="25%" class="cap" style="background-color:#ec3;border-color:#ca1"><center><b>Yes: fully supported</b></center><br />Using Spark's <tt>combineByKey</tt> and <tt>aggregate</tt> functions.
 </td>
     
   </tr>
@@ -1107,7 +1107,7 @@
     
     
 
-    <td width="25%" class="cap" style="background-color:#fe5;border-color:#ca1"><center><b>Partially: not supported in streaming</b></center><br />Side input is actually a broadcast variable in Spark so it can't be updated during the life of a job. Spark-runner implementation of side input is more of an immutable, static, side input.
+    <td width="25%" class="cap" style="background-color:#ec3;border-color:#ca1"><center><b>Yes: fully supported</b></center><br />Using Spark's broadcast variables. In streaming mode, side inputs may update but only between micro-batches.
 </td>
     
   </tr>
@@ -1157,7 +1157,7 @@
     
     
 
-    <td width="25%" class="cap" style="background-color:#fe5;border-color:#ca1"><center><b>Partially: streaming requires more testing</b></center><br />Uses Spark's <tt>AccumulatorParam</tt> mechanism
+    <td width="25%" class="cap" style="background-color:#fe5;border-color:#ca1"><center><b>Partially: may overcount when tasks are retried in transformations.</b></center><br />supported via <tt>AccumulatorParam</tt> mechanism. If a task retries, and the accumulator is not within a Spark "Action", an overcount is possible.
 </td>
     
   </tr>
@@ -1252,7 +1252,7 @@
     
     
 
-    <td width="25%" class="cap" style="background-color:#8cf;border-color:#37d"><center><b>Partially: currently only supported in batch</b></center><br />
+    <td width="25%" class="cap" style="background-color:#59f;border-color:#37d"><center><b>Yes: supported</b></center><br />
 </td>
     
   </tr>
@@ -1277,7 +1277,7 @@
     
     
 
-    <td width="25%" class="cap" style="background-color:#8cf;border-color:#37d"><center><b>Partially: currently only supported in batch</b></center><br />
+    <td width="25%" class="cap" style="background-color:#59f;border-color:#37d"><center><b>Yes: supported</b></center><br />
 </td>
     
   </tr>
@@ -1302,7 +1302,7 @@
     
     
 
-    <td width="25%" class="cap" style="background-color:#ddd;border-color:#37d"><center><b>No: pending Spark engine support</b></center><br />
+    <td width="25%" class="cap" style="background-color:#59f;border-color:#37d"><center><b>Yes: supported</b></center><br />
 </td>
     
   </tr>
@@ -1327,7 +1327,7 @@
     
     
 
-    <td width="25%" class="cap" style="background-color:#ddd;border-color:#37d"><center><b>No: pending Spark engine support</b></center><br />
+    <td width="25%" class="cap" style="background-color:#59f;border-color:#37d"><center><b>Yes: supported</b></center><br />
 </td>
     
   </tr>
@@ -1352,7 +1352,7 @@
     
     
 
-    <td width="25%" class="cap" style="background-color:#ddd;border-color:#37d"><center><b>No: pending Spark engine support</b></center><br />
+    <td width="25%" class="cap" style="background-color:#59f;border-color:#37d"><center><b>Yes: supported</b></center><br />
 </td>
     
   </tr>
@@ -1377,7 +1377,7 @@
     
     
 
-    <td width="25%" class="cap" style="background-color:#ddd;border-color:#37d"><center><b>No: pending Spark engine support</b></center><br />
+    <td width="25%" class="cap" style="background-color:#59f;border-color:#37d"><center><b>Yes: supported</b></center><br />
 </td>
     
   </tr>
