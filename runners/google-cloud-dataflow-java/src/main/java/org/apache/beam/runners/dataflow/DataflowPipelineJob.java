@@ -199,7 +199,6 @@ public class DataflowPipelineJob implements PipelineResult {
    *   thread is interrupted.
    * @throws IOException If there is a persistent problem getting job
    *   information.
-   * @throws InterruptedException
    */
   @Nullable
   @VisibleForTesting
