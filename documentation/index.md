@@ -2,8 +2,9 @@
 layout: default
 title: "Learn about Beam"
 permalink: /documentation/
-redirect-from: /learn/
-redirect_from: /docs/learn/
+redirect_from:
+  - /learn/
+  - /docs/learn/
 ---
 
 # Learn about the Apache Beam Model

@@ -2,7 +2,7 @@
 layout: default
 title: "Apache Direct Runner"
 permalink: /documentation/runners/direct/
-redirect-from: /learn/runners/direct/
+redirect_from: /learn/runners/direct/
 ---
 # Using the Direct Runner
 

@@ -2,8 +2,9 @@
 layout: default
 title: "Beam Releases"
 permalink: get-started/releases/
-redirect_from: /use/releases/
-redirect_from: /releases/
+redirect_from:
+  - /use/releases/
+  - /releases/
 ---
 
 # Apache Beam Releases

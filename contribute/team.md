@@ -2,8 +2,9 @@
 layout: default
 title: "Beam Team"
 permalink: /contribute/team/
-redirect_from: /project/team/
-redirect_from: /team/
+redirect_from:
+  - /project/team/
+  - /team/
 ---
 
 # Apache Beam Team

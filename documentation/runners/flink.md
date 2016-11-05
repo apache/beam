@@ -2,7 +2,7 @@
 layout: default
 title: "Apache Flink Runner"
 permalink: /documentation/runners/flink/
-redirect-from: /learn/runners/flink/
+redirect_from: /learn/runners/flink/
 ---
 # Using the Apache Flink Runner
 

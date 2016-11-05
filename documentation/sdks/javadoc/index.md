@@ -2,7 +2,7 @@
 layout: default
 title: "Beam Javadoc"
 permalink: /documentation/sdks/javadoc/
-redirect-from: /learn/sdks/javadoc/
+redirect_from: /learn/sdks/javadoc/
 ---
 # Apache Beam Java SDK API Reference
 

@@ -2,8 +2,9 @@
 layout: default
 title: "Apache Beam Capability Matrix"
 permalink: /documentation/runners/capability-matrix/
-redirect-from: /learn/runners/capability-matrix/
-redirect-from: /capability-matrix/
+redirect_from:
+  - /learn/runners/capability-matrix/
+  - /capability-matrix/
 ---
 
 # Beam Capability Matrix

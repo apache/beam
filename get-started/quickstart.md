@@ -2,8 +2,9 @@
 layout: default
 title: "Beam Quickstart"
 permalink: /get-started/quickstart/
-redirect_from: /use/quickstart/
-redirect_from: /getting-started/
+redirect_from:
+  - /use/quickstart/
+  - /getting-started/
 ---
 
 # Apache Beam Quickstart

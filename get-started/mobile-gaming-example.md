@@ -10,7 +10,7 @@ redirect_from: /use/mobile-gaming-example/
 * TOC
 {:toc}
 
-This section provides a walkthrough of a series of example Apache Beam pipelines that demonstrate more complex functionality than the basic [WordCount](/use/wordcount-example) examples. The pipelines in this section process data from a hypothetical game that users play on their mobile phones. The pipelines demonstrate processing at increasing levels of complexity; the first pipeline, for example, shows how to run a batch analysis job to obtain relatively simple score data, while the later pipelines use Beam's windowing and triggers features to provide low-latency data analysis and more complex intelligence about user's play patterns.
+This section provides a walkthrough of a series of example Apache Beam pipelines that demonstrate more complex functionality than the basic [WordCount]({{ site.baseurl }}/use/wordcount-example) examples. The pipelines in this section process data from a hypothetical game that users play on their mobile phones. The pipelines demonstrate processing at increasing levels of complexity; the first pipeline, for example, shows how to run a batch analysis job to obtain relatively simple score data, while the later pipelines use Beam's windowing and triggers features to provide low-latency data analysis and more complex intelligence about user's play patterns.
 
 > **Note**: These examples assume some familiarity with the Beam programming model. If you haven't already, we recommend familiarizing yourself with the programming model documentation and running a basic example pipeline before continuing. Note also that these examples use the Java 8 lambda syntax, and thus require Java 8. However, you can create pipelines with equivalent functionality using Java 7.
 
@@ -27,7 +27,7 @@ This means that some data events might be received by the game server significan
 
 Because some of our example pipelines use data files (like logs from the game server) as input, the event timestamp for each game might be embedded in the data--that is, it's a field in each data record. Those pipelines need to parse the event timestamp from each data record after reading it from the input file.
 
-For pipelines that read unbounded game data from an unbounded source, the data source sets the intrinsic [timestamp](/learn/programming-guide/#pctimestamps) for each PCollection element to the appropriate event time.
+For pipelines that read unbounded game data from an unbounded source, the data source sets the intrinsic [timestamp]({{ site.baseurl }}/documentation/programming-guide/#pctimestamps) for each PCollection element to the appropriate event time.
 
 The Mobile Game example pipelines vary in complexity, from simple batch analysis to more complex pipelines that can perform real-time analysis and abuse detection. This section walks you through each example and demonstrates how to use Beam features like windowing and triggers to expand your pipeline's capabilites.
 
@@ -56,7 +56,7 @@ As the pipeline processes each event, the event score gets added to the sum tota
 The following diagram shows score data for a several users over the pipeline analysis period. In the diagram, each data point is an event that results in one user/score pair:
 
 <figure id="fig1">
-    <img src="/images/gaming-example.gif"
+    <img src="{{ site.baseurl }}/images/gaming-example.gif"
          width="900" height="263"
          alt="Score data for three users.">
 </figure>
@@ -64,7 +64,7 @@ Figure 1: Score data for three users.
 
 This example uses batch processing, and the diagram's Y axis represents processing time: the pipeline processes events lower on the Y-axis first, and events higher up the axis later. The diagram's X axis represents the event time for each game event, as denoted by that event's timestamp. Note that the individual events in the diagram are not processed by the pipeline in the same order as they occurred (according to their timestamps).
 
-After reading the score events from the input file, the pipeline groups all of those user/score pairs together and sums the score values into one total value per unique user. `UserScore` encapsulates the core logic for that step as the [user-defined composite transform](/learn/programming-guide/#transforms-composite) `ExtractAndSumScore`:
+After reading the score events from the input file, the pipeline groups all of those user/score pairs together and sums the score values into one total value per unique user. `UserScore` encapsulates the core logic for that step as the [user-defined composite transform]({{ site.baseurl }}/documentation/programming-guide/#transforms-composite) `ExtractAndSumScore`:
 
 ```java
 public static class ExtractAndSumScore
@@ -163,7 +163,7 @@ Using fixed-time windowing lets the pipeline provide better information on how e
 The following diagram shows how the pipeline processes a day's worth of a single team's scoring data after applying fixed-time windowing:
 
 <figure id="fig2">
-    <img src="/images/gaming-example-team-scores-narrow.gif"
+    <img src="{{ site.baseurl }}/images/gaming-example-team-scores-narrow.gif"
          width="900" height="390"
          alt="Score data for two teams.">
 </figure>
@@ -173,7 +173,7 @@ Notice that as processing time advances, the sums are now _per window_; each win
 
 > **Note:** As is shown in the diagram above, using windowing produces an _independent total for every interval_ (in this case, each hour). `HourlyTeamScore` doesn't provide a running total for the entire data set at each hour--it provides the total score for all the events that occurred _only within that hour_.
 
-Beam's windowing feature uses the [intrinsic timestamp information](/learn/programming-guide/#pctimestamps) attached to each element of a `PCollection`. Because we want our pipeline to window based on _event time_, we **must first extract the timestamp** that's embedded in each data record apply it to the corresponding element in the `PCollection` of score data. Then, the pipeline can **apply the windowing function** to divide the `PCollection` into logical windows.
+Beam's windowing feature uses the [intrinsic timestamp information]({{ site.baseurl }}/documentation/programming-guide/#pctimestamps) attached to each element of a `PCollection`. Because we want our pipeline to window based on _event time_, we **must first extract the timestamp** that's embedded in each data record apply it to the corresponding element in the `PCollection` of score data. Then, the pipeline can **apply the windowing function** to divide the `PCollection` into logical windows.
 
 Here's the code, which shows how `HourlyTeamScore` uses the [WithTimestamps](https://github.com/apache/incubator-beam/blob/master/sdks/java/core/src/main/java/org/apache/beam/sdk/transforms/WithTimestamps.java) and [Window](https://github.com/apache/incubator-beam/blob/master/sdks/java/core/src/main/java/org/apache/beam/sdk/transforms/windowing/Window.java) transforms to perform these operations:
 
@@ -290,12 +290,12 @@ Below, we'll look at both of these tasks in detail.
 
 We want our pipeline to output a running total score for each user for every ten minutes that the pipeline runs. This calculation doesn't consider _when_ the actual score was generated by the user's play instance; it simply outputs the sum of all the scores for that user that have arrived in the pipeline to date. Late data gets included in the calculation whenever it happens to arrive in the pipeline as it's running.
 
-Because we want all the data that has arrived in the pipeline every time we update our calculation, we have the pipeline consider all of the user score data in a **single global window**. The single global window is unbounded, but we can specify a kind of temporary cut-off point for each ten-minute calculation by using a processing time [trigger](/learn/programming-guide/#triggers).
+Because we want all the data that has arrived in the pipeline every time we update our calculation, we have the pipeline consider all of the user score data in a **single global window**. The single global window is unbounded, but we can specify a kind of temporary cut-off point for each ten-minute calculation by using a processing time [trigger]({{ site.baseurl }}/documentation/programming-guide/#triggers).
 
 When we specify a ten-minute processing time trigger for the single global window, the effect is that the pipeline effectively takes a "snapshot" of the contents of the window every time the trigger fires (which it does at ten-minute intervals). Since we're using a single global window, each snapshot contains all the data collected _to that point in time_. The following diagram shows the effects of using a processing time trigger on the single global window:
 
 <figure id="fig3">
-    <img src="/images/gaming-example-proc-time-narrow.gif"
+    <img src="{{ site.baseurl }}/images/gaming-example-proc-time-narrow.gif"
          width="900" height="263"
          alt="Score data for for three users.">
 </figure>
@@ -342,14 +342,14 @@ We want our pipeline to also output the total score for each team during each ho
 
 Because we consider each hour individually, we can apply fixed-time windowing to our input data, just like in `HourlyTeamScore`. To provide the speculative updates and updates on late data, we'll specify additional trigger parameters. The trigger will cause each window to calculate and emit results at an interval we specify (in this case, every five minutes), and also to keep triggering after the window is considered "complete" to account for late data. Just like the user score calculation, we'll set the trigger to accumulating mode to ensure that we get a running sum for each hour-long window.
 
-The triggers for speculative updates and late data help with the problem of [time skew](/learn/programming-guide/#windowing). Events in the pipeline aren't necessarily processed in the order in which they actually occurred according to their timestamps; they may arrive in the pipeline out of order, or late (in our case, because they were generated while the user's phone was out of contact with a network). Beam needs a way to determine when it can reasonably assume that it has "all" of the data in a given window: this is called the _watermark_.
+The triggers for speculative updates and late data help with the problem of [time skew]({{ site.baseurl }}/documentation/programming-guide/#windowing). Events in the pipeline aren't necessarily processed in the order in which they actually occurred according to their timestamps; they may arrive in the pipeline out of order, or late (in our case, because they were generated while the user's phone was out of contact with a network). Beam needs a way to determine when it can reasonably assume that it has "all" of the data in a given window: this is called the _watermark_.
 
 In an ideal world, all data would be processed immediately when it occurs, so the processing time would be equal to (or at least have a linear relationship to) the event time. However, because distributed systems contain some inherent inaccuracy (like our late-reporting phones), Beam often uses a heuristic watermark.
 
 The following diagram shows the relationship between ongoing processing time and each score's event time for two teams:
 
 <figure id="fig4">
-    <img src="/images/gaming-example-event-time-narrow.gif"
+    <img src="{{ site.baseurl }}/images/gaming-example-event-time-narrow.gif"
          width="900" height="390"
          alt="Score data by team, windowed by event time.">
 </figure>
@@ -417,7 +417,7 @@ Let's suppose scoring in our game depends on the speed at which a user can "clic
 
 To determine whether or not a score is "abnormally" high, `GameStats` calculates the average of every score in that fixed-time window, and then checks each score individual score against the average score multiplied by an arbitrary weight factor (in our case, 2.5). Thus, any score more than 2.5 times the average is deemed to be the product of spam. The `GameStats` pipeline tracks a list of "spam" users and filters those users out of the team score calculations for the team leader board.
 
-Since the average depends on the pipeline data, we need to calculate it, and then use that calculated data in a subsequent `ParDo` transform that filters scores that exceed the weighted value. To do this, we can pass the calculated average to as a [side input](/learn/programming-guide/#transforms-sideio) to the filtering `ParDo`.
+Since the average depends on the pipeline data, we need to calculate it, and then use that calculated data in a subsequent `ParDo` transform that filters scores that exceed the weighted value. To do this, we can pass the calculated average to as a [side input]({{ site.baseurl }}/documentation/programming-guide/#transforms-sideio) to the filtering `ParDo`.
 
 The following code example shows the composite transform that handles abuse detection. The transform uses the `Sum.integersPerKey` transform to sum all scores per user, and then the `Mean.globally` transform to determine the average score for all users. Once that's been calculated (as a `PCollectionView` singleton), we can pass it to the filtering `ParDo` using `.withSideInputs`:
 
@@ -498,7 +498,7 @@ When you set session windowing, you specify a _minimum gap duration_ between eve
 The following diagram shows how data might look when grouped into session windows. Unlike fixed windows, session windows are _different for each user_ and is dependent on each individual user's play pattern:
 
 <figure id="fig5">
-    <img src="/images/gaming-example-session-windows.png"
+    <img src="{{ site.baseurl }}/images/gaming-example-session-windows.png"
          width="662" height="521"
          alt="A diagram representing session windowing."
          alt="User sessions, with a minimum gap duration.">

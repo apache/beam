@@ -4,7 +4,7 @@ layout: default
 <div class="alert alert-info alert-dismissible" role="alert">
 <span class="glyphicon glyphicon-flag" aria-hidden="true"></span>
 <button type="button" class="close" data-dismiss="alert" aria-label="Close"><span aria-hidden="true">&times;</span></button>
-The Apache Beam project is in the process of bootstrapping. This includes the website -- so please file issues you find in <a href="/use/issue-tracking/">Jira</a>. Thanks!
+The Apache Beam project is in the process of bootstrapping. This includes the website -- so please file issues you find in <a href="{{ site.baseurl }}/use/issue-tracking/">Jira</a>. Thanks!
 </div>
 
 # Apache Beam (incubating)
@@ -69,8 +69,8 @@ Beam currently supports Runners that work with the following distributed process
 
 Interested in working with Apache Beam? Great! Here's how to get started:
 
-* If you are interested in using Beam for your data processing tasks, use the [Get Started](/get-started/) section for an overview, quickstart, and examples. Then dive into the [Documentation](/documentatiion/) section to get up to speed on the details.
-* If you're interested in contributing to the Beam SDKs or Runners, start with the [Contribute](/contribute/) section.
+* If you are interested in using Beam for your data processing tasks, use the [Get Started]({{ site.baseurl }}/get-started/) section for an overview, quickstart, and examples. Then dive into the [Documentation]({{ site.baseurl }}/documentation/) section to get up to speed on the details.
+* If you're interested in contributing to the Beam SDKs or Runners, start with the [Contribute]({{ site.baseurl }}/contribute/) section.
 
 <hr>
 <div class="row">

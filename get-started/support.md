@@ -2,6 +2,9 @@
 layout: default
 title: "Support"
 permalink: /get-started/support/
+redirect_from:
+  - /use/issue-tracking/
+  - /use/mailing-lists/
 ---
 
 # Support
