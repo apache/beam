@@ -68,7 +68,7 @@ import org.slf4j.LoggerFactory;
  * where the BigQuery dataset you specify must already exist.
  *
  * <p>Optionally include the --input argument to specify a batch input file.
- * See the --input default value for example batch data file, or use {@link injector.Injector} to
+ * See the --input default value for example batch data file, or use {@code injector.Injector} to
  * generate your own batch data.
   */
 public class UserScore {

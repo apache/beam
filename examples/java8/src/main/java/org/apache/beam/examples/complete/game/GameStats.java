@@ -100,7 +100,8 @@ public class GameStats extends LeaderBoard {
   /**
    * Filter out all but those users with a high clickrate, which we will consider as 'spammy' uesrs.
    * We do this by finding the mean total score per user, then using that information as a side
-   * input to filter out all but those user scores that are > (mean * SCORE_WEIGHT)
+   * input to filter out all but those user scores that are larger than
+   * {@code (mean * SCORE_WEIGHT)}.
    */
   // [START DocInclude_AbuseDetect]
   public static class CalculateSpammyUsers

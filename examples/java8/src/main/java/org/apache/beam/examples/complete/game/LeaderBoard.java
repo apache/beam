@@ -73,7 +73,7 @@ import org.joda.time.format.DateTimeFormatter;
  * results, e.g. for 'team prizes'. We're now outputting window results as they're
  * calculated, giving us much lower latency than with the previous batch examples.
  *
- * <p>Run {@link injector.Injector} to generate pubsub data for this pipeline.  The Injector
+ * <p>Run {@code injector.Injector} to generate pubsub data for this pipeline.  The Injector
  * documentation provides more detail on how to do this.
  *
  * <p>To execute this pipeline using the Dataflow service, specify the pipeline configuration
