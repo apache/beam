@@ -1,0 +1,21 @@
+body {
+  padding-top: 70px;
+  padding-bottom: 30px;
+  font-family: 'Roboto', sans-serif;
+}
+
+.theme-dropdown .dropdown-menu {
+  position: static;
+  display: block;
+  margin-bottom: 20px;
+}
+
+.theme-showcase > p > .btn {
+  margin: 5px 0;
+}
+
+.theme-showcase .navbar .container {
+  width: auto;
+}
+
+@import url(https://fonts.googleapis.com/css?family=Roboto:400,300);
