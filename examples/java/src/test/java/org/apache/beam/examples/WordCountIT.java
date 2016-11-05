@@ -44,7 +44,7 @@ public class WordCountIT {
    * <p>Define expected output file checksum to verify WordCount pipeline result
    * with customized input.
    */
-  public interface WordCountITOptions extends TestPipelineOptions, WordCountOptions {
+  private interface WordCountITOptions extends TestPipelineOptions, WordCountOptions {
     String getChecksum();
     void setChecksum(String value);
   }

@@ -39,7 +39,7 @@ public class BigQueryTornadoesIT {
   /**
    * Options for the BigQueryTornadoes Integration Test.
    */
-  public interface BigQueryTornadoesITOptions
+  private interface BigQueryTornadoesITOptions
       extends TestPipelineOptions, BigQueryTornadoes.Options, BigQueryOptions {
     String getChecksum();
     void setChecksum(String value);
