@@ -41,7 +41,7 @@ import org.apache.beam.sdk.util.ExecutionContext;
  *     myAggregator = createAggregator("myAggregator", new Sum.SumIntegerFn());
  *   }
  *
- *   {@verbatim @}ProcessElement
+ *   {@literal @}ProcessElement
  *   public void processElement(ProcessContext c) {
  *     myAggregator.addValue(1);
  *   }

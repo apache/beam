@@ -114,7 +114,7 @@ public class CombineFns {
    *
    * SimpleFunction<Integer, Integer> identityFn =
    *     new SimpleFunction<Integer, Integer>() {
-   *       {@verbatim @}Override
+   *       {@literal @}Override
    *       public Integer apply(Integer input) {
    *           return input;
    *       }};

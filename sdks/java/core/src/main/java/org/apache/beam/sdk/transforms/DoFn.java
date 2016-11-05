@@ -80,7 +80,7 @@ import org.joda.time.Instant;
  * PCollection<String> lines = ... ;
  * PCollection<String> words =
  *     lines.apply(ParDo.of(new DoFn<String, String>() {
- *         {@verbatim @}ProcessElement
+ *         {@literal @}ProcessElement
  *         public void processElement(ProcessContext c, BoundedWindow window) {
  *
  *         }}));
