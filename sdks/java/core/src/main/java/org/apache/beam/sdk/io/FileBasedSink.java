@@ -133,7 +133,8 @@ public abstract class FileBasedSink<T> extends Sink<T> {
 
   /**
    * The {@link WritableByteChannelFactory} that is used to wrap the raw data output to the
-   * underlying channel. The default is to not compress the output using {@link #UNCOMPRESSED}.
+   * underlying channel. The default is to not compress the output using
+   * {@link CompressionType#UNCOMPRESSED}.
    */
   protected final WritableByteChannelFactory writableByteChannelFactory;
 
@@ -206,11 +207,6 @@ public abstract class FileBasedSink<T> extends Sink<T> {
     return baseOutputFilename;
   }
 
-  /**
-   * Perform pipeline-construction-time validation. The default implementation is a no-op.
-   * Subclasses should override to ensure the sink is valid and can be written to. It is recommended
-   * to use {@link Preconditions#checkState(boolean)} in the implementation of this method.
-   */
   @Override
   public void validate(PipelineOptions options) {}
 
@@ -802,7 +798,6 @@ public abstract class FileBasedSink<T> extends Sink<T> {
     /**
      * @param channel the {@link WritableByteChannel} to wrap
      * @return the {@link WritableByteChannel} to be used during output
-     * @throws IOException
      */
     WritableByteChannel create(WritableByteChannel channel) throws IOException;
 

@@ -133,7 +133,7 @@ public interface ValueProvider<T> {
    * construction time.
    *
    * <p>To enforce this contract, if there is no default, users must only call
-   * {@link #get()} at execution time (after a call to {@link Pipeline#run}),
+   * {@link #get()} at execution time (after a call to {@link org.apache.beam.sdk.Pipeline#run}),
    * which will provide the value of {@code optionsMap}.
    */
   class RuntimeValueProvider<T> implements ValueProvider<T>, Serializable {
