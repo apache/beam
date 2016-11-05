@@ -2,8 +2,9 @@
 layout: default
 title: "Use Beam"
 permalink: /get-started/
-redirect_from: /use/
-redirect_from: /docs/use/
+redirect_from:
+  - /use/
+  - /docs/use/
 ---
 
 # Using Apache Beam
@@ -22,7 +23,7 @@ Find information on the latest Beam releases, including versioning and release n
 See detailed walkthroughs of complete Beam pipelines.
 
 * [WordCount]({{ site.baseurl }}/use/wordcount-example): Simple example pipelines that demonstrate basic Beam programming, including debugging and testing
-* [Mobile Gaming]({{ site.baseurl }}/use/walkthroughs): A series of more advanced pipelines that demonstrate use cases in the mobile gaming domain
+* [Mobile Gaming]({{ site.baseurl }}/use/mobile-gaming-example): A series of more advanced pipelines that demonstrate use cases in the mobile gaming domain
 
 #### Support
 Find resources to help you use Beam.

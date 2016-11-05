@@ -2,8 +2,9 @@
 layout: default
 title: "Beam Programming Guide"
 permalink: /documentation/programming-guide/
-redirect-from: /learn/programming-guide/
-redirect_from: /docs/learn/programming-guide/
+redirect_from:
+  - /learn/programming-guide/
+  - /docs/learn/programming-guide/
 ---
 
 # Apache Beam Programming Guide

@@ -15,7 +15,7 @@ The Apache Beam project periodically declares and publishes releases. A release 
 
 The Beam community treats releases with great importance. They are a public face of the project and most users interact with the project only through the releases. Releases are signed off by the entire Beam community in a public vote.
 
-Each release is executed by a *Release Manager*, who is selected among the [Beam committers](/project/team). This document describes the process that the Release Manager follows to perform a release. Any changes to this process should be discussed and adopted on the [dev@ mailing list](/use/mailing-lists).
+Each release is executed by a *Release Manager*, who is selected among the [Beam committers]({{ site.baseurl }}/project/team). This document describes the process that the Release Manager follows to perform a release. Any changes to this process should be discussed and adopted on the [dev@ mailing list]({{ site.baseurl }}/use/mailing-lists).
 
 Please remember that publishing software has legal consequences. This guide complements the foundation-wide [Product Release Policy](http://www.apache.org/dev/release.html) and [Release Distribution Policy](http://www.apache.org/dev/release-distribution).
 
@@ -110,7 +110,7 @@ Configure access to the [Apache Nexus repository](http://repository.apache.org/)
 
 #### Website development setup
 
-Get ready for updating the Beam website by following the [website development instructions](/contribute/contribution-guide/#website).
+Get ready for updating the Beam website by following the [website development instructions]({{ site.baseurl }}/contribute/contribution-guide/#website).
 
 ### Create a new version in JIRA
 
@@ -273,12 +273,12 @@ Please carefully review the generated Javadoc. Check for completeness and presen
 
 The final step of building the candidate is to propose a website pull request.
 
-Add the new release to the [Apache Beam Releases](/use/releases/) page, as follows:
+Add the new release to the [Apache Beam Releases]({{ site.baseurl }}/use/releases/) page, as follows:
 
 * Update the `<version>` tags in the sample `pom.xml` snippet to the new release.
 * Add the new version to the `Release Notes` section below, along with links to the source code download and the Release Notes in JIRA.
 
-Add the new Javadoc to [SDK API Reference page](/learn/sdks/javadoc/) page, as follows:
+Add the new Javadoc to [SDK API Reference page]({{ site.baseurl }}/learn/sdks/javadoc/) page, as follows:
 
 * Copy the generated Javadoc into the website repository: `cp -r ${JAVADOC_ROOT} learn/sdks/javadoc/${VERSION}`.
 * Update the Javadoc link on this page to point to the new version.
@@ -289,7 +289,7 @@ Finally, propose a pull request with these changes. (Don’t merge before finali
 
 1. Maven artifacts deployed to the staging repository of [repository.apache.org](https://repository.apache.org/content/repositories/)
 1. Source distribution deployed to the dev repository of [dist.apache.org](https://dist.apache.org/repos/dist/dev/incubator/beam/)
-1. Website pull request proposed to list the [release](/use/releases/) and publish the [API reference manual](/learn/sdks/javadoc/)
+1. Website pull request proposed to list the [release]({{ site.baseurl }}/use/releases/) and publish the [API reference manual]({{ site.baseurl }}/learn/sdks/javadoc/)
 
 **********
 
@@ -442,7 +442,7 @@ Create a new Git tag for the released version by copying the tag for the final r
 
 ### Merge website pull request
 
-Merge the website pull request to [list the release](/use/releases/) and publish the [API reference manual](/learn/sdks/javadoc/) created earlier.
+Merge the website pull request to [list the release]({{ site.baseurl }}/use/releases/) and publish the [API reference manual]({{ site.baseurl }}/learn/sdks/javadoc/) created earlier.
 
 ### Mark the version as released in JIRA
 
@@ -452,7 +452,7 @@ In JIRA, inside [version management](https://issues.apache.org/jira/plugins/serv
 
 * Maven artifacts released and indexed in the [Maven Central Repository](https://search.maven.org/#search%7Cga%7C1%7Cg%3A%22org.apache.beam%22)
 * Source distribution available in the release repository of [dist.apache.org](https://dist.apache.org/repos/dist/release/incubator/beam/)
-* Website pull request to [list the release](/use/releases/) and publish the [API reference manual](/learn/sdks/javadoc/) merged
+* Website pull request to [list the release]({{ site.baseurl }}/use/releases/) and publish the [API reference manual]({{ site.baseurl }}/learn/sdks/javadoc/) merged
 * Release tagged in the source code repository
 * Release version finalized in JIRA
 

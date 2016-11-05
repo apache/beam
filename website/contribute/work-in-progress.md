@@ -6,7 +6,7 @@ permalink: /contribute/work-in-progress/
 
 # Work In Progress in the Apache Beam Project
 
-As mentioned in the [Contribution Guide](/contribute/contribution-guide/), all work in Beam is tracked in our [Apache JIRA](https://issues.apache.org/jira/browse/BEAM). In addition, the following types of work may be of particular interest to the Beam community.
+As mentioned in the [Contribution Guide]({{ site.baseurl }}/contribute/contribution-guide/), all work in Beam is tracked in our [Apache JIRA](https://issues.apache.org/jira/browse/BEAM). In addition, the following types of work may be of particular interest to the Beam community.
 
 * TOC
 {:toc}
@@ -14,11 +14,11 @@ As mentioned in the [Contribution Guide](/contribute/contribution-guide/), all w
 
 ## Starter Tasks
 
-The community regular tags good getting started tasks with the label `starter`. Use a quick [JIRA search](https://issues.apache.org/jira/issues?jql=project%20%3D%20BEAM%20AND%20status%20%3D%20Open%20AND%20labels%20%3D%20starter) to identify ways you can get started [contributing](/contribute/contribution-guide/) to Beam.
+The community regular tags good getting started tasks with the label `starter`. Use a quick [JIRA search](https://issues.apache.org/jira/issues?jql=project%20%3D%20BEAM%20AND%20status%20%3D%20Open%20AND%20labels%20%3D%20starter) to identify ways you can get started [contributing]({{ site.baseurl }}/contribute/contribution-guide/) to Beam.
 
 ## Feature Branches
 
-Larger features with multiple active developers may be developed on a [feature branch](/contribute/contribution-guide/#feature-branches) before being merged in the master branch. In particular, this is often used for initial development of new components like SDKs or runners.
+Larger features with multiple active developers may be developed on a [feature branch]({{ site.baseurl }}/contribute/contribution-guide/#feature-branches) before being merged in the master branch. In particular, this is often used for initial development of new components like SDKs or runners.
 
 Current branches include:
 

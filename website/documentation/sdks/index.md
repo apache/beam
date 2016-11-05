@@ -2,7 +2,7 @@
 layout: default
 title: "Beam SDKs"
 permalink: /documentation/sdks/
-redirect-from: /learn/sdks/
+redirect_from: /learn/sdks/
 ---
 # Apache Beam SDKs
 
