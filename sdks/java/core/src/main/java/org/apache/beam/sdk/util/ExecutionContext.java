@@ -41,14 +41,14 @@ public interface ExecutionContext {
 
   /**
    * Hook for subclasses to implement that will be called whenever
-   * {@link OldDoFn.Context#output}
+   * {@link org.apache.beam.sdk.transforms.OldDoFn.Context#output}
    * is called.
    */
   void noteOutput(WindowedValue<?> output);
 
   /**
    * Hook for subclasses to implement that will be called whenever
-   * {@link OldDoFn.Context#sideOutput}
+   * {@link org.apache.beam.sdk.transforms.OldDoFn.Context#sideOutput}
    * is called.
    */
   void noteSideOutput(TupleTag<?> tag, WindowedValue<?> output);
@@ -70,14 +70,14 @@ public interface ExecutionContext {
 
     /**
      * Hook for subclasses to implement that will be called whenever
-     * {@link OldDoFn.Context#output}
+     * {@link org.apache.beam.sdk.transforms.OldDoFn.Context#output}
      * is called.
      */
     void noteOutput(WindowedValue<?> output);
 
     /**
      * Hook for subclasses to implement that will be called whenever
-     * {@link OldDoFn.Context#sideOutput}
+     * {@link org.apache.beam.sdk.transforms.OldDoFn.Context#sideOutput}
      * is called.
      */
     void noteSideOutput(TupleTag<?> tag, WindowedValue<?> output);

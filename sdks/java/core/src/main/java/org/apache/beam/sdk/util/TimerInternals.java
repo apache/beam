@@ -128,15 +128,17 @@ public interface TimerInternals {
    * </ol>
    *
    * <p>In pictures:
-   * <pre>
+   * <pre>{@code
    *  |              |       |       |       |
    *  |              |   D   |   C   |   B   |   A
    *  |              |       |       |       |
    * GIWM     <=    GOWM <= LOWM <= LIWM <= GIWM
    * (next stage)
    * -------------------------------------------------> event time
-   * </pre>
-   * where
+   * }</pre>
+   *
+   * <p>where
+   *
    * <ul>
    * <li> LOWM = local output water mark.
    * <li> GOWM = global output water mark.
