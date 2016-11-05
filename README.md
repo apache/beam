@@ -17,8 +17,7 @@ This website is hosted at:
     
 This repository contains:
 
-1. `_<directory>`: the infrastructure for building, testing, and styling the website
-1. `use/`, `learn/`, and `contribute/`: markdown files containing the bulk of the content
+1. `src/`: the source of the site, including markdown files containing the bulk of the content
 1. `content/`: html generated from the markdown (which is what is actually hosted on the website)
 
 
@@ -84,7 +83,7 @@ see the Bundler [documentation](http://bundler.io/v1.3/rationale.html).
 
 
 ## Apache License
----
+
 Except as otherwise noted this software is licensed under the
 [Apache License, Version 2.0](http://www.apache.org/licenses/LICENSE-2.0.html)
 

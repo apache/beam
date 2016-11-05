@@ -20,7 +20,8 @@ description: > # this means to ignore newlines until "baseurl:"
 # the subpath of your site, e.g. /blog
 baseurl: ""
 
-# output directory of generated html files
+# input and output directory
+source: src
 destination: content
 
 # the base hostname & protocol for your site
@@ -45,5 +46,3 @@ kramdown:
   toc_levels:     2..6
   
 # Plugins are configured in the Gemfile.
-
-  
