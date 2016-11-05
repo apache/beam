@@ -2,7 +2,7 @@
 layout: default
 title: "Beam Learning Resources"
 permalink: /documentation/resources/
-redirect-from: /learn/resources/
+redirect_from: /learn/resources/
 ---
 # Additional Resources for Learning about Apache Beam
 

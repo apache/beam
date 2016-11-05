@@ -2,7 +2,7 @@
 layout: default
 title: "Cloud Dataflow Runner"
 permalink: /documentation/runners/dataflow/
-redirect-from: /learn/runners/dataflow/
+redirect_from: /learn/runners/dataflow/
 ---
 # Using the Cloud Dataflow Runner
 

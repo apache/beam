@@ -18,7 +18,7 @@ We use a review-then-commit workflow in Beam for all contributions.
 
 **For larger contributions or those that affect multiple components:**
 
-1. **Engage**: We encourage you to work with the Beam community on the [Apache JIRA issue tracker](https://issues.apache.org/jira/browse/BEAM) and [developer’s mailing list](http://beam.incubator.apache.org/use/mailing-lists/) to identify good areas for contribution.
+1. **Engage**: We encourage you to work with the Beam community on the [Apache JIRA issue tracker](https://issues.apache.org/jira/browse/BEAM) and [developer’s mailing list]({{ site.baseurl }}/use/mailing-lists/) to identify good areas for contribution.
 1. **Design:** More complicated contributions will likely benefit from some early discussion in order to scope and design them well.
 
 **For all contributions:**
@@ -34,7 +34,7 @@ We look forward to working with you!
 ### Mailing list(s)
 We discuss design and implementation issues on dev@beam.incubator.apache.org mailing list, which is archived [here](https://lists.apache.org/list.html?dev@beam.apache.org). Join by emailing [`dev-subscribe@beam.incubator.apache.org`](mailto:dev-subscribe@beam.incubator.apache.org).
 
-If interested, you can also join the other [mailing lists](http://beam.incubator.apache.org/use/mailing-lists/) too.
+If interested, you can also join the other [mailing lists]({{ site.baseurl }}/use/mailing-lists/) too.
 
 ### Apache JIRA
 We use [Apache JIRA](https://issues.apache.org/jira/browse/BEAM) as an issue tracking and project management tool, as well as a way to communicate among a very diverse and distributed set of contributors. To be able to gather feedback, avoid frustration, and avoid duplicated efforts all Beam-related work should be tracked there.
@@ -314,10 +314,10 @@ Some larger features are developed on a feature branch before being merged into 
 
 #### Developing
 
-To contribute code on a feature branch, use the same process as above, but replace `master` with the [name of the branch](/contribute/work-in-progress/#feature-branches).
+To contribute code on a feature branch, use the same process as above, but replace `master` with the [name of the branch]({{ site.baseurl }}/contribute/work-in-progress/#feature-branches).
 
 Since feature branches are often used for new components, you may find that
-there is no [committer](/project/team/) familiar with all the details of the
+there is no [committer]({{ site.baseurl }}/project/team/) familiar with all the details of the
 new language or runner. In that case, consider asking someone else familiar
 with the technology to do an initial review before looping in a committer for a
 final review and merge.
