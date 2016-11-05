@@ -268,6 +268,7 @@ public class ExpectedLogs extends ExternalResource {
   protected void after() {
     log.removeHandler(logSaver);
     log.setLevel(previousLevel);
+    logSaver.reset();
   }
 
   private final Logger log;
@@ -301,5 +302,9 @@ public class ExpectedLogs extends ExternalResource {
 
     @Override
     public void close() throws SecurityException {}
+
+    public void reset() {
+      logRecords = new ConcurrentLinkedDeque<>();
+    }
   }
 }
