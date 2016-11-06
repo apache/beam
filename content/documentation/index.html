@@ -139,31 +139,48 @@
     <div class="container" role="main">
 
       <div class="row">
-        <h1 id="learn-about-the-apache-beam-model">Learn about the Apache Beam Model</h1>
+        <h1 id="apache-beam-documentation">Apache Beam Documentation</h1>
 
 <p>Get in-depth conceptual information and reference material for the Beam Model, SDKs and Runners:</p>
 
-<h4 id="beam-programming-guidelearnprogramming-guide"><a href="/learn/programming-guide/">Beam Programming Guide</a></h4>
+<h2 id="concepts">Concepts</h2>
+
 <p>Learn about the Beam Programming Model and the concepts common to all Beam SDKs and Runners.</p>
 
-<h4 id="beam-sdks">Beam SDKs</h4>
+<ul>
+  <li>The <a href="/documentation/programming-guide/">Programming Guide</a> introduces all the key Beam concepts.</li>
+  <li>Visit <a href="/documentation/resources/">Additional Resources</a> for some of our favorite articles and talks about Beam.</li>
+</ul>
+
+<h2 id="sdks">SDKs</h2>
+
 <p>Find status and reference information on all of the available Beam SDKs.</p>
 
 <ul>
-  <li><a href="/learn/sdks/java/">Java SDK</a></li>
+  <li><a href="/documentation/sdks/java/">Java SDK</a></li>
+  <li><em>[Under Development]</em> <a href="/contribute/work-in-progress/#feature-branches">Python SDK</a></li>
 </ul>
 
-<h4 id="runners">Runners</h4>
-<p>Learn about the <a href="/learn/runners/capability-matrix/">Capability Matrix</a> and find status and reference information on all of the available Beam Runners:</p>
+<h2 id="runners">Runners</h2>
+
+<p>A Beam Runner runs a Beam pipeline on a specific (often distributed) data processing system.</p>
+
+<h3 id="available-runners">Available Runners</h3>
 
 <ul>
-  <li><a href="/learn/runners/direct/">Direct Runner</a></li>
-  <li><a href="/learn/runners/flink/">Apache Flink</a></li>
-  <li><a href="/learn/runners/spark/">Apache Spark</a></li>
-  <li><a href="/learn/runners/dataflow/">Cloud Dataflow</a></li>
+  <li><a href="/documentation/runners/direct/">DirectRunner</a>: Runs locally on your machine – great for developing, testing, and debugging.</li>
+  <li><a href="/documentation/runners/flink/">FlinkRunner</a>: Runs on <a href="http://flink.apache.org">Apache Flink</a>.</li>
+  <li><a href="/documentation/runners/spark/">SparkRunner</a>: Runs on <a href="http://spark.apache.org">Apache Spark</a>.</li>
+  <li><a href="/documentation/runners/dataflow/">DataflowRunner</a>: Runs on <a href="https://cloud.google.com/dataflow">Google Cloud Dataflow</a>, a fully managed service within <a href="https://cloud.google.com/">Google Cloud Platform</a>.</li>
+  <li><em>[Under Development]</em> <a href="/contribute/work-in-progress/#feature-branches">ApexRunner</a>: Runs on <a href="http://apex.apache.org">Apache Apex</a>.</li>
+  <li><em>[Under Development]</em> <a href="/contribute/work-in-progress/#feature-branches">GearpumpRunner</a>: Runs on <a href="http://gearpump.apache.org">Apache Gearpump (incubating)</a>.</li>
 </ul>
 
-<h4 id="additional-resourceslearnresources"><a href="/learn/resources/">Additional Resources</a></h4>
+<h3 id="choosing-a-runner">Choosing a Runner</h3>
+
+<p>Beam is designed to enable pipelines to be portable across different runners. However, given every runner has different capabilities, they also have different abilities to implement the core concepts in the Beam model. The <a href="/documentation/runners/capability-matrix">Capability Matrix</a> provides a detailed comparison of runner functionality.</p>
+
+<p>Once you have chosen which runner to use, see that runner’s page for more information about any initial runner-specific setup as well as any required or optional <code class="highlighter-rouge">PipelineOptions</code> for configuring it’s execution. You may also want to refer back to the <a href="/get-started/quickstart">Quickstart</a> for instructions on executing the sample WordCount pipeline.</p>
 
       </div>
 
