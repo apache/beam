@@ -7,6 +7,8 @@ columns:
     name: Apache Flink
   - class: spark
     name: Apache Spark
+  - class: apex
+    name: Apache Apex (on feature branch)
 
 categories:
   - description: What is being computed?
@@ -34,6 +36,10 @@ categories:
             l1: 'Yes'
             l2: fully supported
             l3: ParDo applies per-element transformations as Spark FlatMapFunction.
+          - class: apex
+            l1: 'Yes'
+            l2: fully supported
+            l3: Supported through Apex operator that wraps the function and processes data as single element bundles.
       - name: GroupByKey
         values:
           - class: model
@@ -52,6 +58,10 @@ categories:
             l1: 'Partially'
             l2: fully supported in batch mode
             l3: "Using Spark's <tt>groupByKey</tt>. GroupByKey with multiple trigger firings in streaming mode is a work in progress." 
+          - class: apex
+            l1: 'Yes'
+            l2: fully supported
+            l3: "Apex runner uses the Beam code for grouping by window and thereby has support for all windowing and triggering mechanisms. Runner does not implement partitioning yet (BEAM-838)"
       - name: Flatten
         values:
           - class: model
@@ -70,7 +80,10 @@ categories:
             l1: 'Yes'
             l2: fully supported
             l3: ''
-
+          - class: apex
+            l1: 'Yes'
+            l2: fully supported
+            l3: ''
       - name: Combine
         values:
           - class: model
@@ -89,7 +102,10 @@ categories:
             l1: 'Yes'
             l2: fully supported
             l3: "Using Spark's <tt>combineByKey</tt> and <tt>aggregate</tt> functions."
-
+          - class: apex
+            l1: 'Yes'
+            l2: 'fully supported'
+            l3: "Default Beam translation. Currently no efficient pre-aggregation (BEAM-935)."
       - name: Composite Transforms
         values:
           - class: model
@@ -108,7 +124,10 @@ categories:
             l1: 'Partially'
             l2: supported via inlining
             l3: ''
-
+          - class: apex
+            l1: 'Partially'
+            l2: supported via inlining
+            l3: ''
       - name: Side Inputs
         values:
           - class: model
@@ -127,7 +146,10 @@ categories:
             l1: 'Yes'
             l2: fully supported
             l3: "Using Spark's broadcast variables. In streaming mode, side inputs may update but only between micro-batches."
-
+          - class: apex
+            l1: 'Yes'
+            l2: size restrictions
+            l3: No distributed implementation and therefore size restrictions. 
       - name: Source API
         values:
           - class: model
@@ -143,6 +165,10 @@ categories:
             l2: fully supported
             l3:
           - class: spark
+            l1: 'Yes'
+            l2: fully supported
+            l3: 
+          - class: apex
             l1: 'Yes'
             l2: fully supported
             l3: 
@@ -165,6 +191,10 @@ categories:
             l1: 'Partially'
             l2: may overcount when tasks are retried in transformations.
             l3: 'supported via <tt>AccumulatorParam</tt> mechanism. If a task retries, and the accumulator is not within a Spark "Action", an overcount is possible.'
+          - class: apex
+            l1: 'No'
+            l2: Not implemented in runner.
+            l3: 
 
       - name: Keyed State
         values:
@@ -185,7 +215,10 @@ categories:
             l1: 'No'
             l2: pending model support
             l3: Spark supports keyed state with mapWithState() so support shuold be straight forward.
-
+          - class: apex
+            l1: 'No'
+            l2: pending model support
+            l3: Apex supports keyed state, so adding support for this should be easy once the Beam model exposes it.
 
   - description: Where in event time?
     anchor: where
@@ -212,6 +245,10 @@ categories:
             l1: 'Yes'
             l2: supported
             l3: ''
+          - class: apex
+            l1: 'Yes'
+            l2: supported
+            l3: ''
 
       - name: Fixed windows
         values:
@@ -228,6 +265,10 @@ categories:
             l2: supported
             l3: ''
           - class: spark
+            l1: 'Yes'
+            l2: supported
+            l3: ''
+          - class: apex
             l1: 'Yes'
             l2: supported
             l3: ''
@@ -250,6 +291,10 @@ categories:
             l1: 'Yes'
             l2: supported
             l3: ''
+          - class: apex
+            l1: 'Yes'
+            l2: supported
+            l3: ''
 
       - name: Session windows
         values:
@@ -266,6 +311,10 @@ categories:
             l2: supported
             l3: ''
           - class: spark
+            l1: 'Yes'
+            l2: supported
+            l3: ''
+          - class: apex
             l1: 'Yes'
             l2: supported
             l3: ''
@@ -288,6 +337,10 @@ categories:
             l1: 'Yes'
             l2: supported
             l3: ''
+          - class: apex
+            l1: 'Yes'
+            l2: supported
+            l3: ''
 
       - name: Custom merging windows
         values:
@@ -307,6 +360,10 @@ categories:
             l1: 'Yes'
             l2: supported
             l3: ''
+          - class: apex
+            l1: 'Yes'
+            l2: supported
+            l3: ''
 
       - name: Timestamp control
         values:
@@ -323,6 +380,10 @@ categories:
             l2: supported
             l3: ''
           - class: spark
+            l1: 'Yes'
+            l2: supported
+            l3: ''
+          - class: apex
             l1: 'Yes'
             l2: supported
             l3: ''
@@ -355,6 +416,10 @@ categories:
             l1: 'No'
             l2: ''
             l3: ''
+          - class: apex
+            l1: 'Yes'
+            l2: fully supported
+            l3: ''
 
       - name: Event-time triggers
         values:
@@ -373,6 +438,10 @@ categories:
           - class: spark
             l1: 'No'
             l2: ''
+            l3: ''
+          - class: apex
+            l1: 'Yes'
+            l2: fully supported
             l3: ''
 
       - name: Processing-time triggers
@@ -393,6 +462,10 @@ categories:
             l1: 'Yes'
             l2: "This is Spark streaming's native model"
             l3: "Spark processes streams in micro-batches. The micro-batch size is actually a pre-set, fixed, time interval. Currently, the runner takes the first window size in the pipeline and sets it's size as the batch interval. Any following window operations will be considered processing time windows and will affect triggering."
+          - class: apex
+            l1: 'Yes'
+            l2: fully supported
+            l3: ''
 
       - name: Count triggers
         values:
@@ -412,6 +485,10 @@ categories:
             l1: 'No'
             l2: ''
             l3: ''
+          - class: apex
+            l1: 'Yes'
+            l2: fully supported
+            l3: ''
 
       - name: '[Meta]data driven triggers'
         values:
@@ -429,6 +506,10 @@ categories:
             l2: pending model support
             l3: 
           - class: spark
+            l1: 'No'
+            l2: pending model support
+            l3: 
+          - class: apex
             l1: 'No'
             l2: pending model support
             l3: 
@@ -451,6 +532,10 @@ categories:
             l1: 'No'
             l2: ''
             l3: ''
+          - class: apex
+            l1: 'Yes'
+            l2: fully supported
+            l3: ''
 
       - name: Allowed lateness
         values:
@@ -469,6 +554,10 @@ categories:
           - class: spark
             l1: 'No'
             l2: ''
+            l3: ''
+          - class: apex
+            l1: 'Yes'
+            l2: fully supported
             l3: ''
 
       - name: Timers
@@ -490,7 +579,10 @@ categories:
             l1: 'No'
             l2: pending model support
             l3: ''
-
+          - class: apex
+            l1: 'No'
+            l2: pending model support
+            l3: ''
 
   - description: How do refinements relate?
     anchor: how
@@ -518,6 +610,10 @@ categories:
             l1: 'Yes'
             l2: fully supported
             l3: 'Spark streaming natively discards elements after firing.'
+          - class: apex
+            l1: 'Yes'
+            l2: fully supported
+            l3: ''
 
       - name: Accumulating
         values:
@@ -537,6 +633,10 @@ categories:
             l1: 'No'
             l2: ''
             l3: ''
+          - class: apex
+            l1: 'Yes'
+            l2: fully supported
+            l3: 'Size restriction, see combine support.'
 
       - name: 'Accumulating &amp; Retracting'
         values:
@@ -554,6 +654,10 @@ categories:
             l2: pending model support
             l3: ''
           - class: spark
+            l1: 'No'
+            l2: pending model support
+            l3: ''
+          - class: apex
             l1: 'No'
             l2: pending model support
             l3: ''
