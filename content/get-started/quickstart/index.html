@@ -139,40 +139,209 @@
     <div class="container" role="main">
 
       <div class="row">
-        <h1 id="apache-beam-quickstart">Apache Beam Quickstart</h1>
+        <h1 id="apache-beam-java-sdk-quickstart">Apache Beam Java SDK Quickstart</h1>
 
-<p>The Apache Beam project is in the process of bootstrapping. This includes the creation of project resources, the refactoring of the initial code submission, and the formulation of project documentation, planning, and design documents. Until the project is fully initialized, this page contains useful resources to learn more about the model and tools which comprise Apache Beam.</p>
+<p>This Quickstart will walk you through executing your first Beam pipeline to run <a href="/get-started/wordcount-example">WordCount</a>, written using Beam’s <a href="/documentation/sdks/java">Java SDK</a>, on a <a href="/documentation#runners">runner</a> of your choice.</p>
 
-<h2 id="articles--slides">Articles &amp; slides</h2>
-<ul>
-  <li><a href="https://www.oreilly.com/ideas/the-world-beyond-batch-streaming-101">The world beyond batch: Streaming 101</a></li>
-  <li><a href="https://www.oreilly.com/ideas/the-world-beyond-batch-streaming-102">The world beyong batch: Streaming 102</a></li>
-  <li><a href="https://cloud.google.com/dataflow/blog/dataflow-beam-and-spark-comparison">Dataflow/Beam &amp; Spark: A Programming Model Comparison</a></li>
-  <li><a href="http://googlecloudplatform.blogspot.com/2016/01/Dataflow-and-open-source-proposal-to-join-the-Apache-Incubator.html">Dataflow and open source - proposal to join the Apache Incubator</a></li>
+<ul id="markdown-toc">
+  <li><a href="#set-up-your-development-environment" id="markdown-toc-set-up-your-development-environment">Set up your Development Environment</a></li>
+  <li><a href="#get-the-wordcount-code" id="markdown-toc-get-the-wordcount-code">Get the WordCount Code</a></li>
+  <li><a href="#run-wordcount" id="markdown-toc-run-wordcount">Run WordCount</a></li>
+  <li><a href="#inspect-the-results" id="markdown-toc-inspect-the-results">Inspect the results</a></li>
+  <li><a href="#next-steps" id="markdown-toc-next-steps">Next Steps</a></li>
 </ul>
 
-<h2 id="current-code">Current code</h2>
-<p>The following GitHub repositories contain code which will be incorporated into Apache Beam.</p>
+<h2 id="set-up-your-development-environment">Set up your Development Environment</h2>
 
-<ul>
-  <li><a href="https://github.com/GoogleCloudPlatform/DataflowJavaSDK">Dataflow Java SDK</a></li>
-  <li><a href="https://github.com/dataArtisans/flink-dataflow">Flink Dataflow runner</a></li>
-  <li><a href="https://github.com/cloudera/spark-dataflow">Spark Dataflow runner</a></li>
-</ul>
-
-<p>These code repositories will be refactored and managed together (along with other code and new contributions) into a single repository.</p>
-
-<h2 id="documentation">Documentation</h2>
-<ul>
-  <li><a href="https://goo.gl/KJrEl7">Apache Beam incubation proposal</a></li>
-  <li><em>Apache Beam technical vision</em>
-    <ul>
-      <li><a href="https://goo.gl/5qZt3d">Detailed</a></li>
-      <li><a href="https://goo.gl/nk5OM0">Summary</a></li>
-    </ul>
+<ol>
+  <li>
+    <p>Download and install the <a href="http://www.oracle.com/technetwork/java/javase/downloads/index.html">Java Development Kit (JDK)</a> version 1.7 or later. Verify that the <a href="https://docs.oracle.com/javase/8/docs/technotes/guides/troubleshoot/envvars001.html">JAVA_HOME</a> environment variable is set and points to your JDK installation.</p>
   </li>
-  <li><a href="https://goo.gl/ps8twC">Apache Beam technical documentation</a></li>
+  <li>
+    <p>Download and install <a href="http://maven.apache.org/download.cgi">Apache Maven</a> by following Maven’s <a href="http://maven.apache.org/install.html">installation guide</a> for your specific operating system.</p>
+  </li>
+</ol>
+
+<h2 id="get-the-wordcount-code">Get the WordCount Code</h2>
+
+<p>The easiest way to get a copy of the WordCount pipeline is to use the following command to generate a simple Maven project that contains Beam’s WordCount examples and builds against the most recent Beam release:</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>$ mvn archetype:generate \
+      -DarchetypeArtifactId=beam-sdks-java-maven-archetypes-examples \
+      -DarchetypeVersion=LATEST \
+      -DarchetypeGroupId=org.apache.beam \
+      -DgroupId=org.example \
+      -DartifactId=word-count-beam \
+      -Dversion="0.1" \
+      -DinteractiveMode=false \
+      -Dpackage=org.apache.beam.examples
+</code></pre>
+</div>
+
+<p>This will create a directory <code class="highlighter-rouge">word-count-beam</code> that contains a simple <code class="highlighter-rouge">pom.xml</code> and a series of example pipelines that count words in text files.</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>$ cd beam-word-count/
+
+$ ls
+pom.xml	src
+
+$ ls src/main/java/org/apache/beam/examples/
+DebuggingWordCount.java	WindowedWordCount.java	common
+MinimalWordCount.java	WordCount.java
+</code></pre>
+</div>
+
+<p>For a detailed introduction to the Beam concepts used in these examples, see the <a href="/get-started/wordcount-example">WordCount Example Walkthrough</a>. Here, we’ll just focus on executing <code class="highlighter-rouge">WordCount.java</code>.</p>
+
+<h2 id="run-wordcount">Run WordCount</h2>
+
+<p>A single Beam pipeline can run on multiple Beam <a href="/documentation#runners">runners</a>, including the <a href="/documentation/runners/spark">SparkRunner</a>, <a href="/documentation/runners/flink">FlinkRunner</a>, or <a href="/documentation/runners/dataflow">DataflowRunner</a>. The <a href="/documentation/runners/direct">DirectRunner</a> is a common runner for getting started, as it runs locally on your machine and requires no specific setup.</p>
+
+<p>After you’ve chosen which runner you’d like to use:</p>
+
+<ol>
+  <li>Ensure you’ve done any runner-specific setup.</li>
+  <li>Build your commandline by:
+    <ol>
+      <li>Specifying a specific runner with <code class="highlighter-rouge">--runner=&lt;runner&gt;</code> (defaults to the <a href="/documentation/runners/direct">DirectRunner</a>)</li>
+      <li>Adding any runner-specific required options</li>
+      <li>Choosing input files and an output location are accessible on the chosen runner. (For example, you can’t access a local file if you are running the pipeline on an external cluster.)</li>
+    </ol>
+  </li>
+  <li>
+    <p>Run your first WordCount pipeline.</p>
+
+    <ol>
+      <li>
+        <p><a href="/documentation/runners/direct">DirectRunner</a></p>
+
+        <div class="highlighter-rouge"><pre class="highlight"><code>$ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
+     -Dexec.args="--inputFile=pom.xml --output=counts"
+</code></pre>
+        </div>
+      </li>
+      <li>
+        <p><a href="/documentation/runners/flink">FlinkRunner</a></p>
+
+        <div class="highlighter-rouge"><pre class="highlight"><code>TODO BEAM-899
+</code></pre>
+        </div>
+      </li>
+      <li>
+        <p><a href="/documentation/runners/spark">SparkRunner</a></p>
+
+        <div class="highlighter-rouge"><pre class="highlight"><code>TODO BEAM-900
+</code></pre>
+        </div>
+      </li>
+      <li>
+        <p><a href="/documentation/runners/dataflow">DataflowRunner</a></p>
+
+        <div class="highlighter-rouge"><pre class="highlight"><code>$ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
+     -Dexec.args="--runner=DataflowRunner --gcpTempLocation=gs://&lt;your-gcs-bucket&gt;/tmp \
+                  --inputFile=gs://apache-beam-samples/shakespeare/* --output=gs://&lt;your-gcs-bucket&gt;/counts"
+</code></pre>
+        </div>
+      </li>
+    </ol>
+  </li>
+</ol>
+
+<h2 id="inspect-the-results">Inspect the results</h2>
+
+<p>Once the pipeline has completed, you can view the output. You’ll notice that there may be multiple output files prefixed by <code class="highlighter-rouge">count</code>. The exact number of these files is decided by the runner, giving it the flexibility to do efficient, distributed execution.</p>
+
+<ol>
+  <li>
+    <p><a href="/documentation/runners/direct">DirectRunner</a></p>
+
+    <div class="highlighter-rouge"><pre class="highlight"><code>$ ls counts*
+</code></pre>
+    </div>
+  </li>
+  <li>
+    <p><a href="/documentation/runners/flink">FlinkRunner</a></p>
+
+    <div class="highlighter-rouge"><pre class="highlight"><code>TODO BEAM-899
+</code></pre>
+    </div>
+  </li>
+  <li>
+    <p><a href="/documentation/runners/spark">SparkRunner</a></p>
+
+    <div class="highlighter-rouge"><pre class="highlight"><code>TODO BEAM-900
+</code></pre>
+    </div>
+  </li>
+  <li>
+    <p><a href="/documentation/runners/dataflow">DataflowRunner</a></p>
+
+    <div class="highlighter-rouge"><pre class="highlight"><code>$ gsutil ls gs://&lt;your-gcs-bucket&gt;/counts*
+</code></pre>
+    </div>
+  </li>
+</ol>
+
+<p>When you look into the contents of the file, you’ll see that they contain unique words and the number of occurrences of each word. The order of elements within the file may differ because the Beam model does not generally guarantee ordering, again to allow runners to optimize for efficiency.</p>
+
+<ol>
+  <li>
+    <p><a href="/documentation/runners/direct">DirectRunner</a></p>
+
+    <div class="highlighter-rouge"><pre class="highlight"><code>$ more counts*
+api: 9
+bundled: 1
+old: 4
+Apache: 2
+The: 1
+limitations: 1
+Foundation: 1
+...
+</code></pre>
+    </div>
+  </li>
+  <li>
+    <p><a href="/documentation/runners/flink">FlinkRunner</a></p>
+
+    <div class="highlighter-rouge"><pre class="highlight"><code>TODO BEAM-899
+</code></pre>
+    </div>
+  </li>
+  <li>
+    <p><a href="/documentation/runners/spark">SparkRunner</a></p>
+
+    <div class="highlighter-rouge"><pre class="highlight"><code>TODO BEAM-900
+</code></pre>
+    </div>
+  </li>
+  <li>
+    <p><a href="/documentation/runners/dataflow">DataflowRunner</a></p>
+
+    <div class="highlighter-rouge"><pre class="highlight"><code>$ gsutil cat gs://&lt;your-gcs-bucket&gt;/counts*
+feature: 15
+smother'st: 1
+revelry: 1
+bashfulness: 1
+Bashful: 1
+Below: 2
+deserves: 32
+barrenly: 1
+...
+</code></pre>
+    </div>
+  </li>
+</ol>
+
+<h2 id="next-steps">Next Steps</h2>
+
+<ul>
+  <li>Learn more about these WordCount examples in the <a href="/get-started/wordcount-example">WordCount Example Walkthrough</a>.</li>
+  <li>Dive in to some of our favorite <a href="/documentation/resources">articles and presentations</a>.</li>
+  <li>Join the Beam <a href="/get-started/support#mailing-lists">users@</a> mailing list.</li>
 </ul>
+
+<p>Please don’t hesitate to <a href="/get-started/support">reach out</a> if you encounter any issues!</p>
+
 
       </div>
 
