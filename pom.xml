@@ -112,6 +112,7 @@
     <datastore.proto.version>1.2.0</datastore.proto.version>
     <google-auto-service.version>1.0-rc2</google-auto-service.version>
     <google-auto-value.version>1.1</google-auto-value.version>
+    <google-auth.version>0.6.0</google-auth.version>
     <google-clients.version>1.22.0</google-clients.version>
     <google-cloud-bigdataoss.version>1.4.5</google-cloud-bigdataoss.version>
     <google-cloud-dataflow-java-proto-library-all.version>0.5.160304</google-cloud-dataflow-java-proto-library-all.version>
@@ -522,6 +523,26 @@
         <artifactId>google-http-client-protobuf</artifactId>
         <version>${google-clients.version}</version>
         <exclusions>
+          <exclusion>
+            <groupId>com.google.guava</groupId>
+            <artifactId>guava-jdk5</artifactId>
+          </exclusion>
+        </exclusions>
+      </dependency>
+
+      <dependency>
+        <groupId>com.google.auth</groupId>
+        <artifactId>google-auth-library-credentials</artifactId>
+        <version>${google-auth.version}</version>
+      </dependency>
+  
+      <dependency>
+        <groupId>com.google.auth</groupId>
+        <artifactId>google-auth-library-oauth2-http</artifactId>
+        <version>${google-auth.version}</version>
+        <exclusions>
+          <!-- Exclude an old version of guava that is being pulled in by a transitive 
+            dependency of google-api-client -->
           <exclusion>
             <groupId>com.google.guava</groupId>
             <artifactId>guava-jdk5</artifactId>

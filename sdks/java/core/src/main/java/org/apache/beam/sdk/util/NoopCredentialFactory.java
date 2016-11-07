@@ -17,9 +17,8 @@
  */
 package org.apache.beam.sdk.util;
 
-import com.google.api.client.auth.oauth2.Credential;
+import com.google.auth.Credentials;
 import java.io.IOException;
-import java.security.GeneralSecurityException;
 import org.apache.beam.sdk.options.PipelineOptions;
 
 /**
@@ -27,12 +26,14 @@ import org.apache.beam.sdk.options.PipelineOptions;
  * Always returns a null Credential object.
  */
 public class NoopCredentialFactory implements CredentialFactory {
+  private static final NoopCredentialFactory INSTANCE = new NoopCredentialFactory();
+
   public static NoopCredentialFactory fromOptions(PipelineOptions options) {
-    return new NoopCredentialFactory();
+    return INSTANCE;
   }
 
   @Override
-  public Credential getCredential() throws IOException, GeneralSecurityException {
+  public Credentials getCredential() throws IOException {
     return null;
   }
 }
