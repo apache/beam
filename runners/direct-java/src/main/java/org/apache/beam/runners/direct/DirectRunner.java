@@ -231,7 +231,7 @@ public class DirectRunner
           enforcements.contains(Enforcement.ENCODABILITY)
               ? CloningBundleFactory.create()
               : ImmutableListBundleFactory.create();
-      if (enforcements.contains(Enforcement.ENCODABILITY)) {
+      if (enforcements.contains(Enforcement.IMMUTABILITY)) {
         bundleFactory = ImmutabilityCheckingBundleFactory.create(bundleFactory);
       }
       return bundleFactory;
@@ -246,8 +246,6 @@ public class DirectRunner
       if (enabledEnforcements.contains(Enforcement.IMMUTABILITY)) {
         enforcements1.add(ImmutabilityEnforcementFactory.create());
       }
-      // TODO: Move this to be automatically generated from the type of enabled enforcements, if
-      // more Enforcements are added
       Collection<ModelEnforcementFactory> parDoEnforcements = enforcements1.build();
       enforcements.put(ParDo.Bound.class, parDoEnforcements);
       enforcements.put(ParDo.BoundMulti.class, parDoEnforcements);
