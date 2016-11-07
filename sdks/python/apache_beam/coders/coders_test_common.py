@@ -209,6 +209,8 @@ class CodersTest(unittest.TestCase):
         (1, [1, 2, 3]))
 
   def test_proto_coder(self):
+    # For instructions on how these test proto message were generated,
+    # see coders_test.py
     ma = test_message.MessageA()
     mab = ma.field2.add()
     mab.field1 = True
