@@ -33,6 +33,18 @@
   <packaging>jar</packaging>
 
   <build>
+    <pluginManagement>
+      <plugins>
+        <!-- BEAM-922 -->
+        <plugin>
+          <groupId>org.codehaus.mojo</groupId>
+          <artifactId>findbugs-maven-plugin</artifactId>
+          <configuration>
+            <skip>true</skip>
+          </configuration>
+        </plugin>
+      </plugins>
+    </pluginManagement>
     <plugins>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
