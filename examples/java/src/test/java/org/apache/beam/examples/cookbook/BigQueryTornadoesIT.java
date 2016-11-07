@@ -18,12 +18,12 @@
 
 package org.apache.beam.examples.cookbook;
 
-import com.google.common.base.Strings;
 import org.apache.beam.sdk.options.BigQueryOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.BigqueryMatcher;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestPipelineOptions;
+import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -41,13 +41,15 @@ public class BigQueryTornadoesIT {
    */
   public interface BigQueryTornadoesITOptions
       extends TestPipelineOptions, BigQueryTornadoes.Options, BigQueryOptions {
-    String getChecksum();
-    void setChecksum(String value);
+  }
+
+  @BeforeClass
+  public static void setUp() {
+    PipelineOptionsFactory.register(TestPipelineOptions.class);
   }
 
   @Test
   public void testE2EBigQueryTornadoes() throws Exception {
-    PipelineOptionsFactory.register(BigQueryTornadoesITOptions.class);
     BigQueryTornadoesITOptions options =
         TestPipeline.testingPipelineOptions().as(BigQueryTornadoesITOptions.class);
     options.setOutput(String.format("%s.%s",
@@ -55,13 +57,9 @@ public class BigQueryTornadoesIT {
 
     String query =
         String.format("SELECT month, tornado_count FROM [%s]", options.getOutput());
-    String outputChecksum =
-        Strings.isNullOrEmpty(options.getChecksum())
-            ? DEFAULT_OUTPUT_CHECKSUM
-            : options.getChecksum();
     options.setOnSuccessMatcher(
         new BigqueryMatcher(
-            options.getAppName(), options.getProject(), query, outputChecksum));
+            options.getAppName(), options.getProject(), query, DEFAULT_OUTPUT_CHECKSUM));
 
     BigQueryTornadoes.main(TestPipeline.convertToArgs(options));
   }

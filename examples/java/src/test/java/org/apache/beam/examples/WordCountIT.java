@@ -18,7 +18,6 @@
 
 package org.apache.beam.examples;
 
-import com.google.common.base.Strings;
 import java.util.Date;
 import org.apache.beam.examples.WordCount.WordCountOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -26,6 +25,7 @@ import org.apache.beam.sdk.testing.FileChecksumMatcher;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestPipelineOptions;
 import org.apache.beam.sdk.util.IOChannelUtils;
+import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -45,13 +45,15 @@ public class WordCountIT {
    * with customized input.
    */
   public interface WordCountITOptions extends TestPipelineOptions, WordCountOptions {
-    String getChecksum();
-    void setChecksum(String value);
+  }
+
+  @BeforeClass
+  public static void setUp() {
+    PipelineOptionsFactory.register(TestPipelineOptions.class);
   }
 
   @Test
   public void testE2EWordCount() throws Exception {
-    PipelineOptionsFactory.register(WordCountITOptions.class);
     WordCountITOptions options = TestPipeline.testingPipelineOptions().as(WordCountITOptions.class);
 
     options.setOutput(IOChannelUtils.resolve(
@@ -59,13 +61,8 @@ public class WordCountIT {
         String.format("WordCountIT-%tF-%<tH-%<tM-%<tS-%<tL", new Date()),
         "output",
         "results"));
-
-    String outputChecksum =
-        Strings.isNullOrEmpty(options.getChecksum())
-            ? DEFAULT_OUTPUT_CHECKSUM
-            : options.getChecksum();
     options.setOnSuccessMatcher(
-        new FileChecksumMatcher(outputChecksum, options.getOutput() + "*"));
+        new FileChecksumMatcher(DEFAULT_OUTPUT_CHECKSUM, options.getOutput() + "*"));
 
     WordCount.main(TestPipeline.convertToArgs(options));
   }
