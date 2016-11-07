@@ -20,7 +20,7 @@ package org.apache.beam.sdk.util;
 
 import static org.junit.Assert.assertEquals;
 
-import com.google.auth.oauth2.GoogleCredentials;
+import com.google.auth.Credentials;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
@@ -52,7 +52,6 @@ import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-import org.mockito.Mockito;
 
 /**
  * Tests for PubsubGrpcClient.
@@ -60,7 +59,7 @@ import org.mockito.Mockito;
 @RunWith(JUnit4.class)
 public class PubsubGrpcClientTest {
   private ManagedChannel inProcessChannel;
-  private GoogleCredentials mockCredentials;
+  private Credentials testCredentials;
 
   private PubsubClient client;
   private String channelName;
@@ -83,8 +82,8 @@ public class PubsubGrpcClientTest {
     channelName = String.format("%s-%s",
         PubsubGrpcClientTest.class.getName(), ThreadLocalRandom.current().nextInt());
     inProcessChannel = InProcessChannelBuilder.forName(channelName).directExecutor().build();
-    mockCredentials = Mockito.mock(GoogleCredentials.class);
-    client = new PubsubGrpcClient(TIMESTAMP_LABEL, ID_LABEL, 10, inProcessChannel, mockCredentials);
+    testCredentials = new TestCredential();
+    client = new PubsubGrpcClient(TIMESTAMP_LABEL, ID_LABEL, 10, inProcessChannel, testCredentials);
   }
 
   @After

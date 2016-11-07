@@ -17,10 +17,11 @@
  */
 package org.apache.beam.sdk.util;
 
-import com.google.api.client.auth.oauth2.Credential;
+import com.google.auth.Credentials;
+import com.google.auth.oauth2.GoogleCredentials;
 import java.io.IOException;
-import java.security.GeneralSecurityException;
-import org.apache.beam.sdk.options.GcpOptions;
+import java.util.Arrays;
+import java.util.List;
 import org.apache.beam.sdk.options.PipelineOptions;
 
 /**
@@ -28,18 +29,38 @@ import org.apache.beam.sdk.options.PipelineOptions;
  * Returns a GCP credential.
  */
 public class GcpCredentialFactory implements CredentialFactory {
-  private GcpOptions options;
+  /**
+   * The scope cloud-platform provides access to all Cloud Platform resources.
+   * cloud-platform isn't sufficient yet for talking to datastore so we request
+   * those resources separately.
+   *
+   * <p>Note that trusted scope relationships don't apply to OAuth tokens, so for
+   * services we access directly (GCS) as opposed to through the backend
+   * (BigQuery, GCE), we need to explicitly request that scope.
+   */
+  private static final List<String> SCOPES = Arrays.asList(
+      "https://www.googleapis.com/auth/cloud-platform",
+      "https://www.googleapis.com/auth/devstorage.full_control",
+      "https://www.googleapis.com/auth/userinfo.email",
+      "https://www.googleapis.com/auth/datastore",
+      "https://www.googleapis.com/auth/pubsub");
 
-  private GcpCredentialFactory(GcpOptions options) {
-    this.options = options;
-  }
+  private static final GcpCredentialFactory INSTANCE = new GcpCredentialFactory();
 
   public static GcpCredentialFactory fromOptions(PipelineOptions options) {
-    return new GcpCredentialFactory(options.as(GcpOptions.class));
+    return INSTANCE;
   }
 
   @Override
-  public Credential getCredential()  throws IOException, GeneralSecurityException {
-    return Credentials.getCredential(options);
+  public Credentials getCredential() throws IOException {
+    try {
+      return GoogleCredentials.getApplicationDefault().createScoped(SCOPES);
+    } catch (IOException e) {
+      throw new RuntimeException("Unable to get application default credentials. Please see "
+          + "https://developers.google.com/accounts/docs/application-default-credentials "
+          + "for details on how to specify credentials. This version of the SDK is "
+          + "dependent on the gcloud core component version 2015.02.05 or newer to "
+          + "be able to get credentials from the currently authorized user via gcloud auth.", e);
+    }
   }
 }
