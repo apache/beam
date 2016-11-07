@@ -46,9 +46,11 @@ import org.apache.beam.sdk.transforms.windowing.OutputTimeFns;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.KeyedWorkItem;
 import org.apache.beam.sdk.util.TimeDomain;
+import org.apache.beam.sdk.util.Timer;
 import org.apache.beam.sdk.util.TimerInternals;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowingInternals;
+import org.apache.beam.sdk.util.state.State;
 import org.apache.beam.sdk.util.state.StateNamespace;
 import org.apache.beam.sdk.util.state.StateNamespaces;
 import org.apache.beam.sdk.util.state.StateTag;
@@ -431,6 +433,16 @@ public class SplittableParDo<
       @Override
       public TrackerT restrictionTracker() {
         return tracker;
+      }
+
+      @Override
+      public State state(String stateId) {
+        throw new UnsupportedOperationException("State cannot be used with a splittable DoFn");
+      }
+
+      @Override
+      public Timer timer(String timerId) {
+        throw new UnsupportedOperationException("Timers cannot be used with a splittable DoFn");
       }
     }
   }

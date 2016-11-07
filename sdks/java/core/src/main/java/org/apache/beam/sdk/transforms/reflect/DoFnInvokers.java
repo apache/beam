@@ -23,8 +23,6 @@ import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -52,6 +50,7 @@ import net.bytebuddy.implementation.bytecode.StackManipulation;
 import net.bytebuddy.implementation.bytecode.Throw;
 import net.bytebuddy.implementation.bytecode.assign.Assigner;
 import net.bytebuddy.implementation.bytecode.assign.TypeCasting;
+import net.bytebuddy.implementation.bytecode.constant.TextConstant;
 import net.bytebuddy.implementation.bytecode.member.FieldAccess;
 import net.bytebuddy.implementation.bytecode.member.MethodInvocation;
 import net.bytebuddy.implementation.bytecode.member.MethodReturn;
@@ -69,7 +68,15 @@ import org.apache.beam.sdk.transforms.DoFn.ExtraContextFactory;
 import org.apache.beam.sdk.transforms.DoFn.ProcessElement;
 import org.apache.beam.sdk.transforms.DoFnAdapters;
 import org.apache.beam.sdk.transforms.OldDoFn;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.Cases;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.InputProviderParameter;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.OutputReceiverParameter;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.RestrictionTrackerParameter;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.StateParameter;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.TimerParameter;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.WindowParameter;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
+import org.apache.beam.sdk.util.Timer;
 import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.beam.sdk.values.TypeDescriptor;
 
@@ -497,48 +504,104 @@ public class DoFnInvokers {
   }
 
   /**
+   * This wrapper exists to convert checked exceptions to unchecked exceptions, since if this fails
+   * the library itself is malformed.
+   */
+  private static MethodDescription getExtraContextFactoryMethodDescription(
+      String methodName, Class<?>... parameterTypes) {
+    try {
+      return new MethodDescription.ForLoadedMethod(
+          DoFn.ExtraContextFactory.class.getMethod(methodName, parameterTypes));
+    } catch (Exception e) {
+      throw new IllegalStateException(
+          String.format(
+              "Failed to locate required method %s.%s",
+              ExtraContextFactory.class.getSimpleName(), methodName),
+          e);
+    }
+  }
+
+  private static StackManipulation simpleExtraContextParameter(
+    String methodName,
+    StackManipulation pushExtraContextFactory) {
+      return new StackManipulation.Compound(
+        pushExtraContextFactory,
+        MethodInvocation.invoke(getExtraContextFactoryMethodDescription(methodName)));
+  }
+
+  private static StackManipulation getExtraContextParameter(
+      DoFnSignature.Parameter parameter,
+      final StackManipulation pushExtraContextFactory) {
+
+    return parameter.match(
+        new Cases<StackManipulation>() {
+
+          @Override
+          public StackManipulation dispatch(WindowParameter p) {
+            return new StackManipulation.Compound(
+                simpleExtraContextParameter("window", pushExtraContextFactory),
+                TypeCasting.to(new TypeDescription.ForLoadedType(p.windowT().getRawType())));
+          }
+
+          @Override
+          public StackManipulation dispatch(InputProviderParameter p) {
+            return simpleExtraContextParameter("inputProvider", pushExtraContextFactory);
+          }
+
+          @Override
+          public StackManipulation dispatch(OutputReceiverParameter p) {
+            return simpleExtraContextParameter("outputReceiver", pushExtraContextFactory);
+          }
+
+          @Override
+          public StackManipulation dispatch(RestrictionTrackerParameter p) {
+            // ExtraContextFactory.restrictionTracker() returns a RestrictionTracker,
+            // but the @ProcessElement method expects a concrete subtype of it.
+            // Insert a downcast.
+            return new StackManipulation.Compound(
+                simpleExtraContextParameter("restrictionTracker", pushExtraContextFactory),
+                TypeCasting.to(new TypeDescription.ForLoadedType(p.trackerT().getRawType())));
+          }
+
+          @Override
+          public StackManipulation dispatch(StateParameter p) {
+            return new StackManipulation.Compound(
+                // TOP = extraContextFactory.state(<id>)
+                pushExtraContextFactory,
+                new TextConstant(p.referent().id()),
+                MethodInvocation.invoke(
+                    getExtraContextFactoryMethodDescription("state", String.class)),
+                TypeCasting.to(
+                    new TypeDescription.ForLoadedType(p.referent().stateType().getRawType())));
+          }
+
+          @Override
+          public StackManipulation dispatch(TimerParameter p) {
+            return new StackManipulation.Compound(
+                // TOP = extraContextFactory.state(<id>)
+                pushExtraContextFactory,
+                new TextConstant(p.referent().id()),
+                MethodInvocation.invoke(
+                    getExtraContextFactoryMethodDescription("timer", String.class)),
+                TypeCasting.to(new TypeDescription.ForLoadedType(Timer.class)));
+          }
+        });
+  }
+
+  /**
    * Implements the invoker's {@link DoFnInvoker#invokeProcessElement} method by delegating to the
    * {@link DoFn.ProcessElement} method.
    */
   private static final class ProcessElementDelegation extends DoFnMethodDelegation {
-    private static final Map<DoFnSignature.Parameter, MethodDescription>
-        EXTRA_CONTEXT_FACTORY_METHODS;
     private static final MethodDescription PROCESS_CONTINUATION_STOP_METHOD;
 
     static {
-      try {
-        Map<DoFnSignature.Parameter, MethodDescription> methods = new HashMap<>();
-        methods.put(
-            DoFnSignature.Parameter.boundedWindow(),
-            new MethodDescription.ForLoadedMethod(
-                DoFn.ExtraContextFactory.class.getMethod("window")));
-        methods.put(
-            DoFnSignature.Parameter.inputProvider(),
-            new MethodDescription.ForLoadedMethod(
-                DoFn.ExtraContextFactory.class.getMethod("inputProvider")));
-        methods.put(
-            DoFnSignature.Parameter.outputReceiver(),
-            new MethodDescription.ForLoadedMethod(
-                DoFn.ExtraContextFactory.class.getMethod("outputReceiver")));
-        methods.put(
-            DoFnSignature.Parameter.restrictionTracker(),
-            new MethodDescription.ForLoadedMethod(
-                DoFn.ExtraContextFactory.class.getMethod("restrictionTracker")));
-        EXTRA_CONTEXT_FACTORY_METHODS = Collections.unmodifiableMap(methods);
-      } catch (Exception e) {
-        throw new RuntimeException(
-            "Failed to locate an ExtraContextFactory method that was expected to exist", e);
-      }
       try {
         PROCESS_CONTINUATION_STOP_METHOD =
             new MethodDescription.ForLoadedMethod(DoFn.ProcessContinuation.class.getMethod("stop"));
       } catch (NoSuchMethodException e) {
         throw new RuntimeException("Failed to locate ProcessContinuation.stop()");
       }
-    }
-
-    private static MethodDescription getExtraContextFactoryMethod(DoFnSignature.Parameter param) {
-      return EXTRA_CONTEXT_FACTORY_METHODS.get(param);
     }
 
     private final DoFnSignature.ProcessElementMethod signature;
@@ -555,25 +618,15 @@ public class DoFnInvokers {
       //   DoFn.ProcessContext, ExtraContextFactory.
       // Parameters of the wrapped DoFn method:
       //   DoFn.ProcessContext, [BoundedWindow, InputProvider, OutputReceiver] in any order
-      ArrayList<StackManipulation> parameters = new ArrayList<>();
+      ArrayList<StackManipulation> pushParameters = new ArrayList<>();
       // Push the ProcessContext argument.
-      parameters.add(MethodVariableAccess.REFERENCE.loadOffset(1));
+      pushParameters.add(MethodVariableAccess.REFERENCE.loadOffset(1));
       // Push the extra arguments in their actual order.
       StackManipulation pushExtraContextFactory = MethodVariableAccess.REFERENCE.loadOffset(2);
       for (DoFnSignature.Parameter param : signature.extraParameters()) {
-        parameters.add(
-            new StackManipulation.Compound(
-                pushExtraContextFactory,
-                MethodInvocation.invoke(getExtraContextFactoryMethod(param)),
-                // ExtraContextFactory.restrictionTracker() returns a RestrictionTracker,
-                // but the @ProcessElement method expects a concrete subtype of it.
-                // Insert a downcast.
-                DoFnSignature.Parameter.restrictionTracker().equals(param)
-                    ? TypeCasting.to(
-                        new TypeDescription.ForLoadedType(signature.trackerT().getRawType()))
-                    : StackManipulation.Trivial.INSTANCE));
+        pushParameters.add(getExtraContextParameter(param, pushExtraContextFactory));
       }
-      return new StackManipulation.Compound(parameters);
+      return new StackManipulation.Compound(pushParameters);
     }
 
     @Override
