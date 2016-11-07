@@ -475,7 +475,7 @@ class LexicographicKeyRangeTrackerTest(unittest.TestCase):
     self._check(key='foob',
                 start='fooa\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFE',
                 end='foob\x00\x00\x00\x00\x00\x00\x00\x00\x02',
-                fraction = 0.5)
+                fraction=0.5)
 
   def test_tiny(self):
     self._check(fraction=.5**20, key='\0\0\x10')
