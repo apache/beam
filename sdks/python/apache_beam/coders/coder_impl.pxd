@@ -59,8 +59,8 @@ cdef class CallbackCoderImpl(CoderImpl):
   cdef object _size_estimator
 
 
-cdef class DeterministicPickleCoderImpl(CoderImpl):
-  cdef CoderImpl _pickle_coder
+cdef class DeterministicFastPrimitivesCoderImpl(CoderImpl):
+  cdef CoderImpl _underlying_coder
   cdef object _step_label
   cdef bint _check_safe(self, value) except -1
 
