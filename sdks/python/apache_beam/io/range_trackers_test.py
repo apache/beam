@@ -397,6 +397,7 @@ class OrderedPositionRangeTrackerTest(unittest.TestCase):
       tracker.try_split(15)
     self.assertTrue(tracker.try_split(14))
 
+
 class UnsplittableRangeTrackerTest(unittest.TestCase):
 
   def test_try_claim(self):
