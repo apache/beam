@@ -472,6 +472,10 @@ class LexicographicKeyRangeTrackerTest(unittest.TestCase):
         fraction=0.25)
     self._check(
         key='\xFF' * 100 + '\x40', start='\xFF' * 100, end=None, fraction=0.25)
+    self._check(key='foob',
+                start='fooa\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFE',
+                end='foob\x00\x00\x00\x00\x00\x00\x00\x00\x02',
+                fraction = 0.5)
 
   def test_tiny(self):
     self._check(fraction=.5**20, key='\0\0\x10')
@@ -496,6 +500,8 @@ class LexicographicKeyRangeTrackerTest(unittest.TestCase):
       self._check(fraction, start='0x75', end='\x77')
       self._check(fraction, start='0x75', end='\x78')
       self._check(fraction, start='a' * 100 + '\x80', end='a' * 100 + '\x81')
+      self._check(fraction, start='a' * 101 + '\x80', end='a' * 101 + '\x81')
+      self._check(fraction, start='a' * 102 + '\x80', end='a' * 102 + '\x81')
     for fraction in (.3, 1/3., 1/math.e, .001, 1e-30, .99, .999999):
       self._check(fraction, delta=1e-14)
       self._check(fraction, start='\x01', delta=1e-14)

@@ -305,8 +305,9 @@ class OrderedPositionRangeTracker(iobase.RangeTracker):
   def start_position(self):
     return self._start_position
 
-  def end_position(self):
-    return self._end_position
+  def stop_position(self):
+    with self._lock:
+      return self._end_position
 
   def try_claim(self, position):
     with self._lock:
@@ -441,7 +442,7 @@ class LexicographicKeyRangeTracker(OrderedPositionRangeTracker):
       ikey = istart + int((iend - istart) * fraction)
       # Could be equal due to rounding.
       # Adjust to ensure we never return the actual start and end
-      # unless fration is exatly 0 or 1.
+      # unless fraction is exatly 0 or 1.
       if ikey == istart:
         ikey += 1
       elif ikey == iend:
