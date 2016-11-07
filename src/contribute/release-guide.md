@@ -83,6 +83,12 @@ Configure `git` to use this key when signing code by giving it your key ID, as f
 
 You may drop the `--global` option if you’d prefer to use this key for the current repository only.
 
+You may wish to start `gpg-agent` to unlock your GPG key only once using your passphrase. Otherwise, you may need to enter this passphrase hundreds of times. The setup for `gpg-agent` varies based on operating system, but may be something like this:
+
+    eval $(gpg-agent --daemon --no-grab --write-env-file $HOME/.gpg-agent-info)
+    export GPG_TTY=$(tty)
+    export GPG_AGENT_INFO
+
 #### Access to Apache Nexus repository
 
 Configure access to the [Apache Nexus repository](http://repository.apache.org/), which enables final deployment of releases to the Maven Central Repository.
@@ -263,7 +269,7 @@ Use Maven Javadoc plugin to generate the new Java reference manual, as follows:
         -Ddoctitle="Apache Beam SDK for Java, version ${VERSION}" \
         -Dwindowtitle="Apache Beam SDK for Java, version ${VERSION}" \
         -Dmaven.javadoc.failOnError=false \
-        -DexcludePackageNames="org.apache.beam.examples,org.apache.beam.runners.dataflow.internal,org.apache.beam.runners.flink.examples,org.apache.beam.runners.flink.translation,org.apache.beam.runners.spark.examples,org.apache.beam.runners.spark.translation"
+        -DexcludePackageNames="org.apache.beam.examples,org.apache.beam.runners.dataflow.internal,org.apache.beam.runners.flink.examples,org.apache.beam.runners.flink.translation,org.apache.beam.runners.spark.examples,org.apache.beam.runners.spark.translation,org.apache.beam.sdk.microbenchmarks.coders.generated,org.apache.beam.sdk.microbenchmarks.transforms.generated,org.openjdk.jmh.infra.generated"
 
 By default, the Javadoc will be generated in `target/site/apidocs/`. Let `${JAVADOC_ROOT}` be the absolute path to `apidocs`. ([Pull request #1015](https://github.com/apache/incubator-beam/pull/1015) will hopefully simplify this process.)
 
