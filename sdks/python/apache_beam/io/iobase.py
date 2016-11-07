@@ -175,7 +175,11 @@ class BoundedSource(object):
     raise NotImplementedError
 
   def default_output_coder(self):
-    """Coder that should be used for the records returned by the source."""
+    """Coder that should be used for the records returned by the source.
+
+    Should be overridden by sources that produce objects that can be encoded
+    more efficiently than pickling.
+    """
     return coders.registry.get_coder(object)
 
 
