@@ -35,6 +35,7 @@ import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.io.UnboundedSource.CheckpointMark;
 import org.apache.beam.sdk.io.UnboundedSource.UnboundedReader;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
+import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.util.WindowedValue;
@@ -143,12 +144,13 @@ class UnboundedReadEvaluatorFactory implements TransformEvaluatorFactory {
           // If the reader had no elements available, but the shard is not done, reuse it later
           resultBuilder.addUnprocessedElements(
               Collections.<WindowedValue<?>>singleton(
-                  element.withValue(
+                  WindowedValue.timestampedValueInGlobalWindow(
                       UnboundedSourceShard.of(
                           shard.getSource(),
                           shard.getDeduplicator(),
                           reader,
-                          shard.getCheckpoint()))));
+                          shard.getCheckpoint()),
+                      reader.getWatermark())));
         }
       } catch (IOException e) {
         if (reader != null) {
