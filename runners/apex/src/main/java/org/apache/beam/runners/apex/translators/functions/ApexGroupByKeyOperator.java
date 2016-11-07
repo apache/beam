@@ -103,7 +103,7 @@ public class ApexGroupByKeyOperator<K, V> implements Operator {
   private transient ProcessContext context;
   private transient OldDoFn<KeyedWorkItem<K, V>, KV<K, Iterable<V>>> fn;
   private transient ApexTimerInternals timerInternals = new ApexTimerInternals();
-  private Instant inputWatermark = new Instant(0);
+  private Instant inputWatermark = BoundedWindow.TIMESTAMP_MIN_VALUE;
 
   public final transient DefaultInputPort<ApexStreamTuple<WindowedValue<KV<K, V>>>> input =
       new DefaultInputPort<ApexStreamTuple<WindowedValue<KV<K, V>>>>() {

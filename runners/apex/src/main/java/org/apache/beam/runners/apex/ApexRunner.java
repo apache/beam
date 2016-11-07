@@ -25,12 +25,16 @@ import com.datatorrent.api.LocalMode;
 import com.datatorrent.api.StreamingApplication;
 import com.google.common.base.Throwables;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
 import org.apache.beam.runners.apex.translators.TranslationContext;
 import org.apache.beam.runners.core.AssignWindows;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.CoderRegistry;
+import org.apache.beam.sdk.coders.ListCoder;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsValidator;
 import org.apache.beam.sdk.runners.PipelineRunner;
@@ -103,6 +107,10 @@ public class ApexRunner extends PipelineRunner<ApexRunnerResult> {
       // assumes presence of above Combine.GloballyAsSingletonView mapping
       PTransform<InputT, OutputT> customTransform = (PTransform)
           new StreamingViewAsSingleton<InputT>(this, (View.AsSingleton) transform);
+      return Pipeline.applyTransform(input, customTransform);
+    } else if (View.AsIterable.class.equals(transform.getClass())) {
+      PTransform<InputT, OutputT> customTransform = (PTransform)
+          new StreamingViewAsIterable<InputT>(this, (View.AsIterable) transform);
       return Pipeline.applyTransform(input, customTransform);
     } else {
       return super.apply(transform, input);
@@ -314,6 +322,80 @@ public class ApexRunner extends PipelineRunner<ApexRunnerResult> {
               + "Consider setting withDefault to provide a default value");
         }
       }
+    }
+  }
+
+  private static class StreamingViewAsIterable<T>
+      extends PTransform<PCollection<T>, PCollectionView<Iterable<T>>> {
+    private static final long serialVersionUID = 1L;
+
+    /**
+     * Builds an instance of this class from the overridden transform.
+     */
+    public StreamingViewAsIterable(ApexRunner runner, View.AsIterable<T> transform) {
+    }
+
+    @Override
+    public PCollectionView<Iterable<T>> apply(PCollection<T> input) {
+      PCollectionView<Iterable<T>> view = PCollectionViews.iterableView(input.getPipeline(),
+          input.getWindowingStrategy(), input.getCoder());
+
+      return input.apply(Combine.globally(new Concatenate<T>()).withoutDefaults())
+          .apply(CreateApexPCollectionView.<T, Iterable<T>> of(view));
+    }
+
+    @Override
+    protected String getKindString() {
+      return "StreamingViewAsIterable";
+    }
+  }
+
+  /**
+   * Combiner that combines {@code T}s into a single {@code List<T>} containing all inputs.
+   *
+   * <p>For internal use by {@link StreamingViewAsMap}, {@link StreamingViewAsMultimap},
+   * {@link StreamingViewAsList}, {@link StreamingViewAsIterable}.
+   * They require the input {@link PCollection} fits in memory.
+   * For a large {@link PCollection} this is expected to crash!
+   *
+   * @param <T> the type of elements to concatenate.
+   */
+  private static class Concatenate<T> extends Combine.CombineFn<T, List<T>, List<T>> {
+    private static final long serialVersionUID = 1L;
+
+    @Override
+    public List<T> createAccumulator() {
+      return new ArrayList<>();
+    }
+
+    @Override
+    public List<T> addInput(List<T> accumulator, T input) {
+      accumulator.add(input);
+      return accumulator;
+    }
+
+    @Override
+    public List<T> mergeAccumulators(Iterable<List<T>> accumulators) {
+      List<T> result = createAccumulator();
+      for (List<T> accumulator : accumulators) {
+        result.addAll(accumulator);
+      }
+      return result;
+    }
+
+    @Override
+    public List<T> extractOutput(List<T> accumulator) {
+      return accumulator;
+    }
+
+    @Override
+    public Coder<List<T>> getAccumulatorCoder(CoderRegistry registry, Coder<T> inputCoder) {
+      return ListCoder.of(inputCoder);
+    }
+
+    @Override
+    public Coder<List<T>> getDefaultOutputCoder(CoderRegistry registry, Coder<T> inputCoder) {
+      return ListCoder.of(inputCoder);
     }
   }
 

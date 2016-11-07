@@ -28,6 +28,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Objects;
 
 import org.apache.beam.runners.apex.ApexPipelineOptions;
 import org.apache.beam.sdk.coders.Coder;
@@ -109,6 +110,22 @@ public interface ApexStreamTuple<T> {
     public void setTimestamp(long timestamp) {
       this.timestamp = timestamp;
     }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(timestamp);
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+      if (!(obj instanceof TimestampedTuple)) {
+        return false;
+      } else {
+        TimestampedTuple<?> other = (TimestampedTuple<?>) obj;
+        return (timestamp == other.timestamp) && Objects.equals(this.getValue(), other.getValue());
+      }
+    }
+
   }
 
   /**
@@ -164,10 +181,10 @@ public interface ApexStreamTuple<T> {
         throws CoderException, IOException {
       int b = inStream.read();
       if (b == 1) {
-        return new WatermarkTuple<T>(new DataInputStream(inStream).readLong());
+        return new WatermarkTuple<>(new DataInputStream(inStream).readLong());
       } else {
         int unionTag = inStream.read();
-        return new DataTuple<T>(valueCoder.decode(inStream, context), unionTag);
+        return new DataTuple<>(valueCoder.decode(inStream, context), unionTag);
       }
     }
 
