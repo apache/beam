@@ -271,6 +271,32 @@ public class DirectRunnerTest implements Serializable {
    * {@link DirectRunner}.
    */
   @Test
+  public void testMutatingOutputWithEnforcementDisabledSucceeds() throws Exception {
+    PipelineOptions options = PipelineOptionsFactory.create();
+    options.setRunner(DirectRunner.class);
+    options.as(DirectOptions.class).setEnforceImmutability(false);
+    Pipeline pipeline = Pipeline.create(options);
+
+    pipeline
+        .apply(Create.of(42))
+        .apply(ParDo.of(new DoFn<Integer, List<Integer>>() {
+          @ProcessElement
+          public void processElement(ProcessContext c) {
+            List<Integer> outputList = Arrays.asList(1, 2, 3, 4);
+            c.output(outputList);
+            outputList.set(0, 37);
+            c.output(outputList);
+          }
+        }));
+
+    pipeline.run();
+  }
+
+  /**
+   * Tests that a {@link DoFn} that mutates an output with a good equals() fails in the
+   * {@link DirectRunner}.
+   */
+  @Test
   public void testMutatingOutputThenTerminateDoFnError() throws Exception {
     Pipeline pipeline = getPipeline();
 
