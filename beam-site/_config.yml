@@ -44,5 +44,8 @@ downloads: downloads
 # Don't use the page title in the table of contents
 kramdown:
   toc_levels:     2..6
-  
+
+# The most recent release of Beam.
+release_latest: 0.3.0-incubating
+
 # Plugins are configured in the Gemfile.
