@@ -30,9 +30,7 @@ import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for {@link Regex}.
- */
+/** Tests for {@link Regex}. */
 @RunWith(JUnit4.class)
 public class RegexTest implements Serializable {
   @Test
@@ -40,9 +38,8 @@ public class RegexTest implements Serializable {
   public void testFind() {
     TestPipeline p = TestPipeline.create();
 
-    PCollection<String> output = p
-        .apply(Create.of("aj", "xj", "yj", "zj"))
-        .apply(Regex.find("[xyz]"));
+    PCollection<String> output =
+        p.apply(Create.of("aj", "xj", "yj", "zj")).apply(Regex.find("[xyz]"));
 
     PAssert.that(output).containsInAnyOrder("x", "y", "z");
     p.run();
@@ -53,9 +50,8 @@ public class RegexTest implements Serializable {
   public void testFindGroup() {
     TestPipeline p = TestPipeline.create();
 
-    PCollection<String> output = p
-        .apply(Create.of("aj", "xj", "yj", "zj"))
-        .apply(Regex.find("([xyz])", 1));
+    PCollection<String> output =
+        p.apply(Create.of("aj", "xj", "yj", "zj")).apply(Regex.find("([xyz])", 1));
 
     PAssert.that(output).containsInAnyOrder("x", "y", "z");
     p.run();
@@ -66,9 +62,7 @@ public class RegexTest implements Serializable {
   public void testFindNone() {
     TestPipeline p = TestPipeline.create();
 
-    PCollection<String> output = p
-        .apply(Create.of("a", "b", "c", "d"))
-        .apply(Regex.find("[xyz]"));
+    PCollection<String> output = p.apply(Create.of("a", "b", "c", "d")).apply(Regex.find("[xyz]"));
 
     PAssert.that(output).empty();
     p.run();
@@ -79,9 +73,8 @@ public class RegexTest implements Serializable {
   public void testKVFind() {
     TestPipeline p = TestPipeline.create();
 
-    PCollection<KV<String, String>> output = p
-        .apply(Create.of("a b c"))
-        .apply(Regex.findKV("a (b) (c)", 1, 2));
+    PCollection<KV<String, String>> output =
+        p.apply(Create.of("a b c")).apply(Regex.findKV("a (b) (c)", 1, 2));
 
     PAssert.that(output).containsInAnyOrder(KV.of("b", "c"));
     p.run();
@@ -92,9 +85,8 @@ public class RegexTest implements Serializable {
   public void testKVFindNone() {
     TestPipeline p = TestPipeline.create();
 
-    PCollection<KV<String, String>> output = p
-        .apply(Create.of("x y z"))
-        .apply(Regex.findKV("a (b) (c)", 1, 2));
+    PCollection<KV<String, String>> output =
+        p.apply(Create.of("x y z")).apply(Regex.findKV("a (b) (c)", 1, 2));
 
     PAssert.that(output).empty();
     p.run();
@@ -105,9 +97,8 @@ public class RegexTest implements Serializable {
   public void testMatches() {
     TestPipeline p = TestPipeline.create();
 
-    PCollection<String> output = p
-        .apply(Create.of("a", "x", "y", "z"))
-        .apply(Regex.matches("[xyz]"));
+    PCollection<String> output =
+        p.apply(Create.of("a", "x", "y", "z")).apply(Regex.matches("[xyz]"));
 
     PAssert.that(output).containsInAnyOrder("x", "y", "z");
     p.run();
@@ -118,9 +109,8 @@ public class RegexTest implements Serializable {
   public void testMatchesNone() {
     TestPipeline p = TestPipeline.create();
 
-    PCollection<String> output = p
-        .apply(Create.of("a", "b", "c", "d"))
-        .apply(Regex.matches("[xyz]"));
+    PCollection<String> output =
+        p.apply(Create.of("a", "b", "c", "d")).apply(Regex.matches("[xyz]"));
 
     PAssert.that(output).empty();
     p.run();
@@ -131,9 +121,8 @@ public class RegexTest implements Serializable {
   public void testMatchesGroup() {
     TestPipeline p = TestPipeline.create();
 
-    PCollection<String> output = p
-        .apply(Create.of("a", "x xxx", "x yyy", "x zzz"))
-        .apply(Regex.matches("x ([xyz]*)", 1));
+    PCollection<String> output =
+        p.apply(Create.of("a", "x xxx", "x yyy", "x zzz")).apply(Regex.matches("x ([xyz]*)", 1));
 
     PAssert.that(output).containsInAnyOrder("xxx", "yyy", "zzz");
     p.run();
@@ -144,9 +133,8 @@ public class RegexTest implements Serializable {
   public void testKVMatches() {
     TestPipeline p = TestPipeline.create();
 
-    PCollection<KV<String, String>> output = p
-        .apply(Create.of("a b c"))
-        .apply(Regex.matchesKV("a (b) (c)", 1, 2));
+    PCollection<KV<String, String>> output =
+        p.apply(Create.of("a b c")).apply(Regex.matchesKV("a (b) (c)", 1, 2));
 
     PAssert.that(output).containsInAnyOrder(KV.of("b", "c"));
     p.run();
@@ -157,9 +145,8 @@ public class RegexTest implements Serializable {
   public void testKVMatchesNone() {
     TestPipeline p = TestPipeline.create();
 
-    PCollection<KV<String, String>> output = p
-        .apply(Create.of("x y z"))
-        .apply(Regex.matchesKV("a (b) (c)", 1, 2));
+    PCollection<KV<String, String>> output =
+        p.apply(Create.of("x y z")).apply(Regex.matchesKV("a (b) (c)", 1, 2));
     PAssert.that(output).empty();
     p.run();
   }
@@ -169,9 +156,8 @@ public class RegexTest implements Serializable {
   public void testReplaceAll() {
     TestPipeline p = TestPipeline.create();
 
-    PCollection<String> output = p
-        .apply(Create.of("xj", "yj", "zj"))
-        .apply(Regex.replaceAll("[xyz]", "new"));
+    PCollection<String> output =
+        p.apply(Create.of("xj", "yj", "zj")).apply(Regex.replaceAll("[xyz]", "new"));
 
     PAssert.that(output).containsInAnyOrder("newj", "newj", "newj");
     p.run();
@@ -182,9 +168,8 @@ public class RegexTest implements Serializable {
   public void testReplaceAllMixed() {
     TestPipeline p = TestPipeline.create();
 
-    PCollection<String> output = p
-        .apply(Create.of("abc", "xj", "yj", "zj", "def"))
-        .apply(Regex.replaceAll("[xyz]", "new"));
+    PCollection<String> output =
+        p.apply(Create.of("abc", "xj", "yj", "zj", "def")).apply(Regex.replaceAll("[xyz]", "new"));
 
     PAssert.that(output).containsInAnyOrder("abc", "newj", "newj", "newj", "def");
     p.run();
@@ -195,9 +180,8 @@ public class RegexTest implements Serializable {
   public void testReplaceFirst() {
     TestPipeline p = TestPipeline.create();
 
-    PCollection<String> output = p
-        .apply(Create.of("xjx", "yjy", "zjz"))
-        .apply(Regex.replaceFirst("[xyz]", "new"));
+    PCollection<String> output =
+        p.apply(Create.of("xjx", "yjy", "zjz")).apply(Regex.replaceFirst("[xyz]", "new"));
 
     PAssert.that(output).containsInAnyOrder("newjx", "newjy", "newjz");
     p.run();
@@ -208,9 +192,9 @@ public class RegexTest implements Serializable {
   public void testReplaceFirstMixed() {
     TestPipeline p = TestPipeline.create();
 
-    PCollection<String> output = p
-        .apply(Create.of("abc", "xjx", "yjy", "zjz", "def"))
-        .apply(Regex.replaceFirst("[xyz]", "new"));
+    PCollection<String> output =
+        p.apply(Create.of("abc", "xjx", "yjy", "zjz", "def"))
+            .apply(Regex.replaceFirst("[xyz]", "new"));
 
     PAssert.that(output).containsInAnyOrder("abc", "newjx", "newjy", "newjz", "def");
     p.run();
@@ -221,12 +205,12 @@ public class RegexTest implements Serializable {
   public void testSplits() {
     TestPipeline p = TestPipeline.create();
 
-    PCollection<String> output = p
-        .apply(Create.of("The  quick   brown fox jumps over    the lazy dog"))
-        .apply(Regex.split("\\W+"));
+    PCollection<String> output =
+        p.apply(Create.of("The  quick   brown fox jumps over    the lazy dog"))
+            .apply(Regex.split("\\W+"));
 
-    PAssert.that(output).containsInAnyOrder("The", "quick", "brown",
-      "fox", "jumps", "over", "the", "lazy", "dog");
+    PAssert.that(output)
+        .containsInAnyOrder("The", "quick", "brown", "fox", "jumps", "over", "the", "lazy", "dog");
     p.run();
   }
 
@@ -235,14 +219,16 @@ public class RegexTest implements Serializable {
   public void testSplitsWithEmpty() {
     TestPipeline p = TestPipeline.create();
 
-    PCollection<String> output = p
-        .apply(Create.of("The  quick   brown fox jumps over    the lazy dog"))
-        .apply(Regex.split("\\s", true));
+    PCollection<String> output =
+        p.apply(Create.of("The  quick   brown fox jumps over    the lazy dog"))
+            .apply(Regex.split("\\s", true));
 
     String[] outputStr = "The  quick   brown fox jumps over    the lazy dog".split("\\s");
 
-    PAssert.that(output).containsInAnyOrder("The", "", "quick", "brown", "", "",
-      "fox", "jumps", "over", "", "", "", "the", "lazy", "dog");
+    PAssert.that(output)
+        .containsInAnyOrder(
+            "The", "", "quick", "brown", "", "", "fox", "jumps", "over", "", "", "", "the", "lazy",
+            "dog");
     p.run();
   }
 
@@ -251,12 +237,12 @@ public class RegexTest implements Serializable {
   public void testSplitsWithoutEmpty() {
     TestPipeline p = TestPipeline.create();
 
-    PCollection<String> output = p
-        .apply(Create.of("The  quick   brown fox jumps over    the lazy dog"))
-        .apply(Regex.split("\\s", false));
+    PCollection<String> output =
+        p.apply(Create.of("The  quick   brown fox jumps over    the lazy dog"))
+            .apply(Regex.split("\\s", false));
 
-    PAssert.that(output).containsInAnyOrder("The", "quick", "brown",
-      "fox", "jumps", "over", "the", "lazy", "dog");
+    PAssert.that(output)
+        .containsInAnyOrder("The", "quick", "brown", "fox", "jumps", "over", "the", "lazy", "dog");
     p.run();
   }
 }
