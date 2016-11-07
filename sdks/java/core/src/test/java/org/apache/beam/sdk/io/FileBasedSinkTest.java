@@ -40,6 +40,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.zip.GZIPInputStream;
 
@@ -278,7 +279,7 @@ public class FileBasedSinkTest {
       outputFiles.add(outputFile);
     }
 
-    writeOp.removeTemporaryFiles(options);
+    writeOp.removeTemporaryFiles(Collections.<String>emptyList(), options);
 
     for (int i = 0; i < numFiles; i++) {
       assertFalse(temporaryFiles.get(i).exists());

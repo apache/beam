@@ -38,6 +38,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.zip.GZIPOutputStream;
 
 import javax.annotation.Nullable;
@@ -425,7 +426,7 @@ public abstract class FileBasedSink<T> extends Sink<T> {
         // and we'd like to clean up the failed ones too.
         // Note that due to GCS eventual consistency, matching files in the temp directory is also
         // currently non-perfect and may fail to delete some files.
-        removeTemporaryFiles(options);
+        removeTemporaryFiles(files, options);
       }
     }
 
@@ -492,11 +493,12 @@ public abstract class FileBasedSink<T> extends Sink<T> {
      * <b>Note:</b>If finalize is overridden and does <b>not</b> rename or otherwise finalize
      * temporary files, this method will remove them.
      */
-    protected final void removeTemporaryFiles(PipelineOptions options) throws IOException {
+    protected final void removeTemporaryFiles(List<String> knownFiles, PipelineOptions options)
+        throws IOException {
       LOG.debug("Removing temporary bundle output files in {}.", tempDirectory);
       FileOperations fileOperations =
           FileOperationsFactory.getFileOperations(tempDirectory, options);
-      fileOperations.removeDirectoryAndFiles(tempDirectory);
+      fileOperations.removeDirectoryAndFiles(tempDirectory, knownFiles);
     }
 
     /**
@@ -702,8 +704,17 @@ public abstract class FileBasedSink<T> extends Sink<T> {
      */
      void copy(List<String> srcFilenames, List<String> destFilenames) throws IOException;
 
-    /** Removes a directory and the files in it (but not subdirectories). */
-    void removeDirectoryAndFiles(String directory) throws IOException;
+    /**
+     * Removes a directory and the files in it (but not subdirectories).
+     *
+     * <p>Additionally, to partially mitigate the effects of filesystems with eventually-consistent
+     * directory matching APIs, takes a list of files that are known to exist - i.e. removes the
+     * union of the known files and files that the filesystem says exist in the directory.
+     *
+     * <p>Assumes that, if directory listing had been strongly consistent, it would have matched
+     * all of knownFiles - i.e. on a strongly consistent filesystem, knownFiles can be ignored.
+     */
+    void removeDirectoryAndFiles(String directory, List<String> knownFiles) throws IOException;
   }
 
   /**
@@ -722,11 +733,19 @@ public abstract class FileBasedSink<T> extends Sink<T> {
     }
 
     @Override
-    public void removeDirectoryAndFiles(String directory) throws IOException {
+    public void removeDirectoryAndFiles(String directory, List<String> knownFiles)
+        throws IOException {
       IOChannelFactory factory = IOChannelUtils.getFactory(directory);
       Collection<String> matches = factory.match(directory + "/*");
-      LOG.debug("Removing {} temporary files found under {}", matches.size(), directory);
-      gcsUtil.remove(matches);
+      Set<String> allMatches = new HashSet<>(matches);
+      allMatches.addAll(knownFiles);
+      LOG.debug(
+          "Removing {} temporary files found under {} ({} matched glob, {} additional known files)",
+          allMatches.size(),
+          directory,
+          matches.size(),
+          allMatches.size() - matches.size());
+      gcsUtil.remove(allMatches);
       // No need to remove the directory itself: GCS doesn't have directories, so if the directory
       // is empty, then it already doesn't exist.
     }
@@ -775,7 +794,8 @@ public abstract class FileBasedSink<T> extends Sink<T> {
     }
 
     @Override
-    public void removeDirectoryAndFiles(String directory) throws IOException {
+    public void removeDirectoryAndFiles(String directory, List<String> knownFiles)
+        throws IOException {
       if (!new File(directory).exists()) {
         LOG.debug("Directory {} already doesn't exist", directory);
         return;
