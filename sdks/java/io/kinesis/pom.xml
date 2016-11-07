@@ -30,6 +30,19 @@
   <description>Library to read Kinesis streams.</description>
 
   <build>
+    <pluginManagement>
+      <plugins>
+        <!-- BEAM-929 -->
+        <plugin>
+          <groupId>org.codehaus.mojo</groupId>
+          <artifactId>findbugs-maven-plugin</artifactId>
+          <configuration>
+            <skip>true</skip>
+          </configuration>
+        </plugin>
+      </plugins>
+    </pluginManagement>
+
     <plugins>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
