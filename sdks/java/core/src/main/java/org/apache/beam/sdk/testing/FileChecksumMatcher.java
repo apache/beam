@@ -86,7 +86,7 @@ public class FileChecksumMatcher extends TypeSafeMatcher<PipelineResult>
   private String actualChecksum;
 
   public FileChecksumMatcher(String checksum, String filePath) {
-    this(checksum, filePath, null);
+    this(checksum, filePath, DEFAULT_SHARD_TEMPLATE);
   }
 
   public FileChecksumMatcher(String checksum, String filePath, String shardTemplate) {
@@ -169,7 +169,7 @@ public class FileChecksumMatcher extends TypeSafeMatcher<PipelineResult>
 
   /**
    * Check if total number of files is correct by comparing with the number that
-   * is parsed from shard name using a name template. If no template are specified,
+   * is parsed from shard name using a name template. If no template is specified,
    * "SSSS-of-NNNN" will be used as default, and "NNNN" will be the expected total
    * number of files.
    */

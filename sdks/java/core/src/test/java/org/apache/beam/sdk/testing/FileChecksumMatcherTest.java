@@ -128,8 +128,24 @@ public class FileChecksumMatcherTest {
   }
 
   @Test
-  public void testReadWithRetriesFailsWhenTemplateIncorrect()
-      throws IOException, InterruptedException {
+  public void testMatcherThatUsesCustomizedTemplate() throws Exception {
+    // Customized template: resultSSS-totalNNN
+    File tmpFile1 = tmpFolder.newFile("result0-total2");
+    File tmpFile2 = tmpFolder.newFile("result1-total2");
+    Files.write("To be or not to be, ", tmpFile1, StandardCharsets.UTF_8);
+    Files.write("it is not a question.", tmpFile2, StandardCharsets.UTF_8);
+
+    String customizedTemplate = "result\\d+-total(\\d+)$";
+    FileChecksumMatcher matcher = new FileChecksumMatcher(
+        "90552392c28396935fe4f123bd0b5c2d0f6260c8",
+        IOChannelUtils.resolve(tmpFolder.getRoot().getPath(), "*"),
+        customizedTemplate);
+
+    assertThat(pResult, matcher);
+  }
+
+  @Test
+  public void testReadWithRetriesFailsWhenTemplateIncorrect() throws Exception {
     File tmpFile = tmpFolder.newFile();
     Files.write("Test for file checksum verifier.", tmpFile, StandardCharsets.UTF_8);
 
