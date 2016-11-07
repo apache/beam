@@ -28,7 +28,7 @@ This module provides the SortValues transform, which takes a `PCollection<KV<K, 
 * The user can customize the temporary location used if sorting requires spilling to disk and the maximum amount of memory to use by creating a custom instance of `BufferedExternalSorter.Options` to pass into `SortValues.create`.
 
 ##Using `SortValues`
-~~~~
+```java
 PCollection<KV<String, KV<String, Integer>>> input = ...
 
 // Group by primary key, bringing <SecondaryKey, Value> pairs for the same key together.
@@ -39,4 +39,4 @@ PCollection<KV<String, Iterable<KV<String, Integer>>>> grouped =
 PCollection<KV<String, Iterable<KV<String, Integer>>>> groupedAndSorted =
     grouped.apply(
         SortValues.<String, String, Integer>create(new BufferedExternalSorter.Options()));
-~~~~
+```
