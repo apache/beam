@@ -19,6 +19,7 @@
 
 import base64
 import cPickle as pickle
+import google.protobuf
 
 from apache_beam.coders import coder_impl
 
@@ -351,16 +352,16 @@ class DillCoder(_PickleCoderBase):
     return coder_impl.CallbackCoderImpl(maybe_dill_dumps, maybe_dill_loads)
 
 
-class DeterministicPickleCoder(FastCoder):
-  """Throws runtime errors when pickling non-deterministic values."""
+class DeterministicFastPrimitivesCoder(FastCoder):
+  """Throws runtime errors when encoding non-deterministic values."""
 
-  def __init__(self, pickle_coder, step_label):
-    self._pickle_coder = pickle_coder
+  def __init__(self, coder, step_label):
+    self._underlying_coder = coder
     self._step_label = step_label
 
   def _create_impl(self):
-    return coder_impl.DeterministicPickleCoderImpl(
-        self._pickle_coder.get_impl(), self._step_label)
+    return coder_impl.DeterministicFastPrimitivesCoderImpl(
+        self._underlying_coder.get_impl(), self._step_label)
 
   def is_deterministic(self):
     return True
@@ -448,6 +449,39 @@ class Base64PickleCoder(Coder):
 
   def value_coder(self):
     return self
+
+
+class ProtoCoder(FastCoder):
+  """A Coder for Google Protocol Buffers.
+
+  It supports both Protocol Buffers syntax versions 2 and 3. However,
+  the runtime version of the python protobuf library must exactly match the
+  version of the protoc compiler what was used to generate the protobuf
+  messages.
+
+  ProtoCoder is registered in the global CoderRegistry as the default coder for
+  any protobuf Message object.
+
+  """
+
+  def __init__(self, proto_message_type):
+    self.proto_message_type = proto_message_type
+
+  def _create_impl(self):
+    return coder_impl.ProtoCoderImpl(self.proto_message_type)
+
+  def is_deterministic(self):
+    # TODO(vikasrk): A proto message can be deterministic if it does not contain
+    # a Map.
+    return False
+
+  @staticmethod
+  def from_type_hint(typehint, unused_registry):
+    if issubclass(typehint, google.protobuf.message.Message):
+      return ProtoCoder(typehint)
+    else:
+      raise ValueError(('Expected a subclass of google.protobuf.message.Message'
+                        ', but got a %s' % typehint))
 
 
 class TupleCoder(FastCoder):

@@ -27,6 +27,8 @@ import coders
 import observable
 from apache_beam.utils import timestamp
 
+from apache_beam.coders import proto2_coder_test_messages_pb2 as test_message
+
 
 # Defined out of line for picklability.
 class CustomCoder(coders.Coder):
@@ -58,6 +60,7 @@ class CodersTest(unittest.TestCase):
                      coders.FastCoder,
                      coders.Base64PickleCoder,
                      coders.FloatCoder,
+                     coders.ProtoCoder,
                      coders.TimestampCoder,
                      coders.ToStringCoder,
                      coders.WindowCoder,
@@ -101,15 +104,16 @@ class CodersTest(unittest.TestCase):
   def test_pickle_coder(self):
     self.check_coder(coders.PickleCoder(), 'a', 1, 1.5, (1, 2, 3))
 
-  def test_deterministic_pickle_coder(self):
-    coder = coders.DeterministicPickleCoder(coders.PickleCoder(), 'step')
-    self.check_coder(coder, 'a', 1, 1.5, (1, 2, 3))
+  def test_deterministic_coder(self):
+    coder = coders.FastPrimitivesCoder()
+    deterministic_coder = coders.DeterministicFastPrimitivesCoder(coder, 'step')
+    self.check_coder(deterministic_coder, 'a', 1, 1.5, (1, 2, 3))
     with self.assertRaises(TypeError):
-      self.check_coder(coder, dict())
+      self.check_coder(deterministic_coder, dict())
     with self.assertRaises(TypeError):
-      self.check_coder(coder, [1, dict()])
+      self.check_coder(deterministic_coder, [1, dict()])
 
-    self.check_coder(coders.TupleCoder((coder, coders.PickleCoder())),
+    self.check_coder(coders.TupleCoder((deterministic_coder, coder)),
                      (1, dict()), ('a', [dict()]))
 
   def test_dill_coder(self):
@@ -203,6 +207,22 @@ class CodersTest(unittest.TestCase):
         coders.TupleCoder((coders.VarIntCoder(),
                            coders.IterableCoder(coders.VarIntCoder()))),
         (1, [1, 2, 3]))
+
+  def test_proto_coder(self):
+    # For instructions on how these test proto message were generated,
+    # see coders_test.py
+    ma = test_message.MessageA()
+    mab = ma.field2.add()
+    mab.field1 = True
+    ma.field1 = u'hello world'
+
+    mb = test_message.MessageA()
+    mb.field1 = u'beam'
+
+    proto_coder = coders.ProtoCoder(ma.__class__)
+    self.check_coder(proto_coder, ma)
+    self.check_coder(coders.TupleCoder((proto_coder, coders.BytesCoder())),
+                     (ma, 'a'), (mb, 'b'))
 
   def test_nested_observables(self):
     class FakeObservableIterator(observable.ObservableMixin):

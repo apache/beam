@@ -161,10 +161,10 @@ class CallbackCoderImpl(CoderImpl):
       return self.estimate_size(value, nested), []
 
 
-class DeterministicPickleCoderImpl(CoderImpl):
+class DeterministicFastPrimitivesCoderImpl(CoderImpl):
 
-  def __init__(self, pickle_coder, step_label):
-    self._pickle_coder = pickle_coder
+  def __init__(self, coder, step_label):
+    self._underlying_coder = coder
     self._step_label = step_label
 
   def _check_safe(self, value):
@@ -183,17 +183,38 @@ class DeterministicPickleCoderImpl(CoderImpl):
 
   def encode_to_stream(self, value, stream, nested):
     self._check_safe(value)
-    return self._pickle_coder.encode_to_stream(value, stream, nested)
+    return self._underlying_coder.encode_to_stream(value, stream, nested)
 
   def decode_from_stream(self, stream, nested):
-    return self._pickle_coder.decode_from_stream(stream, nested)
+    return self._underlying_coder.decode_from_stream(stream, nested)
 
   def encode(self, value):
     self._check_safe(value)
-    return self._pickle_coder.encode(value)
+    return self._underlying_coder.encode(value)
 
   def decode(self, encoded):
-    return self._pickle_coder.decode(encoded)
+    return self._underlying_coder.decode(encoded)
+
+  def estimate_size(self, value, nested=False):
+    return self._underlying_coder.estimate_size(value, nested)
+
+  def get_estimated_size_and_observables(self, value, nested=False):
+    return self._underlying_coder.get_estimated_size_and_observables(
+        value, nested)
+
+
+class ProtoCoderImpl(SimpleCoderImpl):
+
+  def __init__(self, proto_message_type):
+    self.proto_message_type = proto_message_type
+
+  def encode(self, value):
+    return value.SerializeToString()
+
+  def decode(self, encoded):
+    proto_message = self.proto_message_type()
+    proto_message.ParseFromString(encoded)
+    return proto_message
 
 
 UNKNOWN_TYPE = 0xFF
