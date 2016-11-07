@@ -20,7 +20,6 @@ package org.apache.beam.sdk.transforms.reflect;
 import com.google.auto.value.AutoValue;
 import com.google.common.base.Predicates;
 import com.google.common.collect.Iterables;
-import com.google.common.reflect.TypeToken;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.Collections;
@@ -127,10 +126,23 @@ public abstract class DoFnSignature {
     abstract DoFnSignature build();
   }
 
-  /** A method delegated to a annotated method of an underlying {@link DoFn}. */
+  /** A method delegated to an annotated method of an underlying {@link DoFn}. */
   public interface DoFnMethod {
     /** The annotated method itself. */
     Method targetMethod();
+  }
+
+  /**
+   * A method delegated to an annotated method of an underlying {@link DoFn} that accepts a dynamic
+   * list of parameters.
+   */
+  public interface MethodWithExtraParameters extends DoFnMethod {
+    /**
+     * Types of optional parameters of the annotated method, in the order they appear.
+     *
+     * <p>Validation that these are allowed is external to this class.
+     */
+    List<Parameter> extraParameters();
   }
 
   /** A descriptor for an optional parameter of the {@link DoFn.ProcessElement} method. */
@@ -332,17 +344,18 @@ public abstract class DoFnSignature {
 
   /** Describes a {@link DoFn.ProcessElement} method. */
   @AutoValue
-  public abstract static class ProcessElementMethod implements DoFnMethod {
+  public abstract static class ProcessElementMethod implements MethodWithExtraParameters {
     /** The annotated method itself. */
     @Override
     public abstract Method targetMethod();
 
     /** Types of optional parameters of the annotated method, in the order they appear. */
+    @Override
     public abstract List<Parameter> extraParameters();
 
     /** Concrete type of the {@link RestrictionTracker} parameter, if present. */
     @Nullable
-    abstract TypeToken<?> trackerT();
+    public abstract TypeDescriptor<?> trackerT();
 
     /** Whether this {@link DoFn} returns a {@link ProcessContinuation} or void. */
     public abstract boolean hasReturnValue();
@@ -350,7 +363,7 @@ public abstract class DoFnSignature {
     static ProcessElementMethod create(
         Method targetMethod,
         List<Parameter> extraParameters,
-        TypeToken<?> trackerT,
+        TypeDescriptor<?> trackerT,
         boolean hasReturnValue) {
       return new AutoValue_DoFnSignature_ProcessElementMethod(
           targetMethod, Collections.unmodifiableList(extraParameters), trackerT, hasReturnValue);
@@ -381,7 +394,7 @@ public abstract class DoFnSignature {
 
   /** Describes a {@link DoFn.OnTimer} method. */
   @AutoValue
-  public abstract static class OnTimerMethod implements DoFnMethod {
+  public abstract static class OnTimerMethod implements MethodWithExtraParameters {
 
     /** The id on the method's {@link DoFn.TimerId} annotation. */
     public abstract String id();
@@ -391,6 +404,7 @@ public abstract class DoFnSignature {
     public abstract Method targetMethod();
 
     /** Types of optional parameters of the annotated method, in the order they appear. */
+    @Override
     public abstract List<Parameter> extraParameters();
 
     static OnTimerMethod create(Method targetMethod, String id, List<Parameter> extraParameters) {
@@ -401,7 +415,7 @@ public abstract class DoFnSignature {
 
   /**
    * Describes a timer declaration; a field of type {@link TimerSpec} annotated with
-   * {@DoFn.TimerId}.
+   * {@link DoFn.TimerId}.
    */
   @AutoValue
   public abstract static class TimerDeclaration {
@@ -462,9 +476,9 @@ public abstract class DoFnSignature {
     public abstract Method targetMethod();
 
     /** Type of the returned restriction. */
-    abstract TypeToken<?> restrictionT();
+    public abstract TypeDescriptor<?> restrictionT();
 
-    static GetInitialRestrictionMethod create(Method targetMethod, TypeToken<?> restrictionT) {
+    static GetInitialRestrictionMethod create(Method targetMethod, TypeDescriptor<?> restrictionT) {
       return new AutoValue_DoFnSignature_GetInitialRestrictionMethod(targetMethod, restrictionT);
     }
   }
@@ -477,9 +491,9 @@ public abstract class DoFnSignature {
     public abstract Method targetMethod();
 
     /** Type of the restriction taken and returned. */
-    abstract TypeToken<?> restrictionT();
+    public abstract TypeDescriptor<?> restrictionT();
 
-    static SplitRestrictionMethod create(Method targetMethod, TypeToken<?> restrictionT) {
+    static SplitRestrictionMethod create(Method targetMethod, TypeDescriptor<?> restrictionT) {
       return new AutoValue_DoFnSignature_SplitRestrictionMethod(targetMethod, restrictionT);
     }
   }
@@ -492,13 +506,13 @@ public abstract class DoFnSignature {
     public abstract Method targetMethod();
 
     /** Type of the input restriction. */
-    abstract TypeToken<?> restrictionT();
+    public abstract TypeDescriptor<?> restrictionT();
 
     /** Type of the returned {@link RestrictionTracker}. */
-    abstract TypeToken<?> trackerT();
+    public abstract TypeDescriptor<?> trackerT();
 
     static NewTrackerMethod create(
-        Method targetMethod, TypeToken<?> restrictionT, TypeToken<?> trackerT) {
+        Method targetMethod, TypeDescriptor<?> restrictionT, TypeDescriptor<?> trackerT) {
       return new AutoValue_DoFnSignature_NewTrackerMethod(targetMethod, restrictionT, trackerT);
     }
   }
@@ -511,9 +525,9 @@ public abstract class DoFnSignature {
     public abstract Method targetMethod();
 
     /** Type of the returned {@link Coder}. */
-    abstract TypeToken<?> coderT();
+    public abstract TypeDescriptor<?> coderT();
 
-    static GetRestrictionCoderMethod create(Method targetMethod, TypeToken<?> coderT) {
+    static GetRestrictionCoderMethod create(Method targetMethod, TypeDescriptor<?> coderT) {
       return new AutoValue_DoFnSignature_GetRestrictionCoderMethod(targetMethod, coderT);
     }
   }

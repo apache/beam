@@ -199,14 +199,32 @@ public class DataflowPipelineJob implements PipelineResult {
    *   thread is interrupted.
    * @throws IOException If there is a persistent problem getting job
    *   information.
-   * @throws InterruptedException
    */
   @Nullable
   @VisibleForTesting
   public State waitUntilFinish(
       Duration duration,
       MonitoringUtil.JobMessagesHandler messageHandler) throws IOException, InterruptedException {
-    return waitUntilFinish(duration, messageHandler, Sleeper.DEFAULT, NanoClock.SYSTEM);
+    // We ignore the potential race condition here (Ctrl-C after job submission but before the
+    // shutdown hook is registered). Even if we tried to do something smarter (eg., SettableFuture)
+    // the run method (which produces the job) could fail or be Ctrl-C'd before it had returned a
+    // job. The display of the command to cancel the job is best-effort anyways -- RPC's could fail,
+    // etc. If the user wants to verify the job was cancelled they should look at the job status.
+    Thread shutdownHook = new Thread() {
+      @Override
+      public void run() {
+        LOG.warn("Job is already running in Google Cloud Platform, Ctrl-C will not cancel it.\n"
+            + "To cancel the job in the cloud, run:\n> {}",
+            MonitoringUtil.getGcloudCancelCommand(dataflowOptions, getJobId()));
+      }
+    };
+
+    try {
+      Runtime.getRuntime().addShutdownHook(shutdownHook);
+      return waitUntilFinish(duration, messageHandler, Sleeper.DEFAULT, NanoClock.SYSTEM);
+    } finally {
+      Runtime.getRuntime().removeShutdownHook(shutdownHook);
+    }
   }
 
   /**
@@ -230,8 +248,7 @@ public class DataflowPipelineJob implements PipelineResult {
       Duration duration,
       MonitoringUtil.JobMessagesHandler messageHandler,
       Sleeper sleeper,
-      NanoClock nanoClock)
-          throws IOException, InterruptedException {
+      NanoClock nanoClock) throws IOException, InterruptedException {
     MonitoringUtil monitor = new MonitoringUtil(projectId, dataflowOptions.getDataflowClient());
 
     long lastTimestamp = 0;
@@ -275,6 +292,23 @@ public class DataflowPipelineJob implements PipelineResult {
       if (!hasError) {
         // We can stop if the job is done.
         if (state.isTerminal()) {
+          switch (state) {
+            case DONE:
+            case CANCELLED:
+              LOG.info("Job {} finished with status {}.", getJobId(), state);
+              break;
+            case UPDATED:
+              LOG.info("Job {} has been updated and is running as the new job with id {}. "
+                  + "To access the updated job on the Dataflow monitoring console, "
+                  + "please navigate to {}",
+                  getJobId(),
+                  getReplacedByJob().getJobId(),
+                  MonitoringUtil.getJobMonitoringPageURL(
+                      getReplacedByJob().getProjectId(), getReplacedByJob().getJobId()));
+              break;
+            default:
+              LOG.info("Job {} failed with status {}.", getJobId(), state);
+          }
           return state;
         }
 
@@ -297,7 +331,7 @@ public class DataflowPipelineJob implements PipelineResult {
         }
       }
     } while(BackOffUtils.next(sleeper, backoff));
-    LOG.warn("No terminal state was returned.  State value {}", state);
+    LOG.warn("No terminal state was returned. State value {}", state);
     return null;  // Timed out.
   }
 

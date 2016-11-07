@@ -214,9 +214,7 @@ public abstract class Sink<T> implements Serializable, HasDisplayData {
     /**
      * Returns a coder for the writer result type.
      */
-    public Coder<WriteT> getWriterResultCoder() {
-      return null;
-    }
+    public abstract Coder<WriteT> getWriterResultCoder();
   }
 
   /**

@@ -49,15 +49,12 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFnTester;
-import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.util.IOChannelUtils;
 import org.apache.beam.sdk.util.PCollectionViews;
 import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.values.KV;
-import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
-import org.apache.beam.sdk.values.PDone;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -71,7 +68,7 @@ import org.junit.runners.JUnit4;
 public class WriteWithShardingFactoryTest {
   public static final int INPUT_SIZE = 10000;
   @Rule public TemporaryFolder tmp = new TemporaryFolder();
-  private WriteWithShardingFactory factory = new WriteWithShardingFactory();
+  private WriteWithShardingFactory<Object> factory = new WriteWithShardingFactory<>();
 
   @Test
   public void dynamicallyReshardedWrite() throws Exception {
@@ -122,28 +119,15 @@ public class WriteWithShardingFactoryTest {
 
   @Test
   public void withShardingSpecifiesOriginalTransform() {
-    PTransform<PCollection<Object>, PDone> original = Write.to(new TestSink()).withNumShards(3);
+    Write.Bound<Object> original = Write.to(new TestSink()).withNumShards(3);
 
-    assertThat(factory.override(original), equalTo(original));
-  }
-
-  @Test
-  public void withNonWriteReturnsOriginalTransform() {
-    PTransform<PCollection<Object>, PDone> original =
-        new PTransform<PCollection<Object>, PDone>() {
-          @Override
-          public PDone apply(PCollection<Object> input) {
-            return PDone.in(input.getPipeline());
-          }
-        };
-
-    assertThat(factory.override(original), equalTo(original));
+    assertThat(factory.override(original), equalTo((Object) original));
   }
 
   @Test
   public void withNoShardingSpecifiedReturnsNewTransform() {
-    PTransform<PCollection<Object>, PDone> original = Write.to(new TestSink());
-    assertThat(factory.override(original), not(equalTo(original)));
+    Write.Bound<Object> original = Write.to(new TestSink());
+    assertThat(factory.override(original), not(equalTo((Object) original)));
   }
 
   @Test

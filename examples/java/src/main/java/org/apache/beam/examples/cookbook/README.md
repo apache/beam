@@ -42,7 +42,7 @@ larger Dataflow pipeline. They include:
   <li><a href="https://github.com/GoogleCloudPlatform/DataflowJavaSDK/blob/master/examples/src/main/java/com/google/cloud/dataflow/examples/cookbook/DeDupExample.java">DeDupExample</a>
   &mdash; An example that uses Shakespeare's plays as plain text files, and
   removes duplicate lines across all the files. Demonstrates the
-  <code>RemoveDuplicates</code>, <code>TextIO.Read</code>,
+  <code>Distinct</code>, <code>TextIO.Read</code>,
   and <code>TextIO.Write</code> transforms, and how to wire transforms together.
   </li>
   <li><a href="https://github.com/GoogleCloudPlatform/DataflowJavaSDK/blob/master/examples/src/main/java/com/google/cloud/dataflow/examples/cookbook/FilterExamples.java">FilterExamples</a>

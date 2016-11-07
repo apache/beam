@@ -165,7 +165,7 @@ import org.slf4j.LoggerFactory;
  * read <a href="https://cloud.google.com/datastore/docs/concepts/entities">Entities, Properties,
  * and Keys</a> for more information about {@code Entity} keys.
  *
- * <p><h3>Permissions</h3>
+ * <h3>Permissions</h3>
  * Permission requirements depend on the {@code PipelineRunner} that is used to execute the
  * Dataflow job. Please refer to the documentation of corresponding {@code PipelineRunner}s for
  * more details.

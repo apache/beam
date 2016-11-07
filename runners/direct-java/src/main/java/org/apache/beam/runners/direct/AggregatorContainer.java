@@ -151,8 +151,24 @@ public class AggregatorContainer {
 
     @Override
     public <InputT, AccumT, OutputT> Aggregator<InputT, OutputT> createAggregatorForDoFn(
-        Class<?> fnClass, ExecutionContext.StepContext step,
-        String name, CombineFn<InputT, AccumT, OutputT> combine) {
+        Class<?> fnClass,
+        ExecutionContext.StepContext step,
+        String name,
+        CombineFn<InputT, AccumT, OutputT> combine) {
+      return createAggregatorForStep(step, name, combine);
+    }
+
+    public <InputT, AccumT, OutputT> Aggregator<InputT, OutputT> createSystemAggregator(
+        ExecutionContext.StepContext step,
+        String name,
+        CombineFn<InputT, AccumT, OutputT> combiner) {
+      return createAggregatorForStep(step, name, combiner);
+    }
+
+    private <InputT, AccumT, OutputT> Aggregator<InputT, OutputT> createAggregatorForStep(
+        ExecutionContext.StepContext step,
+        String name,
+        CombineFn<InputT, AccumT, OutputT> combine) {
       checkState(!committed, "Cannot create aggregators after committing");
       AggregatorKey key = AggregatorKey.create(step.getStepName(), name);
       AggregatorInfo<?, ?, ?> aggregatorInfo = accumulatorDeltas.get(key);

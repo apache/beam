@@ -15,14 +15,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.dataflow.options;
-
-import org.apache.beam.runners.dataflow.BlockingDataflowRunner;
-import org.apache.beam.sdk.options.Description;
 
 /**
- * Options that are used to configure the {@link BlockingDataflowRunner}.
+ * Utility for performing local sort of potentially large sets of values. Will sort in memory and
+ * spill to disk for external sorting if necessary.
  */
-@Description("Configure options on the BlockingDataflowRunner.")
-public interface BlockingDataflowPipelineOptions extends DataflowPipelineOptions {
-}
+package org.apache.beam.sdk.extensions.sorter;

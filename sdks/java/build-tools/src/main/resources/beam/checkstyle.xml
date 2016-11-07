@@ -42,7 +42,7 @@ page at http://checkstyle.sourceforge.net/config.html -->
   </module>
 
   <module name="RegexpSingleline">
-    <property name="format" value="[ \t]+$"/>
+    <property name="format" value="\s+$"/>
     <property name="message" value="Trailing whitespace"/>
     <property name="severity" value="error"/>
   </module>
@@ -65,7 +65,7 @@ page at http://checkstyle.sourceforge.net/config.html -->
     <property name="checkFormat" value="$1"/>
   </module>
   <module name="SuppressionFilter">
-    <property name="file" value="${checkstyle.suppressions.file}" />
+    <property name="file" value="${checkstyle.suppressions.file}" default="suppressions.xml" />
   </module>
 
   <!-- Check that every module has a package-info.java -->
@@ -287,7 +287,7 @@ page at http://checkstyle.sourceforge.net/config.html -->
 
     <module name="LineLength">
       <!-- Checks if a line is too long. -->
-      <property name="max" value="${com.puppycrawl.tools.checkstyle.checks.sizes.LineLength.max}" default="100"/>
+      <property name="max" value="100"/>
       <property name="severity" value="error"/>
 
       <!--
@@ -297,8 +297,7 @@ page at http://checkstyle.sourceforge.net/config.html -->
       -->
 
       <property name="ignorePattern"
-          value="${com.puppycrawl.tools.checkstyle.checks.sizes.LineLength.ignorePattern}"
-          default="^(package .*;\s*)|(import .*;\s*)|( *\* .*https?://.*)$"/>
+          value="^(package .*;\s*)|(import .*;\s*)|( *\* .*https?://.*)$"/>
     </module>
 
     <module name="LeftCurly">

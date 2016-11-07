@@ -235,38 +235,45 @@ public class ProxyInvocationHandlerTest {
         .testEquals();
   }
 
+  /** A test interface for string with default. */
+  public interface StringWithDefault extends PipelineOptions {
+    @Default.String("testString")
+    String getString();
+    void setString(String value);
+  }
+
   @Test
   public void testToString() throws Exception {
     ProxyInvocationHandler handler = new ProxyInvocationHandler(Maps.<String, Object>newHashMap());
-    Simple proxy = handler.as(Simple.class);
+    StringWithDefault proxy = handler.as(StringWithDefault.class);
     proxy.setString("stringValue");
     DefaultAnnotations proxy2 = proxy.as(DefaultAnnotations.class);
     proxy2.setLong(57L);
     assertEquals("Current Settings:\n"
-        + "  long: 57\n"
-        + "  string: stringValue\n",
+            + "  long: 57\n"
+            + "  string: stringValue\n",
         proxy.toString());
   }
 
   @Test
   public void testToStringAfterDeserializationContainsJsonEntries() throws Exception {
     ProxyInvocationHandler handler = new ProxyInvocationHandler(Maps.<String, Object>newHashMap());
-    Simple proxy = handler.as(Simple.class);
+    StringWithDefault proxy = handler.as(StringWithDefault.class);
     Long optionsId = proxy.getOptionsId();
     proxy.setString("stringValue");
     DefaultAnnotations proxy2 = proxy.as(DefaultAnnotations.class);
     proxy2.setLong(57L);
     assertEquals(String.format("Current Settings:\n"
-        + "  long: 57\n"
-        + "  optionsId: %d\n"
-        + "  string: \"stringValue\"\n", optionsId),
+            + "  long: 57\n"
+            + "  optionsId: %d\n"
+            + "  string: \"stringValue\"\n", optionsId),
         serializeDeserialize(PipelineOptions.class, proxy2).toString());
   }
 
   @Test
   public void testToStringAfterDeserializationContainsOverriddenEntries() throws Exception {
     ProxyInvocationHandler handler = new ProxyInvocationHandler(Maps.<String, Object>newHashMap());
-    Simple proxy = handler.as(Simple.class);
+    StringWithDefault proxy = handler.as(StringWithDefault.class);
     Long optionsId = proxy.getOptionsId();
     proxy.setString("stringValue");
     DefaultAnnotations proxy2 = proxy.as(DefaultAnnotations.class);
@@ -274,9 +281,9 @@ public class ProxyInvocationHandlerTest {
     Simple deserializedOptions = serializeDeserialize(Simple.class, proxy2);
     deserializedOptions.setString("overriddenValue");
     assertEquals(String.format("Current Settings:\n"
-        + "  long: 57\n"
-        + "  optionsId: %d\n"
-        + "  string: overriddenValue\n", optionsId),
+            + "  long: 57\n"
+            + "  optionsId: %d\n"
+            + "  string: overriddenValue\n", optionsId),
         deserializedOptions.toString());
   }
 

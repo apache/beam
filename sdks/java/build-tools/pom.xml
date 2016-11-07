@@ -21,9 +21,9 @@
   
   <parent>
     <groupId>org.apache.beam</groupId>
-    <artifactId>beam-sdks-java-parent</artifactId>
+    <artifactId>beam-parent</artifactId>
     <version>0.4.0-incubating-SNAPSHOT</version>
-    <relativePath>../pom.xml</relativePath>
+    <relativePath>../../../pom.xml</relativePath>
   </parent>
 
   <artifactId>beam-sdks-java-build-tools</artifactId>

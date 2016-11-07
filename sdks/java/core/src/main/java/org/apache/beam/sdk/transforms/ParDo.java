@@ -96,7 +96,7 @@ import org.apache.beam.sdk.values.TypedPValue;
  *
  * <p>For example:
  *
- * <pre><{@code
+ * <pre>{@code
  * PCollection<String> lines = ...;
  * PCollection<String> words =
  *     lines.apply(ParDo.of(new DoFn<String, String>() {

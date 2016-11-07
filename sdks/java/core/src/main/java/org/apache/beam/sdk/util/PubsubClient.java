@@ -90,10 +90,10 @@ public abstract class PubsubClient implements Closeable {
    * <p>If {@code timestampLabel} is non-{@literal null} then the message attributes must contain
    * that label, and the value of that label will be taken as the timestamp.
    * Otherwise the timestamp will be taken from the Pubsub publish timestamp {@code
-   * pubsubTimestamp}. Throw {@link IllegalArgumentException} if the timestamp cannot be
-   * recognized as a ms-since-unix-epoch or RFC3339 time.
+   * pubsubTimestamp}.
    *
-   * @throws IllegalArgumentException
+   * @throws IllegalArgumentException if the timestamp cannot be recognized as a ms-since-unix-epoch
+   * or RFC3339 time.
    */
   protected static long extractTimestamp(
       @Nullable String timestampLabel,
@@ -115,7 +115,7 @@ public abstract class PubsubClient implements Closeable {
                     "Cannot interpret value of label %s as timestamp: %s",
                     timestampLabel, value);
     }
-    return timestampMsSinceEpoch == null ? 0 : timestampMsSinceEpoch;
+    return timestampMsSinceEpoch;
   }
 
   /**
@@ -443,8 +443,6 @@ public abstract class PubsubClient implements Closeable {
   /**
    * Publish {@code outgoingMessages} to Pubsub {@code topic}. Return number of messages
    * published.
-   *
-   * @throws IOException
    */
   public abstract int publish(TopicPath topic, List<OutgoingMessage> outgoingMessages)
       throws IOException;
@@ -454,8 +452,6 @@ public abstract class PubsubClient implements Closeable {
    * Return the received messages, or empty collection if none were available. Does not
    * wait for messages to arrive if {@code returnImmediately} is {@literal true}.
    * Returned messages will record their request time as {@code requestTimeMsSinceEpoch}.
-   *
-   * @throws IOException
    */
   public abstract List<IncomingMessage> pull(
       long requestTimeMsSinceEpoch,
@@ -466,8 +462,6 @@ public abstract class PubsubClient implements Closeable {
 
   /**
    * Acknowldege messages from {@code subscription} with {@code ackIds}.
-   *
-   * @throws IOException
    */
   public abstract void acknowledge(SubscriptionPath subscription, List<String> ackIds)
       throws IOException;
@@ -475,8 +469,6 @@ public abstract class PubsubClient implements Closeable {
   /**
    * Modify the ack deadline for messages from {@code subscription} with {@code ackIds} to
    * be {@code deadlineSeconds} from now.
-   *
-   * @throws IOException
    */
   public abstract void modifyAckDeadline(
       SubscriptionPath subscription, List<String> ackIds,
@@ -484,29 +476,21 @@ public abstract class PubsubClient implements Closeable {
 
   /**
    * Create {@code topic}.
-   *
-   * @throws IOException
    */
   public abstract void createTopic(TopicPath topic) throws IOException;
 
   /*
    * Delete {@code topic}.
-   *
-   * @throws IOException
    */
   public abstract void deleteTopic(TopicPath topic) throws IOException;
 
   /**
    * Return a list of topics for {@code project}.
-   *
-   * @throws IOException
    */
   public abstract List<TopicPath> listTopics(ProjectPath project) throws IOException;
 
   /**
    * Create {@code subscription} to {@code topic}.
-   *
-   * @throws IOException
    */
   public abstract void createSubscription(
       TopicPath topic, SubscriptionPath subscription, int ackDeadlineSeconds) throws IOException;
@@ -514,8 +498,6 @@ public abstract class PubsubClient implements Closeable {
   /**
    * Create a random subscription for {@code topic}. Return the {@link SubscriptionPath}. It
    * is the responsibility of the caller to later delete the subscription.
-   *
-   * @throws IOException
    */
   public SubscriptionPath createRandomSubscription(
       ProjectPath project, TopicPath topic, int ackDeadlineSeconds) throws IOException {
@@ -529,23 +511,17 @@ public abstract class PubsubClient implements Closeable {
 
   /**
    * Delete {@code subscription}.
-   *
-   * @throws IOException
    */
   public abstract void deleteSubscription(SubscriptionPath subscription) throws IOException;
 
   /**
    * Return a list of subscriptions for {@code topic} in {@code project}.
-   *
-   * @throws IOException
    */
   public abstract List<SubscriptionPath> listSubscriptions(ProjectPath project, TopicPath topic)
       throws IOException;
 
   /**
    * Return the ack deadline, in seconds, for {@code subscription}.
-   *
-   * @throws IOException
    */
   public abstract int ackDeadlineSeconds(SubscriptionPath subscription) throws IOException;
 

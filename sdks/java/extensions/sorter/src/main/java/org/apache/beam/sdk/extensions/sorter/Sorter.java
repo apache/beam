@@ -15,27 +15,33 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.util;
 
-import org.apache.beam.sdk.transforms.OldDoFn;
-import org.apache.beam.sdk.transforms.OldDoFn.RequiresWindowAccess;
+package org.apache.beam.sdk.extensions.sorter;
+
+import java.io.IOException;
 import org.apache.beam.sdk.values.KV;
 
 /**
- * {@link OldDoFn} that makes timestamps and window assignments explicit in the value part of each
- * key/value pair.
+ * Interface for classes which can sort {@code <key, value>} pairs by the key.
  *
- * @param <K> the type of the keys of the input and output {@code PCollection}s
- * @param <V> the type of the values of the input {@code PCollection}
+ * <p>Records must first be added by calling {@link #add(KV)}. Then {@link #sort()} can be called at
+ * most once.
+ *
+ * <p>TODO: Support custom comparison functions.
  */
-@SystemDoFnInternal
-public class ReifyTimestampAndWindowsDoFn<K, V> extends OldDoFn<KV<K, V>, KV<K, WindowedValue<V>>>
-    implements RequiresWindowAccess {
-  @Override
-  public void processElement(ProcessContext c) throws Exception {
-    KV<K, V> kv = c.element();
-    K key = kv.getKey();
-    V value = kv.getValue();
-    c.output(KV.of(key, WindowedValue.of(value, c.timestamp(), c.window(), c.pane())));
-  }
+interface Sorter {
+
+  /**
+   * Adds a given record to the sorter.
+   *
+   * <p>Records can only be added before calling {@link #sort()}.
+   */
+  void add(KV<byte[], byte[]> record) throws IOException;
+
+  /**
+   * Sorts the added elements and returns an {@link Iterable} over the sorted elements.
+   *
+   * <p>Can be called at most once.
+   */
+  Iterable<KV<byte[], byte[]>> sort() throws IOException;
 }

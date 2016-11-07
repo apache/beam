@@ -20,11 +20,6 @@ package org.apache.beam.runners.spark.translation.streaming;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
-import com.google.common.base.Predicates;
-import com.google.common.collect.Iterables;
-import java.net.MalformedURLException;
-import java.net.URL;
-import java.util.Arrays;
 import org.apache.beam.runners.spark.SparkPipelineOptions;
 import org.apache.beam.runners.spark.SparkRunner;
 import org.apache.beam.runners.spark.translation.SparkContextFactory;
@@ -48,7 +43,7 @@ import org.slf4j.LoggerFactory;
 public class SparkRunnerStreamingContextFactory implements JavaStreamingContextFactory {
   private static final Logger LOG =
       LoggerFactory.getLogger(SparkRunnerStreamingContextFactory.class);
-  private static final Iterable<String> KNOWN_RELIABLE_FS = Arrays.asList("hdfs", "s3", "gs");
+  private static final String KNOWN_RELIABLE_FS_PATTERN = "^(hdfs|s3|gs)";
 
   private final Pipeline pipeline;
   private final SparkPipelineOptions options;
@@ -83,19 +78,11 @@ public class SparkRunnerStreamingContextFactory implements JavaStreamingContextF
 
     // set checkpoint dir.
     String checkpointDir = options.getCheckpointDir();
-    LOG.info("Checkpoint dir set to: {}", checkpointDir);
-    try {
-      // validate checkpoint dir and warn if not of a known durable filesystem.
-      URL checkpointDirUrl = new URL(checkpointDir);
-      if (!Iterables.any(KNOWN_RELIABLE_FS, Predicates.equalTo(checkpointDirUrl.getProtocol()))) {
-        LOG.warn("Checkpoint dir URL {} does not match a reliable filesystem, in case of failures "
-            + "this job may not recover properly or even at all.", checkpointDirUrl);
-      }
-    } catch (MalformedURLException e) {
-      throw new RuntimeException("Failed to form checkpoint dir URL. CheckpointDir should be in "
-          + "the form of hdfs:///path/to/dir or other reliable fs protocol, "
-              + "or file:///path/to/dir for local mode.", e);
+    if (!checkpointDir.matches(KNOWN_RELIABLE_FS_PATTERN)) {
+      LOG.warn("The specified checkpoint dir {} does not match a reliable filesystem so in case "
+          + "of failures this job may not recover properly or even at all.", checkpointDir);
     }
+    LOG.info("Checkpoint dir set to: {}", checkpointDir);
     jssc.checkpoint(checkpointDir);
 
     // register listeners.

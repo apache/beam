@@ -42,6 +42,17 @@
   </modules>
 
   <profiles>
+    <profile>
+      <id>release</id>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-checkstyle-plugin</artifactId>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
 
     <!-- A profile that adds an integration test phase if and only if
          the runnableOnServicePipelineOptions maven property has been set.

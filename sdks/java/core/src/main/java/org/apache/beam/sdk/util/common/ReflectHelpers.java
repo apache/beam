@@ -26,6 +26,7 @@ import com.google.common.base.Joiner;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Queues;
+import java.lang.annotation.Annotation;
 import java.lang.reflect.GenericArrayType;
 import java.lang.reflect.Method;
 import java.lang.reflect.ParameterizedType;
@@ -85,6 +86,22 @@ public class ReflectHelpers {
       return input.getSimpleName();
     }
   };
+
+  /**
+   * A {@link Function} that returns a concise string for a {@link Annotation}.
+   */
+  public static final Function<Annotation, String> ANNOTATION_FORMATTER =
+      new Function<Annotation, String>() {
+        @Override
+        public String apply(@Nonnull Annotation annotation) {
+          String annotationName = annotation.annotationType().getName();
+          String annotationNameWithoutPackage =
+              annotationName.substring(annotationName.lastIndexOf('.') + 1).replace('$', '.');
+          String annotationToString = annotation.toString();
+          String values = annotationToString.substring(annotationToString.indexOf('('));
+          return String.format("%s%s", annotationNameWithoutPackage, values);
+        }
+      };
 
   /** A {@link Function} that formats types. */
   public static final Function<Type, String> TYPE_SIMPLE_DESCRIPTION =
