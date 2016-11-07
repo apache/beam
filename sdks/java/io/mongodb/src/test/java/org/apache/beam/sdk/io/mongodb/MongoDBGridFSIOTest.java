@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.mongodb;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 import com.mongodb.DB;
 import com.mongodb.Mongo;
@@ -40,22 +41,27 @@ import de.flapdoodle.embed.process.runtime.Network;
 import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
+import java.io.DataInputStream;
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.io.OutputStreamWriter;
 import java.io.Serializable;
 import java.net.ServerSocket;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 import java.util.Scanner;
 
+import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.mongodb.MongoDbGridFSIO.Read.BoundedGridFSSource;
+import org.apache.beam.sdk.io.mongodb.MongoDbGridFSIO.WriteFn;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.NeedsRunner;
@@ -63,6 +69,7 @@ import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.SourceTestUtils;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Count;
+import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.Max;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.KV;
@@ -283,4 +290,84 @@ public class MongoDBGridFSIOTest implements Serializable {
     assertEquals(5, count);
   }
 
+
+
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void testWriteMessage() throws Exception {
+
+    Pipeline pipeline = TestPipeline.create();
+
+    ArrayList<String> data = new ArrayList<>(100);
+    ArrayList<Integer> intData = new ArrayList<>(100);
+    for (int i = 0; i < 100; i++) {
+      data.add("Message " + i);
+      intData.add(i);
+    }
+    pipeline.apply("String", Create.of(data))
+        .apply("StringInternal", MongoDbGridFSIO.write()
+            .withUri("mongodb://localhost:" + port)
+            .withDatabase(DATABASE)
+            .withChunkSize(100L)
+            .withBucket("WriteTest")
+            .withFilename("WriteTestData"));
+
+    pipeline.apply("WithWriteFn", Create.of(intData))
+      .apply("WithWriteFnInternal", MongoDbGridFSIO.write(new WriteFn<Integer>() {
+        @Override
+        public void write(Integer output, OutputStream outStream) throws IOException {
+          //one byte per output
+          outStream.write(output.byteValue());
+        }
+      })
+        .withUri("mongodb://localhost:" + port)
+        .withDatabase(DATABASE)
+        .withBucket("WriteTest")
+        .withFilename("WriteTestIntData"));
+
+    pipeline.run();
+
+    Mongo client = null;
+    try {
+      client = new Mongo("localhost", port);
+      DB database = client.getDB(DATABASE);
+      GridFS gridfs = new GridFS(database, "WriteTest");
+      List<GridFSDBFile> files = gridfs.find("WriteTestData");
+      assertEquals(1, files.size());
+      GridFSDBFile file = files.get(0);
+      assertEquals(100,  file.getChunkSize());
+      assertTrue(file.numChunks() > 5);
+      int l = (int) file.getLength();
+      try (InputStream ins = file.getInputStream()) {
+        DataInputStream dis = new DataInputStream(ins);
+        byte b[] = new byte[l];
+        dis.readFully(b);
+        String dataString = new String(b, "utf-8");
+        for (int x = 0; x < 100; x++) {
+          assertTrue(dataString.contains("Message " + x));
+        }
+      }
+
+
+      files = gridfs.find("WriteTestIntData");
+      assertEquals(1, files.size());
+      file = files.get(0);
+      l = (int) file.getLength();
+      assertEquals(100,  l);
+      try (InputStream ins = file.getInputStream()) {
+        DataInputStream dis = new DataInputStream(ins);
+        byte b[] = new byte[l];
+        dis.readFully(b);
+        for (int x = 0; x < 100; x++) {
+          assertEquals(x, b[x]);
+        }
+      }
+    } finally {
+      if (client != null) {
+        client.close();
+      }
+    }
+
+  }
 }
