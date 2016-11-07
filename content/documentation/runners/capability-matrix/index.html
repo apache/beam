@@ -85,6 +85,7 @@
 			  <li class="dropdown-header">Runners</li>
 			  <li><a href="/documentation/runners/capability-matrix/">Capability Matrix</a></li>
 			  <li><a href="/documentation/runners/direct/">Direct Runner</a></li>
+			  <li><a href="/documentation/runners/apex/">Apache Apex Runner</a></li>
 			  <li><a href="/documentation/runners/flink/">Apache Flink Runner</a></li>
 			  <li><a href="/documentation/runners/spark/">Apache Spark Runner</a></li>
 			  <li><a href="/documentation/runners/dataflow/">Cloud Dataflow Runner</a></li>
@@ -140,7 +141,7 @@
 
       <div class="row">
         <h1 id="beam-capability-matrix">Beam Capability Matrix</h1>
-<p>Apache Beam (incubating) provides a portable API layer for building sophisticated data-parallel processing engines that may be executed across a diversity of exeuction engines, or <i>runners</i>. The core concepts of this layer are based upon the Beam Model (formerly referred to as the <a href="http://www.vldb.org/pvldb/vol8/p1792-Akidau.pdf">Dataflow Model</a>), and implemented to varying degrees in each Beam runner. To help clarify the capabilities of individual runners, we’ve created the capability matrix below.</p>
+<p>Apache Beam (incubating) provides a portable API layer for building sophisticated data-parallel processing pipelines that may be executed across a diversity of execution engines, or <i>runners</i>. The core concepts of this layer are based upon the Beam Model (formerly referred to as the <a href="http://www.vldb.org/pvldb/vol8/p1792-Akidau.pdf">Dataflow Model</a>), and implemented to varying degrees in each Beam runner. To help clarify the capabilities of individual runners, we’ve created the capability matrix below.</p>
 
 <p>Individual capabilities have been grouped by their corresponding <span class="wwwh-what-dark">What</span> / <span class="wwwh-where-dark">Where</span> / <span class="wwwh-when-dark">When</span> / <span class="wwwh-how-dark">How</span> question:</p>
 
@@ -189,10 +190,17 @@
   
     <th class="cap-summary color-platform format-platform" style="color:#ec3">Apache Spark</th>
   
+    <th class="cap-summary color-platform format-platform" style="color:#ec3">Apache Apex (on feature branch)</th>
+  
   </tr>
   
   <tr class="cap-summary">
     <th class="cap-summary color-capability format-capability" style="color:#ec3">ParDo</th>
+    
+    
+
+    <td width="25%" class="cap-summary" style="background-color:#ec3;border-color:#ca1"><center><b>&#x2713;</b></center>
+</td>
     
     
 
@@ -239,10 +247,20 @@
     <td width="25%" class="cap-summary" style="background-color:#fe5;border-color:#ca1"><center><b>~</b></center>
 </td>
     
+    
+
+    <td width="25%" class="cap-summary" style="background-color:#ec3;border-color:#ca1"><center><b>&#x2713;</b></center>
+</td>
+    
   </tr>
   
   <tr class="cap-summary">
     <th class="cap-summary color-capability format-capability" style="color:#ec3">Flatten</th>
+    
+    
+
+    <td width="25%" class="cap-summary" style="background-color:#ec3;border-color:#ca1"><center><b>&#x2713;</b></center>
+</td>
     
     
 
@@ -289,6 +307,11 @@
     <td width="25%" class="cap-summary" style="background-color:#ec3;border-color:#ca1"><center><b>&#x2713;</b></center>
 </td>
     
+    
+
+    <td width="25%" class="cap-summary" style="background-color:#ec3;border-color:#ca1"><center><b>&#x2713;</b></center>
+</td>
+    
   </tr>
   
   <tr class="cap-summary">
@@ -314,10 +337,20 @@
     <td width="25%" class="cap-summary" style="background-color:#fe5;border-color:#ca1"><center><b>~</b></center>
 </td>
     
+    
+
+    <td width="25%" class="cap-summary" style="background-color:#fe5;border-color:#ca1"><center><b>~</b></center>
+</td>
+    
   </tr>
   
   <tr class="cap-summary">
     <th class="cap-summary color-capability format-capability" style="color:#ec3">Side Inputs</th>
+    
+    
+
+    <td width="25%" class="cap-summary" style="background-color:#ec3;border-color:#ca1"><center><b>&#x2713;</b></center>
+</td>
     
     
 
@@ -364,6 +397,11 @@
     <td width="25%" class="cap-summary" style="background-color:#ec3;border-color:#ca1"><center><b>&#x2713;</b></center>
 </td>
     
+    
+
+    <td width="25%" class="cap-summary" style="background-color:#ec3;border-color:#ca1"><center><b>&#x2713;</b></center>
+</td>
+    
   </tr>
   
   <tr class="cap-summary">
@@ -389,6 +427,11 @@
     <td width="25%" class="cap-summary" style="background-color:#fe5;border-color:#ca1"><center><b>~</b></center>
 </td>
     
+    
+
+    <td width="25%" class="cap-summary" style="background-color:#ddd;border-color:#ca1"><center><b>&#x2715;</b></center>
+</td>
+    
   </tr>
   
   <tr class="cap-summary">
@@ -397,6 +440,11 @@
     
 
     <td width="25%" class="cap-summary" style="background-color:#ddd;border-color:#ca1"><center><b>&#x2715; (<a href="https://issues.apache.org/jira/browse/BEAM-25">BEAM-25</a>)</b></center>
+</td>
+    
+    
+
+    <td width="25%" class="cap-summary" style="background-color:#ddd;border-color:#ca1"><center><b>&#x2715;</b></center>
 </td>
     
     
@@ -434,10 +482,17 @@
   
     <th class="cap-summary color-platform format-platform" style="color:#59f">Apache Spark</th>
   
+    <th class="cap-summary color-platform format-platform" style="color:#59f">Apache Apex (on feature branch)</th>
+  
   </tr>
   
   <tr class="cap-summary">
     <th class="cap-summary color-capability format-capability" style="color:#59f">Global windows</th>
+    
+    
+
+    <td width="25%" class="cap-summary" style="background-color:#59f;border-color:#37d"><center><b>&#x2713;</b></center>
+</td>
     
     
 
@@ -484,10 +539,20 @@
     <td width="25%" class="cap-summary" style="background-color:#59f;border-color:#37d"><center><b>&#x2713;</b></center>
 </td>
     
+    
+
+    <td width="25%" class="cap-summary" style="background-color:#59f;border-color:#37d"><center><b>&#x2713;</b></center>
+</td>
+    
   </tr>
   
   <tr class="cap-summary">
     <th class="cap-summary color-capability format-capability" style="color:#59f">Sliding windows</th>
+    
+    
+
+    <td width="25%" class="cap-summary" style="background-color:#59f;border-color:#37d"><center><b>&#x2713;</b></center>
+</td>
     
     
 
@@ -534,10 +599,20 @@
     <td width="25%" class="cap-summary" style="background-color:#59f;border-color:#37d"><center><b>&#x2713;</b></center>
 </td>
     
+    
+
+    <td width="25%" class="cap-summary" style="background-color:#59f;border-color:#37d"><center><b>&#x2713;</b></center>
+</td>
+    
   </tr>
   
   <tr class="cap-summary">
     <th class="cap-summary color-capability format-capability" style="color:#59f">Custom windows</th>
+    
+    
+
+    <td width="25%" class="cap-summary" style="background-color:#59f;border-color:#37d"><center><b>&#x2713;</b></center>
+</td>
     
     
 
@@ -584,10 +659,20 @@
     <td width="25%" class="cap-summary" style="background-color:#59f;border-color:#37d"><center><b>&#x2713;</b></center>
 </td>
     
+    
+
+    <td width="25%" class="cap-summary" style="background-color:#59f;border-color:#37d"><center><b>&#x2713;</b></center>
+</td>
+    
   </tr>
   
   <tr class="cap-summary">
     <th class="cap-summary color-capability format-capability" style="color:#59f">Timestamp control</th>
+    
+    
+
+    <td width="25%" class="cap-summary" style="background-color:#59f;border-color:#37d"><center><b>&#x2713;</b></center>
+</td>
     
     
 
@@ -629,6 +714,8 @@
   
     <th class="cap-summary color-platform format-platform" style="color:#8c6">Apache Spark</th>
   
+    <th class="cap-summary color-platform format-platform" style="color:#8c6">Apache Apex (on feature branch)</th>
+  
   </tr>
   
   <tr class="cap-summary">
@@ -652,6 +739,11 @@
     
 
     <td width="25%" class="cap-summary" style="background-color:#ddd;border-color:#6a4"><center><b>&#x2715;</b></center>
+</td>
+    
+    
+
+    <td width="25%" class="cap-summary" style="background-color:#8c6;border-color:#6a4"><center><b>&#x2713;</b></center>
 </td>
     
   </tr>
@@ -679,10 +771,20 @@
     <td width="25%" class="cap-summary" style="background-color:#ddd;border-color:#6a4"><center><b>&#x2715;</b></center>
 </td>
     
+    
+
+    <td width="25%" class="cap-summary" style="background-color:#8c6;border-color:#6a4"><center><b>&#x2713;</b></center>
+</td>
+    
   </tr>
   
   <tr class="cap-summary">
     <th class="cap-summary color-capability format-capability" style="color:#8c6">Processing-time triggers</th>
+    
+    
+
+    <td width="25%" class="cap-summary" style="background-color:#8c6;border-color:#6a4"><center><b>&#x2713;</b></center>
+</td>
     
     
 
@@ -729,6 +831,11 @@
     <td width="25%" class="cap-summary" style="background-color:#ddd;border-color:#6a4"><center><b>&#x2715;</b></center>
 </td>
     
+    
+
+    <td width="25%" class="cap-summary" style="background-color:#8c6;border-color:#6a4"><center><b>&#x2713;</b></center>
+</td>
+    
   </tr>
   
   <tr class="cap-summary">
@@ -737,6 +844,11 @@
     
 
     <td width="25%" class="cap-summary" style="background-color:#ddd;border-color:#6a4"><center><b>&#x2715; (<a href="https://issues.apache.org/jira/browse/BEAM-101">BEAM-101</a>)</b></center>
+</td>
+    
+    
+
+    <td width="25%" class="cap-summary" style="background-color:#ddd;border-color:#6a4"><center><b>&#x2715;</b></center>
 </td>
     
     
@@ -779,6 +891,11 @@
     <td width="25%" class="cap-summary" style="background-color:#ddd;border-color:#6a4"><center><b>&#x2715;</b></center>
 </td>
     
+    
+
+    <td width="25%" class="cap-summary" style="background-color:#8c6;border-color:#6a4"><center><b>&#x2713;</b></center>
+</td>
+    
   </tr>
   
   <tr class="cap-summary">
@@ -804,6 +921,11 @@
     <td width="25%" class="cap-summary" style="background-color:#ddd;border-color:#6a4"><center><b>&#x2715;</b></center>
 </td>
     
+    
+
+    <td width="25%" class="cap-summary" style="background-color:#8c6;border-color:#6a4"><center><b>&#x2713;</b></center>
+</td>
+    
   </tr>
   
   <tr class="cap-summary">
@@ -812,6 +934,11 @@
     
 
     <td width="25%" class="cap-summary" style="background-color:#ddd;border-color:#6a4"><center><b>&#x2715; (<a href="https://issues.apache.org/jira/browse/BEAM-27">BEAM-27</a>)</b></center>
+</td>
+    
+    
+
+    <td width="25%" class="cap-summary" style="background-color:#ddd;border-color:#6a4"><center><b>&#x2715;</b></center>
 </td>
     
     
@@ -849,10 +976,17 @@
   
     <th class="cap-summary color-platform format-platform" style="color:#d77">Apache Spark</th>
   
+    <th class="cap-summary color-platform format-platform" style="color:#d77">Apache Apex (on feature branch)</th>
+  
   </tr>
   
   <tr class="cap-summary">
     <th class="cap-summary color-capability format-capability" style="color:#d77">Discarding</th>
+    
+    
+
+    <td width="25%" class="cap-summary" style="background-color:#d77;border-color:#b55"><center><b>&#x2713;</b></center>
+</td>
     
     
 
@@ -899,6 +1033,11 @@
     <td width="25%" class="cap-summary" style="background-color:#ddd;border-color:#b55"><center><b>&#x2715;</b></center>
 </td>
     
+    
+
+    <td width="25%" class="cap-summary" style="background-color:#d77;border-color:#b55"><center><b>&#x2713;</b></center>
+</td>
+    
   </tr>
   
   <tr class="cap-summary">
@@ -907,6 +1046,11 @@
     
 
     <td width="25%" class="cap-summary" style="background-color:#ddd;border-color:#b55"><center><b>&#x2715; (<a href="https://issues.apache.org/jira/browse/BEAM-91">BEAM-91</a>)</b></center>
+</td>
+    
+    
+
+    <td width="25%" class="cap-summary" style="background-color:#ddd;border-color:#b55"><center><b>&#x2715;</b></center>
 </td>
     
     
@@ -958,6 +1102,8 @@
   
     <th class="cap color-platform format-platform" style="color:#ec3">Apache Spark</th>
   
+    <th class="cap color-platform format-platform" style="color:#ec3">Apache Apex (on feature branch)</th>
+  
   </tr>
   
   <tr class="cap">
@@ -981,6 +1127,11 @@
     
 
     <td width="25%" class="cap" style="background-color:#ec3;border-color:#ca1"><center><b>Yes: fully supported</b></center><br />ParDo applies per-element transformations as Spark FlatMapFunction.
+</td>
+    
+    
+
+    <td width="25%" class="cap" style="background-color:#ec3;border-color:#ca1"><center><b>Yes: fully supported</b></center><br />Supported through Apex operator that wraps the function and processes data as single element bundles.
 </td>
     
   </tr>
@@ -1008,6 +1159,11 @@
     <td width="25%" class="cap" style="background-color:#fe5;border-color:#ca1"><center><b>Partially: fully supported in batch mode</b></center><br />Using Spark's <tt>groupByKey</tt>. GroupByKey with multiple trigger firings in streaming mode is a work in progress.
 </td>
     
+    
+
+    <td width="25%" class="cap" style="background-color:#ec3;border-color:#ca1"><center><b>Yes: fully supported</b></center><br />Apex runner uses the Beam code for grouping by window and thereby has support for all windowing and triggering mechanisms. Runner does not implement partitioning yet (BEAM-838)
+</td>
+    
   </tr>
   
   <tr class="cap">
@@ -1016,6 +1172,11 @@
     
 
     <td width="25%" class="cap" style="background-color:#ec3;border-color:#ca1"><center><b>Yes: collection concatenation</b></center><br />Concatenates multiple homogenously typed collections together.
+</td>
+    
+    
+
+    <td width="25%" class="cap" style="background-color:#ec3;border-color:#ca1"><center><b>Yes: fully supported</b></center><br />
 </td>
     
     
@@ -1058,6 +1219,11 @@
     <td width="25%" class="cap" style="background-color:#ec3;border-color:#ca1"><center><b>Yes: fully supported</b></center><br />Using Spark's <tt>combineByKey</tt> and <tt>aggregate</tt> functions.
 </td>
     
+    
+
+    <td width="25%" class="cap" style="background-color:#ec3;border-color:#ca1"><center><b>Yes: fully supported</b></center><br />Default Beam translation. Currently no efficient pre-aggregation (BEAM-935).
+</td>
+    
   </tr>
   
   <tr class="cap">
@@ -1071,6 +1237,11 @@
     
 
     <td width="25%" class="cap" style="background-color:#fe5;border-color:#ca1"><center><b>Partially: supported via inlining</b></center><br />Currently composite transformations are inlined during execution. The structure is later recreated from the names, but other transform level information (if added to the model) will be lost.
+</td>
+    
+    
+
+    <td width="25%" class="cap" style="background-color:#fe5;border-color:#ca1"><center><b>Partially: supported via inlining</b></center><br />
 </td>
     
     
@@ -1108,6 +1279,11 @@
     <td width="25%" class="cap" style="background-color:#ec3;border-color:#ca1"><center><b>Yes: fully supported</b></center><br />Using Spark's broadcast variables. In streaming mode, side inputs may update but only between micro-batches.
 </td>
     
+    
+
+    <td width="25%" class="cap" style="background-color:#ec3;border-color:#ca1"><center><b>Yes: size restrictions</b></center><br />No distributed implementation and therefore size restrictions.
+</td>
+    
   </tr>
   
   <tr class="cap">
@@ -1116,6 +1292,11 @@
     
 
     <td width="25%" class="cap" style="background-color:#ec3;border-color:#ca1"><center><b>Yes: user-defined sources</b></center><br />Allows users to provide additional input sources. Supports both bounded and unbounded data. Includes hooks necessary to provide efficient parallelization (size estimation, progress information, dynamic splitting, etc).
+</td>
+    
+    
+
+    <td width="25%" class="cap" style="background-color:#ec3;border-color:#ca1"><center><b>Yes: fully supported</b></center><br />
 </td>
     
     
@@ -1158,6 +1339,11 @@
     <td width="25%" class="cap" style="background-color:#fe5;border-color:#ca1"><center><b>Partially: may overcount when tasks are retried in transformations.</b></center><br />supported via <tt>AccumulatorParam</tt> mechanism. If a task retries, and the accumulator is not within a Spark "Action", an overcount is possible.
 </td>
     
+    
+
+    <td width="25%" class="cap" style="background-color:#ddd;border-color:#ca1"><center><b>No: Not implemented in runner.</b></center><br />
+</td>
+    
   </tr>
   
   <tr class="cap">
@@ -1183,6 +1369,11 @@
     <td width="25%" class="cap" style="background-color:#ddd;border-color:#ca1"><center><b>No: pending model support</b></center><br />Spark supports keyed state with mapWithState() so support shuold be straight forward.
 </td>
     
+    
+
+    <td width="25%" class="cap" style="background-color:#ddd;border-color:#ca1"><center><b>No: pending model support</b></center><br />Apex supports keyed state, so adding support for this should be easy once the Beam model exposes it.
+</td>
+    
   </tr>
   
   <tr class="cap">
@@ -1203,6 +1394,8 @@
   
     <th class="cap color-platform format-platform" style="color:#59f">Apache Spark</th>
   
+    <th class="cap color-platform format-platform" style="color:#59f">Apache Apex (on feature branch)</th>
+  
   </tr>
   
   <tr class="cap">
@@ -1216,6 +1409,11 @@
     
 
     <td width="25%" class="cap" style="background-color:#59f;border-color:#37d"><center><b>Yes: default</b></center><br />
+</td>
+    
+    
+
+    <td width="25%" class="cap" style="background-color:#59f;border-color:#37d"><center><b>Yes: supported</b></center><br />
 </td>
     
     
@@ -1253,6 +1451,11 @@
     <td width="25%" class="cap" style="background-color:#59f;border-color:#37d"><center><b>Yes: supported</b></center><br />
 </td>
     
+    
+
+    <td width="25%" class="cap" style="background-color:#59f;border-color:#37d"><center><b>Yes: supported</b></center><br />
+</td>
+    
   </tr>
   
   <tr class="cap">
@@ -1266,6 +1469,11 @@
     
 
     <td width="25%" class="cap" style="background-color:#59f;border-color:#37d"><center><b>Yes: built-in</b></center><br />
+</td>
+    
+    
+
+    <td width="25%" class="cap" style="background-color:#59f;border-color:#37d"><center><b>Yes: supported</b></center><br />
 </td>
     
     
@@ -1303,6 +1511,11 @@
     <td width="25%" class="cap" style="background-color:#59f;border-color:#37d"><center><b>Yes: supported</b></center><br />
 </td>
     
+    
+
+    <td width="25%" class="cap" style="background-color:#59f;border-color:#37d"><center><b>Yes: supported</b></center><br />
+</td>
+    
   </tr>
   
   <tr class="cap">
@@ -1311,6 +1524,11 @@
     
 
     <td width="25%" class="cap" style="background-color:#59f;border-color:#37d"><center><b>Yes: user-defined windows</b></center><br />All windows must implement <tt>BoundedWindow</tt>, which specifies a max timestamp. Each <tt>WindowFn</tt> assigns elements to an associated window.
+</td>
+    
+    
+
+    <td width="25%" class="cap" style="background-color:#59f;border-color:#37d"><center><b>Yes: supported</b></center><br />
 </td>
     
     
@@ -1353,6 +1571,11 @@
     <td width="25%" class="cap" style="background-color:#59f;border-color:#37d"><center><b>Yes: supported</b></center><br />
 </td>
     
+    
+
+    <td width="25%" class="cap" style="background-color:#59f;border-color:#37d"><center><b>Yes: supported</b></center><br />
+</td>
+    
   </tr>
   
   <tr class="cap">
@@ -1361,6 +1584,11 @@
     
 
     <td width="25%" class="cap" style="background-color:#59f;border-color:#37d"><center><b>Yes: output timestamp for window panes</b></center><br />For a grouping transform, such as GBK or Combine, an OutputTimeFn specifies (1) how to combine input timestamps within a window and (2) how to merge aggregated timestamps when windows merge.
+</td>
+    
+    
+
+    <td width="25%" class="cap" style="background-color:#59f;border-color:#37d"><center><b>Yes: supported</b></center><br />
 </td>
     
     
@@ -1398,6 +1626,8 @@
   
     <th class="cap color-platform format-platform" style="color:#8c6">Apache Spark</th>
   
+    <th class="cap color-platform format-platform" style="color:#8c6">Apache Apex (on feature branch)</th>
+  
   </tr>
   
   <tr class="cap">
@@ -1421,6 +1651,11 @@
     
 
     <td width="25%" class="cap" style="background-color:#ddd;border-color:#6a4"><center><b>No</b></center><br />
+</td>
+    
+    
+
+    <td width="25%" class="cap" style="background-color:#8c6;border-color:#6a4"><center><b>Yes: fully supported</b></center><br />
 </td>
     
   </tr>
@@ -1448,6 +1683,11 @@
     <td width="25%" class="cap" style="background-color:#ddd;border-color:#6a4"><center><b>No</b></center><br />
 </td>
     
+    
+
+    <td width="25%" class="cap" style="background-color:#8c6;border-color:#6a4"><center><b>Yes: fully supported</b></center><br />
+</td>
+    
   </tr>
   
   <tr class="cap">
@@ -1471,6 +1711,11 @@
     
 
     <td width="25%" class="cap" style="background-color:#8c6;border-color:#6a4"><center><b>Yes: This is Spark streaming's native model</b></center><br />Spark processes streams in micro-batches. The micro-batch size is actually a pre-set, fixed, time interval. Currently, the runner takes the first window size in the pipeline and sets it's size as the batch interval. Any following window operations will be considered processing time windows and will affect triggering.
+</td>
+    
+    
+
+    <td width="25%" class="cap" style="background-color:#8c6;border-color:#6a4"><center><b>Yes: fully supported</b></center><br />
 </td>
     
   </tr>
@@ -1498,6 +1743,11 @@
     <td width="25%" class="cap" style="background-color:#ddd;border-color:#6a4"><center><b>No</b></center><br />
 </td>
     
+    
+
+    <td width="25%" class="cap" style="background-color:#8c6;border-color:#6a4"><center><b>Yes: fully supported</b></center><br />
+</td>
+    
   </tr>
   
   <tr class="cap">
@@ -1506,6 +1756,11 @@
     
 
     <td width="25%" class="cap" style="background-color:#ddd;border-color:#6a4"><center><b>No: in response to data<br />(<a href="https://issues.apache.org/jira/browse/BEAM-101">BEAM-101</a>)</b></center><br />Triggers that fire in response to attributes of the data being processed.
+</td>
+    
+    
+
+    <td width="25%" class="cap" style="background-color:#ddd;border-color:#6a4"><center><b>No: pending model support</b></center><br />
 </td>
     
     
@@ -1548,6 +1803,11 @@
     <td width="25%" class="cap" style="background-color:#ddd;border-color:#6a4"><center><b>No</b></center><br />
 </td>
     
+    
+
+    <td width="25%" class="cap" style="background-color:#8c6;border-color:#6a4"><center><b>Yes: fully supported</b></center><br />
+</td>
+    
   </tr>
   
   <tr class="cap">
@@ -1571,6 +1831,11 @@
     
 
     <td width="25%" class="cap" style="background-color:#ddd;border-color:#6a4"><center><b>No</b></center><br />
+</td>
+    
+    
+
+    <td width="25%" class="cap" style="background-color:#8c6;border-color:#6a4"><center><b>Yes: fully supported</b></center><br />
 </td>
     
   </tr>
@@ -1598,6 +1863,11 @@
     <td width="25%" class="cap" style="background-color:#ddd;border-color:#6a4"><center><b>No: pending model support</b></center><br />
 </td>
     
+    
+
+    <td width="25%" class="cap" style="background-color:#ddd;border-color:#6a4"><center><b>No: pending model support</b></center><br />
+</td>
+    
   </tr>
   
   <tr class="cap">
@@ -1617,6 +1887,8 @@
     <th class="cap color-platform format-platform" style="color:#d77">Apache Flink</th>
   
     <th class="cap color-platform format-platform" style="color:#d77">Apache Spark</th>
+  
+    <th class="cap color-platform format-platform" style="color:#d77">Apache Apex (on feature branch)</th>
   
   </tr>
   
@@ -1641,6 +1913,11 @@
     
 
     <td width="25%" class="cap" style="background-color:#d77;border-color:#b55"><center><b>Yes: fully supported</b></center><br />Spark streaming natively discards elements after firing.
+</td>
+    
+    
+
+    <td width="25%" class="cap" style="background-color:#d77;border-color:#b55"><center><b>Yes: fully supported</b></center><br />
 </td>
     
   </tr>
@@ -1668,6 +1945,11 @@
     <td width="25%" class="cap" style="background-color:#ddd;border-color:#b55"><center><b>No</b></center><br />
 </td>
     
+    
+
+    <td width="25%" class="cap" style="background-color:#d77;border-color:#b55"><center><b>Yes: fully supported</b></center><br />Size restriction, see combine support.
+</td>
+    
   </tr>
   
   <tr class="cap">
@@ -1676,6 +1958,11 @@
     
 
     <td width="25%" class="cap" style="background-color:#ddd;border-color:#b55"><center><b>No: accumulation plus retraction of old panes<br />(<a href="https://issues.apache.org/jira/browse/BEAM-91">BEAM-91</a>)</b></center><br />Elements are accumulated across multiple pane firings and old emitted values are retracted. Also known as "backsies" ;-D
+</td>
+    
+    
+
+    <td width="25%" class="cap" style="background-color:#ddd;border-color:#b55"><center><b>No: pending model support</b></center><br />
 </td>
     
     
