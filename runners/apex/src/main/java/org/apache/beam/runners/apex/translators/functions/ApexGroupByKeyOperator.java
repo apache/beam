@@ -60,12 +60,14 @@ import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.KeyedWorkItem;
 import org.apache.beam.sdk.util.KeyedWorkItems;
+import org.apache.beam.sdk.util.TimeDomain;
 import org.apache.beam.sdk.util.TimerInternals;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowingInternals;
 import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.util.state.StateInternals;
 import org.apache.beam.sdk.util.state.StateInternalsFactory;
+import org.apache.beam.sdk.util.state.StateNamespace;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
@@ -451,6 +453,18 @@ public class ApexGroupByKeyOperator<K, V> implements Operator {
       // TODO Auto-generated method stub
       return null;
     }
+
+    @Override
+    public void setTimer(StateNamespace namespace, String timerId, Instant target,
+        TimeDomain timeDomain) {
+      throw new UnsupportedOperationException("Setting timer by ID not yet supported.");
+    }
+
+    @Override
+    public void deleteTimer(StateNamespace namespace, String timerId) {
+      throw new UnsupportedOperationException("Canceling of timer by ID is not yet supported.");
+    }
+
   }
 
   private class GroupByKeyStateInternalsFactory implements StateInternalsFactory<K>, Serializable {
