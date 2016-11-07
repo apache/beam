@@ -288,10 +288,6 @@ public class ExpectedLogs extends ExternalResource {
   private static class LogSaver extends Handler {
     private final Collection<LogRecord> logRecords = new ConcurrentLinkedDeque<>();
 
-    public Collection<LogRecord> getLogs() {
-      return logRecords;
-    }
-
     @Override
     public void publish(LogRecord record) {
       logRecords.add(record);
@@ -303,7 +299,11 @@ public class ExpectedLogs extends ExternalResource {
     @Override
     public void close() throws SecurityException {}
 
-    public void reset() {
+    private Collection<LogRecord> getLogs() {
+      return logRecords;
+    }
+
+    private void reset() {
       logRecords.clear();
     }
   }
