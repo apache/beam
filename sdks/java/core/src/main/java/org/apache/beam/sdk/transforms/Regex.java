@@ -28,26 +28,26 @@ import org.apache.beam.sdk.values.PCollection;
  * {@link PCollection}.
  *
  * <p>
- * {@link RegexTransform#matches(String, int)} can be used to see if an entire line matches
- * a Regex. {@link RegexTransform#matchesKV(String, int, int)} can be used to see if an entire
+ * {@link Regex#matches(String, int)} can be used to see if an entire line matches
+ * a Regex. {@link Regex#matchesKV(String, int, int)} can be used to see if an entire
  * line matches a Regex and output certain groups as a {@link KV}.
  * </p>
  * <p>
- * {@link RegexTransform#find(String, int)} can be used to see if a portion of a line
- * matches a Regex. {@link RegexTransform#matchesKV(String, int, int)} can be used to see if a
+ * {@link Regex#find(String, int)} can be used to see if a portion of a line
+ * matches a Regex. {@link Regex#matchesKV(String, int, int)} can be used to see if a
  * portion of a line matches a Regex and output certain groups as a {@link KV}.
  * </p>
  * <p>
  * Lines that do not match the Regex will not be output.
  * </p>
  */
-public class RegexTransform {
-  private RegexTransform() {
+public class Regex {
+  private Regex() {
     // do not instantiate
   }
 
   /**
-   * Returns a {@link RegexTransform.Matches} {@link PTransform} that checks if
+   * Returns a {@link Regex.Matches} {@link PTransform} that checks if
    * the entire line matches the Regex. Returns the entire line (group 0) as a
    * {@link PCollection}.
    * @param regex
@@ -58,7 +58,7 @@ public class RegexTransform {
   }
 
   /**
-   * Returns a {@link RegexTransform.Matches} {@link PTransform} that checks if
+   * Returns a {@link Regex.Matches} {@link PTransform} that checks if
    * the entire line matches the Regex. Returns the group as a
    * {@link PCollection}.
    * @param regex
@@ -71,7 +71,7 @@ public class RegexTransform {
   }
 
   /**
-   * Returns a {@link RegexTransform.MatchesKV} {@link PTransform} that checks
+   * Returns a {@link Regex.MatchesKV} {@link PTransform} that checks
    * if the entire line matches the Regex. Returns the specified groups as the
    * key and value as a {@link PCollection}.
    * @param regex
@@ -87,7 +87,7 @@ public class RegexTransform {
   }
 
   /**
-   * Returns a {@link RegexTransform.Find} {@link PTransform} that checks if a
+   * Returns a {@link Regex.Find} {@link PTransform} that checks if a
    * portion of the line matches the Regex. Returns the entire line (group 0) as
    * a {@link PCollection}.
    * @param regex
@@ -98,7 +98,7 @@ public class RegexTransform {
   }
 
   /**
-   * Returns a {@link RegexTransform.Find} {@link PTransform} that checks if a
+   * Returns a {@link Regex.Find} {@link PTransform} that checks if a
    * portion of the line matches the Regex. Returns the group as a
    * {@link PCollection}.
    * @param regex
@@ -111,7 +111,7 @@ public class RegexTransform {
   }
 
   /**
-   * Returns a {@link RegexTransform.FindKV} {@link PTransform} that checks if a
+   * Returns a {@link Regex.FindKV} {@link PTransform} that checks if a
    * portion of the line matches the Regex. Returns the specified groups as the
    * key and value as a {@link PCollection}.
    * @param regex
@@ -126,7 +126,7 @@ public class RegexTransform {
   }
 
   /**
-   * Returns a {@link RegexTransform.ReplaceAll} {@link PTransform} that checks if a
+   * Returns a {@link Regex.ReplaceAll} {@link PTransform} that checks if a
    * portion of the line matches the Regex and replaces all matches with the replacement
    * String. Returns the group as a {@link PCollection}.
    * @param regex
@@ -139,7 +139,7 @@ public class RegexTransform {
   }
 
   /**
-   * Returns a {@link RegexTransform.ReplaceAll} {@link PTransform} that checks if a
+   * Returns a {@link Regex.ReplaceAll} {@link PTransform} that checks if a
    * portion of the line matches the Regex and replaces the first match with the replacement
    * String. Returns the group as a {@link PCollection}.
    * @param regex
@@ -152,7 +152,7 @@ public class RegexTransform {
   }
 
     /**
-   * Returns a {@link RegexTransform.Split} {@link PTransform} that splits a string
+   * Returns a {@link Regex.Split} {@link PTransform} that splits a string
    * on the regular expression and then outputs each item. It will not output empty
    * items. Returns the group as a {@link PCollection}.
    * a {@link PCollection}.
@@ -164,7 +164,7 @@ public class RegexTransform {
   }
 
   /**
-   * Returns a {@link RegexTransform.Split} {@link PTransform} that splits a string
+   * Returns a {@link Regex.Split} {@link PTransform} that splits a string
    * on the regular expression and then outputs each item. Returns the group as a
    * {@link PCollection}.
    * @param regex
@@ -177,7 +177,7 @@ public class RegexTransform {
   }
 
   /**
-   * {@code RegexTransform.Matches<String>} takes a {@code PCollection<String>}
+   * {@code Regex.Matches<String>} takes a {@code PCollection<String>}
    * and returns a {@code PCollection<String>} representing the value
    * extracted from the Regex groups of the input {@code PCollection}
    * to the number of times that element occurs in the input.
@@ -194,7 +194,7 @@ public class RegexTransform {
    *  {@code
    * PCollection<String> words = ...;
    * PCollection<String> values =
-   *     words.apply(RegexTransform.matches("myregex (mygroup)", 1));
+   *     words.apply(Regex.matches("myregex (mygroup)", 1));
    * }
    * </pre>
    */
@@ -224,7 +224,7 @@ public class RegexTransform {
   }
 
   /**
-   * {@code RegexTransform.MatchesKV<KV<String, String>>} takes a
+   * {@code Regex.MatchesKV<KV<String, String>>} takes a
    * {@code PCollection<String>} and returns a
    * {@code PCollection<KV<String, String>>} representing the key and value
    * extracted from the Regex groups of the input {@code PCollection} to the
@@ -242,7 +242,7 @@ public class RegexTransform {
    *  {@code
    * PCollection<String> words = ...;
    * PCollection<KV<String, String>> keysAndValues =
-   *     words.apply(RegexTransform.matchesKV("myregex (mykeygroup) (myvaluegroup)", 1, 2));
+   *     words.apply(Regex.matchesKV("myregex (mykeygroup) (myvaluegroup)", 1, 2));
    * }
    * </pre>
    */
@@ -273,7 +273,7 @@ public class RegexTransform {
   }
 
   /**
-   * {@code RegexTransform.Find<String>} takes a {@code PCollection<String>} and
+   * {@code Regex.Find<String>} takes a {@code PCollection<String>} and
    * returns a {@code PCollection<String>} representing the value extracted
    * from the Regex groups of the input {@code PCollection} to
    * the number of times that element occurs in the input.
@@ -290,7 +290,7 @@ public class RegexTransform {
    *  {@code
    * PCollection<String> words = ...;
    * PCollection<String> values =
-   *     words.apply(RegexTransform.find("myregex (mygroup)", 1));
+   *     words.apply(Regex.find("myregex (mygroup)", 1));
    * }
    * </pre>
    */
@@ -319,7 +319,7 @@ public class RegexTransform {
   }
 
   /**
-   * {@code RegexTransform.MatchesKV<KV<String, String>>} takes a
+   * {@code Regex.MatchesKV<KV<String, String>>} takes a
    * {@code PCollection<String>} and returns a
    * {@code PCollection<KV<String, String>>} representing the key and value
    * extracted from the Regex groups of the input {@code PCollection} to the
@@ -337,7 +337,7 @@ public class RegexTransform {
    *  {@code
    * PCollection<String> words = ...;
    * PCollection<KV<String, String>> keysAndValues =
-   *     words.apply(RegexTransform.findKV("myregex (mykeygroup) (myvaluegroup)", 1, 2));
+   *     words.apply(Regex.findKV("myregex (mykeygroup) (myvaluegroup)", 1, 2));
    * }
    * </pre>
    */
@@ -368,7 +368,7 @@ public class RegexTransform {
   }
 
   /**
-   * {@code RegexTransform.ReplaceAll<String>} takes a {@code PCollection<String>} and
+   * {@code Regex.ReplaceAll<String>} takes a {@code PCollection<String>} and
    * returns a {@code PCollection<String>} with all Strings that matched the
    * Regex being replaced with the replacement string.
    *
@@ -384,7 +384,7 @@ public class RegexTransform {
    *  {@code
    * PCollection<String> words = ...;
    * PCollection<String> values =
-   *     words.apply(RegexTransform.replaceAll("myregex", "myreplacement"));
+   *     words.apply(Regex.replaceAll("myregex", "myreplacement"));
    * }
    * </pre>
    */
@@ -410,7 +410,7 @@ public class RegexTransform {
   }
 
   /**
-   * {@code RegexTransform.ReplaceFirst<String>} takes a {@code PCollection<String>} and
+   * {@code Regex.ReplaceFirst<String>} takes a {@code PCollection<String>} and
    * returns a {@code PCollection<String>} with the first Strings that matched the
    * Regex being replaced with the replacement string.
    *
@@ -426,7 +426,7 @@ public class RegexTransform {
    *  {@code
    * PCollection<String> words = ...;
    * PCollection<String> values =
-   *     words.apply(RegexTransform.replaceFirst("myregex", "myreplacement"));
+   *     words.apply(Regex.replaceFirst("myregex", "myreplacement"));
    * }
    * </pre>
    */
@@ -452,7 +452,7 @@ public class RegexTransform {
   }
 
   /**
-   * {@code RegexTransform.Split<String>} takes a {@code PCollection<String>} and
+   * {@code Regex.Split<String>} takes a {@code PCollection<String>} and
    * returns a {@code PCollection<String>} with the input string split into
    * individual items in a list. Each item is then output as a separate string.
    *
@@ -473,7 +473,7 @@ public class RegexTransform {
    *  {@code
    * PCollection<String> words = ...;
    * PCollection<String> values =
-   *     words.apply(RegexTransform.split("\W*"));
+   *     words.apply(Regex.split("\W*"));
    * }
    * </pre>
    */

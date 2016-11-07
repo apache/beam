@@ -31,10 +31,10 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 /**
- * Tests for {@link RegexTransform}.
+ * Tests for {@link Regex}.
  */
 @RunWith(JUnit4.class)
-public class RegexTransformTest implements Serializable {
+public class RegexTest implements Serializable {
   @Test
   @Category(NeedsRunner.class)
   public void testFind() {
@@ -42,7 +42,7 @@ public class RegexTransformTest implements Serializable {
 
     PCollection<String> output = p
         .apply(Create.of("aj", "xj", "yj", "zj"))
-        .apply(RegexTransform.find("[xyz]"));
+        .apply(Regex.find("[xyz]"));
 
     PAssert.that(output).containsInAnyOrder("x", "y", "z");
     p.run();
@@ -55,7 +55,7 @@ public class RegexTransformTest implements Serializable {
 
     PCollection<String> output = p
         .apply(Create.of("aj", "xj", "yj", "zj"))
-        .apply(RegexTransform.find("([xyz])", 1));
+        .apply(Regex.find("([xyz])", 1));
 
     PAssert.that(output).containsInAnyOrder("x", "y", "z");
     p.run();
@@ -68,7 +68,7 @@ public class RegexTransformTest implements Serializable {
 
     PCollection<String> output = p
         .apply(Create.of("a", "b", "c", "d"))
-        .apply(RegexTransform.find("[xyz]"));
+        .apply(Regex.find("[xyz]"));
 
     PAssert.that(output).empty();
     p.run();
@@ -81,7 +81,7 @@ public class RegexTransformTest implements Serializable {
 
     PCollection<KV<String, String>> output = p
         .apply(Create.of("a b c"))
-        .apply(RegexTransform.findKV("a (b) (c)", 1, 2));
+        .apply(Regex.findKV("a (b) (c)", 1, 2));
 
     PAssert.that(output).containsInAnyOrder(KV.of("b", "c"));
     p.run();
@@ -94,7 +94,7 @@ public class RegexTransformTest implements Serializable {
 
     PCollection<KV<String, String>> output = p
         .apply(Create.of("x y z"))
-        .apply(RegexTransform.findKV("a (b) (c)", 1, 2));
+        .apply(Regex.findKV("a (b) (c)", 1, 2));
 
     PAssert.that(output).empty();
     p.run();
@@ -107,7 +107,7 @@ public class RegexTransformTest implements Serializable {
 
     PCollection<String> output = p
         .apply(Create.of("a", "x", "y", "z"))
-        .apply(RegexTransform.matches("[xyz]"));
+        .apply(Regex.matches("[xyz]"));
 
     PAssert.that(output).containsInAnyOrder("x", "y", "z");
     p.run();
@@ -120,7 +120,7 @@ public class RegexTransformTest implements Serializable {
 
     PCollection<String> output = p
         .apply(Create.of("a", "b", "c", "d"))
-        .apply(RegexTransform.matches("[xyz]"));
+        .apply(Regex.matches("[xyz]"));
 
     PAssert.that(output).empty();
     p.run();
@@ -133,7 +133,7 @@ public class RegexTransformTest implements Serializable {
 
     PCollection<String> output = p
         .apply(Create.of("a", "x xxx", "x yyy", "x zzz"))
-        .apply(RegexTransform.matches("x ([xyz]*)", 1));
+        .apply(Regex.matches("x ([xyz]*)", 1));
 
     PAssert.that(output).containsInAnyOrder("xxx", "yyy", "zzz");
     p.run();
@@ -146,7 +146,7 @@ public class RegexTransformTest implements Serializable {
 
     PCollection<KV<String, String>> output = p
         .apply(Create.of("a b c"))
-        .apply(RegexTransform.matchesKV("a (b) (c)", 1, 2));
+        .apply(Regex.matchesKV("a (b) (c)", 1, 2));
 
     PAssert.that(output).containsInAnyOrder(KV.of("b", "c"));
     p.run();
@@ -159,7 +159,7 @@ public class RegexTransformTest implements Serializable {
 
     PCollection<KV<String, String>> output = p
         .apply(Create.of("x y z"))
-        .apply(RegexTransform.matchesKV("a (b) (c)", 1, 2));
+        .apply(Regex.matchesKV("a (b) (c)", 1, 2));
     PAssert.that(output).empty();
     p.run();
   }
@@ -171,7 +171,7 @@ public class RegexTransformTest implements Serializable {
 
     PCollection<String> output = p
         .apply(Create.of("xj", "yj", "zj"))
-        .apply(RegexTransform.replaceAll("[xyz]", "new"));
+        .apply(Regex.replaceAll("[xyz]", "new"));
 
     PAssert.that(output).containsInAnyOrder("newj", "newj", "newj");
     p.run();
@@ -184,7 +184,7 @@ public class RegexTransformTest implements Serializable {
 
     PCollection<String> output = p
         .apply(Create.of("abc", "xj", "yj", "zj", "def"))
-        .apply(RegexTransform.replaceAll("[xyz]", "new"));
+        .apply(Regex.replaceAll("[xyz]", "new"));
 
     PAssert.that(output).containsInAnyOrder("abc", "newj", "newj", "newj", "def");
     p.run();
@@ -197,7 +197,7 @@ public class RegexTransformTest implements Serializable {
 
     PCollection<String> output = p
         .apply(Create.of("xjx", "yjy", "zjz"))
-        .apply(RegexTransform.replaceFirst("[xyz]", "new"));
+        .apply(Regex.replaceFirst("[xyz]", "new"));
 
     PAssert.that(output).containsInAnyOrder("newjx", "newjy", "newjz");
     p.run();
@@ -210,7 +210,7 @@ public class RegexTransformTest implements Serializable {
 
     PCollection<String> output = p
         .apply(Create.of("abc", "xjx", "yjy", "zjz", "def"))
-        .apply(RegexTransform.replaceFirst("[xyz]", "new"));
+        .apply(Regex.replaceFirst("[xyz]", "new"));
 
     PAssert.that(output).containsInAnyOrder("abc", "newjx", "newjy", "newjz", "def");
     p.run();
@@ -223,7 +223,7 @@ public class RegexTransformTest implements Serializable {
 
     PCollection<String> output = p
         .apply(Create.of("The  quick   brown fox jumps over    the lazy dog"))
-        .apply(RegexTransform.split("\\W+"));
+        .apply(Regex.split("\\W+"));
 
     PAssert.that(output).containsInAnyOrder("The", "quick", "brown",
       "fox", "jumps", "over", "the", "lazy", "dog");
@@ -237,7 +237,7 @@ public class RegexTransformTest implements Serializable {
 
     PCollection<String> output = p
         .apply(Create.of("The  quick   brown fox jumps over    the lazy dog"))
-        .apply(RegexTransform.split("\\s", true));
+        .apply(Regex.split("\\s", true));
 
     String[] outputStr = "The  quick   brown fox jumps over    the lazy dog".split("\\s");
 
@@ -253,7 +253,7 @@ public class RegexTransformTest implements Serializable {
 
     PCollection<String> output = p
         .apply(Create.of("The  quick   brown fox jumps over    the lazy dog"))
-        .apply(RegexTransform.split("\\s", false));
+        .apply(Regex.split("\\s", false));
 
     PAssert.that(output).containsInAnyOrder("The", "quick", "brown",
       "fox", "jumps", "over", "the", "lazy", "dog");
