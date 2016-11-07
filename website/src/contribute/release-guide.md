@@ -83,6 +83,12 @@ Configure `git` to use this key when signing code by giving it your key ID, as f
 
 You may drop the `--global` option if you’d prefer to use this key for the current repository only.
 
+You may wish to start `gpg-agent` to unlock your GPG key only once using your passphrase. Otherwise, you may need to enter this passphrase hundreds of times. The setup for `gpg-agent` varies based on operating system, but may be something like this:
+
+    eval $(gpg-agent --daemon --no-grab --write-env-file $HOME/.gpg-agent-info)
+    export GPG_TTY=$(tty)
+    export GPG_AGENT_INFO
+
 #### Access to Apache Nexus repository
 
 Configure access to the [Apache Nexus repository](http://repository.apache.org/), which enables final deployment of releases to the Maven Central Repository.
@@ -206,12 +212,6 @@ Set up a few environment variables to simplify Maven commands that follow. This 
 
     RC_NUM="1"
     TAG="v${VERSION}-RC${RC_NUM}"
-
-Before running the command to prepare the release you might have to start `gpg-agent` so that your key can be unlocked by your passphrase for signing the release. You can do this with something like this:
-
-    eval $(gpg-agent --daemon --no-grab --write-env-file $HOME/.gpg-agent-info)
-    export GPG_TTY=$(tty)
-    export GPG_AGENT_INFO
 
 Use Maven release plugin to build the release artifacts, as follows:
 
