@@ -285,6 +285,14 @@ sub   2048R/BA4D50BE 2016-02-23
 
 <p>You may drop the <code class="highlighter-rouge">--global</code> option if you’d prefer to use this key for the current repository only.</p>
 
+<p>You may wish to start <code class="highlighter-rouge">gpg-agent</code> to unlock your GPG key only once using your passphrase. Otherwise, you may need to enter this passphrase hundreds of times. The setup for <code class="highlighter-rouge">gpg-agent</code> varies based on operating system, but may be something like this:</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>eval $(gpg-agent --daemon --no-grab --write-env-file $HOME/.gpg-agent-info)
+export GPG_TTY=$(tty)
+export GPG_AGENT_INFO
+</code></pre>
+</div>
+
 <h4 id="access-to-apache-nexus-repository">Access to Apache Nexus repository</h4>
 
 <p>Configure access to the <a href="http://repository.apache.org/">Apache Nexus repository</a>, which enables final deployment of releases to the Maven Central Repository.</p>
@@ -512,7 +520,7 @@ TAG="v${VERSION}-RC${RC_NUM}"
     -Ddoctitle="Apache Beam SDK for Java, version ${VERSION}" \
     -Dwindowtitle="Apache Beam SDK for Java, version ${VERSION}" \
     -Dmaven.javadoc.failOnError=false \
-    -DexcludePackageNames="org.apache.beam.examples,org.apache.beam.runners.dataflow.internal,org.apache.beam.runners.flink.examples,org.apache.beam.runners.flink.translation,org.apache.beam.runners.spark.examples,org.apache.beam.runners.spark.translation"
+    -DexcludePackageNames="org.apache.beam.examples,org.apache.beam.runners.dataflow.internal,org.apache.beam.runners.flink.examples,org.apache.beam.runners.flink.translation,org.apache.beam.runners.spark.examples,org.apache.beam.runners.spark.translation,org.apache.beam.sdk.microbenchmarks.coders.generated,org.apache.beam.sdk.microbenchmarks.transforms.generated,org.openjdk.jmh.infra.generated"
 </code></pre>
 </div>
 
