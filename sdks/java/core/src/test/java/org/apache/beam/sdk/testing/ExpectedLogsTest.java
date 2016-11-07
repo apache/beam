@@ -28,6 +28,7 @@ import java.util.concurrent.CompletionService;
 import java.util.concurrent.ExecutorCompletionService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import org.junit.After;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -39,10 +40,15 @@ import org.slf4j.LoggerFactory;
 @RunWith(JUnit4.class)
 public class ExpectedLogsTest {
   private static final Logger LOG = LoggerFactory.getLogger(ExpectedLogsTest.class);
-
+  private static final String TEAR_DOWN_MESSAGE = "Test tear down.";
   private Random random = new Random();
 
   @Rule public ExpectedLogs expectedLogs = ExpectedLogs.none(ExpectedLogsTest.class);
+
+  @After
+  public void tearDown() {
+    LOG.info(TEAR_DOWN_MESSAGE);
+  }
 
   @Test
   public void testWhenNoExpectations() throws Throwable {
@@ -144,6 +150,11 @@ public class ExpectedLogsTest {
     for (String expected : expectedStrings) {
       expectedLogs.verifyTrace(expected);
     }
+  }
+
+  @Test
+  public void testLogsCleared() {
+    expectedLogs.verifyNotLogged(TEAR_DOWN_MESSAGE);
   }
 
   // Generates a random fake error message.

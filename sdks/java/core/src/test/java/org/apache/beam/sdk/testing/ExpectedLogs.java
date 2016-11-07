@@ -286,7 +286,7 @@ public class ExpectedLogs extends ExternalResource {
    */
   @ThreadSafe
   private static class LogSaver extends Handler {
-    Collection<LogRecord> logRecords = new ConcurrentLinkedDeque<>();
+    private final Collection<LogRecord> logRecords = new ConcurrentLinkedDeque<>();
 
     public Collection<LogRecord> getLogs() {
       return logRecords;
@@ -304,7 +304,7 @@ public class ExpectedLogs extends ExternalResource {
     public void close() throws SecurityException {}
 
     public void reset() {
-      logRecords = new ConcurrentLinkedDeque<>();
+      logRecords.clear();
     }
   }
 }
