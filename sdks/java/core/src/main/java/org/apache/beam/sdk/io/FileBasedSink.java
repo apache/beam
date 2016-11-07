@@ -79,7 +79,7 @@ import org.slf4j.LoggerFactory;
  * @param <T> the type of values written to the sink.
  */
 public abstract class FileBasedSink<T> extends Sink<T> {
-  private static final Logger LOG = LoggerFactory.getLogger(FileBasedWriteOperation.class);
+  private static final Logger LOG = LoggerFactory.getLogger(FileBasedSink.class);
 
   /**
    * Directly supported file output compression types.
@@ -420,6 +420,11 @@ public abstract class FileBasedSink<T> extends Sink<T> {
 
       // Optionally remove temporary files.
       if (temporaryFileRetention == TemporaryFileRetention.REMOVE) {
+        // We remove the entire temporary directory, rather than specifically removing the files
+        // from writerResults, because writerResults includes only successfully completed bundles,
+        // and we'd like to clean up the failed ones too.
+        // Note that due to GCS eventual consistency, matching files in the temp directory is also
+        // currently non-perfect and may fail to delete some files.
         removeTemporaryFiles(options);
       }
     }
@@ -672,7 +677,7 @@ public abstract class FileBasedSink<T> extends Sink<T> {
         throws IOException {
       IOChannelFactory factory = IOChannelUtils.getFactory(spec);
       if (factory instanceof GcsIOChannelFactory) {
-        return new GcsOperations(factory, options);
+        return new GcsOperations(options);
       } else if (factory instanceof FileIOChannelFactory) {
         return new LocalFileOperations(factory);
       } else {
@@ -707,7 +712,7 @@ public abstract class FileBasedSink<T> extends Sink<T> {
   private static class GcsOperations implements FileOperations {
     private final GcsUtil gcsUtil;
 
-    public GcsOperations(IOChannelFactory factory, PipelineOptions options) {
+    GcsOperations(PipelineOptions options) {
       gcsUtil = new GcsUtilFactory().create(options);
     }
 
@@ -735,7 +740,7 @@ public abstract class FileBasedSink<T> extends Sink<T> {
 
     private final IOChannelFactory factory;
 
-    public LocalFileOperations(IOChannelFactory factory) {
+    LocalFileOperations(IOChannelFactory factory) {
       this.factory = factory;
     }
 
