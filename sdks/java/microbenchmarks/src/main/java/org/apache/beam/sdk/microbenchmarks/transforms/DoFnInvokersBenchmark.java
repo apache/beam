@@ -66,7 +66,7 @@ public class DoFnInvokersBenchmark {
   @Setup
   public void setUp() {
     adaptedDoFnWithContext = DoFnAdapters.toOldDoFn(doFn);
-    invoker = DoFnInvokers.INSTANCE.newByteBuddyInvoker(doFn);
+    invoker = DoFnInvokers.invokerFor(doFn);
   }
 
   @Benchmark

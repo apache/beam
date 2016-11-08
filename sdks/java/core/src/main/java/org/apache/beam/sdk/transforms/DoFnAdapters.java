@@ -201,7 +201,7 @@ public class DoFnAdapters {
     SimpleDoFnAdapter(DoFn<InputT, OutputT> fn) {
       super(fn.aggregators);
       this.fn = fn;
-      this.invoker = DoFnInvokers.INSTANCE.newByteBuddyInvoker(fn);
+      this.invoker = DoFnInvokers.invokerFor(fn);
     }
 
     @Override
@@ -254,7 +254,7 @@ public class DoFnAdapters {
     private void readObject(java.io.ObjectInputStream in)
         throws IOException, ClassNotFoundException {
       in.defaultReadObject();
-      this.invoker = DoFnInvokers.INSTANCE.newByteBuddyInvoker(fn);
+      this.invoker = DoFnInvokers.invokerFor(fn);
     }
   }
 
