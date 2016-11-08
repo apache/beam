@@ -17,20 +17,15 @@
 
 """Unit tests for the Pipeline class."""
 
-import gc
 import logging
 import unittest
 
 from apache_beam.pipeline import Pipeline
 from apache_beam.pipeline import PipelineOptions
 from apache_beam.pipeline import PipelineVisitor
-from apache_beam.pvalue import AsIter
-from apache_beam.pvalue import SideOutputValue
 from apache_beam.runners.dataflow.native_io.iobase import NativeSource
-from apache_beam.transforms import CombinePerKey
 from apache_beam.transforms import Create
 from apache_beam.transforms import FlatMap
-from apache_beam.transforms import Flatten
 from apache_beam.transforms import Map
 from apache_beam.transforms import PTransform
 from apache_beam.transforms import Read
@@ -185,64 +180,42 @@ class PipelineTest(unittest.TestCase):
         ['a-x', 'b-x', 'c-x'],
         sorted(['a', 'b', 'c'] | 'AddSuffix' >> AddSuffix('-x')))
 
-  def test_cached_pvalues_are_refcounted(self):
-    """Test that cached PValues are refcounted and deleted.
+  def test_memory_usage(self):
+    try:
+      import resource
+    except ImportError:
+      # Skip the test if resource module is not available (e.g. non-Unix os).
+      self.skipTest('resource module not available.')
 
-    The intermediary PValues computed by the workflow below contain
-    one million elements so if the refcounting does not work the number of
-    objects tracked by the garbage collector will increase by a few millions
-    by the time we execute the final Map checking the objects tracked.
-    Anything that is much larger than what we started with will fail the test.
-    """
-    def check_memory(value, count_threshold):
-      gc.collect()
-      objects_count = len(gc.get_objects())
-      if objects_count > count_threshold:
+    def get_memory_usage_in_bytes():
+      return resource.getrusage(resource.RUSAGE_SELF).ru_maxrss * (2 ** 10)
+
+    def check_memory(value, memory_threshold):
+      memory_usage = get_memory_usage_in_bytes()
+      if memory_usage > memory_threshold:
         raise RuntimeError(
-            'PValues are not refcounted: %s, %s' % (
-                objects_count, count_threshold))
+            'High memory usage: %d > %d' % (memory_usage, memory_threshold))
       return value
 
-    def create_dupes(o, _):
-      yield o
-      yield SideOutputValue('side', o)
-
-    num_elements = 100000
+    len_elements = 1000000
+    num_elements = 10
+    num_maps = 100
 
     pipeline = Pipeline('DirectPipelineRunner')
 
-    gc.collect()
-    count_threshold = len(gc.get_objects()) + 10000
-    biglist = pipeline | 'oom:create' >> Create(['x'] * num_elements)
-    dupes = (
-        biglist
-        | 'oom:addone' >> Map(lambda x: (x, 1))
-        | 'oom:dupes' >> FlatMap(
-            create_dupes, AsIter(biglist)).with_outputs('side', main='main'))
-    result = (
-        (dupes.side, dupes.main, dupes.side)
-        | 'oom:flatten' >> Flatten()
-        | 'oom:combine' >> CombinePerKey(sum)
-        | 'oom:check' >> Map(check_memory, count_threshold))
+    # Consumed memory should not be proportional to the number of maps.
+    memory_threshold = (
+        get_memory_usage_in_bytes() + (3 * len_elements * num_elements))
 
-    assert_that(result, equal_to([('x', 3 * num_elements)]))
+    biglist = pipeline | 'oom:create' >> Create(
+        ['x' * len_elements] * num_elements)
+    for i in range(num_maps):
+      biglist = biglist | ('oom:addone-%d' % i) >> Map(lambda x: x + 'y')
+    result = biglist | 'oom:check' >> Map(check_memory, memory_threshold)
+    assert_that(result, equal_to(
+        ['x' * len_elements + 'y' * num_maps] * num_elements))
+
     pipeline.run()
-    self.assertEqual(
-        pipeline.runner.debug_counters['element_counts'],
-        {
-            'oom:flatten': 3 * num_elements,
-            ('oom:combine/GroupByKey/reify_windows', None): 3 * num_elements,
-            ('oom:dupes/FlatMap(create_dupes)', 'side'): num_elements,
-            ('oom:dupes/FlatMap(create_dupes)', None): num_elements,
-            'oom:create': num_elements,
-            ('oom:addone', None): num_elements,
-            'oom:combine/GroupByKey/group_by_key': 1,
-            ('oom:check', None): 1,
-            'assert_that/singleton': 1,
-            ('assert_that/WindowInto', None): 1,
-            ('assert_that/Map(match)', None): 1,
-            ('oom:combine/GroupByKey/group_by_window', None): 1,
-            ('oom:combine/Combine/ParDo(CombineValuesDoFn)', None): 1})
 
   def test_pipeline_as_context(self):
     def raise_exception(exn):
@@ -255,20 +228,6 @@ class PipelineTest(unittest.TestCase):
   def test_eager_pipeline(self):
     p = Pipeline('EagerPipelineRunner')
     self.assertEqual([1, 4, 9], p | Create([1, 2, 3]) | Map(lambda x: x*x))
-
-
-class DiskCachedRunnerPipelineTest(PipelineTest):
-
-  def setUp(self):
-    self.runner_name = 'DiskCachedPipelineRunner'
-
-  def test_cached_pvalues_are_refcounted(self):
-    # Takes long with disk spilling.
-    pass
-
-  def test_eager_pipeline(self):
-    # Tests eager runner only
-    pass
 
 
 class Bacon(PipelineOptions):
