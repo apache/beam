@@ -242,11 +242,12 @@ public class DirectRunner
         defaultModelEnforcements(Set<Enforcement> enabledEnforcements) {
       ImmutableMap.Builder<Class<? extends PTransform>, Collection<ModelEnforcementFactory>>
           enforcements = ImmutableMap.builder();
-      ImmutableList.Builder<ModelEnforcementFactory> enforcements1 = ImmutableList.builder();
+      ImmutableList.Builder<ModelEnforcementFactory> enabledParDoEnforcements =
+          ImmutableList.builder();
       if (enabledEnforcements.contains(Enforcement.IMMUTABILITY)) {
-        enforcements1.add(ImmutabilityEnforcementFactory.create());
+        enabledParDoEnforcements.add(ImmutabilityEnforcementFactory.create());
       }
-      Collection<ModelEnforcementFactory> parDoEnforcements = enforcements1.build();
+      Collection<ModelEnforcementFactory> parDoEnforcements = enabledParDoEnforcements.build();
       enforcements.put(ParDo.Bound.class, parDoEnforcements);
       enforcements.put(ParDo.BoundMulti.class, parDoEnforcements);
       return enforcements.build();
