@@ -30,6 +30,7 @@ import com.google.cloud.bigtable.config.BigtableOptions;
 import com.google.cloud.bigtable.config.CredentialOptions;
 import com.google.cloud.bigtable.config.CredentialOptions.CredentialType;
 import com.google.cloud.bigtable.config.RetryOptions;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.MoreObjects;
 import com.google.common.collect.ImmutableList;
 import com.google.common.util.concurrent.FutureCallback;
@@ -383,8 +384,12 @@ public class BigtableIO {
      * Helper function that either returns the mock Bigtable service supplied by
      * {@link #withBigtableService} or creates and returns an implementation that talks to
      * {@code Cloud Bigtable}.
+     *
+     * <p>Also populate the credentials option from {@link GcpOptions#getGcpCredential()} if the
+     * default credentials are being used on {@link BigtableOptions}.
      */
-    private BigtableService getBigtableService(PipelineOptions pipelineOptions) {
+    @VisibleForTesting
+    BigtableService getBigtableService(PipelineOptions pipelineOptions) {
       if (bigtableService != null) {
         return bigtableService;
       }
@@ -558,8 +563,12 @@ public class BigtableIO {
      * Helper function that either returns the mock Bigtable service supplied by
      * {@link #withBigtableService} or creates and returns an implementation that talks to
      * {@code Cloud Bigtable}.
+     *
+     * <p>Also populate the credentials option from {@link GcpOptions#getGcpCredential()} if the
+     * default credentials are being used on {@link BigtableOptions}.
      */
-    private BigtableService getBigtableService(PipelineOptions pipelineOptions) {
+    @VisibleForTesting
+    BigtableService getBigtableService(PipelineOptions pipelineOptions) {
       if (bigtableService != null) {
         return bigtableService;
       }

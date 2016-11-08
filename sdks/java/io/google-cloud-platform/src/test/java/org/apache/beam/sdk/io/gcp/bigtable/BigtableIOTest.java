@@ -49,6 +49,8 @@ import com.google.bigtable.v2.RowFilter;
 import com.google.bigtable.v2.SampleRowKeysResponse;
 import com.google.cloud.bigtable.config.BigtableOptions;
 import com.google.cloud.bigtable.config.BulkOptions;
+import com.google.cloud.bigtable.config.CredentialOptions;
+import com.google.cloud.bigtable.config.CredentialOptions.CredentialType;
 import com.google.cloud.bigtable.config.RetryOptions;
 import com.google.common.base.Predicate;
 import com.google.common.base.Predicates;
@@ -77,7 +79,9 @@ import org.apache.beam.sdk.io.BoundedSource.BoundedReader;
 import org.apache.beam.sdk.io.gcp.bigtable.BigtableIO.BigtableSource;
 import org.apache.beam.sdk.io.range.ByteKey;
 import org.apache.beam.sdk.io.range.ByteKeyRange;
+import org.apache.beam.sdk.options.GcpOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.ExpectedLogs;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -85,6 +89,7 @@ import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.DisplayDataEvaluator;
+import org.apache.beam.sdk.util.TestCredential;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
@@ -207,6 +212,50 @@ public class BigtableIOTest {
   private static KV<ByteString, Iterable<Mutation>> makeBadWrite(String key) {
     Iterable<Mutation> mutations = ImmutableList.of(Mutation.newBuilder().build());
     return KV.of(ByteString.copyFromUtf8(key), mutations);
+  }
+
+  /** Tests that credentials are used from PipelineOptions if not supplied by BigtableOptions. */
+  @Test
+  public void testUsePipelineOptionsCredentialsIfNotSpecifiedInBigtableOptions() throws Exception {
+    BigtableOptions options = BIGTABLE_OPTIONS.toBuilder()
+        .setCredentialOptions(CredentialOptions.defaultCredentials())
+        .build();
+    GcpOptions pipelineOptions = PipelineOptionsFactory.as(GcpOptions.class);
+    pipelineOptions.setGcpCredential(new TestCredential());
+    BigtableService readService = BigtableIO.read()
+        .withBigtableOptions(options)
+        .withTableId("TEST-TABLE")
+        .getBigtableService(pipelineOptions);
+    BigtableService writeService = BigtableIO.write()
+        .withBigtableOptions(options)
+        .withTableId("TEST-TABLE")
+        .getBigtableService(pipelineOptions);
+    assertEquals(CredentialType.SuppliedCredentials,
+        readService.getBigtableOptions().getCredentialOptions().getCredentialType());
+    assertEquals(CredentialType.SuppliedCredentials,
+        writeService.getBigtableOptions().getCredentialOptions().getCredentialType());
+  }
+
+  /** Tests that credentials are not used from PipelineOptions if supplied by BigtableOptions. */
+  @Test
+  public void testDontUsePipelineOptionsCredentialsIfSpecifiedInBigtableOptions() throws Exception {
+    BigtableOptions options = BIGTABLE_OPTIONS.toBuilder()
+        .setCredentialOptions(CredentialOptions.nullCredential())
+        .build();
+    GcpOptions pipelineOptions = PipelineOptionsFactory.as(GcpOptions.class);
+    pipelineOptions.setGcpCredential(new TestCredential());
+    BigtableService readService = BigtableIO.read()
+        .withBigtableOptions(options)
+        .withTableId("TEST-TABLE")
+        .getBigtableService(pipelineOptions);
+    BigtableService writeService = BigtableIO.write()
+        .withBigtableOptions(options)
+        .withTableId("TEST-TABLE")
+        .getBigtableService(pipelineOptions);
+    assertEquals(CredentialType.None,
+        readService.getBigtableOptions().getCredentialOptions().getCredentialType());
+    assertEquals(CredentialType.None,
+        writeService.getBigtableOptions().getCredentialOptions().getCredentialType());
   }
 
   /** Tests that when reading from a non-existent table, the read fails. */
@@ -727,6 +776,11 @@ public class BigtableIOTest {
   private static class FakeBigtableService implements BigtableService {
     private final Map<String, SortedMap<ByteString, ByteString>> tables = new HashMap<>();
     private final Map<String, List<SampleRowKeysResponse>> sampleRowKeys = new HashMap<>();
+
+    @Override
+    public BigtableOptions getBigtableOptions() {
+      return null;
+    }
 
     @Nullable
     public SortedMap<ByteString, ByteString> getTable(String tableId) {
