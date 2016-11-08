@@ -20,6 +20,7 @@ package org.apache.beam.sdk.util;
 import java.io.IOException;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.WritableByteChannel;
+import java.nio.file.Path;
 import java.util.Collection;
 import java.util.LinkedList;
 import java.util.List;
@@ -81,6 +82,11 @@ public class GcsIOChannelFactory implements IOChannelFactory {
 
   @Override
   public String resolve(String path, String other) throws IOException {
-    return GcsPath.fromUri(path).resolve(other).toString();
+    return toPath(path).resolve(other).toString();
+  }
+
+  @Override
+  public Path toPath(String path) {
+    return GcsPath.fromUri(path);
   }
 }

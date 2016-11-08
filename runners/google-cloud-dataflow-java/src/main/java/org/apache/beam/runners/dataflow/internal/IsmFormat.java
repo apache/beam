@@ -167,11 +167,12 @@ public class IsmFormat {
     }
   }
 
-  /** A {@link Coder} for {@link IsmRecord}s.
+  /**
+   * A {@link Coder} for {@link IsmRecord}s.
    *
    * <p>Note that this coder standalone will not produce an Ism file. This coder can be used
    * to materialize a {@link PCollection} of {@link IsmRecord}s. Only when this coder
-   * is combined with an {@link IsmSink} will one produce an Ism file.
+   * is combined with an {@code IsmSink} will one produce an Ism file.
    *
    * <p>The {@link IsmRecord} encoded format is:
    * <ul>

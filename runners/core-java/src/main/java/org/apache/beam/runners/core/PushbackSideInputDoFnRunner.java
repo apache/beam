@@ -23,7 +23,6 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
-
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.ReadyCheckingSideInputReader;
 import org.apache.beam.sdk.util.WindowedValue;
@@ -78,18 +77,7 @@ public class PushbackSideInputDoFnRunner<InputT, OutputT> implements DoFnRunner<
     ImmutableList.Builder<WindowedValue<InputT>> pushedBack = ImmutableList.builder();
     for (WindowedValue<InputT> windowElem : elem.explodeWindows()) {
       BoundedWindow mainInputWindow = Iterables.getOnlyElement(windowElem.getWindows());
-      boolean isReady = !notReadyWindows.contains(mainInputWindow);
-      for (PCollectionView<?> view : views) {
-        BoundedWindow sideInputWindow =
-            view.getWindowingStrategyInternal()
-                .getWindowFn()
-                .getSideInputWindow(mainInputWindow);
-        if (!sideInputReader.isReady(view, sideInputWindow)) {
-          isReady = false;
-          break;
-        }
-      }
-      if (isReady) {
+      if (isReady(mainInputWindow)) {
         processElement(windowElem);
       } else {
         notReadyWindows.add(mainInputWindow);
@@ -97,6 +85,20 @@ public class PushbackSideInputDoFnRunner<InputT, OutputT> implements DoFnRunner<
       }
     }
     return pushedBack.build();
+  }
+
+  private boolean isReady(BoundedWindow mainInputWindow) {
+    if (notReadyWindows.contains(mainInputWindow)) {
+      return false;
+    }
+    for (PCollectionView<?> view : views) {
+      BoundedWindow sideInputWindow =
+          view.getWindowingStrategyInternal().getWindowFn().getSideInputWindow(mainInputWindow);
+      if (!sideInputReader.isReady(view, sideInputWindow)) {
+        return false;
+      }
+    }
+    return true;
   }
 
   @Override

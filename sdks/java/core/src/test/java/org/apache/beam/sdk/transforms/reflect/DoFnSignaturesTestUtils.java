@@ -17,11 +17,11 @@
  */
 package org.apache.beam.sdk.transforms.reflect;
 
-import com.google.common.reflect.TypeToken;
 import java.lang.reflect.Method;
-import java.util.Collections;
 import java.util.NoSuchElementException;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignatures.FnAnalysisContext;
+import org.apache.beam.sdk.values.TypeDescriptor;
 
 /** Utilities for use in {@link DoFnSignatures} tests. */
 class DoFnSignaturesTestUtils {
@@ -57,11 +57,10 @@ class DoFnSignaturesTestUtils {
       throws Exception {
     return DoFnSignatures.analyzeProcessElementMethod(
         errors(),
-        TypeToken.of(FakeDoFn.class),
+        TypeDescriptor.of(FakeDoFn.class),
         method.getMethod(),
-        TypeToken.of(Integer.class),
-        TypeToken.of(String.class),
-        Collections.EMPTY_MAP,
-        Collections.EMPTY_MAP);
+        TypeDescriptor.of(Integer.class),
+        TypeDescriptor.of(String.class),
+        FnAnalysisContext.create());
   }
 }

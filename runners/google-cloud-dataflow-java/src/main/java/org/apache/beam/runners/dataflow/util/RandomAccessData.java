@@ -121,7 +121,7 @@ public class RandomAccessData {
    * A {@link Comparator} that compares two byte arrays lexicographically. It compares
    * values as a list of unsigned bytes. The first pair of values that follow any common prefix,
    * or when one array is a prefix of the other, treats the shorter array as the lesser.
-   * For example, [] < [0x01] < [0x01, 0x7F] < [0x01, 0x80] < [0x02] < POSITIVE INFINITY.
+   * For example, {@code [] < [0x01] < [0x01, 0x7F] < [0x01, 0x80] < [0x02] < POSITIVE INFINITY}.
    *
    * <p>Note that a token type of positive infinity is supported and is greater than
    * all other {@link RandomAccessData}.

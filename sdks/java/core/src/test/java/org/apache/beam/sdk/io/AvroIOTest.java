@@ -21,6 +21,7 @@ import static org.apache.avro.file.DataFileConstants.SNAPPY_CODEC;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.hasItem;
+import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
@@ -28,6 +29,7 @@ import static org.junit.Assert.assertTrue;
 
 import com.google.common.base.MoreObjects;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterators;
 import java.io.File;
 import java.io.FileInputStream;
@@ -314,6 +316,33 @@ public class AvroIOTest {
 
     assertEquals(CodecFactory.xzCodec(9).toString(), serdeWrite.getCodec().toString());
   }
+
+  @Test
+  @SuppressWarnings("unchecked")
+  @Category(NeedsRunner.class)
+  public void testMetdata() throws Exception {
+    TestPipeline p = TestPipeline.create();
+    List<GenericClass> values = ImmutableList.of(new GenericClass(3, "hi"),
+        new GenericClass(5, "bar"));
+    File outputFile = tmpFolder.newFile("output.avro");
+
+    p.apply(Create.of(values))
+        .apply(AvroIO.Write.to(outputFile.getAbsolutePath())
+            .withoutSharding()
+            .withSchema(GenericClass.class)
+            .withMetadata(ImmutableMap.<String, Object>of(
+                "stringKey", "stringValue",
+                "longKey", 100L,
+                "bytesKey", "bytesValue".getBytes())));
+    p.run();
+
+    DataFileStream dataFileStream = new DataFileStream(new FileInputStream(outputFile),
+        new GenericDatumReader());
+    assertEquals("stringValue", dataFileStream.getMetaString("stringKey"));
+    assertEquals(100L, dataFileStream.getMetaLong("longKey"));
+    assertArrayEquals("bytesValue".getBytes(), dataFileStream.getMeta("bytesKey"));
+  }
+
 
   @SuppressWarnings("deprecation") // using AvroCoder#createDatumReader for tests.
   private void runTestWrite(String[] expectedElements, int numShards) throws IOException {

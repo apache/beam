@@ -20,7 +20,7 @@ package org.apache.beam.sdk.values;
 import com.google.common.collect.Lists;
 import com.google.common.reflect.Invokable;
 import com.google.common.reflect.Parameter;
-import com.google.common.reflect.TypeParameter;
+import com.google.common.reflect.TypeResolver;
 import com.google.common.reflect.TypeToken;
 import java.io.Serializable;
 import java.lang.reflect.Field;
@@ -171,14 +171,6 @@ public abstract class TypeDescriptor<T> implements Serializable {
   }
 
   /**
-   * Creates a new {@link SimpleTypeDescriptor} using the {@link #token}.
-   * Package visible so this isn't abused.
-   */
-  <X> TypeDescriptor<T> where(TypeParameter<X> typeParam, TypeDescriptor<X> typeDescriptor) {
-    return new SimpleTypeDescriptor<>(token.where(typeParam, typeDescriptor.token));
-  }
-
-  /**
    * Returns the {@link Type} represented by this {@link TypeDescriptor}.
    */
   public Type getType() {
@@ -297,6 +289,19 @@ public abstract class TypeDescriptor<T> implements Serializable {
   }
 
   /**
+   * Returns a set of {@link TypeDescriptor TypeDescriptor}, one for each
+   * superclass as well as each interface implemented by this class.
+   */
+  @SuppressWarnings("rawtypes")
+  public Iterable<TypeDescriptor> getTypes() {
+    List<TypeDescriptor> interfaces = Lists.newArrayList();
+    for (TypeToken<?> interfaceToken : token.getTypes()) {
+      interfaces.add(new SimpleTypeDescriptor<>(interfaceToken));
+    }
+    return interfaces;
+  }
+
+  /**
    * Returns a set of {@link TypeDescriptor}s, one for each
    * interface implemented by this class.
    */
@@ -320,6 +325,31 @@ public abstract class TypeDescriptor<T> implements Serializable {
       classes.add(new SimpleTypeDescriptor<>(classToken));
     }
     return classes;
+  }
+
+  /**
+   * Returns a new {@code TypeDescriptor} where type variables represented by
+   * {@code typeParameter} are substituted by {@code typeDescriptor}. For example, it can be used to
+   * construct {@code Map<K, V>} for any {@code K} and {@code V} type: <pre> {@code
+   *   static <K, V> TypeDescriptor<Map<K, V>> mapOf(
+   *       TypeDescriptor<K> keyType, TypeDescriptor<V> valueType) {
+   *     return new TypeDescriptor<Map<K, V>>() {}
+   *         .where(new TypeParameter<K>() {}, keyType)
+   *         .where(new TypeParameter<V>() {}, valueType);
+   *   }}</pre>
+   *
+   * @param <X> The parameter type
+   * @param typeParameter the parameter type variable
+   * @param typeDescriptor the actual type to substitute
+   */
+  @SuppressWarnings("unchecked")
+  public <X> TypeDescriptor<T> where(TypeParameter<X> typeParameter,
+      TypeDescriptor<X> typeDescriptor) {
+    TypeResolver resolver =
+        new TypeResolver()
+            .where(
+                typeParameter.typeVariable, typeDescriptor.getType());
+    return (TypeDescriptor<T>) TypeDescriptor.of(resolver.resolveType(token.getType()));
   }
 
   @Override

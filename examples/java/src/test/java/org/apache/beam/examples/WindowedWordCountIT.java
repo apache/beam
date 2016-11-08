@@ -19,13 +19,13 @@ package org.apache.beam.examples;
 
 import java.io.IOException;
 import org.apache.beam.examples.WindowedWordCount.Options;
-import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.StreamingOptions;
 import org.apache.beam.sdk.testing.BigqueryMatcher;
 import org.apache.beam.sdk.testing.StreamingIT;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestPipelineOptions;
+import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
@@ -37,14 +37,18 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class WindowedWordCountIT {
 
+  private static final String DEFAULT_OUTPUT_CHECKSUM = "ff54f6f42b2afeb146206c1e8e915deaee0362b4";
+
   /**
    * Options for the {@link WindowedWordCount} Integration Test.
    */
   public interface WindowedWordCountITOptions
       extends Options, TestPipelineOptions, StreamingOptions {
-    @Default.String("ff54f6f42b2afeb146206c1e8e915deaee0362b4")
-    String getChecksum();
-    void setChecksum(String value);
+  }
+
+  @BeforeClass
+  public static void setUp() {
+    PipelineOptionsFactory.register(TestPipelineOptions.class);
   }
 
   @Test
@@ -59,7 +63,6 @@ public class WindowedWordCountIT {
   }
 
   private void testWindowedWordCountPipeline(boolean isStreaming) throws IOException {
-    PipelineOptionsFactory.register(WindowedWordCountITOptions.class);
     WindowedWordCountITOptions options =
         TestPipeline.testingPipelineOptions().as(WindowedWordCountITOptions.class);
     options.setStreaming(isStreaming);
@@ -68,7 +71,7 @@ public class WindowedWordCountIT {
         options.getProject(), options.getBigQueryDataset(), options.getBigQueryTable());
     options.setOnSuccessMatcher(
         new BigqueryMatcher(
-            options.getAppName(), options.getProject(), query, options.getChecksum()));
+            options.getAppName(), options.getProject(), query, DEFAULT_OUTPUT_CHECKSUM));
 
     WindowedWordCount.main(TestPipeline.convertToArgs(options));
   }

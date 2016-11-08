@@ -25,8 +25,8 @@ import org.apache.beam.sdk.transforms.Combine;
 
 /**
  * Keep track of the moving minimum/maximum/sum of sampled long values. The minimum/maximum/sum
- * is over at most the last {@link #samplePeriodMs}, and is updated every
- * {@link #sampleUpdateMs}.
+ * is over at most the user-specified last {@code samplePeriodMs}, and is updated every
+ * {@code sampleUpdateMs}.
  */
 public class MovingFunction {
   /**

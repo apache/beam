@@ -33,6 +33,7 @@
 
   <modules>
     <module>join-library</module>
+    <module>sorter</module>
   </modules>
 
 </project>

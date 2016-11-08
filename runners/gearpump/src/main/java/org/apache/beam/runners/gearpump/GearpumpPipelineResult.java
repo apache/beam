@@ -44,12 +44,12 @@ public class GearpumpPipelineResult implements PipelineResult {
   }
 
   @Override
-  public State waitUntilFinish(Duration duration) throws IOException, InterruptedException {
+  public State waitUntilFinish(Duration duration) {
     return null;
   }
 
   @Override
-  public State waitUntilFinish() throws IOException, InterruptedException {
+  public State waitUntilFinish() {
     return null;
   }
 

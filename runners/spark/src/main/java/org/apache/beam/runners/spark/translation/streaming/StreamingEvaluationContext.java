@@ -212,15 +212,13 @@ public class StreamingEvaluationContext extends EvaluationContext {
   }
 
   @Override
-  public State waitUntilFinish()
-      throws IOException, InterruptedException {
+  public State waitUntilFinish() {
     throw new UnsupportedOperationException(
         "Spark runner StreamingEvaluationContext does not support waitUntilFinish.");
   }
 
   @Override
-  public State waitUntilFinish(Duration duration)
-      throws IOException, InterruptedException {
+  public State waitUntilFinish(Duration duration) {
     throw new UnsupportedOperationException(
         "Spark runner StreamingEvaluationContext does not support waitUntilFinish.");
   }

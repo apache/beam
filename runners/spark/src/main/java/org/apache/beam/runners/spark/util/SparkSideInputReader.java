@@ -90,6 +90,6 @@ public class SparkSideInputReader implements SideInputReader {
 
   @Override
   public boolean isEmpty() {
-    return sideInputs.isEmpty();
+    return sideInputs != null && sideInputs.isEmpty();
   }
 }

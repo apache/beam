@@ -31,11 +31,14 @@ import static com.google.datastore.v1.client.DatastoreHelper.makeOrder;
 import static com.google.datastore.v1.client.DatastoreHelper.makeUpsert;
 import static com.google.datastore.v1.client.DatastoreHelper.makeValue;
 
-import com.google.api.client.auth.oauth2.Credential;
+import com.google.api.client.http.HttpRequestInitializer;
 import com.google.api.client.util.BackOff;
 import com.google.api.client.util.BackOffUtils;
 import com.google.api.client.util.Sleeper;
+import com.google.auth.Credentials;
+import com.google.auth.http.HttpCredentialsAdapter;
 import com.google.auto.value.AutoValue;
+import com.google.cloud.hadoop.util.ChainingHttpRequestInitializer;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.MoreObjects;
 import com.google.common.collect.ImmutableList;
@@ -165,7 +168,7 @@ import org.slf4j.LoggerFactory;
  * read <a href="https://cloud.google.com/datastore/docs/concepts/entities">Entities, Properties,
  * and Keys</a> for more information about {@code Entity} keys.
  *
- * <p><h3>Permissions</h3>
+ * <h3>Permissions</h3>
  * Permission requirements depend on the {@code PipelineRunner} that is used to execute the
  * Dataflow job. Please refer to the documentation of corresponding {@code PipelineRunner}s for
  * more details.
@@ -229,6 +232,7 @@ public class DatastoreV1 {
     @Nullable public abstract String getNamespace();
     public abstract int getNumQuerySplits();
 
+    @Override
     public abstract String toString();
 
     abstract Builder toBuilder();
@@ -1005,17 +1009,20 @@ public class DatastoreV1 {
 
     /** Builds a Cloud Datastore client for the given pipeline options and project. */
     public Datastore getDatastore(PipelineOptions pipelineOptions, String projectId) {
+      Credentials credential = pipelineOptions.as(GcpOptions.class).getGcpCredential();
+      HttpRequestInitializer initializer;
+      if (credential != null) {
+        initializer = new ChainingHttpRequestInitializer(
+            new HttpCredentialsAdapter(credential),
+            new RetryHttpRequestInitializer());
+      } else {
+        initializer = new RetryHttpRequestInitializer();
+      }
+
       DatastoreOptions.Builder builder =
           new DatastoreOptions.Builder()
               .projectId(projectId)
-              .initializer(
-                  new RetryHttpRequestInitializer()
-              );
-
-      Credential credential = pipelineOptions.as(GcpOptions.class).getGcpCredential();
-      if (credential != null) {
-        builder.credential(credential);
-      }
+              .initializer(initializer);
 
       return DatastoreFactory.get().create(builder.build());
     }

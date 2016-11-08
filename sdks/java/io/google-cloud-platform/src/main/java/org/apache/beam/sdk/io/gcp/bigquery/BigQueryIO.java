@@ -1840,8 +1840,8 @@ public class BigQueryIO {
         return PDone.in(input.getPipeline());
       }
 
-      private class WriteBundles extends DoFn<TableRow, KV<String, Long>> {
-        private TableRowWriter writer = null;
+      private static class WriteBundles extends DoFn<TableRow, KV<String, Long>> {
+        private transient TableRowWriter writer = null;
         private final String tempFilePrefix;
 
         WriteBundles(String tempFilePrefix) {

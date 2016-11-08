@@ -119,8 +119,8 @@ public class StringUtils {
    *
    * <p>Examples:
    * <ul>
-   *   <li>{@code some.package.Word.SummaryDoFn} -> "Summary"
-   *   <li>{@code another.package.PairingFn} -> "Pairing"
+   *   <li>{@code some.package.Word.SummaryDoFn} becomes "Summary"
+   *   <li>{@code another.package.PairingFn} becomes "Pairing"
    * </ul>
    *
    * @throws IllegalArgumentException if the class is anonymous
@@ -143,8 +143,8 @@ public class StringUtils {
    *
    * <p>Examples:
    * <ul>
-   *   <li>{@code some.package.Word.Summary} -> "Word.Summary"
-   *   <li>{@code another.package.Pairing.Bound} -> "Pairing"
+   *   <li>{@code some.package.Word.Summary} becomes "Word.Summary"
+   *   <li>{@code another.package.Pairing.Bound} becomes "Pairing"
    * </ul>
    */
   public static String approximatePTransformName(Class<?> clazz) {

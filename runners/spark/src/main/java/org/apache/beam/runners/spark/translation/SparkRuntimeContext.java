@@ -89,7 +89,7 @@ public class SparkRuntimeContext implements Serializable {
     if (opts.getEnableSparkSinks()) {
       final MetricsSystem metricsSystem = SparkEnv$.MODULE$.get().metricsSystem();
       final AggregatorMetricSource aggregatorMetricSource =
-          new AggregatorMetricSource(initialValue);
+          new AggregatorMetricSource(opts.getAppName(), initialValue);
       // in case the context was not cleared
       metricsSystem.removeSource(aggregatorMetricSource);
       metricsSystem.registerSource(aggregatorMetricSource);

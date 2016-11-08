@@ -194,6 +194,6 @@ public class DebuggingWordCount {
         KV.of("stomach", 1L));
     PAssert.that(filteredWords).containsInAnyOrder(expectedResults);
 
-    p.run();
+    p.run().waitUntilFinish();
   }
 }
