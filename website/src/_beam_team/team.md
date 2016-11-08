@@ -57,8 +57,8 @@ members:
     roles: champion, committer, PPMC
     time_zone: "+1"
   - name: Jesse Anderson
-    apache_id:
-    email: jesse [at] smokinghand [dot] com
+    apache_id: jesseanderson
+    email: jesseanderson [at] apache [dot] org
     organization: Smoking Hand
     roles: committer
     time_zone: "-8"
@@ -70,7 +70,7 @@ members:
     time_zone: "-8"
   - name: Kostas Tzoumas
     apache_id: ktzoumas
-    email: kostas [at] data-artisans [dot] com
+    email: ktzoumas [at] apache [dot] org
     organization: data Artisans
     roles: committer, PPMC
     time_zone: "+1"
@@ -94,13 +94,13 @@ members:
     time_zone: "+1"
   - name: Stephan Ewen
     apache_id: sewen
-    email: stephan [at] data-artisans [dot] com
+    email: sewen [at] apache [dot] org
     organization: data Artisans
     roles: committer, PPMC
     time_zone: "+1"
   - name: Thomas Groh
-    apache_id:
-    email:
+    apache_id: tgroh
+    email: tgroh [at] apache [dot] org
     organization: Google
     roles: committer
     time_zone: "-8"
@@ -112,7 +112,7 @@ members:
     time_zone: "-8"
   - name: Tom White
     apache_id: tomwhite
-    email: tom [at] cloudera [dot] com
+    email: tomwhite [at] apache [dot] org
     organization: Cloudera
     roles: committer, PPMC
     time_zone: "-8"
