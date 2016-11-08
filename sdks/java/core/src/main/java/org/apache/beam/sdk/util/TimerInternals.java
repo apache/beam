@@ -230,12 +230,17 @@ public interface TimerInternals {
      * arbitrary.
      */
     @Override
-    public int compareTo(TimerData o) {
+    public int compareTo(TimerData that) {
+      if (this.equals(that)) {
+        return 0;
+      }
       ComparisonChain chain =
-          ComparisonChain.start().compare(timestamp, o.getTimestamp()).compare(domain, o.domain);
-      if (chain.result() == 0) {
+          ComparisonChain.start()
+              .compare(this.timestamp, that.getTimestamp())
+              .compare(this.domain, that.domain);
+      if (chain.result() == 0 && !this.namespace.equals(that.namespace)) {
         // Obtaining the stringKey may be expensive; only do so if required
-        chain = chain.compare(namespace.stringKey(), o.namespace.stringKey());
+        chain = chain.compare(namespace.stringKey(), that.namespace.stringKey());
       }
       return chain.result();
     }
