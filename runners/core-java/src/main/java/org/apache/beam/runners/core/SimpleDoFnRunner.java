@@ -97,7 +97,7 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     this.fn = fn;
     this.observesWindow =
         DoFnSignatures.getSignature(fn.getClass()).processElement().observesWindow();
-    this.invoker = DoFnInvokers.INSTANCE.newByteBuddyInvoker(fn);
+    this.invoker = DoFnInvokers.invokerFor(fn);
     this.outputManager = outputManager;
     this.mainOutputTag = mainOutputTag;
     this.context =
