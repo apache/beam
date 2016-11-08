@@ -44,7 +44,7 @@ print 'Matches: ' + str(len(matches))
 for match in matches:
   print 'Fixing links in: ' + match
   mf = open(match)
-  soup = BeautifulSoup(mf, "lxml")
+  soup = BeautifulSoup(mf)
   # Iterates over every <a>
   for a in soup.findAll('a'):
     try:
