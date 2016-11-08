@@ -8,7 +8,6 @@ import cz.seznam.euphoria.core.client.util.Triple;
 import org.junit.Assert;
 
 import java.io.Serializable;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
@@ -18,8 +17,8 @@ import static java.util.Arrays.asList;
 public class TopPerKeyTest extends OperatorTest {
 
   static final class Item implements Serializable {
-    private String key, value;
-    private int score;
+    private final String key, value;
+    private final int score;
     Item(String key, String value, int score) {
       this.key = key;
       this.value = value;
@@ -28,6 +27,7 @@ public class TopPerKeyTest extends OperatorTest {
     String getKey() { return key; }
     String getValue() { return value; }
     int getScore() { return score; }
+    @Override
     public boolean equals(Object o) {
       if (o instanceof Item) {
         Item item = (Item) o;
@@ -37,6 +37,7 @@ public class TopPerKeyTest extends OperatorTest {
       }
       return false;
     }
+    @Override
     public int hashCode() { return Objects.hash(key, value, score); }
   }
 
