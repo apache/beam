@@ -141,6 +141,25 @@ class RunnerTest(unittest.TestCase):
                                 'RowAsDictJsonCoder')):
       unused_invalid = rows | beam.GroupByKey()
 
+  def test_no_group_by_key_directly_after_bigquery(self):
+    remote_runner = DataflowPipelineRunner()
+    p = Pipeline(remote_runner,
+                 options=PipelineOptions([
+                     '--dataflow_endpoint=ignored',
+                     '--job_name=test-job',
+                     '--project=test-project',
+                     '--staging_location=ignored',
+                     '--temp_location=/dev/null',
+                     '--no_auth=True'
+                 ]))
+    rows = p | beam.io.Read('read',
+                            beam.io.BigQuerySource('dataset.faketable'))
+    with self.assertRaises(ValueError,
+                           msg=('Coder for the GroupByKey operation'
+                                '"GroupByKey" is not a key-value coder: '
+                                'RowAsDictJsonCoder')):
+      unused_invalid = rows | beam.GroupByKey()
+
 
 if __name__ == '__main__':
   unittest.main()
