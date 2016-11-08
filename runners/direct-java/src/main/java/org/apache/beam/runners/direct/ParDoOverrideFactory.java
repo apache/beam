@@ -44,7 +44,7 @@ class ParDoOverrideFactory<InputT, OutputT>
       // This is an OldDoFn, hence not splittable.
       return transform;
     }
-    DoFnSignature signature = DoFnSignatures.INSTANCE.getSignature(fn.getClass());
+    DoFnSignature signature = DoFnSignatures.getSignature(fn.getClass());
     if (!signature.processElement().isSplittable()) {
       return transform;
     }

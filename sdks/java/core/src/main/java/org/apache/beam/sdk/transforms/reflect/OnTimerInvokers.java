@@ -119,7 +119,7 @@ class OnTimerInvokers {
     private final DoFnSignature signature;
 
     public OnTimerConstructorLoader(Class<? extends DoFn<?, ?>> clazz) {
-      this.signature = DoFnSignatures.INSTANCE.getSignature(clazz);
+      this.signature = DoFnSignatures.getSignature(clazz);
     }
 
     @Override

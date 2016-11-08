@@ -94,7 +94,7 @@ public class SplittableParDo<
   public SplittableParDo(DoFn<InputT, OutputT> fn) {
     checkNotNull(fn, "fn must not be null");
     this.fn = fn;
-    this.signature = DoFnSignatures.INSTANCE.getSignature(fn.getClass());
+    this.signature = DoFnSignatures.getSignature(fn.getClass());
     checkArgument(signature.processElement().isSplittable(), "fn must be a splittable DoFn");
   }
 
