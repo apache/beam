@@ -377,7 +377,7 @@ public class DoFnInvokers {
    * Implements a method of {@link DoFnInvoker} (the "instrumented method") by delegating to a
    * "target method" of the wrapped {@link DoFn}.
    */
-  private static class DoFnMethodDelegation implements Implementation {
+  static class DoFnMethodDelegation implements Implementation {
     /** The {@link MethodDescription} of the wrapped {@link DoFn}'s method. */
     protected final MethodDescription targetMethod;
     /** Whether the target method returns non-void. */
@@ -529,7 +529,7 @@ public class DoFnInvokers {
         MethodInvocation.invoke(getExtraContextFactoryMethodDescription(methodName)));
   }
 
-  private static StackManipulation getExtraContextParameter(
+  static StackManipulation getExtraContextParameter(
       DoFnSignature.Parameter parameter,
       final StackManipulation pushExtraContextFactory) {
 
