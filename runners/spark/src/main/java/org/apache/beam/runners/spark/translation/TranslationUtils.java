@@ -21,6 +21,7 @@ package org.apache.beam.runners.spark.translation;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
 import java.io.Serializable;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.runners.spark.util.BroadcastHelper;
@@ -37,6 +38,7 @@ import org.apache.beam.sdk.util.state.StateInternalsFactory;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.spark.api.java.function.FlatMapFunction;
 import org.apache.spark.api.java.function.Function;
 import org.apache.spark.api.java.function.PairFunction;
 import org.apache.spark.streaming.api.java.JavaDStream;
@@ -139,6 +141,21 @@ public final class TranslationUtils {
       @Override
       public KV<K, V> call(Tuple2<K, V> t2) {
         return KV.of(t2._1(), t2._2());
+      }
+    };
+  }
+
+  /** A Flatmap iterator function, flattening iterators into their elements. */
+  public static <T> FlatMapFunction<Iterator<T>, T> flattenIter() {
+    return new FlatMapFunction<Iterator<T>, T>() {
+      @Override
+      public Iterable<T> call(final Iterator<T> t) throws Exception {
+        return new Iterable<T>() {
+          @Override
+          public Iterator<T> iterator() {
+            return t;
+          }
+        };
       }
     };
   }

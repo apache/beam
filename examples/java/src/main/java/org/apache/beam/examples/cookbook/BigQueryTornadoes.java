@@ -164,6 +164,6 @@ public class BigQueryTornadoes {
         .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED)
         .withWriteDisposition(BigQueryIO.Write.WriteDisposition.WRITE_TRUNCATE));
 
-    p.run();
+    p.run().waitUntilFinish();
   }
 }

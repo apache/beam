@@ -176,31 +176,31 @@ public abstract class SparkProcessContext<InputT, OutputT, ValueT>
     }
   }
 
-  static <T> WindowedValue<T> noElementWindowedValue(final T output,
-                                                     final Instant timestamp,
-                                                     WindowFn<Object, ?> windowFn) {
-    WindowFn.AssignContext assignContext = windowFn.new AssignContext() {
+  static <T, W extends BoundedWindow> WindowedValue<T> noElementWindowedValue(
+      final T output, final Instant timestamp, WindowFn<Object, W> windowFn) {
+    WindowFn<Object, W>.AssignContext assignContext =
+        windowFn.new AssignContext() {
 
-      @Override
-      public Object element() {
-        return output;
-      }
+          @Override
+          public Object element() {
+            return output;
+          }
 
-      @Override
-      public Instant timestamp() {
-        if (timestamp != null) {
-          return timestamp;
-        }
-        throw new UnsupportedOperationException("outputWithTimestamp was called with "
-            + "null timestamp.");
-      }
+          @Override
+          public Instant timestamp() {
+            if (timestamp != null) {
+              return timestamp;
+            }
+            throw new UnsupportedOperationException(
+                "outputWithTimestamp was called with " + "null timestamp.");
+          }
 
-      @Override
-      public BoundedWindow window() {
-        throw new UnsupportedOperationException("Window not available for "
-            + "start/finishBundle output.");
-      }
-    };
+          @Override
+          public BoundedWindow window() {
+            throw new UnsupportedOperationException(
+                "Window not available for " + "start/finishBundle output.");
+          }
+        };
     try {
       @SuppressWarnings("unchecked")
       Collection<? extends BoundedWindow> windows = windowFn.assignWindows(assignContext);

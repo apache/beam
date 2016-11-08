@@ -71,7 +71,7 @@ public class WindowTest implements Serializable {
       .apply(Window.<String>into(FixedWindows.of(Duration.standardMinutes(10))))
       .getWindowingStrategy();
     assertTrue(strategy.getWindowFn() instanceof FixedWindows);
-    assertTrue(strategy.getTrigger().getSpec() instanceof DefaultTrigger);
+    assertTrue(strategy.getTrigger() instanceof DefaultTrigger);
     assertEquals(AccumulationMode.DISCARDING_FIRED_PANES, strategy.getMode());
   }
 
@@ -88,7 +88,7 @@ public class WindowTest implements Serializable {
       .getWindowingStrategy();
 
     assertEquals(fixed10, strategy.getWindowFn());
-    assertEquals(trigger, strategy.getTrigger().getSpec());
+    assertEquals(trigger, strategy.getTrigger());
     assertEquals(AccumulationMode.ACCUMULATING_FIRED_PANES, strategy.getMode());
   }
 
@@ -105,7 +105,7 @@ public class WindowTest implements Serializable {
       .getWindowingStrategy();
 
     assertEquals(fixed10, strategy.getWindowFn());
-    assertEquals(trigger, strategy.getTrigger().getSpec());
+    assertEquals(trigger, strategy.getTrigger());
     assertEquals(AccumulationMode.ACCUMULATING_FIRED_PANES, strategy.getMode());
     assertEquals(Duration.standardDays(1), strategy.getAllowedLateness());
   }

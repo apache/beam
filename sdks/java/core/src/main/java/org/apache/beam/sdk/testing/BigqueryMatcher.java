@@ -19,8 +19,6 @@ package org.apache.beam.sdk.testing;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
-import com.google.api.client.auth.oauth2.Credential;
-import com.google.api.client.googleapis.auth.oauth2.GoogleCredential;
 import com.google.api.client.http.HttpTransport;
 import com.google.api.client.json.JsonFactory;
 import com.google.api.client.util.BackOff;
@@ -32,6 +30,9 @@ import com.google.api.services.bigquery.model.QueryRequest;
 import com.google.api.services.bigquery.model.QueryResponse;
 import com.google.api.services.bigquery.model.TableCell;
 import com.google.api.services.bigquery.model.TableRow;
+import com.google.auth.Credentials;
+import com.google.auth.http.HttpCredentialsAdapter;
+import com.google.auth.oauth2.GoogleCredentials;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
@@ -136,9 +137,9 @@ public class BigqueryMatcher extends TypeSafeMatcher<PipelineResult>
   Bigquery newBigqueryClient(String applicationName) {
     HttpTransport transport = Transport.getTransport();
     JsonFactory jsonFactory = Transport.getJsonFactory();
-    Credential credential = getDefaultCredential(transport, jsonFactory);
+    Credentials credential = getDefaultCredential();
 
-    return new Bigquery.Builder(transport, jsonFactory, credential)
+    return new Bigquery.Builder(transport, jsonFactory, new HttpCredentialsAdapter(credential))
         .setApplicationName(applicationName)
         .build();
   }
@@ -168,10 +169,10 @@ public class BigqueryMatcher extends TypeSafeMatcher<PipelineResult>
         !Strings.isNullOrEmpty(value), "Expected valid %s, but was %s", name, value);
   }
 
-  private Credential getDefaultCredential(HttpTransport transport, JsonFactory jsonFactory) {
-    GoogleCredential credential;
+  private Credentials getDefaultCredential() {
+    GoogleCredentials credential;
     try {
-      credential = GoogleCredential.getApplicationDefault(transport, jsonFactory);
+      credential = GoogleCredentials.getApplicationDefault();
     } catch (IOException e) {
       throw new RuntimeException("Failed to get application default credential.", e);
     }

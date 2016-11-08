@@ -45,8 +45,6 @@ import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollection.IsBounded;
-import org.apache.beam.sdk.values.PInput;
-import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -157,15 +155,11 @@ class TestStreamEvaluatorFactory implements TransformEvaluatorFactory {
     }
   }
 
-  static class DirectTestStreamFactory implements PTransformOverrideFactory {
+  static class DirectTestStreamFactory<T>
+      implements PTransformOverrideFactory<PBegin, PCollection<T>, TestStream<T>> {
     @Override
-    public <InputT extends PInput, OutputT extends POutput> PTransform<InputT, OutputT> override(
-        PTransform<InputT, OutputT> transform) {
-      if (transform instanceof TestStream) {
-        return (PTransform<InputT, OutputT>)
-            new DirectTestStream<OutputT>((TestStream<OutputT>) transform);
-      }
-      return transform;
+    public PTransform<PBegin, PCollection<T>> override(TestStream<T> transform) {
+      return new DirectTestStream<>(transform);
     }
 
     private static class DirectTestStream<T> extends PTransform<PBegin, PCollection<T>> {

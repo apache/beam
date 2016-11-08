@@ -32,8 +32,6 @@ import org.apache.avro.mapred.AvroKey;
 import org.apache.avro.mapreduce.AvroJob;
 import org.apache.avro.mapreduce.AvroKeyInputFormat;
 import org.apache.beam.runners.core.AssignWindowsDoFn;
-import org.apache.beam.runners.core.GroupByKeyViaGroupByKeyOnly.GroupAlsoByWindow;
-import org.apache.beam.runners.core.GroupByKeyViaGroupByKeyOnly.GroupByKeyOnly;
 import org.apache.beam.runners.spark.aggregators.AccumulatorSingleton;
 import org.apache.beam.runners.spark.aggregators.NamedAggregators;
 import org.apache.beam.runners.spark.io.SourceRDD;
@@ -51,6 +49,7 @@ import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.CombineWithContext;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.Flatten;
+import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -58,7 +57,6 @@ import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
-import org.apache.beam.sdk.util.AppliedCombineFn;
 import org.apache.beam.sdk.util.CombineFnUtil;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowingStrategy;
@@ -112,10 +110,10 @@ public final class TransformTranslator {
     };
   }
 
-  private static <K, V> TransformEvaluator<GroupByKeyOnly<K, V>> gbko() {
-    return new TransformEvaluator<GroupByKeyOnly<K, V>>() {
+  private static <K, V> TransformEvaluator<GroupByKey<K, V>> groupByKey() {
+    return new TransformEvaluator<GroupByKey<K, V>>() {
       @Override
-      public void evaluate(GroupByKeyOnly<K, V> transform, EvaluationContext context) {
+      public void evaluate(GroupByKey<K, V> transform, EvaluationContext context) {
         @SuppressWarnings("unchecked")
         JavaRDD<WindowedValue<KV<K, V>>> inRDD =
             (JavaRDD<WindowedValue<KV<K, V>>>) context.getInputRDD(transform);
@@ -123,30 +121,11 @@ public final class TransformTranslator {
         @SuppressWarnings("unchecked")
         final KvCoder<K, V> coder = (KvCoder<K, V>) context.getInput(transform).getCoder();
 
-        context.setOutputRDD(transform, GroupCombineFunctions.groupByKeyOnly(inRDD, coder));
-      }
-    };
-  }
-
-  private static <K, V, W extends BoundedWindow>
-      TransformEvaluator<GroupAlsoByWindow<K, V>> gabw() {
-    return new TransformEvaluator<GroupAlsoByWindow<K, V>>() {
-      @Override
-      public void evaluate(GroupAlsoByWindow<K, V> transform, EvaluationContext context) {
-        @SuppressWarnings("unchecked")
-        JavaRDD<WindowedValue<KV<K, Iterable<WindowedValue<V>>>>> inRDD =
-            (JavaRDD<WindowedValue<KV<K, Iterable<WindowedValue<V>>>>>)
-                context.getInputRDD(transform);
-
-        @SuppressWarnings("unchecked")
-        final KvCoder<K, Iterable<WindowedValue<V>>> inputKvCoder =
-            (KvCoder<K, Iterable<WindowedValue<V>>>) context.getInput(transform).getCoder();
-
         final Accumulator<NamedAggregators> accum =
-            AccumulatorSingleton.getInstance(context.getSparkContext());
+                AccumulatorSingleton.getInstance(context.getSparkContext());
 
-        context.setOutputRDD(transform, GroupCombineFunctions.groupAlsoByWindow(inRDD, transform,
-            context.getRuntimeContext(), accum, inputKvCoder));
+        context.setOutputRDD(transform, GroupCombineFunctions.groupByKey(inRDD, accum, coder,
+            context.getRuntimeContext(), context.getInput(transform).getWindowingStrategy()));
       }
     };
   }
@@ -161,13 +140,10 @@ public final class TransformTranslator {
         PCollection<? extends KV<K, ? extends Iterable<InputT>>> input =
             context.getInput(transform);
         WindowingStrategy<?, ?> windowingStrategy = input.getWindowingStrategy();
-        AppliedCombineFn<? super K, ? super InputT, ?, OutputT> appliedFn = transform
-            .getAppliedFn(context.getPipeline().getCoderRegistry(), input.getCoder(),
-                windowingStrategy);
         @SuppressWarnings("unchecked")
         CombineWithContext.KeyedCombineFnWithContext<K, InputT, ?, OutputT> fn =
             (CombineWithContext.KeyedCombineFnWithContext<K, InputT, ?, OutputT>)
-                CombineFnUtil.toFnWithContext(appliedFn.getFn());
+                CombineFnUtil.toFnWithContext(transform.getFn());
 
         @SuppressWarnings("unchecked")
         JavaRDDLike<WindowedValue<KV<K, Iterable<InputT>>>, ?> inRDD =
@@ -592,8 +568,7 @@ public final class TransformTranslator {
     EVALUATORS.put(HadoopIO.Write.Bound.class, writeHadoop());
     EVALUATORS.put(ParDo.Bound.class, parDo());
     EVALUATORS.put(ParDo.BoundMulti.class, multiDo());
-    EVALUATORS.put(GroupByKeyOnly.class, gbko());
-    EVALUATORS.put(GroupAlsoByWindow.class, gabw());
+    EVALUATORS.put(GroupByKey.class, groupByKey());
     EVALUATORS.put(Combine.GroupedValues.class, combineGrouped());
     EVALUATORS.put(Combine.Globally.class, combineGlobally());
     EVALUATORS.put(Combine.PerKey.class, combinePerKey());

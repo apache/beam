@@ -80,6 +80,6 @@ public class WordCountTest {
       .apply(MapElements.via(new FormatAsTextFn()));
 
     PAssert.that(output).containsInAnyOrder(COUNTS_ARRAY);
-    p.run();
+    p.run().waitUntilFinish();
   }
 }

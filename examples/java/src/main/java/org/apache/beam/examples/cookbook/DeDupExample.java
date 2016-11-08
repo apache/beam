@@ -24,16 +24,16 @@ import org.apache.beam.sdk.options.DefaultValueFactory;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.sdk.transforms.RemoveDuplicates;
+import org.apache.beam.sdk.transforms.Distinct;
 import org.apache.beam.sdk.util.gcsfs.GcsPath;
 
 /**
  * This example uses as input Shakespeare's plays as plaintext files, and will remove any
  * duplicate lines across all the files. (The output does not preserve any input order).
  *
- * <p>Concepts: the RemoveDuplicates transform, and how to wire transforms together.
+ * <p>Concepts: the Distinct transform, and how to wire transforms together.
  * Demonstrates {@link org.apache.beam.sdk.io.TextIO.Read}/
- * {@link RemoveDuplicates}/{@link org.apache.beam.sdk.io.TextIO.Write}.
+ * {@link Distinct}/{@link org.apache.beam.sdk.io.TextIO.Write}.
  *
  * <p>To execute this pipeline locally, specify a local output file or output prefix on GCS:
  *   --output=[YOUR_LOCAL_FILE | gs://YOUR_OUTPUT_PREFIX]
@@ -88,9 +88,9 @@ public class DeDupExample {
     Pipeline p = Pipeline.create(options);
 
     p.apply("ReadLines", TextIO.Read.from(options.getInput()))
-     .apply(RemoveDuplicates.<String>create())
+     .apply(Distinct.<String>create())
      .apply("DedupedShakespeare", TextIO.Write.to(options.getOutput()));
 
-    p.run();
+    p.run().waitUntilFinish();
   }
 }

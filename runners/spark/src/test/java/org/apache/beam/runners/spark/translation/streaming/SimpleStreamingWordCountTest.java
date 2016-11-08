@@ -62,8 +62,7 @@ public class SimpleStreamingWordCountTest implements Serializable {
 
   @Test
   public void testFixedWindows() throws Exception {
-    SparkPipelineOptions options = commonOptions.withTmpCheckpointDir(
-        checkpointParentDir.newFolder(getClass().getSimpleName()));
+    SparkPipelineOptions options = commonOptions.withTmpCheckpointDir(checkpointParentDir);
 
     // override defaults
     options.setBatchIntervalMillis(BATCH_INTERVAL.getMillis());

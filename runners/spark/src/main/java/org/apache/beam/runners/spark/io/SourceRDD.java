@@ -27,6 +27,7 @@ import java.util.List;
 import org.apache.beam.runners.spark.translation.SparkRuntimeContext;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.Source;
+import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.spark.Dependency;
 import org.apache.spark.InterruptibleIterator;
@@ -46,7 +47,8 @@ import org.slf4j.LoggerFactory;
 public class SourceRDD {
 
   /**
-   * A SourceRDD.Bounded reads input from a {@link BoundedSource} and creates a Spark {@link RDD}.
+   * A {@link SourceRDD.Bounded} reads input from a {@link BoundedSource}
+   * and creates a Spark {@link RDD}.
    * This is the default way for the SparkRunner to read data from Beam's BoundedSources.
    */
   public static class Bounded<T> extends RDD<WindowedValue<T>> {
@@ -195,6 +197,79 @@ public class SourceRDD {
     @Override
     public int hashCode() {
       return 41 * (41 + rddId) + index;
+    }
+
+    public Source<T> getSource() {
+      return source;
+    }
+  }
+
+  /**
+   * A {@link SourceRDD.Unbounded} is the implementation of a micro-batch
+   * in a {@link SourceDStream}.
+   *
+   * <p>This RDD is made of P partitions, each containing a single pair-element of the partitioned
+   * {@link MicrobatchSource} and an optional starting {@link UnboundedSource.CheckpointMark}.
+   */
+  public static class Unbounded<T, CheckpointMarkT extends
+        UnboundedSource.CheckpointMark> extends RDD<scala.Tuple2<Source<T>, CheckpointMarkT>> {
+    private final MicrobatchSource<T, CheckpointMarkT> microbatchSource;
+    private final SparkRuntimeContext runtimeContext;
+
+    // to satisfy Scala API.
+    private static final scala.collection.immutable.List<Dependency<?>> NIL =
+        scala.collection.JavaConversions
+            .asScalaBuffer(Collections.<Dependency<?>>emptyList()).toList();
+
+    public Unbounded(SparkContext sc,
+                     SparkRuntimeContext runtimeContext,
+                     MicrobatchSource<T, CheckpointMarkT> microbatchSource) {
+      super(sc, NIL,
+          JavaSparkContext$.MODULE$.<scala.Tuple2<Source<T>, CheckpointMarkT>>fakeClassTag());
+      this.runtimeContext = runtimeContext;
+      this.microbatchSource = microbatchSource;
+    }
+
+    @Override
+    public Partition[] getPartitions() {
+      try {
+        List<? extends Source<T>> partitionedSources = microbatchSource.splitIntoBundles(
+            -1 /* ignored */, runtimeContext.getPipelineOptions());
+        Partition[] partitions = new CheckpointableSourcePartition[partitionedSources.size()];
+        for (int i = 0; i < partitionedSources.size(); i++) {
+          partitions[i] = new CheckpointableSourcePartition<>(id(), i, partitionedSources.get(i),
+              EmptyCheckpointMark.get());
+        }
+        return partitions;
+      } catch (Exception e) {
+        throw new RuntimeException("Failed to create partitions.", e);
+      }
+    }
+
+    @Override
+    public scala.collection.Iterator<scala.Tuple2<Source<T>, CheckpointMarkT>>
+    compute(Partition split, TaskContext context) {
+      @SuppressWarnings("unchecked")
+      CheckpointableSourcePartition<T, CheckpointMarkT> partition =
+          (CheckpointableSourcePartition<T, CheckpointMarkT>) split;
+      scala.Tuple2<Source<T>, CheckpointMarkT> tuple2 =
+          new scala.Tuple2<>(partition.getSource(), partition.checkpointMark);
+      return scala.collection.JavaConversions.asScalaIterator(
+          Collections.singleton(tuple2).iterator());
+    }
+  }
+
+  /** A {@link SourcePartition} with a {@link UnboundedSource.CheckpointMark}. */
+  private static class CheckpointableSourcePartition<T, CheckpointMarkT extends
+      UnboundedSource.CheckpointMark> extends SourcePartition<T> {
+    private final CheckpointMarkT checkpointMark;
+
+    CheckpointableSourcePartition(int rddId,
+                                  int index,
+                                  Source<T> source,
+                                  CheckpointMarkT checkpointMark) {
+      super(rddId, index, source);
+      this.checkpointMark = checkpointMark;
     }
   }
 }

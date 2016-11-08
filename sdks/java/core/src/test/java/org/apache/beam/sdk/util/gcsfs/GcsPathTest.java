@@ -31,7 +31,9 @@ import java.util.Iterator;
 import java.util.List;
 import org.hamcrest.Matchers;
 import org.junit.Assert;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
@@ -72,6 +74,9 @@ public class GcsPathTest {
       new TestCase("gs://bucket/then/object//", "bucket", "then", "object/", ""),
       new TestCase("gs://bucket/", "bucket")
   );
+
+  @Rule
+  public ExpectedException thrown = ExpectedException.none();
 
   @Test
   public void testGcsPathParsing() throws Exception {
@@ -234,6 +239,26 @@ public class GcsPathTest {
     GcsPath a = GcsPath.fromComponents("bucket", "a");
     GcsPath b = a.resolve(Paths.get("b"));
     assertEquals("a/b", b.getObject());
+  }
+
+  @Test
+  public void testGetFileName() {
+    assertEquals("foo", GcsPath.fromUri("gs://bucket/bar/foo").getFileName().toString());
+    assertEquals("foo", GcsPath.fromUri("gs://bucket/foo").getFileName().toString());
+    thrown.expect(UnsupportedOperationException.class);
+    GcsPath.fromUri("gs://bucket/").getFileName();
+  }
+
+  @Test
+  public void testResolveSibling() {
+    assertEquals(
+        "gs://bucket/bar/moo",
+        GcsPath.fromUri("gs://bucket/bar/foo").resolveSibling("moo").toString());
+    assertEquals(
+        "gs://bucket/moo",
+        GcsPath.fromUri("gs://bucket/foo").resolveSibling("moo").toString());
+    thrown.expect(UnsupportedOperationException.class);
+    GcsPath.fromUri("gs://bucket/").resolveSibling("moo");
   }
 
   @Test

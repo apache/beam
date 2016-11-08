@@ -74,7 +74,6 @@ public class CompressedSource<T> extends FileBasedSource<T> {
   public interface DecompressingChannelFactory extends Serializable {
     /**
      * Given a channel, create a channel that decompresses the content read from the channel.
-     * @throws IOException
      */
     ReadableByteChannel createDecompressingChannel(ReadableByteChannel channel)
         throws IOException;
@@ -88,7 +87,6 @@ public class CompressedSource<T> extends FileBasedSource<T> {
       extends DecompressingChannelFactory {
     /**
      * Given a channel, create a channel that decompresses the content read from the channel.
-     * @throws IOException
      */
     ReadableByteChannel createDecompressingChannel(String fileName, ReadableByteChannel channel)
         throws IOException;
@@ -301,7 +299,7 @@ public class CompressedSource<T> extends FileBasedSource<T> {
    */
   private CompressedSource(
       FileBasedSource<T> sourceDelegate, DecompressingChannelFactory channelFactory) {
-    super(sourceDelegate.getFileOrPatternSpec(), Long.MAX_VALUE);
+    super(sourceDelegate.getFileOrPatternSpecProvider(), Long.MAX_VALUE);
     this.sourceDelegate = sourceDelegate;
     this.channelFactory = channelFactory;
   }

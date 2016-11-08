@@ -209,6 +209,39 @@ public class JdbcIOTest implements Serializable {
     pipeline.run();
   }
 
+   @Test
+   @Category(NeedsRunner.class)
+   public void testReadWithSingleStringParameter() throws Exception {
+     TestPipeline pipeline = TestPipeline.create();
+
+     PCollection<KV<String, Integer>> output = pipeline.apply(
+             JdbcIO.<KV<String, Integer>>read()
+                     .withDataSourceConfiguration(JdbcIO.DataSourceConfiguration.create(dataSource))
+                     .withQuery("select name,id from BEAM where name = ?")
+                     .withStatementPrepator(new JdbcIO.StatementPreparator() {
+                       @Override
+                       public void setParameters(PreparedStatement preparedStatement)
+                               throws Exception {
+                         preparedStatement.setString(1, "Darwin");
+                       }
+                     })
+                     .withRowMapper(new JdbcIO.RowMapper<KV<String, Integer>>() {
+                       @Override
+                       public KV<String, Integer> mapRow(ResultSet resultSet) throws Exception {
+                         KV<String, Integer> kv =
+                                 KV.of(resultSet.getString("name"), resultSet.getInt("id"));
+                         return kv;
+                       }
+                     })
+                     .withCoder(KvCoder.of(StringUtf8Coder.of(), BigEndianIntegerCoder.of())));
+
+     PAssert.thatSingleton(
+             output.apply("Count One Scientist", Count.<KV<String, Integer>>globally()))
+             .isEqualTo(100L);
+
+     pipeline.run();
+   }
+
   @Test
   @Category(NeedsRunner.class)
   public void testWrite() throws Exception {

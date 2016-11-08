@@ -51,6 +51,8 @@ import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.RunnableOnService;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.transforms.DoFn.OnTimer;
+import org.apache.beam.sdk.transforms.DoFn.ProcessElement;
 import org.apache.beam.sdk.transforms.ParDo.Bound;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.DisplayData.Builder;
@@ -58,7 +60,12 @@ import org.apache.beam.sdk.transforms.display.DisplayDataMatchers;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
+import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.Window;
+import org.apache.beam.sdk.util.TimeDomain;
+import org.apache.beam.sdk.util.TimerSpec;
+import org.apache.beam.sdk.util.TimerSpecs;
 import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
 import org.apache.beam.sdk.util.state.StateSpec;
 import org.apache.beam.sdk.util.state.StateSpecs;
@@ -72,6 +79,7 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -1510,6 +1518,59 @@ public class ParDoTest implements Serializable {
     public SomeTracker newTracker(Object restriction) {
       return null;
     }
+  }
+
+  @Test
+  public void testRejectsWrongWindowType() {
+    Pipeline p = TestPipeline.create();
+
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage(GlobalWindow.class.getSimpleName());
+    thrown.expectMessage(IntervalWindow.class.getSimpleName());
+    thrown.expectMessage("window type");
+    thrown.expectMessage("not a supertype");
+
+    p.apply(Create.of(1, 2, 3))
+        .apply(
+            ParDo.of(
+                new DoFn<Integer, Integer>() {
+                  @ProcessElement
+                  public void process(ProcessContext c, IntervalWindow w) {}
+                }));
+  }
+
+  /**
+   * Tests that it is OK to use different window types in the parameter lists to different
+   * {@link DoFn} functions, as long as they are all subtypes of the actual window type
+   * of the input.
+   *
+   * <p>Today, the only method other than {@link ProcessElement @ProcessElement} that can accept
+   * extended parameters is {@link OnTimer @OnTimer}, which is rejected before it reaches window
+   * type validation. Rather than delay validation, this test is temporarily disabled.
+   */
+  @Ignore("ParDo rejects this on account of it using timers")
+  @Test
+  public void testMultipleWindowSubtypesOK() {
+    final String timerId = "gobbledegook";
+
+    Pipeline p = TestPipeline.create();
+
+    p.apply(Create.of(1, 2, 3))
+        .apply(Window.<Integer>into(FixedWindows.of(Duration.standardSeconds(10))))
+        .apply(
+            ParDo.of(
+                new DoFn<Integer, Integer>() {
+                  @TimerId(timerId)
+                  private final TimerSpec spec = TimerSpecs.timer(TimeDomain.EVENT_TIME);
+
+                  @ProcessElement
+                  public void process(ProcessContext c, IntervalWindow w) {}
+
+                  @OnTimer(timerId)
+                  public void onTimer(BoundedWindow w) {}
+                }));
+
+    // If it doesn't crash, we made it!
   }
 
   @Test

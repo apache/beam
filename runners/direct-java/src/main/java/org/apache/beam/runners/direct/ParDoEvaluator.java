@@ -29,31 +29,29 @@ import org.apache.beam.runners.core.DoFnRunners;
 import org.apache.beam.runners.core.DoFnRunners.OutputManager;
 import org.apache.beam.runners.core.PushbackSideInputDoFnRunner;
 import org.apache.beam.runners.direct.DirectExecutionContext.DirectStepContext;
-import org.apache.beam.runners.direct.DirectRunner.CommittedBundle;
 import org.apache.beam.runners.direct.DirectRunner.UncommittedBundle;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.ReadyCheckingSideInputReader;
 import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.util.state.CopyOnAccessInMemoryStateInternals;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 
-class ParDoEvaluator<T> implements TransformEvaluator<T> {
-  public static <InputT, OutputT> ParDoEvaluator<InputT> create(
+class ParDoEvaluator<InputT, OutputT> implements TransformEvaluator<InputT> {
+  public static <InputT, OutputT> ParDoEvaluator<InputT, OutputT> create(
       EvaluationContext evaluationContext,
       DirectStepContext stepContext,
-      CommittedBundle<InputT> inputBundle,
       AppliedPTransform<PCollection<InputT>, ?, ?> application,
+      WindowingStrategy<?, ? extends BoundedWindow> windowingStrategy,
       Serializable fn, // may be OldDoFn or DoFn
       List<PCollectionView<?>> sideInputs,
       TupleTag<OutputT> mainOutputTag,
       List<TupleTag<?>> sideOutputTags,
       Map<TupleTag<?>, PCollection<?>> outputs) {
-    DirectExecutionContext executionContext =
-        evaluationContext.getExecutionContext(application, inputBundle.getKey());
-
     AggregatorContainer.Mutator aggregatorChanges = evaluationContext.getAggregatorMutator();
 
     Map<TupleTag<?>, UncommittedBundle<?>> outputBundles = new HashMap<>();
@@ -75,7 +73,7 @@ class ParDoEvaluator<T> implements TransformEvaluator<T> {
             sideOutputTags,
             stepContext,
             aggregatorChanges,
-            application.getInput().getWindowingStrategy());
+            windowingStrategy);
     PushbackSideInputDoFnRunner<InputT, OutputT> runner =
         PushbackSideInputDoFnRunner.create(underlying, sideInputs, sideInputReader);
 
@@ -91,17 +89,17 @@ class ParDoEvaluator<T> implements TransformEvaluator<T> {
 
   ////////////////////////////////////////////////////////////////////////////////////////////////
 
-  private final PushbackSideInputDoFnRunner<T, ?> fnRunner;
-  private final AppliedPTransform<PCollection<T>, ?, ?> transform;
+  private final PushbackSideInputDoFnRunner<InputT, ?> fnRunner;
+  private final AppliedPTransform<PCollection<InputT>, ?, ?> transform;
   private final AggregatorContainer.Mutator aggregatorChanges;
   private final Collection<UncommittedBundle<?>> outputBundles;
   private final DirectStepContext stepContext;
 
-  private final ImmutableList.Builder<WindowedValue<T>> unprocessedElements;
+  private final ImmutableList.Builder<WindowedValue<InputT>> unprocessedElements;
 
   private ParDoEvaluator(
-      PushbackSideInputDoFnRunner<T, ?> fnRunner,
-      AppliedPTransform<PCollection<T>, ?, ?> transform,
+      PushbackSideInputDoFnRunner<InputT, ?> fnRunner,
+      AppliedPTransform<PCollection<InputT>, ?, ?> transform,
       AggregatorContainer.Mutator aggregatorChanges,
       Collection<UncommittedBundle<?>> outputBundles,
       DirectStepContext stepContext) {
@@ -114,9 +112,9 @@ class ParDoEvaluator<T> implements TransformEvaluator<T> {
   }
 
   @Override
-  public void processElement(WindowedValue<T> element) {
+  public void processElement(WindowedValue<InputT> element) {
     try {
-      Iterable<WindowedValue<T>> unprocessed = fnRunner.processElementInReadyWindows(element);
+      Iterable<WindowedValue<InputT>> unprocessed = fnRunner.processElementInReadyWindows(element);
       unprocessedElements.addAll(unprocessed);
     } catch (Exception e) {
       throw UserCodeException.wrap(e);
