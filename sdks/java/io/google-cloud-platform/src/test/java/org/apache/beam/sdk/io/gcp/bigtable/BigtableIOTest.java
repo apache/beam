@@ -77,10 +77,12 @@ import org.apache.beam.sdk.io.BoundedSource.BoundedReader;
 import org.apache.beam.sdk.io.gcp.bigtable.BigtableIO.BigtableSource;
 import org.apache.beam.sdk.io.range.ByteKey;
 import org.apache.beam.sdk.io.range.ByteKeyRange;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.testing.ExpectedLogs;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.DisplayDataEvaluator;
 import org.apache.beam.sdk.values.KV;
@@ -108,6 +110,13 @@ public class BigtableIOTest {
    * otherwise.
    */
   private static FakeBigtableService service;
+  private static SerializableFunction<PipelineOptions, BigtableService> serviceFactory =
+      new SerializableFunction<PipelineOptions, BigtableService>() {
+        @Override
+        public BigtableService apply(PipelineOptions input) {
+          return service;
+        }
+  };
   private static final BigtableOptions BIGTABLE_OPTIONS =
       new BigtableOptions.Builder()
           .setProjectId("project")
@@ -359,7 +368,7 @@ public class BigtableIOTest {
     service.setupSampleRowKeys(table, numSamples, bytesPerRow);
 
     BigtableSource source =
-        new BigtableSource(service, table, null, service.getTableRange(table), null);
+        new BigtableSource(serviceFactory, table, null, service.getTableRange(table), null);
     assertSplitAtFractionExhaustive(source, null);
   }
 
@@ -376,7 +385,7 @@ public class BigtableIOTest {
     service.setupSampleRowKeys(table, numSamples, bytesPerRow);
 
     BigtableSource source =
-        new BigtableSource(service, table, null, service.getTableRange(table), null);
+        new BigtableSource(serviceFactory, table, null, service.getTableRange(table), null);
     // With 0 items read, all split requests will fail.
     assertSplitAtFractionFails(source, 0, 0.1, null /* options */);
     assertSplitAtFractionFails(source, 0, 1.0, null /* options */);
@@ -406,7 +415,11 @@ public class BigtableIOTest {
 
     // Generate source and split it.
     BigtableSource source =
-        new BigtableSource(service, table, null /*filter*/, ByteKeyRange.ALL_KEYS, null /*size*/);
+        new BigtableSource(serviceFactory,
+            table,
+            null /*filter*/,
+            ByteKeyRange.ALL_KEYS,
+            null /*size*/);
     List<BigtableSource> splits =
         source.splitIntoBundles(numRows * bytesPerRow / numSamples, null /* options */);
 
@@ -430,7 +443,11 @@ public class BigtableIOTest {
 
     // Generate source and split it.
     BigtableSource source =
-        new BigtableSource(service, table, null /*filter*/, ByteKeyRange.ALL_KEYS, null /*size*/);
+        new BigtableSource(serviceFactory,
+        table,
+        null /*filter*/,
+        ByteKeyRange.ALL_KEYS,
+        null /*size*/);
     List<BigtableSource> splits = source.splitIntoBundles(numRows * bytesPerRow / numSplits, null);
 
     // Test num splits and split equality.
@@ -455,7 +472,7 @@ public class BigtableIOTest {
     RowFilter filter =
         RowFilter.newBuilder().setRowKeyRegexFilter(ByteString.copyFromUtf8(".*17.*")).build();
     BigtableSource source =
-        new BigtableSource(service, table, filter, ByteKeyRange.ALL_KEYS, null /*size*/);
+        new BigtableSource(serviceFactory, table, filter, ByteKeyRange.ALL_KEYS, null /*size*/);
     List<BigtableSource> splits = source.splitIntoBundles(numRows * bytesPerRow / numSplits, null);
 
     // Test num splits and split equality.
@@ -589,7 +606,7 @@ public class BigtableIOTest {
     makeTableData(table, numRows);
 
     BigtableSource source =
-        new BigtableSource(service, table, null, ByteKeyRange.ALL_KEYS, null);
+        new BigtableSource(serviceFactory, table, null, ByteKeyRange.ALL_KEYS, null);
 
     BoundedReader<Row> reader = source.createReader(TestPipeline.testingPipelineOptions());
 
