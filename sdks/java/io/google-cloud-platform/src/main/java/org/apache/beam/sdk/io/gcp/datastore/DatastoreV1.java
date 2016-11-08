@@ -425,6 +425,7 @@ public class DatastoreV1 {
           .build();
     }
 
+    @Override
     public PCollection<Entity> expand(PBegin input) {
       V1Options v1Options = V1Options.from(getProjectId(), getQuery(),
           getNamespace(), getLocalhost());
@@ -1054,6 +1055,11 @@ public class DatastoreV1 {
       } else {
         initializer = new RetryHttpRequestInitializer();
       }
+
+      DatastoreOptions.Builder builder =
+          new DatastoreOptions.Builder()
+              .projectId(projectId)
+              .initializer(initializer);
 
       if (localhost != null) {
         builder.localHost(localhost);

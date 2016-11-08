@@ -148,8 +148,8 @@ class V1TestUtil {
     DatastoreOptions.Builder builder =
         new DatastoreOptions.Builder()
             .projectId(projectId)
-            .initializer(initializer);
-            .localhost(localhost)
+            .initializer(initializer)
+            .localhost(localhost);
 
     return DatastoreFactory.get().create(builder.build());
   }
