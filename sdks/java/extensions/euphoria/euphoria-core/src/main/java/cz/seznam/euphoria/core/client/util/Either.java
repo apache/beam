@@ -54,7 +54,7 @@ public final class Either<LEFT, RIGHT> {
   public RIGHT right() {
     return right;
   }
-
+  
   @Override
   public String toString() {
     return "Either{" +

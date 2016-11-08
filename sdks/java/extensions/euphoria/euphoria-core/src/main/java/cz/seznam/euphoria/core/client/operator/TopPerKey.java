@@ -6,6 +6,7 @@ import cz.seznam.euphoria.core.client.operator.state.State;
 import cz.seznam.euphoria.core.client.operator.state.StorageProvider;
 import cz.seznam.euphoria.core.client.operator.state.ValueStorage;
 import cz.seznam.euphoria.core.client.dataset.Dataset;
+import cz.seznam.euphoria.core.client.dataset.Partitioning;
 import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.dataset.windowing.Window;
 import cz.seznam.euphoria.core.client.flow.Flow;
@@ -123,7 +124,7 @@ public class TopPerKey<
   }
 
   public static class WindowByBuilder<IN, K, V, S extends Comparable<S>>
-      extends PartitioningBuilder<IN, WindowByBuilder<IN, K, V, S>>
+      extends PartitioningBuilder<K, WindowByBuilder<IN, K, V, S>>
       implements cz.seznam.euphoria.core.client.operator.OutputBuilder<Triple<K, V, S>>
   {
     private final Dataset<IN> input;
@@ -136,7 +137,8 @@ public class TopPerKey<
                     UnaryFunction<IN, V> valueFn,
                     UnaryFunction<IN, S> scoreFn)
     {
-      super(new DefaultPartitioning<>(input.getPartitioning().getNumPartitions()));
+      super(new DefaultPartitioning<>(
+          input.getPartitioning().getNumPartitions()));
 
       this.input = input;
       this.keyFn = keyFn;
@@ -146,14 +148,15 @@ public class TopPerKey<
 
     public <W extends Window>
     OutputBuilder<IN, K, V, S, W>
-    windowBy(Windowing<IN, W> windowing)
-    {
-      return new OutputBuilder<>(input, keyFn, valueFn, scoreFn, requireNonNull(windowing));
+    windowBy(Windowing<IN, W> windowing) {
+      return new OutputBuilder<>(
+          input, keyFn, valueFn, scoreFn, getPartitioning(), requireNonNull(windowing));
     }
 
     @Override
     public Dataset<Triple<K, V, S>> output() {
-      return new OutputBuilder<>(input, keyFn, valueFn, scoreFn, null).output();
+      return new OutputBuilder<>(
+          input, keyFn, valueFn, scoreFn, getPartitioning(), null).output();
     }
   }
 
@@ -165,16 +168,19 @@ public class TopPerKey<
     private final UnaryFunction<IN, K> keyFn;
     private final UnaryFunction<IN, V> valueFn;
     private final UnaryFunction<IN, S> scoreFn;
+    private final Partitioning<K> partitioning;
     private final Windowing<IN, W> windowing;
 
     OutputBuilder(Dataset<IN> input, UnaryFunction<IN, K> keyFn,
                   UnaryFunction<IN, V> valueFn, UnaryFunction<IN, S> scoreFn,
-                  Windowing<IN, W> windowing)
-    {
+                  Partitioning<K> partitioning,
+                  Windowing<IN, W> windowing) {
+      
       this.input = input;
       this.keyFn = keyFn;
       this.valueFn = valueFn;
       this.scoreFn = scoreFn;
+      this.partitioning = partitioning;
       this.windowing = windowing;
     }
 
@@ -182,7 +188,8 @@ public class TopPerKey<
     public Dataset<Triple<K, V, S>> output() {
       Flow flow = input.getFlow();
       TopPerKey<IN, K, V, S, W> top =
-          new TopPerKey<>(flow, input, keyFn, valueFn, scoreFn, windowing);
+          new TopPerKey<>(
+              flow, input, keyFn, valueFn, scoreFn, partitioning, windowing);
       flow.add(top);
       return top.output();
     }
@@ -201,11 +208,13 @@ public class TopPerKey<
             UnaryFunction<IN, KEY> keyFn,
             UnaryFunction<IN, VALUE> valueFn,
             UnaryFunction<IN, SCORE> scoreFn,
-            Windowing<IN, W> windowing)
-  {
+            Partitioning<KEY> partitioning,
+            Windowing<IN, W> windowing) {
     super("Top", flow, input, keyFn, windowing);
+    
     this.valueFn = valueFn;
     this.scoreFn = scoreFn;
+    this.partitioning = partitioning;
   }
 
   @Override
