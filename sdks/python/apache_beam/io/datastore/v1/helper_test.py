@@ -15,9 +15,11 @@
 # limitations under the License.
 #
 
+"""Tests for datastore helper."""
+
+import unittest
 from apache_beam.io.datastore.v1 import helper
 from google.datastore.v1.entity_pb2 import Key
-import unittest
 
 
 class HelperTest(unittest.TestCase):

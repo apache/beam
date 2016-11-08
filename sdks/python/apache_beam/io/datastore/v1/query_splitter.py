@@ -131,7 +131,7 @@ def _create_scatter_query(query, num_splits):
   # ||---*------*------*------*------*------*------*---||  * = scatter entity
   # If we represent each split as a region before a scatter entity, there is an
   # extra region following the last scatter point. Thus, we do not need the
-  # scatter entities for the last region.
+  # scatter entity for the last region.
   scatter_query.limit.value = (num_splits - 1) * KEYS_PER_SPLIT
   googledatastore.helper.add_projection(scatter_query, KEY_PROPERTY_NAME)
 

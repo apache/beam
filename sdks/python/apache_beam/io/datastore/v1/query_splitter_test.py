@@ -24,7 +24,6 @@ from mock import MagicMock
 from mock import call
 
 from apache_beam.io.datastore.v1 import query_splitter
-from apache_beam.io.datastore.v1 import helper
 
 from google.datastore.v1 import datastore_pb2
 from google.datastore.v1 import query_pb2
@@ -72,20 +71,20 @@ class QuerySplitterTest(unittest.TestCase):
     kind = query.kind.add()
     kind.name = 'shakespeare-demo'
     num_splits = 2
-    num_entities = 100
-    batch_size = 10
+    num_entities = 97
+    batch_size = 9
 
-    self.get_splits_test(query, num_splits, num_entities, batch_size)
+    self.check_get_splits(query, num_splits, num_entities, batch_size)
 
   def test_get_splits_with_multiple_splits(self):
     query = query_pb2.Query()
     kind = query.kind.add()
     kind.name = 'shakespeare-demo'
     num_splits = 4
-    num_entities = 400
-    batch_size = 10
+    num_entities = 369
+    batch_size = 12
 
-    self.get_splits_test(query, num_splits, num_entities, batch_size)
+    self.check_get_splits(query, num_splits, num_entities, batch_size)
 
   def test_get_splits_with_large_num_splits(self):
     query = query_pb2.Query()
@@ -95,7 +94,7 @@ class QuerySplitterTest(unittest.TestCase):
     num_entities = 4
     batch_size = 10
 
-    self.get_splits_test(query, num_splits, num_entities, batch_size)
+    self.check_get_splits(query, num_splits, num_entities, batch_size)
 
   def test_get_splits_with_small_num_entities(self):
     query = query_pb2.Query()
@@ -105,9 +104,10 @@ class QuerySplitterTest(unittest.TestCase):
     num_entities = 50
     batch_size = 10
 
-    self.get_splits_test(query, num_splits, num_entities, batch_size)
+    self.check_get_splits(query, num_splits, num_entities, batch_size)
 
   def test_get_splits_with_batch_size_exact_multiple(self):
+    """Test get_splits when num scatter keys is a multiple of batch size."""
     query = query_pb2.Query()
     kind = query.kind.add()
     kind.name = 'shakespeare-demo'
@@ -115,9 +115,10 @@ class QuerySplitterTest(unittest.TestCase):
     num_entities = 400
     batch_size = 32
 
-    self.get_splits_test(query, num_splits, num_entities, batch_size)
+    self.check_get_splits(query, num_splits, num_entities, batch_size)
 
   def test_get_splits_with_large_batch_size(self):
+    """Test get_splits when all scatter keys are retured in a single req."""
     query = query_pb2.Query()
     kind = query.kind.add()
     kind.name = 'shakespeare-demo'
@@ -125,29 +126,34 @@ class QuerySplitterTest(unittest.TestCase):
     num_entities = 400
     batch_size = 500
 
-    self.get_splits_test(query, num_splits, num_entities, batch_size)
+    self.check_get_splits(query, num_splits, num_entities, batch_size)
 
-  def get_splits_test(self, query, num_splits, num_entities, batch_size):
-    expected_requests = QuerySplitterTest.create_scatter_requests(
-        query, num_splits, batch_size, num_entities)
+  def check_get_splits(self, query, num_splits, num_entities, batch_size):
+    """A helper method to test the query_splitter get_splits method.
+
+    Args:
+      query: the query to be split
+      num_splits: number of splits
+      num_entities: number of scatter entities contained in the fake datastore.
+      batch_size: the number of entities returned by fake datastore in one req.
+    """
 
     entities = QuerySplitterTest.create_entities(num_entities)
     mock_datastore = MagicMock()
+    # Assign a fake run_query method as a side_effect to the mock.
     mock_datastore.run_query.side_effect = \
       QuerySplitterTest.create_run_query(entities, batch_size)
 
-    # if request num_splits is greater than num_entities, the best we can
-    # do is one entity per split.
-    expected_num_splits = min(num_splits, num_entities + 1)
     split_queries = query_splitter.get_splits(mock_datastore, query, num_splits)
 
+    # if request num_splits is greater than num_entities, the best it can
+    # do is one entity per split.
+    expected_num_splits = min(num_splits, num_entities + 1)
     self.assertEqual(len(split_queries), expected_num_splits)
 
-    keys = []
-    for entity_result in entities:
-      keys.append(entity_result.entity.key)
+    expected_requests = QuerySplitterTest.create_scatter_requests(
+        query, num_splits, batch_size, num_entities)
 
-    keys.sort(helper.key_comparator)
     expected_calls = []
     for req in expected_requests:
       expected_calls.append(call(req))
@@ -156,9 +162,21 @@ class QuerySplitterTest(unittest.TestCase):
 
   @staticmethod
   def create_run_query(entities, batch_size):
+    """A fake datastore run_query method that returns entities in batches.
+
+    Note: the outer method is needed to make the `entities` and `batch_size`
+    available in the scope of fake_run_query method.
+
+    Args:
+      entities: list of entities supposed to be contained in the datastore.
+      batch_size: the number of entities that run_query method returns in one
+                  request.
+    """
     def fake_run_query(req):
       start = int(req.query.start_cursor) if req.query.start_cursor else 0
+      # if query limit is less than batch_size, then only return that much.
       count = min(batch_size, req.query.limit.value)
+      # cannot go more than the number of entities contained in datastore.
       end = min(len(entities), start + count)
       finish = False
       # Finish reading when there are no more entities to return,
@@ -171,6 +189,12 @@ class QuerySplitterTest(unittest.TestCase):
 
   @staticmethod
   def create_scatter_requests(query, num_splits, batch_size, num_entities):
+    """Creates a list of expected scatter requests from the query splitter.
+
+    This list of requests returned is used to verify that the query splitter
+    made the same number of requests in the same order to datastore.
+    """
+
     requests = []
     count = (num_splits - 1) * query_splitter.KEYS_PER_SPLIT
     start_cursor = ''
@@ -189,6 +213,8 @@ class QuerySplitterTest(unittest.TestCase):
 
   @staticmethod
   def create_scatter_response(entities, end_cursor, finish):
+    """Creates a query response for a given batch of scatter entities."""
+
     resp = datastore_pb2.RunQueryResponse()
     if finish:
       resp.batch.more_results = query_pb2.QueryResultBatch.NO_MORE_RESULTS
@@ -203,6 +229,8 @@ class QuerySplitterTest(unittest.TestCase):
 
   @staticmethod
   def create_entities(count):
+    """Creates a list of entities with random keys."""
+
     entities = []
 
     for _ in range(0, count):
