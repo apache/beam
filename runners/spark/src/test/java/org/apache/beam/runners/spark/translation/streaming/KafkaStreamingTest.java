@@ -23,6 +23,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.Map;
 import java.util.Properties;
+import org.apache.beam.runners.spark.SparkContextOptions;
 import org.apache.beam.runners.spark.SparkPipelineOptions;
 import org.apache.beam.runners.spark.translation.streaming.utils.EmbeddedKafkaCluster;
 import org.apache.beam.runners.spark.translation.streaming.utils.KafkaWriteOnBatchCompleted;
@@ -121,7 +122,8 @@ public class KafkaStreamingTest {
 
   @Test
   public void testLatest() throws Exception {
-    SparkPipelineOptions options = commonOptions.withTmpCheckpointDir(checkpointParentDir);
+    SparkContextOptions options =
+        commonOptions.withTmpCheckpointDir(checkpointParentDir).as(SparkContextOptions.class);
     //--- setup
     final String topic = "topic";
     // messages.
