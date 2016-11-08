@@ -28,6 +28,7 @@ import java.nio.charset.StandardCharsets;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -39,6 +40,9 @@ import org.junit.runners.JUnit4;
 public class IOChannelUtilsTest {
   @Rule
   public TemporaryFolder tmpFolder = new TemporaryFolder();
+
+  @Rule
+  public ExpectedException thrown = ExpectedException.none();
 
   @Test
   public void testShardFormatExpansion() {
@@ -105,5 +109,13 @@ public class IOChannelUtilsTest {
         tmpFolder.getRoot().toPath().resolve("aa").resolve("bb").resolve("cc").toString();
     assertEquals(expected,
         IOChannelUtils.resolve(tmpFolder.getRoot().getPath(), "aa", "bb", "cc"));
+  }
+
+  @Test
+  public void testSetIOFactorySchemeConflicts() throws Exception {
+    thrown.expect(RuntimeException.class);
+    thrown.expectMessage("Failed to register IOChannelFactory");
+    IOChannelUtils.setIOFactory("test", FileIOChannelFactory.create());
+    IOChannelUtils.setIOFactory("test", FileIOChannelFactory.create());
   }
 }

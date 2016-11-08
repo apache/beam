@@ -60,6 +60,13 @@ public class IOChannelUtils {
    */
   @VisibleForTesting
   public static void setIOFactory(String scheme, IOChannelFactory factory) {
+    if (FACTORY_MAP.containsKey(scheme)) {
+      throw new RuntimeException(String.format(
+          "Failed to register IOChannelFactory: %s. Scheme [%s] is already registered with %s.",
+          FACTORY_MAP.get(scheme).getClass(),
+          scheme,
+          factory.getClass()));
+    }
     FACTORY_MAP.put(scheme, factory);
   }
 
