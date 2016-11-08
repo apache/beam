@@ -32,7 +32,6 @@ import com.google.common.collect.HashMultimap;
 import com.google.common.collect.Multimap;
 
 import java.io.IOException;
-import java.io.Serializable;
 import java.nio.ByteBuffer;
 import java.util.Collection;
 import java.util.Collections;
@@ -467,9 +466,7 @@ public class ApexGroupByKeyOperator<K, V> implements Operator {
 
   }
 
-  private class GroupByKeyStateInternalsFactory implements StateInternalsFactory<K>, Serializable {
-    private static final long serialVersionUID = 1L;
-
+  private class GroupByKeyStateInternalsFactory implements StateInternalsFactory<K> {
     @Override
     public StateInternals<K> stateInternalsForKey(K key) {
       return getStateInternalsForKey(key);

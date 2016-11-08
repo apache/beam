@@ -28,6 +28,7 @@ import com.google.common.base.Throwables;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicReference;
 
 import org.apache.beam.runners.apex.translation.ApexPipelineTranslator;
 import org.apache.beam.runners.core.AssignWindows;
@@ -73,7 +74,7 @@ public class ApexRunner extends PipelineRunner<ApexRunnerResult> {
    * Holds any most resent assertion error that was raised while processing elements.
    * Used in the unit test driver in embedded mode to propagate the exception.
    */
-  public static volatile AssertionError assertionError;
+  public static final AtomicReference<AssertionError> ASSERTION_ERROR = new AtomicReference<>();
 
   public ApexRunner(ApexPipelineOptions options) {
     this.options = options;
@@ -141,7 +142,7 @@ public class ApexRunner extends PipelineRunner<ApexRunnerResult> {
         // turns off timeout checking for operator progress
         lc.setHeartbeatMonitoringEnabled(false);
       }
-      assertionError = null;
+      ApexRunner.ASSERTION_ERROR.set(null);
       lc.runAsync();
       return new ApexRunnerResult(lma.getDAG(), lc);
     } catch (Exception e) {

@@ -95,8 +95,8 @@ public class ApexRunnerResult implements PipelineResult {
       appDoneField = ctrl.getClass().getDeclaredField("appDone");
       appDoneField.setAccessible(true);
       while (!appDoneField.getBoolean(ctrl) && System.currentTimeMillis() < timeout) {
-        if (ApexRunner.assertionError != null) {
-          throw ApexRunner.assertionError;
+        if (ApexRunner.ASSERTION_ERROR.get() != null) {
+          throw ApexRunner.ASSERTION_ERROR.get();
         }
         Thread.sleep(500);
       }

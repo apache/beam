@@ -240,7 +240,7 @@ public class ApexParDoOperator<InputT, OutputT> extends BaseOperator implements 
       return pushedBack;
     } catch (UserCodeException ue) {
       if (ue.getCause() instanceof AssertionError) {
-        ApexRunner.assertionError = (AssertionError) ue.getCause();
+        ApexRunner.ASSERTION_ERROR.set((AssertionError) ue.getCause());
       }
       throw ue;
     }

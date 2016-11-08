@@ -18,6 +18,7 @@
 package org.apache.beam.runners.apex.translation;
 
 import com.datatorrent.api.Sink;
+import com.datatorrent.lib.util.KryoCloneUtils;
 import com.google.common.collect.Lists;
 
 import java.util.List;
@@ -67,6 +68,10 @@ public class ApexGroupByKeyOperatorTest {
     ApexGroupByKeyOperator<String, Integer> operator = new ApexGroupByKeyOperator<>(options,
         input, new ApexStateInternals.ApexStateInternalsFactory<String>()
         );
+
+    operator.setup(null);
+    operator.beginWindow(1);
+    Assert.assertNotNull("Serialization", operator = KryoCloneUtils.cloneObject(operator));
 
     final List<Object> results = Lists.newArrayList();
     Sink<Object> sink =  new Sink<Object>() {
