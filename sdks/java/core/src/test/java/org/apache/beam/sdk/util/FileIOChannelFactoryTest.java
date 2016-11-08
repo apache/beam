@@ -46,7 +46,7 @@ import org.junit.runners.JUnit4;
 public class FileIOChannelFactoryTest {
   @Rule public ExpectedException thrown = ExpectedException.none();
   @Rule public TemporaryFolder temporaryFolder = new TemporaryFolder();
-  private FileIOChannelFactory factory = FileIOChannelFactory.create();
+  private FileIOChannelFactory factory = FileIOChannelFactory.fromOptions(null);
 
   private void testCreate(Path path) throws Exception {
     String expected = "my test string";

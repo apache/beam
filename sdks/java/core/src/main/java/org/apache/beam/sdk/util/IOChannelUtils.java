@@ -18,6 +18,10 @@
 package org.apache.beam.sdk.util;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Function;
+import com.google.common.base.Joiner;
+import com.google.common.base.Predicate;
+import com.google.common.collect.FluentIterable;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import java.io.FileNotFoundException;
@@ -33,6 +37,7 @@ import java.util.ServiceLoader;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import javax.annotation.Nonnull;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
 
@@ -57,12 +62,18 @@ public class IOChannelUtils {
    *
    * <p>For example, when reading from "gs://bucket/path", the scheme "gs" is
    * used to lookup the appropriate factory.
+   *
+   * @throws RuntimeException if override is false and schemes are conflicting.
    */
   @VisibleForTesting
-  public static void setIOFactory(String scheme, IOChannelFactory factory) {
-    if (FACTORY_MAP.containsKey(scheme)) {
+  public static void setIOFactoryInternal(
+      String scheme,
+      IOChannelFactory factory,
+      boolean override) {
+    if (!override && FACTORY_MAP.containsKey(scheme)) {
       throw new RuntimeException(String.format(
-          "Failed to register IOChannelFactory: %s. Scheme [%s] is already registered with %s.",
+          "Failed to register IOChannelFactory: %s. "
+              + "Scheme: [%s] is already registered with %s, and override is not allowed.",
           FACTORY_MAP.get(scheme).getClass(),
           scheme,
           factory.getClass()));
@@ -71,20 +82,89 @@ public class IOChannelUtils {
   }
 
   /**
+   * Deregisters the scheme and the associated {@link IOChannelFactory}.
+   */
+  @VisibleForTesting
+  static void deregisterScheme(String scheme) {
+    FACTORY_MAP.remove(scheme);
+  }
+
+  /**
    * Registers standard factories globally. This requires {@link PipelineOptions}
    * to provide, e.g., credentials for GCS.
+   *
+   * @deprecated use {@link #registerIOFactories} or {@link #registerIOFactoriesAllowOverride}.
    */
+  @Deprecated
   public static void registerStandardIOFactories(PipelineOptions options) {
-    setIOFactory("gs", GcsIOChannelFactory.fromOptions(options));
-    setIOFactory("file", FileIOChannelFactory.fromOptions(options));
+    registerIOFactoriesAllowOverride(options);
+  }
+
+  /**
+   * Registers all {@link IOChannelFactory IOChannelFactories} from {@link ServiceLoader}.
+   *
+   * <p>This requires {@link PipelineOptions} to provide, e.g., credentials for GCS.
+   *
+   * <p>Override existing schemes is not allowed.
+   *
+   * @throws RuntimeException if the scheme of a {@link IOChannelFactory} is already registered.
+   */
+  public static void registerIOFactories(PipelineOptions options) {
+    registerIOFactoriesInternal(options, false /* override */);
+  }
+
+  /**
+   * Registers all {@link IOChannelFactory IOChannelFactories} from {@link ServiceLoader}.
+   *
+   * <p>This requires {@link PipelineOptions} to provide, e.g., credentials for GCS.
+   *
+   * <p>Override existing schemes is allowed.
+   */
+  public static void registerIOFactoriesAllowOverride(PipelineOptions options) {
+    registerIOFactoriesInternal(options, true /* override */);
+  }
+
+  private static void registerIOFactoriesInternal(
+      PipelineOptions options, boolean override) {
     Set<IOChannelFactoryRegistrar> registrars =
         Sets.newTreeSet(ReflectHelpers.ObjectsClassComparator.INSTANCE);
     registrars.addAll(Lists.newArrayList(
         ServiceLoader.load(IOChannelFactoryRegistrar.class, CLASS_LOADER)));
+
+    checkDuplicateScheme(registrars);
+
     for (IOChannelFactoryRegistrar registrar : registrars) {
-      setIOFactory(
+      setIOFactoryInternal(
           registrar.getScheme(),
-          registrar.fromOptions(options));
+          registrar.fromOptions(options),
+          override);
+    }
+  }
+
+  @VisibleForTesting
+  static void checkDuplicateScheme(Set<IOChannelFactoryRegistrar> registrars) {
+    Set<String> schemes = Sets.newHashSet();
+    for (IOChannelFactoryRegistrar registrar : registrars) {
+      final String scheme = registrar.getScheme();
+      if (!schemes.add(scheme)) {
+        String conflictingRegistrars = FluentIterable.from(registrars)
+            .filter(new Predicate<IOChannelFactoryRegistrar>() {
+              @Override
+              public boolean apply(@Nonnull IOChannelFactoryRegistrar input) {
+                return input.getScheme().equals(scheme);
+              }})
+            .transform(new Function<IOChannelFactoryRegistrar, String>() {
+              @Override
+              public String apply(@Nonnull IOChannelFactoryRegistrar input) {
+                return input.getClass().getName();
+              }})
+            .join(Joiner.on(", "));
+
+        throw new RuntimeException(String.format(
+            "Scheme: [%s] has conflicting registrars: [%s]",
+            scheme,
+            conflictingRegistrars));
+      }
     }
   }
 
@@ -198,7 +278,7 @@ public class IOChannelUtils {
     Matcher matcher = URI_SCHEME_PATTERN.matcher(spec);
 
     if (!matcher.matches()) {
-      return FileIOChannelFactory.create();
+      return FileIOChannelFactory.fromOptions(null);
     }
 
     String scheme = matcher.group("scheme");

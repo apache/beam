@@ -19,12 +19,15 @@ package org.apache.beam.sdk.util;
 
 import static org.hamcrest.Matchers.instanceOf;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
+import com.google.common.collect.Sets;
 import com.google.common.io.Files;
 import java.io.File;
 import java.nio.charset.StandardCharsets;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
@@ -112,10 +115,34 @@ public class IOChannelUtilsTest {
   }
 
   @Test
-  public void testSetIOFactorySchemeConflicts() throws Exception {
+  public void testRegisterIOFactoriesAllowOverride() throws Exception {
+    IOChannelUtils.registerIOFactoriesAllowOverride(PipelineOptionsFactory.create());
+    IOChannelUtils.registerIOFactoriesAllowOverride(PipelineOptionsFactory.create());
+    assertNotNull(IOChannelUtils.getFactory("gs"));
+    assertNotNull(IOChannelUtils.getFactory("file"));
+  }
+
+  @Test
+  public void testRegisterIOFactories() throws Exception {
+    IOChannelUtils.deregisterScheme("gs");
+    IOChannelUtils.deregisterScheme("file");
+
+    IOChannelUtils.registerIOFactories(PipelineOptionsFactory.create());
+    assertNotNull(IOChannelUtils.getFactory("gs"));
+    assertNotNull(IOChannelUtils.getFactory("file"));
     thrown.expect(RuntimeException.class);
     thrown.expectMessage("Failed to register IOChannelFactory");
-    IOChannelUtils.setIOFactory("test", FileIOChannelFactory.create());
-    IOChannelUtils.setIOFactory("test", FileIOChannelFactory.create());
+    thrown.expectMessage("override is not allowed");
+    IOChannelUtils.registerIOFactories(PipelineOptionsFactory.create());
+  }
+
+  @Test
+  public void testCheckDuplicateScheme() throws Exception {
+    thrown.expect(RuntimeException.class);
+    thrown.expectMessage("Scheme: [file] has conflicting registrars");
+    IOChannelUtils.checkDuplicateScheme(
+        Sets.<IOChannelFactoryRegistrar>newHashSet(
+            new FileIOChannelFactoryRegistrar(),
+            new FileIOChannelFactoryRegistrar()));
   }
 }

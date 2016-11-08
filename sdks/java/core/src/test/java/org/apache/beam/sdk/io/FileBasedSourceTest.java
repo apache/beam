@@ -462,7 +462,7 @@ public class FileBasedSourceTest {
                 new File(parent, "file1").getPath(),
                 new File(parent, "file2").getPath(),
                 new File(parent, "file3").getPath()));
-    IOChannelUtils.setIOFactory("mocked", mockIOFactory);
+    IOChannelUtils.setIOFactoryInternal("mocked", mockIOFactory, true /* override */);
 
     List<String> data2 = createStringDataset(3, 50);
     createFileWithData("file2", data2);
