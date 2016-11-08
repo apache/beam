@@ -31,6 +31,7 @@ public class FlinkExecutor implements Executor {
   private Duration autoWatermarkInterval = Duration.ofMillis(200);
   private Duration allowedLateness = Duration.ofMillis(0);
   private final Set<Class<?>> registeredClasses = new HashSet<>();
+  private long checkpointInterval = -1L;
 
   public FlinkExecutor() {
     this(false);
@@ -66,8 +67,17 @@ public class FlinkExecutor implements Executor {
       
       Settings settings = flow.getSettings();
 
-      if (mode == ExecutionEnvironment.Mode.STREAMING && stateBackend.isPresent()) {
+      if (mode == ExecutionEnvironment.Mode.STREAMING) {
+        if (stateBackend.isPresent()) {
           environment.getStreamEnv().setStateBackend(stateBackend.get());
+        }
+        if (checkpointInterval > 0) {
+          LOG.info("Enabled checkpoints every {} milliseconds", checkpointInterval);
+          environment.getStreamEnv().enableCheckpointing(checkpointInterval);
+        } else {
+          LOG.warn("Not enabling checkpointing, your flow is probably not fault tolerant "
+              + " and/or might encounter performance issues!");
+        }
       }
 
       FlowTranslator translator;
@@ -152,6 +162,14 @@ public class FlinkExecutor implements Executor {
    */
   public FlinkExecutor registerClass(Class<?> cls) {
     registeredClasses.add(cls);
+    return this;
+  }
+
+  /**
+   * Set the checkpointing interval in milliseconds.
+   */
+  public FlinkExecutor setCheckpointInterval(long interval) {
+    this.checkpointInterval = interval;
     return this;
   }
 }
