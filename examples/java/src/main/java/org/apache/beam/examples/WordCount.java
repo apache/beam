@@ -18,9 +18,21 @@
 package org.apache.beam.examples;
 
 import com.google.common.base.Strings;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
+
 import java.io.IOException;
+import java.io.OutputStream;
+import java.nio.channels.Channels;
+import java.nio.charset.StandardCharsets;
+import java.util.List;
+import java.util.Map;
+
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.io.TextIO;
+import org.apache.beam.sdk.coders.BigEndianLongCoder;
+import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.coders.VoidCoder;
+import org.apache.beam.sdk.io.CountingInput;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.DefaultValueFactory;
 import org.apache.beam.sdk.options.Description;
@@ -29,15 +41,24 @@ import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.Aggregator;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.MapElements;
+import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.transforms.Sum;
+import org.apache.beam.sdk.transforms.WithKeys;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.windowing.FixedWindows;
+import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.util.IOChannelFactory;
 import org.apache.beam.sdk.util.IOChannelUtils;
+import org.apache.beam.sdk.util.MimeTypes;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+
+import org.joda.time.Duration;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * An example that counts words in Shakespeare and includes Beam best practices.
@@ -82,6 +103,8 @@ import org.apache.beam.sdk.values.PCollection;
  * and can be overridden with {@code --inputFile}.
  */
 public class WordCount {
+
+  private static final Logger LOG = LoggerFactory.getLogger(WordCount.class);
 
   /**
    * Concept #2: You can make your pipeline code less verbose by defining your DoFns statically out-
@@ -192,10 +215,51 @@ public class WordCount {
 
     // Concepts #2 and #3: Our pipeline applies the composite CountWords transform, and passes the
     // static FormatAsTextFn() to the ParDo transform.
-    p.apply("ReadLines", TextIO.Read.from(options.getInputFile()))
-     .apply(new CountWords())
-     .apply(MapElements.via(new FormatAsTextFn()))
-     .apply("WriteCounts", TextIO.Write.to(options.getOutput()));
+    p.apply("CountingInput", CountingInput.unbounded())
+    .apply("WindowInto", Window.<Long>into(FixedWindows.of(Duration.standardMinutes(1))))
+    .apply("WithKeys", WithKeys.<Void, Long>of((Void) null))
+    .setCoder(KvCoder.of(VoidCoder.of(), BigEndianLongCoder.of()))
+    .apply(GroupByKey.<Void, Long>create())
+    .apply("WriteFn", ParDo.of(new DoFn<KV<Void, Iterable<Long>>, Void>() {
+      private transient Map<String, List<String>> outputs;
+
+      @StartBundle
+      public void startBundle(Context c) {
+        outputs = Maps.newHashMap();
+      }
+
+      @ProcessElement
+      public void processElement(ProcessContext c, BoundedWindow w) throws Exception {
+        String filename = new StringBuilder()
+            .append(c.getPipelineOptions().as(WordCountOptions.class).getOutput())
+            .append("/")
+            .append(w.toString())
+            .toString();
+        List<String> values = outputs.get(filename);
+        if (values == null) {
+          values = Lists.newArrayList();
+          outputs.put(filename, values);
+        }
+        for (Long v : c.element().getValue()) {
+          values.add(v.toString());
+        }
+        LOG.info("element: " + c.element());
+      }
+
+      @FinishBundle
+      public void finishBundle(Context c) throws IOException {
+        for (String filename : outputs.keySet()) {
+          OutputStream out = Channels.newOutputStream(
+              IOChannelUtils.create(filename, MimeTypes.TEXT));
+          for (String v : outputs.get(filename)) {
+            out.write(v.getBytes(StandardCharsets.UTF_8));
+            out.write("\n".getBytes(StandardCharsets.UTF_8));
+          }
+          out.close();
+        }
+        outputs.clear();
+      }
+    }));
 
     p.run().waitUntilFinish();
   }
