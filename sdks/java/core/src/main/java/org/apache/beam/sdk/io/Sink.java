@@ -262,7 +262,8 @@ public abstract class Sink<T> implements Serializable, HasDisplayData {
      * Aborts writing the bundle. Removes resources used for writing the bundle,
      * and closes this {@link Writer}.
      *
-     * <p>Called for each failed bundle.
+     * <p>Called for each failed bundle with best effort. However, there is no strong guarantee in
+     * the events such as worker crashes.
      */
     public abstract void abort() throws Exception;
 
