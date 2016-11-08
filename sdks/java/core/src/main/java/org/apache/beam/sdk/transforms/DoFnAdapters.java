@@ -63,7 +63,7 @@ public class DoFnAdapters {
   /** Creates an {@link OldDoFn} that delegates to the {@link DoFn}. */
   @SuppressWarnings({"unchecked", "rawtypes"})
   public static <InputT, OutputT> OldDoFn<InputT, OutputT> toOldDoFn(DoFn<InputT, OutputT> fn) {
-    DoFnSignature signature = DoFnSignatures.INSTANCE.getSignature((Class) fn.getClass());
+    DoFnSignature signature = DoFnSignatures.getSignature((Class) fn.getClass());
     if (signature.processElement().observesWindow()) {
       return new WindowDoFnAdapter<>(fn);
     } else {
