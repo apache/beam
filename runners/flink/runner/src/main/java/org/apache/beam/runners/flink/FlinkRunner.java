@@ -298,6 +298,9 @@ public class FlinkRunner extends PipelineRunner<PipelineResult> {
    * {@link org.apache.beam.sdk.transforms.View.AsMap View.AsMap}
    * for the Flink runner in streaming mode.
    */
+  @edu.umd.cs.findbugs.annotations.SuppressFBWarnings(
+      value = "SE_BAD_FIELD",
+      justification = "PTransform is not really Serializable, see note on PTransform. ")
   private static class StreamingViewAsMap<K, V>
       extends PTransform<PCollection<KV<K, V>>, PCollectionView<Map<K, V>>> {
 
@@ -340,6 +343,9 @@ public class FlinkRunner extends PipelineRunner<PipelineResult> {
    * org.apache.beam.sdk.transforms.View.AsMultimap View.AsMultimap} for the
    * Flink runner in streaming mode.
    */
+  @edu.umd.cs.findbugs.annotations.SuppressFBWarnings(
+      value = "SE_BAD_FIELD",
+      justification = "PTransform is not really Serializable, see note on PTransform. ")
   private static class StreamingViewAsMultimap<K, V>
       extends PTransform<PCollection<KV<K, V>>, PCollectionView<Map<K, Iterable<V>>>> {
 

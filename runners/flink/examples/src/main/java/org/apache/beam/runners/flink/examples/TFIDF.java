@@ -129,7 +129,12 @@ public class TFIDF {
     Set<URI> uris = new HashSet<>();
     if (absoluteUri.getScheme().equals("file")) {
       File directory = new File(absoluteUri);
-      for (String entry : directory.list()) {
+      String[] directoryListing = directory.list();
+      if (directoryListing == null) {
+        throw new IOException(
+            "Directory " + absoluteUri + " is not a valid path or IO Error occurred.");
+      }
+      for (String entry : directoryListing) {
         File path = new File(directory, entry);
         uris.add(path.toURI());
       }
@@ -153,6 +158,9 @@ public class TFIDF {
    * Reads the documents at the provided uris and returns all lines
    * from the documents tagged with which document they are from.
    */
+  @edu.umd.cs.findbugs.annotations.SuppressFBWarnings(
+      value = "SE_BAD_FIELD",
+      justification = "PTransform is not really Serializable, see note on PTransform. ")
   public static class ReadDocuments
       extends PTransform<PBegin, PCollection<KV<URI, String>>> {
     private static final long serialVersionUID = 0;
