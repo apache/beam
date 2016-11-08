@@ -241,7 +241,6 @@ public class SplittableParDo<
       this.windowCoder = windowCoder;
       elementTag =
           StateTags.value("element", WindowedValue.getFullCoder(elementCoder, this.windowCoder));
-      DoFnInvoker<InputT, OutputT> invoker = DoFnInvokers.INSTANCE.newByteBuddyInvoker(fn);
       restrictionTag = StateTags.value("restriction", restrictionCoder);
     }
 
