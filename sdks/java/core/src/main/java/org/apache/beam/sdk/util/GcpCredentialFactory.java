@@ -51,6 +51,9 @@ public class GcpCredentialFactory implements CredentialFactory {
     return INSTANCE;
   }
 
+  /**
+   * Returns a default GCP {@link Credentials} or null when it fails.
+   */
   @Override
   public Credentials getCredential() {
     try {
