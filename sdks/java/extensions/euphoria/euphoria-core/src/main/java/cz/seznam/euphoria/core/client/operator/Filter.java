@@ -1,5 +1,6 @@
 package cz.seznam.euphoria.core.client.operator;
 
+import cz.seznam.euphoria.core.annotation.operator.Derived;
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.functional.UnaryPredicate;
@@ -10,6 +11,7 @@ import java.util.Objects;
 /**
  * Operator performing a filter operation.
  */
+@Derived(basic = FlatMap.class)
 public class Filter<IN> extends ElementWiseOperator<IN, IN> {
 
   public static class Builder1 {

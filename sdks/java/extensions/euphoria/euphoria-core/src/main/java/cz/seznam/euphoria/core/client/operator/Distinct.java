@@ -1,6 +1,7 @@
 
 package cz.seznam.euphoria.core.client.operator;
 
+import cz.seznam.euphoria.core.annotation.operator.Recommended;
 import cz.seznam.euphoria.core.client.dataset.windowing.Batch;
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.dataset.Partitioning;
@@ -17,6 +18,13 @@ import java.util.Objects;
 /**
  * Operator outputting distinct (based on equals) elements.
  */
+@Recommended(
+    reason =
+        "Might be useful to override the default "
+      + "implementation because of performance reasons"
+      + "(e.g. using bloom filters)",
+    basic = { ReduceByKey.class, FlatMap.class }
+)
 public class Distinct<IN, ELEM, W extends Window>
     extends StateAwareWindowWiseSingleInputOperator<
         IN, IN, IN, ELEM, ELEM, W, Distinct<IN, ELEM, W>>

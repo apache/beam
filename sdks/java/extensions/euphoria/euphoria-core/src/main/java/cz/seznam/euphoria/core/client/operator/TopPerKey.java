@@ -1,5 +1,6 @@
 package cz.seznam.euphoria.core.client.operator;
 
+import cz.seznam.euphoria.core.annotation.operator.Derived;
 import cz.seznam.euphoria.core.client.operator.state.State;
 import cz.seznam.euphoria.core.client.operator.state.StorageProvider;
 import cz.seznam.euphoria.core.client.operator.state.ValueStorage;
@@ -19,6 +20,7 @@ import java.util.Iterator;
 
 import static java.util.Objects.requireNonNull;
 
+@Derived(basic = ReduceByKey.class)
 public class TopPerKey<
         IN, KEY, VALUE, SCORE extends Comparable<SCORE>, W extends Window>
     extends StateAwareWindowWiseSingleInputOperator<

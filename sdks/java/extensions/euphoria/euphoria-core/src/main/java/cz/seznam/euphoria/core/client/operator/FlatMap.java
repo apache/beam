@@ -2,6 +2,7 @@
 
 package cz.seznam.euphoria.core.client.operator;
 
+import cz.seznam.euphoria.core.annotation.operator.Basic;
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.functional.UnaryFunctor;
@@ -11,6 +12,7 @@ import java.util.Objects;
 /**
  * Flat map operator on dataset.
  */
+@Basic
 public class FlatMap<IN, OUT> extends ElementWiseOperator<IN, OUT> {
 
   public static class OfBuilder {
