@@ -43,7 +43,7 @@ public class AggregatorContainer {
     private final String name;
     private final CombineFn<InputT, AccumT, OutputT> combiner;
     @GuardedBy("this")
-    private AccumT accumulator = null;
+    private volatile AccumT accumulator = null;
     private boolean committed = false;
 
     private AggregatorInfo(
