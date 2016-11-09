@@ -35,6 +35,7 @@ from apache_beam.io import concat_source
 from apache_beam.io import fileio
 from apache_beam.io import iobase
 from apache_beam.io import range_trackers
+from apache_beam.transforms.display import DisplayDataItem
 
 MAX_NUM_THREADS_FOR_SIZE_ESTIMATION = 25
 
@@ -90,6 +91,11 @@ class FileBasedSource(iobase.BoundedSource):
     else:
       # We can't split compressed files efficiently so turn off splitting.
       self._splittable = False
+
+  def display_data(self):
+    return {'filePattern': DisplayDataItem(self._pattern, label="File Pattern"),
+            'compression': DisplayDataItem(str(self._compression_type),
+                                           label='Compression Type')}
 
   def _get_concat_source(self):
     if self._concat_source is None:

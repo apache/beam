@@ -22,13 +22,71 @@ from __future__ import absolute_import
 from datetime import datetime
 import unittest
 
+import hamcrest as hc
+from hamcrest.core.base_matcher import BaseMatcher
+
 import apache_beam as beam
 from apache_beam.transforms.display import HasDisplayData
 from apache_beam.transforms.display import DisplayData
 from apache_beam.transforms.display import DisplayDataItem
 
 
+class DisplayDataItemMatcher(BaseMatcher):
+  """ Matcher class for DisplayDataItems in unit tests.
+  """
+  IGNORED = object()
+
+  def __init__(self, key=IGNORED, value=IGNORED,
+               namespace=IGNORED, label=IGNORED, shortValue=IGNORED):
+    if all(member == DisplayDataItemMatcher.IGNORED for member in
+           [key, value, namespace, label, shortValue]):
+      raise ValueError('Must receive at least one item attribute to match')
+
+    self.key = key
+    self.value = value
+    self.namespace = namespace
+    self.label = label
+    self.shortValue = shortValue
+
+  def _matches(self, item):
+    if self.key != DisplayDataItemMatcher.IGNORED and item.key != self.key:
+      return False
+    if (self.namespace != DisplayDataItemMatcher.IGNORED and
+        item.namespace != self.namespace):
+      return False
+    if (self.value != DisplayDataItemMatcher.IGNORED and
+        item.value != self.value):
+      return False
+    if (self.label != DisplayDataItemMatcher.IGNORED and
+        item.label != self.label):
+      return False
+    if (self.shortValue != DisplayDataItemMatcher.IGNORED and
+        item.shortValue != self.shortValue):
+      return False
+    return True
+
+  def describe_to(self, description):
+    descriptors = []
+    if self.key != DisplayDataItemMatcher.IGNORED:
+      descriptors.append('key is {}'.format(self.key))
+    if self.value != DisplayDataItemMatcher.IGNORED:
+      descriptors.append('value is {}'.format(self.value))
+    if self.namespace != DisplayDataItemMatcher.IGNORED:
+      descriptors.append('namespace is {}'.format(self.namespace))
+    if self.label != DisplayDataItemMatcher.IGNORED:
+      descriptors.append('label is {}'.format(self.label))
+    if self.shortValue != DisplayDataItemMatcher.IGNORED:
+      descriptors.append('shortValue is {}'.format(self.shortValue))
+
+    item_description = '{}'.format(' and '.join(descriptors))
+    description.append(item_description)
+
+
 class DisplayDataTest(unittest.TestCase):
+
+  def test_display_data_item_matcher(self):
+    with self.assertRaises(ValueError):
+      DisplayDataItemMatcher()
 
   def test_inheritance_ptransform(self):
     class MyTransform(beam.PTransform):
@@ -70,52 +128,58 @@ class DisplayDataTest(unittest.TestCase):
     now = datetime.now()
     fn = MyDoFn(my_display_data=now)
     dd = DisplayData.create_from(fn)
-
     nspace = '{}.{}'.format(fn.__module__, fn.__class__.__name__)
-    expected_items = set([
-        DisplayDataItem(namespace=nspace,
-                        key='complex_url',
-                        value='github.com',
-                        label='The URL',
-                        url='http://github.com'),
-        DisplayDataItem(namespace=nspace,
-                        key='my_dd',
-                        value=now),
-        DisplayDataItem(namespace=nspace,
-                        key='python_class',
-                        shortValue='HasDisplayData',
-                        value='apache_beam.transforms.display.HasDisplayData'),
-        DisplayDataItem(namespace=nspace,
-                        key='static_integer',
-                        value=120),
-        DisplayDataItem(namespace=nspace,
-                        key='static_string',
-                        value='static me!'),
-    ])
+    expected_items = [
+        DisplayDataItemMatcher(key='complex_url',
+                               value='github.com',
+                               namespace=nspace,
+                               label='The URL'),
+        DisplayDataItemMatcher(key='my_dd',
+                               value=now,
+                               namespace=nspace),
+        DisplayDataItemMatcher(key='python_class',
+                               value=HasDisplayData,
+                               namespace=nspace,
+                               shortValue='HasDisplayData'),
+        DisplayDataItemMatcher(key='static_integer',
+                               value=120,
+                               namespace=nspace),
+        DisplayDataItemMatcher(key='static_string',
+                               value='static me!',
+                               namespace=nspace)]
 
-    self.assertEqual(set(dd.items), expected_items)
+    hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
+
+  def test_drop_if_none(self):
+    class MyDoFn(beam.DoFn):
+      def display_data(self):
+        return {'some_val': DisplayDataItem('something').drop_if_none(),
+                'non_val': DisplayDataItem(None).drop_if_none(),
+                'def_val': DisplayDataItem(True).drop_if_default(True),
+                'nodef_val': DisplayDataItem(True).drop_if_default(False)}
+
+    dd = DisplayData.create_from(MyDoFn())
+    expected_items = [DisplayDataItemMatcher('some_val',
+                                             'something'),
+                      DisplayDataItemMatcher('nodef_val',
+                                             True)]
+    hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
 
   def test_subcomponent(self):
-    class SpecialParDo(beam.PTransform):
-      def __init__(self, fn):
-        self.fn = fn
-
-      def display_data(self):
-        return {'asubcomponent': self.fn}
-
     class SpecialDoFn(beam.DoFn):
       def display_data(self):
         return {'dofn_value': 42}
 
     dofn = SpecialDoFn()
-    pardo = SpecialParDo(dofn)
+    pardo = beam.ParDo(dofn)
     dd = DisplayData.create_from(pardo)
-    nspace = '{}.{}'.format(dofn.__module__, dofn.__class__.__name__)
-    self.assertEqual(dd.items[0].get_dict(),
-                     {"type": "INTEGER",
-                      "namespace": nspace,
-                      "value": 42,
-                      "key": "dofn_value"})
+    dofn_nspace = '{}.{}'.format(dofn.__module__, dofn.__class__.__name__)
+    pardo_nspace = '{}.{}'.format(pardo.__module__, pardo.__class__.__name__)
+    expected_items = [
+        DisplayDataItemMatcher('dofn_value', 42, dofn_nspace),
+        DisplayDataItemMatcher('fn', SpecialDoFn, pardo_nspace)]
+
+    hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
 
 
 # TODO: Test __repr__ function
