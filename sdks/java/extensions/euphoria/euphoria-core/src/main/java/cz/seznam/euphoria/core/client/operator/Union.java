@@ -1,6 +1,7 @@
 
 package cz.seznam.euphoria.core.client.operator;
 
+import cz.seznam.euphoria.core.annotation.operator.Basic;
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.flow.Flow;
 
@@ -11,6 +12,7 @@ import java.util.Objects;
 /**
  * Union of two datasets of same type.
  */
+@Basic
 public class Union<IN> extends Operator<IN, IN> implements OutputBuilder<IN> {
 
   public static class OfBuilder {
