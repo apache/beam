@@ -81,7 +81,7 @@ public class JoinOperatorTest {
     MapElements.of(output).using(p -> p.getFirst() + ", " + p.getSecond())
         .output().persist(out);
 
-    executor.waitForCompletion(flow);
+    executor.submit(flow).get();
 
     assertEquals(sorted(expectedOutput), sorted(out.getOutput(0)));
   }

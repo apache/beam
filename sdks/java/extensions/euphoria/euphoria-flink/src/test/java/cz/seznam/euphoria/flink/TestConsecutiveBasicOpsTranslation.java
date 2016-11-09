@@ -35,7 +35,7 @@ public class TestConsecutiveBasicOpsTranslation {
         .output()
         .persist(output);
 
-    new TestFlinkExecutor().waitForCompletion(f);
+    new TestFlinkExecutor().submit(f).get();
 
     assertEquals(
         output.getOutput(0),

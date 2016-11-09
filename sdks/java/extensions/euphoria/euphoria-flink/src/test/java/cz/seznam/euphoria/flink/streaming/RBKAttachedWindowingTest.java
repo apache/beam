@@ -81,7 +81,8 @@ public class RBKAttachedWindowingTest {
     new TestFlinkExecutor()
         .setAutoWatermarkInterval(Duration.ofMillis(10))
         .setAllowedLateness(Duration.ofMillis(0))
-        .waitForCompletion(f);
+        .submit(f)
+        .get();
 
     // ~ we had two windows
     assertEquals(3, output.getOutput(0).size());
@@ -157,7 +158,8 @@ public class RBKAttachedWindowingTest {
     new TestFlinkExecutor()
         .setAutoWatermarkInterval(Duration.ofMillis(10))
         .setAllowedLateness(Duration.ofMillis(0))
-        .waitForCompletion(f);
+        .submit(f)
+        .get();
 
     // ~ we had two windows
     assertEquals(3, output.getOutput(0).size());
@@ -318,7 +320,8 @@ public class RBKAttachedWindowingTest {
     new TestFlinkExecutor()
         .setAutoWatermarkInterval(Duration.ofMillis(10))
         .setAllowedLateness(Duration.ofMillis(0))
-        .waitForCompletion(f);
+        .submit(f)
+        .get();
 
     assertEquals(
         Lists.newArrayList(

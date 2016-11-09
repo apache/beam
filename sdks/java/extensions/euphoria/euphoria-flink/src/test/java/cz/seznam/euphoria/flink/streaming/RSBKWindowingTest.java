@@ -110,7 +110,8 @@ public class RSBKWindowingTest {
     new TestFlinkExecutor()
         .setAllowedLateness(Duration.ofMillis(0))
         .setAutoWatermarkInterval(Duration.ofMillis(100))
-        .waitForCompletion(f);
+        .submit(f)
+        .get();
 
     assertEquals(
         asList(
@@ -178,7 +179,8 @@ public class RSBKWindowingTest {
     new TestFlinkExecutor()
         .setAllowedLateness(Duration.ofMillis(0))
         .setAutoWatermarkInterval(Duration.ofMillis(100))
-        .waitForCompletion(f);
+        .submit(f)
+        .get();
 
     assertEquals(
         asList(
