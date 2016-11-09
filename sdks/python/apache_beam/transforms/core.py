@@ -269,7 +269,7 @@ class CallableWrapperDoFn(DoFn):
     return getattr(self._fn, '_argspec_fn', self._fn)
 
 
-class CombineFn(WithTypeHints):
+class CombineFn(WithTypeHints, HasDisplayData):
   """A function object used by a Combine transform with custom processing.
 
   A CombineFn specifies how multiple values in all or part of a PCollection can
@@ -414,6 +414,9 @@ class CallableWrapperCombineFn(CombineFn):
 
     super(CallableWrapperCombineFn, self).__init__()
     self._fn = fn
+
+  def display_data(self):
+    return {'fn_dd': self._fn}
 
   def __repr__(self):
     return "CallableWrapperCombineFn(%s)" % self._fn
@@ -828,6 +831,12 @@ class CombineGlobally(PTransform):
     self.args = args
     self.kwargs = kwargs
 
+  def display_data(self):
+    return {'combineFn':
+            DisplayDataItem(self.fn.__class__, label='Combine Function'),
+            'combineFn_dd':
+            self.fn}
+
   def default_label(self):
     return 'CombineGlobally(%s)' % ptransform.label_from_callable(self.fn)
 
@@ -914,6 +923,11 @@ class CombinePerKey(PTransformWithSideInputs):
   Returns:
     A PObject holding the result of the combine operation.
   """
+  def display_data(self):
+    return {'combineFn':
+            DisplayDataItem(self.fn.__class__, label='Combine Function'),
+            'combineFn_dd':
+            self.fn}
 
   def make_fn(self, fn):
     self._fn_label = ptransform.label_from_callable(fn)

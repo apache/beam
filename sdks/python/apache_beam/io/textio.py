@@ -25,6 +25,7 @@ from apache_beam.io import fileio
 from apache_beam.io.iobase import Read
 from apache_beam.io.iobase import Write
 from apache_beam.transforms import PTransform
+from apache_beam.transforms.display import DisplayDataItem
 
 __all__ = ['ReadFromText', 'WriteToText']
 
@@ -239,11 +240,15 @@ class ReadFromText(PTransform):
     super(ReadFromText, self).__init__(**kwargs)
     self._args = (file_pattern, min_bundle_size, compression_type,
                   strip_trailing_newlines, coder)
-    self._validate = validate
+    self._source = _TextSource(*self._args, validate=validate)
 
   def apply(self, pvalue):
-    return pvalue.pipeline | Read(_TextSource(*self._args,
-                                              validate=self._validate))
+    return pvalue.pipeline | Read(self._source)
+
+  def display_data(self):
+    return {'source_dd': self._source,
+            'strip_nwln': DisplayDataItem(self._args[3],
+                                          label='Strip Trailing New Lines')}
 
 
 class WriteToText(PTransform):
@@ -292,6 +297,10 @@ class WriteToText(PTransform):
 
     self._args = (file_path_prefix, file_name_suffix, append_trailing_newlines,
                   num_shards, shard_name_template, coder, compression_type)
+    self._sink = _TextSink(*self._args)
 
   def apply(self, pcoll):
-    return pcoll | Write(_TextSink(*self._args))
+    return pcoll | Write(self._sink)
+
+  def display_data(self):
+    return {'sink_dd': self._sink}

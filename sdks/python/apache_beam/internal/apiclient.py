@@ -32,6 +32,7 @@ from apache_beam import utils
 from apache_beam.internal.auth import get_service_credentials
 from apache_beam.internal.json_value import to_json_value
 from apache_beam.transforms import cy_combiners
+from apache_beam.transforms.display import DisplayData
 from apache_beam.utils import dependency
 from apache_beam.utils import retry
 from apache_beam.utils.dependency import get_required_container_version
@@ -234,11 +235,18 @@ class Environment(object):
       self.proto.sdkPipelineOptions = (
           dataflow.Environment.SdkPipelineOptionsValue())
 
-      for k, v in sdk_pipeline_options.iteritems():
-        if v is not None:
-          self.proto.sdkPipelineOptions.additionalProperties.append(
-              dataflow.Environment.SdkPipelineOptionsValue.AdditionalProperty(
-                  key=k, value=to_json_value(v)))
+      options_dict = {k: v
+                      for k, v in sdk_pipeline_options.iteritems()
+                      if v is not None}
+      self.proto.sdkPipelineOptions.additionalProperties.append(
+          dataflow.Environment.SdkPipelineOptionsValue.AdditionalProperty(
+              key='options', value=to_json_value(options_dict)))
+
+      dd = DisplayData.create_from(options)
+      items = [item.get_dict() for item in dd.items]
+      self.proto.sdkPipelineOptions.additionalProperties.append(
+          dataflow.Environment.SdkPipelineOptionsValue.AdditionalProperty(
+              key='display_data', value=to_json_value(items)))
 
 
 class Job(object):

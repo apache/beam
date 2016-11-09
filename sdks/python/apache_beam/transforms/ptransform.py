@@ -48,6 +48,7 @@ from apache_beam import typehints
 from apache_beam.internal import pickler
 from apache_beam.internal import util
 from apache_beam.transforms.display import HasDisplayData
+from apache_beam.transforms.display import DisplayDataItem
 from apache_beam.typehints import getcallargs_forhints
 from apache_beam.typehints import TypeCheckError
 from apache_beam.typehints import validate_composite_type_param
@@ -628,6 +629,14 @@ class CallablePTransform(PTransform):
     self.fn = fn
     self._args = ()
     self._kwargs = {}
+
+  def display_data(self):
+    res = {'fn': (self.fn.__name__
+                  if hasattr(self.fn, '__name__')
+                  else self.fn.__class__),
+           'args': DisplayDataItem(str(self._args)).drop_if_default('()'),
+           'kwargs': DisplayDataItem(str(self._kwargs)).drop_if_default('{}')}
+    return res
 
   def __call__(self, *args, **kwargs):
     if args and args[0] is None:

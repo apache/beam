@@ -22,8 +22,10 @@ TODO(silviuc): Should rename this module to pipeline_options.
 
 import argparse
 
+from apache_beam.transforms.display import HasDisplayData
 
-class PipelineOptions(object):
+
+class PipelineOptions(HasDisplayData):
   """Pipeline options class used as container for command line options.
 
   The class is essentially a wrapper over the standard argparse Python module
@@ -104,7 +106,7 @@ class PipelineOptions(object):
 
     return cls(flags)
 
-  def get_all_options(self):
+  def get_all_options(self, drop_default=False):
     """Returns a dictionary of all defined arguments.
 
     Returns a dictionary of all defined arguments (arguments that are defined in
@@ -120,11 +122,16 @@ class PipelineOptions(object):
     result = vars(known_args)
 
     # Apply the overrides if any
-    for k in result:
+    for k in result.keys():
       if k in self._all_options:
         result[k] = self._all_options[k]
+      if drop_default and parser.get_default(k) == result[k]:
+        del result[k]
 
     return result
+
+  def display_data(self):
+    return self.get_all_options(True)
 
   def view_as(self, cls):
     view = cls(self._flags)
