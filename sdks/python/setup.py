@@ -95,6 +95,9 @@ REQUIRED_PACKAGES = [
     'python-gflags>=2.0,<4.0.0',
     'pyyaml>=3.10,<4.0.0',
     ]
+REQUIRED_TEST_PACKAGES = [
+    'pyhamcrest>=1.9,<2.0',
+    ]
 
 
 REQUIRED_TEST_PACKAGES = [

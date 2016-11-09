@@ -21,15 +21,20 @@ import os
 import tempfile
 import unittest
 
+import hamcrest as hc
+
 import apache_beam as beam
 from apache_beam.io import avroio
 from apache_beam.io import filebasedsource
 from apache_beam.io import source_test_utils
+from apache_beam.transforms.display import DisplayData
+from apache_beam.transforms.display_test import DisplayDataItemMatcher
 from apache_beam.transforms.util import assert_that
 from apache_beam.transforms.util import equal_to
 
 # Importing following private class for testing purposes.
 from apache_beam.io.avroio import _AvroSource as AvroSource
+from apache_beam.io.avroio import _AvroSink as AvroSink
 
 import avro.datafile
 from avro.datafile import DataFileWriter
@@ -143,6 +148,79 @@ class TestAvro(unittest.TestCase):
     file_name = self._write_data()
     expected_result = self.RECORDS
     self._run_avro_test(file_name, 100, True, expected_result)
+
+  def test_source_display_data(self):
+    file_name = 'some_avro_source'
+    source = AvroSource(file_name, validate=False)
+    dd = DisplayData.create_from(source)
+
+    # No extra avro parameters for AvroSource.
+    expected_items = [
+        DisplayDataItemMatcher('compression', 'auto'),
+        DisplayDataItemMatcher('filePattern', file_name)]
+    hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
+
+  def test_read_display_data(self):
+    file_name = 'some_avro_source'
+    read = avroio.ReadFromAvro(file_name, validate=False)
+    dd = DisplayData.create_from(read)
+
+    # No extra avro parameters for AvroSource.
+    expected_items = [
+        DisplayDataItemMatcher('compression', 'auto'),
+        DisplayDataItemMatcher('filePattern', file_name)]
+    hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
+
+  def test_sink_display_data(self):
+    file_name = 'some_avro_sink'
+    sink = AvroSink(file_name,
+                    self.SCHEMA,
+                    'null',
+                    '.end',
+                    0,
+                    None,
+                    'application/x-avro')
+    dd = DisplayData.create_from(sink)
+    expected_items = [
+        DisplayDataItemMatcher(
+            'schema',
+            str(self.SCHEMA)),
+        DisplayDataItemMatcher(
+            'filePattern',
+            'some_avro_sink-%(shard_num)05d-of-%(num_shards)05d.end'),
+        DisplayDataItemMatcher(
+            'shards',
+            0),
+        DisplayDataItemMatcher(
+            'codec',
+            'null'),
+        DisplayDataItemMatcher(
+            'compression',
+            'uncompressed')]
+    hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
+
+  def test_write_display_data(self):
+    file_name = 'some_avro_sink'
+    write = avroio.WriteToAvro(file_name,
+                               self.SCHEMA)
+    dd = DisplayData.create_from(write)
+    expected_items = [
+        DisplayDataItemMatcher(
+            'schema',
+            str(self.SCHEMA)),
+        DisplayDataItemMatcher(
+            'filePattern',
+            'some_avro_sink-%(shard_num)05d-of-%(num_shards)05d'),
+        DisplayDataItemMatcher(
+            'shards',
+            0),
+        DisplayDataItemMatcher(
+            'codec',
+            'deflate'),
+        DisplayDataItemMatcher(
+            'compression',
+            'uncompressed')]
+    hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
 
   def test_read_reentrant_without_splitting(self):
     file_name = self._write_data()
