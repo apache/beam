@@ -1,6 +1,7 @@
 
 package cz.seznam.euphoria.core.client.operator;
 
+import cz.seznam.euphoria.core.annotation.operator.Recommended;
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.dataset.Partitioning;
 import cz.seznam.euphoria.core.client.dataset.windowing.Batch;
@@ -26,6 +27,12 @@ import java.util.Objects;
 /**
  * Join two datasets by given key producing single new dataset.
  */
+@Recommended(
+    reason =
+        "Might be useful to override because of performance reasons in a "
+      + "specific join types (e.g. sort join).",
+    basic = { Union.class, ReduceStateByKey.class }
+)
 public class Join<LEFT, RIGHT, KEY, OUT, W extends Window>
     extends StateAwareWindowWiseOperator<Object, Either<LEFT, RIGHT>,
     Either<LEFT, RIGHT>, KEY, Pair<KEY, OUT>, W,

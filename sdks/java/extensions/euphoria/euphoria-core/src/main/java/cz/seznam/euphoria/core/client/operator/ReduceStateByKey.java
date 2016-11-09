@@ -1,6 +1,7 @@
 
 package cz.seznam.euphoria.core.client.operator;
 
+import cz.seznam.euphoria.core.annotation.operator.Basic;
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.dataset.GroupedDataset;
 import cz.seznam.euphoria.core.client.dataset.Partitioning;
@@ -26,6 +27,7 @@ import java.util.Objects;
  * @param <KEYOUT> Type of output key
  * @param <OUT>    Type of output value
  */
+@Basic
 public class ReduceStateByKey<
     IN, KIN, WIN, KEY, VALUE, KEYOUT, OUT, STATE extends State<VALUE, OUT>,
     W extends Window>
