@@ -20,7 +20,7 @@ package org.apache.beam.sdk.util;
 import com.google.api.client.http.HttpRequest;
 import com.google.api.client.http.HttpRequestInitializer;
 import com.google.api.client.http.HttpResponse;
-import com.google.api.client.http.HttpResponseInterceptor;
+import com.google.api.client.http.HttpUnsuccessfulResponseHandler;
 import java.io.IOException;
 
 /**
@@ -39,15 +39,19 @@ public class NullCredential implements HttpRequestInitializer {
 
   @Override
   public void initialize(HttpRequest httpRequest) throws IOException {
-    httpRequest.setResponseInterceptor(new NullCredentialHttpResponseInterceptor());
+    httpRequest.setUnsuccessfulResponseHandler(new NullCredentialHttpUnsuccessfulResponseHandler());
   }
 
-  private static class NullCredentialHttpResponseInterceptor implements HttpResponseInterceptor {
+  private static class NullCredentialHttpUnsuccessfulResponseHandler
+      implements HttpUnsuccessfulResponseHandler {
+
     @Override
-    public void interceptResponse(HttpResponse httpResponse) {
+    public boolean handleResponse(HttpRequest httpRequest, HttpResponse httpResponse, boolean supportsRetry)
+        throws IOException {
       if (!httpResponse.isSuccessStatusCode() && httpResponse.getStatusCode() == ACCESS_DENIED) {
         throwNullCredentialException();
       }
+      return supportsRetry;
     }
   }
 
