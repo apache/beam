@@ -34,6 +34,8 @@ from apache_beam import coders
 from apache_beam.io import iobase
 from apache_beam.io import range_trackers
 from apache_beam.runners.dataflow.native_io import iobase as dataflow_io
+from apache_beam.transforms.display import DisplayDataItem
+
 
 __all__ = ['TextFileSource', 'TextFileSink']
 
@@ -55,6 +57,9 @@ class _CompressionType(object):
 
   def __ne__(self, other):
     return not self.__eq__(other)
+
+  def __str__(self):
+    return self.identifier
 
   def __repr__(self):
     return '_CompressionType(%s)' % self.identifier
@@ -160,6 +165,10 @@ class NativeFileSource(dataflow_io.NativeSource):
     self.compression_type = compression_type
     self.coder = coder
     self.mime_type = mime_type
+
+  def display_data(self):
+    return {'filePattern': DisplayDataItem(self.file_path,
+                                           label="File Pattern")}
 
   def __eq__(self, other):
     return (self.file_path == other.file_path and
@@ -1004,6 +1013,17 @@ class NativeFileSink(dataflow_io.NativeSink):
     self.validate = validate
     self.mime_type = mime_type
     self.compression_type = compression_type
+
+  def display_data(self):
+    file_name_pattern = '{}{}{}'.format(self.file_name_prefix,
+                                        self.shard_name_template,
+                                        self.file_name_suffix)
+    return {'filePattern':
+            DisplayDataItem(file_name_pattern,
+                            label='File Name Pattern'),
+            'compression':
+            DisplayDataItem(str(self.compression_type),
+                            label='Compression Type')}
 
   @property
   def path(self):
