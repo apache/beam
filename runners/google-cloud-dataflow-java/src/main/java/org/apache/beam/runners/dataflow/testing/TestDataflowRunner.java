@@ -25,6 +25,7 @@ import com.google.api.services.dataflow.model.MetricUpdate;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Joiner;
 import com.google.common.base.Optional;
+import com.google.common.base.Strings;
 import com.google.common.base.Throwables;
 import java.io.IOException;
 import java.math.BigDecimal;
@@ -149,9 +150,10 @@ public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
         throw new IllegalStateException(
             "The dataflow did not output a success or failure metric.");
       } else if (!success.get()) {
-        throw new AssertionError(messageHandler.getErrorMessage() == null
-            ? "The dataflow did not return a failure reason."
-            : messageHandler.getErrorMessage());
+        throw new AssertionError(
+            Strings.isNullOrEmpty(messageHandler.getErrorMessage())
+                ? "The dataflow did not return a failure reason."
+                : messageHandler.getErrorMessage());
       } else {
         assertThat(job, testPipelineOptions.getOnSuccessMatcher());
       }
