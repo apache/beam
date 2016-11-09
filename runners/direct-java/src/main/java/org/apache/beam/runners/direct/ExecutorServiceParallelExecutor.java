@@ -17,6 +17,8 @@
  */
 package org.apache.beam.runners.direct;
 
+import static com.google.common.base.Preconditions.checkState;
+
 import com.google.auto.value.AutoValue;
 import com.google.common.base.MoreObjects;
 import com.google.common.base.Optional;
@@ -30,12 +32,12 @@ import java.util.Collections;
 import java.util.Map;
 import java.util.Queue;
 import java.util.Set;
-import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
@@ -142,7 +144,7 @@ final class ExecutorServiceParallelExecutor implements PipelineExecutor {
         CacheBuilder.newBuilder().weakValues().build(serialTransformExecutorServiceCacheLoader());
 
     this.allUpdates = new ConcurrentLinkedQueue<>();
-    this.visibleUpdates = new ArrayBlockingQueue<>(20);
+    this.visibleUpdates = new LinkedBlockingQueue<>();
 
     parallelExecutorService = TransformExecutorServices.parallel(executorService);
     defaultCompletionCallback =
@@ -180,7 +182,7 @@ final class ExecutorServiceParallelExecutor implements PipelineExecutor {
   @SuppressWarnings("unchecked")
   public void scheduleConsumption(
       AppliedPTransform<?, ?, ?> consumer,
-      @Nullable CommittedBundle<?> bundle,
+      CommittedBundle<?> bundle,
       CompletionCallback onComplete) {
     evaluateBundle(consumer, bundle, onComplete);
   }
@@ -399,19 +401,7 @@ final class ExecutorServiceParallelExecutor implements PipelineExecutor {
           pendingUpdate = allUpdates.poll();
         }
         for (ExecutorUpdate update : updates) {
-          LOG.debug("Executor Update: {}", update);
-          if (update.getBundle().isPresent()) {
-            if (ExecutorState.ACTIVE == startingState
-                || (ExecutorState.PROCESSING == startingState
-                    && noWorkOutstanding)) {
-              scheduleConsumers(update);
-            } else {
-              allUpdates.offer(update);
-            }
-          } else if (update.getException().isPresent()) {
-            visibleUpdates.offer(VisibleExecutorUpdate.fromException(update.getException().get()));
-            exceptionThrown = true;
-          }
+          applyUpdate(noWorkOutstanding, startingState, update);
         }
         addWorkIfNecessary();
       } catch (InterruptedException e) {
@@ -431,6 +421,25 @@ final class ExecutorServiceParallelExecutor implements PipelineExecutor {
           executorService.submit(this);
         }
         Thread.currentThread().setName(oldName);
+      }
+    }
+
+    private void applyUpdate(
+        boolean noWorkOutstanding, ExecutorState startingState, ExecutorUpdate update) {
+      LOG.debug("Executor Update: {}", update);
+      if (update.getBundle().isPresent()) {
+        if (ExecutorState.ACTIVE == startingState
+            || (ExecutorState.PROCESSING == startingState
+                && noWorkOutstanding)) {
+          scheduleConsumers(update);
+        } else {
+          allUpdates.offer(update);
+        }
+      } else if (update.getException().isPresent()) {
+        checkState(
+            visibleUpdates.offer(VisibleExecutorUpdate.fromException(update.getException().get())),
+            "VisibleUpdates should always be able to receive an offered update");
+        exceptionThrown = true;
       }
     }
 

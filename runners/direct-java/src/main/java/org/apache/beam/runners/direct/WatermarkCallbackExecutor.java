@@ -19,6 +19,7 @@ package org.apache.beam.runners.direct;
 
 import com.google.common.collect.ComparisonChain;
 import com.google.common.collect.Ordering;
+import java.io.Serializable;
 import java.util.PriorityQueue;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -129,7 +130,8 @@ class WatermarkCallbackExecutor {
     }
   }
 
-  private static class CallbackOrdering extends Ordering<WatermarkCallback> {
+  private static class CallbackOrdering extends Ordering<WatermarkCallback>
+      implements Serializable {
     @Override
     public int compare(WatermarkCallback left, WatermarkCallback right) {
       return ComparisonChain.start()
