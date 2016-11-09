@@ -1,5 +1,6 @@
 package cz.seznam.euphoria.core.client.operator;
 
+import cz.seznam.euphoria.core.annotation.operator.Recommended;
 import cz.seznam.euphoria.core.client.operator.state.State;
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.dataset.GroupedDataset;
@@ -30,6 +31,13 @@ import java.util.Objects;
  * @param <KEYOUT> Type of output key
  * @param <OUT> Type of output value
  */
+@Recommended(
+    reason =
+        "Is very recommended to override because of performance in "
+      + "a specific area of (mostly) batch calculations where combiners "
+      + "can be efficiently used in the executor-specific implementation",
+    basic = ReduceStateByKey.class
+)
 public class ReduceByKey<
     IN, KIN, KEY, VALUE, KEYOUT, OUT, W extends Window>
     extends StateAwareWindowWiseSingleInputOperator<
