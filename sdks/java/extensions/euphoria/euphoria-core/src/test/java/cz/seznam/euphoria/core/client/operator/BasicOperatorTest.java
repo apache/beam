@@ -80,7 +80,7 @@ public class BasicOperatorTest {
     ListDataSink<Pair<String, Long>> out = ListDataSink.get(1);
     streamOutput.persist(out);
 
-    executor.waitForCompletion(flow);
+    executor.submit(flow).get();
 
     @SuppressWarnings("unchecked")
     List<Pair<String, Long>> f = new ArrayList<>(out.getOutput(0));
@@ -130,7 +130,7 @@ public class BasicOperatorTest {
         .output()
         .persist(out);
 
-    executor.waitForCompletion(flow);
+    executor.submit(flow).get();
 
     @SuppressWarnings("unchecked")
     List<Triple<TimeInterval, String, Long>> fs =
@@ -202,7 +202,7 @@ public class BasicOperatorTest {
     streamOutput.persist(s);
 
     executor.setTriggeringSchedulerSupplier(() -> new WatermarkTriggerScheduler(0));
-    executor.waitForCompletion(flow);
+    executor.submit(flow).get();
 
     @SuppressWarnings("unchecked")
     List<Pair<String, Long>> f = s.getOutput(0);
@@ -267,7 +267,7 @@ public class BasicOperatorTest {
     streamOutput.persist(s);
 
     executor.setTriggeringSchedulerSupplier(() -> new WatermarkTriggerScheduler(0));
-    executor.waitForCompletion(flow);
+    executor.submit(flow).get();
 
     @SuppressWarnings("unchecked")
     List<Pair<String, Long>> f = s.getOutput(0);
@@ -330,7 +330,7 @@ public class BasicOperatorTest {
     ListDataSink<Pair<String, Long>> f = ListDataSink.get(1);
     streamOutput.persist(f);
 
-    executor.waitForCompletion(flow);
+    executor.submit(flow).get();
 
     assertNotNull(f.getOutput(0));
     ImmutableMap<String, Pair<String, Long>> idx =
@@ -357,7 +357,7 @@ public class BasicOperatorTest {
     ListDataSink<String> f = ListDataSink.get(1);
     output.persist(f);
 
-    executor.waitForCompletion(flow);
+    executor.submit(flow).get();
 
     assertNotNull(f.getOutput(0));
     assertEquals(
@@ -386,7 +386,7 @@ public class BasicOperatorTest {
     ListDataSink<String> f = ListDataSink.get(1);
     output.persist(f);
 
-    executor.waitForCompletion(flow);
+    executor.submit(flow).get();
 
     List<String> out = f.getOutput(0);
     assertNotNull(out);
@@ -421,7 +421,7 @@ public class BasicOperatorTest {
     ListDataSink<Pair<TimeInterval, String>> f = ListDataSink.get(1);
     output.persist(f);
 
-    executor.waitForCompletion(flow);
+    executor.submit(flow).get();
 
     List<Pair<TimeInterval, String>> out = f.getOutput(0);
     assertNotNull(out);
@@ -477,7 +477,8 @@ public class BasicOperatorTest {
     executor
         .setTriggeringSchedulerSupplier(() -> new WatermarkTriggerScheduler(0))
         .allowWindowBasedShuffling()
-        .waitForCompletion(flow);
+        .submit(flow)
+        .get();
 
     List<HashSet<String>> output = f.getOutput(0);
     assertEquals(1, output.size());

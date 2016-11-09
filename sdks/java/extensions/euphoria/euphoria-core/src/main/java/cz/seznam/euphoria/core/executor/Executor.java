@@ -9,7 +9,6 @@ import cz.seznam.euphoria.core.client.operator.Repartition;
 import cz.seznam.euphoria.core.client.operator.Union;
 import cz.seznam.euphoria.guava.shaded.com.google.common.collect.Sets;
 
-import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 
@@ -45,31 +44,5 @@ public interface Executor {
    * Execution (job) result. Should contain aggregators, etc.
    */
   public static class Result {
-    
-    private final int returnCode;
-    private final Throwable t;
-
-    /**
-     * @param returnCode final status of the execution
-     * @param t exception if any
-     */
-    public Result(int returnCode, Throwable t) {
-      this.returnCode = returnCode;
-      this.t = t;
-    }
-    
-    /**
-     * @return final status of the execution
-     */
-    public int getReturnCode() {
-      return returnCode;
-    }
-    
-    /**
-     * @return potential exception thrown during execution that canceled the execution
-     */
-    public Optional<Throwable> getException() {
-      return Optional.ofNullable(t);
-    }
   }
 }

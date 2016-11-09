@@ -45,6 +45,7 @@ import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
@@ -73,7 +74,7 @@ public class InMemExecutor implements Executor {
   static final class PartitionSupplierStream implements Supplier {
 
     final Reader<?> reader;
-    final Partition partition;
+    final Partition<?> partition;
     PartitionSupplierStream(Partition<?> partition) {
       this.partition = partition;
       try {
@@ -167,9 +168,7 @@ public class InMemExecutor implements Executor {
     public Datum get() throws InterruptedException {
       return queue.take();
     }
-
   }
-
 
   private static final class ExecutionContext {
     // map of operator inputs to suppliers
@@ -214,8 +213,7 @@ public class InMemExecutor implements Executor {
   private final BlockingQueue<Runnable> queue = new SynchronousQueue<>(false);
   private final ThreadPoolExecutor executor = new ThreadPoolExecutor(
       0, Integer.MAX_VALUE,
-      60,
-      TimeUnit.SECONDS,
+      60, TimeUnit.SECONDS,
       queue,
       new ThreadFactory() {
         ThreadFactory factory = Executors.defaultThreadFactory();
@@ -275,15 +273,17 @@ public class InMemExecutor implements Executor {
   }
   
   @Override
-  public Future<Integer> submit(Flow flow) {
-    throw new UnsupportedOperationException("unsupported");
+  public CompletableFuture<Executor.Result> submit(Flow flow) {
+    return CompletableFuture.supplyAsync(() -> supply(flow), executor);
+  }
+  
+  @Override
+  public void shutdown() {
+    LOG.info("Shutting down inmem executor.");
+    executor.shutdownNow();
   }
 
-  @Override
-  @SuppressWarnings("unchecked")
-  public int waitForCompletion(Flow flow) {
-
-
+  private Executor.Result supply(Flow flow) {
     // transform the given flow to DAG of basic operators
     DAG<Operator<?, ?>> dag = FlowUnfolder.unfold(flow, Executor.getBasicOps());
 
@@ -311,14 +311,14 @@ public class InMemExecutor implements Executor {
             .collect(Collectors.toList());
 
     // wait for all threads to finish
-    for (Future f : runningTasks) {
+    for (Future<?> f : runningTasks) {
       try {
         f.get();
       } catch (InterruptedException e) {
         break;
       } catch (ExecutionException e) {
         // when any one of the tasks fails rollback all sinks and fail
-        for (DataSink s : sinks) {
+        for (DataSink<?> s : sinks) {
           try {
             s.rollback();
           } catch (Exception ex) {
@@ -338,16 +338,16 @@ public class InMemExecutor implements Executor {
       throw new RuntimeException(e);
     }
 
-    return 0;
+    return new Executor.Result();
   }
 
   /** Read all outputs of given nodes and store them using their sinks. */
   @SuppressWarnings("unchecked")
-  private List<Future> consumeOutputs(
+  private List<Future<?>> consumeOutputs(
       Collection<Node<Operator<?, ?>>> leafs,
       ExecutionContext context) {
     
-    List<Future> tasks = new ArrayList<>();
+    List<Future<?>> tasks = new ArrayList<>();
     // consume outputs
     for (Node<Operator<?, ?>> output : leafs) {
       DataSink<?> sink = output.get().output().getOutputSink();
