@@ -18,13 +18,14 @@
 package org.apache.beam.examples;
 
 import java.io.IOException;
-import org.apache.beam.examples.WindowedWordCount.Options;
+import java.util.Date;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.StreamingOptions;
 import org.apache.beam.sdk.testing.BigqueryMatcher;
 import org.apache.beam.sdk.testing.StreamingIT;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestPipelineOptions;
+import org.apache.beam.sdk.util.IOChannelUtils;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -43,7 +44,7 @@ public class WindowedWordCountIT {
    * Options for the {@link WindowedWordCount} Integration Test.
    */
   public interface WindowedWordCountITOptions
-      extends Options, TestPipelineOptions, StreamingOptions {
+      extends WindowedWordCount.Options, TestPipelineOptions, StreamingOptions {
   }
 
   @BeforeClass
@@ -66,6 +67,14 @@ public class WindowedWordCountIT {
     WindowedWordCountITOptions options =
         TestPipeline.testingPipelineOptions().as(WindowedWordCountITOptions.class);
     options.setStreaming(isStreaming);
+
+    // Note: currently unused because the example writes to BigQuery, but WindowedWordCount.Options
+    // are tightly coupled to WordCount.Options, where the option is required.
+    options.setOutput(IOChannelUtils.resolve(
+        options.getTempRoot(),
+        String.format("WindowedWordCountIT-%tF-%<tH-%<tM-%<tS-%<tL", new Date()),
+        "output",
+        "results"));
 
     String query = String.format("SELECT word, SUM(count) FROM [%s:%s.%s] GROUP BY word",
         options.getProject(), options.getBigQueryDataset(), options.getBigQueryTable());
