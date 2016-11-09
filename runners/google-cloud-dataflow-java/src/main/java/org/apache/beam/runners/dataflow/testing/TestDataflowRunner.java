@@ -152,7 +152,9 @@ public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
       } else if (!success.get()) {
         throw new AssertionError(
             Strings.isNullOrEmpty(messageHandler.getErrorMessage())
-                ? "The dataflow did not return a failure reason."
+                ? String.format(
+                    "Dataflow job %s terminated in state %s but did not return a failure reason.",
+                    job.getJobId(), job.getState())
                 : messageHandler.getErrorMessage());
       } else {
         assertThat(job, testPipelineOptions.getOnSuccessMatcher());
