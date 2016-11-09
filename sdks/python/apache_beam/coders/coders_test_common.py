@@ -91,6 +91,8 @@ class CodersTest(unittest.TestCase):
     copy2 = dill.loads(dill.dumps(coder))
     for v in values:
       self.assertEqual(v, copy1.decode(copy2.encode(v)))
+      if coder.is_deterministic():
+        self.assertEqual(copy1.encode(v), copy2.encode(v))
 
   def test_custom_coder(self):
 
