@@ -62,7 +62,8 @@ public class RBKTimeSlidingTest {
     new TestFlinkExecutor()
         .setAllowedLateness(Duration.ofMillis(0))
         .setAutoWatermarkInterval(Duration.ofMillis(100))
-        .waitForCompletion(f);
+        .submit(f)
+        .get();
 
     assertEquals(
         "[-5,5): one=2, [-5,5): two=1," +
@@ -118,7 +119,8 @@ public class RBKTimeSlidingTest {
     new TestFlinkExecutor()
         .setAllowedLateness(Duration.ofMillis(0))
         .setAutoWatermarkInterval(Duration.ofMillis(100))
-        .waitForCompletion(f);
+        .submit(f)
+        .get();
 
     assertEquals(
         "[-5,5): one=2, [-5,5): two=1," +

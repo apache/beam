@@ -4,15 +4,14 @@ import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.dataset.windowing.Batch;
 import cz.seznam.euphoria.core.client.dataset.windowing.WindowedElement;
 import cz.seznam.euphoria.core.client.flow.Flow;
-import cz.seznam.euphoria.core.util.Settings;
 import cz.seznam.euphoria.flink.streaming.StreamingWindowedElement;
 import cz.seznam.euphoria.guava.shaded.com.google.common.collect.Sets;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Set;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.util.HashSet;
+import java.util.Set;
 
 /**
  * Unified interface for Flink batch and stream execution environments.
@@ -61,7 +60,7 @@ public class ExecutionEnvironment {
   public void execute() throws Exception {
     if (batchEnv != null) {
       batchEnv.execute();
-    } else {
+    } else if (streamEnv != null) {
       streamEnv.execute();
     }
   }
@@ -99,11 +98,9 @@ public class ExecutionEnvironment {
         return Mode.STREAMING;
       }
     }
-
     // default mode is batch
     return Mode.BATCH;
   }
-
 
   private Set<Class<?>> getClassesToRegister(Set<Class<?>> registeredClasses) {
     HashSet<Class<?>> ret = Sets.newHashSet(registeredClasses);
@@ -112,6 +109,4 @@ public class ExecutionEnvironment {
     ret.add(StreamExecutionEnvironment.class);
     return ret;
   }
-
-
 }

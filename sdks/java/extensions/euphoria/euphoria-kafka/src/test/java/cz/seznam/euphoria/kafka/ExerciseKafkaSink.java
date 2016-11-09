@@ -60,6 +60,6 @@ public class ExerciseKafkaSink {
         .persist(URI.create("kafka://localhost:9092/my-topic-10p"));
 
     InMemExecutor exec = new InMemExecutor();
-    exec.waitForCompletion(flow);
+    exec.submit(flow).get();
   }
 }

@@ -88,6 +88,6 @@ public class ExerciseKafkaSource {
     streamOutput.persist(URI.create("stdout:///?cfg=stdout.params"));
 
     Executor executor = new InMemExecutor();
-    executor.waitForCompletion(flow);
+    executor.submit(flow).get();
   }
 }

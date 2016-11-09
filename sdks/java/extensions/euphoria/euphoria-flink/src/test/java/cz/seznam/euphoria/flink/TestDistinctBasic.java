@@ -2,7 +2,6 @@ package cz.seznam.euphoria.flink;
 
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.dataset.windowing.Time;
-import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.io.ListDataSink;
 import cz.seznam.euphoria.core.client.io.ListDataSource;
@@ -37,7 +36,7 @@ public class TestDistinctBasic {
         .output()
         .persist(output);
 
-    new TestFlinkExecutor().waitForCompletion(f);
+    new TestFlinkExecutor().submit(f).get();
 
     assertEquals(
         Arrays.asList(
