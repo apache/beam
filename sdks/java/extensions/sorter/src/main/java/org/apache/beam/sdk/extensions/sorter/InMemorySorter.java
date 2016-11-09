@@ -69,10 +69,10 @@ class InMemorySorter implements Sorter {
   private static final int RECORD_MEMORY_OVERHEAD_ESTIMATE = 11 * NUM_BYTES_PER_WORD;
 
   /** Maximum size of the buffer in bytes. */
-  private int maxBufferSize;
+  private long maxBufferSize;
 
   /** Current number of stored bytes. Including estimated overhead bytes. */
-  private int numBytes;
+  private long numBytes;
 
   /** Whether sort has been called. */
   private boolean sortCalled;
@@ -82,7 +82,7 @@ class InMemorySorter implements Sorter {
 
   /** Private constructor. */
   private InMemorySorter(Options options) {
-    maxBufferSize = options.getMemoryMB() * 1024 * 1024;
+    maxBufferSize = options.getMemoryMB() * 1024L * 1024L;
   }
 
   /** Create a new sorter from provided options. */
@@ -139,7 +139,7 @@ class InMemorySorter implements Sorter {
    * Check whether we have room to store the provided total number of bytes and total number of
    * records.
    */
-  private boolean roomInBuffer(int numBytes, int numRecords) {
+  private boolean roomInBuffer(long numBytes, int numRecords) {
     // Collections.sort may allocate up to n/2 extra object references.
     // Also, ArrayList grows by a factor of 1.5x, so there might be up to n/2 null object
     // references in the backing array.
