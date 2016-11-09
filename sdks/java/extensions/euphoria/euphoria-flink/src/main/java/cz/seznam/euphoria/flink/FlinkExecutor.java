@@ -6,6 +6,8 @@ import cz.seznam.euphoria.core.executor.Executor;
 import cz.seznam.euphoria.core.util.Settings;
 import cz.seznam.euphoria.flink.batch.BatchFlowTranslator;
 import cz.seznam.euphoria.flink.streaming.StreamingFlowTranslator;
+import org.apache.flink.core.memory.HeapMemorySegment;
+import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -16,7 +18,9 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
-import java.util.concurrent.Future;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 /**
  * Executor implementation using Apache Flink as a runtime.
@@ -32,6 +36,9 @@ public class FlinkExecutor implements Executor {
   private Duration allowedLateness = Duration.ofMillis(0);
   private final Set<Class<?>> registeredClasses = new HashSet<>();
   private long checkpointInterval = -1L;
+  
+  // executor to submit flows, if closed all executions should be interrupted
+  private final ExecutorService submitExecutor = Executors.newCachedThreadPool();
 
   public FlinkExecutor() {
     this(false);
@@ -39,6 +46,12 @@ public class FlinkExecutor implements Executor {
 
   public FlinkExecutor(boolean localEnv) {
     this.localEnv = localEnv;
+    if (localEnv) {
+      // flink race condition bug hackfix
+      if (!MemorySegmentFactory.isInitialized()) {
+        MemorySegmentFactory.initializeFactory(HeapMemorySegment.FACTORY);
+      }
+    }
   }
 
   /**
@@ -51,12 +64,17 @@ public class FlinkExecutor implements Executor {
   }
 
   @Override
-  public Future<Integer> submit(Flow flow) {
-    throw new UnsupportedOperationException();
+  public CompletableFuture<Executor.Result> submit(Flow flow) {
+    return CompletableFuture.supplyAsync(() -> supply(flow), submitExecutor);
   }
 
   @Override
-  public int waitForCompletion(Flow flow) throws Exception {
+  public void shutdown() {
+    LOG.info("Shutting down flink executor.");
+    submitExecutor.shutdownNow();
+  }
+  
+  public Executor.Result supply(Flow flow) {
     try {
       ExecutionEnvironment.Mode mode = ExecutionEnvironment.determineMode(flow);
 
@@ -99,7 +117,7 @@ public class FlinkExecutor implements Executor {
         environment.execute(); // blocking operation
       } catch (Exception e) {
         // when exception thrown rollback all sinks
-        for (DataSink s : sinks) {
+        for (DataSink<?> s : sinks) {
           try {
             s.rollback();
           } catch (Exception ex) {
@@ -111,7 +129,7 @@ public class FlinkExecutor implements Executor {
 
       // when the execution is successful commit all sinks
       Exception ex = null;
-      for (DataSink s : sinks) {
+      for (DataSink<?> s : sinks) {
         try {
           s.commit();
         } catch (Exception e) {
@@ -121,13 +139,15 @@ public class FlinkExecutor implements Executor {
       }
 
       // rethrow the exception if any
-      if (ex != null) throw ex;
+      if (ex != null) {
+        throw ex;
+      }
 
-      return 0;
+      return new Executor.Result();
     } catch (Throwable t) {
       t.printStackTrace(System.err);
-      LOG.error("Failed to run `waitForCompletion", t);
-      throw t;
+      LOG.error("Failed to run flow " + flow.getName(), t);
+      throw new RuntimeException(t);
     }
   }
 

@@ -33,6 +33,7 @@ import cz.seznam.euphoria.core.client.triggers.TriggerContext;
 import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.core.client.util.Sums;
 import cz.seznam.euphoria.core.client.util.Triple;
+import cz.seznam.euphoria.core.executor.Executor;
 import cz.seznam.euphoria.guava.shaded.com.google.common.collect.Lists;
 import cz.seznam.euphoria.guava.shaded.com.google.common.collect.Sets;
 import org.junit.After;
@@ -49,6 +50,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 
 import static org.junit.Assert.*;
@@ -78,7 +81,7 @@ public class InMemExecutorTest {
   // Repartition operator
 
   @Test
-  public void simpleRepartitionTest() {
+  public void simpleRepartitionTest() throws InterruptedException, ExecutionException {
     Dataset<Integer> ints = flow.createInput(
         ListDataSource.unbounded(
             Arrays.asList(1, 2, 3),
@@ -94,7 +97,7 @@ public class InMemExecutorTest {
 
     repartitioned.persist(outputSink);
 
-    executor.waitForCompletion(flow);
+    executor.submit(flow).get();
 
     List<List<Integer>> outputs = outputSink.getOutputs();
     assertEquals(2, outputs.size());
@@ -106,7 +109,7 @@ public class InMemExecutorTest {
 
   @Test
   // test that repartition works from 2 to 3 partitions
-  public void upRepartitionTest() {
+  public void upRepartitionTest() throws InterruptedException, ExecutionException {
     Dataset<Integer> ints = flow.createInput(
         ListDataSource.unbounded(
             Arrays.asList(1, 2, 3),
@@ -122,7 +125,7 @@ public class InMemExecutorTest {
 
     repartitioned.persist(outputSink);
 
-    executor.waitForCompletion(flow);
+    executor.submit(flow).get();
 
     List<List<Integer>> outputs = outputSink.getOutputs();
     assertEquals(3, outputs.size());
@@ -133,7 +136,7 @@ public class InMemExecutorTest {
 
   @Test
   // test that repartition works from 3 to 2 partitions
-  public void downRepartitionTest() {
+  public void downRepartitionTest() throws InterruptedException, ExecutionException {
     Dataset<Integer> ints = flow.createInput(
         ListDataSource.unbounded(
             Arrays.asList(1, 2),
@@ -150,7 +153,7 @@ public class InMemExecutorTest {
 
     repartitioned.persist(outputSink);
 
-    executor.waitForCompletion(flow);
+    executor.submit(flow).get();
 
     List<List<Integer>> outputs = outputSink.getOutputs();
     assertEquals(2, outputs.size());
@@ -160,7 +163,7 @@ public class InMemExecutorTest {
 
   @Test
   // test that repartition works from 3 to 2 partitions
-  public void downRepartitionTestWithHashPartitioner() {
+  public void downRepartitionTestWithHashPartitioner() throws InterruptedException, ExecutionException {
     Dataset<Integer> ints = flow.createInput(
         ListDataSource.unbounded(
             Arrays.asList(1, 2, 3),
@@ -175,7 +178,7 @@ public class InMemExecutorTest {
 
     repartitioned.persist(outputSink);
 
-    executor.waitForCompletion(flow);
+    executor.submit(flow).get();
 
     List<List<Integer>> outputs = outputSink.getOutputs();
     assertEquals(2, outputs.size());
@@ -186,7 +189,7 @@ public class InMemExecutorTest {
   // Union operator
   
   @Test
-  public void simpleUnionTest() {
+  public void simpleUnionTest() throws InterruptedException, ExecutionException {
     Dataset<Integer> first = flow.createInput(
         ListDataSource.unbounded(
             Arrays.asList(1),
@@ -206,7 +209,7 @@ public class InMemExecutorTest {
         .output()
         .persist(outputSink);
 
-    executor.waitForCompletion(flow);
+    executor.submit(flow).get();
 
     List<List<Integer>> outputs = outputSink.getOutputs();
     assertEquals(1, outputs.size());
@@ -217,7 +220,7 @@ public class InMemExecutorTest {
   // FlatMap operator
 
   @Test
-  public void simpleFlatMapTest() {
+  public void simpleFlatMapTest() throws InterruptedException, ExecutionException {
     Dataset<Integer> ints = flow.createInput(
         ListDataSource.unbounded(
             Arrays.asList(0, 1, 2, 3),
@@ -237,7 +240,7 @@ public class InMemExecutorTest {
 
     output.persist(outputSink);
 
-    executor.waitForCompletion(flow);
+    executor.submit(flow).get();
 
     List<List<Integer>> outputs = outputSink.getOutputs();
     assertEquals(2, outputs.size());
@@ -385,7 +388,7 @@ public class InMemExecutorTest {
   } // ~ end of SizedCountTrigger
 
   @Test
-  public void testReduceByKeyWithSortStateAndCustomWindowing() {
+  public void testReduceByKeyWithSortStateAndCustomWindowing() throws InterruptedException, ExecutionException {
     Dataset<Integer> ints = flow.createInput(
         ListDataSource.unbounded(
             reversed(sequenceInts(0, 100)),
@@ -413,7 +416,7 @@ public class InMemExecutorTest {
         .output()
         .persist(outputSink);
 
-    executor.waitForCompletion(flow);
+    executor.submit(flow).get();
 
     List<List<Triple<SizedCountWindow, Integer, Integer>>> outputs = outputSink.getOutputs();
     assertEquals(2, outputs.size());
@@ -517,7 +520,7 @@ public class InMemExecutorTest {
   }
 
   @Test(timeout = 5000L)
-  public void testInputMultiConsumption() {
+  public void testInputMultiConsumption() throws InterruptedException, ExecutionException {
     final int N = 1000;
     Dataset<Integer> input = flow.createInput(
         ListDataSource.unbounded(sequenceInts(0, N)));
@@ -539,7 +542,7 @@ public class InMemExecutorTest {
     ListDataSink<Pair<Integer, Integer>> sumOut = ListDataSink.get(1);
     sum.persist(sumOut);
 
-    executor.waitForCompletion(flow);
+    executor.submit(flow).get();
 
     assertNotNull(sumOut.getOutput(0));
     assertEquals(1, sumOut.getOutput(0).size());
@@ -576,12 +579,11 @@ public class InMemExecutorTest {
 
     // watermarking 100 ms
     executor.setTriggeringSchedulerSupplier(
-        () -> new WatermarkTriggerScheduler(100));
+        () -> new WatermarkTriggerScheduler<>(100));
     
     // run the executor in separate thread in order to be able to watch
     // the partial results
-    Thread exec = new Thread(() ->  executor.waitForCompletion(flow));
-    exec.start();
+    CompletableFuture<Executor.Result> future = executor.submit(flow);
 
     // sleep for one second
     Thread.sleep(1000L);
@@ -597,7 +599,7 @@ public class InMemExecutorTest {
     assertTrue("All but (at most) one window should have size 10",
         output.stream().filter(w -> w != 10).count() <= 1);
 
-    exec.join();
+    future.get();
 
     output = outputs.getOutputs().get(0);
 
@@ -635,7 +637,7 @@ public class InMemExecutorTest {
     executor.setTriggeringSchedulerSupplier(
         () -> new WatermarkTriggerScheduler(100));
 
-    executor.waitForCompletion(flow);
+    executor.submit(flow).get();
 
     // there should be only one element on output - the first element
     // all other windows are discarded
@@ -692,7 +694,7 @@ public class InMemExecutorTest {
     executor.setTriggeringSchedulerSupplier(
         () -> new WatermarkTriggerScheduler(100));
     
-    executor.waitForCompletion(flow);
+    executor.submit(flow).get();
 
     // the data in first unfinished partition
     List<Long> output = new ArrayList<>(outputs.getUncommittedOutputs().get(0));
@@ -749,7 +751,7 @@ public class InMemExecutorTest {
     output.persist(out);
 
     InMemExecutor executor = new InMemExecutor();
-    executor.waitForCompletion(flow);
+    executor.submit(flow).get();
 
     assertUnorderedEquals(
         Arrays.asList("1-one:2", "1-two:1", "1-three:3", "2-two:1"),
@@ -764,7 +766,7 @@ public class InMemExecutorTest {
   }
 
   @Test
-  public void testWatermarkSchedulerWithLatecomers() {
+  public void testWatermarkSchedulerWithLatecomers() throws InterruptedException, ExecutionException {
     int N = 2000;
 
     // generate some small ints, use them as event time and count them
@@ -787,7 +789,7 @@ public class InMemExecutorTest {
     executor.setTriggeringSchedulerSupplier(
         () -> new WatermarkTriggerScheduler(4000));
 
-    executor.waitForCompletion(flow);
+    executor.submit(flow).get();
 
     // there should be five windows at the output
     // (1999, 1998, 1997, 1996 and 1995)

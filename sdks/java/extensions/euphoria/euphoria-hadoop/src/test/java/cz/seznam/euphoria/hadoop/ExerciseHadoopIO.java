@@ -49,8 +49,6 @@ public class ExerciseHadoopIO {
     wordCount.persist(new StdoutSink<>(false, "\n"));
 
     Executor executor = new InMemExecutor();
-    executor.waitForCompletion(flow);
+    executor.submit(flow).get();
   }
-
-  
 }

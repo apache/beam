@@ -62,7 +62,8 @@ public class RBKTimeWindowTest {
 
     new TestFlinkExecutor()
         .setStateBackend(new RocksDBStateBackend("file:///tmp/flink-checkpoint"))
-        .waitForCompletion(f);
+        .submit(f)
+        .get();
 
     assertEquals(
         asList("0:one-2", "0:two-1", "5:three-1", "5:two-3"),
@@ -121,7 +122,8 @@ public class RBKTimeWindowTest {
 
     new TestFlinkExecutor()
         .setAutoWatermarkInterval(Duration.ofMillis(10))
-        .waitForCompletion(f);
+        .submit(f)
+        .get();
 
     assertEquals(
         asList(
@@ -191,7 +193,8 @@ public class RBKTimeWindowTest {
     new TestFlinkExecutor()
         .setAllowedLateness(Duration.ofMillis(0))
         .setAutoWatermarkInterval(Duration.ofMillis(100))
-        .waitForCompletion(f);
+        .submit(f)
+        .get();
 
     assertEquals(
         asList("0: one=ab", "0: two=X", "5: one=c", "5: three=FG", "5: two=QWE"),

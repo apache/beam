@@ -29,6 +29,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 
 import static cz.seznam.euphoria.core.util.Util.sorted;
@@ -115,7 +116,7 @@ public class WindowingTest {
     mapped.persist(output);
 
     executor.setTriggeringSchedulerSupplier(() -> new WatermarkTriggerScheduler(0));
-    executor.waitForCompletion(flow);
+    executor.submit(flow).get();
 
     assertEquals(1, output.getOutputs().size());
 
@@ -178,7 +179,7 @@ public class WindowingTest {
   }
 
   @Test
-  public void testAttachedWindowing_ContinuousOutput() {
+  public void testAttachedWindowing_ContinuousOutput() throws InterruptedException, ExecutionException {
     final Duration READ_DELAY = Duration.ofMillis(73L);
     Flow flow = Flow.create("Test");
 
@@ -228,7 +229,7 @@ public class WindowingTest {
     ListDataSink<Pair<Long, HashSet<String>>> output = ListDataSink.get(1);
     third.persist(output);
 
-    executor.waitForCompletion(flow);
+    executor.submit(flow).get();
 
     assertNotNull(output.getOutput(0));
     assertEquals(3, output.getOutput(0).size());
@@ -299,7 +300,7 @@ public class WindowingTest {
     ListDataSink<Pair<TimeInterval, Long>> output = ListDataSink.get(1);
     counts.persist(output);
 
-    executor.waitForCompletion(flow);
+    executor.submit(flow).get();
 
     assertEquals(2, output.getOutput(0).size());
     List<Pair<Long, Long>> ordered = output.getOutput(0)
@@ -313,18 +314,18 @@ public class WindowingTest {
   }
 
   @Test
-  public void testWindowing_EndOfWindow_RBK_OnePartition() {
+  public void testWindowing_EndOfWindow_RBK_OnePartition() throws InterruptedException, ExecutionException {
     testWindowing_EndOfWindowImpl(1);
   }
 
   @Test
-  public void testWindowing_EndOfWindow_RBK_ManyPartitions() {
+  public void testWindowing_EndOfWindow_RBK_ManyPartitions() throws InterruptedException, ExecutionException {
     // ~ this causes the initial reduce-by-key to output three
     // partitions of which only one receives data.
     testWindowing_EndOfWindowImpl(2);
   }
 
-  private void testWindowing_EndOfWindowImpl(int dataPartitions) {
+  private void testWindowing_EndOfWindowImpl(int dataPartitions) throws InterruptedException, ExecutionException {
     final Duration READ_DELAY = Duration.ofMillis(50L);
     Flow flow = Flow.create("Test");
 
@@ -379,7 +380,7 @@ public class WindowingTest {
     ListDataSink<Set<String>> out = ListDataSink.get(1);
     fifth.persist(out);
 
-    executor.waitForCompletion(flow);
+    executor.submit(flow).get();
 
     assertEquals(3, out.getOutput(0).size());
     assertEquals(

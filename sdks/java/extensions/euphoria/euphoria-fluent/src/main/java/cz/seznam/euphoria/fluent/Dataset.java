@@ -74,6 +74,6 @@ public class Dataset<T> {
   }
 
   public void execute(Executor exec) throws Exception {
-    exec.waitForCompletion(this.wrap.getFlow());
+    exec.submit(this.wrap.getFlow()).get();
   }
 }

@@ -50,7 +50,7 @@ public abstract class OperatorTest implements Serializable {
         ListDataSink sink = ListDataSink.get(tc.getNumOutputPartitions());
         Flow flow = Flow.create(tc.toString(), settings);
         tc.getOutput(flow).persist(sink);
-        executor.waitForCompletion(flow);
+        executor.submit(flow).get();
         tc.validate(sink.getOutputs());
       }
     }
