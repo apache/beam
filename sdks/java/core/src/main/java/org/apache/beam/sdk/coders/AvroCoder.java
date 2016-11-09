@@ -715,7 +715,7 @@ public class AvroCoder<T> extends StandardCoder<T> {
       } else {
         // If it was an unknown type encoded as an array, be conservative and assume
         // that we don't know anything about the order.
-        reportError(context, "encoding %s as an ARRAY was unexpected");
+        reportError(context, "encoding %s as an ARRAY was unexpected", type);
         return;
       }
 
