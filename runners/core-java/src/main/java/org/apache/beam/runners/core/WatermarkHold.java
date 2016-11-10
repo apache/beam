@@ -445,6 +445,11 @@ class WatermarkHold<W extends BoundedWindow> implements Serializable {
     }
   }
 
+  public void prefetchExtract(final ReduceFn<?, ?, ?, W>.Context context) {
+    context.state().access(elementHoldTag).readLater();
+    context.state().access(EXTRA_HOLD_TAG).readLater();
+  }
+
   /**
    * Return (a future for) the earliest hold for {@code context}. Clear all the holds after
    * reading, but add/restore an end-of-window or garbage collection hold if required.

@@ -46,7 +46,6 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.KeyedWorkItem;
 import org.apache.beam.sdk.util.TimerInternals;
-import org.apache.beam.sdk.util.TimerInternals.TimerData;
 import org.apache.beam.sdk.util.WindowTracing;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowingInternals;
@@ -181,9 +180,7 @@ class GroupAlsoByWindowEvaluatorFactory implements TransformEvaluatorFactory {
       // Drop any elements within expired windows
       reduceFnRunner.processElements(
           dropExpiredWindows(key, workItem.elementsIterable(), timerInternals));
-      for (TimerData timer : workItem.timersIterable()) {
-        reduceFnRunner.onTimer(timer);
-      }
+      reduceFnRunner.onTimers(workItem.timersIterable());
       reduceFnRunner.persist();
     }
 
