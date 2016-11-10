@@ -28,16 +28,19 @@
       <groupId>org.apache.flink</groupId>
       <artifactId>flink-streaming-java_2.10</artifactId>
       <version>${flink.version}</version>
+      <scope>provided</scope>
     </dependency>
     <dependency>
       <groupId>org.apache.flink</groupId>
       <artifactId>flink-java</artifactId>
       <version>${flink.version}</version>
+      <scope>provided</scope>
     </dependency>
     <dependency>
       <groupId>org.apache.flink</groupId>
       <artifactId>flink-clients_2.10</artifactId>
       <version>${flink.version}</version>
+      <scope>provided</scope>
     </dependency>
 
     <!-- test -->

@@ -11,7 +11,9 @@ import org.slf4j.LoggerFactory;
 
 import java.util.Collections;
 import java.util.List;
-import java.util.concurrent.Future;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 /**
  * Executor implementation using Apache Spark as a runtime.
@@ -20,10 +22,11 @@ public class SparkExecutor implements Executor {
 
   private static final Logger LOG = LoggerFactory.getLogger(SparkExecutor.class);
 
-  private final SparkConf conf;
+  private final JavaSparkContext sparkContext;
+  private final ExecutorService submitExecutor = Executors.newCachedThreadPool();
 
   public SparkExecutor(SparkConf conf) {
-    this.conf = conf;
+    sparkContext = new JavaSparkContext(conf);
   }
 
   public SparkExecutor() {
@@ -31,12 +34,18 @@ public class SparkExecutor implements Executor {
   }
 
   @Override
-  public Future<Integer> submit(Flow flow) {
-    throw new UnsupportedOperationException();
+  public CompletableFuture<Result> submit(Flow flow) {
+    return CompletableFuture.supplyAsync(() -> supply(flow), submitExecutor);
+  }
+  
+  @Override
+  public void shutdown() {
+    LOG.info("Shutting down spark executor.");
+    sparkContext.close(); // works with spark.yarn.maxAppAttempts=1 otherwise yarn will restart the appmaster
+    submitExecutor.shutdownNow();
   }
 
-  @Override
-  public int waitForCompletion(Flow flow) throws Exception {
+  private Result supply(Flow flow) {
     if (!isBoundedInput(flow)) {
       // FIXME this executor is intended to be used with bounded datasets only
       // but it works with unbounded as well for testing purposes
@@ -45,12 +54,10 @@ public class SparkExecutor implements Executor {
     }
 
     List<DataSink<?>> sinks = Collections.emptyList();
-    try (JavaSparkContext sparkContext = new JavaSparkContext(conf)) {
-
+    try {
       // FIXME blocking operation in Spark
       SparkFlowTranslator translator = new SparkFlowTranslator(sparkContext);
       sinks = translator.translateInto(flow);
-
     } catch (Exception e) {
       // FIXME in case of exception list of sinks will be empty
       // when exception thrown rollback all sinks
@@ -64,7 +71,7 @@ public class SparkExecutor implements Executor {
       throw e;
     }
 
-    return 0;
+    return new Result();
   }
 
   /**
@@ -78,7 +85,6 @@ public class SparkExecutor implements Executor {
         return false;
       }
     }
-
     return true;
   }
 }
