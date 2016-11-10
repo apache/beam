@@ -536,9 +536,7 @@ public class FlinkStreamingTransformTranslators {
             unionOutputStream.flatMap(new FlatMapFunction<RawUnionValue, Object>() {
               @Override
               public void flatMap(RawUnionValue value, Collector<Object> out) throws Exception {
-                System.out.println("FILTERING: " + value);
                 if (value.getUnionTag() == outputTag) {
-                  System.out.println("EMITTING VALUE: " + value);
                   out.collect(value.getValue());
                 }
               }
