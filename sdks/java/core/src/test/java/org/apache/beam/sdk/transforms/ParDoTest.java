@@ -36,6 +36,9 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.google.common.base.MoreObjects;
+import com.google.common.collect.Iterables;
+import com.google.common.collect.Lists;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -68,6 +71,7 @@ import org.apache.beam.sdk.util.TimeDomain;
 import org.apache.beam.sdk.util.TimerSpec;
 import org.apache.beam.sdk.util.TimerSpecs;
 import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
+import org.apache.beam.sdk.util.state.BagState;
 import org.apache.beam.sdk.util.state.StateSpec;
 import org.apache.beam.sdk.util.state.StateSpecs;
 import org.apache.beam.sdk.util.state.ValueState;
@@ -1459,27 +1463,70 @@ public class ParDoTest implements Serializable {
     assertThat(displayData, hasDisplayItem("fn", fn.getClass()));
   }
 
-  /**
-   * A test that we properly reject {@link DoFn} implementations that
-   * include {@link DoFn.StateId} annotations, for now.
-   */
   @Test
-  public void testUnsupportedState() {
-    thrown.expect(UnsupportedOperationException.class);
-    thrown.expectMessage("cannot yet be used with state");
+  @Category(RunnableOnService.class)
+  public void testValueState() {
+    final String stateId = "foo";
 
-    DoFn<KV<String, String>, KV<String, String>> fn =
-        new DoFn<KV<String, String>, KV<String, String>>() {
+    DoFn<KV<String, Integer>, Integer> fn =
+        new DoFn<KV<String, Integer>, Integer>() {
 
-      @StateId("foo")
-      private final StateSpec<Object, ValueState<Integer>> intState =
-          StateSpecs.value(VarIntCoder.of());
+          @StateId(stateId)
+          private final StateSpec<Object, ValueState<Integer>> intState =
+              StateSpecs.value(VarIntCoder.of());
 
-      @ProcessElement
-      public void processElement(ProcessContext c) { }
-    };
+          @ProcessElement
+          public void processElement(
+              ProcessContext c, @StateId(stateId) ValueState<Integer> state) {
+            Integer currentValue = MoreObjects.firstNonNull(state.read(), 0);
+            c.output(currentValue);
+            state.write(currentValue + 1);
+          }
+        };
 
-    ParDo.of(fn);
+    Pipeline p = TestPipeline.create();
+    PCollection<Integer> output =
+        p.apply(Create.of(KV.of("hello", 42), KV.of("hello", 97), KV.of("hello", 84)))
+            .apply(ParDo.of(fn));
+
+    PAssert.that(output).containsInAnyOrder(0, 1, 2);
+    p.run();
+  }
+
+  @Test
+  @Category(RunnableOnService.class)
+  public void testBagSTate() {
+    final String stateId = "foo";
+
+    DoFn<KV<String, Integer>, List<Integer>> fn =
+        new DoFn<KV<String, Integer>, List<Integer>>() {
+
+          @StateId(stateId)
+          private final StateSpec<Object, BagState<Integer>> bufferState =
+              StateSpecs.bag(VarIntCoder.of());
+
+          @ProcessElement
+          public void processElement(
+              ProcessContext c, @StateId(stateId) BagState<Integer> state) {
+            Iterable<Integer> currentValue = state.read();
+            state.add(c.element().getValue());
+            if (Iterables.size(state.read()) >= 4) {
+              List<Integer> sorted = Lists.newArrayList(currentValue);
+              Collections.sort(sorted);
+              c.output(sorted);
+            }
+          }
+        };
+
+    Pipeline p = TestPipeline.create();
+    PCollection<List<Integer>> output =
+        p.apply(
+                Create.of(
+                    KV.of("hello", 97), KV.of("hello", 42), KV.of("hello", 84), KV.of("hello", 12)))
+            .apply(ParDo.of(fn));
+
+    PAssert.that(output).containsInAnyOrder(Lists.newArrayList(12, 42, 84, 97));
+    p.run();
   }
 
   @Test
