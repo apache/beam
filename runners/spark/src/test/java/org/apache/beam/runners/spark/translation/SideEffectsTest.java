@@ -25,13 +25,13 @@ import static org.junit.Assert.fail;
 import java.io.Serializable;
 import java.net.URI;
 import org.apache.beam.runners.spark.SparkPipelineOptions;
-import org.apache.beam.runners.spark.SparkRunner;
+import org.apache.beam.runners.spark.translation.streaming.utils.TestPipelineOptions;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.StringDelegateCoder;
-import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.junit.Rule;
 import org.junit.Test;
 
 /**
@@ -42,11 +42,12 @@ public class SideEffectsTest implements Serializable {
   static class UserException extends RuntimeException {
   }
 
+  @Rule
+  public transient final TestPipelineOptions pipelineOptions = new TestPipelineOptions();
+
   @Test
   public void test() throws Exception {
-    SparkPipelineOptions options = PipelineOptionsFactory.as(SparkPipelineOptions.class);
-    options.setRunner(SparkRunner.class);
-    Pipeline p = Pipeline.create(options);
+    Pipeline p = Pipeline.create(pipelineOptions.getOptions());
 
     p.getCoderRegistry().registerCoder(URI.class, StringDelegateCoder.of(URI.class));
 

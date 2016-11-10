@@ -18,38 +18,27 @@
 
 package org.apache.beam.runners.spark.translation.streaming.utils;
 
-
-import java.io.IOException;
 import org.apache.beam.runners.spark.SparkPipelineOptions;
-import org.apache.beam.runners.spark.SparkRunner;
-import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.junit.rules.ExternalResource;
 import org.junit.rules.TemporaryFolder;
-
+import java.io.IOException;
 
 
 /**
  * A rule to create a common {@link SparkPipelineOptions} for testing streaming pipelines.
  */
-public class TestOptionsForStreaming extends ExternalResource {
-  private final SparkPipelineOptions options =
-      PipelineOptionsFactory.as(SparkPipelineOptions.class);
+public class TestPipelineOptionsForStreaming extends TestPipelineOptions {
 
   @Override
   protected void before() throws Throwable {
-    options.setRunner(SparkRunner.class);
-    options.setStreaming(true);
+    super.before();
     options.setTimeout(1000L);
+    options.setStreaming(true);
   }
 
   public SparkPipelineOptions withTmpCheckpointDir(TemporaryFolder parent)
       throws IOException {
     // tests use JUnit's TemporaryFolder path in the form of: /.../junit/...
     options.setCheckpointDir(parent.newFolder(options.getJobName()).toURI().toURL().toString());
-    return options;
-  }
-
-  public SparkPipelineOptions getOptions() {
     return options;
   }
 }

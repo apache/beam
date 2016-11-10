@@ -82,7 +82,8 @@
                     <beamTestPipelineOptions>
                       [
                         "--runner=TestSparkRunner",
-                        "--streaming=false"
+                        "--streaming=false",
+                        "--enableSparkMetricSinks=false"
                       ]
                     </beamTestPipelineOptions>
                     <beam.spark.test.reuseSparkContext>true</beam.spark.test.reuseSparkContext>

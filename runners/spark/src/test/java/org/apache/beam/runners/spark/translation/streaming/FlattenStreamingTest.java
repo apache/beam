@@ -23,7 +23,7 @@ import java.util.List;
 import org.apache.beam.runners.spark.SparkPipelineOptions;
 import org.apache.beam.runners.spark.io.CreateStream;
 import org.apache.beam.runners.spark.translation.streaming.utils.PAssertStreaming;
-import org.apache.beam.runners.spark.translation.streaming.utils.TestOptionsForStreaming;
+import org.apache.beam.runners.spark.translation.streaming.utils.TestPipelineOptionsForStreaming;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.transforms.Create;
@@ -57,7 +57,7 @@ public class FlattenStreamingTest {
   public TemporaryFolder checkpointParentDir = new TemporaryFolder();
 
   @Rule
-  public TestOptionsForStreaming commonOptions = new TestOptionsForStreaming();
+  public TestPipelineOptionsForStreaming commonOptions = new TestPipelineOptionsForStreaming();
 
   @Test
   public void testFlattenUnbounded() throws Exception {
