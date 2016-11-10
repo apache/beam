@@ -42,8 +42,6 @@ def context(element, timestamp, windows):
   return WindowFn.AssignContext(timestamp, element, windows)
 
 
-
-
 class ReifyWindowsFn(core.DoFn):
   def process(self, context):
     key, values = context.element

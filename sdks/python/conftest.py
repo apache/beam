@@ -17,6 +17,7 @@
 
 import pytest
 
+
 def pytest_addoption(parser):
   """Register command line options to pytest"""
   parser.addoption('--test_options',
@@ -29,6 +30,7 @@ def pytest_addoption(parser):
                    type=str,
                    action='store',
                    help='providing supported features ')
+
 
 def pytest_runtest_setup(item):
   """Set up @RunnableOnService marker and handle sub-categories"""

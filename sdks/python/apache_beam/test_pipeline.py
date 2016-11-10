@@ -22,6 +22,7 @@ import argparse
 from apache_beam.pipeline import Pipeline
 from apache_beam.utils.options import PipelineOptions
 
+
 class TestPipeline(Pipeline):
   """TestPipeline class can be used inside of tests that can be configured to
   run against pipeline runner.
@@ -32,13 +33,14 @@ class TestPipeline(Pipeline):
   @pytest.mark.ValidatesRunner annotation.
 
   Test functions that run against a pipeline runner are recommended to be tagged
-  by @pytest.mark.ValidatesRunner annotation. TestPipeline class has a functionality
-  to parse arguments from command line and build pipeline options for such tests.
+  by @pytest.mark.ValidatesRunner annotation. TestPipeline class has a
+  functionality to parse arguments from command line and build pipeline options
+  for such tests.
 
   In order to configure the test with customized pipeline options from command
   line, system argument 'test_options' can be used to obtains a list of pipeline
-  options. If no options specified, DirectPipelineRunner will be used as default.
-  For example::
+  options. If no options specified, DirectPipelineRunner will be used as
+  default. For example::
 
     '--runner DirectPipelineRunner \
     --job_name myJobName \
@@ -61,10 +63,10 @@ class TestPipeline(Pipeline):
     """Create a pipeline options from command line argument: --test_options"""
     parser = argparse.ArgumentParser()
     parser.add_argument('--test_options',
-                       type=str,
-                       action='store',
-                       help='only run tests providing service options')
-    known, argv = parser.parse_known_args()
+                        type=str,
+                        action='store',
+                        help='only run tests providing service options')
+    known, unused_argv = parser.parse_known_args()
 
     options = []
     if known.test_options is not None:
