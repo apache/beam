@@ -33,6 +33,7 @@ import com.fasterxml.jackson.databind.SerializerProvider;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.fasterxml.jackson.databind.deser.ContextualDeserializer;
+import com.google.common.base.MoreObjects;
 import java.io.IOException;
 import java.io.Serializable;
 import java.lang.reflect.InvocationHandler;
@@ -94,7 +95,9 @@ public interface ValueProvider<T> {
 
     @Override
     public String toString() {
-      return String.format("StaticValueProvider: %s", value);
+      return MoreObjects.toStringHelper(this)
+          .add("value", value)
+          .toString();
     }
   }
 
@@ -133,7 +136,9 @@ public interface ValueProvider<T> {
 
     @Override
     public String toString() {
-      return String.format("NestedValueProvider of (%s)", value);
+      return MoreObjects.toStringHelper(this)
+          .add("value", value)
+          .toString();
     }
   }
 
@@ -225,8 +230,11 @@ public interface ValueProvider<T> {
 
     @Override
     public String toString() {
-      return String.format(
-          "RuntimeValueProvider from property %s", propertyName);
+      return MoreObjects.toStringHelper(this)
+          .add("propertyName", propertyName)
+          .add("default", defaultValue)
+          .add("value", isAccessible() ? get() : null)
+          .toString();
     }
   }
 
