@@ -22,6 +22,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.base.Strings.isNullOrEmpty;
 
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Ordering;
 
 import java.io.File;
@@ -494,7 +495,19 @@ public abstract class FileBasedSink<T> extends Sink<T> {
       LOG.debug("Removing temporary bundle output files in {}.", tempDirectory);
       FileOperations fileOperations =
           FileOperationsFactory.getFileOperations(tempDirectory, options);
-      fileOperations.removeDirectoryAndFiles(tempDirectory, knownFiles);
+      IOChannelFactory factory = IOChannelUtils.getFactory(tempDirectory);
+      Collection<String> matches = factory.match(factory.resolve(tempDirectory, "*"));
+
+      Set<String> allMatches = new HashSet<>(matches);
+      allMatches.addAll(knownFiles);
+      LOG.debug(
+          "Removing {} temporary files found under {} ({} matched glob, {} known files)",
+          allMatches.size(),
+          tempDirectory,
+          matches.size(),
+          allMatches.size() - matches.size());
+      fileOperations.remove(allMatches);
+      fileOperations.remove(ImmutableList.of(tempDirectory));
     }
 
     /**
@@ -698,19 +711,12 @@ public abstract class FileBasedSink<T> extends Sink<T> {
      * @param srcFilenames the source filenames.
      * @param destFilenames the destination filenames.
      */
-     void copy(List<String> srcFilenames, List<String> destFilenames) throws IOException;
+    void copy(List<String> srcFilenames, List<String> destFilenames) throws IOException;
 
     /**
-     * Removes a directory and the files in it (but not subdirectories).
-     *
-     * <p>Additionally, to partially mitigate the effects of filesystems with eventually-consistent
-     * directory matching APIs, takes a list of files that are known to exist - i.e. removes the
-     * union of the known files and files that the filesystem says exist in the directory.
-     *
-     * <p>Assumes that, if directory listing had been strongly consistent, it would have matched
-     * all of knownFiles - i.e. on a strongly consistent filesystem, knownFiles can be ignored.
+     * Remove a collection of files.
      */
-    void removeDirectoryAndFiles(String directory, List<String> knownFiles) throws IOException;
+    void remove(Collection<String> filenames) throws IOException;
   }
 
   /**
@@ -729,21 +735,8 @@ public abstract class FileBasedSink<T> extends Sink<T> {
     }
 
     @Override
-    public void removeDirectoryAndFiles(String directory, List<String> knownFiles)
-        throws IOException {
-      IOChannelFactory factory = IOChannelUtils.getFactory(directory);
-      Collection<String> matches = factory.match(directory + "/*");
-      Set<String> allMatches = new HashSet<>(matches);
-      allMatches.addAll(knownFiles);
-      LOG.debug(
-          "Removing {} temporary files found under {} ({} matched glob, {} additional known files)",
-          allMatches.size(),
-          directory,
-          matches.size(),
-          allMatches.size() - matches.size());
-      gcsUtil.remove(allMatches);
-      // No need to remove the directory itself: GCS doesn't have directories, so if the directory
-      // is empty, then it already doesn't exist.
+    public void remove(Collection<String> filenames) throws IOException {
+      gcsUtil.remove(filenames);
     }
   }
 
@@ -790,20 +783,11 @@ public abstract class FileBasedSink<T> extends Sink<T> {
     }
 
     @Override
-    public void removeDirectoryAndFiles(String directory, List<String> knownFiles)
-        throws IOException {
-      if (!new File(directory).exists()) {
-        LOG.debug("Directory {} already doesn't exist", directory);
-        return;
-      }
-      Collection<String> matches = factory.match(new File(directory, "*").getAbsolutePath());
-      LOG.debug("Removing {} temporary files found under {}", matches.size(), directory);
-      for (String filename : matches) {
+    public void remove(Collection<String> filenames) throws IOException {
+      for (String filename : filenames) {
         LOG.debug("Removing file {}", filename);
         removeOne(filename);
       }
-      LOG.debug("Removing directory {}", directory);
-      removeOne(directory);
     }
 
     private void removeOne(String filename) throws IOException {
