@@ -2,6 +2,7 @@
 package cz.seznam.euphoria.core.client.operator;
 
 import cz.seznam.euphoria.core.annotation.operator.Derived;
+import cz.seznam.euphoria.core.annotation.operator.StateComplexity;
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.dataset.Partitioner;
 import cz.seznam.euphoria.core.client.dataset.Partitioning;
@@ -17,7 +18,10 @@ import cz.seznam.euphoria.core.client.util.Pair;
 /**
  * Reduce all elements in window.
  */
-@Derived(basic = ReduceByKey.class)
+@Derived(
+    state = StateComplexity.CONSTANT_IF_COMBINABLE,
+    repartitions = 1
+)
 public class ReduceWindow<
     IN, VALUE, OUT, W extends Window>
     extends StateAwareWindowWiseSingleInputOperator<

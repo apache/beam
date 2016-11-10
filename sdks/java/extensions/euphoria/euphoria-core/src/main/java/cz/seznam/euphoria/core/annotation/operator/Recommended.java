@@ -1,8 +1,9 @@
 
 package cz.seznam.euphoria.core.annotation.operator;
 
-import cz.seznam.euphoria.core.client.operator.Operator;
 import java.lang.annotation.Documented;
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Target;
 
 /**
  * A {@code Recommended} operator is such an operator that is strongly
@@ -10,12 +11,16 @@ import java.lang.annotation.Documented;
  * reasons.
  */
 @Documented
+@Target(ElementType.TYPE)
 public @interface Recommended {
 
   /** Textual documentation of the reason of the recommendation. */
   String reason();
 
-  /** List of basic operators. */
-  Class<? extends Operator>[] basic();
+  /** State complexity, use {@code StateComplexity.<value>}. */
+  int state();
+
+  /** Number of global repartition operations. */
+  int repartitions();
   
 }

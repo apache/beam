@@ -2,6 +2,7 @@
 package cz.seznam.euphoria.core.client.operator;
 
 import cz.seznam.euphoria.core.annotation.operator.Derived;
+import cz.seznam.euphoria.core.annotation.operator.StateComplexity;
 import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.dataset.GroupedDataset;
@@ -19,7 +20,10 @@ import java.util.Objects;
 /**
  * Operator taking input dataset and performs repartition and key extraction.
  */
-@Derived(basic = ReduceByKey.class)
+@Derived(
+    state = StateComplexity.ZERO,
+    repartitions = 1
+)
 public class GroupByKey<IN, KEY, VALUE>
     extends ElementWiseOperator<IN, Pair<KEY, VALUE>>
     implements PartitioningAware<KEY>

@@ -1,8 +1,9 @@
 
 package cz.seznam.euphoria.core.annotation.operator;
 
-import cz.seznam.euphoria.core.client.operator.Operator;
 import java.lang.annotation.Documented;
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Target;
 
 /**
  * A {@code Derived} operator is operator that is efficiently
@@ -10,8 +11,14 @@ import java.lang.annotation.Documented;
  * is no explicit reason for the executor to implement it by hand.
  */
 @Documented
+@Target(ElementType.TYPE)
 public @interface Derived {
 
-  Class<? extends Operator>[] basic();
+  /** State complexity, use {@code StateComplexity.<value>}. */
+  int state();
+
+  /** Number of global repartition operations. */
+  int repartitions();
+
 
 }

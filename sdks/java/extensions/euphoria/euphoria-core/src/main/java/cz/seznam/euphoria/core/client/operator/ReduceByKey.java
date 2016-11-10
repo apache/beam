@@ -1,6 +1,7 @@
 package cz.seznam.euphoria.core.client.operator;
 
 import cz.seznam.euphoria.core.annotation.operator.Recommended;
+import cz.seznam.euphoria.core.annotation.operator.StateComplexity;
 import cz.seznam.euphoria.core.client.operator.state.State;
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.dataset.GroupedDataset;
@@ -36,7 +37,8 @@ import java.util.Objects;
         "Is very recommended to override because of performance in "
       + "a specific area of (mostly) batch calculations where combiners "
       + "can be efficiently used in the executor-specific implementation",
-    basic = ReduceStateByKey.class
+    state = StateComplexity.CONSTANT_IF_COMBINABLE,
+    repartitions = 1
 )
 public class ReduceByKey<
     IN, KIN, KEY, VALUE, KEYOUT, OUT, W extends Window>

@@ -1,6 +1,7 @@
 package cz.seznam.euphoria.core.client.operator;
 
 import cz.seznam.euphoria.core.annotation.operator.Derived;
+import cz.seznam.euphoria.core.annotation.operator.StateComplexity;
 import cz.seznam.euphoria.core.client.dataset.windowing.Batch;
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.dataset.Partitioning;
@@ -17,7 +18,10 @@ import java.util.Objects;
 /**
  * Operator for summing of elements by key.
  */
-@Derived(basic = ReduceByKey.class)
+@Derived(
+    state = StateComplexity.CONSTANT,
+    repartitions = 1
+)
 public class SumByKey<
     IN, KEY, W extends Window>
     extends StateAwareWindowWiseSingleInputOperator<
