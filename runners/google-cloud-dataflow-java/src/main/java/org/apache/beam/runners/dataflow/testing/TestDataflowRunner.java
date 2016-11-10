@@ -135,10 +135,14 @@ public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
             }
           }
         });
-        State finalState = job.waitUntilFinish(Duration.standardMinutes(10L), messageHandler);
+        State finalState =
+            job.waitUntilFinish(
+                Duration.standardSeconds(options.getTestTimeoutSeconds()), messageHandler);
         if (finalState == null || finalState == State.RUNNING) {
-          LOG.info("Dataflow job {} took longer than 10 minutes to complete, cancelling.",
-              job.getJobId());
+          LOG.info(
+              "Dataflow job {} took longer than {} seconds to complete, cancelling.",
+              job.getJobId(),
+              options.getTestTimeoutSeconds());
           job.cancel();
         }
         success = resultFuture.get();
