@@ -1,6 +1,7 @@
 package cz.seznam.euphoria.flink.batch.greduce;
 
 import cz.seznam.euphoria.core.client.dataset.windowing.MergingWindowing;
+import cz.seznam.euphoria.core.client.dataset.windowing.TimedWindow;
 import cz.seznam.euphoria.core.client.dataset.windowing.Window;
 import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.functional.BinaryFunction;
@@ -95,7 +96,8 @@ public class GroupReducer<WID extends Window, KEY, I> {
     {
       State state = states.get(window);
       if (state == null) {
-        state = stateFactory.apply(new ElementCollectContext(collector, window), stateStorageProvider);
+        state = stateFactory.apply(
+            new ElementCollectContext(collector, window), stateStorageProvider);
         states.put(window, state);
       }
       // ~ add the value to the target window state
@@ -235,8 +237,10 @@ public class GroupReducer<WID extends Window, KEY, I> {
 
     @Override
     public void collect(T elem) {
-      out.collect(
-          new StampedWindowElement<>(window, Pair.of(key, elem), clock.getStamp()));
+      long stamp = (window instanceof TimedWindow)
+          ? ((TimedWindow) window).maxTimestamp()
+          : clock.getStamp();
+      out.collect(new StampedWindowElement<>(window, Pair.of(key, elem), stamp));
     }
 
     @Override

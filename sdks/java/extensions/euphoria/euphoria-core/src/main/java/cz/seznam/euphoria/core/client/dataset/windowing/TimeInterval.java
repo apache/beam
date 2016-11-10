@@ -1,7 +1,10 @@
 
 package cz.seznam.euphoria.core.client.dataset.windowing;
 
-public final class TimeInterval extends Window implements Comparable<TimeInterval> {
+public final class TimeInterval
+    extends Window
+    implements TimedWindow<TimeInterval>, Comparable<TimeInterval> {
+
   private final long startMillis;
   private final long endMillis;
 
@@ -37,6 +40,11 @@ public final class TimeInterval extends Window implements Comparable<TimeInterva
     return new TimeInterval(
             Math.min(this.startMillis, that.startMillis),
             Math.max(this.endMillis, that.endMillis));
+  }
+
+  @Override
+  public long maxTimestamp() {
+    return this.endMillis;
   }
 
   @Override

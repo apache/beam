@@ -2,6 +2,7 @@ package cz.seznam.euphoria.flink.batch;
 
 import cz.seznam.euphoria.core.client.dataset.HashPartitioner;
 import cz.seznam.euphoria.core.client.dataset.windowing.MergingWindowing;
+import cz.seznam.euphoria.core.client.dataset.windowing.TimedWindow;
 import cz.seznam.euphoria.core.client.dataset.windowing.Window;
 import cz.seznam.euphoria.core.client.dataset.windowing.WindowedElement;
 import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
@@ -73,51 +74,42 @@ public class ReduceByKeyTranslator implements BatchOperatorTranslator<ReduceByKe
       udfValue = origOperator.getValueExtractor();
     }
 
-    // ~ re-assign element timestamps
-    if (windowing.getTimestampAssigner().isPresent()) {
-      UnaryFunction<Object, Long> timestampAssigner =
-          (UnaryFunction<Object, Long>) windowing.getTimestampAssigner().get();
-      MapOperator<Object, StampedWindowElement> tsAssigned =
-          input.<StampedWindowElement>map((Object value) -> {
-              WindowedElement we = (WindowedElement) value;
-              long ts = timestampAssigner.apply(we.get());
-              return new StampedWindowElement<>(we.getWindow(), we.get(), ts);
-            });
-      input = tsAssigned
-          .name(operator.getName() + "::assign-timestamps")
-          .setParallelism(operator.getParallelism())
-          .returns((Class) StampedWindowElement.class);
-    } else {
-      // ~ FIXME #16648 - make sure we're dealing with StampedWindowedElements; we can
-      // drop this once only such elements are floating throughout the whole batch executor
-      MapOperator<Object, StampedWindowElement> mapped =
-          input.map((MapFunction) value -> {
-            WindowedElement we = (WindowedElement) value;
-            if (we instanceof StampedWindowElement) {
-              return we;
-            }
-            return new StampedWindowElement<>(we.getWindow(), we.get(), Long.MAX_VALUE);
-          });
-      input = mapped.name(operator.getName() + "::make-stamped-windowed-elements")
-          .setParallelism(operator.getParallelism())
-          .returns((Class) StampedWindowElement.class);
-    }
+    // ~ FIXME #16648 - make sure we're dealing with StampedWindowedElements; we can
+    // drop this once only such elements are floating throughout the whole batch executor
+    MapOperator<Object, StampedWindowElement> mapped =
+        input.map((MapFunction) value -> {
+          WindowedElement we = (WindowedElement) value;
+          if (we instanceof StampedWindowElement) {
+            return we;
+          }
+          return new StampedWindowElement<>(we.getWindow(), we.get(), Long.MAX_VALUE);
+        });
+    input = mapped.name(operator.getName() + "::make-stamped-windowed-elements")
+        .setParallelism(operator.getParallelism())
+        .returns((Class) StampedWindowElement.class);
 
     // ~ extract key/value from input elements and assign windows
     DataSet<StampedWindowElement> tuples;
     {
       // FIXME require keyExtractor to deliver `Comparable`s
 
+      UnaryFunction<Object, Long> timeAssigner =
+          (UnaryFunction<Object, Long>) windowing.getTimestampAssigner().orElse(null);
       FlatMapOperator<Object, StampedWindowElement> wAssigned =
           input.flatMap((i, c) -> {
             StampedWindowElement wel = (StampedWindowElement) i;
+            if (timeAssigner != null) {
+              long stamp = timeAssigner.apply(wel.get());
+              i = wel = new StampedWindowElement(wel.getWindow(), wel.get(), stamp);
+            }
             Set<Window> assigned = windowing.assignWindowsToElement(wel);
             for (Window wid : assigned) {
               Object el = wel.get();
+              long stamp = (wid instanceof TimedWindow)
+                  ? ((TimedWindow) wid).maxTimestamp()
+                  : wel.getTimestamp();
               c.collect(new StampedWindowElement(
-                  wid,
-                  Pair.of(udfKey.apply(el), udfValue.apply(el)),
-                  wel.getTimestamp()));
+                  wid, Pair.of(udfKey.apply(el), udfValue.apply(el)), stamp));
             }
           });
       tuples = wAssigned
