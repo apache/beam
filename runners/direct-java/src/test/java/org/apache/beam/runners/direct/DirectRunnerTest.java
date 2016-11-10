@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.direct;
 
+import static com.google.common.base.Preconditions.checkState;
 import static org.apache.beam.sdk.metrics.MetricMatchers.metricResult;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.equalTo;
@@ -38,11 +39,15 @@ import org.apache.beam.runners.direct.DirectRunner.DirectPipelineResult;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.coders.AtomicCoder;
+import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.ListCoder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
+import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.CountingInput;
+import org.apache.beam.sdk.io.CountingSource;
+import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Distribution;
 import org.apache.beam.sdk.metrics.DistributionResult;
@@ -216,6 +221,15 @@ public class DirectRunnerTest implements Serializable {
         .put(-16, 1L)
         .build();
     PAssert.thatMap(countsBackToString).isEqualTo(expected);
+  }
+
+  @Test
+  public void splitsInputs() {
+    Pipeline p = getPipeline();
+    PCollection<Long> longs = p.apply(Read.from(MustSplitSource.of(CountingSource.upTo(3))));
+
+    PAssert.that(longs).containsInAnyOrder(0L, 1L, 2L);
+    p.run();
   }
 
   @Test
@@ -477,5 +491,53 @@ public class DirectRunnerTest implements Serializable {
         metricResult(DirectRunnerTest.class.getName(), "input", "MyStep",
             DistributionResult.create(26L, 3L, 5L, 13L),
             DistributionResult.create(26L, 3L, 5L, 13L))));
+  }
+
+  private static class MustSplitSource<T> extends BoundedSource<T>{
+    public static <T> BoundedSource<T> of(BoundedSource<T> underlying) {
+      return new MustSplitSource<>(underlying);
+    }
+
+    private final BoundedSource<T> underlying;
+
+    public MustSplitSource(BoundedSource<T> underlying) {
+      this.underlying = underlying;
+    }
+
+    @Override
+    public List<? extends BoundedSource<T>> splitIntoBundles(
+        long desiredBundleSizeBytes, PipelineOptions options) throws Exception {
+      // Must have more than
+      checkState(
+          desiredBundleSizeBytes < getEstimatedSizeBytes(options),
+          "Must split into more than one source");
+      return underlying.splitIntoBundles(desiredBundleSizeBytes, options);
+    }
+
+    @Override
+    public long getEstimatedSizeBytes(PipelineOptions options) throws Exception {
+      return underlying.getEstimatedSizeBytes(options);
+    }
+
+    @Override
+    public boolean producesSortedKeys(PipelineOptions options) throws Exception {
+      return underlying.producesSortedKeys(options);
+    }
+
+    @Override
+    public BoundedReader<T> createReader(PipelineOptions options) throws IOException {
+      throw new IllegalStateException(
+          "The MustSplitSource cannot create a reader without being split first");
+    }
+
+    @Override
+    public void validate() {
+      underlying.validate();
+    }
+
+    @Override
+    public Coder<T> getDefaultOutputCoder() {
+      return underlying.getDefaultOutputCoder();
+    }
   }
 }
