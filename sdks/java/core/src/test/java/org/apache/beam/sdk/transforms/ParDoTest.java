@@ -1496,7 +1496,7 @@ public class ParDoTest implements Serializable {
 
   @Test
   @Category(RunnableOnService.class)
-  public void testBagSTate() {
+  public void testBagState() {
     final String stateId = "foo";
 
     DoFn<KV<String, Integer>, List<Integer>> fn =

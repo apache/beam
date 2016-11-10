@@ -89,6 +89,32 @@ class WatermarkCallbackExecutor {
   }
 
   /**
+   * Execute the provided {@link Runnable} after the next call to
+   * {@link #fireForWatermark(AppliedPTransform, Instant)} where the window
+   * is guaranteed to be expired.
+   */
+  public void callOnWindowExpiration(
+      AppliedPTransform<?, ?, ?> step,
+      BoundedWindow window,
+      WindowingStrategy<?, ?> windowingStrategy,
+      Runnable runnable) {
+    WatermarkCallback callback =
+        WatermarkCallback.afterWindowExpiration(window, windowingStrategy, runnable);
+
+    PriorityQueue<WatermarkCallback> callbackQueue = callbacks.get(step);
+    if (callbackQueue == null) {
+      callbackQueue = new PriorityQueue<>(11, new CallbackOrdering());
+      if (callbacks.putIfAbsent(step, callbackQueue) != null) {
+        callbackQueue = callbacks.get(step);
+      }
+    }
+
+    synchronized (callbackQueue) {
+      callbackQueue.offer(callback);
+    }
+  }
+
+  /**
    * Schedule all pending callbacks that must have produced output by the time of the provided
    * watermark.
    */
@@ -109,6 +135,14 @@ class WatermarkCallbackExecutor {
         BoundedWindow window, WindowingStrategy<?, W> strategy, Runnable callback) {
       @SuppressWarnings("unchecked")
       Instant firingAfter = strategy.getTrigger().getWatermarkThatGuaranteesFiring((W) window);
+      return new WatermarkCallback(firingAfter, callback);
+    }
+
+    public static <W extends BoundedWindow> WatermarkCallback afterWindowExpiration(
+        BoundedWindow window, WindowingStrategy<?, W> strategy, Runnable callback) {
+      // Fire one milli past the end of the window. This ensures that all window expiration
+      // timers are delivered first
+      Instant firingAfter = window.maxTimestamp().plus(strategy.getAllowedLateness()).plus(1);
       return new WatermarkCallback(firingAfter, callback);
     }
 
