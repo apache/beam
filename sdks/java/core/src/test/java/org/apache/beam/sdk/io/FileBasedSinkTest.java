@@ -46,7 +46,6 @@ import java.util.zip.GZIPInputStream;
 
 import org.apache.beam.sdk.io.FileBasedSink.CompressionType;
 import org.apache.beam.sdk.io.FileBasedSink.FileBasedWriteOperation;
-import org.apache.beam.sdk.io.FileBasedSink.FileBasedWriteOperation.TemporaryFileRetention;
 import org.apache.beam.sdk.io.FileBasedSink.FileBasedWriter;
 import org.apache.beam.sdk.io.FileBasedSink.FileResult;
 import org.apache.beam.sdk.io.FileBasedSink.WritableByteChannelFactory;
@@ -157,20 +156,9 @@ public class FileBasedSinkTest {
    * Finalize copies temporary files to output files and removes any temporary files.
    */
   @Test
-  public void testFinalizeWithNoRetention() throws Exception {
+  public void testFinalize() throws Exception {
     List<File> files = generateTemporaryFilesForFinalize(3);
-    boolean retainTemporaryFiles = false;
-    runFinalize(buildWriteOperationForFinalize(retainTemporaryFiles), files, retainTemporaryFiles);
-  }
-
-  /**
-   * Finalize retains temporary files when requested.
-   */
-  @Test
-  public void testFinalizeWithRetention() throws Exception {
-    List<File> files = generateTemporaryFilesForFinalize(3);
-    boolean retainTemporaryFiles = true;
-    runFinalize(buildWriteOperationForFinalize(retainTemporaryFiles), files, retainTemporaryFiles);
+    runFinalize(buildWriteOperation(), files);
   }
 
   /**
@@ -179,9 +167,9 @@ public class FileBasedSinkTest {
   @Test
   public void testFinalizeMultipleCalls() throws Exception {
     List<File> files = generateTemporaryFilesForFinalize(3);
-    SimpleSink.SimpleWriteOperation writeOp = buildWriteOperationForFinalize(false);
-    runFinalize(writeOp, files, false);
-    runFinalize(writeOp, files, false);
+    SimpleSink.SimpleWriteOperation writeOp = buildWriteOperation();
+    runFinalize(writeOp, files);
+    runFinalize(writeOp, files);
   }
 
   /**
@@ -190,24 +178,14 @@ public class FileBasedSinkTest {
   @Test
   public void testFinalizeWithIntermediateState() throws Exception {
     List<File> files = generateTemporaryFilesForFinalize(3);
-    SimpleSink.SimpleWriteOperation writeOp = buildWriteOperationForFinalize(false);
-    runFinalize(writeOp, files, false);
+    SimpleSink.SimpleWriteOperation writeOp = buildWriteOperation();
+    runFinalize(writeOp, files);
 
     // create a temporary file
     tmpFolder.newFolder(tempDirectory);
     tmpFolder.newFile(tempDirectory + "/1");
 
-    runFinalize(writeOp, files, false);
-  }
-
-  /**
-   * Build a SimpleWriteOperation with default values and the specified retention policy.
-   */
-  private SimpleSink.SimpleWriteOperation buildWriteOperationForFinalize(
-      boolean retainTemporaryFiles) throws Exception {
-    TemporaryFileRetention retentionPolicy =
-        retainTemporaryFiles ? TemporaryFileRetention.KEEP : TemporaryFileRetention.REMOVE;
-    return buildWriteOperation(retentionPolicy);
+    runFinalize(writeOp, files);
   }
 
   /**
@@ -230,8 +208,8 @@ public class FileBasedSinkTest {
   /**
    * Finalize and verify that files are copied and temporary files are optionally removed.
    */
-  private void runFinalize(SimpleSink.SimpleWriteOperation writeOp, List<File> temporaryFiles,
-      boolean retainTemporaryFiles) throws Exception {
+  private void runFinalize(SimpleSink.SimpleWriteOperation writeOp, List<File> temporaryFiles)
+      throws Exception {
     PipelineOptions options = PipelineOptionsFactory.create();
 
     int numFiles = temporaryFiles.size();
@@ -250,12 +228,10 @@ public class FileBasedSinkTest {
 
     for (int i = 0; i < numFiles; i++) {
       assertTrue(outputFiles.get(i).exists());
-      assertEquals(retainTemporaryFiles, temporaryFiles.get(i).exists());
+      assertFalse(temporaryFiles.get(i).exists());
     }
 
-    if (!retainTemporaryFiles) {
-      assertFalse(new File(writeOp.tempDirectory).exists());
-    }
+    assertFalse(new File(writeOp.tempDirectory).exists());
   }
 
   /**
@@ -555,11 +531,6 @@ public class FileBasedSinkTest {
     }
 
     private static final class SimpleWriteOperation extends FileBasedWriteOperation<String> {
-      public SimpleWriteOperation(
-          SimpleSink sink, String tempOutputFilename, TemporaryFileRetention retentionPolicy) {
-        super(sink, tempOutputFilename, retentionPolicy);
-      }
-
       public SimpleWriteOperation(SimpleSink sink, String tempOutputFilename) {
         super(sink, tempOutputFilename);
       }
@@ -618,15 +589,6 @@ public class FileBasedSinkTest {
   }
 
   /**
-   * Build a SimpleWriteOperation with default options and the given file retention policy.
-   */
-  private SimpleSink.SimpleWriteOperation buildWriteOperation(
-      TemporaryFileRetention fileRetention) {
-    SimpleSink sink = buildSink();
-    return new SimpleSink.SimpleWriteOperation(sink, getBaseTempDirectory(), fileRetention);
-  }
-
-  /**
    * Build a SimpleWriteOperation with default options and the given base temporary filename.
    */
   private SimpleSink.SimpleWriteOperation buildWriteOperation(String baseTemporaryFilename) {
@@ -639,15 +601,14 @@ public class FileBasedSinkTest {
    */
   private SimpleSink.SimpleWriteOperation buildWriteOperation() {
     SimpleSink sink = buildSink();
-    return new SimpleSink.SimpleWriteOperation(
-        sink, getBaseTempDirectory(), TemporaryFileRetention.REMOVE);
+    return new SimpleSink.SimpleWriteOperation(sink, getBaseTempDirectory());
   }
 
   /**
    * Build a writer with the default options for its parent write operation and sink.
    */
   private SimpleSink.SimpleWriter buildWriter() {
-    SimpleSink.SimpleWriteOperation writeOp = buildWriteOperation(TemporaryFileRetention.REMOVE);
+    SimpleSink.SimpleWriteOperation writeOp = buildWriteOperation();
     return new SimpleSink.SimpleWriter(writeOp);
   }
 }
