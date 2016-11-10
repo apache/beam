@@ -67,6 +67,7 @@ public class WindowedWordCountIT {
     WindowedWordCountITOptions options =
         TestPipeline.testingPipelineOptions().as(WindowedWordCountITOptions.class);
     options.setStreaming(isStreaming);
+    options.setTestTimeoutSeconds(1200L);
 
     // Note: currently unused because the example writes to BigQuery, but WindowedWordCount.Options
     // are tightly coupled to WordCount.Options, where the option is required.
