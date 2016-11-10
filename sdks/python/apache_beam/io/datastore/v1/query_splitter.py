@@ -60,13 +60,19 @@ def get_splits(datastore, query, num_splits, partition=None):
     query: the query to split.
     num_splits: the desired number of splits.
     partition: the partition the query is running in.
+
+  Returns:
+    A list of split queries, of a max length of `num_splits`
   """
 
-  _validate_query(query)
-  _validate_split_size(num_splits)
+  # Validate that the number of splits is not out of bounds.
+  if num_splits < 1:
+    raise ValueError("The number of splits must be greater than 0.")
 
   if num_splits == 1:
     return [query]
+
+  _validate_query(query)
 
   splits = []
   scatter_keys = _get_scatter_keys(datastore, query, num_splits, partition)
@@ -77,13 +83,6 @@ def get_splits(datastore, query, num_splits, partition=None):
 
   splits.append(_create_split(last_key, None, query))
   return splits
-
-
-def _validate_split_size(num_splits):
-  """Validates that the number of splits is not out of bounds."""
-
-  if num_splits < 1:
-    raise ValueError("The number of splits must be greater than 0.")
 
 
 def _validate_query(query):
@@ -150,6 +149,9 @@ def _get_scatter_keys(datastore, query, num_splits, partition):
     query: the user query.
     partition: the partition to run the query in.
     datastore: the client to datastore containing the data.
+
+  Returns:
+    A list of scatter keys returned by Datastore.
   """
   scatter_point_query = _create_scatter_query(query, num_splits)
 
@@ -181,6 +183,9 @@ def _get_split_key(keys, num_splits):
   Args:
     keys: the list of keys.
     num_splits: the number of splits.
+
+  Returns:
+    A list of keys to split on.
 
   """
 
@@ -229,6 +234,9 @@ def _create_split(last_key, next_key, query):
     last_key: the previous key. If null then assumed to be the beginning.
     next_key: the next key. If null then assumed to be the end.
     query: the desired query.
+
+  Returns:
+    A split query with fetches entities in the range [last_key, next_key)
   """
   if not (last_key or next_key):
     return query

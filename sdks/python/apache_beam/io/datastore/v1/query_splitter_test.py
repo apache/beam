@@ -36,21 +36,21 @@ class QuerySplitterTest(unittest.TestCase):
     query = query_pb2.Query()
     query.kind.add()
     query.kind.add()
-    self.assertRaises(ValueError, query_splitter.get_splits, None, query, 1)
+    self.assertRaises(ValueError, query_splitter.get_splits, None, query, 4)
 
   def test_get_splits_query_with_order(self):
     query = query_pb2.Query()
     query.kind.add()
     query.order.add()
 
-    self.assertRaises(ValueError, query_splitter.get_splits, None, query, 1)
+    self.assertRaises(ValueError, query_splitter.get_splits, None, query, 3)
 
   def test_get_splits_query_with_unsupported_filter(self):
     query = query_pb2.Query()
     query.kind.add()
     test_filter = query.filter.composite_filter.filters.add()
     test_filter.property_filter.op = PropertyFilter.GREATER_THAN
-    self.assertRaises(ValueError, query_splitter.get_splits, None, query, 1)
+    self.assertRaises(ValueError, query_splitter.get_splits, None, query, 2)
 
   def test_create_scatter_query(self):
     query = query_pb2.Query()

@@ -19,15 +19,18 @@
 
 
 def key_comparator(k1, k2):
-  """A comparator for Datastore Keys."""
+  """A comparator for Datastore keys.
+
+  Comparison is only valid for keys in the same partition. The comparison here
+  is between the list of paths for each key.
+  """
 
   if k1.partition_id != k2.partition_id:
     raise ValueError('Cannot compare keys with different partition ids.')
 
-  k1_iter = iter(k1.path)
   k2_iter = iter(k2.path)
 
-  for k1_path in k1_iter:
+  for k1_path in k1.path:
     k2_path = next(k2_iter, None)
     if not k2_path:
       return 1
@@ -45,9 +48,20 @@ def key_comparator(k1, k2):
 
 
 def compare_path(p1, p2):
-  res = str_compare(p1.kind, p2.kind)
-  if res != 0:
-    return res
+  """A comparator for key path.
+
+  A path has either an `id` or a `name` field defined. The
+  comparison works with the following rules:
+
+  1. If one path has `id` defined while the other doesn't, then the
+  one with `id` defined is considered smaller.
+  2. If both paths have `id` defined, then their ids are compared.
+  3. If no `id` is defined for both paths, then their `names` are compared.
+  """
+
+  result = str_compare(p1.kind, p2.kind)
+  if result != 0:
+    return result
 
   if p1.HasField('id'):
     if not p2.HasField('id'):
