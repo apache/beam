@@ -22,6 +22,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.base.Strings.isNullOrEmpty;
 
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Ordering;
 
 import java.io.File;
@@ -459,7 +460,25 @@ public abstract class FileBasedSink<T> extends Sink<T> {
       LOG.debug("Removing temporary bundle output files in {}.", tempDirectory);
       FileOperations fileOperations =
           FileOperationsFactory.getFileOperations(tempDirectory, options);
-      fileOperations.removeDirectoryAndFiles(tempDirectory, knownFiles);
+      IOChannelFactory factory = IOChannelUtils.getFactory(tempDirectory);
+
+      // To partially mitigate the effects of filesystems with eventually-consistent
+      // directory matching APIs, we remove not only files that the filesystem says exist
+      // in the directory (which may be incomplete), but also files that are known to exist
+      // (produced by successfully completed bundles).
+      // This may still fail to remove temporary outputs of some failed bundles, but at least
+      // the common case (where all bundles succeed) is guaranteed to be fully addressed.
+      Collection<String> matches = factory.match(factory.resolve(tempDirectory, "*"));
+      Set<String> allMatches = new HashSet<>(matches);
+      allMatches.addAll(knownFiles);
+      LOG.debug(
+          "Removing {} temporary files found under {} ({} matched glob, {} known files)",
+          allMatches.size(),
+          tempDirectory,
+          matches.size(),
+          allMatches.size() - matches.size());
+      fileOperations.remove(allMatches);
+      fileOperations.remove(ImmutableList.of(tempDirectory));
     }
 
     /**
@@ -656,26 +675,22 @@ public abstract class FileBasedSink<T> extends Sink<T> {
    */
   private interface FileOperations {
     /**
-     * Copy a collection of files from one location to another.
+     * Copies a collection of files from one location to another.
      *
      * <p>The number of source filenames must equal the number of destination filenames.
      *
      * @param srcFilenames the source filenames.
      * @param destFilenames the destination filenames.
      */
-     void copy(List<String> srcFilenames, List<String> destFilenames) throws IOException;
+    void copy(List<String> srcFilenames, List<String> destFilenames) throws IOException;
 
     /**
-     * Removes a directory and the files in it (but not subdirectories).
+     * Removes a collection of files or directories.
      *
-     * <p>Additionally, to partially mitigate the effects of filesystems with eventually-consistent
-     * directory matching APIs, takes a list of files that are known to exist - i.e. removes the
-     * union of the known files and files that the filesystem says exist in the directory.
-     *
-     * <p>Assumes that, if directory listing had been strongly consistent, it would have matched
-     * all of knownFiles - i.e. on a strongly consistent filesystem, knownFiles can be ignored.
+     * <p>Directories are required to be empty. Non-empty directories will not be deleted,
+     * and this method may return silently or throw an exception.
      */
-    void removeDirectoryAndFiles(String directory, List<String> knownFiles) throws IOException;
+    void remove(Collection<String> filesOrDirs) throws IOException;
   }
 
   /**
@@ -694,21 +709,8 @@ public abstract class FileBasedSink<T> extends Sink<T> {
     }
 
     @Override
-    public void removeDirectoryAndFiles(String directory, List<String> knownFiles)
-        throws IOException {
-      IOChannelFactory factory = IOChannelUtils.getFactory(directory);
-      Collection<String> matches = factory.match(directory + "/*");
-      Set<String> allMatches = new HashSet<>(matches);
-      allMatches.addAll(knownFiles);
-      LOG.debug(
-          "Removing {} temporary files found under {} ({} matched glob, {} additional known files)",
-          allMatches.size(),
-          directory,
-          matches.size(),
-          allMatches.size() - matches.size());
-      gcsUtil.remove(allMatches);
-      // No need to remove the directory itself: GCS doesn't have directories, so if the directory
-      // is empty, then it already doesn't exist.
+    public void remove(Collection<String> filesOrDirs) throws IOException {
+      gcsUtil.remove(filesOrDirs);
     }
   }
 
@@ -755,27 +757,18 @@ public abstract class FileBasedSink<T> extends Sink<T> {
     }
 
     @Override
-    public void removeDirectoryAndFiles(String directory, List<String> knownFiles)
-        throws IOException {
-      if (!new File(directory).exists()) {
-        LOG.debug("Directory {} already doesn't exist", directory);
-        return;
+    public void remove(Collection<String> filesOrDirs) throws IOException {
+      for (String fileOrDir : filesOrDirs) {
+        LOG.debug("Removing file {}", fileOrDir);
+        removeOne(fileOrDir);
       }
-      Collection<String> matches = factory.match(new File(directory, "*").getAbsolutePath());
-      LOG.debug("Removing {} temporary files found under {}", matches.size(), directory);
-      for (String filename : matches) {
-        LOG.debug("Removing file {}", filename);
-        removeOne(filename);
-      }
-      LOG.debug("Removing directory {}", directory);
-      removeOne(directory);
     }
 
-    private void removeOne(String filename) throws IOException {
+    private void removeOne(String fileOrDir) throws IOException {
       // Delete the file if it exists.
-      boolean exists = Files.deleteIfExists(Paths.get(filename));
+      boolean exists = Files.deleteIfExists(Paths.get(fileOrDir));
       if (!exists) {
-        LOG.debug("{} does not exist.", filename);
+        LOG.debug("Tried to delete {}, but it did not exist", fileOrDir);
       }
     }
   }
