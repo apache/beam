@@ -31,7 +31,7 @@ set -v
 # pip install --user installation location.
 LOCAL_PATH=$HOME/.local/bin/
 
-#Remove any tox cache from previous workspace
+# Remove any tox cache from previous workspace
 rm -rf sdks/python/.tox
 
 # INFRA does not install virtualenv
