@@ -89,9 +89,7 @@ public class DoFnInvokersTest {
   }
 
   private ProcessContinuation invokeProcessElement(DoFn<String, String> fn) {
-    return DoFnInvokers.INSTANCE
-        .newByteBuddyInvoker(fn)
-        .invokeProcessElement(mockContext, extraContextFactory);
+    return DoFnInvokers.invokerFor(fn).invokeProcessElement(mockContext, extraContextFactory);
   }
 
   @Test
@@ -101,8 +99,8 @@ public class DoFnInvokersTest {
     IdentityParent fn2 = new IdentityParent();
     assertSame(
         "Invoker classes should only be generated once for each type",
-        DoFnInvokers.INSTANCE.newByteBuddyInvoker(fn1).getClass(),
-        DoFnInvokers.INSTANCE.newByteBuddyInvoker(fn2).getClass());
+        DoFnInvokers.invokerFor(fn1).getClass(),
+        DoFnInvokers.invokerFor(fn2).getClass());
   }
 
   // ---------------------------------------------------------------------------------------
@@ -295,7 +293,7 @@ public class DoFnInvokersTest {
       public void after() {}
     }
     MockFn fn = mock(MockFn.class);
-    DoFnInvoker<String, String> invoker = DoFnInvokers.INSTANCE.newByteBuddyInvoker(fn);
+    DoFnInvoker<String, String> invoker = DoFnInvokers.invokerFor(fn);
     invoker.invokeSetup();
     invoker.invokeStartBundle(mockContext);
     invoker.invokeFinishBundle(mockContext);
@@ -358,7 +356,7 @@ public class DoFnInvokersTest {
   @Test
   public void testSplittableDoFnWithAllMethods() throws Exception {
     MockFn fn = mock(MockFn.class);
-    DoFnInvoker<String, String> invoker = DoFnInvokers.INSTANCE.newByteBuddyInvoker(fn);
+    DoFnInvoker<String, String> invoker = DoFnInvokers.invokerFor(fn);
     final SomeRestrictionTracker tracker = mock(SomeRestrictionTracker.class);
     final SomeRestrictionCoder coder = mock(SomeRestrictionCoder.class);
     SomeRestriction restriction = new SomeRestriction();
@@ -430,7 +428,7 @@ public class DoFnInvokersTest {
       }
     }
     MockFn fn = mock(MockFn.class);
-    DoFnInvoker<String, String> invoker = DoFnInvokers.INSTANCE.newByteBuddyInvoker(fn);
+    DoFnInvoker<String, String> invoker = DoFnInvokers.invokerFor(fn);
 
     CoderRegistry coderRegistry = new CoderRegistry();
     coderRegistry.registerCoder(SomeRestriction.class, SomeRestrictionCoder.class);
@@ -521,7 +519,7 @@ public class DoFnInvokersTest {
   @Test
   public void testProcessElementException() throws Exception {
     DoFnInvoker<Integer, Integer> invoker =
-        DoFnInvokers.INSTANCE.newByteBuddyInvoker(
+        DoFnInvokers.invokerFor(
             new DoFn<Integer, Integer>() {
               @ProcessElement
               public void processElement(@SuppressWarnings("unused") ProcessContext c) {
@@ -537,8 +535,8 @@ public class DoFnInvokersTest {
   public void testProcessElementExceptionWithReturn() throws Exception {
     thrown.expect(UserCodeException.class);
     thrown.expectMessage("bogus");
-    DoFnInvokers.INSTANCE
-        .newByteBuddyInvoker(
+    DoFnInvokers
+        .invokerFor(
             new DoFn<Integer, Integer>() {
               @ProcessElement
               public ProcessContinuation processElement(
@@ -562,7 +560,7 @@ public class DoFnInvokersTest {
   @Test
   public void testStartBundleException() throws Exception {
     DoFnInvoker<Integer, Integer> invoker =
-        DoFnInvokers.INSTANCE.newByteBuddyInvoker(
+        DoFnInvokers.invokerFor(
             new DoFn<Integer, Integer>() {
               @StartBundle
               public void startBundle(@SuppressWarnings("unused") Context c) {
@@ -580,7 +578,7 @@ public class DoFnInvokersTest {
   @Test
   public void testFinishBundleException() throws Exception {
     DoFnInvoker<Integer, Integer> invoker =
-        DoFnInvokers.INSTANCE.newByteBuddyInvoker(
+        DoFnInvokers.invokerFor(
             new DoFn<Integer, Integer>() {
               @FinishBundle
               public void finishBundle(@SuppressWarnings("unused") Context c) {

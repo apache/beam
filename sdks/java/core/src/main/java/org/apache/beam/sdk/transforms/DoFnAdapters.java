@@ -63,7 +63,7 @@ public class DoFnAdapters {
   /** Creates an {@link OldDoFn} that delegates to the {@link DoFn}. */
   @SuppressWarnings({"unchecked", "rawtypes"})
   public static <InputT, OutputT> OldDoFn<InputT, OutputT> toOldDoFn(DoFn<InputT, OutputT> fn) {
-    DoFnSignature signature = DoFnSignatures.INSTANCE.getSignature((Class) fn.getClass());
+    DoFnSignature signature = DoFnSignatures.getSignature((Class) fn.getClass());
     if (signature.processElement().observesWindow()) {
       return new WindowDoFnAdapter<>(fn);
     } else {
@@ -201,7 +201,7 @@ public class DoFnAdapters {
     SimpleDoFnAdapter(DoFn<InputT, OutputT> fn) {
       super(fn.aggregators);
       this.fn = fn;
-      this.invoker = DoFnInvokers.INSTANCE.newByteBuddyInvoker(fn);
+      this.invoker = DoFnInvokers.invokerFor(fn);
     }
 
     @Override
@@ -254,7 +254,7 @@ public class DoFnAdapters {
     private void readObject(java.io.ObjectInputStream in)
         throws IOException, ClassNotFoundException {
       in.defaultReadObject();
-      this.invoker = DoFnInvokers.INSTANCE.newByteBuddyInvoker(fn);
+      this.invoker = DoFnInvokers.invokerFor(fn);
     }
   }
 
