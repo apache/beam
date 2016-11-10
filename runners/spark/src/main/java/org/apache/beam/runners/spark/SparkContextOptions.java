@@ -43,11 +43,6 @@ import org.apache.spark.streaming.api.java.JavaStreamingListener;
  */
 public interface SparkContextOptions extends SparkPipelineOptions {
 
-  @Description("If the spark runner will be initialized with a provided Spark Context")
-  @Default.Boolean(false)
-  boolean getUsesProvidedSparkContext();
-  void setUsesProvidedSparkContext(boolean value);
-
   @Description("Provided Java Spark Context")
   @JsonIgnore
   JavaSparkContext getProvidedSparkContext();

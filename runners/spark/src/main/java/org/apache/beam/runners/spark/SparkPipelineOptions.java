@@ -90,4 +90,10 @@ public interface SparkPipelineOptions
   @Default.Boolean(true)
   Boolean getEnableSparkSinks();
   void setEnableSparkSinks(Boolean enableSparkSinks);
+
+  @Description("If the spark runner will be initialized with a provided Spark Context. "
+      + "The Spark Context should be provided with SparkContextOptions.")
+  @Default.Boolean(false)
+  boolean getUsesProvidedSparkContext();
+  void setUsesProvidedSparkContext(boolean value);
 }
