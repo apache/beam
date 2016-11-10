@@ -89,4 +89,14 @@ public class GcsIOChannelFactory implements IOChannelFactory {
   public Path toPath(String path) {
     return GcsPath.fromUri(path);
   }
+
+  @Override
+  public void copy(List<String> srcFilenames, List<String> destFilenames) throws IOException {
+    options.getGcsUtil().copy(srcFilenames, destFilenames);
+  }
+
+  @Override
+  public void remove(Collection<String> filesOrDirs) throws IOException {
+    options.getGcsUtil().remove(filesOrDirs);
+  }
 }
