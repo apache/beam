@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.util;
 
+import static com.google.common.base.Preconditions.checkArgument;
+
 import com.google.common.base.Predicate;
 import com.google.common.base.Predicates;
 import com.google.common.collect.Iterables;
@@ -36,6 +38,7 @@ import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.nio.file.PathMatcher;
 import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.LinkedList;
@@ -158,5 +161,51 @@ public class FileIOChannelFactory implements IOChannelFactory {
   @Override
   public Path toPath(String path) {
     return specToFile(path).toPath();
+  }
+
+  @Override
+  public void copy(List<String> srcFilenames, List<String> destFilenames) throws IOException {
+    checkArgument(
+        srcFilenames.size() == destFilenames.size(),
+        "Number of source files %s must equal number of destination files %s",
+        srcFilenames.size(),
+        destFilenames.size());
+    int numFiles = srcFilenames.size();
+    for (int i = 0; i < numFiles; i++) {
+      String src = srcFilenames.get(i);
+      String dst = destFilenames.get(i);
+      LOG.debug("Copying {} to {}", src, dst);
+      copyOne(src, dst);
+    }
+  }
+
+  private void copyOne(String source, String destination) throws IOException {
+    try {
+      // Copy the source file, replacing the existing destination.
+      // Paths.get(x) will not work on win cause of the ":" after the drive letter
+      Files.copy(
+          new File(source).toPath(),
+          new File(destination).toPath(),
+          StandardCopyOption.REPLACE_EXISTING);
+    } catch (NoSuchFileException e) {
+      LOG.debug("{} does not exist.", source);
+      // Suppress exception if file does not exist.
+    }
+  }
+
+  @Override
+  public void remove(Collection<String> filesOrDirs) throws IOException {
+    for (String fileOrDir : filesOrDirs) {
+      LOG.debug("Removing file {}", fileOrDir);
+      removeOne(fileOrDir);
+    }
+  }
+
+  private void removeOne(String fileOrDir) throws IOException {
+    // Delete the file if it exists.
+    boolean exists = Files.deleteIfExists(Paths.get(fileOrDir));
+    if (!exists) {
+      LOG.debug("Tried to delete {}, but it did not exist", fileOrDir);
+    }
   }
 }
