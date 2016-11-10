@@ -16,6 +16,7 @@
 #
 """Tests for Google Cloud Storage client."""
 
+import errno
 import logging
 import multiprocessing
 import os
@@ -24,11 +25,11 @@ import threading
 import unittest
 
 import httplib2
+import mock
 from apitools.base.py.exceptions import HttpError
 from apache_beam.internal.clients import storage
 
 from apache_beam.io import gcsio
-from mock import patch
 
 
 class FakeGcsClient(object):
@@ -37,6 +38,8 @@ class FakeGcsClient(object):
 
   def __init__(self):
     self.objects = FakeGcsObjects()
+    # Referenced in GcsIO.batch_copy() and GcsIO.batch_delete().
+    self._http = object()
 
 
 class FakeFile(object):
@@ -165,6 +168,33 @@ class FakeGcsObjects(object):
     return result
 
 
+class FakeApiCall(object):
+
+  def __init__(self, exception):
+    self.exception = exception
+    self.is_error = exception is not None
+
+
+class FakeBatchApiRequest(object):
+
+  def __init__(self, **unused_kwargs):
+    self.operations = []
+
+  def Add(self, service, method, request):  # pylint: disable=invalid-name
+    self.operations.append((service, method, request))
+
+  def Execute(self, unused_http, **unused_kwargs):  # pylint: disable=invalid-name
+    api_calls = []
+    for service, method, request in self.operations:
+      exception = None
+      try:
+        getattr(service, method)(request)
+      except Exception as e:  # pylint: disable=broad-except
+        exception = e
+      api_calls.append(FakeApiCall(exception))
+    return api_calls
+
+
 class TestGCSPathParser(unittest.TestCase):
 
   def test_gcs_path(self):
@@ -201,7 +231,7 @@ class TestGCSIO(unittest.TestCase):
     self.assertFalse(self.gcs.exists(file_name + 'xyz'))
     self.assertTrue(self.gcs.exists(file_name))
 
-  @patch.object(FakeGcsObjects, 'Get')
+  @mock.patch.object(FakeGcsObjects, 'Get')
   def test_exists_failure(self, mock_get):
     # Raising an error other than 404. Raising 404 is a valid failure for
     # exists() call.
@@ -251,6 +281,37 @@ class TestGCSIO(unittest.TestCase):
     self.assertFalse(
         gcsio.parse_gcs_path(file_name) in self.client.objects.files)
 
+  @mock.patch('apache_beam.io.gcsio.BatchApiRequest')
+  def test_delete_batch(self, *unused_args):
+    gcsio.BatchApiRequest = FakeBatchApiRequest
+    file_name_pattern = 'gs://gcsio-test/delete_me_%d'
+    file_size = 1024
+    num_files = 10
+
+    # Test deletion of non-existent files.
+    result = self.gcs.delete_batch(
+        [file_name_pattern % i for i in range(num_files)])
+    self.assertTrue(result)
+    for i, (file_name, exception) in enumerate(result):
+      self.assertEqual(file_name, file_name_pattern % i)
+      self.assertEqual(exception, None)
+      self.assertFalse(self.gcs.exists(file_name_pattern % i))
+
+    # Insert some files.
+    for i in range(num_files):
+      self._insert_random_file(self.client, file_name_pattern % i, file_size)
+
+    # Check files inserted properly.
+    for i in range(num_files):
+      self.assertTrue(self.gcs.exists(file_name_pattern % i))
+
+    # Execute batch delete.
+    self.gcs.delete_batch([file_name_pattern % i for i in range(num_files)])
+
+    # Check files deleted properly.
+    for i in range(num_files):
+      self.assertFalse(self.gcs.exists(file_name_pattern % i))
+
   def test_copy(self):
     src_file_name = 'gs://gcsio-test/source'
     dest_file_name = 'gs://gcsio-test/dest'
@@ -270,6 +331,44 @@ class TestGCSIO(unittest.TestCase):
 
     self.assertRaises(IOError, self.gcs.copy, 'gs://gcsio-test/non-existent',
                       'gs://gcsio-test/non-existent-destination')
+
+  @mock.patch('apache_beam.io.gcsio.BatchApiRequest')
+  def test_copy_batch(self, *unused_args):
+    gcsio.BatchApiRequest = FakeBatchApiRequest
+    from_name_pattern = 'gs://gcsio-test/copy_me_%d'
+    to_name_pattern = 'gs://gcsio-test/destination_%d'
+    file_size = 1024
+    num_files = 10
+
+    # Test copy of non-existent files.
+    result = self.gcs.copy_batch(
+        [(from_name_pattern % i, to_name_pattern % i)
+         for i in range(num_files)])
+    self.assertTrue(result)
+    for i, (src, dest, exception) in enumerate(result):
+      self.assertEqual(src, from_name_pattern % i)
+      self.assertEqual(dest, to_name_pattern % i)
+      self.assertTrue(isinstance(exception, IOError))
+      self.assertEqual(exception.errno, errno.ENOENT)
+      self.assertFalse(self.gcs.exists(from_name_pattern % i))
+      self.assertFalse(self.gcs.exists(to_name_pattern % i))
+
+    # Insert some files.
+    for i in range(num_files):
+      self._insert_random_file(self.client, from_name_pattern % i, file_size)
+
+    # Check files inserted properly.
+    for i in range(num_files):
+      self.assertTrue(self.gcs.exists(from_name_pattern % i))
+
+    # Execute batch copy.
+    self.gcs.copy_batch([(from_name_pattern % i, to_name_pattern % i)
+                         for i in range(num_files)])
+
+    # Check files copied properly.
+    for i in range(num_files):
+      self.assertTrue(self.gcs.exists(from_name_pattern % i))
+      self.assertTrue(self.gcs.exists(to_name_pattern % i))
 
   def test_copytree(self):
     src_dir_name = 'gs://gcsio-test/source/'

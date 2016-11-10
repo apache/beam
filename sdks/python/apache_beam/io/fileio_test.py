@@ -848,7 +848,7 @@ class TestFileSink(unittest.TestCase):
     res2 = writer2.close()
 
     os.remove(res2)
-    with self.assertRaises(IOError):
+    with self.assertRaises(Exception):
       list(sink.finalize_write(init_token, [res1, res2]))
 
 

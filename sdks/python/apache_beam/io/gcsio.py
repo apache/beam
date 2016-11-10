@@ -31,6 +31,7 @@ import threading
 import traceback
 
 from apitools.base.py.exceptions import HttpError
+from apitools.base.py.batch import BatchApiRequest
 import apitools.base.py.transfer as transfer
 
 from apache_beam.internal import auth
@@ -48,6 +49,11 @@ except ImportError:
 
 DEFAULT_READ_BUFFER_SIZE = 1024 * 1024
 WRITE_CHUNK_SIZE = 8 * 1024 * 1024
+
+
+# Maximum number of operations permitted in GcsIO.copy_batch() and
+# GcsIO.delete_batch().
+MAX_BATCH_OPERATION_SIZE = 100
 
 
 def parse_gcs_path(gcs_path):
@@ -167,6 +173,39 @@ class GcsIO(object):
         return
       raise
 
+  # We intentionally do not decorate this method with a retry, as retrying is
+  # handled in BatchApiRequest.Execute().
+  def delete_batch(self, paths):
+    """Deletes the objects at the given GCS paths.
+
+    Args:
+      paths: List of GCS file path patterns in the form gs://<bucket>/<name>,
+             not to exceed MAX_BATCH_OPERATION_SIZE in length.
+
+    Returns: List of tuples of (path, exception) in the same order as the paths
+             argument, where exception is None if the operation succeeded or
+             the relevant exception if the operation failed.
+    """
+    batch_request = BatchApiRequest(
+        retryable_codes=retry.SERVER_ERROR_OR_TIMEOUT_CODES)
+    for path in paths:
+      bucket, object_path = parse_gcs_path(path)
+      request = storage.StorageObjectsDeleteRequest(
+          bucket=bucket, object=object_path)
+      batch_request.Add(self.client.objects, 'Delete', request)
+    api_calls = batch_request.Execute(self.client._http)  # pylint: disable=protected-access
+    result_statuses = []
+    for i, api_call in enumerate(api_calls):
+      path = paths[i]
+      exception = None
+      if api_call.is_error:
+        exception = api_call.exception
+        # Return success when the file doesn't exist anymore for idempotency.
+        if isinstance(exception, HttpError) and exception.status_code == 404:
+          exception = None
+      result_statuses.append((path, exception))
+    return result_statuses
+
   @retry.with_exponential_backoff(
       retry_filter=retry.retry_on_server_errors_and_timeout_filter)
   def copy(self, src, dest):
@@ -192,6 +231,45 @@ class GcsIO(object):
         # not exist.
         raise GcsIOError(errno.ENOENT, 'Source file not found: %s' % src)
       raise
+
+  # We intentionally do not decorate this method with a retry, as retrying is
+  # handled in BatchApiRequest.Execute().
+  def copy_batch(self, src_dest_pairs):
+    """Copies the given GCS object from src to dest.
+
+    Args:
+      src_dest_pairs: list of (src, dest) tuples of gs://<bucket>/<name> files
+                      paths to copy from src to dest, not to exceed
+                      MAX_BATCH_OPERATION_SIZE in length.
+
+    Returns: List of tuples of (src, dest, exception) in the same order as the
+             src_dest_pairs argument, where exception is None if the operation
+             succeeded or the relevant exception if the operation failed.
+    """
+    batch_request = BatchApiRequest(
+        retryable_codes=retry.SERVER_ERROR_OR_TIMEOUT_CODES)
+    for src, dest in src_dest_pairs:
+      src_bucket, src_path = parse_gcs_path(src)
+      dest_bucket, dest_path = parse_gcs_path(dest)
+      request = storage.StorageObjectsCopyRequest(
+          sourceBucket=src_bucket,
+          sourceObject=src_path,
+          destinationBucket=dest_bucket,
+          destinationObject=dest_path)
+      batch_request.Add(self.client.objects, 'Copy', request)
+    api_calls = batch_request.Execute(self.client._http)  # pylint: disable=protected-access
+    result_statuses = []
+    for i, api_call in enumerate(api_calls):
+      src, dest = src_dest_pairs[i]
+      exception = None
+      if api_call.is_error:
+        exception = api_call.exception
+        # Translate 404 to the appropriate not found exception.
+        if isinstance(exception, HttpError) and exception.status_code == 404:
+          exception = (
+              GcsIOError(errno.ENOENT, 'Source file not found: %s' % src))
+      result_statuses.append((src, dest, exception))
+    return result_statuses
 
   # We intentionally do not decorate this method with a retry, since the
   # underlying copy and delete operations are already idempotent operations
