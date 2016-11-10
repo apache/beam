@@ -254,16 +254,14 @@ class ProxyInvocationHandler implements InvocationHandler, HasDisplayData {
 
     for (PipelineOptionSpec spec : optionSpecs) {
       if (spec.getGetterMethod().getReturnType().equals(ValueProvider.class)) {
+        Object vp = invoke(options, spec.getGetterMethod(), null);
+        if (((ValueProvider) vp).isAccessible()) {
+          continue;
+        }
         Map<String, Object> property = Maps.newHashMap();
         property.put("type",
                      ((ParameterizedType) spec.getGetterMethod()
                       .getGenericReturnType()).getActualTypeArguments()[0]);
-
-        // Get the default value, if it exists.
-        Object vp = invoke(options, spec.getGetterMethod(), null);
-        if (vp instanceof StaticValueProvider) {
-          property.put("default", ((StaticValueProvider) vp).get());
-        }
         properties.put(spec.getName(), property);
       }
     }

@@ -23,6 +23,7 @@ import static org.junit.Assert.assertNotNull;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.google.common.collect.ImmutableMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import org.junit.Rule;
 import org.junit.Test;
@@ -88,11 +89,9 @@ public class PipelineOptionsTest {
   public void testOutputRuntimeOptions() {
     ValueProviderOptions options =
         PipelineOptionsFactory.fromArgs(
-      new String[]{"--string=baz"}).as(ValueProviderOptions.class);
-    assertEquals(options.outputRuntimeOptions(), ImmutableMap.of(
-                   "string",
-                   ImmutableMap.of("type", String.class, "default", "baz"),
-                   "bool",
-                   ImmutableMap.of("type", Boolean.class)));
+            new String[]{"--string=baz"}).as(ValueProviderOptions.class);
+    Map<String, ?> expected = ImmutableMap.of(
+        "bool", ImmutableMap.of("type", Boolean.class));
+    assertEquals(expected, options.outputRuntimeOptions());
   }
 }
