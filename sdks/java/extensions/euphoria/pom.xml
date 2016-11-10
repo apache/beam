@@ -369,6 +369,12 @@
         <artifactId>euphoria-flink</artifactId>
         <version>${project.version}</version>
       </dependency>
+      
+      <dependency>
+        <groupId>cz.seznam.euphoria</groupId>
+        <artifactId>euphoria-spark</artifactId>
+        <version>${project.version}</version>
+      </dependency>
 
       <dependency>
         <groupId>cz.seznam.euphoria</groupId>

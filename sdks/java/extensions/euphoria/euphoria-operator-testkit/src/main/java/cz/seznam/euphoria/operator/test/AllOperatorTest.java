@@ -4,6 +4,7 @@ package cz.seznam.euphoria.operator.test;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
 import cz.seznam.euphoria.core.executor.Executor;
 import cz.seznam.euphoria.core.util.Settings;
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Ignore;
 import org.junit.Test;
@@ -32,6 +33,11 @@ public abstract class AllOperatorTest {
   @Before
   public void setup() {
     executor = executorFactory.apply(settings);
+  }
+  
+  @After
+  public void close() {
+    executor.shutdown();
   }
 
   @Test
