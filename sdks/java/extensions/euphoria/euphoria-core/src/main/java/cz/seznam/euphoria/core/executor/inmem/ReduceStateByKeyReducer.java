@@ -815,7 +815,9 @@ class ReduceStateByKeyReducer implements Runnable {
   }
 
   private void processEndOfStream(Datum.EndOfStream eos) throws InterruptedException {
-    // ~ stop triggers
+    // ~ flush all registered triggers
+    scheduler.updateStamp(Long.MAX_VALUE);
+    // ~ stop triggers - there actually should be none left
     scheduler.close();
     // close all states
     processing.flushAndCloseAllWindows();

@@ -1,6 +1,7 @@
 package cz.seznam.euphoria.flink.streaming.windowing;
 
 
+import cz.seznam.euphoria.core.client.dataset.windowing.TimedWindow;
 import org.apache.flink.streaming.api.windowing.windows.Window;
 
 /**
@@ -14,6 +15,7 @@ public class FlinkWindow<WID extends cz.seznam.euphoria.core.client.dataset.wind
   private final WID wid;
 
   private transient long emissionWatermark = Long.MIN_VALUE;
+  private transient long maxTimestamp = Long.MIN_VALUE;
 
   public FlinkWindow(WID wid) {
     this.wid = wid;
@@ -30,8 +32,27 @@ public class FlinkWindow<WID extends cz.seznam.euphoria.core.client.dataset.wind
 
   @Override
   public long maxTimestamp() {
-    // used for automatic cleanup - never without triggering
+    // see #overrideMaxTimestamp(long)
+    if (maxTimestamp != Long.MIN_VALUE) {
+      long mx = maxTimestamp;
+      this.maxTimestamp = Long.MIN_VALUE;
+      return mx;
+    }
+
+    if (this.wid instanceof TimedWindow) {
+      return ((TimedWindow) this.wid).maxTimestamp();
+    }
     return Long.MAX_VALUE;
+  }
+
+  // emh ... a temporary hack to override the value served by
+  // maxTimestamp(); the value specified here will be served
+  // the next time - and only the next time - maxTimestamp() is
+  // called; this allows transferring the aligned time the window
+  // was fired to the emitted elements:
+  // see http://apache-flink-user-mailing-list-archive.2336050.n4.nabble.com/WindowOperator-element-s-timestamp-td10038.html
+  void overrideMaxTimestamp(long maxTimestamp) {
+    this.maxTimestamp = maxTimestamp;
   }
 
   @Override
