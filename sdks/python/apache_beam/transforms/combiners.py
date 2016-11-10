@@ -288,7 +288,7 @@ class TopCombineFn(core.CombineFn):
             'compare': DisplayDataItem(self._compare.__name__
                                        if hasattr(self._compare, '__name__')
                                        else self._compare.__class__.__name__)
-            .drop_if_none()}
+                       .drop_if_none()}
 
   # The accumulator type is a tuple (threshold, buffer), where threshold
   # is the smallest element [key] that could possibly be in the top n based

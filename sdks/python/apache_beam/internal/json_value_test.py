@@ -76,14 +76,8 @@ class JsonValueTest(unittest.TestCase):
     self.assertEquals(long(27), from_json_value(to_json_value(long(27))))
 
   def test_too_long_value(self):
-    try:
+    with self.assertRaises(TypeError):
       to_json_value(long(1 << 64))
-    except TypeError as e:
-      pass
-    except Exception as e:
-      self.fail('Unexpected exception raised: {}'.format(e))
-    else:
-      self.fail('TypeError not raised.')
 
 
 if __name__ == '__main__':

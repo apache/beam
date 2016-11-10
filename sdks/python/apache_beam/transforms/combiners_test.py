@@ -18,7 +18,6 @@
 """Unit tests for our libraries of combine PTransforms."""
 
 import unittest
-import operator
 
 import hamcrest as hc
 
