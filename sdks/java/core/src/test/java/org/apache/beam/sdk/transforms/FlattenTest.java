@@ -24,7 +24,6 @@ import static org.apache.beam.sdk.TestUtils.NO_LINES;
 import static org.apache.beam.sdk.TestUtils.NO_LINES_ARRAY;
 
 import com.google.common.collect.ImmutableSet;
-import com.google.common.collect.Iterables;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -39,6 +38,7 @@ import org.apache.beam.sdk.coders.ListCoder;
 import org.apache.beam.sdk.coders.SetCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VoidCoder;
+import org.apache.beam.sdk.io.CountingInput;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.RunnableOnService;
@@ -121,16 +121,30 @@ public class FlattenTest implements Serializable {
   public void testFlattenInputMultipleCopies() {
     Pipeline p = TestPipeline.create();
 
-    PCollection<String> lines = p.apply("mkLines", Create.of(LINES));
-    PCollection<String> lines2 = p.apply("mkOtherLines", Create.of(LINES2));
+    PCollection<Long> longs = p.apply("mkLines", CountingInput.upTo(10));
+    PCollection<Long> biggerLongs =
+        p.apply("mkOtherLines", CountingInput.upTo(10))
+            .apply(
+                MapElements.via(
+                    new SimpleFunction<Long, Long>() {
+                      @Override
+                      public Long apply(Long input) {
+                        return input + 10L;
+                      }
+                    }));
 
-    PCollection<String> flattened = PCollectionList.of(lines)
-        .and(lines2)
-        .and(lines)
-        .and(lines)
-        .apply(Flatten.<String>pCollections());
+    PCollection<Long> flattened =
+        PCollectionList.of(longs).and(longs).and(biggerLongs).apply(Flatten.<Long>pCollections());
 
-    PAssert.that(flattened).containsInAnyOrder(Iterables.concat(LINES, LINES, LINES, LINES2));
+    List<Long> expectedLongs = new ArrayList<>();
+    for (int i = 0; i < 10; i++) {
+      // The duplicated input
+      expectedLongs.add((long) i);
+      expectedLongs.add((long) i);
+      // The bigger longs
+      expectedLongs.add(i + 10L);
+    }
+    PAssert.that(flattened).containsInAnyOrder(expectedLongs);
 
     p.run();
   }
