@@ -53,7 +53,6 @@ import org.apache.beam.sdk.util.state.StateNamespaces;
 import org.apache.beam.sdk.util.state.StateNamespaces.WindowAndTriggerNamespace;
 import org.apache.beam.sdk.util.state.StateNamespaces.WindowNamespace;
 import org.apache.beam.sdk.util.state.TestInMemoryStateInternals;
-import org.apache.beam.sdk.util.state.TimerCallback;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -221,14 +220,22 @@ public class TriggerStateMachineTester<InputT, W extends BoundedWindow> {
    * possible.
    */
   public void advanceInputWatermark(Instant newInputWatermark) throws Exception {
-    // TODO: Should test timer firings: see https://issues.apache.org/jira/browse/BEAM-694
-    timerInternals.advanceInputWatermark(TimerCallback.NO_OP, newInputWatermark);
+    timerInternals.advanceInputWatermark(newInputWatermark);
+    while (timerInternals.removeNextEventTimer() != null) {
+      // TODO: Should test timer firings: see https://issues.apache.org/jira/browse/BEAM-694
+    }
   }
 
   /** Advance the processing time to the specified time. */
   public void advanceProcessingTime(Instant newProcessingTime) throws Exception {
-    // TODO: Should test timer firings: see https://issues.apache.org/jira/browse/BEAM-694
-    timerInternals.advanceProcessingTime(TimerCallback.NO_OP, newProcessingTime);
+    timerInternals.advanceProcessingTime(newProcessingTime);
+    while (timerInternals.removeNextProcessingTimer() != null) {
+      // TODO: Should test timer firings: see https://issues.apache.org/jira/browse/BEAM-694
+    }
+    timerInternals.advanceSynchronizedProcessingTime(newProcessingTime);
+    while (timerInternals.removeNextSynchronizedProcessingTimer() != null) {
+      // TODO: Should test timer firings: see https://issues.apache.org/jira/browse/BEAM-694
+    }
   }
 
   /**
