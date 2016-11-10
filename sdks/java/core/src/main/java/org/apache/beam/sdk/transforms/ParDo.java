@@ -596,16 +596,6 @@ public class ParDo {
 
     // To be removed when the features are complete and runners have their own adequate
     // rejection logic
-    if (!signature.stateDeclarations().isEmpty()) {
-      throw new UnsupportedOperationException(
-          String.format("Found %s annotations on %s, but %s cannot yet be used with state.",
-              DoFn.StateId.class.getSimpleName(),
-              fn.getClass().getName(),
-              DoFn.class.getSimpleName()));
-    }
-
-    // To be removed when the features are complete and runners have their own adequate
-    // rejection logic
     if (!signature.timerDeclarations().isEmpty()) {
       throw new UnsupportedOperationException(
           String.format("Found %s annotations on %s, but %s cannot yet be used with timers.",
