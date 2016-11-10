@@ -2,6 +2,7 @@
 package cz.seznam.euphoria.core.client.operator;
 
 import cz.seznam.euphoria.core.annotation.operator.Basic;
+import cz.seznam.euphoria.core.annotation.operator.StateComplexity;
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.dataset.Partitioning;
 import cz.seznam.euphoria.core.client.flow.Flow;
@@ -11,7 +12,10 @@ import java.util.Objects;
 /**
  * Repartition input to some other number of partitions.
  */
-@Basic
+@Basic(
+    state = StateComplexity.ZERO,
+    repartitions = 1
+)
 public class Repartition<IN>
     extends ElementWiseOperator<IN, IN>
     implements PartitioningAware<IN>

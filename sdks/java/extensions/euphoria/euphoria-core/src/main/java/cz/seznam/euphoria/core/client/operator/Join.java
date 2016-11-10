@@ -2,6 +2,7 @@
 package cz.seznam.euphoria.core.client.operator;
 
 import cz.seznam.euphoria.core.annotation.operator.Recommended;
+import cz.seznam.euphoria.core.annotation.operator.StateComplexity;
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.dataset.Partitioning;
 import cz.seznam.euphoria.core.client.dataset.windowing.Batch;
@@ -30,8 +31,10 @@ import java.util.Objects;
 @Recommended(
     reason =
         "Might be useful to override because of performance reasons in a "
-      + "specific join types (e.g. sort join).",
-    basic = { Union.class, ReduceStateByKey.class }
+      + "specific join types (e.g. sort join), which might reduce the space "
+      + "complexity",
+    state = StateComplexity.LINEAR,
+    repartitions = 1
 )
 public class Join<LEFT, RIGHT, KEY, OUT, W extends Window>
     extends StateAwareWindowWiseOperator<Object, Either<LEFT, RIGHT>,
