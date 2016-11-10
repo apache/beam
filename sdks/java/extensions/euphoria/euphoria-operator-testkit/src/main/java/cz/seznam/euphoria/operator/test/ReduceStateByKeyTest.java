@@ -7,7 +7,11 @@ import cz.seznam.euphoria.core.client.dataset.windowing.Session;
 import cz.seznam.euphoria.core.client.dataset.windowing.Time;
 import cz.seznam.euphoria.core.client.dataset.windowing.TimeInterval;
 import cz.seznam.euphoria.core.client.dataset.windowing.TimeSliding;
+import cz.seznam.euphoria.core.client.dataset.windowing.Window;
+import cz.seznam.euphoria.core.client.dataset.windowing.WindowedElement;
+import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.functional.StateFactory;
+import cz.seznam.euphoria.core.client.functional.UnaryFunction;
 import cz.seznam.euphoria.core.client.functional.UnaryFunctor;
 import cz.seznam.euphoria.core.client.io.Context;
 import cz.seznam.euphoria.core.client.io.DataSource;
@@ -20,6 +24,9 @@ import cz.seznam.euphoria.core.client.operator.state.State;
 import cz.seznam.euphoria.core.client.operator.state.StorageProvider;
 import cz.seznam.euphoria.core.client.operator.state.ValueStorage;
 import cz.seznam.euphoria.core.client.operator.state.ValueStorageDescriptor;
+import cz.seznam.euphoria.core.client.triggers.CountTrigger;
+import cz.seznam.euphoria.core.client.triggers.Trigger;
+import cz.seznam.euphoria.core.client.triggers.TriggerContext;
 import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.core.client.util.Triple;
 import cz.seznam.euphoria.guava.shaded.com.google.common.collect.Lists;
@@ -32,11 +39,13 @@ import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import static cz.seznam.euphoria.operator.test.Util.sorted;
 import static java.util.Arrays.asList;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 /**
  * Test operator {@code ReduceStateByKey}.
@@ -67,7 +76,9 @@ public class ReduceStateByKeyTest extends OperatorTest {
         testTimeSlidingWindowing(false),
         testTimeSlidingWindowing(true),
         testSessionWindowing0(false),
-        testSessionWindowing0(true)
+        testSessionWindowing0(true),
+        testElementTimestamp(false),
+        testElementTimestamp(true)
     );
   }
 
@@ -599,5 +610,87 @@ public class ReduceStateByKeyTest extends OperatorTest {
     }
     flat.sort(Comparator.naturalOrder());
     return flat;
+  }
+
+  // ~ ------------------------------------------------------------------------------
+
+  static class TimeAssertingWindowing<T> implements Windowing<T, TimeInterval> {
+    @Override
+    public Set<TimeInterval> assignWindowsToElement(WindowedElement<?, T> input) {
+      return Collections.singleton(new TimeInterval(0, Long.MAX_VALUE));
+    }
+
+    @SuppressWarnings("unchecked")
+    @Override
+    public Trigger<TimeInterval> getTrigger() {
+      return new CountTrigger(1) {
+        @Override
+        public boolean isStateful() {
+          return false;
+        }
+        @Override
+        public Trigger.TriggerResult onElement(long time, Window window, TriggerContext ctx) {
+          // ~ we expect the 'time' to be the end of the window which produced the
+          // element in the preceding upstream (stateful and windowed) operator
+          assertTrue(time == 15_000L || time == 25_000L);
+          return super.onElement(time, window, ctx);
+        }
+      };
+    }
+  }
+
+  TestCase<Integer> testElementTimestamp(boolean batch) {
+    return new AbstractTestCase<Pair<Integer, Long>, Integer>() {
+      @Override
+      protected DataSource<Pair<Integer, Long>> getDataSource() {
+        return ListDataSource.of(batch, asList(
+            // ~ Pair.of(value, time)
+            Pair.of(1, 10_123L),
+            Pair.of(2, 11_234L),
+            Pair.of(3, 12_345L),
+            Pair.of(4, 21_456L)));
+      }
+
+      @Override
+      protected Dataset<Integer> getOutput(Dataset<Pair<Integer, Long>> input) {
+        // ~ this operator is supposed to emit elements internally with a timestamp
+        // which equals the end of the time window
+        Dataset<Pair<String, Integer>> reduced =
+            ReduceStateByKey.of(input)
+                .keyBy(e -> "")
+                .valueBy(Pair::getFirst)
+                .stateFactory(ReduceByKeyTest.SumState::new)
+                .combineStateBy(ReduceByKeyTest.SumState::combine)
+                .windowBy(Time.of(Duration.ofSeconds(5))
+                    .using((UnaryFunction<Pair<String, Long>, Long>) Pair::getSecond))
+                .output();
+        // ~ now use a custom windowing with a trigger which does
+        // the assertions subject to this test (use RSBK which has to
+        // use triggering, unlike an optimized RBK)
+        Dataset<Pair<String, Integer>> output =
+            ReduceStateByKey.of(reduced)
+                .keyBy(Pair::getFirst)
+                .valueBy(Pair::getSecond)
+                .stateFactory(ReduceByKeyTest.SumState::new)
+                .combineStateBy(ReduceByKeyTest.SumState::combine)
+                .windowBy(new TimeAssertingWindowing<>())
+                .output();
+        return FlatMap.of(output)
+            .using((UnaryFunctor<Pair<String, Integer>, Integer>)
+                (elem, context) -> context.collect(elem.getSecond()))
+            .output();
+      }
+
+      @Override
+      public int getNumOutputPartitions() {
+        return 1;
+      }
+
+      @Override
+      public void validate(List<List<Integer>> partitions) {
+        assertEquals(2, partitions.get(0).size());
+        assertEquals(asList(4, 6), sorted(partitions.get(0), Comparator.naturalOrder()));
+      }
+    };
   }
 }
