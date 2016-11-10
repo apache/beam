@@ -133,6 +133,23 @@ public class ConsumerTrackingPipelineVisitorTest implements Serializable {
   }
 
   @Test
+  public void getValueToConsumersWithDuplicateInputSucceeds() {
+    PCollection<String> created = p.apply(Create.of("1", "2", "3"));
+
+    PCollection<String> flattened =
+        PCollectionList.of(created).and(created).apply(Flatten.<String>pCollections());
+
+    p.traverseTopologically(visitor);
+
+    assertThat(
+        visitor.getValueToConsumers().get(created),
+        Matchers.<AppliedPTransform<?, ?, ?>>containsInAnyOrder(
+            flattened.getProducingTransformInternal(),
+            flattened.getProducingTransformInternal()));
+    assertThat(visitor.getValueToConsumers().get(flattened), emptyIterable());
+  }
+
+  @Test
   public void getUnfinalizedPValuesContainsDanglingOutputs() {
     PCollection<String> created = p.apply(Create.of("1", "2", "3"));
     PCollection<String> transformed =
