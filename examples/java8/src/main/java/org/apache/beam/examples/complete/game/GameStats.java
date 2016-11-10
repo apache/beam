@@ -181,8 +181,8 @@ public class GameStats extends LeaderBoard {
 
     @Description("Prefix used for the BigQuery table names")
     @Default.String("game_stats")
-    String getTablePrefix();
-    void setTablePrefix(String value);
+    String getGameStatsTablePrefix();
+    void setGameStatsTablePrefix(String value);
   }
 
 
@@ -301,7 +301,7 @@ public class GameStats extends LeaderBoard {
       // Write the result to BigQuery
       .apply("WriteTeamSums",
           new WriteWindowedToBigQuery<KV<String, Integer>>(
-              options.getTablePrefix() + "_team", configureWindowedWrite()));
+              options.getGameStatsTablePrefix() + "_team", configureWindowedWrite()));
 
 
     // [START DocInclude_SessionCalc]
@@ -328,7 +328,7 @@ public class GameStats extends LeaderBoard {
       // Write this info to a BigQuery table.
       .apply("WriteAvgSessionLength",
              new WriteWindowedToBigQuery<Double>(
-                options.getTablePrefix() + "_sessions", configureSessionWindowWrite()));
+                options.getGameStatsTablePrefix() + "_sessions", configureSessionWindowWrite()));
     // [END DocInclude_Rewindow]
 
 
