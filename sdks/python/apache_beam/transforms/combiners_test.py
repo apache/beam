@@ -18,6 +18,7 @@
 """Unit tests for our libraries of combine PTransforms."""
 
 import unittest
+import operator
 
 import hamcrest as hc
 
@@ -147,7 +148,8 @@ class CombineTest(unittest.TestCase):
       dd = DisplayData.create_from(transform)
       expected_items = [
           DisplayDataItemMatcher('combineFn', combineFn.__class__),
-          DisplayDataItemMatcher('n', combineFn._n)]
+          DisplayDataItemMatcher('n', combineFn._n),
+          DisplayDataItemMatcher('compare', combineFn._compare.__name__)]
       hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
 
     individual_test_per_key_dd(combine.Largest(5))
@@ -185,7 +187,8 @@ class CombineTest(unittest.TestCase):
     dd = DisplayData.create_from(transform)
     expected_items = [
         DisplayDataItemMatcher('combineFn', combine.Smallest),
-        DisplayDataItemMatcher('n', 5)]
+        DisplayDataItemMatcher('n', 5),
+        DisplayDataItemMatcher('compare', 'gt')]
     hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
 
   def test_basic_combiners_display_data(self):

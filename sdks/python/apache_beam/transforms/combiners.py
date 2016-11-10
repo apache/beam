@@ -25,6 +25,7 @@ import random
 from apache_beam.transforms import core
 from apache_beam.transforms import cy_combiners
 from apache_beam.transforms import ptransform
+from apache_beam.transforms.display import DisplayDataItem
 from apache_beam.typehints import Any
 from apache_beam.typehints import Dict
 from apache_beam.typehints import KV
@@ -283,7 +284,11 @@ class TopCombineFn(core.CombineFn):
                   key=self._key_fn)
 
   def display_data(self):
-    return {'n': self._n}
+    return {'n': self._n,
+            'compare': DisplayDataItem(self._compare.__name__
+                                       if hasattr(self._compare, '__name__')
+                                       else self._compare.__class__.__name__)
+            .drop_if_none()}
 
   # The accumulator type is a tuple (threshold, buffer), where threshold
   # is the smallest element [key] that could possibly be in the top n based
