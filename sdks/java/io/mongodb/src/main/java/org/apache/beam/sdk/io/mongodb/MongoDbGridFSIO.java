@@ -49,13 +49,6 @@ import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.DoFn.Context;
-import org.apache.beam.sdk.transforms.DoFn.FinishBundle;
-import org.apache.beam.sdk.transforms.DoFn.ProcessContext;
-import org.apache.beam.sdk.transforms.DoFn.ProcessElement;
-import org.apache.beam.sdk.transforms.DoFn.Setup;
-import org.apache.beam.sdk.transforms.DoFn.StartBundle;
-import org.apache.beam.sdk.transforms.DoFn.Teardown;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.display.DisplayData;
@@ -177,13 +170,17 @@ public class MongoDbGridFSIO {
 
   /** Read data from GridFS. Default behavior with String. */
   public static Read<String> read() {
-    return new AutoValue_MongoDbGridFSIO_Read.Builder<String>().build()
-        .withParser(TEXT_PARSER).withCoder(StringUtf8Coder.of());
+    return new AutoValue_MongoDbGridFSIO_Read.Builder<String>()
+        .setParser(TEXT_PARSER)
+        .setCoder(StringUtf8Coder.of())
+        .setConnectionConfiguration(ConnectionConfiguration.create())
+        .build();
   }
 
   /** Write data to GridFS. Default behavior with String. */
   public static Write<String> write() {
     return new AutoValue_MongoDbGridFSIO_Write.Builder<String>()
+        .setConnectionConfiguration(ConnectionConfiguration.create())
         .setWriteFn(new WriteFn<String>() {
           @Override
           public void write(String output, OutputStream outStream) throws IOException {
@@ -194,9 +191,39 @@ public class MongoDbGridFSIO {
   }
   public static <T> Write<T> write(WriteFn<T> fn) {
     return new AutoValue_MongoDbGridFSIO_Write.Builder<T>()
-        .setWriteFn(fn).build();
+        .setWriteFn(fn)
+        .setConnectionConfiguration(ConnectionConfiguration.create())
+        .build();
   }
 
+
+  /**
+   * Encapsulate the MongoDB GridFS connection logic.
+   */
+  @AutoValue
+  public abstract static class ConnectionConfiguration implements Serializable {
+    @Nullable abstract String uri();
+    @Nullable abstract String database();
+    @Nullable abstract String bucket();
+
+    static ConnectionConfiguration create() {
+      return new AutoValue_MongoDbGridFSIO_ConnectionConfiguration(null, null, null);
+    }
+    static ConnectionConfiguration create(String uri, String database, String bucket) {
+      return new AutoValue_MongoDbGridFSIO_ConnectionConfiguration(uri, database, bucket);
+    }
+
+
+    Mongo setupMongo() {
+      return uri() == null ? new Mongo() : new Mongo(new MongoURI(uri()));
+    }
+
+    GridFS setupGridFS(Mongo mongo) {
+      DB db = database() == null ? mongo.getDB("gridfs") : mongo.getDB(database());
+      return bucket() == null ? new GridFS(db) : new GridFS(db, bucket());
+    }
+
+  }
 
   /**
    * A {@link PTransform} to read data from MongoDB GridFS.
@@ -204,9 +231,7 @@ public class MongoDbGridFSIO {
   @AutoValue
   public abstract static class Read<T> extends PTransform<PBegin, PCollection<T>> {
 
-    @Nullable abstract String uri();
-    @Nullable abstract String database();
-    @Nullable abstract String bucket();
+    abstract ConnectionConfiguration connectionConfiguration();
     @Nullable abstract Parser<T> parser();
     @Nullable abstract Coder<T> coder();
     @Nullable abstract Duration skew();
@@ -216,9 +241,7 @@ public class MongoDbGridFSIO {
 
     @AutoValue.Builder
     abstract static class Builder<T> {
-      abstract Builder<T> setUri(String uri);
-      abstract Builder<T> setDatabase(String database);
-      abstract Builder<T> setBucket(String bucket);
+      abstract Builder<T> setConnectionConfiguration(ConnectionConfiguration connection);
       abstract Builder<T> setParser(Parser<T> parser);
       abstract Builder<T> setCoder(Coder<T> coder);
       abstract Builder<T> setSkew(Duration skew);
@@ -228,17 +251,29 @@ public class MongoDbGridFSIO {
 
     public Read<T> withUri(String uri) {
       checkNotNull(uri);
-      return toBuilder().setUri(uri).build();
+      ConnectionConfiguration config = ConnectionConfiguration
+          .create(uri,
+                  connectionConfiguration().database(),
+                  connectionConfiguration().bucket());
+      return toBuilder().setConnectionConfiguration(config).build();
     }
 
     public Read<T> withDatabase(String database) {
       checkNotNull(database);
-      return toBuilder().setDatabase(database).build();
+      ConnectionConfiguration config = ConnectionConfiguration
+          .create(connectionConfiguration().uri(),
+                  database,
+                  connectionConfiguration().bucket());
+      return toBuilder().setConnectionConfiguration(config).build();
     }
 
     public Read<T> withBucket(String bucket) {
       checkNotNull(bucket);
-      return toBuilder().setBucket(bucket).build();
+      ConnectionConfiguration config = ConnectionConfiguration
+          .create(connectionConfiguration().uri(),
+                  connectionConfiguration().database(),
+                  bucket);
+      return toBuilder().setConnectionConfiguration(config).build();
     }
 
     public <X> Read<X> withParser(Parser<X> parser) {
@@ -263,9 +298,9 @@ public class MongoDbGridFSIO {
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {
       super.populateDisplayData(builder);
-      builder.addIfNotNull(DisplayData.item("uri", uri()));
-      builder.addIfNotNull(DisplayData.item("database", database()));
-      builder.addIfNotNull(DisplayData.item("bucket", bucket()));
+      builder.addIfNotNull(DisplayData.item("uri", connectionConfiguration().uri()));
+      builder.addIfNotNull(DisplayData.item("database", connectionConfiguration().database()));
+      builder.addIfNotNull(DisplayData.item("bucket", connectionConfiguration().bucket()));
       builder.addIfNotNull(DisplayData.item("parser", parser().getClass().getName()));
       builder.addIfNotNull(DisplayData.item("coder", coder().getClass().getName()));
       builder.addIfNotNull(DisplayData.item("skew", skew()));
@@ -284,8 +319,8 @@ public class MongoDbGridFSIO {
 
             @Setup
             public void setup() {
-              mongo = source.setupMongo();
-              gridfs = source.setupGridFS(mongo);
+              mongo = source.spec.connectionConfiguration().setupMongo();
+              gridfs = source.spec.connectionConfiguration().setupGridFS(mongo);
             }
 
             @Teardown
@@ -327,24 +362,16 @@ public class MongoDbGridFSIO {
      */
     protected static class BoundedGridFSSource extends BoundedSource<ObjectId> {
 
-      private Read spec;
+      private Read<?> spec;
 
       @Nullable
       private List<ObjectId> objectIds;
 
-      BoundedGridFSSource(Read spec, List<ObjectId> objectIds) {
+      BoundedGridFSSource(Read<?> spec, List<ObjectId> objectIds) {
         this.spec = spec;
         this.objectIds = objectIds;
       }
 
-      private Mongo setupMongo() {
-        return spec.uri() == null ? new Mongo() : new Mongo(new MongoURI(spec.uri()));
-      }
-
-      private GridFS setupGridFS(Mongo mongo) {
-        DB db = spec.database() == null ? mongo.getDB("gridfs") : mongo.getDB(spec.database());
-        return spec.bucket() == null ? new GridFS(db) : new GridFS(db, spec.bucket());
-      }
 
       private DBCursor createCursor(GridFS gridfs) {
         if (spec.filter() != null) {
@@ -357,9 +384,9 @@ public class MongoDbGridFSIO {
       @Override
       public List<? extends BoundedSource<ObjectId>> splitIntoBundles(long desiredBundleSizeBytes,
           PipelineOptions options) throws Exception {
-        Mongo mongo = setupMongo();
+        Mongo mongo = spec.connectionConfiguration().setupMongo();
         try {
-          GridFS gridfs = setupGridFS(mongo);
+          GridFS gridfs = spec.connectionConfiguration().setupGridFS(mongo);
           DBCursor cursor = createCursor(gridfs);
           long size = 0;
           List<BoundedGridFSSource> list = new ArrayList<>();
@@ -386,9 +413,9 @@ public class MongoDbGridFSIO {
 
       @Override
       public long getEstimatedSizeBytes(PipelineOptions options) throws Exception {
-        Mongo mongo = setupMongo();
+        Mongo mongo = spec.connectionConfiguration().setupMongo();
         try {
-          GridFS gridfs = setupGridFS(mongo);
+          GridFS gridfs = spec.connectionConfiguration().setupGridFS(mongo);
           DBCursor cursor = createCursor(gridfs);
           long size = 0;
           while (cursor.hasNext()) {
@@ -455,8 +482,8 @@ public class MongoDbGridFSIO {
         @Override
         public boolean start() throws IOException {
           if (objects == null) {
-            mongo = source.setupMongo();
-            GridFS gridfs = source.setupGridFS(mongo);
+            mongo = source.spec.connectionConfiguration().setupMongo();
+            GridFS gridfs = source.spec.connectionConfiguration().setupGridFS(mongo);
             cursor = source.createCursor(gridfs);
           } else {
             iterator = objects.iterator();
@@ -524,9 +551,7 @@ public class MongoDbGridFSIO {
    */
   @AutoValue
   public abstract static class Write<T> extends PTransform<PCollection<T>, PDone> {
-    @Nullable abstract String uri();
-    @Nullable abstract String database();
-    @Nullable abstract String bucket();
+    abstract ConnectionConfiguration connectionConfiguration();
     @Nullable abstract Long chunkSize();
     abstract WriteFn<T> writeFn();
     @Nullable abstract String filename();
@@ -535,9 +560,7 @@ public class MongoDbGridFSIO {
 
     @AutoValue.Builder
     abstract static class Builder<T> {
-      abstract Builder<T> setUri(String uri);
-      abstract Builder<T> setDatabase(String database);
-      abstract Builder<T> setBucket(String bucket);
+      abstract Builder<T> setConnectionConfiguration(ConnectionConfiguration connection);
       abstract Builder<T> setFilename(String filename);
       abstract Builder<T> setChunkSize(Long chunkSize);
       abstract Builder<T> setWriteFn(WriteFn<T> fn);
@@ -546,17 +569,29 @@ public class MongoDbGridFSIO {
 
     public Write<T> withUri(String uri) {
       checkNotNull(uri);
-      return toBuilder().setUri(uri).build();
+      ConnectionConfiguration config = ConnectionConfiguration
+          .create(uri,
+                  connectionConfiguration().database(),
+                  connectionConfiguration().bucket());
+      return toBuilder().setConnectionConfiguration(config).build();
     }
 
     public Write<T> withDatabase(String database) {
       checkNotNull(database);
-      return toBuilder().setDatabase(database).build();
+      ConnectionConfiguration config = ConnectionConfiguration
+          .create(connectionConfiguration().uri(),
+                  database,
+                  connectionConfiguration().bucket());
+      return toBuilder().setConnectionConfiguration(config).build();
     }
 
     public Write<T> withBucket(String bucket) {
       checkNotNull(bucket);
-      return toBuilder().setBucket(bucket).build();
+      ConnectionConfiguration config = ConnectionConfiguration
+          .create(connectionConfiguration().uri(),
+                  connectionConfiguration().database(),
+                  bucket);
+      return toBuilder().setConnectionConfiguration(config).build();
     }
 
     public Write<T> withFilename(String filename) {
@@ -578,9 +613,10 @@ public class MongoDbGridFSIO {
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {
       super.populateDisplayData(builder);
-      builder.addIfNotNull(DisplayData.item("uri", uri()));
-      builder.addIfNotNull(DisplayData.item("database", database()));
-      builder.addIfNotNull(DisplayData.item("bucket", bucket()));
+      builder.addIfNotNull(DisplayData.item("uri", connectionConfiguration().uri()));
+      builder.addIfNotNull(DisplayData.item("database", connectionConfiguration().database()));
+      builder.addIfNotNull(DisplayData.item("bucket", connectionConfiguration().bucket()));
+      builder.addIfNotNull(DisplayData.item("chunkSize", chunkSize()));
       builder.addIfNotNull(DisplayData.item("filename", filename()));
     }
 
@@ -604,20 +640,10 @@ public class MongoDbGridFSIO {
       this.spec = spec;
     }
 
-    private Mongo setupMongo() {
-      return spec.uri() == null ? new Mongo() : new Mongo(new MongoURI(spec.uri()));
-    }
-
-    private GridFS setupGridFS(Mongo mongo) {
-      DB db = spec.database() == null ? mongo.getDB("gridfs") : mongo.getDB(spec.database());
-      return spec.bucket() == null ? new GridFS(db) : new GridFS(db, spec.bucket());
-    }
-
-
     @Setup
     public void setup() throws Exception {
-      mongo = setupMongo();
-      gridfs = setupGridFS(mongo);
+      mongo = spec.connectionConfiguration().setupMongo();
+      gridfs = spec.connectionConfiguration().setupGridFS(mongo);
     }
 
     @StartBundle
