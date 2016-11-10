@@ -296,6 +296,21 @@ class EvaluationContext {
     fireAvailableCallbacks(lookupProducing(value));
   }
 
+  /**
+   * Schedule a callback to be executed after the given window is expired.
+   *
+   * <p>For example, upstream state associated with the window may be cleared.
+   */
+  public void scheduleAfterWindowExpiration(
+      AppliedPTransform<?, ?, ?> producing,
+      BoundedWindow window,
+      WindowingStrategy<?, ?> windowingStrategy,
+      Runnable runnable) {
+    callbackExecutor.callOnWindowExpiration(producing, window, windowingStrategy, runnable);
+
+    fireAvailableCallbacks(producing);
+  }
+
   private AppliedPTransform<?, ?, ?> getProducing(PValue value) {
     if (value.getProducingTransformInternal() != null) {
       return value.getProducingTransformInternal();
