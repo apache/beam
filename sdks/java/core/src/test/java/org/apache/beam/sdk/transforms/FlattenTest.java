@@ -67,6 +67,7 @@ public class FlattenTest implements Serializable {
   @Rule
   public transient ExpectedException thrown = ExpectedException.none();
 
+
   private static class ClassWithoutCoder { }
 
 
@@ -121,9 +122,10 @@ public class FlattenTest implements Serializable {
   public void testFlattenInputMultipleCopies() {
     Pipeline p = TestPipeline.create();
 
-    PCollection<Long> longs = p.apply("mkLines", CountingInput.upTo(10));
+    int count = 5;
+    PCollection<Long> longs = p.apply("mkLines", CountingInput.upTo(count));
     PCollection<Long> biggerLongs =
-        p.apply("mkOtherLines", CountingInput.upTo(10))
+        p.apply("mkOtherLines", CountingInput.upTo(count))
             .apply(
                 MapElements.via(
                     new SimpleFunction<Long, Long>() {
@@ -137,7 +139,7 @@ public class FlattenTest implements Serializable {
         PCollectionList.of(longs).and(longs).and(biggerLongs).apply(Flatten.<Long>pCollections());
 
     List<Long> expectedLongs = new ArrayList<>();
-    for (int i = 0; i < 10; i++) {
+    for (int i = 0; i < count; i++) {
       // The duplicated input
       expectedLongs.add((long) i);
       expectedLongs.add((long) i);
