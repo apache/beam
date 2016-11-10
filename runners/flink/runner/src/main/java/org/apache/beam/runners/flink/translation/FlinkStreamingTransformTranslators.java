@@ -249,7 +249,6 @@ public class FlinkStreamingTransformTranslators {
               }});
       } else {
         try {
-          transform.getSource();
           UnboundedSourceWrapper<T, ?> sourceWrapper =
               new UnboundedSourceWrapper<>(
                   context.getPipelineOptions(),
@@ -279,7 +278,6 @@ public class FlinkStreamingTransformTranslators {
 
       DataStream<WindowedValue<T>> source;
       try {
-        transform.getSource();
         BoundedSourceWrapper<T> sourceWrapper =
             new BoundedSourceWrapper<>(
                 context.getPipelineOptions(),

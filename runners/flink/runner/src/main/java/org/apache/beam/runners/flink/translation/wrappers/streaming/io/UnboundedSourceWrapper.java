@@ -240,7 +240,8 @@ public class UnboundedSourceWrapper<
           // Flink will interrupt us at some point
           //noinspection SynchronizationOnLocalVariableOrMethodParameter
           synchronized (waitLock) {
-            waitLock.wait();
+            // don't wait indefinitely, in case something goes horribly wrong
+            waitLock.wait(1000);
           }
         } catch (InterruptedException e) {
           if (!isRunning) {
