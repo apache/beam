@@ -2,6 +2,7 @@
 package cz.seznam.euphoria.core.client.operator;
 
 import cz.seznam.euphoria.core.annotation.operator.Derived;
+import cz.seznam.euphoria.core.annotation.operator.StateComplexity;
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
@@ -9,7 +10,10 @@ import cz.seznam.euphoria.core.client.graph.DAG;
 
 import java.util.Objects;
 
-@Derived(basic = FlatMap.class)
+@Derived(
+    state = StateComplexity.ZERO,
+    repartitions = 0
+)
 public class MapElements<IN, OUT> extends ElementWiseOperator<IN, OUT> {
 
   public static class OfBuilder {
