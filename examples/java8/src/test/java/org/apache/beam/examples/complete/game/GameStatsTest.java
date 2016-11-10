@@ -22,6 +22,7 @@ import java.util.Arrays;
 import java.util.List;
 import org.apache.beam.examples.complete.game.GameStats.CalculateSpammyUsers;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.RunnableOnService;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -72,4 +73,8 @@ public class GameStatsTest implements Serializable {
     p.run().waitUntilFinish();
   }
 
+  @Test
+  public void testGameStatsOptions() {
+    PipelineOptionsFactory.as(GameStats.Options.class);
+  }
 }
