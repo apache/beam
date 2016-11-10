@@ -19,6 +19,7 @@ package org.apache.beam.sdk.io.gcp.bigtable;
 
 import static org.junit.Assert.assertThat;
 
+import com.google.auth.Credentials;
 import com.google.bigtable.admin.v2.ColumnFamily;
 import com.google.bigtable.admin.v2.CreateTableRequest;
 import com.google.bigtable.admin.v2.DeleteTableRequest;
@@ -30,6 +31,7 @@ import com.google.bigtable.v2.Row;
 import com.google.bigtable.v2.RowRange;
 import com.google.bigtable.v2.RowSet;
 import com.google.cloud.bigtable.config.BigtableOptions;
+import com.google.cloud.bigtable.config.BigtableOptions.Builder;
 import com.google.cloud.bigtable.config.CredentialOptions;
 import com.google.cloud.bigtable.config.RetryOptions;
 import com.google.cloud.bigtable.grpc.BigtableSession;
@@ -46,6 +48,7 @@ import java.util.Map;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.CountingInput;
 import org.apache.beam.sdk.options.GcpOptions;
+import org.apache.beam.sdk.options.GcpOptions.GcpUserCredentialsFactory;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -85,17 +88,18 @@ public class BigtableWriteIT implements Serializable {
     retryOptionsBuilder.setStreamingBatchSize(
         retryOptionsBuilder.build().getStreamingBufferSize() / 2);
 
-    BigtableOptions.Builder bigtableOptionsBuilder =
-        new BigtableOptions.Builder()
-            .setProjectId(options.getProjectId())
-            .setInstanceId(options.getInstanceId())
-            .setUserAgent("apache-beam-test")
-            .setRetryOptions(retryOptionsBuilder.build())
-            .setCredentialOptions(
-                CredentialOptions.credential(options.as(GcpOptions.class).getGcpCredential()));
-    bigtableOptions = bigtableOptionsBuilder.build();
+    Credentials credentials = new GcpUserCredentialsFactory().create(options);
+    Builder uncredentialedOptions = new Builder().setProjectId(options.getProjectId())
+        .setInstanceId(options.getInstanceId())
+        .setUserAgent("apache-beam-test")
+        .setRetryOptions(retryOptionsBuilder.build());
+    bigtableOptions = uncredentialedOptions.build();
 
-    session = new BigtableSession(bigtableOptions);
+    BigtableOptions.Builder credentialedOptionsBuilder =
+        uncredentialedOptions
+            .setCredentialOptions(
+                CredentialOptions.credential(credentials));
+    session = new BigtableSession(credentialedOptionsBuilder.build());
     tableAdminClient = session.getTableAdminClient();
   }
 
