@@ -112,6 +112,10 @@ class PipelineOptions(HasDisplayData):
     Returns a dictionary of all defined arguments (arguments that are defined in
     any subclass of PipelineOptions) into a dictionary.
 
+    Args:
+      drop_default: If set to true, options that are equal to their default
+        values, are not returned as part of the result dictionary.
+
     Returns:
       Dictionary of all args and values.
     """

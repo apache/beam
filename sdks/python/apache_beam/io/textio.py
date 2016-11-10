@@ -238,16 +238,20 @@ class ReadFromText(PTransform):
     """
 
     super(ReadFromText, self).__init__(**kwargs)
-    self._args = (file_pattern, min_bundle_size, compression_type,
-                  strip_trailing_newlines, coder)
-    self._source = _TextSource(*self._args, validate=validate)
+    self._file_pattern = file_pattern
+    self._min_bundle_size = min_bundle_size
+    self._compression_type = compression_type
+    self._strip_trailing_newlines = strip_trailing_newlines
+    self._coder = coder
+    self._source = _TextSource(file_pattern, min_bundle_size, compression_type,
+                               strip_trailing_newlines, coder, validate=validate)
 
   def apply(self, pvalue):
     return pvalue.pipeline | Read(self._source)
 
   def display_data(self):
     return {'source_dd': self._source,
-            'strip_nwln': DisplayDataItem(self._args[3],
+            'strip_nwln': DisplayDataItem(self._strip_trailing_newlines,
                                           label='Strip Trailing New Lines')}
 
 
