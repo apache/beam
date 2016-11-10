@@ -166,8 +166,9 @@ class V1TestUtil {
   /**
    * Delete all entities with the given ancestor.
    */
-  static void deleteAllEntities(V1TestOptions options, String ancestor) throws Exception {
-    Datastore datastore = getDatastore(options, options.getProject());
+  static void deleteAllEntities(V1TestOptions options, String project, String ancestor)
+      throws Exception {
+    Datastore datastore = getDatastore(options, project);
     Query query = V1TestUtil.makeAncestorKindQuery(
         options.getKind(), options.getNamespace(), ancestor);
 
@@ -188,9 +189,10 @@ class V1TestUtil {
   /**
    * Returns the total number of entities for the given datastore.
    */
-  static long countEntities(V1TestOptions options, String ancestor) throws Exception {
+  static long countEntities(V1TestOptions options, String project, String ancestor)
+      throws Exception {
     // Read from datastore.
-    Datastore datastore = V1TestUtil.getDatastore(options, options.getProject());
+    Datastore datastore = V1TestUtil.getDatastore(options, project);
     Query query = V1TestUtil.makeAncestorKindQuery(
         options.getKind(), options.getNamespace(), ancestor);
 
