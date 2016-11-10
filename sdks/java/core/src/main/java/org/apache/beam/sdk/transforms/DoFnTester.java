@@ -466,8 +466,10 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
   private static TimerCallback collectInto(final List<TimerInternals.TimerData> firedTimers) {
     return new TimerCallback() {
       @Override
-      public void onTimer(TimerInternals.TimerData timer) throws Exception {
-        firedTimers.add(timer);
+      public void onTimers(Iterable<TimerInternals.TimerData> timers) throws Exception {
+        for (TimerInternals.TimerData timer : timers) {
+          firedTimers.add(timer);
+        }
       }
     };
   }

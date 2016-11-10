@@ -99,25 +99,25 @@ public class TriggerStateMachineRunner<W extends BoundedWindow> {
     return readFinishedBits(state.access(FINISHED_BITS_TAG)).isFinished(rootTrigger);
   }
 
-  public void prefetchForValue(W window, StateAccessor<?> state) {
+  public void prefetchIsClosed(StateAccessor<?> state) {
     if (isFinishedSetNeeded()) {
       state.access(FINISHED_BITS_TAG).readLater();
     }
+  }
+
+  public void prefetchForValue(W window, StateAccessor<?> state) {
+    prefetchIsClosed(state);
     rootTrigger.getSpec().prefetchOnElement(
         contextFactory.createStateAccessor(window, rootTrigger));
   }
 
   public void prefetchOnFire(W window, StateAccessor<?> state) {
-    if (isFinishedSetNeeded()) {
-      state.access(FINISHED_BITS_TAG).readLater();
-    }
+    prefetchIsClosed(state);
     rootTrigger.getSpec().prefetchOnFire(contextFactory.createStateAccessor(window, rootTrigger));
   }
 
   public void prefetchShouldFire(W window, StateAccessor<?> state) {
-    if (isFinishedSetNeeded()) {
-      state.access(FINISHED_BITS_TAG).readLater();
-    }
+    prefetchIsClosed(state);
     rootTrigger.getSpec().prefetchShouldFire(
         contextFactory.createStateAccessor(window, rootTrigger));
   }
