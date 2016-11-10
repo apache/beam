@@ -19,14 +19,15 @@ public class FlinkWindowTrigger<WID extends Window, T> extends Trigger<T, FlinkW
       T element, long timestamp, FlinkWindow<WID> window, TriggerContext ctx)
       throws Exception {
     return trackEmissionWatermark(
-        window, ctx, onElementImpl(element, timestamp, window, ctx));
+        window, onElementImpl(element, timestamp, window, ctx),
+        ctx.getCurrentWatermark());
   }
 
   @Override
   public TriggerResult onProcessingTime(long time,
                                         FlinkWindow<WID> window,
                                         TriggerContext ctx) throws Exception {
-    return trackEmissionWatermark(window, ctx, onTimeEvent(time, window, ctx));
+    return trackEmissionWatermark(window, onTimeEvent(time, window, ctx), time);
   }
 
   @Override
@@ -34,7 +35,7 @@ public class FlinkWindowTrigger<WID extends Window, T> extends Trigger<T, FlinkW
                                    FlinkWindow<WID> window,
                                    TriggerContext ctx) throws Exception {
 
-    return trackEmissionWatermark(window, ctx, onTimeEvent(time, window, ctx));
+    return trackEmissionWatermark(window, onTimeEvent(time, window, ctx), time);
   }
 
   private TriggerResult onElementImpl(
@@ -79,12 +80,12 @@ public class FlinkWindowTrigger<WID extends Window, T> extends Trigger<T, FlinkW
     }
   }
 
-  private TriggerResult trackEmissionWatermark(FlinkWindow<WID> window,
-                                               TriggerContext ctx,
-                                               TriggerResult r)
+  private TriggerResult trackEmissionWatermark(
+      FlinkWindow<WID> window, TriggerResult r, long watermark)
   {
     if (r.isFire()) {
-      window.setEmissionWatermark(ctx.getCurrentWatermark() + 1);
+      window.setEmissionWatermark(watermark);
+      window.overrideMaxTimestamp(watermark);
     }
     return r;
   }
