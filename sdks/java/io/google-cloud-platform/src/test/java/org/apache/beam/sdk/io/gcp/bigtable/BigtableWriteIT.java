@@ -19,7 +19,6 @@ package org.apache.beam.sdk.io.gcp.bigtable;
 
 import static org.junit.Assert.assertThat;
 
-import com.google.auth.Credentials;
 import com.google.bigtable.admin.v2.ColumnFamily;
 import com.google.bigtable.admin.v2.CreateTableRequest;
 import com.google.bigtable.admin.v2.DeleteTableRequest;
@@ -48,7 +47,6 @@ import java.util.Map;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.CountingInput;
 import org.apache.beam.sdk.options.GcpOptions;
-import org.apache.beam.sdk.options.GcpOptions.GcpUserCredentialsFactory;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -88,18 +86,21 @@ public class BigtableWriteIT implements Serializable {
     retryOptionsBuilder.setStreamingBatchSize(
         retryOptionsBuilder.build().getStreamingBufferSize() / 2);
 
-    Credentials credentials = new GcpUserCredentialsFactory().create(options);
-    Builder uncredentialedOptions = new Builder().setProjectId(options.getProjectId())
-        .setInstanceId(options.getInstanceId())
-        .setUserAgent("apache-beam-test")
-        .setRetryOptions(retryOptionsBuilder.build());
-    bigtableOptions = uncredentialedOptions.build();
+    bigtableOptions =
+        new Builder()
+            .setProjectId(options.getProjectId())
+            .setInstanceId(options.getInstanceId())
+            .setUserAgent("apache-beam-test")
+            .setRetryOptions(retryOptionsBuilder.build())
+            .build();
 
-    BigtableOptions.Builder credentialedOptionsBuilder =
-        uncredentialedOptions
-            .setCredentialOptions(
-                CredentialOptions.credential(credentials));
-    session = new BigtableSession(credentialedOptionsBuilder.build());
+    session =
+        new BigtableSession(
+            bigtableOptions
+                .toBuilder()
+                .setCredentialOptions(
+                    CredentialOptions.credential(options.as(GcpOptions.class).getGcpCredential()))
+                .build());
     tableAdminClient = session.getTableAdminClient();
   }
 
