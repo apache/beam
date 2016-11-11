@@ -32,8 +32,6 @@ import org.apache.beam.sdk.util.WindowedValue;
 /**
  * {@link ModelEnforcement} that enforces elements are not modified over the course of processing
  * an element.
- *
- * <p>Implies {@link EncodabilityEnforcment}.
  */
 class ImmutabilityEnforcementFactory implements ModelEnforcementFactory {
   public static ModelEnforcementFactory create() {

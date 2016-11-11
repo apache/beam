@@ -24,6 +24,7 @@ import org.apache.beam.examples.complete.game.UserScore.GameActionInfo;
 import org.apache.beam.examples.complete.game.UserScore.ParseEventFn;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.RunnableOnService;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -108,4 +109,8 @@ public class HourlyTeamScoreTest implements Serializable {
     p.run().waitUntilFinish();
   }
 
+  @Test
+  public void testUserScoreOptions() {
+    PipelineOptionsFactory.as(HourlyTeamScore.Options.class);
+  }
 }

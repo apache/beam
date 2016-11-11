@@ -37,15 +37,23 @@ import java.util.Arrays;
 import java.util.List;
 import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.coders.CustomCoder;
+import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.DoFn.GetInitialRestriction;
+import org.apache.beam.sdk.transforms.DoFn.ExtraContextFactory;
 import org.apache.beam.sdk.transforms.DoFn.ProcessContinuation;
 import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.transforms.reflect.testhelper.DoFnInvokersTestHelper;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
-import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
+import org.apache.beam.sdk.util.TimeDomain;
+import org.apache.beam.sdk.util.Timer;
+import org.apache.beam.sdk.util.TimerSpec;
+import org.apache.beam.sdk.util.TimerSpecs;
 import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.beam.sdk.util.WindowingInternals;
+import org.apache.beam.sdk.util.state.StateSpec;
+import org.apache.beam.sdk.util.state.StateSpecs;
+import org.apache.beam.sdk.util.state.ValueState;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -63,51 +71,25 @@ public class DoFnInvokersTest {
   @Rule public ExpectedException thrown = ExpectedException.none();
 
   @Mock private DoFn<String, String>.ProcessContext mockContext;
-  @Mock private BoundedWindow mockWindow;
+  @Mock private IntervalWindow mockWindow;
   @Mock private DoFn.InputProvider<String> mockInputProvider;
   @Mock private DoFn.OutputReceiver<String> mockOutputReceiver;
   @Mock private WindowingInternals<String, String> mockWindowingInternals;
+  @Mock private ExtraContextFactory<String, String> extraContextFactory;
 
   @Mock private OldDoFn<String, String> mockOldDoFn;
-
-  private DoFn.ExtraContextFactory<String, String> extraContextFactory;
 
   @Before
   public void setUp() {
     MockitoAnnotations.initMocks(this);
-    this.extraContextFactory =
-        new DoFn.ExtraContextFactory<String, String>() {
-          @Override
-          public BoundedWindow window() {
-            return mockWindow;
-          }
-
-          @Override
-          public DoFn.InputProvider<String> inputProvider() {
-            return mockInputProvider;
-          }
-
-          @Override
-          public DoFn.OutputReceiver<String> outputReceiver() {
-            return mockOutputReceiver;
-          }
-
-          @Override
-          public WindowingInternals<String, String> windowingInternals() {
-            return mockWindowingInternals;
-          }
-
-          @Override
-          public <RestrictionT> RestrictionTracker<RestrictionT> restrictionTracker() {
-            return null;
-          }
-        };
+    when(extraContextFactory.window()).thenReturn(mockWindow);
+    when(extraContextFactory.inputProvider()).thenReturn(mockInputProvider);
+    when(extraContextFactory.outputReceiver()).thenReturn(mockOutputReceiver);
+    when(extraContextFactory.windowingInternals()).thenReturn(mockWindowingInternals);
   }
 
   private ProcessContinuation invokeProcessElement(DoFn<String, String> fn) {
-    return DoFnInvokers.INSTANCE
-        .newByteBuddyInvoker(fn)
-        .invokeProcessElement(mockContext, extraContextFactory);
+    return DoFnInvokers.invokerFor(fn).invokeProcessElement(mockContext, extraContextFactory);
   }
 
   @Test
@@ -117,8 +99,8 @@ public class DoFnInvokersTest {
     IdentityParent fn2 = new IdentityParent();
     assertSame(
         "Invoker classes should only be generated once for each type",
-        DoFnInvokers.INSTANCE.newByteBuddyInvoker(fn1).getClass(),
-        DoFnInvokers.INSTANCE.newByteBuddyInvoker(fn2).getClass());
+        DoFnInvokers.invokerFor(fn1).getClass(),
+        DoFnInvokers.invokerFor(fn2).getClass());
   }
 
   // ---------------------------------------------------------------------------------------
@@ -189,11 +171,61 @@ public class DoFnInvokersTest {
   public void testDoFnWithWindow() throws Exception {
     class MockFn extends DoFn<String, String> {
       @DoFn.ProcessElement
-      public void processElement(ProcessContext c, BoundedWindow w) throws Exception {}
+      public void processElement(ProcessContext c, IntervalWindow w) throws Exception {}
     }
     MockFn fn = mock(MockFn.class);
     assertEquals(ProcessContinuation.stop(), invokeProcessElement(fn));
     verify(fn).processElement(mockContext, mockWindow);
+  }
+
+  /**
+   * Tests that the generated {@link DoFnInvoker} passes the state parameter that it
+   * should.
+   */
+  @Test
+  public void testDoFnWithState() throws Exception {
+    ValueState<Integer> mockState = mock(ValueState.class);
+    final String stateId = "my-state-id-here";
+    when(extraContextFactory.state(stateId)).thenReturn(mockState);
+
+    class MockFn extends DoFn<String, String> {
+      @StateId(stateId)
+      private final StateSpec<Object, ValueState<Integer>> spec =
+          StateSpecs.value(VarIntCoder.of());
+
+      @ProcessElement
+      public void processElement(ProcessContext c, @StateId(stateId) ValueState<Integer> valueState)
+          throws Exception {}
+    }
+    MockFn fn = mock(MockFn.class);
+    assertEquals(ProcessContinuation.stop(), invokeProcessElement(fn));
+    verify(fn).processElement(mockContext, mockState);
+  }
+
+  /**
+   * Tests that the generated {@link DoFnInvoker} passes the timer parameter that it
+   * should.
+   */
+  @Test
+  public void testDoFnWithTimer() throws Exception {
+    Timer mockTimer = mock(Timer.class);
+    final String timerId = "my-timer-id-here";
+    when(extraContextFactory.timer(timerId)).thenReturn(mockTimer);
+
+    class MockFn extends DoFn<String, String> {
+      @TimerId(timerId)
+      private final TimerSpec spec = TimerSpecs.timer(TimeDomain.EVENT_TIME);
+
+      @ProcessElement
+      public void processElement(ProcessContext c, @TimerId(timerId) Timer timer)
+          throws Exception {}
+
+      @OnTimer(timerId)
+      public void onTimer() {}
+    }
+    MockFn fn = mock(MockFn.class);
+    assertEquals(ProcessContinuation.stop(), invokeProcessElement(fn));
+    verify(fn).processElement(mockContext, mockTimer);
   }
 
   @Test
@@ -261,7 +293,7 @@ public class DoFnInvokersTest {
       public void after() {}
     }
     MockFn fn = mock(MockFn.class);
-    DoFnInvoker<String, String> invoker = DoFnInvokers.INSTANCE.newByteBuddyInvoker(fn);
+    DoFnInvoker<String, String> invoker = DoFnInvokers.invokerFor(fn);
     invoker.invokeSetup();
     invoker.invokeStartBundle(mockContext);
     invoker.invokeFinishBundle(mockContext);
@@ -324,7 +356,7 @@ public class DoFnInvokersTest {
   @Test
   public void testSplittableDoFnWithAllMethods() throws Exception {
     MockFn fn = mock(MockFn.class);
-    DoFnInvoker<String, String> invoker = DoFnInvokers.INSTANCE.newByteBuddyInvoker(fn);
+    DoFnInvoker<String, String> invoker = DoFnInvokers.invokerFor(fn);
     final SomeRestrictionTracker tracker = mock(SomeRestrictionTracker.class);
     final SomeRestrictionCoder coder = mock(SomeRestrictionCoder.class);
     SomeRestriction restriction = new SomeRestriction();
@@ -396,7 +428,7 @@ public class DoFnInvokersTest {
       }
     }
     MockFn fn = mock(MockFn.class);
-    DoFnInvoker<String, String> invoker = DoFnInvokers.INSTANCE.newByteBuddyInvoker(fn);
+    DoFnInvoker<String, String> invoker = DoFnInvokers.invokerFor(fn);
 
     CoderRegistry coderRegistry = new CoderRegistry();
     coderRegistry.registerCoder(SomeRestriction.class, SomeRestrictionCoder.class);
@@ -487,7 +519,7 @@ public class DoFnInvokersTest {
   @Test
   public void testProcessElementException() throws Exception {
     DoFnInvoker<Integer, Integer> invoker =
-        DoFnInvokers.INSTANCE.newByteBuddyInvoker(
+        DoFnInvokers.invokerFor(
             new DoFn<Integer, Integer>() {
               @ProcessElement
               public void processElement(@SuppressWarnings("unused") ProcessContext c) {
@@ -503,8 +535,8 @@ public class DoFnInvokersTest {
   public void testProcessElementExceptionWithReturn() throws Exception {
     thrown.expect(UserCodeException.class);
     thrown.expectMessage("bogus");
-    DoFnInvokers.INSTANCE
-        .newByteBuddyInvoker(
+    DoFnInvokers
+        .invokerFor(
             new DoFn<Integer, Integer>() {
               @ProcessElement
               public ProcessContinuation processElement(
@@ -528,7 +560,7 @@ public class DoFnInvokersTest {
   @Test
   public void testStartBundleException() throws Exception {
     DoFnInvoker<Integer, Integer> invoker =
-        DoFnInvokers.INSTANCE.newByteBuddyInvoker(
+        DoFnInvokers.invokerFor(
             new DoFn<Integer, Integer>() {
               @StartBundle
               public void startBundle(@SuppressWarnings("unused") Context c) {
@@ -546,7 +578,7 @@ public class DoFnInvokersTest {
   @Test
   public void testFinishBundleException() throws Exception {
     DoFnInvoker<Integer, Integer> invoker =
-        DoFnInvokers.INSTANCE.newByteBuddyInvoker(
+        DoFnInvokers.invokerFor(
             new DoFn<Integer, Integer>() {
               @FinishBundle
               public void finishBundle(@SuppressWarnings("unused") Context c) {

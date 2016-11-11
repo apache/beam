@@ -61,7 +61,7 @@ Run the pipeline, using the Apex runner:
 
 ```
 cd examples/java
-mvn exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount -Dexec.args="--inputFile=/tmp/kinglear.txt --output=/tmp/wordcounts.txt --runner=ApexRunner" -Pinclude-runners
+mvn exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount -Dexec.args="--inputFile=/tmp/kinglear.txt --output=/tmp/wordcounts.txt --runner=ApexRunner" -Papex-runner
 ```
 
 Once completed, there will be multiple output files with the base name given above:

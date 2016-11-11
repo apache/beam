@@ -33,8 +33,10 @@ import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
 import org.apache.beam.sdk.transforms.DoFn.ProcessContinuation;
 import org.apache.beam.sdk.transforms.DoFn.StateId;
 import org.apache.beam.sdk.transforms.DoFn.TimerId;
-import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.BoundedWindowParameter;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.RestrictionTrackerParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.StateParameter;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.TimerParameter;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.WindowParameter;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.Timer;
@@ -143,6 +145,10 @@ public abstract class DoFnSignature {
      * <p>Validation that these are allowed is external to this class.
      */
     List<Parameter> extraParameters();
+
+    /** The type of window expected by this method, if any. */
+    @Nullable
+    TypeDescriptor<? extends BoundedWindow> windowT();
   }
 
   /** A descriptor for an optional parameter of the {@link DoFn.ProcessElement} method. */
@@ -158,8 +164,8 @@ public abstract class DoFnSignature {
     public <ResultT> ResultT match(Cases<ResultT> cases) {
       // This could be done with reflection, but since the number of cases is small and known,
       // they are simply inlined.
-      if (this instanceof BoundedWindowParameter) {
-        return cases.dispatch((BoundedWindowParameter) this);
+      if (this instanceof WindowParameter) {
+        return cases.dispatch((WindowParameter) this);
       } else if (this instanceof RestrictionTrackerParameter) {
         return cases.dispatch((RestrictionTrackerParameter) this);
       } else if (this instanceof InputProviderParameter) {
@@ -181,7 +187,7 @@ public abstract class DoFnSignature {
      * An interface for destructuring a {@link Parameter}.
      */
     public interface Cases<ResultT> {
-      ResultT dispatch(BoundedWindowParameter p);
+      ResultT dispatch(WindowParameter p);
       ResultT dispatch(InputProviderParameter p);
       ResultT dispatch(OutputReceiverParameter p);
       ResultT dispatch(RestrictionTrackerParameter p);
@@ -196,7 +202,7 @@ public abstract class DoFnSignature {
         protected abstract ResultT dispatchDefault(Parameter p);
 
         @Override
-        public ResultT dispatch(BoundedWindowParameter p) {
+        public ResultT dispatch(WindowParameter p) {
           return dispatchDefault(p);
         }
 
@@ -228,20 +234,14 @@ public abstract class DoFnSignature {
     }
 
     // These parameter descriptors are constant
-    private static final BoundedWindowParameter BOUNDED_WINDOW_PARAMETER =
-        new AutoValue_DoFnSignature_Parameter_BoundedWindowParameter();
-    private static final RestrictionTrackerParameter RESTRICTION_TRACKER_PARAMETER =
-        new AutoValue_DoFnSignature_Parameter_RestrictionTrackerParameter();
     private static final InputProviderParameter INPUT_PROVIDER_PARAMETER =
         new AutoValue_DoFnSignature_Parameter_InputProviderParameter();
     private static final OutputReceiverParameter OUTPUT_RECEIVER_PARAMETER =
         new AutoValue_DoFnSignature_Parameter_OutputReceiverParameter();
 
-    /**
-     * Returns a {@link BoundedWindowParameter}.
-     */
-    public static BoundedWindowParameter boundedWindow() {
-      return BOUNDED_WINDOW_PARAMETER;
+    /** Returns a {@link WindowParameter}. */
+    public static WindowParameter boundedWindow(TypeDescriptor<? extends BoundedWindow> windowT) {
+      return new AutoValue_DoFnSignature_Parameter_WindowParameter(windowT);
     }
 
     /**
@@ -261,8 +261,8 @@ public abstract class DoFnSignature {
     /**
      * Returns a {@link RestrictionTrackerParameter}.
      */
-    public static RestrictionTrackerParameter restrictionTracker() {
-      return RESTRICTION_TRACKER_PARAMETER;
+    public static RestrictionTrackerParameter restrictionTracker(TypeDescriptor<?> trackerT) {
+      return new AutoValue_DoFnSignature_Parameter_RestrictionTrackerParameter(trackerT);
     }
 
     /**
@@ -282,8 +282,9 @@ public abstract class DoFnSignature {
      * <p>All such descriptors are equal.
      */
     @AutoValue
-    public abstract static class BoundedWindowParameter extends Parameter {
-      BoundedWindowParameter() {}
+    public abstract static class WindowParameter extends Parameter {
+      WindowParameter() {}
+      public abstract TypeDescriptor<? extends BoundedWindow> windowT();
     }
 
     /**
@@ -315,6 +316,7 @@ public abstract class DoFnSignature {
     public abstract static class RestrictionTrackerParameter extends Parameter {
       // Package visible for AutoValue
       RestrictionTrackerParameter() {}
+      public abstract TypeDescriptor<?> trackerT();
     }
 
     /**
@@ -357,6 +359,10 @@ public abstract class DoFnSignature {
     @Nullable
     public abstract TypeDescriptor<?> trackerT();
 
+    /** The window type used by this method, if any. */
+    @Nullable
+    public abstract TypeDescriptor<? extends BoundedWindow> windowT();
+
     /** Whether this {@link DoFn} returns a {@link ProcessContinuation} or void. */
     public abstract boolean hasReturnValue();
 
@@ -364,9 +370,14 @@ public abstract class DoFnSignature {
         Method targetMethod,
         List<Parameter> extraParameters,
         TypeDescriptor<?> trackerT,
+        @Nullable TypeDescriptor<? extends BoundedWindow> windowT,
         boolean hasReturnValue) {
       return new AutoValue_DoFnSignature_ProcessElementMethod(
-          targetMethod, Collections.unmodifiableList(extraParameters), trackerT, hasReturnValue);
+          targetMethod,
+          Collections.unmodifiableList(extraParameters),
+          trackerT,
+          windowT,
+          hasReturnValue);
     }
 
     /**
@@ -380,7 +391,8 @@ public abstract class DoFnSignature {
       return Iterables.any(
           extraParameters(),
           Predicates.or(
-              Predicates.instanceOf(BoundedWindowParameter.class),
+              Predicates.instanceOf(WindowParameter.class),
+              Predicates.instanceOf(TimerParameter.class),
               Predicates.instanceOf(StateParameter.class)));
     }
 
@@ -388,7 +400,8 @@ public abstract class DoFnSignature {
      * Whether this {@link DoFn} is <a href="https://s.apache.org/splittable-do-fn">splittable</a>.
      */
     public boolean isSplittable() {
-      return extraParameters().contains(Parameter.restrictionTracker());
+      return Iterables.any(
+          extraParameters(), Predicates.instanceOf(RestrictionTrackerParameter.class));
     }
   }
 
@@ -403,13 +416,21 @@ public abstract class DoFnSignature {
     @Override
     public abstract Method targetMethod();
 
+    /** The window type used by this method, if any. */
+    @Nullable
+    public abstract TypeDescriptor<? extends BoundedWindow> windowT();
+
     /** Types of optional parameters of the annotated method, in the order they appear. */
     @Override
     public abstract List<Parameter> extraParameters();
 
-    static OnTimerMethod create(Method targetMethod, String id, List<Parameter> extraParameters) {
+    static OnTimerMethod create(
+        Method targetMethod,
+        String id,
+        TypeDescriptor<? extends BoundedWindow> windowT,
+        List<Parameter> extraParameters) {
       return new AutoValue_DoFnSignature_OnTimerMethod(
-          id, targetMethod, Collections.unmodifiableList(extraParameters));
+          id, targetMethod, windowT, Collections.unmodifiableList(extraParameters));
     }
   }
 

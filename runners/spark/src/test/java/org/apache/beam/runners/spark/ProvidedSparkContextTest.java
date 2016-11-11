@@ -56,7 +56,7 @@ public class ProvidedSparkContextTest {
     public void testWithProvidedContext() throws Exception {
         JavaSparkContext jsc = new JavaSparkContext("local[*]", "Existing_Context");
 
-        SparkPipelineOptions options = PipelineOptionsFactory.as(SparkPipelineOptions.class);
+        SparkContextOptions options = PipelineOptionsFactory.as(SparkContextOptions.class);
         options.setRunner(SparkRunner.class);
         options.setUsesProvidedSparkContext(true);
         options.setProvidedSparkContext(jsc);
@@ -83,7 +83,7 @@ public class ProvidedSparkContextTest {
     public void testWithNullContext() throws Exception {
         JavaSparkContext jsc = null;
 
-        SparkPipelineOptions options = PipelineOptionsFactory.as(SparkPipelineOptions.class);
+        SparkContextOptions options = PipelineOptionsFactory.as(SparkContextOptions.class);
         options.setRunner(SparkRunner.class);
         options.setUsesProvidedSparkContext(true);
         options.setProvidedSparkContext(jsc);
@@ -114,7 +114,7 @@ public class ProvidedSparkContextTest {
         // Stop the provided Spark context directly
         jsc.stop();
 
-        SparkPipelineOptions options = PipelineOptionsFactory.as(SparkPipelineOptions.class);
+        SparkContextOptions options = PipelineOptionsFactory.as(SparkContextOptions.class);
         options.setRunner(SparkRunner.class);
         options.setUsesProvidedSparkContext(true);
         options.setProvidedSparkContext(jsc);

@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.testing;
 
 import static org.apache.beam.sdk.testing.SystemNanoTimeSleeper.sleepMillis;
+import static org.junit.Assert.assertTrue;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -30,8 +31,10 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.runner.Description;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+import org.junit.runners.model.Statement;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -39,7 +42,6 @@ import org.slf4j.LoggerFactory;
 @RunWith(JUnit4.class)
 public class ExpectedLogsTest {
   private static final Logger LOG = LoggerFactory.getLogger(ExpectedLogsTest.class);
-
   private Random random = new Random();
 
   @Rule public ExpectedLogs expectedLogs = ExpectedLogs.none(ExpectedLogsTest.class);
@@ -144,6 +146,32 @@ public class ExpectedLogsTest {
     for (String expected : expectedStrings) {
       expectedLogs.verifyTrace(expected);
     }
+  }
+
+  @Test
+  public void testLogsCleared() throws Throwable {
+    final String messageUnexpected = "Message prior to ExpectedLogs.";
+    final String messageExpected = "Message expected.";
+    LOG.info(messageUnexpected);
+
+    expectedLogs = ExpectedLogs.none(ExpectedLogsTest.class);
+    final boolean[] evaluateRan = new boolean[1];
+
+    expectedLogs.apply(
+        new Statement() {
+          @Override
+          public void evaluate() throws Throwable {
+            evaluateRan[0] = true;
+            expectedLogs.verifyNotLogged(messageUnexpected);
+            LOG.info(messageExpected);
+            expectedLogs.verifyInfo(messageExpected);
+          }
+        },
+        Description.EMPTY).evaluate();
+    assertTrue(evaluateRan[0]);
+    // Verify expectedLogs is cleared.
+    expectedLogs.verifyNotLogged(messageExpected);
+    expectedLogs.verifyNotLogged(messageUnexpected);
   }
 
   // Generates a random fake error message.

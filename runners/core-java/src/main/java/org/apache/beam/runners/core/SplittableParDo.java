@@ -46,9 +46,11 @@ import org.apache.beam.sdk.transforms.windowing.OutputTimeFns;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.KeyedWorkItem;
 import org.apache.beam.sdk.util.TimeDomain;
+import org.apache.beam.sdk.util.Timer;
 import org.apache.beam.sdk.util.TimerInternals;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowingInternals;
+import org.apache.beam.sdk.util.state.State;
 import org.apache.beam.sdk.util.state.StateNamespace;
 import org.apache.beam.sdk.util.state.StateNamespaces;
 import org.apache.beam.sdk.util.state.StateTag;
@@ -92,7 +94,7 @@ public class SplittableParDo<
   public SplittableParDo(DoFn<InputT, OutputT> fn) {
     checkNotNull(fn, "fn must not be null");
     this.fn = fn;
-    this.signature = DoFnSignatures.INSTANCE.getSignature(fn.getClass());
+    this.signature = DoFnSignatures.getSignature(fn.getClass());
     checkArgument(signature.processElement().isSplittable(), "fn must be a splittable DoFn");
   }
 
@@ -100,8 +102,8 @@ public class SplittableParDo<
   public PCollection<OutputT> apply(PCollection<InputT> input) {
     PCollection.IsBounded isFnBounded = signature.isBoundedPerElement();
     Coder<RestrictionT> restrictionCoder =
-        DoFnInvokers.INSTANCE
-            .newByteBuddyInvoker(fn)
+        DoFnInvokers
+            .invokerFor(fn)
             .invokeGetRestrictionCoder(input.getPipeline().getCoderRegistry());
     Coder<ElementAndRestriction<InputT, RestrictionT>> splitCoder =
         ElementAndRestrictionCoder.of(input.getCoder(), restrictionCoder);
@@ -164,7 +166,7 @@ public class SplittableParDo<
 
     @Setup
     public void setup() {
-      invoker = DoFnInvokers.INSTANCE.newByteBuddyInvoker(fn);
+      invoker = DoFnInvokers.invokerFor(fn);
     }
 
     @ProcessElement
@@ -239,13 +241,12 @@ public class SplittableParDo<
       this.windowCoder = windowCoder;
       elementTag =
           StateTags.value("element", WindowedValue.getFullCoder(elementCoder, this.windowCoder));
-      DoFnInvoker<InputT, OutputT> invoker = DoFnInvokers.INSTANCE.newByteBuddyInvoker(fn);
       restrictionTag = StateTags.value("restriction", restrictionCoder);
     }
 
     @Override
     public void setup() throws Exception {
-      invoker = DoFnInvokers.INSTANCE.newByteBuddyInvoker(fn);
+      invoker = DoFnInvokers.invokerFor(fn);
     }
 
     @Override
@@ -432,6 +433,16 @@ public class SplittableParDo<
       public TrackerT restrictionTracker() {
         return tracker;
       }
+
+      @Override
+      public State state(String stateId) {
+        throw new UnsupportedOperationException("State cannot be used with a splittable DoFn");
+      }
+
+      @Override
+      public Timer timer(String timerId) {
+        throw new UnsupportedOperationException("Timers cannot be used with a splittable DoFn");
+      }
     }
   }
 
@@ -449,7 +460,7 @@ public class SplittableParDo<
 
     @Setup
     public void setup() {
-      invoker = DoFnInvokers.INSTANCE.newByteBuddyInvoker(splittableFn);
+      invoker = DoFnInvokers.invokerFor(splittableFn);
     }
 
     @ProcessElement

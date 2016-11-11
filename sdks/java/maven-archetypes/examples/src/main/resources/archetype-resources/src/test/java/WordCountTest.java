@@ -17,12 +17,11 @@
  */
 package ${package};
 
+import java.util.Arrays;
+import java.util.List;
 import ${package}.WordCount.CountWords;
 import ${package}.WordCount.ExtractWordsFn;
 import ${package}.WordCount.FormatAsTextFn;
-
-import java.util.Arrays;
-import java.util.List;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.testing.PAssert;
@@ -81,6 +80,6 @@ public class WordCountTest {
       .apply(MapElements.via(new FormatAsTextFn()));
 
     PAssert.that(output).containsInAnyOrder(COUNTS_ARRAY);
-    p.run();
+    p.run().waitUntilFinish();
   }
 }

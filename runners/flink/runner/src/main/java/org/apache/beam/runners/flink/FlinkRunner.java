@@ -301,7 +301,7 @@ public class FlinkRunner extends PipelineRunner<PipelineResult> {
   private static class StreamingViewAsMap<K, V>
       extends PTransform<PCollection<KV<K, V>>, PCollectionView<Map<K, V>>> {
 
-    private final FlinkRunner runner;
+    private final transient FlinkRunner runner;
 
     @SuppressWarnings("unused") // used via reflection in FlinkRunner#apply()
     public StreamingViewAsMap(FlinkRunner runner, View.AsMap<K, V> transform) {
@@ -343,7 +343,7 @@ public class FlinkRunner extends PipelineRunner<PipelineResult> {
   private static class StreamingViewAsMultimap<K, V>
       extends PTransform<PCollection<KV<K, V>>, PCollectionView<Map<K, Iterable<V>>>> {
 
-    private final FlinkRunner runner;
+    private final transient FlinkRunner runner;
 
     /**
      * Builds an instance of this class from the overridden transform.
