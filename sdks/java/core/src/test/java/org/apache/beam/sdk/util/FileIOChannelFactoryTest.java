@@ -206,7 +206,7 @@ public class FileIOChannelFactoryTest {
   @Test
   public void testMatchWithoutParentDirectory() throws Exception {
     String pattern = factory.resolve(
-        factory.resolve(temporaryFolder.getRoot().getPath(), "non_exist_dir"),
+        factory.resolve(temporaryFolder.getRoot().getPath(), "non_existing_dir"),
         "*");
     assertTrue(factory.match(pattern).isEmpty());
   }

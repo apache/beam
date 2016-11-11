@@ -498,8 +498,11 @@ public abstract class FileBasedSink<T> extends Sink<T> {
       IOChannelFactory factory = IOChannelUtils.getFactory(tempDirectory);
 
       // To partially mitigate the effects of filesystems with eventually-consistent
-      // directory matching APIs, takes a list of files that are known to exist - i.e. removes the
-      // union of the known files and files that the filesystem says exist in the directory.
+      // directory matching APIs, we remove not only files that the filesystem says exist
+      // in the directory (which may be incomplete), but also files that are known to exist
+      // (produced by successfully completed bundles).
+      // This may still fail to remove temporary outputs of some failed bundles, but at least
+      // the common case (where all bundles succeed) is guaranteed to be fully addressed.
       Collection<String> matches = factory.match(factory.resolve(tempDirectory, "*"));
       Set<String> allMatches = new HashSet<>(matches);
       allMatches.addAll(knownFiles);
@@ -707,7 +710,7 @@ public abstract class FileBasedSink<T> extends Sink<T> {
    */
   private interface FileOperations {
     /**
-     * Copy a collection of files from one location to another.
+     * Copies a collection of files from one location to another.
      *
      * <p>The number of source filenames must equal the number of destination filenames.
      *
@@ -717,10 +720,10 @@ public abstract class FileBasedSink<T> extends Sink<T> {
     void copy(List<String> srcFilenames, List<String> destFilenames) throws IOException;
 
     /**
-     * Remove a collection of files or directories.
+     * Removes a collection of files or directories.
      *
-     * <p>Directories are required to be empty. Behaviors of deleting non-empty directories are
-     * undefined.
+     * <p>Directories are required to be empty. Behavior of deleting non-empty directories
+     * is undefined.
      */
     void remove(Collection<String> filesOrDirs) throws IOException;
   }
