@@ -202,7 +202,7 @@ class TransformExecutorServices(object):
     if not cached:
       cached = SerialEvaluationState(self._executor_service, self._scheduled)
       self._serial_cache[step] = cached
-    return  cached
+    return cached
 
   @property
   def executors(self):
@@ -480,18 +480,20 @@ class _ExecutorServiceParallelExecutor(object):
         Otherwise monitor task should schedule itself again for future
         execution.
       """
-      if self._executor.evaluation_context.is_done():
-        self._executor.visible_updates.offer(
-            _ExecutorServiceParallelExecutor.VisibleExecutorUpdate())
+      if self._is_executing():
+        # There are some bundles still in progress.
+        return False
+      else:
+        if self._executor.evaluation_context.is_done():
+          self._executor.visible_updates.offer(
+              _ExecutorServiceParallelExecutor.VisibleExecutorUpdate())
+        else:
+          # Nothing is scheduled for execution, but watermarks incomplete.
+          self._executor.visible_updates.offer(
+              _ExecutorServiceParallelExecutor.VisibleExecutorUpdate(
+                  Exception('Monitor task detected a pipeline stall.')))
         self._executor.executor_service.shutdown()
         return True
-      elif not self._is_executing:
-        self._executor.visible_updates.offer(
-            _ExecutorServiceParallelExecutor.VisibleExecutorUpdate(
-                Exception('Monitor task detected a pipeline stall.')))
-        self._executor.executor_service.shutdown()
-        return True
-      return False
 
     def _fire_timers(self):
       """Schedules triggered consumers if any timers fired.
@@ -515,8 +517,13 @@ class _ExecutorServiceParallelExecutor(object):
 
     def _is_executing(self):
       """Returns True if there is at least one non-blocked TransformExecutor."""
-      for transform_executor in (
-          self._executor.transform_executor_services.executors):
+      executors = self._executor.transform_executor_services.executors
+      if not executors:
+        # Nothing is executing.
+        return False
+
+      # Ensure that at least one of those executors is not blocked.
+      for transform_executor in executors:
         if not transform_executor.blocked:
           return True
       return False
