@@ -20,14 +20,12 @@ import scala.Tuple2;
 
 import java.io.Serializable;
 import java.util.Comparator;
-import java.util.Deque;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.function.Consumer;
 import java.util.function.ToIntFunction;
 
 class ReduceStateByKeyTranslator implements SparkOperatorTranslator<ReduceStateByKey> {
@@ -124,6 +122,7 @@ class ReduceStateByKeyTranslator implements SparkOperatorTranslator<ReduceStateB
 
     private final StateFactory<?, State> stateFactory;
     private final SparkStorageProvider storageProvider;
+    private transient Map<KeyedWindow, State> activeStates;
 
     public StateReducer(StateFactory<?, State> stateFactory) {
       this.stateFactory = stateFactory;
@@ -166,6 +165,16 @@ class ReduceStateByKeyTranslator implements SparkOperatorTranslator<ReduceStateB
       // return blocking iterator
       return context.iterator();
     }
+
+    private void flushStates() {
+      for (Map.Entry<KeyedWindow, State> e : activeStates.entrySet()) {
+        State s = e.getValue();
+        s.flush();
+        s.close();
+      }
+      activeStates.clear();
+    }
+
 
   }
 }

@@ -75,8 +75,8 @@ public class FlinkExecutor implements Executor {
           LOG.info("Enabled checkpoints every {} milliseconds", checkpointInterval);
           environment.getStreamEnv().enableCheckpointing(checkpointInterval);
         } else {
-          LOG.warn("Not enabling checkpointing, your flow is probably not fault tolerant "
-              + " and/or might encounter performance issues!");
+          LOG.warn("Not enabling checkpointing, your flow is probably not fault "
+              + "tolerant and/or might encounter performance issues!");
         }
       }
 
