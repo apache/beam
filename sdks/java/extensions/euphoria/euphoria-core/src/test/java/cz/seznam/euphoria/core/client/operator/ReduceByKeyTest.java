@@ -44,7 +44,7 @@ public class ReduceByKeyTest {
     assertSame(windowing, reduce.getWindowing());
 
     // default partitioning used
-    assertTrue(reduce.getPartitioning().getPartitioner() instanceof HashPartitioner);
+    assertTrue(reduce.getPartitioning().hasDefaultPartitioner());
     assertEquals(2, reduce.getPartitioning().getNumPartitions());
   }
 
@@ -109,6 +109,7 @@ public class ReduceByKeyTest {
             .output();
 
     ReduceByKey reduce = (ReduceByKey) flow.operators().iterator().next();
+    assertTrue(!reduce.getPartitioning().hasDefaultPartitioner());
     assertTrue(reduce.getPartitioning().getPartitioner() instanceof HashPartitioner);
     assertEquals(1, reduce.getPartitioning().getNumPartitions());
   }
@@ -128,6 +129,7 @@ public class ReduceByKeyTest {
             .output();
 
     ReduceByKey reduce = (ReduceByKey) flow.operators().iterator().next();
+    assertTrue(!reduce.getPartitioning().hasDefaultPartitioner());
     assertTrue(reduce.getPartitioning().getPartitioner() instanceof HashPartitioner);
     assertEquals(5, reduce.getPartitioning().getNumPartitions());
   }
@@ -166,7 +168,7 @@ public class ReduceByKeyTest {
     assertEquals(windowing, reduce.getWindowing());
 
     // default partitioning used
-    assertTrue(reduce.getPartitioning().getPartitioner() instanceof HashPartitioner);
+    assertTrue(reduce.getPartitioning().hasDefaultPartitioner());
     assertEquals(2, reduce.getPartitioning().getNumPartitions());
   }
 
@@ -231,6 +233,7 @@ public class ReduceByKeyTest {
                     .output();
 
     ReduceByKey reduce = (ReduceByKey) ((List)flow.operators()).get(1);
+    assertTrue(!reduce.getPartitioning().hasDefaultPartitioner());
     assertTrue(reduce.getPartitioning().getPartitioner() instanceof HashPartitioner);
     assertEquals(1, reduce.getPartitioning().getNumPartitions());
   }
@@ -255,6 +258,7 @@ public class ReduceByKeyTest {
                     .output();
 
     ReduceByKey reduce = (ReduceByKey) ((List)flow.operators()).get(1);
+    assertTrue(!reduce.getPartitioning().hasDefaultPartitioner());
     assertTrue(reduce.getPartitioning().getPartitioner() instanceof HashPartitioner);
     assertEquals(5, reduce.getPartitioning().getNumPartitions());
   }

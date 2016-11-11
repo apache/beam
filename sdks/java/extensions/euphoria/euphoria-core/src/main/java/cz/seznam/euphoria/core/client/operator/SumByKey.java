@@ -149,8 +149,4 @@ public class SumByKey<
         keyExtractor, valueExtractor, windowing, Sums.ofLongs(), getPartitioning());
     return DAG.of(reduceByKey);
   }
-
-
-
-
 }
