@@ -20,9 +20,11 @@
 import json
 import logging
 import time
+import datetime
 import unittest
 
 from apitools.base.py.exceptions import HttpError
+import hamcrest as hc
 import mock
 
 import apache_beam as beam
@@ -30,6 +32,8 @@ from apache_beam.internal.clients import bigquery
 from apache_beam.internal.json_value import to_json_value
 from apache_beam.io.bigquery import RowAsDictJsonCoder
 from apache_beam.io.bigquery import TableRowJsonCoder
+from apache_beam.transforms.display import DisplayData
+from apache_beam.transforms.display_test import DisplayDataItemMatcher
 from apache_beam.utils.options import PipelineOptions
 
 
@@ -111,6 +115,39 @@ class TestTableRowJsonCoder(unittest.TestCase):
 
 class TestBigQuerySource(unittest.TestCase):
 
+  def test_display_data_item_on_validate_true(self):
+    source = beam.io.BigQuerySource('dataset.table', validate=True)
+
+    dd = DisplayData.create_from(source)
+    expected_items = [
+        DisplayDataItemMatcher('validation', True),
+        DisplayDataItemMatcher('table', 'dataset.table')]
+    hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
+
+  def test_table_reference_display_data(self):
+    source = beam.io.BigQuerySource('dataset.table')
+    dd = DisplayData.create_from(source)
+    expected_items = [
+        DisplayDataItemMatcher('validation', False),
+        DisplayDataItemMatcher('table', 'dataset.table')]
+    hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
+
+    source = beam.io.BigQuerySource('project:dataset.table')
+    dd = DisplayData.create_from(source)
+    expected_items = [
+        DisplayDataItemMatcher('validation', False),
+        DisplayDataItemMatcher('table', 'project:dataset.table')]
+    hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
+
+    source = beam.io.BigQuerySource('xyz.com:project:dataset.table')
+    dd = DisplayData.create_from(source)
+    expected_items = [
+        DisplayDataItemMatcher('validation',
+                               False),
+        DisplayDataItemMatcher('table',
+                               'xyz.com:project:dataset.table')]
+    hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
+
   def test_parse_table_reference(self):
     source = beam.io.BigQuerySource('dataset.table')
     self.assertEqual(source.table_reference.datasetId, 'dataset')
@@ -126,6 +163,24 @@ class TestBigQuerySource(unittest.TestCase):
     self.assertEqual(source.table_reference.datasetId, 'dataset')
     self.assertEqual(source.table_reference.tableId, 'table')
 
+    source = beam.io.BigQuerySource(query='my_query')
+    self.assertEqual(source.query, 'my_query')
+    self.assertIsNone(source.table_reference)
+    self.assertTrue(source.use_legacy_sql)
+
+  def test_query_only_display_data(self):
+    source = beam.io.BigQuerySource(query='my_query')
+    dd = DisplayData.create_from(source)
+    expected_items = [
+        DisplayDataItemMatcher('validation', False),
+        DisplayDataItemMatcher('query', 'my_query')]
+    hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
+
+  def test_specify_query_sql_format(self):
+    source = beam.io.BigQuerySource(query='my_query', use_legacy_sql=False)
+    self.assertEqual(source.query, 'my_query')
+    self.assertFalse(source.use_legacy_sql)
+
   def test_specify_query_without_table(self):
     source = beam.io.BigQuerySource(query='my_query')
     self.assertEqual(source.query, 'my_query')
@@ -133,6 +188,14 @@ class TestBigQuerySource(unittest.TestCase):
 
 
 class TestBigQuerySink(unittest.TestCase):
+
+  def test_table_spec_display_data(self):
+    sink = beam.io.BigQuerySink('dataset.table')
+    dd = DisplayData.create_from(sink)
+    expected_items = [
+        DisplayDataItemMatcher('table', 'dataset.table'),
+        DisplayDataItemMatcher('validation', False)]
+    hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
 
   def test_parse_schema_descriptor(self):
     sink = beam.io.BigQuerySink(
@@ -143,9 +206,17 @@ class TestBigQuerySink(unittest.TestCase):
         field.name: field.type for field in sink.table_schema.fields}
     self.assertEqual({'n': 'INTEGER', 's': 'STRING'}, result_schema)
 
+  def test_project_table_display_data(self):
+    sinkq = beam.io.BigQuerySink('PROJECT:dataset.table')
+    dd = DisplayData.create_from(sinkq)
+    expected_items = [
+        DisplayDataItemMatcher('table', 'PROJECT:dataset.table'),
+        DisplayDataItemMatcher('validation', False)]
+    hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
+
   def test_simple_schema_as_json(self):
     sink = beam.io.BigQuerySink(
-        'dataset.table', schema='s:STRING, n:INTEGER')
+        'PROJECT:dataset.table', schema='s:STRING, n:INTEGER')
     self.assertEqual(
         json.dumps({'fields': [
             {'name': 's', 'type': 'STRING', 'mode': 'NULLABLE'},
@@ -177,9 +248,25 @@ class TestBigQueryReader(unittest.TestCase):
 
   def get_test_rows(self):
     now = time.time()
+    dt = datetime.datetime.utcfromtimestamp(float(now))
+    ts = dt.strftime('%Y-%m-%d %H:%M:%S.%f UTC')
     expected_rows = [
-        {'i': 1, 's': 'abc', 'f': 2.3, 'b': True, 't': now},
-        {'i': 10, 's': 'xyz', 'f': -3.14, 'b': False}]
+        {
+            'i': 1,
+            's': 'abc',
+            'f': 2.3,
+            'b': True,
+            't': ts,
+            'dt': '2016-10-31',
+            'ts': '22:39:12.627498',
+            'dt_ts': '2008-12-25T07:30:00'
+        },
+        {
+            'i': 10,
+            's': 'xyz',
+            'f': -3.14,
+            'b': False
+        }]
     schema = bigquery.TableSchema(
         fields=[
             bigquery.TableFieldSchema(
@@ -191,7 +278,13 @@ class TestBigQueryReader(unittest.TestCase):
             bigquery.TableFieldSchema(
                 name='s', type='STRING', mode='REQUIRED'),
             bigquery.TableFieldSchema(
-                name='t', type='TIMESTAMP', mode='NULLABLE')])
+                name='t', type='TIMESTAMP', mode='NULLABLE'),
+            bigquery.TableFieldSchema(
+                name='dt', type='DATE', mode='NULLABLE'),
+            bigquery.TableFieldSchema(
+                name='ts', type='TIME', mode='NULLABLE'),
+            bigquery.TableFieldSchema(
+                name='dt_ts', type='DATETIME', mode='NULLABLE')])
     table_rows = [
         bigquery.TableRow(f=[
             bigquery.TableCell(v=to_json_value('true')),
@@ -200,12 +293,18 @@ class TestBigQueryReader(unittest.TestCase):
             bigquery.TableCell(v=to_json_value('abc')),
             # For timestamps cannot use str() because it will truncate the
             # number representing the timestamp.
-            bigquery.TableCell(v=to_json_value('%f' % now))]),
+            bigquery.TableCell(v=to_json_value('%f' % now)),
+            bigquery.TableCell(v=to_json_value('2016-10-31')),
+            bigquery.TableCell(v=to_json_value('22:39:12.627498')),
+            bigquery.TableCell(v=to_json_value('2008-12-25T07:30:00'))]),
         bigquery.TableRow(f=[
             bigquery.TableCell(v=to_json_value('false')),
             bigquery.TableCell(v=to_json_value(str(-3.14))),
             bigquery.TableCell(v=to_json_value(str(10))),
             bigquery.TableCell(v=to_json_value('xyz')),
+            bigquery.TableCell(v=None),
+            bigquery.TableCell(v=None),
+            bigquery.TableCell(v=None),
             bigquery.TableCell(v=None)])]
     return table_rows, schema, expected_rows
 
@@ -238,6 +337,24 @@ class TestBigQueryReader(unittest.TestCase):
         actual_rows.append(row)
     self.assertEqual(actual_rows, expected_rows)
     self.assertEqual(schema, reader.schema)
+    self.assertTrue(reader.use_legacy_sql)
+
+  def test_read_from_query_sql_format(self):
+    client = mock.Mock()
+    client.jobs.Insert.return_value = bigquery.Job(
+        jobReference=bigquery.JobReference(
+            jobId='somejob'))
+    table_rows, schema, expected_rows = self.get_test_rows()
+    client.jobs.GetQueryResults.return_value = bigquery.GetQueryResultsResponse(
+        jobComplete=True, rows=table_rows, schema=schema)
+    actual_rows = []
+    with beam.io.BigQuerySource(
+        query='query', use_legacy_sql=False).reader(client) as reader:
+      for row in reader:
+        actual_rows.append(row)
+    self.assertEqual(actual_rows, expected_rows)
+    self.assertEqual(schema, reader.schema)
+    self.assertFalse(reader.use_legacy_sql)
 
   def test_using_both_query_and_table_fails(self):
     with self.assertRaises(ValueError) as exn:

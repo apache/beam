@@ -15,7 +15,7 @@
 # limitations under the License.
 #
 
-"""InProcessEvaluationContext tracks global state, triggers and watermarks."""
+"""EvaluationContext tracks global state, triggers and watermarks."""
 
 from __future__ import absolute_import
 
@@ -23,13 +23,13 @@ import collections
 import threading
 
 from apache_beam.transforms import sideinputs
-from apache_beam.runners.inprocess.clock import Clock
-from apache_beam.runners.inprocess.inprocess_watermark_manager import InProcessWatermarkManager
-from apache_beam.runners.inprocess.inprocess_executor import TransformExecutor
+from apache_beam.runners.direct.clock import Clock
+from apache_beam.runners.direct.watermark_manager import WatermarkManager
+from apache_beam.runners.direct.executor import TransformExecutor
 from apache_beam.utils import counters
 
 
-class _InProcessExecutionContext(object):
+class _ExecutionContext(object):
 
   def __init__(self, watermarks, existing_state):
     self._watermarks = watermarks
@@ -44,7 +44,7 @@ class _InProcessExecutionContext(object):
     return self._existing_state
 
 
-class _InProcessSideInputView(object):
+class _SideInputView(object):
 
   def __init__(self, view):
     self._view = view
@@ -53,7 +53,7 @@ class _InProcessSideInputView(object):
     self.has_result = False
 
 
-class _InProcessSideInputsContainer(object):
+class _SideInputsContainer(object):
   """An in-process container for PCollectionViews.
 
   It provides methods for blocking until a side-input is available and writing
@@ -64,7 +64,7 @@ class _InProcessSideInputsContainer(object):
     self._lock = threading.Lock()
     self._views = {}
     for view in views:
-      self._views[view] = _InProcessSideInputView(view)
+      self._views[view] = _SideInputView(view)
 
   def get_value_or_schedule_after_output(self, pcollection_view, task):
     with self._lock:
@@ -104,22 +104,22 @@ class _InProcessSideInputsContainer(object):
     return sideinputs.SideInputMap(type(view), view._view_options(), values)
 
 
-class InProcessEvaluationContext(object):
+class EvaluationContext(object):
   """Evaluation context with the global state information of the pipeline.
 
   The evaluation context for a specific pipeline being executed by the
-  InProcessPipelineRunner. Contains state shared within the execution across all
+  DirectPipelineRunner. Contains state shared within the execution across all
   transforms.
 
-  InProcessEvaluationContext contains shared state for an execution of the
-  InProcessPipelineRunner that can be used while evaluating a PTransform. This
+  EvaluationContext contains shared state for an execution of the
+  DirectPipelineRunner that can be used while evaluating a PTransform. This
   consists of views into underlying state and watermark implementations, access
   to read and write PCollectionViews, and constructing counter sets and
   execution contexts. This includes executing callbacks asynchronously when
   state changes to the appropriate point (e.g. when a PCollectionView is
   requested and known to be empty).
 
-  InProcessEvaluationContext also handles results by committing finalizing
+  EvaluationContext also handles results by committing finalizing
   bundles based on the current global state and updating the global state
   appropriately. This includes updating the per-(step,key) state, updating
   global watermarks, and executing any callbacks that can be executed.
@@ -136,9 +136,9 @@ class InProcessEvaluationContext(object):
 
     # AppliedPTransform -> Evaluator specific state objects
     self._application_state_interals = {}
-    self._watermark_manager = InProcessWatermarkManager(
+    self._watermark_manager = WatermarkManager(
         Clock(), root_transforms, value_to_consumers)
-    self._side_inputs_container = _InProcessSideInputsContainer(views)
+    self._side_inputs_container = _SideInputsContainer(views)
     self._pending_unblocked_tasks = []
     self._counter_factory = counters.CounterFactory()
     self._cache = None
@@ -165,18 +165,18 @@ class InProcessEvaluationContext(object):
       self, completed_bundle, completed_timers, result):
     """Handle the provided result produced after evaluating the input bundle.
 
-    Handle the provided InProcessTransformResult, produced after evaluating
+    Handle the provided TransformResult, produced after evaluating
     the provided committed bundle (potentially None, if the result of a root
     PTransform).
 
     The result is the output of running the transform contained in the
-    InProcessTransformResult on the contents of the provided bundle.
+    TransformResult on the contents of the provided bundle.
 
     Args:
       completed_bundle: the bundle that was processed to produce the result.
       completed_timers: the timers that were delivered to produce the
                         completed_bundle.
-      result: the InProcessTransformResult of evaluating the input bundle
+      result: the TransformResult of evaluating the input bundle
 
     Returns:
       the committed bundles contained within the handled result.
@@ -228,7 +228,7 @@ class InProcessEvaluationContext(object):
     return tuple(uncommitted_bundles)
 
   def get_execution_context(self, applied_ptransform):
-    return _InProcessExecutionContext(
+    return _ExecutionContext(
         self._watermark_manager.get_watermarks(applied_ptransform),
         self._application_state_interals.get(applied_ptransform))
 
@@ -264,7 +264,7 @@ class InProcessEvaluationContext(object):
 
   def _is_transform_done(self, transform):
     tw = self._watermark_manager.get_watermarks(transform)
-    return tw.output_watermark == InProcessWatermarkManager.WATERMARK_POS_INF
+    return tw.output_watermark == WatermarkManager.WATERMARK_POS_INF
 
   def get_value_or_schedule_after_output(self, pcollection_view, task):
     assert isinstance(task, TransformExecutor)

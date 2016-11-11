@@ -18,8 +18,8 @@
 """Collection of useful coders."""
 
 import base64
-import collections
 import cPickle as pickle
+import google.protobuf
 
 from apache_beam.coders import coder_impl
 
@@ -30,12 +30,10 @@ try:
   # Import dill from the pickler module to make sure our monkey-patching of dill
   # occurs.
   from apache_beam.internal.pickler import dill
-  from apache_beam.transforms.timeutil import Timestamp
 except ImportError:
   # We fall back to using the stock dill library in tests that don't use the
   # full Python SDK.
   import dill
-  Timestamp = collections.namedtuple('Timestamp', 'micros')
 
 
 def serialize_coder(coder):
@@ -265,7 +263,7 @@ class TimestampCoder(FastCoder):
   """A coder used for timeutil.Timestamp values."""
 
   def _create_impl(self):
-    return coder_impl.TimestampCoderImpl(Timestamp)
+    return coder_impl.TimestampCoderImpl()
 
   def is_deterministic(self):
     return True
@@ -354,16 +352,16 @@ class DillCoder(_PickleCoderBase):
     return coder_impl.CallbackCoderImpl(maybe_dill_dumps, maybe_dill_loads)
 
 
-class DeterministicPickleCoder(FastCoder):
-  """Throws runtime errors when pickling non-deterministic values."""
+class DeterministicFastPrimitivesCoder(FastCoder):
+  """Throws runtime errors when encoding non-deterministic values."""
 
-  def __init__(self, pickle_coder, step_label):
-    self._pickle_coder = pickle_coder
+  def __init__(self, coder, step_label):
+    self._underlying_coder = coder
     self._step_label = step_label
 
   def _create_impl(self):
-    return coder_impl.DeterministicPickleCoderImpl(
-        self._pickle_coder.get_impl(), self._step_label)
+    return coder_impl.DeterministicFastPrimitivesCoderImpl(
+        self._underlying_coder.get_impl(), self._step_label)
 
   def is_deterministic(self):
     return True
@@ -453,6 +451,39 @@ class Base64PickleCoder(Coder):
     return self
 
 
+class ProtoCoder(FastCoder):
+  """A Coder for Google Protocol Buffers.
+
+  It supports both Protocol Buffers syntax versions 2 and 3. However,
+  the runtime version of the python protobuf library must exactly match the
+  version of the protoc compiler what was used to generate the protobuf
+  messages.
+
+  ProtoCoder is registered in the global CoderRegistry as the default coder for
+  any protobuf Message object.
+
+  """
+
+  def __init__(self, proto_message_type):
+    self.proto_message_type = proto_message_type
+
+  def _create_impl(self):
+    return coder_impl.ProtoCoderImpl(self.proto_message_type)
+
+  def is_deterministic(self):
+    # TODO(vikasrk): A proto message can be deterministic if it does not contain
+    # a Map.
+    return False
+
+  @staticmethod
+  def from_type_hint(typehint, unused_registry):
+    if issubclass(typehint, google.protobuf.message.Message):
+      return ProtoCoder(typehint)
+    else:
+      raise ValueError(('Expected a subclass of google.protobuf.message.Message'
+                        ', but got a %s' % typehint))
+
+
 class TupleCoder(FastCoder):
   """Coder of tuple objects."""
 
@@ -518,6 +549,29 @@ class TupleSequenceCoder(FastCoder):
 
   def __repr__(self):
     return 'TupleSequenceCoder[%r]' % self._elem_coder
+
+
+class IterableCoder(FastCoder):
+  """Coder of iterables of homogeneous objects."""
+
+  def __init__(self, elem_coder):
+    self._elem_coder = elem_coder
+
+  def _create_impl(self):
+    return coder_impl.IterableCoderImpl(self._elem_coder.get_impl())
+
+  def is_deterministic(self):
+    return self._elem_coder.is_deterministic()
+
+  @staticmethod
+  def from_type_hint(typehint, registry):
+    return IterableCoder(registry.get_coder(typehint.inner_type))
+
+  def _get_component_coders(self):
+    return (self._elem_coder,)
+
+  def __repr__(self):
+    return 'IterableCoder[%r]' % self._elem_coder
 
 
 class WindowCoder(PickleCoder):

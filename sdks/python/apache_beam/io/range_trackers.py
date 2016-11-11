@@ -286,6 +286,85 @@ class GroupedShuffleRangeTracker(iobase.RangeTracker):
                        ' that are interpreted by the service')
 
 
+class OrderedPositionRangeTracker(iobase.RangeTracker):
+  """
+  An abstract base class for range trackers whose positions are comparable.
+
+  Subclasses only need to implement the mapping from position ranges
+  to and from the closed interval [0, 1].
+  """
+
+  UNSTARTED = object()
+
+  def __init__(self, start_position=None, stop_position=None):
+    self._start_position = start_position
+    self._stop_position = stop_position
+    self._lock = threading.Lock()
+    self._last_claim = self.UNSTARTED
+
+  def start_position(self):
+    return self._start_position
+
+  def stop_position(self):
+    with self._lock:
+      return self._end_position
+
+  def try_claim(self, position):
+    with self._lock:
+      if self._last_claim is not self.UNSTARTED and position < self._last_claim:
+        raise ValueError(
+            "Positions must be claimed in order: "
+            "claim '%s' attempted after claim '%s'" % (
+                position, self._last_claim))
+      elif self._start_position is not None and position < self._start_position:
+        raise ValueError("Claim '%s' is before start '%s'" % (
+            position, self._start_position))
+      if self._stop_position is None or position < self._stop_position:
+        self._last_claim = position
+        return True
+      else:
+        return False
+
+  def position_at_fraction(self, fraction):
+    return self.fraction_to_position(
+        fraction, self._start_position, self._stop_position)
+
+  def try_split(self, position):
+    with self._lock:
+      if ((self._stop_position is not None and position >= self._stop_position)
+          or (self._start_position is not None
+              and position <= self._start_position)):
+        raise ValueError("Split at '%s' not in range %s" % (
+            position, [self._start_position, self._stop_position]))
+      if self._last_claim is self.UNSTARTED or self._last_claim < position:
+        fraction = self.position_to_fraction(
+            position, start=self._start_position, end=self._stop_position)
+        self._stop_position = position
+        return position, fraction
+      else:
+        return None
+
+  def fraction_consumed(self):
+    if self._last_claim is self.UNSTARTED:
+      return 0
+    else:
+      return self.position_to_fraction(
+          self._last_claim, self._start_position, self._stop_position)
+
+  def position_to_fraction(self, pos, start, end):
+    """
+    Converts a position `pos` betweeen `start` and `end` (inclusive) to a
+    fraction between 0 and 1.
+    """
+    raise NotImplementedError
+
+  def fraction_to_position(self, fraction, start, end):
+    """
+    Converts a fraction between 0 and 1 to a position between start and end.
+    """
+    raise NotImplementedError
+
+
 class UnsplittableRangeTracker(iobase.RangeTracker):
   """A RangeTracker that always ignores split requests.
 
@@ -324,3 +403,91 @@ class UnsplittableRangeTracker(iobase.RangeTracker):
 
   def fraction_consumed(self):
     return self._range_tracker.fraction_consumed()
+
+
+class LexicographicKeyRangeTracker(OrderedPositionRangeTracker):
+  """
+  A range tracker that tracks progress through a lexicographically
+  ordered keyspace of strings.
+  """
+
+  @classmethod
+  def fraction_to_position(cls, fraction, start=None, end=None):
+    """
+    Linearly interpolates a key that is lexicographically
+    fraction of the way between start and end.
+    """
+    assert 0 <= fraction <= 1, fraction
+    if start is None:
+      start = ''
+    if fraction == 1:
+      return end
+    elif fraction == 0:
+      return start
+    else:
+      if not end:
+        common_prefix_len = len(start) - len(start.lstrip('\xFF'))
+      else:
+        for ix, (s, e) in enumerate(zip(start, end)):
+          if s != e:
+            common_prefix_len = ix
+            break
+        else:
+          common_prefix_len = min(len(start), len(end))
+      # Convert the relative precision of fraction (~53 bits) to an absolute
+      # precision needed to represent values between start and end distinctly.
+      prec = common_prefix_len + int(-math.log(fraction, 256)) + 7
+      istart = cls._string_to_int(start, prec)
+      iend = cls._string_to_int(end, prec) if end else 1 << (prec * 8)
+      ikey = istart + int((iend - istart) * fraction)
+      # Could be equal due to rounding.
+      # Adjust to ensure we never return the actual start and end
+      # unless fraction is exatly 0 or 1.
+      if ikey == istart:
+        ikey += 1
+      elif ikey == iend:
+        ikey -= 1
+      return cls._string_from_int(ikey, prec).rstrip('\0')
+
+  @classmethod
+  def position_to_fraction(cls, key, start=None, end=None):
+    """
+    Returns the fraction of keys in the range [start, end) that
+    are less than the given key.
+    """
+    if not key:
+      return 0
+    if start is None:
+      start = ''
+    prec = len(start) + 7
+    if key.startswith(start):
+      # Higher absolute precision needed for very small values of fixed
+      # relative position.
+      prec = max(prec, len(key) - len(key[len(start):].strip('\0')) + 7)
+    istart = cls._string_to_int(start, prec)
+    ikey = cls._string_to_int(key, prec)
+    iend = cls._string_to_int(end, prec) if end else 1 << (prec * 8)
+    return float(ikey - istart) / (iend - istart)
+
+  @staticmethod
+  def _string_to_int(s, prec):
+    """
+    Returns int(256**prec * f) where f is the fraction
+    represented by interpreting '.' + s as a base-256
+    floating point number.
+    """
+    if not s:
+      return 0
+    elif len(s) < prec:
+      s += '\0' * (prec - len(s))
+    else:
+      s = s[:prec]
+    return int(s.encode('hex'), 16)
+
+  @staticmethod
+  def _string_from_int(i, prec):
+    """
+    Inverse of _string_to_int.
+    """
+    h = '%x' % i
+    return ('0' * (2 * prec - len(h)) + h).decode('hex')

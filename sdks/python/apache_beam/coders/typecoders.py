@@ -86,9 +86,10 @@ class CoderRegistry(object):
     self._register_coder_internal(bytes, coders.BytesCoder)
     self._register_coder_internal(unicode, coders.StrUtf8Coder)
     self._register_coder_internal(typehints.TupleConstraint, coders.TupleCoder)
-    self._fallback_coder = fallback_coder or coders.FastPrimitivesCoder
-    self._register_coder_internal(typehints.AnyTypeConstraint,
-                                  self._fallback_coder)
+    # Default fallback coders applied in that order until the first matching
+    # coder found.
+    default_fallback_coders = [coders.ProtoCoder, coders.FastPrimitivesCoder]
+    self._fallback_coder = fallback_coder or FirstOf(default_fallback_coders)
 
   def _register_coder_internal(self, typehint_type, typehint_coder_class):
     self._coders[typehint_type] = typehint_coder_class
@@ -124,6 +125,9 @@ class CoderRegistry(object):
         # In some old code, None is used for Any.
         # TODO(robertwb): Clean this up.
         pass
+      elif typehint is object:
+        # We explicitly want the fallback coder.
+        pass
       elif isinstance(typehint, typehints.TypeVariable):
         # TODO(robertwb): Clean this up when type inference is fully enabled.
         pass
@@ -145,13 +149,37 @@ class CoderRegistry(object):
                    'and for custom key classes, by writing a '
                    'deterministic custom Coder. Please see the '
                    'documentation for more details.' % (key_coder, op_name))
-      if isinstance(key_coder, (coders.PickleCoder, self._fallback_coder)):
+      # TODO(vikasrk): PickleCoder will eventually be removed once its direct
+      # usage is stopped.
+      if isinstance(key_coder, (coders.PickleCoder,
+                                coders.FastPrimitivesCoder)):
         if not silent:
           logging.warning(error_msg)
-        return coders.DeterministicPickleCoder(key_coder, op_name)
+        return coders.DeterministicFastPrimitivesCoder(key_coder, op_name)
       else:
         raise ValueError(error_msg)
     else:
       return key_coder
+
+
+class FirstOf(object):
+  "A class used to get the first matching coder from a list of coders."
+
+  def __init__(self, coders):
+    self._coders = coders
+
+  def from_type_hint(self, typehint, registry):
+    messages = []
+    for coder in self._coders:
+      try:
+        return coder.from_type_hint(typehint, self)
+      except Exception as e:
+        msg = ('%s could not provide a Coder for type %s: %s' %
+               (coder, typehint, e))
+        messages.append(msg)
+
+    raise ValueError('Cannot provide coder for %s: %s' %
+                     (typehint, ';'.join(messages)))
+
 
 registry = CoderRegistry()

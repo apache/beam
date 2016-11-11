@@ -90,11 +90,16 @@ REQUIRED_PACKAGES = [
     'httplib2>=0.8,<0.10',
     'mock>=1.0.1,<3.0.0',
     'oauth2client>=2.0.1,<4.0.0',
+    'protobuf==3.0.0',
     'protorpc>=0.9.1,<0.12',
     'python-gflags>=2.0,<4.0.0',
     'pyyaml>=3.10,<4.0.0',
     ]
 
+
+REQUIRED_TEST_PACKAGES = [
+    'pyhamcrest>=1.9,<2.0',
+    ]
 
 setuptools.setup(
     name=PACKAGE_NAME,
@@ -118,6 +123,7 @@ setuptools.setup(
     setup_requires=['nose>=1.0'],
     install_requires=REQUIRED_PACKAGES,
     test_suite='nose.collector',
+    tests_require=REQUIRED_TEST_PACKAGES,
     zip_safe=False,
     # PyPI package information.
     classifiers=[

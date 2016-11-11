@@ -25,9 +25,9 @@
 
 #cython: profile=True
 
-from apache_beam.transforms.timeutil import MAX_TIMESTAMP
-from apache_beam.transforms.timeutil import MIN_TIMESTAMP
-from apache_beam.transforms.timeutil import Timestamp
+from apache_beam.utils.timestamp import MAX_TIMESTAMP
+from apache_beam.utils.timestamp import MIN_TIMESTAMP
+from apache_beam.utils.timestamp import Timestamp
 
 
 class WindowedValue(object):

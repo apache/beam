@@ -20,7 +20,11 @@
 from apitools.base.py import extra_types
 
 
-def _get_typed_value_descriptor(obj):
+_MAXINT64 = (1 << 63) - 1
+_MININT64 = - (1 << 63)
+
+
+def get_typed_value_descriptor(obj):
   """Converts a basic type into a @type/value dictionary.
 
   Args:
@@ -80,13 +84,18 @@ def to_json_value(obj, with_type=False):
               key=k, value=to_json_value(v, with_type=with_type)))
     return extra_types.JsonValue(object_value=json_object)
   elif with_type:
-    return to_json_value(_get_typed_value_descriptor(obj), with_type=False)
+    return to_json_value(get_typed_value_descriptor(obj), with_type=False)
   elif isinstance(obj, basestring):
     return extra_types.JsonValue(string_value=obj)
   elif isinstance(obj, bool):
     return extra_types.JsonValue(boolean_value=obj)
   elif isinstance(obj, int):
     return extra_types.JsonValue(integer_value=obj)
+  elif isinstance(obj, long):
+    if _MININT64 <= obj <= _MAXINT64:
+      return extra_types.JsonValue(integer_value=obj)
+    else:
+      raise TypeError('Can not encode {} as a 64-bit integer'.format(obj))
   elif isinstance(obj, float):
     return extra_types.JsonValue(double_value=obj)
   else:

@@ -22,6 +22,7 @@ import logging
 
 from apache_beam import pvalue
 from apache_beam.transforms import ptransform
+from apache_beam.transforms.display import HasDisplayData
 
 
 def _dict_printable_fields(dict_object, skip_fields):
@@ -38,7 +39,7 @@ _minor_fields = ['coder', 'key_coder', 'value_coder',
                  'compression_type']
 
 
-class NativeSource(object):
+class NativeSource(HasDisplayData):
   """A source implemented by Dataflow service.
 
   This class is to be only inherited by sources natively implemented by Cloud
@@ -244,7 +245,7 @@ class DynamicSplitResultWithPosition(DynamicSplitResult):
     self.stop_position = stop_position
 
 
-class NativeSink(object):
+class NativeSink(HasDisplayData):
   """A sink implemented by Dataflow service.
 
   This class is to be only inherited by sinks natively implemented by Cloud

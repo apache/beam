@@ -108,6 +108,7 @@ import json
 import logging
 import re
 import time
+import datetime
 import uuid
 
 from apitools.base.py.exceptions import HttpError
@@ -117,6 +118,7 @@ from apache_beam.internal import auth
 from apache_beam.internal.json_value import from_json_value
 from apache_beam.internal.json_value import to_json_value
 from apache_beam.runners.dataflow.native_io import iobase as dataflow_io
+from apache_beam.transforms.display import DisplayDataItem
 from apache_beam.utils import retry
 from apache_beam.utils.options import GoogleCloudOptions
 
@@ -284,7 +286,7 @@ class BigQuerySource(dataflow_io.NativeSource):
   """A source based on a BigQuery table."""
 
   def __init__(self, table=None, dataset=None, project=None, query=None,
-               validate=False, coder=None):
+               validate=False, coder=None, use_legacy_sql=True):
     """Initialize a BigQuerySource.
 
     Args:
@@ -312,6 +314,10 @@ class BigQuerySource(dataflow_io.NativeSource):
         in a file as a JSON serialized dictionary. This argument needs a value
         only in special cases when returning table rows as dictionaries is not
         desirable.
+      useLegacySql: Specifies whether to use BigQuery's legacy
+        SQL dialect for this query. The default value is true. If set to false,
+        the query will use BigQuery's updated SQL dialect with improved
+        standards compliance. This parameter is ignored for table inputs.
 
     Raises:
       ValueError: if any of the following is true
@@ -328,12 +334,31 @@ class BigQuerySource(dataflow_io.NativeSource):
     elif table is not None:
       self.table_reference = _parse_table_reference(table, dataset, project)
       self.query = None
+      self.use_legacy_sql = True
     else:
       self.query = query
+      self.use_legacy_sql = use_legacy_sql
       self.table_reference = None
 
     self.validate = validate
     self.coder = coder or RowAsDictJsonCoder()
+
+  def display_data(self):
+    if self.query is not None:
+      res = {'query': DisplayDataItem(self.query, label='Query')}
+    else:
+      if self.table_reference.projectId is not None:
+        tableSpec = '{}:{}.{}'.format(self.table_reference.projectId,
+                                      self.table_reference.datasetId,
+                                      self.table_reference.tableId)
+      else:
+        tableSpec = '{}.{}'.format(self.table_reference.datasetId,
+                                   self.table_reference.tableId)
+      res = {'table': DisplayDataItem(tableSpec, label='Table')}
+
+    res['validation'] = DisplayDataItem(self.validate,
+                                        label='Validation Enabled')
+    return res
 
   @property
   def format(self):
@@ -342,7 +367,9 @@ class BigQuerySource(dataflow_io.NativeSource):
 
   def reader(self, test_bigquery_client=None):
     return BigQueryReader(
-        source=self, test_bigquery_client=test_bigquery_client)
+        source=self,
+        test_bigquery_client=test_bigquery_client,
+        use_legacy_sql=self.use_legacy_sql)
 
 
 class BigQuerySink(dataflow_io.NativeSink):
@@ -425,6 +452,20 @@ class BigQuerySink(dataflow_io.NativeSink):
     self.validate = validate
     self.coder = coder or RowAsDictJsonCoder()
 
+  def display_data(self):
+    res = {}
+    if self.table_reference is not None:
+      tableSpec = '{}.{}'.format(self.table_reference.datasetId,
+                                 self.table_reference.tableId)
+      if self.table_reference.projectId is not None:
+        tableSpec = '{}:{}'.format(self.table_reference.projectId,
+                                   tableSpec)
+      res['table'] = DisplayDataItem(tableSpec, label='Table')
+
+    res['validation'] = DisplayDataItem(self.validate,
+                                        label="Validation Enabled")
+    return res
+
   def schema_as_json(self):
     """Returns the TableSchema associated with the sink as a JSON string."""
 
@@ -462,7 +503,7 @@ class BigQuerySink(dataflow_io.NativeSink):
 class BigQueryReader(dataflow_io.NativeSourceReader):
   """A reader for a BigQuery source."""
 
-  def __init__(self, source, test_bigquery_client=None):
+  def __init__(self, source, test_bigquery_client=None, use_legacy_sql=True):
     self.source = source
     self.test_bigquery_client = test_bigquery_client
     if auth.is_running_in_gce:
@@ -484,6 +525,7 @@ class BigQueryReader(dataflow_io.NativeSourceReader):
     # for reading the field values in each row but could be useful for
     # getting additional details.
     self.schema = None
+    self.use_legacy_sql = use_legacy_sql
     if self.source.query is None:
       # If table schema did not define a project we default to executing
       # project.
@@ -506,7 +548,8 @@ class BigQueryReader(dataflow_io.NativeSourceReader):
 
   def __iter__(self):
     for rows, schema in self.client.run_query(
-        project_id=self.executing_project, query=self.query):
+        project_id=self.executing_project, query=self.query,
+        use_legacy_sql=self.use_legacy_sql):
       if self.schema is None:
         self.schema = schema
       for row in rows:
@@ -607,14 +650,14 @@ class BigQueryWrapper(object):
     return '%s_%d' % (self._row_id_prefix, self._unique_row_id)
 
   @retry.with_exponential_backoff()  # Using retry defaults from utils/retry.py
-  def _start_query_job(self, project_id, query, dry_run=False):
+  def _start_query_job(self, project_id, query, use_legacy_sql, dry_run=False):
     request = bigquery.BigqueryJobsInsertRequest(
         projectId=project_id,
         job=bigquery.Job(
             configuration=bigquery.JobConfiguration(
                 dryRun=dry_run,
                 query=bigquery.JobConfigurationQuery(
-                    query=query))))
+                    query=query, useLegacySql=use_legacy_sql))))
     response = self.client.jobs.Insert(request)
     return response.jobReference.jobId
 
@@ -745,8 +788,8 @@ class BigQueryWrapper(object):
                                 table_id=table_id,
                                 schema=schema or found_table.schema)
 
-  def run_query(self, project_id, query, dry_run=False):
-    job_id = self._start_query_job(project_id, query, dry_run)
+  def run_query(self, project_id, query, use_legacy_sql, dry_run=False):
+    job_id = self._start_query_job(project_id, query, use_legacy_sql, dry_run)
     if dry_run:
       # If this was a dry run then the fact that we get here means the
       # query has no errors. The start_query_job would raise an error otherwise.
@@ -820,16 +863,36 @@ class BigQueryWrapper(object):
       # return True for both!).
       value = from_json_value(cell.v)
       if field.type == 'STRING':
+        # Input: "XYZ" --> Output: "XYZ"
         value = value
       elif field.type == 'BOOLEAN':
+        # Input: "true" --> Output: True
         value = value == 'true'
       elif field.type == 'INTEGER':
+        # Input: "123" --> Output: 123
         value = int(value)
       elif field.type == 'FLOAT':
+        # Input: "1.23" --> Output: 1.23
         value = float(value)
       elif field.type == 'TIMESTAMP':
-        value = float(value)
+        # The UTC should come from the timezone library but this is a known
+        # issue in python 2.7 so we'll just hardcode it as we're reading using
+        # utcfromtimestamp. This is just to match the output from the dataflow
+        # runner with the local runner.
+        # Input: 1478134176.985864 --> Output: "2016-11-03 00:49:36.985864 UTC"
+        dt = datetime.datetime.utcfromtimestamp(float(value))
+        value = dt.strftime('%Y-%m-%d %H:%M:%S.%f UTC')
       elif field.type == 'BYTES':
+        # Input: "YmJi" --> Output: "YmJi"
+        value = value
+      elif field.type == 'DATE':
+        # Input: "2016-11-03" --> Output: "2016-11-03"
+        value = value
+      elif field.type == 'DATETIME':
+        # Input: "2016-11-03T00:49:36" --> Output: "2016-11-03T00:49:36"
+        value = value
+      elif field.type == 'TIME':
+        # Input: "00:49:36" --> Output: "00:49:36"
         value = value
       else:
         # Note that a schema field object supports also a RECORD type. However

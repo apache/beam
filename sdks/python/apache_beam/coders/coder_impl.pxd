@@ -26,6 +26,7 @@ cimport libc.stdlib
 cimport libc.string
 
 from .stream cimport InputStream, OutputStream
+from apache_beam.utils cimport windowed_value
 
 
 cdef object loads, dumps, create_InputStream, create_OutputStream, ByteCountingOutputStream, get_varint_size
@@ -59,15 +60,15 @@ cdef class CallbackCoderImpl(CoderImpl):
   cdef object _size_estimator
 
 
-cdef class DeterministicPickleCoderImpl(CoderImpl):
-  cdef CoderImpl _pickle_coder
+cdef class DeterministicFastPrimitivesCoderImpl(CoderImpl):
+  cdef CoderImpl _underlying_coder
   cdef object _step_label
   cdef bint _check_safe(self, value) except -1
 
 
 cdef object NoneType
-cdef char UNKNOWN_TYPE, NONE_TYPE, INT_TYPE, FLOAT_TYPE
-cdef char STR_TYPE, UNICODE_TYPE, LIST_TYPE, TUPLE_TYPE, DICT_TYPE
+cdef char UNKNOWN_TYPE, NONE_TYPE, INT_TYPE, FLOAT_TYPE, BOOL_TYPE
+cdef char STR_TYPE, UNICODE_TYPE, LIST_TYPE, TUPLE_TYPE, DICT_TYPE, SET_TYPE
 
 cdef class FastPrimitivesCoderImpl(StreamCoderImpl):
   cdef CoderImpl fallback_coder_impl
@@ -125,6 +126,10 @@ cdef class TupleSequenceCoderImpl(SequenceCoderImpl):
   pass
 
 
+cdef class IterableCoderImpl(SequenceCoderImpl):
+  pass
+
+
 cdef class WindowedValueCoderImpl(StreamCoderImpl):
   """A coder for windowed values."""
   cdef CoderImpl _value_coder
@@ -133,3 +138,6 @@ cdef class WindowedValueCoderImpl(StreamCoderImpl):
 
   @cython.locals(c=CoderImpl)
   cpdef get_estimated_size_and_observables(self, value, bint nested=?)
+
+  @cython.locals(wv=windowed_value.WindowedValue)
+  cpdef encode_to_stream(self, value, OutputStream stream, bint nested)

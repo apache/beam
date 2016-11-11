@@ -20,6 +20,7 @@
 import array
 import copy
 import logging
+import math
 import unittest
 
 
@@ -319,6 +320,84 @@ class GroupedShuffleRangeTrackerTest(unittest.TestCase):
         self.bytes_to_position([3, 2, 1])))
 
 
+class OrderedPositionRangeTrackerTest(unittest.TestCase):
+
+  class DoubleRangeTracker(range_trackers.OrderedPositionRangeTracker):
+
+    @staticmethod
+    def fraction_to_position(fraction, start, end):
+      return start + (end - start) * fraction
+
+    @staticmethod
+    def position_to_fraction(pos, start, end):
+      return float(pos - start) / (end - start)
+
+  def test_try_claim(self):
+    tracker = self.DoubleRangeTracker(10, 20)
+    self.assertTrue(tracker.try_claim(10))
+    self.assertTrue(tracker.try_claim(15))
+    self.assertFalse(tracker.try_claim(20))
+    self.assertFalse(tracker.try_claim(25))
+
+  def test_fraction_consumed(self):
+    tracker = self.DoubleRangeTracker(10, 20)
+    self.assertEqual(0, tracker.fraction_consumed())
+    tracker.try_claim(10)
+    self.assertEqual(0, tracker.fraction_consumed())
+    tracker.try_claim(15)
+    self.assertEqual(.5, tracker.fraction_consumed())
+    tracker.try_claim(17)
+    self.assertEqual(.7, tracker.fraction_consumed())
+    tracker.try_claim(25)
+    self.assertEqual(.7, tracker.fraction_consumed())
+
+  def test_try_split(self):
+    tracker = self.DoubleRangeTracker(10, 20)
+    tracker.try_claim(15)
+    self.assertEqual(.5, tracker.fraction_consumed())
+    # Split at 18.
+    self.assertEqual((18, 0.8), tracker.try_split(18))
+    # Fraction consumed reflects smaller range.
+    self.assertEqual(.625, tracker.fraction_consumed())
+    # We can claim anything less than 18,
+    self.assertTrue(tracker.try_claim(17))
+    # but can't split before claimed 17,
+    self.assertIsNone(tracker.try_split(16))
+    # nor claim anything at or after 18.
+    self.assertFalse(tracker.try_claim(18))
+    self.assertFalse(tracker.try_claim(19))
+
+  def test_claim_order(self):
+    tracker = self.DoubleRangeTracker(10, 20)
+    tracker.try_claim(12)
+    tracker.try_claim(15)
+    with self.assertRaises(ValueError):
+      tracker.try_claim(13)
+
+  def test_out_of_range(self):
+    tracker = self.DoubleRangeTracker(10, 20)
+    # Can't claim before range.
+    with self.assertRaises(ValueError):
+      tracker.try_claim(-5)
+    # Can't split before range.
+    with self.assertRaises(ValueError):
+      tracker.try_split(-5)
+    # Reject useless split at start position.
+    with self.assertRaises(ValueError):
+      tracker.try_split(10)
+    # Can't split after range.
+    with self.assertRaises(ValueError):
+      tracker.try_split(25)
+    tracker.try_split(15)
+    # Can't split after modified range.
+    with self.assertRaises(ValueError):
+      tracker.try_split(17)
+    # Reject useless split at end position.
+    with self.assertRaises(ValueError):
+      tracker.try_split(15)
+    self.assertTrue(tracker.try_split(14))
+
+
 class UnsplittableRangeTrackerTest(unittest.TestCase):
 
   def test_try_claim(self):
@@ -341,6 +420,117 @@ class UnsplittableRangeTrackerTest(unittest.TestCase):
     self.assertFalse(copy.copy(tracker).try_split(111))
     self.assertFalse(copy.copy(tracker).try_split(130))
     self.assertFalse(copy.copy(tracker).try_split(199))
+
+
+class LexicographicKeyRangeTrackerTest(unittest.TestCase):
+  """
+  Tests of LexicographicKeyRangeTracker.
+  """
+
+  key_to_fraction = (
+      range_trackers.LexicographicKeyRangeTracker.position_to_fraction)
+  fraction_to_key = (
+      range_trackers.LexicographicKeyRangeTracker.fraction_to_position)
+
+  def _check(self, fraction=None, key=None, start=None, end=None, delta=0):
+    assert key is not None or fraction is not None
+    if fraction is None:
+      fraction = self.key_to_fraction(key, start, end)
+    elif key is None:
+      key = self.fraction_to_key(fraction, start, end)
+
+    if key is None and end is None and fraction == 1:
+      # No way to distinguish from fraction == 0.
+      computed_fraction = 1
+    else:
+      computed_fraction = self.key_to_fraction(key, start, end)
+    computed_key = self.fraction_to_key(fraction, start, end)
+
+    if delta:
+      self.assertAlmostEqual(computed_fraction, fraction,
+                             delta=delta, places=None, msg=str(locals()))
+    else:
+      self.assertEqual(computed_fraction, fraction, str(locals()))
+    self.assertEqual(computed_key, key, str(locals()))
+
+  def test_key_to_fraction_no_endpoints(self):
+    self._check(key='\x07', fraction=7/256.)
+    self._check(key='\xFF', fraction=255/256.)
+    self._check(key='\x01\x02\x03', fraction=(2**16 + 2**9 + 3) / (2.0**24))
+
+  def test_key_to_fraction(self):
+    self._check(key='\x87', start='\x80', fraction=7/128.)
+    self._check(key='\x07', end='\x10', fraction=7/16.)
+    self._check(key='\x47', start='\x40', end='\x80', fraction=7/64.)
+    self._check(key='\x47\x80', start='\x40', end='\x80', fraction=15/128.)
+
+  def test_key_to_fraction_common_prefix(self):
+    self._check(
+        key='a' * 100 + 'b', start='a' * 100 + 'a', end='a' * 100 + 'c',
+        fraction=0.5)
+    self._check(
+        key='a' * 100 + 'b', start='a' * 100 + 'a', end='a' * 100 + 'e',
+        fraction=0.25)
+    self._check(
+        key='\xFF' * 100 + '\x40', start='\xFF' * 100, end=None, fraction=0.25)
+    self._check(key='foob',
+                start='fooa\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFE',
+                end='foob\x00\x00\x00\x00\x00\x00\x00\x00\x02',
+                fraction=0.5)
+
+  def test_tiny(self):
+    self._check(fraction=.5**20, key='\0\0\x10')
+    self._check(fraction=.5**20, start='a', end='b', key='a\0\0\x10')
+    self._check(fraction=.5**20, start='a', end='c', key='a\0\0\x20')
+    self._check(fraction=.5**20, start='xy_a', end='xy_c', key='xy_a\0\0\x20')
+    self._check(fraction=.5**20, start='\xFF\xFF\x80',
+                key='\xFF\xFF\x80\x00\x08')
+    self._check(fraction=.5**20 / 3,
+                start='xy_a',
+                end='xy_c',
+                key='xy_a\x00\x00\n\xaa\xaa\xaa\xaa\xaa',
+                delta=1e-15)
+    self._check(fraction=.5**100, key='\0' * 12 + '\x10')
+
+  def test_lots(self):
+    for fraction in (0, 1, .5, .75, 7./512, 1 - 7./4096):
+      self._check(fraction)
+      self._check(fraction, start='\x01')
+      self._check(fraction, end='\xF0')
+      self._check(fraction, start='0x75', end='\x76')
+      self._check(fraction, start='0x75', end='\x77')
+      self._check(fraction, start='0x75', end='\x78')
+      self._check(fraction, start='a' * 100 + '\x80', end='a' * 100 + '\x81')
+      self._check(fraction, start='a' * 101 + '\x80', end='a' * 101 + '\x81')
+      self._check(fraction, start='a' * 102 + '\x80', end='a' * 102 + '\x81')
+    for fraction in (.3, 1/3., 1/math.e, .001, 1e-30, .99, .999999):
+      self._check(fraction, delta=1e-14)
+      self._check(fraction, start='\x01', delta=1e-14)
+      self._check(fraction, end='\xF0', delta=1e-14)
+      self._check(fraction, start='0x75', end='\x76', delta=1e-14)
+      self._check(fraction, start='0x75', end='\x77', delta=1e-14)
+      self._check(fraction, start='0x75', end='\x78', delta=1e-14)
+      self._check(fraction, start='a' * 100 + '\x80', end='a' * 100 + '\x81',
+                  delta=1e-14)
+
+  def test_good_prec(self):
+    # There should be about 7 characters (~53 bits) of precision
+    # (beyond the common prefix of start and end).
+    self._check(1 / math.e, start='abc_abc', end='abc_xyz',
+                key='abc_i\xe0\xf4\x84\x86\x99\x96',
+                delta=1e-15)
+    # This remains true even if the start and end keys are given to
+    # high precision.
+    self._check(1 / math.e,
+                start='abcd_abc\0\0\0\0\0_______________abc',
+                end='abcd_xyz\0\0\0\0\0\0_______________abc',
+                key='abcd_i\xe0\xf4\x84\x86\x99\x96',
+                delta=1e-15)
+    # For very small fractions, however, higher precision is used to
+    # accurately represent small increments in the keyspace.
+    self._check(1e-20 / math.e, start='abcd_abc', end='abcd_xyz',
+                key='abcd_abc\x00\x00\x00\x00\x00\x01\x91#\x172N\xbb',
+                delta=1e-35)
 
 
 if __name__ == '__main__':

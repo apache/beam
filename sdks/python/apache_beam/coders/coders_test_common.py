@@ -25,6 +25,10 @@ import dill
 
 import coders
 import observable
+from apache_beam.utils import timestamp
+from apache_beam.utils import windowed_value
+
+from apache_beam.coders import proto2_coder_test_messages_pb2 as test_message
 
 
 # Defined out of line for picklability.
@@ -57,6 +61,7 @@ class CodersTest(unittest.TestCase):
                      coders.FastCoder,
                      coders.Base64PickleCoder,
                      coders.FloatCoder,
+                     coders.ProtoCoder,
                      coders.TimestampCoder,
                      coders.ToStringCoder,
                      coders.WindowCoder,
@@ -100,15 +105,16 @@ class CodersTest(unittest.TestCase):
   def test_pickle_coder(self):
     self.check_coder(coders.PickleCoder(), 'a', 1, 1.5, (1, 2, 3))
 
-  def test_deterministic_pickle_coder(self):
-    coder = coders.DeterministicPickleCoder(coders.PickleCoder(), 'step')
-    self.check_coder(coder, 'a', 1, 1.5, (1, 2, 3))
+  def test_deterministic_coder(self):
+    coder = coders.FastPrimitivesCoder()
+    deterministic_coder = coders.DeterministicFastPrimitivesCoder(coder, 'step')
+    self.check_coder(deterministic_coder, 'a', 1, 1.5, (1, 2, 3))
     with self.assertRaises(TypeError):
-      self.check_coder(coder, dict())
+      self.check_coder(deterministic_coder, dict())
     with self.assertRaises(TypeError):
-      self.check_coder(coder, [1, dict()])
+      self.check_coder(deterministic_coder, [1, dict()])
 
-    self.check_coder(coders.TupleCoder((coder, coders.PickleCoder())),
+    self.check_coder(coders.TupleCoder((deterministic_coder, coder)),
                      (1, dict()), ('a', [dict()]))
 
   def test_dill_coder(self):
@@ -124,6 +130,8 @@ class CodersTest(unittest.TestCase):
     self.check_coder(coder, (), (1, 2, 3))
     self.check_coder(coder, [], [1, 2, 3])
     self.check_coder(coder, dict(), {'a': 'b'}, {0: dict(), 1: len})
+    self.check_coder(coder, set(), {'a', 'b'})
+    self.check_coder(coder, True, False)
     self.check_coder(coder, len)
     self.check_coder(coders.TupleCoder((coder,)), ('a',), (1,))
 
@@ -158,13 +166,13 @@ class CodersTest(unittest.TestCase):
 
   def test_timestamp_coder(self):
     self.check_coder(coders.TimestampCoder(),
-                     *[coders.Timestamp(micros=x) for x in range(-100, 100)])
+                     *[timestamp.Timestamp(micros=x) for x in range(-100, 100)])
     self.check_coder(coders.TimestampCoder(),
-                     coders.Timestamp(micros=-1234567890),
-                     coders.Timestamp(micros=1234567890))
+                     timestamp.Timestamp(micros=-1234567890),
+                     timestamp.Timestamp(micros=1234567890))
     self.check_coder(coders.TimestampCoder(),
-                     coders.Timestamp(micros=-1234567890123456789),
-                     coders.Timestamp(micros=1234567890123456789))
+                     timestamp.Timestamp(micros=-1234567890123456789),
+                     timestamp.Timestamp(micros=1234567890123456789))
 
   def test_tuple_coder(self):
     self.check_coder(
@@ -193,6 +201,30 @@ class CodersTest(unittest.TestCase):
   def test_utf8_coder(self):
     self.check_coder(coders.StrUtf8Coder(), 'a', u'ab\u00FF', u'\u0101\0')
 
+  def test_iterable_coder(self):
+    self.check_coder(coders.IterableCoder(coders.VarIntCoder()),
+                     [1], [-1, 0, 100])
+    self.check_coder(
+        coders.TupleCoder((coders.VarIntCoder(),
+                           coders.IterableCoder(coders.VarIntCoder()))),
+        (1, [1, 2, 3]))
+
+  def test_proto_coder(self):
+    # For instructions on how these test proto message were generated,
+    # see coders_test.py
+    ma = test_message.MessageA()
+    mab = ma.field2.add()
+    mab.field1 = True
+    ma.field1 = u'hello world'
+
+    mb = test_message.MessageA()
+    mb.field1 = u'beam'
+
+    proto_coder = coders.ProtoCoder(ma.__class__)
+    self.check_coder(proto_coder, ma)
+    self.check_coder(coders.TupleCoder((proto_coder, coders.BytesCoder())),
+                     (ma, 'a'), (mb, 'b'))
+
   def test_nested_observables(self):
     class FakeObservableIterator(observable.ObservableMixin):
 
@@ -200,27 +232,23 @@ class CodersTest(unittest.TestCase):
         return iter([1, 2, 3])
 
     # Coder for elements from the observable iterator.
-    iter_coder = coders.VarIntCoder()
+    elem_coder = coders.VarIntCoder()
+    iter_coder = coders.TupleSequenceCoder(elem_coder)
 
     # Test nested WindowedValue observable.
     coder = coders.WindowedValueCoder(iter_coder)
     observ = FakeObservableIterator()
-    try:
-      value = coders.coder_impl.WindowedValue(observ)
-    except TypeError:
-      # We are running tests with a fake WindowedValue implementation so as to
-      # not pull in the rest of the SDK.
-      value = coders.coder_impl.WindowedValue(observ, 0, [])
+    value = windowed_value.WindowedValue(observ, 0, ())
     self.assertEqual(
         coder.get_impl().get_estimated_size_and_observables(value)[1],
-        [(observ, iter_coder.get_impl())])
+        [(observ, elem_coder.get_impl())])
 
     # Test nested tuple observable.
     coder = coders.TupleCoder((coders.StrUtf8Coder(), iter_coder))
     value = (u'123', observ)
     self.assertEqual(
         coder.get_impl().get_estimated_size_and_observables(value)[1],
-        [(observ, iter_coder.get_impl())])
+        [(observ, elem_coder.get_impl())])
 
 
 if __name__ == '__main__':

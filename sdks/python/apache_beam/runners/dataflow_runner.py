@@ -25,10 +25,11 @@ import base64
 import logging
 import threading
 import time
-
+import traceback
 
 from apache_beam import coders
 from apache_beam import pvalue
+from apache_beam.internal import json_value
 from apache_beam.internal import pickler
 from apache_beam.pvalue import PCollectionView
 from apache_beam.runners.runner import PipelineResult
@@ -491,12 +492,24 @@ class DataflowPipelineRunner(PipelineRunner):
 
     if not hasattr(transform.source, 'format'):
       # If a format is not set, we assume the source to be a custom source.
-      source_dict = dict()
-      spec_dict = dict()
+      source_dict = {}
 
-      spec_dict[names.SERIALIZED_SOURCE_KEY] = pickler.dumps(transform.source)
-      spec_dict['@type'] = names.SOURCE_TYPE
-      source_dict['spec'] = spec_dict
+      source_dict['spec'] = {
+          '@type': names.SOURCE_TYPE,
+          names.SERIALIZED_SOURCE_KEY: pickler.dumps(transform.source)
+      }
+
+      try:
+        source_dict['metadata'] = {
+            'estimated_size_bytes': json_value.get_typed_value_descriptor(
+                transform.source.estimate_size())
+        }
+      except Exception:  # pylint: disable=broad-except
+        # Size estimation is best effort. So we log the error and continue.
+        logging.info(
+            'Could not estimate size of source %r due to an exception: %s',
+            transform.source, traceback.format_exc())
+
       step.add_property(PropertyNames.SOURCE_STEP_INPUT,
                         source_dict)
     elif transform.source.format == 'text':
@@ -515,6 +528,8 @@ class DataflowPipelineRunner(PipelineRunner):
                             transform.source.table_reference.projectId)
       elif transform.source.query is not None:
         step.add_property(PropertyNames.BIGQUERY_QUERY, transform.source.query)
+        step.add_property(PropertyNames.BIGQUERY_USE_LEGACY_SQL,
+                          transform.source.use_legacy_sql)
       else:
         raise ValueError('BigQuery source %r must specify either a table or'
                          ' a query',

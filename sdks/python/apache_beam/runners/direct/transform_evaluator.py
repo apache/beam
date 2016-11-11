@@ -27,8 +27,8 @@ from apache_beam import pvalue
 import apache_beam.io as io
 from apache_beam.runners.common import DoFnRunner
 from apache_beam.runners.common import DoFnState
-from apache_beam.runners.inprocess.inprocess_watermark_manager import InProcessWatermarkManager
-from apache_beam.runners.inprocess.inprocess_transform_result import InProcessTransformResult
+from apache_beam.runners.direct.watermark_manager import WatermarkManager
+from apache_beam.runners.direct.transform_result import TransformResult
 from apache_beam.runners.dataflow.native_io.iobase import _NativeWrite  # pylint: disable=protected-access
 from apache_beam.transforms import core
 from apache_beam.transforms import sideinputs
@@ -203,7 +203,7 @@ class _BoundedReadEvaluator(_TransformEvaluator):
       with self._source.reader() as reader:
         bundles = _read_values_to_bundles(reader)
 
-    return InProcessTransformResult(
+    return TransformResult(
         self._applied_ptransform, bundles, None, None, None, None)
 
 
@@ -227,7 +227,7 @@ class _FlattenEvaluator(_TransformEvaluator):
 
   def finish_bundle(self):
     bundles = [self.bundle]
-    return InProcessTransformResult(
+    return TransformResult(
         self._applied_ptransform, bundles, None, None, None, None)
 
 
@@ -257,7 +257,7 @@ class _CreateEvaluator(_TransformEvaluator):
       self.bundle.output(result)
     bundles.append(self.bundle)
 
-    return InProcessTransformResult(
+    return TransformResult(
         self._applied_ptransform, bundles, None, None, None, None)
 
 
@@ -361,7 +361,7 @@ class _ParDoEvaluator(_TransformEvaluator):
     self.runner.finish()
     bundles = self._tagged_receivers.values()
     result_counters = self._counter_factory.get_counters()
-    return InProcessTransformResult(
+    return TransformResult(
         self._applied_ptransform, bundles, None, None, result_counters, None,
         self._tagged_receivers.undeclared_in_memory_tag_values)
 
@@ -388,7 +388,7 @@ class _GroupByKeyOnlyEvaluator(_TransformEvaluator):
   @property
   def _is_final_bundle(self):
     return (self._execution_context.watermarks.input_watermark
-            == InProcessWatermarkManager.WATERMARK_POS_INF)
+            == WatermarkManager.WATERMARK_POS_INF)
 
   def start_bundle(self):
     self.state = (self._execution_context.existing_state
@@ -437,13 +437,13 @@ class _GroupByKeyOnlyEvaluator(_TransformEvaluator):
 
       self.state.completed = True
       state = self.state
-      hold = InProcessWatermarkManager.WATERMARK_POS_INF
+      hold = WatermarkManager.WATERMARK_POS_INF
     else:
       bundles = []
       state = self.state
-      hold = InProcessWatermarkManager.WATERMARK_NEG_INF
+      hold = WatermarkManager.WATERMARK_NEG_INF
 
-    return InProcessTransformResult(
+    return TransformResult(
         self._applied_ptransform, bundles, state, None, None, hold)
 
 
@@ -460,7 +460,7 @@ class _CreatePCollectionViewEvaluator(_TransformEvaluator):
   @property
   def _is_final_bundle(self):
     return (self._execution_context.watermarks.input_watermark
-            == InProcessWatermarkManager.WATERMARK_POS_INF)
+            == WatermarkManager.WATERMARK_POS_INF)
 
   def start_bundle(self):
     # state: [values]
@@ -483,13 +483,13 @@ class _CreatePCollectionViewEvaluator(_TransformEvaluator):
 
       bundles = [bundle]
       state = None
-      hold = InProcessWatermarkManager.WATERMARK_POS_INF
+      hold = WatermarkManager.WATERMARK_POS_INF
     else:
       bundles = []
       state = self.state
-      hold = InProcessWatermarkManager.WATERMARK_NEG_INF
+      hold = WatermarkManager.WATERMARK_NEG_INF
 
-    return InProcessTransformResult(
+    return TransformResult(
         self._applied_ptransform, bundles, state, None, None, hold)
 
 
@@ -509,7 +509,7 @@ class _NativeWriteEvaluator(_TransformEvaluator):
   @property
   def _is_final_bundle(self):
     return (self._execution_context.watermarks.input_watermark
-            == InProcessWatermarkManager.WATERMARK_POS_INF)
+            == WatermarkManager.WATERMARK_POS_INF)
 
   def start_bundle(self):
     # state: [values]
@@ -533,10 +533,10 @@ class _NativeWriteEvaluator(_TransformEvaluator):
           writer.Write(v.value)
 
       state = None
-      hold = InProcessWatermarkManager.WATERMARK_POS_INF
+      hold = WatermarkManager.WATERMARK_POS_INF
     else:
       state = self.state
-      hold = InProcessWatermarkManager.WATERMARK_NEG_INF
+      hold = WatermarkManager.WATERMARK_NEG_INF
 
-    return InProcessTransformResult(
+    return TransformResult(
         self._applied_ptransform, [], state, None, None, hold)

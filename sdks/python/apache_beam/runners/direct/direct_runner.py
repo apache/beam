@@ -15,37 +15,48 @@
 # limitations under the License.
 #
 
-"""InProcessPipelineRunner, executing on the local machine."""
+"""DirectPipelineRunner, executing on the local machine.
+
+The DirectPipelineRunner is a runner implementation that executes the entire
+graph of transformations belonging to a pipeline on the local machine.
+"""
 
 from __future__ import absolute_import
 
 import collections
 import logging
 
-from apache_beam.runners.inprocess.bundle_factory import BundleFactory
-from apache_beam.runners.inprocess.consumer_tracking_pipeline_visitor import ConsumerTrackingPipelineVisitor
-from apache_beam.runners.inprocess.inprocess_evaluation_context import InProcessEvaluationContext
-from apache_beam.runners.inprocess.inprocess_executor import InProcessExecutor
-from apache_beam.runners.inprocess.transform_evaluator import TransformEvaluatorRegistry
+from apache_beam.runners.direct.bundle_factory import BundleFactory
 from apache_beam.runners.runner import PipelineResult
 from apache_beam.runners.runner import PipelineRunner
 from apache_beam.runners.runner import PipelineState
 from apache_beam.runners.runner import PValueCache
 
 
-class InProcessPipelineRunner(PipelineRunner):
+class DirectPipelineRunner(PipelineRunner):
   """Executes a single pipeline on the local machine."""
 
   def __init__(self):
     self._cache = None
 
   def run(self, pipeline):
-    """Execute the entire pipeline and returns an InProcessPipelineResult."""
-    logging.info('Running pipeline with InProcessPipelineRunner.')
+    """Execute the entire pipeline and returns an DirectPipelineResult."""
+
+    # TODO: Move imports to top. Pipeline <-> Runner dependecy cause problems
+    # with resolving imports when they are at top.
+    # pylint: disable=wrong-import-position
+    from apache_beam.runners.direct.consumer_tracking_pipeline_visitor import \
+      ConsumerTrackingPipelineVisitor
+    from apache_beam.runners.direct.evaluation_context import EvaluationContext
+    from apache_beam.runners.direct.executor import Executor
+    from apache_beam.runners.direct.transform_evaluator import \
+      TransformEvaluatorRegistry
+
+    logging.info('Running pipeline with DirectPipelineRunner.')
     self.visitor = ConsumerTrackingPipelineVisitor()
     pipeline.visit(self.visitor)
 
-    evaluation_context = InProcessEvaluationContext(
+    evaluation_context = EvaluationContext(
         pipeline.options,
         BundleFactory(),
         self.visitor.root_transforms,
@@ -55,13 +66,13 @@ class InProcessPipelineRunner(PipelineRunner):
 
     evaluation_context.use_pvalue_cache(self._cache)
 
-    executor = InProcessExecutor(self.visitor.value_to_consumers,
-                                 TransformEvaluatorRegistry(evaluation_context),
-                                 evaluation_context)
+    executor = Executor(self.visitor.value_to_consumers,
+                        TransformEvaluatorRegistry(evaluation_context),
+                        evaluation_context)
     # Start the executor. This is a non-blocking call, it will start the
     # execution in background threads and return.
     executor.start(self.visitor.root_transforms)
-    result = InProcessPipelineResult(executor, evaluation_context)
+    result = DirectPipelineResult(executor, evaluation_context)
 
     # TODO(altay): If blocking:
     # Block until the pipeline completes. This call will return after the
@@ -76,7 +87,7 @@ class InProcessPipelineRunner(PipelineRunner):
   @property
   def cache(self):
     if not self._cache:
-      self._cache = InProcessBufferingInMemoryCache()
+      self._cache = BufferingInMemoryCache()
     return self._cache.pvalue_cache
 
   def apply(self, transform, input):  # pylint: disable=redefined-builtin
@@ -84,10 +95,10 @@ class InProcessPipelineRunner(PipelineRunner):
     return transform.apply(input)
 
 
-class InProcessBufferingInMemoryCache(object):
+class BufferingInMemoryCache(object):
   """PValueCache wrapper for buffering bundles until a PValue is fully computed.
 
-  InProcessBufferingInMemoryCache keeps an in memory cache of
+  BufferingInMemoryCache keeps an in memory cache of
   (applied_ptransform, tag) tuples. It accepts appending to existing cache
   entries until it is finalized. finalize() will make all the existing cached
   entries visible to the underyling PValueCache in their entirety, clean the in
@@ -117,11 +128,11 @@ class InProcessBufferingInMemoryCache(object):
       self._cache = None
 
 
-class InProcessPipelineResult(PipelineResult):
-  """A InProcessPipelineResult provides access to info about a pipeline."""
+class DirectPipelineResult(PipelineResult):
+  """A DirectPipelineResult provides access to info about a pipeline."""
 
   def __init__(self, executor, evaluation_context):
-    super(InProcessPipelineResult, self).__init__(PipelineState.RUNNING)
+    super(DirectPipelineResult, self).__init__(PipelineState.RUNNING)
     self._executor = executor
     self._evaluation_context = evaluation_context
 
@@ -140,3 +151,8 @@ class InProcessPipelineResult(PipelineResult):
 
   def aggregated_values(self, aggregator_or_name):
     return self._evaluation_context.get_aggregator_values(aggregator_or_name)
+
+
+class EagerPipelineRunner(DirectPipelineRunner):
+
+  is_eager = True

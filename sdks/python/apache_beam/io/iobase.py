@@ -36,12 +36,13 @@ import random
 import uuid
 
 from apache_beam import pvalue
-from apache_beam.coders import PickleCoder
+from apache_beam import coders
 from apache_beam.pvalue import AsIter
 from apache_beam.pvalue import AsSingleton
 from apache_beam.transforms import core
 from apache_beam.transforms import ptransform
 from apache_beam.transforms import window
+from apache_beam.transforms.display import HasDisplayData, DisplayDataItem
 
 
 # Encapsulates information about a bundle of a source generated when method
@@ -65,7 +66,7 @@ SourceBundle = namedtuple(
     'weight source start_position stop_position')
 
 
-class BoundedSource(object):
+class BoundedSource(HasDisplayData):
   """A source that reads a finite amount of input records.
 
   This class defines following operations which can be used to read the source
@@ -175,8 +176,12 @@ class BoundedSource(object):
     raise NotImplementedError
 
   def default_output_coder(self):
-    """Coder that should be used for the records returned by the source."""
-    return PickleCoder()
+    """Coder that should be used for the records returned by the source.
+
+    Should be overridden by sources that produce objects that can be encoded
+    more efficiently than pickling.
+    """
+    return coders.registry.get_coder(object)
 
 
 class RangeTracker(object):
@@ -666,6 +671,11 @@ class Read(ptransform.PTransform):
     else:
       return self.source.coder
 
+  def display_data(self):
+    return {'source': DisplayDataItem(self.source.__class__,
+                                      label='Read Source'),
+            'source_dd': self.source}
+
 
 class Write(ptransform.PTransform):
   """A ``PTransform`` that writes to a sink.
@@ -707,6 +717,10 @@ class Write(ptransform.PTransform):
     label, sink = self.parse_label_and_arg(args, kwargs, 'sink')
     super(Write, self).__init__(label)
     self.sink = sink
+
+  def display_data(self):
+    return {'sink': self.sink.__class__,
+            'sink_dd': self.sink}
 
   def apply(self, pcoll):
     from apache_beam.runners.dataflow.native_io import iobase as dataflow_io
