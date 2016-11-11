@@ -18,7 +18,6 @@
 
 import errno
 import logging
-import mock
 import multiprocessing
 import os
 import random
@@ -26,6 +25,7 @@ import threading
 import unittest
 
 import httplib2
+import mock
 from apitools.base.py.exceptions import HttpError
 from apache_beam.internal.clients import storage
 

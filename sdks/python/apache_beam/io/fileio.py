@@ -887,7 +887,7 @@ class FileSink(iobase.Sink):
           raise e
 
     for shard, final_name in rename_ops:
-        yield final_name
+      yield final_name
 
     logging.info('Renamed %d shards in %.2f seconds.', num_shards,
                  time.time() - start_time)
