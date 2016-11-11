@@ -496,8 +496,11 @@ public abstract class FileBasedSink<T> extends Sink<T> {
       FileOperations fileOperations =
           FileOperationsFactory.getFileOperations(tempDirectory, options);
       IOChannelFactory factory = IOChannelUtils.getFactory(tempDirectory);
-      Collection<String> matches = factory.match(factory.resolve(tempDirectory, "*"));
 
+      // To partially mitigate the effects of filesystems with eventually-consistent
+      // directory matching APIs, takes a list of files that are known to exist - i.e. removes the
+      // union of the known files and files that the filesystem says exist in the directory.
+      Collection<String> matches = factory.match(factory.resolve(tempDirectory, "*"));
       Set<String> allMatches = new HashSet<>(matches);
       allMatches.addAll(knownFiles);
       LOG.debug(
@@ -714,9 +717,12 @@ public abstract class FileBasedSink<T> extends Sink<T> {
     void copy(List<String> srcFilenames, List<String> destFilenames) throws IOException;
 
     /**
-     * Remove a collection of files.
+     * Remove a collection of files or directories.
+     *
+     * <p>Directories are required to be empty. Behaviors of deleting non-empty directories are
+     * undefined.
      */
-    void remove(Collection<String> filenames) throws IOException;
+    void remove(Collection<String> filesOrDirs) throws IOException;
   }
 
   /**
@@ -735,8 +741,8 @@ public abstract class FileBasedSink<T> extends Sink<T> {
     }
 
     @Override
-    public void remove(Collection<String> filenames) throws IOException {
-      gcsUtil.remove(filenames);
+    public void remove(Collection<String> filesOrDirs) throws IOException {
+      gcsUtil.remove(filesOrDirs);
     }
   }
 
@@ -783,18 +789,18 @@ public abstract class FileBasedSink<T> extends Sink<T> {
     }
 
     @Override
-    public void remove(Collection<String> filenames) throws IOException {
-      for (String filename : filenames) {
-        LOG.debug("Removing file {}", filename);
-        removeOne(filename);
+    public void remove(Collection<String> filesOrDirs) throws IOException {
+      for (String fileOrDir : filesOrDirs) {
+        LOG.debug("Removing file {}", fileOrDir);
+        removeOne(fileOrDir);
       }
     }
 
-    private void removeOne(String filename) throws IOException {
+    private void removeOne(String fileOrDir) throws IOException {
       // Delete the file if it exists.
-      boolean exists = Files.deleteIfExists(Paths.get(filename));
+      boolean exists = Files.deleteIfExists(Paths.get(fileOrDir));
       if (!exists) {
-        LOG.debug("{} does not exist.", filename);
+        LOG.debug("{} does not exist.", fileOrDir);
       }
     }
   }
