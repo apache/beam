@@ -27,6 +27,8 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Ordering;
+import com.google.common.collect.SortedMultiset;
+import com.google.common.collect.TreeMultiset;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -204,7 +206,7 @@ public class WatermarkManager {
    */
   private static class AppliedPTransformInputWatermark implements Watermark {
     private final Collection<? extends Watermark> inputWatermarks;
-    private final NavigableSet<CommittedBundle<?>> pendingElements;
+    private final SortedMultiset<CommittedBundle<?>> pendingElements;
     private final Map<StructuralKey<?>, NavigableSet<TimerData>> objectTimers;
 
     private AtomicReference<Instant> currentWatermark;
@@ -217,7 +219,7 @@ public class WatermarkManager {
       Ordering<CommittedBundle<?>> pendingBundleComparator =
           new BundleByElementTimestampComparator().compound(Ordering.arbitrary());
       this.pendingElements =
-          new TreeSet<>(pendingBundleComparator);
+          TreeMultiset.create(pendingBundleComparator);
       this.objectTimers = new HashMap<>();
       currentWatermark = new AtomicReference<>(BoundedWindow.TIMESTAMP_MIN_VALUE);
     }
@@ -251,7 +253,8 @@ public class WatermarkManager {
       }
       if (!pendingElements.isEmpty()) {
         minInputWatermark =
-            INSTANT_ORDERING.min(minInputWatermark, pendingElements.first().getMinTimestamp());
+            INSTANT_ORDERING.min(
+                minInputWatermark, pendingElements.firstEntry().getElement().getMinTimestamp());
       }
       Instant newWatermark = INSTANT_ORDERING.max(oldWatermark, minInputWatermark);
       currentWatermark.set(newWatermark);
