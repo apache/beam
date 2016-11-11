@@ -90,7 +90,7 @@ public class DoFnSignaturesSplittableDoFnTest {
   @Test
   public void testSplittableProcessElementMustNotHaveOtherParams() throws Exception {
     thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage("must not have any extra arguments");
+    thrown.expectMessage("must have only ProcessContext and RestrictionTracker parameters");
 
     DoFnSignature.ProcessElementMethod signature =
         analyzeProcessElementMethod(

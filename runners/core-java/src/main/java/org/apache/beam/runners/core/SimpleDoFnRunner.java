@@ -34,8 +34,10 @@ import org.apache.beam.sdk.transforms.Aggregator;
 import org.apache.beam.sdk.transforms.Aggregator.AggregatorFactory;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.DoFn.Context;
 import org.apache.beam.sdk.transforms.DoFn.InputProvider;
 import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
+import org.apache.beam.sdk.transforms.DoFn.ProcessContext;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvoker;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvokers;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
@@ -136,16 +138,11 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
   }
 
   private void invokeProcessElement(WindowedValue<InputT> elem) {
-    final DoFn<InputT, OutputT>.ProcessContext processContext = createProcessContext(elem);
-
-    // Note that if the element must be exploded into all its windows, that has to be done outside
-    // of this runner.
-    final DoFn.ExtraContextFactory<InputT, OutputT> extraContextFactory =
-        createExtraContextFactory(elem);
+    DoFnProcessContext<InputT, OutputT> processContext = createProcessContext(elem);
 
     // This can contain user code. Wrap it in case it throws an exception.
     try {
-      invoker.invokeProcessElement(processContext, extraContextFactory);
+      invoker.invokeProcessElement(processContext);
     } catch (Exception ex) {
       throw wrapUserCodeException(ex);
     }
@@ -163,13 +160,8 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
   }
 
   /** Returns a new {@link DoFn.ProcessContext} for the given element. */
-  private DoFn<InputT, OutputT>.ProcessContext createProcessContext(WindowedValue<InputT> elem) {
+  private DoFnProcessContext<InputT, OutputT> createProcessContext(WindowedValue<InputT> elem) {
     return new DoFnProcessContext<InputT, OutputT>(fn, context, elem);
-  }
-
-  private DoFn.ExtraContextFactory<InputT, OutputT> createExtraContextFactory(
-      WindowedValue<InputT> elem) {
-    return new DoFnExtraContextFactory<InputT, OutputT>(elem.getWindows(), elem.getPane());
   }
 
   private RuntimeException wrapUserCodeException(Throwable t) {
@@ -186,7 +178,8 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
    * @param <InputT> the type of the {@link DoFn} (main) input elements
    * @param <OutputT> the type of the {@link DoFn} (main) output elements
    */
-  private static class DoFnContext<InputT, OutputT> extends DoFn<InputT, OutputT>.Context {
+  private static class DoFnContext<InputT, OutputT> extends DoFn<InputT, OutputT>.Context
+      implements DoFn.ExtraContextFactory<InputT, OutputT> {
     private static final int MAX_SIDE_OUTPUTS = 1000;
 
     final PipelineOptions options;
@@ -369,6 +362,56 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
       checkNotNull(combiner, "Combiner passed to createAggregator cannot be null");
       return aggregatorFactory.createAggregatorForDoFn(fn.getClass(), stepContext, name, combiner);
     }
+
+    @Override
+    public BoundedWindow window() {
+      throw new UnsupportedOperationException(
+          "Cannot access window outside of @ProcessElement and @OnTimer methods.");
+    }
+
+    @Override
+    public Context context(DoFn<InputT, OutputT> doFn) {
+      return this;
+    }
+
+    @Override
+    public ProcessContext processContext(DoFn<InputT, OutputT> doFn) {
+      throw new UnsupportedOperationException(
+          "Cannot access ProcessContext outside of @Processelement method.");
+    }
+
+    @Override
+    public InputProvider<InputT> inputProvider() {
+      throw new UnsupportedOperationException("InputProvider is for testing only.");
+    }
+
+    @Override
+    public OutputReceiver<OutputT> outputReceiver() {
+      throw new UnsupportedOperationException("OutputReceiver is for testing only.");
+    }
+
+    @Override
+    public WindowingInternals<InputT, OutputT> windowingInternals() {
+      throw new UnsupportedOperationException("WindowingInternals are unsupported.");
+    }
+
+    @Override
+    public <RestrictionT> RestrictionTracker<RestrictionT> restrictionTracker() {
+      throw new UnsupportedOperationException(
+          "Cannot access RestrictionTracker outside of @ProcessElement method.");
+    }
+
+    @Override
+    public State state(String stateId) {
+      throw new UnsupportedOperationException(
+          "Cannot access state outside of @ProcessElement and @OnTimer methods.");
+    }
+
+    @Override
+    public Timer timer(String timerId) {
+      throw new UnsupportedOperationException(
+          "Cannot access timers outside of @ProcessElement and @OnTimer methods.");
+    }
   }
 
   /**
@@ -378,8 +421,8 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
    * @param <InputT> the type of the {@link DoFn} (main) input elements
    * @param <OutputT> the type of the {@link DoFn} (main) output elements
    */
-  private static class DoFnProcessContext<InputT, OutputT>
-      extends DoFn<InputT, OutputT>.ProcessContext {
+  private class DoFnProcessContext<InputT, OutputT> extends DoFn<InputT, OutputT>.ProcessContext
+      implements DoFn.ExtraContextFactory<InputT, OutputT> {
 
     final DoFn<InputT, OutputT> fn;
     final DoFnContext<InputT, OutputT> context;
@@ -497,25 +540,20 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
             String name, CombineFn<AggregatorInputT, ?, AggregatorOutputT> combiner) {
       return context.createAggregator(name, combiner);
     }
-  }
-
-  private class DoFnExtraContextFactory<InputT, OutputT>
-      implements DoFn.ExtraContextFactory<InputT, OutputT> {
-
-    /** The windows of the current element. */
-    private final Collection<? extends BoundedWindow> windows;
-
-    /** The pane of the current element. */
-    private final PaneInfo pane;
-
-    public DoFnExtraContextFactory(Collection<? extends BoundedWindow> windows, PaneInfo pane) {
-      this.windows = windows;
-      this.pane = pane;
-    }
 
     @Override
     public BoundedWindow window() {
-      return Iterables.getOnlyElement(windows);
+      return Iterables.getOnlyElement(windowedValue.getWindows());
+    }
+
+    @Override
+    public DoFn<InputT, OutputT>.Context context(DoFn<InputT, OutputT> doFn) {
+      return this;
+    }
+
+    @Override
+    public DoFn<InputT, OutputT>.ProcessContext processContext(DoFn<InputT, OutputT> doFn) {
+      return this;
     }
 
     @Override
@@ -548,12 +586,12 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
       return new WindowingInternals<InputT, OutputT>() {
         @Override
         public Collection<? extends BoundedWindow> windows() {
-          return windows;
+          return windowedValue.getWindows();
         }
 
         @Override
         public PaneInfo pane() {
-          return pane;
+          return windowedValue.getPane();
         }
 
         @Override

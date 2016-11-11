@@ -31,6 +31,7 @@ import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.ProcessContextParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.StateParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.TimerParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.WindowParameter;
@@ -59,6 +60,18 @@ import org.junit.runners.JUnit4;
 public class DoFnSignaturesTest {
 
   @Rule public ExpectedException thrown = ExpectedException.none();
+
+  @Test
+  public void testBasicDoFn() throws Exception {
+    DoFnSignature sig = DoFnSignatures.getSignature(new DoFn<String, String>() {
+      @ProcessElement
+      public void process(ProcessContext c) {}
+    }.getClass());
+
+    assertThat(sig.processElement().extraParameters().size(), equalTo(1));
+    assertThat(
+        sig.processElement().extraParameters().get(0), instanceOf(ProcessContextParameter.class));
+  }
 
   @Test
   public void testBadExtraContext() throws Exception {
@@ -320,11 +333,11 @@ public class DoFnSignaturesTest {
         DoFnSignatures.getSignature(new DoFnOverridingAbstractTimerUse().getClass());
 
     assertThat(sig.timerDeclarations().size(), equalTo(1));
-    assertThat(sig.processElement().extraParameters().size(), equalTo(1));
+    assertThat(sig.processElement().extraParameters().size(), equalTo(2));
 
     DoFnSignature.TimerDeclaration decl =
         sig.timerDeclarations().get(DoFnOverridingAbstractTimerUse.TIMER_ID);
-    TimerParameter timerParam = (TimerParameter) sig.processElement().extraParameters().get(0);
+    TimerParameter timerParam = (TimerParameter) sig.processElement().extraParameters().get(1);
 
     assertThat(
         decl.field(),
@@ -685,11 +698,11 @@ public class DoFnSignaturesTest {
         DoFnSignatures.getSignature(new DoFnOverridingAbstractStateUse().getClass());
 
     assertThat(sig.stateDeclarations().size(), equalTo(1));
-    assertThat(sig.processElement().extraParameters().size(), equalTo(1));
+    assertThat(sig.processElement().extraParameters().size(), equalTo(2));
 
     DoFnSignature.StateDeclaration decl =
         sig.stateDeclarations().get(DoFnOverridingAbstractStateUse.STATE_ID);
-    StateParameter stateParam = (StateParameter) sig.processElement().extraParameters().get(0);
+    StateParameter stateParam = (StateParameter) sig.processElement().extraParameters().get(1);
 
     assertThat(
         decl.field(),
@@ -717,12 +730,12 @@ public class DoFnSignaturesTest {
               public void foo(ProcessContext context, @StateId("foo") ValueState<Integer> bizzle) {}
             }.getClass());
 
-    assertThat(sig.processElement().extraParameters().size(), equalTo(1));
+    assertThat(sig.processElement().extraParameters().size(), equalTo(2));
 
     final DoFnSignature.StateDeclaration decl = sig.stateDeclarations().get("foo");
     sig.processElement()
         .extraParameters()
-        .get(0)
+        .get(1)
         .match(
             new Parameter.Cases.WithDefault<Void>() {
               @Override

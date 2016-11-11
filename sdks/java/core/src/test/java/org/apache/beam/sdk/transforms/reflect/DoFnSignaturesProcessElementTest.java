@@ -35,28 +35,6 @@ public class DoFnSignaturesProcessElementTest {
   @Rule public ExpectedException thrown = ExpectedException.none();
 
   @Test
-  public void testMissingProcessContext() throws Exception {
-    thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage("Must take ProcessContext<> as the first argument");
-
-    analyzeProcessElementMethod(
-        new AnonymousMethod() {
-          private void method() {}
-        });
-  }
-
-  @Test
-  public void testBadProcessContextType() throws Exception {
-    thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage("Must take ProcessContext<> as the first argument");
-
-    analyzeProcessElementMethod(
-        new AnonymousMethod() {
-          private void method(String s) {}
-        });
-  }
-
-  @Test
   public void testBadExtraProcessContextType() throws Exception {
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage(

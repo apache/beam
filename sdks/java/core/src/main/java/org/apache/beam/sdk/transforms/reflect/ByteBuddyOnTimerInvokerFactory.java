@@ -216,11 +216,21 @@ class ByteBuddyOnTimerInvokerFactory implements OnTimerInvokerFactory {
       //   a dynamic set of allowed "extra" parameters in any order subject to
       //   validation prior to getting the DoFnSignature
       ArrayList<StackManipulation> parameters = new ArrayList<>();
-      // Push the extra arguments in their actual order.
+
+      // To load the delegate, push `this` and then access the field
+      StackManipulation pushDelegate =
+          new StackManipulation.Compound(
+              MethodVariableAccess.REFERENCE.loadOffset(0),
+              FieldAccess.forField(delegateField).getter());
+
       StackManipulation pushExtraContextFactory = MethodVariableAccess.REFERENCE.loadOffset(1);
+
+      // Push the extra arguments in their actual order.
       for (DoFnSignature.Parameter param : signature.extraParameters()) {
         parameters.add(
-            ByteBuddyDoFnInvokerFactory.getExtraContextParameter(param, pushExtraContextFactory));
+            new StackManipulation.Compound(
+                pushExtraContextFactory,
+                ByteBuddyDoFnInvokerFactory.getExtraContextParameter(param, pushDelegate)));
       }
       return new StackManipulation.Compound(parameters);
     }
