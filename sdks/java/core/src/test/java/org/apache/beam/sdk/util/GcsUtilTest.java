@@ -54,9 +54,9 @@ import com.google.api.services.storage.model.StorageObject;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageReadChannel;
 import com.google.cloud.hadoop.util.ClientRequestHelper;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Lists;
 import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.math.BigInteger;
 import java.net.SocketTimeoutException;
 import java.nio.channels.SeekableByteChannel;
 import java.nio.file.AccessDeniedException;
@@ -321,28 +321,72 @@ public class GcsUtilTest {
 
   @Test
   public void testGetSizeBytes() throws Exception {
-    GcsOptions pipelineOptions = gcsOptionsWithTestCredential();
-    GcsUtil gcsUtil = pipelineOptions.getGcsUtil();
+    String singleFile = "--batch_foobarbaz\n"
+        + "Content-Type: application/http\n"
+        + "\n"
+        + "HTTP/1.1 200 OK\n"
+        + "Content-Length: 708\n"
+        + "\n"
+        + "{\n"
+        + " \"kind\": \"storage#object\",\n"
+        + " \"id\": \"apache-beam-samples/apache/LICENSE/1470763581808000\",\n"
+        + " \"selfLink\": \"https://www.googleapis.com/storage/v1/b/apache-beam-samples/o/apache%2FLICENSE\",\n"
+        + " \"name\": \"apache/LICENSE\",\n"
+        + " \"bucket\": \"apache-beam-samples\",\n"
+        + " \"generation\": \"1470763581808000\",\n"
+        + " \"metageneration\": \"2\",\n"
+        + " \"contentType\": \"application/txt\",\n"
+        + " \"timeCreated\": \"2016-08-09T17:26:21.801Z\",\n"
+        + " \"updated\": \"2016-08-09T17:26:41.935Z\",\n"
+        + " \"storageClass\": \"STANDARD\",\n"
+        + " \"size\": \"11358\",\n"
+        + " \"md5Hash\": \"O4Pvljh/FGVfyFTdw8a9Vw==\",\n"
+        + " \"mediaLink\": \"https://www.googleapis.com/download/storage/v1/b/apache-beam-samples/o/apache%2FLICENSE?generation=1470763581808000&alt=media\",\n"
+        + " \"crc32c\": \"4W4HuQ==\",\n"
+        + " \"etag\": \"CIC73qbttM4CEAI=\"\n"
+        + "}\n"
+        + "\n";
 
-    Storage mockStorage = Mockito.mock(Storage.class);
-    gcsUtil.setStorageClient(mockStorage);
-
-    Storage.Objects mockStorageObjects = Mockito.mock(Storage.Objects.class);
-    Storage.Objects.Get mockStorageGet = Mockito.mock(Storage.Objects.Get.class);
-
-    when(mockStorage.objects()).thenReturn(mockStorageObjects);
-    when(mockStorageObjects.get("testbucket", "testobject")).thenReturn(mockStorageGet);
-    when(mockStorageGet.execute()).thenReturn(
-        new StorageObject().setSize(BigInteger.valueOf(1000)));
-
-    assertEquals(1000, gcsUtil.fileSize(GcsPath.fromComponents("testbucket", "testobject")));
+    int fileNum = 10;
+    List<GcsPath> paths = Lists.newArrayList();
+    StringBuilder content = new StringBuilder();
+    for (int i = 0; i < fileNum; ++i) {
+      content.append(singleFile);
+      paths.add(GcsPath.fromComponents("testbucket", "testobject" + i));
+    }
+    content.append("--batch_foobarbaz--\n");
+    List<Long> actuals = executeGetSizeBytes(paths, content.toString());
+    assertEquals(10, actuals.size());
+    assertEquals(11358, actuals.get(0).longValue());
   }
 
   @Test
   public void testGetSizeBytesWhenFileNotFound() throws Exception {
-    MockLowLevelHttpResponse notFoundResponse = new MockLowLevelHttpResponse();
-    notFoundResponse.setContent("");
-    notFoundResponse.setStatusCode(HttpStatusCodes.STATUS_CODE_NOT_FOUND);
+    String content = "Content-Type: application/http\n"
+        + "\n"
+        + "HTTP/1.1 404 Not Found\n"
+        + "Content-Length: 105\n"
+        + "\n"
+        + "{\n"
+        + " \"error\": {\n"
+        + "  \"code\": 404\n"
+        + " }\n"
+        + "}\n"
+        + "\n"
+        + "--batch_CnzAnRit7rQ_AAax2S5XfdM--\n";
+    thrown.expect(FileNotFoundException.class);
+    executeGetSizeBytes(
+        ImmutableList.of(GcsPath.fromComponents("testbucket", "testobject")),
+        content);
+  }
+
+  private List<Long> executeGetSizeBytes(
+      List<GcsPath> paths,
+      String content) throws Exception {
+    MockLowLevelHttpResponse notFoundResponse = new MockLowLevelHttpResponse()
+        .setContentType("multipart/mixed; boundary=batch_foobarbaz")
+        .setContent(content)
+        .setStatusCode(HttpStatusCodes.STATUS_CODE_OK);
 
     MockHttpTransport mockTransport =
         new MockHttpTransport.Builder().setLowLevelHttpResponse(notFoundResponse).build();
@@ -352,33 +396,7 @@ public class GcsUtilTest {
 
     gcsUtil.setStorageClient(new Storage(mockTransport, Transport.getJsonFactory(), null));
 
-    thrown.expect(FileNotFoundException.class);
-    gcsUtil.fileSize(GcsPath.fromComponents("testbucket", "testobject"));
-  }
-
-  @Test
-  public void testRetryFileSize() throws IOException {
-    GcsOptions pipelineOptions = gcsOptionsWithTestCredential();
-    GcsUtil gcsUtil = pipelineOptions.getGcsUtil();
-
-    Storage mockStorage = Mockito.mock(Storage.class);
-    gcsUtil.setStorageClient(mockStorage);
-
-    Storage.Objects mockStorageObjects = Mockito.mock(Storage.Objects.class);
-    Storage.Objects.Get mockStorageGet = Mockito.mock(Storage.Objects.Get.class);
-
-    BackOff mockBackOff = FluentBackoff.DEFAULT.withMaxRetries(2).backoff();
-
-    when(mockStorage.objects()).thenReturn(mockStorageObjects);
-    when(mockStorageObjects.get("testbucket", "testobject")).thenReturn(mockStorageGet);
-    when(mockStorageGet.execute())
-        .thenThrow(new SocketTimeoutException("SocketException"))
-        .thenThrow(new SocketTimeoutException("SocketException"))
-        .thenReturn(new StorageObject().setSize(BigInteger.valueOf(1000)));
-
-    assertEquals(1000, gcsUtil.fileSize(GcsPath.fromComponents("testbucket", "testobject"),
-        mockBackOff, new FastNanoClockAndSleeper()));
-    assertEquals(BackOff.STOP, mockBackOff.nextBackOffMillis());
+    return gcsUtil.fileSize(paths);
   }
 
   @Test
@@ -599,6 +617,14 @@ public class GcsUtilTest {
     return ret.build();
   }
 
+  private static List<GcsPath> makeGcsPaths(String s, int n) {
+    ImmutableList.Builder<GcsPath> ret = ImmutableList.builder();
+    for (int i = 0; i < n; ++i) {
+      ret.add(GcsPath.fromUri(String.format("gs://bucket/%s%d", s, i)));
+    }
+    return ret.build();
+  }
+
   private static int sumBatchSizes(List<BatchRequest> batches) {
     int ret = 0;
     for (BatchRequest b : batches) {
@@ -655,5 +681,31 @@ public class GcsUtilTest {
     batches = gcsUtil.makeRemoveBatches(makeStrings("s", 501));
     assertThat(batches.size(), equalTo(6));
     assertThat(sumBatchSizes(batches), equalTo(501));
+  }
+
+  @Test
+  public void testMakeGetBatches() throws IOException {
+    GcsUtil gcsUtil = gcsOptionsWithTestCredential().getGcsUtil();
+
+    // Small number of files fits in 1 batch
+    List<long[]> results = Lists.newArrayList();
+    List<BatchRequest> batches = gcsUtil.makeGetBatches(makeGcsPaths("s", 3), results);
+    assertThat(batches.size(), equalTo(1));
+    assertThat(sumBatchSizes(batches), equalTo(3));
+    assertEquals(3, results.size());
+
+    // 1 batch of files fits in 1 batch
+    results = Lists.newArrayList();
+    batches = gcsUtil.makeGetBatches(makeGcsPaths("s", 100), results);
+    assertThat(batches.size(), equalTo(1));
+    assertThat(sumBatchSizes(batches), equalTo(100));
+    assertEquals(100, results.size());
+
+    // A little more than 5 batches of files fits in 6 batches
+    results = Lists.newArrayList();
+    batches = gcsUtil.makeGetBatches(makeGcsPaths("s", 501), results);
+    assertThat(batches.size(), equalTo(6));
+    assertThat(sumBatchSizes(batches), equalTo(501));
+    assertEquals(501, results.size());
   }
 }
