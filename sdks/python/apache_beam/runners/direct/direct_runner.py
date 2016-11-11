@@ -125,7 +125,7 @@ class BufferingInMemoryCache(object):
     for key, value in self._cache.iteritems():
       applied_ptransform, tag = key
       self._pvalue_cache.cache_output(applied_ptransform, tag, value)
-      self._cache = None
+    self._cache = None
 
 
 class DirectPipelineResult(PipelineResult):

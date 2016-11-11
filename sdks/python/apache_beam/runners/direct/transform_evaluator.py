@@ -20,10 +20,10 @@
 from __future__ import absolute_import
 
 import collections
-import copy
 
 from apache_beam import coders
 from apache_beam import pvalue
+from apache_beam.internal import pickler
 import apache_beam.io as io
 from apache_beam.runners.common import DoFnRunner
 from apache_beam.runners.common import DoFnState
@@ -338,7 +338,7 @@ class _ParDoEvaluator(_TransformEvaluator):
 
     self._counter_factory = counters.CounterFactory()
 
-    dofn = copy.deepcopy(transform.dofn)
+    dofn = pickler.loads(pickler.dumps(transform.dofn))
 
     pipeline_options = self._evaluation_context.pipeline_options
     if (pipeline_options is not None
@@ -504,7 +504,7 @@ class _NativeWriteEvaluator(_TransformEvaluator):
         side_inputs)
 
     assert applied_ptransform.transform.sink
-    self._sink = copy.deepcopy(applied_ptransform.transform.sink)
+    self._sink = pickler.loads(pickler.dumps(applied_ptransform.transform.sink))
 
   @property
   def _is_final_bundle(self):
