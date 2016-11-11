@@ -97,8 +97,7 @@ public class FlinkWindowTrigger<WID extends Window, T> extends Trigger<T, FlinkW
     // clean-up the registered clean-up trigger to avoid mem-leak in long running
     // streams
 
-    // FIXME
-    // ctx.deleteEventTimeTimer(window.maxTimestamp());
+    ctx.deleteEventTimeTimer(window.maxTimestamp());
   }
 
   @Override
