@@ -24,6 +24,7 @@ from apache_beam.pipeline import Pipeline
 from apache_beam.pipeline import PipelineOptions
 from apache_beam.pipeline import PipelineVisitor
 from apache_beam.runners.dataflow.native_io.iobase import NativeSource
+from apache_beam.transforms import CombineGlobally
 from apache_beam.transforms import Create
 from apache_beam.transforms import FlatMap
 from apache_beam.transforms import Map
@@ -216,6 +217,10 @@ class PipelineTest(unittest.TestCase):
         ['x' * len_elements + 'y' * num_maps] * num_elements))
 
     pipeline.run()
+
+  def test_aggregator_empty_input(self):
+    actual = [] | CombineGlobally(max).without_defaults()
+    self.assertEqual(actual, [])
 
   def test_pipeline_as_context(self):
     def raise_exception(exn):

@@ -29,6 +29,8 @@ from apache_beam import io
 from apache_beam import pvalue
 from apache_beam import typehints
 from apache_beam.io import fileio
+from apache_beam.transforms.util import assert_that
+from apache_beam.transforms.util import equal_to
 from apache_beam.utils.options import TypeOptions
 from apache_beam.examples.snippets import snippets
 
@@ -307,7 +309,9 @@ class TypeHintsTest(unittest.TestCase):
       # [END type_hints_runtime_on]
 
   def test_deterministic_key(self):
-    lines = ['banana,fruit,3', 'kiwi,fruit,2', 'kiwi,fruit,2', 'zucchini,veg,3']
+    p = beam.Pipeline('DirectPipelineRunner')
+    lines = (p | beam.Create(
+        ['banana,fruit,3', 'kiwi,fruit,2', 'kiwi,fruit,2', 'zucchini,veg,3']))
 
     # [START type_hints_deterministic_key]
     class Player(object):
@@ -338,9 +342,11 @@ class TypeHintsTest(unittest.TestCase):
             beam.typehints.Tuple[Player, int]))
     # [END type_hints_deterministic_key]
 
-    self.assertEquals(
-        {('banana', 3), ('kiwi', 4), ('zucchini', 3)},
-        set(totals | beam.Map(lambda (k, v): (k.name, v))))
+    assert_that(
+        totals | beam.Map(lambda (k, v): (k.name, v)),
+        equal_to([('banana', 3), ('kiwi', 4), ('zucchini', 3)]))
+
+    p.run()
 
 
 class SnippetsTest(unittest.TestCase):
