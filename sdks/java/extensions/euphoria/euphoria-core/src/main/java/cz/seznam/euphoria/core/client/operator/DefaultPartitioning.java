@@ -1,6 +1,5 @@
 package cz.seznam.euphoria.core.client.operator;
 
-import cz.seznam.euphoria.core.client.dataset.HashPartitioner;
 import cz.seznam.euphoria.core.client.dataset.Partitioner;
 import cz.seznam.euphoria.core.client.dataset.Partitioning;
 
@@ -20,7 +19,7 @@ public final class DefaultPartitioning<T> implements Partitioning<T> {
   }
 
   public DefaultPartitioning(int numPartitions) {
-    this(numPartitions, new HashPartitioner<>());
+    this(numPartitions, DEFAULT_PARTITIONER);
   }
 
   public DefaultPartitioning(int numPartitions, Partitioner<T> partitioner) {

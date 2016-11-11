@@ -36,7 +36,7 @@ public class DistinctTest {
     assertSame(windowing, distinct.getWindowing());
 
     // default partitioning used
-    assertTrue(distinct.getPartitioning().getPartitioner() instanceof HashPartitioner);
+    assertTrue(distinct.getPartitioning().hasDefaultPartitioner());
     assertEquals(3, distinct.getPartitioning().getNumPartitions());
   }
 
@@ -74,6 +74,7 @@ public class DistinctTest {
             .output();
 
     Distinct distinct = (Distinct) flow.operators().iterator().next();
+    assertTrue(!distinct.getPartitioning().hasDefaultPartitioner());
     assertTrue(distinct.getPartitioning().getPartitioner() instanceof HashPartitioner);
     assertEquals(1, distinct.getPartitioning().getNumPartitions());
   }
@@ -89,6 +90,7 @@ public class DistinctTest {
             .output();
 
     Distinct distinct = (Distinct) flow.operators().iterator().next();
+    assertTrue(!distinct.getPartitioning().hasDefaultPartitioner());
     assertTrue(distinct.getPartitioning().getPartitioner() instanceof HashPartitioner);
     assertEquals(5, distinct.getPartitioning().getNumPartitions());
   }

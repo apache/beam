@@ -59,8 +59,5 @@ public interface PartitioningAware<KEY> {
       this.defaultPartitioning.setNumPartitions(numPartitions);
       return (BUILDER) this;
     }
-
   }
-
-
 }

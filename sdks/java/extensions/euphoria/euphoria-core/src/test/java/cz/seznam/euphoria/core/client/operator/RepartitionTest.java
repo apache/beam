@@ -28,6 +28,7 @@ public class RepartitionTest {
     assertEquals(partitioned, repartition.output());
 
     // default partitioning used
+    assertTrue(!repartition.getPartitioning().hasDefaultPartitioner());
     assertTrue(repartition.getPartitioning().getPartitioner() instanceof HashPartitioner);
     assertEquals(5, repartition.getPartitioning().getNumPartitions());
   }
@@ -44,5 +45,4 @@ public class RepartitionTest {
     Repartition repartition = (Repartition) flow.operators().iterator().next();
     assertEquals("Repartition", repartition.getName());
   }
-
 }

@@ -33,7 +33,7 @@ public class GroupByKeyTest {
     assertEquals(grouped, group.output());
 
     // default partitioning used
-    assertTrue(group.getPartitioning().getPartitioner() instanceof HashPartitioner);
+    assertTrue(group.getPartitioning().hasDefaultPartitioner());
     assertEquals(3, group.getPartitioning().getNumPartitions());
   }
 
@@ -80,6 +80,7 @@ public class GroupByKeyTest {
             .output();
 
     GroupByKey group = (GroupByKey) flow.operators().iterator().next();
+    assertTrue(!group.getPartitioning().hasDefaultPartitioner());
     assertTrue(group.getPartitioning().getPartitioner() instanceof HashPartitioner);
     assertEquals(5, group.getPartitioning().getNumPartitions());
   }
@@ -97,6 +98,7 @@ public class GroupByKeyTest {
             .output();
 
     GroupByKey group = (GroupByKey) flow.operators().iterator().next();
+    assertTrue(!group.getPartitioning().hasDefaultPartitioner());
     assertTrue(group.getPartitioning().getPartitioner() instanceof HashPartitioner);
     assertEquals(5, group.getPartitioning().getNumPartitions());
   }

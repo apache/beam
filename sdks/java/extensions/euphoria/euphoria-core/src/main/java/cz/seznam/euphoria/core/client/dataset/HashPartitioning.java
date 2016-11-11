@@ -26,7 +26,4 @@ public class HashPartitioning<T> implements Partitioning<T> {
   public int getNumPartitions() {
     return numPartitions;
   }
-
-
-
 }

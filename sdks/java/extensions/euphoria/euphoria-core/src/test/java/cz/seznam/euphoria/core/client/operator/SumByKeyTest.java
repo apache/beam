@@ -37,7 +37,7 @@ public class SumByKeyTest {
     assertEquals(Batch.get(), sum.getWindowing());
 
     // default partitioning used
-    assertTrue(sum.getPartitioning().getPartitioner() instanceof HashPartitioner);
+    assertTrue(sum.getPartitioning().hasDefaultPartitioner());
     assertEquals(3, sum.getPartitioning().getNumPartitions());
   }
 
@@ -81,6 +81,7 @@ public class SumByKeyTest {
             .output();
 
     SumByKey sum = (SumByKey) flow.operators().iterator().next();
+    assertTrue(!sum.getPartitioning().hasDefaultPartitioner());
     assertTrue(sum.getPartitioning().getPartitioner() instanceof HashPartitioner);
     assertEquals(1, sum.getPartitioning().getNumPartitions());
   }
@@ -97,6 +98,7 @@ public class SumByKeyTest {
             .output();
 
     SumByKey count = (SumByKey) flow.operators().iterator().next();
+    assertTrue(!count.getPartitioning().hasDefaultPartitioner());
     assertTrue(count.getPartitioning().getPartitioner() instanceof HashPartitioner);
     assertEquals(5, count.getPartitioning().getNumPartitions());
   }

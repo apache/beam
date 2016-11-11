@@ -38,7 +38,7 @@ public class CountByKeyTest {
     assertSame(windowing, count.getWindowing());
 
     // default partitioning used
-    assertTrue(count.getPartitioning().getPartitioner() instanceof HashPartitioner);
+    assertTrue(count.getPartitioning().hasDefaultPartitioner());
     assertEquals(3, count.getPartitioning().getNumPartitions());
   }
 
@@ -103,6 +103,7 @@ public class CountByKeyTest {
             .output();
 
     CountByKey count = (CountByKey) flow.operators().iterator().next();
+    assertTrue(!count.getPartitioning().hasDefaultPartitioner());
     assertTrue(count.getPartitioning().getPartitioner() instanceof HashPartitioner);
     assertEquals(1, count.getPartitioning().getNumPartitions());
   }
@@ -120,6 +121,7 @@ public class CountByKeyTest {
             .output();
 
     CountByKey count = (CountByKey) flow.operators().iterator().next();
+    assertTrue(!count.getPartitioning().hasDefaultPartitioner());
     assertTrue(count.getPartitioning().getPartitioner() instanceof HashPartitioner);
     assertEquals(5, count.getPartitioning().getNumPartitions());
   }

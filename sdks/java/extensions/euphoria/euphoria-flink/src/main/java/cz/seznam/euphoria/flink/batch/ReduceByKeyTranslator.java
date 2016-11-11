@@ -131,8 +131,8 @@ public class ReduceByKeyTranslator implements BatchOperatorTranslator<ReduceByKe
     // unnecessary shuffle, but there is no (known) way how to set custom
     // partitioner to "groupBy" transformation
 
-    // apply custom partitioner if different from default HashPartitioner
-    if (origOperator.getPartitioning().getPartitioner().getClass() != HashPartitioner.class) {
+    // apply custom partitioner if different from default
+    if (!origOperator.getPartitioning().hasDefaultPartitioner()) {
       reduced = reduced
           .partitionCustom(
               new PartitionerWrapper<>(origOperator.getPartitioning().getPartitioner()),

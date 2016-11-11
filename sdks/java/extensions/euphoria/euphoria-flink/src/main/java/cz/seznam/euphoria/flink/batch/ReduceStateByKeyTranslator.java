@@ -1,6 +1,5 @@
 package cz.seznam.euphoria.flink.batch;
 
-import cz.seznam.euphoria.core.client.dataset.HashPartitioner;
 import cz.seznam.euphoria.core.client.dataset.windowing.Window;
 import cz.seznam.euphoria.core.client.dataset.windowing.WindowedElement;
 import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
@@ -139,8 +138,8 @@ public class ReduceStateByKeyTranslator implements BatchOperatorTranslator<Reduc
             .setParallelism(operator.getParallelism())
             .name(operator.getName() + "::reduce");
 
-    // apply custom partitioner if different from default HashPartitioner
-    if (!(origOperator.getPartitioning().getPartitioner().getClass() == HashPartitioner.class)) {
+    // apply custom partitioner if different from default
+    if (!origOperator.getPartitioning().hasDefaultPartitioner()) {
       reduced = reduced
           .partitionCustom(new PartitionerWrapper<>(
               origOperator.getPartitioning().getPartitioner()),
