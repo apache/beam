@@ -484,6 +484,7 @@ class ChannelFactory(object):
     # Prepare batches and directly execute local renames.
     gcs_batches = []
     gcs_current_batch = []
+    exceptions = []
     for src, dest in src_dest_pairs:
       if src.startswith('gs://'):
         assert dest.startswith('gs://'), dest
@@ -492,12 +493,14 @@ class ChannelFactory(object):
           gcs_batches.append(gcs_current_batch)
           gcs_current_batch = []
       else:
-        ChannelFactory.rename(src, dest)
+        try:
+          ChannelFactory.rename(src, dest)
+        except Exception as e:  # pylint: disable=broad-except
+          exceptions.append((src, dest, e))
     if gcs_current_batch:
       gcs_batches.append(gcs_current_batch)
 
     # Execute GCS renames if any and return exceptions.
-    exceptions = []
     for batch in gcs_batches:
       copy_statuses = gcsio.GcsIO().copy_batch(batch)
       copy_succeeded = []
