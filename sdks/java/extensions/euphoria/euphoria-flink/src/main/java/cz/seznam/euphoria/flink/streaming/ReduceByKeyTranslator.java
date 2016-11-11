@@ -1,6 +1,5 @@
 package cz.seznam.euphoria.flink.streaming;
 
-import cz.seznam.euphoria.core.client.dataset.HashPartitioner;
 import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
 import cz.seznam.euphoria.core.client.operator.CompositeKey;
@@ -96,8 +95,8 @@ class ReduceByKeyTranslator implements StreamingOperatorTranslator<ReduceByKey> 
     // unnecessary shuffle, but there is no (known) way how to set custom
     // partitioner to "keyBy" transformation
 
-    // apply custom partitioner if different from default HashPartitioner
-    if (!(origOperator.getPartitioning().getPartitioner().getClass() == HashPartitioner.class)) {
+    // apply custom partitioner if different from default
+    if (!origOperator.getPartitioning().hasDefaultPartitioner()) {
       out = out.partitionCustom(
               new PartitionerWrapper<>(origOperator.getPartitioning().getPartitioner()),
               p -> p.get().getKey());

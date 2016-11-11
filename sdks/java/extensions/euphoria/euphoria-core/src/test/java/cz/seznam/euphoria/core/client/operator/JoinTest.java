@@ -44,7 +44,7 @@ public class JoinTest {
     assertFalse(join.outer);
 
     // default partitioning used
-    assertTrue(join.getPartitioning().getPartitioner() instanceof HashPartitioner);
+    assertTrue(join.getPartitioning().hasDefaultPartitioner());
     assertEquals(3, join.getPartitioning().getNumPartitions());
   }
 
@@ -111,6 +111,7 @@ public class JoinTest {
             .output();
 
     Join join = (Join) flow.operators().iterator().next();
+    assertTrue(!join.getPartitioning().hasDefaultPartitioner());
     assertTrue(join.getPartitioning().getPartitioner() instanceof HashPartitioner);
     assertEquals(1, join.getPartitioning().getNumPartitions());
   }
@@ -130,6 +131,7 @@ public class JoinTest {
             .output();
 
     Join join = (Join) flow.operators().iterator().next();
+    assertTrue(!join.getPartitioning().hasDefaultPartitioner());
     assertTrue(join.getPartitioning().getPartitioner() instanceof HashPartitioner);
     assertEquals(5, join.getPartitioning().getNumPartitions());
   }
