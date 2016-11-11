@@ -35,6 +35,9 @@ public abstract class OperatorTest implements Serializable {
     /** Validate outputs. */
     void validate(List<List<T>> partitions);
 
+    /** Retrieve number of runs for the test. */
+    default int getNumRuns() { return 1; }
+
   }
 
   /**
@@ -43,11 +46,13 @@ public abstract class OperatorTest implements Serializable {
   @SuppressWarnings("unchecked")
   public void runTests(Executor executor, Settings settings) throws Exception {
     for (TestCase tc : getTestCases()) {
-      ListDataSink sink = ListDataSink.get(tc.getNumOutputPartitions());
-      Flow flow = Flow.create(tc.toString(), settings);
-      tc.getOutput(flow).persist(sink);
-      executor.waitForCompletion(flow);
-      tc.validate(sink.getOutputs());
+      for (int i = 0; i < tc.getNumRuns(); i++) {
+        ListDataSink sink = ListDataSink.get(tc.getNumOutputPartitions());
+        Flow flow = Flow.create(tc.toString(), settings);
+        tc.getOutput(flow).persist(sink);
+        executor.waitForCompletion(flow);
+        tc.validate(sink.getOutputs());
+      }
     }
   }
 

@@ -5,6 +5,7 @@ import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.io.DataSource;
 import cz.seznam.euphoria.core.client.io.ListDataSource;
 import cz.seznam.euphoria.core.client.operator.MapElements;
+import cz.seznam.euphoria.guava.shaded.com.google.common.collect.Sets;
 import java.util.Arrays;
 import java.util.List;
 
@@ -23,12 +24,12 @@ public class MapElementsTest extends OperatorTest {
   }
 
   TestCase testOnTwoPartitions() {
-    return new AbstractTestCase<Integer, Long>() {
+    return new AbstractTestCase<Integer, String>() {
 
       @Override
-      protected Dataset<Long> getOutput(Dataset<Integer> input) {
+      protected Dataset<String> getOutput(Dataset<Integer> input) {
         return MapElements.of(input)
-            .using(e -> (long) e)
+            .using(e -> String.valueOf(e))
             .output();
       }
 
@@ -46,12 +47,15 @@ public class MapElementsTest extends OperatorTest {
       }
 
       @Override
-      public void validate(List<List<Long>> partitions) {
+      public void validate(List<List<String>> partitions) {
         assertEquals(2, partitions.size());
-        List<Long> first = partitions.get(0);
-        assertEquals(Arrays.asList(1L, 2L, 3L), first);
-        List<Long> second = partitions.get(1);
-        assertEquals(Arrays.asList(4L, 5L, 6L, 7L), second);
+        // the ordering of partitions is undefined here, because
+        // the mapping from input to output partition numbers might
+        // be random
+        assertEquals(Sets.newHashSet(
+            Arrays.asList("1", "2", "3"),
+            Arrays.asList("4", "5", "6", "7")),
+            Sets.newHashSet(partitions));
       }
 
     };
