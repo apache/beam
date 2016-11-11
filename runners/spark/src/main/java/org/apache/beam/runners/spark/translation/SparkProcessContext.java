@@ -246,6 +246,13 @@ public abstract class SparkProcessContext<InputT, OutputT, ValueT>
       }
 
       @Override
+      public <SideOutputT> void sideOutputWindowedValue(
+          TupleTag<SideOutputT> tag, SideOutputT output, Instant timestamp,
+          Collection<? extends BoundedWindow> windows, PaneInfo pane) {
+        throw new UnsupportedOperationException();
+      }
+
+      @Override
       public StateInternals stateInternals() {
         //TODO: implement state internals.
         // This is a temporary placeholder to get the TfIdfTest

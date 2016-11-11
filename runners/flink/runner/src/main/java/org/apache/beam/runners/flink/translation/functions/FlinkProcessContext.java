@@ -166,8 +166,21 @@ class FlinkProcessContext<InputT, OutputT>
           Instant timestamp,
           Collection<? extends BoundedWindow> windows,
           PaneInfo pane) {
+        // TODO: Refactor this (get rid of duplication, move things around w.r.t.
+        // FlinkMultiOutputProcessContext)
         collector.collect(WindowedValue.of(value, timestamp, windows, pane));
         outputWithTimestampAndWindow(value, timestamp, windows, pane);
+      }
+
+      @Override
+      public <SideOutputT> void sideOutputWindowedValue(
+          TupleTag<SideOutputT> tag,
+          SideOutputT output,
+          Instant timestamp,
+          Collection<? extends BoundedWindow> windows,
+          PaneInfo pane) {
+        // TODO: Implement this
+        throw new UnsupportedOperationException();
       }
 
       @Override

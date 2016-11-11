@@ -55,7 +55,6 @@ import org.apache.beam.sdk.util.TimerInternals;
 import org.apache.beam.sdk.util.TimerInternals.TimerData;
 import org.apache.beam.sdk.util.WindowTracing;
 import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.sdk.util.WindowingInternals;
 import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.util.WindowingStrategy.AccumulationMode;
 import org.apache.beam.sdk.util.state.ReadableState;
@@ -217,7 +216,8 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> impleme
       ExecutableTriggerStateMachine triggerStateMachine,
       StateInternals<K> stateInternals,
       TimerInternals timerInternals,
-      WindowingInternals<?, KV<K, OutputT>> windowingInternals,
+      OutputWindowedValue<KV<K, OutputT>> outputter,
+      SideInputAccess sideInputAccess,
       Aggregator<Long, Long> droppedDueToClosedWindow,
       ReduceFn<K, InputT, OutputT, W> reduceFn,
       PipelineOptions options) {
@@ -225,7 +225,7 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> impleme
     this.timerInternals = timerInternals;
     this.paneInfoTracker = new PaneInfoTracker(timerInternals);
     this.stateInternals = stateInternals;
-    this.outputter = new OutputViaWindowingInternals<>(windowingInternals);
+    this.outputter = outputter;
     this.droppedDueToClosedWindow = droppedDueToClosedWindow;
     this.reduceFn = reduceFn;
 
@@ -240,8 +240,8 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> impleme
     this.activeWindows = createActiveWindowSet();
 
     this.contextFactory =
-        new ReduceFnContextFactory<K, InputT, OutputT, W>(key, reduceFn, this.windowingStrategy,
-            stateInternals, this.activeWindows, timerInternals, windowingInternals, options);
+        new ReduceFnContextFactory<>(key, reduceFn, this.windowingStrategy,
+            stateInternals, this.activeWindows, timerInternals, sideInputAccess, options);
 
     this.watermarkHold = new WatermarkHold<>(timerInternals, windowingStrategy);
     this.triggerRunner =
@@ -964,34 +964,5 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> impleme
     } else {
       return window.maxTimestamp().plus(windowingStrategy.getAllowedLateness());
     }
-  }
-
-  /**
-   * An object that can output a value with all of its windowing information. This is a deliberately
-   * restricted subinterface of {@link WindowingInternals} to express how it is used here.
-   */
-  private interface OutputWindowedValue<OutputT> {
-    void outputWindowedValue(OutputT output, Instant timestamp,
-        Collection<? extends BoundedWindow> windows, PaneInfo pane);
-  }
-
-  private static class OutputViaWindowingInternals<OutputT>
-      implements OutputWindowedValue<OutputT> {
-
-    private final WindowingInternals<?, OutputT> windowingInternals;
-
-    public OutputViaWindowingInternals(WindowingInternals<?, OutputT> windowingInternals) {
-      this.windowingInternals = windowingInternals;
-    }
-
-    @Override
-    public void outputWindowedValue(
-        OutputT output,
-        Instant timestamp,
-        Collection<? extends BoundedWindow> windows,
-        PaneInfo pane) {
-      windowingInternals.outputWindowedValue(output, timestamp, windows, pane);
-    }
-
   }
 }

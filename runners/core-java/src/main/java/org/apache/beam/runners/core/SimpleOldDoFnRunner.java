@@ -472,6 +472,16 @@ class SimpleOldDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, OutputT
         }
 
         @Override
+        public <SideOutputT> void sideOutputWindowedValue(
+            TupleTag<SideOutputT> tag,
+            SideOutputT output,
+            Instant timestamp,
+            Collection<? extends BoundedWindow> windows,
+            PaneInfo pane) {
+          context.sideOutputWindowedValue(tag, output, timestamp, windows, pane);
+        }
+
+        @Override
         public Collection<? extends BoundedWindow> windows() {
           return windowedValue.getWindows();
         }

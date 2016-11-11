@@ -29,7 +29,9 @@ import org.apache.beam.runners.core.GroupAlsoByWindowsDoFn;
 import org.apache.beam.runners.core.GroupByKeyViaGroupByKeyOnly;
 import org.apache.beam.runners.core.GroupByKeyViaGroupByKeyOnly.GroupAlsoByWindow;
 import org.apache.beam.runners.core.GroupByKeyViaGroupByKeyOnly.GroupByKeyOnly;
+import org.apache.beam.runners.core.OutputWindowedValue;
 import org.apache.beam.runners.core.ReduceFnRunner;
+import org.apache.beam.runners.core.SideInputAccess;
 import org.apache.beam.runners.core.SystemReduceFn;
 import org.apache.beam.runners.core.triggers.ExecutableTriggerStateMachine;
 import org.apache.beam.runners.core.triggers.TriggerStateMachines;
@@ -173,7 +175,14 @@ class GroupAlsoByWindowEvaluatorFactory implements TransformEvaluatorFactory {
                   TriggerStateMachines.stateMachineForTrigger(windowingStrategy.getTrigger())),
               stateInternals,
               timerInternals,
-              new DirectWindowingInternals<>(bundle),
+              new OutputWindowedValueToBundle<>(bundle),
+              new SideInputAccess() {
+                @Override
+                public <T> T sideInput(PCollectionView<T> view, BoundedWindow mainInputWindow) {
+                  throw new UnsupportedOperationException(
+                      "GroupAlsoByWindow must not have side inputs");
+                }
+              },
               droppedDueToClosedWindow,
               reduceFn,
               evaluationContext.getPipelineOptions());
@@ -243,23 +252,12 @@ class GroupAlsoByWindowEvaluatorFactory implements TransformEvaluatorFactory {
     }
   }
 
-  private static class DirectWindowingInternals<K, V>
-      implements WindowingInternals<Object, KV<K, Iterable<V>>> {
+  private static class OutputWindowedValueToBundle<K, V>
+      implements OutputWindowedValue<KV<K, Iterable<V>>> {
     private final UncommittedBundle<KV<K, Iterable<V>>> bundle;
 
-    private DirectWindowingInternals(
-        UncommittedBundle<KV<K, Iterable<V>>> bundle) {
+    private OutputWindowedValueToBundle(UncommittedBundle<KV<K, Iterable<V>>> bundle) {
       this.bundle = bundle;
-    }
-
-    @Override
-    public StateInternals<?> stateInternals() {
-      throw new UnsupportedOperationException(
-          String.format(
-              "%s should use the %s it is provided rather than the contents of %s",
-              ReduceFnRunner.class.getSimpleName(),
-              StateInternals.class.getSimpleName(),
-              getClass().getSimpleName()));
     }
 
     @Override
@@ -272,44 +270,13 @@ class GroupAlsoByWindowEvaluatorFactory implements TransformEvaluatorFactory {
     }
 
     @Override
-    public TimerInternals timerInternals() {
-      throw new UnsupportedOperationException(
-          String.format(
-              "%s should use the %s it is provided rather than the contents of %s",
-              ReduceFnRunner.class.getSimpleName(),
-              TimerInternals.class.getSimpleName(),
-              getClass().getSimpleName()));
-    }
-
-    @Override
-    public Collection<? extends BoundedWindow> windows() {
-      throw new IllegalArgumentException(
-          String.format(
-              "%s should not access Windows via %s.windows(); "
-                  + "it should instead inspect the window of the input elements",
-              GroupAlsoByWindowEvaluator.class.getSimpleName(),
-              WindowingInternals.class.getSimpleName()));
-    }
-
-    @Override
-    public PaneInfo pane() {
-      throw new IllegalArgumentException(
-          String.format(
-              "%s should not access Windows via %s.windows(); "
-                  + "it should instead inspect the window of the input elements",
-              GroupAlsoByWindowEvaluator.class.getSimpleName(),
-              WindowingInternals.class.getSimpleName()));
-    }
-
-    @Override
-    public <T> void writePCollectionViewData(
-        TupleTag<?> tag, Iterable<WindowedValue<T>> data, Coder<T> elemCoder) throws IOException {
-      throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public <T> T sideInput(PCollectionView<T> view, BoundedWindow mainInputWindow) {
-      throw new UnsupportedOperationException();
+    public <SideOutputT> void sideOutputWindowedValue(
+        TupleTag<SideOutputT> tag,
+        SideOutputT output,
+        Instant timestamp,
+        Collection<? extends BoundedWindow> windows,
+        PaneInfo pane) {
+      throw new UnsupportedOperationException("Can't output to side outputs from a ReduceFn");
     }
   }
 }

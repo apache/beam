@@ -278,7 +278,7 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
       startBundle();
     }
     try {
-      fn.processElement(createProcessContext(fn, element));
+      fn.processElement(createProcessContext(element));
     } catch (UserCodeException e) {
       unwrapUserCodeException(e);
     }
@@ -606,9 +606,7 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
     }
   }
 
-  private TestProcessContext createProcessContext(
-      OldDoFn<InputT, OutputT> fn,
-      TimestampedValue<InputT> elem) {
+  private TestProcessContext createProcessContext(TimestampedValue<InputT> elem) {
     WindowedValue<InputT> windowedValue = WindowedValue.timestampedValueInGlobalWindow(
         elem.getValue(), elem.getTimestamp());
 
@@ -675,6 +673,16 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
             Collection<? extends BoundedWindow> windows,
             PaneInfo pane) {
           context.noteOutput(mainOutputTag, WindowedValue.of(output, timestamp, windows, pane));
+        }
+
+        @Override
+        public <SideOutputT> void sideOutputWindowedValue(
+            TupleTag<SideOutputT> tag,
+            SideOutputT output,
+            Instant timestamp,
+            Collection<? extends BoundedWindow> windows,
+            PaneInfo pane) {
+          context.noteOutput(tag, WindowedValue.of(output, timestamp, windows, pane));
         }
 
         @Override

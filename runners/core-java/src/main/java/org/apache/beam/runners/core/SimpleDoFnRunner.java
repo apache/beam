@@ -66,6 +66,10 @@ import org.joda.time.format.PeriodFormat;
 /**
  * Runs a {@link DoFn} by constructing the appropriate contexts and passing them in.
  *
+ * <p>Also, if the {@link DoFn} observes the window of the element, then {@link SimpleDoFnRunner}
+ * explodes windows of the input {@link WindowedValue} and calls {@link DoFn.ProcessElement} for
+ * each window individually.
+ *
  * @param <InputT> the type of the {@link DoFn} (main) input elements
  * @param <OutputT> the type of the {@link DoFn} (main) output elements
  */
@@ -622,6 +626,14 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
         @Override
         public void outputWindowedValue(
             OutputT output,
+            Instant timestamp,
+            Collection<? extends BoundedWindow> windows,
+            PaneInfo pane) {}
+
+        @Override
+        public <SideOutputT> void sideOutputWindowedValue(
+            TupleTag<SideOutputT> tag,
+            SideOutputT output,
             Instant timestamp,
             Collection<? extends BoundedWindow> windows,
             PaneInfo pane) {}

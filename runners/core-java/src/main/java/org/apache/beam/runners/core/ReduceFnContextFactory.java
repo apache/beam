@@ -46,6 +46,7 @@ import org.apache.beam.sdk.util.state.StateNamespace;
 import org.apache.beam.sdk.util.state.StateNamespaces;
 import org.apache.beam.sdk.util.state.StateNamespaces.WindowNamespace;
 import org.apache.beam.sdk.util.state.StateTag;
+import org.apache.beam.sdk.values.PCollectionView;
 import org.joda.time.Instant;
 
 /**
@@ -62,20 +63,25 @@ class ReduceFnContextFactory<K, InputT, OutputT, W extends BoundedWindow> {
   private final StateInternals<K> stateInternals;
   private final ActiveWindowSet<W> activeWindows;
   private final TimerInternals timerInternals;
-  private final WindowingInternals<?, ?> windowingInternals;
+  private final SideInputAccess sideInputAccess;
   private final PipelineOptions options;
 
-  ReduceFnContextFactory(K key, ReduceFn<K, InputT, OutputT, W> reduceFn,
-      WindowingStrategy<?, W> windowingStrategy, StateInternals<K> stateInternals,
-      ActiveWindowSet<W> activeWindows, TimerInternals timerInternals,
-      WindowingInternals<?, ?> windowingInternals, PipelineOptions options) {
+  ReduceFnContextFactory(
+      K key,
+      ReduceFn<K, InputT, OutputT, W> reduceFn,
+      WindowingStrategy<?, W> windowingStrategy,
+      StateInternals<K> stateInternals,
+      ActiveWindowSet<W> activeWindows,
+      TimerInternals timerInternals,
+      SideInputAccess sideInputAccess,
+      PipelineOptions options) {
     this.key = key;
     this.reduceFn = reduceFn;
     this.windowingStrategy = windowingStrategy;
     this.stateInternals = stateInternals;
     this.activeWindows = activeWindows;
     this.timerInternals = timerInternals;
-    this.windowingInternals = windowingInternals;
+    this.sideInputAccess = sideInputAccess;
     this.options = options;
   }
 
@@ -90,7 +96,7 @@ class ReduceFnContextFactory<K, InputT, OutputT, W extends BoundedWindow> {
   private StateAccessorImpl<K, W> stateAccessor(W window, StateStyle style) {
     return new StateAccessorImpl<K, W>(
         activeWindows, windowingStrategy.getWindowFn().windowCoder(),
-        stateInternals, StateContexts.createFromComponents(options, windowingInternals, window),
+        stateInternals, stateContextFromComponents(options, sideInputAccess, window),
         style);
   }
 
@@ -217,7 +223,7 @@ class ReduceFnContextFactory<K, InputT, OutputT, W extends BoundedWindow> {
         StateInternals<K> stateInternals, StateStyle style, Collection<W> activeToBeMerged,
         W mergeResult) {
       super(activeWindows, windowCoder, stateInternals,
-          StateContexts.windowOnly(mergeResult), style);
+          stateContextForWindowOnly(mergeResult), style);
       this.activeToBeMerged = activeToBeMerged;
     }
 
@@ -262,7 +268,7 @@ class ReduceFnContextFactory<K, InputT, OutputT, W extends BoundedWindow> {
     public PremergingStateAccessorImpl(ActiveWindowSet<W> activeWindows, Coder<W> windowCoder,
         StateInternals<K> stateInternals, W window) {
       super(activeWindows, windowCoder, stateInternals,
-          StateContexts.windowOnly(window), StateStyle.RENAMED);
+          stateContextForWindowOnly(window), StateStyle.RENAMED);
     }
 
     Collection<W> mergingWindows() {
@@ -495,5 +501,52 @@ class ReduceFnContextFactory<K, InputT, OutputT, W extends BoundedWindow> {
     public Timers timers() {
       return timers;
     }
+  }
+
+  private static <W extends BoundedWindow> StateContext<W> stateContextFromComponents(
+      @Nullable final PipelineOptions options,
+      final SideInputAccess sideInputAccess,
+      final W window) {
+    if (options == null) {
+      return StateContexts.nullContext();
+    } else {
+      return new StateContext<W>() {
+
+        @Override
+        public PipelineOptions getPipelineOptions() {
+          return options;
+        }
+
+        @Override
+        public <T> T sideInput(PCollectionView<T> view) {
+          return sideInputAccess.sideInput(view, window);
+        }
+
+        @Override
+        public W window() {
+          return window;
+        }
+      };
+    }
+  }
+
+  /** Returns a {@link StateContext} that only contains the state window. */
+  private static <W extends BoundedWindow> StateContext<W> stateContextForWindowOnly(
+      final W window) {
+    return new StateContext<W>() {
+      @Override
+      public PipelineOptions getPipelineOptions() {
+        throw new IllegalArgumentException(
+            "cannot call getPipelineOptions() in a window only context");
+      }
+      @Override
+      public <T> T sideInput(PCollectionView<T> view) {
+        throw new IllegalArgumentException("cannot call sideInput() in a window only context");
+      }
+      @Override
+      public W window() {
+        return window;
+      }
+    };
   }
 }
