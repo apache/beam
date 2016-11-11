@@ -219,6 +219,9 @@ public class FlinkStreamingTransformTranslators {
         FlinkStreamingTranslationContext context) {
       PCollection<T> output = context.getOutput(transform);
 
+      TypeInformation<WindowedValue<T>> outputTypeInfo =
+          context.getTypeInfo(context.getOutput(transform));
+
       DataStream<WindowedValue<T>> source;
       if (transform.getSource().getClass().equals(UnboundedFlinkSource.class)) {
         @SuppressWarnings("unchecked")
@@ -246,7 +249,7 @@ public class FlinkStreamingTransformTranslators {
                         new Instant(flinkAssigner.extractTimestamp(s, -1)),
                         GlobalWindow.INSTANCE,
                         PaneInfo.NO_FIRING));
-              }});
+              }}).returns(outputTypeInfo);
       } else {
         try {
           UnboundedSourceWrapper<T, ?> sourceWrapper =
@@ -256,7 +259,7 @@ public class FlinkStreamingTransformTranslators {
                   context.getExecutionEnvironment().getParallelism());
           source = context
               .getExecutionEnvironment()
-              .addSource(sourceWrapper).name(transform.getName());
+              .addSource(sourceWrapper).name(transform.getName()).returns(outputTypeInfo);
         } catch (Exception e) {
           throw new RuntimeException(
               "Error while translating UnboundedSource: " + transform.getSource(), e);
@@ -276,6 +279,10 @@ public class FlinkStreamingTransformTranslators {
         FlinkStreamingTranslationContext context) {
       PCollection<T> output = context.getOutput(transform);
 
+      TypeInformation<WindowedValue<T>> outputTypeInfo =
+          context.getTypeInfo(context.getOutput(transform));
+
+
       DataStream<WindowedValue<T>> source;
       try {
         BoundedSourceWrapper<T> sourceWrapper =
@@ -285,7 +292,7 @@ public class FlinkStreamingTransformTranslators {
                 context.getExecutionEnvironment().getParallelism());
         source = context
             .getExecutionEnvironment()
-            .addSource(sourceWrapper).name(transform.getName());
+            .addSource(sourceWrapper).name(transform.getName()).returns(outputTypeInfo);
       } catch (Exception e) {
         throw new RuntimeException(
             "Error while translating BoundedSource: " + transform.getSource(), e);
