@@ -185,6 +185,12 @@ class TestBigQuerySource(unittest.TestCase):
     source = beam.io.BigQuerySource(query='my_query')
     self.assertEqual(source.query, 'my_query')
     self.assertIsNone(source.table_reference)
+    self.assertTrue(source.use_legacy_sql)
+
+  def test_specify_query_sql_format(self):
+    source = beam.io.BigQuerySource(query='my_query', use_legacy_sql=False)
+    self.assertEqual(source.query, 'my_query')
+    self.assertFalse(source.use_legacy_sql)
 
 
 class TestBigQuerySink(unittest.TestCase):
