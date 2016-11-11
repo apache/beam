@@ -338,6 +338,7 @@ class _ParDoEvaluator(_TransformEvaluator):
 
     self._counter_factory = counters.CounterFactory()
 
+    # TODO(aaltay): Consider storing the serialized form as an optimization.
     dofn = pickler.loads(pickler.dumps(transform.dofn))
 
     pipeline_options = self._evaluation_context.pipeline_options
@@ -504,6 +505,7 @@ class _NativeWriteEvaluator(_TransformEvaluator):
         side_inputs)
 
     assert applied_ptransform.transform.sink
+    # TODO(aaltay): Consider storing the serialized form as an optimization.
     self._sink = pickler.loads(pickler.dumps(applied_ptransform.transform.sink))
 
   @property
