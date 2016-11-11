@@ -8,6 +8,7 @@ import cz.seznam.euphoria.core.client.io.ListDataSource;
 import cz.seznam.euphoria.core.client.operator.Distinct;
 import cz.seznam.euphoria.core.client.util.Pair;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
@@ -111,7 +112,7 @@ public class DistinctTest extends OperatorTest {
    */
   TestCase testSimpleDuplicatesWithSinglePartitionStreamTwoPartitions() {
 
-    return new AbstractTestCase<Integer, Integer>() {
+    return new AbstractTestCase<Pair<Integer, Long>, Integer>() {
 
       @Override
       public int getNumOutputPartitions() {
@@ -122,29 +123,41 @@ public class DistinctTest extends OperatorTest {
       public void validate(List<List<Integer>> partitions) {
         assertEquals(2, partitions.size());
         List<Integer> first = partitions.get(0);
-        assertUnorderedEquals(Arrays.asList(2), first);
+        assertUnorderedEquals("Array should be equals to [2], got " + first,
+            Arrays.asList(2), first);
         List<Integer> second = partitions.get(1);
-        assertUnorderedEquals(Arrays.asList(1, 3), second);
+        assertUnorderedEquals("Array should be equals to [1, 3], got " + second,
+            Arrays.asList(1, 3), second);
       }
 
       @Override
-      protected Dataset<Integer> getOutput(Dataset<Integer> input) {
+      protected Dataset<Integer> getOutput(Dataset<Pair<Integer, Long>> input) {
         return Distinct.of(input)
-            .mapped(e -> e)
+            .mapped(Pair::getFirst)
             .setNumPartitions(2)
             .setPartitioner(e -> e)
-            .windowBy(Time.of(Duration.ofSeconds(1)))
+            .windowBy(Time.of(Duration.ofSeconds(1)).using(Pair::getSecond))
             .output();
       }
 
       @Override
-      protected DataSource<Integer> getDataSource() {
+      protected DataSource<Pair<Integer, Long>> getDataSource() {
         return ListDataSource.unbounded(
-            Arrays.asList(1, 2, 3, 3, 2, 1),
-            Arrays.asList(1, 2, 3, 3, 2, 1));
+            asTimedList(100, 1, 2, 3, 3, 2, 1),
+            asTimedList(100, 1, 2, 3, 3, 2, 1));
       }
 
     };
 
+  }
+
+  private List<Pair<Integer, Long>> asTimedList(long step, Integer ... values) {
+    List<Pair<Integer, Long>> ret = new ArrayList<>(values.length);
+    long i = step;
+    for (Integer v : values) {
+      ret.add(Pair.of(v, i));
+      i += step;
+    }
+    return ret;
   }
 }
