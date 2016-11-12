@@ -26,6 +26,7 @@ import com.mongodb.gridfs.GridFSDBFile;
 import com.mongodb.gridfs.GridFSInputFile;
 
 import de.flapdoodle.embed.mongo.MongodExecutable;
+import de.flapdoodle.embed.mongo.MongodProcess;
 import de.flapdoodle.embed.mongo.MongodStarter;
 import de.flapdoodle.embed.mongo.config.IMongodConfig;
 import de.flapdoodle.embed.mongo.config.MongoCmdOptionsBuilder;
@@ -85,35 +86,18 @@ public class MongoDBGridFSIOTest implements Serializable {
   private static final String MONGODB_LOCATION = "target/mongodb";
   private static final String DATABASE = "gridfs";
 
+  private static final transient MongodStarter mongodStarter = MongodStarter.getDefaultInstance();
+
   private static transient MongodExecutable mongodExecutable;
+  private static transient MongodProcess mongodProcess;
 
   private static int port;
 
-  /**
-   * Looking for an available network port.
-   *
-   * @param min The min port number.
-   * @param max The max port number.
-   * @return The available port number.
-   */
-  private static int availablePort(int min, int max) {
-    for (int i = min; i <= max; i++) {
-      try {
-        ServerSocket socket = new ServerSocket(i);
-        int port = socket.getLocalPort();
-        socket.close();
-        return port;
-      } catch (Exception e) {
-        LOGGER.debug("Port {} is not available, trying next one ...", i);
-        continue; // try next port
-      }
-    }
-    throw new IllegalStateException("Can't find available network port");
-  }
-
   @BeforeClass
   public static void setup() throws Exception {
-    port = availablePort(27017, 28017);
+    try (ServerSocket serverSocket = new ServerSocket(0)) {
+      port = serverSocket.getLocalPort();
+    }
     LOGGER.info("Starting MongoDB embedded instance on {}", port);
     try {
       Files.forceDelete(new File(MONGODB_LOCATION));
@@ -133,8 +117,8 @@ public class MongoDBGridFSIOTest implements Serializable {
             .useNoJournal(true)
             .build())
         .build();
-    mongodExecutable = MongodStarter.getDefaultInstance().prepare(mongodConfig);
-    mongodExecutable.start();
+    mongodExecutable = mongodStarter.prepare(mongodConfig);
+    mongodProcess = mongodExecutable.start();
 
     LOGGER.info("Insert test data");
 
@@ -184,6 +168,7 @@ public class MongoDBGridFSIOTest implements Serializable {
   @AfterClass
   public static void stop() throws Exception {
     LOGGER.info("Stopping MongoDB instance");
+    mongodProcess.stop();
     mongodExecutable.stop();
   }
 

@@ -25,6 +25,7 @@ import com.mongodb.client.MongoCursor;
 import com.mongodb.client.MongoDatabase;
 
 import de.flapdoodle.embed.mongo.MongodExecutable;
+import de.flapdoodle.embed.mongo.MongodProcess;
 import de.flapdoodle.embed.mongo.MongodStarter;
 import de.flapdoodle.embed.mongo.config.IMongodConfig;
 import de.flapdoodle.embed.mongo.config.MongoCmdOptionsBuilder;
@@ -72,7 +73,10 @@ public class MongoDbIOTest implements Serializable {
   private static final String DATABASE = "beam";
   private static final String COLLECTION = "test";
 
+  private static final MongodStarter mongodStarter = MongodStarter.getDefaultInstance();
+
   private transient MongodExecutable mongodExecutable;
+  private transient MongodProcess mongodProcess;
 
   private static int port;
 
@@ -80,19 +84,10 @@ public class MongoDbIOTest implements Serializable {
    * Looking for an available network port.
    */
   @BeforeClass
-  public static void availablePort() {
-    for (int i = 27017; i <= 28017; i++) {
-      try {
-        ServerSocket socket = new ServerSocket(i);
-        port = socket.getLocalPort();
-        socket.close();
-        return;
-      } catch (Exception e) {
-        LOGGER.debug("Port {} is not available, trying next one ...", i);
-        continue; // try next port
-      }
+  public static void availablePort() throws Exception {
+    try (ServerSocket serverSocket = new ServerSocket(0)) {
+      port = serverSocket.getLocalPort();
     }
-    throw new IllegalStateException("Can't find available network port");
   }
 
   @Before
@@ -116,8 +111,8 @@ public class MongoDbIOTest implements Serializable {
             .useNoJournal(true)
             .build())
         .build();
-    mongodExecutable = MongodStarter.getDefaultInstance().prepare(mongodConfig);
-    mongodExecutable.start();
+    mongodExecutable = mongodStarter.prepare(mongodConfig);
+    mongodProcess = mongodExecutable.start();
 
     LOGGER.info("Insert test data");
 
@@ -141,6 +136,7 @@ public class MongoDbIOTest implements Serializable {
   @After
   public void stop() throws Exception {
     LOGGER.info("Stopping MongoDB instance");
+    mongodProcess.stop();
     mongodExecutable.stop();
   }
 
