@@ -352,6 +352,24 @@
 
       <dependency>
         <groupId>org.apache.beam</groupId>
+        <artifactId>beam-runners-spark</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.apache.beam</groupId>
+        <artifactId>beam-runners-flink_2.10</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.apache.beam</groupId>
+        <artifactId>beam-runners-apex</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.apache.beam</groupId>
         <artifactId>beam-examples-java</artifactId>
         <version>${project.version}</version>
       </dependency>
@@ -975,6 +993,7 @@
               <exclude>**/hs_err_pid*.log</exclude>
               <exclude>.github/**/*</exclude>
               <exclude>**/*.iml</exclude>
+              <exclude>**/.idea/**/*</exclude>
               <exclude>**/package-list</exclude>
               <exclude>**/user.avsc</exclude>
               <exclude>**/test/resources/**/*.txt</exclude>

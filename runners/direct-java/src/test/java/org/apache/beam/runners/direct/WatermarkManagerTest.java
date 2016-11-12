@@ -25,6 +25,7 @@ import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertThat;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import java.io.Serializable;
 import java.util.Collection;
@@ -292,6 +293,88 @@ public class WatermarkManagerTest implements Serializable {
     assertThat(
         afterConsumingAllInput.getOutputWatermark(),
         not(laterThan(BoundedWindow.TIMESTAMP_MAX_VALUE)));
+  }
+
+  /**
+   * Demonstrates that getWatermark for a transform that takes multiple inputs is held to the
+   * minimum watermark across all of its inputs.
+   */
+  @Test
+  public void getWatermarkMultiIdenticalInput() {
+    TestPipeline p = TestPipeline.create();
+    PCollection<Integer> created = p.apply(Create.of(1, 2, 3));
+    PCollection<Integer> multiConsumer =
+        PCollectionList.of(created).and(created).apply(Flatten.<Integer>pCollections());
+    AppliedPTransform<?, ?, ?> theFlatten = multiConsumer.getProducingTransformInternal();
+
+    Map<PValue, Collection<AppliedPTransform<?, ?, ?>>> valueToConsumers =
+        ImmutableMap.<PValue, Collection<AppliedPTransform<?, ?, ?>>>builder()
+            .put(created, ImmutableList.<AppliedPTransform<?, ?, ?>>of(theFlatten, theFlatten))
+            .put(multiConsumer, Collections.<AppliedPTransform<?, ?, ?>>emptyList())
+            .build();
+
+    WatermarkManager tstMgr =
+        WatermarkManager.create(
+            clock,
+            Collections.<AppliedPTransform<?, ?, ?>>singleton(
+                created.getProducingTransformInternal()),
+            valueToConsumers);
+    CommittedBundle<Void> root =
+        bundleFactory
+            .<Void>createRootBundle()
+            .add(WindowedValue.<Void>valueInGlobalWindow(null))
+            .commit(clock.now());
+    CommittedBundle<Integer> createBundle =
+        bundleFactory
+            .createBundle(created)
+            .add(WindowedValue.timestampedValueInGlobalWindow(1, new Instant(33536)))
+            .commit(clock.now());
+
+    Map<AppliedPTransform<?, ?, ?>, Collection<CommittedBundle<?>>> initialInputs =
+        ImmutableMap.<AppliedPTransform<?, ?, ?>, Collection<CommittedBundle<?>>>builder()
+            .put(
+                created.getProducingTransformInternal(),
+                Collections.<CommittedBundle<?>>singleton(root))
+            .build();
+    tstMgr.initialize(initialInputs);
+    tstMgr.updateWatermarks(
+        root,
+        TimerUpdate.empty(),
+        CommittedResult.create(
+            StepTransformResult.withoutHold(created.getProducingTransformInternal()).build(),
+            root.withElements(Collections.<WindowedValue<Void>>emptyList()),
+            Collections.singleton(createBundle),
+            EnumSet.allOf(OutputType.class)),
+        BoundedWindow.TIMESTAMP_MAX_VALUE);
+
+    tstMgr.refreshAll();
+    TransformWatermarks flattenWms = tstMgr.getWatermarks(theFlatten);
+    assertThat(flattenWms.getInputWatermark(), equalTo(new Instant(33536)));
+
+    tstMgr.updateWatermarks(
+        createBundle,
+        TimerUpdate.empty(),
+        CommittedResult.create(
+            StepTransformResult.withoutHold(theFlatten).build(),
+            createBundle.withElements(Collections.<WindowedValue<Integer>>emptyList()),
+            Collections.<CommittedBundle<?>>emptyList(),
+            EnumSet.allOf(OutputType.class)),
+        BoundedWindow.TIMESTAMP_MAX_VALUE);
+
+    tstMgr.refreshAll();
+    assertThat(flattenWms.getInputWatermark(), equalTo(new Instant(33536)));
+
+    tstMgr.updateWatermarks(
+        createBundle,
+        TimerUpdate.empty(),
+        CommittedResult.create(
+            StepTransformResult.withoutHold(theFlatten).build(),
+            createBundle.withElements(Collections.<WindowedValue<Integer>>emptyList()),
+            Collections.<CommittedBundle<?>>emptyList(),
+            EnumSet.allOf(OutputType.class)),
+        BoundedWindow.TIMESTAMP_MAX_VALUE);
+    tstMgr.refreshAll();
+    assertThat(flattenWms.getInputWatermark(), equalTo(BoundedWindow.TIMESTAMP_MAX_VALUE));
   }
 
   /**

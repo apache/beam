@@ -20,6 +20,7 @@ package org.apache.beam.runners.spark.translation.streaming;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
+import org.apache.beam.runners.spark.SparkContextOptions;
 import org.apache.beam.runners.spark.SparkPipelineOptions;
 import org.apache.beam.runners.spark.SparkRunner;
 import org.apache.beam.runners.spark.translation.SparkContextFactory;
@@ -86,7 +87,7 @@ public class SparkRunnerStreamingContextFactory implements JavaStreamingContextF
     jssc.checkpoint(checkpointDir);
 
     // register listeners.
-    for (JavaStreamingListener listener: options.getListeners()) {
+    for (JavaStreamingListener listener: options.as(SparkContextOptions.class).getListeners()) {
       LOG.info("Registered listener {}." + listener.getClass().getSimpleName());
       jssc.addStreamingListener(new JavaStreamingListenerWrapper(listener));
     }

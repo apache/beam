@@ -563,7 +563,7 @@ public class ParDo {
       return;
     }
 
-    DoFnSignature signature = DoFnSignatures.INSTANCE.getSignature((Class) fn.getClass());
+    DoFnSignature signature = DoFnSignatures.getSignature((Class) fn.getClass());
 
     TypeDescriptor<? extends BoundedWindow> actualWindowT =
         input.getWindowingStrategy().getWindowFn().getWindowTypeDescriptor();
@@ -592,7 +592,7 @@ public class ParDo {
    * correctly and that its features can be supported.
    */
   private static <InputT, OutputT> void validate(DoFn<InputT, OutputT> fn) {
-    DoFnSignature signature = DoFnSignatures.INSTANCE.getSignature((Class) fn.getClass());
+    DoFnSignature signature = DoFnSignatures.getSignature((Class) fn.getClass());
 
     // To be removed when the features are complete and runners have their own adequate
     // rejection logic
@@ -1169,7 +1169,7 @@ public class ParDo {
     if (fn == null) {
       return false;
     }
-    return DoFnSignatures.INSTANCE
+    return DoFnSignatures
         .getSignature(fn.getClass())
         .processElement()
         .isSplittable();

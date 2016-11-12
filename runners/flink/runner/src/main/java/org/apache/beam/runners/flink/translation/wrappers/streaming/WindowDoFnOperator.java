@@ -92,7 +92,7 @@ public class WindowDoFnOperator<K, InputT, OutputT>
   private transient Multiset<Long> processingTimeTimerTimestamps;
   private transient Map<Long, ScheduledFuture<?>> processingTimeTimerFutures;
 
-  private FlinkStateInternals<K> stateInternals;
+  private transient FlinkStateInternals<K> stateInternals;
 
   private final SystemReduceFn<K, InputT, ?, OutputT, BoundedWindow> systemReduceFn;
 

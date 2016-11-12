@@ -65,22 +65,21 @@ import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeParameter;
 
 /**
- * Parses a {@link DoFn} and computes its {@link DoFnSignature}. See {@link #getSignature}.
+ * Utilities for working with {@link DoFnSignature}. See {@link #getSignature}.
  */
 public class DoFnSignatures {
-  public static final DoFnSignatures INSTANCE = new DoFnSignatures();
 
-  private DoFnSignatures() {}
+  private DoFnSignatures() {};
 
-  private final Map<Class<?>, DoFnSignature> signatureCache = new LinkedHashMap<>();
+  private static final Map<Class<?>, DoFnSignature> signatureCache = new LinkedHashMap<>();
 
   /** @return the {@link DoFnSignature} for the given {@link DoFn} instance. */
-  public <FnT extends DoFn<?, ?>> DoFnSignature signatureForDoFn(FnT fn) {
+  public static <FnT extends DoFn<?, ?>> DoFnSignature signatureForDoFn(FnT fn) {
     return getSignature(fn.getClass());
   }
 
   /** @return the {@link DoFnSignature} for the given {@link DoFn} subclass. */
-  public synchronized <FnT extends DoFn<?, ?>> DoFnSignature getSignature(Class<FnT> fn) {
+  public static synchronized <FnT extends DoFn<?, ?>> DoFnSignature getSignature(Class<FnT> fn) {
     DoFnSignature signature = signatureCache.get(fn);
     if (signature == null) {
       signatureCache.put(fn, signature = parseSignature(fn));

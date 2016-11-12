@@ -85,6 +85,7 @@ public class ValueProviderTest {
     ValueProvider<String> provider = StaticValueProvider.of("foo");
     assertEquals("foo", provider.get());
     assertTrue(provider.isAccessible());
+    assertEquals("StaticValueProvider{value=foo}", provider.toString());
   }
 
   @Test
@@ -103,6 +104,9 @@ public class ValueProviderTest {
     TestOptions options = PipelineOptionsFactory.as(TestOptions.class);
     ValueProvider<String> provider = options.getFoo();
     assertEquals("foo", ((RuntimeValueProvider) provider).propertyName());
+    assertEquals(
+        "RuntimeValueProvider{propertyName=foo, default=null, value=null}",
+        provider.toString());
   }
 
   @Test
@@ -225,6 +229,9 @@ public class ValueProviderTest {
       });
     assertTrue(nvp.isAccessible());
     assertEquals("foobar", nvp.get());
+    assertEquals(
+        "NestedValueProvider{value=StaticValueProvider{value=foo}}",
+        nvp.toString());
   }
 
   @Test

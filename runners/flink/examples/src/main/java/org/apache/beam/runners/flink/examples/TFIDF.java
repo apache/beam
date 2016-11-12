@@ -129,7 +129,12 @@ public class TFIDF {
     Set<URI> uris = new HashSet<>();
     if (absoluteUri.getScheme().equals("file")) {
       File directory = new File(absoluteUri);
-      for (String entry : directory.list()) {
+      String[] directoryListing = directory.list();
+      if (directoryListing == null) {
+        throw new IOException(
+            "Directory " + absoluteUri + " is not a valid path or IO Error occurred.");
+      }
+      for (String entry : directoryListing) {
         File path = new File(directory, entry);
         uris.add(path.toURI());
       }
@@ -157,7 +162,9 @@ public class TFIDF {
       extends PTransform<PBegin, PCollection<KV<URI, String>>> {
     private static final long serialVersionUID = 0;
 
-    private Iterable<URI> uris;
+    // transient because PTransform is not really meant to be serialized.
+    // see note on PTransform
+    private final transient Iterable<URI> uris;
 
     public ReadDocuments(Iterable<URI> uris) {
       this.uris = uris;

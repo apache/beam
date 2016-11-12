@@ -272,8 +272,7 @@ public class ExampleUtils {
   }
 
   /**
-   * If {@literal DataflowRunner} or {@literal BlockingDataflowRunner} is used,
-   * waits for the pipeline to finish and cancels it (and the injector) before the program exists.
+   * Waits for the pipeline to finish and cancels it before the program exists.
    */
   public void waitToFinish(PipelineResult result) {
     pipelinesToCancel.add(result);

@@ -22,6 +22,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import com.google.common.collect.HashMultimap;
 import com.google.common.collect.SetMultimap;
 import org.apache.beam.runners.direct.DirectRunner.CommittedBundle;
+import org.apache.beam.runners.direct.DirectRunner.Enforcement;
 import org.apache.beam.runners.direct.DirectRunner.UncommittedBundle;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
@@ -71,13 +72,19 @@ class ImmutabilityCheckingBundleFactory implements BundleFactory {
 
   @Override
   public <T> UncommittedBundle<T> createBundle(PCollection<T> output) {
-    return new ImmutabilityEnforcingBundle<>(underlying.createBundle(output));
+    if (Enforcement.IMMUTABILITY.appliesTo(output.getProducingTransformInternal().getTransform())) {
+      return new ImmutabilityEnforcingBundle<>(underlying.createBundle(output));
+    }
+    return underlying.createBundle(output);
   }
 
   @Override
   public <K, T> UncommittedBundle<T> createKeyedBundle(
       StructuralKey<K> key, PCollection<T> output) {
-    return new ImmutabilityEnforcingBundle<>(underlying.createKeyedBundle(key, output));
+    if (Enforcement.IMMUTABILITY.appliesTo(output.getProducingTransformInternal().getTransform())) {
+      return new ImmutabilityEnforcingBundle<>(underlying.createKeyedBundle(key, output));
+    }
+    return underlying.createKeyedBundle(key, output);
   }
 
   private static class ImmutabilityEnforcingBundle<T> implements UncommittedBundle<T> {

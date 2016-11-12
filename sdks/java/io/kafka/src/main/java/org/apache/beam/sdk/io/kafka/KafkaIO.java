@@ -49,11 +49,12 @@ import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import javax.annotation.Nullable;
+
+import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.KvCoder;
-import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.io.Read.Unbounded;
 import org.apache.beam.sdk.io.UnboundedSource;
@@ -721,7 +722,7 @@ public class KafkaIO {
 
     @Override
     public Coder<KafkaCheckpointMark> getCheckpointMarkCoder() {
-      return SerializableCoder.of(KafkaCheckpointMark.class);
+      return AvroCoder.of(KafkaCheckpointMark.class);
     }
 
     @Override
@@ -856,10 +857,11 @@ public class KafkaIO {
         for (int i = 0; i < source.assignedPartitions.size(); i++) {
           PartitionMark ckptMark = checkpointMark.getPartitions().get(i);
           TopicPartition assigned = source.assignedPartitions.get(i);
-
-          checkState(ckptMark.getTopicPartition().equals(assigned),
-              "checkpointed partition %s and assigned partition %s don't match",
-              ckptMark.getTopicPartition(), assigned);
+          TopicPartition partition = new TopicPartition(ckptMark.getTopic(),
+                                                        ckptMark.getPartition());
+          checkState(partition.equals(assigned),
+                     "checkpointed partition %s and assigned partition %s don't match",
+                     partition, assigned);
 
           partitionStates.get(i).nextOffset = ckptMark.getNextOffset();
         }
@@ -1084,7 +1086,9 @@ public class KafkaIO {
           Lists.transform(partitionStates,
               new Function<PartitionState, PartitionMark>() {
                 public PartitionMark apply(PartitionState p) {
-                  return new PartitionMark(p.topicPartition, p.nextOffset);
+                  return new PartitionMark(p.topicPartition.topic(),
+                                           p.topicPartition.partition(),
+                                           p.nextOffset);
                 }
               }
           )));

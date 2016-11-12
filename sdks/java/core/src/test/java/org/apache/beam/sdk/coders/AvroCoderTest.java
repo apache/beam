@@ -23,6 +23,9 @@ import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
+import com.esotericsoftware.kryo.Kryo;
+import com.esotericsoftware.kryo.io.Input;
+import com.esotericsoftware.kryo.io.Output;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.ObjectInputStream;
@@ -74,6 +77,7 @@ import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+import org.objenesis.strategy.StdInstantiatorStrategy;
 
 /** Tests for {@link AvroCoder}. */
 @RunWith(JUnit4.class)
@@ -170,6 +174,50 @@ public class AvroCoderTest {
     AvroCoder<Pojo> copied = (AvroCoder<Pojo>) in.readObject();
 
     CoderProperties.coderDecodeEncodeEqual(copied, value);
+  }
+
+  /**
+   * Confirm that we can serialize and deserialize an AvroCoder object using Kryo.
+   * (BEAM-626).
+   *
+   * @throws Exception
+   */
+  @Test
+  public void testKryoSerialization() throws Exception {
+    Pojo value = new Pojo("Hello", 42);
+    AvroCoder<Pojo> coder = AvroCoder.of(Pojo.class);
+
+    //Kryo instantiation
+    Kryo kryo = new Kryo();
+    kryo.setInstantiatorStrategy(new StdInstantiatorStrategy());
+
+    //Serialization of object without any memoization
+    ByteArrayOutputStream coderWithoutMemoizationBos = new ByteArrayOutputStream();
+    try (Output output = new Output(coderWithoutMemoizationBos)) {
+      kryo.writeObject(output, coder);
+    }
+
+    // Force thread local memoization to store values.
+    CoderProperties.coderDecodeEncodeEqual(coder, value);
+
+    // Serialization of object with memoized fields
+    ByteArrayOutputStream coderWithMemoizationBos = new ByteArrayOutputStream();
+    try (Output output = new Output(coderWithMemoizationBos)) {
+      kryo.writeObject(output, coder);
+    }
+
+    // Copy empty and memoized variants of the Coder
+    ByteArrayInputStream bisWithoutMemoization =
+        new ByteArrayInputStream(coderWithoutMemoizationBos.toByteArray());
+    AvroCoder<Pojo> copiedWithoutMemoization =
+        (AvroCoder<Pojo>) kryo.readObject(new Input(bisWithoutMemoization), AvroCoder.class);
+    ByteArrayInputStream bisWithMemoization =
+        new ByteArrayInputStream(coderWithMemoizationBos.toByteArray());
+    AvroCoder<Pojo> copiedWithMemoization =
+        (AvroCoder<Pojo>) kryo.readObject(new Input(bisWithMemoization), AvroCoder.class);
+
+    CoderProperties.coderDecodeEncodeEqual(copiedWithoutMemoization, value);
+    CoderProperties.coderDecodeEncodeEqual(copiedWithMemoization, value);
   }
 
   @Test

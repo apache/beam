@@ -94,7 +94,7 @@ public class SplittableParDo<
   public SplittableParDo(DoFn<InputT, OutputT> fn) {
     checkNotNull(fn, "fn must not be null");
     this.fn = fn;
-    this.signature = DoFnSignatures.INSTANCE.getSignature(fn.getClass());
+    this.signature = DoFnSignatures.getSignature(fn.getClass());
     checkArgument(signature.processElement().isSplittable(), "fn must be a splittable DoFn");
   }
 
@@ -102,8 +102,8 @@ public class SplittableParDo<
   public PCollection<OutputT> apply(PCollection<InputT> input) {
     PCollection.IsBounded isFnBounded = signature.isBoundedPerElement();
     Coder<RestrictionT> restrictionCoder =
-        DoFnInvokers.INSTANCE
-            .newByteBuddyInvoker(fn)
+        DoFnInvokers
+            .invokerFor(fn)
             .invokeGetRestrictionCoder(input.getPipeline().getCoderRegistry());
     Coder<ElementAndRestriction<InputT, RestrictionT>> splitCoder =
         ElementAndRestrictionCoder.of(input.getCoder(), restrictionCoder);
@@ -166,7 +166,7 @@ public class SplittableParDo<
 
     @Setup
     public void setup() {
-      invoker = DoFnInvokers.INSTANCE.newByteBuddyInvoker(fn);
+      invoker = DoFnInvokers.invokerFor(fn);
     }
 
     @ProcessElement
@@ -241,13 +241,12 @@ public class SplittableParDo<
       this.windowCoder = windowCoder;
       elementTag =
           StateTags.value("element", WindowedValue.getFullCoder(elementCoder, this.windowCoder));
-      DoFnInvoker<InputT, OutputT> invoker = DoFnInvokers.INSTANCE.newByteBuddyInvoker(fn);
       restrictionTag = StateTags.value("restriction", restrictionCoder);
     }
 
     @Override
     public void setup() throws Exception {
-      invoker = DoFnInvokers.INSTANCE.newByteBuddyInvoker(fn);
+      invoker = DoFnInvokers.invokerFor(fn);
     }
 
     @Override
@@ -461,7 +460,7 @@ public class SplittableParDo<
 
     @Setup
     public void setup() {
-      invoker = DoFnInvokers.INSTANCE.newByteBuddyInvoker(splittableFn);
+      invoker = DoFnInvokers.invokerFor(splittableFn);
     }
 
     @ProcessElement

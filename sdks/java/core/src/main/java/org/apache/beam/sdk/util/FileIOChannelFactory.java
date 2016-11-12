@@ -73,7 +73,8 @@ public class FileIOChannelFactory implements IOChannelFactory {
 
     File parent = file.getAbsoluteFile().getParentFile();
     if (!parent.exists()) {
-      throw new IOException("Unable to find parent directory of " + spec);
+      throw new FileNotFoundException(
+          "Parent directory " + parent + " of " + spec + " does not exist");
     }
 
     // Method getAbsolutePath() on Windows platform may return something like

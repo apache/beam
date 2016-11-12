@@ -30,6 +30,8 @@ import com.google.bigtable.v2.Row;
 import com.google.bigtable.v2.RowRange;
 import com.google.bigtable.v2.RowSet;
 import com.google.cloud.bigtable.config.BigtableOptions;
+import com.google.cloud.bigtable.config.BigtableOptions.Builder;
+import com.google.cloud.bigtable.config.CredentialOptions;
 import com.google.cloud.bigtable.config.RetryOptions;
 import com.google.cloud.bigtable.grpc.BigtableSession;
 import com.google.cloud.bigtable.grpc.BigtableTableAdminClient;
@@ -44,6 +46,7 @@ import java.util.List;
 import java.util.Map;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.CountingInput;
+import org.apache.beam.sdk.options.GcpOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -83,14 +86,21 @@ public class BigtableWriteIT implements Serializable {
     retryOptionsBuilder.setStreamingBatchSize(
         retryOptionsBuilder.build().getStreamingBufferSize() / 2);
 
-    BigtableOptions.Builder bigtableOptionsBuilder = new BigtableOptions.Builder()
-        .setProjectId(options.getProjectId())
-        .setInstanceId(options.getInstanceId())
-        .setUserAgent("apache-beam-test")
-        .setRetryOptions(retryOptionsBuilder.build());
-    bigtableOptions = bigtableOptionsBuilder.build();
+    bigtableOptions =
+        new Builder()
+            .setProjectId(options.getProjectId())
+            .setInstanceId(options.getInstanceId())
+            .setUserAgent("apache-beam-test")
+            .setRetryOptions(retryOptionsBuilder.build())
+            .build();
 
-    session = new BigtableSession(bigtableOptions);
+    session =
+        new BigtableSession(
+            bigtableOptions
+                .toBuilder()
+                .setCredentialOptions(
+                    CredentialOptions.credential(options.as(GcpOptions.class).getGcpCredential()))
+                .build());
     tableAdminClient = session.getTableAdminClient();
   }
 
