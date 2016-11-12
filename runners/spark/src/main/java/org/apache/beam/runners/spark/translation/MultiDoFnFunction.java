@@ -103,21 +103,8 @@ public class MultiDoFnFunction<InputT, OutputT>
     }
 
     @Override
-    public synchronized <T> void sideOutput(TupleTag<T> tag, T t) {
-      sideOutputWithTimestamp(tag, t, windowedValue != null ? windowedValue.getTimestamp() : null);
-    }
-
-    @Override
-    public <T> void sideOutputWithTimestamp(TupleTag<T> tupleTag,
-                                            final T t,
-                                            final Instant timestamp) {
-      if (windowedValue == null) {
-        // this is start/finishBundle.
-        outputs.put(tupleTag, noElementWindowedValue(t, timestamp, windowFn));
-      } else {
-        outputs.put(tupleTag, WindowedValue.of(t, timestamp, windowedValue.getWindows(),
-            windowedValue.getPane()));
-      }
+    public <T> void sideOutput(TupleTag<T> tag, WindowedValue<T> output) {
+      outputs.put(tag, output);
     }
 
     @Override
