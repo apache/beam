@@ -49,49 +49,23 @@ import org.joda.time.Instant;
 /**
  * {@link OldDoFn.ProcessContext} for our Flink Wrappers.
  */
-class FlinkProcessContext<InputT, OutputT>
+abstract class FlinkProcessContextBase<InputT, OutputT>
     extends OldDoFn<InputT, OutputT>.ProcessContext {
 
   private final PipelineOptions pipelineOptions;
   private final RuntimeContext runtimeContext;
-  private Collector<WindowedValue<OutputT>> collector;
   private final boolean requiresWindowAccess;
+  protected final WindowingStrategy<?, ? extends BoundedWindow> windowingStrategy;
+  private final Map<PCollectionView<?>, WindowingStrategy<?, ?>> sideInputs;
 
   protected WindowedValue<InputT> windowedValue;
 
-  protected WindowingStrategy<?, ?> windowingStrategy;
-
-  private final Map<PCollectionView<?>, WindowingStrategy<?, ?>> sideInputs;
-
-  FlinkProcessContext(
+  FlinkProcessContextBase(
       PipelineOptions pipelineOptions,
       RuntimeContext runtimeContext,
       OldDoFn<InputT, OutputT> doFn,
-      WindowingStrategy<?, ?> windowingStrategy,
-      Collector<WindowedValue<OutputT>> collector,
-      Map<PCollectionView<?>, WindowingStrategy<?, ?>> sideInputs) {
-    doFn.super();
-    checkNotNull(pipelineOptions);
-    checkNotNull(runtimeContext);
-    checkNotNull(doFn);
-    checkNotNull(collector);
-
-    this.pipelineOptions = pipelineOptions;
-    this.runtimeContext = runtimeContext;
-    this.collector = collector;
-    this.requiresWindowAccess = doFn instanceof OldDoFn.RequiresWindowAccess;
-    this.windowingStrategy = windowingStrategy;
-    this.sideInputs = sideInputs;
-
-    super.setupDelegateAggregators();
-  }
-
-  FlinkProcessContext(
-      PipelineOptions pipelineOptions,
-      RuntimeContext runtimeContext,
-      OldDoFn<InputT, OutputT> doFn,
-      WindowingStrategy<?, ?> windowingStrategy,
-      Map<PCollectionView<?>, WindowingStrategy<?, ?>> sideInputs) {
+      WindowingStrategy<?, ? extends BoundedWindow> windowingStrategy,
+      Map<PCollectionView<?>, WindowingStrategy<?, ? extends BoundedWindow>> sideInputs) {
     doFn.super();
     checkNotNull(pipelineOptions);
     checkNotNull(runtimeContext);
@@ -99,7 +73,6 @@ class FlinkProcessContext<InputT, OutputT>
 
     this.pipelineOptions = pipelineOptions;
     this.runtimeContext = runtimeContext;
-    this.collector = null;
     this.requiresWindowAccess = doFn instanceof OldDoFn.RequiresWindowAccess;
     this.windowingStrategy = windowingStrategy;
     this.sideInputs = sideInputs;
@@ -107,22 +80,8 @@ class FlinkProcessContext<InputT, OutputT>
     super.setupDelegateAggregators();
   }
 
-  public FlinkProcessContext<InputT, OutputT> forOutput(
-      Collector<WindowedValue<OutputT>> collector) {
-    this.collector = collector;
-
-    // for now, returns ourselves, to be easy on the GC
-    return this;
-  }
-
-
-
-  public FlinkProcessContext<InputT, OutputT> forWindowedValue(
-      WindowedValue<InputT> windowedValue) {
+  public void setWindowedValue(WindowedValue<InputT> windowedValue) {
     this.windowedValue = windowedValue;
-
-    // for now, returns ourselves, to be easy on the GC
-    return this;
   }
 
   @Override
@@ -166,9 +125,6 @@ class FlinkProcessContext<InputT, OutputT>
           Instant timestamp,
           Collection<? extends BoundedWindow> windows,
           PaneInfo pane) {
-        // TODO: Refactor this (get rid of duplication, move things around w.r.t.
-        // FlinkMultiOutputProcessContext)
-        collector.collect(WindowedValue.of(value, timestamp, windows, pane));
         outputWithTimestampAndWindow(value, timestamp, windows, pane);
       }
 
@@ -179,7 +135,6 @@ class FlinkProcessContext<InputT, OutputT>
           Instant timestamp,
           Collection<? extends BoundedWindow> windows,
           PaneInfo pane) {
-        // TODO: Implement this
         throw new UnsupportedOperationException();
       }
 
@@ -276,7 +231,7 @@ class FlinkProcessContext<InputT, OutputT>
   }
 
   @Override
-  public void outputWithTimestamp(OutputT value, Instant timestamp) {
+  public final void outputWithTimestamp(OutputT value, Instant timestamp) {
     if (windowedValue == null) {
       // we are in startBundle() or finishBundle()
 
@@ -287,44 +242,31 @@ class FlinkProcessContext<InputT, OutputT>
                 value,
                 timestamp));
 
-        collector.collect(
-            WindowedValue.of(
-                value,
-                timestamp != null ? timestamp : new Instant(Long.MIN_VALUE),
-                windows,
-                PaneInfo.NO_FIRING));
+        outputWithTimestampAndWindow(
+            value,
+            timestamp != null ? timestamp : new Instant(Long.MIN_VALUE),
+            windows,
+            PaneInfo.NO_FIRING);
       } catch (Exception e) {
         throw new RuntimeException(e);
       }
     } else {
-      collector.collect(
-          WindowedValue.of(
-              value,
-              timestamp,
-              windowedValue.getWindows(),
-              windowedValue.getPane()));
+      outputWithTimestampAndWindow(
+          value, timestamp, windowedValue.getWindows(), windowedValue.getPane());
     }
   }
 
-  protected void outputWithTimestampAndWindow(
+  protected abstract void outputWithTimestampAndWindow(
       OutputT value,
       Instant timestamp,
       Collection<? extends BoundedWindow> windows,
-      PaneInfo pane) {
-    collector.collect(
-        WindowedValue.of(
-            value, timestamp, windows, pane));
-  }
+      PaneInfo pane);
 
   @Override
-  public <T> void sideOutput(TupleTag<T> tag, T output) {
-    throw new UnsupportedOperationException();
-  }
+  public abstract <T> void sideOutput(TupleTag<T> tag, T output);
 
   @Override
-  public <T> void sideOutputWithTimestamp(TupleTag<T> tag, T output, Instant timestamp) {
-    sideOutput(tag, output);
-  }
+  public abstract <T> void sideOutputWithTimestamp(TupleTag<T> tag, T output, Instant timestamp);
 
   @Override
   protected <AggInputT, AggOutputT> Aggregator<AggInputT, AggOutputT>

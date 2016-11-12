@@ -32,27 +32,21 @@ import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.util.Collector;
 import org.joda.time.Instant;
 
-/**
- * {@link OldDoFn.ProcessContext} for {@link FlinkMultiOutputDoFnFunction} that supports side
- * outputs.
- */
-class FlinkMultiOutputProcessContext<InputT, OutputT>
+/** {@link OldDoFn.ProcessContext} for {@link FlinkDoFnFunction} with a single main output. */
+class FlinkSingleOutputProcessContext<InputT, OutputT>
     extends FlinkProcessContextBase<InputT, OutputT> {
 
-  private final Collector<WindowedValue<RawUnionValue>> collector;
-  private final Map<TupleTag<?>, Integer> outputMap;
+  private final Collector<WindowedValue<OutputT>> collector;
 
-  FlinkMultiOutputProcessContext(
+  FlinkSingleOutputProcessContext(
       PipelineOptions pipelineOptions,
       RuntimeContext runtimeContext,
       OldDoFn<InputT, OutputT> doFn,
       WindowingStrategy<?, ?> windowingStrategy,
       Map<PCollectionView<?>, WindowingStrategy<?, ?>> sideInputs,
-      Collector<WindowedValue<RawUnionValue>> collector,
-      Map<TupleTag<?>, Integer> outputMap) {
+      Collector<WindowedValue<OutputT>> collector) {
     super(pipelineOptions, runtimeContext, doFn, windowingStrategy, sideInputs);
     this.collector = collector;
-    this.outputMap = outputMap;
   }
 
   @Override
@@ -61,58 +55,16 @@ class FlinkMultiOutputProcessContext<InputT, OutputT>
       Instant timestamp,
       Collection<? extends BoundedWindow> windows,
       PaneInfo pane) {
-    collector.collect(WindowedValue.of(new RawUnionValue(0, value), timestamp, windows, pane));
+    collector.collect(WindowedValue.of(value, timestamp, windows, pane));
   }
 
   @Override
-  @SuppressWarnings("unchecked")
   public <T> void sideOutput(TupleTag<T> tag, T value) {
-    if (windowedValue != null) {
-      sideOutputWithTimestamp(tag, value, windowedValue.getTimestamp());
-    } else {
-      sideOutputWithTimestamp(tag, value, null);
-    }
+    throw new UnsupportedOperationException();
   }
 
   @Override
   public <T> void sideOutputWithTimestamp(TupleTag<T> tag, T value, Instant timestamp) {
-    Integer index = outputMap.get(tag);
-
-    if (index == null) {
-      throw new IllegalArgumentException("Unknown side output tag: " + tag);
-    }
-
-    outputUnionValue(value, timestamp, new RawUnionValue(index, value));
-  }
-
-  private <T> void outputUnionValue(T value, Instant timestamp, RawUnionValue unionValue) {
-    if (windowedValue == null) {
-      // we are in startBundle() or finishBundle()
-
-      try {
-        Collection<? extends BoundedWindow> windows =
-            windowingStrategy
-                .getWindowFn()
-                .assignWindows(
-                    new FlinkNoElementAssignContext(
-                        windowingStrategy.getWindowFn(), value, timestamp));
-
-        collector.collect(
-            WindowedValue.of(
-                unionValue,
-                timestamp != null ? timestamp : new Instant(Long.MIN_VALUE),
-                windows,
-                PaneInfo.NO_FIRING));
-      } catch (Exception e) {
-        throw new RuntimeException(e);
-      }
-    } else {
-      collector.collect(
-          WindowedValue.of(
-              unionValue,
-              windowedValue.getTimestamp(),
-              windowedValue.getWindows(),
-              windowedValue.getPane()));
-    }
+    throw new UnsupportedOperationException();
   }
 }
