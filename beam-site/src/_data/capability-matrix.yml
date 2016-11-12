@@ -8,7 +8,7 @@ columns:
   - class: spark
     name: Apache Spark
   - class: apex
-    name: Apache Apex (on feature branch)
+    name: Apache Apex
 
 categories:
   - description: What is being computed?
