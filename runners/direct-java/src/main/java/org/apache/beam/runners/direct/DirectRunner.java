@@ -29,8 +29,6 @@ import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.core.GBKIntoKeyedWorkItems;
 import org.apache.beam.runners.direct.DirectGroupByKey.DirectGroupByKeyOnly;
@@ -258,7 +256,6 @@ public class DirectRunner
   ////////////////////////////////////////////////////////////////////////////////////////////////
   private final DirectOptions options;
   private final Set<Enforcement> enabledEnforcements;
-  private Supplier<ExecutorService> executorServiceSupplier;
   private Supplier<Clock> clockSupplier = new NanosOffsetClockSupplier();
 
   public static DirectRunner fromOptions(PipelineOptions options) {
@@ -268,7 +265,6 @@ public class DirectRunner
   private DirectRunner(DirectOptions options) {
     this.options = options;
     this.enabledEnforcements = Enforcement.enabled(options);
-    this.executorServiceSupplier = new FixedThreadPoolSupplier(options);
   }
 
   /**
@@ -326,14 +322,11 @@ public class DirectRunner
             consumerTrackingVisitor.getStepNames(),
             consumerTrackingVisitor.getViews());
 
-    // independent executor service for each run
-    ExecutorService executorService = executorServiceSupplier.get();
-
     RootInputProvider rootInputProvider = RootProviderRegistry.defaultRegistry(context);
     TransformEvaluatorRegistry registry = TransformEvaluatorRegistry.defaultRegistry(context);
     PipelineExecutor executor =
         ExecutorServiceParallelExecutor.create(
-            executorService,
+            options.getTargetParallelism(),
             consumerTrackingVisitor.getValueToConsumers(),
             keyedPValueVisitor.getKeyedPValues(),
             rootInputProvider,
@@ -468,24 +461,6 @@ public class DirectRunner
               + " BEAM-596.");
     }
   }
-
-  /**
-   * A {@link Supplier} that creates a {@link ExecutorService} based on
-   * {@link Executors#newFixedThreadPool(int)}.
-   */
-  private static class FixedThreadPoolSupplier implements Supplier<ExecutorService> {
-    private final DirectOptions options;
-
-    private FixedThreadPoolSupplier(DirectOptions options) {
-      this.options = options;
-    }
-
-    @Override
-    public ExecutorService get() {
-      return Executors.newFixedThreadPool(options.getTargetParallelism());
-    }
-  }
-
 
   /**
    * A {@link Supplier} that creates a {@link NanosOffsetClock}.
