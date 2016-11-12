@@ -25,6 +25,7 @@ import com.mongodb.client.MongoCursor;
 import com.mongodb.client.MongoDatabase;
 
 import de.flapdoodle.embed.mongo.MongodExecutable;
+import de.flapdoodle.embed.mongo.MongodProcess;
 import de.flapdoodle.embed.mongo.MongodStarter;
 import de.flapdoodle.embed.mongo.config.IMongodConfig;
 import de.flapdoodle.embed.mongo.config.MongoCmdOptionsBuilder;
@@ -37,6 +38,7 @@ import de.flapdoodle.embed.process.runtime.Network;
 
 import java.io.File;
 import java.io.Serializable;
+import java.net.ServerSocket;
 import java.util.ArrayList;
 
 import org.apache.beam.sdk.testing.NeedsRunner;
@@ -54,6 +56,7 @@ import org.bson.Document;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
+import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.slf4j.Logger;
@@ -67,15 +70,29 @@ public class MongoDbIOTest implements Serializable {
   private static final Logger LOGGER = LoggerFactory.getLogger(MongoDbIOTest.class);
 
   private static final String MONGODB_LOCATION = "target/mongodb";
-  private static final int PORT = 27017;
   private static final String DATABASE = "beam";
   private static final String COLLECTION = "test";
 
+  private static final MongodStarter mongodStarter = MongodStarter.getDefaultInstance();
+
   private transient MongodExecutable mongodExecutable;
+  private transient MongodProcess mongodProcess;
+
+  private static int port;
+
+  /**
+   * Looking for an available network port.
+   */
+  @BeforeClass
+  public static void availablePort() throws Exception {
+    try (ServerSocket serverSocket = new ServerSocket(0)) {
+      port = serverSocket.getLocalPort();
+    }
+  }
 
   @Before
   public void setup() throws Exception {
-    LOGGER.info("Starting MongoDB embedded instance");
+    LOGGER.info("Starting MongoDB embedded instance on {}", port);
     try {
       Files.forceDelete(new File(MONGODB_LOCATION));
     } catch (Exception e) {
@@ -86,7 +103,7 @@ public class MongoDbIOTest implements Serializable {
         .version(Version.Main.PRODUCTION)
         .configServer(false)
         .replication(new Storage(MONGODB_LOCATION, null, 0))
-        .net(new Net("localhost", PORT, Network.localhostIsIPv6()))
+        .net(new Net("localhost", port, Network.localhostIsIPv6()))
         .cmdOptions(new MongoCmdOptionsBuilder()
             .syncDelay(10)
             .useNoPrealloc(true)
@@ -94,12 +111,12 @@ public class MongoDbIOTest implements Serializable {
             .useNoJournal(true)
             .build())
         .build();
-    mongodExecutable = MongodStarter.getDefaultInstance().prepare(mongodConfig);
-    mongodExecutable.start();
+    mongodExecutable = mongodStarter.prepare(mongodConfig);
+    mongodProcess = mongodExecutable.start();
 
     LOGGER.info("Insert test data");
 
-    MongoClient client = new MongoClient("localhost", PORT);
+    MongoClient client = new MongoClient("localhost", port);
     MongoDatabase database = client.getDatabase(DATABASE);
 
     MongoCollection collection = database.getCollection(COLLECTION);
@@ -119,6 +136,7 @@ public class MongoDbIOTest implements Serializable {
   @After
   public void stop() throws Exception {
     LOGGER.info("Stopping MongoDB instance");
+    mongodProcess.stop();
     mongodExecutable.stop();
   }
 
@@ -129,7 +147,7 @@ public class MongoDbIOTest implements Serializable {
 
     PCollection<Document> output = pipeline.apply(
         MongoDbIO.read()
-          .withUri("mongodb://localhost:" + PORT)
+          .withUri("mongodb://localhost:" + port)
           .withDatabase(DATABASE)
           .withCollection(COLLECTION));
 
@@ -163,7 +181,7 @@ public class MongoDbIOTest implements Serializable {
 
     PCollection<Document> output = pipeline.apply(
         MongoDbIO.read()
-        .withUri("mongodb://localhost:" + PORT)
+        .withUri("mongodb://localhost:" + port)
         .withDatabase(DATABASE)
         .withCollection(COLLECTION)
         .withFilter("{\"scientist\":\"Einstein\"}"));
@@ -184,12 +202,12 @@ public class MongoDbIOTest implements Serializable {
       data.add(Document.parse(String.format("{\"scientist\":\"Test %s\"}", i)));
     }
     pipeline.apply(Create.of(data))
-        .apply(MongoDbIO.write().withUri("mongodb://localhost:" + PORT).withDatabase("test")
+        .apply(MongoDbIO.write().withUri("mongodb://localhost:" + port).withDatabase("test")
             .withCollection("test"));
 
     pipeline.run();
 
-    MongoClient client = new MongoClient("localhost", PORT);
+    MongoClient client = new MongoClient("localhost", port);
     MongoDatabase database = client.getDatabase("test");
     MongoCollection collection = database.getCollection("test");
 

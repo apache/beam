@@ -216,7 +216,7 @@ public class MongoDbIO {
 
     @Override
     public long getEstimatedSizeBytes(PipelineOptions pipelineOptions) {
-      MongoClient mongoClient = new MongoClient();
+      MongoClient mongoClient = new MongoClient(new MongoClientURI(spec.uri()));
       MongoDatabase mongoDatabase = mongoClient.getDatabase(spec.database());
 
       // get the Mongo collStats object
@@ -230,7 +230,7 @@ public class MongoDbIO {
     @Override
     public List<BoundedSource<Document>> splitIntoBundles(long desiredBundleSizeBytes,
                                                 PipelineOptions options) {
-      MongoClient mongoClient = new MongoClient();
+      MongoClient mongoClient = new MongoClient(new MongoClientURI(spec.uri()));
       MongoDatabase mongoDatabase = mongoClient.getDatabase(spec.database());
 
       List<Document> splitKeys;
