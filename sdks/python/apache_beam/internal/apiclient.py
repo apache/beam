@@ -210,6 +210,15 @@ class Environment(object):
         pool.teardownPolicy = (
             dataflow.WorkerPool
             .TeardownPolicyValueValuesEnum.TEARDOWN_ON_SUCCESS)
+    if self.worker_options.use_public_ips is not None:
+      if self.worker_options.use_public_ips:
+        pool.ipConfiguration = (
+            dataflow.WorkerPool
+            .IpConfigurationValueValuesEnum.WORKER_IP_PUBLIC)
+      else:
+        pool.ipConfiguration = (
+            dataflow.WorkerPool
+            .IpConfigurationValueValuesEnum.WORKER_IP_PRIVATE)
 
     if self.standard_options.streaming:
       # Use separate data disk for streaming.
