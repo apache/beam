@@ -56,7 +56,7 @@ For a detailed introduction to the Beam concepts used in these examples, see the
 
 ## Run WordCount
 
-A single Beam pipeline can run on multiple Beam [runners]({{ site.baseurl }}/documentation#runners), including the [SparkRunner]({{ site.baseurl }}/documentation/runners/spark), [FlinkRunner]({{ site.baseurl }}/documentation/runners/flink), or [DataflowRunner]({{ site.baseurl }}/documentation/runners/dataflow). The [DirectRunner]({{ site.baseurl }}/documentation/runners/direct) is a common runner for getting started, as it runs locally on your machine and requires no specific setup.
+A single Beam pipeline can run on multiple Beam [runners]({{ site.baseurl }}/documentation#runners), including the [ApexRunner]({{ site.baseurl }}/documentation/runners/apex), [FlinkRunner]({{ site.baseurl }}/documentation/runners/flink), [SparkRunner]({{ site.baseurl }}/documentation/runners/spark) or [DataflowRunner]({{ site.baseurl }}/documentation/runners/dataflow). The [DirectRunner]({{ site.baseurl }}/documentation/runners/direct) is a common runner for getting started, as it runs locally on your machine and requires no specific setup.
 
 After you've chosen which runner you'd like to use:
 
@@ -71,6 +71,12 @@ After you've chosen which runner you'd like to use:
 ```
 $ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
      -Dexec.args="--inputFile=pom.xml --output=counts"
+```
+
+{:.runner-apex}
+``` 
+$ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
+     -Dexec.args="--inputFile=pom.xml --output=counts --runner=ApexRunner" -Papex-runner
 ```
 
 {:.runner-flink}
@@ -96,6 +102,11 @@ $ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
 Once the pipeline has completed, you can view the output. You'll notice that there may be multiple output files prefixed by `count`. The exact number of these files is decided by the runner, giving it the flexibility to do efficient, distributed execution.
 
 {:.runner-direct}
+```
+$ ls counts*
+```
+
+{:.runner-apex}
 ```
 $ ls counts*
 ```
@@ -128,6 +139,17 @@ Apache: 2
 The: 1
 limitations: 1
 Foundation: 1
+...
+```
+
+{:.runner-apex}
+```
+$ cat counts*
+BEAM: 1
+have: 1
+simple: 1
+skip: 4
+PAssert: 1
 ...
 ```
 
