@@ -29,6 +29,7 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Ordering;
 import com.google.common.collect.SortedMultiset;
 import com.google.common.collect.TreeMultiset;
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -1433,7 +1434,8 @@ public class WatermarkManager {
     }
   }
 
-  private static class BundleByElementTimestampComparator extends Ordering<CommittedBundle<?>> {
+  private static class BundleByElementTimestampComparator extends Ordering<CommittedBundle<?>>
+      implements Serializable {
     @Override
     public int compare(CommittedBundle<?> o1, CommittedBundle<?> o2) {
       return ComparisonChain.start()
