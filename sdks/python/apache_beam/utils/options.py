@@ -348,6 +348,10 @@ class WorkerOptions(PipelineOptions):
         help=
         ('The teardown policy for the VMs. By default this is left unset and '
          'the service sets the default policy.'))
+    parser.add_argument(
+        '--use_public_ips',
+        default=None,
+        help='Whether to assign public IP addresses to the worker machines.')
 
   def validate(self, validator):
     errors = []
