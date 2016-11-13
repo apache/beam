@@ -22,6 +22,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 
 import org.apache.beam.runners.spark.SparkPipelineOptions;
 import org.apache.beam.runners.spark.SparkRunner;
+import org.apache.beam.runners.spark.translation.EvaluationContext;
 import org.apache.beam.runners.spark.translation.SparkContextFactory;
 import org.apache.beam.runners.spark.translation.SparkPipelineTranslator;
 import org.apache.beam.runners.spark.translation.TransformTranslator;
@@ -53,7 +54,7 @@ public class SparkRunnerStreamingContextFactory implements JavaStreamingContextF
     this.options = options;
   }
 
-  private StreamingEvaluationContext ctxt;
+  private EvaluationContext ctxt;
 
   @Override
   public JavaStreamingContext create() {
@@ -71,7 +72,7 @@ public class SparkRunnerStreamingContextFactory implements JavaStreamingContextF
 
     JavaSparkContext jsc = SparkContextFactory.getSparkContext(options);
     JavaStreamingContext jssc = new JavaStreamingContext(jsc, batchDuration);
-    ctxt = new StreamingEvaluationContext(jsc, pipeline, jssc,
+    ctxt = new EvaluationContext(jsc, pipeline, jssc,
         options.getTimeout());
     pipeline.traverseTopologically(new SparkRunner.Evaluator(translator, ctxt));
     ctxt.computeOutputs();
@@ -94,7 +95,7 @@ public class SparkRunnerStreamingContextFactory implements JavaStreamingContextF
     return jssc;
   }
 
-  public StreamingEvaluationContext getCtxt() {
+  public EvaluationContext getCtxt() {
     return ctxt;
   }
 }
