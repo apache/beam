@@ -113,7 +113,7 @@ final class StreamingTransformTranslator {
       public void evaluate(CreateStream.QueuedValues<T> transform, EvaluationContext context) {
         Iterable<Iterable<T>> values = transform.getQueuedValues();
         Coder<T> coder = context.getOutput(transform).getCoder();
-        context.setUnboundedDatasetFromQueue(transform, values, coder);
+        context.putUnboundedDatasetFromQueue(transform, values, coder);
       }
     };
   }

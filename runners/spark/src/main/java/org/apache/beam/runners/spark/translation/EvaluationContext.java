@@ -71,6 +71,7 @@ public class EvaluationContext implements EvaluationResult {
     this.jsc = jsc;
     this.pipeline = pipeline;
     this.runtime = new SparkRuntimeContext(pipeline, jsc);
+    // A batch pipeline is blocking by nature
     this.state = State.DONE;
   }
 
@@ -137,11 +138,12 @@ public class EvaluationContext implements EvaluationResult {
     datasets.put((PValue) getOutput(transform), new BoundedDataset<>(values, jsc, coder));
   }
 
-  public <T> void setUnboundedDatasetFromQueue(
+  public <T> void putUnboundedDatasetFromQueue(
       PTransform<?, ?> transform, Iterable<Iterable<T>> values, Coder<T> coder) {
     datasets.put((PValue) getOutput(transform), new UnboundedDataset<>(values, jssc, coder));
   }
-  void setPView(PValue view, Iterable<? extends WindowedValue<?>> value) {
+
+  void putPView(PValue view, Iterable<? extends WindowedValue<?>> value) {
     pview.put(view, value);
   }
 
@@ -259,8 +261,8 @@ public class EvaluationContext implements EvaluationResult {
   public State waitUntilFinish(Duration duration) {
     if (isStreamingPipeline()) {
       throw new UnsupportedOperationException(
-          "Spark runner EvaluationContext does not support waitUntilFinish for streaming " +
-              "pipelines.");
+          "Spark runner EvaluationContext does not support waitUntilFinish for streaming "
+              + "pipelines.");
     } else {
       // This is no-op, since Spark runner in batch is blocking.
       // It needs to be updated once SparkRunner supports non-blocking execution:

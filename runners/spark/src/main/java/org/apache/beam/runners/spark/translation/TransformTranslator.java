@@ -531,7 +531,7 @@ public final class TransformTranslator {
       public void evaluate(View.AsSingleton<T> transform, EvaluationContext context) {
         Iterable<? extends WindowedValue<?>> iter =
             context.getWindowedValues(context.getInput(transform));
-        context.setPView(context.getOutput(transform), iter);
+        context.putPView(context.getOutput(transform), iter);
       }
     };
   }
@@ -542,7 +542,7 @@ public final class TransformTranslator {
       public void evaluate(View.AsIterable<T> transform, EvaluationContext context) {
         Iterable<? extends WindowedValue<?>> iter =
             context.getWindowedValues(context.getInput(transform));
-        context.setPView(context.getOutput(transform), iter);
+        context.putPView(context.getOutput(transform), iter);
       }
     };
   }
@@ -555,7 +555,7 @@ public final class TransformTranslator {
                            EvaluationContext context) {
         Iterable<? extends WindowedValue<?>> iter =
             context.getWindowedValues(context.getInput(transform));
-        context.setPView(context.getOutput(transform), iter);
+        context.putPView(context.getOutput(transform), iter);
       }
     };
   }
