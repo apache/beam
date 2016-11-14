@@ -469,38 +469,57 @@ class ChannelFactory(object):
     return isinstance(fileobj, _CompressedFile)
 
   @staticmethod
-  def rename(src, dst):
+  def rename(src, dest):
     if src.startswith('gs://'):
-      assert dst.startswith('gs://'), dst
-      gcsio.GcsIO().rename(src, dst)
+      if not dest.startswith('gs://'):
+        raise ValueError('Destination %r must be GCS path.', dest)
+      gcsio.GcsIO().rename(src, dest)
     else:
       try:
-        os.rename(src, dst)
+        os.rename(src, dest)
       except OSError as err:
         raise IOError(err)
 
   @staticmethod
   def rename_batch(src_dest_pairs):
-    # Prepare batches and directly execute local renames.
-    gcs_batches = []
-    gcs_current_batch = []
-    exceptions = []
+    # Filter out local and GCS operations.
+    local_src_dest_pairs = []
+    gcs_src_dest_pairs = []
     for src, dest in src_dest_pairs:
       if src.startswith('gs://'):
-        assert dest.startswith('gs://'), dest
-        gcs_current_batch.append((src, dest))
-        if len(gcs_current_batch) == gcsio.MAX_BATCH_OPERATION_SIZE:
-          gcs_batches.append(gcs_current_batch)
-          gcs_current_batch = []
+        if not dest.startswith('gs://'):
+          raise ValueError('Destination %r must be GCS path.', dest)
+        gcs_src_dest_pairs.append((src, dest))
       else:
-        try:
-          ChannelFactory.rename(src, dest)
-        except Exception as e:  # pylint: disable=broad-except
-          exceptions.append((src, dest, e))
+        local_src_dest_pairs.append((src, dest))
+
+    # Execute local operations.
+    exceptions = []
+    for src, dest in local_src_dest_pairs:
+      try:
+        ChannelFactory.rename(src, dest)
+      except Exception as e:  # pylint: disable=broad-except
+        exceptions.append((src, dest, e))
+
+    # Execute GCS operations.
+    exceptions += ChannelFactory._rename_gcs_batch(gcs_src_dest_pairs)
+
+    return exceptions
+
+  @staticmethod
+  def _rename_gcs_batch(src_dest_pairs):
+    # Prepare batches.
+    gcs_batches = []
+    gcs_current_batch = []
+    for src, dest in src_dest_pairs:
+      if len(gcs_current_batch) == gcsio.MAX_BATCH_OPERATION_SIZE:
+        gcs_batches.append(gcs_current_batch)
+        gcs_current_batch = []
     if gcs_current_batch:
       gcs_batches.append(gcs_current_batch)
 
     # Execute GCS renames if any and return exceptions.
+    exceptions = []
     for batch in gcs_batches:
       copy_statuses = gcsio.GcsIO().copy_batch(batch)
       copy_succeeded = []
@@ -518,17 +537,18 @@ class ChannelFactory(object):
     return exceptions
 
   @staticmethod
-  def copytree(src, dst):
+  def copytree(src, dest):
     if src.startswith('gs://'):
-      assert dst.startswith('gs://'), dst
+      if not dest.startswith('gs://'):
+        raise ValueError('Destination %r must be GCS path.', dest)
       assert src.endswith('/'), src
-      assert dst.endswith('/'), dst
-      gcsio.GcsIO().copytree(src, dst)
+      assert dest.endswith('/'), dest
+      gcsio.GcsIO().copytree(src, dest)
     else:
       try:
-        if os.path.exists(dst):
-          shutil.rmtree(dst)
-        shutil.copytree(src, dst)
+        if os.path.exists(dest):
+          shutil.rmtree(dest)
+        shutil.copytree(src, dest)
       except OSError as err:
         raise IOError(err)
 
@@ -881,10 +901,13 @@ class FileSink(iobase.Sink):
       threading.current_thread()._children = weakref.WeakKeyDictionary()
     exception_batches = ThreadPool(num_threads).map(_rename_batch, batches)
 
+    all_exceptions = []
     for exceptions in exception_batches:
       if exceptions:
-        for e in exceptions:
-          raise e
+        all_exceptions += exceptions
+    if all_exceptions:
+      raise Exception('Encountered exceptions in finalize_write: %s',
+                      all_exceptions)
 
     for shard, final_name in rename_ops:
       yield final_name

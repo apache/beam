@@ -291,6 +291,7 @@ class TestGCSIO(unittest.TestCase):
     # Test deletion of non-existent files.
     result = self.gcs.delete_batch(
         [file_name_pattern % i for i in range(num_files)])
+    self.assertTrue(result)
     for i, (file_name, exception) in enumerate(result):
       self.assertEqual(file_name, file_name_pattern % i)
       self.assertEqual(exception, None)
@@ -343,6 +344,7 @@ class TestGCSIO(unittest.TestCase):
     result = self.gcs.copy_batch(
         [(from_name_pattern % i, to_name_pattern % i)
          for i in range(num_files)])
+    self.assertTrue(result)
     for i, (src, dest, exception) in enumerate(result):
       self.assertEqual(src, from_name_pattern % i)
       self.assertEqual(dest, to_name_pattern % i)
