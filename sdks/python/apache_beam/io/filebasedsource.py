@@ -50,7 +50,8 @@ class FileBasedSource(iobase.BoundedSource):
                file_pattern,
                min_bundle_size=0,
                compression_type=fileio.CompressionTypes.AUTO,
-               splittable=True):
+               splittable=True,
+               validate=True):
     """Initializes ``FileBasedSource``.
 
     Args:
@@ -68,10 +69,13 @@ class FileBasedSource(iobase.BoundedSource):
                   the file, for example, for compressed files where currently
                   it is not possible to efficiently read a data range without
                   decompressing the whole file.
+      validate: Boolean flag to verify that the files exist during the pipeline
+                creation time.
     Raises:
       TypeError: when compression_type is not valid or if file_pattern is not a
                  string.
       ValueError: when compression and splittable files are specified.
+      IOError: when the file pattern specified yields an empty result.
     """
     if not isinstance(file_pattern, basestring):
       raise TypeError(
@@ -91,6 +95,8 @@ class FileBasedSource(iobase.BoundedSource):
     else:
       # We can't split compressed files efficiently so turn off splitting.
       self._splittable = False
+    if validate:
+      self._validate()
 
   def display_data(self):
     return {'filePattern': DisplayDataItem(self._pattern, label="File Pattern"),
@@ -133,7 +139,6 @@ class FileBasedSource(iobase.BoundedSource):
 
   @staticmethod
   def _estimate_sizes_in_parallel(file_names):
-
     if not file_names:
       return []
     elif len(file_names) == 1:
@@ -149,6 +154,13 @@ class FileBasedSource(iobase.BoundedSource):
         return pool.map(fileio.ChannelFactory.size_in_bytes, file_names)
       finally:
         pool.terminate()
+
+  def _validate(self):
+    """Validate if there are actual files in the specified glob pattern
+    """
+    if len(fileio.ChannelFactory.glob(self._pattern)) <= 0:
+      raise IOError(
+          'No files found based on the file pattern %s' % self._pattern)
 
   def split(
       self, desired_bundle_size=None, start_position=None, stop_position=None):

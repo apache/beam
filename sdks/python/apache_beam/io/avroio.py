@@ -37,7 +37,7 @@ __all__ = ['ReadFromAvro', 'WriteToAvro']
 class ReadFromAvro(PTransform):
   """A ``PTransform`` for reading avro files."""
 
-  def __init__(self, file_pattern=None, min_bundle_size=0):
+  def __init__(self, file_pattern=None, min_bundle_size=0, validate=True):
     """Initializes ``ReadFromAvro``.
 
     Uses source '_AvroSource' to read a set of Avro files defined by a given
@@ -70,13 +70,17 @@ class ReadFromAvro(PTransform):
       file_pattern: the set of files to be read.
       min_bundle_size: the minimum size in bytes, to be considered when
                        splitting the input into bundles.
+      validate: flag to verify that the files exist during the pipeline
+                creation time.
       **kwargs: Additional keyword arguments to be passed to the base class.
     """
     super(ReadFromAvro, self).__init__()
     self._args = (file_pattern, min_bundle_size)
+    self._validate = validate
 
   def apply(self, pvalue):
-    return pvalue.pipeline | Read(_AvroSource(*self._args))
+    return pvalue.pipeline | Read(_AvroSource(*self._args,
+                                              validate=self._validate))
 
 
 class _AvroUtils(object):
