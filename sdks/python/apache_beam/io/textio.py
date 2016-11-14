@@ -72,9 +72,10 @@ class _TextSource(filebasedsource.FileBasedSource):
 
   def __init__(self, file_pattern, min_bundle_size,
                compression_type, strip_trailing_newlines, coder,
-               buffer_size=DEFAULT_READ_BUFFER_SIZE):
+               buffer_size=DEFAULT_READ_BUFFER_SIZE, validate=True):
     super(_TextSource, self).__init__(file_pattern, min_bundle_size,
-                                      compression_type=compression_type)
+                                      compression_type=compression_type,
+                                      validate=validate)
 
     self._strip_trailing_newlines = strip_trailing_newlines
     self._compression_type = compression_type
@@ -206,7 +207,6 @@ class ReadFromText(PTransform):
 
   This implementation only supports reading text encoded using UTF-8 or ASCII.
   This does not support other encodings such as UTF-16 or UTF-32."""
-
   def __init__(
       self,
       file_pattern=None,
@@ -214,6 +214,7 @@ class ReadFromText(PTransform):
       compression_type=fileio.CompressionTypes.AUTO,
       strip_trailing_newlines=True,
       coder=coders.StrUtf8Coder(),
+      validate=True,
       **kwargs):
     """Initialize the ReadFromText transform.
 
@@ -230,15 +231,19 @@ class ReadFromText(PTransform):
       strip_trailing_newlines: Indicates whether this source should remove
                                the newline char in each line it reads before
                                decoding that line.
+      validate: flag to verify that the files exist during the pipeline
+                creation time.
       coder: Coder used to decode each line.
     """
 
     super(ReadFromText, self).__init__(**kwargs)
     self._args = (file_pattern, min_bundle_size, compression_type,
                   strip_trailing_newlines, coder)
+    self._validate = validate
 
   def apply(self, pvalue):
-    return pvalue.pipeline | Read(_TextSource(*self._args))
+    return pvalue.pipeline | Read(_TextSource(*self._args,
+                                              validate=self._validate))
 
 
 class WriteToText(PTransform):
