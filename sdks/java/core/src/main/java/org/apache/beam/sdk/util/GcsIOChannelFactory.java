@@ -89,4 +89,11 @@ public class GcsIOChannelFactory implements IOChannelFactory {
   public Path toPath(String path) {
     return GcsPath.fromUri(path);
   }
+
+  @Override
+  public void rename(List<String> srcUris, List<String> destUris) throws IOException {
+    GcsUtil util = options.getGcsUtil();
+    util.copy(srcUris, destUris);
+    util.remove(srcUris);
+  }
 }
