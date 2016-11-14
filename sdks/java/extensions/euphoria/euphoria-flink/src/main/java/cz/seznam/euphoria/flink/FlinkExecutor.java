@@ -65,7 +65,7 @@ public class FlinkExecutor implements Executor {
 
   @Override
   public CompletableFuture<Executor.Result> submit(Flow flow) {
-    return CompletableFuture.supplyAsync(() -> supply(flow), submitExecutor);
+    return CompletableFuture.supplyAsync(() -> execute(flow), submitExecutor);
   }
 
   @Override
@@ -74,7 +74,7 @@ public class FlinkExecutor implements Executor {
     submitExecutor.shutdownNow();
   }
   
-  public Executor.Result supply(Flow flow) {
+  private Executor.Result execute(Flow flow) {
     try {
       ExecutionEnvironment.Mode mode = ExecutionEnvironment.determineMode(flow);
 
