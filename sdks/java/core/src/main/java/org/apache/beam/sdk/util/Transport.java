@@ -131,7 +131,7 @@ public class Transport {
       newCloudResourceManagerClient(CloudResourceManagerOptions options) {
     Credentials credentials = options.getGcpCredential();
     if (credentials == null) {
-      NullCredential.throwNullCredentialException();
+      NullCredentialInitializer.throwNullCredentialException();
     }
     return new CloudResourceManager.Builder(getTransport(), getJsonFactory(),
         chainHttpRequestInitializer(
@@ -168,7 +168,8 @@ public class Transport {
   private static HttpRequestInitializer chainHttpRequestInitializer(
       Credentials credential, HttpRequestInitializer httpRequestInitializer) {
     if (credential == null) {
-      return new ChainingHttpRequestInitializer(new NullCredential(), httpRequestInitializer);
+      return new ChainingHttpRequestInitializer(
+          new NullCredentialInitializer(), httpRequestInitializer);
     } else {
       return new ChainingHttpRequestInitializer(
           new HttpCredentialsAdapter(credential),

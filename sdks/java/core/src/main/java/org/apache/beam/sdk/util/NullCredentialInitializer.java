@@ -28,7 +28,7 @@ import java.io.IOException;
  *
  * <p>When the access is denied, it throws {@link IOException} with a detailed error message.
  */
-public class NullCredential implements HttpRequestInitializer {
+public class NullCredentialInitializer implements HttpRequestInitializer {
   private static final int ACCESS_DENIED = 401;
   private static final String NULL_CREDENTIAL_REASON =
       "Unable to get application default credentials. Please see "
@@ -46,8 +46,9 @@ public class NullCredential implements HttpRequestInitializer {
       implements HttpUnsuccessfulResponseHandler {
 
     @Override
-    public boolean handleResponse(HttpRequest httpRequest, HttpResponse httpResponse, boolean supportsRetry)
-        throws IOException {
+    public boolean handleResponse(
+        HttpRequest httpRequest,
+        HttpResponse httpResponse, boolean supportsRetry) throws IOException {
       if (!httpResponse.isSuccessStatusCode() && httpResponse.getStatusCode() == ACCESS_DENIED) {
         throwNullCredentialException();
       }
