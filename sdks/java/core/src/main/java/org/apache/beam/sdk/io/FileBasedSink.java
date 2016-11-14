@@ -722,8 +722,8 @@ public abstract class FileBasedSink<T> extends Sink<T> {
     /**
      * Removes a collection of files or directories.
      *
-     * <p>Directories are required to be empty. Behavior of deleting non-empty directories
-     * is undefined.
+     * <p>Directories are required to be empty. Non-empty directories will not be deleted,
+     * and this method may return silently or throw an exception.
      */
     void remove(Collection<String> filesOrDirs) throws IOException;
   }
