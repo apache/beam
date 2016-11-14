@@ -301,8 +301,10 @@ public class MongoDBGridFSIOTest implements Serializable {
 
     ArrayList<String> data = new ArrayList<>(100);
     ArrayList<Integer> intData = new ArrayList<>(100);
-    for (int i = 0; i < 100; i++) {
+    for (int i = 0; i < 1000; i++) {
       data.add("Message " + i);
+    }
+    for (int i = 0; i < 100; i++) {
       intData.add(i);
     }
     pipeline.apply("String", Create.of(data))
@@ -330,44 +332,48 @@ public class MongoDBGridFSIOTest implements Serializable {
 
     Mongo client = null;
     try {
+      StringBuilder results = new StringBuilder();
       client = new Mongo("localhost", port);
       DB database = client.getDB(DATABASE);
       GridFS gridfs = new GridFS(database, "WriteTest");
       List<GridFSDBFile> files = gridfs.find("WriteTestData");
-      assertEquals(1, files.size());
-      GridFSDBFile file = files.get(0);
-      assertEquals(100,  file.getChunkSize());
-      assertTrue(file.numChunks() > 5);
-      int l = (int) file.getLength();
-      try (InputStream ins = file.getInputStream()) {
-        DataInputStream dis = new DataInputStream(ins);
-        byte b[] = new byte[l];
-        dis.readFully(b);
-        String dataString = new String(b, "utf-8");
-        for (int x = 0; x < 100; x++) {
-          assertTrue(dataString.contains("Message " + x));
+      assertTrue(files.size() > 0);
+      for (GridFSDBFile file : files) {
+        assertEquals(100,  file.getChunkSize());
+        int l = (int) file.getLength();
+        try (InputStream ins = file.getInputStream()) {
+          DataInputStream dis = new DataInputStream(ins);
+          byte b[] = new byte[l];
+          dis.readFully(b);
+          results.append(new String(b, "utf-8"));
+        }
+      }
+      String dataString = results.toString();
+      for (int x = 0; x < 1000; x++) {
+        assertTrue(dataString.contains("Message " + x));
+      }
+
+      files = gridfs.find("WriteTestIntData");
+      boolean intResults[] = new boolean[100];
+      for (GridFSDBFile file : files) {
+        int l = (int) file.getLength();
+        try (InputStream ins = file.getInputStream()) {
+          DataInputStream dis = new DataInputStream(ins);
+          byte b[] = new byte[l];
+          dis.readFully(b);
+          for (int x = 0; x < b.length; x++) {
+            intResults[b[x]] = true;
+          }
         }
       }
 
-
-      files = gridfs.find("WriteTestIntData");
-      assertEquals(1, files.size());
-      file = files.get(0);
-      l = (int) file.getLength();
-      assertEquals(100,  l);
-      try (InputStream ins = file.getInputStream()) {
-        DataInputStream dis = new DataInputStream(ins);
-        byte b[] = new byte[l];
-        dis.readFully(b);
-        for (int x = 0; x < 100; x++) {
-          assertEquals(x, b[x]);
-        }
+      for (int x = 0; x < 100; x++) {
+        assertTrue("Did not get a result for " + x, intResults[x]);
       }
     } finally {
       if (client != null) {
         client.close();
       }
     }
-
   }
 }
