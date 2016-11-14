@@ -52,6 +52,18 @@ class QuerySplitterTest(unittest.TestCase):
     test_filter.property_filter.op = PropertyFilter.GREATER_THAN
     self.assertRaises(ValueError, query_splitter.get_splits, None, query, 2)
 
+  def test_get_splits_query_with_limit(self):
+    query = query_pb2.Query()
+    query.kind.add()
+    query.limit.value = 10
+    self.assertRaises(ValueError, query_splitter.get_splits, None, query, 2)
+
+  def test_get_splits_query_with_offset(self):
+    query = query_pb2.Query()
+    query.kind.add()
+    query.offset = 10
+    self.assertRaises(ValueError, query_splitter.get_splits, None, query, 2)
+
   def test_create_scatter_query(self):
     query = query_pb2.Query()
     kind = query.kind.add()

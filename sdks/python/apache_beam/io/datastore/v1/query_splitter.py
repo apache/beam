@@ -67,7 +67,7 @@ def get_splits(datastore, query, num_splits, partition=None):
 
   # Validate that the number of splits is not out of bounds.
   if num_splits < 1:
-    raise ValueError("The number of splits must be greater than 0.")
+    raise ValueError('The number of splits must be greater than 0.')
 
   if num_splits == 1:
     return [query]
@@ -89,10 +89,16 @@ def _validate_query(query):
   """ Verifies that the given query can be properly scattered."""
 
   if len(query.kind) != 1:
-    raise ValueError("Query must have exactly one kind.")
+    raise ValueError('Query must have exactly one kind.')
 
   if len(query.order) != 0:
-    raise ValueError("Query cannot have any sort orders.")
+    raise ValueError('Query cannot have any sort orders.')
+
+  if query.HasField('limit'):
+    raise ValueError('Query cannot have a limit set.')
+
+  if query.offset > 0:
+    raise ValueError('Query cannot have an offset set.')
 
   _validate_filter(query.filter)
 
@@ -104,12 +110,12 @@ def _validate_filter(filter):
   in inefficient sharding.
   """
 
-  if filter.HasField("composite_filter"):
+  if filter.HasField('composite_filter'):
     for sub_filter in filter.composite_filter.filters:
       _validate_filter(sub_filter)
-  elif filter.HasField("property_filter"):
+  elif filter.HasField('property_filter'):
     if filter.property_filter.op in UNSUPPORTED_OPERATORS:
-      raise ValueError("Query cannot have any inequality filters.")
+      raise ValueError('Query cannot have any inequality filters.')
   else:
     pass
 
