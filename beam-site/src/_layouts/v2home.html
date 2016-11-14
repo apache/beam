@@ -13,10 +13,11 @@
     <link rel="stylesheet" type="text/css" href="slick/slick-theme.css"/>
     <meta content="Apache Beam" property="og:title">
     <meta content="images/beam.png" property="og:image">
-    <meta content="The unified programming model for Big Data, running on any engine" property="og:description">
+    <meta content="A unified programming model for batch and streaming" property="og:description">
 </head>
 <body>
 <div class="viewport">
+
     <header class="navbar header--navbar">
         <div class="navbar-inner">
             <div class="container-fluid">
@@ -25,16 +26,16 @@
                 </div>
                 <ul class="nav pull-right">
                     <li class="navbar-link">
-                        <a href="download.html">Download</a>
+                        <a href="{{ site.baseurl }}/get-started/">Get Started</a>
                     </li>
                     <li class="navbar-link">
-                        <a href="documentation.html">Documentation</a>
+                        <a href="{{ site.baseurl }}/documentation/">Documentation</a>
                     </li>
                     <li class="navbar-link">
-                        <a href="overview.html">Overview</a>
+                        <a href="{{ site.baseurl }}/contribute/">Contribute</a>
                     </li>
                     <li class="navbar-link">
-                        <a href="community.html">Community</a>
+                        <a href="{{ site.baseurl }}/blog">Blog</a>
                     </li>
                     <li class="navbar-link">
                         <a href="http://www.apache.org"><img src="images/apache-feather-tm.png" width="45px"/></a>
@@ -53,15 +54,12 @@
                     <div class="container-fluid">
                         <div class="homepage-title--container">
                             <h2 class="homepage-title">
-                                The unified programming model for Big Data, running on any engine
+                            A unified programming model for batch and streaming
                             </h2>
 
                             <div class="homepage-subtitle--container desktop-only">
                                 <div class="homepage-subtitle">
-                                    Beam provides an advanced unified programming model, allowing you to implement batch and streaming data processing jobs.
-                                </div>
-                                <div class="homepage-subtitle">
-                                    Your code runs on any execution engines.
+                                    Beam provides an advanced unified programming model, allowing you to implement batch and streaming data processing jobs that you can run on any execution engine.
                                 </div>
                             </div>
                         </div>
@@ -77,10 +75,10 @@
                                     <img src="images/container.png" width="100px" height="100px"/>
                                 </div>
                             </div>
-                            <h3 class="key-feature--title">Unified Programming Model</h3>
+                            <h3 class="key-feature--title">Unified</h3>
 
                             <div class="key-feature--text">
-                                The same programming model for batch and streaming.
+                                Use a single programming model for both batch and streaming use cases.
                             </div>
                         </div>
                         <div class="span4 key-feature--container">
@@ -89,11 +87,10 @@
                                     <img src="images/enterprise.png" width="100px" height="100px"/>
                                 </div>
                             </div>
-                            <h3 class="key-feature--title">Execution Engine Agnostic</h3>
+                            <h3 class="key-feature--title">Portable</h3>
 
                             <div class="key-feature--text">
-                                The same code runs on any execution engine.
-                                Don't rewrite your jobs: they will run on Apache Flink, Apache Spark, ... without any change.
+                                Execute pipelines on multiple execution environments, including Apache Flink, Apache Spark, and Google Cloud Dataflow.
                             </div>
                         </div>
                         <div class="span4 key-feature--container">
@@ -102,11 +99,10 @@
                                     <img src="images/cloud.png" width="100px" height="100px"/>
                                 </div>
                             </div>
-                            <h3 class="key-feature--title">SDKs and IOs</h3>
+                            <h3 class="key-feature--title">Extensible</h3>
 
                             <div class="key-feature--text">
-                                To write your jobs, you have the choice: use the standard Java SDK, use the Python SDK, ...
-                                Beam also provides a rich connectivity layer: the IOs to consume or produce data on other systems (Apache Kafka, ...).
+                                Write and share new SDKs, IO connectors, and transformation libraries.
                             </div>
                         </div>
                     </div>
@@ -117,7 +113,7 @@
                     {{ content }}
                 </div>
                 <div>
-                    <center><a href="news.html">All News</a></center>
+                    <center><a href="{{ site.baseurl }}/blog">All News</a></center>
                 </div>
             </section>
             <section class="offset-feature--wrapper">
@@ -125,20 +121,11 @@
                     <div class="container-fluid">
                         <div class="row-fluid feature--content">
                             <div class="span8 mobile-left-pane">
-                                <div class="offset-feature--title">Apache & OpenSource</div>
+                                <div class="offset-feature--title">Open Source</div>
                                 <div class="offset-feature--text">
-                                    Beam is your project !
                                     Beam is an <a href="http://www.apache.org">Apache Software Foundation</a> project,
-                                    available under the Apache v2 license.<br/>
-                                    It's a complete open community, always listening proposals and comments.<br/>
-                                    <a href="community.html">Sources</a>, <a href="community.html">mailing lists</a>, <a
-                                        href="community.html">issue tracker</a>: it's fully open, you can access
-                                    directly.<br/>
-                                    We also love contributions: don't hesitate to <a
-                                        href="community.html">contribute</a>.
+                                    available under the Apache v2 license. Beam is an open source community - contributions are appreciated! If you'd like to contribute, please see the <a href="{{ site.baseurl }}/contribute/">Contribute</a> section.
                                 </div>
-                                <a class="offset-feature--link" href="community.html">Be Involved In The Community</a> |
-                                <a class="offset-feature--link" href="community.html">How To Contribute</a>
                             </div>
                             <div class="offset8">
                                 <img src="images/apache.png"/>
@@ -155,13 +142,7 @@
                             <div class="offset4 mobile-left-pane">
                                 <div class="offset-feature--title">Overview</div>
                                 <div class="offset-feature--text">
-                                    Beam is composed by:<br/><br/>
-                                    <ul style="list-style-position: inside">
-                                        <li>An unified <a href="programmingmodel.html">programming model</a> providing support of both batch and streaming jobs design.</li>
-                                        <li><a href="sdks.html">SDKs and DSLs</a> implementing the model: you have the choice of the language you want to use. Pick your: Java, Python, Scala, ...</li>
-                                        <li>Thanks to the <a href="runners.html">runners</a>, your jobs can run everywhere, on any execution engine: Apache Flink, Apache Spark, Google Cloud Dataflow, ...</li>
-                                        <li>The <a href="io.html">IOs</a> allows you to get or put data with other data sources: Apache Kafka, JMS, Apache Cassandra, ...</li>
-                                    </ul>
+                                    Apache Beam is a unified programming model you can use to create data processing pipelines. You start by building a program that defines the pipeline using one of the open source Beam SDKs. The pipeline is then executed by one of Beam’s supported distributed processing back-ends, which include Apache Flink, Apache Spark, and Google Cloud Dataflow.
                                 </div>
                             </div>
                         </div>
@@ -173,11 +154,8 @@
                             <div class="span8 mobile-left-pane">
                                 <div class="offset-feature--title">Documentation</div>
                                 <div class="offset-feature--text">
-                                    Ready, efficient, and productive with Beam in a minute !<br/>
-                                    <br/>
-                                    Find all you need to start with Beam ...
+                                    If you'd like to use Beam for your data processing tasks, use the <a href="{{ site.baseurl }}/get-started/">Get Started</a> section for an overview, quickstart, and examples. Then dive into the <a href="{{ site.baseurl }}/documentation/">Documentation</a> section for in-depth concepts and reference materials for the Beam Model, SDKs, and Runners.
                                 </div>
-                                <a class="offset-feature--link" href="documentation.html">Read Documentation</a>
                             </div>
                             <div class="offset8">
                                 <img src="images/book.png"/>
@@ -194,7 +172,7 @@
             <div class="row-fluid">
                 <div class="span12">
                     &copy; <span>2016</span> <a href="http://www.apache.org">Apache Software Foundation</a> - <a
-                        href="privacy.html">Privacy Policy</a><br/>
+                        href="{{ site.baseurl }}/privacy_policy">Privacy Policy</a><br/>
                     Apache Beam, Beam, Apache, the Apache feather logo, and the Apache Beam project logo are
                     trademarks of The Apache Software Foundation.
                 </div>
