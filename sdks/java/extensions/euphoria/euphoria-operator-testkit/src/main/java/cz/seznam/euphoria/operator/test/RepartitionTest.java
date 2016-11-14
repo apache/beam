@@ -9,6 +9,7 @@ import java.util.Arrays;
 import java.util.List;
 
 import static org.junit.Assert.*;
+import static cz.seznam.euphoria.operator.test.Util.*;
 
 /**
  * Test for operator {@code Repartition}.
@@ -20,11 +21,14 @@ public class RepartitionTest extends OperatorTest {
     return Arrays.asList(
         testTwoToOne(),
         testOneToTwo(),
-        testThreeToTwo()
+        testThreeToTwo(),
+        bounded(testTwoToOne()),
+        bounded(testOneToTwo()),
+        bounded(testThreeToTwo())
     );
   }
 
-  TestCase testTwoToOne() {
+  AbstractTestCase testTwoToOne() {
     return new AbstractTestCase<Integer, Integer>() {
 
       @Override
@@ -52,11 +56,10 @@ public class RepartitionTest extends OperatorTest {
         assertEquals(1, partitions.size());
         assertUnorderedEquals(Arrays.asList(1, 2, 3, 4, 5, 6, 7), partitions.get(0));
       }
-
     };
   }
 
-  TestCase testOneToTwo() {
+  AbstractTestCase testOneToTwo() {
     return new AbstractTestCase<Integer, Integer>() {
 
       @Override
@@ -85,14 +88,12 @@ public class RepartitionTest extends OperatorTest {
         assertEquals(Arrays.asList(2, 4, 6), partitions.get(0));
         assertEquals(Arrays.asList(1, 3, 5, 7), partitions.get(1));
       }
-
     };
-
   }
 
-  TestCase testThreeToTwo() {
+  AbstractTestCase testThreeToTwo() {
     return new AbstractTestCase<Integer, Integer>() {
-
+      
       @Override
       protected Dataset<Integer> getOutput(Dataset<Integer> input) {
         return Repartition.of(input)
@@ -121,9 +122,6 @@ public class RepartitionTest extends OperatorTest {
         assertUnorderedEquals(Arrays.asList(2, 4, 6, 8, 10, 12), partitions.get(0));
         assertUnorderedEquals(Arrays.asList(1, 3, 5, 7, 9, 11), partitions.get(1));
       }
-
     };
-
   }
-
 }
