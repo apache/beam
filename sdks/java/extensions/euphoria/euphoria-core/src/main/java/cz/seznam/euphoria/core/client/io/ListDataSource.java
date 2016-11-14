@@ -133,6 +133,22 @@ public class ListDataSource<T> implements DataSource<T> {
   public boolean isBounded() {
     return bounded;
   }
+  
+  public ListDataSource<T> toBounded() {
+    if (bounded) {
+      return this;
+    }
+    List<List<?>> list = (List<List<?>>) storage.get(this);
+    return ListDataSource.bounded(list.toArray(new List[list.size()]));
+  }
+  
+  public ListDataSource<T> toUnbounded() {
+    if (!bounded) {
+      return this;
+    }
+    List<List<?>> list = (List<List<?>>) storage.get(this);
+    return ListDataSource.unbounded(list.toArray(new List[list.size()]));
+  }
 
   /**
    * Set sleep time between emitting of elements.
