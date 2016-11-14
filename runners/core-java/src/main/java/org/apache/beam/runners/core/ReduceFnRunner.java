@@ -50,6 +50,7 @@ import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.util.ActiveWindowSet;
 import org.apache.beam.sdk.util.MergingActiveWindowSet;
 import org.apache.beam.sdk.util.NonMergingActiveWindowSet;
+import org.apache.beam.sdk.util.SideInputReader;
 import org.apache.beam.sdk.util.TimeDomain;
 import org.apache.beam.sdk.util.TimerInternals;
 import org.apache.beam.sdk.util.TimerInternals.TimerData;
@@ -217,7 +218,7 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> impleme
       StateInternals<K> stateInternals,
       TimerInternals timerInternals,
       OutputWindowedValue<KV<K, OutputT>> outputter,
-      SideInputAccess sideInputAccess,
+      SideInputReader sideInputReader,
       Aggregator<Long, Long> droppedDueToClosedWindow,
       ReduceFn<K, InputT, OutputT, W> reduceFn,
       PipelineOptions options) {
@@ -241,7 +242,7 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> impleme
 
     this.contextFactory =
         new ReduceFnContextFactory<>(key, reduceFn, this.windowingStrategy,
-            stateInternals, this.activeWindows, timerInternals, sideInputAccess, options);
+            stateInternals, this.activeWindows, timerInternals, sideInputReader, options);
 
     this.watermarkHold = new WatermarkHold<>(timerInternals, windowingStrategy);
     this.triggerRunner =

@@ -43,7 +43,6 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.functions.RuntimeContext;
-import org.apache.flink.util.Collector;
 import org.joda.time.Instant;
 
 /**
@@ -162,18 +161,12 @@ abstract class FlinkProcessContextBase<InputT, OutputT>
       @Override
       public <ViewT> ViewT sideInput(
           PCollectionView<ViewT> view,
-          BoundedWindow mainInputWindow) {
+          BoundedWindow sideInputWindow) {
 
         checkNotNull(view, "View passed to sideInput cannot be null");
         checkNotNull(
             sideInputs.get(view),
             "Side input for " + view + " not available.");
-
-        // get the side input strategy for mapping the window
-        WindowingStrategy<?, ?> windowingStrategy = sideInputs.get(view);
-
-        BoundedWindow sideInputWindow =
-            windowingStrategy.getWindowFn().getSideInputWindow(mainInputWindow);
 
         Map<BoundedWindow, ViewT> sideInputs =
             runtimeContext.getBroadcastVariableWithInitializer(

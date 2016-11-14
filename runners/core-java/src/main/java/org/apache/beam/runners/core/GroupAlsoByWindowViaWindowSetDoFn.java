@@ -88,7 +88,7 @@ public class GroupAlsoByWindowViaWindowSetDoFn<
             stateInternals,
             timerInternals,
             WindowingInternalsAdapters.outputWindowedValue(c.windowingInternals()),
-            WindowingInternalsAdapters.sideInputAccess(c.windowingInternals()),
+            WindowingInternalsAdapters.sideInputReader(c.windowingInternals()),
             droppedDueToClosedWindow,
             reduceFn,
             c.getPipelineOptions());

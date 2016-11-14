@@ -86,7 +86,7 @@ public interface WindowingInternals<InputT, OutputT> {
       Coder<T> elemCoder) throws IOException;
 
   /**
-   * Return the value of the side input for the window of a main input element.
+   * Return the value of the side input for a particular side input window.
    */
-  <T> T sideInput(PCollectionView<T> view, BoundedWindow mainInputWindow);
+  <T> T sideInput(PCollectionView<T> view, BoundedWindow sideInputWindow);
 }

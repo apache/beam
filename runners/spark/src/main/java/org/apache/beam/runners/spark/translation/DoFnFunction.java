@@ -32,7 +32,6 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.spark.Accumulator;
 import org.apache.spark.api.java.function.FlatMapFunction;
-import org.joda.time.Instant;
 
 
 /**
@@ -88,12 +87,12 @@ public class DoFnFunction<InputT, OutputT>
     }
 
     @Override
-    public synchronized void output(WindowedValue<OutputT> o) {
+    protected synchronized void outputWindowedValue(WindowedValue<OutputT> o) {
       outputs.add(o);
     }
 
     @Override
-    public <T> void sideOutput(TupleTag<T> tag, WindowedValue<T> output) {
+    protected <T> void sideOutputWindowedValue(TupleTag<T> tag, WindowedValue<T> output) {
       throw new UnsupportedOperationException(
           "sideOutput is an unsupported operation for doFunctions, use a "
               + "MultiDoFunction instead.");

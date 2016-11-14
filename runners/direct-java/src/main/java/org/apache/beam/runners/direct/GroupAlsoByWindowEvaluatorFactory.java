@@ -22,7 +22,6 @@ import com.google.common.base.Predicate;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import org.apache.beam.runners.core.GroupAlsoByWindowsDoFn;
@@ -31,7 +30,6 @@ import org.apache.beam.runners.core.GroupByKeyViaGroupByKeyOnly.GroupAlsoByWindo
 import org.apache.beam.runners.core.GroupByKeyViaGroupByKeyOnly.GroupByKeyOnly;
 import org.apache.beam.runners.core.OutputWindowedValue;
 import org.apache.beam.runners.core.ReduceFnRunner;
-import org.apache.beam.runners.core.SideInputAccess;
 import org.apache.beam.runners.core.SystemReduceFn;
 import org.apache.beam.runners.core.triggers.ExecutableTriggerStateMachine;
 import org.apache.beam.runners.core.triggers.TriggerStateMachines;
@@ -47,14 +45,13 @@ import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.KeyedWorkItem;
+import org.apache.beam.sdk.util.SideInputReader;
 import org.apache.beam.sdk.util.TimerInternals;
 import org.apache.beam.sdk.util.TimerInternals.TimerData;
 import org.apache.beam.sdk.util.WindowTracing;
 import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.sdk.util.WindowingInternals;
 import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.util.state.CopyOnAccessInMemoryStateInternals;
-import org.apache.beam.sdk.util.state.StateInternals;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
@@ -176,11 +173,21 @@ class GroupAlsoByWindowEvaluatorFactory implements TransformEvaluatorFactory {
               stateInternals,
               timerInternals,
               new OutputWindowedValueToBundle<>(bundle),
-              new SideInputAccess() {
+              new SideInputReader() {
                 @Override
-                public <T> T sideInput(PCollectionView<T> view, BoundedWindow mainInputWindow) {
+                public <T> T get(PCollectionView<T> view, BoundedWindow sideInputWindow) {
                   throw new UnsupportedOperationException(
                       "GroupAlsoByWindow must not have side inputs");
+                }
+
+                @Override
+                public <T> boolean contains(PCollectionView<T> view) {
+                  throw new UnsupportedOperationException();
+                }
+
+                @Override
+                public boolean isEmpty() {
+                  throw new UnsupportedOperationException();
                 }
               },
               droppedDueToClosedWindow,
@@ -276,7 +283,7 @@ class GroupAlsoByWindowEvaluatorFactory implements TransformEvaluatorFactory {
         Instant timestamp,
         Collection<? extends BoundedWindow> windows,
         PaneInfo pane) {
-      throw new UnsupportedOperationException("Can't output to side outputs from a ReduceFn");
+      throw new UnsupportedOperationException("GroupAlsoByWindow should not use side outputs");
     }
   }
 }

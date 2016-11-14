@@ -710,7 +710,7 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
 
         @Override
         public <T> T sideInput(
-            PCollectionView<T> view, BoundedWindow mainInputWindow) {
+            PCollectionView<T> view, BoundedWindow sideInputWindow) {
           throw new UnsupportedOperationException(
               "SideInput from WindowingInternals is not supported in in the context of DoFnTester");
         }

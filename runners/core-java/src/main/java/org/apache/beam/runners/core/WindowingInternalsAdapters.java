@@ -20,21 +20,32 @@ package org.apache.beam.runners.core;
 import java.util.Collection;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
+import org.apache.beam.sdk.util.SideInputReader;
 import org.apache.beam.sdk.util.WindowingInternals;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.joda.time.Instant;
 
 /**
- * Adapters from {@link WindowingInternals} to {@link SideInputAccess} and {@link
+ * Adapters from {@link WindowingInternals} to {@link SideInputReader} and {@link
  * OutputWindowedValue}.
  */
 public class WindowingInternalsAdapters {
-  static SideInputAccess sideInputAccess(final WindowingInternals<?, ?> windowingInternals) {
-    return new SideInputAccess() {
+  static SideInputReader sideInputReader(final WindowingInternals<?, ?> windowingInternals) {
+    return new SideInputReader() {
       @Override
-      public <T> T sideInput(PCollectionView<T> view, BoundedWindow mainInputWindow) {
-        return windowingInternals.sideInput(view, mainInputWindow);
+      public <T> T get(PCollectionView<T> view, BoundedWindow sideInputWindow) {
+        return windowingInternals.sideInput(view, sideInputWindow);
+      }
+
+      @Override
+      public <T> boolean contains(PCollectionView<T> view) {
+        throw new UnsupportedOperationException();
+      }
+
+      @Override
+      public boolean isEmpty() {
+        throw new UnsupportedOperationException();
       }
     };
   }

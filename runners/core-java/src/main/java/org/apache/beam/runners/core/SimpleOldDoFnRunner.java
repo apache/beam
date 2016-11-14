@@ -251,12 +251,10 @@ class SimpleOldDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, OutputT
       return WindowedValue.of(output, timestamp, windows, pane);
     }
 
-    public <T> T sideInput(PCollectionView<T> view, BoundedWindow mainInputWindow) {
+    public <T> T sideInput(PCollectionView<T> view, BoundedWindow sideInputWindow) {
       if (!sideInputReader.contains(view)) {
         throw new IllegalArgumentException("calling sideInput() with unknown view");
       }
-      BoundedWindow sideInputWindow =
-          view.getWindowingStrategyInternal().getWindowFn().getSideInputWindow(mainInputWindow);
       return sideInputReader.get(view, sideInputWindow);
     }
 
@@ -390,7 +388,8 @@ class SimpleOldDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, OutputT
               "sideInput called when main input element is in multiple windows");
         }
       }
-      return context.sideInput(view, window);
+      return context.sideInput(
+          view, view.getWindowingStrategyInternal().getWindowFn().getSideInputWindow(window));
     }
 
     @Override
@@ -515,8 +514,8 @@ class SimpleOldDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, OutputT
         }
 
         @Override
-        public <T> T sideInput(PCollectionView<T> view, BoundedWindow mainInputWindow) {
-          return context.sideInput(view, mainInputWindow);
+        public <T> T sideInput(PCollectionView<T> view, BoundedWindow sideInputWindow) {
+          return context.sideInput(view, sideInputWindow);
         }
       };
     }

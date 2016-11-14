@@ -77,7 +77,7 @@ public class GroupAlsoByWindowsViaOutputBufferDoFn<K, InputT, OutputT, W extends
             stateInternals,
             timerInternals,
             WindowingInternalsAdapters.outputWindowedValue(c.windowingInternals()),
-            WindowingInternalsAdapters.sideInputAccess(c.windowingInternals()),
+            WindowingInternalsAdapters.sideInputReader(c.windowingInternals()),
             droppedDueToClosedWindow,
             reduceFn,
             c.getPipelineOptions());

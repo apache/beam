@@ -80,7 +80,6 @@ import org.apache.beam.sdk.util.state.StateTag;
 import org.apache.beam.sdk.util.state.TestInMemoryStateInternals;
 import org.apache.beam.sdk.util.state.TimerCallback;
 import org.apache.beam.sdk.values.KV;
-import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.joda.time.Duration;
@@ -105,7 +104,7 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
 
   private final WindowFn<Object, W> windowFn;
   private final TestOutputWindowedValue testOutputter;
-  private final TestSideInputAccess testSideInputAccess;
+  private final SideInputReader sideInputReader;
   private final Coder<OutputT> outputCoder;
   private final WindowingStrategy<Object, W> objectStrategy;
   private final ExecutableTriggerStateMachine executableTriggerStateMachine;
@@ -291,7 +290,7 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
     this.reduceFn = reduceFn;
     this.windowFn = objectStrategy.getWindowFn();
     this.testOutputter = new TestOutputWindowedValue();
-    this.testSideInputAccess = new TestSideInputAccess(sideInputReader);
+    this.sideInputReader = sideInputReader;
     this.executableTriggerStateMachine = ExecutableTriggerStateMachine.create(triggerStateMachine);
     this.outputCoder = outputCoder;
     this.options = options;
@@ -314,7 +313,7 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
         stateInternals,
         timerInternals,
         testOutputter,
-        testSideInputAccess,
+        sideInputReader,
         droppedDueToClosedWindow,
         reduceFn,
         options);
@@ -522,8 +521,11 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
     private List<WindowedValue<KV<String, OutputT>>> outputs = new ArrayList<>();
 
     @Override
-    public void outputWindowedValue(KV<String, OutputT> output, Instant timestamp,
-                                    Collection<? extends BoundedWindow> windows, PaneInfo pane) {
+    public void outputWindowedValue(
+        KV<String, OutputT> output,
+        Instant timestamp,
+        Collection<? extends BoundedWindow> windows,
+        PaneInfo pane) {
       // Copy the output value (using coders) before capturing it.
       KV<String, OutputT> copy = SerializableUtils.<KV<String, OutputT>>ensureSerializableByCoder(
           KvCoder.of(StringUtf8Coder.of(), outputCoder), output, "outputForWindow");
@@ -538,25 +540,7 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
         Instant timestamp,
         Collection<? extends BoundedWindow> windows,
         PaneInfo pane) {
-      throw new UnsupportedOperationException();
-    }
-  }
-
-  private class TestSideInputAccess implements SideInputAccess {
-    private SideInputReader sideInputReader;
-
-    private TestSideInputAccess(SideInputReader sideInputReader) {
-      this.sideInputReader = sideInputReader;
-    }
-
-    @Override
-    public <T> T sideInput(PCollectionView<T> view, BoundedWindow mainInputWindow) {
-      if (!sideInputReader.contains(view)) {
-        throw new IllegalArgumentException("calling sideInput() with unknown view");
-      }
-      BoundedWindow sideInputWindow =
-          view.getWindowingStrategyInternal().getWindowFn().getSideInputWindow(mainInputWindow);
-      return sideInputReader.get(view, sideInputWindow);
+      throw new UnsupportedOperationException("GroupAlsoByWindow should not use side outputs");
     }
   }
 

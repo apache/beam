@@ -64,13 +64,14 @@ public class FlinkDoFnFunction<InputT, OutputT>
       Iterable<WindowedValue<InputT>> values,
       Collector<WindowedValue<OutputT>> out) throws Exception {
 
-    FlinkSingleOutputProcessContext<InputT, OutputT> context = new FlinkSingleOutputProcessContext<>(
-        serializedOptions.getPipelineOptions(),
-        getRuntimeContext(),
-        doFn,
-        windowingStrategy,
-        sideInputs, out
-    );
+    FlinkSingleOutputProcessContext<InputT, OutputT> context =
+        new FlinkSingleOutputProcessContext<>(
+            serializedOptions.getPipelineOptions(),
+            getRuntimeContext(),
+            doFn,
+            windowingStrategy,
+            sideInputs,
+            out);
 
     this.doFn.startBundle(context);
 
