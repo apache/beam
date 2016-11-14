@@ -35,7 +35,7 @@ public class SparkExecutor implements Executor {
 
   @Override
   public CompletableFuture<Result> submit(Flow flow) {
-    return CompletableFuture.supplyAsync(() -> supply(flow), submitExecutor);
+    return CompletableFuture.supplyAsync(() -> execute(flow), submitExecutor);
   }
   
   @Override
@@ -45,7 +45,7 @@ public class SparkExecutor implements Executor {
     submitExecutor.shutdownNow();
   }
 
-  private Result supply(Flow flow) {
+  private Result execute(Flow flow) {
     if (!isBoundedInput(flow)) {
       // FIXME this executor is intended to be used with bounded datasets only
       // but it works with unbounded as well for testing purposes
