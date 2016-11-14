@@ -323,7 +323,7 @@ public interface PipelineOptions extends HasDisplayData {
   }
 
   /**
-   * Return a map of properties which correspond to {@link RuntimeValueProvider},
+   * Returns a map of properties which correspond to {@link RuntimeValueProvider},
    * keyed by the property name.  The value is a map containing type and default
    * information.
    */

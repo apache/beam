@@ -246,7 +246,7 @@ class ProxyInvocationHandler implements InvocationHandler, HasDisplayData {
   }
 
   /**
-   * Return a map of properties which correspond to {@link ValueProvider}.
+   * Returns a map of properties which correspond to {@link RuntimeValueProvider}.
    */
   public Map<String, Map<String, Object>> outputRuntimeOptions(PipelineOptions options) {
     Set<PipelineOptionSpec> optionSpecs = PipelineOptionsReflector.getOptionSpecs(knownInterfaces);
