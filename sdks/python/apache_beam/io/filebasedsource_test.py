@@ -565,7 +565,7 @@ class TestSingleFileSource(unittest.TestCase):
 
   def test_source_creation_display_data(self):
     file_name = 'dummy_pattern'
-    fbs = LineSource(file_name)
+    fbs = LineSource(file_name, validate=False)
     dd = DisplayData.create_from(fbs)
     expected_items = [
         DisplayDataItemMatcher('compression', 'auto'),
