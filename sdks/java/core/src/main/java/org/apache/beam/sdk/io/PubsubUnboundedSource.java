@@ -50,6 +50,7 @@ import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.ListCoder;
 import org.apache.beam.sdk.coders.NullableCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.io.PubsubIO.PubsubMessage;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PubsubOptions;
 import org.apache.beam.sdk.options.ValueProvider;
@@ -58,6 +59,7 @@ import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.DisplayData.Builder;
@@ -394,6 +396,8 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
     @VisibleForTesting
     final SubscriptionPath subscription;
 
+    private final SimpleFunction<PubsubIO.PubsubMessage, T> parseFn;
+
     /**
      * Client on which to talk to Pubsub. Null if closed.
      */
@@ -580,10 +584,12 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
     /**
      * Construct a reader.
      */
-    public PubsubReader(PubsubOptions options, PubsubSource<T> outer, SubscriptionPath subscription)
+    public PubsubReader(PubsubOptions options, PubsubSource<T> outer, SubscriptionPath subscription,
+                        SimpleFunction<PubsubIO.PubsubMessage, T> parseFn)
         throws IOException, GeneralSecurityException {
       this.outer = outer;
       this.subscription = subscription;
+      this.parseFn = parseFn;
       pubsubClient =
           outer.outer.pubsubFactory.newClient(outer.outer.timestampLabel, outer.outer.idLabel,
                                               options);
@@ -959,7 +965,11 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
         throw new NoSuchElementException();
       }
       try {
-        return CoderUtils.decodeFromByteArray(outer.outer.elementCoder, current.elementBytes);
+        if (parseFn != null) {
+          return parseFn.apply(new PubsubIO.PubsubMessage(current.elementBytes, current.attributes));
+        } else {
+          return CoderUtils.decodeFromByteArray(outer.outer.elementCoder, current.elementBytes);
+        }
       } catch (CoderException e) {
         throw new RuntimeException("Unable to decode element from Pubsub message: ", e);
       }
@@ -1110,7 +1120,7 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
         }
       }
       try {
-        reader = new PubsubReader<>(options.as(PubsubOptions.class), this, subscription);
+        reader = new PubsubReader<>(options.as(PubsubOptions.class), this, subscription, outer.parseFn);
       } catch (GeneralSecurityException | IOException e) {
         throw new RuntimeException("Unable to subscribe to " + subscriptionPath + ": ", e);
       }
@@ -1260,6 +1270,13 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
   @Nullable
   private final String idLabel;
 
+  /**
+   * If not {@literal null}, the user is asking for PubSub attributes. This parse function will be used
+   * to parse {@link PubsubIO.PubsubMessage}s containing a payload and attributes.
+   */
+  @Nullable
+  SimpleFunction<PubsubMessage, T> parseFn;
+
   @VisibleForTesting
   PubsubUnboundedSource(
       Clock clock,
@@ -1269,7 +1286,8 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
       @Nullable ValueProvider<SubscriptionPath> subscription,
       Coder<T> elementCoder,
       @Nullable String timestampLabel,
-      @Nullable String idLabel) {
+      @Nullable String idLabel,
+      @Nullable SimpleFunction<PubsubIO.PubsubMessage, T> parseFn) {
     checkArgument((topic == null) != (subscription == null),
                   "Exactly one of topic and subscription must be given");
     checkArgument((topic == null) == (project == null),
@@ -1282,6 +1300,7 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
     this.elementCoder = checkNotNull(elementCoder);
     this.timestampLabel = timestampLabel;
     this.idLabel = idLabel;
+    this.parseFn = parseFn;
   }
 
   /**
@@ -1294,8 +1313,10 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
       @Nullable ValueProvider<SubscriptionPath> subscription,
       Coder<T> elementCoder,
       @Nullable String timestampLabel,
-      @Nullable String idLabel) {
-    this(null, pubsubFactory, project, topic, subscription, elementCoder, timestampLabel, idLabel);
+      @Nullable String idLabel,
+      @Nullable SimpleFunction<PubsubIO.PubsubMessage, T> parseFn) {
+    this(null, pubsubFactory, project, topic, subscription, elementCoder, timestampLabel, idLabel,
+        parseFn);
   }
 
   public Coder<T> getElementCoder() {
@@ -1336,6 +1357,9 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
   public String getIdLabel() {
     return idLabel;
   }
+
+  @Nullable
+  public SimpleFunction<PubsubIO.PubsubMessage, T> getWithAttributesParseFn() { return parseFn; }
 
   @Override
   public PCollection<T> expand(PBegin input) {

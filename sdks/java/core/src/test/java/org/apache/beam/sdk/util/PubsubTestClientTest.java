@@ -61,7 +61,7 @@ public class PubsubTestClientTest {
       }
     };
     IncomingMessage expectedIncomingMessage =
-        new IncomingMessage(DATA.getBytes(), MESSAGE_TIME, REQ_TIME, ACK_ID, MESSAGE_ID);
+        new IncomingMessage(DATA.getBytes(), null, MESSAGE_TIME, REQ_TIME, ACK_ID, MESSAGE_ID);
     try (PubsubTestClientFactory factory =
              PubsubTestClient.createFactoryForPull(clock, SUBSCRIPTION, ACK_TIMEOUT_S,
                                                    Lists.newArrayList(expectedIncomingMessage))) {
@@ -100,7 +100,7 @@ public class PubsubTestClientTest {
   @Test
   public void publishOneMessage() throws IOException {
     OutgoingMessage expectedOutgoingMessage =
-        new OutgoingMessage(DATA.getBytes(), MESSAGE_TIME, MESSAGE_ID);
+        new OutgoingMessage(DATA.getBytes(), null, MESSAGE_TIME, MESSAGE_ID);
     try (PubsubTestClientFactory factory =
              PubsubTestClient.createFactoryForPublish(
                  TOPIC,

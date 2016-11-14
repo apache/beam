@@ -42,6 +42,7 @@ import io.grpc.stub.StreamObserver;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ThreadLocalRandom;
 import org.apache.beam.sdk.util.PubsubClient.IncomingMessage;
 import org.apache.beam.sdk.util.PubsubClient.OutgoingMessage;
@@ -76,6 +77,8 @@ public class PubsubGrpcClientTest {
   private static final String DATA = "testData";
   private static final String RECORD_ID = "testRecordId";
   private static final String ACK_ID = "testAckId";
+  private static final Map<String, String> ATTRIBUTES =
+          ImmutableMap.<String, String>builder().put("a", "b").put("c", "d").build();
 
   @Before
   public void setup() {
@@ -111,6 +114,7 @@ public class PubsubGrpcClientTest {
                      .setData(
                          ByteString.copyFrom(DATA.getBytes()))
                      .setPublishTime(timestamp)
+                     .putAllAttributes(ATTRIBUTES)
                      .putAllAttributes(
                          ImmutableMap.of(TIMESTAMP_LABEL,
                                          String.valueOf(MESSAGE_TIME),
@@ -160,6 +164,7 @@ public class PubsubGrpcClientTest {
     PubsubMessage expectedPubsubMessage =
         PubsubMessage.newBuilder()
                      .setData(ByteString.copyFrom(DATA.getBytes()))
+                     .putAllAttributes(ATTRIBUTES)
                      .putAllAttributes(
                          ImmutableMap.of(TIMESTAMP_LABEL, String.valueOf(MESSAGE_TIME),
                                          ID_LABEL, RECORD_ID))
@@ -190,7 +195,7 @@ public class PubsubGrpcClientTest {
         .build()
         .start();
     try {
-      OutgoingMessage actualMessage = new OutgoingMessage(DATA.getBytes(), MESSAGE_TIME, RECORD_ID);
+      OutgoingMessage actualMessage = new OutgoingMessage(DATA.getBytes(), null, MESSAGE_TIME, RECORD_ID);
       int n = client.publish(TOPIC, ImmutableList.of(actualMessage));
       assertEquals(1, n);
       assertEquals(expectedRequest, Iterables.getOnlyElement(requestsReceived));
