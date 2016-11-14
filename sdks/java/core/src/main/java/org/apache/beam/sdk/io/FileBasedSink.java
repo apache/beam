@@ -803,7 +803,7 @@ public abstract class FileBasedSink<T> extends Sink<T> {
       // Delete the file if it exists.
       boolean exists = Files.deleteIfExists(Paths.get(fileOrDir));
       if (!exists) {
-        LOG.debug("{} does not exist.", fileOrDir);
+        LOG.debug("Tried to delete {}, but it did not exist", fileOrDir);
       }
     }
   }
