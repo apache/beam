@@ -78,7 +78,7 @@ reactions to speculative and late panes and dropped data.
 
 ## Element Timings
 
-Elements arrive either behind, with, or after the watermark, which categorizes
+Elements arrive either before, with, or after the watermark, which categorizes
 them into the "early", "on-time", and "late" divisions. "Late" elements can be
 further subdivided into "unobservably", "observably", and "droppably" late,
 depending on the window to which they are assigned and the maximum allowed
