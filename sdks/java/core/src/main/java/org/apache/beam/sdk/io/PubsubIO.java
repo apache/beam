@@ -1080,10 +1080,8 @@ public class PubsubIO {
       @Override
       public void populateDisplayData(DisplayData.Builder builder) {
         super.populateDisplayData(builder);
-        String topicString =
-            topic == null ? null
-            : topic.isAccessible() ? topic.get().asPath()
-            : topic.toString();
+        String topicString = topic.isAccessible()
+            ? topic.get().asPath() : topic.toString();
         populateCommonDisplayData(builder, timestampLabel, idLabel, topicString);
       }
 
@@ -1093,7 +1091,7 @@ public class PubsubIO {
       }
 
       public PubsubTopic getTopic() {
-        return topic == null ? null : topic.get();
+        return topic.get();
       }
 
       public ValueProvider<PubsubTopic> getTopicProvider() {

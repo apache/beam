@@ -20,6 +20,8 @@ package org.apache.beam.sdk.io;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
 import static org.hamcrest.Matchers.hasItem;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThat;
 
 import java.util.Set;
@@ -86,6 +88,26 @@ public class PubsubIOTest {
     assertThat(displayData, hasDisplayItem("idLabel", "myId"));
     assertThat(displayData, hasDisplayItem("maxNumRecords", 1234));
     assertThat(displayData, hasDisplayItem("maxReadTime", maxReadTime));
+  }
+
+  @Test
+  public void testNullTopic() {
+    String subscription = "projects/project/subscriptions/subscription";
+    PubsubIO.Read.Bound<String> read = PubsubIO.Read
+        .subscription(StaticValueProvider.of(subscription));
+    assertNull(read.getTopic());
+    assertNotNull(read.getSubscription());
+    assertNotNull(DisplayData.from(read));
+  }
+
+  @Test
+  public void testNullSubscription() {
+    String topic = "projects/project/topics/topic";
+    PubsubIO.Read.Bound<String> read = PubsubIO.Read
+        .topic(StaticValueProvider.of(topic));
+    assertNotNull(read.getTopic());
+    assertNull(read.getSubscription());
+    assertNotNull(DisplayData.from(read));
   }
 
   @Test
