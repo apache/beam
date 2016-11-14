@@ -15,11 +15,17 @@
 # limitations under the License.
 #
 
+"""A local plugin for Pytest
+
+Pytest will invoke all self-defined hooks which are build for Beam Python
+testing framework.
+"""
+
 import pytest
 
 
 def pytest_addoption(parser):
-  """Register command line options to pytest"""
+  """Register command line options to pytest before command line parsing"""
   parser.addoption('--test_options',
                    nargs='?',
                    type=str,
@@ -33,7 +39,8 @@ def pytest_addoption(parser):
 
 
 def pytest_runtest_setup(item):
-  """Set up @RunnableOnService marker and handle sub-categories"""
+  """Set up ValidatesRunner marker and handle sub-categories before each
+  collected functions run"""
   marker = item.get_marker('ValidatesRunner')
   category_args = item.config.getoption('sub_categories')
   if category_args is not None:

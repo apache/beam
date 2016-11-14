@@ -32,21 +32,17 @@ class TestPipeline(Pipeline):
   of the pipeline runner. Those test functions are recommended to be tagged by
   @pytest.mark.ValidatesRunner annotation.
 
-  Test functions that run against a pipeline runner are recommended to be tagged
-  by @pytest.mark.ValidatesRunner annotation. TestPipeline class has a
-  functionality to parse arguments from command line and build pipeline options
-  for such tests.
-
   In order to configure the test with customized pipeline options from command
   line, system argument 'test_options' can be used to obtains a list of pipeline
-  options. If no options specified, DirectPipelineRunner will be used as
-  default. For example::
+  options. If no options specified, default value will be used.
 
-    '--runner DirectPipelineRunner \
-    --job_name myJobName \
-    --num_workers 1'
+  For example, use following command line to execute all ValidatesRunner tests::
 
-  Use assert_that for test validation. For example::
+    pytest -m ValidatesRunner --test_options='--runner DirectPipelineRunner \
+                                              --job_name myJobName \
+                                              --num_workers 1'
+
+  For example, sse assert_that for test validation::
 
     pipeline = TestPipeline()
     pcoll = ...
@@ -69,7 +65,7 @@ class TestPipeline(Pipeline):
     known, unused_argv = parser.parse_known_args()
 
     options = []
-    if known.test_options is not None:
+    if known.test_options:
       options = known.test_options.split()
 
     return PipelineOptions(options)
