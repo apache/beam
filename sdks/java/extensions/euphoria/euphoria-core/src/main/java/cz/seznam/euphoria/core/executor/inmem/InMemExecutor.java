@@ -70,7 +70,6 @@ public class InMemExecutor implements Executor {
     Datum get() throws InterruptedException;
   }
 
-
   static final class PartitionSupplierStream implements Supplier {
 
     final Reader<?> reader;
@@ -256,7 +255,6 @@ public class InMemExecutor implements Executor {
     this.triggerSchedulerSupplier = supplier;
     return this;
   }
-
   
   /**
    * Enable shuffling of windowed data based on the windowID.
@@ -274,7 +272,7 @@ public class InMemExecutor implements Executor {
   
   @Override
   public CompletableFuture<Executor.Result> submit(Flow flow) {
-    return CompletableFuture.supplyAsync(() -> supply(flow), executor);
+    return CompletableFuture.supplyAsync(() -> execute(flow), executor);
   }
   
   @Override
@@ -283,7 +281,7 @@ public class InMemExecutor implements Executor {
     executor.shutdownNow();
   }
 
-  private Executor.Result supply(Flow flow) {
+  private Executor.Result execute(Flow flow) {
     // transform the given flow to DAG of basic operators
     DAG<Operator<?, ?>> dag = FlowUnfolder.unfold(flow, Executor.getBasicOps());
 
@@ -411,7 +409,6 @@ public class InMemExecutor implements Executor {
     return ret;
   }
 
-
   private void execUnit(ExecUnit unit, ExecutionContext context) {
     unit.getDAG().traverse().forEach(n -> execNode(n, context));
   }
@@ -490,7 +487,6 @@ public class InMemExecutor implements Executor {
     } else {
       context.add(node.get(), null, output);
     }
-
   }
 
   @SuppressWarnings("unchecked")
@@ -531,7 +527,6 @@ public class InMemExecutor implements Executor {
     return ret;
   }
 
-
   @SuppressWarnings("unchecked")
   private InputProvider execRepartition(
       Node<Repartition> repartition,
@@ -555,7 +550,6 @@ public class InMemExecutor implements Executor {
         .forEach(s -> ret.add((Supplier) s));
     return ret;
   }
-
 
   @SuppressWarnings("unchecked")
   private InputProvider execReduceStateByKey(
@@ -725,12 +719,9 @@ public class InMemExecutor implements Executor {
         }
       });
     }
-
     waitForStreamEnds(workers, ret);
-
     return ret;
   }
-
 
   // wait until runningTasks is not zero and then send EOF to all output queues
   private void waitForStreamEnds(
@@ -754,7 +745,6 @@ public class InMemExecutor implements Executor {
     });
   }
 
-  
   @SuppressWarnings("unchecked")
   private InputProvider execUnion(
       Node<Union> union, ExecutionContext context) {
@@ -772,7 +762,6 @@ public class InMemExecutor implements Executor {
   public void abort() {
     executor.shutdownNow();
   }
-
 
   // utility method used after extracting element from upstream
   // queue, the element is passed to the downstream partitions
@@ -827,5 +816,4 @@ public class InMemExecutor implements Executor {
     // was handled
     return true;
   }
-
 }

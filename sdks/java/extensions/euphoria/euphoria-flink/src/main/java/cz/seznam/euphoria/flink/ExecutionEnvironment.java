@@ -56,12 +56,13 @@ public class ExecutionEnvironment {
     LOG.info("Registered classes {} within flink's runtime", toRegister);
   }
 
-
   public void execute() throws Exception {
     if (batchEnv != null) {
       batchEnv.execute();
     } else if (streamEnv != null) {
       streamEnv.execute();
+    } else {
+      throw new IllegalStateException("No execution environment initialized");
     }
   }
 
