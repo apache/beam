@@ -60,7 +60,7 @@
   </build>
 
   <properties>
-    <paho.version>1.0.2</paho.version>
+    <paho.version>1.1.0</paho.version>
     <activemq.version>5.13.1</activemq.version>
   </properties>
 
