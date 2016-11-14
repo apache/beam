@@ -195,7 +195,8 @@ public class PubsubGrpcClientTest {
         .build()
         .start();
     try {
-      OutgoingMessage actualMessage = new OutgoingMessage(DATA.getBytes(), null, MESSAGE_TIME, RECORD_ID);
+      OutgoingMessage actualMessage = new OutgoingMessage(
+              DATA.getBytes(), null, MESSAGE_TIME, RECORD_ID);
       int n = client.publish(TOPIC, ImmutableList.of(actualMessage));
       assertEquals(1, n);
       assertEquals(expectedRequest, Iterables.getOnlyElement(requestsReceived));

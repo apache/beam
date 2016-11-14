@@ -154,7 +154,7 @@ public class PubsubIO {
           .withLabel("Pubsub Topic"));
     }
   }
-  
+
   /**
    * Class representing a Pub/Sub message. Each message contains a single message payload and
    * a map of attached attributes.
@@ -566,7 +566,7 @@ public class PubsubIO {
     public static <T> Bound<T> withCoder(Coder<T> coder) {
       return new Bound<>(coder);
     }
-    
+
     /**
      * Causes the source to return a PubsubMessage that includes Pubsub attributes.
      * The user must supply a parsing function to transform the PubsubMessage into an output type.
@@ -628,7 +628,7 @@ public class PubsubIO {
 
       /** User function for parsing PubsubMessage object. */
       SimpleFunction<PubsubMessage, T> parseFn;
-      
+
       private Bound(Coder<T> coder) {
         this(null, null, null, null, coder, null, 0, null, null);
       }
@@ -743,12 +743,12 @@ public class PubsubIO {
             name, subscription, topic, timestampLabel, coder, idLabel, maxNumRecords, maxReadTime,
             null);
       }
-  
+
       /**
        * Causes the source to return a PubsubMessage that includes Pubsub attributes.
        * The user must supply a parsing function to transform the PubsubMessage into an output type.
        * A Coder for the output type T must be registered or set on the output via
-       * {@link PCollection.setCoder}.
+       * {@link PCollection.setCoder(Coder<T>)}.
        */
       public <T> Bound<T> withAttributes(SimpleFunction<PubsubMessage, T> parseFn) {
         return new Bound<T>(
@@ -871,7 +871,7 @@ public class PubsubIO {
       public Duration getMaxReadTime() {
         return maxReadTime;
       }
-      
+
       public SimpleFunction<PubsubMessage, T> getPubSubMessageParseFn() {
           return parseFn;
         }
@@ -966,7 +966,8 @@ public class PubsubIO {
             for (IncomingMessage message : messages) {
               T element = null;
               if (parseFn != null) {
-                element = parseFn.apply(new PubsubMessage(message.elementBytes, message.attributes));
+                element = parseFn.apply(new PubsubMessage(
+                        message.elementBytes, message.attributes));
               } else {
                 element = CoderUtils.decodeFromByteArray(getCoder(), message.elementBytes);
               }
@@ -1054,8 +1055,8 @@ public class PubsubIO {
     public static <T> Bound<T> withCoder(Coder<T> coder) {
       return new Bound<>(coder);
     }
-    
-    /** 
+
+    /**
      * Used to write a PubSub message together with PubSub attributes. The user-supplied format
      * function translates the input type T to a PubsubMessage object, which is used by the sink
      * to separately set the PubSub message's payload and attributes.
@@ -1075,7 +1076,7 @@ public class PubsubIO {
       @Nullable private final String timestampLabel;
       /** The name of the message attribute to publish unique message IDs in. */
       @Nullable private final String idLabel;
-      /** The input type Coder */
+      /** The input type Coder. */
       private final Coder<T> coder;
       /** The format function for input PubsubMessage objects. */
       SimpleFunction<T, PubsubMessage> formatFn;
@@ -1151,13 +1152,12 @@ public class PubsubIO {
       public <X> Bound<X> withCoder(Coder<X> coder) {
         return new Bound<>(name, topic, timestampLabel, idLabel, coder, null);
       }
-      
-    
-      /** 
+
+      /**
        * Used to write a PubSub message together with PubSub attributes. The user-supplied format
        * function translates the input type T to a PubsubMessage object, which is used by the sink
        * to separately set the PubSub message's payload and attributes.
-       */  
+       */
       public <T> Bound<T> withAttributes(SimpleFunction<T, PubsubMessage> formatFn) {
           return new Bound<T>(name, topic, timestampLabel, idLabel, null, formatFn);
       }

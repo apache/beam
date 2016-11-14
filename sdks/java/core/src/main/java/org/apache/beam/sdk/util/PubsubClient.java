@@ -324,8 +324,8 @@ public abstract class PubsubClient implements Closeable {
     @Nullable
     public final String recordId;
 
-    public OutgoingMessage(
-        byte[] elementBytes, Map<String, String> attributes, long timestampMsSinceEpoch, @Nullable String recordId) {
+    public OutgoingMessage(byte[] elementBytes, Map<String, String> attributes,
+                           long timestampMsSinceEpoch, @Nullable String recordId) {
       this.elementBytes = elementBytes;
       this.attributes = attributes;
       this.timestampMsSinceEpoch = timestampMsSinceEpoch;
@@ -357,7 +357,8 @@ public abstract class PubsubClient implements Closeable {
 
     @Override
     public int hashCode() {
-      return Objects.hashCode(Arrays.hashCode(elementBytes), attributes, timestampMsSinceEpoch, recordId);
+      return Objects.hashCode(Arrays.hashCode(elementBytes), attributes, timestampMsSinceEpoch,
+              recordId);
     }
   }
 
@@ -412,8 +413,8 @@ public abstract class PubsubClient implements Closeable {
     }
 
     public IncomingMessage withRequestTime(long requestTimeMsSinceEpoch) {
-      return new IncomingMessage(elementBytes, attributes, timestampMsSinceEpoch, requestTimeMsSinceEpoch,
-                                 ackId, recordId);
+      return new IncomingMessage(elementBytes, attributes, timestampMsSinceEpoch,
+              requestTimeMsSinceEpoch, ackId, recordId);
     }
 
     @Override
