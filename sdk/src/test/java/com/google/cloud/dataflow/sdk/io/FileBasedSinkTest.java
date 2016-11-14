@@ -248,22 +248,28 @@ public class FileBasedSinkTest {
     PipelineOptions options = PipelineOptionsFactory.create();
     SimpleSink.SimpleWriteOperation writeOp = buildWriteOperation(baseTemporaryFilename);
 
-    List<File> temporaryFiles = new ArrayList<>();
+    List<String> temporaryFiles = new ArrayList<>();
     List<File> outputFiles = new ArrayList<>();
     for (int i = 0; i < numFiles; i++) {
       File tmpFile = tmpFolder.newFile(
           FileBasedWriteOperation.buildTemporaryFilename(baseTemporaryFilename, "" + i));
-      temporaryFiles.add(tmpFile);
+      temporaryFiles.add(tmpFile.getAbsolutePath());
       File outputFile = tmpFolder.newFile(baseOutputFilename + i);
       outputFiles.add(outputFile);
     }
 
-    writeOp.removeTemporaryFiles(options);
+    File extraFile = new File(tmpFolder.newFolder("extra"), "foo");
+    assertTrue(extraFile.createNewFile());
+
+    temporaryFiles.add(extraFile.getAbsolutePath());
+
+    writeOp.removeTemporaryFiles(temporaryFiles, options);
 
     for (int i = 0; i < numFiles; i++) {
-      assertFalse(temporaryFiles.get(i).exists());
+      assertFalse(new File(temporaryFiles.get(i)).exists());
       assertTrue(outputFiles.get(i).exists());
     }
+    assertFalse(extraFile.exists());
   }
 
   /**

@@ -44,7 +44,9 @@ import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 /**
  * Abstract {@link Sink} for file-based output. An implementation of FileBasedSink writes file-based
@@ -312,7 +314,7 @@ public abstract class FileBasedSink<T> extends Sink<T> {
 
       // Optionally remove temporary files.
       if (temporaryFileRetention == TemporaryFileRetention.REMOVE) {
-        removeTemporaryFiles(options);
+        removeTemporaryFiles(files, options);
       }
     }
 
@@ -370,21 +372,43 @@ public abstract class FileBasedSink<T> extends Sink<T> {
     }
 
     /**
+     * Use {@link #removeTemporaryFiles(Collection, PipelineOptions)} instead.
+     */
+    @Deprecated
+    protected final void removeTemporaryFiles(PipelineOptions options) throws IOException {
+      removeTemporaryFiles(Collections.<String>emptyList(), options);
+    }
+
+    /**
      * Removes temporary output files. Uses the temporary filename to find files to remove.
+     *
+     * <p>Additionally, to partially mitigate the effects of filesystems with eventually-consistent
+     * directory matching APIs, takes a list of files that are known to exist - i.e. removes the
+     * union of the known files and files that the filesystem says exist in the directory.
+     *
+     * <p>Assumes that, if globbing had been strongly consistent, it would have matched all
+     * of knownFiles - i.e. on a strongly consistent filesystem, knownFiles can be ignored.
      *
      * <p>Can be called from subclasses that override {@link FileBasedWriteOperation#finalize}.
      * <b>Note:</b>If finalize is overridden and does <b>not</b> rename or otherwise finalize
      * temporary files, this method will remove them.
      */
-    protected final void removeTemporaryFiles(PipelineOptions options) throws IOException {
+    protected final void removeTemporaryFiles(
+        Collection<String> knownFiles, PipelineOptions options) throws IOException {
       String pattern = buildTemporaryFilename(baseTemporaryFilename, "*");
       LOG.debug("Finding temporary bundle output files matching {}.", pattern);
       FileOperations fileOperations = FileOperationsFactory.getFileOperations(pattern, options);
       IOChannelFactory factory = IOChannelUtils.getFactory(pattern);
       Collection<String> matches = factory.match(pattern);
-      LOG.debug("{} temporary files matched {}", matches.size(), pattern);
-      LOG.debug("Removing {} files.", matches.size());
-      fileOperations.remove(matches);
+      Set<String> allMatches = new HashSet<>(matches);
+      allMatches.addAll(knownFiles);
+      LOG.debug(
+          "Removing {} temporary files matching {} ({} matched glob, {} additional known files)",
+          allMatches.size(),
+          pattern,
+          matches.size(),
+          allMatches.size() - matches.size());
+      fileOperations.remove(allMatches);
     }
 
     /**
