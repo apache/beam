@@ -267,7 +267,7 @@ public class GcsUtil {
    * if the resource does not exist.
    */
   public long fileSize(GcsPath path) throws IOException {
-    return fileSize(ImmutableList.of(path)).get(0);
+    return fileSizes(ImmutableList.of(path)).get(0);
   }
 
   /**
@@ -275,7 +275,7 @@ public class GcsUtil {
    * if the resource does not exist.
    */
   @VisibleForTesting
-  List<Long> fileSize(Collection<GcsPath> paths) throws IOException {
+  List<Long> fileSizes(Collection<GcsPath> paths) throws IOException {
     List<long[]> results = Lists.newArrayList();
     executeBatches(makeGetBatches(paths, results));
 

@@ -396,7 +396,7 @@ public class GcsUtilTest {
 
     gcsUtil.setStorageClient(new Storage(mockTransport, Transport.getJsonFactory(), null));
 
-    return gcsUtil.fileSize(paths);
+    return gcsUtil.fileSizes(paths);
   }
 
   @Test
