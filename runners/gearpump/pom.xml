@@ -70,24 +70,21 @@
                     <dependency>org.apache.beam:beam-sdks-java-core</dependency>
                   </dependenciesToScan>
                   <excludes>
-                    <!-- side input is not supported in Gearpump -->
+                    <!-- duplicated edges in Gearpump graph -->
                     <exclude>
-                      org.apache.beam.sdk.io.gcp.bigquery.BigQueryIOTest,
-                      org.apache.beam.sdk.io.CountingInputTest,
-                      org.apache.beam.sdk.io.CountingSourceTest,
-                      org.apache.beam.sdk.testing.PAssertTest,
-                      org.apache.beam.sdk.transforms.ApproximateUniqueTest,
-                      org.apache.beam.sdk.transforms.CombineTest,
-                      org.apache.beam.sdk.transforms.CombineFnsTest,
-                      org.apache.beam.sdk.transforms.CountTest,
-                      org.apache.beam.sdk.transforms.FlattenTest,
-                      org.apache.beam.sdk.transforms.ParDoTest,
-                      org.apache.beam.sdk.transforms.SampleTest,
-                      org.apache.beam.sdk.transforms.ViewTest,
-                      org.apache.beam.sdk.transforms.join.CoGroupByKeyTest
+                      org.apache.beam.sdk.transforms.FlattenTest
+                    </exclude>
+                    <!-- assertion should have failed-->
+                    <exclude>
+                      org.apache.beam.sdk.testing.PAssertTest
+                    </exclude>
+                    <!-- only one side input is supported -->
+                    <exclude>
+                      org.apache.beam.sdk.transforms.ParDoTest
                     </exclude>
                     <!-- merging windows is not supported in Gearpump -->
                     <exclude>
+                      org.apache.beam.sdk.transforms.CombineTest,
                       org.apache.beam.sdk.transforms.windowing.WindowingTest,
                       org.apache.beam.sdk.util.ReshuffleTest
                     </exclude>

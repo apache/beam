@@ -16,33 +16,28 @@
  * limitations under the License.
  */
 
-package org.apache.beam.runners.gearpump.translators.utils;
+package org.apache.beam.runners.gearpump.translators;
 
-import java.io.Serializable;
+import java.util.List;
 
-import javax.annotation.Nullable;
-
-import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.util.SideInputReader;
+import org.apache.beam.sdk.transforms.View;
+import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollectionView;
+import org.apache.gearpump.streaming.dsl.javaapi.JavaStream;
 
 /**
- * no-op side input reader.
+ * View.CreatePCollectionView bridges input stream to down stream
+ * transforms.
  */
-public class NoOpSideInputReader implements SideInputReader, Serializable {
-  @Nullable
-  @Override
-  public <T> T get(PCollectionView<T> view, BoundedWindow window) {
-    return null;
-  }
+public class CreatePCollectionViewTranslator<ElemT, ViewT> implements
+    TransformTranslator<View.CreatePCollectionView<ElemT, ViewT>> {
 
   @Override
-  public <T> boolean contains(PCollectionView<T> view) {
-    return false;
-  }
-
-  @Override
-  public boolean isEmpty() {
-    return false;
+  public void translate(View.CreatePCollectionView<ElemT, ViewT> transform,
+      TranslationContext context) {
+    JavaStream<WindowedValue<List<ElemT>>> inputStream =
+        context.getInputStream(context.getInput(transform));
+    PCollectionView<ViewT> view = transform.getView();
+    context.setOutputStream(view, inputStream);
   }
 }
