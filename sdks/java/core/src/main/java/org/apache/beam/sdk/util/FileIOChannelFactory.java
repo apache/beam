@@ -175,21 +175,17 @@ public class FileIOChannelFactory implements IOChannelFactory {
       String src = srcFilenames.get(i);
       String dst = destFilenames.get(i);
       LOG.debug("Copying {} to {}", src, dst);
-      copyOne(src, dst);
-    }
-  }
-
-  private void copyOne(String source, String destination) throws IOException {
-    try {
-      // Copy the source file, replacing the existing destination.
-      // Paths.get(x) will not work on win cause of the ":" after the drive letter
-      Files.copy(
-          new File(source).toPath(),
-          new File(destination).toPath(),
-          StandardCopyOption.REPLACE_EXISTING);
-    } catch (NoSuchFileException e) {
-      LOG.debug("{} does not exist.", source);
-      // Suppress exception if file does not exist.
+      try {
+        // Copy the source file, replacing the existing destination.
+        // Paths.get(x) will not work on Windows OSes cause of the ":" after the drive letter.
+        Files.copy(
+            new File(src).toPath(),
+            new File(dst).toPath(),
+            StandardCopyOption.REPLACE_EXISTING);
+      } catch (NoSuchFileException e) {
+        LOG.debug("{} does not exist.", src);
+        // Suppress exception if file does not exist.
+      }
     }
   }
 
