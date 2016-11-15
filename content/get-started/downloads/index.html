@@ -6,7 +6,7 @@
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <meta name="viewport" content="width=device-width, initial-scale=1">
 
-  <title>Downloads</title>
+  <title>Beam Releases</title>
   <meta name="description" content="Apache Beam is an open source, unified model and set of language-specific SDKs for defining and executing data processing workflows, and also data ingestion and integration flows, supporting Enterprise Integration Patterns (EIPs) and Domain Specific Languages (DSLs). Dataflow pipelines simplify the mechanics of large-scale batch and streaming data processing and can run on a number of runtimes like Apache Flink, Apache Spark, and Google Cloud Dataflow (a cloud service). Beam also brings DSL in different languages, allowing users to easily implement their data integration processes.
 ">
 
@@ -60,7 +60,6 @@
               <li role="separator" class="divider"></li>
               <li class="dropdown-header">Resources</li>
               <li><a href="/get-started/downloads">Downloads</a></li>
-              <li><a href="/get-started/releases">Release Notes</a></li>
               <li><a href="/get-started/support">Support</a></li>
 		  </ul>
 	    </li>
@@ -81,6 +80,7 @@
 			  <li class="dropdown-header">SDKs</li>
 			  <li><a href="/documentation/sdks/java/">Java SDK</a></li>
 			  <li><a href="/documentation/sdks/javadoc/">Java SDK API Reference</a></li>
+        <li><a href="/documentation/sdks/python/">Python SDK</a></li>
 			  <li role="separator" class="divider"></li>
 			  <li class="dropdown-header">Runners</li>
 			  <li><a href="/documentation/runners/capability-matrix/">Capability Matrix</a></li>
@@ -140,11 +140,55 @@
     <div class="container" role="main">
 
       <div class="row">
-        <h1 id="downloads">Downloads</h1>
+        <h1 id="apache-beam-downloads">Apache Beam Downloads</h1>
 
-<blockquote>
-  <p><strong>Note:</strong> There is an open JIRA issue to fill in this page (<a href="https://issues.apache.org/jira/browse/BEAM-906">BEAM-906</a>).</p>
-</blockquote>
+<p>The easiest way to use Apache Beam is via one of the released versions in the
+<a href="https://search.maven.org/#search%7Cga%7C1%7Cg%3A%22org.apache.beam%22">Maven Central Repository</a>.</p>
+
+<p>For example, if you are developing using Maven and want to use the SDK for
+Java with the <code class="highlighter-rouge">DirectRunner</code>, add the following dependencies to your
+<code class="highlighter-rouge">pom.xml</code> file:</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>&lt;dependency&gt;
+  &lt;groupId&gt;org.apache.beam&lt;/groupId&gt;
+  &lt;artifactId&gt;beam-sdks-java-core&lt;/artifactId&gt;
+  &lt;version&gt;0.3.0-incubating&lt;/version&gt;
+&lt;/dependency&gt;
+&lt;dependency&gt;
+  &lt;groupId&gt;org.apache.beam&lt;/groupId&gt;
+  &lt;artifactId&gt;beam-runners-direct-java&lt;/artifactId&gt;
+  &lt;version&gt;0.3.0-incubating&lt;/version&gt;
+  &lt;scope&gt;runtime&lt;/scope&gt;
+&lt;/dependency&gt;
+</code></pre>
+</div>
+
+<p>Additionally, you may want to depend on additional SDK modules, such as IO
+connectors or other extensions, and additional runners to execute your pipeline
+at scale.</p>
+
+<h2 id="release-notes">Release Notes</h2>
+
+<h3 id="incubating">0.3.0-incubating</h3>
+<p><a href="https://www.apache.org/dyn/closer.cgi?filename=incubator/beam/0.3.0-incubating/apache-beam-0.3.0-incubating-source-release.zip&amp;action=download">Source code download</a></p>
+
+<ul>
+  <li>Release notes are available <a href="https://issues.apache.org/jira/secure/ReleaseNote.jspa?projectId=12319527&amp;version=12338051">in JIRA</a>.</li>
+</ul>
+
+<h3 id="incubating-1">0.2.0-incubating</h3>
+<p><a href="https://www.apache.org/dyn/closer.cgi?filename=incubator/beam/0.2.0-incubating/apache-beam-0.2.0-incubating-source-release.zip&amp;action=download">Source code download</a></p>
+
+<ul>
+  <li>Release notes are available <a href="https://issues.apache.org/jira/secure/ReleaseNote.jspa?projectId=12319527&amp;version=12335766">in JIRA</a>.</li>
+</ul>
+
+<h3 id="incubating-2">0.1.0-incubating</h3>
+<p><a href="https://www.apache.org/dyn/closer.cgi?filename=incubator/beam/0.1.0-incubating/apache-beam-0.1.0-incubating-source-release.zip&amp;action=download">Source code download</a></p>
+
+<ul>
+  <li>The first incubating release of Apache Beam.</li>
+</ul>
 
       </div>
 
