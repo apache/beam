@@ -23,7 +23,7 @@ import static org.junit.Assert.assertEquals;
 import java.io.File;
 import java.io.IOException;
 import org.apache.beam.runners.spark.coders.WritableCoder;
-import org.apache.beam.runners.spark.translation.streaming.utils.TestPipelineOptions;
+import org.apache.beam.runners.spark.translation.streaming.utils.SparkTestPipelineOptions;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.values.KV;
@@ -52,7 +52,7 @@ public class HadoopFileFormatPipelineTest {
   private File outputFile;
 
   @Rule
-  public final TestPipelineOptions pipelineOptions = new TestPipelineOptions();
+  public final SparkTestPipelineOptions pipelineOptions = new SparkTestPipelineOptions();
 
   @Rule
   public final TemporaryFolder tmpDir = new TemporaryFolder();

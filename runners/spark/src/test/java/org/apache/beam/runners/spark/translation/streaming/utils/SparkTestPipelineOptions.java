@@ -25,7 +25,7 @@ import org.junit.rules.ExternalResource;
 /**
  * A rule to create a common {@link SparkPipelineOptions} test options for spark-runner.
  */
-public class TestPipelineOptions extends ExternalResource {
+public class SparkTestPipelineOptions extends ExternalResource {
 
   protected final SparkPipelineOptions options =
       PipelineOptionsFactory.as(SparkPipelineOptions.class);

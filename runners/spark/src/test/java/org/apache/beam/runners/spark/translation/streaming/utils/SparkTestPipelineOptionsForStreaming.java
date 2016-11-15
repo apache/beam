@@ -26,7 +26,7 @@ import org.junit.rules.TemporaryFolder;
 /**
  * A rule to create a common {@link SparkPipelineOptions} for testing streaming pipelines.
  */
-public class TestPipelineOptionsForStreaming extends TestPipelineOptions {
+public class SparkTestPipelineOptionsForStreaming extends SparkTestPipelineOptions {
 
   @Override
   protected void before() throws Throwable {
