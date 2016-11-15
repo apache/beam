@@ -21,6 +21,7 @@ package org.apache.beam.sdk.io;
 import static com.google.common.base.Preconditions.checkState;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.hash.Hashing;
 
 import java.io.IOException;
@@ -32,6 +33,7 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
 import javax.annotation.Nullable;
+import javax.annotation.concurrent.Immutable;
 
 import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.BigEndianLongCoder;
@@ -111,8 +113,8 @@ public class PubsubUnboundedSink<T> extends PTransform<PCollection<T>, PDone> {
   private static class OutgoingMessageCoder extends AtomicCoder<OutgoingMessage> {
     private static final NullableCoder<String> RECORD_ID_CODER =
         NullableCoder.of(StringUtf8Coder.of());
-    private static final MapCoder<String, String> ATTRIBUTES_CODER =
-            MapCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of());
+    private static final NullableCoder<Map<String, String>> ATTRIBUTES_CODER =
+            NullableCoder.of(MapCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of()));
 
     @Override
     public void encode(
@@ -182,7 +184,7 @@ public class PubsubUnboundedSink<T> extends PTransform<PCollection<T>, PDone> {
     public void processElement(ProcessContext c) throws Exception {
       elementCounter.addValue(1L);
       byte[] elementBytes = null;
-      Map<String, String> attributes = null;
+      Map<String, String> attributes = ImmutableMap.<String, String>of();
       if (formatFn != null) {
         PubsubIO.PubsubMessage message = formatFn.apply(c.element());
         elementBytes = message.getMessage();

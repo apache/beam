@@ -22,6 +22,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.hash.Hashing;
 import java.io.IOException;
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -53,7 +54,7 @@ import org.junit.runners.JUnit4;
  * Test PubsubUnboundedSink.
  */
 @RunWith(JUnit4.class)
-public class PubsubUnboundedSinkTest {
+public class PubsubUnboundedSinkTest implements Serializable {
   private static final TopicPath TOPIC = PubsubClient.topicPathFromName("testProject", "testTopic");
   private static final String DATA = "testData";
   private static final Map<String, String> ATTRIBUTES =
