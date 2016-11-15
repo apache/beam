@@ -140,9 +140,133 @@
     <div class="container" role="main">
 
       <div class="row">
-        <h1 id="using-the-cloud-dataflow-runner">Using the Cloud Dataflow Runner</h1>
+        <h1 id="using-the-google-cloud-dataflow-runner">Using the Google Cloud Dataflow Runner</h1>
 
-<p>This page is under construction (<a href="https://issues.apache.org/jira/browse/BEAM-508">BEAM-508</a>).</p>
+<p>The Google Cloud Dataflow Runner uses the <a href="https://cloud.google.com/dataflow/service/dataflow-service-desc">Cloud Dataflow managed service</a>. When you run your pipeline with the Cloud Dataflow service, the runner uploads your executable code and dependencies to a Google Cloud Storage bucket and creates a Cloud Dataflow job, which executes your pipeline on managed resources in Google Cloud Platform.</p>
+
+<p>The Cloud Dataflow Runner and service are suitable for large scale, continuous jobs, and provide:</p>
+
+<ul>
+  <li>a fully managed service</li>
+  <li><a href="https://cloud.google.com/dataflow/service/dataflow-service-desc#autoscaling">autoscaling</a> of the number of workers throughout the lifetime of the job</li>
+  <li><a href="https://cloud.google.com/blog/big-data/2016/05/no-shard-left-behind-dynamic-work-rebalancing-in-google-cloud-dataflow">dynamic work rebalancing</a></li>
+</ul>
+
+<p>The <a href="/documentation/runners/capability-matrix/">Beam Capability Matrix</a> documents the supported capabilities of the Cloud Dataflow Runner.</p>
+
+<h2 id="cloud-dataflow-runner-prerequisites-and-setup">Cloud Dataflow Runner prerequisites and setup</h2>
+<p>To use the Cloud Dataflow Runner, you must complete the following setup:</p>
+
+<ol>
+  <li>
+    <p>Select or create a Google Cloud Platform Console project.</p>
+  </li>
+  <li>
+    <p>Enable billing for your project.</p>
+  </li>
+  <li>
+    <p>Enable required Google Cloud APIs: Cloud Dataflow, Compute Engine, Stackdriver Logging, Cloud Storage, and Cloud Storage JSON. You may need to enable additional APIs (such as BigQuery, Cloud Pub/Sub, or Cloud Datastore) if you use them in your pipeline code.</p>
+  </li>
+  <li>
+    <p>Install the Google Cloud SDK.</p>
+  </li>
+  <li>
+    <p>Create a Cloud Storage bucket.</p>
+    <ul>
+      <li>In the Google Cloud Platform Console, go to the Cloud Storage browser.</li>
+      <li>Click <strong>Create bucket</strong>.</li>
+      <li>In the <strong>Create bucket</strong> dialog, specify the following attributes:
+        <ul>
+          <li><em>Name</em>: A unique bucket name. Do not include sensitive information in the bucket name, as the bucket namespace is global and publicly visible.</li>
+          <li><em>Storage class</em>: Multi-Regional</li>
+          <li><em>Location</em>:  Choose your desired location</li>
+        </ul>
+      </li>
+      <li>Click <strong>Create</strong>.</li>
+    </ul>
+  </li>
+</ol>
+
+<p>For more information, see the <em>Before you begin</em> section of the <a href="https://cloud.google.com/dataflow/docs/quickstarts">Cloud Dataflow quickstarts</a>.</p>
+
+<h3 id="specify-your-dependency">Specify your dependency</h3>
+
+<p>You must specify your dependency on the Cloud Dataflow Runner.</p>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="o">&lt;</span><span class="n">dependency</span><span class="o">&gt;</span>
+  <span class="o">&lt;</span><span class="n">groupId</span><span class="o">&gt;</span><span class="n">org</span><span class="o">.</span><span class="na">apache</span><span class="o">.</span><span class="na">beam</span><span class="o">&lt;/</span><span class="n">groupId</span><span class="o">&gt;</span>
+  <span class="o">&lt;</span><span class="n">artifactId</span><span class="o">&gt;</span><span class="n">beam</span><span class="o">-</span><span class="n">runners</span><span class="o">-</span><span class="n">google</span><span class="o">-</span><span class="n">cloud</span><span class="o">-</span><span class="n">dataflow</span><span class="o">-</span><span class="n">java</span><span class="o">&lt;/</span><span class="n">artifactId</span><span class="o">&gt;</span>
+  <span class="o">&lt;</span><span class="n">version</span><span class="o">&gt;</span><span class="mf">0.3</span><span class="o">.</span><span class="mi">0</span><span class="o">-</span><span class="n">incubating</span><span class="o">&lt;/</span><span class="n">version</span><span class="o">&gt;</span>
+  <span class="o">&lt;</span><span class="n">scope</span><span class="o">&gt;</span><span class="n">runtime</span><span class="o">&lt;/</span><span class="n">scope</span><span class="o">&gt;</span>
+<span class="o">&lt;/</span><span class="n">dependency</span><span class="o">&gt;</span>
+</code></pre>
+</div>
+
+<h3 id="authentication">Authentication</h3>
+
+<p>Before running your pipeline, you must authenticate with the Google Cloud Platform. Run the following command to get <a href="https://developers.google.com/identity/protocols/application-default-credentials">Application Default Credentials</a>.</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>gcloud auth application-default login
+</code></pre>
+</div>
+
+<h2 id="pipeline-options-for-the-cloud-dataflow-runner">Pipeline options for the Cloud Dataflow Runner</h2>
+
+<p>When executing your pipeline with the Cloud Dataflow Runner, set these pipeline options.</p>
+
+<table class="table table-bordered">
+<tr>
+  <th>Field</th>
+  <th>Description</th>
+  <th>Default Value</th>
+</tr>
+<tr>
+  <td><code>runner</code></td>
+  <td>The pipeline runner to use. This option allows you to determine the pipeline runner at runtime.</td>
+  <td>Set to <code>dataflow</code> to run on the Cloud Dataflow Service.</td>
+</tr>
+<tr>
+  <td><code>project</code></td>
+  <td>The project ID for your Google Cloud Project.</td>
+  <td>If not set, defaults to the default project in the current environment. The default project is set via <code>gcloud</code>.</td>
+</tr>
+<tr>
+  <td><code>streaming</code></td>
+  <td>Whether streaming mode is enabled or disabled; <code>true</code> if enabled. Set to <code>true</code> if running pipelines with unbounded <code>PCollection</code>s.</td>
+  <td><code>false</code></td>
+</tr>
+<tr>
+  <td><code>tempLocation</code></td>
+  <td>Optional. Path for temporary files. If set to a valid Google Cloud Storage URL that begins with <code>gs://</code>, <code>tempLocation</code> is used as the default value for <code>gcpTempLocation</code>.</td>
+  <td>No default value.</td>
+</tr>
+<tr>
+  <td><code>gcpTempLocation</code></td>
+  <td>Cloud Storage bucket path for temporary files. Must be a valid Cloud Storage URL that begins with <code>gs://</code>.</td>
+  <td>If not set, defaults to the value of <code>tempLocation</code>, provided that <code>tempLocation</code> is a valid Cloud Storage URL. If <code>tempLocation</code> is not a valid Cloud Storage URL, you must set <code>gcpTempLocation</code>.</td>
+</tr>
+<tr>
+  <td><code>stagingLocation</code></td>
+  <td>Optional. Cloud Storage bucket path for staging your binary and any temporary files. Must be a valid Cloud Storage URL that begins with <code>gs://</code>.</td>
+  <td>If not set, defaults to a staging directory within <code>gcpTempLocation</code>.</td>
+</tr>
+</table>
+
+<p>See the reference documentation for the  <span class="language-java"><a href="/documentation/sdks/javadoc/0.3.0-incubating/index.html?org/apache/beam/runners/dataflow/options/DataflowPipelineOptions.html">DataflowPipelineOptions</a></span><span class="language-python"><a href="https://github.com/apache/incubator-beam/blob/python-sdk/sdks/python/apache_beam/utils/options.py">PipelineOptions</a></span> interface (and its subinterfaces) for the complete list of pipeline configuration options.</p>
+
+<h2 id="additional-information-and-caveats">Additional information and caveats</h2>
+
+<h3 id="monitoring-your-job">Monitoring your job</h3>
+
+<p>While your pipeline executes, you can monitor the job’s progress, view details on execution, and receive updates on the pipeline’s results by using the <a href="https://cloud.google.com/dataflow/pipelines/dataflow-monitoring-intf">Dataflow Monitoring Interface</a> or the <a href="https://cloud.google.com/dataflow/pipelines/dataflow-command-line-intf">Dataflow Command-line Interface</a>.</p>
+
+<h3 id="blocking-execution">Blocking Execution</h3>
+
+<p>To connect to your job and block until it is completed, call <code class="highlighter-rouge">waitToFinish</code> on the <code class="highlighter-rouge">PipelineResult</code> returned from <code class="highlighter-rouge">pipeline.run()</code>. The Cloud Dataflow Runner prints job status updates and console messages while it waits. While the result is connected to the active job, note that pressing <strong>Ctrl+C</strong> from the command line does not cancel your job. To cancel the job, you can use the <a href="https://cloud.google.com/dataflow/pipelines/dataflow-monitoring-intf">Dataflow Monitoring Interface</a> or the <a href="https://cloud.google.com/dataflow/pipelines/dataflow-command-line-intf">Dataflow Command-line Interface</a>.</p>
+
+<h3 id="streaming-execution">Streaming Execution</h3>
+
+<p>If your pipeline uses an unbounded data source or sink, you must set the <code class="highlighter-rouge">streaming</code> option to <code class="highlighter-rouge">true</code>.</p>
 
       </div>
 
