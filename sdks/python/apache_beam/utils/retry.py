@@ -152,12 +152,10 @@ def with_exponential_backoff(
 
   def real_decorator(fun):
     """The real decorator whose purpose is to return the wrapped function."""
-
-    retry_intervals = iter(
-        FuzzedExponentialIntervals(
-            initial_delay_secs, num_retries, fuzz=0.5 if fuzz else 0))
-
     def wrapper(*args, **kwargs):
+      retry_intervals = iter(
+          FuzzedExponentialIntervals(
+              initial_delay_secs, num_retries, fuzz=0.5 if fuzz else 0))
       while True:
         try:
           return fun(*args, **kwargs)

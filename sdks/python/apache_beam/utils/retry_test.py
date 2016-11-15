@@ -164,5 +164,47 @@ class RetryTest(unittest.TestCase):
       self.assertEqual(func_name, 'transient_failure')
 
 
+class DummyClass(object):
+  def __init__(self, results):
+    self.index = 0
+    self.results = results
+
+  @retry.with_exponential_backoff(num_retries=2, initial_delay_secs=0.1)
+  def func(self):
+    self.index += 1
+    if self.index > len(self.results) or \
+        self.results[self.index - 1] == "Error":
+      raise ValueError("Error")
+    return self.results[self.index - 1]
+
+
+class RetryStateTest(unittest.TestCase):
+  """The test_two_failures and test_single_failure would fail if we have
+  any shared state for the retry decorator. This test tries to prevent a bug we
+  found where the state in the decorator was shared across objects and retries
+  were not available correctly.
+
+  The test_call_two_objects would test this inside the same test.
+  """
+  def test_two_failures(self):
+    dummy = DummyClass(["Error", "Error", "Success"])
+    dummy.func()
+    self.assertEqual(3, dummy.index)
+
+  def test_single_failure(self):
+    dummy = DummyClass(["Error", "Success"])
+    dummy.func()
+    self.assertEqual(2, dummy.index)
+
+  def test_call_two_objects(self):
+    dummy = DummyClass(["Error", "Error", "Success"])
+    dummy.func()
+    self.assertEqual(3, dummy.index)
+
+    dummy2 = DummyClass(["Error", "Success"])
+    dummy2.func()
+    self.assertEqual(2, dummy2.index)
+
+
 if __name__ == '__main__':
   unittest.main()
