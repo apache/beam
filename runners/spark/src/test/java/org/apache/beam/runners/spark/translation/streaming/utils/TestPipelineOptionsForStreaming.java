@@ -19,6 +19,8 @@
 package org.apache.beam.runners.spark.translation.streaming.utils;
 
 import org.apache.beam.runners.spark.SparkPipelineOptions;
+import org.junit.rules.TemporaryFolder;
+import java.io.IOException;
 
 
 /**
@@ -31,5 +33,12 @@ public class TestPipelineOptionsForStreaming extends TestPipelineOptions {
     super.before();
     options.setTimeout(1000L);
     options.setStreaming(true);
+  }
+
+  public SparkPipelineOptions withTmpCheckpointDir(TemporaryFolder parent)
+      throws IOException {
+    // tests use JUnit's TemporaryFolder path in the form of: /.../junit/...
+    options.setCheckpointDir(parent.newFolder(options.getJobName()).toURI().toURL().toString());
+    return options;
   }
 }

@@ -50,9 +50,6 @@ public class ProvidedSparkContextTest {
     private static final String PROVIDED_CONTEXT_EXCEPTION =
             "The provided Spark context was not created or was stopped";
 
-    @Rule
-    public final TestPipelineOptions pipelineOptions = new TestPipelineOptions();
-
     private SparkContextOptions getSparkContextOptions(JavaSparkContext jsc) {
         final SparkContextOptions options = PipelineOptionsFactory.as(SparkContextOptions.class);
         options.setRunner(SparkRunner.class);
