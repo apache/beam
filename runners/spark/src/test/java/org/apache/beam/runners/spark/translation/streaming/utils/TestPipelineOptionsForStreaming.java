@@ -18,9 +18,9 @@
 
 package org.apache.beam.runners.spark.translation.streaming.utils;
 
+import java.io.IOException;
 import org.apache.beam.runners.spark.SparkPipelineOptions;
 import org.junit.rules.TemporaryFolder;
-import java.io.IOException;
 
 
 /**

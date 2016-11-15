@@ -24,7 +24,6 @@ import static org.junit.Assert.fail;
 
 import java.io.Serializable;
 import java.net.URI;
-import org.apache.beam.runners.spark.SparkPipelineOptions;
 import org.apache.beam.runners.spark.translation.streaming.utils.TestPipelineOptions;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.StringDelegateCoder;
