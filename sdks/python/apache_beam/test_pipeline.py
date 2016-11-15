@@ -42,7 +42,7 @@ class TestPipeline(Pipeline):
                                               --job_name myJobName \
                                               --num_workers 1'
 
-  For example, sse assert_that for test validation::
+  For example, use assert_that for test validation::
 
     pipeline = TestPipeline()
     pcoll = ...
