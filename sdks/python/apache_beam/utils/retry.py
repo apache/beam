@@ -98,6 +98,9 @@ def retry_on_server_errors_and_timeout_filter(exception):
   return retry_on_server_errors_filter(exception)
 
 
+SERVER_ERROR_OR_TIMEOUT_CODES = [408, 500, 502, 503, 504, 598, 599]
+
+
 class Clock(object):
   """A simple clock implementing sleep()."""
 

@@ -31,6 +31,7 @@ import zlib
 import weakref
 
 from apache_beam import coders
+from apache_beam.io import gcsio
 from apache_beam.io import iobase
 from apache_beam.io import range_trackers
 from apache_beam.runners.dataflow.native_io import iobase as dataflow_io
@@ -451,8 +452,6 @@ class ChannelFactory(object):
                       'was %s' % type(compression_type))
 
     if path.startswith('gs://'):
-      # pylint: disable=wrong-import-order, wrong-import-position
-      from apache_beam.io import gcsio
       raw_file = gcsio.GcsIO().open(
           path,
           mode,
@@ -470,40 +469,92 @@ class ChannelFactory(object):
     return isinstance(fileobj, _CompressedFile)
 
   @staticmethod
-  def rename(src, dst):
+  def rename(src, dest):
     if src.startswith('gs://'):
-      assert dst.startswith('gs://'), dst
-      # pylint: disable=wrong-import-order, wrong-import-position
-      from apache_beam.io import gcsio
-      gcsio.GcsIO().rename(src, dst)
+      if not dest.startswith('gs://'):
+        raise ValueError('Destination %r must be GCS path.', dest)
+      gcsio.GcsIO().rename(src, dest)
     else:
       try:
-        os.rename(src, dst)
+        os.rename(src, dest)
       except OSError as err:
         raise IOError(err)
 
   @staticmethod
-  def copytree(src, dst):
+  def rename_batch(src_dest_pairs):
+    # Filter out local and GCS operations.
+    local_src_dest_pairs = []
+    gcs_src_dest_pairs = []
+    for src, dest in src_dest_pairs:
+      if src.startswith('gs://'):
+        if not dest.startswith('gs://'):
+          raise ValueError('Destination %r must be GCS path.', dest)
+        gcs_src_dest_pairs.append((src, dest))
+      else:
+        local_src_dest_pairs.append((src, dest))
+
+    # Execute local operations.
+    exceptions = []
+    for src, dest in local_src_dest_pairs:
+      try:
+        ChannelFactory.rename(src, dest)
+      except Exception as e:  # pylint: disable=broad-except
+        exceptions.append((src, dest, e))
+
+    # Execute GCS operations.
+    exceptions += ChannelFactory._rename_gcs_batch(gcs_src_dest_pairs)
+
+    return exceptions
+
+  @staticmethod
+  def _rename_gcs_batch(src_dest_pairs):
+    # Prepare batches.
+    gcs_batches = []
+    gcs_current_batch = []
+    for src, dest in src_dest_pairs:
+      if len(gcs_current_batch) == gcsio.MAX_BATCH_OPERATION_SIZE:
+        gcs_batches.append(gcs_current_batch)
+        gcs_current_batch = []
+    if gcs_current_batch:
+      gcs_batches.append(gcs_current_batch)
+
+    # Execute GCS renames if any and return exceptions.
+    exceptions = []
+    for batch in gcs_batches:
+      copy_statuses = gcsio.GcsIO().copy_batch(batch)
+      copy_succeeded = []
+      for src, dest, exception in copy_statuses:
+        if exception:
+          exceptions.append((src, dest, exception))
+        else:
+          copy_succeeded.append((src, dest))
+      delete_batch = [src for src, dest in copy_succeeded]
+      delete_statuses = gcsio.GcsIO().delete_batch(delete_batch)
+      for i, (src, exception) in enumerate(delete_statuses):
+        dest = copy_succeeded[i]
+        if exception:
+          exceptions.append((src, dest, exception))
+    return exceptions
+
+  @staticmethod
+  def copytree(src, dest):
     if src.startswith('gs://'):
-      assert dst.startswith('gs://'), dst
+      if not dest.startswith('gs://'):
+        raise ValueError('Destination %r must be GCS path.', dest)
       assert src.endswith('/'), src
-      assert dst.endswith('/'), dst
-      # pylint: disable=wrong-import-order, wrong-import-position
-      from apache_beam.io import gcsio
-      gcsio.GcsIO().copytree(src, dst)
+      assert dest.endswith('/'), dest
+      gcsio.GcsIO().copytree(src, dest)
     else:
       try:
-        if os.path.exists(dst):
-          shutil.rmtree(dst)
-        shutil.copytree(src, dst)
+        if os.path.exists(dest):
+          shutil.rmtree(dest)
+        shutil.copytree(src, dest)
       except OSError as err:
         raise IOError(err)
 
   @staticmethod
   def exists(path):
     if path.startswith('gs://'):
-      # pylint: disable=wrong-import-order, wrong-import-position
-      from apache_beam.io import gcsio
       return gcsio.GcsIO().exists(path)
     else:
       return os.path.exists(path)
@@ -511,8 +562,6 @@ class ChannelFactory(object):
   @staticmethod
   def rmdir(path):
     if path.startswith('gs://'):
-      # pylint: disable=wrong-import-order, wrong-import-position
-      from apache_beam.io import gcsio
       gcs = gcsio.GcsIO()
       if not path.endswith('/'):
         path += '/'
@@ -528,8 +577,6 @@ class ChannelFactory(object):
   @staticmethod
   def rm(path):
     if path.startswith('gs://'):
-      # pylint: disable=wrong-import-order, wrong-import-position
-      from apache_beam.io import gcsio
       gcsio.GcsIO().delete(path)
     else:
       try:
@@ -540,8 +587,6 @@ class ChannelFactory(object):
   @staticmethod
   def glob(path):
     if path.startswith('gs://'):
-      # pylint: disable=wrong-import-order, wrong-import-position
-      from apache_beam.io import gcsio
       return gcsio.GcsIO().glob(path)
     else:
       return glob.glob(path)
@@ -554,8 +599,6 @@ class ChannelFactory(object):
       path: a string that gives the path of a single file.
     """
     if path.startswith('gs://'):
-      # pylint: disable=wrong-import-order, wrong-import-position
-      from apache_beam.io import gcsio
       return gcsio.GcsIO().size(path)
     else:
       return os.path.getsize(path)
@@ -803,7 +846,6 @@ class FileSink(iobase.Sink):
   def finalize_write(self, init_result, writer_results):
     writer_results = sorted(writer_results)
     num_shards = len(writer_results)
-    channel_factory = ChannelFactory()
     min_threads = min(num_shards, FileSink._MAX_RENAME_THREADS)
     num_threads = max(1, min_threads)
 
@@ -815,55 +857,66 @@ class FileSink(iobase.Sink):
       ])
       rename_ops.append((shard, final_name))
 
+    batches = []
+    current_batch = []
+    for rename_op in rename_ops:
+      current_batch.append(rename_op)
+      if len(current_batch) == gcsio.MAX_BATCH_OPERATION_SIZE:
+        batches.append(current_batch)
+        current_batch = []
+    if current_batch:
+      batches.append(current_batch)
+
     logging.info(
-        'Starting finalize_write threads with num_shards: %d, num_threads: %d',
-        num_shards, num_threads)
+        'Starting finalize_write threads with num_shards: %d, '
+        'batches: %d, num_threads: %d',
+        num_shards, len(batches), num_threads)
     start_time = time.time()
 
     # Use a thread pool for renaming operations.
-    def _rename_file(rename_op):
-      """_rename_file executes single (old_name, new_name) rename operation."""
-      old_name, final_name = rename_op
-      try:
-        channel_factory.rename(old_name, final_name)
-      except IOError as e:
-        # May have already been copied.
-        try:
-          exists = channel_factory.exists(final_name)
-        except Exception as exists_e:  # pylint: disable=broad-except
-          logging.warning('Exception when checking if file %s exists: '
-                          '%s', final_name, exists_e)
-          # Returning original exception after logging the exception from
-          # exists() call.
-          return (None, e)
-        if not exists:
-          logging.warning(('IOError in _rename_file. old_name: %s, '
-                           'final_name: %s, err: %s'), old_name, final_name, e)
-          return (None, e)
-      except Exception as e:  # pylint: disable=broad-except
-        logging.warning(('Exception in _rename_file. old_name: %s, '
-                         'final_name: %s, err: %s'), old_name, final_name, e)
-        return (None, e)
-      return (final_name, None)
+    def _rename_batch(batch):
+      """_rename_batch executes batch rename operations."""
+      exceptions = []
+      exception_infos = ChannelFactory.rename_batch(batch)
+      for src, dest, exception in exception_infos:
+        if exception:
+          should_report = True
+          if isinstance(exception, IOError):
+            # May have already been copied.
+            try:
+              if ChannelFactory.exists(dest):
+                should_report = False
+            except Exception as exists_e:  # pylint: disable=broad-except
+              logging.warning('Exception when checking if file %s exists: '
+                              '%s', dest, exists_e)
+          if should_report:
+            logging.warning(('Exception in _rename_batch. src: %s, '
+                             'dest: %s, err: %s'), src, dest, exception)
+            exceptions.append(exception)
+      return exceptions
 
     # ThreadPool crashes in old versions of Python (< 2.7.5) if created from a
     # child thread. (http://bugs.python.org/issue10015)
     if not hasattr(threading.current_thread(), '_children'):
       threading.current_thread()._children = weakref.WeakKeyDictionary()
-    rename_results = ThreadPool(num_threads).map(_rename_file, rename_ops)
+    exception_batches = ThreadPool(num_threads).map(_rename_batch, batches)
 
-    for final_name, err in rename_results:
-      if err:
-        logging.warning('Error when processing rename_results: %s', err)
-        raise err
-      else:
-        yield final_name
+    all_exceptions = []
+    for exceptions in exception_batches:
+      if exceptions:
+        all_exceptions += exceptions
+    if all_exceptions:
+      raise Exception('Encountered exceptions in finalize_write: %s',
+                      all_exceptions)
+
+    for shard, final_name in rename_ops:
+      yield final_name
 
     logging.info('Renamed %d shards in %.2f seconds.', num_shards,
                  time.time() - start_time)
 
     try:
-      channel_factory.rmdir(init_result)
+      ChannelFactory.rmdir(init_result)
     except IOError:
       # May have already been removed.
       pass
