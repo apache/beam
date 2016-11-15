@@ -23,7 +23,7 @@ Learn about the Beam Programming Model and the concepts common to all Beam SDKs 
 Find status and reference information on all of the available Beam SDKs.
 
 * [Java SDK]({{ site.baseurl }}/documentation/sdks/java/) 
-* _[Under Development]_ [Python SDK]({{ site.baseurl }}/contribute/work-in-progress/#feature-branches)
+* _[Under Development]_ [Python SDK]({{ site.baseurl }}/documentation/sdks/python/)
 
 ## Runners
 
