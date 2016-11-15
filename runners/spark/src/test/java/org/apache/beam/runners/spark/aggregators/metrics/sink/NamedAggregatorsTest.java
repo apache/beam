@@ -28,7 +28,7 @@ import java.util.List;
 import java.util.Set;
 import org.apache.beam.runners.spark.SparkPipelineOptions;
 import org.apache.beam.runners.spark.examples.WordCount;
-import org.apache.beam.runners.spark.translation.streaming.utils.TestPipelineOptions;
+import org.apache.beam.runners.spark.translation.streaming.utils.SparkTestPipelineOptions;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.testing.PAssert;
@@ -52,7 +52,7 @@ public class NamedAggregatorsTest {
   public ClearAggregatorsRule clearAggregators = new ClearAggregatorsRule();
 
   @Rule
-  public final TestPipelineOptions pipelineOptions = new TestPipelineOptions();
+  public final SparkTestPipelineOptions pipelineOptions = new SparkTestPipelineOptions();
 
   private Pipeline createSparkPipeline() {
     SparkPipelineOptions options = pipelineOptions.getOptions();

@@ -18,15 +18,15 @@
 
 package org.apache.beam.runners.spark.translation.streaming.utils;
 
+import java.io.IOException;
 import org.apache.beam.runners.spark.SparkPipelineOptions;
 import org.junit.rules.TemporaryFolder;
-import java.io.IOException;
 
 
 /**
  * A rule to create a common {@link SparkPipelineOptions} for testing streaming pipelines.
  */
-public class TestPipelineOptionsForStreaming extends TestPipelineOptions {
+public class SparkTestPipelineOptionsForStreaming extends SparkTestPipelineOptions {
 
   @Override
   protected void before() throws Throwable {

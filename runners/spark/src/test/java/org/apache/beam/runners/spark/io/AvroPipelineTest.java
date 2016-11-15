@@ -33,8 +33,7 @@ import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericDatumReader;
 import org.apache.avro.generic.GenericDatumWriter;
 import org.apache.avro.generic.GenericRecord;
-import org.apache.beam.runners.spark.SparkPipelineOptions;
-import org.apache.beam.runners.spark.translation.streaming.utils.TestPipelineOptions;
+import org.apache.beam.runners.spark.translation.streaming.utils.SparkTestPipelineOptions;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.AvroIO;
 import org.apache.beam.sdk.values.PCollection;
@@ -55,7 +54,7 @@ public class AvroPipelineTest {
   public final TemporaryFolder tmpDir = new TemporaryFolder();
 
   @Rule
-  public final TestPipelineOptions pipelineOptions = new TestPipelineOptions();
+  public final SparkTestPipelineOptions pipelineOptions = new SparkTestPipelineOptions();
 
   @Before
   public void setUp() throws IOException {
