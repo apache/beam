@@ -571,7 +571,7 @@ public class PubsubIO {
      * Causes the source to return a PubsubMessage that includes Pubsub attributes.
      * The user must supply a parsing function to transform the PubsubMessage into an output type.
      * A Coder for the output type T must be registered or set on the output via
-     * {@link PCollection.setCoder}.
+     * {@link PCollection#setCoder(Coder)}.
      */
     public <T> Bound<T> withAttributes(SimpleFunction<PubsubMessage, T> parseFn) {
       return new Bound<T>(null).withAttributes(parseFn);
@@ -748,7 +748,7 @@ public class PubsubIO {
        * Causes the source to return a PubsubMessage that includes Pubsub attributes.
        * The user must supply a parsing function to transform the PubsubMessage into an output type.
        * A Coder for the output type T must be registered or set on the output via
-       * {@link PCollection.setCoder(Coder<T>)}.
+       * {@link PCollection#setCoder(Coder)}.
        */
       public <T> Bound<T> withAttributes(SimpleFunction<PubsubMessage, T> parseFn) {
         return new Bound<T>(
