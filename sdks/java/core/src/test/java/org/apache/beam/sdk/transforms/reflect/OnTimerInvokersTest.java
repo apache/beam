@@ -23,7 +23,6 @@ import static org.junit.Assert.assertThat;
 import static org.mockito.Mockito.when;
 
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.DoFn.ExtraContextFactory;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.TimeDomain;
 import org.apache.beam.sdk.util.TimerSpec;
@@ -44,16 +43,16 @@ public class OnTimerInvokersTest {
 
   @Mock private BoundedWindow mockWindow;
 
-  @Mock private ExtraContextFactory<String, String> mockExtraContextFactory;
+  @Mock private DoFn.ArgumentProvider<String, String> mockArgumentProvider;
 
   @Before
   public void setUp() {
     MockitoAnnotations.initMocks(this);
-    when(mockExtraContextFactory.window()).thenReturn(mockWindow);
+    when(mockArgumentProvider.window()).thenReturn(mockWindow);
   }
 
   private void invokeOnTimer(DoFn<String, String> fn, String timerId) {
-    OnTimerInvokers.forTimer(fn, timerId).invokeOnTimer(mockExtraContextFactory);
+    OnTimerInvokers.forTimer(fn, timerId).invokeOnTimer(mockArgumentProvider);
   }
 
   @Test
