@@ -19,8 +19,10 @@
 
 from __future__ import absolute_import
 
+import os
 import json
 import unittest
+import tempfile
 
 # import apache_beam as beam
 from apache_beam.pipeline import Pipeline
@@ -32,21 +34,27 @@ from apache_beam.internal import apiclient
 class TemplatingDataflowPipelineRunnerTest(unittest.TestCase):
   """TemplatingDataflow integration tests."""
   def test_full_completion(self):
+    dummy_sdk_file = tempfile.NamedTemporaryFile()
+
     remote_runner = DataflowPipelineRunner()
     pipeline = Pipeline(remote_runner,
                         options=PipelineOptions([
                             '--dataflow_endpoint=ignored',
+                            '--sdk_location=' + dummy_sdk_file.name,
                             '--job_name=test-job',
                             '--project=test-project',
                             '--staging_location=ignored',
                             '--temp_location=/dev/null',
-                            '--template_location=/tmp/test-file',
+                            '--template_location=/tmp/template-file',
                             '--no_auth=True']))
-    remote_runner.job = apiclient.Job(pipeline.options)
-    remote_runner.run(pipeline)
+    try:
+      os.remove('/tmp/template-file')
+    except OSError as err:
+      print err
+    pipeline.run()
 
-    with open('/tmp/test-file') as template_file:
-      saved_job_dict = json.loads(template_file.read())
+    with open('/tmp/template-file') as template_file:
+      saved_job_dict = json.load(template_file) # BETTER
       self.assertEqual(
           saved_job_dict['environment']['sdkPipelineOptions']['project'],
           'test-project')
@@ -55,10 +63,12 @@ class TemplatingDataflowPipelineRunnerTest(unittest.TestCase):
           'test-job')
 
   def test_bad_path(self):
+    dummy_sdk_file = tempfile.NamedTemporaryFile()
     remote_runner = DataflowPipelineRunner()
     pipeline = Pipeline(remote_runner,
                         options=PipelineOptions([
                             '--dataflow_endpoint=ignored',
+                            '--sdk_location=' + dummy_sdk_file.name,
                             '--job_name=test-job',
                             '--project=test-project',
                             '--staging_location=ignored',
@@ -68,7 +78,7 @@ class TemplatingDataflowPipelineRunnerTest(unittest.TestCase):
     remote_runner.job = apiclient.Job(pipeline.options)
 
     with self.assertRaises(IOError):
-      remote_runner.run(pipeline)
+      pipeline.run()
 
 
 if __name__ == '__main__':

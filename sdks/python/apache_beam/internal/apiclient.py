@@ -417,7 +417,7 @@ class DataflowApplicationClient(object):
     else:
       self.send_job_description()
 
-  def create_job_description(self, job):  # NEW
+  def create_job_description(self, job):
     """Creates a job described by the workflow proto."""
     resources = dependency.stage_job_resources(
         job.options, file_copy=self._gcs_file_copy)

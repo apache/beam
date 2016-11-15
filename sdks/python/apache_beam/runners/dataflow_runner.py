@@ -159,17 +159,18 @@ class DataflowPipelineRunner(PipelineRunner):
     # Import here to avoid adding the dependency for local running scenarios.
     # pylint: disable=wrong-import-order, wrong-import-position
     from apache_beam.internal import apiclient
-
-    # Get a Dataflow API client and set its options
     self.job = apiclient.Job(pipeline.options)
 
     # The superclass's run will trigger a traversal of all reachable nodes.
     super(DataflowPipelineRunner, self).run(pipeline)
+
     standard_options = pipeline.options.view_as(StandardOptions)
     if standard_options.streaming:
       job_version = DataflowPipelineRunner.STREAMING_ENVIRONMENT_MAJOR_VERSION
     else:
       job_version = DataflowPipelineRunner.BATCH_ENVIRONMENT_MAJOR_VERSION
+
+    # Get a Dataflow API client and set its options
     self.dataflow_client = apiclient.DataflowApplicationClient(
         pipeline.options, job_version)
 
