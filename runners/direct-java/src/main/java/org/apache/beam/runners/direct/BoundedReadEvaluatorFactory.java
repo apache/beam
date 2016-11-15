@@ -50,7 +50,12 @@ import org.apache.beam.sdk.values.PCollection;
  * for the {@link Bounded Read.Bounded} primitive {@link PTransform}.
  */
 final class BoundedReadEvaluatorFactory implements TransformEvaluatorFactory {
-  private static final long REQUIRED_DYNAMIC_SPLIT_ORIGINAL_SIZE = 4 * 1024L;
+  /**
+   * The required minimum size of a source to dynamically split. Produced {@link TransformEvaluator
+   * TransformEvaluators} will attempt to dynamically split all sources larger than the minimum
+   * dynamic split size.
+   */
+  private static final long REQUIRED_DYNAMIC_SPLIT_ORIGINAL_SIZE = 0;
   private final EvaluationContext evaluationContext;
   private final ExecutorService executor = Executors.newCachedThreadPool();
 
