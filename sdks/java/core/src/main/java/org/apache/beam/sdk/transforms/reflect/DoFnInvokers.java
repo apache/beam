@@ -24,7 +24,6 @@ import java.util.Map;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.DoFn.ExtraContextFactory;
 import org.apache.beam.sdk.transforms.DoFnAdapters;
 import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
@@ -101,7 +100,7 @@ public class DoFnInvokers {
 
     @Override
     public DoFn.ProcessContinuation invokeProcessElement(
-        ExtraContextFactory<InputT, OutputT> extra) {
+        DoFn.ArgumentProvider<InputT, OutputT> extra) {
       // The outer DoFn is immaterial - it exists only to avoid typing InputT and OutputT repeatedly
       DoFn<InputT, OutputT>.ProcessContext newCtx =
           extra.processContext(new DoFn<InputT, OutputT>() {});

@@ -39,7 +39,8 @@ import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.DoFn.ExtraContextFactory;
+import org.apache.beam.sdk.transforms.DoFn.ArgumentProvider;
+import org.apache.beam.sdk.transforms.DoFn.FakeArgumentProvider;
 import org.apache.beam.sdk.transforms.DoFn.ProcessContinuation;
 import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.transforms.reflect.testhelper.DoFnInvokersTestHelper;
@@ -76,22 +77,22 @@ public class DoFnInvokersTest {
   @Mock private DoFn.InputProvider<String> mockInputProvider;
   @Mock private DoFn.OutputReceiver<String> mockOutputReceiver;
   @Mock private WindowingInternals<String, String> mockWindowingInternals;
-  @Mock private ExtraContextFactory<String, String> extraContextFactory;
+  @Mock private ArgumentProvider<String, String> mockArgumentProvider;
 
   @Mock private OldDoFn<String, String> mockOldDoFn;
 
   @Before
   public void setUp() {
     MockitoAnnotations.initMocks(this);
-    when(extraContextFactory.window()).thenReturn(mockWindow);
-    when(extraContextFactory.inputProvider()).thenReturn(mockInputProvider);
-    when(extraContextFactory.outputReceiver()).thenReturn(mockOutputReceiver);
-    when(extraContextFactory.windowingInternals()).thenReturn(mockWindowingInternals);
-    when(extraContextFactory.processContext(Matchers.<DoFn>any())).thenReturn(mockProcessContext);
+    when(mockArgumentProvider.window()).thenReturn(mockWindow);
+    when(mockArgumentProvider.inputProvider()).thenReturn(mockInputProvider);
+    when(mockArgumentProvider.outputReceiver()).thenReturn(mockOutputReceiver);
+    when(mockArgumentProvider.windowingInternals()).thenReturn(mockWindowingInternals);
+    when(mockArgumentProvider.processContext(Matchers.<DoFn>any())).thenReturn(mockProcessContext);
   }
 
   private ProcessContinuation invokeProcessElement(DoFn<String, String> fn) {
-    return DoFnInvokers.invokerFor(fn).invokeProcessElement(extraContextFactory);
+    return DoFnInvokers.invokerFor(fn).invokeProcessElement(mockArgumentProvider);
   }
 
   @Test
@@ -188,7 +189,7 @@ public class DoFnInvokersTest {
   public void testDoFnWithState() throws Exception {
     ValueState<Integer> mockState = mock(ValueState.class);
     final String stateId = "my-state-id-here";
-    when(extraContextFactory.state(stateId)).thenReturn(mockState);
+    when(mockArgumentProvider.state(stateId)).thenReturn(mockState);
 
     class MockFn extends DoFn<String, String> {
       @StateId(stateId)
@@ -212,7 +213,7 @@ public class DoFnInvokersTest {
   public void testDoFnWithTimer() throws Exception {
     Timer mockTimer = mock(Timer.class);
     final String timerId = "my-timer-id-here";
-    when(extraContextFactory.timer(timerId)).thenReturn(mockTimer);
+    when(mockArgumentProvider.timer(timerId)).thenReturn(mockTimer);
 
     class MockFn extends DoFn<String, String> {
       @TimerId(timerId)
@@ -404,7 +405,7 @@ public class DoFnInvokersTest {
     assertEquals(
         ProcessContinuation.resume(),
         invoker.invokeProcessElement(
-            new DoFn.FakeExtraContextFactory<String, String>() {
+            new FakeArgumentProvider<String, String>() {
               @Override
               public DoFn<String, String>.ProcessContext processContext(DoFn<String, String> fn) {
                 return mockProcessContext;
@@ -455,7 +456,7 @@ public class DoFnInvokersTest {
           }
         });
     assertEquals(
-        ProcessContinuation.stop(), invoker.invokeProcessElement(extraContextFactory));
+        ProcessContinuation.stop(), invoker.invokeProcessElement(mockArgumentProvider));
   }
 
   // ---------------------------------------------------------------------------------------
@@ -534,7 +535,7 @@ public class DoFnInvokersTest {
             });
     thrown.expect(UserCodeException.class);
     thrown.expectMessage("bogus");
-    invoker.invokeProcessElement(new DoFn.FakeExtraContextFactory<Integer, Integer>() {
+    invoker.invokeProcessElement(new FakeArgumentProvider<Integer, Integer>() {
       @Override
       public DoFn<Integer, Integer>.ProcessContext processContext(DoFn<Integer, Integer> fn) {
         return null;
@@ -565,7 +566,7 @@ public class DoFnInvokersTest {
                 return null;
               }
             })
-        .invokeProcessElement(new DoFn.FakeExtraContextFactory<Integer, Integer>());
+        .invokeProcessElement(new FakeArgumentProvider<Integer, Integer>());
   }
 
   @Test
@@ -611,7 +612,7 @@ public class DoFnInvokersTest {
   @Test
   public void testOldDoFnProcessElement() throws Exception {
     new DoFnInvokers.OldDoFnInvoker<>(mockOldDoFn)
-        .invokeProcessElement(extraContextFactory);
+        .invokeProcessElement(mockArgumentProvider);
     verify(mockOldDoFn).processElement(any(OldDoFn.ProcessContext.class));
   }
 

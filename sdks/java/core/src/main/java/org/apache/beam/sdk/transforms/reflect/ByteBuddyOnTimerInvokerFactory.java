@@ -176,7 +176,7 @@ class ByteBuddyOnTimerInvokerFactory implements OnTimerInvokerFactory {
             .withParameter(fnClass)
             .intercept(new InvokerConstructor())
 
-            //   public invokeOnTimer(ExtraContextFactory) {
+            //   public invokeOnTimer(DoFn.ArgumentProvider) {
             //     this.delegate.<@OnTimer method>(... pass the right args ...)
             //   }
             .method(ElementMatchers.named("invokeOnTimer"))
@@ -211,7 +211,7 @@ class ByteBuddyOnTimerInvokerFactory implements OnTimerInvokerFactory {
     @Override
     protected StackManipulation beforeDelegation(MethodDescription instrumentedMethod) {
       // Parameters of the wrapper invoker method:
-      //   ExtraContextFactory.
+      //   DoFn.ArgumentProvider
       // Parameters of the wrapped DoFn method:
       //   a dynamic set of allowed "extra" parameters in any order subject to
       //   validation prior to getting the DoFnSignature
