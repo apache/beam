@@ -25,6 +25,7 @@ import random
 from apache_beam.transforms import core
 from apache_beam.transforms import cy_combiners
 from apache_beam.transforms import ptransform
+from apache_beam.transforms.display import DisplayDataItem
 from apache_beam.typehints import Any
 from apache_beam.typehints import Dict
 from apache_beam.typehints import KV
@@ -282,6 +283,13 @@ class TopCombineFn(core.CombineFn):
       buffer.sort(cmp=lambda a, b: (not lt(a, b)) - (not lt(b, a)),
                   key=self._key_fn)
 
+  def display_data(self):
+    return {'n': self._n,
+            'compare': DisplayDataItem(self._compare.__name__
+                                       if hasattr(self._compare, '__name__')
+                                       else self._compare.__class__.__name__)
+                       .drop_if_none()}
+
   # The accumulator type is a tuple (threshold, buffer), where threshold
   # is the smallest element [key] that could possibly be in the top n based
   # on the elements observed so far, and buffer is a (periodically sorted)
@@ -413,6 +421,12 @@ class _TupleCombineFnBase(core.CombineFn):
 
   def __init__(self, *combiners):
     self._combiners = [core.CombineFn.maybe_from_callable(c) for c in combiners]
+    self._named_combiners = combiners
+
+  def display_data(self):
+    combiners = [c.__name__ if hasattr(c, '__name__') else c.__class__.__name__
+                 for c in self._named_combiners]
+    return {'combiners': str(combiners)}
 
   def create_accumulator(self):
     return [c.create_accumulator() for c in self._combiners]

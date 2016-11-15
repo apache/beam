@@ -20,6 +20,9 @@
 import logging
 import unittest
 
+import hamcrest as hc
+from apache_beam.transforms.display import DisplayData
+from apache_beam.transforms.display_test import DisplayDataItemMatcher
 from apache_beam.utils.options import PipelineOptions
 
 
@@ -27,25 +30,48 @@ class PipelineOptionsTest(unittest.TestCase):
 
   TEST_CASES = [
       {'flags': ['--num_workers', '5'],
-       'expected': {'num_workers': 5, 'mock_flag': False, 'mock_option': None}},
+       'expected': {'num_workers': 5, 'mock_flag': False, 'mock_option': None},
+       'display_data': [DisplayDataItemMatcher('num_workers', 5)]},
       {
           'flags': [
               '--profile_cpu', '--profile_location', 'gs://bucket/', 'ignored'],
           'expected': {
               'profile_cpu': True, 'profile_location': 'gs://bucket/',
-              'mock_flag': False, 'mock_option': None}
+              'mock_flag': False, 'mock_option': None},
+          'display_data': [
+              DisplayDataItemMatcher('profile_cpu',
+                                     True),
+              DisplayDataItemMatcher('profile_location',
+                                     'gs://bucket/')]
       },
       {'flags': ['--num_workers', '5', '--mock_flag'],
-       'expected': {'num_workers': 5, 'mock_flag': True, 'mock_option': None}},
+       'expected': {'num_workers': 5, 'mock_flag': True, 'mock_option': None},
+       'display_data': [
+           DisplayDataItemMatcher('num_workers', 5),
+           DisplayDataItemMatcher('mock_flag', True)]
+      },
       {'flags': ['--mock_option', 'abc'],
-       'expected': {'mock_flag': False, 'mock_option': 'abc'}},
+       'expected': {'mock_flag': False, 'mock_option': 'abc'},
+       'display_data': [
+           DisplayDataItemMatcher('mock_option', 'abc')]
+      },
       {'flags': ['--mock_option', ' abc def '],
-       'expected': {'mock_flag': False, 'mock_option': ' abc def '}},
+       'expected': {'mock_flag': False, 'mock_option': ' abc def '},
+       'display_data': [
+           DisplayDataItemMatcher('mock_option', ' abc def ')]
+      },
       {'flags': ['--mock_option= abc xyz '],
-       'expected': {'mock_flag': False, 'mock_option': ' abc xyz '}},
+       'expected': {'mock_flag': False, 'mock_option': ' abc xyz '},
+       'display_data': [
+           DisplayDataItemMatcher('mock_option', ' abc xyz ')]
+      },
       {'flags': ['--mock_option=gs://my bucket/my folder/my file'],
        'expected': {'mock_flag': False,
-                    'mock_option': 'gs://my bucket/my folder/my file'}},
+                    'mock_option': 'gs://my bucket/my folder/my file'},
+       'display_data': [
+           DisplayDataItemMatcher(
+               'mock_option', 'gs://my bucket/my folder/my file')]
+      },
   ]
 
   # Used for testing newly added flags.
@@ -56,6 +82,12 @@ class PipelineOptionsTest(unittest.TestCase):
       parser.add_argument('--mock_flag', action='store_true', help='mock flag')
       parser.add_argument('--mock_option', help='mock option')
       parser.add_argument('--option with space', help='mock option with space')
+
+  def test_display_data(self):
+    for case in PipelineOptionsTest.TEST_CASES:
+      options = PipelineOptions(flags=case['flags'])
+      dd = DisplayData.create_from(options)
+      hc.assert_that(dd.items, hc.contains_inanyorder(*case['display_data']))
 
   def test_get_all_options(self):
     for case in PipelineOptionsTest.TEST_CASES:
