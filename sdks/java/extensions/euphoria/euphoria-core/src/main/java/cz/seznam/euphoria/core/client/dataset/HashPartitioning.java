@@ -17,8 +17,7 @@ public class HashPartitioning<T> implements Partitioning<T> {
   }
 
   @Override
-  public Partitioner<T> getPartitioner()
-  {
+  public Partitioner<T> getPartitioner() {
     return new HashPartitioner<>();
   }
 
