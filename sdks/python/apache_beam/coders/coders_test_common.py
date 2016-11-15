@@ -59,13 +59,9 @@ class CodersTest(unittest.TestCase):
                    'Base' not in c.__name__)
     standard -= set([coders.Coder,
                      coders.FastCoder,
-                     coders.Base64PickleCoder,
-                     coders.FloatCoder,
                      coders.ProtoCoder,
-                     coders.TimestampCoder,
                      coders.ToStringCoder,
-                     coders.WindowCoder,
-                     coders.WindowedValueCoder])
+                     coders.WindowCoder])
     assert not standard - cls.seen, standard - cls.seen
     assert not standard - cls.seen_nested, standard - cls.seen_nested
 
@@ -95,6 +91,8 @@ class CodersTest(unittest.TestCase):
     copy2 = dill.loads(dill.dumps(coder))
     for v in values:
       self.assertEqual(v, copy1.decode(copy2.encode(v)))
+      if coder.is_deterministic():
+        self.assertEqual(copy1.encode(v), copy2.encode(v))
 
   def test_custom_coder(self):
 
@@ -155,6 +153,9 @@ class CodersTest(unittest.TestCase):
     self.check_coder(coders.FloatCoder(),
                      *[float(2 ** (0.1 * x)) for x in range(-100, 100)])
     self.check_coder(coders.FloatCoder(), float('-Inf'), float('Inf'))
+    self.check_coder(
+        coders.TupleCoder((coders.FloatCoder(), coders.FloatCoder())),
+        (0, 1), (-100, 100), (0.5, 0.25))
 
   def test_singleton_coder(self):
     a = 'anything'
@@ -173,6 +174,9 @@ class CodersTest(unittest.TestCase):
     self.check_coder(coders.TimestampCoder(),
                      timestamp.Timestamp(micros=-1234567890123456789),
                      timestamp.Timestamp(micros=1234567890123456789))
+    self.check_coder(
+        coders.TupleCoder((coders.TimestampCoder(), coders.BytesCoder())),
+        (timestamp.Timestamp.of(27), 'abc'))
 
   def test_tuple_coder(self):
     self.check_coder(
@@ -208,6 +212,18 @@ class CodersTest(unittest.TestCase):
         coders.TupleCoder((coders.VarIntCoder(),
                            coders.IterableCoder(coders.VarIntCoder()))),
         (1, [1, 2, 3]))
+
+  def test_windowed_value_coder(self):
+    self.check_coder(
+        coders.WindowedValueCoder(coders.VarIntCoder()),
+        windowed_value.WindowedValue(3, -100, ()),
+        windowed_value.WindowedValue(-1, 100, (1, 2, 3)))
+    self.check_coder(
+        coders.TupleCoder((
+            coders.WindowedValueCoder(coders.FloatCoder()),
+            coders.WindowedValueCoder(coders.StrUtf8Coder()))),
+        (windowed_value.WindowedValue(1.5, 0, ()),
+         windowed_value.WindowedValue("abc", 10, ('window',))))
 
   def test_proto_coder(self):
     # For instructions on how these test proto message were generated,
