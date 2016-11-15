@@ -224,7 +224,7 @@ public class MongoDbIO {
       BasicDBObject stat = new BasicDBObject();
       stat.append("collStats", spec.collection());
       Document stats = mongoDatabase.runCommand(stat);
-      return Long.parseLong(stats.get("size").toString());
+      return Long.valueOf(stats.get("size").toString());
     }
 
     @Override
@@ -456,7 +456,7 @@ public class MongoDbIO {
 
     private static class WriteFn extends DoFn<Document, Void> {
       private final Write spec;
-      private transient MongoClient client;
+      private MongoClient client;
       private List<Document> batch;
 
       public WriteFn(Write spec) {
