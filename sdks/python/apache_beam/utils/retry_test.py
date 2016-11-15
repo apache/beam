@@ -18,6 +18,7 @@
 """Unit tests for the retry module."""
 
 import unittest
+import mock
 
 from apitools.base.py.exceptions import HttpError
 
@@ -162,6 +163,51 @@ class RetryTest(unittest.TestCase):
       self.assertTrue(message.startswith('Retry with exponential backoff:'))
       self.assertEqual(exn_name, 'NotImplementedError\n')
       self.assertEqual(func_name, 'transient_failure')
+
+
+class DummyClass(object):
+  def __init__(self, m):
+    self.m = m
+
+  @retry.with_exponential_backoff(num_retries=2, initial_delay_secs=0.1)
+  def func(self, a):
+    return self.m.mfunc(a)
+
+
+class RetryStateTest(unittest.TestCase):
+  """The test_two_failures and test_single_failure would fail if we have
+  any shared state for the retry decorator. This test tries to prevent a bug we
+  found where the state in the decorator was shared across objects and retries
+  were not available correctly.
+
+  The test_call_two_objects would test this inside the same test.
+  """
+  def test_two_failures(self):
+    m = mock.Mock()
+    m.mfunc.side_effect = [ValueError("Error1"), ValueError("Error2"), 1]
+    c = DummyClass(m)
+    c.func(1)
+    self.assertEqual(3, m.mfunc.call_count)
+
+  def test_single_failure(self):
+    m = mock.Mock()
+    m.mfunc.side_effect = [ValueError("Error3"), 2]
+    c = DummyClass(m)
+    c.func(2)
+    self.assertEqual(2, m.mfunc.call_count)
+
+  def test_call_two_objects(self):
+    m = mock.Mock()
+    m.mfunc.side_effect = [ValueError("Error4"), ValueError("Error5"), 3]
+    c = DummyClass(m)
+    c.func(3)
+    self.assertEqual(3, m.mfunc.call_count)
+
+    m2 = mock.Mock()
+    m2.mfunc.side_effect = [ValueError("Error6"), 4]
+    c2 = DummyClass(m2)
+    c2.func(4)
+    self.assertEqual(2, m2.mfunc.call_count)
 
 
 if __name__ == '__main__':
