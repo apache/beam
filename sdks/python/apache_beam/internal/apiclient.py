@@ -21,8 +21,7 @@ import codecs
 import json
 import logging
 import os
-from os.path import dirname
-from os.path import basename
+
 from StringIO import StringIO
 
 import re
@@ -406,12 +405,12 @@ class DataflowApplicationClient(object):
         raise RuntimeError(
             '--dataflow_job_file and --template_location '
             'are mutually exclusive.')
-      gcs_or_local_path = dirname(template_location)
-      file_name = basename(template_location)
+      gcs_or_local_path = os.path.dirname(template_location)
+      file_name = os.path.basename(template_location)
       self.stage_file(gcs_or_local_path, file_name, StringIO(str(job)))
     elif dataflow_job_file:
-      gcs_or_local_path = dirname(dataflow_job_file)
-      file_name = basename(dataflow_job_file)
+      gcs_or_local_path = os.path.dirname(dataflow_job_file)
+      file_name = os.path.basename(dataflow_job_file)
       self.stage_file(gcs_or_local_path, file_name, StringIO(str(job)))
       self.send_job_description()
     else:
