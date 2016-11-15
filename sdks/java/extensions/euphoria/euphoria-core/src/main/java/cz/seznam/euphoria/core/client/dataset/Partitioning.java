@@ -8,10 +8,12 @@ import java.io.Serializable;
  */
 public interface Partitioning<T> extends Serializable {
   
-  final static Partitioner DEFAULT_PARTITIONER = new HashPartitioner<>();
+  final static Partitioner DEFAULT_PARTITIONER = new DefaultPartitioner();
 
   /** Retrieve partitioner for dataset. */
-  Partitioner<T> getPartitioner();
+  default Partitioner<T> getPartitioner() {
+    return DEFAULT_PARTITIONER;
+  }
 
   default int getNumPartitions() {
     return -1;
@@ -22,6 +24,6 @@ public interface Partitioning<T> extends Serializable {
    *         Should not be called after distribution.
    */
   default boolean hasDefaultPartitioner() {
-    return getPartitioner() == DEFAULT_PARTITIONER;
+    return getPartitioner() instanceof DefaultPartitioner; // DefaultPartitioner is final
   }
 }

@@ -7,9 +7,7 @@ package cz.seznam.euphoria.core.client.dataset;
 public class HashPartitioner<T> implements Partitioner<T> {
 
   @Override
-  public int getPartition(T element)
-  {
+  public int getPartition(T element) {
     return element.hashCode();
   }
-
 }

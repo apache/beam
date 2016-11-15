@@ -93,7 +93,7 @@ public class ReduceByKey<
     }
     @SuppressWarnings("unchecked")
     public DatasetBuilder4<IN, KEY, IN, IN> combineBy(CombinableReduceFunction<IN> reducer) {
-      return new DatasetBuilder4<>(name, input, keyExtractor, e -> e, (ReduceFunction) reducer);
+      return new DatasetBuilder4(name, input, keyExtractor, e -> e, (ReduceFunction) reducer);
     }
   }
   public static class DatasetBuilder3<IN, KEY, VALUE> {
