@@ -1,8 +1,6 @@
 package cz.seznam.euphoria.spark;
 
-import cz.seznam.euphoria.core.client.dataset.HashPartitioner;
 import cz.seznam.euphoria.core.client.dataset.Partitioning;
-import cz.seznam.euphoria.core.client.operator.DefaultPartitioning;
 import org.apache.spark.Partitioner;
 
 /**
@@ -29,9 +27,8 @@ class PartitioningWrapper extends Partitioner {
     KeyedWindow w = (KeyedWindow) el;
     int partition = partitioning.getPartitioner().getPartition(w.key());
     final int windowHash;
-    // FIXME: we can do this trick only if we have default partitioner
-    // this test is insufficient
-    if (partitioning.getPartitioner() instanceof HashPartitioner) {
+    // default partitioner is hash partitioner
+    if (partitioning.hasDefaultPartitioner()) {
       windowHash = w.window().hashCode();
     } else {
       windowHash = 0;
