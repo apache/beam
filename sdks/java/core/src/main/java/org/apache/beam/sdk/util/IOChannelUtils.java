@@ -93,7 +93,7 @@ public class IOChannelUtils {
    * Registers standard factories globally. This requires {@link PipelineOptions}
    * to provide, e.g., credentials for GCS.
    *
-   * @deprecated use {@link #registerIOFactories} or {@link #registerIOFactoriesAllowOverride}.
+   * @deprecated use {@link #registerIOFactories}.
    */
   @Deprecated
   public static void registerStandardIOFactories(PipelineOptions options) {
@@ -119,7 +119,14 @@ public class IOChannelUtils {
    * <p>This requires {@link PipelineOptions} to provide, e.g., credentials for GCS.
    *
    * <p>Override existing schemes is allowed.
+   *
+   * @deprecated This is currently to provide different configurations for tests.
+   * Once we have configurable {@link IOChannelFactory IOChannelFactories}, we will no longer need
+   * to override. At that time, workers code load registrars once. And, rest code could
+   * create {@link IOChannelFactory IOChannelFactories} with different configurations.
    */
+  @Deprecated
+  @VisibleForTesting
   public static void registerIOFactoriesAllowOverride(PipelineOptions options) {
     registerIOFactoriesInternal(options, true /* override */);
   }
