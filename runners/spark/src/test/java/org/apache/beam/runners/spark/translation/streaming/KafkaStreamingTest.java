@@ -28,7 +28,7 @@ import org.apache.beam.runners.spark.SparkPipelineOptions;
 import org.apache.beam.runners.spark.translation.streaming.utils.EmbeddedKafkaCluster;
 import org.apache.beam.runners.spark.translation.streaming.utils.KafkaWriteOnBatchCompleted;
 import org.apache.beam.runners.spark.translation.streaming.utils.PAssertStreaming;
-import org.apache.beam.runners.spark.translation.streaming.utils.TestOptionsForStreaming;
+import org.apache.beam.runners.spark.translation.streaming.utils.TestPipelineOptionsForStreaming;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
@@ -71,7 +71,7 @@ public class KafkaStreamingTest {
   public TemporaryFolder checkpointParentDir = new TemporaryFolder();
 
   @Rule
-  public TestOptionsForStreaming commonOptions = new TestOptionsForStreaming();
+  public TestPipelineOptionsForStreaming commonOptions = new TestPipelineOptionsForStreaming();
 
   @Test
   public void testEarliest2Topics() throws Exception {
