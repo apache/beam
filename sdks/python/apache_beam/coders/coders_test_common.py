@@ -59,7 +59,6 @@ class CodersTest(unittest.TestCase):
                    'Base' not in c.__name__)
     standard -= set([coders.Coder,
                      coders.FastCoder,
-                     coders.Base64PickleCoder,
                      coders.ProtoCoder,
                      coders.ToStringCoder,
                      coders.WindowCoder])
