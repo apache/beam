@@ -20,6 +20,8 @@ package org.apache.beam.sdk.transforms;
 import java.io.IOException;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
+import org.apache.beam.sdk.transforms.DoFn.Context;
+import org.apache.beam.sdk.transforms.DoFn.ProcessContext;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvoker;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvokers;
@@ -228,7 +230,7 @@ public class DoFnAdapters {
     @Override
     public void processElement(ProcessContext c) throws Exception {
       ProcessContextAdapter<InputT, OutputT> adapter = new ProcessContextAdapter<>(fn, c);
-      invoker.invokeProcessElement(adapter, adapter);
+      invoker.invokeProcessElement(adapter);
     }
 
     @Override
@@ -324,6 +326,17 @@ public class DoFnAdapters {
     }
 
     @Override
+    public Context context(DoFn<InputT, OutputT> doFn) {
+      return this;
+    }
+
+    @Override
+    public ProcessContext processContext(DoFn<InputT, OutputT> doFn) {
+      throw new UnsupportedOperationException(
+          "Can only get a ProcessContext in processElement");
+    }
+
+    @Override
     public WindowingInternals<InputT, OutputT> windowingInternals() {
       // The OldDoFn doesn't allow us to ask for these outside ProcessElements, so this
       // should be unreachable.
@@ -358,8 +371,7 @@ public class DoFnAdapters {
   }
 
   /**
-   * Wraps an {@link OldDoFn.ProcessContext} as a {@link DoFn.ExtraContextFactory} inside a {@link
-   * DoFn.ProcessElement} method.
+   * Wraps an {@link OldDoFn.ProcessContext} as a {@link DoFn.ExtraContextFactory} method.
    */
   private static class ProcessContextAdapter<InputT, OutputT>
       extends DoFn<InputT, OutputT>.ProcessContext
@@ -427,6 +439,16 @@ public class DoFnAdapters {
     @Override
     public BoundedWindow window() {
       return context.window();
+    }
+
+    @Override
+    public Context context(DoFn<InputT, OutputT> doFn) {
+      return this;
+    }
+
+    @Override
+    public ProcessContext processContext(DoFn<InputT, OutputT> doFn) {
+      return this;
     }
 
     @Override

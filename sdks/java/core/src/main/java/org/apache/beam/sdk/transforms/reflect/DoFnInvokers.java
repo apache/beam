@@ -101,9 +101,12 @@ public class DoFnInvokers {
 
     @Override
     public DoFn.ProcessContinuation invokeProcessElement(
-        DoFn<InputT, OutputT>.ProcessContext c, ExtraContextFactory<InputT, OutputT> extra) {
+        ExtraContextFactory<InputT, OutputT> extra) {
+      // The outer DoFn is immaterial - it exists only to avoid typing InputT and OutputT repeatedly
+      DoFn<InputT, OutputT>.ProcessContext newCtx =
+          extra.processContext(new DoFn<InputT, OutputT>() {});
       OldDoFn<InputT, OutputT>.ProcessContext oldCtx =
-          DoFnAdapters.adaptProcessContext(fn, c, extra);
+          DoFnAdapters.adaptProcessContext(fn, newCtx, extra);
       try {
         fn.processElement(oldCtx);
         return DoFn.ProcessContinuation.stop();

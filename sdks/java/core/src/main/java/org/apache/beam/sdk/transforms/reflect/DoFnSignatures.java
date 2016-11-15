@@ -47,6 +47,7 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFn.StateId;
 import org.apache.beam.sdk.transforms.DoFn.TimerId;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.ProcessContextParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.RestrictionTrackerParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.StateParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.TimerParameter;
@@ -296,7 +297,7 @@ public class DoFnSignatures {
           timerDecl.field().getDeclaringClass().getCanonicalName());
 
       onTimerMethodMap.put(
-          id, analyzeOnTimerMethod(errors, fnT, onTimerMethod, id, outputT, fnContext));
+          id, analyzeOnTimerMethod(errors, fnT, onTimerMethod, id, inputT, outputT, fnContext));
     }
     signatureBuilder.setOnTimerMethods(onTimerMethodMap);
 
@@ -606,6 +607,7 @@ public class DoFnSignatures {
       TypeDescriptor<? extends DoFn<?, ?>> fnClass,
       Method m,
       String timerId,
+      TypeDescriptor<?> inputT,
       TypeDescriptor<?> outputT,
       FnAnalysisContext fnContext) {
     errors.checkArgument(void.class.equals(m.getReturnType()), "Must return void");
@@ -617,7 +619,6 @@ public class DoFnSignatures {
     @Nullable TypeDescriptor<? extends BoundedWindow> windowT = getWindowType(fnClass, m);
 
     List<DoFnSignature.Parameter> extraParameters = new ArrayList<>();
-    TypeDescriptor<?> expectedOutputReceiverT = outputReceiverTypeOf(outputT);
     ErrorReporter onTimerErrors = errors.forMethod(DoFn.OnTimer.class, m);
     for (int i = 0; i < params.length; ++i) {
       extraParameters.add(
@@ -631,8 +632,8 @@ public class DoFnSignatures {
                   i,
                   fnClass.resolveType(params[i]),
                   Arrays.asList(m.getParameterAnnotations()[i])),
-              null /* restriction type not applicable */,
-              expectedOutputReceiverT));
+              inputT,
+              outputT));
     }
 
     return DoFnSignature.OnTimerMethod.create(m, timerId, windowT, extraParameters);
@@ -652,25 +653,14 @@ public class DoFnSignatures {
         "Must return void or %s",
         DoFn.ProcessContinuation.class.getSimpleName());
 
-    TypeDescriptor<?> processContextT = doFnProcessContextTypeOf(inputT, outputT);
 
     MethodAnalysisContext methodContext = MethodAnalysisContext.create();
 
     Type[] params = m.getGenericParameterTypes();
-    TypeDescriptor<?> contextT = null;
-    if (params.length > 0) {
-      contextT = fnClass.resolveType(params[0]);
-    }
-    errors.checkArgument(
-        contextT != null && contextT.equals(processContextT),
-        "Must take %s as the first argument",
-        formatType(processContextT));
 
     TypeDescriptor<?> trackerT = getTrackerType(fnClass, m);
     TypeDescriptor<? extends BoundedWindow> windowT = getWindowType(fnClass, m);
-    TypeDescriptor<?> expectedInputProviderT = inputProviderTypeOf(inputT);
-    TypeDescriptor<?> expectedOutputReceiverT = outputReceiverTypeOf(outputT);
-    for (int i = 1; i < params.length; ++i) {
+    for (int i = 0; i < params.length; ++i) {
 
       Parameter extraParam =
           analyzeExtraParameter(
@@ -683,8 +673,8 @@ public class DoFnSignatures {
                   i,
                   fnClass.resolveType(params[i]),
                   Arrays.asList(m.getParameterAnnotations()[i])),
-              expectedInputProviderT,
-              expectedOutputReceiverT);
+              inputT,
+              outputT);
 
       methodContext.addParameter(extraParam);
     }
@@ -692,9 +682,16 @@ public class DoFnSignatures {
     // A splittable DoFn can not have any other extra context parameters.
     if (methodContext.hasRestrictionTrackerParameter()) {
       errors.checkArgument(
-          methodContext.getExtraParameters().size() == 1,
-          "Splittable DoFn must not have any extra arguments, but has: %s",
-          trackerT,
+          Iterables.all(
+              methodContext.getExtraParameters(),
+              Predicates.or(
+                  Predicates.instanceOf(RestrictionTrackerParameter.class),
+                  Predicates.instanceOf(ProcessContextParameter.class))),
+          "Splittable %s @%s must have only %s and %s parameters, but has: %s",
+          DoFn.class.getSimpleName(),
+          DoFn.ProcessElement.class.getSimpleName(),
+          DoFn.ProcessContext.class.getSimpleName(),
+          RestrictionTracker.class.getSimpleName(),
           methodContext.getExtraParameters());
     }
 
@@ -712,14 +709,30 @@ public class DoFnSignatures {
       MethodAnalysisContext methodContext,
       TypeDescriptor<? extends DoFn<?, ?>> fnClass,
       ParameterDescription param,
-      TypeDescriptor<?> expectedInputProviderT,
-      TypeDescriptor<?> expectedOutputReceiverT) {
+      TypeDescriptor<?> inputT,
+      TypeDescriptor<?> outputT) {
+
+    TypeDescriptor<?> expectedProcessContextT = doFnProcessContextTypeOf(inputT, outputT);
+    TypeDescriptor<?> expectedContextT = doFnContextTypeOf(inputT, outputT);
+    TypeDescriptor<?> expectedInputProviderT = inputProviderTypeOf(inputT);
+    TypeDescriptor<?> expectedOutputReceiverT = outputReceiverTypeOf(outputT);
+
     TypeDescriptor<?> paramT = param.getType();
     Class<?> rawType = paramT.getRawType();
 
     ErrorReporter paramErrors = methodErrors.forParameter(param);
 
-    if (BoundedWindow.class.isAssignableFrom(rawType)) {
+    if (rawType.equals(DoFn.ProcessContext.class)) {
+      methodErrors.checkArgument(paramT.equals(expectedProcessContextT),
+        "Must take %s as the ProcessContext argument",
+        formatType(expectedProcessContextT));
+      return Parameter.processContext();
+    } else if (rawType.equals(DoFn.Context.class)) {
+      methodErrors.checkArgument(paramT.equals(expectedContextT),
+          "Must take %s as the Context argument",
+          formatType(expectedContextT));
+      return Parameter.context();
+    } else if (BoundedWindow.class.isAssignableFrom(rawType)) {
       methodErrors.checkArgument(
           !methodContext.hasWindowParameter(),
           "Multiple %s parameters",

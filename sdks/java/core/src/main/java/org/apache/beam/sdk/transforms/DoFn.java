@@ -352,6 +352,16 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
     BoundedWindow window();
 
     /**
+     * Provide a {@link DoFn.Context} to use with the given {@link DoFn}.
+     */
+    DoFn<InputT, OutputT>.Context context(DoFn<InputT, OutputT> doFn);
+
+    /**
+     * Provide a {@link DoFn.ProcessContext} to use with the given {@link DoFn}.
+     */
+    DoFn<InputT, OutputT>.ProcessContext processContext(DoFn<InputT, OutputT> doFn);
+
+    /**
      * A placeholder for testing purposes.
      */
     InputProvider<InputT> inputProvider();
@@ -407,7 +417,17 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
   public static class FakeExtraContextFactory<InputT, OutputT>
       implements ExtraContextFactory<InputT, OutputT> {
     @Override
+    public DoFn<InputT, OutputT>.ProcessContext processContext(DoFn<InputT, OutputT> doFn) {
+      return null;
+    }
+
+    @Override
     public BoundedWindow window() {
+      return null;
+    }
+
+    @Override
+    public DoFn<InputT, OutputT>.Context context(DoFn<InputT, OutputT> doFn) {
       return null;
     }
 

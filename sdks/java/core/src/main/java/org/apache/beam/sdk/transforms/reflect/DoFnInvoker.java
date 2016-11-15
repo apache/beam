@@ -44,13 +44,11 @@ public interface DoFnInvoker<InputT, OutputT> {
   /**
    * Invoke the {@link DoFn.ProcessElement} method on the bound {@link DoFn}.
    *
-   * @param c The {@link DoFn.ProcessContext} to invoke the fn with.
    * @param extra Factory for producing extra parameter objects (such as window), if necessary.
    * @return The {@link DoFn.ProcessContinuation} returned by the underlying method, or {@link
    *     DoFn.ProcessContinuation#stop()} if it returns {@code void}.
    */
-  DoFn.ProcessContinuation invokeProcessElement(
-      DoFn<InputT, OutputT>.ProcessContext c, DoFn.ExtraContextFactory<InputT, OutputT> extra);
+  DoFn.ProcessContinuation invokeProcessElement(DoFn.ExtraContextFactory<InputT, OutputT> extra);
 
   /** Invoke the {@link DoFn.GetInitialRestriction} method on the bound {@link DoFn}. */
   <RestrictionT> RestrictionT invokeGetInitialRestriction(InputT element);

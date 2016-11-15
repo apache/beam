@@ -83,7 +83,7 @@ public class DoFnInvokersBenchmark {
 
   @Benchmark
   public String invokeDoFnWithContext() throws Exception {
-    invoker.invokeProcessElement(stubDoFnContext, extraContextFactory);
+    invoker.invokeProcessElement(extraContextFactory);
     return stubDoFnContext.output;
   }
 
