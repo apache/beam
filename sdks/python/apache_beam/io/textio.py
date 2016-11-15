@@ -244,7 +244,8 @@ class ReadFromText(PTransform):
     self._strip_trailing_newlines = strip_trailing_newlines
     self._coder = coder
     self._source = _TextSource(file_pattern, min_bundle_size, compression_type,
-                               strip_trailing_newlines, coder, validate=validate)
+                               strip_trailing_newlines, coder,
+                               validate=validate)
 
   def apply(self, pvalue):
     return pvalue.pipeline | Read(self._source)
