@@ -18,7 +18,6 @@
 """Unit tests for the retry module."""
 
 import unittest
-import mock
 
 from apitools.base.py.exceptions import HttpError
 
@@ -166,12 +165,17 @@ class RetryTest(unittest.TestCase):
 
 
 class DummyClass(object):
-  def __init__(self, m):
-    self.m = m
+  def __init__(self, results):
+    self.index = 0
+    self.results = results
 
   @retry.with_exponential_backoff(num_retries=2, initial_delay_secs=0.1)
-  def func(self, a):
-    return self.m.mfunc(a)
+  def func(self):
+    self.index += 1
+    if self.index > len(self.results) or \
+        self.results[self.index - 1] == "Error":
+      raise ValueError("Error")
+    return self.results[self.index - 1]
 
 
 class RetryStateTest(unittest.TestCase):
@@ -183,31 +187,23 @@ class RetryStateTest(unittest.TestCase):
   The test_call_two_objects would test this inside the same test.
   """
   def test_two_failures(self):
-    m = mock.Mock()
-    m.mfunc.side_effect = [ValueError("Error1"), ValueError("Error2"), 1]
-    c = DummyClass(m)
-    c.func(1)
-    self.assertEqual(3, m.mfunc.call_count)
+    dummy = DummyClass(["Error", "Error", "Success"])
+    dummy.func()
+    self.assertEqual(3, dummy.index)
 
   def test_single_failure(self):
-    m = mock.Mock()
-    m.mfunc.side_effect = [ValueError("Error3"), 2]
-    c = DummyClass(m)
-    c.func(2)
-    self.assertEqual(2, m.mfunc.call_count)
+    dummy = DummyClass(["Error", "Success"])
+    dummy.func()
+    self.assertEqual(2, dummy.index)
 
   def test_call_two_objects(self):
-    m = mock.Mock()
-    m.mfunc.side_effect = [ValueError("Error4"), ValueError("Error5"), 3]
-    c = DummyClass(m)
-    c.func(3)
-    self.assertEqual(3, m.mfunc.call_count)
+    dummy = DummyClass(["Error", "Error", "Success"])
+    dummy.func()
+    self.assertEqual(3, dummy.index)
 
-    m2 = mock.Mock()
-    m2.mfunc.side_effect = [ValueError("Error6"), 4]
-    c2 = DummyClass(m2)
-    c2.func(4)
-    self.assertEqual(2, m2.mfunc.call_count)
+    dummy2 = DummyClass(["Error", "Success"])
+    dummy2.func()
+    self.assertEqual(2, dummy2.index)
 
 
 if __name__ == '__main__':
