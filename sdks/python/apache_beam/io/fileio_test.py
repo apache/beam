@@ -68,7 +68,8 @@ class TestTextFileSource(unittest.TestCase):
     self.assertEqual(read_lines, output_lines)
     dd = DisplayData.create_from(source)
     expected_items = [
-        DisplayDataItemMatcher('filePattern', file_name)]
+        DisplayDataItemMatcher('filePattern', file_name),
+        DisplayDataItemMatcher('compression', 'auto')]
     hc.assert_that(dd.items,
                    hc.contains_inanyorder(*expected_items))
 
@@ -611,7 +612,10 @@ class TestNativeTextFileSink(unittest.TestCase):
             '{}{}'.format(self.path, '-SSSSS-of-NNNNN')),
         DisplayDataItemMatcher(
             'compression',
-            'auto')]
+            'auto'),
+        DisplayDataItemMatcher(
+            'shards',
+            0)]
     hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
 
   def test_text_file_display_data_suffix(self):
@@ -623,7 +627,10 @@ class TestNativeTextFileSink(unittest.TestCase):
             '{}{}{}'.format(self.path, '-SSSSS-of-NNNNN', '.pdf')),
         DisplayDataItemMatcher(
             'compression',
-            'auto')]
+            'auto'),
+        DisplayDataItemMatcher(
+            'shards',
+            0)]
     hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
 
   def test_write_text_file_empty(self):
@@ -651,7 +658,10 @@ class TestNativeTextFileSink(unittest.TestCase):
             '{}{}'.format(self.path, '-SSSSS-of-NNNNN')),
         DisplayDataItemMatcher(
             'compression',
-            'gzip')]
+            'gzip'),
+        DisplayDataItemMatcher(
+            'shards',
+            0)]
     hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
 
   def test_write_text_gzip_file_auto(self):
@@ -688,7 +698,10 @@ class TestNativeTextFileSink(unittest.TestCase):
             '{}{}'.format(self.path, '-SSSSS-of-NNNNN')),
         DisplayDataItemMatcher(
             'compression',
-            'bzip2')]
+            'bzip2'),
+        DisplayDataItemMatcher(
+            'shards',
+            0)]
     hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
 
   def test_write_text_bzip2_file_auto(self):
@@ -763,6 +776,23 @@ class TestFileSink(unittest.TestCase):
 
     # Check that any temp files are deleted.
     self.assertItemsEqual([shard1, shard2], glob.glob(temp_path + '*'))
+
+  def test_file_sink_display_data(self):
+    temp_path = tempfile.NamedTemporaryFile().name
+    sink = MyFileSink(
+        temp_path, file_name_suffix='.foo', coder=coders.ToStringCoder())
+    dd = DisplayData.create_from(sink)
+    expected_items = [
+        DisplayDataItemMatcher(
+            'shards', 0),
+        DisplayDataItemMatcher(
+            'compression', 'auto'),
+        DisplayDataItemMatcher(
+            'filePattern',
+            '{}{}'.format(temp_path,
+                          '-%(shard_num)05d-of-%(num_shards)05d.foo'))]
+
+    hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
 
   def test_empty_write(self):
     temp_path = tempfile.NamedTemporaryFile().name

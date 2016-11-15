@@ -19,12 +19,16 @@
 
 import unittest
 
+import hamcrest as hc
+
 import apache_beam as beam
 from apache_beam.pipeline import Pipeline
 import apache_beam.transforms.combiners as combine
 from apache_beam.transforms.core import CombineGlobally
 from apache_beam.transforms.core import Create
 from apache_beam.transforms.core import Map
+from apache_beam.transforms.display import DisplayData
+from apache_beam.transforms.display_test import DisplayDataItemMatcher
 from apache_beam.transforms.ptransform import PTransform
 from apache_beam.transforms.util import assert_that, equal_to
 
@@ -136,6 +140,65 @@ class CombineTest(unittest.TestCase):
     test_combine_fn(combine.TopCombineFn(5),
                     [range(1000), range(100), range(1001)],
                     [1000, 999, 999, 998, 998])
+
+  def test_combine_per_key_top_display_data(self):
+    def individual_test_per_key_dd(combineFn):
+      transform = beam.CombinePerKey(combineFn)
+      dd = DisplayData.create_from(transform)
+      expected_items = [
+          DisplayDataItemMatcher('combineFn', combineFn.__class__),
+          DisplayDataItemMatcher('n', combineFn._n),
+          DisplayDataItemMatcher('compare', combineFn._compare.__name__)]
+      hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
+
+    individual_test_per_key_dd(combine.Largest(5))
+    individual_test_per_key_dd(combine.Smallest(3))
+    individual_test_per_key_dd(combine.TopCombineFn(8))
+    individual_test_per_key_dd(combine.Largest(5))
+
+  def test_combine_sample_display_data(self):
+    def individual_test_per_key_dd(sampleFn, args, kwargs):
+      trs = [beam.CombinePerKey(sampleFn(*args, **kwargs)),
+             beam.CombineGlobally(sampleFn(*args, **kwargs))]
+      for transform in trs:
+        dd = DisplayData.create_from(transform)
+        expected_items = [
+            DisplayDataItemMatcher('fn', sampleFn.fn.__name__),
+            DisplayDataItemMatcher('combineFn',
+                                   transform.fn.__class__)]
+        if len(args) > 0:
+          expected_items.append(
+              DisplayDataItemMatcher('args', str(args)))
+        if len(kwargs) > 0:
+          expected_items.append(
+              DisplayDataItemMatcher('kwargs', str(kwargs)))
+        hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
+
+    individual_test_per_key_dd(combine.Sample.FixedSizePerKey,
+                               args=(5,),
+                               kwargs={})
+    individual_test_per_key_dd(combine.Sample.FixedSizeGlobally,
+                               args=(8,),
+                               kwargs={'arg':  9})
+
+  def test_combine_globally_display_data(self):
+    transform = beam.CombineGlobally(combine.Smallest(5))
+    dd = DisplayData.create_from(transform)
+    expected_items = [
+        DisplayDataItemMatcher('combineFn', combine.Smallest),
+        DisplayDataItemMatcher('n', 5),
+        DisplayDataItemMatcher('compare', 'gt')]
+    hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
+
+  def test_basic_combiners_display_data(self):
+    transform = beam.CombineGlobally(
+        combine.TupleCombineFn(max, combine.MeanCombineFn(), sum))
+    dd = DisplayData.create_from(transform)
+    expected_items = [
+        DisplayDataItemMatcher('combineFn', combine.TupleCombineFn),
+        DisplayDataItemMatcher('combiners',
+                               "['max', 'MeanCombineFn', 'sum']")]
+    hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
 
   def test_top_shorthands(self):
     pipeline = Pipeline('DirectPipelineRunner')
