@@ -391,19 +391,23 @@ public class SplittableParDo<
       };
     }
 
-    /** Creates an {@link DoFn.ExtraContextFactory} that provides just the given tracker. */
-    private DoFn.ExtraContextFactory<InputT, OutputT> wrapTracker(
+    /**
+     * Creates an {@link DoFn.ArgumentProvider} that provides the given tracker as well as the given
+     * {@link ProcessContext} (which is also provided when a {@link Context} is requested.
+     */
+    private DoFn.ArgumentProvider<InputT, OutputT> wrapTracker(
         TrackerT tracker, DoFn<InputT, OutputT>.ProcessContext processContext) {
-      return new ExtraContextFactoryForTracker<>(tracker, processContext);
+
+      return new ArgumentProviderForTracker<>(tracker, processContext);
     }
 
-    private static class ExtraContextFactoryForTracker<
+    private static class ArgumentProviderForTracker<
             InputT, OutputT, TrackerT extends RestrictionTracker<?>>
-        implements DoFn.ExtraContextFactory<InputT, OutputT> {
+        implements DoFn.ArgumentProvider<InputT, OutputT> {
       private final TrackerT tracker;
       private final DoFn<InputT, OutputT>.ProcessContext processContext;
 
-      ExtraContextFactoryForTracker(
+      ArgumentProviderForTracker(
           TrackerT tracker, DoFn<InputT, OutputT>.ProcessContext processContext) {
         this.tracker = tracker;
         this.processContext = processContext;

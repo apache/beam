@@ -64,7 +64,6 @@ import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.DoFn.ExtraContextFactory;
 import org.apache.beam.sdk.transforms.DoFn.ProcessElement;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.Cases;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.ContextParameter;
@@ -101,7 +100,7 @@ public class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
 
   /**
    * Creates a {@link DoFnInvoker} for the given {@link DoFn} by generating bytecode that directly
-   * invokes its methods with arguments extracted from the {@link ExtraContextFactory}.
+   * invokes its methods with arguments extracted from the {@link DoFn.ArgumentProvider}.
    */
   @Override
   public <InputT, OutputT> DoFnInvoker<InputT, OutputT> invokerFor(DoFn<InputT, OutputT> fn) {
@@ -428,18 +427,18 @@ public class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
       String methodName, Class<?>... parameterTypes) {
     try {
       return new MethodDescription.ForLoadedMethod(
-          ExtraContextFactory.class.getMethod(methodName, parameterTypes));
+          DoFn.ArgumentProvider.class.getMethod(methodName, parameterTypes));
     } catch (Exception e) {
       throw new IllegalStateException(
           String.format(
               "Failed to locate required method %s.%s",
-              ExtraContextFactory.class.getSimpleName(), methodName),
+              DoFn.ArgumentProvider.class.getSimpleName(), methodName),
           e);
     }
   }
 
   /**
-   * Calls a zero-parameter getter on the {@link ExtraContextFactory}, which must be on top of the
+   * Calls a zero-parameter getter on the {@link DoFn.ArgumentProvider}, which must be on top of the
    * stack.
    */
   private static StackManipulation simpleExtraContextParameter(String methodName) {
@@ -489,7 +488,7 @@ public class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
 
           @Override
           public StackManipulation dispatch(RestrictionTrackerParameter p) {
-            // ExtraContextFactory.restrictionTracker() returns a RestrictionTracker,
+            // DoFn.ArgumentProvider.restrictionTracker() returns a RestrictionTracker,
             // but the @ProcessElement method expects a concrete subtype of it.
             // Insert a downcast.
             return new StackManipulation.Compound(
@@ -545,9 +544,9 @@ public class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
     @Override
     protected StackManipulation beforeDelegation(MethodDescription instrumentedMethod) {
       // Parameters of the wrapper invoker method:
-      //   DoFn.ProcessContext, ExtraContextFactory.
+      //   DoFn.ArgumentProvider
       // Parameters of the wrapped DoFn method:
-      //   DoFn.ProcessContext, [BoundedWindow, InputProvider, OutputReceiver] in any order
+      //   [DoFn.ProcessContext, BoundedWindow, InputProvider, OutputReceiver] in any order
       ArrayList<StackManipulation> pushParameters = new ArrayList<>();
 
       // To load the delegate, push `this` and then access the field

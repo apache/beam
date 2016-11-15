@@ -23,5 +23,5 @@ import org.apache.beam.sdk.transforms.DoFn;
 interface OnTimerInvoker<InputT, OutputT> {
 
   /** Invoke the {@link DoFn.OnTimer} method in the provided context. */
-  void invokeOnTimer(DoFn.ExtraContextFactory<InputT, OutputT> extra);
+  void invokeOnTimer(DoFn.ArgumentProvider<InputT, OutputT> extra);
 }
