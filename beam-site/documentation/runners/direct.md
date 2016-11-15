@@ -28,7 +28,7 @@ You must specify your dependency on the Direct Runner.
 <dependency>
    <groupId>org.apache.beam</groupId>
    <artifactId>beam-runners-direct-java</artifactId>
-   <version>0.3.0-incubating</version>
+   <version>{{ site.release_latest }}</version>
    <scope>runtime</scope>
 </dependency>
 ```
