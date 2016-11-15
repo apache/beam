@@ -630,11 +630,11 @@ public class MongoDbGridFSIO {
 
     private final Write<T> spec;
 
-    private Mongo mongo;
-    private GridFS gridfs;
+    private transient Mongo mongo;
+    private transient GridFS gridfs;
 
-    private GridFSInputFile gridFsFile;
-    private OutputStream outputStream;
+    private transient GridFSInputFile gridFsFile;
+    private transient OutputStream outputStream;
 
     public GridFsWriteFn(Write<T> spec) {
       this.spec = spec;
