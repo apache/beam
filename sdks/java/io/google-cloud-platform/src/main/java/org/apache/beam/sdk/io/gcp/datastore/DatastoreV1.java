@@ -127,7 +127,7 @@ import org.slf4j.LoggerFactory;
  * many workers. However, when the {@link Query} is configured with a limit using
  * {@link com.google.datastore.v1.Query.Builder#setLimit(Int32Value)} or if the Query contains
  * inequality filters like {@code GREATER_THAN, LESS_THAN} etc., then all returned results
- * will be read by a single Dataflow worker in order to ensure correct data. Since data is read from
+ * will be read by a single worker in order to ensure correct data. Since data is read from
  * a single worker, this could have a significant impact on the performance of the job.
  *
  * <p>To write a {@link PCollection} to a Cloud Datastore, use {@link DatastoreV1#write},
@@ -251,7 +251,7 @@ public class DatastoreV1 {
       abstract Builder setQuery(Query query);
       abstract Builder setNamespace(String namespace);
       abstract Builder setNumQuerySplits(int numQuerySplits);
-      abstract Builder setLocalhost(String hostPort);
+      abstract Builder setLocalhost(String localhost);
       abstract Read build();
     }
 
@@ -419,6 +419,10 @@ public class DatastoreV1 {
           .build();
     }
 
+    /**
+     * Returns a new {@link DatastoreV1.Read} that reads from a Datastore Emulator running at the
+     * given localhost address.
+     */
     public DatastoreV1.Read withLocalhost(String localhost) {
       return toBuilder()
           .setLocalhost(localhost)
