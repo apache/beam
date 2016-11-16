@@ -77,6 +77,7 @@
           <execution>
             <id>runnable-on-service-tests</id>
             <configuration>
+              <excludedGroups>org.apache.beam.sdk.testing.UsesStatefulParDo</excludedGroups>
               <excludes>
                 <exclude>org.apache.beam.sdk.transforms.FlattenTest</exclude>
               </excludes>
