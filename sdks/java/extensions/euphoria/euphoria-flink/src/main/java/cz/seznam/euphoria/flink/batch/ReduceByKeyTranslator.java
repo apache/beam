@@ -32,10 +32,11 @@ import java.util.Set;
 public class ReduceByKeyTranslator implements BatchOperatorTranslator<ReduceByKey> {
 
   static boolean wantTranslate(ReduceByKey operator) {
-    return operator.isCombinable()
+    boolean b = operator.isCombinable()
         && (operator.getWindowing() == null
-        || !(operator.getWindowing() instanceof MergingWindowing)
-        || !operator.getWindowing().getTrigger().isStateful());
+            || (!(operator.getWindowing() instanceof MergingWindowing)
+                && !operator.getWindowing().getTrigger().isStateful()));
+    return b;
   }
 
   @Override
