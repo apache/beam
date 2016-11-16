@@ -9,6 +9,7 @@ import cz.seznam.euphoria.core.client.graph.Node;
 import cz.seznam.euphoria.core.client.io.DataSink;
 import cz.seznam.euphoria.core.client.operator.Operator;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -98,9 +99,11 @@ public class FlowUnfolder {
       UnaryPredicate<Operator<?, ?>> wantTranslate)
       throws IllegalArgumentException {
 
+    dag = FlowValidator.preTranslateValidate(dag);
+
     // create root nodes for all inputs
     DAG<Operator<?, ?>> ret = DAG.of();
-    
+
     Map<Dataset<?>, Optional<Operator<?, ?>>> datasetProducents = new HashMap<>();
 
     // initialize all other datasets in the original DAG to have empty producents
@@ -134,7 +137,7 @@ public class FlowUnfolder {
         }
 
         DAG<Operator<?, ?>> modified = translate(basicOps, wantTranslate);
-        
+
         modified.traverse().forEach(m -> {
           List<Operator<?, ?>> parents = getParents(m, datasetProducents);
           ret.add(m.get(), parents);
@@ -155,7 +158,7 @@ public class FlowUnfolder {
 
     });
 
-    return FlowValidator.validate(ret);    
+    return FlowValidator.postTranslateValidate(ret);
   }
 
   /**
@@ -202,13 +205,10 @@ public class FlowUnfolder {
     Collection<Operator<?, ?>> operators = flow.operators();
     Set<Operator<?, ?>> resolvedOperators = new HashSet<>();
     Map<Dataset<?>, Operator<?, ?>> datasets = new HashMap<>();
-    flow.sources().stream().forEach(d -> datasets.put(d, new InputOperator(d)));
+    flow.sources().forEach(d -> datasets.put(d, new InputOperator(d)));
 
     // root nodes
-    List<Operator<?, ?>> roots = datasets.values()
-        .stream()
-        .collect(Collectors.toList());
-
+    List<Operator<?, ?>> roots = new ArrayList<>(datasets.values());
 
     DAG<Operator<?, ?>> ret = DAG.of((List) roots);
 

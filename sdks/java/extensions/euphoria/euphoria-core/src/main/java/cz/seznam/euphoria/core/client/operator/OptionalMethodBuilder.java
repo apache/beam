@@ -7,7 +7,8 @@ import java.util.Objects;
 /**
  * Class to be extended by operator builders that want to make use
  * of `applyIf` call.
- * @param BUILDER the class of the builder that extends this class
+ *
+ * @param <BUILDER> the class of the builder that extends this class
  */
 public interface OptionalMethodBuilder<BUILDER> {
 

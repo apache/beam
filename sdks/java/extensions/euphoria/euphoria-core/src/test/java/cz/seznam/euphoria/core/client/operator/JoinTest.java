@@ -39,8 +39,7 @@ public class JoinTest {
     assertNotNull(join.leftKeyExtractor);
     assertNotNull(join.rightKeyExtractor);
     assertEquals(joined, join.output());
-    // batch windowing by default
-    assertEquals(Batch.get(), join.getWindowing());
+    assertNull(join.getWindowing());
     assertFalse(join.outer);
 
     // default partitioning used

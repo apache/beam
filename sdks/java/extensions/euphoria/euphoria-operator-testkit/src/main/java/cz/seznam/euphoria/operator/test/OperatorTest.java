@@ -47,13 +47,23 @@ public abstract class OperatorTest implements Serializable {
   public void runTests(Executor executor, Settings settings) throws Exception {
     for (TestCase tc : getTestCases()) {
       for (int i = 0; i < tc.getNumRuns(); i++) {
-        ListDataSink sink = ListDataSink.get(tc.getNumOutputPartitions());
-        Flow flow = Flow.create(tc.toString(), settings);
-        tc.getOutput(flow).persist(sink);
-        executor.submit(flow).get();
-        tc.validate(sink.getOutputs());
+        runTestCase(executor, settings, tc);
       }
     }
+  }
+
+  /**
+   * Run a given test case originating from the operator test.
+   */
+  @SuppressWarnings("unchecked")
+  protected void runTestCase(Executor executor, Settings settings, TestCase tc)
+      throws Exception
+  {
+    ListDataSink sink = ListDataSink.get(tc.getNumOutputPartitions());
+    Flow flow = Flow.create(tc.toString(), settings);
+    tc.getOutput(flow).persist(sink);
+    executor.submit(flow).get();
+    tc.validate(sink.getOutputs());
   }
 
   /**

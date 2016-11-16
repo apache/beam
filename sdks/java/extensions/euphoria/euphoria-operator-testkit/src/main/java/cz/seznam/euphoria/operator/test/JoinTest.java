@@ -1,4 +1,3 @@
-
 package cz.seznam.euphoria.operator.test;
 
 import cz.seznam.euphoria.core.client.dataset.Dataset;
@@ -12,19 +11,20 @@ import cz.seznam.euphoria.core.client.triggers.NoopTrigger;
 import cz.seznam.euphoria.core.client.triggers.Trigger;
 import cz.seznam.euphoria.core.client.util.Either;
 import cz.seznam.euphoria.core.client.util.Pair;
+
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
 
 /**
  * Test operator {@code Join}.
  */
 public class JoinTest extends OperatorTest {
 
-  private abstract class JoinTestCase<LEFT, RIGHT, OUT> implements TestCase<OUT> {
+  static abstract class JoinTestCase<LEFT, RIGHT, OUT> implements TestCase<OUT> {
     
     @Override
     public Dataset<OUT> getOutput(Flow flow) {
@@ -38,8 +38,6 @@ public class JoinTest extends OperatorTest {
 
     protected abstract Dataset<LEFT> getLeftInput(Flow flow);
     protected abstract Dataset<RIGHT> getRightInput(Flow flow);
-    
-
   }
 
   @Override
