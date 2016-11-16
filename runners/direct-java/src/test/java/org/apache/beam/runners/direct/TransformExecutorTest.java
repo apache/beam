@@ -22,7 +22,6 @@ import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.isA;
-import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.nullValue;
 import static org.junit.Assert.assertThat;
 import static org.mockito.Mockito.when;
@@ -274,48 +273,6 @@ public class TransformExecutorTest {
 
     assertThat(completionCallback.handledResult, is(nullValue()));
     assertThat(completionCallback.handledException, Matchers.<Throwable>equalTo(exception));
-  }
-
-  @Test
-  public void duringCallGetThreadIsNonNull() throws Exception {
-    final TransformResult result =
-        StepTransformResult.withoutHold(downstream.getProducingTransformInternal()).build();
-    final CountDownLatch testLatch = new CountDownLatch(1);
-    final CountDownLatch evaluatorLatch = new CountDownLatch(1);
-    TransformEvaluator<Object> evaluator =
-        new TransformEvaluator<Object>() {
-          @Override
-          public void processElement(WindowedValue<Object> element) throws Exception {
-            throw new IllegalArgumentException("Shouldn't be called");
-          }
-
-          @Override
-          public TransformResult finishBundle() throws Exception {
-            testLatch.countDown();
-            evaluatorLatch.await();
-            return result;
-          }
-        };
-
-    when(registry.forApplication(created.getProducingTransformInternal(), null))
-        .thenReturn(evaluator);
-
-    TransformExecutor<String> executor =
-        TransformExecutor.create(
-            evaluationContext,
-            registry,
-            Collections.<ModelEnforcementFactory>emptyList(),
-            null,
-            created.getProducingTransformInternal(),
-            completionCallback,
-            transformEvaluationState);
-
-    Executors.newSingleThreadExecutor().submit(executor);
-    testLatch.await();
-    assertThat(executor.getThread(), not(nullValue()));
-
-    // Finish the execution so everything can get closed down cleanly.
-    evaluatorLatch.countDown();
   }
 
   @Test
