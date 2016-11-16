@@ -5,9 +5,8 @@ import cz.seznam.euphoria.core.annotation.operator.Recommended;
 import cz.seznam.euphoria.core.annotation.operator.StateComplexity;
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.dataset.Partitioning;
-import cz.seznam.euphoria.core.client.dataset.windowing.Batch;
-import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.dataset.windowing.Window;
+import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.functional.BinaryFunctor;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
@@ -41,6 +40,17 @@ public class Join<LEFT, RIGHT, KEY, OUT, W extends Window>
     Either<LEFT, RIGHT>, KEY, Pair<KEY, OUT>, W,
     Join<LEFT, RIGHT, KEY, OUT, W>>
     implements OutputBuilder<Pair<KEY, OUT>> {
+
+  /**
+   * Thrown by executors at flow submission time when joining two non-batched
+   * dataset without explictely providing a windowing strategy to the join operator.
+   */
+  public static final class WindowingRequiredException extends IllegalStateException {
+    public WindowingRequiredException() {
+      super("Join operator requires either an explicit windowing" +
+            " strategy or needs to be supplied with batched inputs.");
+    }
+  }
 
   public static class OfBuilder {
     private final String name;
@@ -147,7 +157,7 @@ public class Join<LEFT, RIGHT, KEY, OUT, W extends Window>
 
     @Override
     public Dataset<Pair<KEY, OUT>> output() {
-      return new OutputBuilder<>(this, Batch.get()).output();
+      return new OutputBuilder<>(this, null).output();
     }
 
     public <W extends Window>
