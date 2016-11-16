@@ -128,7 +128,6 @@ import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.GroupByKey;
-import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
@@ -2364,8 +2363,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
    * {@link PCollectionView} backend implementation.
    */
   @Deprecated
-  public static class StreamingPCollectionViewWriterFn<T>
-  extends OldDoFn<Iterable<T>, T> implements OldDoFn.RequiresWindowAccess {
+  public static class StreamingPCollectionViewWriterFn<T> extends DoFn<Iterable<T>, T> {
     private final PCollectionView<?> view;
     private final Coder<T> dataCoder;
 
@@ -2387,8 +2385,8 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
       return dataCoder;
     }
 
-    @Override
-    public void processElement(ProcessContext c) throws Exception {
+    @ProcessElement
+    public void processElement(ProcessContext c, BoundedWindow w) throws Exception {
       throw new UnsupportedOperationException(
           String.format(
               "%s is a marker class only and should never be executed.", getClass().getName()));
