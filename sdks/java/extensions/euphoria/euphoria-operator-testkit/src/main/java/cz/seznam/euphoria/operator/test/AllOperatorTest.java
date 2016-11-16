@@ -95,6 +95,11 @@ public abstract class AllOperatorTest {
   }
 
   @Test
+  public void testJoinWindowEnforcement() throws Exception {
+    new JoinWindowEnforcement().runTests(executor, settings);
+  }
+
+  @Test
   public void testGroupBy() throws Exception {
     GroupByKeyTest t = new GroupByKeyTest();
     t.runTests(executor, settings);
