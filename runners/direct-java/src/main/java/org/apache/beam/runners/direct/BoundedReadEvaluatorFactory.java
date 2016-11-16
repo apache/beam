@@ -28,6 +28,7 @@ import org.apache.beam.runners.direct.DirectRunner.UncommittedBundle;
 import org.apache.beam.runners.direct.StepTransformResult.Builder;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.BoundedSource.BoundedReader;
+import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.io.Read.Bounded;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
@@ -123,7 +124,8 @@ final class BoundedReadEvaluatorFactory implements TransformEvaluatorFactory {
     abstract BoundedSource<T> getSource();
   }
 
-  static class InputProvider implements RootInputProvider {
+  static class InputProvider<T>
+      implements RootInputProvider<T, BoundedSourceShard<T>, PBegin, Read.Bounded<T>> {
     private final EvaluationContext evaluationContext;
 
     InputProvider(EvaluationContext evaluationContext) {
@@ -131,27 +133,21 @@ final class BoundedReadEvaluatorFactory implements TransformEvaluatorFactory {
     }
 
     @Override
-    public Collection<CommittedBundle<?>> getInitialInputs(
-        AppliedPTransform<?, ?, ?> transform, int targetParallelism) throws Exception {
-      return createInitialSplits((AppliedPTransform) transform, targetParallelism);
-    }
-
-    private <OutputT>
-        Collection<CommittedBundle<BoundedSourceShard<OutputT>>> createInitialSplits(
-            AppliedPTransform<PBegin, ?, Bounded<OutputT>> transform, int targetParallelism)
-            throws Exception {
-      BoundedSource<OutputT> source = transform.getTransform().getSource();
+    public Collection<CommittedBundle<BoundedSourceShard<T>>> getInitialInputs(
+        AppliedPTransform<PBegin, PCollection<T>, Read.Bounded<T>> transform, int targetParallelism)
+        throws Exception {
+      BoundedSource<T> source = transform.getTransform().getSource();
       PipelineOptions options = evaluationContext.getPipelineOptions();
       long estimatedBytes = source.getEstimatedSizeBytes(options);
       long bytesPerBundle = estimatedBytes / targetParallelism;
-      List<? extends BoundedSource<OutputT>> bundles =
+      List<? extends BoundedSource<T>> bundles =
           source.splitIntoBundles(bytesPerBundle, options);
-      ImmutableList.Builder<CommittedBundle<BoundedSourceShard<OutputT>>> shards =
+      ImmutableList.Builder<CommittedBundle<BoundedSourceShard<T>>> shards =
           ImmutableList.builder();
-      for (BoundedSource<OutputT> bundle : bundles) {
-        CommittedBundle<BoundedSourceShard<OutputT>> inputShard =
+      for (BoundedSource<T> bundle : bundles) {
+        CommittedBundle<BoundedSourceShard<T>> inputShard =
             evaluationContext
-                .<BoundedSourceShard<OutputT>>createRootBundle()
+                .<BoundedSourceShard<T>>createRootBundle()
                 .add(WindowedValue.valueInGlobalWindow(BoundedSourceShard.of(bundle)))
                 .commit(BoundedWindow.TIMESTAMP_MAX_VALUE);
         shards.add(inputShard);

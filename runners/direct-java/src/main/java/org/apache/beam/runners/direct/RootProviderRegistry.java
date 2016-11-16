@@ -24,7 +24,6 @@ import java.util.Collection;
 import java.util.Map;
 import org.apache.beam.runners.direct.DirectRunner.CommittedBundle;
 import org.apache.beam.sdk.io.Read;
-import org.apache.beam.sdk.testing.TestStream;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.Flatten.FlattenPCollectionList;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -33,25 +32,27 @@ import org.apache.beam.sdk.transforms.PTransform;
  * A {@link RootInputProvider} that delegates to primitive {@link RootInputProvider} implementations
  * based on the type of {@link PTransform} of the application.
  */
-class RootProviderRegistry implements RootInputProvider {
+class RootProviderRegistry {
   public static RootProviderRegistry defaultRegistry(EvaluationContext context) {
-    ImmutableMap.Builder<Class<? extends PTransform>, RootInputProvider> defaultProviders =
-        ImmutableMap.builder();
+    ImmutableMap.Builder<Class<? extends PTransform>, RootInputProvider<?, ?, ?, ?>>
+        defaultProviders = ImmutableMap.builder();
     defaultProviders
         .put(Read.Bounded.class, new BoundedReadEvaluatorFactory.InputProvider(context))
         .put(Read.Unbounded.class, new UnboundedReadEvaluatorFactory.InputProvider(context))
-        .put(TestStream.class, new TestStreamEvaluatorFactory.InputProvider(context))
-        .put(FlattenPCollectionList.class, new EmptyInputProvider(context));
+        .put(
+            TestStreamEvaluatorFactory.DirectTestStreamFactory.DirectTestStream.class,
+            new TestStreamEvaluatorFactory.InputProvider(context))
+        .put(FlattenPCollectionList.class, new EmptyInputProvider());
     return new RootProviderRegistry(defaultProviders.build());
   }
 
-  private final Map<Class<? extends PTransform>, RootInputProvider> providers;
+  private final Map<Class<? extends PTransform>, RootInputProvider<?, ?, ?, ?>> providers;
 
-  private RootProviderRegistry(Map<Class<? extends PTransform>, RootInputProvider> providers) {
+  private RootProviderRegistry(
+      Map<Class<? extends PTransform>, RootInputProvider<?, ?, ?, ?>> providers) {
     this.providers = providers;
   }
 
-  @Override
   public Collection<CommittedBundle<?>> getInitialInputs(
       AppliedPTransform<?, ?, ?> transform, int targetParallelism) throws Exception {
     Class<? extends PTransform> transformClass = transform.getTransform().getClass();

@@ -21,16 +21,14 @@ import java.util.Collection;
 import java.util.Collections;
 import org.apache.beam.runners.direct.DirectRunner.CommittedBundle;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
+import org.apache.beam.sdk.transforms.Flatten;
+import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionList;
 
-/**
- * A {@link RootInputProvider} that provides a singleton empty bundle.
- */
-class EmptyInputProvider implements RootInputProvider {
-  private final EvaluationContext evaluationContext;
-
-  EmptyInputProvider(EvaluationContext evaluationContext) {
-    this.evaluationContext = evaluationContext;
-  }
+/** A {@link RootInputProvider} that provides a singleton empty bundle. */
+class EmptyInputProvider<T>
+    implements RootInputProvider<T, Void, PCollectionList<T>, Flatten.FlattenPCollectionList<T>> {
+  EmptyInputProvider() {}
 
   /**
    * {@inheritDoc}.
@@ -38,8 +36,10 @@ class EmptyInputProvider implements RootInputProvider {
    * <p>Returns an empty collection.
    */
   @Override
-  public Collection<CommittedBundle<?>> getInitialInputs(
-      AppliedPTransform<?, ?, ?> transform, int targetParallelism) {
+  public Collection<CommittedBundle<Void>> getInitialInputs(
+      AppliedPTransform<PCollectionList<T>, PCollection<T>, Flatten.FlattenPCollectionList<T>>
+          transform,
+      int targetParallelism) {
     return Collections.emptyList();
   }
 }
