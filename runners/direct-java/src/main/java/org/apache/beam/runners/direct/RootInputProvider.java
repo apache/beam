@@ -23,12 +23,15 @@ import org.apache.beam.runners.direct.DirectRunner.CommittedBundle;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PInput;
 
 /**
- * Provides {@link CommittedBundle bundles} that will be provided to the
- * {@link PTransform PTransforms} that are at the root of a {@link Pipeline}.
+ * Provides {@link CommittedBundle bundles} that will be provided to the {@link PTransform
+ * PTransforms} that are at the root of a {@link Pipeline}.
  */
-interface RootInputProvider {
+interface RootInputProvider<
+    T, ShardT, InputT extends PInput, TransformT extends PTransform<InputT, PCollection<T>>> {
   /**
    * Get the initial inputs for the {@link AppliedPTransform}. The {@link AppliedPTransform} will be
    * provided with these {@link CommittedBundle bundles} as input when the {@link Pipeline} runs.
@@ -39,8 +42,9 @@ interface RootInputProvider {
    *
    * @param transform the {@link AppliedPTransform} to get initial inputs for.
    * @param targetParallelism the target amount of parallelism to obtain from the source. Must be
-   *                          greater than or equal to 1.
+   *     greater than or equal to 1.
    */
-  Collection<CommittedBundle<?>> getInitialInputs(
-      AppliedPTransform<?, ?, ?> transform, int targetParallelism) throws Exception;
+  Collection<CommittedBundle<ShardT>> getInitialInputs(
+      AppliedPTransform<InputT, PCollection<T>, TransformT> transform, int targetParallelism)
+      throws Exception;
 }

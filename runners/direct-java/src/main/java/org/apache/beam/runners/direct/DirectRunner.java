@@ -289,8 +289,9 @@ public class DirectRunner
     PTransformOverrideFactory overrideFactory = defaultTransformOverrides.get(transform.getClass());
     if (overrideFactory != null) {
       PTransform<InputT, OutputT> customTransform = overrideFactory.override(transform);
-
-      return super.apply(customTransform, input);
+      if (customTransform != transform) {
+        return Pipeline.applyTransform(transform.getName(), input, customTransform);
+      }
     }
     // If there is no override, or we should not apply the override, apply the original transform
     return super.apply(transform, input);
@@ -323,7 +324,7 @@ public class DirectRunner
             consumerTrackingVisitor.getStepNames(),
             consumerTrackingVisitor.getViews());
 
-    RootInputProvider rootInputProvider = RootProviderRegistry.defaultRegistry(context);
+    RootProviderRegistry rootInputProvider = RootProviderRegistry.defaultRegistry(context);
     TransformEvaluatorRegistry registry = TransformEvaluatorRegistry.defaultRegistry(context);
     PipelineExecutor executor =
         ExecutorServiceParallelExecutor.create(

@@ -71,7 +71,7 @@ final class ExecutorServiceParallelExecutor implements PipelineExecutor {
 
   private final Map<PValue, Collection<AppliedPTransform<?, ?, ?>>> valueToConsumers;
   private final Set<PValue> keyedPValues;
-  private final RootInputProvider rootInputProvider;
+  private final RootProviderRegistry rootProviderRegistry;
   private final TransformEvaluatorRegistry registry;
   @SuppressWarnings("rawtypes")
   private final Map<Class<? extends PTransform>, Collection<ModelEnforcementFactory>>
@@ -106,7 +106,7 @@ final class ExecutorServiceParallelExecutor implements PipelineExecutor {
       int targetParallelism,
       Map<PValue, Collection<AppliedPTransform<?, ?, ?>>> valueToConsumers,
       Set<PValue> keyedPValues,
-      RootInputProvider rootInputProvider,
+      RootProviderRegistry rootProviderRegistry,
       TransformEvaluatorRegistry registry,
       @SuppressWarnings("rawtypes")
           Map<Class<? extends PTransform>, Collection<ModelEnforcementFactory>>
@@ -116,7 +116,7 @@ final class ExecutorServiceParallelExecutor implements PipelineExecutor {
         targetParallelism,
         valueToConsumers,
         keyedPValues,
-        rootInputProvider,
+        rootProviderRegistry,
         registry,
         transformEnforcements,
         context);
@@ -126,7 +126,7 @@ final class ExecutorServiceParallelExecutor implements PipelineExecutor {
       int targetParallelism,
       Map<PValue, Collection<AppliedPTransform<?, ?, ?>>> valueToConsumers,
       Set<PValue> keyedPValues,
-      RootInputProvider rootInputProvider,
+      RootProviderRegistry rootProviderRegistry,
       TransformEvaluatorRegistry registry,
       @SuppressWarnings("rawtypes")
       Map<Class<? extends PTransform>, Collection<ModelEnforcementFactory>> transformEnforcements,
@@ -135,7 +135,7 @@ final class ExecutorServiceParallelExecutor implements PipelineExecutor {
     this.executorService = Executors.newFixedThreadPool(targetParallelism);
     this.valueToConsumers = valueToConsumers;
     this.keyedPValues = keyedPValues;
-    this.rootInputProvider = rootInputProvider;
+    this.rootProviderRegistry = rootProviderRegistry;
     this.registry = registry;
     this.transformEnforcements = transformEnforcements;
     this.evaluationContext = context;
@@ -172,7 +172,7 @@ final class ExecutorServiceParallelExecutor implements PipelineExecutor {
       ConcurrentLinkedQueue<CommittedBundle<?>> pending = new ConcurrentLinkedQueue<>();
       try {
         Collection<CommittedBundle<?>> initialInputs =
-            rootInputProvider.getInitialInputs(root, numTargetSplits);
+            rootProviderRegistry.getInitialInputs(root, numTargetSplits);
         pending.addAll(initialInputs);
       } catch (Exception e) {
         throw UserCodeException.wrap(e);
