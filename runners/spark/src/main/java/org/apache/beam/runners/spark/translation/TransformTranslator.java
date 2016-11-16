@@ -31,6 +31,7 @@ import org.apache.avro.mapred.AvroKey;
 import org.apache.avro.mapreduce.AvroJob;
 import org.apache.avro.mapreduce.AvroKeyInputFormat;
 import org.apache.beam.runners.core.AssignWindowsDoFn;
+import org.apache.beam.runners.spark.SparkRunner;
 import org.apache.beam.runners.spark.aggregators.AccumulatorSingleton;
 import org.apache.beam.runners.spark.aggregators.NamedAggregators;
 import org.apache.beam.runners.spark.io.SourceRDD;
@@ -47,12 +48,14 @@ import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.CombineWithContext;
 import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.View;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
@@ -225,6 +228,16 @@ public final class TransformTranslator {
     return new TransformEvaluator<ParDo.Bound<InputT, OutputT>>() {
       @Override
       public void evaluate(ParDo.Bound<InputT, OutputT> transform, EvaluationContext context) {
+        DoFn<InputT, OutputT> doFn = transform.getNewFn();
+        if (DoFnSignatures.getSignature(doFn.getClass()).stateDeclarations().size() > 0) {
+          throw new UnsupportedOperationException(
+              String.format(
+                  "Found %s annotations on %s, but %s cannot yet be used with state in the %s.",
+                  DoFn.StateId.class.getSimpleName(),
+                  doFn.getClass().getName(),
+                  DoFn.class.getSimpleName(),
+                  SparkRunner.class.getSimpleName()));
+        }
         @SuppressWarnings("unchecked")
         JavaRDD<WindowedValue<InputT>> inRDD =
             ((BoundedDataset<InputT>) context.borrowDataset(transform)).getRDD();
@@ -247,6 +260,16 @@ public final class TransformTranslator {
     return new TransformEvaluator<ParDo.BoundMulti<InputT, OutputT>>() {
       @Override
       public void evaluate(ParDo.BoundMulti<InputT, OutputT> transform, EvaluationContext context) {
+        DoFn<InputT, OutputT> doFn = transform.getNewFn();
+        if (DoFnSignatures.getSignature(doFn.getClass()).stateDeclarations().size() > 0) {
+          throw new UnsupportedOperationException(
+              String.format(
+                  "Found %s annotations on %s, but %s cannot yet be used with state in the %s.",
+                  DoFn.StateId.class.getSimpleName(),
+                  doFn.getClass().getName(),
+                  DoFn.class.getSimpleName(),
+                  SparkRunner.class.getSimpleName()));
+        }
         @SuppressWarnings("unchecked")
         JavaRDD<WindowedValue<InputT>> inRDD =
             ((BoundedDataset<InputT>) context.borrowDataset(transform)).getRDD();
