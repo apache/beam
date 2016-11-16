@@ -18,11 +18,11 @@
 """Cloud Datastore query splitter test."""
 
 import unittest
-import uuid
 
 from mock import MagicMock
 from mock import call
 
+from apache_beam.io.datastore.v1 import fake_datastore
 from apache_beam.io.datastore.v1 import query_splitter
 
 from google.datastore.v1 import datastore_pb2
@@ -150,11 +150,11 @@ class QuerySplitterTest(unittest.TestCase):
       batch_size: the number of entities returned by fake datastore in one req.
     """
 
-    entities = QuerySplitterTest.create_entities(num_entities)
+    entities = fake_datastore.create_entities(num_entities)
     mock_datastore = MagicMock()
     # Assign a fake run_query method as a side_effect to the mock.
     mock_datastore.run_query.side_effect = \
-      QuerySplitterTest.create_run_query(entities, batch_size)
+        fake_datastore.create_run_query(entities, batch_size)
 
     split_queries = query_splitter.get_splits(mock_datastore, query, num_splits)
 
@@ -171,33 +171,6 @@ class QuerySplitterTest(unittest.TestCase):
       expected_calls.append(call(req))
 
     self.assertEqual(expected_calls, mock_datastore.run_query.call_args_list)
-
-  @staticmethod
-  def create_run_query(entities, batch_size):
-    """A fake datastore run_query method that returns entities in batches.
-
-    Note: the outer method is needed to make the `entities` and `batch_size`
-    available in the scope of fake_run_query method.
-
-    Args:
-      entities: list of entities supposed to be contained in the datastore.
-      batch_size: the number of entities that run_query method returns in one
-                  request.
-    """
-    def fake_run_query(req):
-      start = int(req.query.start_cursor) if req.query.start_cursor else 0
-      # if query limit is less than batch_size, then only return that much.
-      count = min(batch_size, req.query.limit.value)
-      # cannot go more than the number of entities contained in datastore.
-      end = min(len(entities), start + count)
-      finish = False
-      # Finish reading when there are no more entities to return,
-      # or request query limit has been satisfied.
-      if end == len(entities) or count == req.query.limit.value:
-        finish = True
-      return QuerySplitterTest.create_scatter_response(entities[start:end],
-                                                       str(end), finish)
-    return fake_run_query
 
   @staticmethod
   def create_scatter_requests(query, num_splits, batch_size, num_entities):
@@ -222,35 +195,6 @@ class QuerySplitterTest(unittest.TestCase):
       start_cursor = str(i)
 
     return requests
-
-  @staticmethod
-  def create_scatter_response(entities, end_cursor, finish):
-    """Creates a query response for a given batch of scatter entities."""
-
-    resp = datastore_pb2.RunQueryResponse()
-    if finish:
-      resp.batch.more_results = query_pb2.QueryResultBatch.NO_MORE_RESULTS
-    else:
-      resp.batch.more_results = query_pb2.QueryResultBatch.NOT_FINISHED
-
-    resp.batch.end_cursor = end_cursor
-    for entity_result in entities:
-      resp.batch.entity_results.add().CopyFrom(entity_result)
-
-    return resp
-
-  @staticmethod
-  def create_entities(count):
-    """Creates a list of entities with random keys."""
-
-    entities = []
-
-    for _ in range(0, count):
-      entity_result = query_pb2.EntityResult()
-      entity_result.entity.key.path.add().name = str(uuid.uuid4())
-      entities.append(entity_result)
-
-    return entities
 
 
 if __name__ == '__main__':
