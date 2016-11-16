@@ -17,8 +17,10 @@
  */
 package org.apache.beam.sdk.util.state;
 
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.util.WindowingInternals;
 import org.apache.beam.sdk.values.PCollectionView;
 
 /**
@@ -48,5 +50,42 @@ public class StateContexts {
   @SuppressWarnings("unchecked")
   public static <W extends BoundedWindow> StateContext<W> nullContext() {
     return (StateContext<W>) NULL_CONTEXT;
+  }
+
+  /**
+   * Deprecated, do not use.
+   *
+   * <p>This exists only for temporary compatibility with Dataflow worker and should be deleted
+   * once a worker image is released that uses runners-core build after
+   * https://github.com/apache/incubator-beam/pull/1353.
+   */
+  @Deprecated
+  public static <W extends BoundedWindow> StateContext<W> createFromComponents(
+      @Nullable final PipelineOptions options,
+      final WindowingInternals<?, ?> windowingInternals,
+      final W window) {
+    @SuppressWarnings("unchecked")
+    StateContext<W> typedNullContext = (StateContext<W>) NULL_CONTEXT;
+    if (options == null) {
+      return typedNullContext;
+    } else {
+      return new StateContext<W>() {
+
+        @Override
+        public PipelineOptions getPipelineOptions() {
+          return options;
+        }
+
+        @Override
+        public <T> T sideInput(PCollectionView<T> view) {
+          return windowingInternals.sideInput(view, window);
+        }
+
+        @Override
+        public W window() {
+          return window;
+        }
+      };
+    }
   }
 }
