@@ -51,6 +51,7 @@ import static org.mockito.Mockito.when;
 import com.google.datastore.v1.CommitRequest;
 import com.google.datastore.v1.Entity;
 import com.google.datastore.v1.EntityResult;
+import com.google.datastore.v1.GqlQuery;
 import com.google.datastore.v1.Key;
 import com.google.datastore.v1.Mutation;
 import com.google.datastore.v1.PartitionId;
@@ -67,11 +68,13 @@ import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Set;
+import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.gcp.datastore.DatastoreV1.DatastoreWriterFn;
 import org.apache.beam.sdk.io.gcp.datastore.DatastoreV1.DeleteEntity;
 import org.apache.beam.sdk.io.gcp.datastore.DatastoreV1.DeleteEntityFn;
 import org.apache.beam.sdk.io.gcp.datastore.DatastoreV1.DeleteKey;
 import org.apache.beam.sdk.io.gcp.datastore.DatastoreV1.DeleteKeyFn;
+import org.apache.beam.sdk.io.gcp.datastore.DatastoreV1.Read.GqlQueryTranslatorFn;
 import org.apache.beam.sdk.io.gcp.datastore.DatastoreV1.Read.ReadFn;
 import org.apache.beam.sdk.io.gcp.datastore.DatastoreV1.Read.SplitQueryFn;
 import org.apache.beam.sdk.io.gcp.datastore.DatastoreV1.Read.V1Options;
@@ -79,7 +82,11 @@ import org.apache.beam.sdk.io.gcp.datastore.DatastoreV1.UpsertFn;
 import org.apache.beam.sdk.io.gcp.datastore.DatastoreV1.V1DatastoreFactory;
 import org.apache.beam.sdk.io.gcp.datastore.DatastoreV1.Write;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.options.ValueProvider;
+import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.testing.RunnableOnService;
+import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.DoFnTester;
 import org.apache.beam.sdk.transforms.DoFnTester.CloningBehavior;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -111,13 +118,15 @@ public class DatastoreV1Test {
   private static final String KIND = "testKind";
   private static final Query QUERY;
   private static final String LOCALHOST = "localhost:9955";
+  private static final String GQL_QUERY = "SELECT * from " + KIND;
   private static final V1Options V_1_OPTIONS;
   static {
     Query.Builder q = Query.newBuilder();
     q.addKindBuilder().setName(KIND);
     QUERY = q.build();
-    V_1_OPTIONS = V1Options.from(PROJECT_ID, QUERY, NAMESPACE, null);
+    V_1_OPTIONS = V1Options.from(PROJECT_ID, NAMESPACE, null);
   }
+
   private DatastoreV1.Read initialRead;
 
   @Mock
@@ -149,8 +158,17 @@ public class DatastoreV1Test {
     DatastoreV1.Read read = DatastoreIO.v1().read()
         .withProjectId(PROJECT_ID).withQuery(QUERY).withNamespace(NAMESPACE);
     assertEquals(QUERY, read.getQuery());
-    assertEquals(PROJECT_ID, read.getProjectId());
-    assertEquals(NAMESPACE, read.getNamespace());
+    assertEquals(PROJECT_ID, read.getProjectId().get());
+    assertEquals(NAMESPACE, read.getNamespace().get());
+  }
+
+  @Test
+  public void testBuildReadWithGqlQuery() throws Exception {
+    DatastoreV1.Read read = DatastoreIO.v1().read()
+        .withProjectId(PROJECT_ID).withGqlQuery(GQL_QUERY).withNamespace(NAMESPACE);
+    assertEquals(GQL_QUERY, read.getGqlQuery().get());
+    assertEquals(PROJECT_ID, read.getProjectId().get());
+    assertEquals(NAMESPACE, read.getNamespace().get());
   }
 
   /**
@@ -162,14 +180,20 @@ public class DatastoreV1Test {
         .withProjectId(PROJECT_ID).withNamespace(NAMESPACE).withQuery(QUERY)
         .withLocalhost(LOCALHOST);
     assertEquals(QUERY, read.getQuery());
-    assertEquals(PROJECT_ID, read.getProjectId());
-    assertEquals(NAMESPACE, read.getNamespace());
+    assertEquals(PROJECT_ID, read.getProjectId().get());
+    assertEquals(NAMESPACE, read.getNamespace().get());
     assertEquals(LOCALHOST, read.getLocalhost());
   }
 
   @Test
   public void testReadValidationFailsProject() throws Exception {
-    DatastoreV1.Read read =  DatastoreIO.v1().read().withQuery(QUERY);
+    DatastoreV1.Read read = DatastoreIO.v1().read().withQuery(QUERY);
+    thrown.expect(NullPointerException.class);
+    thrown.expectMessage("projectId ValueProvider");
+    read.validate(null);
+
+    read = DatastoreIO.v1().read().withQuery(QUERY)
+        .withProjectId(StaticValueProvider.<String>of(null));
     thrown.expect(NullPointerException.class);
     thrown.expectMessage("project");
     read.validate(null);
@@ -177,9 +201,21 @@ public class DatastoreV1Test {
 
   @Test
   public void testReadValidationFailsQuery() throws Exception {
-    DatastoreV1.Read read =  DatastoreIO.v1().read().withProjectId(PROJECT_ID);
-    thrown.expect(NullPointerException.class);
-    thrown.expectMessage("query");
+    DatastoreV1.Read read = DatastoreIO.v1().read().withProjectId(PROJECT_ID);
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage("Either query or gql query ValueProvider should be provided");
+    read.validate(null);
+  }
+
+  @Test
+  public void testReadValidationFailsQueryAndGqlQuery() throws Exception {
+    DatastoreV1.Read read = DatastoreIO.v1().read()
+        .withProjectId(PROJECT_ID)
+        .withGqlQuery(GQL_QUERY)
+        .withQuery(QUERY);
+
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage("Only one of query or gql query ValueProvider should be provided");
     read.validate(null);
   }
 
@@ -223,6 +259,20 @@ public class DatastoreV1Test {
   }
 
   @Test
+  public void testReadDisplayDataWithGqlQuery() {
+    DatastoreV1.Read read =  DatastoreIO.v1().read()
+        .withProjectId(PROJECT_ID)
+        .withGqlQuery(GQL_QUERY)
+        .withNamespace(NAMESPACE);
+
+    DisplayData displayData = DisplayData.from(read);
+
+    assertThat(displayData, hasDisplayItem("projectId", PROJECT_ID));
+    assertThat(displayData, hasDisplayItem("gqlQuery", GQL_QUERY));
+    assertThat(displayData, hasDisplayItem("namespace", NAMESPACE));
+  }
+
+  @Test
   @Category(RunnableOnService.class)
   public void testSourcePrimitiveDisplayData() {
     DisplayDataEvaluator evaluator = DisplayDataEvaluator.create();
@@ -235,20 +285,41 @@ public class DatastoreV1Test {
   }
 
   @Test
+  @Category(RunnableOnService.class)
+  public void testSourcePrimitiveDisplayDataWithGqlQuery() {
+    DisplayDataEvaluator evaluator = DisplayDataEvaluator.create();
+    PTransform<PBegin, ? extends POutput> read = DatastoreIO.v1().read().withProjectId(
+        "myProject").withGqlQuery(GQL_QUERY);
+
+    Set<DisplayData> displayData = evaluator.displayDataForPrimitiveSourceTransforms(read);
+    assertThat("DatastoreIO read should include the project in its primitive display data",
+        displayData, hasItem(hasDisplayItem("projectId")));
+  }
+
+  @Test
   public void testWriteDoesNotAllowNullProject() throws Exception {
     thrown.expect(NullPointerException.class);
     thrown.expectMessage("projectId");
+    DatastoreIO.v1().write().withProjectId((String) null);
+  }
 
-    DatastoreIO.v1().write().withProjectId(null);
+  @Test
+  public void testWriteDoesNotAllowNullProjectValueProvider() throws Exception {
+    thrown.expect(NullPointerException.class);
+    thrown.expectMessage("projectId ValueProvider");
+    DatastoreIO.v1().write().withProjectId((ValueProvider<String>) null);
   }
 
   @Test
   public void testWriteValidationFailsWithNoProject() throws Exception {
     Write write =  DatastoreIO.v1().write();
+    thrown.expect(NullPointerException.class);
+    thrown.expectMessage("projectId ValueProvider");
+    write.validate(null);
 
+    write = DatastoreIO.v1().write().withProjectId(StaticValueProvider.<String>of(null));
     thrown.expect(NullPointerException.class);
     thrown.expectMessage("projectId");
-
     write.validate(null);
   }
 
@@ -271,17 +342,27 @@ public class DatastoreV1Test {
   public void testDeleteEntityDoesNotAllowNullProject() throws Exception {
     thrown.expect(NullPointerException.class);
     thrown.expectMessage("projectId");
+    DatastoreIO.v1().deleteEntity().withProjectId((String) null);
+  }
 
-    DatastoreIO.v1().deleteEntity().withProjectId(null);
+  @Test
+  public void testDeleteEntityDoesNotAllowNullProjectValueProvider() throws Exception {
+    thrown.expect(NullPointerException.class);
+    thrown.expectMessage("projectId ValueProvider");
+    DatastoreIO.v1().deleteEntity().withProjectId((ValueProvider<String>) null);
   }
 
   @Test
   public void testDeleteEntityValidationFailsWithNoProject() throws Exception {
     DeleteEntity deleteEntity = DatastoreIO.v1().deleteEntity();
+    thrown.expect(NullPointerException.class);
+    thrown.expectMessage("projectId ValueProvider");
+    deleteEntity.validate(null);
 
+    deleteEntity = DatastoreIO.v1().deleteEntity()
+        .withProjectId(StaticValueProvider.<String>of(null));
     thrown.expect(NullPointerException.class);
     thrown.expectMessage("projectId");
-
     deleteEntity.validate(null);
   }
 
@@ -304,17 +385,26 @@ public class DatastoreV1Test {
   public void testDeleteKeyDoesNotAllowNullProject() throws Exception {
     thrown.expect(NullPointerException.class);
     thrown.expectMessage("projectId");
+    DatastoreIO.v1().deleteKey().withProjectId((String) null);
+  }
 
-    DatastoreIO.v1().deleteKey().withProjectId(null);
+  @Test
+  public void testDeleteKeyDoesNotAllowNullProjectValueProvider() throws Exception {
+    thrown.expect(NullPointerException.class);
+    thrown.expectMessage("projectId ValueProvider");
+    DatastoreIO.v1().deleteKey().withProjectId((ValueProvider<String>) null);
   }
 
   @Test
   public void testDeleteKeyValidationFailsWithNoProject() throws Exception {
     DeleteKey deleteKey = DatastoreIO.v1().deleteKey();
+    thrown.expect(NullPointerException.class);
+    thrown.expectMessage("projectId ValueProvider");
+    deleteKey.validate(null);
 
+    deleteKey = DatastoreIO.v1().deleteKey().withProjectId(StaticValueProvider.<String>of(null));
     thrown.expect(NullPointerException.class);
     thrown.expectMessage("projectId");
-
     deleteKey.validate(null);
   }
 
@@ -543,8 +633,8 @@ public class DatastoreV1Test {
           makeUpsert(Entity.newBuilder().setKey(makeKey("key" + i, i + 1)).build()).build());
     }
 
-    DatastoreWriterFn datastoreWriter = new DatastoreWriterFn(PROJECT_ID, null,
-        mockDatastoreFactory);
+    DatastoreWriterFn datastoreWriter = new DatastoreWriterFn(StaticValueProvider.of(PROJECT_ID),
+        null, mockDatastoreFactory);
     DoFnTester<Mutation, Void> doFnTester = DoFnTester.of(datastoreWriter);
     doFnTester.setCloningBehavior(CloningBehavior.DO_NOT_CLONE);
     doFnTester.processBundle(mutations);
@@ -693,6 +783,98 @@ public class DatastoreV1Test {
   @Test
   public void testReadFnWithBatchesExactMultiple() throws Exception {
     readFnTest(5 * QUERY_BATCH_LIMIT);
+  }
+
+  @Test
+  public void testGqlTranslatorFnWithGqlQuery() throws Exception {
+    GqlQueryTranslatorFn translatorFn = new GqlQueryTranslatorFn(V_1_OPTIONS, mockDatastoreFactory);
+    DoFnTester<ValueProvider<String>, Query> doFnTester = DoFnTester.of(translatorFn);
+    doFnTester.setCloningBehavior(CloningBehavior.DO_NOT_CLONE);
+    ValueProvider<String> gqlQuery = StaticValueProvider.of(GQL_QUERY);
+    String gqlQueryWithZeroLimit = gqlQuery.get() + " limit 0";
+    GqlQuery gql = GqlQuery.newBuilder().setQueryString(gqlQueryWithZeroLimit)
+        .setAllowLiterals(true).build();
+    RunQueryRequest gqlRequest = makeRequest(gql, V_1_OPTIONS.getNamespace());
+    when(mockDatastore.runQuery(gqlRequest))
+        .thenReturn(RunQueryResponse.newBuilder().setQuery(QUERY).build());
+
+    List<Query> queries = doFnTester.processBundle(gqlQuery);
+
+    assertEquals(queries.size(), 1);
+    assertEquals(queries.get(0), QUERY);
+    verify(mockDatastore, times(1)).runQuery(gqlRequest);
+  }
+
+  @Test
+  public void testGqlTranslatorFnWithGqlQueryWithLimit() throws Exception {
+    GqlQueryTranslatorFn translatorFn = new GqlQueryTranslatorFn(V_1_OPTIONS, mockDatastoreFactory);
+    DoFnTester<ValueProvider<String>, Query> doFnTester = DoFnTester.of(translatorFn);
+    doFnTester.setCloningBehavior(CloningBehavior.DO_NOT_CLONE);
+    int limit = 100;
+    Query queryWithLimit = QUERY.toBuilder().setLimit(
+        Int32Value.newBuilder().setValue(limit).build()).build();
+    ValueProvider<String> gqlQuery = StaticValueProvider.of(
+        String.format("%s limit %d", GQL_QUERY, limit));
+
+    String gqlQueryWithZeroLimit = gqlQuery.get() + " limit 0";
+    GqlQuery gql = GqlQuery.newBuilder().setQueryString(gqlQueryWithZeroLimit)
+        .setAllowLiterals(true).build();
+
+    RunQueryRequest gqlRequest = makeRequest(gql, V_1_OPTIONS.getNamespace());
+    when(mockDatastore.runQuery(gqlRequest))
+        .thenReturn(RunQueryResponse.newBuilder().setQuery(queryWithLimit).build());
+
+    List<Query> queries = doFnTester.processBundle(gqlQuery);
+
+    assertEquals(queries.size(), 1);
+    assertEquals(queries.get(0), queryWithLimit);
+    verify(mockDatastore, times(1)).runQuery(gqlRequest);
+  }
+
+  /** Test options. **/
+  public interface RuntimeTestOptions extends PipelineOptions {
+    ValueProvider<String> getDatastoreProject();
+    void setDatastoreProject(ValueProvider<String> value);
+
+    ValueProvider<String> getGqlQuery();
+    void setGqlQuery(ValueProvider<String> value);
+
+    ValueProvider<String> getNamespace();
+    void setNamespace(ValueProvider<String> value);
+  }
+
+  @Test
+  public void testRuntimeOptionsNotCalledInApplyQuery() {
+    RuntimeTestOptions options =  PipelineOptionsFactory.as(RuntimeTestOptions.class);
+    Pipeline pipeline = TestPipeline.create(options);
+    pipeline
+        .apply(DatastoreIO.v1().read()
+            .withProjectId(options.getDatastoreProject())
+            .withQuery(QUERY))
+        .apply(DatastoreIO.v1().write().withProjectId(options.getDatastoreProject()));
+  }
+
+  @Test
+  public void testRuntimeOptionsNotCalledInApplyGqlQuery() {
+    RuntimeTestOptions options =  PipelineOptionsFactory.as(RuntimeTestOptions.class);
+    Pipeline pipeline = TestPipeline.create(options);
+    pipeline
+        .apply(DatastoreIO.v1().read()
+            .withProjectId(options.getDatastoreProject())
+            .withGqlQuery(options.getGqlQuery()))
+        .apply(DatastoreIO.v1().write().withProjectId(options.getDatastoreProject()));
+  }
+
+  @Test
+  public void testRuntimeOptionsNotCalledInApplyNamespace() {
+    RuntimeTestOptions options =  PipelineOptionsFactory.as(RuntimeTestOptions.class);
+    Pipeline pipeline = TestPipeline.create(options);
+    pipeline
+        .apply(DatastoreIO.v1().read()
+            .withProjectId(options.getDatastoreProject())
+            .withGqlQuery(options.getGqlQuery())
+            .withNamespace(options.getNamespace()))
+        .apply(DatastoreIO.v1().write().withProjectId(options.getDatastoreProject()));
   }
 
   /** Helper Methods */

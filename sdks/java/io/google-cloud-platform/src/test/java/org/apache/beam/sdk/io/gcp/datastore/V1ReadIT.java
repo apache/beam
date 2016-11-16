@@ -54,15 +54,22 @@ public class V1ReadIT {
   private final long numEntities = 1000;
 
   @Before
-  public void setup() {
+  public void setup() throws Exception {
     PipelineOptionsFactory.register(V1TestOptions.class);
     options = TestPipeline.testingPipelineOptions().as(V1TestOptions.class);
     project = TestPipeline.testingPipelineOptions().as(GcpOptions.class).getProject();
     ancestor = UUID.randomUUID().toString();
+    // Create entities and write them to datastore
+    writeEntitiesToDatastore(options, project, ancestor, numEntities);
+  }
+
+  @After
+  public void tearDown() throws Exception {
+    deleteAllEntities(options, project, ancestor);
   }
 
   /**
-   * An end-to-end test for {@link DatastoreV1.Read}.
+   * An end-to-end test for {@link DatastoreV1.Read#withQuery(Query)}
    *
    * <p>Write some test entities to datastore and then run a dataflow pipeline that
    * reads and counts the total number of entities. Verify that the count matches the
@@ -70,9 +77,6 @@ public class V1ReadIT {
    */
   @Test
   public void testE2EV1Read() throws Exception {
-    // Create entities and write them to datastore
-    writeEntitiesToDatastore(options, project, ancestor, numEntities);
-
     // Read from datastore
     Query query = V1TestUtil.makeAncestorKindQuery(
         options.getKind(), options.getNamespace(), ancestor);
@@ -92,9 +96,39 @@ public class V1ReadIT {
     p.run();
   }
 
+
+
+  /**
+   * An end-to-end test for {@link DatastoreV1.Read#withGqlQuery(String)}.
+   *
+   * <p>Write some test entities to datastore and then run a dataflow pipeline that
+   * reads and counts the total number of entities. Verify that the count matches
+   * the number of entities written.
+   */
+  @Test
+  public void testE2EV1ReadWithGQLQuery() throws Exception {
+    // Read from datastore
+    String gqlQuery = String.format("SELECT * from %s WHERE __key__ HAS ANCESTOR KEY(%s, '%s') LIMIT 10",
+        options.getKind(), options.getKind(), ancestor);
+
+    DatastoreV1.Read read = DatastoreIO.v1().read()
+        .withProjectId(project)
+        .withGqlQuery(gqlQuery)
+        .withNamespace(options.getNamespace());
+
+    // Count the total number of entities
+    Pipeline p = Pipeline.create(options);
+    PCollection<Long> count = p
+        .apply(read)
+        .apply(Count.<Entity>globally());
+
+    PAssert.thatSingleton(count).isEqualTo(numEntities);
+    p.run();
+  }
+
   // Creates entities and write them to datastore
   private static void writeEntitiesToDatastore(V1TestOptions options, String project,
-                                               String ancestor, long numEntities) throws Exception {
+      String ancestor, long numEntities) throws Exception {
     Datastore datastore = getDatastore(options, project);
     // Write test entities to datastore
     V1TestWriter writer = new V1TestWriter(datastore, new UpsertMutationBuilder());
@@ -105,10 +139,5 @@ public class V1ReadIT {
       writer.write(entity);
     }
     writer.close();
-  }
-
-  @After
-  public void tearDown() throws Exception {
-    deleteAllEntities(options, project, ancestor);
   }
 }
