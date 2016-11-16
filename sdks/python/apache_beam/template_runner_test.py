@@ -52,15 +52,14 @@ class TemplatingDataflowPipelineRunnerTest(unittest.TestCase):
     except OSError as err:
       print err
     pipeline.run()
-
     with open('/tmp/template-file') as template_file:
-      saved_job_dict = json.load(template_file) # BETTER
+      saved_job_dict = json.load(template_file)
       self.assertEqual(
-          saved_job_dict['environment']['sdkPipelineOptions']['project'],
-          'test-project')
+          saved_job_dict['environment']['sdkPipelineOptions']
+          ['options']['project'], 'test-project')
       self.assertEqual(
-          saved_job_dict['environment']['sdkPipelineOptions']['job_name'],
-          'test-job')
+          saved_job_dict['environment']['sdkPipelineOptions']
+          ['options']['job_name'], 'test-job')
 
   def test_bad_path(self):
     dummy_sdk_file = tempfile.NamedTemporaryFile()

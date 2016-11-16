@@ -24,9 +24,6 @@ import hamcrest as hc
 from apache_beam.transforms.display import DisplayData
 from apache_beam.transforms.display_test import DisplayDataItemMatcher
 from apache_beam.utils.options import PipelineOptions
-from apache_beam.runners.dataflow_runner import DataflowPipelineRunner
-from apache_beam.internal import apiclient
-from apache_beam.pipeline import Pipeline
 
 
 class PipelineOptionsTest(unittest.TestCase):
@@ -168,23 +165,6 @@ class PipelineOptionsTest(unittest.TestCase):
 
     options = PipelineOptions(flags=[''])
     self.assertEqual(options.get_all_options()['template_location'], None)
-
-  def test_dataflow_job_file_and_template_location_mutually_exclusive(self):
-    remote_runner = DataflowPipelineRunner()
-    pipeline = Pipeline(remote_runner,
-                        options=PipelineOptions([
-                            '--dataflow_endpoint=ignored',
-                            '--job_name=test-job',
-                            '--project=test-project',
-                            '--staging_location=ignored',
-                            '--temp_location=/dev/null',
-                            '--template_location=/tmp/test-file',
-                            '--dataflow_job_file=/tmp/test-file',
-                            '--no_auth=True']))
-    remote_runner.job = apiclient.Job(pipeline.options)
-
-    with self.assertRaises(RuntimeError):
-      remote_runner.run(pipeline)
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)

@@ -276,6 +276,12 @@ class GoogleCloudOptions(PipelineOptions):
       if getattr(self, 'temp_location',
                  None) or getattr(self, 'staging_location', None) is None:
         errors.extend(validator.validate_gcs_path(self, 'temp_location'))
+
+    if self.view_as(DebugOptions).dataflow_job_file:
+      if self.view_as(GoogleCloudOptions).template_location:
+        errors.append('--dataflow_job_file and --template_location '
+                      'are mutually exclusive.')
+
     return errors
 
 

@@ -400,20 +400,14 @@ class DataflowApplicationClient(object):
     dataflow_job_file = pipeline_options.view_as(DebugOptions).dataflow_job_file
     template_location = (
         pipeline_options.view_as(GoogleCloudOptions).template_location)
-    if template_location:
-      if dataflow_job_file:
-        raise RuntimeError(
-            '--dataflow_job_file and --template_location '
-            'are mutually exclusive.')
-      gcs_or_local_path = os.path.dirname(template_location)
-      file_name = os.path.basename(template_location)
+
+    job_location = template_location or dataflow_job_file
+    if job_location:
+      gcs_or_local_path = os.path.dirname(job_location)
+      file_name = os.path.basename(job_location)
       self.stage_file(gcs_or_local_path, file_name, StringIO(str(job)))
-    elif dataflow_job_file:
-      gcs_or_local_path = os.path.dirname(dataflow_job_file)
-      file_name = os.path.basename(dataflow_job_file)
-      self.stage_file(gcs_or_local_path, file_name, StringIO(str(job)))
-      self.send_job_description()
-    else:
+
+    if not template_location:
       self.send_job_description()
 
   def create_job_description(self, job):
