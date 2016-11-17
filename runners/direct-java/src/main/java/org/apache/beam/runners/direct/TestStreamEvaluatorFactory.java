@@ -162,7 +162,7 @@ class TestStreamEvaluatorFactory implements TransformEvaluatorFactory {
       return new DirectTestStream<>(transform);
     }
 
-    private static class DirectTestStream<T> extends PTransform<PBegin, PCollection<T>> {
+    static class DirectTestStream<T> extends PTransform<PBegin, PCollection<T>> {
       private final TestStream<T> original;
 
       private DirectTestStream(TestStream<T> transform) {
@@ -185,7 +185,9 @@ class TestStreamEvaluatorFactory implements TransformEvaluatorFactory {
     }
   }
 
-  static class InputProvider implements RootInputProvider {
+  static class InputProvider<T>
+      implements RootInputProvider<
+          T, TestStreamIndex<T>, PBegin, DirectTestStreamFactory.DirectTestStream<T>> {
     private final EvaluationContext evaluationContext;
 
     InputProvider(EvaluationContext evaluationContext) {
@@ -193,19 +195,18 @@ class TestStreamEvaluatorFactory implements TransformEvaluatorFactory {
     }
 
     @Override
-    public Collection<CommittedBundle<?>> getInitialInputs(
-        AppliedPTransform<?, ?, ?> transform, int targetParallelism) {
-      return createInputBundle((AppliedPTransform) transform);
-    }
-
-    private <T> Collection<CommittedBundle<?>> createInputBundle(
-        AppliedPTransform<PBegin, ?, TestStream<T>> transform) {
+    public Collection<CommittedBundle<TestStreamIndex<T>>> getInitialInputs(
+        AppliedPTransform<PBegin, PCollection<T>, DirectTestStreamFactory.DirectTestStream<T>>
+            transform,
+        int targetParallelism) {
       CommittedBundle<TestStreamIndex<T>> initialBundle =
           evaluationContext
               .<TestStreamIndex<T>>createRootBundle()
-              .add(WindowedValue.valueInGlobalWindow(TestStreamIndex.of(transform.getTransform())))
+              .add(
+                  WindowedValue.valueInGlobalWindow(
+                      TestStreamIndex.of(transform.getTransform().original)))
               .commit(BoundedWindow.TIMESTAMP_MAX_VALUE);
-      return Collections.<CommittedBundle<?>>singleton(initialBundle);
+      return Collections.singleton(initialBundle);
     }
   }
 
