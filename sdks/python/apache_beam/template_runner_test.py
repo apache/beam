@@ -34,25 +34,22 @@ from apache_beam.internal import apiclient
 class TemplatingDataflowPipelineRunnerTest(unittest.TestCase):
   """TemplatingDataflow integration tests."""
   def test_full_completion(self):
-    dummy_sdk_file = tempfile.NamedTemporaryFile()
+    dummy_file = tempfile.NamedTemporaryFile()
+    dummy_dir = tempfile.mkdtemp()
 
     remote_runner = DataflowPipelineRunner()
     pipeline = Pipeline(remote_runner,
                         options=PipelineOptions([
                             '--dataflow_endpoint=ignored',
-                            '--sdk_location=' + dummy_sdk_file.name,
+                            '--sdk_location=' + dummy_file.name,
                             '--job_name=test-job',
                             '--project=test-project',
-                            '--staging_location=ignored',
+                            '--staging_location=' + dummy_dir,
                             '--temp_location=/dev/null',
-                            '--template_location=/tmp/template-file',
+                            '--template_location=' + dummy_file.name,
                             '--no_auth=True']))
-    try:
-      os.remove('/tmp/template-file')
-    except OSError as err:
-      print err
     pipeline.run()
-    with open('/tmp/template-file') as template_file:
+    with open(dummy_file.name) as template_file:
       saved_job_dict = json.load(template_file)
       self.assertEqual(
           saved_job_dict['environment']['sdkPipelineOptions']
