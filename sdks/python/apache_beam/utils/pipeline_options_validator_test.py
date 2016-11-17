@@ -268,7 +268,6 @@ class SetupTest(unittest.TestCase):
     ])
     validator = PipelineOptionsValidator(options, runner)
     errors = validator.validate()
-    print errors
     self.assertTrue(errors)
 
   def test_validate_template_location(self):
