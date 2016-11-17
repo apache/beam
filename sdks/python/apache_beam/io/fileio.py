@@ -514,6 +514,7 @@ class ChannelFactory(object):
     gcs_batches = []
     gcs_current_batch = []
     for src, dest in src_dest_pairs:
+      gcs_current_batch.append((src, dest))
       if len(gcs_current_batch) == gcsio.MAX_BATCH_OPERATION_SIZE:
         gcs_batches.append(gcs_current_batch)
         gcs_current_batch = []
@@ -893,6 +894,8 @@ class FileSink(iobase.Sink):
       exception_infos = ChannelFactory.rename_batch(batch)
       for src, dest, exception in exception_infos:
         if exception:
+          logging.warning('Rename not successful: %s -> %s, %s', src, dest,
+                          exception)
           should_report = True
           if isinstance(exception, IOError):
             # May have already been copied.
@@ -906,6 +909,8 @@ class FileSink(iobase.Sink):
             logging.warning(('Exception in _rename_batch. src: %s, '
                              'dest: %s, err: %s'), src, dest, exception)
             exceptions.append(exception)
+        else:
+          logging.info('Rename successful: %s -> %s', src, dest)
       return exceptions
 
     # ThreadPool crashes in old versions of Python (< 2.7.5) if created from a

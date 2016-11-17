@@ -28,6 +28,7 @@ import unittest
 import zlib
 
 import hamcrest as hc
+import mock
 
 import apache_beam as beam
 from apache_beam import coders
@@ -880,6 +881,52 @@ class TestFileSink(unittest.TestCase):
     os.remove(res2)
     with self.assertRaises(Exception):
       list(sink.finalize_write(init_token, [res1, res2]))
+
+  @mock.patch('apache_beam.io.fileio.ChannelFactory.rename')
+  @mock.patch('apache_beam.io.fileio.gcsio')
+  def test_rename_batch(self, *unused_args):
+    # Prepare mocks.
+    gcsio_mock = mock.MagicMock()
+    fileio.gcsio.GcsIO = lambda: gcsio_mock
+    fileio.ChannelFactory.rename = mock.MagicMock()
+    to_rename = [
+        ('gs://bucket/from1', 'gs://bucket/to1'),
+        ('gs://bucket/from2', 'gs://bucket/to2'),
+        ('/local/from1', '/local/to1'),
+        ('gs://bucket/from3', 'gs://bucket/to3'),
+        ('/local/from2', '/local/to2'),
+    ]
+    gcsio_mock.copy_batch.side_effect = [[
+        ('gs://bucket/from1', 'gs://bucket/to1', None),
+        ('gs://bucket/from2', 'gs://bucket/to2', None),
+        ('gs://bucket/from3', 'gs://bucket/to3', None),
+    ]]
+    gcsio_mock.delete_batch.side_effect = [[
+        ('gs://bucket/from1', None),
+        ('gs://bucket/from2', None),
+        ('gs://bucket/from3', None),
+    ]]
+
+    # Issue batch rename.
+    fileio.ChannelFactory.rename_batch(to_rename)
+
+    # Verify mocks.
+    expected_local_rename_calls = [
+        mock.call('/local/from1', '/local/to1'),
+        mock.call('/local/from2', '/local/to2'),
+    ]
+    self.assertEqual(fileio.ChannelFactory.rename.call_args_list,
+                     expected_local_rename_calls)
+    gcsio_mock.copy_batch.assert_called_once_with([
+        ('gs://bucket/from1', 'gs://bucket/to1'),
+        ('gs://bucket/from2', 'gs://bucket/to2'),
+        ('gs://bucket/from3', 'gs://bucket/to3'),
+    ])
+    gcsio_mock.delete_batch.assert_called_once_with([
+        'gs://bucket/from1',
+        'gs://bucket/from2',
+        'gs://bucket/from3',
+    ])
 
 
 if __name__ == '__main__':
