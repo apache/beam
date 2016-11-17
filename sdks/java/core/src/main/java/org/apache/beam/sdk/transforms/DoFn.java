@@ -28,6 +28,8 @@ import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import javax.annotation.Nullable;
@@ -236,7 +238,6 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
 
       aggregator.setDelegate(delegate);
     }
-
   }
 
   /**
@@ -297,6 +298,10 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
   /////////////////////////////////////////////////////////////////////////////
 
   protected Map<String, DelegatingAggregator<?, ?>> aggregators = new HashMap<>();
+
+  Collection<Aggregator<?, ?>> getAggregators() {
+    return Collections.<Aggregator<?, ?>>unmodifiableCollection(aggregators.values());
+  }
 
   /**
    * Protects aggregators from being created after initialization.
