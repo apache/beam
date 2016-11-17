@@ -183,16 +183,16 @@ public class JdbcIO {
     }
 
     public static DataSourceConfiguration create(DataSource dataSource) {
-      checkNotNull(dataSource, "dataSource");
-      checkArgument(dataSource instanceof Serializable, "dataSource must be Serializable");
+      checkNotNull(dataSource, "DataSource should be set");
+      checkArgument(dataSource instanceof Serializable, "DataSource should be be Serializable");
       return new AutoValue_JdbcIO_DataSourceConfiguration.Builder()
           .setDataSource(dataSource)
           .build();
     }
 
     public static DataSourceConfiguration create(String driverClassName, String url) {
-      checkNotNull(driverClassName, "driverClassName");
-      checkNotNull(url, "url");
+      checkNotNull(driverClassName, "DriverClassName should be set");
+      checkNotNull(url, "URL should be set");
       return new AutoValue_JdbcIO_DataSourceConfiguration.Builder()
           .setDriverClassName(driverClassName)
           .setUrl(url)
@@ -263,27 +263,27 @@ public class JdbcIO {
     }
 
     public Read<T> withDataSourceConfiguration(DataSourceConfiguration configuration) {
-      checkNotNull(configuration, "configuration");
+      checkNotNull(configuration, "DataSourceConfiguration should be set");
       return toBuilder().setDataSourceConfiguration(configuration).build();
     }
 
     public Read<T> withQuery(String query) {
-      checkNotNull(query, "query");
+      checkNotNull(query, "Query should be set");
       return toBuilder().setQuery(query).build();
     }
 
     public Read<T> withStatementPrepator(StatementPreparator statementPreparator) {
-      checkNotNull(statementPreparator, "statementPreparator");
+      checkNotNull(statementPreparator, "StatementPreparator should be set");
       return toBuilder().setStatementPreparator(statementPreparator).build();
     }
 
     public Read<T> withRowMapper(RowMapper<T> rowMapper) {
-      checkNotNull(rowMapper, "rowMapper");
+      checkNotNull(rowMapper, "RowMapper should be set");
       return toBuilder().setRowMapper(rowMapper).build();
     }
 
     public Read<T> withCoder(Coder<T> coder) {
-      checkNotNull(coder, "coder");
+      checkNotNull(coder, "Coder should be set");
       return toBuilder().setCoder(coder).build();
     }
 
@@ -314,9 +314,9 @@ public class JdbcIO {
 
     @Override
     public void validate(PBegin input) {
-      checkNotNull(getQuery(), "query");
-      checkNotNull(getRowMapper(), "rowMapper");
-      checkNotNull(getCoder(), "coder");
+      checkNotNull(getQuery(), "Query should be set");
+      checkNotNull(getRowMapper(), "RowMapper should be set");
+      checkNotNull(getCoder(), "Coder should be set");
       checkNotNull(getDataSourceConfiguration());
     }
 
@@ -411,9 +411,9 @@ public class JdbcIO {
 
     @Override
     public void validate(PCollection<T> input) {
-      checkNotNull(getDataSourceConfiguration(), "dataSourceConfiguration");
-      checkNotNull(getStatement(), "statement");
-      checkNotNull(getPreparedStatementSetter(), "preparedStatementSetter");
+      checkNotNull(getDataSourceConfiguration(), "DataSourceConfiguration should be set");
+      checkNotNull(getStatement(), "Statement should be set");
+      checkNotNull(getPreparedStatementSetter(), "PreparedStatementSetter should be set");
     }
 
     private static class WriteFn<T> extends DoFn<T, Void> {
