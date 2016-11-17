@@ -15,20 +15,29 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.spark.translation;
 
-import java.io.Serializable;
-
+import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.util.WindowingStrategy;
+import org.apache.beam.sdk.values.PCollection;
 
 /**
- * Holder for Spark RDD/DStream.
+ * Get RDD storage level for the input PCollection (mostly used for testing purpose).
  */
-public interface Dataset extends Serializable {
+public final class StorageLevelPTransform extends PTransform<PCollection<?>, PCollection<String>> {
 
-  void cache(String storageLevel);
+  @Override
+  public PCollection<String> apply(PCollection<?> input) {
+    return PCollection.createPrimitiveOutputInternal(input.getPipeline(),
+        WindowingStrategy.globalDefault(),
+        PCollection.IsBounded.BOUNDED);
+  }
 
-  void action();
+  @Override
+  public Coder getDefaultOutputCoder() {
+    return StringUtf8Coder.of();
+  }
 
-  void setName(String name);
 }
