@@ -21,6 +21,7 @@ package org.apache.beam.runners.spark.translation.streaming;
 import com.google.common.collect.Iterables;
 import java.util.Queue;
 import java.util.concurrent.LinkedBlockingQueue;
+
 import javax.annotation.Nullable;
 import org.apache.beam.runners.spark.coders.CoderHelpers;
 import org.apache.beam.runners.spark.translation.Dataset;
@@ -31,12 +32,17 @@ import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.function.VoidFunction;
 import org.apache.spark.streaming.api.java.JavaDStream;
 import org.apache.spark.streaming.api.java.JavaStreamingContext;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 
 /**
  * DStream holder Can also crate a DStream from a supplied queue of values, but mainly for testing.
  */
 public class UnboundedDataset<T> implements Dataset {
+
+  private static final Logger LOG = LoggerFactory.getLogger(UnboundedDataset.class);
+
   // only set if creating a DStream from a static collection
   @Nullable private transient JavaStreamingContext jssc;
 
@@ -87,7 +93,9 @@ public class UnboundedDataset<T> implements Dataset {
 
   @Override
   public void cache(String storageLevel) {
-    // ignore: we "force" MEMORY storage level in streaming
+    // we "force" MEMORY storage level in streaming
+    LOG.warn("Provided StorageLevel ignored for stream, using default level");
+    cache();
   }
 
   @Override
