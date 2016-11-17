@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.gcp.bigquery;
 
 import com.google.api.services.bigquery.model.Dataset;
+import com.google.api.services.bigquery.model.ErrorProto;
 import com.google.api.services.bigquery.model.Job;
 import com.google.api.services.bigquery.model.JobConfigurationExtract;
 import com.google.api.services.bigquery.model.JobConfigurationLoad;
@@ -33,6 +34,8 @@ import java.io.Serializable;
 import java.util.List;
 import java.util.NoSuchElementException;
 import javax.annotation.Nullable;
+
+import com.google.api.services.bigquery.model.TableSchema;
 import org.apache.beam.sdk.options.BigQueryOptions;
 
 /** An interface for real, mock, or fake implementations of Cloud BigQuery services. */
@@ -118,6 +121,28 @@ interface BigQueryServices extends Serializable {
      */
     Table getTable(String projectId, String datasetId, String tableId)
         throws InterruptedException, IOException;
+
+    /**
+     * Retrieves or creates the table.
+     *
+     * <p>The table is checked to conform to insertion requirements as specified
+     * by WriteDisposition and CreateDisposition.
+     *
+     * <p>If table truncation is requested (WriteDisposition.WRITE_TRUNCATE), then
+     * this will re-create the table if necessary to ensure it is empty.
+     *
+     * <p>If an empty table is required (WriteDisposition.WRITE_EMPTY), then this
+     * will fail if the table exists and is not empty.
+     *
+     * <p>When constructing a table, a {@code TableSchema} must be available.  If a
+     * schema is provided, then it will be used.  If no schema is provided, but
+     * an existing table is being cleared (WRITE_TRUNCATE option above), then
+     * the existing schema will be re-used.  If no schema is available, then an
+     * {@code IOException} is thrown.
+     */
+    Table getOrCreateTable(TableReference table, BigQueryIO.Write.WriteDisposition writeDisposition,
+                           BigQueryIO.Write.CreateDisposition createDisposition,
+                           @Nullable TableSchema schema) throws InterruptedException, IOException;
 
     /**
      * Deletes the table specified by tableId from the dataset.

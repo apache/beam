@@ -138,9 +138,10 @@ public class BigQueryTableInserterTest {
     when(response.getStatusCode()).thenReturn(200);
     when(response.getContent()).thenReturn(toStream(testTable));
 
-    BigQueryTableInserter inserter = new BigQueryTableInserter(bigquery, options);
+    BigQueryServicesImpl.DatasetServiceImpl services =
+        new BigQueryServicesImpl.DatasetServiceImpl(bigquery, options);
     Table ret =
-        inserter.tryCreateTable(
+        services.tryCreateTable(
             new Table(),
             "project",
             "dataset",
@@ -159,9 +160,10 @@ public class BigQueryTableInserterTest {
   public void testCreateTableSucceedsAlreadyExists() throws IOException {
     when(response.getStatusCode()).thenReturn(409); // 409 means already exists
 
-    BigQueryTableInserter inserter = new BigQueryTableInserter(bigquery, options);
+    BigQueryServicesImpl.DatasetServiceImpl services =
+            new BigQueryServicesImpl.DatasetServiceImpl(bigquery, options);
     Table ret =
-        inserter.tryCreateTable(
+        services.tryCreateTable(
             new Table(),
             "project",
             "dataset",
@@ -190,9 +192,10 @@ public class BigQueryTableInserterTest {
         .thenReturn(toStream(errorWithReasonAndStatus("rateLimitExceeded", 403)))
         .thenReturn(toStream(testTable));
 
-    BigQueryTableInserter inserter = new BigQueryTableInserter(bigquery, options);
+    BigQueryServicesImpl.DatasetServiceImpl services =
+        new BigQueryServicesImpl.DatasetServiceImpl(bigquery, options);
     Table ret =
-        inserter.tryCreateTable(
+        services.tryCreateTable(
             testTable,
             "project",
             "dataset",
@@ -226,9 +229,10 @@ public class BigQueryTableInserterTest {
     thrown.expect(GoogleJsonResponseException.class);
     thrown.expectMessage("actually forbidden");
 
-    BigQueryTableInserter inserter = new BigQueryTableInserter(bigquery, options);
+    BigQueryServicesImpl.DatasetServiceImpl services =
+        new BigQueryServicesImpl.DatasetServiceImpl(bigquery, options);
     try {
-      inserter.tryCreateTable(
+      services.tryCreateTable(
           new Table(),
           "project",
           "dataset",

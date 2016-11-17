@@ -19,13 +19,12 @@ package org.apache.beam.sdk.io.gcp.bigquery;
 
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.instanceOf;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.fail;
+import static org.junit.Assert.*;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import autovalue.shaded.com.google.common.common.collect.Lists;
 import com.google.api.client.googleapis.json.GoogleJsonError;
 import com.google.api.client.googleapis.json.GoogleJsonError.ErrorInfo;
 import com.google.api.client.googleapis.json.GoogleJsonErrorContainer;
@@ -61,6 +60,7 @@ import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServicesImpl.JobServiceImpl;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.ExpectedLogs;
 import org.apache.beam.sdk.testing.FastNanoClockAndSleeper;
+import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.util.FluentBackoff;
 import org.apache.beam.sdk.util.RetryHttpRequestInitializer;
 import org.apache.beam.sdk.util.Transport;
@@ -358,6 +358,8 @@ public class BigQueryServicesImplTest {
     verify(response, times(2)).getContentType();
     expectedLogs.verifyInfo("BigQuery insertAll exceeded rate limit, retrying");
   }
+  // A BackOff that makes a total of 4 attempts
+  private static final FluentBackoff TEST_BACKOFF = FluentBackoff.DEFAULT.withMaxRetries(3);
 
   /**
    * Tests that {@link DatasetServiceImpl#insertAll} retries selected rows on failure.
@@ -371,7 +373,7 @@ public class BigQueryServicesImplTest {
     List<String> insertIds = ImmutableList.of("a", "b");
 
     final TableDataInsertAllResponse bFailed = new TableDataInsertAllResponse()
-        .setInsertErrors(ImmutableList.of(new InsertErrors().setIndex(1L)));
+        .setInsertErrors(ImmutableList.of(new InsertErrors().setIndex(1L).setErrors(ImmutableList.of(new ErrorProto()))));
 
     final TableDataInsertAllResponse allRowsSucceeded = new TableDataInsertAllResponse();
 
@@ -388,9 +390,6 @@ public class BigQueryServicesImplTest {
     verify(response, times(2)).getContentType();
     expectedLogs.verifyInfo("Retrying 1 failed inserts to BigQuery");
   }
-
-  // A BackOff that makes a total of 4 attempts
-  private static final FluentBackoff TEST_BACKOFF = FluentBackoff.DEFAULT.withMaxRetries(3);
 
   /**
    * Tests that {@link DatasetServiceImpl#insertAll} fails gracefully when persistent issues.

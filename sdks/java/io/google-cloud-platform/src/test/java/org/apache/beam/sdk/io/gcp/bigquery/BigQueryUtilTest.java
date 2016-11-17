@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.gcp.bigquery;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyLong;
 import static org.mockito.Matchers.anyString;
@@ -30,6 +31,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
+import autovalue.shaded.com.google.common.common.collect.Lists;
 import com.google.api.services.bigquery.Bigquery;
 import com.google.api.services.bigquery.model.Table;
 import com.google.api.services.bigquery.model.TableCell;
@@ -49,6 +51,8 @@ import java.util.List;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServicesImpl.DatasetServiceImpl;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.hamcrest.Matchers;
 import org.junit.After;
 import org.junit.Assert;
@@ -361,22 +365,22 @@ public class BigQueryUtilTest {
   }
 
   @Test
-  public void testWriteAppend() throws IOException {
+  public void testWriteAppend() throws InterruptedException, IOException {
     onTableGet(basicTableSchema());
 
     TableReference ref = BigQueryIO
         .parseTableSpec("project:dataset.table");
 
-    BigQueryTableInserter inserter = new BigQueryTableInserter(mockClient, options);
-
-    inserter.getOrCreateTable(ref, BigQueryIO.Write.WriteDisposition.WRITE_APPEND,
+    BigQueryServicesImpl.DatasetServiceImpl services =
+            new BigQueryServicesImpl.DatasetServiceImpl(mockClient, options);
+    services.getOrCreateTable(ref, BigQueryIO.Write.WriteDisposition.WRITE_APPEND,
         BigQueryIO.Write.CreateDisposition.CREATE_NEVER, null);
 
     verifyTableGet();
   }
 
   @Test
-  public void testWriteEmpty() throws IOException {
+  public void testWriteEmpty() throws InterruptedException, IOException {
     onTableGet(basicTableSchema());
 
     TableDataList dataList = new TableDataList().setTotalRows(0L);
@@ -385,9 +389,10 @@ public class BigQueryUtilTest {
     TableReference ref = BigQueryIO
         .parseTableSpec("project:dataset.table");
 
-    BigQueryTableInserter inserter = new BigQueryTableInserter(mockClient, options);
+    BigQueryServicesImpl.DatasetServiceImpl services =
+            new BigQueryServicesImpl.DatasetServiceImpl(mockClient, options);
 
-    inserter.getOrCreateTable(ref, BigQueryIO.Write.WriteDisposition.WRITE_EMPTY,
+    services.getOrCreateTable(ref, BigQueryIO.Write.WriteDisposition.WRITE_EMPTY,
         BigQueryIO.Write.CreateDisposition.CREATE_NEVER, null);
 
     verifyTableGet();
@@ -395,7 +400,7 @@ public class BigQueryUtilTest {
   }
 
   @Test
-  public void testWriteEmptyFail() throws IOException {
+  public void testWriteEmptyFail() throws InterruptedException, IOException {
     thrown.expect(IOException.class);
 
     onTableGet(basicTableSchema());
@@ -406,10 +411,10 @@ public class BigQueryUtilTest {
     TableReference ref = BigQueryIO
         .parseTableSpec("project:dataset.table");
 
-    BigQueryTableInserter inserter = new BigQueryTableInserter(mockClient, options);
-
+    BigQueryServicesImpl.DatasetServiceImpl services =
+            new BigQueryServicesImpl.DatasetServiceImpl(mockClient, options);
     try {
-      inserter.getOrCreateTable(ref, BigQueryIO.Write.WriteDisposition.WRITE_EMPTY,
+      services.getOrCreateTable(ref, BigQueryIO.Write.WriteDisposition.WRITE_EMPTY,
           BigQueryIO.Write.CreateDisposition.CREATE_NEVER, null);
     } finally {
       verifyTableGet();
@@ -441,7 +446,41 @@ public class BigQueryUtilTest {
 
     long totalBytes = 0;
     try {
+      List<TableRow> deadLetter = Lists.newArrayList();
       totalBytes = datasetService.insertAll(ref, rows, ids);
+      assertTrue(deadLetter.isEmpty());
+    } finally {
+      verifyInsertAll(5);
+      // Each of the 25 rows is 23 bytes: "{f=[{v=foo}, {v=1234}]}"
+      assertEquals("Incorrect byte count", 25L * 23L, totalBytes);
+    }
+  }
+
+  @Test
+  public void testDeadLetter() throws Exception, IOException {
+    // Build up a list of indices to fail on each invocation. This should result in
+    // 5 calls to insertAll.
+    List<List<Long>> errorsIndices = new ArrayList<>();
+    errorsIndices.add(Arrays.asList(0L, 5L, 10L, 15L, 20L));
+    errorsIndices.add(Arrays.asList(0L, 2L, 4L));
+    errorsIndices.add(Arrays.asList(0L, 2L));
+    errorsIndices.add(new ArrayList<Long>());
+    onInsertAll(errorsIndices);
+
+    TableReference ref = BigQueryIO
+            .parseTableSpec("project:dataset.table");
+    DatasetServiceImpl datasetService = new DatasetServiceImpl(mockClient, options, 5);
+
+    List<TableRow> rows = new ArrayList<>();
+    List<String> ids = new ArrayList<>();
+    for (int i = 0; i < 25; ++i) {
+      rows.add(rawRow("foo", 1234));
+      ids.add(new String());
+    }
+
+    long totalBytes = 0;
+    try {
+      totalBytes = datasetService.insertAll(ref, rows, ids, null, null);
     } finally {
       verifyInsertAll(5);
       // Each of the 25 rows is 23 bytes: "{f=[{v=foo}, {v=1234}]}"
