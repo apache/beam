@@ -137,4 +137,8 @@ setuptools.setup(
         ],
     license='Apache License, Version 2.0',
     keywords=PACKAGE_KEYWORDS,
+    entry_points={
+        'nose.plugins.0.10': [
+            'beam_test_plugin = test_config:BeamTestPlugin'
+            ]}
     )
