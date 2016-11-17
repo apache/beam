@@ -27,6 +27,7 @@ import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Set;
 import org.apache.beam.runners.spark.EvaluationResult;
+import org.apache.beam.runners.spark.SparkPipelineOptions;
 import org.apache.beam.runners.spark.aggregators.AccumulatorSingleton;
 import org.apache.beam.runners.spark.translation.streaming.UnboundedDataset;
 import org.apache.beam.sdk.AggregatorRetrievalException;
@@ -155,7 +156,7 @@ public class EvaluationContext implements EvaluationResult {
     leaves.remove(dataset);
     if (multiReads.contains(pvalue)) {
       // Ensure the RDD is marked as cached
-      dataset.cache();
+      dataset.cache(runtime.getPipelineOptions().as(SparkPipelineOptions.class).getStorageLevel());
     } else {
       multiReads.add(pvalue);
     }
@@ -172,7 +173,8 @@ public class EvaluationContext implements EvaluationResult {
    */
   public void computeOutputs() {
     for (Dataset dataset : leaves) {
-      dataset.cache(); // cache so that any subsequent get() is cheap.
+      // cache so that any subsequent get() is cheap.
+      dataset.cache(runtime.getPipelineOptions().as(SparkPipelineOptions.class).getStorageLevel());
       dataset.action(); // force computation.
     }
   }

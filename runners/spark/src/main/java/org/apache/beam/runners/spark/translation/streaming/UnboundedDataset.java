@@ -81,9 +81,13 @@ public class UnboundedDataset<T> implements Dataset {
     return dStream;
   }
 
-  @Override
   public void cache() {
     dStream.cache();
+  }
+
+  @Override
+  public void cache(String storageLevel) {
+    // ignore: we "force" MEMORY storage level in streaming
   }
 
   @Override
