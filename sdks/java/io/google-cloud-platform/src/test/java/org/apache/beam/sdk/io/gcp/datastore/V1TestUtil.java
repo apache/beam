@@ -133,8 +133,7 @@ class V1TestUtil {
   /**
    * Build a new datastore client.
    */
-  static Datastore getDatastore(PipelineOptions pipelineOptions, String projectId,
-      String localhost) {
+  static Datastore getDatastore(PipelineOptions pipelineOptions, String projectId) {
     Credentials credential = pipelineOptions.as(GcpOptions.class).getGcpCredential();
     HttpRequestInitializer initializer;
     if (credential != null) {
@@ -148,8 +147,7 @@ class V1TestUtil {
     DatastoreOptions.Builder builder =
         new DatastoreOptions.Builder()
             .projectId(projectId)
-            .initializer(initializer)
-            .localhost(localhost);
+            .initializer(initializer);
 
     return DatastoreFactory.get().create(builder.build());
   }
