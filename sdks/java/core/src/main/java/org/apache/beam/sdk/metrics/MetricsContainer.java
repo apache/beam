@@ -130,19 +130,6 @@ public class MetricsContainer {
    * container.
    */
   public MetricUpdates getCumulative() {
-    ImmutableList.Builder<MetricUpdate<Long>> counterUpdates = ImmutableList.builder();
-    for (Map.Entry<MetricName, CounterCell> counter : counters.entries()) {
-      counterUpdates.add(MetricUpdate.create(
-          MetricKey.create(stepName, counter.getKey()), counter.getValue().getCumulative()));
-    }
-
-    ImmutableList.Builder<MetricUpdate<DistributionData>> distributionUpdates =
-        ImmutableList.builder();
-    for (Map.Entry<MetricName, DistributionCell> distribution : distributions.entries()) {
-      distributionUpdates.add(MetricUpdate.create(
-          MetricKey.create(stepName, distribution.getKey()),
-          distribution.getValue().getCumulative()));
-    }
     return MetricUpdates.create(
         extractCumulatives(counters),
         extractCumulatives(distributions));
