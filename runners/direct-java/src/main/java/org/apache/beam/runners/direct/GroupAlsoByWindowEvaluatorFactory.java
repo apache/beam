@@ -182,12 +182,14 @@ class GroupAlsoByWindowEvaluatorFactory implements TransformEvaluatorFactory {
 
                 @Override
                 public <T> boolean contains(PCollectionView<T> view) {
-                  throw new UnsupportedOperationException();
+                  throw new UnsupportedOperationException(
+                      "GroupAlsoByWindow must not have side inputs");
                 }
 
                 @Override
                 public boolean isEmpty() {
-                  throw new UnsupportedOperationException();
+                  throw new UnsupportedOperationException(
+                      "GroupAlsoByWindow must not have side inputs");
                 }
               },
               droppedDueToClosedWindow,
