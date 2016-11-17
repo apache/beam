@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.transforms;
 
 import java.io.IOException;
+import java.util.Collection;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.transforms.DoFn.Context;
@@ -241,6 +242,11 @@ public class DoFnAdapters {
     @Override
     protected TypeDescriptor<OutputT> getOutputTypeDescriptor() {
       return fn.getOutputTypeDescriptor();
+    }
+
+    @Override
+    Collection<Aggregator<?, ?>> getAggregators() {
+      return fn.getAggregators();
     }
 
     @Override
