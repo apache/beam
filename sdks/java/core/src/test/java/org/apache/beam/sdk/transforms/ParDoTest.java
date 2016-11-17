@@ -27,6 +27,7 @@ import static org.apache.beam.sdk.util.StringUtils.byteArrayToJsonString;
 import static org.apache.beam.sdk.util.StringUtils.jsonStringToByteArray;
 import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.anyOf;
+import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.collection.IsIterableContainingInAnyOrder.containsInAnyOrder;
 import static org.hamcrest.collection.IsIterableContainingInOrder.contains;
@@ -826,39 +827,37 @@ public class ParDoTest implements Serializable {
   }
 
   @Test
-  public void testParDoGetName() {
+  public void testParDoOutputNameBasedOnDoFnWithTrimmedSuffix() {
     Pipeline p = TestPipeline.create();
+    PCollection<String> output = p.apply(Create.of(1)).apply(ParDo.of(new TestOldDoFn()));
+    assertThat(output.getName(), containsString("ParDo(Test)"));
+  }
 
-    PCollection<Integer> input =
-        p.apply(Create.of(Arrays.asList(3, -42, 666)))
-        .setName("MyInput");
+  @Test
+  public void testParDoOutputNameBasedOnLabel() {
+    Pipeline p = TestPipeline.create();
+    PCollection<String> output =
+        p.apply(Create.of(1)).apply("MyParDo", ParDo.of(new TestOldDoFn()));
+    assertThat(output.getName(), containsString("MyParDo"));
+  }
 
-    {
-      PCollection<String> output1 = input.apply(ParDo.of(new TestOldDoFn()));
-      assertEquals("ParDo(Test).out", output1.getName());
-    }
+  @Test
+  public void testParDoOutputNameBasedDoFnWithoutMatchingSuffix() {
+    Pipeline p = TestPipeline.create();
+    PCollection<String> output = p.apply(Create.of(1)).apply(ParDo.of(new StrangelyNamedDoer()));
+    assertThat(output.getName(), containsString("ParDo(StrangelyNamedDoer)"));
+  }
 
-    {
-      PCollection<String> output2 = input.apply("MyParDo", ParDo.of(new TestOldDoFn()));
-      assertEquals("MyParDo.out", output2.getName());
-    }
+  @Test
+  public void testParDoTransformNameBasedDoFnWithTrimmedSuffix() {
+    assertThat(ParDo.of(new PrintingDoFn()).getName(), containsString("ParDo(Printing)"));
+  }
 
-    {
-      PCollection<String> output4 = input.apply("TestOldDoFn", ParDo.of(new TestOldDoFn()));
-      assertEquals("TestOldDoFn.out", output4.getName());
-    }
-
-    {
-      PCollection<String> output5 = input.apply(ParDo.of(new StrangelyNamedDoer()));
-      assertEquals("ParDo(StrangelyNamedDoer).out",
-          output5.getName());
-    }
-
-    assertEquals("ParDo(Printing)", ParDo.of(new PrintingDoFn()).getName());
-
-    assertEquals(
-        "ParMultiDo(SideOutputDummy)",
-        ParDo.of(new SideOutputDummyFn(null)).withOutputTags(null, null).getName());
+  @Test
+  public void testParDoMultiNameBasedDoFnWithTrimmerSuffix() {
+    assertThat(
+        ParDo.of(new SideOutputDummyFn(null)).withOutputTags(null, null).getName(),
+        containsString("ParMultiDo(SideOutputDummy)"));
   }
 
   @Test
