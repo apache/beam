@@ -1059,7 +1059,7 @@ public class PubsubIO {
     /**
      * Used to write a PubSub message together with PubSub attributes. The user-supplied format
      * function translates the input type T to a PubsubMessage object, which is used by the sink
-     * to separately set the PubSub message's payload and attributes.
+     * to publish a message to PubSub with payload and attributes set separately.
      */
     public static <T> Bound<T> withAttributes(SimpleFunction<T, PubsubMessage> formatFn) {
         return new Bound<T>(null).withAttributes(formatFn);
