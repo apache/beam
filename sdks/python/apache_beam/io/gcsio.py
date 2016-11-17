@@ -47,7 +47,7 @@ except ImportError:
       'Google Cloud Storage I/O not supported for this execution environment '
       '(could not import storage API client).')
 
-DEFAULT_READ_BUFFER_SIZE = 1024 * 1024
+DEFAULT_READ_BUFFER_SIZE = 16 * 1024 * 1024
 WRITE_CHUNK_SIZE = 8 * 1024 * 1024
 
 
@@ -373,7 +373,7 @@ class GcsBufferedReader(object):
     # Initialize read buffer state.
     self.download_stream = StringIO.StringIO()
     self.downloader = transfer.Download(
-        self.download_stream, auto_transfer=False)
+        self.download_stream, auto_transfer=False, chunksize=buffer_size)
     self.client.objects.Get(get_request, download=self.downloader)
     self.position = 0
     self.buffer = ''
