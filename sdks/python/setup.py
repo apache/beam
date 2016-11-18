@@ -139,6 +139,6 @@ setuptools.setup(
     keywords=PACKAGE_KEYWORDS,
     entry_points={
         'nose.plugins.0.10': [
-            'beamTestPlugin = test_config:BeamTestPlugin'
+            'beam_test_plugin = test_config:BeamTestPlugin'
             ]}
     )
