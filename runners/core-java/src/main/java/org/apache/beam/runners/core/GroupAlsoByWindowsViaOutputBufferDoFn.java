@@ -21,7 +21,6 @@ import com.google.common.collect.Iterables;
 import java.util.List;
 import org.apache.beam.runners.core.triggers.ExecutableTriggerStateMachine;
 import org.apache.beam.runners.core.triggers.TriggerStateMachines;
-import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.SystemDoFnInternal;
 import org.apache.beam.sdk.util.WindowedValue;
@@ -30,7 +29,6 @@ import org.apache.beam.sdk.util.state.InMemoryTimerInternals;
 import org.apache.beam.sdk.util.state.StateInternals;
 import org.apache.beam.sdk.util.state.StateInternalsFactory;
 import org.apache.beam.sdk.util.state.TimerCallback;
-import org.apache.beam.sdk.values.KV;
 import org.joda.time.Instant;
 
 /**
@@ -55,9 +53,7 @@ public class GroupAlsoByWindowsViaOutputBufferDoFn<K, InputT, OutputT, W extends
   }
 
   @Override
-  public void processElement(
-      OldDoFn<KV<K, Iterable<WindowedValue<InputT>>>, KV<K, OutputT>>.ProcessContext c)
-          throws Exception {
+  public void processElement(ProcessContext c) throws Exception {
     K key = c.element().getKey();
     // Used with Batch, we know that all the data is available for this key. We can't use the
     // timer manager from the context because it doesn't exist. So we create one and emulate the

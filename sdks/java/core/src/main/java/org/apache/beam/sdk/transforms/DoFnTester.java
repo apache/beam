@@ -23,10 +23,10 @@ import static com.google.common.base.Preconditions.checkState;
 import com.google.common.base.Function;
 import com.google.common.base.MoreObjects;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -36,6 +36,8 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.ValueInSingleWindow;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
+import org.apache.beam.sdk.transforms.reflect.DoFnInvoker;
+import org.apache.beam.sdk.transforms.reflect.DoFnInvokers;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
@@ -43,7 +45,6 @@ import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.util.TimerInternals;
 import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.sdk.util.WindowingInternals;
 import org.apache.beam.sdk.util.state.InMemoryStateInternals;
 import org.apache.beam.sdk.util.state.InMemoryTimerInternals;
 import org.apache.beam.sdk.util.state.StateInternals;
@@ -86,7 +87,8 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
    */
   @SuppressWarnings("unchecked")
   public static <InputT, OutputT> DoFnTester<InputT, OutputT> of(DoFn<InputT, OutputT> fn) {
-    return new DoFnTester<>(DoFnAdapters.toOldDoFn(fn));
+    checkNotNull(fn, "fn can't be null");
+    return new DoFnTester<>(fn);
   }
 
   /**
@@ -96,9 +98,11 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
    * @see #of(DoFn)
    */
   @SuppressWarnings("unchecked")
-   public static <InputT, OutputT> DoFnTester<InputT, OutputT>
+  @Deprecated
+  public static <InputT, OutputT> DoFnTester<InputT, OutputT>
       of(OldDoFn<InputT, OutputT> fn) {
-    return new DoFnTester<>(fn);
+    checkNotNull(fn, "fn can't be null");
+    return new DoFnTester<>(fn.toDoFn());
   }
 
   /**
@@ -238,7 +242,7 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
     stateInternals = InMemoryStateInternals.forKey(new Object());
     timerInternals = new InMemoryTimerInternals();
     try {
-      fn.startBundle(context);
+      fnInvoker.invokeStartBundle(context);
     } catch (UserCodeException e) {
       unwrapUserCodeException(e);
     }
@@ -271,8 +275,8 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
   }
 
   /**
-   * Calls {@link OldDoFn#processElement} on the {@code OldDoFn} under test, in a
-   * context where {@link OldDoFn.ProcessContext#element} returns the
+   * Calls {@link DoFn.ProcessElement} on the {@code DoFn} under test, in a
+   * context where {@link DoFn.ProcessContext#element} returns the
    * given element and timestamp.
    *
    * <p>Will call {@link #startBundle} automatically, if it hasn't
@@ -286,7 +290,13 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
       startBundle();
     }
     try {
-      fn.processElement(createProcessContext(element));
+      final TestProcessContext processContext = createProcessContext(element);
+      fnInvoker.invokeProcessElement(new DoFnInvoker.FakeArgumentProvider<InputT, OutputT>() {
+        @Override
+        public DoFn<InputT, OutputT>.ProcessContext processContext(DoFn<InputT, OutputT> doFn) {
+          return processContext;
+        }
+      });
     } catch (UserCodeException e) {
       unwrapUserCodeException(e);
     }
@@ -308,13 +318,14 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
         "Must be inside bundle to call finishBundle, but was: %s",
         state);
     try {
-      fn.finishBundle(createContext(fn));
+      fnInvoker.invokeFinishBundle(createContext(fn));
     } catch (UserCodeException e) {
       unwrapUserCodeException(e);
     }
     if (cloningBehavior == CloningBehavior.CLONE_PER_BUNDLE) {
-      fn.teardown();
+      fnInvoker.invokeTeardown();
       fn = null;
+      fnInvoker = null;
       state = State.UNINITIALIZED;
     } else {
       state = State.BUNDLE_FINISHED;
@@ -532,11 +543,11 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
     return mainOutputTag;
   }
 
-  private TestContext createContext(OldDoFn<InputT, OutputT> fn) {
+  private TestContext createContext(DoFn<InputT, OutputT> fn) {
     return new TestContext();
   }
 
-  private class TestContext extends OldDoFn<InputT, OutputT>.Context {
+  private class TestContext extends DoFn<InputT, OutputT>.Context {
     TestContext() {
       fn.super();
     }
@@ -557,7 +568,7 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
     }
 
     @Override
-    protected <AggInT, AggOutT> Aggregator<AggInT, AggOutT> createAggregatorInternal(
+    protected <AggInT, AggOutT> Aggregator<AggInT, AggOutT> createAggregator(
         final String name, final CombineFn<AggInT, ?, AggOutT> combiner) {
       return aggregator(name, combiner);
     }
@@ -624,7 +635,7 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
             elem.getValue(), elem.getTimestamp(), GlobalWindow.INSTANCE, PaneInfo.NO_FIRING));
   }
 
-  private class TestProcessContext extends OldDoFn<InputT, OutputT>.ProcessContext {
+  private class TestProcessContext extends DoFn<InputT, OutputT>.ProcessContext {
     private final TestContext context;
     private final ValueInSingleWindow<InputT> element;
 
@@ -644,7 +655,9 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
       Map<BoundedWindow, ?> viewValues = sideInputs.get(view);
       if (viewValues != null) {
         BoundedWindow sideInputWindow =
-            view.getWindowingStrategyInternal().getWindowFn().getSideInputWindow(window());
+            view.getWindowingStrategyInternal()
+                .getWindowFn()
+                .getSideInputWindow(element.getWindow());
         @SuppressWarnings("unchecked")
         T windowValue = (T) viewValues.get(sideInputWindow);
         if (windowValue != null) {
@@ -660,70 +673,8 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
     }
 
     @Override
-    public BoundedWindow window() {
-      return element.getWindow();
-    }
-
-    @Override
     public PaneInfo pane() {
       return element.getPane();
-    }
-
-    @Override
-    public WindowingInternals<InputT, OutputT> windowingInternals() {
-      return new WindowingInternals<InputT, OutputT>() {
-        @Override
-        public StateInternals<?> stateInternals() {
-          return stateInternals;
-        }
-
-        @Override
-        public void outputWindowedValue(
-            OutputT output,
-            Instant timestamp,
-            Collection<? extends BoundedWindow> windows,
-            PaneInfo pane) {
-          for (BoundedWindow window : windows) {
-            context.noteOutput(
-                mainOutputTag, ValueInSingleWindow.of(output, timestamp, window, pane));
-          }
-        }
-
-        @Override
-        public <SideOutputT> void sideOutputWindowedValue(
-            TupleTag<SideOutputT> tag,
-            SideOutputT output,
-            Instant timestamp,
-            Collection<? extends BoundedWindow> windows,
-            PaneInfo pane) {
-          for (BoundedWindow window : windows) {
-            context.noteOutput(
-                tag, ValueInSingleWindow.of(output, timestamp, window, pane));
-          }
-        }
-
-        @Override
-        public TimerInternals timerInternals() {
-          return timerInternals;
-        }
-
-        @Override
-        public Collection<? extends BoundedWindow> windows() {
-          return Collections.singleton(element.getWindow());
-        }
-
-        @Override
-        public PaneInfo pane() {
-          return element.getPane();
-        }
-
-        @Override
-        public <T> T sideInput(
-            PCollectionView<T> view, BoundedWindow sideInputWindow) {
-          throw new UnsupportedOperationException(
-              "SideInput from WindowingInternals is not supported in in the context of DoFnTester");
-        }
-      };
     }
 
     @Override
@@ -753,10 +704,10 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
     }
 
     @Override
-    protected <AggInputT, AggOutputT> Aggregator<AggInputT, AggOutputT> createAggregatorInternal(
+    protected <AggInputT, AggOutputT> Aggregator<AggInputT, AggOutputT> createAggregator(
         String name, CombineFn<AggInputT, ?, AggOutputT> combiner) {
       throw new IllegalStateException("Aggregators should not be created within ProcessContext. "
-          + "Instead, create an aggregator at OldDoFn construction time with"
+          + "Instead, create an aggregator at DoFn construction time with"
           + " createAggregator, and ensure they are set up by the time startBundle is"
           + " called with setupDelegateAggregators.");
     }
@@ -768,8 +719,9 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
       finishBundle();
     }
     if (state == State.BUNDLE_FINISHED) {
-      fn.teardown();
+      fnInvoker.invokeTeardown();
       fn = null;
+      fnInvoker = null;
     }
     state = State.TORN_DOWN;
   }
@@ -786,8 +738,8 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
 
   private final PipelineOptions options = PipelineOptionsFactory.create();
 
-  /** The original {@link OldDoFn} under test. */
-  private final OldDoFn<InputT, OutputT> origFn;
+  /** The original {@link DoFn} under test. */
+  private final DoFn<InputT, OutputT> origFn;
 
   /**
    * Whether to clone the original {@link DoFn} or just use it as-is.
@@ -805,8 +757,9 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
   /** The output tags used by the {@link DoFn} under test. */
   private TupleTag<OutputT> mainOutputTag = new TupleTag<>();
 
-  /** The original OldDoFn under test, if started. */
-  OldDoFn<InputT, OutputT> fn;
+  /** The original DoFn under test, if started. */
+  private DoFn<InputT, OutputT> fn;
+  private DoFnInvoker<InputT, OutputT> fnInvoker;
 
   /** The outputs from the {@link DoFn} under test. */
   private Map<TupleTag<?>, List<ValueInSingleWindow<?>>> outputs;
@@ -817,7 +770,7 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
   /** The state of processing of the {@link DoFn} under test. */
   private State state = State.UNINITIALIZED;
 
-  private DoFnTester(OldDoFn<InputT, OutputT> origFn) {
+  private DoFnTester(DoFn<InputT, OutputT> origFn) {
     this.origFn = origFn;
   }
 
@@ -828,12 +781,13 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
     if (cloningBehavior.equals(CloningBehavior.DO_NOT_CLONE)) {
       fn = origFn;
     } else {
-      fn = (OldDoFn<InputT, OutputT>)
+      fn = (DoFn<InputT, OutputT>)
           SerializableUtils.deserializeFromByteArray(
               SerializableUtils.serializeToByteArray(origFn),
               origFn.toString());
     }
-    fn.setup();
+    fnInvoker = DoFnInvokers.invokerFor(fn);
+    fnInvoker.invokeSetup();
     outputs = new HashMap<>();
     accumulators = new HashMap<>();
   }
