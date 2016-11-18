@@ -374,7 +374,7 @@ public class WriteTest {
       List<String> inputs,
       PTransform<PCollection<String>, PCollection<String>> transform,
       Optional<Integer> numConfiguredShards) {
-     runShardedWriteInternal(inputs, transform, numConfiguredShards, false /* failInWRite */);
+     runShardedWriteInternal(inputs, transform, numConfiguredShards, false /* failInWrite */);
   }
 
   /**

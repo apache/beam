@@ -605,8 +605,11 @@ public abstract class FileBasedSink<T> extends Sink<T> {
 
     @Override
     public final void abort() throws Exception {
-      close();
-      IOChannelUtils.deleteIfExists(filename);
+      try {
+        close();
+      } finally {
+        IOChannelUtils.getFactory(filename).remove(ImmutableList.of(filename));
+      }
     }
 
     /**
