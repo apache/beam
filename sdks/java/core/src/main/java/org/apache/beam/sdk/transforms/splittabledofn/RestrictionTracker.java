@@ -34,7 +34,7 @@ public interface RestrictionTracker<RestrictionT> {
    * Signals that the current {@link DoFn.ProcessElement} call should terminate as soon as possible.
    * Modifies {@link #currentRestriction}. Returns a restriction representing the rest of the work:
    * the old value of {@link #currentRestriction} is equivalent to the new value and the return
-   * value of this method combined.
+   * value of this method combined. Must be called at most once on a given object.
    */
   RestrictionT checkpoint();
 
