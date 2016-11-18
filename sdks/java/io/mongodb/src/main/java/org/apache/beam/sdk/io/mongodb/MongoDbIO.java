@@ -302,12 +302,12 @@ public class MongoDbIO {
       ArrayList<String> filters = new ArrayList<>();
       String lowestBound = null; // lower boundary (previous split in the iteration)
       for (int i = 0; i < splitKeys.size(); i++) {
-        String splitKey = splitKeys.get(i).toString();
-        String rangeFilter = null;
+        String splitKey = splitKeys.get(i).get("_id").toString();
+        String rangeFilter;
         if (i == 0) {
           // this is the first split in the list, the filter defines
           // the range from the beginning up to this split
-          rangeFilter = String.format("{ $and: [ {\"_id\":{$lte:Objectd(\"%s\")}}",
+          rangeFilter = String.format("{ $and: [ {\"_id\":{$lte:ObjectId(\"%s\")}}",
               splitKey);
         } else if (i == splitKeys.size() - 1) {
           // this is the last split in the list, the filter defines
