@@ -543,7 +543,7 @@ class TestFileBasedSource(unittest.TestCase):
         return DummyCoder()
 
     pattern, expected_data = write_pattern([34, 66, 40, 24, 24, 12])
-    assert len(expected_data) == 200
+    self.assertEqual(200, len(expected_data))
     fbs = FileBasedSourceWithCoder(pattern)
     splits = [split for split in fbs.split(desired_bundle_size=50)]
     self.assertTrue(len(splits))
