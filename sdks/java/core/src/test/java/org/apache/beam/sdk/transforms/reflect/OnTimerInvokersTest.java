@@ -43,7 +43,7 @@ public class OnTimerInvokersTest {
 
   @Mock private BoundedWindow mockWindow;
 
-  @Mock private DoFn.ArgumentProvider<String, String> mockArgumentProvider;
+  @Mock private DoFnInvoker.ArgumentProvider<String, String> mockArgumentProvider;
 
   @Before
   public void setUp() {

@@ -40,10 +40,9 @@ import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.DoFn.ArgumentProvider;
-import org.apache.beam.sdk.transforms.DoFn.FakeArgumentProvider;
 import org.apache.beam.sdk.transforms.DoFn.ProcessContinuation;
 import org.apache.beam.sdk.transforms.OldDoFn;
+import org.apache.beam.sdk.transforms.reflect.DoFnInvoker.FakeArgumentProvider;
 import org.apache.beam.sdk.transforms.reflect.testhelper.DoFnInvokersTestHelper;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -80,7 +79,7 @@ public class DoFnInvokersTest {
   @Mock private DoFn.InputProvider<String> mockInputProvider;
   @Mock private DoFn.OutputReceiver<String> mockOutputReceiver;
   @Mock private WindowingInternals<String, String> mockWindowingInternals;
-  @Mock private ArgumentProvider<String, String> mockArgumentProvider;
+  @Mock private DoFnInvoker.ArgumentProvider<String, String> mockArgumentProvider;
 
   @Mock private OldDoFn<String, String> mockOldDoFn;
 

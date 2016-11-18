@@ -100,7 +100,7 @@ public class DoFnInvokers {
 
     @Override
     public DoFn.ProcessContinuation invokeProcessElement(
-        DoFn.ArgumentProvider<InputT, OutputT> extra) {
+        ArgumentProvider<InputT, OutputT> extra) {
       // The outer DoFn is immaterial - it exists only to avoid typing InputT and OutputT repeatedly
       DoFn<InputT, OutputT>.ProcessContext newCtx =
           extra.processContext(new DoFn<InputT, OutputT>() {});
@@ -115,7 +115,7 @@ public class DoFnInvokers {
     }
 
     @Override
-    public void invokeOnTimer(String timerId, DoFn.ArgumentProvider<InputT, OutputT> arguments) {
+    public void invokeOnTimer(String timerId, ArgumentProvider<InputT, OutputT> arguments) {
       throw new UnsupportedOperationException(
           String.format("Timers are not supported for %s", OldDoFn.class.getSimpleName()));
     }
