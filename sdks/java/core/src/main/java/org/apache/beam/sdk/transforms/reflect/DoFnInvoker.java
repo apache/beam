@@ -115,7 +115,7 @@ public interface DoFnInvoker<InputT, OutputT> {
      * If this is a splittable {@link DoFn}, returns the {@link RestrictionTracker} associated with
      * the current {@link ProcessElement} call.
      */
-    <RestrictionT> RestrictionTracker<RestrictionT> restrictionTracker();
+    RestrictionTracker<?> restrictionTracker();
 
     /** Returns the state cell for the given {@link StateId}. */
     State state(String stateId);
@@ -156,7 +156,7 @@ public interface DoFnInvoker<InputT, OutputT> {
       return null;
     }
 
-    public <RestrictionT> RestrictionTracker<RestrictionT> restrictionTracker() {
+    public RestrictionTracker<?> restrictionTracker() {
       return null;
     }
   }
