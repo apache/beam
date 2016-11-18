@@ -533,7 +533,7 @@ class TestFileBasedSource(unittest.TestCase):
     assert_that(pcoll, equal_to(lines))
     pipeline.run()
 
-  def splits_get_coder_from_fbs(self):
+  def test_splits_get_coder_from_fbs(self):
     class DummyCoder(object):
       val = 12345
 
