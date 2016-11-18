@@ -392,10 +392,11 @@ public class SplittableParDo<
     }
 
     /**
-     * Creates an {@link DoFn.ArgumentProvider} that provides the given tracker as well as the given
+     * Creates an {@link DoFnInvoker.ArgumentProvider} that provides the given tracker as well as
+     * the given
      * {@link ProcessContext} (which is also provided when a {@link Context} is requested.
      */
-    private DoFn.ArgumentProvider<InputT, OutputT> wrapTracker(
+    private DoFnInvoker.ArgumentProvider<InputT, OutputT> wrapTracker(
         TrackerT tracker, DoFn<InputT, OutputT>.ProcessContext processContext) {
 
       return new ArgumentProviderForTracker<>(tracker, processContext);
@@ -403,7 +404,7 @@ public class SplittableParDo<
 
     private static class ArgumentProviderForTracker<
             InputT, OutputT, TrackerT extends RestrictionTracker<?>>
-        implements DoFn.ArgumentProvider<InputT, OutputT> {
+        implements DoFnInvoker.ArgumentProvider<InputT, OutputT> {
       private final TrackerT tracker;
       private final DoFn<InputT, OutputT>.ProcessContext processContext;
 
