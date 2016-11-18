@@ -21,10 +21,11 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.Aggregator;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.DoFn.FakeArgumentProvider;
 import org.apache.beam.sdk.transforms.DoFnAdapters;
 import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvoker;
+import org.apache.beam.sdk.transforms.reflect.DoFnInvoker.ArgumentProvider;
+import org.apache.beam.sdk.transforms.reflect.DoFnInvoker.FakeArgumentProvider;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvokers;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
@@ -56,7 +57,7 @@ public class DoFnInvokersBenchmark {
   private StubOldDoFnProcessContext stubOldDoFnContext =
       new StubOldDoFnProcessContext(oldDoFn, ELEMENT);
   private StubDoFnProcessContext stubDoFnContext = new StubDoFnProcessContext(doFn, ELEMENT);
-  private DoFn.ArgumentProvider<String, String> argumentProvider =
+  private ArgumentProvider<String, String> argumentProvider =
       new FakeArgumentProvider<>();
 
   private OldDoFn<String, String> adaptedDoFnWithContext;

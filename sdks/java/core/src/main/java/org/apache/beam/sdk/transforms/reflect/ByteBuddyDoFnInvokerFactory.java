@@ -101,7 +101,7 @@ public class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
 
   /**
    * Creates a {@link DoFnInvoker} for the given {@link DoFn} by generating bytecode that directly
-   * invokes its methods with arguments extracted from the {@link DoFn.ArgumentProvider}.
+   * invokes its methods with arguments extracted from the {@link DoFnInvoker.ArgumentProvider}.
    */
   @Override
   public <InputT, OutputT> DoFnInvoker<InputT, OutputT> invokerFor(DoFn<InputT, OutputT> fn) {
@@ -149,19 +149,19 @@ public class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
     /**
      * Associates the given timer ID with the given {@link OnTimerInvoker}.
      *
-     * <p>ByteBuddy does not like to generate conditional code, so we use a map + lookup
-     * of the timer ID rather than a generated conditional branch to choose which
-     * OnTimerInvoker to invoke.
+     * <p>ByteBuddy does not like to generate conditional code, so we use a map + lookup of the
+     * timer ID rather than a generated conditional branch to choose which OnTimerInvoker to invoke.
      *
-     * <p>This method has package level access as it is intended only for assembly of the
-     * {@link DoFnInvokerBase} not by any subclass.
+     * <p>This method has package level access as it is intended only for assembly of the {@link
+     * DoFnInvokerBase} not by any subclass.
      */
     void addOnTimerInvoker(String timerId, OnTimerInvoker onTimerInvoker) {
       this.onTimerInvokers.put(timerId, onTimerInvoker);
     }
 
     @Override
-    public void invokeOnTimer(String timerId, DoFn.ArgumentProvider<InputT, OutputT> arguments) {
+    public void invokeOnTimer(
+        String timerId, DoFnInvoker.ArgumentProvider<InputT, OutputT> arguments) {
       @Nullable OnTimerInvoker onTimerInvoker = onTimerInvokers.get(timerId);
 
       if (onTimerInvoker != null) {
@@ -193,8 +193,8 @@ public class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
               getByteBuddyInvokerConstructor(signature).newInstance(fn);
 
       for (OnTimerMethod onTimerMethod : signature.onTimerMethods().values()) {
-        invoker.addOnTimerInvoker(onTimerMethod.id(),
-            OnTimerInvokers.forTimer(fn, onTimerMethod.id()));
+        invoker.addOnTimerInvoker(
+            onTimerMethod.id(), OnTimerInvokers.forTimer(fn, onTimerMethod.id()));
       }
 
       return invoker;
@@ -326,8 +326,7 @@ public class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
             new DefaultRestrictionCoder(signature.getInitialRestriction().restrictionT()));
       } else {
         return new DowncastingParametersMethodDelegation(
-            doFnType,
-            signature.getRestrictionCoder().targetMethod());
+            doFnType, signature.getRestrictionCoder().targetMethod());
       }
     } else {
       return ExceptionMethod.throwing(UnsupportedOperationException.class);
@@ -345,8 +344,8 @@ public class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
   }
 
   /** Delegates to the given method if available, or does nothing. */
-  private static Implementation delegateOrNoop(TypeDescription doFnType, DoFnSignature.DoFnMethod
-      method) {
+  private static Implementation delegateOrNoop(
+      TypeDescription doFnType, DoFnSignature.DoFnMethod method) {
     return (method == null)
         ? FixedValue.originType()
         : new DoFnMethodDelegation(doFnType, method.targetMethod());
@@ -504,19 +503,19 @@ public class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
       String methodName, Class<?>... parameterTypes) {
     try {
       return new MethodDescription.ForLoadedMethod(
-          DoFn.ArgumentProvider.class.getMethod(methodName, parameterTypes));
+          DoFnInvoker.ArgumentProvider.class.getMethod(methodName, parameterTypes));
     } catch (Exception e) {
       throw new IllegalStateException(
           String.format(
               "Failed to locate required method %s.%s",
-              DoFn.ArgumentProvider.class.getSimpleName(), methodName),
+              DoFnInvoker.ArgumentProvider.class.getSimpleName(), methodName),
           e);
     }
   }
 
   /**
-   * Calls a zero-parameter getter on the {@link DoFn.ArgumentProvider}, which must be on top of the
-   * stack.
+   * Calls a zero-parameter getter on the {@link DoFnInvoker.ArgumentProvider}, which must be on top
+   * of the stack.
    */
   private static StackManipulation simpleExtraContextParameter(String methodName) {
     return new StackManipulation.Compound(
@@ -565,7 +564,7 @@ public class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
 
           @Override
           public StackManipulation dispatch(RestrictionTrackerParameter p) {
-            // DoFn.ArgumentProvider.restrictionTracker() returns a RestrictionTracker,
+            // DoFnInvoker.ArgumentProvider.restrictionTracker() returns a RestrictionTracker,
             // but the @ProcessElement method expects a concrete subtype of it.
             // Insert a downcast.
             return new StackManipulation.Compound(
@@ -613,8 +612,8 @@ public class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
     private final DoFnSignature.ProcessElementMethod signature;
 
     /** Implementation of {@link MethodDelegation} for the {@link ProcessElement} method. */
-    private ProcessElementDelegation(TypeDescription doFnType, DoFnSignature.ProcessElementMethod
-        signature) {
+    private ProcessElementDelegation(
+        TypeDescription doFnType, DoFnSignature.ProcessElementMethod signature) {
       super(doFnType, signature.targetMethod());
       this.signature = signature;
     }
@@ -622,7 +621,7 @@ public class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
     @Override
     protected StackManipulation beforeDelegation(MethodDescription instrumentedMethod) {
       // Parameters of the wrapper invoker method:
-      //   DoFn.ArgumentProvider
+      //   DoFnInvoker.ArgumentProvider
       // Parameters of the wrapped DoFn method:
       //   [DoFn.ProcessContext, BoundedWindow, InputProvider, OutputReceiver] in any order
       ArrayList<StackManipulation> pushParameters = new ArrayList<>();
