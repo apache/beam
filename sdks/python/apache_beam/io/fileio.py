@@ -910,7 +910,7 @@ class FileSink(iobase.Sink):
                              'dest: %s, err: %s'), src, dest, exception)
             exceptions.append(exception)
         else:
-          logging.info('Rename successful: %s -> %s', src, dest)
+          logging.debug('Rename successful: %s -> %s', src, dest)
       return exceptions
 
     # ThreadPool crashes in old versions of Python (< 2.7.5) if created from a
