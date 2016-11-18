@@ -109,6 +109,12 @@ class FileBasedSource(iobase.BoundedSource):
       file_names = [f for f in fileio.ChannelFactory.glob(self._pattern)]
       sizes = FileBasedSource._estimate_sizes_in_parallel(file_names)
 
+      # We create a reference for FileBasedSource that will be serialized along
+      # with each _SingleFileSource. To prevent this FileBasedSource from having
+      # a reference to ConcatSource (resulting in quadratic space complexity)
+      # we clone it here.
+      file_based_source_ref = pickler.loads(pickler.dumps(self))
+
       for index, file_name in enumerate(file_names):
         if sizes[index] == 0:
           continue  # Ignoring empty file.
@@ -123,7 +129,7 @@ class FileBasedSource(iobase.BoundedSource):
             splittable = False
 
         single_file_source = _SingleFileSource(
-            self, file_name,
+            file_based_source_ref, file_name,
             0,
             sizes[index],
             min_bundle_size=self._min_bundle_size,
@@ -193,9 +199,6 @@ class FileBasedSource(iobase.BoundedSource):
   def get_range_tracker(self, start_position, stop_position):
     return self._get_concat_source().get_range_tracker(start_position,
                                                        stop_position)
-
-  def default_output_coder(self):
-    return self._get_concat_source().default_output_coder()
 
   def read_records(self, file_name, offset_range_tracker):
     """Returns a generator of records created by reading file 'file_name'.
@@ -315,3 +318,6 @@ class _SingleFileSource(iobase.BoundedSource):
 
   def read(self, range_tracker):
     return self._file_based_source.read_records(self._file_name, range_tracker)
+
+  def default_output_coder(self):
+    return self._file_based_source.default_output_coder()
