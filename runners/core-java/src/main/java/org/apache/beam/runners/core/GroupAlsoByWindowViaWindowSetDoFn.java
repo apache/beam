@@ -87,7 +87,8 @@ public class GroupAlsoByWindowViaWindowSetDoFn<
                 TriggerStateMachines.stateMachineForTrigger(windowingStrategy.getTrigger())),
             stateInternals,
             timerInternals,
-            c.windowingInternals(),
+            WindowingInternalsAdapters.outputWindowedValue(c.windowingInternals()),
+            WindowingInternalsAdapters.sideInputReader(c.windowingInternals()),
             droppedDueToClosedWindow,
             reduceFn,
             c.getPipelineOptions());

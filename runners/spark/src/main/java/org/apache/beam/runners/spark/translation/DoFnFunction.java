@@ -34,7 +34,6 @@ import org.apache.spark.Accumulator;
 import org.apache.spark.api.java.function.FlatMapFunction;
 
 
-
 /**
  * Beam's Do functions correspond to Spark's FlatMap functions.
  *
@@ -88,8 +87,15 @@ public class DoFnFunction<InputT, OutputT>
     }
 
     @Override
-    public synchronized void output(WindowedValue<OutputT> o) {
+    protected synchronized void outputWindowedValue(WindowedValue<OutputT> o) {
       outputs.add(o);
+    }
+
+    @Override
+    protected <T> void sideOutputWindowedValue(TupleTag<T> tag, WindowedValue<T> output) {
+      throw new UnsupportedOperationException(
+          "sideOutput is an unsupported operation for doFunctions, use a "
+              + "MultiDoFunction instead.");
     }
 
     @Override

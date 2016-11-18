@@ -127,34 +127,10 @@ public abstract class SparkProcessContext<InputT, OutputT, ValueT>
   }
 
   @Override
-  public void output(OutputT output) {
-    outputWithTimestamp(output, windowedValue != null ? windowedValue.getTimestamp() : null);
-  }
-
-  public abstract void output(WindowedValue<OutputT> output);
-
-  @Override
-  public <T> void sideOutput(TupleTag<T> tupleTag, T t) {
-    String message = "sideOutput is an unsupported operation for doFunctions, use a "
-        + "MultiDoFunction instead.";
-    LOG.warn(message);
-    throw new UnsupportedOperationException(message);
-  }
-
-  @Override
-  public <T> void sideOutputWithTimestamp(TupleTag<T> tupleTag, T t, Instant instant) {
-    String message =
-        "sideOutputWithTimestamp is an unsupported operation for doFunctions, use a "
-            + "MultiDoFunction instead.";
-    LOG.warn(message);
-    throw new UnsupportedOperationException(message);
-  }
-
-  @Override
   public <AggregatorInputT, AggregatorOutputT>
   Aggregator<AggregatorInputT, AggregatorOutputT> createAggregatorInternal(
-          String named,
-          Combine.CombineFn<AggregatorInputT, ?, AggregatorOutputT> combineFn) {
+      String named,
+      Combine.CombineFn<AggregatorInputT, ?, AggregatorOutputT> combineFn) {
     return mRuntimeContext.createAggregator(getAccumulator(), named, combineFn);
   }
 
@@ -166,15 +142,41 @@ public abstract class SparkProcessContext<InputT, OutputT, ValueT>
   }
 
   @Override
+  public void output(OutputT output) {
+    outputWithTimestamp(output, windowedValue != null ? windowedValue.getTimestamp() : null);
+  }
+
+  @Override
   public void outputWithTimestamp(OutputT output, Instant timestamp) {
     if (windowedValue == null) {
       // this is start/finishBundle.
-      output(noElementWindowedValue(output, timestamp, windowFn));
+      outputWindowedValue(noElementWindowedValue(output, timestamp, windowFn));
     } else {
-      output(WindowedValue.of(output, timestamp, windowedValue.getWindows(),
+      outputWindowedValue(WindowedValue.of(output, timestamp, windowedValue.getWindows(),
           windowedValue.getPane()));
     }
   }
+
+  @Override
+  public <T> void sideOutput(TupleTag<T> tag, T output) {
+    sideOutputWithTimestamp(
+        tag, output, windowedValue != null ? windowedValue.getTimestamp() : null);
+  }
+
+  @Override
+  public <T> void sideOutputWithTimestamp(TupleTag<T> tag, T output, Instant timestamp) {
+    if (windowedValue == null) {
+      // this is start/finishBundle.
+      sideOutputWindowedValue(tag, noElementWindowedValue(output, timestamp, windowFn));
+    } else {
+      sideOutputWindowedValue(tag, WindowedValue.of(output, timestamp, windowedValue.getWindows(),
+          windowedValue.getPane()));
+    }
+  }
+
+  protected abstract void outputWindowedValue(WindowedValue<OutputT> output);
+
+  protected abstract <T> void sideOutputWindowedValue(TupleTag<T> tag, WindowedValue<T> output);
 
   static <T, W extends BoundedWindow> WindowedValue<T> noElementWindowedValue(
       final T output, final Instant timestamp, WindowFn<Object, W> windowFn) {
@@ -240,9 +242,24 @@ public abstract class SparkProcessContext<InputT, OutputT, ValueT>
       }
 
       @Override
-      public void outputWindowedValue(OutputT output, Instant timestamp, Collection<?
-          extends BoundedWindow> windows, PaneInfo paneInfo) {
-        output(WindowedValue.of(output, timestamp, windows, paneInfo));
+      public void outputWindowedValue(
+          OutputT output,
+          Instant timestamp,
+          Collection<? extends BoundedWindow> windows,
+          PaneInfo paneInfo) {
+        SparkProcessContext.this.outputWindowedValue(
+            WindowedValue.of(output, timestamp, windows, paneInfo));
+      }
+
+      @Override
+      public <SideOutputT> void sideOutputWindowedValue(
+          TupleTag<SideOutputT> tag,
+          SideOutputT output,
+          Instant timestamp,
+          Collection<? extends BoundedWindow> windows,
+          PaneInfo paneInfo) {
+        SparkProcessContext.this.sideOutputWindowedValue(
+            tag, WindowedValue.of(output, timestamp, windows, paneInfo));
       }
 
       @Override
@@ -265,14 +282,14 @@ public abstract class SparkProcessContext<InputT, OutputT, ValueT>
       }
 
       @Override
-      public <T> void writePCollectionViewData(TupleTag<?> tag,
-          Iterable<WindowedValue<T>> data, Coder<T> elemCoder) throws IOException {
+      public <T> void writePCollectionViewData(
+          TupleTag<?> tag, Iterable<WindowedValue<T>> data, Coder<T> elemCoder) throws IOException {
         throw new UnsupportedOperationException(
             "WindowingInternals#writePCollectionViewData() is not yet supported.");
       }
 
       @Override
-      public <T> T sideInput(PCollectionView<T> view, BoundedWindow mainInputWindow) {
+      public <T> T sideInput(PCollectionView<T> view, BoundedWindow sideInputWindow) {
         throw new UnsupportedOperationException(
             "WindowingInternals#sideInput() is not yet supported.");
       }

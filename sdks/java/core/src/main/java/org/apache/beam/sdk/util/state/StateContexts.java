@@ -53,30 +53,13 @@ public class StateContexts {
   }
 
   /**
-   * Returns a {@link StateContext} that only contains the state window.
+   * Deprecated, do not use.
+   *
+   * <p>This exists only for temporary compatibility with Dataflow worker and should be deleted
+   * once a worker image is released that uses runners-core build after
+   * https://github.com/apache/incubator-beam/pull/1353.
    */
-  public static <W extends BoundedWindow> StateContext<W> windowOnly(final W window) {
-    return new StateContext<W>() {
-      @Override
-      public PipelineOptions getPipelineOptions() {
-        throw new IllegalArgumentException(
-            "cannot call getPipelineOptions() in a window only context");
-      }
-      @Override
-      public <T> T sideInput(PCollectionView<T> view) {
-        throw new IllegalArgumentException("cannot call sideInput() in a window only context");
-      }
-      @Override
-      public W window() {
-        return window;
-      }
-    };
-  }
-
-  /**
-   * Returns a {@link StateContext} from {@code PipelineOptions}, {@link WindowingInternals},
-   * and the state window.
-   */
+  @Deprecated
   public static <W extends BoundedWindow> StateContext<W> createFromComponents(
       @Nullable final PipelineOptions options,
       final WindowingInternals<?, ?> windowingInternals,

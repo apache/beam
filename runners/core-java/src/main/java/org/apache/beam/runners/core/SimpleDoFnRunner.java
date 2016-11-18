@@ -66,6 +66,10 @@ import org.joda.time.format.PeriodFormat;
 /**
  * Runs a {@link DoFn} by constructing the appropriate contexts and passing them in.
  *
+ * <p>Also, if the {@link DoFn} observes the window of the element, then {@link SimpleDoFnRunner}
+ * explodes windows of the input {@link WindowedValue} and calls {@link DoFn.ProcessElement} for
+ * each window individually.
+ *
  * @param <InputT> the type of the {@link DoFn} (main) input elements
  * @param <OutputT> the type of the {@link DoFn} (main) output elements
  */
@@ -138,7 +142,7 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
   }
 
   private void invokeProcessElement(WindowedValue<InputT> elem) {
-    DoFnProcessContext<InputT, OutputT> processContext = createProcessContext(elem);
+    final DoFnProcessContext<InputT, OutputT> processContext = createProcessContext(elem);
 
     // This can contain user code. Wrap it in case it throws an exception.
     try {
@@ -279,12 +283,10 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
       return WindowedValue.of(output, timestamp, windows, pane);
     }
 
-    public <T> T sideInput(PCollectionView<T> view, BoundedWindow mainInputWindow) {
+    public <T> T sideInput(PCollectionView<T> view, BoundedWindow sideInputWindow) {
       if (!sideInputReader.contains(view)) {
         throw new IllegalArgumentException("calling sideInput() with unknown view");
       }
-      BoundedWindow sideInputWindow =
-          view.getWindowingStrategyInternal().getWindowFn().getSideInputWindow(mainInputWindow);
       return sideInputReader.get(view, sideInputWindow);
     }
 
@@ -428,7 +430,7 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     final DoFnContext<InputT, OutputT> context;
     final WindowedValue<InputT> windowedValue;
 
-    public DoFnProcessContext(
+    private DoFnProcessContext(
         DoFn<InputT, OutputT> fn,
         DoFnContext<InputT, OutputT> context,
         WindowedValue<InputT> windowedValue) {
@@ -469,7 +471,8 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
               "sideInput called when main input element is in multiple windows");
         }
       }
-      return context.sideInput(view, window);
+      return context.sideInput(
+          view, view.getWindowingStrategyInternal().getWindowFn().getSideInputWindow(window));
     }
 
     @Override
@@ -487,14 +490,6 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
       checkTimestamp(timestamp);
       context.outputWindowedValue(
           output, timestamp, windowedValue.getWindows(), windowedValue.getPane());
-    }
-
-    void outputWindowedValue(
-        OutputT output,
-        Instant timestamp,
-        Collection<? extends BoundedWindow> windows,
-        PaneInfo pane) {
-      context.outputWindowedValue(output, timestamp, windows, pane);
     }
 
     @Override
@@ -624,11 +619,24 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
             OutputT output,
             Instant timestamp,
             Collection<? extends BoundedWindow> windows,
-            PaneInfo pane) {}
+            PaneInfo pane) {
+          throw new UnsupportedOperationException("A DoFn cannot output to a different window");
+        }
 
         @Override
-        public <T> T sideInput(PCollectionView<T> view, BoundedWindow mainInputWindow) {
-          return context.sideInput(view, mainInputWindow);
+        public <SideOutputT> void sideOutputWindowedValue(
+            TupleTag<SideOutputT> tag,
+            SideOutputT output,
+            Instant timestamp,
+            Collection<? extends BoundedWindow> windows,
+            PaneInfo pane) {
+          throw new UnsupportedOperationException(
+              "A DoFn cannot side output to a different window");
+        }
+
+        @Override
+        public <T> T sideInput(PCollectionView<T> view, BoundedWindow sideInputWindow) {
+          return context.sideInput(view, sideInputWindow);
         }
       };
     }
