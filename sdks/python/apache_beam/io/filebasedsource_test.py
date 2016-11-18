@@ -533,6 +533,23 @@ class TestFileBasedSource(unittest.TestCase):
     assert_that(pcoll, equal_to(lines))
     pipeline.run()
 
+  def test_splits_get_coder_from_fbs(self):
+    class DummyCoder(object):
+      val = 12345
+
+    class FileBasedSourceWithCoder(LineSource):
+
+      def default_output_coder(self):
+        return DummyCoder()
+
+    pattern, expected_data = write_pattern([34, 66, 40, 24, 24, 12])
+    self.assertEqual(200, len(expected_data))
+    fbs = FileBasedSourceWithCoder(pattern)
+    splits = [split for split in fbs.split(desired_bundle_size=50)]
+    self.assertTrue(len(splits))
+    for split in splits:
+      self.assertEqual(DummyCoder.val, split.source.default_output_coder().val)
+
 
 class TestSingleFileSource(unittest.TestCase):
 
@@ -684,7 +701,6 @@ class TestSingleFileSource(unittest.TestCase):
       data_from_split = [data for data in source.read(range_tracker)]
       read_data.extend(data_from_split)
     self.assertItemsEqual(expected_data[2:9], read_data)
-
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
