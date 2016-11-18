@@ -51,7 +51,7 @@ except ImportError:
 # parameter was chosen to give good throughput while keeping memory usage at
 # a reasonable level; the following table shows throughput reached when
 # reading files of a given size with a chosen buffer size and informed the
-# choice of the value:
+# choice of the value, as of 11/2016:
 #
 # +---------------+------------+-------------+-------------+-------------+
 # |               | 50 MB file | 100 MB file | 200 MB file | 400 MB file |
