@@ -87,8 +87,8 @@ def run(argv=None):
   query = query_pb2.Query()
   query.kind.add().name = known_args.kind
 
-  # Read the text file[pattern] into a PCollection.
-  lines = p | 'read' >> ReadFromDatastore(
+  # Read entities from Cloud Datastore into a PCollection.
+  lines = p | 'read from datastore' >> ReadFromDatastore(
       gcloud_options.project, query, known_args.namespace)
 
   # Count the occurrences of each word.

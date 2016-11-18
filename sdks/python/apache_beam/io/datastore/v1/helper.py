@@ -18,13 +18,16 @@
 """Cloud Datastore helper functions."""
 import sys
 
-from apache_beam.utils import retry
 from google.datastore.v1 import datastore_pb2
 from google.datastore.v1 import entity_pb2
 from google.datastore.v1 import query_pb2
-import googledatastore
+from googledatastore import PropertyFilter, CompositeFilter
+from googledatastore import helper as datastore_helper
 from googledatastore.connection import Datastore
 from googledatastore.connection import RPCError
+import googledatastore
+
+from apache_beam.utils import retry
 
 
 def key_comparator(k1, k2):
@@ -112,6 +115,8 @@ def make_request(project, namespace, query):
 
 
 def make_partition(project, namespace):
+  """Make a PartitionId for the given project and namespace."""
+
   partition = entity_pb2.PartitionId()
   partition.project_id = project
   if namespace is not None:
@@ -134,18 +139,55 @@ def retry_on_rpc_error(exception):
 
 
 def fetch_entities(project, namespace, query, datastore):
-  """ A helper method to fetch entities from Cloud Datastore.
+  """A helper method to fetch entities from Cloud Datastore.
 
   Args:
-    project:
-    namespace:
-    query:
-    datastore:
+    project: Project ID
+    namespace: Cloud Datastore namespace
+    query: Query to be read from
+    datastore: Cloud Datastore Client
 
   Returns:
     An iterator of entities.
   """
   return QueryIterator(project, namespace, query, datastore)
+
+
+def make_latest_timestamp_query(namespace):
+  """Make a Query to fetch the latest timestamp statistics."""
+
+  query = query_pb2.Query()
+  if namespace is None:
+    query.kind.add().name = '__Stat_Total__'
+  else:
+    query.kind.add().name = '__Stat_Ns_Total__'
+
+  # Descending order of `timestamp`
+  datastore_helper.add_property_orders(query, "-timestamp")
+  # Only get the latest entity
+  query.limit.value = 1
+  return query
+
+
+def make_kind_stats_query(namespace, kind, latest_timestamp):
+  """Make a Query to fetch the latest kind statistics."""
+
+  kind_stat_query = query_pb2.Query()
+  if namespace is None:
+    kind_stat_query.kind.add().name = '__Stat_Kind__'
+  else:
+    kind_stat_query.kind.add().name = '__Stat_Ns_Kind__'
+
+  kind_filter = datastore_helper.set_property_filter(
+      query_pb2.Filter(), 'kind_name', PropertyFilter.EQUAL, unicode(kind))
+  timestamp_filter = datastore_helper.set_property_filter(
+      query_pb2.Filter(), 'timestamp', PropertyFilter.EQUAL,
+      latest_timestamp)
+
+  datastore_helper.set_composite_filter(kind_stat_query.filter,
+                                        CompositeFilter.AND, kind_filter,
+                                        timestamp_filter)
+  return kind_stat_query
 
 
 class QueryIterator(object):
@@ -155,7 +197,7 @@ class QueryIterator(object):
   """
 
   _NOT_FINISHED = query_pb2.QueryResultBatch.NOT_FINISHED
-
+  # Maximum number of results to request per query.
   _BATCH_SIZE = 500
 
   def __init__(self, project, namespace, query, datastore):
@@ -191,7 +233,9 @@ class QueryIterator(object):
       num_results = len(resp.batch.entity_results)
       self._limit -= num_results
 
-      # TODO: Add comments
+      # Check if we have more entities to be read.
+      # Query limit does not exist (so limit == sys.maxint) and/or has not been
+      # satisfied.
       more_results = (self._limit > 0) and \
                      ((num_results == self._BATCH_SIZE) or
                       (resp.batch.more_results == self._NOT_FINISHED))
