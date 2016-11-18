@@ -350,14 +350,14 @@ public class DoFnTesterTest {
     }
   }
 
-  private static class SideInputDoFn extends OldDoFn<Integer, Integer> {
+  private static class SideInputDoFn extends DoFn<Integer, Integer> {
     private final PCollectionView<Integer> value;
 
     private SideInputDoFn(PCollectionView<Integer> value) {
       this.value = value;
     }
 
-    @Override
+    @ProcessElement
     public void processElement(ProcessContext c) throws Exception {
       c.output(c.sideInput(value));
     }

@@ -26,15 +26,13 @@ import java.util.List;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.GroupByKey;
-import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowedValue.WindowedValueCoder;
 import org.apache.beam.sdk.util.WindowingStrategy;
-import org.apache.beam.sdk.util.state.StateInternalsFactory;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 
@@ -135,10 +133,9 @@ public class GroupByKeyViaGroupByKeyOnly<K, V>
       return input
           .apply(
               ParDo.of(
-                  new OldDoFn<
-                      KV<K, Iterable<WindowedValue<V>>>,
-                      KV<K, Iterable<WindowedValue<V>>>>() {
-                    @Override
+                  new DoFn<KV<K, Iterable<WindowedValue<V>>>,
+                           KV<K, Iterable<WindowedValue<V>>>>() {
+                    @ProcessElement
                     public void processElement(ProcessContext c) {
                       KV<K, Iterable<WindowedValue<V>>> kvs = c.element();
                       K key = kvs.getKey();
@@ -250,17 +247,6 @@ public class GroupByKeyViaGroupByKeyOnly<K, V>
       return PCollection.<KV<K, Iterable<V>>>createPrimitiveOutputInternal(
           input.getPipeline(), windowingStrategy, input.isBounded())
           .setCoder(outputKvCoder);
-    }
-
-    private <W extends BoundedWindow>
-        GroupAlsoByWindowsViaOutputBufferDoFn<K, V, Iterable<V>, W> groupAlsoByWindowsFn(
-            WindowingStrategy<?, W> strategy,
-            StateInternalsFactory<K> stateInternalsFactory,
-            Coder<V> inputIterableElementValueCoder) {
-      return new GroupAlsoByWindowsViaOutputBufferDoFn<K, V, Iterable<V>, W>(
-          strategy,
-          stateInternalsFactory,
-          SystemReduceFn.<K, V, W>buffering(inputIterableElementValueCoder));
     }
   }
 }
