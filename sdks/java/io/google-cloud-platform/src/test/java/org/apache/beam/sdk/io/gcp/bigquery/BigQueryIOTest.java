@@ -72,7 +72,6 @@ import java.io.ObjectOutputStream;
 import java.io.OutputStream;
 import java.io.Serializable;
 import java.nio.channels.Channels;
-import java.nio.channels.WritableByteChannel;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
@@ -517,40 +516,6 @@ public class BigQueryIOTest implements Serializable {
     List<TableRow> getRows() {
       return rows;
     }
-    ////////////////////////////////// SERIALIZATION METHODS ////////////////////////////////////
-    private void writeObject(ObjectOutputStream out) throws IOException {
-      out.writeObject(Transport.getJsonFactory().toByteArray(table));
-      out.writeObject(replaceTableRowsWithBytes(rows));
-      out.writeObject(ids);
-    }
-    private List<byte[]>
-    replaceTableRowsWithBytes(List<TableRow> rows) throws IOException {
-      List<byte[]> copy = new ArrayList<>();
-      for (TableRow row : rows) {
-        copy.add(Transport.getJsonFactory().toByteArray(row));
-      }
-      return copy;
-    }
-
-    private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
-      table = Transport.getJsonFactory()
-          .createJsonParser(new ByteArrayInputStream((byte[])in.readObject()))
-          .parse(Table.class);
-      rows = replaceBytesWithTableRows((List<byte[]>)in.readObject());
-      ids = (List<String>)in.readObject();
-
-    }
-
-    private List<TableRow>
-    replaceBytesWithTableRows(List<byte[]> byteList) throws IOException {
-      List<TableRow> copy = new ArrayList<>();
-      for (byte[] bytes : byteList) {
-        copy.add(Transport.getJsonFactory()
-            .createJsonParser(new ByteArrayInputStream(bytes))
-            .parse(TableRow.class));
-      }
-      return copy;
-    }
   }
 
   // Table information must be static, as each ParDo will get a separate instance of FakeDatasetServices, and they
@@ -560,10 +525,7 @@ public class BigQueryIOTest implements Serializable {
 
   /** A fake dataset service that can be serialized, for use in testReadFromTable. */
   private static class FakeDatasetService implements DatasetService, Serializable {
-
-    public FakeDatasetService() {
-      System.out.print("foo");
-    }
+    
     public FakeDatasetService withDataset(String projectId, String datasetId) {
       synchronized (tables) {
         Map<String, TableContainer> dataset = tables.get(projectId, datasetId);
