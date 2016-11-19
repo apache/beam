@@ -28,7 +28,6 @@ import unittest
 import zlib
 
 import hamcrest as hc
-import mock
 
 import apache_beam as beam
 from apache_beam import coders
@@ -38,10 +37,7 @@ from apache_beam.transforms.display import DisplayData
 from apache_beam.transforms.display_test import DisplayDataItemMatcher
 
 # TODO: Add tests for file patterns (ie not just individual files) for both
-# uncompressed
-
-# TODO: Update code to not use NamedTemporaryFile (or to use it in a way that
-# doesn't violate its assumptions).
+# compressed and uncompressed files.
 
 
 class TestTextFileSource(unittest.TestCase):
@@ -69,8 +65,7 @@ class TestTextFileSource(unittest.TestCase):
     self.assertEqual(read_lines, output_lines)
     dd = DisplayData.create_from(source)
     expected_items = [
-        DisplayDataItemMatcher('filePattern', file_name),
-        DisplayDataItemMatcher('compression', 'auto')]
+        DisplayDataItemMatcher('filePattern', file_name)]
     hc.assert_that(dd.items,
                    hc.contains_inanyorder(*expected_items))
 
@@ -613,10 +608,7 @@ class TestNativeTextFileSink(unittest.TestCase):
             '{}{}'.format(self.path, '-SSSSS-of-NNNNN')),
         DisplayDataItemMatcher(
             'compression',
-            'auto'),
-        DisplayDataItemMatcher(
-            'shards',
-            0)]
+            'auto')]
     hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
 
   def test_text_file_display_data_suffix(self):
@@ -628,10 +620,7 @@ class TestNativeTextFileSink(unittest.TestCase):
             '{}{}{}'.format(self.path, '-SSSSS-of-NNNNN', '.pdf')),
         DisplayDataItemMatcher(
             'compression',
-            'auto'),
-        DisplayDataItemMatcher(
-            'shards',
-            0)]
+            'auto')]
     hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
 
   def test_write_text_file_empty(self):
@@ -659,10 +648,7 @@ class TestNativeTextFileSink(unittest.TestCase):
             '{}{}'.format(self.path, '-SSSSS-of-NNNNN')),
         DisplayDataItemMatcher(
             'compression',
-            'gzip'),
-        DisplayDataItemMatcher(
-            'shards',
-            0)]
+            'gzip')]
     hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
 
   def test_write_text_gzip_file_auto(self):
@@ -699,10 +685,7 @@ class TestNativeTextFileSink(unittest.TestCase):
             '{}{}'.format(self.path, '-SSSSS-of-NNNNN')),
         DisplayDataItemMatcher(
             'compression',
-            'bzip2'),
-        DisplayDataItemMatcher(
-            'shards',
-            0)]
+            'bzip2')]
     hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
 
   def test_write_text_bzip2_file_auto(self):
@@ -720,6 +703,49 @@ class TestNativeTextFileSink(unittest.TestCase):
 
     with bz2.BZ2File(self.path, 'r') as f:
       self.assertEqual(f.read().splitlines(), [])
+
+  def test_write_dataflow(self):
+    pipeline = beam.Pipeline('DirectPipelineRunner')
+    pcoll = pipeline | beam.core.Create('Create', self.lines)
+    pcoll | 'Write' >> beam.Write(fileio.NativeTextFileSink(self.path))  # pylint: disable=expression-not-assigned
+    pipeline.run()
+
+    read_result = []
+    for file_name in glob.glob(self.path + '*'):
+      with open(file_name, 'r') as f:
+        read_result.extend(f.read().splitlines())
+
+    self.assertEqual(read_result, self.lines)
+
+  def test_write_dataflow_auto_compression(self):
+    pipeline = beam.Pipeline('DirectPipelineRunner')
+    pcoll = pipeline | beam.core.Create('Create', self.lines)
+    pcoll | 'Write' >> beam.Write(  # pylint: disable=expression-not-assigned
+        fileio.NativeTextFileSink(
+            self.path, file_name_suffix='.gz'))
+    pipeline.run()
+
+    read_result = []
+    for file_name in glob.glob(self.path + '*'):
+      with gzip.GzipFile(file_name, 'r') as f:
+        read_result.extend(f.read().splitlines())
+
+    self.assertEqual(read_result, self.lines)
+
+  def test_write_dataflow_auto_compression_unsharded(self):
+    pipeline = beam.Pipeline('DirectPipelineRunner')
+    pcoll = pipeline | beam.core.Create('Create', self.lines)
+    pcoll | 'Write' >> beam.Write(  # pylint: disable=expression-not-assigned
+        fileio.NativeTextFileSink(
+            self.path + '.gz', shard_name_template=''))
+    pipeline.run()
+
+    read_result = []
+    for file_name in glob.glob(self.path + '*'):
+      with gzip.GzipFile(file_name, 'r') as f:
+        read_result.extend(f.read().splitlines())
+
+    self.assertEqual(read_result, self.lines)
 
 
 class MyFileSink(fileio.FileSink):
@@ -777,23 +803,6 @@ class TestFileSink(unittest.TestCase):
 
     # Check that any temp files are deleted.
     self.assertItemsEqual([shard1, shard2], glob.glob(temp_path + '*'))
-
-  def test_file_sink_display_data(self):
-    temp_path = tempfile.NamedTemporaryFile().name
-    sink = MyFileSink(
-        temp_path, file_name_suffix='.foo', coder=coders.ToStringCoder())
-    dd = DisplayData.create_from(sink)
-    expected_items = [
-        DisplayDataItemMatcher(
-            'shards', 0),
-        DisplayDataItemMatcher(
-            'compression', 'auto'),
-        DisplayDataItemMatcher(
-            'filePattern',
-            '{}{}'.format(temp_path,
-                          '-%(shard_num)05d-of-%(num_shards)05d.foo'))]
-
-    hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
 
   def test_empty_write(self):
     temp_path = tempfile.NamedTemporaryFile().name
@@ -879,54 +888,8 @@ class TestFileSink(unittest.TestCase):
     res2 = writer2.close()
 
     os.remove(res2)
-    with self.assertRaises(Exception):
+    with self.assertRaises(IOError):
       list(sink.finalize_write(init_token, [res1, res2]))
-
-  @mock.patch('apache_beam.io.fileio.ChannelFactory.rename')
-  @mock.patch('apache_beam.io.fileio.gcsio')
-  def test_rename_batch(self, *unused_args):
-    # Prepare mocks.
-    gcsio_mock = mock.MagicMock()
-    fileio.gcsio.GcsIO = lambda: gcsio_mock
-    fileio.ChannelFactory.rename = mock.MagicMock()
-    to_rename = [
-        ('gs://bucket/from1', 'gs://bucket/to1'),
-        ('gs://bucket/from2', 'gs://bucket/to2'),
-        ('/local/from1', '/local/to1'),
-        ('gs://bucket/from3', 'gs://bucket/to3'),
-        ('/local/from2', '/local/to2'),
-    ]
-    gcsio_mock.copy_batch.side_effect = [[
-        ('gs://bucket/from1', 'gs://bucket/to1', None),
-        ('gs://bucket/from2', 'gs://bucket/to2', None),
-        ('gs://bucket/from3', 'gs://bucket/to3', None),
-    ]]
-    gcsio_mock.delete_batch.side_effect = [[
-        ('gs://bucket/from1', None),
-        ('gs://bucket/from2', None),
-        ('gs://bucket/from3', None),
-    ]]
-
-    # Issue batch rename.
-    fileio.ChannelFactory.rename_batch(to_rename)
-
-    # Verify mocks.
-    expected_local_rename_calls = [
-        mock.call('/local/from1', '/local/to1'),
-        mock.call('/local/from2', '/local/to2'),
-    ]
-    self.assertEqual(fileio.ChannelFactory.rename.call_args_list,
-                     expected_local_rename_calls)
-    gcsio_mock.copy_batch.assert_called_once_with([
-        ('gs://bucket/from1', 'gs://bucket/to1'),
-        ('gs://bucket/from2', 'gs://bucket/to2'),
-        ('gs://bucket/from3', 'gs://bucket/to3'),
-    ])
-    gcsio_mock.delete_batch.assert_called_once_with([
-        'gs://bucket/from1',
-        'gs://bucket/from2',
-        'gs://bucket/from3',
-    ])
 
 
 if __name__ == '__main__':
