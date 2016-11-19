@@ -20,19 +20,22 @@ package org.apache.beam.sdk.util;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Function;
 import com.google.common.base.Joiner;
-import com.google.common.base.Predicate;
 import com.google.common.collect.FluentIterable;
+import com.google.common.collect.HashMultimap;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Multimap;
 import com.google.common.collect.Sets;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.nio.channels.WritableByteChannel;
 import java.text.DecimalFormat;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.ServiceLoader;
 import java.util.Set;
 import java.util.regex.Matcher;
@@ -63,7 +66,11 @@ public class IOChannelUtils {
    * <p>For example, when reading from "gs://bucket/path", the scheme "gs" is
    * used to lookup the appropriate factory.
    *
-   * @throws RuntimeException if override is false and schemes are conflicting.
+   * <p>{@link PipelineOptions} are required to provide dependencies and
+   * pipeline level configuration to the individual {@link IOChannelFactory IOChannelFactories}.
+   *
+   * @throws IllegalStateException if multiple {@link IOChannelFactory IOChannelFactories}
+   * for the same scheme are detected.
    */
   @VisibleForTesting
   public static void setIOFactoryInternal(
@@ -71,7 +78,7 @@ public class IOChannelUtils {
       IOChannelFactory factory,
       boolean override) {
     if (!override && FACTORY_MAP.containsKey(scheme)) {
-      throw new RuntimeException(String.format(
+      throw new IllegalStateException(String.format(
           "Failed to register IOChannelFactory: %s. "
               + "Scheme: [%s] is already registered with %s, and override is not allowed.",
           FACTORY_MAP.get(scheme).getClass(),
@@ -90,8 +97,10 @@ public class IOChannelUtils {
   }
 
   /**
-   * Registers standard factories globally. This requires {@link PipelineOptions}
-   * to provide, e.g., credentials for GCS.
+   * Registers standard factories globally.
+   *
+   * <p>{@link PipelineOptions} are required to provide dependencies and
+   * pipeline level configuration to the individual {@link IOChannelFactory IOChannelFactories}.
    *
    * @deprecated use {@link #registerIOFactories}.
    */
@@ -103,11 +112,13 @@ public class IOChannelUtils {
   /**
    * Registers all {@link IOChannelFactory IOChannelFactories} from {@link ServiceLoader}.
    *
-   * <p>This requires {@link PipelineOptions} to provide, e.g., credentials for GCS.
+   * <p>{@link PipelineOptions} are required to provide dependencies and
+   * pipeline level configuration to the individual {@link IOChannelFactory IOChannelFactories}.
    *
-   * <p>Override existing schemes is not allowed.
+   * <p>Multiple {@link IOChannelFactory IOChannelFactories} for the same scheme are not allowed.
    *
-   * @throws RuntimeException if the scheme of a {@link IOChannelFactory} is already registered.
+   * @throws IllegalStateException if multiple {@link IOChannelFactory IOChannelFactories}
+   * for the same scheme are detected.
    */
   public static void registerIOFactories(PipelineOptions options) {
     registerIOFactoriesInternal(options, false /* override */);
@@ -120,10 +131,8 @@ public class IOChannelUtils {
    *
    * <p>Override existing schemes is allowed.
    *
-   * @deprecated This is currently to provide different configurations for tests.
-   * Once we have configurable {@link IOChannelFactory IOChannelFactories}, we will no longer need
-   * to override. At that time, workers code load registrars once. And, rest code could
-   * create {@link IOChannelFactory IOChannelFactories} with different configurations.
+   * @deprecated This is currently to provide different configurations for tests and
+   * is still public for IOChannelFactory redesign purposes.
    */
   @Deprecated
   @VisibleForTesting
@@ -150,26 +159,24 @@ public class IOChannelUtils {
 
   @VisibleForTesting
   static void checkDuplicateScheme(Set<IOChannelFactoryRegistrar> registrars) {
-    Set<String> schemes = Sets.newHashSet();
+    Multimap<String, IOChannelFactoryRegistrar> registrarsBySchemes = HashMultimap.create();
+
     for (IOChannelFactoryRegistrar registrar : registrars) {
-      final String scheme = registrar.getScheme();
-      if (!schemes.add(scheme)) {
-        String conflictingRegistrars = FluentIterable.from(registrars)
-            .filter(new Predicate<IOChannelFactoryRegistrar>() {
-              @Override
-              public boolean apply(@Nonnull IOChannelFactoryRegistrar input) {
-                return input.getScheme().equals(scheme);
-              }})
+      registrarsBySchemes.put(registrar.getScheme(), registrar);
+    }
+    for (Entry<String, Collection<IOChannelFactoryRegistrar>> entry
+        : registrarsBySchemes.asMap().entrySet()) {
+      if (entry.getValue().size() > 1) {
+        String conflictingRegistrars = FluentIterable.from(entry.getValue())
             .transform(new Function<IOChannelFactoryRegistrar, String>() {
               @Override
               public String apply(@Nonnull IOChannelFactoryRegistrar input) {
                 return input.getClass().getName();
               }})
             .join(Joiner.on(", "));
-
         throw new RuntimeException(String.format(
             "Scheme: [%s] has conflicting registrars: [%s]",
-            scheme,
+            entry.getKey(),
             conflictingRegistrars));
       }
     }
