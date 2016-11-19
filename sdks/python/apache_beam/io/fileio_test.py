@@ -38,10 +38,7 @@ from apache_beam.transforms.display import DisplayData
 from apache_beam.transforms.display_test import DisplayDataItemMatcher
 
 # TODO: Add tests for file patterns (ie not just individual files) for both
-# uncompressed
-
-# TODO: Update code to not use NamedTemporaryFile (or to use it in a way that
-# doesn't violate its assumptions).
+# compressed and uncompressed files.
 
 
 class TestTextFileSource(unittest.TestCase):
@@ -720,6 +717,49 @@ class TestNativeTextFileSink(unittest.TestCase):
 
     with bz2.BZ2File(self.path, 'r') as f:
       self.assertEqual(f.read().splitlines(), [])
+
+  def test_write_dataflow(self):
+    pipeline = beam.Pipeline('DirectPipelineRunner')
+    pcoll = pipeline | beam.core.Create('Create', self.lines)
+    pcoll | 'Write' >> beam.Write(fileio.NativeTextFileSink(self.path))  # pylint: disable=expression-not-assigned
+    pipeline.run()
+
+    read_result = []
+    for file_name in glob.glob(self.path + '*'):
+      with open(file_name, 'r') as f:
+        read_result.extend(f.read().splitlines())
+
+    self.assertEqual(read_result, self.lines)
+
+  def test_write_dataflow_auto_compression(self):
+    pipeline = beam.Pipeline('DirectPipelineRunner')
+    pcoll = pipeline | beam.core.Create('Create', self.lines)
+    pcoll | 'Write' >> beam.Write(  # pylint: disable=expression-not-assigned
+        fileio.NativeTextFileSink(
+            self.path, file_name_suffix='.gz'))
+    pipeline.run()
+
+    read_result = []
+    for file_name in glob.glob(self.path + '*'):
+      with gzip.GzipFile(file_name, 'r') as f:
+        read_result.extend(f.read().splitlines())
+
+    self.assertEqual(read_result, self.lines)
+
+  def test_write_dataflow_auto_compression_unsharded(self):
+    pipeline = beam.Pipeline('DirectPipelineRunner')
+    pcoll = pipeline | beam.core.Create('Create', self.lines)
+    pcoll | 'Write' >> beam.Write(  # pylint: disable=expression-not-assigned
+        fileio.NativeTextFileSink(
+            self.path + '.gz', shard_name_template=''))
+    pipeline.run()
+
+    read_result = []
+    for file_name in glob.glob(self.path + '*'):
+      with gzip.GzipFile(file_name, 'r') as f:
+        read_result.extend(f.read().splitlines())
+
+    self.assertEqual(read_result, self.lines)
 
 
 class MyFileSink(fileio.FileSink):

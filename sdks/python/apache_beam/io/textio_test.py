@@ -491,6 +491,32 @@ class TextSinkTest(unittest.TestCase):
 
     self.assertEqual(read_result, self.lines)
 
+  def test_write_dataflow_auto_compression(self):
+    pipeline = beam.Pipeline('DirectPipelineRunner')
+    pcoll = pipeline | beam.core.Create('Create', self.lines)
+    pcoll | 'Write' >> WriteToText(self.path, file_name_suffix='.gz')  # pylint: disable=expression-not-assigned
+    pipeline.run()
+
+    read_result = []
+    for file_name in glob.glob(self.path + '*'):
+      with gzip.GzipFile(file_name, 'r') as f:
+        read_result.extend(f.read().splitlines())
+
+    self.assertEqual(read_result, self.lines)
+
+  def test_write_dataflow_auto_compression_unsharded(self):
+    pipeline = beam.Pipeline('DirectPipelineRunner')
+    pcoll = pipeline | beam.core.Create('Create', self.lines)
+    pcoll | 'Write' >> WriteToText(self.path + '.gz', shard_name_template='')  # pylint: disable=expression-not-assigned
+    pipeline.run()
+
+    read_result = []
+    for file_name in glob.glob(self.path + '*'):
+      with gzip.GzipFile(file_name, 'r') as f:
+        read_result.extend(f.read().splitlines())
+
+    self.assertEqual(read_result, self.lines)
+
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
