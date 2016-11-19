@@ -25,7 +25,6 @@ from apache_beam.io import fileio
 from apache_beam.io.iobase import Read
 from apache_beam.io.iobase import Write
 from apache_beam.transforms import PTransform
-from apache_beam.transforms.display import DisplayDataItem
 
 __all__ = ['ReadFromText', 'WriteToText']
 
@@ -73,10 +72,9 @@ class _TextSource(filebasedsource.FileBasedSource):
 
   def __init__(self, file_pattern, min_bundle_size,
                compression_type, strip_trailing_newlines, coder,
-               buffer_size=DEFAULT_READ_BUFFER_SIZE, validate=True):
+               buffer_size=DEFAULT_READ_BUFFER_SIZE):
     super(_TextSource, self).__init__(file_pattern, min_bundle_size,
-                                      compression_type=compression_type,
-                                      validate=validate)
+                                      compression_type=compression_type)
 
     self._strip_trailing_newlines = strip_trailing_newlines
     self._compression_type = compression_type
@@ -87,9 +85,8 @@ class _TextSource(filebasedsource.FileBasedSource):
     start_offset = range_tracker.start_position()
 
     read_buffer = _TextSource.ReadBuffer('', 0)
-    file_to_read = self.open_file(file_name)
 
-    try:
+    with self.open_file(file_name) as file_to_read:
       if start_offset > 0:
         # Seeking to one position before the start index and ignoring the
         # current line. If start_position is at beginning if the line, that line
@@ -116,8 +113,6 @@ class _TextSource(filebasedsource.FileBasedSource):
         if num_bytes_to_next_record < 0:
           break
         next_record_start_position += num_bytes_to_next_record
-    finally:
-      file_to_read.close()
 
   def _find_separator_bounds(self, file_to_read, read_buffer):
     # Determines the start and end positions within 'read_buffer.data' of the
@@ -208,6 +203,7 @@ class ReadFromText(PTransform):
 
   This implementation only supports reading text encoded using UTF-8 or ASCII.
   This does not support other encodings such as UTF-16 or UTF-32."""
+
   def __init__(
       self,
       file_pattern=None,
@@ -215,7 +211,6 @@ class ReadFromText(PTransform):
       compression_type=fileio.CompressionTypes.AUTO,
       strip_trailing_newlines=True,
       coder=coders.StrUtf8Coder(),
-      validate=True,
       **kwargs):
     """Initialize the ReadFromText transform.
 
@@ -232,28 +227,15 @@ class ReadFromText(PTransform):
       strip_trailing_newlines: Indicates whether this source should remove
                                the newline char in each line it reads before
                                decoding that line.
-      validate: flag to verify that the files exist during the pipeline
-                creation time.
       coder: Coder used to decode each line.
     """
 
     super(ReadFromText, self).__init__(**kwargs)
-    self._file_pattern = file_pattern
-    self._min_bundle_size = min_bundle_size
-    self._compression_type = compression_type
-    self._strip_trailing_newlines = strip_trailing_newlines
-    self._coder = coder
-    self._source = _TextSource(file_pattern, min_bundle_size, compression_type,
-                               strip_trailing_newlines, coder,
-                               validate=validate)
+    self._args = (file_pattern, min_bundle_size, compression_type,
+                  strip_trailing_newlines, coder)
 
   def apply(self, pvalue):
-    return pvalue.pipeline | Read(self._source)
-
-  def display_data(self):
-    return {'source_dd': self._source,
-            'strip_nwln': DisplayDataItem(self._strip_trailing_newlines,
-                                          label='Strip Trailing New Lines')}
+    return pvalue.pipeline | Read(_TextSource(*self._args))
 
 
 class WriteToText(PTransform):
@@ -302,10 +284,6 @@ class WriteToText(PTransform):
 
     self._args = (file_path_prefix, file_name_suffix, append_trailing_newlines,
                   num_shards, shard_name_template, coder, compression_type)
-    self._sink = _TextSink(*self._args)
 
   def apply(self, pcoll):
-    return pcoll | Write(self._sink)
-
-  def display_data(self):
-    return {'sink_dd': self._sink}
+    return pcoll | Write(_TextSink(*self._args))
