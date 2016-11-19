@@ -85,11 +85,9 @@ class _TextSource(filebasedsource.FileBasedSource):
 
   def read_records(self, file_name, range_tracker):
     start_offset = range_tracker.start_position()
-
     read_buffer = _TextSource.ReadBuffer('', 0)
-    file_to_read = self.open_file(file_name)
 
-    try:
+    with self.open_file(file_name) as file_to_read:
       if start_offset > 0:
         # Seeking to one position before the start index and ignoring the
         # current line. If start_position is at beginning if the line, that line
@@ -116,8 +114,6 @@ class _TextSource(filebasedsource.FileBasedSource):
         if num_bytes_to_next_record < 0:
           break
         next_record_start_position += num_bytes_to_next_record
-    finally:
-      file_to_read.close()
 
   def _find_separator_bounds(self, file_to_read, read_buffer):
     # Determines the start and end positions within 'read_buffer.data' of the
