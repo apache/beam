@@ -45,6 +45,7 @@ import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext;
+import org.apache.spark.streaming.StreamingContextState;
 import org.apache.spark.streaming.api.java.JavaStreamingContext;
 import org.joda.time.Duration;
 
@@ -57,7 +58,6 @@ public class EvaluationContext implements EvaluationResult {
   private JavaStreamingContext jssc;
   private final SparkRuntimeContext runtime;
   private final Pipeline pipeline;
-  private long timeout;
   private final Map<PValue, Dataset> datasets = new LinkedHashMap<>();
   private final Map<PValue, Dataset> pcollections = new LinkedHashMap<>();
   private final Set<Dataset> leaves = new LinkedHashSet<>();
@@ -76,10 +76,9 @@ public class EvaluationContext implements EvaluationResult {
   }
 
   public EvaluationContext(JavaSparkContext jsc, Pipeline pipeline,
-                           JavaStreamingContext jssc, long timeout) {
+                           JavaStreamingContext jssc) {
     this(jsc, pipeline);
     this.jssc = jssc;
-    this.timeout = timeout;
     this.state = State.RUNNING;
   }
 
@@ -226,18 +225,14 @@ public class EvaluationContext implements EvaluationResult {
 
   @Override
   public void close(boolean gracefully) {
-    if (isStreamingPipeline()) {
-      // stop streaming context
-      if (timeout > 0) {
-        jssc.awaitTerminationOrTimeout(timeout);
-      } else {
-        jssc.awaitTermination();
+    // Stopping streaming job if running
+    if (isStreamingPipeline() && !state.isTerminal()) {
+      try {
+        cancel(gracefully);
+      } catch (IOException e) {
+        throw new RuntimeException("Failed to cancel streaming job", e);
       }
-      // stop streaming context gracefully, so checkpointing (and other computations) get to
-      // finish before shutdown.
-      jssc.stop(false, gracefully);
     }
-    state = State.DONE;
     SparkContextFactory.stopSparkContext(jsc);
   }
 
@@ -248,21 +243,47 @@ public class EvaluationContext implements EvaluationResult {
 
   @Override
   public State cancel() throws IOException {
-    throw new UnsupportedOperationException(
-        "Spark runner EvaluationContext does not support cancel.");
+    return cancel(true);
+  }
+
+  private State cancel(boolean gracefully) throws IOException {
+    if (isStreamingPipeline()) {
+      if (!state.isTerminal()) {
+        jssc.stop(false, gracefully);
+        state = State.CANCELLED;
+      }
+      return state;
+    } else {
+      // Batch is currently blocking so
+      // there is no way to cancel a batch job
+      // will be handled at BEAM-1000
+      throw new UnsupportedOperationException(
+          "Spark runner EvaluationContext does not support cancel.");
+    }
   }
 
   @Override
   public State waitUntilFinish() {
-    return waitUntilFinish(Duration.millis(-1));
+    return waitUntilFinish(Duration.ZERO);
   }
 
   @Override
   public State waitUntilFinish(Duration duration) {
     if (isStreamingPipeline()) {
-      throw new UnsupportedOperationException(
-          "Spark runner EvaluationContext does not support waitUntilFinish for streaming "
-              + "pipelines.");
+      // According to PipelineResult: Provide a value less than 1 ms for an infinite wait
+      if (duration.getMillis() < 1L) {
+        jssc.awaitTermination();
+        state = State.DONE;
+      } else {
+        jssc.awaitTermination(duration.getMillis());
+        // According to PipelineResult: The final state of the pipeline or null on timeout
+        if (jssc.getState().equals(StreamingContextState.STOPPED)) {
+          state = State.DONE;
+        } else {
+          return null;
+        }
+      }
+      return state;
     } else {
       // This is no-op, since Spark runner in batch is blocking.
       // It needs to be updated once SparkRunner supports non-blocking execution:

@@ -39,12 +39,6 @@ public interface SparkPipelineOptions
   String getSparkMaster();
   void setSparkMaster(String master);
 
-  @Description("Timeout to wait (in msec) for a streaming execution to stop, -1 runs until "
-          + "execution is stopped")
-  @Default.Long(-1)
-  Long getTimeout();
-  void setTimeout(Long timeoutMillis);
-
   @Description("Batch interval for Spark streaming in milliseconds.")
   @Default.Long(1000)
   Long getBatchIntervalMillis();

@@ -137,11 +137,8 @@ public final class SparkRunner extends PipelineRunner<EvaluationResult> {
 
         // if recovering from checkpoint, we have to reconstruct the EvaluationResult instance.
         return contextFactory.getCtxt() == null ? new EvaluationContext(jssc.sc(),
-            pipeline, jssc, mOptions.getTimeout()) : contextFactory.getCtxt();
+            pipeline, jssc) : contextFactory.getCtxt();
       } else {
-        if (mOptions.getTimeout() > 0) {
-          LOG.info("Timeout is ignored by the SparkRunner in batch.");
-        }
         JavaSparkContext jsc = SparkContextFactory.getSparkContext(mOptions);
         EvaluationContext ctxt = new EvaluationContext(jsc, pipeline);
         SparkPipelineTranslator translator = new TransformTranslator.Translator();

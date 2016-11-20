@@ -68,7 +68,8 @@ public class EmptyStreamAssertionTest implements Serializable {
             .apply(Window.<String>into(FixedWindows.of(windowDuration)));
 
     try {
-      PAssertStreaming.runAndAssertContents(pipeline, output, new String[0]);
+      PAssertStreaming.runAndAssertContents(pipeline, output, new String[0],
+          Duration.standardSeconds(1L));
     } catch (AssertionError e) {
       assertTrue("Expected error message: " + EXPECTED_ERR + " but got: " + e.getMessage(),
           e.getMessage().equals(EXPECTED_ERR));

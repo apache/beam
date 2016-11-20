@@ -67,8 +67,6 @@ public class SimpleStreamingWordCountTest implements Serializable {
 
     // override defaults
     options.setBatchIntervalMillis(BATCH_INTERVAL.getMillis());
-    // graceful stop is on, so no worries about the timeout and window being equal
-    options.setTimeout(windowDuration.getMillis());
 
     Pipeline pipeline = Pipeline.create(options);
 
@@ -80,6 +78,6 @@ public class SimpleStreamingWordCountTest implements Serializable {
             .apply(new WordCount.CountWords())
             .apply(MapElements.via(new WordCount.FormatAsTextFn()));
 
-    PAssertStreaming.runAndAssertContents(pipeline, output, EXPECTED_WORD_COUNTS);
+    PAssertStreaming.runAndAssertContents(pipeline, output, EXPECTED_WORD_COUNTS, windowDuration);
   }
 }
