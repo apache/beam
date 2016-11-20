@@ -118,7 +118,7 @@ public class KafkaStreamingTest {
         .apply(ParDo.of(new FormatKVFn()))
         .apply(Distinct.<String>create());
 
-    PAssertStreaming.runAndAssertContents(p, deduped, expected);
+    PAssertStreaming.runAndAssertContents(p, deduped, expected, Duration.standardSeconds(1L));
   }
 
   @Test
@@ -143,10 +143,6 @@ public class KafkaStreamingTest {
     // It seems that the consumer's first "position" lookup (in unit test) takes +200 msec,
     // so to be on the safe side we'll set to 750 msec.
     options.setMinReadTimeMillis(750L);
-    // run for more than 1 batch interval, so that reading of latest is attempted in the
-    // first batch with no luck, while the OnBatchCompleted injected-input afterwards will be read
-    // in the second interval.
-    options.setTimeout(Duration.standardSeconds(3).getMillis());
 
     //------- test: read and format.
     Pipeline p = Pipeline.create(options);
@@ -168,7 +164,10 @@ public class KafkaStreamingTest {
         .apply(Window.<KV<String, String>>into(FixedWindows.of(batchAndWindowDuration)))
         .apply(ParDo.of(new FormatKVFn()));
 
-    PAssertStreaming.runAndAssertContents(p, formatted, expected);
+    // run for more than 1 batch interval, so that reading of latest is attempted in the
+    // first batch with no luck, while the OnBatchCompleted injected-input afterwards will be read
+    // in the second interval.
+    PAssertStreaming.runAndAssertContents(p, formatted, expected, Duration.standardSeconds(3));
   }
 
   private static void produce(String topic, Map<String, String> messages) {

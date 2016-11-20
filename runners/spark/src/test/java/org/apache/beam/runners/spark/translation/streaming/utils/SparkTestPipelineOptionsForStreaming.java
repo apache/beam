@@ -31,7 +31,6 @@ public class SparkTestPipelineOptionsForStreaming extends SparkTestPipelineOptio
   @Override
   protected void before() throws Throwable {
     super.before();
-    options.setTimeout(1000L);
     options.setStreaming(true);
   }
 
