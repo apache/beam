@@ -223,7 +223,8 @@ public class EvaluationContext implements EvaluationResult {
     return boundedDataset.getValues(pcollection);
   }
 
-  @Override public void close(boolean gracefully) {
+  @Override
+  public void close(boolean gracefully) {
     // Stopping streaming job if running
     if (isStreamingPipeline() && !state.isTerminal()) {
       try {
@@ -253,8 +254,11 @@ public class EvaluationContext implements EvaluationResult {
       }
       return state;
     } else {
+      // Batch is currently blocking so
+      // there is no way to cancel a batch job
+      // will be handled at BEAM-1000
       throw new UnsupportedOperationException(
-              "Spark runner EvaluationContext does not support cancel.");
+          "Spark runner EvaluationContext does not support cancel.");
     }
   }
 
@@ -266,13 +270,17 @@ public class EvaluationContext implements EvaluationResult {
   @Override
   public State waitUntilFinish(Duration duration) {
     if (isStreamingPipeline()) {
+      // According to PipelineResult: Provide a value less than 1 ms for an infinite wait
       if (duration.getMillis() < 1L) {
         jssc.awaitTermination();
         state = State.DONE;
       } else {
         jssc.awaitTermination(duration.getMillis());
+        // According to PipelineResult: The final state of the pipeline or null on timeout
         if (jssc.getState().equals(StreamingContextState.STOPPED)) {
           state = State.DONE;
+        } else {
+          return null;
         }
       }
       return state;
