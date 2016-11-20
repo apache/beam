@@ -866,7 +866,7 @@ class FileSink(iobase.Sink):
     # (possibly unsharded) file_path_prefix and a (possibly empty)
     # file_name_suffix.
     suffix = (
-      '.' + os.path.basename(self.file_path_prefix) + self.file_name_suffix)
+        '.' + os.path.basename(self.file_path_prefix) + self.file_name_suffix)
     return FileSinkWriter(self, os.path.join(init_result, uid) + suffix)
 
   def finalize_write(self, init_result, writer_results):
