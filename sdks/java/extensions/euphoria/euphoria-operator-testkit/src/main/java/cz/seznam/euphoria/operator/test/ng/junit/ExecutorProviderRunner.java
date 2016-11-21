@@ -65,8 +65,16 @@ public class ExecutorProviderRunner extends Suite {
               @Override
               public void evaluate() throws Throwable {
                 ExecutorEnvironment env = provider.newExecutorEnvironment();
-                ((AbstractOperatorTest) target).executor =
-                    Objects.requireNonNull(env.getExecutor());
+                AbstractOperatorTest opTest = ((AbstractOperatorTest) target);
+                opTest.executor = Objects.requireNonNull(env.getExecutor());
+                // annotation must be present on test class
+                Processing.Type testClassProcessing = getProcessing(testClass, true);
+                // annotation may be present on execution class
+                Processing.Type runnerProcessing = getProcessing(provider.getClass(), false);
+                // merge processing types if both defined
+                opTest.processing = runnerProcessing == null 
+                    ? testClassProcessing 
+                    : testClassProcessing.merge(runnerProcessing);
                 try {
                   result.evaluate();
                 } finally {
@@ -77,11 +85,24 @@ public class ExecutorProviderRunner extends Suite {
                   }
                 }
               }
+
             };
           }
           return result;
         }
       };
+    }
+  }
+
+  // return defined processing type (bounded, unbounded, any) from annotation
+  private static Processing.Type getProcessing(Class<?> cls, boolean required) {
+    if (cls.isAnnotationPresent(Processing.class)) {
+      Processing proc = (Processing) cls.getAnnotation(Processing.class);
+      return proc.value();
+    } else if (required) {
+      throw new IllegalStateException("Undefined processing! (bounded, unbounded, any)");
+    } else {
+      return null;
     }
   }
 }

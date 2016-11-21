@@ -2,10 +2,11 @@
 package cz.seznam.euphoria.operator.test.ng.tests;
 
 import cz.seznam.euphoria.core.client.dataset.Dataset;
-import cz.seznam.euphoria.core.client.io.DataSource;
 import cz.seznam.euphoria.core.client.io.ListDataSource;
 import cz.seznam.euphoria.core.client.operator.Filter;
 import cz.seznam.euphoria.operator.test.ng.junit.AbstractOperatorTest;
+import cz.seznam.euphoria.operator.test.ng.junit.Processing;
+import cz.seznam.euphoria.operator.test.ng.junit.Processing.Type;
 import org.junit.Test;
 
 import java.util.Arrays;
@@ -16,6 +17,7 @@ import static org.junit.Assert.assertEquals;
 /**
  * Test operator {@code Filter}.
  */
+@Processing(Type.ANY)
 public class FilterTest extends AbstractOperatorTest {
 
   @Test
@@ -30,9 +32,9 @@ public class FilterTest extends AbstractOperatorTest {
       }
 
       @Override
-      protected DataSource<Integer> getDataSource() {
+      protected ListDataSource<Integer> getDataSource() {
         // two input partitions
-        return ListDataSource.unbounded(
+        return ListDataSource.of(
             Arrays.asList(1, 2, 3, 4, 5 ,6),
             Arrays.asList(7, 8, 9, 10, 11, 12, 13, 14)
         );
@@ -53,5 +55,4 @@ public class FilterTest extends AbstractOperatorTest {
       }
     });
   }
-
 }

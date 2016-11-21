@@ -3,11 +3,12 @@ package cz.seznam.euphoria.operator.test.ng.tests;
 
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.dataset.windowing.Time;
-import cz.seznam.euphoria.core.client.io.DataSource;
 import cz.seznam.euphoria.core.client.io.ListDataSource;
 import cz.seznam.euphoria.core.client.operator.Distinct;
 import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.operator.test.ng.junit.AbstractOperatorTest;
+import cz.seznam.euphoria.operator.test.ng.junit.Processing;
+import cz.seznam.euphoria.operator.test.ng.junit.Processing.Type;
 import org.junit.Test;
 
 import java.time.Duration;
@@ -20,6 +21,7 @@ import static org.junit.Assert.assertEquals;
 /**
  * Test operator {@code Distinct}.
  */
+@Processing(Type.ANY)
 public class DistinctTest extends AbstractOperatorTest {
 
   /**
@@ -47,7 +49,7 @@ public class DistinctTest extends AbstractOperatorTest {
       }
 
       @Override
-      protected DataSource<Integer> getDataSource() {
+      protected ListDataSource<Integer> getDataSource() {
         return ListDataSource.bounded(
             Arrays.asList(1, 2, 3, 3, 2, 1));
       }
@@ -85,7 +87,7 @@ public class DistinctTest extends AbstractOperatorTest {
       }
 
       @Override
-      protected DataSource<Pair<Integer, Long>> getDataSource() {
+      protected ListDataSource<Pair<Integer, Long>> getDataSource() {
         return ListDataSource.unbounded(
             Arrays.asList(Pair.of(1, 100L), Pair.of(2, 300L), // first window
                 Pair.of(3, 1200L), Pair.of(3, 1500L), // second window
@@ -130,7 +132,7 @@ public class DistinctTest extends AbstractOperatorTest {
       }
 
       @Override
-      protected DataSource<Pair<Integer, Long>> getDataSource() {
+      protected ListDataSource<Pair<Integer, Long>> getDataSource() {
         return ListDataSource.unbounded(
             asTimedList(100, 1, 2, 3, 3, 2, 1),
             asTimedList(100, 1, 2, 3, 3, 2, 1));
