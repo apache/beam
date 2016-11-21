@@ -16,6 +16,7 @@
 #
 
 """Tests for datastore helper."""
+import imp
 import sys
 import unittest
 
@@ -23,28 +24,11 @@ from google.datastore.v1 import datastore_pb2
 from google.datastore.v1 import query_pb2
 from google.datastore.v1.entity_pb2 import Key
 from googledatastore.connection import RPCError
-from mock import MagicMock, Mock
+from mock import MagicMock, Mock, patch
 
 from apache_beam.io.datastore.v1 import fake_datastore
-from apache_beam.utils import retry
-
-real_retry_with_exponential_backoff = retry.with_exponential_backoff
-
-
-def patched_retry_with_exponential_backoff(num_retries, retry_filter):
-  """A patch for retry decorator to use a mock dummy clock and logger."""
-  return real_retry_with_exponential_backoff(
-      num_retries=num_retries, retry_filter=retry_filter, logger=Mock(),
-      clock=Mock())
-
-# Pactching a decorator needs to happen before the module that uses the
-# decorator is imported.
-retry.with_exponential_backoff = patched_retry_with_exponential_backoff
-
-# pylint: disable=wrong-import-position
 from apache_beam.io.datastore.v1 import helper
-from apache_beam.io.datastore.v1.helper import QueryIterator
-# pylint: enable=wrong-import-position
+from apache_beam.utils import retry
 
 
 class HelperTest(unittest.TestCase):
@@ -53,6 +37,31 @@ class HelperTest(unittest.TestCase):
     self._mock_datastore = MagicMock()
     self._query = query_pb2.Query()
     self._query.kind.add().name = 'dummy_kind'
+    self.patch_retry()
+
+  def patch_retry(self):
+
+    """A function to patch retry module to use mock clock and logger."""
+    real_retry_with_exponential_backoff = retry.with_exponential_backoff
+
+    def patched_retry_with_exponential_backoff(num_retries, retry_filter):
+      """A patch for retry decorator to use a mock dummy clock and logger."""
+      return real_retry_with_exponential_backoff(
+          num_retries=num_retries, retry_filter=retry_filter, logger=Mock(),
+          clock=Mock())
+
+    patch.object(retry, 'with_exponential_backoff',
+                 side_effect=patched_retry_with_exponential_backoff).start()
+
+    # Reload module after patching.
+    imp.reload(helper)
+
+    def kill_patches():
+      patch.stopall()
+      # Reload module again after removing patch.
+      imp.reload(helper)
+
+    self.addCleanup(kill_patches)
 
   def permanent_datastore_failure(self, req):
     raise RPCError("dummy", 500, "failed")
@@ -67,16 +76,16 @@ class HelperTest(unittest.TestCase):
   def test_query_iterator(self):
     self._mock_datastore.run_query.side_effect = \
         self.permanent_datastore_failure
-    query_iterator = QueryIterator("project", None, self._query,
-                                   self._mock_datastore)
+    query_iterator = helper.QueryIterator("project", None, self._query,
+                                          self._mock_datastore)
     self.assertRaises(RPCError, iter(query_iterator).next)
     self.assertEqual(6, len(self._mock_datastore.run_query.call_args_list))
 
   def test_query_iterator_with_transient_failures(self):
     self._mock_datastore.run_query.side_effect = \
         self.transient_datastore_failure
-    query_iterator = QueryIterator("project", None, self._query,
-                                   self._mock_datastore)
+    query_iterator = helper.QueryIterator("project", None, self._query,
+                                          self._mock_datastore)
     fail_count = 2
     self._transient_fail_count = fail_count
     for _ in query_iterator:
@@ -124,8 +133,8 @@ class HelperTest(unittest.TestCase):
     entities = fake_datastore.create_entities(num_entities)
     self._mock_datastore.run_query.side_effect = \
         fake_datastore.create_run_query(entities, batch_size)
-    query_iterator = QueryIterator("project", None, self._query,
-                                   self._mock_datastore)
+    query_iterator = helper.QueryIterator("project", None, self._query,
+                                          self._mock_datastore)
 
     i = 0
     for entity in query_iterator:

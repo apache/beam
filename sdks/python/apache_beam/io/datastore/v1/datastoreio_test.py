@@ -21,12 +21,9 @@ from google.datastore.v1 import datastore_pb2
 from google.datastore.v1 import query_pb2
 from google.protobuf import timestamp_pb2
 from googledatastore import helper as datastore_helper
-from mock import MagicMock, call, mock
-
+from mock import MagicMock, call, patch
 from apache_beam.io.datastore.v1 import helper
-# pylint: disable=unused-import
 from apache_beam.io.datastore.v1 import query_splitter
-# pylint: enable=unused-import
 from apache_beam.io.datastore.v1.datastoreio import ReadFromDatastore
 
 
@@ -51,15 +48,15 @@ class DatastoreioTest(unittest.TestCase):
     self.check_estimated_size_bytes(entity_bytes, timestamp, self._NAMESPACE)
 
   def test_SplitQueryFn_with_num_splits(self):
-    with mock.patch('__main__.helper.get_datastore',
-                    return_value=self._mock_datastore):
+    with patch.object(helper, 'get_datastore',
+                      return_value=self._mock_datastore):
       num_splits = 23
 
       def fake_get_splits(datastore, query, num_splits, partition=None):
         return self.split_query(query, num_splits)
 
-      with mock.patch('__main__.query_splitter.get_splits',
-                      side_effect=fake_get_splits):
+      with patch.object(query_splitter, 'get_splits',
+                        side_effect=fake_get_splits):
 
         split_query_fn = ReadFromDatastore.SplitQueryFn(
             self._PROJECT, self._query, None, num_splits)
@@ -75,22 +72,21 @@ class DatastoreioTest(unittest.TestCase):
         self.verify_unique_keys(returned_split_queries)
 
   def test_SplitQueryFn_without_num_splits(self):
-    with mock.patch('__main__.helper.get_datastore',
-                    return_value=self._mock_datastore):
+    with patch.object(helper, 'get_datastore',
+                      return_value=self._mock_datastore):
       # Force SplitQueryFn to compute the number of query splits
       num_splits = 0
       expected_num_splits = 23
       entity_bytes = expected_num_splits * \
           ReadFromDatastore._DEFAULT_BUNDLE_SIZE_BYTES
-
-      with mock.patch('__main__.ReadFromDatastore.get_estimated_size_bytes',
-                      return_value=entity_bytes):
+      with patch.object(ReadFromDatastore, 'get_estimated_size_bytes',
+                        return_value=entity_bytes):
 
         def fake_get_splits(datastore, query, num_splits, partition=None):
           return self.split_query(query, num_splits)
 
-        with mock.patch('__main__.query_splitter.get_splits',
-                        side_effect=fake_get_splits):
+        with patch.object(query_splitter, 'get_splits',
+                          side_effect=fake_get_splits):
           split_query_fn = ReadFromDatastore.SplitQueryFn(
               self._PROJECT, self._query, None, num_splits)
           mock_context = MagicMock()
