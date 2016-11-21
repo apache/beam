@@ -70,7 +70,6 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import javax.annotation.Nullable;
-
 import org.apache.avro.generic.GenericRecord;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.AtomicCoder;
@@ -589,7 +588,7 @@ public class BigQueryIO {
       }
 
       @VisibleForTesting
-      Bound withTestSerices(BigQueryServices testServices) {
+      Bound withTestServices(BigQueryServices testServices) {
         return new Bound(
             name, query, jsonTableRef, validate, flattenResults, useLegacySql, testServices);
       }
@@ -1766,8 +1765,8 @@ public class BigQueryIO {
        */
       public Bound toTableReference(
           SerializableFunction<BoundedWindow, TableReference> tableRefFunction) {
-        return new Bound(name, jsonTableRef, tableRefFunction, jsonSchema,
-                createDisposition, writeDisposition, validate, bigQueryServices);
+        return new Bound(name, jsonTableRef, tableRefFunction, jsonSchema, createDisposition,
+           writeDisposition, validate, bigQueryServices);
       }
 
       /**
@@ -1817,14 +1816,14 @@ public class BigQueryIO {
        * <p>Does not modify this object.
        */
       public Bound withoutValidation() {
-        return new Bound(name, jsonTableRef, tableRefFunction, jsonSchema,
-                createDisposition, writeDisposition, false, bigQueryServices);
+        return new Bound(name, jsonTableRef, tableRefFunction, jsonSchema, createDisposition,
+           writeDisposition, false, bigQueryServices);
       }
 
       @VisibleForTesting
       Bound withTestServices(BigQueryServices testServices) {
-        return new Bound(name, jsonTableRef, tableRefFunction, jsonSchema,
-                createDisposition, writeDisposition, validate, testServices);
+        return new Bound(name, jsonTableRef, tableRefFunction, jsonSchema, createDisposition,
+           writeDisposition, validate, testServices);
       }
 
       private static void verifyTableEmpty(
@@ -2626,7 +2625,7 @@ public class BigQueryIO {
         .withLabel("Table Schema"));
     }
 
-    public  TableReference getOrCreateTable(BigQueryOptions options, String tableSpec)
+    public TableReference getOrCreateTable(BigQueryOptions options, String tableSpec)
         throws InterruptedException, IOException {
       TableReference tableReference = parseTableSpec(tableSpec);
       if (!createdTables.contains(tableSpec)) {

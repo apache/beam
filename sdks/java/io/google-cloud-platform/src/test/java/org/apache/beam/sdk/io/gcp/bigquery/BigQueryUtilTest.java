@@ -455,36 +455,4 @@ public class BigQueryUtilTest {
       assertEquals("Incorrect byte count", 25L * 23L, totalBytes);
     }
   }
-
-  @Test
-  public void testDeadLetter() throws Exception, IOException {
-    // Build up a list of indices to fail on each invocation. This should result in
-    // 5 calls to insertAll.
-    List<List<Long>> errorsIndices = new ArrayList<>();
-    errorsIndices.add(Arrays.asList(0L, 5L, 10L, 15L, 20L));
-    errorsIndices.add(Arrays.asList(0L, 2L, 4L));
-    errorsIndices.add(Arrays.asList(0L, 2L));
-    errorsIndices.add(new ArrayList<Long>());
-    onInsertAll(errorsIndices);
-
-    TableReference ref = BigQueryIO
-            .parseTableSpec("project:dataset.table");
-    DatasetServiceImpl datasetService = new DatasetServiceImpl(mockClient, options, 5);
-
-    List<TableRow> rows = new ArrayList<>();
-    List<String> ids = new ArrayList<>();
-    for (int i = 0; i < 25; ++i) {
-      rows.add(rawRow("foo", 1234));
-      ids.add(new String());
-    }
-
-    long totalBytes = 0;
-    try {
-      totalBytes = datasetService.insertAll(ref, rows, ids, null, null);
-    } finally {
-      verifyInsertAll(5);
-      // Each of the 25 rows is 23 bytes: "{f=[{v=foo}, {v=1234}]}"
-      assertEquals("Incorrect byte count", 25L * 23L, totalBytes);
-    }
-  }
 }
