@@ -21,10 +21,11 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Function;
 import com.google.common.base.Joiner;
 import com.google.common.collect.FluentIterable;
-import com.google.common.collect.HashMultimap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Multimap;
+import com.google.common.collect.Ordering;
 import com.google.common.collect.Sets;
+import com.google.common.collect.TreeMultimap;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.nio.channels.WritableByteChannel;
@@ -159,7 +160,8 @@ public class IOChannelUtils {
 
   @VisibleForTesting
   static void checkDuplicateScheme(Set<IOChannelFactoryRegistrar> registrars) {
-    Multimap<String, IOChannelFactoryRegistrar> registrarsBySchemes = HashMultimap.create();
+    Multimap<String, IOChannelFactoryRegistrar> registrarsBySchemes =
+        TreeMultimap.create(Ordering.<String>natural(), Ordering.arbitrary());
 
     for (IOChannelFactoryRegistrar registrar : registrars) {
       registrarsBySchemes.put(registrar.getScheme(), registrar);
@@ -167,13 +169,14 @@ public class IOChannelUtils {
     for (Entry<String, Collection<IOChannelFactoryRegistrar>> entry
         : registrarsBySchemes.asMap().entrySet()) {
       if (entry.getValue().size() > 1) {
-        String conflictingRegistrars = FluentIterable.from(entry.getValue())
-            .transform(new Function<IOChannelFactoryRegistrar, String>() {
-              @Override
-              public String apply(@Nonnull IOChannelFactoryRegistrar input) {
-                return input.getClass().getName();
-              }})
-            .join(Joiner.on(", "));
+        String conflictingRegistrars = Joiner.on(", ").join(
+            FluentIterable.from(entry.getValue())
+                .transform(new Function<IOChannelFactoryRegistrar, String>() {
+                  @Override
+                  public String apply(@Nonnull IOChannelFactoryRegistrar input) {
+                    return input.getClass().getName();
+                  }})
+                .toSortedList(Ordering.<String>natural()));
         throw new IllegalStateException(String.format(
             "Scheme: [%s] has conflicting registrars: [%s]",
             entry.getKey(),
