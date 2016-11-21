@@ -40,7 +40,6 @@
     <module>io</module>
     <module>maven-archetypes</module>
     <module>extensions</module>
-    <module>microbenchmarks</module>
   </modules>
 
   <profiles>
