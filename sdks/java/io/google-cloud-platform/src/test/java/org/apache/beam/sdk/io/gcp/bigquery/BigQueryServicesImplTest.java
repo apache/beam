@@ -18,9 +18,12 @@
 package org.apache.beam.sdk.io.gcp.bigquery;
 
 import static com.google.common.base.Verify.verifyNotNull;
+import static junit.framework.TestCase.assertNull;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.instanceOf;
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThat;
+import static org.junit.Assert.fail;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;

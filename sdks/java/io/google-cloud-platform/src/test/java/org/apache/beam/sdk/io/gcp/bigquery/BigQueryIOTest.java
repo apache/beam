@@ -1041,8 +1041,8 @@ public class BigQueryIOTest implements Serializable {
   /**
    * A generic window function that allows partitioning data into windows by a string value.
    *
-   * Logically, creates multiple global windows, and the user provides a function that decides which global window a
-   * value should go into.
+   * <p>Logically, creates multiple global windows, and the user provides a function that
+   * decides which global window a value should go into.
    */
   public static class PartitionedGlobalWindows extends
 
@@ -1096,7 +1096,8 @@ public class BigQueryIOTest implements Serializable {
       return GlobalWindow.INSTANCE.maxTimestamp();
     }
 
-    // The following methods are only needed due to BEAM-1022. Once this issue is fixed, we will no longer need these.
+    // The following methods are only needed due to BEAM-1022. Once this issue is fixed, we will
+    // no longer need these.
     @Override public boolean equals(Object other) {
       if (other instanceof PartitionedGlobalWindow) {
         return value.equals(((PartitionedGlobalWindow) other).value);
