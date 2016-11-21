@@ -224,7 +224,7 @@ public class MongoDbIO {
       BasicDBObject stat = new BasicDBObject();
       stat.append("collStats", spec.collection());
       Document stats = mongoDatabase.runCommand(stat);
-      return Long.parseLong(stats.get("size").toString());
+      return stats.get("size", Number.class).longValue();
     }
 
     @Override
