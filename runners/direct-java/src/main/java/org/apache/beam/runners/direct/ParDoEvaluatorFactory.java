@@ -82,7 +82,7 @@ final class ParDoEvaluatorFactory<InputT, OutputT> implements TransformEvaluator
     try {
       ParDo.BoundMulti<InputT, OutputT> transform = application.getTransform();
       return DoFnLifecycleManagerRemovingTransformEvaluator.wrapping(
-          ParDoEvaluator.create(
+          ParDoEvaluator.<InputT, OutputT>create(
               evaluationContext,
               stepContext,
               application,

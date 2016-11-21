@@ -45,7 +45,7 @@ class ParDoEvaluator<InputT, OutputT> implements TransformEvaluator<InputT> {
   public static <InputT, OutputT> ParDoEvaluator<InputT, OutputT> create(
       EvaluationContext evaluationContext,
       DirectStepContext stepContext,
-      AppliedPTransform<PCollection<InputT>, ?, ?> application,
+      AppliedPTransform<?, ?, ?> application,
       WindowingStrategy<?, ? extends BoundedWindow> windowingStrategy,
       Serializable fn, // may be OldDoFn or DoFn
       List<PCollectionView<?>> sideInputs,
@@ -90,7 +90,7 @@ class ParDoEvaluator<InputT, OutputT> implements TransformEvaluator<InputT> {
   ////////////////////////////////////////////////////////////////////////////////////////////////
 
   private final PushbackSideInputDoFnRunner<InputT, ?> fnRunner;
-  private final AppliedPTransform<PCollection<InputT>, ?, ?> transform;
+  private final AppliedPTransform<?, ?, ?> transform;
   private final AggregatorContainer.Mutator aggregatorChanges;
   private final Collection<UncommittedBundle<?>> outputBundles;
   private final DirectStepContext stepContext;
@@ -99,7 +99,7 @@ class ParDoEvaluator<InputT, OutputT> implements TransformEvaluator<InputT> {
 
   private ParDoEvaluator(
       PushbackSideInputDoFnRunner<InputT, ?> fnRunner,
-      AppliedPTransform<PCollection<InputT>, ?, ?> transform,
+      AppliedPTransform<?, ?, ?> transform,
       AggregatorContainer.Mutator aggregatorChanges,
       Collection<UncommittedBundle<?>> outputBundles,
       DirectStepContext stepContext) {
