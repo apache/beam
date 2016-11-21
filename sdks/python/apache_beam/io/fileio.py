@@ -749,6 +749,12 @@ class _CompressedFile(object):
   def seekable(self):
     return False
 
+  def __enter__(self):
+    return self
+
+  def __exit__(self, exception_type, exception_value, traceback):
+    self.close()
+
 
 class FileSink(iobase.Sink):
   """A sink to a GCS or local files.
@@ -855,7 +861,13 @@ class FileSink(iobase.Sink):
     return tmp_dir
 
   def open_writer(self, init_result, uid):
-    return FileSinkWriter(self, os.path.join(init_result, uid))
+    # A proper suffix is needed for AUTO compression detection.
+    # We also ensure there will be no collisions with uid and a
+    # (possibly unsharded) file_path_prefix and a (possibly empty)
+    # file_name_suffix.
+    suffix = (
+        '.' + os.path.basename(self.file_path_prefix) + self.file_name_suffix)
+    return FileSinkWriter(self, os.path.join(init_result, uid) + suffix)
 
   def finalize_write(self, init_result, writer_results):
     writer_results = sorted(writer_results)
