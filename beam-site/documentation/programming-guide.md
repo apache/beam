@@ -27,6 +27,7 @@ The **Beam Programming Guide** is intended for Beam users who want to use the Be
   * [Using ParDo](#transforms-pardo)
   * [Using GroupByKey](#transforms-gbk)
   * [Using Combine](#transforms-combine)
+  * [Using Flatten and Partition](#transforms-flatten-partition)
   * [General Requirements for Writing User Code for Beam Transforms](#transforms-usercodereqs)
   * [Side Inputs and Side Outputs](#transforms-sideio)
 * [I/O](#io)
@@ -205,7 +206,7 @@ However, note that a transform *does not consume or otherwise alter* the input c
 [Output PCollection 2] = [Input PCollection].apply([Transform 2])
 ```
 
-The resulting workflow graph from the branching pipeline abouve looks like this:
+The resulting workflow graph from the branching pipeline above looks like this:
 
 [Branching Graph Graphic]
 
@@ -222,7 +223,7 @@ Beam provides the following transforms, each of which represents a different pro
 * `ParDo`
 * `GroupByKey`
 * `Combine`
-* `Flatten`
+* `Flatten` and `Partition`
 
 #### <a name="transforms-pardo"></a>ParDo
 
@@ -374,9 +375,265 @@ tree, [2]
 Thus, `GroupByKey` represents a transform from a multimap (multiple keys to individual values) to a uni-map (unique keys to collections of values).
 
 > **A Note on Key/Value Pairs:** Beam represents key/value pairs slightly differently depending on the language and SDK you're using. In the Beam SDK for Java, you represent a key/value pair with an object of type `KV<K, V>`. In Python, you represent key/value pairs with 2-tuples.
-     
+
 
 #### <a name="transforms-combine"></a>Using Combine
+
+<span class="language-java">[`Combine`]({{ site.baseurl }}/documentation/sdks/javadoc/{{ site.release_latest }}/index.html?org/apache/beam/sdk/transforms/Combine.html)</span><span class="language-python">[`Combine`](https://github.com/apache/incubator-beam/blob/python-sdk/sdks/python/apache_beam/transforms/core.py)</span> is a Beam transform for combining collections of elements or values in your data. `Combine` has variants that work on entire `PCollection`s, and some that combine the values for each key in `PCollection`s of key/value pairs.
+
+When you apply a `Combine` transform, you must provide the function that contains the logic for combining the elements or values. The combining function should be commutative and associative, as the function is not necessarily invoked exactly once on all values with a given key. Because the input data (including the value collection) may be distributed across multiple workers, the combining function might be called multiple times to perform partial combining on subsets of the value collection. The Beam SDK also provides some pre-built combine functions for common numeric combination operations such as sum, min, and max.
+
+Simple combine operations, such as sums, can usually be implemented as a simple function. More complex combination operations might require you to create a subclass of `CombineFn` that has an accumulation type distinct from the input/output type.
+
+##### **Simple Combinations Using Simple Functions**
+
+The following example code shows a simple combine function.
+
+```java
+// Sum a collection of Integer values. The function SumInts implements the interface SerializableFunction.
+public static class SumInts implements SerializableFunction<Iterable<Integer>, Integer> {
+  @Override
+  public Integer apply(Iterable<Integer> input) {
+    int sum = 0;
+    for (int item : input) {
+      sum += item;
+    }
+    return sum;
+  }
+}
+```
+
+```python
+# A bounded sum of positive integers.
+def bounded_sum(values, bound=500):
+  return min(sum(values), bound)
+```
+
+##### **Advanced Combinations using CombineFn**
+
+For more complex combine functions, you can define a subclass of `CombineFn`. You should use `CombineFn` if the combine function requires a more sophisticated accumulator, must perform additional pre- or post-processing, might change the output type, or takes the key into account.
+
+A general combining operation consists of four operations. When you create a subclass of `CombineFn`, you must provide four operations by overriding the corresponding methods:
+
+1. **Create Accumulator** creates a new "local" accumulator. In the example case, taking a mean average, a local accumulator tracks the running sum of values (the numerator value for our final average division) and the number of values summed so far (the denominator value). It may be called any number of times in a distributed fashion.
+
+2. **Add Input** adds an input element to an accumulator, returning the accumulator value. In our example, it would update the sum and increment the count. It may also be invoked in parallel.
+
+3. **Merge Accumulators** merges several accumulators into a single accumulator; this is how data in multiple accumulators is combined before the final calculation. In the case of the mean average computation, the accumulators representing each portion of the division are merged together. It may be called again on its outputs any number of times.
+
+4. **Extract Output** performs the final computation. In the case of computing a mean average, this means dividing the combined sum of all the values by the number of values summed. It is called once on the final, merged accumulator.
+
+The following example code shows how to define a `CombineFn` that computes a mean average:
+
+```java
+public class AverageFn extends CombineFn<Integer, AverageFn.Accum, Double> {
+  public static class Accum {
+    int sum = 0;
+    int count = 0;
+  }
+
+  @Override
+  public Accum createAccumulator() { return new Accum(); }
+
+  @Override
+  public Accum addInput(Accum accum, Integer input) {
+      accum.sum += input;
+      accum.count++;
+      return accum;
+  }
+
+  @Override
+  public Accum mergeAccumulators(Iterable<Accum> accums) {
+    Accum merged = createAccumulator();
+    for (Accum accum : accums) {
+      merged.sum += accum.sum;
+      merged.count += accum.count;
+    }
+    return merged;
+  }
+
+  @Override
+  public Double extractOutput(Accum accum) {
+    return ((double) accum.sum) / accum.count;
+  }
+}
+```
+
+```python
+pc = ...
+class AverageFn(beam.CombineFn):
+  def create_accumulator(self):
+    return (0.0, 0)
+
+  def add_input(self, (sum, count), input):
+    return sum + input, count + 1
+
+  def merge_accumulators(self, accumulators):
+    sums, counts = zip(*accumulators)
+    return sum(sums), sum(counts)
+
+  def extract_output(self, (sum, count)):
+    return sum / count if count else float('NaN')
+```
+
+If you are combining a `PCollection` of key-value pairs, [per-key combining](#transforms-combine-per-key) is often enough. If you need the combining strategy to change based on the key (for example, MIN for some users and MAX for other users), you can define a `KeyedCombineFn` to access the key within the combining strategy.
+
+##### **Combining a PCollection into a Single Value**
+
+Use the global combine to transform all of the elements in a given `PCollection` into a single value, represented in your pipeline as a new `PCollection` containing one element. The following example code shows how to apply the Beam provided sum combine function to produce a single sum value for a `PCollection` of integers.
+
+```java
+// Sum.SumIntegerFn() combines the elements in the input PCollection.
+// The resulting PCollection, called sum, contains one value: the sum of all the elements in the input PCollection.
+PCollection<Integer> pc = ...;
+PCollection<Integer> sum = pc.apply(
+   Combine.globally(new Sum.SumIntegerFn()));
+```
+
+```python
+# sum combines the elements in the input PCollection.
+# The resulting PCollection, called result, contains one value: the sum of all the elements in the input PCollection.
+pc = ...
+result = pc | beam.CombineGlobally(sum)
+```
+
+##### Global Windowing:
+
+If your input `PCollection` uses the default global windowing, the default behavior is to return a `PCollection` containing one item. That item's value comes from the accumulator in the combine function that you specified when applying `Combine`. For example, the Beam provided sum combine function returns a zero value (the sum of an empty input), while the min combine function returns a maximal or infinite value.
+
+To have `Combine` instead return an empty `PCollection` if the input is empty, specify `.withoutDefaults` when you apply your `Combine` transform, as in the following code example:
+
+```java
+PCollection<Integer> pc = ...;
+PCollection<Integer> sum = pc.apply(
+  Combine.globally(new Sum.SumIntegerFn()).withoutDefaults());
+```
+
+```python
+pc = ...
+sum = pc | beam.CombineGlobally(sum).without_defaults()
+
+```
+
+##### Non-Global Windowing:
+
+If your `PCollection` uses any non-global windowing function, Beam does not provide the default behavior. You must specify one of the following options when applying `Combine`:
+
+* Specify `.withoutDefaults`, where windows that are empty in the input `PCollection` will likewise be empty in the output collection.
+* Specify `.asSingletonView`, in which the output is immediately converted to a `PCollectionView`, which will provide a default value for each empty window when used as a side input. You'll generally only need to use this option if the result of your pipeline's `Combine` is to be used as a side input later in the pipeline.
+
+
+##### <a name="transforms-combine-per-key"></a>**Combining Values in a Key-Grouped Collection**
+
+After creating a key-grouped collection (for example, by using a `GroupByKey` transform) a common pattern is to combine the collection of values associated with each key into a single, merged value. Drawing on the previous example from `GroupByKey`, a key-grouped `PCollection` called `groupedWords` looks like this:
+
+```
+  cat, [1,5,9]
+  dog, [5,2]
+  and, [1,2,6]
+  jump, [3]
+  tree, [2]
+  ...
+```
+
+In the above `PCollection`, each element has a string key (for example, "cat") and an iterable of integers for its value (in the first element, containing [1, 5, 9]). If our pipeline's next processing step combines the values (rather than considering them individually), you can combine the iterable of integers to create a single, merged value to be paired with each key. This pattern of a `GroupByKey` followed by merging the collection of values is equivalent to Beam's Combine PerKey transform. The combine function you supply to Combine PerKey must be an associative reduction function or a subclass of `CombineFn`.
+
+```java
+// PCollection is grouped by key and the Double values associated with each key are combined into a Double.
+PCollection<KV<String, Double>> salesRecords = ...;
+PCollection<KV<String, Double>> totalSalesPerPerson =
+  salesRecords.apply(Combine.<String, Double, Double>perKey(
+    new Sum.SumDoubleFn()));
+
+// The combined value is of a different type than the original collection of values per key.
+// PCollection has keys of type String and values of type Integer, and the combined value is a Double.
+
+PCollection<KV<String, Integer>> playerAccuracy = ...;
+PCollection<KV<String, Double>> avgAccuracyPerPlayer =
+  playerAccuracy.apply(Combine.<String, Integer, Double>perKey(
+    new MeanInts())));
+```
+
+```python
+# PCollection is grouped by key and the numeric values associated with each key are averaged into a float.
+player_accuracies = ...
+avg_accuracy_per_player = (player_accuracies
+                           | beam.CombinePerKey(
+                               beam.combiners.MeanCombineFn()))
+```
+
+#### <a name="transforms-flatten-partition"></a>Using Flatten and Partition
+
+<span class="language-java">[`Flatten`]({{ site.baseurl }}/documentation/sdks/javadoc/{{ site.release_latest }}/index.html?org/apache/beam/sdk/transforms/Flatten.html)</span><span class="language-python">[`Flatten`](https://github.com/apache/incubator-beam/blob/python-sdk/sdks/python/apache_beam/transforms/core.py)</span> and <span class="language-java">[`Partition`]({{ site.baseurl }}/documentation/sdks/javadoc/{{ site.release_latest }}/index.html?org/apache/beam/sdk/transforms/Partition.html)</span><span class="language-python">[`Partition`](https://github.com/apache/incubator-beam/blob/python-sdk/sdks/python/apache_beam/transforms/core.py)</span> are Beam transforms for `PCollection` objects that store the same data type. `Flatten` merges multiple `PCollection` objects into a single logical `PCollection`, and `Partition` splits a single `PCollection` into a fixed number of smaller collections.
+
+##### **Flatten**
+
+The following example shows how to apply a `Flatten` transform to merge multiple `PCollection` objects.
+
+```java
+// Flatten takes a PCollectionList of PCollection objects of a given type.
+// Returns a single PCollection that contains all of the elements in the PCollection objects in that list.
+PCollection<String> pc1 = ...;
+PCollection<String> pc2 = ...;
+PCollection<String> pc3 = ...;
+PCollectionList<String> collections = PCollectionList.of(pc1).and(pc2).and(pc3);
+
+PCollection<String> merged = collections.apply(Flatten.<String>pCollections());
+```
+
+```python
+# Flatten takes a tuple of PCollection objects.
+# Returns a single PCollection that contains all of the elements in the PCollection objects in that tuple.
+merged = (
+    (pcoll1, pcoll2, pcoll3)
+    # A list of tuples can be "piped" directly into a Flatten transform.
+    | beam.Flatten())
+```
+
+##### Data Encoding in Merged Collections:
+
+By default, the coder for the output `PCollection` is the same as the coder for the first `PCollection` in the input `PCollectionList`. However, the input `PCollection` objects can each use different coders, as long as they all contain the same data type in your chosen language.
+
+##### Merging Windowed Collections:
+
+When using `Flatten` to merge `PCollection` objects that have a windowing strategy applied, all of the `PCollection` objects you want to merge must use a compatible windowing strategy and window sizing. For example, all the collections you're merging must all use (hypothetically) identical 5-minute fixed windows or 4-minute sliding windows starting every 30 seconds.
+
+If your pipeline attempts to use `Flatten` to merge `PCollection` objects with incompatible windows, Beam generates an `IllegalStateException` error when your pipeline is constructed.
+
+##### **Partition**
+
+`Partition` divides the elements of a `PCollection` according to a partitioning function that you provide. The partitioning function contains the logic that determines how to split up the elements of the input `PCollection` into each resulting partition `PCollection`. The number of partitions must be determined at graph construction time. You can, for example, pass the number of partitions as a command-line option at runtime (which will then be used to build your pipeline graph), but you cannot determine the number of partitions in mid-pipeline (based on data calculated after your pipeline graph is constructed, for instance).
+
+The following example divides a `PCollection` into percentile groups.
+
+```java
+// Provide an int value with the desired number of result partitions, and a PartitionFn that represents the partitioning function.
+// In this example, we define the PartitionFn in-line.
+// Returns a PCollectionList containing each of the resulting partitions as individual PCollection objects.
+PCollection<Student> students = ...;
+// Split students up into 10 partitions, by percentile:
+PCollectionList<Student> studentsByPercentile =
+    students.apply(Partition.of(10, new PartitionFn<Student>() {
+        public int partitionFor(Student student, int numPartitions) {
+            return student.getPercentile()  // 0..99
+                 * numPartitions / 100;
+        }}));
+
+// You can extract each partition from the PCollectionList using the get method, as follows:
+PCollection<Student> fortiethPercentile = studentsByPercentile.get(4);
+```
+
+```python
+# Provide an int value with the desired number of result partitions, and a partitioning function (partition_fn in this example).
+# Returns a tuple of PCollection objects containing each of the resulting partitions as individual PCollection objects.
+def partition_fn(student, num_partitions):
+  return int(get_percentile(student) * num_partitions / 100)
+
+by_decile = students | beam.Partition(partition_fn, 10)
+
+# You can extract each partition from the tuple of PCollection objects as follows:
+fortieth_percentile = by_decile[4]
+```
 
 #### <a name="transforms-usercodereqs"></a>General Requirements for Writing User Code for Beam Transforms
 
@@ -411,10 +668,241 @@ Your function object should be thread-compatible. Each instance of your function
 
 It's recommended that you make your function object idempotent--that is, that it can be repeated or retried as often as necessary without causing unintended side effects. The Beam model provides no guarantees as to the number of times your user code might be invoked or retried; as such, keeping your function object idempotent keeps your pipeline's output deterministic, and your transforms' behavior more predictable and easier to debug.
 
+#### <a name="transforms-sideio"></a>Side Inputs and Side Outputs
+
+##### **Side Inputs**
+
+In addition to the main input `PCollection`, you can provide additional inputs to a `ParDo` transform in the form of side inputs. A side input is an additional input that your `DoFn` can access each time it processes an element in the input `PCollection`. When you specify a side input, you create a view of some other data that can be read from within the `ParDo` transform's `DoFn` while procesing each element.
+
+Side inputs are useful if your `ParDo` needs to inject additional data when processing each element in the input `PCollection`, but the additional data needs to be determined at runtime (and not hard-coded). Such values might be determined by the input data, or depend on a different branch of your pipeline.
+
+
+##### Passing Side Inputs to ParDo:
+
+```java
+  // Pass side inputs to your ParDo transform by invoking .withSideInputs.
+  // Inside your DoFn, access the side input by using the method DoFn.ProcessContext.sideInput.
+
+  // The input PCollection to ParDo.
+  PCollection<String> words = ...;
+
+  // A PCollection of word lengths that we'll combine into a single value.
+  PCollection<Integer> wordLengths = ...; // Singleton PCollection
+
+  // Create a singleton PCollectionView from wordLengths using Combine.globally and View.asSingleton.
+  final PCollectionView<Integer> maxWordLengthCutOffView =
+     wordLengths.apply(Combine.globally(new Max.MaxIntFn()).asSingletonView());
+
+
+  // Apply a ParDo that takes maxWordLengthCutOffView as a side input.
+  PCollection<String> wordsBelowCutOff =
+  words.apply(ParDo.withSideInputs(maxWordLengthCutOffView)
+                    .of(new DoFn<String, String>() {
+      public void processElement(ProcessContext c) {
+        String word = c.element();
+        // In our DoFn, access the side input.
+        int lengthCutOff = c.sideInput(maxWordLengthCutOffView);
+        if (word.length() <= lengthCutOff) {
+          c.output(word);
+        }
+  }}));
+```
+
+```python
+# Side inputs are available as extra arguments in the DoFn's process method or Map / FlatMap's callable.
+# Optional, positional, and keyword arguments are all supported. Deferred arguments are unwrapped into their actual values.
+# For example, using pvalue.AsIter(pcoll) at pipeline construction time results in an iterable of the actual elements of pcoll being passed into each process invocation.
+# In this example, side inputs are passed to a FlatMap transform as extra arguments and consumed by filter_using_length.
+
+# Callable takes additional arguments.
+def filter_using_length(word, lower_bound, upper_bound=float('inf')):
+  if lower_bound <= len(word) <= upper_bound:
+    yield word
+
+# Construct a deferred side input.
+avg_word_len = (words
+                | beam.Map(len)
+                | beam.CombineGlobally(beam.combiners.MeanCombineFn()))
+
+# Call with explicit side inputs.
+small_words = words | 'small' >> beam.FlatMap(filter_using_length, 0, 3)
+
+# A single deferred side input.
+larger_than_average = (words | 'large' >> beam.FlatMap(
+    filter_using_length,
+    lower_bound=pvalue.AsSingleton(avg_word_len)))
+
+# Mix and match.
+small_but_nontrivial = words | beam.FlatMap(filter_using_length,
+                                            lower_bound=2,
+                                            upper_bound=pvalue.AsSingleton(
+                                                avg_word_len))
+
+
+# We can also pass side inputs to a ParDo transform, which will get passed to its process method.
+# The only change is that the first arguments are self and a context, rather than the PCollection element itself.
+
+class FilterUsingLength(beam.DoFn):
+  def process(self, context, lower_bound, upper_bound=float('inf')):
+    if lower_bound <= len(context.element) <= upper_bound:
+      yield context.element
+
+small_words = words | beam.ParDo(FilterUsingLength(), 0, 3)
+...
+
+```
+
+##### Side Inputs and Windowing:
+
+A windowed `PCollection` may be infinite and thus cannot be compressed into a single value (or single collection class). When you create a `PCollectionView` of a windowed `PCollection`, the `PCollectionView` represents a single entity per window (one singleton per window, one list per window, etc.).
+
+Beam uses the window(s) for the main input element to look up the appropriate window for the side input element. Beam projects the main input element's window into the side input's window set, and then uses the side input from the resulting window. If the main input and side inputs have identical windows, the projection provides the exact corresponding window. However, if the inputs have different windows, Beam uses the projection to choose the most appropriate side input window.
+
+For example, if the main input is windowed using fixed-time windows of one minute, and the side input is windowed using fixed-time windows of one hour, Beam projects the main input window against the side input window set and selects the side input value from the appropriate hour-long side input window.
+
+If the main input element exists in more than one window, then `processElement` gets called multiple times, once for each window. Each call to `processElement` projects the "current" window for the main input element, and thus might provide a different view of the side input each time.
+
+If the side input has multiple trigger firings, Beam uses the value from the latest trigger firing. This is particularly useful if you use a side input with a single global window and specify a trigger.
+
+##### **Side Outputs**
+
+While `ParDo` always produces a main output `PCollection` (as the return value from apply), you can also have your `ParDo` produce any number of additional output `PCollection`s. If you choose to have multiple outputs, your `ParDo` returns all of the output `PCollection`s (including the main output) bundled together.
+
+##### Tags for Side Outputs:
+
+```java
+// To emit elements to a side output PCollection, create a TupleTag object to identify each collection that your ParDo produces.
+// For example, if your ParDo produces three output PCollections (the main output and two side outputs), you must create three TupleTags.
+// The following example code shows how to create TupleTags for a ParDo with a main output and two side outputs:
+
+  // Input PCollection to our ParDo.
+  PCollection<String> words = ...;
+
+  // The ParDo will filter words whose length is below a cutoff and add them to
+  // the main ouput PCollection<String>.
+  // If a word is above the cutoff, the ParDo will add the word length to a side output
+  // PCollection<Integer>.
+  // If a word starts with the string "MARKER", the ParDo will add that word to a different
+  // side output PCollection<String>.
+  final int wordLengthCutOff = 10;
+
+  // Create the TupleTags for the main and side outputs.
+  // Main output.
+  final TupleTag<String> wordsBelowCutOffTag =
+      new TupleTag<String>(){};
+  // Word lengths side output.
+  final TupleTag<Integer> wordLengthsAboveCutOffTag =
+      new TupleTag<Integer>(){};
+  // "MARKER" words side output.
+  final TupleTag<String> markedWordsTag =
+      new TupleTag<String>(){};
+
+// Passing Output Tags to ParDo:
+// After you specify the TupleTags for each of your ParDo outputs, pass the tags to your ParDo by invoking .withOutputTags.
+// You pass the tag for the main output first, and then the tags for any side outputs in a TupleTagList.
+// Building on our previous example, we pass the three TupleTags (one for the main output and two for the side outputs) to our ParDo.
+// Note that all of the outputs (including the main output PCollection) are bundled into the returned PCollectionTuple.
+
+  PCollectionTuple results =
+      words.apply(
+          ParDo
+          // Specify the tag for the main output, wordsBelowCutoffTag.
+          .withOutputTags(wordsBelowCutOffTag,
+          // Specify the tags for the two side outputs as a TupleTagList.
+                          TupleTagList.of(wordLengthsAboveCutOffTag)
+                                      .and(markedWordsTag))
+          .of(new DoFn<String, String>() {
+            // DoFn continues here.
+            ...
+          }
+```
+
+```python
+# To emit elements to a side output PCollection, invoke with_outputs() on the ParDo, optionally specifying the expected tags for the output.
+# with_outputs() returns a DoOutputsTuple object. Tags specified in with_outputs are attributes on the returned DoOutputsTuple object.
+# The tags give access to the corresponding output PCollections.
+
+results = (words | beam.ParDo(ProcessWords(), cutoff_length=2, marker='x')
+           .with_outputs('above_cutoff_lengths', 'marked strings',
+                         main='below_cutoff_strings'))
+below = results.below_cutoff_strings
+above = results.above_cutoff_lengths
+marked = results['marked strings']  # indexing works as well
+
+# The result is also iterable, ordered in the same order that the tags were passed to with_outputs(), the main tag (if specified) first.
+
+below, above, marked = (words
+                        | beam.ParDo(
+                            ProcessWords(), cutoff_length=2, marker='x')
+                        .with_outputs('above_cutoff_lengths',
+                                      'marked strings',
+                                      main='below_cutoff_strings'))
+```
+
+##### Emitting to Side Outputs in your DoFn:
+
+```java
+// Inside your ParDo's DoFn, you can emit an element to a side output by using the method ProcessContext.sideOutput.
+// Pass the appropriate TupleTag for the target side output collection when you call ProcessContext.sideOutput.
+// After your ParDo, extract the resulting main and side output PCollections from the returned PCollectionTuple.
+// Based on the previous example, this shows the DoFn emitting to the main and side outputs.
+
+  .of(new DoFn<String, String>() {
+     public void processElement(ProcessContext c) {
+       String word = c.element();
+       if (word.length() <= wordLengthCutOff) {
+         // Emit this short word to the main output.
+         c.output(word);
+       } else {
+         // Emit this long word's length to a side output.
+         c.sideOutput(wordLengthsAboveCutOffTag, word.length());
+       }
+       if (word.startsWith("MARKER")) {
+         // Emit this word to a different side output.
+         c.sideOutput(markedWordsTag, word);
+       }
+     }}));
+
+```
+
+```python
+# Inside your ParDo's DoFn, you can emit an element to a side output by wrapping the value and the output tag (str).
+# using the pvalue.SideOutputValue wrapper class.
+# Based on the previous example, this shows the DoFn emitting to the main and side outputs.
+
+class ProcessWords(beam.DoFn):
+
+  def process(self, context, cutoff_length, marker):
+    if len(context.element) <= cutoff_length:
+      # Emit this short word to the main output.
+      yield context.element
+    else:
+      # Emit this word's long length to a side output.
+      yield pvalue.SideOutputValue(
+          'above_cutoff_lengths', len(context.element))
+    if context.element.startswith(marker):
+      # Emit this word to a different side output.
+      yield pvalue.SideOutputValue('marked strings', context.element)
+
+
+# Side outputs are also available in Map and FlatMap.
+# Here is an example that uses FlatMap and shows that the tags do not need to be specified ahead of time.
+
+def even_odd(x):
+  yield pvalue.SideOutputValue('odd' if x % 2 else 'even', x)
+  if x % 10 == 0:
+    yield x
+
+results = numbers | beam.FlatMap(even_odd).with_outputs()
+
+evens = results.even
+odds = results.odd
+tens = results[None]  # the undeclared main output
+```
+
 <a name="io"></a>
 <a name="running"></a>
 <a name="transforms-composite"></a>
-<a name="transforms-sideio"></a>
 <a name="coders"></a>
 <a name="windowing"></a>
 <a name="triggers"></a>
