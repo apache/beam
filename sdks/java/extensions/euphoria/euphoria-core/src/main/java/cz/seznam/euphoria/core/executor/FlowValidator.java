@@ -50,7 +50,6 @@ class FlowValidator {
    * Validate that join operators' windowing semantics can be meaningfully
    * implemented. I.e. only instances which join "batched" windowed data sets
    * do not need to explicitly be provided with a user defined windowing strategy.
-   * See #16412.
    */
   private static void checkJoinWindowing(DAG<Operator<?, ?>> dag) {
     List<Node<Operator<?, ?>>> joins = dag.traverse()
