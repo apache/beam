@@ -111,6 +111,10 @@ class DisplayData(object):
   def create_from_options(cls, pipeline_options):
     """ Creates DisplayData from a PipelineOptions instance.
 
+    When creating DisplayData, this method will convert the value of any
+    item of a non-supported type to its string representation.
+    The normal DisplayData.create_from method rejects those items.
+
     Returns:
       A DisplayData instance with populated items.
 
