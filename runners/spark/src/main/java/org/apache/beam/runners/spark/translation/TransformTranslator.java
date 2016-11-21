@@ -32,9 +32,11 @@ import org.apache.avro.mapreduce.AvroJob;
 import org.apache.avro.mapreduce.AvroKeyInputFormat;
 import org.apache.beam.runners.core.AssignWindowsDoFn;
 import org.apache.beam.runners.spark.SparkRunner;
+import org.apache.beam.runners.spark.SparkPipelineOptions;
 import org.apache.beam.runners.spark.aggregators.AccumulatorSingleton;
 import org.apache.beam.runners.spark.aggregators.NamedAggregators;
 import org.apache.beam.runners.spark.io.SourceRDD;
+import org.apache.beam.runners.spark.io.TestStorageLevelPTransform;
 import org.apache.beam.runners.spark.io.hadoop.HadoopIO;
 import org.apache.beam.runners.spark.io.hadoop.ShardNameTemplateHelper;
 import org.apache.beam.runners.spark.io.hadoop.TemplatedAvroKeyOutputFormat;
@@ -78,6 +80,9 @@ import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.api.java.function.Function;
 import org.apache.spark.api.java.function.PairFunction;
+import org.apache.spark.storage.StorageLevel;
+import org.junit.Assert;
+
 import scala.Tuple2;
 
 
@@ -583,6 +588,19 @@ public final class TransformTranslator {
     };
   }
 
+  private static TransformEvaluator<TestStorageLevelPTransform> testStorageLevel() {
+    return new TransformEvaluator<TestStorageLevelPTransform>() {
+      @Override
+      public void evaluate(TestStorageLevelPTransform transform, EvaluationContext context) {
+        JavaRDD rdd = ((BoundedDataset) (context).borrowDataset(transform)).getRDD();
+        String pipelineStorageLevel = context.getRuntimeContext().getPipelineOptions()
+            .as(SparkPipelineOptions.class).getStorageLevel();
+        StorageLevel expectedLevel = StorageLevel.fromString(pipelineStorageLevel);
+        Assert.assertEquals(expectedLevel, rdd.getStorageLevel());
+      }
+    };
+  }
+
   private static final Map<Class<? extends PTransform>, TransformEvaluator<?>> EVALUATORS = Maps
       .newHashMap();
 
@@ -602,6 +620,7 @@ public final class TransformTranslator {
     EVALUATORS.put(View.AsIterable.class, viewAsIter());
     EVALUATORS.put(View.CreatePCollectionView.class, createPCollView());
     EVALUATORS.put(Window.Bound.class, window());
+    EVALUATORS.put(TestStorageLevelPTransform.class, testStorageLevel());
   }
 
   /**
