@@ -22,16 +22,19 @@ import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.base.Strings.isNullOrEmpty;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Iterables;
 import com.google.common.collect.Ordering;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.Serializable;
 import java.nio.channels.Channels;
 import java.nio.channels.WritableByteChannel;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.HashSet;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Set;
 import java.util.zip.GZIPOutputStream;
@@ -455,16 +458,24 @@ public abstract class FileBasedSink<T> extends Sink<T> {
       // (produced by successfully completed bundles).
       // This may still fail to remove temporary outputs of some failed bundles, but at least
       // the common case (where all bundles succeed) is guaranteed to be fully addressed.
-      Collection<String> matches = factory.match(factory.resolve(tempDirectory, "*"));
-      Set<String> allMatches = new HashSet<>(matches);
-      allMatches.addAll(knownFiles);
+      File tempParent = Paths.get(tempDirectory).toFile();
+      Iterable<File> tempFilesAndDirs = com.google.common.io.Files.fileTreeTraverser()
+          .preOrderTraversal(tempParent);
+      Iterable<File> tempFiles = Iterables.filter(tempFilesAndDirs,
+          com.google.common.io.Files.isFile());
+      List<String> tempToRemove = new LinkedList<>();
+      for (File file : tempFiles) {
+        tempToRemove.add(file.getPath());
+      }
+      Set<String> allToRemove = new HashSet<>(tempToRemove);
+      allToRemove.addAll(knownFiles);
       LOG.debug(
           "Removing {} temporary files found under {} ({} matched glob, {} known files)",
-          allMatches.size(),
+          allToRemove.size(),
           tempDirectory,
-          matches.size(),
-          allMatches.size() - matches.size());
-      factory.remove(allMatches);
+          tempToRemove.size(),
+          allToRemove.size() - tempToRemove.size());
+      factory.remove(allToRemove);
       factory.remove(ImmutableList.of(tempDirectory));
     }
 
