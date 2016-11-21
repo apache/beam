@@ -2,10 +2,12 @@ package cz.seznam.euphoria.operator.test.ng.junit;
 
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.flow.Flow;
-import cz.seznam.euphoria.core.client.io.DataSource;
 import cz.seznam.euphoria.core.client.io.ListDataSink;
+import cz.seznam.euphoria.core.client.io.ListDataSource;
 import cz.seznam.euphoria.core.executor.Executor;
 import cz.seznam.euphoria.core.util.Settings;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.Serializable;
 import java.util.HashMap;
@@ -15,12 +17,16 @@ import java.util.Map;
 import static org.junit.Assert.assertEquals;
 
 public abstract class AbstractOperatorTest implements Serializable {
+  
+  private static final Logger LOG = LoggerFactory.getLogger(AbstractOperatorTest.class); 
 
   /** Automatically injected if the test class or the a suite it is part of
    * is annotated with {@code @RunWith(ExecutorProviderRunner.class)}.
    */
   protected transient Executor executor;
-
+  
+  protected transient Processing.Type processing;
+  
   /**
    * A single test case.
    */
@@ -30,14 +36,13 @@ public abstract class AbstractOperatorTest implements Serializable {
     int getNumOutputPartitions();
 
     /** Retrieve flow to be run. Write outputs to given sink. */
-    Dataset<T> getOutput(Flow flow);
+    Dataset<T> getOutput(Flow flow, boolean bounded);
 
     /** Validate outputs. */
     void validate(List<List<T>> partitions);
 
     /** Retrieve number of runs for the test. */
     default int getNumRuns() { return 1; }
-
   }
 
   /**
@@ -74,16 +79,23 @@ public abstract class AbstractOperatorTest implements Serializable {
     }
 
     @Override
-    @SuppressWarnings("unchecked")
-    public final Dataset<O> getOutput(Flow flow) {
-      Dataset<I> input = flow.createInput(getDataSource());
-      Dataset<O> output = getOutput(input);
-      return output;
+    public final Dataset<O> getOutput(Flow flow, boolean bounded) {
+      ListDataSource<I> dataSource = getDataSource();
+      // create output only for supported processing
+      if (dataSource.isUnknown() || dataSource.isBounded() == bounded) {
+        dataSource = bounded ? dataSource.toBounded() : dataSource.toUnbounded();
+        Dataset<I> input = flow.createInput(dataSource);
+        Dataset<O> output = getOutput(input);
+        return output;
+      } else {
+        // unsupported
+        return null;
+      }
     }
-
+    
     protected abstract Dataset<O> getOutput(Dataset<I> input);
 
-    protected abstract DataSource<I> getDataSource();
+    protected abstract ListDataSource<I> getDataSource();
   }
 
   /**
@@ -91,12 +103,24 @@ public abstract class AbstractOperatorTest implements Serializable {
    */
   @SuppressWarnings("unchecked")
   public void execute(TestCase tc) throws Exception {
-    for (int i = 0; i < tc.getNumRuns(); i++) {
-      ListDataSink sink = ListDataSink.get(tc.getNumOutputPartitions());
-      Flow flow = Flow.create(tc.toString());
-      tc.getOutput(flow).persist(sink);
-      executor.submit(flow).get();
-      tc.validate(sink.getOutputs());
+    // execute tests for each of processing types
+    boolean executed = false;
+    for (Processing.Type proc: this.processing.asList()) {
+      for (int i = 0; i < tc.getNumRuns(); i++) {
+        ListDataSink<?> sink = ListDataSink.get(tc.getNumOutputPartitions());
+        Flow flow = Flow.create(tc.toString());
+        Dataset output = tc.getOutput(flow, proc.isBounded());
+        // skip if output is not supported for the processing type
+        if (output != null) {
+          output.persist(sink);
+          executor.submit(flow).get();
+          tc.validate(sink.getOutputs());
+          executed = true;
+        }
+      }
+    }
+    if (!executed) {
+      LOG.warn("{} was skipped due to incompatible processing types.", tc.getClass());
     }
   }
 
@@ -128,5 +152,4 @@ public abstract class AbstractOperatorTest implements Serializable {
     });
     return ret;
   }
-
 }

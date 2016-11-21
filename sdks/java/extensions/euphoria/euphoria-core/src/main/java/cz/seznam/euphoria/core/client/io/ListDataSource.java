@@ -22,32 +22,35 @@ public class ListDataSource<T> implements DataSource<T> {
   private static final Map<ListDataSource<?>, List<List<?>>> storage =
       Collections.synchronizedMap(new WeakHashMap<>());
 
-  @SuppressWarnings("unchecked")
   @SafeVarargs
   public static <T> ListDataSource<T> bounded(List<T>... partitions) {
     return new ListDataSource<>(true, Lists.newArrayList(partitions));
   }
 
-  @SuppressWarnings("unchecked")
   @SafeVarargs
   public static <T> ListDataSource<T> unbounded(List<T>... partitions) {
     return new ListDataSource<>(false, Lists.newArrayList(partitions));
   }
 
-  @SuppressWarnings("unchecked")
   @SafeVarargs
   public static <T> ListDataSource<T> of(boolean bounded, List<T> ... partitions) {
     return new ListDataSource<>(bounded, Lists.newArrayList(partitions));
   }
+  
+  @SafeVarargs
+  public static <T> ListDataSource<T> of(List<T> ... partitions) {
+    return new ListDataSource<>(null, Lists.newArrayList(partitions));
+  }
 
-  final boolean bounded;
+  // bounded/unbounded/unknown
+  final Boolean bounded;
   long sleepMs = 0;
   long finalSleepMs = 0;
 
   private final int id = System.identityHashCode(this);
 
   @SuppressWarnings("unchecked")
-  private ListDataSource(boolean bounded, ArrayList<List<T>> partitions) {
+  private ListDataSource(Boolean bounded, ArrayList<List<T>> partitions) {
     this.bounded = bounded;
 
     // save partitions to static storage
@@ -131,11 +134,19 @@ public class ListDataSource<T> implements DataSource<T> {
 
   @Override
   public boolean isBounded() {
-    return bounded;
+    return bounded == Boolean.TRUE;
+  }
+  
+  public boolean isUnbounded() {
+    return bounded == Boolean.FALSE;
+  }
+  
+  public boolean isUnknown() {
+    return bounded == null;
   }
   
   public ListDataSource<T> toBounded() {
-    if (bounded) {
+    if (isBounded()) {
       return this;
     }
     List<List<?>> list = (List<List<?>>) storage.get(this);
@@ -143,7 +154,7 @@ public class ListDataSource<T> implements DataSource<T> {
   }
   
   public ListDataSource<T> toUnbounded() {
-    if (!bounded) {
+    if (isUnbounded()) {
       return this;
     }
     List<List<?>> list = (List<List<?>>) storage.get(this);

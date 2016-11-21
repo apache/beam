@@ -47,10 +47,7 @@ public class SparkExecutor implements Executor {
 
   private Result execute(Flow flow) {
     if (!isBoundedInput(flow)) {
-      // FIXME this executor is intended to be used with bounded datasets only
-      // but it works with unbounded as well for testing purposes
-      LOG.warn("Input is type of unbounded source. Execution may not finish.");
-      //throw new UnsupportedOperationException("Spark executor doesn't support unbounded input");
+      throw new UnsupportedOperationException("Spark executor doesn't support unbounded input");
     }
 
     List<DataSink<?>> sinks = Collections.emptyList();
