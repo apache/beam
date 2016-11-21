@@ -10,6 +10,7 @@ import cz.seznam.euphoria.core.client.io.ListDataSource;
 import cz.seznam.euphoria.core.client.operator.Join;
 import cz.seznam.euphoria.core.client.operator.MapElements;
 import cz.seznam.euphoria.core.client.operator.ReduceByKey;
+import cz.seznam.euphoria.core.client.operator.WindowingRequiredException;
 import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.core.executor.Executor;
 import cz.seznam.euphoria.core.util.Settings;
@@ -97,7 +98,7 @@ public class JoinWindowEnforcement extends OperatorTest {
       @Override
       protected Class<? extends Exception> expectFailure() {
         if (expectInvalidJoinFailure) {
-          return Join.WindowingRequiredException.class;
+          return WindowingRequiredException.class;
         }
         return null;
       }

@@ -9,6 +9,7 @@ import cz.seznam.euphoria.core.client.io.DataSink;
 import cz.seznam.euphoria.core.client.operator.Join;
 import cz.seznam.euphoria.core.client.operator.Operator;
 import cz.seznam.euphoria.core.client.operator.WindowWiseOperator;
+import cz.seznam.euphoria.core.client.operator.WindowingRequiredException;
 import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.guava.shaded.com.google.common.base.Preconditions;
 
@@ -69,7 +70,9 @@ class FlowValidator {
     }
     for (Node<Operator<?, ?>> parent : node.getParents()) {
       if (!isBatched(parent)) {
-        throw new Join.WindowingRequiredException();
+        throw new WindowingRequiredException(
+            "Join operator requires either an explicit windowing" +
+            " strategy or needs to be supplied with batched inputs.");
       }
     }
   }
