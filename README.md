@@ -88,7 +88,9 @@ Have ideas for new Runners? See the [JIRA](https://issues.apache.org/jira/browse
 
 ## Getting Started
 
-_Coming soon!_
+Please refer to the [Quickstart](http://beam.incubator.apache.org/get-started/quickstart/) available on our website.
+
+If you'd like to build and install the whole project from the source distribution, please use the standard `mvn clean install` command.
 
 ### Flink Runner
 
