@@ -117,7 +117,7 @@ def no_retries(fun):
 def with_exponential_backoff(
     num_retries=16, initial_delay_secs=5.0, logger=logging.warning,
     retry_filter=retry_on_server_errors_filter,
-    clock=Clock(), fuzz=True):
+    clock=Clock(), fuzz=True, factor=2, max_delay_secs=60 * 60 * 4):
   """Decorator with arguments that control the retry logic.
 
   Args:
@@ -134,6 +134,11 @@ def with_exponential_backoff(
       use time.sleep().
     fuzz: True if the delay should be fuzzed (default). During testing False
       can be used so that the delays are not randomized.
+    factor: The exponential factor to use on subsequent retries.
+      Default is 2 (doubling).
+    max_delay_sec: Maximum delay (in seconds). After this limit is reached,
+      further tries use max_delay_sec instead of exponentially increasing
+      the time. Defaults to 4 hours.
 
   Returns:
     As per Python decorators with arguments pattern returns a decorator
@@ -155,7 +160,8 @@ def with_exponential_backoff(
     def wrapper(*args, **kwargs):
       retry_intervals = iter(
           FuzzedExponentialIntervals(
-              initial_delay_secs, num_retries, fuzz=0.5 if fuzz else 0))
+              initial_delay_secs, num_retries, factor,
+              fuzz=0.5 if fuzz else 0, max_delay_secs=max_delay_secs))
       while True:
         try:
           return fun(*args, **kwargs)
