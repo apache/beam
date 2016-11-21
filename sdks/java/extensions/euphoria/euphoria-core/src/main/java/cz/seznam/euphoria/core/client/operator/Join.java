@@ -41,17 +41,6 @@ public class Join<LEFT, RIGHT, KEY, OUT, W extends Window>
     Join<LEFT, RIGHT, KEY, OUT, W>>
     implements OutputBuilder<Pair<KEY, OUT>> {
 
-  /**
-   * Thrown by executors at flow submission time when joining two non-batched
-   * dataset without explictely providing a windowing strategy to the join operator.
-   */
-  public static final class WindowingRequiredException extends IllegalStateException {
-    public WindowingRequiredException() {
-      super("Join operator requires either an explicit windowing" +
-            " strategy or needs to be supplied with batched inputs.");
-    }
-  }
-
   public static class OfBuilder {
     private final String name;
 
