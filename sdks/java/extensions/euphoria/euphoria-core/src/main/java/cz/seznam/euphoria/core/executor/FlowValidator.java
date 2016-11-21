@@ -30,6 +30,10 @@ class FlowValidator {
    * @param dag the user defined flow as a DAG
    *
    * @return the input dag if the validation succeeds
+   *
+   * @throws WindowingRequiredException if the given DAG contains operators
+   *          that require explicit windowing strategies to make meaningful
+   *          executions
    */
   static DAG<Operator<?, ?>> preTranslateValidate(DAG<Operator<?, ?>> dag) {
     checkJoinWindowing(dag);
