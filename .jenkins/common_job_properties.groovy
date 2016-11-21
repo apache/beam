@@ -121,7 +121,7 @@ class common_job_properties {
   
   static def setMavenConfig(def context) {
     context.mavenInstallation('Maven 3.3.3')
-    context.rootPom('pom.xml')
+    context.rootPOM('pom.xml')
     context.localRepository(LocalRepositoryLocation.LOCAL_TO_WORKSPACE)
   }
 }
