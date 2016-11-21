@@ -353,6 +353,31 @@ class GcsIO(object):
         bucket=bucket, object=object_path)
     return self.client.objects.Get(request).size
 
+  @retry.with_exponential_backoff(
+      retry_filter=retry.retry_on_server_errors_and_timeout_filter)
+  def size_of_files_in_glob(self, pattern):
+    """Returns the size of all the files in the glob as a dictionary
+
+    Args:
+      path: a file path pattern that reads the size of all the files
+    """
+    bucket, name_pattern = parse_gcs_path(pattern)
+    # Get the prefix with which we can list objects in the given bucket.
+    prefix = re.match('^[^[*?]*', name_pattern).group(0)
+    request = storage.StorageObjectsListRequest(bucket=bucket, prefix=prefix)
+    file_sizes = {}
+    while True:
+      response = self.client.objects.List(request)
+      for item in response.items:
+        if fnmatch.fnmatch(item.name, name_pattern):
+          file_name = 'gs://%s/%s' % (item.bucket, item.name)
+          file_sizes[file_name] = item.size
+      if response.nextPageToken:
+        request.pageToken = response.nextPageToken
+      else:
+        break
+    return file_sizes
+
 
 class GcsBufferedReader(object):
   """A class for reading Google Cloud Storage files."""
