@@ -18,7 +18,6 @@
 package org.apache.beam.runners.core;
 
 
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.transforms.Combine.KeyedCombineFn;
@@ -116,8 +115,6 @@ public abstract class SystemReduceFn<K, InputT, AccumT, OutputT, W extends Bound
   }
 
   @Override
-  @SuppressFBWarnings(value = "RV_RETURN_VALUE_IGNORED_NO_SIDE_EFFECT",
-    justification = "prefetch side effect")
   public void prefetchOnTrigger(StateAccessor<K> state) {
     state.access(bufferTag).readLater();
   }

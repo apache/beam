@@ -133,24 +133,12 @@
       <groupId>com.google.cloud.bigtable</groupId>
       <artifactId>bigtable-protos</artifactId>
       <version>${bigtable.version}</version>
-      <exclusions>
-        <exclusion>
-          <groupId>com.google.code.findbugs</groupId>
-          <artifactId>jsr305</artifactId>
-        </exclusion>
-      </exclusions>
     </dependency>
 
     <dependency>
       <groupId>com.google.cloud.bigtable</groupId>
       <artifactId>bigtable-client-core</artifactId>
       <version>${bigtable.version}</version>
-      <exclusions>
-        <exclusion>
-          <groupId>com.google.code.findbugs</groupId>
-          <artifactId>jsr305</artifactId>
-        </exclusion>
-      </exclusions>
     </dependency>
 
     <dependency>
@@ -195,7 +183,7 @@
 
     <dependency>
       <groupId>com.google.code.findbugs</groupId>
-      <artifactId>annotations</artifactId>
+      <artifactId>jsr305</artifactId>
     </dependency>
 
     <dependency>

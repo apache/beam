@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.util;
 
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 
@@ -33,7 +32,6 @@ public class ExposedByteArrayInputStream extends ByteArrayInputStream{
   /**
    * Read all remaining bytes.
    */
-  @SuppressFBWarnings(value = "EI_EXPOSE_REP", justification = "Returns internal buffer by design")
   public byte[] readAll() throws IOException {
     if (pos == 0 && count == buf.length) {
       pos = count;
