@@ -108,6 +108,33 @@ class DisplayData(object):
                           key=key))
 
   @classmethod
+  def create_from_options(cls, pipeline_options):
+    """ Creates DisplayData from a PipelineOptions instance.
+
+    When creating DisplayData, this method will convert the value of any
+    item of a non-supported type to its string representation.
+    The normal DisplayData.create_from method rejects those items.
+
+    Returns:
+      A DisplayData instance with populated items.
+
+    Raises:
+      ValueError: If the has_display_data argument is not an instance of
+        HasDisplayData.
+    """
+    from apache_beam.utils.options import PipelineOptions
+    if not isinstance(pipeline_options, PipelineOptions):
+      raise ValueError(
+          'Element of class {}.{} does not subclass PipelineOptions'
+          .format(pipeline_options.__module__,
+                  pipeline_options.__class__.__name__))
+
+    items = {k: (v if DisplayDataItem._get_value_type(v) is not None
+                 else str(v))
+             for k, v in pipeline_options.display_data().items()}
+    return cls(pipeline_options._namespace(), items)
+
+  @classmethod
   def create_from(cls, has_display_data):
     """ Creates DisplayData from a HasDisplayData instance.
 

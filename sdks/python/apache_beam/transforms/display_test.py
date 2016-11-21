@@ -29,6 +29,7 @@ import apache_beam as beam
 from apache_beam.transforms.display import HasDisplayData
 from apache_beam.transforms.display import DisplayData
 from apache_beam.transforms.display import DisplayDataItem
+from apache_beam.utils.options import PipelineOptions
 
 
 class DisplayDataItemMatcher(BaseMatcher):
@@ -104,6 +105,22 @@ class DisplayDataTest(unittest.TestCase):
     display_dofn = MyDoFn()
     self.assertTrue(isinstance(display_dofn, HasDisplayData))
     self.assertEqual(display_dofn.display_data(), {})
+
+  def test_unsupported_type_display_data(self):
+    class MyDisplayComponent(HasDisplayData):
+      def display_data(self):
+        return {'item_key': 'item_value'}
+
+    with self.assertRaises(ValueError):
+      DisplayData.create_from_options(MyDisplayComponent())
+
+  def test_create_list_display_data(self):
+    flags = ['--extra_package', 'package1', '--extra_package', 'package2']
+    pipeline_options = PipelineOptions(flags=flags)
+    items = DisplayData.create_from_options(pipeline_options).items
+    hc.assert_that(items, hc.contains_inanyorder(
+        DisplayDataItemMatcher('extra_packages',
+                               str(['package1', 'package2']))))
 
   def test_base_cases(self):
     """ Tests basic display data cases (key:value, key:dict)

@@ -242,7 +242,7 @@ class Environment(object):
           dataflow.Environment.SdkPipelineOptionsValue.AdditionalProperty(
               key='options', value=to_json_value(options_dict)))
 
-      dd = DisplayData.create_from(options)
+      dd = DisplayData.create_from_options(options)
       items = [item.get_dict() for item in dd.items]
       self.proto.sdkPipelineOptions.additionalProperties.append(
           dataflow.Environment.SdkPipelineOptionsValue.AdditionalProperty(

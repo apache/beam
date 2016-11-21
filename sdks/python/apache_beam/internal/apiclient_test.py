@@ -31,5 +31,6 @@ class UtilTest(unittest.TestCase):
         pipeline_options,
         DataflowPipelineRunner.BATCH_ENVIRONMENT_MAJOR_VERSION)
 
+
 if __name__ == '__main__':
   unittest.main()
