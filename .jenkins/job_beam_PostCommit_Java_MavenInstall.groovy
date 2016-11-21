@@ -17,4 +17,8 @@ mavenJob('beam_PostCommit_Java_MavenInstall') {
   }
   
   goals('-B -e -P release,dataflow-runner -DrepoToken=${COVERALLS_REPO_TOKEN} clean install coveralls:report -DskipITs=false -DintegrationTestPipelineOptions=\'[ "--project=apache-beam-testing", "--tempRoot=gs://temp-storage-for-end-to-end-tests", "--runner=org.apache.beam.runners.dataflow.testing.TestDataflowRunner" ]\'')
+  publishers {
+    // Notify the mailing list for each failed build.
+    // mailer('commits@beam.incubator.apache.org', false, false)
+  }
 }
