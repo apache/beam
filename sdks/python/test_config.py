@@ -32,13 +32,13 @@ class BeamTestPlugin(Plugin):
   """
 
   def options(self, parser, env):
-    """Add '--test-options' to command line option to avoid unrecognized
+    """Add '--test-pipeline-options' to command line option to avoid unrecognized
     option error thrown by nose.
 
     The value of this option will be processed by TestPipeline and used to
     build customized pipeline for ValidatesRunner tests.
     """
-    parser.add_option('--test-options',
+    parser.add_option('--test-pipeline-options',
                       action='store',
                       type=str,
                       help='providing pipeline options to run tests on runner')
