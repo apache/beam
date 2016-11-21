@@ -55,6 +55,7 @@ import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.RunnableOnService;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.testing.UsesStatefulParDo;
 import org.apache.beam.sdk.transforms.DoFn.OnTimer;
 import org.apache.beam.sdk.transforms.DoFn.ProcessElement;
 import org.apache.beam.sdk.transforms.ParDo.Bound;
@@ -1464,8 +1465,8 @@ public class ParDoTest implements Serializable {
   }
 
   @Test
-  @Category(RunnableOnService.class)
-  public void testValueState() {
+  @Category({RunnableOnService.class, UsesStatefulParDo.class})
+  public void testValueStateSimple() {
     final String stateId = "foo";
 
     DoFn<KV<String, Integer>, Integer> fn =
@@ -1494,8 +1495,59 @@ public class ParDoTest implements Serializable {
   }
 
   @Test
-  @Category(RunnableOnService.class)
-  public void testBagSTate() {
+  @Category({RunnableOnService.class, UsesStatefulParDo.class})
+  public void testValueStateSideOutput() {
+    final String stateId = "foo";
+
+    final TupleTag<Integer> evenTag = new TupleTag<Integer>() {};
+    final TupleTag<Integer> oddTag = new TupleTag<Integer>() {};
+
+    DoFn<KV<String, Integer>, Integer> fn =
+        new DoFn<KV<String, Integer>, Integer>() {
+
+          @StateId(stateId)
+          private final StateSpec<Object, ValueState<Integer>> intState =
+              StateSpecs.value(VarIntCoder.of());
+
+          @ProcessElement
+          public void processElement(
+              ProcessContext c, @StateId(stateId) ValueState<Integer> state) {
+            Integer currentValue = MoreObjects.firstNonNull(state.read(), 0);
+            if (currentValue % 2 == 0) {
+              c.output(currentValue);
+            } else {
+              c.sideOutput(oddTag, currentValue);
+            }
+            state.write(currentValue + 1);
+          }
+        };
+
+    Pipeline p = TestPipeline.create();
+    PCollectionTuple output =
+        p.apply(
+                Create.of(
+                    KV.of("hello", 42),
+                    KV.of("hello", 97),
+                    KV.of("hello", 84),
+                    KV.of("goodbye", 33),
+                    KV.of("hello", 859),
+                    KV.of("goodbye", 83945)))
+            .apply(ParDo.of(fn).withOutputTags(evenTag, TupleTagList.of(oddTag)));
+
+    PCollection<Integer> evens = output.get(evenTag);
+    PCollection<Integer> odds = output.get(oddTag);
+
+    // There are 0 and 2 from "hello" and just 0 from "goodbye"
+    PAssert.that(evens).containsInAnyOrder(0, 2, 0);
+
+    // There are 1 and 3 from "hello" and just "1" from "goodbye"
+    PAssert.that(odds).containsInAnyOrder(1, 3, 1);
+    p.run();
+  }
+
+  @Test
+  @Category({RunnableOnService.class, UsesStatefulParDo.class})
+  public void testBagState() {
     final String stateId = "foo";
 
     DoFn<KV<String, Integer>, List<Integer>> fn =
@@ -1526,6 +1578,52 @@ public class ParDoTest implements Serializable {
             .apply(ParDo.of(fn));
 
     PAssert.that(output).containsInAnyOrder(Lists.newArrayList(12, 42, 84, 97));
+    p.run();
+  }
+
+  @Test
+  @Category({RunnableOnService.class, UsesStatefulParDo.class})
+  public void testBagStateSideInput() {
+    Pipeline p = TestPipeline.create();
+
+    final PCollectionView<List<Integer>> listView =
+        p.apply("Create list for side input", Create.of(2, 1, 0)).apply(View.<Integer>asList());
+
+    final String stateId = "foo";
+    DoFn<KV<String, Integer>, List<Integer>> fn =
+        new DoFn<KV<String, Integer>, List<Integer>>() {
+
+          @StateId(stateId)
+          private final StateSpec<Object, BagState<Integer>> bufferState =
+              StateSpecs.bag(VarIntCoder.of());
+
+          @ProcessElement
+          public void processElement(
+              ProcessContext c, @StateId(stateId) BagState<Integer> state) {
+            Iterable<Integer> currentValue = state.read();
+            state.add(c.element().getValue());
+            if (Iterables.size(state.read()) >= 4) {
+              List<Integer> sorted = Lists.newArrayList(currentValue);
+              Collections.sort(sorted);
+              c.output(sorted);
+
+              List<Integer> sideSorted = Lists.newArrayList(c.sideInput(listView));
+              Collections.sort(sideSorted);
+              c.output(sideSorted);
+            }
+          }
+        };
+
+    PCollection<List<Integer>> output =
+        p.apply(
+                "Create main input",
+                Create.of(
+                    KV.of("hello", 97), KV.of("hello", 42), KV.of("hello", 84), KV.of("hello", 12)))
+            .apply(ParDo.of(fn).withSideInputs(listView));
+
+    PAssert.that(output).containsInAnyOrder(
+        Lists.newArrayList(12, 42, 84, 97),
+        Lists.newArrayList(0, 1, 2));
     p.run();
   }
 
