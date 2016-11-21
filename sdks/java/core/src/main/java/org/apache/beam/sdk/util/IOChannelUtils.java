@@ -174,7 +174,7 @@ public class IOChannelUtils {
                 return input.getClass().getName();
               }})
             .join(Joiner.on(", "));
-        throw new RuntimeException(String.format(
+        throw new IllegalStateException(String.format(
             "Scheme: [%s] has conflicting registrars: [%s]",
             entry.getKey(),
             conflictingRegistrars));
