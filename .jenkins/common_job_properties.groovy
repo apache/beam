@@ -10,6 +10,12 @@ class common_job_properties {
       githubProjectUrl('https://github.com/apache/incubator-beam/')
     }
 
+    // Execute concurrent builds if necessary
+    context.concurrentBuild()
+
+    // Set jdk version
+    context.jdk('JDK 1.8 (latest)')
+
     // Restrict this project to run only on Jenkins executors dedicated to the
     // Apache Beam project.
     context.label('beam')
@@ -46,7 +52,7 @@ class common_job_properties {
     context.wrappers {
       // Abort the build if it's stuck for more minutes than specified.
       timeout {
-        absolute(30)
+        absolute(100)
         abortBuild()
       }
     }
@@ -102,5 +108,20 @@ class common_job_properties {
         result('FAILURE')
       }
     }
+  }
+
+  static def setSparkEnvVariables(def context) {
+    context.environmentVariables {
+      env('SPARK_LOCAL_IP', '127.0.0.1')
+      script('''
+         env
+      ''')
+    }
+  }
+  
+  static def setMavenConfig(def context) {
+    context.mavenInstallation('Maven 3.3.3')
+    context.rootPom('pom.xml')
+    context.localRepository(LocalRepositoryLocation.LOCAL_TO_WORKSPACE)
   }
 }

@@ -12,5 +12,5 @@ mavenJob('beam_PreCommit_Java_Build') {
       delegate,
       'Jenkins: Maven clean compile')
   
-  goals('clean compile')
+  goals('-B -e -Prelease clean compile')
 }
