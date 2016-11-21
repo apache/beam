@@ -107,7 +107,8 @@ class FileBasedSource(iobase.BoundedSource):
     if self._concat_source is None:
       single_file_sources = []
       file_names = [f for f in fileio.ChannelFactory.glob(self._pattern)]
-      sizes = FileBasedSource._estimate_sizes_in_parallel(file_names)
+      sizes = FileBasedSource._estimate_sizes_in_parallel(file_names,
+                                                          self._pattern)
 
       # We create a reference for FileBasedSource that will be serialized along
       # with each _SingleFileSource. To prevent this FileBasedSource from having
@@ -144,22 +145,29 @@ class FileBasedSource(iobase.BoundedSource):
         compression_type=self._compression_type)
 
   @staticmethod
-  def _estimate_sizes_in_parallel(file_names):
+  def _estimate_sizes_in_parallel(file_names, pattern=None):
+    """Returns the size of all the files as an ordered list
+    """
     if not file_names:
       return []
     elif len(file_names) == 1:
       return [fileio.ChannelFactory.size_in_bytes(file_names[0])]
     else:
-      # ThreadPool crashes in old versions of Python (< 2.7.5) if created from a
-      # child thread. (http://bugs.python.org/issue10015)
-      if not hasattr(threading.current_thread(), '_children'):
-        threading.current_thread()._children = weakref.WeakKeyDictionary()
-      pool = ThreadPool(
-          min(MAX_NUM_THREADS_FOR_SIZE_ESTIMATION, len(file_names)))
-      try:
-        return pool.map(fileio.ChannelFactory.size_in_bytes, file_names)
-      finally:
-        pool.terminate()
+      if pattern is None:
+        # ThreadPool crashes in old versions of Python (< 2.7.5) if created
+        # from a child thread. (http://bugs.python.org/issue10015)
+        if not hasattr(threading.current_thread(), '_children'):
+          threading.current_thread()._children = weakref.WeakKeyDictionary()
+        pool = ThreadPool(
+            min(MAX_NUM_THREADS_FOR_SIZE_ESTIMATION, len(file_names)))
+        try:
+          return pool.map(fileio.ChannelFactory.size_in_bytes, file_names)
+        finally:
+          pool.terminate()
+      else:
+        file_sizes = fileio.ChannelFactory.size_of_files_in_glob(pattern,
+                                                                 file_names)
+        return [file_sizes[f] for f in file_names]
 
   def _validate(self):
     """Validate if there are actual files in the specified glob pattern
@@ -179,6 +187,8 @@ class FileBasedSource(iobase.BoundedSource):
     file_names = [f for f in fileio.ChannelFactory.glob(self._pattern)]
     if (len(file_names) <=
         FileBasedSource.MIN_NUMBER_OF_FILES_TO_STAT):
+      # We're reading very few files so we can pass names without pattern
+      # as otherwise we'll read metadata about the whole directory
       return sum(self._estimate_sizes_in_parallel(file_names))
     else:
       # Estimating size of a random sample.
@@ -188,7 +198,7 @@ class FileBasedSource(iobase.BoundedSource):
                         int(len(file_names) *
                             FileBasedSource.MIN_FRACTION_OF_FILES_TO_STAT))
       sample = random.sample(file_names, sample_size)
-      estimate = self._estimate_sizes_in_parallel(sample)
+      estimate = self._estimate_sizes_in_parallel(sample, self._pattern)
       return int(
           sum(estimate) *
           (float(len(file_names)) / len(sample)))
