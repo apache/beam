@@ -21,7 +21,6 @@ import static com.google.common.base.Preconditions.checkArgument;
 
 import com.google.api.client.util.BackOff;
 import com.google.api.client.util.NanoClock;
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -130,8 +129,6 @@ public class AttemptAndTimeBoundedExponentialBackOff extends AttemptBoundedExpon
   }
 
   @Override
-  @SuppressFBWarnings(value = "UR_UNINIT_READ_CALLED_FROM_SUPER_CONSTRUCTOR",
-      justification = "Explicitly handled in implementation.")
   public void reset() {
     // reset() is called in the constructor of the parent class before resetPolicy and nanoClock are
     // set.  In this case, we call the parent class's reset() method and return.

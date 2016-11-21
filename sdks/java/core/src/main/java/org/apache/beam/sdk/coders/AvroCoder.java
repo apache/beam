@@ -22,7 +22,6 @@ import static org.apache.beam.sdk.util.Structs.addString;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Supplier;
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.ObjectStreamException;
@@ -214,10 +213,6 @@ public class AvroCoder<T> extends StandardCoder<T> {
    * Java's serialization and hence is able to encode the {@link Schema} object directly.
    */
   private static class SerializableSchemaSupplier implements Serializable, Supplier<Schema> {
-    @SuppressFBWarnings(justification = "writeReplace makes this object serializable. This is a "
-        + "limitation of FindBugs as discussed here: http://stackoverflow.com/questions/"
-        + "26156523/is-writeobject-not-neccesary-using-the-serialization-proxy-pattern",
-        value = "SE_BAD_FIELD")
     private final Schema schema;
     private SerializableSchemaSupplier(Schema schema) {
       this.schema = schema;

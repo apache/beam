@@ -26,7 +26,6 @@ import com.google.common.io.ByteSource;
 import com.google.common.io.CharSource;
 import com.google.common.io.Closer;
 import com.google.common.io.Files;
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.BufferedOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
@@ -226,10 +225,6 @@ public final class ZipFiles {
    * @throws IOException the zipping failed, e.g. because the input was not
    *     readable.
    */
-  @SuppressFBWarnings(value = "NP_NULL_ON_SOME_PATH_FROM_RETURN_VALUE",
-      justification = "File.listFiles() will return null if the File instance is not a directory. "
-          + "Null dereference is not a possibility here since we validate sourceDirectory is "
-          + "directory via sourceDirectory.isDirectory()")
   public static void zipDirectory(
       File sourceDirectory,
       OutputStream outputStream) throws IOException {
@@ -262,10 +257,6 @@ public final class ZipFiles {
    * @throws IOException the zipping failed, e.g. because the output was not
    *     writeable.
    */
-  @SuppressFBWarnings(value = "NP_NULL_ON_SOME_PATH_FROM_RETURN_VALUE",
-      justification = "File.listFiles() will return null if the File instance is not a directory. "
-          + "Null dereference is not a possibility here since we validate inputFile is directory "
-          + "via inputFile.isDirectory()")
   private static void zipDirectoryInternal(
       File inputFile,
       String directoryName,

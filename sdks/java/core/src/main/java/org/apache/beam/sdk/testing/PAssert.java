@@ -24,7 +24,6 @@ import static org.junit.Assert.assertThat;
 
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.Arrays;
@@ -499,7 +498,6 @@ public class PAssert {
      */
     @Deprecated
     @Override
-    @SuppressFBWarnings(value = "EQ_UNUSUAL", justification = "Unsupported operation")
     public boolean equals(Object o) {
       throw new UnsupportedOperationException(
           "If you meant to test object equality, use .containsInAnyOrder instead.");
@@ -713,7 +711,6 @@ public class PAssert {
      */
     @Deprecated
     @Override
-    @SuppressFBWarnings(value = "EQ_UNUSUAL", justification = "Unsupported operation")
     public boolean equals(Object o) {
       throw new UnsupportedOperationException(
           String.format(

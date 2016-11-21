@@ -19,7 +19,6 @@ package org.apache.beam.sdk.coders;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.google.common.base.Converter;
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -56,9 +55,6 @@ public class InstantCoder extends AtomicCoder<Instant> {
    * <p>This deliberately utilizes the well-defined overflow for {@code Long} values.
    * See http://docs.oracle.com/javase/specs/jls/se7/html/jls-15.html#jls-15.18.2
    */
-  @SuppressFBWarnings(value = "HE_INHERITS_EQUALS_USE_HASHCODE",
-      justification = "Converter overrides .equals() to add documentation "
-          + "but does not change behavior")
   private static class LexicographicLongConverter extends Converter<Instant, Long> {
 
     @Override

@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.testing;
 
 import com.google.common.base.MoreObjects;
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.Serializable;
 import java.util.Arrays;
 import java.util.Collection;
@@ -1147,8 +1146,6 @@ class SerializableMatchers implements Serializable {
   private static class SerializableArrayViaCoder<T> implements SerializableSupplier<T[]> {
     /** Cached value that is not serialized. */
     @Nullable
-    @SuppressFBWarnings(value = "SE_TRANSIENT_FIELD_NOT_RESTORED",
-        justification = "Cached value is lazily restored on read.")
     private transient T[] value;
 
     /** The bytes of {@link #value} when encoded via {@link #coder}. */
