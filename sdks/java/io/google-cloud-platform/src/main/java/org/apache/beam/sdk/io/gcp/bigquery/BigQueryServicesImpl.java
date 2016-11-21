@@ -28,7 +28,6 @@ import com.google.api.client.util.Sleeper;
 import com.google.api.services.bigquery.Bigquery;
 import com.google.api.services.bigquery.model.Dataset;
 import com.google.api.services.bigquery.model.DatasetReference;
-import com.google.api.services.bigquery.model.ErrorProto;
 import com.google.api.services.bigquery.model.Job;
 import com.google.api.services.bigquery.model.JobConfiguration;
 import com.google.api.services.bigquery.model.JobConfigurationExtract;
@@ -48,7 +47,6 @@ import com.google.api.services.bigquery.model.TableSchema;
 import com.google.cloud.hadoop.util.ApiErrorExtractor;
 import com.google.common.annotations.VisibleForTesting;
 import java.io.IOException;
-import java.io.InterruptedIOException;
 import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
@@ -62,7 +60,6 @@ import javax.annotation.Nullable;
 import org.apache.beam.sdk.options.BigQueryOptions;
 import org.apache.beam.sdk.options.GcsOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.util.FluentBackoff;
 import org.apache.beam.sdk.util.Transport;
 import org.joda.time.Duration;
@@ -413,9 +410,11 @@ class BigQueryServicesImpl implements BigQueryServices {
      * {@inheritDoc}
      */
     @Override
-    public Table getOrCreateTable(TableReference tableRef, BigQueryIO.Write.WriteDisposition writeDisposition,
-                          BigQueryIO.Write.CreateDisposition createDisposition,
-                          @Nullable TableSchema schema) throws InterruptedException, IOException {
+    public Table getOrCreateTable(TableReference tableRef,
+                                  BigQueryIO.Write.WriteDisposition writeDisposition,
+                                  BigQueryIO.Write.CreateDisposition createDisposition,
+                                  @Nullable TableSchema schema)
+        throws InterruptedException, IOException {
       // Check if table already exists.
       Bigquery.Tables.Get get = client.tables()
               .get(tableRef.getProjectId(), tableRef.getDatasetId(), tableRef.getTableId());
@@ -437,7 +436,8 @@ class BigQueryServicesImpl implements BigQueryServices {
           return table;
         }
 
-        boolean empty = isTableEmpty(tableRef.getProjectId(), tableRef.getDatasetId(), tableRef.getTableId());
+        boolean empty = isTableEmpty(tableRef.getProjectId(), tableRef.getDatasetId(),
+            tableRef.getTableId());
         if (empty) {
           if (writeDisposition == BigQueryIO.Write.WriteDisposition.WRITE_TRUNCATE) {
             LOG.info("Empty table found, not removing {}", BigQueryIO.toTableSpec(tableRef));
@@ -475,7 +475,8 @@ class BigQueryServicesImpl implements BigQueryServices {
      * quota for table creation. This relatively innocuous behavior can happen when BigQueryIO is
      * configured with a table spec function to use different tables for each window.
      */
-    private static final int RETRY_CREATE_TABLE_DURATION_MILLIS = (int) TimeUnit.MINUTES.toMillis(5);
+    private static final int RETRY_CREATE_TABLE_DURATION_MILLIS =
+        (int) TimeUnit.MINUTES.toMillis(5);
 
     /**
      * Tries to create the BigQuery table.
@@ -498,7 +499,8 @@ class BigQueryServicesImpl implements BigQueryServices {
                       .build();
 
       Table table = new Table().setTableReference(ref).setSchema(schema);
-      return tryCreateTable(table, ref.getProjectId(), ref.getDatasetId(), backoff, Sleeper.DEFAULT);
+      return tryCreateTable(table, ref.getProjectId(), ref.getDatasetId(), backoff,
+          Sleeper.DEFAULT);
     }
 
     @VisibleForTesting
@@ -521,11 +523,11 @@ class BigQueryServicesImpl implements BigQueryServices {
               if (BackOffUtils.next(sleeper, backoff)) {
                 if (!retry) {
                   LOG.info(
-                          "Quota limit reached when creating table {}:{}.{}, retrying up to {} minutes",
-                          projectId,
-                          datasetId,
-                          table.getTableReference().getTableId(),
-                          TimeUnit.MILLISECONDS.toSeconds(RETRY_CREATE_TABLE_DURATION_MILLIS) / 60.0);
+                      "Quota limit reached when creating table {}:{}.{}, retrying up to {} minutes",
+                      projectId,
+                      datasetId,
+                      table.getTableReference().getTableId(),
+                      TimeUnit.MILLISECONDS.toSeconds(RETRY_CREATE_TABLE_DURATION_MILLIS) / 60.0);
                   retry = true;
                 }
                 continue;

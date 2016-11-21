@@ -24,7 +24,6 @@ import static com.google.common.base.Preconditions.checkState;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.api.client.json.JsonFactory;
-import com.google.api.services.bigquery.Bigquery;
 import com.google.api.services.bigquery.model.Job;
 import com.google.api.services.bigquery.model.JobConfigurationExtract;
 import com.google.api.services.bigquery.model.JobConfigurationLoad;
@@ -2636,9 +2635,8 @@ public class BigQueryIO {
           if (!createdTables.contains(tableSpec)) {
             TableSchema tableSchema = JSON_FACTORY.fromString(
                 jsonTableSchema.get(), TableSchema.class);
-            Bigquery client = Transport.newBigQueryClient(options).build();
-            BigQueryTableInserter inserter = new BigQueryTableInserter(client, options);
-            bqServices.getDatasetService(options).getOrCreateTable(tableReference, Write.WriteDisposition.WRITE_APPEND,
+            bqServices.getDatasetService(options).getOrCreateTable(tableReference,
+                Write.WriteDisposition.WRITE_APPEND,
                 Write.CreateDisposition.CREATE_IF_NEEDED, tableSchema);
             createdTables.add(tableSpec);
           }
