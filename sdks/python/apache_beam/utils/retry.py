@@ -134,6 +134,11 @@ def with_exponential_backoff(
       use time.sleep().
     fuzz: True if the delay should be fuzzed (default). During testing False
       can be used so that the delays are not randomized.
+    factor: The exponential factor to use on subsequent retries.
+      Default is 2 (doubling).
+    max_delay_sec: Maximum delay (in seconds). After this limit is reached,
+      further tries use max_delay_sec instead of exponentially increasing
+      the time. Defaults to 4 hours.
 
   Returns:
     As per Python decorators with arguments pattern returns a decorator
