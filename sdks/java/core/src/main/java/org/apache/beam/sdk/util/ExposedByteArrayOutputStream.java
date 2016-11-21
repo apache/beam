@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.util;
 
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 
@@ -63,7 +62,6 @@ public class ExposedByteArrayOutputStream extends ByteArrayOutputStream {
    *
    * <p><i>Note: After passing any byte array to this method, it must not be modified again.</i>
    */
-  @SuppressFBWarnings(value = "EI_EXPOSE_REP", justification = "Takes ownership of input buffer")
   public void writeAndOwn(byte[] b) throws IOException {
     if (b.length == 0) {
       return;
@@ -93,7 +91,6 @@ public class ExposedByteArrayOutputStream extends ByteArrayOutputStream {
   }
 
   @Override
-  @SuppressFBWarnings(value = "EI_EXPOSE_REP", justification = "Returns internal buffer by design")
   public byte[] toByteArray() {
     // Note: count == buf.length is not a correct criteria to "return buf;", because the internal
     // buf may be reused after reset().
