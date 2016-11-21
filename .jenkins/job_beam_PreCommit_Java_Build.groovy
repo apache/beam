@@ -11,6 +11,9 @@ mavenJob('beam_PreCommit_Java_Build') {
   common_job_properties.setPullRequestBuildTrigger(
       delegate,
       'Jenkins: Maven clean compile')
+
+  // Set Maven parameters.
+  common_job_properties.setMavenConfig(delegate)
   
   goals('-B -e -Prelease clean compile')
 }
