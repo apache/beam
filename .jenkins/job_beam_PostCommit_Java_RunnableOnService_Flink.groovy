@@ -25,20 +25,12 @@ mavenJob('beam_PostCommit_Java_RunnableOnService_Flink') {
   // Set common parameters.
   common_job_properties.setTopLevelJobProperties(delegate)
 
-  // Set maven paramaters.
+  // Set maven parameters.
   common_job_properties.setMavenConfig(delegate)
 
-  // Set build triggers
-  triggers {
-    cron('0 */6 * * *')
-    scm('* * * * *')
-  }
-  
+  // Sets that this is a PostCommit job.
+  common_job_properties.setPostCommit(delegate)
+
+  // Maven goals for this job.
   goals('-B -e clean verify -am -pl runners/flink/runner -Plocal-runnable-on-service-tests -Prunnable-on-service-tests')
-
-  publishers {
-    // Notify the mailing list for each failed build.
-    // mailer('commits@beam.incubator.apache.org', false, false)
-  }
 }
-

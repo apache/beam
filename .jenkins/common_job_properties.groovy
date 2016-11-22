@@ -22,14 +22,15 @@ class common_job_properties {
 
   // Sets common top-level job properties.
   static def setTopLevelJobProperties(def context,
-                                      def scm_branch = 'master') {
+                                      def default_branch = 'master',
+                                      def default_timeout = 100) {
 
     // GitHub project.
     context.properties {
       githubProjectUrl('https://github.com/apache/incubator-beam/')
     }
 
-    // Set jdk version
+    // Set JDK version.
     context.jdk('JDK 1.8 (latest)')
 
     // Restrict this project to run only on Jenkins executors dedicated to the
@@ -61,15 +62,20 @@ class common_job_properties {
       // ${sha1} parameter needs to be provided, and defaults to the main branch.
       stringParam(
           'sha1',
-          scm_branch,
+          default_branch,
           'Commit id or refname (eg: origin/pr/9/head) you want to build.')
     }
 
     context.wrappers {
       // Abort the build if it's stuck for more minutes than specified.
       timeout {
-        absolute(100)
+        absolute(default_timeout)
         abortBuild()
+      }
+
+      // Set SPARK_LOCAL_IP for spark tests.
+      environmentVariables {
+        env('SPARK_LOCAL_IP', '127.0.0.1')
       }
     }
   }
@@ -126,19 +132,36 @@ class common_job_properties {
     }
   }
 
-  static def setSparkEnvVariables(def context) {
-    context.wrappers {
-      environmentVariables {
-        env('SPARK_LOCAL_IP', '127.0.0.1')
-        script('env')
-      }
-    }
-  }
-  
+  // Sets common config for Maven jobs.
   static def setMavenConfig(def context) {
     context.mavenInstallation('Maven 3.3.3')
     context.rootPOM('pom.xml')
     context.localRepository(LocalRepositoryLocation.LOCAL_TO_WORKSPACE)
   }
-}
 
+  // Sets common config for PreCommit jobs.
+  static def setPreCommit(def context) {
+    // Set pull request build trigger.
+    common_job_properties.setPullRequestBuildTrigger(
+        delegate,
+        'Jenkins: Maven clean install')
+  }
+
+  // Sets common config for PostCommit jobs.
+  static def setPostCommit(def context,
+                           def build_schedule = '0 */6 * * *',
+                           def notify_address = 'commits@beam.incubator.apache.org') {
+    // Set build triggers
+    triggers {
+      // By default runs every 6 hours.
+      cron(build_schedule)
+      // Also polls SCM every minute.
+      scm('* * * * *')
+    }
+
+    publishers {
+      // Notify the mailing list for each failed build.
+      mailer(notify_address, false, true)
+    }
+  }
+}

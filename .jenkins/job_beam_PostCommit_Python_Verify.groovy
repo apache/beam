@@ -25,20 +25,11 @@ job('beam_PostCommit_Python_Verify') {
   // Set common parameters.
   common_job_properties.setTopLevelJobProperties(delegate, 'python-sdk')
 
-  // Set build triggers
-  triggers {
-    cron('0 3-22/6 * * *')
-    scm('* * * * *')
-  }
-  
+  // Sets that this is a PostCommit job.
+  common_job_properties.setPostCommit(delegate, '0 3-22/6 * * *')
+
   // Execute shell command to test Python SDK.
   steps {
     shell('bash sdks/python/run_postcommit.sh')
   }
-
-  publishers {
-    // Notify the mailing list for each failed build.
-    // mailer('commits@beam.incubator.apache.org', false, false)
-  }
 }
-

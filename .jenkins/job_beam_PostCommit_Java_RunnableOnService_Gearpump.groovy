@@ -25,19 +25,14 @@ mavenJob('beam_PostCommit_Java_RunnableOnService_Gearpump') {
   // Set common parameters.
   common_job_properties.setTopLevelJobProperties(delegate, 'gearpump-runner')
 
-  // Set maven paramaters.
+  // Set maven parameters.
   common_job_properties.setMavenConfig(delegate)
 
-  // Set build triggers
-  triggers {
-    scm('* * * * *')
-  }
-  
+  // Sets that this is a PostCommit job.
+  // 0 5 31 2 * will run on Feb 31 (i.e. never) according to job properties.
+  // This job triggers only on SCM.
+  common_job_properties.setPostCommit(delegate, '0 5 31 2 *')
+
+  // Maven goals for this job.
   goals('-B -e clean verify -am -pl runners/gearpump -DforkCount=0 -DrunnableOnServicePipelineOptions=\'[ "--runner=TestGearpumpRunner", "--streaming=false" ]\'')
-
-  publishers {
-    // Notify the mailing list for each failed build.
-    // mailer('commits@beam.incubator.apache.org', false, true)
-  }
 }
-

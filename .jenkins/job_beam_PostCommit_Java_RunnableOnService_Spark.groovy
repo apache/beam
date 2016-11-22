@@ -25,23 +25,12 @@ mavenJob('beam_PostCommit_Java_RunnableOnService_Spark') {
   // Set common parameters.
   common_job_properties.setTopLevelJobProperties(delegate)
 
-  // Set maven paramaters.
+  // Set maven parameters.
   common_job_properties.setMavenConfig(delegate)
 
-  // Set spark-specific parameters.
-  common_job_properties.setSparkEnvVariables(delegate)
+  // Sets that this is a PostCommit job.
+  common_job_properties.setPostCommit(delegate)
 
-  // Set build triggers
-  triggers {
-    cron('0 */6 * * *')
-    scm('* * * * *')
-  }
-  
+  // Maven goals for this job.
   goals('-B -e clean verify -am -pl runners/spark -Prunnable-on-service-tests -Plocal-runnable-on-service-tests -Dspark.port.maxRetries=64 -Dspark.ui.enabled=false')
-
-  publishers {
-    // Notify the mailing list for each failed build.
-    // mailer('commits@beam.incubator.apache.org', false, false)
-  }
 }
-

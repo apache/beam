@@ -28,22 +28,12 @@ mavenJob('beam_PostCommit_Java_MavenInstall') {
   // Set common parameters.
   common_job_properties.setTopLevelJobProperties(delegate)
 
-  // Set maven paramaters.
+  // Set maven parameters.
   common_job_properties.setMavenConfig(delegate)
 
-  // Set spark-specific parameters.
-  common_job_properties.setSparkEnvVariables(delegate)
+  // Sets that this is a PostCommit job.
+  common_job_properties.setPostCommit(delegate)
 
-  // Set build triggers
-  triggers {
-    cron('0 */6 * * *')
-    scm('* * * * *')
-  }
-  
+  // Maven goals for this job.
   goals('-B -e -P release,dataflow-runner -DrepoToken=${COVERALLS_REPO_TOKEN} clean install coveralls:report -DskipITs=false -DintegrationTestPipelineOptions=\'[ "--project=apache-beam-testing", "--tempRoot=gs://temp-storage-for-end-to-end-tests", "--runner=org.apache.beam.runners.dataflow.testing.TestDataflowRunner" ]\'')
-  publishers {
-    // Notify the mailing list for each failed build.
-    // mailer('commits@beam.incubator.apache.org', false, false)
-  }
 }
-

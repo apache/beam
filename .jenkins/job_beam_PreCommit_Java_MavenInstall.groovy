@@ -25,17 +25,12 @@ mavenJob('beam_PreCommit_Java_MavenInstall') {
   // Set common parameters.
   common_job_properties.setTopLevelJobProperties(delegate)
 
-  // Set pull request build trigger.
-  common_job_properties.setPullRequestBuildTrigger(
-      delegate,
-      'Jenkins: Maven clean install')
-
   // Set Maven parameters.
   common_job_properties.setMavenConfig(delegate)
 
-  // Set spark-specific parameters.
-  common_job_properties.setSparkEnvVariables(delegate)
-  
+  // Sets that this is a PreCommit job.
+  common_job_properties.setPreCommit(delegate)
+
+  // Maven goals for this job.
   goals('-B -e -Prelease,include-runners,jenkins-precommit,direct-runner,dataflow-runner,spark-runner,flink-runner,apex-runner -DrepoToken=${COVERALLS_REPO_TOKEN} -DpullRequest=99999 help:effective-settings clean install coveralls:report')
 }
-
