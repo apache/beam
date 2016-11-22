@@ -10,6 +10,10 @@ import org.junit.runners.Suite;
     CountByKeyTest.class,
     DistinctTest.class,
     FilterTest.class,
+    FlatMapTest.class,
+    GroupByKeyTest.class,
+    JoinTest.class,
+    MapElementsTest.class,
     // ...
 })
 /**
