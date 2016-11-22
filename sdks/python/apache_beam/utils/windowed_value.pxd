@@ -34,5 +34,5 @@ cdef class WindowedValue(object):
   cdef inline bint _typed_eq(WindowedValue left, WindowedValue right) except? -2
 
 @cython.locals(wv=WindowedValue)
-cdef WindowedValue create(
+cpdef WindowedValue create(
   object value, int64_t timestamp_micros, object windows)
