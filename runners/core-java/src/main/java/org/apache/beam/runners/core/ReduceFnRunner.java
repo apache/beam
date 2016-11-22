@@ -22,6 +22,9 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Function;
+import com.google.common.collect.FluentIterable;
+import com.google.common.collect.ImmutableSet;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -529,17 +532,19 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> impleme
    * so if window1 and window2 merge, the resulting window will contain both copies
    * of the value.
    */
-  private Set<W> toMergedWindows(Map<W, W> windowToMergeResult,
-      Collection<? extends BoundedWindow> windows) {
-    Set<W> mergedWindows = new HashSet<>();
-    for (BoundedWindow untypedWindow : windows) {
-      @SuppressWarnings("unchecked")
-      W window = (W) untypedWindow;
-      W mergeResult = windowToMergeResult.get(window);
-      checkNotNull(mergeResult);
-      mergedWindows.add(mergeResult);
-    }
-    return mergedWindows;
+  private ImmutableSet<W> toMergedWindows(final Map<W, W> windowToMergeResult,
+      final Collection<? extends BoundedWindow> windows) {
+    return ImmutableSet.copyOf(
+        FluentIterable.from(windows).transform(
+            new Function<BoundedWindow, W>() {
+              @Override
+              public W apply(BoundedWindow untypedWindow) {
+                @SuppressWarnings("unchecked")
+                W window = (W) untypedWindow;
+                return checkNotNull(windowToMergeResult.get(window));
+              }
+            }
+        ));
   }
 
   private void prefetchWindowsForValues(Collection<W> windows) {
@@ -558,7 +563,7 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> impleme
    */
   private void processElement(Map<W, W> windowToMergeResult, WindowedValue<InputT> value)
       throws Exception {
-    Set<W> windows = toMergedWindows(windowToMergeResult, value.getWindows());
+    ImmutableSet<W> windows = toMergedWindows(windowToMergeResult, value.getWindows());
 
     // Process the element for each (mergeResultWindow, not closed) window it belongs to.
     for (W window : windows) {
