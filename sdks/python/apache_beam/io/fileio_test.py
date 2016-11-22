@@ -589,12 +589,12 @@ class TestTextFileSource(unittest.TestCase):
     fileio.gcsio.GcsIO = lambda: gcsio_mock
     file_names = ['gs://bucket/file1', 'gs://bucket/file2']
     gcsio_mock.size_of_files_in_glob.return_value = {
-      'gs://bucket/file1': 1,
-      'gs://bucket/file2': 2
+        'gs://bucket/file1': 1,
+        'gs://bucket/file2': 2
     }
     expected_results = {
-      'gs://bucket/file1': 1,
-      'gs://bucket/file2': 2
+        'gs://bucket/file1': 1,
+        'gs://bucket/file2': 2
     }
     self.assertEqual(
         fileio.ChannelFactory.size_of_files_in_glob(
@@ -609,12 +609,12 @@ class TestTextFileSource(unittest.TestCase):
     fileio.gcsio.GcsIO = lambda: gcsio_mock
     file_names = ['gs://bucket/file1', 'gs://bucket/file2']
     gcsio_mock.size_of_files_in_glob.return_value = {
-      'gs://bucket/file1': 1
+        'gs://bucket/file1': 1
     }
     gcsio_mock.size.return_value = 2
     expected_results = {
-      'gs://bucket/file1': 1,
-      'gs://bucket/file2': 2
+        'gs://bucket/file1': 1,
+        'gs://bucket/file2': 2
     }
     self.assertEqual(
         fileio.ChannelFactory.size_of_files_in_glob(
