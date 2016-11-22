@@ -68,7 +68,7 @@ import org.slf4j.LoggerFactory;
  * where the BigQuery dataset you specify must already exist.
  *
  * <p>Optionally include the --input argument to specify a batch input file.
- * See the --input default value for example batch data file, or use {@link injector.Injector} to
+ * See the --input default value for example batch data file, or use {@code injector.Injector} to
  * generate your own batch data.
   */
 public class UserScore {
@@ -193,8 +193,8 @@ public class UserScore {
 
     @Description("The BigQuery table name. Should not already exist.")
     @Default.String("user_score")
-    String getTableName();
-    void setTableName(String value);
+    String getUserScoreTableName();
+    void setUserScoreTableName(String value);
   }
 
   /**
@@ -232,11 +232,11 @@ public class UserScore {
       // Extract and sum username/score pairs from the event data.
       .apply("ExtractUserScore", new ExtractAndSumScore("user"))
       .apply("WriteUserScoreSums",
-          new WriteToBigQuery<KV<String, Integer>>(options.getTableName(),
+          new WriteToBigQuery<KV<String, Integer>>(options.getUserScoreTableName(),
                                                    configureBigQueryWrite()));
 
     // Run the batch pipeline.
-    pipeline.run();
+    pipeline.run().waitUntilFinish();
   }
   // [END DocInclude_USMain]
 

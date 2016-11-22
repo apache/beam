@@ -469,7 +469,8 @@ public class UnboundedReadFromBoundedSource<T> extends PTransform<PBegin, PColle
       }
 
       private boolean advance() throws IOException {
-        if (reader == null && !closed) {
+        checkArgument(!closed, "advance() call on closed %s", getClass().getName());
+        if (reader == null) {
           reader = residualSource.createReader(options);
           return reader.start();
         } else {

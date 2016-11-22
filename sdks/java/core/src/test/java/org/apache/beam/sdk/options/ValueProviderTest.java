@@ -25,8 +25,10 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import java.util.List;
+import org.apache.beam.sdk.options.ValueProvider.NestedValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.RuntimeValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
+import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -83,6 +85,7 @@ public class ValueProviderTest {
     ValueProvider<String> provider = StaticValueProvider.of("foo");
     assertEquals("foo", provider.get());
     assertTrue(provider.isAccessible());
+    assertEquals("StaticValueProvider{value=foo}", provider.toString());
   }
 
   @Test
@@ -101,6 +104,9 @@ public class ValueProviderTest {
     TestOptions options = PipelineOptionsFactory.as(TestOptions.class);
     ValueProvider<String> provider = options.getFoo();
     assertEquals("foo", ((RuntimeValueProvider) provider).propertyName());
+    assertEquals(
+        "RuntimeValueProvider{propertyName=foo, default=null, value=null}",
+        provider.toString());
   }
 
   @Test
@@ -209,5 +215,39 @@ public class ValueProviderTest {
     ValueProvider<String> vp = runtime.getFoo();
     assertTrue(vp.isAccessible());
     assertEquals("quux", vp.get());
+  }
+
+  @Test
+  public void testNestedValueProviderStatic() throws Exception {
+    ValueProvider<String> svp = StaticValueProvider.of("foo");
+    ValueProvider<String> nvp = NestedValueProvider.of(
+      svp, new SerializableFunction<String, String>() {
+        @Override
+        public String apply(String from) {
+          return from + "bar";
+        }
+      });
+    assertTrue(nvp.isAccessible());
+    assertEquals("foobar", nvp.get());
+    assertEquals(
+        "NestedValueProvider{value=StaticValueProvider{value=foo}}",
+        nvp.toString());
+  }
+
+  @Test
+  public void testNestedValueProviderRuntime() throws Exception {
+    TestOptions options = PipelineOptionsFactory.as(TestOptions.class);
+    ValueProvider<String> rvp = options.getBar();
+    ValueProvider<String> nvp = NestedValueProvider.of(
+      rvp, new SerializableFunction<String, String>() {
+        @Override
+        public String apply(String from) {
+          return from + "bar";
+        }
+      });
+    assertFalse(nvp.isAccessible());
+    expectedException.expect(RuntimeException.class);
+    expectedException.expectMessage("Not called from a runtime context");
+    nvp.get();
   }
 }

@@ -301,7 +301,6 @@ public class GcsUtil {
    *
    * @param path the GCS filename to read from
    * @return a SeekableByteChannel that can read the object data
-   * @throws IOException
    */
   public SeekableByteChannel open(GcsPath path)
       throws IOException {
@@ -319,7 +318,6 @@ public class GcsUtil {
    * @param path the GCS file to write to
    * @param type the type of object, eg "text/plain".
    * @return a Callable object that encloses the operation.
-   * @throws IOException
    */
   public WritableByteChannel create(GcsPath path,
       String type) throws IOException {

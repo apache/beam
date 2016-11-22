@@ -20,7 +20,6 @@ package org.apache.beam.sdk.transforms.reflect;
 import com.google.auto.value.AutoValue;
 import com.google.common.base.Predicates;
 import com.google.common.collect.Iterables;
-import com.google.common.reflect.TypeToken;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.Collections;
@@ -34,8 +33,10 @@ import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
 import org.apache.beam.sdk.transforms.DoFn.ProcessContinuation;
 import org.apache.beam.sdk.transforms.DoFn.StateId;
 import org.apache.beam.sdk.transforms.DoFn.TimerId;
-import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.BoundedWindowParameter;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.RestrictionTrackerParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.StateParameter;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.TimerParameter;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.WindowParameter;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.Timer;
@@ -127,10 +128,27 @@ public abstract class DoFnSignature {
     abstract DoFnSignature build();
   }
 
-  /** A method delegated to a annotated method of an underlying {@link DoFn}. */
+  /** A method delegated to an annotated method of an underlying {@link DoFn}. */
   public interface DoFnMethod {
     /** The annotated method itself. */
     Method targetMethod();
+  }
+
+  /**
+   * A method delegated to an annotated method of an underlying {@link DoFn} that accepts a dynamic
+   * list of parameters.
+   */
+  public interface MethodWithExtraParameters extends DoFnMethod {
+    /**
+     * Types of optional parameters of the annotated method, in the order they appear.
+     *
+     * <p>Validation that these are allowed is external to this class.
+     */
+    List<Parameter> extraParameters();
+
+    /** The type of window expected by this method, if any. */
+    @Nullable
+    TypeDescriptor<? extends BoundedWindow> windowT();
   }
 
   /** A descriptor for an optional parameter of the {@link DoFn.ProcessElement} method. */
@@ -146,8 +164,12 @@ public abstract class DoFnSignature {
     public <ResultT> ResultT match(Cases<ResultT> cases) {
       // This could be done with reflection, but since the number of cases is small and known,
       // they are simply inlined.
-      if (this instanceof BoundedWindowParameter) {
-        return cases.dispatch((BoundedWindowParameter) this);
+      if (this instanceof ContextParameter) {
+        return cases.dispatch((ContextParameter) this);
+      } else if (this instanceof ProcessContextParameter) {
+        return cases.dispatch((ProcessContextParameter) this);
+      } else if (this instanceof WindowParameter) {
+        return cases.dispatch((WindowParameter) this);
       } else if (this instanceof RestrictionTrackerParameter) {
         return cases.dispatch((RestrictionTrackerParameter) this);
       } else if (this instanceof InputProviderParameter) {
@@ -169,7 +191,9 @@ public abstract class DoFnSignature {
      * An interface for destructuring a {@link Parameter}.
      */
     public interface Cases<ResultT> {
-      ResultT dispatch(BoundedWindowParameter p);
+      ResultT dispatch(ContextParameter p);
+      ResultT dispatch(ProcessContextParameter p);
+      ResultT dispatch(WindowParameter p);
       ResultT dispatch(InputProviderParameter p);
       ResultT dispatch(OutputReceiverParameter p);
       ResultT dispatch(RestrictionTrackerParameter p);
@@ -184,7 +208,17 @@ public abstract class DoFnSignature {
         protected abstract ResultT dispatchDefault(Parameter p);
 
         @Override
-        public ResultT dispatch(BoundedWindowParameter p) {
+        public ResultT dispatch(ContextParameter p) {
+          return dispatchDefault(p);
+        }
+
+        @Override
+        public ResultT dispatch(ProcessContextParameter p) {
+          return dispatchDefault(p);
+        }
+
+        @Override
+        public ResultT dispatch(WindowParameter p) {
           return dispatchDefault(p);
         }
 
@@ -216,20 +250,28 @@ public abstract class DoFnSignature {
     }
 
     // These parameter descriptors are constant
-    private static final BoundedWindowParameter BOUNDED_WINDOW_PARAMETER =
-        new AutoValue_DoFnSignature_Parameter_BoundedWindowParameter();
-    private static final RestrictionTrackerParameter RESTRICTION_TRACKER_PARAMETER =
-        new AutoValue_DoFnSignature_Parameter_RestrictionTrackerParameter();
+    private static final ContextParameter CONTEXT_PARAMETER =
+        new AutoValue_DoFnSignature_Parameter_ContextParameter();
+    private static final ProcessContextParameter PROCESS_CONTEXT_PARAMETER =
+          new AutoValue_DoFnSignature_Parameter_ProcessContextParameter();
     private static final InputProviderParameter INPUT_PROVIDER_PARAMETER =
         new AutoValue_DoFnSignature_Parameter_InputProviderParameter();
     private static final OutputReceiverParameter OUTPUT_RECEIVER_PARAMETER =
         new AutoValue_DoFnSignature_Parameter_OutputReceiverParameter();
 
-    /**
-     * Returns a {@link BoundedWindowParameter}.
-     */
-    public static BoundedWindowParameter boundedWindow() {
-      return BOUNDED_WINDOW_PARAMETER;
+    /** Returns a {@link ProcessContextParameter}. */
+    public static ContextParameter context() {
+      return CONTEXT_PARAMETER;
+    }
+
+    /** Returns a {@link ProcessContextParameter}. */
+    public static ProcessContextParameter processContext() {
+      return PROCESS_CONTEXT_PARAMETER;
+    }
+
+    /** Returns a {@link WindowParameter}. */
+    public static WindowParameter boundedWindow(TypeDescriptor<? extends BoundedWindow> windowT) {
+      return new AutoValue_DoFnSignature_Parameter_WindowParameter(windowT);
     }
 
     /**
@@ -249,8 +291,8 @@ public abstract class DoFnSignature {
     /**
      * Returns a {@link RestrictionTrackerParameter}.
      */
-    public static RestrictionTrackerParameter restrictionTracker() {
-      return RESTRICTION_TRACKER_PARAMETER;
+    public static RestrictionTrackerParameter restrictionTracker(TypeDescriptor<?> trackerT) {
+      return new AutoValue_DoFnSignature_Parameter_RestrictionTrackerParameter(trackerT);
     }
 
     /**
@@ -265,13 +307,34 @@ public abstract class DoFnSignature {
     }
 
     /**
+     * Descriptor for a {@link Parameter} of type {@link DoFn.Context}.
+     *
+     * <p>All such descriptors are equal.
+     */
+    @AutoValue
+    public abstract static class ContextParameter extends Parameter {
+      ContextParameter() {}
+    }
+
+    /**
+     * Descriptor for a {@link Parameter} of type {@link DoFn.ProcessContext}.
+     *
+     * <p>All such descriptors are equal.
+     */
+    @AutoValue
+    public abstract static class ProcessContextParameter extends Parameter {
+      ProcessContextParameter() {}
+    }
+
+    /**
      * Descriptor for a {@link Parameter} of type {@link BoundedWindow}.
      *
      * <p>All such descriptors are equal.
      */
     @AutoValue
-    public abstract static class BoundedWindowParameter extends Parameter {
-      BoundedWindowParameter() {}
+    public abstract static class WindowParameter extends Parameter {
+      WindowParameter() {}
+      public abstract TypeDescriptor<? extends BoundedWindow> windowT();
     }
 
     /**
@@ -303,6 +366,7 @@ public abstract class DoFnSignature {
     public abstract static class RestrictionTrackerParameter extends Parameter {
       // Package visible for AutoValue
       RestrictionTrackerParameter() {}
+      public abstract TypeDescriptor<?> trackerT();
     }
 
     /**
@@ -332,17 +396,22 @@ public abstract class DoFnSignature {
 
   /** Describes a {@link DoFn.ProcessElement} method. */
   @AutoValue
-  public abstract static class ProcessElementMethod implements DoFnMethod {
+  public abstract static class ProcessElementMethod implements MethodWithExtraParameters {
     /** The annotated method itself. */
     @Override
     public abstract Method targetMethod();
 
     /** Types of optional parameters of the annotated method, in the order they appear. */
+    @Override
     public abstract List<Parameter> extraParameters();
 
     /** Concrete type of the {@link RestrictionTracker} parameter, if present. */
     @Nullable
-    abstract TypeToken<?> trackerT();
+    public abstract TypeDescriptor<?> trackerT();
+
+    /** The window type used by this method, if any. */
+    @Nullable
+    public abstract TypeDescriptor<? extends BoundedWindow> windowT();
 
     /** Whether this {@link DoFn} returns a {@link ProcessContinuation} or void. */
     public abstract boolean hasReturnValue();
@@ -350,10 +419,15 @@ public abstract class DoFnSignature {
     static ProcessElementMethod create(
         Method targetMethod,
         List<Parameter> extraParameters,
-        TypeToken<?> trackerT,
+        TypeDescriptor<?> trackerT,
+        @Nullable TypeDescriptor<? extends BoundedWindow> windowT,
         boolean hasReturnValue) {
       return new AutoValue_DoFnSignature_ProcessElementMethod(
-          targetMethod, Collections.unmodifiableList(extraParameters), trackerT, hasReturnValue);
+          targetMethod,
+          Collections.unmodifiableList(extraParameters),
+          trackerT,
+          windowT,
+          hasReturnValue);
     }
 
     /**
@@ -367,7 +441,8 @@ public abstract class DoFnSignature {
       return Iterables.any(
           extraParameters(),
           Predicates.or(
-              Predicates.instanceOf(BoundedWindowParameter.class),
+              Predicates.instanceOf(WindowParameter.class),
+              Predicates.instanceOf(TimerParameter.class),
               Predicates.instanceOf(StateParameter.class)));
     }
 
@@ -375,13 +450,14 @@ public abstract class DoFnSignature {
      * Whether this {@link DoFn} is <a href="https://s.apache.org/splittable-do-fn">splittable</a>.
      */
     public boolean isSplittable() {
-      return extraParameters().contains(Parameter.restrictionTracker());
+      return Iterables.any(
+          extraParameters(), Predicates.instanceOf(RestrictionTrackerParameter.class));
     }
   }
 
   /** Describes a {@link DoFn.OnTimer} method. */
   @AutoValue
-  public abstract static class OnTimerMethod implements DoFnMethod {
+  public abstract static class OnTimerMethod implements MethodWithExtraParameters {
 
     /** The id on the method's {@link DoFn.TimerId} annotation. */
     public abstract String id();
@@ -390,18 +466,27 @@ public abstract class DoFnSignature {
     @Override
     public abstract Method targetMethod();
 
+    /** The window type used by this method, if any. */
+    @Nullable
+    public abstract TypeDescriptor<? extends BoundedWindow> windowT();
+
     /** Types of optional parameters of the annotated method, in the order they appear. */
+    @Override
     public abstract List<Parameter> extraParameters();
 
-    static OnTimerMethod create(Method targetMethod, String id, List<Parameter> extraParameters) {
+    static OnTimerMethod create(
+        Method targetMethod,
+        String id,
+        TypeDescriptor<? extends BoundedWindow> windowT,
+        List<Parameter> extraParameters) {
       return new AutoValue_DoFnSignature_OnTimerMethod(
-          id, targetMethod, Collections.unmodifiableList(extraParameters));
+          id, targetMethod, windowT, Collections.unmodifiableList(extraParameters));
     }
   }
 
   /**
    * Describes a timer declaration; a field of type {@link TimerSpec} annotated with
-   * {@DoFn.TimerId}.
+   * {@link DoFn.TimerId}.
    */
   @AutoValue
   public abstract static class TimerDeclaration {
@@ -462,9 +547,9 @@ public abstract class DoFnSignature {
     public abstract Method targetMethod();
 
     /** Type of the returned restriction. */
-    abstract TypeToken<?> restrictionT();
+    public abstract TypeDescriptor<?> restrictionT();
 
-    static GetInitialRestrictionMethod create(Method targetMethod, TypeToken<?> restrictionT) {
+    static GetInitialRestrictionMethod create(Method targetMethod, TypeDescriptor<?> restrictionT) {
       return new AutoValue_DoFnSignature_GetInitialRestrictionMethod(targetMethod, restrictionT);
     }
   }
@@ -477,9 +562,9 @@ public abstract class DoFnSignature {
     public abstract Method targetMethod();
 
     /** Type of the restriction taken and returned. */
-    abstract TypeToken<?> restrictionT();
+    public abstract TypeDescriptor<?> restrictionT();
 
-    static SplitRestrictionMethod create(Method targetMethod, TypeToken<?> restrictionT) {
+    static SplitRestrictionMethod create(Method targetMethod, TypeDescriptor<?> restrictionT) {
       return new AutoValue_DoFnSignature_SplitRestrictionMethod(targetMethod, restrictionT);
     }
   }
@@ -492,13 +577,13 @@ public abstract class DoFnSignature {
     public abstract Method targetMethod();
 
     /** Type of the input restriction. */
-    abstract TypeToken<?> restrictionT();
+    public abstract TypeDescriptor<?> restrictionT();
 
     /** Type of the returned {@link RestrictionTracker}. */
-    abstract TypeToken<?> trackerT();
+    public abstract TypeDescriptor<?> trackerT();
 
     static NewTrackerMethod create(
-        Method targetMethod, TypeToken<?> restrictionT, TypeToken<?> trackerT) {
+        Method targetMethod, TypeDescriptor<?> restrictionT, TypeDescriptor<?> trackerT) {
       return new AutoValue_DoFnSignature_NewTrackerMethod(targetMethod, restrictionT, trackerT);
     }
   }
@@ -511,9 +596,9 @@ public abstract class DoFnSignature {
     public abstract Method targetMethod();
 
     /** Type of the returned {@link Coder}. */
-    abstract TypeToken<?> coderT();
+    public abstract TypeDescriptor<?> coderT();
 
-    static GetRestrictionCoderMethod create(Method targetMethod, TypeToken<?> coderT) {
+    static GetRestrictionCoderMethod create(Method targetMethod, TypeDescriptor<?> coderT) {
       return new AutoValue_DoFnSignature_GetRestrictionCoderMethod(targetMethod, coderT);
     }
   }

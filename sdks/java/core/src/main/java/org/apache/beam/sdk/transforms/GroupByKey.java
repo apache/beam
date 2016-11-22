@@ -169,7 +169,7 @@ public class GroupByKey<K, V>
     // Verify that the input PCollection is bounded, or that there is windowing/triggering being
     // used. Without this, the watermark (at end of global window) will never be reached.
     if (windowingStrategy.getWindowFn() instanceof GlobalWindows
-        && windowingStrategy.getTrigger().getSpec() instanceof DefaultTrigger
+        && windowingStrategy.getTrigger() instanceof DefaultTrigger
         && input.isBounded() != IsBounded.BOUNDED) {
       throw new IllegalStateException("GroupByKey cannot be applied to non-bounded PCollection in "
           + "the GlobalWindow without a trigger. Use a Window.into or Window.triggering transform "
@@ -212,7 +212,7 @@ public class GroupByKey<K, V>
     // We also switch to the continuation trigger associated with the current trigger.
     return inputStrategy
         .withWindowFn(inputWindowFn)
-        .withTrigger(inputStrategy.getTrigger().getSpec().getContinuationTrigger());
+        .withTrigger(inputStrategy.getTrigger().getContinuationTrigger());
   }
 
   @Override

@@ -25,10 +25,13 @@ import static com.google.datastore.v1.client.DatastoreHelper.makeKey;
 import static com.google.datastore.v1.client.DatastoreHelper.makeUpsert;
 import static com.google.datastore.v1.client.DatastoreHelper.makeValue;
 
-import com.google.api.client.auth.oauth2.Credential;
+import com.google.api.client.http.HttpRequestInitializer;
 import com.google.api.client.util.BackOff;
 import com.google.api.client.util.BackOffUtils;
 import com.google.api.client.util.Sleeper;
+import com.google.auth.Credentials;
+import com.google.auth.http.HttpCredentialsAdapter;
+import com.google.cloud.hadoop.util.ChainingHttpRequestInitializer;
 import com.google.datastore.v1.CommitRequest;
 import com.google.datastore.v1.Entity;
 import com.google.datastore.v1.EntityResult;
@@ -131,17 +134,21 @@ class V1TestUtil {
    * Build a new datastore client.
    */
   static Datastore getDatastore(PipelineOptions pipelineOptions, String projectId) {
+    Credentials credential = pipelineOptions.as(GcpOptions.class).getGcpCredential();
+    HttpRequestInitializer initializer;
+    if (credential != null) {
+      initializer = new ChainingHttpRequestInitializer(
+          new HttpCredentialsAdapter(credential),
+          new RetryHttpRequestInitializer());
+    } else {
+      initializer = new RetryHttpRequestInitializer();
+    }
+
     DatastoreOptions.Builder builder =
         new DatastoreOptions.Builder()
             .projectId(projectId)
-            .initializer(
-                new RetryHttpRequestInitializer()
-            );
+            .initializer(initializer);
 
-    Credential credential = pipelineOptions.as(GcpOptions.class).getGcpCredential();
-    if (credential != null) {
-      builder.credential(credential);
-    }
     return DatastoreFactory.get().create(builder.build());
   }
 
@@ -159,8 +166,9 @@ class V1TestUtil {
   /**
    * Delete all entities with the given ancestor.
    */
-  static void deleteAllEntities(V1TestOptions options, String ancestor) throws Exception {
-    Datastore datastore = getDatastore(options, options.getProject());
+  static void deleteAllEntities(V1TestOptions options, String project, String ancestor)
+      throws Exception {
+    Datastore datastore = getDatastore(options, project);
     Query query = V1TestUtil.makeAncestorKindQuery(
         options.getKind(), options.getNamespace(), ancestor);
 
@@ -181,9 +189,10 @@ class V1TestUtil {
   /**
    * Returns the total number of entities for the given datastore.
    */
-  static long countEntities(V1TestOptions options, String ancestor) throws Exception {
+  static long countEntities(V1TestOptions options, String project, String ancestor)
+      throws Exception {
     // Read from datastore.
-    Datastore datastore = V1TestUtil.getDatastore(options, options.getProject());
+    Datastore datastore = V1TestUtil.getDatastore(options, project);
     Query query = V1TestUtil.makeAncestorKindQuery(
         options.getKind(), options.getNamespace(), ancestor);
 
@@ -209,6 +218,7 @@ class V1TestUtil {
    *A MutationBuilder that performs upsert operation.
    */
   static class UpsertMutationBuilder implements MutationBuilder {
+    @Override
     public Mutation.Builder apply(Entity entity) {
       return makeUpsert(entity);
     }
@@ -218,6 +228,7 @@ class V1TestUtil {
    * A MutationBuilder that performs delete operation.
    */
   static class DeleteMutationBuilder implements MutationBuilder {
+    @Override
     public Mutation.Builder apply(Entity entity) {
       return makeDelete(entity.getKey());
     }

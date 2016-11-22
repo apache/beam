@@ -21,13 +21,15 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
 
-interface PTransformOverrideFactory {
+interface PTransformOverrideFactory<
+    InputT extends PInput,
+    OutputT extends POutput,
+    TransformT extends PTransform<InputT, OutputT>> {
   /**
    * Create a {@link PTransform} override for the provided {@link PTransform} if applicable.
    * Otherwise, return the input {@link PTransform}.
    *
    * <p>The returned PTransform must be semantically equivalent to the input {@link PTransform}.
    */
-  <InputT extends PInput, OutputT extends POutput> PTransform<InputT, OutputT> override(
-      PTransform<InputT, OutputT> transform);
+  PTransform<InputT, OutputT> override(TransformT transform);
 }

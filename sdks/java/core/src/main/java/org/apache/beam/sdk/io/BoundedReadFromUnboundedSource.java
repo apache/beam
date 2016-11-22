@@ -29,9 +29,9 @@ import java.util.concurrent.TimeUnit;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.transforms.Distinct;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.RemoveDuplicates;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.util.FluentBackoff;
@@ -88,7 +88,7 @@ public class BoundedReadFromUnboundedSource<T> extends PTransform<PBegin, PColle
     PCollection<ValueWithRecordId<T>> read = Pipeline.applyTransform(input,
         Read.from(new UnboundedToBoundedSourceAdapter<>(source, maxNumRecords, maxReadTime)));
     if (source.requiresDeduping()) {
-      read = read.apply(RemoveDuplicates.withRepresentativeValueFn(
+      read = read.apply(Distinct.withRepresentativeValueFn(
           new SerializableFunction<ValueWithRecordId<T>, byte[]>() {
             @Override
             public byte[] apply(ValueWithRecordId<T> input) {

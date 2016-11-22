@@ -208,6 +208,6 @@ public class TopWikipediaSessions {
      .apply(new ComputeTopSessions(samplingThreshold))
      .apply("Write", TextIO.Write.withoutSharding().to(options.getOutput()));
 
-    p.run();
+    p.run().waitUntilFinish();
   }
 }

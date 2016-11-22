@@ -373,36 +373,31 @@ public class EvaluationContextTest {
             .build();
 
     // haven't added any timers, must be empty
-    assertThat(context.extractFiredTimers().entrySet(), emptyIterable());
+    assertThat(context.extractFiredTimers(), emptyIterable());
     context.handleResult(
         context.createKeyedBundle(key, created).commit(Instant.now()),
         ImmutableList.<TimerData>of(),
         timerResult);
 
     // timer hasn't fired
-    assertThat(context.extractFiredTimers().entrySet(), emptyIterable());
+    assertThat(context.extractFiredTimers(), emptyIterable());
 
     TransformResult advanceResult =
         StepTransformResult.withoutHold(created.getProducingTransformInternal()).build();
     // Should cause the downstream timer to fire
     context.handleResult(null, ImmutableList.<TimerData>of(), advanceResult);
 
-    Map<AppliedPTransform<?, ?, ?>, Map<StructuralKey<?>, FiredTimers>> fired =
-        context.extractFiredTimers();
+    Collection<FiredTimers> fired = context.extractFiredTimers();
     assertThat(
-        fired,
-        Matchers.<AppliedPTransform<?, ?, ?>>hasKey(downstream.getProducingTransformInternal()));
-    Map<StructuralKey<?>, FiredTimers> downstreamFired =
-        fired.get(downstream.getProducingTransformInternal());
-    assertThat(downstreamFired, Matchers.<Object>hasKey(key));
+        Iterables.getOnlyElement(fired).getKey(),
+        Matchers.<StructuralKey<?>>equalTo(key));
 
-    FiredTimers firedForKey = downstreamFired.get(key);
-    assertThat(firedForKey.getTimers(TimeDomain.PROCESSING_TIME), emptyIterable());
-    assertThat(firedForKey.getTimers(TimeDomain.SYNCHRONIZED_PROCESSING_TIME), emptyIterable());
-    assertThat(firedForKey.getTimers(TimeDomain.EVENT_TIME), contains(toFire));
+    FiredTimers firedForKey = Iterables.getOnlyElement(fired);
+    // Contains exclusively the fired timer
+    assertThat(firedForKey.getTimers(), contains(toFire));
 
     // Don't reextract timers
-    assertThat(context.extractFiredTimers().entrySet(), emptyIterable());
+    assertThat(context.extractFiredTimers(), emptyIterable());
   }
 
   @Test

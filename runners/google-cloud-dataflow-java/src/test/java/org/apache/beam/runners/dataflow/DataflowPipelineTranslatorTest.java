@@ -67,6 +67,7 @@ import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.OldDoFn;
@@ -726,6 +727,33 @@ public class DataflowPipelineTranslatorTest implements Serializable {
     thrown.expectCause(allOf(
         instanceOf(IllegalArgumentException.class),
         ThrowableMessageMatcher.hasMessage(containsString("Unsupported wildcard usage"))));
+    t.translate(
+        pipeline,
+        (DataflowRunner) pipeline.getRunner(),
+        Collections.<DataflowPackage>emptyList());
+  }
+
+  private static class TestValueProvider implements ValueProvider<String>, Serializable {
+    @Override
+    public boolean isAccessible() {
+      return false;
+    }
+
+    @Override
+    public String get() {
+      throw new RuntimeException("Should not be called.");
+    }
+  }
+
+  @Test
+  public void testInaccessibleProvider() throws Exception {
+    DataflowPipelineOptions options = buildPipelineOptions();
+    Pipeline pipeline = Pipeline.create(options);
+    DataflowPipelineTranslator t = DataflowPipelineTranslator.fromOptions(options);
+
+    pipeline.apply(TextIO.Read.from(new TestValueProvider()).withoutValidation());
+
+    // Check that translation does not fail.
     t.translate(
         pipeline,
         (DataflowRunner) pipeline.getRunner(),

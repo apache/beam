@@ -20,12 +20,12 @@ package org.apache.beam.examples;
 
 import java.util.Date;
 import org.apache.beam.examples.WordCount.WordCountOptions;
-import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.FileChecksumMatcher;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestPipelineOptions;
 import org.apache.beam.sdk.util.IOChannelUtils;
+import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -36,6 +36,10 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class WordCountIT {
 
+  private static final String DEFAULT_INPUT =
+      "gs://apache-beam-samples/shakespeare/winterstale-personae";
+  private static final String DEFAULT_OUTPUT_CHECKSUM = "508517575eba8d8d5a54f7f0080a00951cfe84ca";
+
   /**
    * Options for the WordCount Integration Test.
    *
@@ -43,26 +47,25 @@ public class WordCountIT {
    * with customized input.
    */
   public interface WordCountITOptions extends TestPipelineOptions, WordCountOptions {
-    @Default.String("c04722202dee29c442b55ead54c6000693e85e77")
-    String getOutputChecksum();
-    void setOutputChecksum(String value);
+  }
+
+  @BeforeClass
+  public static void setUp() {
+    PipelineOptionsFactory.register(TestPipelineOptions.class);
   }
 
   @Test
   public void testE2EWordCount() throws Exception {
-    PipelineOptionsFactory.register(WordCountITOptions.class);
     WordCountITOptions options = TestPipeline.testingPipelineOptions().as(WordCountITOptions.class);
 
+    options.setInputFile(DEFAULT_INPUT);
     options.setOutput(IOChannelUtils.resolve(
         options.getTempRoot(),
         String.format("WordCountIT-%tF-%<tH-%<tM-%<tS-%<tL", new Date()),
         "output",
         "results"));
     options.setOnSuccessMatcher(
-        new FileChecksumMatcher(options.getOutputChecksum(), options.getOutput() + "*"));
-
-    String e2eTestInputPath = "gs://apache-beam-samples/apache/LICENSE";
-    options.setInputFile(e2eTestInputPath);
+        new FileChecksumMatcher(DEFAULT_OUTPUT_CHECKSUM, options.getOutput() + "*"));
 
     WordCount.main(TestPipeline.convertToArgs(options));
   }

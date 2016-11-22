@@ -39,22 +39,13 @@
   </properties>
 
   <profiles>
+
     <!--
-      A default profile that includes optional dependencies
-      on all of our runners. This is aimed at making it very
-      easy for users to run examples with any runner without
-      any configuration. It is not needed or desirable when
-      testing the examples with a particular runner.
-
-      This profile can be disabled on the command line
-      by specifying -P !include-runners.
-
-      This profile cannot be lifted to examples-parent because
-      it would be automatically deactivated when the Java 8
-      profile were activated.
+      The direct runner is available by default.
+      You can also include it on the classpath explicitly with -P direct-runner
     -->
     <profile>
-      <id>include-runners</id>
+      <id>direct-runner</id>
       <activation>
         <activeByDefault>true</activeByDefault>
       </activation>
@@ -62,41 +53,55 @@
         <dependency>
           <groupId>org.apache.beam</groupId>
           <artifactId>beam-runners-direct-java</artifactId>
-          <version>${project.version}</version>
           <scope>runtime</scope>
-          <optional>true</optional>
         </dependency>
+      </dependencies>
+    </profile>
 
+    <!-- Include the Apache Apex runner with -P apex-runner -->
+    <profile>
+      <id>apex-runner</id>
+      <dependencies>
+        <dependency>
+          <groupId>org.apache.beam</groupId>
+          <artifactId>beam-runners-apex</artifactId>
+          <scope>runtime</scope>
+        </dependency>
+      </dependencies>
+    </profile>
+
+    <!-- Include the Apache Flink runner with -P flink-runner -->
+    <profile>
+      <id>flink-runner</id>
+      <dependencies>
         <dependency>
           <groupId>org.apache.beam</groupId>
           <artifactId>beam-runners-flink_2.10</artifactId>
-          <version>${project.version}</version>
           <scope>runtime</scope>
-          <optional>true</optional>
         </dependency>
+      </dependencies>
+    </profile>
 
-        <dependency>
-          <groupId>org.apache.beam</groupId>
-          <artifactId>beam-runners-google-cloud-dataflow-java</artifactId>
-          <version>${project.version}</version>
-          <scope>runtime</scope>
-          <optional>true</optional>
-        </dependency>
-
+    <!-- Include the Apache Spark runner -P spark-runner -->
+    <profile>
+      <id>spark-runner</id>
+      <dependencies>
         <dependency>
           <groupId>org.apache.beam</groupId>
           <artifactId>beam-runners-spark</artifactId>
-          <version>${project.version}</version>
           <scope>runtime</scope>
-          <optional>true</optional>
         </dependency>
-
+        <dependency>
+          <groupId>org.apache.spark</groupId>
+          <artifactId>spark-streaming_2.10</artifactId>
+          <version>${spark.version}</version>
+          <scope>runtime</scope>
+        </dependency>
         <dependency>
           <groupId>org.apache.spark</groupId>
           <artifactId>spark-core_2.10</artifactId>
           <version>${spark.version}</version>
           <scope>runtime</scope>
-          <optional>true</optional>
           <exclusions>
             <exclusion>
               <groupId>org.slf4j</groupId>
@@ -104,16 +109,22 @@
             </exclusion>
           </exclusions>
         </dependency>
+      </dependencies>
+    </profile>
 
+    <!-- Include the Google Cloud Dataflow runner -P dataflow-runner -->
+    <profile>
+      <id>dataflow-runner</id>
+      <dependencies>
         <dependency>
-          <groupId>org.apache.spark</groupId>
-          <artifactId>spark-streaming_2.10</artifactId>
-          <version>${spark.version}</version>
+          <groupId>org.apache.beam</groupId>
+          <artifactId>beam-runners-google-cloud-dataflow-java</artifactId>
           <scope>runtime</scope>
-          <optional>true</optional>
         </dependency>
       </dependencies>
     </profile>
+
+    <!-- Custom set up for our Jenkins precommit tests that comment on GitHub -->
     <profile>
       <id>jenkins-precommit</id>
       <properties>
@@ -224,6 +235,29 @@
                   </systemPropertyVariables>
                 </configuration>
               </execution>
+              <execution>
+                <id>apex-runner-integration-tests</id>
+                <goals>
+                  <goal>integration-test</goal>
+                  <goal>verify</goal>
+                </goals>
+                <configuration>
+                  <includes>
+                    <include>WordCountIT.java</include>
+                  </includes>
+                  <parallel>all</parallel>
+                  <threadCount>4</threadCount>
+                  <systemPropertyVariables>
+                    <beamTestPipelineOptions>
+                      [
+                      "--project=apache-beam-testing",
+                      "--tempRoot=gs://temp-storage-for-end-to-end-tests",
+                      "--runner=org.apache.beam.runners.apex.TestApexRunner"
+                      ]
+                    </beamTestPipelineOptions>
+                  </systemPropertyVariables>
+                </configuration>
+              </execution>
             </executions>
           </plugin>
         </plugins>
@@ -260,6 +294,19 @@
   </profiles>
 
   <build>
+    <pluginManagement>
+      <plugins>
+        <!-- BEAM-933 -->
+        <plugin>
+          <groupId>org.codehaus.mojo</groupId>
+          <artifactId>findbugs-maven-plugin</artifactId>
+          <configuration>
+            <skip>true</skip>
+          </configuration>
+        </plugin>
+      </plugins>
+    </pluginManagement>
+
     <plugins>
       <plugin>
         <artifactId>maven-compiler-plugin</artifactId>
@@ -275,85 +322,6 @@
             </beamTestPipelineOptions>
           </systemPropertyVariables>
         </configuration>
-      </plugin>
-
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-checkstyle-plugin</artifactId>
-      </plugin>
-
-      <!-- Source plugin for generating source and test-source JARs. -->
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-source-plugin</artifactId>
-      </plugin>
-
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-javadoc-plugin</artifactId>
-        <configuration>
-          <windowtitle>Apache Beam Examples</windowtitle>
-          <doctitle>Apache Beam Examples</doctitle>
-
-          <subpackages>org.apache.beam.examples</subpackages>
-          <additionalparam>-exclude org.apache.beam.sdk.runners.worker:org.apache.beam.sdk.runners.dataflow:org.apache.beam.sdk.util ${beam.javadoc_opts}</additionalparam>
-          <use>false</use>
-          <quiet>true</quiet>
-          <bottom><![CDATA[<br>]]></bottom>
-
-          <offlineLinks>
-            <!-- The Dataflow SDK docs -->
-            <offlineLink>
-              <url>https://cloud.google.com/dataflow/java-sdk/JavaDoc/</url>
-              <location>${basedir}/../../sdks/java/javadoc/dataflow-sdk-docs</location>
-            </offlineLink>
-            <!-- Other dependencies -->
-            <offlineLink>
-              <url>https://developers.google.com/api-client-library/java/google-api-java-client/reference/1.20.0/</url>
-              <location>${basedir}/../../sdks/java/javadoc/apiclient-docs</location>
-            </offlineLink>
-            <offlineLink>
-              <url>http://avro.apache.org/docs/${avro.version}/api/java/</url>
-              <location>${basedir}/../../sdks/java/javadoc/avro-docs</location>
-            </offlineLink>
-            <offlineLink>
-              <url>https://developers.google.com/resources/api-libraries/documentation/bigquery/v2/java/latest/</url>
-              <location>${basedir}/../../sdks/java/javadoc/bq-docs</location>
-            </offlineLink>
-            <offlineLink>
-              <url>https://cloud.google.com/datastore/docs/apis/javadoc/</url>
-              <location>${basedir}/../../sdks/java/javadoc/datastore-docs</location>
-            </offlineLink>
-            <offlineLink>
-              <url>http://docs.guava-libraries.googlecode.com/git-history/release18/javadoc/</url>
-              <location>${basedir}/../../sdks/java/javadoc/guava-docs</location>
-            </offlineLink>
-            <offlineLink>
-              <url>http://fasterxml.github.io/jackson-annotations/javadoc/2.7/</url>
-              <location>${basedir}/../../sdks/java/javadoc/jackson-annotations-docs</location>
-            </offlineLink>
-            <offlineLink>
-              <url>http://fasterxml.github.io/jackson-databind/javadoc/2.7/</url>
-              <location>${basedir}/../../sdks/java/javadoc/jackson-databind-docs</location>
-            </offlineLink>
-            <offlineLink>
-              <url>http://www.joda.org/joda-time/apidocs</url>
-              <location>${basedir}/../../sdks/java/javadoc/joda-docs</location>
-            </offlineLink>
-            <offlineLink>
-              <url>https://developers.google.com/api-client-library/java/google-oauth-java-client/reference/1.20.0/</url>
-              <location>${basedir}/../../sdks/java/javadoc/oauth-docs</location>
-            </offlineLink>
-          </offlineLinks>
-        </configuration>
-        <executions>
-          <execution>
-            <goals>
-              <goal>jar</goal>
-            </goals>
-            <phase>package</phase>
-          </execution>
-        </executions>
       </plugin>
 
       <plugin>
@@ -514,7 +482,6 @@
     <dependency>
       <groupId>org.apache.beam</groupId>
       <artifactId>beam-runners-direct-java</artifactId>
-      <version>${project.version}</version>
       <scope>test</scope>
     </dependency>
 

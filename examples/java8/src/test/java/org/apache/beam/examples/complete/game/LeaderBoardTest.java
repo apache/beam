@@ -27,6 +27,7 @@ import org.apache.beam.examples.complete.game.LeaderBoard.CalculateTeamScores;
 import org.apache.beam.examples.complete.game.LeaderBoard.CalculateUserScores;
 import org.apache.beam.examples.complete.game.UserScore.GameActionInfo;
 import org.apache.beam.sdk.coders.AvroCoder;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestStream;
@@ -110,7 +111,7 @@ public class LeaderBoardTest implements Serializable {
         .inOnTimePane(new IntervalWindow(baseTime, TEAM_WINDOW_DURATION))
         .containsInAnyOrder(KV.of(blueTeam, 12), KV.of(redTeam, 4));
 
-    p.run();
+    p.run().waitUntilFinish();
   }
 
   /**
@@ -160,7 +161,7 @@ public class LeaderBoardTest implements Serializable {
         .inOnTimePane(window)
         .containsInAnyOrder(KV.of(blueTeam, 10), KV.of(redTeam, 9));
 
-    p.run();
+    p.run().waitUntilFinish();
   }
 
   /**
@@ -197,7 +198,7 @@ public class LeaderBoardTest implements Serializable {
         .inOnTimePane(window)
         .containsInAnyOrder(KV.of(redTeam, 14), KV.of(blueTeam, 13));
 
-    p.run();
+    p.run().waitUntilFinish();
   }
 
   /**
@@ -258,7 +259,7 @@ public class LeaderBoardTest implements Serializable {
     // account in earlier panes
     PAssert.that(teamScores).inFinalPane(window).containsInAnyOrder(KV.of(redTeam, 27));
 
-    p.run();
+    p.run().waitUntilFinish();
   }
 
   /**
@@ -346,7 +347,12 @@ public class LeaderBoardTest implements Serializable {
             KV.of(TestUser.BLUE_TWO.getUser(), 3),
             KV.of(TestUser.BLUE_TWO.getUser(), 8));
 
-    p.run();
+    p.run().waitUntilFinish();
+  }
+
+  @Test
+  public void testLeaderBoardOptions() {
+    PipelineOptionsFactory.as(LeaderBoard.Options.class);
   }
 
   private TimestampedValue<GameActionInfo> event(

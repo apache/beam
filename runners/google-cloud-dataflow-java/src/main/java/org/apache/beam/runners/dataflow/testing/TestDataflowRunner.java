@@ -25,6 +25,7 @@ import com.google.api.services.dataflow.model.MetricUpdate;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Joiner;
 import com.google.common.base.Optional;
+import com.google.common.base.Strings;
 import com.google.common.base.Throwables;
 import java.io.IOException;
 import java.math.BigDecimal;
@@ -33,7 +34,6 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import javax.annotation.Nullable;
-import org.apache.beam.runners.dataflow.DataflowJobExecutionException;
 import org.apache.beam.runners.dataflow.DataflowPipelineJob;
 import org.apache.beam.runners.dataflow.DataflowRunner;
 import org.apache.beam.runners.dataflow.util.MonitoringUtil;
@@ -97,11 +97,7 @@ public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
 
     TestPipelineOptions testPipelineOptions = pipeline.getOptions().as(TestPipelineOptions.class);
     final DataflowPipelineJob job;
-    try {
-      job = runner.run(pipeline);
-    } catch (DataflowJobExecutionException ex) {
-      throw new IllegalStateException("The dataflow failed.");
-    }
+    job = runner.run(pipeline);
 
     LOG.info("Running Dataflow job {} with {} expected assertions.",
         job.getJobId(), expectedNumberOfAssertions);
@@ -139,10 +135,14 @@ public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
             }
           }
         });
-        State finalState = job.waitUntilFinish(Duration.standardMinutes(10L), messageHandler);
+        State finalState =
+            job.waitUntilFinish(
+                Duration.standardSeconds(options.getTestTimeoutSeconds()), messageHandler);
         if (finalState == null || finalState == State.RUNNING) {
-          LOG.info("Dataflow job {} took longer than 10 minutes to complete, cancelling.",
-              job.getJobId());
+          LOG.info(
+              "Dataflow job {} took longer than {} seconds to complete, cancelling.",
+              job.getJobId(),
+              options.getTestTimeoutSeconds());
           job.cancel();
         }
         success = resultFuture.get();
@@ -154,9 +154,12 @@ public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
         throw new IllegalStateException(
             "The dataflow did not output a success or failure metric.");
       } else if (!success.get()) {
-        throw new AssertionError(messageHandler.getErrorMessage() == null
-            ? "The dataflow did not return a failure reason."
-            : messageHandler.getErrorMessage());
+        throw new AssertionError(
+            Strings.isNullOrEmpty(messageHandler.getErrorMessage())
+                ? String.format(
+                    "Dataflow job %s terminated in state %s but did not return a failure reason.",
+                    job.getJobId(), job.getState())
+                : messageHandler.getErrorMessage());
       } else {
         assertThat(job, testPipelineOptions.getOnSuccessMatcher());
       }

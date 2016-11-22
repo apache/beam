@@ -17,35 +17,43 @@
  */
 package org.apache.beam.sdk.util;
 
-import com.google.api.client.auth.oauth2.BearerToken;
-import com.google.api.client.auth.oauth2.Credential;
-import com.google.api.client.auth.oauth2.TokenResponse;
-import com.google.api.client.testing.http.MockHttpTransport;
+import com.google.auth.Credentials;
 import java.io.IOException;
+import java.net.URI;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
 
 /**
  * Fake credential, for use in testing.
  */
-public class TestCredential extends Credential {
-
-  private final String token;
-
-  public TestCredential() {
-    this("NULL");
-  }
-
-  public TestCredential(String token) {
-    super(new Builder(
-        BearerToken.authorizationHeaderAccessMethod())
-        .setTransport(new MockHttpTransport()));
-    this.token = token;
+public class TestCredential extends Credentials {
+  @Override
+  public String getAuthenticationType() {
+    return "Test";
   }
 
   @Override
-  protected TokenResponse executeRefreshToken() throws IOException {
-    TokenResponse response = new TokenResponse();
-    response.setExpiresInSeconds(5L * 60);
-    response.setAccessToken(token);
-    return response;
+  public Map<String, List<String>> getRequestMetadata() throws IOException {
+    return Collections.emptyMap();
+  }
+
+  @Override
+  public Map<String, List<String>> getRequestMetadata(URI uri) throws IOException {
+    return Collections.emptyMap();
+  }
+
+  @Override
+  public boolean hasRequestMetadata() {
+    return false;
+  }
+
+  @Override
+  public boolean hasRequestMetadataOnly() {
+    return true;
+  }
+
+  @Override
+  public void refresh() throws IOException {
   }
 }

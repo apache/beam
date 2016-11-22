@@ -45,8 +45,6 @@ import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollection.IsBounded;
-import org.apache.beam.sdk.values.PInput;
-import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -157,18 +155,14 @@ class TestStreamEvaluatorFactory implements TransformEvaluatorFactory {
     }
   }
 
-  static class DirectTestStreamFactory implements PTransformOverrideFactory {
+  static class DirectTestStreamFactory<T>
+      implements PTransformOverrideFactory<PBegin, PCollection<T>, TestStream<T>> {
     @Override
-    public <InputT extends PInput, OutputT extends POutput> PTransform<InputT, OutputT> override(
-        PTransform<InputT, OutputT> transform) {
-      if (transform instanceof TestStream) {
-        return (PTransform<InputT, OutputT>)
-            new DirectTestStream<OutputT>((TestStream<OutputT>) transform);
-      }
-      return transform;
+    public PTransform<PBegin, PCollection<T>> override(TestStream<T> transform) {
+      return new DirectTestStream<>(transform);
     }
 
-    private static class DirectTestStream<T> extends PTransform<PBegin, PCollection<T>> {
+    static class DirectTestStream<T> extends PTransform<PBegin, PCollection<T>> {
       private final TestStream<T> original;
 
       private DirectTestStream(TestStream<T> transform) {
@@ -191,7 +185,9 @@ class TestStreamEvaluatorFactory implements TransformEvaluatorFactory {
     }
   }
 
-  static class InputProvider implements RootInputProvider {
+  static class InputProvider<T>
+      implements RootInputProvider<
+          T, TestStreamIndex<T>, PBegin, DirectTestStreamFactory.DirectTestStream<T>> {
     private final EvaluationContext evaluationContext;
 
     InputProvider(EvaluationContext evaluationContext) {
@@ -199,19 +195,18 @@ class TestStreamEvaluatorFactory implements TransformEvaluatorFactory {
     }
 
     @Override
-    public Collection<CommittedBundle<?>> getInitialInputs(
-        AppliedPTransform<?, ?, ?> transform, int targetParallelism) {
-      return createInputBundle((AppliedPTransform) transform);
-    }
-
-    private <T> Collection<CommittedBundle<?>> createInputBundle(
-        AppliedPTransform<PBegin, ?, TestStream<T>> transform) {
+    public Collection<CommittedBundle<TestStreamIndex<T>>> getInitialInputs(
+        AppliedPTransform<PBegin, PCollection<T>, DirectTestStreamFactory.DirectTestStream<T>>
+            transform,
+        int targetParallelism) {
       CommittedBundle<TestStreamIndex<T>> initialBundle =
           evaluationContext
               .<TestStreamIndex<T>>createRootBundle()
-              .add(WindowedValue.valueInGlobalWindow(TestStreamIndex.of(transform.getTransform())))
+              .add(
+                  WindowedValue.valueInGlobalWindow(
+                      TestStreamIndex.of(transform.getTransform().original)))
               .commit(BoundedWindow.TIMESTAMP_MAX_VALUE);
-      return Collections.<CommittedBundle<?>>singleton(initialBundle);
+      return Collections.singleton(initialBundle);
     }
   }
 

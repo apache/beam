@@ -32,7 +32,7 @@ import org.apache.beam.runners.spark.SparkPipelineOptions;
 import org.apache.beam.runners.spark.aggregators.AccumulatorSingleton;
 import org.apache.beam.runners.spark.translation.streaming.utils.EmbeddedKafkaCluster;
 import org.apache.beam.runners.spark.translation.streaming.utils.PAssertStreaming;
-import org.apache.beam.runners.spark.translation.streaming.utils.TestOptionsForStreaming;
+import org.apache.beam.runners.spark.translation.streaming.utils.SparkTestPipelineOptionsForStreaming;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.kafka.KafkaIO;
@@ -80,7 +80,8 @@ public class ResumeFromCheckpointStreamingTest {
   public TemporaryFolder checkpointParentDir = new TemporaryFolder();
 
   @Rule
-  public TestOptionsForStreaming commonOptions = new TestOptionsForStreaming();
+  public SparkTestPipelineOptionsForStreaming commonOptions =
+      new SparkTestPipelineOptionsForStreaming();
 
   @BeforeClass
   public static void init() throws IOException {
@@ -108,8 +109,7 @@ public class ResumeFromCheckpointStreamingTest {
 
   @Test
   public void testRun() throws Exception {
-    SparkPipelineOptions options = commonOptions.withTmpCheckpointDir(
-        checkpointParentDir.newFolder(getClass().getSimpleName()));
+    SparkPipelineOptions options = commonOptions.withTmpCheckpointDir(checkpointParentDir);
     // It seems that the consumer's first "position" lookup (in unit test) takes +200 msec,
     // so to be on the safe side we'll set to 750 msec.
     options.setMinReadTimeMillis(750L);
@@ -163,7 +163,8 @@ public class ResumeFromCheckpointStreamingTest {
 
     // requires a graceful stop so that checkpointing of the first run would finish successfully
     // before stopping and attempting to resume.
-    return PAssertStreaming.runAndAssertContents(p, formattedKV, EXPECTED);
+    return PAssertStreaming.runAndAssertContents(p, formattedKV, EXPECTED,
+            Duration.standardSeconds(1L));
   }
 
   @AfterClass

@@ -21,8 +21,10 @@ import static org.apache.beam.sdk.util.Structs.addString;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.google.common.base.Supplier;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.ObjectStreamException;
 import java.io.OutputStream;
 import java.io.Serializable;
 import java.lang.reflect.Field;
@@ -164,41 +166,95 @@ public class AvroCoder<T> extends StandardCoder<T> {
   };
 
   private final Class<T> type;
-  private final transient Schema schema;
+  private final SerializableSchemaSupplier schemaSupplier;
 
   private final List<String> nonDeterministicReasons;
 
   // Factories allocated by .get() are thread-safe and immutable.
   private static final EncoderFactory ENCODER_FACTORY = EncoderFactory.get();
   private static final DecoderFactory DECODER_FACTORY = DecoderFactory.get();
+
+  /**
+   * A {@link Serializable} {@link ThreadLocal} which discards any "stored" objects. This allows
+   * for Kryo to serialize an {@link AvroCoder} as a final field.
+   */
+  private static class EmptyOnDeserializationThreadLocal<T>
+      extends ThreadLocal<T> implements Serializable {
+    private void writeObject(java.io.ObjectOutputStream out) throws IOException {
+    }
+
+    private void readObject(java.io.ObjectInputStream in)
+        throws IOException, ClassNotFoundException {
+    }
+
+    private void readObjectNoData() throws ObjectStreamException {
+    }
+  }
+
+  /**
+   * A {@link Serializable} object that holds the {@link String} version of a {@link Schema}.
+   * This is paired with the {@link SerializableSchemaSupplier} via {@link Serializable}'s usage
+   * of the {@link #readResolve} method.
+   */
+  private static class SerializableSchemaString implements Serializable {
+    private final String schema;
+    private SerializableSchemaString(String schema) {
+      this.schema = schema;
+    }
+
+    private Object readResolve() throws IOException, ClassNotFoundException {
+      return new SerializableSchemaSupplier(Schema.parse(schema));
+    }
+  }
+
+  /**
+   * A {@link Serializable} object that delegates to the {@link SerializableSchemaString} via
+   * {@link Serializable}'s usage of the {@link #writeReplace} method. Kryo doesn't utilize
+   * Java's serialization and hence is able to encode the {@link Schema} object directly.
+   */
+  private static class SerializableSchemaSupplier implements Serializable, Supplier<Schema> {
+    private final Schema schema;
+    private SerializableSchemaSupplier(Schema schema) {
+      this.schema = schema;
+    }
+
+    private Object writeReplace() {
+      return new SerializableSchemaString(schema.toString());
+    }
+
+    @Override
+    public Schema get() {
+      return schema;
+    }
+  }
+
   // Cache the old encoder/decoder and let the factories reuse them when possible. To be threadsafe,
   // these are ThreadLocal. This code does not need to be re-entrant as AvroCoder does not use
   // an inner coder.
-  private final transient ThreadLocal<BinaryDecoder> decoder;
-  private final transient ThreadLocal<BinaryEncoder> encoder;
-  private final transient ThreadLocal<DatumWriter<T>> writer;
-  private final transient ThreadLocal<DatumReader<T>> reader;
+  private final EmptyOnDeserializationThreadLocal<BinaryDecoder> decoder;
+  private final EmptyOnDeserializationThreadLocal<BinaryEncoder> encoder;
+  private final EmptyOnDeserializationThreadLocal<DatumWriter<T>> writer;
+  private final EmptyOnDeserializationThreadLocal<DatumReader<T>> reader;
 
   protected AvroCoder(Class<T> type, Schema schema) {
     this.type = type;
-    this.schema = schema;
-
+    this.schemaSupplier = new SerializableSchemaSupplier(schema);
     nonDeterministicReasons = new AvroDeterminismChecker().check(TypeDescriptor.of(type), schema);
 
     // Decoder and Encoder start off null for each thread. They are allocated and potentially
     // reused inside encode/decode.
-    this.decoder = new ThreadLocal<>();
-    this.encoder = new ThreadLocal<>();
+    this.decoder = new EmptyOnDeserializationThreadLocal<>();
+    this.encoder = new EmptyOnDeserializationThreadLocal<>();
 
     // Reader and writer are allocated once per thread and are "final" for thread-local Coder
     // instance.
-    this.reader = new ThreadLocal<DatumReader<T>>() {
+    this.reader = new EmptyOnDeserializationThreadLocal<DatumReader<T>>() {
       @Override
       public DatumReader<T> initialValue() {
         return createDatumReader();
       }
     };
-    this.writer = new ThreadLocal<DatumWriter<T>>() {
+    this.writer = new EmptyOnDeserializationThreadLocal<DatumWriter<T>>() {
       @Override
       public DatumWriter<T> initialValue() {
         return createDatumWriter();
@@ -246,12 +302,6 @@ public class AvroCoder<T> extends StandardCoder<T> {
     return type;
   }
 
-  private Object writeReplace() {
-    // When serialized by Java, instances of AvroCoder should be replaced by
-    // a SerializedAvroCoderProxy.
-    return new SerializedAvroCoderProxy<>(type, schema.toString());
-  }
-
   @Override
   public void encode(T value, OutputStream outStream, Context context) throws IOException {
     // Get a BinaryEncoder instance from the ThreadLocal cache and attempt to reuse it.
@@ -272,7 +322,7 @@ public class AvroCoder<T> extends StandardCoder<T> {
   }
 
   @Override
-    public List<? extends Coder<?>> getCoderArguments() {
+  public List<? extends Coder<?>> getCoderArguments() {
     return null;
   }
 
@@ -280,7 +330,7 @@ public class AvroCoder<T> extends StandardCoder<T> {
   public CloudObject asCloudObject() {
     CloudObject result = super.asCloudObject();
     addString(result, "type", type.getName());
-    addString(result, "schema", schema.toString());
+    addString(result, "schema", schemaSupplier.get().toString());
     return result;
   }
 
@@ -306,9 +356,9 @@ public class AvroCoder<T> extends StandardCoder<T> {
   @Deprecated
   public DatumReader<T> createDatumReader() {
     if (type.equals(GenericRecord.class)) {
-      return new GenericDatumReader<>(schema);
+      return new GenericDatumReader<>(schemaSupplier.get());
     } else {
-      return new ReflectDatumReader<>(schema);
+      return new ReflectDatumReader<>(schemaSupplier.get());
     }
   }
 
@@ -321,9 +371,9 @@ public class AvroCoder<T> extends StandardCoder<T> {
   @Deprecated
   public DatumWriter<T> createDatumWriter() {
     if (type.equals(GenericRecord.class)) {
-      return new GenericDatumWriter<>(schema);
+      return new GenericDatumWriter<>(schemaSupplier.get());
     } else {
-      return new ReflectDatumWriter<>(schema);
+      return new ReflectDatumWriter<>(schemaSupplier.get());
     }
   }
 
@@ -331,28 +381,7 @@ public class AvroCoder<T> extends StandardCoder<T> {
    * Returns the schema used by this coder.
    */
   public Schema getSchema() {
-    return schema;
-  }
-
-  /**
-   * Proxy to use in place of serializing the {@link AvroCoder}. This allows the fields
-   * to remain final.
-   */
-  private static class SerializedAvroCoderProxy<T> implements Serializable {
-    private final Class<T> type;
-    private final String schemaStr;
-
-    public SerializedAvroCoderProxy(Class<T> type, String schemaStr) {
-      this.type = type;
-      this.schemaStr = schemaStr;
-    }
-
-    private Object readResolve() {
-      // When deserialized, instances of this object should be replaced by
-      // constructing an AvroCoder.
-      Schema.Parser parser = new Schema.Parser();
-      return new AvroCoder<T>(type, parser.parse(schemaStr));
-    }
+    return schemaSupplier.get();
   }
 
   /**
@@ -681,7 +710,7 @@ public class AvroCoder<T> extends StandardCoder<T> {
       } else {
         // If it was an unknown type encoded as an array, be conservative and assume
         // that we don't know anything about the order.
-        reportError(context, "encoding %s as an ARRAY was unexpected");
+        reportError(context, "encoding %s as an ARRAY was unexpected", type);
         return;
       }
 

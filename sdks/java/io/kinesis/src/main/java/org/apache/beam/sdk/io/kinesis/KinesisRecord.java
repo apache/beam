@@ -22,7 +22,6 @@ import static org.apache.commons.lang.builder.HashCodeBuilder.reflectionHashCode
 import com.amazonaws.services.kinesis.clientlibrary.types.ExtendedSequenceNumber;
 import com.amazonaws.services.kinesis.clientlibrary.types.UserRecord;
 import com.google.common.base.Charsets;
-import java.io.Serializable;
 import java.nio.ByteBuffer;
 import org.apache.commons.lang.builder.EqualsBuilder;
 import org.joda.time.Instant;
@@ -30,7 +29,7 @@ import org.joda.time.Instant;
 /**
  * {@link UserRecord} enhanced with utility methods.
  */
-public class KinesisRecord implements Serializable {
+public class KinesisRecord {
     private Instant readTime;
     private String streamName;
     private String shardId;

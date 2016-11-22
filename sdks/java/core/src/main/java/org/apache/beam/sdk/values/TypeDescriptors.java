@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.values;
 
-import com.google.common.reflect.TypeParameter;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.util.List;

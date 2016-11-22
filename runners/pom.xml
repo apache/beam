@@ -38,9 +38,26 @@
     <module>flink</module>
     <module>google-cloud-dataflow-java</module>
     <module>spark</module>
+    <module>apex</module>
   </modules>
 
   <profiles>
+    <profile>
+      <id>release</id>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-checkstyle-plugin</artifactId>
+          </plugin>
+
+          <plugin>
+            <groupId>org.codehaus.mojo</groupId>
+            <artifactId>findbugs-maven-plugin</artifactId>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
 
     <!-- A profile that adds an integration test phase if and only if
          the runnableOnServicePipelineOptions maven property has been set.

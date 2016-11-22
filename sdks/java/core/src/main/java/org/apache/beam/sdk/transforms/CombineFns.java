@@ -106,7 +106,7 @@ public class CombineFns {
    * <p>The same {@link TupleTag} cannot be used in a composition multiple times.
    *
    * <p>Example:
-   * <pre><{@code
+   * <pre>{@code
    * PCollection<Integer> globalLatencies = ...;
    *
    * TupleTag<Integer> maxLatencyTag = new TupleTag<Integer>();
@@ -114,7 +114,7 @@ public class CombineFns {
    *
    * SimpleFunction<Integer, Integer> identityFn =
    *     new SimpleFunction<Integer, Integer>() {
-   *       @Override
+   *       {@literal @}Override
    *       public Integer apply(Integer input) {
    *           return input;
    *       }};

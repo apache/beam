@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.util;
 
-import com.google.api.client.auth.oauth2.Credential;
 import com.google.api.client.googleapis.javanet.GoogleNetHttpTransport;
 import com.google.api.client.http.HttpRequestInitializer;
 import com.google.api.client.http.HttpTransport;
@@ -27,6 +26,8 @@ import com.google.api.services.bigquery.Bigquery;
 import com.google.api.services.cloudresourcemanager.CloudResourceManager;
 import com.google.api.services.pubsub.Pubsub;
 import com.google.api.services.storage.Storage;
+import com.google.auth.Credentials;
+import com.google.auth.http.HttpCredentialsAdapter;
 import com.google.cloud.hadoop.util.ChainingHttpRequestInitializer;
 import com.google.common.collect.ImmutableList;
 import java.io.IOException;
@@ -128,9 +129,13 @@ public class Transport {
    */
   public static CloudResourceManager.Builder
       newCloudResourceManagerClient(CloudResourceManagerOptions options) {
+    Credentials credentials = options.getGcpCredential();
+    if (credentials == null) {
+      NullCredentialInitializer.throwNullCredentialException();
+    }
     return new CloudResourceManager.Builder(getTransport(), getJsonFactory(),
         chainHttpRequestInitializer(
-            options.getGcpCredential(),
+            credentials,
             // Do not log 404. It clutters the output and is possibly even required by the caller.
             new RetryHttpRequestInitializer(ImmutableList.of(404))))
         .setApplicationName(options.getAppName())
@@ -161,11 +166,14 @@ public class Transport {
   }
 
   private static HttpRequestInitializer chainHttpRequestInitializer(
-      Credential credential, HttpRequestInitializer httpRequestInitializer) {
+      Credentials credential, HttpRequestInitializer httpRequestInitializer) {
     if (credential == null) {
-      return httpRequestInitializer;
+      return new ChainingHttpRequestInitializer(
+          new NullCredentialInitializer(), httpRequestInitializer);
     } else {
-      return new ChainingHttpRequestInitializer(credential, httpRequestInitializer);
+      return new ChainingHttpRequestInitializer(
+          new HttpCredentialsAdapter(credential),
+          httpRequestInitializer);
     }
   }
 }

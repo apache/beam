@@ -27,16 +27,174 @@
   <Bug pattern="UMAC_UNCALLABLE_METHOD_OF_ANONYMOUS_CLASS"/>
 
   <!--
-          Baseline issues below. No new issues should be added to this list. Instead, suppress
-          the issue inline using @SuppressFBWarnings and a documented reason, or (preferably) fix
-          the issue.
+          Suppressed findbugs issues. All new issues should include a comment why they're
+          suppressed.
+
+          Suppressions should go in this file rather than inline using @SuppressFBWarnings to avoid
+          unapproved artifact license.
         -->
   <Match>
-    <Class name="org.apache.beam.sdk.coders.JAXBCoder"/>
-    <Method name="getContext"/>
-    <Bug pattern="DC_DOUBLECHECK"/>
-    <!--[BEAM-398] Possible double check of field-->
+    <Class name="org.apache.beam.sdk.coders.AvroCoder$SerializableSchemaSupplier"/>
+    <Field name="schema"/>
+    <Bug pattern="SE_BAD_FIELD"/>
+    <!--
+    writeReplace makes this object serializable. This is a limitation of FindBugs as discussed here:
+     http://stackoverflow.com/questions/26156523/is-writeobject-not-neccesary-using-the-serialization-proxy-pattern
+    -->
   </Match>
+
+  <Match>
+    <Class name="org.apache.beam.sdk.coders.InstantCoder$LexicographicLongConverter"/>
+    <Bug pattern="HE_INHERITS_EQUALS_USE_HASHCODE"/>
+    <!-- Converter overrides .equals() to add documentation but does not change behavior -->
+  </Match>
+
+  <Match>
+    <Class name="org.apache.beam.sdk.testing.PAssert$PCollectionViewAssert"/>
+    <Method name="equals" />
+    <Bug pattern="EQ_UNUSUAL"/>
+    <!-- Unsupported operation -->
+  </Match>
+
+  <Match>
+    <Class name="org.apache.beam.sdk.testing.PAssert$PCollectionContentsAssert"/>
+    <Method name="equals" />
+    <Bug pattern="EQ_UNUSUAL"/>
+    <!-- Unsupported operation -->
+  </Match>
+
+  <Match>
+    <Class name="org.apache.beam.sdk.testing.SerializableMatchers$SerializableArrayViaCoder"/>
+    <Field name="value" />
+    <Bug pattern="SE_TRANSIENT_FIELD_NOT_RESTORED"/>
+    <!-- Cached value is lazily restored on read. -->
+  </Match>
+
+  <Match>
+    <Class name="org.apache.beam.sdk.util.AttemptAndTimeBoundedExponentialBackOff"/>
+    <Method name="reset" />
+    <Bug pattern="UR_UNINIT_READ_CALLED_FROM_SUPER_CONSTRUCTOR"/>
+    <!-- Explicitly handled in implementation. -->
+  </Match>
+
+  <Match>
+    <Class name="org.apache.beam.sdk.util.ExposedByteArrayInputStream"/>
+    <Method name="readAll" />
+    <Bug pattern="EI_EXPOSE_REP"/>
+    <!-- Returns internal buffer by design. -->
+  </Match>
+
+  <Match>
+    <Class name="org.apache.beam.sdk.util.ExposedByteArrayOutputStream"/>
+    <Method name="toByteArray" />
+    <Bug pattern="EI_EXPOSE_REP"/>
+    <!-- Returns internal buffer by design. -->
+  </Match>
+
+  <Match>
+    <Class name="org.apache.beam.sdk.util.ExposedByteArrayOutputStream"/>
+    <Method name="toByteArray" />
+    <Bug pattern="EI_EXPOSE_REP"/>
+    <!-- Returns internal buffer by design. -->
+  </Match>
+
+  <Match>
+    <Class name="org.apache.beam.sdk.util.ExposedByteArrayOutputStream"/>
+    <Method name="writeAndOwn" />
+    <Bug pattern="EI_EXPOSE_REP"/>
+    <!-- Takes ownership of input buffer -->
+  </Match>
+
+  <Match>
+    <Class name="org.apache.beam.sdk.util.ZipFiles"/>
+    <Method name="zipDirectory" />
+    <Bug pattern="NP_NULL_ON_SOME_PATH_FROM_RETURN_VALUE"/>
+    <!--
+      File.listFiles() will return null if the File instance is not a directory. Null dereference is
+      not a possibility here since we validate sourceDirectory is directory via
+      sourceDirectory.isDirectory()
+    -->
+  </Match>
+
+  <Match>
+    <Class name="org.apache.beam.sdk.util.ZipFiles"/>
+    <Method name="zipDirectoryInternal" />
+    <Bug pattern="NP_NULL_ON_SOME_PATH_FROM_RETURN_VALUE"/>
+    <!--
+      File.listFiles() will return null if the File instance is not a directory. Null dereference is
+      not a possibility here since we validate sourceDirectory is directory via
+      sourceDirectory.isDirectory()
+    -->
+  </Match>
+
+  <Match>
+    <Class name="org.apache.beam.sdk.util.state.StateMerging"/>
+    <Method name="prefetchRead" />
+    <Bug pattern="RV_RETURN_VALUE_IGNORED_NO_SIDE_EFFECT"/>
+    <!-- prefetch call readLater -->
+  </Match>
+
+  <Match>
+    <Class name="org.apache.beam.runner.core.PaneInfoTracker"/>
+    <Method name="getNextPaneInfo" />
+    <Bug pattern="RV_RETURN_VALUE_IGNORED_NO_SIDE_EFFECT"/>
+    <!-- prefetch side effect -->
+  </Match>
+
+  <Match>
+    <Class name="org.apache.beam.runner.core.SystemReduceFn"/>
+    <Method name="prefetchOnTrigger" />
+    <Bug pattern="RV_RETURN_VALUE_IGNORED_NO_SIDE_EFFECT"/>
+    <!-- prefetch side effect -->
+  </Match>
+
+  <Match>
+    <Class name="org.apache.beam.runner.core.WatermarkHold"/>
+    <Method name="extractAndRelease" />
+    <Bug pattern="RV_RETURN_VALUE_IGNORED_NO_SIDE_EFFECT"/>
+    <!-- prefetch call readLater -->
+  </Match>
+
+  <Match>
+    <Class name="org.apache.beam.runners.core.triggers.AfterDelayFromFirstElementStateMachine"/>
+    <Method name="prefetchOnElement" />
+    <Bug pattern="RV_RETURN_VALUE_IGNORED_NO_SIDE_EFFECT"/>
+    <!-- prefetch side effect -->
+  </Match>
+
+  <Match>
+    <Class name="org.apache.beam.runners.core.triggers.AfterDelayFromFirstElementStateMachine"/>
+    <Method name="prefetchShouldFire" />
+    <Bug pattern="RV_RETURN_VALUE_IGNORED_NO_SIDE_EFFECT"/>
+    <!-- prefetch side effect -->
+  </Match>
+
+  <Match>
+    <Class name="org.apache.beam.runners.core.triggers.AfterPaneStateMachine"/>
+    <Method name="prefetchShouldFire" />
+    <Bug pattern="RV_RETURN_VALUE_IGNORED_NO_SIDE_EFFECT"/>
+    <!-- prefetch side effect -->
+  </Match>
+
+  <Match>
+    <Class name="org.apache.beam.runners.core.triggers.TriggerStateMachines$StateMachineConverter"/>
+    <Method name="evaluateSpecific" />
+    <Bug pattern="UPM_UNCALLED_PRIVATE_METHOD"/>
+    <!-- Called via reflection -->
+  </Match>
+
+
+  <!--
+    Baseline issues. No new issues should be added below this line and all existing issues should
+    have an associated JIRA
+  -->
+
+  <Match>
+  <Class name="org.apache.beam.sdk.coders.JAXBCoder"/>
+  <Method name="getContext"/>
+  <Bug pattern="DC_DOUBLECHECK"/>
+  <!--[BEAM-398] Possible double check of field-->
+</Match>
   <Match>
     <Class name="org.apache.beam.sdk.io.range.OffsetRangeTracker"/>
     <Field name="done"/>

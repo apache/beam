@@ -216,7 +216,7 @@ public class MongoDbIO {
 
     @Override
     public long getEstimatedSizeBytes(PipelineOptions pipelineOptions) {
-      MongoClient mongoClient = new MongoClient();
+      MongoClient mongoClient = new MongoClient(new MongoClientURI(spec.uri()));
       MongoDatabase mongoDatabase = mongoClient.getDatabase(spec.database());
 
       // get the Mongo collStats object
@@ -224,13 +224,13 @@ public class MongoDbIO {
       BasicDBObject stat = new BasicDBObject();
       stat.append("collStats", spec.collection());
       Document stats = mongoDatabase.runCommand(stat);
-      return Long.valueOf(stats.get("size").toString());
+      return stats.get("size", Number.class).longValue();
     }
 
     @Override
     public List<BoundedSource<Document>> splitIntoBundles(long desiredBundleSizeBytes,
                                                 PipelineOptions options) {
-      MongoClient mongoClient = new MongoClient();
+      MongoClient mongoClient = new MongoClient(new MongoClientURI(spec.uri()));
       MongoDatabase mongoDatabase = mongoClient.getDatabase(spec.database());
 
       List<Document> splitKeys;
@@ -456,7 +456,7 @@ public class MongoDbIO {
 
     private static class WriteFn extends DoFn<Document, Void> {
       private final Write spec;
-      private MongoClient client;
+      private transient MongoClient client;
       private List<Document> batch;
 
       public WriteFn(Write spec) {

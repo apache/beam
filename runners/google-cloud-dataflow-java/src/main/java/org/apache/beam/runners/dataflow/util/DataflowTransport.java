@@ -20,15 +20,17 @@ package org.apache.beam.runners.dataflow.util;
 import static org.apache.beam.sdk.util.Transport.getJsonFactory;
 import static org.apache.beam.sdk.util.Transport.getTransport;
 
-import com.google.api.client.auth.oauth2.Credential;
 import com.google.api.client.http.HttpRequestInitializer;
 import com.google.api.services.clouddebugger.v2.Clouddebugger;
 import com.google.api.services.dataflow.Dataflow;
+import com.google.auth.Credentials;
+import com.google.auth.http.HttpCredentialsAdapter;
 import com.google.cloud.hadoop.util.ChainingHttpRequestInitializer;
 import com.google.common.collect.ImmutableList;
 import java.net.MalformedURLException;
 import java.net.URL;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
+import org.apache.beam.sdk.util.NullCredentialInitializer;
 import org.apache.beam.sdk.util.RetryHttpRequestInitializer;
 
 /**
@@ -91,11 +93,12 @@ public class DataflowTransport {
   }
 
   private static HttpRequestInitializer chainHttpRequestInitializer(
-      Credential credential, HttpRequestInitializer httpRequestInitializer) {
+      Credentials credential, HttpRequestInitializer httpRequestInitializer) {
     if (credential == null) {
-      return httpRequestInitializer;
-    } else {
-      return new ChainingHttpRequestInitializer(credential, httpRequestInitializer);
+      NullCredentialInitializer.throwNullCredentialException();
     }
+    return new ChainingHttpRequestInitializer(
+        new HttpCredentialsAdapter(credential),
+        httpRequestInitializer);
   }
 }

@@ -61,6 +61,7 @@ import org.apache.beam.sdk.AggregatorRetrievalException;
 import org.apache.beam.sdk.AggregatorValues;
 import org.apache.beam.sdk.PipelineResult.State;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.testing.ExpectedLogs;
 import org.apache.beam.sdk.testing.FastNanoClockAndSleeper;
 import org.apache.beam.sdk.transforms.Aggregator;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
@@ -86,6 +87,7 @@ import org.mockito.MockitoAnnotations;
 public class DataflowPipelineJobTest {
   private static final String PROJECT_ID = "someProject";
   private static final String JOB_ID = "1234";
+  private static final String REPLACEMENT_JOB_ID = "replacementJobId";
 
   @Mock
   private Dataflow mockWorkflowClient;
@@ -98,6 +100,9 @@ public class DataflowPipelineJobTest {
 
   @Rule
   public ExpectedException thrown = ExpectedException.none();
+
+  @Rule
+  public ExpectedLogs expectedLogs = ExpectedLogs.none(DataflowPipelineJob.class);
 
   private TestDataflowPipelineOptions options;
 
@@ -168,6 +173,9 @@ public class DataflowPipelineJobTest {
 
     Job statusResponse = new Job();
     statusResponse.setCurrentState("JOB_STATE_" + state.name());
+    if (state == State.UPDATED) {
+      statusResponse.setReplacedByJobId(REPLACEMENT_JOB_ID);
+    }
 
     when(mockJobs.get(eq(PROJECT_ID), eq(JOB_ID))).thenReturn(statusRequest);
     when(statusRequest.execute()).thenReturn(statusResponse);
@@ -187,6 +195,7 @@ public class DataflowPipelineJobTest {
   @Test
   public void testWaitToFinishDone() throws Exception {
     assertEquals(State.DONE, mockWaitToFinishInState(State.DONE));
+    expectedLogs.verifyInfo(String.format("Job %s finished with status DONE.", JOB_ID));
   }
 
   /**
@@ -196,24 +205,39 @@ public class DataflowPipelineJobTest {
   @Test
   public void testWaitToFinishFailed() throws Exception {
     assertEquals(State.FAILED, mockWaitToFinishInState(State.FAILED));
+    expectedLogs.verifyInfo(String.format("Job %s failed with status FAILED.", JOB_ID));
   }
 
   /**
-   * Tests that the {@link DataflowPipelineJob} understands that the {@link State#FAILED FAILED}
-   * state is terminal.
+   * Tests that the {@link DataflowPipelineJob} understands that the
+   * {@link State#CANCELLED CANCELLED} state is terminal.
    */
   @Test
   public void testWaitToFinishCancelled() throws Exception {
     assertEquals(State.CANCELLED, mockWaitToFinishInState(State.CANCELLED));
+    expectedLogs.verifyInfo(String.format("Job %s finished with status CANCELLED", JOB_ID));
   }
 
   /**
-   * Tests that the {@link DataflowPipelineJob} understands that the {@link State#FAILED FAILED}
+   * Tests that the {@link DataflowPipelineJob} understands that the {@link State#UPDATED UPDATED}
    * state is terminal.
    */
   @Test
   public void testWaitToFinishUpdated() throws Exception {
     assertEquals(State.UPDATED, mockWaitToFinishInState(State.UPDATED));
+    expectedLogs.verifyInfo(String.format(
+        "Job %s has been updated and is running as the new job with id %s.",
+        JOB_ID, REPLACEMENT_JOB_ID));
+  }
+
+  /**
+   * Tests that the {@link DataflowPipelineJob} understands that the {@link State#UNKNOWN UNKNOWN}
+   * state is terminal.
+   */
+  @Test
+  public void testWaitToFinishUnknown() throws Exception {
+    assertEquals(null, mockWaitToFinishInState(State.UNKNOWN));
+    expectedLogs.verifyWarn("No terminal state was returned. State value UNKNOWN");
   }
 
   @Test

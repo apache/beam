@@ -22,7 +22,7 @@
   <parent>
     <groupId>org.apache</groupId>
     <artifactId>apache</artifactId>
-    <version>17</version>
+    <version>18</version>
   </parent>
 
   <groupId>org.apache.beam</groupId>
@@ -106,12 +106,13 @@
     <cloudresourcemanager.version>v1-rev6-1.22.0</cloudresourcemanager.version>
     <pubsubgrpc.version>0.1.0</pubsubgrpc.version>
     <clouddebugger.version>v2-rev8-1.22.0</clouddebugger.version>
-    <dataflow.version>v1b3-rev42-1.22.0</dataflow.version>
+    <dataflow.version>v1b3-rev43-1.22.0</dataflow.version>
     <dataflow.proto.version>0.5.160222</dataflow.proto.version>
     <datastore.client.version>1.2.0</datastore.client.version>
     <datastore.proto.version>1.2.0</datastore.proto.version>
     <google-auto-service.version>1.0-rc2</google-auto-service.version>
     <google-auto-value.version>1.1</google-auto-value.version>
+    <google-auth.version>0.6.0</google-auth.version>
     <google-clients.version>1.22.0</google-clients.version>
     <google-cloud-bigdataoss.version>1.4.5</google-cloud-bigdataoss.version>
     <google-cloud-dataflow-java-proto-library-all.version>0.5.160304</google-cloud-dataflow-java-proto-library-all.version>
@@ -133,17 +134,18 @@
     <woodstox.version>4.4.1</woodstox.version>
     
     <compiler.error.flag>-Werror</compiler.error.flag>
+    <compiler.default.pkginfo.flag>-Xpkginfo:always</compiler.default.pkginfo.flag>
+    <compiler.default.exclude>nothing</compiler.default.exclude>
   </properties>
 
   <packaging>pom</packaging>
 
   <modules>
+    <!-- sdks/java/build-tools has project-wide configuration. To make these available
+      in all modules, link it directly to the parent pom.xml. -->
+    <module>sdks/java/build-tools</module>
     <module>sdks</module>
     <module>runners</module>
-    <!-- sdks/java/maven-archetypes has several dependencies on the DataflowPipelineRunner. 
-      Until these are refactored out or a released artifact exists, we need to modify the 
-      build order. -->
-    <module>sdks/java/maven-archetypes</module>
     <module>examples</module>
   </modules>
 
@@ -159,6 +161,9 @@
             <plugin>
               <groupId>org.apache.maven.plugins</groupId>
               <artifactId>maven-javadoc-plugin</artifactId>
+              <configuration>
+                <additionalparam>${beam.javadoc_opts}</additionalparam>
+              </configuration>
               <executions>
                 <execution>
                   <id>javadoc</id>
@@ -211,6 +216,16 @@
             <groupId>org.apache.rat</groupId>
             <artifactId>apache-rat-plugin</artifactId>
           </plugin>
+
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-javadoc-plugin</artifactId>
+          </plugin>
+
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-source-plugin</artifactId>
+          </plugin>
         </plugins>
       </build>
     </profile>
@@ -221,8 +236,51 @@
         <jdk>[1.8,)</jdk>
       </activation>
       <properties>
-        <beam.javadoc_opts>-Xdoclint:-missing</beam.javadoc_opts>
+        <beam.javadoc_opts>-Xdoclint:all -Xdoclint:-missing</beam.javadoc_opts>
       </properties>
+    </profile>
+
+    <profile>
+      <id>java7-packageinfo</id>
+      <activation>
+        <jdk>1.7</jdk>
+      </activation>
+      <properties>
+        <!--
+         Exclude package-info.java from main compilation to work around
+         https://jira.codehaus.org/browse/MCOMPILER-205
+         -->
+        <compiler.default.pkginfo.flag>-Xpkginfo:legacy</compiler.default.pkginfo.flag>
+        <compiler.default.exclude>**/package-info.java</compiler.default.exclude>
+      </properties>
+      <build>
+        <plugins>
+          <plugin>
+            <artifactId>maven-compiler-plugin</artifactId>
+            <executions>
+              <!--
+               Compile just package-info.java to avoid
+               https://bugs.openjdk.java.net/browse/JDK-8022161
+               -->
+              <execution>
+                <id>compile-package-info</id>
+                <goals>
+                  <goal>compile</goal>
+                </goals>
+                <phase>compile</phase>
+                <configuration>
+                  <compilerArgs>
+                    <arg>-Xpkginfo:always</arg>
+                  </compilerArgs>
+                  <includes>
+                    <include>**/package-info.java</include>
+                  </includes>
+                </configuration>
+              </execution>
+            </executions>
+          </plugin>
+        </plugins>
+      </build>
     </profile>
 
     <profile>
@@ -243,8 +301,7 @@
                 <dependency>
                   <groupId>org.eclipse.tycho</groupId>
                   <artifactId>tycho-compiler-jdt</artifactId>
-                  <!-- 0.24.0 is last version to support Java7 -->
-                  <version>0.24.0</version>
+                  <version>0.26.0</version>
                 </dependency>
               </dependencies>
             </plugin>
@@ -295,6 +352,24 @@
 
       <dependency>
         <groupId>org.apache.beam</groupId>
+        <artifactId>beam-runners-spark</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.apache.beam</groupId>
+        <artifactId>beam-runners-flink_2.10</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.apache.beam</groupId>
+        <artifactId>beam-runners-apex</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.apache.beam</groupId>
         <artifactId>beam-examples-java</artifactId>
         <version>${project.version}</version>
       </dependency>
@@ -315,12 +390,6 @@
         <groupId>io.grpc</groupId>
         <artifactId>grpc-core</artifactId>
         <version>${grpc.version}</version>
-        <exclusions>
-          <exclusion>
-            <groupId>com.google.code.findbugs</groupId>
-            <artifactId>jsr305</artifactId>
-          </exclusion>
-        </exclusions>
       </dependency>
 
       <dependency>
@@ -398,10 +467,6 @@
             <groupId>com.google.guava</groupId>
             <artifactId>guava-jdk5</artifactId>
           </exclusion>
-          <exclusion>
-            <groupId>com.google.code.findbugs</groupId>
-            <artifactId>jsr305</artifactId>
-          </exclusion>
         </exclusions>
       </dependency>
 
@@ -425,10 +490,6 @@
           <exclusion>
             <groupId>com.google.guava</groupId>
             <artifactId>guava-jdk5</artifactId>
-          </exclusion>
-          <exclusion>
-            <groupId>com.google.code.findbugs</groupId>
-            <artifactId>jsr305</artifactId>
           </exclusion>
         </exclusions>
       </dependency>
@@ -466,6 +527,26 @@
         <artifactId>google-http-client-protobuf</artifactId>
         <version>${google-clients.version}</version>
         <exclusions>
+          <exclusion>
+            <groupId>com.google.guava</groupId>
+            <artifactId>guava-jdk5</artifactId>
+          </exclusion>
+        </exclusions>
+      </dependency>
+
+      <dependency>
+        <groupId>com.google.auth</groupId>
+        <artifactId>google-auth-library-credentials</artifactId>
+        <version>${google-auth.version}</version>
+      </dependency>
+  
+      <dependency>
+        <groupId>com.google.auth</groupId>
+        <artifactId>google-auth-library-oauth2-http</artifactId>
+        <version>${google-auth.version}</version>
+        <exclusions>
+          <!-- Exclude an old version of guava that is being pulled in by a transitive 
+            dependency of google-api-client -->
           <exclusion>
             <groupId>com.google.guava</groupId>
             <artifactId>guava-jdk5</artifactId>
@@ -569,7 +650,7 @@
 
       <dependency>
         <groupId>com.google.code.findbugs</groupId>
-        <artifactId>annotations</artifactId>
+        <artifactId>jsr305</artifactId>
         <version>${findbugs.version}</version>
       </dependency>
 
@@ -577,24 +658,12 @@
         <groupId>com.google.cloud.bigdataoss</groupId>
         <artifactId>gcsio</artifactId>
         <version>${google-cloud-bigdataoss.version}</version>
-        <exclusions>
-          <exclusion>
-            <groupId>com.google.code.findbugs</groupId>
-            <artifactId>jsr305</artifactId>
-          </exclusion>
-        </exclusions>
       </dependency>
 
       <dependency>
         <groupId>com.google.cloud.bigdataoss</groupId>
         <artifactId>util</artifactId>
         <version>${google-cloud-bigdataoss.version}</version>
-        <exclusions>
-          <exclusion>
-            <groupId>com.google.code.findbugs</groupId>
-            <artifactId>jsr305</artifactId>
-          </exclusion>
-        </exclusions>
       </dependency>
 
       <dependency>
@@ -734,12 +803,6 @@
         <artifactId>guava-testlib</artifactId>
         <version>${guava.version}</version>
         <scope>test</scope>
-        <exclusions>
-          <exclusion>
-            <groupId>com.google.code.findbugs</groupId>
-            <artifactId>jsr305</artifactId>
-          </exclusion>
-        </exclusions>
       </dependency>
 
       <dependency>
@@ -831,6 +894,24 @@
             <!-- Another temp override, to be set to true in due course. -->
             <showDeprecation>false</showDeprecation>
           </configuration>
+          <executions>
+
+            <execution>
+              <id>default-compile</id>
+              <goals>
+                <goal>compile</goal>
+              </goals>
+              <phase>compile</phase>
+              <configuration>
+                <compilerArgs>
+                  <arg>${compiler.default.pkginfo.flag}</arg>
+                </compilerArgs>
+                <excludes>
+                  <exclude>${compiler.default.exclude}</exclude>
+                </excludes>
+              </configuration>
+            </execution>
+          </executions>
         </plugin>
 
         <plugin>
@@ -880,6 +961,7 @@
               <exclude>**/hs_err_pid*.log</exclude>
               <exclude>.github/**/*</exclude>
               <exclude>**/*.iml</exclude>
+              <exclude>**/.idea/**/*</exclude>
               <exclude>**/package-list</exclude>
               <exclude>**/user.avsc</exclude>
               <exclude>**/test/resources/**/*.txt</exclude>
@@ -1059,7 +1141,7 @@
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-shade-plugin</artifactId>
-          <version>2.4.1</version>
+          <version>2.4.3</version>
         </plugin>
 
         <plugin>

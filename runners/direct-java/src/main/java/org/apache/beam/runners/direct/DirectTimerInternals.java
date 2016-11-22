@@ -21,7 +21,9 @@ import javax.annotation.Nullable;
 import org.apache.beam.runners.direct.WatermarkManager.TimerUpdate;
 import org.apache.beam.runners.direct.WatermarkManager.TimerUpdate.TimerUpdateBuilder;
 import org.apache.beam.runners.direct.WatermarkManager.TransformWatermarks;
+import org.apache.beam.sdk.util.TimeDomain;
 import org.apache.beam.sdk.util.TimerInternals;
+import org.apache.beam.sdk.util.state.StateNamespace;
 import org.joda.time.Instant;
 
 /**
@@ -45,8 +47,19 @@ class DirectTimerInternals implements TimerInternals {
   }
 
   @Override
+  public void setTimer(StateNamespace namespace, String timerId, Instant target,
+      TimeDomain timeDomain) {
+    throw new UnsupportedOperationException("Setting timer by ID not yet supported.");
+  }
+
+  @Override
   public void setTimer(TimerData timerKey) {
     timerUpdateBuilder.setTimer(timerKey);
+  }
+
+  @Override
+  public void deleteTimer(StateNamespace namespace, String timerId) {
+    throw new UnsupportedOperationException("Canceling of timer by ID is not yet supported.");
   }
 
   @Override

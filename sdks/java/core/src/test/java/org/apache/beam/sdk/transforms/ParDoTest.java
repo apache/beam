@@ -27,6 +27,7 @@ import static org.apache.beam.sdk.util.StringUtils.byteArrayToJsonString;
 import static org.apache.beam.sdk.util.StringUtils.jsonStringToByteArray;
 import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.anyOf;
+import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.collection.IsIterableContainingInAnyOrder.containsInAnyOrder;
 import static org.hamcrest.collection.IsIterableContainingInOrder.contains;
@@ -51,6 +52,8 @@ import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.RunnableOnService;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.transforms.DoFn.OnTimer;
+import org.apache.beam.sdk.transforms.DoFn.ProcessElement;
 import org.apache.beam.sdk.transforms.ParDo.Bound;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.DisplayData.Builder;
@@ -58,7 +61,12 @@ import org.apache.beam.sdk.transforms.display.DisplayDataMatchers;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
+import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.Window;
+import org.apache.beam.sdk.util.TimeDomain;
+import org.apache.beam.sdk.util.TimerSpec;
+import org.apache.beam.sdk.util.TimerSpecs;
 import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
 import org.apache.beam.sdk.util.state.StateSpec;
 import org.apache.beam.sdk.util.state.StateSpecs;
@@ -72,6 +80,7 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -818,39 +827,37 @@ public class ParDoTest implements Serializable {
   }
 
   @Test
-  public void testParDoGetName() {
+  public void testParDoOutputNameBasedOnDoFnWithTrimmedSuffix() {
     Pipeline p = TestPipeline.create();
+    PCollection<String> output = p.apply(Create.of(1)).apply(ParDo.of(new TestOldDoFn()));
+    assertThat(output.getName(), containsString("ParDo(Test)"));
+  }
 
-    PCollection<Integer> input =
-        p.apply(Create.of(Arrays.asList(3, -42, 666)))
-        .setName("MyInput");
+  @Test
+  public void testParDoOutputNameBasedOnLabel() {
+    Pipeline p = TestPipeline.create();
+    PCollection<String> output =
+        p.apply(Create.of(1)).apply("MyParDo", ParDo.of(new TestOldDoFn()));
+    assertThat(output.getName(), containsString("MyParDo"));
+  }
 
-    {
-      PCollection<String> output1 = input.apply(ParDo.of(new TestOldDoFn()));
-      assertEquals("ParDo(Test).out", output1.getName());
-    }
+  @Test
+  public void testParDoOutputNameBasedDoFnWithoutMatchingSuffix() {
+    Pipeline p = TestPipeline.create();
+    PCollection<String> output = p.apply(Create.of(1)).apply(ParDo.of(new StrangelyNamedDoer()));
+    assertThat(output.getName(), containsString("ParDo(StrangelyNamedDoer)"));
+  }
 
-    {
-      PCollection<String> output2 = input.apply("MyParDo", ParDo.of(new TestOldDoFn()));
-      assertEquals("MyParDo.out", output2.getName());
-    }
+  @Test
+  public void testParDoTransformNameBasedDoFnWithTrimmedSuffix() {
+    assertThat(ParDo.of(new PrintingDoFn()).getName(), containsString("ParDo(Printing)"));
+  }
 
-    {
-      PCollection<String> output4 = input.apply("TestOldDoFn", ParDo.of(new TestOldDoFn()));
-      assertEquals("TestOldDoFn.out", output4.getName());
-    }
-
-    {
-      PCollection<String> output5 = input.apply(ParDo.of(new StrangelyNamedDoer()));
-      assertEquals("ParDo(StrangelyNamedDoer).out",
-          output5.getName());
-    }
-
-    assertEquals("ParDo(Printing)", ParDo.of(new PrintingDoFn()).getName());
-
-    assertEquals(
-        "ParMultiDo(SideOutputDummy)",
-        ParDo.of(new SideOutputDummyFn(null)).withOutputTags(null, null).getName());
+  @Test
+  public void testParDoMultiNameBasedDoFnWithTrimmerSuffix() {
+    assertThat(
+        ParDo.of(new SideOutputDummyFn(null)).withOutputTags(null, null).getName(),
+        containsString("ParMultiDo(SideOutputDummy)"));
   }
 
   @Test
@@ -1510,6 +1517,59 @@ public class ParDoTest implements Serializable {
     public SomeTracker newTracker(Object restriction) {
       return null;
     }
+  }
+
+  @Test
+  public void testRejectsWrongWindowType() {
+    Pipeline p = TestPipeline.create();
+
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage(GlobalWindow.class.getSimpleName());
+    thrown.expectMessage(IntervalWindow.class.getSimpleName());
+    thrown.expectMessage("window type");
+    thrown.expectMessage("not a supertype");
+
+    p.apply(Create.of(1, 2, 3))
+        .apply(
+            ParDo.of(
+                new DoFn<Integer, Integer>() {
+                  @ProcessElement
+                  public void process(ProcessContext c, IntervalWindow w) {}
+                }));
+  }
+
+  /**
+   * Tests that it is OK to use different window types in the parameter lists to different
+   * {@link DoFn} functions, as long as they are all subtypes of the actual window type
+   * of the input.
+   *
+   * <p>Today, the only method other than {@link ProcessElement @ProcessElement} that can accept
+   * extended parameters is {@link OnTimer @OnTimer}, which is rejected before it reaches window
+   * type validation. Rather than delay validation, this test is temporarily disabled.
+   */
+  @Ignore("ParDo rejects this on account of it using timers")
+  @Test
+  public void testMultipleWindowSubtypesOK() {
+    final String timerId = "gobbledegook";
+
+    Pipeline p = TestPipeline.create();
+
+    p.apply(Create.of(1, 2, 3))
+        .apply(Window.<Integer>into(FixedWindows.of(Duration.standardSeconds(10))))
+        .apply(
+            ParDo.of(
+                new DoFn<Integer, Integer>() {
+                  @TimerId(timerId)
+                  private final TimerSpec spec = TimerSpecs.timer(TimeDomain.EVENT_TIME);
+
+                  @ProcessElement
+                  public void process(ProcessContext c, IntervalWindow w) {}
+
+                  @OnTimer(timerId)
+                  public void onTimer(BoundedWindow w) {}
+                }));
+
+    // If it doesn't crash, we made it!
   }
 
   @Test

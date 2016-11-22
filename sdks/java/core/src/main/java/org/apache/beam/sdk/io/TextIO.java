@@ -19,6 +19,7 @@ package org.apache.beam.sdk.io;
 
 import static com.google.common.base.MoreObjects.firstNonNull;
 import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
 
 import com.google.common.annotations.VisibleForTesting;
@@ -44,6 +45,8 @@ import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.io.FileBasedSink.WritableByteChannelFactory;
 import org.apache.beam.sdk.io.Read.Bounded;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.ValueProvider;
+import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.util.IOChannelUtils;
@@ -142,6 +145,13 @@ public class TextIO {
     }
 
     /**
+     * Same as {@code from(filepattern)}, but accepting a {@link ValueProvider}.
+     */
+    public static Bound<String> from(ValueProvider<String> filepattern) {
+      return new Bound<>(DEFAULT_TEXT_CODER).from(filepattern);
+    }
+
+    /**
      * Returns a transform for reading text files that uses the given
      * {@code Coder<T>} to decode each of the lines of the file into a
      * value of type {@code T}.
@@ -194,7 +204,7 @@ public class TextIO {
      */
     public static class Bound<T> extends PTransform<PBegin, PCollection<T>> {
       /** The filepattern to read from. */
-      @Nullable private final String filepattern;
+      @Nullable private final ValueProvider<String> filepattern;
 
       /** The Coder to use to decode each line. */
       private final Coder<T> coder;
@@ -209,8 +219,8 @@ public class TextIO {
         this(null, null, coder, true, TextIO.CompressionType.AUTO);
       }
 
-      private Bound(String name, String filepattern, Coder<T> coder, boolean validate,
-          TextIO.CompressionType compressionType) {
+      private Bound(@Nullable String name, @Nullable ValueProvider<String> filepattern,
+          Coder<T> coder, boolean validate, TextIO.CompressionType compressionType) {
         super(name);
         this.coder = coder;
         this.filepattern = filepattern;
@@ -227,6 +237,16 @@ public class TextIO {
 
        */
       public Bound<T> from(String filepattern) {
+        checkNotNull(filepattern, "Filepattern cannot be empty.");
+        return new Bound<>(name, StaticValueProvider.of(filepattern), coder, validate,
+                           compressionType);
+      }
+
+      /**
+       * Same as {@code from(filepattern)}, but accepting a {@link ValueProvider}.
+       */
+      public Bound<T> from(ValueProvider<String> filepattern) {
+        checkNotNull(filepattern, "Filepattern cannot be empty.");
         return new Bound<>(name, filepattern, coder, validate, compressionType);
       }
 
@@ -278,14 +298,15 @@ public class TextIO {
         }
 
         if (validate) {
+          checkState(filepattern.isAccessible(), "Cannot validate with a RVP.");
           try {
             checkState(
-                !IOChannelUtils.getFactory(filepattern).match(filepattern).isEmpty(),
+              !IOChannelUtils.getFactory(filepattern.get()).match(filepattern.get()).isEmpty(),
                 "Unable to find any files matching %s",
                 filepattern);
           } catch (IOException e) {
             throw new IllegalStateException(
-                String.format("Failed to validate %s", filepattern), e);
+              String.format("Failed to validate %s", filepattern.get()), e);
           }
         }
 
@@ -324,12 +345,14 @@ public class TextIO {
       public void populateDisplayData(DisplayData.Builder builder) {
         super.populateDisplayData(builder);
 
+        String filepatternDisplay = filepattern.isAccessible()
+          ? filepattern.get() : filepattern.toString();
         builder
             .add(DisplayData.item("compressionType", compressionType.toString())
               .withLabel("Compression Type"))
             .addIfNotDefault(DisplayData.item("validation", validate)
               .withLabel("Validation Enabled"), true)
-            .addIfNotNull(DisplayData.item("filePattern", filepattern)
+            .addIfNotNull(DisplayData.item("filePattern", filepatternDisplay)
               .withLabel("File Pattern"));
       }
 
@@ -339,7 +362,7 @@ public class TextIO {
       }
 
       public String getFilepattern() {
-        return filepattern;
+        return filepattern.get();
       }
 
       public boolean needsValidation() {
@@ -866,6 +889,12 @@ public class TextIO {
 
     @VisibleForTesting
     TextSource(String fileSpec, Coder<T> coder) {
+      super(fileSpec, 1L);
+      this.coder = coder;
+    }
+
+    @VisibleForTesting
+    TextSource(ValueProvider<String> fileSpec, Coder<T> coder) {
       super(fileSpec, 1L);
       this.coder = coder;
     }

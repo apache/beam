@@ -50,9 +50,6 @@ import org.joda.time.Instant;
  *     </li>
  * </ul>
  *
- * <p>To use this class for supporting your custom input type, derive your class
- * class from it, and override the abstract methods. For an example, see {@link DatastoreIO}.
- *
  * @param <T> Type of records read by the source.
  */
 public abstract class BoundedSource<T> extends Source<T> {
@@ -135,7 +132,7 @@ public abstract class BoundedSource<T> extends Source<T> {
      *
      * <p>By default, returns null to indicate that this cannot be estimated.
      *
-     * <h5>Thread safety</h5>
+     * <h3>Thread safety</h3>
      * If {@link #splitAtFraction} is implemented, this method can be called concurrently to other
      * methods (including itself), and it is therefore critical for it to be implemented
      * in a thread-safe way.
@@ -345,7 +342,7 @@ public abstract class BoundedSource<T> extends Source<T> {
      *
      * <p>Returns a {@code BoundedSource} representing the remainder.
      *
-     * <h5>Detailed description</h5>
+     * <h3>Detailed description</h3>
      * Assuming the following sequence of calls:
      * <pre>{@code
      *   BoundedSource<T> initial = reader.getCurrentSource();
@@ -371,11 +368,11 @@ public abstract class BoundedSource<T> extends Source<T> {
      * corresponding to the given fraction. In this case, the method MUST have no effect
      * (the reader must behave as if the method hadn't been called at all).
      *
-     * <h5>Statefulness</h5>
+     * <h3>Statefulness</h3>
      * Since this method (if successful) affects the reader's source, in subsequent invocations
      * "fraction" should be interpreted relative to the new current source.
      *
-     * <h5>Thread safety and blocking</h5>
+     * <h3>Thread safety and blocking</h3>
      * This method will be called concurrently to other methods (however there will not be multiple
      * concurrent invocations of this method itself), and it is critical for it to be implemented
      * in a thread-safe way (otherwise data loss is possible).

@@ -290,7 +290,7 @@ public class BigQueryIO {
    *
    * <p>If the project id is omitted, the default project id is used.
    */
-  static TableReference parseTableSpec(String tableSpec) {
+  public static TableReference parseTableSpec(String tableSpec) {
     Matcher match = TABLE_SPEC.matcher(tableSpec);
     if (!match.matches()) {
       throw new IllegalArgumentException(
@@ -1840,8 +1840,8 @@ public class BigQueryIO {
         return PDone.in(input.getPipeline());
       }
 
-      private class WriteBundles extends DoFn<TableRow, KV<String, Long>> {
-        private TableRowWriter writer = null;
+      private static class WriteBundles extends DoFn<TableRow, KV<String, Long>> {
+        private transient TableRowWriter writer = null;
         private final String tempFilePrefix;
 
         WriteBundles(String tempFilePrefix) {
@@ -2333,6 +2333,8 @@ public class BigQueryIO {
         throw new IllegalArgumentException(
             String.format(RESOURCE_NOT_FOUND_ERROR, "dataset", BigQueryIO.toTableSpec(table)),
             e);
+      } else if (e instanceof  RuntimeException) {
+        throw (RuntimeException) e;
       } else {
         throw new RuntimeException(
             String.format(UNABLE_TO_CONFIRM_PRESENCE_OF_RESOURCE_ERROR, "dataset",
@@ -2350,6 +2352,8 @@ public class BigQueryIO {
       if ((e instanceof IOException) && errorExtractor.itemNotFound((IOException) e)) {
         throw new IllegalArgumentException(
             String.format(RESOURCE_NOT_FOUND_ERROR, "table", BigQueryIO.toTableSpec(table)), e);
+      } else if (e instanceof  RuntimeException) {
+        throw (RuntimeException) e;
       } else {
         throw new RuntimeException(
             String.format(UNABLE_TO_CONFIRM_PRESENCE_OF_RESOURCE_ERROR, "table",

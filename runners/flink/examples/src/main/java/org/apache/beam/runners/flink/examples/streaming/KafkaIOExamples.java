@@ -170,7 +170,7 @@ public class KafkaIOExamples {
 
     /**
      * Serialiation/Deserialiation schema for Avro types.
-     * @param <T>
+     * @param <T> the type being encoded
      */
     static class AvroSerializationDeserializationSchema<T>
         implements SerializationSchema<T>, DeserializationSchema<T> {

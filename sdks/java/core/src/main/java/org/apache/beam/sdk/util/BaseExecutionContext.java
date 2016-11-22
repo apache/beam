@@ -38,7 +38,7 @@ import org.apache.beam.sdk.values.TupleTag;
  * of {@link StepContext} from {@link #getOrCreateStepContext(String, String)} and
  * {@link #getAllStepContexts()} without forcing each subclass to override the method, e.g.
  * <pre>{@code
- * @Override
+ * {@literal @}Override
  * StreamingModeExecutionContext.StepContext getOrCreateStepContext(...) {
  *   return (StreamingModeExecutionContext.StepContext) super.getOrCreateStepContext(...);
  * }

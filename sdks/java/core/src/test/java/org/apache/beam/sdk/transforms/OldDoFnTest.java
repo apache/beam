@@ -24,7 +24,6 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertThat;
 
-import com.google.common.collect.ImmutableMap;
 import java.io.Serializable;
 import java.util.Map;
 import org.apache.beam.sdk.AggregatorValues;
@@ -37,6 +36,7 @@ import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.transforms.Max.MaxIntegerFn;
 import org.apache.beam.sdk.transforms.Sum.SumIntegerFn;
 import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.apache.beam.sdk.values.PCollection;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -216,14 +216,17 @@ public class OldDoFnTest implements Serializable {
     Pipeline pipeline = TestPipeline.create();
 
     CountOddsFn countOdds = new CountOddsFn();
-    pipeline
+    PCollection<Void> output = pipeline
         .apply(Create.of(1, 3, 5, 7, 2, 4, 6, 8, 10, 12, 14, 20, 42, 68, 100))
         .apply(ParDo.of(countOdds));
     PipelineResult result = pipeline.run();
 
     AggregatorValues<Integer> values = result.getAggregatorValues(countOdds.aggregator);
-    assertThat(values.getValuesAtSteps(),
-        equalTo((Map<String, Integer>) ImmutableMap.<String, Integer>of("ParDo(CountOdds)", 4)));
+
+    Map<String, Integer> valuesMap = values.getValuesAtSteps();
+
+    assertThat(valuesMap.size(), equalTo(1));
+    assertThat(valuesMap.get(output.getProducingTransformInternal().getFullName()), equalTo(4));
   }
 
   private static class CountOddsFn extends OldDoFn<Integer, Void> {

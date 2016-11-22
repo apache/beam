@@ -27,11 +27,6 @@ import org.apache.beam.sdk.testing.TestPipelineOptions;
  * DatastoreV1 Datastore related pipeline options.
  */
 public interface V1TestOptions extends TestPipelineOptions {
-  @Description("Project ID to read from datastore")
-  @Default.String("apache-beam-testing")
-  String getProject();
-  void setProject(String value);
-
   @Description("Datastore Entity kind")
   @Default.String("beam-test")
   String getKind();

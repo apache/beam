@@ -79,7 +79,7 @@ public class AvroIOTest {
 
   @BeforeClass
   public static void setupClass() {
-    IOChannelUtils.registerStandardIOFactories(TestPipeline.testingPipelineOptions());
+    IOChannelUtils.registerIOFactoriesAllowOverride(TestPipeline.testingPipelineOptions());
   }
 
   @Test

@@ -46,9 +46,11 @@ import org.apache.beam.sdk.transforms.windowing.OutputTimeFns;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.KeyedWorkItem;
 import org.apache.beam.sdk.util.TimeDomain;
+import org.apache.beam.sdk.util.Timer;
 import org.apache.beam.sdk.util.TimerInternals;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowingInternals;
+import org.apache.beam.sdk.util.state.State;
 import org.apache.beam.sdk.util.state.StateNamespace;
 import org.apache.beam.sdk.util.state.StateNamespaces;
 import org.apache.beam.sdk.util.state.StateTag;
@@ -92,7 +94,7 @@ public class SplittableParDo<
   public SplittableParDo(DoFn<InputT, OutputT> fn) {
     checkNotNull(fn, "fn must not be null");
     this.fn = fn;
-    this.signature = DoFnSignatures.INSTANCE.getSignature(fn.getClass());
+    this.signature = DoFnSignatures.getSignature(fn.getClass());
     checkArgument(signature.processElement().isSplittable(), "fn must be a splittable DoFn");
   }
 
@@ -100,8 +102,8 @@ public class SplittableParDo<
   public PCollection<OutputT> apply(PCollection<InputT> input) {
     PCollection.IsBounded isFnBounded = signature.isBoundedPerElement();
     Coder<RestrictionT> restrictionCoder =
-        DoFnInvokers.INSTANCE
-            .newByteBuddyInvoker(fn)
+        DoFnInvokers
+            .invokerFor(fn)
             .invokeGetRestrictionCoder(input.getPipeline().getCoderRegistry());
     Coder<ElementAndRestriction<InputT, RestrictionT>> splitCoder =
         ElementAndRestrictionCoder.of(input.getCoder(), restrictionCoder);
@@ -164,7 +166,7 @@ public class SplittableParDo<
 
     @Setup
     public void setup() {
-      invoker = DoFnInvokers.INSTANCE.newByteBuddyInvoker(fn);
+      invoker = DoFnInvokers.invokerFor(fn);
     }
 
     @ProcessElement
@@ -239,13 +241,12 @@ public class SplittableParDo<
       this.windowCoder = windowCoder;
       elementTag =
           StateTags.value("element", WindowedValue.getFullCoder(elementCoder, this.windowCoder));
-      DoFnInvoker<InputT, OutputT> invoker = DoFnInvokers.INSTANCE.newByteBuddyInvoker(fn);
       restrictionTag = StateTags.value("restriction", restrictionCoder);
     }
 
     @Override
     public void setup() throws Exception {
-      invoker = DoFnInvokers.INSTANCE.newByteBuddyInvoker(fn);
+      invoker = DoFnInvokers.invokerFor(fn);
     }
 
     @Override
@@ -288,8 +289,8 @@ public class SplittableParDo<
       // producing a limited amount of output.
       DoFn.ProcessContinuation cont =
           invoker.invokeProcessElement(
-              makeContext(c, elementAndRestriction.element(), tracker, residual),
-              wrapTracker(tracker));
+              wrapTracker(
+                  tracker, makeContext(c, elementAndRestriction.element(), tracker, residual)));
       if (residual[0] == null) {
         // This means the call completed unsolicited, and the context produced by makeContext()
         // did not take a checkpoint. Take one now.
@@ -390,24 +391,43 @@ public class SplittableParDo<
       };
     }
 
-    /** Creates an {@link DoFn.ExtraContextFactory} that provides just the given tracker. */
-    private DoFn.ExtraContextFactory<InputT, OutputT> wrapTracker(final TrackerT tracker) {
-      return new ExtraContextFactoryForTracker<>(tracker);
+    /**
+     * Creates an {@link DoFnInvoker.ArgumentProvider} that provides the given tracker as well as
+     * the given
+     * {@link ProcessContext} (which is also provided when a {@link Context} is requested.
+     */
+    private DoFnInvoker.ArgumentProvider<InputT, OutputT> wrapTracker(
+        TrackerT tracker, DoFn<InputT, OutputT>.ProcessContext processContext) {
+
+      return new ArgumentProviderForTracker<>(tracker, processContext);
     }
 
-    private static class ExtraContextFactoryForTracker<
+    private static class ArgumentProviderForTracker<
             InputT, OutputT, TrackerT extends RestrictionTracker<?>>
-        implements DoFn.ExtraContextFactory<InputT, OutputT> {
+        implements DoFnInvoker.ArgumentProvider<InputT, OutputT> {
       private final TrackerT tracker;
+      private final DoFn<InputT, OutputT>.ProcessContext processContext;
 
-      ExtraContextFactoryForTracker(TrackerT tracker) {
+      ArgumentProviderForTracker(
+          TrackerT tracker, DoFn<InputT, OutputT>.ProcessContext processContext) {
         this.tracker = tracker;
+        this.processContext = processContext;
       }
 
       @Override
       public BoundedWindow window() {
         // DoFnSignatures should have verified that this DoFn doesn't access extra context.
         throw new IllegalStateException("Unexpected extra context access on a splittable DoFn");
+      }
+
+      @Override
+      public DoFn.Context context(DoFn<InputT, OutputT> doFn) {
+        return processContext;
+      }
+
+      @Override
+      public DoFn.ProcessContext processContext(DoFn<InputT, OutputT> doFn) {
+        return processContext;
       }
 
       @Override
@@ -432,6 +452,16 @@ public class SplittableParDo<
       public TrackerT restrictionTracker() {
         return tracker;
       }
+
+      @Override
+      public State state(String stateId) {
+        throw new UnsupportedOperationException("State cannot be used with a splittable DoFn");
+      }
+
+      @Override
+      public Timer timer(String timerId) {
+        throw new UnsupportedOperationException("Timers cannot be used with a splittable DoFn");
+      }
     }
   }
 
@@ -449,7 +479,7 @@ public class SplittableParDo<
 
     @Setup
     public void setup() {
-      invoker = DoFnInvokers.INSTANCE.newByteBuddyInvoker(splittableFn);
+      invoker = DoFnInvokers.invokerFor(splittableFn);
     }
 
     @ProcessElement

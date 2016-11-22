@@ -133,7 +133,7 @@ public final class ByteKeyRange implements Serializable {
    * Specifically, if this range is unsplittable (e.g., because the start and end keys are equal
    * up to padding by zero bytes), the list returned will only contain the start and end key.
    *
-   * @throws IllegalArgumentException if the specified number of splits is < 1
+   * @throws IllegalArgumentException if the specified number of splits is less than 1
    * @see ByteKeyRange the ByteKeyRange class Javadoc for more information about split semantics.
    */
   public List<ByteKey> split(int numSplits) {

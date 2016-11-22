@@ -18,8 +18,11 @@
 package org.apache.beam.sdk.transforms;
 
 import java.io.IOException;
+import java.util.Collection;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
+import org.apache.beam.sdk.transforms.DoFn.Context;
+import org.apache.beam.sdk.transforms.DoFn.ProcessContext;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvoker;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvokers;
@@ -28,7 +31,9 @@ import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
+import org.apache.beam.sdk.util.Timer;
 import org.apache.beam.sdk.util.WindowingInternals;
+import org.apache.beam.sdk.util.state.State;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TypeDescriptor;
@@ -61,7 +66,7 @@ public class DoFnAdapters {
   /** Creates an {@link OldDoFn} that delegates to the {@link DoFn}. */
   @SuppressWarnings({"unchecked", "rawtypes"})
   public static <InputT, OutputT> OldDoFn<InputT, OutputT> toOldDoFn(DoFn<InputT, OutputT> fn) {
-    DoFnSignature signature = DoFnSignatures.INSTANCE.getSignature((Class) fn.getClass());
+    DoFnSignature signature = DoFnSignatures.getSignature((Class) fn.getClass());
     if (signature.processElement().observesWindow()) {
       return new WindowDoFnAdapter<>(fn);
     } else {
@@ -73,7 +78,7 @@ public class DoFnAdapters {
   public static <InputT, OutputT> OldDoFn<InputT, OutputT>.ProcessContext adaptProcessContext(
       OldDoFn<InputT, OutputT> fn,
       final DoFn<InputT, OutputT>.ProcessContext c,
-      final DoFn.ExtraContextFactory<InputT, OutputT> extra) {
+      final DoFnInvoker.ArgumentProvider<InputT, OutputT> extra) {
     return fn.new ProcessContext() {
       @Override
       public InputT element() {
@@ -199,7 +204,7 @@ public class DoFnAdapters {
     SimpleDoFnAdapter(DoFn<InputT, OutputT> fn) {
       super(fn.aggregators);
       this.fn = fn;
-      this.invoker = DoFnInvokers.INSTANCE.newByteBuddyInvoker(fn);
+      this.invoker = DoFnInvokers.invokerFor(fn);
     }
 
     @Override
@@ -226,7 +231,7 @@ public class DoFnAdapters {
     @Override
     public void processElement(ProcessContext c) throws Exception {
       ProcessContextAdapter<InputT, OutputT> adapter = new ProcessContextAdapter<>(fn, c);
-      invoker.invokeProcessElement(adapter, adapter);
+      invoker.invokeProcessElement(adapter);
     }
 
     @Override
@@ -237,6 +242,11 @@ public class DoFnAdapters {
     @Override
     protected TypeDescriptor<OutputT> getOutputTypeDescriptor() {
       return fn.getOutputTypeDescriptor();
+    }
+
+    @Override
+    Collection<Aggregator<?, ?>> getAggregators() {
+      return fn.getAggregators();
     }
 
     @Override
@@ -252,7 +262,7 @@ public class DoFnAdapters {
     private void readObject(java.io.ObjectInputStream in)
         throws IOException, ClassNotFoundException {
       in.defaultReadObject();
-      this.invoker = DoFnInvokers.INSTANCE.newByteBuddyInvoker(fn);
+      this.invoker = DoFnInvokers.invokerFor(fn);
     }
   }
 
@@ -266,12 +276,12 @@ public class DoFnAdapters {
   }
 
   /**
-   * Wraps an {@link OldDoFn.Context} as a {@link DoFn.ExtraContextFactory} inside a {@link
+   * Wraps an {@link OldDoFn.Context} as a {@link DoFnInvoker.ArgumentProvider} inside a {@link
    * DoFn.StartBundle} or {@link DoFn.FinishBundle} method, which means the extra context is
    * unavailable.
    */
   private static class ContextAdapter<InputT, OutputT> extends DoFn<InputT, OutputT>.Context
-      implements DoFn.ExtraContextFactory<InputT, OutputT> {
+      implements DoFnInvoker.ArgumentProvider<InputT, OutputT> {
 
     private OldDoFn<InputT, OutputT>.Context context;
 
@@ -322,6 +332,17 @@ public class DoFnAdapters {
     }
 
     @Override
+    public Context context(DoFn<InputT, OutputT> doFn) {
+      return this;
+    }
+
+    @Override
+    public ProcessContext processContext(DoFn<InputT, OutputT> doFn) {
+      throw new UnsupportedOperationException(
+          "Can only get a ProcessContext in processElement");
+    }
+
+    @Override
     public WindowingInternals<InputT, OutputT> windowingInternals() {
       // The OldDoFn doesn't allow us to ask for these outside ProcessElements, so this
       // should be unreachable.
@@ -343,15 +364,24 @@ public class DoFnAdapters {
     public <RestrictionT> RestrictionTracker<RestrictionT> restrictionTracker() {
       throw new UnsupportedOperationException("This is a non-splittable DoFn");
     }
+
+    @Override
+    public State state(String stateId) {
+      throw new UnsupportedOperationException("State is not supported by this runner");
+    }
+
+    @Override
+    public Timer timer(String timerId) {
+      throw new UnsupportedOperationException("Timers are not supported by this runner");
+    }
   }
 
   /**
-   * Wraps an {@link OldDoFn.ProcessContext} as a {@link DoFn.ExtraContextFactory} inside a {@link
-   * DoFn.ProcessElement} method.
+   * Wraps an {@link OldDoFn.ProcessContext} as a {@link DoFnInvoker.ArgumentProvider} method.
    */
   private static class ProcessContextAdapter<InputT, OutputT>
       extends DoFn<InputT, OutputT>.ProcessContext
-      implements DoFn.ExtraContextFactory<InputT, OutputT> {
+      implements DoFnInvoker.ArgumentProvider<InputT, OutputT> {
 
     private OldDoFn<InputT, OutputT>.ProcessContext context;
 
@@ -418,6 +448,16 @@ public class DoFnAdapters {
     }
 
     @Override
+    public Context context(DoFn<InputT, OutputT> doFn) {
+      return this;
+    }
+
+    @Override
+    public ProcessContext processContext(DoFn<InputT, OutputT> doFn) {
+      return this;
+    }
+
+    @Override
     public WindowingInternals<InputT, OutputT> windowingInternals() {
       return context.windowingInternals();
     }
@@ -435,6 +475,16 @@ public class DoFnAdapters {
     @Override
     public <RestrictionT> RestrictionTracker<RestrictionT> restrictionTracker() {
       throw new UnsupportedOperationException("This is a non-splittable DoFn");
+    }
+
+    @Override
+    public State state(String stateId) {
+      throw new UnsupportedOperationException("State is not supported by this runner");
+    }
+
+    @Override
+    public Timer timer(String timerId) {
+      throw new UnsupportedOperationException("Timers are not supported by this runner");
     }
   }
 }

@@ -19,8 +19,11 @@ package org.apache.beam.sdk.util.common;
 
 import static org.junit.Assert.assertEquals;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import java.util.List;
 import java.util.Map;
+import org.apache.beam.sdk.options.Default;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -122,5 +125,60 @@ public class ReflectHelpersTest {
     assertEquals("Map<? super InputT, ? extends OutputT>",
         ReflectHelpers.TYPE_SIMPLE_DESCRIPTION.apply(
             new TypeDescriptor<Map<? super InputT, ? extends OutputT>>() {}.getType()));
+  }
+
+  private interface Options extends PipelineOptions {
+    @Default.String("package.OuterClass$InnerClass#method()")
+    String getString();
+
+    @JsonIgnore
+    Object getObject();
+  }
+
+  @Test
+  public void testAnnotationFormatter() throws Exception {
+    assertEquals(
+        "Default.String(value=package.OuterClass$InnerClass#method())",
+        ReflectHelpers.ANNOTATION_FORMATTER.apply(
+            Options.class.getMethod("getString").getAnnotations()[0]));
+
+    assertEquals(
+        "JsonIgnore(value=true)",
+        ReflectHelpers.ANNOTATION_FORMATTER.apply(
+            Options.class.getMethod("getObject").getAnnotations()[0]));
+  }
+
+  @Test
+  public void testFindProperClassLoaderIfContextClassLoaderIsNull() throws InterruptedException {
+    final ClassLoader[] classLoader = new ClassLoader[1];
+    Thread thread = new Thread(new Runnable() {
+
+      @Override
+      public void run() {
+        classLoader[0] = ReflectHelpers.findClassLoader();
+      }
+    });
+    thread.setContextClassLoader(null);
+    thread.start();
+    thread.join();
+    assertEquals(ReflectHelpers.class.getClassLoader(), classLoader[0]);
+  }
+
+  @Test
+  public void testFindProperClassLoaderIfContextClassLoaderIsAvailable()
+      throws InterruptedException {
+    final ClassLoader[] classLoader = new ClassLoader[1];
+    Thread thread = new Thread(new Runnable() {
+
+      @Override
+      public void run() {
+        classLoader[0] = ReflectHelpers.findClassLoader();
+      }
+    });
+    ClassLoader cl = new ClassLoader() {};
+    thread.setContextClassLoader(cl);
+    thread.start();
+    thread.join();
+    assertEquals(cl, classLoader[0]);
   }
 }

@@ -39,8 +39,6 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollection.IsBounded;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PDone;
-import org.apache.beam.sdk.values.PInput;
-import org.apache.beam.sdk.values.POutput;
 import org.joda.time.Duration;
 
 /**
@@ -48,17 +46,14 @@ import org.joda.time.Duration;
  * with an unspecified number of shards with a write with a specified number of shards. The number
  * of shards is the log base 10 of the number of input records, with up to 2 additional shards.
  */
-class WriteWithShardingFactory implements PTransformOverrideFactory {
+class WriteWithShardingFactory<InputT>
+    implements PTransformOverrideFactory<PCollection<InputT>, PDone, Write.Bound<InputT>> {
   static final int MAX_RANDOM_EXTRA_SHARDS = 3;
 
   @Override
-  public <InputT extends PInput, OutputT extends POutput> PTransform<InputT, OutputT> override(
-      PTransform<InputT, OutputT> transform) {
-    if (transform instanceof Write.Bound) {
-      Write.Bound<InputT> that = (Write.Bound<InputT>) transform;
-      if (that.getNumShards() == 0) {
-        return (PTransform<InputT, OutputT>) new DynamicallyReshardedWrite<InputT>(that);
-      }
+  public PTransform<PCollection<InputT>, PDone> override(Write.Bound<InputT> transform) {
+    if (transform.getNumShards() == 0) {
+      return new DynamicallyReshardedWrite<>(transform);
     }
     return transform;
   }

@@ -22,7 +22,6 @@ import static com.google.common.base.Preconditions.checkArgument;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.io.Serializable;
 import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.util.Collections;
@@ -131,10 +130,8 @@ public class UnboundedSocketSource<CheckpointMarkT extends UnboundedSource.Check
   /**
    * Unbounded socket reader.
    */
-  public static class UnboundedSocketReader extends UnboundedSource.UnboundedReader<String>
-      implements Serializable {
+  public static class UnboundedSocketReader extends UnboundedSource.UnboundedReader<String> {
 
-    private static final long serialVersionUID = 7526472295622776147L;
     private static final Logger LOG = LoggerFactory.getLogger(UnboundedSocketReader.class);
 
     private final UnboundedSocketSource source;
