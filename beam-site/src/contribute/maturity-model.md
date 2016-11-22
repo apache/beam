@@ -6,6 +6,8 @@ permalink: /contribute/maturity-model/
 
 # Apache Maturity Model Assessment for Apache Beam
 
+*Last updated: November 22, 2016*
+
 * TOC
 {:toc}
 
@@ -148,7 +150,7 @@ The following table summarizes project's self-assessment against the Apache Matu
     <tr>
       <td><p>CO20</p></td>
       <td><p>The community welcomes contributions from anyone who acts in good faith and in a respectful manner and adds value to the project.</p></td>
-      <td><p><b>YES.</b> This is a part of the <a href="{{ site.baseurl }}/contribute/contribution-guide/">contribution guide</a>. Many <a href="https://lists.apache.org/thread.html/8c46c41d432edd5c6c6fa9942d95ffead24ab42a64c785de21fc18c0@%253Cdev.beam.apache.org%253E">introductory emails</a> available as evidence. Many <a href="https://issues.apache.org/jira/issues/?jql=project%20%3D%20BEAM%20AND%20labels%20%3D%20starter">starter tasks</a> available in issue tracker. See also community growth statistics below.</p></td>
+      <td><p><b>YES.</b> This is a part of the <a href="{{ site.baseurl }}/contribute/contribution-guide/">contribution guide</a>. Many introductory emails available as evidence, e.g., <a href="https://lists.apache.org/thread.html/8c46c41d432edd5c6c6fa9942d95ffead24ab42a64c785de21fc18c0@%253Cdev.beam.apache.org%253E">this</a>, <a href="https://lists.apache.org/thread.html/272281cf15482fedf39d02f66423cba858a3731914b6b05009c58225@%3Cdev.beam.apache.org%3E">that</a>, and <a href="https://lists.apache.org/thread.html/f7fdd33e8984d4e4b84483beee06aaba55438caa97f63121729f7a6b@%3Cdev.beam.apache.org%3E">the other</a>. Many <a href="https://issues.apache.org/jira/issues/?jql=project%20%3D%20BEAM%20AND%20labels%20%3D%20starter">starter tasks</a> available in issue tracker. See also community growth statistics below.</p></td>
     </tr>
     <tr>
       <td><p>CO30</p></td>
@@ -211,12 +213,12 @@ The following table summarizes project's self-assessment against the Apache Matu
     <tr>
       <td><p>IN10</p></td>
       <td><p>The project is independent from any corporate or organizational influence. [12]</p></td>
-      <td><p><b>YES.</b></p></td>
+      <td><p><b>YES.</b> See below.</p></td>
     </tr>
     <tr>
       <td><p>IN20</p></td>
       <td><p>Contributors act as themselves as opposed to representatives of a corporation or organization.</p></td>
-      <td><p><b>YES.</b></p></td>
+      <td><p><b>YES.</b> See below.</p></td>
     </tr>
   </tbody>
 </table>
@@ -246,8 +248,14 @@ The following table summarizes project's self-assessment against the Apache Matu
 
 [12] Independence can be understood as basing the project's decisions on the open discussions that happen on the project's main communications channel, with no hidden agendas.
 
-## Community growth
-TODO.
+## Independence / Community
+During incubation, the Beam community has worked hard to remove any special treatment given to any organization. The bulk of the initial code donation came from Google's Cloud Dataflow SDK, and this provenance was originally visible throughout the code in naming, package organization, and assumptions about execution environment. After a significant amount of refactoring, both the project's code and branding treat all 'runners' equally and have a clean separation between the project and Google Cloud Dataflow (now just one of many runners that can be used within Beam).
+
+While the majority of commits is still provided by a single organization, it is interesting to look the distribution per-module. Out of the ~22 large modules in the codebase, at least 10 modules have been developed from scratch by the community, with little to no contribution from the largest organization.
+
+Finally, the contributor diversity has increased significantly. Over each of the last three months, no organization has had more than ~50% of the unique contributors per month. (Assumptions: commits to master branch of the main repository, excludes merge commits, best effort to identify unique contributors).
+
+![Alt text]({{ "/images/contribution-diversity.png" | prepend: site.baseurl }} "Contributor Diversity")
 
 ## Dependency analysis
 This section analyses project's direct and transitive dependencies to ensure compliance with Apache Software Foundation's policies and guidelines.
