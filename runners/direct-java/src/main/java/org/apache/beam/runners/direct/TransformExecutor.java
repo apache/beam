@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.direct;
 
+import java.io.Closeable;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.concurrent.Callable;
@@ -89,8 +90,7 @@ class TransformExecutor<T> implements Runnable {
   @Override
   public void run() {
     MetricsContainer metricsContainer = new MetricsContainer(transform.getFullName());
-    MetricsEnvironment.setMetricsContainer(metricsContainer);
-    try {
+    try (Closeable metricsScope = MetricsEnvironment.scopedMetricsContainer(metricsContainer)) {
       Collection<ModelEnforcement<T>> enforcements = new ArrayList<>();
       for (ModelEnforcementFactory enforcementFactory : modelEnforcements) {
         ModelEnforcement<T> enforcement = enforcementFactory.forBundle(inputBundle, transform);
@@ -117,7 +117,6 @@ class TransformExecutor<T> implements Runnable {
       // Report the physical metrics from the end of this step.
       context.getMetrics().commitPhysical(inputBundle, metricsContainer.getCumulative());
 
-      MetricsEnvironment.unsetMetricsContainer();
       transformEvaluationState.complete(this);
     }
   }
