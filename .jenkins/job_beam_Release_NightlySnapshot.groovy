@@ -33,16 +33,14 @@ mavenJob('beam_Release_NightlySnapshot') {
   // Set maven paramaters.
   common_job_properties.setMavenConfig(delegate)
 
-  // Set build triggers (7AM each day.)
-  triggers {
-    cron('0 7 * * *')
-  }
+  // Set that this is a PostCommit job.
+  // Polls SCM on Feb 31st, i.e. never.
+  common_job_properties.setPostCommit(
+      delegate,
+      '0 7 * * *',
+      '0 5 31 2 *',
+      'dev@beam.incubator.apache.org')
 
   // Maven goals for this job.
   goals('-B -e clean deploy -P release,dataflow-runner -DskipITs=false -DintegrationTestPipelineOptions=\'[ "--project=apache-beam-testing", "--tempRoot=gs://temp-storage-for-end-to-end-tests", "--runner=org.apache.beam.runners.dataflow.testing.TestDataflowRunner" ]\'')
-
-  publishers {
-    // Notify the mailing list for each failed build.
-    mailer('dev@beam.incubator.apache.org', false, true)
-  }
 }
