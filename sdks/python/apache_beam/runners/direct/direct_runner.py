@@ -27,6 +27,7 @@ import collections
 import logging
 
 from apache_beam.runners.direct.bundle_factory import BundleFactory
+from apache_beam.metrics.internal import MetricsEnvironment
 from apache_beam.runners.runner import PipelineResult
 from apache_beam.runners.runner import PipelineRunner
 from apache_beam.runners.runner import PipelineState
@@ -51,6 +52,8 @@ class DirectPipelineRunner(PipelineRunner):
     from apache_beam.runners.direct.executor import Executor
     from apache_beam.runners.direct.transform_evaluator import \
       TransformEvaluatorRegistry
+
+    MetricsEnvironment.set_metrics_supported(True)
 
     logging.info('Running pipeline with DirectPipelineRunner.')
     self.visitor = ConsumerTrackingPipelineVisitor()
@@ -151,6 +154,9 @@ class DirectPipelineResult(PipelineResult):
 
   def aggregated_values(self, aggregator_or_name):
     return self._evaluation_context.get_aggregator_values(aggregator_or_name)
+
+  def metrics(self):
+    return self._evaluation_context.metrics()
 
 
 class EagerPipelineRunner(DirectPipelineRunner):
