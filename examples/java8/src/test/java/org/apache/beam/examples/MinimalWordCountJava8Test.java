@@ -68,7 +68,7 @@ public class MinimalWordCountJava8Test implements Serializable {
      .apply(MapElements
          .via((KV<String, Long> wordCount) -> wordCount.getKey() + ": " + wordCount.getValue())
          .withOutputType(TypeDescriptors.strings()))
-     .apply(TextIO.Write.to("gs://YOUR_OUTPUT_BUCKET/AND_OUTPUT_PREFIX"));
+     .apply(TextIO.Write.to("gs://your-output-bucket/and-output-prefix"));
   }
 
   private GcsUtil buildMockGcsUtil() throws IOException {

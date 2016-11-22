@@ -17,9 +17,6 @@
  */
 package ${package};
 
-import ${package}.common.ExampleBigQueryTableOptions;
-import ${package}.common.ExampleOptions;
-import ${package}.common.ExampleUtils;
 import com.google.api.services.bigquery.model.TableFieldSchema;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableRow;
@@ -27,6 +24,9 @@ import com.google.api.services.bigquery.model.TableSchema;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import ${package}.common.ExampleBigQueryTableOptions;
+import ${package}.common.ExampleOptions;
+import ${package}.common.ExampleUtils;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.io.TextIO;

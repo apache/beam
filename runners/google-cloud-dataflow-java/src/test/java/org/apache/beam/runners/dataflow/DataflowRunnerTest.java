@@ -83,6 +83,7 @@ import org.apache.beam.sdk.options.PipelineOptions.CheckEnabled;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.runners.TransformTreeNode;
 import org.apache.beam.sdk.runners.dataflow.TestCountingSource;
+import org.apache.beam.sdk.testing.ExpectedLogs;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFnTester;
@@ -133,6 +134,8 @@ public class DataflowRunnerTest {
   public TemporaryFolder tmpFolder = new TemporaryFolder();
   @Rule
   public ExpectedException thrown = ExpectedException.none();
+  @Rule
+  public ExpectedLogs expectedLogs = ExpectedLogs.none(DataflowRunner.class);
 
   // Asserts that the given Job has all expected fields set.
   private static void assertValidJob(Job job) {
@@ -1441,5 +1444,47 @@ public class DataflowRunnerTest {
     outputMap = output.get(2).getValue().getValue();
     assertEquals(1, outputMap.size());
     assertThat(outputMap.get(4L), containsInAnyOrder(41L));
+  }
+
+  /**
+   * Tests that the {@link DataflowRunner} with {@code --templateLocation} returns normally
+   * when the runner issuccessfully run.
+   */
+  @Test
+  public void testTemplateRunnerFullCompletion() throws Exception {
+    File existingFile = tmpFolder.newFile();
+    DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
+    options.setJobName("TestJobName");
+    options.setGcpCredential(new TestCredential());
+    options.setPathValidatorClass(NoopPathValidator.class);
+    options.setProject("test-project");
+    options.setRunner(DataflowRunner.class);
+    options.setTemplateLocation(existingFile.getPath());
+    options.setTempLocation(tmpFolder.getRoot().getPath());
+    Pipeline p = Pipeline.create(options);
+
+    p.run();
+    expectedLogs.verifyInfo("Template successfully created");
+  }
+
+  /**
+   * Tests that the {@link DataflowRunner} with {@code --templateLocation} throws the appropriate
+   * exception when an output file is not writable.
+   */
+  @Test
+  public void testTemplateRunnerLoggedErrorForFile() throws Exception {
+    DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
+    options.setJobName("TestJobName");
+    options.setRunner(DataflowRunner.class);
+    options.setTemplateLocation("//bad/path");
+    options.setProject("test-project");
+    options.setTempLocation(tmpFolder.getRoot().getPath());
+    options.setGcpCredential(new TestCredential());
+    options.setPathValidatorClass(NoopPathValidator.class);
+    Pipeline p = Pipeline.create(options);
+
+    thrown.expectMessage("Cannot create output file at");
+    thrown.expect(RuntimeException.class);
+    p.run();
   }
 }

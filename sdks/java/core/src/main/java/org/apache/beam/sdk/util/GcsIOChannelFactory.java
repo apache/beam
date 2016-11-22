@@ -20,10 +20,12 @@ package org.apache.beam.sdk.util;
 import java.io.IOException;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.WritableByteChannel;
+import java.nio.file.Path;
 import java.util.Collection;
 import java.util.LinkedList;
 import java.util.List;
 import org.apache.beam.sdk.options.GcsOptions;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.util.gcsfs.GcsPath;
 
 /**
@@ -31,9 +33,16 @@ import org.apache.beam.sdk.util.gcsfs.GcsPath;
  */
 public class GcsIOChannelFactory implements IOChannelFactory {
 
+  /**
+   * Create a {@link GcsIOChannelFactory} with the given {@link PipelineOptions}.
+   */
+  public static GcsIOChannelFactory fromOptions(PipelineOptions options) {
+    return new GcsIOChannelFactory(options.as(GcsOptions.class));
+  }
+
   private final GcsOptions options;
 
-  public GcsIOChannelFactory(GcsOptions options) {
+  private GcsIOChannelFactory(GcsOptions options) {
     this.options = options;
   }
 
@@ -81,6 +90,21 @@ public class GcsIOChannelFactory implements IOChannelFactory {
 
   @Override
   public String resolve(String path, String other) throws IOException {
-    return GcsPath.fromUri(path).resolve(other).toString();
+    return toPath(path).resolve(other).toString();
+  }
+
+  @Override
+  public Path toPath(String path) {
+    return GcsPath.fromUri(path);
+  }
+
+  @Override
+  public void copy(List<String> srcFilenames, List<String> destFilenames) throws IOException {
+    options.getGcsUtil().copy(srcFilenames, destFilenames);
+  }
+
+  @Override
+  public void remove(Collection<String> filesOrDirs) throws IOException {
+    options.getGcsUtil().remove(filesOrDirs);
   }
 }

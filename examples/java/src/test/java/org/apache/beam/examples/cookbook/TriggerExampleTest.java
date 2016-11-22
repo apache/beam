@@ -123,7 +123,7 @@ public class TriggerExampleTest {
 
     PAssert.that(results)
         .containsInAnyOrder(canonicalFormat(OUT_ROW_1), canonicalFormat(OUT_ROW_2));
-    pipeline.run();
+    pipeline.run().waitUntilFinish();
 
   }
 

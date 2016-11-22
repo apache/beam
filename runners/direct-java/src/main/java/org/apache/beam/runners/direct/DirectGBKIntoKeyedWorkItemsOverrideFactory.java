@@ -24,20 +24,19 @@ import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.util.KeyedWorkItem;
 import org.apache.beam.sdk.util.KeyedWorkItemCoder;
-import org.apache.beam.sdk.util.ReifyTimestampsAndWindows;
 import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PInput;
-import org.apache.beam.sdk.values.POutput;
 
 /** Provides an implementation of {@link GBKIntoKeyedWorkItems} for the Direct Runner. */
-class DirectGBKIntoKeyedWorkItemsOverrideFactory implements PTransformOverrideFactory {
+class DirectGBKIntoKeyedWorkItemsOverrideFactory<KeyT, InputT>
+    implements PTransformOverrideFactory<
+        PCollection<KV<KeyT, InputT>>, PCollection<KeyedWorkItem<KeyT, InputT>>,
+        GBKIntoKeyedWorkItems<KeyT, InputT>> {
   @Override
-  @SuppressWarnings("unchecked")
-  public <InputT extends PInput, OutputT extends POutput> PTransform<InputT, OutputT> override(
-      PTransform<InputT, OutputT> transform) {
-    return new DirectGBKIntoKeyedWorkItems(transform.getName());
+  public PTransform<PCollection<KV<KeyT, InputT>>, PCollection<KeyedWorkItem<KeyT, InputT>>>
+      override(GBKIntoKeyedWorkItems<KeyT, InputT> transform) {
+    return new DirectGBKIntoKeyedWorkItems<>(transform.getName());
   }
 
   /** The Direct Runner specific implementation of {@link GBKIntoKeyedWorkItems}. */
@@ -52,7 +51,6 @@ class DirectGBKIntoKeyedWorkItemsOverrideFactory implements PTransformOverrideFa
       checkArgument(input.getCoder() instanceof KvCoder);
       KvCoder<KeyT, InputT> kvCoder = (KvCoder<KeyT, InputT>) input.getCoder();
       return input
-          .apply(new ReifyTimestampsAndWindows<KeyT, InputT>())
           // TODO: Perhaps windowing strategy should instead be set by ReifyTAW, or by DGBKO
           .setWindowingStrategyInternal(WindowingStrategy.globalDefault())
           .apply(new DirectGroupByKey.DirectGroupByKeyOnly<KeyT, InputT>())

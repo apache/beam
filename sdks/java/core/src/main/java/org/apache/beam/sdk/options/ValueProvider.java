@@ -33,7 +33,7 @@ import com.fasterxml.jackson.databind.SerializerProvider;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.fasterxml.jackson.databind.deser.ContextualDeserializer;
-
+import com.google.common.base.MoreObjects;
 import java.io.IOException;
 import java.io.Serializable;
 import java.lang.reflect.InvocationHandler;
@@ -41,6 +41,7 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.util.concurrent.ConcurrentHashMap;
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.transforms.SerializableFunction;
 
 /**
  * {@link ValueProvider} is an interface which abstracts the notion of
@@ -91,6 +92,54 @@ public interface ValueProvider<T> {
     public boolean isAccessible() {
       return true;
     }
+
+    @Override
+    public String toString() {
+      return MoreObjects.toStringHelper(this)
+          .add("value", value)
+          .toString();
+    }
+  }
+
+  /**
+   * {@link NestedValueProvider} is an implementation of {@link ValueProvider} that
+   * allows for wrapping another {@link ValueProvider} object.
+   */
+  class NestedValueProvider<T, X> implements ValueProvider<T>, Serializable {
+
+    private final ValueProvider<X> value;
+    private final SerializableFunction<X, T> translator;
+
+    NestedValueProvider(ValueProvider<X> value, SerializableFunction<X, T> translator) {
+      this.value = checkNotNull(value);
+      this.translator = checkNotNull(translator);
+    }
+
+    /**
+     * Creates a {@link NestedValueProvider} that wraps the provided value.
+     */
+    public static <T, X> NestedValueProvider<T, X> of(
+        ValueProvider<X> value, SerializableFunction<X, T> translator) {
+      NestedValueProvider<T, X> factory = new NestedValueProvider<T, X>(value, translator);
+      return factory;
+    }
+
+    @Override
+    public T get() {
+      return translator.apply(value.get());
+    }
+
+    @Override
+    public boolean isAccessible() {
+      return value.isAccessible();
+    }
+
+    @Override
+    public String toString() {
+      return MoreObjects.toStringHelper(this)
+          .add("value", value)
+          .toString();
+    }
   }
 
   /**
@@ -99,7 +148,7 @@ public interface ValueProvider<T> {
    * construction time.
    *
    * <p>To enforce this contract, if there is no default, users must only call
-   * {@link #get()} at execution time (after a call to {@link Pipeline#run}),
+   * {@link #get()} at execution time (after a call to {@link org.apache.beam.sdk.Pipeline#run}),
    * which will provide the value of {@code optionsMap}.
    */
   class RuntimeValueProvider<T> implements ValueProvider<T>, Serializable {
@@ -177,6 +226,15 @@ public interface ValueProvider<T> {
      */
     public String propertyName() {
       return propertyName;
+    }
+
+    @Override
+    public String toString() {
+      return MoreObjects.toStringHelper(this)
+          .add("propertyName", propertyName)
+          .add("default", defaultValue)
+          .add("value", isAccessible() ? get() : null)
+          .toString();
     }
   }
 

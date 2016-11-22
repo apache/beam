@@ -107,12 +107,10 @@ public class HourlyTeamScore extends UserScore {
     String getStopMin();
     void setStopMin(String value);
 
-    @Override
     @Description("The BigQuery table name. Should not already exist.")
     @Default.String("hourly_team_score")
-    String getTableName();
-    @Override
-    void setTableName(String value);
+    String getHourlyTeamScoreTableName();
+    void setHourlyTeamScoreTableName(String value);
   }
 
   /**
@@ -187,11 +185,11 @@ public class HourlyTeamScore extends UserScore {
       // Extract and sum teamname/score pairs from the event data.
       .apply("ExtractTeamScore", new ExtractAndSumScore("team"))
       .apply("WriteTeamScoreSums",
-        new WriteWindowedToBigQuery<KV<String, Integer>>(options.getTableName(),
+        new WriteWindowedToBigQuery<KV<String, Integer>>(options.getHourlyTeamScoreTableName(),
             configureWindowedTableWrite()));
 
 
-    pipeline.run();
+    pipeline.run().waitUntilFinish();
   }
   // [END DocInclude_HTSMain]
 

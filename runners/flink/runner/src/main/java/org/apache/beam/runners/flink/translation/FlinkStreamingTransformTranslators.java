@@ -219,6 +219,9 @@ public class FlinkStreamingTransformTranslators {
         FlinkStreamingTranslationContext context) {
       PCollection<T> output = context.getOutput(transform);
 
+      TypeInformation<WindowedValue<T>> outputTypeInfo =
+          context.getTypeInfo(context.getOutput(transform));
+
       DataStream<WindowedValue<T>> source;
       if (transform.getSource().getClass().equals(UnboundedFlinkSource.class)) {
         @SuppressWarnings("unchecked")
@@ -246,10 +249,9 @@ public class FlinkStreamingTransformTranslators {
                         new Instant(flinkAssigner.extractTimestamp(s, -1)),
                         GlobalWindow.INSTANCE,
                         PaneInfo.NO_FIRING));
-              }});
+              }}).returns(outputTypeInfo);
       } else {
         try {
-          transform.getSource();
           UnboundedSourceWrapper<T, ?> sourceWrapper =
               new UnboundedSourceWrapper<>(
                   context.getPipelineOptions(),
@@ -257,7 +259,7 @@ public class FlinkStreamingTransformTranslators {
                   context.getExecutionEnvironment().getParallelism());
           source = context
               .getExecutionEnvironment()
-              .addSource(sourceWrapper).name(transform.getName());
+              .addSource(sourceWrapper).name(transform.getName()).returns(outputTypeInfo);
         } catch (Exception e) {
           throw new RuntimeException(
               "Error while translating UnboundedSource: " + transform.getSource(), e);
@@ -277,9 +279,12 @@ public class FlinkStreamingTransformTranslators {
         FlinkStreamingTranslationContext context) {
       PCollection<T> output = context.getOutput(transform);
 
+      TypeInformation<WindowedValue<T>> outputTypeInfo =
+          context.getTypeInfo(context.getOutput(transform));
+
+
       DataStream<WindowedValue<T>> source;
       try {
-        transform.getSource();
         BoundedSourceWrapper<T> sourceWrapper =
             new BoundedSourceWrapper<>(
                 context.getPipelineOptions(),
@@ -287,7 +292,7 @@ public class FlinkStreamingTransformTranslators {
                 context.getExecutionEnvironment().getParallelism());
         source = context
             .getExecutionEnvironment()
-            .addSource(sourceWrapper).name(transform.getName());
+            .addSource(sourceWrapper).name(transform.getName()).returns(outputTypeInfo);
       } catch (Exception e) {
         throw new RuntimeException(
             "Error while translating BoundedSource: " + transform.getSource(), e);
@@ -538,9 +543,7 @@ public class FlinkStreamingTransformTranslators {
             unionOutputStream.flatMap(new FlatMapFunction<RawUnionValue, Object>() {
               @Override
               public void flatMap(RawUnionValue value, Collector<Object> out) throws Exception {
-                System.out.println("FILTERING: " + value);
                 if (value.getUnionTag() == outputTag) {
-                  System.out.println("EMITTING VALUE: " + value);
                   out.collect(value.getValue());
                 }
               }

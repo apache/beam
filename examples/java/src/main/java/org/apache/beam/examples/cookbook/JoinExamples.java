@@ -170,7 +170,7 @@ public class JoinExamples {
     PCollection<TableRow> countryCodes = p.apply(BigQueryIO.Read.from(COUNTRY_CODES));
     PCollection<String> formattedResults = joinEvents(eventsTable, countryCodes);
     formattedResults.apply(TextIO.Write.to(options.getOutput()));
-    p.run();
+    p.run().waitUntilFinish();
   }
 
 }

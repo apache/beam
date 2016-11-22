@@ -92,14 +92,14 @@ public class FlinkMergingNonShuffleReduceFunction<
       Iterable<WindowedValue<KV<K, InputT>>> elements,
       Collector<WindowedValue<KV<K, OutputT>>> out) throws Exception {
 
-    FlinkProcessContext<KV<K, InputT>, KV<K, OutputT>> processContext =
-        new FlinkProcessContext<>(
+    FlinkSingleOutputProcessContext<KV<K, InputT>, KV<K, OutputT>> processContext =
+        new FlinkSingleOutputProcessContext<>(
             serializedOptions.getPipelineOptions(),
             getRuntimeContext(),
             doFn,
             windowingStrategy,
-            out,
-            sideInputs);
+            sideInputs, out
+        );
 
     PerKeyCombineFnRunner<K, InputT, AccumT, OutputT> combineFnRunner =
         PerKeyCombineFnRunners.create(combineFn);
@@ -141,7 +141,7 @@ public class FlinkMergingNonShuffleReduceFunction<
     IntervalWindow currentWindow =
         (IntervalWindow) Iterables.getOnlyElement(currentValue.getWindows());
     InputT firstValue = currentValue.getValue().getValue();
-    processContext = processContext.forWindowedValue(currentValue);
+    processContext.setWindowedValue(currentValue);
     AccumT accumulator = combineFnRunner.createAccumulator(key, processContext);
     accumulator = combineFnRunner.addInput(key, accumulator, firstValue, processContext);
 
@@ -157,7 +157,7 @@ public class FlinkMergingNonShuffleReduceFunction<
         // continue accumulating and merge windows
 
         InputT value = nextValue.getValue().getValue();
-        processContext = processContext.forWindowedValue(nextValue);
+        processContext.setWindowedValue(nextValue);
         accumulator = combineFnRunner.addInput(key, accumulator, value, processContext);
 
         windowTimestamp = outputTimeFn.combine(
@@ -175,7 +175,7 @@ public class FlinkMergingNonShuffleReduceFunction<
 
         currentWindow = nextWindow;
         InputT value = nextValue.getValue().getValue();
-        processContext = processContext.forWindowedValue(nextValue);
+        processContext.setWindowedValue(nextValue);
         accumulator = combineFnRunner.createAccumulator(key, processContext);
         accumulator = combineFnRunner.addInput(key, accumulator, value, processContext);
         windowTimestamp = outputTimeFn.assignOutputTime(nextValue.getTimestamp(), currentWindow);

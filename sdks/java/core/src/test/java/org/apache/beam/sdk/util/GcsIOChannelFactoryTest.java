@@ -33,7 +33,7 @@ public class GcsIOChannelFactoryTest {
 
   @Before
   public void setUp() {
-    factory = new GcsIOChannelFactory(PipelineOptionsFactory.as(GcsOptions.class));
+    factory = GcsIOChannelFactory.fromOptions(PipelineOptionsFactory.as(GcsOptions.class));
   }
 
   @Test

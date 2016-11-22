@@ -52,6 +52,16 @@ public interface WindowingInternals<InputT, OutputT> {
       Collection<? extends BoundedWindow> windows, PaneInfo pane);
 
   /**
+   * Output the value to a side output at the specified timestamp in the listed windows.
+   */
+  <SideOutputT> void sideOutputWindowedValue(
+      TupleTag<SideOutputT> tag,
+      SideOutputT output,
+      Instant timestamp,
+      Collection<? extends BoundedWindow> windows,
+      PaneInfo pane);
+
+  /**
    * Return the timer manager provided by the underlying system, or null if Timers need
    * to be emulated.
    */
@@ -76,7 +86,7 @@ public interface WindowingInternals<InputT, OutputT> {
       Coder<T> elemCoder) throws IOException;
 
   /**
-   * Return the value of the side input for the window of a main input element.
+   * Return the value of the side input for a particular side input window.
    */
-  <T> T sideInput(PCollectionView<T> view, BoundedWindow mainInputWindow);
+  <T> T sideInput(PCollectionView<T> view, BoundedWindow sideInputWindow);
 }

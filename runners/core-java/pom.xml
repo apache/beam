@@ -54,49 +54,13 @@
 
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-checkstyle-plugin</artifactId>
-      </plugin>
-
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-jar-plugin</artifactId>
-      </plugin>
-
-      <!-- Source plugin for generating source and test-source JARs. -->
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-source-plugin</artifactId>
-      </plugin>
-
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-javadoc-plugin</artifactId>
-        <configuration>
-          <windowtitle>Beam Runners Core utilities ${project.version} API</windowtitle>
-          <doctitle>Beam Runners Core utilities for Java, version ${project.version}</doctitle>
-          <overview>../javadoc/overview.html</overview>
-
-          <subpackages>org.apache.beam.runners.core</subpackages>
-          <use>false</use>
-          <quiet>true</quiet>
-          <bottom><![CDATA[<br>]]></bottom>
-        </configuration>
-        <executions>
-          <execution>
-            <goals>
-              <goal>jar</goal>
-            </goals>
-            <phase>package</phase>
-          </execution>
-        </executions>
       </plugin>
 
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-shade-plugin</artifactId>
-        <version>2.4.1</version>
         <executions>
-          <!-- In the first phase, we pick dependencies and relocate them. -->
           <execution>
             <id>bundle-and-repackage</id>
             <phase>package</phase>
@@ -135,35 +99,6 @@
               </relocations>
             </configuration>
           </execution>
-
-          <!-- In the second phase, we pick remaining dependencies and bundle
-               them without repackaging. -->
-          <execution>
-            <id>bundle-rest-without-repackaging</id>
-            <phase>package</phase>
-            <goals>
-              <goal>shade</goal>
-            </goals>
-            <configuration>
-              <shadeTestJar>true</shadeTestJar>
-              <finalName>${project.artifactId}-bundled-${project.version}</finalName>
-              <artifactSet>
-                <excludes>
-                  <exclude>com.google.guava:guava</exclude>
-                </excludes>
-              </artifactSet>
-              <filters>
-                <filter>
-                  <artifact>*:*</artifact>
-                  <excludes>
-                    <exclude>META-INF/*.SF</exclude>
-                    <exclude>META-INF/*.DSA</exclude>
-                    <exclude>META-INF/*.RSA</exclude>
-                  </excludes>
-                </filter>
-              </filters>
-            </configuration>
-          </execution>
         </executions>
       </plugin>
 
@@ -197,7 +132,7 @@
 
     <dependency>
       <groupId>com.google.code.findbugs</groupId>
-      <artifactId>annotations</artifactId>
+      <artifactId>jsr305</artifactId>
     </dependency>
 
     <dependency>

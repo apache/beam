@@ -73,7 +73,7 @@ import org.joda.time.format.DateTimeFormatter;
  * results, e.g. for 'team prizes'. We're now outputting window results as they're
  * calculated, giving us much lower latency than with the previous batch examples.
  *
- * <p>Run {@link injector.Injector} to generate pubsub data for this pipeline.  The Injector
+ * <p>Run {@code injector.Injector} to generate pubsub data for this pipeline.  The Injector
  * documentation provides more detail on how to do this.
  *
  * <p>To execute this pipeline using the Dataflow service, specify the pipeline configuration
@@ -120,12 +120,10 @@ public class LeaderBoard extends HourlyTeamScore {
     Integer getAllowedLateness();
     void setAllowedLateness(Integer value);
 
-    @Override
     @Description("Prefix used for the BigQuery table names")
     @Default.String("leaderboard")
-    String getTableName();
-    @Override
-    void setTableName(String value);
+    String getLeaderBoardTableName();
+    void setLeaderBoardTableName(String value);
   }
 
   /**
@@ -202,7 +200,7 @@ public class LeaderBoard extends HourlyTeamScore {
         // Write the results to BigQuery.
         .apply("WriteTeamScoreSums",
                new WriteWindowedToBigQuery<KV<String, Integer>>(
-                  options.getTableName() + "_team", configureWindowedTableWrite()));
+                  options.getLeaderBoardTableName() + "_team", configureWindowedTableWrite()));
     gameEvents
         .apply(
             "CalculateUserScores",
@@ -211,7 +209,7 @@ public class LeaderBoard extends HourlyTeamScore {
         .apply(
             "WriteUserScoreSums",
             new WriteToBigQuery<KV<String, Integer>>(
-                options.getTableName() + "_user", configureGlobalWindowBigQueryWrite()));
+                options.getLeaderBoardTableName() + "_user", configureGlobalWindowBigQueryWrite()));
 
     // Run the pipeline and wait for the pipeline to finish; capture cancellation requests from the
     // command line.

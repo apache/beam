@@ -48,18 +48,7 @@
 
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-checkstyle-plugin</artifactId>
-      </plugin>
-
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-jar-plugin</artifactId>
-      </plugin>
-
-      <!-- Source plugin for generating source and test-source JARs. -->
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-source-plugin</artifactId>
       </plugin>
 
       <plugin>
@@ -99,70 +88,8 @@
 
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-javadoc-plugin</artifactId>
-        <configuration>
-          <windowtitle>Apache Beam Direct Runner ${project.version}</windowtitle>
-          <doctitle>Apache Beam Direct Runner, version ${project.version}</doctitle>
-
-          <subpackages>org.apache.beam.runners.direct</subpackages>
-          <use>false</use>
-          <quiet>true</quiet>
-          <bottom><![CDATA[<br>]]></bottom>
-
-          <offlineLinks>
-            <offlineLink>
-              <url>https://developers.google.com/api-client-library/java/google-api-java-client/reference/1.20.0/</url>
-              <location>${basedir}/../../sdks/java/javadoc/apiclient-docs</location>
-            </offlineLink>
-            <offlineLink>
-              <url>http://avro.apache.org/docs/${avro.version}/api/java/</url>
-              <location>${basedir}/../../sdks/java/javadoc/avro-docs</location>
-            </offlineLink>
-            <offlineLink>
-              <url>https://developers.google.com/resources/api-libraries/documentation/bigquery/v2/java/latest/</url>
-              <location>${basedir}/../../sdks/java/javadoc/bq-docs</location>
-            </offlineLink>
-            <offlineLink>
-              <url>https://cloud.google.com/datastore/docs/apis/javadoc/</url>
-              <location>${basedir}/../../sdks/java/javadoc/datastore-docs</location>
-            </offlineLink>
-            <offlineLink>
-              <url>http://docs.guava-libraries.googlecode.com/git-history/release19/javadoc/</url>
-              <location>${basedir}/../../sdks/java/javadoc/guava-docs</location>
-            </offlineLink>
-            <offlineLink>
-              <url>http://hamcrest.org/JavaHamcrest/javadoc/1.3/</url>
-              <location>${basedir}/../../sdks/java/javadoc/hamcrest-docs</location>
-            </offlineLink>
-            <offlineLink>
-              <url>http://fasterxml.github.io/jackson-annotations/javadoc/2.7/</url>
-              <location>${basedir}/../../sdks/java/javadoc/jackson-annotations-docs</location>
-            </offlineLink>
-            <offlineLink>
-              <url>http://fasterxml.github.io/jackson-databind/javadoc/2.7/</url>
-              <location>${basedir}/../../sdks/java/javadoc/jackson-databind-docs</location>
-            </offlineLink>
-            <offlineLink>
-              <url>http://www.joda.org/joda-time/apidocs</url>
-              <location>${basedir}/../../sdks/java/javadoc/joda-docs</location>
-            </offlineLink>
-            <offlineLink>
-              <url>http://junit.sourceforge.net/javadoc/</url>
-              <location>${basedir}/../../sdks/java/javadoc/junit-docs</location>
-            </offlineLink>
-            <offlineLink>
-              <url>https://developers.google.com/api-client-library/java/google-oauth-java-client/reference/1.20.0/</url>
-              <location>${basedir}/../../sdks/java/javadoc/oauth-docs</location>
-            </offlineLink>
-          </offlineLinks>
-        </configuration>
-      </plugin>
-
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-shade-plugin</artifactId>
         <executions>
-          <!-- In the first phase, we pick dependencies and relocate them. -->
           <execution>
             <id>bundle-and-repackage</id>
             <phase>package</phase>
@@ -203,35 +130,6 @@
                   <shadedPattern>org.apache.beam.runners.direct.repackaged.com.google.thirdparty</shadedPattern>
                 </relocation>
               </relocations>
-            </configuration>
-          </execution>
-
-          <!-- In the second phase, we pick remaining dependencies and bundle
-               them without repackaging. -->
-          <execution>
-            <id>bundle-rest-without-repackaging</id>
-            <phase>package</phase>
-            <goals>
-              <goal>shade</goal>
-            </goals>
-            <configuration>
-              <shadeTestJar>true</shadeTestJar>
-              <finalName>${project.artifactId}-bundled-${project.version}</finalName>
-              <artifactSet>
-                <excludes>
-                  <exclude>com.google.guava:guava</exclude>
-                </excludes>
-              </artifactSet>
-              <filters>
-                <filter>
-                  <artifact>*:*</artifact>
-                  <excludes>
-                    <exclude>META-INF/*.SF</exclude>
-                    <exclude>META-INF/*.DSA</exclude>
-                    <exclude>META-INF/*.RSA</exclude>
-                  </excludes>
-                </filter>
-              </filters>
             </configuration>
           </execution>
         </executions>
@@ -282,7 +180,7 @@
 
     <dependency>
       <groupId>com.google.code.findbugs</groupId>
-      <artifactId>annotations</artifactId>
+      <artifactId>jsr305</artifactId>
     </dependency>
 
     <dependency>

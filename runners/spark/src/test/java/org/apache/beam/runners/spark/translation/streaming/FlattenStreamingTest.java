@@ -23,7 +23,7 @@ import java.util.List;
 import org.apache.beam.runners.spark.SparkPipelineOptions;
 import org.apache.beam.runners.spark.io.CreateStream;
 import org.apache.beam.runners.spark.translation.streaming.utils.PAssertStreaming;
-import org.apache.beam.runners.spark.translation.streaming.utils.TestOptionsForStreaming;
+import org.apache.beam.runners.spark.translation.streaming.utils.SparkTestPipelineOptionsForStreaming;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.transforms.Create;
@@ -57,12 +57,12 @@ public class FlattenStreamingTest {
   public TemporaryFolder checkpointParentDir = new TemporaryFolder();
 
   @Rule
-  public TestOptionsForStreaming commonOptions = new TestOptionsForStreaming();
+  public SparkTestPipelineOptionsForStreaming commonOptions =
+      new SparkTestPipelineOptionsForStreaming();
 
   @Test
   public void testFlattenUnbounded() throws Exception {
-    SparkPipelineOptions options = commonOptions.withTmpCheckpointDir(
-        checkpointParentDir.newFolder(getClass().getSimpleName()));
+    SparkPipelineOptions options = commonOptions.withTmpCheckpointDir(checkpointParentDir);
 
     Pipeline p = Pipeline.create(options);
     PCollection<String> w1 =
@@ -76,13 +76,12 @@ public class FlattenStreamingTest {
     PCollectionList<String> list = PCollectionList.of(windowedW1).and(windowedW2);
     PCollection<String> union = list.apply(Flatten.<String>pCollections());
 
-    PAssertStreaming.runAndAssertContents(p, union, EXPECTED_UNION);
+    PAssertStreaming.runAndAssertContents(p, union, EXPECTED_UNION, Duration.standardSeconds(1L));
   }
 
   @Test
   public void testFlattenBoundedUnbounded() throws Exception {
-    SparkPipelineOptions options = commonOptions.withTmpCheckpointDir(
-        checkpointParentDir.newFolder(getClass().getSimpleName()));
+    SparkPipelineOptions options = commonOptions.withTmpCheckpointDir(checkpointParentDir);
 
     Pipeline p = Pipeline.create(options);
     PCollection<String> w1 =
@@ -96,7 +95,7 @@ public class FlattenStreamingTest {
     PCollectionList<String> list = PCollectionList.of(windowedW1).and(windowedW2);
     PCollection<String> union = list.apply(Flatten.<String>pCollections());
 
-    PAssertStreaming.runAndAssertContents(p, union, EXPECTED_UNION);
+    PAssertStreaming.runAndAssertContents(p, union, EXPECTED_UNION, Duration.standardSeconds(1L));
   }
 
 }

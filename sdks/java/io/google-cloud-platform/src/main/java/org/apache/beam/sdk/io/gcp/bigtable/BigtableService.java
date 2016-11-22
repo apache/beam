@@ -21,6 +21,7 @@ import com.google.bigtable.v2.MutateRowResponse;
 import com.google.bigtable.v2.Mutation;
 import com.google.bigtable.v2.Row;
 import com.google.bigtable.v2.SampleRowKeysResponse;
+import com.google.cloud.bigtable.config.BigtableOptions;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.protobuf.ByteString;
 import java.io.IOException;
@@ -92,6 +93,11 @@ interface BigtableService extends Serializable {
      */
     Row getCurrentRow() throws NoSuchElementException;
   }
+
+  /**
+   * Returns the BigtableOptions used to configure this BigtableService.
+   */
+  BigtableOptions getBigtableOptions();
 
   /**
    * Returns {@code true} if the table with the give name exists.

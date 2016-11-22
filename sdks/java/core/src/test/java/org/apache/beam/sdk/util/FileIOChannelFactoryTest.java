@@ -46,7 +46,7 @@ import org.junit.runners.JUnit4;
 public class FileIOChannelFactoryTest {
   @Rule public ExpectedException thrown = ExpectedException.none();
   @Rule public TemporaryFolder temporaryFolder = new TemporaryFolder();
-  private FileIOChannelFactory factory = new FileIOChannelFactory();
+  private FileIOChannelFactory factory = FileIOChannelFactory.fromOptions(null);
 
   private void testCreate(Path path) throws Exception {
     String expected = "my test string";
@@ -201,6 +201,14 @@ public class FileIOChannelFactoryTest {
     // Windows doesn't like resolving paths with * in them, so the * is appended after resolve.
     assertThat(factory.match(factory.resolve(temporaryFolder.getRoot().getPath(), "a") + "*"),
         containsInAnyOrder(expected.toArray(new String[expected.size()])));
+  }
+
+  @Test
+  public void testMatchWithoutParentDirectory() throws Exception {
+    String pattern = factory.resolve(
+        factory.resolve(temporaryFolder.getRoot().getPath(), "non_existing_dir"),
+        "*");
+    assertTrue(factory.match(pattern).isEmpty());
   }
 
   @Test

@@ -82,7 +82,8 @@
                     <beamTestPipelineOptions>
                       [
                         "--runner=TestSparkRunner",
-                        "--streaming=false"
+                        "--streaming=false",
+                        "--enableSparkMetricSinks=false"
                       ]
                     </beamTestPipelineOptions>
                     <beam.spark.test.reuseSparkContext>true</beam.spark.test.reuseSparkContext>
@@ -318,6 +319,15 @@
   <build>
     <pluginManagement>
       <plugins>
+        <!-- BEAM-931 -->
+        <plugin>
+          <groupId>org.codehaus.mojo</groupId>
+          <artifactId>findbugs-maven-plugin</artifactId>
+          <configuration>
+            <skip>true</skip>
+          </configuration>
+        </plugin>
+
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-surefire-plugin</artifactId>
@@ -408,18 +418,6 @@
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-jar-plugin</artifactId>
-      </plugin>
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-checkstyle-plugin</artifactId>
-      </plugin>
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-source-plugin</artifactId>
-      </plugin>
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-javadoc-plugin</artifactId>
       </plugin>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>

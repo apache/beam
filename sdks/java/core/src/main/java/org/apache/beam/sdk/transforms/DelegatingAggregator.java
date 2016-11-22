@@ -22,7 +22,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import com.google.common.base.MoreObjects;
 import java.io.Serializable;
 import java.util.Objects;
-import java.util.UUID;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
 
 /**
@@ -37,7 +37,8 @@ import org.apache.beam.sdk.transforms.Combine.CombineFn;
  */
 class DelegatingAggregator<AggInputT, AggOutputT>
     implements Aggregator<AggInputT, AggOutputT>, Serializable {
-  private final UUID id;
+  private static final AtomicInteger ID_GEN = new AtomicInteger();
+  private final int id;
 
   private final String name;
 
@@ -47,7 +48,7 @@ class DelegatingAggregator<AggInputT, AggOutputT>
 
   public DelegatingAggregator(String name,
       CombineFn<? super AggInputT, ?, AggOutputT> combiner) {
-    this.id = UUID.randomUUID();
+    this.id = ID_GEN.getAndIncrement();
     this.name = checkNotNull(name, "name cannot be null");
     // Safe contravariant cast
     @SuppressWarnings("unchecked")

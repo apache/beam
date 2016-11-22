@@ -80,6 +80,13 @@ public class SerializableFnAggregatorWrapper<InputT, OutputT>
 
   @Override
   public Accumulator<InputT, Serializable> clone() {
+    try {
+      super.clone();
+    } catch (CloneNotSupportedException e) {
+      // Flink Accumulators cannot throw CloneNotSupportedException, work around that.
+      throw new RuntimeException(e);
+    }
+
     // copy it by merging
     OutputT resultCopy = combiner.apply(Lists.newArrayList((InputT) aa));
     SerializableFnAggregatorWrapper<InputT, OutputT> result = new

@@ -34,8 +34,6 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.spark.Accumulator;
 import org.apache.spark.api.java.function.PairFlatMapFunction;
-import org.joda.time.Instant;
-
 import scala.Tuple2;
 
 /**
@@ -98,26 +96,13 @@ public class MultiDoFnFunction<InputT, OutputT>
     }
 
     @Override
-    public synchronized void output(WindowedValue<OutputT> o) {
+    protected synchronized void outputWindowedValue(WindowedValue<OutputT> o) {
       outputs.put(mMainOutputTag, o);
     }
 
     @Override
-    public synchronized <T> void sideOutput(TupleTag<T> tag, T t) {
-      sideOutputWithTimestamp(tag, t, windowedValue != null ? windowedValue.getTimestamp() : null);
-    }
-
-    @Override
-    public <T> void sideOutputWithTimestamp(TupleTag<T> tupleTag,
-                                            final T t,
-                                            final Instant timestamp) {
-      if (windowedValue == null) {
-        // this is start/finishBundle.
-        outputs.put(tupleTag, noElementWindowedValue(t, timestamp, windowFn));
-      } else {
-        outputs.put(tupleTag, WindowedValue.of(t, timestamp, windowedValue.getWindows(),
-            windowedValue.getPane()));
-      }
+    protected <T> void sideOutputWindowedValue(TupleTag<T> tag, WindowedValue<T> output) {
+      outputs.put(tag, output);
     }
 
     @Override

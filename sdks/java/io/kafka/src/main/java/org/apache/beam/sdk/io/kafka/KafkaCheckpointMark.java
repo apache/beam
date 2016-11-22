@@ -20,19 +20,21 @@ package org.apache.beam.sdk.io.kafka;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.List;
+
+import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.DefaultCoder;
-import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.io.UnboundedSource;
-import org.apache.kafka.common.TopicPartition;
 
 /**
  * Checkpoint for an unbounded KafkaIO.Read. Consists of Kafka topic name, partition id,
  * and the latest offset consumed so far.
  */
-@DefaultCoder(SerializableCoder.class)
-public class KafkaCheckpointMark implements UnboundedSource.CheckpointMark, Serializable {
+@DefaultCoder(AvroCoder.class)
+public class KafkaCheckpointMark implements UnboundedSource.CheckpointMark {
 
-  private final List<PartitionMark> partitions;
+  private List<PartitionMark> partitions;
+
+  private KafkaCheckpointMark() {} // for Avro
 
   public KafkaCheckpointMark(List<PartitionMark> partitions) {
     this.partitions = partitions;
@@ -55,16 +57,24 @@ public class KafkaCheckpointMark implements UnboundedSource.CheckpointMark, Seri
    * for a single partition.
    */
   public static class PartitionMark implements Serializable {
-    private final TopicPartition topicPartition;
-    private final long nextOffset;
+    private String topic;
+    private int partition;
+    private long nextOffset;
 
-    public PartitionMark(TopicPartition topicPartition, long offset) {
-      this.topicPartition = topicPartition;
+    private PartitionMark() {} // for Avro
+
+    public PartitionMark(String topic, int partition, long offset) {
+      this.topic = topic;
+      this.partition = partition;
       this.nextOffset = offset;
     }
 
-    public TopicPartition getTopicPartition() {
-      return topicPartition;
+    public String getTopic() {
+      return topic;
+    }
+
+    public int getPartition() {
+      return partition;
     }
 
     public long getNextOffset() {

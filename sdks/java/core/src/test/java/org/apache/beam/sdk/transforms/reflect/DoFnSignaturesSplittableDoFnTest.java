@@ -22,7 +22,8 @@ import static org.apache.beam.sdk.transforms.reflect.DoFnSignaturesTestUtils.err
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
-import com.google.common.reflect.TypeToken;
+import com.google.common.base.Predicates;
+import com.google.common.collect.Iterables;
 import java.util.List;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
@@ -34,6 +35,7 @@ import org.apache.beam.sdk.transforms.reflect.DoFnSignaturesTestUtils.FakeDoFn;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.TypeDescriptor;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -80,15 +82,15 @@ public class DoFnSignaturesSplittableDoFnTest {
             });
 
     assertTrue(signature.isSplittable());
-    assertTrue(signature.extraParameters().contains(DoFnSignature.Parameter.restrictionTracker()));
+    assertTrue(Iterables.any(signature.extraParameters(),
+        Predicates.instanceOf(DoFnSignature.Parameter.RestrictionTrackerParameter.class)));
     assertEquals(SomeRestrictionTracker.class, signature.trackerT().getRawType());
   }
 
   @Test
   public void testSplittableProcessElementMustNotHaveOtherParams() throws Exception {
     thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage("must not have any extra arguments");
-    thrown.expectMessage("BoundedWindow");
+    thrown.expectMessage("must have only ProcessContext and RestrictionTracker parameters");
 
     DoFnSignature.ProcessElementMethod signature =
         analyzeProcessElementMethod(
@@ -125,17 +127,17 @@ public class DoFnSignaturesSplittableDoFnTest {
 
     assertEquals(
         PCollection.IsBounded.BOUNDED,
-        DoFnSignatures.INSTANCE
+        DoFnSignatures
             .getSignature(BaseSplittableFn.class)
             .isBoundedPerElement());
     assertEquals(
         PCollection.IsBounded.BOUNDED,
-        DoFnSignatures.INSTANCE
+        DoFnSignatures
             .getSignature(BoundedSplittableFn.class)
             .isBoundedPerElement());
     assertEquals(
         PCollection.IsBounded.UNBOUNDED,
-        DoFnSignatures.INSTANCE
+        DoFnSignatures
             .getSignature(UnboundedSplittableFn.class)
             .isBoundedPerElement());
   }
@@ -148,7 +150,7 @@ public class DoFnSignaturesSplittableDoFnTest {
     }
     assertEquals(
         PCollection.IsBounded.BOUNDED,
-        DoFnSignatures.INSTANCE
+        DoFnSignatures
             .getSignature(UnsplittableFn.class)
             .isBoundedPerElement());
   }
@@ -175,7 +177,7 @@ public class DoFnSignaturesSplittableDoFnTest {
   public void testSplittableIsBoundedByDefault() throws Exception {
     assertEquals(
         PCollection.IsBounded.UNBOUNDED,
-        DoFnSignatures.INSTANCE
+        DoFnSignatures
             .getSignature(BaseFnWithContinuation.class)
             .isBoundedPerElement());
   }
@@ -187,7 +189,7 @@ public class DoFnSignaturesSplittableDoFnTest {
 
     assertEquals(
         PCollection.IsBounded.BOUNDED,
-        DoFnSignatures.INSTANCE
+        DoFnSignatures
             .getSignature(BoundedFnWithContinuation.class)
             .isBoundedPerElement());
 
@@ -196,7 +198,7 @@ public class DoFnSignaturesSplittableDoFnTest {
 
     assertEquals(
         PCollection.IsBounded.UNBOUNDED,
-        DoFnSignatures.INSTANCE
+        DoFnSignatures
             .getSignature(UnboundedFnWithContinuation.class)
             .isBoundedPerElement());
   }
@@ -210,7 +212,7 @@ public class DoFnSignaturesSplittableDoFnTest {
     }
 
     thrown.expectMessage("Non-splittable, but annotated as @Bounded");
-    DoFnSignatures.INSTANCE.getSignature(SomeFn.class);
+    DoFnSignatures.getSignature(SomeFn.class);
   }
 
   @Test
@@ -222,7 +224,7 @@ public class DoFnSignaturesSplittableDoFnTest {
     }
 
     thrown.expectMessage("Non-splittable, but annotated as @Unbounded");
-    DoFnSignatures.INSTANCE.getSignature(SomeFn.class);
+    DoFnSignatures.getSignature(SomeFn.class);
   }
 
   /** Tests a splittable {@link DoFn} that defines all methods in their full form, correctly. */
@@ -255,7 +257,7 @@ public class DoFnSignaturesSplittableDoFnTest {
       }
     }
 
-    DoFnSignature signature = DoFnSignatures.INSTANCE.getSignature(GoodSplittableDoFn.class);
+    DoFnSignature signature = DoFnSignatures.getSignature(GoodSplittableDoFn.class);
     assertEquals(SomeRestrictionTracker.class, signature.processElement().trackerT().getRawType());
     assertTrue(signature.processElement().isSplittable());
     assertTrue(signature.processElement().hasReturnValue());
@@ -300,7 +302,7 @@ public class DoFnSignaturesSplittableDoFnTest {
     }
 
     DoFnSignature signature =
-        DoFnSignatures.INSTANCE.getSignature(
+        DoFnSignatures.getSignature(
             new GoodGenericSplittableDoFn<
                 SomeRestriction, SomeRestrictionTracker, SomeRestrictionCoder>() {}.getClass());
     assertEquals(SomeRestrictionTracker.class, signature.processElement().trackerT().getRawType());
@@ -324,7 +326,7 @@ public class DoFnSignaturesSplittableDoFnTest {
     thrown.expectMessage(
         "Splittable, but does not define the following required methods: "
             + "[@GetInitialRestriction, @NewTracker]");
-    DoFnSignatures.INSTANCE.getSignature(BadFn.class);
+    DoFnSignatures.getSignature(BadFn.class);
   }
 
   @Test
@@ -344,7 +346,7 @@ public class DoFnSignaturesSplittableDoFnTest {
 
     thrown.expectMessage(
         "Returns void, but must return a subtype of RestrictionTracker<SomeRestriction>");
-    DoFnSignatures.INSTANCE.getSignature(BadFn.class);
+    DoFnSignatures.getSignature(BadFn.class);
   }
 
   @Test
@@ -367,7 +369,7 @@ public class DoFnSignaturesSplittableDoFnTest {
     thrown.expectMessage(
         "getInitialRestriction(Integer): Uses restriction type String, but @NewTracker method");
     thrown.expectMessage("newTracker(SomeRestriction) uses restriction type SomeRestriction");
-    DoFnSignatures.INSTANCE.getSignature(BadFn.class);
+    DoFnSignatures.getSignature(BadFn.class);
   }
 
   @Test
@@ -394,7 +396,7 @@ public class DoFnSignaturesSplittableDoFnTest {
 
     thrown.expectMessage(
         "getRestrictionCoder() returns KvCoder which is not a subtype of Coder<SomeRestriction>");
-    DoFnSignatures.INSTANCE.getSignature(BadFn.class);
+    DoFnSignatures.getSignature(BadFn.class);
   }
 
   @Test
@@ -403,12 +405,12 @@ public class DoFnSignaturesSplittableDoFnTest {
         "Third argument must be OutputReceiver<SomeRestriction>, but is OutputReceiver<String>");
     DoFnSignatures.analyzeSplitRestrictionMethod(
         errors(),
-        TypeToken.of(FakeDoFn.class),
+        TypeDescriptor.of(FakeDoFn.class),
         new AnonymousMethod() {
           void method(
               Integer element, SomeRestriction restriction, DoFn.OutputReceiver<String> receiver) {}
         }.getMethod(),
-        TypeToken.of(Integer.class));
+        TypeDescriptor.of(Integer.class));
   }
 
   @Test
@@ -422,14 +424,14 @@ public class DoFnSignaturesSplittableDoFnTest {
     thrown.expectMessage("First argument must be the element type Integer");
     DoFnSignatures.analyzeSplitRestrictionMethod(
         errors(),
-        TypeToken.of(FakeDoFn.class),
+        TypeDescriptor.of(FakeDoFn.class),
         new AnonymousMethod() {
           void method(
               String element,
               SomeRestriction restriction,
               DoFn.OutputReceiver<SomeRestriction> receiver) {}
         }.getMethod(),
-        TypeToken.of(Integer.class));
+        TypeDescriptor.of(Integer.class));
   }
 
   @Test
@@ -437,7 +439,7 @@ public class DoFnSignaturesSplittableDoFnTest {
     thrown.expectMessage("Must have exactly 3 arguments");
     DoFnSignatures.analyzeSplitRestrictionMethod(
         errors(),
-        TypeToken.of(FakeDoFn.class),
+        TypeDescriptor.of(FakeDoFn.class),
         new AnonymousMethod() {
           private void method(
               Integer element,
@@ -445,7 +447,7 @@ public class DoFnSignaturesSplittableDoFnTest {
               DoFn.OutputReceiver<SomeRestriction> receiver,
               Object extra) {}
         }.getMethod(),
-        TypeToken.of(Integer.class));
+        TypeDescriptor.of(Integer.class));
   }
 
   @Test
@@ -479,7 +481,7 @@ public class DoFnSignaturesSplittableDoFnTest {
     thrown.expectMessage(
         "splitRestriction(Integer, OtherRestriction, OutputReceiver) "
             + "uses restriction type OtherRestriction");
-    DoFnSignatures.INSTANCE.getSignature(BadFn.class);
+    DoFnSignatures.getSignature(BadFn.class);
   }
 
   @Test
@@ -511,7 +513,7 @@ public class DoFnSignaturesSplittableDoFnTest {
     thrown.expectMessage(
         "Non-splittable, but defines methods: "
             + "[@GetInitialRestriction, @SplitRestriction, @NewTracker, @GetRestrictionCoder]");
-    DoFnSignatures.INSTANCE.getSignature(BadFn.class);
+    DoFnSignatures.getSignature(BadFn.class);
   }
 
   @Test
@@ -519,7 +521,7 @@ public class DoFnSignaturesSplittableDoFnTest {
     thrown.expectMessage("Must have a single argument");
     DoFnSignatures.analyzeNewTrackerMethod(
         errors(),
-        TypeToken.of(FakeDoFn.class),
+        TypeDescriptor.of(FakeDoFn.class),
         new AnonymousMethod() {
           private SomeRestrictionTracker method(SomeRestriction restriction, Object extra) {
             return null;
@@ -533,7 +535,7 @@ public class DoFnSignaturesSplittableDoFnTest {
         "Returns SomeRestrictionTracker, but must return a subtype of RestrictionTracker<String>");
     DoFnSignatures.analyzeNewTrackerMethod(
         errors(),
-        TypeToken.of(FakeDoFn.class),
+        TypeDescriptor.of(FakeDoFn.class),
         new AnonymousMethod() {
           private SomeRestrictionTracker method(String restriction) {
             return null;

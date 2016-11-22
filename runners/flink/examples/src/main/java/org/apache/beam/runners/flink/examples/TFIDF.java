@@ -38,12 +38,12 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.Validation;
 import org.apache.beam.sdk.transforms.Count;
+import org.apache.beam.sdk.transforms.Distinct;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.Keys;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.RemoveDuplicates;
 import org.apache.beam.sdk.transforms.Values;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.WithKeys;
@@ -129,7 +129,12 @@ public class TFIDF {
     Set<URI> uris = new HashSet<>();
     if (absoluteUri.getScheme().equals("file")) {
       File directory = new File(absoluteUri);
-      for (String entry : directory.list()) {
+      String[] directoryListing = directory.list();
+      if (directoryListing == null) {
+        throw new IOException(
+            "Directory " + absoluteUri + " is not a valid path or IO Error occurred.");
+      }
+      for (String entry : directoryListing) {
         File path = new File(directory, entry);
         uris.add(path.toURI());
       }
@@ -157,7 +162,9 @@ public class TFIDF {
       extends PTransform<PBegin, PCollection<KV<URI, String>>> {
     private static final long serialVersionUID = 0;
 
-    private Iterable<URI> uris;
+    // transient because PTransform is not really meant to be serialized.
+    // see note on PTransform
+    private final transient Iterable<URI> uris;
 
     public ReadDocuments(Iterable<URI> uris) {
       this.uris = uris;
@@ -221,7 +228,7 @@ public class TFIDF {
       final PCollectionView<Long> totalDocuments =
           uriToContent
               .apply("GetURIs", Keys.<URI>create())
-              .apply("RemoveDuplicateDocs", RemoveDuplicates.<URI>create())
+              .apply("DistinctDocs", Distinct.<URI>create())
               .apply(Count.<URI>globally())
               .apply(View.<Long>asSingleton());
 
@@ -251,7 +258,7 @@ public class TFIDF {
       // Compute a mapping from each word to the total
       // number of documents in which it appears.
       PCollection<KV<String, Long>> wordToDocCount = uriToWords
-          .apply("RemoveDuplicateWords", RemoveDuplicates.<KV<URI, String>>create())
+          .apply("DistinctWords", Distinct.<KV<URI, String>>create())
           .apply(Values.<String>create())
           .apply("CountDocs", Count.<String>perElement());
 

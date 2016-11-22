@@ -63,7 +63,7 @@ import java.util.TreeMap;
 import java.util.concurrent.ThreadLocalRandom;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.ThreadSafe;
-import org.apache.beam.sdk.options.PipelineOptionsFactory.JsonIgnorePredicate;
+import org.apache.beam.sdk.options.PipelineOptionsFactory.AnnotationPredicates;
 import org.apache.beam.sdk.options.PipelineOptionsFactory.Registration;
 import org.apache.beam.sdk.options.ValueProvider.RuntimeValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
@@ -638,7 +638,8 @@ class ProxyInvocationHandler implements InvocationHandler {
       // Find all the method names that are annotated with JSON ignore.
       Set<String> jsonIgnoreMethodNames = FluentIterable.from(
           ReflectHelpers.getClosureOfMethodsOnInterfaces(interfaces))
-          .filter(JsonIgnorePredicate.INSTANCE).transform(new Function<Method, String>() {
+          .filter(AnnotationPredicates.JSON_IGNORE.forMethod)
+          .transform(new Function<Method, String>() {
             @Override
             public String apply(Method input) {
               return input.getName();

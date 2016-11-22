@@ -213,7 +213,7 @@ public class View {
 
   /**
    * Returns a {@link View.AsMultimap} transform that takes a
-   * {@link PCollection PCollection&lt;KV&ltK, V&gt;&gt;}
+   * {@link PCollection PCollection&lt;KV&lt;K, V&gt;&gt;}
    * as input and produces a {@link PCollectionView} mapping
    * each window to its contents as a {@link Map Map&lt;K, Iterable&lt;V&gt;&gt;}
    * for use as a side input.

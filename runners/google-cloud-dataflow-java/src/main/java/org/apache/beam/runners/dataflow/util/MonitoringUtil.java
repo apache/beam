@@ -149,7 +149,6 @@ public final class MonitoringUtil {
    * @param startTimestampMs Return only those messages with a
    *   timestamp greater than this value.
    * @return collection of messages
-   * @throws IOException
    */
   public ArrayList<JobMessage> getJobMessages(
       String jobId, long startTimestampMs) throws IOException {

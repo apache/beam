@@ -33,15 +33,13 @@
   <name>Apache Beam :: SDKs :: Java</name>
 
   <modules>
-    <module>build-tools</module>
+    <!-- build-tools inherits from the Beam root pom to enable checkstyle
+         and other project configuration to be used in all modules.
+    <module>build-tools</module> -->
     <module>core</module>
     <module>io</module>
-    <!-- sdks/java/maven-archtypes has several dependencies on the
-         DataflowRunner. Until these are refactored out or
-         a released artifact exists, we need to modify the build order.
-    <module>maven-archetypes</module> -->
+    <module>maven-archetypes</module>
     <module>extensions</module>
-    <module>microbenchmarks</module>
   </modules>
 
   <profiles>

@@ -19,6 +19,7 @@ package org.apache.beam.runners.direct;
 
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertThat;
 
 import com.google.common.collect.ImmutableList;
@@ -35,6 +36,7 @@ import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.WithKeys;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.WindowedValue;
@@ -95,14 +97,24 @@ public class ImmutableListBundleFactoryTest {
   afterCommitGetElementsShouldHaveAddedElements(Iterable<WindowedValue<T>> elems) {
     UncommittedBundle<T> bundle = bundleFactory.createRootBundle();
     Collection<Matcher<? super WindowedValue<T>>> expectations = new ArrayList<>();
+    Instant minElementTs = BoundedWindow.TIMESTAMP_MAX_VALUE;
     for (WindowedValue<T> elem : elems) {
       bundle.add(elem);
       expectations.add(equalTo(elem));
+      if (elem.getTimestamp().isBefore(minElementTs)) {
+        minElementTs = elem.getTimestamp();
+      }
     }
     Matcher<Iterable<? extends WindowedValue<T>>> containsMatcher =
         Matchers.<WindowedValue<T>>containsInAnyOrder(expectations);
-    CommittedBundle<T> committed = bundle.commit(Instant.now());
+    Instant commitTime = Instant.now();
+    CommittedBundle<T> committed = bundle.commit(commitTime);
     assertThat(committed.getElements(), containsMatcher);
+
+    // Sanity check that the test is meaningful.
+    assertThat(minElementTs, not(equalTo(commitTime)));
+    assertThat(committed.getMinTimestamp(), equalTo(minElementTs));
+    assertThat(committed.getSynchronizedProcessingOutputWatermark(), equalTo(commitTime));
 
     return committed;
   }
@@ -149,6 +161,7 @@ public class ImmutableListBundleFactoryTest {
     assertThat(
         withed.getSynchronizedProcessingOutputWatermark(),
         equalTo(committed.getSynchronizedProcessingOutputWatermark()));
+    assertThat(withed.getMinTimestamp(), equalTo(new Instant(2048L)));
   }
 
   @Test

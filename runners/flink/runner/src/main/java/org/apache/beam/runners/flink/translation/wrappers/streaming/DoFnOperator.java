@@ -174,10 +174,16 @@ public class DoFnOperator<InputT, FnOutputT, OutputT>
           ExecutionContext.StepContext stepContext,
           String aggregatorName,
           Combine.CombineFn<InputT, AccumT, OutputT> combine) {
-        SerializableFnAggregatorWrapper<InputT, OutputT> result =
-            new SerializableFnAggregatorWrapper<>(combine);
 
-        getRuntimeContext().addAccumulator(aggregatorName, result);
+        @SuppressWarnings("unchecked")
+        SerializableFnAggregatorWrapper<InputT, OutputT> result =
+            (SerializableFnAggregatorWrapper<InputT, OutputT>)
+                getRuntimeContext().getAccumulator(aggregatorName);
+
+        if (result == null) {
+          result = new SerializableFnAggregatorWrapper<>(combine);
+          getRuntimeContext().addAccumulator(aggregatorName, result);
+        }
         return result;
       }
     };

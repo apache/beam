@@ -18,14 +18,15 @@
 package org.apache.beam.examples;
 
 import java.io.IOException;
-import org.apache.beam.examples.WindowedWordCount.Options;
-import org.apache.beam.sdk.options.Default;
+import java.util.Date;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.StreamingOptions;
 import org.apache.beam.sdk.testing.BigqueryMatcher;
 import org.apache.beam.sdk.testing.StreamingIT;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestPipelineOptions;
+import org.apache.beam.sdk.util.IOChannelUtils;
+import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
@@ -37,14 +38,20 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class WindowedWordCountIT {
 
+  private static final String DEFAULT_INPUT =
+      "gs://apache-beam-samples/shakespeare/winterstale-personae";
+  private static final String DEFAULT_OUTPUT_CHECKSUM = "cd5b52939257e12428a9fa085c32a84dd209b180";
+
   /**
    * Options for the {@link WindowedWordCount} Integration Test.
    */
   public interface WindowedWordCountITOptions
-      extends Options, TestPipelineOptions, StreamingOptions {
-    @Default.String("ff54f6f42b2afeb146206c1e8e915deaee0362b4")
-    String getChecksum();
-    void setChecksum(String value);
+      extends WindowedWordCount.Options, TestPipelineOptions, StreamingOptions {
+  }
+
+  @BeforeClass
+  public static void setUp() {
+    PipelineOptionsFactory.register(TestPipelineOptions.class);
   }
 
   @Test
@@ -59,16 +66,24 @@ public class WindowedWordCountIT {
   }
 
   private void testWindowedWordCountPipeline(boolean isStreaming) throws IOException {
-    PipelineOptionsFactory.register(WindowedWordCountITOptions.class);
     WindowedWordCountITOptions options =
         TestPipeline.testingPipelineOptions().as(WindowedWordCountITOptions.class);
     options.setStreaming(isStreaming);
+    options.setInputFile(DEFAULT_INPUT);
+
+    // Note: currently unused because the example writes to BigQuery, but WindowedWordCount.Options
+    // are tightly coupled to WordCount.Options, where the option is required.
+    options.setOutput(IOChannelUtils.resolve(
+        options.getTempRoot(),
+        String.format("WindowedWordCountIT-%tF-%<tH-%<tM-%<tS-%<tL", new Date()),
+        "output",
+        "results"));
 
     String query = String.format("SELECT word, SUM(count) FROM [%s:%s.%s] GROUP BY word",
         options.getProject(), options.getBigQueryDataset(), options.getBigQueryTable());
     options.setOnSuccessMatcher(
         new BigqueryMatcher(
-            options.getAppName(), options.getProject(), query, options.getChecksum()));
+            options.getAppName(), options.getProject(), query, DEFAULT_OUTPUT_CHECKSUM));
 
     WindowedWordCount.main(TestPipeline.convertToArgs(options));
   }

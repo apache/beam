@@ -86,7 +86,6 @@ public class TriggerStateMachines {
     }
 
     private Method getEvaluationMethod(Class<?> clazz) {
-      Method evaluationMethod;
       try {
         return getClass().getDeclaredMethod("evaluateSpecific", clazz);
       } catch (NoSuchMethodException exc) {

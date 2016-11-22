@@ -110,7 +110,7 @@ public class UserScoreTest implements Serializable {
     // Check the user score sums.
     PAssert.that(output).containsInAnyOrder(USER_SUMS);
 
-    p.run();
+    p.run().waitUntilFinish();
   }
 
   /** Tests ExtractAndSumScore("team"). */
@@ -129,7 +129,7 @@ public class UserScoreTest implements Serializable {
     // Check the team score sums.
     PAssert.that(output).containsInAnyOrder(TEAM_SUMS);
 
-    p.run();
+    p.run().waitUntilFinish();
   }
 
   /** Test that bad input data is dropped appropriately. */
@@ -149,6 +149,6 @@ public class UserScoreTest implements Serializable {
 
     PAssert.that(extract).empty();
 
-    p.run();
+    p.run().waitUntilFinish();
   }
 }

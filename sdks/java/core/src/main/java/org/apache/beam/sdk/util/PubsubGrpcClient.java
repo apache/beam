@@ -20,7 +20,7 @@ package org.apache.beam.sdk.util;
 
 import static com.google.common.base.Preconditions.checkState;
 
-import com.google.auth.oauth2.GoogleCredentials;
+import com.google.auth.Credentials;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
@@ -56,7 +56,6 @@ import io.grpc.netty.NegotiationType;
 import io.grpc.netty.NettyChannelBuilder;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Executors;
@@ -74,10 +73,6 @@ import org.apache.beam.sdk.options.PubsubOptions;
 public class PubsubGrpcClient extends PubsubClient {
   private static final String PUBSUB_ADDRESS = "pubsub.googleapis.com";
   private static final int PUBSUB_PORT = 443;
-  // Will be needed when credentials are correctly constructed and scoped.
-  @SuppressWarnings("unused")
-  private static final List<String> PUBSUB_SCOPES =
-      Collections.singletonList("https://www.googleapis.com/auth/pubsub");
   private static final int LIST_BATCH_SIZE = 1000;
 
   private static final int DEFAULT_TIMEOUT_S = 15;
@@ -92,15 +87,12 @@ public class PubsubGrpcClient extends PubsubClient {
           .negotiationType(NegotiationType.TLS)
           .sslContext(GrpcSslContexts.forClient().ciphers(null).build())
           .build();
-      // TODO: GcpOptions needs to support building com.google.auth.oauth2.Credentials from the
-      // various command line options. It currently only supports the older
-      // com.google.api.client.auth.oauth2.Credentials.
-      GoogleCredentials credentials = GoogleCredentials.getApplicationDefault();
+
       return new PubsubGrpcClient(timestampLabel,
                                   idLabel,
                                   DEFAULT_TIMEOUT_S,
                                   channel,
-                                  credentials);
+                                  options.getGcpCredential());
     }
 
     @Override
@@ -128,7 +120,7 @@ public class PubsubGrpcClient extends PubsubClient {
   /**
    * Credentials determined from options and environment.
    */
-  private final GoogleCredentials credentials;
+  private final Credentials credentials;
 
   /**
    * Label to use for custom timestamps, or {@literal null} if should use Pubsub publish time
@@ -157,7 +149,7 @@ public class PubsubGrpcClient extends PubsubClient {
       @Nullable String idLabel,
       int timeoutSec,
       ManagedChannel publisherChannel,
-      GoogleCredentials credentials) {
+      Credentials credentials) {
     this.timestampLabel = timestampLabel;
     this.idLabel = idLabel;
     this.timeoutSec = timeoutSec;

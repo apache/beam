@@ -29,14 +29,11 @@ import org.apache.beam.sdk.util.ExecutionContext;
  * typically from the {@link DoFn} constructor. Elements can be added to the
  * {@code Aggregator} by calling {@link Aggregator#addValue}.
  *
- * <p>Aggregators are visible in the monitoring UI, when the pipeline is run
- * using DataflowRunner or BlockingDataflowRunner, along with
- * their current value. Aggregators may not become visible until the system
- * begins executing the ParDo transform that created them and/or their initial
- * value is changed.
+ * <p>It is runner-dependent whether aggregators are accessible during pipeline execution or only
+ * after jobs have completed.
  *
  * <p>Example:
- * <pre> {@code
+ * <pre>{@code
  * class MyDoFn extends DoFn<String, String> {
  *   private Aggregator<Integer, Integer> myAggregator;
  *
@@ -44,12 +41,12 @@ import org.apache.beam.sdk.util.ExecutionContext;
  *     myAggregator = createAggregator("myAggregator", new Sum.SumIntegerFn());
  *   }
  *
- *   @ProcessElement
+ *   {@literal @}ProcessElement
  *   public void processElement(ProcessContext c) {
  *     myAggregator.addValue(1);
  *   }
  * }
- * } </pre>
+ * }</pre>
  *
  * @param <InputT> the type of input values
  * @param <OutputT> the type of output values

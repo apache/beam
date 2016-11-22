@@ -369,6 +369,16 @@ public class PipelineOptionsFactoryTest {
     void setObject(Object value);
   }
 
+  /**
+   * This class is has a conflicting {@link JsonIgnore @JsonIgnore} value with
+   * {@link GetterWithJsonIgnore}.
+   */
+  public interface GetterWithInconsistentJsonIgnoreValue extends PipelineOptions {
+    @JsonIgnore(value = false)
+    Object getObject();
+    void setObject(Object value);
+  }
+
   @Test
   public void testNotAllGettersAnnotatedWithJsonIgnore() throws Exception {
     // Initial construction is valid.
@@ -439,6 +449,235 @@ public class PipelineOptionsFactoryTest {
 
     // When we attempt to convert, we should error immediately
     options.as(MultipleGettersWithInconsistentJsonIgnore.class);
+  }
+
+  /** Test interface that has {@link Default @Default} on a setter for a property. */
+  public interface SetterWithDefault extends PipelineOptions {
+    String getValue();
+    @Default.String("abc")
+    void setValue(String value);
+  }
+
+  @Test
+  public void testSetterAnnotatedWithDefault() throws Exception {
+    expectedException.expect(IllegalArgumentException.class);
+    expectedException.expectMessage(
+        "Expected setter for property [value] to not be marked with @Default on ["
+            + "org.apache.beam.sdk.options.PipelineOptionsFactoryTest$SetterWithDefault]");
+    PipelineOptionsFactory.as(SetterWithDefault.class);
+  }
+
+  /** Test interface that has {@link Default @Default} on multiple setters. */
+  public interface MultiSetterWithDefault extends SetterWithDefault {
+    Integer getOther();
+    @Default.String("abc")
+    void setOther(Integer other);
+  }
+
+  @Test
+  public void testMultipleSettersAnnotatedWithDefault() throws Exception {
+    expectedException.expect(IllegalArgumentException.class);
+    expectedException.expectMessage("Found setters marked with @Default:");
+    expectedException.expectMessage(
+        "property [other] should not be marked with @Default on ["
+            + "org.apache.beam.sdk.options.PipelineOptionsFactoryTest$MultiSetterWithDefault]");
+    expectedException.expectMessage(
+        "property [value] should not be marked with @Default on ["
+            + "org.apache.beam.sdk.options.PipelineOptionsFactoryTest$SetterWithDefault]");
+    PipelineOptionsFactory.as(MultiSetterWithDefault.class);
+  }
+
+  /**
+   * This class is has a conflicting field with {@link CombinedObject} that doesn't have
+   * {@link Default @Default}.
+   */
+  private interface GetterWithDefault extends PipelineOptions {
+    @Default.Integer(1)
+    Object getObject();
+    void setObject(Object value);
+  }
+
+  /**
+   * This class is consistent with {@link GetterWithDefault} that has the same
+   * {@link Default @Default}.
+   */
+  private interface GetterWithConsistentDefault extends PipelineOptions {
+    @Default.Integer(1)
+    Object getObject();
+    void setObject(Object value);
+  }
+
+  /**
+   * This class is inconsistent with {@link GetterWithDefault} that has a different
+   * {@link Default @Default}.
+   */
+  private interface GetterWithInconsistentDefaultType extends PipelineOptions {
+    @Default.String("abc")
+    Object getObject();
+    void setObject(Object value);
+  }
+
+  /**
+   * This class is inconsistent with {@link GetterWithDefault} that has a different
+   * {@link Default @Default} value.
+   */
+  private interface GetterWithInconsistentDefaultValue extends PipelineOptions {
+    @Default.Integer(0)
+    Object getObject();
+    void setObject(Object value);
+  }
+
+  @Test
+  public void testNotAllGettersAnnotatedWithDefault() throws Exception {
+    // Initial construction is valid.
+    GetterWithDefault options = PipelineOptionsFactory.as(GetterWithDefault.class);
+
+    expectedException.expect(IllegalArgumentException.class);
+    expectedException.expectMessage(
+        "Expected getter for property [object] to be marked with @Default on all ["
+            + "org.apache.beam.sdk.options.PipelineOptionsFactoryTest$GetterWithDefault, "
+            + "org.apache.beam.sdk.options.PipelineOptionsFactoryTest$MissingSetter], "
+            + "found only on [org.apache.beam.sdk.options."
+            + "PipelineOptionsFactoryTest$GetterWithDefault]");
+
+    // When we attempt to convert, we should error at this moment.
+    options.as(CombinedObject.class);
+  }
+
+  @Test
+  public void testGettersAnnotatedWithConsistentDefault() throws Exception {
+    GetterWithConsistentDefault options = PipelineOptionsFactory
+        .as(GetterWithDefault.class)
+        .as(GetterWithConsistentDefault.class);
+
+    assertEquals(1, options.getObject());
+  }
+
+  @Test
+  public void testGettersAnnotatedWithInconsistentDefault() throws Exception {
+    // Initial construction is valid.
+    GetterWithDefault options = PipelineOptionsFactory.as(GetterWithDefault.class);
+
+    expectedException.expect(IllegalArgumentException.class);
+    expectedException.expectMessage(
+        "Property [object] is marked with contradictory annotations. Found ["
+            + "[Default.Integer(value=1) on org.apache.beam.sdk.options.PipelineOptionsFactoryTest"
+            + "$GetterWithDefault#getObject()], "
+            + "[Default.String(value=abc) on org.apache.beam.sdk.options.PipelineOptionsFactoryTest"
+            + "$GetterWithInconsistentDefaultType#getObject()]].");
+
+    // When we attempt to convert, we should error at this moment.
+    options.as(GetterWithInconsistentDefaultType.class);
+  }
+
+  @Test
+  public void testGettersAnnotatedWithInconsistentDefaultValue() throws Exception {
+    // Initial construction is valid.
+    GetterWithDefault options = PipelineOptionsFactory.as(GetterWithDefault.class);
+
+    expectedException.expect(IllegalArgumentException.class);
+    expectedException.expectMessage(
+        "Property [object] is marked with contradictory annotations. Found ["
+            + "[Default.Integer(value=1) on org.apache.beam.sdk.options.PipelineOptionsFactoryTest"
+            + "$GetterWithDefault#getObject()], "
+            + "[Default.Integer(value=0) on org.apache.beam.sdk.options.PipelineOptionsFactoryTest"
+            + "$GetterWithInconsistentDefaultValue#getObject()]].");
+
+    // When we attempt to convert, we should error at this moment.
+    options.as(GetterWithInconsistentDefaultValue.class);
+  }
+
+  @Test
+  public void testGettersAnnotatedWithInconsistentJsonIgnoreValue() throws Exception {
+    // Initial construction is valid.
+    GetterWithJsonIgnore options = PipelineOptionsFactory.as(GetterWithJsonIgnore.class);
+
+    expectedException.expect(IllegalArgumentException.class);
+    expectedException.expectMessage(
+        "Property [object] is marked with contradictory annotations. Found ["
+            + "[JsonIgnore(value=false) on org.apache.beam.sdk.options.PipelineOptionsFactoryTest"
+            + "$GetterWithInconsistentJsonIgnoreValue#getObject()], "
+            + "[JsonIgnore(value=true) on org.apache.beam.sdk.options.PipelineOptionsFactoryTest"
+            + "$GetterWithJsonIgnore#getObject()]].");
+
+    // When we attempt to convert, we should error at this moment.
+    options.as(GetterWithInconsistentJsonIgnoreValue.class);
+  }
+
+  private interface GettersWithMultipleDefault extends PipelineOptions {
+    @Default.String("abc")
+    @Default.Integer(0)
+    Object getObject();
+    void setObject(Object value);
+  }
+
+  @Test
+  public void testGettersWithMultipleDefaults() throws Exception {
+    expectedException.expect(IllegalArgumentException.class);
+    expectedException.expectMessage(
+        "Property [object] is marked with contradictory annotations. Found ["
+            + "[Default.String(value=abc) on org.apache.beam.sdk.options.PipelineOptionsFactoryTest"
+            + "$GettersWithMultipleDefault#getObject()], "
+            + "[Default.Integer(value=0) on org.apache.beam.sdk.options.PipelineOptionsFactoryTest"
+            + "$GettersWithMultipleDefault#getObject()]].");
+
+    // When we attempt to create, we should error at this moment.
+    PipelineOptionsFactory.as(GettersWithMultipleDefault.class);
+  }
+
+  private interface MultiGettersWithDefault extends PipelineOptions {
+    Object getObject();
+    void setObject(Object value);
+
+    @Default.Integer(1)
+    Integer getOther();
+    void setOther(Integer value);
+
+    Void getConsistent();
+    void setConsistent(Void consistent);
+  }
+
+  private interface MultipleGettersWithInconsistentDefault extends PipelineOptions {
+    @Default.Boolean(true)
+    Object getObject();
+    void setObject(Object value);
+
+    Integer getOther();
+    void setOther(Integer value);
+
+    Void getConsistent();
+    void setConsistent(Void consistent);
+  }
+
+  @Test
+  public void testMultipleGettersWithInconsistentDefault() {
+    // Initial construction is valid.
+    MultiGettersWithDefault options = PipelineOptionsFactory.as(MultiGettersWithDefault.class);
+
+    expectedException.expect(IllegalArgumentException.class);
+    expectedException.expectMessage("Property getters are inconsistently marked with @Default:");
+    expectedException.expectMessage(
+        "property [object] to be marked on all");
+    expectedException.expectMessage("found only on [org.apache.beam.sdk.options."
+        + "PipelineOptionsFactoryTest$MultiGettersWithDefault]");
+    expectedException.expectMessage(
+        "property [other] to be marked on all");
+    expectedException.expectMessage("found only on [org.apache.beam.sdk.options."
+        + "PipelineOptionsFactoryTest$MultipleGettersWithInconsistentDefault]");
+
+    expectedException.expectMessage(Matchers.anyOf(
+        containsString(java.util.Arrays.toString(new String[]
+            {"org.apache.beam.sdk.options."
+                + "PipelineOptionsFactoryTest$MultipleGettersWithInconsistentDefault",
+                "org.apache.beam.sdk.options.PipelineOptionsFactoryTest$MultiGettersWithDefault"})),
+        containsString(java.util.Arrays.toString(new String[]
+            {"org.apache.beam.sdk.options.PipelineOptionsFactoryTest$MultiGettersWithDefault",
+                "org.apache.beam.sdk.options."
+                    + "PipelineOptionsFactoryTest$MultipleGettersWithInconsistentDefault"}))));
+    expectedException.expectMessage(not(containsString("property [consistent]")));
+
+    // When we attempt to convert, we should error immediately
+    options.as(MultipleGettersWithInconsistentDefault.class);
   }
 
   @Test
@@ -1220,40 +1459,6 @@ public class PipelineOptionsFactoryTest {
     assertThat(output, containsString("Default: " + DEFAULT_RUNNER_NAME));
     assertThat(output,
         containsString("The pipeline runner that will be used to execute the pipeline."));
-  }
-
-  @Test
-  public void testFindProperClassLoaderIfContextClassLoaderIsNull() throws InterruptedException {
-    final ClassLoader[] classLoader = new ClassLoader[1];
-    Thread thread = new Thread(new Runnable() {
-
-      @Override
-      public void run() {
-        classLoader[0] = PipelineOptionsFactory.findClassLoader();
-      }
-    });
-    thread.setContextClassLoader(null);
-    thread.start();
-    thread.join();
-    assertEquals(PipelineOptionsFactory.class.getClassLoader(), classLoader[0]);
-  }
-
-  @Test
-  public void testFindProperClassLoaderIfContextClassLoaderIsAvailable()
-      throws InterruptedException {
-    final ClassLoader[] classLoader = new ClassLoader[1];
-    Thread thread = new Thread(new Runnable() {
-
-      @Override
-      public void run() {
-        classLoader[0] = PipelineOptionsFactory.findClassLoader();
-      }
-    });
-    ClassLoader cl = new ClassLoader() {};
-    thread.setContextClassLoader(cl);
-    thread.start();
-    thread.join();
-    assertEquals(cl, classLoader[0]);
   }
 
   private static class RegisteredTestRunner extends PipelineRunner<PipelineResult> {

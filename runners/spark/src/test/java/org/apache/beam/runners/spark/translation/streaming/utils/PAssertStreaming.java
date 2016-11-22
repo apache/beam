@@ -34,6 +34,7 @@ import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.transforms.Values;
 import org.apache.beam.sdk.transforms.WithKeys;
 import org.apache.beam.sdk.values.PCollection;
+import org.joda.time.Duration;
 import org.junit.Assert;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -57,6 +58,7 @@ public final class PAssertStreaming implements Serializable {
   public static <T> EvaluationResult runAndAssertContents(Pipeline p,
                                                           PCollection<T> actual,
                                                           T[] expected,
+                                                          Duration timeout,
                                                           boolean stopGracefully) {
     // Because PAssert does not support non-global windowing, but all our data is in one window,
     // we set up the assertion directly.
@@ -68,6 +70,7 @@ public final class PAssertStreaming implements Serializable {
 
     // run the pipeline.
     EvaluationResult res = (EvaluationResult) p.run();
+    res.waitUntilFinish(timeout);
     res.close(stopGracefully);
     // validate assertion succeeded (at least once).
     int success = res.getAggregatorValue(PAssert.SUCCESS_COUNTER, Integer.class);
@@ -86,8 +89,9 @@ public final class PAssertStreaming implements Serializable {
    */
   public static <T> EvaluationResult runAndAssertContents(Pipeline p,
                                                           PCollection<T> actual,
-                                                          T[] expected) {
-    return runAndAssertContents(p, actual, expected, true);
+                                                          T[] expected,
+                                                          Duration timeout) {
+    return runAndAssertContents(p, actual, expected, timeout, true);
   }
 
   private static class AssertDoFn<T> extends OldDoFn<Iterable<T>, Void> {

@@ -87,9 +87,8 @@ public class DisplayData implements Serializable {
    *
    * <p>Use this method if the type of metadata is not known at compile time. For example:
    *
-   * <pre>
-   * {@code
-   * @Override
+   * <pre>{@code
+   * {@literal @}Override
    * public void populateDisplayData(DisplayData.Builder builder) {
    *   Optional<DisplayData.Type> type = DisplayData.inferType(foo);
    *   if (type.isPresent()) {

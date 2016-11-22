@@ -49,7 +49,7 @@ import org.apache.beam.sdk.coders.Coder.Context;
  * </pre>
  *
  * <p>To read this stream:
- * <pre><code>
+ * <pre>{@code
  * InputStream is = ...
  * long count;
  * do {
@@ -58,7 +58,7 @@ import org.apache.beam.sdk.coders.Coder.Context;
  *     // read an element from is
  *   }
  * } while(count > 0);
- * </code></pre>
+ * }</pre>
  *
  * <p>The counts are encoded as variable length longs. See {@link VarInt#encode(long, OutputStream)}
  * for more details. The end of the iterable is detected by reading a count of 0.

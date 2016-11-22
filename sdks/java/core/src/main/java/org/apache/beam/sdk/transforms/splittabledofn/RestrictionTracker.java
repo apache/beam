@@ -21,7 +21,7 @@ import org.apache.beam.sdk.transforms.DoFn;
 
 /**
  * Manages concurrent access to the restriction and keeps track of its claimed part for a <a
- * href="https://s.apache.org/splittable-do-fn>splittable</a> {@link DoFn}.
+ * href="https://s.apache.org/splittable-do-fn">splittable</a> {@link DoFn}.
  */
 public interface RestrictionTracker<RestrictionT> {
   /**

@@ -19,6 +19,7 @@ package org.apache.beam.runners.direct;
 
 import com.google.auto.value.AutoValue;
 import com.google.common.collect.ImmutableList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.EnumSet;
 import java.util.Set;
@@ -114,6 +115,11 @@ public abstract class StepTransformResult implements TransformResult {
 
     public Builder withTimerUpdate(TimerUpdate timerUpdate) {
       this.timerUpdate = timerUpdate;
+      return this;
+    }
+
+    public Builder addUnprocessedElements(WindowedValue<?>... unprocessed) {
+      unprocessedElementsBuilder.addAll(Arrays.asList(unprocessed));
       return this;
     }
 

@@ -92,14 +92,14 @@ public class FlinkReduceFunction<K, AccumT, OutputT, W extends BoundedWindow>
       Iterable<WindowedValue<KV<K, AccumT>>> elements,
       Collector<WindowedValue<KV<K, OutputT>>> out) throws Exception {
 
-    FlinkProcessContext<KV<K, AccumT>, KV<K, OutputT>> processContext =
-        new FlinkProcessContext<>(
+    FlinkSingleOutputProcessContext<KV<K, AccumT>, KV<K, OutputT>> processContext =
+        new FlinkSingleOutputProcessContext<>(
             serializedOptions.getPipelineOptions(),
             getRuntimeContext(),
             doFn,
             windowingStrategy,
-            out,
-            sideInputs);
+            sideInputs, out
+        );
 
     PerKeyCombineFnRunner<K, ?, AccumT, OutputT> combineFnRunner =
         PerKeyCombineFnRunners.create(combineFn);
@@ -150,14 +150,14 @@ public class FlinkReduceFunction<K, AccumT, OutputT, W extends BoundedWindow>
 
       if (nextWindow.equals(currentWindow)) {
         // continue accumulating
-        processContext = processContext.forWindowedValue(nextValue);
+        processContext.setWindowedValue(nextValue);
         accumulator = combineFnRunner.mergeAccumulators(
             key, ImmutableList.of(accumulator, nextValue.getValue().getValue()), processContext);
 
         windowTimestamps.add(nextValue.getTimestamp());
       } else {
         // emit the value that we currently have
-        processContext = processContext.forWindowedValue(currentValue);
+        processContext.setWindowedValue(currentValue);
         out.collect(
             WindowedValue.of(
                 KV.of(key, combineFnRunner.extractOutput(key, accumulator, processContext)),
@@ -179,7 +179,7 @@ public class FlinkReduceFunction<K, AccumT, OutputT, W extends BoundedWindow>
 
     // if at the end of the iteration we have a change in windows
     // the ProcessContext will not have been updated
-    processContext = processContext.forWindowedValue(currentValue);
+    processContext.setWindowedValue(currentValue);
 
     // emit the final accumulator
     out.collect(

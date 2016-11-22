@@ -118,8 +118,7 @@ public class Flatten {
                 + windowingStrategy.getWindowFn() + ", " + other.getWindowFn());
           }
 
-          if (!windowingStrategy.getTrigger().getSpec()
-              .isCompatible(other.getTrigger().getSpec())) {
+          if (!windowingStrategy.getTrigger().isCompatible(other.getTrigger())) {
             throw new IllegalStateException(
                 "Inputs to Flatten had incompatible triggers: "
                 + windowingStrategy.getTrigger() + ", " + other.getTrigger());

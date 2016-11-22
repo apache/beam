@@ -108,7 +108,7 @@ import org.codehaus.stax2.XMLInputFactory2;
  * <p>These dependencies have been declared as optional in the sdks/java/core/pom.xml file of
  * Apache Beam.
  *
- * <p><h3>Permissions</h3>
+ * <h3>Permissions</h3>
  * Permission requirements depend on the
  * {@link org.apache.beam.sdk.runners.PipelineRunner PipelineRunner} that is
  * used to execute the Beam pipeline. Please refer to the documentation of corresponding

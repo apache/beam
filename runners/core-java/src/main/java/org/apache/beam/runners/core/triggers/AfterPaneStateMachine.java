@@ -17,7 +17,6 @@
  */
 package org.apache.beam.runners.core.triggers;
 
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.Objects;
 import org.apache.beam.runners.core.triggers.TriggerStateMachine.OnceTriggerStateMachine;
 import org.apache.beam.sdk.annotations.Experimental;
@@ -88,8 +87,6 @@ private static final StateTag<Object, AccumulatorCombiningState<Long, long[], Lo
   }
 
   @Override
-  @SuppressFBWarnings(value = "RV_RETURN_VALUE_IGNORED_NO_SIDE_EFFECT", justification =
-      "prefetch side effect")
   public void prefetchShouldFire(StateAccessor<?> state) {
     state.access(ELEMENTS_IN_PANE_TAG).readLater();
   }

@@ -50,16 +50,35 @@ import org.joda.time.Instant;
 public interface TimerInternals {
 
   /**
-   * Writes out a timer to be fired when the watermark reaches the given
-   * timestamp.
+   * Writes out a timer to be fired when the current time in the specified time domain reaches the
+   * target timestamp.
    *
-   * <p>The combination of {@code namespace}, {@code timestamp} and {@code domain} uniquely
-   * identify a timer. Multiple timers set for the same parameters can be safely deduplicated.
+   * <p>The combination of {@code namespace} and {@code timerId} uniquely identify a timer.
+   *
+   * <p>If a timer is set and then set again before it fires, later settings should clear the prior
+   * setting.
+   *
+   * <p>It is an error to set a timer for two different time domains.
+   */
+  void setTimer(StateNamespace namespace, String timerId, Instant target, TimeDomain timeDomain);
+
+  /**
+   * Writes out a timer to be fired when the watermark reaches the given timestamp, automatically
+   * generating an id for it from the provided {@link TimerData}.
+   *
+   * <p>The {@link TimerData} contains all the fields necessary to set the timer. The timer's ID
+   * is determinstically generated from the {@link TimerData}, so it may be canceled using
+   * the same {@link TimerData}.
    */
   void setTimer(TimerData timerKey);
 
   /**
    * Deletes the given timer.
+   */
+  void deleteTimer(StateNamespace namespace, String timerId);
+
+  /**
+   * Deletes the given timer, automatically inferring its ID from the {@link TimerData}.
    */
   void deleteTimer(TimerData timerKey);
 
@@ -109,15 +128,17 @@ public interface TimerInternals {
    * </ol>
    *
    * <p>In pictures:
-   * <pre>
+   * <pre>{@code
    *  |              |       |       |       |
    *  |              |   D   |   C   |   B   |   A
    *  |              |       |       |       |
    * GIWM     <=    GOWM <= LOWM <= LIWM <= GIWM
    * (next stage)
    * -------------------------------------------------> event time
-   * </pre>
-   * where
+   * }</pre>
+   *
+   * <p>where
+   *
    * <ul>
    * <li> LOWM = local output water mark.
    * <li> GOWM = global output water mark.
@@ -209,12 +230,17 @@ public interface TimerInternals {
      * arbitrary.
      */
     @Override
-    public int compareTo(TimerData o) {
+    public int compareTo(TimerData that) {
+      if (this.equals(that)) {
+        return 0;
+      }
       ComparisonChain chain =
-          ComparisonChain.start().compare(timestamp, o.getTimestamp()).compare(domain, o.domain);
-      if (chain.result() == 0) {
+          ComparisonChain.start()
+              .compare(this.timestamp, that.getTimestamp())
+              .compare(this.domain, that.domain);
+      if (chain.result() == 0 && !this.namespace.equals(that.namespace)) {
         // Obtaining the stringKey may be expensive; only do so if required
-        chain = chain.compare(namespace.stringKey(), o.namespace.stringKey());
+        chain = chain.compare(namespace.stringKey(), that.namespace.stringKey());
       }
       return chain.result();
     }
