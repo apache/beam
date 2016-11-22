@@ -24,6 +24,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import org.apache.beam.runners.flink.FlinkRunner;
 import org.apache.beam.runners.flink.translation.functions.FlinkAssignWindows;
 import org.apache.beam.runners.flink.translation.functions.FlinkDoFnFunction;
 import org.apache.beam.runners.flink.translation.functions.FlinkMergingNonShuffleReduceFunction;
@@ -46,6 +47,7 @@ import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.CombineFnBase;
+import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.OldDoFn;
@@ -54,6 +56,7 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.join.RawUnionValue;
 import org.apache.beam.sdk.transforms.join.UnionCoder;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
@@ -487,11 +490,23 @@ class FlinkBatchTransformTranslators {
     @Override
     public void translateNode(
         ParDo.Bound<InputT, OutputT> transform,
+
         FlinkBatchTranslationContext context) {
+      DoFn<InputT, OutputT> doFn = transform.getNewFn();
+      if (DoFnSignatures.getSignature(doFn.getClass()).stateDeclarations().size() > 0) {
+        throw new UnsupportedOperationException(
+            String.format(
+                "Found %s annotations on %s, but %s cannot yet be used with state in the %s.",
+                DoFn.StateId.class.getSimpleName(),
+                doFn.getClass().getName(),
+                DoFn.class.getSimpleName(),
+                FlinkRunner.class.getSimpleName()));
+      }
+
       DataSet<WindowedValue<InputT>> inputDataSet =
           context.getInputDataSet(context.getInput(transform));
 
-      final OldDoFn<InputT, OutputT> doFn = transform.getFn();
+      final OldDoFn<InputT, OutputT> oldDoFn = transform.getFn();
 
       TypeInformation<WindowedValue<OutputT>> typeInformation =
           context.getTypeInfo(context.getOutput(transform));
@@ -507,7 +522,7 @@ class FlinkBatchTransformTranslators {
 
       FlinkDoFnFunction<InputT, OutputT> doFnWrapper =
           new FlinkDoFnFunction<>(
-              doFn,
+              oldDoFn,
               context.getOutput(transform).getWindowingStrategy(),
               sideInputStrategies,
               context.getPipelineOptions());
@@ -533,10 +548,21 @@ class FlinkBatchTransformTranslators {
     public void translateNode(
         ParDo.BoundMulti<InputT, OutputT> transform,
         FlinkBatchTranslationContext context) {
+      DoFn<InputT, OutputT> doFn = transform.getNewFn();
+      if (DoFnSignatures.getSignature(doFn.getClass()).stateDeclarations().size() > 0) {
+        throw new UnsupportedOperationException(
+            String.format(
+                "Found %s annotations on %s, but %s cannot yet be used with state in the %s.",
+                DoFn.StateId.class.getSimpleName(),
+                doFn.getClass().getName(),
+                DoFn.class.getSimpleName(),
+                FlinkRunner.class.getSimpleName()));
+      }
+
       DataSet<WindowedValue<InputT>> inputDataSet =
           context.getInputDataSet(context.getInput(transform));
 
-      final OldDoFn<InputT, OutputT> doFn = transform.getFn();
+      final OldDoFn<InputT, OutputT> oldDoFn = transform.getFn();
 
       Map<TupleTag<?>, PCollection<?>> outputs = context.getOutput(transform).getAll();
 
@@ -584,7 +610,7 @@ class FlinkBatchTransformTranslators {
       @SuppressWarnings("unchecked")
       FlinkMultiOutputDoFnFunction<InputT, OutputT> doFnWrapper =
           new FlinkMultiOutputDoFnFunction(
-              doFn,
+              oldDoFn,
               windowingStrategy,
               sideInputStrategies,
               context.getPipelineOptions(),
