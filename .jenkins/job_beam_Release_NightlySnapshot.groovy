@@ -36,13 +36,14 @@ mavenJob('beam_PostCommit_Java_MavenInstall') {
 
   // Set build triggers
   triggers {
-    cron('0 */6 * * *')
-    scm('* * * * *')
+    cron('0 7 * * *')
   }
   
-  goals('-B -e -P release,dataflow-runner -DrepoToken=${COVERALLS_REPO_TOKEN} clean install coveralls:report -DskipITs=false -DintegrationTestPipelineOptions=\'[ "--project=apache-beam-testing", "--tempRoot=gs://temp-storage-for-end-to-end-tests", "--runner=org.apache.beam.runners.dataflow.testing.TestDataflowRunner" ]\'')
+  goals('-B -e clean deploy -P release,dataflow-runner -DskipITs=false -DintegrationTestPipelineOptions=\'[ "--project=apache-beam-testing", "--tempRoot=gs://temp-storage-for-end-to-end-tests", "--runner=org.apache.beam.runners.dataflow.testing.TestDataflowRunner" ]\'')
+
   publishers {
     // Notify the mailing list for each failed build.
-    // mailer('commits@beam.incubator.apache.org', false, false)
+    // mailer('dev@beam.incubator.apache.org', false, false)
   }
 }
+

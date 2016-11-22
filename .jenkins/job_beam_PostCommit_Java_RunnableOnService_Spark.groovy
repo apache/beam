@@ -19,11 +19,8 @@
 import common_job_properties
 
 // Defines a job.
-mavenJob('beam_PostCommit_Java_MavenInstall') {
-  description('Runs postcommit tests on the Java SDK.')
-
-  // Execute concurrent builds if necessary.
-  concurrentBuild()
+mavenJob('beam_PostCommit_Java_RunnableOnService_Spark') {
+  description('Runs the RunnableOnService suite on the Spark runner.')
 
   // Set common parameters.
   common_job_properties.setTopLevelJobProperties(delegate)
@@ -40,7 +37,8 @@ mavenJob('beam_PostCommit_Java_MavenInstall') {
     scm('* * * * *')
   }
   
-  goals('-B -e -P release,dataflow-runner -DrepoToken=${COVERALLS_REPO_TOKEN} clean install coveralls:report -DskipITs=false -DintegrationTestPipelineOptions=\'[ "--project=apache-beam-testing", "--tempRoot=gs://temp-storage-for-end-to-end-tests", "--runner=org.apache.beam.runners.dataflow.testing.TestDataflowRunner" ]\'')
+  goals('-B -e clean verify -am -pl runners/spark -Prunnable-on-service-tests -Plocal-runnable-on-service-tests -Dspark.port.maxRetries=64 -Dspark.ui.enabled=false')
+
   publishers {
     // Notify the mailing list for each failed build.
     // mailer('commits@beam.incubator.apache.org', false, false)

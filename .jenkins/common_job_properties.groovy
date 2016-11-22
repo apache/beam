@@ -21,15 +21,13 @@
 class common_job_properties {
 
   // Sets common top-level job properties.
-  static def setTopLevelJobProperties(def context) {
+  static def setTopLevelJobProperties(def context,
+                                      def scm_branch = 'master') {
 
     // GitHub project.
     context.properties {
       githubProjectUrl('https://github.com/apache/incubator-beam/')
     }
-
-    // Execute concurrent builds if necessary
-    context.concurrentBuild()
 
     // Set jdk version
     context.jdk('JDK 1.8 (latest)')
@@ -63,7 +61,7 @@ class common_job_properties {
       // ${sha1} parameter needs to be provided, and defaults to the main branch.
       stringParam(
           'sha1',
-          'master',
+          scm_branch,
           'Commit id or refname (eg: origin/pr/9/head) you want to build.')
     }
 
@@ -129,11 +127,11 @@ class common_job_properties {
   }
 
   static def setSparkEnvVariables(def context) {
-    context.environmentVariables {
-      env('SPARK_LOCAL_IP', '127.0.0.1')
-      script('''
-         env
-      ''')
+    context.wrappers {
+      environmentVariables {
+        env('SPARK_LOCAL_IP', '127.0.0.1')
+        script('env')
+      }
     }
   }
   

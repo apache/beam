@@ -19,11 +19,8 @@
 import common_job_properties
 
 // Defines a job.
-mavenJob('beam_PostCommit_Java_MavenInstall') {
-  description('Runs postcommit tests on the Java SDK.')
-
-  // Execute concurrent builds if necessary.
-  concurrentBuild()
+mavenJob('beam_PostCommit_Java_RunnableOnService_Flink') {
+  description('Runs the RunnableOnService suite on the Flink runner.')
 
   // Set common parameters.
   common_job_properties.setTopLevelJobProperties(delegate)
@@ -31,16 +28,14 @@ mavenJob('beam_PostCommit_Java_MavenInstall') {
   // Set maven paramaters.
   common_job_properties.setMavenConfig(delegate)
 
-  // Set spark-specific parameters.
-  common_job_properties.setSparkEnvVariables(delegate)
-
   // Set build triggers
   triggers {
     cron('0 */6 * * *')
     scm('* * * * *')
   }
   
-  goals('-B -e -P release,dataflow-runner -DrepoToken=${COVERALLS_REPO_TOKEN} clean install coveralls:report -DskipITs=false -DintegrationTestPipelineOptions=\'[ "--project=apache-beam-testing", "--tempRoot=gs://temp-storage-for-end-to-end-tests", "--runner=org.apache.beam.runners.dataflow.testing.TestDataflowRunner" ]\'')
+  goals('-B -e clean verify -am -pl runners/flink/runner -Plocal-runnable-on-service-tests -Prunnable-on-service-tests')
+
   publishers {
     // Notify the mailing list for each failed build.
     // mailer('commits@beam.incubator.apache.org', false, false)

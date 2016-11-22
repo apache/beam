@@ -33,8 +33,9 @@ mavenJob('beam_PreCommit_Java_MavenInstall') {
   // Set Maven parameters.
   common_job_properties.setMavenConfig(delegate)
 
-  // Set spark env variables for ITs.
+  // Set spark-specific parameters.
   common_job_properties.setSparkEnvVariables(delegate)
   
   goals('-B -e -Prelease,include-runners,jenkins-precommit,direct-runner,dataflow-runner,spark-runner,flink-runner,apex-runner -DrepoToken=${COVERALLS_REPO_TOKEN} -DpullRequest=99999 help:effective-settings clean install coveralls:report')
 }
+

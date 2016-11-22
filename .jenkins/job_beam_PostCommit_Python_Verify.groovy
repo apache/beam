@@ -19,19 +19,26 @@
 import common_job_properties
 
 // Defines a job.
-mavenJob('beam_PreCommit_Java_Build') {
-  description('Runs a compile of the current GitHub Pull Request.')
+job('beam_PostCommit_Python_Verify') {
+  description('Runs postcommit tests on the Python SDK.')
 
   // Set common parameters.
-  common_job_properties.setTopLevelJobProperties(delegate)
+  common_job_properties.setTopLevelJobProperties(delegate, 'python-sdk')
 
-  // Set pull request build trigger.
-  common_job_properties.setPullRequestBuildTrigger(
-      delegate,
-      'Jenkins: Maven clean compile')
-
-  // Set Maven parameters.
-  common_job_properties.setMavenConfig(delegate)
+  // Set build triggers
+  triggers {
+    cron('0 3-22/6 * * *')
+    scm('* * * * *')
+  }
   
-  goals('-B -e -Prelease clean compile')
+  // Execute shell command to test Python SDK.
+  steps {
+    shell('bash sdks/python/run_postcommit.sh')
+  }
+
+  publishers {
+    // Notify the mailing list for each failed build.
+    // mailer('commits@beam.incubator.apache.org', false, false)
+  }
 }
+
