@@ -28,14 +28,15 @@ The easiest way to get a copy of the WordCount pipeline is to use the following 
 
 ```
 $ mvn archetype:generate \
+      -DarchetypeRepository=https://repository.apache.org/content/groups/snapshots \
+      -DarchetypeGroupId=org.apache.beam \
       -DarchetypeArtifactId=beam-sdks-java-maven-archetypes-examples \
       -DarchetypeVersion=LATEST \
-      -DarchetypeGroupId=org.apache.beam \
       -DgroupId=org.example \
       -DartifactId=word-count-beam \
       -Dversion="0.1" \
-      -DinteractiveMode=false \
-      -Dpackage=org.apache.beam.examples
+      -Dpackage=org.apache.beam.examples \
+      -DinteractiveMode=false
 ```
 
 This will create a directory `word-count-beam` that contains a simple `pom.xml` and a series of example pipelines that count words in text files.
