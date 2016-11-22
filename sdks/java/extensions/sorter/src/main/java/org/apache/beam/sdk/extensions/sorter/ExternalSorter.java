@@ -67,12 +67,13 @@ class ExternalSorter implements Sorter {
     private int memoryMB = 100;
 
     /** Sets the path to a temporary location where the sorter writes intermediate files. */
-    public void setTempLocation(String tempLocation) {
+    public Options setTempLocation(String tempLocation) {
       if (tempLocation.startsWith("gs://")) {
         throw new IllegalArgumentException("Sorter doesn't support GCS temporary location.");
       }
 
       this.tempLocation = tempLocation;
+      return this;
     }
 
     /** Returns the configured temporary location. */
@@ -81,9 +82,10 @@ class ExternalSorter implements Sorter {
     }
 
     /** Sets the size of the memory buffer in megabytes. */
-    public void setMemoryMB(int memoryMB) {
+    public Options setMemoryMB(int memoryMB) {
       checkArgument(memoryMB > 0, "memoryMB must be greater than zero");
       this.memoryMB = memoryMB;
+      return this;
     }
 
     /** Returns the configured size of the memory buffer. */
