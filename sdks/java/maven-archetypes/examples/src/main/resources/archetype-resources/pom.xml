@@ -93,7 +93,7 @@
       <version>0.4.0-incubating-SNAPSHOT</version>
     </dependency>
 
-    <!-- Adds a dependency on a specific version of the Dataflow runnner. -->
+    <!-- Adds a dependency on a specific version of the Beam runnner. -->
     <dependency>
       <groupId>org.apache.beam</groupId>
       <artifactId>beam-runners-direct-java</artifactId>
