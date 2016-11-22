@@ -606,6 +606,40 @@ class ChannelFactory(object):
     else:
       return os.path.getsize(path)
 
+  @staticmethod
+  def size_of_files(file_names, path):
+    """Returns a map of file names to sizes.
+
+    Args:
+      path: a file path pattern that reads the size of all the files
+    """
+    BATCH_SIZE = 500
+    if path.startswith('gs://'):
+      batches = [file_names[i:i + BATCH_SIZE]
+                 for i in range(0, len(file_names), BATCH_SIZE)]
+      # ThreadPool crashes in old versions of Python (< 2.7.5) if created from a
+      # child thread. (http://bugs.python.org/issue10015)
+      if not hasattr(threading.current_thread(), '_children'):
+        threading.current_thread()._children = weakref.WeakKeyDictionary()
+      executed_batches = ThreadPool(30).map(gcsio.GcsIO().size_batch, batches)
+
+      file_size_data = [i for batch in executed_batches for i in batch]
+      file_sizes = {f:s for ((f, s), e) in file_size_data if e is None}
+
+      result = {}
+      # We need to make sure we fetched the size for all the files as some of
+      # the calls might have thrown an exception before so try them again with
+      # stating the individual files.
+      for file_name in file_names:
+        if file_name in file_sizes:
+          result[file_name] = file_sizes[file_name]
+        else:
+          result[file_name] = ChannelFactory.size_in_bytes(file_name)
+      return result
+    else:
+      return {file_name: ChannelFactory.size_in_bytes(file_name)
+              for file_name in file_names}
+
 
 class _CompressedFile(object):
   """Somewhat limited file wrapper for easier handling of compressed files."""

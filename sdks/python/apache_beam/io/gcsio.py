@@ -353,6 +353,43 @@ class GcsIO(object):
         bucket=bucket, object=object_path)
     return self.client.objects.Get(request).size
 
+  # We intentionally do not decorate this method with a retry, as retrying is
+  # handled in BatchApiRequest.Execute().
+  def size_batch(self, paths):
+    """Deletes the objects at the given GCS paths.
+
+    Args:
+      paths: List of GCS file path patterns in the form gs://<bucket>/<name>,
+             not to exceed MAX_BATCH_OPERATION_SIZE in length.
+
+    Returns: List of tuples of ((path, size), exception) in the same order as
+             the pathsargument, where exception is None if the operation
+             succeeded or the relevant exception if the operation failed.
+    """
+    batch_request = BatchApiRequest(
+        retryable_codes=retry.SERVER_ERROR_OR_TIMEOUT_CODES)
+    for path in paths:
+      bucket, object_path = parse_gcs_path(path)
+      request = storage.StorageObjectsGetRequest(
+          bucket=bucket, object=object_path)
+      batch_request.Add(self.client.objects, 'Get', request)
+    api_calls = batch_request.Execute(self.client._http)  # pylint: disable=protected-access
+    result_statuses = []
+    for i, api_call in enumerate(api_calls):
+      path = paths[i]
+      exception = None
+      if api_call.is_error:
+        exception = api_call.exception
+        size = None
+        # Return success when the file doesn't exist anymore for idempotency.
+        if isinstance(exception, HttpError) and exception.status_code == 404:
+          exception = None
+          size = 0
+      else:
+        size = api_call.response.size
+      result_statuses.append(((path, size), exception))
+    return result_statuses
+
 
 class GcsBufferedReader(object):
   """A class for reading Google Cloud Storage files."""
