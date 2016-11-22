@@ -85,7 +85,6 @@ public class MqttIOTest implements Serializable {
             .withConnectionConfiguration(
                 MqttIO.ConnectionConfiguration.create(
                     "tcp://localhost:" + port,
-                    "BEAM_PIPELINE",
                     "READ_TOPIC"))
           .withMaxNumRecords(10));
 
@@ -116,7 +115,8 @@ public class MqttIOTest implements Serializable {
           // nothing to do
         }
         try {
-          MqttClient client = new MqttClient("tcp://localhost:" + port, "publisher");
+          MqttClient client = new MqttClient("tcp://localhost:" + port,
+              MqttClient.generateClientId());
           client.connect();
           for (int i = 0; i < 10; i++) {
             MqttMessage message = new MqttMessage();
@@ -136,54 +136,6 @@ public class MqttIOTest implements Serializable {
     pipeline.run();
   }
 
-  public class MyMqttCallback implements MqttCallback {
-    private String client;
-
-    public MyMqttCallback(String client) {
-      this.client = client;
-    }
-
-    @Override
-    public void connectionLost(Throwable cause) {
-      LOGGER.warn("Connection lost client {}", client, cause);
-    }
-
-    @Override
-    public void messageArrived(String topic, MqttMessage message) throws Exception {
-      LOGGER.info("Message arrived client {} on topic {}: {}", client, topic,
-          new String(message.getPayload()));
-    }
-
-    @Override
-    public void deliveryComplete(IMqttDeliveryToken token) {
-      LOGGER.info("Delivery complete client {}", client);
-    }
-  }
-
-  @Test
-  public void severalSubscriber() throws Exception {
-    MqttClient sub1 = new MqttClient("tcp://localhost:" + port, MqttClient.generateClientId());
-    sub1.setCallback(new MyMqttCallback("sub1"));
-    sub1.connect();
-    sub1.subscribe("test");
-
-    MqttClient sub2 = new MqttClient("tcp://localhost:" + port, MqttClient.generateClientId());
-    sub2.setCallback(new MyMqttCallback("sub2"));
-    sub2.connect();
-    sub2.subscribe("test");
-
-    MqttClient pub = new MqttClient("tcp://localhost:" + port, MqttClient.generateClientId());
-    pub.connect();
-    MqttMessage message = new MqttMessage("foo".getBytes());
-    message.setQos(0);
-    pub.publish("test", message);
-
-    pub.disconnect();
-
-    sub1.disconnect();
-    sub2.disconnect();
-  }
-
   @Test
   @Category(NeedsRunner.class)
   public void testWrite() throws Exception {
@@ -201,9 +153,8 @@ public class MqttIOTest implements Serializable {
             .withConnectionConfiguration(
                 MqttIO.ConnectionConfiguration.create(
                     "tcp://localhost:" + port,
-                    "BEAM_PIPELINE",
                     "WRITE_TOPIC"))
-            .withQoS(2));
+        .withQoS(1));
     pipeline.run();
 
     Assert.assertEquals(100, messages.size());
@@ -213,7 +164,7 @@ public class MqttIOTest implements Serializable {
   }
 
   private MqttClient receive(final List<MqttMessage> messages) throws MqttException {
-    MqttClient client = new MqttClient("tcp://localhost:" + port, "receiver");
+    MqttClient client = new MqttClient("tcp://localhost:" + port, MqttClient.generateClientId());
     MqttCallback callback = new MqttCallback() {
       @Override
       public void connectionLost(Throwable cause) {
