@@ -26,6 +26,7 @@ from apache_beam.transforms import sideinputs
 from apache_beam.runners.direct.clock import Clock
 from apache_beam.runners.direct.watermark_manager import WatermarkManager
 from apache_beam.runners.direct.executor import TransformExecutor
+from apache_beam.runners.direct.direct_metrics import DirectMetrics
 from apache_beam.utils import counters
 
 
@@ -142,12 +143,17 @@ class EvaluationContext(object):
     self._pending_unblocked_tasks = []
     self._counter_factory = counters.CounterFactory()
     self._cache = None
+    self._metrics = DirectMetrics()
 
     self._lock = threading.Lock()
 
   def use_pvalue_cache(self, cache):
     assert not self._cache
     self._cache = cache
+
+  def metrics(self):
+    # TODO. Should this be made a @property?
+    return self._metrics
 
   @property
   def has_cache(self):
@@ -186,6 +192,9 @@ class EvaluationContext(object):
       self._watermark_manager.update_watermarks(
           completed_bundle, result.transform, completed_timers,
           committed_bundles, result.watermark_hold)
+
+      self._metrics.commit_logical(completed_bundle,
+                                   result.logical_metric_updates())
 
       # If the result is for a view, update side inputs container.
       if (result.output_bundles

@@ -26,6 +26,9 @@ import threading
 import traceback
 from weakref import WeakValueDictionary
 
+from apache_beam.metrics.execution import MetricsContainer
+from apache_beam.metrics.execution import MetricsEnvironment
+
 
 class ExecutorService(object):
   """Thread pool for executing tasks in parallel."""
@@ -266,6 +269,8 @@ class TransformExecutor(ExecutorService.CallableTask):
   def __call__(self):
     self._call_count += 1
     assert self._call_count <= (1 + len(self._applied_transform.side_inputs))
+    metrics_container = MetricsContainer(self._applied_transform.full_label)
+    MetricsEnvironment.set_current_container(metrics_container)
 
     for side_input in self._applied_transform.side_inputs:
       if side_input not in self._side_input_values:
@@ -290,6 +295,7 @@ class TransformExecutor(ExecutorService.CallableTask):
           evaluator.process_element(value)
 
       result = evaluator.finish_bundle()
+      result.metric_updates = metrics_container.get_cumulative()
 
       if self._evaluation_context.has_cache:
         for uncommitted_bundle in result.output_bundles:
@@ -308,6 +314,9 @@ class TransformExecutor(ExecutorService.CallableTask):
       logging.warning('Task failed: %s', traceback.format_exc(), exc_info=True)
       self._completion_callback.handle_exception(e)
     finally:
+      self._evaluation_context.metrics().commit_physical(
+          self._input_bundle,
+          metrics_container.get_cumulative())
       self._transform_evaluation_state.complete(self)
 
 
