@@ -236,6 +236,6 @@ class QueryIterator(object):
       # Check if we have more entities to be read.
       # Query limit does not exist (so limit == sys.maxint) and/or has not been
       # satisfied.
-      more_results = (self._limit > 0) and \
-                     ((num_results == self._BATCH_SIZE) or
-                      (resp.batch.more_results == self._NOT_FINISHED))
+      more_results = ((self._limit > 0) and
+                      ((num_results == self._BATCH_SIZE) or
+                       (resp.batch.more_results == self._NOT_FINISHED)))

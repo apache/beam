@@ -15,7 +15,7 @@
 # limitations under the License.
 #
 
-"""A word-counting workflow."""
+"""A word-counting workflow that uses Google Cloud Datastore."""
 
 from __future__ import absolute_import
 

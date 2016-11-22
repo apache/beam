@@ -15,7 +15,7 @@
 # limitations under the License.
 #
 
-"""A source and a sink for reading from and writing to Google Cloud Datastore"""
+"""A connector for reading from and writing to Google Cloud Datastore"""
 
 import logging
 
@@ -37,8 +37,8 @@ __all__ = ['ReadFromDatastore']
 class ReadFromDatastore(PTransform):
   """A ``PTransform`` for reading from Google Cloud Datastore.
 
-  To read a `PCollection[Entity]` from a Cloud Datastore `Query`, use
-  `ReadFromDatastore` transform by providing a `project` id and a `query` to
+  To read a ``PCollection[Entity]`` from a Cloud Datastore ``Query``, use
+  ``ReadFromDatastore`` transform by providing a `project` id and a `query` to
   read from. You can optionally provide a `namespace` and/or specify how many
   splits you want for the query through `num_splits` option.
 
@@ -54,7 +54,7 @@ class ReadFromDatastore(PTransform):
     the number of splits will be chosen dynamically at runtime based on the
     query data size.
 
-    2. Any value ofr `num_splits` greater than
+    2. Any value of `num_splits` greater than
     `ReadFromDatastore._NUM_QUERY_SPLITS_MAX` will be capped at that value.
 
     3. If the `query` has a user limit set, or contains inequality filters, then
@@ -70,7 +70,8 @@ class ReadFromDatastore(PTransform):
 
   # An upper bound on the number of splits for a query.
   _NUM_QUERY_SPLITS_MAX = 50000
-  # A lower bound on the number of splits for a query.
+  # A lower bound on the number of splits for a query. This is to ensure that
+  # we parellelize the query even when Datastore statistics are not available.
   _NUM_QUERY_SPLITS_MIN = 12
   # Default bundle size of 64MB.
   _DEFAULT_BUNDLE_SIZE_BYTES = 64 * 1024 * 1024
@@ -98,22 +99,22 @@ class ReadFromDatastore(PTransform):
     self._num_splits = num_splits
 
   def apply(self, pcoll):
-    # This is a composite transform involves the following steps:
-    #   1. Create a singleton of the user provided `query` and apply a `ParDo`
+    # This is a composite transform involves the following:
+    #   1. Create a singleton of the user provided `query` and apply a ``ParDo``
     #   that splits the query into `num_splits` and assign each split query a
     #   unique `int` as the key. The resulting output is of the type
-    #   `PCollection[(int, Query)]`.
+    #   ``PCollection[(int, Query)]``.
     #
-    #   If the value of `numQuerySplits` is less than or equal to 0, then the
+    #   If the value of `num_splits` is less than or equal to 0, then the
     #   number of splits will be computed dynamically based on the size of the
     #   data for the `query`.
     #
-    #   2. The resulting `PCollection` is sharded using a `GroupByKey`
+    #   2. The resulting ``PCollection`` is sharded using a ``GroupByKey``
     #   operation. The queries are extracted from the (int, Iterable[Query]) and
-    #   flattened to output a `PCollection[Query]`.
+    #   flattened to output a ``PCollection[Query]``.
     #
-    #   3. In the third step, a `ParDo` reads entities for each query and
-    #   outputs a `PCollection[Entity]`.
+    #   3. In the third step, a ``ParDo`` reads entities for each query and
+    #   outputs a ``PCollection[Entity]``.
 
     queries = (pcoll.pipeline
                | 'User Query' >> Create([self._query])
@@ -212,7 +213,7 @@ class ReadFromDatastore(PTransform):
 
     def process(self, p_context, *args, **kwargs):
       query = p_context.element
-      # Returns an iterator of entities that reads is batches.
+      # Returns an iterator of entities that reads in batches.
       entities = helper.fetch_entities(self._project, self._datastore_namespace,
                                        query, self._datastore)
       return entities
@@ -258,8 +259,8 @@ class ReadFromDatastore(PTransform):
     logging.info('Latest stats timestamp for kind %s is %s',
                  kind, latest_timestamp)
 
-    kind_stats_query = \
-        helper.make_kind_stats_query(namespace, kind, latest_timestamp)
+    kind_stats_query = (
+        helper.make_kind_stats_query(namespace, kind, latest_timestamp))
 
     req = helper.make_request(project, namespace, kind_stats_query)
     resp = datastore.run_query(req)
@@ -273,16 +274,15 @@ class ReadFromDatastore(PTransform):
   def get_estimated_num_splits(project, namespace, query, datastore):
     """Computes the number of splits to be performed on the given query."""
     try:
-      estimated_size_bytes = \
-        ReadFromDatastore.get_estimated_size_bytes(project, namespace, query,
-                                                   datastore)
+      estimated_size_bytes = ReadFromDatastore.get_estimated_size_bytes(
+          project, namespace, query, datastore)
       logging.info('Estimated size bytes for query: %s', estimated_size_bytes)
       num_splits = int(min(ReadFromDatastore._NUM_QUERY_SPLITS_MAX, round(
           ((float(estimated_size_bytes)) /
            ReadFromDatastore._DEFAULT_BUNDLE_SIZE_BYTES))))
 
     except Exception as e:
-      logging.warning('Failed to fetch estimated size bytes:\n%s', e)
+      logging.warning('Failed to fetch estimated size bytes:%s', e)
       # Fallback in case estimated size is unavailable.
       num_splits = ReadFromDatastore._NUM_QUERY_SPLITS_MIN
 

@@ -77,8 +77,8 @@ class DatastoreioTest(unittest.TestCase):
       # Force SplitQueryFn to compute the number of query splits
       num_splits = 0
       expected_num_splits = 23
-      entity_bytes = expected_num_splits * \
-          ReadFromDatastore._DEFAULT_BUNDLE_SIZE_BYTES
+      entity_bytes = (expected_num_splits *
+                      ReadFromDatastore._DEFAULT_BUNDLE_SIZE_BYTES)
       with patch.object(ReadFromDatastore, 'get_estimated_size_bytes',
                         return_value=entity_bytes):
 
