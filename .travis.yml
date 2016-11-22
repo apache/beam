@@ -44,15 +44,6 @@ matrix:
     - os: linux
       env: TEST_PYTHON="1"
 
-    # On Linux, run with specific JDKs only.
-    - os: linux
-      env: CUSTOM_JDK="oraclejdk8" MAVEN_OVERRIDE="$MAVEN_OVERRIDE $MAVEN_CONTAINER_OVERRIDE"
-    - os: linux
-      env: CUSTOM_JDK="oraclejdk7" MAVEN_OVERRIDE="$MAVEN_OVERRIDE $MAVEN_CONTAINER_OVERRIDE"
-    - os: linux
-      env: CUSTOM_JDK="openjdk7" MAVEN_OVERRIDE="$MAVEN_OVERRIDE $MAVEN_CONTAINER_OVERRIDE"
-    - os: linux
-      env: MAVEN_OVERRIDE="-Peclipse-jdt -DskipTests $MAVEN_OVERRIDE $MAVEN_CONTAINER_OVERRIDE" CUSTOM_JDK="oraclejdk8"
 
 before_install:
   - echo 'MAVEN_OPTS="$MAVEN_OPTS -Xmx1024m -XX:MaxPermSize=512m -XX:+BytecodeVerificationLocal"' >> ~/.mavenrc
