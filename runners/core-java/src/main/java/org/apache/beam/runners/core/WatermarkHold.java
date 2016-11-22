@@ -20,7 +20,6 @@ package org.apache.beam.runners.core;
 import static com.google.common.base.Preconditions.checkState;
 
 import com.google.common.annotations.VisibleForTesting;
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.Serializable;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -470,8 +469,6 @@ class WatermarkHold<W extends BoundedWindow> implements Serializable {
     final WatermarkHoldState<BoundedWindow> extraHoldState = context.state().access(EXTRA_HOLD_TAG);
     return new ReadableState<OldAndNewHolds>() {
       @Override
-      @SuppressFBWarnings(value = "RV_RETURN_VALUE_IGNORED_NO_SIDE_EFFECT",
-        justification = "")
       public ReadableState<OldAndNewHolds> readLater() {
         elementHoldState.readLater();
         extraHoldState.readLater();

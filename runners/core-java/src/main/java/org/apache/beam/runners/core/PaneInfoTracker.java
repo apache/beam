@@ -20,7 +20,6 @@ package org.apache.beam.runners.core;
 import static com.google.common.base.Preconditions.checkState;
 
 import com.google.common.annotations.VisibleForTesting;
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import org.apache.beam.sdk.transforms.windowing.AfterWatermark;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo.PaneInfoCoder;
@@ -55,8 +54,6 @@ public class PaneInfoTracker {
     state.access(PANE_INFO_TAG).clear();
   }
 
-  @SuppressFBWarnings(value = "RV_RETURN_VALUE_IGNORED_NO_SIDE_EFFECT",
-      justification = "prefetch side effect")
   public void prefetchPaneInfo(ReduceFn<?, ?, ?, ?>.Context context) {
     context.state().access(PaneInfoTracker.PANE_INFO_TAG).readLater();
   }
@@ -77,8 +74,6 @@ public class PaneInfoTracker {
 
     return new ReadableState<PaneInfo>() {
       @Override
-      @SuppressFBWarnings(value = "RV_RETURN_VALUE_IGNORED_NO_SIDE_EFFECT",
-          justification = "prefetch side effect")
       public ReadableState<PaneInfo> readLater() {
         previousPaneFuture.readLater();
         return this;
