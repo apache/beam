@@ -68,6 +68,7 @@ import java.util.regex.Pattern;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 import org.apache.beam.runners.dataflow.util.PackageUtil.PackageAttributes;
+import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.options.GcsOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.ExpectedLogs;
@@ -450,7 +451,7 @@ public class PackageUtilTest {
   @Test
   public void testPackageUploadIsSkippedWithNonExistentResource() throws Exception {
     String nonExistentFile =
-        IOChannelUtils.resolve(tmpFolder.getRoot().getPath(), "non-existent-file");
+        FileSystems.resolve(tmpFolder.getRoot().getPath(), "non-existent-file");
     assertEquals(Collections.EMPTY_LIST, PackageUtil.stageClasspathElements(
         ImmutableList.of(nonExistentFile), STAGING_PATH, mockGcsUtil));
   }

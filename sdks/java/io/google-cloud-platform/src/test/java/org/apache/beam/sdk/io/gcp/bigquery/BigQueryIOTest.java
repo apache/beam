@@ -1736,8 +1736,6 @@ public class BigQueryIOTest implements Serializable {
     options.setTempLocation("mock://tempLocation");
 
     IOChannelUtils.setIOFactoryInternal("mock", mockIOChannelFactory, true /* override */);
-    when(mockIOChannelFactory.resolve(anyString(), anyString()))
-        .thenReturn("mock://tempLocation/output");
     when(mockDatasetService.getTable(any(TableReference.class)))
         .thenReturn(new Table().setSchema(new TableSchema()));
 
@@ -1815,8 +1813,6 @@ public class BigQueryIOTest implements Serializable {
     when(mockDatasetService.getTable(eq(destinationTable)))
         .thenReturn(new Table().setSchema(new TableSchema()));
     IOChannelUtils.setIOFactoryInternal("mock", mockIOChannelFactory, true /* override */);
-    when(mockIOChannelFactory.resolve(anyString(), anyString()))
-        .thenReturn("mock://tempLocation/output");
     when(mockJobService.pollJob(Mockito.<JobReference>any(), Mockito.anyInt()))
         .thenReturn(extractJob);
 
@@ -1897,8 +1893,6 @@ public class BigQueryIOTest implements Serializable {
     when(mockDatasetService.getTable(eq(destinationTable)))
         .thenReturn(new Table().setSchema(new TableSchema()));
     IOChannelUtils.setIOFactoryInternal("mock", mockIOChannelFactory, true /* override */);
-    when(mockIOChannelFactory.resolve(anyString(), anyString()))
-        .thenReturn("mock://tempLocation/output");
     when(mockJobService.pollJob(Mockito.<JobReference>any(), Mockito.anyInt()))
         .thenReturn(extractJob);
 

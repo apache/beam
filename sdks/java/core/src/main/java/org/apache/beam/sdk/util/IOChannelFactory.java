@@ -21,7 +21,6 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.WritableByteChannel;
-import java.nio.file.Path;
 import java.util.Collection;
 import java.util.List;
 
@@ -90,23 +89,6 @@ public interface IOChannelFactory {
    * <p>The specification is not expanded; it is used verbatim.
    */
   boolean isReadSeekEfficient(String spec) throws IOException;
-
-  /**
-   * Resolve the given {@code other} against the {@code path}.
-   *
-   * <p>If the {@code other} parameter is an absolute path then this method trivially returns
-   * other. If {@code other} is an empty path then this method trivially returns the given
-   * {@code path}. Otherwise this method considers the given {@code path} to be a directory and
-   * resolves the {@code other} path against this path. In the simplest case, the {@code other}
-   * path does not have a root component, in which case this method joins the {@code other} path
-   * to the given {@code path} and returns a resulting path that ends with the {@code other} path.
-   * Where the {@code other} path has a root component then resolution is highly implementation
-   * dependent and therefore unspecified.
-   */
-  String resolve(String path, String other) throws IOException;
-
-  /** Converts the given string to a {@link Path}. */
-  Path toPath(String path);
 
   /**
    * Copies a collection of files from one location to another.

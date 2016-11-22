@@ -51,6 +51,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.util.FluentBackoff;
 import org.apache.beam.sdk.util.GcsIOChannelFactory;
 import org.apache.beam.sdk.util.GcsUtil;
@@ -111,7 +112,7 @@ class PackageUtil {
 
       // Create the DataflowPackage with staging name and location.
       String uniqueName = getUniqueContentName(source, hash);
-      String resourcePath = IOChannelUtils.resolve(stagingPath, uniqueName);
+      String resourcePath = FileSystems.resolve(stagingPath, uniqueName);
       DataflowPackage target = new DataflowPackage();
       target.setName(overridePackageName != null ? overridePackageName : uniqueName);
       target.setLocation(resourcePath);

@@ -35,7 +35,6 @@ import java.nio.channels.WritableByteChannel;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.NoSuchFileException;
-import java.nio.file.Path;
 import java.nio.file.PathMatcher;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
@@ -162,16 +161,6 @@ public class FileIOChannelFactory implements IOChannelFactory {
   @Override
   public boolean isReadSeekEfficient(String spec) throws IOException {
     return true;
-  }
-
-  @Override
-  public String resolve(String path, String other) throws IOException {
-    return toPath(path).resolve(other).toString();
-  }
-
-  @Override
-  public Path toPath(String path) {
-    return specToFile(path).toPath();
   }
 
   @Override
