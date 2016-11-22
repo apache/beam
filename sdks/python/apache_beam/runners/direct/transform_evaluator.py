@@ -513,6 +513,11 @@ class _NativeWriteEvaluator(_TransformEvaluator):
     return (self._execution_context.watermarks.input_watermark
             == WatermarkManager.WATERMARK_POS_INF)
 
+  @property
+  def _has_already_produced_output(self):
+    return (self._execution_context.watermarks.output_watermark
+            == WatermarkManager.WATERMARK_POS_INF)
+
   def start_bundle(self):
     # state: [values]
     self.state = (self._execution_context.existing_state
@@ -522,18 +527,26 @@ class _NativeWriteEvaluator(_TransformEvaluator):
     self.state.append(element)
 
   def finish_bundle(self):
+    # finish_bundle will append incoming bundles in memory until all the bundles
+    # carrying data is processed. This is done to produce only a single output
+    # shard (some tests depends on this behavior). It is possible to have
+    # incoming empty bundles after the output is produced, these bundles will be
+    # ignored and would not generate additional output files.
     # TODO(altay): Do not wait until the last bundle to write in a single shard.
     if self._is_final_bundle:
-      if isinstance(self._sink, io.fileio.NativeTextFileSink):
-        assert self._sink.num_shards in (0, 1)
-        if self._sink.shard_name_template:
-          self._sink.file_path += '-00000-of-00001'
-          self._sink.file_path += self._sink.file_name_suffix
-      self._sink.pipeline_options = self._evaluation_context.pipeline_options
-      with self._sink.writer() as writer:
-        for v in self.state:
-          writer.Write(v.value)
-
+      if self._has_already_produced_output:
+        # Ignore empty bundles that arrive after the output is produced.
+        assert self.state == []
+      else:
+        if isinstance(self._sink, io.fileio.NativeTextFileSink):
+          assert self._sink.num_shards in (0, 1)
+          if self._sink.shard_name_template:
+            self._sink.file_path += '-00000-of-00001'
+            self._sink.file_path += self._sink.file_name_suffix
+        self._sink.pipeline_options = self._evaluation_context.pipeline_options
+        with self._sink.writer() as writer:
+          for v in self.state:
+            writer.Write(v.value)
       state = None
       hold = WatermarkManager.WATERMARK_POS_INF
     else:
