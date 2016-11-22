@@ -17,27 +17,28 @@
  */
 package org.apache.beam.sdk.util;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.fail;
 
-import org.apache.beam.sdk.options.GcsOptions;
-import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.junit.Before;
+import com.google.common.collect.Lists;
+import java.util.ServiceLoader;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/** Tests for {@link GcsIOChannelFactoryTest}. */
+/**
+ * Tests for {@link GcsIOChannelFactoryRegistrar}.
+ */
 @RunWith(JUnit4.class)
-public class GcsIOChannelFactoryTest {
-  private GcsIOChannelFactory factory;
-
-  @Before
-  public void setUp() {
-    factory = GcsIOChannelFactory.fromOptions(PipelineOptionsFactory.as(GcsOptions.class));
-  }
+public class GcsIOChannelFactoryRegistrarTest {
 
   @Test
-  public void testResolve() throws Exception {
-    assertEquals("gs://bucket/object", factory.resolve("gs://bucket", "object"));
+  public void testServiceLoader() {
+    for (IOChannelFactoryRegistrar registrar
+        : Lists.newArrayList(ServiceLoader.load(IOChannelFactoryRegistrar.class).iterator())) {
+      if (registrar instanceof GcsIOChannelFactoryRegistrar) {
+        return;
+      }
+    }
+    fail("Expected to find " + GcsIOChannelFactoryRegistrar.class);
   }
 }

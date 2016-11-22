@@ -126,7 +126,7 @@ public class DataflowPipelineOptionsTest {
   @Test
   public void testStagingLocation() {
     DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
-    IOChannelUtils.registerStandardIOFactories(options);
+    IOChannelUtils.registerIOFactoriesAllowOverride(options);
     options.setTempLocation("file://temp_location");
     options.setStagingLocation("gs://staging_location");
     assertTrue(isNullOrEmpty(options.getGcpTempLocation()));
@@ -136,7 +136,7 @@ public class DataflowPipelineOptionsTest {
   @Test
   public void testDefaultToTempLocation() {
     DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
-    IOChannelUtils.registerStandardIOFactories(options);
+    IOChannelUtils.registerIOFactoriesAllowOverride(options);
     options.setPathValidatorClass(NoopPathValidator.class);
     options.setTempLocation("gs://temp_location");
     assertEquals("gs://temp_location", options.getGcpTempLocation());
@@ -146,7 +146,7 @@ public class DataflowPipelineOptionsTest {
   @Test
   public void testDefaultToGcpTempLocation() {
     DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
-    IOChannelUtils.registerStandardIOFactories(options);
+    IOChannelUtils.registerIOFactoriesAllowOverride(options);
     options.setPathValidatorClass(NoopPathValidator.class);
     options.setTempLocation("gs://temp_location");
     options.setGcpTempLocation("gs://gcp_temp_location");

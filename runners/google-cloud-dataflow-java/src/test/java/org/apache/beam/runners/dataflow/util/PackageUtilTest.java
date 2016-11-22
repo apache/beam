@@ -135,7 +135,7 @@ public class PackageUtilTest {
     GcsOptions pipelineOptions = PipelineOptionsFactory.as(GcsOptions.class);
     pipelineOptions.setGcsUtil(mockGcsUtil);
 
-    IOChannelUtils.registerStandardIOFactories(pipelineOptions);
+    IOChannelUtils.registerIOFactoriesAllowOverride(pipelineOptions);
   }
 
   private File makeFileWithContents(String name, String contents) throws Exception {
