@@ -267,8 +267,8 @@ public class JdbcIO {
     }
 
     public Read<T> withDataSourceConfiguration(DataSourceConfiguration configuration) {
-      checkArgument(configuration != null, "JdbcIO.read().wthiDataSourceConfiguration"
-          + "(configuration) called with null configuration");
+      checkArgument(configuration != null, "JdbcIO.read().withDataSourceConfiguration"
+          + "(configuration) called with null configuration or not called at all");
       return toBuilder().setDataSourceConfiguration(configuration).build();
     }
 
@@ -425,8 +425,8 @@ public class JdbcIO {
     @Override
     public void validate(PCollection<T> input) {
       checkArgument(getDataSourceConfiguration() != null,
-          "JdbcIO.write().withDataSourceConfiguration(dataSourceConfiguration) called with null "
-              + "dataSourceConfiguration");
+          "JdbcIO.write().withDataSourceConfiguration(configuration) called with null "
+              + "configuration or not called at all");
       checkArgument(getStatement() != null,
           "JdbcIO.write().withStatement(statement) called with null statement");
       checkArgument(getPreparedStatementSetter() != null,
