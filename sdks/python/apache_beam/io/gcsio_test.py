@@ -690,6 +690,7 @@ class TestGCSIO(unittest.TestCase):
       self.assertEqual(
           self.gcs.size_of_files_in_glob(file_pattern), expected_file_sizes)
 
+
 class TestPipeStream(unittest.TestCase):
 
   def _read_and_verify(self, stream, expected, buffer_size):
