@@ -304,6 +304,19 @@ At this point, you want to ensure everything is right. Test it with `mvn verify`
 
 Done. You can delete the local <code>finish-pr-<pull-request-#></code> branch if you like.
 
+## Granting more rights to a contributor
+
+The project management committee (PMC) can grant more rights to a contributor, such as commit access or decision power, and recognize them as new [committers or PMC members]({{ site.baseurl }}/contribute/team/).
+
+The PMC periodically discusses this topic and privately votes to grant more rights to a contributor. If the vote passess, the contributor is invited to accept or reject the nomination. Once accepted, the PMC announces the decision publicly and updates the list of team member accordingly.
+
+The key to the selection process is [Meritocracy](http://apache.org/foundation/how-it-works.html#meritocracy), literally government by merit. Contributors earn merit in many ways: contributing code, testing releases, participating in documentation effort, answering user questions, debating design proposals, triaging issues, evangelizing the project, growing user base, and any other action that benefits the project as a whole.
+
+Therefore, there isn’t a single committer bar, e.g., a specific number of commits. In most cases, new committers will have a combination of different types of contributions that are hard to compare to each other. Similarly, there isn’t a single PMC bar either. The PMC discusses all contributions from an individual, and
+evaluates the overall impact across all the dimensions above.
+
+Nothing gives us greater joy than recognizing new committers or PMC members -- that's the only way we can grow. If there’s ever any doubt about this topic, please email dev@ or private@ and we’ll gladly discuss.
+
 ## Special Cases
 
 The directions above assume you are submitting code to the `incubator-beam` repository's `master` branch. In addition, there are a few other locations where code is maintained. Generally these follow the same *engage*-*design*-**code**-**review**-**commit** process as above, with some minor adjustments to commands.
