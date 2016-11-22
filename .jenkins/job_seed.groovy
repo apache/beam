@@ -27,11 +27,13 @@ job('beam_SeedJob_Main') {
   // Set common parameters.
   common_job_properties.setTopLevelJobProperties(delegate)
 
-  // Run this job every night to revert back any accidental changes to the
-  // configuration.
-  triggers {
-    cron('0 6 * * *')
-  }
+  // Set that this is a PostCommit job.
+  // Polls SCM on Feb 31st, i.e. never.
+  common_job_properties.setPostCommit(
+      delegate,
+      '0 6 * * *',
+      '0 5 31 2 *',
+      'dev@beam.incubator.apache.org')
 
   steps {
     dsl {
@@ -41,10 +43,5 @@ job('beam_SeedJob_Main') {
       // If a job is removed from the script, disable it (rather than deleting).
       removeAction('DISABLE')
     }
-  }
-
-  publishers {
-    // Notify the mailing list for each failed build.
-    mailer('dev@beam.incubator.apache.org', false, false)
   }
 }
