@@ -24,7 +24,6 @@ class common_job_properties {
   static def setTopLevelJobProperties(def context,
                                       def default_branch = 'master',
                                       def default_timeout = 100) {
-
     // GitHub project.
     context.properties {
       githubProjectUrl('https://github.com/apache/incubator-beam/')
@@ -160,7 +159,7 @@ class common_job_properties {
     }
 
     publishers {
-      // Notify the mailing list for each failed build.
+      // Notify an email address for each failed build (defaults to commits@).
       mailer(notify_address, false, true)
     }
   }

@@ -18,9 +18,11 @@
 
 import common_job_properties
 
-// Defines a job.
-mavenJob('beam_PostCommit_Java_MavenInstall') {
-  description('Runs postcommit tests on the Java SDK.')
+// This is the nightly snapshot build -- we use this to deploy a daily snapshot
+// to https://repository.apache.org/content/groups/snapshots/org/apache/beam.
+// Runs the postsubmit suite before deploying.
+mavenJob('beam_Release_NightlySnapshot') {
+  description('Runs a mvn clean deploy of the nightly snapshot.')
 
   // Execute concurrent builds if necessary.
   concurrentBuild()
@@ -41,6 +43,6 @@ mavenJob('beam_PostCommit_Java_MavenInstall') {
 
   publishers {
     // Notify the mailing list for each failed build.
-    mailer('dev@beam.incubator.apache.org', false, false)
+    mailer('dev@beam.incubator.apache.org', false, true)
   }
 }

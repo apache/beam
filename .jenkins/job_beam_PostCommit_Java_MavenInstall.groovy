@@ -18,7 +18,8 @@
 
 import common_job_properties
 
-// Defines a job.
+// This job runs the Java postcommit tests, including the suite of integration
+// tests.
 mavenJob('beam_PostCommit_Java_MavenInstall') {
   description('Runs postcommit tests on the Java SDK.')
 

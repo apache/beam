@@ -18,7 +18,7 @@
 
 import common_job_properties
 
-// Defines a job.
+// This job defines the Python postcommit tests.
 job('beam_PostCommit_Python_Verify') {
   description('Runs postcommit tests on the Python SDK.')
 

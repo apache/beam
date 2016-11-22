@@ -18,7 +18,7 @@
 
 import common_job_properties
 
-// Defines a job.
+// This job runs the suite of RunnableOnService tests against the Spark runner.
 mavenJob('beam_PostCommit_Java_RunnableOnService_Spark') {
   description('Runs the RunnableOnService suite on the Spark runner.')
 
