@@ -327,6 +327,9 @@ class Job(object):
     self.base64_str_re = re.compile(r'^[A-Za-z0-9+/]*=*$')
     self.coder_str_re = re.compile(r'^([A-Za-z]+\$)([A-Za-z0-9+/]*=*)$')
 
+  def json(self):
+    return encoding.MessageToJson(self.proto)
+
 
 class DataflowApplicationClient(object):
   """A Dataflow API client used by application code to create and query jobs."""
@@ -405,7 +408,7 @@ class DataflowApplicationClient(object):
     if job_location:
       gcs_or_local_path = os.path.dirname(job_location)
       file_name = os.path.basename(job_location)
-      self.stage_file(gcs_or_local_path, file_name, StringIO(str(job)))
+      self.stage_file(gcs_or_local_path, file_name, StringIO(job.json()))
 
     if not template_location:
       self.send_job_description()

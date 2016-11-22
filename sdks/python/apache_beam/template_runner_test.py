@@ -23,7 +23,7 @@ import json
 import unittest
 import tempfile
 
-# import apache_beam as beam
+import apache_beam as beam
 from apache_beam.pipeline import Pipeline
 from apache_beam.runners.dataflow_runner import DataflowPipelineRunner
 from apache_beam.utils.options import PipelineOptions
@@ -47,6 +47,8 @@ class TemplatingDataflowPipelineRunnerTest(unittest.TestCase):
                             '--temp_location=/dev/null',
                             '--template_location=' + dummy_file.name,
                             '--no_auth=True']))
+
+    pipeline | beam.Create([1, 2, 3]) | beam.Map(lambda x: x) # pylint: disable=expression-not-assigned
     pipeline.run()
     with open(dummy_file.name) as template_file:
       saved_job_dict = json.load(template_file)
