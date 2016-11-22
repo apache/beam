@@ -163,7 +163,7 @@ The following table summarizes project's self-assessment against the Apache Matu
     <tr>
       <td><p>CO50</p></td>
       <td><p>The way in which contributors can be granted more rights such as commit access or decision power is clearly documented and is the same for all contributors.</p></td>
-      <td><p><b>YES.</b> The criteria is documented on the website.</p></td>
+      <td><p><b>YES.</b> The criteria is documented in the <a href="{{ site.baseurl }}/contribute/contribution-guide/#granting-more-rights-to-a-contributor">contribution guide</a>.</p></td>
     </tr>
     <tr>
       <td><p>CO60</p></td>
