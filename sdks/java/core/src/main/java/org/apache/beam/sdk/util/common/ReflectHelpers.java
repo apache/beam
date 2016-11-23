@@ -39,7 +39,6 @@ import java.util.Queue;
 import java.util.ServiceLoader;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
-import org.apache.beam.sdk.util.IOChannelUtils;
 
 /**
  * Utilities for working with with {@link Class Classes} and {@link Method Methods}.
@@ -225,7 +224,7 @@ public class ReflectHelpers {
   public static ClassLoader findClassLoader() {
     ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
     if (classLoader == null) {
-      classLoader = IOChannelUtils.class.getClassLoader();
+      classLoader = ReflectHelpers.class.getClassLoader();
     }
     if (classLoader == null) {
       classLoader = ClassLoader.getSystemClassLoader();
