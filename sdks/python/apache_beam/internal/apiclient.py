@@ -21,11 +21,10 @@ import codecs
 import json
 import logging
 import os
-
-from StringIO import StringIO
-
 import re
 import time
+
+from StringIO import StringIO
 
 from apitools.base.py import encoding
 from apitools.base.py import exceptions
@@ -411,7 +410,7 @@ class DataflowApplicationClient(object):
       self.stage_file(gcs_or_local_path, file_name, StringIO(job.json()))
 
     if not template_location:
-      self.send_job_description()
+      self.submit_job_description()
 
   def create_job_description(self, job):
     """Creates a job described by the workflow proto."""
@@ -423,7 +422,7 @@ class DataflowApplicationClient(object):
     # TODO(silviuc): Remove the debug logging eventually.
     logging.info('JOB: %s', job)
 
-  def send_job_description(self):
+  def submit_job_description(self):
     """Creates and excutes a job request."""
     request = dataflow.DataflowProjectsJobsCreateRequest()
     request.projectId = self.google_cloud_options.project
