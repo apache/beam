@@ -48,6 +48,20 @@ def create_run_query(entities, batch_size):
   return run_query
 
 
+def create_commit(mutations):
+  """A fake datastore commit method that writes the mutations to a list.
+
+  Args:
+    mutations: A list to write mutations to.
+  """
+
+  def commit(req):
+    for mutation in req.mutations:
+      mutations.append(mutation)
+
+  return commit
+
+
 def create_response(entities, end_cursor, finish):
   """Creates a query response for a given batch of scatter entities."""
   resp = datastore_pb2.RunQueryResponse()

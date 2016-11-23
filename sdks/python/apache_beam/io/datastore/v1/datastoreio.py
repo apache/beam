@@ -19,11 +19,12 @@
 
 import logging
 
+from google.datastore.v1 import datastore_pb2
 from googledatastore import helper as datastore_helper
 
 from apache_beam.io.datastore.v1 import helper
 from apache_beam.io.datastore.v1 import query_splitter
-from apache_beam.transforms import Create
+from apache_beam.transforms import Create, Map
 from apache_beam.transforms import DoFn
 from apache_beam.transforms import FlatMap
 from apache_beam.transforms import GroupByKey
@@ -31,7 +32,7 @@ from apache_beam.transforms import PTransform
 from apache_beam.transforms import ParDo
 from apache_beam.transforms.util import Values
 
-__all__ = ['ReadFromDatastore']
+__all__ = ['ReadFromDatastore', 'WriteToDatastore', 'DeleteFromDatastore']
 
 
 class ReadFromDatastore(PTransform):
@@ -285,3 +286,105 @@ class ReadFromDatastore(PTransform):
       num_splits = ReadFromDatastore._NUM_QUERY_SPLITS_MIN
 
     return max(num_splits, ReadFromDatastore._NUM_QUERY_SPLITS_MIN)
+
+
+class Mutate(PTransform):
+  """A ``PTransform`` that writes mutations to Cloud Datastore.
+
+  Only idempotent Datastore mutation operations (upsert and delete) are
+  supported, as the commits are retried when failures occur.
+  """
+
+  # Max allowed Datastore write batch size.
+  _WRITE_BATCH_SIZE = 500
+
+  def __init__(self, project, mutation_fn):
+    """Initializes a Mutate transform.
+
+     Args:
+       project: The Project ID
+       mutation_fn: A function that converts `entities` or `keys` to
+         `mutations`.
+     """
+    self._project = project
+    self._mutation_fn = mutation_fn
+
+  def apply(self, pcoll):
+    return (pcoll
+            | 'Convert to Mutation' >> Map(self._mutation_fn)
+            | 'Write Mutation to Datastore' >> ParDo(Mutate.DatastoreWriteFn(
+                self._project)))
+
+  def display_data(self):
+    return {'project': self._project,
+            'mutation_fn': self._mutation_fn.__class__.__name__}
+
+  class DatastoreWriteFn(DoFn):
+    """A ``DoFn`` that write mutations to Datastore.
+
+    Mutations are written in batches, where the maximum batch size is
+    `Mutate._WRITE_BATCH_SIZE`.
+
+    Commits are non-transactional. If a commit fails because of a conflict over
+    an entity group, the commit will be retried. This means that the mutation
+    should be idempotent (`upsert` and `delete` mutations) to prevent duplicate
+    data or errors.
+    """
+    def __init__(self, project):
+      self._project = project
+      self._datastore = None
+      self._mutations = []
+
+    def start_bundle(self, context):
+      self._mutations = []
+      self._datastore = helper.get_datastore(self._project)
+
+    def process(self, context):
+      self._mutations.append(context.element)
+      if len(self._mutations) >= Mutate._WRITE_BATCH_SIZE:
+        self._flush_batch()
+
+    def finish_bundle(self, context):
+      if self._mutations:
+        self._flush_batch()
+      self._mutations = []
+
+    def _flush_batch(self):
+      # Flush the current batch of mutations to Cloud Datastore.
+      helper.write_mutations(self._datastore, self._project, self._mutations)
+      logging.debug("Successfully wrote %d mutations", len(self._mutations))
+      self._mutations = []
+
+
+class WriteToDatastore(Mutate):
+  """A ``PTransform`` to write a ``PCollection[Entity]`` to Cloud Datastore."""
+  def __init__(self, project):
+    self._project = project
+    super(WriteToDatastore, self).__init__(
+        self._project, WriteToDatastore.to_upsert_mutation)
+
+  @staticmethod
+  def to_upsert_mutation(entity):
+    if not helper.is_key_valid(entity.key):
+      raise ValueError('Entities to be written to the Cloud Datastore must '
+                       'have complete keys:\n%s' % entity)
+    mutation = datastore_pb2.Mutation()
+    mutation.upsert.CopyFrom(entity)
+    return mutation
+
+
+class DeleteFromDatastore(Mutate):
+  """A ``PTransform`` to delete a ``PCollection[Key]`` from Cloud Datastore."""
+  def __init__(self, project):
+    self._project = project
+    super(DeleteFromDatastore, self).__init__(
+        self._project, DeleteFromDatastore.to_delete_mutation)
+
+  @staticmethod
+  def to_delete_mutation(key):
+    if not helper.is_key_valid(key):
+      raise ValueError('Keys to be deleted from the Cloud Datastore must be '
+                       'complete:\n%s", key')
+    mutation = datastore_pb2.Mutation()
+    mutation.delete.CopyFrom(key)
+    return mutation
