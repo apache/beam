@@ -72,6 +72,7 @@
                 </goals>
                 <configuration>
                   <groups>org.apache.beam.sdk.testing.RunnableOnService</groups>
+                  <excludedGroups>org.apache.beam.sdk.testing.UsesStatefulParDo</excludedGroups>
                   <forkCount>1</forkCount>
                   <reuseForks>false</reuseForks>
                   <failIfNoTests>true</failIfNoTests>
@@ -82,7 +83,8 @@
                     <beamTestPipelineOptions>
                       [
                         "--runner=TestSparkRunner",
-                        "--streaming=false"
+                        "--streaming=false",
+                        "--enableSparkMetricSinks=false"
                       ]
                     </beamTestPipelineOptions>
                     <beam.spark.test.reuseSparkContext>true</beam.spark.test.reuseSparkContext>

@@ -1094,7 +1094,7 @@ public class ParDo {
       Coder<InputT> inputCoder = ((PCollection<InputT>) input).getCoder();
       return input.getPipeline().getCoderRegistry().getDefaultCoder(
           output.getTypeDescriptor(),
-          getOldFn().getInputTypeDescriptor(),
+          getNewFn().getInputTypeDescriptor(),
           inputCoder);
       }
 

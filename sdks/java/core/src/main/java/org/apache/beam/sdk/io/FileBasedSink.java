@@ -17,23 +17,18 @@
  */
 package org.apache.beam.sdk.io;
 
-import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.base.Strings.isNullOrEmpty;
 
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Ordering;
 
-import java.io.File;
 import java.io.IOException;
 import java.io.Serializable;
 import java.nio.channels.Channels;
 import java.nio.channels.WritableByteChannel;
-import java.nio.file.Files;
-import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
@@ -47,10 +42,6 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.display.DisplayData;
-import org.apache.beam.sdk.util.FileIOChannelFactory;
-import org.apache.beam.sdk.util.GcsIOChannelFactory;
-import org.apache.beam.sdk.util.GcsUtil;
-import org.apache.beam.sdk.util.GcsUtil.GcsUtilFactory;
 import org.apache.beam.sdk.util.IOChannelFactory;
 import org.apache.beam.sdk.util.IOChannelUtils;
 import org.apache.beam.sdk.util.MimeTypes;
@@ -414,9 +405,8 @@ public abstract class FileBasedSink<T> extends Sink<T> {
 
       if (numFiles > 0) {
         LOG.debug("Copying {} files.", numFiles);
-        FileOperations fileOperations =
-            FileOperationsFactory.getFileOperations(destFilenames.get(0), options);
-        fileOperations.copy(srcFilenames, destFilenames);
+        IOChannelUtils.getFactory(destFilenames.get(0))
+            .copy(srcFilenames, destFilenames);
       } else {
         LOG.info("No output files to write.");
       }
@@ -457,9 +447,25 @@ public abstract class FileBasedSink<T> extends Sink<T> {
     protected final void removeTemporaryFiles(List<String> knownFiles, PipelineOptions options)
         throws IOException {
       LOG.debug("Removing temporary bundle output files in {}.", tempDirectory);
-      FileOperations fileOperations =
-          FileOperationsFactory.getFileOperations(tempDirectory, options);
-      fileOperations.removeDirectoryAndFiles(tempDirectory, knownFiles);
+      IOChannelFactory factory = IOChannelUtils.getFactory(tempDirectory);
+
+      // To partially mitigate the effects of filesystems with eventually-consistent
+      // directory matching APIs, we remove not only files that the filesystem says exist
+      // in the directory (which may be incomplete), but also files that are known to exist
+      // (produced by successfully completed bundles).
+      // This may still fail to remove temporary outputs of some failed bundles, but at least
+      // the common case (where all bundles succeed) is guaranteed to be fully addressed.
+      Collection<String> matches = factory.match(factory.resolve(tempDirectory, "*"));
+      Set<String> allMatches = new HashSet<>(matches);
+      allMatches.addAll(knownFiles);
+      LOG.debug(
+          "Removing {} temporary files found under {} ({} matched glob, {} known files)",
+          allMatches.size(),
+          tempDirectory,
+          matches.size(),
+          allMatches.size() - matches.size());
+      factory.remove(allMatches);
+      factory.remove(ImmutableList.of(tempDirectory));
     }
 
     /**
@@ -618,165 +624,6 @@ public abstract class FileBasedSink<T> extends Sink<T> {
 
     public String getFilename() {
       return filename;
-    }
-  }
-
-  // File system operations
-  // Warning: These class are purposefully private and will be replaced by more robust file I/O
-  // utilities. Not for use outside FileBasedSink.
-
-  /**
-   * Factory for FileOperations.
-   */
-  private static class FileOperationsFactory {
-    /**
-     * Return a FileOperations implementation based on which IOChannel would be used to write to a
-     * location specification (not necessarily a filename, as it may contain wildcards).
-     *
-     * <p>Only supports File and GCS locations (currently, the only factories registered with
-     * IOChannelUtils). For other locations, an exception is thrown.
-     */
-    public static FileOperations getFileOperations(String spec, PipelineOptions options)
-        throws IOException {
-      IOChannelFactory factory = IOChannelUtils.getFactory(spec);
-      if (factory instanceof GcsIOChannelFactory) {
-        return new GcsOperations(options);
-      } else if (factory instanceof FileIOChannelFactory) {
-        return new LocalFileOperations(factory);
-      } else {
-        throw new IOException("Unrecognized file system.");
-      }
-    }
-  }
-
-  /**
-   * Copy and Remove operations for files. Operations behave like remove-if-existing and
-   * copy-if-existing and do not throw exceptions on file not found to enable retries of these
-   * operations in the case of transient error.
-   */
-  private interface FileOperations {
-    /**
-     * Copy a collection of files from one location to another.
-     *
-     * <p>The number of source filenames must equal the number of destination filenames.
-     *
-     * @param srcFilenames the source filenames.
-     * @param destFilenames the destination filenames.
-     */
-     void copy(List<String> srcFilenames, List<String> destFilenames) throws IOException;
-
-    /**
-     * Removes a directory and the files in it (but not subdirectories).
-     *
-     * <p>Additionally, to partially mitigate the effects of filesystems with eventually-consistent
-     * directory matching APIs, takes a list of files that are known to exist - i.e. removes the
-     * union of the known files and files that the filesystem says exist in the directory.
-     *
-     * <p>Assumes that, if directory listing had been strongly consistent, it would have matched
-     * all of knownFiles - i.e. on a strongly consistent filesystem, knownFiles can be ignored.
-     */
-    void removeDirectoryAndFiles(String directory, List<String> knownFiles) throws IOException;
-  }
-
-  /**
-   * GCS file system operations.
-   */
-  private static class GcsOperations implements FileOperations {
-    private final GcsUtil gcsUtil;
-
-    GcsOperations(PipelineOptions options) {
-      gcsUtil = new GcsUtilFactory().create(options);
-    }
-
-    @Override
-    public void copy(List<String> srcFilenames, List<String> destFilenames) throws IOException {
-      gcsUtil.copy(srcFilenames, destFilenames);
-    }
-
-    @Override
-    public void removeDirectoryAndFiles(String directory, List<String> knownFiles)
-        throws IOException {
-      IOChannelFactory factory = IOChannelUtils.getFactory(directory);
-      Collection<String> matches = factory.match(directory + "/*");
-      Set<String> allMatches = new HashSet<>(matches);
-      allMatches.addAll(knownFiles);
-      LOG.debug(
-          "Removing {} temporary files found under {} ({} matched glob, {} additional known files)",
-          allMatches.size(),
-          directory,
-          matches.size(),
-          allMatches.size() - matches.size());
-      gcsUtil.remove(allMatches);
-      // No need to remove the directory itself: GCS doesn't have directories, so if the directory
-      // is empty, then it already doesn't exist.
-    }
-  }
-
-  /**
-   * File systems supported by {@link Files}.
-   */
-  private static class LocalFileOperations implements FileOperations {
-    private static final Logger LOG = LoggerFactory.getLogger(LocalFileOperations.class);
-
-    private final IOChannelFactory factory;
-
-    LocalFileOperations(IOChannelFactory factory) {
-      this.factory = factory;
-    }
-
-    @Override
-    public void copy(List<String> srcFilenames, List<String> destFilenames) throws IOException {
-      checkArgument(
-          srcFilenames.size() == destFilenames.size(),
-          "Number of source files %s must equal number of destination files %s",
-          srcFilenames.size(),
-          destFilenames.size());
-      int numFiles = srcFilenames.size();
-      for (int i = 0; i < numFiles; i++) {
-        String src = srcFilenames.get(i);
-        String dst = destFilenames.get(i);
-        LOG.debug("Copying {} to {}", src, dst);
-        copyOne(src, dst);
-      }
-    }
-
-    private void copyOne(String source, String destination) throws IOException {
-      try {
-        // Copy the source file, replacing the existing destination.
-        // Paths.get(x) will not work on win cause of the ":" after the drive letter
-        Files.copy(
-                new File(source).toPath(),
-                new File(destination).toPath(),
-                StandardCopyOption.REPLACE_EXISTING);
-      } catch (NoSuchFileException e) {
-        LOG.debug("{} does not exist.", source);
-        // Suppress exception if file does not exist.
-      }
-    }
-
-    @Override
-    public void removeDirectoryAndFiles(String directory, List<String> knownFiles)
-        throws IOException {
-      if (!new File(directory).exists()) {
-        LOG.debug("Directory {} already doesn't exist", directory);
-        return;
-      }
-      Collection<String> matches = factory.match(new File(directory, "*").getAbsolutePath());
-      LOG.debug("Removing {} temporary files found under {}", matches.size(), directory);
-      for (String filename : matches) {
-        LOG.debug("Removing file {}", filename);
-        removeOne(filename);
-      }
-      LOG.debug("Removing directory {}", directory);
-      removeOne(directory);
-    }
-
-    private void removeOne(String filename) throws IOException {
-      // Delete the file if it exists.
-      boolean exists = Files.deleteIfExists(Paths.get(filename));
-      if (!exists) {
-        LOG.debug("{} does not exist.", filename);
-      }
     }
   }
 

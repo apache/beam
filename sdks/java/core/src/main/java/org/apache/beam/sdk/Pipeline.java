@@ -17,10 +17,7 @@
  */
 package org.apache.beam.sdk;
 
-import static com.google.common.base.Preconditions.checkState;
-
 import com.google.common.collect.HashMultimap;
-import com.google.common.collect.Iterables;
 import com.google.common.collect.Multimap;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -481,20 +478,6 @@ public class Pipeline {
    */
   public PipelineOptions getOptions() {
     return options;
-  }
-
-  /**
-   * @deprecated this method is no longer compatible with the design of {@link Pipeline},
-   * as {@link PTransform PTransforms} can be applied multiple times, with different names
-   * each time.
-   */
-  @Deprecated
-  public String getFullNameForTesting(PTransform<?, ?> transform) {
-    Collection<AppliedPTransform<?, ?, ?>> uses =
-        transformApplicationsForTesting.get(transform);
-    checkState(uses.size() > 0, "Unknown transform: " + transform);
-    checkState(uses.size() <= 1, "Transform used multiple times: " + transform);
-    return Iterables.getOnlyElement(uses).getFullName();
   }
 
   /**

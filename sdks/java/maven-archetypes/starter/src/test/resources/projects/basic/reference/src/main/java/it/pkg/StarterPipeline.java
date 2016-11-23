@@ -20,13 +20,15 @@ package it.pkg;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.transforms.OldDoFn;
+import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * A starter example for writing Google Cloud Dataflow programs.
+ * A starter example for writing Beam programs.
  *
  * <p>The example takes two strings, converts them to their upper-case
  * representation and logs them.
@@ -39,7 +41,7 @@ import org.slf4j.LoggerFactory;
  * Platform, you should specify the following command-line options:
  *   --project=<YOUR_PROJECT_ID>
  *   --stagingLocation=<STAGING_LOCATION_IN_CLOUD_STORAGE>
- *   --runner=BlockingDataflowRunner
+ *   --runner=DataflowRunner
  */
 public class StarterPipeline {
   private static final Logger LOG = LoggerFactory.getLogger(StarterPipeline.class);
@@ -49,14 +51,14 @@ public class StarterPipeline {
         PipelineOptionsFactory.fromArgs(args).withValidation().create());
 
     p.apply(Create.of("Hello", "World"))
-    .apply(ParDo.of(new OldDoFn<String, String>() {
+    .apply(MapElements.via(new SimpleFunction<String, String>() {
       @Override
-      public void processElement(ProcessContext c) {
-        c.output(c.element().toUpperCase());
+      public String apply(String input) {
+        return input.toUpperCase();
       }
     }))
-    .apply(ParDo.of(new OldDoFn<String, Void>() {
-      @Override
+    .apply(ParDo.of(new DoFn<String, Void>() {
+      @ProcessElement
       public void processElement(ProcessContext c)  {
         LOG.info(c.element());
       }

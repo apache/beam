@@ -27,11 +27,10 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
 import org.apache.beam.runners.spark.SparkPipelineOptions;
-import org.apache.beam.runners.spark.SparkRunner;
 import org.apache.beam.runners.spark.examples.WordCount;
+import org.apache.beam.runners.spark.translation.streaming.utils.SparkTestPipelineOptions;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
-import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.MapElements;
@@ -52,9 +51,12 @@ public class NamedAggregatorsTest {
   @Rule
   public ClearAggregatorsRule clearAggregators = new ClearAggregatorsRule();
 
+  @Rule
+  public final SparkTestPipelineOptions pipelineOptions = new SparkTestPipelineOptions();
+
   private Pipeline createSparkPipeline() {
-    final SparkPipelineOptions options = PipelineOptionsFactory.as(SparkPipelineOptions.class);
-    options.setRunner(SparkRunner.class);
+    SparkPipelineOptions options = pipelineOptions.getOptions();
+    options.setEnableSparkMetricSinks(true);
     return Pipeline.create(options);
   }
 
@@ -81,6 +83,9 @@ public class NamedAggregatorsTest {
 
   @Test
   public void testNamedAggregators() throws Exception {
+
+    // don't reuse context in this test, as is tends to mess up Spark's MetricsSystem thread-safety
+    System.setProperty("beam.spark.test.reuseSparkContext", "false");
 
     assertThat(InMemoryMetrics.valueOf("emptyLines"), is(nullValue()));
 

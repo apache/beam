@@ -164,7 +164,11 @@ public abstract class DoFnSignature {
     public <ResultT> ResultT match(Cases<ResultT> cases) {
       // This could be done with reflection, but since the number of cases is small and known,
       // they are simply inlined.
-      if (this instanceof WindowParameter) {
+      if (this instanceof ContextParameter) {
+        return cases.dispatch((ContextParameter) this);
+      } else if (this instanceof ProcessContextParameter) {
+        return cases.dispatch((ProcessContextParameter) this);
+      } else if (this instanceof WindowParameter) {
         return cases.dispatch((WindowParameter) this);
       } else if (this instanceof RestrictionTrackerParameter) {
         return cases.dispatch((RestrictionTrackerParameter) this);
@@ -187,6 +191,8 @@ public abstract class DoFnSignature {
      * An interface for destructuring a {@link Parameter}.
      */
     public interface Cases<ResultT> {
+      ResultT dispatch(ContextParameter p);
+      ResultT dispatch(ProcessContextParameter p);
       ResultT dispatch(WindowParameter p);
       ResultT dispatch(InputProviderParameter p);
       ResultT dispatch(OutputReceiverParameter p);
@@ -200,6 +206,16 @@ public abstract class DoFnSignature {
       abstract class WithDefault<ResultT> implements Cases<ResultT> {
 
         protected abstract ResultT dispatchDefault(Parameter p);
+
+        @Override
+        public ResultT dispatch(ContextParameter p) {
+          return dispatchDefault(p);
+        }
+
+        @Override
+        public ResultT dispatch(ProcessContextParameter p) {
+          return dispatchDefault(p);
+        }
 
         @Override
         public ResultT dispatch(WindowParameter p) {
@@ -234,10 +250,24 @@ public abstract class DoFnSignature {
     }
 
     // These parameter descriptors are constant
+    private static final ContextParameter CONTEXT_PARAMETER =
+        new AutoValue_DoFnSignature_Parameter_ContextParameter();
+    private static final ProcessContextParameter PROCESS_CONTEXT_PARAMETER =
+          new AutoValue_DoFnSignature_Parameter_ProcessContextParameter();
     private static final InputProviderParameter INPUT_PROVIDER_PARAMETER =
         new AutoValue_DoFnSignature_Parameter_InputProviderParameter();
     private static final OutputReceiverParameter OUTPUT_RECEIVER_PARAMETER =
         new AutoValue_DoFnSignature_Parameter_OutputReceiverParameter();
+
+    /** Returns a {@link ProcessContextParameter}. */
+    public static ContextParameter context() {
+      return CONTEXT_PARAMETER;
+    }
+
+    /** Returns a {@link ProcessContextParameter}. */
+    public static ProcessContextParameter processContext() {
+      return PROCESS_CONTEXT_PARAMETER;
+    }
 
     /** Returns a {@link WindowParameter}. */
     public static WindowParameter boundedWindow(TypeDescriptor<? extends BoundedWindow> windowT) {
@@ -274,6 +304,26 @@ public abstract class DoFnSignature {
 
     public static TimerParameter timerParameter(TimerDeclaration decl) {
       return new AutoValue_DoFnSignature_Parameter_TimerParameter(decl);
+    }
+
+    /**
+     * Descriptor for a {@link Parameter} of type {@link DoFn.Context}.
+     *
+     * <p>All such descriptors are equal.
+     */
+    @AutoValue
+    public abstract static class ContextParameter extends Parameter {
+      ContextParameter() {}
+    }
+
+    /**
+     * Descriptor for a {@link Parameter} of type {@link DoFn.ProcessContext}.
+     *
+     * <p>All such descriptors are equal.
+     */
+    @AutoValue
+    public abstract static class ProcessContextParameter extends Parameter {
+      ProcessContextParameter() {}
     }
 
     /**

@@ -16,7 +16,19 @@
  * limitations under the License.
  */
 
+package org.apache.beam.runners.spark.translation;
+
+import java.io.Serializable;
+
+
 /**
- * Provides microbenchmarks of various transforms.
+ * Holder for Spark RDD/DStream.
  */
-package org.apache.beam.sdk.microbenchmarks.transforms;
+public interface Dataset extends Serializable {
+
+  void cache();
+
+  void action();
+
+  void setName(String name);
+}

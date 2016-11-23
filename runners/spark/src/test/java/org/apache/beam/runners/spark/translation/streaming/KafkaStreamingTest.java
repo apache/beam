@@ -28,7 +28,7 @@ import org.apache.beam.runners.spark.SparkPipelineOptions;
 import org.apache.beam.runners.spark.translation.streaming.utils.EmbeddedKafkaCluster;
 import org.apache.beam.runners.spark.translation.streaming.utils.KafkaWriteOnBatchCompleted;
 import org.apache.beam.runners.spark.translation.streaming.utils.PAssertStreaming;
-import org.apache.beam.runners.spark.translation.streaming.utils.TestOptionsForStreaming;
+import org.apache.beam.runners.spark.translation.streaming.utils.SparkTestPipelineOptionsForStreaming;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
@@ -71,7 +71,8 @@ public class KafkaStreamingTest {
   public TemporaryFolder checkpointParentDir = new TemporaryFolder();
 
   @Rule
-  public TestOptionsForStreaming commonOptions = new TestOptionsForStreaming();
+  public SparkTestPipelineOptionsForStreaming commonOptions =
+      new SparkTestPipelineOptionsForStreaming();
 
   @Test
   public void testEarliest2Topics() throws Exception {
@@ -117,7 +118,7 @@ public class KafkaStreamingTest {
         .apply(ParDo.of(new FormatKVFn()))
         .apply(Distinct.<String>create());
 
-    PAssertStreaming.runAndAssertContents(p, deduped, expected);
+    PAssertStreaming.runAndAssertContents(p, deduped, expected, Duration.standardSeconds(1L));
   }
 
   @Test
@@ -142,10 +143,6 @@ public class KafkaStreamingTest {
     // It seems that the consumer's first "position" lookup (in unit test) takes +200 msec,
     // so to be on the safe side we'll set to 750 msec.
     options.setMinReadTimeMillis(750L);
-    // run for more than 1 batch interval, so that reading of latest is attempted in the
-    // first batch with no luck, while the OnBatchCompleted injected-input afterwards will be read
-    // in the second interval.
-    options.setTimeout(Duration.standardSeconds(3).getMillis());
 
     //------- test: read and format.
     Pipeline p = Pipeline.create(options);
@@ -167,7 +164,10 @@ public class KafkaStreamingTest {
         .apply(Window.<KV<String, String>>into(FixedWindows.of(batchAndWindowDuration)))
         .apply(ParDo.of(new FormatKVFn()));
 
-    PAssertStreaming.runAndAssertContents(p, formatted, expected);
+    // run for more than 1 batch interval, so that reading of latest is attempted in the
+    // first batch with no luck, while the OnBatchCompleted injected-input afterwards will be read
+    // in the second interval.
+    PAssertStreaming.runAndAssertContents(p, formatted, expected, Duration.standardSeconds(3));
   }
 
   private static void produce(String topic, Map<String, String> messages) {

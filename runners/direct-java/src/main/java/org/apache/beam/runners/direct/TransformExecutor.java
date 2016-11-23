@@ -17,13 +17,10 @@
  */
 package org.apache.beam.runners.direct;
 
-import static com.google.common.base.Preconditions.checkState;
-
+import java.io.Closeable;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.concurrent.Callable;
-import java.util.concurrent.atomic.AtomicReference;
-import javax.annotation.Nullable;
 import org.apache.beam.runners.direct.DirectRunner.CommittedBundle;
 import org.apache.beam.sdk.metrics.MetricUpdates;
 import org.apache.beam.sdk.metrics.MetricsContainer;
@@ -70,8 +67,6 @@ class TransformExecutor<T> implements Runnable {
   private final TransformExecutorService transformEvaluationState;
   private final EvaluationContext context;
 
-  private final AtomicReference<Thread> thread;
-
   private TransformExecutor(
       EvaluationContext context,
       TransformEvaluatorFactory factory,
@@ -90,21 +85,12 @@ class TransformExecutor<T> implements Runnable {
 
     this.transformEvaluationState = transformEvaluationState;
     this.context = context;
-    this.thread = new AtomicReference<>();
   }
 
   @Override
   public void run() {
     MetricsContainer metricsContainer = new MetricsContainer(transform.getFullName());
-    MetricsEnvironment.setMetricsContainer(metricsContainer);
-    checkState(
-        thread.compareAndSet(null, Thread.currentThread()),
-        "Tried to execute %s for %s on thread %s, but is already executing on thread %s",
-        TransformExecutor.class.getSimpleName(),
-        transform.getFullName(),
-        Thread.currentThread(),
-        thread.get());
-    try {
+    try (Closeable metricsScope = MetricsEnvironment.scopedMetricsContainer(metricsContainer)) {
       Collection<ModelEnforcement<T>> enforcements = new ArrayList<>();
       for (ModelEnforcementFactory enforcementFactory : modelEnforcements) {
         ModelEnforcement<T> enforcement = enforcementFactory.forBundle(inputBundle, transform);
@@ -131,7 +117,6 @@ class TransformExecutor<T> implements Runnable {
       // Report the physical metrics from the end of this step.
       context.getMetrics().commitPhysical(inputBundle, metricsContainer.getCumulative());
 
-      MetricsEnvironment.unsetMetricsContainer();
       transformEvaluationState.complete(this);
     }
   }
@@ -185,14 +170,5 @@ class TransformExecutor<T> implements Runnable {
       enforcement.afterFinish(inputBundle, result, outputs.getOutputs());
     }
     return result;
-  }
-
-  /**
-   * If this {@link TransformExecutor} is currently executing, return the thread it is executing in.
-   * Otherwise, return null.
-   */
-  @Nullable
-  public Thread getThread() {
-    return thread.get();
   }
 }

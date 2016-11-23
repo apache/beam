@@ -354,13 +354,26 @@ public class ApexGroupByKeyOperator<K, V> implements Operator {
         }
 
         @Override
-        public void outputWindowedValue(KV<K, Iterable<V>> output, Instant timestamp,
-            Collection<? extends BoundedWindow> windows, PaneInfo pane) {
+        public void outputWindowedValue(
+            KV<K, Iterable<V>> output,
+            Instant timestamp,
+            Collection<? extends BoundedWindow> windows,
+            PaneInfo pane) {
           if (traceTuples) {
             LOG.debug("\nemitting {} timestamp {}\n", output, timestamp);
           }
-          ApexGroupByKeyOperator.this.output.emit(ApexStreamTuple.DataTuple.of(
-              WindowedValue.of(output, timestamp, windows, pane)));
+          ApexGroupByKeyOperator.this.output.emit(
+              ApexStreamTuple.DataTuple.of(WindowedValue.of(output, timestamp, windows, pane)));
+        }
+
+        @Override
+        public <SideOutputT> void sideOutputWindowedValue(
+            TupleTag<SideOutputT> tag,
+            SideOutputT output,
+            Instant timestamp,
+            Collection<? extends BoundedWindow> windows,
+            PaneInfo pane) {
+          throw new UnsupportedOperationException("GroupAlsoByWindow should not use side outputs");
         }
 
         @Override
@@ -379,8 +392,9 @@ public class ApexGroupByKeyOperator<K, V> implements Operator {
         }
 
         @Override
-        public <T> void writePCollectionViewData(TupleTag<?> tag, Iterable<WindowedValue<T>> data,
-            Coder<T> elemCoder) throws IOException {
+        public <T> void writePCollectionViewData(
+            TupleTag<?> tag, Iterable<WindowedValue<T>> data, Coder<T> elemCoder)
+            throws IOException {
           throw new RuntimeException("writePCollectionViewData() not available in Streaming mode.");
         }
 

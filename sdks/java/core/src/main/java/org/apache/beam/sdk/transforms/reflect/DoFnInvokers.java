@@ -24,7 +24,6 @@ import java.util.Map;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.DoFn.ExtraContextFactory;
 import org.apache.beam.sdk.transforms.DoFnAdapters;
 import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
@@ -101,15 +100,24 @@ public class DoFnInvokers {
 
     @Override
     public DoFn.ProcessContinuation invokeProcessElement(
-        DoFn<InputT, OutputT>.ProcessContext c, ExtraContextFactory<InputT, OutputT> extra) {
+        ArgumentProvider<InputT, OutputT> extra) {
+      // The outer DoFn is immaterial - it exists only to avoid typing InputT and OutputT repeatedly
+      DoFn<InputT, OutputT>.ProcessContext newCtx =
+          extra.processContext(new DoFn<InputT, OutputT>() {});
       OldDoFn<InputT, OutputT>.ProcessContext oldCtx =
-          DoFnAdapters.adaptProcessContext(fn, c, extra);
+          DoFnAdapters.adaptProcessContext(fn, newCtx, extra);
       try {
         fn.processElement(oldCtx);
         return DoFn.ProcessContinuation.stop();
       } catch (Throwable exc) {
         throw UserCodeException.wrap(exc);
       }
+    }
+
+    @Override
+    public void invokeOnTimer(String timerId, ArgumentProvider<InputT, OutputT> arguments) {
+      throw new UnsupportedOperationException(
+          String.format("Timers are not supported for %s", OldDoFn.class.getSimpleName()));
     }
 
     @Override

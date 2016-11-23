@@ -42,19 +42,21 @@ public class StateContexts {
         @Override
         public BoundedWindow window() {
           throw new IllegalArgumentException("cannot call window() in a null context");
-        }};
+        }
+      };
 
-  /**
-   * Returns a fake {@link StateContext}.
-   */
+  /** Returns a fake {@link StateContext}. */
   @SuppressWarnings("unchecked")
   public static <W extends BoundedWindow> StateContext<W> nullContext() {
     return (StateContext<W>) NULL_CONTEXT;
   }
 
   /**
-   * Returns a {@link StateContext} that only contains the state window.
+   * @deprecated This exists only for temporary compatibility with Dataflow worker and should be
+   *     deleted once a worker image is released that uses runners-core build after
+   *     https://github.com/apache/incubator-beam/pull/1353.
    */
+  @Deprecated
   public static <W extends BoundedWindow> StateContext<W> windowOnly(final W window) {
     return new StateContext<W>() {
       @Override
@@ -62,10 +64,12 @@ public class StateContexts {
         throw new IllegalArgumentException(
             "cannot call getPipelineOptions() in a window only context");
       }
+
       @Override
       public <T> T sideInput(PCollectionView<T> view) {
         throw new IllegalArgumentException("cannot call sideInput() in a window only context");
       }
+
       @Override
       public W window() {
         return window;
@@ -74,9 +78,11 @@ public class StateContexts {
   }
 
   /**
-   * Returns a {@link StateContext} from {@code PipelineOptions}, {@link WindowingInternals},
-   * and the state window.
+   * @deprecated This exists only for temporary compatibility with Dataflow worker and should be
+   *     deleted once a worker image is released that uses runners-core build after
+   *     https://github.com/apache/incubator-beam/pull/1353.
    */
+  @Deprecated
   public static <W extends BoundedWindow> StateContext<W> createFromComponents(
       @Nullable final PipelineOptions options,
       final WindowingInternals<?, ?> windowingInternals,

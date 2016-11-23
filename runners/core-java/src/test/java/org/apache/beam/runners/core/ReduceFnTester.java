@@ -27,7 +27,6 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Sets;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -75,14 +74,12 @@ import org.apache.beam.sdk.util.WindowingInternals;
 import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.util.WindowingStrategy.AccumulationMode;
 import org.apache.beam.sdk.util.state.InMemoryTimerInternals;
-import org.apache.beam.sdk.util.state.StateInternals;
 import org.apache.beam.sdk.util.state.StateNamespace;
 import org.apache.beam.sdk.util.state.StateNamespaces;
 import org.apache.beam.sdk.util.state.StateTag;
 import org.apache.beam.sdk.util.state.TestInMemoryStateInternals;
 import org.apache.beam.sdk.util.state.TimerCallback;
 import org.apache.beam.sdk.values.KV;
-import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.joda.time.Duration;
@@ -106,7 +103,8 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
   private final TestTimerInternals timerInternals = new TestTimerInternals();
 
   private final WindowFn<Object, W> windowFn;
-  private final TestWindowingInternals windowingInternals;
+  private final TestOutputWindowedValue testOutputter;
+  private final SideInputReader sideInputReader;
   private final Coder<OutputT> outputCoder;
   private final WindowingStrategy<Object, W> objectStrategy;
   private final ExecutableTriggerStateMachine executableTriggerStateMachine;
@@ -291,7 +289,8 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
     this.objectStrategy = objectStrategy;
     this.reduceFn = reduceFn;
     this.windowFn = objectStrategy.getWindowFn();
-    this.windowingInternals = new TestWindowingInternals(sideInputReader);
+    this.testOutputter = new TestOutputWindowedValue();
+    this.sideInputReader = sideInputReader;
     this.executableTriggerStateMachine = ExecutableTriggerStateMachine.create(triggerStateMachine);
     this.outputCoder = outputCoder;
     this.options = options;
@@ -313,7 +312,8 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
         executableTriggerStateMachine,
         stateInternals,
         timerInternals,
-        windowingInternals,
+        testOutputter,
+        sideInputReader,
         droppedDueToClosedWindow,
         reduceFn,
         options);
@@ -418,7 +418,7 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
    * How many panes do we have in the output?
    */
   public int getOutputSize() {
-    return windowingInternals.outputs.size();
+    return testOutputter.outputs.size();
   }
 
   /**
@@ -426,7 +426,7 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
    */
   public List<WindowedValue<OutputT>> extractOutput() {
     ImmutableList<WindowedValue<OutputT>> result =
-        FluentIterable.from(windowingInternals.outputs)
+        FluentIterable.from(testOutputter.outputs)
             .transform(new Function<WindowedValue<KV<String, OutputT>>, WindowedValue<OutputT>>() {
               @Override
               public WindowedValue<OutputT> apply(WindowedValue<KV<String, OutputT>> input) {
@@ -434,7 +434,7 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
               }
             })
             .toList();
-    windowingInternals.outputs.clear();
+    testOutputter.outputs.clear();
     return result;
   }
 
@@ -517,18 +517,15 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
   /**
    * Convey the simulated state and implement {@link #outputWindowedValue} to capture all output
    * elements.
-   */
-  private class TestWindowingInternals implements WindowingInternals<InputT, KV<String, OutputT>> {
+   */private class TestOutputWindowedValue implements OutputWindowedValue<KV<String, OutputT>> {
     private List<WindowedValue<KV<String, OutputT>>> outputs = new ArrayList<>();
-    private SideInputReader sideInputReader;
-
-    private TestWindowingInternals(SideInputReader sideInputReader) {
-      this.sideInputReader = sideInputReader;
-    }
 
     @Override
-    public void outputWindowedValue(KV<String, OutputT> output, Instant timestamp,
-        Collection<? extends BoundedWindow> windows, PaneInfo pane) {
+    public void outputWindowedValue(
+        KV<String, OutputT> output,
+        Instant timestamp,
+        Collection<? extends BoundedWindow> windows,
+        PaneInfo pane) {
       // Copy the output value (using coders) before capturing it.
       KV<String, OutputT> copy = SerializableUtils.<KV<String, OutputT>>ensureSerializableByCoder(
           KvCoder.of(StringUtf8Coder.of(), outputCoder), output, "outputForWindow");
@@ -537,47 +534,13 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
     }
 
     @Override
-    public TimerInternals timerInternals() {
-      throw new UnsupportedOperationException(
-          "Testing triggers should not use timers from WindowingInternals.");
-    }
-
-    @Override
-    public Collection<? extends BoundedWindow> windows() {
-      throw new UnsupportedOperationException(
-          "Testing triggers should not use windows from WindowingInternals.");
-    }
-
-    @Override
-    public PaneInfo pane() {
-      throw new UnsupportedOperationException(
-          "Testing triggers should not use pane from WindowingInternals.");
-    }
-
-    @Override
-    public <T> void writePCollectionViewData(
-        TupleTag<?> tag, Iterable<WindowedValue<T>> data, Coder<T> elemCoder) throws IOException {
-      throw new UnsupportedOperationException(
-          "Testing triggers should not use writePCollectionViewData from WindowingInternals.");
-    }
-
-    @Override
-    public StateInternals<Object> stateInternals() {
-      // Safe for testing only
-      @SuppressWarnings({"unchecked", "rawtypes"})
-      TestInMemoryStateInternals<Object> untypedStateInternals =
-          (TestInMemoryStateInternals) stateInternals;
-      return untypedStateInternals;
-    }
-
-    @Override
-    public <T> T sideInput(PCollectionView<T> view, BoundedWindow mainInputWindow) {
-      if (!sideInputReader.contains(view)) {
-        throw new IllegalArgumentException("calling sideInput() with unknown view");
-      }
-      BoundedWindow sideInputWindow =
-          view.getWindowingStrategyInternal().getWindowFn().getSideInputWindow(mainInputWindow);
-      return sideInputReader.get(view, sideInputWindow);
+    public <SideOutputT> void sideOutputWindowedValue(
+        TupleTag<SideOutputT> tag,
+        SideOutputT output,
+        Instant timestamp,
+        Collection<? extends BoundedWindow> windows,
+        PaneInfo pane) {
+      throw new UnsupportedOperationException("GroupAlsoByWindow should not use side outputs");
     }
   }
 

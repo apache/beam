@@ -33,84 +33,26 @@ import org.apache.flink.util.Collector;
 import org.joda.time.Instant;
 
 /**
- * {@link OldDoFn.ProcessContext} for {@link FlinkMultiOutputDoFnFunction} that supports
- * side outputs.
+ * {@link OldDoFn.ProcessContext} for {@link FlinkMultiOutputDoFnFunction} that supports side
+ * outputs.
  */
 class FlinkMultiOutputProcessContext<InputT, OutputT>
-    extends FlinkProcessContext<InputT, OutputT> {
+    extends FlinkProcessContextBase<InputT, OutputT> {
 
-  // we need a different Collector from the base class
   private final Collector<WindowedValue<RawUnionValue>> collector;
-
   private final Map<TupleTag<?>, Integer> outputMap;
-
 
   FlinkMultiOutputProcessContext(
       PipelineOptions pipelineOptions,
       RuntimeContext runtimeContext,
       OldDoFn<InputT, OutputT> doFn,
       WindowingStrategy<?, ?> windowingStrategy,
+      Map<PCollectionView<?>, WindowingStrategy<?, ?>> sideInputs,
       Collector<WindowedValue<RawUnionValue>> collector,
-      Map<TupleTag<?>, Integer> outputMap,
-      Map<PCollectionView<?>, WindowingStrategy<?, ?>> sideInputs) {
-    super(
-        pipelineOptions,
-        runtimeContext,
-        doFn,
-        windowingStrategy,
-        new Collector<WindowedValue<OutputT>>() {
-          @Override
-          public void collect(WindowedValue<OutputT> outputTWindowedValue) {
-
-          }
-
-          @Override
-          public void close() {
-
-          }
-        },
-        sideInputs);
-
+      Map<TupleTag<?>, Integer> outputMap) {
+    super(pipelineOptions, runtimeContext, doFn, windowingStrategy, sideInputs);
     this.collector = collector;
     this.outputMap = outputMap;
-  }
-
-  @Override
-  public FlinkProcessContext<InputT, OutputT> forWindowedValue(
-      WindowedValue<InputT> windowedValue) {
-    this.windowedValue = windowedValue;
-    return this;
-  }
-
-  @Override
-  public void outputWithTimestamp(OutputT value, Instant timestamp) {
-    if (windowedValue == null) {
-      // we are in startBundle() or finishBundle()
-
-      try {
-        Collection windows = windowingStrategy.getWindowFn().assignWindows(
-            new FlinkNoElementAssignContext(
-                windowingStrategy.getWindowFn(),
-                value,
-                timestamp));
-
-        collector.collect(
-            WindowedValue.of(
-                new RawUnionValue(0, value),
-                timestamp != null ? timestamp : new Instant(Long.MIN_VALUE),
-                windows,
-                PaneInfo.NO_FIRING));
-      } catch (Exception e) {
-        throw new RuntimeException(e);
-      }
-    } else {
-      collector.collect(
-          WindowedValue.of(
-              new RawUnionValue(0, value),
-              windowedValue.getTimestamp(),
-              windowedValue.getWindows(),
-              windowedValue.getPane()));
-    }
   }
 
   @Override
@@ -119,9 +61,7 @@ class FlinkMultiOutputProcessContext<InputT, OutputT>
       Instant timestamp,
       Collection<? extends BoundedWindow> windows,
       PaneInfo pane) {
-    collector.collect(
-        WindowedValue.of(
-            new RawUnionValue(0, value), timestamp, windows, pane));
+    collector.collect(WindowedValue.of(new RawUnionValue(0, value), timestamp, windows, pane));
   }
 
   @Override
@@ -142,19 +82,24 @@ class FlinkMultiOutputProcessContext<InputT, OutputT>
       throw new IllegalArgumentException("Unknown side output tag: " + tag);
     }
 
+    outputUnionValue(value, timestamp, new RawUnionValue(index, value));
+  }
+
+  private <T> void outputUnionValue(T value, Instant timestamp, RawUnionValue unionValue) {
     if (windowedValue == null) {
       // we are in startBundle() or finishBundle()
 
       try {
-        Collection windows = windowingStrategy.getWindowFn().assignWindows(
-            new FlinkNoElementAssignContext(
-                windowingStrategy.getWindowFn(),
-                value,
-                timestamp));
+        Collection<? extends BoundedWindow> windows =
+            windowingStrategy
+                .getWindowFn()
+                .assignWindows(
+                    new FlinkNoElementAssignContext(
+                        windowingStrategy.getWindowFn(), value, timestamp));
 
         collector.collect(
             WindowedValue.of(
-                new RawUnionValue(index, value),
+                unionValue,
                 timestamp != null ? timestamp : new Instant(Long.MIN_VALUE),
                 windows,
                 PaneInfo.NO_FIRING));
@@ -164,11 +109,10 @@ class FlinkMultiOutputProcessContext<InputT, OutputT>
     } else {
       collector.collect(
           WindowedValue.of(
-              new RawUnionValue(index, value),
+              unionValue,
               windowedValue.getTimestamp(),
               windowedValue.getWindows(),
               windowedValue.getPane()));
     }
-
   }
 }

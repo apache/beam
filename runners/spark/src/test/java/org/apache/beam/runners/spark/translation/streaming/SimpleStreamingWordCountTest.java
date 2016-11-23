@@ -25,7 +25,7 @@ import org.apache.beam.runners.spark.SparkPipelineOptions;
 import org.apache.beam.runners.spark.examples.WordCount;
 import org.apache.beam.runners.spark.io.CreateStream;
 import org.apache.beam.runners.spark.translation.streaming.utils.PAssertStreaming;
-import org.apache.beam.runners.spark.translation.streaming.utils.TestOptionsForStreaming;
+import org.apache.beam.runners.spark.translation.streaming.utils.SparkTestPipelineOptionsForStreaming;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.transforms.MapElements;
@@ -47,7 +47,8 @@ public class SimpleStreamingWordCountTest implements Serializable {
   public TemporaryFolder checkpointParentDir = new TemporaryFolder();
 
   @Rule
-  public TestOptionsForStreaming commonOptions = new TestOptionsForStreaming();
+  public SparkTestPipelineOptionsForStreaming pipelineOptions =
+      new SparkTestPipelineOptionsForStreaming();
 
   private static final String[] WORDS = {"hi there", "hi", "hi sue bob", "hi sue", "", "bob hi"};
 
@@ -62,12 +63,10 @@ public class SimpleStreamingWordCountTest implements Serializable {
 
   @Test
   public void testFixedWindows() throws Exception {
-    SparkPipelineOptions options = commonOptions.withTmpCheckpointDir(checkpointParentDir);
+    SparkPipelineOptions options = pipelineOptions.withTmpCheckpointDir(checkpointParentDir);
 
     // override defaults
     options.setBatchIntervalMillis(BATCH_INTERVAL.getMillis());
-    // graceful stop is on, so no worries about the timeout and window being equal
-    options.setTimeout(windowDuration.getMillis());
 
     Pipeline pipeline = Pipeline.create(options);
 
@@ -79,6 +78,6 @@ public class SimpleStreamingWordCountTest implements Serializable {
             .apply(new WordCount.CountWords())
             .apply(MapElements.via(new WordCount.FormatAsTextFn()));
 
-    PAssertStreaming.runAndAssertContents(pipeline, output, EXPECTED_WORD_COUNTS);
+    PAssertStreaming.runAndAssertContents(pipeline, output, EXPECTED_WORD_COUNTS, windowDuration);
   }
 }

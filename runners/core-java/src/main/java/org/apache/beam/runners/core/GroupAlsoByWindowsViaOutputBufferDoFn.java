@@ -69,14 +69,15 @@ public class GroupAlsoByWindowsViaOutputBufferDoFn<K, InputT, OutputT, W extends
     StateInternals<K> stateInternals = stateInternalsFactory.stateInternalsForKey(key);
 
     ReduceFnRunner<K, InputT, OutputT, W> reduceFnRunner =
-        new ReduceFnRunner<K, InputT, OutputT, W>(
+        new ReduceFnRunner<>(
             key,
             strategy,
             ExecutableTriggerStateMachine.create(
                 TriggerStateMachines.stateMachineForTrigger(strategy.getTrigger())),
             stateInternals,
             timerInternals,
-            c.windowingInternals(),
+            WindowingInternalsAdapters.outputWindowedValue(c.windowingInternals()),
+            WindowingInternalsAdapters.sideInputReader(c.windowingInternals()),
             droppedDueToClosedWindow,
             reduceFn,
             c.getPipelineOptions());

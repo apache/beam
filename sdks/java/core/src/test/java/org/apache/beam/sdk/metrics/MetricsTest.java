@@ -37,7 +37,7 @@ public class MetricsTest {
 
   @After
   public void tearDown() {
-    MetricsEnvironment.unsetMetricsContainer();
+    MetricsEnvironment.setCurrentContainer(null);
   }
 
   @Test
@@ -61,7 +61,7 @@ public class MetricsTest {
   @Test
   public void distributionToCell() {
     MetricsContainer container = new MetricsContainer("step");
-    MetricsEnvironment.setMetricsContainer(container);
+    MetricsEnvironment.setCurrentContainer(container);
 
     Distribution distribution = Metrics.distribution(NS, NAME);
 
@@ -80,7 +80,7 @@ public class MetricsTest {
   @Test
   public void counterToCell() {
     MetricsContainer container = new MetricsContainer("step");
-    MetricsEnvironment.setMetricsContainer(container);
+    MetricsEnvironment.setCurrentContainer(container);
     Counter counter = Metrics.counter(NS, NAME);
     CounterCell cell = container.getCounter(METRIC_NAME);
     counter.inc();

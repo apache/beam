@@ -289,8 +289,8 @@ public class SplittableParDo<
       // producing a limited amount of output.
       DoFn.ProcessContinuation cont =
           invoker.invokeProcessElement(
-              makeContext(c, elementAndRestriction.element(), tracker, residual),
-              wrapTracker(tracker));
+              wrapTracker(
+                  tracker, makeContext(c, elementAndRestriction.element(), tracker, residual)));
       if (residual[0] == null) {
         // This means the call completed unsolicited, and the context produced by makeContext()
         // did not take a checkpoint. Take one now.
@@ -391,24 +391,43 @@ public class SplittableParDo<
       };
     }
 
-    /** Creates an {@link DoFn.ExtraContextFactory} that provides just the given tracker. */
-    private DoFn.ExtraContextFactory<InputT, OutputT> wrapTracker(final TrackerT tracker) {
-      return new ExtraContextFactoryForTracker<>(tracker);
+    /**
+     * Creates an {@link DoFnInvoker.ArgumentProvider} that provides the given tracker as well as
+     * the given
+     * {@link ProcessContext} (which is also provided when a {@link Context} is requested.
+     */
+    private DoFnInvoker.ArgumentProvider<InputT, OutputT> wrapTracker(
+        TrackerT tracker, DoFn<InputT, OutputT>.ProcessContext processContext) {
+
+      return new ArgumentProviderForTracker<>(tracker, processContext);
     }
 
-    private static class ExtraContextFactoryForTracker<
+    private static class ArgumentProviderForTracker<
             InputT, OutputT, TrackerT extends RestrictionTracker<?>>
-        implements DoFn.ExtraContextFactory<InputT, OutputT> {
+        implements DoFnInvoker.ArgumentProvider<InputT, OutputT> {
       private final TrackerT tracker;
+      private final DoFn<InputT, OutputT>.ProcessContext processContext;
 
-      ExtraContextFactoryForTracker(TrackerT tracker) {
+      ArgumentProviderForTracker(
+          TrackerT tracker, DoFn<InputT, OutputT>.ProcessContext processContext) {
         this.tracker = tracker;
+        this.processContext = processContext;
       }
 
       @Override
       public BoundedWindow window() {
         // DoFnSignatures should have verified that this DoFn doesn't access extra context.
         throw new IllegalStateException("Unexpected extra context access on a splittable DoFn");
+      }
+
+      @Override
+      public DoFn.Context context(DoFn<InputT, OutputT> doFn) {
+        return processContext;
+      }
+
+      @Override
+      public DoFn.ProcessContext processContext(DoFn<InputT, OutputT> doFn) {
+        return processContext;
       }
 
       @Override
