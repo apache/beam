@@ -50,9 +50,8 @@ class ReadFromDatastore(PTransform):
   significant impact on the performance of the job.
 
   The semantics for the query splitting is defined below:
-    1. Any value for `num_splits` less than or equal to 0 will be ignored, and
-    the number of splits will be chosen dynamically at runtime based on the
-    query data size.
+    1. If `num_splits` is equal to 0, then the number of splits will be chosen
+    dynamically at runtime based on the query data size.
 
     2. Any value of `num_splits` greater than
     `ReadFromDatastore._NUM_QUERY_SPLITS_MAX` will be capped at that value.
@@ -81,7 +80,7 @@ class ReadFromDatastore(PTransform):
 
     Args:
       project: The Project ID
-      query: The Cloud Datastore query to be read from.
+      query: Cloud Datastore query to be read from.
       namespace: An optional namespace.
       num_splits: Number of splits for the query.
     """
@@ -91,6 +90,8 @@ class ReadFromDatastore(PTransform):
       ValueError("Project cannot be empty")
     if not query:
       ValueError("Query cannot be empty")
+    if num_splits < 0:
+      ValueError("num_splits must be greater than or equal 0")
 
     self._project = project
     # using _namespace conflicts with DisplayData._namespace
@@ -162,7 +163,7 @@ class ReadFromDatastore(PTransform):
         return [(key, query)]
 
       # Compute the estimated numSplits if not specified by the user.
-      if self._num_splits <= 0:
+      if self._num_splits == 0:
         estimated_num_splits = ReadFromDatastore.get_estimated_num_splits(
             self._project, self._datastore_namespace, self._query,
             self._datastore)
@@ -275,7 +276,7 @@ class ReadFromDatastore(PTransform):
           project, namespace, query, datastore)
       logging.info('Estimated size bytes for query: %s', estimated_size_bytes)
       num_splits = int(min(ReadFromDatastore._NUM_QUERY_SPLITS_MAX, round(
-          ((float(estimated_size_bytes)) /
+          (float(estimated_size_bytes) /
            ReadFromDatastore._DEFAULT_BUNDLE_SIZE_BYTES))))
 
     except Exception as e:
