@@ -58,6 +58,6 @@ public interface ModelEnforcement<T> {
    */
   void afterFinish(
       CommittedBundle<T> input,
-      TransformResult result,
+      TransformResult<T> result,
       Iterable<? extends CommittedBundle<?>> outputs);
 }

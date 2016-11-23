@@ -270,7 +270,7 @@ final class ExecutorServiceParallelExecutor implements PipelineExecutor {
 
     @Override
     public final CommittedResult handleResult(
-        CommittedBundle<?> inputBundle, TransformResult result) {
+        CommittedBundle<?> inputBundle, TransformResult<?> result) {
       CommittedResult committedResult = evaluationContext.handleResult(inputBundle, timers, result);
       for (CommittedBundle<?> outputBundle : committedResult.getOutputs()) {
         allUpdates.offer(ExecutorUpdate.fromBundle(outputBundle,

@@ -143,7 +143,7 @@ class GroupByKeyOnlyEvaluatorFactory implements TransformEvaluatorFactory {
     }
 
     @Override
-    public TransformResult finishBundle() {
+    public TransformResult<KV<K, V>> finishBundle() {
       Builder resultBuilder = StepTransformResult.withoutHold(application);
       for (Map.Entry<GroupingKey<K>, List<WindowedValue<V>>> groupedEntry :
           groupingMap.entrySet()) {

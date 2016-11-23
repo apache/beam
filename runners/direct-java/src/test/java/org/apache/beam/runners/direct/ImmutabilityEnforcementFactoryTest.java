@@ -78,7 +78,7 @@ public class ImmutabilityEnforcementFactoryTest implements Serializable {
     enforcement.afterElement(element);
     enforcement.afterFinish(
         elements,
-        StepTransformResult.withoutHold(consumer).build(),
+        StepTransformResult.<byte[]>withoutHold(consumer).build(),
         Collections.<CommittedBundle<?>>emptyList());
   }
 
@@ -98,7 +98,7 @@ public class ImmutabilityEnforcementFactoryTest implements Serializable {
     enforcement.afterElement(element);
     enforcement.afterFinish(
         elements,
-        StepTransformResult.withoutHold(consumer).build(),
+        StepTransformResult.<byte[]>withoutHold(consumer).build(),
         Collections.<CommittedBundle<?>>emptyList());
   }
 
@@ -120,7 +120,7 @@ public class ImmutabilityEnforcementFactoryTest implements Serializable {
     thrown.expectMessage("Input values must not be mutated");
     enforcement.afterFinish(
         elements,
-        StepTransformResult.withoutHold(consumer).build(),
+        StepTransformResult.<byte[]>withoutHold(consumer).build(),
         Collections.<CommittedBundle<?>>emptyList());
   }
 }

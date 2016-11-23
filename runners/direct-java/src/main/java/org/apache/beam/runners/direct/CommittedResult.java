@@ -59,7 +59,7 @@ abstract class CommittedResult {
   public abstract Set<OutputType> getProducedOutputTypes();
 
   public static CommittedResult create(
-      TransformResult original,
+      TransformResult<?> original,
       CommittedBundle<?> unprocessedElements,
       Iterable<? extends CommittedBundle<?>> outputs,
       Set<OutputType> producedOutputs) {
