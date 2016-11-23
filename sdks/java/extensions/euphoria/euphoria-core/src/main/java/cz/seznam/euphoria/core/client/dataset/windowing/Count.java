@@ -20,7 +20,7 @@ public final class Count<T> implements Windowing<T, Batch.BatchWindow> {
   }
 
   @Override
-  public Set<Batch.BatchWindow> assignWindowsToElement(WindowedElement<?, T> input) {
+  public Set<Batch.BatchWindow> assignWindowsToElement(WindowedElement<?, T> el) {
     return singleton(Batch.BatchWindow.get());
   }
 

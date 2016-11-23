@@ -36,6 +36,7 @@ public class CountByKeyTest {
     assertNotNull(count.keyExtractor);
     assertEquals(counted, count.output());
     assertSame(windowing, count.getWindowing());
+    assertNull(count.getEventTimeAssigner());
 
     // default partitioning used
     assertTrue(count.getPartitioning().hasDefaultPartitioner());
@@ -84,11 +85,12 @@ public class CountByKeyTest {
     CountByKey.named("CountByKey1")
             .of(dataset)
             .keyBy(s -> s)
-            .windowBy(Time.of(Duration.ofHours(1)))
+            .windowBy(Time.of(Duration.ofHours(1)), (s -> 0L))
             .output();
 
     CountByKey count = (CountByKey) flow.operators().iterator().next();
     assertTrue(count.getWindowing() instanceof Time);
+    assertNotNull(count.getEventTimeAssigner());
   }
 
   @Test
@@ -99,10 +101,12 @@ public class CountByKeyTest {
     CountByKey.named("CountByKey1")
             .of(dataset)
             .keyBy(s -> s)
+            .windowBy(Time.of(Duration.ofHours(1)))
             .setPartitioning(new HashPartitioning<>(1))
             .output();
 
     CountByKey count = (CountByKey) flow.operators().iterator().next();
+    assertTrue(count.getWindowing() instanceof Time);
     assertTrue(!count.getPartitioning().hasDefaultPartitioner());
     assertTrue(count.getPartitioning().getPartitioner() instanceof HashPartitioner);
     assertEquals(1, count.getPartitioning().getNumPartitions());
@@ -118,9 +122,11 @@ public class CountByKeyTest {
             .keyBy(s -> s)
             .setPartitioner(new HashPartitioner<>())
             .setNumPartitions(5)
+            .windowBy(Time.of(Duration.ofHours(1)))
             .output();
 
     CountByKey count = (CountByKey) flow.operators().iterator().next();
+    assertTrue(count.getWindowing() instanceof Time);
     assertTrue(!count.getPartitioning().hasDefaultPartitioner());
     assertTrue(count.getPartitioning().getPartitioner() instanceof HashPartitioner);
     assertEquals(5, count.getPartitioning().getNumPartitions());

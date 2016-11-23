@@ -140,8 +140,7 @@ public class CountByKeyTest extends OperatorTest {
           Dataset<Pair<Integer, Long>> input) {
         return CountByKey.of(input)
             .keyBy(Pair::getFirst)
-            .windowBy(Time.of(Duration.ofSeconds(1))
-                .using(Pair::getSecond))
+            .windowBy(Time.of(Duration.ofSeconds(1)), Pair::getSecond)
             .output();
       }
 

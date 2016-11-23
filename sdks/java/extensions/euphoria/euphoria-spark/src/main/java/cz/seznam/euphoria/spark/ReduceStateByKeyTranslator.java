@@ -42,6 +42,7 @@ class ReduceStateByKeyTranslator implements SparkOperatorTranslator<ReduceStateB
     final UnaryFunction keyExtractor;
     final UnaryFunction valueExtractor;
     final Windowing windowing = operator.getWindowing();
+    final UnaryFunction<?, Long> eventTimeAssigner = operator.getEventTimeAssigner();
 
     // FIXME
     if (windowing instanceof MergingWindowing) {
@@ -65,7 +66,7 @@ class ReduceStateByKeyTranslator implements SparkOperatorTranslator<ReduceStateB
 
     // extract composite key (window, key) from data
     JavaPairRDD<KeyedWindow, Object> tuples = input.flatMapToPair(
-            new CompositeKeyExtractor(keyExtractor, valueExtractor, windowing));
+            new CompositeKeyExtractor(keyExtractor, valueExtractor, windowing, eventTimeAssigner));
 
     JavaPairRDD<KeyedWindow, Object> sorted = tuples.repartitionAndSortWithinPartitions(
             new PartitioningWrapper(operator.getPartitioning()),
@@ -84,13 +85,16 @@ class ReduceStateByKeyTranslator implements SparkOperatorTranslator<ReduceStateB
     private final UnaryFunction keyExtractor;
     private final UnaryFunction valueExtractor;
     private final Windowing windowing;
+    private final UnaryFunction eventTimeAssigner;
 
     public CompositeKeyExtractor(UnaryFunction keyExtractor,
                                  UnaryFunction valueExtractor,
-                                 Windowing windowing) {
+                                 Windowing windowing,
+                                 UnaryFunction<?, Long> eventTimeAssigner) {
       this.keyExtractor = keyExtractor;
       this.valueExtractor = valueExtractor;
       this.windowing = windowing;
+      this.eventTimeAssigner = eventTimeAssigner;
     }
 
     @Override
@@ -99,6 +103,10 @@ class ReduceStateByKeyTranslator implements SparkOperatorTranslator<ReduceStateB
 
       // if windowing defined use window assigner
       if (windowing != null) {
+        if (eventTimeAssigner != null) {
+          wel.setTimestamp((long) eventTimeAssigner.apply(wel.get()));
+        }
+
         output = new LinkedList<>();
         Set<Window> windows = windowing.assignWindowsToElement(wel);
         for (Window wid : windows) {

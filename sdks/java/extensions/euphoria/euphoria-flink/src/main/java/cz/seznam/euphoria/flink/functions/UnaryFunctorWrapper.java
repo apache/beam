@@ -30,7 +30,8 @@ public class UnaryFunctorWrapper<WID extends Window, IN, OUT>
     f.apply(value.get(), new Context<OUT>() {
       @Override
       public void collect(OUT elem) {
-        out.collect(new WindowedElement<>(value.getWindow(), elem));
+        out.collect(new WindowedElement<>(
+                value.getWindow(), value.getTimestamp(), elem));
       }
       @Override
       public Object getWindow() {

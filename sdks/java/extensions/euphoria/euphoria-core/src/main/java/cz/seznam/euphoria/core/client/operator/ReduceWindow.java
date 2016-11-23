@@ -85,12 +85,13 @@ public class ReduceWindow<
   public static class OutputBuilder<T, VALUE, OUT>
       implements OptionalMethodBuilder<OutputBuilder<T, VALUE, OUT>> {
     
-    final String name;
-    final Dataset<T> input;
-    final UnaryFunction<T, VALUE> valueExtractor;    
-    final ReduceFunction<VALUE, OUT> reducer;
-    int numPartitions = -1;
-    Windowing<T, ?> windowing;
+    private final String name;
+    private final Dataset<T> input;
+    private final UnaryFunction<T, VALUE> valueExtractor;
+    private final ReduceFunction<VALUE, OUT> reducer;
+    private int numPartitions = -1;
+    private Windowing<T, ?> windowing;
+    private UnaryFunction<T, Long> eventTimeAssigner;
 
     public OutputBuilder(
         String name,
@@ -106,13 +107,19 @@ public class ReduceWindow<
     public Dataset<OUT> output() {
       Flow flow = input.getFlow();
       ReduceWindow<T, VALUE, OUT, ?> operator = new ReduceWindow<>(
-          name, flow, input, valueExtractor, (Windowing) windowing, reducer, numPartitions);
+          name, flow, input, valueExtractor,
+              (Windowing) windowing, eventTimeAssigner, reducer, numPartitions);
       flow.add(operator);
       return operator.output();
     }
     public <W extends Window> OutputBuilder<T, VALUE, OUT>
     windowBy(Windowing<T, W> windowing) {
+      return windowBy(windowing, null);
+    }
+    public <W extends Window> OutputBuilder<T, VALUE, OUT>
+    windowBy(Windowing<T, W> windowing, UnaryFunction<T, Long> eventTimeAssigner) {
       this.windowing = windowing;
+      this.eventTimeAssigner = eventTimeAssigner;
       return this;
     }
 
@@ -141,11 +148,12 @@ public class ReduceWindow<
       Flow flow,
       Dataset<IN> input,
       UnaryFunction<IN, VALUE> valueExtractor,
-      Windowing<IN, W> windowing,
+      Windowing<IN, W> windowing /* optional */,
+      UnaryFunction<IN, Long> eventTimeAssigner /* optional */,
       ReduceFunction<VALUE, OUT> reducer,
       int numPartitions) {
     
-    super(name, flow, input, e -> B_ZERO, windowing,
+    super(name, flow, input, e -> B_ZERO, windowing, eventTimeAssigner,
         new Partitioning<Byte>() {
           @Override
           public Partitioner<Byte> getPartitioner() {
@@ -172,7 +180,7 @@ public class ReduceWindow<
     reduceByKey = new ReduceByKey<>(
         getName() + "::ReduceByKey", getFlow(), input,
         getKeyExtractor(), valueExtractor,
-        windowing, reducer, partitioning);
+        windowing, eventTimeAssigner, reducer, partitioning);
     Dataset<Pair<Void, OUT>> output = reduceByKey.output();
 
     MapElements<Pair<Void, OUT>, OUT> format = new MapElements<>(

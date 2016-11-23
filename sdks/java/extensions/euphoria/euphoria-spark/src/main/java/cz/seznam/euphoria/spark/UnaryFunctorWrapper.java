@@ -24,6 +24,7 @@ public class UnaryFunctorWrapper<WID extends Window, IN, OUT>
   @Override
   public Iterator<WindowedElement<WID, OUT>> call(WindowedElement<WID, IN> elem) {
     final WID window = elem.getWindow();
+    final long timestamp = elem.getTimestamp();
 
     // setup user context
     context.clear();
@@ -33,6 +34,6 @@ public class UnaryFunctorWrapper<WID extends Window, IN, OUT>
 
     // wrap output in WindowedElement
     return Iterators.transform(context.getOutputIterator(),
-            e -> new WindowedElement<>(window, e));
+            e -> new WindowedElement<>(window, timestamp, e));
   }
 }

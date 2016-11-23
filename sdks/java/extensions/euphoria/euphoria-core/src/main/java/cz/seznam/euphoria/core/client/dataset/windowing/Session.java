@@ -1,7 +1,6 @@
 
 package cz.seznam.euphoria.core.client.dataset.windowing;
 
-import cz.seznam.euphoria.core.client.functional.UnaryFunction;
 import cz.seznam.euphoria.core.client.triggers.AfterFirstCompositeTrigger;
 import cz.seznam.euphoria.core.client.triggers.PeriodicTimeTrigger;
 import cz.seznam.euphoria.core.client.triggers.TimeTrigger;
@@ -15,75 +14,37 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
-
-import static java.util.Objects.requireNonNull;
-
-import java.util.Optional;
+import java.util.Objects;
 import java.util.Set;
 
 /**
  * Session windowing.
  */
-public final class Session<T> implements
-        MergingWindowing<T, TimeInterval> {
+public final class Session<T> implements MergingWindowing<T, TimeInterval> {
 
-  public static final class OfChain {
-    private final long gapMillis;
+  private final long gapDurationMillis;
+  private Duration earlyTriggeringPeriod;
 
-    private OfChain(Duration gap) {
-      gapMillis = gap.toMillis();
-    }
-
-    public EarlyTriggeringChain earlyTriggering(Duration timeout) {
-      return new EarlyTriggeringChain(this, requireNonNull(timeout));
-    }
-
-    public <T> Session<T> using(UnaryFunction<T, Long> eventFn) {
-      return new EarlyTriggeringChain(this, null).using(eventFn);
-    }
-  } // ~ end of OfChain
-
-  public static class EarlyTriggeringChain {
-    private final OfChain ofChain;
-    private final Duration earlyTriggering;
-
-    private EarlyTriggeringChain(
-            OfChain ofChain,
-            Duration earlyTriggering /* optional */) {
-
-      this.ofChain = requireNonNull(ofChain);
-      this.earlyTriggering = earlyTriggering;
-    }
-
-    public <T> Session<T> using(UnaryFunction<T, Long> eventFn) {
-      return new Session<>(eventFn, this.ofChain.gapMillis, this.earlyTriggering);
-    }
-
+  public static <T> Session<T> of(Duration gapDuration) {
+    return new Session<>(gapDuration.toMillis());
   }
 
-  public static OfChain of(Duration gapDuration) {
-    return new OfChain(gapDuration);
-  }
-
-  final UnaryFunction<T, Long> eventTimeFn;
-  final long gapDurationMillis;
-  final Duration earlyTriggeringPeriod;
-
-  private Session(
-          UnaryFunction<T, Long> eventTimeFn,
-          long gapDurationMillis,
-          Duration earlyTriggeringPeriod /* optional */) {
-    this.eventTimeFn = requireNonNull(eventTimeFn);
+  private Session(long gapDurationMillis) {
     this.gapDurationMillis = gapDurationMillis;
-    this.earlyTriggeringPeriod = earlyTriggeringPeriod;
+  }
+
+  /**
+   * Early results will be triggered periodically until the window is finally closed.
+   */
+  public <T> Session<T> earlyTriggering(Duration timeout) {
+    this.earlyTriggeringPeriod = Objects.requireNonNull(timeout);
+    return (Session) this;
   }
 
   @Override
-  public Set<TimeInterval> assignWindowsToElement(
-          WindowedElement<?, T> input) {
-    long evtMillis = this.eventTimeFn.apply(input.get());
+  public Set<TimeInterval> assignWindowsToElement(WindowedElement<?, T> el) {
     TimeInterval ret =
-            new TimeInterval(evtMillis, evtMillis + gapDurationMillis);
+            new TimeInterval(el.timestamp, el.timestamp + gapDurationMillis);
     return Collections.singleton(ret);
   }
 
@@ -154,19 +115,4 @@ public final class Session<T> implements
     // ~ deliver results (be sure not to return null)
     return merges == null ? Collections.emptyList() : merges;
   }
-
-  @Override
-  public Type getType() {
-    return eventTimeFn.getClass() == Time.ProcessingTime.class
-            ? Type.PROCESSING : Type.EVENT;
-  }
-
-  @Override
-  public Optional<UnaryFunction<T, Long>> getTimestampAssigner() {
-    if (getType() == Type.EVENT)
-      return Optional.of(eventTimeFn);
-    return Optional.empty();
-  }
-
-
 }
