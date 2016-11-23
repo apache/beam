@@ -33,7 +33,7 @@ class InputTranslator implements SparkOperatorTranslator<FlowUnfolder.InputOpera
               Object.class);
 
       // map values to WindowedElement
-      return pairs.values().map(v -> new WindowedElement<>(Batch.BatchWindow.get(), v));
+      return pairs.values().map(v -> new WindowedElement<>(Batch.BatchWindow.get(), 0L,  v));
 
     } catch (IOException e) {
       throw new RuntimeException(e);

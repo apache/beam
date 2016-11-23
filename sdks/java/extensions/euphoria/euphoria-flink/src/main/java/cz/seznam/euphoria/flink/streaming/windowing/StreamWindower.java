@@ -1,7 +1,6 @@
 package cz.seznam.euphoria.flink.streaming.windowing;
 
 import cz.seznam.euphoria.core.client.dataset.windowing.MergingWindowing;
-import cz.seznam.euphoria.core.client.dataset.windowing.Time;
 import cz.seznam.euphoria.core.client.dataset.windowing.Window;
 import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
@@ -12,13 +11,11 @@ import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.KeyedStream;
 import org.apache.flink.streaming.api.datastream.WindowedStream;
-import org.apache.flink.streaming.api.functions.timestamps
-    .BoundedOutOfOrdernessTimestampExtractor;
+import org.apache.flink.streaming.api.functions.timestamps.BoundedOutOfOrdernessTimestampExtractor;
 import org.apache.flink.streaming.api.windowing.assigners.WindowAssigner;
 
 import java.time.Duration;
 import java.util.Objects;
-import java.util.Optional;
 
 /**
  * Class creating {@code WindowedStream} from {@code DataStream}s.
@@ -46,9 +43,11 @@ public class StreamWindower {
           KEY key = keyFn.apply(elem);
           VALUE val = valFn.apply(elem);
           WID wid = i.getWindow();
-          return new StreamingWindowedElement<>(wid, Pair.of(key, val))
-              // ~ forward the emission watermark
-              .withEmissionWatermark(i.getEmissionWatermark());
+          return new StreamingWindowedElement<>(
+                  wid,
+                  // ~ forward the emission watermark
+                  i.getTimestamp(),
+                  Pair.of(key, val));
         })
         .setParallelism(input.getParallelism())
         .returns((Class) StreamingWindowedElement.class);
@@ -63,22 +62,25 @@ public class StreamWindower {
   window(DataStream<StreamingWindowedElement<?, T>> input,
       UnaryFunction<T, KEY> keyFn,
       UnaryFunction<T, VALUE> valFn,
-      Windowing<T, WID> windowing) {
+      Windowing<T, WID> windowing,
+      UnaryFunction<T, Long> eventTimeAssigner) {
 
-    Optional<UnaryFunction<T, Long>> tsAssign = windowing.getTimestampAssigner();
-    if (tsAssign.isPresent()) {
-      UnaryFunction tsFn = tsAssign.get();
-      if (!(tsFn instanceof Time.ProcessingTime)) {
+    if (eventTimeAssigner != null) {
         input = input.assignTimestampsAndWatermarks(
-            new EventTimeAssigner<>(allowedLateness, tsFn));
-      }
+            new EventTimeAssigner<>(allowedLateness, (UnaryFunction) eventTimeAssigner));
     }
 
     DataStream<MultiWindowedElement<WID, Pair<KEY, VALUE>>>
         elementsWithWindow =
-        input.map(i -> new MultiWindowedElement<>(
-                windowing.assignWindowsToElement((StreamingWindowedElement) i),
-                Pair.of(keyFn.apply(i.get()), valFn.apply(i.get()))))
+        input.map(i -> {
+          if (eventTimeAssigner != null) {
+            i.setTimestamp(eventTimeAssigner.apply(i.get()));
+          }
+
+          return new MultiWindowedElement<>(
+                  windowing.assignWindowsToElement(i),
+                  Pair.of(keyFn.apply(i.get()), valFn.apply(i.get())));
+        })
         .setParallelism(input.getParallelism())
         .returns((Class) MultiWindowedElement.class);
 

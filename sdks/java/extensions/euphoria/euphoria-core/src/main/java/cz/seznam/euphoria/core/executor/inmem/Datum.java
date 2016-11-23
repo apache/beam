@@ -55,7 +55,7 @@ class Datum extends WindowedElement<Window, Object> {
     }
     @Override
     public String toString() {
-      return "Watermark(" + stamp + ")";
+      return "Watermark(" + getTimestamp() + ")";
     }
   }
 
@@ -63,7 +63,6 @@ class Datum extends WindowedElement<Window, Object> {
     @SuppressWarnings("unchecked")
     WindowTrigger(Window window, long stamp) {
       super(window, null, stamp);
-      this.stamp = stamp;
     }
     @Override
     public boolean isWindowTrigger() {
@@ -71,30 +70,16 @@ class Datum extends WindowedElement<Window, Object> {
     }
     @Override
     public String toString() {
-      return "WindowTrigger(" + getWindow() + ", " + stamp + ")";
+      return "WindowTrigger(" + getWindow() + ", " + getTimestamp() + ")";
     }
   }
 
-  // timestamp of the event
-  long stamp;
-
   private Datum(long stamp) {
-    super(null, null);
-    this.stamp = stamp;
+    super(null, stamp, null);
   }
 
   private Datum(Window window, Object element, long stamp) {
-    super(window, element);
-      this.stamp = stamp;
-  }
-
-  /** Get timestamp of the event. */
-  public long getStamp() {
-    return stamp;
-  }
-
-  void setStamp(long stamp) {
-    this.stamp = stamp;
+    super(window, stamp,  element);
   }
 
   /** Is this regular element message? */
@@ -119,7 +104,7 @@ class Datum extends WindowedElement<Window, Object> {
 
   @Override
   public String toString() {
-    return "Datum(" + this.getWindow() + ", " + stamp + ", " + get() + ")";
+    return "Datum(" + this.getWindow() + ", " + getTimestamp() + ", " + get() + ")";
   }
 
 }

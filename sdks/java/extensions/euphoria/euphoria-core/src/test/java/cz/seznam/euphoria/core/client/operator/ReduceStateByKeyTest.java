@@ -49,6 +49,7 @@ public class ReduceStateByKeyTest {
     assertNotNull(reduce.getStateFactory());
     assertEquals(reduced, reduce.output());
     assertSame(windowing, reduce.getWindowing());
+    assertNull(reduce.getEventTimeAssigner());
 
     // default partitioning used
     assertTrue(reduce.getPartitioning().hasDefaultPartitioner());
@@ -81,11 +82,12 @@ public class ReduceStateByKeyTest {
             .valueBy(s -> 1L)
             .stateFactory(WordCountState::new)
             .combineStateBy(WordCountState::combine)
-            .windowBy(Time.of(Duration.ofHours(1)))
+            .windowBy(Time.of(Duration.ofHours(1)), (s -> 0L))
             .output();
 
     ReduceStateByKey reduce = (ReduceStateByKey) flow.operators().iterator().next();
     assertTrue(reduce.getWindowing() instanceof Time);
+    assertNotNull(reduce.getEventTimeAssigner());
   }
 
   @Test
@@ -106,6 +108,7 @@ public class ReduceStateByKeyTest {
     assertTrue(!reduce.getPartitioning().hasDefaultPartitioner());
     assertTrue(reduce.getPartitioning().getPartitioner() instanceof HashPartitioner);
     assertEquals(1, reduce.getPartitioning().getNumPartitions());
+    assertTrue(reduce.getWindowing() instanceof Time);
   }
 
   @Test
@@ -120,12 +123,14 @@ public class ReduceStateByKeyTest {
             .combineStateBy(WordCountState::combine)
             .setPartitioner(new HashPartitioner<>())
             .setNumPartitions(5)
+            .windowBy(Time.of(Duration.ofHours(1)))
             .output();
 
     ReduceStateByKey reduce = (ReduceStateByKey) flow.operators().iterator().next();
     assertTrue(!reduce.getPartitioning().hasDefaultPartitioner());
     assertTrue(reduce.getPartitioning().getPartitioner() instanceof HashPartitioner);
     assertEquals(5, reduce.getPartitioning().getNumPartitions());
+    assertTrue(reduce.getWindowing() instanceof Time);
   }
 
   // test ReduceStateByKey with GroupedDataset as input

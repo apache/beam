@@ -5,8 +5,7 @@ import cz.seznam.euphoria.core.client.io.DataSource;
 import cz.seznam.euphoria.core.client.io.Partition;
 import cz.seznam.euphoria.core.client.io.Reader;
 import cz.seznam.euphoria.flink.streaming.StreamingWindowedElement;
-import cz.seznam.euphoria.guava.shaded.com.google.common.util.concurrent
-    .ThreadFactoryBuilder;
+import cz.seznam.euphoria.guava.shaded.com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
@@ -90,7 +89,8 @@ public class DataSourceWrapper<T>
   }
 
   private StreamingWindowedElement<Batch.BatchWindow, T> toWindowedElement(T elem) {
-    return new StreamingWindowedElement<>(Batch.BatchWindow.get(), elem);
+    // assign ingestion timestamp to elements
+    return new StreamingWindowedElement<>(Batch.BatchWindow.get(), System.currentTimeMillis(), elem);
   }
 
   @Override

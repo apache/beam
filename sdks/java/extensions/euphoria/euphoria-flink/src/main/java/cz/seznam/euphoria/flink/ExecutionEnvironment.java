@@ -4,7 +4,6 @@ import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.dataset.windowing.Batch;
 import cz.seznam.euphoria.core.client.dataset.windowing.WindowedElement;
 import cz.seznam.euphoria.core.client.flow.Flow;
-import cz.seznam.euphoria.flink.streaming.StreamingWindowedElement;
 import cz.seznam.euphoria.guava.shaded.com.google.common.collect.Sets;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.slf4j.Logger;
@@ -49,8 +48,6 @@ public class ExecutionEnvironment {
     } else {
       streamEnv = local ? StreamExecutionEnvironment.createLocalEnvironment() :
               StreamExecutionEnvironment.getExecutionEnvironment();
-      // in streaming we pass through StreamingWindowedElement
-      toRegister.add(StreamingWindowedElement.class);
       toRegister.forEach(streamEnv::registerType);
     }
     LOG.info("Registered classes {} within flink's runtime", toRegister);

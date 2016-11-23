@@ -22,11 +22,14 @@ public abstract class StateAwareWindowWiseOperator<
   protected Partitioning<KEY> partitioning;
 
   protected StateAwareWindowWiseOperator(
-          String name, Flow flow, Windowing<WIN, W> windowing /* optional */,
+          String name,
+          Flow flow,
+          Windowing<WIN, W> windowing /* optional */,
+          UnaryFunction<WIN, Long> eventTimeAssigner /* optional */,
           UnaryFunction<KIN, KEY> keyExtractor,
           Partitioning<KEY> partitioning) {
     
-    super(name, flow, windowing);
+    super(name, flow, windowing, eventTimeAssigner);
     this.keyExtractor = keyExtractor;
     this.partitioning = partitioning;
   }

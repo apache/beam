@@ -40,6 +40,7 @@ class ReduceStateByKeyTranslator implements StreamingOperatorTranslator<ReduceSt
     final UnaryFunction keyExtractor;
     final UnaryFunction valueExtractor;
     final Windowing windowing = origOperator.getWindowing();
+    final UnaryFunction eventTimeAssigner = origOperator.getEventTimeAssigner();
 
     if (origOperator.isGrouped()) {
       UnaryFunction reduceKeyExtractor = origOperator.getKeyExtractor();
@@ -69,7 +70,8 @@ class ReduceStateByKeyTranslator implements StreamingOperatorTranslator<ReduceSt
           .setParallelism(operator.getParallelism());
     } else {
       WindowedStream<MultiWindowedElement<?, Pair>, Object, FlinkWindow>
-          windowed = context.flinkWindow((DataStream) input, keyExtractor, valueExtractor, windowing);
+          windowed = context.flinkWindow(
+              (DataStream) input, keyExtractor, valueExtractor, windowing, eventTimeAssigner);
       // equivalent operation to "left fold"
       folded = windowed.apply(new RSBKWindowFunction(storageProvider, stateFactory))
           .name(operator.getName())
@@ -132,9 +134,7 @@ class ReduceStateByKeyTranslator implements StreamingOperatorTranslator<ReduceSt
           new Context() {
             @Override
             public void collect(Object elem) {
-              out.collect(new StreamingWindowedElement(wid, Pair.of(key, elem))
-                  // ~ forward the emission watermark
-                  .withEmissionWatermark(emissionWatermark));
+              out.collect(new StreamingWindowedElement(wid, emissionWatermark, Pair.of(key, elem)));
             }
             @Override
             public Object getWindow() {
