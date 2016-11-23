@@ -57,8 +57,7 @@ public class RBKAttachedWindowingTest {
         .keyBy(Pair::getFirst)
         .valueBy(e -> 1L)
         .combineBy(Sums.ofLongs())
-        .windowBy(Time.of(Duration.ofMillis(10))
-            .using(e -> (long) e.getSecond()))
+        .windowBy(Time.of(Duration.ofMillis(10)), e -> (long) e.getSecond())
         .setNumPartitions(2)
         .output();
 
@@ -128,8 +127,7 @@ public class RBKAttachedWindowingTest {
             .keyBy(Pair::getFirst)
             .valueBy(e -> 1L)
             .combineBy(Sums.ofLongs())
-            .windowBy(Time.of(Duration.ofMillis(10))
-                .using(e -> (long) e.getSecond()))
+            .windowBy(Time.of(Duration.ofMillis(10)), e -> (long) e.getSecond())
             .setNumPartitions(2)
             .output();
 
@@ -287,8 +285,7 @@ public class RBKAttachedWindowingTest {
         Distinct.of(f.createInput(source))
             .mapped(e -> e)
             .setNumPartitions(1)
-            .windowBy(Time.of(Duration.ofMillis(5))
-                .using(e -> e.time))
+            .windowBy(Time.of(Duration.ofMillis(5)), e -> e.time)
             .output();
 
     // ~ count of query (effectively how many users used a given query)

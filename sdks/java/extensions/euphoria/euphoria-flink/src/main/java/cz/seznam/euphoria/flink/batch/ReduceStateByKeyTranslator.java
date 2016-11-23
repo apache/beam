@@ -19,7 +19,6 @@ import cz.seznam.euphoria.flink.batch.greduce.GroupReducer;
 import cz.seznam.euphoria.flink.functions.PartitionerWrapper;
 import cz.seznam.euphoria.guava.shaded.com.google.common.collect.Iterables;
 import org.apache.flink.api.common.functions.GroupReduceFunction;
-import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.operators.Order;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.DataSet;
@@ -70,69 +69,54 @@ public class ReduceStateByKeyTranslator implements BatchOperatorTranslator<Reduc
     }
 
     // ~ re-assign element timestamps
-    if (windowing.getTimestampAssigner().isPresent()) {
-      UnaryFunction<Object, Long> timestampAssigner =
-          (UnaryFunction<Object, Long>) windowing.getTimestampAssigner().get();
-      MapOperator<Object, StampedWindowElement> tsAssigned =
-          input.<StampedWindowElement>map((Object value) -> {
+    UnaryFunction<Object, Long> timeAssigner = origOperator.getEventTimeAssigner();
+    if (timeAssigner != null) {
+      MapOperator<Object, WindowedElement> tsAssigned =
+          input.<WindowedElement>map((Object value) -> {
             WindowedElement we = (WindowedElement) value;
-            long ts = timestampAssigner.apply(we.get());
-            return new StampedWindowElement<>(we.getWindow(), we.get(), ts);
+            we.setTimestamp(timeAssigner.apply(we.get()));
+            return we;
           });
       input = tsAssigned
           .name(operator.getName() + "::assign-timestamps")
           .setParallelism(operator.getParallelism())
-          .returns((Class) StampedWindowElement.class);
-    } else {
-      // ~ FIXME #16648 - make sure we're dealing with StampedWindowedElements; we can
-      // drop this once only such elements are floating throughout the whole batch executor
-      MapOperator<Object, StampedWindowElement> mapped =
-          input.map((MapFunction) value -> {
-            WindowedElement we = (WindowedElement) value;
-            if (we instanceof StampedWindowElement) {
-              return we;
-            }
-            return new StampedWindowElement<>(we.getWindow(), we.get(), Long.MAX_VALUE);
-          });
-      input = mapped.name(operator.getName() + "::make-stamped-windowed-elements")
-          .setParallelism(operator.getParallelism())
-          .returns((Class) StampedWindowElement.class);
+          .returns(WindowedElement.class);
     }
 
     // ~ extract key/value from input elements and assign windows
-    DataSet<StampedWindowElement> tuples;
+    DataSet<WindowedElement> tuples;
     {
       // FIXME require keyExtractor to deliver `Comparable`s
 
-      FlatMapOperator<Object, StampedWindowElement> wAssigned =
+      FlatMapOperator<Object, WindowedElement> wAssigned =
           input.flatMap((i, c) -> {
-            StampedWindowElement wel = (StampedWindowElement) i;
+            WindowedElement wel = (WindowedElement) i;
             Set<Window> assigned = windowing.assignWindowsToElement(wel);
             for (Window wid : assigned) {
               Object el = wel.get();
-              c.collect(new StampedWindowElement(
+              c.collect(new WindowedElement(
                   wid,
-                  Pair.of(udfKey.apply(el), udfValue.apply(el)),
-                  wel.getTimestamp()));
+                  wel.getTimestamp(),
+                  Pair.of(udfKey.apply(el), udfValue.apply(el))));
             }
           });
       tuples = wAssigned
           .name(operator.getName() + "::map-input")
           .setParallelism(operator.getParallelism())
-          .returns((Class) StampedWindowElement.class);
+          .returns(WindowedElement.class);
     }
 
     // ~ reduce the data now
-    DataSet<StampedWindowElement<?, Pair>> reduced =
+    DataSet<WindowedElement<?, Pair>> reduced =
         tuples.groupBy((KeySelector)
             Utils.wrapQueryable(
                 // ~ FIXME if the underlying windowing is "non merging" we can group by
                 // "key _and_ window", thus, better utilizing the available resources
-                (StampedWindowElement<?, Pair> we) -> (Comparable) we.get().getFirst(),
+                (WindowedElement<?, Pair> we) -> (Comparable) we.get().getFirst(),
                 Comparable.class))
             .sortGroup((KeySelector) Utils.wrapQueryable(
-                (KeySelector<StampedWindowElement<?, ?>, Long>)
-                    StampedWindowElement::getTimestamp, Long.class),
+                (KeySelector<WindowedElement<?, ?>, Long>)
+                        WindowedElement::getTimestamp, Long.class),
                 Order.ASCENDING)
             .reduceGroup(new RSBKReducer(origOperator, stateStorageProvider, windowing))
             .setParallelism(operator.getParallelism())
@@ -144,8 +128,8 @@ public class ReduceStateByKeyTranslator implements BatchOperatorTranslator<Reduc
           .partitionCustom(new PartitionerWrapper<>(
               origOperator.getPartitioning().getPartitioner()),
               Utils.wrapQueryable(
-                  (KeySelector<StampedWindowElement<?, Pair>, Comparable>)
-                      (StampedWindowElement<?, Pair> we) -> (Comparable) we.get().getKey(),
+                  (KeySelector<WindowedElement<?, Pair>, Comparable>)
+                      (WindowedElement<?, Pair> we) -> (Comparable) we.get().getKey(),
                   Comparable.class))
           .setParallelism(operator.getParallelism());
     }
@@ -154,8 +138,8 @@ public class ReduceStateByKeyTranslator implements BatchOperatorTranslator<Reduc
   }
 
   static class RSBKReducer
-          implements GroupReduceFunction<StampedWindowElement<?, Pair>, StampedWindowElement<?, Pair>>,
-          ResultTypeQueryable<StampedWindowElement<?, Pair>>
+          implements GroupReduceFunction<WindowedElement<?, Pair>, WindowedElement<?, Pair>>,
+          ResultTypeQueryable<WindowedElement<?, Pair>>
   {
     private final StateFactory<?, State> stateFactory;
     private final CombinableReduceFunction<State> stateCombiner;
@@ -177,8 +161,8 @@ public class ReduceStateByKeyTranslator implements BatchOperatorTranslator<Reduc
 
     @Override
     @SuppressWarnings("unchecked")
-    public void reduce(Iterable<StampedWindowElement<?, Pair>> values,
-                       org.apache.flink.util.Collector<StampedWindowElement<?, Pair>> out)
+    public void reduce(Iterable<WindowedElement<?, Pair>> values,
+                       org.apache.flink.util.Collector<WindowedElement<?, Pair>> out)
     {
       GroupReducer reducer = new GroupReducer(
           stateFactory,
@@ -186,8 +170,8 @@ public class ReduceStateByKeyTranslator implements BatchOperatorTranslator<Reduc
           stateStorageProvider,
           windowing,
           trigger,
-          elem -> out.collect((StampedWindowElement) elem));
-      for (StampedWindowElement value : values) {
+          elem -> out.collect((WindowedElement) elem));
+      for (WindowedElement value : values) {
         reducer.process(value);
       }
       reducer.close();
@@ -195,8 +179,8 @@ public class ReduceStateByKeyTranslator implements BatchOperatorTranslator<Reduc
 
     @Override
     @SuppressWarnings("unchecked")
-    public TypeInformation<StampedWindowElement<?, Pair>> getProducedType() {
-      return TypeInformation.of((Class) StampedWindowElement.class);
+    public TypeInformation<WindowedElement<?, Pair>> getProducedType() {
+      return TypeInformation.of((Class) WindowedElement.class);
     }
   }
 }

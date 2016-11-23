@@ -98,10 +98,10 @@ public class RSBKWindowingTest {
         .stateFactory((StateFactory<Pair<String, Integer>, AccState<Pair<String,
             Integer>>>) AccState::new)
         .combineStateBy(AccState::combine)
-        .windowBy(Time.of(Duration.ofMillis(5))
+        .windowBy(Time.of(Duration.ofMillis(5)),
             // ~ event time
-            .using((UnaryFunction<Pair<String, Integer>, Long>) what ->
-                (long) what.getSecond()))
+            (UnaryFunction<Pair<String, Integer>, Long>) what ->
+                (long) what.getSecond())
         .setNumPartitions(1)
         .output();
 
@@ -150,10 +150,10 @@ public class RSBKWindowingTest {
             .valueBy(e -> e)
             .stateFactory((StateFactory<Pair<String, Integer>, AccState<Pair<String, Integer>>>) AccState::new)
             .combineStateBy(AccState::combine)
-            .windowBy(Time.of(Duration.ofMillis(5))
+            .windowBy(Time.of(Duration.ofMillis(5)),
                 // ~ event time
-                .using((UnaryFunction<Pair<String, Integer>, Long>) what ->
-                    (long) what.getSecond()))
+                (UnaryFunction<Pair<String, Integer>, Long>) what ->
+                    (long) what.getSecond())
             .setNumPartitions(1)
             .output();
 
@@ -167,10 +167,10 @@ public class RSBKWindowingTest {
         .stateFactory((StateFactory<Pair<String, Integer>, AccState<Pair<String,
             Integer>>>) AccState::new)
         .combineStateBy(AccState::combine)
-        .windowBy(Time.of(Duration.ofMillis(5))
+        .windowBy(Time.of(Duration.ofMillis(5)),
             // ~ event time
-            .using((UnaryFunction<Pair<String, Integer>, Long>) what ->
-                (long) what.getSecond()))
+            (UnaryFunction<Pair<String, Integer>, Long>) what ->
+                (long) what.getSecond())
         .setNumPartitions(1)
         .output();
 

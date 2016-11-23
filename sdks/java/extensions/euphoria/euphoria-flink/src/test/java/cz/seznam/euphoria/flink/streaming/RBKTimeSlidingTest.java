@@ -47,18 +47,15 @@ public class RBKTimeSlidingTest {
         .keyBy(Pair::getFirst)
         .valueBy(e -> 1L)
         .combineBy(Sums.ofLongs())
-        .windowBy(TimeSliding.of(Duration.ofMillis(10), Duration.ofMillis(5))
+        .windowBy(TimeSliding.of(Duration.ofMillis(10), Duration.ofMillis(5)),
             // ~ event time
-            .using(e -> (long) e.getSecond()))
+            e -> (long) e.getSecond())
         .setNumPartitions(2)
         .setPartitioner(element -> element.equals("aaa") ? 1 : 0)
         .output();
 
     Util.extractWindows(reduced, TimeInterval.class).persist(output);
 
-//    new InMemExecutor()
-//        .setTriggeringSchedulerSupplier(() -> new WatermarkTriggerScheduler(0))
-//        .waitForCompletion(f);
     new TestFlinkExecutor()
         .setAllowedLateness(Duration.ofMillis(0))
         .setAutoWatermarkInterval(Duration.ofMillis(100))
@@ -107,9 +104,9 @@ public class RBKTimeSlidingTest {
           }
           return sum;
         })
-        .windowBy(TimeSliding.of(Duration.ofMillis(10), Duration.ofMillis(5))
+        .windowBy(TimeSliding.of(Duration.ofMillis(10), Duration.ofMillis(5)),
             // ~ event time
-            .using(e -> (long) e.getSecond()))
+            e -> (long) e.getSecond())
         .setNumPartitions(2)
         .setPartitioner(element -> element.equals("aaa") ? 1 : 0)
         .output();

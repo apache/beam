@@ -2,7 +2,6 @@ package cz.seznam.euphoria.core.executor.inmem;
 
 import cz.seznam.euphoria.core.client.dataset.windowing.MergingWindowing;
 import cz.seznam.euphoria.core.client.dataset.windowing.Time;
-import cz.seznam.euphoria.core.client.dataset.windowing.Time.ProcessingTime;
 import cz.seznam.euphoria.core.client.dataset.windowing.Window;
 import cz.seznam.euphoria.core.client.dataset.windowing.WindowedElement;
 import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
@@ -577,6 +576,7 @@ class ReduceStateByKeyReducer implements Runnable {
 
   private final boolean isAttachedWindowing;
   private final Windowing windowing;
+  private final UnaryFunction eventTimeAssigner;
   private final UnaryFunction keyExtractor;
   private final UnaryFunction valueExtractor;
   private final StateFactory stateFactory;
@@ -608,7 +608,10 @@ class ReduceStateByKeyReducer implements Runnable {
     this.output = requireNonNull(output);
     this.isAttachedWindowing = operator.getWindowing() == null;
     this.windowing = isAttachedWindowing
-        ? AttachedWindowing.INSTANCE : replaceTimeFunction(operator.getWindowing());
+        ? AttachedWindowing.INSTANCE : operator.getWindowing();
+    this.eventTimeAssigner = operator.getEventTimeAssigner() == null ?
+            // processing time uses currentElementTime
+            e -> currentElementTime : operator.getEventTimeAssigner();
     this.keyExtractor = requireNonNull(keyExtractor);
     this.valueExtractor = requireNonNull(valueExtractor);
     this.stateFactory = requireNonNull(operator.getStateFactory());
@@ -680,7 +683,7 @@ class ReduceStateByKeyReducer implements Runnable {
         // thread (i.e. processing-time-trigger-scheduler)
         synchronized (processing) {
           if (item.isElement()) {
-            currentElementTime = item.getStamp();
+            currentElementTime = item.getTimestamp();
             processing.stats.update(currentElementTime);
             processInput(item);
           } else if (item.isEndOfStream()) {
@@ -801,7 +804,7 @@ class ReduceStateByKeyReducer implements Runnable {
 
   private void processWatermark(Datum.Watermark watermark) {
     // update current stamp
-    long stamp = watermark.getStamp();
+    long stamp = watermark.getTimestamp();
     processing.updateStamp(stamp);
   }
 
@@ -810,7 +813,7 @@ class ReduceStateByKeyReducer implements Runnable {
       // reregister trigger of given window
       // FIXME: move this to windowing itself so that attached windowing
       // can be implemented 'natively' as instance of generic windowing
-      processing.onUpstreamWindowTrigger(trigger.getWindow(), trigger.getStamp());
+      processing.onUpstreamWindowTrigger(trigger.getWindow(), trigger.getTimestamp());
     }
   }
 
@@ -828,25 +831,6 @@ class ReduceStateByKeyReducer implements Runnable {
   // retrieve current watermark stamp
   private long getCurrentWatermark() {
     return scheduler.getCurrentTimestamp();
-  }
-
-  /**
-   * Replace time function to element time for time windowing's with
-   * procesing time.
-   */
-  private Windowing replaceTimeFunction(Windowing windowing) {
-    if (!(windowing instanceof Time) ||
-        !(((Time) windowing).getEventTimeFn() instanceof ProcessingTime)) {
-      return windowing;
-    }
-    Time timeWindowing = (Time) windowing;
-    if (timeWindowing.getEarlyTriggeringPeriod() == null) {
-      return Time.of(Duration.ofMillis(timeWindowing.getDuration()))
-          .using(o -> getCurrentElementTime());
-    }
-    return Time.of(Duration.ofMillis(timeWindowing.getDuration()))
-        .earlyTriggering(timeWindowing.getEarlyTriggeringPeriod())
-        .using(o -> getCurrentElementTime());
   }
 
   private long getCurrentElementTime() {

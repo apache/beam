@@ -193,8 +193,8 @@ public class BasicOperatorTest {
         .valueBy(Triple::getSecond)
         .combineBy(Sums.ofLongs())
         .windowBy(Time.of(Duration.ofSeconds(10))
-            .earlyTriggering(Duration.ofMillis(1_003))
-            .using(e -> (long) e.getThird()))
+            .earlyTriggering(Duration.ofMillis(1_003)),
+            e -> (long) e.getThird())
         .output();
 
 
@@ -258,8 +258,8 @@ public class BasicOperatorTest {
         .valueBy(Triple::getSecond)
         .combineBy(Sums.ofLongs())
         .windowBy(Session.of(Duration.ofSeconds(10))
-            .earlyTriggering(Duration.ofMillis(1_003))
-            .using(e -> (long) e.getThird()))
+            .earlyTriggering(Duration.ofMillis(1_003)),
+            e -> (long) e.getThird())
         .output();
 
 
@@ -468,8 +468,8 @@ public class BasicOperatorTest {
     // window it, use the first character as time
     ReduceWindow.of(words)
         .reduceBy(Sets::newHashSet)
-        .windowBy(Time.of(Duration.ofMinutes(1))
-            .using(s -> (int) s.charAt(0) * 3_600_000L))
+        .windowBy(Time.of(Duration.ofMinutes(1)),
+            s -> (int) s.charAt(0) * 3_600_000L)
         .setNumPartitions(4)
         .output()
         .persist(f);

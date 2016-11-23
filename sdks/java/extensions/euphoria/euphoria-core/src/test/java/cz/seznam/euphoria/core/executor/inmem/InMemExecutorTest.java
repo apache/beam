@@ -572,7 +572,7 @@ public class InMemExecutorTest {
     ReduceWindow.of(input)
         .valueBy(e -> 1L)
         .combineBy(Sums.ofLongs())
-        .windowBy(Time.of(Duration.ofSeconds(10)).using(e -> e * 1000L))
+        .windowBy(Time.of(Duration.ofSeconds(10)), e -> e * 1000L)
         .setNumPartitions(1)
         .output()
         .persist(outputs);
@@ -628,7 +628,7 @@ public class InMemExecutorTest {
     ReduceWindow.of(input)
         .valueBy(e -> 1L)
         .combineBy(Sums.ofLongs())
-        .windowBy(Time.of(Duration.ofSeconds(10)).using(e -> e * 1000L))
+        .windowBy(Time.of(Duration.ofSeconds(10)), e -> e * 1000L)
         .setNumPartitions(1)
         .output()
         .persist(outputs);
@@ -685,7 +685,7 @@ public class InMemExecutorTest {
     ReduceWindow.of(input)
         .valueBy(e -> 1L)
         .combineBy(Sums.ofLongs())
-        .windowBy(Time.of(Duration.ofSeconds(10)).using(e -> e * 1000L))
+        .windowBy(Time.of(Duration.ofSeconds(10)), e -> e * 1000L)
         .setNumPartitions(1)
         .output()
         .persist(outputs);
@@ -780,7 +780,7 @@ public class InMemExecutorTest {
     ReduceWindow.of(input)
         .valueBy(e -> e)
         .combineBy(Sums.ofInts())
-        .windowBy(Time.of(Duration.ofSeconds(1)).using(e -> e * 1000L))
+        .windowBy(Time.of(Duration.ofSeconds(1)), e -> e * 1000L)
         .setNumPartitions(1)
         .output()
         .persist(outputs);

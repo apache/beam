@@ -162,13 +162,20 @@ public class ReduceStateByKey<
     DatasetBuilder6<IN, WIN, KEY, VALUE, OUT, STATE, W>
     windowBy(Windowing<WIN, W> windowing)
     {
+      return windowBy(windowing, null);
+    }
+    public <WIN, W extends Window>
+    DatasetBuilder6<IN, WIN, KEY, VALUE, OUT, STATE, W>
+    windowBy(Windowing<WIN, W> windowing, UnaryFunction<WIN, Long> eventTimeAssigner)
+    {
       return new DatasetBuilder6<>(name, input, keyExtractor, valueExtractor,
-              stateFactory, stateCombiner, Objects.requireNonNull(windowing), this);
+              stateFactory, stateCombiner,
+              Objects.requireNonNull(windowing), eventTimeAssigner, this);
     }
     @Override
     public Dataset<Pair<KEY, OUT>> output() {
       return new DatasetBuilder6<>(name, input, keyExtractor, valueExtractor,
-          stateFactory, stateCombiner, null, this)
+          stateFactory, stateCombiner, null, null, this)
           .output();
     }
   }
@@ -187,6 +194,7 @@ public class ReduceStateByKey<
     private final StateFactory<OUT, STATE> stateFactory;
     private final CombinableReduceFunction<STATE> stateCombiner;
     private final Windowing<WIN, W> windowing;
+    private final UnaryFunction<WIN, Long> eventTimeAssigner;
 
     DatasetBuilder6(String name,
                     Dataset<IN> input,
@@ -195,6 +203,7 @@ public class ReduceStateByKey<
                     StateFactory<OUT, STATE> stateFactory,
                     CombinableReduceFunction<STATE> stateCombiner,
                     Windowing<WIN, W> windowing /* optional */,
+                    UnaryFunction<WIN, Long> eventTimeAssigner /* optional*/,
                     PartitioningBuilder<KEY, ?> partitioning)
     {
       // initialize partitioning
@@ -207,6 +216,7 @@ public class ReduceStateByKey<
       this.stateFactory = Objects.requireNonNull(stateFactory);
       this.stateCombiner = Objects.requireNonNull(stateCombiner);
       this.windowing = windowing;
+      this.eventTimeAssigner = eventTimeAssigner;
     }
 
     @Override
@@ -216,7 +226,7 @@ public class ReduceStateByKey<
       ReduceStateByKey<IN, IN, WIN, KEY, VALUE, KEY, OUT, STATE, W>
           reduceStateByKey =
           new ReduceStateByKey<>(name, flow, input, keyExtractor, valueExtractor,
-              windowing, stateFactory, stateCombiner, getPartitioning());
+              windowing, eventTimeAssigner, stateFactory, stateCombiner, getPartitioning());
       flow.add(reduceStateByKey);
 
       return reduceStateByKey.output();
@@ -330,14 +340,21 @@ public class ReduceStateByKey<
     GroupedDatasetBuilder6<IN, KIN, WIN, KEY, VALUE, OUT, STATE, W>
     windowBy(Windowing<WIN, W> windowing)
     {
+      return windowBy(windowing, null);
+    }
+    public <WIN, W extends Window>
+    GroupedDatasetBuilder6<IN, KIN, WIN, KEY, VALUE, OUT, STATE, W>
+    windowBy(Windowing<WIN, W> windowing, UnaryFunction<WIN, Long> eventTimeAssigner)
+    {
       return new GroupedDatasetBuilder6<>(name, input, keyExtractor, valueExtractor,
-              stateFactory, stateCombiner, Objects.requireNonNull(windowing), this);
+              stateFactory, stateCombiner,
+              Objects.requireNonNull(windowing), eventTimeAssigner, this);
     }
 
     @Override
     public Dataset<Pair<CompositeKey<IN, KEY>, OUT>> output() {
       return new GroupedDatasetBuilder6<>(name, input, keyExtractor, valueExtractor,
-              stateFactory, stateCombiner, null, this)
+              stateFactory, stateCombiner, null, null, this)
           .output();
     }
   }
@@ -356,6 +373,7 @@ public class ReduceStateByKey<
     private final StateFactory<OUT, STATE> stateFactory;
     private final CombinableReduceFunction<STATE> stateCombiner;
     private final Windowing<WIN, W> windowing;
+    private final UnaryFunction<WIN, Long> eventTimeAssigner;
 
     GroupedDatasetBuilder6(String name,
                            GroupedDataset<IN, KIN> input,
@@ -364,6 +382,7 @@ public class ReduceStateByKey<
                            StateFactory<OUT, STATE> stateFactory,
                            CombinableReduceFunction<STATE> stateCombiner,
                            Windowing<WIN, W> windowing /* optional */,
+                           UnaryFunction<WIN, Long> eventTimeAssigner /* optional */,
                            PartitioningBuilder<KEY, ?> partitioning)
     {
       // initialize partitioning
@@ -376,6 +395,7 @@ public class ReduceStateByKey<
       this.stateFactory = Objects.requireNonNull(stateFactory);
       this.stateCombiner = Objects.requireNonNull(stateCombiner);
       this.windowing = windowing;
+      this.eventTimeAssigner = eventTimeAssigner;
     }
 
     @Override
@@ -386,7 +406,7 @@ public class ReduceStateByKey<
           CompositeKey<IN, KEY>, OUT, STATE, W>
           reduceStateByKey =
           new ReduceStateByKey<>(name, flow, input, keyExtractor, valueExtractor,
-              windowing, stateFactory, stateCombiner, getPartitioning());
+              windowing, eventTimeAssigner, stateFactory, stateCombiner, getPartitioning());
       flow.add(reduceStateByKey);
 
       return reduceStateByKey.output();
@@ -417,13 +437,14 @@ public class ReduceStateByKey<
                    Dataset<IN> input,
                    UnaryFunction<KIN, KEY> keyExtractor,
                    UnaryFunction<KIN, VALUE> valueExtractor,
-                   Windowing<WIN, W> windowing,
+                   Windowing<WIN, W> windowing /* optional */,
+                   UnaryFunction<WIN, Long> eventTimeAssigner /* optional */,
                    StateFactory<OUT, STATE> stateFactory,
                    CombinableReduceFunction<STATE> stateCombiner,
                    Partitioning<KEY> partitioning)
   {
     this(name, flow, input, false, keyExtractor, valueExtractor, windowing,
-        stateFactory, stateCombiner, partitioning);
+            eventTimeAssigner, stateFactory, stateCombiner, partitioning);
   }
 
   @SuppressWarnings("unchecked")
@@ -432,13 +453,14 @@ public class ReduceStateByKey<
                    GroupedDataset<IN, KIN> groupedInput,
                    UnaryFunction<KIN, KEY> keyExtractor,
                    UnaryFunction<KIN, VALUE> valueExtractor,
-                   Windowing<WIN, W> windowing,
+                   Windowing<WIN, W> windowing /* optional */,
+                   UnaryFunction<WIN, Long> eventTimeAssigner /* optional */,
                    StateFactory<OUT, STATE> stateFactory,
                    CombinableReduceFunction<STATE> stateCombiner,
                    Partitioning<KEY> partitioning)
   {
     this(name, flow, (Dataset) groupedInput, true, keyExtractor, valueExtractor,
-        windowing, stateFactory, stateCombiner, partitioning);
+        windowing, eventTimeAssigner, stateFactory, stateCombiner, partitioning);
   }
 
   ReduceStateByKey(String name,
@@ -447,12 +469,13 @@ public class ReduceStateByKey<
                    boolean grouped,
                    UnaryFunction<KIN, KEY> keyExtractor,
                    UnaryFunction<KIN, VALUE> valueExtractor,
-                   Windowing<WIN, W> windowing,
+                   Windowing<WIN, W> windowing /* optional */,
+                   UnaryFunction<WIN, Long> eventTimeAssigner /* optional */,
                    StateFactory<OUT, STATE> stateFactory,
                    CombinableReduceFunction<STATE> stateCombiner,
                    Partitioning<KEY> partitioning)
   {
-    super(name, flow, input, keyExtractor, windowing, partitioning);
+    super(name, flow, input, keyExtractor, windowing, eventTimeAssigner, partitioning);
     this.stateFactory = stateFactory;
     this.valueExtractor = valueExtractor;
     this.stateCombiner = stateCombiner;

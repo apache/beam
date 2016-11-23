@@ -44,8 +44,7 @@ public class ReduceByKey<
     IN, KIN, KEY, VALUE, KEYOUT, OUT, W extends Window>
     extends StateAwareWindowWiseSingleInputOperator<
         IN, IN, KIN, KEY, Pair<KEYOUT, OUT>, W,
-        ReduceByKey<IN, KIN, KEY, VALUE, KEYOUT, OUT, W>>
-{
+        ReduceByKey<IN, KIN, KEY, VALUE, KEYOUT, OUT, W>> {
 
   public static class OfBuilder {
     private final String name;
@@ -104,8 +103,7 @@ public class ReduceByKey<
     DatasetBuilder3(String name,
                     Dataset<IN> input,
                     UnaryFunction<IN, KEY> keyExtractor,
-                    UnaryFunction<IN, VALUE> valueExtractor)
-    {
+                    UnaryFunction<IN, VALUE> valueExtractor) {
       this.name = Objects.requireNonNull(name);
       this.input = Objects.requireNonNull(input);
       this.keyExtractor = Objects.requireNonNull(keyExtractor);
@@ -122,8 +120,7 @@ public class ReduceByKey<
   }
   public static class DatasetBuilder4<IN, KEY, VALUE, OUT>
           extends PartitioningBuilder<KEY, DatasetBuilder4<IN, KEY, VALUE, OUT>>
-          implements OutputBuilder<Pair<KEY, OUT>>
-  {
+          implements OutputBuilder<Pair<KEY, OUT>> {
     private final String name;
     private final Dataset<IN> input;
     private final UnaryFunction<IN, KEY> keyExtractor;
@@ -133,8 +130,8 @@ public class ReduceByKey<
                     Dataset<IN> input,
                     UnaryFunction<IN, KEY> keyExtractor,
                     UnaryFunction<IN, VALUE> valueExtractor,
-                    ReduceFunction<VALUE, OUT> reducer)
-    {
+                    ReduceFunction<VALUE, OUT> reducer) {
+
       // initialize default partitioning according to input
       super(new DefaultPartitioning<>(input.getPartitioning().getNumPartitions()));
 
@@ -147,14 +144,19 @@ public class ReduceByKey<
     public  <W extends Window>
     DatasetBuilder5<IN, KEY, VALUE, OUT, W>
     windowBy(Windowing<IN, W> windowing) {
+      return windowBy(windowing, null);
+    }
+    public  <W extends Window>
+    DatasetBuilder5<IN, KEY, VALUE, OUT, W>
+    windowBy(Windowing<IN, W> windowing, UnaryFunction<IN, Long> eventTimeAssigner) {
       return new DatasetBuilder5<>(name, input, keyExtractor, valueExtractor,
-              reducer, Objects.requireNonNull(windowing), this);
+              reducer, Objects.requireNonNull(windowing), eventTimeAssigner, this);
     }
 
     @Override
     public Dataset<Pair<KEY, OUT>> output() {
       return new DatasetBuilder5<>(name, input, keyExtractor, valueExtractor,
-              reducer, null, this)
+              reducer, null, null, this)
           .output();
     }
   }
@@ -162,14 +164,14 @@ public class ReduceByKey<
   public static class DatasetBuilder5<
           IN, KEY, VALUE, OUT, W extends Window>
       extends PartitioningBuilder<KEY, DatasetBuilder5<IN, KEY, VALUE, OUT, W>>
-      implements OutputBuilder<Pair<KEY, OUT>>
-  {
+      implements OutputBuilder<Pair<KEY, OUT>> {
     private final String name;
     private final Dataset<IN> input;
     private final UnaryFunction<IN, KEY> keyExtractor;
     private final UnaryFunction<IN, VALUE> valueExtractor;
     private final ReduceFunction<VALUE, OUT> reducer;
     private final Windowing<IN, W> windowing;
+    private final UnaryFunction<IN, Long> eventTimeAssigner;
 
     DatasetBuilder5(String name,
                     Dataset<IN> input,
@@ -177,8 +179,9 @@ public class ReduceByKey<
                     UnaryFunction<IN, VALUE> valueExtractor,
                     ReduceFunction<VALUE, OUT> reducer,
                     Windowing<IN, W> windowing /* optional */,
-                    PartitioningBuilder<KEY, ?> partitioning)
-    {
+                    UnaryFunction<IN, Long> eventTimeAssigner /* optional */,
+                    PartitioningBuilder<KEY, ?> partitioning) {
+
       // initialize default partitioning according to input
       super(partitioning);
 
@@ -188,6 +191,7 @@ public class ReduceByKey<
       this.valueExtractor = Objects.requireNonNull(valueExtractor);
       this.reducer = Objects.requireNonNull(reducer);
       this.windowing = windowing;
+      this.eventTimeAssigner = eventTimeAssigner;
     }
 
     @Override
@@ -196,7 +200,7 @@ public class ReduceByKey<
       ReduceByKey<IN, IN, KEY, VALUE, KEY, OUT, W>
           reduce =
           new ReduceByKey<>(name, flow, input, keyExtractor, valueExtractor,
-              windowing, reducer, getPartitioning());
+              windowing, eventTimeAssigner, reducer, getPartitioning());
       flow.add(reduce);
       return reduce.output();
     }
@@ -243,8 +247,7 @@ public class ReduceByKey<
     GroupedDatasetBuilder3(String name,
                            GroupedDataset<IN, KIN> input,
                            UnaryFunction<KIN, KEY> keyExtractor,
-                           UnaryFunction<KIN, VALUE> valueExtractor)
-    {
+                           UnaryFunction<KIN, VALUE> valueExtractor) {
       this.name = Objects.requireNonNull(name);
       this.input = Objects.requireNonNull(input);
       this.keyExtractor = Objects.requireNonNull(keyExtractor);
@@ -261,8 +264,7 @@ public class ReduceByKey<
   }
   public static class GroupedDatasetBuilder4<IN, KIN, KEY, VALUE, OUT>
       extends PartitioningBuilder<KEY, GroupedDatasetBuilder4<IN, KIN, KEY, VALUE, OUT>>
-      implements OutputBuilder<Pair<CompositeKey<IN, KEY>, OUT>>
-  {
+      implements OutputBuilder<Pair<CompositeKey<IN, KEY>, OUT>> {
     private final String name;
     private final GroupedDataset<IN, KIN> input;
     private final UnaryFunction<KIN, KEY> keyExtractor;
@@ -272,8 +274,8 @@ public class ReduceByKey<
                            GroupedDataset<IN, KIN> input,
                            UnaryFunction<KIN, KEY> keyExtractor,
                            UnaryFunction<KIN, VALUE> valueExtractor,
-                           ReduceFunction<VALUE, OUT> reducer)
-    {
+                           ReduceFunction<VALUE, OUT> reducer) {
+
       // initialize default partitioning according to input
       super(new DefaultPartitioning<>(input.getPartitioning().getNumPartitions()));
 
@@ -286,13 +288,18 @@ public class ReduceByKey<
     public <W extends Window>
     GroupedDatasetBuilder5<IN, KIN, KEY, VALUE, OUT, W>
     windowBy(Windowing<IN, W> windowing) {
+      return windowBy(windowing, null);
+    }
+    public <W extends Window>
+    GroupedDatasetBuilder5<IN, KIN, KEY, VALUE, OUT, W>
+    windowBy(Windowing<IN, W> windowing, UnaryFunction<IN, Long> eventTimeAssigner) {
       return new GroupedDatasetBuilder5<>(name, input, keyExtractor, valueExtractor,
-              reducer, Objects.requireNonNull(windowing), this);
+              reducer, Objects.requireNonNull(windowing), eventTimeAssigner, this);
     }
     @Override
     public Dataset<Pair<CompositeKey<IN, KEY>, OUT>> output() {
       return new GroupedDatasetBuilder5<>(name, input, keyExtractor, valueExtractor,
-          reducer, null, this).output();
+          reducer, null, null, this).output();
     }
   }
 
@@ -300,22 +307,23 @@ public class ReduceByKey<
           IN, KIN, KEY, VALUE, OUT, W extends Window>
       extends PartitioningBuilder<
           KEY, GroupedDatasetBuilder5<IN, KIN, KEY, VALUE, OUT, W>>
-      implements OutputBuilder<Pair<CompositeKey<IN, KEY>, OUT>>
-  {
+      implements OutputBuilder<Pair<CompositeKey<IN, KEY>, OUT>> {
     private final String name;
     private final GroupedDataset<IN, KIN> input;
     private final UnaryFunction<KIN, KEY> keyExtractor;
     private final UnaryFunction<KIN, VALUE> valueExtractor;
     private final ReduceFunction<VALUE, OUT> reducer;
     private final Windowing<IN, W> windowing;
+    private final UnaryFunction<IN, Long> eventTimeAssigner;
+
     GroupedDatasetBuilder5(String name,
                            GroupedDataset<IN, KIN> input,
                            UnaryFunction<KIN, KEY> keyExtractor,
                            UnaryFunction<KIN, VALUE> valueExtractor,
                            ReduceFunction<VALUE, OUT> reducer,
-                           Windowing<IN, W> windowing,
-                           PartitioningBuilder<KEY, ?> partitioning)
-    {
+                           Windowing<IN, W> windowing /* optional */,
+                           UnaryFunction<IN, Long> eventTimeAssigner /* optional */,
+                           PartitioningBuilder<KEY, ?> partitioning) {
       super(partitioning);
 
       this.name = Objects.requireNonNull(name);
@@ -324,6 +332,7 @@ public class ReduceByKey<
       this.valueExtractor = Objects.requireNonNull(valueExtractor);
       this.reducer = Objects.requireNonNull(reducer);
       this.windowing = windowing;
+      this.eventTimeAssigner = eventTimeAssigner;
     }
 
     @Override
@@ -332,7 +341,7 @@ public class ReduceByKey<
       ReduceByKey<IN, KIN, KEY, VALUE, CompositeKey<IN, KEY>, OUT, W>
           reduce =
           new ReduceByKey<>(name, flow, input, keyExtractor, valueExtractor,
-              windowing, reducer, getPartitioning());
+              windowing, eventTimeAssigner, reducer, getPartitioning());
       flow.add(reduce);
       return reduce.output();
     }
@@ -361,11 +370,11 @@ public class ReduceByKey<
               Dataset<IN> input,
               UnaryFunction<KIN, KEY> keyExtractor,
               UnaryFunction<KIN, VALUE> valueExtractor,
-              Windowing<IN, W> windowing,
+              Windowing<IN, W> windowing /* optional */,
+              UnaryFunction<IN, Long> eventTimeAssigner /* optional */,
               ReduceFunction<VALUE, OUT> reducer,
-              Partitioning<KEY> partitioning)
-  {
-    super(name, flow, input, keyExtractor, windowing, partitioning);
+              Partitioning<KEY> partitioning) {
+    super(name, flow, input, keyExtractor, windowing, eventTimeAssigner, partitioning);
     this.reducer = reducer;
     this.valueExtractor = valueExtractor;
     this.grouped = false;
@@ -377,11 +386,13 @@ public class ReduceByKey<
               GroupedDataset<IN, KIN> groupedInput,
               UnaryFunction<KIN, KEY> keyExtractor,
               UnaryFunction<KIN, VALUE> valueExtractor,
-              Windowing<IN, W> windowing,
+              Windowing<IN, W> windowing /* optional */,
+              UnaryFunction<IN, Long> eventTimeAssigner /* optional */,
               ReduceFunction<VALUE, OUT> reducer,
-              Partitioning<KEY> partitioning)
-  {
-    super(name, flow, (Dataset) groupedInput, keyExtractor, windowing, partitioning);
+              Partitioning<KEY> partitioning) {
+
+    super(name, flow, (Dataset) groupedInput, keyExtractor,
+            windowing, eventTimeAssigner, partitioning);
     this.reducer = reducer;
     this.valueExtractor = valueExtractor;
     this.grouped = true;
@@ -417,8 +428,7 @@ public class ReduceByKey<
     ReduceState(Context<OUT> context,
                 StorageProvider storageProvider,
                 ReduceFunction<VALUE, OUT> reducer,
-                boolean combinable)
-    {
+                boolean combinable) {
       super(context, storageProvider);
       this.reducer = Objects.requireNonNull(reducer);
       this.combinable = combinable;
@@ -470,6 +480,7 @@ public class ReduceByKey<
     reduceState = new ReduceStateByKey<>(getName(),
         flow, input, grouped, keyExtractor, valueExtractor,
         windowing,
+        eventTimeAssigner,
         (Context<OUT> c, StorageProvider provider) -> new ReduceState<>(
             c, provider, reducer, isCombinable()),
         (Iterable<ReduceState> states) -> {

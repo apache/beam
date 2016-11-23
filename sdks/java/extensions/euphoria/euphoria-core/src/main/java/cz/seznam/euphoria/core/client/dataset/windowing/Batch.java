@@ -45,8 +45,7 @@ public final class Batch<T>
   private Batch() {}
 
   @Override
-  public Set<BatchWindow> assignWindowsToElement(
-      WindowedElement<?, T> input) {
+  public Set<BatchWindow> assignWindowsToElement(WindowedElement<?, T> el) {
     return Collections.singleton(BatchWindow.INSTANCE);
   }
 

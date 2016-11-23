@@ -52,9 +52,9 @@ public class RBKTimeWindowTest {
         .keyBy(Pair::getFirst)
         .valueBy(e -> 1L)
         .combineBy(Sums.ofLongs())
-        .windowBy(Time.of(Duration.ofMillis(5))
+        .windowBy(Time.of(Duration.ofMillis(5)),
             // ~ event time
-            .using(e -> (long) e.getSecond()))
+            e -> (long) e.getSecond())
         .setNumPartitions(1)
         .output();
 
@@ -110,9 +110,9 @@ public class RBKTimeWindowTest {
           return s;
         })
         .windowBy(Time.of(Duration.ofMillis(6))
-            .earlyTriggering(Duration.ofMillis(2))
+            .earlyTriggering(Duration.ofMillis(2)),
             // ~ event time
-            .using(e -> (long) e.getSecond()))
+            e -> (long) e.getSecond())
         .setNumPartitions(1)
         .output();
 
@@ -181,9 +181,9 @@ public class RBKTimeWindowTest {
           xs.forEach(buf::append);
           return buf.toString();
         })
-        .windowBy(Time.of(Duration.ofMillis(5))
+        .windowBy(Time.of(Duration.ofMillis(5)),
             // ~ event time
-            .using(e -> (long) e.getThird()))
+            e -> (long) e.getThird())
         .setNumPartitions(2)
         .setPartitioner(element -> element.equals("aaa") ? 1 : 0)
         .output();

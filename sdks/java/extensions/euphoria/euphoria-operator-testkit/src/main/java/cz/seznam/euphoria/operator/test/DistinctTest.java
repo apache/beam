@@ -88,8 +88,7 @@ public class DistinctTest extends OperatorTest {
       protected Dataset<Integer> getOutput(Dataset<Pair<Integer, Long>> input) {
         return Distinct.of(input)
             .mapped(Pair::getFirst)
-            .windowBy(Time.of(Duration.ofSeconds(1))
-                .using(Pair::getSecond))
+            .windowBy(Time.of(Duration.ofSeconds(1)), Pair::getSecond)
             .output();
       }
 
@@ -136,7 +135,7 @@ public class DistinctTest extends OperatorTest {
             .mapped(Pair::getFirst)
             .setNumPartitions(2)
             .setPartitioner(e -> e)
-            .windowBy(Time.of(Duration.ofSeconds(1)).using(Pair::getSecond))
+            .windowBy(Time.of(Duration.ofSeconds(1)), Pair::getSecond)
             .output();
       }
 

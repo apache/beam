@@ -135,8 +135,7 @@ public class ReduceByKeyTest extends OperatorTest {
             .valueBy(e -> 1L)
             .combineBy(Sums.ofLongs())
             .setPartitioner(e -> e % 2)
-            .windowBy(Time.of(Duration.ofSeconds(1))
-                .using(Pair::getSecond))
+            .windowBy(Time.of(Duration.ofSeconds(1)), Pair::getSecond)
             .output();
       }
 
@@ -495,8 +494,8 @@ public class ReduceByKeyTest extends OperatorTest {
                 .keyBy(e -> e.getFirst().charAt(0) - '0')
                 .valueBy(Pair::getFirst)
                 .reduceBy(Sets::newHashSet)
-                .windowBy(Session.of(Duration.ofSeconds(5))
-                    .using(e -> e.getSecond() * 1_000L))
+                .windowBy(Session.of(Duration.ofSeconds(5)),
+                        e -> e.getSecond() * 1_000L)
                 .setNumPartitions(1)
                 .output();
 
@@ -630,7 +629,7 @@ public class ReduceByKeyTest extends OperatorTest {
                 .keyBy(e -> "")
                 .valueBy(Pair::getFirst)
                 .combineBy(Sums.ofInts())
-                .windowBy(Time.of(Duration.ofSeconds(5)).using(Pair::getSecond))
+                .windowBy(Time.of(Duration.ofSeconds(5)), Pair::getSecond)
                 .output();
         // ~ now use a custom windowing with a trigger which does
         // the assertions subject to this test (use RSBK which has to
@@ -714,8 +713,7 @@ public class ReduceByKeyTest extends OperatorTest {
                 .valueBy(Pair::getFirst)
                 .combineBy(Sums.ofInts())
                 .windowBy(Time.of(Duration.ofSeconds(10))
-                    .earlyTriggering(Duration.ofSeconds(5))
-                    .using(Pair::getSecond))
+                    .earlyTriggering(Duration.ofSeconds(5)), Pair::getSecond)
                 .output();
         // ~ now use a custom windowing with a trigger which does
         // the assertions subject to this test (use RSBK which has to

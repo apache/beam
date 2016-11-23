@@ -33,8 +33,7 @@ public class SumByKeyTest {
     assertEquals("SumByKey1", sum.getName());
     assertNotNull(sum.keyExtractor);
     assertEquals(counted, sum.output());
-    // batch windowing by default
-    assertEquals(Batch.get(), sum.getWindowing());
+    assertNull(sum.getWindowing());
 
     // default partitioning used
     assertTrue(sum.getPartitioning().hasDefaultPartitioner());
@@ -62,11 +61,12 @@ public class SumByKeyTest {
     Dataset<Pair<String, Long>> counted = SumByKey.of(dataset)
             .keyBy(s -> s)
             .valueBy(s -> 1L)
-            .windowBy(Time.of(Duration.ofHours(1)))
+            .windowBy(Time.of(Duration.ofHours(1)), s -> 0L)
             .output();
 
     SumByKey sum = (SumByKey) flow.operators().iterator().next();
     assertTrue(sum.getWindowing() instanceof Time);
+    assertNotNull(sum.getEventTimeAssigner());
   }
 
   @Test
@@ -95,11 +95,13 @@ public class SumByKeyTest {
             .keyBy(s -> s)
             .setPartitioner(new HashPartitioner<>())
             .setNumPartitions(5)
+            .windowBy(Time.of(Duration.ofHours(1)))
             .output();
 
-    SumByKey count = (SumByKey) flow.operators().iterator().next();
-    assertTrue(!count.getPartitioning().hasDefaultPartitioner());
-    assertTrue(count.getPartitioning().getPartitioner() instanceof HashPartitioner);
-    assertEquals(5, count.getPartitioning().getNumPartitions());
+    SumByKey sum = (SumByKey) flow.operators().iterator().next();
+    assertTrue(!sum.getPartitioning().hasDefaultPartitioner());
+    assertTrue(sum.getPartitioning().getPartitioner() instanceof HashPartitioner);
+    assertEquals(5, sum.getPartitioning().getNumPartitions());
+    assertTrue(sum.getWindowing() instanceof Time);
   }
 }

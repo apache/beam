@@ -3,11 +3,12 @@ package cz.seznam.euphoria.flink.streaming.io;
 import cz.seznam.euphoria.core.client.io.DataSink;
 import cz.seznam.euphoria.core.client.io.Writer;
 import cz.seznam.euphoria.flink.streaming.StreamingWindowedElement;
-import java.io.Serializable;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.checkpoint.Checkpointed;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
+
+import java.io.Serializable;
 
 public class DataSinkWrapper<T>
     extends RichSinkFunction<StreamingWindowedElement<?, T>>

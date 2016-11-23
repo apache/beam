@@ -3,7 +3,6 @@ package cz.seznam.euphoria.core.client.operator;
 
 import cz.seznam.euphoria.core.annotation.operator.Recommended;
 import cz.seznam.euphoria.core.annotation.operator.StateComplexity;
-import cz.seznam.euphoria.core.client.dataset.windowing.Batch;
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.dataset.Partitioning;
 import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
@@ -55,7 +54,7 @@ public class Distinct<IN, ELEM, W extends Window>
     WindowingBuilder(
         String name,
         Dataset<IN> input,
-        UnaryFunction<IN, ELEM> mapper) {
+        UnaryFunction<IN, ELEM> mapper /* optional */) {
 
       // define default partitioning
       super(new DefaultPartitioning<>(input.getPartitioning().getNumPartitions()));
@@ -69,32 +68,49 @@ public class Distinct<IN, ELEM, W extends Window>
     }
     public <W extends Window> OutputBuilder<IN, ELEM, W>
     windowBy(Windowing<IN, W> windowing) {
-      return new OutputBuilder<>(this, windowing);
+      return windowBy(windowing, null);
+    }
+    public <W extends Window> OutputBuilder<IN, ELEM, W>
+    windowBy(Windowing<IN, W> windowing, UnaryFunction<IN, Long> eventTimeAssigner) {
+      return new OutputBuilder<>(name, input, mapper, this, windowing, eventTimeAssigner);
     }
     @Override
     public Dataset<ELEM> output() {
-      return new OutputBuilder<>(this, Batch.get()).output();
+      return new OutputBuilder<>(name, input, mapper, this, null, null).output();
     }
   }
 
   public static class OutputBuilder<IN, ELEM, W extends Window>
+      extends PartitioningBuilder<ELEM, OutputBuilder<IN, ELEM, W>>
       implements cz.seznam.euphoria.core.client.operator.OutputBuilder<ELEM>
   {
-    private final WindowingBuilder<IN, ELEM> prev;
+    private final String name;
+    private final Dataset<IN> input;
+    private final UnaryFunction<IN, ELEM> mapper;
     private final Windowing<IN, W> windowing;
+    private final UnaryFunction<IN, Long> eventTimeAssigner;
 
-    OutputBuilder(WindowingBuilder<IN, ELEM> prev, Windowing<IN, W> windowing) {
-      this.prev = Objects.requireNonNull(prev);
-      this.windowing = Objects.requireNonNull(windowing);
+    OutputBuilder(String name,
+                  Dataset<IN> input,
+                  UnaryFunction<IN, ELEM> mapper /* optional */,
+                  PartitioningBuilder<ELEM, ?> partitioning,
+                  Windowing<IN, W> windowing /* optional */,
+                  UnaryFunction<IN, Long> eventTimeAssigner /* optional */) {
+
+      super(partitioning);
+      this.name = Objects.requireNonNull(name);
+      this.input = Objects.requireNonNull(input);
+      this.mapper = mapper;
+      this.windowing = windowing;
+      this.eventTimeAssigner = eventTimeAssigner;
     }
 
     @Override
     public Dataset<ELEM> output() {
-      Flow flow = prev.input.getFlow();
-      Distinct<IN, ELEM, W> distinct;
-      distinct = new Distinct<>(
-          prev.name, flow, prev.input, prev.mapper, windowing,
-          prev.getPartitioning());
+      Flow flow = input.getFlow();
+      Distinct<IN, ELEM, W> distinct = new Distinct<>(
+          name, flow, input, mapper, getPartitioning(),
+              windowing, eventTimeAssigner);
       flow.add(distinct);
       return distinct.output();
     }
@@ -112,10 +128,11 @@ public class Distinct<IN, ELEM, W extends Window>
            Flow flow,
            Dataset<IN> input,
            UnaryFunction<IN, ELEM> mapper,
-           Windowing<IN, W> windowing,
-           Partitioning<ELEM> partitioning)
-  {
-    super(name, flow, input, mapper, windowing, partitioning);
+           Partitioning<ELEM> partitioning,
+           Windowing<IN, W> windowing /* optional */,
+           UnaryFunction<IN, Long> eventTimeAssigner /* optional */) {
+
+    super(name, flow, input, mapper, windowing, eventTimeAssigner, partitioning);
   }
 
   @Override
@@ -126,7 +143,7 @@ public class Distinct<IN, ELEM, W extends Window>
         reduce;
     reduce = new ReduceByKey<>(name,
             flow, input, getKeyExtractor(), e -> null,
-            windowing,
+            windowing, eventTimeAssigner,
             (CombinableReduceFunction<Void>) e -> null, partitioning);
 
     reduce.setPartitioning(getPartitioning());

@@ -34,8 +34,11 @@ class FunctionContextAsync<T> extends FunctionContext<T> {
   public void collect(T elem) {
     try {
       // wrap output to WindowedElement
+
+      // FIXME timestamp set to constant, will be refactored after
+      // merging windowing support is added
       WindowedElement wel = new WindowedElement<>(
-              window.window(), Pair.of(window.key(), elem));
+              window.window(), 0L, Pair.of(window.key(), elem));
 
       queue.transfer(wel);
 

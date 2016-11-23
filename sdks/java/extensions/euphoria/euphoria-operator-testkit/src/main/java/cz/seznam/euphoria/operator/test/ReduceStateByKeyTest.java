@@ -425,8 +425,8 @@ public class ReduceStateByKeyTest extends OperatorTest {
                 .valueBy(Pair::getFirst)
                 .stateFactory((StateFactory<String, AccState<String>>) AccState::new)
                 .combineStateBy(AccState::combine)
-                .windowBy(Time.of(Duration.ofSeconds(5))
-                    .using((Pair<String, Integer> e) -> e.getSecond() * 1_000L))
+                .windowBy(Time.of(Duration.ofSeconds(5)),
+                        (Pair<String, Integer> e) -> e.getSecond() * 1_000L)
                 .setNumPartitions(1)
                 .output();
 
@@ -483,15 +483,12 @@ public class ReduceStateByKeyTest extends OperatorTest {
                 .valueBy(e -> e.getFirst().substring(2))
                 .stateFactory((StateFactory<String, AccState<String>>) AccState::new)
                 .combineStateBy(AccState::combine)
-                .windowBy(TimeSliding.of(Duration.ofSeconds(10), Duration.ofSeconds(5))
-                    .using((Pair<String, Integer> e) -> e.getSecond() * 1_000L))
+                .windowBy(TimeSliding.of(Duration.ofSeconds(10), Duration.ofSeconds(5)),
+                        (Pair<String, Integer> e) -> e.getSecond() * 1_000L)
                 .setNumPartitions(2)
-                .setPartitioner(new Partitioner<Integer>() {
-                  @Override
-                  public int getPartition(Integer element) {
-                    assert element == 1 || element == 2;
-                    return element - 1;
-                  }
+                .setPartitioner(element -> {
+                  assert element == 1 || element == 2;
+                  return element - 1;
                 })
                 .output();
 
@@ -561,8 +558,8 @@ public class ReduceStateByKeyTest extends OperatorTest {
                 .valueBy(Pair::getFirst)
                 .stateFactory((StateFactory<String, AccState<String>>) AccState::new)
                 .combineStateBy(AccState::combine)
-                .windowBy(Session.of(Duration.ofSeconds(5))
-                    .using((Pair<String, Integer> e) -> e.getSecond() * 1_000L))
+                .windowBy(Session.of(Duration.ofSeconds(5)),
+                        (Pair<String, Integer> e) -> e.getSecond() * 1_000L)
                 .setNumPartitions(1)
                 .output();
 
@@ -661,8 +658,8 @@ public class ReduceStateByKeyTest extends OperatorTest {
                 .valueBy(Pair::getFirst)
                 .stateFactory(ReduceByKeyTest.SumState::new)
                 .combineStateBy(ReduceByKeyTest.SumState::combine)
-                .windowBy(Time.of(Duration.ofSeconds(5))
-                    .using((UnaryFunction<Pair<String, Long>, Long>) Pair::getSecond))
+                .windowBy(Time.of(Duration.ofSeconds(5)),
+                        (UnaryFunction<Pair<String, Long>, Long>) Pair::getSecond)
                 .output();
         // ~ now use a custom windowing with a trigger which does
         // the assertions subject to this test (use RSBK which has to

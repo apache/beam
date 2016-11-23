@@ -146,38 +146,81 @@ public class Join<LEFT, RIGHT, KEY, OUT, W extends Window>
 
     @Override
     public Dataset<Pair<KEY, OUT>> output() {
-      return new OutputBuilder<>(this, null).output();
+      return windowBy(null, null, null).output();
     }
 
     public <W extends Window>
     OutputBuilder<LEFT, RIGHT, KEY, OUT, W>
     windowBy(Windowing<Either<LEFT, RIGHT>, W> windowing)
     {
-      return new OutputBuilder<>(this, windowing);
+      return windowBy(windowing, null, null);
+    }
+
+    public <W extends Window>
+    OutputBuilder<LEFT, RIGHT, KEY, OUT, W>
+    windowBy(Windowing<Either<LEFT, RIGHT>, W> windowing,
+             UnaryFunction<LEFT, Long> leftEventTimeFn,
+             UnaryFunction<RIGHT, Long> rightEventTimeFn) {
+
+      UnaryFunction<Either<LEFT, RIGHT>, Long> eventTimeAssigner = null;
+
+      if (leftEventTimeFn != null && rightEventTimeFn != null) {
+        eventTimeAssigner = either -> either.isLeft() ?
+                leftEventTimeFn.apply(either.left()) :
+                rightEventTimeFn.apply(either.right());
+      }
+
+      return new OutputBuilder<>(name, left, right, leftKeyExtractor,
+              rightKeyExtractor, joinFunc, outer, this, windowing, eventTimeAssigner);
     }
   }
 
   public static class OutputBuilder<
       LEFT, RIGHT, KEY, OUT, W extends Window>
+      extends PartitioningBuilder<KEY, OutputBuilder<LEFT, RIGHT, KEY, OUT, W>>
       implements cz.seznam.euphoria.core.client.operator.OutputBuilder<Pair<KEY, OUT>> {
-    
-    private final WindowingBuilder<LEFT, RIGHT, KEY, OUT> prev;
-    private final Windowing<Either<LEFT, RIGHT>, W> windowing;
 
-    OutputBuilder(WindowingBuilder<LEFT, RIGHT, KEY, OUT> prev,
-                  Windowing<Either<LEFT, RIGHT>, W> windowing) {
-      
-      this.prev = prev;
+    private final String name;
+    private final Dataset<LEFT> left;
+    private final Dataset<RIGHT> right;
+    private final UnaryFunction<LEFT, KEY> leftKeyExtractor;
+    private final UnaryFunction<RIGHT, KEY> rightKeyExtractor;
+    private final BinaryFunctor<LEFT, RIGHT, OUT> joinFunc;
+    private final boolean outer;
+    private final Windowing<Either<LEFT, RIGHT>, W> windowing;
+    private final UnaryFunction<Either<LEFT, RIGHT>, Long> eventTimeAssigner;
+
+    OutputBuilder(String name,
+                  Dataset<LEFT> left,
+                  Dataset<RIGHT> right,
+                  UnaryFunction<LEFT, KEY> leftKeyExtractor,
+                  UnaryFunction<RIGHT, KEY> rightKeyExtractor,
+                  BinaryFunctor<LEFT, RIGHT, OUT> joinFunc,
+                  boolean outer,
+                  PartitioningBuilder<KEY, ?> partitioning,
+                  Windowing<Either<LEFT, RIGHT>, W> windowing /* optional */,
+                  UnaryFunction<Either<LEFT, RIGHT>, Long> eventTimeAssigner /* optional */) {
+
+      super(partitioning);
+
+      this.name = Objects.requireNonNull(name);
+      this.left = Objects.requireNonNull(left);
+      this.right = Objects.requireNonNull(right);
+      this.leftKeyExtractor = Objects.requireNonNull(leftKeyExtractor);
+      this.rightKeyExtractor = Objects.requireNonNull(rightKeyExtractor);
+      this.joinFunc = Objects.requireNonNull(joinFunc);
+      this.outer = outer;
       this.windowing = windowing;
+      this.eventTimeAssigner = eventTimeAssigner;
     }
 
     @Override
     public Dataset<Pair<KEY, OUT>> output() {
-      Flow flow = prev.left.getFlow();
+      Flow flow = left.getFlow();
       Join<LEFT, RIGHT, KEY, OUT, W> join =
-          new Join<>(prev.name, flow, prev.left, prev.right,
-              windowing, prev.getPartitioning(),
-              prev.leftKeyExtractor, prev.rightKeyExtractor, prev.joinFunc, prev.outer);
+          new Join<>(name, flow, left, right,
+              windowing, eventTimeAssigner, getPartitioning(),
+              leftKeyExtractor, rightKeyExtractor, joinFunc, outer);
       flow.add(join);
 
       return join.output();
@@ -205,14 +248,15 @@ public class Join<LEFT, RIGHT, KEY, OUT, W extends Window>
   Join(String name,
       Flow flow,
       Dataset<LEFT> left, Dataset<RIGHT> right,
-      Windowing<Either<LEFT, RIGHT>, W> windowing,
+      Windowing<Either<LEFT, RIGHT>, W> windowing /* optional */,
+      UnaryFunction<Either<LEFT, RIGHT>, Long> eventTimeAssigner /* optional */,
       Partitioning<KEY> partitioning,
       UnaryFunction<LEFT, KEY> leftKeyExtractor,
       UnaryFunction<RIGHT, KEY> rightKeyExtractor,
       BinaryFunctor<LEFT, RIGHT, OUT> functor,
       boolean outer) {
 
-    super(name, flow, windowing, (Either<LEFT, RIGHT> elem) -> {
+    super(name, flow, windowing, eventTimeAssigner, (Either<LEFT, RIGHT> elem) -> {
       if (elem.isLeft()) {
         return leftKeyExtractor.apply(elem.left());
       }
@@ -381,6 +425,7 @@ public class Join<LEFT, RIGHT, KEY, OUT, W extends Window>
               keyExtractor::apply,
               e -> e,
               getWindowing(),
+              getEventTimeAssigner(),
               JoinState::new,
               (Iterable<JoinState> states) -> {
                 Iterator<JoinState> iter = states.iterator();
