@@ -18,6 +18,7 @@
 """Test Pipeline, a wrapper of Pipeline for test purpose"""
 
 import argparse
+import shlex
 
 from apache_beam.pipeline import Pipeline
 from apache_beam.utils.options import PipelineOptions
@@ -33,15 +34,15 @@ class TestPipeline(Pipeline):
   @attr("ValidatesRunner") annotation.
 
   In order to configure the test with customized pipeline options from command
-  line, system argument 'test-options' can be used to obtains a list of pipeline
-  options. If no options specified, default value will be used.
+  line, system argument 'test-pipeline-options' can be used to obtains a list
+  of pipeline options. If no options specified, default value will be used.
 
   For example, use following command line to execute all ValidatesRunner tests::
 
     python setup.py nosetests -a ValidatesRunner \
-        --test-options="--runner DirectPipelineRunner \
-                        --job_name myJobName \
-                        --num_workers 1"
+        --test-pipeline-options="--runner=DirectPipelineRunner \
+                                 --job_name=myJobName \
+                                 --num_workers=1"
 
   For example, use assert_that for test validation::
 
@@ -57,16 +58,19 @@ class TestPipeline(Pipeline):
     super(TestPipeline, self).__init__(runner, options, argv)
 
   def create_pipeline_opt_from_args(self):
-    """Create a pipeline options from command line argument: --test-options"""
+    """Create a pipeline options from command line argument:
+    --test-pipeline-options
+    """
     parser = argparse.ArgumentParser()
-    parser.add_argument('--test-options',
+    parser.add_argument('--test-pipeline-options',
                         type=str,
                         action='store',
                         help='only run tests providing service options')
     known, unused_argv = parser.parse_known_args()
 
-    options = []
-    if known.test_options:
-      options = known.test_options.split()
+    if known.test_pipeline_options:
+      options = shlex.split(known.test_pipeline_options)
+    else:
+      options = []
 
     return PipelineOptions(options)
