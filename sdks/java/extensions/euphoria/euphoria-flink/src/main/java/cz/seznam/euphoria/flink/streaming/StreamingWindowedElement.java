@@ -12,19 +12,7 @@ public class StreamingWindowedElement<W extends Window, T>
     extends WindowedElement<W, T>
     implements ElementProvider<T>
 {
-  /** The watermark when the window this element is part of was emitted. */
-  private long emissionWatermark = Long.MIN_VALUE;
-
-  public StreamingWindowedElement(W window, T element) {
-    super(window, element);
-  }
-
-  public long getEmissionWatermark() {
-    return emissionWatermark;
-  }
-
-  public StreamingWindowedElement<W, T> withEmissionWatermark(long watermark) {
-    this.emissionWatermark = watermark;
-    return this;
+  public StreamingWindowedElement(W window, long timestamp, T element) {
+    super(window, timestamp, element);
   }
 }

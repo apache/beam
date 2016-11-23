@@ -11,10 +11,13 @@ public class AttachedWindow<WID extends cz.seznam.euphoria.core.client.dataset.w
     implements WindowProperties<WID> {
 
   private final WID wid;
-  private final long emissionWatermark;
+
+  // ~ transient on purpose not to affect serialized form
+  // because RocksDB uses that form as a key in state backend
+  private transient final long emissionWatermark;
 
   public AttachedWindow(StreamingWindowedElement<WID, ?> element) {
-    this(element.getWindow(), element.getEmissionWatermark());
+    this(element.getWindow(), element.getTimestamp());
   }
 
   public AttachedWindow(WID wid, long emissionWatermark) {

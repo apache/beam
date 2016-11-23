@@ -11,10 +11,10 @@ import org.apache.flink.util.Collector;
 import java.util.Objects;
 
 public class StreamingUnaryFunctorWrapper<WID extends Window, IN, OUT>
-    implements FlatMapFunction<StreamingWindowedElement<WID, IN>,
-    StreamingWindowedElement<WID, OUT>>,
-               ResultTypeQueryable<StreamingWindowedElement<WID, OUT>>
-{
+        implements FlatMapFunction<StreamingWindowedElement<WID, IN>,
+        StreamingWindowedElement<WID, OUT>>,
+        ResultTypeQueryable<StreamingWindowedElement<WID, OUT>> {
+
   private final UnaryFunctor<IN, OUT> f;
 
   public StreamingUnaryFunctorWrapper(UnaryFunctor<IN, OUT> f) {
@@ -29,8 +29,8 @@ public class StreamingUnaryFunctorWrapper<WID extends Window, IN, OUT>
     f.apply(value.get(), new Context<OUT>() {
       @Override
       public void collect(OUT elem) {
-        out.collect(new StreamingWindowedElement<>(value.getWindow(), elem)
-            .withEmissionWatermark(value.getEmissionWatermark()));
+        out.collect(new StreamingWindowedElement<>(
+                value.getWindow(), value.getTimestamp(), elem));
       }
       @Override
       public Object getWindow() {

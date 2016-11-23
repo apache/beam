@@ -3,6 +3,7 @@ package cz.seznam.euphoria.flink.batch.greduce;
 import cz.seznam.euphoria.core.client.dataset.windowing.MergingWindowing;
 import cz.seznam.euphoria.core.client.dataset.windowing.TimedWindow;
 import cz.seznam.euphoria.core.client.dataset.windowing.Window;
+import cz.seznam.euphoria.core.client.dataset.windowing.WindowedElement;
 import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.functional.BinaryFunction;
 import cz.seznam.euphoria.core.client.functional.CombinableReduceFunction;
@@ -20,7 +21,6 @@ import cz.seznam.euphoria.core.client.operator.state.ValueStorageDescriptor;
 import cz.seznam.euphoria.core.client.triggers.Trigger;
 import cz.seznam.euphoria.core.client.triggers.TriggerContext;
 import cz.seznam.euphoria.core.client.util.Pair;
-import cz.seznam.euphoria.flink.batch.StampedWindowElement;
 import cz.seznam.euphoria.guava.shaded.com.google.common.base.Preconditions;
 
 import java.util.ArrayList;
@@ -48,7 +48,7 @@ public class GroupReducer<WID extends Window, KEY, I> {
   private final StateFactory<?, State> stateFactory;
   private final CombinableReduceFunction<State> stateCombiner;
   private final StorageProvider stateStorageProvider;
-  private final Collector<StampedWindowElement<?, Pair<KEY, ?>>> collector;
+  private final Collector<WindowedElement<?, Pair<KEY, ?>>> collector;
   private final Windowing windowing;
   private final Trigger trigger;
 
@@ -63,7 +63,7 @@ public class GroupReducer<WID extends Window, KEY, I> {
                StorageProvider stateStorageProvider,
                Windowing windowing,
                Trigger trigger,
-               Collector<StampedWindowElement<?, Pair<KEY, ?>>> collector) {
+               Collector<WindowedElement<?, Pair<KEY, ?>>> collector) {
     this.stateFactory = Objects.requireNonNull(stateFactory);
     this.stateCombiner = Objects.requireNonNull(stateCombiner);
     this.stateStorageProvider = Objects.requireNonNull(stateStorageProvider);
@@ -74,7 +74,7 @@ public class GroupReducer<WID extends Window, KEY, I> {
     this.triggerStorage = new TriggerStorage(stateStorageProvider);
   }
 
-  public void process(StampedWindowElement<WID, Pair<KEY, I>> elem) {
+  public void process(WindowedElement<WID, Pair<KEY, I>> elem) {
     // ~ make sure we have the key
     updateKey(elem);
 
@@ -203,7 +203,7 @@ public class GroupReducer<WID extends Window, KEY, I> {
     return xs;
   }
 
-  private void updateKey(StampedWindowElement<WID, Pair<KEY, I>> elem) {
+  private void updateKey(WindowedElement<WID, Pair<KEY, I>> elem) {
     if (key == null) {
       key = elem.get().getFirst();
     } else {
@@ -227,10 +227,10 @@ public class GroupReducer<WID extends Window, KEY, I> {
   }
 
   class ElementCollectContext<T> implements Context<T> {
-    final Collector<StampedWindowElement<WID, Pair<KEY, T>>> out;
+    final Collector<WindowedElement<WID, Pair<KEY, T>>> out;
     WID window;
 
-    ElementCollectContext(Collector<StampedWindowElement<WID, Pair<KEY, T>>> out, WID window) {
+    ElementCollectContext(Collector<WindowedElement<WID, Pair<KEY, T>>> out, WID window) {
       this.out = out;
       this.window = window;
     }
@@ -240,7 +240,7 @@ public class GroupReducer<WID extends Window, KEY, I> {
       long stamp = (window instanceof TimedWindow)
           ? ((TimedWindow) window).maxTimestamp()
           : clock.getStamp();
-      out.collect(new StampedWindowElement<>(window, Pair.of(key, elem), stamp));
+      out.collect(new WindowedElement<>(window, stamp, Pair.of(key, elem)));
     }
 
     @Override

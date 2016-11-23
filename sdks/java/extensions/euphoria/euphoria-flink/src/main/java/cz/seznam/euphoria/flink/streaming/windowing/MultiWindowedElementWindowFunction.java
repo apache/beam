@@ -15,7 +15,7 @@ import org.apache.flink.util.Collector;
 public class MultiWindowedElementWindowFunction<WID extends Window, KEY, VALUE>
     implements WindowFunction<
     MultiWindowedElement<?, Pair<KEY, VALUE>>,
-    StreamingWindowedElement<WID, Pair<KEY, VALUE>>,
+        StreamingWindowedElement<WID, Pair<KEY, VALUE>>,
     KEY,
     FlinkWindow<WID>> {
 
@@ -30,8 +30,8 @@ public class MultiWindowedElementWindowFunction<WID extends Window, KEY, VALUE>
       out.collect(
           new StreamingWindowedElement<>(
               wid,
-              Pair.of(i.get().getFirst(), i.get().getSecond()))
-              .withEmissionWatermark(window.getEmissionWatermark()));
+              window.getEmissionWatermark(),
+              Pair.of(i.get().getFirst(), i.get().getSecond())));
     }
   }
 }

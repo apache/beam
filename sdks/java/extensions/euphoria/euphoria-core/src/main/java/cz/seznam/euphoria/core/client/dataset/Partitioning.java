@@ -8,7 +8,7 @@ import java.io.Serializable;
  */
 public interface Partitioning<T> extends Serializable {
   
-  final static Partitioner DEFAULT_PARTITIONER = new DefaultPartitioner();
+  Partitioner DEFAULT_PARTITIONER = new DefaultPartitioner();
 
   /** Retrieve partitioner for dataset. */
   default Partitioner<T> getPartitioner() {

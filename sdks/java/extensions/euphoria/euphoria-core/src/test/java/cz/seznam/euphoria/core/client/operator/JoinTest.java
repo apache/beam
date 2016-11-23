@@ -1,7 +1,6 @@
 
 package cz.seznam.euphoria.core.client.operator;
 
-import cz.seznam.euphoria.core.client.dataset.windowing.Batch;
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.dataset.HashPartitioner;
 import cz.seznam.euphoria.core.client.dataset.HashPartitioning;
@@ -28,6 +27,7 @@ public class JoinTest {
             .by(String::length, String::length)
             //TODO It's sad the Collector type must be explicitly stated :-(
             .using((String l, String r, Context<String> c) -> c.collect(l + r))
+            .windowBy(Time.of(Duration.ofHours(1)))
             .output();
 
     assertEquals(flow, joined.getFlow());
@@ -39,7 +39,7 @@ public class JoinTest {
     assertNotNull(join.leftKeyExtractor);
     assertNotNull(join.rightKeyExtractor);
     assertEquals(joined, join.output());
-    assertNull(join.getWindowing());
+    assertTrue(join.getWindowing() instanceof Time);
     assertFalse(join.outer);
 
     // default partitioning used
@@ -89,11 +89,12 @@ public class JoinTest {
             .of(left, right)
             .by(String::length, String::length)
             .using((String l, String r, Context<String> c) -> c.collect(l + r))
-            .windowBy(Time.of(Duration.ofHours(1)))
+            .windowBy(Time.of(Duration.ofHours(1)), s -> 0L, s -> 0L)
             .output();
 
     Join join = (Join) flow.operators().iterator().next();
     assertTrue(join.getWindowing() instanceof Time);
+    assertNotNull(join.getEventTimeAssigner());
   }
 
   @Test
@@ -107,12 +108,14 @@ public class JoinTest {
             .by(String::length, String::length)
             .using((String l, String r, Context<String> c) -> c.collect(l + r))
             .setPartitioning(new HashPartitioning<>(1))
+            .windowBy(Time.of(Duration.ofHours(1)))
             .output();
 
     Join join = (Join) flow.operators().iterator().next();
     assertTrue(!join.getPartitioning().hasDefaultPartitioner());
     assertTrue(join.getPartitioning().getPartitioner() instanceof HashPartitioner);
     assertEquals(1, join.getPartitioning().getNumPartitions());
+    assertTrue(join.getWindowing() instanceof Time);
   }
 
   @Test
@@ -125,6 +128,7 @@ public class JoinTest {
             .of(left, right)
             .by(String::length, String::length)
             .using((String l, String r, Context<String> c) -> c.collect(l + r))
+            .windowBy(Time.of(Duration.ofHours(1)))
             .setPartitioner(new HashPartitioner<>())
             .setNumPartitions(5)
             .output();
@@ -133,5 +137,6 @@ public class JoinTest {
     assertTrue(!join.getPartitioning().hasDefaultPartitioner());
     assertTrue(join.getPartitioning().getPartitioner() instanceof HashPartitioner);
     assertEquals(5, join.getPartitioning().getNumPartitions());
+    assertTrue(join.getWindowing() instanceof Time);
   }
 }

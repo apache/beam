@@ -6,16 +6,30 @@ package cz.seznam.euphoria.core.client.dataset.windowing;
  */
 public class WindowedElement<W extends Window, T> {
 
-  final W window;
   final T element;
+  W window;
+  long timestamp;
 
-  public WindowedElement(W window, T element) {
+  public WindowedElement(W window, long timestamp, T element) {
     this.window = window;
+    this.timestamp = timestamp;
     this.element = element;
   }
-  
+
   public W getWindow() {
     return window;
+  }
+
+  public void setWindow(W window) {
+    this.window = window;
+  }
+
+  public long getTimestamp() {
+    return timestamp;
+  }
+
+  public void setTimestamp(long timestamp) {
+    this.timestamp = timestamp;
   }
 
   public T get() {
@@ -26,6 +40,7 @@ public class WindowedElement<W extends Window, T> {
   public String toString() {
     return "WindowedElement{" +
         "window=" + window +
+        ", timestamp=" + timestamp +
         ", element=" + element +
         '}';
   }

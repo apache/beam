@@ -23,19 +23,26 @@ public class StateAwareWindowWiseSingleInputOperator<
   private final Dataset<OUT> output;
 
   protected StateAwareWindowWiseSingleInputOperator(
-          String name, Flow flow, Dataset<IN> input, UnaryFunction<KIN, KEY> extractor,
+          String name,
+          Flow flow, Dataset<IN> input,
+          UnaryFunction<KIN, KEY> extractor,
           Windowing<WIN, W> windowing /* optional */,
+          UnaryFunction<WIN, Long> eventTimeAssigner /* optional */,
           Partitioning<KEY> partitioning) {
     
-    super(name, flow, windowing, extractor, partitioning);
+    super(name, flow, windowing, eventTimeAssigner, extractor, partitioning);
     this.input = input;
     this.output = createOutput(input);
   }
 
   protected StateAwareWindowWiseSingleInputOperator(
-      String name, Flow flow, Dataset<IN> input, UnaryFunction<KIN, KEY> extractor,
-      Windowing<WIN, W> windowing) {
-    this(name, flow, input, extractor, windowing, input.getPartitioning());
+      String name,
+      Flow flow,
+      Dataset<IN> input,
+      UnaryFunction<KIN, KEY> extractor,
+      Windowing<WIN, W> windowing /* optional */,
+      UnaryFunction<WIN, Long> eventTimeAssigner /* optional */) {
+    this(name, flow, input, extractor, windowing, eventTimeAssigner, input.getPartitioning());
   }
 
   @Override

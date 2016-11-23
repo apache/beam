@@ -45,14 +45,15 @@ public class StreamingExecutorContext
   flinkWindow(DataStream<StreamingWindowedElement<?, T>> input,
               UnaryFunction<T, KEY> keyFn,
               UnaryFunction<T, VALUE> valFn,
-              Windowing<T, ? extends Window> windowing) {
-    return windower.window((DataStream) input, keyFn, valFn, windowing);
+              Windowing<T, ? extends Window> windowing,
+              UnaryFunction<T, Long> eventTimeAssigner) {
+    return windower.window((DataStream) input, keyFn, valFn, windowing, eventTimeAssigner);
   }
 
   /**
    * Creates an attached window stream, presuming a preceding non-attached
    * windowing on the input data stream forwarding
-   * {@link StreamingWindowedElement#emissionWatermark} of the windows to attach to.
+   * {@link StreamingWindowedElement#getTimestamp} of the windows to attach to.
    */
   <T, WID extends Window, KEY, VALUE>
   WindowedStream<StreamingWindowedElement<WID, Pair<KEY, VALUE>>,

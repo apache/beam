@@ -3,7 +3,6 @@ package cz.seznam.euphoria.core.client.operator;
 
 import cz.seznam.euphoria.core.annotation.operator.Derived;
 import cz.seznam.euphoria.core.annotation.operator.StateComplexity;
-import cz.seznam.euphoria.core.client.dataset.windowing.Batch;
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.dataset.Partitioning;
 import cz.seznam.euphoria.core.client.dataset.windowing.Window;
@@ -50,11 +49,11 @@ public class CountByKey<IN, KEY, W extends Window>
     }
   }
   public static class WindowingBuilder<IN, KEY>
-          extends PartitioningBuilder<KEY, WindowingBuilder<IN, KEY>>
-  {
+          extends PartitioningBuilder<KEY, WindowingBuilder<IN, KEY>> {
     private final String name;
     private final Dataset<IN> input;
     private final UnaryFunction<IN, KEY> keyExtractor;
+
     WindowingBuilder(String name, Dataset<IN> input, UnaryFunction<IN, KEY> keyExtractor) {
       // define default partitioning
       super(new DefaultPartitioning<>(input.getPartitioning().getNumPartitions()));
@@ -63,31 +62,53 @@ public class CountByKey<IN, KEY, W extends Window>
       this.input = Objects.requireNonNull(input);
       this.keyExtractor = Objects.requireNonNull(keyExtractor);
     }
+
     public <W extends Window> OutputBuilder<IN, KEY, W>
-    windowBy(Windowing<IN, W> windowing)
-    {
-      return new OutputBuilder<>(this, windowing);
+    windowBy(Windowing<IN, W> windowing, UnaryFunction<IN, Long> eventTimeAssigner) {
+      return new OutputBuilder<>(name, input, keyExtractor, windowing, eventTimeAssigner, this);
     }
-    public Dataset<Pair<KEY, Long>> output() {
-      return new OutputBuilder<>(this, Batch.get()).output();
-    }
-  }
-  public static class OutputBuilder<IN, KEY, W extends Window> {
-    private final WindowingBuilder<IN, KEY> prev;
-    private final Windowing<IN, W> windowing;
-    OutputBuilder(WindowingBuilder<IN, KEY> prev,
-                  Windowing<IN, W> windowing)
-    {
-      this.prev = Objects.requireNonNull(prev);
-      this.windowing = Objects.requireNonNull(windowing);
+
+    public <W extends Window> OutputBuilder<IN, KEY, W>
+    windowBy(Windowing<IN, W> windowing) {
+      return windowBy(windowing, null);
     }
 
     public Dataset<Pair<KEY, Long>> output() {
-      Flow flow = prev.input.getFlow();
-      CountByKey<IN, KEY, W> count =
-          new CountByKey<>(
-              prev.name, flow, prev.input,
-              prev.keyExtractor, windowing, prev.getPartitioning());
+      return windowBy(null, null).output();
+    }
+  }
+  public static class OutputBuilder<IN, KEY, W extends Window>
+          extends PartitioningBuilder<KEY, OutputBuilder<IN, KEY, W>> {
+
+    private final String name;
+    private final Dataset<IN> input;
+    private final UnaryFunction<IN, KEY> keyExtractor;
+    private final Windowing<IN, W> windowing;
+    private final UnaryFunction<IN, Long> eventTimeAssigner;
+
+
+    OutputBuilder(String name,
+                  Dataset<IN> input,
+                  UnaryFunction<IN, KEY> keyExtractor,
+                  Windowing<IN, W> windowing /* optional */,
+                  UnaryFunction<IN, Long> eventTimeAssigner /* optional */,
+                  PartitioningBuilder<KEY, ?> partitioning) {
+
+      //initialize partitioning
+      super(partitioning);
+
+      this.name = Objects.requireNonNull(name);
+      this.input = Objects.requireNonNull(input);
+      this.keyExtractor = Objects.requireNonNull(keyExtractor);
+      this.windowing = windowing;
+      this.eventTimeAssigner = eventTimeAssigner;
+    }
+
+    public Dataset<Pair<KEY, Long>> output() {
+      Flow flow = input.getFlow();
+      CountByKey<IN, KEY, W> count = new CountByKey<>(
+              name, flow, input, keyExtractor,
+              windowing, eventTimeAssigner, getPartitioning());
       flow.add(count);
       return count.output();
     }
@@ -105,10 +126,11 @@ public class CountByKey<IN, KEY, W extends Window>
       Flow flow,
       Dataset<IN> input,
       UnaryFunction<IN, KEY> extractor,
-      Windowing<IN, W> windowing,
-      Partitioning<KEY> partitioning)
-  {
-    super(name, flow, input, extractor, windowing, partitioning);
+      Windowing<IN, W> windowing /* optional */,
+      UnaryFunction<IN, Long> eventTimeAssigner /* optional */,
+      Partitioning<KEY> partitioning) {
+
+    super(name, flow, input, extractor, windowing, eventTimeAssigner,  partitioning);
   }
 
   @Override
@@ -120,6 +142,7 @@ public class CountByKey<IN, KEY, W extends Window>
             keyExtractor,
             e -> 1L,
             windowing,
+            eventTimeAssigner,
             partitioning);
     return DAG.of(sum);
   }

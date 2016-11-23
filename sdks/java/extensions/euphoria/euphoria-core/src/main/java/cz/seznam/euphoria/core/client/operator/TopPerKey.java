@@ -72,54 +72,70 @@ public class TopPerKey<
     public void close() {
       curr.clear();
     }
+  }
 
+  public static class OfBuilder {
+    private final String name;
 
+    OfBuilder(String name) {
+      this.name = name;
+    }
+
+    public <IN> KeyByBuilder<IN> of(Dataset<IN> input) {
+      return new KeyByBuilder<>(name, input);
+    }
   }
 
   public static class KeyByBuilder<IN> {
+    private final String name;
     private final Dataset<IN> input;
 
-    KeyByBuilder(Dataset<IN> input) {
-      this.input = input;
+    KeyByBuilder(String name, Dataset<IN> input) {
+      this.name = requireNonNull(name);
+      this.input = requireNonNull(input);
     }
 
     public <K> ValueByBuilder<IN, K> keyBy(UnaryFunction<IN, K> keyFn) {
-      return new ValueByBuilder<>(input, requireNonNull(keyFn));
+      return new ValueByBuilder<>(name, input, requireNonNull(keyFn));
     }
   }
 
   public static class ValueByBuilder<IN, K> {
+    private final String name;
     private final Dataset<IN> input;
     private final UnaryFunction<IN, K> keyFn;
 
-    ValueByBuilder(Dataset<IN> input, UnaryFunction<IN, K> keyFn) {
-      this.input = input;
-      this.keyFn = keyFn;
+    ValueByBuilder(String name, Dataset<IN> input, UnaryFunction<IN, K> keyFn) {
+      this.name = requireNonNull(name);
+      this.input = requireNonNull(input);
+      this.keyFn = requireNonNull(keyFn);
     }
 
     public <V> ScoreByBuilder<IN, K, V> valueBy(UnaryFunction<IN, V> valueFn) {
-      return new ScoreByBuilder<>(input, keyFn, requireNonNull(valueFn));
+      return new ScoreByBuilder<>(name, input, keyFn, requireNonNull(valueFn));
     }
   }
 
   public static class ScoreByBuilder<IN, K, V> {
+    private final String name;
     private final Dataset<IN> input;
     private final UnaryFunction<IN, K> keyFn;
     private final UnaryFunction<IN, V> valueFn;
 
-    ScoreByBuilder(Dataset<IN> input,
+    ScoreByBuilder(String name,
+                   Dataset<IN> input,
                    UnaryFunction<IN, K> keyFn,
-                   UnaryFunction<IN, V> valueFn)
-    {
-      this.input = input;
-      this.keyFn = keyFn;
-      this.valueFn = valueFn;
+                   UnaryFunction<IN, V> valueFn) {
+      this.name = requireNonNull(name);
+      this.input = requireNonNull(input);
+      this.keyFn = requireNonNull(keyFn);
+      this.valueFn = requireNonNull(valueFn);
     }
 
     public <S extends Comparable<S>> WindowByBuilder<IN, K, V, S>
     scoreBy(UnaryFunction<IN, S> scoreFn)
     {
-      return new WindowByBuilder<>(input, keyFn, valueFn, requireNonNull(scoreFn));
+      return new WindowByBuilder<>(name, input, keyFn, valueFn, requireNonNull(scoreFn));
     }
   }
 
@@ -127,12 +143,14 @@ public class TopPerKey<
       extends PartitioningBuilder<K, WindowByBuilder<IN, K, V, S>>
       implements cz.seznam.euphoria.core.client.operator.OutputBuilder<Triple<K, V, S>>
   {
+    private String name;
     private final Dataset<IN> input;
     private final UnaryFunction<IN, K> keyFn;
     private final UnaryFunction<IN, V> valueFn;
     private final UnaryFunction<IN, S> scoreFn;
 
-    WindowByBuilder(Dataset<IN> input,
+    WindowByBuilder(String name,
+                    Dataset<IN> input,
                     UnaryFunction<IN, K> keyFn,
                     UnaryFunction<IN, V> valueFn,
                     UnaryFunction<IN, S> scoreFn)
@@ -140,63 +158,83 @@ public class TopPerKey<
       super(new DefaultPartitioning<>(
           input.getPartitioning().getNumPartitions()));
 
-      this.input = input;
-      this.keyFn = keyFn;
-      this.valueFn = valueFn;
-      this.scoreFn = scoreFn;
+      this.name = requireNonNull(name);
+      this.input = requireNonNull(input);
+      this.keyFn = requireNonNull(keyFn);
+      this.valueFn = requireNonNull(valueFn);
+      this.scoreFn = requireNonNull(scoreFn);
     }
 
     public <W extends Window>
     OutputBuilder<IN, K, V, S, W>
     windowBy(Windowing<IN, W> windowing) {
-      return new OutputBuilder<>(
-          input, keyFn, valueFn, scoreFn, getPartitioning(), requireNonNull(windowing));
+      return windowBy(windowing, null);
+    }
+
+    public <W extends Window>
+    OutputBuilder<IN, K, V, S, W>
+    windowBy(Windowing<IN, W> windowing, UnaryFunction<IN, Long> eventTimeAssigner) {
+      return new OutputBuilder<>(name, input, keyFn, valueFn,
+              scoreFn, this, requireNonNull(windowing), eventTimeAssigner);
     }
 
     @Override
     public Dataset<Triple<K, V, S>> output() {
       return new OutputBuilder<>(
-          input, keyFn, valueFn, scoreFn, getPartitioning(), null).output();
+          name, input, keyFn, valueFn, scoreFn, this, null, null).output();
     }
   }
 
   public static class OutputBuilder<
       IN, K, V, S extends Comparable<S>, W extends Window>
+      extends PartitioningBuilder<K, OutputBuilder<IN, K, V, S, W>>
       implements cz.seznam.euphoria.core.client.operator.OutputBuilder<Triple<K, V, S>>
   {
+    private final String name;
     private final Dataset<IN> input;
     private final UnaryFunction<IN, K> keyFn;
     private final UnaryFunction<IN, V> valueFn;
     private final UnaryFunction<IN, S> scoreFn;
-    private final Partitioning<K> partitioning;
     private final Windowing<IN, W> windowing;
+    private final UnaryFunction<IN, Long> eventTimeAssigner;
 
-    OutputBuilder(Dataset<IN> input, UnaryFunction<IN, K> keyFn,
-                  UnaryFunction<IN, V> valueFn, UnaryFunction<IN, S> scoreFn,
-                  Partitioning<K> partitioning,
-                  Windowing<IN, W> windowing) {
-      
-      this.input = input;
-      this.keyFn = keyFn;
-      this.valueFn = valueFn;
-      this.scoreFn = scoreFn;
-      this.partitioning = partitioning;
+    OutputBuilder(String name,
+                  Dataset<IN> input,
+                  UnaryFunction<IN, K> keyFn,
+                  UnaryFunction<IN, V> valueFn,
+                  UnaryFunction<IN, S> scoreFn,
+                  PartitioningBuilder<K, ?> partitioning,
+                  Windowing<IN, W> windowing /* optional */,
+                  UnaryFunction<IN, Long> eventTimeAssigner /*optional */) {
+
+      super(partitioning);
+
+      this.name = requireNonNull(name);
+      this.input = requireNonNull(input);
+      this.keyFn = requireNonNull(keyFn);
+      this.valueFn = requireNonNull(valueFn);
+      this.scoreFn = requireNonNull(scoreFn);
       this.windowing = windowing;
+      this.eventTimeAssigner = eventTimeAssigner;
     }
 
     @Override
     public Dataset<Triple<K, V, S>> output() {
       Flow flow = input.getFlow();
       TopPerKey<IN, K, V, S, W> top =
-          new TopPerKey<>(
-              flow, input, keyFn, valueFn, scoreFn, partitioning, windowing);
+          new TopPerKey<>(flow, name, input, keyFn, valueFn,
+                  scoreFn, getPartitioning(), windowing, eventTimeAssigner);
       flow.add(top);
       return top.output();
     }
   }
 
   public static <I> KeyByBuilder<I> of(Dataset<I> input) {
-    return new KeyByBuilder<>(requireNonNull(input));
+    return new KeyByBuilder<>("TopPerKey", input);
+  }
+
+  public static OfBuilder named(String name) {
+    return new OfBuilder(name);
   }
 
   // ~ -----------------------------------------------------------------------------
@@ -204,17 +242,28 @@ public class TopPerKey<
   private final UnaryFunction<IN, VALUE> valueFn;
   private final UnaryFunction<IN, SCORE> scoreFn;
 
-  TopPerKey(Flow flow, Dataset<IN> input,
+  TopPerKey(Flow flow,
+            String name,
+            Dataset<IN> input,
             UnaryFunction<IN, KEY> keyFn,
             UnaryFunction<IN, VALUE> valueFn,
             UnaryFunction<IN, SCORE> scoreFn,
             Partitioning<KEY> partitioning,
-            Windowing<IN, W> windowing) {
-    super("Top", flow, input, keyFn, windowing);
+            Windowing<IN, W> windowing /* optional */,
+            UnaryFunction<IN, Long> eventTimeAssigner /*optional */) {
+    super(name, flow, input, keyFn, windowing, eventTimeAssigner, partitioning);
     
     this.valueFn = valueFn;
     this.scoreFn = scoreFn;
     this.partitioning = partitioning;
+  }
+
+  public UnaryFunction<IN, VALUE> getValueExtractor() {
+    return valueFn;
+  }
+
+  public UnaryFunction<IN, SCORE> getScoreExtractor() {
+    return scoreFn;
   }
 
   @Override
@@ -228,6 +277,7 @@ public class TopPerKey<
             keyExtractor,
             e -> Pair.of(valueFn.apply(e), scoreFn.apply(e)),
             windowing,
+            eventTimeAssigner,
             MaxScored::new,
             (CombinableReduceFunction<MaxScored<VALUE, SCORE>>) states -> {
               Iterator<MaxScored<VALUE, SCORE>> iter = states.iterator();

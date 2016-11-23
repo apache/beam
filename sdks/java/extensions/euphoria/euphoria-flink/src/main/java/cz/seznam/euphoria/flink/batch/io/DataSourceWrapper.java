@@ -19,9 +19,8 @@ import java.util.List;
 public class DataSourceWrapper<T>
         implements InputFormat<WindowedElement<Batch.BatchWindow, T>,
         PartitionWrapper<T>>,
-        ResultTypeQueryable<T>
+        ResultTypeQueryable<T> {
 
-{
   private final DataSource<T> dataSource;
 
   /** currently opened reader (if any) */
@@ -75,9 +74,8 @@ public class DataSourceWrapper<T>
   @Override
   public WindowedElement<Batch.BatchWindow, T> nextRecord(
       WindowedElement<Batch.BatchWindow, T> reuse)
-      throws IOException
-  {
-    return new WindowedElement<>(Batch.BatchWindow.get(), reader.next());
+      throws IOException {
+    return new WindowedElement<>(Batch.BatchWindow.get(), 0L, reader.next());
   }
 
   @Override
