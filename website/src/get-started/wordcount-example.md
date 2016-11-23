@@ -410,7 +410,7 @@ You can reuse existing `PTransform`s, that were created for manipulating simple 
 PCollection<KV<String, Long>> wordCounts = windowedWords.apply(new WordCount.CountWords());
 ```
 
-## Write Results to an Unbounded Sink
+### Write Results to an Unbounded Sink
 
 Since our input is unbounded, the same is true of our output `PCollection`. We need to make sure that we choose an appropriate, unbounded sink. Some output sinks support only bounded output, such as a text file. Google Cloud BigQuery is an output source that supports both bounded and unbounded input.
 
