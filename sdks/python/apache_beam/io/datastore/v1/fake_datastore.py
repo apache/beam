@@ -50,7 +50,6 @@ def create_run_query(entities, batch_size):
 
 def create_response(entities, end_cursor, finish):
   """Creates a query response for a given batch of scatter entities."""
-
   resp = datastore_pb2.RunQueryResponse()
   if finish:
     resp.batch.more_results = query_pb2.QueryResultBatch.NO_MORE_RESULTS
@@ -66,10 +65,9 @@ def create_response(entities, end_cursor, finish):
 
 def create_entities(count):
   """Creates a list of entities with random keys."""
-
   entities = []
 
-  for _ in range(0, count):
+  for _ in range(count):
     entity_result = query_pb2.EntityResult()
     entity_result.entity.key.path.add().name = str(uuid.uuid4())
     entities.append(entity_result)

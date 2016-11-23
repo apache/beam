@@ -98,7 +98,6 @@ def str_compare(s1, s2):
 
 def get_datastore(project):
   """Returns a Cloud Datastore client."""
-
   credentials = googledatastore.helper.get_credentials_from_env()
   datastore = Datastore(project, credentials)
   return datastore
@@ -106,7 +105,6 @@ def get_datastore(project):
 
 def make_request(project, namespace, query):
   """Make a Cloud Datastore request for the given query."""
-
   req = datastore_pb2.RunQueryRequest()
   req.partition_id.CopyFrom(make_partition(project, namespace))
 
@@ -116,7 +114,6 @@ def make_request(project, namespace, query):
 
 def make_partition(project, namespace):
   """Make a PartitionId for the given project and namespace."""
-
   partition = entity_pb2.PartitionId()
   partition.project_id = project
   if namespace is not None:
@@ -127,7 +124,6 @@ def make_partition(project, namespace):
 
 def retry_on_rpc_error(exception):
   """A retry filter for Cloud Datastore RPCErrors."""
-
   if isinstance(exception, RPCError):
     if exception.code >= 500:
       return True
@@ -155,7 +151,6 @@ def fetch_entities(project, namespace, query, datastore):
 
 def make_latest_timestamp_query(namespace):
   """Make a Query to fetch the latest timestamp statistics."""
-
   query = query_pb2.Query()
   if namespace is None:
     query.kind.add().name = '__Stat_Total__'
@@ -171,7 +166,6 @@ def make_latest_timestamp_query(namespace):
 
 def make_kind_stats_query(namespace, kind, latest_timestamp):
   """Make a Query to fetch the latest kind statistics."""
-
   kind_stat_query = query_pb2.Query()
   if namespace is None:
     kind_stat_query.kind.add().name = '__Stat_Kind__'
@@ -195,7 +189,6 @@ class QueryIterator(object):
 
   Entities are read in batches. Retries on failures.
   """
-
   _NOT_FINISHED = query_pb2.QueryResultBatch.NOT_FINISHED
   # Maximum number of results to request per query.
   _BATCH_SIZE = 500
@@ -213,7 +206,6 @@ class QueryIterator(object):
                                   retry_filter=retry_on_rpc_error)
   def _next_batch(self):
     """Fetches the next batch of entities."""
-
     if self._start_cursor is not None:
       self._req.query.start_cursor = self._start_cursor
 
@@ -233,9 +225,12 @@ class QueryIterator(object):
       num_results = len(resp.batch.entity_results)
       self._limit -= num_results
 
-      # Check if we have more entities to be read.
-      # Query limit does not exist (so limit == sys.maxint) and/or has not been
-      # satisfied.
+      # Check if we need to read more entities.
+      # True when query limit hasn't been satisfied and there are more entities
+      # to be read. The latter is true if the response has a status
+      # `NOT_FINISHED` or if the number of results read in the previous batch
+      # is equal to `_BATCH_SIZE` (all indications that there is more data be
+      # read).
       more_results = ((self._limit > 0) and
                       ((num_results == self._BATCH_SIZE) or
                        (resp.batch.more_results == self._NOT_FINISHED)))

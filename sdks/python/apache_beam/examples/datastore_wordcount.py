@@ -67,7 +67,7 @@ def run(argv=None):
   parser = argparse.ArgumentParser()
   parser.add_argument('--kind',
                       dest='kind',
-                      default='shakespeare-demo',
+                      required=True,
                       help='Datastore Kind')
   parser.add_argument('--namespace',
                       dest='namespace',

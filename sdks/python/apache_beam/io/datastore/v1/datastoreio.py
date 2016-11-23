@@ -42,7 +42,7 @@ class ReadFromDatastore(PTransform):
   read from. You can optionally provide a `namespace` and/or specify how many
   splits you want for the query through `num_splits` option.
 
-  Note: Normally, a Runner will read from Cloud Datastore in parallel across
+  Note: Normally, a runner will read from Cloud Datastore in parallel across
   many workers. However, when the `query` is configured with a `limit` or if the
   query contains inequality filters like `GREATER_THAN, LESS_THAN` etc., then
   all the returned results will be read by a single worker in order to ensure
@@ -141,12 +141,10 @@ class ReadFromDatastore(PTransform):
 
   class SplitQueryFn(DoFn):
     """A `DoFn` that splits a given query into multiple sub-queries."""
-
     def __init__(self, project, query, namespace, num_splits):
       super(ReadFromDatastore.SplitQueryFn, self).__init__()
       self._datastore = None
       self._project = project
-      # using _namespace conflicts with DisplayData._namespace
       self._datastore_namespace = namespace
       self._query = query
       self._num_splits = num_splits
@@ -155,7 +153,7 @@ class ReadFromDatastore(PTransform):
       self._datastore = helper.get_datastore(self._project)
 
     def process(self, p_context, *args, **kwargs):
-      # random key to be used to group query splits.
+      # distinct key to be used to group query splits.
       key = 1
       query = p_context.element
 
@@ -200,11 +198,9 @@ class ReadFromDatastore(PTransform):
 
   class ReadFn(DoFn):
     """A DoFn that reads entities from Cloud Datastore, for a given query."""
-
     def __init__(self, project, namespace=None):
       super(ReadFromDatastore.ReadFn, self).__init__()
       self._project = project
-      # using _namespace conflicts with DisplayData._namespace
       self._datastore_namespace = namespace
       self._datastore = None
 
@@ -249,8 +245,9 @@ class ReadFromDatastore(PTransform):
     """Get the estimated size of the data returned by the given query.
 
     Cloud Datastore provides no way to get a good estimate of how large the
-    result of a query entity kind being queried, using the __Stat_Kind__ system
-    table, assuming exactly 1 kind is specified in the query.
+    result of a query is going to be. Hence we use the __Stat_Kind__ system
+    table to get size of the entire kind as an approximate estimate, assuming
+    exactly 1 kind is specified in the query.
     See https://cloud.google.com/datastore/docs/concepts/stats.
     """
     kind = query.kind[0].name
@@ -282,7 +279,7 @@ class ReadFromDatastore(PTransform):
            ReadFromDatastore._DEFAULT_BUNDLE_SIZE_BYTES))))
 
     except Exception as e:
-      logging.warning('Failed to fetch estimated size bytes:%s', e)
+      logging.warning('Failed to fetch estimated size bytes: %s', e)
       # Fallback in case estimated size is unavailable.
       num_splits = ReadFromDatastore._NUM_QUERY_SPLITS_MIN
 
