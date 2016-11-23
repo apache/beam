@@ -79,7 +79,10 @@
               <li role="separator" class="divider"></li>
 			  <li class="dropdown-header">SDKs</li>
 			  <li><a href="/documentation/sdks/java/">Java SDK</a></li>
-			  <li><a href="/documentation/sdks/javadoc/">Java SDK API Reference</a></li>
+			  <li><a href="/documentation/sdks/javadoc/0.3.0-incubating/" target="_blank">Java SDK API Reference <img src="/images/external-link-icon.png"
+                 width="14" height="14"
+                 alt="External link."></a>
+        </li>
         <li><a href="/documentation/sdks/python/">Python SDK</a></li>
 			  <li role="separator" class="divider"></li>
 			  <li class="dropdown-header">Runners</li>
@@ -172,9 +175,9 @@
       <li><a href="#adding-timestamps-to-data" id="markdown-toc-adding-timestamps-to-data">Adding Timestamps to Data</a></li>
       <li><a href="#windowing" id="markdown-toc-windowing">Windowing</a></li>
       <li><a href="#reusing-ptransforms-over-windowed-pcollections" id="markdown-toc-reusing-ptransforms-over-windowed-pcollections">Reusing PTransforms over windowed PCollections</a></li>
+      <li><a href="#write-results-to-an-unbounded-sink" id="markdown-toc-write-results-to-an-unbounded-sink">Write Results to an Unbounded Sink</a></li>
     </ul>
   </li>
-  <li><a href="#write-results-to-an-unbounded-sink" id="markdown-toc-write-results-to-an-unbounded-sink">Write Results to an Unbounded Sink</a></li>
 </ul>
 
 <blockquote>
@@ -601,7 +604,7 @@ PCollection&lt;KV&lt;String, Long&gt;&gt; wordCounts = windowedWords.apply(new W
 </code></pre>
 </div>
 
-<h2 id="write-results-to-an-unbounded-sink">Write Results to an Unbounded Sink</h2>
+<h3 id="write-results-to-an-unbounded-sink">Write Results to an Unbounded Sink</h3>
 
 <p>Since our input is unbounded, the same is true of our output <code class="highlighter-rouge">PCollection</code>. We need to make sure that we choose an appropriate, unbounded sink. Some output sinks support only bounded output, such as a text file. Google Cloud BigQuery is an output source that supports both bounded and unbounded input.</p>
 
