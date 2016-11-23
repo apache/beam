@@ -22,7 +22,7 @@ from google.datastore.v1 import datastore_pb2
 from google.datastore.v1 import query_pb2
 from google.datastore.v1.query_pb2 import PropertyFilter
 from google.datastore.v1.query_pb2 import CompositeFilter
-import googledatastore
+from googledatastore import helper as datastore_helper
 
 
 __all__ = [
@@ -129,8 +129,7 @@ def _create_scatter_query(query, num_splits):
     scatter_kind.CopyFrom(kind)
 
   # ascending order
-  googledatastore.helper.add_property_orders(scatter_query,
-                                             SCATTER_PROPERTY_NAME)
+  datastore_helper.add_property_orders(scatter_query, SCATTER_PROPERTY_NAME)
 
   # There is a split containing entities before and after each scatter entity:
   # ||---*------*------*------*------*------*------*---||  * = scatter entity
@@ -138,7 +137,7 @@ def _create_scatter_query(query, num_splits):
   # extra region following the last scatter point. Thus, we do not need the
   # scatter entity for the last region.
   scatter_query.limit.value = (num_splits - 1) * KEYS_PER_SPLIT
-  googledatastore.helper.add_projection(scatter_query, KEY_PROPERTY_NAME)
+  datastore_helper.add_projection(scatter_query, KEY_PROPERTY_NAME)
 
   return scatter_query
 

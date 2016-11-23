@@ -22,9 +22,13 @@ from google.datastore.v1 import query_pb2
 from google.protobuf import timestamp_pb2
 from googledatastore import helper as datastore_helper
 from mock import MagicMock, call, patch
+
+from apache_beam.io.datastore.v1 import fake_datastore
 from apache_beam.io.datastore.v1 import helper
 from apache_beam.io.datastore.v1 import query_splitter
+from apache_beam.io.datastore.v1.datastoreio import _Mutate
 from apache_beam.io.datastore.v1.datastoreio import ReadFromDatastore
+from apache_beam.io.datastore.v1.datastoreio import WriteToDatastore
 
 
 class DatastoreioTest(unittest.TestCase):
@@ -117,6 +121,48 @@ class DatastoreioTest(unittest.TestCase):
 
       self.assertEqual(1, len(returned_split_queries))
       self.assertEqual(0, len(self._mock_datastore.method_calls))
+
+  def test_DatastoreWriteFn_with_emtpy_batch(self):
+    self.check_DatastoreWriteFn(0)
+
+  def test_DatastoreWriteFn_with_one_batch(self):
+    num_entities_to_write = _Mutate._WRITE_BATCH_SIZE * 1 - 50
+    self.check_DatastoreWriteFn(num_entities_to_write)
+
+  def test_DatastoreWriteFn_with_multiple_batches(self):
+    num_entities_to_write = _Mutate._WRITE_BATCH_SIZE * 3 + 50
+    self.check_DatastoreWriteFn(num_entities_to_write)
+
+  def test_DatastoreWriteFn_with_batch_size_exact_multiple(self):
+    num_entities_to_write = _Mutate._WRITE_BATCH_SIZE * 2
+    self.check_DatastoreWriteFn(num_entities_to_write)
+
+  def check_DatastoreWriteFn(self, num_entities):
+    """A helper function to test DatastoreWriteFn."""
+
+    with patch.object(helper, 'get_datastore',
+                      return_value=self._mock_datastore):
+      entities = [e.entity for e in
+                  fake_datastore.create_entities(num_entities)]
+
+      expected_mutations = map(WriteToDatastore.to_upsert_mutation, entities)
+      actual_mutations = []
+
+      self._mock_datastore.commit.side_effect = (
+          fake_datastore.create_commit(actual_mutations))
+
+      datastore_write_fn = _Mutate.DatastoreWriteFn(self._PROJECT)
+
+      mock_context = MagicMock()
+      datastore_write_fn.start_bundle(mock_context)
+      for mutation in expected_mutations:
+        mock_context.element = mutation
+        datastore_write_fn.process(mock_context)
+      datastore_write_fn.finish_bundle(mock_context)
+
+      self.assertEqual(actual_mutations, expected_mutations)
+      self.assertEqual((num_entities - 1) / _Mutate._WRITE_BATCH_SIZE + 1,
+                       self._mock_datastore.commit.call_count)
 
   def verify_unique_keys(self, queries):
     """A helper function that verifies if all the queries have unique keys."""
