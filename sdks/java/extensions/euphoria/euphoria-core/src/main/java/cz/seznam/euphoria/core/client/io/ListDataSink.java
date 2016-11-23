@@ -15,7 +15,7 @@ import java.util.stream.Collectors;
 public class ListDataSink<T> implements DataSink<T> {
 
   // global storage for all existing ListDataSinks
-  private static final Map<ListDataSink<?>, List<List<?>>> storage =
+  private static final Map<ListDataSink<?>, ArrayList<List<?>>> storage =
           Collections.synchronizedMap(new WeakHashMap<>());
 
   public static <T> ListDataSink<T> get(int numPartitions) {
@@ -63,7 +63,7 @@ public class ListDataSink<T> implements DataSink<T> {
     }
 
     // save outputs to static storage
-    storage.put((ListDataSink) this, (List) outputs);
+    storage.put((ListDataSink) this, (ArrayList) outputs);
   }
 
   @Override
@@ -84,8 +84,8 @@ public class ListDataSink<T> implements DataSink<T> {
   }
 
   @SuppressWarnings("unchecked")
-  public List<List<T>> getOutputs() {
-    return (List) storage.get(this);
+  public ArrayList<List<T>> getOutputs() {
+    return (ArrayList) storage.get(this);
   }
 
   public List<T> getOutput(int partition) {

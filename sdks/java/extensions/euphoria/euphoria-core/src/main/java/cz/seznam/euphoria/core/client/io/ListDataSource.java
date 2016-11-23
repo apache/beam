@@ -24,33 +24,31 @@ public class ListDataSource<T> implements DataSource<T> {
 
   @SafeVarargs
   public static <T> ListDataSource<T> bounded(List<T>... partitions) {
-    return new ListDataSource<>(true, Lists.newArrayList(partitions));
+    return of(true, partitions);
   }
 
   @SafeVarargs
   public static <T> ListDataSource<T> unbounded(List<T>... partitions) {
-    return new ListDataSource<>(false, Lists.newArrayList(partitions));
+    return of(false, partitions);
   }
 
   @SafeVarargs
   public static <T> ListDataSource<T> of(boolean bounded, List<T> ... partitions) {
-    return new ListDataSource<>(bounded, Lists.newArrayList(partitions));
+    return of(bounded, Lists.newArrayList(partitions));
   }
   
-  @SafeVarargs
-  public static <T> ListDataSource<T> of(List<T> ... partitions) {
-    return new ListDataSource<>(null, Lists.newArrayList(partitions));
+  public static <T> ListDataSource<T> of(boolean bounded, List<List<T>> partitions) {
+    return new ListDataSource<>(bounded, partitions);
   }
 
-  // bounded/unbounded/unknown
-  final Boolean bounded;
+  final boolean bounded;
   long sleepMs = 0;
   long finalSleepMs = 0;
 
   private final int id = System.identityHashCode(this);
 
   @SuppressWarnings("unchecked")
-  private ListDataSource(Boolean bounded, ArrayList<List<T>> partitions) {
+  private ListDataSource(boolean bounded, List<List<T>> partitions) {
     this.bounded = bounded;
 
     // save partitions to static storage
@@ -134,19 +132,11 @@ public class ListDataSource<T> implements DataSource<T> {
 
   @Override
   public boolean isBounded() {
-    return bounded == Boolean.TRUE;
-  }
-  
-  public boolean isUnbounded() {
-    return bounded == Boolean.FALSE;
-  }
-  
-  public boolean isUnknown() {
-    return bounded == null;
+    return bounded;
   }
   
   public ListDataSource<T> toBounded() {
-    if (isBounded()) {
+    if (bounded) {
       return this;
     }
     List<List<?>> list = (List<List<?>>) storage.get(this);
@@ -154,7 +144,7 @@ public class ListDataSource<T> implements DataSource<T> {
   }
   
   public ListDataSource<T> toUnbounded() {
-    if (isUnbounded()) {
+    if (!bounded) {
       return this;
     }
     List<List<?>> list = (List<List<?>>) storage.get(this);

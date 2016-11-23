@@ -1,5 +1,7 @@
 package cz.seznam.euphoria.operator.test.ng.junit;
 
+import cz.seznam.euphoria.guava.shaded.com.google.common.base.Preconditions;
+import cz.seznam.euphoria.operator.test.ng.junit.Processing.Type;
 import org.junit.internal.builders.JUnit4Builder;
 import org.junit.runner.Runner;
 import org.junit.runners.BlockJUnit4ClassRunner;
@@ -10,7 +12,10 @@ import org.junit.runners.model.Statement;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.lang.reflect.AnnotatedElement;
+import java.util.Arrays;
 import java.util.Objects;
+import java.util.Optional;
 
 public class ExecutorProviderRunner extends Suite {
 
@@ -68,13 +73,20 @@ public class ExecutorProviderRunner extends Suite {
                 AbstractOperatorTest opTest = ((AbstractOperatorTest) target);
                 opTest.executor = Objects.requireNonNull(env.getExecutor());
                 // annotation must be present on test class
-                Processing.Type testClassProcessing = getProcessing(testClass, true);
-                // annotation may be present on execution class
-                Processing.Type runnerProcessing = getProcessing(provider.getClass(), false);
+                Optional<Processing.Type> testClassProcessing = getProcessing(testClass);
+                // annotation may be present on execution method
+                Optional<Processing.Type> testMethodProcessing = getProcessing(method.getMethod());
+                Preconditions.checkArgument(
+                    testClassProcessing.isPresent() || testMethodProcessing.isPresent(),
+                    "Processing annotation is missing either on method or class!");
+                Optional<Processing.Type> definedProcessing = merged(testClassProcessing, testMethodProcessing);
+                Preconditions.checkArgument(definedProcessing.isPresent(), "Conflicting processings!");
+                // annotation may be present on execution class which can override the defined
+                Optional<Processing.Type> runnerProcessing = getProcessing(provider.getClass());
                 // merge processing types if both defined
-                opTest.processing = runnerProcessing == null 
-                    ? testClassProcessing 
-                    : testClassProcessing.merge(runnerProcessing);
+                opTest.processing = merged(definedProcessing, runnerProcessing).orElse(null);
+                LOG.info("Defined processing for {} is {}", 
+                         method.getMethod().getName(), opTest.processing);
                 try {
                   result.evaluate();
                 } finally {
@@ -85,7 +97,6 @@ public class ExecutorProviderRunner extends Suite {
                   }
                 }
               }
-
             };
           }
           return result;
@@ -95,14 +106,20 @@ public class ExecutorProviderRunner extends Suite {
   }
 
   // return defined processing type (bounded, unbounded, any) from annotation
-  private static Processing.Type getProcessing(Class<?> cls, boolean required) {
-    if (cls.isAnnotationPresent(Processing.class)) {
-      Processing proc = (Processing) cls.getAnnotation(Processing.class);
-      return proc.value();
-    } else if (required) {
-      throw new IllegalStateException("Undefined processing! (bounded, unbounded, any)");
+  private static Optional<Processing.Type> getProcessing(AnnotatedElement element) {
+    if (element.isAnnotationPresent(Processing.class)) {
+      Processing proc = (Processing) element.getAnnotation(Processing.class);
+      return Optional.of(proc.value());
     } else {
-      return null;
+      return Optional.empty();
     }
+  }
+  
+  // merges all processings. Optional.empty represents undefined
+  private static Optional<Type> merged(Optional<Type> ... processings) {
+    return Arrays.asList(processings).stream()
+        .filter(Optional::isPresent)
+        .reduce((acc, next) -> acc.flatMap(a -> a.merge(next.get())))
+        .get();
   }
 }
