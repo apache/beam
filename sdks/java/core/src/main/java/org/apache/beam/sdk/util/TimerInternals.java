@@ -63,12 +63,11 @@ public interface TimerInternals {
   void setTimer(StateNamespace namespace, String timerId, Instant target, TimeDomain timeDomain);
 
   /**
-   * Writes out a timer to be fired when the watermark reaches the given timestamp, automatically
-   * generating an id for it from the provided {@link TimerData}.
+   * Writes out a timer to be fired when the watermark reaches the timestamp contained in the
+   * provided {@link TimerData}.
    *
    * <p>The {@link TimerData} contains all the fields necessary to set the timer. The timer's ID
-   * is determinstically generated from the {@link TimerData}, so it may be canceled using
-   * the same {@link TimerData}.
+   * is embedded in the {@link TimerData}, so it may be canceled using the same {@link TimerData}.
    */
   void setTimer(TimerData timerKey);
 
@@ -78,7 +77,7 @@ public interface TimerInternals {
   void deleteTimer(StateNamespace namespace, String timerId);
 
   /**
-   * Deletes the given timer, automatically inferring its ID from the {@link TimerData}.
+   * Deletes the timer with the ID contained in the provided {@link TimerData}.
    */
   void deleteTimer(TimerData timerKey);
 
@@ -164,14 +163,29 @@ public interface TimerInternals {
    * Data about a timer as represented within {@link TimerInternals}.
    */
   class TimerData implements Comparable<TimerData> {
+    private final String timerId;
     private final StateNamespace namespace;
     private final Instant timestamp;
     private final TimeDomain domain;
 
-    private TimerData(StateNamespace namespace, Instant timestamp, TimeDomain domain) {
+    private TimerData(
+        StateNamespace namespace, String timerId, Instant timestamp, TimeDomain domain) {
+      this.timerId = timerId;
       this.namespace = checkNotNull(namespace);
       this.timestamp = checkNotNull(timestamp);
       this.domain = checkNotNull(domain);
+    }
+
+    private TimerData(StateNamespace namespace, Instant timestamp, TimeDomain domain) {
+      this(
+          namespace,
+          String.format("%d:%d", domain.ordinal(), timestamp.getMillis()),
+          timestamp,
+          domain);
+    }
+
+    public String getTimerId() {
+      return timerId;
     }
 
     public StateNamespace getNamespace() {
