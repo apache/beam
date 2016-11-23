@@ -222,6 +222,13 @@ public class PCollectionList<T> implements PInput, POutput {
     }
   }
 
+  public void replaceAsOutput(
+      AppliedPTransform<?, ?, ?> original, AppliedPTransform<?, ?, ?> replacement) {
+    for (PCollection<T> pc : pcollections) {
+      pc.replaceAsOutput(original, replacement);
+    }
+  }
+
   @Override
   public void finishSpecifying() {
     for (PCollection<T> pc : pcollections) {

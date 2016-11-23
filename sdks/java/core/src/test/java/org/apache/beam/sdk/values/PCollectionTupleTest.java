@@ -17,8 +17,10 @@
  */
 package org.apache.beam.sdk.values;
 
+import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
 import java.io.Serializable;
@@ -28,11 +30,13 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.RunnableOnService;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.values.PCollection.IsBounded;
+import org.hamcrest.Matchers;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
@@ -44,8 +48,9 @@ public final class PCollectionTupleTest implements Serializable {
   @Test
   public void testOfThenHas() {
     Pipeline pipeline = TestPipeline.create();
-    PCollection<Object> pCollection = PCollection.createPrimitiveOutputInternal(
-        pipeline, WindowingStrategy.globalDefault(), IsBounded.BOUNDED);
+    PCollection<Object> pCollection =
+        PCollection.createPrimitiveOutputInternal(
+            pipeline, WindowingStrategy.globalDefault(), IsBounded.BOUNDED);
     TupleTag<Object> tag = new TupleTag<>();
 
     assertTrue(PCollectionTuple.of(tag, pCollection).has(tag));
@@ -59,6 +64,48 @@ public final class PCollectionTupleTest implements Serializable {
   }
 
   @Test
+  public void testReplaceAsOutput() {
+    Pipeline p = TestPipeline.create();
+
+    PCollection<Integer> created = p.apply(Create.of(0, 1, 2, 3, 5));
+    TupleTag<Integer> intTag = new TupleTag<Integer>() {};
+    final TupleTag<Byte> byteTag = new TupleTag<Byte>() {};
+    final TupleTag<Long> longTag = new TupleTag<Long>() {};
+    DoFn<Integer, Integer> fn =
+        new DoFn<Integer, Integer>() {
+          @ProcessElement
+          public void ident(ProcessContext ctx) {
+            ctx.output(ctx.element());
+            ctx.sideOutput(byteTag, ctx.element().byteValue());
+            ctx.sideOutput(longTag, ctx.element().longValue());
+          }
+        };
+    PCollectionTuple tuple =
+        created.apply(
+            "Tuplify", ParDo.of(fn).withOutputTags(intTag, TupleTagList.of(longTag).and(byteTag)));
+
+    AppliedPTransform<?, ?, ?> componentProducer =
+        tuple.get(intTag).getProducingTransformInternal();
+
+    PCollectionTuple replacementTuple =
+        created.apply(
+            "ReTuplify",
+            ParDo.of(fn).withOutputTags(intTag, TupleTagList.of(longTag).and(byteTag)));
+    AppliedPTransform<?, ?, ?> replacementProducer =
+        replacementTuple.get(longTag).getProducingTransformInternal();
+
+    assertThat(
+        replacementProducer, not(Matchers.<AppliedPTransform<?, ?, ?>>equalTo(componentProducer)));
+
+    tuple.replaceAsOutput(componentProducer, replacementProducer);
+    for (PCollection<?> pc : tuple.getAll().values()) {
+      assertThat(
+          pc.getProducingTransformInternal(),
+          Matchers.<AppliedPTransform<?, ?, ?>>equalTo(replacementProducer));
+    }
+  }
+
+  @Test
   @Category(RunnableOnService.class)
   public void testComposePCollectionTuple() {
     Pipeline pipeline = TestPipeline.create();
@@ -69,16 +116,18 @@ public final class PCollectionTupleTest implements Serializable {
     TupleTag<Integer> emptyOutputTag = new TupleTag<Integer>("empty") {};
     final TupleTag<Integer> sideOutputTag = new TupleTag<Integer>("side") {};
 
-    PCollection<Integer> mainInput = pipeline
-        .apply(Create.of(inputs));
+    PCollection<Integer> mainInput = pipeline.apply(Create.of(inputs));
 
-    PCollectionTuple outputs = mainInput.apply(ParDo
-        .of(new DoFn<Integer, Integer>() {
-          @ProcessElement
-          public void processElement(ProcessContext c) {
-            c.sideOutput(sideOutputTag, c.element());
-          }})
-        .withOutputTags(emptyOutputTag, TupleTagList.of(sideOutputTag)));
+    PCollectionTuple outputs =
+        mainInput.apply(
+            ParDo.of(
+                    new DoFn<Integer, Integer>() {
+                      @ProcessElement
+                      public void processElement(ProcessContext c) {
+                        c.sideOutput(sideOutputTag, c.element());
+                      }
+                    })
+                .withOutputTags(emptyOutputTag, TupleTagList.of(sideOutputTag)));
     assertNotNull("outputs.getPipeline()", outputs.getPipeline());
     outputs = outputs.and(mainOutputTag, mainInput);
 
@@ -88,5 +137,4 @@ public final class PCollectionTupleTest implements Serializable {
 
     pipeline.run();
   }
-
 }

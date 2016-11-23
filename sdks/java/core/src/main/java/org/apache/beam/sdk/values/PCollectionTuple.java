@@ -249,6 +249,14 @@ public class PCollectionTuple implements PInput, POutput {
   }
 
   @Override
+  public void replaceAsOutput(
+      AppliedPTransform<?, ?, ?> original, AppliedPTransform<?, ?, ?> replacement) {
+    for (PCollection<?> pc : pcollectionMap.values()) {
+      pc.replaceAsOutput(original, replacement);
+    }
+  }
+
+  @Override
   public void finishSpecifying() {
     for (PCollection<?> pc : pcollectionMap.values()) {
       pc.finishSpecifying();
