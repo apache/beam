@@ -268,7 +268,7 @@ public class JdbcIO {
 
     public Read<T> withDataSourceConfiguration(DataSourceConfiguration configuration) {
       checkArgument(configuration != null, "JdbcIO.read().withDataSourceConfiguration"
-          + "(configuration) called with null configuration or not called at all");
+          + "(configuration) called with null configuration");
       return toBuilder().setDataSourceConfiguration(configuration).build();
     }
 
@@ -425,13 +425,13 @@ public class JdbcIO {
     @Override
     public void validate(PCollection<T> input) {
       checkArgument(getDataSourceConfiguration() != null,
-          "JdbcIO.write().withDataSourceConfiguration(configuration) called with null "
-              + "configuration or not called at all");
+          "JdbcIO.write() requires a configuration to be set via "
+              + ".withDataSourceConfiguration(configuration)");
       checkArgument(getStatement() != null,
-          "JdbcIO.write().withStatement(statement) called with null statement");
+          "JdbcIO.write() requires a statement to be set via .withStatement(statement)");
       checkArgument(getPreparedStatementSetter() != null,
-          "JdbcIO.write().withPreparedStatementSetter(preparedStatementSetter) called with null "
-              + "preparedStatementSetter");
+          "JdbcIO.write() requires a preparedStatementSetter to be set via "
+              + ".withPreparedStatementSetter(preparedStatementSetter)");
     }
 
     private static class WriteFn<T> extends DoFn<T, Void> {
