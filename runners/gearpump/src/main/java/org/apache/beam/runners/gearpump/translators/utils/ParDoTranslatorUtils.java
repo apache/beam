@@ -23,7 +23,6 @@ import java.util.HashMap;
 import java.util.Map;
 
 import org.apache.beam.runners.gearpump.translators.TranslationContext;
-import org.apache.beam.sdk.transforms.join.RawUnionValue;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.gearpump.streaming.dsl.javaapi.JavaStream;
@@ -38,18 +37,15 @@ public class ParDoTranslatorUtils {
   public static <InputT> JavaStream<RawUnionValue> withSideInputStream(
       TranslationContext context,
       JavaStream<WindowedValue<InputT>> inputStream,
-      Collection<PCollectionView<?>> sideInputs) {
+      Map<Integer, PCollectionView<?>> tagsToSideInputs) {
     JavaStream<RawUnionValue> mainStream =
         inputStream.map(new ToRawUnionValue<InputT>(0), "map_to_RawUnionValue");
 
-    final int size = sideInputs.size();
-    if (size > 1) {
-      throw new UnsupportedOperationException("only one side input is supported");
-    } else if (size == 1) {
-      PCollectionView<?> sideInput = sideInputs.iterator().next();
-      JavaStream<WindowedValue<Object>> sideInputStream = context.getInputStream(sideInput);
-      mainStream = mainStream.merge(sideInputStream.map(new ToRawUnionValue<>(1),
-          "map_to_RawUnionValue"), "merge_to_MainStream");
+    for (Map.Entry<Integer, PCollectionView<?>> tagToSideInput: tagsToSideInputs.entrySet()) {
+      JavaStream<WindowedValue<Object>> sideInputStream = context.getInputStream(
+          tagToSideInput.getValue());
+      mainStream = mainStream.merge(sideInputStream.map(new ToRawUnionValue<>(
+          tagToSideInput.getKey()), "map_to_RawUnionValue"), "merge_to_MainStream");
     }
     return mainStream;
   }

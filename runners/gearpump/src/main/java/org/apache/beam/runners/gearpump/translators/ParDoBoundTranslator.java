@@ -25,9 +25,9 @@ import java.util.Map;
 
 import org.apache.beam.runners.gearpump.translators.functions.DoFnFunction;
 import org.apache.beam.runners.gearpump.translators.utils.ParDoTranslatorUtils;
+import org.apache.beam.runners.gearpump.translators.utils.RawUnionValue;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.join.RawUnionValue;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.values.PCollection;
@@ -54,15 +54,16 @@ public class ParDoBoundTranslator<InputT, OutputT> implements
     WindowingStrategy<?, ?> windowingStrategy = output.getWindowingStrategy();
 
     Collection<PCollectionView<?>> sideInputs = transform.getSideInputs();
+    Map<Integer, PCollectionView<?>> tagsToSideInputs =
+        ParDoTranslatorUtils.getTagsToSideInputs(sideInputs);
     JavaStream<WindowedValue<InputT>> inputStream = context.getInputStream(
         context.getInput(transform));
     JavaStream<RawUnionValue> unionStream = ParDoTranslatorUtils.withSideInputStream(context,
-        inputStream, sideInputs);
+        inputStream, tagsToSideInputs);
 
 
     DoFnFunction<InputT, OutputT> doFnFunction = new DoFnFunction<>(context.getPipelineOptions(),
-        doFn, windowingStrategy, sideInputs,
-        ParDoTranslatorUtils.getTagsToSideInputs(sideInputs),
+        doFn, windowingStrategy, sideInputs, tagsToSideInputs,
         mainOutput, sideOutputs, sideOutputsToTags);
 
     JavaStream<WindowedValue<OutputT>> outputStream =

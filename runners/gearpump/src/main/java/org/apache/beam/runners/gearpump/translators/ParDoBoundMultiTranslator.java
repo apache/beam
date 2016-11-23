@@ -27,9 +27,9 @@ import java.util.Map;
 
 import org.apache.beam.runners.gearpump.translators.functions.DoFnFunction;
 import org.apache.beam.runners.gearpump.translators.utils.ParDoTranslatorUtils;
+import org.apache.beam.runners.gearpump.translators.utils.RawUnionValue;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.join.RawUnionValue;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
@@ -52,6 +52,8 @@ public class ParDoBoundMultiTranslator<InputT, OutputT> implements
     PCollection<InputT> inputT = (PCollection<InputT>) context.getInput(transform);
     JavaStream<WindowedValue<InputT>> inputStream = context.getInputStream(inputT);
     Collection<PCollectionView<?>> sideInputs = transform.getSideInputs();
+    Map<Integer, PCollectionView<?>> tagsToSideInputs =
+        ParDoTranslatorUtils.getTagsToSideInputs(sideInputs);
 
     Map<TupleTag<?>, PCollection<?>> outputs = context.getOutput(transform).getAll();
     Map<TupleTag<?>, Integer> outputsToTags = getOutputsToTags(outputs);
@@ -60,7 +62,7 @@ public class ParDoBoundMultiTranslator<InputT, OutputT> implements
     List<TupleTag<?>> sideOutputs = Lists.newLinkedList(sideOutputsToTags.keySet());
 
     JavaStream<RawUnionValue> unionStream = ParDoTranslatorUtils.withSideInputStream(
-        context, inputStream, sideInputs);
+        context, inputStream, tagsToSideInputs);
 
     JavaStream<RawUnionValue> outputStream = unionStream.flatMap(
         new DoFnFunction<>(
@@ -68,7 +70,7 @@ public class ParDoBoundMultiTranslator<InputT, OutputT> implements
             transform.getNewFn(),
             inputT.getWindowingStrategy(),
             sideInputs,
-            ParDoTranslatorUtils.getTagsToSideInputs(sideInputs),
+            tagsToSideInputs,
             mainOutput,
             sideOutputs,
             sideOutputsToTags), transform.getName());
