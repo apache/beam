@@ -6,6 +6,9 @@ import cz.seznam.euphoria.core.executor.Executor;
 import cz.seznam.euphoria.core.util.Settings;
 import cz.seznam.euphoria.flink.batch.BatchFlowTranslator;
 import cz.seznam.euphoria.flink.streaming.StreamingFlowTranslator;
+import org.apache.flink.api.common.io.DefaultInputSplitAssigner;
+import org.apache.flink.core.io.InputSplit;
+import org.apache.flink.core.io.InputSplitAssigner;
 import org.apache.flink.core.memory.HeapMemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.runtime.state.AbstractStateBackend;
@@ -21,6 +24,7 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.function.BiFunction;
 
 /**
  * Executor implementation using Apache Flink as a runtime.
@@ -100,10 +104,9 @@ public class FlinkExecutor implements Executor {
 
       FlowTranslator translator;
       if (mode == ExecutionEnvironment.Mode.BATCH) {
-        translator = new BatchFlowTranslator(settings, environment.getBatchEnv());
+        translator = createBatchTranslator(settings, environment);
       } else {
-        translator = new StreamingFlowTranslator(
-            environment.getStreamEnv(), allowedLateness, autoWatermarkInterval);
+        translator = createStreamTranslator(settings, environment, allowedLateness, autoWatermarkInterval);
       }
 
       List<DataSink<?>> sinks = translator.translateInto(flow);
@@ -149,6 +152,17 @@ public class FlinkExecutor implements Executor {
       LOG.error("Failed to run flow " + flow.getName(), t);
       throw new RuntimeException(t);
     }
+  }
+  
+  protected FlowTranslator createBatchTranslator(Settings settings, ExecutionEnvironment environment) {
+    return new BatchFlowTranslator(settings, environment.getBatchEnv());
+  }
+  
+  protected FlowTranslator createStreamTranslator(Settings settings, 
+                                                  ExecutionEnvironment environment,
+                                                  Duration allowedLateness, 
+                                                  Duration autoWatermarkInterval) {
+    return new StreamingFlowTranslator(environment.getStreamEnv(), allowedLateness, autoWatermarkInterval);
   }
 
   /**

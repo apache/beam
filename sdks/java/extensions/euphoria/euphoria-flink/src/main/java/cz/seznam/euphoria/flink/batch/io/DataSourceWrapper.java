@@ -11,10 +11,12 @@ import org.apache.flink.api.common.io.statistics.BaseStatistics;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.io.InputSplit;
 import org.apache.flink.core.io.InputSplitAssigner;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.function.BiFunction;
 
 public class DataSourceWrapper<T>
         implements InputFormat<WindowedElement<Batch.BatchWindow, T>,
@@ -22,13 +24,16 @@ public class DataSourceWrapper<T>
         ResultTypeQueryable<T> {
 
   private final DataSource<T> dataSource;
+  private final BiFunction<InputSplit[], Integer, InputSplitAssigner> splitAssignerFactory;
 
   /** currently opened reader (if any) */
   private transient Reader<T> reader;
-
-  public DataSourceWrapper(DataSource<T> dataSource) {
+  
+  public DataSourceWrapper(DataSource<T> dataSource, 
+                           BiFunction<InputSplit[], Integer, InputSplitAssigner> splitAssignerFactory) {
     Preconditions.checkArgument(dataSource.isBounded());
     this.dataSource = dataSource;
+    this.splitAssignerFactory = splitAssignerFactory;
   }
 
   @Override
@@ -58,7 +63,7 @@ public class DataSourceWrapper<T>
 
   @Override
   public InputSplitAssigner getInputSplitAssigner(PartitionWrapper[] partitions) {
-    return new SimpleInputSplitAssigner(partitions);
+    return splitAssignerFactory.apply(partitions, dataSource.getPartitions().size());
   }
 
   @Override

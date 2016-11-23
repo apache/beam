@@ -6,6 +6,7 @@ import java.lang.annotation.Inherited;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.util.List;
+import java.util.Optional;
 
 /**
  * Annotation used in tests. Can be put on {@link AbstractOperatorTest} implementation
@@ -19,24 +20,19 @@ public @interface Processing {
   
   public static enum Type {
     
-    BOUNDED, UNBOUNDED, ANY;
+    BOUNDED, UNBOUNDED, ALL;
     
     List<Type> asList() {
-      return this == ANY ? Lists.newArrayList(BOUNDED, UNBOUNDED) : Lists.newArrayList(this);
+      return this == ALL ? Lists.newArrayList(BOUNDED, UNBOUNDED) : Lists.newArrayList(this);
     }
     
-    boolean isBounded() {
-      return this == BOUNDED;
-    }
-    
-    Type merge(Type that) {
-      if (this == ANY) return that;
-      if (that == ANY) return this;
-      if (this == that) return this;
-      throw new IllegalStateException("Incompatible processing types: " + this + " vs " + that);
+    Optional<Type> merge(Type that) {
+      if (this == ALL) return Optional.of(that);
+      if (that == ALL) return Optional.of(this);
+      if (this == that) return Optional.of(this);
+      return Optional.empty();
     }
   }
   
-  Type value() default Type.ANY;
-
+  Type value() default Type.ALL;
 }

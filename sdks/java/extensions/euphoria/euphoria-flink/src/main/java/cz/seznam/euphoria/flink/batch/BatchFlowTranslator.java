@@ -18,19 +18,31 @@ import cz.seznam.euphoria.flink.FlowOptimizer;
 import cz.seznam.euphoria.flink.FlowTranslator;
 import cz.seznam.euphoria.flink.batch.io.DataSinkWrapper;
 import cz.seznam.euphoria.guava.shaded.com.google.common.base.Preconditions;
+import org.apache.flink.api.common.io.DefaultInputSplitAssigner;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.core.io.InputSplit;
+import org.apache.flink.core.io.InputSplitAssigner;
 
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.function.BiFunction;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 public class BatchFlowTranslator extends FlowTranslator {
-
+  
+  public static interface SplitAssignerFactory 
+  extends BiFunction<InputSplit[], Integer, InputSplitAssigner>, Serializable {}
+  
+  public static final SplitAssignerFactory DEFAULT_SPLIT_ASSIGNER_FACTORY =
+      (splits, partitions) -> new DefaultInputSplitAssigner(splits);
+  
   private static class Translation<O extends Operator<?, ?>> {
     final BatchOperatorTranslator<O> translator;
     final UnaryPredicate<O> accept;
@@ -59,13 +71,18 @@ public class BatchFlowTranslator extends FlowTranslator {
   private final Map<Class, Translation> translations = new IdentityHashMap<>();
   private final ExecutionEnvironment env;
   private final Settings settings;
-
+  
   public BatchFlowTranslator(Settings settings, ExecutionEnvironment env) {
+    this(settings, env, DEFAULT_SPLIT_ASSIGNER_FACTORY);
+  }
+
+  public BatchFlowTranslator(Settings settings, ExecutionEnvironment env, 
+                             SplitAssignerFactory splitAssignerFactory) {
     this.settings = settings;
     this.env = Objects.requireNonNull(env);
 
     // basic operators
-    Translation.set(translations, FlowUnfolder.InputOperator.class, new InputTranslator());
+    Translation.set(translations, FlowUnfolder.InputOperator.class, new InputTranslator(splitAssignerFactory));
     Translation.set(translations, FlatMap.class, new FlatMapTranslator());
     Translation.set(translations, Repartition.class, new RepartitionTranslator());
     Translation.set(translations, ReduceStateByKey.class, new ReduceStateByKeyTranslator(settings, env));

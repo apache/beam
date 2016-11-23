@@ -2,7 +2,6 @@ package cz.seznam.euphoria.operator.test.ng.tests;
 
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.dataset.windowing.Time;
-import cz.seznam.euphoria.core.client.io.ListDataSource;
 import cz.seznam.euphoria.core.client.operator.CountByKey;
 import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.operator.test.ng.junit.AbstractOperatorTest;
@@ -19,7 +18,7 @@ import static org.junit.Assert.assertEquals;
 /**
  * Test operator {@code CountByKey}.
  */
-@Processing(Type.ANY)
+@Processing(Type.ALL)
 public class CountByKeyTest extends AbstractOperatorTest {
 
   @Test
@@ -36,11 +35,11 @@ public class CountByKeyTest extends AbstractOperatorTest {
       }
 
       @Override
-      protected ListDataSource<Integer> getDataSource() {
-        return ListDataSource.of(
-            Arrays.asList(1, 2, 3, 4, 5, 6, 7),
-            Arrays.asList(10, 9, 8, 7, 6, 5, 4)
-        );
+      protected Partitions<Integer> getInput() {
+        return Partitions
+            .add(1, 2, 3, 4, 5, 6, 7)
+            .add(10, 9, 8, 7, 6, 5, 4)
+            .build();
       }
 
       @Override
@@ -49,7 +48,7 @@ public class CountByKeyTest extends AbstractOperatorTest {
       }
 
       @Override
-      public void validate(List<List<Pair<Integer, Long>>> partitions) {
+      public void validate(Partitions<Pair<Integer, Long>> partitions) {
         assertEquals(2, partitions.size());
         // even elements are in first partition
         List<Pair<Integer, Long>> first = partitions.get(0);
@@ -87,9 +86,8 @@ public class CountByKeyTest extends AbstractOperatorTest {
       }
 
       @Override
-      protected ListDataSource<Pair<Integer, Long>> getDataSource() {
-        return ListDataSource.of(
-            Arrays.asList(
+      protected Partitions<Pair<Integer, Long>> getInput() {
+        return Partitions.add(
                 Pair.of(1, 200L), Pair.of(2, 500L), Pair.of(1, 800L),
                 Pair.of(3, 1400L), Pair.of(3, 1200L), Pair.of(4, 1800L),
                 Pair.of(5, 2100L), Pair.of(5, 2300L), Pair.of(5, 2700L),
@@ -97,7 +95,7 @@ public class CountByKeyTest extends AbstractOperatorTest {
                 Pair.of(7, 4400L), Pair.of(7, 4500L), Pair.of(10, 4600L),
                 Pair.of(10, 5100L), Pair.of(9, 5200L), Pair.of(9, 5500L),
                 Pair.of(9, 6300L), Pair.of(9, 6700L))
-        );
+            .build();
       }
 
       @Override
@@ -106,7 +104,7 @@ public class CountByKeyTest extends AbstractOperatorTest {
       }
 
       @Override
-      public void validate(List<List<Pair<Integer, Long>>> partitions) {
+      public void validate(Partitions<Pair<Integer, Long>> partitions) {
         assertEquals(1, partitions.size());
         List<Pair<Integer, Long>> first = partitions.get(0);
         assertUnorderedEquals(Arrays.asList(
