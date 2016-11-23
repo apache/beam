@@ -122,7 +122,7 @@ class ParDoEvaluator<InputT, OutputT> implements TransformEvaluator<InputT> {
   }
 
   @Override
-  public TransformResult finishBundle() {
+  public TransformResult<InputT> finishBundle() {
     try {
       fnRunner.finishBundle();
     } catch (Exception e) {
