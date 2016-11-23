@@ -175,6 +175,11 @@ public class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
                 timerId, delegate.getClass().getName()));
       }
     }
+
+    @Override
+    public DoFn<InputT, OutputT> getFn() {
+      return delegate;
+    }
   }
 
   /** @return the {@link DoFnInvoker} for the given {@link DoFn}. */
