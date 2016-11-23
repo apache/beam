@@ -15,7 +15,7 @@ public interface NgFlinkExecutorProvider extends ExecutorProvider {
   default ExecutorEnvironment newExecutorEnvironment() throws Exception {
     String path = "/tmp/.flink-test-" + System.currentTimeMillis();
     RocksDBStateBackend backend = new RocksDBStateBackend("file://" + path);
-    FlinkExecutor executor = new TestFlinkExecutor().setStateBackend(backend);
+    FlinkExecutor executor = new TestFlinkExecutor(ModuloInputSplitAssigner::new).setStateBackend(backend);
     return new ExecutorEnvironment() {
       @Override
       public Executor getExecutor() {
@@ -28,5 +28,4 @@ public interface NgFlinkExecutorProvider extends ExecutorProvider {
       }
     };
   }
-
 }
