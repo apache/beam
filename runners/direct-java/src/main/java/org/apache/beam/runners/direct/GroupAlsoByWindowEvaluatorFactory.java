@@ -112,6 +112,7 @@ class GroupAlsoByWindowEvaluatorFactory implements TransformEvaluatorFactory {
     private @SuppressWarnings("unchecked") final WindowingStrategy<?, BoundedWindow>
         windowingStrategy;
 
+    private final StructuralKey<?> structuralKey;
     private final Collection<UncommittedBundle<?>> outputBundles;
     private final ImmutableList.Builder<WindowedValue<KeyedWorkItem<K, V>>> unprocessedElements;
     private final AggregatorContainer.Mutator aggregatorChanges;
@@ -130,6 +131,7 @@ class GroupAlsoByWindowEvaluatorFactory implements TransformEvaluatorFactory {
       this.evaluationContext = evaluationContext;
       this.application = application;
 
+      structuralKey = inputBundle.getKey();
       stepContext = evaluationContext
           .getExecutionContext(application, inputBundle.getKey())
           .getOrCreateStepContext(
@@ -159,7 +161,7 @@ class GroupAlsoByWindowEvaluatorFactory implements TransformEvaluatorFactory {
       K key = workItem.key();
 
       UncommittedBundle<KV<K, Iterable<V>>> bundle =
-          evaluationContext.createBundle(application.getOutput());
+          evaluationContext.createKeyedBundle(structuralKey, application.getOutput());
       outputBundles.add(bundle);
       CopyOnAccessInMemoryStateInternals<K> stateInternals =
           (CopyOnAccessInMemoryStateInternals<K>) stepContext.stateInternals();

@@ -35,7 +35,7 @@ import org.junit.runners.JUnit4;
 public class MetricsEnvironmentTest {
   @After
   public void teardown() {
-    MetricsEnvironment.unsetMetricsContainer();
+    MetricsEnvironment.setCurrentContainer(null);
   }
 
   @Test
@@ -44,11 +44,11 @@ public class MetricsEnvironmentTest {
     MetricsContainer c1 = new MetricsContainer("step1");
     MetricsContainer c2 = new MetricsContainer("step2");
 
-    MetricsEnvironment.setMetricsContainer(c1);
+    MetricsEnvironment.setCurrentContainer(c1);
     counter.inc();
-    MetricsEnvironment.setMetricsContainer(c2);
+    MetricsEnvironment.setCurrentContainer(c2);
     counter.dec();
-    MetricsEnvironment.unsetMetricsContainer();
+    MetricsEnvironment.setCurrentContainer(null);
 
     MetricUpdates updates1 = c1.getUpdates();
     MetricUpdates updates2 = c2.getUpdates();

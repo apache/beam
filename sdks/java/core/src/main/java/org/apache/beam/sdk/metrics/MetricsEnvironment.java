@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.metrics;
 
+import java.io.Closeable;
+import java.io.IOException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import javax.annotation.Nullable;
 import org.slf4j.Logger;
@@ -29,11 +31,13 @@ import org.slf4j.LoggerFactory;
  * returned objects to create and modify metrics.
  *
  * <p>The runner should create {@link MetricsContainer} for each context in which metrics are
- * reported (by step and name) and call {@link #setMetricsContainer} before invoking any code that
- * may update metrics within that step.
+ * reported (by step and name) and call {@link #setCurrentContainer} before invoking any code that
+ * may update metrics within that step. It should call {@link #setCurrentContainer} again to restore
+ * the previous container.
  *
- * <p>The runner should call {@link #unsetMetricsContainer} (or {@link #setMetricsContainer} back to
- * the previous value) when exiting code that set the metrics container.
+ * <p>Alternatively, the runner can use {@link #scopedMetricsContainer(MetricsContainer)} to set the
+ * container for the current thread and get a {@link Closeable} that will restore the previous
+ * container when closed.
  */
 public class MetricsEnvironment {
 
@@ -45,20 +49,50 @@ public class MetricsEnvironment {
   private static final ThreadLocal<MetricsContainer> CONTAINER_FOR_THREAD =
       new ThreadLocal<MetricsContainer>();
 
-  /** Set the {@link MetricsContainer} for the current thread. */
-  public static void setMetricsContainer(MetricsContainer container) {
-    CONTAINER_FOR_THREAD.set(container);
-  }
-
-
-  /** Clear the {@link MetricsContainer} for the current thread. */
-  public static void unsetMetricsContainer() {
-    CONTAINER_FOR_THREAD.remove();
+  /**
+   * Set the {@link MetricsContainer} for the current thread.
+   *
+   * @return The previous container for the current thread.
+   */
+  @Nullable
+  public static MetricsContainer setCurrentContainer(@Nullable MetricsContainer container) {
+    MetricsContainer previous = getCurrentContainer();
+    if (container == null) {
+      CONTAINER_FOR_THREAD.remove();
+    } else {
+      CONTAINER_FOR_THREAD.set(container);
+    }
+    return previous;
   }
 
   /** Called by the run to indicate whether metrics reporting is supported. */
   public static void setMetricsSupported(boolean supported) {
     METRICS_SUPPORTED.set(supported);
+  }
+
+  /**
+   * Set the {@link MetricsContainer} for the current thread.
+   *
+   * @return A {@link Closeable} that will reset the current container to the previous
+   * {@link MetricsContainer} when closed.
+   */
+  public static Closeable scopedMetricsContainer(MetricsContainer container) {
+    return new ScopedContainer(container);
+  }
+
+  private static class ScopedContainer implements Closeable {
+
+    @Nullable
+    private final MetricsContainer oldContainer;
+
+    private ScopedContainer(MetricsContainer newContainer) {
+      this.oldContainer = setCurrentContainer(newContainer);
+    }
+
+    @Override
+    public void close() throws IOException {
+      setCurrentContainer(oldContainer);
+    }
   }
 
   /**
