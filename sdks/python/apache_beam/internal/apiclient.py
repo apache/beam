@@ -395,7 +395,8 @@ class DataflowApplicationClient(object):
   @retry.no_retries  # Using no_retries marks this as an integration point.
   def create_job(self, job, pipeline_options):
     """Creates a job description.
-    Additionally, it may stage it and/or submit it for remote execution."""
+    Additionally, it may stage it and/or submit it for remote execution.
+    """
     self.create_job_description(job)
 
     # Stage and submit the job when necessary
