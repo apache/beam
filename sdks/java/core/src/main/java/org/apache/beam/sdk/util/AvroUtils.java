@@ -87,8 +87,8 @@ public class AvroUtils {
     String codec = null;
     String schemaString = null;
     byte[] syncMarker;
-    try (InputStream stream =
-        Channels.newInputStream(IOChannelUtils.getFactory(fileName).open(fileName))) {
+    try (InputStream stream = Channels.newInputStream(
+        IOChannelUtils.getFactory(fileName).open(fileName, 0 /* startingPosition */))) {
       BinaryDecoder decoder = DecoderFactory.get().binaryDecoder(stream, null);
 
       // The header of an object container file begins with a four-byte magic number, followed

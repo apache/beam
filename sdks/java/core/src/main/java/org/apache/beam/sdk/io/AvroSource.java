@@ -32,7 +32,6 @@ import java.io.PushbackInputStream;
 import java.nio.ByteBuffer;
 import java.nio.channels.Channels;
 import java.nio.channels.ReadableByteChannel;
-import java.nio.channels.SeekableByteChannel;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Map;
@@ -550,6 +549,12 @@ public class AvroSource<T> extends BlockBasedSource<T> {
       return (AvroSource<T>) super.getCurrentSource();
     }
 
+    @Override
+    protected long getStartingPosition() {
+      return Math.max(
+          0, getCurrentSource().getStartOffset() - getCurrentSource().getSyncMarker().length);
+    }
+
     // Precondition: the stream is positioned after the sync marker in the current (about to be
     // previous) block. currentBlockSize equals the size of the current block, or zero if this
     // reader was just started.
@@ -665,22 +670,12 @@ public class AvroSource<T> extends BlockBasedSource<T> {
     // currentBlockSizeBytes will be set to 0 indicating that the previous block was empty.
     @Override
     protected void startReading(ReadableByteChannel channel) throws IOException {
-      long startOffset = getCurrentSource().getStartOffset();
-      byte[] syncMarker = getCurrentSource().getSyncMarker();
-      long syncMarkerLength = syncMarker.length;
-
-      if (startOffset != 0) {
-        // Rewind order to find the sync marker ending the previous block.
-        long position = Math.max(0, startOffset - syncMarkerLength);
-        ((SeekableByteChannel) channel).position(position);
-        startOffset = position;
-      }
-
       // Satisfy the post condition.
       stream = createStream(channel);
       countStream = new CountingInputStream(stream);
       synchronized (progressLock) {
-        currentBlockOffset = startOffset + advancePastNextSyncMarker(stream, syncMarker);
+        currentBlockOffset = getStartingPosition()
+            + advancePastNextSyncMarker(stream, getCurrentSource().getSyncMarker());
         currentBlockSizeBytes = 0;
       }
     }

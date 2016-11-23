@@ -127,12 +127,17 @@ public class FileIOChannelFactory implements IOChannelFactory {
 
   @Override
   public ReadableByteChannel open(String spec) throws IOException {
+    return open(spec, 0 /* startingPosition */);
+  }
+
+  @Override
+  public ReadableByteChannel open(String spec, long startingPosition) throws IOException {
     LOG.debug("opening file {}", spec);
     @SuppressWarnings("resource") // The caller is responsible for closing the channel.
     FileInputStream inputStream = new FileInputStream(specToFile(spec));
     // Use this method for creating the channel (rather than new FileChannel) so that we get
     // regular FileNotFoundException. Closing the underyling channel will close the inputStream.
-    return inputStream.getChannel();
+    return inputStream.getChannel().position(startingPosition);
   }
 
   @Override
@@ -157,11 +162,6 @@ public class FileIOChannelFactory implements IOChannelFactory {
     } catch (NoSuchFileException e) {
       throw new FileNotFoundException(e.getReason());
     }
-  }
-
-  @Override
-  public boolean isReadSeekEfficient(String spec) throws IOException {
-    return true;
   }
 
   @Override
