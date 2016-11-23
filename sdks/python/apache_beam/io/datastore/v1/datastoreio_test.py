@@ -103,17 +103,20 @@ class DatastoreioTest(unittest.TestCase):
 
   def test_SplitQueryFn_with_query_limit(self):
     """A test that verifies no split is performed when the query has a limit."""
-    self._query.limit.value = 3
-    split_query_fn = ReadFromDatastore.SplitQueryFn(
-        self._PROJECT, self._query, None, 4)
-    mock_context = MagicMock()
-    mock_context.element = self._query
-    split_query_fn.start_bundle(mock_context)
-    returned_split_queries = []
-    for split_query in split_query_fn.process(mock_context):
-      returned_split_queries.append(split_query)
+    with patch.object(helper, 'get_datastore',
+                      return_value=self._mock_datastore):
+      self._query.limit.value = 3
+      split_query_fn = ReadFromDatastore.SplitQueryFn(
+          self._PROJECT, self._query, None, 4)
+      mock_context = MagicMock()
+      mock_context.element = self._query
+      split_query_fn.start_bundle(mock_context)
+      returned_split_queries = []
+      for split_query in split_query_fn.process(mock_context):
+        returned_split_queries.append(split_query)
 
-    self.assertEqual(1, len(returned_split_queries))
+      self.assertEqual(1, len(returned_split_queries))
+      self.assertEqual(0, len(self._mock_datastore.method_calls))
 
   def verify_unique_keys(self, queries):
     """A helper function that verifies if all the queries have unique keys."""
