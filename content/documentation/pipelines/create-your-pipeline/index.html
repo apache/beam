@@ -143,9 +143,181 @@
       <div class="row">
         <h1 id="create-your-pipeline">Create Your Pipeline</h1>
 
+<ul id="markdown-toc">
+  <li><a href="#creating-your-pipeline-object" id="markdown-toc-creating-your-pipeline-object">Creating Your Pipeline Object</a>    <ul>
+      <li><a href="#configuring-pipeline-options" id="markdown-toc-configuring-pipeline-options">Configuring Pipeline Options</a>        <ul>
+          <li><a href="#setting-pipelineoptions-from-command-line-arguments" id="markdown-toc-setting-pipelineoptions-from-command-line-arguments">Setting PipelineOptions from Command-Line Arguments</a></li>
+          <li><a href="#creating-custom-options" id="markdown-toc-creating-custom-options">Creating Custom Options</a></li>
+        </ul>
+      </li>
+    </ul>
+  </li>
+  <li><a href="#reading-data-into-your-pipeline" id="markdown-toc-reading-data-into-your-pipeline">Reading Data Into Your Pipeline</a></li>
+  <li><a href="#applying-transforms-to-process-pipeline-data" id="markdown-toc-applying-transforms-to-process-pipeline-data">Applying Transforms to Process Pipeline Data</a></li>
+  <li><a href="#writing-or-outputting-your-final-pipeline-data" id="markdown-toc-writing-or-outputting-your-final-pipeline-data">Writing or Outputting Your Final Pipeline Data</a></li>
+  <li><a href="#running-your-pipeline" id="markdown-toc-running-your-pipeline">Running Your Pipeline</a></li>
+  <li><a href="#whats-next" id="markdown-toc-whats-next">What’s next</a></li>
+</ul>
+
+<p>Your Beam program expresses a data processing pipeline, from start to finish. This section explains the mechanics of using the classes in the Beam SDKs to build a pipeline. To construct a pipeline using the classes in the Beam SDKs, your program will need to perform the following general steps:</p>
+
+<ul>
+  <li>Create a <code class="highlighter-rouge">Pipeline</code> object.</li>
+  <li>Use a <strong>Read</strong> or <strong>Create</strong> transform to create one or more <code class="highlighter-rouge">PCollection</code>s for your pipeline data.</li>
+  <li>Apply <strong>transforms</strong> to each <code class="highlighter-rouge">PCollection</code>. Transforms can change, filter, group, analyze, or otherwise process the elements in a <code class="highlighter-rouge">PCollection</code>. Each transform creates a new output <code class="highlighter-rouge">PCollection</code>, to which you can apply additional transforms until processing is complete.</li>
+  <li><strong>Write</strong> or otherwise output the final, transformed <code class="highlighter-rouge">PCollection</code>s.</li>
+  <li><strong>Run</strong> the pipeline.</li>
+</ul>
+
+<h2 id="creating-your-pipeline-object">Creating Your Pipeline Object</h2>
+
+<p>A Beam program often starts by creating a <code class="highlighter-rouge">Pipeline</code> object.</p>
+
+<p>In the Beam SDKs, each pipeline is represented by an explicit object of type <code class="highlighter-rouge">Pipeline</code>. Each <code class="highlighter-rouge">Pipeline</code> object is an independent entity that encapsulates both the data the pipeline operates over and the transforms that get applied to that data.</p>
+
+<p>To create a pipeline, declare a <code class="highlighter-rouge">Pipeline</code> object, and pass it some configuration options, which are explained in a section below. You pass the configuration options by creating an object of type <code class="highlighter-rouge">PipelineOptions</code>, which you can build by using the static method <code class="highlighter-rouge">PipelineOptionsFactory.create()</code>.</p>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="c1">// Start by defining the options for the pipeline.</span>
+<span class="n">PipelineOptions</span> <span class="n">options</span> <span class="o">=</span> <span class="n">PipelineOptionsFactory</span><span class="o">.</span><span class="na">create</span><span class="o">();</span>
+
+<span class="c1">// Then create the pipeline.</span>
+<span class="n">Pipeline</span> <span class="n">p</span> <span class="o">=</span> <span class="n">Pipeline</span><span class="o">.</span><span class="na">create</span><span class="o">(</span><span class="n">options</span><span class="o">);</span>
+</code></pre>
+</div>
+
+<h3 id="configuring-pipeline-options">Configuring Pipeline Options</h3>
+
+<p>Use the pipeline options to configure different aspects of your pipeline, such as the pipeline runner that will execute your pipeline and any runner-specific configuration required by the chosen runner. Your pipeline options will potentially include information such as your project ID or a location for storing files.</p>
+
+<p>When you run the pipeline on a runner of your choice, a copy of the PipelineOptions will be available to your code. For example, you can read PipelineOptions from a DoFn’s Context.</p>
+
+<h4 id="setting-pipelineoptions-from-command-line-arguments">Setting PipelineOptions from Command-Line Arguments</h4>
+
+<p>While you can configure your pipeline by creating a <code class="highlighter-rouge">PipelineOptions</code> object and setting the fields directly, the Beam SDKs include a command-line parser that you can use to set fields in <code class="highlighter-rouge">PipelineOptions</code> using command-line arguments.</p>
+
+<p>To read options from the command-line, construct your <code class="highlighter-rouge">PipelineOptions</code> object as demonstrated in the following example code:</p>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">MyOptions</span> <span class="n">options</span> <span class="o">=</span> <span class="n">PipelineOptionsFactory</span><span class="o">.</span><span class="na">fromArgs</span><span class="o">(</span><span class="n">args</span><span class="o">).</span><span class="na">withValidation</span><span class="o">().</span><span class="na">create</span><span class="o">();</span>
+</code></pre>
+</div>
+
+<p>This interprets command-line arguments that follow the format:</p>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="o">--&lt;</span><span class="n">option</span><span class="o">&gt;=&lt;</span><span class="n">value</span><span class="o">&gt;</span>
+</code></pre>
+</div>
+
 <blockquote>
-  <p><strong>Note:</strong> There is an open JIRA issue to create this guide (<a href="https://issues.apache.org/jira/browse/BEAM-901">BEAM-901</a>).</p>
+  <p><strong>Note:</strong> Appending the method <code class="highlighter-rouge">.withValidation</code> will check for required command-line arguments and validate argument values.</p>
 </blockquote>
+
+<p>Building your <code class="highlighter-rouge">PipelineOptions</code> this way lets you specify any of the options as a command-line argument.</p>
+
+<blockquote>
+  <p><strong>Note:</strong> The <a href="/get-started/wordcount-example">WordCount example pipeline</a> demonstrates how to set pipeline options at runtime by using command-line options.</p>
+</blockquote>
+
+<h4 id="creating-custom-options">Creating Custom Options</h4>
+
+<p>You can add your own custom options in addition to the standard <code class="highlighter-rouge">PipelineOptions</code>. To add your own options, define an interface with getter and setter methods for each option, as in the following example:</p>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="kd">public</span> <span class="kd">interface</span> <span class="nc">MyOptions</span> <span class="kd">extends</span> <span class="n">PipelineOptions</span> <span class="o">{</span>
+    <span class="n">String</span> <span class="nf">getMyCustomOption</span><span class="o">();</span>
+    <span class="kt">void</span> <span class="nf">setMyCustomOption</span><span class="o">(</span><span class="n">String</span> <span class="n">myCustomOption</span><span class="o">);</span>
+  <span class="o">}</span>
+</code></pre>
+</div>
+
+<p>You can also specify a description, which appears when a user passes <code class="highlighter-rouge">--help</code> as a command-line argument, and a default value.</p>
+
+<p>You set the description and default value using annotations, as follows:</p>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="kd">public</span> <span class="kd">interface</span> <span class="nc">MyOptions</span> <span class="kd">extends</span> <span class="n">PipelineOptions</span> <span class="o">{</span>
+    <span class="nd">@Description</span><span class="o">(</span><span class="s">"My custom command line argument."</span><span class="o">)</span>
+    <span class="nd">@Default</span><span class="o">.</span><span class="na">String</span><span class="o">(</span><span class="s">"DEFAULT"</span><span class="o">)</span>
+    <span class="n">String</span> <span class="nf">getMyCustomOption</span><span class="o">();</span>
+    <span class="kt">void</span> <span class="nf">setMyCustomOption</span><span class="o">(</span><span class="n">String</span> <span class="n">myCustomOption</span><span class="o">);</span>
+  <span class="o">}</span>
+</code></pre>
+</div>
+
+<p>It’s recommended that you register your interface with <code class="highlighter-rouge">PipelineOptionsFactory</code> and then pass the interface when creating the <code class="highlighter-rouge">PipelineOptions</code> object. When you register your interface with <code class="highlighter-rouge">PipelineOptionsFactory</code>, the <code class="highlighter-rouge">--help</code> can find your custom options interface and add it to the output of the <code class="highlighter-rouge">--help</code> command. <code class="highlighter-rouge">PipelineOptionsFactory</code> will also validate that your custom options are compatible with all other registered options.</p>
+
+<p>The following example code shows how to register your custom options interface with <code class="highlighter-rouge">PipelineOptionsFactory</code>:</p>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">PipelineOptionsFactory</span><span class="o">.</span><span class="na">register</span><span class="o">(</span><span class="n">MyOptions</span><span class="o">.</span><span class="na">class</span><span class="o">);</span>
+<span class="n">MyOptions</span> <span class="n">options</span> <span class="o">=</span> <span class="n">PipelineOptionsFactory</span><span class="o">.</span><span class="na">fromArgs</span><span class="o">(</span><span class="n">args</span><span class="o">)</span>
+                                                <span class="o">.</span><span class="na">withValidation</span><span class="o">()</span>
+                                                <span class="o">.</span><span class="na">as</span><span class="o">(</span><span class="n">MyOptions</span><span class="o">.</span><span class="na">class</span><span class="o">);</span>
+</code></pre>
+</div>
+
+<p>Now your pipeline can accept <code class="highlighter-rouge">--myCustomOption=value</code> as a command-line argument.</p>
+
+<h2 id="reading-data-into-your-pipeline">Reading Data Into Your Pipeline</h2>
+
+<p>To create your pipeline’s initial <code class="highlighter-rouge">PCollection</code>, you apply a root transform to your pipeline object. A root transform creates a <code class="highlighter-rouge">PCollection</code> from either an external data source or some local data you specify.</p>
+
+<p>There are two kinds of root transforms in the Beam SDKs: <code class="highlighter-rouge">Read</code> and <code class="highlighter-rouge">Create</code>. <code class="highlighter-rouge">Read</code> transforms read data from an external source, such as a text file or a database table. <code class="highlighter-rouge">Create</code> transforms create a <code class="highlighter-rouge">PCollection</code> from an in-memory <code class="highlighter-rouge">java.util.Collection</code>.</p>
+
+<p>The following example code shows how to <code class="highlighter-rouge">apply</code> a <code class="highlighter-rouge">TextIO.Read</code> root transform to read data from a text file. The transform is applied to a <code class="highlighter-rouge">Pipeline</code> object <code class="highlighter-rouge">p</code>, and returns a pipeline data set in the form of a <code class="highlighter-rouge">PCollection&lt;String&gt;</code>:</p>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">PCollection</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">lines</span> <span class="o">=</span> <span class="n">p</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span>
+  <span class="n">apply</span><span class="o">(</span><span class="s">"ReadLines"</span><span class="o">,</span> <span class="n">TextIO</span><span class="o">.</span><span class="na">Read</span><span class="o">.</span><span class="na">from</span><span class="o">(</span><span class="s">"gs://some/inputData.txt"</span><span class="o">));</span>
+</code></pre>
+</div>
+
+<h2 id="applying-transforms-to-process-pipeline-data">Applying Transforms to Process Pipeline Data</h2>
+
+<p>To use transforms in your pipeline, you <strong>apply</strong> them to the <code class="highlighter-rouge">PCollection</code> that you want to transform.</p>
+
+<p>To apply a transform, you call the <code class="highlighter-rouge">apply</code> method on each <code class="highlighter-rouge">PCollection</code> that you want to process, passing the desired transform object as an argument.</p>
+
+<p>The Beam SDKs contain a number of different transforms that you can apply to your pipeline’s <code class="highlighter-rouge">PCollection</code>s. These include general-purpose core transforms, such as <a href="/documentation/programming-guide/#transforms-pardo">ParDo</a> or <a href="/documentation/programming-guide/#transforms-combine">Combine</a>. There are also pre-written <a href="/documentation/programming-guide/#transforms-composite">composite transforms</a> included in the SDKs, which combine one or more of the core transforms in a useful processing pattern, such as counting or combining elements in a collection. You can also define your own more complex composite transforms to fit your pipeline’s exact use case.</p>
+
+<p>In the Beam Java SDK, each transform is a subclass of the base class <code class="highlighter-rouge">PTransform</code>. When you call <code class="highlighter-rouge">apply</code> on a <code class="highlighter-rouge">PCollection</code>, you pass the <code class="highlighter-rouge">PTransform</code> you want to use as an argument.</p>
+
+<p>The following code shows how to <code class="highlighter-rouge">apply</code> a transform to a <code class="highlighter-rouge">PCollection</code> of strings. The transform is a user-defined custom transform that reverses the contents of each string and outputs a new <code class="highlighter-rouge">PCollection</code> containing the reversed strings.</p>
+
+<p>The input is a <code class="highlighter-rouge">PCollection&lt;String&gt;</code> called <code class="highlighter-rouge">words</code>; the code passes an instance of a <code class="highlighter-rouge">PTransform</code> object called <code class="highlighter-rouge">ReverseWords</code> to <code class="highlighter-rouge">apply</code>, and saves the return value as the <code class="highlighter-rouge">PCollection&lt;String&gt;</code> called <code class="highlighter-rouge">reversedWords</code>.</p>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">PCollection</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">words</span> <span class="o">=</span> <span class="o">...;</span>
+
+<span class="n">PCollection</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">reversedWords</span> <span class="o">=</span> <span class="n">words</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="k">new</span> <span class="n">ReverseWords</span><span class="o">());</span>
+</code></pre>
+</div>
+
+<h2 id="writing-or-outputting-your-final-pipeline-data">Writing or Outputting Your Final Pipeline Data</h2>
+
+<p>Once your pipeline has applied all of its transforms, you’ll usually need to output the results. To output your pipeline’s final <code class="highlighter-rouge">PCollection</code>s, you apply a <code class="highlighter-rouge">Write</code> transform to that <code class="highlighter-rouge">PCollection</code>. <code class="highlighter-rouge">Write</code> transforms can output the elements of a <code class="highlighter-rouge">PCollection</code> to an external data sink, such as a database table. You can use <code class="highlighter-rouge">Write</code> to output a <code class="highlighter-rouge">PCollection</code> at any time in your pipeline, although you’ll typically write out data at the end of your pipeline.</p>
+
+<p>The following example code shows how to <code class="highlighter-rouge">apply</code> a <code class="highlighter-rouge">TextIO.Write</code> transform to write a <code class="highlighter-rouge">PCollection</code> of <code class="highlighter-rouge">String</code> to a text file:</p>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">PCollection</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">filteredWords</span> <span class="o">=</span> <span class="o">...;</span>
+
+<span class="n">filteredWords</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="s">"WriteMyFile"</span><span class="o">,</span> <span class="n">TextIO</span><span class="o">.</span><span class="na">Write</span><span class="o">.</span><span class="na">to</span><span class="o">(</span><span class="s">"gs://some/outputData.txt"</span><span class="o">));</span>
+</code></pre>
+</div>
+
+<h2 id="running-your-pipeline">Running Your Pipeline</h2>
+
+<p>Once you have constructed your pipeline, use the <code class="highlighter-rouge">run</code> method to execute the pipeline. Pipelines are executed asynchronously: the program you create sends a specification for your pipeline to a <strong>pipeline runner</strong>, which then constructs and runs the actual series of pipeline operations.</p>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">p</span><span class="o">.</span><span class="na">run</span><span class="o">();</span>
+</code></pre>
+</div>
+
+<p>The <code class="highlighter-rouge">run</code> method is asynchronous. If you’d like a blocking execution instead, run your pipeline appending the <code class="highlighter-rouge">waitUntilFinish</code> method:</p>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">p</span><span class="o">.</span><span class="na">run</span><span class="o">().</span><span class="na">waitUntilFinish</span><span class="o">();</span>
+</code></pre>
+</div>
+
+<h2 id="whats-next">What’s next</h2>
+
+<ul>
+  <li><a href="/documentation/pipelines/test-your-pipeline">Test your pipeline</a>.</li>
+</ul>
 
       </div>
 

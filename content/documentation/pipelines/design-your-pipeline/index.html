@@ -143,9 +143,120 @@
       <div class="row">
         <h1 id="design-your-pipeline">Design Your Pipeline</h1>
 
-<blockquote>
-  <p><strong>Note:</strong> There is an open JIRA issue to create this guide (<a href="https://issues.apache.org/jira/browse/BEAM-901">BEAM-901</a>).</p>
-</blockquote>
+<ul id="markdown-toc">
+  <li><a href="#what-to-consider-when-designing-your-pipeline" id="markdown-toc-what-to-consider-when-designing-your-pipeline">What to consider when designing your pipeline</a></li>
+  <li><a href="#a-basic-pipeline" id="markdown-toc-a-basic-pipeline">A basic pipeline</a></li>
+  <li><a href="#branching-pcollections" id="markdown-toc-branching-pcollections">Branching PCollections</a>    <ul>
+      <li><a href="#multiple-transforms-process-the-same-pcollection" id="markdown-toc-multiple-transforms-process-the-same-pcollection">Multiple transforms process the same PCollection</a></li>
+      <li><a href="#a-single-transform-that-uses-side-outputs" id="markdown-toc-a-single-transform-that-uses-side-outputs">A single transform that uses side outputs</a></li>
+    </ul>
+  </li>
+  <li><a href="#merging-pcollections" id="markdown-toc-merging-pcollections">Merging PCollections</a></li>
+  <li><a href="#multiple-sources" id="markdown-toc-multiple-sources">Multiple sources</a></li>
+  <li><a href="#whats-next" id="markdown-toc-whats-next">What’s next</a></li>
+</ul>
+
+<p>This page helps you design your Apache Beam pipeline. It includes information about how to determine your pipeline’s structure, how to choose which transforms to apply to your data, and how to determine your input and output methods.</p>
+
+<p>Before reading this section, it is recommended that you become familiar with the information in the <a href="/documentation/programming-guide">Beam programming guide</a>.</p>
+
+<h2 id="what-to-consider-when-designing-your-pipeline">What to consider when designing your pipeline</h2>
+
+<p>When designing your Beam pipeline, consider a few basic questions:</p>
+
+<ul>
+  <li><strong>Where is your input data stored?</strong> How many sets of input data do you have? This will determine what kinds of <code class="highlighter-rouge">Read</code> transforms you’ll need to apply at the start of your pipeline.</li>
+  <li><strong>What does your data look like?</strong> It might be plaintext, formatted log files, or rows in a database table. Some Beam transforms work exclusively on <code class="highlighter-rouge">PCollection</code>s of key/value pairs; you’ll need to determine if and how your data is keyed and how to best represent that in your pipeline’s <code class="highlighter-rouge">PCollection</code>(s).</li>
+  <li><strong>What do you want to do with your data?</strong> The core transforms in the Beam SDKs are general purpose. Knowing how you need to change or manipulate your data will determine how you build core transforms like <a href="/documentation/programming-guide/#transforms-pardo">ParDo</a>, or when you use pre-written transforms included with the Beam SDKs.</li>
+  <li><strong>What does your output data look like, and where should it go?</strong> This will determine what kinds of <code class="highlighter-rouge">Write</code> transforms you’ll need to apply at the end of your pipeline.</li>
+</ul>
+
+<h2 id="a-basic-pipeline">A basic pipeline</h2>
+
+<p>The simplest pipelines represent a linear flow of operations, as shown in Figure 1 below:</p>
+
+<figure id="fig1">
+    <img src="/images/design-your-pipeline-linear.png" alt="A linear pipeline." />
+</figure>
+<p>Figure 1: A linear pipeline.</p>
+
+<p>However, your pipeline can be significantly more complex. A pipeline represents a <a href="https://en.wikipedia.org/wiki/Directed_acyclic_graph">Directed Acyclic Graph</a> of steps. It can have multiple input sources, multiple output sinks, and its operations (transforms) can output multiple <code class="highlighter-rouge">PCollection</code>s. The following examples show some of the different shapes your pipeline can take.</p>
+
+<h2 id="branching-pcollections">Branching PCollections</h2>
+
+<p>It’s important to understand that transforms do not consume <code class="highlighter-rouge">PCollection</code>s; instead, they consider each individual element of a <code class="highlighter-rouge">PCollection</code> and create a new <code class="highlighter-rouge">PCollection</code> as output. This way, you can do different things to different elements in the same <code class="highlighter-rouge">PCollection</code>.</p>
+
+<h3 id="multiple-transforms-process-the-same-pcollection">Multiple transforms process the same PCollection</h3>
+
+<p>You can use the same <code class="highlighter-rouge">PCollection</code> as input for multiple transforms without consuming the input or altering it.</p>
+
+<p>The pipeline illustrated in Figure 2 below reads its input, first names (Strings), from a single source, a database table, and creates a <code class="highlighter-rouge">PCollection</code> of table rows. Then, the pipeline applies multiple transforms to the <strong>same</strong> <code class="highlighter-rouge">PCollection</code>. Transform A extracts all the names in that <code class="highlighter-rouge">PCollection</code> that start with the letter ‘A’, and Transform B extracts all the names in that <code class="highlighter-rouge">PCollection</code> that start with the letter ‘B’. Both transforms A and B have the same input <code class="highlighter-rouge">PCollection</code>.</p>
+
+<figure id="fig2">
+    <img src="/images/design-your-pipeline-multiple-pcollections.png" alt="A pipeline with multiple transforms. Note that the PCollection of table rows is processed by two transforms." />
+</figure>
+<p>Figure 2: A pipeline with multiple transforms. Note that the PCollection of the database table rows is processed by two transforms.</p>
+
+<h3 id="a-single-transform-that-uses-side-outputs">A single transform that uses side outputs</h3>
+
+<p>Another way to branch a pipeline is to have a <strong>single</strong> transform output to multiple <code class="highlighter-rouge">PCollection</code>s by using <a href="/documentation/programming-guide/#transforms-sideio">side outputs</a>. Transforms that use side outputs, process each element of the input once, and allow you to output to zero or more <code class="highlighter-rouge">PCollection</code>s.</p>
+
+<p>Figure 3 below illustrates the same example described above, but with one transform that uses a side output; Names that start with ‘A’ are added to the output <code class="highlighter-rouge">PCollection</code>, and names that start with ‘B’ are added to the side output <code class="highlighter-rouge">PCollection</code>.</p>
+
+<figure id="fig3">
+    <img src="/images/design-your-pipeline-side-outputs.png" alt="A pipeline with a transform that outputs multiple PCollections." />
+</figure>
+<p>Figure 3: A pipeline with a transform that outputs multiple PCollections.</p>
+
+<p>The pipeline in Figure 2 contains two transforms that process the elements in the same input <code class="highlighter-rouge">PCollection</code>. One transform uses the following logic pattern:</p>
+
+<pre>if (starts with 'A') { outputToPCollectionA }</pre>
+
+<p>while the other transform uses:</p>
+
+<pre>if (starts with 'B') { outputToPCollectionB }</pre>
+
+<p>Because each transform reads the entire input <code class="highlighter-rouge">PCollection</code>, each element in the input <code class="highlighter-rouge">PCollection</code> is processed twice.</p>
+
+<p>The pipeline in Figure 3 performs the same operation in a different way - with only one transform that uses the logic</p>
+
+<pre>if (starts with 'A') { outputToPCollectionA } else if (starts with 'B') { outputToPCollectionB }</pre>
+
+<p>where each element in the input <code class="highlighter-rouge">PCollection</code> is processed once.</p>
+
+<p>You can use either mechanism to produce multiple output <code class="highlighter-rouge">PCollection</code>s. However, using side outputs makes more sense if the transform’s computation per element is time-consuming.</p>
+
+<h2 id="merging-pcollections">Merging PCollections</h2>
+
+<p>Often, after you’ve branched your <code class="highlighter-rouge">PCollection</code> into multiple <code class="highlighter-rouge">PCollection</code>s via multiple transforms, you’ll want to merge some or all of those resulting <code class="highlighter-rouge">PCollection</code>s back together. You can do so by using one of the following:</p>
+
+<ul>
+  <li><strong>Flatten</strong> - You can use the <code class="highlighter-rouge">Flatten</code> transform in the Beam SDKs to merge multiple <code class="highlighter-rouge">PCollection</code>s of the <strong>same type</strong>.</li>
+  <li><strong>Join</strong> - You can use the <code class="highlighter-rouge">CoGroupByKey</code> transform in the Beam SDK to perform a relational join between two <code class="highlighter-rouge">PCollection</code>s. The <code class="highlighter-rouge">PCollection</code>s must be keyed (i.e. they must be collections of key/value pairs) and they must use the same key type.</li>
+</ul>
+
+<p>The example depicted in Figure 4 below is a continuation of the example illustrated in Figure 2 in the section above. After branching into two <code class="highlighter-rouge">PCollection</code>s, one with names that begin with ‘A’ and one with names that begin with ‘B’, the pipeline merges the two together into a single <code class="highlighter-rouge">PCollection</code> that now contains all names that begin with either ‘A’ or ‘B’. Here, it makes sense to use <code class="highlighter-rouge">Flatten</code> because the <code class="highlighter-rouge">PCollection</code>s being merged both contain the same type.</p>
+
+<figure id="fig4">
+    <img src="/images/design-your-pipeline-flatten.png" alt="Part of a pipeline that merges multiple PCollections." />
+</figure>
+<p>Figure 4: Part of a pipeline that merges multiple PCollections.</p>
+
+<h2 id="multiple-sources">Multiple sources</h2>
+
+<p>Your pipeline can read its input from one or more sources. If your pipeline reads from multiple sources and the data from those sources is related, it can be useful to join the inputs together. In the example illustrated in Figure 5 below, the pipeline reads names and addresses from a database table, and names and order numbers from a text file. The pipeline then uses <code class="highlighter-rouge">CoGroupByKey</code> to join this information, where the key is the name; the resulting <code class="highlighter-rouge">PCollection</code> contains all the combinations of names, addresses, and orders.</p>
+
+<figure id="fig5">
+    <img src="/images/design-your-pipeline-join.png" alt="A pipeline with multiple input sources." />
+</figure>
+<p>Figure 5: A pipeline with multiple input sources.</p>
+
+<h2 id="whats-next">What’s next</h2>
+
+<ul>
+  <li><a href="/documentation/pipelines/create-your-pipeline">Create your own pipeline</a>.</li>
+  <li><a href="/documentation/pipelines/test-your-pipeline">Test your pipeline</a>.</li>
+</ul>
 
       </div>
 
