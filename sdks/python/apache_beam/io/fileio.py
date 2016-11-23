@@ -613,17 +613,12 @@ class ChannelFactory(object):
     Args:
       path: a file path pattern that reads the size of all the files
     """
-    BATCH_SIZE = 500
+    BATCH_SIZE = 1000
     if path.startswith('gs://'):
-      batches = [file_names[i:i + BATCH_SIZE]
-                 for i in range(0, len(file_names), BATCH_SIZE)]
-      # ThreadPool crashes in old versions of Python (< 2.7.5) if created from a
-      # child thread. (http://bugs.python.org/issue10015)
-      if not hasattr(threading.current_thread(), '_children'):
-        threading.current_thread()._children = weakref.WeakKeyDictionary()
-      executed_batches = ThreadPool(30).map(gcsio.GcsIO().size_batch, batches)
-
-      file_size_data = [i for batch in executed_batches for i in batch]
+      file_size_data = []
+      for i in range(0, len(file_names), BATCH_SIZE):
+        file_size_data.extend(
+            gcsio.GcsIO().size_batch(file_names[i:i + BATCH_SIZE]))
       file_sizes = {f:s for ((f, s), e) in file_size_data if e is None}
 
       result = {}
