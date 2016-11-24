@@ -144,88 +144,30 @@
     <div class="container" role="main">
 
       <div class="row">
-        <div class="alert alert-info alert-dismissible" role="alert">
-<span class="glyphicon glyphicon-flag" aria-hidden="true"></span>
-<button type="button" class="close" data-dismiss="alert" aria-label="Close"><span aria-hidden="true">&times;</span></button>
-The Apache Beam project is in the process of bootstrapping. This includes the website -- so please file issues you find in <a href="/use/issue-tracking/">Jira</a>. Thanks!
-</div>
+        <h1 id="apache-beam-incubating">Apache Beam (incubating)</h1>
 
-<h1 id="apache-beam-incubating">Apache Beam (incubating)</h1>
+<h4 id="apache-beam-provides-an-advanced-unified-programming-model-allowing-you-to-implement-batch-and-streaming-data-processing-jobs-that-can-run-on-any-execution-engine">Apache Beam provides an advanced unified programming model, allowing you to implement batch and streaming data processing jobs that can run on any execution engine.</h4>
 
-<p>Apache Beam is an open source, unified programming model that you can use to create a data processing <strong>pipeline</strong>. You start by building a program that defines the pipeline using one of the open source Beam SDKs. The pipeline is then executed by one of Beam’s supported <strong>distributed processing back-ends</strong>, which include <a href="http://apex.apache.org">Apache Apex</a>, <a href="http://flink.apache.org">Apache Flink</a>, <a href="http://spark.apache.org">Apache Spark</a>, and <a href="https://cloud.google.com/dataflow">Google Cloud Dataflow</a>.</p>
-
-<p>Beam is particularly useful for <a href="http://en.wikipedia.org/wiki/Embarassingly_parallel">Embarrassingly Parallel</a> data processing tasks, in which the problem can be decomposed into many smaller bundles of data that can be processed independently and in parallel. You can also use Beam for Extract, Transform, and Load (ETL) tasks and pure data integration. These tasks are useful for moving data between different storage media and data sources, transforming data into a more desirable format, or loading data onto a new system.</p>
-
-<h2 id="apache-beam-sdks">Apache Beam SDKs</h2>
-
-<p>The Beam SDKs provide a unified programming model that can represent and transform data sets of any size, whether the input is a finite data set from a batch data source, or an infinite data set from a streaming data source. The Beam SDKs use the same classes to represent both bounded and unbounded data, and the same transforms to operate on that data. You use the Beam SDK of your choice to build a program that defines your data processing pipeline.</p>
-
-<p>Beam currently supports the following language-specific SDKs:</p>
-
-<table class="table table-condensed">
-<tr>
-  <th>Language</th>
-  <th>SDK Status</th>
-</tr>
-<tr>
-  <td>Java</td>
-  <td>Active Development</td>
-</tr>
-<tr>
-  <td>Python</td>
-  <td>Coming Soon</td>
-</tr>
-<tr>
-  <td>Other</td>
-  <td>TBD</td>
-</tr>
-</table>
-
-<h2 id="apache-beam-pipeline-runners">Apache Beam Pipeline Runners</h2>
-
-<p>The Beam Pipeline Runners translate the data processing pipeline you define with your Beam program into the API compatible with the distributed processing back-end of your choice. When you run your Beam program, you’ll need to specify the appropriate runner for the back-end where you want to execute your pipeline.</p>
-
-<p>Beam currently supports Runners that work with the following distributed processing back-ends:</p>
-
-<table class="table table-condensed">
-<tr>
-  <th>Runner</th>
-  <th>Status</th>
-</tr>
-<tr>
-  <td>Google Cloud Dataflow</td>
-  <td>In Development</td>
-</tr>
-<tr>
-  <td>Apache Flink</td>
-  <td>In Development</td>
-</tr>
-<tr>
-  <td>Apache Spark</td>
-  <td>In Development</td>
-</tr>
-<tr>
-  <td>Apache Apex</td>
-  <td>In Development</td>
-</tr>
-</table>
-
-<p><strong>Note:</strong> You can always execute your pipeline locally for testing and debugging purposes.</p>
-
-<h2 id="getting-started-with-apache-beam">Getting Started with Apache Beam</h2>
-
-<p>Interested in working with Apache Beam? Great! Here’s how to get started:</p>
-
+<p>Apache Beam is:</p>
 <ul>
-  <li>If you are interested in using Beam for your data processing tasks, use the <a href="/get-started/">Get Started</a> section for an overview, quickstart, and examples. Then dive into the <a href="/documentation/">Documentation</a> section to get up to speed on the details.</li>
-  <li>If you’re interested in contributing to the Beam SDKs or Runners, start with the <a href="/contribute/">Contribute</a> section.</li>
+  <li><strong>UNIFIED</strong> - Use a single programming model for both batch and streaming use cases.</li>
+  <li><strong>PORTABLE</strong> - Execute pipelines on multiple execution environments, including Apache Apex, Apache Flink, Apache Spark, and Google Cloud Dataflow.</li>
+  <li><strong>EXTENSIBLE</strong> - Write and share new SDKs, IO connectors, and transformation libraries.</li>
 </ul>
+
+<h2 id="get-started">Get Started</h2>
+
+<p>To use Beam for your data processing tasks, start by reading the <a href="/get-started/beam-overview">Beam Overview</a> and performing the steps in the <a href="/get-started/quickstart">Quickstart</a>. Then dive into the <a href="/documentation/">Documentation</a> section for in-depth concepts and reference materials for the Beam model, SDKs, and runners.</p>
+
+<h2 id="contribute">Contribute</h2>
+
+<p>Beam is an <a href="http://www.apache.org">Apache Software Foundation</a> project, available under the Apache v2 license. Beam is an open source community and contributions are greatly appreciated! If you’d like to contribute, please see the <a href="/contribute/">Contribute</a> section.</p>
 
 <hr />
 
 <div class="row">
   <div class="col-md-6">
-    <h3>Blog</h3>
+    <h2>Blog</h2>
     <div class="list-group">
     
     <a class="list-group-item" href="/blog/2016/10/20/test-stream.html">Oct 20, 2016 - Testing Unbounded Pipelines in Apache Beam</a>
@@ -253,7 +195,7 @@ The Apache Beam project is in the process of bootstrapping. This includes the we
     </div>
   </div>
   <div class="col-md-6">
-    <h3>Twitter</h3>
+    <h2>Twitter</h2>
     <a class="twitter-timeline" href="https://twitter.com/ApacheBeam" data-widget-id="697809684422533120">Tweets by @ApacheBeam</a>
     <script>!function(d,s,id){var js,fjs=d.getElementsByTagName(s)[0],p=/^http:/.test(d.location)?'http':'https';if(!d.getElementById(id)){js=d.createElement(s);js.id=id;js.src=p+"://platform.twitter.com/widgets.js";fjs.parentNode.insertBefore(js,fjs);}}(document,"script","twitter-wjs");</script>
   </div>

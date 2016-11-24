@@ -146,7 +146,7 @@
       <div class="row">
         <h1 id="apache-beam-overview">Apache Beam Overview</h1>
 
-<p>Apache Beam is an open source, unified programming model that you can use to create a data processing <strong>pipeline</strong>. You start by building a program that defines the pipeline using one of the open source Beam SDKs. The pipeline is then executed by one of Beam’s supported <strong>distributed processing back-ends</strong>, which include <a href="http://flink.apache.org">Apache Flink</a>, <a href="http://spark.apache.org">Apache Spark</a>, and <a href="https://cloud.google.com/dataflow">Google Cloud Dataflow</a>.</p>
+<p>Apache Beam is an open source, unified programming model that you can use to create a data processing <strong>pipeline</strong>. You start by building a program that defines the pipeline using one of the open source Beam SDKs. The pipeline is then executed by one of Beam’s supported <strong>distributed processing back-ends</strong>, which include <a href="http://apex.apache.org">Apache Apex</a>, <a href="http://flink.apache.org">Apache Flink</a>, <a href="http://spark.apache.org">Apache Spark</a>, and <a href="https://cloud.google.com/dataflow">Google Cloud Dataflow</a>.</p>
 
 <p>Beam is particularly useful for <a href="http://en.wikipedia.org/wiki/Embarassingly_parallel">Embarrassingly Parallel</a> data processing tasks, in which the problem can be decomposed into many smaller bundles of data that can be processed independently and in parallel. You can also use Beam for Extract, Transform, and Load (ETL) tasks and pure data integration. These tasks are useful for moving data between different storage media and data sources, transforming data into a more desirable format, or loading data onto a new system.</p>
 
@@ -187,7 +187,7 @@
   <th>Status</th>
 </tr>
 <tr>
-  <td>Google Cloud Dataflow</td>
+  <td>Apache Apex</td>
   <td>In Development</td>
 </tr>
 <tr>
@@ -198,9 +198,17 @@
   <td>Apache Spark</td>
   <td>In Development</td>
 </tr>
+<tr>
+  <td>Google Cloud Dataflow</td>
+  <td>In Development</td>
+</tr>
 </table>
 
 <p><strong>Note:</strong> You can always execute your pipeline locally for testing and debugging purposes.</p>
+
+<h2 id="getting-started-with-apache-beam">Getting Started with Apache Beam</h2>
+
+<p>Get started using Beam for your data processing tasks by following the <a href="/get-started/quickstart">Quickstart</a> and the <a href="/get-started/wordcount-example">WordCount Examples Walkthrough</a>.</p>
 
       </div>
 
