@@ -17,14 +17,13 @@
  */
 package org.apache.beam.runners.spark.translation;
 
-import org.apache.beam.runners.spark.SparkPipelineOptions;
-import org.apache.beam.runners.spark.SparkRunner;
 import org.apache.beam.runners.spark.io.TestStorageLevelPTransform;
+import org.apache.beam.runners.spark.translation.streaming.utils.SparkTestPipelineOptions;
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.values.PCollection;
+import org.junit.Rule;
 import org.junit.Test;
 
 /**
@@ -32,18 +31,19 @@ import org.junit.Test;
  */
 public class StorageLevelTest {
 
+  @Rule
+  public final transient SparkTestPipelineOptions pipelineOptions = new SparkTestPipelineOptions();
+
   @Test
   public void test() throws Exception {
-    SparkPipelineOptions pipelineOptions = PipelineOptionsFactory.create()
-        .as(SparkPipelineOptions.class);
-    pipelineOptions.setStorageLevel("DISK_ONLY");
-    pipelineOptions.setRunner(SparkRunner.class);
-    pipelineOptions.setEnableSparkMetricSinks(false);
-    pipelineOptions.setStreaming(false);
-    Pipeline p = Pipeline.create(pipelineOptions);
+    pipelineOptions.getOptions().setStorageLevel("DISK_ONLY");
+    Pipeline p = Pipeline.create(pipelineOptions.getOptions());
 
     PCollection<String> pCollection = p.apply(Create.of("foo"));
 
+    // by default, the Spark runner doesn't cache the RDD if it accessed only one time.
+    // So, to "force" the caching of the RDD, we have to call the RDD at least two time.
+    // That's why we are using Count fn on the PCollection.
     pCollection.apply(Count.<String>globally());
 
     pCollection.apply(new TestStorageLevelPTransform());

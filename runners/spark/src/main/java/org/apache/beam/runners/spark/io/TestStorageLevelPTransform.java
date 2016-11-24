@@ -23,7 +23,10 @@ import org.apache.beam.sdk.values.PDone;
 
 /**
  * Get RDD storage level (for testing purpose only).
- * It's a hack used in the {@link org.apache.beam.runners.spark.translation.TransformTranslator}.
+ * Some features, such as {@link org.apache.spark.storage.StorageLevel}, can only be tested via
+ * {@link PTransform} and custom evaluators. So, while this is a test-only evaluator, it has to be
+ * part of the {@link org.apache.beam.runners.spark.translation.TransformTranslator}, but should
+ * not be used in applicative pipelines.
  */
 public final class TestStorageLevelPTransform extends PTransform<PCollection<?>, PDone> {
 
