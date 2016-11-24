@@ -62,11 +62,6 @@ public class DataflowPipelineJob implements PipelineResult {
   private String jobId;
 
   /**
-   * Google cloud project to associate this pipeline with.
-   */
-  private String projectId;
-
-  /**
    * Client for the Dataflow service. This can be used to query the service
    * for information about the job.
    */
@@ -119,17 +114,14 @@ public class DataflowPipelineJob implements PipelineResult {
   /**
    * Constructs the job.
    *
-   * @param projectId the project id
    * @param jobId the job id
    * @param dataflowOptions used to configure the client for the Dataflow Service
    * @param aggregatorTransforms a mapping from aggregators to PTransforms
    */
   public DataflowPipelineJob(
-      String projectId,
       String jobId,
       DataflowPipelineOptions dataflowOptions,
       DataflowAggregatorTransforms aggregatorTransforms) {
-    this.projectId = projectId;
     this.jobId = jobId;
     this.dataflowOptions = dataflowOptions;
     this.aggregatorTransforms = aggregatorTransforms;
@@ -146,7 +138,7 @@ public class DataflowPipelineJob implements PipelineResult {
    * Get the project this job exists in.
    */
   public String getProjectId() {
-    return projectId;
+    return dataflowOptions.getProject();
   }
 
   /**
@@ -249,7 +241,7 @@ public class DataflowPipelineJob implements PipelineResult {
       MonitoringUtil.JobMessagesHandler messageHandler,
       Sleeper sleeper,
       NanoClock nanoClock) throws IOException, InterruptedException {
-    MonitoringUtil monitor = new MonitoringUtil(projectId, dataflowOptions.getDataflowClient());
+    MonitoringUtil monitor = new MonitoringUtil(getProjectId(), dataflowOptions.getDataflowClient());
 
     long lastTimestamp = 0;
     BackOff backoff;
@@ -338,12 +330,12 @@ public class DataflowPipelineJob implements PipelineResult {
   @Override
   public State cancel() throws IOException {
     Job content = new Job();
-    content.setProjectId(projectId);
+    content.setProjectId(getProjectId());
     content.setId(jobId);
     content.setRequestedState("JOB_STATE_CANCELLED");
     try {
       dataflowOptions.getDataflowClient().projects().jobs()
-          .update(projectId, jobId, content)
+          .update(getProjectId(), jobId, content)
           .execute();
       return State.CANCELLED;
     } catch (IOException e) {
@@ -412,13 +404,13 @@ public class DataflowPipelineJob implements PipelineResult {
         Job job = dataflowOptions.getDataflowClient()
             .projects()
             .jobs()
-            .get(projectId, jobId)
+            .get(getProjectId(), jobId)
             .execute();
         State currentState = MonitoringUtil.toState(job.getCurrentState());
         if (currentState.isTerminal()) {
           terminalState = currentState;
           replacedByJob = new DataflowPipelineJob(
-              getProjectId(), job.getReplacedByJobId(), dataflowOptions, aggregatorTransforms);
+              job.getReplacedByJobId(), dataflowOptions, aggregatorTransforms);
         }
         return job;
       } catch (IOException exn) {
@@ -485,7 +477,7 @@ public class DataflowPipelineJob implements PipelineResult {
       } else {
         boolean terminal = getState().isTerminal();
         JobMetrics jobMetrics = dataflowOptions.getDataflowClient()
-            .projects().jobs().getMetrics(projectId, jobId).execute();
+            .projects().jobs().getMetrics(getProjectId(), jobId).execute();
         metricUpdates = jobMetrics.getMetrics();
         if (terminal && jobMetrics.getMetrics() != null) {
           terminalMetricUpdates = metricUpdates;
