@@ -49,10 +49,13 @@ def create_run_query(entities, batch_size):
 
 
 def create_commit(mutations):
-  """A fake datastore commit method that writes the mutations to a list.
+  """A fake Datastore commit method that writes the mutations to a list.
 
   Args:
     mutations: A list to write mutations to.
+
+  Returns:
+    A fake Datastore commit method
   """
 
   def commit(req):

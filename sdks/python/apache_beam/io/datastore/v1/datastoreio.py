@@ -24,10 +24,11 @@ from googledatastore import helper as datastore_helper
 
 from apache_beam.io.datastore.v1 import helper
 from apache_beam.io.datastore.v1 import query_splitter
-from apache_beam.transforms import Create, Map
+from apache_beam.transforms import Create
 from apache_beam.transforms import DoFn
 from apache_beam.transforms import FlatMap
 from apache_beam.transforms import GroupByKey
+from apache_beam.transforms import Map
 from apache_beam.transforms import PTransform
 from apache_beam.transforms import ParDo
 from apache_beam.transforms.util import Values
@@ -288,7 +289,7 @@ class ReadFromDatastore(PTransform):
     return max(num_splits, ReadFromDatastore._NUM_QUERY_SPLITS_MIN)
 
 
-class Mutate(PTransform):
+class _Mutate(PTransform):
   """A ``PTransform`` that writes mutations to Cloud Datastore.
 
   Only idempotent Datastore mutation operations (upsert and delete) are
@@ -312,7 +313,7 @@ class Mutate(PTransform):
   def apply(self, pcoll):
     return (pcoll
             | 'Convert to Mutation' >> Map(self._mutation_fn)
-            | 'Write Mutation to Datastore' >> ParDo(Mutate.DatastoreWriteFn(
+            | 'Write Mutation to Datastore' >> ParDo(_Mutate.DatastoreWriteFn(
                 self._project)))
 
   def display_data(self):
@@ -341,7 +342,7 @@ class Mutate(PTransform):
 
     def process(self, context):
       self._mutations.append(context.element)
-      if len(self._mutations) >= Mutate._WRITE_BATCH_SIZE:
+      if len(self._mutations) >= _Mutate._WRITE_BATCH_SIZE:
         self._flush_batch()
 
     def finish_bundle(self, context):
@@ -352,16 +353,15 @@ class Mutate(PTransform):
     def _flush_batch(self):
       # Flush the current batch of mutations to Cloud Datastore.
       helper.write_mutations(self._datastore, self._project, self._mutations)
-      logging.debug("Successfully wrote %d mutations", len(self._mutations))
+      logging.debug("Successfully wrote %d mutations.", len(self._mutations))
       self._mutations = []
 
 
-class WriteToDatastore(Mutate):
+class WriteToDatastore(_Mutate):
   """A ``PTransform`` to write a ``PCollection[Entity]`` to Cloud Datastore."""
   def __init__(self, project):
-    self._project = project
     super(WriteToDatastore, self).__init__(
-        self._project, WriteToDatastore.to_upsert_mutation)
+        project, WriteToDatastore.to_upsert_mutation)
 
   @staticmethod
   def to_upsert_mutation(entity):
@@ -373,12 +373,11 @@ class WriteToDatastore(Mutate):
     return mutation
 
 
-class DeleteFromDatastore(Mutate):
+class DeleteFromDatastore(_Mutate):
   """A ``PTransform`` to delete a ``PCollection[Key]`` from Cloud Datastore."""
   def __init__(self, project):
-    self._project = project
     super(DeleteFromDatastore, self).__init__(
-        self._project, DeleteFromDatastore.to_delete_mutation)
+        project, DeleteFromDatastore.to_delete_mutation)
 
   @staticmethod
   def to_delete_mutation(key):
