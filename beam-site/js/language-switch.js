@@ -5,7 +5,7 @@ $(document).ready(function() {
         var prefix = id + "-";
         return {
             "id": id,
-            "selector": "div[class^=" + prefix + "]",
+            "selector": "[class^=" + prefix + "]",
             "wrapper": prefix + "switcher", // Parent wrapper-class.
             "default": prefix + def, // Default type to display.
             "dbKey": id, // Local Storage Key
@@ -22,7 +22,8 @@ $(document).ready(function() {
 
                 types.forEach(function(type) {
                     var name = type.replace(prefix, "");
-                    name = name.charAt(0).toUpperCase() + name.slice(1);                    
+                    name = (name === "py")? "python": name;
+                    name = name.charAt(0).toUpperCase() + name.slice(1);
                     selectors += " " + type;
                     lists += "<li data-type=\"" + type + "\"><a>";
                     lists += name + "</a></li>";
@@ -46,7 +47,7 @@ $(document).ready(function() {
             "addTabs": function() {
                 var _self = this;
 
-                $(_self.selector).each(function() {
+                $("div"+_self.selector).each(function() {
                     if ($(this).prev().is(_self.selector)) {
                         return;
                     }
@@ -62,7 +63,7 @@ $(document).ready(function() {
              * @return array - list of types found.
             */
             "lookup": function(el, lang) {
-                if (!el.is(this.selector)) {
+                if (!el.is("div"+this.selector)) {
                     return lang;
                 }
 
@@ -88,6 +89,7 @@ $(document).ready(function() {
 
                 // Swapping visibility of code blocks.
                 $(this.selector).hide();
+                $("nav"+this.selector).show();
                 $("." + pref).show();
             },
             "render": function(wrapper) {
