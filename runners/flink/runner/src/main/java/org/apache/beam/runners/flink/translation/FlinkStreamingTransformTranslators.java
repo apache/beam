@@ -21,7 +21,6 @@ package org.apache.beam.runners.flink.translation;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -51,6 +50,7 @@ import org.apache.beam.sdk.io.Sink;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.io.Write;
 import org.apache.beam.sdk.transforms.Combine;
+import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.OldDoFn;
@@ -58,6 +58,7 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.join.RawUnionValue;
 import org.apache.beam.sdk.transforms.join.UnionCoder;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
@@ -311,6 +312,17 @@ public class FlinkStreamingTransformTranslators {
         ParDo.Bound<InputT, OutputT> transform,
         FlinkStreamingTranslationContext context) {
 
+      DoFn<InputT, OutputT> doFn = transform.getNewFn();
+      if (DoFnSignatures.getSignature(doFn.getClass()).stateDeclarations().size() > 0) {
+        throw new UnsupportedOperationException(
+            String.format(
+                "Found %s annotations on %s, but %s cannot yet be used with state in the %s.",
+                DoFn.StateId.class.getSimpleName(),
+                doFn.getClass().getName(),
+                DoFn.class.getSimpleName(),
+                FlinkRunner.class.getSimpleName()));
+      }
+
       WindowingStrategy<?, ?> windowingStrategy =
           context.getOutput(transform).getWindowingStrategy();
 
@@ -459,6 +471,17 @@ public class FlinkStreamingTransformTranslators {
     public void translateNode(
         ParDo.BoundMulti<InputT, OutputT> transform,
         FlinkStreamingTranslationContext context) {
+
+      DoFn<InputT, OutputT> doFn = transform.getNewFn();
+      if (DoFnSignatures.getSignature(doFn.getClass()).stateDeclarations().size() > 0) {
+        throw new UnsupportedOperationException(
+            String.format(
+                "Found %s annotations on %s, but %s cannot yet be used with state in the %s.",
+                DoFn.StateId.class.getSimpleName(),
+                doFn.getClass().getName(),
+                DoFn.class.getSimpleName(),
+                FlinkRunner.class.getSimpleName()));
+      }
 
       // we assume that the transformation does not change the windowing strategy.
       WindowingStrategy<?, ?> windowingStrategy =
