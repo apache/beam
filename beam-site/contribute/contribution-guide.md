@@ -97,8 +97,21 @@ Depending on your preferred development environment, you may need to prepare it 
 
 ##### IntelliJ
 
-_This documentation is incomplete. If you are an Intellij user, please contribute instructions!
-See [BEAM-835](https://issues.apache.org/jira/browse/BEAM-835)._
+###### Enable Annotation Processing
+
+To configure annotation processing in InteliJ Idea,
+
+1. Go to File -> Settings
+    Settings dialog window will be appeared.
+2. Select Execution,Deployment,Deployment -> Compiler -> Annotation processors
+3. Select,
+   * Enable annotation processing
+   * Obtain processors from project classpath
+   * Store generated sources relative to : _Module content root_
+4. Provide,
+   * Production sources directory : _target/generated-sources/annotations_
+   * Test sources directory : _target/generated-test-sources/test-annotations_
+5. Finally click on apply and you are good to go.
 
 ###### Checkstyle
 IntelliJ supports checkstyle within the IDE using the Checkstyle-IDEA plugin.
