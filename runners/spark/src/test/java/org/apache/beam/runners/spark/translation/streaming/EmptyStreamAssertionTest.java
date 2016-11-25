@@ -57,6 +57,8 @@ public class EmptyStreamAssertionTest implements Serializable {
   @Test
   public void testAssertion() throws Exception {
     SparkPipelineOptions options = commonOptions.withTmpCheckpointDir(checkpointParentDir);
+    options.setStreaming(true);
+
     Duration windowDuration = new Duration(options.getBatchIntervalMillis());
 
     Pipeline pipeline = Pipeline.create(options);
