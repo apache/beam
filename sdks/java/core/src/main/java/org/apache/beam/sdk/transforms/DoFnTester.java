@@ -25,7 +25,6 @@ import com.google.common.base.MoreObjects;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -34,7 +33,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
@@ -698,14 +696,6 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
         @Override
         public PaneInfo pane() {
           return element.getPane();
-        }
-
-        @Override
-        public <T> void writePCollectionViewData(
-            TupleTag<?> tag, Iterable<WindowedValue<T>> data, Coder<T> elemCoder)
-            throws IOException {
-          throw new UnsupportedOperationException(
-              "WritePCollectionViewData is not supported in in the context of DoFnTester");
         }
 
         @Override
