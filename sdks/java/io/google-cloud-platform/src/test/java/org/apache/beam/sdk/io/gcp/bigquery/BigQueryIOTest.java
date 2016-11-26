@@ -714,6 +714,7 @@ public class BigQueryIOTest implements Serializable {
   public void setUp() throws IOException {
     MockitoAnnotations.initMocks(this);
     tables = HashBasedTable.create();
+    BigQueryIO.clearCreatedTables();
   }
 
   @Test

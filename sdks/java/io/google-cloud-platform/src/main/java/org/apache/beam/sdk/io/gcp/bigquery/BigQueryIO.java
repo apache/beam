@@ -2549,6 +2549,13 @@ public class BigQueryIO {
     }
   }
 
+  /**
+   * Clear the cached map of created tables. Used for testing.
+   */
+  @VisibleForTesting
+   static void clearCreatedTables() {
+    StreamingWriteFn.clearCreatedTables();
+  }
   /////////////////////////////////////////////////////////////////////////////
 
   /**
@@ -2582,6 +2589,15 @@ public class BigQueryIO {
       this.jsonTableSchema =
           NestedValueProvider.of(schema, new TableSchemaToJsonSchema());
       this.bqServices = checkNotNull(bqServices, "bqServices");
+    }
+
+    /**
+     * Clear the cached map of created tables. Used for testing.
+     */
+    private static void clearCreatedTables() {
+      synchronized (createdTables) {
+        createdTables.clear();
+      }
     }
 
     /** Prepares a target BigQuery table. */
