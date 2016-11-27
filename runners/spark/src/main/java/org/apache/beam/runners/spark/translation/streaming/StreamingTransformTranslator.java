@@ -466,7 +466,7 @@ final class StreamingTransformTranslator {
       @SuppressWarnings("unchecked") TransformEvaluator<TransformT> transformEvaluator =
           (TransformEvaluator<TransformT>) EVALUATORS.get(clazz);
       checkState(transformEvaluator != null,
-          "No TransformEvaluator registered for for UNBOUNDED transform %s", clazz);
+          "No TransformEvaluator registered for UNBOUNDED transform %s", clazz);
       return transformEvaluator;
     }
   }
