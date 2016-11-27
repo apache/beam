@@ -19,28 +19,31 @@
 package org.apache.beam.runners.gearpump.translators.utils;
 
 import java.io.Serializable;
+import java.util.Collection;
 import java.util.List;
 
 import org.apache.beam.runners.core.DoFnRunner;
 import org.apache.beam.runners.core.DoFnRunners;
+import org.apache.beam.runners.core.PushbackSideInputDoFnRunner;
+import org.apache.beam.runners.core.SideInputHandler;
 import org.apache.beam.runners.core.SimpleDoFnRunner;
 import org.apache.beam.runners.gearpump.GearpumpPipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.Aggregator.AggregatorFactory;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.util.ExecutionContext;
-import org.apache.beam.sdk.util.SideInputReader;
 import org.apache.beam.sdk.util.WindowingStrategy;
+import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 
 /**
- * a serializable {@link SimpleDoFnRunner}.
+ * Creates a {@link SimpleDoFnRunner} at runtime.
  */
 public class DoFnRunnerFactory<InputT, OutputT> implements Serializable {
 
   private final DoFn<InputT, OutputT> fn;
   private final transient PipelineOptions options;
-  private final SideInputReader sideInputReader;
+  private final Collection<PCollectionView<?>> sideInputs;
   private final DoFnRunners.OutputManager outputManager;
   private final TupleTag<OutputT> mainOutputTag;
   private final List<TupleTag<?>> sideOutputTags;
@@ -51,7 +54,7 @@ public class DoFnRunnerFactory<InputT, OutputT> implements Serializable {
   public DoFnRunnerFactory(
       GearpumpPipelineOptions pipelineOptions,
       DoFn<InputT, OutputT> doFn,
-      SideInputReader sideInputReader,
+      Collection<PCollectionView<?>> sideInputs,
       DoFnRunners.OutputManager outputManager,
       TupleTag<OutputT> mainOutputTag,
       List<TupleTag<?>> sideOutputTags,
@@ -60,7 +63,7 @@ public class DoFnRunnerFactory<InputT, OutputT> implements Serializable {
       WindowingStrategy<?, ?> windowingStrategy) {
     this.fn = doFn;
     this.options = pipelineOptions;
-    this.sideInputReader = sideInputReader;
+    this.sideInputs = sideInputs;
     this.outputManager = outputManager;
     this.mainOutputTag = mainOutputTag;
     this.sideOutputTags = sideOutputTags;
@@ -69,9 +72,11 @@ public class DoFnRunnerFactory<InputT, OutputT> implements Serializable {
     this.windowingStrategy = windowingStrategy;
   }
 
-  public DoFnRunner<InputT, OutputT> createRunner() {
-    return DoFnRunners.createDefault(options, fn, sideInputReader, outputManager, mainOutputTag,
+  public PushbackSideInputDoFnRunner<InputT, OutputT> createRunner(
+      SideInputHandler sideInputReader) {
+    DoFnRunner<InputT, OutputT> underlying = DoFnRunners.createDefault(
+        options, fn, sideInputReader, outputManager, mainOutputTag,
         sideOutputTags, stepContext, aggregatorFactory, windowingStrategy);
+    return PushbackSideInputDoFnRunner.create(underlying, sideInputs, sideInputReader);
   }
-
 }

@@ -20,6 +20,8 @@ package org.apache.beam.runners.gearpump;
 
 import java.util.HashMap;
 import java.util.Map;
+
+import org.apache.beam.runners.gearpump.translators.CreatePCollectionViewTranslator;
 import org.apache.beam.runners.gearpump.translators.CreateValuesTranslator;
 import org.apache.beam.runners.gearpump.translators.FlattenPCollectionTranslator;
 import org.apache.beam.runners.gearpump.translators.GroupByKeyTranslator;
@@ -37,6 +39,7 @@ import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.values.PValue;
 
 import org.apache.gearpump.util.Graph;
@@ -72,6 +75,8 @@ public class GearpumpPipelineTranslator implements Pipeline.PipelineVisitor {
         new FlattenPCollectionTranslator());
     registerTransformTranslator(ParDo.BoundMulti.class, new ParDoBoundMultiTranslator());
     registerTransformTranslator(Create.Values.class, new CreateValuesTranslator());
+    registerTransformTranslator(View.CreatePCollectionView.class,
+        new CreatePCollectionViewTranslator());
   }
 
   public GearpumpPipelineTranslator(TranslationContext translationContext) {

@@ -161,11 +161,6 @@ public class GearpumpRunner extends PipelineRunner<GearpumpPipelineResult> {
       WindowFn<T, BoundedWindow> windowFn =
           (WindowFn<T, BoundedWindow>) outputStrategy.getWindowFn();
 
-      if (!windowFn.isNonMerging()) {
-        throw new UnsupportedOperationException(
-            "merging window is not supported in Gearpump pipeline");
-      }
-
       // If the Window.Bound transform only changed parts other than the WindowFn, then
       // we skip AssignWindows even though it should be harmless in a perfect world.
       // The world is not perfect, and a GBK may have set it to InvalidWindows to forcibly
