@@ -168,8 +168,8 @@ class NativeFileSource(dataflow_io.NativeSource):
     self.mime_type = mime_type
 
   def display_data(self):
-    return {'filePattern': DisplayDataItem(self.file_path,
-                                           label="File Pattern"),
+    return {'file_pattern': DisplayDataItem(self.file_path,
+                                            label="File Pattern"),
             'compression': DisplayDataItem(str(self.compression_type),
                                            label='Compression')}
 
@@ -845,7 +845,7 @@ class FileSink(iobase.Sink):
             DisplayDataItem(self.num_shards, label='Number of Shards'),
             'compression':
             DisplayDataItem(str(self.compression_type)),
-            'filePattern':
+            'file_pattern':
             DisplayDataItem('{}{}{}'.format(self.file_path_prefix,
                                             self.shard_name_format,
                                             self.file_name_suffix),
@@ -1136,7 +1136,7 @@ class NativeFileSink(dataflow_io.NativeSink):
     return {'shards':
             DisplayDataItem(self.num_shards,
                             label='Number of Shards'),
-            'filePattern':
+            'file_pattern':
             DisplayDataItem(file_name_pattern,
                             label='File Name Pattern'),
             'compression':
