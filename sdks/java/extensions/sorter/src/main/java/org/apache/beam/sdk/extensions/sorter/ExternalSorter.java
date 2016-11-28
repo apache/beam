@@ -86,6 +86,7 @@ class ExternalSorter implements Sorter {
      * 2048.
      */
     public Options setMemoryMB(int memoryMB) {
+      checkArgument(memoryMB > 0, "memoryMB must be greater than zero");
       // Hadoop's external sort stores the number of available memory bytes in an int, this prevents
       // integer overflow
       checkArgument(memoryMB < 2048, "memoryMB must be less than 2048");
