@@ -4,7 +4,6 @@ import com.google.common.collect.Iterators;
 import cz.seznam.euphoria.core.client.dataset.windowing.Window;
 import cz.seznam.euphoria.core.client.dataset.windowing.WindowedElement;
 import cz.seznam.euphoria.core.client.functional.UnaryFunctor;
-import cz.seznam.euphoria.spark.FunctionContextMem;
 import org.apache.spark.api.java.function.FlatMapFunction;
 
 import java.util.Iterator;
@@ -30,7 +29,7 @@ public class UnaryFunctorWrapper<WID extends Window, IN, OUT>
     context.clear();
     context.setWindow(window);
 
-    functor.apply(elem.get(), context);
+    functor.apply(elem.getElement(), context);
 
     // wrap output in WindowedElement
     return Iterators.transform(context.getOutputIterator(),

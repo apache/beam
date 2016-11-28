@@ -100,7 +100,7 @@ class ReduceByKeyTranslator implements StreamingOperatorTranslator<ReduceByKey> 
     if (!origOperator.getPartitioning().hasDefaultPartitioner()) {
       out = out.partitionCustom(
               new PartitionerWrapper<>(origOperator.getPartitioning().getPartitioner()),
-              p -> p.get().getKey());
+              p -> p.getElement().getKey());
     }
 
     return out;
@@ -124,12 +124,12 @@ class ReduceByKeyTranslator implements StreamingOperatorTranslator<ReduceByKey> 
             StreamingWindowedElement<?, Pair> p1,
             StreamingWindowedElement<?, Pair> p2) {
 
-      Object v1 = p1.get().getSecond();
-      Object v2 = p2.get().getSecond();
+      Object v1 = p1.getElement().getSecond();
+      Object v2 = p2.getElement().getSecond();
       return new StreamingWindowedElement<>(
         p1.getWindow(),
         p1.getTimestamp(),
-        Pair.of(p1.get().getKey(), reducer.apply(Arrays.asList(v1, v2))));
+        Pair.of(p1.getElement().getKey(), reducer.apply(Arrays.asList(v1, v2))));
     }
 
     @Override
@@ -180,7 +180,7 @@ class ReduceByKeyTranslator implements StreamingOperatorTranslator<ReduceByKey> 
 
       // unwrap all elements to be used in user defined reducer
       Iterator<Object> unwrapped =
-              Iterators.transform(concatIt, e -> e.get().getValue());
+              Iterators.transform(concatIt, e -> e.getElement().getValue());
 
       Object reduced = reducer.apply(new IteratorIterable<>(unwrapped));
 
@@ -214,11 +214,11 @@ class ReduceByKeyTranslator implements StreamingOperatorTranslator<ReduceByKey> 
         MultiWindowedElement<WID, Pair<KEY, VALUE>> p1,
         MultiWindowedElement<WID, Pair<KEY, VALUE>> p2) {
 
-      VALUE v1 = p1.get().getSecond();
-      VALUE v2 = p2.get().getSecond();
+      VALUE v1 = p1.getElement().getSecond();
+      VALUE v2 = p2.getElement().getSecond();
       Set<WID> s = Collections.emptySet();
       return new MultiWindowedElement<>(s,
-          Pair.of(p1.get().getFirst(), reducer.apply(Arrays.asList(v1, v2))));
+          Pair.of(p1.getElement().getFirst(), reducer.apply(Arrays.asList(v1, v2))));
     }
 
     @Override
@@ -259,7 +259,7 @@ class ReduceByKeyTranslator implements StreamingOperatorTranslator<ReduceByKey> 
         throws Exception {
 
       VALUEOUT reducedValue = reducer.apply(new IteratorIterable<>(
-          Iterators.transform(input.iterator(), e -> e.get().getValue())));
+          Iterators.transform(input.iterator(), e -> e.getElement().getValue())));
       MultiWindowedElement<WID, Pair<KEY, VALUEOUT>> reduced =
           new MultiWindowedElement<>(Collections.emptySet(), Pair.of(key, reducedValue));
       this.emissionFunction.apply(key, window,
