@@ -62,10 +62,15 @@ public class DataflowPipelineJob implements PipelineResult {
   private String jobId;
 
   /**
+   * The {@link DataflowPipelineOptions} for the job.
+   */
+  private final DataflowPipelineOptions dataflowOptions;
+
+  /**
    * Client for the Dataflow service. This can be used to query the service
    * for information about the job.
    */
-  private DataflowPipelineOptions dataflowOptions;
+  private final DataflowClient dataflowClient;
 
   /**
    * The state the job terminated in or {@code null} if the job has not terminated.
@@ -124,6 +129,7 @@ public class DataflowPipelineJob implements PipelineResult {
       DataflowAggregatorTransforms aggregatorTransforms) {
     this.jobId = jobId;
     this.dataflowOptions = dataflowOptions;
+    this.dataflowClient = (dataflowOptions == null ? null : DataflowClient.create(dataflowOptions));
     this.aggregatorTransforms = aggregatorTransforms;
   }
 
@@ -241,7 +247,7 @@ public class DataflowPipelineJob implements PipelineResult {
       MonitoringUtil.JobMessagesHandler messageHandler,
       Sleeper sleeper,
       NanoClock nanoClock) throws IOException, InterruptedException {
-    MonitoringUtil monitor = new MonitoringUtil(getProjectId(), dataflowOptions.getDataflowClient());
+    MonitoringUtil monitor = new MonitoringUtil(dataflowClient);
 
     long lastTimestamp = 0;
     BackOff backoff;
@@ -334,9 +340,7 @@ public class DataflowPipelineJob implements PipelineResult {
     content.setId(jobId);
     content.setRequestedState("JOB_STATE_CANCELLED");
     try {
-      dataflowOptions.getDataflowClient().projects().jobs()
-          .update(getProjectId(), jobId, content)
-          .execute();
+      dataflowClient.updateJob(jobId, content);
       return State.CANCELLED;
     } catch (IOException e) {
       State state = getState();
@@ -401,11 +405,7 @@ public class DataflowPipelineJob implements PipelineResult {
     // Retry loop ends in return or throw
     while (true) {
       try {
-        Job job = dataflowOptions.getDataflowClient()
-            .projects()
-            .jobs()
-            .get(getProjectId(), jobId)
-            .execute();
+        Job job = dataflowClient.getJob(jobId);
         State currentState = MonitoringUtil.toState(job.getCurrentState());
         if (currentState.isTerminal()) {
           terminalState = currentState;
@@ -476,8 +476,7 @@ public class DataflowPipelineJob implements PipelineResult {
         metricUpdates = terminalMetricUpdates;
       } else {
         boolean terminal = getState().isTerminal();
-        JobMetrics jobMetrics = dataflowOptions.getDataflowClient()
-            .projects().jobs().getMetrics(getProjectId(), jobId).execute();
+        JobMetrics jobMetrics = dataflowClient.getJobMetrics(jobId);
         metricUpdates = jobMetrics.getMetrics();
         if (terminal && jobMetrics.getMetrics() != null) {
           terminalMetricUpdates = metricUpdates;

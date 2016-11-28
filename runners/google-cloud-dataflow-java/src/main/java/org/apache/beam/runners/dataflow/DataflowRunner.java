@@ -32,7 +32,6 @@ import com.google.api.services.clouddebugger.v2.Clouddebugger;
 import com.google.api.services.clouddebugger.v2.model.Debuggee;
 import com.google.api.services.clouddebugger.v2.model.RegisterDebuggeeRequest;
 import com.google.api.services.clouddebugger.v2.model.RegisterDebuggeeResponse;
-import com.google.api.services.dataflow.Dataflow;
 import com.google.api.services.dataflow.model.DataflowPackage;
 import com.google.api.services.dataflow.model.Job;
 import com.google.api.services.dataflow.model.ListJobsResponse;
@@ -194,7 +193,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
   private final DataflowPipelineOptions options;
 
   /** Client for the Dataflow service. This is used to actually submit jobs. */
-  private final Dataflow dataflowClient;
+  private final DataflowClient dataflowClient;
 
   /** Translator for this DataflowRunner, based on options. */
   private final DataflowPipelineTranslator translator;
@@ -321,7 +320,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
 
   @VisibleForTesting protected DataflowRunner(DataflowPipelineOptions options) {
     this.options = options;
-    this.dataflowClient = options.getDataflowClient();
+    this.dataflowClient = DataflowClient.create(options);
     this.translator = DataflowPipelineTranslator.fromOptions(options);
     this.pcollectionsRequiringIndexedFormat = new HashSet<>();
     this.ptransformViewsWithNonDeterministicKeyCoders = new HashSet<>();
@@ -597,11 +596,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     }
     Job jobResult;
     try {
-      jobResult = dataflowClient
-              .projects()
-              .jobs()
-              .create(options.getProject(), newJob)
-              .execute();
+      jobResult = dataflowClient.createJob(newJob);
     } catch (GoogleJsonResponseException e) {
       String errorMessages = "Unexpected errors";
       if (e.getDetails() != null) {
@@ -2830,10 +2825,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
       ListJobsResponse listResult;
       String token = null;
       do {
-        listResult = dataflowClient.projects().jobs()
-            .list(options.getProject())
-            .setPageToken(token)
-            .execute();
+        listResult = dataflowClient.listJobs(token);
         token = listResult.getNextPageToken();
         for (Job job : listResult.getJobs()) {
           if (job.getName().equals(jobName)
