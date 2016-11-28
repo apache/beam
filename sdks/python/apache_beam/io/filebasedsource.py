@@ -107,8 +107,8 @@ class FileBasedSource(iobase.BoundedSource):
     if self._concat_source is None:
       single_file_sources = []
       file_names = [f for f in fileio.ChannelFactory.glob(self._pattern)]
-      sizes = FileBasedSource._estimate_sizes_in_parallel(file_names,
-                                                          self._pattern)
+      sizes = FileBasedSource._estimate_sizes_of_files(file_names,
+                                                       self._pattern)
 
       # We create a reference for FileBasedSource that will be serialized along
       # with each _SingleFileSource. To prevent this FileBasedSource from having
@@ -145,8 +145,11 @@ class FileBasedSource(iobase.BoundedSource):
         compression_type=self._compression_type)
 
   @staticmethod
-  def _estimate_sizes_in_parallel(file_names, pattern=None):
-    """Returns the size of all the files as an ordered list
+  def _estimate_sizes_of_files(file_names, pattern=None):
+    """Returns the size of all the files as an ordered list based on the file
+    names that are provided here. If the pattern is specified here then we use
+    the size_of_files_in_glob method to get the size of files matching the glob
+    for performance improvements instead of getting the size one by one.
     """
     if not file_names:
       return []
@@ -188,8 +191,9 @@ class FileBasedSource(iobase.BoundedSource):
     if (len(file_names) <=
         FileBasedSource.MIN_NUMBER_OF_FILES_TO_STAT):
       # We're reading very few files so we can pass names without pattern
-      # as otherwise we'll read metadata about the whole directory
-      return sum(self._estimate_sizes_in_parallel(file_names))
+      # as otherwise we'll try to do optimization based on the pattern and
+      # might end up reading much more data than needed for a few files.
+      return sum(self._estimate_sizes_of_files(file_names))
     else:
       # Estimating size of a random sample.
       # TODO: better support distributions where file sizes are not
@@ -198,7 +202,7 @@ class FileBasedSource(iobase.BoundedSource):
                         int(len(file_names) *
                             FileBasedSource.MIN_FRACTION_OF_FILES_TO_STAT))
       sample = random.sample(file_names, sample_size)
-      estimate = self._estimate_sizes_in_parallel(sample, self._pattern)
+      estimate = self._estimate_sizes_of_files(sample, self._pattern)
       return int(
           sum(estimate) *
           (float(len(file_names)) / len(sample)))
