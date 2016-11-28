@@ -1,7 +1,6 @@
 package cz.seznam.euphoria.operator.test;
 
 import cz.seznam.euphoria.core.client.dataset.Dataset;
-import cz.seznam.euphoria.core.client.dataset.Partitioner;
 import cz.seznam.euphoria.core.client.dataset.windowing.Count;
 import cz.seznam.euphoria.core.client.dataset.windowing.Session;
 import cz.seznam.euphoria.core.client.dataset.windowing.Time;
@@ -14,8 +13,6 @@ import cz.seznam.euphoria.core.client.functional.StateFactory;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
 import cz.seznam.euphoria.core.client.functional.UnaryFunctor;
 import cz.seznam.euphoria.core.client.io.Context;
-import cz.seznam.euphoria.core.client.io.DataSource;
-import cz.seznam.euphoria.core.client.io.ListDataSource;
 import cz.seznam.euphoria.core.client.operator.FlatMap;
 import cz.seznam.euphoria.core.client.operator.ReduceStateByKey;
 import cz.seznam.euphoria.core.client.operator.state.ListStorage;
@@ -30,6 +27,10 @@ import cz.seznam.euphoria.core.client.triggers.TriggerContext;
 import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.core.client.util.Triple;
 import cz.seznam.euphoria.guava.shaded.com.google.common.collect.Lists;
+import cz.seznam.euphoria.operator.test.junit.AbstractOperatorTest;
+import cz.seznam.euphoria.operator.test.junit.Processing;
+import org.junit.Assert;
+import org.junit.Test;
 
 import java.time.Duration;
 import java.util.ArrayList;
@@ -50,7 +51,8 @@ import static org.junit.Assert.assertTrue;
 /**
  * Test operator {@code ReduceStateByKey}.
  */
-public class ReduceStateByKeyTest extends OperatorTest {
+@Processing(Processing.Type.ALL)
+public class ReduceStateByKeyTest extends AbstractOperatorTest {
 
   static class WPair<W, K, V> extends Pair<K, V> {
     private final W window;
@@ -61,25 +63,6 @@ public class ReduceStateByKeyTest extends OperatorTest {
     public W getWindow() {
       return window;
     }
-  }
-
-  @Override
-  protected List<TestCase> getTestCases() {
-    return Arrays.asList(
-        testBatchSortNoWindow(),
-        testSortWindowed(false),
-        testSortWindowed(true),
-        testCountWindowing(false),
-        testCountWindowing(true),
-        testTimeWindowing(false),
-        testTimeWindowing(true),
-        testTimeSlidingWindowing(false),
-        testTimeSlidingWindowing(true),
-        testSessionWindowing0(false),
-        testSessionWindowing0(true),
-        testElementTimestamp(false),
-        testElementTimestamp(true)
-    );
   }
 
   static class SortState extends State<Integer, Integer> {
@@ -129,9 +112,9 @@ public class ReduceStateByKeyTest extends OperatorTest {
 
   }
 
-  TestCase testBatchSortNoWindow() {
-    return new AbstractTestCase<Integer, Pair<String, Integer>>() {
-
+  @Test
+  public void testSortNoWindow() throws Exception {
+    execute(new AbstractTestCase<Integer, Pair<String, Integer>>() {
       @Override
       protected Dataset<Pair<String, Integer>> getOutput(Dataset<Integer> input) {
         return ReduceStateByKey.of(input)
@@ -145,11 +128,8 @@ public class ReduceStateByKeyTest extends OperatorTest {
       }
 
       @Override
-      protected DataSource<Integer> getDataSource() {
-        return ListDataSource.bounded(
-            Arrays.asList(9, 8, 7, 5, 4),
-            Arrays.asList(1, 2, 6, 3, 5)
-        );
+      protected Partitions<Integer> getInput() {
+        return Partitions.add(9, 8, 7, 5, 4).add(1, 2, 6, 3, 5).build();
       }
 
       @Override
@@ -158,7 +138,7 @@ public class ReduceStateByKeyTest extends OperatorTest {
       }
 
       @Override
-      public void validate(List<List<Pair<String, Integer>>> partitions) {
+      public void validate(Partitions<Pair<String, Integer>> partitions) {
         assertEquals(1, partitions.size());
         List<Pair<String, Integer>> first = partitions.get(0);
         assertEquals(10, first.size());
@@ -167,13 +147,12 @@ public class ReduceStateByKeyTest extends OperatorTest {
 
         assertEquals(Arrays.asList(1, 2, 3, 4, 5, 5, 6, 7, 8, 9), values);
       }
-
-    };
+    });
   }
 
-  TestCase testSortWindowed(boolean batch) {
-    return new AbstractTestCase<Integer, WPair<Integer, Integer, Integer>>() {
-
+  @Test
+  public void testSortWindowed() throws Exception {
+    execute(new AbstractTestCase<Integer, WPair<Integer, Integer, Integer>>() {
       @Override
       protected Dataset<WPair<Integer, Integer, Integer>> getOutput(Dataset<Integer> input) {
         Dataset<Pair<Integer, Integer>> output = ReduceStateByKey.of(input)
@@ -192,20 +171,13 @@ public class ReduceStateByKeyTest extends OperatorTest {
       }
 
       @Override
-      protected DataSource<Integer> getDataSource() {
-        if (batch) {
-          return ListDataSource.bounded(
-              Arrays.asList(9, 8, 10, 11 /* third window, key 0, 2, 1, 2 */,
-                  5, 6, 7, 4 /* second window, key 2, 0, 1, 1 */),
-              Arrays.asList(8, 9 /* third window, key 2, 0 */,
-                  6, 5 /* second window, key 0, 2 */));
-        } else {
-          return ListDataSource.unbounded(
-              Arrays.asList(9, 8, 10, 11 /* third window, key 0, 2, 1, 2 */,
-                  5, 6, 7, 4 /* second window, key 2, 0, 1, 1 */),
-              Arrays.asList(8, 9 /* third window, key 2, 0 */,
-                  6, 5 /* second window, key 0, 2 */));
-        }
+      protected Partitions<Integer> getInput() {
+        return Partitions
+            .add(9, 8, 10, 11 /* third window, key 0, 2, 1, 2 */,
+                  5, 6, 7, 4 /* second window, key 2, 0, 1, 1 */)
+            .add(8, 9 /* third window, key 2, 0 */,
+                  6, 5 /* second window, key 0, 2 */)
+            .build();
       }
 
       @Override
@@ -214,7 +186,7 @@ public class ReduceStateByKeyTest extends OperatorTest {
       }
 
       @Override
-      public void validate(List<List<WPair<Integer, Integer, Integer>>> partitions) {
+      public void validate(Partitions<WPair<Integer, Integer, Integer>> partitions) {
         assertEquals(1, partitions.size());
         List<WPair<Integer, Integer, Integer>> first = partitions.get(0);
         assertEquals(12, first.size());
@@ -254,8 +226,7 @@ public class ReduceStateByKeyTest extends OperatorTest {
       List<Integer> flatten(List<WPair<Integer, Integer, Integer>> l) {
         return l.stream().map(Pair::getSecond).collect(Collectors.toList());
       }
-
-    };
+    });
   }
 
   // ---------------------------------------------------------------------------------
@@ -299,11 +270,12 @@ public class ReduceStateByKeyTest extends OperatorTest {
     }
   }
 
-  TestCase<Pair<Integer, Long>> testCountWindowing(boolean batch) {
-    return new AbstractTestCase<Pair<String, Integer>, Pair<Integer, Long>>() {
+  @Test
+  public void testCountWindowing() throws Exception {
+    execute(new AbstractTestCase<Pair<String, Integer>, Pair<Integer, Long>>() {
       @Override
-      protected DataSource<Pair<String, Integer>> getDataSource() {
-        return ListDataSource.of(batch, asList(
+      protected Partitions<Pair<String, Integer>> getInput() {
+        return Partitions.add(
             Pair.of("1-one",   1),
             Pair.of("2-one",   2),
             Pair.of("1-two",   4),
@@ -314,7 +286,8 @@ public class ReduceStateByKeyTest extends OperatorTest {
             Pair.of("2-three", 20),
             Pair.of("1-six",   22),
             Pair.of("1-seven", 23),
-            Pair.of("1-eight", 23)));
+            Pair.of("1-eight", 23))
+            .build();
       }
 
       @Override
@@ -337,15 +310,15 @@ public class ReduceStateByKeyTest extends OperatorTest {
       }
 
       @Override
-      public void validate(List<List<Pair<Integer, Long>>> partitions) {
+      public void validate(Partitions<Pair<Integer, Long>> partitions) {
         // ~ prepare the output for comparison
         List<String> flat = new ArrayList<>();
         for (Pair<Integer, Long> o : partitions.get(0)) {
           flat.add("[" + o.getFirst() + "]: " + o.getSecond());
         }
         flat.sort(Comparator.naturalOrder());
-        assertEquals(
-            sorted(asList(
+        Assert.assertEquals(
+            Util.sorted(asList(
                 "[1]: 3",
                 "[1]: 3",
                 "[1]: 2",
@@ -353,7 +326,7 @@ public class ReduceStateByKeyTest extends OperatorTest {
                 Comparator.naturalOrder()),
             flat);
       }
-    };
+    });
   }
 
   // ---------------------------------------------------------------------------------
@@ -400,11 +373,13 @@ public class ReduceStateByKeyTest extends OperatorTest {
     }
   }
 
-  TestCase<Triple<TimeInterval, Integer, String>> testTimeWindowing(boolean batch) {
-    return new AbstractTestCase<Pair<String, Integer>, Triple<TimeInterval, Integer, String>>() {
+  @Test
+  public void testTimeWindowing() throws Exception {
+    execute(new AbstractTestCase<Pair<String, Integer>, Triple<TimeInterval, Integer, String>>() {
+
       @Override
-      protected DataSource<Pair<String, Integer>> getDataSource() {
-        return ListDataSource.of(batch, asList(
+      protected Partitions<Pair<String, Integer>> getInput() {
+        return Partitions.add(
             Pair.of("1-one",   1),
             Pair.of("2-one",   2),
             Pair.of("1-two",   4),
@@ -413,7 +388,8 @@ public class ReduceStateByKeyTest extends OperatorTest {
             Pair.of("2-two",   10),
             Pair.of("1-five",  18),
             Pair.of("2-three", 20),
-            Pair.of("1-six",   22)));
+            Pair.of("1-six",   22))
+            .build();
       }
 
       @Override
@@ -442,9 +418,9 @@ public class ReduceStateByKeyTest extends OperatorTest {
       }
 
       @Override
-      public void validate(List<List<Triple<TimeInterval, Integer, String>>> partitions) {
-        assertEquals(
-            sorted(asList(
+      public void validate(Partitions<Triple<TimeInterval, Integer, String>> partitions) {
+        Assert.assertEquals(
+            Util.sorted(asList(
                 "(0-5): 1: 1-one",
                 "(0-5): 1: 1-two",
                 "(0-5): 2: 2-one",
@@ -457,14 +433,16 @@ public class ReduceStateByKeyTest extends OperatorTest {
                 Comparator.naturalOrder()),
             prepareComparison(partitions.get(0)));
       }
-    };
+    });
   }
 
-  TestCase<Triple<TimeInterval, Integer, String>> testTimeSlidingWindowing(boolean batch) {
-    return new AbstractTestCase<Pair<String, Integer>, Triple<TimeInterval, Integer, String>>() {
+  @Test
+  public void testTimeSlidingWindowing() throws Exception {
+    execute(new AbstractTestCase<Pair<String, Integer>, Triple<TimeInterval, Integer, String>>() {
+
       @Override
-      protected DataSource<Pair<String, Integer>> getDataSource() {
-        return ListDataSource.of(batch, asList(
+      protected Partitions<Pair<String, Integer>> getInput() {
+        return Partitions.add(
             Pair.of("1-one",   1),
             Pair.of("2-ten",   6),
             Pair.of("1-two", 8),
@@ -472,7 +450,8 @@ public class ReduceStateByKeyTest extends OperatorTest {
             Pair.of("2-eleven",   10),
             Pair.of("1-four",  18),
             Pair.of("2-twelve", 24),
-            Pair.of("1-five",   22)));
+            Pair.of("1-five",   22))
+            .build();
       }
 
       @Override
@@ -504,9 +483,10 @@ public class ReduceStateByKeyTest extends OperatorTest {
       }
 
       @Override
-      public void validate(List<List<Triple<TimeInterval, Integer, String>>> partitions) {
-        assertEquals(
-            sorted(asList(
+      public void validate(Partitions<Triple<TimeInterval, Integer, String>>
+                               partitions) {
+        Assert.assertEquals(
+            Util.sorted(asList(
                 "(-5-5): 1: one",
                 "(0-10): 1: one",
                 "(0-10): 1: two",
@@ -519,8 +499,8 @@ public class ReduceStateByKeyTest extends OperatorTest {
                 "(20-30): 1: five"),
                 Comparator.naturalOrder()),
             prepareComparison(partitions.get(0)));
-        assertEquals(
-            sorted(asList(
+        Assert.assertEquals(
+            Util.sorted(asList(
                 "(0-10): 2: ten",
                 "(5-15): 2: ten",
                 "(5-15): 2: eleven",
@@ -530,14 +510,16 @@ public class ReduceStateByKeyTest extends OperatorTest {
                 Comparator.naturalOrder()),
             prepareComparison(partitions.get(1)));
       }
-    };
+    });
   }
 
-  TestCase<Triple<TimeInterval, Integer, String>> testSessionWindowing0(boolean batch) {
-    return new AbstractTestCase<Pair<String, Integer>, Triple<TimeInterval, Integer, String>>() {
+  @Test
+  public void testSessionWindowing0() throws Exception {
+    execute(new AbstractTestCase<Pair<String, Integer>, Triple<TimeInterval, Integer, String>>() {
+
       @Override
-      protected DataSource<Pair<String, Integer>> getDataSource() {
-        return ListDataSource.of(batch, asList(
+      protected Partitions<Pair<String, Integer>> getInput() {
+        return Partitions.add(
             Pair.of("1-one",   1),
             Pair.of("2-one",   2),
             Pair.of("1-two",   4),
@@ -546,7 +528,8 @@ public class ReduceStateByKeyTest extends OperatorTest {
             Pair.of("2-two",   10),
             Pair.of("1-five",  18),
             Pair.of("2-three", 20),
-            Pair.of("1-six",   22)));
+            Pair.of("1-six",   22))
+            .build();
       }
 
       @Override
@@ -575,9 +558,10 @@ public class ReduceStateByKeyTest extends OperatorTest {
       }
 
       @Override
-      public void validate(List<List<Triple<TimeInterval, Integer, String>>> partitions) {
-        assertEquals(
-            sorted(asList(
+      public void validate(Partitions<Triple<TimeInterval, Integer, String>>
+                               partitions) {
+        Assert.assertEquals(
+            Util.sorted(asList(
                 "(1-15): 1: 1-four",
                 "(1-15): 1: 1-one",
                 "(1-15): 1: 1-three",
@@ -590,7 +574,7 @@ public class ReduceStateByKeyTest extends OperatorTest {
                 Comparator.naturalOrder()),
             prepareComparison(partitions.get(0)));
       }
-    };
+    });
   }
 
   // ~ formats the triples and orders the result in natural order
@@ -636,16 +620,18 @@ public class ReduceStateByKeyTest extends OperatorTest {
     }
   }
 
-  TestCase<Integer> testElementTimestamp(boolean batch) {
-    return new AbstractTestCase<Pair<Integer, Long>, Integer>() {
+  @Test
+  public void testElementTimestamp() throws Exception {
+    execute(new AbstractTestCase<Pair<Integer, Long>, Integer>() {
       @Override
-      protected DataSource<Pair<Integer, Long>> getDataSource() {
-        return ListDataSource.of(batch, asList(
+      protected Partitions<Pair<Integer, Long>> getInput() {
+        return Partitions.add(
             // ~ Pair.of(value, time)
             Pair.of(1, 10_123L),
             Pair.of(2, 11_234L),
             Pair.of(3, 12_345L),
-            Pair.of(4, 21_456L)));
+            Pair.of(4, 21_456L))
+            .build();
       }
 
       @Override
@@ -684,10 +670,10 @@ public class ReduceStateByKeyTest extends OperatorTest {
       }
 
       @Override
-      public void validate(List<List<Integer>> partitions) {
+      public void validate(Partitions<Integer> partitions) {
         assertEquals(2, partitions.get(0).size());
-        assertEquals(asList(4, 6), sorted(partitions.get(0), Comparator.naturalOrder()));
+        Assert.assertEquals(asList(4, 6), Util.sorted(partitions.get(0), Comparator.naturalOrder()));
       }
-    };
+    });
   }
 }
