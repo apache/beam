@@ -27,8 +27,8 @@ import java.util.Collections;
 import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.TimeUnit;
-import org.apache.beam.runners.spark.EvaluationResult;
 import org.apache.beam.runners.spark.SparkPipelineOptions;
+import org.apache.beam.runners.spark.SparkPipelineResult;
 import org.apache.beam.runners.spark.aggregators.AccumulatorSingleton;
 import org.apache.beam.runners.spark.translation.streaming.utils.EmbeddedKafkaCluster;
 import org.apache.beam.runners.spark.translation.streaming.utils.PAssertStreaming;
@@ -118,7 +118,7 @@ public class ResumeFromCheckpointStreamingTest {
     options.setCheckpointDurationMillis(options.getBatchIntervalMillis());
 
     // first run will read from Kafka backlog - "auto.offset.reset=smallest"
-    EvaluationResult res = run(options);
+    SparkPipelineResult res = run(options);
     long processedMessages1 = res.getAggregatorValue("processedMessages", Long.class);
     assertThat(String.format("Expected %d processed messages count but "
         + "found %d", EXPECTED_AGG_FIRST, processedMessages1), processedMessages1,
@@ -132,14 +132,14 @@ public class ResumeFromCheckpointStreamingTest {
             equalTo(EXPECTED_AGG_FIRST));
   }
 
-  private static EvaluationResult runAgain(SparkPipelineOptions options) {
+  private static SparkPipelineResult runAgain(SparkPipelineOptions options) {
     AccumulatorSingleton.clear();
     // sleep before next run.
     Uninterruptibles.sleepUninterruptibly(100, TimeUnit.MILLISECONDS);
     return run(options);
   }
 
-  private static EvaluationResult run(SparkPipelineOptions options) {
+  private static SparkPipelineResult run(SparkPipelineOptions options) {
     // write to Kafka
     produce();
     Map<String, Object> consumerProps = ImmutableMap.<String, Object>of(

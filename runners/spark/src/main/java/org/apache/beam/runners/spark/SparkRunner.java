@@ -20,6 +20,9 @@ package org.apache.beam.runners.spark;
 
 import java.util.Collection;
 import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import org.apache.beam.runners.spark.translation.EvaluationContext;
 import org.apache.beam.runners.spark.translation.SparkContextFactory;
 import org.apache.beam.runners.spark.translation.SparkPipelineTranslator;
@@ -36,14 +39,12 @@ import org.apache.beam.sdk.runners.TransformTreeNode;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.PValue;
-import org.apache.spark.SparkException;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.streaming.api.java.JavaStreamingContext;
 import org.slf4j.Logger;
@@ -58,7 +59,7 @@ import org.slf4j.LoggerFactory;
  *
  * {@code
  * Pipeline p = [logic for pipeline creation]
- * EvaluationResult result = (EvaluationResult) p.run();
+ * SparkPipelineResult result = (SparkPipelineResult) p.run();
  * }
  *
  * <p>To create a pipeline runner to run against a different spark cluster, with a custom master url
@@ -68,10 +69,10 @@ import org.slf4j.LoggerFactory;
  * Pipeline p = [logic for pipeline creation]
  * SparkPipelineOptions options = SparkPipelineOptionsFactory.create();
  * options.setSparkMaster("spark://host:port");
- * EvaluationResult result = (EvaluationResult) p.run();
+ * SparkPipelineResult result = (SparkPipelineResult) p.run();
  * }
  */
-public final class SparkRunner extends PipelineRunner<EvaluationResult> {
+public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
 
   private static final Logger LOG = LoggerFactory.getLogger(SparkRunner.class);
   /**
@@ -122,50 +123,57 @@ public final class SparkRunner extends PipelineRunner<EvaluationResult> {
   }
 
   @Override
-  public EvaluationResult run(Pipeline pipeline) {
-    try {
-      LOG.info("Executing pipeline using the SparkRunner.");
+  public SparkPipelineResult run(final Pipeline pipeline) {
+    LOG.info("Executing pipeline using the SparkRunner.");
 
-      detectTranslationMode(pipeline);
-      if (mOptions.isStreaming()) {
-        SparkRunnerStreamingContextFactory contextFactory =
-            new SparkRunnerStreamingContextFactory(pipeline, mOptions);
-        JavaStreamingContext jssc = JavaStreamingContext.getOrCreate(mOptions.getCheckpointDir(),
-            contextFactory);
+    final SparkPipelineResult result;
+    final EvaluationContext evaluationContext;
+    final Future<?> startPipeline;
+    final ExecutorService executorService = Executors.newSingleThreadExecutor();
 
-        LOG.info("Starting streaming pipeline execution.");
-        jssc.start();
+    detectTranslationMode(pipeline);
 
-        // if recovering from checkpoint, we have to reconstruct the EvaluationResult instance.
-        return contextFactory.getCtxt() == null ? new EvaluationContext(jssc.sparkContext(),
-            pipeline, jssc) : contextFactory.getCtxt();
-      } else {
-        JavaSparkContext jsc = SparkContextFactory.getSparkContext(mOptions);
-        EvaluationContext ctxt = new EvaluationContext(jsc, pipeline);
-        SparkPipelineTranslator translator = new TransformTranslator.Translator();
-        pipeline.traverseTopologically(new Evaluator(translator, ctxt));
-        ctxt.computeOutputs();
+    if (mOptions.isStreaming()) {
+      final SparkRunnerStreamingContextFactory contextFactory =
+          new SparkRunnerStreamingContextFactory(pipeline, mOptions);
+      final JavaStreamingContext jssc =
+          JavaStreamingContext.getOrCreate(mOptions.getCheckpointDir(), contextFactory);
 
-        LOG.info("Pipeline execution complete.");
+      // if recovering from checkpoint, we have to reconstruct the Evaluation instance.
+      evaluationContext =
+          contextFactory.getCtxt() == null
+              ? new EvaluationContext(jssc.sparkContext(), pipeline, jssc)
+              : contextFactory.getCtxt();
 
-        return ctxt;
-      }
-    } catch (Exception e) {
-      // Scala doesn't declare checked exceptions in the bytecode, and the Java compiler
-      // won't let you catch something that is not declared, so we can't catch
-      // SparkException here. Instead we do an instanceof check.
-      // Then we find the cause by seeing if it's a user exception (wrapped by Beam's
-      // UserCodeException), or just use the SparkException cause.
-      if (e instanceof SparkException && e.getCause() != null) {
-        if (e.getCause() instanceof UserCodeException && e.getCause().getCause() != null) {
-          throw UserCodeException.wrap(e.getCause().getCause());
-        } else {
-          throw new RuntimeException(e.getCause());
+      startPipeline = executorService.submit(new Runnable() {
+
+        @Override
+        public void run() {
+          LOG.info("Starting streaming pipeline execution.");
+          jssc.start();
         }
-      }
-      // otherwise just wrap in a RuntimeException
-      throw new RuntimeException(e);
+      });
+
+      result = new SparkPipelineResult.StreamingMode(startPipeline, evaluationContext);
+    } else {
+      final JavaSparkContext jsc = SparkContextFactory.getSparkContext(mOptions);
+      evaluationContext = new EvaluationContext(jsc, pipeline);
+
+      startPipeline = executorService.submit(new Runnable() {
+
+        @Override
+        public void run() {
+          pipeline.traverseTopologically(new Evaluator(new TransformTranslator.Translator(),
+                                                       evaluationContext));
+          evaluationContext.computeOutputs();
+          LOG.info("Batch pipeline execution complete.");
+        }
+      });
+
+      result = new SparkPipelineResult.BatchMode(startPipeline, evaluationContext);
     }
+
+    return result;
   }
 
   /**

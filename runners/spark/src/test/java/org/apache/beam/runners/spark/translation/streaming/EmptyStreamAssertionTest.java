@@ -23,6 +23,7 @@ import static org.junit.Assert.fail;
 import java.io.Serializable;
 import java.util.Collections;
 import org.apache.beam.runners.spark.SparkPipelineOptions;
+import org.apache.beam.runners.spark.aggregators.metrics.sink.ClearAggregatorsRule;
 import org.apache.beam.runners.spark.io.CreateStream;
 import org.apache.beam.runners.spark.translation.streaming.utils.PAssertStreaming;
 import org.apache.beam.runners.spark.translation.streaming.utils.SparkTestPipelineOptionsForStreaming;
@@ -53,6 +54,9 @@ public class EmptyStreamAssertionTest implements Serializable {
   @Rule
   public SparkTestPipelineOptionsForStreaming commonOptions =
       new SparkTestPipelineOptionsForStreaming();
+
+  @Rule
+  public ClearAggregatorsRule clearAggregatorsRule = new ClearAggregatorsRule();
 
   @Test
   public void testAssertion() throws Exception {

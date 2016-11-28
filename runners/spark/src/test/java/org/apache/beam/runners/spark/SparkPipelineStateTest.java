@@ -1,0 +1,218 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package org.apache.beam.runners.spark;
+
+import static org.hamcrest.CoreMatchers.instanceOf;
+import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.nullValue;
+import static org.junit.Assert.assertThat;
+
+import com.google.common.collect.Lists;
+
+import java.io.Serializable;
+import java.util.Arrays;
+import java.util.List;
+import java.util.concurrent.TimeoutException;
+
+import org.apache.beam.runners.spark.io.CreateStream;
+import org.apache.beam.runners.spark.translation.streaming.utils.SparkTestPipelineOptions;
+import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.PipelineResult;
+import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.MapElements;
+import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.SimpleFunction;
+import org.apache.beam.sdk.util.UserCodeException;
+import org.apache.beam.sdk.values.PBegin;
+import org.apache.beam.sdk.values.PCollection;
+import org.joda.time.Duration;
+import org.junit.Rule;
+import org.junit.Test;
+import org.junit.rules.TestName;
+
+/**
+ * This suite tests that verifies a Beam over spark pipeline fails fast upon a failed batch and
+ * does not keep on running upon encountering a batch failure.
+ */
+public class SparkPipelineStateTest implements Serializable {
+
+  private static class UserException extends RuntimeException {
+
+    UserException(String message) {
+      super(message);
+    }
+  }
+
+  @Rule
+  public transient SparkTestPipelineOptions commonOptions = new SparkTestPipelineOptions();
+
+  @Rule
+  public transient TestName testName = new TestName();
+
+  private static final String FAILED_THE_BATCH_INTENTIONALLY = "Failed the batch intentionally";
+
+  private static final List<String> BATCH_WORDS = Arrays.asList("one", "two");
+
+  private static final List<Iterable<String>> STREAMING_WORDS =
+      Lists.<Iterable<String>>newArrayList(BATCH_WORDS);
+
+  private ParDo.Bound<String, String> printParDo(final String prefix) {
+    return ParDo.of(new DoFn<String, String>() {
+
+      @ProcessElement
+      public void processElement(ProcessContext c) {
+        System.out.println(prefix + " " + c.element());
+      }
+    });
+  }
+
+  private PTransform<PBegin, PCollection<String>> getValues(SparkPipelineOptions options) {
+    return options.isStreaming()
+        ? CreateStream.fromQueue(STREAMING_WORDS)
+        : Create.of(BATCH_WORDS);
+  }
+
+  private SparkPipelineOptions getStreamingOptions() {
+    final SparkPipelineOptions options = commonOptions.getOptions();
+    options.setStreaming(true);
+    return options;
+  }
+
+  private SparkPipelineOptions getBatchOptions() {
+    return commonOptions.getOptions();
+  }
+
+  private Pipeline getPipeline(SparkPipelineOptions options) {
+
+    final Pipeline pipeline = Pipeline.create(options);
+    final String name = testName.getMethodName() + "(isStreaming=" + options.isStreaming() + ")";
+
+    pipeline
+        .apply(getValues(options)).setCoder(StringUtf8Coder.of())
+        .apply(printParDo(name));
+
+    return pipeline;
+  }
+
+  private void testFailedPipeline(SparkPipelineOptions options) throws Exception {
+
+    SparkPipelineResult result = null;
+
+    try {
+      final Pipeline pipeline = Pipeline.create(options);
+      pipeline
+          .apply(getValues(options)).setCoder(StringUtf8Coder.of())
+          .apply(MapElements.via(new SimpleFunction<String, String>() {
+
+            @Override
+            public String apply(String input) {
+              throw new UserException(FAILED_THE_BATCH_INTENTIONALLY);
+            }
+          }));
+
+      result = (SparkPipelineResult) pipeline.run();
+      result.waitUntilFinish();
+    } catch (Exception e) {
+      assertThat(e, instanceOf(Pipeline.PipelineExecutionException.class));
+      assertThat(e.getCause(), instanceOf(UserCodeException.class));
+      assertThat(e.getCause().getCause(), instanceOf(UserException.class));
+      assertThat(e.getCause().getCause().getMessage(), is(FAILED_THE_BATCH_INTENTIONALLY));
+      assertThat(result.getState(), is(PipelineResult.State.FAILED));
+    }
+  }
+
+  private void testTimeoutPipeline(SparkPipelineOptions options) throws Exception {
+
+    final Pipeline pipeline = getPipeline(options);
+
+    SparkPipelineResult result = (SparkPipelineResult) pipeline.run();
+
+    try {
+      result.waitUntilFinish(Duration.millis(1));
+    } catch (Exception e) {
+      assertThat(e.getCause(), instanceOf(TimeoutException.class));
+      assertThat(result.getState(), nullValue());
+    }
+  }
+
+  private void testCanceledPipeline(SparkPipelineOptions options) throws Exception {
+
+    final Pipeline pipeline = getPipeline(options);
+
+    SparkPipelineResult result = (SparkPipelineResult) pipeline.run();
+
+    result.cancel();
+    assertThat(result.getState(), is(PipelineResult.State.CANCELLED));
+  }
+
+  private void testRunningPipeline(SparkPipelineOptions options) throws Exception {
+
+    final Pipeline pipeline = getPipeline(options);
+
+    SparkPipelineResult result = (SparkPipelineResult) pipeline.run();
+
+    assertThat(result.getState(), is(PipelineResult.State.RUNNING));
+
+    result.cancel();
+  }
+
+  @Test
+  public void testStreamingPipelineRunningState() throws Exception {
+    testRunningPipeline(getStreamingOptions());
+  }
+
+  @Test
+  public void testBatchPipelineRunningState() throws Exception {
+    testRunningPipeline(getBatchOptions());
+  }
+
+  @Test
+  public void testStreamingPipelineCanceledState() throws Exception {
+    testCanceledPipeline(getStreamingOptions());
+  }
+
+  @Test
+  public void testBatchPipelineCanceledState() throws Exception {
+    testCanceledPipeline(getBatchOptions());
+  }
+
+  @Test
+  public void testStreamingPipelineFailedState() throws Exception {
+    testFailedPipeline(getStreamingOptions());
+  }
+
+  @Test
+  public void testBatchPipelineFailedState() throws Exception {
+    testFailedPipeline(getBatchOptions());
+  }
+
+  @Test
+  public void testStreamingPipelineTimeoutState() throws Exception {
+    testTimeoutPipeline(getStreamingOptions());
+  }
+
+  @Test
+  public void testBatchPipelineTimeoutState() throws Exception {
+    testTimeoutPipeline(getBatchOptions());
+  }
+
+}
