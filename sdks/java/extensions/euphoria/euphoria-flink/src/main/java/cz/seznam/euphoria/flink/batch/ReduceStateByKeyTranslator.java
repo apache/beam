@@ -74,7 +74,7 @@ public class ReduceStateByKeyTranslator implements BatchOperatorTranslator<Reduc
       MapOperator<Object, WindowedElement> tsAssigned =
           input.<WindowedElement>map((Object value) -> {
             WindowedElement we = (WindowedElement) value;
-            we.setTimestamp(timeAssigner.apply(we.get()));
+            we.setTimestamp(timeAssigner.apply(we.getElement()));
             return we;
           });
       input = tsAssigned
@@ -93,7 +93,7 @@ public class ReduceStateByKeyTranslator implements BatchOperatorTranslator<Reduc
             WindowedElement wel = (WindowedElement) i;
             Set<Window> assigned = windowing.assignWindowsToElement(wel);
             for (Window wid : assigned) {
-              Object el = wel.get();
+              Object el = wel.getElement();
               c.collect(new WindowedElement(
                   wid,
                   wel.getTimestamp(),
@@ -112,7 +112,7 @@ public class ReduceStateByKeyTranslator implements BatchOperatorTranslator<Reduc
             Utils.wrapQueryable(
                 // ~ FIXME if the underlying windowing is "non merging" we can group by
                 // "key _and_ window", thus, better utilizing the available resources
-                (WindowedElement<?, Pair> we) -> (Comparable) we.get().getFirst(),
+                (WindowedElement<?, Pair> we) -> (Comparable) we.getElement().getFirst(),
                 Comparable.class))
             .sortGroup((KeySelector) Utils.wrapQueryable(
                 (KeySelector<WindowedElement<?, ?>, Long>)
@@ -129,7 +129,7 @@ public class ReduceStateByKeyTranslator implements BatchOperatorTranslator<Reduc
               origOperator.getPartitioning().getPartitioner()),
               Utils.wrapQueryable(
                   (KeySelector<WindowedElement<?, Pair>, Comparable>)
-                      (WindowedElement<?, Pair> we) -> (Comparable) we.get().getKey(),
+                      (WindowedElement<?, Pair> we) -> (Comparable) we.getElement().getKey(),
                   Comparable.class))
           .setParallelism(operator.getParallelism());
     }

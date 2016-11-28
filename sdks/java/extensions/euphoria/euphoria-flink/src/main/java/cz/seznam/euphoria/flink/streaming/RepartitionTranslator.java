@@ -24,6 +24,6 @@ class RepartitionTranslator implements StreamingOperatorTranslator<Repartition> 
     // but instead it's set on downstream operations
     // http://apache-flink-mailing-list-archive.1008284.n3.nabble.com/DataStream-partitionCustom-define-parallelism-td12597.html
 
-    return input.partitionCustom(flinkPartitioner, elem -> elem.get());
+    return input.partitionCustom(flinkPartitioner, elem -> elem.getElement());
   }
 }
