@@ -33,14 +33,7 @@ class FunctionContextAsync<T> extends FunctionContext<T> {
   @Override
   public void collect(T elem) {
     try {
-      // wrap output to WindowedElement
-
-      // FIXME timestamp set to constant, will be refactored after
-      // merging windowing support is added
-      WindowedElement wel = new WindowedElement<>(
-              window.window(), 0L, Pair.of(window.key(), elem));
-
-      queue.transfer(wel);
+      queue.transfer(elem);
 
       // with every message there is also end-of-message token sent
       // to ensure that the write operation is blocked until the written item

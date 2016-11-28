@@ -1,25 +1,26 @@
 package cz.seznam.euphoria.spark;
 
 import cz.seznam.euphoria.core.client.dataset.windowing.Window;
-import cz.seznam.euphoria.guava.shaded.com.google.common.collect.Ordering;
-import org.apache.commons.collections.comparators.NullComparator;
-import org.apache.commons.lang.ObjectUtils;
 
-import java.io.Serializable;
-import java.util.Comparator;
 import java.util.Objects;
 
-public final class KeyedWindow<W extends Window, K> {
+final class KeyedWindow<W extends Window, K> {
   private final W window;
+  private final long timestamp;
   private final K key;
 
-  public KeyedWindow(W window, K key) {
+  public KeyedWindow(W window, long timestamp, K key) {
     this.window = Objects.requireNonNull(window);
+    this.timestamp = timestamp;
     this.key = key;
   }
 
   public W window() {
     return window;
+  }
+
+  public long timestamp() {
+    return timestamp;
   }
 
   public K key() {
@@ -46,25 +47,8 @@ public final class KeyedWindow<W extends Window, K> {
   public String toString() {
     return "KeyedWindow{" +
             "window=" + window +
+            "timestamp=" + timestamp +
             ", key=" + key +
             '}';
-  }
-
-  static class Comparator implements java.util.Comparator<KeyedWindow>, Serializable {
-
-    @Override
-    public int compare(KeyedWindow kw1, KeyedWindow kw2) {
-
-      // null safe compare
-      int result = ObjectUtils.compare(
-              (Comparable) kw1.key, (Comparable) kw2.key);
-
-      if (result == 0) {
-        result = ObjectUtils.compare(
-                (Comparable) kw1.window, (Comparable) kw2.window);
-      }
-
-      return result;
-    }
   }
 }
