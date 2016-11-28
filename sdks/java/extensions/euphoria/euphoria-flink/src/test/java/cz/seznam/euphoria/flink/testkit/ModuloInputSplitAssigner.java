@@ -16,7 +16,7 @@ class ModuloInputSplitAssigner implements InputSplitAssigner {
         .mapToObj(i -> new ArrayDeque<>())
         .toArray(Deque[]::new);
     for (int i = 0; i < splits.length; i++) {
-      this.partitions[i % partitions].push(splits[i]);
+      this.partitions[i % partitions].add(splits[i]);
     }
   }
 

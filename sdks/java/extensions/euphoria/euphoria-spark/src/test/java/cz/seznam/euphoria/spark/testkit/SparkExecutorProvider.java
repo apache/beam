@@ -1,10 +1,11 @@
-package cz.seznam.euphoria.spark;
+package cz.seznam.euphoria.spark.testkit;
 
 import cz.seznam.euphoria.core.executor.Executor;
-import cz.seznam.euphoria.operator.test.ng.junit.ExecutorEnvironment;
-import cz.seznam.euphoria.operator.test.ng.junit.ExecutorProvider;
+import cz.seznam.euphoria.operator.test.junit.ExecutorEnvironment;
+import cz.seznam.euphoria.operator.test.junit.ExecutorProvider;
+import cz.seznam.euphoria.spark.TestSparkExecutor;
 
-public interface NgSparkExecutorProvider extends ExecutorProvider {
+public interface SparkExecutorProvider extends ExecutorProvider {
   @Override
   default ExecutorEnvironment newExecutorEnvironment() throws Exception {
     TestSparkExecutor exec = new TestSparkExecutor();
