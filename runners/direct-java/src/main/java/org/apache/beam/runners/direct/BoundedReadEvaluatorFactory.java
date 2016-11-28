@@ -161,7 +161,7 @@ final class BoundedReadEvaluatorFactory implements TransformEvaluatorFactory {
     }
 
     @Override
-    public TransformResult finishBundle()  {
+    public TransformResult<BoundedSourceShard<OutputT>> finishBundle()  {
       return resultBuilder.build();
     }
   }

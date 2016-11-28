@@ -112,7 +112,7 @@ public class ParDoEvaluatorTest {
     evaluator.processElement(first);
     evaluator.processElement(second);
     evaluator.processElement(third);
-    TransformResult result = evaluator.finishBundle();
+    TransformResult<Integer> result = evaluator.finishBundle();
 
     assertThat(
         result.getUnprocessedElements(),

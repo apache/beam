@@ -250,7 +250,7 @@ public class EvaluationContextTest {
     AggregatorContainer.Mutator mutator = container.createMutator();
     mutator.createAggregatorForDoFn(fn, stepContext, "foo", new SumLongFn()).addValue(4L);
 
-    TransformResult result =
+    TransformResult<?> result =
         StepTransformResult.withoutHold(created.getProducingTransformInternal())
             .withAggregatorChanges(mutator)
             .build();
@@ -260,7 +260,7 @@ public class EvaluationContextTest {
     AggregatorContainer.Mutator mutatorAgain = container.createMutator();
     mutatorAgain.createAggregatorForDoFn(fn, stepContext, "foo", new SumLongFn()).addValue(12L);
 
-    TransformResult secondResult =
+    TransformResult<?> secondResult =
         StepTransformResult.withoutHold(downstream.getProducingTransformInternal())
             .withAggregatorChanges(mutatorAgain)
             .build();
@@ -286,7 +286,7 @@ public class EvaluationContextTest {
     bag.add(2);
     bag.add(4);
 
-    TransformResult stateResult =
+    TransformResult<?> stateResult =
         StepTransformResult.withoutHold(downstream.getProducingTransformInternal())
             .withState(state)
             .build();
@@ -319,7 +319,7 @@ public class EvaluationContextTest {
     context.scheduleAfterOutputWouldBeProduced(
         downstream, GlobalWindow.INSTANCE, WindowingStrategy.globalDefault(), callback);
 
-    TransformResult result =
+    TransformResult<?> result =
         StepTransformResult.withHold(created.getProducingTransformInternal(), new Instant(0))
             .build();
 
@@ -328,7 +328,7 @@ public class EvaluationContextTest {
     // will likely be flaky if this logic is broken
     assertThat(callLatch.await(500L, TimeUnit.MILLISECONDS), is(false));
 
-    TransformResult finishedResult =
+    TransformResult<?> finishedResult =
         StepTransformResult.withoutHold(created.getProducingTransformInternal()).build();
     context.handleResult(null, ImmutableList.<TimerData>of(), finishedResult);
     context.forceRefresh();
@@ -338,7 +338,7 @@ public class EvaluationContextTest {
 
   @Test
   public void callAfterOutputMustHaveBeenProducedAlreadyAfterCallsImmediately() throws Exception {
-    TransformResult finishedResult =
+    TransformResult<?> finishedResult =
         StepTransformResult.withoutHold(created.getProducingTransformInternal()).build();
     context.handleResult(null, ImmutableList.<TimerData>of(), finishedResult);
 
@@ -358,7 +358,7 @@ public class EvaluationContextTest {
 
   @Test
   public void extractFiredTimersExtractsTimers() {
-    TransformResult holdResult =
+    TransformResult<?> holdResult =
         StepTransformResult.withHold(created.getProducingTransformInternal(), new Instant(0))
             .build();
     context.handleResult(null, ImmutableList.<TimerData>of(), holdResult);
@@ -366,7 +366,7 @@ public class EvaluationContextTest {
     StructuralKey<?> key = StructuralKey.of("foo".length(), VarIntCoder.of());
     TimerData toFire =
         TimerData.of(StateNamespaces.global(), new Instant(100L), TimeDomain.EVENT_TIME);
-    TransformResult timerResult =
+    TransformResult<?> timerResult =
         StepTransformResult.withoutHold(downstream.getProducingTransformInternal())
             .withState(CopyOnAccessInMemoryStateInternals.withUnderlying(key, null))
             .withTimerUpdate(TimerUpdate.builder(key).setTimer(toFire).build())
@@ -382,7 +382,7 @@ public class EvaluationContextTest {
     // timer hasn't fired
     assertThat(context.extractFiredTimers(), emptyIterable());
 
-    TransformResult advanceResult =
+    TransformResult<?> advanceResult =
         StepTransformResult.withoutHold(created.getProducingTransformInternal()).build();
     // Should cause the downstream timer to fire
     context.handleResult(null, ImmutableList.<TimerData>of(), advanceResult);
@@ -460,7 +460,7 @@ public class EvaluationContextTest {
         context.handleResult(
             null,
             ImmutableList.<TimerData>of(),
-            StepTransformResult.withoutHold(created.getProducingTransformInternal())
+            StepTransformResult.<Integer>withoutHold(created.getProducingTransformInternal())
                 .addOutput(rootBundle)
                 .build());
     @SuppressWarnings("unchecked")

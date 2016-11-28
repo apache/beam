@@ -127,7 +127,7 @@ class TestStreamEvaluatorFactory implements TransformEvaluatorFactory {
     }
 
     @Override
-    public TransformResult finishBundle() throws Exception {
+    public TransformResult<TestStreamIndex<T>> finishBundle() throws Exception {
       return resultBuilder.build();
     }
   }

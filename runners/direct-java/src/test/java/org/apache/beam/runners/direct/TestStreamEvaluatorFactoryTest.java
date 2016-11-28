@@ -90,7 +90,7 @@ public class TestStreamEvaluatorFactoryTest {
     TransformEvaluator<TestStreamIndex<Integer>> firstEvaluator =
         factory.forApplication(streamVals.getProducingTransformInternal(), initialBundle);
     firstEvaluator.processElement(Iterables.getOnlyElement(initialBundle.getElements()));
-    TransformResult firstResult = firstEvaluator.finishBundle();
+    TransformResult<TestStreamIndex<Integer>> firstResult = firstEvaluator.finishBundle();
 
     WindowedValue<TestStreamIndex<Integer>> firstResidual =
         (WindowedValue<TestStreamIndex<Integer>>)
@@ -103,7 +103,7 @@ public class TestStreamEvaluatorFactoryTest {
     TransformEvaluator<TestStreamIndex<Integer>> secondEvaluator =
         factory.forApplication(streamVals.getProducingTransformInternal(), secondBundle);
     secondEvaluator.processElement(firstResidual);
-    TransformResult secondResult = secondEvaluator.finishBundle();
+    TransformResult<TestStreamIndex<Integer>> secondResult = secondEvaluator.finishBundle();
 
     WindowedValue<TestStreamIndex<Integer>> secondResidual =
         (WindowedValue<TestStreamIndex<Integer>>)
@@ -116,7 +116,7 @@ public class TestStreamEvaluatorFactoryTest {
     TransformEvaluator<TestStreamIndex<Integer>> thirdEvaluator =
         factory.forApplication(streamVals.getProducingTransformInternal(), thirdBundle);
     thirdEvaluator.processElement(secondResidual);
-    TransformResult thirdResult = thirdEvaluator.finishBundle();
+    TransformResult<TestStreamIndex<Integer>> thirdResult = thirdEvaluator.finishBundle();
 
     WindowedValue<TestStreamIndex<Integer>> thirdResidual =
         (WindowedValue<TestStreamIndex<Integer>>)
@@ -130,7 +130,7 @@ public class TestStreamEvaluatorFactoryTest {
     TransformEvaluator<TestStreamIndex<Integer>> fourthEvaluator =
         factory.forApplication(streamVals.getProducingTransformInternal(), fourthBundle);
     fourthEvaluator.processElement(thirdResidual);
-    TransformResult fourthResult = fourthEvaluator.finishBundle();
+    TransformResult<TestStreamIndex<Integer>> fourthResult = fourthEvaluator.finishBundle();
 
     assertThat(clock.now(), equalTo(start.plus(Duration.standardMinutes(10))));
     WindowedValue<TestStreamIndex<Integer>> fourthResidual =
@@ -144,7 +144,7 @@ public class TestStreamEvaluatorFactoryTest {
     TransformEvaluator<TestStreamIndex<Integer>> fifthEvaluator =
         factory.forApplication(streamVals.getProducingTransformInternal(), fifthBundle);
     fifthEvaluator.processElement(fourthResidual);
-    TransformResult fifthResult = fifthEvaluator.finishBundle();
+    TransformResult<TestStreamIndex<Integer>> fifthResult = fifthEvaluator.finishBundle();
 
     assertThat(
         Iterables.getOnlyElement(firstResult.getOutputBundles())

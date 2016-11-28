@@ -84,8 +84,8 @@ public class FlattenEvaluatorFactoryTest {
     rightSideEvaluator.processElement(
         WindowedValue.timestampedValueInGlobalWindow(-4, new Instant(-4096)));
 
-    TransformResult rightSideResult = rightSideEvaluator.finishBundle();
-    TransformResult leftSideResult = leftSideEvaluator.finishBundle();
+    TransformResult<Integer> rightSideResult = rightSideEvaluator.finishBundle();
+    TransformResult<Integer> leftSideResult = leftSideEvaluator.finishBundle();
 
     assertThat(
         rightSideResult.getOutputBundles(),
@@ -131,7 +131,7 @@ public class FlattenEvaluatorFactoryTest {
             flattened.getProducingTransformInternal(),
             bundleFactory.createRootBundle().commit(BoundedWindow.TIMESTAMP_MAX_VALUE));
 
-    TransformResult leftSideResult = emptyEvaluator.finishBundle();
+    TransformResult<Integer> leftSideResult = emptyEvaluator.finishBundle();
 
     CommittedBundle<?> outputBundle =
         Iterables.getOnlyElement(leftSideResult.getOutputBundles()).commit(Instant.now());

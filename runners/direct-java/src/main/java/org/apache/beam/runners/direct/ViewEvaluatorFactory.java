@@ -81,7 +81,7 @@ class ViewEvaluatorFactory implements TransformEvaluatorFactory {
       }
 
       @Override
-      public TransformResult finishBundle() {
+      public TransformResult<Iterable<InT>> finishBundle() {
         writer.add(elements);
         Builder resultBuilder = StepTransformResult.withoutHold(application);
         if (!elements.isEmpty()) {

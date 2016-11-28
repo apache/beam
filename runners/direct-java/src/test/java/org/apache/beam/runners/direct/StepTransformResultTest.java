@@ -56,34 +56,37 @@ public class StepTransformResultTest {
   @Test
   public void producedBundlesProducedOutputs() {
     UncommittedBundle<Integer> bundle = bundleFactory.createBundle(pc);
-    TransformResult result = StepTransformResult.withoutHold(transform).addOutput(bundle)
-        .build();
+    TransformResult<Integer> result =
+        StepTransformResult.<Integer>withoutHold(transform).addOutput(bundle).build();
 
-    assertThat(result.getOutputBundles(), Matchers.<UncommittedBundle>containsInAnyOrder(bundle));
+    assertThat(
+        result.getOutputBundles(), Matchers.<UncommittedBundle<?>>containsInAnyOrder(bundle));
   }
 
   @Test
   public void withAdditionalOutputProducedOutputs() {
-    TransformResult result = StepTransformResult.withoutHold(transform)
-        .withAdditionalOutput(OutputType.PCOLLECTION_VIEW)
-        .build();
+    TransformResult<Integer> result =
+        StepTransformResult.<Integer>withoutHold(transform)
+            .withAdditionalOutput(OutputType.PCOLLECTION_VIEW)
+            .build();
 
     assertThat(result.getOutputTypes(), containsInAnyOrder(OutputType.PCOLLECTION_VIEW));
   }
 
   @Test
   public void producedBundlesAndAdditionalOutputProducedOutputs() {
-    TransformResult result = StepTransformResult.withoutHold(transform)
-        .addOutput(bundleFactory.createBundle(pc))
-        .withAdditionalOutput(OutputType.PCOLLECTION_VIEW)
-        .build();
+    TransformResult<Integer> result =
+        StepTransformResult.<Integer>withoutHold(transform)
+            .addOutput(bundleFactory.createBundle(pc))
+            .withAdditionalOutput(OutputType.PCOLLECTION_VIEW)
+            .build();
 
     assertThat(result.getOutputTypes(), hasItem(OutputType.PCOLLECTION_VIEW));
   }
 
   @Test
   public void noBundlesNoAdditionalOutputProducedOutputsFalse() {
-    TransformResult result = StepTransformResult.withoutHold(transform).build();
+    TransformResult<Integer> result = StepTransformResult.<Integer>withoutHold(transform).build();
 
     assertThat(result.getOutputTypes(), emptyIterable());
   }
