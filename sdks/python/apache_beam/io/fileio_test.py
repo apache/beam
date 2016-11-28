@@ -582,6 +582,45 @@ class TestTextFileSource(unittest.TestCase):
     self.progress_with_offsets(lines, start_offset=14)
     self.progress_with_offsets(lines, start_offset=20, end_offset=20)
 
+  @mock.patch('apache_beam.io.fileio.gcsio')
+  def test_size_of_files_complete(self, *unused_args):
+    # Prepare mocks.
+    gcsio_mock = mock.MagicMock()
+    fileio.gcsio.GcsIO = lambda: gcsio_mock
+    file_names = ['gs://bucket/file1', 'gs://bucket/file2']
+    gcsio_mock.size_batch.return_value = [
+        (('gs://bucket/file1', 1), None),
+        (('gs://bucket/file2', 2), None)
+    ]
+    expected_results = {
+        'gs://bucket/file1': 1,
+        'gs://bucket/file2': 2
+    }
+    self.assertEqual(
+        fileio.ChannelFactory.size_of_files(file_names, 'gs://bucket/*'),
+        expected_results)
+    gcsio_mock.size_batch.assert_called_once_with(file_names)
+
+  @mock.patch('apache_beam.io.fileio.gcsio')
+  def test_size_of_files_incomplete(self, *unused_args):
+    # Prepare mocks.
+    gcsio_mock = mock.MagicMock()
+    fileio.gcsio.GcsIO = lambda: gcsio_mock
+    file_names = ['gs://bucket/file1', 'gs://bucket/file2']
+    gcsio_mock.size_batch.return_value = [
+        (('gs://bucket/file1', 1), None)
+    ]
+    gcsio_mock.size.return_value = 2
+    expected_results = {
+        'gs://bucket/file1': 1,
+        'gs://bucket/file2': 2
+    }
+    self.assertEqual(
+        fileio.ChannelFactory.size_of_files(file_names, 'gs://bucket/*'),
+        expected_results)
+    gcsio_mock.size_batch.assert_called_once_with(file_names)
+    gcsio_mock.size.assert_called_once_with('gs://bucket/file2')
+
 
 class TestNativeTextFileSink(unittest.TestCase):
 

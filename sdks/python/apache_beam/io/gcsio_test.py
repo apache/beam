@@ -170,8 +170,9 @@ class FakeGcsObjects(object):
 
 class FakeApiCall(object):
 
-  def __init__(self, exception):
+  def __init__(self, exception, response=None):
     self.exception = exception
+    self.response = response if exception is None else None
     self.is_error = exception is not None
 
 
@@ -187,11 +188,12 @@ class FakeBatchApiRequest(object):
     api_calls = []
     for service, method, request in self.operations:
       exception = None
+      response = None
       try:
-        getattr(service, method)(request)
+        response = getattr(service, method)(request)
       except Exception as e:  # pylint: disable=broad-except
         exception = e
-      api_calls.append(FakeApiCall(exception))
+      api_calls.append(FakeApiCall(exception, response))
     return api_calls
 
 
@@ -651,6 +653,44 @@ class TestGCSIO(unittest.TestCase):
                              for o in expected_object_names]
       self.assertEqual(
           set(self.gcs.glob(file_pattern)), set(expected_file_names))
+
+  @mock.patch('apache_beam.io.gcsio.BatchApiRequest')
+  def test_size_batch(self, *unused_args):
+    gcsio.BatchApiRequest = FakeBatchApiRequest
+    bucket_name = 'gcsio-test'
+    object_names = [
+        ('cow/cat/fish', 2),
+        ('cow/cat/blubber', 3),
+        ('cow/dog/blubber', 4),
+        ('apple/dog/blubber', 5),
+        ('apple/fish/blubber', 6),
+        ('apple/fish/blowfish', 7),
+        ('apple/fish/bambi', 8),
+        ('apple/fish/balloon', 9),
+        ('apple/fish/cat', 10),
+        ('apple/fish/cart', 11),
+        ('apple/fish/carl', 12),
+        ('apple/dish/bat', 13),
+        ('apple/dish/cat', 14),
+        ('apple/dish/carl', 15),
+    ]
+    for (object_name, size) in object_names:
+      file_name = 'gs://%s/%s' % (bucket_name, object_name)
+      self._insert_random_file(self.client, file_name, size)
+    test_cases = [[
+        ('cow/cat/fish', 2),
+        ('cow/cat/blubber', 3),
+        ('cow/dog/blubber', 4),
+    ], [
+        ('apple/fish/cart', 11),
+        ('apple/fish/carl', 12),
+    ]]
+    for test_case in test_cases:
+      expected_result = [(('gs://%s/%s' % (bucket_name, f), s), None)
+                         for (f, s) in test_case]
+      file_names = ['gs://%s/%s' % (bucket_name, f) for (f, s) in test_case]
+      self.assertEqual(
+          self.gcs.size_batch(file_names), expected_result)
 
 
 class TestPipeStream(unittest.TestCase):
