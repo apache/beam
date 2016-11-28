@@ -20,7 +20,9 @@ package org.apache.beam.sdk.io.jdbc;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
+import java.io.PrintWriter;
 import java.io.Serializable;
+import java.io.StringWriter;
 import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.sql.Connection;
@@ -73,7 +75,29 @@ public class JdbcIOTest implements Serializable {
     System.setProperty("derby.stream.error.file", "target/derby.log");
 
     derbyServer = new NetworkServerControl(InetAddress.getByName("localhost"), port);
-    derbyServer.start(null);
+    StringWriter out = new StringWriter();
+    derbyServer.start(new PrintWriter(out));
+    boolean started = false;
+    int count = 0;
+    // Use two different methods to detect when server is started:
+    // 1) Check the server stdout for the "started" string
+    // 2) wait up to 15 seconds for the derby server to start based on a ping
+    // on faster machines and networks, this may return very quick, but on slower
+    // networks where the DNS lookups are slow, this may take a little time
+    while (!started && count < 30) {
+      if (out.toString().contains("started")) {
+        started = true;
+      } else {
+        count++;
+        Thread.sleep(500);
+        try {
+          derbyServer.ping();
+          started = true;
+        } catch (Throwable t) {
+          //ignore, still trying to start
+        }
+      }
+    }
 
     dataSource = new ClientDataSource();
     dataSource.setCreateDatabase("create");
