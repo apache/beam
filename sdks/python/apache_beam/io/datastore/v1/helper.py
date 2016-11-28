@@ -25,7 +25,6 @@ from googledatastore import PropertyFilter, CompositeFilter
 from googledatastore import helper as datastore_helper
 from googledatastore.connection import Datastore
 from googledatastore.connection import RPCError
-import googledatastore
 
 from apache_beam.utils import retry
 
@@ -98,7 +97,7 @@ def str_compare(s1, s2):
 
 def get_datastore(project):
   """Returns a Cloud Datastore client."""
-  credentials = googledatastore.helper.get_credentials_from_env()
+  credentials = datastore_helper.get_credentials_from_env()
   datastore = Datastore(project, credentials)
   return datastore
 
