@@ -59,7 +59,6 @@ import java.net.URISyntaxException;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.nio.channels.Channels;
-import java.nio.channels.WritableByteChannel;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -566,15 +565,13 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
           String.format(
               "Location must be local or on Cloud Storage, got {}.", fileLocation));
       String workSpecJson = DataflowPipelineTranslator.jobToString(newJob);
-      try (
-          WritableByteChannel writer =
-              IOChannelUtils.create(fileLocation, MimeTypes.TEXT);
-          PrintWriter printWriter = new PrintWriter(Channels.newOutputStream(writer))) {
+      try (PrintWriter printWriter = new PrintWriter(
+          Channels.newOutputStream(IOChannelUtils.create(fileLocation, MimeTypes.TEXT)))) {
         printWriter.print(workSpecJson);
         LOG.info("Printed job specification to {}", fileLocation);
       } catch (IOException ex) {
         String error =
-            String.format("Cannot create output file at {}", fileLocation);
+            String.format("Cannot create output file at %s", fileLocation);
         if (isTemplate) {
           throw new RuntimeException(error, ex);
         } else {
