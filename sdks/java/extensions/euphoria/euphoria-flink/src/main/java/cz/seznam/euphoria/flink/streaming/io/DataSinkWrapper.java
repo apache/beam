@@ -42,7 +42,7 @@ public class DataSinkWrapper<T>
 
   @Override
   public void invoke(StreamingWindowedElement<?, T> elem) throws Exception {
-    writer.write(elem.get());
+    writer.write(elem.getElement());
   }
 
   @Override

@@ -31,7 +31,7 @@ public class MultiWindowedElementWindowFunction<WID extends Window, KEY, VALUE>
           new StreamingWindowedElement<>(
               wid,
               window.getEmissionWatermark(),
-              Pair.of(i.get().getFirst(), i.get().getSecond())));
+              Pair.of(i.getElement().getFirst(), i.getElement().getSecond())));
     }
   }
 }

@@ -31,7 +31,7 @@ public class DataSinkWrapper<T>
 
   @Override
   public void writeRecord(WindowedElement<?, T> record) throws IOException {
-    writer.write(record.get());
+    writer.write(record.getElement());
   }
 
   @Override
