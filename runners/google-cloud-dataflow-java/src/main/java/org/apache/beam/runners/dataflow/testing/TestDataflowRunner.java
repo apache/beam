@@ -34,6 +34,7 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import javax.annotation.Nullable;
+import org.apache.beam.runners.dataflow.DataflowClient;
 import org.apache.beam.runners.dataflow.DataflowPipelineJob;
 import org.apache.beam.runners.dataflow.DataflowRunner;
 import org.apache.beam.runners.dataflow.util.MonitoringUtil;
@@ -65,11 +66,13 @@ public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
   private static final Logger LOG = LoggerFactory.getLogger(TestDataflowRunner.class);
 
   private final TestDataflowPipelineOptions options;
+  private final DataflowClient dataflowClient;
   private final DataflowRunner runner;
   private int expectedNumberOfAssertions = 0;
 
   TestDataflowRunner(TestDataflowPipelineOptions options) {
     this.options = options;
+    this.dataflowClient = DataflowClient.create(options);
     this.runner = DataflowRunner.fromOptions(options);
   }
 
@@ -279,8 +282,7 @@ public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
   JobMetrics getJobMetrics(DataflowPipelineJob job) {
     JobMetrics metrics = null;
     try {
-      metrics = options.getDataflowClient().projects().jobs()
-          .getMetrics(job.getProjectId(), job.getJobId()).execute();
+      metrics = dataflowClient.getJobMetrics(job.getJobId());
     } catch (IOException e) {
       LOG.warn("Failed to get job metrics: ", e);
     }

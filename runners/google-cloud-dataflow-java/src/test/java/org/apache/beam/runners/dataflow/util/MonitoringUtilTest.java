@@ -19,16 +19,15 @@ package org.apache.beam.runners.dataflow.util;
 
 import static org.junit.Assert.assertEquals;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import com.google.api.services.dataflow.Dataflow;
 import com.google.api.services.dataflow.model.JobMessage;
 import com.google.api.services.dataflow.model.ListJobMessagesResponse;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import org.apache.beam.runners.dataflow.DataflowClient;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
 import org.apache.beam.runners.dataflow.util.MonitoringUtil.LoggingHandler;
 import org.apache.beam.sdk.PipelineResult.State;
@@ -57,15 +56,7 @@ public class MonitoringUtilTest {
 
   @Test
   public void testGetJobMessages() throws IOException {
-    Dataflow.Projects.Jobs.Messages mockMessages = mock(Dataflow.Projects.Jobs.Messages.class);
-
-    // Two requests are needed to get all the messages.
-    Dataflow.Projects.Jobs.Messages.List firstRequest =
-        mock(Dataflow.Projects.Jobs.Messages.List.class);
-    Dataflow.Projects.Jobs.Messages.List secondRequest =
-        mock(Dataflow.Projects.Jobs.Messages.List.class);
-
-    when(mockMessages.list(PROJECT_ID, JOB_ID)).thenReturn(firstRequest).thenReturn(secondRequest);
+    DataflowClient dataflowClient = mock(DataflowClient.class);
 
     ListJobMessagesResponse firstResponse = new ListJobMessagesResponse();
     firstResponse.setJobMessages(new ArrayList<JobMessage>());
@@ -87,14 +78,12 @@ public class MonitoringUtilTest {
       secondResponse.getJobMessages().add(message);
     }
 
-    when(firstRequest.execute()).thenReturn(firstResponse);
-    when(secondRequest.execute()).thenReturn(secondResponse);
+    when(dataflowClient.listJobMessages(JOB_ID, null)).thenReturn(firstResponse);
+    when(dataflowClient.listJobMessages(JOB_ID, pageToken)).thenReturn(secondResponse);
 
-    MonitoringUtil util = new MonitoringUtil(PROJECT_ID, mockMessages);
+    MonitoringUtil util = new MonitoringUtil(PROJECT_ID, dataflowClient);
 
     List<JobMessage> messages = util.getJobMessages(JOB_ID, -1);
-
-    verify(secondRequest).setPageToken(pageToken);
 
     assertEquals(150, messages.size());
   }

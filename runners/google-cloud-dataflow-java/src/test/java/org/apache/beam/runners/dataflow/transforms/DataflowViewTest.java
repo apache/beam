@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.dataflow.transforms;
 
+import com.google.api.services.dataflow.Dataflow;
 import org.apache.beam.runners.dataflow.DataflowRunner;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
 import org.apache.beam.sdk.Pipeline;
@@ -36,12 +37,15 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.hamcrest.Matchers;
 import org.joda.time.Duration;
+import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.internal.matchers.ThrowableMessageMatcher;
 import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+import org.mockito.Mock;
+import org.mockito.MockitoAnnotations;
 
 /** Tests for {@link View} for a {@link DataflowRunner}. */
 @RunWith(JUnit4.class)
@@ -49,13 +53,21 @@ public class DataflowViewTest {
   @Rule
   public transient ExpectedException thrown = ExpectedException.none();
 
+  @Mock
+  private Dataflow dataflow;
+
+  @Before
+  public void setUp() {
+    MockitoAnnotations.initMocks(this);
+  }
+
   private Pipeline createTestBatchRunner() {
     DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
     options.setRunner(DataflowRunner.class);
     options.setProject("someproject");
     options.setGcpTempLocation("gs://staging");
     options.setPathValidatorClass(NoopPathValidator.class);
-    options.setDataflowClient(null);
+    options.setDataflowClient(dataflow);
     return Pipeline.create(options);
   }
 
@@ -66,7 +78,7 @@ public class DataflowViewTest {
     options.setProject("someproject");
     options.setGcpTempLocation("gs://staging");
     options.setPathValidatorClass(NoopPathValidator.class);
-    options.setDataflowClient(null);
+    options.setDataflowClient(dataflow);
     return Pipeline.create(options);
   }
 
