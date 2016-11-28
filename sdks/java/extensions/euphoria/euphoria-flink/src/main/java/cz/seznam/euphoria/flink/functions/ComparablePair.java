@@ -1,6 +1,7 @@
 package cz.seznam.euphoria.flink.functions;
 
 import cz.seznam.euphoria.core.client.util.Pair;
+import cz.seznam.euphoria.guava.shaded.com.google.common.base.Preconditions;
 
 /**
  * {@link Pair} implementing {@link Comparable} interface to be used
@@ -12,6 +13,10 @@ public class ComparablePair<T0, T1>
   
   ComparablePair(T0 first, T1 second) {
     super(first, second);
+    Preconditions.checkArgument(first instanceof Comparable,
+            first.getClass() + " is required to implement Comparable");
+    Preconditions.checkArgument(second instanceof Comparable,
+            second.getClass() + " is required to implement Comparable");
   }
 
   public static <T0, T1> ComparablePair<T0, T1> of(T0 first, T1 second) {
@@ -30,11 +35,6 @@ public class ComparablePair<T0, T1>
 
   @SuppressWarnings("unchecked")
   private int compare(Object obj1, Object obj2) {
-    if (obj1 instanceof Comparable && obj2 instanceof Comparable) {
-      return ((Comparable) obj1).compareTo(obj2);
-    }
-    final Object wrong = obj1 instanceof Comparable ? obj2 : obj1;
-    throw new IllegalArgumentException("Got class " + wrong.getClass()
-        + " which is not Comparable! Please pass two Comparables for now!");
+    return ((Comparable) obj1).compareTo(obj2);
   }
 }

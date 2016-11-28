@@ -1,5 +1,7 @@
 package cz.seznam.euphoria.spark.testkit;
 
+import cz.seznam.euphoria.operator.test.ReduceByKeyTest;
+import cz.seznam.euphoria.operator.test.ReduceStateByKeyTest;
 import cz.seznam.euphoria.operator.test.junit.Processing;
 import cz.seznam.euphoria.operator.test.junit.Processing.Type;
 import cz.seznam.euphoria.operator.test.AllOperatorsSuite;
@@ -17,7 +19,6 @@ import cz.seznam.euphoria.operator.test.UnionTest;
 import org.junit.runners.Suite;
 
 @Processing(Type.BOUNDED) // spark supports only bounded processing
-// FIXME once all features are supported in the spark-executor, inherit this annotation from the super-class
 @Suite.SuiteClasses({
     CountByKeyTest.class,
     DistinctTest.class,
@@ -26,8 +27,8 @@ import org.junit.runners.Suite;
     GroupByKeyTest.class,
     JoinTest.class,
     MapElementsTest.class,
-//    ReduceByKeyTest.class,
-//    ReduceStateByKeyTest.class,
+    ReduceByKeyTest.class,
+    ReduceStateByKeyTest.class,
     RepartitionTest.class,
     SumByKeyTest.class,
     TopPerKeyTest.class,
