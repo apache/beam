@@ -264,26 +264,26 @@ public class EvaluationContext implements EvaluationResult {
   }
 
   private State waitOnStreaming(Duration duration) {
-    final State newState;
+    final State contextTerminationState;
     try {
       // According to PipelineResult: Provide a value less than 1 ms for an infinite wait
       if (duration.getMillis() < 1L) {
         jssc.awaitTermination();
-        newState = State.DONE;
+        contextTerminationState = State.DONE;
       } else {
         jssc.awaitTermination(duration.getMillis());
         // According to PipelineResult: The final state of the pipeline or null on timeout
         if (jssc.getState().equals(StreamingContextState.STOPPED)) {
-          newState = State.DONE;
+          contextTerminationState = State.DONE;
         } else {
-          newState = null;
+          contextTerminationState = null;
         }
       }
     } finally {
       jssc.stop(false, true);
     }
 
-    return newState;
+    return contextTerminationState;
   }
 
   @Override

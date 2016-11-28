@@ -18,32 +18,26 @@
 
 package org.apache.beam.runners.spark;
 
+import static org.hamcrest.CoreMatchers.instanceOf;
+import static org.hamcrest.core.Is.is;
+import static org.junit.Assert.assertThat;
+
+import com.google.common.collect.Lists;
 import org.apache.beam.runners.spark.io.CreateStream;
 import org.apache.beam.runners.spark.translation.streaming.utils.SparkTestPipelineOptions;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
-import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.SimpleFunction;
-import org.apache.beam.sdk.transforms.Values;
-import org.apache.beam.sdk.transforms.WithKeys;
-import org.apache.beam.sdk.transforms.windowing.FixedWindows;
-import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.spark.SparkException;
-import org.joda.time.Duration;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 import java.io.Serializable;
 import java.util.Arrays;
 import java.util.List;
-import java.util.concurrent.atomic.AtomicInteger;
-import avro.shaded.com.google.common.collect.Lists;
-import static org.hamcrest.CoreMatchers.instanceOf;
-import static org.hamcrest.core.Is.is;
-import static org.junit.Assert.assertThat;
 
 /**
  * This suite tests that verifies a Beam over spark pipeline fails fast upon a failed batch and
@@ -51,37 +45,30 @@ import static org.junit.Assert.assertThat;
  */
 public class FailFastOnMicrobatchFailureTest implements Serializable {
 
-  private static final transient AtomicInteger counter = new AtomicInteger(0);
   private static final String FAILED_THE_BATCH_INTENTIONALLY = "Failed the batch intentionally";
-  private static final String[] WORDS_ARRAY_1 = { "one", "two", "three", "four" };
-  private static final String[] WORDS_ARRAY_2 = { "five", "six", "seven", "eight" };
+  private final List<Iterable<String>> WORDS_QUEUE =
+      Lists.<Iterable<String>>newArrayList(Arrays.asList("one", "two", "three", "four"),
+                                           Arrays.asList("five", "six", "seven", "eight"));
 
-  private static final List<Iterable<String>> WORDS_QUEUE = Lists.<Iterable<String>>newArrayList(
-      Arrays.asList(WORDS_ARRAY_1),
-      Arrays.asList(WORDS_ARRAY_2));
+  private final SimpleFunction<String, String> THROW_EXCEPTION_FN =
+      new SimpleFunction<String, String>() {
+
+        @Override
+        public String apply(String input) {
+          throw new RuntimeException(FAILED_THE_BATCH_INTENTIONALLY);
+        }
+      };
 
   @Rule
   public transient SparkTestPipelineOptions commonOptions = new SparkTestPipelineOptions();
 
   private Pipeline buildPipeline(SparkPipelineOptions options) {
+
     final Pipeline pipeline = Pipeline.create(options);
+
     pipeline
         .apply(CreateStream.fromQueue(WORDS_QUEUE)).setCoder(StringUtf8Coder.of())
-        .apply(Window.<String>into(FixedWindows.of(Duration.standardSeconds(1))))
-        .apply(MapElements.via(new SimpleFunction<String, String>() {
-
-          @Override
-          public String apply(String input) {
-            if (counter.getAndIncrement() == 2) {
-              throw new RuntimeException(FAILED_THE_BATCH_INTENTIONALLY);
-            } else {
-              return input;
-            }
-          }
-        }))
-        .apply(WithKeys.<String, String>of("dummy"))
-        .apply(GroupByKey.<String, String>create())
-        .apply(Values.<Iterable<String>>create());
+        .apply(MapElements.via(THROW_EXCEPTION_FN));
 
     return pipeline;
   }
