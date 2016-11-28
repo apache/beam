@@ -1,4 +1,4 @@
-package cz.seznam.euphoria.operator.test.ng.junit;
+package cz.seznam.euphoria.operator.test.junit;
 
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.flow.Flow;
@@ -7,9 +7,8 @@ import cz.seznam.euphoria.core.client.io.ListDataSink;
 import cz.seznam.euphoria.core.client.io.ListDataSource;
 import cz.seznam.euphoria.core.executor.Executor;
 import cz.seznam.euphoria.core.util.Settings;
-import cz.seznam.euphoria.operator.test.ng.junit.Processing.Type;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import cz.seznam.euphoria.guava.shaded.com.google.common.base.Preconditions;
+import cz.seznam.euphoria.operator.test.junit.Processing.Type;
 
 import java.io.Serializable;
 import java.time.Duration;
@@ -23,8 +22,6 @@ import java.util.Objects;
 import static org.junit.Assert.assertEquals;
 
 public abstract class AbstractOperatorTest implements Serializable {
-  
-  private static final Logger LOG = LoggerFactory.getLogger(AbstractOperatorTest.class); 
 
   /** Automatically injected if the test class or the a suite it is part of
    * is annotated with {@code @RunWith(ExecutorProviderRunner.class)}.
@@ -87,9 +84,7 @@ public abstract class AbstractOperatorTest implements Serializable {
     @Override
     public final Dataset<O> getOutput(Flow flow, boolean bounded) {
       Partitions<I> inputData = getInput();
-      DataSource<I> dataSource = ListDataSource.of(bounded, inputData.data)
-          .withReadDelay(inputData.readDelay)
-          .withFinalDelay(inputData.finalDelay);
+      DataSource<I> dataSource = inputData.asListDataSource(bounded);
       Dataset<I> inputDataset = flow.createInput(dataSource);
       Dataset<O> output = getOutput(inputDataset);
       return output;
@@ -115,7 +110,13 @@ public abstract class AbstractOperatorTest implements Serializable {
       this.readDelay = Objects.requireNonNull(readDelay);
       this.finalDelay = Objects.requireNonNull(finalDelay);
     }
-    
+
+    public ListDataSource<T> asListDataSource(boolean bounded) {
+      return ListDataSource.of(bounded, data)
+          .withReadDelay(readDelay)
+          .withFinalDelay(finalDelay);
+    }
+
     public static <T> Builder<T> add(T ... data) {
       return add(Arrays.asList(data));
     }
@@ -161,11 +162,12 @@ public abstract class AbstractOperatorTest implements Serializable {
    */
   @SuppressWarnings("unchecked")
   public void execute(TestCase tc) throws Exception {
-    if (processing == null) {
-      LOG.info("Skipping test {} because of undefined processing type.", tc.getClass());
-    } 
+    Preconditions.checkNotNull(executor);
+    Preconditions.checkNotNull(processing);
+
     // execute tests for each of processing types
-    else for (Processing.Type proc: this.processing.asList()) {
+    assertEquals(1, processing.asList().size());
+    for (Processing.Type proc: processing.asList()) {
       for (int i = 0; i < tc.getNumRuns(); i++) {
         ListDataSink<?> sink = ListDataSink.get(tc.getNumOutputPartitions());
         Flow flow = Flow.create(tc.toString());

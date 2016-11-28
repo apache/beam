@@ -1,4 +1,4 @@
-package cz.seznam.euphoria.operator.test.ng.junit;
+package cz.seznam.euphoria.operator.test.junit;
 
 import cz.seznam.euphoria.guava.shaded.com.google.common.collect.Lists;
 
@@ -18,7 +18,7 @@ import java.util.Optional;
 @Retention(RetentionPolicy.RUNTIME)
 public @interface Processing {
   
-  public static enum Type {
+  enum Type {
     
     BOUNDED, UNBOUNDED, ALL;
     
@@ -34,5 +34,5 @@ public @interface Processing {
     }
   }
   
-  Type value() default Type.ALL;
+  Type value();
 }

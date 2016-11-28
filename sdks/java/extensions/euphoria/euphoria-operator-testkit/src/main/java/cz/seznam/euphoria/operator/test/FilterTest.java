@@ -2,28 +2,25 @@
 package cz.seznam.euphoria.operator.test;
 
 import cz.seznam.euphoria.core.client.dataset.Dataset;
-import cz.seznam.euphoria.core.client.io.DataSource;
-import cz.seznam.euphoria.core.client.io.ListDataSource;
 import cz.seznam.euphoria.core.client.operator.Filter;
+import cz.seznam.euphoria.operator.test.junit.AbstractOperatorTest;
+import cz.seznam.euphoria.operator.test.junit.Processing;
+import org.junit.Test;
+
 import java.util.Arrays;
 import java.util.List;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
 
 /**
  * Test operator {@code Filter}.
  */
-public class FilterTest extends OperatorTest {
+@Processing(Processing.Type.ALL)
+public class FilterTest extends AbstractOperatorTest {
 
-  @Override
-  protected List<TestCase> getTestCases() {
-    return Arrays.asList(
-        testTwoPartitionStream()
-    );
-  }
-
-  TestCase testTwoPartitionStream() {
-    return new AbstractTestCase<Integer, Integer>() {
+  @Test
+  public void testTwoPartitions() throws Exception {
+    execute(new AbstractTestCase<Integer, Integer>() {
 
       @Override
       protected Dataset<Integer> getOutput(Dataset<Integer> input) {
@@ -33,12 +30,12 @@ public class FilterTest extends OperatorTest {
       }
 
       @Override
-      protected DataSource<Integer> getDataSource() {
+      protected Partitions<Integer> getInput() {
         // two input partitions
-        return ListDataSource.unbounded(
-            Arrays.asList(1, 2, 3, 4, 5 ,6),
-            Arrays.asList(7, 8, 9, 10, 11, 12, 13, 14)
-        );
+        return Partitions
+            .add(1, 2, 3, 4, 5 ,6)
+            .add(7, 8, 9, 10, 11, 12, 13, 14)
+            .build();
       }
 
       @Override
@@ -47,15 +44,13 @@ public class FilterTest extends OperatorTest {
       }
 
       @Override
-      public void validate(List<List<Integer>> partitions) {
+      public void validate(Partitions<Integer> partitions) {
         assertEquals(2, partitions.size());
         List<Integer> first = partitions.get(0);
         assertEquals(Arrays.asList(2, 4, 6), first);
         List<Integer> second = partitions.get(1);
         assertEquals(Arrays.asList(8, 10, 12, 14), second);
       }
-
-    };
+    });
   }
-
 }

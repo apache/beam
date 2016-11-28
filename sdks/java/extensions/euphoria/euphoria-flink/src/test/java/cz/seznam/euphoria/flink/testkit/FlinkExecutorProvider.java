@@ -3,14 +3,14 @@ package cz.seznam.euphoria.flink.testkit;
 import cz.seznam.euphoria.core.executor.Executor;
 import cz.seznam.euphoria.flink.FlinkExecutor;
 import cz.seznam.euphoria.flink.TestFlinkExecutor;
-import cz.seznam.euphoria.operator.test.ng.junit.ExecutorEnvironment;
-import cz.seznam.euphoria.operator.test.ng.junit.ExecutorProvider;
+import cz.seznam.euphoria.operator.test.junit.ExecutorEnvironment;
+import cz.seznam.euphoria.operator.test.junit.ExecutorProvider;
 import org.apache.commons.io.FileUtils;
 import org.apache.flink.contrib.streaming.state.RocksDBStateBackend;
 
 import java.io.File;
 
-public interface NgFlinkExecutorProvider extends ExecutorProvider {
+public interface FlinkExecutorProvider extends ExecutorProvider {
 
   default ExecutorEnvironment newExecutorEnvironment() throws Exception {
     String path = "/tmp/.flink-test-" + System.currentTimeMillis();

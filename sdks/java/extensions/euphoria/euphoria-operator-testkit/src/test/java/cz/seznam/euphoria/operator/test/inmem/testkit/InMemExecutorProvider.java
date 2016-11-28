@@ -1,12 +1,12 @@
-package cz.seznam.euphoria.operator.test.inmem;
+package cz.seznam.euphoria.operator.test.inmem.testkit;
 
 import cz.seznam.euphoria.core.executor.Executor;
 import cz.seznam.euphoria.core.executor.inmem.InMemExecutor;
 import cz.seznam.euphoria.core.executor.inmem.WatermarkTriggerScheduler;
-import cz.seznam.euphoria.operator.test.ng.junit.ExecutorEnvironment;
-import cz.seznam.euphoria.operator.test.ng.junit.ExecutorProvider;
+import cz.seznam.euphoria.operator.test.junit.ExecutorEnvironment;
+import cz.seznam.euphoria.operator.test.junit.ExecutorProvider;
 
-public interface NgInMemExecutorProvider extends ExecutorProvider {
+public interface InMemExecutorProvider extends ExecutorProvider {
   @Override
   default ExecutorEnvironment newExecutorEnvironment() throws Exception {
     InMemExecutor exec = new InMemExecutor()

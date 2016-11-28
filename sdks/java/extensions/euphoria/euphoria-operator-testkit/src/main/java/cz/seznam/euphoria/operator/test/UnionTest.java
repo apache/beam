@@ -1,31 +1,27 @@
-
 package cz.seznam.euphoria.operator.test;
 
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.flow.Flow;
-import cz.seznam.euphoria.core.client.io.DataSink;
 import cz.seznam.euphoria.core.client.io.ListDataSource;
 import cz.seznam.euphoria.core.client.operator.Repartition;
 import cz.seznam.euphoria.core.client.operator.Union;
-import java.util.Arrays;
-import java.util.List;
+import cz.seznam.euphoria.operator.test.junit.AbstractOperatorTest;
+import cz.seznam.euphoria.operator.test.junit.Processing;
+import org.junit.Test;
 
-import static org.junit.Assert.*;
+import java.util.Arrays;
+
+import static org.junit.Assert.assertEquals;
 
 /**
  * Test for operator {@code Union}
  */
-public class UnionTest extends OperatorTest {
+@Processing(Processing.Type.ALL)
+public class UnionTest extends AbstractOperatorTest {
 
-  @Override
-  protected List<TestCase> getTestCases() {
-    return Arrays.asList(
-        testUnionAndMap()
-    );
-  }
-
-  TestCase testUnionAndMap() {
-    return new TestCase<Integer>() {
+  @Test
+  public void testUnionAndMap() throws Exception {
+    execute(new TestCase<Integer>() {
 
       @Override
       public int getNumOutputPartitions() {
@@ -33,12 +29,12 @@ public class UnionTest extends OperatorTest {
       }
 
       @Override
-      public Dataset<Integer> getOutput(Flow flow) {
-        Dataset<Integer> first = flow.createInput(ListDataSource.unbounded(
+      public Dataset<Integer> getOutput(Flow flow, boolean bounded) {
+        Dataset<Integer> first = flow.createInput(ListDataSource.of(bounded,
             Arrays.asList(1, 2, 3),
             Arrays.asList(4, 5, 6)));
 
-        Dataset<Integer> second = flow.createInput(ListDataSource.unbounded(
+        Dataset<Integer> second = flow.createInput(ListDataSource.of(bounded,
             Arrays.asList(7, 8, 9),
             Arrays.asList(10, 11, 12)));
 
@@ -47,13 +43,13 @@ public class UnionTest extends OperatorTest {
       }
 
       @Override
-      public void validate(List<List<Integer>> partitions) {
+      public void validate(Partitions<Integer> partitions) {
         assertEquals(1, partitions.size());
-        assertUnorderedEquals(Arrays.asList(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12),
+        assertUnorderedEquals(
+            Arrays.asList(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12),
             partitions.get(0));
       }
-
-    };
+    });
   }
 
 }

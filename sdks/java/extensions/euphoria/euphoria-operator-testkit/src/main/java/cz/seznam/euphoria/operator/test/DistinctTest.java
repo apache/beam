@@ -3,38 +3,33 @@ package cz.seznam.euphoria.operator.test;
 
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.dataset.windowing.Time;
-import cz.seznam.euphoria.core.client.io.DataSource;
-import cz.seznam.euphoria.core.client.io.ListDataSource;
 import cz.seznam.euphoria.core.client.operator.Distinct;
 import cz.seznam.euphoria.core.client.util.Pair;
+import cz.seznam.euphoria.operator.test.junit.AbstractOperatorTest;
+import cz.seznam.euphoria.operator.test.junit.Processing;
+import cz.seznam.euphoria.operator.test.junit.Processing.Type;
+import org.junit.Assert;
+import org.junit.Test;
+
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
 
 /**
  * Test operator {@code Distinct}.
  */
-public class DistinctTest extends OperatorTest {
-
-  @Override
-  protected List<TestCase> getTestCases() {
-    return Arrays.asList(
-        testSimpleDuplicatesWithSinglePartitionBatch(),
-        testSimpleDuplicatesWithSinglePartitionStream(),
-        testSimpleDuplicatesWithSinglePartitionStreamTwoPartitions()
-    );
-  }
-
+@Processing(Type.ALL)
+public class DistinctTest extends AbstractOperatorTest {
 
   /**
    * Test simple duplicates with single output partition.
    */
-  TestCase testSimpleDuplicatesWithSinglePartitionBatch() {
-
-    return new AbstractTestCase<Integer, Integer>() {
+  @Test
+  public void testSimpleDuplicatesWithSinglePartitionNoWindowing() throws Exception {
+    execute(new AbstractTestCase<Integer, Integer>() {
 
       @Override
       public int getNumOutputPartitions() {
@@ -42,10 +37,12 @@ public class DistinctTest extends OperatorTest {
       }
 
       @Override
-      public void validate(List<List<Integer>> partitions) {
+      public void validate(Partitions<Integer> partitions) {
         assertEquals(1, partitions.size());
         List<Integer> first = partitions.get(0);
-        assertEquals(Arrays.asList(1, 2, 3), first);
+        Assert.assertEquals(
+            Util.sorted(Arrays.asList(1, 2, 3)),
+            Util.sorted(first));
       }
 
       @Override
@@ -54,23 +51,19 @@ public class DistinctTest extends OperatorTest {
       }
 
       @Override
-      protected DataSource<Integer> getDataSource() {
-        return ListDataSource.bounded(
-            Arrays.asList(1, 2, 3, 3, 2, 1));
+      protected Partitions<Integer> getInput() {
+        return Partitions.add(1, 2, 3, 3, 2, 1).build();
       }
-
-    };
-    
+    });
   }
-
 
   /**
    * Test simple duplicates with single output partition and unbounded input
    * with count window.
    */
-  TestCase testSimpleDuplicatesWithSinglePartitionStream() {
-
-    return new AbstractTestCase<Pair<Integer, Long>, Integer>() {
+  @Test
+  public void testSimpleDuplicatesWithSinglePartitionTimeWindowing() throws Exception {
+    execute(new AbstractTestCase<Pair<Integer, Long>, Integer>() {
 
       @Override
       public int getNumOutputPartitions() {
@@ -78,7 +71,7 @@ public class DistinctTest extends OperatorTest {
       }
 
       @Override
-      public void validate(List<List<Integer>> partitions) {
+      public void validate(Partitions<Integer> partitions) {
         assertEquals(1, partitions.size());
         List<Integer> first = partitions.get(0);
         assertUnorderedEquals(Arrays.asList(1, 2, 3, 2, 1), first);
@@ -93,25 +86,21 @@ public class DistinctTest extends OperatorTest {
       }
 
       @Override
-      protected DataSource<Pair<Integer, Long>> getDataSource() {
-        return ListDataSource.unbounded(
-            Arrays.asList(Pair.of(1, 100L), Pair.of(2, 300L), // first window
+      protected Partitions<Pair<Integer, Long>> getInput() {
+        return Partitions.add(Pair.of(1, 100L), Pair.of(2, 300L), // first window
                 Pair.of(3, 1200L), Pair.of(3, 1500L), // second window
-                Pair.of(2, 2200L), Pair.of(1, 2700L)));
+                Pair.of(2, 2200L), Pair.of(1, 2700L)).build();
       }
-
-    };
-
+    });
   }
-
 
   /**
    * Test duplicates with two output partitions and unbounded input
    * with two partitions with count window.
    */
-  TestCase testSimpleDuplicatesWithSinglePartitionStreamTwoPartitions() {
-
-    return new AbstractTestCase<Pair<Integer, Long>, Integer>() {
+  @Test
+  public void testSimpleDuplicatesWithSinglePartitionStreamTwoPartitions() throws Exception {
+    execute(new AbstractTestCase<Pair<Integer, Long>, Integer>() {
 
       @Override
       public int getNumOutputPartitions() {
@@ -119,7 +108,7 @@ public class DistinctTest extends OperatorTest {
       }
 
       @Override
-      public void validate(List<List<Integer>> partitions) {
+      public void validate(Partitions partitions) {
         assertEquals(2, partitions.size());
         List<Integer> first = partitions.get(0);
         assertUnorderedEquals("Array should be equals to [2], got " + first,
@@ -140,14 +129,13 @@ public class DistinctTest extends OperatorTest {
       }
 
       @Override
-      protected DataSource<Pair<Integer, Long>> getDataSource() {
-        return ListDataSource.unbounded(
-            asTimedList(100, 1, 2, 3, 3, 2, 1),
-            asTimedList(100, 1, 2, 3, 3, 2, 1));
+      protected Partitions<Pair<Integer, Long>> getInput() {
+        return Partitions
+            .add(asTimedList(100, 1, 2, 3, 3, 2, 1))
+            .add(asTimedList(100, 1, 2, 3, 3, 2, 1))
+            .build();
       }
-
-    };
-
+    });
   }
 
   private List<Pair<Integer, Long>> asTimedList(long step, Integer ... values) {

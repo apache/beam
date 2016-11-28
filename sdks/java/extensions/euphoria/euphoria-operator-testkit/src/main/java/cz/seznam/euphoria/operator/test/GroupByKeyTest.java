@@ -1,36 +1,31 @@
-
 package cz.seznam.euphoria.operator.test;
 
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.dataset.GroupedDataset;
 import cz.seznam.euphoria.core.client.dataset.windowing.Time;
-import cz.seznam.euphoria.core.client.io.DataSource;
-import cz.seznam.euphoria.core.client.io.ListDataSource;
 import cz.seznam.euphoria.core.client.operator.Distinct;
 import cz.seznam.euphoria.core.client.operator.GroupByKey;
 import cz.seznam.euphoria.core.client.operator.MapElements;
 import cz.seznam.euphoria.core.client.util.Pair;
+import cz.seznam.euphoria.operator.test.junit.AbstractOperatorTest;
+import cz.seznam.euphoria.operator.test.junit.Processing;
+import org.junit.Test;
+
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.List;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
 
 /**
  * Test for operator {@code GroupByKey}.
  */
-public class GroupByKeyTest extends OperatorTest {
+@Processing(Processing.Type.UNBOUNDED) // FIXME make Type.ALL #16916 euphoria-flink: GroupByKey failing on Repartition
+public class GroupByKeyTest extends AbstractOperatorTest {
 
-  @Override
-  protected List<TestCase> getTestCases() {
-    return Arrays.asList(
-      testGroupByMap(),
-      testGroupByReduce()
-    );
-  }
-
-  TestCase testGroupByMap() {
-    return new AbstractTestCase<Integer, Pair<Integer, String>>() {
+  @Test
+  public void testGroupByMap() throws Exception {
+    execute(new AbstractTestCase<Integer, Pair<Integer, String>>() {
 
       @Override
       protected Dataset<Pair<Integer, String>> getOutput(Dataset<Integer> input) {
@@ -45,11 +40,11 @@ public class GroupByKeyTest extends OperatorTest {
       }
 
       @Override
-      protected DataSource<Integer> getDataSource() {
-        return ListDataSource.unbounded(
-            Arrays.asList(1, 2, 3, 4, 5, 6, 7, 8),
-            Arrays.asList(8, 7, 6, 5, 4, 3, 2, 1)
-        );
+      protected Partitions<Integer> getInput() {
+        return Partitions
+            .add(1, 2, 3, 4, 5, 6, 7, 8)
+            .add(8, 7, 6, 5, 4, 3, 2, 1)
+            .build();
       }
 
       @Override
@@ -58,7 +53,7 @@ public class GroupByKeyTest extends OperatorTest {
       }
 
       @Override
-      public void validate(List<List<Pair<Integer, String>>> partitions) {
+      public void validate(Partitions<Pair<Integer, String>> partitions) {
         assertEquals(2, partitions.size());
         List<Pair<Integer, String>> first = partitions.get(0);
         assertUnorderedEquals(Arrays.asList(Pair.of(2, "2"), Pair.of(2, "2"), Pair.of(0, "3"),
@@ -68,12 +63,12 @@ public class GroupByKeyTest extends OperatorTest {
         assertUnorderedEquals(Arrays.asList(Pair.of(1, "1"), Pair.of(1, "1"), Pair.of(1, "4"),
             Pair.of(1, "4"), Pair.of(1, "7"), Pair.of(1, "7")), second);
       }
-
-    };
+    });
   }
 
-  TestCase testGroupByReduce() {
-    return new AbstractTestCase<Integer, Pair<Integer, Integer>>() {
+  @Test
+  public void testGroupByReduce() throws Exception {
+    execute(new AbstractTestCase<Integer, Pair<Integer, Integer>>() {
 
       @Override
       protected Dataset<Pair<Integer, Integer>> getOutput(Dataset<Integer> input) {
@@ -88,11 +83,11 @@ public class GroupByKeyTest extends OperatorTest {
       }
 
       @Override
-      protected DataSource<Integer> getDataSource() {
-        return ListDataSource.unbounded(
-            Arrays.asList(1, 2, 3, 4),
-            Arrays.asList(1, 2, 3, 4, 6)
-        );
+      protected Partitions<Integer> getInput() {
+        return Partitions
+            .add(1, 2, 3, 4)
+            .add(1, 2, 3, 4, 6)
+            .build();
       }
 
       @Override
@@ -101,7 +96,7 @@ public class GroupByKeyTest extends OperatorTest {
       }
 
       @Override
-      public void validate(List<List<Pair<Integer, Integer>>> partitions) {
+      public void validate(Partitions<Pair<Integer, Integer>> partitions) {
         assertEquals(2, partitions.size());
         List<Pair<Integer, Integer>> first = partitions.get(0);
         assertUnorderedEquals(
@@ -110,9 +105,6 @@ public class GroupByKeyTest extends OperatorTest {
         assertUnorderedEquals(
             Arrays.asList(Pair.of(1, 1), Pair.of(1, 0)), second);
       }
-
-    };
+    });
   }
-
-
 }

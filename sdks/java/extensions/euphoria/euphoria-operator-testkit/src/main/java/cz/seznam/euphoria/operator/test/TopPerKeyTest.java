@@ -1,20 +1,20 @@
 package cz.seznam.euphoria.operator.test;
 
 import cz.seznam.euphoria.core.client.dataset.Dataset;
-import cz.seznam.euphoria.core.client.io.DataSource;
-import cz.seznam.euphoria.core.client.io.ListDataSource;
 import cz.seznam.euphoria.core.client.operator.TopPerKey;
 import cz.seznam.euphoria.core.client.util.Triple;
+import cz.seznam.euphoria.operator.test.junit.AbstractOperatorTest;
+import cz.seznam.euphoria.operator.test.junit.Processing;
 import org.junit.Assert;
+import org.junit.Test;
 
 import java.io.Serializable;
-import java.util.Collections;
-import java.util.List;
 import java.util.Objects;
 
 import static java.util.Arrays.asList;
 
-public class TopPerKeyTest extends OperatorTest {
+@Processing(Processing.Type.ALL)
+public class TopPerKeyTest extends AbstractOperatorTest {
 
   static final class Item implements Serializable {
     private final String key, value;
@@ -41,13 +41,9 @@ public class TopPerKeyTest extends OperatorTest {
     public int hashCode() { return Objects.hash(key, value, score); }
   }
 
-  @Override
-  protected List<TestCase> getTestCases() {
-    return Collections.singletonList(testOnBatch());
-  }
-
-  TestCase<Triple<String, String, Integer>> testOnBatch() {
-    return new AbstractTestCase<Item, Triple<String, String, Integer>>() {
+  @Test
+  public void testOnBatch() throws Exception {
+    execute(new AbstractTestCase<Item, Triple<String, String, Integer>>() {
       @Override
       protected Dataset<Triple<String, String, Integer>>
       getOutput(Dataset<Item> input) {
@@ -60,28 +56,7 @@ public class TopPerKeyTest extends OperatorTest {
       }
 
       @Override
-      protected DataSource<Item> getDataSource() {
-        return ListDataSource.bounded(
-            asList(
-                new Item("one", "one-ZZZ-1", 1),
-                new Item("one", "one-ZZZ-2", 2),
-                new Item("one", "one-3", 3),
-                new Item("one", "one-999", 999),
-                new Item("two", "two", 10),
-                new Item("three", "1-three", 1),
-                new Item("three", "2-three", 0)),
-            asList(
-                new Item("one", "one-XXX-100", 100),
-                new Item("three", "3-three", 2)));
-      }
-
-      @Override
-      public int getNumOutputPartitions() {
-        return 1;
-      }
-
-      @Override
-      public void validate(List<List<Triple<String, String, Integer>>> partitions) {
+      public void validate(Partitions<Triple<String, String, Integer>> partitions) {
         Assert.assertEquals(1, partitions.size());
         assertUnorderedEquals(
             asList(
@@ -90,6 +65,28 @@ public class TopPerKeyTest extends OperatorTest {
                 Triple.of("three", "3-three", 2)),
             partitions.get(0));
       }
-    };
+
+      @Override
+      protected Partitions<Item> getInput() {
+        return Partitions
+            .add(
+                new Item("one", "one-ZZZ-1", 1),
+                new Item("one", "one-ZZZ-2", 2),
+                new Item("one", "one-3", 3),
+                new Item("one", "one-999", 999),
+                new Item("two", "two", 10),
+                new Item("three", "1-three", 1),
+                new Item("three", "2-three", 0))
+            .add(
+                new Item("one", "one-XXX-100", 100),
+                new Item("three", "3-three", 2))
+            .build();
+      }
+
+      @Override
+      public int getNumOutputPartitions() {
+        return 1;
+      }
+    });
   }
 }

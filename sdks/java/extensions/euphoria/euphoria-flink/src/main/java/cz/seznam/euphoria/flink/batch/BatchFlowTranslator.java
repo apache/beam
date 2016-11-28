@@ -32,12 +32,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.function.BiFunction;
-import java.util.function.Function;
 import java.util.stream.Collectors;
 
 public class BatchFlowTranslator extends FlowTranslator {
   
-  public static interface SplitAssignerFactory 
+  public interface SplitAssignerFactory
   extends BiFunction<InputSplit[], Integer, InputSplitAssigner>, Serializable {}
   
   public static final SplitAssignerFactory DEFAULT_SPLIT_ASSIGNER_FACTORY =

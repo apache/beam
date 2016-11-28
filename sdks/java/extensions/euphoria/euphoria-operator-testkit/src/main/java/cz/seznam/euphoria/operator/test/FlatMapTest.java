@@ -1,31 +1,26 @@
-
 package cz.seznam.euphoria.operator.test;
 
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.io.Context;
-import cz.seznam.euphoria.core.client.io.DataSource;
-import cz.seznam.euphoria.core.client.io.ListDataSource;
 import cz.seznam.euphoria.core.client.operator.FlatMap;
+import cz.seznam.euphoria.operator.test.junit.AbstractOperatorTest;
+import cz.seznam.euphoria.operator.test.junit.Processing;
+import org.junit.Test;
+
 import java.util.Arrays;
 import java.util.List;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
 
 /**
  * Test operator {@code FlatMap}.
  */
-public class FlatMapTest extends OperatorTest {
+@Processing(Processing.Type.ALL)
+public class FlatMapTest extends AbstractOperatorTest {
 
-  @Override
-  protected List<TestCase> getTestCases() {
-    return Arrays.asList(
-        testExplodeOnTwoPartitions()
-    );
-  }
-
-
-  TestCase testExplodeOnTwoPartitions() {
-    return new AbstractTestCase<Integer, Integer>() {
+  @Test
+  public void testExplodeOnTwoPartitions() throws Exception {
+    execute(new AbstractTestCase<Integer, Integer>() {
 
       @Override
       protected Dataset<Integer> getOutput(Dataset<Integer> input) {
@@ -39,15 +34,15 @@ public class FlatMapTest extends OperatorTest {
       }
 
       @Override
-      protected DataSource<Integer> getDataSource() {
-        return ListDataSource.unbounded(
-            Arrays.asList(1, 2, 3),
-            Arrays.asList(4, 3, 2, 1)
-        );
+      protected Partitions<Integer> getInput() {
+        return Partitions
+            .add(1, 2, 3)
+            .add(4, 3, 2, 1)
+            .build();
       }
 
       @Override
-      public void validate(List<List<Integer>> partitions) {
+      public void validate(Partitions<Integer> partitions) {
         assertEquals(2, partitions.size());
         List<Integer> first = partitions.get(0);
         assertEquals(Arrays.asList(1, 1, 2, 1, 2, 3), first);
@@ -60,7 +55,7 @@ public class FlatMapTest extends OperatorTest {
         return 2;
       }
 
-    };
+    });
   }
 
 }

@@ -1,4 +1,4 @@
-package cz.seznam.euphoria.operator.test.ng.junit;
+package cz.seznam.euphoria.operator.test.junit;
 
 import cz.seznam.euphoria.core.executor.Executor;
 
