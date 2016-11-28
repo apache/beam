@@ -1,4 +1,4 @@
-package cz.seznam.euphoria.flink.batch.greduce;
+package cz.seznam.euphoria.core.executor.greduce;
 
 import cz.seznam.euphoria.core.client.dataset.windowing.MergingWindowing;
 import cz.seznam.euphoria.core.client.dataset.windowing.TimedWindow;
@@ -33,9 +33,6 @@ import java.util.Objects;
  * An implementation of a RSBK group reducer of an ordered stream
  * of already grouped (by a specific key) and windowed elements where
  * no late-comers are tolerated.
- *
- * <p>This implementation is independent of flink for re-use purposes
- * in other executors.
  */
 public class GroupReducer<WID extends Window, KEY, I> {
 

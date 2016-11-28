@@ -1,4 +1,4 @@
-package cz.seznam.euphoria.flink.batch.greduce;
+package cz.seznam.euphoria.core.executor.greduce;
 
 import cz.seznam.euphoria.core.client.dataset.windowing.Window;
 

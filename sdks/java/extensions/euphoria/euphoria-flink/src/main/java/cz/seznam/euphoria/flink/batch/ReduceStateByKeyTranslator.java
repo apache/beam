@@ -15,7 +15,7 @@ import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.core.util.Settings;
 import cz.seznam.euphoria.flink.FlinkOperator;
 import cz.seznam.euphoria.flink.Utils;
-import cz.seznam.euphoria.flink.batch.greduce.GroupReducer;
+import cz.seznam.euphoria.core.executor.greduce.GroupReducer;
 import cz.seznam.euphoria.flink.functions.PartitionerWrapper;
 import cz.seznam.euphoria.guava.shaded.com.google.common.collect.Iterables;
 import org.apache.flink.api.common.functions.GroupReduceFunction;
@@ -24,8 +24,6 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.functions.KeySelector;
-import org.apache.flink.api.java.operators.FlatMapOperator;
-import org.apache.flink.api.java.operators.MapOperator;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 
 import java.util.Set;
@@ -68,47 +66,34 @@ public class ReduceStateByKeyTranslator implements BatchOperatorTranslator<Reduc
       udfValue = origOperator.getValueExtractor();
     }
 
-    // ~ re-assign element timestamps
+    // ~ extract key/value + timestamp from input elements and assign windows
     UnaryFunction<Object, Long> timeAssigner = origOperator.getEventTimeAssigner();
-    if (timeAssigner != null) {
-      MapOperator<Object, WindowedElement> tsAssigned =
-          input.<WindowedElement>map((Object value) -> {
-            WindowedElement we = (WindowedElement) value;
-            we.setTimestamp(timeAssigner.apply(we.getElement()));
-            return we;
-          });
-      input = tsAssigned
-          .name(operator.getName() + "::assign-timestamps")
-          .setParallelism(operator.getParallelism())
-          .returns(WindowedElement.class);
-    }
 
-    // ~ extract key/value from input elements and assign windows
-    DataSet<WindowedElement> tuples;
-    {
-      // FIXME require keyExtractor to deliver `Comparable`s
+    // FIXME require keyExtractor to deliver `Comparable`s
+    DataSet<WindowedElement> wAssigned =
+            input.flatMap((i, c) -> {
+              WindowedElement wel = (WindowedElement) i;
 
-      FlatMapOperator<Object, WindowedElement> wAssigned =
-          input.flatMap((i, c) -> {
-            WindowedElement wel = (WindowedElement) i;
-            Set<Window> assigned = windowing.assignWindowsToElement(wel);
-            for (Window wid : assigned) {
-              Object el = wel.getElement();
-              c.collect(new WindowedElement(
-                  wid,
-                  wel.getTimestamp(),
-                  Pair.of(udfKey.apply(el), udfValue.apply(el))));
-            }
-          });
-      tuples = wAssigned
-          .name(operator.getName() + "::map-input")
-          .setParallelism(operator.getParallelism())
-          .returns(WindowedElement.class);
-    }
+              // assign timestamp if timeAssigner defined
+              if (timeAssigner != null) {
+                wel.setTimestamp(timeAssigner.apply(wel.getElement()));
+              }
+              Set<Window> assigned = windowing.assignWindowsToElement(wel);
+              for (Window wid : assigned) {
+                Object el = wel.getElement();
+                c.collect(new WindowedElement(
+                        wid,
+                        wel.getTimestamp(),
+                        Pair.of(udfKey.apply(el), udfValue.apply(el))));
+              }
+            })
+            .returns(WindowedElement.class)
+            .name(operator.getName() + "::map-input")
+            .setParallelism(operator.getParallelism());
 
     // ~ reduce the data now
     DataSet<WindowedElement<?, Pair>> reduced =
-        tuples.groupBy((KeySelector)
+        wAssigned.groupBy((KeySelector)
             Utils.wrapQueryable(
                 // ~ FIXME if the underlying windowing is "non merging" we can group by
                 // "key _and_ window", thus, better utilizing the available resources

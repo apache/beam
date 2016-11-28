@@ -52,6 +52,8 @@ public class ReduceByKeyTranslator implements BatchOperatorTranslator<ReduceByKe
         ? AttachedWindowing.INSTANCE
         : origOperator.getWindowing();
 
+    Preconditions.checkState(origOperator.isCombinable(),
+        "Non-combinable ReduceByKey not supported!");
     Preconditions.checkState(
         !(windowing instanceof MergingWindowing),
         "MergingWindowing not supported!");
