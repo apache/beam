@@ -15,14 +15,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.transforms.reflect.testhelper;
+package org.apache.beam.sdk.transforms.reflect;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 import static org.mockito.Mockito.verify;
 
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.reflect.DoFnInvokersTest;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignatures.IgnoreScopeChecking;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.TimeDomain;
 import org.apache.beam.sdk.util.TimerSpec;
@@ -136,6 +136,7 @@ public class DoFnInvokersTestHelper {
     @TimerId(TIMER_ID)
     private final TimerSpec myTimer = TimerSpecs.timer(TimeDomain.PROCESSING_TIME);
 
+    @IgnoreScopeChecking
     @OnTimer(TIMER_ID)
     public void onTimer(BoundedWindow w) {}
 
@@ -147,6 +148,7 @@ public class DoFnInvokersTestHelper {
     @TimerId(TIMER_ID)
     private final TimerSpec myTimer = TimerSpecs.timer(TimeDomain.PROCESSING_TIME);
 
+    @IgnoreScopeChecking
     @OnTimer(TIMER_ID)
     public void onTimer(BoundedWindow w) {}
 
@@ -158,6 +160,7 @@ public class DoFnInvokersTestHelper {
     @TimerId(TIMER_ID)
     private final TimerSpec myTimer = TimerSpecs.timer(TimeDomain.PROCESSING_TIME);
 
+    @IgnoreScopeChecking
     @OnTimer(TIMER_ID)
     public void onTimer(BoundedWindow w) {}
 
@@ -169,6 +172,7 @@ public class DoFnInvokersTestHelper {
     @TimerId(TIMER_ID)
     private final TimerSpec myTimer = TimerSpecs.timer(TimeDomain.PROCESSING_TIME);
 
+    @IgnoreScopeChecking
     @OnTimer(TIMER_ID)
     public void onTimer(BoundedWindow w) {}
 
@@ -217,6 +221,7 @@ public class DoFnInvokersTestHelper {
       @TimerId(TIMER_ID)
       private final TimerSpec myTimer = TimerSpecs.timer(TimeDomain.PROCESSING_TIME);
 
+      @IgnoreScopeChecking
       @OnTimer(TIMER_ID)
       public void onTimer(BoundedWindow w) {}
 
