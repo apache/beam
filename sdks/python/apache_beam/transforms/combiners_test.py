@@ -146,7 +146,7 @@ class CombineTest(unittest.TestCase):
       transform = beam.CombinePerKey(combineFn)
       dd = DisplayData.create_from(transform)
       expected_items = [
-          DisplayDataItemMatcher('combineFn', combineFn.__class__),
+          DisplayDataItemMatcher('combine_fn', combineFn.__class__),
           DisplayDataItemMatcher('n', combineFn._n),
           DisplayDataItemMatcher('compare', combineFn._compare.__name__)]
       hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
@@ -164,7 +164,7 @@ class CombineTest(unittest.TestCase):
         dd = DisplayData.create_from(transform)
         expected_items = [
             DisplayDataItemMatcher('fn', sampleFn.fn.__name__),
-            DisplayDataItemMatcher('combineFn',
+            DisplayDataItemMatcher('combine_fn',
                                    transform.fn.__class__)]
         if len(args) > 0:
           expected_items.append(
@@ -185,7 +185,7 @@ class CombineTest(unittest.TestCase):
     transform = beam.CombineGlobally(combine.Smallest(5))
     dd = DisplayData.create_from(transform)
     expected_items = [
-        DisplayDataItemMatcher('combineFn', combine.Smallest),
+        DisplayDataItemMatcher('combine_fn', combine.Smallest),
         DisplayDataItemMatcher('n', 5),
         DisplayDataItemMatcher('compare', 'gt')]
     hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
@@ -195,7 +195,7 @@ class CombineTest(unittest.TestCase):
         combine.TupleCombineFn(max, combine.MeanCombineFn(), sum))
     dd = DisplayData.create_from(transform)
     expected_items = [
-        DisplayDataItemMatcher('combineFn', combine.TupleCombineFn),
+        DisplayDataItemMatcher('combine_fn', combine.TupleCombineFn),
         DisplayDataItemMatcher('combiners',
                                "['max', 'MeanCombineFn', 'sum']")]
     hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))

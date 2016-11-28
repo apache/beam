@@ -253,7 +253,7 @@ class TestFileBasedSource(unittest.TestCase):
     fbs = LineSource(file_name)
     dd = DisplayData.create_from(fbs)
     expected_items = [
-        DisplayDataItemMatcher('filePattern', file_name),
+        DisplayDataItemMatcher('file_pattern', file_name),
         DisplayDataItemMatcher('compression', 'auto')]
     hc.assert_that(dd.items,
                    hc.contains_inanyorder(*expected_items))
@@ -586,7 +586,7 @@ class TestSingleFileSource(unittest.TestCase):
     dd = DisplayData.create_from(fbs)
     expected_items = [
         DisplayDataItemMatcher('compression', 'auto'),
-        DisplayDataItemMatcher('filePattern', file_name)]
+        DisplayDataItemMatcher('file_pattern', file_name)]
     hc.assert_that(dd.items,
                    hc.contains_inanyorder(*expected_items))
 

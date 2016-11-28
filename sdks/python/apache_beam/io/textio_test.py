@@ -257,8 +257,8 @@ class TextSourceTest(unittest.TestCase):
     dd = DisplayData.create_from(read)
     expected_items = [
         DisplayDataItemMatcher('compression', 'auto'),
-        DisplayDataItemMatcher('filePattern', 'prefix'),
-        DisplayDataItemMatcher('strip_nwln', True)]
+        DisplayDataItemMatcher('file_pattern', 'prefix'),
+        DisplayDataItemMatcher('strip_newline', True)]
     hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
 
   def test_dataflow_single_file(self):
@@ -469,11 +469,13 @@ class TextSinkTest(unittest.TestCase):
     dd = DisplayData.create_from(write)
     expected_items = [
         DisplayDataItemMatcher(
+            'append_newline', True),
+        DisplayDataItemMatcher(
             'compression', 'auto'),
         DisplayDataItemMatcher(
             'shards', 0),
         DisplayDataItemMatcher(
-            'filePattern',
+            'file_pattern',
             '{}{}'.format('prefix',
                           '-%(shard_num)05d-of-%(num_shards)05d'))]
     hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
