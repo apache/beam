@@ -754,7 +754,7 @@
       <dependency>
         <groupId>net.bytebuddy</groupId>
         <artifactId>byte-buddy</artifactId>
-        <version>1.4.3</version>
+        <version>1.5.5</version>
       </dependency>
 
       <!-- Testing -->
