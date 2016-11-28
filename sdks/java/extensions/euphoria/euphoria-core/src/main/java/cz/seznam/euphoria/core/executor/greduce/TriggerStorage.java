@@ -1,4 +1,4 @@
-package cz.seznam.euphoria.flink.batch.greduce;
+package cz.seznam.euphoria.core.executor.greduce;
 
 import cz.seznam.euphoria.core.client.dataset.windowing.Window;
 import cz.seznam.euphoria.core.client.operator.state.ListStorage;
@@ -120,7 +120,7 @@ class TriggerStorage {
     if (s == null) {
       store.put(key, s = storageProvider.getValueStorage(desc));
     }
-    return new ClearingValueStorage<T>((ValueStorage<T>) s, key);
+    return new ClearingValueStorage<>((ValueStorage<T>) s, key);
   }
 
   <T> ListStorage<T> getListStorage(Window window, ListStorageDescriptor<T> desc) {
@@ -129,7 +129,7 @@ class TriggerStorage {
     if (s == null) {
       store.put(key, s = storageProvider.getListStorage(desc));
     }
-    return new ClearingListStorage<T>((ListStorage<T>) s, key);
+    return new ClearingListStorage<>((ListStorage<T>) s, key);
   }
 
   int size() {

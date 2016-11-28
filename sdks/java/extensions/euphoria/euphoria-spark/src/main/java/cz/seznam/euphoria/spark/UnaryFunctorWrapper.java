@@ -9,7 +9,7 @@ import org.apache.spark.api.java.function.FlatMapFunction;
 import java.util.Iterator;
 import java.util.Objects;
 
-public class UnaryFunctorWrapper<WID extends Window, IN, OUT>
+class UnaryFunctorWrapper<WID extends Window, IN, OUT>
         implements FlatMapFunction<WindowedElement<WID, IN>, WindowedElement<WID, OUT>> {
 
   private final FunctionContextMem<OUT> context;
