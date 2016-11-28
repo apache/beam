@@ -278,9 +278,9 @@ public class ElasticsearchIO {
    */
   protected static class BoundedElasticsearchSource extends BoundedSource<String> {
 
-    private ElasticsearchIO.Read spec;
-    @Nullable
-    private final String shardPreference;
+    private final ElasticsearchIO.Read spec;
+    // shardPreference is the shard number where the source will read the documents
+    @Nullable private final String shardPreference;
 
     protected BoundedElasticsearchSource(Read spec, String shardPreference) {
       this.spec = spec;
@@ -360,9 +360,7 @@ public class ElasticsearchIO {
       if (shardLevel) {
         params.put("level", "shards");
       }
-      String endpoint = String.format("/%s/_stats",
-                                      spec.getConnectionConfiguration
-                                          ().getIndex());
+      String endpoint = String.format("/%s/_stats", spec.getConnectionConfiguration().getIndex());
       Response response =
           restClient.performRequest("GET", endpoint, params, new BasicHeader("", ""));
       restClient.close();
@@ -433,6 +431,7 @@ public class ElasticsearchIO {
     private boolean updateCurrent(JsonObject searchResult) {
       //stop if no more data
       if (searchResult.getAsJsonObject("hits").getAsJsonArray("hits").size() == 0) {
+        current = null;
         return false;
       }
       current = searchResult.getAsJsonObject("hits").getAsJsonArray("hits").get(0)
@@ -442,6 +441,9 @@ public class ElasticsearchIO {
 
     @Override
     public String getCurrent() throws NoSuchElementException {
+      if (current == null) {
+        throw new NoSuchElementException();
+      }
       return current;
     }
 
@@ -522,7 +524,7 @@ public class ElasticsearchIO {
 
     private static class WriterFn extends DoFn<String, Void> {
 
-      private Write spec;
+      private final Write spec;
 
       private transient RestClient restClient;
       private ArrayList<String> batch;
@@ -534,9 +536,7 @@ public class ElasticsearchIO {
 
       @Setup
       public void createClient() throws Exception {
-        if (restClient == null) {
-          restClient = spec.getConnectionConfiguration().createClient();
-        }
+        restClient = spec.getConnectionConfiguration().createClient();
       }
 
       @StartBundle
