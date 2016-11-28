@@ -39,7 +39,7 @@ public class StreamWindower {
   {
     DataStream<StreamingWindowedElement<WID, Pair<KEY, VALUE>>> mapped
         = input.map(i -> {
-          T elem = i.get();
+          T elem = i.getElement();
           KEY key = keyFn.apply(elem);
           VALUE val = valFn.apply(elem);
           WID wid = i.getWindow();
@@ -74,12 +74,12 @@ public class StreamWindower {
         elementsWithWindow =
         input.map(i -> {
           if (eventTimeAssigner != null) {
-            i.setTimestamp(eventTimeAssigner.apply(i.get()));
+            i.setTimestamp(eventTimeAssigner.apply(i.getElement()));
           }
 
           return new MultiWindowedElement<>(
                   windowing.assignWindowsToElement(i),
-                  Pair.of(keyFn.apply(i.get()), valFn.apply(i.get())));
+                  Pair.of(keyFn.apply(i.getElement()), valFn.apply(i.getElement())));
         })
         .setParallelism(input.getParallelism())
         .returns((Class) MultiWindowedElement.class);
@@ -87,7 +87,7 @@ public class StreamWindower {
     KeyedStream<MultiWindowedElement<WID, Pair<KEY, VALUE>>, KEY> keyed
         = elementsWithWindow.keyBy(
             Utils.wrapQueryable((MultiWindowedElement<WID, Pair<KEY, VALUE>> in)
-                -> in.get().getFirst()));
+                -> in.getElement().getFirst()));
 
     WindowAssigner wassign;
     if (windowing instanceof MergingWindowing) {
@@ -110,7 +110,7 @@ public class StreamWindower {
     public KEY getKey(StreamingWindowedElement<WID, Pair<KEY, VALUE>> value)
           throws Exception
     {
-      return value.get().getKey();
+      return value.getElement().getKey();
     }
   }
 
@@ -126,7 +126,7 @@ public class StreamWindower {
 
     @Override
     public long extractTimestamp(StreamingWindowedElement<?, T> element) {
-      return eventTimeFn.apply(element.get());
+      return eventTimeFn.apply(element.getElement());
     }
   }
 }

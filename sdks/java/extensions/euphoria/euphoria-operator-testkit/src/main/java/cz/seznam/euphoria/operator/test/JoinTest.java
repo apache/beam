@@ -164,7 +164,7 @@ public class JoinTest extends OperatorTest {
     public Set<IntWindow> assignWindowsToElement(
         WindowedElement<?, Either<Integer, Long>> input) {
       int element;
-      Either<Integer, Long> unwrapped = input.get();
+      Either<Integer, Long> unwrapped = input.getElement();
       if (unwrapped.isLeft()) {
         element = unwrapped.left();
       } else {

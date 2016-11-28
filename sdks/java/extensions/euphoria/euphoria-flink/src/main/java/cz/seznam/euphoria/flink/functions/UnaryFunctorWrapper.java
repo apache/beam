@@ -27,7 +27,7 @@ public class UnaryFunctorWrapper<WID extends Window, IN, OUT>
                       Collector<WindowedElement<WID, OUT>> out)
       throws Exception
   {
-    f.apply(value.get(), new Context<OUT>() {
+    f.apply(value.getElement(), new Context<OUT>() {
       @Override
       public void collect(OUT elem) {
         out.collect(new WindowedElement<>(

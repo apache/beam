@@ -82,12 +82,12 @@ public class ReduceByKeyTranslator implements BatchOperatorTranslator<ReduceByKe
           input.flatMap((i, c) -> {
             WindowedElement wel = (WindowedElement) i;
             if (timeAssigner != null) {
-              long stamp = timeAssigner.apply(wel.get());
+              long stamp = timeAssigner.apply(wel.getElement());
               wel.setTimestamp(stamp);
             }
             Set<Window> assigned = windowing.assignWindowsToElement(wel);
             for (Window wid : assigned) {
-              Object el = wel.get();
+              Object el = wel.getElement();
               long stamp = (wid instanceof TimedWindow)
                   ? ((TimedWindow) wid).maxTimestamp()
                   : wel.getTimestamp();
@@ -121,7 +121,7 @@ public class ReduceByKeyTranslator implements BatchOperatorTranslator<ReduceByKe
               new PartitionerWrapper<>(origOperator.getPartitioning().getPartitioner()),
               Utils.wrapQueryable(
                   (KeySelector<WindowedElement<?, Pair>, Comparable>)
-                      (WindowedElement<?, Pair> we) -> (Comparable) we.get().getKey(),
+                      (WindowedElement<?, Pair> we) -> (Comparable) we.getElement().getKey(),
                   Comparable.class))
           .setParallelism(operator.getParallelism());
     }
@@ -142,7 +142,7 @@ public class ReduceByKeyTranslator implements BatchOperatorTranslator<ReduceByKe
             WindowedElement<?, ? extends Pair<KEY, ?>> value) {
 
       return (ComparablePair)
-          ComparablePair.of(value.getWindow(), value.get().getKey());
+          ComparablePair.of(value.getWindow(), value.getElement().getKey());
     }
 
     @Override
@@ -171,8 +171,8 @@ public class ReduceByKeyTranslator implements BatchOperatorTranslator<ReduceByKe
           wid,
           Math.max(p1.getTimestamp(), p2.getTimestamp()),
           Pair.of(
-              p1.get().getKey(),
-              reducer.apply(Arrays.asList(p1.get().getSecond(), p2.get().getSecond()))));
+              p1.getElement().getKey(),
+              reducer.apply(Arrays.asList(p1.getElement().getSecond(), p2.getElement().getSecond()))));
     }
 
     @Override

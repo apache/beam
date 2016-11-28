@@ -1,7 +1,6 @@
 package cz.seznam.euphoria.core.executor.inmem;
 
 import cz.seznam.euphoria.core.client.dataset.windowing.MergingWindowing;
-import cz.seznam.euphoria.core.client.dataset.windowing.Time;
 import cz.seznam.euphoria.core.client.dataset.windowing.Window;
 import cz.seznam.euphoria.core.client.dataset.windowing.WindowedElement;
 import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
@@ -27,7 +26,6 @@ import cz.seznam.euphoria.guava.shaded.com.google.common.base.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -576,7 +574,6 @@ class ReduceStateByKeyReducer implements Runnable {
 
   private final boolean isAttachedWindowing;
   private final Windowing windowing;
-  private final UnaryFunction eventTimeAssigner;
   private final UnaryFunction keyExtractor;
   private final UnaryFunction valueExtractor;
   private final StateFactory stateFactory;
@@ -609,9 +606,6 @@ class ReduceStateByKeyReducer implements Runnable {
     this.isAttachedWindowing = operator.getWindowing() == null;
     this.windowing = isAttachedWindowing
         ? AttachedWindowing.INSTANCE : operator.getWindowing();
-    this.eventTimeAssigner = operator.getEventTimeAssigner() == null ?
-            // processing time uses currentElementTime
-            e -> currentElementTime : operator.getEventTimeAssigner();
     this.keyExtractor = requireNonNull(keyExtractor);
     this.valueExtractor = requireNonNull(valueExtractor);
     this.stateFactory = requireNonNull(operator.getStateFactory());
@@ -727,7 +721,7 @@ class ReduceStateByKeyReducer implements Runnable {
 
   @SuppressWarnings("unchecked")
   private void processInputNonMerging(WindowedElement element) {
-    Object item = element.get();
+    Object item = element.getElement();
     Object itemKey = keyExtractor.apply(item);
     Object itemValue = valueExtractor.apply(item);
 
@@ -749,7 +743,7 @@ class ReduceStateByKeyReducer implements Runnable {
   private void processInputMerging(WindowedElement element) {
     assert windowing instanceof MergingWindowing;
 
-    Object item = element.get();
+    Object item = element.getElement();
     Object itemKey = keyExtractor.apply(item);
     Object itemValue = valueExtractor.apply(item);
 

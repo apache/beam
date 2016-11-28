@@ -84,7 +84,7 @@ class Datum extends WindowedElement<Window, Object> {
 
   /** Is this regular element message? */
   public boolean isElement() {
-    return get() != null;
+    return getElement() != null;
   }
 
   /** Is this end-of-stream message? */
@@ -104,7 +104,7 @@ class Datum extends WindowedElement<Window, Object> {
 
   @Override
   public String toString() {
-    return "Datum(" + this.getWindow() + ", " + getTimestamp() + ", " + get() + ")";
+    return "Datum(" + getWindow() + ", " + getTimestamp() + ", " + getElement() + ")";
   }
 
 }

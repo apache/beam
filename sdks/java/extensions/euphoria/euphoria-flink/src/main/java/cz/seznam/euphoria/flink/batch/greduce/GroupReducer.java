@@ -101,7 +101,7 @@ public class GroupReducer<WID extends Window, KEY, I> {
         states.put(window, state);
       }
       // ~ add the value to the target window state
-      state.add(elem.get().getSecond());
+      state.add(elem.getElement().getSecond());
     }
 
     // ~ process trigger#onElement
@@ -205,10 +205,10 @@ public class GroupReducer<WID extends Window, KEY, I> {
 
   private void updateKey(WindowedElement<WID, Pair<KEY, I>> elem) {
     if (key == null) {
-      key = elem.get().getFirst();
+      key = elem.getElement().getFirst();
     } else {
       // ~ validate we really do process elements of a single key only
-      Preconditions.checkState(key.equals(elem.get().getFirst()));
+      Preconditions.checkState(key.equals(elem.getElement().getFirst()));
     }
   }
 

@@ -90,7 +90,7 @@ public class SparkFlowTranslator {
 
               // unwrap data from WindowedElement
               JavaPairRDD<NullWritable, Object> unwrapped =
-                      sparkOutput.mapToPair(el -> new Tuple2<>(NullWritable.get(), el.get()));
+                      sparkOutput.mapToPair(el -> new Tuple2<>(NullWritable.get(), el.getElement()));
 
 
               try {

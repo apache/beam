@@ -86,7 +86,7 @@ class ReduceStateByKeyTranslator implements StreamingOperatorTranslator<ReduceSt
     if (!origOperator.getPartitioning().hasDefaultPartitioner()) {
       folded = folded.partitionCustom(
               new PartitionerWrapper<>(origOperator.getPartitioning().getPartitioner()),
-              p -> p.get().getKey());
+              p -> p.getElement().getKey());
     }
 
     return folded;
@@ -144,10 +144,10 @@ class ReduceStateByKeyTranslator implements StreamingOperatorTranslator<ReduceSt
           storageProvider);
 
       // add the first element to the state
-      state.add(element.get().getValue());
+      state.add(element.getElement().getValue());
 
       while (it.hasNext()) {
-        state.add(it.next().get().getValue());
+        state.add(it.next().getElement().getValue());
       }
       state.flush();
       state.close();

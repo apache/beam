@@ -27,7 +27,6 @@ public class JoinTest {
             .by(String::length, String::length)
             //TODO It's sad the Collector type must be explicitly stated :-(
             .using((String l, String r, Context<String> c) -> c.collect(l + r))
-            .windowBy(Time.of(Duration.ofHours(1)))
             .output();
 
     assertEquals(flow, joined.getFlow());
@@ -39,7 +38,8 @@ public class JoinTest {
     assertNotNull(join.leftKeyExtractor);
     assertNotNull(join.rightKeyExtractor);
     assertEquals(joined, join.output());
-    assertTrue(join.getWindowing() instanceof Time);
+    assertNull(join.getWindowing());
+    assertNull(join.getEventTimeAssigner());
     assertFalse(join.outer);
 
     // default partitioning used
@@ -116,6 +116,7 @@ public class JoinTest {
     assertTrue(join.getPartitioning().getPartitioner() instanceof HashPartitioner);
     assertEquals(1, join.getPartitioning().getNumPartitions());
     assertTrue(join.getWindowing() instanceof Time);
+    assertNull(join.getEventTimeAssigner());
   }
 
   @Test

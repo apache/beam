@@ -63,7 +63,6 @@ public class ReduceByKeyTest extends OperatorTest {
         testEventTime(false),
         testEventTime(true),
         testReduceWithoutWindowing(false),
-        testReduceWithoutWindowing(true),
         testMergingAndTriggering(false),
         testMergingAndTriggering(true),
         testSessionWindowing(false),
@@ -194,7 +193,7 @@ public class ReduceByKeyTest extends OperatorTest {
   static class TestWindowing implements Windowing<Integer, IntWindow> {
     @Override
     public Set<IntWindow> assignWindowsToElement(WindowedElement<?, Integer> input) {
-      return Collections.singleton(new IntWindow(input.get() / 4));
+      return Collections.singleton(new IntWindow(input.getElement() / 4));
     }
 
     @Override

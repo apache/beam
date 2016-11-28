@@ -367,7 +367,7 @@ public class InMemExecutor implements Executor {
                 break;
               } else if (datum.isElement()) {
                 // ~ unwrap the bare bone element
-                writer.write(datum.get());
+                writer.write(datum.getElement());
               }
             }
           } catch (IOException ex) {
@@ -510,7 +510,7 @@ public class InMemExecutor implements Executor {
             if (item.isElement()) {
               // transform
               outC.setWindow(item.getWindow());
-              mapper.apply(item.get(), outC);
+              mapper.apply(item.getElement(), outC);
             } else {
               out.put(item);
               if (item.isEndOfStream()) {
@@ -677,7 +677,7 @@ public class InMemExecutor implements Executor {
 
             if (eventTimeAssigner.isPresent() && datum.isElement()) {
               UnaryFunction assigner = eventTimeAssigner.get();
-              datum.setTimestamp((long) assigner.apply(datum.get()));
+              datum.setTimestamp((long) assigner.apply(datum.getElement()));
             }
 
             if (!handleMetaData(datum, ret, readerId, clocks, !hasTimeAssignment)) {
@@ -687,7 +687,7 @@ public class InMemExecutor implements Executor {
               maxElementTimestamp.accumulateAndGet(elementStamp,
                   (oldVal, newVal) -> oldVal < newVal ? newVal : oldVal);
               // determine partition
-              Object key = keyExtractor.apply(datum.get());
+              Object key = keyExtractor.apply(datum.getElement());
               final Set<Window> targetWindows;
               int windowShift = 0;
               if (allowWindowBasedShuffling) {

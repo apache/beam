@@ -164,7 +164,10 @@ public class Join<LEFT, RIGHT, KEY, OUT, W extends Window>
 
       UnaryFunction<Either<LEFT, RIGHT>, Long> eventTimeAssigner = null;
 
-      if (leftEventTimeFn != null && rightEventTimeFn != null) {
+      if (leftEventTimeFn != null || rightEventTimeFn != null) {
+        Objects.requireNonNull(leftEventTimeFn);
+        Objects.requireNonNull(rightEventTimeFn);
+
         eventTimeAssigner = either -> either.isLeft() ?
                 leftEventTimeFn.apply(either.left()) :
                 rightEventTimeFn.apply(either.right());

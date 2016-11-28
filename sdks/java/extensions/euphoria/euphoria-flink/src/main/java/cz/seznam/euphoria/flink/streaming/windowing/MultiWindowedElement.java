@@ -15,7 +15,7 @@ public final class MultiWindowedElement<WID extends Window, T> implements Elemen
   }
 
   @Override
-  public T get() {
+  public T getElement() {
     return element;
   }
 

@@ -23,7 +23,7 @@ class RepartitionTranslator implements BatchOperatorTranslator<Repartition> {
     
     return input.partitionCustom(
             flinkPartitioner,
-            Utils.wrapQueryable((WindowedElement we) -> (Comparable) we.get(), Comparable.class))
+            Utils.wrapQueryable((WindowedElement we) -> (Comparable) we.getElement(), Comparable.class))
         .setParallelism(operator.getParallelism());
   }
 }
