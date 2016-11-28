@@ -1939,7 +1939,7 @@ public class Combine {
       // on that does addInput + merge and another that does merge + extract.
       PerKeyCombineFn<KV<K, Integer>, InputT, AccumT, AccumT> hotPreCombine;
       PerKeyCombineFn<K, InputOrAccum<InputT, AccumT>, AccumT, OutputT> postCombine;
-      if (!(typedFn instanceof RequiresContextInternal)) {
+      if (typedFn instanceof KeyedCombineFn) {
         final KeyedCombineFn<K, InputT, AccumT, OutputT> keyedFn =
             (KeyedCombineFn<K, InputT, AccumT, OutputT>) typedFn;
         hotPreCombine =
@@ -2026,7 +2026,7 @@ public class Combine {
                 builder.delegate(PerKeyWithHotKeyFanout.this);
               }
             };
-      } else {
+      } else if (typedFn instanceof KeyedCombineFnWithContext) {
         final KeyedCombineFnWithContext<K, InputT, AccumT, OutputT> keyedFnWithContext =
             (KeyedCombineFnWithContext<K, InputT, AccumT, OutputT>) typedFn;
         hotPreCombine =
@@ -2119,6 +2119,9 @@ public class Combine {
                 builder.delegate(PerKeyWithHotKeyFanout.this);
               }
             };
+      } else {
+        throw new IllegalStateException(
+            String.format("Unknown type of CombineFn: %s", typedFn.getClass()));
       }
 
       // Use the provided hotKeyFanout fn to split into "hot" and "cold" keys,
@@ -2395,7 +2398,7 @@ public class Combine {
               K key = c.element().getKey();
 
               OutputT output;
-              if (fn instanceof RequiresContextInternal) {
+              if (fn instanceof KeyedCombineFnWithContext) {
                 output = ((KeyedCombineFnWithContext<? super K, ? super InputT, ?, OutputT>) fn)
                     .apply(key, c.element().getValue(), new CombineWithContext.Context() {
                       @Override
@@ -2408,9 +2411,12 @@ public class Combine {
                         return c.sideInput(view);
                       }
                     });
-              } else {
+              } else if (fn instanceof KeyedCombineFn) {
                 output = ((KeyedCombineFn<? super K, ? super InputT, ?, OutputT>) fn)
                     .apply(key, c.element().getValue());
+              } else {
+                throw new IllegalStateException(
+                    String.format("Unknown type of CombineFn: %s", fn.getClass()));
               }
               c.output(KV.of(key, output));
             }
