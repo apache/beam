@@ -523,6 +523,7 @@ public abstract class DoFnSignature {
 
     static StateDeclaration create(
         String id, Field field, TypeDescriptor<? extends State> stateType) {
+      field.setAccessible(true);
       return new AutoValue_DoFnSignature_StateDeclaration(id, field, stateType);
     }
   }

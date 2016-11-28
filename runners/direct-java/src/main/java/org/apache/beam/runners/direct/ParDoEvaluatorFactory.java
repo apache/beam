@@ -20,14 +20,16 @@ package org.apache.beam.runners.direct;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
+import java.util.List;
 import org.apache.beam.runners.direct.DirectExecutionContext.DirectStepContext;
 import org.apache.beam.runners.direct.DirectRunner.CommittedBundle;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.ParDo.BoundMulti;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
+import org.apache.beam.sdk.values.PCollectionView;
+import org.apache.beam.sdk.values.TupleTag;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -54,10 +56,26 @@ final class ParDoEvaluatorFactory<InputT, OutputT> implements TransformEvaluator
   @Override
   public <T> TransformEvaluator<T> forApplication(
       AppliedPTransform<?, ?, ?> application, CommittedBundle<?> inputBundle) throws Exception {
+
+    AppliedPTransform<PCollection<InputT>, PCollectionTuple, ParDo.BoundMulti<InputT, OutputT>>
+        parDoApplication =
+            (AppliedPTransform<
+                    PCollection<InputT>, PCollectionTuple, ParDo.BoundMulti<InputT, OutputT>>)
+                application;
+
+    ParDo.BoundMulti<InputT, OutputT> transform = parDoApplication.getTransform();
+    final DoFn<InputT, OutputT> doFn = transform.getNewFn();
+
     @SuppressWarnings({"unchecked", "rawtypes"})
     TransformEvaluator<T> evaluator =
         (TransformEvaluator<T>)
-            createEvaluator((AppliedPTransform) application, (CommittedBundle) inputBundle);
+            createEvaluator(
+                (AppliedPTransform) application,
+                inputBundle.getKey(),
+                doFn,
+                transform.getSideInputs(),
+                transform.getMainOutputTag(),
+                transform.getSideOutputTags().getAll());
     return evaluator;
   }
 
@@ -66,31 +84,42 @@ final class ParDoEvaluatorFactory<InputT, OutputT> implements TransformEvaluator
     DoFnLifecycleManagers.removeAllFromManagers(fnClones.asMap().values());
   }
 
+  /**
+   * Creates an evaluator for an arbitrary {@link AppliedPTransform} node, with the pieces of the
+   * {@link ParDo} unpacked.
+   *
+   * <p>This can thus be invoked regardless of whether the types in the {@link AppliedPTransform}
+   * correspond with the type in the unpacked {@link DoFn}, side inputs, and output tags.
+   */
   @SuppressWarnings({"unchecked", "rawtypes"})
-  private TransformEvaluator<InputT> createEvaluator(
-      AppliedPTransform<PCollection<InputT>, PCollectionTuple, BoundMulti<InputT, OutputT>>
-          application,
-      CommittedBundle<InputT> inputBundle)
+  TransformEvaluator<InputT> createEvaluator(
+        AppliedPTransform<PCollection<?>, PCollectionTuple, ?>
+        application,
+        StructuralKey<?> inputBundleKey,
+        DoFn<InputT, OutputT> doFn,
+        List<PCollectionView<?>> sideInputs,
+        TupleTag<OutputT> mainOutputTag,
+        List<TupleTag<?>> sideOutputTags)
       throws Exception {
     String stepName = evaluationContext.getStepName(application);
     DirectStepContext stepContext =
         evaluationContext
-            .getExecutionContext(application, inputBundle.getKey())
+            .getExecutionContext(application, inputBundleKey)
             .getOrCreateStepContext(stepName, stepName);
 
-    DoFnLifecycleManager fnManager = fnClones.getUnchecked(application.getTransform().getNewFn());
+    DoFnLifecycleManager fnManager = fnClones.getUnchecked(doFn);
+
     try {
-      ParDo.BoundMulti<InputT, OutputT> transform = application.getTransform();
       return DoFnLifecycleManagerRemovingTransformEvaluator.wrapping(
-          ParDoEvaluator.create(
+          ParDoEvaluator.<InputT, OutputT>create(
               evaluationContext,
               stepContext,
               application,
               application.getInput().getWindowingStrategy(),
               fnManager.get(),
-              transform.getSideInputs(),
-              transform.getMainOutputTag(),
-              transform.getSideOutputTags().getAll(),
+              sideInputs,
+              mainOutputTag,
+              sideOutputTags,
               application.getOutput().getAll()),
           fnManager);
     } catch (Exception e) {

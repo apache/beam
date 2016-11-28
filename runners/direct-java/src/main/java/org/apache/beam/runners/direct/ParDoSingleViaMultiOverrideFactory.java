@@ -54,13 +54,15 @@ class ParDoSingleViaMultiOverrideFactory<InputT, OutputT>
       // Output tags for ParDo need only be unique up to applied transform
       TupleTag<OutputT> mainOutputTag = new TupleTag<OutputT>(MAIN_OUTPUT_TAG);
 
-      PCollectionTuple output =
+      PCollectionTuple outputs =
           input.apply(
               ParDo.of(underlyingParDo.getNewFn())
                   .withSideInputs(underlyingParDo.getSideInputs())
                   .withOutputTags(mainOutputTag, TupleTagList.empty()));
+      PCollection<OutputT> output = outputs.get(mainOutputTag);
 
-      return output.get(mainOutputTag);
+      output.setTypeDescriptorInternal(underlyingParDo.getNewFn().getOutputTypeDescriptor());
+      return output;
     }
   }
 }

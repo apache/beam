@@ -42,10 +42,11 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 
 class ParDoEvaluator<InputT, OutputT> implements TransformEvaluator<InputT> {
+
   public static <InputT, OutputT> ParDoEvaluator<InputT, OutputT> create(
       EvaluationContext evaluationContext,
       DirectStepContext stepContext,
-      AppliedPTransform<PCollection<InputT>, ?, ?> application,
+      AppliedPTransform<?, ?, ?> application,
       WindowingStrategy<?, ? extends BoundedWindow> windowingStrategy,
       Serializable fn, // may be OldDoFn or DoFn
       List<PCollectionView<?>> sideInputs,
@@ -84,13 +85,19 @@ class ParDoEvaluator<InputT, OutputT> implements TransformEvaluator<InputT> {
     }
 
     return new ParDoEvaluator<>(
-        runner, application, aggregatorChanges, outputBundles.values(), stepContext);
+        evaluationContext,
+        runner,
+        application,
+        aggregatorChanges,
+        outputBundles.values(),
+        stepContext);
   }
 
   ////////////////////////////////////////////////////////////////////////////////////////////////
 
+  private final EvaluationContext evaluationContext;
   private final PushbackSideInputDoFnRunner<InputT, ?> fnRunner;
-  private final AppliedPTransform<PCollection<InputT>, ?, ?> transform;
+  private final AppliedPTransform<?, ?, ?> transform;
   private final AggregatorContainer.Mutator aggregatorChanges;
   private final Collection<UncommittedBundle<?>> outputBundles;
   private final DirectStepContext stepContext;
@@ -98,11 +105,13 @@ class ParDoEvaluator<InputT, OutputT> implements TransformEvaluator<InputT> {
   private final ImmutableList.Builder<WindowedValue<InputT>> unprocessedElements;
 
   private ParDoEvaluator(
+      EvaluationContext evaluationContext,
       PushbackSideInputDoFnRunner<InputT, ?> fnRunner,
-      AppliedPTransform<PCollection<InputT>, ?, ?> transform,
+      AppliedPTransform<?, ?, ?> transform,
       AggregatorContainer.Mutator aggregatorChanges,
       Collection<UncommittedBundle<?>> outputBundles,
       DirectStepContext stepContext) {
+    this.evaluationContext = evaluationContext;
     this.fnRunner = fnRunner;
     this.transform = transform;
     this.outputBundles = outputBundles;
