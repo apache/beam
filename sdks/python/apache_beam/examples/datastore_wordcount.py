@@ -65,7 +65,7 @@ class WordExtractingDoFn(beam.DoFn):
     return words
 
 
-class CreateEntityFn(object):
+class EntityWrapper(object):
   """Create a Cloud Datastore entity from the given string."""
   def __init__(self, namespace, kind, ancestor):
     self._namespace = namespace
@@ -93,8 +93,8 @@ def write_to_datastore(project, user_options, pipeline_options):
   (p
    | 'read' >> beam.io.Read(beam.io.TextFileSource(user_options.input))
    | 'create entity' >> beam.Map(
-       CreateEntityFn(user_options.namespace, user_options.kind,
-                      user_options.ancestor).make_entity)
+       EntityWrapper(user_options.namespace, user_options.kind,
+                     user_options.ancestor).make_entity)
    | 'write to datastore' >> WriteToDatastore(project))
 
   # Actually run the pipeline (all operations above are deferred).
