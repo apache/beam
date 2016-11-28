@@ -46,6 +46,7 @@ import org.apache.beam.sdk.values.PValue;
 import org.apache.spark.SparkException;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.streaming.api.java.JavaStreamingContext;
+import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -123,6 +124,7 @@ public final class SparkRunner extends PipelineRunner<EvaluationResult> {
 
   @Override
   public EvaluationResult run(Pipeline pipeline) {
+    EvaluationContext ctxt = null;
     try {
       LOG.info("Executing pipeline using the SparkRunner.");
 
@@ -137,20 +139,28 @@ public final class SparkRunner extends PipelineRunner<EvaluationResult> {
         jssc.start();
 
         // if recovering from checkpoint, we have to reconstruct the EvaluationResult instance.
-        return contextFactory.getCtxt() == null ? new EvaluationContext(jssc.sparkContext(),
+        ctxt = contextFactory.getCtxt() == null ? new EvaluationContext(jssc.sparkContext(),
             pipeline, jssc) : contextFactory.getCtxt();
       } else {
         JavaSparkContext jsc = SparkContextFactory.getSparkContext(mOptions);
-        EvaluationContext ctxt = new EvaluationContext(jsc, pipeline);
+        ctxt = new EvaluationContext(jsc, pipeline);
         SparkPipelineTranslator translator = new TransformTranslator.Translator();
         pipeline.traverseTopologically(new Evaluator(translator, ctxt));
         ctxt.computeOutputs();
 
         LOG.info("Pipeline execution complete.");
-
-        return ctxt;
       }
+
+      return ctxt;
     } catch (Exception e) {
+      if (ctxt != null) {
+        // Make sure we take care of resources (i.e., spark context) even
+        // if we've had an exception in {@link EvaluationContext#computeOutputs()} or
+        // {@link Pipeline#traverseTopologically(Pipeline.PipelineVisitor)}.
+        // This is pending some improvements to properly report the pipeline's state in the face of
+        // BATCH failures.
+        ctxt.waitUntilFinish(Duration.ZERO);
+      }
       // Scala doesn't declare checked exceptions in the bytecode, and the Java compiler
       // won't let you catch something that is not declared, so we can't catch
       // SparkException here. Instead we do an instanceof check.

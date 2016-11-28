@@ -76,7 +76,7 @@ public class ProvidedSparkContextTest {
         PAssert.that(output).containsInAnyOrder(EXPECTED_COUNT_SET);
 
         // Run test from pipeline
-        p.run();
+        p.run().waitUntilFinish();
 
         jsc.stop();
     }
@@ -100,7 +100,7 @@ public class ProvidedSparkContextTest {
         PAssert.that(output).containsInAnyOrder(EXPECTED_COUNT_SET);
 
         try {
-            p.run();
+            p.run().waitUntilFinish();
             fail("Should throw an exception when The provided Spark context is null");
         } catch (RuntimeException e){
             assert(e.getMessage().contains(PROVIDED_CONTEXT_EXCEPTION));
@@ -128,7 +128,7 @@ public class ProvidedSparkContextTest {
         PAssert.that(output).containsInAnyOrder(EXPECTED_COUNT_SET);
 
         try {
-            p.run();
+            p.run().waitUntilFinish();
             fail("Should throw an exception when The provided Spark context is stopped");
         } catch (RuntimeException e){
             assert(e.getMessage().contains(PROVIDED_CONTEXT_EXCEPTION));

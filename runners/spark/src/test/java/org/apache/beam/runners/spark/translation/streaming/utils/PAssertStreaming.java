@@ -71,7 +71,6 @@ public final class PAssertStreaming implements Serializable {
     // run the pipeline.
     EvaluationResult res = (EvaluationResult) p.run();
     res.waitUntilFinish(timeout);
-    res.close(stopGracefully);
     // validate assertion succeeded (at least once).
     int success = res.getAggregatorValue(PAssert.SUCCESS_COUNTER, Integer.class);
     Assert.assertThat("Success aggregator should be greater than zero.", success, not(0));
