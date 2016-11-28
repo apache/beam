@@ -25,7 +25,6 @@ from googledatastore import PropertyFilter, CompositeFilter
 from googledatastore import helper as datastore_helper
 from googledatastore.connection import Datastore
 from googledatastore.connection import RPCError
-import googledatastore
 
 from apache_beam.utils import retry
 
@@ -98,7 +97,7 @@ def str_compare(s1, s2):
 
 def get_datastore(project):
   """Returns a Cloud Datastore client."""
-  credentials = googledatastore.helper.get_credentials_from_env()
+  credentials = datastore_helper.get_credentials_from_env()
   datastore = Datastore(project, credentials)
   return datastore
 
@@ -147,6 +146,38 @@ def fetch_entities(project, namespace, query, datastore):
     An iterator of entities.
   """
   return QueryIterator(project, namespace, query, datastore)
+
+
+def is_key_valid(key):
+  """Returns True if a Cloud Datastore key is complete.
+
+  A key is complete if its last element has either an id or a name.
+  """
+  if not key.path:
+    return False
+  return key.path[-1].HasField('id') or key.path[-1].HasField('name')
+
+
+def write_mutations(datastore, project, mutations):
+  """A helper function to write a batch of mutations to Cloud Datastore.
+
+  If a commit fails, it will be retried upto 5 times. All mutations in the
+  batch will be committed again, even if the commit was partially successful.
+  If the retry limit is exceeded, the last exception from Cloud Datastore will
+  be raised.
+  """
+  commit_request = datastore_pb2.CommitRequest()
+  commit_request.mode = datastore_pb2.CommitRequest.NON_TRANSACTIONAL
+  commit_request.project_id = project
+  for mutation in mutations:
+    commit_request.mutations.add().CopyFrom(mutation)
+
+  @retry.with_exponential_backoff(num_retries=5,
+                                  retry_filter=retry_on_rpc_error)
+  def commit(req):
+    datastore.commit(req)
+
+  commit(commit_request)
 
 
 def make_latest_timestamp_query(namespace):

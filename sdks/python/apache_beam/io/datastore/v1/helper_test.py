@@ -21,9 +21,11 @@ import sys
 import unittest
 
 from google.datastore.v1 import datastore_pb2
+from google.datastore.v1 import entity_pb2
 from google.datastore.v1 import query_pb2
 from google.datastore.v1.entity_pb2 import Key
 from googledatastore.connection import RPCError
+from googledatastore import helper as datastore_helper
 from mock import MagicMock, Mock, patch
 
 from apache_beam.io.datastore.v1 import fake_datastore
@@ -143,6 +145,40 @@ class HelperTest(unittest.TestCase):
 
     limit = query.limit.value if query.HasField('limit') else sys.maxint
     self.assertEqual(i, min(num_entities, limit))
+
+  def test_is_key_valid(self):
+    key = entity_pb2.Key()
+    # Complete with name, no ancestor
+    datastore_helper.add_key_path(key, 'kind', 'name')
+    self.assertTrue(helper.is_key_valid(key))
+
+    key = entity_pb2.Key()
+    # Complete with id, no ancestor
+    datastore_helper.add_key_path(key, 'kind', 12)
+    self.assertTrue(helper.is_key_valid(key))
+
+    key = entity_pb2.Key()
+    # Incomplete, no ancestor
+    datastore_helper.add_key_path(key, 'kind')
+    self.assertFalse(helper.is_key_valid(key))
+
+    key = entity_pb2.Key()
+    # Complete with name and ancestor
+    datastore_helper.add_key_path(key, 'kind', 'name', 'kind2', 'name2')
+    self.assertTrue(helper.is_key_valid(key))
+
+    key = entity_pb2.Key()
+    # Complete with id and ancestor
+    datastore_helper.add_key_path(key, 'kind', 'name', 'kind2', 123)
+    self.assertTrue(helper.is_key_valid(key))
+
+    key = entity_pb2.Key()
+    # Incomplete with ancestor
+    datastore_helper.add_key_path(key, 'kind', 'name', 'kind2')
+    self.assertFalse(helper.is_key_valid(key))
+
+    key = entity_pb2.Key()
+    self.assertFalse(helper.is_key_valid(key))
 
   def test_compare_path_with_different_kind(self):
     p1 = Key.PathElement()

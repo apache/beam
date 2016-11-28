@@ -22,14 +22,18 @@ from __future__ import absolute_import
 import argparse
 import logging
 import re
+import uuid
+
+from google.datastore.v1 import entity_pb2
+from google.datastore.v1 import query_pb2
+from googledatastore import helper as datastore_helper, PropertyFilter
 
 import apache_beam as beam
 from apache_beam.io.datastore.v1.datastoreio import ReadFromDatastore
+from apache_beam.io.datastore.v1.datastoreio import WriteToDatastore
 from apache_beam.utils.options import GoogleCloudOptions
 from apache_beam.utils.options import PipelineOptions
 from apache_beam.utils.options import SetupOptions
-from google.datastore.v1 import query_pb2
-
 
 empty_line_aggregator = beam.Aggregator('emptyLines')
 average_word_size_aggregator = beam.Aggregator('averageWordLength',
@@ -41,7 +45,7 @@ class WordExtractingDoFn(beam.DoFn):
   """Parse each line of input text into words."""
 
   def process(self, context):
-    """Returns an iterator over the words of this element.
+    """Returns an iterator over words in contents of Cloud Datastore entity.
     The element is a line of text.  If the line is blank, note that, too.
     Args:
       context: the call-specific context: data and aggregator.
@@ -61,35 +65,72 @@ class WordExtractingDoFn(beam.DoFn):
     return words
 
 
-def run(argv=None):
-  """Main entry point; defines and runs the wordcount pipeline."""
+class EntityWrapper(object):
+  """Create a Cloud Datastore entity from the given string."""
+  def __init__(self, namespace, kind, ancestor):
+    self._namespace = namespace
+    self._kind = kind
+    self._ancestor = ancestor
 
-  parser = argparse.ArgumentParser()
-  parser.add_argument('--kind',
-                      dest='kind',
-                      required=True,
-                      help='Datastore Kind')
-  parser.add_argument('--namespace',
-                      dest='namespace',
-                      help='Datastore Namespace')
-  parser.add_argument('--output',
-                      dest='output',
-                      required=True,
-                      help='Output file to write results to.')
-  known_args, pipeline_args = parser.parse_known_args(argv)
-  # We use the save_main_session option because one or more DoFn's in this
-  # workflow rely on global context (e.g., a module imported at module level).
-  pipeline_options = PipelineOptions(pipeline_args)
-  pipeline_options.view_as(SetupOptions).save_main_session = True
-  gcloud_options = pipeline_options.view_as(GoogleCloudOptions)
+  def make_entity(self, content):
+    entity = entity_pb2.Entity()
+    if self._namespace is not None:
+      entity.key.partition_id.namespace_id = self._namespace
+
+    # All entities created will have the same ancestor
+    datastore_helper.add_key_path(entity.key, self._kind, self._ancestor,
+                                  self._kind, str(uuid.uuid4()))
+
+    datastore_helper.add_properties(entity, {"content": unicode(content)})
+    return entity
+
+
+def write_to_datastore(project, user_options, pipeline_options):
+  """Creates a pipeline that writes entities to Cloud Datastore."""
   p = beam.Pipeline(options=pipeline_options)
 
+  # pylint: disable=expression-not-assigned
+  (p
+   | 'read' >> beam.io.Read(beam.io.TextFileSource(user_options.input))
+   | 'create entity' >> beam.Map(
+       EntityWrapper(user_options.namespace, user_options.kind,
+                     user_options.ancestor).make_entity)
+   | 'write to datastore' >> WriteToDatastore(project))
+
+  # Actually run the pipeline (all operations above are deferred).
+  p.run()
+
+
+def make_ancestor_query(kind, namespace, ancestor):
+  """Creates a Cloud Datastore ancestor query.
+
+  The returned query will fetch all the entities that have the parent key name
+  set to the given `ancestor`.
+  """
+  ancestor_key = entity_pb2.Key()
+  datastore_helper.add_key_path(ancestor_key, kind, ancestor)
+  if namespace is not None:
+    ancestor_key.partition_id.namespace_id = namespace
+
   query = query_pb2.Query()
-  query.kind.add().name = known_args.kind
+  query.kind.add().name = kind
+
+  datastore_helper.set_property_filter(
+      query.filter, '__key__', PropertyFilter.HAS_ANCESTOR, ancestor_key)
+
+  return query
+
+
+def read_from_datastore(project, user_options, pipeline_options):
+  """Creates a pipeline that reads entities from Cloud Datastore."""
+  p = beam.Pipeline(options=pipeline_options)
+  # Create a query to read entities from datastore.
+  query = make_ancestor_query(user_options.kind, user_options.namespace,
+                              user_options.ancestor)
 
   # Read entities from Cloud Datastore into a PCollection.
   lines = p | 'read from datastore' >> ReadFromDatastore(
-      gcloud_options.project, query, known_args.namespace)
+      project, query, user_options.namespace)
 
   # Count the occurrences of each word.
   counts = (lines
@@ -104,10 +145,54 @@ def run(argv=None):
 
   # Write the output using a "Write" transform that has side effects.
   # pylint: disable=expression-not-assigned
-  output | 'write' >> beam.io.Write(beam.io.TextFileSink(known_args.output))
+  output | 'write' >> beam.io.Write(beam.io.TextFileSink(user_options.output))
 
   # Actually run the pipeline (all operations above are deferred).
-  result = p.run()
+  return p.run()
+
+
+def run(argv=None):
+  """Main entry point; defines and runs the wordcount pipeline."""
+
+  parser = argparse.ArgumentParser()
+  parser.add_argument('--input',
+                      dest='input',
+                      default='gs://dataflow-samples/shakespeare/kinglear.txt',
+                      help='Input file to process.')
+  parser.add_argument('--kind',
+                      dest='kind',
+                      required=True,
+                      help='Datastore Kind')
+  parser.add_argument('--namespace',
+                      dest='namespace',
+                      help='Datastore Namespace')
+  parser.add_argument('--ancestor',
+                      dest='ancestor',
+                      default='root',
+                      help='The ancestor key name for all entities.')
+  parser.add_argument('--output',
+                      dest='output',
+                      required=True,
+                      help='Output file to write results to.')
+  parser.add_argument('--read_only',
+                      action='store_true',
+                      help='Read an existing dataset, do not write first')
+
+  known_args, pipeline_args = parser.parse_known_args(argv)
+  # We use the save_main_session option because one or more DoFn's in this
+  # workflow rely on global context (e.g., a module imported at module level).
+  pipeline_options = PipelineOptions(pipeline_args)
+  pipeline_options.view_as(SetupOptions).save_main_session = True
+  gcloud_options = pipeline_options.view_as(GoogleCloudOptions)
+
+  # Write to Datastore if `read_only` options is not specified.
+  if not known_args.read_only:
+    write_to_datastore(gcloud_options.project, known_args, pipeline_options)
+
+  # Read from Datastore.
+  result = read_from_datastore(gcloud_options.project, known_args,
+                               pipeline_options)
+
   empty_line_values = result.aggregated_values(empty_line_aggregator)
   logging.info('number of empty lines: %d', sum(empty_line_values.values()))
   word_length_values = result.aggregated_values(average_word_size_aggregator)
