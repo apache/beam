@@ -27,6 +27,7 @@ import com.google.common.collect.Iterables;
 import java.util.List;
 import java.util.UUID;
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -43,15 +44,11 @@ import org.apache.beam.sdk.transforms.reflect.DoFnInvokers;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
-import org.apache.beam.sdk.transforms.windowing.AfterPane;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.transforms.windowing.OutputTimeFns;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
-import org.apache.beam.sdk.transforms.windowing.Repeatedly;
-import org.apache.beam.sdk.transforms.windowing.Window;
-import org.apache.beam.sdk.util.IdentityWindowFn;
 import org.apache.beam.sdk.util.KeyedWorkItem;
 import org.apache.beam.sdk.util.KeyedWorkItemCoder;
 import org.apache.beam.sdk.util.TimeDomain;
@@ -76,7 +73,7 @@ import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
-import org.joda.time.Duration;
+import org.apache.beam.sdk.values.TypedPValue;
 import org.joda.time.Instant;
 
 /**
@@ -98,7 +95,7 @@ import org.joda.time.Instant;
  */
 @Experimental(Experimental.Kind.SPLITTABLE_DO_FN)
 public class SplittableParDo<InputT, OutputT, RestrictionT>
-      extends PTransform<PCollection<InputT>, PCollectionTuple> {
+    extends PTransform<PCollection<InputT>, PCollectionTuple> {
   private final ParDo.BoundMulti<InputT, OutputT> parDo;
 
   /**
@@ -141,16 +138,8 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
     Coder<ElementAndRestriction<InputT, RestrictionT>> splitCoder =
         ElementAndRestrictionCoder.of(input.getCoder(), restrictionCoder);
 
-    WindowingStrategy<?, ?> originalStrategy = input.getWindowingStrategy();
     PCollection<KeyedWorkItem<String, ElementAndRestriction<InputT, RestrictionT>>> keyedWorkItems =
         input
-            .apply(
-                Window.into(
-                        new IdentityWindowFn<InputT>(originalStrategy.getWindowFn().windowCoder()))
-                    .triggering(Repeatedly.forever(AfterPane.elementCountAtLeast(1)))
-                    .discardingFiredPanes()
-                    .withAllowedLateness(
-                        Duration.millis(BoundedWindow.TIMESTAMP_MAX_VALUE.getMillis())))
             .apply(
                 "Pair with initial restriction",
                 ParDo.of(new PairWithRestrictionFn<InputT, OutputT, RestrictionT>(fn)))
@@ -179,6 +168,9 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
   /**
    * Runner-specific primitive {@link GroupByKey GroupByKey-like} {@link PTransform} that produces
    * {@link KeyedWorkItem KeyedWorkItems} so that downstream transforms can access state and timers.
+   *
+   * <p>Unlike a real {@link GroupByKey}, ignores the input's windowing and triggering strategy and
+   * emits output immediately.
    */
   public static class GBKIntoKeyedWorkItems<KeyT, InputT>
       extends PTransform<PCollection<KV<KeyT, InputT>>, PCollection<KeyedWorkItem<KeyT, InputT>>> {
@@ -244,11 +236,36 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
         PCollection<? extends KeyedWorkItem<String, ElementAndRestriction<InputT, RestrictionT>>>
             input) {
       DoFnSignature signature = DoFnSignatures.getSignature(fn.getClass());
-      return PCollectionTuple.ofPrimitiveOutputsInternal(
-          input.getPipeline(),
-          TupleTagList.of(mainOutputTag).and(sideOutputTags.getAll()),
-          windowingStrategy,
-          input.isBounded().and(signature.isBoundedPerElement()));
+      PCollectionTuple outputs =
+          PCollectionTuple.ofPrimitiveOutputsInternal(
+              input.getPipeline(),
+              TupleTagList.of(mainOutputTag).and(sideOutputTags.getAll()),
+              windowingStrategy,
+              input.isBounded().and(signature.isBoundedPerElement()));
+
+      // Set output type descriptor similarly to how ParDo.BoundMulti does it.
+      outputs.get(mainOutputTag).setTypeDescriptorInternal(fn.getOutputTypeDescriptor());
+
+      return outputs;
+    }
+
+    @Override
+    public <T> Coder<T> getDefaultOutputCoder(
+        PCollection<? extends KeyedWorkItem<String, ElementAndRestriction<InputT, RestrictionT>>>
+            input,
+        TypedPValue<T> output)
+        throws CannotProvideCoderException {
+      // Similar logic to ParDo.BoundMulti.getDefaultOutputCoder.
+      @SuppressWarnings("unchecked")
+      KeyedWorkItemCoder<String, ElementAndRestriction<InputT, RestrictionT>> kwiCoder =
+          (KeyedWorkItemCoder) input.getCoder();
+      Coder<InputT> inputCoder =
+          ((ElementAndRestrictionCoder<InputT, RestrictionT>) kwiCoder.getElementCoder())
+              .getElementCoder();
+      return input
+          .getPipeline()
+          .getCoderRegistry()
+          .getDefaultCoder(output.getTypeDescriptor(), fn.getInputTypeDescriptor(), inputCoder);
     }
   }
 
@@ -373,6 +390,16 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
       invoker = DoFnInvokers.invokerFor(fn);
     }
 
+    @StartBundle
+    public void startBundle(Context c) throws Exception {
+      invoker.invokeStartBundle(wrapContext(c));
+    }
+
+    @FinishBundle
+    public void finishBundle(Context c) throws Exception {
+      invoker.invokeFinishBundle(wrapContext(c));
+    }
+
     @ProcessElement
     public void processElement(final ProcessContext c) {
       StateInternals<String> stateInternals =
@@ -424,7 +451,7 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
       DoFn.ProcessContinuation cont =
           invoker.invokeProcessElement(
               wrapTracker(
-                  tracker, makeContext(c, elementAndRestriction.element(), tracker, residual)));
+                  tracker, wrapContext(c, elementAndRestriction.element(), tracker, residual)));
       if (residual[0] == null) {
         // This means the call completed unsolicited, and the context produced by makeContext()
         // did not take a checkpoint. Take one now.
@@ -477,7 +504,49 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
           first.getValue(), first.getTimestamp(), windows.build(), first.getPane());
     }
 
-    private DoFn<InputT, OutputT>.ProcessContext makeContext(
+    private DoFn<InputT, OutputT>.Context wrapContext(final Context baseContext) {
+      return fn.new Context() {
+        @Override
+        public PipelineOptions getPipelineOptions() {
+          return baseContext.getPipelineOptions();
+        }
+
+        @Override
+        public void output(OutputT output) {
+          throwUnsupportedOutput();
+        }
+
+        @Override
+        public void outputWithTimestamp(OutputT output, Instant timestamp) {
+          throwUnsupportedOutput();
+        }
+
+        @Override
+        public <T> void sideOutput(TupleTag<T> tag, T output) {
+          throwUnsupportedOutput();
+        }
+
+        @Override
+        public <T> void sideOutputWithTimestamp(TupleTag<T> tag, T output, Instant timestamp) {
+          throwUnsupportedOutput();
+        }
+
+        @Override
+        protected <AggInputT, AggOutputT> Aggregator<AggInputT, AggOutputT> createAggregator(
+            String name, Combine.CombineFn<AggInputT, ?, AggOutputT> combiner) {
+          return fn.createAggregator(name, combiner);
+        }
+
+        private void throwUnsupportedOutput() {
+          throw new UnsupportedOperationException(
+              String.format(
+                  "Splittable DoFn can only output from @%s",
+                  ProcessElement.class.getSimpleName()));
+        }
+      };
+    }
+
+    private DoFn<InputT, OutputT>.ProcessContext wrapContext(
         final ProcessContext baseContext,
         final WindowedValue<InputT> element,
         final TrackerT tracker,
@@ -546,8 +615,7 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
 
     /**
      * Creates an {@link DoFnInvoker.ArgumentProvider} that provides the given tracker as well as
-     * the given
-     * {@link ProcessContext} (which is also provided when a {@link Context} is requested.
+     * the given {@link ProcessContext} (which is also provided when a {@link Context} is requested.
      */
     private DoFnInvoker.ArgumentProvider<InputT, OutputT> wrapTracker(
         TrackerT tracker, DoFn<InputT, OutputT>.ProcessContext processContext) {

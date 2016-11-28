@@ -93,8 +93,8 @@ final class ParDoEvaluatorFactory<InputT, OutputT> implements TransformEvaluator
    */
   @SuppressWarnings({"unchecked", "rawtypes"})
   TransformEvaluator<InputT> createEvaluator(
-      AppliedPTransform<PCollection<?>, PCollectionTuple, ?>
-          application,
+        AppliedPTransform<PCollection<?>, PCollectionTuple, ?>
+        application,
         StructuralKey<?> inputBundleKey,
         DoFn<InputT, OutputT> doFn,
         List<PCollectionView<?>> sideInputs,

@@ -45,7 +45,7 @@ import org.joda.time.Instant;
  * <p>This {@link WindowFn} is an internal implementation detail of sdk-provided utilities, and
  * should not be used by {@link Pipeline} writers.
  */
-public class IdentityWindowFn<T> extends NonMergingWindowFn<T, BoundedWindow> {
+class IdentityWindowFn<T> extends NonMergingWindowFn<T, BoundedWindow> {
 
   /**
    * The coder of the type of windows of the input {@link PCollection}. This is not an arbitrary

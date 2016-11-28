@@ -21,6 +21,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 
 import java.io.Serializable;
 import java.util.ArrayList;
@@ -331,6 +332,71 @@ public class SplittableDoFnTest {
     // the follow-up GBK should drop the late data.
     assertEquals(afterSDF.getWindowingStrategy(), input.getWindowingStrategy());
     PAssert.that(nonLate).containsInAnyOrder("aa");
+
+    p.run();
+  }
+
+  private static class SDFWithLifecycle extends DoFn<String, String> {
+    private enum State {
+      BEFORE_SETUP,
+      OUTSIDE_BUNDLE,
+      INSIDE_BUNDLE,
+      TORN_DOWN
+    }
+
+    private State state = State.BEFORE_SETUP;
+
+    @ProcessElement
+    public void processElement(ProcessContext c, OffsetRangeTracker tracker) {
+      assertEquals(State.INSIDE_BUNDLE, state);
+      assertTrue(tracker.tryClaim(0));
+      c.output(c.element());
+    }
+
+    @GetInitialRestriction
+    public OffsetRange getInitialRestriction(String value) {
+      return new OffsetRange(0, 1);
+    }
+
+    @NewTracker
+    public OffsetRangeTracker newTracker(OffsetRange range) {
+      return new OffsetRangeTracker(range);
+    }
+
+    @Setup
+    public void setUp() {
+      assertEquals(State.BEFORE_SETUP, state);
+      state = State.OUTSIDE_BUNDLE;
+    }
+
+    @StartBundle
+    public void startBundle(Context c) {
+      assertEquals(State.OUTSIDE_BUNDLE, state);
+      state = State.INSIDE_BUNDLE;
+    }
+
+    @FinishBundle
+    public void finishBundle(Context c) {
+      assertEquals(State.INSIDE_BUNDLE, state);
+      state = State.OUTSIDE_BUNDLE;
+    }
+
+    @Teardown
+    public void tearDown() {
+      assertEquals(State.OUTSIDE_BUNDLE, state);
+      state = State.TORN_DOWN;
+    }
+  }
+
+  @Test
+  public void testLifecycleMethods() throws Exception {
+    Pipeline p = TestPipeline.create();
+    p.getOptions().setRunner(DirectRunner.class);
+
+    PCollection<String> res =
+        p.apply(Create.of("a", "b", "c")).apply(ParDo.of(new SDFWithLifecycle()));
+
+    PAssert.that(res).containsInAnyOrder("a", "b", "c");
 
     p.run();
   }
