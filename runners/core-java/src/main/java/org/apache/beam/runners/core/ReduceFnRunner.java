@@ -18,7 +18,6 @@
 package org.apache.beam.runners.core;
 
 import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
 
 import com.google.common.annotations.VisibleForTesting;
@@ -325,13 +324,27 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> impleme
       return;
     }
 
+    // Determine all the windows for elements.
+    Set<W> windows = collectWindows(values);
     // If an incoming element introduces a new window, attempt to merge it into an existing
     // window eagerly.
-    Map<W, W> windowToMergeResult = collectAndMergeWindows(values);
-    prefetchWindowsForValues(windowToMergeResult.values());
+    Map<W, W> windowToMergeResult = mergeWindows(windows);
+    if (!windowToMergeResult.isEmpty()) {
+      // Update windows by removing all windows that were merged away and adding
+      // the windows they were merged to. We add after completing all the
+      // removals to avoid removing a window that was also added.
+      List<W> addedWindows = new ArrayList<>(windowToMergeResult.size());
+      for (Map.Entry<W, W> entry : windowToMergeResult.entrySet()) {
+        windows.remove(entry.getKey());
+        addedWindows.add(entry.getValue());
+      }
+      windows.addAll(addedWindows);
+    }
+
+    prefetchWindowsForValues(windows);
 
     // All windows that are open before element processing may need to fire.
-    Set<W> windowsToConsider = openWindows(windowToMergeResult.values());
+    Set<W> windowsToConsider = openWindows(windows);
 
     // Process each element, using the updated activeWindows determined by collectAndMergeWindows.
     for (WindowedValue<InputT> value : values) {
@@ -348,12 +361,12 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> impleme
     Collection<W> windowsToFire = windowsThatShouldFire(windowsToConsider);
     // Prefetch windows that are firing.
     for (W window : windowsToFire) {
-      prefetchEmitPane(contextFactory.base(window, StateStyle.DIRECT),
+      prefetchEmit(contextFactory.base(window, StateStyle.DIRECT),
           contextFactory.base(window, StateStyle.RENAMED));
     }
     // Trigger output from firing windows.
     for (W window : windowsToFire) {
-      emitPane(contextFactory.base(window, StateStyle.DIRECT),
+      emit(contextFactory.base(window, StateStyle.DIRECT),
           contextFactory.base(window, StateStyle.RENAMED));
     }
 
@@ -368,63 +381,61 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> impleme
   }
 
   /**
-   * Extract the windows associated with the values, and invoke merge. Return a map
-   * from windows to the merge result window. Windows that were not merged are present
-   * in the map with equal key and value.
+   * Extract the windows associated with the values.
    */
-  private Map<W, W> collectAndMergeWindows(Iterable<WindowedValue<InputT>> values)
-      throws Exception {
-    Map<W, W> windowToMergeResult = new HashMap<>();
-
-    // No-op if no merging can take place
-    if (windowingStrategy.getWindowFn().isNonMerging()) {
-      for (WindowedValue<?> value : values) {
-        for (BoundedWindow untypedWindow : value.getWindows()) {
-          @SuppressWarnings("unchecked")
-          W window = (W) untypedWindow;
-          windowToMergeResult.put(window, window);
-        }
-      }
-      return windowToMergeResult;
-    }
-
-    // Collect the windows from all elements (except those which are too late) and
-    // make sure they are already in the active window set or are added as NEW windows.
+  private Set<W> collectWindows(Iterable<WindowedValue<InputT>> values) throws Exception {
+    Set<W> windows = new HashSet<>();
     for (WindowedValue<?> value : values) {
       for (BoundedWindow untypedWindow : value.getWindows()) {
         @SuppressWarnings("unchecked")
-        W window = (W) untypedWindow;
-        // This will be overwritten by the merge callback if merging takes place.
-        windowToMergeResult.put(window, window);
-
-        // For backwards compat with pre 1.4 only.
-        // We may still have ACTIVE windows with multiple state addresses, representing
-        // a window who's state has not yet been eagerly merged.
-        // We'll go ahead and merge that state now so that we don't have to worry about
-        // this legacy case anywhere else.
-        if (activeWindows.isActive(window)) {
-          Set<W> stateAddressWindows = activeWindows.readStateAddresses(window);
-          if (stateAddressWindows.size() > 1) {
-            // This is a legacy window who's state has not been eagerly merged.
-            // Do that now.
-            ReduceFn<K, InputT, OutputT, W>.OnMergeContext premergeContext =
-                contextFactory.forPremerge(window);
-            reduceFn.onMerge(premergeContext);
-            watermarkHold.onMerge(premergeContext);
-            activeWindows.merged(window);
-          }
-        }
-
-        // Add this window as NEW if it is not currently ACTIVE.
-        // If we had already seen this window and closed its trigger, then the
-        // window will not be currently ACTIVE. It will then be added as NEW here,
-        // and fall into the merging logic as usual.
-        activeWindows.ensureWindowExists(window);
+          W window = (W) untypedWindow;
+        windows.add(window);
       }
+    }
+    return windows;
+  }
+
+  /**
+   * Invoke merge for the given windows and return a map from windows to the
+   * merge result window. Windows that were not merged are not present in the
+   * map.
+   */
+  private Map<W, W> mergeWindows(Set<W> windows) throws Exception {
+    if (windowingStrategy.getWindowFn().isNonMerging()) {
+      // Return an empty map, indicating that every window is not merged.
+      return Collections.emptyMap();
+    }
+
+    Map<W, W> windowToMergeResult = new HashMap<>();
+    // Collect the windows from all elements (except those which are too late) and
+    // make sure they are already in the active window set or are added as NEW windows.
+    for (W window : windows) {
+      // For backwards compat with pre 1.4 only.
+      // We may still have ACTIVE windows with multiple state addresses, representing
+      // a window who's state has not yet been eagerly merged.
+      // We'll go ahead and merge that state now so that we don't have to worry about
+      // this legacy case anywhere else.
+      if (activeWindows.isActive(window)) {
+        Set<W> stateAddressWindows = activeWindows.readStateAddresses(window);
+        if (stateAddressWindows.size() > 1) {
+          // This is a legacy window who's state has not been eagerly merged.
+          // Do that now.
+          ReduceFn<K, InputT, OutputT, W>.OnMergeContext premergeContext =
+              contextFactory.forPremerge(window);
+          reduceFn.onMerge(premergeContext);
+          watermarkHold.onMerge(premergeContext);
+          activeWindows.merged(window);
+        }
+      }
+
+      // Add this window as NEW if it is not currently ACTIVE.
+      // If we had already seen this window and closed its trigger, then the
+      // window will not be currently ACTIVE. It will then be added as NEW here,
+      // and fall into the merging logic as usual.
+      activeWindows.ensureWindowExists(window);
     }
 
     // Merge all of the active windows and retain a mapping from source windows to result windows.
-
     activeWindows.merge(new OnMergeCallback(windowToMergeResult));
     return windowToMergeResult;
   }
@@ -541,7 +552,9 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> impleme
               public W apply(BoundedWindow untypedWindow) {
                 @SuppressWarnings("unchecked")
                 W window = (W) untypedWindow;
-                return checkNotNull(windowToMergeResult.get(window));
+                W mergedWindow = windowToMergeResult.get(window);
+                // If the element is not present in the map, the window is unmerged.
+                return (mergedWindow == null) ? window : mergedWindow;
               }
             }
         ));
@@ -559,6 +572,8 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> impleme
   /**
    * Process an element.
    *
+   * @param windowToMergeResult map of windows to merged windows. If a window is
+   * not present it is unmerged.
    * @param value the value being processed
    */
   private void processElement(Map<W, W> windowToMergeResult, WindowedValue<InputT> value)
@@ -625,7 +640,11 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> impleme
     }
   }
 
-  private class TimerContext {
+  /**
+   * Enriches TimerData with state necessary for processing a timer as well as
+   * common queries about a timer.
+   */
+  private class EnrichedTimerData {
     public final Instant timestamp;
     public final ReduceFn<K, InputT, OutputT, W>.Context directContext;
     public final ReduceFn<K, InputT, OutputT, W>.Context renamedContext;
@@ -637,7 +656,7 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> impleme
     // end-of-window time to be a signal to garbage collect.
     public final boolean isGarbageCollection;
 
-    TimerContext(
+    EnrichedTimerData(
         TimerData timer,
         ReduceFn<K, InputT, OutputT, W>.Context directContext,
         ReduceFn<K, InputT, OutputT, W>.Context renamedContext) {
@@ -669,7 +688,7 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> impleme
 
     // Create a reusable context for each timer and begin prefetching necessary
     // state.
-    List<TimerContext> timerContexts = new LinkedList();
+    List<EnrichedTimerData> enrichedTimers = new LinkedList();
     for (TimerData timer : timers) {
       checkArgument(timer.getNamespace() instanceof WindowNamespace,
           "Expected timer to be in WindowNamespace, but was in %s", timer.getNamespace());
@@ -680,11 +699,11 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> impleme
           contextFactory.base(window, StateStyle.DIRECT);
       ReduceFn<K, InputT, OutputT, W>.Context renamedContext =
           contextFactory.base(window, StateStyle.RENAMED);
-      TimerContext timerContext = new TimerContext(timer, directContext, renamedContext);
-      timerContexts.add(timerContext);
+      EnrichedTimerData enrichedTimer = new EnrichedTimerData(timer, directContext, renamedContext);
+      enrichedTimers.add(enrichedTimer);
 
       // Perform prefetching of state to determine if the trigger should fire.
-      if (!timerContext.isGarbageCollection) {
+      if (enrichedTimer.isGarbageCollection) {
         triggerRunner.prefetchIsClosed(directContext.state());
       } else {
         triggerRunner.prefetchShouldFire(directContext.window(), directContext.state());
@@ -692,38 +711,38 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> impleme
     }
 
     // For those windows that are active and open, prefetch the triggering or emitting state.
-    for (TimerContext timerContext : timerContexts) {
-      if (timerContext.windowIsActiveAndOpen()) {
-        ReduceFn<K, InputT, OutputT, W>.Context directContext = timerContext.directContext;
-        if (timerContext.isGarbageCollection) {
-          prefetchOnTrigger(directContext, timerContext.renamedContext);
+    for (EnrichedTimerData timer : enrichedTimers) {
+      if (timer.windowIsActiveAndOpen()) {
+        ReduceFn<K, InputT, OutputT, W>.Context directContext = timer.directContext;
+        if (timer.isGarbageCollection) {
+          prefetchOnTrigger(directContext, timer.renamedContext);
         } else if (triggerRunner.shouldFire(
             directContext.window(), directContext.timers(), directContext.state())) {
-          prefetchEmitPane(directContext, timerContext.renamedContext);
+          prefetchEmit(directContext, timer.renamedContext);
         }
       }
     }
 
     // Perform processing now that everything is prefetched.
-    for (TimerContext timerContext : timerContexts) {
-      ReduceFn<K, InputT, OutputT, W>.Context directContext = timerContext.directContext;
-      ReduceFn<K, InputT, OutputT, W>.Context renamedContext = timerContext.renamedContext;
+    for (EnrichedTimerData timer : enrichedTimers) {
+      ReduceFn<K, InputT, OutputT, W>.Context directContext = timer.directContext;
+      ReduceFn<K, InputT, OutputT, W>.Context renamedContext = timer.renamedContext;
 
-      if (timerContext.isGarbageCollection) {
+      if (timer.isGarbageCollection) {
         WindowTracing.debug("ReduceFnRunner.onTimer: Cleaning up for key:{}; window:{} at {} with "
                 + "inputWatermark:{}; outputWatermark:{}",
-            key, directContext.window(), timerContext.timestamp,
+            key, directContext.window(), timer.timestamp,
             timerInternals.currentInputWatermarkTime(),
             timerInternals.currentOutputWatermarkTime());
 
-        boolean windowIsActiveAndOpen = timerContext.windowIsActiveAndOpen();
+        boolean windowIsActiveAndOpen = timer.windowIsActiveAndOpen();
         if (windowIsActiveAndOpen) {
           // We need to call onTrigger to emit the final pane if required.
           // The final pane *may* be ON_TIME if no prior ON_TIME pane has been emitted,
           // and the watermark has passed the end of the window.
           @Nullable
           Instant newHold = onTrigger(
-              directContext, renamedContext, true /* isFinished */, timerContext.isEndOfWindow);
+              directContext, renamedContext, true /* isFinished */, timer.isEndOfWindow);
           checkState(newHold == null, "Hold placed at %s despite isFinished being true.", newHold);
         }
 
@@ -733,16 +752,16 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> impleme
       } else {
         WindowTracing.debug("ReduceFnRunner.onTimer: Triggering for key:{}; window:{} at {} with "
                 + "inputWatermark:{}; outputWatermark:{}",
-            key, directContext.window(), timerContext.timestamp,
+            key, directContext.window(), timer.timestamp,
             timerInternals.currentInputWatermarkTime(),
             timerInternals.currentOutputWatermarkTime());
-        if (timerContext.windowIsActiveAndOpen()
+        if (timer.windowIsActiveAndOpen()
             && triggerRunner.shouldFire(
                    directContext.window(), directContext.timers(), directContext.state())) {
-          emitPane(directContext, renamedContext);
+          emit(directContext, renamedContext);
         }
 
-        if (timerContext.isEndOfWindow) {
+        if (timer.isEndOfWindow) {
           // If the window strategy trigger includes a watermark trigger then at this point
           // there should be no data holds, either because we'd already cleared them on an
           // earlier onTrigger, or because we just cleared them on the above emit.
@@ -844,7 +863,7 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> impleme
     return false;
   }
 
-  private void prefetchEmitPane(ReduceFn<K, InputT, OutputT, W>.Context directContext,
+  private void prefetchEmit(ReduceFn<K, InputT, OutputT, W>.Context directContext,
                                 ReduceFn<K, InputT, OutputT, W>.Context renamedContext) {
     triggerRunner.prefetchShouldFire(directContext.window(), directContext.state());
     triggerRunner.prefetchOnFire(directContext.window(), directContext.state());
@@ -853,9 +872,9 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> impleme
   }
 
   /**
-   * Emit a pane if a trigger is ready to fire or timers require it, and cleanup state.
+   * Emit if a trigger is ready to fire or timers require it, and cleanup state.
    */
-  private void emitPane(
+  private void emit(
       ReduceFn<K, InputT, OutputT, W>.Context directContext,
       ReduceFn<K, InputT, OutputT, W>.Context renamedContext)
       throws Exception {
@@ -895,9 +914,9 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> impleme
   }
 
   /**
-   * Do we need to emit a pane?
+   * Do we need to emit?
    */
-  private boolean needToEmitPane(boolean isEmpty, boolean isFinished, PaneInfo.Timing timing) {
+  private boolean needToEmit(boolean isEmpty, boolean isFinished, PaneInfo.Timing timing) {
     if (!isEmpty) {
       // The pane has elements.
       return true;
@@ -977,7 +996,7 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> impleme
     }
 
     // Only emit a pane if it has data or empty panes are observable.
-    if (needToEmitPane(isEmpty, isFinished, pane.getTiming())) {
+    if (needToEmit(isEmpty, isFinished, pane.getTiming())) {
       // Run reduceFn.onTrigger method.
       final List<W> windows = Collections.singletonList(directContext.window());
       ReduceFn<K, InputT, OutputT, W>.OnTriggerContext renamedTriggerContext =
