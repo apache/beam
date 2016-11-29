@@ -23,6 +23,9 @@ import static org.hamcrest.core.Is.is;
 import static org.junit.Assert.assertThat;
 
 import com.google.common.collect.Lists;
+import java.io.Serializable;
+import java.util.Arrays;
+import java.util.List;
 import org.apache.beam.runners.spark.io.CreateStream;
 import org.apache.beam.runners.spark.translation.streaming.utils.SparkTestPipelineOptions;
 import org.apache.beam.sdk.Pipeline;
@@ -35,9 +38,7 @@ import org.apache.spark.SparkException;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
-import java.io.Serializable;
-import java.util.Arrays;
-import java.util.List;
+
 
 /**
  * This suite tests that verifies a Beam over spark pipeline fails fast upon a failed batch and
@@ -46,11 +47,10 @@ import java.util.List;
 public class FailFastOnMicrobatchFailureTest implements Serializable {
 
   private static final String FAILED_THE_BATCH_INTENTIONALLY = "Failed the batch intentionally";
-  private final List<Iterable<String>> WORDS_QUEUE =
+  private static final List<Iterable<String>> WORDS_QUEUE =
       Lists.<Iterable<String>>newArrayList(Arrays.asList("one", "two", "three", "four"),
                                            Arrays.asList("five", "six", "seven", "eight"));
-
-  private final SimpleFunction<String, String> THROW_EXCEPTION_FN =
+  private static final SimpleFunction<String, String> THROW_EXCEPTION_FN =
       new SimpleFunction<String, String>() {
 
         @Override

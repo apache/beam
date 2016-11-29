@@ -21,7 +21,6 @@ package org.apache.beam.runners.spark.translation;
 import static org.hamcrest.core.Is.isA;
 
 import java.io.Serializable;
-import org.apache.beam.runners.spark.SparkPipelineOptions;
 import org.apache.beam.runners.spark.translation.streaming.utils.SparkTestPipelineOptions;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.transforms.Create;
@@ -45,8 +44,7 @@ public class SideEffectsTest implements Serializable {
 
   @Test
   public void test() throws Exception {
-    SparkPipelineOptions options = pipelineOptions.getOptions();
-    Pipeline p = Pipeline.create(options);
+    Pipeline p = Pipeline.create(pipelineOptions.getOptions());
 
     p.apply(Create.of("a")).apply(ParDo.of(new DoFn<String, String>() {
       @ProcessElement
