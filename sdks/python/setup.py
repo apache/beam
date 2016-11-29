@@ -87,7 +87,7 @@ REQUIRED_PACKAGES = [
     'avro>=1.7.7,<2.0.0',
     'dill>=0.2.5,<0.3',
     'google-apitools>=0.5.2,<1.0.0',
-    'googledatastore==6.4.1',
+    'googledatastore>=6.4.1,<7.0.0',
     'httplib2>=0.8,<0.10',
     'mock>=1.0.1,<3.0.0',
     'oauth2client>=2.0.1,<4.0.0',
