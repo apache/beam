@@ -22,7 +22,6 @@ import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
 
 import java.io.File;
 import java.util.Arrays;
@@ -169,14 +168,13 @@ public class TransformTreeTest {
     assertTrue(left.equals(EnumSet.of(TransformsSeen.SAMPLE_ANY)));
   }
 
-  @Test(expected = IllegalStateException.class)
+  @Test(expected = IllegalArgumentException.class)
   public void testOutputChecking() throws Exception {
     Pipeline p = TestPipeline.create();
 
     p.apply(new InvalidCompositeTransform());
 
     p.traverseTopologically(new Pipeline.PipelineVisitor.Defaults() {});
-    fail("traversal should have failed with an IllegalStateException");
   }
 
   @Test

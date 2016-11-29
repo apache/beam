@@ -17,10 +17,11 @@
  */
 package org.apache.beam.sdk;
 
+import static com.google.common.base.Preconditions.checkState;
+
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import org.apache.beam.sdk.coders.CoderRegistry;
@@ -31,7 +32,6 @@ import org.apache.beam.sdk.runners.PipelineRunner;
 import org.apache.beam.sdk.runners.TransformHierarchy;
 import org.apache.beam.sdk.runners.TransformTreeNode;
 import org.apache.beam.sdk.transforms.Aggregator;
-import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.util.UserCodeException;
@@ -282,14 +282,12 @@ public class Pipeline {
    * <p>Typically invoked by {@link PipelineRunner} subclasses.
    */
   public void traverseTopologically(PipelineVisitor visitor) {
-    Set<PValue> visitedValues = new HashSet<>();
-    // Visit all the transforms, which should implicitly visit all the values.
-    transforms.visit(visitor, visitedValues);
-    if (!visitedValues.containsAll(values)) {
-      throw new RuntimeException(
-          "internal error: should have visited all the values "
-          + "after visiting all the transforms");
-    }
+    Set<PValue> visitedValues =
+        // Visit all the transforms, which should implicitly visit all the values.
+        transforms.visit(visitor);
+    checkState(
+        visitedValues.containsAll(values),
+        "internal error: should have visited all the values after visiting all the transforms");
   }
 
   /**
@@ -351,113 +349,46 @@ public class Pipeline {
    *
    * @see Pipeline#apply
    */
-  private <InputT extends PInput, OutputT extends POutput>
-  OutputT applyInternal(String name, InputT input,
-      PTransform<? super InputT, OutputT> transform) {
-    input.finishSpecifying();
+  private <InputT extends PInput, OutputT extends POutput> OutputT applyInternal(
+      String name, InputT input, PTransform<? super InputT, OutputT> transform) {
+    String namePrefix = transforms.getCurrent().getFullName();
+    String uniqueName = uniquifyInternal(namePrefix, name);
 
-    TransformTreeNode parent = transforms.getCurrent();
-    String namePrefix = parent.getFullName();
-    String fullName = uniquifyInternal(namePrefix, name);
-
-    boolean nameIsUnique = fullName.equals(buildName(namePrefix, name));
+    boolean nameIsUnique = uniqueName.equals(buildName(namePrefix, name));
 
     if (!nameIsUnique) {
       switch (getOptions().getStableUniqueNames()) {
         case OFF:
           break;
         case WARNING:
-          LOG.warn("Transform {} does not have a stable unique name. "
-              + "This will prevent updating of pipelines.", fullName);
+          LOG.warn(
+              "Transform {} does not have a stable unique name. "
+                  + "This will prevent updating of pipelines.",
+              uniqueName);
           break;
         case ERROR:
           throw new IllegalStateException(
-              "Transform " + fullName + " does not have a stable unique name. "
-              + "This will prevent updating of pipelines.");
+              "Transform "
+                  + uniqueName
+                  + " does not have a stable unique name. "
+                  + "This will prevent updating of pipelines.");
         default:
           throw new IllegalArgumentException(
               "Unrecognized value for stable unique names: " + getOptions().getStableUniqueNames());
       }
     }
 
-    TransformTreeNode child =
-        new TransformTreeNode(parent, transform, fullName, input);
-    parent.addComposite(child);
-
-    transforms.addInput(child, input);
-
     LOG.debug("Adding {} to {}", transform, this);
+    transforms.pushNode(uniqueName, input, transform);
     try {
-      transforms.pushNode(child);
+      transforms.finishSpecifyingInput();
       transform.validate(input);
       OutputT output = runner.apply(transform, input);
-      transforms.setOutput(child, output);
+      transforms.setOutput(output);
 
-      AppliedPTransform<?, ?, ?> applied = AppliedPTransform.of(
-          child.getFullName(), input, output, transform);
-      // recordAsOutput is a NOOP if already called;
-      output.recordAsOutput(applied);
-      verifyOutputState(output, child);
       return output;
     } finally {
       transforms.popNode();
-    }
-  }
-
-  /**
-   * Returns all producing transforms for the {@link PValue PValues} contained
-   * in {@code output}.
-   */
-  private List<AppliedPTransform<?, ?, ?>> getProducingTransforms(POutput output) {
-    List<AppliedPTransform<?, ?, ?>> producingTransforms = new ArrayList<>();
-    for (PValue value : output.expand()) {
-      AppliedPTransform<?, ?, ?> transform = value.getProducingTransformInternal();
-      if (transform != null) {
-        producingTransforms.add(transform);
-      }
-    }
-    return producingTransforms;
-  }
-
-  /**
-   * Verifies that the output of a {@link PTransform} is correctly configured in its
-   * {@link TransformTreeNode} in the {@link Pipeline} graph.
-   *
-   * <p>A non-composite {@link PTransform} must have all
-   * of its outputs registered as produced by that {@link PTransform}.
-   *
-   * <p>A composite {@link PTransform} must have all of its outputs
-   * registered as produced by the contained primitive {@link PTransform PTransforms}.
-   * They have each had the above check performed already, when
-   * they were applied, so the only possible failure state is
-   * that the composite {@link PTransform} has returned a primitive output.
-   */
-  private void verifyOutputState(POutput output, TransformTreeNode node) {
-    if (!node.isCompositeNode()) {
-      PTransform<?, ?> thisTransform = node.getTransform();
-      List<AppliedPTransform<?, ?, ?>> producingTransforms = getProducingTransforms(output);
-      for (AppliedPTransform<?, ?, ?> producingTransform : producingTransforms) {
-        // Using != because object identity indicates that the transforms
-        // are the same node in the pipeline
-        if (thisTransform != producingTransform.getTransform()) {
-          throw new IllegalArgumentException("Output of non-composite transform "
-              + thisTransform + " is registered as being produced by"
-              + " a different transform: " + producingTransform);
-        }
-      }
-    } else {
-      PTransform<?, ?> thisTransform = node.getTransform();
-      List<AppliedPTransform<?, ?, ?>> producingTransforms = getProducingTransforms(output);
-      for (AppliedPTransform<?, ?, ?> producingTransform : producingTransforms) {
-        // Using == because object identity indicates that the transforms
-        // are the same node in the pipeline
-        if (thisTransform == producingTransform.getTransform()) {
-          throw new IllegalStateException("Output of composite transform "
-              + thisTransform + " is registered as being produced by it,"
-              + " but the output of every composite transform should be"
-              + " produced by a primitive transform contained therein.");
-        }
-      }
     }
   }
 
