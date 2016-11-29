@@ -100,6 +100,7 @@ REQUIRED_PACKAGES = [
 
 REQUIRED_TEST_PACKAGES = [
     'pyhamcrest>=1.9,<2.0',
+    'pytest>=3.0.0,<4.0.0',
     ]
 
 setuptools.setup(

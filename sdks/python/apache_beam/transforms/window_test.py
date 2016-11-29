@@ -42,9 +42,6 @@ def context(element, timestamp, windows):
   return WindowFn.AssignContext(timestamp, element, windows)
 
 
-sort_values = Map(lambda (k, vs): (k, sorted(vs)))
-
-
 class ReifyWindowsFn(core.DoFn):
   def process(self, context):
     key, values = context.element
@@ -149,7 +146,7 @@ class WindowTest(unittest.TestCase):
     result = (pcoll
               | 'w' >> WindowInto(Sessions(10))
               | GroupByKey()
-              | sort_values
+              | Map(lambda (k, vs): (k, sorted(vs)))
               | reify_windows)
     expected = [('key @ [1.0, 13.0)', [1, 2, 3]),
                 ('key @ [20.0, 45.0)', [20, 27, 35])]
