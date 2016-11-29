@@ -257,9 +257,8 @@ public class ValueProviderTest {
 
   @Test
   public void testNestedValueProviderSerialize() throws Exception {
-    ValueProvider<String> rvp = StaticValueProvider.of("foo");
     ValueProvider<NonSerializable> nvp = NestedValueProvider.of(
-        rvp, new NonSerializableTranslator());
-    ValueProvider<NonSerializable> nvpCopy = SerializableUtils.ensureSerializable(nvp);
+        StaticValueProvider.of("foo"), new NonSerializableTranslator());
+    SerializableUtils.ensureSerializable(nvp);
   }
 }
