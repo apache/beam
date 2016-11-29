@@ -72,7 +72,6 @@ import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.GroupByKey;
-import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.View;
@@ -968,7 +967,7 @@ public class DataflowPipelineTranslator {
             BiMap<Long, TupleTag<?>> outputMap =
                 translateOutputs(context.getOutput(transform), context);
             translateFn(
-                transform.getFn(),
+                transform.getNewFn(),
                 context.getInput(transform).getWindowingStrategy(),
                 transform.getSideInputs(),
                 context.getInput(transform).getCoder(),
@@ -997,7 +996,7 @@ public class DataflowPipelineTranslator {
             translateInputs(context.getInput(transform), transform.getSideInputs(), context);
             long mainOutput = context.addOutput(context.getOutput(transform));
             translateFn(
-                transform.getFn(),
+                transform.getNewFn(),
                 context.getInput(transform).getWindowingStrategy(),
                 transform.getSideInputs(),
                 context.getInput(transform).getCoder(),
@@ -1075,7 +1074,7 @@ public class DataflowPipelineTranslator {
   }
 
   private static void translateFn(
-      OldDoFn fn,
+      DoFn fn,
       WindowingStrategy windowingStrategy,
       Iterable<PCollectionView<?>> sideInputs,
       Coder inputCoder,
