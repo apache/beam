@@ -105,6 +105,13 @@ public abstract class DoFnSignature {
   @Nullable
   public abstract Map<String, OnTimerMethod> onTimerMethods();
 
+  /**
+   * Whether the {@link DoFn} described by this signature uses state.
+   */
+  public boolean isStateful() {
+    return stateDeclarations().size() > 0;
+  }
+
   static Builder builder() {
     return new AutoValue_DoFnSignature.Builder();
   }
