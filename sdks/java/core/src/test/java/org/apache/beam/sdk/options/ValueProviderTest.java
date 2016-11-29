@@ -245,19 +245,21 @@ public class ValueProviderTest {
     nvp.get();
   }
 
-  private static class NonSerializable {
+  private static class NonSerializable {}
+
+  private static class NonSerializableTranslator
+      implements SerializableFunction<String, NonSerializable> {
+    @Override
+    public NonSerializable apply(String from) {
+      return new NonSerializable();
+    }
   }
 
   @Test
   public void testNestedValueProviderSerialize() throws Exception {
     ValueProvider<String> rvp = StaticValueProvider.of("foo");
     ValueProvider<NonSerializable> nvp = NestedValueProvider.of(
-        rvp, new SerializableFunction<String, NonSerializable>() {
-            @Override
-            public NonSerializable apply(String from) {
-              return new NonSerializable();
-            }
-          });
+        rvp, new NonSerializableTranslator());
     ValueProvider<NonSerializable> nvpCopy = SerializableUtils.ensureSerializable(nvp);
   }
 }
