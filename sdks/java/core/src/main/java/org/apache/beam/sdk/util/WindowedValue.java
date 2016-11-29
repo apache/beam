@@ -273,53 +273,6 @@ public abstract class WindowedValue<T> {
   }
 
   /**
-   * The representation of a WindowedValue where timestamp == MIN and windows == {}.
-   *
-   * @deprecated a value in no windows technically is not "in" a PCollection. It is allowed to drop
-   *     it at any point, and benign runner implementation details could cause silent data loss.
-   */
-  @Deprecated
-  private static class ValueInEmptyWindows<T> extends MinTimestampWindowedValue<T> {
-    public ValueInEmptyWindows(T value, PaneInfo pane) {
-      super(value, pane);
-    }
-
-    @Override
-    public <NewT> WindowedValue<NewT> withValue(NewT newValue) {
-      return new ValueInEmptyWindows<>(newValue, getPane());
-    }
-
-    @Override
-    public Collection<? extends BoundedWindow> getWindows() {
-      return Collections.emptyList();
-    }
-
-    @Override
-    public boolean equals(Object o) {
-      if (o instanceof ValueInEmptyWindows) {
-        ValueInEmptyWindows<?> that = (ValueInEmptyWindows<?>) o;
-        return Objects.equals(that.getPane(), this.getPane())
-            && Objects.equals(that.getValue(), this.getValue());
-      } else {
-        return super.equals(o);
-      }
-    }
-
-    @Override
-    public int hashCode() {
-      return Objects.hash(getValue(), getPane());
-    }
-
-    @Override
-    public String toString() {
-      return MoreObjects.toStringHelper(getClass())
-          .add("value", getValue())
-          .add("pane", getPane())
-          .toString();
-    }
-  }
-
-  /**
    * The abstract superclass of WindowedValue representations where
    * timestamp is arbitrary.
    */

@@ -23,7 +23,6 @@ import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.base.Strings.isNullOrEmpty;
 import static org.apache.beam.sdk.util.StringUtils.approximatePTransformName;
 import static org.apache.beam.sdk.util.StringUtils.approximateSimpleName;
-import static org.apache.beam.sdk.util.WindowedValue.valueInGlobalWindow;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -40,6 +39,7 @@ import com.google.api.services.dataflow.model.WorkerPool;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Function;
 import com.google.common.base.Joiner;
+import com.google.common.base.MoreObjects;
 import com.google.common.base.Optional;
 import com.google.common.base.Utf8;
 import com.google.common.collect.ForwardingMap;
@@ -68,6 +68,7 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Random;
 import java.util.Set;
 import java.util.SortedSet;
@@ -137,6 +138,7 @@ import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
+import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.IOChannelUtils;
@@ -167,6 +169,7 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.joda.time.DateTimeUtils;
 import org.joda.time.DateTimeZone;
+import org.joda.time.Instant;
 import org.joda.time.format.DateTimeFormat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -1228,9 +1231,12 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
               && !previousWindowStructuralValue.get().equals(currentWindowStructuralValue)) {
             // Construct the transformed map containing all the elements since we
             // are at a window boundary.
+            WindowedValue<TransformedMap<K, WindowedValue<V>, V>> value =
+                new ValueInEmptyWindows<>(new TransformedMap<>(WindowedValueToValue.<V>of(), map));
+
             c.output(IsmRecord.of(
                 ImmutableList.of(previousWindow.get()),
-                valueInGlobalWindow(new TransformedMap<>(WindowedValueToValue.<V>of(), map))));
+                value));
             map = new HashMap<>();
           }
 
@@ -1249,9 +1255,10 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
         // The last value for this hash is guaranteed to be at a window boundary
         // so we output a transformed map containing all the elements since the last
         // window boundary.
-        c.output(IsmRecord.of(
-            ImmutableList.of(previousWindow.get()),
-            valueInGlobalWindow(new TransformedMap<>(WindowedValueToValue.<V>of(), map))));
+        WindowedValue<TransformedMap<K, WindowedValue<V>, V>> value =
+            new ValueInEmptyWindows<>(new TransformedMap<>(WindowedValueToValue.<V>of(), map));
+
+        c.output(IsmRecord.of(ImmutableList.of(previousWindow.get()), value));
       }
     }
 
@@ -1718,7 +1725,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
                                                              Iterable<WindowedValue<V>>,
                                                              Iterable<V>>>>of(
                 ImmutableList.of(previousWindow.get()),
-                valueInGlobalWindow(
+                new ValueInEmptyWindows<>(
                     new TransformedMap<>(
                         IterableWithWindowedValuesToIterable.<V>of(), resultMap))));
             multimap = HashMultimap.create();
@@ -1739,7 +1746,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
                                                          Iterable<WindowedValue<V>>,
                                                          Iterable<V>>>>of(
             ImmutableList.of(previousWindow.get()),
-            valueInGlobalWindow(
+            new ValueInEmptyWindows<>(
                 new TransformedMap<>(IterableWithWindowedValuesToIterable.<V>of(), resultMap))));
       }
     }
@@ -2826,5 +2833,64 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     }
 
     throw new IllegalArgumentException("Could not find running job named " + jobName);
+  }
+
+  /**
+   * A special fake {@link WindowedValue} for use in the ISM side input preparation
+   * transforms.
+   */
+  private static class ValueInEmptyWindows<T> extends WindowedValue<T> {
+    private final T value;
+
+    private ValueInEmptyWindows(T value) {
+      this.value = value;
+    }
+
+    @Override
+    public <NewT> WindowedValue<NewT> withValue(NewT newValue) {
+      return new ValueInEmptyWindows<>(newValue);
+    }
+
+    @Override
+    public T getValue() {
+      return value;
+    }
+
+    @Override
+    public Instant getTimestamp() {
+      return BoundedWindow.TIMESTAMP_MIN_VALUE;
+    }
+
+    @Override
+    public Collection<? extends BoundedWindow> getWindows() {
+      return Collections.emptyList();
+    }
+
+    @Override
+    public PaneInfo getPane() {
+      return PaneInfo.NO_FIRING;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+      if (o instanceof ValueInEmptyWindows) {
+        ValueInEmptyWindows<?> that = (ValueInEmptyWindows<?>) o;
+        return Objects.equals(that.getValue(), this.getValue());
+      } else {
+        return super.equals(o);
+      }
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(getValue(), getPane());
+    }
+
+    @Override
+    public String toString() {
+      return MoreObjects.toStringHelper(getClass())
+          .add("value", getValue())
+          .toString();
+    }
   }
 }
