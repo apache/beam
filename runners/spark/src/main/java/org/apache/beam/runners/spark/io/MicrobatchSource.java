@@ -54,6 +54,7 @@ public class MicrobatchSource<T, CheckpointMarkT extends UnboundedSource.Checkpo
   private final Duration maxReadTime;
   private final int numInitialSplits;
   private final long maxNumRecords;
+  private final int sourceId;
 
   // each split of the underlying UnboundedSource is associated with a (consistent) id
   // to match it's corresponding CheckpointMark state.
@@ -63,12 +64,14 @@ public class MicrobatchSource<T, CheckpointMarkT extends UnboundedSource.Checkpo
                    Duration maxReadTime,
                    int numInitialSplits,
                    long maxNumRecords,
-                   int splitId) {
+                   int splitId,
+                   int sourceId) {
     this.source = source;
     this.maxReadTime = maxReadTime;
     this.numInitialSplits = numInitialSplits;
     this.maxNumRecords = maxNumRecords;
     this.splitId = splitId;
+    this.sourceId = sourceId;
   }
 
   /**
@@ -98,7 +101,7 @@ public class MicrobatchSource<T, CheckpointMarkT extends UnboundedSource.Checkpo
     for (int i = 0; i < numSplits; i++) {
       // splits must be stable, and cannot change during consecutive executions
       // for example: Kafka should not add partitions if more then one topic is read.
-      result.add(new MicrobatchSource<>(splits.get(i), maxReadTime, 1, numRecords[i], i));
+      result.add(new MicrobatchSource<>(splits.get(i), maxReadTime, 1, numRecords[i], i, sourceId));
     }
     return result;
   }
@@ -137,8 +140,8 @@ public class MicrobatchSource<T, CheckpointMarkT extends UnboundedSource.Checkpo
     return source.getCheckpointMarkCoder();
   }
 
-  public int getSplitId() {
-    return splitId;
+  public String getId() {
+    return sourceId + "_" + splitId;
   }
 
   @Override
@@ -150,13 +153,18 @@ public class MicrobatchSource<T, CheckpointMarkT extends UnboundedSource.Checkpo
       return false;
     }
     MicrobatchSource<?, ?> that = (MicrobatchSource<?, ?>) o;
-
+    if (sourceId != that.sourceId) {
+      return false;
+    }
     return splitId == that.splitId;
+
   }
 
   @Override
   public int hashCode() {
-    return splitId;
+    int result = sourceId;
+    result = 31 * result + splitId;
+    return result;
   }
 
   /**
