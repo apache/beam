@@ -144,7 +144,7 @@ public class StateSpecFunctions {
 
           // close and checkpoint reader.
           reader.close();
-          LOG.info("Source id {} spent {} msec on reading.", microbatchSource.getSplitId(),
+          LOG.info("Source id {} spent {} msec on reading.", microbatchSource.getId(),
               stopwatch.stop().elapsed(TimeUnit.MILLISECONDS));
 
           // if the Source does not supply a CheckpointMark skip updating the state.
