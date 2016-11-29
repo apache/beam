@@ -118,23 +118,29 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
 
   private PCollectionTuple applyTyped(PCollection<InputT> input) {
     DoFn<InputT, OutputT> fn = parDo.getNewFn();
-    return SplittableParDo.<InputT, OutputT, RestrictionT>applySplitIntoKeyedWorkItems(input, fn)
-        .apply(
-            "Process",
-            new ProcessElements<InputT, OutputT, RestrictionT>(
-                fn,
-                input.getWindowingStrategy(),
-                parDo.getSideInputs(),
-                parDo.getMainOutputTag(),
-                parDo.getSideOutputTags()));
+    Coder<RestrictionT> restrictionCoder =
+        DoFnInvokers.invokerFor(fn)
+            .invokeGetRestrictionCoder(input.getPipeline().getCoderRegistry());
+    PCollection<KeyedWorkItem<String, ElementAndRestriction<InputT, RestrictionT>>> keyedWorkItems =
+        applySplitIntoKeyedWorkItems(input, fn, restrictionCoder);
+    return keyedWorkItems.apply(
+        "Process",
+        new ProcessElements<>(
+            fn,
+            input.getCoder(),
+            restrictionCoder,
+            input.getWindowingStrategy(),
+            parDo.getSideInputs(),
+            parDo.getMainOutputTag(),
+            parDo.getSideOutputTags()));
   }
 
   private static <InputT, OutputT, RestrictionT>
       PCollection<KeyedWorkItem<String, ElementAndRestriction<InputT, RestrictionT>>>
-          applySplitIntoKeyedWorkItems(PCollection<InputT> input, DoFn<InputT, OutputT> fn) {
-    Coder<RestrictionT> restrictionCoder =
-        DoFnInvokers.invokerFor(fn)
-            .invokeGetRestrictionCoder(input.getPipeline().getCoderRegistry());
+          applySplitIntoKeyedWorkItems(
+              PCollection<InputT> input,
+              DoFn<InputT, OutputT> fn,
+              Coder<RestrictionT> restrictionCoder) {
     Coder<ElementAndRestriction<InputT, RestrictionT>> splitCoder =
         ElementAndRestrictionCoder.of(input.getCoder(), restrictionCoder);
 
@@ -190,6 +196,7 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
           PCollection<? extends KeyedWorkItem<String, ElementAndRestriction<InputT, RestrictionT>>>,
           PCollectionTuple> {
     private final DoFn<InputT, OutputT> fn;
+    private final ProcessFn<InputT, OutputT, RestrictionT, ?> processFn;
     private final WindowingStrategy<?, ?> windowingStrategy;
     private final List<PCollectionView<?>> sideInputs;
     private final TupleTag<OutputT> mainOutputTag;
@@ -204,6 +211,8 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
      */
     public ProcessElements(
         DoFn<InputT, OutputT> fn,
+        Coder<InputT> elementCoder,
+        Coder<RestrictionT> restrictionCoder,
         WindowingStrategy<?, ?> windowingStrategy,
         List<PCollectionView<?>> sideInputs,
         TupleTag<OutputT> mainOutputTag,
@@ -213,6 +222,9 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
       this.sideInputs = sideInputs;
       this.mainOutputTag = mainOutputTag;
       this.sideOutputTags = sideOutputTags;
+      this.processFn =
+          new SplittableParDo.ProcessFn<>(
+              fn, elementCoder, restrictionCoder, windowingStrategy.getWindowFn().windowCoder());
     }
 
     public DoFn<InputT, OutputT> getFn() {
@@ -229,6 +241,10 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
 
     public TupleTagList getSideOutputTags() {
       return sideOutputTags;
+    }
+
+    public ProcessFn<InputT, OutputT, RestrictionT, ?> getProcessFn() {
+      return processFn;
     }
 
     @Override
@@ -388,6 +404,12 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
     @Setup
     public void setup() throws Exception {
       invoker = DoFnInvokers.invokerFor(fn);
+      invoker.invokeSetup();
+    }
+
+    @Teardown
+    public void teardown() throws Exception {
+      invoker.invokeTeardown();
     }
 
     @StartBundle
