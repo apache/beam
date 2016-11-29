@@ -53,6 +53,7 @@ before_install:
   - if [ "$TRAVIS_OS_NAME" == "linux" ]; then jdk_switcher use "$CUSTOM_JDK"; fi
   # Python SDK environment settings.
   - export TOX_ENV=py27
+  - pip install --upgrade pip
   - if [ "$TRAVIS_OS_NAME" == "osx" ]; then export TOX_HOME=$HOME/Library/Python/2.7/bin; fi
   - if [ "$TRAVIS_OS_NAME" == "linux" ]; then export TOX_HOME=$HOME/.local/bin; fi
 
