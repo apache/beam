@@ -162,17 +162,6 @@ public class Transport {
   }
 
   /**
-   * Returns a Dataflow client that does not automatically retry failed
-   * requests.
-   */
-  public static Dataflow.Builder
-      newRawDataflowClient(DataflowPipelineOptions options) {
-    return newDataflowClient(options)
-        .setHttpRequestInitializer(options.getGcpCredential())
-        .setGoogleClientRequestInitializer(options.getGoogleApiTrace());
-  }
-
-  /**
    * Returns a Cloud Storage client builder.
    *
    * <p>Note: this client's endpoint is <b>not</b> modified by the

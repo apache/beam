@@ -651,7 +651,7 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
     // regularly and need not be retried automatically.
     DataflowPipelineJob dataflowPipelineJob =
         new DataflowPipelineJob(options.getProject(), jobResult.getId(),
-            Transport.newRawDataflowClient(options).build(), aggregatorTransforms);
+            Transport.newDataflowClient(options).build(), aggregatorTransforms);
 
     // If the service returned client request id, the SDK needs to compare it
     // with the original id generated in the request, if they are not the same
