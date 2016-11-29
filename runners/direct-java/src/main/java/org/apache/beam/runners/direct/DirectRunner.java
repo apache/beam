@@ -41,7 +41,6 @@ import org.apache.beam.sdk.AggregatorValues;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.Pipeline.PipelineExecutionException;
 import org.apache.beam.sdk.PipelineResult;
-import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.io.Write;
 import org.apache.beam.sdk.metrics.MetricResults;
@@ -71,9 +70,7 @@ import org.joda.time.Instant;
  * An In-Memory implementation of the Dataflow Programming Model. Supports Unbounded
  * {@link PCollection PCollections}.
  */
-@Experimental
-public class DirectRunner
-    extends PipelineRunner<DirectPipelineResult> {
+public class DirectRunner extends PipelineRunner<DirectPipelineResult> {
   /**
    * The default set of transform overrides to use in the {@link DirectRunner}.
    *
