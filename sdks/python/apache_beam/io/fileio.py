@@ -606,6 +606,37 @@ class ChannelFactory(object):
     else:
       return os.path.getsize(path)
 
+  @staticmethod
+  def size_of_files_in_glob(path, file_names=None):
+    """Returns a map of file names to sizes.
+
+    Args:
+      path: a file path pattern that reads the size of all the files
+      file_names: List of file names that we need size for, this is added to
+        support eventually consistent sources where two expantions of glob
+        might yield to different files.
+    """
+    if path.startswith('gs://'):
+      file_sizes = gcsio.GcsIO().size_of_files_in_glob(path)
+      if file_names is None:
+        return file_sizes
+      else:
+        result = {}
+        # We need to make sure we fetched the size for all the files as the
+        # list API in GCS is eventually consistent so directly call size for
+        # any files that may be missing.
+        for file_name in file_names:
+          if file_name in file_sizes:
+            result[file_name] = file_sizes[file_name]
+          else:
+            result[file_name] = ChannelFactory.size_in_bytes(file_name)
+        return result
+    else:
+      if file_names is None:
+        file_names = ChannelFactory.glob(path)
+      return {file_name: ChannelFactory.size_in_bytes(file_name)
+              for file_name in file_names}
+
 
 class _CompressedFile(object):
   """Somewhat limited file wrapper for easier handling of compressed files."""

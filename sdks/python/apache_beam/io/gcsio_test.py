@@ -652,6 +652,44 @@ class TestGCSIO(unittest.TestCase):
       self.assertEqual(
           set(self.gcs.glob(file_pattern)), set(expected_file_names))
 
+  def test_size_of_files_in_glob(self):
+    bucket_name = 'gcsio-test'
+    object_names = [
+        ('cow/cat/fish', 2),
+        ('cow/cat/blubber', 3),
+        ('cow/dog/blubber', 4),
+        ('apple/dog/blubber', 5),
+        ('apple/fish/blubber', 6),
+        ('apple/fish/blowfish', 7),
+        ('apple/fish/bambi', 8),
+        ('apple/fish/balloon', 9),
+        ('apple/fish/cat', 10),
+        ('apple/fish/cart', 11),
+        ('apple/fish/carl', 12),
+        ('apple/dish/bat', 13),
+        ('apple/dish/cat', 14),
+        ('apple/dish/carl', 15),
+    ]
+    for (object_name, size) in object_names:
+      file_name = 'gs://%s/%s' % (bucket_name, object_name)
+      self._insert_random_file(self.client, file_name, size)
+    test_cases = [
+        ('gs://gcsio-test/cow/*', [
+            ('cow/cat/fish', 2),
+            ('cow/cat/blubber', 3),
+            ('cow/dog/blubber', 4),
+        ]),
+        ('gs://gcsio-test/apple/fish/car?', [
+            ('apple/fish/cart', 11),
+            ('apple/fish/carl', 12),
+        ])
+    ]
+    for file_pattern, expected_object_names in test_cases:
+      expected_file_sizes = {'gs://%s/%s' % (bucket_name, o): s
+                             for (o, s) in expected_object_names}
+      self.assertEqual(
+          self.gcs.size_of_files_in_glob(file_pattern), expected_file_sizes)
+
 
 class TestPipeStream(unittest.TestCase):
 
