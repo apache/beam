@@ -17,8 +17,6 @@
  */
 package org.apache.beam.sdk;
 
-import com.google.common.collect.HashMultimap;
-import com.google.common.collect.Multimap;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
@@ -329,8 +327,6 @@ public class Pipeline {
   private Collection<PValue> values = new ArrayList<>();
   private Set<String> usedFullNames = new HashSet<>();
   private CoderRegistry coderRegistry;
-  private Multimap<PTransform<?, ?>, AppliedPTransform<?, ?, ?>> transformApplicationsForTesting =
-      HashMultimap.create();
 
   /**
    * @deprecated replaced by {@link #Pipeline(PipelineRunner, PipelineOptions)}
@@ -399,7 +395,6 @@ public class Pipeline {
 
       AppliedPTransform<?, ?, ?> applied = AppliedPTransform.of(
           child.getFullName(), input, output, transform);
-      transformApplicationsForTesting.put(transform, applied);
       // recordAsOutput is a NOOP if already called;
       output.recordAsOutput(applied);
       verifyOutputState(output, child);
@@ -512,15 +507,5 @@ public class Pipeline {
    */
   private String buildName(String namePrefix, String name) {
     return namePrefix.isEmpty() ? name : namePrefix + "/" + name;
-  }
-
-  /**
-   * Adds the given {@link PValue} to this {@link Pipeline}.
-   *
-   * <p>For internal use only.
-   */
-  public void addValueInternal(PValue value) {
-    this.values.add(value);
-    LOG.debug("Adding {} to {}", value, this);
   }
 }
