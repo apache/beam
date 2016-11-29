@@ -19,6 +19,7 @@
 package org.apache.beam.sdk.testing;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.api.client.util.BackOff;
 import com.google.api.client.util.BackOffUtils;
@@ -78,29 +79,50 @@ public class FileChecksumMatcher extends TypeSafeMatcher<PipelineResult>
           .withInitialBackoff(DEFAULT_SLEEP_DURATION)
           .withMaxRetries(MAX_READ_RETRIES);
 
-  private static final String DEFAULT_SHARD_TEMPLATE = "\\S*\\d+-of-(\\d+)$";
+  private static final Pattern DEFAULT_SHARD_TEMPLATE =
+      Pattern.compile("(?x) \\S* (?<shardnum> \\d+) -of- (?<numshards> \\d+)");
 
   private final String expectedChecksum;
   private final String filePath;
   private final Pattern shardTemplate;
   private String actualChecksum;
 
+  /**
+   * Constructor that uses default shard template.
+   *
+   * @param checksum expected checksum string used to verify file content.
+   * @param filePath path of files that's to be verified.
+   */
   public FileChecksumMatcher(String checksum, String filePath) {
     this(checksum, filePath, DEFAULT_SHARD_TEMPLATE);
   }
 
-  public FileChecksumMatcher(String checksum, String filePath, String shardTemplate) {
+  /**
+   * Constructor.
+   *
+   * @param checksum expected checksum string used to verify file content.
+   * @param filePath path of files that's to be verified.
+   * @param shardTemplate template of shard name to parse out the total number of shards
+   *                      which is used in I/O retry to avoid inconsistency of filesystem.
+   *                      Customized template should assign name "numshards" to capturing
+   *                      group - total shard number.
+   */
+  public FileChecksumMatcher(String checksum, String filePath, Pattern shardTemplate) {
     checkArgument(
         !Strings.isNullOrEmpty(checksum),
         "Expected valid checksum, but received %s", checksum);
     checkArgument(
         !Strings.isNullOrEmpty(filePath),
         "Expected valid file path, but received %s", filePath);
+    checkNotNull(
+        shardTemplate,
+        "Expected non-null shard pattern. "
+            + "Please call the other constructor to use default pattern: %s",
+        DEFAULT_SHARD_TEMPLATE);
 
     this.expectedChecksum = checksum;
     this.filePath = filePath;
-    this.shardTemplate =
-        Pattern.compile(shardTemplate == null ? DEFAULT_SHARD_TEMPLATE : shardTemplate);
+    this.shardTemplate = shardTemplate;
   }
 
   @Override
@@ -115,7 +137,7 @@ public class FileChecksumMatcher extends TypeSafeMatcher<PipelineResult>
 
     // Verify outputs. Checksum is computed using SHA-1 algorithm
     actualChecksum = computeHash(outputs);
-    LOG.info("Generated checksum: {}", actualChecksum);
+    LOG.debug("Generated checksum: {}", actualChecksum);
 
     return actualChecksum.equals(expectedChecksum);
   }
@@ -130,7 +152,7 @@ public class FileChecksumMatcher extends TypeSafeMatcher<PipelineResult>
       try {
         // Match inputPath which may contains glob
         Collection<String> files = factory.match(filePath);
-        LOG.info("Found {} file(s) by matching the path: {}", files.size(), filePath);
+        LOG.debug("Found {} file(s) by matching the path: {}", files.size(), filePath);
 
         if (files.isEmpty() || !checkTotalNumOfFiles(files)) {
           continue;
@@ -159,7 +181,7 @@ public class FileChecksumMatcher extends TypeSafeMatcher<PipelineResult>
                Channels.newReader(factory.open(file), StandardCharsets.UTF_8.name())) {
         List<String> lines = CharStreams.readLines(reader);
         allLines.addAll(lines);
-        LOG.info(
+        LOG.debug(
             "[{} of {}] Read {} lines from file: {}", i, files.size(), lines.size(), file);
       }
       i++;
@@ -172,10 +194,13 @@ public class FileChecksumMatcher extends TypeSafeMatcher<PipelineResult>
    * is parsed from shard name using a name template. If no template is specified,
    * "SSSS-of-NNNN" will be used as default, and "NNNN" will be the expected total
    * number of files.
+   *
+   * @return {@code true} if at least one shard name matches template and total number
+   * of given files equals the number that is parsed from shard name.
    */
   @VisibleForTesting
   boolean checkTotalNumOfFiles(Collection<String> files) {
-    for (String filePath : files.toArray(new String[0])) {
+    for (String filePath : files) {
       Path fileName = Paths.get(filePath).getFileName();
       if (fileName == null) {
         // this path has zero elements
@@ -187,9 +212,8 @@ public class FileChecksumMatcher extends TypeSafeMatcher<PipelineResult>
         continue;
       }
       // once match, extract total number of shards and compare to file list
-      return files.size() == Integer.parseInt(matcher.group(1));
+      return files.size() == Integer.parseInt(matcher.group("numshards"));
     }
-    LOG.warn("No name matches the shard template: {}", shardTemplate);
     return false;
   }
 

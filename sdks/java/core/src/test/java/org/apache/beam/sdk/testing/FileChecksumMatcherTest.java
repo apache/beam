@@ -29,6 +29,8 @@ import com.google.common.io.Files;
 import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.util.regex.Pattern;
+
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.util.IOChannelFactory;
 import org.apache.beam.sdk.util.IOChannelUtils;
@@ -89,6 +91,18 @@ public class FileChecksumMatcherTest {
   }
 
   @Test
+  public void testPreconditionShardTemplateIsNull() throws IOException {
+    String tmpPath = tmpFolder.newFile().getPath();
+
+    thrown.expect(NullPointerException.class);
+    thrown.expectMessage(
+        containsString(
+            "Expected non-null shard pattern. "
+                + "Please call the other constructor to use default pattern:"));
+    new FileChecksumMatcher("checksumString", tmpPath, null);
+  }
+
+  @Test
   public void testMatcherThatVerifiesSingleFile() throws IOException{
     File tmpFile = tmpFolder.newFile("result-000-of-001");
     Files.write("Test for file checksum verifier.", tmpFile, StandardCharsets.UTF_8);
@@ -135,7 +149,8 @@ public class FileChecksumMatcherTest {
     Files.write("To be or not to be, ", tmpFile1, StandardCharsets.UTF_8);
     Files.write("it is not a question.", tmpFile2, StandardCharsets.UTF_8);
 
-    String customizedTemplate = "result\\d+-total(\\d+)$";
+    Pattern customizedTemplate =
+        Pattern.compile("(?x) result (?<shardnum>\\d+) - total (?<numshards>\\d+)");
     FileChecksumMatcher matcher = new FileChecksumMatcher(
         "90552392c28396935fe4f123bd0b5c2d0f6260c8",
         IOChannelUtils.resolve(tmpFolder.getRoot().getPath(), "*"),
@@ -152,7 +167,7 @@ public class FileChecksumMatcherTest {
     FileChecksumMatcher matcher = new FileChecksumMatcher(
         "mock-checksum",
         IOChannelUtils.resolve(tmpFolder.getRoot().getPath(), "*"),
-        "incorrect-template");
+        Pattern.compile("incorrect-template"));
 
     thrown.expect(IOException.class);
     thrown.expectMessage(
