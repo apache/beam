@@ -32,6 +32,7 @@ from apache_beam.internal.clients import bigquery
 from apache_beam.internal.json_value import to_json_value
 from apache_beam.io.bigquery import RowAsDictJsonCoder
 from apache_beam.io.bigquery import TableRowJsonCoder
+from apache_beam.io.bigquery import parse_table_schema_from_json
 from apache_beam.transforms.display import DisplayData
 from apache_beam.transforms.display_test import DisplayDataItemMatcher
 from apache_beam.utils.options import PipelineOptions
@@ -111,6 +112,27 @@ class TestTableRowJsonCoder(unittest.TestCase):
 
   def test_invalid_json_neg_inf(self):
     self.json_compliance_exception(float('-inf'))
+
+
+class TestTableSchemaParser(unittest.TestCase):
+  def test_parse_table_schema_from_json(self):
+    string_field = bigquery.TableFieldSchema(
+        name='s', type='STRING', mode='NULLABLE', description='s description')
+    number_field = bigquery.TableFieldSchema(
+        name='n', type='INTEGER', mode='REQUIRED', description='n description')
+    record_field = bigquery.TableFieldSchema(
+        name='r', type='RECORD', mode='REQUIRED', description='r description',
+        fields=[string_field, number_field])
+    expected_schema = bigquery.TableSchema(fields=[record_field])
+    json_str = json.dumps({'fields': [
+        {'name': 'r', 'type': 'RECORD', 'mode': 'REQUIRED',
+         'description': 'r description', 'fields': [
+             {'name': 's', 'type': 'STRING', 'mode': 'NULLABLE',
+              'description': 's description'},
+             {'name': 'n', 'type': 'INTEGER', 'mode': 'REQUIRED',
+              'description': 'n description'}]}]})
+    self.assertEqual(parse_table_schema_from_json(json_str),
+                     expected_schema)
 
 
 class TestBigQuerySource(unittest.TestCase):

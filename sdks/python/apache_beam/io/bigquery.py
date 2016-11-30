@@ -200,6 +200,43 @@ class TableRowJsonCoder(coders.Coder):
         f=[bigquery.TableCell(v=to_json_value(e)) for e in od.itervalues()])
 
 
+def parse_table_schema_from_json(schema_string):
+  """Parse the Table Schema provided as string.
+
+  Args:
+    schema_string: String serialized table schema, should be a valid JSON.
+
+  Returns:
+    A TableSchema of the BigQuery export from either the Query or the Table.
+  """
+  json_schema = json.loads(schema_string)
+
+  def _parse_schema_field(field):
+    """Parse a single schema field from dictionary.
+
+    Args:
+      field: Dictionary object containing serialized schema.
+
+    Returns:
+      A TableFieldSchema for a single column in BigQuery.
+    """
+    schema = bigquery.TableFieldSchema()
+    schema.name = field['name']
+    schema.type = field['type']
+    if 'mode' in field:
+      schema.mode = field['mode']
+    else:
+      schema.mode = 'NULLABLE'
+    if 'description' in field:
+      schema.description = field['description']
+    if 'fields' in field:
+      schema.fields = [_parse_schema_field(x) for x in field['fields']]
+    return schema
+
+  fields = [_parse_schema_field(f) for f in json_schema['fields']]
+  return bigquery.TableSchema(fields=fields)
+
+
 class BigQueryDisposition(object):
   """Class holding standard strings used for create and write dispositions."""
 
