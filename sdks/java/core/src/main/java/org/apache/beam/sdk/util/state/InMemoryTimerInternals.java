@@ -21,7 +21,6 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
 
 import com.google.common.base.MoreObjects;
-import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.PriorityQueue;
 import java.util.Set;
@@ -236,20 +235,13 @@ public class InMemoryTimerInternals implements TimerInternals {
       throws Exception {
     checkNotNull(timerCallback);
     PriorityQueue<TimerData> queue = queue(domain);
-    while (true) {
-      ArrayList<TimerData> firedTimers = new ArrayList();
-      while (!queue.isEmpty() && currentTime.isAfter(queue.peek().getTimestamp())) {
-        // Remove before firing, so that if the callback adds another identical
-        // timer we don't remove it.
-        TimerData timer = queue.remove();
-        firedTimers.add(timer);
-        WindowTracing.trace(
-            "InMemoryTimerInternals.advanceAndFire: firing {} at {}", timer, currentTime);
-      }
-      if (firedTimers.isEmpty()) {
-        break;
-      }
-      timerCallback.onTimers(firedTimers);
+    while (!queue.isEmpty() && currentTime.isAfter(queue.peek().getTimestamp())) {
+      // Remove before firing, so that if the callback adds another identical
+      // timer we don't remove it.
+      TimerData timer = queue.remove();
+      WindowTracing.trace(
+          "InMemoryTimerInternals.advanceAndFire: firing {} at {}", timer, currentTime);
+      timerCallback.onTimer(timer);
     }
   }
 }

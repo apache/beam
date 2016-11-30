@@ -54,10 +54,6 @@ public class PaneInfoTracker {
     state.access(PANE_INFO_TAG).clear();
   }
 
-  public void prefetchPaneInfo(ReduceFn<?, ?, ?, ?>.Context context) {
-    context.state().access(PaneInfoTracker.PANE_INFO_TAG).readLater();
-  }
-
   /**
    * Return a ({@link ReadableState} for) the pane info appropriate for {@code context}. The pane
    * info includes the timing for the pane, who's calculation is quite subtle.
