@@ -74,17 +74,29 @@ public class PushbackSideInputDoFnRunner<InputT, OutputT> implements DoFnRunner<
       processElement(elem);
       return Collections.emptyList();
     }
-    ImmutableList.Builder<WindowedValue<InputT>> pushedBack = ImmutableList.builder();
+    ImmutableList.Builder<BoundedWindow> readyWindowsBuilder = ImmutableList.builder();
+    ImmutableList.Builder<BoundedWindow> pushedBackWindowsBuilder = ImmutableList.builder();
     for (WindowedValue<InputT> windowElem : elem.explodeWindows()) {
       BoundedWindow mainInputWindow = Iterables.getOnlyElement(windowElem.getWindows());
       if (isReady(mainInputWindow)) {
-        processElement(windowElem);
+        readyWindowsBuilder.add(mainInputWindow);
       } else {
         notReadyWindows.add(mainInputWindow);
-        pushedBack.add(windowElem);
+        pushedBackWindowsBuilder.add(mainInputWindow);
       }
     }
-    return pushedBack.build();
+    ImmutableList<BoundedWindow> readyWindows = readyWindowsBuilder.build();
+    ImmutableList<BoundedWindow> pushedBackWindows = pushedBackWindowsBuilder.build();
+    if (!readyWindows.isEmpty()) {
+      processElement(
+          WindowedValue.of(
+              elem.getValue(), elem.getTimestamp(), readyWindows, elem.getPane()));
+    }
+    return pushedBackWindows.isEmpty()
+        ? ImmutableList.<WindowedValue<InputT>>of()
+        : ImmutableList.of(
+            WindowedValue.of(
+                elem.getValue(), elem.getTimestamp(), pushedBackWindows, elem.getPane()));
   }
 
   private boolean isReady(BoundedWindow mainInputWindow) {
