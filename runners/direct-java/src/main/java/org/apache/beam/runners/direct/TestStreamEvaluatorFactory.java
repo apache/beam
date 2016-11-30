@@ -94,6 +94,11 @@ class TestStreamEvaluatorFactory implements TransformEvaluatorFactory {
     }
 
     @Override
+    public void startBundle() throws Exception {
+      // No-op.
+    }
+
+    @Override
     public void processElement(WindowedValue<TestStreamIndex<T>> element) throws Exception {
       TestStreamIndex<T> streamIndex = element.getValue();
       List<Event<T>> events = streamIndex.getTestStream().getEvents();

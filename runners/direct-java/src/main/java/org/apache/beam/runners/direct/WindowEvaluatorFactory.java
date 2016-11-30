@@ -85,6 +85,11 @@ class WindowEvaluatorFactory implements TransformEvaluatorFactory {
     }
 
     @Override
+    public void startBundle() throws Exception {
+      // No-op.
+    }
+
+    @Override
     public void processElement(WindowedValue<InputT> compressedElement) throws Exception {
       for (WindowedValue<InputT> element : compressedElement.explodeWindows()) {
         Collection<? extends BoundedWindow> windows = assignWindows(windowFn, element);

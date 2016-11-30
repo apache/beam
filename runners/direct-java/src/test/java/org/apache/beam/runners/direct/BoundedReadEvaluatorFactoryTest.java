@@ -107,6 +107,7 @@ public class BoundedReadEvaluatorFactoryTest {
     for (CommittedBundle<?> shardBundle : initialInputs) {
       TransformEvaluator<?> evaluator =
           factory.forApplication(longs.getProducingTransformInternal(), null);
+      evaluator.startBundle();
       for (WindowedValue<?> shard : shardBundle.getElements()) {
         evaluator.processElement((WindowedValue) shard);
       }
@@ -155,6 +156,7 @@ public class BoundedReadEvaluatorFactoryTest {
       Collection<CommittedBundle<?>> newUnreadInputs = new ArrayList<>();
       for (CommittedBundle<?> shardBundle : unreadInputs) {
         TransformEvaluator<Long> evaluator = factory.forApplication(transform, null);
+        evaluator.startBundle();
         for (WindowedValue<?> shard : shardBundle.getElements()) {
           evaluator.processElement((WindowedValue) shard);
         }
@@ -204,6 +206,7 @@ public class BoundedReadEvaluatorFactoryTest {
     for (CommittedBundle<?> shardBundle : initialInputs) {
       TransformEvaluator<?> evaluator =
           factory.forApplication(transform, null);
+      evaluator.startBundle();
       for (WindowedValue<?> shard : shardBundle.getElements()) {
         evaluator.processElement((WindowedValue) shard);
       }
@@ -272,6 +275,7 @@ public class BoundedReadEvaluatorFactoryTest {
 
     TransformEvaluator<BoundedSourceShard<Long>> evaluator =
         factory.forApplication(longs.getProducingTransformInternal(), shards);
+    evaluator.startBundle();
     for (WindowedValue<BoundedSourceShard<Long>> shard : shards.getElements()) {
       UncommittedBundle<Long> outputBundle = bundleFactory.createBundle(longs);
       when(context.createBundle(longs)).thenReturn(outputBundle);
@@ -307,6 +311,7 @@ public class BoundedReadEvaluatorFactoryTest {
     TransformEvaluator<BoundedSourceShard<Long>> evaluator =
         factory.forApplication(
             sourceTransform, bundleFactory.createRootBundle().commit(Instant.now()));
+    evaluator.startBundle();
     evaluator.processElement(WindowedValue.valueInGlobalWindow(BoundedSourceShard.of(source)));
     evaluator.finishBundle();
     CommittedBundle<Long> committed = output.commit(Instant.now());
@@ -328,6 +333,7 @@ public class BoundedReadEvaluatorFactoryTest {
     TransformEvaluator<BoundedSourceShard<Long>> evaluator =
         factory.forApplication(
             sourceTransform, bundleFactory.createRootBundle().commit(Instant.now()));
+    evaluator.startBundle();
     evaluator.processElement(WindowedValue.valueInGlobalWindow(BoundedSourceShard.of(source)));
     evaluator.finishBundle();
     CommittedBundle<Long> committed = output.commit(Instant.now());

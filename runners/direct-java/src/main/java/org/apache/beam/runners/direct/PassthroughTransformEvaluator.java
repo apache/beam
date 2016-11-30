@@ -37,6 +37,11 @@ class PassthroughTransformEvaluator<InputT> implements TransformEvaluator<InputT
   }
 
   @Override
+  public void startBundle() throws Exception {
+    // No-op.
+  }
+
+  @Override
   public void processElement(WindowedValue<InputT> element) throws Exception {
     output.add(element);
   }

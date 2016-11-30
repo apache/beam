@@ -310,6 +310,7 @@ public class WindowEvaluatorFactoryTest {
         factory.forApplication(
             AppliedPTransform.of("Window", input, windowed, windowTransform), inputBundle);
 
+    evaluator.startBundle();
     evaluator.processElement(valueInGlobalWindow);
     evaluator.processElement(valueInGlobalAndTwoIntervalWindows);
     evaluator.processElement(valueInIntervalWindow);

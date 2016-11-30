@@ -74,6 +74,11 @@ class ViewEvaluatorFactory implements TransformEvaluatorFactory {
       private final List<WindowedValue<InT>> elements = new ArrayList<>();
 
       @Override
+      public void startBundle() throws Exception {
+        // No-op.
+      }
+
+      @Override
       public void processElement(WindowedValue<Iterable<InT>> element) {
         for (InT input : element.getValue()) {
           elements.add(element.withValue(input));

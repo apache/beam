@@ -120,6 +120,11 @@ class GroupByKeyOnlyEvaluatorFactory implements TransformEvaluatorFactory {
     }
 
     @Override
+    public void startBundle() throws Exception {
+      // No-op.
+    }
+
+    @Override
     public void processElement(WindowedValue<KV<K, V>> element) {
       KV<K, V> kv = element.getValue();
       K key = kv.getKey();

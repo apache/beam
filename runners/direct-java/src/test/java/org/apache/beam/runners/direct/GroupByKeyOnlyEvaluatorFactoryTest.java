@@ -93,6 +93,8 @@ public class GroupByKeyOnlyEvaluatorFactoryTest {
             .forApplication(
                 groupedKvs.getProducingTransformInternal(), inputBundle);
 
+    evaluator.startBundle();
+
     evaluator.processElement(WindowedValue.valueInGlobalWindow(firstFoo));
     evaluator.processElement(WindowedValue.valueInGlobalWindow(secondFoo));
     evaluator.processElement(WindowedValue.valueInGlobalWindow(thirdFoo));

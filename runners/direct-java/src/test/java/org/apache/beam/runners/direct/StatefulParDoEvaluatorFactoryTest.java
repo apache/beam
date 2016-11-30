@@ -275,6 +275,7 @@ public class StatefulParDoEvaluatorFactoryTest implements Serializable {
             .commit(Instant.now());
     TransformEvaluator<KV<String, Iterable<Integer>>> evaluator =
         factory.forApplication(producingTransform, inputBundle);
+    evaluator.startBundle();
     evaluator.processElement(gbkOutputElement);
 
     // This should push back every element as a KV<String, Iterable<Integer>>

@@ -77,6 +77,7 @@ public class ViewEvaluatorFactoryTest {
         new ViewEvaluatorFactory(context)
             .forApplication(view.getProducingTransformInternal(), inputBundle);
 
+    evaluator.startBundle();
     evaluator.processElement(
         WindowedValue.<Iterable<String>>valueInGlobalWindow(ImmutableList.of("foo", "bar")));
     assertThat(viewWriter.latest, nullValue());

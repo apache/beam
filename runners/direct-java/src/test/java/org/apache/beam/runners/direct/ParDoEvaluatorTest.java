@@ -109,6 +109,7 @@ public class ParDoEvaluatorTest {
             ImmutableList.of(nonGlobalWindow, GlobalWindow.INSTANCE),
             PaneInfo.NO_FIRING);
 
+    evaluator.startBundle();
     evaluator.processElement(first);
     evaluator.processElement(second);
     evaluator.processElement(third);
