@@ -54,6 +54,7 @@
                 <configuration>
                   <groups>org.apache.beam.sdk.testing.RunnableOnService</groups>
                   <excludedGroups>org.apache.beam.sdk.testing.UsesStatefulParDo</excludedGroups>
+                  <excludedGroups>org.apache.beam.sdk.testing.UsesSplittableParDo</excludedGroups>
                   <parallel>none</parallel>
                   <failIfNoTests>true</failIfNoTests>
                   <dependenciesToScan>

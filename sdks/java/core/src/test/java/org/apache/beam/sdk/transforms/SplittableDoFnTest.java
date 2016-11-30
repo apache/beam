@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.direct;
+package org.apache.beam.sdk.transforms;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
@@ -32,14 +32,10 @@ import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.testing.PAssert;
+import org.apache.beam.sdk.testing.RunnableOnService;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestStream;
-import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.GroupByKey;
-import org.apache.beam.sdk.transforms.Keys;
-import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.View;
+import org.apache.beam.sdk.testing.UsesSplittableParDo;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
@@ -56,14 +52,12 @@ import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.joda.time.MutableDateTime;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 /**
- * Tests for <a href="https://s.apache.org/splittable-do-fn>splittable</a> {@link DoFn} behavior
- * using the direct runner.
- *
- * <p>TODO: make this use @RunnableOnService.
+ * Tests for <a href="https://s.apache.org/splittable-do-fn>splittable</a> {@link DoFn} behavior.
  */
 @RunWith(JUnit4.class)
 public class SplittableDoFnTest {
@@ -155,9 +149,9 @@ public class SplittableDoFnTest {
   }
 
   @Test
+  @Category({RunnableOnService.class, UsesSplittableParDo.class})
   public void testPairWithIndexBasic() {
     Pipeline p = TestPipeline.create();
-    p.getOptions().setRunner(DirectRunner.class);
     PCollection<KV<String, Integer>> res =
         p.apply(Create.of("a", "bb", "ccccc"))
             .apply(ParDo.of(new PairStringWithIndexToLength()))
@@ -179,11 +173,11 @@ public class SplittableDoFnTest {
   }
 
   @Test
+  @Category({RunnableOnService.class, UsesSplittableParDo.class})
   public void testPairWithIndexWindowedTimestamped() {
     // Tests that Splittable DoFn correctly propagates windowing strategy, windows and timestamps
     // of elements in the input collection.
     Pipeline p = TestPipeline.create();
-    p.getOptions().setRunner(DirectRunner.class);
 
     MutableDateTime mutableNow = Instant.now().toMutableDateTime();
     mutableNow.setMillisOfSecond(0);
@@ -267,9 +261,9 @@ public class SplittableDoFnTest {
   }
 
   @Test
+  @Category({RunnableOnService.class, UsesSplittableParDo.class})
   public void testSideInputsAndOutputs() throws Exception {
     Pipeline p = TestPipeline.create();
-    p.getOptions().setRunner(DirectRunner.class);
 
     PCollectionView<String> sideInput =
         p.apply("side input", Create.of("foo")).apply(View.<String>asSingleton());
@@ -294,9 +288,9 @@ public class SplittableDoFnTest {
   }
 
   @Test
+  @Category({RunnableOnService.class, UsesSplittableParDo.class})
   public void testLateData() throws Exception {
     Pipeline p = TestPipeline.create();
-    p.getOptions().setRunner(DirectRunner.class);
 
     Instant base = Instant.now();
 
@@ -389,9 +383,9 @@ public class SplittableDoFnTest {
   }
 
   @Test
+  @Category({RunnableOnService.class, UsesSplittableParDo.class})
   public void testLifecycleMethods() throws Exception {
     Pipeline p = TestPipeline.create();
-    p.getOptions().setRunner(DirectRunner.class);
 
     PCollection<String> res =
         p.apply(Create.of("a", "b", "c")).apply(ParDo.of(new SDFWithLifecycle()));
