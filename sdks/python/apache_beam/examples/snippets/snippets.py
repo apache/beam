@@ -915,6 +915,15 @@ def model_bigqueryio():
           query='SELECT year, mean_temp FROM samples.weather_stations'))
   # [END model_bigqueryio_query]
 
+  # [START model_bigqueryio_query_standard_sql]
+  p = beam.Pipeline(options=PipelineOptions())
+  weather_data = p | beam.io.Read(
+      'ReadYearAndTemp',
+      beam.io.BigQuerySource(
+          query='SELECT year, mean_temp FROM `samples.weather_stations`',
+          use_legacy_sql=False))
+  # [END model_bigqueryio_query_standard_sql]
+
   # [START model_bigqueryio_schema]
   schema = 'source:STRING, quote:STRING'
   # [END model_bigqueryio_schema]
