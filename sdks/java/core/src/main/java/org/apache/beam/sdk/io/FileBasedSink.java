@@ -41,6 +41,8 @@ import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.ValueProvider;
+import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.util.IOChannelFactory;
 import org.apache.beam.sdk.util.IOChannelUtils;
@@ -135,7 +137,7 @@ public abstract class FileBasedSink<T> extends Sink<T> {
   /**
    * Base filename for final output files.
    */
-  protected final String baseOutputFilename;
+  protected final ValueProvider<String> baseOutputFilename;
 
   /**
    * The extension to be used for the final output files.
@@ -162,7 +164,8 @@ public abstract class FileBasedSink<T> extends Sink<T> {
    */
   public FileBasedSink(String baseOutputFilename, String extension,
       WritableByteChannelFactory writableByteChannelFactory) {
-    this(baseOutputFilename, extension, ShardNameTemplate.INDEX_OF_MAX, writableByteChannelFactory);
+    this(StaticValueProvider.of(baseOutputFilename), extension,
+        ShardNameTemplate.INDEX_OF_MAX, writableByteChannelFactory);
   }
 
   /**
@@ -173,7 +176,8 @@ public abstract class FileBasedSink<T> extends Sink<T> {
    * <p>See {@link ShardNameTemplate} for a description of file naming templates.
    */
   public FileBasedSink(String baseOutputFilename, String extension, String fileNamingTemplate) {
-    this(baseOutputFilename, extension, fileNamingTemplate, CompressionType.UNCOMPRESSED);
+    this(StaticValueProvider.of(baseOutputFilename), extension, fileNamingTemplate,
+        CompressionType.UNCOMPRESSED);
   }
 
   /**
@@ -182,8 +186,8 @@ public abstract class FileBasedSink<T> extends Sink<T> {
    *
    * <p>See {@link ShardNameTemplate} for a description of file naming templates.
    */
-  public FileBasedSink(String baseOutputFilename, String extension, String fileNamingTemplate,
-      WritableByteChannelFactory writableByteChannelFactory) {
+  public FileBasedSink(ValueProvider<String> baseOutputFilename, String extension,
+      String fileNamingTemplate, WritableByteChannelFactory writableByteChannelFactory) {
     this.writableByteChannelFactory = writableByteChannelFactory;
     this.baseOutputFilename = baseOutputFilename;
     if (!isNullOrEmpty(writableByteChannelFactory.getFilenameSuffix())) {
@@ -198,7 +202,7 @@ public abstract class FileBasedSink<T> extends Sink<T> {
    * Returns the base output filename for this file based sink.
    */
   public String getBaseOutputFilename() {
-    return baseOutputFilename;
+    return baseOutputFilename.get();
   }
 
   @Override
@@ -216,7 +220,8 @@ public abstract class FileBasedSink<T> extends Sink<T> {
     super.populateDisplayData(builder);
 
     String fileNamePattern = String.format("%s%s%s",
-        baseOutputFilename, fileNamingTemplate, getFileExtension(extension));
+        baseOutputFilename.isAccessible() ? baseOutputFilename.get() : baseOutputFilename.toString(),
+        fileNamingTemplate, getFileExtension(extension));
     builder.add(DisplayData.item("fileNamePattern", fileNamePattern)
       .withLabel("File Name Pattern"));
   }
@@ -420,7 +425,7 @@ public abstract class FileBasedSink<T> extends Sink<T> {
     protected final List<String> generateDestinationFilenames(int numFiles) {
       List<String> destFilenames = new ArrayList<>();
       String extension = getSink().extension;
-      String baseOutputFilename = getSink().baseOutputFilename;
+      String baseOutputFilename = getSink().baseOutputFilename.get();
       String fileNamingTemplate = getSink().fileNamingTemplate;
 
       String suffix = getFileExtension(extension);
