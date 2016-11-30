@@ -1678,6 +1678,9 @@ public class BigQueryIO {
 
       @Override
       public void validate(PCollection<TableRow> input) {
+        if (!validate) {
+          return;
+        }
         BigQueryOptions options = input.getPipeline().getOptions().as(BigQueryOptions.class);
 
         // Exactly one of the table and table reference can be configured.
@@ -1695,7 +1698,7 @@ public class BigQueryIO {
             "CreateDisposition is CREATE_IF_NEEDED, however no schema was provided.");
 
         // The user specified a table.
-        if (jsonTableRef != null && validate) {
+        if (jsonTableRef != null) {
           TableReference table = getTableWithDefaultProject(options);
 
           DatasetService datasetService = getBigQueryServices().getDatasetService(options);
@@ -2445,7 +2448,7 @@ public class BigQueryIO {
           // Another thread may have succeeded in creating the table in the meanwhile, so
           // check again. This check isn't needed for correctness, but we add it to prevent
           // every thread from attempting a create and overwhelming our BigQuery quota.
-          if (!createdTables.contains(tableSpec)) {
+          if (!createdTables.contains(tableSpec) && jsonTableSchema != null) {
             TableSchema tableSchema = JSON_FACTORY.fromString(jsonTableSchema, TableSchema.class);
             Bigquery client = Transport.newBigQueryClient(options).build();
             BigQueryTableInserter inserter = new BigQueryTableInserter(client, options);
