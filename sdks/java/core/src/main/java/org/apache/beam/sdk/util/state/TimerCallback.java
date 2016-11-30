@@ -19,16 +19,17 @@ package org.apache.beam.sdk.util.state;
 
 import org.apache.beam.sdk.util.TimerInternals;
 
+
 /**
- * A callback that processes a {@link TimerInternals.TimerData TimerData}.
+ * A callback that processes an Iterable of {@link TimerInternals.TimerData TimerData}.
  */
 public interface TimerCallback {
-  /** Processes the {@link TimerInternals.TimerData TimerData}. */
-  void onTimer(TimerInternals.TimerData timer) throws Exception;
+  /** Processes an Iterable of {@link TimerInternals.TimerData TimerData}. */
+  void onTimers(Iterable<TimerInternals.TimerData> timers) throws Exception;
 
   TimerCallback NO_OP = new TimerCallback() {
     @Override
-    public void onTimer(TimerInternals.TimerData timer) throws Exception {
+    public void onTimers(Iterable<TimerInternals.TimerData> timers) throws Exception {
       // Nothing
     }
   };
