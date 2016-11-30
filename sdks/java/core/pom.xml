@@ -84,6 +84,192 @@
         <artifactId>maven-jar-plugin</artifactId>
       </plugin>
 
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-shade-plugin</artifactId>
+
+        <!--
+        This configuration bundles the SDK with all of its
+        dependencies, as follows:
+
+         - If a dependency makes up part of the SDK's API surface (for
+           examples, joda-time and BigQuery's TableRow) then the
+           class is included in the bundled SDK.
+         - If a dependency is merely used by the SDK as a private implementation
+           detail, the class is included in a repackaged form so it will
+           never cause a conflict with any other user or library's
+           dependencies.
+
+        In the first execution, all of the repackaged dependencies are
+        bundled in a minimized jar. Because they are an implementation
+        detail, this should not be observable.
+
+        In the second execution, all of the dependencies that are part of
+        the SDK's API surface are included fully. This ensures that if any
+        class overrides something on the class path, all of the other classes
+        from that version of its library are also overridden.
+        -->
+        <executions>
+
+          <!-- Bundle all repackaged implementation detail dependencies -->
+          <execution>
+            <id>bundle-and-repackage</id>
+            <phase>package</phase>
+            <goals>
+              <goal>shade</goal>
+            </goals>
+            <configuration>
+              <shadeTestJar>true</shadeTestJar>
+              <artifactSet>
+                <!-- This excludes all API surface libraries from repackaging.
+                     The list should be complete, even if some of the entries
+                     do not match a relocation pattern. -->
+                <excludes>
+                  <exclude>com.google.api-client:google-api-client</exclude>
+                  <exclude>com.google.apis:google-api-services-bigquery</exclude>
+                  <exclude>com.google.apis:google-api-services-dataflow</exclude>
+                  <exclude>com.google.apis:google-api-services-pubsub</exclude>
+                  <exclude>com.google.apis:google-api-services-storage</exclude>
+                  <exclude>com.google.auto.service:auto-service</exclude>
+                  <exclude>com.google.code.findbugs:jsr305</exclude>
+                  <exclude>com.google.http-client:google-http-client</exclude>
+                  <exclude>com.google.http-client:google-http-client-jackson2</exclude>
+                  <exclude>com.google.oauth-client:google-oauth-client</exclude>
+                  <exclude>com.google.protobuf:protobuf-java</exclude>
+                  <exclude>com.fasterxml.jackson.core:jackson-annotation</exclude>
+                  <exclude>com.fasterxml.jackson.core:jackson-core</exclude>
+                  <exclude>com.fasterxml.jackson.core:jackson-databind</exclude>
+                  <exclude>joda-time:joda-time</exclude>
+                  <exclude>junit:junit</exclude>
+                  <exclude>org.apache.avro:avro</exclude>
+                  <exclude>org.hamcrest:hamcrest-all</exclude>
+                  <exclude>org.slf4j:slf4j-api</exclude>
+                  <exclude>org.xerial:snappy-java</exclude>
+                </excludes>
+              </artifactSet>
+              <filters>
+                <filter>
+                  <artifact>*:*</artifact>
+                  <excludes>
+                    <exclude>META-INF/*.SF</exclude>
+                    <exclude>META-INF/*.DSA</exclude>
+                    <exclude>META-INF/*.RSA</exclude>
+                  </excludes>
+                </filter>
+              </filters>
+              <!--
+              What we really want is to repackage "" to
+              "org.apache.beam.sdk.private" but the
+              implementation of the shade plugin the relocates
+              non-class files as well (and fails to join directory
+              names witha "/").
+
+              Instead, we have a separate toplevel relocation for
+              every root package prefix in our dependencies.
+
+              Additionally, inclusion/exclusion in the jar is independent of
+              the rewriting of other class files, so we must still exclude
+              the packages from all of the API surface dependencies here.
+              -->
+              <relocations>
+                <relocation>
+                  <pattern>com.</pattern>
+                  <shadedPattern>org.apache.beam.sdk.private.com.</shadedPattern>
+                  <excludes>
+                    <exclude>com.google.api.client.**</exclude>
+                    <exclude>com.google.api.services.bigquery.**</exclude>
+                    <exclude>com.google.api.services.dataflow.**</exclude>
+                    <exclude>com.google.api.services.pubsub.**</exclude>
+                    <exclude>com.google.api.services.storage.**</exclude>
+                    <exclude>com.google.cloud.dataflow.**</exclude>
+                    <exclude>com.google.protobuf.**</exclude>
+                    <exclude>com.fasterxml.jackson.**</exclude>
+                  </excludes>
+                </relocation>
+                <relocation>
+                  <pattern>io.</pattern>
+                  <shadedPattern>org.apache.beam.sdk.private.io.</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>okio.</pattern>
+                  <shadedPattern>org.apache.beam.sdk.private.okio.</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>org.</pattern>
+                  <shadedPattern>org.apache.beam.sdk.private.org.</shadedPattern>
+                  <excludes>
+                    <exclude>org.apache.avro.**</exclude>
+                    <exclude>org.apache.beam.**</exclude>
+                    <exclude>org.hamcrest.**</exclude>
+                    <exclude>org.joda.time.**</exclude>
+                    <exclude>org.junit.**</exclude>
+                    <exclude>org.slf4j.**</exclude>
+                    <exclude>org.w3c.dom.**</exclude>
+                    <exclude>org.xerial.snappy.**</exclude>
+                  </excludes>
+                </relocation>
+                <relocation>
+                  <pattern>javax.</pattern>
+                  <shadedPattern>org.apache.beam.sdk.private.javax.</shadedPattern>
+                  <excludes>
+                    <exclude>javax.annotion</exclude>
+                  </excludes>
+                </relocation>
+              </relocations>
+            </configuration>
+          </execution>
+
+          <!-- Bundle all remaining dependencies without repackaging -->
+          <execution>
+            <id>bundle-rest-without-repackaging</id>
+            <phase>package</phase>
+            <goals>
+              <goal>shade</goal>
+            </goals>
+            <configuration>
+              <shadeTestJar>true</shadeTestJar>
+              <finalName>${project.artifactId}-bundled-${project.version}</finalName>
+              <artifactSet>
+                <!-- This includes all API surface libraries, which were
+                     excluded from repackaging. The list should be complete,
+                     identical to the exclusions from the prior execution.
+                -->
+                <includes>
+                  <include>com.google.api-client:google-api-client</include>
+                  <include>com.google.apis:google-api-services-bigquery</include>
+                  <include>com.google.apis:google-api-services-dataflow</include>
+                  <include>com.google.apis:google-api-services-pubsub</include>
+                  <include>com.google.apis:google-api-services-storage</include>
+                  <include>com.google.auto.service:auto-service</include>
+                  <include>com.google.code.findbugs:jsr305</include>
+                  <include>com.google.http-client:google-http-client</include>
+                  <include>com.google.http-client:google-http-client-jackson2</include>
+                  <include>com.google.oauth-client:google-oauth-client</include>
+                  <include>com.google.protobuf:protobuf-java</include>
+                  <include>com.fasterxml.jackson.core:jackson-annotation</include>
+                  <include>com.fasterxml.jackson.core:jackson-core</include>
+                  <include>com.fasterxml.jackson.core:jackson-databind</include>
+                  <include>joda-time:joda-time</include>
+                  <include>org.apache.avro:avro</include>
+                  <include>org.slf4j:slf4j-api</include>
+                  <include>org.xerial:snappy-java</include>
+                </includes>
+              </artifactSet>
+              <filters>
+                <filter>
+                  <artifact>*:*</artifact>
+                  <excludes>
+                    <exclude>META-INF/*.SF</exclude>
+                    <exclude>META-INF/*.DSA</exclude>
+                    <exclude>META-INF/*.RSA</exclude>
+                  </excludes>
+                </filter>
+              </filters>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+
       <!-- Coverage analysis for unit tests. -->
       <plugin>
         <groupId>org.jacoco</groupId>
