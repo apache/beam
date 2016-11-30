@@ -145,7 +145,8 @@ def read_from_datastore(project, user_options, pipeline_options):
 
   # Write the output using a "Write" transform that has side effects.
   # pylint: disable=expression-not-assigned
-  output | 'write' >> beam.io.Write(beam.io.TextFileSink(user_options.output))
+  output | 'write' >> beam.io.WriteToText(file_path_prefix=user_options.output,
+                                          num_shards=user_options.num_shards)
 
   # Actually run the pipeline (all operations above are deferred).
   return p.run()
@@ -177,6 +178,12 @@ def run(argv=None):
   parser.add_argument('--read_only',
                       action='store_true',
                       help='Read an existing dataset, do not write first')
+  parser.add_argument('--num_shards',
+                      dest='num_shards',
+                      type=int,
+                      # If the system should choose automatically.
+                      default=0,
+                      help='Number of output shards')
 
   known_args, pipeline_args = parser.parse_known_args(argv)
   # We use the save_main_session option because one or more DoFn's in this
