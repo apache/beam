@@ -411,7 +411,7 @@ class DataflowApplicationClient(object):
       self.stage_file(gcs_or_local_path, file_name, StringIO(job.json()))
 
     if not template_location:
-      self.submit_job_description()
+      return self.submit_job_description()
 
   def create_job_description(self, job):
     """Creates a job described by the workflow proto."""
