@@ -17,22 +17,28 @@
  */
 package org.apache.beam.runners.spark.io;
 
+import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
 
 /**
- * Get RDD storage level (for testing purpose only).
- * Some features, such as {@link org.apache.spark.storage.StorageLevel}, can only be tested via
- * {@link PTransform} and custom evaluators. So, while this is a test-only evaluator, it has to be
- * part of the {@link org.apache.beam.runners.spark.translation.TransformTranslator}, but should
- * not be used in applicative pipelines.
+ * Get RDD storage level for the input PCollection (mostly used for testing purpose).
  */
-public final class TestStorageLevelPTransform extends PTransform<PCollection<?>, PDone> {
+public final class StorageLevelPTransform extends PTransform<PCollection<?>, PCollection<String>> {
 
   @Override
-  public PDone apply(PCollection<?> input) {
-    return PDone.in(input.getPipeline());
+  public PCollection<String> apply(PCollection<?> input) {
+    return PCollection.createPrimitiveOutputInternal(input.getPipeline(),
+        WindowingStrategy.globalDefault(),
+        PCollection.IsBounded.BOUNDED);
+  }
+
+  @Override
+  public Coder getDefaultOutputCoder() {
+    return StringUtf8Coder.of();
   }
 
 }

@@ -17,9 +17,10 @@
  */
 package org.apache.beam.runners.spark.translation;
 
-import org.apache.beam.runners.spark.io.TestStorageLevelPTransform;
+import org.apache.beam.runners.spark.io.StorageLevelPTransform;
 import org.apache.beam.runners.spark.translation.streaming.utils.SparkTestPipelineOptions;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.values.PCollection;
@@ -46,7 +47,9 @@ public class StorageLevelTest {
     // That's why we are using Count fn on the PCollection.
     pCollection.apply(Count.<String>globally());
 
-    pCollection.apply(new TestStorageLevelPTransform());
+    PCollection<String> output = pCollection.apply(new StorageLevelPTransform());
+
+    PAssert.thatSingleton(output).isEqualTo("Disk Serialized 1x Replicated");
 
     p.run();
   }

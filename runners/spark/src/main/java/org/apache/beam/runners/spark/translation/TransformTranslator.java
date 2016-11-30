@@ -26,6 +26,8 @@ import static org.apache.beam.runners.spark.io.hadoop.ShardNameBuilder.replaceSh
 
 import com.google.common.collect.Maps;
 import java.io.IOException;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.Map;
 import org.apache.avro.mapred.AvroKey;
 import org.apache.avro.mapreduce.AvroJob;
@@ -35,8 +37,9 @@ import org.apache.beam.runners.spark.SparkPipelineOptions;
 import org.apache.beam.runners.spark.SparkRunner;
 import org.apache.beam.runners.spark.aggregators.AccumulatorSingleton;
 import org.apache.beam.runners.spark.aggregators.NamedAggregators;
+import org.apache.beam.runners.spark.coders.CoderHelpers;
 import org.apache.beam.runners.spark.io.SourceRDD;
-import org.apache.beam.runners.spark.io.TestStorageLevelPTransform;
+import org.apache.beam.runners.spark.io.StorageLevelPTransform;
 import org.apache.beam.runners.spark.io.hadoop.HadoopIO;
 import org.apache.beam.runners.spark.io.hadoop.ShardNameTemplateHelper;
 import org.apache.beam.runners.spark.io.hadoop.TemplatedAvroKeyOutputFormat;
@@ -44,6 +47,7 @@ import org.apache.beam.runners.spark.io.hadoop.TemplatedTextOutputFormat;
 import org.apache.beam.runners.spark.util.BroadcastHelper;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.AvroIO;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.io.TextIO;
@@ -588,15 +592,22 @@ public final class TransformTranslator {
     };
   }
 
-  private static TransformEvaluator<TestStorageLevelPTransform> testStorageLevel() {
-    return new TransformEvaluator<TestStorageLevelPTransform>() {
+  private static TransformEvaluator<StorageLevelPTransform> storageLevel() {
+    return new TransformEvaluator<StorageLevelPTransform>() {
       @Override
-      public void evaluate(TestStorageLevelPTransform transform, EvaluationContext context) {
+      public void evaluate(StorageLevelPTransform transform, EvaluationContext context) {
         JavaRDD rdd = ((BoundedDataset) (context).borrowDataset(transform)).getRDD();
-        String pipelineStorageLevel = context.getRuntimeContext().getPipelineOptions()
-            .as(SparkPipelineOptions.class).getStorageLevel();
-        StorageLevel expectedLevel = StorageLevel.fromString(pipelineStorageLevel);
-        Assert.assertEquals(expectedLevel, rdd.getStorageLevel());
+        JavaSparkContext javaSparkContext = context.getSparkContext();
+
+        WindowedValue.ValueOnlyWindowedValueCoder<String> windowCoder =
+            WindowedValue.getValueOnlyCoder(StringUtf8Coder.of());
+        JavaRDD output =
+            javaSparkContext.parallelize(
+                CoderHelpers.toByteArrays(Arrays.asList(rdd.getStorageLevel().description()),
+                    StringUtf8Coder.of()))
+            .map(CoderHelpers.fromByteFunction(windowCoder));
+
+        context.putDataset(transform, new BoundedDataset<String>(output));
       }
     };
   }
@@ -620,10 +631,8 @@ public final class TransformTranslator {
     EVALUATORS.put(View.AsIterable.class, viewAsIter());
     EVALUATORS.put(View.CreatePCollectionView.class, createPCollView());
     EVALUATORS.put(Window.Bound.class, window());
-
-    // Test evaluators
-    // The following evaluators are only used for internal tests
-    EVALUATORS.put(TestStorageLevelPTransform.class, testStorageLevel());
+    // mostly test evaluators
+    EVALUATORS.put(StorageLevelPTransform.class, storageLevel());
   }
 
   /**
