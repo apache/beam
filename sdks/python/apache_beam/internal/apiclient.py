@@ -412,6 +412,8 @@ class DataflowApplicationClient(object):
 
     if not template_location:
       return self.submit_job_description()
+    else:
+      return None
 
   def create_job_description(self, job):
     """Creates a job described by the workflow proto."""
