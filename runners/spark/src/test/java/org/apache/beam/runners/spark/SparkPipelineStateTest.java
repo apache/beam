@@ -22,13 +22,13 @@ import static org.hamcrest.CoreMatchers.instanceOf;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.nullValue;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.fail;
 
 import com.google.common.collect.Lists;
 
 import java.io.Serializable;
 import java.util.Arrays;
 import java.util.List;
-import java.util.concurrent.TimeoutException;
 
 import org.apache.beam.runners.spark.io.CreateStream;
 import org.apache.beam.runners.spark.translation.streaming.utils.SparkTestPipelineOptions;
@@ -137,7 +137,10 @@ public class SparkPipelineStateTest implements Serializable {
       assertThat(e.getCause().getCause(), instanceOf(UserException.class));
       assertThat(e.getCause().getCause().getMessage(), is(FAILED_THE_BATCH_INTENTIONALLY));
       assertThat(result.getState(), is(PipelineResult.State.FAILED));
+      return;
     }
+
+    fail("An injected failure did not affect the pipeline as expected.");
   }
 
   private void testTimeoutPipeline(SparkPipelineOptions options) throws Exception {
@@ -146,12 +149,9 @@ public class SparkPipelineStateTest implements Serializable {
 
     SparkPipelineResult result = (SparkPipelineResult) pipeline.run();
 
-    try {
-      result.waitUntilFinish(Duration.millis(1));
-    } catch (Exception e) {
-      assertThat(e.getCause(), instanceOf(TimeoutException.class));
-      assertThat(result.getState(), nullValue());
-    }
+    result.waitUntilFinish(Duration.millis(1));
+
+    assertThat(result.getState(), nullValue());
   }
 
   private void testCanceledPipeline(SparkPipelineOptions options) throws Exception {
@@ -161,6 +161,7 @@ public class SparkPipelineStateTest implements Serializable {
     SparkPipelineResult result = (SparkPipelineResult) pipeline.run();
 
     result.cancel();
+
     assertThat(result.getState(), is(PipelineResult.State.CANCELLED));
   }
 
