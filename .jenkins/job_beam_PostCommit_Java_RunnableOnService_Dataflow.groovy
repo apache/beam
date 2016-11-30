@@ -23,6 +23,8 @@ import common_job_properties
 mavenJob('beam_PostCommit_Java_RunnableOnService_Dataflow') {
   description('Runs the RunnableOnService suite on the Dataflow runner.')
 
+  previousNames('beam_PostCommit_RunnableOnService_GoogleCloudDataflow')
+
   // Set common parameters.
   common_job_properties.setTopLevelJobProperties(delegate)
 

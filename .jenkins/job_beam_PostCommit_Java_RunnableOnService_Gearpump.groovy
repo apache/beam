@@ -23,6 +23,8 @@ import common_job_properties
 mavenJob('beam_PostCommit_Java_RunnableOnService_Gearpump') {
   description('Runs the RunnableOnService suite on the Gearpump runner.')
 
+  previousNames('beam_PostCommit_RunnableOnService_GearpumpLocal')
+
   // Set common parameters.
   common_job_properties.setTopLevelJobProperties(delegate, 'gearpump-runner')
 

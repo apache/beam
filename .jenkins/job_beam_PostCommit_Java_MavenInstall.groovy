@@ -23,6 +23,8 @@ import common_job_properties
 mavenJob('beam_PostCommit_Java_MavenInstall') {
   description('Runs postcommit tests on the Java SDK.')
 
+  previousNames('beam_PostCommit_MavenVerify')
+
   // Execute concurrent builds if necessary.
   concurrentBuild()
 

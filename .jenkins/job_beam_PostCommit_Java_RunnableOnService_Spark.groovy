@@ -22,6 +22,8 @@ import common_job_properties
 mavenJob('beam_PostCommit_Java_RunnableOnService_Spark') {
   description('Runs the RunnableOnService suite on the Spark runner.')
 
+  previousNames('beam_PostCommit_RunnableOnService_SparkLocal')
+
   // Set common parameters.
   common_job_properties.setTopLevelJobProperties(delegate)
 

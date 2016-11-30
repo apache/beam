@@ -23,6 +23,8 @@ import common_job_properties
 mavenJob('beam_PreCommit_Java_MavenInstall') {
   description('Runs an install of the current GitHub Pull Request.')
 
+  previousNames('beam_PreCommit_MavenVerify')
+
   // Set common parameters.
   common_job_properties.setTopLevelJobProperties(delegate)
 

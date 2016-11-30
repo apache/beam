@@ -22,6 +22,8 @@ import common_job_properties
 mavenJob('beam_PostCommit_Java_RunnableOnService_Flink') {
   description('Runs the RunnableOnService suite on the Flink runner.')
 
+  previousNames('beam_PostCommit_RunnableOnService_FlinkLocal')
+
   // Set common parameters.
   common_job_properties.setTopLevelJobProperties(delegate)
 

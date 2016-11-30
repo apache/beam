@@ -22,6 +22,8 @@ import common_job_properties
 job('beam_PostCommit_Python_Verify') {
   description('Runs postcommit tests on the Python SDK.')
 
+  previousNames('beam_PostCommit_PythonVerify')
+
   // Set common parameters.
   common_job_properties.setTopLevelJobProperties(delegate, 'python-sdk')
 
