@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.util;
 
 import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.hamcrest.Matchers.emptyIterable;
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertThat;
 
@@ -60,6 +61,15 @@ public class WindowedValueTest {
     Assert.assertEquals(value.getValue(), decodedValue.getValue());
     Assert.assertEquals(value.getTimestamp(), decodedValue.getTimestamp());
     Assert.assertArrayEquals(value.getWindows().toArray(), decodedValue.getWindows().toArray());
+  }
+
+  @Test
+  public void testExplodeWindowsInNoWindowsEmptyIterable() {
+    WindowedValue<String> value =
+        WindowedValue.of(
+            "foo", Instant.now(), ImmutableList.<BoundedWindow>of(), PaneInfo.NO_FIRING);
+
+    assertThat(value.explodeWindows(), emptyIterable());
   }
 
   @Test
