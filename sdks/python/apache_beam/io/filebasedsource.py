@@ -188,11 +188,12 @@ class FileBasedSource(iobase.BoundedSource):
 
   def estimate_size(self):
     file_names = [f for f in fileio.ChannelFactory.glob(self._pattern)]
+    # We're reading very few files so we can pass names file names to
+    # _estimate_sizes_of_files without pattern as otherwise we'll try to do
+    # optimization based on the pattern and might end up reading much more
+    # data than needed for a few files.
     if (len(file_names) <=
         FileBasedSource.MIN_NUMBER_OF_FILES_TO_STAT):
-      # We're reading very few files so we can pass names without pattern
-      # as otherwise we'll try to do optimization based on the pattern and
-      # might end up reading much more data than needed for a few files.
       return sum(self._estimate_sizes_of_files(file_names))
     else:
       # Estimating size of a random sample.
@@ -202,10 +203,8 @@ class FileBasedSource(iobase.BoundedSource):
                         int(len(file_names) *
                             FileBasedSource.MIN_FRACTION_OF_FILES_TO_STAT))
       sample = random.sample(file_names, sample_size)
-      estimate = self._estimate_sizes_of_files(sample, self._pattern)
-      return int(
-          sum(estimate) *
-          (float(len(file_names)) / len(sample)))
+      estimate = self._estimate_sizes_of_files(sample)
+      return int(sum(estimate) * (float(len(file_names)) / len(sample)))
 
   def read(self, range_tracker):
     return self._get_concat_source().read(range_tracker)
