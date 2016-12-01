@@ -426,8 +426,8 @@ public class ApexGroupByKeyOperator<K, V> implements Operator {
   public class ApexTimerInternals implements TimerInternals {
 
     @Override
-    public void setTimer(TimerData timerKey) {
-      registerActiveTimer(context.element().key(), timerKey);
+    public void setTimer(TimerData timerData) {
+      registerActiveTimer(context.element().key(), timerData);
     }
 
     @Override

@@ -53,8 +53,8 @@ class DirectTimerInternals implements TimerInternals {
   }
 
   @Override
-  public void setTimer(TimerData timerKey) {
-    timerUpdateBuilder.setTimer(timerKey);
+  public void setTimer(TimerData timerData) {
+    timerUpdateBuilder.setTimer(timerData);
   }
 
   @Override
