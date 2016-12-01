@@ -513,10 +513,14 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     Job newJob = jobSpecification.getJob();
     newJob.setClientRequestId(requestId);
 
-    String version = ReleaseInfo.getReleaseInfo().getVersion();
+    ReleaseInfo releaseInfo = ReleaseInfo.getReleaseInfo();
+    String version = releaseInfo.getVersion();
+    checkState(
+        !version.equals("${pom.version}"),
+        "Unable to submit a job to the Dataflow service with unset version ${pom.version}");
     System.out.println("Dataflow SDK version: " + version);
 
-    newJob.getEnvironment().setUserAgent(ReleaseInfo.getReleaseInfo());
+    newJob.getEnvironment().setUserAgent(releaseInfo);
     // The Dataflow Service may write to the temporary directory directly, so
     // must be verified.
     if (!isNullOrEmpty(options.getGcpTempLocation())) {
