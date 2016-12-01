@@ -20,13 +20,18 @@ package org.apache.beam.sdk.runners;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
 
+import com.google.common.annotations.VisibleForTesting;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.Pipeline.PipelineVisitor;
+import org.apache.beam.sdk.Pipeline.PipelineVisitor.CompositeBehavior;
+import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
@@ -37,13 +42,13 @@ import org.apache.beam.sdk.values.PValue;
  * associated {@link PValue}s.
  */
 public class TransformHierarchy {
-  private final TransformTreeNode root;
-  private final Map<POutput, TransformTreeNode> producers;
+  private final Node root;
+  private final Map<POutput, Node> producers;
   // Maintain a stack based on the enclosing nodes
-  private TransformTreeNode current;
+  private Node current;
 
   public TransformHierarchy() {
-    root = TransformTreeNode.root(this);
+    root = new Node(null, null, "", null);
     current = root;
     producers = new HashMap<>();
   }
@@ -58,20 +63,22 @@ public class TransformHierarchy {
    *
    * @return the added node
    */
-  public TransformTreeNode pushNode(String name, PInput input, PTransform<?, ?> transform) {
+  public Node pushNode(String name, PInput input, PTransform<?, ?> transform) {
     checkNotNull(
         transform, "A %s must be provided for all Nodes", PTransform.class.getSimpleName());
     checkNotNull(
         name, "A name must be provided for all %s Nodes", PTransform.class.getSimpleName());
     checkNotNull(
         input, "An input must be provided for all %s Nodes", PTransform.class.getSimpleName());
-    current = TransformTreeNode.subtransform(current, transform, name, input);
+    Node node = new Node(current, transform, name, input);
+    current.addComposite(node);
+    current = node;
     return current;
   }
 
   /**
    * Finish specifying all of the input {@link PValue PValues} of the current {@link
-   * TransformTreeNode}. Ensures that all of the inputs to the current node have been fully
+   * Node}. Ensures that all of the inputs to the current node have been fully
    * specified, and have been produced by a node in this graph.
    */
   public void finishSpecifyingInput() {
@@ -84,7 +91,7 @@ public class TransformHierarchy {
   }
 
   /**
-   * Set the output of the current {@link TransformTreeNode}. If the output is new (setOutput has
+   * Set the output of the current {@link Node}. If the output is new (setOutput has
    * not previously been called with it as the parameter), the current node is set as the producer
    * of that {@link POutput}.
    *
@@ -114,7 +121,7 @@ public class TransformHierarchy {
     checkState(current != null, "Can't pop the root node of a TransformHierarchy");
   }
 
-  TransformTreeNode getProducer(PValue produced) {
+  Node getProducer(PValue produced) {
     return producers.get(produced);
   }
 
@@ -122,10 +129,10 @@ public class TransformHierarchy {
    * Returns all producing transforms for the {@link PValue PValues} contained
    * in {@code output}.
    */
-  List<TransformTreeNode> getProducingTransforms(POutput output) {
-    List<TransformTreeNode> producingTransforms = new ArrayList<>();
+  List<Node> getProducingTransforms(POutput output) {
+    List<Node> producingTransforms = new ArrayList<>();
     for (PValue value : output.expand()) {
-      TransformTreeNode producer = getProducer(value);
+      Node producer = getProducer(value);
       if (producer != null) {
         producingTransforms.add(producer);
       }
@@ -139,7 +146,218 @@ public class TransformHierarchy {
     return visitedValues;
   }
 
-  public TransformTreeNode getCurrent() {
+  public Node getCurrent() {
     return current;
+  }
+
+  /**
+   * Provides internal tracking of transform relationships with helper methods
+   * for initialization and ordered visitation.
+   */
+  public class Node {
+    private final Node enclosingNode;
+    // The PTransform for this node, which may be a composite PTransform.
+    // The root of a TransformHierarchy is represented as a Node
+    // with a null transform field.
+    private final PTransform<?, ?> transform;
+
+    private final String fullName;
+
+    // Nodes for sub-transforms of a composite transform.
+    private final Collection<Node> parts = new ArrayList<>();
+
+    // Input to the transform, in unexpanded form.
+    private final PInput input;
+
+    // TODO: track which outputs need to be exported to parent.
+    // Output of the transform, in unexpanded form.
+    private POutput output;
+
+    @VisibleForTesting
+    boolean finishedSpecifying = false;
+
+    /**
+     * Creates a new Node with the given parent and transform.
+     *
+     * <p>EnclosingNode and transform may both be null for a root-level node, which holds all other
+     * nodes.
+     *
+     * @param enclosingNode the composite node containing this node
+     * @param transform the PTransform tracked by this node
+     * @param fullName the fully qualified name of the transform
+     * @param input the unexpanded input to the transform
+     */
+    private Node(
+        @Nullable Node enclosingNode,
+        @Nullable PTransform<?, ?> transform,
+        String fullName,
+        @Nullable PInput input) {
+      this.enclosingNode = enclosingNode;
+      this.transform = transform;
+      this.fullName = fullName;
+      this.input = input;
+    }
+
+    /**
+     * Returns the transform associated with this transform node.
+     */
+    public PTransform<?, ?> getTransform() {
+      return transform;
+    }
+
+    /**
+     * Returns the enclosing composite transform node, or null if there is none.
+     */
+    public Node getEnclosingNode() {
+      return enclosingNode;
+    }
+
+    /**
+     * Adds a composite operation to the transform node.
+     *
+     * <p>As soon as a node is added, the transform node is considered a
+     * composite operation instead of a primitive transform.
+     */
+    public void addComposite(Node node) {
+      parts.add(node);
+    }
+
+    /**
+     * Returns true if this node represents a composite transform that does not perform processing
+     * of its own, but merely encapsulates a sub-pipeline (which may be empty).
+     *
+     * <p>Note that a node may be composite with no sub-transforms if it returns its input directly
+     * extracts a component of a tuple, or other operations that occur at pipeline assembly time.
+     */
+    public boolean isCompositeNode() {
+      return !parts.isEmpty() || isRootNode() || returnsOthersOutput();
+    }
+
+    private boolean returnsOthersOutput() {
+      PTransform<?, ?> transform = getTransform();
+      if (output != null) {
+        for (PValue outputValue : output.expand()) {
+          if (!getProducer(outputValue).getTransform().equals(transform)) {
+            return true;
+          }
+        }
+      }
+      return false;
+    }
+
+    public boolean isRootNode() {
+      return transform == null;
+    }
+
+    public String getFullName() {
+      return fullName;
+    }
+
+    /**
+     * Returns the transform input, in unexpanded form.
+     */
+    public PInput getInput() {
+      return input;
+    }
+
+    /**
+     * Adds an output to the transform node.
+     */
+    private void setOutput(POutput output) {
+      checkState(!finishedSpecifying);
+      checkState(
+          this.output == null, "Tried to specify more than one output for %s", getFullName());
+      checkNotNull(output, "Tried to set the output of %s to null", getFullName());
+      this.output = output;
+
+      // Validate that a primitive transform produces only primitive output, and a composite
+      // transform does not produce primitive output.
+      Set<Node> outputProducers = new HashSet<>();
+      for (PValue outputValue : output.expand()) {
+        outputProducers.add(getProducer(outputValue));
+      }
+      if (outputProducers.contains(this) && outputProducers.size() != 1) {
+        Set<String> otherProducerNames = new HashSet<>();
+        for (Node outputProducer : outputProducers) {
+          if (outputProducer != this) {
+            otherProducerNames.add(outputProducer.getFullName());
+          }
+        }
+        throw new IllegalArgumentException(
+            String.format(
+                "Output of transform [%s] contains a %s produced by it as well as other "
+                    + "Transforms. A primitive transform must produce all of its outputs, and "
+                    + "outputs of a composite transform must be produced by a component transform "
+                    + "or be part of the input."
+                    + "%n    Other Outputs: %s"
+                    + "%n    Other Producers: %s",
+                getFullName(), POutput.class.getSimpleName(), output.expand(), otherProducerNames));
+      }
+    }
+
+    /** Returns the transform output, in unexpanded form. */
+    public POutput getOutput() {
+      return output;
+    }
+
+    AppliedPTransform<?, ?, ?> toAppliedPTransform() {
+      return AppliedPTransform.of(
+          getFullName(), getInput(), getOutput(), (PTransform) getTransform());
+    }
+
+    /**
+     * Visit the transform node.
+     *
+     * <p>Provides an ordered visit of the input values, the primitive transform (or child nodes for
+     * composite transforms), then the output values.
+     */
+    private void visit(PipelineVisitor visitor, Set<PValue> visitedValues) {
+      if (!finishedSpecifying) {
+        finishSpecifying();
+      }
+
+      if (!isRootNode()) {
+        // Visit inputs.
+        for (PValue inputValue : input.expand()) {
+          if (visitedValues.add(inputValue)) {
+            visitor.visitValue(inputValue, getProducer(inputValue));
+          }
+        }
+      }
+
+      if (isCompositeNode()) {
+        PipelineVisitor.CompositeBehavior recurse = visitor.enterCompositeTransform(this);
+
+        if (recurse.equals(CompositeBehavior.ENTER_TRANSFORM)) {
+          for (Node child : parts) {
+            child.visit(visitor, visitedValues);
+          }
+        }
+        visitor.leaveCompositeTransform(this);
+      } else {
+        visitor.visitPrimitiveTransform(this);
+      }
+
+      if (!isRootNode()) {
+        // Visit outputs.
+        for (PValue pValue : output.expand()) {
+          if (visitedValues.add(pValue)) {
+            visitor.visitValue(pValue, this);
+          }
+        }
+      }
+    }
+
+    /**
+     * Finish specifying a transform.
+     *
+     * <p>All inputs are finished first, then the transform, then all outputs.
+     */
+    private void finishSpecifying() {
+      if (finishedSpecifying) {
+        return;
+      }
+      finishedSpecifying = true;
+    }
   }
 }

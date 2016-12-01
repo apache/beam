@@ -20,7 +20,7 @@ package org.apache.beam.runners.dataflow;
 import java.util.ArrayList;
 import java.util.List;
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.runners.TransformTreeNode;
+import org.apache.beam.sdk.runners.TransformHierarchy;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PValue;
 
@@ -34,12 +34,12 @@ class RecordingPipelineVisitor extends Pipeline.PipelineVisitor.Defaults {
   public final List<PValue> values = new ArrayList<>();
 
   @Override
-  public void visitPrimitiveTransform(TransformTreeNode node) {
+  public void visitPrimitiveTransform(TransformHierarchy.Node node) {
     transforms.add(node.getTransform());
   }
 
   @Override
-  public void visitValue(PValue value, TransformTreeNode producer) {
+  public void visitValue(PValue value, TransformHierarchy.Node producer) {
     values.add(value);
   }
 }
