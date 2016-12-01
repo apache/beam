@@ -33,7 +33,6 @@ import org.apache.beam.sdk.AggregatorRetrievalException;
 import org.apache.beam.sdk.AggregatorValues;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.metrics.MetricResults;
 import org.apache.beam.sdk.transforms.Aggregator;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -199,8 +198,10 @@ public class EvaluationContext {
     return runtime.getAggregatorValues(AccumulatorSingleton.getInstance(jsc), aggregator);
   }
 
-  public MetricResults metrics() {
-    throw new UnsupportedOperationException("The SparkRunner does not currently support metrics.");
+  public <T> T getAggregatorValue(String named, Class<T> resultType) {
+    return runtime.getAggregatorValue(AccumulatorSingleton.getInstance(jsc),
+                                      named,
+                                      resultType);
   }
 
   /**

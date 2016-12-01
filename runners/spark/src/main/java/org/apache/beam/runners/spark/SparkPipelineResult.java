@@ -72,11 +72,7 @@ public abstract class SparkPipelineResult implements PipelineResult {
       throws TimeoutException, ExecutionException, InterruptedException;
 
   public <T> T getAggregatorValue(String named, Class<T> resultType) {
-    return
-        context.getRuntimeContext()
-               .getAggregatorValue(AccumulatorSingleton.getInstance(context.getSparkContext()),
-                                   named,
-                                   resultType);
+    return context.getAggregatorValue(named, resultType);
   }
 
   @Override
@@ -111,7 +107,10 @@ public abstract class SparkPipelineResult implements PipelineResult {
   @Override
   public <T> AggregatorValues<T> getAggregatorValues(Aggregator<?, T> aggregator)
       throws AggregatorRetrievalException {
-    return context.getAggregatorValues(aggregator);
+    return
+        context.getRuntimeContext()
+               .getAggregatorValues(AccumulatorSingleton.getInstance(context.getSparkContext()),
+                                    aggregator);
   }
 
   @Override
