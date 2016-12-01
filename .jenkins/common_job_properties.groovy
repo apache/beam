@@ -135,6 +135,7 @@ class common_job_properties {
   static def setMavenConfig(def context) {
     context.mavenInstallation('Maven 3.3.3')
     context.rootPOM('pom.xml')
+    // Use a repository local to the workspace for better isolation of jobs.
     context.localRepository(LocalRepositoryLocation.LOCAL_TO_WORKSPACE)
   }
 
