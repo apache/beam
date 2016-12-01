@@ -756,12 +756,9 @@ public class KafkaIO {
           partitions.size() > 0,
           "Could not find any partitions. Please check Kafka configuration and topic names");
 
-      List<UnboundedKafkaSource<K, V>> result = new ArrayList<>(partitions.size());
-
-      if (Boolean.TRUE.equals(consumerConfig.get("force.single.split.for.dastaflow.tests"))) {
-        // Work around/hack for Direct/InProcess runner in Dataflow not supporting multiple splits.
-        LOG.info("Reading all the partitions in single split");
-        result.add(
+      if (desiredNumSplits < 0) {
+        // special case for DirectPipelineRunner (used in tests) in Dataflow. Return single split.
+        return ImmutableList.of(
             new UnboundedKafkaSource<>(
                 0,
                 this.topics,
@@ -771,26 +768,29 @@ public class KafkaIO {
                 this.timestampFn,
                 this.watermarkFn,
                 this.consumerFactoryFn,
+                this.consumerConfig)
+        );
+      }
+
+      List<UnboundedKafkaSource<K, V>> result = new ArrayList<>(partitions.size());
+
+      // one split for each partition.
+      for (int i = 0; i < partitions.size(); i++) {
+        TopicPartition partition = partitions.get(i);
+
+        LOG.info("Partition assigned to split {} : {}", i, partition);
+
+        result.add(
+            new UnboundedKafkaSource<>(
+                i,
+                this.topics,
+                ImmutableList.of(partition),
+                this.keyCoder,
+                this.valueCoder,
+                this.timestampFn,
+                this.watermarkFn,
+                this.consumerFactoryFn,
                 this.consumerConfig));
-      } else {
-        // one split for each partition.
-        for (int i = 0; i < partitions.size(); i++) {
-          TopicPartition partition = partitions.get(i);
-
-          LOG.info("Partition assigned to split {} : {}", i, partition);
-
-          result.add(
-              new UnboundedKafkaSource<>(
-                  i,
-                  this.topics,
-                  ImmutableList.of(partition),
-                  this.keyCoder,
-                  this.valueCoder,
-                  this.timestampFn,
-                  this.watermarkFn,
-                  this.consumerFactoryFn,
-                  this.consumerConfig));
-        }
       }
 
       return result;
@@ -803,8 +803,9 @@ public class KafkaIO {
       if (assignedPartitions.isEmpty()) {
         LOG.warn("Looks like generateSplits() is not called. Generate single split.");
         try {
+
           return new UnboundedKafkaReader<K, V>(
-              generateInitialSplits(1, options).get(0), checkpointMark);
+              generateInitialSplits(-1, options).get(0), checkpointMark);
         } catch (Exception e) {
           throw new RuntimeException(e);
         }

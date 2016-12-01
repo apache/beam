@@ -126,7 +126,7 @@ public class KafkaIOTest {
                   tp.topic(),
                   tp.partition(),
                   offsets[pIdx]++,
-                  ByteBuffer.wrap(new byte[4]).putInt(i).array(),
+                  ByteBuffer.wrap(new byte[8]).putInt(i).array(),
                   // key is 4 byte record id
                   ByteBuffer.wrap(new byte[8]).putLong(i).array())); // value is 8 byte record id
     }
@@ -176,8 +176,7 @@ public class KafkaIOTest {
    * assigned all the 20 partitions.
    */
   private static KafkaIO.TypedRead<Integer, Long> mkKafkaReadTransform(
-      int numElements, boolean forceSingleSplit,
-      @Nullable SerializableFunction<KV<Integer, Long>, Instant> timestampFn) {
+      int numElements, @Nullable SerializableFunction<KV<Integer, Long>, Instant> timestampFn) {
 
     List<String> topics = ImmutableList.of("topic_a", "topic_b");
 
@@ -189,11 +188,6 @@ public class KafkaIOTest {
             .withKeyCoder(BigEndianIntegerCoder.of())
             .withValueCoder(BigEndianLongCoder.of())
             .withMaxNumRecords(numElements);
-
-    if (forceSingleSplit) {
-      reader = reader.updateConsumerProperties(
-          ImmutableMap.<String, Object>of("force.single.split.for.dataflow.tests", true));
-    }
 
     if (timestampFn != null) {
       return reader.withTimestampFn(timestampFn);
@@ -238,13 +232,11 @@ public class KafkaIOTest {
   @Test
   public void testUnboundedSource() {
     Pipeline p = TestPipeline.create();
-
     int numElements = 1000;
 
     PCollection<Long> input =
         p
-            .apply(mkKafkaReadTransform(numElements, true,
-                                        new ValueAsTimestampFn()).withoutMetadata())
+            .apply(mkKafkaReadTransform(numElements, new ValueAsTimestampFn()).withoutMetadata())
             .apply(Values.<Long>create());
 
     addCountingAsserts(input, numElements);
@@ -290,8 +282,7 @@ public class KafkaIOTest {
 
     PCollection<Long> input =
         p
-            .apply(mkKafkaReadTransform(numElements, true,
-                                        new ValueAsTimestampFn()).withoutMetadata())
+            .apply(mkKafkaReadTransform(numElements, new ValueAsTimestampFn()).withoutMetadata())
             .apply(Values.<Long>create());
 
     addCountingAsserts(input, numElements);
@@ -320,13 +311,10 @@ public class KafkaIOTest {
     int numElements = 1000;
     int numSplits = 20;
 
-    // create source with 20 partitions.
     UnboundedSource<KafkaRecord<Integer, Long>, ?> initial =
-        mkKafkaReadTransform(numElements, false, null).makeSource();
-
+        mkKafkaReadTransform(numElements, null).makeSource();
     List<? extends UnboundedSource<KafkaRecord<Integer, Long>, ?>> splits =
         initial.generateInitialSplits(1, p.getOptions());
-
     assertEquals("KafkaIO should ignore desiredNumSplits", numSplits, splits.size());
 
     long elementsPerSplit = numElements / numSplits;
@@ -371,14 +359,14 @@ public class KafkaIOTest {
   public void testUnboundedSourceCheckpointMark() throws Exception {
     int numElements = 85; // 85 to make sure some partitions have more records than other.
 
-    // take the first split.
+    // create a single split:
     UnboundedSource<
             com.google.cloud.dataflow.contrib.kafka.KafkaRecord<Integer, Long>,
             com.google.cloud.dataflow.contrib.kafka.KafkaCheckpointMark>
         source =
-            mkKafkaReadTransform(numElements, true, new ValueAsTimestampFn())
+            mkKafkaReadTransform(numElements, new ValueAsTimestampFn())
                 .makeSource()
-                .generateInitialSplits(5, PipelineOptionsFactory.fromArgs(new String[0]).create())
+                .generateInitialSplits(-1, PipelineOptionsFactory.fromArgs(new String[0]).create())
                 .get(0);
 
     UnboundedReader<com.google.cloud.dataflow.contrib.kafka.KafkaRecord<Integer, Long>> reader =
@@ -438,8 +426,7 @@ public class KafkaIOTest {
       String topic = "test";
 
       pipeline
-          .apply(mkKafkaReadTransform(numElements, true,
-                                      new ValueAsTimestampFn()).withoutMetadata())
+          .apply(mkKafkaReadTransform(numElements, new ValueAsTimestampFn()).withoutMetadata())
           .apply(
               com.google.cloud.dataflow.contrib.kafka.KafkaIO.write()
                   .withBootstrapServers("none")
@@ -471,8 +458,7 @@ public class KafkaIOTest {
       String topic = "test";
 
       pipeline
-          .apply(mkKafkaReadTransform(numElements, true,
-                                      new ValueAsTimestampFn()).withoutMetadata())
+          .apply(mkKafkaReadTransform(numElements, new ValueAsTimestampFn()).withoutMetadata())
           .apply(Values.<Long>create()) // there are no keys
           .apply(
               com.google.cloud.dataflow.contrib.kafka.KafkaIO.write()
@@ -498,7 +484,7 @@ public class KafkaIOTest {
 
     // TODO: Ideally we want the pipeline to run to completion by retrying bundles that fail.
     // We limit the number of errors injected to 10 below. This would reflect a real streaming
-    // pipeline. But I am not sure how to achieve that. For now expect an exception:
+    // pipeline. But I am sure how to achieve that. For now expect an exception:
 
     thrown.expect(InjectedErrorException.class);
     thrown.expectMessage("Injected Error #1");
@@ -515,8 +501,7 @@ public class KafkaIOTest {
           new ProducerSendCompletionThread(10, 100).start();
 
       pipeline
-          .apply(mkKafkaReadTransform(numElements, true,
-                                      new ValueAsTimestampFn()).withoutMetadata())
+          .apply(mkKafkaReadTransform(numElements, new ValueAsTimestampFn()).withoutMetadata())
           .apply(
               com.google.cloud.dataflow.contrib.kafka.KafkaIO.write()
                   .withBootstrapServers("none")
