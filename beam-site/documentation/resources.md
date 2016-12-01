@@ -6,11 +6,106 @@ redirect_from: /learn/resources/
 ---
 # Additional Resources for Learning about Apache Beam
 
-This page is under construction ([BEAM-509](https://issues.apache.org/jira/browse/BEAM-509)).
+This page provides links to some of our favorite videos, podcasts, and articles that will help you get started and learn more about Apache Beam. 
 
-Here's some links to some of our favorite articles and videos get you started.
+* TOC
+{:toc}
 
-* [The world beyond batch: Streaming 101](https://www.oreilly.com/ideas/the-world-beyond-batch-streaming-101)
-* [The world beyong batch: Streaming 102](https://www.oreilly.com/ideas/the-world-beyond-batch-streaming-102)
-* [Dataflow/Beam & Spark: A Programming Model Comparison](https://cloud.google.com/dataflow/blog/dataflow-beam-and-spark-comparison)
-* [Dataflow and open source - proposal to join the Apache Incubator](http://googlecloudplatform.blogspot.com/2016/01/Dataflow-and-open-source-proposal-to-join-the-Apache-Incubator.html)
+## General
+
+The following resources provide general overviews and fundamentals of Apache Beam.
+
+### Fundamentals of Stream Processing with Apache Beam
+
+Data Science Summit, Jerusalem, 2016
+
+Presented by Tyler Akidau, *Apache Beam PPMC member*  
+
+<iframe width="560" height="315" src="https://www.youtube.com/embed/V35MwYcXEX0" frameborder="0" allowfullscreen></iframe>
+<br>
+
+### Apache Beam: A Unified Model for Batch and Streaming Data Processing
+
+Hadoop Summit, San Jose, CA, 2016 
+
+Presented by Davor Bonacci, *Apache Beam PPMC member* 
+
+<iframe width="560" height="315" src="https://www.youtube.com/embed/7DZ8ONmeP5A" frameborder="0" allowfullscreen></iframe>
+<br>
+
+### Fundamentals of Stream Processing with Apache Beam
+
+@Scale Conference, San Jose, CA, 2016
+
+Presented by Dan Halperin, *Apache Beam PPMC member*  
+
+<iframe src="https://www.facebook.com/plugins/video.php?href=https%3A%2F%2Fwww.facebook.com%2Fatscaleevents%2Fvideos%2F1775945569345206%2F&show_text=0&width=560" width="560" height="315" style="border:none;overflow:hidden" scrolling="no" frameborder="0" allowTransparency="true" allowFullScreen="true"></iframe>
+<br>
+
+### The World Beyond Batch: Streaming 101
+
+Written by Tyler Akidau, *Apache Beam PPMC member*  
+
+Click on the image to read the article.
+
+<a href="https://www.oreilly.com/ideas/the-world-beyond-batch-streaming-101" target="_blank">![alt text]({{ site.baseurl }}/images/resources/streaming-101.png)</a>
+<br>
+
+### The World Beyond Batch: Streaming 102
+
+Written by Tyler Akidau, *Apache Beam PPMC member*  
+
+Click on the image to read the article.
+
+<a href="https://www.oreilly.com/ideas/the-world-beyond-batch-streaming-102" target="_blank">![alt text]({{ site.baseurl }}/images/resources/streaming-101.png)</a>
+<br>
+
+### Software Engineering Radio Podcast Episode 272: Apache Beam
+
+Presented by Frances Perry, *Apache Beam PPMC member* 
+
+<a href="http://www.se-radio.net/2016/10/se-radio-episode-272-frances-perry-on-apache-beam/" target="_blank">![alt text]({{ site.baseurl }}/images/resources/se-radio-podcast.png)</a>
+<br>
+
+## Beam & Friends
+
+The following resources present Apache Beam partnerships. 
+
+### Flink and Beam: Current State & Roadmap
+
+Flink Forward, Berlin, 2016 
+
+Presented by Maximilian Michels, *Apache Beam PPMC member* 
+
+<iframe width="560" height="315" src="https://www.youtube.com/embed/msdjh6KRXC8" frameborder="0" allowfullscreen></iframe>
+<br>
+
+### Lessons learned from developing a stream processing platform at scale 
+
+Big Things Meetup, Tel Aviv, 2016
+
+By Amit Sela, *Apache Beam PPMC member* 
+
+<iframe width="560" height="315" src="https://www.youtube.com/embed/fc-YigLn_gs" frameborder="0" allowfullscreen></iframe>
+<br>
+
+## Technical Details
+
+The following resources provide detailed explanations about technical concepts in Apache Beam.
+
+### Watermarks: Time and Progress in Apache Beam and Beyond
+
+Strata+Hadoop World, New York, 2016
+
+Presented by Slava Chernyak, *Software Engineer at Google*
+
+<iframe width="560" height="315" src="https://www.youtube.com/embed/TWxSLmkWPm4" frameborder="0" allowfullscreen></iframe>
+<br>
+
+### Triggers in Apache Beam 
+
+Strata+Hadoop World, New York, 2016
+
+Presented by Kenneth Knowles, *Apache Beam PPMC member* 
+
+<iframe width="560" height="315" src="https://www.youtube.com/embed/E1k0B9LN46M" frameborder="0" allowfullscreen></iframe>
