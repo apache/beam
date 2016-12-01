@@ -15,13 +15,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.util;
+package org.apache.beam.runners.core;
 
 import com.google.common.base.MoreObjects;
 import com.google.common.collect.Iterables;
 import java.util.Collections;
 import java.util.Objects;
 import org.apache.beam.sdk.util.TimerInternals.TimerData;
+import org.apache.beam.sdk.util.WindowedValue;
 
 /**
  * Static utility methods that provide {@link KeyedWorkItem} implementations.
