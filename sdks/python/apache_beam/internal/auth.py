@@ -171,7 +171,7 @@ def get_service_credentials():
         credentials.get_access_token()
         return credentials
       except AuthenticationException:
-        logging.warning("Unable to find credentials from gcloud.")
+        logging.warning('Unable to find credentials from gcloud.')
 
       # Falling back to application default credentials.
       try:
@@ -181,5 +181,5 @@ def get_service_credentials():
                       'Credentials.')
         return credentials
       except Exception:
-        logging.warning("Unable to find default credentials to use.")
+        logging.warning('Unable to find default credentials to use.')
         raise
