@@ -53,8 +53,8 @@ public class TransformHierarchy {
    * {@link TransformHierarchy} as a child of the current node, and sets it to be the current node.
    *
    * <p>This call should be finished by expanding and recursively calling {@link #pushNode(String,
-   * PInput, PTransform)}, setting the output with {@link #setOutput(POutput)}, followed by a call
-   * to {@link #popNode()}.
+   * PInput, PTransform)}, calling {@link #finishSpecifyingInput()}, setting the output with {@link
+   * #setOutput(POutput)}, and ending with a call to {@link #popNode()}.
    *
    * @return the added node
    */
@@ -69,6 +69,11 @@ public class TransformHierarchy {
     return current;
   }
 
+  /**
+   * Finish specifying all of the input {@link PValue PValues} of the current {@link
+   * TransformTreeNode}. Ensures that all of the inputs to the current node have been fully
+   * specified, and have been produced by a node in this graph.
+   */
   public void finishSpecifyingInput() {
     // Inputs must be completely specified before they are consumed by a transform.
     current.getInput().finishSpecifying();
@@ -78,6 +83,16 @@ public class TransformHierarchy {
     }
   }
 
+  /**
+   * Set the output of the current {@link TransformTreeNode}. If the output is new (setOutput has
+   * not previously been called with it as the parameter), the current node is set as the producer
+   * of that {@link POutput}.
+   *
+   * <p>Also validates the output - specifically, a Primitive {@link PTransform} produces all of
+   * its outputs, and a Composite {@link PTransform} produces none of its outputs. Verifies that the
+   * expanded output does not contain {@link PValue PValues} produced by both this node and other
+   * nodes.
+   */
   public void setOutput(POutput output) {
     for (PValue value : output.expand()) {
       if (!producers.containsKey(value)) {
@@ -90,7 +105,8 @@ public class TransformHierarchy {
   }
 
   /**
-   * Pops the current node off the top of the stack, finishing it.
+   * Pops the current node off the top of the stack, finishing it. Outputs of the node are finished
+   * once they are consumed as input.
    */
   public void popNode() {
     current.finishSpecifying();
