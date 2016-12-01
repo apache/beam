@@ -24,7 +24,7 @@ import os
 import sys
 import urllib2
 
-
+from oauth2client.client import GoogleCredentials
 from oauth2client.client import OAuth2Credentials
 
 from apache_beam.utils import processes
@@ -125,6 +125,14 @@ def get_service_credentials():
     # them again.
     return GCEMetadataCredentials(user_agent=user_agent)
   else:
+    client_scopes = [
+        'https://www.googleapis.com/auth/bigquery',
+        'https://www.googleapis.com/auth/cloud-platform',
+        'https://www.googleapis.com/auth/devstorage.full_control',
+        'https://www.googleapis.com/auth/userinfo.email',
+        'https://www.googleapis.com/auth/datastore'
+    ]
+
     # We are currently being run from the command line.
     google_cloud_options = PipelineOptions(
         sys.argv).view_as(GoogleCloudOptions)
@@ -135,13 +143,6 @@ def get_service_credentials():
       if not os.path.exists(google_cloud_options.service_account_key_file):
         raise AuthenticationException(
             'Specified service account key file does not exist.')
-      client_scopes = [
-          'https://www.googleapis.com/auth/bigquery',
-          'https://www.googleapis.com/auth/cloud-platform',
-          'https://www.googleapis.com/auth/devstorage.full_control',
-          'https://www.googleapis.com/auth/userinfo.email',
-          'https://www.googleapis.com/auth/datastore'
-      ]
 
       # The following code uses oauth2client >=2.0.0 functionality and if this
       # is not available due to import errors will use 1.5.2 functionality.
@@ -163,4 +164,22 @@ def get_service_credentials():
             user_agent=user_agent)
 
     else:
-      return _GCloudWrapperCredentials(user_agent)
+      try:
+        credentials = _GCloudWrapperCredentials(user_agent)
+        # Check if we are able to get an access token. If not fallback to
+        # application default credentials.
+        credentials.get_access_token()
+        return credentials
+      except AuthenticationException:
+        logging.warning("Unable to find credentials from gcloud.")
+
+      # Falling back to application default credentials.
+      try:
+        credentials = GoogleCredentials.get_application_default()
+        credentials = credentials.create_scoped(client_scopes)
+        logging.debug('Connecting using Google Application Default '
+                      'Credentials.')
+        return credentials
+      except Exception:
+        logging.warning("Unable to find default credentials to use.")
+        raise
