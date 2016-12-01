@@ -21,6 +21,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 
 import java.io.Serializable;
 import java.util.ArrayList;
@@ -32,20 +33,28 @@ import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.testing.TestStream;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.GroupByKey;
+import org.apache.beam.sdk.transforms.Keys;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
+import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.SlidingWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionTuple;
+import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TimestampedValue;
+import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.TupleTagList;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.joda.time.MutableDateTime;
-import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -65,6 +74,11 @@ public class SplittableDoFnTest {
     OffsetRange(int from, int to) {
       this.from = from;
       this.to = to;
+    }
+
+    @Override
+    public String toString() {
+      return "OffsetRange{" + "from=" + from + ", to=" + to + '}';
     }
   }
 
@@ -140,11 +154,8 @@ public class SplittableDoFnTest {
     }
   }
 
-  @Ignore(
-      "BEAM-801: SplittableParDo uses unsupported OldDoFn features that are not available in DoFn; "
-          + "It must be implemented as a primitive.")
   @Test
-  public void testPairWithIndexBasic() throws ClassNotFoundException {
+  public void testPairWithIndexBasic() {
     Pipeline p = TestPipeline.create();
     p.getOptions().setRunner(DirectRunner.class);
     PCollection<KV<String, Integer>> res =
@@ -167,11 +178,8 @@ public class SplittableDoFnTest {
     p.run();
   }
 
-  @Ignore(
-      "BEAM-801: SplittableParDo uses unsupported OldDoFn features that are not available in DoFn; "
-          + "It must be implemented as a primitive.")
   @Test
-  public void testPairWithIndexWindowedTimestamped() throws ClassNotFoundException {
+  public void testPairWithIndexWindowedTimestamped() {
     // Tests that Splittable DoFn correctly propagates windowing strategy, windows and timestamps
     // of elements in the input collection.
     Pipeline p = TestPipeline.create();
@@ -228,4 +236,172 @@ public class SplittableDoFnTest {
     }
     p.run();
   }
+
+  private static class SDFWithSideInputsAndOutputs extends DoFn<Integer, String> {
+    private final PCollectionView<String> sideInput;
+    private final TupleTag<String> sideOutput;
+
+    private SDFWithSideInputsAndOutputs(
+        PCollectionView<String> sideInput, TupleTag<String> sideOutput) {
+      this.sideInput = sideInput;
+      this.sideOutput = sideOutput;
+    }
+
+    @ProcessElement
+    public void process(ProcessContext c, OffsetRangeTracker tracker) {
+      checkState(tracker.tryClaim(tracker.currentRestriction().from));
+      String side = c.sideInput(sideInput);
+      c.output("main:" + side + ":" + c.element());
+      c.sideOutput(sideOutput, "side:" + side + ":" + c.element());
+    }
+
+    @GetInitialRestriction
+    public OffsetRange getInitialRestriction(Integer value) {
+      return new OffsetRange(0, 1);
+    }
+
+    @NewTracker
+    public OffsetRangeTracker newTracker(OffsetRange range) {
+      return new OffsetRangeTracker(range);
+    }
+  }
+
+  @Test
+  public void testSideInputsAndOutputs() throws Exception {
+    Pipeline p = TestPipeline.create();
+    p.getOptions().setRunner(DirectRunner.class);
+
+    PCollectionView<String> sideInput =
+        p.apply("side input", Create.of("foo")).apply(View.<String>asSingleton());
+    TupleTag<String> mainOutputTag = new TupleTag<>("main");
+    TupleTag<String> sideOutputTag = new TupleTag<>("side");
+
+    PCollectionTuple res =
+        p.apply("input", Create.of(0, 1, 2))
+            .apply(
+                ParDo.of(new SDFWithSideInputsAndOutputs(sideInput, sideOutputTag))
+                    .withSideInputs(sideInput)
+                    .withOutputTags(mainOutputTag, TupleTagList.of(sideOutputTag)));
+    res.get(mainOutputTag).setCoder(StringUtf8Coder.of());
+    res.get(sideOutputTag).setCoder(StringUtf8Coder.of());
+
+    PAssert.that(res.get(mainOutputTag))
+        .containsInAnyOrder(Arrays.asList("main:foo:0", "main:foo:1", "main:foo:2"));
+    PAssert.that(res.get(sideOutputTag))
+        .containsInAnyOrder(Arrays.asList("side:foo:0", "side:foo:1", "side:foo:2"));
+
+    p.run();
+  }
+
+  @Test
+  public void testLateData() throws Exception {
+    Pipeline p = TestPipeline.create();
+    p.getOptions().setRunner(DirectRunner.class);
+
+    Instant base = Instant.now();
+
+    TestStream<String> stream =
+        TestStream.create(StringUtf8Coder.of())
+            .advanceWatermarkTo(base)
+            .addElements("aa")
+            .advanceWatermarkTo(base.plus(Duration.standardSeconds(5)))
+            .addElements(TimestampedValue.of("bb", base.minus(Duration.standardHours(1))))
+            .advanceProcessingTime(Duration.standardHours(1))
+            .advanceWatermarkToInfinity();
+
+    PCollection<String> input =
+        p.apply(stream)
+            .apply(
+                Window.<String>into(FixedWindows.of(Duration.standardMinutes(1)))
+                    .withAllowedLateness(Duration.standardMinutes(1)));
+
+    PCollection<KV<String, Integer>> afterSDF =
+        input
+            .apply(ParDo.of(new PairStringWithIndexToLength()))
+            .setCoder(KvCoder.of(StringUtf8Coder.of(), BigEndianIntegerCoder.of()));
+
+    PCollection<String> nonLate =
+        afterSDF.apply(GroupByKey.<String, Integer>create()).apply(Keys.<String>create());
+
+    // The splittable DoFn itself should not drop any data and act as pass-through.
+    PAssert.that(afterSDF)
+        .containsInAnyOrder(
+            Arrays.asList(KV.of("aa", 0), KV.of("aa", 1), KV.of("bb", 0), KV.of("bb", 1)));
+
+    // But it should preserve the windowing strategy of the data, including allowed lateness:
+    // the follow-up GBK should drop the late data.
+    assertEquals(afterSDF.getWindowingStrategy(), input.getWindowingStrategy());
+    PAssert.that(nonLate).containsInAnyOrder("aa");
+
+    p.run();
+  }
+
+  private static class SDFWithLifecycle extends DoFn<String, String> {
+    private enum State {
+      BEFORE_SETUP,
+      OUTSIDE_BUNDLE,
+      INSIDE_BUNDLE,
+      TORN_DOWN
+    }
+
+    private State state = State.BEFORE_SETUP;
+
+    @ProcessElement
+    public void processElement(ProcessContext c, OffsetRangeTracker tracker) {
+      assertEquals(State.INSIDE_BUNDLE, state);
+      assertTrue(tracker.tryClaim(0));
+      c.output(c.element());
+    }
+
+    @GetInitialRestriction
+    public OffsetRange getInitialRestriction(String value) {
+      return new OffsetRange(0, 1);
+    }
+
+    @NewTracker
+    public OffsetRangeTracker newTracker(OffsetRange range) {
+      return new OffsetRangeTracker(range);
+    }
+
+    @Setup
+    public void setUp() {
+      assertEquals(State.BEFORE_SETUP, state);
+      state = State.OUTSIDE_BUNDLE;
+    }
+
+    @StartBundle
+    public void startBundle(Context c) {
+      assertEquals(State.OUTSIDE_BUNDLE, state);
+      state = State.INSIDE_BUNDLE;
+    }
+
+    @FinishBundle
+    public void finishBundle(Context c) {
+      assertEquals(State.INSIDE_BUNDLE, state);
+      state = State.OUTSIDE_BUNDLE;
+    }
+
+    @Teardown
+    public void tearDown() {
+      assertEquals(State.OUTSIDE_BUNDLE, state);
+      state = State.TORN_DOWN;
+    }
+  }
+
+  @Test
+  public void testLifecycleMethods() throws Exception {
+    Pipeline p = TestPipeline.create();
+    p.getOptions().setRunner(DirectRunner.class);
+
+    PCollection<String> res =
+        p.apply(Create.of("a", "b", "c")).apply(ParDo.of(new SDFWithLifecycle()));
+
+    PAssert.that(res).containsInAnyOrder("a", "b", "c");
+
+    p.run();
+  }
+
+  // TODO (https://issues.apache.org/jira/browse/BEAM-988): Test that Splittable DoFn
+  // emits output immediately (i.e. has a pass-through trigger) regardless of input's
+  // windowing/triggering strategy.
 }
