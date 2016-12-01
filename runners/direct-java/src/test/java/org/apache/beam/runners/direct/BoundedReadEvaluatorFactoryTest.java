@@ -335,6 +335,12 @@ public class BoundedReadEvaluatorFactoryTest {
     assertThat(TestSource.readerClosed, is(true));
   }
 
+  @Test
+  public void cleanupShutsDownExecutor() {
+    factory.cleanup();
+    assertThat(factory.executor.isShutdown(), is(true));
+  }
+
   private static class TestSource<T> extends OffsetBasedSource<T> {
     private static boolean readerClosed;
     private final Coder<T> coder;

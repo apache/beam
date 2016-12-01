@@ -58,7 +58,7 @@ final class BoundedReadEvaluatorFactory implements TransformEvaluatorFactory {
    */
   private static final long REQUIRED_DYNAMIC_SPLIT_ORIGINAL_SIZE = 0;
   private final EvaluationContext evaluationContext;
-  private final ExecutorService executor = Executors.newCachedThreadPool();
+  @VisibleForTesting final ExecutorService executor = Executors.newCachedThreadPool();
 
   private final long minimumDynamicSplitSize;
 
@@ -87,7 +87,9 @@ final class BoundedReadEvaluatorFactory implements TransformEvaluatorFactory {
   }
 
   @Override
-  public void cleanup() {}
+  public void cleanup() {
+    executor.shutdown();
+  }
 
   /**
    * A {@link BoundedReadEvaluator} produces elements from an underlying {@link BoundedSource},
