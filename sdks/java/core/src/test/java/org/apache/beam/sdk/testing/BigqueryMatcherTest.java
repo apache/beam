@@ -19,7 +19,6 @@ package org.apache.beam.sdk.testing;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
-import static org.junit.Assert.fail;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyString;
 import static org.mockito.Matchers.eq;
@@ -101,44 +100,6 @@ public class BigqueryMatcherTest {
   }
 
   @Test
-  public void testBigqueryMatcherFailsWhenResponseIsNull() throws IOException {
-    testMatcherFailsSinceInvalidQueryResponse(null);
-  }
-
-  @Test
-  public void testBigqueryMatcherFailsWhenNullRowsInResponse() throws IOException {
-    testMatcherFailsSinceInvalidQueryResponse(new QueryResponse());
-  }
-
-  @Test
-  public void testBigqueryMatcherFailsWhenEmptyRowsInResponse() throws IOException {
-    QueryResponse response = new QueryResponse();
-    response.setRows(Lists.<TableRow>newArrayList());
-
-    testMatcherFailsSinceInvalidQueryResponse(response);
-  }
-
-  private void testMatcherFailsSinceInvalidQueryResponse(QueryResponse response)
-      throws IOException {
-    BigqueryMatcher matcher = spy(
-        new BigqueryMatcher(appName, projectId, query, "some-checksum"));
-    doReturn(mockBigqueryClient).when(matcher).newBigqueryClient(anyString());
-    when(mockQuery.execute()).thenReturn(response);
-
-    try {
-      assertThat(mockResult, matcher);
-    } catch (AssertionError expected) {
-      assertThat(expected.getMessage(), containsString("Invalid BigQuery response:"));
-      verify(matcher).newBigqueryClient(eq(appName));
-      verify(mockJobs).query(eq(projectId), eq(new QueryRequest().setQuery(query)));
-      return;
-    }
-    // Note that fail throws an AssertionError which is why it is placed out here
-    // instead of inside the try-catch block.
-    fail("AssertionError is expected.");
-  }
-
-  @Test
   public void testQueryWithRetriesWhenServiceFails() throws Exception {
     BigqueryMatcher matcher = spy(
         new BigqueryMatcher(appName, projectId, query, "some-checksum"));
@@ -158,6 +119,36 @@ public class BigqueryMatcherTest {
         .query(eq(projectId), eq(new QueryRequest().setQuery(query)));
   }
 
+  @Test
+  public void testQueryWithRetriesWhenQueryJobNotComplete() throws Exception {
+    testQueryRetriesWithInvalidResponse(null);
+  }
+
+  @Test
+  public void testQueryWithRetriesWhenQueryJobFailed() throws Exception {
+    testQueryRetriesWithInvalidResponse(new QueryResponse().setJobComplete(false));
+  }
+
+  private void testQueryRetriesWithInvalidResponse(QueryResponse response)
+      throws Exception {
+    BigqueryMatcher matcher = spy(
+        new BigqueryMatcher(appName, projectId, query, "some-checksum"));
+    when(mockQuery.execute()).thenReturn(response);
+
+    try {
+      matcher.queryWithRetries(
+          mockBigqueryClient,
+          new QueryRequest(),
+          fastClock,
+          BigqueryMatcher.BACKOFF_FACTORY.backoff());
+    } catch (AssertionError expected) {
+      assertThat(expected.getMessage(), containsString("Invalid BigQuery response"));
+      verify(matcher).newBigqueryClient(eq(appName));
+      verify(mockJobs, times(BigqueryMatcher.MAX_QUERY_RETRIES))
+          .query(eq(projectId), eq(new QueryRequest().setQuery(query)));
+    }
+  }
+
   private QueryResponse createResponseContainingTestData() {
     TableCell field1 = new TableCell();
     field1.setV("abc");
@@ -169,6 +160,7 @@ public class BigqueryMatcherTest {
     row.setF(Lists.newArrayList(field1, field2, field3));
 
     QueryResponse response = new QueryResponse();
+    response.setJobComplete(true);
     response.setRows(Lists.newArrayList(row));
     response.setTotalRows(BigInteger.ONE);
     return response;

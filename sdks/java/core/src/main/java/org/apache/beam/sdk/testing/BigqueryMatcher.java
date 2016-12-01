@@ -121,8 +121,8 @@ public class BigqueryMatcher extends TypeSafeMatcher<PipelineResult>
       throw new RuntimeException("Failed to fetch BigQuery data.", e);
     }
 
-    // validate BigQuery response
-    if (response == null || response.getRows() == null || response.getRows().isEmpty()) {
+    if (response == null || !response.getJobComplete()) {
+      // BigQuery response is null or query job not complete
       return false;
     }
 
@@ -151,17 +151,24 @@ public class BigqueryMatcher extends TypeSafeMatcher<PipelineResult>
     IOException lastException = null;
     do {
       try {
-        return bigqueryClient.jobs().query(projectId, queryContent).execute();
+        response = bigqueryClient.jobs().query(projectId, queryContent).execute();
+        if (response != null && response.getJobComplete()) {
+          return response;
+        }
       } catch (IOException e) {
         // ignore and retry
         LOG.warn("Ignore the error and retry the query.");
         lastException = e;
       }
     } while(BackOffUtils.next(sleeper, backOff));
-    throw new IOException(
-        String.format(
-            "Unable to get BigQuery response after retrying %d times", MAX_QUERY_RETRIES),
-        lastException);
+
+    if (lastException != null) {
+      throw new IOException(
+          String.format(
+              "Unable to get BigQuery response after retrying %d times", MAX_QUERY_RETRIES),
+          lastException);
+    }
+    return response;
   }
 
   private void validateArgument(String name, String value) {
@@ -210,7 +217,7 @@ public class BigqueryMatcher extends TypeSafeMatcher<PipelineResult>
   @Override
   public void describeMismatchSafely(PipelineResult pResult, Description description) {
     String info;
-    if (response == null || response.getRows() == null || response.getRows().isEmpty()) {
+    if (response == null || !response.getJobComplete()) {
       // invalid query response
       info = String.format("Invalid BigQuery response: %s", Objects.toString(response));
     } else {
