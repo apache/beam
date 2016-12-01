@@ -24,7 +24,7 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.runners.PipelineRunner;
-import org.apache.beam.sdk.runners.TransformTreeNode;
+import org.apache.beam.sdk.runners.TransformHierarchy;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -143,7 +143,7 @@ public class DisplayDataEvaluator {
     }
 
     @Override
-    public CompositeBehavior enterCompositeTransform(TransformTreeNode node) {
+    public CompositeBehavior enterCompositeTransform(TransformHierarchy.Node node) {
       if (Objects.equals(root, node.getTransform())) {
         inCompositeRoot = true;
       }
@@ -152,14 +152,14 @@ public class DisplayDataEvaluator {
     }
 
     @Override
-    public void leaveCompositeTransform(TransformTreeNode node) {
+    public void leaveCompositeTransform(TransformHierarchy.Node node) {
       if (Objects.equals(root, node.getTransform())) {
         inCompositeRoot = false;
       }
     }
 
     @Override
-    public void visitPrimitiveTransform(TransformTreeNode node) {
+    public void visitPrimitiveTransform(TransformHierarchy.Node node) {
       if (inCompositeRoot || Objects.equals(root, node.getTransform())) {
         displayData.add(DisplayData.from(node.getTransform()));
       }

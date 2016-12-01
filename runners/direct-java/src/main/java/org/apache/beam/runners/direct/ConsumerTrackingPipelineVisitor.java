@@ -28,7 +28,7 @@ import java.util.Set;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.Pipeline.PipelineVisitor;
 import org.apache.beam.sdk.runners.PipelineRunner;
-import org.apache.beam.sdk.runners.TransformTreeNode;
+import org.apache.beam.sdk.runners.TransformHierarchy;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollectionView;
@@ -50,7 +50,7 @@ public class ConsumerTrackingPipelineVisitor extends PipelineVisitor.Defaults {
   private boolean finalized = false;
 
   @Override
-  public CompositeBehavior enterCompositeTransform(TransformTreeNode node) {
+  public CompositeBehavior enterCompositeTransform(TransformHierarchy.Node node) {
     checkState(
         !finalized,
         "Attempting to traverse a pipeline (node %s) with a %s "
@@ -61,7 +61,7 @@ public class ConsumerTrackingPipelineVisitor extends PipelineVisitor.Defaults {
   }
 
   @Override
-  public void leaveCompositeTransform(TransformTreeNode node) {
+  public void leaveCompositeTransform(TransformHierarchy.Node node) {
     checkState(
         !finalized,
         "Attempting to traverse a pipeline (node %s) with a %s which is already finalized",
@@ -73,7 +73,7 @@ public class ConsumerTrackingPipelineVisitor extends PipelineVisitor.Defaults {
   }
 
   @Override
-  public void visitPrimitiveTransform(TransformTreeNode node) {
+  public void visitPrimitiveTransform(TransformHierarchy.Node node) {
     toFinalize.removeAll(node.getInput().expand());
     AppliedPTransform<?, ?, ?> appliedTransform = getAppliedTransform(node);
     stepNames.put(appliedTransform, genStepName());
@@ -86,7 +86,7 @@ public class ConsumerTrackingPipelineVisitor extends PipelineVisitor.Defaults {
     }
   }
 
-  private AppliedPTransform<?, ?, ?> getAppliedTransform(TransformTreeNode node) {
+  private AppliedPTransform<?, ?, ?> getAppliedTransform(TransformHierarchy.Node node) {
     @SuppressWarnings({"rawtypes", "unchecked"})
     AppliedPTransform<?, ?, ?> application = AppliedPTransform.of(
         node.getFullName(), node.getInput(), node.getOutput(), (PTransform) node.getTransform());
@@ -94,7 +94,7 @@ public class ConsumerTrackingPipelineVisitor extends PipelineVisitor.Defaults {
   }
 
   @Override
-  public void visitValue(PValue value, TransformTreeNode producer) {
+  public void visitValue(PValue value, TransformHierarchy.Node producer) {
     toFinalize.add(value);
     for (PValue expandedValue : value.expand()) {
       valueToConsumers.put(expandedValue, new ArrayList<AppliedPTransform<?, ?, ?>>());

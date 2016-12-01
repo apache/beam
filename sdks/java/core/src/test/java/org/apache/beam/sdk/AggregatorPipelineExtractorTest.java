@@ -30,7 +30,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import org.apache.beam.sdk.Pipeline.PipelineVisitor;
-import org.apache.beam.sdk.runners.TransformTreeNode;
+import org.apache.beam.sdk.runners.TransformHierarchy;
 import org.apache.beam.sdk.transforms.Aggregator;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.transforms.Max;
@@ -73,7 +73,7 @@ public class AggregatorPipelineExtractorTest {
     Aggregator<Long, Long> aggregatorOne = fn.addAggregator(new Sum.SumLongFn());
     Aggregator<Integer, Integer> aggregatorTwo = fn.addAggregator(new Min.MinIntegerFn());
 
-    TransformTreeNode transformNode = mock(TransformTreeNode.class);
+    TransformHierarchy.Node transformNode = mock(TransformHierarchy.Node.class);
     when(transformNode.getTransform()).thenReturn(bound);
 
     doAnswer(new VisitNodesAnswer(ImmutableList.of(transformNode)))
@@ -101,7 +101,7 @@ public class AggregatorPipelineExtractorTest {
     Aggregator<Long, Long> aggregatorOne = fn.addAggregator(new Max.MaxLongFn());
     Aggregator<Double, Double> aggregatorTwo = fn.addAggregator(new Min.MinDoubleFn());
 
-    TransformTreeNode transformNode = mock(TransformTreeNode.class);
+    TransformHierarchy.Node transformNode = mock(TransformHierarchy.Node.class);
     when(transformNode.getTransform()).thenReturn(bound);
 
     doAnswer(new VisitNodesAnswer(ImmutableList.of(transformNode)))
@@ -132,9 +132,9 @@ public class AggregatorPipelineExtractorTest {
     Aggregator<Long, Long> aggregatorOne = fn.addAggregator(new Sum.SumLongFn());
     Aggregator<Double, Double> aggregatorTwo = fn.addAggregator(new Min.MinDoubleFn());
 
-    TransformTreeNode transformNode = mock(TransformTreeNode.class);
+    TransformHierarchy.Node transformNode = mock(TransformHierarchy.Node.class);
     when(transformNode.getTransform()).thenReturn(bound);
-    TransformTreeNode otherTransformNode = mock(TransformTreeNode.class);
+    TransformHierarchy.Node otherTransformNode = mock(TransformHierarchy.Node.class);
     when(otherTransformNode.getTransform()).thenReturn(otherBound);
 
     doAnswer(new VisitNodesAnswer(ImmutableList.of(transformNode, otherTransformNode)))
@@ -172,9 +172,9 @@ public class AggregatorPipelineExtractorTest {
 
     when(otherBound.getFn()).thenReturn(otherFn);
 
-    TransformTreeNode transformNode = mock(TransformTreeNode.class);
+    TransformHierarchy.Node transformNode = mock(TransformHierarchy.Node.class);
     when(transformNode.getTransform()).thenReturn(bound);
-    TransformTreeNode otherTransformNode = mock(TransformTreeNode.class);
+    TransformHierarchy.Node otherTransformNode = mock(TransformHierarchy.Node.class);
     when(otherTransformNode.getTransform()).thenReturn(otherBound);
 
     doAnswer(new VisitNodesAnswer(ImmutableList.of(transformNode, otherTransformNode)))
@@ -192,16 +192,16 @@ public class AggregatorPipelineExtractorTest {
   }
 
   private static class VisitNodesAnswer implements Answer<Object> {
-    private final List<TransformTreeNode> nodes;
+    private final List<TransformHierarchy.Node> nodes;
 
-    public VisitNodesAnswer(List<TransformTreeNode> nodes) {
+    public VisitNodesAnswer(List<TransformHierarchy.Node> nodes) {
       this.nodes = nodes;
     }
 
     @Override
     public Object answer(InvocationOnMock invocation) throws Throwable {
       PipelineVisitor visitor = (PipelineVisitor) invocation.getArguments()[0];
-      for (TransformTreeNode node : nodes) {
+      for (TransformHierarchy.Node node : nodes) {
         visitor.visitPrimitiveTransform(node);
       }
       return null;

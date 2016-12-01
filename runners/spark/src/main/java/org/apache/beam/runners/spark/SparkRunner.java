@@ -32,7 +32,7 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.PipelineOptionsValidator;
 import org.apache.beam.sdk.runners.PipelineRunner;
-import org.apache.beam.sdk.runners.TransformTreeNode;
+import org.apache.beam.sdk.runners.TransformHierarchy;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -213,7 +213,7 @@ public final class SparkRunner extends PipelineRunner<EvaluationResult> {
     }
 
     @Override
-    public void visitPrimitiveTransform(TransformTreeNode node) {
+    public void visitPrimitiveTransform(TransformHierarchy.Node node) {
       if (translationMode.equals(TranslationMode.BATCH)) {
         Class<? extends PTransform> transformClass = node.getTransform().getClass();
         if (transformClass == Read.Unbounded.class) {
@@ -239,7 +239,7 @@ public final class SparkRunner extends PipelineRunner<EvaluationResult> {
     }
 
     @Override
-    public CompositeBehavior enterCompositeTransform(TransformTreeNode node) {
+    public CompositeBehavior enterCompositeTransform(TransformHierarchy.Node node) {
       if (node.getTransform() != null) {
         @SuppressWarnings("unchecked")
         Class<PTransform<?, ?>> transformClass =
@@ -254,7 +254,7 @@ public final class SparkRunner extends PipelineRunner<EvaluationResult> {
       return CompositeBehavior.ENTER_TRANSFORM;
     }
 
-    private boolean shouldDefer(TransformTreeNode node) {
+    private boolean shouldDefer(TransformHierarchy.Node node) {
       PInput input = node.getInput();
       // if the input is not a PCollection, or it is but with non merging windows, don't defer.
       if (!(input instanceof PCollection)
@@ -283,12 +283,12 @@ public final class SparkRunner extends PipelineRunner<EvaluationResult> {
     }
 
     @Override
-    public void visitPrimitiveTransform(TransformTreeNode node) {
+    public void visitPrimitiveTransform(TransformHierarchy.Node node) {
       doVisitTransform(node);
     }
 
     <TransformT extends PTransform<? super PInput, POutput>> void
-        doVisitTransform(TransformTreeNode node) {
+        doVisitTransform(TransformHierarchy.Node node) {
       @SuppressWarnings("unchecked")
       TransformT transform = (TransformT) node.getTransform();
       @SuppressWarnings("unchecked")
@@ -304,11 +304,12 @@ public final class SparkRunner extends PipelineRunner<EvaluationResult> {
     }
 
     /**
-     *  Determine if this Node belongs to a Bounded branch of the pipeline, or Unbounded, and
-     *  translate with the proper translator.
+     * Determine if this Node belongs to a Bounded branch of the pipeline, or Unbounded, and
+     * translate with the proper translator.
      */
-    private <TransformT extends PTransform<? super PInput, POutput>> TransformEvaluator<TransformT>
-        translate(TransformTreeNode node, TransformT transform, Class<TransformT> transformClass) {
+    private <TransformT extends PTransform<? super PInput, POutput>>
+        TransformEvaluator<TransformT> translate(
+            TransformHierarchy.Node node, TransformT transform, Class<TransformT> transformClass) {
       //--- determine if node is bounded/unbounded.
       // usually, the input determines if the PCollection to apply the next transformation to
       // is BOUNDED or UNBOUNDED, meaning RDD/DStream.

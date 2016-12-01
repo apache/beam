@@ -23,7 +23,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Map;
 import org.apache.beam.sdk.Pipeline.PipelineVisitor;
-import org.apache.beam.sdk.runners.TransformTreeNode;
+import org.apache.beam.sdk.runners.TransformHierarchy;
 import org.apache.beam.sdk.transforms.Aggregator;
 import org.apache.beam.sdk.transforms.AggregatorRetriever;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -62,7 +62,7 @@ class AggregatorPipelineExtractor {
     }
 
     @Override
-    public void visitPrimitiveTransform(TransformTreeNode node) {
+    public void visitPrimitiveTransform(TransformHierarchy.Node node) {
       PTransform<?, ?> transform = node.getTransform();
       addStepToAggregators(transform, getAggregators(transform));
     }
@@ -86,6 +86,6 @@ class AggregatorPipelineExtractor {
     }
 
     @Override
-    public void visitValue(PValue value, TransformTreeNode producer) {}
+    public void visitValue(PValue value, TransformHierarchy.Node producer) {}
   }
 }

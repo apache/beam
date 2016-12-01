@@ -66,7 +66,7 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.options.StreamingOptions;
-import org.apache.beam.sdk.runners.TransformTreeNode;
+import org.apache.beam.sdk.runners.TransformHierarchy;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -517,11 +517,11 @@ public class DataflowPipelineTranslator {
 
 
     @Override
-    public void leaveCompositeTransform(TransformTreeNode node) {
+    public void leaveCompositeTransform(TransformHierarchy.Node node) {
     }
 
     @Override
-    public void visitPrimitiveTransform(TransformTreeNode node) {
+    public void visitPrimitiveTransform(TransformHierarchy.Node node) {
       PTransform<?, ?> transform = node.getTransform();
       TransformTranslator translator =
           getTransformTranslator(transform.getClass());
@@ -537,7 +537,7 @@ public class DataflowPipelineTranslator {
     }
 
     @Override
-    public void visitValue(PValue value, TransformTreeNode producer) {
+    public void visitValue(PValue value, TransformHierarchy.Node producer) {
       LOG.debug("Checking translation of {}", value);
       if (value.getProducingTransformInternal() == null) {
         throw new RuntimeException(
