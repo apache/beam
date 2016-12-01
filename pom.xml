@@ -967,6 +967,8 @@
               <exclude>**/test/resources/**/*.txt</exclude>
               <exclude>**/test/**/.placeholder</exclude>
               <exclude>.repository/**/*</exclude>
+              <exclude>**/nose-*.egg/**/*</exclude>
+              <exclude>**/.tox/**/*</exclude>
 
               <!-- Default eclipse excludes neglect subprojects -->
               <exclude>**/.checkstyle</exclude>
