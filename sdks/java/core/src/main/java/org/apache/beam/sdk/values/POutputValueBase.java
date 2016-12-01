@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.values;
 
+import static com.google.common.base.Preconditions.checkNotNull;
+
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -86,6 +88,15 @@ public abstract class POutputValueBase implements POutput {
       return;
     }
     producingTransform = transform;
+  }
+
+  @Override
+  public void replaceAsOutput(
+      AppliedPTransform<?, ?, ?> original, AppliedPTransform<?, ?, ?> replacement) {
+    checkNotNull(original, "Cannot replace a POutput which has no original producer");
+    if (original.equals(producingTransform)) {
+      producingTransform = replacement;
+    }
   }
 
   /**

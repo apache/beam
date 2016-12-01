@@ -21,16 +21,15 @@ import static org.hamcrest.CoreMatchers.containsString;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
+import java.io.Serializable;
 import java.util.Collections;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for PCollectionLists.
- */
+/** Tests for PCollectionLists. */
 @RunWith(JUnit4.class)
-public class PCollectionListTest {
+public class PCollectionListTest implements Serializable {
   @Test
   public void testEmptyListFailure() {
     try {
@@ -41,7 +40,7 @@ public class PCollectionListTest {
           exn.toString(),
           containsString(
               "must either have a non-empty list of PCollections, "
-              + "or must first call empty(Pipeline)"));
+                  + "or must first call empty(Pipeline)"));
     }
   }
 }

@@ -117,6 +117,12 @@ public abstract class PValueBase extends POutputValueBase implements PValue {
     }
   }
 
+  @Override
+  public void replaceAsOutput(
+      AppliedPTransform<?, ?, ?> original, AppliedPTransform<?, ?, ?> newProducer) {
+    super.replaceAsOutput(original, newProducer);
+  }
+
   /**
    * Returns whether this {@link PValueBase} has been finalized, and
    * its core properties, e.g., name, can no longer be changed.

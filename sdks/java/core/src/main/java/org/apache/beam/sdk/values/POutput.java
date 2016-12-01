@@ -61,6 +61,19 @@ public interface POutput {
   void recordAsOutput(AppliedPTransform<?, ?, ?> transform);
 
   /**
+   * Records that this {@code POutput} is an output of the replacement {@link PTransform} if it is
+   * currently the output of the original PTransform.
+   *
+   * <p>For a compound {@code POutput}, this should be called after each {@link PValue} returned by
+   * {@link #expand()} has had {@link #replaceAsOutput(AppliedPTransform, AppliedPTransform)} called
+   * with any more specific producing transform.
+   *
+   * <p>This is not intended to be invoked by user code, but is automatically invoked as part of
+   * replacing the original {@link PTransform}.
+   */
+  void replaceAsOutput(AppliedPTransform<?, ?, ?> original, AppliedPTransform<?, ?, ?> replacement);
+
+  /**
    * As part of applying the producing {@link PTransform}, finalizes this
    * output to make it ready for being used as an input and for running.
    *
