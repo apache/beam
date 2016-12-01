@@ -69,7 +69,7 @@ final class ExecutorServiceParallelExecutor implements PipelineExecutor {
   private final int targetParallelism;
   private final ExecutorService executorService;
 
-  private final Map<PValue, Collection<AppliedPTransform<?, ?, ?>>> valueToConsumers;
+  private final DirectGraph graph;
   private final Set<PValue> keyedPValues;
   private final RootProviderRegistry rootProviderRegistry;
   private final TransformEvaluatorRegistry registry;
@@ -104,7 +104,7 @@ final class ExecutorServiceParallelExecutor implements PipelineExecutor {
 
   public static ExecutorServiceParallelExecutor create(
       int targetParallelism,
-      Map<PValue, Collection<AppliedPTransform<?, ?, ?>>> valueToConsumers,
+      DirectGraph graph,
       Set<PValue> keyedPValues,
       RootProviderRegistry rootProviderRegistry,
       TransformEvaluatorRegistry registry,
@@ -114,7 +114,7 @@ final class ExecutorServiceParallelExecutor implements PipelineExecutor {
       EvaluationContext context) {
     return new ExecutorServiceParallelExecutor(
         targetParallelism,
-        valueToConsumers,
+        graph,
         keyedPValues,
         rootProviderRegistry,
         registry,
@@ -124,7 +124,7 @@ final class ExecutorServiceParallelExecutor implements PipelineExecutor {
 
   private ExecutorServiceParallelExecutor(
       int targetParallelism,
-      Map<PValue, Collection<AppliedPTransform<?, ?, ?>>> valueToConsumers,
+      DirectGraph graph,
       Set<PValue> keyedPValues,
       RootProviderRegistry rootProviderRegistry,
       TransformEvaluatorRegistry registry,
@@ -133,7 +133,7 @@ final class ExecutorServiceParallelExecutor implements PipelineExecutor {
       EvaluationContext context) {
     this.targetParallelism = targetParallelism;
     this.executorService = Executors.newFixedThreadPool(targetParallelism);
-    this.valueToConsumers = valueToConsumers;
+    this.graph = graph;
     this.keyedPValues = keyedPValues;
     this.rootProviderRegistry = rootProviderRegistry;
     this.registry = registry;
@@ -273,8 +273,9 @@ final class ExecutorServiceParallelExecutor implements PipelineExecutor {
         CommittedBundle<?> inputBundle, TransformResult<?> result) {
       CommittedResult committedResult = evaluationContext.handleResult(inputBundle, timers, result);
       for (CommittedBundle<?> outputBundle : committedResult.getOutputs()) {
-        allUpdates.offer(ExecutorUpdate.fromBundle(outputBundle,
-            valueToConsumers.get(outputBundle.getPCollection())));
+        allUpdates.offer(
+            ExecutorUpdate.fromBundle(
+                outputBundle, graph.getPrimitiveConsumers(outputBundle.getPCollection())));
       }
       CommittedBundle<?> unprocessedInputs = committedResult.getUnprocessedInputs();
       if (unprocessedInputs != null && !Iterables.isEmpty(unprocessedInputs.getElements())) {

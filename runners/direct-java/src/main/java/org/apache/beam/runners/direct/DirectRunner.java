@@ -62,7 +62,6 @@ import org.apache.beam.sdk.values.PCollection.IsBounded;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
-import org.apache.beam.sdk.values.PValue;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 
@@ -198,18 +197,18 @@ public class DirectRunner extends PipelineRunner<DirectPipelineResult> {
   enum Enforcement {
     ENCODABILITY {
       @Override
-      public boolean appliesTo(PTransform<?, ?> transform) {
+      public boolean appliesTo(PCollection<?> collection, DirectGraph graph) {
         return true;
       }
     },
     IMMUTABILITY {
       @Override
-      public boolean appliesTo(PTransform<?, ?> transform) {
-        return CONTAINS_UDF.contains(transform.getClass());
+      public boolean appliesTo(PCollection<?> collection, DirectGraph graph) {
+        return CONTAINS_UDF.contains(graph.getProducer(collection).getTransform().getClass());
       }
     };
 
-    public abstract boolean appliesTo(PTransform<?, ?> transform);
+    public abstract boolean appliesTo(PCollection<?> collection, DirectGraph graph);
 
     ////////////////////////////////////////////////////////////////////////////////////////////////
     // Utilities for creating enforcements
@@ -224,13 +223,13 @@ public class DirectRunner extends PipelineRunner<DirectPipelineResult> {
       return Collections.unmodifiableSet(enabled);
     }
 
-    public static BundleFactory bundleFactoryFor(Set<Enforcement> enforcements) {
+    public static BundleFactory bundleFactoryFor(Set<Enforcement> enforcements, DirectGraph graph) {
       BundleFactory bundleFactory =
           enforcements.contains(Enforcement.ENCODABILITY)
               ? CloningBundleFactory.create()
               : ImmutableListBundleFactory.create();
       if (enforcements.contains(Enforcement.IMMUTABILITY)) {
-        bundleFactory = ImmutabilityCheckingBundleFactory.create(bundleFactory);
+        bundleFactory = ImmutabilityCheckingBundleFactory.create(bundleFactory, graph);
       }
       return bundleFactory;
     }
@@ -301,9 +300,8 @@ public class DirectRunner extends PipelineRunner<DirectPipelineResult> {
     MetricsEnvironment.setMetricsSupported(true);
     ConsumerTrackingPipelineVisitor consumerTrackingVisitor = new ConsumerTrackingPipelineVisitor();
     pipeline.traverseTopologically(consumerTrackingVisitor);
-    for (PValue unfinalized : consumerTrackingVisitor.getUnfinalizedPValues()) {
-      unfinalized.finishSpecifying();
-    }
+    consumerTrackingVisitor.finishSpecifyingRemainder();
+
     @SuppressWarnings("rawtypes")
     KeyedPValueTrackingVisitor keyedPValueVisitor =
         KeyedPValueTrackingVisitor.create(
@@ -315,28 +313,25 @@ public class DirectRunner extends PipelineRunner<DirectPipelineResult> {
 
     DisplayDataValidator.validatePipeline(pipeline);
 
+    DirectGraph graph = consumerTrackingVisitor.getGraph();
     EvaluationContext context =
         EvaluationContext.create(
             getPipelineOptions(),
             clockSupplier.get(),
-            Enforcement.bundleFactoryFor(enabledEnforcements),
-            consumerTrackingVisitor.getRootTransforms(),
-            consumerTrackingVisitor.getValueToConsumers(),
-            consumerTrackingVisitor.getStepNames(),
-            consumerTrackingVisitor.getViews());
+            Enforcement.bundleFactoryFor(enabledEnforcements, graph),
+            graph);
 
     RootProviderRegistry rootInputProvider = RootProviderRegistry.defaultRegistry(context);
     TransformEvaluatorRegistry registry = TransformEvaluatorRegistry.defaultRegistry(context);
     PipelineExecutor executor =
         ExecutorServiceParallelExecutor.create(
-            options.getTargetParallelism(),
-            consumerTrackingVisitor.getValueToConsumers(),
+            options.getTargetParallelism(), graph,
             keyedPValueVisitor.getKeyedPValues(),
             rootInputProvider,
             registry,
             Enforcement.defaultModelEnforcements(enabledEnforcements),
             context);
-    executor.start(consumerTrackingVisitor.getRootTransforms());
+    executor.start(graph.getRootTransforms());
 
     Map<Aggregator<?, ?>, Collection<PTransform<?, ?>>> aggregatorSteps =
         pipeline.getAggregatorSteps();
