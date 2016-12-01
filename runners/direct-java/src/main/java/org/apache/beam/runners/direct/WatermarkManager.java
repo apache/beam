@@ -669,10 +669,10 @@ public class WatermarkManager {
   private final Clock clock;
 
   /**
-   * A map from each {@link PCollection} to all {@link AppliedPTransform PTransform applications}
-   * that consume that {@link PCollection}.
+   * The {@link DirectGraph} representing the {@link Pipeline} this {@link WatermarkManager} tracks
+   * watermarks for.
    */
-  private final Map<PValue, Collection<AppliedPTransform<?, ?, ?>>> consumers;
+  private final DirectGraph graph;
 
   /**
    * The input and output watermark of each {@link AppliedPTransform}.
@@ -697,27 +697,21 @@ public class WatermarkManager {
   private final Set<AppliedPTransform<?, ?, ?>> pendingRefreshes;
 
   /**
-   * Creates a new {@link WatermarkManager}. All watermarks within the newly created
-   * {@link WatermarkManager} start at {@link BoundedWindow#TIMESTAMP_MIN_VALUE}, the
-   * minimum watermark, with no watermark holds or pending elements.
+   * Creates a new {@link WatermarkManager}. All watermarks within the newly created {@link
+   * WatermarkManager} start at {@link BoundedWindow#TIMESTAMP_MIN_VALUE}, the minimum watermark,
+   * with no watermark holds or pending elements.
    *
-   * @param rootTransforms the root-level transforms of the {@link Pipeline}
-   * @param consumers a mapping between each {@link PCollection} in the {@link Pipeline} to the
-   *                  transforms that consume it as a part of their input
+   * @param clock the clock to use to determine processing time
+   * @param graph the graph representing this pipeline
    */
-  public static WatermarkManager create(
-      Clock clock,
-      Collection<AppliedPTransform<?, ?, ?>> rootTransforms,
-      Map<PValue, Collection<AppliedPTransform<?, ?, ?>>> consumers) {
-    return new WatermarkManager(clock, rootTransforms, consumers);
+  public static WatermarkManager create(Clock clock, DirectGraph graph) {
+    return new WatermarkManager(clock, graph);
   }
 
-  private WatermarkManager(
-      Clock clock,
-      Collection<AppliedPTransform<?, ?, ?>> rootTransforms,
-      Map<PValue, Collection<AppliedPTransform<?, ?, ?>>> consumers) {
+  private WatermarkManager(Clock clock, DirectGraph graph) {
     this.clock = clock;
-    this.consumers = consumers;
+    this.graph = graph;
+
     this.pendingUpdates = new ConcurrentLinkedQueue<>();
 
     this.refreshLock = new ReentrantLock();
@@ -725,13 +719,11 @@ public class WatermarkManager {
 
     transformToWatermarks = new HashMap<>();
 
-    for (AppliedPTransform<?, ?, ?> rootTransform : rootTransforms) {
+    for (AppliedPTransform<?, ?, ?> rootTransform : graph.getRootTransforms()) {
       getTransformWatermark(rootTransform);
     }
-    for (Collection<AppliedPTransform<?, ?, ?>> intermediateTransforms : consumers.values()) {
-      for (AppliedPTransform<?, ?, ?> transform : intermediateTransforms) {
-        getTransformWatermark(transform);
-      }
+    for (AppliedPTransform<?, ?, ?> primitiveTransform : graph.getPrimitiveTransforms()) {
+      getTransformWatermark(primitiveTransform);
     }
   }
 
@@ -769,8 +761,7 @@ public class WatermarkManager {
     }
     for (PValue pvalue : inputs) {
       Watermark producerOutputWatermark =
-          getTransformWatermark(pvalue.getProducingTransformInternal())
-              .synchronizedProcessingOutputWatermark;
+          getTransformWatermark(graph.getProducer(pvalue)).synchronizedProcessingOutputWatermark;
       inputWmsBuilder.add(producerOutputWatermark);
     }
     return inputWmsBuilder.build();
@@ -784,7 +775,7 @@ public class WatermarkManager {
     }
     for (PValue pvalue : inputs) {
       Watermark producerOutputWatermark =
-          getTransformWatermark(pvalue.getProducingTransformInternal()).outputWatermark;
+          getTransformWatermark(graph.getProducer(pvalue)).outputWatermark;
       inputWatermarksBuilder.add(producerOutputWatermark);
     }
     List<Watermark> inputCollectionWatermarks = inputWatermarksBuilder.build();
@@ -920,7 +911,8 @@ public class WatermarkManager {
     // do not share a Mutex within this call and thus can be interleaved with external calls to
     // refresh.
     for (CommittedBundle<?> bundle : result.getOutputs()) {
-      for (AppliedPTransform<?, ?, ?> consumer : consumers.get(bundle.getPCollection())) {
+      for (AppliedPTransform<?, ?, ?> consumer :
+          graph.getPrimitiveConsumers(bundle.getPCollection())) {
         TransformWatermarks watermarks = transformToWatermarks.get(consumer);
         watermarks.addPending(bundle);
       }
@@ -968,7 +960,7 @@ public class WatermarkManager {
     if (updateResult.isAdvanced()) {
       Set<AppliedPTransform<?, ?, ?>> additionalRefreshes = new HashSet<>();
       for (PValue outputPValue : toRefresh.getOutput().expand()) {
-        additionalRefreshes.addAll(consumers.get(outputPValue));
+        additionalRefreshes.addAll(graph.getPrimitiveConsumers(outputPValue));
       }
       return additionalRefreshes;
     }
