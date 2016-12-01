@@ -263,7 +263,7 @@ public class TransformHierarchy {
     /**
      * Adds an output to the transform node.
      */
-    public void setOutput(POutput output) {
+    private void setOutput(POutput output) {
       checkState(!finishedSpecifying);
       checkState(this.output == null, "Tried to specify more than one output for %s", getFullName());
       checkNotNull(output, "Tried to set the output of %s to null", getFullName());
@@ -305,13 +305,14 @@ public class TransformHierarchy {
       return AppliedPTransform.of(
           getFullName(), getInput(), getOutput(), (PTransform) getTransform());
     }
+
     /**
      * Visit the transform node.
      *
      * <p>Provides an ordered visit of the input values, the primitive transform (or child nodes for
      * composite transforms), then the output values.
      */
-    public void visit(PipelineVisitor visitor, Set<PValue> visitedValues) {
+    private void visit(PipelineVisitor visitor, Set<PValue> visitedValues) {
       if (!finishedSpecifying) {
         finishSpecifying();
       }
@@ -354,7 +355,7 @@ public class TransformHierarchy {
      * <p>All inputs are finished first, then the transform, then
      * all outputs.
      */
-    public void finishSpecifying() {
+    private void finishSpecifying() {
       if (finishedSpecifying) {
         return;
       }
