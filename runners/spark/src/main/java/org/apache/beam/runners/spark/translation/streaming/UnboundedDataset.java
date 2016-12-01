@@ -21,7 +21,6 @@ package org.apache.beam.runners.spark.translation.streaming;
 import com.google.common.collect.Iterables;
 import java.util.Queue;
 import java.util.concurrent.LinkedBlockingQueue;
-
 import javax.annotation.Nullable;
 import org.apache.beam.runners.spark.coders.CoderHelpers;
 import org.apache.beam.runners.spark.translation.Dataset;
