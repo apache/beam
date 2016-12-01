@@ -45,7 +45,8 @@ public class TimerInternalsTest {
   public void testTimerDataCoder() throws Exception {
     CoderProperties.coderDecodeEncodeEqual(
         TimerDataCoder.of(GlobalWindow.Coder.INSTANCE),
-        TimerData.of("arbitrary-id", StateNamespaces.global(), new Instant(0), TimeDomain.EVENT_TIME));
+        TimerData.of(
+            "arbitrary-id", StateNamespaces.global(), new Instant(0), TimeDomain.EVENT_TIME));
 
     Coder<IntervalWindow> windowCoder = IntervalWindow.getCoder();
     CoderProperties.coderDecodeEncodeEqual(
