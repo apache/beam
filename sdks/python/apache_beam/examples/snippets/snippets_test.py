@@ -470,11 +470,18 @@ class SnippetsTest(unittest.TestCase):
         ['aa', 'bb', 'bb', 'cc', 'cc', 'cc'],
         self.get_output(result_path, suffix='.csv'))
 
+  def test_model_datastoreio(self):
+    # We cannot test datastoreio functionality in unit tests therefore we limit
+    # ourselves to making sure the pipeline containing Datastore read and write
+    # transforms can be built.
+    # TODO(vikasrk): Expore using Datastore Emulator.
+    snippets.model_datastoreio()
+
   def test_model_bigqueryio(self):
     # We cannot test BigQueryIO functionality in unit tests therefore we limit
     # ourselves to making sure the pipeline containing BigQuery sources and
     # sinks can be built.
-    self.assertEqual(None, snippets.model_bigqueryio())
+    snippets.model_bigqueryio()
 
   def _run_test_pipeline_for_options(self, fn):
     temp_path = self.create_temp_file('aa\nbb\ncc')
