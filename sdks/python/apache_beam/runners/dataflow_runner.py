@@ -176,7 +176,7 @@ class DataflowPipelineRunner(PipelineRunner):
 
     # Create the job
     self.result = DataflowPipelineResult(
-        self.dataflow_client.create_job(self.job, pipeline.options))
+        self.dataflow_client.create_job(self.job))
 
     if self.blocking:
       thread = threading.Thread(

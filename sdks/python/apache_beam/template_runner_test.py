@@ -15,7 +15,7 @@
 # limitations under the License.
 #
 
-"""Integration tests for templated pipelines."""
+"""Unit tests for templated pipelines."""
 
 from __future__ import absolute_import
 
@@ -31,7 +31,7 @@ from apache_beam.internal import apiclient
 
 
 class TemplatingDataflowPipelineRunnerTest(unittest.TestCase):
-  """TemplatingDataflow integration tests."""
+  """TemplatingDataflow tests."""
   def test_full_completion(self):
     dummy_file = tempfile.NamedTemporaryFile()
     dummy_dir = tempfile.mkdtemp()

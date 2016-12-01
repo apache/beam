@@ -393,16 +393,16 @@ class DataflowApplicationClient(object):
 
   # TODO(silviuc): Refactor so that retry logic can be applied.
   @retry.no_retries  # Using no_retries marks this as an integration point.
-  def create_job(self, job, pipeline_options):
+  def create_job(self, job):
     """Creates a job description.
     Additionally, it may stage it and/or submit it for remote execution.
     """
     self.create_job_description(job)
 
     # Stage and submit the job when necessary
-    dataflow_job_file = pipeline_options.view_as(DebugOptions).dataflow_job_file
+    dataflow_job_file = job.options.view_as(DebugOptions).dataflow_job_file
     template_location = (
-        pipeline_options.view_as(GoogleCloudOptions).template_location)
+        job.options.view_as(GoogleCloudOptions).template_location)
 
     job_location = template_location or dataflow_job_file
     if job_location:
