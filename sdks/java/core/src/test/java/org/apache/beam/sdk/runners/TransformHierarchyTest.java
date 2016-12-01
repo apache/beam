@@ -77,8 +77,8 @@ public class TransformHierarchyTest {
 
   @Test
   public void pushThenPopSucceeds() {
-    TransformTreeNode root = hierarchy.getCurrent();
-    TransformTreeNode node = hierarchy.pushNode("Create", PBegin.in(pipeline), Create.of(1));
+    TransformHierarchy.Node root = hierarchy.getCurrent();
+    TransformHierarchy.Node node = hierarchy.pushNode("Create", PBegin.in(pipeline), Create.of(1));
     assertThat(hierarchy.getCurrent(), equalTo(node));
     hierarchy.popNode();
     assertThat(node.finishedSpecifying, is(true));
@@ -90,12 +90,12 @@ public class TransformHierarchyTest {
     PCollection<Long> created =
         PCollection.createPrimitiveOutputInternal(
             pipeline, WindowingStrategy.globalDefault(), IsBounded.BOUNDED);
-    TransformTreeNode node = hierarchy.pushNode("Create", PBegin.in(pipeline), Create.of(1));
+    TransformHierarchy.Node node = hierarchy.pushNode("Create", PBegin.in(pipeline), Create.of(1));
     hierarchy.setOutput(created);
     hierarchy.popNode();
     PCollectionList<Long> pcList = PCollectionList.of(created);
 
-    TransformTreeNode emptyTransform =
+    TransformHierarchy.Node emptyTransform =
         hierarchy.pushNode(
             "Extract",
             pcList,
@@ -149,7 +149,7 @@ public class TransformHierarchyTest {
 
   @Test
   public void visitVisitsAllPushed() {
-    TransformTreeNode root = hierarchy.getCurrent();
+    TransformHierarchy.Node root = hierarchy.getCurrent();
     PBegin begin = PBegin.in(pipeline);
 
     Create.Values<Long> create = Create.of(1L);
@@ -170,7 +170,7 @@ public class TransformHierarchyTest {
         PCollection.createPrimitiveOutputInternal(
             pipeline, WindowingStrategy.globalDefault(), IsBounded.BOUNDED);
 
-    TransformTreeNode compositeNode = hierarchy.pushNode("Create", begin, create);
+    TransformHierarchy.Node compositeNode = hierarchy.pushNode("Create", begin, create);
     assertThat(hierarchy.getCurrent(), equalTo(compositeNode));
     assertThat(compositeNode.getInput(), Matchers.<PInput>equalTo(begin));
     assertThat(compositeNode.getTransform(), Matchers.<PTransform<?, ?>>equalTo(create));
@@ -178,7 +178,7 @@ public class TransformHierarchyTest {
     assertThat(compositeNode.getOutput(), nullValue());
     assertThat(compositeNode.getEnclosingNode().isRootNode(), is(true));
 
-    TransformTreeNode primitiveNode = hierarchy.pushNode("Create/Read", begin, read);
+    TransformHierarchy.Node primitiveNode = hierarchy.pushNode("Create/Read", begin, read);
     assertThat(hierarchy.getCurrent(), equalTo(primitiveNode));
     hierarchy.setOutput(created);
     hierarchy.popNode();
@@ -194,30 +194,30 @@ public class TransformHierarchyTest {
     assertThat(hierarchy.getProducer(created), equalTo(primitiveNode));
     hierarchy.popNode();
 
-    TransformTreeNode otherPrimitive = hierarchy.pushNode("ParDo", created, map);
+    TransformHierarchy.Node otherPrimitive = hierarchy.pushNode("ParDo", created, map);
     hierarchy.setOutput(mapped);
     hierarchy.popNode();
 
-    final Set<TransformTreeNode> visitedCompositeNodes = new HashSet<>();
-    final Set<TransformTreeNode> visitedPrimitiveNodes = new HashSet<>();
+    final Set<TransformHierarchy.Node> visitedCompositeNodes = new HashSet<>();
+    final Set<TransformHierarchy.Node> visitedPrimitiveNodes = new HashSet<>();
     final Set<PValue> visitedValuesInVisitor = new HashSet<>();
 
     Set<PValue> visitedValues =
         hierarchy.visit(
             new PipelineVisitor.Defaults() {
               @Override
-              public CompositeBehavior enterCompositeTransform(TransformTreeNode node) {
+              public CompositeBehavior enterCompositeTransform(TransformHierarchy.Node node) {
                 visitedCompositeNodes.add(node);
                 return CompositeBehavior.ENTER_TRANSFORM;
               }
 
               @Override
-              public void visitPrimitiveTransform(TransformTreeNode node) {
+              public void visitPrimitiveTransform(TransformHierarchy.Node node) {
                 visitedPrimitiveNodes.add(node);
               }
 
               @Override
-              public void visitValue(PValue value, TransformTreeNode producer) {
+              public void visitValue(PValue value, TransformHierarchy.Node producer) {
                 visitedValuesInVisitor.add(value);
               }
             });

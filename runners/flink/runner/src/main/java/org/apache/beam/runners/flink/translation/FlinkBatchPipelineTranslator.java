@@ -19,7 +19,7 @@ package org.apache.beam.runners.flink.translation;
 
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.runners.TransformTreeNode;
+import org.apache.beam.sdk.runners.TransformHierarchy;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.flink.api.java.DataSet;
@@ -63,7 +63,7 @@ public class FlinkBatchPipelineTranslator extends FlinkPipelineTranslator {
   // --------------------------------------------------------------------------------------------
 
   @Override
-  public CompositeBehavior enterCompositeTransform(TransformTreeNode node) {
+  public CompositeBehavior enterCompositeTransform(TransformHierarchy.Node node) {
     LOG.info(genSpaces(this.depth) + "enterCompositeTransform- " + formatNodeName(node));
     this.depth++;
 
@@ -79,13 +79,13 @@ public class FlinkBatchPipelineTranslator extends FlinkPipelineTranslator {
   }
 
   @Override
-  public void leaveCompositeTransform(TransformTreeNode node) {
+  public void leaveCompositeTransform(TransformHierarchy.Node node) {
     this.depth--;
     LOG.info(genSpaces(this.depth) + "leaveCompositeTransform- " + formatNodeName(node));
   }
 
   @Override
-  public void visitPrimitiveTransform(TransformTreeNode node) {
+  public void visitPrimitiveTransform(TransformHierarchy.Node node) {
     LOG.info(genSpaces(this.depth) + "visitPrimitiveTransform- " + formatNodeName(node));
 
     // get the transformation corresponding to the node we are
@@ -103,7 +103,7 @@ public class FlinkBatchPipelineTranslator extends FlinkPipelineTranslator {
 
   private <T extends PTransform<?, ?>> void applyBatchTransform(
       PTransform<?, ?> transform,
-      TransformTreeNode node,
+      TransformHierarchy.Node node,
       BatchTransformTranslator<?> translator) {
 
     @SuppressWarnings("unchecked")
@@ -128,7 +128,7 @@ public class FlinkBatchPipelineTranslator extends FlinkPipelineTranslator {
   /**
    * Returns a translator for the given node, if it is possible, otherwise null.
    */
-  private static BatchTransformTranslator<?> getTranslator(TransformTreeNode node) {
+  private static BatchTransformTranslator<?> getTranslator(TransformHierarchy.Node node) {
     PTransform<?, ?> transform = node.getTransform();
 
     // Root of the graph is null
@@ -139,7 +139,7 @@ public class FlinkBatchPipelineTranslator extends FlinkPipelineTranslator {
     return FlinkBatchTransformTranslators.getTranslator(transform);
   }
 
-  private static String formatNodeName(TransformTreeNode node) {
+  private static String formatNodeName(TransformHierarchy.Node node) {
     return node.toString().split("@")[1] + node.getTransform();
   }
 }

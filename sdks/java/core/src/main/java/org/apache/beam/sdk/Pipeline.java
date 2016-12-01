@@ -30,7 +30,6 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.runners.PipelineRunner;
 import org.apache.beam.sdk.runners.TransformHierarchy;
-import org.apache.beam.sdk.runners.TransformTreeNode;
 import org.apache.beam.sdk.transforms.Aggregator;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -218,25 +217,25 @@ public class Pipeline {
      *
      * <p>The return value controls whether or not child transforms are visited.
      */
-    CompositeBehavior enterCompositeTransform(TransformTreeNode node);
+    CompositeBehavior enterCompositeTransform(TransformHierarchy.Node node);
 
     /**
      * Called for each composite transform after all of its component transforms and their outputs
      * have been visited.
      */
-    void leaveCompositeTransform(TransformTreeNode node);
+    void leaveCompositeTransform(TransformHierarchy.Node node);
 
     /**
      * Called for each primitive transform after all of its topological predecessors
      * and inputs have been visited.
      */
-    void visitPrimitiveTransform(TransformTreeNode node);
+    void visitPrimitiveTransform(TransformHierarchy.Node node);
 
     /**
      * Called for each value after the transform that produced the value has been
      * visited.
      */
-    void visitValue(PValue value, TransformTreeNode producer);
+    void visitValue(PValue value, TransformHierarchy.Node producer);
 
     /**
      * Control enum for indicating whether or not a traversal should process the contents of
@@ -253,18 +252,18 @@ public class Pipeline {
      */
     class Defaults implements PipelineVisitor {
       @Override
-      public CompositeBehavior enterCompositeTransform(TransformTreeNode node) {
+      public CompositeBehavior enterCompositeTransform(TransformHierarchy.Node node) {
         return CompositeBehavior.ENTER_TRANSFORM;
       }
 
       @Override
-      public void leaveCompositeTransform(TransformTreeNode node) { }
+      public void leaveCompositeTransform(TransformHierarchy.Node node) { }
 
       @Override
-      public void visitPrimitiveTransform(TransformTreeNode node) { }
+      public void visitPrimitiveTransform(TransformHierarchy.Node node) { }
 
       @Override
-      public void visitValue(PValue value, TransformTreeNode producer) { }
+      public void visitValue(PValue value, TransformHierarchy.Node producer) { }
     }
   }
 
