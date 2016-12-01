@@ -88,12 +88,9 @@ $ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
 
 {:.runner-flink-cluster}
 ```
-$ mvn package -Pflink-runner
-$ cp target/word-count-beam-bundled-0.1.jar /path/to/flink/lib/
-$ bin/flink run -c org.apache.beam.examples.WordCount lib/word-count-beam-0.1.jar  \
-    --inputFile=/path/to/quickstart/pom.xml  \
-    --output=/tmp/counts \
-    --runner=org.apache.beam.runners.flink.FlinkRunner
+$ mvn package exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
+     -Dexec.args="--runner=FlinkRunner --flinkMaster=<flink master> --filesToStage=target/word-count-beam-bundled-0.1.jar \
+                  --inputFile=/path/to/quickstart/pom.xml --output=/tmp/counts" -Pflink-runner
 
 You can monitor the running job by visiting the Flink dashboard at http://<flink master>:8081
 ```
