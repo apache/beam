@@ -17,8 +17,19 @@
 #    limitations under the License.
 #
 ################################################################################
+
+#Create an ELK (Elasticsearch Logstash Kibana) container for ES v2.4 and compatible Logstash and Kibana versions,
+#bind then on host ports, allow shell access to container and mount current directory on /home/$USER inside the container
+
 docker create -p 5601:5601 -p 9200:9200 -p 5044:5044 -p 5000:5000 -p 9300:9300 -it -v $(pwd):/home/$USER/ --name elk-2.4  sebp/elk:es240_l240_k460
+
+
+#Create an ELK (Elasticsearch Logstash Kibana) container for ES v5.0 and compatible Logstash and Kibana versions,
+#bind then on host ports, allow shell access to container and mount current directory on /home/$USER inside the container
+
 docker create -p 5601:5601 -p 9200:9200 -p 5044:5044 -p 5000:5000 -p 9300:9300 -it -v $(pwd):/home/$USER/ --name elk-5.0  sebp/elk:es500_l500_k500
+
+# set system vm.max_map_count to the minimal value acceptable by ES 5.0
 echo "increasing virtual memory for ES 5.0 ..."
 sudo sysctl -w vm.max_map_count=262144
 cp /etc/sysctl.conf /tmp/sysctl.conf

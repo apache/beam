@@ -110,12 +110,12 @@ import org.elasticsearch.client.RestClientBuilder;
  * }</pre>
  *
  * <p>Optionally, you can provide {@code withBatchSize()} and {@code withBatchSizeMegaBytes()}
- * to specify the size of the write batch.
+ * to specify the size of the write batch in number of documents or in megabytes.
  */
 public class ElasticsearchIO {
 
   public static Read read() {
-    return new AutoValue_ElasticsearchIO_Read.Builder().build();
+    return new AutoValue_ElasticsearchIO_Read.Builder().setScrollKeepalive("1m").build();
   }
 
   public static Write write() {
@@ -293,9 +293,16 @@ public class ElasticsearchIO {
         throws Exception {
       List<BoundedElasticsearchSource> sources = new ArrayList<>();
 
-      // we split per shard
+      // we split per shard and read only primary shards
       // unfortunately, Elasticsearch 2.x doesn't provide a way to do parallel reads on a single
-      // shard
+      // shard.
+      // let's say the ES index is configured to split data into 5 shards with a replica of 1 (for failover).
+        // In that case, there will be a total of 10 shards (5 primary, 5 replica).
+        // Each beam source reads the documents contained in one shard.
+        // As we don't want to have duplicate documents in PCollection, we only read primary shards.
+        // In case of failover (ES side), primary shards stored in a failing ES node are no longer available
+        // and replica shards (stored in other nodes) become primary shards.
+
       JsonObject statsJson = getStats(true);
       JsonObject shardsJson = statsJson.getAsJsonObject("indices")
           .getAsJsonObject(spec.getConnectionConfiguration().getIndex())
@@ -316,10 +323,13 @@ public class ElasticsearchIO {
 
     @Override
     public long getEstimatedSizeBytes(PipelineOptions options) throws IOException {
-      // as Elasticsearch 2.x doesn't not support any way to do parallel read inside a shard
+      //we use indices stats API to estimate size and list the shards
+        // (https://www.elastic.co/guide/en/elasticsearch/reference/2.4/indices-stats.html)
+        // as Elasticsearch 2.x doesn't not support any way to do parallel read inside a shard
       // the estimated size bytes is not really used in the split into bundles.
       // However, we implement this method anyway as the runners can use it.
       // NB: Elasticsearch 5.x now provides the slice API.
+        // (https://www.elastic.co/guide/en/elasticsearch/reference/5.0/search-request-scroll.html#sliced-scroll)
       JsonObject statsJson = getStats(false);
       JsonObject indexStats =
           statsJson.getAsJsonObject("indices").getAsJsonObject(
@@ -400,8 +410,7 @@ public class ElasticsearchIO {
                                       source.spec.getConnectionConfiguration().getIndex(),
                                       source.spec.getConnectionConfiguration().getType());
       Map<String, String> params = new HashMap<>();
-      params.put("scroll", source.spec.getScrollKeepalive() != null ? source.spec
-          .getScrollKeepalive() : "1m");
+      params.put("scroll", source.spec.getScrollKeepalive());
       params.put("size", "1");
       if (source.shardPreference != null) {
         params.put("preference", "_shards:" + source.shardPreference);
@@ -417,8 +426,7 @@ public class ElasticsearchIO {
     @Override
     public boolean advance() throws IOException {
       String requestBody = String.format("{\"scroll\" : \"%s\",\"scroll_id\" : \"%s\"}",
-                                         source.spec.getScrollKeepalive() != null ? source.spec
-                                             .getScrollKeepalive() : "1m", scroll);
+                                        source.spec.getScrollKeepalive(), scroll);
       HttpEntity scrollEntity = new NStringEntity(requestBody, ContentType.APPLICATION_JSON);
       Response response = restClient.performRequest("GET", "/_search/scroll",
                                                     Collections.<String, String>emptyMap(),
@@ -458,16 +466,22 @@ public class ElasticsearchIO {
                                   Collections.<String, String>emptyMap(),
                                   entity, new BasicHeader("", ""));
       } catch (IOException e) {
-        //ES gives the same scroll id to each source, close that scroll more than once produces an
-        // error is ES 5.x so protect this: cannot request if a particular scroll id is still open
-        // so ignores exception (raised with ES v5.x)
-        if (e.getMessage() != null && !e.getMessage().contains("no scroll ids specified")) {
-          throw e;
-        }
-      }
-      // close client
-      if (restClient != null) {
-        restClient.close();
+          // Each reader.start() starts a new scroll identified by a scroll_id .ES sometimes gives the same scroll_id
+          // to multiple readers. As a consequence, when these readers call close() they might delete a scroll
+          // that has already been deleted by another reader (that received the same scroll_id).
+          // This does no cause any exception to be thrown with ES 2.x but with ES 5.x,
+          // deleting an already deleted scroll throws an Exception.
+          // We ignore this exception if it is thrown.
+          if (e.getMessage() != null && !e.getMessage().contains("no scroll ids specified")) {
+            throw e;
+          }
+
+      } finally {
+          // close client
+          if (restClient != null) {
+              restClient.close();
+          }
+
       }
     }
 
@@ -548,7 +562,7 @@ public class ElasticsearchIO {
       @ProcessElement
       public void processElement(ProcessContext context) throws Exception {
         String document = context.element();
-        batch.add(String.format("%s%n%s%n", "{ \"index\" : {} }", document));
+        batch.add(String.format("{ \"index\" : {} }%n%s%n", document));
         currentBatchSizeBytes += document.getBytes().length;
         if (batch.size() >= spec.getBatchSize()
             || currentBatchSizeBytes >= (spec.getBatchSizeMegaBytes() * 1024L * 1024L)) {
@@ -576,9 +590,25 @@ public class ElasticsearchIO {
           JsonObject searchResult = parseResponse(response);
           boolean errors = searchResult.getAsJsonPrimitive("errors").getAsBoolean();
           if (errors) {
-            throw new IllegalStateException("Can't update Elasticsearch");
+              StringBuilder errorMessages = new StringBuilder("Error writing to Elasticsearch, " +
+                  "some elements could not be inserted:");
+            JsonArray items = searchResult.getAsJsonArray("items");
+            //some items present in bulk might have errors, concatenate error messages
+              for (JsonElement item:items){
+                JsonObject creationObject = item.getAsJsonObject().getAsJsonObject("create");
+                JsonObject error = creationObject.getAsJsonObject("error");
+                  if (error != null){
+                    String docId = creationObject.getAsJsonPrimitive("_id").getAsString();
+                    errorMessages.append(String.format("%n document id %s : ", docId));
+                      String errorMessage = error.getAsJsonObject("caused_by").getAsJsonPrimitive("reason")
+                                            .getAsString();
+                      errorMessages.append(errorMessage);
+                  }
+              }
+              throw new IOException(errorMessages.toString());
           }
           batch.clear();
+          currentBatchSizeBytes = 0;
         }
       }
 

@@ -21,6 +21,7 @@ import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIO.BoundedElasti
 import static org.apache.beam.sdk.testing.SourceTestUtils.readFromSource;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 import java.io.File;
 import java.io.IOException;
@@ -79,13 +80,15 @@ public class ElasticsearchIOTest implements Serializable {
   private static int esHttpPort;
 
   private static transient Node node;
+  private static ElasticsearchIO.ConnectionConfiguration connectionConfiguration ;
 
   @BeforeClass
   public static void beforeClass() throws IOException {
     ServerSocket serverSocket = new ServerSocket(0);
     esHttpPort = serverSocket.getLocalPort();
     serverSocket.close();
-
+    connectionConfiguration = ElasticsearchIO.ConnectionConfiguration
+        .create(new String[]{"http://" + ES_IP + ":" + esHttpPort}, ES_INDEX, ES_TYPE);
     FileUtils.deleteDirectory(new File(DATA_DIRECTORY));
     LOGGER.info("Starting embedded Elasticsearch instance ({})", esHttpPort);
     Settings.Builder settingsBuilder =
@@ -101,9 +104,7 @@ public class ElasticsearchIOTest implements Serializable {
             .put("index.store.stats_refresh_interval", 0);
     node = NodeBuilder.nodeBuilder().settings(settingsBuilder).build();
     LOGGER.info("Elasticsearch node created");
-    if (node != null) {
-      node.start();
-    }
+    node.start();
   }
 
   @Before
@@ -116,33 +117,42 @@ public class ElasticsearchIOTest implements Serializable {
     }
   }
 
-  private void sampleIndex(long nbDocs) throws Exception {
-    Client client = node.client();
-    final BulkRequestBuilder bulkRequestBuilder = client.prepareBulk().setRefresh(true);
-
+  private List<String> createDocuments(long nbDocs, boolean insertErrors){
     String[] scientists =
         { "Einstein", "Darwin", "Copernicus", "Pasteur", "Curie", "Faraday", "Newton", "Bohr",
             "Galilei", "Maxwell" };
+    ArrayList<String> data = new ArrayList<>();
     for (int i = 0; i < nbDocs; i++) {
       int index = i % scientists.length;
-      String source = String.format("{\"scientist\":\"%s\", \"id\":%d}", scientists[index], i);
-      bulkRequestBuilder.add(client.prepareIndex(ES_INDEX, ES_TYPE, null).setSource(source));
+      //insert 2 malformed documents is asked to do so
+      if (insertErrors && (i == 6 || i == 7)){
+        data.add(String.format("{\"scientist\";\"%s\", \"id\":%d}", scientists[index], i));
+      } else {
+        data.add(String.format("{\"scientist\":\"%s\", \"id\":%d}", scientists[index], i));
+      }
+    }
+    return data;
+  }
+  private void insertTestDocuments(long nbDocs) throws Exception {
+    Client client = node.client();
+    final BulkRequestBuilder bulkRequestBuilder = client.prepareBulk().setRefresh(true);
+    List<String> data = createDocuments(nbDocs, false);
+    for (String document:data){
+      bulkRequestBuilder.add(client.prepareIndex(ES_INDEX, ES_TYPE, null).setSource(document));
     }
     final BulkResponse bulkResponse = bulkRequestBuilder.execute().actionGet();
     if (bulkResponse.hasFailures()) {
-      throw new IOException("Cannot insert samples in index " + ES_INDEX);
+      throw new IOException(String.format("Cannot insert test documents in index %s : %s",
+                                          ES_INDEX, bulkResponse.buildFailureMessage()));
     }
   }
 
   @Test
   public void testSizes() throws Exception {
-    sampleIndex(NB_DOCS);
+    insertTestDocuments(NB_DOCS);
     PipelineOptions options = PipelineOptionsFactory.create();
-    String[] addresses = {"http://" + ES_IP + ":" + esHttpPort};
     ElasticsearchIO.Read read =
-        ElasticsearchIO.read().withConnectionConfiguration(
-            ElasticsearchIO.ConnectionConfiguration
-                .create(addresses, ES_INDEX, ES_TYPE));
+        ElasticsearchIO.read().withConnectionConfiguration(connectionConfiguration);
     BoundedElasticsearchSource initialSource =
         new BoundedElasticsearchSource(read, null);
     // can't use equal assert as Elasticsearch indexes never have same size
@@ -155,16 +165,12 @@ public class ElasticsearchIOTest implements Serializable {
   @Test
   @Category(NeedsRunner.class)
   public void testRead() throws Exception {
-    sampleIndex(NB_DOCS);
+    insertTestDocuments(NB_DOCS);
 
     TestPipeline pipeline = TestPipeline.create();
 
-    String[] addresses = { "http://" + ES_IP + ":" + esHttpPort };
     PCollection<String> output = pipeline.apply(
-        ElasticsearchIO.read().withConnectionConfiguration(
-            ElasticsearchIO.ConnectionConfiguration
-                .create(addresses, ES_INDEX, ES_TYPE))
-            .withScrollKeepalive("5m"));
+        ElasticsearchIO.read().withConnectionConfiguration(connectionConfiguration).withScrollKeepalive("5m"));
     PAssert.thatSingleton(output.apply("Count", Count.<String>globally())).isEqualTo(NB_DOCS);
     pipeline.run();
   }
@@ -172,7 +178,7 @@ public class ElasticsearchIOTest implements Serializable {
   @Test
   @Category(NeedsRunner.class)
   public void testReadWithQuery() throws Exception {
-    sampleIndex(NB_DOCS);
+    insertTestDocuments(NB_DOCS);
 
     String query = "{\n"
         + "  \"query\": {\n"
@@ -187,12 +193,8 @@ public class ElasticsearchIOTest implements Serializable {
 
     Pipeline pipeline = TestPipeline.create();
 
-    String[] addresses = {"http://" + ES_IP + ":" + esHttpPort};
     PCollection<String> output = pipeline.apply(
-        ElasticsearchIO.read().withConnectionConfiguration(
-            ElasticsearchIO.ConnectionConfiguration
-                .create(addresses, ES_INDEX, ES_TYPE))
-            .withQuery(query));
+        ElasticsearchIO.read().withConnectionConfiguration(connectionConfiguration).withQuery(query));
     PAssert.thatSingleton(output.apply("Count", Count.<String>globally())).isEqualTo(NB_DOCS / 10);
     pipeline.run();
   }
@@ -201,20 +203,8 @@ public class ElasticsearchIOTest implements Serializable {
   @Category(NeedsRunner.class)
   public void testWrite() throws Exception {
     Pipeline pipeline = TestPipeline.create();
-
-    String[] addresses = {"http://" + ES_IP + ":" + esHttpPort};
-    String[] scientists =
-        { "Einstein", "Darwin", "Copernicus", "Pasteur", "Curie", "Faraday", "Newton", "Bohr",
-            "Galilei", "Maxwell" };
-    ArrayList<String> data = new ArrayList<>();
-    for (int i = 0; i < NB_DOCS; i++) {
-      int index = i % scientists.length;
-      data.add(String.format("{\"scientist\":\"%s\", \"id\":%d}", scientists[index], i));
-    }
-    pipeline.apply(Create.of(data)).apply(
-        ElasticsearchIO.write().withConnectionConfiguration(
-            ElasticsearchIO.ConnectionConfiguration
-                .create(addresses, ES_INDEX, ES_TYPE)));
+    List<String> data = createDocuments(NB_DOCS, false);
+    pipeline.apply(Create.of(data)).apply(ElasticsearchIO.write().withConnectionConfiguration(connectionConfiguration));
     pipeline.run();
 
     // upgrade
@@ -230,22 +220,32 @@ public class ElasticsearchIOTest implements Serializable {
 
   @Test
   @Category(NeedsRunner.class)
+  public void testWriteWithErrors() throws Exception {
+    TestPipeline pipeline = TestPipeline.create();
+    List<String> data = createDocuments(NB_DOCS, true);
+    pipeline.apply(Create.of(data)).apply(ElasticsearchIO.write().withConnectionConfiguration(connectionConfiguration));
+    try {
+      pipeline.run();
+      fail("Exception should have been thrown");
+    } catch (Exception e) {
+        //type of e is Pipeline$PipelineExecutionException
+
+      String message = e.getCause().getMessage();
+      assertTrue("Wrong exception thrown", e.getCause().getClass() == IOException.class);
+      assertTrue("Wrong message in exception", message.matches("(?is).*Error writing to Elasticsearch, some elements could not be inserted" +
+          ".*document id.*was expecting a colon to separate field name and value" +
+          ".*document id.*was expecting a colon to separate field name and value.*"));
+    }
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
   public void testWriteWithBatchSizes() throws Exception {
     Pipeline pipeline = TestPipeline.create();
-
-    String[] addresses = {"http://" + ES_IP + ":" + esHttpPort};
-    String[] scientists =
-        { "Einstein", "Darwin", "Copernicus", "Pasteur", "Curie", "Faraday", "Newton", "Bohr",
-            "Galilei", "Maxwell" };
-    ArrayList<String> data = new ArrayList<>();
-    for (int i = 0; i < NB_DOCS; i++) {
-      int index = i % scientists.length;
-      data.add(String.format("{\"scientist\":\"%s\", \"id\":%d}", scientists[index], i));
-    }
+    List<String> data = createDocuments(NB_DOCS, false);
     PDone collection = pipeline.apply(Create.of(data)).apply(
         ElasticsearchIO.write()
-            .withConnectionConfiguration(ElasticsearchIO.ConnectionConfiguration
-                                             .create(addresses, ES_INDEX, ES_TYPE))
+            .withConnectionConfiguration(connectionConfiguration)
             .withBatchSize(NB_DOCS / 2)
             .withBatchSizeMegaBytes(1));
 
@@ -264,13 +264,10 @@ public class ElasticsearchIOTest implements Serializable {
 
   @Test
   public void testSplitIntoBundles() throws Exception {
-    sampleIndex(NB_DOCS);
+    insertTestDocuments(NB_DOCS);
     PipelineOptions options = PipelineOptionsFactory.create();
-    String[] addresses = {"http://" + ES_IP + ":" + esHttpPort};
     ElasticsearchIO.Read read =
-        ElasticsearchIO.read().withConnectionConfiguration(
-            ElasticsearchIO.ConnectionConfiguration
-                .create(addresses, ES_INDEX, ES_TYPE));
+        ElasticsearchIO.read().withConnectionConfiguration(connectionConfiguration);
     BoundedElasticsearchSource initialSource =
         new BoundedElasticsearchSource(read, null);
     //desiredBundleSize is ignored because in ES 2.x there is no way to split shards. So we get
@@ -294,9 +291,7 @@ public class ElasticsearchIOTest implements Serializable {
 
   @AfterClass
   public static void afterClass() {
-    if (node != null) {
-      node.close();
-    }
+    node.close();
   }
 
 }

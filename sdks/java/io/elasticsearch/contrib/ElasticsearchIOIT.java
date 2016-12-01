@@ -30,6 +30,8 @@ import org.apache.beam.sdk.values.PCollection;
 import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.List;
@@ -46,15 +48,17 @@ import static org.junit.Assert.assertTrue;
 public class ElasticsearchIOIT {
   private static final String ES_IP = "localhost";
   private static final String ES_HTTP_PORT = "9200";
+  public static final ElasticsearchIO.ConnectionConfiguration CONNECTION_CONFIGURATION =
+      ElasticsearchIO.ConnectionConfiguration.create(new String[]{"http://" + ES_IP + ":" + ES_HTTP_PORT}, ES_INDEX, ES_TYPE);
+  public static final long NBDOCS_INSERTED = 60000;
+  private static final Logger LOGGER = LoggerFactory.getLogger(ElasticsearchIOTest.class);
+
 
   @Test
   public void testSplitsVolume() throws Exception {
     PipelineOptions options = PipelineOptionsFactory.create();
     ElasticsearchIO.Read read =
-        ElasticsearchIO.read()
-            .withConnectionConfiguration(
-                ElasticsearchIO.ConnectionConfiguration
-                    .create("http://" + ES_IP + ":" + ES_HTTP_PORT, ES_INDEX, ES_TYPE));
+        ElasticsearchIO.read().withConnectionConfiguration(CONNECTION_CONFIGURATION);
     ElasticsearchIO.BoundedElasticsearchSource initialSource =
         new ElasticsearchIO.BoundedElasticsearchSource(read, null);
     long desiredBundleSizeBytes = 0;
@@ -78,15 +82,11 @@ public class ElasticsearchIOIT {
   public void testReadVolume() throws Exception {
     //use flink runner otherwise only one source is created
     String[] args = new String[] { "--runner=FlinkRunner", "--project=test-project" };
-
     TestPipeline pipeline =
         TestPipeline.fromOptions(PipelineOptionsFactory.fromArgs(args).create());
     PCollection<String> output = pipeline.apply(
-        ElasticsearchIO.read().withConnectionConfiguration(
-            ElasticsearchIO.ConnectionConfiguration
-                .create("http://" + ES_IP + ":" + ES_HTTP_PORT, ES_INDEX, ES_TYPE))
-            .withScrollKeepalive("5m"));
-    PAssert.thatSingleton(output.apply("Count", Count.<String>globally())).isEqualTo(96253L);
+        ElasticsearchIO.read().withConnectionConfiguration(CONNECTION_CONFIGURATION).withScrollKeepalive("5m"));
+    PAssert.thatSingleton(output.apply("Count", Count.<String>globally())).isEqualTo(NBDOCS_INSERTED);
     pipeline.run();
   }
 
@@ -94,13 +94,14 @@ public class ElasticsearchIOIT {
   public void testEstimatedSizesVolume() throws IOException {
     PipelineOptions options = PipelineOptionsFactory.create();
     ElasticsearchIO.Read read =
-        ElasticsearchIO.read().withConnectionConfiguration(
-            ElasticsearchIO.ConnectionConfiguration
-              .create("http://" + ES_IP + ":" + ES_HTTP_PORT, ES_INDEX, ES_TYPE));
+        ElasticsearchIO.read().withConnectionConfiguration(CONNECTION_CONFIGURATION);
     ElasticsearchIO.BoundedElasticsearchSource initialSource =
         new ElasticsearchIO.BoundedElasticsearchSource(read, null);
-    assertTrue("Wrong estimated size", initialSource.getEstimatedSizeBytes
-        (options) > 1900000);
+    // can't use equal assert as Elasticsearch indexes never have same size
+    // (due to internal Elasticsearch implementation)
+    long estimatedSize = initialSource.getEstimatedSizeBytes(options);
+    LOGGER.info("Estimated size: {}", estimatedSize);
+    assertTrue("Wrong estimated size", estimatedSize > 1500000);
   }
 
 }
