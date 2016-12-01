@@ -23,7 +23,6 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
-
 import org.apache.beam.runners.spark.aggregators.AccumulatorSingleton;
 import org.apache.beam.runners.spark.translation.EvaluationContext;
 import org.apache.beam.runners.spark.translation.SparkContextFactory;
@@ -33,7 +32,6 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.metrics.MetricResults;
 import org.apache.beam.sdk.transforms.Aggregator;
-import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.spark.SparkException;
 import org.joda.time.Duration;
 
@@ -64,7 +62,7 @@ public abstract class SparkPipelineResult implements PipelineResult {
     // won't let you catch something that is not declared, so we can't catch
     // SparkException directly, instead we do an instanceof check.
     return (e instanceof SparkException)
-        ? new Pipeline.PipelineExecutionException(e.getCause())
+        ? new Pipeline.PipelineExecutionException(e.getCause() != null ? e.getCause() : e)
         : runtimeExceptionFrom(e);
   }
 
