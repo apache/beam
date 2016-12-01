@@ -107,11 +107,17 @@ final class ParDoEvaluatorFactory<InputT, OutputT> implements TransformEvaluator
             .getExecutionContext(application, inputBundleKey)
             .getOrCreateStepContext(stepName, stepName);
 
-    DoFnLifecycleManager fnManager = getFnClone(doFn);
+    DoFnLifecycleManager fnManager = getManagerForCloneOf(doFn);
 
     return DoFnLifecycleManagerRemovingTransformEvaluator.wrapping(
         createParDoEvaluator(
-            application, sideInputs, mainOutputTag, sideOutputTags, stepContext, fnManager),
+            application,
+            sideInputs,
+            mainOutputTag,
+            sideOutputTags,
+            stepContext,
+            fnManager.<InputT, OutputT>get(),
+            fnManager),
         fnManager);
   }
 
@@ -121,6 +127,7 @@ final class ParDoEvaluatorFactory<InputT, OutputT> implements TransformEvaluator
       TupleTag<OutputT> mainOutputTag,
       List<TupleTag<?>> sideOutputTags,
       DirectStepContext stepContext,
+      DoFn<InputT, OutputT> fn,
       DoFnLifecycleManager fnManager)
       throws Exception {
     try {
@@ -129,7 +136,7 @@ final class ParDoEvaluatorFactory<InputT, OutputT> implements TransformEvaluator
           stepContext,
           application,
           application.getInput().getWindowingStrategy(),
-          fnManager.get(),
+          fn,
           sideInputs,
           mainOutputTag,
           sideOutputTags,
@@ -147,7 +154,7 @@ final class ParDoEvaluatorFactory<InputT, OutputT> implements TransformEvaluator
     }
   }
 
-  public DoFnLifecycleManager getFnClone(DoFn<?, ?> fn) {
+  public DoFnLifecycleManager getManagerForCloneOf(DoFn<?, ?> fn) {
     return fnClones.getUnchecked(fn);
   }
 }

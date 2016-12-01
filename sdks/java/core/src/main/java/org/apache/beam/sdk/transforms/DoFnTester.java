@@ -330,7 +330,6 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
    *
    */
   public List<OutputT> peekOutputElements() {
-    // TODO: Should we return an unmodifiable list?
     return Lists.transform(
         peekOutputElementsWithTimestamp(),
         new Function<TimestampedValue<OutputT>, OutputT>() {
@@ -353,7 +352,7 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
   @Experimental
   public List<TimestampedValue<OutputT>> peekOutputElementsWithTimestamp() {
     // TODO: Should we return an unmodifiable list?
-    return Lists.transform(getOutput(mainOutputTag),
+    return Lists.transform(getImmutableOutput(mainOutputTag),
         new Function<WindowedValue<OutputT>, TimestampedValue<OutputT>>() {
           @Override
           @SuppressWarnings("unchecked")
@@ -379,7 +378,7 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
       TupleTag<OutputT> tag,
       BoundedWindow window) {
     ImmutableList.Builder<TimestampedValue<OutputT>> valuesBuilder = ImmutableList.builder();
-    for (WindowedValue<OutputT> value : getOutput(tag)) {
+    for (WindowedValue<OutputT> value : getImmutableOutput(tag)) {
       if (value.getWindows().contains(window)) {
         valuesBuilder.add(TimestampedValue.of(value.getValue(), value.getTimestamp()));
       }
@@ -393,7 +392,7 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
    * @see #peekOutputElements
    */
   public void clearOutputElements() {
-    peekOutputElements().clear();
+    getMutableOutput(mainOutputTag).clear();
   }
 
   /**
@@ -434,7 +433,7 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
    */
   public <T> List<T> peekSideOutputElements(TupleTag<T> tag) {
     // TODO: Should we return an unmodifiable list?
-    return Lists.transform(getOutput(tag),
+    return Lists.transform(getImmutableOutput(tag),
         new Function<WindowedValue<T>, T>() {
           @SuppressWarnings("unchecked")
           @Override
@@ -450,7 +449,7 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
    * @see #peekSideOutputElements
    */
   public <T> void clearSideOutputElements(TupleTag<T> tag) {
-    peekSideOutputElements(tag).clear();
+    getMutableOutput(tag).clear();
   }
 
   /**
@@ -511,14 +510,15 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
     return combiner.extractOutput(accumulator);
   }
 
-  private <T> List<WindowedValue<T>> getOutput(TupleTag<T> tag) {
+  private <T> List<WindowedValue<T>> getImmutableOutput(TupleTag<T> tag) {
     @SuppressWarnings({"unchecked", "rawtypes"})
     List<WindowedValue<T>> elems = (List) outputs.get(tag);
-    return MoreObjects.firstNonNull(elems, Collections.<WindowedValue<T>>emptyList());
+    return ImmutableList.copyOf(
+        MoreObjects.firstNonNull(elems, Collections.<WindowedValue<T>>emptyList()));
   }
 
   @SuppressWarnings({"unchecked", "rawtypes"})
-  public <T> List<WindowedValue<T>> getOrCreateOutput(TupleTag<T> tag) {
+  public <T> List<WindowedValue<T>> getMutableOutput(TupleTag<T> tag) {
     List<WindowedValue<T>> outputList = (List) outputs.get(tag);
     if (outputList == null) {
       outputList = new ArrayList<>();
@@ -613,7 +613,7 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
     }
 
     public <T> void noteOutput(TupleTag<T> tag, WindowedValue<T> output) {
-      getOrCreateOutput(tag).add(output);
+      getMutableOutput(tag).add(output);
     }
   }
 

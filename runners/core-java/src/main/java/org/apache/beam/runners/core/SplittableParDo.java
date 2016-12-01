@@ -196,7 +196,8 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
           PCollection<? extends KeyedWorkItem<String, ElementAndRestriction<InputT, RestrictionT>>>,
           PCollectionTuple> {
     private final DoFn<InputT, OutputT> fn;
-    private final ProcessFn<InputT, OutputT, RestrictionT, ?> processFn;
+    private final Coder<InputT> elementCoder;
+    private final Coder<RestrictionT> restrictionCoder;
     private final WindowingStrategy<?, ?> windowingStrategy;
     private final List<PCollectionView<?>> sideInputs;
     private final TupleTag<OutputT> mainOutputTag;
@@ -218,13 +219,12 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
         TupleTag<OutputT> mainOutputTag,
         TupleTagList sideOutputTags) {
       this.fn = fn;
+      this.elementCoder = elementCoder;
+      this.restrictionCoder = restrictionCoder;
       this.windowingStrategy = windowingStrategy;
       this.sideInputs = sideInputs;
       this.mainOutputTag = mainOutputTag;
       this.sideOutputTags = sideOutputTags;
-      this.processFn =
-          new SplittableParDo.ProcessFn<>(
-              fn, elementCoder, restrictionCoder, windowingStrategy.getWindowFn().windowCoder());
     }
 
     public DoFn<InputT, OutputT> getFn() {
@@ -243,8 +243,9 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
       return sideOutputTags;
     }
 
-    public ProcessFn<InputT, OutputT, RestrictionT, ?> getProcessFn() {
-      return processFn;
+    public ProcessFn<InputT, OutputT, RestrictionT, ?> newProcessFn(DoFn<InputT, OutputT> fn) {
+      return new SplittableParDo.ProcessFn<>(
+          fn, elementCoder, restrictionCoder, windowingStrategy.getWindowFn().windowCoder());
     }
 
     @Override
@@ -383,6 +384,7 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
         Coder<RestrictionT> restrictionCoder,
         Coder<? extends BoundedWindow> windowCoder) {
       this.fn = fn;
+      this.invoker = DoFnInvokers.invokerFor(fn);
       this.windowCoder = windowCoder;
       this.elementTag =
           StateTags.value("element", WindowedValue.getFullCoder(elementCoder, this.windowCoder));
@@ -399,17 +401,6 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
 
     public void setOutputWindowedValue(OutputWindowedValue<OutputT> outputWindowedValue) {
       this.outputWindowedValue = outputWindowedValue;
-    }
-
-    @Setup
-    public void setup() throws Exception {
-      invoker = DoFnInvokers.invokerFor(fn);
-      invoker.invokeSetup();
-    }
-
-    @Teardown
-    public void teardown() throws Exception {
-      invoker.invokeTeardown();
     }
 
     @StartBundle

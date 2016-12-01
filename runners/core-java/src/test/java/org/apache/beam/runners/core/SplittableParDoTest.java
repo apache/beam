@@ -225,7 +225,7 @@ public class SplittableParDoTest {
                 Collection<? extends BoundedWindow> windows,
                 PaneInfo pane) {
               tester
-                  .getOrCreateOutput(tester.getMainOutputTag())
+                  .getMutableOutput(tester.getMainOutputTag())
                   .add(WindowedValue.of(output, timestamp, windows, pane));
             }
 
@@ -236,7 +236,7 @@ public class SplittableParDoTest {
                 Instant timestamp,
                 Collection<? extends BoundedWindow> windows,
                 PaneInfo pane) {
-              tester.getOrCreateOutput(tag).add(WindowedValue.of(output, timestamp, windows, pane));
+              tester.getMutableOutput(tag).add(WindowedValue.of(output, timestamp, windows, pane));
             }
           });
       // Do not clone since ProcessFn references non-serializable DoFnTester itself
