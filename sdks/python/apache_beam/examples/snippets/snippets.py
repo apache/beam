@@ -891,6 +891,47 @@ def model_textio(renames):
   p.run()
 
 
+def model_datastoreio():
+  """Using a Read and Write transform to read/write to Cloud Datastore.
+
+  URL: https://cloud.google.com/dataflow/model/datastoreio
+  """
+
+  import uuid
+  from google.datastore.v1 import entity_pb2
+  from google.datastore.v1 import query_pb2
+  import googledatastore
+  import apache_beam as beam
+  from apache_beam.utils.options import PipelineOptions
+  from apache_beam.io.datastore.v1.datastoreio import ReadFromDatastore
+  from apache_beam.io.datastore.v1.datastoreio import WriteToDatastore
+
+  project = 'my_project'
+  kind = 'my_kind'
+  query = query_pb2.Query()
+  query.kind.add().name = kind
+
+  # [START model_datastoreio_read]
+  p = beam.Pipeline(options=PipelineOptions())
+  entities = p | 'Read From Datastore' >> ReadFromDatastore(project, query)
+  # [END model_datastoreio_read]
+
+  # [START model_datastoreio_write]
+  p = beam.Pipeline(options=PipelineOptions())
+  musicians = p | 'Musicians' >> beam.Create(
+      ['Mozart', 'Chopin', 'Beethoven', 'Bach'])
+
+  def to_entity(content):
+    entity = entity_pb2.Entity()
+    googledatastore.helper.add_key_path(entity.key, kind, str(uuid.uuid4()))
+    googledatastore.helper.add_properties(entity, {'content': unicode(content)})
+    return entity
+
+  entities = musicians | "To Entity" >> beam.Map(to_entity)
+  entities | 'Write To Datastore' >> WriteToDatastore(project)
+  # [END model_datastoreio_write]
+
+
 def model_bigqueryio():
   """Using a Read and Write transform to read/write to BigQuery.
 
