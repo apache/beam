@@ -39,6 +39,7 @@ import com.google.common.collect.Lists;
 import com.google.common.hash.HashCode;
 import com.google.common.hash.Hashing;
 import java.io.IOException;
+import java.io.InterruptedIOException;
 import java.nio.charset.StandardCharsets;
 import java.util.Collection;
 import java.util.Collections;
@@ -117,20 +118,23 @@ public class BigqueryMatcher extends TypeSafeMatcher<PipelineResult>
 
       response = queryWithRetries(
           bigqueryClient, queryContent, Sleeper.DEFAULT, BACKOFF_FACTORY.backoff());
-    } catch (Exception e) {
+    } catch (IOException | InterruptedException e) {
+      if (e instanceof InterruptedIOException) {
+        Thread.currentThread().interrupt();
+      }
       throw new RuntimeException("Failed to fetch BigQuery data.", e);
     }
 
-    // validate BigQuery response
-    if (response == null || response.getRows() == null || response.getRows().isEmpty()) {
+    if (!response.getJobComplete()) {
+      // query job not complete, verification failed
       return false;
+    } else {
+      // compute checksum
+      actualChecksum = generateHash(response.getRows());
+      LOG.debug("Generated a SHA1 checksum based on queried data: {}", actualChecksum);
+
+      return expectedChecksum.equals(actualChecksum);
     }
-
-    // compute checksum
-    actualChecksum = generateHash(response.getRows());
-    LOG.debug("Generated a SHA1 checksum based on queried data: {}", actualChecksum);
-
-    return expectedChecksum.equals(actualChecksum);
   }
 
   @VisibleForTesting
@@ -144,23 +148,35 @@ public class BigqueryMatcher extends TypeSafeMatcher<PipelineResult>
         .build();
   }
 
+  @Nonnull
   @VisibleForTesting
   QueryResponse queryWithRetries(Bigquery bigqueryClient, QueryRequest queryContent,
                                  Sleeper sleeper, BackOff backOff)
       throws IOException, InterruptedException {
     IOException lastException = null;
     do {
+      if (lastException != null) {
+        LOG.warn("Retrying query ({}) after exception", queryContent.getQuery(), lastException);
+      }
       try {
-        return bigqueryClient.jobs().query(projectId, queryContent).execute();
+        QueryResponse response = bigqueryClient.jobs().query(projectId, queryContent).execute();
+        if (response != null) {
+          return response;
+        } else {
+          lastException =
+              new IOException("Expected valid response from query job, but received null.");
+        }
       } catch (IOException e) {
         // ignore and retry
-        LOG.warn("Ignore the error and retry the query.");
         lastException = e;
       }
     } while(BackOffUtils.next(sleeper, backOff));
-    throw new IOException(
+
+    throw new RuntimeException(
         String.format(
-            "Unable to get BigQuery response after retrying %d times", MAX_QUERY_RETRIES),
+            "Unable to get BigQuery response after retrying %d times using query (%s)",
+            MAX_QUERY_RETRIES,
+            queryContent.getQuery()),
         lastException);
   }
 
@@ -210,9 +226,9 @@ public class BigqueryMatcher extends TypeSafeMatcher<PipelineResult>
   @Override
   public void describeMismatchSafely(PipelineResult pResult, Description description) {
     String info;
-    if (response == null || response.getRows() == null || response.getRows().isEmpty()) {
-      // invalid query response
-      info = String.format("Invalid BigQuery response: %s", Objects.toString(response));
+    if (!response.getJobComplete()) {
+      // query job not complete
+      info = String.format("The query job hasn't completed. Got response: %s", response);
     } else {
       // checksum mismatch
       info = String.format("was (%s).%n"
