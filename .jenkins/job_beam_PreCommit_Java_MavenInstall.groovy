@@ -25,6 +25,9 @@ mavenJob('beam_PreCommit_Java_MavenInstall') {
 
   previousNames('beam_PreCommit_MavenVerify')
 
+  // Execute concurrent builds if necessary.
+  concurrentBuild()
+
   // Set common parameters.
   common_job_properties.setTopLevelJobProperties(delegate)
 
