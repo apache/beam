@@ -59,15 +59,13 @@ public class TransformHierarchy {
    * @return the added node
    */
   public TransformTreeNode pushNode(String name, PInput input, PTransform<?, ?> transform) {
-    TransformTreeNode node = TransformTreeNode.subtransform(current, transform, name, input);
     checkNotNull(
         transform, "A %s must be provided for all Nodes", PTransform.class.getSimpleName());
     checkNotNull(
         name, "A name must be provided for all %s Nodes", PTransform.class.getSimpleName());
     checkNotNull(
         input, "An input must be provided for all %s Nodes", PTransform.class.getSimpleName());
-    current.addComposite(node);
-    current = node;
+    current = TransformTreeNode.subtransform(current, transform, name, input);
     return current;
   }
 

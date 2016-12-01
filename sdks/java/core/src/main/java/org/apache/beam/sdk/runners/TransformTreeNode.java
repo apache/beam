@@ -26,6 +26,7 @@ import java.util.Collection;
 import java.util.HashSet;
 import java.util.Set;
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.Pipeline.PipelineVisitor;
 import org.apache.beam.sdk.Pipeline.PipelineVisitor.CompositeBehavior;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
@@ -62,17 +63,32 @@ public class TransformTreeNode {
   @VisibleForTesting
   boolean finishedSpecifying = false;
 
+  /**
+   * Create a root {@link TransformTreeNode}. This transform is the root of the provided {@link
+   * TransformHierarchy} - it has no enclosing node, no {@link PTransform}, no {@link PInput input},
+   * no {@link POutput output}, and an empty name. It contains all {@link PTransform transforms}
+   * within a {@link Pipeline} as component transforms.
+   */
   public static TransformTreeNode root(TransformHierarchy hierarchy) {
     return new TransformTreeNode(hierarchy, null, null, "", null);
   }
 
+  /**
+   * Create a subtransform of the provided {@link TransformTreeNode node}. The enclosing node is a
+   * composite that contains this transform.
+   *
+   * <p>The returned node is a component node of the enclosing node.
+   */
   public static TransformTreeNode subtransform(
       TransformTreeNode enclosing, PTransform<?, ?> transform, String fullName, PInput input) {
     checkNotNull(enclosing);
     checkNotNull(transform);
     checkNotNull(fullName);
     checkNotNull(input);
-    return new TransformTreeNode(enclosing.hierarchy, enclosing, transform, fullName, input);
+    TransformTreeNode node =
+        new TransformTreeNode(enclosing.hierarchy, enclosing, transform, fullName, input);
+    enclosing.addComposite(node);
+    return node;
   }
 
   /**
