@@ -404,7 +404,7 @@ public class TextIO {
     }
 
     /**
-     * Like {@code to()}, but with a {@link ValueProvider}.
+     * Like {@link #to(String)}, but with a {@link ValueProvider}.
      */
     public static Bound<String> to(ValueProvider<String> prefix) {
       return new Bound<>(DEFAULT_TEXT_CODER).to(prefix);
@@ -594,7 +594,7 @@ public class TextIO {
       }
 
       /**
-       * Like {@code to()}, but with a {@link ValueProvider}.
+       * Like {@link #to(String)}, but with a {@link ValueProvider}.
        */
       public Bound<T> to(ValueProvider<String> filenamePrefix) {
         return new Bound<>(name, filenamePrefix, filenameSuffix, header, footer, coder, numShards,
