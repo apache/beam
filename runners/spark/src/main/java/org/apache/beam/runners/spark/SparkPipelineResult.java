@@ -55,8 +55,17 @@ public abstract class SparkPipelineResult implements PipelineResult {
     state = State.RUNNING;
   }
 
-  protected RuntimeException runtimeExceptionFrom(Throwable e) {
+  private RuntimeException runtimeExceptionFrom(Throwable e) {
     return (e instanceof RuntimeException) ? (RuntimeException) e : new RuntimeException(e);
+  }
+
+  private RuntimeException beamExceptionFrom(Throwable e) {
+    // Scala doesn't declare checked exceptions in the bytecode, and the Java compiler
+    // won't let you catch something that is not declared, so we can't catch
+    // SparkException directly, instead we do an instanceof check.
+    return (e instanceof SparkException)
+        ? new Pipeline.PipelineExecutionException(e.getCause())
+        : runtimeExceptionFrom(e);
   }
 
   protected abstract void stop();
@@ -120,24 +129,6 @@ public abstract class SparkPipelineResult implements PipelineResult {
     }
 
     return state;
-  }
-
-  protected RuntimeException beamExceptionFrom(Throwable e) {
-    // Scala doesn't declare checked exceptions in the bytecode, and the Java compiler
-    // won't let you catch something that is not declared, so we can't catch
-    // SparkException here. Instead we do an instanceof check.
-    // Then we find the cause by seeing if it's a user exception (wrapped by Beam's
-    // UserCodeException), or just use the SparkException cause.
-    if (e instanceof SparkException && e.getCause() != null) {
-      if (e.getCause() instanceof UserCodeException && e.getCause().getCause() != null) {
-        return new Pipeline.PipelineExecutionException(UserCodeException.wrap(e.getCause()
-                                                                               .getCause()));
-      } else {
-        return new Pipeline.PipelineExecutionException(e.getCause());
-      }
-    }
-    // otherwise just wrap in a RuntimeException
-    return runtimeExceptionFrom(e);
   }
 
   /**
