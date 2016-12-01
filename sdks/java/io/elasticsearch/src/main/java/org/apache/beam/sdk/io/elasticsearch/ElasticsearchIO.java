@@ -293,15 +293,23 @@ public class ElasticsearchIO {
         throws Exception {
       List<BoundedElasticsearchSource> sources = new ArrayList<>();
 
-      // we split per shard and read only primary shards
-      // unfortunately, Elasticsearch 2.x doesn't provide a way to do parallel reads on a single
-      // shard.
-      // let's say the ES index is configured to split data into 5 shards with a replica of 1 (for failover).
-        // In that case, there will be a total of 10 shards (5 primary, 5 replica).
-        // Each beam source reads the documents contained in one shard.
-        // As we don't want to have duplicate documents in PCollection, we only read primary shards.
-        // In case of failover (ES side), primary shards stored in a failing ES node are no longer available
-        // and replica shards (stored in other nodes) become primary shards.
+/*
+       1.We split per shard :
+       unfortunately, Elasticsearch 2.x doesn't provide a way to do parallel reads on a single
+       shard. So  we do not use desiredBundleSize because we cannot split shards.
+       With the slice API in ES 5.0 we will be able to use desiredBundleSize.
+       Basically we will just ask the slice API to return data
+       in nbBundles = estimatedSize / desiredBundleSize chuncks.
+       So each beam source will read around desiredBundleSize volume of data.
+
+       2.We read only primary shards
+       let's say the ES index is configured to split data into 5 shards with a replica of 1
+       (for failover). In that case, there will be a total of 10 shards (5 primary, 5 replica).
+       Each beam source reads the documents contained in one shard.
+       As we don't want to have duplicate documents in PCollection, we only read primary shards.
+       In case of failover (ES side), primary shards stored in a failing ES node
+       are no longer available and replica shards (stored in other nodes) become primary shards.
+*/
 
       JsonObject statsJson = getStats(true);
       JsonObject shardsJson = statsJson.getAsJsonObject("indices")
@@ -329,7 +337,8 @@ public class ElasticsearchIO {
       // the estimated size bytes is not really used in the split into bundles.
       // However, we implement this method anyway as the runners can use it.
       // NB: Elasticsearch 5.x now provides the slice API.
-        // (https://www.elastic.co/guide/en/elasticsearch/reference/5.0/search-request-scroll.html#sliced-scroll)
+      // (https://www.elastic.co/guide/en/elasticsearch/reference/5.0/search-request-scroll.html
+      // #sliced-scroll)
       JsonObject statsJson = getStats(false);
       JsonObject indexStats =
           statsJson.getAsJsonObject("indices").getAsJsonObject(
@@ -466,9 +475,10 @@ public class ElasticsearchIO {
                                   Collections.<String, String>emptyMap(),
                                   entity, new BasicHeader("", ""));
       } catch (IOException e) {
-          // Each reader.start() starts a new scroll identified by a scroll_id .ES sometimes gives the same scroll_id
-          // to multiple readers. As a consequence, when these readers call close() they might delete a scroll
-          // that has already been deleted by another reader (that received the same scroll_id).
+          // Each reader.start() starts a new scroll identified by a scroll_id .ES sometimes gives
+          // the same scroll_id to multiple readers. As a consequence, when these readers call
+          // close() they might delete a scroll that has already been deleted by another reader
+          // (that received the same scroll_id).
           // This does no cause any exception to be thrown with ES 2.x but with ES 5.x,
           // deleting an already deleted scroll throws an Exception.
           // We ignore this exception if it is thrown.
@@ -590,8 +600,8 @@ public class ElasticsearchIO {
           JsonObject searchResult = parseResponse(response);
           boolean errors = searchResult.getAsJsonPrimitive("errors").getAsBoolean();
           if (errors) {
-              StringBuilder errorMessages = new StringBuilder("Error writing to Elasticsearch, " +
-                  "some elements could not be inserted:");
+              StringBuilder errorMessages = new StringBuilder("Error writing to Elasticsearch, "
+                + "some elements could not be inserted:");
             JsonArray items = searchResult.getAsJsonArray("items");
             //some items present in bulk might have errors, concatenate error messages
               for (JsonElement item:items){
@@ -600,8 +610,8 @@ public class ElasticsearchIO {
                   if (error != null){
                     String docId = creationObject.getAsJsonPrimitive("_id").getAsString();
                     errorMessages.append(String.format("%n document id %s : ", docId));
-                      String errorMessage = error.getAsJsonObject("caused_by").getAsJsonPrimitive("reason")
-                                            .getAsString();
+                      String errorMessage = error.getAsJsonObject("caused_by")
+                                            .getAsJsonPrimitive("reason").getAsString();
                       errorMessages.append(errorMessage);
                   }
               }

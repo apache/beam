@@ -80,7 +80,7 @@ public class ElasticsearchIOTest implements Serializable {
   private static int esHttpPort;
 
   private static transient Node node;
-  private static ElasticsearchIO.ConnectionConfiguration connectionConfiguration ;
+  private static ElasticsearchIO.ConnectionConfiguration connectionConfiguration;
 
   @BeforeClass
   public static void beforeClass() throws IOException {
@@ -170,7 +170,8 @@ public class ElasticsearchIOTest implements Serializable {
     TestPipeline pipeline = TestPipeline.create();
 
     PCollection<String> output = pipeline.apply(
-        ElasticsearchIO.read().withConnectionConfiguration(connectionConfiguration).withScrollKeepalive("5m"));
+        ElasticsearchIO.read().withConnectionConfiguration(connectionConfiguration)
+                              .withScrollKeepalive("5m"));
     PAssert.thatSingleton(output.apply("Count", Count.<String>globally())).isEqualTo(NB_DOCS);
     pipeline.run();
   }
@@ -194,7 +195,8 @@ public class ElasticsearchIOTest implements Serializable {
     Pipeline pipeline = TestPipeline.create();
 
     PCollection<String> output = pipeline.apply(
-        ElasticsearchIO.read().withConnectionConfiguration(connectionConfiguration).withQuery(query));
+        ElasticsearchIO.read().withConnectionConfiguration(connectionConfiguration)
+                              .withQuery(query));
     PAssert.thatSingleton(output.apply("Count", Count.<String>globally())).isEqualTo(NB_DOCS / 10);
     pipeline.run();
   }
@@ -204,7 +206,8 @@ public class ElasticsearchIOTest implements Serializable {
   public void testWrite() throws Exception {
     Pipeline pipeline = TestPipeline.create();
     List<String> data = createDocuments(NB_DOCS, false);
-    pipeline.apply(Create.of(data)).apply(ElasticsearchIO.write().withConnectionConfiguration(connectionConfiguration));
+    pipeline.apply(Create.of(data)).apply(ElasticsearchIO.write()
+      .withConnectionConfiguration(connectionConfiguration));
     pipeline.run();
 
     // upgrade
@@ -223,7 +226,8 @@ public class ElasticsearchIOTest implements Serializable {
   public void testWriteWithErrors() throws Exception {
     TestPipeline pipeline = TestPipeline.create();
     List<String> data = createDocuments(NB_DOCS, true);
-    pipeline.apply(Create.of(data)).apply(ElasticsearchIO.write().withConnectionConfiguration(connectionConfiguration));
+    pipeline.apply(Create.of(data)).apply(ElasticsearchIO.write().
+      withConnectionConfiguration(connectionConfiguration));
     try {
       pipeline.run();
       fail("Exception should have been thrown");
@@ -232,9 +236,11 @@ public class ElasticsearchIOTest implements Serializable {
 
       String message = e.getCause().getMessage();
       assertTrue("Wrong exception thrown", e.getCause().getClass() == IOException.class);
-      assertTrue("Wrong message in exception", message.matches("(?is).*Error writing to Elasticsearch, some elements could not be inserted" +
-          ".*document id.*was expecting a colon to separate field name and value" +
-          ".*document id.*was expecting a colon to separate field name and value.*"));
+      assertTrue("Wrong message in exception",
+        message.matches(
+          "(?is).*Error writing to Elasticsearch, some elements could not be inserted"
+              + ".*document id.*was expecting a colon to separate field name and value"
+              + ".*document id.*was expecting a colon to separate field name and value.*"));
     }
   }
 
