@@ -76,10 +76,6 @@ public class EvaluationContext {
     this.jssc = jssc;
   }
 
-  private String storageLevel() {
-    return runtime.getPipelineOptions().as(SparkPipelineOptions.class).getStorageLevel();
-  }
-
   public JavaSparkContext getSparkContext() {
     return jsc;
   }
@@ -225,5 +221,9 @@ public class EvaluationContext {
     @SuppressWarnings("unchecked")
     BoundedDataset<T> boundedDataset = (BoundedDataset<T>) datasets.get(pcollection);
     return boundedDataset.getValues(pcollection);
+  }
+
+  private String storageLevel() {
+    return runtime.getPipelineOptions().as(SparkPipelineOptions.class).getStorageLevel();
   }
 }
