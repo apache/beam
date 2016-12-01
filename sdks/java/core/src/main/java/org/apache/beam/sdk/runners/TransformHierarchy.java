@@ -223,8 +223,8 @@ public class TransformHierarchy {
     }
 
     /**
-     * Returns true if this node represents a composite transform that does not perform processing of
-     * its own, but merely encapsulates a sub-pipeline (which may be empty).
+     * Returns true if this node represents a composite transform that does not perform processing
+     * of its own, but merely encapsulates a sub-pipeline (which may be empty).
      *
      * <p>Note that a node may be composite with no sub-transforms if it returns its input directly
      * extracts a component of a tuple, or other operations that occur at pipeline assembly time.
@@ -265,12 +265,13 @@ public class TransformHierarchy {
      */
     private void setOutput(POutput output) {
       checkState(!finishedSpecifying);
-      checkState(this.output == null, "Tried to specify more than one output for %s", getFullName());
+      checkState(
+          this.output == null, "Tried to specify more than one output for %s", getFullName());
       checkNotNull(output, "Tried to set the output of %s to null", getFullName());
       this.output = output;
 
-      // Validate that a primitive transform produces only primitive output, and a composite transform
-      // does not produce primitive output.
+      // Validate that a primitive transform produces only primitive output, and a composite
+      // transform does not produce primitive output.
       Set<Node> outputProducers = new HashSet<>();
       for (PValue outputValue : output.expand()) {
         outputProducers.add(getProducer(outputValue));
@@ -284,19 +285,17 @@ public class TransformHierarchy {
         }
         throw new IllegalArgumentException(
             String.format(
-                "Output of transform [%s] contains a %s produced by it as well as other Transforms. "
-                    + "A primitive transform must produce all of its outputs, and outputs of a "
-                    + "composite transform must be produced by a component transform or be part of"
-                    + "the input."
+                "Output of transform [%s] contains a %s produced by it as well as other "
+                    + "Transforms. A primitive transform must produce all of its outputs, and "
+                    + "outputs of a composite transform must be produced by a component transform "
+                    + "or be part of the input."
                     + "%n    Other Outputs: %s"
                     + "%n    Other Producers: %s",
                 getFullName(), POutput.class.getSimpleName(), output.expand(), otherProducerNames));
       }
     }
 
-    /**
-     * Returns the transform output, in unexpanded form.
-     */
+    /** Returns the transform output, in unexpanded form. */
     public POutput getOutput() {
       return output;
     }
@@ -352,8 +351,7 @@ public class TransformHierarchy {
     /**
      * Finish specifying a transform.
      *
-     * <p>All inputs are finished first, then the transform, then
-     * all outputs.
+     * <p>All inputs are finished first, then the transform, then all outputs.
      */
     private void finishSpecifying() {
       if (finishedSpecifying) {
