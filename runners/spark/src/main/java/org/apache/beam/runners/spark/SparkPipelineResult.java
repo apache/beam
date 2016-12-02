@@ -107,10 +107,7 @@ public abstract class SparkPipelineResult implements PipelineResult {
   @Override
   public <T> AggregatorValues<T> getAggregatorValues(Aggregator<?, T> aggregator)
       throws AggregatorRetrievalException {
-    return
-        context.getRuntimeContext()
-               .getAggregatorValues(AccumulatorSingleton.getInstance(context.getSparkContext()),
-                                    aggregator);
+    return context.getAggregatorValues(aggregator);
   }
 
   @Override
