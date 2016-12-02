@@ -68,14 +68,16 @@ PROJECT=apache-beam-testing
 # Create a tarball
 python setup.py sdist
 
+SDK_LOCATION=$(find dist/apache-beam-sdk-*.tar.gz)
+
 # Run ValidatesRunner tests on Google Cloud Dataflow service
 python setup.py nosetests \
-  --a ValidatesRunner --processes=4 --process-timeout=360 \
-  --test-pipeline-options=\
-    "--runner=BlockingDataflowPipelineRunner \
+  -a ValidatesRunner --processes=4 --process-timeout=360 \
+  --test-pipeline-options=" \
+    --runner=BlockingDataflowPipelineRunner \
     --project=$PROJECT \
     --staging_location=$GCS_LOCATION/staging-validatesrunner-test \
-    --sdk_location=dist/apache-beam-sdk-*.tar.gz \
+    --sdk_location=$SDK_LOCATION \
     --job_name=$JOBNAME_VR_TEST\
     --num_workers=1"
 
@@ -87,7 +89,7 @@ python -m apache_beam.examples.wordcount \
   --runner BlockingDataflowPipelineRunner \
   --job_name $JOBNAME_E2E \
   --project $PROJECT \
-  --sdk_location dist/apache-beam-sdk-*.tar.gz \
+  --sdk_location $SDK_LOCATION \
   --num_workers 1 >> job_output 2>&1 || true;
 
 # Print full job output, validate correct, then remove it.
