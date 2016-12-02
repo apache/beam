@@ -75,6 +75,7 @@ public final class TestSparkRunner extends PipelineRunner<SparkPipelineResult> {
   public SparkPipelineResult run(Pipeline pipeline) {
     TestPipelineOptions testPipelineOptions = pipeline.getOptions().as(TestPipelineOptions.class);
     SparkPipelineResult result = delegate.run(pipeline);
+    result.waitUntilFinish();
     assertThat(result, testPipelineOptions.getOnCreateMatcher());
     assertThat(result, testPipelineOptions.getOnSuccessMatcher());
     return result;

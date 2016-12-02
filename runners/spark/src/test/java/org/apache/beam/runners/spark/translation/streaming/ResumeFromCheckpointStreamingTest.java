@@ -29,7 +29,7 @@ import java.util.Properties;
 import java.util.concurrent.TimeUnit;
 import org.apache.beam.runners.spark.SparkPipelineOptions;
 import org.apache.beam.runners.spark.SparkPipelineResult;
-import org.apache.beam.runners.spark.aggregators.AccumulatorSingleton;
+import org.apache.beam.runners.spark.aggregators.ClearAggregatorsRule;
 import org.apache.beam.runners.spark.translation.streaming.utils.EmbeddedKafkaCluster;
 import org.apache.beam.runners.spark.translation.streaming.utils.PAssertStreaming;
 import org.apache.beam.runners.spark.translation.streaming.utils.SparkTestPipelineOptionsForStreaming;
@@ -83,6 +83,9 @@ public class ResumeFromCheckpointStreamingTest {
   public SparkTestPipelineOptionsForStreaming commonOptions =
       new SparkTestPipelineOptionsForStreaming();
 
+  @Rule
+  public ClearAggregatorsRule clearAggregatorsRule = new ClearAggregatorsRule();
+
   @BeforeClass
   public static void init() throws IOException {
     EMBEDDED_ZOOKEEPER.startup();
@@ -132,8 +135,8 @@ public class ResumeFromCheckpointStreamingTest {
             equalTo(EXPECTED_AGG_FIRST));
   }
 
-  private static SparkPipelineResult runAgain(SparkPipelineOptions options) {
-    AccumulatorSingleton.clear();
+  private SparkPipelineResult runAgain(SparkPipelineOptions options) {
+    clearAggregatorsRule.clearNamedAggregators();
     // sleep before next run.
     Uninterruptibles.sleepUninterruptibly(100, TimeUnit.MILLISECONDS);
     return run(options);
