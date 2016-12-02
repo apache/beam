@@ -919,7 +919,7 @@ def model_datastoreio():
   # [START model_datastoreio_write]
   p = beam.Pipeline(options=PipelineOptions())
   musicians = p | 'Musicians' >> beam.Create(
-      ['Mozart', 'Chopin', 'Beethoven', 'Bach'])
+      ['Mozart', 'Chopin', 'Beethoven', 'Vivaldi'])
 
   def to_entity(content):
     entity = entity_pb2.Entity()

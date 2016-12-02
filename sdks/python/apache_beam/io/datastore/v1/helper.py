@@ -26,6 +26,7 @@ from googledatastore import helper as datastore_helper
 from googledatastore.connection import Datastore
 from googledatastore.connection import RPCError
 
+from apache_beam.internal import auth
 from apache_beam.utils import retry
 
 
@@ -95,8 +96,9 @@ def str_compare(s1, s2):
     return 1
 
 
-def get_datastore(project, credentials):
+def get_datastore(project):
   """Returns a Cloud Datastore client."""
+  credentials = auth.get_service_credentials()
   return Datastore(project, credentials)
 
 

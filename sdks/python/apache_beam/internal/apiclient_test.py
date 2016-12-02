@@ -25,6 +25,7 @@ from apache_beam.internal import apiclient
 
 class UtilTest(unittest.TestCase):
 
+  @unittest.skip("Enable once BEAM-1080 is fixed.")
   def test_create_application_client(self):
     pipeline_options = PipelineOptions()
     apiclient.DataflowApplicationClient(
