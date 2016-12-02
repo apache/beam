@@ -47,6 +47,7 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class FlattenEvaluatorFactoryTest {
   private BundleFactory bundleFactory = ImmutableListBundleFactory.create();
+
   @Test
   public void testFlattenInMemoryEvaluator() throws Exception {
     TestPipeline p = TestPipeline.create();
@@ -69,10 +70,11 @@ public class FlattenEvaluatorFactoryTest {
     when(context.createBundle(flattened)).thenReturn(flattenedLeftBundle, flattenedRightBundle);
 
     FlattenEvaluatorFactory factory = new FlattenEvaluatorFactory(context);
+    AppliedPTransform<?, ?, ?> flattenedProducer = DirectGraphs.getProducer(flattened);
     TransformEvaluator<Integer> leftSideEvaluator =
-        factory.forApplication(flattened.getProducingTransformInternal(), leftBundle);
+        factory.forApplication(flattenedProducer, leftBundle);
     TransformEvaluator<Integer> rightSideEvaluator =
-        factory.forApplication(flattened.getProducingTransformInternal(), rightBundle);
+        factory.forApplication(flattenedProducer, rightBundle);
 
     leftSideEvaluator.processElement(WindowedValue.valueInGlobalWindow(1));
     rightSideEvaluator.processElement(WindowedValue.valueInGlobalWindow(-1));
@@ -92,13 +94,13 @@ public class FlattenEvaluatorFactoryTest {
         Matchers.<UncommittedBundle<?>>contains(flattenedRightBundle));
     assertThat(
         rightSideResult.getTransform(),
-        Matchers.<AppliedPTransform<?, ?, ?>>equalTo(flattened.getProducingTransformInternal()));
+        Matchers.<AppliedPTransform<?, ?, ?>>equalTo(flattenedProducer));
     assertThat(
         leftSideResult.getOutputBundles(),
         Matchers.<UncommittedBundle<?>>contains(flattenedLeftBundle));
     assertThat(
         leftSideResult.getTransform(),
-        Matchers.<AppliedPTransform<?, ?, ?>>equalTo(flattened.getProducingTransformInternal()));
+        Matchers.<AppliedPTransform<?, ?, ?>>equalTo(flattenedProducer));
 
     assertThat(
         flattenedLeftBundle.commit(Instant.now()).getElements(),
@@ -126,9 +128,10 @@ public class FlattenEvaluatorFactoryTest {
         .thenReturn(bundleFactory.createBundle(flattened));
 
     FlattenEvaluatorFactory factory = new FlattenEvaluatorFactory(evaluationContext);
+    AppliedPTransform<?, ?, ?> flattendProducer = DirectGraphs.getProducer(flattened);
     TransformEvaluator<Integer> emptyEvaluator =
         factory.forApplication(
-            flattened.getProducingTransformInternal(),
+            flattendProducer,
             bundleFactory.createRootBundle().commit(BoundedWindow.TIMESTAMP_MAX_VALUE));
 
     TransformResult<Integer> leftSideResult = emptyEvaluator.finishBundle();
@@ -138,7 +141,7 @@ public class FlattenEvaluatorFactoryTest {
     assertThat(outputBundle.getElements(), emptyIterable());
     assertThat(
         leftSideResult.getTransform(),
-        Matchers.<AppliedPTransform<?, ?, ?>>equalTo(flattened.getProducingTransformInternal()));
+        Matchers.<AppliedPTransform<?, ?, ?>>equalTo(flattendProducer));
   }
 
 }
