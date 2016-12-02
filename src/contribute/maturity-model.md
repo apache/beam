@@ -136,7 +136,7 @@ The following table summarizes project's self-assessment against the Apache Matu
     <tr>
       <td><p>QU50</p></td>
       <td><p>The project strives to respond to documented bug reports in a timely manner.</p></td>
-      <td><p><b>YES.</b> The project has resolved <a href="https://issues.apache.org/jira/browse/BEAM-984?jql%3Dproject%2520%253D%2520BEAM%2520AND%2520status%2520in%2520(Resolved%252C%2520Closed)">509 issues</a> during incubation.</p><p><b>Even further</b>, <a href="https://issues.apache.org/jira/browse/BEAM/?selectedTab%3Dcom.atlassian.jira.jira-projects-plugin:components-panel=undefined&selectedTab=com.atlassian.jira.jira-projects-plugin:components-panel">all project components</a> have designated a single committer who gets assigned all newly filed issues for a triage/re-assignment to ensure timely action.</p></td>
+      <td><p><b>YES.</b> The project has resolved <a href="https://issues.apache.org/jira/issues/?jql=project%20%3D%20BEAM%20AND%20status%20in%20(Resolved%2C%20Closed)">550 issues</a> during incubation.</p><p><b>Even further</b>, <a href="https://issues.apache.org/jira/browse/BEAM/?selectedTab%3Dcom.atlassian.jira.jira-projects-plugin:components-panel=undefined&selectedTab=com.atlassian.jira.jira-projects-plugin:components-panel">all project components</a> have designated a single committer who gets assigned all newly filed issues for a triage/re-assignment to ensure timely action.</p></td>
     </tr>
 
     <tr>
@@ -145,7 +145,7 @@ The following table summarizes project's self-assessment against the Apache Matu
     <tr>
       <td><p>CO10</p></td>
       <td><p>The project has a well-known homepage that points to all the information required to operate according to this maturity model.</p></td>
-      <td><p><b>YES.</b> The project <a href="{{ site.baseurl }}/contribute/">website</a> has <a href="https://goo.gl/nk5OM0">technical vision</a>, <a href="{{ site.baseurl }}/contribute/contribution-guide/">contribution guide</a>, <a href="{{ site.baseurl }}/contribute/release-guide/">release guide</a>, <a href="{{ site.baseurl }}/contribute/testing/">testing guide</a>, <a href="{{ site.baseurl }}/contribute/design-principles/">design principles</a>, <a href="{{ site.baseurl }}/contribute/work-in-progress/">a list of major efforts</a>, and links to <a href="{{ site.baseurl }}/get-started/support/">mailing lists</a>, <a href="{{ site.baseurl }}/contribute/source-repository/">repositories</a>, <a href="{{ site.baseurl }}/get-started/support/">issue tracker</a>.</p></td>
+      <td><p><b>YES.</b> The project <a href="{{ site.baseurl }}/">website</a> has <a href="https://goo.gl/nk5OM0">technical vision</a>, <a href="{{ site.baseurl }}/contribute/contribution-guide/">contribution guide</a>, <a href="{{ site.baseurl }}/contribute/release-guide/">release guide</a>, <a href="{{ site.baseurl }}/contribute/testing/">testing guide</a>, <a href="{{ site.baseurl }}/contribute/design-principles/">design principles</a>, <a href="{{ site.baseurl }}/contribute/work-in-progress/">a list of major efforts</a>, and links to <a href="{{ site.baseurl }}/get-started/support/">mailing lists</a>, <a href="{{ site.baseurl }}/contribute/source-repository/">repositories</a>, <a href="{{ site.baseurl }}/get-started/support/">issue tracker</a>.</p></td>
     </tr>
     <tr>
       <td><p>CO20</p></td>
