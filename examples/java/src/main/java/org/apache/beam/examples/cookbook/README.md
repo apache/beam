@@ -39,7 +39,7 @@ larger Dataflow pipeline. They include:
   </li>
   <li><a href="https://github.com/GoogleCloudPlatform/DataflowJavaSDK/blob/master/examples/src/main/java/com/google/cloud/dataflow/examples/cookbook/DatastoreWordCount.java">DatastoreWordCount</a>
   &mdash; An example that shows you how to read from Google Cloud Datastore.</li>
-  <li><a href="https://github.com/GoogleCloudPlatform/DataflowJavaSDK/blob/master/examples/src/main/java/com/google/cloud/dataflow/examples/cookbook/DeDupExample.java">DeDupExample</a>
+  <li><a href="https://github.com/GoogleCloudPlatform/DataflowJavaSDK/blob/master/examples/src/main/java/com/google/cloud/dataflow/examples/cookbook/DistinctExample.java">DistinctExample</a>
   &mdash; An example that uses Shakespeare's plays as plain text files, and
   removes duplicate lines across all the files. Demonstrates the
   <code>Distinct</code>, <code>TextIO.Read</code>,
