@@ -204,6 +204,14 @@ def loads(encoded):
 
 
 def dump_session(file_path):
+  """Pickle the current python session to be used in the worker.
+
+  Note: Due to the inconsistency in the first dump of dill dump_session we
+  create and load the dump twice to have consistent results in the worker and
+  the running session. Check: https://github.com/uqfoundation/dill/issues/195
+  """
+  dill.dump_session(file_path)
+  dill.load_session(file_path)
   return dill.dump_session(file_path)
 
 
