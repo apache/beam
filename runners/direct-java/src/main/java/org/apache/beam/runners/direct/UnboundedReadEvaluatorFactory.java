@@ -113,6 +113,11 @@ class UnboundedReadEvaluatorFactory implements TransformEvaluatorFactory {
     }
 
     @Override
+    public void startBundle() throws Exception {
+      // No-op.
+    }
+
+    @Override
     public void processElement(
         WindowedValue<UnboundedSourceShard<OutputT, CheckpointMarkT>> element) throws IOException {
       UncommittedBundle<OutputT> output = evaluationContext.createBundle(transform.getOutput());

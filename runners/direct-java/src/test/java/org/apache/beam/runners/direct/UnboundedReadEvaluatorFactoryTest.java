@@ -158,6 +158,7 @@ public class UnboundedReadEvaluatorFactoryTest {
         factory.forApplication(
             longs.getProducingTransformInternal(), inputShards);
 
+    evaluator.startBundle();
     evaluator.processElement((WindowedValue) Iterables.getOnlyElement(inputShards.getElements()));
     TransformResult<? super UnboundedSourceShard<Long, ?>> result = evaluator.finishBundle();
 
@@ -203,6 +204,7 @@ public class UnboundedReadEvaluatorFactoryTest {
     TransformEvaluator<UnboundedSourceShard<Long, TestCheckpointMark>> evaluator =
         factory.forApplication(sourceTransform, inputBundle);
 
+    evaluator.startBundle();
     for (WindowedValue<?> value : inputBundle.getElements()) {
       evaluator.processElement(
           (WindowedValue<UnboundedSourceShard<Long, TestCheckpointMark>>) value);
@@ -220,6 +222,7 @@ public class UnboundedReadEvaluatorFactoryTest {
     WindowedValue<UnboundedSourceShard<Long, TestCheckpointMark>> residual =
         (WindowedValue<UnboundedSourceShard<Long, TestCheckpointMark>>)
             Iterables.getOnlyElement(result.getUnprocessedElements());
+    secondEvaluator.startBundle();
     secondEvaluator.processElement(residual);
     secondEvaluator.finishBundle();
     assertThat(
@@ -246,6 +249,7 @@ public class UnboundedReadEvaluatorFactoryTest {
     CommittedBundle<?> inputBundle = Iterables.getOnlyElement(initialInputs);
     TransformEvaluator<UnboundedSourceShard<Long, TestCheckpointMark>> evaluator =
         factory.forApplication(sourceTransform, inputBundle);
+    evaluator.startBundle();
     for (WindowedValue<?> value : inputBundle.getElements()) {
       evaluator.processElement(
           (WindowedValue<UnboundedSourceShard<Long, TestCheckpointMark>>) value);
@@ -262,6 +266,7 @@ public class UnboundedReadEvaluatorFactoryTest {
     WindowedValue<UnboundedSourceShard<Long, TestCheckpointMark>> residual =
         (WindowedValue<UnboundedSourceShard<Long, TestCheckpointMark>>)
             Iterables.getOnlyElement(result.getUnprocessedElements());
+    secondEvaluator.startBundle();
     secondEvaluator.processElement(residual);
 
     TransformResult<UnboundedSourceShard<Long, TestCheckpointMark>> secondResult =
@@ -311,6 +316,7 @@ public class UnboundedReadEvaluatorFactoryTest {
         .getInitialInputs(pcollection.getProducingTransformInternal(), 1);
     TransformEvaluator<UnboundedSourceShard<Long, TestCheckpointMark>> evaluator =
         factory.forApplication(sourceTransform, inputBundle);
+    evaluator.startBundle();
     evaluator.processElement(shard);
     TransformResult<UnboundedSourceShard<Long, TestCheckpointMark>> result =
         evaluator.finishBundle();
@@ -322,6 +328,7 @@ public class UnboundedReadEvaluatorFactoryTest {
 
     TransformEvaluator<UnboundedSourceShard<Long, TestCheckpointMark>> secondEvaluator =
         factory.forApplication(sourceTransform, residual);
+    secondEvaluator.startBundle();
     secondEvaluator.processElement(Iterables.getOnlyElement(residual.getElements()));
     secondEvaluator.finishBundle();
 
@@ -354,6 +361,7 @@ public class UnboundedReadEvaluatorFactoryTest {
         new UnboundedReadEvaluatorFactory(context, 0.0 /* never reuse */);
     TransformEvaluator<UnboundedSourceShard<Long, TestCheckpointMark>> evaluator =
         factory.forApplication(sourceTransform, inputBundle);
+    evaluator.startBundle();
     evaluator.processElement(shard);
     TransformResult<UnboundedSourceShard<Long, TestCheckpointMark>> result =
         evaluator.finishBundle();
@@ -365,6 +373,7 @@ public class UnboundedReadEvaluatorFactoryTest {
 
     TransformEvaluator<UnboundedSourceShard<Long, TestCheckpointMark>> secondEvaluator =
         factory.forApplication(sourceTransform, residual);
+    secondEvaluator.startBundle();
     secondEvaluator.processElement(Iterables.getOnlyElement(residual.getElements()));
     secondEvaluator.finishBundle();
 

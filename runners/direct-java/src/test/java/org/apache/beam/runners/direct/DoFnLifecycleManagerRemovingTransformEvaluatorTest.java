@@ -55,13 +55,32 @@ public class DoFnLifecycleManagerRemovingTransformEvaluatorTest {
         DoFnLifecycleManagerRemovingTransformEvaluator.wrapping(underlying, lifecycleManager);
     WindowedValue<Object> first = WindowedValue.valueInGlobalWindow(new Object());
     WindowedValue<Object> second = WindowedValue.valueInGlobalWindow(new Object());
+    evaluator.startBundle();
     evaluator.processElement(first);
     assertThat(underlying.objects, containsInAnyOrder(first));
     evaluator.processElement(second);
     evaluator.finishBundle();
 
+    assertThat(underlying.startBundleCalled, is(true));
     assertThat(underlying.finishBundleCalled, is(true));
     assertThat(underlying.objects, containsInAnyOrder(second, first));
+  }
+
+  @Test
+  public void removesOnExceptionInStartBundle() throws Exception {
+    ThrowingTransformEvaluator underlying = new ThrowingTransformEvaluator();
+    DoFn<?, ?> original = lifecycleManager.get();
+    assertThat(original, not(nullValue()));
+    TransformEvaluator<Object> evaluator =
+        DoFnLifecycleManagerRemovingTransformEvaluator.wrapping(underlying, lifecycleManager);
+
+    try {
+      evaluator.startBundle();
+    } catch (Exception e) {
+      assertThat(lifecycleManager.get(), not(Matchers.<DoFn<?, ?>>theInstance(original)));
+      return;
+    }
+    fail("Expected ThrowingTransformEvaluator to throw on method call");
   }
 
   @Test
@@ -101,12 +120,17 @@ public class DoFnLifecycleManagerRemovingTransformEvaluatorTest {
   }
 
   private class RecordingTransformEvaluator implements TransformEvaluator<Object> {
+    private boolean startBundleCalled;
     private boolean finishBundleCalled;
     private List<WindowedValue<Object>> objects;
 
     public RecordingTransformEvaluator() {
-      this.finishBundleCalled = true;
       this.objects = new ArrayList<>();
+    }
+
+    @Override
+    public void startBundle() throws Exception {
+      startBundleCalled = true;
     }
 
     @Override
@@ -122,6 +146,11 @@ public class DoFnLifecycleManagerRemovingTransformEvaluatorTest {
   }
 
   private class ThrowingTransformEvaluator implements TransformEvaluator<Object> {
+    @Override
+    public void startBundle() throws Exception {
+      throw new Exception();
+    }
+
     @Override
     public void processElement(WindowedValue<Object> element) throws Exception {
       throw new Exception();

@@ -122,6 +122,11 @@ final class BoundedReadEvaluatorFactory implements TransformEvaluatorFactory {
     }
 
     @Override
+    public void startBundle() throws Exception {
+      // No-op.
+    }
+
+    @Override
     public void processElement(WindowedValue<BoundedSourceShard<OutputT>> element)
         throws Exception {
       BoundedSource<OutputT> source = element.getValue().getSource();

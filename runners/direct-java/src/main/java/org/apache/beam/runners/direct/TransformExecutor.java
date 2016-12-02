@@ -104,6 +104,8 @@ class TransformExecutor<T> implements Runnable {
         return;
       }
 
+      evaluator.startBundle();
+
       processElements(evaluator, metricsContainer, enforcements);
 
       finishBundle(evaluator, metricsContainer, enforcements);

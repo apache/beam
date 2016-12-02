@@ -40,6 +40,9 @@ final class EmptyTransformEvaluator<T> implements TransformEvaluator<T> {
   }
 
   @Override
+  public void startBundle() throws Exception {}
+
+  @Override
   public void processElement(WindowedValue<T> element) throws Exception {}
 
   @Override

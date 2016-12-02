@@ -21,12 +21,17 @@ import org.apache.beam.runners.direct.DirectRunner.CommittedBundle;
 import org.apache.beam.sdk.util.WindowedValue;
 
 /**
- * An evaluator of a specific application of a transform. Will be used for at least one
+ * An evaluator of a specific application of a transform. Will be used for at exactly one
  * {@link CommittedBundle}.
  *
  * @param <InputT> the type of elements that will be passed to {@link #processElement}
  */
 public interface TransformEvaluator<InputT> {
+  /**
+   * Start processing the bundle of this {@link TransformEvaluator}.
+   */
+  void startBundle() throws Exception;
+
   /**
    * Process an element in the input {@link CommittedBundle}.
    *

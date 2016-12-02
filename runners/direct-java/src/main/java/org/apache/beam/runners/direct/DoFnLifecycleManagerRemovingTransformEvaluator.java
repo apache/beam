@@ -44,6 +44,16 @@ class DoFnLifecycleManagerRemovingTransformEvaluator<InputT> implements Transfor
   }
 
   @Override
+  public void startBundle() throws Exception {
+    try {
+      underlying.startBundle();
+    } catch (Exception e) {
+      onException(e, "Exception encountered while cleaning up after starting a bundle");
+      throw e;
+    }
+  }
+
+  @Override
   public void processElement(WindowedValue<InputT> element) throws Exception {
     try {
       underlying.processElement(element);

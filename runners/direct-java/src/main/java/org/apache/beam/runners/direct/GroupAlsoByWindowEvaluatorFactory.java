@@ -156,6 +156,11 @@ class GroupAlsoByWindowEvaluatorFactory implements TransformEvaluatorFactory {
     }
 
     @Override
+    public void startBundle() throws Exception {
+      // No-op.
+    }
+
+    @Override
     public void processElement(WindowedValue<KeyedWorkItem<K, V>> element) throws Exception {
       KeyedWorkItem<K, V> workItem = element.getValue();
       K key = workItem.key();

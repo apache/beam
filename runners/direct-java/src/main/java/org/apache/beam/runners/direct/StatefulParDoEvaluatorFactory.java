@@ -215,6 +215,11 @@ final class StatefulParDoEvaluatorFactory<K, InputT, OutputT> implements Transfo
     }
 
     @Override
+    public void startBundle() throws Exception {
+      delegateEvaluator.startBundle();
+    }
+
+    @Override
     public void processElement(WindowedValue<KV<K, Iterable<InputT>>> gbkResult) throws Exception {
 
       for (InputT value : gbkResult.getValue().getValue()) {

@@ -72,6 +72,11 @@ class FlattenEvaluatorFactory implements TransformEvaluatorFactory {
     }
 
     @Override
+    public void startBundle() throws Exception {
+      // No-op.
+    }
+
+    @Override
     public void processElement(WindowedValue<InputT> element) {
       outputBundle.add(element);
     }

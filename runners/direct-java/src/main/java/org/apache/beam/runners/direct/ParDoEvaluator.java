@@ -77,12 +77,6 @@ class ParDoEvaluator<InputT, OutputT> implements TransformEvaluator<InputT> {
     PushbackSideInputDoFnRunner<InputT, OutputT> runner =
         PushbackSideInputDoFnRunner.create(underlying, sideInputs, sideInputReader);
 
-    try {
-      runner.startBundle();
-    } catch (Exception e) {
-      throw UserCodeException.wrap(e);
-    }
-
     return new ParDoEvaluator<>(
         evaluationContext, runner, application, aggregatorChanges, outputManager, stepContext);
   }
@@ -116,6 +110,15 @@ class ParDoEvaluator<InputT, OutputT> implements TransformEvaluator<InputT> {
 
   public BundleOutputManager getOutputManager() {
     return outputManager;
+  }
+
+  @Override
+  public void startBundle() {
+    try {
+      fnRunner.startBundle();
+    } catch (Exception e) {
+      throw UserCodeException.wrap(e);
+    }
   }
 
   @Override

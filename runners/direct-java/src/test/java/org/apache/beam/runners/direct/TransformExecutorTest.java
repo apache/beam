@@ -97,9 +97,15 @@ public class TransformExecutorTest {
   public void callWithNullInputBundleFinishesBundleAndCompletes() throws Exception {
     final TransformResult<Object> result =
         StepTransformResult.withoutHold(created.getProducingTransformInternal()).build();
+    final AtomicBoolean startCalled = new AtomicBoolean(false);
     final AtomicBoolean finishCalled = new AtomicBoolean(false);
     TransformEvaluator<Object> evaluator =
         new TransformEvaluator<Object>() {
+          @Override
+          public void startBundle() throws Exception {
+            startCalled.set(true);
+          }
+
           @Override
           public void processElement(WindowedValue<Object> element) throws Exception {
             throw new IllegalArgumentException("Shouldn't be called");
@@ -124,8 +130,12 @@ public class TransformExecutorTest {
             created.getProducingTransformInternal(),
             completionCallback,
             transformEvaluationState);
+
+    assertThat(startCalled.get(), is(false));
+
     executor.run();
 
+    assertThat(startCalled.get(), is(true));
     assertThat(finishCalled.get(), is(true));
     assertThat(completionCallback.handledResult, Matchers.<TransformResult<?>>equalTo(result));
     assertThat(completionCallback.handledException, is(nullValue()));
@@ -159,9 +169,11 @@ public class TransformExecutorTest {
     TransformEvaluator<String> evaluator =
         new TransformEvaluator<String>() {
           @Override
+          public void startBundle() throws Exception { }
+
+          @Override
           public void processElement(WindowedValue<String> element) throws Exception {
             elementsProcessed.add(element);
-            return;
           }
 
           @Override
@@ -205,6 +217,9 @@ public class TransformExecutorTest {
     TransformEvaluator<String> evaluator =
         new TransformEvaluator<String>() {
           @Override
+          public void startBundle() throws Exception { }
+
+          @Override
           public void processElement(WindowedValue<String> element) throws Exception {
             throw exception;
           }
@@ -244,6 +259,9 @@ public class TransformExecutorTest {
     TransformEvaluator<String> evaluator =
         new TransformEvaluator<String>() {
           @Override
+          public void startBundle() throws Exception { }
+
+          @Override
           public void processElement(WindowedValue<String> element) throws Exception {}
 
           @Override
@@ -281,6 +299,9 @@ public class TransformExecutorTest {
 
     TransformEvaluator<Object> evaluator =
         new TransformEvaluator<Object>() {
+          @Override
+          public void startBundle() throws Exception { }
+
           @Override
           public void processElement(WindowedValue<Object> element) throws Exception {}
 
@@ -340,6 +361,9 @@ public class TransformExecutorTest {
     TransformEvaluator<Object> evaluator =
         new TransformEvaluator<Object>() {
           @Override
+          public void startBundle() throws Exception { }
+
+          @Override
           public void processElement(WindowedValue<Object> element) throws Exception {}
 
           @Override
@@ -395,6 +419,9 @@ public class TransformExecutorTest {
 
     TransformEvaluator<Object> evaluator =
         new TransformEvaluator<Object>() {
+          @Override
+          public void startBundle() throws Exception { }
+
           @Override
           public void processElement(WindowedValue<Object> element) throws Exception {
             testLatch.countDown();

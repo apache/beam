@@ -89,6 +89,7 @@ public class TestStreamEvaluatorFactoryTest {
 
     TransformEvaluator<TestStreamIndex<Integer>> firstEvaluator =
         factory.forApplication(streamVals.getProducingTransformInternal(), initialBundle);
+    firstEvaluator.startBundle();
     firstEvaluator.processElement(Iterables.getOnlyElement(initialBundle.getElements()));
     TransformResult<TestStreamIndex<Integer>> firstResult = firstEvaluator.finishBundle();
 
@@ -102,6 +103,7 @@ public class TestStreamEvaluatorFactoryTest {
         initialBundle.withElements(Collections.singleton(firstResidual));
     TransformEvaluator<TestStreamIndex<Integer>> secondEvaluator =
         factory.forApplication(streamVals.getProducingTransformInternal(), secondBundle);
+    secondEvaluator.startBundle();
     secondEvaluator.processElement(firstResidual);
     TransformResult<TestStreamIndex<Integer>> secondResult = secondEvaluator.finishBundle();
 
@@ -115,6 +117,7 @@ public class TestStreamEvaluatorFactoryTest {
         secondBundle.withElements(Collections.singleton(secondResidual));
     TransformEvaluator<TestStreamIndex<Integer>> thirdEvaluator =
         factory.forApplication(streamVals.getProducingTransformInternal(), thirdBundle);
+    thirdEvaluator.startBundle();
     thirdEvaluator.processElement(secondResidual);
     TransformResult<TestStreamIndex<Integer>> thirdResult = thirdEvaluator.finishBundle();
 
@@ -129,6 +132,7 @@ public class TestStreamEvaluatorFactoryTest {
         thirdBundle.withElements(Collections.singleton(thirdResidual));
     TransformEvaluator<TestStreamIndex<Integer>> fourthEvaluator =
         factory.forApplication(streamVals.getProducingTransformInternal(), fourthBundle);
+    fourthEvaluator.startBundle();
     fourthEvaluator.processElement(thirdResidual);
     TransformResult<TestStreamIndex<Integer>> fourthResult = fourthEvaluator.finishBundle();
 
@@ -143,6 +147,7 @@ public class TestStreamEvaluatorFactoryTest {
         thirdBundle.withElements(Collections.singleton(fourthResidual));
     TransformEvaluator<TestStreamIndex<Integer>> fifthEvaluator =
         factory.forApplication(streamVals.getProducingTransformInternal(), fifthBundle);
+    fifthEvaluator.startBundle();
     fifthEvaluator.processElement(fourthResidual);
     TransformResult<TestStreamIndex<Integer>> fifthResult = fifthEvaluator.finishBundle();
 
