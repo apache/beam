@@ -23,7 +23,6 @@ import static com.google.common.base.Preconditions.checkState;
 import com.google.common.base.Function;
 import com.google.common.base.MoreObjects;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -97,20 +96,6 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
   public static <InputT, OutputT> DoFnTester<InputT, OutputT> of(DoFn<InputT, OutputT> fn) {
     checkNotNull(fn, "fn can't be null");
     return new DoFnTester<>(fn);
-  }
-
-  /**
-   * Returns a {@code DoFnTester} supporting unit-testing of the given
-   * {@link OldDoFn}.
-   *
-   * @see #of(DoFn)
-   */
-  @SuppressWarnings("unchecked")
-  @Deprecated
-  public static <InputT, OutputT> DoFnTester<InputT, OutputT>
-      of(OldDoFn<InputT, OutputT> fn) {
-    checkNotNull(fn, "fn can't be null");
-    return new DoFnTester<>(fn.toDoFn());
   }
 
   /**
