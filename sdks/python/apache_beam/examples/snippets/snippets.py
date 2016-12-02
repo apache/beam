@@ -927,7 +927,7 @@ def model_datastoreio():
     googledatastore.helper.add_properties(entity, {'content': unicode(content)})
     return entity
 
-  entities = musicians | "To Entity" >> beam.Map(to_entity)
+  entities = musicians | 'To Entity' >> beam.Map(to_entity)
   entities | 'Write To Datastore' >> WriteToDatastore(project)
   # [END model_datastoreio_write]
 
