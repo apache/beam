@@ -94,6 +94,7 @@ public class WatermarkManagerTest implements Serializable {
 
   private transient WatermarkManager manager;
   private transient BundleFactory bundleFactory;
+  private DirectGraph graph;
 
   @Before
   public void setup() {
@@ -139,8 +140,11 @@ public class WatermarkManagerTest implements Serializable {
     consumers.put(flattened, Collections.<AppliedPTransform<?, ?, ?>>emptyList());
 
     clock = MockClock.fromInstant(new Instant(1000));
+    DirectGraphVisitor visitor = new DirectGraphVisitor();
+    p.traverseTopologically(visitor);
+    graph = visitor.getGraph();
 
-    manager = WatermarkManager.create(clock, rootTransforms, consumers);
+    manager = WatermarkManager.create(clock, graph);
     bundleFactory = ImmutableListBundleFactory.create();
   }
 
@@ -305,20 +309,13 @@ public class WatermarkManagerTest implements Serializable {
     PCollection<Integer> created = p.apply(Create.of(1, 2, 3));
     PCollection<Integer> multiConsumer =
         PCollectionList.of(created).and(created).apply(Flatten.<Integer>pCollections());
-    AppliedPTransform<?, ?, ?> theFlatten = multiConsumer.getProducingTransformInternal();
+    DirectGraphVisitor graphVisitor = new DirectGraphVisitor();
+    p.traverseTopologically(graphVisitor);
+    DirectGraph graph = graphVisitor.getGraph();
 
-    Map<PValue, Collection<AppliedPTransform<?, ?, ?>>> valueToConsumers =
-        ImmutableMap.<PValue, Collection<AppliedPTransform<?, ?, ?>>>builder()
-            .put(created, ImmutableList.<AppliedPTransform<?, ?, ?>>of(theFlatten, theFlatten))
-            .put(multiConsumer, Collections.<AppliedPTransform<?, ?, ?>>emptyList())
-            .build();
+    AppliedPTransform<?, ?, ?> theFlatten = graph.getProducer(multiConsumer);
 
-    WatermarkManager tstMgr =
-        WatermarkManager.create(
-            clock,
-            Collections.<AppliedPTransform<?, ?, ?>>singleton(
-                created.getProducingTransformInternal()),
-            valueToConsumers);
+    WatermarkManager tstMgr = WatermarkManager.create(clock, graph);
     CommittedBundle<Void> root =
         bundleFactory
             .<Void>createRootBundle()
