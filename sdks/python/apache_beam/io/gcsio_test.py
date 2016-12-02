@@ -652,6 +652,13 @@ class TestGCSIO(unittest.TestCase):
       self.assertEqual(
           set(self.gcs.glob(file_pattern)), set(expected_file_names))
 
+    # Check if limits are followed correctly
+    limit = 3
+    for file_pattern, expected_object_names in test_cases:
+      expected_num_items = min(len(expected_object_names), limit)
+      self.assertEqual(
+          len(self.gcs.glob(file_pattern, limit)), expected_num_items)
+
   def test_size_of_files_in_glob(self):
     bucket_name = 'gcsio-test'
     object_names = [

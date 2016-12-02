@@ -175,7 +175,8 @@ class FileBasedSource(iobase.BoundedSource):
   def _validate(self):
     """Validate if there are actual files in the specified glob pattern
     """
-    if len(fileio.ChannelFactory.glob(self._pattern)) <= 0:
+    # Limit the responses as we only want to check if something exists
+    if len(fileio.ChannelFactory.glob(self._pattern, limit=1)) <= 0:
       raise IOError(
           'No files found based on the file pattern %s' % self._pattern)
 
