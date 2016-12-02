@@ -25,7 +25,6 @@ import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Set;
-
 import org.apache.beam.runners.spark.SparkPipelineOptions;
 import org.apache.beam.runners.spark.aggregators.AccumulatorSingleton;
 import org.apache.beam.runners.spark.translation.streaming.UnboundedDataset;
@@ -47,8 +46,8 @@ import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.streaming.api.java.JavaStreamingContext;
 
 /**
- * Evaluation context allows us to define how pipeline instructions and translate between
- * {@code PObject<T>}s or {@code PCollection<T>}s and Ts or collections of Ts.
+ * The EvaluationContext allows us to define pipeline instructions and translate between
+ * {@code PObject<T>}s or {@code PCollection<T>}s and Ts or DStreams/RDDs of Ts.
  */
 public class EvaluationContext {
   private final JavaSparkContext jsc;

@@ -25,11 +25,9 @@ import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
 import com.google.common.collect.Lists;
-
 import java.io.Serializable;
 import java.util.Arrays;
 import java.util.List;
-
 import org.apache.beam.runners.spark.io.CreateStream;
 import org.apache.beam.runners.spark.translation.streaming.utils.SparkTestPipelineOptions;
 import org.apache.beam.sdk.Pipeline;
@@ -50,8 +48,7 @@ import org.junit.Test;
 import org.junit.rules.TestName;
 
 /**
- * This suite tests that verifies a Beam over spark pipeline fails fast upon a failed batch and
- * does not keep on running upon encountering a batch failure.
+ * This suite tests that various scenarios result in proper states of the pipeline.
  */
 public class SparkPipelineStateTest implements Serializable {
 
@@ -137,6 +134,7 @@ public class SparkPipelineStateTest implements Serializable {
       assertThat(e.getCause().getCause(), instanceOf(UserException.class));
       assertThat(e.getCause().getCause().getMessage(), is(FAILED_THE_BATCH_INTENTIONALLY));
       assertThat(result.getState(), is(PipelineResult.State.FAILED));
+      result.cancel();
       return;
     }
 
@@ -152,6 +150,8 @@ public class SparkPipelineStateTest implements Serializable {
     result.waitUntilFinish(Duration.millis(1));
 
     assertThat(result.getState(), nullValue());
+
+    result.cancel();
   }
 
   private void testCanceledPipeline(SparkPipelineOptions options) throws Exception {

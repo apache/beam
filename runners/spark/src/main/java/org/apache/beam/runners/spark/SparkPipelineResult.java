@@ -40,16 +40,16 @@ import org.joda.time.Duration;
  */
 public abstract class SparkPipelineResult implements PipelineResult {
 
-  protected final Future pipelineExecutionCommenced;
+  protected final Future pipelineExecution;
   protected final EvaluationContext context;
 
   protected PipelineResult.State state;
 
-  SparkPipelineResult(final Future<?> pipelineExecutionCommenced,
+  SparkPipelineResult(final Future<?> pipelineExecution,
                       final EvaluationContext evaluationContext) {
-    this.pipelineExecutionCommenced = pipelineExecutionCommenced;
+    this.pipelineExecution = pipelineExecution;
     this.context = evaluationContext;
-    // pipelineExecutionCommenced is expected to have started executing eagerly.
+    // pipelineExecution is expected to have started executing eagerly.
     state = State.RUNNING;
   }
 
@@ -120,7 +120,7 @@ public abstract class SparkPipelineResult implements PipelineResult {
 
   @Override
   public PipelineResult.State cancel() throws IOException {
-    if (!state.isTerminal()) {
+    if (state != null && !state.isTerminal()) {
       stop();
       state = PipelineResult.State.CANCELLED;
     }
@@ -133,9 +133,9 @@ public abstract class SparkPipelineResult implements PipelineResult {
    */
   static class BatchMode extends SparkPipelineResult {
 
-    BatchMode(final Future<?> pipelineExecutionCommenced,
+    BatchMode(final Future<?> pipelineExecution,
               final EvaluationContext evaluationContext) {
-      super(pipelineExecutionCommenced, evaluationContext);
+      super(pipelineExecution, evaluationContext);
     }
 
     @Override
@@ -146,7 +146,7 @@ public abstract class SparkPipelineResult implements PipelineResult {
     @Override
     protected State awaitTermination(Duration duration)
         throws TimeoutException, ExecutionException, InterruptedException {
-      pipelineExecutionCommenced.get(duration.getMillis(), TimeUnit.MILLISECONDS);
+      pipelineExecution.get(duration.getMillis(), TimeUnit.MILLISECONDS);
       return PipelineResult.State.DONE;
     }
   }
@@ -156,9 +156,9 @@ public abstract class SparkPipelineResult implements PipelineResult {
    */
   static class StreamingMode extends SparkPipelineResult {
 
-    StreamingMode(final Future<?> pipelineExecutionCommenced,
+    StreamingMode(final Future<?> pipelineExecution,
                   final EvaluationContext evaluationContext) {
-      super(pipelineExecutionCommenced, evaluationContext);
+      super(pipelineExecution, evaluationContext);
     }
 
     @Override
@@ -170,7 +170,7 @@ public abstract class SparkPipelineResult implements PipelineResult {
     @Override
     protected State awaitTermination(Duration duration) throws TimeoutException,
         ExecutionException, InterruptedException {
-      pipelineExecutionCommenced.get(duration.getMillis(), TimeUnit.MILLISECONDS);
+      pipelineExecution.get(duration.getMillis(), TimeUnit.MILLISECONDS);
       if (context.getStreamingContext().awaitTerminationOrTimeout(duration.getMillis())) {
         return State.DONE;
       } else {
