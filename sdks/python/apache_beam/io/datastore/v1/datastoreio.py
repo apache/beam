@@ -22,6 +22,7 @@ import logging
 from google.datastore.v1 import datastore_pb2
 from googledatastore import helper as datastore_helper
 
+from apache_beam.internal import auth
 from apache_beam.io.datastore.v1 import helper
 from apache_beam.io.datastore.v1 import query_splitter
 from apache_beam.transforms import Create
@@ -153,7 +154,8 @@ class ReadFromDatastore(PTransform):
       self._num_splits = num_splits
 
     def start_bundle(self, context):
-      self._datastore = helper.get_datastore(self._project)
+      self._datastore = helper.get_datastore(self._project,
+                                             auth.get_service_credentials())
 
     def process(self, p_context, *args, **kwargs):
       # distinct key to be used to group query splits.
@@ -208,7 +210,8 @@ class ReadFromDatastore(PTransform):
       self._datastore = None
 
     def start_bundle(self, context):
-      self._datastore = helper.get_datastore(self._project)
+      self._datastore = helper.get_datastore(self._project,
+                                             auth.get_service_credentials())
 
     def process(self, p_context, *args, **kwargs):
       query = p_context.element
@@ -338,7 +341,8 @@ class _Mutate(PTransform):
 
     def start_bundle(self, context):
       self._mutations = []
-      self._datastore = helper.get_datastore(self._project)
+      self._datastore = helper.get_datastore(self._project,
+                                             auth.get_service_credentials())
 
     def process(self, context):
       self._mutations.append(context.element)

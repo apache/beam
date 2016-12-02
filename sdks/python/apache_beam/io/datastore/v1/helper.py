@@ -95,11 +95,9 @@ def str_compare(s1, s2):
     return 1
 
 
-def get_datastore(project):
+def get_datastore(project, credentials):
   """Returns a Cloud Datastore client."""
-  credentials = datastore_helper.get_credentials_from_env()
-  datastore = Datastore(project, credentials)
-  return datastore
+  return Datastore(project, credentials)
 
 
 def make_request(project, namespace, query):
