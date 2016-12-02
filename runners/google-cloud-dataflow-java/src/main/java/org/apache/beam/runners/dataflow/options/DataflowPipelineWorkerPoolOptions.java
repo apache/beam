@@ -155,7 +155,8 @@ public interface DataflowPipelineWorkerPoolOptions extends PipelineOptions {
    *
    * <p>Default is up to the Dataflow service. Expected format is
    * regions/REGION/subnetworks/SUBNETWORK or the fully qualified subnetwork name, beginning with
-   * https://...
+   * https://..., e.g. https://www.googleapis.com/compute/alpha/projects/PROJECT/
+   *   regions/REGION/subnetworks/SUBNETWORK
    */
   @Description("GCE subnetwork for launching workers. For more information, see the reference "
       + "documentation https://cloud.google.com/compute/docs/networking. "
