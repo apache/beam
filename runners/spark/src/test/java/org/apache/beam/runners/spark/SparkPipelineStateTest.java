@@ -54,7 +54,7 @@ public class SparkPipelineStateTest implements Serializable {
 
   private static class UserException extends RuntimeException {
 
-    UserException(String message) {
+    UserException(final String message) {
       super(message);
     }
   }
@@ -76,13 +76,13 @@ public class SparkPipelineStateTest implements Serializable {
     return ParDo.of(new DoFn<String, String>() {
 
       @ProcessElement
-      public void processElement(ProcessContext c) {
+      public void processElement(final ProcessContext c) {
         System.out.println(prefix + " " + c.element());
       }
     });
   }
 
-  private PTransform<PBegin, PCollection<String>> getValues(SparkPipelineOptions options) {
+  private PTransform<PBegin, PCollection<String>> getValues(final SparkPipelineOptions options) {
     return options.isStreaming()
         ? CreateStream.fromQueue(STREAMING_WORDS)
         : Create.of(BATCH_WORDS);
@@ -98,7 +98,7 @@ public class SparkPipelineStateTest implements Serializable {
     return commonOptions.getOptions();
   }
 
-  private Pipeline getPipeline(SparkPipelineOptions options) {
+  private Pipeline getPipeline(final SparkPipelineOptions options) {
 
     final Pipeline pipeline = Pipeline.create(options);
     final String name = testName.getMethodName() + "(isStreaming=" + options.isStreaming() + ")";
@@ -110,7 +110,7 @@ public class SparkPipelineStateTest implements Serializable {
     return pipeline;
   }
 
-  private void testFailedPipeline(SparkPipelineOptions options) throws Exception {
+  private void testFailedPipeline(final SparkPipelineOptions options) throws Exception {
 
     SparkPipelineResult result = null;
 
@@ -121,14 +121,14 @@ public class SparkPipelineStateTest implements Serializable {
           .apply(MapElements.via(new SimpleFunction<String, String>() {
 
             @Override
-            public String apply(String input) {
+            public String apply(final String input) {
               throw new UserException(FAILED_THE_BATCH_INTENTIONALLY);
             }
           }));
 
       result = (SparkPipelineResult) pipeline.run();
       result.waitUntilFinish();
-    } catch (Exception e) {
+    } catch (final Exception e) {
       assertThat(e, instanceOf(Pipeline.PipelineExecutionException.class));
       assertThat(e.getCause(), instanceOf(UserCodeException.class));
       assertThat(e.getCause().getCause(), instanceOf(UserException.class));
@@ -141,11 +141,11 @@ public class SparkPipelineStateTest implements Serializable {
     fail("An injected failure did not affect the pipeline as expected.");
   }
 
-  private void testTimeoutPipeline(SparkPipelineOptions options) throws Exception {
+  private void testTimeoutPipeline(final SparkPipelineOptions options) throws Exception {
 
     final Pipeline pipeline = getPipeline(options);
 
-    SparkPipelineResult result = (SparkPipelineResult) pipeline.run();
+    final SparkPipelineResult result = (SparkPipelineResult) pipeline.run();
 
     result.waitUntilFinish(Duration.millis(1));
 
@@ -154,22 +154,22 @@ public class SparkPipelineStateTest implements Serializable {
     result.cancel();
   }
 
-  private void testCanceledPipeline(SparkPipelineOptions options) throws Exception {
+  private void testCanceledPipeline(final SparkPipelineOptions options) throws Exception {
 
     final Pipeline pipeline = getPipeline(options);
 
-    SparkPipelineResult result = (SparkPipelineResult) pipeline.run();
+    final SparkPipelineResult result = (SparkPipelineResult) pipeline.run();
 
     result.cancel();
 
     assertThat(result.getState(), is(PipelineResult.State.CANCELLED));
   }
 
-  private void testRunningPipeline(SparkPipelineOptions options) throws Exception {
+  private void testRunningPipeline(final SparkPipelineOptions options) throws Exception {
 
     final Pipeline pipeline = getPipeline(options);
 
-    SparkPipelineResult result = (SparkPipelineResult) pipeline.run();
+    final SparkPipelineResult result = (SparkPipelineResult) pipeline.run();
 
     assertThat(result.getState(), is(PipelineResult.State.RUNNING));
 

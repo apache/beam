@@ -26,13 +26,9 @@ import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Set;
 import org.apache.beam.runners.spark.SparkPipelineOptions;
-import org.apache.beam.runners.spark.aggregators.AccumulatorSingleton;
 import org.apache.beam.runners.spark.translation.streaming.UnboundedDataset;
-import org.apache.beam.sdk.AggregatorRetrievalException;
-import org.apache.beam.sdk.AggregatorValues;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.transforms.Aggregator;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.util.WindowedValue;
@@ -65,11 +61,10 @@ public class EvaluationContext {
   public EvaluationContext(JavaSparkContext jsc, Pipeline pipeline) {
     this.jsc = jsc;
     this.pipeline = pipeline;
-    this.runtime = new SparkRuntimeContext(pipeline, jsc);
+    this.runtime = new SparkRuntimeContext(pipeline);
   }
 
-  public EvaluationContext(JavaSparkContext jsc, Pipeline pipeline,
-                           JavaStreamingContext jssc) {
+  public EvaluationContext(JavaSparkContext jsc, Pipeline pipeline, JavaStreamingContext jssc) {
     this(jsc, pipeline);
     this.jssc = jssc;
   }
@@ -190,17 +185,6 @@ public class EvaluationContext {
       return res;
     }
     throw new IllegalStateException("Cannot resolve un-known PObject: " + value);
-  }
-
-  public <T> AggregatorValues<T> getAggregatorValues(Aggregator<?, T> aggregator)
-      throws AggregatorRetrievalException {
-    return runtime.getAggregatorValues(AccumulatorSingleton.getInstance(jsc), aggregator);
-  }
-
-  public <T> T getAggregatorValue(String named, Class<T> resultType) {
-    return runtime.getAggregatorValue(AccumulatorSingleton.getInstance(jsc),
-                                      named,
-                                      resultType);
   }
 
   /**

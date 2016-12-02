@@ -23,6 +23,9 @@ import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import org.apache.beam.runners.spark.aggregators.AccumulatorSingleton;
+import org.apache.beam.runners.spark.aggregators.NamedAggregators;
+import org.apache.beam.runners.spark.aggregators.metrics.AggregatorMetricSource;
 import org.apache.beam.runners.spark.translation.EvaluationContext;
 import org.apache.beam.runners.spark.translation.SparkContextFactory;
 import org.apache.beam.runners.spark.translation.SparkPipelineTranslator;
@@ -45,7 +48,10 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.PValue;
+import org.apache.spark.Accumulator;
+import org.apache.spark.SparkEnv$;
 import org.apache.spark.api.java.JavaSparkContext;
+import org.apache.spark.metrics.MetricsSystem;
 import org.apache.spark.streaming.api.java.JavaStreamingContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -122,12 +128,25 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
     mOptions = options;
   }
 
+  private void registerMetrics(final SparkPipelineOptions opts, final JavaSparkContext jsc) {
+    final Accumulator<NamedAggregators> accum = AccumulatorSingleton.getInstance(jsc);
+    final NamedAggregators initialValue = accum.value();
+
+    if (opts.getEnableSparkMetricSinks()) {
+      final MetricsSystem metricsSystem = SparkEnv$.MODULE$.get().metricsSystem();
+      final AggregatorMetricSource aggregatorMetricSource =
+          new AggregatorMetricSource(opts.getAppName(), initialValue);
+      // re-register the metrics in case of context re-use
+      metricsSystem.removeSource(aggregatorMetricSource);
+      metricsSystem.registerSource(aggregatorMetricSource);
+    }
+  }
+
   @Override
   public SparkPipelineResult run(final Pipeline pipeline) {
     LOG.info("Executing pipeline using the SparkRunner.");
 
     final SparkPipelineResult result;
-    final EvaluationContext evaluationContext;
     final Future<?> startPipeline;
     final ExecutorService executorService = Executors.newSingleThreadExecutor();
 
@@ -139,30 +158,26 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
       final JavaStreamingContext jssc =
           JavaStreamingContext.getOrCreate(mOptions.getCheckpointDir(), contextFactory);
 
-      // if recovering from checkpoint, we have to reconstruct the Evaluation instance.
-      evaluationContext =
-          contextFactory.getCtxt() == null
-              ? new EvaluationContext(jssc.sparkContext(), pipeline, jssc)
-              : contextFactory.getCtxt();
-
       startPipeline = executorService.submit(new Runnable() {
 
         @Override
         public void run() {
+          registerMetrics(mOptions, jssc.sparkContext());
           LOG.info("Starting streaming pipeline execution.");
           jssc.start();
         }
       });
 
-      result = new SparkPipelineResult.StreamingMode(startPipeline, evaluationContext);
+      result = new SparkPipelineResult.StreamingMode(startPipeline, jssc);
     } else {
       final JavaSparkContext jsc = SparkContextFactory.getSparkContext(mOptions);
-      evaluationContext = new EvaluationContext(jsc, pipeline);
+      final EvaluationContext evaluationContext = new EvaluationContext(jsc, pipeline);
 
       startPipeline = executorService.submit(new Runnable() {
 
         @Override
         public void run() {
+          registerMetrics(mOptions, jsc);
           pipeline.traverseTopologically(new Evaluator(new TransformTranslator.Translator(),
                                                        evaluationContext));
           evaluationContext.computeOutputs();
@@ -170,7 +185,7 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
         }
       });
 
-      result = new SparkPipelineResult.BatchMode(startPipeline, evaluationContext);
+      result = new SparkPipelineResult.BatchMode(startPipeline, jsc);
     }
 
     return result;
