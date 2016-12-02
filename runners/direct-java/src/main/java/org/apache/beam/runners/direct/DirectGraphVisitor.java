@@ -61,7 +61,7 @@ class DirectGraphVisitor extends PipelineVisitor.Defaults {
         "Attempting to traverse a pipeline (node %s) with a %s "
             + "which has already visited a Pipeline and is finalized",
         node.getFullName(),
-        DirectGraphVisitor.class.getSimpleName());
+        getClass().getSimpleName());
     return CompositeBehavior.ENTER_TRANSFORM;
   }
 
@@ -71,7 +71,7 @@ class DirectGraphVisitor extends PipelineVisitor.Defaults {
         !finalized,
         "Attempting to traverse a pipeline (node %s) with a %s which is already finalized",
         node.getFullName(),
-        DirectGraphVisitor.class.getSimpleName());
+        getClass().getSimpleName());
     if (node.isRootNode()) {
       finalized = true;
     }
