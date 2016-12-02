@@ -296,7 +296,7 @@ Once you are ready to merge, fetch all remotes, checkout the destination branch 
 	    -m $'[BEAM-<JIRA-issue-#&>;</b>] <Title>\n\nThis closes #<pull-request-#>' \
 	    finish-pr-<pull-request-#>
 
-Always use `--no-ff` option and the specific commit message "This closes #<pull request #>"" -- it ensures proper marking in the tooling. It would be nice to include additional information in the merge commit message, such as the title and summary of the pull request.
+Always use `--no-ff` option and the specific commit message "This closes #<pull request #>" -- it ensures proper marking in the tooling. It would be nice to include additional information in the merge commit message, such as the title and summary of the pull request.
 
 At this point, you want to ensure everything is right. Test it with `mvn verify`. Run `gitk` or `git log --graph,` etc. When you are happy with how it looks, push it. This is the point of no return -- proceed with caution.
 
@@ -308,7 +308,7 @@ Done. You can delete the local <code>finish-pr-<pull-request-#></code> branch if
 
 The project management committee (PMC) can grant more rights to a contributor, such as commit access or decision power, and recognize them as new [committers or PMC members]({{ site.baseurl }}/contribute/team/).
 
-The PMC periodically discusses this topic and privately votes to grant more rights to a contributor. If the vote passess, the contributor is invited to accept or reject the nomination. Once accepted, the PMC announces the decision publicly and updates the list of team member accordingly.
+The PMC periodically discusses this topic and privately votes to grant more rights to a contributor. If the vote passes, the contributor is invited to accept or reject the nomination. Once accepted, the PMC announces the decision publicly and updates the list of team member accordingly.
 
 The key to the selection process is [Meritocracy](http://apache.org/foundation/how-it-works.html#meritocracy), literally government by merit. Contributors earn merit in many ways: contributing code, testing releases, participating in documentation effort, answering user questions, debating design proposals, triaging issues, evangelizing the project, growing user base, and any other action that benefits the project as a whole.
 
