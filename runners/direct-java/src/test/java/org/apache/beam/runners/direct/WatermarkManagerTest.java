@@ -140,7 +140,7 @@ public class WatermarkManagerTest implements Serializable {
     consumers.put(flattened, Collections.<AppliedPTransform<?, ?, ?>>emptyList());
 
     clock = MockClock.fromInstant(new Instant(1000));
-    ConsumerTrackingPipelineVisitor visitor = new ConsumerTrackingPipelineVisitor();
+    DirectGraphVisitor visitor = new DirectGraphVisitor();
     p.traverseTopologically(visitor);
     graph = visitor.getGraph();
 
@@ -309,9 +309,9 @@ public class WatermarkManagerTest implements Serializable {
     PCollection<Integer> created = p.apply(Create.of(1, 2, 3));
     PCollection<Integer> multiConsumer =
         PCollectionList.of(created).and(created).apply(Flatten.<Integer>pCollections());
-    ConsumerTrackingPipelineVisitor trackingVisitor = new ConsumerTrackingPipelineVisitor();
-    p.traverseTopologically(trackingVisitor);
-    DirectGraph graph = trackingVisitor.getGraph();
+    DirectGraphVisitor graphVisitor = new DirectGraphVisitor();
+    p.traverseTopologically(graphVisitor);
+    DirectGraph graph = graphVisitor.getGraph();
 
     AppliedPTransform<?, ?, ?> theFlatten = graph.getProducer(multiConsumer);
 
