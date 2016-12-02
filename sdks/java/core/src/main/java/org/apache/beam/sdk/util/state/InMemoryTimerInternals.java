@@ -46,6 +46,9 @@ public class InMemoryTimerInternals implements TimerInternals {
   /** Pending processing time timers, in timestamp order. */
   private PriorityQueue<TimerData> processingTimers = new PriorityQueue<>(11);
 
+  /** Pending synchronized processing time timers, in timestamp order. */
+  private PriorityQueue<TimerData> synchronizedProcessingTimers = new PriorityQueue<>(11);
+
   /** Current input watermark. */
   @Nullable private Instant inputWatermarkTime = BoundedWindow.TIMESTAMP_MIN_VALUE;
 
@@ -76,8 +79,10 @@ public class InMemoryTimerInternals implements TimerInternals {
         data = watermarkTimers.peek();
         break;
       case PROCESSING_TIME:
-      case SYNCHRONIZED_PROCESSING_TIME:
         data = processingTimers.peek();
+        break;
+      case SYNCHRONIZED_PROCESSING_TIME:
+        data = synchronizedProcessingTimers.peek();
         break;
       default:
         throw new IllegalArgumentException("Unexpected time domain: " + domain);
@@ -90,8 +95,9 @@ public class InMemoryTimerInternals implements TimerInternals {
       case EVENT_TIME:
         return watermarkTimers;
       case PROCESSING_TIME:
-      case SYNCHRONIZED_PROCESSING_TIME:
         return processingTimers;
+      case SYNCHRONIZED_PROCESSING_TIME:
+        return synchronizedProcessingTimers;
       default:
         throw new IllegalArgumentException("Unexpected time domain: " + domain);
     }
@@ -105,7 +111,7 @@ public class InMemoryTimerInternals implements TimerInternals {
 
   @Override
   public void setTimer(TimerData timerData) {
-    WindowTracing.trace("TestTimerInternals.setTimer: {}", timerData);
+    WindowTracing.trace("{}.setTimer: {}", getClass().getSimpleName(), timerData);
     if (existingTimers.add(timerData)) {
       queue(timerData.getDomain()).add(timerData);
     }
@@ -118,7 +124,7 @@ public class InMemoryTimerInternals implements TimerInternals {
 
   @Override
   public void deleteTimer(TimerData timer) {
-    WindowTracing.trace("TestTimerInternals.deleteTimer: {}", timer);
+    WindowTracing.trace("{}.deleteTimer: {}", getClass().getSimpleName(), timer);
     existingTimers.remove(timer);
     queue(timer.getDomain()).remove(timer);
   }
@@ -144,15 +150,15 @@ public class InMemoryTimerInternals implements TimerInternals {
     return MoreObjects.toStringHelper(getClass())
         .add("watermarkTimers", watermarkTimers)
         .add("processingTimers", processingTimers)
+        .add("synchronizedProcessingTimers", synchronizedProcessingTimers)
         .add("inputWatermarkTime", inputWatermarkTime)
         .add("outputWatermarkTime", outputWatermarkTime)
         .add("processingTime", processingTime)
         .toString();
   }
 
-  /** Advances input watermark to the given value and fires event-time timers accordingly. */
-  public void advanceInputWatermark(
-      TimerCallback timerCallback, Instant newInputWatermark) throws Exception {
+  /** Advances input watermark to the given value. */
+  public void advanceInputWatermark(Instant newInputWatermark) throws Exception {
     checkNotNull(newInputWatermark);
     checkState(
         !newInputWatermark.isBefore(inputWatermarkTime),
@@ -160,11 +166,9 @@ public class InMemoryTimerInternals implements TimerInternals {
         inputWatermarkTime,
         newInputWatermark);
     WindowTracing.trace(
-        "TestTimerInternals.advanceInputWatermark: from {} to {}",
-        inputWatermarkTime,
-        newInputWatermark);
+        "{}.advanceInputWatermark: from {} to {}",
+        getClass().getSimpleName(), inputWatermarkTime, newInputWatermark);
     inputWatermarkTime = newInputWatermark;
-    advanceAndFire(timerCallback, newInputWatermark, TimeDomain.EVENT_TIME);
   }
 
   /** Advances output watermark to the given value. */
@@ -173,9 +177,8 @@ public class InMemoryTimerInternals implements TimerInternals {
     final Instant adjustedOutputWatermark;
     if (newOutputWatermark.isAfter(inputWatermarkTime)) {
       WindowTracing.trace(
-          "TestTimerInternals.advanceOutputWatermark: clipping output watermark from {} to {}",
-          newOutputWatermark,
-          inputWatermarkTime);
+          "{}.advanceOutputWatermark: clipping output watermark from {} to {}",
+          getClass().getSimpleName(), newOutputWatermark, inputWatermarkTime);
       adjustedOutputWatermark = inputWatermarkTime;
     } else {
       adjustedOutputWatermark = newOutputWatermark;
@@ -187,60 +190,134 @@ public class InMemoryTimerInternals implements TimerInternals {
         outputWatermarkTime,
         adjustedOutputWatermark);
     WindowTracing.trace(
-        "TestTimerInternals.advanceOutputWatermark: from {} to {}",
-        outputWatermarkTime,
-        adjustedOutputWatermark);
+        "{}.advanceOutputWatermark: from {} to {}",
+        getClass().getSimpleName(), outputWatermarkTime, adjustedOutputWatermark);
     outputWatermarkTime = adjustedOutputWatermark;
   }
 
-  /** Advances processing time to the given value and fires processing-time timers accordingly. */
-  public void advanceProcessingTime(
-      TimerCallback timerCallback, Instant newProcessingTime) throws Exception {
+  /** Advances processing time to the given value. */
+  public void advanceProcessingTime(Instant newProcessingTime) throws Exception {
     checkState(
         !newProcessingTime.isBefore(processingTime),
         "Cannot move processing time backwards from %s to %s",
         processingTime,
         newProcessingTime);
     WindowTracing.trace(
-        "TestTimerInternals.advanceProcessingTime: from {} to {}",
-        processingTime,
-        newProcessingTime);
+        "{}.advanceProcessingTime: from {} to {}",
+        getClass().getSimpleName(), processingTime, newProcessingTime);
     processingTime = newProcessingTime;
+  }
+
+  /** Advances synchronized processing time to the given value. */
+  public void advanceSynchronizedProcessingTime(Instant newSynchronizedProcessingTime)
+      throws Exception {
+    checkState(
+        !newSynchronizedProcessingTime.isBefore(synchronizedProcessingTime),
+        "Cannot move processing time backwards from %s to %s",
+        synchronizedProcessingTime,
+        newSynchronizedProcessingTime);
+    WindowTracing.trace(
+        "{}.advanceProcessingTime: from {} to {}",
+        getClass().getSimpleName(), synchronizedProcessingTime, newSynchronizedProcessingTime);
+    synchronizedProcessingTime = newSynchronizedProcessingTime;
+  }
+
+  /** Returns the next eligible event time timer, if none returns null. */
+  @Nullable
+  public TimerData removeNextEventTimer() {
+    TimerData timer = removeNextTimer(inputWatermarkTime, TimeDomain.EVENT_TIME);
+    if (timer != null) {
+      WindowTracing.trace(
+          "{}.removeNextEventTimer: firing {} at {}",
+          getClass().getSimpleName(), timer, inputWatermarkTime);
+    }
+    return timer;
+  }
+
+  /** Returns the next eligible processing time timer, if none returns null. */
+  @Nullable
+  public TimerData removeNextProcessingTimer() {
+    TimerData timer = removeNextTimer(processingTime, TimeDomain.PROCESSING_TIME);
+    if (timer != null) {
+      WindowTracing.trace(
+          "{}.removeNextProcessingTimer: firing {} at {}",
+          getClass().getSimpleName(), timer, processingTime);
+    }
+    return timer;
+  }
+
+  /** Returns the next eligible synchronized processing time timer, if none returns null. */
+  @Nullable
+  public TimerData removeNextSynchronizedProcessingTimer() {
+    TimerData timer = removeNextTimer(
+        synchronizedProcessingTime, TimeDomain.SYNCHRONIZED_PROCESSING_TIME);
+    if (timer != null) {
+      WindowTracing.trace(
+          "{}.removeNextSynchronizedProcessingTimer: firing {} at {}",
+          getClass().getSimpleName(), timer, synchronizedProcessingTime);
+    }
+    return timer;
+  }
+
+  @Nullable
+  private TimerData removeNextTimer(Instant currentTime, TimeDomain domain) {
+    PriorityQueue<TimerData> queue = queue(domain);
+    if (!queue.isEmpty() && currentTime.isAfter(queue.peek().getTimestamp())) {
+      TimerData timer = queue.remove();
+      existingTimers.remove(timer);
+      return timer;
+    } else {
+      return null;
+    }
+  }
+
+  /** Advances input watermark to the given value and fires event-time timers accordingly.
+   *
+   *  @deprecated Use advanceInputWatermark without callback and fireEventTimers.
+   */
+  @Deprecated
+  public void advanceInputWatermark(
+      TimerCallback timerCallback, Instant newInputWatermark) throws Exception {
+    advanceInputWatermark(newInputWatermark);
+    advanceAndFire(timerCallback, newInputWatermark, TimeDomain.EVENT_TIME);
+  }
+
+  /** Advances processing time to the given value and fires processing-time timers accordingly.
+   *
+   *  @deprecated Use advanceProcessingTime without callback and fireProcessingTimers.
+   */
+  @Deprecated
+  public void advanceProcessingTime(
+      TimerCallback timerCallback, Instant newProcessingTime) throws Exception {
+    advanceProcessingTime(newProcessingTime);
     advanceAndFire(timerCallback, newProcessingTime, TimeDomain.PROCESSING_TIME);
   }
 
   /**
    * Advances synchronized processing time to the given value and fires processing-time timers
    * accordingly.
+   *
+   *  @deprecated Use advanceInputWatermark without callback and fireSynchronizedProcessingTimers.
    */
+  @Deprecated
   public void advanceSynchronizedProcessingTime(
       TimerCallback timerCallback, Instant newSynchronizedProcessingTime)
       throws Exception {
-    checkState(
-        !newSynchronizedProcessingTime.isBefore(synchronizedProcessingTime),
-        "Cannot move processing time backwards from %s to %s",
-        processingTime,
-        newSynchronizedProcessingTime);
-    WindowTracing.trace(
-        "TestTimerInternals.advanceProcessingTime: from {} to {}",
-        synchronizedProcessingTime,
-        newSynchronizedProcessingTime);
-    synchronizedProcessingTime = newSynchronizedProcessingTime;
+    advanceSynchronizedProcessingTime(newSynchronizedProcessingTime);
     advanceAndFire(
         timerCallback, newSynchronizedProcessingTime, TimeDomain.SYNCHRONIZED_PROCESSING_TIME);
   }
 
+  @Deprecated
   private void advanceAndFire(
       TimerCallback timerCallback, Instant currentTime, TimeDomain domain)
       throws Exception {
     checkNotNull(timerCallback);
-    PriorityQueue<TimerData> queue = queue(domain);
-    while (!queue.isEmpty() && currentTime.isAfter(queue.peek().getTimestamp())) {
-      // Remove before firing, so that if the callback adds another identical
-      // timer we don't remove it.
-      TimerData timer = queue.remove();
+    TimerData timer;
+    while ((timer = removeNextTimer(currentTime, domain)) != null) {
       WindowTracing.trace(
-          "InMemoryTimerInternals.advanceAndFire: firing {} at {}", timer, currentTime);
+          "{}.advanceAndFire: firing {} at {}",
+          getClass().getSimpleName(), timer, currentTime);
       timerCallback.onTimer(timer);
     }
   }
