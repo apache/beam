@@ -46,7 +46,6 @@ from apache_beam.utils.options import WorkerOptions
 from apache_beam.internal.clients import storage
 import apache_beam.internal.clients.dataflow as dataflow
 
-
 BIGQUERY_API_SERVICE = 'bigquery.googleapis.com'
 COMPUTE_API_SERVICE = 'compute.googleapis.com'
 STORAGE_API_SERVICE = 'storage.googleapis.com'
@@ -55,13 +54,19 @@ STORAGE_API_SERVICE = 'storage.googleapis.com'
 class Step(object):
   """Wrapper for a dataflow Step protobuf."""
 
-  def __init__(self, step_kind, step_name):
+  def __init__(self, step_kind, step_name, additional_properties=None):
     self.step_kind = step_kind
     self.step_name = step_name
     self.proto = dataflow.Step(kind=step_kind, name=step_name)
     self.proto.properties = {}
+    self._additional_properties = []
+
+    if additional_properties is not None:
+      for (n, v, t) in additional_properties:
+        self.add_property(n, v, t)
 
   def add_property(self, name, value, with_type=False):
+    self._additional_properties.append((name, value, with_type))
     self.proto.properties.additionalProperties.append(
         dataflow.Step.PropertiesValue.AdditionalProperty(
             key=name, value=to_json_value(value, with_type=with_type)))
@@ -76,6 +81,11 @@ class Step(object):
             if entry_prop.key == PropertyNames.OUTPUT_NAME:
               outputs.append(entry_prop.value.string_value)
     return outputs
+
+  def __reduce__(self):
+    """Reduce hook for pickling the Step class more easily
+    """
+    return (Step, (self.step_kind, self.step_name, self._additional_properties))
 
   def get_output(self, tag=None):
     """Returns name if it is one of the outputs or first output if name is None.
@@ -329,6 +339,11 @@ class Job(object):
 
   def json(self):
     return encoding.MessageToJson(self.proto)
+
+  def __reduce__(self):
+    """Reduce hook for pickling the Job class more easily
+    """
+    return (Job, (self.options,))
 
 
 class DataflowApplicationClient(object):
