@@ -129,7 +129,7 @@ public class StatefulParDoEvaluatorFactoryTest implements Serializable {
     AppliedPTransform<
             PCollection<? extends KV<String, Iterable<Integer>>>, PCollectionTuple,
             StatefulParDo<String, Integer, Integer>>
-        producingTransform = (AppliedPTransform) produced.getProducingTransformInternal();
+        producingTransform = (AppliedPTransform) DirectGraphs.getProducer(produced);
 
     // Then there will be a digging down to the step context to get the state internals
     when(mockEvaluationContext.getExecutionContext(
@@ -239,7 +239,7 @@ public class StatefulParDoEvaluatorFactoryTest implements Serializable {
     AppliedPTransform<
             PCollection<KV<String, Iterable<Integer>>>, PCollectionTuple,
             StatefulParDo<String, Integer, Integer>>
-        producingTransform = (AppliedPTransform) produced.getProducingTransformInternal();
+        producingTransform = (AppliedPTransform) DirectGraphs.getProducer(produced);
 
     // Then there will be a digging down to the step context to get the state internals
     when(mockEvaluationContext.getExecutionContext(

@@ -48,6 +48,7 @@ import org.junit.runners.JUnit4;
 /**
  * Tests for {@link DirectGraphVisitor}.
  */
+// TODO: Replace uses of getProducing
 @RunWith(JUnit4.class)
 public class DirectGraphVisitorTest implements Serializable {
   @Rule public transient ExpectedException thrown = ExpectedException.none();
