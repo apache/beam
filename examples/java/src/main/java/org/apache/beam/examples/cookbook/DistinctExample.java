@@ -48,10 +48,10 @@ import org.apache.beam.sdk.util.gcsfs.GcsPath;
  * <p>The input defaults to {@code gs://apache-beam-samples/shakespeare/*} and can be
  * overridden with {@code --input}.
  */
-public class DeDupExample {
+public class DistinctExample {
 
   /**
-   * Options supported by {@link DeDupExample}.
+   * Options supported by {@link DistinctExample}.
    *
    * <p>Inherits standard configuration options.
    */
