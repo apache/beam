@@ -101,11 +101,11 @@ public class EvaluationContextTest {
     view = created.apply(View.<Integer>asIterable());
     unbounded = p.apply(CountingInput.unbounded());
 
-    ConsumerTrackingPipelineVisitor cVis = new ConsumerTrackingPipelineVisitor();
-    p.traverseTopologically(cVis);
+    DirectGraphVisitor graphVisitor = new DirectGraphVisitor();
+    p.traverseTopologically(graphVisitor);
 
     bundleFactory = ImmutableListBundleFactory.create();
-    graph = cVis.getGraph();
+    graph = graphVisitor.getGraph();
     context =
         EvaluationContext.create(
             runner.getPipelineOptions(), NanosOffsetClock.create(), bundleFactory, graph);

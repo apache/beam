@@ -41,7 +41,7 @@ import org.apache.beam.sdk.values.PValue;
  * {@link Pipeline}. This is used to schedule consuming {@link PTransform PTransforms} to consume
  * input after the upstream transform has produced and committed output.
  */
-public class ConsumerTrackingPipelineVisitor extends PipelineVisitor.Defaults {
+class DirectGraphVisitor extends PipelineVisitor.Defaults {
   private Map<POutput, AppliedPTransform<?, ?, ?>> producers = new HashMap<>();
 
   private ListMultimap<PInput, AppliedPTransform<?, ?, ?>> primitiveConsumers =
@@ -61,7 +61,7 @@ public class ConsumerTrackingPipelineVisitor extends PipelineVisitor.Defaults {
         "Attempting to traverse a pipeline (node %s) with a %s "
             + "which has already visited a Pipeline and is finalized",
         node.getFullName(),
-        ConsumerTrackingPipelineVisitor.class.getSimpleName());
+        getClass().getSimpleName());
     return CompositeBehavior.ENTER_TRANSFORM;
   }
 
@@ -71,7 +71,7 @@ public class ConsumerTrackingPipelineVisitor extends PipelineVisitor.Defaults {
         !finalized,
         "Attempting to traverse a pipeline (node %s) with a %s which is already finalized",
         node.getFullName(),
-        ConsumerTrackingPipelineVisitor.class.getSimpleName());
+        getClass().getSimpleName());
     if (node.isRootNode()) {
       finalized = true;
     }
@@ -135,7 +135,7 @@ public class ConsumerTrackingPipelineVisitor extends PipelineVisitor.Defaults {
   }
 
   /**
-   * Get the graph constructed by this {@link ConsumerTrackingPipelineVisitor}, which provides
+   * Get the graph constructed by this {@link DirectGraphVisitor}, which provides
    * lookups for producers and consumers of {@link PValue PValues}.
    */
   public DirectGraph getGraph() {

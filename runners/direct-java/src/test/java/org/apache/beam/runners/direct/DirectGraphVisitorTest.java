@@ -46,14 +46,14 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 /**
- * Tests for {@link ConsumerTrackingPipelineVisitor}.
+ * Tests for {@link DirectGraphVisitor}.
  */
 @RunWith(JUnit4.class)
-public class ConsumerTrackingPipelineVisitorTest implements Serializable {
+public class DirectGraphVisitorTest implements Serializable {
   @Rule public transient ExpectedException thrown = ExpectedException.none();
 
   private transient TestPipeline p = TestPipeline.create();
-  private transient ConsumerTrackingPipelineVisitor visitor = new ConsumerTrackingPipelineVisitor();
+  private transient DirectGraphVisitor visitor = new DirectGraphVisitor();
 
   @Test
   public void getViewsReturnsViews() {
@@ -208,7 +208,7 @@ public class ConsumerTrackingPipelineVisitorTest implements Serializable {
 
     p.traverseTopologically(visitor);
     thrown.expect(IllegalStateException.class);
-    thrown.expectMessage(ConsumerTrackingPipelineVisitor.class.getSimpleName());
+    thrown.expectMessage(DirectGraphVisitor.class.getSimpleName());
     thrown.expectMessage("is finalized");
     p.traverseTopologically(visitor);
   }

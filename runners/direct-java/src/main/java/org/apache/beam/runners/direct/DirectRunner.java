@@ -298,9 +298,9 @@ public class DirectRunner extends PipelineRunner<DirectPipelineResult> {
   @Override
   public DirectPipelineResult run(Pipeline pipeline) {
     MetricsEnvironment.setMetricsSupported(true);
-    ConsumerTrackingPipelineVisitor consumerTrackingVisitor = new ConsumerTrackingPipelineVisitor();
-    pipeline.traverseTopologically(consumerTrackingVisitor);
-    consumerTrackingVisitor.finishSpecifyingRemainder();
+    DirectGraphVisitor graphVisitor = new DirectGraphVisitor();
+    pipeline.traverseTopologically(graphVisitor);
+    graphVisitor.finishSpecifyingRemainder();
 
     @SuppressWarnings("rawtypes")
     KeyedPValueTrackingVisitor keyedPValueVisitor =
@@ -313,7 +313,7 @@ public class DirectRunner extends PipelineRunner<DirectPipelineResult> {
 
     DisplayDataValidator.validatePipeline(pipeline);
 
-    DirectGraph graph = consumerTrackingVisitor.getGraph();
+    DirectGraph graph = graphVisitor.getGraph();
     EvaluationContext context =
         EvaluationContext.create(
             getPipelineOptions(),
