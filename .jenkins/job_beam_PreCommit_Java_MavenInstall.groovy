@@ -37,6 +37,13 @@ mavenJob('beam_PreCommit_Java_MavenInstall') {
   // Sets that this is a PreCommit job.
   common_job_properties.setPreCommit(delegate, 'Jenkins: Maven clean install')
 
+  wrappers {
+    credentialsBinding {
+      // Inject token for Beam Coveralls Repo
+      string('COVERALLS_REPO_TOKEN', 'beam-coveralls-token')
+    }
+  }
+
   // Maven goals for this job.
   goals('-B -e -Prelease,include-runners,jenkins-precommit,direct-runner,dataflow-runner,spark-runner,flink-runner,apex-runner -DrepoToken=${COVERALLS_REPO_TOKEN} -DpullRequest=99999 help:effective-settings clean install coveralls:report')
 }

@@ -38,8 +38,9 @@ mavenJob('beam_PostCommit_Java_MavenInstall') {
   common_job_properties.setPostCommit(delegate)
 
   wrappers {
-    injectPasswords {
-      injectGlobalPasswords()
+    credentialsBinding {
+      // Inject token for Beam Coveralls Repo
+      string('COVERALLS_REPO_TOKEN', 'beam-coveralls-token')
     }
   }
 
