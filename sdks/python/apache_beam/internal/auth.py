@@ -133,6 +133,7 @@ def get_service_credentials():
         'https://www.googleapis.com/auth/datastore'
     ]
 
+    # TODO(BEAM-1068): Do not recreate options from sys.argv.
     # We are currently being run from the command line.
     google_cloud_options = PipelineOptions(
         sys.argv).view_as(GoogleCloudOptions)
@@ -151,8 +152,8 @@ def get_service_credentials():
         return ServiceAccountCredentials.from_p12_keyfile(
             google_cloud_options.service_account_name,
             google_cloud_options.service_account_key_file,
-            client_scopes,
-            user_agent=user_agent)
+            private_key_password=None,
+            scopes=client_scopes)
       except ImportError:
         with file(google_cloud_options.service_account_key_file) as f:
           service_account_key = f.read()
@@ -162,7 +163,6 @@ def get_service_credentials():
             service_account_key,
             client_scopes,
             user_agent=user_agent)
-
     else:
       try:
         credentials = _GCloudWrapperCredentials(user_agent)
