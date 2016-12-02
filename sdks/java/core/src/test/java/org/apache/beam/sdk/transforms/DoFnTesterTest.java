@@ -30,13 +30,16 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.util.PCollectionViews;
 import org.apache.beam.sdk.util.WindowingStrategy;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.hamcrest.Matchers;
+import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Rule;
 import org.junit.Test;
@@ -347,6 +350,37 @@ public class DoFnTesterTest {
       tester.finishBundle();
 
       assertThat(tester.peekOutputElements(), containsInAnyOrder(-2, -2, -2, -2));
+    }
+  }
+
+  @Test
+  public void testSupportsWindowParameter() throws Exception {
+    Instant now = Instant.now();
+    try (DoFnTester<Integer, KV<Integer, BoundedWindow>> tester =
+        DoFnTester.of(new DoFnWithWindowParameter())) {
+      BoundedWindow firstWindow = new IntervalWindow(now, now.plus(Duration.standardMinutes(1)));
+      tester.processWindowedElement(1, now, firstWindow);
+      tester.processWindowedElement(2, now, firstWindow);
+      BoundedWindow secondWindow = new IntervalWindow(now, now.plus(Duration.standardMinutes(4)));
+      tester.processWindowedElement(3, now, secondWindow);
+      tester.finishBundle();
+
+      assertThat(
+          tester.peekOutputElementsInWindow(firstWindow),
+          containsInAnyOrder(
+              TimestampedValue.of(KV.of(1, firstWindow), now),
+              TimestampedValue.of(KV.of(2, firstWindow), now)));
+      assertThat(
+          tester.peekOutputElementsInWindow(secondWindow),
+          containsInAnyOrder(
+              TimestampedValue.of(KV.of(3, secondWindow), now)));
+    }
+  }
+
+  private static class DoFnWithWindowParameter extends DoFn<Integer, KV<Integer, BoundedWindow>> {
+    @ProcessElement
+    public void processElement(ProcessContext c, BoundedWindow window) {
+      c.output(KV.of(c.element(), window));
     }
   }
 
