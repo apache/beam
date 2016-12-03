@@ -92,6 +92,9 @@
     <stax2.version>3.1.4</stax2.version>
     <storage.version>v1-rev71-1.22.0</storage.version>
     <woodstox.version>4.4.1</woodstox.version>
+
+    <compiler.default.pkginfo.flag>-Xpkginfo:always</compiler.default.pkginfo.flag>
+    <compiler.default.exclude>nothing</compiler.default.exclude>
   </properties>
 
   <packaging>pom</packaging>
@@ -111,6 +114,49 @@
       <properties>
         <dataflow.javadoc_opts>-Xdoclint:-missing</dataflow.javadoc_opts>
       </properties>
+    </profile>
+
+    <profile>
+      <id>java7-packageinfo</id>
+      <activation>
+        <jdk>1.7</jdk>
+      </activation>
+      <properties>
+        <!--
+         Exclude package-info.java from main compilation to work around
+         https://jira.codehaus.org/browse/MCOMPILER-205
+         -->
+        <compiler.default.pkginfo.flag>-Xpkginfo:legacy</compiler.default.pkginfo.flag>
+        <compiler.default.exclude>**/package-info.java</compiler.default.exclude>
+      </properties>
+      <build>
+        <plugins>
+          <plugin>
+            <artifactId>maven-compiler-plugin</artifactId>
+            <executions>
+              <!--
+               Compile just package-info.java to avoid
+               https://bugs.openjdk.java.net/browse/JDK-8022161
+               -->
+              <execution>
+                <id>compile-package-info</id>
+                <goals>
+                  <goal>compile</goal>
+                </goals>
+                <phase>compile</phase>
+                <configuration>
+                  <compilerArgs>
+                    <arg>-Xpkginfo:always</arg>
+                  </compilerArgs>
+                  <includes>
+                    <include>**/package-info.java</include>
+                  </includes>
+                </configuration>
+              </execution>
+            </executions>
+          </plugin>
+        </plugins>
+      </build>
     </profile>
   </profiles>
 
@@ -145,6 +191,23 @@
             <!-- Another temp override, to be set to true in due course. -->
             <showDeprecation>false</showDeprecation>
           </configuration>
+          <executions>
+            <execution>
+              <id>default-compile</id>
+              <goals>
+                <goal>compile</goal>
+              </goals>
+              <phase>compile</phase>
+              <configuration>
+                <compilerArgs>
+                  <arg>${compiler.default.pkginfo.flag}</arg>
+                </compilerArgs>
+                <excludes>
+                  <exclude>${compiler.default.exclude}</exclude>
+                </excludes>
+              </configuration>
+            </execution>
+          </executions>
         </plugin>
 
         <plugin>
