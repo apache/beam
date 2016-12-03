@@ -53,6 +53,8 @@ import java.io.Serializable;
 import java.util.Collection;
 import java.util.Map;
 import java.util.regex.Pattern;
+import org.apache.beam.sdk.options.ValueProvider;
+import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.display.DisplayData.Builder;
 import org.apache.beam.sdk.transforms.display.DisplayData.Item;
@@ -162,6 +164,45 @@ public class DisplayDataTest implements Serializable {
 
     assertThat(data.items(), hasSize(1));
     assertThat(data, hasDisplayItem("foo", "bar"));
+  }
+
+  @Test
+  public void testStaticValueProvider() {
+    DisplayData data =
+        DisplayData.from(new HasDisplayData() {
+              @Override
+              public void populateDisplayData(DisplayData.Builder builder) {
+                builder.add(DisplayData.item(
+                    "foo", StaticValueProvider.of("bar")));
+              }
+            });
+
+    assertThat(data.items(), hasSize(1));
+    assertThat(data, hasDisplayItem("foo", "bar"));
+  }
+
+  @Test
+  public void testInaccessibleValueProvider() {
+    DisplayData data =
+        DisplayData.from(new HasDisplayData() {
+              @Override
+              public void populateDisplayData(DisplayData.Builder builder) {
+                builder.add(DisplayData.item(
+                    "foo", new ValueProvider<String>() {
+                        @Override
+                        public boolean isAccessible() { return false; }
+
+                        @Override
+                        public String get() { return "bar"; }
+
+                        @Override
+                        public String toString() { return "toString"; }
+                      }));
+              }
+            });
+
+    assertThat(data.items(), hasSize(1));
+    assertThat(data, hasDisplayItem("foo", "toString"));
   }
 
   @Test

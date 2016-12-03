@@ -37,6 +37,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -860,6 +861,14 @@ public class DisplayData implements Serializable {
    */
   public static ItemSpec<String> item(String key, @Nullable String value) {
     return item(key, Type.STRING, value);
+  }
+
+  /**
+   * Create a display item for the specified key and {@link ValueProvider}.
+   */
+  public static ItemSpec<String> item(String key, ValueProvider<String> value) {
+    return item(key, Type.STRING, value.isAccessible()
+        ? value.get() : value.toString());
   }
 
   /**
