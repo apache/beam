@@ -352,7 +352,7 @@ class BigQuerySource(dataflow_io.NativeSource):
         only in special cases when returning table rows as dictionaries is not
         desirable.
       use_standard_sql: Specifies whether to use BigQuery's standard
-        SQL dialect for this query. The default value is False. If set to true,
+        SQL dialect for this query. The default value is False. If set to True,
         the query will use BigQuery's updated SQL dialect with improved
         standards compliance. This parameter is ignored for table inputs.
 
