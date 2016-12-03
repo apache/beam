@@ -323,7 +323,7 @@ class BigQuerySource(dataflow_io.NativeSource):
   """A source based on a BigQuery table."""
 
   def __init__(self, table=None, dataset=None, project=None, query=None,
-               validate=False, coder=None, use_legacy_sql=True):
+               validate=False, coder=None, use_standard_sql=False):
     """Initialize a BigQuerySource.
 
     Args:
@@ -351,8 +351,8 @@ class BigQuerySource(dataflow_io.NativeSource):
         in a file as a JSON serialized dictionary. This argument needs a value
         only in special cases when returning table rows as dictionaries is not
         desirable.
-      useLegacySql: Specifies whether to use BigQuery's legacy
-        SQL dialect for this query. The default value is true. If set to false,
+      use_standard_sql: Specifies whether to use BigQuery's standard
+        SQL dialect for this query. The default value is False. If set to True,
         the query will use BigQuery's updated SQL dialect with improved
         standards compliance. This parameter is ignored for table inputs.
 
@@ -374,7 +374,8 @@ class BigQuerySource(dataflow_io.NativeSource):
       self.use_legacy_sql = True
     else:
       self.query = query
-      self.use_legacy_sql = use_legacy_sql
+      # TODO(BEAM-1082): Change the internal flag to be standard_sql
+      self.use_legacy_sql = not use_standard_sql
       self.table_reference = None
 
     self.validate = validate
