@@ -176,7 +176,7 @@ public class XmlSink {
      * <p>The specified class must be able to be used to create a JAXB context.
      */
     public <T> Bound<T> ofRecordClass(Class<T> classToBind) {
-      return new Bound<>(classToBind, rootElementName, baseOutputFilename);
+      return new Bound<>(classToBind, rootElementName, baseOutputFilename.get());
     }
 
     /**
@@ -194,7 +194,7 @@ public class XmlSink {
      * supplied name.
      */
     public Bound<T> withRootElement(String rootElementName) {
-      return new Bound<>(classToBind, rootElementName, baseOutputFilename);
+      return new Bound<>(classToBind, rootElementName, baseOutputFilename.get());
     }
 
     /**
