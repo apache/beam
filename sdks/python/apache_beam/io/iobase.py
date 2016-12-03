@@ -767,10 +767,10 @@ class WriteImpl(ptransform.PTransform):
       write_result_coll = (pcoll | core.ParDo('write_bundles',
                                               _WriteBundleDoFn(), self.sink,
                                               AsSingleton(init_result_coll))
-                           | core.Map(lambda x: (None, x))
+                           | core.Map('pair', lambda x: (None, x))
                            | core.WindowInto(window.GlobalWindows())
                            | core.GroupByKey()
-                           | core.FlatMap(lambda x: x[1]))
+                           | core.FlatMap('extract', lambda x: x[1]))
     return do_once | core.FlatMap(
         'finalize_write',
         _finalize_write,
