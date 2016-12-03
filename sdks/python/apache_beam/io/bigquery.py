@@ -374,6 +374,7 @@ class BigQuerySource(dataflow_io.NativeSource):
       self.use_legacy_sql = True
     else:
       self.query = query
+      # TODO(BEAM-1082): Change the internal flag to be standard_sql
       self.use_legacy_sql = not use_standard_sql
       self.table_reference = None
 
