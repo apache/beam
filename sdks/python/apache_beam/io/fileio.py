@@ -588,11 +588,12 @@ class ChannelFactory(object):
         raise IOError(err)
 
   @staticmethod
-  def glob(path):
+  def glob(path, limit=None):
     if path.startswith('gs://'):
-      return gcsio.GcsIO().glob(path)
+      return gcsio.GcsIO().glob(path, limit)
     else:
-      return glob.glob(path)
+      files = glob.glob(path)
+      return files[:limit]
 
   @staticmethod
   def size_in_bytes(path):

@@ -142,7 +142,7 @@ class GcsIO(object):
 
   @retry.with_exponential_backoff(
       retry_filter=retry.retry_on_server_errors_and_timeout_filter)
-  def glob(self, pattern):
+  def glob(self, pattern, limit=None):
     """Return the GCS path names matching a given path name pattern.
 
     Path name patterns are those recognized by fnmatch.fnmatch().  The path
@@ -166,9 +166,11 @@ class GcsIO(object):
           object_paths.append('gs://%s/%s' % (item.bucket, item.name))
       if response.nextPageToken:
         request.pageToken = response.nextPageToken
+        if limit is not None and len(object_paths) >= limit:
+          break
       else:
         break
-    return object_paths
+    return object_paths[:limit]
 
   @retry.with_exponential_backoff(
       retry_filter=retry.retry_on_server_errors_and_timeout_filter)
