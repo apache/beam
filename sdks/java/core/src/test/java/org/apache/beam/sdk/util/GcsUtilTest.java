@@ -320,85 +320,35 @@ public class GcsUtilTest {
   }
 
   @Test
-  public void testGetSizeBytes() throws Exception {
-    String singleFile = "--batch_foobarbaz\n"
-        + "Content-Type: application/http\n"
-        + "\n"
-        + "HTTP/1.1 200 OK\n"
-        + "Content-Length: 708\n"
-        + "\n"
-        + "{\n"
-        + " \"kind\": \"storage#object\",\n"
-        + " \"id\": \"apache-beam-samples/apache/LICENSE/1470763581808000\",\n"
-        + " \"selfLink\": \"https://www.googleapis.com/storage/v1/b/"
-        + "apache-beam-samples/o/apache%2FLICENSE\",\n"
-        + " \"name\": \"apache/LICENSE\",\n"
-        + " \"bucket\": \"apache-beam-samples\",\n"
-        + " \"generation\": \"1470763581808000\",\n"
-        + " \"metageneration\": \"2\",\n"
-        + " \"contentType\": \"application/txt\",\n"
-        + " \"timeCreated\": \"2016-08-09T17:26:21.801Z\",\n"
-        + " \"updated\": \"2016-08-09T17:26:41.935Z\",\n"
-        + " \"storageClass\": \"STANDARD\",\n"
-        + " \"size\": \"11358\",\n"
-        + " \"md5Hash\": \"O4Pvljh/FGVfyFTdw8a9Vw==\",\n"
-        + " \"mediaLink\": \"https://www.googleapis.com/download/storage/v1/b/"
-        + "apache-beam-samples/o/apache%2FLICENSE?generation=1470763581808000&alt=media\",\n"
-        + " \"crc32c\": \"4W4HuQ==\",\n"
-        + " \"etag\": \"CIC73qbttM4CEAI=\"\n"
-        + "}\n"
-        + "\n";
-
-    int fileNum = 10;
-    List<GcsPath> paths = Lists.newArrayList();
-    StringBuilder content = new StringBuilder();
-    for (int i = 0; i < fileNum; ++i) {
-      content.append(singleFile);
-      paths.add(GcsPath.fromComponents("testbucket", "testobject" + i));
-    }
-    content.append("--batch_foobarbaz--\n");
-    List<Long> actuals = executeGetSizeBytes(paths, content.toString());
-    assertEquals(10, actuals.size());
-    assertEquals(11358, actuals.get(0).longValue());
-  }
-
-  @Test
   public void testGetSizeBytesWhenFileNotFound() throws Exception {
-    String content = "Content-Type: application/http\n"
+    JsonFactory jsonFactory = new JacksonFactory();
+
+    String contentBoundary = "batch_foobarbaz";
+
+    GenericJson error = new GenericJson()
+        .set("error", new GenericJson().set("code", 404));
+    error.setFactory(jsonFactory);
+
+    String content = contentBoundary + "\n"
+        + "Content-Type: application/http\n"
         + "\n"
         + "HTTP/1.1 404 Not Found\n"
         + "Content-Length: 105\n"
         + "\n"
-        + "{\n"
-        + " \"error\": {\n"
-        + "  \"code\": 404\n"
-        + " }\n"
-        + "}\n"
-        + "\n"
-        + "--batch_CnzAnRit7rQ_AAax2S5XfdM--\n";
+        + error.toString();
     thrown.expect(FileNotFoundException.class);
-    executeGetSizeBytes(
-        ImmutableList.of(GcsPath.fromComponents("testbucket", "testobject")),
-        content);
-  }
-
-  private List<Long> executeGetSizeBytes(
-      List<GcsPath> paths,
-      String content) throws Exception {
     MockLowLevelHttpResponse notFoundResponse = new MockLowLevelHttpResponse()
-        .setContentType("multipart/mixed; boundary=batch_foobarbaz")
+        .setContentType("multipart/mixed; boundary=" + contentBoundary)
         .setContent(content)
         .setStatusCode(HttpStatusCodes.STATUS_CODE_OK);
 
     MockHttpTransport mockTransport =
         new MockHttpTransport.Builder().setLowLevelHttpResponse(notFoundResponse).build();
 
-    GcsOptions pipelineOptions = gcsOptionsWithTestCredential();
-    GcsUtil gcsUtil = pipelineOptions.getGcsUtil();
+    GcsUtil gcsUtil = gcsOptionsWithTestCredential().getGcsUtil();
 
     gcsUtil.setStorageClient(new Storage(mockTransport, Transport.getJsonFactory(), null));
-
-    return gcsUtil.fileSizes(paths);
+    gcsUtil.fileSizes(ImmutableList.of(GcsPath.fromComponents("testbucket", "testobject")));
   }
 
   @Test
