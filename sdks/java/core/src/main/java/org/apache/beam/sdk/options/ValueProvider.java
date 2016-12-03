@@ -134,6 +134,20 @@ public interface ValueProvider<T> extends Serializable {
       return value.isAccessible();
     }
 
+    /**
+     * Return the property name associated with this provider.
+     */
+    public String propertyName() {
+      if (value instanceof RuntimeValueProvider) {
+        return ((RuntimeValueProvider) value).propertyName();
+      } else if (value instanceof NestedValueProvider) {
+        return ((NestedValueProvider) value).propertyName();
+      } else {
+        throw new RuntimeException("Only a RuntimeValueProvider or a NestedValueProvider can supply"
+            + " a property name.");
+      }
+    }
+
     @Override
     public String toString() {
       return MoreObjects.toStringHelper(this)
