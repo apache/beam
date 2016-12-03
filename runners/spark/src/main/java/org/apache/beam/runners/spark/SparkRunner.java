@@ -23,8 +23,8 @@ import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
-import org.apache.beam.runners.spark.aggregators.AccumulatorSingleton;
 import org.apache.beam.runners.spark.aggregators.NamedAggregators;
+import org.apache.beam.runners.spark.aggregators.SparkAggregators;
 import org.apache.beam.runners.spark.aggregators.metrics.AggregatorMetricSource;
 import org.apache.beam.runners.spark.translation.EvaluationContext;
 import org.apache.beam.runners.spark.translation.SparkContextFactory;
@@ -129,7 +129,7 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
   }
 
   private void registerMetrics(final SparkPipelineOptions opts, final JavaSparkContext jsc) {
-    final Accumulator<NamedAggregators> accum = AccumulatorSingleton.getInstance(jsc);
+    final Accumulator<NamedAggregators> accum = SparkAggregators.getNamedAggregators(jsc);
     final NamedAggregators initialValue = accum.value();
 
     if (opts.getEnableSparkMetricSinks()) {

@@ -24,8 +24,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.runners.core.AssignWindowsDoFn;
-import org.apache.beam.runners.spark.aggregators.AccumulatorSingleton;
 import org.apache.beam.runners.spark.aggregators.NamedAggregators;
+import org.apache.beam.runners.spark.aggregators.SparkAggregators;
 import org.apache.beam.runners.spark.io.ConsoleIO;
 import org.apache.beam.runners.spark.io.CreateStream;
 import org.apache.beam.runners.spark.io.SparkUnboundedSource;
@@ -194,7 +194,7 @@ final class StreamingTransformTranslator {
             @Override
             public JavaRDD<WindowedValue<T>> call(JavaRDD<WindowedValue<T>> rdd) throws Exception {
               final Accumulator<NamedAggregators> accum =
-                AccumulatorSingleton.getInstance(new JavaSparkContext(rdd.context()));
+                  SparkAggregators.getNamedAggregators(new JavaSparkContext(rdd.context()));
               return rdd.mapPartitions(
                 new DoFnFunction<>(accum, addWindowsDoFn, runtimeContext, null, null));
             }
@@ -227,7 +227,7 @@ final class StreamingTransformTranslator {
           public JavaRDD<WindowedValue<KV<K, Iterable<V>>>> call(
               JavaRDD<WindowedValue<KV<K, V>>> rdd) throws Exception {
             final Accumulator<NamedAggregators> accum =
-                AccumulatorSingleton.getInstance(new JavaSparkContext(rdd.context()));
+                SparkAggregators.getNamedAggregators(new JavaSparkContext(rdd.context()));
             return GroupCombineFunctions.groupByKey(rdd, accum, coder, runtimeContext,
                 windowingStrategy);
           }
@@ -363,7 +363,7 @@ final class StreamingTransformTranslator {
           public JavaRDD<WindowedValue<OutputT>> call(JavaRDD<WindowedValue<InputT>> rdd) throws
               Exception {
             final Accumulator<NamedAggregators> accum =
-                AccumulatorSingleton.getInstance(new JavaSparkContext(rdd.context()));
+                SparkAggregators.getNamedAggregators(new JavaSparkContext(rdd.context()));
             return rdd.mapPartitions(
                 new DoFnFunction<>(accum, transform.getFn(), runtimeContext, sideInputs, windowFn));
           }
@@ -396,7 +396,7 @@ final class StreamingTransformTranslator {
           public JavaPairRDD<TupleTag<?>, WindowedValue<?>> call(
               JavaRDD<WindowedValue<InputT>> rdd) throws Exception {
             final Accumulator<NamedAggregators> accum =
-                AccumulatorSingleton.getInstance(new JavaSparkContext(rdd.context()));
+                SparkAggregators.getNamedAggregators(new JavaSparkContext(rdd.context()));
             return rdd.mapPartitionsToPair(new MultiDoFnFunction<>(accum, transform.getFn(),
                 runtimeContext, transform.getMainOutputTag(), sideInputs, windowFn));
           }

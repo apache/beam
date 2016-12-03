@@ -16,9 +16,8 @@
  * limitations under the License.
  */
 
-package org.apache.beam.runners.spark.aggregators.metrics.sink;
+package org.apache.beam.runners.spark.aggregators;
 
-import org.apache.beam.runners.spark.aggregators.AccumulatorSingleton;
 import org.junit.rules.ExternalResource;
 
 /**
@@ -26,8 +25,13 @@ import org.junit.rules.ExternalResource;
  * which represents the Beam {@link org.apache.beam.sdk.transforms.Aggregator}s.
  */
 public class ClearAggregatorsRule extends ExternalResource {
+
   @Override
   protected void before() throws Throwable {
+    clearNamedAggregators();
+  }
+
+  public void clearNamedAggregators() {
     AccumulatorSingleton.clear();
   }
 }

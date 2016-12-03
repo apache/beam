@@ -16,13 +16,13 @@
  * limitations under the License.
  */
 
-package org.apache.beam.runners.spark;
+package org.apache.beam.runners.spark.aggregators;
 
 import com.google.common.collect.ImmutableList;
+
 import java.util.Collection;
 import java.util.Map;
-import org.apache.beam.runners.spark.aggregators.AccumulatorSingleton;
-import org.apache.beam.runners.spark.aggregators.NamedAggregators;
+
 import org.apache.beam.sdk.AggregatorValues;
 import org.apache.beam.sdk.transforms.Aggregator;
 import org.apache.spark.Accumulator;
@@ -31,7 +31,7 @@ import org.apache.spark.api.java.JavaSparkContext;
 /**
  * A utility class for retrieving aggregator values.
  */
-class SparkAggregators {
+public class SparkAggregators {
 
   private static <T> AggregatorValues<T> valueOf(final Accumulator<NamedAggregators> accum,
                                                  final Aggregator<?, T> aggregator) {
@@ -59,6 +59,18 @@ class SparkAggregators {
   }
 
   /**
+   * Retrieves the {@link NamedAggregators} instance using the provided Spark context.
+   *
+   * @param javaSparkContext a Spark context to be used in order to retrieve the name
+   * {@link NamedAggregators} instance
+   * @return a {@link NamedAggregators} instance
+   */
+  public static Accumulator<NamedAggregators> getNamedAggregators(JavaSparkContext
+                                                                      javaSparkContext) {
+    return AccumulatorSingleton.getInstance(javaSparkContext);
+  }
+
+  /**
    * Retrieves the value of an aggregator from a SparkContext instance.
    *
    * @param aggregator The aggregator whose value to retrieve
@@ -68,7 +80,7 @@ class SparkAggregators {
    */
   public static <T> AggregatorValues<T> valueOf(final Aggregator<?, T> aggregator,
                                                 final JavaSparkContext javaSparkContext) {
-    return valueOf(AccumulatorSingleton.getInstance(javaSparkContext), aggregator);
+    return valueOf(getNamedAggregators(javaSparkContext), aggregator);
   }
 
   /**
@@ -82,8 +94,6 @@ class SparkAggregators {
   public static <T> T valueOf(final String name,
                               final Class<T> typeClass,
                               final JavaSparkContext javaSparkContext) {
-    return valueOf(AccumulatorSingleton.getInstance(javaSparkContext),
-                   name,
-                   typeClass);
+    return valueOf(getNamedAggregators(javaSparkContext), name, typeClass);
   }
 }
