@@ -54,6 +54,7 @@ public class SideEffectsTest implements Serializable {
     }));
 
     expectedException.expectCause(isA(UserException.class));
-    p.run();
+    p.run().waitUntilFinish();
+
   }
 }

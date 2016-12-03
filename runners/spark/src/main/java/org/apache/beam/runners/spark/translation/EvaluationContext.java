@@ -228,7 +228,8 @@ public class EvaluationContext implements EvaluationResult {
   @Override
   public void close(boolean gracefully) {
     // Stopping streaming job if running
-    if (isStreamingPipeline() && !state.isTerminal()) {
+    // state can be null in case the pipeline has timed out
+    if (isStreamingPipeline() && state != null && !state.isTerminal()) {
       try {
         cancel(gracefully);
       } catch (IOException e) {
@@ -264,6 +265,29 @@ public class EvaluationContext implements EvaluationResult {
     }
   }
 
+  private State waitOnStreaming(Duration duration) {
+    final State contextTerminationState;
+    try {
+      // According to PipelineResult: Provide a value less than 1 ms for an infinite wait
+      if (duration.getMillis() < 1L) {
+        jssc.awaitTermination();
+        contextTerminationState = State.DONE;
+      } else {
+        jssc.awaitTermination(duration.getMillis());
+        // According to PipelineResult: The final state of the pipeline or null on timeout
+        if (jssc.getState().equals(StreamingContextState.STOPPED)) {
+          contextTerminationState = State.DONE;
+        } else {
+          contextTerminationState = null;
+        }
+      }
+    } finally {
+      jssc.stop(false, true);
+    }
+
+    return contextTerminationState;
+  }
+
   @Override
   public State waitUntilFinish() {
     return waitUntilFinish(Duration.ZERO);
@@ -271,27 +295,22 @@ public class EvaluationContext implements EvaluationResult {
 
   @Override
   public State waitUntilFinish(Duration duration) {
-    if (isStreamingPipeline()) {
-      // According to PipelineResult: Provide a value less than 1 ms for an infinite wait
-      if (duration.getMillis() < 1L) {
-        jssc.awaitTermination();
-        state = State.DONE;
+    try {
+      if (isStreamingPipeline()) {
+        state = waitOnStreaming(duration);
       } else {
-        jssc.awaitTermination(duration.getMillis());
-        // According to PipelineResult: The final state of the pipeline or null on timeout
-        if (jssc.getState().equals(StreamingContextState.STOPPED)) {
-          state = State.DONE;
-        } else {
-          return null;
-        }
+        // This is no-op, since Spark runner in batch is blocking.
+        // It needs to be updated once SparkRunner supports non-blocking execution:
+        // https://issues.apache.org/jira/browse/BEAM-595
+        state = State.DONE;
       }
-      return state;
-    } else {
-      // This is no-op, since Spark runner in batch is blocking.
-      // It needs to be updated once SparkRunner supports non-blocking execution:
-      // https://issues.apache.org/jira/browse/BEAM-595
-      return State.DONE;
+    } catch (Exception e) {
+      state = State.FAILED;
+      throw e;
+    } finally {
+      SparkContextFactory.stopSparkContext(jsc);
     }
+    return state;
   }
 
   private boolean isStreamingPipeline() {
