@@ -199,7 +199,7 @@ class TestBigQuerySource(unittest.TestCase):
     hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
 
   def test_specify_query_sql_format(self):
-    source = beam.io.BigQuerySource(query='my_query', use_legacy_sql=False)
+    source = beam.io.BigQuerySource(query='my_query', use_standard_sql=True)
     self.assertEqual(source.query, 'my_query')
     self.assertFalse(source.use_legacy_sql)
 
@@ -371,7 +371,7 @@ class TestBigQueryReader(unittest.TestCase):
         jobComplete=True, rows=table_rows, schema=schema)
     actual_rows = []
     with beam.io.BigQuerySource(
-        query='query', use_legacy_sql=False).reader(client) as reader:
+        query='query', use_standard_sql=True).reader(client) as reader:
       for row in reader:
         actual_rows.append(row)
     self.assertEqual(actual_rows, expected_rows)

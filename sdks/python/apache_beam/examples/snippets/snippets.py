@@ -962,7 +962,7 @@ def model_bigqueryio():
       'ReadYearAndTemp',
       beam.io.BigQuerySource(
           query='SELECT year, mean_temp FROM `samples.weather_stations`',
-          use_legacy_sql=False))
+          use_standard_sql=True))
   # [END model_bigqueryio_query_standard_sql]
 
   # [START model_bigqueryio_schema]
