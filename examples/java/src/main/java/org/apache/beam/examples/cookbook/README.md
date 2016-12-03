@@ -37,8 +37,6 @@ larger Dataflow pipeline. They include:
   transform, which lets you combine the values in a key-grouped
   <code>PCollection</code>.
   </li>
-  <li><a href="https://github.com/GoogleCloudPlatform/DataflowJavaSDK/blob/master/examples/src/main/java/com/google/cloud/dataflow/examples/cookbook/DatastoreWordCount.java">DatastoreWordCount</a>
-  &mdash; An example that shows you how to read from Google Cloud Datastore.</li>
   <li><a href="https://github.com/apache/incubator-beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/cookbook/DistinctExample.java">DistinctExample</a>
   &mdash; An example that uses Shakespeare's plays as plain text files, and
   removes duplicate lines across all the files. Demonstrates the
