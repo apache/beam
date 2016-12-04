@@ -19,10 +19,8 @@
 package org.apache.beam.runners.spark.aggregators;
 
 import com.google.common.collect.ImmutableList;
-
 import java.util.Collection;
 import java.util.Map;
-
 import org.apache.beam.sdk.AggregatorValues;
 import org.apache.beam.sdk.transforms.Aggregator;
 import org.apache.spark.Accumulator;
@@ -35,14 +33,15 @@ public class SparkAggregators {
 
   private static <T> AggregatorValues<T> valueOf(final Accumulator<NamedAggregators> accum,
                                                  final Aggregator<?, T> aggregator) {
-    @SuppressWarnings("unchecked") final
-    Class<T> aggValueClass = (Class<T>) aggregator.getCombineFn().getOutputType().getRawType();
-    final T aggregatorValue = valueOf(accum, aggregator.getName(), aggValueClass);
+    @SuppressWarnings("unchecked")
+    Class<T> valueType = (Class<T>) aggregator.getCombineFn().getOutputType().getRawType();
+    final T value = valueOf(accum, aggregator.getName(), valueType);
+
     return new AggregatorValues<T>() {
 
       @Override
       public Collection<T> getValues() {
-        return ImmutableList.of(aggregatorValue);
+        return ImmutableList.of(value);
       }
 
       @Override
@@ -61,13 +60,12 @@ public class SparkAggregators {
   /**
    * Retrieves the {@link NamedAggregators} instance using the provided Spark context.
    *
-   * @param javaSparkContext a Spark context to be used in order to retrieve the name
+   * @param jsc a Spark context to be used in order to retrieve the name
    * {@link NamedAggregators} instance
    * @return a {@link NamedAggregators} instance
    */
-  public static Accumulator<NamedAggregators> getNamedAggregators(JavaSparkContext
-                                                                      javaSparkContext) {
-    return AccumulatorSingleton.getInstance(javaSparkContext);
+  public static Accumulator<NamedAggregators> getNamedAggregators(JavaSparkContext jsc) {
+    return AccumulatorSingleton.getInstance(jsc);
   }
 
   /**
