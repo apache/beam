@@ -2140,15 +2140,16 @@ public class BigQueryIO {
               .setProjectId(projectId)
               .setJobId(jobId);
           jobService.startLoadJob(jobRef, loadConfig);
-          Status jobStatus =
-              parseStatus(jobService.pollJob(jobRef, Bound.LOAD_JOB_POLL_MAX_RETRIES));
+          Job job = jobService.pollJob(jobRef, Bound.LOAD_JOB_POLL_MAX_RETRIES);
+          Status jobStatus = parseStatus(job);
           switch (jobStatus) {
             case SUCCEEDED:
               return;
             case UNKNOWN:
               throw new RuntimeException("Failed to poll the load job status of job " + jobId);
             case FAILED:
-              LOG.info("BigQuery load job failed: {}", jobId);
+              LOG.info("BigQuery load job failed. Status: {} Details: {}",
+                  jobId, job.getStatus());
               continue;
             default:
               throw new IllegalStateException(String.format("Unexpected job status: %s of job %s",
