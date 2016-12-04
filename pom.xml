@@ -988,14 +988,6 @@
           <groupId>org.codehaus.mojo</groupId>
           <artifactId>exec-maven-plugin</artifactId>
           <version>1.4.0</version>
-          <executions>
-            <execution>
-              <phase>verify</phase>
-              <goals>
-                <goal>java</goal>
-              </goals>
-            </execution>
-          </executions>
           <configuration>
             <cleanupDaemonThreads>false</cleanupDaemonThreads>
             <systemProperties>

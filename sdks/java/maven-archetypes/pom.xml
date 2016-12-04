@@ -33,7 +33,43 @@
 
   <modules>
     <module>starter</module>
-    <module>examples</module>
   </modules>
 
+  <profiles>
+    <!--
+      The builds for the example archetypes use unix scripting, so are enabled only on
+      platforms that Maven considers "unix".
+
+      The archetypes themselves are perfectly fine on all platforms (namely Windows). This is just
+      the generation and installation of the jar.
+    -->
+    <profile>
+      <id>beam-sdks-java-archetypes-examples</id>
+      <activation>
+        <activeByDefault>false</activeByDefault>
+        <os>
+          <family>unix</family>
+        </os>
+        <property><name>!beam.sdks.java.archetypes.examples.skip</name></property>
+      </activation>
+      <modules>
+        <module>examples</module>
+      </modules>
+    </profile>
+
+    <profile>
+      <id>beam-sdks-java-archetypes-examples-java8</id>
+      <activation>
+        <activeByDefault>false</activeByDefault>
+        <os>
+          <family>unix</family>
+        </os>
+        <jdk>[1.8,)</jdk>
+        <property><name>!beam.sdks.java.archetypes.examples.skip</name></property>
+      </activation>
+      <modules>
+        <module>examples-java8</module>
+      </modules>
+    </profile>
+  </profiles>
 </project>
