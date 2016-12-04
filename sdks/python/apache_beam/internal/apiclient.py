@@ -28,6 +28,7 @@ from StringIO import StringIO
 
 from apitools.base.py import encoding
 from apitools.base.py import exceptions
+
 from apache_beam import utils
 from apache_beam.internal.auth import get_service_credentials
 from apache_beam.internal.json_value import to_json_value
