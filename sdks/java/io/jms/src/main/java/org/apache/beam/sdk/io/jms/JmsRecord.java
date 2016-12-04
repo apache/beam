@@ -17,8 +17,6 @@
  */
 package org.apache.beam.sdk.io.jms;
 
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
-
 import java.io.Serializable;
 import java.util.Map;
 import java.util.Objects;
@@ -30,8 +28,6 @@ import javax.jms.Destination;
  * JmsRecord contains message payload of the record
  * as well as metadata (JMS headers and properties).
  */
-@SuppressFBWarnings(value = "SE_BAD_FIELD", justification = "According to JMS spec, Destination "
-    + "should implement Serializable")
 public class JmsRecord implements Serializable {
 
   private final String jmsMessageID;
