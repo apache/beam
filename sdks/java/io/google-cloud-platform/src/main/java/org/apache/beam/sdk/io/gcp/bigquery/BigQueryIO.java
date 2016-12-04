@@ -321,11 +321,39 @@ public class BigQueryIO {
     return sb.toString();
   }
 
+  private static String displayTableProvider(ValueProvider<String> table) {
+    return table.isAccessible() ? table.get() : table.toString();
+  }
+
+  private static class JsonSchemaToTableSchema
+      implements SerializableFunction<String, TableSchema> {
+    @Override
+    public TableSchema apply(String from) {
+      return fromJsonString(from, TableSchema.class);
+    }
+  }
+
+  private static class TableSchemaToJsonSchema
+      implements SerializableFunction<TableSchema, String> {
+    @Override
+    public String apply(TableSchema from) {
+      return toJsonString(from);
+    }
+  }
+
   private static class JsonTableRefToTableRef
       implements SerializableFunction<String, TableReference> {
     @Override
     public TableReference apply(String from) {
       return fromJsonString(from, TableReference.class);
+    }
+  }
+
+  private static class TableRefToTableSpec
+      implements SerializableFunction<TableReference, String> {
+    @Override
+    public String apply(TableReference from) {
+      return toTableSpec(from);
     }
   }
 
@@ -581,7 +609,8 @@ public class BigQueryIO {
           }
         }
 
-        ValueProvider<TableReference> table = getTableWithDefaultProject(bqOptions);
+        ValueProvider<TableReference> tableProvider = getTableWithDefaultProject(bqOptions);
+        TableReference table = tableProvider == null ? null : tableProvider.get();
 
         checkState(
             table == null || query == null,
@@ -608,13 +637,11 @@ public class BigQueryIO {
         // earlier stages of the pipeline or if a query depends on earlier stages of a pipeline.
         // For these cases the withoutValidation method can be used to disable the check.
         if (validate && table != null) {
-          checkState(table.isAccessible(), "Cannot call validate if table is dynamically set.");
           // Check for source table presence for early failure notification.
           DatasetService datasetService = getBigQueryServices().getDatasetService(bqOptions);
-          verifyDatasetPresence(datasetService, table.get());
-          verifyTablePresence(datasetService, table.get());
+          verifyDatasetPresence(datasetService, table);
+          verifyTablePresence(datasetService, table);
         } else if (validate && query != null) {
-          checkState(query.isAccessible(), "Cannot call validate if query is dynamically set.");
           JobService jobService = getBigQueryServices().getJobService(bqOptions);
           try {
             jobService.dryRunQuery(
@@ -625,13 +652,13 @@ public class BigQueryIO {
                     .setUseLegacySql(useLegacySql));
           } catch (Exception e) {
             throw new IllegalArgumentException(
-                String.format(QUERY_VALIDATION_FAILURE_ERROR, query.get()), e);
+                String.format(QUERY_VALIDATION_FAILURE_ERROR, query), e);
           }
         }
       }
 
       @Override
-      public PCollection<TableRow> expand(PBegin input) {
+      public PCollection<TableRow> apply(PBegin input) {
         String uuid = randomUUIDString();
         final String jobIdToken = "beam_job_" + uuid;
 
@@ -651,7 +678,7 @@ public class BigQueryIO {
         }
 
         final String executingProject = bqOptions.getProject();
-        if (query != null && (!query.isAccessible() || !Strings.isNullOrEmpty(query.get()))) {
+        if (query != null && !Strings.isNullOrEmpty(query.get())) {
           String queryTempDatasetId = "temp_dataset_" + uuid;
           String queryTempTableId = "temp_table_" + uuid;
 
@@ -659,11 +686,11 @@ public class BigQueryIO {
               .setProjectId(executingProject)
               .setDatasetId(queryTempDatasetId)
               .setTableId(queryTempTableId);
+          String jsonTableRef = toJsonString(queryTempTableRef);
 
           source = BigQueryQuerySource.create(
               jobIdToken, query, NestedValueProvider.of(
-                  StaticValueProvider.of(
-                      toJsonString(queryTempTableRef)), new JsonTableRefToTableRef()),
+                  StaticValueProvider.of(jsonTableRef), new JsonTableRefToTableRef()),
               flattenResults, useLegacySql, extractDestinationDir, bqServices);
         } else {
           ValueProvider<TableReference> inputTable = getTableWithDefaultProject(bqOptions);
@@ -752,10 +779,7 @@ public class BigQueryIO {
         if (Strings.isNullOrEmpty(table.get().getProjectId())) {
           // If user does not specify a project we assume the table to be located in
           // the default project.
-          TableReference ref = table.get();
-          ref.setProjectId(bqOptions.getProject());
-          return NestedValueProvider.of(StaticValueProvider.of(
-              toJsonString(ref)), new JsonTableRefToTableRef());
+          table.get().setProjectId(bqOptions.getProject());
         }
         return table;
       }
@@ -840,7 +864,7 @@ public class BigQueryIO {
     }
 
     @Override
-    public PCollection<T> expand(PCollection<T> input) {
+    public PCollection<T> apply(PCollection<T> input) {
       TupleTag<T> mainOutput = new TupleTag<>();
       TupleTag<Void> cleanupSignal = new TupleTag<>();
       PCollectionTuple outputs = input.apply(ParDo.of(new IdentityFn<T>())
@@ -1516,6 +1540,11 @@ public class BigQueryIO {
     }
 
     /** Creates a write transformation for the given table. */
+    public static Bound to(ValueProvider<String> tableSpec) {
+      return new Bound().to(tableSpec);
+    }
+
+    /** Creates a write transformation for the given table. */
     public static Bound to(TableReference table) {
       return new Bound().to(table);
     }
@@ -1558,6 +1587,13 @@ public class BigQueryIO {
       return new Bound().withSchema(schema);
     }
 
+    /**
+     * Like {@link #withSchema(TableSchema)}, but with a {@link ValueProvider}.
+     */
+    public static Bound withSchema(ValueProvider<TableSchema> schema) {
+      return new Bound().withSchema(schema);
+    }
+
     /** Creates a write transformation with the specified options for creating the table. */
     public static Bound withCreateDisposition(CreateDisposition disposition) {
       return new Bound().withCreateDisposition(disposition);
@@ -1593,12 +1629,12 @@ public class BigQueryIO {
       // It sets to {@code Integer.MAX_VALUE} to block until the BigQuery job finishes.
       static final int LOAD_JOB_POLL_MAX_RETRIES = Integer.MAX_VALUE;
 
-      @Nullable final String jsonTableRef;
+      @Nullable final ValueProvider<String> jsonTableRef;
 
       @Nullable final SerializableFunction<BoundedWindow, TableReference> tableRefFunction;
 
       // Table schema. The schema is required only if the table does not exist.
-      @Nullable final String jsonSchema;
+      @Nullable final ValueProvider<String> jsonSchema;
 
       // Options for creating the table. Valid values are CREATE_IF_NEEDED and
       // CREATE_NEVER.
@@ -1645,9 +1681,9 @@ public class BigQueryIO {
             null /* bigQueryServices */);
       }
 
-      private Bound(String name, @Nullable String jsonTableRef,
+      private Bound(String name, @Nullable ValueProvider<String> jsonTableRef,
           @Nullable SerializableFunction<BoundedWindow, TableReference> tableRefFunction,
-          @Nullable String jsonSchema,
+          @Nullable ValueProvider<String> jsonSchema,
           CreateDisposition createDisposition, WriteDisposition writeDisposition, boolean validate,
           @Nullable BigQueryServices bigQueryServices) {
         super(name);
@@ -1667,7 +1703,18 @@ public class BigQueryIO {
        * <p>Does not modify this object.
        */
       public Bound to(String tableSpec) {
-        return to(parseTableSpec(tableSpec));
+        return toTableRef(NestedValueProvider.of(
+            StaticValueProvider.of(tableSpec), new TableSpecToTableRef()));
+      }
+
+      /**
+       * Returns a copy of this write transformation, but writing to the specified table. Refer to
+       * {@link #parseTableSpec(String)} for the specification format.
+       *
+       * <p>Does not modify this object.
+       */
+      public Bound to(ValueProvider<String> tableSpec) {
+        return toTableRef(NestedValueProvider.of(tableSpec, new TableSpecToTableRef()));
       }
 
       /**
@@ -1676,7 +1723,18 @@ public class BigQueryIO {
        * <p>Does not modify this object.
        */
       public Bound to(TableReference table) {
-        return new Bound(name, toJsonString(table), tableRefFunction, jsonSchema, createDisposition,
+        return toTableRef(StaticValueProvider.of(table));
+      }
+
+      /**
+       * Returns a copy of this write transformation, but writing to the specified table.
+       *
+       * <p>Does not modify this object.
+       */
+      public Bound toTableRef(ValueProvider<TableReference> table) {
+        return new Bound(name,
+            NestedValueProvider.of(table, new TableRefToJson()),
+            tableRefFunction, jsonSchema, createDisposition,
             writeDisposition, validate, bigQueryServices);
       }
 
@@ -1716,7 +1774,17 @@ public class BigQueryIO {
        * <p>Does not modify this object.
        */
       public Bound withSchema(TableSchema schema) {
-        return new Bound(name, jsonTableRef, tableRefFunction, toJsonString(schema),
+        return new Bound(name, jsonTableRef, tableRefFunction,
+            StaticValueProvider.of(toJsonString(schema)),
+            createDisposition, writeDisposition, validate, bigQueryServices);
+      }
+
+      /**
+       * Like {@link #withSchema(TableSchema)}, but with a {@link ValueProvider}.
+       */
+      public Bound withSchema(ValueProvider<TableSchema> schema) {
+        return new Bound(name, jsonTableRef, tableRefFunction,
+            NestedValueProvider.of(schema, new TableSchemaToJsonSchema()),
             createDisposition, writeDisposition, validate, bigQueryServices);
       }
 
@@ -1798,7 +1866,7 @@ public class BigQueryIO {
 
         // The user specified a table.
         if (jsonTableRef != null && validate) {
-          TableReference table = getTableWithDefaultProject(options);
+          TableReference table = getTableWithDefaultProject(options).get();
 
           DatasetService datasetService = getBigQueryServices().getDatasetService(options);
           // Check for destination table presence and emptiness for early failure notification.
@@ -1846,7 +1914,7 @@ public class BigQueryIO {
       }
 
       @Override
-      public PDone expand(PCollection<TableRow> input) {
+      public PDone apply(PCollection<TableRow> input) {
         Pipeline p = input.getPipeline();
         BigQueryOptions options = p.getOptions().as(BigQueryOptions.class);
         BigQueryServices bqServices = getBigQueryServices();
@@ -1858,7 +1926,7 @@ public class BigQueryIO {
               new StreamWithDeDup(getTable(), tableRefFunction, getSchema(), bqServices));
         }
 
-        TableReference table = getTableWithDefaultProject(options);
+        ValueProvider<TableReference> table = getTableWithDefaultProject(options);
 
         String jobIdToken = "beam_job_" + randomUUIDString();
         String tempLocation = options.getTempLocation();
@@ -1909,7 +1977,7 @@ public class BigQueryIO {
                 bqServices,
                 jobIdToken,
                 tempFilePrefix,
-                toJsonString(table),
+                NestedValueProvider.of(table, new TableRefToJson()),
                 jsonSchema,
                 WriteDisposition.WRITE_EMPTY,
                 CreateDisposition.CREATE_IF_NEEDED)));
@@ -1920,7 +1988,7 @@ public class BigQueryIO {
             .of(new WriteRename(
                 bqServices,
                 jobIdToken,
-                toJsonString(table),
+                NestedValueProvider.of(table, new TableRefToJson()),
                 writeDisposition,
                 createDisposition,
                 tempTablesView))
@@ -1934,7 +2002,7 @@ public class BigQueryIO {
                 bqServices,
                 jobIdToken,
                 tempFilePrefix,
-                toJsonString(table),
+                NestedValueProvider.of(table, new TableRefToJson()),
                 jsonSchema,
                 writeDisposition,
                 createDisposition)));
@@ -2000,9 +2068,9 @@ public class BigQueryIO {
         super.populateDisplayData(builder);
 
         builder
-            .addIfNotNull(DisplayData.item("table", jsonTableRef)
+            .addIfNotNull(DisplayData.item("table", displayTableProvider(jsonTableRef))
               .withLabel("Table Reference"))
-            .addIfNotNull(DisplayData.item("schema", jsonSchema)
+            .addIfNotNull(DisplayData.item("schema", "jsonSchema")
               .withLabel("Table Schema"));
 
         if (tableRefFunction != null) {
@@ -2031,7 +2099,8 @@ public class BigQueryIO {
 
       /** Returns the table schema. */
       public TableSchema getSchema() {
-        return fromJsonString(jsonSchema, TableSchema.class);
+        return fromJsonString(
+            jsonSchema == null ? null : jsonSchema.get(), TableSchema.class);
       }
 
       /**
@@ -2039,20 +2108,22 @@ public class BigQueryIO {
        *
        * <p>If the table's project is not specified, use the executing project.
        */
-      @Nullable private TableReference getTableWithDefaultProject(BigQueryOptions bqOptions) {
-        TableReference table = getTable();
-        if (table != null && Strings.isNullOrEmpty(table.getProjectId())) {
+      @Nullable private ValueProvider<TableReference> getTableWithDefaultProject(
+          BigQueryOptions bqOptions) {
+        ValueProvider<TableReference> table = getTable();
+        if (table != null && table.isAccessible()
+            && Strings.isNullOrEmpty(table.get().getProjectId())) {
           // If user does not specify a project we assume the table to be located in
           // the default project.
-          table.setProjectId(bqOptions.getProject());
+          table.get().setProjectId(bqOptions.getProject());
         }
         return table;
       }
 
       /** Returns the table reference, or {@code null}. */
       @Nullable
-      public TableReference getTable() {
-        return fromJsonString(jsonTableRef, TableReference.class);
+      public ValueProvider<TableReference> getTable() {
+        return NestedValueProvider.of(jsonTableRef, new JsonTableRefToTableRef());
       }
 
       /** Returns {@code true} if table validation is enabled. */
@@ -2172,8 +2243,8 @@ public class BigQueryIO {
       private final BigQueryServices bqServices;
       private final String jobIdToken;
       private final String tempFilePrefix;
-      private final String jsonTableRef;
-      private final String jsonSchema;
+      private final ValueProvider<String> jsonTableRef;
+      private final ValueProvider<String> jsonSchema;
       private final WriteDisposition writeDisposition;
       private final CreateDisposition createDisposition;
 
@@ -2182,8 +2253,8 @@ public class BigQueryIO {
           BigQueryServices bqServices,
           String jobIdToken,
           String tempFilePrefix,
-          String jsonTableRef,
-          String jsonSchema,
+          ValueProvider<String> jsonTableRef,
+          ValueProvider<String> jsonSchema,
           WriteDisposition writeDisposition,
           CreateDisposition createDisposition) {
         this.singlePartition = singlePartition;
@@ -2200,7 +2271,7 @@ public class BigQueryIO {
       public void processElement(ProcessContext c) throws Exception {
         List<String> partition = Lists.newArrayList(c.element().getValue()).get(0);
         String jobIdPrefix = String.format(jobIdToken + "_%05d", c.element().getKey());
-        TableReference ref = fromJsonString(jsonTableRef, TableReference.class);
+        TableReference ref = fromJsonString(jsonTableRef.get(), TableReference.class);
         if (!singlePartition) {
           ref.setTableId(jobIdPrefix);
         }
@@ -2209,7 +2280,8 @@ public class BigQueryIO {
             bqServices.getJobService(c.getPipelineOptions().as(BigQueryOptions.class)),
             jobIdPrefix,
             ref,
-            fromJsonString(jsonSchema, TableSchema.class),
+            fromJsonString(
+                jsonSchema == null ? null : jsonSchema.get(), TableSchema.class),
             partition,
             writeDisposition,
             createDisposition);
@@ -2242,16 +2314,15 @@ public class BigQueryIO {
               .setProjectId(projectId)
               .setJobId(jobId);
           jobService.startLoadJob(jobRef, loadConfig);
-          Job job = jobService.pollJob(jobRef, Bound.LOAD_JOB_POLL_MAX_RETRIES);
-          Status jobStatus = parseStatus(job);
+          Status jobStatus =
+              parseStatus(jobService.pollJob(jobRef, Bound.LOAD_JOB_POLL_MAX_RETRIES));
           switch (jobStatus) {
             case SUCCEEDED:
               return;
             case UNKNOWN:
               throw new RuntimeException("Failed to poll the load job status of job " + jobId);
             case FAILED:
-              LOG.info("BigQuery load job failed. Status: {} Details: {}",
-                  jobId, job.getStatus());
+              LOG.info("BigQuery load job failed: {}", jobId);
               continue;
             default:
               throw new IllegalStateException(String.format("Unexpected job status: %s of job %s",
@@ -2293,9 +2364,9 @@ public class BigQueryIO {
                 .withLabel("Job ID Token"))
             .addIfNotNull(DisplayData.item("tempFilePrefix", tempFilePrefix)
                 .withLabel("Temporary File Prefix"))
-            .addIfNotNull(DisplayData.item("jsonTableRef", jsonTableRef)
+            .addIfNotNull(DisplayData.item("jsonTableRef", displayTableProvider(jsonTableRef))
                 .withLabel("Table Reference"))
-            .addIfNotNull(DisplayData.item("jsonSchema", jsonSchema)
+            .addIfNotNull(DisplayData.item("jsonSchema", "jsonSchema")
                 .withLabel("Table Schema"));
       }
     }
@@ -2306,7 +2377,7 @@ public class BigQueryIO {
     static class WriteRename extends DoFn<String, Void> {
       private final BigQueryServices bqServices;
       private final String jobIdToken;
-      private final String jsonTableRef;
+      private final ValueProvider<String> jsonTableRef;
       private final WriteDisposition writeDisposition;
       private final CreateDisposition createDisposition;
       private final PCollectionView<Iterable<String>> tempTablesView;
@@ -2314,7 +2385,7 @@ public class BigQueryIO {
       public WriteRename(
           BigQueryServices bqServices,
           String jobIdToken,
-          String jsonTableRef,
+          ValueProvider<String> jsonTableRef,
           WriteDisposition writeDisposition,
           CreateDisposition createDisposition,
           PCollectionView<Iterable<String>> tempTablesView) {
@@ -2342,7 +2413,7 @@ public class BigQueryIO {
         copy(
             bqServices.getJobService(c.getPipelineOptions().as(BigQueryOptions.class)),
             jobIdToken,
-            fromJsonString(jsonTableRef, TableReference.class),
+            fromJsonString(jsonTableRef.get(), TableReference.class),
             tempTables,
             writeDisposition,
             createDisposition);
@@ -2414,7 +2485,7 @@ public class BigQueryIO {
         builder
             .addIfNotNull(DisplayData.item("jobIdToken", jobIdToken)
                 .withLabel("Job ID Token"))
-            .addIfNotNull(DisplayData.item("jsonTableRef", jsonTableRef)
+            .addIfNotNull(DisplayData.item("jsonTableRef", displayTableProvider(jsonTableRef))
                 .withLabel("Table Reference"))
             .add(DisplayData.item("writeDisposition", writeDisposition.toString())
                 .withLabel("Write Disposition"))
@@ -2708,7 +2779,7 @@ public class BigQueryIO {
   private static class TagWithUniqueIdsAndTable
       extends DoFn<TableRow, KV<ShardedKey<String>, TableRowInfo>> {
     /** TableSpec to write to. */
-    private final String tableSpec;
+    private final ValueProvider<String> tableSpec;
 
     /** User function mapping windows to {@link TableReference} in JSON. */
     private final SerializableFunction<BoundedWindow, TableReference> tableRefFunction;
@@ -2716,15 +2787,16 @@ public class BigQueryIO {
     private transient String randomUUID;
     private transient long sequenceNo = 0L;
 
-    TagWithUniqueIdsAndTable(BigQueryOptions options, TableReference table,
+    TagWithUniqueIdsAndTable(BigQueryOptions options,
+        ValueProvider<TableReference> table,
         SerializableFunction<BoundedWindow, TableReference> tableRefFunction) {
       checkArgument(table == null ^ tableRefFunction == null,
           "Exactly one of table or tableRefFunction should be set");
       if (table != null) {
-        if (table.getProjectId() == null) {
-          table.setProjectId(options.as(BigQueryOptions.class).getProject());
+        if (table.isAccessible() && table.get().getProjectId() == null) {
+          table.get().setProjectId(options.as(BigQueryOptions.class).getProject());
         }
-        this.tableSpec = toTableSpec(table);
+        this.tableSpec = NestedValueProvider.of(table, new TableRefToTableSpec());
       } else {
         tableSpec = null;
       }
@@ -2754,7 +2826,7 @@ public class BigQueryIO {
     public void populateDisplayData(DisplayData.Builder builder) {
       super.populateDisplayData(builder);
 
-      builder.addIfNotNull(DisplayData.item("table", tableSpec));
+      builder.addIfNotNull(DisplayData.item("table", "table"));
       if (tableRefFunction != null) {
         builder.add(DisplayData.item("tableFn", tableRefFunction.getClass())
           .withLabel("Table Reference Function"));
@@ -2763,7 +2835,7 @@ public class BigQueryIO {
 
     private String tableSpecFromWindow(BigQueryOptions options, BoundedWindow window) {
       if (tableSpec != null) {
-        return tableSpec;
+        return tableSpec.get();
       } else {
         TableReference table = tableRefFunction.apply(window);
         if (table.getProjectId() == null) {
@@ -2781,13 +2853,13 @@ public class BigQueryIO {
   * it leverages BigQuery best effort de-dup mechanism.
    */
   private static class StreamWithDeDup extends PTransform<PCollection<TableRow>, PDone> {
-    private final transient TableReference tableReference;
+    private final transient ValueProvider<TableReference> tableReference;
     private final SerializableFunction<BoundedWindow, TableReference> tableRefFunction;
     private final transient TableSchema tableSchema;
     private final BigQueryServices bqServices;
 
     /** Constructor. */
-    StreamWithDeDup(TableReference tableReference,
+    StreamWithDeDup(ValueProvider<TableReference> tableReference,
         SerializableFunction<BoundedWindow, TableReference> tableRefFunction,
         TableSchema tableSchema,
         BigQueryServices bqServices) {
@@ -2803,7 +2875,7 @@ public class BigQueryIO {
     }
 
     @Override
-    public PDone expand(PCollection<TableRow> input) {
+    public PDone apply(PCollection<TableRow> input) {
       // A naive implementation would be to simply stream data directly to BigQuery.
       // However, this could occasionally lead to duplicated data, e.g., when
       // a VM that runs this code is restarted and the code is re-run.

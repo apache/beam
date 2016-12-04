@@ -643,9 +643,9 @@ public class BigQueryIOTest implements Serializable {
       BigQueryIO.Write.Bound bound, String project, String dataset, String table,
       TableSchema schema, CreateDisposition createDisposition,
       WriteDisposition writeDisposition, boolean validate) {
-    assertEquals(project, bound.getTable().getProjectId());
-    assertEquals(dataset, bound.getTable().getDatasetId());
-    assertEquals(table, bound.getTable().getTableId());
+    assertEquals(project, bound.getTable().get().getProjectId());
+    assertEquals(dataset, bound.getTable().get().getDatasetId());
+    assertEquals(table, bound.getTable().get().getTableId());
     assertEquals(schema, bound.getSchema());
     assertEquals(createDisposition, bound.createDisposition);
     assertEquals(writeDisposition, bound.writeDisposition);
@@ -1205,6 +1205,8 @@ public class BigQueryIOTest implements Serializable {
         .withJobService(mockJobService)
         .withDatasetService(mockDatasetService);
     when(mockDatasetService.getDataset(projectId, datasetId)).thenThrow(
+        new RuntimeException("Unable to confirm BigQuery dataset presence"));
+    when(mockDatasetService.getDataset(null, datasetId)).thenThrow(
         new RuntimeException("Unable to confirm BigQuery dataset presence"));
 
     Pipeline p = TestPipeline.create(options);
@@ -1845,8 +1847,8 @@ public class BigQueryIOTest implements Serializable {
         fakeBqServices,
         jobIdToken,
         tempFilePrefix,
-        jsonTable,
-        jsonSchema,
+        StaticValueProvider.of(jsonTable),
+        StaticValueProvider.of(jsonSchema),
         WriteDisposition.WRITE_EMPTY,
         CreateDisposition.CREATE_IF_NEEDED);
 
@@ -1920,7 +1922,7 @@ public class BigQueryIOTest implements Serializable {
     WriteRename writeRename = new WriteRename(
         fakeBqServices,
         jobIdToken,
-        jsonTable,
+        StaticValueProvider.of(jsonTable),
         WriteDisposition.WRITE_EMPTY,
         CreateDisposition.CREATE_IF_NEEDED,
         tempTablesView);
