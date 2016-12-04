@@ -83,6 +83,17 @@ public class CountingSource {
   }
 
   /**
+   * Creates a {@link BoundedSource} that will produce elements
+   * from {@code startIndex} to {@code endIndex - 1}.
+   */
+  static BoundedSource<Long> createSourceForSubrange(long startIndex, long endIndex) {
+    checkArgument(endIndex > startIndex, "endIndex (%s) must be greater than startIndex (%s)",
+            endIndex, startIndex);
+
+    return new BoundedCountingSource(startIndex, endIndex);
+  }
+
+  /**
    * Create a new {@link UnboundedCountingSource}.
    */
   // package-private to return a typed UnboundedCountingSource rather than the UnboundedSource type.
