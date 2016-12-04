@@ -35,7 +35,7 @@ import org.joda.time.Instant;
 /**
  * A {@link PTransform} that produces longs. When used to produce a
  * {@link IsBounded#BOUNDED bounded} {@link PCollection}, {@link CountingInput} starts at {@code 0}
- * and counts up to a specified maximum. When used to produce an
+ * or starting value, and counts up to a specified maximum. When used to produce an
  * {@link IsBounded#UNBOUNDED unbounded} {@link PCollection}, it counts up to {@link Long#MAX_VALUE}
  * and then never produces more output. (In practice, this limit should never be reached.)
  *
@@ -43,11 +43,21 @@ import org.joda.time.Instant;
  * {@link OffsetBasedSource.OffsetBasedReader}, so it performs efficient initial splitting and it
  * supports dynamic work rebalancing.
  *
- * <p>To produce a bounded {@code PCollection<Long>}, use {@link CountingInput#upTo(long)}:
+ * <p>To produce a bounded {@code PCollection<Long>} starting from {@code 0},
+ * use {@link CountingInput#upTo(long)}:
  *
  * <pre>{@code
  * Pipeline p = ...
  * PTransform<PBegin, PCollection<Long>> producer = CountingInput.upTo(1000);
+ * PCollection<Long> bounded = p.apply(producer);
+ * }</pre>
+ *
+ * <p>To produce a bounded {@code PCollection<Long>} starting from {@code startOffset},
+ * use {@link CountingInput#forSubrange(long, long)} :
+ *
+ * <pre>{@code
+ * Pipeline p = ...
+ * PTransform<PBegin, PCollection<Long>> producer = CountingInput.forSubrange(10, 1000);
  * PCollection<Long> bounded = p.apply(producer);
  * }</pre>
  *
@@ -73,6 +83,16 @@ public class CountingInput {
   public static BoundedCountingInput upTo(long numElements) {
     checkArgument(numElements > 0, "numElements (%s) must be greater than 0", numElements);
     return new BoundedCountingInput(numElements);
+  }
+
+  /**
+   * Creates a {@link BoundedCountingInput} that will produce the specified number of elements,
+   * starting from {@code startOffset} to (excluding) {@code endOffset}.
+   */
+  public static BoundedCountingInput forSubrange(long startOffset, long endOffset) {
+    checkArgument(endOffset > startOffset, "numElements (%s) must be greater than 0",
+            endOffset - startOffset);
+    return new BoundedCountingInput(startOffset, endOffset);
   }
 
   /**
@@ -102,23 +122,37 @@ public class CountingInput {
    * 0.
    */
   public static class BoundedCountingInput extends PTransform<PBegin, PCollection<Long>> {
-    private final long numElements;
+    private final long endOffset;
+    private final long startOffset;
 
     private BoundedCountingInput(long numElements) {
-      this.numElements = numElements;
+      this.endOffset = numElements;
+      this.startOffset = 0;
+    }
+
+    private BoundedCountingInput(long startOffset, long endOffset) {
+      this.endOffset = endOffset;
+      this.startOffset = startOffset;
     }
 
     @SuppressWarnings("deprecation")
     @Override
     public PCollection<Long> apply(PBegin begin) {
-      return begin.apply(Read.from(CountingSource.upTo(numElements)));
+      return begin.apply(Read.from(CountingSource.createSourceForSubrange(startOffset, endOffset)));
     }
 
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {
       super.populateDisplayData(builder);
-      builder.add(DisplayData.item("upTo", numElements)
-        .withLabel("Count Up To"));
+
+      if (startOffset == 0) {
+            builder.add(DisplayData.item("upTo", endOffset)
+                .withLabel("Count Up To"));
+      } else {
+            builder.add(DisplayData.item("startAt", startOffset)
+                .withLabel("Count Starting At")).add(DisplayData.item("upTo", endOffset)
+                .withLabel("Count Up To"));
+        }
     }
   }
 
