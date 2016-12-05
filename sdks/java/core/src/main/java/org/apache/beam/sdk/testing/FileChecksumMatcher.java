@@ -21,31 +21,19 @@ package org.apache.beam.sdk.testing;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 
-import com.google.api.client.util.BackOff;
-import com.google.api.client.util.BackOffUtils;
 import com.google.api.client.util.Sleeper;
-import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Strings;
-import com.google.common.collect.Lists;
 import com.google.common.hash.HashCode;
 import com.google.common.hash.Hashing;
-import com.google.common.io.CharStreams;
-import java.io.IOException;
-import java.io.Reader;
-import java.nio.channels.Channels;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.List;
-import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import javax.annotation.Nonnull;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.util.FluentBackoff;
-import org.apache.beam.sdk.util.IOChannelFactory;
-import org.apache.beam.sdk.util.IOChannelUtils;
+import org.apache.beam.sdk.util.NumberedShardedFile;
+import org.apache.beam.sdk.util.ShardedFile;
 import org.hamcrest.Description;
 import org.hamcrest.TypeSafeMatcher;
 import org.joda.time.Duration;
@@ -83,9 +71,8 @@ public class FileChecksumMatcher extends TypeSafeMatcher<PipelineResult>
       Pattern.compile("(?x) \\S* (?<shardnum> \\d+) -of- (?<numshards> \\d+)");
 
   private final String expectedChecksum;
-  private final String filePath;
-  private final Pattern shardTemplate;
   private String actualChecksum;
+  private final ShardedFile shardedFile;
 
   /**
    * Constructor that uses default shard template.
@@ -98,7 +85,7 @@ public class FileChecksumMatcher extends TypeSafeMatcher<PipelineResult>
   }
 
   /**
-   * Constructor.
+   * Constructor using a custom shard template.
    *
    * @param checksum expected checksum string used to verify file content.
    * @param filePath path of files that's to be verified.
@@ -121,8 +108,17 @@ public class FileChecksumMatcher extends TypeSafeMatcher<PipelineResult>
         DEFAULT_SHARD_TEMPLATE);
 
     this.expectedChecksum = checksum;
-    this.filePath = filePath;
-    this.shardTemplate = shardTemplate;
+    this.shardedFile = new NumberedShardedFile(filePath, shardTemplate);
+  }
+
+  /**
+   * Constructor using an entirely custom {@link ShardedFile} implementation.
+   *
+   * <p>For internal use only.
+   */
+  public FileChecksumMatcher(String expectedChecksum, ShardedFile shardedFile) {
+    this.expectedChecksum = expectedChecksum;
+    this.shardedFile = shardedFile;
   }
 
   @Override
@@ -130,9 +126,10 @@ public class FileChecksumMatcher extends TypeSafeMatcher<PipelineResult>
     // Load output data
     List<String> outputs;
     try {
-      outputs = readFilesWithRetries(Sleeper.DEFAULT, BACK_OFF_FACTORY.backoff());
+      outputs = shardedFile.readFilesWithRetries(Sleeper.DEFAULT, BACK_OFF_FACTORY.backoff());
     } catch (Exception e) {
-      throw new RuntimeException(String.format("Failed to read from: %s", filePath), e);
+      throw new RuntimeException(
+          String.format("Failed to read from: %s", shardedFile), e);
     }
 
     // Verify outputs. Checksum is computed using SHA-1 algorithm
@@ -140,81 +137,6 @@ public class FileChecksumMatcher extends TypeSafeMatcher<PipelineResult>
     LOG.debug("Generated checksum: {}", actualChecksum);
 
     return actualChecksum.equals(expectedChecksum);
-  }
-
-  @VisibleForTesting
-  List<String> readFilesWithRetries(Sleeper sleeper, BackOff backOff)
-      throws IOException, InterruptedException {
-    IOChannelFactory factory = IOChannelUtils.getFactory(filePath);
-    IOException lastException = null;
-
-    do {
-      try {
-        // Match inputPath which may contains glob
-        Collection<String> files = factory.match(filePath);
-        LOG.debug("Found {} file(s) by matching the path: {}", files.size(), filePath);
-
-        if (files.isEmpty() || !checkTotalNumOfFiles(files)) {
-          continue;
-        }
-
-        // Read data from file paths
-        return readLines(files, factory);
-      } catch (IOException e) {
-        // Ignore and retry
-        lastException = e;
-        LOG.warn("Error in file reading. Ignore and retry.");
-      }
-    } while(BackOffUtils.next(sleeper, backOff));
-    // Failed after max retries
-    throw new IOException(
-        String.format("Unable to read file(s) after retrying %d times", MAX_READ_RETRIES),
-        lastException);
-  }
-
-  @VisibleForTesting
-  List<String> readLines(Collection<String> files, IOChannelFactory factory) throws IOException {
-    List<String> allLines = Lists.newArrayList();
-    int i = 1;
-    for (String file : files) {
-      try (Reader reader =
-               Channels.newReader(factory.open(file), StandardCharsets.UTF_8.name())) {
-        List<String> lines = CharStreams.readLines(reader);
-        allLines.addAll(lines);
-        LOG.debug(
-            "[{} of {}] Read {} lines from file: {}", i, files.size(), lines.size(), file);
-      }
-      i++;
-    }
-    return allLines;
-  }
-
-  /**
-   * Check if total number of files is correct by comparing with the number that
-   * is parsed from shard name using a name template. If no template is specified,
-   * "SSSS-of-NNNN" will be used as default, and "NNNN" will be the expected total
-   * number of files.
-   *
-   * @return {@code true} if at least one shard name matches template and total number
-   * of given files equals the number that is parsed from shard name.
-   */
-  @VisibleForTesting
-  boolean checkTotalNumOfFiles(Collection<String> files) {
-    for (String filePath : files) {
-      Path fileName = Paths.get(filePath).getFileName();
-      if (fileName == null) {
-        // this path has zero elements
-        continue;
-      }
-      Matcher matcher = shardTemplate.matcher(fileName.toString());
-      if (!matcher.matches()) {
-        // shard name doesn't match the pattern, check with the next shard
-        continue;
-      }
-      // once match, extract total number of shards and compare to file list
-      return files.size() == Integer.parseInt(matcher.group("numshards"));
-    }
-    return false;
   }
 
   private String computeHash(@Nonnull List<String> strs) {
