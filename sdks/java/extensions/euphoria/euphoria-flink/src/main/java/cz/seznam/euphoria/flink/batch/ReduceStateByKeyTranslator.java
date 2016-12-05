@@ -6,7 +6,6 @@ import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.functional.CombinableReduceFunction;
 import cz.seznam.euphoria.core.client.functional.StateFactory;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
-import cz.seznam.euphoria.core.client.operator.CompositeKey;
 import cz.seznam.euphoria.core.client.operator.ReduceStateByKey;
 import cz.seznam.euphoria.core.client.operator.state.State;
 import cz.seznam.euphoria.core.client.operator.state.StorageProvider;
@@ -53,18 +52,8 @@ public class ReduceStateByKeyTranslator implements BatchOperatorTranslator<Reduc
             ? AttachedWindowing.INSTANCE
             : origOperator.getWindowing();
 
-    final UnaryFunction udfKey;
-    final UnaryFunction udfValue;
-    if (origOperator.isGrouped()) {
-      UnaryFunction kfn = origOperator.getKeyExtractor();
-      udfKey = (UnaryFunction<Pair, CompositeKey>)
-              (Pair p) -> CompositeKey.of(p.getFirst(), kfn.apply(p.getSecond()));
-      UnaryFunction vfn = origOperator.getValueExtractor();
-      udfValue = (UnaryFunction<Pair, Object>) (Pair p) -> vfn.apply(p.getSecond());
-    } else {
-      udfKey = origOperator.getKeyExtractor();
-      udfValue = origOperator.getValueExtractor();
-    }
+    final UnaryFunction udfKey = origOperator.getKeyExtractor();
+    final UnaryFunction udfValue = origOperator.getValueExtractor();
 
     // ~ extract key/value + timestamp from input elements and assign windows
     UnaryFunction<Object, Long> timeAssigner = origOperator.getEventTimeAssigner();

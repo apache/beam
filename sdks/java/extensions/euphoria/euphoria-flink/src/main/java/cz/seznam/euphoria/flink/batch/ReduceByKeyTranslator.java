@@ -6,7 +6,6 @@ import cz.seznam.euphoria.core.client.dataset.windowing.Window;
 import cz.seznam.euphoria.core.client.dataset.windowing.WindowedElement;
 import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
-import cz.seznam.euphoria.core.client.operator.CompositeKey;
 import cz.seznam.euphoria.core.client.operator.ReduceByKey;
 import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.flink.FlinkOperator;
@@ -61,18 +60,8 @@ public class ReduceByKeyTranslator implements BatchOperatorTranslator<ReduceByKe
         "Stateful triggers not supported!");
 
     // ~ prepare key and value functions
-    final UnaryFunction udfKey;
-    final UnaryFunction udfValue;
-    if (origOperator.isGrouped()) {
-      UnaryFunction kfn = origOperator.getKeyExtractor();
-      udfKey = (UnaryFunction<Pair, CompositeKey>)
-          (Pair p) -> CompositeKey.of(p.getFirst(), kfn.apply(p.getSecond()));
-      UnaryFunction vfn = origOperator.getValueExtractor();
-      udfValue = (UnaryFunction<Pair, Object>) (Pair p) -> vfn.apply(p.getSecond());
-    } else {
-      udfKey = origOperator.getKeyExtractor();
-      udfValue = origOperator.getValueExtractor();
-    }
+    final UnaryFunction udfKey = origOperator.getKeyExtractor();
+    final UnaryFunction udfValue = origOperator.getValueExtractor();
 
     // ~ extract key/value from input elements and assign windows
     DataSet<WindowedElement> tuples;

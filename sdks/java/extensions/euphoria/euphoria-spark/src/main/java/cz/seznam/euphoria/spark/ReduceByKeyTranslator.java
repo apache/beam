@@ -7,7 +7,6 @@ import cz.seznam.euphoria.core.client.dataset.windowing.Window;
 import cz.seznam.euphoria.core.client.dataset.windowing.WindowedElement;
 import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
-import cz.seznam.euphoria.core.client.operator.CompositeKey;
 import cz.seznam.euphoria.core.client.operator.ReduceByKey;
 import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.guava.shaded.com.google.common.base.Preconditions;
@@ -44,6 +43,8 @@ class ReduceByKeyTranslator implements SparkOperatorTranslator<ReduceByKey> {
             operator.getWindowing() == null
                     ? AttachedWindowing.INSTANCE
                     : operator.getWindowing();
+    final UnaryFunction keyExtractor = operator.getKeyExtractor();
+    final UnaryFunction valueExtractor = operator.getValueExtractor();
 
     Preconditions.checkState(operator.isCombinable(),
             "Non-combinable ReduceByKey not supported!");
@@ -52,23 +53,6 @@ class ReduceByKeyTranslator implements SparkOperatorTranslator<ReduceByKey> {
             "MergingWindowing not supported!");
     Preconditions.checkState(!windowing.getTrigger().isStateful(),
             "Stateful triggers not supported!");
-
-    // FIXME functions extraction could be moved to the euphoria-core
-    final UnaryFunction keyExtractor;
-    final UnaryFunction valueExtractor;
-    if (operator.isGrouped()) {
-      UnaryFunction reduceKeyExtractor = operator.getKeyExtractor();
-      keyExtractor = (UnaryFunction<Pair, CompositeKey>)
-              (Pair p) -> CompositeKey.of(
-                      p.getFirst(),
-                      reduceKeyExtractor.apply(p.getSecond()));
-      UnaryFunction vfn = operator.getValueExtractor();
-      valueExtractor = (UnaryFunction<Pair, Object>)
-              (Pair p) -> vfn.apply(p.getSecond());
-    } else {
-      keyExtractor = operator.getKeyExtractor();
-      valueExtractor = operator.getValueExtractor();
-    }
 
     // ~ extract key/value + timestamp from input elements and assign windows
     JavaPairRDD<KeyedWindow, TimestampedElement> tuples = input.flatMapToPair(
