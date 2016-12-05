@@ -214,7 +214,7 @@ public class InMemoryTimerInternals implements TimerInternals {
     checkState(
         !newSynchronizedProcessingTime.isBefore(synchronizedProcessingTime),
         "Cannot move processing time backwards from %s to %s",
-        processingTime,
+        synchronizedProcessingTime,
         newSynchronizedProcessingTime);
     WindowTracing.trace(
         "{}.advanceProcessingTime: from {} to {}",
