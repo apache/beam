@@ -111,7 +111,7 @@ public class InMemoryTimerInternals implements TimerInternals {
 
   @Override
   public void setTimer(TimerData timerData) {
-    WindowTracing.trace("TestTimerInternals.setTimer: {}", timerData);
+    WindowTracing.trace("{}.setTimer: {}", getClass().getSimpleName(), timerData);
     if (existingTimers.add(timerData)) {
       queue(timerData.getDomain()).add(timerData);
     }
@@ -124,7 +124,7 @@ public class InMemoryTimerInternals implements TimerInternals {
 
   @Override
   public void deleteTimer(TimerData timer) {
-    WindowTracing.trace("TestTimerInternals.deleteTimer: {}", timer);
+    WindowTracing.trace("{}.deleteTimer: {}", getClass().getSimpleName(), timer);
     existingTimers.remove(timer);
     queue(timer.getDomain()).remove(timer);
   }
@@ -150,7 +150,7 @@ public class InMemoryTimerInternals implements TimerInternals {
     return MoreObjects.toStringHelper(getClass())
         .add("watermarkTimers", watermarkTimers)
         .add("processingTimers", processingTimers)
-        .add("synchronizedProcessingTimers", processingTimers)
+        .add("synchronizedProcessingTimers", synchronizedProcessingTimers)
         .add("inputWatermarkTime", inputWatermarkTime)
         .add("outputWatermarkTime", outputWatermarkTime)
         .add("processingTime", processingTime)
@@ -166,9 +166,8 @@ public class InMemoryTimerInternals implements TimerInternals {
         inputWatermarkTime,
         newInputWatermark);
     WindowTracing.trace(
-        "InMemoryTimerInternals.advanceInputWatermark: from {} to {}",
-        inputWatermarkTime,
-        newInputWatermark);
+        "{}.advanceInputWatermark: from {} to {}",
+        getClass().getSimpleName(), inputWatermarkTime, newInputWatermark);
     inputWatermarkTime = newInputWatermark;
   }
 
@@ -178,9 +177,8 @@ public class InMemoryTimerInternals implements TimerInternals {
     final Instant adjustedOutputWatermark;
     if (newOutputWatermark.isAfter(inputWatermarkTime)) {
       WindowTracing.trace(
-          "InMemoryTimerInternals.advanceOutputWatermark: clipping output watermark from {} to {}",
-          newOutputWatermark,
-          inputWatermarkTime);
+          "{}.advanceOutputWatermark: clipping output watermark from {} to {}",
+          getClass().getSimpleName(), newOutputWatermark, inputWatermarkTime);
       adjustedOutputWatermark = inputWatermarkTime;
     } else {
       adjustedOutputWatermark = newOutputWatermark;
@@ -192,9 +190,8 @@ public class InMemoryTimerInternals implements TimerInternals {
         outputWatermarkTime,
         adjustedOutputWatermark);
     WindowTracing.trace(
-        "InMemoryTimerInternals.advanceOutputWatermark: from {} to {}",
-        outputWatermarkTime,
-        adjustedOutputWatermark);
+        "{}.advanceOutputWatermark: from {} to {}",
+        getClass().getSimpleName(), outputWatermarkTime, adjustedOutputWatermark);
     outputWatermarkTime = adjustedOutputWatermark;
   }
 
@@ -206,9 +203,8 @@ public class InMemoryTimerInternals implements TimerInternals {
         processingTime,
         newProcessingTime);
     WindowTracing.trace(
-        "InMemoryTimerInternals.advanceProcessingTime: from {} to {}",
-        processingTime,
-        newProcessingTime);
+        "{}.advanceProcessingTime: from {} to {}",
+        getClass().getSimpleName(), processingTime, newProcessingTime);
     processingTime = newProcessingTime;
   }
 
@@ -221,9 +217,8 @@ public class InMemoryTimerInternals implements TimerInternals {
         processingTime,
         newSynchronizedProcessingTime);
     WindowTracing.trace(
-        "InMemoryTimerInternals.advanceProcessingTime: from {} to {}",
-        synchronizedProcessingTime,
-        newSynchronizedProcessingTime);
+        "{}.advanceProcessingTime: from {} to {}",
+        getClass().getSimpleName(), synchronizedProcessingTime, newSynchronizedProcessingTime);
     synchronizedProcessingTime = newSynchronizedProcessingTime;
   }
 
@@ -233,8 +228,8 @@ public class InMemoryTimerInternals implements TimerInternals {
     TimerData timer = removeNextTimer(inputWatermarkTime, TimeDomain.EVENT_TIME);
     if (timer != null) {
       WindowTracing.trace(
-          "InMemoryTimerInternals.removeNextEventTimer: firing {} at {}",
-          timer, inputWatermarkTime);
+          "{}.removeNextEventTimer: firing {} at {}",
+          getClass().getSimpleName(), timer, inputWatermarkTime);
     }
     return timer;
   }
@@ -245,8 +240,8 @@ public class InMemoryTimerInternals implements TimerInternals {
     TimerData timer = removeNextTimer(processingTime, TimeDomain.PROCESSING_TIME);
     if (timer != null) {
       WindowTracing.trace(
-          "InMemoryTimerInternals.removeNextProcessingTimer: firing {} at {}",
-          timer, processingTime);
+          "{}.removeNextProcessingTimer: firing {} at {}",
+          getClass().getSimpleName(), timer, processingTime);
     }
     return timer;
   }
@@ -258,8 +253,8 @@ public class InMemoryTimerInternals implements TimerInternals {
         synchronizedProcessingTime, TimeDomain.SYNCHRONIZED_PROCESSING_TIME);
     if (timer != null) {
       WindowTracing.trace(
-          "InMemoryTimerInternals.removeNextSynchronizedProcessingTimer: firing {} at {}",
-          timer, synchronizedProcessingTime);
+          "{}.removeNextSynchronizedProcessingTimer: firing {} at {}",
+          getClass().getSimpleName(), timer, synchronizedProcessingTime);
     }
     return timer;
   }
@@ -321,7 +316,8 @@ public class InMemoryTimerInternals implements TimerInternals {
     TimerData timer;
     while ((timer = removeNextTimer(currentTime, domain)) != null) {
       WindowTracing.trace(
-          "InMemoryTimerInternals.advanceAndFire: firing {} at {}", timer, currentTime);
+          "{}.advanceAndFire: firing {} at {}",
+          getClass().getSimpleName(), timer, currentTime);
       timerCallback.onTimer(timer);
     }
   }
