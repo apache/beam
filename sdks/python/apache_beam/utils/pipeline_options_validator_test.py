@@ -260,6 +260,34 @@ class SetupTest(unittest.TestCase):
           PipelineOptions(case['options']), case['runner'])
       self.assertEqual(validator.is_service_runner(), case['expected'])
 
+  def test_dataflow_job_file_and_template_location_mutually_exclusive(self):
+    runner = MockRunners.OtherRunner()
+    options = PipelineOptions([
+        '--template_location', 'abc',
+        '--dataflow_job_file', 'def'
+    ])
+    validator = PipelineOptionsValidator(options, runner)
+    errors = validator.validate()
+    self.assertTrue(errors)
+
+  def test_validate_template_location(self):
+    runner = MockRunners.OtherRunner()
+    options = PipelineOptions([
+        '--template_location', 'abc',
+    ])
+    validator = PipelineOptionsValidator(options, runner)
+    errors = validator.validate()
+    self.assertFalse(errors)
+
+  def test_validate_dataflow_job_file(self):
+    runner = MockRunners.OtherRunner()
+    options = PipelineOptions([
+        '--dataflow_job_file', 'abc'
+    ])
+    validator = PipelineOptionsValidator(options, runner)
+    errors = validator.validate()
+    self.assertFalse(errors)
+
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
   unittest.main()

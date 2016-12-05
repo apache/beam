@@ -263,6 +263,10 @@ class GoogleCloudOptions(PipelineOptions):
                         default=None,
                         help='Identity to run virtual machines as.')
     parser.add_argument('--no_auth', dest='no_auth', type=bool, default=False)
+    # Option to run templated pipelines
+    parser.add_argument('--template_location',
+                        default=None,
+                        help='Save job to specified local or GCS location.')
 
   def validate(self, validator):
     errors = []
@@ -272,6 +276,12 @@ class GoogleCloudOptions(PipelineOptions):
       if getattr(self, 'temp_location',
                  None) or getattr(self, 'staging_location', None) is None:
         errors.extend(validator.validate_gcs_path(self, 'temp_location'))
+
+    if self.view_as(DebugOptions).dataflow_job_file:
+      if self.view_as(GoogleCloudOptions).template_location:
+        errors.append('--dataflow_job_file and --template_location '
+                      'are mutually exclusive.')
+
     return errors
 
 

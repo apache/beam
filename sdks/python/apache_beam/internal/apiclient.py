@@ -24,6 +24,7 @@ import os
 import re
 import time
 
+from StringIO import StringIO
 
 from apitools.base.py import encoding
 from apitools.base.py import exceptions
@@ -42,7 +43,6 @@ from apache_beam.utils.options import DebugOptions
 from apache_beam.utils.options import GoogleCloudOptions
 from apache_beam.utils.options import StandardOptions
 from apache_beam.utils.options import WorkerOptions
-
 from apache_beam.internal.clients import storage
 import apache_beam.internal.clients.dataflow as dataflow
 
@@ -327,6 +327,9 @@ class Job(object):
     self.base64_str_re = re.compile(r'^[A-Za-z0-9+/]*=*$')
     self.coder_str_re = re.compile(r'^([A-Za-z]+\$)([A-Za-z0-9+/]*=*)$')
 
+  def json(self):
+    return encoding.MessageToJson(self.proto)
+
 
 class DataflowApplicationClient(object):
   """A Dataflow API client used by application code to create and query jobs."""
@@ -392,8 +395,29 @@ class DataflowApplicationClient(object):
   # TODO(silviuc): Refactor so that retry logic can be applied.
   @retry.no_retries  # Using no_retries marks this as an integration point.
   def create_job(self, job):
-    """Submits for remote execution a job described by the workflow proto."""
-    # Stage job resources and add an environment proto with their paths.
+    """Creates a job description.
+    Additionally, it may stage it and/or submit it for remote execution.
+    """
+    self.create_job_description(job)
+
+    # Stage and submit the job when necessary
+    dataflow_job_file = job.options.view_as(DebugOptions).dataflow_job_file
+    template_location = (
+        job.options.view_as(GoogleCloudOptions).template_location)
+
+    job_location = template_location or dataflow_job_file
+    if job_location:
+      gcs_or_local_path = os.path.dirname(job_location)
+      file_name = os.path.basename(job_location)
+      self.stage_file(gcs_or_local_path, file_name, StringIO(job.json()))
+
+    if not template_location:
+      return self.submit_job_description()
+    else:
+      return None
+
+  def create_job_description(self, job):
+    """Creates a job described by the workflow proto."""
     resources = dependency.stage_job_resources(
         job.options, file_copy=self._gcs_file_copy)
     job.proto.environment = Environment(
@@ -401,8 +425,10 @@ class DataflowApplicationClient(object):
         environment_version=self.environment_version).proto
     # TODO(silviuc): Remove the debug logging eventually.
     logging.info('JOB: %s', job)
-    request = dataflow.DataflowProjectsJobsCreateRequest()
 
+  def submit_job_description(self):
+    """Creates and excutes a job request."""
+    request = dataflow.DataflowProjectsJobsCreateRequest()
     request.projectId = self.google_cloud_options.project
     request.job = job.proto
 

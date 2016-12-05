@@ -152,6 +152,19 @@ class PipelineOptionsTest(unittest.TestCase):
     options = PipelineOptions(flags=[''])
     self.assertEqual(options.get_all_options()['extra_packages'], None)
 
+  def test_dataflow_job_file(self):
+    options = PipelineOptions(['--dataflow_job_file', 'abc'])
+    self.assertEqual(options.get_all_options()['dataflow_job_file'], 'abc')
+
+    options = PipelineOptions(flags=[''])
+    self.assertEqual(options.get_all_options()['dataflow_job_file'], None)
+
+  def test_template_location(self):
+    options = PipelineOptions(['--template_location', 'abc'])
+    self.assertEqual(options.get_all_options()['template_location'], 'abc')
+
+    options = PipelineOptions(flags=[''])
+    self.assertEqual(options.get_all_options()['template_location'], None)
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
