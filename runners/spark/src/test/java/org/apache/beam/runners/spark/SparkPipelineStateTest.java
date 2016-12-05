@@ -39,7 +39,6 @@ import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SimpleFunction;
-import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.joda.time.Duration;
@@ -52,9 +51,9 @@ import org.junit.rules.TestName;
  */
 public class SparkPipelineStateTest implements Serializable {
 
-  private static class UserException extends RuntimeException {
+  private static class MyCustomException extends RuntimeException {
 
-    UserException(final String message) {
+    MyCustomException(final String message) {
       super(message);
     }
   }
@@ -122,7 +121,7 @@ public class SparkPipelineStateTest implements Serializable {
 
             @Override
             public String apply(final String input) {
-              throw new UserException(FAILED_THE_BATCH_INTENTIONALLY);
+              throw new MyCustomException(FAILED_THE_BATCH_INTENTIONALLY);
             }
           }));
 
@@ -130,9 +129,8 @@ public class SparkPipelineStateTest implements Serializable {
       result.waitUntilFinish();
     } catch (final Exception e) {
       assertThat(e, instanceOf(Pipeline.PipelineExecutionException.class));
-      assertThat(e.getCause(), instanceOf(UserCodeException.class));
-      assertThat(e.getCause().getCause(), instanceOf(UserException.class));
-      assertThat(e.getCause().getCause().getMessage(), is(FAILED_THE_BATCH_INTENTIONALLY));
+      assertThat(e.getCause(), instanceOf(MyCustomException.class));
+      assertThat(e.getCause().getMessage(), is(FAILED_THE_BATCH_INTENTIONALLY));
       assertThat(result.getState(), is(PipelineResult.State.FAILED));
       result.cancel();
       return;

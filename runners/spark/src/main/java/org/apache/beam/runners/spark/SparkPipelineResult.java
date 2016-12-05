@@ -31,6 +31,7 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.metrics.MetricResults;
 import org.apache.beam.sdk.transforms.Aggregator;
+import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.spark.SparkException;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.streaming.api.java.JavaStreamingContext;
@@ -62,9 +63,17 @@ public abstract class SparkPipelineResult implements PipelineResult {
     // Scala doesn't declare checked exceptions in the bytecode, and the Java compiler
     // won't let you catch something that is not declared, so we can't catch
     // SparkException directly, instead we do an instanceof check.
-    return (e instanceof SparkException)
-        ? new Pipeline.PipelineExecutionException(e.getCause() != null ? e.getCause() : e)
-        : runtimeExceptionFrom(e);
+
+    if (e instanceof SparkException) {
+      if (e.getCause() != null && e.getCause() instanceof UserCodeException) {
+        UserCodeException userException = (UserCodeException) e.getCause();
+        return new Pipeline.PipelineExecutionException(userException.getCause());
+      } else if (e.getCause() != null) {
+        return new Pipeline.PipelineExecutionException(e.getCause());
+      }
+    }
+
+    return runtimeExceptionFrom(e);
   }
 
   protected abstract void stop();
