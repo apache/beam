@@ -742,12 +742,11 @@ public class BigQueryIO {
         TableReference table = getTable();
 
         if (table != null) {
-          builder.add(DisplayData.item("table", toTableSpec(table))
+          builder.add(DisplayData.item("table", table.isAccessible() ? toTableSpec(table)
+                  : tabel.toString())
             .withLabel("Table"));
         }
-        String queryString = query == null
-            ? null : query.isAccessible()
-            ? query.get() : query.toString();
+        String queryString = query == null ? null : displayTableProvider(query);
         builder
             .addIfNotNull(DisplayData.item("query", queryString)
               .withLabel("Query"))
@@ -965,8 +964,7 @@ public class BigQueryIO {
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {
       super.populateDisplayData(builder);
-      String table = jsonTable.isAccessible() ? jsonTable.get() : jsonTable.toString();
-      builder.add(DisplayData.item("table", table));
+      builder.add(DisplayData.item("table", displayTableProvider(jsonTable)));
     }
   }
 
@@ -1084,7 +1082,7 @@ public class BigQueryIO {
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {
       super.populateDisplayData(builder);
-      builder.add(DisplayData.item("query", query.get()));
+      builder.add(DisplayData.item("query", displayTableProvider(query)));
     }
 
     private synchronized JobStatistics dryRunQueryIfNeeded(BigQueryOptions bqOptions)
@@ -2070,7 +2068,8 @@ public class BigQueryIO {
         builder
             .addIfNotNull(DisplayData.item("table", displayTableProvider(jsonTableRef))
               .withLabel("Table Reference"))
-            .addIfNotNull(DisplayData.item("schema", "jsonSchema")
+            .addIfNotNull(DisplayData.item("schema",
+                    displayTableProvider(jsonTableSchema))
               .withLabel("Table Schema"));
 
         if (tableRefFunction != null) {
@@ -2366,7 +2365,7 @@ public class BigQueryIO {
                 .withLabel("Temporary File Prefix"))
             .addIfNotNull(DisplayData.item("jsonTableRef", displayTableProvider(jsonTableRef))
                 .withLabel("Table Reference"))
-            .addIfNotNull(DisplayData.item("jsonSchema", "jsonSchema")
+            .addIfNotNull(DisplayData.item("jsonSchema", displayTableProvider(jsonSchema))
                 .withLabel("Table Schema"));
       }
     }
@@ -2826,7 +2825,7 @@ public class BigQueryIO {
     public void populateDisplayData(DisplayData.Builder builder) {
       super.populateDisplayData(builder);
 
-      builder.addIfNotNull(DisplayData.item("table", "table"));
+      builder.addIfNotNull(DisplayData.item("table", displayTableProvider(tableSpec)));
       if (tableRefFunction != null) {
         builder.add(DisplayData.item("tableFn", tableRefFunction.getClass())
           .withLabel("Table Reference Function"));
