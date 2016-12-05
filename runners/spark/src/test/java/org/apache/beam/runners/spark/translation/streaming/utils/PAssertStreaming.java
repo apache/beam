@@ -23,7 +23,7 @@ import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertThat;
 
 import java.io.Serializable;
-import org.apache.beam.runners.spark.EvaluationResult;
+import org.apache.beam.runners.spark.SparkPipelineResult;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.transforms.Aggregator;
@@ -55,7 +55,7 @@ public final class PAssertStreaming implements Serializable {
    * Note that it is oblivious to windowing, so the assertion will apply indiscriminately to all
    * windows.
    */
-  public static <T> EvaluationResult runAndAssertContents(Pipeline p,
+  public static <T> SparkPipelineResult runAndAssertContents(Pipeline p,
                                                           PCollection<T> actual,
                                                           T[] expected,
                                                           Duration timeout,
@@ -69,9 +69,8 @@ public final class PAssertStreaming implements Serializable {
         .apply(ParDo.of(new AssertDoFn<>(expected)));
 
     // run the pipeline.
-    EvaluationResult res = (EvaluationResult) p.run();
+    SparkPipelineResult res = (SparkPipelineResult) p.run();
     res.waitUntilFinish(timeout);
-    res.close(stopGracefully);
     // validate assertion succeeded (at least once).
     int success = res.getAggregatorValue(PAssert.SUCCESS_COUNTER, Integer.class);
     Assert.assertThat("Success aggregator should be greater than zero.", success, not(0));
@@ -87,7 +86,7 @@ public final class PAssertStreaming implements Serializable {
    * Default to stop gracefully so that tests will finish processing even if slower for reasons
    * such as a slow runtime environment.
    */
-  public static <T> EvaluationResult runAndAssertContents(Pipeline p,
+  public static <T> SparkPipelineResult runAndAssertContents(Pipeline p,
                                                           PCollection<T> actual,
                                                           T[] expected,
                                                           Duration timeout) {

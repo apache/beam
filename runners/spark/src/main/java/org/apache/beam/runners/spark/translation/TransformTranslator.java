@@ -33,8 +33,8 @@ import org.apache.avro.mapreduce.AvroJob;
 import org.apache.avro.mapreduce.AvroKeyInputFormat;
 import org.apache.beam.runners.core.AssignWindowsDoFn;
 import org.apache.beam.runners.spark.SparkRunner;
-import org.apache.beam.runners.spark.aggregators.AccumulatorSingleton;
 import org.apache.beam.runners.spark.aggregators.NamedAggregators;
+import org.apache.beam.runners.spark.aggregators.SparkAggregators;
 import org.apache.beam.runners.spark.coders.CoderHelpers;
 import org.apache.beam.runners.spark.io.SourceRDD;
 import org.apache.beam.runners.spark.io.hadoop.HadoopIO;
@@ -126,7 +126,7 @@ public final class TransformTranslator {
         final KvCoder<K, V> coder = (KvCoder<K, V>) context.getInput(transform).getCoder();
 
         final Accumulator<NamedAggregators> accum =
-                AccumulatorSingleton.getInstance(context.getSparkContext());
+            SparkAggregators.getNamedAggregators(context.getSparkContext());
 
         context.putDataset(transform,
             new BoundedDataset<>(GroupCombineFunctions.groupByKey(inRDD, accum, coder,
@@ -249,7 +249,7 @@ public final class TransformTranslator {
         final WindowFn<Object, ?> windowFn =
             (WindowFn<Object, ?>) context.getInput(transform).getWindowingStrategy().getWindowFn();
         Accumulator<NamedAggregators> accum =
-            AccumulatorSingleton.getInstance(context.getSparkContext());
+            SparkAggregators.getNamedAggregators(context.getSparkContext());
         Map<TupleTag<?>, KV<WindowingStrategy<?, ?>, BroadcastHelper<?>>> sideInputs =
             TranslationUtils.getSideInputs(transform.getSideInputs(), context);
         context.putDataset(transform,
@@ -281,7 +281,7 @@ public final class TransformTranslator {
         final WindowFn<Object, ?> windowFn =
             (WindowFn<Object, ?>) context.getInput(transform).getWindowingStrategy().getWindowFn();
         Accumulator<NamedAggregators> accum =
-            AccumulatorSingleton.getInstance(context.getSparkContext());
+            SparkAggregators.getNamedAggregators(context.getSparkContext());
         JavaPairRDD<TupleTag<?>, WindowedValue<?>> all = inRDD
             .mapPartitionsToPair(
                 new MultiDoFnFunction<>(accum, transform.getFn(), context.getRuntimeContext(),
@@ -530,7 +530,7 @@ public final class TransformTranslator {
           WindowFn<? super T, W> windowFn = (WindowFn<? super T, W>) transform.getWindowFn();
           OldDoFn<T, T> addWindowsDoFn = new AssignWindowsDoFn<>(windowFn);
           Accumulator<NamedAggregators> accum =
-              AccumulatorSingleton.getInstance(context.getSparkContext());
+              SparkAggregators.getNamedAggregators(context.getSparkContext());
           context.putDataset(transform,
               new BoundedDataset<>(inRDD.mapPartitions(new DoFnFunction<>(accum, addWindowsDoFn,
                   context.getRuntimeContext(), null, null))));

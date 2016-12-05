@@ -37,7 +37,7 @@ import org.apache.beam.sdk.values.POutput;
  *
  * {@code
  * Pipeline p = [logic for pipeline creation]
- * EvaluationResult result = (EvaluationResult) p.run();
+ * SparkPipelineResult result = (SparkPipelineResult) p.run();
  * }
  *
  * <p>To create a pipeline runner to run against a different spark cluster, with a custom master url
@@ -47,10 +47,10 @@ import org.apache.beam.sdk.values.POutput;
  * Pipeline p = [logic for pipeline creation]
  * SparkPipelineOptions options = SparkPipelineOptionsFactory.create();
  * options.setSparkMaster("spark://host:port");
- * EvaluationResult result = (EvaluationResult) p.run();
+ * SparkPipelineResult result = (SparkPipelineResult) p.run();
  * }
  */
-public final class TestSparkRunner extends PipelineRunner<EvaluationResult> {
+public final class TestSparkRunner extends PipelineRunner<SparkPipelineResult> {
 
   private SparkRunner delegate;
 
@@ -72,9 +72,10 @@ public final class TestSparkRunner extends PipelineRunner<EvaluationResult> {
   };
 
   @Override
-  public EvaluationResult run(Pipeline pipeline) {
+  public SparkPipelineResult run(Pipeline pipeline) {
     TestPipelineOptions testPipelineOptions = pipeline.getOptions().as(TestPipelineOptions.class);
-    EvaluationResult result = delegate.run(pipeline);
+    SparkPipelineResult result = delegate.run(pipeline);
+    result.waitUntilFinish();
     assertThat(result, testPipelineOptions.getOnCreateMatcher());
     assertThat(result, testPipelineOptions.getOnSuccessMatcher());
     return result;
