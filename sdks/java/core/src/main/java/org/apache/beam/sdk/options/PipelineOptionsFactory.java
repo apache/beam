@@ -1219,6 +1219,7 @@ public class PipelineOptionsFactory {
     // Ignore methods on the base PipelineOptions interface.
     try {
       knownMethods.add(iface.getMethod("as", Class.class));
+      knownMethods.add(iface.getMethod("outputRuntimeOptions"));
       knownMethods.add(iface.getMethod("populateDisplayData", DisplayData.Builder.class));
     } catch (NoSuchMethodException | SecurityException e) {
       throw new RuntimeException(e);

@@ -29,7 +29,6 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import org.apache.beam.runners.direct.DirectExecutionContext.DirectStepContext;
@@ -67,7 +66,6 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollection.IsBounded;
 import org.apache.beam.sdk.values.PCollectionView;
-import org.apache.beam.sdk.values.PValue;
 import org.hamcrest.Matchers;
 import org.joda.time.Instant;
 import org.junit.Before;
@@ -87,10 +85,9 @@ public class EvaluationContextTest {
   private PCollection<KV<String, Integer>> downstream;
   private PCollectionView<Iterable<Integer>> view;
   private PCollection<Long> unbounded;
-  private Collection<AppliedPTransform<?, ?, ?>> rootTransforms;
-  private Map<PValue, Collection<AppliedPTransform<?, ?, ?>>> valueToConsumers;
 
   private BundleFactory bundleFactory;
+  private DirectGraph graph;
 
   @Before
   public void setup() {
@@ -104,22 +101,14 @@ public class EvaluationContextTest {
     view = created.apply(View.<Integer>asIterable());
     unbounded = p.apply(CountingInput.unbounded());
 
-    ConsumerTrackingPipelineVisitor cVis = new ConsumerTrackingPipelineVisitor();
-    p.traverseTopologically(cVis);
-    rootTransforms = cVis.getRootTransforms();
-    valueToConsumers = cVis.getValueToConsumers();
+    DirectGraphVisitor graphVisitor = new DirectGraphVisitor();
+    p.traverseTopologically(graphVisitor);
 
     bundleFactory = ImmutableListBundleFactory.create();
-
+    graph = graphVisitor.getGraph();
     context =
         EvaluationContext.create(
-            runner.getPipelineOptions(),
-            NanosOffsetClock.create(),
-            ImmutableListBundleFactory.create(),
-            rootTransforms,
-            valueToConsumers,
-            cVis.getStepNames(),
-            cVis.getViews());
+            runner.getPipelineOptions(), NanosOffsetClock.create(), bundleFactory, graph);
   }
 
   @Test
@@ -250,7 +239,7 @@ public class EvaluationContextTest {
     AggregatorContainer.Mutator mutator = container.createMutator();
     mutator.createAggregatorForDoFn(fn, stepContext, "foo", new SumLongFn()).addValue(4L);
 
-    TransformResult result =
+    TransformResult<?> result =
         StepTransformResult.withoutHold(created.getProducingTransformInternal())
             .withAggregatorChanges(mutator)
             .build();
@@ -260,7 +249,7 @@ public class EvaluationContextTest {
     AggregatorContainer.Mutator mutatorAgain = container.createMutator();
     mutatorAgain.createAggregatorForDoFn(fn, stepContext, "foo", new SumLongFn()).addValue(12L);
 
-    TransformResult secondResult =
+    TransformResult<?> secondResult =
         StepTransformResult.withoutHold(downstream.getProducingTransformInternal())
             .withAggregatorChanges(mutatorAgain)
             .build();
@@ -286,7 +275,7 @@ public class EvaluationContextTest {
     bag.add(2);
     bag.add(4);
 
-    TransformResult stateResult =
+    TransformResult<?> stateResult =
         StepTransformResult.withoutHold(downstream.getProducingTransformInternal())
             .withState(state)
             .build();
@@ -319,7 +308,7 @@ public class EvaluationContextTest {
     context.scheduleAfterOutputWouldBeProduced(
         downstream, GlobalWindow.INSTANCE, WindowingStrategy.globalDefault(), callback);
 
-    TransformResult result =
+    TransformResult<?> result =
         StepTransformResult.withHold(created.getProducingTransformInternal(), new Instant(0))
             .build();
 
@@ -328,7 +317,7 @@ public class EvaluationContextTest {
     // will likely be flaky if this logic is broken
     assertThat(callLatch.await(500L, TimeUnit.MILLISECONDS), is(false));
 
-    TransformResult finishedResult =
+    TransformResult<?> finishedResult =
         StepTransformResult.withoutHold(created.getProducingTransformInternal()).build();
     context.handleResult(null, ImmutableList.<TimerData>of(), finishedResult);
     context.forceRefresh();
@@ -338,7 +327,7 @@ public class EvaluationContextTest {
 
   @Test
   public void callAfterOutputMustHaveBeenProducedAlreadyAfterCallsImmediately() throws Exception {
-    TransformResult finishedResult =
+    TransformResult<?> finishedResult =
         StepTransformResult.withoutHold(created.getProducingTransformInternal()).build();
     context.handleResult(null, ImmutableList.<TimerData>of(), finishedResult);
 
@@ -358,7 +347,7 @@ public class EvaluationContextTest {
 
   @Test
   public void extractFiredTimersExtractsTimers() {
-    TransformResult holdResult =
+    TransformResult<?> holdResult =
         StepTransformResult.withHold(created.getProducingTransformInternal(), new Instant(0))
             .build();
     context.handleResult(null, ImmutableList.<TimerData>of(), holdResult);
@@ -366,7 +355,7 @@ public class EvaluationContextTest {
     StructuralKey<?> key = StructuralKey.of("foo".length(), VarIntCoder.of());
     TimerData toFire =
         TimerData.of(StateNamespaces.global(), new Instant(100L), TimeDomain.EVENT_TIME);
-    TransformResult timerResult =
+    TransformResult<?> timerResult =
         StepTransformResult.withoutHold(downstream.getProducingTransformInternal())
             .withState(CopyOnAccessInMemoryStateInternals.withUnderlying(key, null))
             .withTimerUpdate(TimerUpdate.builder(key).setTimer(toFire).build())
@@ -382,7 +371,7 @@ public class EvaluationContextTest {
     // timer hasn't fired
     assertThat(context.extractFiredTimers(), emptyIterable());
 
-    TransformResult advanceResult =
+    TransformResult<?> advanceResult =
         StepTransformResult.withoutHold(created.getProducingTransformInternal()).build();
     // Should cause the downstream timer to fire
     context.handleResult(null, ImmutableList.<TimerData>of(), advanceResult);
@@ -427,13 +416,13 @@ public class EvaluationContextTest {
   @Test
   public void isDoneWithUnboundedPCollectionAndNotShutdown() {
     context.getPipelineOptions().setShutdownUnboundedProducersWithMaxWatermark(false);
-    assertThat(context.isDone(unbounded.getProducingTransformInternal()), is(false));
+    assertThat(context.isDone(graph.getProducer(unbounded)), is(false));
 
     context.handleResult(
         null,
         ImmutableList.<TimerData>of(),
-        StepTransformResult.withoutHold(unbounded.getProducingTransformInternal()).build());
-    assertThat(context.isDone(unbounded.getProducingTransformInternal()), is(false));
+        StepTransformResult.withoutHold(graph.getProducer(unbounded)).build());
+    assertThat(context.isDone(graph.getProducer(unbounded)), is(false));
   }
 
   @Test
@@ -460,7 +449,7 @@ public class EvaluationContextTest {
         context.handleResult(
             null,
             ImmutableList.<TimerData>of(),
-            StepTransformResult.withoutHold(created.getProducingTransformInternal())
+            StepTransformResult.<Integer>withoutHold(created.getProducingTransformInternal())
                 .addOutput(rootBundle)
                 .build());
     @SuppressWarnings("unchecked")
@@ -472,7 +461,7 @@ public class EvaluationContextTest {
         StepTransformResult.withoutHold(unbounded.getProducingTransformInternal()).build());
     assertThat(context.isDone(), is(false));
 
-    for (AppliedPTransform<?, ?, ?> consumers : valueToConsumers.get(created)) {
+    for (AppliedPTransform<?, ?, ?> consumers : graph.getPrimitiveConsumers(created)) {
       context.handleResult(
           committedBundle,
           ImmutableList.<TimerData>of(),

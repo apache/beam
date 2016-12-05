@@ -404,6 +404,13 @@ public class TextIO {
     }
 
     /**
+     * Like {@link #to(String)}, but with a {@link ValueProvider}.
+     */
+    public static Bound<String> to(ValueProvider<String> prefix) {
+      return new Bound<>(DEFAULT_TEXT_CODER).to(prefix);
+    }
+
+    /**
      * Returns a transform for writing to text files that appends the specified suffix
      * to the created files.
      */
@@ -521,7 +528,7 @@ public class TextIO {
       private static final String DEFAULT_SHARD_TEMPLATE = ShardNameTemplate.INDEX_OF_MAX;
 
       /** The prefix of each file written, combined with suffix and shardTemplate. */
-      @Nullable private final String filenamePrefix;
+      private final ValueProvider<String> filenamePrefix;
       /** The suffix of each file written, combined with prefix and shardTemplate. */
       private final String filenameSuffix;
 
@@ -554,7 +561,7 @@ public class TextIO {
             FileBasedSink.CompressionType.UNCOMPRESSED);
       }
 
-      private Bound(String name, String filenamePrefix, String filenameSuffix,
+      private Bound(String name, ValueProvider<String> filenamePrefix, String filenameSuffix,
           @Nullable String header, @Nullable String footer, Coder<T> coder, int numShards,
           String shardTemplate, boolean validate,
           WritableByteChannelFactory writableByteChannelFactory) {
@@ -581,6 +588,15 @@ public class TextIO {
        */
       public Bound<T> to(String filenamePrefix) {
         validateOutputComponent(filenamePrefix);
+        return new Bound<>(name, StaticValueProvider.of(filenamePrefix), filenameSuffix,
+            header, footer, coder, numShards, shardTemplate, validate,
+            writableByteChannelFactory);
+      }
+
+      /**
+       * Like {@link #to(String)}, but with a {@link ValueProvider}.
+       */
+      public Bound<T> to(ValueProvider<String> filenamePrefix) {
         return new Bound<>(name, filenamePrefix, filenameSuffix, header, footer, coder, numShards,
             shardTemplate, validate, writableByteChannelFactory);
       }
@@ -745,8 +761,10 @@ public class TextIO {
       public void populateDisplayData(DisplayData.Builder builder) {
         super.populateDisplayData(builder);
 
+        String prefixString = filenamePrefix.isAccessible()
+            ? filenamePrefix.get() : filenamePrefix.toString();
         builder
-            .addIfNotNull(DisplayData.item("filePrefix", filenamePrefix)
+            .addIfNotNull(DisplayData.item("filePrefix", prefixString)
               .withLabel("Output File Prefix"))
             .addIfNotDefault(DisplayData.item("fileSuffix", filenameSuffix)
               .withLabel("Output Fix Suffix"), "")
@@ -779,7 +797,7 @@ public class TextIO {
       }
 
       public String getFilenamePrefix() {
-        return filenamePrefix;
+        return filenamePrefix.get();
       }
 
       public String getShardTemplate() {
@@ -1101,7 +1119,7 @@ public class TextIO {
 
     @VisibleForTesting
     TextSink(
-        String baseOutputFilename, String extension,
+        ValueProvider<String> baseOutputFilename, String extension,
         @Nullable String header, @Nullable String footer,
         String fileNameTemplate, Coder<T> coder,
         WritableByteChannelFactory writableByteChannelFactory) {

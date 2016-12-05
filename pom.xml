@@ -754,7 +754,7 @@
       <dependency>
         <groupId>net.bytebuddy</groupId>
         <artifactId>byte-buddy</artifactId>
-        <version>1.4.3</version>
+        <version>1.5.5</version>
       </dependency>
 
       <!-- Testing -->
@@ -988,14 +988,6 @@
           <groupId>org.codehaus.mojo</groupId>
           <artifactId>exec-maven-plugin</artifactId>
           <version>1.4.0</version>
-          <executions>
-            <execution>
-              <phase>verify</phase>
-              <goals>
-                <goal>java</goal>
-              </goals>
-            </execution>
-          </executions>
           <configuration>
             <cleanupDaemonThreads>false</cleanupDaemonThreads>
             <systemProperties>

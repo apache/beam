@@ -42,5 +42,5 @@ public interface TransformEvaluator<InputT> {
    *
    * @return an {@link TransformResult} containing the results of this bundle evaluation.
    */
-  TransformResult finishBundle() throws Exception;
+  TransformResult<InputT> finishBundle() throws Exception;
 }

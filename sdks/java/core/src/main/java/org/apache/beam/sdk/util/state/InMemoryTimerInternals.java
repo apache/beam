@@ -104,10 +104,10 @@ public class InMemoryTimerInternals implements TimerInternals {
   }
 
   @Override
-  public void setTimer(TimerData timer) {
-    WindowTracing.trace("TestTimerInternals.setTimer: {}", timer);
-    if (existingTimers.add(timer)) {
-      queue(timer.getDomain()).add(timer);
+  public void setTimer(TimerData timerData) {
+    WindowTracing.trace("TestTimerInternals.setTimer: {}", timerData);
+    if (existingTimers.add(timerData)) {
+      queue(timerData.getDomain()).add(timerData);
     }
   }
 

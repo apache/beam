@@ -669,7 +669,7 @@ public class DataflowPipelineTranslatorTest implements Serializable {
     PCollection<Integer> input = p.begin()
         .apply(Create.of(1, 2, 3));
 
-    thrown.expect(IllegalStateException.class);
+    thrown.expect(IllegalArgumentException.class);
     input.apply(new PartiallyBoundOutputCreator());
 
     Assert.fail("Failure expected from use of partially bound output");

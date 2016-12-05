@@ -32,6 +32,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaRDDLike;
 import org.apache.spark.api.java.JavaSparkContext;
+import org.apache.spark.storage.StorageLevel;
 
 /**
  * Holds an RDD or values for deferred conversion to an RDD if needed. PCollections are sometimes
@@ -97,8 +98,8 @@ public class BoundedDataset<T> implements Dataset {
   }
 
   @Override
-  public void cache() {
-    rdd.cache();
+  public void cache(String storageLevel) {
+    rdd.persist(StorageLevel.fromString(storageLevel));
   }
 
   @Override

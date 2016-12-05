@@ -20,7 +20,16 @@ package org.apache.beam.sdk.extensions.sorter;
 
 import static org.junit.Assert.fail;
 
+import java.io.IOException;
+import java.nio.file.FileVisitResult;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.SimpleFileVisitor;
+import java.nio.file.attribute.BasicFileAttributes;
+
 import org.apache.beam.sdk.extensions.sorter.SorterTestUtils.SorterGenerator;
+import org.junit.AfterClass;
+import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -31,25 +40,52 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class ExternalSorterTest {
   @Rule public ExpectedException thrown = ExpectedException.none();
+  static Path tmpLocation;
+
+  @BeforeClass
+  public static void setupTempDir() throws IOException {
+    tmpLocation = Files.createTempDirectory("tmp");
+  }
+
+  @AfterClass
+  public static void cleanupTempDir() throws IOException {
+    Files.walkFileTree(tmpLocation, new SimpleFileVisitor<Path>() {
+      @Override
+      public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
+        Files.delete(file);
+        return FileVisitResult.CONTINUE;
+      }
+
+      @Override
+      public FileVisitResult postVisitDirectory(Path dir, IOException exc) throws IOException {
+        Files.delete(dir);
+        return FileVisitResult.CONTINUE;
+      }
+    });
+  }
 
   @Test
   public void testEmpty() throws Exception {
-    SorterTestUtils.testEmpty(ExternalSorter.create(new ExternalSorter.Options()));
+    SorterTestUtils.testEmpty(ExternalSorter.create(new ExternalSorter.Options()
+        .setTempLocation(tmpLocation.toString())));
   }
 
   @Test
   public void testSingleElement() throws Exception {
-    SorterTestUtils.testSingleElement(ExternalSorter.create(new ExternalSorter.Options()));
+    SorterTestUtils.testSingleElement(ExternalSorter.create(new ExternalSorter.Options()
+        .setTempLocation(tmpLocation.toString())));
   }
 
   @Test
   public void testEmptyKeyValueElement() throws Exception {
-    SorterTestUtils.testEmptyKeyValueElement(ExternalSorter.create(new ExternalSorter.Options()));
+    SorterTestUtils.testEmptyKeyValueElement(ExternalSorter.create(new ExternalSorter.Options()
+        .setTempLocation(tmpLocation.toString())));
   }
 
   @Test
   public void testMultipleIterations() throws Exception {
-    SorterTestUtils.testMultipleIterations(ExternalSorter.create(new ExternalSorter.Options()));
+    SorterTestUtils.testMultipleIterations(ExternalSorter.create(new ExternalSorter.Options()
+        .setTempLocation(tmpLocation.toString())));
   }
 
   @Test
@@ -58,7 +94,8 @@ public class ExternalSorterTest {
         new SorterGenerator() {
           @Override
           public Sorter generateSorter() throws Exception {
-            return ExternalSorter.create(new ExternalSorter.Options());
+            return ExternalSorter.create(new ExternalSorter.Options()
+                .setTempLocation(tmpLocation.toString()));
           }
         },
         1,
@@ -67,13 +104,15 @@ public class ExternalSorterTest {
 
   @Test
   public void testAddAfterSort() throws Exception {
-    SorterTestUtils.testAddAfterSort(ExternalSorter.create(new ExternalSorter.Options()), thrown);
+    SorterTestUtils.testAddAfterSort(ExternalSorter.create(new ExternalSorter.Options()
+        .setTempLocation(tmpLocation.toString())), thrown);
     fail();
   }
 
   @Test
   public void testSortTwice() throws Exception {
-    SorterTestUtils.testSortTwice(ExternalSorter.create(new ExternalSorter.Options()), thrown);
+    SorterTestUtils.testSortTwice(ExternalSorter.create(new ExternalSorter.Options()
+        .setTempLocation(tmpLocation.toString())), thrown);
     fail();
   }
 

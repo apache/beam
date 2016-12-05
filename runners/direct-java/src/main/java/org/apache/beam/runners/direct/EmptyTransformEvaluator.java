@@ -43,8 +43,8 @@ final class EmptyTransformEvaluator<T> implements TransformEvaluator<T> {
   public void processElement(WindowedValue<T> element) throws Exception {}
 
   @Override
-  public TransformResult finishBundle() throws Exception {
-    return StepTransformResult.withHold(transform, BoundedWindow.TIMESTAMP_MIN_VALUE)
+  public TransformResult<T> finishBundle() throws Exception {
+    return StepTransformResult.<T>withHold(transform, BoundedWindow.TIMESTAMP_MIN_VALUE)
         .build();
   }
 }

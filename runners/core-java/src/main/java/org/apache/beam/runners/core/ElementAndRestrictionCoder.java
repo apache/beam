@@ -64,4 +64,12 @@ public class ElementAndRestrictionCoder<ElementT, RestrictionT>
     RestrictionT value = restrictionCoder.decode(inStream, context);
     return ElementAndRestriction.of(key, value);
   }
+
+  public Coder<ElementT> getElementCoder() {
+    return elementCoder;
+  }
+
+  public Coder<RestrictionT> getRestrictionCoder() {
+    return restrictionCoder;
+  }
 }
