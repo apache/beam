@@ -121,8 +121,8 @@ public class BigqueryMatcher extends TypeSafeMatcher<PipelineResult>
       throw new RuntimeException("Failed to fetch BigQuery data.", e);
     }
 
-    if (response == null || !response.getJobComplete()) {
-      // BigQuery response is null or query job not complete
+    if (!response.getJobComplete()) {
+      // query job not complete, verification failed
       return false;
     }
 
@@ -144,15 +144,17 @@ public class BigqueryMatcher extends TypeSafeMatcher<PipelineResult>
         .build();
   }
 
+  @Nonnull
   @VisibleForTesting
   QueryResponse queryWithRetries(Bigquery bigqueryClient, QueryRequest queryContent,
                                  Sleeper sleeper, BackOff backOff)
       throws IOException, InterruptedException {
+    QueryResponse response;
     IOException lastException = null;
     do {
       try {
         response = bigqueryClient.jobs().query(projectId, queryContent).execute();
-        if (response != null && response.getJobComplete()) {
+        if (response != null) {
           return response;
         }
       } catch (IOException e) {
@@ -162,13 +164,11 @@ public class BigqueryMatcher extends TypeSafeMatcher<PipelineResult>
       }
     } while(BackOffUtils.next(sleeper, backOff));
 
-    if (lastException != null) {
-      throw new IOException(
-          String.format(
-              "Unable to get BigQuery response after retrying %d times", MAX_QUERY_RETRIES),
-          lastException);
-    }
-    return response;
+    throw new RuntimeException(
+        String.format(
+            "Unable to get BigQuery response after retrying %d times. Got response: null.",
+            MAX_QUERY_RETRIES),
+        lastException);
   }
 
   private void validateArgument(String name, String value) {
@@ -217,9 +217,9 @@ public class BigqueryMatcher extends TypeSafeMatcher<PipelineResult>
   @Override
   public void describeMismatchSafely(PipelineResult pResult, Description description) {
     String info;
-    if (response == null || !response.getJobComplete()) {
-      // invalid query response
-      info = String.format("Invalid BigQuery response: %s", Objects.toString(response));
+    if (!response.getJobComplete()) {
+      // query job not complete
+      info = String.format("Query job not complete with retry. Got response: %s", response);
     } else {
       // checksum mismatch
       info = String.format("was (%s).%n"

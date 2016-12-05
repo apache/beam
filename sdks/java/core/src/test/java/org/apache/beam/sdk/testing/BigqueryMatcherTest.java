@@ -19,6 +19,7 @@ package org.apache.beam.sdk.testing;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
+import static org.junit.Assert.fail;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyString;
 import static org.mockito.Matchers.eq;
@@ -96,7 +97,32 @@ public class BigqueryMatcherTest {
       assertThat(expected.getMessage(), containsString("abc"));
       verify(matcher).newBigqueryClient(eq(appName));
       verify(mockJobs).query(eq(projectId), eq(new QueryRequest().setQuery(query)));
+      return;
     }
+    // Note that fail throws an AssertionError which is why it is placed out here
+    // instead of inside the try-catch block.
+    fail("AssertionError is expected.");
+  }
+
+  @Test
+  public void testBigqueryMatcherFailsWhenQueryJobNotComplete() throws Exception {
+    BigqueryMatcher matcher = spy(
+        new BigqueryMatcher(appName, projectId, query, "some-checksum"));
+    doReturn(mockBigqueryClient).when(matcher).newBigqueryClient(anyString());
+    when(mockQuery.execute()).thenReturn(new QueryResponse().setJobComplete(false));
+
+    try {
+      assertThat(mockResult, matcher);
+    } catch (AssertionError expected) {
+      assertThat(expected.getMessage(), containsString("Query job not complete with retry."));
+      assertThat(expected.getMessage(), containsString("jobComplete=false"));
+      verify(matcher).newBigqueryClient(eq(appName));
+      verify(mockJobs).query(eq(projectId), eq(new QueryRequest().setQuery(query)));
+      return;
+    }
+    // Note that fail throws an AssertionError which is why it is placed out here
+    // instead of inside the try-catch block.
+    fail("AssertionError is expected.");
   }
 
   @Test
@@ -105,7 +131,7 @@ public class BigqueryMatcherTest {
         new BigqueryMatcher(appName, projectId, query, "some-checksum"));
     when(mockQuery.execute()).thenThrow(new IOException());
 
-    thrown.expect(IOException.class);
+    thrown.expect(RuntimeException.class);
     thrown.expectMessage("Unable to get BigQuery response after retrying");
 
     matcher.queryWithRetries(
@@ -120,33 +146,23 @@ public class BigqueryMatcherTest {
   }
 
   @Test
-  public void testQueryWithRetriesWhenQueryJobNotComplete() throws Exception {
-    testQueryRetriesWithInvalidResponse(null);
-  }
-
-  @Test
-  public void testQueryWithRetriesWhenQueryJobFailed() throws Exception {
-    testQueryRetriesWithInvalidResponse(new QueryResponse().setJobComplete(false));
-  }
-
-  private void testQueryRetriesWithInvalidResponse(QueryResponse response)
-      throws Exception {
+  public void testQueryWithRetriesWhenQueryResponseNull() throws Exception {
     BigqueryMatcher matcher = spy(
         new BigqueryMatcher(appName, projectId, query, "some-checksum"));
-    when(mockQuery.execute()).thenReturn(response);
+    when(mockQuery.execute()).thenReturn(null);
 
-    try {
-      matcher.queryWithRetries(
-          mockBigqueryClient,
-          new QueryRequest(),
-          fastClock,
-          BigqueryMatcher.BACKOFF_FACTORY.backoff());
-    } catch (AssertionError expected) {
-      assertThat(expected.getMessage(), containsString("Invalid BigQuery response"));
-      verify(matcher).newBigqueryClient(eq(appName));
-      verify(mockJobs, times(BigqueryMatcher.MAX_QUERY_RETRIES))
-          .query(eq(projectId), eq(new QueryRequest().setQuery(query)));
-    }
+    thrown.expect(RuntimeException.class);
+    thrown.expectMessage("Unable to get BigQuery response after retrying");
+
+    matcher.queryWithRetries(
+        mockBigqueryClient,
+        new QueryRequest(),
+        fastClock,
+        BigqueryMatcher.BACKOFF_FACTORY.backoff());
+
+    verify(matcher).newBigqueryClient(eq(appName));
+    verify(mockJobs, times(BigqueryMatcher.MAX_QUERY_RETRIES))
+        .query(eq(projectId), eq(new QueryRequest().setQuery(query)));
   }
 
   private QueryResponse createResponseContainingTestData() {
