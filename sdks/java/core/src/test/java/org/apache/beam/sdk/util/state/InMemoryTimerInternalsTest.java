@@ -110,22 +110,36 @@ public class InMemoryTimerInternalsTest {
     InMemoryTimerInternals underTest = new InMemoryTimerInternals();
     TimerData eventTime1 = TimerData.of(NS1, new Instant(19), TimeDomain.EVENT_TIME);
     TimerData processingTime1 = TimerData.of(NS1, new Instant(19), TimeDomain.PROCESSING_TIME);
+    TimerData synchronizedProcessingTime1 = TimerData.of(
+        NS1, new Instant(19), TimeDomain.SYNCHRONIZED_PROCESSING_TIME);
     TimerData eventTime2 = TimerData.of(NS1, new Instant(29), TimeDomain.EVENT_TIME);
     TimerData processingTime2 = TimerData.of(NS1, new Instant(29), TimeDomain.PROCESSING_TIME);
+    TimerData synchronizedProcessingTime2 = TimerData.of(
+        NS1, new Instant(29), TimeDomain.SYNCHRONIZED_PROCESSING_TIME);
 
     underTest.setTimer(processingTime1);
     underTest.setTimer(eventTime1);
+    underTest.setTimer(synchronizedProcessingTime1);
     underTest.setTimer(processingTime2);
     underTest.setTimer(eventTime2);
+    underTest.setTimer(synchronizedProcessingTime2);
 
+    assertNull(underTest.removeNextEventTimer());
     underTest.advanceInputWatermark(new Instant(30));
     assertEquals(eventTime1, underTest.removeNextEventTimer());
     assertEquals(eventTime2, underTest.removeNextEventTimer());
     assertNull(underTest.removeNextEventTimer());
 
+    assertNull(underTest.removeNextProcessingTimer());
     underTest.advanceProcessingTime(new Instant(30));
     assertEquals(processingTime1, underTest.removeNextProcessingTimer());
     assertEquals(processingTime2, underTest.removeNextProcessingTimer());
+    assertNull(underTest.removeNextProcessingTimer());
+
+    assertNull(underTest.removeNextSynchronizedProcessingTimer());
+    underTest.advanceSynchronizedProcessingTime(new Instant(30));
+    assertEquals(synchronizedProcessingTime1, underTest.removeNextSynchronizedProcessingTimer());
+    assertEquals(synchronizedProcessingTime2, underTest.removeNextSynchronizedProcessingTimer());
     assertNull(underTest.removeNextProcessingTimer());
   }
 

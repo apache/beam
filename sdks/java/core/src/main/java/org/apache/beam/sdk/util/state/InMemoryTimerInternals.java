@@ -50,7 +50,7 @@ public class InMemoryTimerInternals implements TimerInternals {
   private PriorityQueue<TimerData> synchronizedProcessingTimers = new PriorityQueue<>(11);
 
   /** Current input watermark. */
-  @Nullable private Instant inputWatermarkTime = BoundedWindow.TIMESTAMP_MIN_VALUE;
+  private Instant inputWatermarkTime = BoundedWindow.TIMESTAMP_MIN_VALUE;
 
   /** Current output watermark. */
   @Nullable private Instant outputWatermarkTime = null;
@@ -59,7 +59,7 @@ public class InMemoryTimerInternals implements TimerInternals {
   private Instant processingTime = BoundedWindow.TIMESTAMP_MIN_VALUE;
 
   /** Current synchronized processing time. */
-  @Nullable private Instant synchronizedProcessingTime = null;
+  private Instant synchronizedProcessingTime = BoundedWindow.TIMESTAMP_MIN_VALUE;
 
   @Override
   @Nullable
@@ -142,7 +142,7 @@ public class InMemoryTimerInternals implements TimerInternals {
 
   @Override
   public Instant currentInputWatermarkTime() {
-    return checkNotNull(inputWatermarkTime);
+    return inputWatermarkTime;
   }
 
   @Override
@@ -197,6 +197,7 @@ public class InMemoryTimerInternals implements TimerInternals {
 
   /** Advances processing time to the given value. */
   public void advanceProcessingTime(Instant newProcessingTime) throws Exception {
+    checkNotNull(newProcessingTime);
     checkState(
         !newProcessingTime.isBefore(processingTime),
         "Cannot move processing time backwards from %s to %s",
@@ -211,6 +212,7 @@ public class InMemoryTimerInternals implements TimerInternals {
   /** Advances synchronized processing time to the given value. */
   public void advanceSynchronizedProcessingTime(Instant newSynchronizedProcessingTime)
       throws Exception {
+    checkNotNull(newSynchronizedProcessingTime);
     checkState(
         !newSynchronizedProcessingTime.isBefore(synchronizedProcessingTime),
         "Cannot move processing time backwards from %s to %s",
