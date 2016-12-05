@@ -132,8 +132,8 @@ public class MqttIOTest implements Serializable {
       }
     };
     thread.start();
-
     pipeline.run();
+    thread.join();
   }
 
   @Test
