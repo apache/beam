@@ -36,14 +36,12 @@ import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.coders.DefaultCoder;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.display.DisplayData;
-import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
@@ -243,43 +241,63 @@ public class MqttIO {
    * Checkpoint for an unbounded MQTT source. Consists of the MQTT messages waiting to be
    * acknowledged and oldest pending message timestamp.
    */
-  @DefaultCoder(AvroCoder.class)
   private static class MqttCheckpointMark implements UnboundedSource.CheckpointMark {
 
-    private MqttClient client;
+    private Read spec;
+    private Instant oldestMessageTimestamp = Instant.now();
 
-    private final List<MqttMessageWithTimestamp> messages = new ArrayList<>();
-    private Instant oldestPendingTimestamp = BoundedWindow.TIMESTAMP_MIN_VALUE;
+    private static class MessageIdWithQos {
+
+      private int id;
+      private int qos;
+
+      MessageIdWithQos(int id, int qos) {
+        this.id = id;
+        this.qos = qos;
+      }
+
+    }
+
+    private final List<MessageIdWithQos> messages = new ArrayList<>();
 
     public MqttCheckpointMark() {
     }
 
-    public void setClient(MqttClient client) {
-      this.client = client;
+    public void setSpec(Read spec) {
+      this.spec = spec;
     }
 
-    public void add(MqttMessageWithTimestamp message) {
-      if (message.getTimestamp().isBefore(oldestPendingTimestamp)) {
-        oldestPendingTimestamp = message.getTimestamp();
+    public void add(int id, int qos, Instant timestamp) {
+      if (timestamp.isBefore(oldestMessageTimestamp)) {
+        oldestMessageTimestamp = timestamp;
       }
+      MessageIdWithQos message = new MessageIdWithQos(id, qos);
       messages.add(message);
     }
 
     @Override
     public void finalizeCheckpoint() {
-      for (MqttMessageWithTimestamp message : messages) {
+      MqttClient client;
+      try {
+        client = spec.connectionConfiguration().getClient();
+      } catch (Exception e) {
+        throw new IllegalStateException("Can't finalize checkpoint", e);
+      }
+      for (MessageIdWithQos message : messages) {
         try {
-          client.messageArrivedComplete(message.getMessage().getId(),
-              message.getMessage().getQos());
-          if (message.getTimestamp().isAfter(oldestPendingTimestamp)) {
-            oldestPendingTimestamp = message.getTimestamp();
-          }
+          client.messageArrivedComplete(message.id, message.qos);
         } catch (Exception e) {
-          LOGGER.warn("Can't ack message {} with QoS {}", message.getMessage().getId(),
-              message.getMessage().getQos());
+          LOGGER.warn("Can't ack message {} with QoS {}", message.id, message.qos);
         }
       }
+      oldestMessageTimestamp = Instant.now();
       messages.clear();
+      try {
+        client.disconnect();
+        client.close();
+      } catch (Exception e) {
+        // nothing to do
+      }
     }
 
   }
@@ -398,7 +416,7 @@ public class MqttIO {
             // nothing to do
           }
         });
-        checkpointMark.setClient(client);
+        checkpointMark.setSpec(source.spec);
         return advance();
       } catch (MqttException e) {
         throw new IOException(e);
@@ -420,7 +438,9 @@ public class MqttIO {
         return false;
       }
 
-      checkpointMark.add(message);
+      checkpointMark.add(message.getMessage().getId(),
+          message.getMessage().getQos(),
+          message.timestamp);
 
       current = message.message.getPayload();
       currentTimestamp = message.timestamp;
@@ -446,7 +466,7 @@ public class MqttIO {
 
     @Override
     public Instant getWatermark() {
-      return checkpointMark.oldestPendingTimestamp;
+      return checkpointMark.oldestMessageTimestamp;
     }
 
     @Override
@@ -541,8 +561,8 @@ public class MqttIO {
      * Whether or not the publish message should be retained by the messaging engine.
      * Sending a message with the retained set to {@code false} will clear the
      * retained message from the server. The default value is {@code false}.
-     * When a subscriber connects, he gets the latest retained message (else it doesn't get any
-     * existing message, he will have to wait a new incoming message).
+     * When a subscriber connects, it gets the latest retained message (else it doesn't get any
+     * existing message, it will have to wait a new incoming message).
      *
      * @param retained Whether or not the messaging engine should retain the message.
      * @return The {@link Write} {@link PTransform} with the corresponding retained configuration.
