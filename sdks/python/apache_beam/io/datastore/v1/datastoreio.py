@@ -86,6 +86,7 @@ class ReadFromDatastore(PTransform):
       namespace: An optional namespace.
       num_splits: Number of splits for the query.
     """
+    logging.warning('datastoreio read transform is experimental.')
     super(ReadFromDatastore, self).__init__()
 
     if not project:
@@ -309,6 +310,7 @@ class _Mutate(PTransform):
      """
     self._project = project
     self._mutation_fn = mutation_fn
+    logging.warning('datastoreio write transform is experimental.')
 
   def apply(self, pcoll):
     return (pcoll
