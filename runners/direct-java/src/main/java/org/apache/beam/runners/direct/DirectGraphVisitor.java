@@ -79,13 +79,13 @@ class DirectGraphVisitor extends PipelineVisitor.Defaults {
 
   @Override
   public void visitPrimitiveTransform(TransformHierarchy.Node node) {
-    toFinalize.removeAll(node.getInput().expand());
+    toFinalize.removeAll(node.getInputs());
     AppliedPTransform<?, ?, ?> appliedTransform = getAppliedTransform(node);
     stepNames.put(appliedTransform, genStepName());
-    if (node.getInput().expand().isEmpty()) {
+    if (node.getInputs().isEmpty()) {
       rootTransforms.add(appliedTransform);
     } else {
-      for (PValue value : node.getInput().expand()) {
+      for (PValue value : node.getInputs()) {
         primitiveConsumers.put(value, appliedTransform);
       }
     }
@@ -111,8 +111,7 @@ class DirectGraphVisitor extends PipelineVisitor.Defaults {
 
   private AppliedPTransform<?, ?, ?> getAppliedTransform(TransformHierarchy.Node node) {
     @SuppressWarnings({"rawtypes", "unchecked"})
-    AppliedPTransform<?, ?, ?> application = AppliedPTransform.of(
-        node.getFullName(), node.getInput(), node.getOutput(), (PTransform) node.getTransform());
+    AppliedPTransform<?, ?, ?> application = node.toAppliedPTransform();
     return application;
   }
 
