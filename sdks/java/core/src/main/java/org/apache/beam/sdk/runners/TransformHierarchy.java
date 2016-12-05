@@ -23,6 +23,7 @@ import static com.google.common.base.Preconditions.checkState;
 import com.google.common.annotations.VisibleForTesting;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -83,8 +84,8 @@ public class TransformHierarchy {
    */
   public void finishSpecifyingInput() {
     // Inputs must be completely specified before they are consumed by a transform.
-    current.getInput().finishSpecifying();
-    for (PValue inputValue : current.getInput().expand()) {
+    for (PValue inputValue : current.getInputs()) {
+      inputValue.finishSpecifying();
       checkState(producers.get(inputValue) != null, "Producer unknown for input %s", inputValue);
       inputValue.finishSpecifying();
     }
@@ -101,6 +102,7 @@ public class TransformHierarchy {
    * nodes.
    */
   public void setOutput(POutput output) {
+    output.finishSpecifyingOutput();
     for (PValue value : output.expand()) {
       if (!producers.containsKey(value)) {
         producers.put(value, current);
@@ -253,11 +255,9 @@ public class TransformHierarchy {
       return fullName;
     }
 
-    /**
-     * Returns the transform input, in unexpanded form.
-     */
-    public PInput getInput() {
-      return input;
+    /** Returns the transform input, in unexpanded form. */
+    public Collection<? extends PValue> getInputs() {
+      return input == null ? Collections.<PValue>emptyList() : input.expand();
     }
 
     /**
@@ -296,13 +296,15 @@ public class TransformHierarchy {
     }
 
     /** Returns the transform output, in unexpanded form. */
-    public POutput getOutput() {
-      return output;
+    public Collection<? extends PValue> getOutputs() {
+      return output == null ? Collections.<PValue>emptyList() : output.expand();
     }
 
-    AppliedPTransform<?, ?, ?> toAppliedPTransform() {
-      return AppliedPTransform.of(
-          getFullName(), getInput(), getOutput(), (PTransform) getTransform());
+    /**
+     * Returns the {@link AppliedPTransform} representing this {@link Node}.
+     */
+    public AppliedPTransform<?, ?, ?> toAppliedPTransform() {
+      return AppliedPTransform.of(getFullName(), input, output, (PTransform) getTransform());
     }
 
     /**
