@@ -4,7 +4,6 @@ import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.functional.StateFactory;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
 import cz.seznam.euphoria.core.client.io.Context;
-import cz.seznam.euphoria.core.client.operator.CompositeKey;
 import cz.seznam.euphoria.core.client.operator.ReduceStateByKey;
 import cz.seznam.euphoria.core.client.operator.state.State;
 import cz.seznam.euphoria.core.client.util.Pair;
@@ -37,24 +36,10 @@ class ReduceStateByKeyTranslator implements StreamingOperatorTranslator<ReduceSt
 
     StateFactory<?, State> stateFactory = origOperator.getStateFactory();
 
-    final UnaryFunction keyExtractor;
-    final UnaryFunction valueExtractor;
     final Windowing windowing = origOperator.getWindowing();
+    final UnaryFunction keyExtractor = origOperator.getKeyExtractor();
+    final UnaryFunction valueExtractor = origOperator.getValueExtractor();
     final UnaryFunction eventTimeAssigner = origOperator.getEventTimeAssigner();
-
-    if (origOperator.isGrouped()) {
-      UnaryFunction reduceKeyExtractor = origOperator.getKeyExtractor();
-      keyExtractor = (UnaryFunction<Pair, CompositeKey>)
-              (Pair p) -> CompositeKey.of(
-                      p.getFirst(),
-                      reduceKeyExtractor.apply(p.getSecond()));
-      UnaryFunction vfn = origOperator.getValueExtractor();
-      valueExtractor = (UnaryFunction<Pair, Object>)
-              (Pair p) -> vfn.apply(p.getSecond());
-    } else {
-      keyExtractor = origOperator.getKeyExtractor();
-      valueExtractor = origOperator.getValueExtractor();
-    }
 
     FlinkStreamingStateStorageProvider storageProvider
         = new FlinkStreamingStateStorageProvider();

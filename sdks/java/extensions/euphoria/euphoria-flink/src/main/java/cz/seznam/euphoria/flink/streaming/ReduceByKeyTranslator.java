@@ -2,7 +2,6 @@ package cz.seznam.euphoria.flink.streaming;
 
 import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
-import cz.seznam.euphoria.core.client.operator.CompositeKey;
 import cz.seznam.euphoria.core.client.operator.ReduceByKey;
 import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.flink.FlinkOperator;
@@ -40,24 +39,10 @@ class ReduceByKeyTranslator implements StreamingOperatorTranslator<ReduceByKey> 
 
     ReduceByKey origOperator = operator.getOriginalOperator();
     final UnaryFunction<Iterable, Object> reducer = origOperator.getReducer();
-    final UnaryFunction keyExtractor;
-    final UnaryFunction valueExtractor;
+    final UnaryFunction keyExtractor = origOperator.getKeyExtractor();
+    final UnaryFunction valueExtractor = origOperator.getValueExtractor();
     final Windowing windowing = origOperator.getWindowing();
     final UnaryFunction eventTimeAssigner = origOperator.getEventTimeAssigner();
-
-    if (origOperator.isGrouped()) {
-      UnaryFunction reduceKeyExtractor = origOperator.getKeyExtractor();
-      keyExtractor = (UnaryFunction<Pair, CompositeKey>)
-              (Pair p) -> CompositeKey.of(
-                      p.getFirst(),
-                      reduceKeyExtractor.apply(p.getSecond()));
-      UnaryFunction vfn = origOperator.getValueExtractor();
-      valueExtractor = (UnaryFunction<Pair, Object>)
-              (Pair p) -> vfn.apply(p.getSecond());
-    } else {
-      keyExtractor = origOperator.getKeyExtractor();
-      valueExtractor = origOperator.getValueExtractor();
-    }
 
     // apply windowing first
     SingleOutputStreamOperator<StreamingWindowedElement<?, Pair>> reduced;

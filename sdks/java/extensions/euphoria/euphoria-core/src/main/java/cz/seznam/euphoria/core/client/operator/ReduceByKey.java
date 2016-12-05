@@ -4,7 +4,6 @@ import cz.seznam.euphoria.core.annotation.operator.Recommended;
 import cz.seznam.euphoria.core.annotation.operator.StateComplexity;
 import cz.seznam.euphoria.core.client.operator.state.State;
 import cz.seznam.euphoria.core.client.dataset.Dataset;
-import cz.seznam.euphoria.core.client.dataset.GroupedDataset;
 import cz.seznam.euphoria.core.client.dataset.Partitioning;
 import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.dataset.windowing.Window;
@@ -55,9 +54,6 @@ public class ReduceByKey<
 
     public <IN> DatasetBuilder1<IN> of(Dataset<IN> input) {
       return new DatasetBuilder1<>(name, input);
-    }
-    public <IN, KIN> GroupedDatasetBuilder1<IN, KIN> of(GroupedDataset<IN, KIN> input) {
-      return new GroupedDatasetBuilder1<>(name, input);
     }
   }
 
@@ -206,154 +202,8 @@ public class ReduceByKey<
     }
   }
 
-  // builder classes used for GroupedDataset<K, V> input -------------------
-
-  public static class GroupedDatasetBuilder1<IN, KIN> {
-    private final String name;
-    private final GroupedDataset<IN, KIN> input;
-    GroupedDatasetBuilder1(String name, GroupedDataset<IN, KIN> input) {
-      this.name = Objects.requireNonNull(name);
-      this.input = Objects.requireNonNull(input);
-    }
-    public <KEY> GroupedDatasetBuilder2<IN, KIN, KEY> keyBy(UnaryFunction<KIN, KEY> keyExtractor) {
-      return new GroupedDatasetBuilder2<>(name, input, keyExtractor);
-    }
-  }
-
-  public static class GroupedDatasetBuilder2<IN, KIN, KEY> {
-    private final String name;
-    private final GroupedDataset<IN, KIN> input;
-    private final UnaryFunction<KIN, KEY> keyExtractor;
-    GroupedDatasetBuilder2(String name, GroupedDataset<IN, KIN> input, UnaryFunction<KIN, KEY> keyExtractor) {
-      this.name = Objects.requireNonNull(name);
-      this.input = Objects.requireNonNull(input);
-      this.keyExtractor = Objects.requireNonNull(keyExtractor);
-    }
-    public <VALUE> GroupedDatasetBuilder3<IN, KIN, KEY, VALUE> valueBy(UnaryFunction<KIN, VALUE> valueExtractor) {
-      return new GroupedDatasetBuilder3<>(name, input, keyExtractor, valueExtractor);
-    }
-    public <OUT> GroupedDatasetBuilder4<IN, KIN, KEY, KIN, OUT> reduceBy(ReduceFunction<KIN, OUT> reducer) {
-      return new GroupedDatasetBuilder4<>(name, input, keyExtractor, e-> e, reducer);
-    }
-    public GroupedDatasetBuilder4<IN, KIN, KEY, KIN, KIN> combineBy(CombinableReduceFunction<KIN> reducer) {
-      return new GroupedDatasetBuilder4<>(name, input, keyExtractor, e -> e, reducer);
-    }
-  }
-  public static class GroupedDatasetBuilder3<IN, KIN, KEY, VALUE> {
-    private final String name;
-    private final GroupedDataset<IN, KIN> input;
-    private final UnaryFunction<KIN, KEY> keyExtractor;
-    private final UnaryFunction<KIN, VALUE> valueExtractor;
-    GroupedDatasetBuilder3(String name,
-                           GroupedDataset<IN, KIN> input,
-                           UnaryFunction<KIN, KEY> keyExtractor,
-                           UnaryFunction<KIN, VALUE> valueExtractor) {
-      this.name = Objects.requireNonNull(name);
-      this.input = Objects.requireNonNull(input);
-      this.keyExtractor = Objects.requireNonNull(keyExtractor);
-      this.valueExtractor = Objects.requireNonNull(valueExtractor);
-    }
-    public <OUT> GroupedDatasetBuilder4<IN, KIN, KEY, VALUE, OUT> reduceBy(
-            ReduceFunction<VALUE, OUT> reducer) {
-      return new GroupedDatasetBuilder4<>(name, input, keyExtractor, valueExtractor, reducer);
-    }
-    public GroupedDatasetBuilder4<IN, KIN, KEY, VALUE, VALUE> combineBy(
-            CombinableReduceFunction<VALUE> reducer) {
-      return new GroupedDatasetBuilder4<>(name, input, keyExtractor, valueExtractor, reducer);
-    }
-  }
-  public static class GroupedDatasetBuilder4<IN, KIN, KEY, VALUE, OUT>
-      extends PartitioningBuilder<KEY, GroupedDatasetBuilder4<IN, KIN, KEY, VALUE, OUT>>
-      implements OutputBuilder<Pair<CompositeKey<IN, KEY>, OUT>> {
-    private final String name;
-    private final GroupedDataset<IN, KIN> input;
-    private final UnaryFunction<KIN, KEY> keyExtractor;
-    private final UnaryFunction<KIN, VALUE> valueExtractor;
-    private final ReduceFunction<VALUE, OUT> reducer;
-    GroupedDatasetBuilder4(String name,
-                           GroupedDataset<IN, KIN> input,
-                           UnaryFunction<KIN, KEY> keyExtractor,
-                           UnaryFunction<KIN, VALUE> valueExtractor,
-                           ReduceFunction<VALUE, OUT> reducer) {
-
-      // initialize default partitioning according to input
-      super(new DefaultPartitioning<>(input.getPartitioning().getNumPartitions()));
-
-      this.name = Objects.requireNonNull(name);
-      this.input = Objects.requireNonNull(input);
-      this.keyExtractor = Objects.requireNonNull(keyExtractor);
-      this.valueExtractor = Objects.requireNonNull(valueExtractor);
-      this.reducer = Objects.requireNonNull(reducer);
-    }
-    public <W extends Window>
-    GroupedDatasetBuilder5<IN, KIN, KEY, VALUE, OUT, W>
-    windowBy(Windowing<IN, W> windowing) {
-      return windowBy(windowing, null);
-    }
-    public <W extends Window>
-    GroupedDatasetBuilder5<IN, KIN, KEY, VALUE, OUT, W>
-    windowBy(Windowing<IN, W> windowing, UnaryFunction<IN, Long> eventTimeAssigner) {
-      return new GroupedDatasetBuilder5<>(name, input, keyExtractor, valueExtractor,
-              reducer, Objects.requireNonNull(windowing), eventTimeAssigner, this);
-    }
-    @Override
-    public Dataset<Pair<CompositeKey<IN, KEY>, OUT>> output() {
-      return new GroupedDatasetBuilder5<>(name, input, keyExtractor, valueExtractor,
-          reducer, null, null, this).output();
-    }
-  }
-
-  public static class GroupedDatasetBuilder5<
-          IN, KIN, KEY, VALUE, OUT, W extends Window>
-      extends PartitioningBuilder<
-          KEY, GroupedDatasetBuilder5<IN, KIN, KEY, VALUE, OUT, W>>
-      implements OutputBuilder<Pair<CompositeKey<IN, KEY>, OUT>> {
-    private final String name;
-    private final GroupedDataset<IN, KIN> input;
-    private final UnaryFunction<KIN, KEY> keyExtractor;
-    private final UnaryFunction<KIN, VALUE> valueExtractor;
-    private final ReduceFunction<VALUE, OUT> reducer;
-    private final Windowing<IN, W> windowing;
-    private final UnaryFunction<IN, Long> eventTimeAssigner;
-
-    GroupedDatasetBuilder5(String name,
-                           GroupedDataset<IN, KIN> input,
-                           UnaryFunction<KIN, KEY> keyExtractor,
-                           UnaryFunction<KIN, VALUE> valueExtractor,
-                           ReduceFunction<VALUE, OUT> reducer,
-                           Windowing<IN, W> windowing /* optional */,
-                           UnaryFunction<IN, Long> eventTimeAssigner /* optional */,
-                           PartitioningBuilder<KEY, ?> partitioning) {
-      super(partitioning);
-
-      this.name = Objects.requireNonNull(name);
-      this.input = Objects.requireNonNull(input);
-      this.keyExtractor = Objects.requireNonNull(keyExtractor);
-      this.valueExtractor = Objects.requireNonNull(valueExtractor);
-      this.reducer = Objects.requireNonNull(reducer);
-      this.windowing = windowing;
-      this.eventTimeAssigner = eventTimeAssigner;
-    }
-
-    @Override
-    public Dataset<Pair<CompositeKey<IN, KEY>, OUT>> output() {
-      Flow flow = input.getFlow();
-      ReduceByKey<IN, KIN, KEY, VALUE, CompositeKey<IN, KEY>, OUT, W>
-          reduce =
-          new ReduceByKey<>(name, flow, input, keyExtractor, valueExtractor,
-              windowing, eventTimeAssigner, reducer, getPartitioning());
-      flow.add(reduce);
-      return reduce.output();
-    }
-  }
-
   public static <IN> DatasetBuilder1<IN> of(Dataset<IN> input) {
     return new DatasetBuilder1<>("ReduceByKey", input);
-  }
-
-  public static <KEY, IN> GroupedDatasetBuilder1<KEY, IN> of(
-      GroupedDataset<KEY, IN> input) {
-    return new GroupedDatasetBuilder1<>("ReduceByKey", input);
   }
 
   public static OfBuilder named(String name) {
@@ -362,8 +212,6 @@ public class ReduceByKey<
 
   final ReduceFunction<VALUE, OUT> reducer;
   final UnaryFunction<KIN, VALUE> valueExtractor;
-  final boolean grouped;
-
 
   ReduceByKey(String name,
               Flow flow,
@@ -377,37 +225,14 @@ public class ReduceByKey<
     super(name, flow, input, keyExtractor, windowing, eventTimeAssigner, partitioning);
     this.reducer = reducer;
     this.valueExtractor = valueExtractor;
-    this.grouped = false;
   }
 
-  @SuppressWarnings("unchecked")
-  ReduceByKey(String name,
-              Flow flow,
-              GroupedDataset<IN, KIN> groupedInput,
-              UnaryFunction<KIN, KEY> keyExtractor,
-              UnaryFunction<KIN, VALUE> valueExtractor,
-              Windowing<IN, W> windowing /* optional */,
-              UnaryFunction<IN, Long> eventTimeAssigner /* optional */,
-              ReduceFunction<VALUE, OUT> reducer,
-              Partitioning<KEY> partitioning) {
-
-    super(name, flow, (Dataset) groupedInput, keyExtractor,
-            windowing, eventTimeAssigner, partitioning);
-    this.reducer = reducer;
-    this.valueExtractor = valueExtractor;
-    this.grouped = true;
-  }
-  
   public ReduceFunction<VALUE, OUT> getReducer() {
     return reducer;
   }
 
   public UnaryFunction<KIN, VALUE> getValueExtractor() {
     return valueExtractor;
-  }
-
-  public boolean isGrouped() {
-    return this.grouped;
   }
 
   /**
@@ -478,7 +303,7 @@ public class ReduceByKey<
     Flow flow = getFlow();
     Operator<?, ?> reduceState;
     reduceState = new ReduceStateByKey<>(getName(),
-        flow, input, grouped, keyExtractor, valueExtractor,
+        flow, input, keyExtractor, valueExtractor,
         windowing,
         eventTimeAssigner,
         (Context<OUT> c, StorageProvider provider) -> new ReduceState<>(
@@ -495,6 +320,4 @@ public class ReduceByKey<
         partitioning);
     return DAG.of(reduceState);
   }
-
-
 }

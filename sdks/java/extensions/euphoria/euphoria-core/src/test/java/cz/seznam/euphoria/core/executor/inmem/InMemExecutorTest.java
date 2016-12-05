@@ -1,7 +1,6 @@
 package cz.seznam.euphoria.core.executor.inmem;
 
 import cz.seznam.euphoria.core.client.dataset.Dataset;
-import cz.seznam.euphoria.core.client.dataset.GroupedDataset;
 import cz.seznam.euphoria.core.client.dataset.windowing.Batch;
 import cz.seznam.euphoria.core.client.dataset.windowing.Time;
 import cz.seznam.euphoria.core.client.dataset.windowing.Window;
@@ -13,9 +12,7 @@ import cz.seznam.euphoria.core.client.functional.UnaryFunctor;
 import cz.seznam.euphoria.core.client.io.Context;
 import cz.seznam.euphoria.core.client.io.ListDataSink;
 import cz.seznam.euphoria.core.client.io.ListDataSource;
-import cz.seznam.euphoria.core.client.operator.CompositeKey;
 import cz.seznam.euphoria.core.client.operator.FlatMap;
-import cz.seznam.euphoria.core.client.operator.GroupByKey;
 import cz.seznam.euphoria.core.client.operator.MapElements;
 import cz.seznam.euphoria.core.client.operator.ReduceByKey;
 import cz.seznam.euphoria.core.client.operator.ReduceStateByKey;
@@ -717,54 +714,6 @@ public class InMemExecutorTest {
 
   }
 
-
-
-
-  @Test(timeout = 2000)
-  public void testGroupedDatasetReduceByKey() throws Exception {
-    Flow flow = Flow.create("Test");
-
-    ListDataSource<Pair<Integer, String>> input =
-        ListDataSource.bounded(Arrays.asList(
-            Pair.of(1, "one"),
-            Pair.of(1, "two"),
-            Pair.of(1, "three"),
-            Pair.of(1, "one"),
-            Pair.of(2, "two"),
-            Pair.of(1, "three"),
-            Pair.of(1, "three")));
-
-    Dataset<Pair<Integer, String>> pairs = flow.createInput(input);
-
-    GroupedDataset<Integer, String> grouped = GroupByKey.of(pairs)
-        .keyBy(Pair::getFirst)
-        .valueBy(Pair::getSecond)
-        .output();
-
-    Dataset<Pair<CompositeKey<Integer, String>, Long>> output = ReduceByKey.of(grouped)
-        .keyBy(e -> e)
-        .valueBy(e -> 1L)
-        .combineBy(Sums.ofLongs())
-        .output();
-
-    ListDataSink<Pair<CompositeKey<Integer, String>, Long>> out = ListDataSink.get(1);
-    output.persist(out);
-
-    InMemExecutor executor = new InMemExecutor();
-    executor.submit(flow).get();
-
-    assertUnorderedEquals(
-        Arrays.asList("1-one:2", "1-two:1", "1-three:3", "2-two:1"),
-        out.getOutput(0).stream().map(p -> {
-          assertEquals(Integer.class, p.getFirst().getFirst().getClass());
-          assertEquals(String.class, p.getFirst().getSecond().getClass());
-          assertEquals(Long.class, p.getSecond().getClass());
-          return p.getFirst().getFirst() + "-"
-              + p.getFirst().getSecond() + ":"
-              + p.getSecond();
-        }).collect(Collectors.toList()));
-  }
-
   @Test
   public void testWatermarkSchedulerWithLatecomers() throws InterruptedException, ExecutionException {
     int N = 2000;
@@ -798,5 +747,4 @@ public class InMemExecutorTest {
     assertUnorderedEquals(Arrays.asList(1999, 1998, 1997, 1996, 1995), output);
 
   }
-
 }

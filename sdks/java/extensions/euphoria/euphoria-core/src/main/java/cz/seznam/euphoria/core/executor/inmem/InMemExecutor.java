@@ -15,7 +15,6 @@ import cz.seznam.euphoria.core.client.io.DataSource;
 import cz.seznam.euphoria.core.client.io.Partition;
 import cz.seznam.euphoria.core.client.io.Reader;
 import cz.seznam.euphoria.core.client.io.Writer;
-import cz.seznam.euphoria.core.client.operator.CompositeKey;
 import cz.seznam.euphoria.core.client.operator.FlatMap;
 import cz.seznam.euphoria.core.client.operator.Operator;
 import cz.seznam.euphoria.core.client.operator.ReduceStateByKey;
@@ -556,22 +555,9 @@ public class InMemExecutor implements Executor {
       Node<ReduceStateByKey> reduceStateByKeyNode,
       ExecutionContext context) {
 
-    final UnaryFunction keyExtractor;
-    final UnaryFunction valueExtractor;
     final ReduceStateByKey reduceStateByKey = reduceStateByKeyNode.get();
-    if (reduceStateByKey.isGrouped()) {
-      UnaryFunction reduceKeyExtractor = reduceStateByKey.getKeyExtractor();
-      keyExtractor = (UnaryFunction<Pair, CompositeKey>)
-          (Pair p) -> CompositeKey.of(
-              p.getFirst(),
-              reduceKeyExtractor.apply(p.getSecond()));
-      UnaryFunction vfn = reduceStateByKey.getValueExtractor();
-      valueExtractor = (UnaryFunction<Pair, Object>)
-          (Pair p) -> vfn.apply(p.getSecond());
-    } else {
-      keyExtractor = reduceStateByKey.getKeyExtractor();
-      valueExtractor = reduceStateByKey.getValueExtractor();
-    }
+    final UnaryFunction keyExtractor = reduceStateByKey.getKeyExtractor();
+    final UnaryFunction valueExtractor = reduceStateByKey.getValueExtractor();
 
     InputProvider suppliers = context.get(
         reduceStateByKeyNode.getSingleParentOrNull().get(),
