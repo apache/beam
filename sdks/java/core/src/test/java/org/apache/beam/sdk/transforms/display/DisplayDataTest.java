@@ -190,13 +190,19 @@ public class DisplayDataTest implements Serializable {
                 builder.add(DisplayData.item(
                     "foo", new ValueProvider<String>() {
                         @Override
-                        public boolean isAccessible() { return false; }
+                        public boolean isAccessible() {
+                          return false;
+                        }
 
                         @Override
-                        public String get() { return "bar"; }
+                        public String get() {
+                          return "bar";
+                        }
 
                         @Override
-                        public String toString() { return "toString"; }
+                        public String toString() {
+                          return "toString";
+                        }
                       }));
               }
             });
