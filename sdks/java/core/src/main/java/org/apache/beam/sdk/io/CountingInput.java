@@ -53,13 +53,7 @@ import org.joda.time.Instant;
  * }</pre>
  *
  * <p>To produce a bounded {@code PCollection<Long>} starting from {@code startOffset},
- * use {@link CountingInput#forSubrange(long, long)} :
- *
- * <pre>{@code
- * Pipeline p = ...
- * PTransform<PBegin, PCollection<Long>> producer = CountingInput.forSubrange(10, 1000);
- * PCollection<Long> bounded = p.apply(producer);
- * }</pre>
+ * use {@link CountingInput#forSubrange(long, long)} instead.
  *
  * <p>To produce an unbounded {@code PCollection<Long>}, use {@link CountingInput#unbounded()},
  * calling {@link UnboundedCountingInput#withTimestampFn(SerializableFunction)} to provide values
@@ -86,13 +80,13 @@ public class CountingInput {
   }
 
   /**
-   * Creates a {@link BoundedCountingInput} that will produce the specified number of elements,
-   * starting from {@code startOffset} to (excluding) {@code endOffset}.
+   * Creates a {@link BoundedCountingInput} that will produce elements
+   * starting from {@code startIndex} to {@code endIndex - 1}.
    */
-  public static BoundedCountingInput forSubrange(long startOffset, long endOffset) {
-    checkArgument(endOffset > startOffset, "numElements (%s) must be greater than 0",
-            endOffset - startOffset);
-    return new BoundedCountingInput(startOffset, endOffset);
+  public static BoundedCountingInput forSubrange(long startIndex, long endIndex) {
+    checkArgument(endIndex > startIndex, "endIndex (%s) must be greater than startIndex (%s)",
+            endIndex, startIndex);
+    return new BoundedCountingInput(startIndex, endIndex);
   }
 
   /**
@@ -122,36 +116,34 @@ public class CountingInput {
    * 0.
    */
   public static class BoundedCountingInput extends PTransform<PBegin, PCollection<Long>> {
-    private final long endOffset;
-    private final long startOffset;
+    private final long startIndex;
+    private final long endIndex;
 
     private BoundedCountingInput(long numElements) {
-      this.endOffset = numElements;
-      this.startOffset = 0;
+      this.endIndex = numElements;
+      this.startIndex = 0;
     }
 
-    private BoundedCountingInput(long startOffset, long endOffset) {
-      this.endOffset = endOffset;
-      this.startOffset = startOffset;
+    private BoundedCountingInput(long startIndex, long endIndex) {
+      this.endIndex = endIndex;
+      this.startIndex = startIndex;
     }
 
-    @SuppressWarnings("deprecation")
     @Override
     public PCollection<Long> apply(PBegin begin) {
-      return begin.apply(Read.from(CountingSource.createSourceForSubrange(startOffset, endOffset)));
+      return begin.apply(Read.from(CountingSource.createSourceForSubrange(startIndex, endIndex)));
     }
 
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {
       super.populateDisplayData(builder);
 
-      if (startOffset == 0) {
-            builder.add(DisplayData.item("upTo", endOffset)
+      if (startIndex == 0) {
+            builder.add(DisplayData.item("upTo", endIndex)
                 .withLabel("Count Up To"));
       } else {
-            builder.add(DisplayData.item("startAt", startOffset)
-                .withLabel("Count Starting At")).add(DisplayData.item("upTo", endOffset)
-                .withLabel("Count Up To"));
+            builder.add(DisplayData.item("startAt", startIndex).withLabel("Count Starting At"))
+                    .add(DisplayData.item("upTo", endIndex).withLabel("Count Up To"));
         }
     }
   }

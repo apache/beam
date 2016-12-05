@@ -83,17 +83,14 @@ public class CountingSource {
   }
 
   /**
-   * Creates a {@link BoundedSource} that will produce the specified number of elements,
-   * from {@code startOffset} to {@code numElements - 1}.
-   *
-   * @deprecated use {@link CountingInput#forSubrange(long, long)} instead
+   * Creates a {@link BoundedSource} that will produce elements
+   * from {@code startIndex} to {@code endIndex - 1}.
    */
-  @Deprecated
-  static BoundedSource<Long> createSourceForSubrange(long startOffset, long endOffset) {
-    checkArgument(endOffset > startOffset, "numElements (%s) must be greater than 0",
-            endOffset - startOffset);
+  static BoundedSource<Long> createSourceForSubrange(long startIndex, long endIndex) {
+    checkArgument(endIndex > startIndex, "endIndex (%s) must be greater than startIndex (%s)",
+            endIndex, startIndex);
 
-    return new BoundedCountingSource(startOffset, endOffset);
+    return new BoundedCountingSource(startIndex, endIndex);
   }
 
   /**

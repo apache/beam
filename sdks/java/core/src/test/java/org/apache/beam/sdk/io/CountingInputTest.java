@@ -49,23 +49,6 @@ import org.junit.runners.JUnit4;
  */
 @RunWith(JUnit4.class)
 public class CountingInputTest {
-  public static void addCountingAsserts(PCollection<Long> input, long numElements) {
-    // Count == numElements
-    PAssert.thatSingleton(input.apply("Count", Count.<Long>globally()))
-        .isEqualTo(numElements);
-    // Unique count == numElements
-    PAssert.thatSingleton(
-            input
-                .apply(Distinct.<Long>create())
-                .apply("UniqueCount", Count.<Long>globally()))
-        .isEqualTo(numElements);
-    // Min == 0
-    PAssert.thatSingleton(input.apply("Min", Min.<Long>globally())).isEqualTo(0L);
-    // Max == numElements-1
-    PAssert.thatSingleton(input.apply("Max", Max.<Long>globally()))
-        .isEqualTo(numElements - 1);
-  }
-
   public static void addCountingAsserts(PCollection<Long> input, long start, long end) {
     // Count == numElements
     PAssert.thatSingleton(input.apply("Count", Count.<Long>globally()))
@@ -90,21 +73,21 @@ public class CountingInputTest {
     long numElements = 1000;
     PCollection<Long> input = p.apply(CountingInput.upTo(numElements));
 
-    addCountingAsserts(input, numElements);
+    addCountingAsserts(input, 0, numElements);
     p.run();
   }
 
-    @Test
-    @Category(RunnableOnService.class)
-    public void testBoundedInputSubrange() {
-        Pipeline p = TestPipeline.create();
-        long start = 10;
-        long end = 1000;
-        PCollection<Long> input = p.apply(CountingInput.forSubrange(start, end));
+  @Test
+  @Category(RunnableOnService.class)
+  public void testBoundedInputSubrange() {
+    Pipeline p = TestPipeline.create();
+    long start = 10;
+    long end = 1000;
+    PCollection<Long> input = p.apply(CountingInput.forSubrange(start, end));
 
-        addCountingAsserts(input, start, end);
-        p.run();
-    }
+    addCountingAsserts(input, start, end);
+    p.run();
+  }
 
   @Test
   public void testBoundedDisplayData() {
@@ -113,13 +96,13 @@ public class CountingInputTest {
     assertThat(displayData, hasDisplayItem("upTo", 1234));
   }
 
-    @Test
-    public void testBoundedDisplayDataSubrange() {
-        PTransform<?, ?> input = CountingInput.forSubrange(12, 1234);
-        DisplayData displayData = DisplayData.from(input);
-        assertThat(displayData, hasDisplayItem("startAt", 12));
-        assertThat(displayData, hasDisplayItem("upTo", 1234));
-    }
+  @Test
+  public void testBoundedDisplayDataSubrange() {
+    PTransform<?, ?> input = CountingInput.forSubrange(12, 1234);
+    DisplayData displayData = DisplayData.from(input);
+    assertThat(displayData, hasDisplayItem("startAt", 12));
+    assertThat(displayData, hasDisplayItem("upTo", 1234));
+  }
 
   @Test
   @Category(RunnableOnService.class)
@@ -129,7 +112,7 @@ public class CountingInputTest {
 
     PCollection<Long> input = p.apply(CountingInput.unbounded().withMaxNumRecords(numElements));
 
-    addCountingAsserts(input, numElements);
+    addCountingAsserts(input, 0, numElements);
     p.run();
   }
 
@@ -147,7 +130,7 @@ public class CountingInputTest {
                 .withRate(elemsPerPeriod, periodLength)
                 .withMaxNumRecords(numElements));
 
-    addCountingAsserts(input, numElements);
+    addCountingAsserts(input, 0, numElements);
     long expectedRuntimeMillis = (periodLength.getMillis() * numElements) / elemsPerPeriod;
     Instant startTime = Instant.now();
     p.run();
@@ -173,7 +156,7 @@ public class CountingInputTest {
             CountingInput.unbounded()
                 .withTimestampFn(new ValueAsTimestampFn())
                 .withMaxNumRecords(numElements));
-    addCountingAsserts(input, numElements);
+    addCountingAsserts(input, 0, numElements);
 
     PCollection<Long> diffs =
         input

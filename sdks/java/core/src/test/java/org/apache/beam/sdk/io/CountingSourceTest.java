@@ -79,26 +79,6 @@ public class CountingSourceTest {
       .isEqualTo(numElements - 1);
   }
 
-  public static void addCountingAsserts(PCollection<Long> input, long start, long end) {
-    // Count == numElements
-    PAssert
-      .thatSingleton(input.apply("Count", Count.<Long>globally()))
-      .isEqualTo(end - start);
-    // Unique count == numElements
-    PAssert
-      .thatSingleton(input.apply(Distinct.<Long>create())
-                          .apply("UniqueCount", Count.<Long>globally()))
-      .isEqualTo(end - start);
-    // Min == start
-    PAssert
-      .thatSingleton(input.apply("Min", Min.<Long>globally()))
-      .isEqualTo(start);
-    // Max == end-1
-    PAssert
-      .thatSingleton(input.apply("Max", Max.<Long>globally()))
-      .isEqualTo(end - 1);
-    }
-
   @Test
   @Category(RunnableOnService.class)
   public void testBoundedSource() {
@@ -107,19 +87,6 @@ public class CountingSourceTest {
     PCollection<Long> input = p.apply(Read.from(CountingSource.upTo(numElements)));
 
     addCountingAsserts(input, numElements);
-    p.run();
-  }
-
-  @Test
-  @Category(RunnableOnService.class)
-  public void testBoundedSourceSubrange() {
-    Pipeline p = TestPipeline.create();
-    long start = 10;
-    long end = 1000;
-    PCollection<Long> input = p.apply(Read.from(
-            CountingSource.createSourceForSubrange(start, end)));
-
-    addCountingAsserts(input, start, end);
     p.run();
   }
 
