@@ -412,7 +412,7 @@ class DataflowApplicationClient(object):
       self.stage_file(gcs_or_local_path, file_name, StringIO(job.json()))
 
     if not template_location:
-      return self.submit_job_description()
+      return self.submit_job_description(job)
     else:
       return None
 
@@ -426,7 +426,7 @@ class DataflowApplicationClient(object):
     # TODO(silviuc): Remove the debug logging eventually.
     logging.info('JOB: %s', job)
 
-  def submit_job_description(self):
+  def submit_job_description(self, job):
     """Creates and excutes a job request."""
     request = dataflow.DataflowProjectsJobsCreateRequest()
     request.projectId = self.google_cloud_options.project
