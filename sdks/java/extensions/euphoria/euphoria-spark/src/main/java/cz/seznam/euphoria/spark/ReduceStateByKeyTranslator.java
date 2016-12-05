@@ -7,7 +7,6 @@ import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.functional.CombinableReduceFunction;
 import cz.seznam.euphoria.core.client.functional.StateFactory;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
-import cz.seznam.euphoria.core.client.operator.CompositeKey;
 import cz.seznam.euphoria.core.client.operator.ReduceStateByKey;
 import cz.seznam.euphoria.core.client.operator.state.State;
 import cz.seznam.euphoria.core.client.triggers.Trigger;
@@ -42,27 +41,12 @@ class ReduceStateByKeyTranslator implements SparkOperatorTranslator<ReduceStateB
     StateFactory<?, State> stateFactory = operator.getStateFactory();
     CombinableReduceFunction<State> stateCombiner = operator.getStateCombiner();
 
-    final UnaryFunction keyExtractor;
-    final UnaryFunction valueExtractor;
+    final UnaryFunction keyExtractor = operator.getKeyExtractor();
+    final UnaryFunction valueExtractor = operator.getValueExtractor();
     final UnaryFunction<?, Long> eventTimeAssigner = operator.getEventTimeAssigner();
     final Windowing windowing = operator.getWindowing() == null
             ? AttachedWindowing.INSTANCE
             : operator.getWindowing();
-
-    // FIXME functions extraction could be moved to the euphoria-core
-    if (operator.isGrouped()) {
-      UnaryFunction reduceKeyExtractor = operator.getKeyExtractor();
-      keyExtractor = (UnaryFunction<Pair, CompositeKey>)
-              (Pair p) -> CompositeKey.of(
-                      p.getFirst(),
-                      reduceKeyExtractor.apply(p.getSecond()));
-      UnaryFunction vfn = operator.getValueExtractor();
-      valueExtractor = (UnaryFunction<Pair, Object>)
-              (Pair p) -> vfn.apply(p.getSecond());
-    } else {
-      keyExtractor = operator.getKeyExtractor();
-      valueExtractor = operator.getValueExtractor();
-    }
 
     // ~ extract key/value + timestamp from input elements and assign windows
     JavaPairRDD<KeyedWindow, Object> tuples = input.flatMapToPair(
