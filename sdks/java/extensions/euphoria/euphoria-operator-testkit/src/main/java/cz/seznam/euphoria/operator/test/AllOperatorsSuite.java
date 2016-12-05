@@ -14,7 +14,6 @@ import org.junit.runners.Suite;
     DistinctTest.class,
     FilterTest.class,
     FlatMapTest.class,
-    GroupByKeyTest.class,
     JoinTest.class,
     JoinWindowEnforcementTest.class,
     MapElementsTest.class,
