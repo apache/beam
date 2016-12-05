@@ -20,8 +20,11 @@ package org.apache.beam.sdk.util;
 import com.google.api.client.json.GenericJson;
 import com.google.api.client.util.Key;
 import java.io.IOException;
-import java.io.InputStream;
-import java.util.Properties;
+import java.net.URISyntaxException;
+import java.net.URL;
+import java.util.jar.JarFile;
+import java.util.jar.Manifest;
+import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -31,13 +34,16 @@ import org.slf4j.LoggerFactory;
 public final class ReleaseInfo extends GenericJson {
   private static final Logger LOG = LoggerFactory.getLogger(ReleaseInfo.class);
 
-  private static final String PROPERTIES_PATH =
-      "/org/apache/beam/sdk/sdk.properties";
+  private static final String MANIFEST_TIMESTAMP_ATTRIBUTE = "Build-timestamp";
 
   private static class LazyInit {
-    private static final ReleaseInfo INSTANCE =
-        new ReleaseInfo(PROPERTIES_PATH);
+    private static final ReleaseInfo INSTANCE = new ReleaseInfo();
   }
+
+  /**
+   * The string that will be used as a version if none can be ascertained.
+   */
+  public static final String UNKNOWN_VERSION_STRING = "Unknown";
 
   /**
    * Returns an instance of {@link ReleaseInfo}.
@@ -47,38 +53,56 @@ public final class ReleaseInfo extends GenericJson {
   }
 
   @Key private String name = "Apache Beam SDK for Java";
-  @Key private String version = "Unknown";
+  @Key private String version = UNKNOWN_VERSION_STRING;
+  @Nullable @Key("build.date") private String timestamp = null;
 
   /** Provides the SDK name. */
   public String getName() {
     return name;
   }
 
-  /** Provides the SDK version. */
+  /**
+   * The version of the packaged artifact for the core Apache Beam Java SDK, or
+   * {@link #UNKNOWN_VERSION_STRING} if unknown.
+   *
+   * <p>This should only be unknown if the class is used outside of a built artifact.
+   */
   public String getVersion() {
     return version;
   }
 
-  private ReleaseInfo(String resourcePath) {
-    Properties properties = new Properties();
+  /**
+   * The build time of the packaged artifact for the core Apache Beam Java SDK, or {@code null} if
+   * unknown.
+   *
+   * <p>This should only be {@code null} if the class is used outside of a built artifact.
+   */
+  @Nullable
+  public String getBuildTimestamp() {
+    return timestamp;
+  }
 
-    try (InputStream in = ReleaseInfo.class.getResourceAsStream(PROPERTIES_PATH)) {
-      if (in == null) {
-        LOG.warn("Beam properties resource not found: {}", resourcePath);
-        return;
-      }
+  private ReleaseInfo() {
+    // This may not actually be a jar; in that case we cannot learn anything from the manifest
+    URL jarLocation = getClass().getProtectionDomain().getCodeSource().getLocation();
 
-      properties.load(in);
-    } catch (IOException e) {
-      LOG.warn("Error loading Beam properties resource: ", e);
+    // Get the version via standard channels
+    @Nullable String maybeVersion = getClass().getPackage().getImplementationVersion();
+    if (maybeVersion != null) {
+      version = maybeVersion;
     }
 
-    for (String name : properties.stringPropertyNames()) {
-      if (name.equals("name")) {
-        // We don't allow the properties to override the SDK name.
-        continue;
-      }
-      put(name, properties.getProperty(name));
+    // Read the timestamp, which is a custom manifest entry
+    Manifest manifest;
+    try (JarFile jarFile = new JarFile(jarLocation.toURI().getPath())) {
+      manifest = jarFile.getManifest();
+    } catch (IOException exc) {
+      LOG.warn("Beam SDK jar manifest not found at " + jarLocation, exc);
+      return;
+    } catch (URISyntaxException exc) {
+      LOG.warn("Beam SDK code location appears to be invalid at " + jarLocation, exc);
+      return;
     }
+    timestamp = manifest.getMainAttributes().getValue(MANIFEST_TIMESTAMP_ATTRIBUTE);
   }
 }

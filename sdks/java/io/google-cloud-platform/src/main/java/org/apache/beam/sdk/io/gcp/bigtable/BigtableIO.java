@@ -60,7 +60,6 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.display.DisplayData;
-import org.apache.beam.sdk.util.ReleaseInfo;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
@@ -1068,12 +1067,12 @@ public class BigtableIO {
    */
   private static String getUserAgent() {
     String javaVersion = System.getProperty("java.specification.version");
-    ReleaseInfo info = ReleaseInfo.getReleaseInfo();
     return String.format(
-        "%s/%s (%s); %s",
-        info.getName(),
-        info.getVersion(),
-        javaVersion,
+    "%s/%s %s/%s java/%s",
+        org.apache.beam.sdk.io.gcp.bigtable.ReleaseInfo.getReleaseInfo().getName(),
+        org.apache.beam.sdk.io.gcp.bigtable.ReleaseInfo.getReleaseInfo().getVersion(),
+        org.apache.beam.sdk.util.ReleaseInfo.getReleaseInfo().getName(),
+        org.apache.beam.sdk.util.ReleaseInfo.getReleaseInfo().getVersion(),
         "0.3.0" /* TODO get Bigtable client version directly from jar. */);
   }
 

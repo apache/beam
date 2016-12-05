@@ -886,6 +886,7 @@
               <arg>-Xlint:-try</arg>
               <arg>-Xlint:-unchecked</arg>
               <arg>-Xlint:-varargs</arg>
+              <arg>-Xpkginfo:always</arg>
               <!-- Uncomment the following args to display more warnings. -->
               <!-- -Xmaxwarns -->
               <!-- 10000 -->
@@ -932,6 +933,13 @@
               </goals>
             </execution>
           </executions>
+          <configuration>
+            <archive>
+              <manifestEntries>
+                <Build-timestamp>${timestamp}</Build-timestamp>
+              </manifestEntries>
+            </archive>
+          </configuration>
         </plugin>
 
         <plugin>

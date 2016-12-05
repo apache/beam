@@ -26,6 +26,7 @@ import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.startsWith;
 import static org.hamcrest.collection.IsIterableContainingInOrder.contains;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThat;
@@ -435,6 +436,17 @@ public class DataflowRunnerTest {
     assertEquals(
         ReleaseInfo.getReleaseInfo().getVersion(),
         workflowJob.getEnvironment().getUserAgent().get("version"));
+
+    // The version should not be unknown, as the SDK should be in a separate jar
+    assertNotEquals(
+        ReleaseInfo.getReleaseInfo().getVersion(),
+        ReleaseInfo.UNKNOWN_VERSION_STRING);
+
+    // We should know what SDK we have depended upon, since we put it in the user agent string
+    assertNotNull(ReleaseInfo.getReleaseInfo().getBuildTimestamp());
+    assertEquals(
+        ReleaseInfo.getReleaseInfo().getBuildTimestamp(),
+        workflowJob.getEnvironment().getUserAgent().get("build.date"));
   }
 
   @Test
