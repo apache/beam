@@ -418,8 +418,10 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
 
   public void fireTimer(W window, Instant timestamp, TimeDomain domain) throws Exception {
     ReduceFnRunner<String, InputT, OutputT, W> runner = createRunner();
-    runner.onTimer(
+    ArrayList timers = new ArrayList(1);
+    timers.add(
         TimerData.of(StateNamespaces.window(windowFn.windowCoder(), window), timestamp, domain));
+    runner.onTimers(timers);
     runner.persist();
   }
 
@@ -760,20 +762,20 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
       PriorityQueue<TimerData> queue = queue(domain);
       boolean shouldFire = false;
 
-      do {
-        TimerData timer = queue.peek();
-        // Timers fire when the current time progresses past the timer time.
-        shouldFire = timer != null && currentTime.isAfter(timer.getTimestamp());
-        if (shouldFire) {
-          WindowTracing.trace(
-              "TestTimerInternals.advanceAndFire: firing {} at {}", timer, currentTime);
-          // Remove before firing, so that if the trigger adds another identical
+      while (true) {
+        ArrayList<TimerData> firedTimers = new ArrayList();
+        while (!queue.isEmpty() && currentTime.isAfter(queue.peek().getTimestamp())) {
+          // Remove before firing, so that if the callback adds another identical
           // timer we don't remove it.
-          queue.remove();
-
-          runner.onTimer(timer);
+          TimerData timer = queue.remove();
+          existingTimers.remove(timer);
+          firedTimers.add(timer);
         }
-      } while (shouldFire);
+        if (firedTimers.isEmpty()) {
+          break;
+        }
+        runner.onTimers(firedTimers);
+      }
     }
   }
 }

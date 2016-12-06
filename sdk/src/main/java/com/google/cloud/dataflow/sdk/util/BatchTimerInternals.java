@@ -23,6 +23,7 @@ import com.google.common.base.MoreObjects;
 
 import org.joda.time.Instant;
 
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.PriorityQueue;
 import java.util.Set;
@@ -124,16 +125,19 @@ public class BatchTimerInternals implements TimerInternals {
     PriorityQueue<TimerData> timers = queue(domain);
     boolean shouldFire = false;
 
-    do {
-      TimerData timer = timers.peek();
-      // Timers fire if the new time is ahead of the timer
-      shouldFire = timer != null && newTime.isAfter(timer.getTimestamp());
-      if (shouldFire) {
-        // Remove before firing, so that if the trigger adds another identical
+    while (true) {
+      ArrayList<TimerData> firedTimers = new ArrayList();
+      while (!timers.isEmpty() && newTime.isAfter(timers.peek().getTimestamp())) {
+        // Remove before firing, so that if the callback adds another identical
         // timer we don't remove it.
-        timers.remove();
-        runner.onTimer(timer);
+        TimerData timer = timers.remove();
+        existingTimers.remove(timer);
+        firedTimers.add(timer);
       }
-    } while (shouldFire);
+      if (firedTimers.isEmpty()) {
+        break;
+      }
+      runner.onTimers(firedTimers);
+    }
   }
 }
