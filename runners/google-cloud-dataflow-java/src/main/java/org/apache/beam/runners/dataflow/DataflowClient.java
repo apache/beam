@@ -55,6 +55,7 @@ public class DataflowClient {
    * Creates the Dataflow {@link Job}.
    */
   public Job createJob(@Nonnull Job job) throws IOException {
+    checkNotNull(job, "job");
     Jobs.Create jobsCreate = dataflow.projects().jobs().create(projectId, job);
     return jobsCreate.execute();
   }
@@ -74,6 +75,8 @@ public class DataflowClient {
    * Updates the Dataflow {@link Job} with the given {@code jobId}.
    */
   public Job updateJob(@Nonnull String jobId, @Nonnull Job content) throws IOException {
+    checkNotNull(jobId, "jobId");
+    checkNotNull(content, "content");
     Jobs.Update jobsUpdate = dataflow.projects().jobs()
         .update(projectId, jobId, content);
     return jobsUpdate.execute();
@@ -83,6 +86,7 @@ public class DataflowClient {
    * Gets the Dataflow {@link Job} with the given {@code jobId}.
    */
   public Job getJob(@Nonnull String jobId) throws IOException {
+    checkNotNull(jobId, "jobId");
     Jobs.Get jobsGet = dataflow.projects().jobs()
         .get(projectId, jobId);
     return jobsGet.execute();
@@ -92,6 +96,7 @@ public class DataflowClient {
    * Gets the {@link JobMetrics} with the given {@code jobId}.
    */
   public JobMetrics getJobMetrics(@Nonnull String jobId) throws IOException {
+    checkNotNull(jobId, "jobId");
     Jobs.GetMetrics jobsGetMetrics = dataflow.projects().jobs()
         .getMetrics(projectId, jobId);
     return jobsGetMetrics.execute();
@@ -102,6 +107,7 @@ public class DataflowClient {
    */
   public ListJobMessagesResponse listJobMessages(
       @Nonnull String jobId, @Nullable String pageToken) throws IOException {
+    checkNotNull(jobId, "jobId");
     Jobs.Messages.List jobMessagesList = dataflow.projects().jobs().messages()
         .list(projectId, jobId)
         .setPageToken(pageToken);
@@ -113,6 +119,8 @@ public class DataflowClient {
    */
   public LeaseWorkItemResponse leaseWorkItem(
       @Nonnull String jobId, @Nonnull LeaseWorkItemRequest request) throws IOException {
+    checkNotNull(jobId, "jobId");
+    checkNotNull(request, "request");
     Jobs.WorkItems.Lease jobWorkItemsLease = dataflow.projects().jobs().workItems()
         .lease(projectId, jobId, request);
     return jobWorkItemsLease.execute();
@@ -123,6 +131,8 @@ public class DataflowClient {
    */
   public ReportWorkItemStatusResponse reportWorkItemStatus(
       @Nonnull String jobId, @Nonnull ReportWorkItemStatusRequest request) throws IOException {
+    checkNotNull(jobId, "jobId");
+    checkNotNull(request, "request");
     Jobs.WorkItems.ReportStatus jobWorkItemsReportStatus = dataflow.projects().jobs().workItems()
         .reportStatus(projectId, jobId, request);
     return jobWorkItemsReportStatus.execute();
