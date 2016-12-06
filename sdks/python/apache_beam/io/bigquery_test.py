@@ -208,6 +208,14 @@ class TestBigQuerySource(unittest.TestCase):
     self.assertEqual(source.query, 'my_query')
     self.assertIsNone(source.table_reference)
 
+  def test_date_partitioned_table_name(self):
+    source = beam.io.BigQuerySource('dataset.table$20030102', validate=True)
+    dd = DisplayData.create_from(source)
+    expected_items = [
+        DisplayDataItemMatcher('validation', True),
+        DisplayDataItemMatcher('table', 'dataset.table$20030102')]
+    hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
+
 
 class TestBigQuerySink(unittest.TestCase):
 
