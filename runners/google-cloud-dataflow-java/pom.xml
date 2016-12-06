@@ -78,7 +78,6 @@
             <id>runnable-on-service-tests</id>
             <configuration>
               <excludedGroups>
-                org.apache.beam.sdk.testing.UsesStatefulParDo,
                 org.apache.beam.sdk.testing.UsesSplittableParDo
               </excludedGroups>
               <excludes>
