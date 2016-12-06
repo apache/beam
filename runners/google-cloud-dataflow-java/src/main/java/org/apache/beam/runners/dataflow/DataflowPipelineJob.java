@@ -247,7 +247,7 @@ public class DataflowPipelineJob implements PipelineResult {
       MonitoringUtil.JobMessagesHandler messageHandler,
       Sleeper sleeper,
       NanoClock nanoClock) throws IOException, InterruptedException {
-    MonitoringUtil monitor = new MonitoringUtil(getProjectId(), dataflowClient);
+    MonitoringUtil monitor = new MonitoringUtil(dataflowClient);
 
     long lastTimestamp = 0;
     BackOff backoff;

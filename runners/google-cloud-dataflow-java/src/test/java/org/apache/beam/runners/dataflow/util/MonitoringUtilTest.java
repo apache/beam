@@ -81,7 +81,7 @@ public class MonitoringUtilTest {
     when(dataflowClient.listJobMessages(JOB_ID, null)).thenReturn(firstResponse);
     when(dataflowClient.listJobMessages(JOB_ID, pageToken)).thenReturn(secondResponse);
 
-    MonitoringUtil util = new MonitoringUtil(PROJECT_ID, dataflowClient);
+    MonitoringUtil util = new MonitoringUtil(dataflowClient);
 
     List<JobMessage> messages = util.getJobMessages(JOB_ID, -1);
 

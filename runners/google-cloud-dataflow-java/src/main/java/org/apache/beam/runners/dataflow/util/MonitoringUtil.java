@@ -67,7 +67,6 @@ public final class MonitoringUtil {
   private static final String JOB_MESSAGE_DETAILED = "JOB_MESSAGE_DETAILED";
   private static final String JOB_MESSAGE_DEBUG = "JOB_MESSAGE_DEBUG";
 
-  private final String projectId;
   private final DataflowClient dataflowClient;
 
   /**
@@ -115,8 +114,7 @@ public final class MonitoringUtil {
   }
 
   /** Construct a helper for monitoring. */
-  public MonitoringUtil(String projectId, DataflowClient dataflowClient) {
-    this.projectId = projectId;
+  public MonitoringUtil(DataflowClient dataflowClient) {
     this.dataflowClient = dataflowClient;
   }
 

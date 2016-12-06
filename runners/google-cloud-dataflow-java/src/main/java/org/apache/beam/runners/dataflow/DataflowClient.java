@@ -35,27 +35,27 @@ import javax.annotation.Nullable;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
 
 /**
- * Client library for {@link Dataflow}.
+ * Wrapper around the generated {@link Dataflow} client to provide common functionality.
  */
 public class DataflowClient {
 
   public static DataflowClient create(DataflowPipelineOptions options) {
-    return new DataflowClient(options.getDataflowClient(), options);
+    return new DataflowClient(options.getDataflowClient(), options.getProject());
   }
 
   private final Dataflow dataflow;
-  private final DataflowPipelineOptions options;
+  private final String projectId;
 
-  private DataflowClient(Dataflow dataflow, DataflowPipelineOptions options) {
+  private DataflowClient(Dataflow dataflow, String projectId) {
     this.dataflow = checkNotNull(dataflow, "dataflow");
-    this.options = checkNotNull(options, "options");
+    this.projectId = checkNotNull(projectId, "options");
   }
 
   /**
    * Creates the Dataflow {@link Job}.
    */
   public Job createJob(@Nonnull Job job) throws IOException {
-    Jobs.Create jobsCreate = dataflow.projects().jobs().create(options.getProject(), job);
+    Jobs.Create jobsCreate = dataflow.projects().jobs().create(projectId, job);
     return jobsCreate.execute();
   }
 
@@ -65,7 +65,7 @@ public class DataflowClient {
    */
   public ListJobsResponse listJobs(@Nullable String pageToken) throws IOException {
     Jobs.List jobsList = dataflow.projects().jobs()
-        .list(options.getProject())
+        .list(projectId)
         .setPageToken(pageToken);
     return jobsList.execute();
   }
@@ -75,7 +75,7 @@ public class DataflowClient {
    */
   public Job updateJob(@Nonnull String jobId, @Nonnull Job content) throws IOException {
     Jobs.Update jobsUpdate = dataflow.projects().jobs()
-        .update(options.getProject(), jobId, content);
+        .update(projectId, jobId, content);
     return jobsUpdate.execute();
   }
 
@@ -84,7 +84,7 @@ public class DataflowClient {
    */
   public Job getJob(@Nonnull String jobId) throws IOException {
     Jobs.Get jobsGet = dataflow.projects().jobs()
-        .get(options.getProject(), jobId);
+        .get(projectId, jobId);
     return jobsGet.execute();
   }
 
@@ -93,7 +93,7 @@ public class DataflowClient {
    */
   public JobMetrics getJobMetrics(@Nonnull String jobId) throws IOException {
     Jobs.GetMetrics jobsGetMetrics = dataflow.projects().jobs()
-        .getMetrics(options.getProject(), jobId);
+        .getMetrics(projectId, jobId);
     return jobsGetMetrics.execute();
   }
 
@@ -103,7 +103,7 @@ public class DataflowClient {
   public ListJobMessagesResponse listJobMessages(
       @Nonnull String jobId, @Nullable String pageToken) throws IOException {
     Jobs.Messages.List jobMessagesList = dataflow.projects().jobs().messages()
-        .list(options.getProject(), jobId)
+        .list(projectId, jobId)
         .setPageToken(pageToken);
     return jobMessagesList.execute();
   }
@@ -114,7 +114,7 @@ public class DataflowClient {
   public LeaseWorkItemResponse leaseWorkItem(
       @Nonnull String jobId, @Nonnull LeaseWorkItemRequest request) throws IOException {
     Jobs.WorkItems.Lease jobWorkItemsLease = dataflow.projects().jobs().workItems()
-        .lease(options.getProject(), jobId, request);
+        .lease(projectId, jobId, request);
     return jobWorkItemsLease.execute();
   }
 
@@ -124,7 +124,7 @@ public class DataflowClient {
   public ReportWorkItemStatusResponse reportWorkItemStatus(
       @Nonnull String jobId, @Nonnull ReportWorkItemStatusRequest request) throws IOException {
     Jobs.WorkItems.ReportStatus jobWorkItemsReportStatus = dataflow.projects().jobs().workItems()
-        .reportStatus(options.getProject(), jobId, request);
+        .reportStatus(projectId, jobId, request);
     return jobWorkItemsReportStatus.execute();
   }
 }
