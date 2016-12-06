@@ -21,16 +21,14 @@ package org.apache.beam.runners.gearpump.translators.io;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.io.Serializable;
 import java.util.Collections;
 import java.util.Iterator;
-import java.util.LinkedList;
-import java.util.List;
 import java.util.NoSuchElementException;
 
 import javax.annotation.Nullable;
 
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.options.PipelineOptions;
 
@@ -41,26 +39,33 @@ import org.joda.time.Instant;
  */
 public class ValuesSource<T> extends UnboundedSource<T, UnboundedSource.CheckpointMark> {
 
-  private final Iterable<byte[]> values;
-  private final Coder<T> coder;
+  private final byte[] values;
+  private final IterableCoder<T> iterableCoder;
 
   public ValuesSource(Iterable<T> values, Coder<T> coder) {
-    this.values = encode(values, coder);
-    this.coder = coder;
+    this.iterableCoder = IterableCoder.of(coder);
+    this.values = encode(values, iterableCoder);
   }
 
-  private Iterable<byte[]> encode(Iterable<T> values, Coder<T> coder) {
-    List<byte[]> bytes = new LinkedList<>();
-    for (T t: values) {
-      try {
-        ByteArrayOutputStream stream = new ByteArrayOutputStream();
-        coder.encode(t, stream, Coder.Context.OUTER);
-        bytes.add(stream.toByteArray());
-      } catch (IOException e) {
-        throw new RuntimeException(e);
-      }
+  private byte[] encode(Iterable<T> values, IterableCoder<T> coder) {
+    ByteArrayOutputStream stream = new ByteArrayOutputStream();
+    try {
+      coder.encode(values, stream, Coder.Context.OUTER);
+    } catch (IOException ex) {
+      throw new RuntimeException(ex);
     }
-    return bytes;
+    return stream.toByteArray();
+  }
+
+  private Iterable<T> decode(byte[] bytes) throws IOException{
+    ByteArrayInputStream inputStream = new ByteArrayInputStream(bytes);
+    try {
+      return iterableCoder.decode(inputStream, Coder.Context.OUTER);
+    } catch (IOException ex) {
+      throw new RuntimeException(ex);
+    } finally {
+      inputStream.close();
+    }
   }
 
   @Override
@@ -72,7 +77,11 @@ public class ValuesSource<T> extends UnboundedSource<T, UnboundedSource.Checkpoi
   @Override
   public UnboundedReader<T> createReader(PipelineOptions options,
       @Nullable CheckpointMark checkpointMark) {
-    return new ValuesReader<>(values, coder, this);
+    try {
+      return new ValuesReader<>(decode(values), iterableCoder, this);
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
   }
 
   @Nullable
@@ -87,32 +96,22 @@ public class ValuesSource<T> extends UnboundedSource<T, UnboundedSource.Checkpoi
 
   @Override
   public Coder<T> getDefaultOutputCoder() {
-    return coder;
+    return iterableCoder.getElemCoder();
   }
 
-  private static class ValuesReader<T> extends UnboundedReader<T> implements Serializable {
-
-    private final Iterable<byte[]> values;
-    private final Coder<T> coder;
+  private static class ValuesReader<T> extends UnboundedReader<T> {
     private final UnboundedSource<T, CheckpointMark> source;
-    private transient Iterator<byte[]> iterator;
+    private final Iterable<T> values;
+    private transient Iterator<T> iterator;
     private T current;
 
-    public ValuesReader(Iterable<byte[]> values, Coder<T> coder,
+    public ValuesReader(Iterable<T> values, IterableCoder<T> coder,
         UnboundedSource<T, CheckpointMark> source) {
       this.values = values;
-      this.coder = coder;
       this.source = source;
     }
 
-    private T decode(byte[] bytes) throws IOException {
-      ByteArrayInputStream inputStream = new ByteArrayInputStream(bytes);
-      try {
-        return coder.decode(inputStream, Coder.Context.OUTER);
-      } finally {
-        inputStream.close();
-      }
-    }
+
 
     @Override
     public boolean start() throws IOException {
@@ -125,7 +124,7 @@ public class ValuesSource<T> extends UnboundedSource<T, UnboundedSource.Checkpoi
     @Override
     public boolean advance() throws IOException {
       if (iterator.hasNext()) {
-        current = decode(iterator.next());
+        current = iterator.next();
         return true;
       } else {
         return false;
