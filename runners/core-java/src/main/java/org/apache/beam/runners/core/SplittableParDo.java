@@ -259,7 +259,7 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
               input.isBounded().and(signature.isBoundedPerElement()));
 
       // Set output type descriptor similarly to how ParDo.BoundMulti does it.
-      outputs.get(mainOutputTag).setTypeDescriptorInternal(fn.getOutputTypeDescriptor());
+      outputs.get(mainOutputTag).setTypeDescriptor(fn.getOutputTypeDescriptor());
 
       return outputs;
     }
