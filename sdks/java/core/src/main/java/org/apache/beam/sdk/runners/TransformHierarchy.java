@@ -37,6 +37,7 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.PValue;
+import org.apache.beam.sdk.values.TaggedPValue;
 
 /**
  * Captures information about a collection of transformations and their
@@ -84,10 +85,12 @@ public class TransformHierarchy {
    */
   public void finishSpecifyingInput() {
     // Inputs must be completely specified before they are consumed by a transform.
-    for (PValue inputValue : current.getInputs()) {
-      inputValue.finishSpecifying();
-      checkState(producers.get(inputValue) != null, "Producer unknown for input %s", inputValue);
-      inputValue.finishSpecifying();
+    for (TaggedPValue inputValue : current.getInputs()) {
+      inputValue.getValue().finishSpecifying();
+      checkState(
+          producers.get(inputValue.getValue()) != null,
+          "Producer unknown for input %s",
+          inputValue.getValue());
     }
   }
 
@@ -103,9 +106,9 @@ public class TransformHierarchy {
    */
   public void setOutput(POutput output) {
     output.finishSpecifyingOutput();
-    for (PValue value : output.expand()) {
-      if (!producers.containsKey(value)) {
-        producers.put(value, current);
+    for (TaggedPValue value : output.expand()) {
+      if (!producers.containsKey(value.getValue())) {
+        producers.put(value.getValue(), current);
       }
     }
     current.setOutput(output);
@@ -133,8 +136,8 @@ public class TransformHierarchy {
    */
   List<Node> getProducingTransforms(POutput output) {
     List<Node> producingTransforms = new ArrayList<>();
-    for (PValue value : output.expand()) {
-      Node producer = getProducer(value);
+    for (TaggedPValue value : output.expand()) {
+      Node producer = getProducer(value.getValue());
       if (producer != null) {
         producingTransforms.add(producer);
       }
@@ -238,8 +241,8 @@ public class TransformHierarchy {
     private boolean returnsOthersOutput() {
       PTransform<?, ?> transform = getTransform();
       if (output != null) {
-        for (PValue outputValue : output.expand()) {
-          if (!getProducer(outputValue).getTransform().equals(transform)) {
+        for (TaggedPValue outputValue : output.expand()) {
+          if (!getProducer(outputValue.getValue()).getTransform().equals(transform)) {
             return true;
           }
         }
@@ -256,8 +259,8 @@ public class TransformHierarchy {
     }
 
     /** Returns the transform input, in unexpanded form. */
-    public Collection<? extends PValue> getInputs() {
-      return input == null ? Collections.<PValue>emptyList() : input.expand();
+    public List<TaggedPValue> getInputs() {
+      return input == null ? Collections.<TaggedPValue>emptyList() : input.expand();
     }
 
     /**
@@ -273,8 +276,8 @@ public class TransformHierarchy {
       // Validate that a primitive transform produces only primitive output, and a composite
       // transform does not produce primitive output.
       Set<Node> outputProducers = new HashSet<>();
-      for (PValue outputValue : output.expand()) {
-        outputProducers.add(getProducer(outputValue));
+      for (TaggedPValue outputValue : output.expand()) {
+        outputProducers.add(getProducer(outputValue.getValue()));
       }
       if (outputProducers.contains(this) && outputProducers.size() != 1) {
         Set<String> otherProducerNames = new HashSet<>();
@@ -296,8 +299,8 @@ public class TransformHierarchy {
     }
 
     /** Returns the transform output, in unexpanded form. */
-    public Collection<? extends PValue> getOutputs() {
-      return output == null ? Collections.<PValue>emptyList() : output.expand();
+    public List<TaggedPValue> getOutputs() {
+      return output == null ? Collections.<TaggedPValue>emptyList() : output.expand();
     }
 
     /**
@@ -320,9 +323,9 @@ public class TransformHierarchy {
 
       if (!isRootNode()) {
         // Visit inputs.
-        for (PValue inputValue : input.expand()) {
-          if (visitedValues.add(inputValue)) {
-            visitor.visitValue(inputValue, getProducer(inputValue));
+        for (TaggedPValue inputValue : input.expand()) {
+          if (visitedValues.add(inputValue.getValue())) {
+            visitor.visitValue(inputValue.getValue(), getProducer(inputValue.getValue()));
           }
         }
       }
@@ -342,9 +345,9 @@ public class TransformHierarchy {
 
       if (!isRootNode()) {
         // Visit outputs.
-        for (PValue pValue : output.expand()) {
-          if (visitedValues.add(pValue)) {
-            visitor.visitValue(pValue, this);
+        for (TaggedPValue pValue : output.expand()) {
+          if (visitedValues.add(pValue.getValue())) {
+            visitor.visitValue(pValue.getValue(), this);
           }
         }
       }
