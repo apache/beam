@@ -322,33 +322,33 @@ public class BigQueryIO {
   }
 
   private static class JsonTableRefToTableRef
-      implements NestedValueProvider.DeferrableTranslator<TableReference, String> {
+      implements SerializableFunction<String, TableReference> {
     @Override
-    public TableReference createValue(String from) {
+    public TableReference apply(String from) {
       return fromJsonString(from, TableReference.class);
     }
   }
 
   private static class TableRefToJson
-      implements NestedValueProvider.DeferrableTranslator<String, TableReference> {
+      implements SerializableFunction<TableReference, String> {
     @Override
-    public String createValue(TableReference from) {
+    public String apply(TableReference from) {
       return toJsonString(from);
     }
   }
 
   private static class TableRefToProjectId
-      implements NestedValueProvider.DeferrableTranslator<String, TableReference> {
+      implements SerializableFunction<TableReference, String> {
     @Override
-    public String createValue(TableReference from) {
+    public String apply(TableReference from) {
       return from.getProjectId();
     }
   }
 
   private static class TableSpecToTableRef
-      implements NestedValueProvider.DeferrableTranslator<TableReference, String> {
+      implements SerializableFunction<String, TableReference> {
     @Override
-    public TableReference createValue(String from) {
+    public TableReference apply(String from) {
       return parseTableSpec(from);
     }
   }
@@ -664,9 +664,9 @@ public class BigQueryIO {
               jobIdToken, query, StaticValueProvider.of(queryTempTableRef),
               flattenResults, useLegacySql, extractDestinationDir, bqServices);
         } else {
-          TableReference inputTable = getTableWithDefaultProject(bqOptions);
+          ValueProvider<TableReference> inputTable = getTableWithDefaultProject(bqOptions);
           source = BigQueryTableSource.create(
-              jobIdToken, StaticValueProvider.of(inputTable), extractDestinationDir, bqServices,
+              jobIdToken, inputTable, extractDestinationDir, bqServices,
               StaticValueProvider.of(executingProject));
         }
         PassThroughThenCleanup.CleanupOperation cleanupOperation =
@@ -750,7 +750,10 @@ public class BigQueryIO {
         if (Strings.isNullOrEmpty(table.get().getProjectId())) {
           // If user does not specify a project we assume the table to be located in
           // the default project.
-          table.setProjectId(bqOptions.getProject());
+          TableReference ref = table.get();
+          ref.setProjectId(bqOptions.getProject());
+          return NestedValueProvider.of(StaticValueProvider.of(
+              toJsonString(ref)), new JsonTableRefToTableRef());
         }
         return table;
       }
