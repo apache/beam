@@ -661,7 +661,9 @@ public class BigQueryIO {
               .setTableId(queryTempTableId);
 
           source = BigQueryQuerySource.create(
-              jobIdToken, query, StaticValueProvider.of(queryTempTableRef),
+              jobIdToken, query, NestedValueProvider.of(
+                  StaticValueProvider.of(
+                      toJsonString(queryTempTableRef)), new JsonTableRefToTableRef()),
               flattenResults, useLegacySql, extractDestinationDir, bqServices);
         } else {
           ValueProvider<TableReference> inputTable = getTableWithDefaultProject(bqOptions);
