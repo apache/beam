@@ -81,7 +81,7 @@ python setup.py nosetests \
     --staging_location=$GCS_LOCATION/staging-validatesrunner-test \
     --sdk_location=$SDK_LOCATION \
     --job_name=$JOBNAME_VR_TEST \
-    --num_workers=1" >> job_output 2>&1 || true
+    --num_workers=1"
 
 # Run wordcount on the Google Cloud Dataflow service
 python -m apache_beam.examples.wordcount \
