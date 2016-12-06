@@ -124,13 +124,13 @@ public class BigqueryMatcher extends TypeSafeMatcher<PipelineResult>
     if (!response.getJobComplete()) {
       // query job not complete, verification failed
       return false;
+    } else {
+      // compute checksum
+      actualChecksum = generateHash(response.getRows());
+      LOG.debug("Generated a SHA1 checksum based on queried data: {}", actualChecksum);
+
+      return expectedChecksum.equals(actualChecksum);
     }
-
-    // compute checksum
-    actualChecksum = generateHash(response.getRows());
-    LOG.debug("Generated a SHA1 checksum based on queried data: {}", actualChecksum);
-
-    return expectedChecksum.equals(actualChecksum);
   }
 
   @VisibleForTesting
@@ -150,12 +150,15 @@ public class BigqueryMatcher extends TypeSafeMatcher<PipelineResult>
                                  Sleeper sleeper, BackOff backOff)
       throws IOException, InterruptedException {
     QueryResponse response;
-    IOException lastException = null;
+    IOException lastException;
     do {
       try {
         response = bigqueryClient.jobs().query(projectId, queryContent).execute();
         if (response != null) {
           return response;
+        } else {
+          lastException =
+              new IOException("Expected valid response from query job, but received null.");
         }
       } catch (IOException e) {
         // ignore and retry
@@ -166,8 +169,7 @@ public class BigqueryMatcher extends TypeSafeMatcher<PipelineResult>
 
     throw new RuntimeException(
         String.format(
-            "Unable to get BigQuery response after retrying %d times. Got response: null.",
-            MAX_QUERY_RETRIES),
+            "Unable to get BigQuery response after retrying %d times.", MAX_QUERY_RETRIES),
         lastException);
   }
 
