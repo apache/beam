@@ -167,6 +167,30 @@ public class DisplayDataTest implements Serializable {
   }
 
   @Test
+  public void testStaticValueProviderDate() {
+    final Instant value = Instant.now();
+    DisplayData data =
+        DisplayData.from(new HasDisplayData() {
+              @Override
+              public void populateDisplayData(DisplayData.Builder builder) {
+                builder.add(DisplayData.item(
+                    "foo", StaticValueProvider.of(value)));
+              }
+            });
+
+    @SuppressWarnings("unchecked")
+    DisplayData.Item item = (DisplayData.Item) data.items().toArray()[0];
+
+    @SuppressWarnings("unchecked")
+    Matcher<Item> matchesAllOf = Matchers.allOf(
+        hasKey("foo"),
+        hasType(DisplayData.Type.TIMESTAMP),
+        hasValue(ISO_FORMATTER.print(value)));
+
+    assertThat(item, matchesAllOf);
+  }
+
+  @Test
   public void testStaticValueProviderString() {
     DisplayData data =
         DisplayData.from(new HasDisplayData() {
@@ -193,7 +217,7 @@ public class DisplayDataTest implements Serializable {
             });
 
     assertThat(data.items(), hasSize(1));
-    assertThat(data, hasDisplayItem("foo", "1"));
+    assertThat(data, hasDisplayItem("foo", 1));
   }
 
   @Test

@@ -866,9 +866,16 @@ public class DisplayData implements Serializable {
   /**
    * Create a display item for the specified key and {@link ValueProvider}.
    */
-  public static ItemSpec<String> item(String key, ValueProvider<?> value) {
-    return item(key, Type.STRING, value.isAccessible()
-        ? value.get().toString() : value.toString());
+  public static ItemSpec item(String key, ValueProvider<?> value) {
+    if (value.isAccessible()) {
+      Object got = value.get();
+      Type type = inferType(got);
+      if (type == null) {
+        throw new RuntimeException(String.format("Unknown value type: %s", got));
+      }
+      return item(key, type, got);
+    }
+    return item(key, Type.STRING, value.toString());
   }
 
   /**
