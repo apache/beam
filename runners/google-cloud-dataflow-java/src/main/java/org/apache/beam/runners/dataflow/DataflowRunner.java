@@ -244,14 +244,23 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     }
 
     PathValidator validator = dataflowOptions.getPathValidator();
-    checkArgument(
-        !isNullOrEmpty(dataflowOptions.getGcpTempLocation()),
-        "DataflowRunner requires gcpTempLocation, and it is missing in PipelineOptions.");
-    validator.validateOutputFilePrefixSupported(dataflowOptions.getGcpTempLocation());
-    checkArgument(
-        !isNullOrEmpty(dataflowOptions.getStagingLocation()),
-        "DataflowRunner requires stagingLocation, and it is missing in PipelineOptions.");
-    validator.validateOutputFilePrefixSupported(dataflowOptions.getStagingLocation());
+    String gcpTempLocation;
+    try {
+      gcpTempLocation = dataflowOptions.getGcpTempLocation();
+    } catch (Exception e) {
+      throw new IllegalArgumentException("DataflowRunner requires gcpTempLocation, "
+          + "but failed to retrieve a value from PipelineOptions", e);
+    }
+    validator.validateOutputFilePrefixSupported(gcpTempLocation);
+
+    String stagingLocation;
+    try {
+      stagingLocation = dataflowOptions.getStagingLocation();
+    } catch (Exception e) {
+      throw new IllegalArgumentException("DataflowRunner requires stagingLocation, "
+          + "but failed to retrieve a value from PipelineOptions", e);
+    }
+    validator.validateOutputFilePrefixSupported(stagingLocation);
 
     if (!Strings.isNullOrEmpty(dataflowOptions.getSaveProfilesToGcs())) {
       validator.validateOutputFilePrefixSupported(dataflowOptions.getSaveProfilesToGcs());
