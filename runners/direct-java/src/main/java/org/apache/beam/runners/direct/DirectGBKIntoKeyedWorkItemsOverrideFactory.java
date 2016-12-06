@@ -18,7 +18,8 @@
 package org.apache.beam.runners.direct;
 
 import org.apache.beam.runners.core.KeyedWorkItem;
-import org.apache.beam.runners.core.SplittableParDo;
+import org.apache.beam.runners.core.SplittableParDo.GBKIntoKeyedWorkItems;
+import org.apache.beam.sdk.runners.PTransformOverrideFactory;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
@@ -30,10 +31,10 @@ import org.apache.beam.sdk.values.PCollection;
 class DirectGBKIntoKeyedWorkItemsOverrideFactory<KeyT, InputT>
     implements PTransformOverrideFactory<
         PCollection<KV<KeyT, InputT>>, PCollection<KeyedWorkItem<KeyT, InputT>>,
-        SplittableParDo.GBKIntoKeyedWorkItems<KeyT, InputT>> {
+        GBKIntoKeyedWorkItems<KeyT, InputT>> {
   @Override
   public PTransform<PCollection<KV<KeyT, InputT>>, PCollection<KeyedWorkItem<KeyT, InputT>>>
-      override(SplittableParDo.GBKIntoKeyedWorkItems<KeyT, InputT> transform) {
+      getReplacementTransform(GBKIntoKeyedWorkItems<KeyT, InputT> transform) {
     return new DirectGroupByKey.DirectGroupByKeyOnly<>();
   }
 }
