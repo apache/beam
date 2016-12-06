@@ -46,6 +46,7 @@ import org.apache.beam.sdk.io.Write;
 import org.apache.beam.sdk.metrics.MetricResults;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.runners.PTransformOverrideFactory;
 import org.apache.beam.sdk.runners.PipelineRunner;
 import org.apache.beam.sdk.testing.TestStream;
 import org.apache.beam.sdk.transforms.Aggregator;
@@ -284,9 +285,11 @@ public class DirectRunner extends PipelineRunner<DirectPipelineResult> {
   @Override
   public <OutputT extends POutput, InputT extends PInput> OutputT apply(
       PTransform<InputT, OutputT> transform, InputT input) {
-    PTransformOverrideFactory overrideFactory = defaultTransformOverrides.get(transform.getClass());
+    PTransformOverrideFactory<InputT, OutputT, PTransform<InputT, OutputT>> overrideFactory =
+        defaultTransformOverrides.get(transform.getClass());
     if (overrideFactory != null) {
-      PTransform<InputT, OutputT> customTransform = overrideFactory.override(transform);
+      PTransform<InputT, OutputT> customTransform =
+          overrideFactory.getReplacementTransform(transform);
       if (customTransform != transform) {
         return Pipeline.applyTransform(transform.getName(), input, customTransform);
       }

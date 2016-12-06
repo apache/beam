@@ -14,22 +14,28 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
+ *
  */
-package org.apache.beam.runners.direct;
 
+package org.apache.beam.sdk.runners;
+
+import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
 
-interface PTransformOverrideFactory<
+/**
+ * Produces {@link PipelineRunner}-specific overrides of {@link PTransform PTransforms}, and
+ * provides mappings between original and replacement outputs.
+ */
+@Experimental(Kind.CORE_RUNNERS_ONLY)
+public interface PTransformOverrideFactory<
     InputT extends PInput,
     OutputT extends POutput,
-    TransformT extends PTransform<InputT, OutputT>> {
+    TransformT extends PTransform<? super InputT, OutputT>> {
   /**
-   * Create a {@link PTransform} override for the provided {@link PTransform} if applicable.
-   * Otherwise, return the input {@link PTransform}.
-   *
-   * <p>The returned PTransform must be semantically equivalent to the input {@link PTransform}.
+   * Returns a {@link PTransform} that produces equivalent output to the provided transform.
    */
-  PTransform<InputT, OutputT> override(TransformT transform);
+  PTransform<InputT, OutputT> getReplacementTransform(TransformT transform);
 }

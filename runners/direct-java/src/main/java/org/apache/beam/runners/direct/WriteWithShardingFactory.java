@@ -47,11 +47,13 @@ import org.joda.time.Duration;
  * of shards is the log base 10 of the number of input records, with up to 2 additional shards.
  */
 class WriteWithShardingFactory<InputT>
-    implements PTransformOverrideFactory<PCollection<InputT>, PDone, Write.Bound<InputT>> {
+    implements org.apache.beam.sdk.runners.PTransformOverrideFactory<
+        PCollection<InputT>, PDone, Write.Bound<InputT>> {
   static final int MAX_RANDOM_EXTRA_SHARDS = 3;
 
   @Override
-  public PTransform<PCollection<InputT>, PDone> override(Write.Bound<InputT> transform) {
+  public PTransform<PCollection<InputT>, PDone> getReplacementTransform(
+      Bound<InputT> transform) {
     if (transform.getNumShards() == 0) {
       return new DynamicallyReshardedWrite<>(transform);
     }
