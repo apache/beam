@@ -30,7 +30,7 @@ notifications:
 
 env:
   global:
-   - MAVEN_OVERRIDE="--settings=.travis/settings.xml -Dmaven.javadoc.skip=true -Dcheckstyle.skip=true -Dfindbugs.skip=true"
+   - MAVEN_OVERRIDE="--settings=.travis/settings.xml"
    - MAVEN_CONTAINER_OVERRIDE="-DbeamSurefireArgline='-Xmx512m'"
 
 matrix:

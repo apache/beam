@@ -74,8 +74,10 @@ import org.joda.time.Instant;
  * can be executed.
  */
 class EvaluationContext {
-  /** The step name for each {@link AppliedPTransform} in the {@link Pipeline}. */
-  private final Map<AppliedPTransform<?, ?, ?>, String> stepNames;
+  /**
+   * The graph representing this {@link Pipeline}.
+   */
+  private final DirectGraph graph;
 
   /** The options that were used to create this {@link Pipeline}. */
   private final DirectOptions options;
@@ -99,36 +101,19 @@ class EvaluationContext {
   private final DirectMetrics metrics;
 
   public static EvaluationContext create(
-      DirectOptions options,
-      Clock clock,
-      BundleFactory bundleFactory,
-      Collection<AppliedPTransform<?, ?, ?>> rootTransforms,
-      Map<PValue, Collection<AppliedPTransform<?, ?, ?>>> valueToConsumers,
-      Map<AppliedPTransform<?, ?, ?>, String> stepNames,
-      Collection<PCollectionView<?>> views) {
-    return new EvaluationContext(
-        options, clock, bundleFactory, rootTransforms, valueToConsumers, stepNames, views);
+      DirectOptions options, Clock clock, BundleFactory bundleFactory, DirectGraph graph) {
+    return new EvaluationContext(options, clock, bundleFactory, graph);
   }
 
   private EvaluationContext(
-      DirectOptions options,
-      Clock clock,
-      BundleFactory bundleFactory,
-      Collection<AppliedPTransform<?, ?, ?>> rootTransforms,
-      Map<PValue, Collection<AppliedPTransform<?, ?, ?>>> valueToConsumers,
-      Map<AppliedPTransform<?, ?, ?>, String> stepNames,
-      Collection<PCollectionView<?>> views) {
+      DirectOptions options, Clock clock, BundleFactory bundleFactory, DirectGraph graph) {
     this.options = checkNotNull(options);
     this.clock = clock;
     this.bundleFactory = checkNotNull(bundleFactory);
-    checkNotNull(rootTransforms);
-    checkNotNull(valueToConsumers);
-    checkNotNull(stepNames);
-    checkNotNull(views);
-    this.stepNames = stepNames;
+    this.graph = checkNotNull(graph);
 
-    this.watermarkManager = WatermarkManager.create(clock, rootTransforms, valueToConsumers);
-    this.sideInputContainer = SideInputContainer.create(this, views);
+    this.watermarkManager = WatermarkManager.create(clock, graph);
+    this.sideInputContainer = SideInputContainer.create(this, graph.getViews());
 
     this.applicationStateInternals = new ConcurrentHashMap<>();
     this.mergedAggregators = AggregatorContainer.create();
@@ -161,7 +146,7 @@ class EvaluationContext {
   public CommittedResult handleResult(
       @Nullable CommittedBundle<?> completedBundle,
       Iterable<TimerData> completedTimers,
-      TransformResult result) {
+      TransformResult<?> result) {
     Iterable<? extends CommittedBundle<?>> committedBundles =
         commitBundles(result.getOutputBundles());
     metrics.commitLogical(completedBundle, result.getLogicalMetricUpdates());
@@ -211,7 +196,7 @@ class EvaluationContext {
     ImmutableList.Builder<CommittedBundle<?>> completed = ImmutableList.builder();
     for (UncommittedBundle<?> inProgress : bundles) {
       AppliedPTransform<?, ?, ?> producing =
-          inProgress.getPCollection().getProducingTransformInternal();
+          graph.getProducer(inProgress.getPCollection());
       TransformWatermarks watermarks = watermarkManager.getWatermarks(producing);
       CommittedBundle<?> committed =
           inProgress.commit(watermarks.getSynchronizedProcessingOutputTime());
@@ -225,7 +210,7 @@ class EvaluationContext {
   }
 
   private void fireAllAvailableCallbacks() {
-    for (AppliedPTransform<?, ?, ?> transform : stepNames.keySet()) {
+    for (AppliedPTransform<?, ?, ?> transform : graph.getPrimitiveTransforms()) {
       fireAvailableCallbacks(transform);
     }
   }
@@ -290,26 +275,25 @@ class EvaluationContext {
       BoundedWindow window,
       WindowingStrategy<?, ?> windowingStrategy,
       Runnable runnable) {
-    AppliedPTransform<?, ?, ?> producing = getProducing(value);
+    AppliedPTransform<?, ?, ?> producing = graph.getProducer(value);
     callbackExecutor.callOnGuaranteedFiring(producing, window, windowingStrategy, runnable);
 
-    fireAvailableCallbacks(lookupProducing(value));
+    fireAvailableCallbacks(producing);
   }
 
-  private AppliedPTransform<?, ?, ?> getProducing(PValue value) {
-    if (value.getProducingTransformInternal() != null) {
-      return value.getProducingTransformInternal();
-    }
-    return lookupProducing(value);
-  }
+  /**
+   * Schedule a callback to be executed after the given window is expired.
+   *
+   * <p>For example, upstream state associated with the window may be cleared.
+   */
+  public void scheduleAfterWindowExpiration(
+      AppliedPTransform<?, ?, ?> producing,
+      BoundedWindow window,
+      WindowingStrategy<?, ?> windowingStrategy,
+      Runnable runnable) {
+    callbackExecutor.callOnWindowExpiration(producing, window, windowingStrategy, runnable);
 
-  private AppliedPTransform<?, ?, ?> lookupProducing(PValue value) {
-    for (AppliedPTransform<?, ?, ?> transform : stepNames.keySet()) {
-      if (transform.getOutput().equals(value) || transform.getOutput().expand().contains(value)) {
-        return transform;
-      }
-    }
-    return null;
+    fireAvailableCallbacks(producing);
   }
 
   /**
@@ -332,18 +316,17 @@ class EvaluationContext {
         watermarkManager.getWatermarks(application));
   }
 
-  /**
-   * Get all of the steps used in this {@link Pipeline}.
-   */
-  public Collection<AppliedPTransform<?, ?, ?>> getSteps() {
-    return stepNames.keySet();
-  }
 
   /**
    * Get the Step Name for the provided application.
    */
-  public String getStepName(AppliedPTransform<?, ?, ?> application) {
-    return stepNames.get(application);
+  String getStepName(AppliedPTransform<?, ?, ?> application) {
+    return graph.getStepName(application);
+  }
+
+  /** Returns all of the steps in this {@link Pipeline}. */
+  Collection<AppliedPTransform<?, ?, ?>> getSteps() {
+    return graph.getPrimitiveTransforms();
   }
 
   /**
@@ -435,7 +418,7 @@ class EvaluationContext {
    * Returns true if all steps are done.
    */
   public boolean isDone() {
-    for (AppliedPTransform<?, ?, ?> transform : stepNames.keySet()) {
+    for (AppliedPTransform<?, ?, ?> transform : graph.getPrimitiveTransforms()) {
       if (!isDone(transform)) {
         return false;
       }

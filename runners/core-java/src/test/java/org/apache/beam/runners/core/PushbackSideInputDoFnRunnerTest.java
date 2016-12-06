@@ -17,9 +17,9 @@
  */
 package org.apache.beam.runners.core;
 
+import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.emptyIterable;
-import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertThat;
 import static org.mockito.Mockito.when;
@@ -27,7 +27,6 @@ import static org.mockito.Mockito.when;
 import com.google.common.collect.ImmutableList;
 import java.util.ArrayList;
 import java.util.List;
-
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.Sum;
@@ -131,7 +130,7 @@ public class PushbackSideInputDoFnRunnerTest {
             PaneInfo.ON_TIME_AND_ONLY_FIRING);
     Iterable<WindowedValue<Integer>> multiWindowPushback =
         runner.processElementInReadyWindows(multiWindow);
-    assertThat(multiWindowPushback, equalTo(multiWindow.explodeWindows()));
+    assertThat(multiWindowPushback, contains(multiWindow));
     assertThat(underlying.inputElems, Matchers.<WindowedValue<Integer>>emptyIterable());
   }
 
@@ -162,9 +161,14 @@ public class PushbackSideInputDoFnRunnerTest {
     assertThat(
         multiWindowPushback,
         containsInAnyOrder(WindowedValue.timestampedValueInGlobalWindow(2, new Instant(-2L))));
-    assertThat(underlying.inputElems,
-        containsInAnyOrder(WindowedValue.of(2, new Instant(-2), littleWindow, PaneInfo.NO_FIRING),
-            WindowedValue.of(2, new Instant(-2), bigWindow, PaneInfo.NO_FIRING)));
+    assertThat(
+        underlying.inputElems,
+        containsInAnyOrder(
+            WindowedValue.of(
+                2,
+                new Instant(-2),
+                ImmutableList.of(littleWindow, bigWindow),
+                PaneInfo.NO_FIRING)));
   }
 
   @Test
@@ -188,7 +192,7 @@ public class PushbackSideInputDoFnRunnerTest {
         runner.processElementInReadyWindows(multiWindow);
     assertThat(multiWindowPushback, emptyIterable());
     assertThat(underlying.inputElems,
-        containsInAnyOrder(ImmutableList.copyOf(multiWindow.explodeWindows()).toArray()));
+        containsInAnyOrder(ImmutableList.of(multiWindow).toArray()));
   }
 
   @Test

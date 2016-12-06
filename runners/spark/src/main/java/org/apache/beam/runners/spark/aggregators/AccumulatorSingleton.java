@@ -24,7 +24,7 @@ import org.apache.spark.api.java.JavaSparkContext;
 
 /**
  * For resilience, {@link Accumulator}s are required to be wrapped in a Singleton.
- * @see <a href="https://spark.apache.org/docs/1.6.2/streaming-programming-guide.html#accumulators-and-broadcast-variables">accumulators</a>
+ * @see <a href="https://spark.apache.org/docs/1.6.3/streaming-programming-guide.html#accumulators-and-broadcast-variables">accumulators</a>
  */
 public class AccumulatorSingleton {
 

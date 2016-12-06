@@ -84,6 +84,9 @@ public interface DoFnInvoker<InputT, OutputT> {
   <RestrictionT, TrackerT extends RestrictionTracker<RestrictionT>> TrackerT invokeNewTracker(
       RestrictionT restriction);
 
+  /** Get the bound {@link DoFn}. */
+  DoFn<InputT, OutputT> getFn();
+
   /**
    * Interface for runner implementors to provide implementations of extra context information.
    *

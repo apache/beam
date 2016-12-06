@@ -54,7 +54,7 @@ class DoFnLifecycleManagerRemovingTransformEvaluator<InputT> implements Transfor
   }
 
   @Override
-  public TransformResult finishBundle() throws Exception {
+  public TransformResult<InputT> finishBundle() throws Exception {
     try {
       return underlying.finishBundle();
     } catch (Exception e) {

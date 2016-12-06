@@ -110,7 +110,7 @@ public class BoundedReadEvaluatorFactoryTest {
       for (WindowedValue<?> shard : shardBundle.getElements()) {
         evaluator.processElement((WindowedValue) shard);
       }
-      TransformResult result = evaluator.finishBundle();
+      TransformResult<?> result = evaluator.finishBundle();
       assertThat(result.getWatermarkHold(), equalTo(BoundedWindow.TIMESTAMP_MAX_VALUE));
       assertThat(
           Iterables.size(result.getOutputBundles()),
@@ -154,11 +154,11 @@ public class BoundedReadEvaluatorFactoryTest {
 
       Collection<CommittedBundle<?>> newUnreadInputs = new ArrayList<>();
       for (CommittedBundle<?> shardBundle : unreadInputs) {
-        TransformEvaluator<?> evaluator = factory.forApplication(transform, null);
+        TransformEvaluator<Long> evaluator = factory.forApplication(transform, null);
         for (WindowedValue<?> shard : shardBundle.getElements()) {
           evaluator.processElement((WindowedValue) shard);
         }
-        TransformResult result = evaluator.finishBundle();
+        TransformResult<Long> result = evaluator.finishBundle();
         assertThat(result.getWatermarkHold(), equalTo(BoundedWindow.TIMESTAMP_MAX_VALUE));
         assertThat(
             Iterables.size(result.getOutputBundles()),
@@ -207,7 +207,7 @@ public class BoundedReadEvaluatorFactoryTest {
       for (WindowedValue<?> shard : shardBundle.getElements()) {
         evaluator.processElement((WindowedValue) shard);
       }
-      TransformResult result = evaluator.finishBundle();
+      TransformResult<?> result = evaluator.finishBundle();
       assertThat(result.getWatermarkHold(), equalTo(BoundedWindow.TIMESTAMP_MAX_VALUE));
       assertThat(
           Iterables.size(result.getOutputBundles()),
@@ -277,7 +277,7 @@ public class BoundedReadEvaluatorFactoryTest {
       when(context.createBundle(longs)).thenReturn(outputBundle);
       evaluator.processElement(shard);
     }
-    TransformResult result = evaluator.finishBundle();
+    TransformResult<?> result = evaluator.finishBundle();
     assertThat(Iterables.size(result.getOutputBundles()), equalTo(splits.size()));
 
     List<WindowedValue<?>> outputElems = new ArrayList<>();
@@ -333,6 +333,12 @@ public class BoundedReadEvaluatorFactoryTest {
     CommittedBundle<Long> committed = output.commit(Instant.now());
     assertThat(committed.getElements(), emptyIterable());
     assertThat(TestSource.readerClosed, is(true));
+  }
+
+  @Test
+  public void cleanupShutsDownExecutor() {
+    factory.cleanup();
+    assertThat(factory.executor.isShutdown(), is(true));
   }
 
   private static class TestSource<T> extends OffsetBasedSource<T> {

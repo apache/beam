@@ -22,7 +22,6 @@ import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
 
 import java.io.File;
 import java.util.Arrays;
@@ -52,7 +51,7 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 /**
- * Tests for {@link TransformTreeNode} and {@link TransformHierarchy}.
+ * Tests for {@link TransformHierarchy.Node} and {@link TransformHierarchy}.
  */
 @RunWith(JUnit4.class)
 public class TransformTreeTest {
@@ -129,7 +128,7 @@ public class TransformTreeTest {
 
     p.traverseTopologically(new Pipeline.PipelineVisitor.Defaults() {
       @Override
-      public CompositeBehavior enterCompositeTransform(TransformTreeNode node) {
+      public CompositeBehavior enterCompositeTransform(TransformHierarchy.Node node) {
         PTransform<?, ?> transform = node.getTransform();
         if (transform instanceof Sample.SampleAny) {
           assertTrue(visited.add(TransformsSeen.SAMPLE_ANY));
@@ -145,7 +144,7 @@ public class TransformTreeTest {
       }
 
       @Override
-      public void leaveCompositeTransform(TransformTreeNode node) {
+      public void leaveCompositeTransform(TransformHierarchy.Node node) {
         PTransform<?, ?> transform = node.getTransform();
         if (transform instanceof Sample.SampleAny) {
           assertTrue(left.add(TransformsSeen.SAMPLE_ANY));
@@ -153,7 +152,7 @@ public class TransformTreeTest {
       }
 
       @Override
-      public void visitPrimitiveTransform(TransformTreeNode node) {
+      public void visitPrimitiveTransform(TransformHierarchy.Node node) {
         PTransform<?, ?> transform = node.getTransform();
         // Pick is a composite, should not be visited here.
         assertThat(transform, not(instanceOf(Sample.SampleAny.class)));
@@ -169,14 +168,13 @@ public class TransformTreeTest {
     assertTrue(left.equals(EnumSet.of(TransformsSeen.SAMPLE_ANY)));
   }
 
-  @Test(expected = IllegalStateException.class)
+  @Test(expected = IllegalArgumentException.class)
   public void testOutputChecking() throws Exception {
     Pipeline p = TestPipeline.create();
 
     p.apply(new InvalidCompositeTransform());
 
     p.traverseTopologically(new Pipeline.PipelineVisitor.Defaults() {});
-    fail("traversal should have failed with an IllegalStateException");
   }
 
   @Test

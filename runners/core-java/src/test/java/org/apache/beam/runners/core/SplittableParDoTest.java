@@ -29,15 +29,18 @@ import static org.junit.Assert.assertTrue;
 
 import java.io.Serializable;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.List;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.testing.ValueInSingleWindow;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFnTester;
+import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
@@ -47,8 +50,13 @@ import org.apache.beam.sdk.util.KeyedWorkItem;
 import org.apache.beam.sdk.util.KeyedWorkItems;
 import org.apache.beam.sdk.util.TimerInternals;
 import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.util.state.StateInternals;
+import org.apache.beam.sdk.util.state.StateInternalsFactory;
+import org.apache.beam.sdk.util.state.TimerInternalsFactory;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TimestampedValue;
+import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.TupleTagList;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Test;
@@ -120,6 +128,12 @@ public class SplittableParDoTest {
         .setIsBoundedInternal(PCollection.IsBounded.BOUNDED);
   }
 
+  private static final TupleTag<String> MAIN_OUTPUT_TAG = new TupleTag<String>() {};
+
+  private ParDo.BoundMulti<Integer, String> makeParDo(DoFn<Integer, String> fn) {
+    return ParDo.of(fn).withOutputTags(MAIN_OUTPUT_TAG, TupleTagList.empty());
+  }
+
   @Test
   public void testBoundednessForBoundedFn() {
     Pipeline pipeline = TestPipeline.create();
@@ -128,13 +142,15 @@ public class SplittableParDoTest {
         "Applying a bounded SDF to a bounded collection produces a bounded collection",
         PCollection.IsBounded.BOUNDED,
         makeBoundedCollection(pipeline)
-            .apply("bounded to bounded", new SplittableParDo<>(boundedFn))
+            .apply("bounded to bounded", new SplittableParDo<>(makeParDo(boundedFn)))
+            .get(MAIN_OUTPUT_TAG)
             .isBounded());
     assertEquals(
         "Applying a bounded SDF to an unbounded collection produces an unbounded collection",
         PCollection.IsBounded.UNBOUNDED,
         makeUnboundedCollection(pipeline)
-            .apply("bounded to unbounded", new SplittableParDo<>(boundedFn))
+            .apply("bounded to unbounded", new SplittableParDo<>(makeParDo(boundedFn)))
+            .get(MAIN_OUTPUT_TAG)
             .isBounded());
   }
 
@@ -146,17 +162,24 @@ public class SplittableParDoTest {
         "Applying an unbounded SDF to a bounded collection produces a bounded collection",
         PCollection.IsBounded.UNBOUNDED,
         makeBoundedCollection(pipeline)
-            .apply("unbounded to bounded", new SplittableParDo<>(unboundedFn))
+            .apply("unbounded to bounded", new SplittableParDo<>(makeParDo(unboundedFn)))
+            .get(MAIN_OUTPUT_TAG)
             .isBounded());
     assertEquals(
         "Applying an unbounded SDF to an unbounded collection produces an unbounded collection",
         PCollection.IsBounded.UNBOUNDED,
         makeUnboundedCollection(pipeline)
-            .apply("unbounded to unbounded", new SplittableParDo<>(unboundedFn))
+            .apply("unbounded to unbounded", new SplittableParDo<>(makeParDo(unboundedFn)))
+            .get(MAIN_OUTPUT_TAG)
             .isBounded());
   }
 
   // ------------------------------- Tests for ProcessFn ---------------------------------
+
+  enum WindowExplosion {
+    EXPLODE_WINDOWS,
+    DO_NOT_EXPLODE_WINDOWS
+  }
 
   /**
    * A helper for testing {@link SplittableParDo.ProcessFn} on 1 element (but possibly over multiple
@@ -179,6 +202,52 @@ public class SplittableParDoTest {
           new SplittableParDo.ProcessFn<>(
               fn, inputCoder, restrictionCoder, IntervalWindow.getCoder());
       this.tester = DoFnTester.of(processFn);
+      processFn.setStateInternalsFactory(
+          new StateInternalsFactory<String>() {
+            @Override
+            public StateInternals<String> stateInternalsForKey(String key) {
+              return tester.getStateInternals();
+            }
+          });
+      processFn.setTimerInternalsFactory(
+          new TimerInternalsFactory<String>() {
+            @Override
+            public TimerInternals timerInternalsForKey(String key) {
+              return tester.getTimerInternals();
+            }
+          });
+      processFn.setOutputWindowedValue(
+          new OutputWindowedValue<OutputT>() {
+            @Override
+            public void outputWindowedValue(
+                OutputT output,
+                Instant timestamp,
+                Collection<? extends BoundedWindow> windows,
+                PaneInfo pane) {
+              for (BoundedWindow window : windows) {
+                tester
+                    .getMutableOutput(tester.getMainOutputTag())
+                    .add(ValueInSingleWindow.of(output, timestamp, window, pane));
+              }
+            }
+
+            @Override
+            public <SideOutputT> void sideOutputWindowedValue(
+                TupleTag<SideOutputT> tag,
+                SideOutputT output,
+                Instant timestamp,
+                Collection<? extends BoundedWindow> windows,
+                PaneInfo pane) {
+              for (BoundedWindow window : windows) {
+                tester
+                    .getMutableOutput(tag)
+                    .add(ValueInSingleWindow.of(output, timestamp, window, pane));
+              }
+            }
+          });
+      // Do not clone since ProcessFn references non-serializable DoFnTester itself
+      // through the state/timer/output callbacks.
+      this.tester.setCloningBehavior(DoFnTester.CloningBehavior.DO_NOT_CLONE);
       this.tester.startBundle();
       this.tester.advanceProcessingTime(currentProcessingTime);
 
@@ -192,12 +261,24 @@ public class SplittableParDoTest {
               ElementAndRestriction.of(element, restriction),
               currentProcessingTime,
               GlobalWindow.INSTANCE,
-              PaneInfo.ON_TIME_AND_ONLY_FIRING));
+              PaneInfo.ON_TIME_AND_ONLY_FIRING),
+          WindowExplosion.DO_NOT_EXPLODE_WINDOWS);
     }
 
-    void startElement(WindowedValue<ElementAndRestriction<InputT, RestrictionT>> windowedValue)
+    void startElement(
+        WindowedValue<ElementAndRestriction<InputT, RestrictionT>> windowedValue,
+        WindowExplosion explosion)
         throws Exception {
-      tester.processElement(KeyedWorkItems.elementsWorkItem("key", Arrays.asList(windowedValue)));
+      switch (explosion) {
+        case EXPLODE_WINDOWS:
+          tester.processElement(
+              KeyedWorkItems.elementsWorkItem("key", windowedValue.explodeWindows()));
+          break;
+        case DO_NOT_EXPLODE_WINDOWS:
+          tester.processElement(
+              KeyedWorkItems.elementsWorkItem("key", Arrays.asList(windowedValue)));
+          break;
+      }
     }
 
     /**
@@ -253,9 +334,6 @@ public class SplittableParDoTest {
     DoFn<Integer, String> fn = new ToStringFn();
 
     Instant base = Instant.now();
-    ProcessFnTester<Integer, String, SomeRestriction, SomeRestrictionTracker> tester =
-        new ProcessFnTester<>(
-            base, fn, BigEndianIntegerCoder.of(), SerializableCoder.of(SomeRestriction.class));
 
     IntervalWindow w1 =
         new IntervalWindow(
@@ -267,20 +345,26 @@ public class SplittableParDoTest {
         new IntervalWindow(
             base.minus(Duration.standardMinutes(3)), base.plus(Duration.standardMinutes(3)));
 
-    tester.startElement(
-        WindowedValue.of(
-            ElementAndRestriction.of(42, new SomeRestriction()),
-            base,
-            Arrays.asList(w1, w2, w3),
-            PaneInfo.ON_TIME_AND_ONLY_FIRING));
+    for (WindowExplosion explosion : WindowExplosion.values()) {
+      ProcessFnTester<Integer, String, SomeRestriction, SomeRestrictionTracker> tester =
+          new ProcessFnTester<>(
+              base, fn, BigEndianIntegerCoder.of(), SerializableCoder.of(SomeRestriction.class));
+      tester.startElement(
+          WindowedValue.of(
+              ElementAndRestriction.of(42, new SomeRestriction()),
+              base,
+              Arrays.asList(w1, w2, w3),
+              PaneInfo.ON_TIME_AND_ONLY_FIRING),
+          explosion);
 
-    for (IntervalWindow w : new IntervalWindow[] {w1, w2, w3}) {
-      assertEquals(
-          Arrays.asList(
-              TimestampedValue.of("42a", base),
-              TimestampedValue.of("42b", base),
-              TimestampedValue.of("42c", base)),
-          tester.peekOutputElementsInWindow(w));
+      for (IntervalWindow w : new IntervalWindow[] {w1, w2, w3}) {
+        assertEquals(
+            Arrays.asList(
+                TimestampedValue.of("42a", base),
+                TimestampedValue.of("42b", base),
+                TimestampedValue.of("42c", base)),
+            tester.peekOutputElementsInWindow(w));
+      }
     }
   }
 

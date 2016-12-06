@@ -671,7 +671,7 @@ public abstract class OldDoFn<InputT, OutputT> implements Serializable, HasDispl
     }
 
     @Override
-    protected TypeDescriptor<InputT> getInputTypeDescriptor() {
+    public TypeDescriptor<InputT> getInputTypeDescriptor() {
       return OldDoFn.this.getInputTypeDescriptor();
     }
 
@@ -681,7 +681,7 @@ public abstract class OldDoFn<InputT, OutputT> implements Serializable, HasDispl
     }
 
     @Override
-    protected TypeDescriptor<OutputT> getOutputTypeDescriptor() {
+    public TypeDescriptor<OutputT> getOutputTypeDescriptor() {
       return OldDoFn.this.getOutputTypeDescriptor();
     }
   }
@@ -746,12 +746,12 @@ public abstract class OldDoFn<InputT, OutputT> implements Serializable, HasDispl
     }
 
     @Override
-    protected TypeDescriptor<InputT> getInputTypeDescriptor() {
+    public TypeDescriptor<InputT> getInputTypeDescriptor() {
       return OldDoFn.this.getInputTypeDescriptor();
     }
 
     @Override
-    protected TypeDescriptor<OutputT> getOutputTypeDescriptor() {
+    public TypeDescriptor<OutputT> getOutputTypeDescriptor() {
       return OldDoFn.this.getOutputTypeDescriptor();
     }
   }

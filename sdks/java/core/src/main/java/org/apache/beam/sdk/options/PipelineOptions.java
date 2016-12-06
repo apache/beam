@@ -24,6 +24,7 @@ import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.google.auto.service.AutoService;
 import com.google.common.base.MoreObjects;
 import java.lang.reflect.Proxy;
+import java.util.Map;
 import java.util.ServiceLoader;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicLong;
@@ -320,6 +321,12 @@ public interface PipelineOptions extends HasDisplayData {
           normalizedAppName, normalizedUserName, datePart, randomPart);
     }
   }
+
+  /**
+   * Returns a map of properties which correspond to {@link ValueProvider.RuntimeValueProvider},
+   * keyed by the property name.  The value is a map containing type and default information.
+   */
+  Map<String, Map<String, Object>> outputRuntimeOptions();
 
   /**
    * Provides a unique ID for this {@link PipelineOptions} object, assigned at graph

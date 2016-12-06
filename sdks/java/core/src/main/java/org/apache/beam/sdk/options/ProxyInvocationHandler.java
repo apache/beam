@@ -48,6 +48,7 @@ import java.io.IOException;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
+import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Proxy;
 import java.lang.reflect.Type;
 import java.util.Arrays;
@@ -130,6 +131,8 @@ class ProxyInvocationHandler implements InvocationHandler {
       return equals(args[0]);
     } else if (args == null && "hashCode".equals(method.getName())) {
       return hashCode();
+    } else if (args == null && "outputRuntimeOptions".equals(method.getName())) {
+      return outputRuntimeOptions((PipelineOptions) proxy);
     } else if (args != null && "as".equals(method.getName()) && args[0] instanceof Class) {
       @SuppressWarnings("unchecked")
       Class<? extends PipelineOptions> clazz = (Class<? extends PipelineOptions>) args[0];
@@ -239,6 +242,29 @@ class ProxyInvocationHandler implements InvocationHandler {
   @Override
   public int hashCode() {
     return hashCode;
+  }
+
+  /**
+   * Returns a map of properties which correspond to {@link RuntimeValueProvider}.
+   */
+  public Map<String, Map<String, Object>> outputRuntimeOptions(PipelineOptions options) {
+    Set<PipelineOptionSpec> optionSpecs = PipelineOptionsReflector.getOptionSpecs(knownInterfaces);
+    Map<String, Map<String, Object>> properties = Maps.newHashMap();
+
+    for (PipelineOptionSpec spec : optionSpecs) {
+      if (spec.getGetterMethod().getReturnType().equals(ValueProvider.class)) {
+        Object vp = invoke(options, spec.getGetterMethod(), null);
+        if (((ValueProvider) vp).isAccessible()) {
+          continue;
+        }
+        Map<String, Object> property = Maps.newHashMap();
+        property.put("type",
+                     ((ParameterizedType) spec.getGetterMethod()
+                      .getGenericReturnType()).getActualTypeArguments()[0]);
+        properties.put(spec.getName(), property);
+      }
+    }
+    return properties;
   }
 
   /**

@@ -159,11 +159,11 @@ class TransformExecutor<T> implements Runnable {
    * @return the {@link TransformResult} produced by
    *         {@link TransformEvaluator#finishBundle()}
    */
-  private TransformResult finishBundle(
+  private TransformResult<T> finishBundle(
       TransformEvaluator<T> evaluator, MetricsContainer metricsContainer,
       Collection<ModelEnforcement<T>> enforcements)
       throws Exception {
-    TransformResult result = evaluator.finishBundle()
+    TransformResult<T> result = evaluator.finishBundle()
         .withLogicalMetricUpdates(metricsContainer.getCumulative());
     CommittedResult outputs = onComplete.handleResult(inputBundle, result);
     for (ModelEnforcement<T> enforcement : enforcements) {

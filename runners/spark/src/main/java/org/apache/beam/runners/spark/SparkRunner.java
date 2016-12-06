@@ -27,11 +27,12 @@ import org.apache.beam.runners.spark.translation.TransformEvaluator;
 import org.apache.beam.runners.spark.translation.TransformTranslator;
 import org.apache.beam.runners.spark.translation.streaming.SparkRunnerStreamingContextFactory;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.PipelineOptionsValidator;
 import org.apache.beam.sdk.runners.PipelineRunner;
-import org.apache.beam.sdk.runners.TransformTreeNode;
+import org.apache.beam.sdk.runners.TransformHierarchy;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -120,12 +121,12 @@ public final class SparkRunner extends PipelineRunner<EvaluationResult> {
     mOptions = options;
   }
 
-
   @Override
   public EvaluationResult run(Pipeline pipeline) {
     try {
       LOG.info("Executing pipeline using the SparkRunner.");
 
+      detectTranslationMode(pipeline);
       if (mOptions.isStreaming()) {
         SparkRunnerStreamingContextFactory contextFactory =
             new SparkRunnerStreamingContextFactory(pipeline, mOptions);
@@ -136,7 +137,7 @@ public final class SparkRunner extends PipelineRunner<EvaluationResult> {
         jssc.start();
 
         // if recovering from checkpoint, we have to reconstruct the EvaluationResult instance.
-        return contextFactory.getCtxt() == null ? new EvaluationContext(jssc.sc(),
+        return contextFactory.getCtxt() == null ? new EvaluationContext(jssc.sparkContext(),
             pipeline, jssc) : contextFactory.getCtxt();
       } else {
         JavaSparkContext jsc = SparkContextFactory.getSparkContext(mOptions);
@@ -168,6 +169,62 @@ public final class SparkRunner extends PipelineRunner<EvaluationResult> {
   }
 
   /**
+   * Detect the translation mode for the pipeline and change options in case streaming
+   * translation is needed.
+   * @param pipeline
+   */
+  private void detectTranslationMode(Pipeline pipeline) {
+    TranslationModeDetector detector = new TranslationModeDetector();
+    pipeline.traverseTopologically(detector);
+    if (detector.getTranslationMode().equals(TranslationMode.STREAMING)) {
+      // set streaming mode if it's a streaming pipeline
+      this.mOptions.setStreaming(true);
+    }
+  }
+
+  /**
+   * The translation mode of the Beam Pipeline.
+   */
+  enum TranslationMode {
+    /** Uses the batch mode. */
+    BATCH,
+    /** Uses the streaming mode. */
+    STREAMING
+  }
+
+  /**
+   * Traverses the Pipeline to determine the {@link TranslationMode} for this pipeline.
+   */
+  static class TranslationModeDetector extends Pipeline.PipelineVisitor.Defaults {
+    private static final Logger LOG = LoggerFactory.getLogger(TranslationModeDetector.class);
+
+    private TranslationMode translationMode;
+
+    TranslationModeDetector(TranslationMode defaultMode) {
+      this.translationMode = defaultMode;
+    }
+
+    TranslationModeDetector() {
+      this(TranslationMode.BATCH);
+    }
+
+    TranslationMode getTranslationMode() {
+      return translationMode;
+    }
+
+    @Override
+    public void visitPrimitiveTransform(TransformHierarchy.Node node) {
+      if (translationMode.equals(TranslationMode.BATCH)) {
+        Class<? extends PTransform> transformClass = node.getTransform().getClass();
+        if (transformClass == Read.Unbounded.class) {
+          LOG.info("Found {}. Switching to streaming execution.", transformClass);
+          translationMode = TranslationMode.STREAMING;
+        }
+      }
+    }
+  }
+
+  /**
    * Evaluator on the pipeline.
    */
   public static class Evaluator extends Pipeline.PipelineVisitor.Defaults {
@@ -182,7 +239,7 @@ public final class SparkRunner extends PipelineRunner<EvaluationResult> {
     }
 
     @Override
-    public CompositeBehavior enterCompositeTransform(TransformTreeNode node) {
+    public CompositeBehavior enterCompositeTransform(TransformHierarchy.Node node) {
       if (node.getTransform() != null) {
         @SuppressWarnings("unchecked")
         Class<PTransform<?, ?>> transformClass =
@@ -197,7 +254,7 @@ public final class SparkRunner extends PipelineRunner<EvaluationResult> {
       return CompositeBehavior.ENTER_TRANSFORM;
     }
 
-    private boolean shouldDefer(TransformTreeNode node) {
+    private boolean shouldDefer(TransformHierarchy.Node node) {
       PInput input = node.getInput();
       // if the input is not a PCollection, or it is but with non merging windows, don't defer.
       if (!(input instanceof PCollection)
@@ -226,12 +283,12 @@ public final class SparkRunner extends PipelineRunner<EvaluationResult> {
     }
 
     @Override
-    public void visitPrimitiveTransform(TransformTreeNode node) {
+    public void visitPrimitiveTransform(TransformHierarchy.Node node) {
       doVisitTransform(node);
     }
 
     <TransformT extends PTransform<? super PInput, POutput>> void
-        doVisitTransform(TransformTreeNode node) {
+        doVisitTransform(TransformHierarchy.Node node) {
       @SuppressWarnings("unchecked")
       TransformT transform = (TransformT) node.getTransform();
       @SuppressWarnings("unchecked")
@@ -247,11 +304,12 @@ public final class SparkRunner extends PipelineRunner<EvaluationResult> {
     }
 
     /**
-     *  Determine if this Node belongs to a Bounded branch of the pipeline, or Unbounded, and
-     *  translate with the proper translator.
+     * Determine if this Node belongs to a Bounded branch of the pipeline, or Unbounded, and
+     * translate with the proper translator.
      */
-    private <TransformT extends PTransform<? super PInput, POutput>> TransformEvaluator<TransformT>
-        translate(TransformTreeNode node, TransformT transform, Class<TransformT> transformClass) {
+    private <TransformT extends PTransform<? super PInput, POutput>>
+        TransformEvaluator<TransformT> translate(
+            TransformHierarchy.Node node, TransformT transform, Class<TransformT> transformClass) {
       //--- determine if node is bounded/unbounded.
       // usually, the input determines if the PCollection to apply the next transformation to
       // is BOUNDED or UNBOUNDED, meaning RDD/DStream.

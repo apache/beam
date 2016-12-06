@@ -23,14 +23,12 @@ import static com.google.common.base.Preconditions.checkState;
 import com.google.common.collect.AbstractIterator;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
-import java.io.IOException;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.Map;
 import org.apache.beam.runners.spark.aggregators.NamedAggregators;
 import org.apache.beam.runners.spark.util.BroadcastHelper;
 import org.apache.beam.runners.spark.util.SparkSideInputReader;
-import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.Aggregator;
 import org.apache.beam.sdk.transforms.Combine;
@@ -279,13 +277,6 @@ public abstract class SparkProcessContext<InputT, OutputT, ValueT>
       @Override
       public PaneInfo pane() {
         return windowedValue.getPane();
-      }
-
-      @Override
-      public <T> void writePCollectionViewData(
-          TupleTag<?> tag, Iterable<WindowedValue<T>> data, Coder<T> elemCoder) throws IOException {
-        throw new UnsupportedOperationException(
-            "WindowingInternals#writePCollectionViewData() is not yet supported.");
       }
 
       @Override

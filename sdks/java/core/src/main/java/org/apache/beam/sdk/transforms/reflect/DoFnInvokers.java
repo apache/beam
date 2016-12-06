@@ -18,9 +18,6 @@
 package org.apache.beam.sdk.transforms.reflect;
 
 import java.io.Serializable;
-import java.lang.reflect.Constructor;
-import java.util.LinkedHashMap;
-import java.util.Map;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -44,14 +41,6 @@ public class DoFnInvokers {
       DoFn<InputT, OutputT> fn) {
     return ByteBuddyDoFnInvokerFactory.only().newByteBuddyInvoker(fn);
   }
-
-  /**
-   * A cache of constructors of generated {@link DoFnInvoker} classes, keyed by {@link DoFn} class.
-   * Needed because generating an invoker class is expensive, and to avoid generating an excessive
-   * number of classes consuming PermGen memory.
-   */
-  private final Map<Class<?>, Constructor<?>> byteBuddyInvokerConstructorCache =
-      new LinkedHashMap<>();
 
   private DoFnInvokers() {}
 
@@ -179,6 +168,11 @@ public class DoFnInvokers {
     public <RestrictionT, TrackerT extends RestrictionTracker<RestrictionT>>
         TrackerT invokeNewTracker(RestrictionT restriction) {
       throw new UnsupportedOperationException("OldDoFn is not splittable");
+    }
+
+    @Override
+    public DoFn<InputT, OutputT> getFn() {
+      throw new UnsupportedOperationException("getFn is not supported for OldDoFn");
     }
   }
 }

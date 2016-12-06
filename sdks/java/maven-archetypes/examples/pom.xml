@@ -15,7 +15,9 @@
     See the License for the specific language governing permissions and
     limitations under the License.
 -->
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
 
   <modelVersion>4.0.0</modelVersion>
 
@@ -29,7 +31,8 @@
   <artifactId>beam-sdks-java-maven-archetypes-examples</artifactId>
   <name>Apache Beam :: SDKs :: Java :: Maven Archetypes :: Examples</name>
   <description>A Maven Archetype to create a project containing all the
-    example pipelines from the Apache Beam Java SDK.</description>
+    example pipelines from the Apache Beam Java SDK.
+  </description>
 
   <packaging>maven-archetype</packaging>
 
@@ -65,7 +68,27 @@
         </plugin>
       </plugins>
     </pluginManagement>
+
+    <plugins>
+      <plugin>
+        <artifactId>exec-maven-plugin</artifactId>
+        <groupId>org.codehaus.mojo</groupId>
+        <executions>
+          <execution>
+            <id>generate-archetype-contents</id>
+            <phase>generate-sources</phase>
+            <goals>
+              <goal>exec</goal>
+            </goals>
+            <configuration>
+              <executable>${project.basedir}/generate-sources.sh</executable>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+    </plugins>
   </build>
+
   <dependencies>
     <dependency>
       <groupId>org.apache.beam</groupId>
