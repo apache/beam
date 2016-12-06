@@ -520,7 +520,7 @@ class DataflowPipelineRunner(PipelineRunner):
     elif transform.source.format == 'text':
       step.add_property(PropertyNames.FILE_PATTERN, transform.source.path)
     elif transform.source.format == 'bigquery':
-      step.add_property(PropertyNames.BIGQUERY_EXPORT_FORMAT, 'FORMAT_AVRO')
+      step.add_property(PropertyNames.BIGQUERY_EXPORT_FORMAT, 'FORMAT_JSON')
       # TODO(silviuc): Add table validation if transform.source.validate.
       if transform.source.table_reference is not None:
         step.add_property(PropertyNames.BIGQUERY_DATASET,
