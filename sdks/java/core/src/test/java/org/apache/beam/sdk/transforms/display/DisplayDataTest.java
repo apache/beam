@@ -167,7 +167,7 @@ public class DisplayDataTest implements Serializable {
   }
 
   @Test
-  public void testStaticValueProvider() {
+  public void testStaticValueProviderString() {
     DisplayData data =
         DisplayData.from(new HasDisplayData() {
               @Override
@@ -179,6 +179,21 @@ public class DisplayDataTest implements Serializable {
 
     assertThat(data.items(), hasSize(1));
     assertThat(data, hasDisplayItem("foo", "bar"));
+  }
+
+  @Test
+  public void testStaticValueProviderInt() {
+    DisplayData data =
+        DisplayData.from(new HasDisplayData() {
+              @Override
+              public void populateDisplayData(DisplayData.Builder builder) {
+                builder.add(DisplayData.item(
+                    "foo", StaticValueProvider.of(1)));
+              }
+            });
+
+    assertThat(data.items(), hasSize(1));
+    assertThat(data, hasDisplayItem("foo", "1"));
   }
 
   @Test
