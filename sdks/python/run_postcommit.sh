@@ -71,6 +71,8 @@ python setup.py sdist
 SDK_LOCATION=$(find dist/apache-beam-sdk-*.tar.gz)
 
 # Run ValidatesRunner tests on Google Cloud Dataflow service
+# processes       -> number of processes to run tests in parallel
+# process-timeout -> test timeout in seconds
 python setup.py nosetests \
   -a ValidatesRunner --processes=4 --process-timeout=360 \
   --test-pipeline-options=" \
@@ -78,8 +80,8 @@ python setup.py nosetests \
     --project=$PROJECT \
     --staging_location=$GCS_LOCATION/staging-validatesrunner-test \
     --sdk_location=$SDK_LOCATION \
-    --job_name=$JOBNAME_VR_TEST\
-    --num_workers=1"
+    --job_name=$JOBNAME_VR_TEST \
+    --num_workers=1" >> job_output 2>&1 || true
 
 # Run wordcount on the Google Cloud Dataflow service
 python -m apache_beam.examples.wordcount \
