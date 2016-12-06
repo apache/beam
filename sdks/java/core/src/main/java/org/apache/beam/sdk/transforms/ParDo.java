@@ -803,7 +803,7 @@ public class ParDo {
               input.getPipeline(),
               input.getWindowingStrategy(),
               input.isBounded())
-          .setTypeDescriptorInternal(getOldFn().getOutputTypeDescriptor());
+          .setTypeDescriptor(getOldFn().getOutputTypeDescriptor());
     }
 
     @Override
@@ -1065,7 +1065,7 @@ public class ParDo {
       // The fn will likely be an instance of an anonymous subclass
       // such as DoFn<Integer, String> { }, thus will have a high-fidelity
       // TypeDescriptor for the output type.
-      outputs.get(mainOutputTag).setTypeDescriptorInternal(getOldFn().getOutputTypeDescriptor());
+      outputs.get(mainOutputTag).setTypeDescriptor(getOldFn().getOutputTypeDescriptor());
 
       return outputs;
     }
