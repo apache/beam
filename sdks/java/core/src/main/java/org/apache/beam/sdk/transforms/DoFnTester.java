@@ -52,7 +52,6 @@ import org.apache.beam.sdk.util.WindowingInternals;
 import org.apache.beam.sdk.util.state.InMemoryStateInternals;
 import org.apache.beam.sdk.util.state.InMemoryTimerInternals;
 import org.apache.beam.sdk.util.state.StateInternals;
-import org.apache.beam.sdk.util.state.TimerCallback;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TupleTag;
@@ -536,19 +535,14 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
     return extractAggregatorValue(agg.getName(), agg.getCombineFn());
   }
 
-  private static TimerCallback collectInto(final List<TimerInternals.TimerData> firedTimers) {
-    return new TimerCallback() {
-      @Override
-      public void onTimer(TimerInternals.TimerData timer) throws Exception {
-        firedTimers.add(timer);
-      }
-    };
-  }
-
   public List<TimerInternals.TimerData> advanceInputWatermark(Instant newWatermark) {
     try {
+      timerInternals.advanceInputWatermark(newWatermark);
       final List<TimerInternals.TimerData> firedTimers = new ArrayList<>();
-      timerInternals.advanceInputWatermark(collectInto(firedTimers), newWatermark);
+      TimerInternals.TimerData timer;
+      while ((timer = timerInternals.removeNextEventTimer()) != null) {
+        firedTimers.add(timer);
+      }
       return firedTimers;
     } catch (Exception e) {
       throw new RuntimeException(e);
@@ -557,8 +551,12 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
 
   public List<TimerInternals.TimerData> advanceProcessingTime(Instant newProcessingTime) {
     try {
+      timerInternals.advanceProcessingTime(newProcessingTime);
       final List<TimerInternals.TimerData> firedTimers = new ArrayList<>();
-      timerInternals.advanceProcessingTime(collectInto(firedTimers), newProcessingTime);
+      TimerInternals.TimerData timer;
+      while ((timer = timerInternals.removeNextProcessingTimer()) != null) {
+        firedTimers.add(timer);
+      }
       return firedTimers;
     } catch (Exception e) {
       throw new RuntimeException(e);

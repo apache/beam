@@ -21,7 +21,10 @@ import org.apache.beam.sdk.util.TimerInternals;
 
 /**
  * A callback that processes a {@link TimerInternals.TimerData TimerData}.
+ *
+ * @deprecated Use InMemoryTimerInternals advance and remove methods instead of callback.
  */
+@Deprecated
 public interface TimerCallback {
   /** Processes the {@link TimerInternals.TimerData TimerData}. */
   void onTimer(TimerInternals.TimerData timer) throws Exception;
