@@ -48,7 +48,7 @@ public class StepTransformResultTest {
   public void setup() {
     TestPipeline p = TestPipeline.create();
     pc = p.apply(Create.of(1, 2, 3));
-    transform = pc.getProducingTransformInternal();
+    transform = DirectGraphs.getGraph(p).getProducer(pc);
 
     bundleFactory = ImmutableListBundleFactory.create();
   }
