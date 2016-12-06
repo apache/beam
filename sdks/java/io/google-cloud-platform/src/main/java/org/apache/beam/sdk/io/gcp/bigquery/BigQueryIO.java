@@ -778,7 +778,10 @@ public class BigQueryIO {
         if (Strings.isNullOrEmpty(table.get().getProjectId())) {
           // If user does not specify a project we assume the table to be located in
           // the default project.
-          table.get().setProjectId(bqOptions.getProject());
+          TableReference tableRef = table.get();
+          tableRef.setProjectId(bqOptions.getProject());
+          return NestedValueProvider.of(StaticValueProvider.of(
+              toJsonString(tableRef)), new JsonTableRefToTableRef());
         }
         return table;
       }
@@ -2111,11 +2114,21 @@ public class BigQueryIO {
       @Nullable private ValueProvider<TableReference> getTableWithDefaultProject(
           BigQueryOptions bqOptions) {
         ValueProvider<TableReference> table = getTable();
-        if (table != null && table.isAccessible()
-            && Strings.isNullOrEmpty(table.get().getProjectId())) {
+        if (table == null) {
+          return table;
+        }
+        if (!table.isAccessible()) {
+          LOG.info("Using a dynamic value for table input. This must contain a project"
+              + " in the table reference: {}", table);
+          return table;
+        }
+        if (Strings.isNullOrEmpty(table.get().getProjectId())) {
           // If user does not specify a project we assume the table to be located in
           // the default project.
-          table.get().setProjectId(bqOptions.getProject());
+          TableReference tableRef = table.get();
+          tableRef.setProjectId(bqOptions.getProject());
+          return NestedValueProvider.of(StaticValueProvider.of(
+              toJsonString(tableRef)), new JsonTableRefToTableRef());
         }
         return table;
       }
