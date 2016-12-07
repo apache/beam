@@ -54,29 +54,45 @@ echo ">>> RUNNING DIRECT RUNNER py-wordcount"
 python -m apache_beam.examples.wordcount --output /tmp/py-wordcount-direct
 # TODO: check that output file is generated for Direct Runner.
 
-# Run wordcount on the service.
+# Run tests on the service.
 
 # Where to store wordcount output.
 GCS_LOCATION=gs://temp-storage-for-end-to-end-tests
 
 # Job name needs to be unique
-JOBNAME=py-wordcount-`date +%s`
+JOBNAME_E2E=py-wordcount-`date +%s`
+JOBNAME_VR_TEST=py-validatesrunner-`date +%s`
 
 PROJECT=apache-beam-testing
 
 # Create a tarball
 python setup.py sdist
 
+SDK_LOCATION=$(find dist/apache-beam-sdk-*.tar.gz)
+
+# Run ValidatesRunner tests on Google Cloud Dataflow service
+# processes       -> number of processes to run tests in parallel
+# process-timeout -> test timeout in seconds
+python setup.py nosetests \
+  -a ValidatesRunner --processes=4 --process-timeout=360 \
+  --test-pipeline-options=" \
+    --runner=BlockingDataflowPipelineRunner \
+    --project=$PROJECT \
+    --staging_location=$GCS_LOCATION/staging-validatesrunner-test \
+    --sdk_location=$SDK_LOCATION \
+    --job_name=$JOBNAME_VR_TEST \
+    --num_workers=1"
+
 # Run wordcount on the Google Cloud Dataflow service
 python -m apache_beam.examples.wordcount \
---output $GCS_LOCATION/py-wordcount-cloud \
---staging_location $GCS_LOCATION/staging-wordcount \
---temp_location $GCS_LOCATION/temp-wordcount \
---runner BlockingDataflowPipelineRunner \
---job_name $JOBNAME \
---project $PROJECT \
---sdk_location dist/apache-beam-sdk-*.tar.gz \
---num_workers 1 >> job_output 2>&1 || true;
+  --output $GCS_LOCATION/py-wordcount-cloud \
+  --staging_location $GCS_LOCATION/staging-wordcount \
+  --temp_location $GCS_LOCATION/temp-wordcount \
+  --runner BlockingDataflowPipelineRunner \
+  --job_name $JOBNAME_E2E \
+  --project $PROJECT \
+  --sdk_location $SDK_LOCATION \
+  --num_workers 1 >> job_output 2>&1 || true;
 
 # Print full job output, validate correct, then remove it.
 echo ">>> JOB OUTPUT FOLLOWS"
