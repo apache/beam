@@ -1709,6 +1709,15 @@ public class BigQueryIO {
       }
 
       /**
+       * Returns a copy of this write transformation, but writing to the specified table.
+       *
+       * <p>Does not modify this object.
+       */
+      public Bound to(TableReference table) {
+        return to(StaticValueProvider.of(toTableSpec(table)));
+      }
+
+      /**
        * Returns a copy of this write transformation, but writing to the specified table. Refer to
        * {@link #parseTableSpec(String)} for the specification format.
        *
@@ -1716,15 +1725,6 @@ public class BigQueryIO {
        */
       public Bound to(ValueProvider<String> tableSpec) {
         return toTableRef(NestedValueProvider.of(tableSpec, new TableSpecToTableRef()));
-      }
-
-      /**
-       * Returns a copy of this write transformation, but writing to the specified table.
-       *
-       * <p>Does not modify this object.
-       */
-      public Bound to(TableReference table) {
-        return toTableRef(StaticValueProvider.of(table));
       }
 
       /**
