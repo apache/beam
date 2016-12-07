@@ -16,7 +16,5 @@
  * limitations under the License.
  */
 
-/**
- * Transforms for reading and writing from Elasticsearch.
- */
+/** Transforms for reading and writing from Elasticsearch. */
 package org.apache.beam.sdk.io.elasticsearch;

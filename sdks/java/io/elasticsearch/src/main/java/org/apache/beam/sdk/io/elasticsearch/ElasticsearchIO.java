@@ -21,6 +21,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 
 import com.google.auto.value.AutoValue;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
@@ -119,12 +120,13 @@ public class ElasticsearchIO {
   }
 
   public static Write write() {
-    return new AutoValue_ElasticsearchIO_Write.Builder().setBatchSize(1000L)
-        .setBatchSizeMegaBytes(5).build();
+    return new AutoValue_ElasticsearchIO_Write.Builder()
+        .setBatchSize(1000L)
+        .setBatchSizeMegaBytes(5)
+        .build();
   }
 
-  private ElasticsearchIO() {
-  }
+  private ElasticsearchIO() {}
 
   private static JsonObject parseResponse(Response response) throws IOException {
     InputStream content = response.getEntity().getContent();
@@ -133,38 +135,61 @@ public class ElasticsearchIO {
     return jsonObject;
   }
 
-  /**
-   * A POJO describing a connection configuration to Elasticsearch.
-   */
+  /** A POJO describing a connection configuration to Elasticsearch. */
   @AutoValue
   public abstract static class ConnectionConfiguration implements Serializable {
 
     abstract List<String> getAddresses();
-    @Nullable abstract String getUsername();
-    @Nullable abstract String getPassword();
+
+    @Nullable
+    abstract String getUsername();
+
+    @Nullable
+    abstract String getPassword();
+
     abstract String getIndex();
+
     abstract String getType();
+
     abstract Builder builder();
 
     @AutoValue.Builder
     abstract static class Builder {
       abstract Builder setAddresses(List<String> addresses);
+
       abstract Builder setUsername(String username);
+
       abstract Builder setPassword(String password);
+
       abstract Builder setIndex(String index);
+
       abstract Builder setType(String type);
+
       abstract ConnectionConfiguration build();
     }
 
+    /**
+     * Create Elasticsearch connection configuration.
+     *
+     * @param addresses list of addresses of Elasticsearch nodes
+     * @param index the index toward which the requests will be issued
+     * @param type the document type toward which the requests will be issued
+     * @return the connection configuration object
+     */
     public static ConnectionConfiguration create(String[] addresses, String index, String type) {
-      checkArgument(addresses != null, "ConnectionConfiguration.create(addresses, index, type) "
-          + "called with null address");
-      checkArgument(addresses.length != 0, "ConnectionConfiguration.create(addresses, "
-          + "index, type) called with empty addresses");
-      checkArgument(index != null, "ConnectionConfiguration.create(addresses, index, type) called"
-          + " with null index");
-      checkArgument(type != null, "ConnectionConfiguration.create(addresses, index, type) called "
-          + "with null type");
+      checkArgument(
+          addresses != null,
+          "ConnectionConfiguration.create(addresses, index, type) " + "called with null address");
+      checkArgument(
+          addresses.length != 0,
+          "ConnectionConfiguration.create(addresses, "
+              + "index, type) called with empty addresses");
+      checkArgument(
+          index != null,
+          "ConnectionConfiguration.create(addresses, index, type) called" + " with null index");
+      checkArgument(
+          type != null,
+          "ConnectionConfiguration.create(addresses, index, type) called " + "with null type");
       return new AutoValue_ElasticsearchIO_ConnectionConfiguration.Builder()
           .setAddresses(Arrays.asList(addresses))
           .setIndex(index)
@@ -172,10 +197,22 @@ public class ElasticsearchIO {
           .build();
     }
 
+    /**
+     * If Elasticsearch authentication is enabled, provide the username.
+     *
+     * @param username the username used to authenticate to Elasticsearch
+     * @return the {@link ConnectionConfiguration} object with username set
+     */
     public ConnectionConfiguration withUsername(String username) {
       return builder().setUsername(username).build();
     }
 
+    /**
+     * If Elasticsearch authentication is enabled, provide the password.
+     *
+     * @param password the password used to authenticate to Elasticsearch
+     * @return the {@link ConnectionConfiguration} object with password set
+     */
     public ConnectionConfiguration withPassword(String password) {
       return builder().setPassword(password).build();
     }
@@ -198,9 +235,8 @@ public class ElasticsearchIO {
       RestClientBuilder restClientBuilder = RestClient.builder(hosts);
       if (getUsername() != null) {
         final CredentialsProvider credentialsProvider = new BasicCredentialsProvider();
-        credentialsProvider.setCredentials(AuthScope.ANY,
-                                           new UsernamePasswordCredentials(getUsername(),
-                                                                           getPassword()));
+        credentialsProvider.setCredentials(
+            AuthScope.ANY, new UsernamePasswordCredentials(getUsername(), getPassword()));
         restClientBuilder.setHttpClientConfigCallback(
             new RestClientBuilder.HttpClientConfigCallback() {
               public HttpAsyncClientBuilder customizeHttpClient(
@@ -211,57 +247,89 @@ public class ElasticsearchIO {
       }
       return restClientBuilder.build();
     }
-
   }
 
-  /**
-   * A {@link PTransform} reading data from Elasticsearch.
-   */
+  /** A {@link PTransform} reading data from Elasticsearch. */
   @AutoValue
   public abstract static class Read extends PTransform<PBegin, PCollection<String>> {
 
-    @Nullable abstract ConnectionConfiguration getConnectionConfiguration();
-    @Nullable abstract String getQuery();
-    @Nullable abstract String getScrollKeepalive();
+    @Nullable
+    abstract ConnectionConfiguration getConnectionConfiguration();
+
+    @Nullable
+    abstract String getQuery();
+
+    @Nullable
+    abstract String getScrollKeepalive();
+
     abstract Builder builder();
 
     @AutoValue.Builder
     abstract static class Builder {
       abstract Builder setConnectionConfiguration(ConnectionConfiguration connectionConfiguration);
+
       abstract Builder setQuery(String query);
+
       abstract Builder setScrollKeepalive(String scrollKeepalive);
+
       abstract Read build();
     }
 
+    /**
+     * Provide the Elasticsearch connection configuration object.
+     *
+     * @param connectionConfiguration the Elasticsearch {@link ConnectionConfiguration} object
+     * @return the {@link Read} with connection configuration set
+     */
     public Read withConnectionConfiguration(ConnectionConfiguration connectionConfiguration) {
-      checkArgument(connectionConfiguration != null, "ElasticsearchIO.read()"
-          + ".withConnectionConfiguration(configuration) called with null configuration");
+      checkArgument(
+          connectionConfiguration != null,
+          "ElasticsearchIO.read()"
+              + ".withConnectionConfiguration(configuration) called with null configuration");
       return builder().setConnectionConfiguration(connectionConfiguration).build();
     }
 
+    /**
+     * Provide a query used while reading from Elasticsearch.
+     *
+     * @param query the query. See <a
+     *     href="https://www.elastic.co/guide/en/elasticsearch/reference/2.4/query-dsl.html">Query
+     *     DSL</a>
+     * @return the {@link Read} object with query set
+     */
     public Read withQuery(String query) {
-      checkArgument(query != null, "ElasticsearchIO.read().withQuery(query) called with null "
-          + "query");
+      checkArgument(
+          query != null, "ElasticsearchIO.read().withQuery(query) called with null " + "query");
       return builder().setQuery(query).build();
     }
 
+    /**
+     * Provide a scroll keepalive. See <a
+     * href="https://www.elastic.co/guide/en/elasticsearch/reference/2.4/search-request-scroll.html">scroll
+     * API</a> Default is "1m"
+     *
+     * @param scrollKeepalive keepalive duration ex "5m" from 5 minutes
+     * @return the {@link ElasticsearchIO.Read} with scroll keepalive set
+     */
     public Read withScrollKeepalive(String scrollKeepalive) {
-      checkArgument(scrollKeepalive != null, "ElasticsearchIO.read().withScrollKeepalive"
-          + "(keepalive) called with null keepalive");
+      checkArgument(
+          scrollKeepalive != null,
+          "ElasticsearchIO.read().withScrollKeepalive" + "(keepalive) called with null keepalive");
       return builder().setScrollKeepalive(scrollKeepalive).build();
     }
 
     @Override
     public PCollection<String> apply(PBegin input) {
-      return input.apply(org.apache.beam.sdk.io.Read.from(
-          new BoundedElasticsearchSource(this, null)
-      ));
+      return input.apply(
+          org.apache.beam.sdk.io.Read.from(new BoundedElasticsearchSource(this, null)));
     }
 
     @Override
     public void validate(PBegin input) {
-      checkState(getConnectionConfiguration() != null, "ElasticsearchIO.read() requires a "
-          + "connection configuration to be set via withConnectionConfiguration(configuration)");
+      checkState(
+          getConnectionConfiguration() != null,
+          "ElasticsearchIO.read() requires a connection configuration"
+              + " to be set via withConnectionConfiguration(configuration)");
     }
 
     @Override
@@ -270,58 +338,57 @@ public class ElasticsearchIO {
       builder.addIfNotNull(DisplayData.item("query", getQuery()));
       getConnectionConfiguration().populateDisplayData(builder);
     }
-
   }
 
-  /**
-   * A {@link BoundedSource} reading from Elasticsearch.
-   */
-  protected static class BoundedElasticsearchSource extends BoundedSource<String> {
+  /** A {@link BoundedSource} reading from Elasticsearch. */
+  @VisibleForTesting
+  static class BoundedElasticsearchSource extends BoundedSource<String> {
 
     private final ElasticsearchIO.Read spec;
     // shardPreference is the shard number where the source will read the documents
     @Nullable private final String shardPreference;
 
-    protected BoundedElasticsearchSource(Read spec, String shardPreference) {
+    BoundedElasticsearchSource(Read spec, String shardPreference) {
       this.spec = spec;
       this.shardPreference = shardPreference;
     }
 
     @Override
-    public List<? extends BoundedSource<String>> splitIntoBundles(long desiredBundleSizeBytes,
-                                                                  PipelineOptions options)
-        throws Exception {
+    public List<? extends BoundedSource<String>> splitIntoBundles(
+        long desiredBundleSizeBytes, PipelineOptions options) throws Exception {
       List<BoundedElasticsearchSource> sources = new ArrayList<>();
 
-/*
-       1.We split per shard :
-       unfortunately, Elasticsearch 2.x doesn't provide a way to do parallel reads on a single
-       shard. So  we do not use desiredBundleSize because we cannot split shards.
-       With the slice API in ES 5.0 we will be able to use desiredBundleSize.
-       Basically we will just ask the slice API to return data
-       in nbBundles = estimatedSize / desiredBundleSize chuncks.
-       So each beam source will read around desiredBundleSize volume of data.
+      // 1. We split per shard :
+      // unfortunately, Elasticsearch 2. x doesn 't provide a way to do parallel reads on a single
+      // shard.So we do not use desiredBundleSize because we cannot split shards.
+      // With the slice API in ES 5.0 we will be able to use desiredBundleSize.
+      // Basically we will just ask the slice API to return data
+      // in nbBundles = estimatedSize / desiredBundleSize chuncks.
+      // So each beam source will read around desiredBundleSize volume of data.
 
-       2.We read only primary shards
-       let's say the ES index is configured to split data into 5 shards with a replica of 1
-       (for failover). In that case, there will be a total of 10 shards (5 primary, 5 replica).
-       Each beam source reads the documents contained in one shard.
-       As we don't want to have duplicate documents in PCollection, we only read primary shards.
-       In case of failover (ES side), primary shards stored in a failing ES node
-       are no longer available and replica shards (stored in other nodes) become primary shards.
-*/
+      // 2. Primary and replica shards have the same shard_id, we filter primary
+      // to have one source for each shard_id. Even if we specify preference=shards:2,
+      // ES load balances (round robin) the request between primary shard 2 and replica shard 2.
+      // But, as each shard (replica or primary) is responsible for only one part of the data,
+      // there will be no duplicate.
 
       JsonObject statsJson = getStats(true);
-      JsonObject shardsJson = statsJson.getAsJsonObject("indices")
-          .getAsJsonObject(spec.getConnectionConfiguration().getIndex())
-          .getAsJsonObject("shards");
+      JsonObject shardsJson =
+          statsJson
+              .getAsJsonObject("indices")
+              .getAsJsonObject(spec.getConnectionConfiguration().getIndex())
+              .getAsJsonObject("shards");
       Set<Map.Entry<String, JsonElement>> shards = shardsJson.entrySet();
       for (Map.Entry<String, JsonElement> shardJson : shards) {
         String shardId = shardJson.getKey();
         JsonArray value = (JsonArray) shardJson.getValue();
         boolean isPrimaryShard =
-            value.get(0).getAsJsonObject().getAsJsonObject("routing").getAsJsonPrimitive(
-                "primary").getAsBoolean();
+            value
+                .get(0)
+                .getAsJsonObject()
+                .getAsJsonObject("routing")
+                .getAsJsonPrimitive("primary")
+                .getAsBoolean();
         if (isPrimaryShard) {
           sources.add(new BoundedElasticsearchSource(spec, shardId));
         }
@@ -331,9 +398,9 @@ public class ElasticsearchIO {
 
     @Override
     public long getEstimatedSizeBytes(PipelineOptions options) throws IOException {
-      //we use indices stats API to estimate size and list the shards
-        // (https://www.elastic.co/guide/en/elasticsearch/reference/2.4/indices-stats.html)
-        // as Elasticsearch 2.x doesn't not support any way to do parallel read inside a shard
+      // we use indices stats API to estimate size and list the shards
+      // (https://www.elastic.co/guide/en/elasticsearch/reference/2.4/indices-stats.html)
+      // as Elasticsearch 2.x doesn't not support any way to do parallel read inside a shard
       // the estimated size bytes is not really used in the split into bundles.
       // However, we implement this method anyway as the runners can use it.
       // NB: Elasticsearch 5.x now provides the slice API.
@@ -341,8 +408,10 @@ public class ElasticsearchIO {
       // #sliced-scroll)
       JsonObject statsJson = getStats(false);
       JsonObject indexStats =
-          statsJson.getAsJsonObject("indices").getAsJsonObject(
-              spec.getConnectionConfiguration().getIndex()).getAsJsonObject("primaries");
+          statsJson
+              .getAsJsonObject("indices")
+              .getAsJsonObject(spec.getConnectionConfiguration().getIndex())
+              .getAsJsonObject("primaries");
       JsonObject store = indexStats.getAsJsonObject("store");
       return store.getAsJsonPrimitive("size_in_bytes").getAsLong();
     }
@@ -380,13 +449,14 @@ public class ElasticsearchIO {
         params.put("level", "shards");
       }
       String endpoint = String.format("/%s/_stats", spec.getConnectionConfiguration().getIndex());
-      Response response =
-          restClient.performRequest("GET", endpoint, params, new BasicHeader("", ""));
-      restClient.close();
+      Response response;
+      try {
+        response = restClient.performRequest("GET", endpoint, params, new BasicHeader("", ""));
+      } finally {
+        restClient.close();
+      }
       return parseResponse(response);
-
     }
-
   }
 
   private static class BoundedElasticsearchReader extends BoundedSource.BoundedReader<String> {
@@ -395,7 +465,7 @@ public class ElasticsearchIO {
 
     private RestClient restClient;
     private String current;
-    private String scroll;
+    private String scrollId;
 
     public BoundedElasticsearchReader(BoundedElasticsearchSource source) {
       this.source = source;
@@ -407,17 +477,15 @@ public class ElasticsearchIO {
 
       String query = source.spec.getQuery();
       if (query == null) {
-        query = "{\n"
-            + "  \"query\": {\n"
-            + "    \"match_all\": {}\n"
-            + "  }\n"
-            + "}";
+        query = "{\n" + "  \"query\": {\n" + "    \"match_all\": {}\n" + "  }\n" + "}";
       }
 
       Response response;
-      String endPoint = String.format("/%s/%s/_search",
-                                      source.spec.getConnectionConfiguration().getIndex(),
-                                      source.spec.getConnectionConfiguration().getType());
+      String endPoint =
+          String.format(
+              "/%s/%s/_search",
+              source.spec.getConnectionConfiguration().getIndex(),
+              source.spec.getConnectionConfiguration().getType());
       Map<String, String> params = new HashMap<>();
       params.put("scroll", source.spec.getScrollKeepalive());
       params.put("size", "1");
@@ -428,20 +496,30 @@ public class ElasticsearchIO {
       response =
           restClient.performRequest("GET", endPoint, params, queryEntity, new BasicHeader("", ""));
       JsonObject searchResult = parseResponse(response);
-      scroll = searchResult.getAsJsonPrimitive("_scroll_id").getAsString();
+      updateScrollId(searchResult);
       return updateCurrent(searchResult);
+    }
+
+    private void updateScrollId(JsonObject searchResult) {
+      scrollId = searchResult.getAsJsonPrimitive("_scroll_id").getAsString();
     }
 
     @Override
     public boolean advance() throws IOException {
-      String requestBody = String.format("{\"scroll\" : \"%s\",\"scroll_id\" : \"%s\"}",
-                                        source.spec.getScrollKeepalive(), scroll);
+      String requestBody =
+          String.format(
+              "{\"scroll\" : \"%s\",\"scroll_id\" : \"%s\"}",
+              source.spec.getScrollKeepalive(), scrollId);
       HttpEntity scrollEntity = new NStringEntity(requestBody, ContentType.APPLICATION_JSON);
-      Response response = restClient.performRequest("GET", "/_search/scroll",
-                                                    Collections.<String, String>emptyMap(),
-                                                    scrollEntity,
-                                                    new BasicHeader("", ""));
+      Response response =
+          restClient.performRequest(
+              "GET",
+              "/_search/scroll",
+              Collections.<String, String>emptyMap(),
+              scrollEntity,
+              new BasicHeader("", ""));
       JsonObject searchResult = parseResponse(response);
+      updateScrollId(searchResult);
       return updateCurrent(searchResult);
     }
 
@@ -451,8 +529,14 @@ public class ElasticsearchIO {
         current = null;
         return false;
       }
-      current = searchResult.getAsJsonObject("hits").getAsJsonArray("hits").get(0)
-          .getAsJsonObject().getAsJsonObject("_source").toString();
+      current =
+          searchResult
+              .getAsJsonObject("hits")
+              .getAsJsonArray("hits")
+              .get(0)
+              .getAsJsonObject()
+              .getAsJsonObject("_source")
+              .toString();
       return true;
     }
 
@@ -467,31 +551,19 @@ public class ElasticsearchIO {
     @Override
     public void close() throws IOException {
       // remove the scroll
-      String requestBody = String.format("{\"scroll_id\" : [\"%s\"]}", scroll);
-      HttpEntity entity = new NStringEntity(requestBody,
-                                            ContentType.APPLICATION_JSON);
+      String requestBody = String.format("{\"scroll_id\" : [\"%s\"]}", scrollId);
+      HttpEntity entity = new NStringEntity(requestBody, ContentType.APPLICATION_JSON);
       try {
-        restClient.performRequest("DELETE", "/_search/scroll",
-                                  Collections.<String, String>emptyMap(),
-                                  entity, new BasicHeader("", ""));
-      } catch (IOException e) {
-          // Each reader.start() starts a new scroll identified by a scroll_id .ES sometimes gives
-          // the same scroll_id to multiple readers. As a consequence, when these readers call
-          // close() they might delete a scroll that has already been deleted by another reader
-          // (that received the same scroll_id).
-          // This does no cause any exception to be thrown with ES 2.x but with ES 5.x,
-          // deleting an already deleted scroll throws an Exception.
-          // We ignore this exception if it is thrown.
-          if (e.getMessage() != null && !e.getMessage().contains("no scroll ids specified")) {
-            throw e;
-          }
-
+        restClient.performRequest(
+            "DELETE",
+            "/_search/scroll",
+            Collections.<String, String>emptyMap(),
+            entity,
+            new BasicHeader("", ""));
       } finally {
-          // close client
-          if (restClient != null) {
-              restClient.close();
-          }
-
+        if (restClient != null) {
+          restClient.close();
+        }
       }
     }
 
@@ -501,43 +573,72 @@ public class ElasticsearchIO {
     }
   }
 
-  /**
-   * A {@link PTransform} writing data to Elasticsearch.
-   */
+  /** A {@link PTransform} writing data to Elasticsearch. */
   @AutoValue
   public abstract static class Write extends PTransform<PCollection<String>, PDone> {
 
-    @Nullable abstract ConnectionConfiguration getConnectionConfiguration();
+    @Nullable
+    abstract ConnectionConfiguration getConnectionConfiguration();
+
     abstract long getBatchSize();
+
     abstract int getBatchSizeMegaBytes();
+
     abstract Builder builder();
 
     @AutoValue.Builder
     abstract static class Builder {
       abstract Builder setConnectionConfiguration(ConnectionConfiguration connectionConfiguration);
+
       abstract Builder setBatchSize(long batchSize);
+
       abstract Builder setBatchSizeMegaBytes(int batchSizeMegaBytes);
+
       abstract Write build();
     }
 
+    /**
+     * Provide the Elasticsearch connection configuration object.
+     *
+     * @param connectionConfiguration the Elasticsearch {@link ConnectionConfiguration} object
+     * @return the {@link Write} with connection configuration set
+     */
     public Write withConnectionConfiguration(ConnectionConfiguration connectionConfiguration) {
-      checkArgument(connectionConfiguration != null, "ElasticsearchIO.write()"
-          + ".withConnectionConfiguration(configuration) called with null configuration");
+      checkArgument(
+          connectionConfiguration != null,
+          "ElasticsearchIO.write()"
+              + ".withConnectionConfiguration(configuration) called with null configuration");
       return builder().setConnectionConfiguration(connectionConfiguration).build();
     }
 
+    /**
+     * Provide a size in number of documents for the batch see bulk API
+     * (https://www.elastic.co/guide/en/elasticsearch/reference/2.4/docs-bulk.html). Default is 1000
+     * docs
+     * @param batchSize batch size in number of documents
+     * @return the {@link Write} with connection batch size set
+     */
     public Write withBatchSize(long batchSize) {
       return builder().setBatchSize(batchSize).build();
     }
 
+    /**
+     * Provide a size in megabytes for the batch see bulk API
+     * (https://www.elastic.co/guide/en/elasticsearch/reference/2.4/docs-bulk.html). Default is 5MB
+     *
+     * @param batchSizeMegaBytes batch size in megabytes
+     * @return the {@link Write} with connection batch size in megabytes set
+     */
     public Write withBatchSizeMegaBytes(int batchSizeMegaBytes) {
       return builder().setBatchSizeMegaBytes(batchSizeMegaBytes).build();
     }
 
     @Override
     public void validate(PCollection<String> input) {
-      checkState(getConnectionConfiguration() != null, "ElasticsearchIO.write() requires a "
-          + "connection configuration to be set via withConnectionConfiguration(configuration)");
+      checkState(
+          getConnectionConfiguration() != null,
+          "ElasticsearchIO.write() requires a connection configuration"
+              + " to be set via withConnectionConfiguration(configuration)");
     }
 
     @Override
@@ -582,44 +683,51 @@ public class ElasticsearchIO {
 
       @FinishBundle
       public void finishBundle(Context context) throws Exception {
-        StringBuilder bulkRequest = new StringBuilder();
-        if (batch.size() > 0) {
-          for (String json : batch) {
-            bulkRequest.append(json);
-          }
-          Response response;
-          String endPoint = String.format("/%s/%s/_bulk",
-                                          spec.getConnectionConfiguration().getIndex(),
-                                          spec.getConnectionConfiguration().getType());
-          HttpEntity requestBody = new NStringEntity(bulkRequest.toString(), ContentType
-              .APPLICATION_JSON);
-          response =
-              restClient.performRequest("POST", endPoint, Collections.<String, String>emptyMap(),
-                                        requestBody, new
-                                            BasicHeader("", ""));
-          JsonObject searchResult = parseResponse(response);
-          boolean errors = searchResult.getAsJsonPrimitive("errors").getAsBoolean();
-          if (errors) {
-              StringBuilder errorMessages = new StringBuilder("Error writing to Elasticsearch, "
-                + "some elements could not be inserted:");
-            JsonArray items = searchResult.getAsJsonArray("items");
-            //some items present in bulk might have errors, concatenate error messages
-              for (JsonElement item:items){
-                JsonObject creationObject = item.getAsJsonObject().getAsJsonObject("create");
-                JsonObject error = creationObject.getAsJsonObject("error");
-                  if (error != null){
-                    String docId = creationObject.getAsJsonPrimitive("_id").getAsString();
-                    errorMessages.append(String.format("%n document id %s : ", docId));
-                      String errorMessage = error.getAsJsonObject("caused_by")
-                                            .getAsJsonPrimitive("reason").getAsString();
-                      errorMessages.append(errorMessage);
-                  }
-              }
-              throw new IOException(errorMessages.toString());
-          }
-          batch.clear();
-          currentBatchSizeBytes = 0;
+        if (batch.isEmpty()) {
+          return;
         }
+        StringBuilder bulkRequest = new StringBuilder();
+        for (String json : batch) {
+          bulkRequest.append(json);
+        }
+        Response response;
+        String endPoint =
+            String.format(
+                "/%s/%s/_bulk",
+                spec.getConnectionConfiguration().getIndex(),
+                spec.getConnectionConfiguration().getType());
+        HttpEntity requestBody =
+            new NStringEntity(bulkRequest.toString(), ContentType.APPLICATION_JSON);
+        response =
+            restClient.performRequest(
+                "POST",
+                endPoint,
+                Collections.<String, String>emptyMap(),
+                requestBody,
+                new BasicHeader("", ""));
+        JsonObject searchResult = parseResponse(response);
+        boolean errors = searchResult.getAsJsonPrimitive("errors").getAsBoolean();
+        if (errors) {
+          StringBuilder errorMessages =
+              new StringBuilder(
+                  "Error writing to Elasticsearch, " + "some elements could not be inserted:");
+          JsonArray items = searchResult.getAsJsonArray("items");
+          //some items present in bulk might have errors, concatenate error messages
+          for (JsonElement item : items) {
+            JsonObject creationObject = item.getAsJsonObject().getAsJsonObject("create");
+            JsonObject error = creationObject.getAsJsonObject("error");
+            if (error != null) {
+              String docId = creationObject.getAsJsonPrimitive("_id").getAsString();
+              errorMessages.append(String.format("%n document id %s : ", docId));
+              String errorMessage =
+                  error.getAsJsonObject("caused_by").getAsJsonPrimitive("reason").getAsString();
+              errorMessages.append(errorMessage);
+            }
+          }
+          throw new IOException(errorMessages.toString());
+        }
+        batch.clear();
+        currentBatchSizeBytes = 0;
       }
 
       @Teardown
@@ -628,8 +736,6 @@ public class ElasticsearchIO {
           restClient.close();
         }
       }
-
     }
   }
-
 }
