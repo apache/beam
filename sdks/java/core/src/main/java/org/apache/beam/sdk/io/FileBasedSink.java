@@ -42,7 +42,9 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.ValueProvider;
+import org.apache.beam.sdk.options.ValueProvider.NestedValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
+import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.util.IOChannelFactory;
 import org.apache.beam.sdk.util.IOChannelUtils;
@@ -201,8 +203,8 @@ public abstract class FileBasedSink<T> extends Sink<T> {
   /**
    * Returns the base output filename for this file based sink.
    */
-  public String getBaseOutputFilename() {
-    return baseOutputFilename.get();
+  public ValueProvider<String> getBaseOutputFilenameProvider() {
+    return baseOutputFilename;
   }
 
   @Override
@@ -290,7 +292,7 @@ public abstract class FileBasedSink<T> extends Sink<T> {
     protected final FileBasedSink<T> sink;
 
     /** Directory for temporary output files. */
-    protected final String tempDirectory;
+    protected final ValueProvider<String> tempDirectory;
 
     /** Constructs a temporary file path given the temporary directory and a filename. */
     protected static String buildTemporaryFilename(String tempDirectory, String filename)
@@ -308,22 +310,31 @@ public abstract class FileBasedSink<T> extends Sink<T> {
      * @param sink the FileBasedSink that will be used to configure this write operation.
      */
     public FileBasedWriteOperation(FileBasedSink<T> sink) {
-      this(sink, buildTemporaryDirectoryName(sink.getBaseOutputFilename()));
+      this(sink, NestedValueProvider.of(
+          sink.getBaseOutputFilenameProvider(), new TemporaryDirectoryBuilder()));
     }
 
-    private static String buildTemporaryDirectoryName(String baseOutputFilename) {
-      try {
-        IOChannelFactory factory = IOChannelUtils.getFactory(baseOutputFilename);
-        Path baseOutputPath = factory.toPath(baseOutputFilename);
-        return baseOutputPath
-            .resolveSibling(
-                "temp-beam-"
-                    + baseOutputPath.getFileName()
-                    + "-"
-                    + Instant.now().toString(DateTimeFormat.forPattern("yyyy-MM-DD_HH-mm-ss")))
-            .toString();
-      } catch (IOException e) {
-        throw new RuntimeException(e);
+    private static class TemporaryDirectoryBuilder
+        implements SerializableFunction<String, String> {
+      // The intent of the code is to have a consistent value of tempDirectory across
+      // all workers, which wouldn't happen if now() was called inline.
+      Instant now = Instant.now();
+
+      @Override
+      public String apply(String baseOutputFilename) {
+        try {
+          IOChannelFactory factory = IOChannelUtils.getFactory(baseOutputFilename);
+          Path baseOutputPath = factory.toPath(baseOutputFilename);
+          return baseOutputPath
+              .resolveSibling(
+                  "temp-beam-"
+                  + baseOutputPath.getFileName()
+                  + "-"
+                  + now.toString(DateTimeFormat.forPattern("yyyy-MM-DD_HH-mm-ss")))
+              .toString();
+        } catch (IOException e) {
+          throw new RuntimeException(e);
+        }
       }
     }
 
@@ -334,6 +345,10 @@ public abstract class FileBasedSink<T> extends Sink<T> {
      * @param tempDirectory the base directory to be used for temporary output files.
      */
     public FileBasedWriteOperation(FileBasedSink<T> sink, String tempDirectory) {
+      this(sink, StaticValueProvider.of(tempDirectory));
+    }
+
+    private FileBasedWriteOperation(FileBasedSink<T> sink, ValueProvider<String> tempDirectory) {
       this.sink = sink;
       this.tempDirectory = tempDirectory;
     }
@@ -452,8 +467,9 @@ public abstract class FileBasedSink<T> extends Sink<T> {
      */
     protected final void removeTemporaryFiles(List<String> knownFiles, PipelineOptions options)
         throws IOException {
-      LOG.debug("Removing temporary bundle output files in {}.", tempDirectory);
-      IOChannelFactory factory = IOChannelUtils.getFactory(tempDirectory);
+      String tempDir = tempDirectory.get();
+      LOG.debug("Removing temporary bundle output files in {}.", tempDir);
+      IOChannelFactory factory = IOChannelUtils.getFactory(tempDir);
 
       // To partially mitigate the effects of filesystems with eventually-consistent
       // directory matching APIs, we remove not only files that the filesystem says exist
@@ -461,17 +477,17 @@ public abstract class FileBasedSink<T> extends Sink<T> {
       // (produced by successfully completed bundles).
       // This may still fail to remove temporary outputs of some failed bundles, but at least
       // the common case (where all bundles succeed) is guaranteed to be fully addressed.
-      Collection<String> matches = factory.match(factory.resolve(tempDirectory, "*"));
+      Collection<String> matches = factory.match(factory.resolve(tempDir, "*"));
       Set<String> allMatches = new HashSet<>(matches);
       allMatches.addAll(knownFiles);
       LOG.debug(
           "Removing {} temporary files found under {} ({} matched glob, {} known files)",
           allMatches.size(),
-          tempDirectory,
+          tempDir,
           matches.size(),
           allMatches.size() - matches.size());
       factory.remove(allMatches);
-      factory.remove(ImmutableList.of(tempDirectory));
+      factory.remove(ImmutableList.of(tempDir));
     }
 
     /**
@@ -569,7 +585,7 @@ public abstract class FileBasedSink<T> extends Sink<T> {
     public final void open(String uId) throws Exception {
       this.id = uId;
       filename = FileBasedWriteOperation.buildTemporaryFilename(
-          getWriteOperation().tempDirectory, uId);
+          getWriteOperation().tempDirectory.get(), uId);
       LOG.debug("Opening {}.", filename);
       final WritableByteChannelFactory factory =
           getWriteOperation().getSink().writableByteChannelFactory;
