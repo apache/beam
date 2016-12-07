@@ -66,7 +66,7 @@ class TestTextFileSource(unittest.TestCase):
     self.assertEqual(read_lines, output_lines)
     dd = DisplayData.create_from(source)
     expected_items = [
-        DisplayDataItemMatcher('filePattern', file_name),
+        DisplayDataItemMatcher('file_pattern', file_name),
         DisplayDataItemMatcher('compression', 'auto')]
     hc.assert_that(dd.items,
                    hc.contains_inanyorder(*expected_items))
@@ -647,7 +647,7 @@ class TestNativeTextFileSink(unittest.TestCase):
     dd = DisplayData.create_from(sink)
     expected_items = [
         DisplayDataItemMatcher(
-            'filePattern',
+            'file_pattern',
             '{}{}'.format(self.path, '-SSSSS-of-NNNNN')),
         DisplayDataItemMatcher(
             'compression',
@@ -662,7 +662,7 @@ class TestNativeTextFileSink(unittest.TestCase):
     dd = DisplayData.create_from(sink)
     expected_items = [
         DisplayDataItemMatcher(
-            'filePattern',
+            'file_pattern',
             '{}{}{}'.format(self.path, '-SSSSS-of-NNNNN', '.pdf')),
         DisplayDataItemMatcher(
             'compression',
@@ -693,7 +693,7 @@ class TestNativeTextFileSink(unittest.TestCase):
     dd = DisplayData.create_from(sink)
     expected_items = [
         DisplayDataItemMatcher(
-            'filePattern',
+            'file_pattern',
             '{}{}'.format(self.path, '-SSSSS-of-NNNNN')),
         DisplayDataItemMatcher(
             'compression',
@@ -733,7 +733,7 @@ class TestNativeTextFileSink(unittest.TestCase):
     dd = DisplayData.create_from(sink)
     expected_items = [
         DisplayDataItemMatcher(
-            'filePattern',
+            'file_pattern',
             '{}{}'.format(self.path, '-SSSSS-of-NNNNN')),
         DisplayDataItemMatcher(
             'compression',
@@ -870,7 +870,7 @@ class TestFileSink(unittest.TestCase):
         DisplayDataItemMatcher(
             'compression', 'auto'),
         DisplayDataItemMatcher(
-            'filePattern',
+            'file_pattern',
             '{}{}'.format(temp_path,
                           '-%(shard_num)05d-of-%(num_shards)05d.foo'))]
 

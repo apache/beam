@@ -35,7 +35,7 @@ class TestPubSubSource(unittest.TestCase):
     expected_items = [
         DisplayDataItemMatcher('topic', 'a_topic'),
         DisplayDataItemMatcher('subscription', 'a_subscription'),
-        DisplayDataItemMatcher('idLabel', 'a_label')]
+        DisplayDataItemMatcher('id_label', 'a_label')]
 
     hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
 

@@ -99,7 +99,8 @@ class FileBasedSource(iobase.BoundedSource):
       self._validate()
 
   def display_data(self):
-    return {'filePattern': DisplayDataItem(self._pattern, label="File Pattern"),
+    return {'file_pattern': DisplayDataItem(self._pattern,
+                                            label="File Pattern"),
             'compression': DisplayDataItem(str(self._compression_type),
                                            label='Compression Type')}
 

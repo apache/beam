@@ -56,7 +56,7 @@ class PubSubSource(dataflow_io.NativeSource):
     return 'pubsub'
 
   def display_data(self):
-    return {'idLabel':
+    return {'id_label':
             DisplayDataItem(self.id_label,
                             label='ID Label Attribute').drop_if_none(),
             'topic':

@@ -75,8 +75,7 @@ class ReadFromAvro(PTransform):
       **kwargs: Additional keyword arguments to be passed to the base class.
     """
     super(ReadFromAvro, self).__init__()
-    self._args = (file_pattern, min_bundle_size)
-    self._source = _AvroSource(*self._args, validate=validate)
+    self._source = _AvroSource(file_pattern, min_bundle_size, validate=validate)
 
   def apply(self, pvalue):
     return pvalue.pipeline | Read(self._source)
@@ -292,9 +291,8 @@ class WriteToAvro(beam.transforms.PTransform):
     Returns:
       A WriteToAvro transform usable for writing.
     """
-    self._args = (file_path_prefix, schema, codec, file_name_suffix, num_shards,
-                  shard_name_template, mime_type)
-    self._sink = _AvroSink(*self._args)
+    self._sink = _AvroSink(file_path_prefix, schema, codec, file_name_suffix,
+                           num_shards, shard_name_template, mime_type)
 
   def apply(self, pcoll):
     return pcoll | beam.io.iobase.Write(self._sink)

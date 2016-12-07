@@ -234,11 +234,7 @@ class ReadFromText(PTransform):
     """
 
     super(ReadFromText, self).__init__(**kwargs)
-    self._file_pattern = file_pattern
-    self._min_bundle_size = min_bundle_size
-    self._compression_type = compression_type
     self._strip_trailing_newlines = strip_trailing_newlines
-    self._coder = coder
     self._source = _TextSource(file_pattern, min_bundle_size, compression_type,
                                strip_trailing_newlines, coder,
                                validate=validate)
@@ -248,8 +244,8 @@ class ReadFromText(PTransform):
 
   def display_data(self):
     return {'source_dd': self._source,
-            'strip_nwln': DisplayDataItem(self._strip_trailing_newlines,
-                                          label='Strip Trailing New Lines')}
+            'strip_newline': DisplayDataItem(self._strip_trailing_newlines,
+                                             label='Strip Trailing New Lines')}
 
 
 class WriteToText(PTransform):
@@ -296,12 +292,16 @@ class WriteToText(PTransform):
           compression.
     """
 
-    self._args = (file_path_prefix, file_name_suffix, append_trailing_newlines,
-                  num_shards, shard_name_template, coder, compression_type)
-    self._sink = _TextSink(*self._args)
+    self._append_trailing_newlines = append_trailing_newlines
+    self._sink = _TextSink(file_path_prefix, file_name_suffix,
+                           append_trailing_newlines, num_shards,
+                           shard_name_template, coder, compression_type)
 
   def apply(self, pcoll):
     return pcoll | Write(self._sink)
 
   def display_data(self):
-    return {'sink_dd': self._sink}
+    return {'sink_dd': self._sink,
+            'append_newline': DisplayDataItem(
+                self._append_trailing_newlines,
+                label='Append Trailing New Lines')}
