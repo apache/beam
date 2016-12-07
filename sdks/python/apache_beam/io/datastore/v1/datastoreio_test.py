@@ -122,6 +122,35 @@ class DatastoreioTest(unittest.TestCase):
       self.assertEqual(1, len(returned_split_queries))
       self.assertEqual(0, len(self._mock_datastore.method_calls))
 
+  def test_SplitQueryFn_with_exception(self):
+    """A test that verifies that no split is performed when failures occur."""
+    with patch.object(helper, 'get_datastore',
+                      return_value=self._mock_datastore):
+      # Force SplitQueryFn to compute the number of query splits
+      num_splits = 0
+      expected_num_splits = 1
+      entity_bytes = (expected_num_splits *
+                      ReadFromDatastore._DEFAULT_BUNDLE_SIZE_BYTES)
+      with patch.object(ReadFromDatastore, 'get_estimated_size_bytes',
+                        return_value=entity_bytes):
+
+        with patch.object(query_splitter, 'get_splits',
+                          side_effect=ValueError("Testing query split error")):
+          split_query_fn = ReadFromDatastore.SplitQueryFn(
+              self._PROJECT, self._query, None, num_splits)
+          mock_context = MagicMock()
+          mock_context.element = self._query
+          split_query_fn.start_bundle(mock_context)
+          returned_split_queries = []
+          for split_query in split_query_fn.process(mock_context):
+            returned_split_queries.append(split_query)
+
+          self.assertEqual(len(returned_split_queries), expected_num_splits)
+          self.assertEqual(returned_split_queries[0][1], self._query)
+          self.assertEqual(0,
+                           len(self._mock_datastore.run_query.call_args_list))
+          self.verify_unique_keys(returned_split_queries)
+
   def test_DatastoreWriteFn_with_emtpy_batch(self):
     self.check_DatastoreWriteFn(0)
 
