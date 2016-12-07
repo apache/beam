@@ -39,6 +39,7 @@ import com.google.common.collect.Lists;
 import com.google.common.hash.HashCode;
 import com.google.common.hash.Hashing;
 import java.io.IOException;
+import java.io.InterruptedIOException;
 import java.nio.charset.StandardCharsets;
 import java.util.Collection;
 import java.util.Collections;
@@ -117,7 +118,10 @@ public class BigqueryMatcher extends TypeSafeMatcher<PipelineResult>
 
       response = queryWithRetries(
           bigqueryClient, queryContent, Sleeper.DEFAULT, BACKOFF_FACTORY.backoff());
-    } catch (Exception e) {
+    } catch (IOException | InterruptedException e) {
+      if (e instanceof InterruptedIOException) {
+        Thread.currentThread().interrupt();
+      }
       throw new RuntimeException("Failed to fetch BigQuery data.", e);
     }
 
@@ -149,11 +153,10 @@ public class BigqueryMatcher extends TypeSafeMatcher<PipelineResult>
   QueryResponse queryWithRetries(Bigquery bigqueryClient, QueryRequest queryContent,
                                  Sleeper sleeper, BackOff backOff)
       throws IOException, InterruptedException {
-    QueryResponse response;
     IOException lastException;
     do {
       try {
-        response = bigqueryClient.jobs().query(projectId, queryContent).execute();
+        QueryResponse response = bigqueryClient.jobs().query(projectId, queryContent).execute();
         if (response != null) {
           return response;
         } else {
@@ -221,7 +224,7 @@ public class BigqueryMatcher extends TypeSafeMatcher<PipelineResult>
     String info;
     if (!response.getJobComplete()) {
       // query job not complete
-      info = String.format("Query job not complete with retry. Got response: %s", response);
+      info = String.format("The query job hasn't completed. Got response: %s", response);
     } else {
       // checksum mismatch
       info = String.format("was (%s).%n"
