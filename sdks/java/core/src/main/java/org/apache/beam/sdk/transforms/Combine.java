@@ -2392,8 +2392,8 @@ public class Combine {
         PCollection<? extends KV<K, ? extends Iterable<InputT>>> input) {
 
       PCollection<KV<K, OutputT>> output = input.apply(ParDo.of(
-          new OldDoFn<KV<K, ? extends Iterable<InputT>>, KV<K, OutputT>>() {
-            @Override
+          new DoFn<KV<K, ? extends Iterable<InputT>>, KV<K, OutputT>>() {
+            @ProcessElement
             public void processElement(final ProcessContext c) {
               K key = c.element().getKey();
 

@@ -30,7 +30,7 @@ public final class AggregatorRetriever {
   /**
    * Returns the {@link Aggregator Aggregators} created by the provided {@link OldDoFn}.
    */
-  public static Collection<Aggregator<?, ?>> getAggregators(OldDoFn<?, ?> fn) {
+  public static Collection<Aggregator<?, ?>> getAggregators(DoFn<?, ?> fn) {
     return fn.getAggregators();
   }
 }
