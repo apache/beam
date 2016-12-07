@@ -115,7 +115,7 @@ class ViewEvaluatorFactory implements TransformEvaluatorFactory {
     }
 
     @Override
-    public PCollectionView<ViewT> apply(PCollection<ElemT> input) {
+    public PCollectionView<ViewT> expand(PCollection<ElemT> input) {
       return input.apply(WithKeys.<Void, ElemT>of((Void) null))
           .setCoder(KvCoder.of(VoidCoder.of(), input.getCoder()))
           .apply(GroupByKey.<Void, ElemT>create())
@@ -145,7 +145,7 @@ class ViewEvaluatorFactory implements TransformEvaluatorFactory {
     }
 
     @Override
-    public PCollectionView<ViewT> apply(PCollection<Iterable<ElemT>> input) {
+    public PCollectionView<ViewT> expand(PCollection<Iterable<ElemT>> input) {
       return og.getView();
     }
   }

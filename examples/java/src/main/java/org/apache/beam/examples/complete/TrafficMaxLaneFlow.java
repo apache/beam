@@ -267,7 +267,7 @@ public class TrafficMaxLaneFlow {
   static class MaxLaneFlow
       extends PTransform<PCollection<KV<String, LaneInfo>>, PCollection<TableRow>> {
     @Override
-    public PCollection<TableRow> apply(PCollection<KV<String, LaneInfo>> flowInfo) {
+    public PCollection<TableRow> expand(PCollection<KV<String, LaneInfo>> flowInfo) {
       // stationId, LaneInfo => stationId + max lane flow info
       PCollection<KV<String, LaneInfo>> flowMaxes =
           flowInfo.apply(Combine.<String, LaneInfo>perKey(
@@ -289,7 +289,7 @@ public class TrafficMaxLaneFlow {
     }
 
     @Override
-    public PCollection<String> apply(PBegin begin) {
+    public PCollection<String> expand(PBegin begin) {
       return begin
           .apply(TextIO.Read.from(inputFile))
           .apply(ParDo.of(new ExtractTimestamps()));

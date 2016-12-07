@@ -165,7 +165,7 @@ public class ApexRunner extends PipelineRunner<ApexRunnerResult> {
     }
 
     @Override
-    public PCollection<T> apply(PCollection<T> input) {
+    public PCollection<T> expand(PCollection<T> input) {
       WindowingStrategy<?, ?> outputStrategy =
           wrapped.getOutputStrategyInternal(input.getWindowingStrategy());
 
@@ -226,7 +226,7 @@ public class ApexRunner extends PipelineRunner<ApexRunnerResult> {
     }
 
     @Override
-    public PCollectionView<ViewT> apply(PCollection<List<ElemT>> input) {
+    public PCollectionView<ViewT> expand(PCollection<List<ElemT>> input) {
       return view;
     }
   }
@@ -252,7 +252,7 @@ public class ApexRunner extends PipelineRunner<ApexRunnerResult> {
     }
 
     @Override
-    public PCollectionView<OutputT> apply(PCollection<InputT> input) {
+    public PCollectionView<OutputT> expand(PCollection<InputT> input) {
       PCollection<OutputT> combined = input
           .apply(Combine.globally(transform.getCombineFn())
               .withoutDefaults().withFanout(transform.getFanout()));
@@ -282,7 +282,7 @@ public class ApexRunner extends PipelineRunner<ApexRunnerResult> {
     }
 
     @Override
-    public PCollectionView<T> apply(PCollection<T> input) {
+    public PCollectionView<T> expand(PCollection<T> input) {
       Combine.Globally<T, T> combine = Combine
           .globally(new SingletonCombine<>(transform.hasDefaultValue(), transform.defaultValue()));
       if (!transform.hasDefaultValue()) {
@@ -335,7 +335,7 @@ public class ApexRunner extends PipelineRunner<ApexRunnerResult> {
     }
 
     @Override
-    public PCollectionView<Iterable<T>> apply(PCollection<T> input) {
+    public PCollectionView<Iterable<T>> expand(PCollection<T> input) {
       PCollectionView<Iterable<T>> view = PCollectionViews.iterableView(input.getPipeline(),
           input.getWindowingStrategy(), input.getCoder());
 

@@ -551,7 +551,7 @@ public class DataflowPipelineTranslatorTest implements Serializable {
     }
 
     @Override
-    public PCollection<String> apply(PCollection<String> input) {
+    public PCollection<String> expand(PCollection<String> input) {
       return PCollection.createPrimitiveOutputInternal(
           input.getPipeline(),
           WindowingStrategy.globalDefault(),
@@ -585,7 +585,7 @@ public class DataflowPipelineTranslatorTest implements Serializable {
       extends PTransform<PCollection<Integer>, PCollection<Integer>> {
 
     @Override
-    public PCollection<Integer> apply(PCollection<Integer> input) {
+    public PCollection<Integer> expand(PCollection<Integer> input) {
       // Apply an operation so that this is a composite transform.
       input.apply(Count.<Integer>perElement());
 
@@ -606,7 +606,7 @@ public class DataflowPipelineTranslatorTest implements Serializable {
       extends PTransform<PCollection<Integer>, PDone> {
 
     @Override
-    public PDone apply(PCollection<Integer> input) {
+    public PDone expand(PCollection<Integer> input) {
       // Apply an operation so that this is a composite transform.
       input.apply(Count.<Integer>perElement());
 
@@ -631,7 +631,7 @@ public class DataflowPipelineTranslatorTest implements Serializable {
     public final TupleTag<Void> doneTag = new TupleTag<>("done");
 
     @Override
-    public PCollectionTuple apply(PCollection<Integer> input) {
+    public PCollectionTuple expand(PCollection<Integer> input) {
       PCollection<Integer> sum = input.apply(Sum.integersGlobally());
 
       // Fails here when attempting to construct a tuple with an unbound object.

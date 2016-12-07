@@ -240,7 +240,7 @@ public class Create<T> {
     }
 
     @Override
-    public PCollection<T> apply(PBegin input) {
+    public PCollection<T> expand(PBegin input) {
       try {
         Coder<T> coder = getDefaultOutputCoder(input);
         try {
@@ -440,7 +440,7 @@ public class Create<T> {
     }
 
     @Override
-    public PCollection<T> apply(PBegin input) {
+    public PCollection<T> expand(PBegin input) {
       try {
         Iterable<T> rawElements =
             Iterables.transform(

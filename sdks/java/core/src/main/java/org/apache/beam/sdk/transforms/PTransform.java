@@ -129,7 +129,7 @@ import org.apache.beam.sdk.values.TypedPValue;
  * output value as their apply implementation.
  * The majority of PTransforms are
  * implemented as composites of other PTransforms.  Such a PTransform
- * subclass typically just implements {@link #apply}, computing its
+ * subclass typically just implements {@link #expand}, computing its
  * Output value from its {@code InputT} value.  User programs are encouraged to
  * use this mechanism to modularize their own code.  Such composite
  * abstractions get their own name, and navigating through the
@@ -181,7 +181,7 @@ public abstract class PTransform<InputT extends PInput, OutputT extends POutput>
    * a new unbound output and register evaluators (via backend-specific
    * registration methods).
    */
-  public abstract OutputT apply(InputT input);
+  public abstract OutputT expand(InputT input);
 
   /**
    * Called before invoking apply (which may be intercepted by the runner) to

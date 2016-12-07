@@ -101,7 +101,7 @@ public class TransformHierarchyTest {
             pcList,
             new PTransform<PCollectionList<Long>, PCollection<Long>>() {
               @Override
-              public PCollection<Long> apply(PCollectionList<Long> input) {
+              public PCollection<Long> expand(PCollectionList<Long> input) {
                 return input.get(0);
               }
             });
@@ -133,7 +133,7 @@ public class TransformHierarchyTest {
         pcList,
         new PTransform<PCollectionList<Long>, PCollectionList<Long>>() {
           @Override
-          public PCollectionList<Long> apply(PCollectionList<Long> input) {
+          public PCollectionList<Long> expand(PCollectionList<Long> input) {
             return appended;
           }
         });

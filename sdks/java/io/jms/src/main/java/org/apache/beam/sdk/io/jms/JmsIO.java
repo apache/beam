@@ -135,7 +135,7 @@ public class JmsIO {
     }
 
     @Override
-    public PCollection<JmsRecord> apply(PBegin input) {
+    public PCollection<JmsRecord> expand(PBegin input) {
       // handles unbounded source to bounded conversion if maxNumRecords is set.
       Unbounded<JmsRecord> unbounded = org.apache.beam.sdk.io.Read.from(createSource());
 
@@ -434,7 +434,7 @@ public class JmsIO {
     }
 
     @Override
-    public PDone apply(PCollection<String> input) {
+    public PDone expand(PCollection<String> input) {
       input.apply(ParDo.of(new JmsWriter(connectionFactory, queue, topic)));
       return PDone.in(input.getPipeline());
     }

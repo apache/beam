@@ -1339,7 +1339,7 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
   }
 
   @Override
-  public PCollection<T> apply(PBegin input) {
+  public PCollection<T> expand(PBegin input) {
     return input.getPipeline().begin()
                 .apply(Read.from(new PubsubSource<T>(this)))
                 .apply("PubsubUnboundedSource.Stats",

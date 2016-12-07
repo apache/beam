@@ -60,7 +60,7 @@ public class WriteWindowedToBigQuery<T>
   }
 
   @Override
-  public PDone apply(PCollection<T> teamAndScore) {
+  public PDone expand(PCollection<T> teamAndScore) {
     return teamAndScore
       .apply("ConvertToRow", ParDo.of(new BuildRowFn()))
       .apply(BigQueryIO.Write

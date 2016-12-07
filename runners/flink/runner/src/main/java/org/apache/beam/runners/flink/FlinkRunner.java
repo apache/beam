@@ -307,7 +307,7 @@ public class FlinkRunner extends PipelineRunner<PipelineResult> {
     }
 
     @Override
-    public PCollectionView<Map<K, V>> apply(PCollection<KV<K, V>> input) {
+    public PCollectionView<Map<K, V>> expand(PCollection<KV<K, V>> input) {
       PCollectionView<Map<K, V>> view =
           PCollectionViews.mapView(
               input.getPipeline(),
@@ -352,7 +352,7 @@ public class FlinkRunner extends PipelineRunner<PipelineResult> {
     }
 
     @Override
-    public PCollectionView<Map<K, Iterable<V>>> apply(PCollection<KV<K, V>> input) {
+    public PCollectionView<Map<K, Iterable<V>>> expand(PCollection<KV<K, V>> input) {
       PCollectionView<Map<K, Iterable<V>>> view =
           PCollectionViews.multimapView(
               input.getPipeline(),
@@ -392,7 +392,7 @@ public class FlinkRunner extends PipelineRunner<PipelineResult> {
     public StreamingViewAsList(FlinkRunner runner, View.AsList<T> transform) {}
 
     @Override
-    public PCollectionView<List<T>> apply(PCollection<T> input) {
+    public PCollectionView<List<T>> expand(PCollection<T> input) {
       PCollectionView<List<T>> view =
           PCollectionViews.listView(
               input.getPipeline(),
@@ -423,7 +423,7 @@ public class FlinkRunner extends PipelineRunner<PipelineResult> {
     public StreamingViewAsIterable(FlinkRunner runner, View.AsIterable<T> transform) { }
 
     @Override
-    public PCollectionView<Iterable<T>> apply(PCollection<T> input) {
+    public PCollectionView<Iterable<T>> expand(PCollection<T> input) {
       PCollectionView<Iterable<T>> view =
           PCollectionViews.iterableView(
               input.getPipeline(),
@@ -465,7 +465,7 @@ public class FlinkRunner extends PipelineRunner<PipelineResult> {
     }
 
     @Override
-    public PCollectionView<T> apply(PCollection<T> input) {
+    public PCollectionView<T> expand(PCollection<T> input) {
       Combine.Globally<T, T> combine = Combine.globally(
           new SingletonCombine<>(transform.hasDefaultValue(), transform.defaultValue()));
       if (!transform.hasDefaultValue()) {
@@ -523,7 +523,7 @@ public class FlinkRunner extends PipelineRunner<PipelineResult> {
     }
 
     @Override
-    public PCollectionView<OutputT> apply(PCollection<InputT> input) {
+    public PCollectionView<OutputT> expand(PCollection<InputT> input) {
       PCollection<OutputT> combined =
           input.apply(Combine.globally(transform.getCombineFn())
               .withoutDefaults()
@@ -620,7 +620,7 @@ public class FlinkRunner extends PipelineRunner<PipelineResult> {
     }
 
     @Override
-    public PCollectionView<ViewT> apply(PCollection<List<ElemT>> input) {
+    public PCollectionView<ViewT> expand(PCollection<List<ElemT>> input) {
       return view;
     }
   }

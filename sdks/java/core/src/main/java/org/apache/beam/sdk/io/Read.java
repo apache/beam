@@ -101,7 +101,7 @@ public class Read {
     }
 
     @Override
-    public final PCollection<T> apply(PBegin input) {
+    public final PCollection<T> expand(PBegin input) {
       source.validate();
 
       return PCollection.<T>createPrimitiveOutputInternal(input.getPipeline(),
@@ -169,7 +169,7 @@ public class Read {
     }
 
     @Override
-    public final PCollection<T> apply(PBegin input) {
+    public final PCollection<T> expand(PBegin input) {
       source.validate();
 
       return PCollection.<T>createPrimitiveOutputInternal(

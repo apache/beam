@@ -1360,7 +1360,7 @@ public class ViewTest implements Serializable {
         .apply(
             new PTransform<PBegin, PCollection<KV<String, Integer>>>() {
               @Override
-              public PCollection<KV<String, Integer>> apply(PBegin input) {
+              public PCollection<KV<String, Integer>> expand(PBegin input) {
                 return PCollection.<KV<String, Integer>>createPrimitiveOutputInternal(
                         input.getPipeline(),
                         WindowingStrategy.globalDefault(),

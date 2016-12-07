@@ -100,7 +100,7 @@ public class Partition<T> extends PTransform<PCollection<T>, PCollectionList<T>>
   /////////////////////////////////////////////////////////////////////////////
 
   @Override
-  public PCollectionList<T> apply(PCollection<T> in) {
+  public PCollectionList<T> expand(PCollection<T> in) {
     final TupleTagList outputTags = partitionDoFn.getOutputTags();
 
     PCollectionTuple outputs = in.apply(

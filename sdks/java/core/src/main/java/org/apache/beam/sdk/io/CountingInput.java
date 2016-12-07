@@ -130,7 +130,7 @@ public class CountingInput {
     }
 
     @Override
-    public PCollection<Long> apply(PBegin begin) {
+    public PCollection<Long> expand(PBegin begin) {
       return begin.apply(Read.from(CountingSource.createSourceForSubrange(startIndex, endIndex)));
     }
 
@@ -236,7 +236,7 @@ public class CountingInput {
 
     @SuppressWarnings("deprecation")
     @Override
-    public PCollection<Long> apply(PBegin begin) {
+    public PCollection<Long> expand(PBegin begin) {
       Unbounded<Long> read =
           Read.from(
               CountingSource.createUnbounded()

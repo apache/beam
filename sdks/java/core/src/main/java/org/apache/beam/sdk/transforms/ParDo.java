@@ -795,7 +795,7 @@ public class ParDo {
     }
 
     @Override
-    public PCollection<OutputT> apply(PCollection<? extends InputT> input) {
+    public PCollection<OutputT> expand(PCollection<? extends InputT> input) {
       checkArgument(
           !isSplittable(getOldFn()), "Splittable DoFn not supported by the current runner");
       validateWindowType(input, fn);
@@ -1052,7 +1052,7 @@ public class ParDo {
 
 
     @Override
-    public PCollectionTuple apply(PCollection<? extends InputT> input) {
+    public PCollectionTuple expand(PCollection<? extends InputT> input) {
       checkArgument(
           !isSplittable(getOldFn()), "Splittable DoFn not supported by the current runner");
       validateWindowType(input, fn);

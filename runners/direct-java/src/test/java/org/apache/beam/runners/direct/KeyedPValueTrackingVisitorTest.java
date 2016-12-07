@@ -163,7 +163,7 @@ public class KeyedPValueTrackingVisitorTest {
 
   private static class PrimitiveKeyer<K> extends PTransform<PCollection<K>, PCollection<K>> {
     @Override
-    public PCollection<K> apply(PCollection<K> input) {
+    public PCollection<K> expand(PCollection<K> input) {
       return PCollection.<K>createPrimitiveOutputInternal(
               input.getPipeline(), input.getWindowingStrategy(), input.isBounded())
           .setCoder(input.getCoder());
@@ -172,7 +172,7 @@ public class KeyedPValueTrackingVisitorTest {
 
   private static class CompositeKeyer<K> extends PTransform<PCollection<K>, PCollection<K>> {
     @Override
-    public PCollection<K> apply(PCollection<K> input) {
+    public PCollection<K> expand(PCollection<K> input) {
       return input.apply(new PrimitiveKeyer<K>()).apply(ParDo.of(new IdentityFn<K>()));
     }
   }

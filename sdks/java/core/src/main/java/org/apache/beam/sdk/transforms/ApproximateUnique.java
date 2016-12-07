@@ -204,7 +204,7 @@ public class ApproximateUnique {
     }
 
     @Override
-    public PCollection<Long> apply(PCollection<T> input) {
+    public PCollection<Long> expand(PCollection<T> input) {
       Coder<T> coder = input.getCoder();
       return input.apply(
           Combine.globally(
@@ -271,7 +271,7 @@ public class ApproximateUnique {
     }
 
     @Override
-    public PCollection<KV<K, Long>> apply(PCollection<KV<K, V>> input) {
+    public PCollection<KV<K, Long>> expand(PCollection<KV<K, V>> input) {
       Coder<KV<K, V>> inputCoder = input.getCoder();
       if (!(inputCoder instanceof KvCoder)) {
         throw new IllegalStateException(

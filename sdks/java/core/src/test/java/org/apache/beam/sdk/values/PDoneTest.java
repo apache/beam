@@ -48,7 +48,7 @@ public class PDoneTest {
    */
   static class EmptyTransform extends PTransform<PBegin, PDone> {
     @Override
-    public PDone apply(PBegin begin) {
+    public PDone expand(PBegin begin) {
       return PDone.in(begin.getPipeline());
     }
   }
@@ -64,7 +64,7 @@ public class PDoneTest {
     }
 
     @Override
-    public PDone apply(PBegin begin) {
+    public PDone expand(PBegin begin) {
       return
           begin
           .apply(Create.of(LINES))

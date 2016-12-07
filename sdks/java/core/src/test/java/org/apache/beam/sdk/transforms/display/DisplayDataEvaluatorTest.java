@@ -46,7 +46,7 @@ public class DisplayDataEvaluatorTest implements Serializable {
     PTransform<? super PCollection<String>, ? super POutput> myTransform =
         new PTransform<PCollection<String>, POutput> () {
           @Override
-          public PCollection<String> apply(PCollection<String> input) {
+          public PCollection<String> expand(PCollection<String> input) {
             return input.apply(ParDo.of(new DoFn<String, String>() {
               @ProcessElement
               public void processElement(ProcessContext c) throws Exception {

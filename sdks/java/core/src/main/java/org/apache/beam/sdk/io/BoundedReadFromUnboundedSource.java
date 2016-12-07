@@ -84,7 +84,7 @@ public class BoundedReadFromUnboundedSource<T> extends PTransform<PBegin, PColle
   }
 
   @Override
-  public PCollection<T> apply(PBegin input) {
+  public PCollection<T> expand(PBegin input) {
     PCollection<ValueWithRecordId<T>> read = Pipeline.applyTransform(input,
         Read.from(new UnboundedToBoundedSourceAdapter<>(source, maxNumRecords, maxReadTime)));
     if (source.requiresDeduping()) {
