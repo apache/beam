@@ -1724,7 +1724,8 @@ public class ParDoTest implements Serializable {
     Pipeline p = TestPipeline.create();
 
     thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage("Splittable DoFn not supported by the current runner");
+    thrown.expectMessage(p.getRunner().getClass().getName());
+    thrown.expectMessage("does not support Splittable DoFn");
 
     p.apply(Create.of(1, 2, 3)).apply(ParDo.of(new TestSplittableDoFn()));
   }
@@ -1736,7 +1737,8 @@ public class ParDoTest implements Serializable {
     Pipeline p = TestPipeline.create();
 
     thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage("Splittable DoFn not supported by the current runner");
+    thrown.expectMessage(p.getRunner().getClass().getName());
+    thrown.expectMessage("does not support Splittable DoFn");
 
     p.apply(Create.of(1, 2, 3))
         .apply(

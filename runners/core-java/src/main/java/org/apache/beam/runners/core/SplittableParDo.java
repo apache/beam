@@ -590,9 +590,14 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
         }
 
         private void noteOutput() {
-          if (++numOutputs >= MAX_OUTPUTS_PER_BUNDLE) {
+          // Take the checkpoint only if it hasn't been taken yet, because:
+          // 1) otherwise we'd lose the previous checkpoint stored in residualRestrictionHolder
+          // 2) it's not allowed to checkpoint a RestrictionTracker twice, since the first call
+          // by definition already maximally narrows its restriction, so a second checkpoint would
+          // have produced a useless empty residual restriction anyway.
+          if (++numOutputs >= MAX_OUTPUTS_PER_BUNDLE && residualRestrictionHolder[0] == null) {
             // Request a checkpoint. The fn *may* produce more output, but hopefully not too much.
-            residualRestrictionHolder[0] = tracker.checkpoint();
+            residualRestrictionHolder[0] = checkNotNull(tracker.checkpoint());
           }
         }
 

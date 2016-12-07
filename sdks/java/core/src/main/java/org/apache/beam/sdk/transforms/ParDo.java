@@ -797,7 +797,9 @@ public class ParDo {
     @Override
     public PCollection<OutputT> apply(PCollection<? extends InputT> input) {
       checkArgument(
-          !isSplittable(getOldFn()), "Splittable DoFn not supported by the current runner");
+          !isSplittable(getOldFn()),
+          "%s does not support Splittable DoFn",
+          input.getPipeline().getOptions().getRunner().getName());
       validateWindowType(input, fn);
       return PCollection.<OutputT>createPrimitiveOutputInternal(
               input.getPipeline(),
@@ -1054,7 +1056,9 @@ public class ParDo {
     @Override
     public PCollectionTuple apply(PCollection<? extends InputT> input) {
       checkArgument(
-          !isSplittable(getOldFn()), "Splittable DoFn not supported by the current runner");
+          !isSplittable(getOldFn()),
+          "%s does not support Splittable DoFn",
+          input.getPipeline().getOptions().getRunner().getName());
       validateWindowType(input, fn);
       PCollectionTuple outputs = PCollectionTuple.ofPrimitiveOutputsInternal(
           input.getPipeline(),
