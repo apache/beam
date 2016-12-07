@@ -246,7 +246,7 @@ public class ValueProviderTest {
           return from + "bar";
         }
       });
-    ValueProvider<String> double_nvp = NestedValueProvider.of(
+    ValueProvider<String> doubleNvp = NestedValueProvider.of(
       nvp, new SerializableFunction<String, String>() {
         @Override
         public String apply(String from) {
@@ -254,7 +254,7 @@ public class ValueProviderTest {
         }
       });
     assertEquals("bar", ((NestedValueProvider) nvp).propertyName());
-    assertEquals("bar", ((NestedValueProvider) double_nvp).propertyName());
+    assertEquals("bar", ((NestedValueProvider) doubleNvp).propertyName());
     assertFalse(nvp.isAccessible());
     expectedException.expect(RuntimeException.class);
     expectedException.expectMessage("Not called from a runtime context");
