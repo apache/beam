@@ -204,6 +204,8 @@ class GcsIO(object):
              argument, where exception is None if the operation succeeded or
              the relevant exception if the operation failed.
     """
+    if not paths:
+      return []
     batch_request = BatchApiRequest(
         retryable_codes=retry.SERVER_ERROR_OR_TIMEOUT_CODES)
     for path in paths:
@@ -264,6 +266,8 @@ class GcsIO(object):
              src_dest_pairs argument, where exception is None if the operation
              succeeded or the relevant exception if the operation failed.
     """
+    if not src_dest_pairs:
+      return []
     batch_request = BatchApiRequest(
         retryable_codes=retry.SERVER_ERROR_OR_TIMEOUT_CODES)
     for src, dest in src_dest_pairs:
