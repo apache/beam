@@ -69,6 +69,7 @@ import org.apache.beam.sdk.transforms.reflect.DoFnSignature.OnTimerMethod;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.Cases;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.ContextParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.InputProviderParameter;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.OnTimerContextParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.OutputReceiverParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.ProcessContextParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.RestrictionTrackerParameter;
@@ -551,6 +552,11 @@ public class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
                 MethodInvocation.invoke(
                     getExtraContextFactoryMethodDescription(
                         PROCESS_CONTEXT_PARAMETER_METHOD, DoFn.class)));
+          }
+
+          @Override
+          public StackManipulation dispatch(OnTimerContextParameter p) {
+            throw new UnsupportedOperationException("OnTimerContext is not yet supported.");
           }
 
           @Override
