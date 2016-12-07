@@ -22,6 +22,7 @@ import static com.google.common.base.Preconditions.checkState;
 import com.google.auto.value.AutoValue;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Predicates;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Maps;
@@ -73,6 +74,29 @@ public class DoFnSignatures {
   private DoFnSignatures() {};
 
   private static final Map<Class<?>, DoFnSignature> signatureCache = new LinkedHashMap<>();
+
+  private static final Collection<Class<? extends Parameter>>
+      ALLOWED_NON_SPLITTABLE_PROCESS_ELEMENT_PARAMETERS =
+      ImmutableList.of(
+          Parameter.ProcessContextParameter.class,
+          Parameter.WindowParameter.class,
+          Parameter.TimerParameter.class,
+          Parameter.StateParameter.class,
+          Parameter.InputProviderParameter.class,
+          Parameter.OutputReceiverParameter.class);
+
+  private static final Collection<Class<? extends Parameter>>
+      ALLOWED_SPLITTABLE_PROCESS_ELEMENT_PARAMETERS =
+          ImmutableList.of(
+              Parameter.ProcessContextParameter.class, Parameter.RestrictionTrackerParameter.class);
+
+  private static final Collection<Class<? extends Parameter>>
+      ALLOWED_ON_TIMER_PARAMETERS =
+          ImmutableList.of(
+              Parameter.OnTimerContextParameter.class,
+              Parameter.WindowParameter.class,
+              Parameter.TimerParameter.class,
+              Parameter.StateParameter.class);
 
   /** @return the {@link DoFnSignature} for the given {@link DoFn} instance. */
   public static <FnT extends DoFn<?, ?>> DoFnSignature signatureForDoFn(FnT fn) {
@@ -590,7 +614,7 @@ public class DoFnSignatures {
       TypeDescriptor<DoFn<InputT, OutputT>.OnTimerContext> doFnOnTimerContextTypeOf(
           TypeDescriptor<InputT> inputT, TypeDescriptor<OutputT> outputT) {
     return new TypeDescriptor<DoFn<InputT, OutputT>.OnTimerContext>() {}.where(
-        new TypeParameter<InputT>() {}, inputT)
+            new TypeParameter<InputT>() {}, inputT)
         .where(new TypeParameter<OutputT>() {}, outputT);
   }
 
@@ -633,7 +657,7 @@ public class DoFnSignatures {
     List<DoFnSignature.Parameter> extraParameters = new ArrayList<>();
     ErrorReporter onTimerErrors = errors.forMethod(DoFn.OnTimer.class, m);
     for (int i = 0; i < params.length; ++i) {
-      extraParameters.add(
+      Parameter parameter =
           analyzeExtraParameter(
               onTimerErrors,
               fnContext,
@@ -645,21 +669,14 @@ public class DoFnSignatures {
                   fnClass.resolveType(params[i]),
                   Arrays.asList(m.getParameterAnnotations()[i])),
               inputT,
-              outputT));
-    }
+              outputT);
 
-    for (Parameter param : extraParameters) {
-      errors.checkArgument(
-          Predicates.or(
-                  Predicates.instanceOf(Parameter.OnTimerContextParameter.class),
-                  Predicates.instanceOf(Parameter.WindowParameter.class),
-                  Predicates.instanceOf(Parameter.TimerParameter.class),
-                  Predicates.instanceOf(Parameter.StateParameter.class))
-              .apply(param),
-          "%s @%s method has illegal parameter: %s",
-          DoFn.class.getSimpleName(),
-          DoFn.OnTimer.class.getSimpleName(),
-          param);
+      checkParameterOneOf(
+          errors,
+          parameter,
+          ALLOWED_ON_TIMER_PARAMETERS);
+
+      extraParameters.add(parameter);
     }
 
     return DoFnSignature.OnTimerMethod.create(m, timerId, windowT, extraParameters);
@@ -705,37 +722,14 @@ public class DoFnSignatures {
       methodContext.addParameter(extraParam);
     }
 
-    // A splittable DoFn can not have any other extra context parameters.
+    // The allowed parameters depend on whether this DoFn is splittable
     if (methodContext.hasRestrictionTrackerParameter()) {
-      errors.checkArgument(
-          Iterables.all(
-              methodContext.getExtraParameters(),
-              Predicates.or(
-                  Predicates.instanceOf(RestrictionTrackerParameter.class),
-                  Predicates.instanceOf(ProcessContextParameter.class))),
-          "Splittable %s @%s must have only %s and %s parameters, but has: %s",
-          DoFn.class.getSimpleName(),
-          DoFn.ProcessElement.class.getSimpleName(),
-          DoFn.ProcessContext.class.getSimpleName(),
-          RestrictionTracker.class.getSimpleName(),
-          methodContext.getExtraParameters());
+      for (Parameter parameter : methodContext.getExtraParameters()) {
+        checkParameterOneOf(errors, parameter, ALLOWED_SPLITTABLE_PROCESS_ELEMENT_PARAMETERS);
+      }
     } else {
-      // These are the parameters allowed for non-splittable @ProcessElement
-      for (Parameter param : methodContext.getExtraParameters()) {
-        errors.checkArgument(
-            Predicates.or(
-                    Predicates.instanceOf(Parameter.ProcessContextParameter.class),
-                    Predicates.instanceOf(Parameter.WindowParameter.class),
-                    Predicates.instanceOf(Parameter.TimerParameter.class),
-                    Predicates.instanceOf(Parameter.StateParameter.class),
-                    // And these are just for testing
-                    Predicates.instanceOf(Parameter.InputProviderParameter.class),
-                    Predicates.instanceOf(Parameter.OutputReceiverParameter.class))
-                .apply(param),
-            "%s @%s method has illegal parameter: %s",
-            DoFn.class.getSimpleName(),
-            DoFn.ProcessElement.class.getSimpleName(),
-            param);
+      for (Parameter parameter : methodContext.getExtraParameters()) {
+        checkParameterOneOf(errors, parameter, ALLOWED_NON_SPLITTABLE_PROCESS_ELEMENT_PARAMETERS);
       }
     }
 
@@ -745,6 +739,21 @@ public class DoFnSignatures {
         trackerT,
         windowT,
         DoFn.ProcessContinuation.class.equals(m.getReturnType()));
+  }
+
+  private static void checkParameterOneOf(
+      ErrorReporter errors,
+      Parameter parameter,
+      Collection<Class<? extends Parameter>> allowedParameterClasses) {
+
+    for (Class<? extends Parameter> paramClass : allowedParameterClasses) {
+      if (paramClass.isAssignableFrom(parameter.getClass())) {
+        return;
+      }
+    }
+
+    // If we get here, none matched
+    errors.throwIllegalArgument("Illegal parameter type: %s", parameter);
   }
 
   private static Parameter analyzeExtraParameter(
