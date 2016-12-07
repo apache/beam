@@ -15,7 +15,49 @@
 # limitations under the License.
 #
 
-"""A word-counting workflow that uses Google Cloud Datastore."""
+"""A word-counting workflow that uses Google Cloud Datastore.
+
+This example shows how to use ``datastoreio`` to read from and write to
+Google Cloud Datastore. Note that running this example may incur charge for
+Cloud Datastore operations.
+
+See https://developers.google.com/datastore/ for more details on Google Cloud
+Datastore.
+See http://beam.incubator.apache.org/get-started/quickstart on
+how to run a Beam pipeline.
+
+Read-only Mode: In this mode, this example reads Cloud Datastore entities using
+the ``datastoreio.ReadFromDatastore`` transform, extracts the words,
+counts them and write the output to a set of files.
+
+The following options must be provided to run this pipeline in read-only mode:
+``
+--project YOUR_PROJECT_ID
+--kind YOUR_DATASTORE_KIND
+--output [YOUR_LOCAL_FILE *or* gs://YOUR_OUTPUT_PATH]
+--read-only
+``
+
+Read-write Mode: In this mode, this example reads words from an input file,
+converts them to Cloud Datastore ``Entity`` objects and writes them to
+Cloud Datastore using the ``datastoreio.Write`` transform. The second pipeline
+will then read these Cloud Datastore entities using the
+``datastoreio.ReadFromDatastore`` transform, extract the words, count them and
+write the output to a set of files.
+
+The following options must be provided to run this pipeline in read-write mode:
+``
+--project YOUR_PROJECT_ID
+--kind YOUR_DATASTORE_KIND
+--output [YOUR_LOCAL_FILE *or* gs://YOUR_OUTPUT_PATH]
+``
+
+Note: We are using the Cloud Datastore protobuf objects directly because
+that is the interface that the ``datastoreio`` exposes.
+See the following links on more information about these protobuf messages.
+https://cloud.google.com/datastore/docs/reference/rpc/google.datastore.v1 and
+https://github.com/googleapis/googleapis/tree/master/google/datastore/v1
+"""
 
 from __future__ import absolute_import
 
@@ -196,7 +238,7 @@ def run(argv=None):
   if not known_args.read_only:
     write_to_datastore(gcloud_options.project, known_args, pipeline_options)
 
-  # Read from Datastore.
+  # Read entities from Datastore.
   result = read_from_datastore(gcloud_options.project, known_args,
                                pipeline_options)
 
