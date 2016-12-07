@@ -116,13 +116,13 @@ import org.elasticsearch.client.RestClientBuilder;
 public class ElasticsearchIO {
 
   public static Read read() {
-    return new AutoValue_ElasticsearchIO_Read.Builder().setScrollKeepalive("1m").build();
+    return new AutoValue_ElasticsearchIO_Read.Builder().setScrollKeepalive("5m").build();
   }
 
   public static Write write() {
     return new AutoValue_ElasticsearchIO_Write.Builder()
-        .setBatchSize(1000L)
-        .setBatchSizeMegaBytes(5)
+        .setMaxBatchSize(1000L)
+        .setMaxBatchSizeMegaBytes(5)
         .build();
   }
 
@@ -306,7 +306,7 @@ public class ElasticsearchIO {
     /**
      * Provide a scroll keepalive. See <a
      * href="https://www.elastic.co/guide/en/elasticsearch/reference/2.4/search-request-scroll.html">scroll
-     * API</a> Default is "1m"
+     * API</a> Default is "5m". Change this only if you get "No search context found" errors.
      *
      * @param scrollKeepalive keepalive duration ex "5m" from 5 minutes
      * @return the {@link ElasticsearchIO.Read} with scroll keepalive set
@@ -580,9 +580,9 @@ public class ElasticsearchIO {
     @Nullable
     abstract ConnectionConfiguration getConnectionConfiguration();
 
-    abstract long getBatchSize();
+    abstract long getMaxBatchSize();
 
-    abstract int getBatchSizeMegaBytes();
+    abstract int getMaxBatchSizeMegaBytes();
 
     abstract Builder builder();
 
@@ -590,9 +590,9 @@ public class ElasticsearchIO {
     abstract static class Builder {
       abstract Builder setConnectionConfiguration(ConnectionConfiguration connectionConfiguration);
 
-      abstract Builder setBatchSize(long batchSize);
+      abstract Builder setMaxBatchSize(long maxBatchSize);
 
-      abstract Builder setBatchSizeMegaBytes(int batchSizeMegaBytes);
+      abstract Builder setMaxBatchSizeMegaBytes(int maxBatchSizeMegaBytes);
 
       abstract Write build();
     }
@@ -612,25 +612,27 @@ public class ElasticsearchIO {
     }
 
     /**
-     * Provide a size in number of documents for the batch see bulk API
-     * (https://www.elastic.co/guide/en/elasticsearch/reference/2.4/docs-bulk.html). Default is 1000
-     * docs
-     * @param batchSize batch size in number of documents
+     * Provide a maximum size in number of documents for the batch see bulk API
+     * (https://www.elastic.co/guide/en/elasticsearch/reference/2.4/docs-bulk.html).
+     * Default is 1000 docs. Depending on the execution engine, size of bundles may vary,
+     * this sets the maximum size. Change this if you need to have smaller ElasticSearch bulks.
+     * @param batchSize maximum batch size in number of documents
      * @return the {@link Write} with connection batch size set
      */
-    public Write withBatchSize(long batchSize) {
-      return builder().setBatchSize(batchSize).build();
+    public Write withMaxBatchSize(long batchSize) {
+      return builder().setMaxBatchSize(batchSize).build();
     }
 
     /**
-     * Provide a size in megabytes for the batch see bulk API
-     * (https://www.elastic.co/guide/en/elasticsearch/reference/2.4/docs-bulk.html). Default is 5MB
-     *
-     * @param batchSizeMegaBytes batch size in megabytes
+     * Provide a maximum size in megabytes for the batch see bulk API
+     * (https://www.elastic.co/guide/en/elasticsearch/reference/2.4/docs-bulk.html). Default is 5MB.
+     * Depending on the execution engine, size of bundles may vary, this sets the maximum size.
+     * Change this if you need to have smaller ElasticSearch bulks.
+     * @param batchSizeMegaBytes maximum batch size in megabytes
      * @return the {@link Write} with connection batch size in megabytes set
      */
-    public Write withBatchSizeMegaBytes(int batchSizeMegaBytes) {
-      return builder().setBatchSizeMegaBytes(batchSizeMegaBytes).build();
+    public Write withMaxBatchSizeMegaBytes(int batchSizeMegaBytes) {
+      return builder().setMaxBatchSizeMegaBytes(batchSizeMegaBytes).build();
     }
 
     @Override
@@ -647,7 +649,8 @@ public class ElasticsearchIO {
       return PDone.in(input.getPipeline());
     }
 
-    private static class WriterFn extends DoFn<String, Void> {
+    @VisibleForTesting
+    static class WriterFn extends DoFn<String, Void> {
 
       private final Write spec;
 
@@ -675,8 +678,8 @@ public class ElasticsearchIO {
         String document = context.element();
         batch.add(String.format("{ \"index\" : {} }%n%s%n", document));
         currentBatchSizeBytes += document.getBytes().length;
-        if (batch.size() >= spec.getBatchSize()
-            || currentBatchSizeBytes >= (spec.getBatchSizeMegaBytes() * 1024L * 1024L)) {
+        if (batch.size() >= spec.getMaxBatchSize()
+            || currentBatchSizeBytes >= (spec.getMaxBatchSizeMegaBytes() * 1024L * 1024L)) {
           finishBundle(context);
         }
       }
