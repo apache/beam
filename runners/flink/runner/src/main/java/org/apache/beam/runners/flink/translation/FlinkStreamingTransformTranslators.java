@@ -78,11 +78,13 @@ import org.apache.flink.api.common.functions.RichFlatMapFunction;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.fs.FileSystem;
+import org.apache.flink.streaming.api.collector.selector.OutputSelector;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSink;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.datastream.KeyedStream;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
+import org.apache.flink.streaming.api.datastream.SplitStream;
 import org.apache.flink.streaming.api.functions.AssignerWithPeriodicWatermarks;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
@@ -554,6 +556,14 @@ public class FlinkStreamingTransformTranslators {
             .transform(transform.getName(), outputUnionTypeInformation, doFnOperator);
       }
 
+      SplitStream<RawUnionValue> splitStream = unionOutputStream
+              .split(new OutputSelector<RawUnionValue>() {
+                @Override
+                public Iterable<String> select(RawUnionValue value) {
+                  return Collections.singletonList(Integer.toString(value.getUnionTag()));
+                }
+              });
+
       for (Map.Entry<TupleTag<?>, PCollection<?>> output : outputs.entrySet()) {
         final int outputTag = tagsToLabels.get(output.getKey());
 
@@ -561,17 +571,15 @@ public class FlinkStreamingTransformTranslators {
             context.getTypeInfo(output.getValue());
 
         @SuppressWarnings("unchecked")
-        DataStream filtered =
-            unionOutputStream.flatMap(new FlatMapFunction<RawUnionValue, Object>() {
-              @Override
-              public void flatMap(RawUnionValue value, Collector<Object> out) throws Exception {
-                if (value.getUnionTag() == outputTag) {
-                  out.collect(value.getValue());
-                }
-              }
-            }).returns(outputTypeInfo);
+        DataStream unwrapped = splitStream.select(String.valueOf(outputTag))
+          .flatMap(new FlatMapFunction<RawUnionValue, Object>() {
+            @Override
+            public void flatMap(RawUnionValue value, Collector<Object> out) throws Exception {
+              out.collect(value.getValue());
+            }
+          }).returns(outputTypeInfo);
 
-        context.setOutputDataStream(output.getValue(), filtered);
+        context.setOutputDataStream(output.getValue(), unwrapped);
       }
     }
 
