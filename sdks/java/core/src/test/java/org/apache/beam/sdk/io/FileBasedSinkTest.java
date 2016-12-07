@@ -487,7 +487,7 @@ public class FileBasedSinkTest {
     final FileBasedWriter<String> writer =
         writeOp.createWriter(null);
     final String expectedFilename =
-        writeOp.tempDirectory + "/" + testUid;
+        writeOp.tempDirectory.get() + "/" + testUid;
 
     final List<String> expected = new ArrayList<>();
     expected.add("header");
