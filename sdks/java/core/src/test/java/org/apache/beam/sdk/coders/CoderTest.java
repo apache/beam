@@ -19,6 +19,7 @@ package org.apache.beam.sdk.coders;
 
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertThat;
@@ -26,6 +27,7 @@ import static org.junit.Assert.assertThat;
 import java.util.Collections;
 import org.apache.beam.sdk.coders.Coder.Context;
 import org.apache.beam.sdk.coders.Coder.NonDeterministicException;
+import org.apache.beam.sdk.values.TypeDescriptor;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -73,5 +75,11 @@ public class CoderTest {
     assertThat(exception.getReasons(), contains("Problem"));
     assertThat(exception.toString(), containsString("Problem"));
     assertThat(exception.toString(), containsString("is not deterministic"));
+  }
+
+  @Test
+  public void testTypeIsPreserved() throws Exception {
+    assertThat(VoidCoder.of().getEncodedTypeDescriptor(),
+        equalTo(TypeDescriptor.of(Void.class)));
   }
 }

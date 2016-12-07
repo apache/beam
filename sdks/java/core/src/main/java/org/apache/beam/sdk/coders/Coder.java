@@ -34,6 +34,7 @@ import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.util.CloudObject;
 import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
+import org.apache.beam.sdk.values.TypeDescriptor;
 
 /**
  * A {@link Coder Coder&lt;T&gt;} defines how to encode and decode values of type {@code T} into
@@ -252,6 +253,12 @@ public interface Coder<T> extends Serializable {
    */
   @Experimental(Kind.CODER_ENCODING_ID)
   Collection<String> getAllowedEncodings();
+
+  /**
+   * Returns the {@link TypeDescriptor} for the type encoded.
+   */
+  @Experimental(Kind.CODER_TYPE_ENCODING)
+  TypeDescriptor<T> getEncodedTypeDescriptor();
 
   /**
    * Exception thrown by {@link Coder#verifyDeterministic()} if the encoding is

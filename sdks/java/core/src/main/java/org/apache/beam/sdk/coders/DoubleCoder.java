@@ -25,6 +25,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.UTFDataFormatException;
+import org.apache.beam.sdk.values.TypeDescriptor;
 
 /**
  * A {@link DoubleCoder} encodes {@link Double} values in 8 bytes using Java serialization.
@@ -39,6 +40,7 @@ public class DoubleCoder extends AtomicCoder<Double> {
   /////////////////////////////////////////////////////////////////////////////
 
   private static final DoubleCoder INSTANCE = new DoubleCoder();
+  private static final TypeDescriptor<Double> TYPE_DESCRIPTOR = new TypeDescriptor<Double>() {};
 
   private DoubleCoder() {}
 
@@ -95,6 +97,11 @@ public class DoubleCoder extends AtomicCoder<Double> {
   @Override
   public boolean isRegisterByteSizeObserverCheap(Double value, Context context) {
     return true;
+  }
+
+  @Override
+  public TypeDescriptor<Double> getEncodedTypeDescriptor() {
+    return TYPE_DESCRIPTOR;
   }
 
   /**

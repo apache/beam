@@ -67,6 +67,7 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.util.CloudObject;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.TypeDescriptor;
 import org.hamcrest.Description;
 import org.hamcrest.Matcher;
 import org.hamcrest.Matchers;
@@ -844,6 +845,12 @@ public class AvroCoderTest {
 
     assertNonDeterministic(coder,
         reasonField(SomeGeneric.class, "foo", "erasure"));
+  }
+
+  @Test
+  public void testEncodedTypeDescriptor() throws Exception {
+    AvroCoder<Pojo> coder = AvroCoder.of(Pojo.class);
+    assertThat(coder.getEncodedTypeDescriptor(), equalTo(TypeDescriptor.of(Pojo.class)));
   }
 
   private static class SomeGeneric<T> {
