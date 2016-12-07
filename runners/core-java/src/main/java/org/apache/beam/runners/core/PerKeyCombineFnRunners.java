@@ -27,7 +27,6 @@ import org.apache.beam.sdk.transforms.CombineWithContext.KeyedCombineFnWithConte
 import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.CombineContextFactory;
-import org.apache.beam.sdk.util.PerKeyCombineFnRunner;
 import org.apache.beam.sdk.util.SideInputReader;
 
 /**
