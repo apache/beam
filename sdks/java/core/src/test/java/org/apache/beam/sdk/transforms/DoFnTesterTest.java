@@ -399,7 +399,7 @@ public class DoFnTesterTest {
 
   /**
    * A {@link DoFn} that adds values to an aggregator and converts input to String in
-   * {@link OldDoFn#processElement}.
+   * {@link DoFn.ProcessElement @ProcessElement}.
    */
   private static class CounterDoFn extends DoFn<Long, String> {
     Aggregator<Long, Long> agg = createAggregator("ctr", new Sum.SumLongFn());
