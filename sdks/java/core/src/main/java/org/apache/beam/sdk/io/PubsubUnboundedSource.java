@@ -1314,8 +1314,18 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
   }
 
   @Nullable
+  public ValueProvider<TopicPath> getTopicProvider() {
+    return topic;
+  }
+
+  @Nullable
   public SubscriptionPath getSubscription() {
     return subscription == null ? null : subscription.get();
+  }
+
+  @Nullable
+  public ValueProvider<SubscriptionPath> getSubscriptionProvider() {
+    return subscription;
   }
 
   @Nullable
