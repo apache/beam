@@ -344,8 +344,7 @@ public class TestDataflowRunnerTest {
 
   @Test
   public void testCheckingForSuccessWhenPAssertSucceeds() throws Exception {
-    DataflowPipelineJob job =
-        spy(new DataflowPipelineJob("test-project", "test-job", options, null));
+    DataflowPipelineJob job = spy(new DataflowPipelineJob("test-job", options, null));
     Pipeline p = TestPipeline.create(options);
     PCollection<Integer> pc = p.apply(Create.of(1, 2, 3));
     PAssert.that(pc).containsInAnyOrder(1, 2, 3);
@@ -359,8 +358,7 @@ public class TestDataflowRunnerTest {
 
   @Test
   public void testCheckingForSuccessWhenPAssertFails() throws Exception {
-    DataflowPipelineJob job =
-        spy(new DataflowPipelineJob("test-project", "test-job", options, null));
+    DataflowPipelineJob job = spy(new DataflowPipelineJob("test-job", options, null));
     Pipeline p = TestPipeline.create(options);
     PCollection<Integer> pc = p.apply(Create.of(1, 2, 3));
     PAssert.that(pc).containsInAnyOrder(1, 2, 3);
@@ -374,8 +372,7 @@ public class TestDataflowRunnerTest {
 
   @Test
   public void testCheckingForSuccessSkipsNonTentativeMetrics() throws Exception {
-    DataflowPipelineJob job =
-        spy(new DataflowPipelineJob("test-project", "test-job", options, null));
+    DataflowPipelineJob job = spy(new DataflowPipelineJob("test-job", options, null));
     Pipeline p = TestPipeline.create(options);
     PCollection<Integer> pc = p.apply(Create.of(1, 2, 3));
     PAssert.that(pc).containsInAnyOrder(1, 2, 3);
@@ -389,8 +386,7 @@ public class TestDataflowRunnerTest {
 
   @Test
   public void testCheckMaxWatermarkWithNoWatermarkMetric() throws IOException {
-    DataflowPipelineJob job =
-        spy(new DataflowPipelineJob("test-project", "test-job", options, null));
+    DataflowPipelineJob job = spy(new DataflowPipelineJob("test-job", options, null));
     Pipeline p = TestPipeline.create(options);
     p.apply(Create.of(1, 2, 3));
 
@@ -403,8 +399,7 @@ public class TestDataflowRunnerTest {
 
   @Test
   public void testCheckMaxWatermarkWithSingleWatermarkAtMax() throws IOException {
-    DataflowPipelineJob job =
-        spy(new DataflowPipelineJob("test-project", "test-job", options, null));
+    DataflowPipelineJob job = spy(new DataflowPipelineJob("test-job", options, null));
     Pipeline p = TestPipeline.create(options);
     p.apply(Create.of(1, 2, 3));
 
@@ -417,8 +412,7 @@ public class TestDataflowRunnerTest {
 
   @Test
   public void testCheckMaxWatermarkWithSingleWatermarkNotAtMax() throws IOException {
-    DataflowPipelineJob job =
-        spy(new DataflowPipelineJob("test-project", "test-job", options, null));
+    DataflowPipelineJob job = spy(new DataflowPipelineJob("test-job", options, null));
     Pipeline p = TestPipeline.create(options);
     p.apply(Create.of(1, 2, 3));
 
@@ -431,8 +425,7 @@ public class TestDataflowRunnerTest {
 
   @Test
   public void testCheckMaxWatermarkWithMultipleWatermarksAtMax() throws IOException {
-    DataflowPipelineJob job =
-        spy(new DataflowPipelineJob("test-project", "test-job", options, null));
+    DataflowPipelineJob job = spy(new DataflowPipelineJob("test-job", options, null));
     Pipeline p = TestPipeline.create(options);
     p.apply(Create.of(1, 2, 3));
 
@@ -446,8 +439,7 @@ public class TestDataflowRunnerTest {
 
   @Test
   public void testCheckMaxWatermarkWithMultipleMaxAndNotMaxWatermarks() throws IOException {
-    DataflowPipelineJob job =
-        spy(new DataflowPipelineJob("test-project", "test-job", options, null));
+    DataflowPipelineJob job = spy(new DataflowPipelineJob("test-job", options, null));
     Pipeline p = TestPipeline.create(options);
     p.apply(Create.of(1, 2, 3));
 
@@ -461,8 +453,7 @@ public class TestDataflowRunnerTest {
 
   @Test
   public void testCheckMaxWatermarkIgnoresUnrelatedMatrics() throws IOException {
-    DataflowPipelineJob job =
-        spy(new DataflowPipelineJob("test-project", "test-job", options, null));
+    DataflowPipelineJob job = spy(new DataflowPipelineJob("test-job", options, null));
     Pipeline p = TestPipeline.create(options);
     p.apply(Create.of(1, 2, 3));
 
@@ -476,8 +467,7 @@ public class TestDataflowRunnerTest {
 
   @Test
   public void testStreamingPipelineFailsIfServiceFails() throws Exception {
-    DataflowPipelineJob job =
-        spy(new DataflowPipelineJob("test-project", "test-job", options, null));
+    DataflowPipelineJob job = spy(new DataflowPipelineJob("test-job", options, null));
     Pipeline p = TestPipeline.create(options);
     PCollection<Integer> pc = p.apply(Create.of(1, 2, 3));
     PAssert.that(pc).containsInAnyOrder(1, 2, 3);
@@ -532,8 +522,7 @@ public class TestDataflowRunnerTest {
 
   @Test
   public void testGetJobMetricsThatSucceeds() throws Exception {
-    DataflowPipelineJob job =
-        spy(new DataflowPipelineJob("test-project", "test-job", options, null));
+    DataflowPipelineJob job = spy(new DataflowPipelineJob("test-job", options, null));
     Pipeline p = TestPipeline.create(options);
     p.apply(Create.of(1, 2, 3));
 
@@ -549,8 +538,7 @@ public class TestDataflowRunnerTest {
 
   @Test
   public void testGetJobMetricsThatFailsForException() throws Exception {
-    DataflowPipelineJob job =
-        spy(new DataflowPipelineJob("test-project", "test-job", options, null));
+    DataflowPipelineJob job = spy(new DataflowPipelineJob("test-job", options, null));
     Pipeline p = TestPipeline.create(options);
     p.apply(Create.of(1, 2, 3));
 
