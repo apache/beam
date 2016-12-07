@@ -55,7 +55,9 @@ import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.RunnableOnService;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.testing.TestStream;
 import org.apache.beam.sdk.testing.UsesStatefulParDo;
+import org.apache.beam.sdk.testing.UsesTimersInParDo;
 import org.apache.beam.sdk.transforms.DoFn.OnTimer;
 import org.apache.beam.sdk.transforms.DoFn.ProcessElement;
 import org.apache.beam.sdk.transforms.ParDo.Bound;
@@ -69,6 +71,7 @@ import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.util.TimeDomain;
+import org.apache.beam.sdk.util.Timer;
 import org.apache.beam.sdk.util.TimerSpec;
 import org.apache.beam.sdk.util.TimerSpecs;
 import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
@@ -1568,6 +1571,52 @@ public class ParDoTest implements Serializable {
     PAssert.that(output).containsInAnyOrder(
         Lists.newArrayList(12, 42, 84, 97),
         Lists.newArrayList(0, 1, 2));
+    p.run();
+  }
+
+  /**
+   * Tests that an event time timer fires and results in supplementary output.
+   *
+   * <p>This test relies on two properties:
+   *
+   * <ol>
+   * <li>A timer that is set on time should always get a chance to fire. For this to be true, timers
+   *     per-key-and-window must be delivered in order so the timer is not wiped out until the
+   *     window is expired by the runner.
+   * <li>A {@link Create} transform sends its elements on time, and later advances the watermark to
+   *     infinity
+   * </ol>
+   *
+   * <p>Note that {@link TestStream} is not applicable because it requires very special runner hooks
+   * and is only supported by the direct runner.
+   */
+  @Test
+  @Category({RunnableOnService.class, UsesTimersInParDo.class})
+  public void testSimpleEventTimeTimer() throws Exception {
+    final String timerId = "foo";
+
+    DoFn<KV<String, Integer>, Integer> fn =
+        new DoFn<KV<String, Integer>, Integer>() {
+
+          @TimerId(timerId)
+          private final TimerSpec spec = TimerSpecs.timer(TimeDomain.EVENT_TIME);
+
+          @ProcessElement
+          public void processElement(ProcessContext context, @TimerId(timerId) Timer timer) {
+            timer.setForNowPlus(Duration.standardSeconds(1));
+            context.output(3);
+          }
+
+          @OnTimer(timerId)
+          public void onTimer(OnTimerContext context) {
+            context.output(42);
+          }
+        };
+
+    Pipeline p = TestPipeline.create();
+
+    PCollection<Integer> output = p.apply(Create.of(KV.of("hello", 37))).apply(ParDo.of(fn));
+    PAssert.that(output).containsInAnyOrder(3, 42);
     p.run();
   }
 
