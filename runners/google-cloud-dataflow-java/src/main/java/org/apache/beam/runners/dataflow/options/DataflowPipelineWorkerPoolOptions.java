@@ -191,51 +191,6 @@ public interface DataflowPipelineWorkerPoolOptions extends PipelineOptions {
   void setWorkerMachineType(String value);
 
   /**
-   * The policy for tearing down the workers spun up by the service.
-   *
-   * @deprecated Dataflow Service will only support TEARDOWN_ALWAYS policy in the future.
-   */
-  @Deprecated
-  enum TeardownPolicy {
-    /**
-     * All VMs created for a Dataflow job are deleted when the job finishes, regardless of whether
-     * it fails or succeeds.
-     */
-    TEARDOWN_ALWAYS("TEARDOWN_ALWAYS"),
-    /**
-     * All VMs created for a Dataflow job are left running when the job finishes, regardless of
-     * whether it fails or succeeds.
-     */
-    TEARDOWN_NEVER("TEARDOWN_NEVER"),
-    /**
-     * All VMs created for a Dataflow job are deleted when the job succeeds, but are left running
-     * when it fails. (This is typically used for debugging failing jobs by SSHing into the
-     * workers.)
-     */
-    TEARDOWN_ON_SUCCESS("TEARDOWN_ON_SUCCESS");
-
-    private final String teardownPolicy;
-
-    TeardownPolicy(String teardownPolicy) {
-      this.teardownPolicy = teardownPolicy;
-    }
-
-    public String getTeardownPolicyName() {
-      return this.teardownPolicy;
-    }
-  }
-
-  /**
-   * The teardown policy for the VMs.
-   *
-   * <p>If unset, the Dataflow service will choose a reasonable default.
-   */
-  @Description("The teardown policy for the VMs. If unset, the Dataflow service will "
-      + "choose a reasonable default.")
-  TeardownPolicy getTeardownPolicy();
-  void setTeardownPolicy(TeardownPolicy value);
-
-  /**
    * List of local files to make available to workers.
    *
    * <p>Files are placed on the worker's classpath.
