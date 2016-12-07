@@ -181,7 +181,7 @@ class ReadFromDatastore(PTransform):
       except Exception:
         logging.warning("Unable to parallelize the given query: %s", query,
                         exc_info=True)
-        query_splits = [(key, query)]
+        query_splits = [query]
 
       sharded_query_splits = []
       for split_query in query_splits:
