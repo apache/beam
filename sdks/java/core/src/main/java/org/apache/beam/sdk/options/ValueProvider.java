@@ -135,7 +135,7 @@ public interface ValueProvider<T> extends Serializable {
     }
 
     /**
-     * Return the property name associated with this provider.
+     * Returns the property name associated with this provider.
      */
     public String propertyName() {
       if (value instanceof RuntimeValueProvider) {
