@@ -231,7 +231,7 @@ public class FileBasedSinkTest {
       assertFalse(temporaryFiles.get(i).exists());
     }
 
-    assertFalse(new File(writeOp.tempDirectory).exists());
+    assertFalse(new File(writeOp.tempDirectory.get()).exists());
   }
 
   /**
