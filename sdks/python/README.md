@@ -163,8 +163,9 @@ The following examples demonstrate some basic, fundamental concepts for using Ap
 
 A basic pipeline will take as input an iterable, apply the
 beam.Create `PTransform`, and produce a `PCollection` that can
-be written to a file or modified by further `PTransform`s. The
-pipe operator allows to chain `PTransform`s.
+be written to a file or modified by further `PTransform`s.
+The `>>` operator is used to label `PTransform`s and
+the `|` operator is used to chain them.
 
 ```python
 # Standard imports
