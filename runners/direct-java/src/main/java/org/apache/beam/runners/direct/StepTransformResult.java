@@ -30,7 +30,6 @@ import org.apache.beam.sdk.metrics.MetricUpdates;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.sdk.util.state.CopyOnAccessInMemoryStateInternals;
 import org.joda.time.Instant;
 
 /**

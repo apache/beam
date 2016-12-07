@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.util.state;
+package org.apache.beam.runners.direct;
 
 import static com.google.common.base.Preconditions.checkState;
 
@@ -32,8 +32,24 @@ import org.apache.beam.sdk.transforms.CombineWithContext.KeyedCombineFnWithConte
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.OutputTimeFn;
 import org.apache.beam.sdk.util.CombineFnUtil;
+import org.apache.beam.sdk.util.state.AccumulatorCombiningState;
+import org.apache.beam.sdk.util.state.BagState;
+import org.apache.beam.sdk.util.state.InMemoryStateInternals.InMemoryBag;
+import org.apache.beam.sdk.util.state.InMemoryStateInternals.InMemoryCombiningValue;
 import org.apache.beam.sdk.util.state.InMemoryStateInternals.InMemoryState;
+import org.apache.beam.sdk.util.state.InMemoryStateInternals.InMemoryStateBinder;
+import org.apache.beam.sdk.util.state.InMemoryStateInternals.InMemoryValue;
+import org.apache.beam.sdk.util.state.InMemoryStateInternals.InMemoryWatermarkHold;
+import org.apache.beam.sdk.util.state.State;
+import org.apache.beam.sdk.util.state.StateContext;
+import org.apache.beam.sdk.util.state.StateContexts;
+import org.apache.beam.sdk.util.state.StateInternals;
+import org.apache.beam.sdk.util.state.StateNamespace;
+import org.apache.beam.sdk.util.state.StateTable;
+import org.apache.beam.sdk.util.state.StateTag;
 import org.apache.beam.sdk.util.state.StateTag.StateBinder;
+import org.apache.beam.sdk.util.state.ValueState;
+import org.apache.beam.sdk.util.state.WatermarkHoldState;
 import org.joda.time.Instant;
 
 /**
@@ -262,11 +278,11 @@ public class CopyOnAccessInMemoryStateInternals<K> implements StateInternals<K> 
             if (containedInUnderlying(namespace, address)) {
               @SuppressWarnings("unchecked")
               InMemoryState<? extends WatermarkHoldState<W>> existingState =
-                  (InMemoryStateInternals.InMemoryState<? extends WatermarkHoldState<W>>)
+                  (InMemoryState<? extends WatermarkHoldState<W>>)
                   underlying.get().get(namespace, address, c);
               return existingState.copy();
             } else {
-              return new InMemoryStateInternals.InMemoryWatermarkHold<>(
+              return new InMemoryWatermarkHold<>(
                   outputTimeFn);
             }
           }
@@ -277,11 +293,11 @@ public class CopyOnAccessInMemoryStateInternals<K> implements StateInternals<K> 
             if (containedInUnderlying(namespace, address)) {
               @SuppressWarnings("unchecked")
               InMemoryState<? extends ValueState<T>> existingState =
-                  (InMemoryStateInternals.InMemoryState<? extends ValueState<T>>)
+                  (InMemoryState<? extends ValueState<T>>)
                   underlying.get().get(namespace, address, c);
               return existingState.copy();
             } else {
-              return new InMemoryStateInternals.InMemoryValue<>();
+              return new InMemoryValue<>();
             }
           }
 
@@ -294,12 +310,11 @@ public class CopyOnAccessInMemoryStateInternals<K> implements StateInternals<K> 
               @SuppressWarnings("unchecked")
               InMemoryState<? extends AccumulatorCombiningState<InputT, AccumT, OutputT>>
                   existingState = (
-                      InMemoryStateInternals
-                          .InMemoryState<? extends AccumulatorCombiningState<InputT, AccumT,
-                          OutputT>>) underlying.get().get(namespace, address, c);
+                  InMemoryState<? extends AccumulatorCombiningState<InputT, AccumT,
+                                            OutputT>>) underlying.get().get(namespace, address, c);
               return existingState.copy();
             } else {
-              return new InMemoryStateInternals.InMemoryCombiningValue<>(
+              return new InMemoryCombiningValue<>(
                   key, combineFn.asKeyedFn());
             }
           }
@@ -310,11 +325,11 @@ public class CopyOnAccessInMemoryStateInternals<K> implements StateInternals<K> 
             if (containedInUnderlying(namespace, address)) {
               @SuppressWarnings("unchecked")
               InMemoryState<? extends BagState<T>> existingState =
-                  (InMemoryStateInternals.InMemoryState<? extends BagState<T>>)
+                  (InMemoryState<? extends BagState<T>>)
                   underlying.get().get(namespace, address, c);
               return existingState.copy();
             } else {
-              return new InMemoryStateInternals.InMemoryBag<>();
+              return new InMemoryBag<>();
             }
           }
 
@@ -328,12 +343,11 @@ public class CopyOnAccessInMemoryStateInternals<K> implements StateInternals<K> 
               @SuppressWarnings("unchecked")
               InMemoryState<? extends AccumulatorCombiningState<InputT, AccumT, OutputT>>
                   existingState = (
-                      InMemoryStateInternals
-                          .InMemoryState<? extends AccumulatorCombiningState<InputT, AccumT,
-                          OutputT>>) underlying.get().get(namespace, address, c);
+                  InMemoryState<? extends AccumulatorCombiningState<InputT, AccumT,
+                                            OutputT>>) underlying.get().get(namespace, address, c);
               return existingState.copy();
             } else {
-              return new InMemoryStateInternals.InMemoryCombiningValue<>(key, combineFn);
+              return new InMemoryCombiningValue<>(key, combineFn);
             }
           }
 
@@ -446,7 +460,7 @@ public class CopyOnAccessInMemoryStateInternals<K> implements StateInternals<K> 
 
       @Override
       public StateBinder<K> forNamespace(StateNamespace namespace, StateContext<?> c) {
-        return new InMemoryStateInternals.InMemoryStateBinder<>(key, c);
+        return new InMemoryStateBinder<>(key, c);
       }
     }
   }
