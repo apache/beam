@@ -85,6 +85,7 @@ public class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
 
   public static final String CONTEXT_PARAMETER_METHOD = "context";
   public static final String PROCESS_CONTEXT_PARAMETER_METHOD = "processContext";
+  public static final String ON_TIMER_CONTEXT_PARAMETER_METHOD = "onTimerContext";
   public static final String WINDOW_PARAMETER_METHOD = "window";
   public static final String INPUT_PROVIDER_PARAMETER_METHOD = "inputProvider";
   public static final String OUTPUT_RECEIVER_PARAMETER_METHOD = "outputReceiver";
@@ -556,7 +557,11 @@ public class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
 
           @Override
           public StackManipulation dispatch(OnTimerContextParameter p) {
-            throw new UnsupportedOperationException("OnTimerContext is not yet supported.");
+            return new StackManipulation.Compound(
+                pushDelegate,
+                MethodInvocation.invoke(
+                    getExtraContextFactoryMethodDescription(
+                        ON_TIMER_CONTEXT_PARAMETER_METHOD, DoFn.class)));
           }
 
           @Override
