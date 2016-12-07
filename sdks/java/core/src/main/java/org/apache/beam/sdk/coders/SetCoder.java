@@ -25,6 +25,8 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import org.apache.beam.sdk.util.PropertyNames;
+import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.sdk.values.TypeParameter;
 
 /**
  * A {@link SetCoder} encodes any {@link Set} using the format of {@link IterableLikeCoder}. The
@@ -62,6 +64,12 @@ public class SetCoder<T> extends IterableLikeCoder<T, Set<T>> {
   public void verifyDeterministic() throws NonDeterministicException {
     throw new NonDeterministicException(this,
         "Ordering of elements in a set may be non-deterministic.");
+  }
+
+  @Override
+  public TypeDescriptor<Set<T>> getEncodedTypeDescriptor() {
+    return new TypeDescriptor<Set<T>>() {}.where(
+        new TypeParameter<T>() {}, getElemCoder().getEncodedTypeDescriptor());
   }
 
   /**
