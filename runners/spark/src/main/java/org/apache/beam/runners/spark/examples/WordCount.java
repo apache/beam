@@ -35,7 +35,7 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 
 /**
- * Duplicated to avoid dependency on beam-examples.
+ * Duplicated from beam-examples-java to avoid dependency.
  */
 public class WordCount {
 
@@ -126,8 +126,7 @@ public class WordCount {
 
     // Concepts #2 and #3: Our pipeline applies the composite CountWords transform, and passes the
     // static FormatAsTextFn() to the ParDo transform.
-    //TODO: remove withoutValidation once possible
-    p.apply("ReadLines", TextIO.Read.from(options.getInputFile()).withoutValidation())
+    p.apply("ReadLines", TextIO.Read.from(options.getInputFile()))
      .apply(new CountWords())
      .apply(MapElements.via(new FormatAsTextFn()))
      .apply("WriteCounts", TextIO.Write.to(options.getOutput()));
