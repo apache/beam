@@ -106,7 +106,7 @@ import org.slf4j.LoggerFactory;
  * metadata like topic-partition and offset, along with key and value associated with a Kafka
  * record.
  *
- * <p>Although most applications consumer single topic, the source can be configured to consume
+ * <p>Although most applications consume a single topic, the source can be configured to consume
  * multiple topics or even a specific set of {@link TopicPartition}s.
  *
  * <p>To configure a Kafka source, you must specify at the minimum Kafka <tt>bootstrapServers</tt>
@@ -250,8 +250,8 @@ public class KafkaIO {
     }
 
     /**
-     * Returns a new {@link Read} that reads from the topics. All the partitions are from each
-     * of the topics is read.
+     * Returns a new {@link Read} that reads from the topics. All the partitions from each
+     * of the topics are read.
      * See {@link UnboundedKafkaSource#generateInitialSplits(int, PipelineOptions)} for description
      * of how the partitions are distributed among the splits.
      */
@@ -1134,7 +1134,7 @@ public class KafkaIO {
 
       boolean isShutdown = false;
 
-      // Wait for threads to shutdown. Trying this a loop to handle a tiny race where poll thread
+      // Wait for threads to shutdown. Trying this as a loop to handle a tiny race where poll thread
       // might block to enqueue right after availableRecordsQueue.poll() below.
       while (!isShutdown) {
 
@@ -1178,7 +1178,7 @@ public class KafkaIO {
     }
 
     /**
-     * Returns a new {@link Write} transform that write to given topic.
+     * Returns a new {@link Write} transform that writes to given topic.
      */
     public Write<K, V> withTopic(String topic) {
       return new Write<K, V>(topic, keyCoder, valueCoder, producerConfig);
