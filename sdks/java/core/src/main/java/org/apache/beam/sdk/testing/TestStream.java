@@ -252,7 +252,7 @@ public final class TestStream<T> extends PTransform<PBegin, PCollection<T>> {
   }
 
   @Override
-  public PCollection<T> apply(PBegin input) {
+  public PCollection<T> expand(PBegin input) {
     throw new IllegalStateException(
         String.format(
             "Pipeline Runner %s does not provide a required override for %s",

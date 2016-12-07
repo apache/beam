@@ -111,7 +111,7 @@ public class DisplayDataTest implements Serializable {
           Instant startTime = defaultStartTime;
 
           @Override
-          public PCollection<String> apply(PCollection<String> begin) {
+          public PCollection<String> expand(PCollection<String> begin) {
             throw new IllegalArgumentException("Should never be applied");
           }
 

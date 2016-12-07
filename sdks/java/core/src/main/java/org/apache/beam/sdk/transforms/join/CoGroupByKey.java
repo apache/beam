@@ -87,7 +87,7 @@ public class CoGroupByKey<K> extends
   private CoGroupByKey() { }
 
   @Override
-  public PCollection<KV<K, CoGbkResult>> apply(
+  public PCollection<KV<K, CoGbkResult>> expand(
       KeyedPCollectionTuple<K> input) {
     if (input.isEmpty()) {
       throw new IllegalArgumentException(

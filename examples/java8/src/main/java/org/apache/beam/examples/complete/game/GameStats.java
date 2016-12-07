@@ -110,7 +110,7 @@ public class GameStats extends LeaderBoard {
     private static final double SCORE_WEIGHT = 2.5;
 
     @Override
-    public PCollection<KV<String, Integer>> apply(PCollection<KV<String, Integer>> userScores) {
+    public PCollection<KV<String, Integer>> expand(PCollection<KV<String, Integer>> userScores) {
 
       // Get the sum of scores for each user.
       PCollection<KV<String, Integer>> sumScores = userScores

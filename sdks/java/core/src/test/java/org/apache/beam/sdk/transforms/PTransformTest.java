@@ -36,7 +36,7 @@ public class PTransformTest {
     PTransform<PCollection<String>, PCollection<String>> transform =
         new PTransform<PCollection<String>, PCollection<String>>() {
           @Override
-          public PCollection<String> apply(PCollection<String> begin) {
+          public PCollection<String> expand(PCollection<String> begin) {
             throw new IllegalArgumentException("Should never be applied");
           }
         };

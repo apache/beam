@@ -143,7 +143,7 @@ public class Sample {
     }
 
     @Override
-    public PCollection<T> apply(PCollection<T> in) {
+    public PCollection<T> expand(PCollection<T> in) {
       PCollectionView<Iterable<T>> iterableView = in.apply(View.<T>asIterable());
       return
           in.getPipeline()

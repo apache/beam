@@ -445,7 +445,7 @@ public class KafkaIO {
     }
 
     @Override
-    public PCollection<KafkaRecord<K, V>> apply(PBegin input) {
+    public PCollection<KafkaRecord<K, V>> expand(PBegin input) {
      // Handles unbounded source to bounded conversion if maxNumRecords or maxReadTime is set.
       Unbounded<KafkaRecord<K, V>> unbounded =
           org.apache.beam.sdk.io.Read.from(makeSource());
@@ -544,9 +544,9 @@ public class KafkaIO {
     }
 
     @Override
-    public PCollection<KV<K, V>> apply(PBegin begin) {
+    public PCollection<KV<K, V>> expand(PBegin begin) {
       return typedRead
-          .apply(begin)
+          .expand(begin)
           .apply("Remove Kafka Metadata",
               ParDo.of(new DoFn<KafkaRecord<K, V>, KV<K, V>>() {
                 @ProcessElement
@@ -1244,7 +1244,7 @@ public class KafkaIO {
     }
 
     @Override
-    public PDone apply(PCollection<KV<K, V>> input) {
+    public PDone expand(PCollection<KV<K, V>> input) {
       input.apply(ParDo.of(new KafkaWriter<K, V>(
           topic, keyCoder, valueCoder, producerConfig, producerFactoryFnOpt)));
       return PDone.in(input.getPipeline());
@@ -1311,7 +1311,7 @@ public class KafkaIO {
     }
 
     @Override
-    public PDone apply(PCollection<V> input) {
+    public PDone expand(PCollection<V> input) {
       return input
         .apply("Kafka values with default key",
           MapElements.via(new SimpleFunction<V, KV<Void, V>>() {

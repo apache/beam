@@ -296,7 +296,7 @@ public class JdbcIO {
     }
 
     @Override
-    public PCollection<T> apply(PBegin input) {
+    public PCollection<T> expand(PBegin input) {
       return input
           .apply(Create.of(getQuery()))
           .apply(ParDo.of(new ReadFn<>(this))).setCoder(getCoder())
@@ -417,7 +417,7 @@ public class JdbcIO {
     }
 
     @Override
-    public PDone apply(PCollection<T> input) {
+    public PDone expand(PCollection<T> input) {
       input.apply(ParDo.of(new WriteFn<T>(this)));
       return PDone.in(input.getPipeline());
     }

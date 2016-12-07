@@ -631,7 +631,7 @@ public class BigQueryIO {
       }
 
       @Override
-      public PCollection<TableRow> apply(PBegin input) {
+      public PCollection<TableRow> expand(PBegin input) {
         String uuid = randomUUIDString();
         final String jobIdToken = "beam_job_" + uuid;
 
@@ -840,7 +840,7 @@ public class BigQueryIO {
     }
 
     @Override
-    public PCollection<T> apply(PCollection<T> input) {
+    public PCollection<T> expand(PCollection<T> input) {
       TupleTag<T> mainOutput = new TupleTag<>();
       TupleTag<Void> cleanupSignal = new TupleTag<>();
       PCollectionTuple outputs = input.apply(ParDo.of(new IdentityFn<T>())
@@ -1846,7 +1846,7 @@ public class BigQueryIO {
       }
 
       @Override
-      public PDone apply(PCollection<TableRow> input) {
+      public PDone expand(PCollection<TableRow> input) {
         Pipeline p = input.getPipeline();
         BigQueryOptions options = p.getOptions().as(BigQueryOptions.class);
         BigQueryServices bqServices = getBigQueryServices();
@@ -2803,7 +2803,7 @@ public class BigQueryIO {
     }
 
     @Override
-    public PDone apply(PCollection<TableRow> input) {
+    public PDone expand(PCollection<TableRow> input) {
       // A naive implementation would be to simply stream data directly to BigQuery.
       // However, this could occasionally lead to duplicated data, e.g., when
       // a VM that runs this code is restarted and the code is re-run.

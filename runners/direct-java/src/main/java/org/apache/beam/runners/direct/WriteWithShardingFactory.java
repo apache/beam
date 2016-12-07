@@ -66,7 +66,7 @@ class WriteWithShardingFactory<InputT>
     }
 
     @Override
-    public PDone apply(PCollection<T> input) {
+    public PDone expand(PCollection<T> input) {
       checkArgument(IsBounded.BOUNDED == input.isBounded(),
           "%s can only be applied to a Bounded PCollection",
           getClass().getSimpleName());
@@ -92,7 +92,7 @@ class WriteWithShardingFactory<InputT>
       // without adding a new Write Transform Node, which would be overwritten the same way, leading
       // to an infinite recursion. We cannot modify the number of shards, because that is determined
       // at runtime.
-      return original.apply(resharded);
+      return original.expand(resharded);
     }
   }
 

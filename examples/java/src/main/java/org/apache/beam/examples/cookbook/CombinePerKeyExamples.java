@@ -125,7 +125,7 @@ public class CombinePerKeyExamples {
   static class PlaysForWord
       extends PTransform<PCollection<TableRow>, PCollection<TableRow>> {
     @Override
-    public PCollection<TableRow> apply(PCollection<TableRow> rows) {
+    public PCollection<TableRow> expand(PCollection<TableRow> rows) {
 
       // row... => <word, play_name> ...
       PCollection<KV<String, String>> words = rows.apply(

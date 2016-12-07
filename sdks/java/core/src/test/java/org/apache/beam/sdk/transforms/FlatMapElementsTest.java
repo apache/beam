@@ -181,7 +181,7 @@ public class FlatMapElementsTest implements Serializable {
       extends PTransform<PCollection<KV<K, V>>, PCollection<KV<K, Void>>> {
 
     @Override
-    public PCollection<KV<K, Void>> apply(PCollection<KV<K, V>> input) {
+    public PCollection<KV<K, Void>> expand(PCollection<KV<K, V>> input) {
       return input.apply(FlatMapElements.<KV<K, V>, KV<K, Void>>via(
           new SimpleFunction<KV<K, V>, Iterable<KV<K, Void>>>() {
             @Override

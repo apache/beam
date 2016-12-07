@@ -108,7 +108,7 @@ public class BigQueryTornadoes {
   static class CountTornadoes
       extends PTransform<PCollection<TableRow>, PCollection<TableRow>> {
     @Override
-    public PCollection<TableRow> apply(PCollection<TableRow> rows) {
+    public PCollection<TableRow> expand(PCollection<TableRow> rows) {
 
       // row... => month...
       PCollection<Integer> tornadoes = rows.apply(

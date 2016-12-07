@@ -170,7 +170,7 @@ class TestStreamEvaluatorFactory implements TransformEvaluatorFactory {
       }
 
       @Override
-      public PCollection<T> apply(PBegin input) {
+      public PCollection<T> expand(PBegin input) {
         PipelineRunner<?> runner = input.getPipeline().getRunner();
         checkState(
             runner instanceof DirectRunner,

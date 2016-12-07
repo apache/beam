@@ -73,7 +73,7 @@ class ParDoMultiOverrideFactory<InputT, OutputT>
     }
 
     @Override
-    public PCollectionTuple apply(PCollection<KV<K, InputT>> input) {
+    public PCollectionTuple expand(PCollection<KV<K, InputT>> input) {
 
       PCollectionTuple outputs = input
           .apply("Group by key", GroupByKey.<K, InputT>create())
@@ -106,7 +106,7 @@ class ParDoMultiOverrideFactory<InputT, OutputT>
       return underlyingParDo.getDefaultOutputCoder(originalInput, output);
     }
 
-    public PCollectionTuple apply(PCollection<? extends KV<K, Iterable<InputT>>> input) {
+    public PCollectionTuple expand(PCollection<? extends KV<K, Iterable<InputT>>> input) {
 
       PCollectionTuple outputs = PCollectionTuple.ofPrimitiveOutputsInternal(
           input.getPipeline(),

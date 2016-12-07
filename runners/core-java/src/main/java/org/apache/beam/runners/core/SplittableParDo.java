@@ -110,7 +110,7 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
   }
 
   @Override
-  public PCollectionTuple apply(PCollection<InputT> input) {
+  public PCollectionTuple expand(PCollection<InputT> input) {
     return applyTyped(input);
   }
 
@@ -179,7 +179,7 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
   public static class GBKIntoKeyedWorkItems<KeyT, InputT>
       extends PTransform<PCollection<KV<KeyT, InputT>>, PCollection<KeyedWorkItem<KeyT, InputT>>> {
     @Override
-    public PCollection<KeyedWorkItem<KeyT, InputT>> apply(PCollection<KV<KeyT, InputT>> input) {
+    public PCollection<KeyedWorkItem<KeyT, InputT>> expand(PCollection<KV<KeyT, InputT>> input) {
       return PCollection.createPrimitiveOutputInternal(
           input.getPipeline(), WindowingStrategy.globalDefault(), input.isBounded());
     }
@@ -247,7 +247,7 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
     }
 
     @Override
-    public PCollectionTuple apply(
+    public PCollectionTuple expand(
         PCollection<? extends KeyedWorkItem<String, ElementAndRestriction<InputT, RestrictionT>>>
             input) {
       DoFnSignature signature = DoFnSignatures.getSignature(fn.getClass());
