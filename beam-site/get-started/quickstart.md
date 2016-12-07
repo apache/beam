@@ -71,7 +71,7 @@ After you've chosen which runner you'd like to use:
 {:.runner-direct}
 ```
 $ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
-     -Dexec.args="--inputFile=pom.xml --output=counts"
+     -Dexec.args="--inputFile=pom.xml --output=counts" -Pdirect-runner
 ```
 
 {:.runner-apex}
