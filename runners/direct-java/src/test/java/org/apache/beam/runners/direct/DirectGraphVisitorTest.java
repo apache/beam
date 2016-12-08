@@ -20,7 +20,6 @@ package org.apache.beam.runners.direct;
 import static org.hamcrest.Matchers.emptyIterable;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasSize;
-import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
@@ -28,6 +27,7 @@ import com.google.common.collect.Iterables;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
+import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.CountingInput;
 import org.apache.beam.sdk.io.CountingSource;
 import org.apache.beam.sdk.io.Read;
@@ -111,6 +111,7 @@ public class DirectGraphVisitorTest implements Serializable {
     FlattenPCollectionList<String> flatten = Flatten.pCollections();
     PCollectionList<String> emptyList = PCollectionList.empty(p);
     PCollection<String> empty = emptyList.apply(flatten);
+    empty.setCoder(StringUtf8Coder.of());
     p.traverseTopologically(visitor);
     DirectGraph graph = visitor.getGraph();
     assertThat(
@@ -177,27 +178,6 @@ public class DirectGraphVisitorTest implements Serializable {
   }
 
   @Test
-  public void getUnfinalizedPValuesContainsDanglingOutputs() {
-    PCollection<String> created = p.apply(Create.of("1", "2", "3"));
-    PCollection<String> transformed =
-        created.apply(
-            ParDo.of(
-                new DoFn<String, String>() {
-                  @ProcessElement
-                  public void processElement(DoFn<String, String>.ProcessContext c)
-                      throws Exception {
-                    c.output(Integer.toString(c.element().length()));
-                  }
-                }));
-
-    assertThat(transformed.isFinishedSpecifyingInternal(), is(false));
-
-    p.traverseTopologically(visitor);
-    visitor.finishSpecifyingRemainder();
-    assertThat(transformed.isFinishedSpecifyingInternal(), is(true));
-  }
-
-  @Test
   public void getStepNamesContainsAllTransforms() {
     PCollection<String> created = p.apply(Create.of("1", "2", "3"));
     PCollection<String> transformed =
@@ -253,13 +233,5 @@ public class DirectGraphVisitorTest implements Serializable {
     thrown.expectMessage("completely traversed");
     thrown.expectMessage("get a graph");
     visitor.getGraph();
-  }
-
-  @Test
-  public void finishSpecifyingRemainderWithoutVisitingThrows() {
-    thrown.expect(IllegalStateException.class);
-    thrown.expectMessage("completely traversed");
-    thrown.expectMessage("finishSpecifyingRemainder");
-    visitor.finishSpecifyingRemainder();
   }
 }

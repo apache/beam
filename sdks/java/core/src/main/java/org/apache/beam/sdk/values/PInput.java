@@ -19,6 +19,7 @@ package org.apache.beam.sdk.values;
 
 import java.util.List;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.transforms.PTransform;
 
 /**
  * The interface for things that might be input to a
@@ -46,11 +47,12 @@ public interface PInput {
   List<TaggedPValue> expand();
 
   /**
-   * After building, finalizes this {@code PInput} to make it ready for
-   * being used as an input to a {@link org.apache.beam.sdk.transforms.PTransform}.
+   * After building, finalizes this {@code PInput} to make it ready for being used as an input to a
+   * {@link org.apache.beam.sdk.transforms.PTransform}.
    *
-   * <p>Automatically invoked whenever {@code apply()} is invoked on
-   * this {@code PInput}, so users do not normally call this explicitly.
+   * <p>Automatically invoked whenever {@code apply()} is invoked on this {@code PInput}, after
+   * {@link PValue#finishSpecifying(PInput, PTransform)} has been called on each component {@link
+   * PValue}, so users do not normally call this explicitly.
    */
   void finishSpecifying();
 }

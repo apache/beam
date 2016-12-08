@@ -256,16 +256,12 @@ public class PCollectionTuple implements PInput, POutput {
 
   @Override
   public void finishSpecifying() {
-    for (PCollection<?> pc : pcollectionMap.values()) {
-      pc.finishSpecifying();
-    }
+    // All component PCollections will already have been finished
   }
 
   @Override
-  public void finishSpecifyingOutput() {
-    for (PCollection<?> pc : pcollectionMap.values()) {
-      pc.finishSpecifyingOutput();
-    }
+  public void finishSpecifyingOutput(PInput input, PTransform<?, ?> transform) {
+    // All component PCollections will already have been finished
   }
 
   @Override

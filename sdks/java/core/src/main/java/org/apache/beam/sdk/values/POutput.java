@@ -61,16 +61,15 @@ public interface POutput {
   void recordAsOutput(AppliedPTransform<?, ?, ?> transform);
 
   /**
-   * As part of applying the producing {@link PTransform}, finalizes this
-   * output to make it ready for being used as an input and for running.
+   * As part of applying the producing {@link PTransform}, finalizes this output to make it ready
+   * for being used as an input and for running.
    *
-   * <p>This includes ensuring that all {@link PCollection PCollections}
-   * have {@link org.apache.beam.sdk.coders.Coder Coders} specified or defaulted.
+   * <p>This includes ensuring that all {@link PCollection PCollections} have {@link
+   * org.apache.beam.sdk.coders.Coder Coders} specified or defaulted.
    *
-   * <p>Automatically invoked whenever this {@link POutput} is used
-   * as a {@link PInput} to another {@link PTransform}, or if never
-   * used as a {@link PInput}, when {@link Pipeline#run}
-   * is called, so users do not normally call this explicitly.
+   * <p>Automatically invoked whenever this {@link POutput} is output, after {@link
+   * PValue#finishSpecifyingOutput(PInput, PTransform)} has been called on each component {@link
+   * PValue} returned by {@link #expand()}.
    */
-  void finishSpecifyingOutput();
+  void finishSpecifyingOutput(PInput input, PTransform<?, ?> transform);
 }
