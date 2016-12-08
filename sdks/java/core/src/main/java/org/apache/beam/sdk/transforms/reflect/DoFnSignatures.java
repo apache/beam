@@ -1040,6 +1040,8 @@ public class DoFnSignatures {
       ErrorReporter errors, Class<?> fnClazz) {
     Map<String, DoFnSignature.TimerDeclaration> declarations = new HashMap<>();
     for (Field field : declaredFieldsWithAnnotation(DoFn.TimerId.class, fnClazz, DoFn.class)) {
+      // TimerSpec fields may generally be private, but will be accessed via the signature
+      field.setAccessible(true);
       String id = field.getAnnotation(DoFn.TimerId.class).value();
       validateTimerField(errors, declarations, id, field);
       declarations.put(id, DoFnSignature.TimerDeclaration.create(id, field));
@@ -1205,6 +1207,8 @@ public class DoFnSignatures {
     Map<String, DoFnSignature.StateDeclaration> declarations = new HashMap<>();
 
     for (Field field : declaredFieldsWithAnnotation(DoFn.StateId.class, fnClazz, DoFn.class)) {
+      // StateSpec fields may generally be private, but will be accessed via the signature
+      field.setAccessible(true);
       String id = field.getAnnotation(DoFn.StateId.class).value();
 
       if (declarations.containsKey(id)) {
