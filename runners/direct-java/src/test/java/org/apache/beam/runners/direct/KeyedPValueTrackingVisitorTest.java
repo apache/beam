@@ -21,9 +21,7 @@ import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertThat;
 
-import com.google.common.collect.ImmutableSet;
 import java.util.Collections;
-import java.util.Set;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.VarIntCoder;
@@ -33,7 +31,6 @@ import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.Keys;
-import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
@@ -57,53 +54,19 @@ public class KeyedPValueTrackingVisitorTest {
 
   @Before
   public void setup() {
-
-    @SuppressWarnings("rawtypes")
-    Set<Class<? extends PTransform>> producesKeyed =
-        ImmutableSet.<Class<? extends PTransform>>of(PrimitiveKeyer.class, CompositeKeyer.class);
-    visitor = KeyedPValueTrackingVisitor.create(producesKeyed);
+    p = TestPipeline.create();
+    visitor = KeyedPValueTrackingVisitor.create();
   }
 
   @Test
-  public void primitiveProducesKeyedOutputUnkeyedInputKeyedOutput() {
-    PCollection<Integer> keyed =
-        p.apply(Create.<Integer>of(1, 2, 3)).apply(new PrimitiveKeyer<Integer>());
+  public void groupByKeyProducesKeyedOutput() {
+    PCollection<KV<String, Iterable<Integer>>> keyed =
+        p.apply(Create.of(KV.of("foo", 3)))
+            .apply(GroupByKey.<String, Integer>create());
 
     p.traverseTopologically(visitor);
     assertThat(visitor.getKeyedPValues(), hasItem(keyed));
   }
-
-  @Test
-  public void primitiveProducesKeyedOutputKeyedInputKeyedOutut() {
-    PCollection<Integer> keyed =
-        p.apply(Create.<Integer>of(1, 2, 3))
-            .apply("firstKey", new PrimitiveKeyer<Integer>())
-            .apply("secondKey", new PrimitiveKeyer<Integer>());
-
-    p.traverseTopologically(visitor);
-    assertThat(visitor.getKeyedPValues(), hasItem(keyed));
-  }
-
-  @Test
-  public void compositeProducesKeyedOutputUnkeyedInputKeyedOutput() {
-    PCollection<Integer> keyed =
-        p.apply(Create.<Integer>of(1, 2, 3)).apply(new CompositeKeyer<Integer>());
-
-    p.traverseTopologically(visitor);
-    assertThat(visitor.getKeyedPValues(), hasItem(keyed));
-  }
-
-  @Test
-  public void compositeProducesKeyedOutputKeyedInputKeyedOutut() {
-    PCollection<Integer> keyed =
-        p.apply(Create.<Integer>of(1, 2, 3))
-            .apply("firstKey", new CompositeKeyer<Integer>())
-            .apply("secondKey", new CompositeKeyer<Integer>());
-
-    p.traverseTopologically(visitor);
-    assertThat(visitor.getKeyedPValues(), hasItem(keyed));
-  }
-
 
   @Test
   public void noInputUnkeyedOutput() {
@@ -117,23 +80,14 @@ public class KeyedPValueTrackingVisitorTest {
   }
 
   @Test
-  public void keyedInputNotProducesKeyedOutputUnkeyedOutput() {
-    PCollection<Integer> onceKeyed =
-        p.apply(Create.<Integer>of(1, 2, 3))
-            .apply(new PrimitiveKeyer<Integer>())
-            .apply(ParDo.of(new IdentityFn<Integer>()));
+  public void keyedInputWithoutKeyPreserving() {
+    PCollection<KV<String, Iterable<Integer>>> onceKeyed =
+        p.apply(Create.of(KV.of("hello", 42)))
+            .apply(GroupByKey.<String, Integer>create())
+            .apply(ParDo.of(new IdentityFn<KV<String, Iterable<Integer>>>()));
 
     p.traverseTopologically(visitor);
     assertThat(visitor.getKeyedPValues(), not(hasItem(onceKeyed)));
-  }
-
-  @Test
-  public void unkeyedInputNotProducesKeyedOutputUnkeyedOutput() {
-    PCollection<Integer> unkeyed =
-        p.apply(Create.<Integer>of(1, 2, 3)).apply(ParDo.of(new IdentityFn<Integer>()));
-
-    p.traverseTopologically(visitor);
-    assertThat(visitor.getKeyedPValues(), not(hasItem(unkeyed)));
   }
 
   @Test
@@ -159,22 +113,6 @@ public class KeyedPValueTrackingVisitorTest {
     thrown.expectMessage("completely traversed");
     thrown.expectMessage("getKeyedPValues");
     visitor.getKeyedPValues();
-  }
-
-  private static class PrimitiveKeyer<K> extends PTransform<PCollection<K>, PCollection<K>> {
-    @Override
-    public PCollection<K> expand(PCollection<K> input) {
-      return PCollection.<K>createPrimitiveOutputInternal(
-              input.getPipeline(), input.getWindowingStrategy(), input.isBounded())
-          .setCoder(input.getCoder());
-    }
-  }
-
-  private static class CompositeKeyer<K> extends PTransform<PCollection<K>, PCollection<K>> {
-    @Override
-    public PCollection<K> expand(PCollection<K> input) {
-      return input.apply(new PrimitiveKeyer<K>()).apply(ParDo.of(new IdentityFn<K>()));
-    }
   }
 
   private static class IdentityFn<K> extends DoFn<K, K> {

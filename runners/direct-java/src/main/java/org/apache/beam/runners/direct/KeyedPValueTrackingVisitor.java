@@ -18,9 +18,15 @@
 package org.apache.beam.runners.direct;
 
 import static com.google.common.base.Preconditions.checkState;
+import static com.google.common.base.Predicates.in;
+import static com.google.common.collect.Iterables.all;
 
+import com.google.common.collect.ImmutableSet;
 import java.util.HashSet;
 import java.util.Set;
+import org.apache.beam.runners.core.SplittableParDo;
+import org.apache.beam.runners.direct.DirectGroupByKey.DirectGroupAlsoByWindow;
+import org.apache.beam.runners.direct.DirectGroupByKey.DirectGroupByKeyOnly;
 import org.apache.beam.sdk.Pipeline.PipelineVisitor;
 import org.apache.beam.sdk.runners.TransformHierarchy;
 import org.apache.beam.sdk.transforms.GroupByKey;
@@ -38,19 +44,21 @@ import org.apache.beam.sdk.values.PValue;
 // TODO: Handle Key-preserving transforms when appropriate and more aggressively make PTransforms
 // unkeyed
 class KeyedPValueTrackingVisitor implements PipelineVisitor {
-  @SuppressWarnings("rawtypes")
-  private final Set<Class<? extends PTransform>> producesKeyedOutputs;
+
+  private static final Set<Class<? extends PTransform>> PRODUCES_KEYED_OUTPUTS =
+      ImmutableSet.of(
+          SplittableParDo.GBKIntoKeyedWorkItems.class,
+          DirectGroupByKeyOnly.class,
+          DirectGroupAlsoByWindow.class);
+
   private final Set<PValue> keyedValues;
   private boolean finalized;
 
-  public static KeyedPValueTrackingVisitor create(
-      @SuppressWarnings("rawtypes") Set<Class<? extends PTransform>> producesKeyedOutputs) {
-    return new KeyedPValueTrackingVisitor(producesKeyedOutputs);
+  public static KeyedPValueTrackingVisitor create() {
+    return new KeyedPValueTrackingVisitor();
   }
 
-  private KeyedPValueTrackingVisitor(
-      @SuppressWarnings("rawtypes") Set<Class<? extends PTransform>> producesKeyedOutputs) {
-    this.producesKeyedOutputs = producesKeyedOutputs;
+  private KeyedPValueTrackingVisitor() {
     this.keyedValues = new HashSet<>();
   }
 
@@ -73,7 +81,7 @@ class KeyedPValueTrackingVisitor implements PipelineVisitor {
         node);
     if (node.isRootNode()) {
       finalized = true;
-    } else if (producesKeyedOutputs.contains(node.getTransform().getClass())) {
+    } else if (PRODUCES_KEYED_OUTPUTS.contains(node.getTransform().getClass())) {
       keyedValues.addAll(node.getOutputs());
     }
   }
@@ -83,7 +91,9 @@ class KeyedPValueTrackingVisitor implements PipelineVisitor {
 
   @Override
   public void visitValue(PValue value, TransformHierarchy.Node producer) {
-    if (producesKeyedOutputs.contains(producer.getTransform().getClass())) {
+    if (PRODUCES_KEYED_OUTPUTS.contains(producer.getTransform().getClass())
+        || (isKeyPreserving(producer.getTransform())
+            && all(producer.getInputs(), in(keyedValues)))) {
       keyedValues.add(value);
     }
   }
@@ -92,5 +102,10 @@ class KeyedPValueTrackingVisitor implements PipelineVisitor {
     checkState(
         finalized, "can't call getKeyedPValues before a Pipeline has been completely traversed");
     return keyedValues;
+  }
+
+  private static boolean isKeyPreserving(PTransform<?, ?> transform) {
+    // There are currently no key-preserving transforms; this lays the infrastructure for them
+    return false;
   }
 }
