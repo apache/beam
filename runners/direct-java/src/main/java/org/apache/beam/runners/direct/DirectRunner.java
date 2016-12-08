@@ -312,14 +312,14 @@ public class DirectRunner extends PipelineRunner<DirectPipelineResult> {
             getPipelineOptions(),
             clockSupplier.get(),
             Enforcement.bundleFactoryFor(enabledEnforcements, graph),
-            graph);
+            graph,
+            keyedPValueVisitor.getKeyedPValues());
 
     RootProviderRegistry rootInputProvider = RootProviderRegistry.defaultRegistry(context);
     TransformEvaluatorRegistry registry = TransformEvaluatorRegistry.defaultRegistry(context);
     PipelineExecutor executor =
         ExecutorServiceParallelExecutor.create(
             options.getTargetParallelism(), graph,
-            keyedPValueVisitor.getKeyedPValues(),
             rootInputProvider,
             registry,
             Enforcement.defaultModelEnforcements(enabledEnforcements),

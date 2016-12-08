@@ -27,6 +27,7 @@ import java.util.Collection;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import javax.annotation.Nullable;
@@ -99,17 +100,28 @@ class EvaluationContext {
 
   private final DirectMetrics metrics;
 
+  private final Set<PValue> keyedPValues;
+
   public static EvaluationContext create(
-      DirectOptions options, Clock clock, BundleFactory bundleFactory, DirectGraph graph) {
-    return new EvaluationContext(options, clock, bundleFactory, graph);
+      DirectOptions options,
+      Clock clock,
+      BundleFactory bundleFactory,
+      DirectGraph graph,
+      Set<PValue> keyedPValues) {
+    return new EvaluationContext(options, clock, bundleFactory, graph, keyedPValues);
   }
 
   private EvaluationContext(
-      DirectOptions options, Clock clock, BundleFactory bundleFactory, DirectGraph graph) {
+      DirectOptions options,
+      Clock clock,
+      BundleFactory bundleFactory,
+      DirectGraph graph,
+      Set<PValue> keyedPValues) {
     this.options = checkNotNull(options);
     this.clock = clock;
     this.bundleFactory = checkNotNull(bundleFactory);
     this.graph = checkNotNull(graph);
+    this.keyedPValues = keyedPValues;
 
     this.watermarkManager = WatermarkManager.create(clock, graph);
     this.sideInputContainer = SideInputContainer.create(this, graph.getViews());
@@ -241,6 +253,14 @@ class EvaluationContext {
   public <K, T> UncommittedBundle<T> createKeyedBundle(
       StructuralKey<K> key, PCollection<T> output) {
     return bundleFactory.createKeyedBundle(key, output);
+  }
+
+  /**
+   * Indicate whether or not this {@link PCollection} has been determined to be
+   * keyed.
+   */
+  public <T> boolean isKeyed(PValue pValue) {
+    return keyedPValues.contains(pValue);
   }
 
   /**
