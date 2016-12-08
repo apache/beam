@@ -58,6 +58,7 @@ import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.View;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.Window;
@@ -81,7 +82,6 @@ import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.api.java.function.Function;
 import org.apache.spark.api.java.function.PairFunction;
-
 import scala.Tuple2;
 
 
@@ -228,20 +228,36 @@ public final class TransformTranslator {
     };
   }
 
+  private static void rejectStateAndTimers(DoFn<?, ?> doFn) {
+    DoFnSignature signature = DoFnSignatures.getSignature(doFn.getClass());
+
+    if (signature.stateDeclarations().size() > 0) {
+      throw new UnsupportedOperationException(
+          String.format(
+              "Found %s annotations on %s, but %s cannot yet be used with state in the %s.",
+              DoFn.StateId.class.getSimpleName(),
+              doFn.getClass().getName(),
+              DoFn.class.getSimpleName(),
+              SparkRunner.class.getSimpleName()));
+    }
+
+    if (signature.timerDeclarations().size() > 0) {
+      throw new UnsupportedOperationException(
+          String.format(
+              "Found %s annotations on %s, but %s cannot yet be used with timers in the %s.",
+              DoFn.TimerId.class.getSimpleName(),
+              doFn.getClass().getName(),
+              DoFn.class.getSimpleName(),
+              SparkRunner.class.getSimpleName()));
+    }
+  }
+
   private static <InputT, OutputT> TransformEvaluator<ParDo.Bound<InputT, OutputT>> parDo() {
     return new TransformEvaluator<ParDo.Bound<InputT, OutputT>>() {
       @Override
       public void evaluate(ParDo.Bound<InputT, OutputT> transform, EvaluationContext context) {
         DoFn<InputT, OutputT> doFn = transform.getNewFn();
-        if (DoFnSignatures.getSignature(doFn.getClass()).stateDeclarations().size() > 0) {
-          throw new UnsupportedOperationException(
-              String.format(
-                  "Found %s annotations on %s, but %s cannot yet be used with state in the %s.",
-                  DoFn.StateId.class.getSimpleName(),
-                  doFn.getClass().getName(),
-                  DoFn.class.getSimpleName(),
-                  SparkRunner.class.getSimpleName()));
-        }
+        rejectStateAndTimers(doFn);
         @SuppressWarnings("unchecked")
         JavaRDD<WindowedValue<InputT>> inRDD =
             ((BoundedDataset<InputT>) context.borrowDataset(transform)).getRDD();
@@ -265,15 +281,7 @@ public final class TransformTranslator {
       @Override
       public void evaluate(ParDo.BoundMulti<InputT, OutputT> transform, EvaluationContext context) {
         DoFn<InputT, OutputT> doFn = transform.getNewFn();
-        if (DoFnSignatures.getSignature(doFn.getClass()).stateDeclarations().size() > 0) {
-          throw new UnsupportedOperationException(
-              String.format(
-                  "Found %s annotations on %s, but %s cannot yet be used with state in the %s.",
-                  DoFn.StateId.class.getSimpleName(),
-                  doFn.getClass().getName(),
-                  DoFn.class.getSimpleName(),
-                  SparkRunner.class.getSimpleName()));
-        }
+        rejectStateAndTimers(doFn);
         @SuppressWarnings("unchecked")
         JavaRDD<WindowedValue<InputT>> inRDD =
             ((BoundedDataset<InputT>) context.borrowDataset(transform)).getRDD();
