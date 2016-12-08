@@ -71,9 +71,19 @@ public class CountingInputTest {
   public void testBoundedInput() {
     Pipeline p = TestPipeline.create();
     long numElements = 1000;
-    PCollection<Long> input = p.apply(CountingInput.upTo(numElements));
+    PCollection<Long> input = p.apply(Read.from(CountingSource.upTo(numElements)));
 
     addCountingAsserts(input, 0, numElements);
+    p.run();
+  }
+
+  @Test
+  @Category(RunnableOnService.class)
+  public void testEmptyBoundedSource() {
+    Pipeline p = TestPipeline.create();
+    PCollection<Long> input = p.apply(CountingInput.upTo(0));
+
+    PAssert.that(input).empty();
     p.run();
   }
 
