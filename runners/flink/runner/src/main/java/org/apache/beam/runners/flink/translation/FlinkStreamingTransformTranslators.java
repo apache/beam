@@ -57,6 +57,7 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.join.RawUnionValue;
 import org.apache.beam.sdk.transforms.join.UnionCoder;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
@@ -304,6 +305,30 @@ public class FlinkStreamingTransformTranslators {
     }
   }
 
+  private static void rejectStateAndTimers(DoFn<?, ?> doFn) {
+    DoFnSignature signature = DoFnSignatures.getSignature(doFn.getClass());
+
+    if (signature.stateDeclarations().size() > 0) {
+      throw new UnsupportedOperationException(
+          String.format(
+              "Found %s annotations on %s, but %s cannot yet be used with state in the %s.",
+              DoFn.StateId.class.getSimpleName(),
+              doFn.getClass().getName(),
+              DoFn.class.getSimpleName(),
+              FlinkRunner.class.getSimpleName()));
+    }
+
+    if (signature.timerDeclarations().size() > 0) {
+      throw new UnsupportedOperationException(
+          String.format(
+              "Found %s annotations on %s, but %s cannot yet be used with timers in the %s.",
+              DoFn.TimerId.class.getSimpleName(),
+              doFn.getClass().getName(),
+              DoFn.class.getSimpleName(),
+              FlinkRunner.class.getSimpleName()));
+    }
+  }
+
   private static class ParDoBoundStreamingTranslator<InputT, OutputT>
       extends FlinkStreamingPipelineTranslator.StreamTransformTranslator<
         ParDo.Bound<InputT, OutputT>> {
@@ -314,15 +339,7 @@ public class FlinkStreamingTransformTranslators {
         FlinkStreamingTranslationContext context) {
 
       DoFn<InputT, OutputT> doFn = transform.getNewFn();
-      if (DoFnSignatures.getSignature(doFn.getClass()).stateDeclarations().size() > 0) {
-        throw new UnsupportedOperationException(
-            String.format(
-                "Found %s annotations on %s, but %s cannot yet be used with state in the %s.",
-                DoFn.StateId.class.getSimpleName(),
-                doFn.getClass().getName(),
-                DoFn.class.getSimpleName(),
-                FlinkRunner.class.getSimpleName()));
-      }
+      rejectStateAndTimers(doFn);
 
       WindowingStrategy<?, ?> windowingStrategy =
           context.getOutput(transform).getWindowingStrategy();
@@ -474,15 +491,7 @@ public class FlinkStreamingTransformTranslators {
         FlinkStreamingTranslationContext context) {
 
       DoFn<InputT, OutputT> doFn = transform.getNewFn();
-      if (DoFnSignatures.getSignature(doFn.getClass()).stateDeclarations().size() > 0) {
-        throw new UnsupportedOperationException(
-            String.format(
-                "Found %s annotations on %s, but %s cannot yet be used with state in the %s.",
-                DoFn.StateId.class.getSimpleName(),
-                doFn.getClass().getName(),
-                DoFn.class.getSimpleName(),
-                FlinkRunner.class.getSimpleName()));
-      }
+      rejectStateAndTimers(doFn);
 
       // we assume that the transformation does not change the windowing strategy.
       WindowingStrategy<?, ?> windowingStrategy =
