@@ -32,6 +32,7 @@ import org.apache.beam.runners.direct.DirectRunner.UncommittedBundle;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.ReadyCheckingSideInputReader;
+import org.apache.beam.sdk.util.TimerInternals.TimerData;
 import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowingStrategy;
@@ -131,6 +132,14 @@ class ParDoEvaluator<InputT, OutputT> implements TransformEvaluator<InputT> {
     try {
       Iterable<WindowedValue<InputT>> unprocessed = fnRunner.processElementInReadyWindows(element);
       unprocessedElements.addAll(unprocessed);
+    } catch (Exception e) {
+      throw UserCodeException.wrap(e);
+    }
+  }
+
+  public void onTimer(TimerData timer, BoundedWindow window) {
+    try {
+      fnRunner.onTimer(timer.getTimerId(), window, timer.getTimestamp(), timer.getDomain());
     } catch (Exception e) {
       throw UserCodeException.wrap(e);
     }
