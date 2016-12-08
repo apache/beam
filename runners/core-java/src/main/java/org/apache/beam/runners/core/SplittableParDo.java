@@ -663,6 +663,11 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
       }
 
       @Override
+      public DoFn.OnTimerContext onTimerContext(DoFn<InputT, OutputT> doFn) {
+        throw new IllegalStateException("Unexpected extra context access on a splittable DoFn");
+      }
+
+      @Override
       public DoFn.InputProvider<InputT> inputProvider() {
         // DoFnSignatures should have verified that this DoFn doesn't access extra context.
         throw new IllegalStateException("Unexpected extra context access on a splittable DoFn");
