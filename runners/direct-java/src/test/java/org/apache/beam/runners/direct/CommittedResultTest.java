@@ -52,7 +52,7 @@ public class CommittedResultTest implements Serializable {
   private transient AppliedPTransform<?, ?, ?> transform =
       AppliedPTransform.of("foo", p.begin(), PDone.in(p), new PTransform<PBegin, PDone>() {
         @Override
-        public PDone apply(PBegin begin) {
+        public PDone expand(PBegin begin) {
           throw new IllegalArgumentException("Should never be applied");
         }
       });

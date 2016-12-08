@@ -213,7 +213,7 @@ public class DirectGraphVisitorTest implements Serializable {
         transformed.apply(
             new PTransform<PInput, PDone>() {
               @Override
-              public PDone apply(PInput input) {
+              public PDone expand(PInput input) {
                 return PDone.in(input.getPipeline());
               }
             });

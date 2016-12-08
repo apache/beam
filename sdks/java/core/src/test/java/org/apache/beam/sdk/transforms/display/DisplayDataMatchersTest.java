@@ -78,7 +78,7 @@ public class DisplayDataMatchersTest {
 
     DisplayData data = DisplayData.from(new PTransform<PCollection<String>, PCollection<String>>() {
       @Override
-      public PCollection<String> apply(PCollection<String> input) {
+      public PCollection<String> expand(PCollection<String> input) {
         throw new IllegalArgumentException("Should never be applied");
       }
 
@@ -133,7 +133,7 @@ public class DisplayDataMatchersTest {
     assertFalse(matcher.matches(DisplayData.from(
         new PTransform<PCollection<String>, PCollection<String>>(){
           @Override
-          public PCollection<String> apply(PCollection<String> input) {
+          public PCollection<String> expand(PCollection<String> input) {
             throw new IllegalArgumentException("Should never be applied");
           }
         })));
@@ -206,7 +206,7 @@ public class DisplayDataMatchersTest {
     }
 
     @Override
-    public PCollection<String> apply(PCollection<String> input) {
+    public PCollection<String> expand(PCollection<String> input) {
       throw new IllegalArgumentException("Should never be applied");
     }
 

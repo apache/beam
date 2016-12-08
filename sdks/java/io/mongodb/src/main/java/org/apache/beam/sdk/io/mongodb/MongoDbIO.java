@@ -160,7 +160,7 @@ public class MongoDbIO {
     }
 
     @Override
-    public PCollection<Document> apply(PBegin input) {
+    public PCollection<Document> expand(PBegin input) {
       return input.apply(org.apache.beam.sdk.io.Read.from(new BoundedMongoDbSource(this)));
     }
 
@@ -441,7 +441,7 @@ public class MongoDbIO {
     }
 
     @Override
-    public PDone apply(PCollection<Document> input) {
+    public PDone expand(PCollection<Document> input) {
       input.apply(ParDo.of(new WriteFn(this)));
       return PDone.in(input.getPipeline());
     }

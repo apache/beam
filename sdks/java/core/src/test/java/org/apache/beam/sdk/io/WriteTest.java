@@ -123,7 +123,7 @@ public class WriteTest {
     }
 
     @Override
-    public PCollection<T> apply(PCollection<T> input) {
+    public PCollection<T> expand(PCollection<T> input) {
       return input
           .apply(window)
           .apply(ParDo.of(new AddArbitraryKey<T>()))

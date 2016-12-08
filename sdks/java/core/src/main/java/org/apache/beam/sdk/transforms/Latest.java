@@ -159,7 +159,7 @@ public class Latest {
 
   private static class Globally<T> extends PTransform<PCollection<T>, PCollection<T>> {
     @Override
-    public PCollection<T> apply(PCollection<T> input) {
+    public PCollection<T> expand(PCollection<T> input) {
       Coder<T> inputCoder = input.getCoder();
 
       return input
@@ -178,7 +178,7 @@ public class Latest {
   private static class PerKey<K, V>
       extends PTransform<PCollection<KV<K, V>>, PCollection<KV<K, V>>> {
     @Override
-    public PCollection<KV<K, V>> apply(PCollection<KV<K, V>> input) {
+    public PCollection<KV<K, V>> expand(PCollection<KV<K, V>> input) {
       checkNotNull(input);
       checkArgument(input.getCoder() instanceof KvCoder,
           "Input specifiedCoder must be an instance of KvCoder, but was %s", input.getCoder());

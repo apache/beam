@@ -286,7 +286,7 @@ public class BigtableIO {
     }
 
     @Override
-    public PCollection<Row> apply(PBegin input) {
+    public PCollection<Row> expand(PBegin input) {
       BigtableSource source =
           new BigtableSource(new SerializableFunction<PipelineOptions, BigtableService>() {
             @Override
@@ -500,7 +500,7 @@ public class BigtableIO {
     }
 
     @Override
-    public PDone apply(PCollection<KV<ByteString, Iterable<Mutation>>> input) {
+    public PDone expand(PCollection<KV<ByteString, Iterable<Mutation>>> input) {
       input.apply(ParDo.of(new BigtableWriterFn(tableId,
           new SerializableFunction<PipelineOptions, BigtableService>() {
         @Override

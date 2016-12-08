@@ -840,7 +840,7 @@ public class DataflowRunnerTest {
     public boolean translated = false;
 
     @Override
-    public PCollection<Integer> apply(PCollection<Integer> input) {
+    public PCollection<Integer> expand(PCollection<Integer> input) {
       return PCollection.<Integer>createPrimitiveOutputInternal(
           input.getPipeline(),
           WindowingStrategy.globalDefault(),

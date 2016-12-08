@@ -212,7 +212,7 @@ public class PipelineTest {
   private static class IdentityTransform<T extends PInput & POutput>
       extends PTransform<T, T> {
     @Override
-    public T apply(T input) {
+    public T expand(T input) {
       return input;
     }
   }
@@ -247,7 +247,7 @@ public class PipelineTest {
     }
 
     @Override
-    public PCollection<T> apply(PCollectionTuple input) {
+    public PCollection<T> expand(PCollectionTuple input) {
       return input.get(tag);
     }
   }
@@ -281,7 +281,7 @@ public class PipelineTest {
     }
 
     @Override
-    public PCollectionTuple apply(PCollection<T> input) {
+    public PCollectionTuple expand(PCollection<T> input) {
       return PCollectionTuple.of(tag, input);
     }
   }

@@ -40,7 +40,7 @@ public class AssignWindows<T, W extends BoundedWindow>
   }
 
   @Override
-  public PCollection<T> apply(PCollection<T> input) {
+  public PCollection<T> expand(PCollection<T> input) {
     return input.apply("AssignWindows", ParDo.of(new AssignWindowsDoFn<>(fn)));
   }
 }

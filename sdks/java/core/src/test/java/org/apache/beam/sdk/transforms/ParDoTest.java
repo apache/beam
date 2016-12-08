@@ -272,7 +272,7 @@ public class ParDoTest implements Serializable {
     private static final TupleTag<Integer> BY3 = new TupleTag<Integer>("by3"){};
 
     @Override
-    public PCollectionTuple apply(PCollection<Integer> input) {
+    public PCollectionTuple expand(PCollection<Integer> input) {
       PCollection<Integer> by2 = input.apply("Filter2s", ParDo.of(new FilterFn(2)));
       PCollection<Integer> by3 = input.apply("Filter3s", ParDo.of(new FilterFn(3)));
       return PCollectionTuple.of(BY2, by2).and(BY3, by3);
@@ -840,7 +840,7 @@ public class ParDoTest implements Serializable {
         .apply(Create.of(inputs))
         .apply("CustomTransform", new PTransform<PCollection<Integer>, PCollection<String>>() {
             @Override
-            public PCollection<String> apply(PCollection<Integer> input) {
+            public PCollection<String> expand(PCollection<Integer> input) {
               return input.apply(ParDo.of(new TestDoFn()));
             }
           });

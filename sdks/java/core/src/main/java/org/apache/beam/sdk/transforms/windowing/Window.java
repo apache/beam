@@ -445,7 +445,7 @@ public class Window {
     }
 
     @Override
-    public PCollection<T> apply(PCollection<T> input) {
+    public PCollection<T> expand(PCollection<T> input) {
       WindowingStrategy<?, ?> outputStrategy =
           getOutputStrategyInternal(input.getWindowingStrategy());
       return PCollection.createPrimitiveOutputInternal(
@@ -517,7 +517,7 @@ public class Window {
    */
   private static class Remerge<T> extends PTransform<PCollection<T>, PCollection<T>> {
     @Override
-    public PCollection<T> apply(PCollection<T> input) {
+    public PCollection<T> expand(PCollection<T> input) {
       WindowingStrategy<?, ?> outputWindowingStrategy = getOutputWindowing(
           input.getWindowingStrategy());
 
