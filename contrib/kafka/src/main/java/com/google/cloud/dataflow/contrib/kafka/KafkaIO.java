@@ -44,6 +44,7 @@ import com.google.cloud.dataflow.sdk.values.PDone;
 import com.google.cloud.dataflow.sdk.values.PInput;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Function;
+import com.google.common.base.Joiner;
 import com.google.common.base.Optional;
 import com.google.common.collect.ComparisonChain;
 import com.google.common.collect.ImmutableList;
@@ -730,6 +731,7 @@ public class KafkaIO {
 
       // (a) fetch partitions for each topic
       // (b) sort by <topic, partition>
+      // (c) round-robin assign the partitions to splits
 
       if (partitions.isEmpty()) {
         try (Consumer<?, ?> consumer = consumerFactoryFn.apply(consumerConfig)) {
@@ -756,35 +758,33 @@ public class KafkaIO {
           partitions.size() > 0,
           "Could not find any partitions. Please check Kafka configuration and topic names");
 
-      if (desiredNumSplits < 0) {
-        // special case for DirectPipelineRunner (used in tests) in Dataflow. Return single split.
-        return ImmutableList.of(
-            new UnboundedKafkaSource<>(
-                0,
-                this.topics,
-                partitions,
-                this.keyCoder,
-                this.valueCoder,
-                this.timestampFn,
-                this.watermarkFn,
-                this.consumerFactoryFn,
-                this.consumerConfig)
-        );
+      // one split per partition, except when desiredNumSplits is -1, which is a special case
+      // for DirectDataflowRunner that requires single split.
+      int numSplits = desiredNumSplits == -1 ? 1 : partitions.size();
+      List<List<TopicPartition>> assignments = new ArrayList<>(numSplits);
+
+      for (int i = 0; i < numSplits; i++) {
+        assignments.add(new ArrayList<TopicPartition>());
+      }
+      for (int i = 0; i < partitions.size(); i++) {
+        assignments.get(i % numSplits).add(partitions.get(i));
       }
 
-      List<UnboundedKafkaSource<K, V>> result = new ArrayList<>(partitions.size());
+      List<UnboundedKafkaSource<K, V>> result = new ArrayList<>(numSplits);
 
-      // one split for each partition.
-      for (int i = 0; i < partitions.size(); i++) {
-        TopicPartition partition = partitions.get(i);
+      for (int i = 0; i < numSplits; i++) {
+        List<TopicPartition> assignedToSplit = assignments.get(i);
 
-        LOG.info("Partition assigned to split {} : {}", i, partition);
+        LOG.info(
+            "Partitions assigned to split {} : {}",
+            i,
+            Joiner.on(",").join(assignedToSplit));
 
         result.add(
-            new UnboundedKafkaSource<>(
+            new UnboundedKafkaSource<K, V>(
                 i,
                 this.topics,
-                ImmutableList.of(partition),
+                assignedToSplit,
                 this.keyCoder,
                 this.valueCoder,
                 this.timestampFn,
@@ -803,7 +803,6 @@ public class KafkaIO {
       if (assignedPartitions.isEmpty()) {
         LOG.warn("Looks like generateSplits() is not called. Generate single split.");
         try {
-
           return new UnboundedKafkaReader<K, V>(
               generateInitialSplits(-1, options).get(0), checkpointMark);
         } catch (Exception e) {
