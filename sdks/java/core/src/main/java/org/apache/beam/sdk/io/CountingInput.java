@@ -75,17 +75,21 @@ public class CountingInput {
    * from {@code 0} to {@code numElements - 1}.
    */
   public static BoundedCountingInput upTo(long numElements) {
-    checkArgument(numElements > 0, "numElements (%s) must be greater than 0", numElements);
+    checkArgument(numElements >= 0,
+        "numElements (%s) must be greater than or equal to 0",
+        numElements);
     return new BoundedCountingInput(numElements);
   }
 
   /**
    * Creates a {@link BoundedCountingInput} that will produce elements
-   * starting from {@code startIndex} to {@code endIndex - 1}.
+   * starting from {@code startIndex} (inclusive) to {@code endIndex} (exclusive).
+   * If {@code startIndex == endIndex}, then no elements will be produced.
    */
   public static BoundedCountingInput forSubrange(long startIndex, long endIndex) {
-    checkArgument(endIndex > startIndex, "endIndex (%s) must be greater than startIndex (%s)",
-            endIndex, startIndex);
+    checkArgument(endIndex >= startIndex,
+        "endIndex (%s) must be greater than or equal to startIndex (%s)",
+        endIndex, startIndex);
     return new BoundedCountingInput(startIndex, endIndex);
   }
 
