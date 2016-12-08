@@ -424,10 +424,6 @@ public class DataflowPipelineTranslator {
 
       WorkerPool workerPool = new WorkerPool();
 
-      if (options.getTeardownPolicy() != null) {
-        workerPool.setTeardownPolicy(options.getTeardownPolicy().getTeardownPolicyName());
-      }
-
       if (options.isStreaming()) {
         job.setType("JOB_TYPE_STREAMING");
       } else {
