@@ -72,7 +72,7 @@ SDK_LOCATION=$(find dist/apache-beam-sdk-*.tar.gz)
 
 # Run ValidatesRunner tests on Google Cloud Dataflow service
 python setup.py nosetests \
-  -a ValidatesRunner=test --test-pipeline-options=" \
+  -a ValidatesRunner --test-pipeline-options=" \
     --runner=BlockingDataflowPipelineRunner \
     --project=$PROJECT \
     --staging_location=$GCS_LOCATION/staging-validatesrunner-test \
