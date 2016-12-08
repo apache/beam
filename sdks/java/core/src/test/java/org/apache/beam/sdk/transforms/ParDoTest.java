@@ -1147,15 +1147,16 @@ public class ParDoTest implements Serializable {
 
     final TupleTag<Integer> mainOutputTag = new TupleTag<Integer>("main");
     final TupleTag<TestDummy> sideOutputTag = new TupleTag<TestDummy>("unregisteredSide");
-    PCollectionTuple outputTuple = input.apply(ParDo.of(new SideOutputDummyFn(sideOutputTag))
-        .withOutputTags(mainOutputTag, TupleTagList.of(sideOutputTag)));
+    ParDo.BoundMulti<Integer, Integer> pardo = ParDo.of(new SideOutputDummyFn(sideOutputTag))
+        .withOutputTags(mainOutputTag, TupleTagList.of(sideOutputTag));
+    PCollectionTuple outputTuple = input.apply(pardo);
 
     outputTuple.get(sideOutputTag).setCoder(new TestDummyCoder());
 
     outputTuple.get(sideOutputTag).apply(View.<TestDummy>asSingleton());
 
     assertEquals(new TestDummyCoder(), outputTuple.get(sideOutputTag).getCoder());
-    outputTuple.get(sideOutputTag).finishSpecifyingOutput(); // Check for crashes
+    outputTuple.get(sideOutputTag).finishSpecifyingOutput(input, pardo); // Check for crashes
     assertEquals(new TestDummyCoder(),
         outputTuple.get(sideOutputTag).getCoder()); // Check for corruption
   }

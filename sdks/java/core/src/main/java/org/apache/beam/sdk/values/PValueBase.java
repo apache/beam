@@ -138,8 +138,7 @@ public abstract class PValueBase extends POutputValueBase implements PValue {
   }
 
   @Override
-  public void finishSpecifying() {
-    finishSpecifyingOutput();
+  public void finishSpecifying(PInput input, PTransform<?, ?> transform) {
     finishedSpecifying = true;
   }
 
