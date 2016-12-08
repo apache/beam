@@ -265,6 +265,10 @@ class TestGCSIO(unittest.TestCase):
     with self.assertRaises(ValueError):
       self.gcs.open(file_name, 'r+b')
 
+  def test_empty_batches(self):
+    self.assertEqual([], self.gcs.copy_batch([]))
+    self.assertEqual([], self.gcs.delete_batch([]))
+
   def test_delete(self):
     file_name = 'gs://gcsio-test/delete_me'
     file_size = 1024
