@@ -15,6 +15,8 @@
  */
 package com.google.cloud.dataflow.sdk.util;
 
+import static org.mockito.Matchers.argThat;
+
 import com.google.cloud.dataflow.sdk.util.TimerInternals.TimerData;
 import com.google.cloud.dataflow.sdk.util.state.StateNamespace;
 import com.google.cloud.dataflow.sdk.util.state.StateNamespaceForTest;
@@ -24,9 +26,14 @@ import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+import org.mockito.ArgumentMatcher;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
+
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 
 /**
  * Tests for {@link BatchTimerInternals}.
@@ -44,6 +51,37 @@ public class BatchTimerInternalsTest {
     MockitoAnnotations.initMocks(this);
   }
 
+  private static class TimersAre extends ArgumentMatcher<Iterable<TimerData>> {
+    final List<TimerData> expectedTimers;
+    TimersAre(List<TimerData> timers) {
+      expectedTimers = timers;
+    }
+
+    @Override
+    public boolean matches(Object actual) {
+      if (actual == null || !(actual instanceof Iterable)) {
+        return false;
+      }
+      @SuppressWarnings("unchecked")
+      Iterable<TimerData> timers = (Iterable<TimerData>) actual;
+
+      List<TimerData> actualTimers = new ArrayList();
+      for (TimerData timer : timers) {
+        actualTimers.add(timer);
+      }
+      return expectedTimers.equals(actualTimers);
+    }
+
+    @Override
+    public String toString() {
+      return "ordered timers " + expectedTimers.toString();
+    }
+  }
+
+  private static TimersAre timersAre(TimerData... timers) {
+    return new TimersAre(Arrays.asList(timers));
+  }
+
   @Test
   public void testFiringTimers() throws Exception {
     BatchTimerInternals underTest = new BatchTimerInternals(new Instant(0));
@@ -54,7 +92,7 @@ public class BatchTimerInternalsTest {
     underTest.setTimer(processingTime2);
 
     underTest.advanceProcessingTime(mockRunner, new Instant(20));
-    Mockito.verify(mockRunner).onTimer(processingTime1);
+    Mockito.verify(mockRunner).onTimers(argThat(timersAre(processingTime1)));
     Mockito.verifyNoMoreInteractions(mockRunner);
 
     // Advancing just a little shouldn't refire
@@ -63,13 +101,13 @@ public class BatchTimerInternalsTest {
 
     // Adding the timer and advancing a little should refire
     underTest.setTimer(processingTime1);
-    Mockito.verify(mockRunner).onTimer(processingTime1);
     underTest.advanceProcessingTime(mockRunner, new Instant(21));
+    Mockito.verify(mockRunner, Mockito.times(2)).onTimers(argThat(timersAre(processingTime1)));
     Mockito.verifyNoMoreInteractions(mockRunner);
 
     // And advancing the rest of the way should still have the other timer
     underTest.advanceProcessingTime(mockRunner, new Instant(30));
-    Mockito.verify(mockRunner).onTimer(processingTime2);
+    Mockito.verify(mockRunner).onTimers(argThat(timersAre(processingTime2)));
     Mockito.verifyNoMoreInteractions(mockRunner);
   }
 
@@ -87,13 +125,11 @@ public class BatchTimerInternalsTest {
     underTest.setTimer(watermarkTime2);
 
     underTest.advanceInputWatermark(mockRunner, new Instant(30));
-    Mockito.verify(mockRunner).onTimer(watermarkTime1);
-    Mockito.verify(mockRunner).onTimer(watermarkTime2);
+    Mockito.verify(mockRunner).onTimers(argThat(timersAre(watermarkTime1, watermarkTime2)));
     Mockito.verifyNoMoreInteractions(mockRunner);
 
     underTest.advanceProcessingTime(mockRunner, new Instant(30));
-    Mockito.verify(mockRunner).onTimer(processingTime1);
-    Mockito.verify(mockRunner).onTimer(processingTime2);
+    Mockito.verify(mockRunner).onTimers(argThat(timersAre(processingTime1, processingTime2)));
     Mockito.verifyNoMoreInteractions(mockRunner);
   }
 
@@ -107,10 +143,9 @@ public class BatchTimerInternalsTest {
     underTest.setTimer(processingTime);
     underTest.setTimer(processingTime);
     underTest.advanceProcessingTime(mockRunner, new Instant(20));
+    Mockito.verify(mockRunner).onTimers(argThat(timersAre(processingTime)));
     underTest.advanceInputWatermark(mockRunner, new Instant(20));
-
-    Mockito.verify(mockRunner).onTimer(processingTime);
-    Mockito.verify(mockRunner).onTimer(watermarkTime);
+    Mockito.verify(mockRunner).onTimers(argThat(timersAre(watermarkTime)));
     Mockito.verifyNoMoreInteractions(mockRunner);
   }
 }

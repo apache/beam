@@ -20,7 +20,6 @@ import com.google.cloud.dataflow.sdk.transforms.DoFn;
 import com.google.cloud.dataflow.sdk.transforms.Sum;
 import com.google.cloud.dataflow.sdk.transforms.windowing.BoundedWindow;
 import com.google.cloud.dataflow.sdk.util.DoFnRunner.ReduceFnExecutor;
-import com.google.cloud.dataflow.sdk.util.TimerInternals.TimerData;
 import com.google.cloud.dataflow.sdk.util.state.StateInternals;
 import com.google.cloud.dataflow.sdk.values.KV;
 
@@ -81,9 +80,7 @@ public class GroupAlsoByWindowViaWindowSetDoFn<
             c.getPipelineOptions());
 
     reduceFnRunner.processElements(element.elementsIterable());
-    for (TimerData timer : element.timersIterable()) {
-      reduceFnRunner.onTimer(timer);
-    }
+    reduceFnRunner.onTimers(element.timersIterable());
     reduceFnRunner.persist();
   }
 
@@ -101,4 +98,3 @@ public class GroupAlsoByWindowViaWindowSetDoFn<
     return droppedDueToLateness;
   }
 }
-
