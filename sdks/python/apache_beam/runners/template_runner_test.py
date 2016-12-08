@@ -33,24 +33,30 @@ from apache_beam.internal import apiclient
 class TemplatingDataflowPipelineRunnerTest(unittest.TestCase):
   """TemplatingDataflow tests."""
   def test_full_completion(self):
-    dummy_file = tempfile.NamedTemporaryFile()
+    # Create dummy file and close it.  Note that we need to do this because
+    # Windows does not allow NamedTemporaryFiles to be reopened elsewhere
+    # before the temporary file is closed.
+    dummy_file = tempfile.NamedTemporaryFile(delete=False)
+    dummy_file_name = dummy_file.name
+    dummy_file.close()
+
     dummy_dir = tempfile.mkdtemp()
 
     remote_runner = DataflowPipelineRunner()
     pipeline = Pipeline(remote_runner,
                         options=PipelineOptions([
                             '--dataflow_endpoint=ignored',
-                            '--sdk_location=' + dummy_file.name,
+                            '--sdk_location=' + dummy_file_name,
                             '--job_name=test-job',
                             '--project=test-project',
                             '--staging_location=' + dummy_dir,
                             '--temp_location=/dev/null',
-                            '--template_location=' + dummy_file.name,
+                            '--template_location=' + dummy_file_name,
                             '--no_auth=True']))
 
     pipeline | beam.Create([1, 2, 3]) | beam.Map(lambda x: x) # pylint: disable=expression-not-assigned
     pipeline.run()
-    with open(dummy_file.name) as template_file:
+    with open(dummy_file_name) as template_file:
       saved_job_dict = json.load(template_file)
       self.assertEqual(
           saved_job_dict['environment']['sdkPipelineOptions']
