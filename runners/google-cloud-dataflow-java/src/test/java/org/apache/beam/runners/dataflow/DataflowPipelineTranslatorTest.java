@@ -205,6 +205,7 @@ public class DataflowPipelineTranslatorTest implements Serializable {
     settings.put("streaming", false);
     settings.put("numberOfWorkerHarnessThreads", 0);
     settings.put("experiments", null);
+    settings.put("saveProfilesToGcs", null);
 
     Map<String, Object> sdkPipelineOptions = job.getEnvironment().getSdkPipelineOptions();
     assertThat(sdkPipelineOptions, hasKey("options"));

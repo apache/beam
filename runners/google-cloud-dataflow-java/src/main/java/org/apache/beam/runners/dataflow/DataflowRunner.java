@@ -40,6 +40,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Function;
 import com.google.common.base.Joiner;
 import com.google.common.base.Optional;
+import com.google.common.base.Strings;
 import com.google.common.base.Utf8;
 import com.google.common.collect.ForwardingMap;
 import com.google.common.collect.HashMultimap;
@@ -261,6 +262,10 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
         !isNullOrEmpty(dataflowOptions.getStagingLocation()),
         "DataflowRunner requires stagingLocation, and it is missing in PipelineOptions.");
     validator.validateOutputFilePrefixSupported(dataflowOptions.getStagingLocation());
+
+    if (!Strings.isNullOrEmpty(dataflowOptions.getSaveProfilesToGcs())) {
+      validator.validateOutputFilePrefixSupported(dataflowOptions.getSaveProfilesToGcs());
+    }
 
     if (dataflowOptions.getFilesToStage() == null) {
       dataflowOptions.setFilesToStage(detectClassPathResourcesToStage(

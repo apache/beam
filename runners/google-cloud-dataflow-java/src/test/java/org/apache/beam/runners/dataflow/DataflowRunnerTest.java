@@ -592,6 +592,25 @@ public class DataflowRunnerTest {
   }
 
   @Test
+  public void testInvalidProfileLocation() throws IOException {
+    DataflowPipelineOptions options = buildPipelineOptions();
+    options.setSaveProfilesToGcs("file://my/staging/location");
+    try {
+      DataflowRunner.fromOptions(options);
+      fail("fromOptions should have failed");
+    } catch (IllegalArgumentException e) {
+      assertThat(e.getMessage(), containsString("expected a valid 'gs://' path but was given"));
+    }
+    options.setSaveProfilesToGcs("my/staging/location");
+    try {
+      DataflowRunner.fromOptions(options);
+      fail("fromOptions should have failed");
+    } catch (IllegalArgumentException e) {
+      assertThat(e.getMessage(), containsString("expected a valid 'gs://' path but was given"));
+    }
+  }
+
+  @Test
   public void testNonExistentTempLocation() throws IOException {
     ArgumentCaptor<Job> jobCaptor = ArgumentCaptor.forClass(Job.class);
 
@@ -625,6 +644,22 @@ public class DataflowRunnerTest {
     DataflowRunner.fromOptions(options);
     assertValidJob(jobCaptor.getValue());
   }
+
+  @Test
+  public void testNonExistentProfileLocation() throws IOException {
+    ArgumentCaptor<Job> jobCaptor = ArgumentCaptor.forClass(Job.class);
+
+    GcsUtil mockGcsUtil = buildMockGcsUtil(false /* bucket exists */);
+    DataflowPipelineOptions options = buildPipelineOptions(jobCaptor);
+    options.setGcsUtil(mockGcsUtil);
+    options.setSaveProfilesToGcs("gs://non-existent-bucket/location");
+
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage(containsString(
+        "Output path does not exist or is not writeable: gs://non-existent-bucket/location"));
+    DataflowRunner.fromOptions(options);
+    assertValidJob(jobCaptor.getValue());
+   }
 
   @Test
   public void testNoProjectFails() {
