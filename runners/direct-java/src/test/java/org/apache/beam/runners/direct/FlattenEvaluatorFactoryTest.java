@@ -26,6 +26,7 @@ import static org.mockito.Mockito.when;
 import com.google.common.collect.Iterables;
 import org.apache.beam.runners.direct.DirectRunner.CommittedBundle;
 import org.apache.beam.runners.direct.DirectRunner.UncommittedBundle;
+import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.Create;
@@ -124,6 +125,7 @@ public class FlattenEvaluatorFactoryTest {
     PCollectionList<Integer> list = PCollectionList.empty(p);
 
     PCollection<Integer> flattened = list.apply(Flatten.<Integer>pCollections());
+    flattened.setCoder(VarIntCoder.of());
 
     EvaluationContext evaluationContext = mock(EvaluationContext.class);
     when(evaluationContext.createBundle(flattened))

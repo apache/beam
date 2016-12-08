@@ -159,13 +159,16 @@ public class TypedPValueTest {
 
   @Test
   public void testFinishSpecifyingShouldFailIfNoCoderInferrable() {
+    p.enableAbandonedNodeEnforcement(false);
+    PCollection<Integer> created = p.apply(Create.of(1, 2, 3));
+    ParDo.Bound<Integer, EmptyClass> uninferrableParDo = ParDo.of(new EmptyClassDoFn());
     PCollection<EmptyClass> unencodable =
-        p.apply(Create.of(1, 2, 3)).apply(ParDo.of(new EmptyClassDoFn()));
+        created.apply(uninferrableParDo);
 
     thrown.expect(IllegalStateException.class);
     thrown.expectMessage("Unable to return a default Coder");
     thrown.expectMessage("Inferring a Coder from the CoderRegistry failed");
 
-    unencodable.finishSpecifying();
+    unencodable.finishSpecifying(created, uninferrableParDo);
   }
 }
