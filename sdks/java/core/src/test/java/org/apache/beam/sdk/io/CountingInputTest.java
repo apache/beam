@@ -71,7 +71,7 @@ public class CountingInputTest {
   public void testBoundedInput() {
     Pipeline p = TestPipeline.create();
     long numElements = 1000;
-    PCollection<Long> input = p.apply(CountingInput.upTo(numElements)));
+    PCollection<Long> input = p.apply(CountingInput.upTo(numElements));
 
     addCountingAsserts(input, 0, numElements);
     p.run();
