@@ -161,6 +161,7 @@
           <li><a href="#clone-the-repository-locally" id="markdown-toc-clone-the-repository-locally">Clone the repository locally</a></li>
           <li><a href="#optional-ide-setup" id="markdown-toc-optional-ide-setup">[Optional] IDE Setup</a>            <ul>
               <li><a href="#intellij" id="markdown-toc-intellij">IntelliJ</a>                <ul>
+                  <li><a href="#enable-annotation-processing" id="markdown-toc-enable-annotation-processing">Enable Annotation Processing</a></li>
                   <li><a href="#checkstyle" id="markdown-toc-checkstyle">Checkstyle</a></li>
                 </ul>
               </li>
@@ -301,8 +302,26 @@ $ cd incubator-beam
 
 <h5 id="intellij">IntelliJ</h5>
 
-<p><em>This documentation is incomplete. If you are an Intellij user, please contribute instructions!
-See <a href="https://issues.apache.org/jira/browse/BEAM-835">BEAM-835</a>.</em></p>
+<h6 id="enable-annotation-processing">Enable Annotation Processing</h6>
+<p>To configure annotation processing in IntelliJ:</p>
+
+<ol>
+  <li>Open Annotation Processors Settings dialog box by going to Settings -&gt; Build, Execution, Deployment -&gt; Compiler -&gt; Annotation Processors.</li>
+  <li>Select the following buttons:
+    <ul>
+      <li>“Enable annotation processing”</li>
+      <li>“Obtain processors from project classpath”</li>
+      <li>“Store generated sources relative to: <em>Module content root</em>”</li>
+    </ul>
+  </li>
+  <li>Set the generated source directories to be equal to the Maven directories:
+    <ul>
+      <li>Set “Production sources directory:” to “target/generated-sources/annotations”.</li>
+      <li>Set “Test sources directory:” to “target/generated-test-sources/test-annotations”.</li>
+    </ul>
+  </li>
+  <li>Click “OK”.</li>
+</ol>
 
 <h6 id="checkstyle">Checkstyle</h6>
 <p>IntelliJ supports checkstyle within the IDE using the Checkstyle-IDEA plugin.</p>
