@@ -630,6 +630,7 @@ public class TextIOTest {
     pipeline.apply(TextIO.Read.from("gs://bucket/foo**/baz"));
   }
 
+  /** Options for testing. */
   public interface RuntimeTestOptions extends PipelineOptions {
     ValueProvider<String> getInput();
     void setInput(ValueProvider<String> value);
