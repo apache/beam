@@ -99,14 +99,12 @@ class DirectGraphVisitor extends PipelineVisitor.Defaults {
     if (!producers.containsKey(value)) {
       producers.put(value, appliedTransform);
     }
-    for (PValue expandedValue : value.expand()) {
-      if (expandedValue instanceof PCollectionView) {
-        views.add((PCollectionView<?>) expandedValue);
-      }
-      if (!producers.containsKey(expandedValue)) {
-        producers.put(value, appliedTransform);
-      }
-    }
+   if (value instanceof PCollectionView) {
+     views.add((PCollectionView<?>) value);
+   }
+   if (!producers.containsKey(value)) {
+     producers.put(value, appliedTransform);
+   }
   }
 
   private AppliedPTransform<?, ?, ?> getAppliedTransform(TransformHierarchy.Node node) {
