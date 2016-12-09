@@ -22,6 +22,7 @@ import static org.apache.beam.sdk.util.Structs.getDictionary;
 import static org.apache.beam.sdk.util.Structs.getString;
 import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.hasEntry;
 import static org.hamcrest.Matchers.hasKey;
 import static org.hamcrest.core.IsInstanceOf.instanceOf;
 import static org.junit.Assert.assertEquals;
@@ -76,6 +77,7 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.apache.beam.sdk.util.GcsPathValidator;
 import org.apache.beam.sdk.util.GcsUtil;
 import org.apache.beam.sdk.util.PropertyNames;
 import org.apache.beam.sdk.util.Structs;
@@ -188,28 +190,21 @@ public class DataflowPipelineTranslatorTest implements Serializable {
                 p, (DataflowRunner) p.getRunner(), Collections.<DataflowPackage>emptyList())
             .getJob();
 
-    // Note that the contents of this materialized map may be changed by the act of reading an
-    // option, which will cause the default to get materialized whereas it would otherwise be
-    // left absent. It is permissible to simply alter this test to reflect current behavior.
-    Map<String, Object> settings = new HashMap<>();
-    settings.put("appName", "DataflowPipelineTranslatorTest");
-    settings.put("project", "some-project");
-    settings.put("pathValidatorClass",
-        "org.apache.beam.sdk.util.GcsPathValidator");
-    settings.put("runner", "org.apache.beam.runners.dataflow.DataflowRunner");
-    settings.put("jobName", "some-job-name");
-    settings.put("tempLocation", "gs://somebucket/some/path");
-    settings.put("gcpTempLocation", "gs://somebucket/some/path");
-    settings.put("stagingLocation", "gs://somebucket/some/path/staging");
-    settings.put("stableUniqueNames", "WARNING");
-    settings.put("streaming", false);
-    settings.put("numberOfWorkerHarnessThreads", 0);
-    settings.put("experiments", null);
-    settings.put("saveProfilesToGcs", null);
-
     Map<String, Object> sdkPipelineOptions = job.getEnvironment().getSdkPipelineOptions();
     assertThat(sdkPipelineOptions, hasKey("options"));
-    assertEquals(settings, sdkPipelineOptions.get("options"));
+    Map<String, Object> optionsMap = (Map<String, Object>) sdkPipelineOptions.get("options");
+
+    assertThat(optionsMap, hasEntry("appName", (Object) "DataflowPipelineTranslatorTest"));
+    assertThat(optionsMap, hasEntry("project", (Object) "some-project"));
+    assertThat(optionsMap, hasEntry(
+        "pathValidatorClass", (Object) GcsPathValidator.class.getName()));
+    assertThat(optionsMap, hasEntry("runner", (Object) DataflowRunner.class.getName()));
+    assertThat(optionsMap, hasEntry("jobName", (Object) "some-job-name"));
+    assertThat(optionsMap, hasEntry("tempLocation", (Object) "gs://somebucket/some/path"));
+    assertThat(optionsMap, hasEntry("stagingLocation", (Object) "gs://somebucket/some/path/staging"));
+    assertThat(optionsMap, hasEntry("stableUniqueNames", (Object) "WARNING"));
+    assertThat(optionsMap, hasEntry("streaming", (Object) false));
+    assertThat(optionsMap, hasEntry("numberOfWorkerHarnessThreads", (Object) 0));
   }
 
   @Test
