@@ -486,10 +486,12 @@ public class DirectRunnerTest implements Serializable {
     MetricQueryResults metrics = result.metrics().queryMetrics(MetricsFilter.builder()
         .addNameFilter(MetricNameFilter.inNamespace(DirectRunnerTest.class))
         .build());
+
+    final String stepName = "MyStep/AnonymousParDo/AnonymousParMultiDo";
     assertThat(metrics.counters(), contains(
-        metricResult(DirectRunnerTest.class.getName(), "count", "MyStep", 3L, 3L)));
+        metricResult(DirectRunnerTest.class.getName(), "count", stepName, 3L, 3L)));
     assertThat(metrics.distributions(), contains(
-        metricResult(DirectRunnerTest.class.getName(), "input", "MyStep",
+        metricResult(DirectRunnerTest.class.getName(), "input", stepName,
             DistributionResult.create(26L, 3L, 5L, 13L),
             DistributionResult.create(26L, 3L, 5L, 13L))));
   }
