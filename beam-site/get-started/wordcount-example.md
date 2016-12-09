@@ -10,8 +10,6 @@ redirect_from: /use/wordcount-example/
 * TOC
 {:toc}
 
-> **Note:** This walkthrough is still in progress. Detailed instructions for running the example pipelines across multiple runners are yet to be added. There is an open issue to finish the walkthrough ([BEAM-664](https://issues.apache.org/jira/browse/BEAM-664)).
-
 The WordCount examples demonstrate how to set up a processing pipeline that can read text, tokenize the text lines into individual words, and perform a frequency count on each of those words. The Beam SDKs contain a series of these four successively more detailed WordCount examples that build on each other. The input text for all the examples is a set of Shakespeare's texts.
 
 Each WordCount example introduces different concepts in the Beam programming model. Begin by understanding Minimal WordCount, the simplest of the examples. Once you feel comfortable with the basic principles in building a pipeline, continue on to learn more concepts in the other examples.
@@ -74,7 +72,7 @@ The Minimal WordCount pipeline contains several transforms to read data into the
 
 Each transform takes some kind of input (data or otherwise), and produces some output data. The input and output data is represented by the SDK class `PCollection`. `PCollection` is a special class, provided by the Beam SDK, that you can use to represent a data set of virtually any size, including infinite data sets.
 
-<img src="{{ "/images/wordcount-pipeline.png" | prepend: site.baseurl }} alt="Word Count pipeline diagram"">
+<img src="{{ "/images/wordcount-pipeline.png" | prepend: site.baseurl }}" alt="Word Count pipeline diagram">
 Figure 1: The pipeline data flow.
 
 The Minimal WordCount pipeline contains five transforms:
@@ -124,7 +122,7 @@ The Minimal WordCount pipeline contains five transforms:
 5.  A text file `Write`. This transform takes the final `PCollection` of formatted Strings as input and writes each element to an output text file. Each element in the input `PCollection` represents one line of text in the resulting output file.
 
 	```java
-	        .apply(TextIO.Write.to("gs://YOUR_OUTPUT_BUCKET/AND_OUTPUT_PREFIX"));
+	        .apply(TextIO.Write.to("wordcounts"));
 	```
 
 Note that the `Write` transform produces a trivial result value of type `PDone`, which in this case is ignored.
@@ -134,8 +132,10 @@ Note that the `Write` transform produces a trivial result value of type `PDone`,
 Run the pipeline by calling the `run` method, which sends your pipeline to be executed by the pipeline runner that you specified when you created your pipeline.
 
 ```java
-p.run();
+p.run().waitUntilFinish();
 ```
+
+Note that the `run` method is asynchronous. For a blocking execution instead, run your pipeline appending the `waitUntilFinish` method.
 
 ## WordCount Example
 
@@ -278,7 +278,6 @@ public class DebuggingWordCount {
     }
   }
 }
-
 ```
 
 If you execute your pipeline using `DataflowRunner`, you can control the worker log levels. Dataflow workers that execute user code are configured to log to Cloud Logging by default at "INFO" log level and higher. You can override log levels for specific logging namespaces by specifying: `--workerLogLevelOverrides={"Name1":"Level1","Name2":"Level2",...}`. For example, by specifying `--workerLogLevelOverrides={"org.apache.beam.examples":"DEBUG"}` when executing this pipeline using the Dataflow service, Cloud Logging would contain only "DEBUG" or higher level logs for the package in addition to the default "INFO" or higher level logs. 
@@ -334,9 +333,6 @@ public static void main(String[] args) throws IOException {
     Options options = ...
     Pipeline pipeline = Pipeline.create(options);
 
-    /**
-     * Concept #1: The Beam SDK allows running the same pipeline with a bounded or unbounded input source.
-     */
     PCollection<String> input = pipeline
       .apply(TextIO.Read.from(options.getInputFile()))
 
@@ -347,39 +343,30 @@ public static void main(String[] args) throws IOException {
 Each element in a `PCollection` has an associated **timestamp**. The timestamp for each element is initially assigned by the source that creates the `PCollection` and can be adjusted by a `DoFn`. In this example the input is bounded. For the purpose of the example, the `DoFn` method named `AddTimestampsFn` (invoked by `ParDo`) will set a timestamp for each element in the `PCollection`.
   
 ```java
-// Concept #2: Add an element timestamp, using an artificial time just to show windowing.
-// See AddTimestampFn for more details on this.
 .apply(ParDo.of(new AddTimestampFn()));
 ```
 
 Below is the code for `AddTimestampFn`, a `DoFn` invoked by `ParDo`, that sets the data element of the timestamp given the element itself. For example, if the elements were log lines, this `ParDo` could parse the time out of the log string and set it as the element's timestamp. There are no timestamps inherent in the works of Shakespeare, so in this case we've made up random timestamps just to illustrate the concept. Each line of the input text will get a random associated timestamp sometime in a 2-hour period.
 
 ```java
-/**
-   * Concept #2: A DoFn that sets the data element timestamp. This is a silly method, just for
-   * this example, for the bounded data case. Imagine that many ghosts of Shakespeare are all 
-   * typing madly at the same time to recreate his masterworks. Each line of the corpus will 
-   * get a random associated timestamp somewhere in a 2-hour period.
-   */
-  static class AddTimestampFn extends DoFn<String, String> {
-    private static final Duration RAND_RANGE = Duration.standardHours(2);
-    private final Instant minTimestamp;
+static class AddTimestampFn extends DoFn<String, String> {
+  private static final Duration RAND_RANGE = Duration.standardHours(2);
+  private final Instant minTimestamp;
 
-    AddTimestampFn() {
-      this.minTimestamp = new Instant(System.currentTimeMillis());
-    }
-
-    @ProcessElement
-    public void processElement(ProcessContext c) {
-      // Generate a timestamp that falls somewhere in the past two hours.
-      long randMillis = (long) (Math.random() * RAND_RANGE.getMillis());
-      Instant randomTimestamp = minTimestamp.plus(randMillis);
-      /**
-       * Set the data element with that timestamp.
-       */
-      c.outputWithTimestamp(c.element(), new Instant(randomTimestamp));
-    }
+  AddTimestampFn() {
+    this.minTimestamp = new Instant(System.currentTimeMillis());
   }
+
+  @ProcessElement
+  public void processElement(ProcessContext c) {
+    // Generate a timestamp that falls somewhere in the past two hours.
+    long randMillis = (long) (Math.random() * RAND_RANGE.getMillis());
+    Instant randomTimestamp = minTimestamp.plus(randMillis);
+
+    // Set the data element with that timestamp.
+    c.outputWithTimestamp(c.element(), new Instant(randomTimestamp));
+  }
+}
 ```
 
 ### Windowing
@@ -389,10 +376,6 @@ Beam uses a concept called **Windowing** to subdivide a `PCollection` according 
 The `WindowingWordCount` example applies fixed-time windowing, wherein each window represents a fixed time interval. The fixed window size for this example defaults to 1 minute (you can change this with a command-line option). 
 
 ```java
-/**
- * Concept #3: Window into fixed windows. The fixed window size for this example defaults to 1
- * minute (you can change this with a command-line option).
- */
 PCollection<String> windowedWords = input
   .apply(Window.<String>into(
     FixedWindows.of(Duration.standardMinutes(options.getWindowSize()))));
@@ -403,10 +386,6 @@ PCollection<String> windowedWords = input
 You can reuse existing `PTransform`s, that were created for manipulating simple `PCollection`s, over windowed `PCollection`s as well.
 
 ```
-/**
- * Concept #4: Re-use our existing CountWords transform that does not have knowledge of
- * windows over a PCollection containing windowed values.
- */
 PCollection<KV<String, Long>> wordCounts = windowedWords.apply(new WordCount.CountWords());
 ```
 
@@ -417,10 +396,6 @@ Since our input is unbounded, the same is true of our output `PCollection`. We n
 In this example, we stream the results to a BigQuery table. The results are then formatted for a BigQuery table, and then written to BigQuery using BigQueryIO.Write. 
 
 ```java
-/**
- * Concept #5: Format the results for a BigQuery table, then write to BigQuery.
- * The BigQuery output source supports both bounded and unbounded data.
- */
 wordCounts.apply(ParDo.of(new FormatAsTableRowFn()))
     .apply(BigQueryIO.Write
       .to(getTableReference(options))
