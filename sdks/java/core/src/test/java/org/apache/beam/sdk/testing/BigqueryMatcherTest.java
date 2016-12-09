@@ -18,8 +18,6 @@
 package org.apache.beam.sdk.testing;
 
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.containsString;
-import static org.junit.Assert.fail;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyString;
 import static org.mockito.Matchers.eq;
@@ -90,18 +88,15 @@ public class BigqueryMatcherTest {
     doReturn(mockBigqueryClient).when(matcher).newBigqueryClient(anyString());
     when(mockQuery.execute()).thenReturn(createResponseContainingTestData());
 
+    thrown.expect(AssertionError.class);
+    thrown.expectMessage("Total number of rows are: 1");
+    thrown.expectMessage("abc");
     try {
       assertThat(mockResult, matcher);
-    } catch (AssertionError expected) {
-      assertThat(expected.getMessage(), containsString("Total number of rows are: 1"));
-      assertThat(expected.getMessage(), containsString("abc"));
+    } finally {
       verify(matcher).newBigqueryClient(eq(appName));
       verify(mockJobs).query(eq(projectId), eq(new QueryRequest().setQuery(query)));
-      return;
     }
-    // Note that fail throws an AssertionError which is why it is placed out here
-    // instead of inside the try-catch block.
-    fail("AssertionError is expected.");
   }
 
   @Test
@@ -111,18 +106,15 @@ public class BigqueryMatcherTest {
     doReturn(mockBigqueryClient).when(matcher).newBigqueryClient(anyString());
     when(mockQuery.execute()).thenReturn(new QueryResponse().setJobComplete(false));
 
+    thrown.expect(AssertionError.class);
+    thrown.expectMessage("The query job hasn't completed.");
+    thrown.expectMessage("jobComplete=false");
     try {
       assertThat(mockResult, matcher);
-    } catch (AssertionError expected) {
-      assertThat(expected.getMessage(), containsString("The query job hasn't completed."));
-      assertThat(expected.getMessage(), containsString("jobComplete=false"));
+    } finally {
       verify(matcher).newBigqueryClient(eq(appName));
       verify(mockJobs).query(eq(projectId), eq(new QueryRequest().setQuery(query)));
-      return;
     }
-    // Note that fail throws an AssertionError which is why it is placed out here
-    // instead of inside the try-catch block.
-    fail("AssertionError is expected.");
   }
 
   @Test
@@ -131,23 +123,18 @@ public class BigqueryMatcherTest {
         new BigqueryMatcher(appName, projectId, query, "some-checksum"));
     when(mockQuery.execute()).thenThrow(new IOException());
 
+    thrown.expect(RuntimeException.class);
+    thrown.expectMessage("Unable to get BigQuery response after retrying");
     try {
       matcher.queryWithRetries(
           mockBigqueryClient,
           new QueryRequest(),
           fastClock,
           BigqueryMatcher.BACKOFF_FACTORY.backoff());
-    } catch (RuntimeException expected) {
-      assertThat(
-          expected.getMessage(),
-          containsString("Unable to get BigQuery response after retrying"));
+    } finally {
       verify(mockJobs, atLeast(BigqueryMatcher.MAX_QUERY_RETRIES))
           .query(eq(projectId), eq(new QueryRequest()));
-      return;
     }
-    // Note that fail throws an RuntimeException which is why it is placed out here
-    // instead of inside the try-catch block.
-    fail("RuntimeException is expected.");
   }
 
   @Test
@@ -156,23 +143,18 @@ public class BigqueryMatcherTest {
         new BigqueryMatcher(appName, projectId, query, "some-checksum"));
     when(mockQuery.execute()).thenReturn(null);
 
+    thrown.expect(RuntimeException.class);
+    thrown.expectMessage("Unable to get BigQuery response after retrying");
     try {
       matcher.queryWithRetries(
           mockBigqueryClient,
           new QueryRequest(),
           fastClock,
           BigqueryMatcher.BACKOFF_FACTORY.backoff());
-    } catch (RuntimeException expected) {
-      assertThat(
-          expected.getMessage(),
-          containsString("Unable to get BigQuery response after retrying"));
+    } finally {
       verify(mockJobs, atLeast(BigqueryMatcher.MAX_QUERY_RETRIES))
           .query(eq(projectId), eq(new QueryRequest()));
-      return;
     }
-    // Note that fail throws an RuntimeException which is why it is placed out here
-    // instead of inside the try-catch block.
-    fail("RuntimeException is expected.");
   }
 
   private QueryResponse createResponseContainingTestData() {
