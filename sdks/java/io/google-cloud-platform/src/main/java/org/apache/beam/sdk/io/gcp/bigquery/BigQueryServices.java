@@ -122,26 +122,14 @@ interface BigQueryServices extends Serializable {
         throws InterruptedException, IOException;
 
     /**
-     * Retrieves or creates the table.
-     *
-     * <p>The table is checked to conform to insertion requirements as specified
-     * by WriteDisposition and CreateDisposition.
-     *
-     * <p>If table truncation is requested (WriteDisposition.WRITE_TRUNCATE), then
-     * this will re-create the table if necessary to ensure it is empty.
-     *
-     * <p>If an empty table is required (WriteDisposition.WRITE_EMPTY), then this
-     * will fail if the table exists and is not empty.
-     *
-     * <p>When constructing a table, a {@code TableSchema} must be available.  If a
-     * schema is provided, then it will be used.  If no schema is provided, but
-     * an existing table is being cleared (WRITE_TRUNCATE option above), then
-     * the existing schema will be re-used.  If no schema is available, then an
-     * {@code IOException} is thrown.
+     * Returns a table, or {@code null} if no such table exists.
      */
-    Table getOrCreateTable(TableReference table, BigQueryIO.Write.WriteDisposition writeDisposition,
-                           BigQueryIO.Write.CreateDisposition createDisposition,
-                           @Nullable TableSchema schema) throws InterruptedException, IOException;
+    Table getTable(TableReference table) throws InterruptedException, IOException;
+
+    /**
+     * Creates the specified table if it does not exist.
+     */
+    void createTable(TableReference ref, TableSchema schema) throws IOException;
 
     /**
      * Deletes the table specified by tableId from the dataset.

@@ -410,64 +410,22 @@ class BigQueryServicesImpl implements BigQueryServices {
      * {@inheritDoc}
      */
     @Override
-    public Table getOrCreateTable(TableReference tableRef,
-                                  BigQueryIO.Write.WriteDisposition writeDisposition,
-                                  BigQueryIO.Write.CreateDisposition createDisposition,
-                                  @Nullable TableSchema schema)
-        throws InterruptedException, IOException {
+    public Table getTable(TableReference tableRef) throws InterruptedException, IOException {
       // Check if table already exists.
       Bigquery.Tables.Get get = client.tables()
-              .get(tableRef.getProjectId(), tableRef.getDatasetId(), tableRef.getTableId());
+          .get(tableRef.getProjectId(), tableRef.getDatasetId(), tableRef.getTableId());
       Table table = null;
       try {
         table = get.execute();
       } catch (IOException e) {
         ApiErrorExtractor errorExtractor = new ApiErrorExtractor();
-        if (!errorExtractor.itemNotFound(e)
-                || createDisposition != BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED) {
+        if (!errorExtractor.itemNotFound(e)) {
           // Rethrow.
           throw e;
         }
       }
 
-      // If we want an empty table, and it isn't, then delete it first.
-      if (table != null) {
-        if (writeDisposition == BigQueryIO.Write.WriteDisposition.WRITE_APPEND) {
-          return table;
-        }
-
-        boolean empty = isTableEmpty(tableRef.getProjectId(), tableRef.getDatasetId(),
-            tableRef.getTableId());
-        if (empty) {
-          if (writeDisposition == BigQueryIO.Write.WriteDisposition.WRITE_TRUNCATE) {
-            LOG.info("Empty table found, not removing {}", BigQueryIO.toTableSpec(tableRef));
-          }
-          return table;
-
-        } else if (writeDisposition == BigQueryIO.Write.WriteDisposition.WRITE_EMPTY) {
-          throw new IOException("WriteDisposition is WRITE_EMPTY, "
-                  + "but table is not empty");
-        }
-
-        // Reuse the existing schema if none was provided.
-        if (schema == null) {
-          schema = table.getSchema();
-        }
-
-        // Delete table and fall through to re-creating it below.
-        LOG.info("Deleting table {}", BigQueryIO.toTableSpec(tableRef));
-        Bigquery.Tables.Delete delete = client.tables()
-                .delete(tableRef.getProjectId(), tableRef.getDatasetId(), tableRef.getTableId());
-        delete.execute();
-      }
-
-      if (schema == null) {
-        throw new IllegalArgumentException(
-                "Table schema required for new table.");
-      }
-
-      // Create the table.
-      return tryCreateTable(tableRef, schema);
+      return table;
     }
 
     /**
@@ -481,17 +439,16 @@ class BigQueryServicesImpl implements BigQueryServices {
     /**
      * Tries to create the BigQuery table.
      * If a table with the same name already exists in the dataset, the table
-     * creation fails, and the function returns null.  In such a case,
+     * creation fails.  In such a case,
      * the existing table doesn't necessarily have the same schema as specified
      * by the parameter.
      *
      * @param schema Schema of the new BigQuery table.
-     * @return The newly created BigQuery table information, or null if the table
-     *     with the same name already exists.
      * @throws IOException if other error than already existing table occurs.
      */
     @Nullable
-    private Table tryCreateTable(TableReference ref, TableSchema schema) throws IOException {
+    @Override
+    public void createTable(TableReference ref, TableSchema schema) throws IOException {
       LOG.info("Trying to create BigQuery table: {}", BigQueryIO.toTableSpec(ref));
       BackOff backoff =
               new ExponentialBackOff.Builder()
@@ -499,7 +456,7 @@ class BigQueryServicesImpl implements BigQueryServices {
                       .build();
 
       Table table = new Table().setTableReference(ref).setSchema(schema);
-      return tryCreateTable(table, ref.getProjectId(), ref.getDatasetId(), backoff,
+      tryCreateTable(table, ref.getProjectId(), ref.getDatasetId(), backoff,
           Sleeper.DEFAULT);
     }
 

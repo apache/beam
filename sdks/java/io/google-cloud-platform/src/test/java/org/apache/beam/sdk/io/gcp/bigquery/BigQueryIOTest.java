@@ -584,19 +584,32 @@ public class BigQueryIOTest implements Serializable {
     }
 
     @Override
-    public Table getOrCreateTable(TableReference tableReference,
-                                  BigQueryIO.Write.WriteDisposition writeDisposition,
-                                  BigQueryIO.Write.CreateDisposition createDisposition,
-                                  @Nullable TableSchema schema)
+    public Table getTable(TableReference tableReference)
         throws InterruptedException, IOException {
       synchronized (tables) {
         Map<String, TableContainer> dataset =
             checkNotNull(
                 tables.get(tableReference.getProjectId(), tableReference.getDatasetId()),
-                "Tried to get a table %s:%s.%s from %s, but no such table was set",
+                "Tried to get a dataset %s:%s from %s, but no such table was set",
                 tableReference.getProjectId(),
                 tableReference.getDatasetId(),
                 tableReference.getTableId(),
+                FakeDatasetService.class.getSimpleName());
+        TableContainer tableContainer = dataset.get(tableReference.getTableId());
+        return tableContainer == null ? null : tableContainer.getTable();
+      }
+    }
+
+    @Override
+    public void createTable(TableReference tableReference, @Nullable TableSchema schema)
+        throws IOException {
+      synchronized (tables) {
+        Map<String, TableContainer> dataset =
+            checkNotNull(
+                tables.get(tableReference.getProjectId(), tableReference.getDatasetId()),
+                "Tried to get a dataset %s:%s from %s, but no such table was set",
+                tableReference.getProjectId(),
+                tableReference.getDatasetId(),
                 FakeDatasetService.class.getSimpleName());
         TableContainer tableContainer = dataset.get(tableReference.getTableId());
         if (tableContainer == null) {
@@ -604,7 +617,6 @@ public class BigQueryIOTest implements Serializable {
           tableContainer.getTable().setSchema(schema);
           dataset.put(tableReference.getTableId(), tableContainer);
         }
-        return tableContainer.getTable();
       }
     }
 

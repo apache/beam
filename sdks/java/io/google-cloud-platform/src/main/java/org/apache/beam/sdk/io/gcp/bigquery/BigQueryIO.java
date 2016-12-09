@@ -32,6 +32,7 @@ import com.google.api.services.bigquery.model.JobConfigurationTableCopy;
 import com.google.api.services.bigquery.model.JobReference;
 import com.google.api.services.bigquery.model.JobStatistics;
 import com.google.api.services.bigquery.model.JobStatus;
+import com.google.api.services.bigquery.model.Table;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
@@ -2649,11 +2650,12 @@ public class BigQueryIO {
           // check again. This check isn't needed for correctness, but we add it to prevent
           // every thread from attempting a create and overwhelming our BigQuery quota.
           if (!createdTables.contains(tableSpec)) {
-            TableSchema tableSchema = JSON_FACTORY.fromString(
-                jsonTableSchema.get(), TableSchema.class);
-            bqServices.getDatasetService(options).getOrCreateTable(tableReference,
-                Write.WriteDisposition.WRITE_APPEND,
-                Write.CreateDisposition.CREATE_IF_NEEDED, tableSchema);
+            Table table = bqServices.getDatasetService(options).getTable(tableReference);
+            if (table == null) {
+              TableSchema tableSchema = JSON_FACTORY.fromString(
+                  jsonTableSchema.get(), TableSchema.class);
+              bqServices.getDatasetService(options).createTable(tableReference, tableSchema);
+            }
             createdTables.add(tableSpec);
           }
         }
