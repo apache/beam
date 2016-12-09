@@ -1206,8 +1206,6 @@ public class BigQueryIOTest implements Serializable {
         .withDatasetService(mockDatasetService);
     when(mockDatasetService.getDataset(projectId, datasetId)).thenThrow(
         new RuntimeException("Unable to confirm BigQuery dataset presence"));
-    when(mockDatasetService.getDataset(null, datasetId)).thenThrow(
-        new RuntimeException("Unable to confirm BigQuery dataset presence"));
 
     Pipeline p = TestPipeline.create(options);
 
