@@ -72,15 +72,15 @@ public class MetricMatchers {
 
   public static <T> Matcher<MetricResult<T>> metricResult(
       final String namespace, final String name, final String step,
-      final T logical, final T physical) {
+      final T committed, final T attempted) {
     return new TypeSafeMatcher<MetricResult<T>>() {
       @Override
       protected boolean matchesSafely(MetricResult<T> item) {
         return Objects.equals(namespace, item.name().namespace())
             && Objects.equals(name, item.name().name())
             && Objects.equals(step, item.step())
-            && Objects.equals(logical, item.committed())
-            && Objects.equals(physical, item.attempted());
+            && Objects.equals(committed, item.committed())
+            && Objects.equals(attempted, item.attempted());
       }
 
       @Override
@@ -89,9 +89,44 @@ public class MetricMatchers {
             .appendText("MetricResult{inNamespace=").appendValue(namespace)
             .appendText(", name=").appendValue(name)
             .appendText(", step=").appendValue(step)
-            .appendText(", logical=").appendValue(logical)
-            .appendText(", physical=").appendValue(physical)
+            .appendText(", committed=").appendValue(committed)
+            .appendText(", attempted=").appendValue(attempted)
             .appendText("}");
+      }
+
+      @Override
+      protected void describeMismatchSafely(MetricResult<T> item, Description mismatchDescription) {
+        mismatchDescription.appendText("MetricResult{");
+        if (!Objects.equals(namespace, item.name().namespace())) {
+          mismatchDescription
+              .appendText("inNamespace: ").appendValue(namespace)
+              .appendText(" != ").appendValue(item.name().namespace());
+        }
+
+        if (!Objects.equals(name, item.name().name())) {
+          mismatchDescription
+              .appendText("name: ").appendValue(name)
+              .appendText(" != ").appendValue(item.name().name());
+        }
+
+        if (!Objects.equals(step, item.step())) {
+          mismatchDescription
+              .appendText("step: ").appendValue(step)
+              .appendText(" != ").appendValue(item.step());
+        }
+
+        if (!Objects.equals(committed, item.committed())) {
+          mismatchDescription
+              .appendText("committed: ").appendValue(committed)
+              .appendText(" != ").appendValue(item.committed());
+        }
+
+        if (!Objects.equals(attempted, item.attempted())) {
+          mismatchDescription
+              .appendText("attempted: ").appendValue(attempted)
+              .appendText(" != ").appendValue(item.attempted());
+        }
+        mismatchDescription.appendText("}");
       }
     };
   }
