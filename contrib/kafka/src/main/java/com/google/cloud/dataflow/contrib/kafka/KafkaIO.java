@@ -794,15 +794,15 @@ public class KafkaIO {
         try {
           return new UnboundedKafkaReader<K, V>(
               new UnboundedKafkaSource<>(
-                0,
-                this.topics,
-                fetchKafkaPartitions(),
-                this.keyCoder,
-                this.valueCoder,
-                this.timestampFn,
-                this.watermarkFn,
-                this.consumerFactoryFn,
-                this.consumerConfig),
+                  0,
+                  this.topics,
+                  fetchKafkaPartitions(),
+                  this.keyCoder,
+                  this.valueCoder,
+                  this.timestampFn,
+                  this.watermarkFn,
+                  this.consumerFactoryFn,
+                  this.consumerConfig),
               checkpointMark);
         } catch (Exception e) {
           throw new RuntimeException(e);
