@@ -98,20 +98,17 @@ Depending on your preferred development environment, you may need to prepare it 
 ##### IntelliJ
 
 ###### Enable Annotation Processing
+To configure annotation processing in IntelliJ:
 
-To configure annotation processing in InteliJ Idea,
-
-1. Go to File -> Settings
-    Settings dialog window will be appeared.
-2. Select Execution,Deployment,Deployment -> Compiler -> Annotation processors
-3. Select,
-   * Enable annotation processing
-   * Obtain processors from project classpath
-   * Store generated sources relative to : _Module content root_
-4. Provide,
-   * Production sources directory : _target/generated-sources/annotations_
-   * Test sources directory : _target/generated-test-sources/test-annotations_
-5. Finally click on apply and you are good to go.
+1. Open Annotation Processors Settings dialog box by going to Settings -> Build, Execution, Deployment -> Compiler -> Annotation Processors.
+1. Select the following buttons:
+   * "Enable annotation processing"
+   * "Obtain processors from project classpath"
+   * "Store generated sources relative to: _Module content root_"
+1. Set the generated source directories to be equal to the Maven directories:
+   * Set "Production sources directory:" to "target/generated-sources/annotations".
+   * Set "Test sources directory:" to "target/generated-test-sources/test-annotations".
+1. Click "OK".
 
 ###### Checkstyle
 IntelliJ supports checkstyle within the IDE using the Checkstyle-IDEA plugin.
