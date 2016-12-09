@@ -365,9 +365,7 @@ public class KafkaIOTest {
             com.google.cloud.dataflow.contrib.kafka.KafkaCheckpointMark>
         source =
             mkKafkaReadTransform(numElements, new ValueAsTimestampFn())
-                .makeSource()
-                .generateInitialSplits(-1, PipelineOptionsFactory.fromArgs(new String[0]).create())
-                .get(0);
+                .makeSource();
 
     UnboundedReader<com.google.cloud.dataflow.contrib.kafka.KafkaRecord<Integer, Long>> reader =
         source.createReader(null, null);
