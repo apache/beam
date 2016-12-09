@@ -83,11 +83,11 @@ public class CountingInput {
 
   /**
    * Creates a {@link BoundedCountingInput} that will produce elements
-   * starting from {@code startIndex} to {@code endIndex - 1}.
+   * starting from {@code startIndex} (inclusive) to {@code endIndex} (exclusive).
    * If {@code startIndex == endIndex}, then no elements will be produced.
    */
   public static BoundedCountingInput forSubrange(long startIndex, long endIndex) {
-    checkArgument(endIndex > startIndex,
+    checkArgument(endIndex >= startIndex,
         "endIndex (%s) must be greater than or equal to startIndex (%s)",
         endIndex, startIndex);
     return new BoundedCountingInput(startIndex, endIndex);

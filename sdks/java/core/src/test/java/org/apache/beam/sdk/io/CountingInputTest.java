@@ -89,6 +89,17 @@ public class CountingInputTest {
 
   @Test
   @Category(RunnableOnService.class)
+  public void testEmptyBoundedSourceUsingRange() {
+    Pipeline p = TestPipeline.create();
+    PCollection<Long> input = p.apply(CountingInput.forSubrange(42, 42));
+
+    PAssert.that(input).empty();
+    p.run();
+  }
+
+
+  @Test
+  @Category(RunnableOnService.class)
   public void testBoundedInputSubrange() {
     Pipeline p = TestPipeline.create();
     long start = 10;

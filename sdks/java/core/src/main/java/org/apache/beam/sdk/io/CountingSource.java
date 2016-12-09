@@ -86,7 +86,7 @@ public class CountingSource {
 
   /**
    * Creates a {@link BoundedSource} that will produce elements
-   * starting from {@code startIndex} to {@code endIndex - 1}.
+   * starting from {@code startIndex} (inclusive) to {@code endIndex} (exclusive).
    * If {@code startIndex == endIndex}, then no elements will be produced.
    */
   static BoundedSource<Long> createSourceForSubrange(long startIndex, long endIndex) {
