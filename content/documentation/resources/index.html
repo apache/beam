@@ -146,16 +146,128 @@
       <div class="row">
         <h1 id="additional-resources-for-learning-about-apache-beam">Additional Resources for Learning about Apache Beam</h1>
 
-<p>This page is under construction (<a href="https://issues.apache.org/jira/browse/BEAM-509">BEAM-509</a>).</p>
+<p>This page provides links to some of our favorite videos, podcasts, and articles that will help you get started and learn more about Apache Beam.</p>
 
-<p>Here’s some links to some of our favorite articles and videos get you started.</p>
-
-<ul>
-  <li><a href="https://www.oreilly.com/ideas/the-world-beyond-batch-streaming-101">The world beyond batch: Streaming 101</a></li>
-  <li><a href="https://www.oreilly.com/ideas/the-world-beyond-batch-streaming-102">The world beyong batch: Streaming 102</a></li>
-  <li><a href="https://cloud.google.com/dataflow/blog/dataflow-beam-and-spark-comparison">Dataflow/Beam &amp; Spark: A Programming Model Comparison</a></li>
-  <li><a href="http://googlecloudplatform.blogspot.com/2016/01/Dataflow-and-open-source-proposal-to-join-the-Apache-Incubator.html">Dataflow and open source - proposal to join the Apache Incubator</a></li>
+<ul id="markdown-toc">
+  <li><a href="#general" id="markdown-toc-general">General</a>    <ul>
+      <li><a href="#fundamentals-of-stream-processing-with-apache-beam" id="markdown-toc-fundamentals-of-stream-processing-with-apache-beam">Fundamentals of Stream Processing with Apache Beam</a></li>
+      <li><a href="#apache-beam-a-unified-model-for-batch-and-streaming-data-processing" id="markdown-toc-apache-beam-a-unified-model-for-batch-and-streaming-data-processing">Apache Beam: A Unified Model for Batch and Streaming Data Processing</a></li>
+      <li><a href="#fundamentals-of-stream-processing-with-apache-beam-1" id="markdown-toc-fundamentals-of-stream-processing-with-apache-beam-1">Fundamentals of Stream Processing with Apache Beam</a></li>
+      <li><a href="#the-world-beyond-batch-streaming-101" id="markdown-toc-the-world-beyond-batch-streaming-101">The World Beyond Batch: Streaming 101</a></li>
+      <li><a href="#the-world-beyond-batch-streaming-102" id="markdown-toc-the-world-beyond-batch-streaming-102">The World Beyond Batch: Streaming 102</a></li>
+      <li><a href="#software-engineering-radio-podcast-episode-272-apache-beam" id="markdown-toc-software-engineering-radio-podcast-episode-272-apache-beam">Software Engineering Radio Podcast Episode 272: Apache Beam</a></li>
+    </ul>
+  </li>
+  <li><a href="#beam--friends" id="markdown-toc-beam--friends">Beam &amp; Friends</a>    <ul>
+      <li><a href="#flink-and-beam-current-state--roadmap" id="markdown-toc-flink-and-beam-current-state--roadmap">Flink and Beam: Current State &amp; Roadmap</a></li>
+      <li><a href="#lessons-learned-from-developing-a-stream-processing-platform-at-scale" id="markdown-toc-lessons-learned-from-developing-a-stream-processing-platform-at-scale">Lessons learned from developing a stream processing platform at scale</a></li>
+    </ul>
+  </li>
+  <li><a href="#technical-details" id="markdown-toc-technical-details">Technical Details</a>    <ul>
+      <li><a href="#watermarks-time-and-progress-in-apache-beam-and-beyond" id="markdown-toc-watermarks-time-and-progress-in-apache-beam-and-beyond">Watermarks: Time and Progress in Apache Beam and Beyond</a></li>
+      <li><a href="#triggers-in-apache-beam" id="markdown-toc-triggers-in-apache-beam">Triggers in Apache Beam</a></li>
+    </ul>
+  </li>
 </ul>
+
+<h2 id="general">General</h2>
+
+<p>The following resources provide general overviews and fundamentals of Apache Beam.</p>
+
+<h3 id="fundamentals-of-stream-processing-with-apache-beam">Fundamentals of Stream Processing with Apache Beam</h3>
+
+<p>Data Science Summit, Jerusalem, 2016</p>
+
+<p>Presented by Tyler Akidau, <em>Apache Beam PPMC member</em></p>
+
+<iframe width="560" height="315" src="https://www.youtube.com/embed/V35MwYcXEX0" frameborder="0" allowfullscreen=""></iframe>
+<p><br /></p>
+
+<h3 id="apache-beam-a-unified-model-for-batch-and-streaming-data-processing">Apache Beam: A Unified Model for Batch and Streaming Data Processing</h3>
+
+<p>Hadoop Summit, San Jose, CA, 2016</p>
+
+<p>Presented by Davor Bonacci, <em>Apache Beam PPMC member</em></p>
+
+<iframe width="560" height="315" src="https://www.youtube.com/embed/7DZ8ONmeP5A" frameborder="0" allowfullscreen=""></iframe>
+<p><br /></p>
+
+<h3 id="fundamentals-of-stream-processing-with-apache-beam-1">Fundamentals of Stream Processing with Apache Beam</h3>
+
+<p>@Scale Conference, San Jose, CA, 2016</p>
+
+<p>Presented by Dan Halperin, <em>Apache Beam PPMC member</em></p>
+
+<iframe src="https://www.facebook.com/plugins/video.php?href=https%3A%2F%2Fwww.facebook.com%2Fatscaleevents%2Fvideos%2F1775945569345206%2F&amp;show_text=0&amp;width=560" width="560" height="315" style="border:none;overflow:hidden" scrolling="no" frameborder="0" allowtransparency="true" allowfullscreen="true"></iframe>
+<p><br /></p>
+
+<h3 id="the-world-beyond-batch-streaming-101">The World Beyond Batch: Streaming 101</h3>
+
+<p>Written by Tyler Akidau, <em>Apache Beam PPMC member</em></p>
+
+<p>Click on the image to read the article.</p>
+
+<p><a href="https://www.oreilly.com/ideas/the-world-beyond-batch-streaming-101" target="_blank"><img src="/images/resources/streaming-101.png" alt="alt text" /></a>
+<br /></p>
+
+<h3 id="the-world-beyond-batch-streaming-102">The World Beyond Batch: Streaming 102</h3>
+
+<p>Written by Tyler Akidau, <em>Apache Beam PPMC member</em></p>
+
+<p>Click on the image to read the article.</p>
+
+<p><a href="https://www.oreilly.com/ideas/the-world-beyond-batch-streaming-102" target="_blank"><img src="/images/resources/streaming-101.png" alt="alt text" /></a>
+<br /></p>
+
+<h3 id="software-engineering-radio-podcast-episode-272-apache-beam">Software Engineering Radio Podcast Episode 272: Apache Beam</h3>
+
+<p>Presented by Frances Perry, <em>Apache Beam PPMC member</em></p>
+
+<p><a href="http://www.se-radio.net/2016/10/se-radio-episode-272-frances-perry-on-apache-beam/" target="_blank"><img src="/images/resources/se-radio-podcast.png" alt="alt text" /></a>
+<br /></p>
+
+<h2 id="beam--friends">Beam &amp; Friends</h2>
+
+<p>The following resources present Apache Beam partnerships.</p>
+
+<h3 id="flink-and-beam-current-state--roadmap">Flink and Beam: Current State &amp; Roadmap</h3>
+
+<p>Flink Forward, Berlin, 2016</p>
+
+<p>Presented by Maximilian Michels, <em>Apache Beam PPMC member</em></p>
+
+<iframe width="560" height="315" src="https://www.youtube.com/embed/msdjh6KRXC8" frameborder="0" allowfullscreen=""></iframe>
+<p><br /></p>
+
+<h3 id="lessons-learned-from-developing-a-stream-processing-platform-at-scale">Lessons learned from developing a stream processing platform at scale</h3>
+
+<p>Big Things Meetup, Tel Aviv, 2016</p>
+
+<p>By Amit Sela, <em>Apache Beam PPMC member</em></p>
+
+<iframe width="560" height="315" src="https://www.youtube.com/embed/fc-YigLn_gs" frameborder="0" allowfullscreen=""></iframe>
+<p><br /></p>
+
+<h2 id="technical-details">Technical Details</h2>
+
+<p>The following resources provide detailed explanations about technical concepts in Apache Beam.</p>
+
+<h3 id="watermarks-time-and-progress-in-apache-beam-and-beyond">Watermarks: Time and Progress in Apache Beam and Beyond</h3>
+
+<p>Strata+Hadoop World, New York, 2016</p>
+
+<p>Presented by Slava Chernyak, <em>Software Engineer at Google</em></p>
+
+<iframe width="560" height="315" src="https://www.youtube.com/embed/TWxSLmkWPm4" frameborder="0" allowfullscreen=""></iframe>
+<p><br /></p>
+
+<h3 id="triggers-in-apache-beam">Triggers in Apache Beam</h3>
+
+<p>Strata+Hadoop World, New York, 2016</p>
+
+<p>Presented by Kenneth Knowles, <em>Apache Beam PPMC member</em></p>
+
+<iframe width="560" height="315" src="https://www.youtube.com/embed/E1k0B9LN46M" frameborder="0" allowfullscreen=""></iframe>
 
       </div>
 
