@@ -21,6 +21,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
 import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.fromJsonString;
+import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.JsonSchemaToTableSchema;
 import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.toJsonString;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
 import static org.hamcrest.Matchers.hasItem;
@@ -111,6 +112,8 @@ import org.apache.beam.sdk.options.BigQueryOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.StreamingOptions;
+import org.apache.beam.sdk.options.ValueProvider;
+import org.apache.beam.sdk.options.ValueProvider.NestedValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.testing.ExpectedLogs;
 import org.apache.beam.sdk.testing.NeedsRunner;
@@ -1959,6 +1962,51 @@ public class BigQueryIOTest implements Serializable {
     logged.verifyWarn("Failed to delete the table " + toJsonString(tableRefs.get(0)));
     logged.verifyNotLogged("Failed to delete the table " + toJsonString(tableRefs.get(1)));
     logged.verifyNotLogged("Failed to delete the table " + toJsonString(tableRefs.get(2)));
+  }
+
+  /** Test options **/
+  public interface RuntimeTestOptions extends PipelineOptions {
+    ValueProvider<String> getInputTable();
+    void setInputTable(ValueProvider<String> value);
+
+    ValueProvider<String> getInputQuery();
+    void setInputQuery(ValueProvider<String> value);
+
+    ValueProvider<String> getOutputTable();
+    void setOutputTable(ValueProvider<String> value);
+
+    ValueProvider<String> getOutputSchema();
+    void setOutputSchema(ValueProvider<String> value);
+  }
+
+  @Test
+  public void testRuntimeOptionsNotCalledInApplyInputTable() {
+    RuntimeTestOptions options = PipelineOptionsFactory.as(RuntimeTestOptions.class);
+    BigQueryOptions bqOptions = options.as(BigQueryOptions.class);
+    bqOptions.setTempLocation("gs://testbucket/testdir");
+    Pipeline pipeline = TestPipeline.create(options);
+    pipeline
+        .apply(BigQueryIO.Read.from(options.getInputTable()).withoutValidation())
+        .apply(BigQueryIO.Write
+            .to(options.getOutputTable())
+            .withSchema(NestedValueProvider.of(
+                options.getOutputSchema(), new JsonSchemaToTableSchema()))
+            .withoutValidation());
+  }
+
+  @Test
+  public void testRuntimeOptionsNotCalledInApplyInputQuery() {
+    RuntimeTestOptions options = PipelineOptionsFactory.as(RuntimeTestOptions.class);
+    BigQueryOptions bqOptions = options.as(BigQueryOptions.class);
+    bqOptions.setTempLocation("gs://testbucket/testdir");
+    Pipeline pipeline = TestPipeline.create(options);
+    pipeline
+        .apply(BigQueryIO.Read.fromQuery(options.getInputQuery()).withoutValidation())
+        .apply(BigQueryIO.Write
+            .to(options.getOutputTable())
+            .withSchema(NestedValueProvider.of(
+                options.getOutputSchema(), new JsonSchemaToTableSchema()))
+            .withoutValidation());
   }
 
   private static void testNumFiles(File tempDir, int expectedNumFiles) {

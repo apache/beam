@@ -325,7 +325,8 @@ public class BigQueryIO {
     return table.isAccessible() ? table.get() : table.toString();
   }
 
-  private static class JsonSchemaToTableSchema
+  @VisibleForTesting
+  static class JsonSchemaToTableSchema
       implements SerializableFunction<String, TableSchema> {
     @Override
     public TableSchema apply(String from) {
@@ -609,8 +610,7 @@ public class BigQueryIO {
           }
         }
 
-        ValueProvider<TableReference> tableProvider = getTableWithDefaultProject(bqOptions);
-        TableReference table = tableProvider == null ? null : tableProvider.get();
+        ValueProvider<TableReference> table = getTableWithDefaultProject(bqOptions);
 
         checkState(
             table == null || query == null,
@@ -637,11 +637,13 @@ public class BigQueryIO {
         // earlier stages of the pipeline or if a query depends on earlier stages of a pipeline.
         // For these cases the withoutValidation method can be used to disable the check.
         if (validate && table != null) {
+          checkState(table.isAccessible(), "Cannot call validate if table is dynamically set.");
           // Check for source table presence for early failure notification.
           DatasetService datasetService = getBigQueryServices().getDatasetService(bqOptions);
-          verifyDatasetPresence(datasetService, table);
-          verifyTablePresence(datasetService, table);
+          verifyDatasetPresence(datasetService, table.get());
+          verifyTablePresence(datasetService, table.get());
         } else if (validate && query != null) {
+          checkState(query.isAccessible(), "Cannot call validate if query is dynamically set.");
           JobService jobService = getBigQueryServices().getJobService(bqOptions);
           try {
             jobService.dryRunQuery(
@@ -652,7 +654,7 @@ public class BigQueryIO {
                     .setUseLegacySql(useLegacySql));
           } catch (Exception e) {
             throw new IllegalArgumentException(
-                String.format(QUERY_VALIDATION_FAILURE_ERROR, query), e);
+                String.format(QUERY_VALIDATION_FAILURE_ERROR, query.get()), e);
           }
         }
       }
@@ -678,7 +680,7 @@ public class BigQueryIO {
         }
 
         final String executingProject = bqOptions.getProject();
-        if (query != null && !Strings.isNullOrEmpty(query.get())) {
+        if (query != null && (!query.isAccessible() || !Strings.isNullOrEmpty(query.get()))) {
           String queryTempDatasetId = "temp_dataset_" + uuid;
           String queryTempTableId = "temp_table_" + uuid;
 
