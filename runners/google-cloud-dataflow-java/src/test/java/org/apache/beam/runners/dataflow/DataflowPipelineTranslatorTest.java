@@ -50,7 +50,6 @@ import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
@@ -196,12 +195,13 @@ public class DataflowPipelineTranslatorTest implements Serializable {
 
     assertThat(optionsMap, hasEntry("appName", (Object) "DataflowPipelineTranslatorTest"));
     assertThat(optionsMap, hasEntry("project", (Object) "some-project"));
-    assertThat(optionsMap, hasEntry(
-        "pathValidatorClass", (Object) GcsPathValidator.class.getName()));
+    assertThat(optionsMap,
+        hasEntry("pathValidatorClass", (Object) GcsPathValidator.class.getName()));
     assertThat(optionsMap, hasEntry("runner", (Object) DataflowRunner.class.getName()));
     assertThat(optionsMap, hasEntry("jobName", (Object) "some-job-name"));
     assertThat(optionsMap, hasEntry("tempLocation", (Object) "gs://somebucket/some/path"));
-    assertThat(optionsMap, hasEntry("stagingLocation", (Object) "gs://somebucket/some/path/staging"));
+    assertThat(optionsMap,
+        hasEntry("stagingLocation", (Object) "gs://somebucket/some/path/staging"));
     assertThat(optionsMap, hasEntry("stableUniqueNames", (Object) "WARNING"));
     assertThat(optionsMap, hasEntry("streaming", (Object) false));
     assertThat(optionsMap, hasEntry("numberOfWorkerHarnessThreads", (Object) 0));
