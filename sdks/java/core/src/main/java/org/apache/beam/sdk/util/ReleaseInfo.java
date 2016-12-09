@@ -74,10 +74,6 @@ public final class ReleaseInfo extends GenericJson {
     }
 
     for (String name : properties.stringPropertyNames()) {
-      if (name.equals("name")) {
-        // We don't allow the properties to override the SDK name.
-        continue;
-      }
       put(name, properties.getProperty(name));
     }
   }
