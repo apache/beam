@@ -693,6 +693,8 @@ public class ElasticsearchIO {
         for (String json : batch) {
           bulkRequest.append(json);
         }
+        batch.clear();
+        currentBatchSizeBytes = 0;
         Response response;
         String endPoint =
             String.format(
@@ -722,15 +724,16 @@ public class ElasticsearchIO {
             if (error != null) {
               String docId = creationObject.getAsJsonPrimitive("_id").getAsString();
               errorMessages.append(String.format("%n document id %s : ", docId));
-              String errorMessage =
-                  error.getAsJsonObject("caused_by").getAsJsonPrimitive("reason").getAsString();
-              errorMessages.append(errorMessage);
+              JsonObject causedBy = error.getAsJsonObject("caused_by");
+              JsonElement reason;
+              if (causedBy != null && (reason = causedBy.getAsJsonPrimitive("reason")) != null) {
+                  String errorMessage = reason.getAsString();
+                  errorMessages.append(errorMessage);
+              }
             }
           }
           throw new IOException(errorMessages.toString());
         }
-        batch.clear();
-        currentBatchSizeBytes = 0;
       }
 
       @Teardown

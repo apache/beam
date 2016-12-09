@@ -23,7 +23,6 @@ import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.core.Is.isA;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
-import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
@@ -65,7 +64,6 @@ import org.hamcrest.CustomMatcher;
 import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -73,6 +71,7 @@ import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.mockito.Matchers;
+import org.mockito.Mockito;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -89,6 +88,8 @@ public class ElasticsearchIOTest implements Serializable {
   private static final long NUM_DOCS = 400L;
   private static final int NUM_SCIENTISTS = 10;
   private static final long BATCH_SIZE = 200L;
+  private static final long AVERAGE_DOC_SIZE = 25L;
+  private static final int BATCH_SIZE_MEGABYTES = 1;
 
   private enum InjectionMode {
     INJECT_SOME_INVALID_DOCS,
@@ -258,14 +259,18 @@ public class ElasticsearchIOTest implements Serializable {
   @Rule public ExpectedException exception = ExpectedException.none();
 
   @Test
-  @Category(RunnableOnService.class)
   public void testWriteWithErrors() throws Exception {
-    TestPipeline pipeline = TestPipeline.create();
-    List<String> data = createDocuments(NUM_DOCS, InjectionMode.INJECT_SOME_INVALID_DOCS);
-    pipeline
-        .apply(Create.of(data))
-        .apply(ElasticsearchIO.write().withConnectionConfiguration(connectionConfiguration));
-    exception.expectCause(isA(IOException.class));
+    ElasticsearchIO.Write write =
+      ElasticsearchIO.write()
+        .withConnectionConfiguration(connectionConfiguration)
+        .withMaxBatchSize(BATCH_SIZE);
+    ElasticsearchIO.Write.WriterFn writerFn = new ElasticsearchIO.Write.WriterFn(write);
+    // write bundles size is the runner decision, we cannot force a bundle size,
+    // so we test the Writer as a DoFn outside of a runner.
+    DoFnTester<String, Void> fnTester = DoFnTester.of(writerFn);
+
+    List<String> input = createDocuments(NUM_DOCS, InjectionMode.INJECT_SOME_INVALID_DOCS);
+    exception.expect(isA(IOException.class));
     exception.expectMessage(
         new CustomMatcher<String>("RegExp matcher") {
           @Override
@@ -277,31 +282,55 @@ public class ElasticsearchIOTest implements Serializable {
                     + ".*document id.*was expecting a colon to separate field name and value.*");
           }
         });
-    pipeline.run();
+    // inserts into Elasticsearch
+    fnTester.processBundle(input);
   }
 
-  @Ignore
   @Test
-  public void testWriteWithBatchSizes() throws Exception {
+  public void testWriteWithBatchSize() throws Exception {
     ElasticsearchIO.Write write =
         ElasticsearchIO.write()
             .withConnectionConfiguration(connectionConfiguration)
             .withMaxBatchSize(BATCH_SIZE);
-    ElasticsearchIO.Write.WriterFn writerFn = spy(new ElasticsearchIO.Write.WriterFn(write));
-    DoFnTester<String, Void> fnTester = DoFnTester.of(writerFn);
+    // write bundles size is the runner decision, we cannot force a bundle size,
+    // so we test the Writer as a DoFn outside of a runner.
+    ElasticsearchIO.Write.WriterFn writerFn = new ElasticsearchIO.Write.WriterFn(write);
+    ElasticsearchIO.Write.WriterFn spy = Mockito.spy(writerFn);
+    DoFnTester<String, Void> fnTester = DoFnTester.of(spy);
+    fnTester.setCloningBehavior(DoFnTester.CloningBehavior.DO_NOT_CLONE);
 
     List<String> input = createDocuments(NUM_DOCS, InjectionMode.DO_NOT_INJECT_INVALID_DOCS);
-    //this inserts into Elasticsearch
+    // insert into Elasticsearch
     fnTester.processBundle(input);
     int numWriteBundles = (int) (NUM_DOCS / BATCH_SIZE);
-    // +1 because processBundle calls finishbundle()
-    //TODO do not pass because of TestContext extends OldDoFn.Context whereas Context is in DoFn
-    verify(writerFn, times(numWriteBundles + 1)).finishBundle(Matchers.any(DoFn.Context.class));
+    // +1 because doFnTester calls finishBundle at the end
+    verify(spy, times(numWriteBundles + 1)).finishBundle(Matchers.any(DoFn.Context.class));
+  }
 
-    // force the index to upgrade after inserting for the inserted docs to be searchable immediately
-    //    node.client().admin().indices().upgrade(new UpgradeRequest()).actionGet();
-    //    SearchResponse response = node.client().prepareSearch().execute().actionGet(5000);
-    //    assertEquals(NUM_DOCS, response.getHits().getTotalHits());
+  @Test
+  public void testWriteWithBatchSizeMegaBytes() throws Exception {
+    ElasticsearchIO.Write write =
+      ElasticsearchIO.write()
+        .withConnectionConfiguration(connectionConfiguration)
+        .withMaxBatchSizeMegaBytes(BATCH_SIZE_MEGABYTES);
+    // write bundles size is the runner decision, we cannot force a bundle size,
+    // so we test the Writer as a DoFn outside of a runner.
+    ElasticsearchIO.Write.WriterFn writerFn = new ElasticsearchIO.Write.WriterFn(write);
+    ElasticsearchIO.Write.WriterFn spy = Mockito.spy(writerFn);
+    DoFnTester<String, Void> fnTester = DoFnTester.of(spy);
+    fnTester.setCloningBehavior(DoFnTester.CloningBehavior.DO_NOT_CLONE);
+
+    List<String> input = createDocuments(NUM_DOCS, InjectionMode.DO_NOT_INJECT_INVALID_DOCS);
+    // insert into Elasticsearch
+    fnTester.processBundle(input);
+    // there should be only one bundle because minimum BATCH_SIZE_MEGABYTES is 1MB,
+    // and 400 docs represent 10kB. To have more than 1 bundle, we should insert
+    // more than 40 000 docs which is not reasonable in a unit test.
+    int numWriteBundles = (int) (
+      NUM_DOCS * AVERAGE_DOC_SIZE / (BATCH_SIZE_MEGABYTES * 1024L * 1024L)
+    );
+    // +1 because doFnTester calls finishBundle at the end
+    verify(spy, times(numWriteBundles + 1)).finishBundle(Matchers.any(DoFn.Context.class));
   }
 
   @Test
