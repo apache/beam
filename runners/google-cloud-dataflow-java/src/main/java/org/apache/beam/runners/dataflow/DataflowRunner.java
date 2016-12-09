@@ -205,7 +205,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
   private DataflowRunnerHooks hooks;
 
   // Environment version information.
-  private static final String ENVIRONMENT_MAJOR_VERSION = "5";
+  private static final String ENVIRONMENT_MAJOR_VERSION = "6";
 
   // Default Docker container images that execute Dataflow worker harness, residing in Google
   // Container Registry, separately for Batch and Streaming.
@@ -218,7 +218,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
   private static final int CREATE_JOB_REQUEST_LIMIT_BYTES = 10 * 1024 * 1024;
 
   @VisibleForTesting
-  static final int GCS_UPLOAD_BUFFER_SIZE_BYTES_DEFAULT = 1 * 1024 * 1024;
+  static final int GCS_UPLOAD_BUFFER_SIZE_BYTES_DEFAULT = 1024 * 1024;
 
   private final Set<PCollection<?>> pcollectionsRequiringIndexedFormat;
 
