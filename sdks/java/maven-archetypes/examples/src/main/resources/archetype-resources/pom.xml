@@ -124,6 +124,9 @@
   <profiles>
     <profile>
       <id>direct-runner</id>
+      <activation>
+        <activeByDefault>true</activeByDefault>
+      </activation>
       <!-- Makes the DirectRunner available when running a pipeline. -->
       <dependencies>
         <dependency>
