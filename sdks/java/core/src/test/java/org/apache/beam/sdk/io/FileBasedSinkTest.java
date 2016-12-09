@@ -232,6 +232,8 @@ public class FileBasedSinkTest {
     }
 
     assertFalse(new File(writeOp.tempDirectory.get()).exists());
+    // Test that repeated requests of the temp directory return a stable result.
+    assertEquals(writeOp.tempDirectory.get(), writeOp.tempDirectory.get());
   }
 
   /**

@@ -473,7 +473,8 @@ public abstract class FileBasedSink<T> extends Sink<T> {
     protected final void removeTemporaryFiles(List<String> knownFiles, PipelineOptions options)
         throws IOException {
       LOG.debug("Removing temporary bundle output files in {}.", tempDirectory.get());
-      IOChannelFactory factory = IOChannelUtils.getFactory(tempDirectory.get());
+      String tempDir = tempDirectory.get();
+      IOChannelFactory factory = IOChannelUtils.getFactory(tempDir);
 
       // To partially mitigate the effects of filesystems with eventually-consistent
       // directory matching APIs, we remove not only files that the filesystem says exist
@@ -481,17 +482,17 @@ public abstract class FileBasedSink<T> extends Sink<T> {
       // (produced by successfully completed bundles).
       // This may still fail to remove temporary outputs of some failed bundles, but at least
       // the common case (where all bundles succeed) is guaranteed to be fully addressed.
-      Collection<String> matches = factory.match(factory.resolve(tempDirectory.get(), "*"));
+      Collection<String> matches = factory.match(factory.resolve(tempDir, "*"));
       Set<String> allMatches = new HashSet<>(matches);
       allMatches.addAll(knownFiles);
       LOG.debug(
           "Removing {} temporary files found under {} ({} matched glob, {} known files)",
           allMatches.size(),
-          tempDirectory.get(),
+          tempDir,
           matches.size(),
           allMatches.size() - matches.size());
       factory.remove(allMatches);
-      factory.remove(ImmutableList.of(tempDirectory.get()));
+      factory.remove(ImmutableList.of(tempDir));
     }
 
     /**

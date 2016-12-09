@@ -88,6 +88,7 @@ import org.apache.beam.sdk.io.TextIO.TextSource;
 import org.apache.beam.sdk.options.GcsOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.RunnableOnService;
@@ -627,6 +628,23 @@ public class TextIOTest {
     expectedException.expectMessage("wildcard");
 
     pipeline.apply(TextIO.Read.from("gs://bucket/foo**/baz"));
+  }
+
+  public interface RuntimeTestOptions extends PipelineOptions {
+    ValueProvider<String> getInput();
+    void setInput(ValueProvider<String> value);
+
+    ValueProvider<String> getOutput();
+    void setOutput(ValueProvider<String> value);
+  }
+
+  @Test
+  public void testRuntimeOptionsNotCalledInApply() throws Exception {
+    Pipeline pipeline = TestPipeline.create();
+    RuntimeTestOptions options = PipelineOptionsFactory.as(RuntimeTestOptions.class);
+    pipeline
+        .apply(TextIO.Read.from(options.getInput()).withoutValidation())
+        .apply(TextIO.Write.to(options.getOutput()).withoutValidation());
   }
 
   @Test
