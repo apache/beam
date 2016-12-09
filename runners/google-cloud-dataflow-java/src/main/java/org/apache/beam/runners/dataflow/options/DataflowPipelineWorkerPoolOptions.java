@@ -20,7 +20,7 @@ package org.apache.beam.runners.dataflow.options;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import java.util.List;
 import javax.annotation.Nullable;
-import org.apache.beam.runners.dataflow.DataflowRunner;
+import org.apache.beam.runners.dataflow.DataflowRunnerInfo;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.DefaultValueFactory;
@@ -130,9 +130,9 @@ public interface DataflowPipelineWorkerPoolOptions extends PipelineOptions {
     public String create(PipelineOptions options) {
       DataflowPipelineOptions dataflowOptions = options.as(DataflowPipelineOptions.class);
       if (dataflowOptions.isStreaming()) {
-        return DataflowRunner.STREAMING_WORKER_HARNESS_CONTAINER_IMAGE;
+        return DataflowRunnerInfo.getDataflowRunnerInfo().getStreamingWorkerHarnessContainerImage();
       } else {
-        return DataflowRunner.BATCH_WORKER_HARNESS_CONTAINER_IMAGE;
+        return DataflowRunnerInfo.getDataflowRunnerInfo().getBatchWorkerHarnessContainerImage();
       }
     }
   }

@@ -204,16 +204,6 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
   /** A set of user defined functions to invoke at different points in execution. */
   private DataflowRunnerHooks hooks;
 
-  // Environment version information.
-  private static final String ENVIRONMENT_MAJOR_VERSION = "6";
-
-  // Default Docker container images that execute Dataflow worker harness, residing in Google
-  // Container Registry, separately for Batch and Streaming.
-  public static final String BATCH_WORKER_HARNESS_CONTAINER_IMAGE =
-      "dataflow.gcr.io/v1beta3/beam-java-batch:beam-master-20161205";
-  public static final String STREAMING_WORKER_HARNESS_CONTAINER_IMAGE =
-      "dataflow.gcr.io/v1beta3/beam-java-streaming:beam-master-20161205";
-
   // The limit of CreateJob request size.
   private static final int CREATE_JOB_REQUEST_LIMIT_BYTES = 10 * 1024 * 1024;
 
@@ -541,7 +531,9 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
 
     // Requirements about the service.
     Map<String, Object> environmentVersion = new HashMap<>();
-    environmentVersion.put(PropertyNames.ENVIRONMENT_VERSION_MAJOR_KEY, ENVIRONMENT_MAJOR_VERSION);
+    environmentVersion.put(
+        PropertyNames.ENVIRONMENT_VERSION_MAJOR_KEY,
+        DataflowRunnerInfo.getDataflowRunnerInfo().getEnvironmentMajorVersion());
     newJob.getEnvironment().setVersion(environmentVersion);
     // Default jobType is JAVA_BATCH_AUTOSCALING: A Java job with workers that the job can
     // autoscale if specified.
