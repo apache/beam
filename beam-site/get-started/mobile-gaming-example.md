@@ -77,7 +77,7 @@ public static class ExtractAndSumScore
   }
 
   @Override
-  public PCollection<KV<String, Integer>> apply(
+  public PCollection<KV<String, Integer>> expand(
       PCollection<GameActionInfo> gameInfo) {
 
     return gameInfo
@@ -320,7 +320,7 @@ static class CalculateUserScores
   }
 
   @Override
-  public PCollection<KV<String, Integer>> apply(PCollection<GameActionInfo> input) {
+  public PCollection<KV<String, Integer>> expand(PCollection<GameActionInfo> input) {
     return input.apply("LeaderboardUserGlobalWindow",
         Window.<GameActionInfo>into(new GlobalWindows())
             // Get periodic results every ten minutes.
@@ -374,7 +374,7 @@ static class CalculateTeamScores
   }
 
   @Override
-  public PCollection<KV<String, Integer>> apply(PCollection<GameActionInfo> infos) {
+  public PCollection<KV<String, Integer>> expand(PCollection<GameActionInfo> infos) {
     return infos.apply("LeaderboardTeamFixedWindows",
         Window.<GameActionInfo>into(FixedWindows.of(teamWindowDuration))
             // We will get early (speculative) results as well as cumulative
@@ -428,7 +428,7 @@ public static class CalculateSpammyUsers
   private static final double SCORE_WEIGHT = 2.5;
 
   @Override
-  public PCollection<KV<String, Integer>> apply(PCollection<KV<String, Integer>> userScores) {
+  public PCollection<KV<String, Integer>> expand(PCollection<KV<String, Integer>> userScores) {
 
     // Get the sum of scores for each user.
     PCollection<KV<String, Integer>> sumScores = userScores
