@@ -467,6 +467,7 @@ public class DirectRunnerTest implements Serializable {
     }
   }
 
+  @Test
   public void testMetrics() throws Exception {
     Pipeline pipeline = getPipeline();
     pipeline
