@@ -255,7 +255,7 @@
   <span class="o">}</span>
 
   <span class="nd">@Override</span>
-  <span class="kd">public</span> <span class="n">PCollection</span><span class="o">&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">Integer</span><span class="o">&gt;&gt;</span> <span class="nf">apply</span><span class="o">(</span>
+  <span class="kd">public</span> <span class="n">PCollection</span><span class="o">&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">Integer</span><span class="o">&gt;&gt;</span> <span class="nf">expand</span><span class="o">(</span>
       <span class="n">PCollection</span><span class="o">&lt;</span><span class="n">GameActionInfo</span><span class="o">&gt;</span> <span class="n">gameInfo</span><span class="o">)</span> <span class="o">{</span>
 
     <span class="k">return</span> <span class="n">gameInfo</span>
@@ -518,7 +518,7 @@
   <span class="o">}</span>
 
   <span class="nd">@Override</span>
-  <span class="kd">public</span> <span class="n">PCollection</span><span class="o">&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">Integer</span><span class="o">&gt;&gt;</span> <span class="nf">apply</span><span class="o">(</span><span class="n">PCollection</span><span class="o">&lt;</span><span class="n">GameActionInfo</span><span class="o">&gt;</span> <span class="n">input</span><span class="o">)</span> <span class="o">{</span>
+  <span class="kd">public</span> <span class="n">PCollection</span><span class="o">&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">Integer</span><span class="o">&gt;&gt;</span> <span class="nf">expand</span><span class="o">(</span><span class="n">PCollection</span><span class="o">&lt;</span><span class="n">GameActionInfo</span><span class="o">&gt;</span> <span class="n">input</span><span class="o">)</span> <span class="o">{</span>
     <span class="k">return</span> <span class="n">input</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="s">"LeaderboardUserGlobalWindow"</span><span class="o">,</span>
         <span class="n">Window</span><span class="o">.&lt;</span><span class="n">GameActionInfo</span><span class="o">&gt;</span><span class="n">into</span><span class="o">(</span><span class="k">new</span> <span class="n">GlobalWindows</span><span class="o">())</span>
             <span class="c1">// Get periodic results every ten minutes.</span>
@@ -570,7 +570,7 @@
   <span class="o">}</span>
 
   <span class="nd">@Override</span>
-  <span class="kd">public</span> <span class="n">PCollection</span><span class="o">&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">Integer</span><span class="o">&gt;&gt;</span> <span class="nf">apply</span><span class="o">(</span><span class="n">PCollection</span><span class="o">&lt;</span><span class="n">GameActionInfo</span><span class="o">&gt;</span> <span class="n">infos</span><span class="o">)</span> <span class="o">{</span>
+  <span class="kd">public</span> <span class="n">PCollection</span><span class="o">&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">Integer</span><span class="o">&gt;&gt;</span> <span class="nf">expand</span><span class="o">(</span><span class="n">PCollection</span><span class="o">&lt;</span><span class="n">GameActionInfo</span><span class="o">&gt;</span> <span class="n">infos</span><span class="o">)</span> <span class="o">{</span>
     <span class="k">return</span> <span class="n">infos</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="s">"LeaderboardTeamFixedWindows"</span><span class="o">,</span>
         <span class="n">Window</span><span class="o">.&lt;</span><span class="n">GameActionInfo</span><span class="o">&gt;</span><span class="n">into</span><span class="o">(</span><span class="n">FixedWindows</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="n">teamWindowDuration</span><span class="o">))</span>
             <span class="c1">// We will get early (speculative) results as well as cumulative</span>
@@ -628,7 +628,7 @@
   <span class="kd">private</span> <span class="kd">static</span> <span class="kd">final</span> <span class="kt">double</span> <span class="n">SCORE_WEIGHT</span> <span class="o">=</span> <span class="mf">2.5</span><span class="o">;</span>
 
   <span class="nd">@Override</span>
-  <span class="kd">public</span> <span class="n">PCollection</span><span class="o">&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">Integer</span><span class="o">&gt;&gt;</span> <span class="nf">apply</span><span class="o">(</span><span class="n">PCollection</span><span class="o">&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">Integer</span><span class="o">&gt;&gt;</span> <span class="n">userScores</span><span class="o">)</span> <span class="o">{</span>
+  <span class="kd">public</span> <span class="n">PCollection</span><span class="o">&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">Integer</span><span class="o">&gt;&gt;</span> <span class="nf">expand</span><span class="o">(</span><span class="n">PCollection</span><span class="o">&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">Integer</span><span class="o">&gt;&gt;</span> <span class="n">userScores</span><span class="o">)</span> <span class="o">{</span>
 
     <span class="c1">// Get the sum of scores for each user.</span>
     <span class="n">PCollection</span><span class="o">&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">Integer</span><span class="o">&gt;&gt;</span> <span class="n">sumScores</span> <span class="o">=</span> <span class="n">userScores</span>
