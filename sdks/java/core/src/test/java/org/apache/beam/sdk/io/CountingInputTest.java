@@ -71,7 +71,7 @@ public class CountingInputTest {
   public void testBoundedInput() {
     Pipeline p = TestPipeline.create();
     long numElements = 1000;
-    PCollection<Long> input = p.apply(Read.from(CountingSource.upTo(numElements)));
+    PCollection<Long> input = p.apply(CountingInput.upTo(numElements)));
 
     addCountingAsserts(input, 0, numElements);
     p.run();
@@ -79,7 +79,7 @@ public class CountingInputTest {
 
   @Test
   @Category(RunnableOnService.class)
-  public void testEmptyBoundedSource() {
+  public void testEmptyBoundedInput() {
     Pipeline p = TestPipeline.create();
     PCollection<Long> input = p.apply(CountingInput.upTo(0));
 
@@ -89,7 +89,7 @@ public class CountingInputTest {
 
   @Test
   @Category(RunnableOnService.class)
-  public void testEmptyBoundedSourceUsingRange() {
+  public void testEmptyBoundedInputSubrange() {
     Pipeline p = TestPipeline.create();
     PCollection<Long> input = p.apply(CountingInput.forSubrange(42, 42));
 
