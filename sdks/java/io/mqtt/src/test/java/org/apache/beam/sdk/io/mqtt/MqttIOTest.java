@@ -153,8 +153,7 @@ public class MqttIOTest implements Serializable {
             .withConnectionConfiguration(
                 MqttIO.ConnectionConfiguration.create(
                     "tcp://localhost:" + port,
-                    "WRITE_TOPIC"))
-        .withQoS(1));
+                    "WRITE_TOPIC")));
     pipeline.run();
 
     Assert.assertEquals(100, messages.size());

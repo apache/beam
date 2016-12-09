@@ -84,8 +84,8 @@ import org.slf4j.LoggerFactory;
  * <p>To configure a MQTT sink, as for the read, you have to specify a MQTT connection
  * configuration with {@code ClientId}, {@code ServerURI}, {@code Topic}.
  *
- * <p>Optionally, you can also specify the {@code Retained} and {@code QoS} of the MQTT
- * message.
+ * <p>The MqttIO only fully supports QoS 1 (at least once). It's the only QoS level guaranteed
+ * due to potential retries on bundles.
  *
  * <p>For instance:
  *
@@ -112,7 +112,6 @@ public class MqttIO {
   public static Write write() {
     return new AutoValue_MqttIO_Write.Builder()
         .setRetained(false)
-        .setQos(0)
         .build();
   }
 
@@ -204,7 +203,7 @@ public class MqttIO {
     }
 
     @Override
-    public PCollection<byte[]> apply(PBegin input) {
+    public PCollection<byte[]> expand(PBegin input) {
 
       org.apache.beam.sdk.io.Read.Unbounded<byte[]> unbounded =
           org.apache.beam.sdk.io.Read.from(new UnboundedMqttSource(this));
@@ -504,7 +503,6 @@ public class MqttIO {
   public abstract static class Write extends PTransform<PCollection<byte[]>, PDone> {
 
     @Nullable abstract ConnectionConfiguration connectionConfiguration();
-    @Nullable abstract int qos();
     @Nullable abstract boolean retained();
 
     abstract Builder builder();
@@ -512,7 +510,6 @@ public class MqttIO {
     @AutoValue.Builder
     abstract static class Builder {
       abstract Builder setConnectionConfiguration(ConnectionConfiguration configuration);
-      abstract Builder setQos(int qos);
       abstract Builder setRetained(boolean retained);
       abstract Write build();
     }
@@ -525,36 +522,6 @@ public class MqttIO {
           "MqttIO.write().withConnectionConfiguration(configuration) called with null "
               + "configuration or not called at all");
       return builder().setConnectionConfiguration(configuration).build();
-    }
-
-    /**
-     * Define the MQTT message quality of service.
-     *
-     * <ul>
-     * <li>Quality of Service 0 (at most once) - a message won't be ack by the receiver or
-     * stored and redelivered by the sender. This is "fire and forget" and provides the same
-     * guarantee as the underlying TCP protocol.</li>
-     *
-     * <li>Quality of Service 1 (at least once) - a message will be delivered at least once to
-     * the receiver. But the message can also be delivered more than once. The sender will
-     * store the message until it gets an ack from the receiver.</li>
-     *
-     * <li>Quality of Service 2 (exactly one) - each message is received only once by the
-     * counterpart. It is the safest and also the slowest quality of service level. The
-     * guarantee is provided by two flows there and back between sender and receiver.</li>
-     * </ul>
-     *
-     * <p>If persistence is not configured, QoS 1 and 2 messages will still be delivered
-     * in the event of a network or server problem as the client will hold state in memory.
-     * If the MQTT client is shutdown or fails and persistence is not configured then
-     * delivery of QoS 1 and 2 messages can not be maintained as client-side state will
-     * be lost.
-     *
-     * @param qos The quality of service value.
-     * @return The {@link Write} {@link PTransform} with the corresponding QoS configuration.
-     */
-    public Write withQoS(int qos) {
-      return builder().setQos(qos).build();
     }
 
     /**
@@ -572,7 +539,7 @@ public class MqttIO {
     }
 
     @Override
-    public PDone apply(PCollection<byte[]> input) {
+    public PDone expand(PCollection<byte[]> input) {
       input.apply(ParDo.of(new WriteFn(this)));
       return PDone.in(input.getPipeline());
     }
@@ -585,7 +552,6 @@ public class MqttIO {
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {
       connectionConfiguration().populateDisplayData(builder);
-      builder.add(DisplayData.item("qos", qos()));
       builder.add(DisplayData.item("retained", retained()));
     }
 
@@ -608,7 +574,7 @@ public class MqttIO {
       public void processElement(ProcessContext context) throws Exception {
         byte[] payload = context.element();
         MqttMessage message = new MqttMessage();
-        message.setQos(spec.qos());
+        message.setQos(1);
         message.setRetained(spec.retained());
         message.setPayload(payload);
         client.publish(spec.connectionConfiguration().topic(), message);
