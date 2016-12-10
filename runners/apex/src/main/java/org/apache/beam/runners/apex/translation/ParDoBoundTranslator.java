@@ -40,7 +40,7 @@ class ParDoBoundTranslator<InputT, OutputT>
 
   @Override
   public void translate(ParDo.Bound<InputT, OutputT> transform, TranslationContext context) {
-    DoFn<InputT, OutputT> doFn = transform.getNewFn();
+    DoFn<InputT, OutputT> doFn = transform.getFn();
     DoFnSignature signature = DoFnSignatures.getSignature(doFn.getClass());
 
     if (signature.stateDeclarations().size() > 0) {

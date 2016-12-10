@@ -56,12 +56,12 @@ class ParDoSingleViaMultiOverrideFactory<InputT, OutputT>
 
       PCollectionTuple outputs =
           input.apply(
-              ParDo.of(underlyingParDo.getNewFn())
+              ParDo.of(underlyingParDo.getFn())
                   .withSideInputs(underlyingParDo.getSideInputs())
                   .withOutputTags(mainOutputTag, TupleTagList.empty()));
       PCollection<OutputT> output = outputs.get(mainOutputTag);
 
-      output.setTypeDescriptor(underlyingParDo.getNewFn().getOutputTypeDescriptor());
+      output.setTypeDescriptor(underlyingParDo.getFn().getOutputTypeDescriptor());
       return output;
     }
   }

@@ -745,7 +745,7 @@ public class ParDo {
     @Override
     public PCollection<OutputT> expand(PCollection<? extends InputT> input) {
       checkArgument(
-          !isSplittable(getNewFn()),
+          !isSplittable(getFn()),
           "%s does not support Splittable DoFn",
           input.getPipeline().getOptions().getRunner().getName());
       validateWindowType(input, fn);
@@ -753,7 +753,7 @@ public class ParDo {
               input.getPipeline(),
               input.getWindowingStrategy(),
               input.isBounded())
-          .setTypeDescriptor(getNewFn().getOutputTypeDescriptor());
+          .setTypeDescriptor(getFn().getOutputTypeDescriptor());
     }
 
     @Override
@@ -761,14 +761,14 @@ public class ParDo {
     protected Coder<OutputT> getDefaultOutputCoder(PCollection<? extends InputT> input)
         throws CannotProvideCoderException {
       return input.getPipeline().getCoderRegistry().getDefaultCoder(
-          getNewFn().getOutputTypeDescriptor(),
-          getNewFn().getInputTypeDescriptor(),
+          getFn().getOutputTypeDescriptor(),
+          getFn().getInputTypeDescriptor(),
           ((PCollection<InputT>) input).getCoder());
     }
 
     @Override
     protected String getKindString() {
-      Class<?> clazz = getNewFn().getClass();
+      Class<?> clazz = getFn().getClass();
       if (clazz.isAnonymousClass()) {
         return "AnonymousParDo";
       } else {
@@ -789,7 +789,7 @@ public class ParDo {
       ParDo.populateDisplayData(builder, (HasDisplayData) fn, fnDisplayData);
     }
 
-    public DoFn<InputT, OutputT> getNewFn() {
+    public DoFn<InputT, OutputT> getFn() {
       return fn;
     }
 
@@ -952,7 +952,7 @@ public class ParDo {
     @Override
     public PCollectionTuple expand(PCollection<? extends InputT> input) {
       checkArgument(
-          !isSplittable(getNewFn()),
+          !isSplittable(getFn()),
           "%s does not support Splittable DoFn",
           input.getPipeline().getOptions().getRunner().getName());
       validateWindowType(input, fn);
@@ -965,7 +965,7 @@ public class ParDo {
       // The fn will likely be an instance of an anonymous subclass
       // such as DoFn<Integer, String> { }, thus will have a high-fidelity
       // TypeDescriptor for the output type.
-      outputs.get(mainOutputTag).setTypeDescriptor(getNewFn().getOutputTypeDescriptor());
+      outputs.get(mainOutputTag).setTypeDescriptor(getFn().getOutputTypeDescriptor());
 
       return outputs;
     }
@@ -984,13 +984,13 @@ public class ParDo {
       Coder<InputT> inputCoder = ((PCollection<InputT>) input).getCoder();
       return input.getPipeline().getCoderRegistry().getDefaultCoder(
           output.getTypeDescriptor(),
-          getNewFn().getInputTypeDescriptor(),
+          getFn().getInputTypeDescriptor(),
           inputCoder);
       }
 
     @Override
     protected String getKindString() {
-      Class<?> clazz = getNewFn().getClass();
+      Class<?> clazz = getFn().getClass();
       if (clazz.isAnonymousClass()) {
         return "AnonymousParMultiDo";
       } else {
@@ -1004,7 +1004,7 @@ public class ParDo {
       ParDo.populateDisplayData(builder, fn, fnDisplayData);
     }
 
-    public DoFn<InputT, OutputT> getNewFn() {
+    public DoFn<InputT, OutputT> getFn() {
       return fn;
     }
 

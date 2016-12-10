@@ -46,7 +46,7 @@ class ParDoMultiOverrideFactory<InputT, OutputT>
   public PTransform<PCollection<? extends InputT>, PCollectionTuple> override(
       ParDo.BoundMulti<InputT, OutputT> transform) {
 
-    DoFn<InputT, OutputT> fn = transform.getNewFn();
+    DoFn<InputT, OutputT> fn = transform.getFn();
     DoFnSignature signature = DoFnSignatures.getSignature(fn.getClass());
     if (signature.processElement().isSplittable()) {
       return new SplittableParDo(transform);

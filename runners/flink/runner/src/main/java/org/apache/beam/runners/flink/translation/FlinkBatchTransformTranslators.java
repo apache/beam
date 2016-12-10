@@ -516,7 +516,7 @@ class FlinkBatchTransformTranslators {
         ParDo.Bound<InputT, OutputT> transform,
 
         FlinkBatchTranslationContext context) {
-      DoFn<InputT, OutputT> doFn = transform.getNewFn();
+      DoFn<InputT, OutputT> doFn = transform.getFn();
       rejectStateAndTimers(doFn);
 
       DataSet<WindowedValue<InputT>> inputDataSet =
@@ -562,7 +562,7 @@ class FlinkBatchTransformTranslators {
     public void translateNode(
         ParDo.BoundMulti<InputT, OutputT> transform,
         FlinkBatchTranslationContext context) {
-      DoFn<InputT, OutputT> doFn = transform.getNewFn();
+      DoFn<InputT, OutputT> doFn = transform.getFn();
       rejectStateAndTimers(doFn);
       DataSet<WindowedValue<InputT>> inputDataSet =
           context.getInputDataSet(context.getInput(transform));

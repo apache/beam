@@ -338,7 +338,7 @@ public class FlinkStreamingTransformTranslators {
         ParDo.Bound<InputT, OutputT> transform,
         FlinkStreamingTranslationContext context) {
 
-      DoFn<InputT, OutputT> doFn = transform.getNewFn();
+      DoFn<InputT, OutputT> doFn = transform.getFn();
       rejectStateAndTimers(doFn);
 
       WindowingStrategy<?, ?> windowingStrategy =
@@ -358,7 +358,7 @@ public class FlinkStreamingTransformTranslators {
       if (sideInputs.isEmpty()) {
         DoFnOperator<InputT, OutputT, WindowedValue<OutputT>> doFnOperator =
             new DoFnOperator<>(
-                transform.getNewFn(),
+                transform.getFn(),
                 inputTypeInfo,
                 new TupleTag<OutputT>("main output"),
                 Collections.<TupleTag<?>>emptyList(),
@@ -381,7 +381,7 @@ public class FlinkStreamingTransformTranslators {
 
         DoFnOperator<InputT, OutputT, WindowedValue<OutputT>> doFnOperator =
             new DoFnOperator<>(
-                transform.getNewFn(),
+                transform.getFn(),
                 inputTypeInfo,
                 new TupleTag<OutputT>("main output"),
                 Collections.<TupleTag<?>>emptyList(),
@@ -490,7 +490,7 @@ public class FlinkStreamingTransformTranslators {
         ParDo.BoundMulti<InputT, OutputT> transform,
         FlinkStreamingTranslationContext context) {
 
-      DoFn<InputT, OutputT> doFn = transform.getNewFn();
+      DoFn<InputT, OutputT> doFn = transform.getFn();
       rejectStateAndTimers(doFn);
 
       // we assume that the transformation does not change the windowing strategy.
@@ -515,7 +515,7 @@ public class FlinkStreamingTransformTranslators {
       if (sideInputs.isEmpty()) {
         DoFnOperator<InputT, OutputT, RawUnionValue> doFnOperator =
             new DoFnOperator<>(
-                transform.getNewFn(),
+                transform.getFn(),
                 inputTypeInfo,
                 transform.getMainOutputTag(),
                 transform.getSideOutputTags().getAll(),
@@ -542,7 +542,7 @@ public class FlinkStreamingTransformTranslators {
 
         DoFnOperator<InputT, OutputT, RawUnionValue> doFnOperator =
             new DoFnOperator<>(
-                transform.getNewFn(),
+                transform.getFn(),
                 inputTypeInfo,
                 transform.getMainOutputTag(),
                 transform.getSideOutputTags().getAll(),
