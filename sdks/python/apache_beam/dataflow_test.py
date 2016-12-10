@@ -177,8 +177,8 @@ class DataflowTest(unittest.TestCase):
     pipeline.run()
 
   # @attr('ValidatesRunner')
-  # Temproraly disable it due to test failed running on Dataflow service.
-  # Tracked by [BEAM-1124]
+  # TODO(BEAM-1124): Temporarily disable it due to test failed running on
+  # Dataflow service.
   def test_multi_valued_singleton_side_input(self):
     pipeline = TestPipeline()
     pcol = pipeline | 'start' >> Create([1, 2])
