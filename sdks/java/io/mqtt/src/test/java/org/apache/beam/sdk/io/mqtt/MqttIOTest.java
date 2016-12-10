@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.mqtt;
 
+import java.io.File;
 import java.io.Serializable;
 import java.net.ServerSocket;
 import java.net.URI;
@@ -24,7 +25,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import org.apache.activemq.broker.BrokerService;
-import org.apache.activemq.store.memory.MemoryPersistenceAdapter;
+import org.apache.activemq.store.kahadb.KahaDBPersistenceAdapter;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
@@ -70,7 +71,9 @@ public class MqttIOTest implements Serializable {
     LOGGER.info("Starting ActiveMQ broker on {}", port);
     broker = new BrokerService();
     broker.setUseJmx(false);
-    broker.setPersistenceAdapter(new MemoryPersistenceAdapter());
+    KahaDBPersistenceAdapter kahaDb = new KahaDBPersistenceAdapter();
+    kahaDb.setDirectory(new File("target/kahadb"));
+    broker.setPersistenceAdapter(kahaDb);
     broker.addConnector(new URI("mqtt://localhost:" + port));
     broker.start();
   }
