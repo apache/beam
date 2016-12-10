@@ -18,28 +18,20 @@
 package org.apache.beam.sdk.transforms;
 
 import static org.hamcrest.Matchers.empty;
-import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.isA;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertThat;
 
 import java.io.Serializable;
-import java.util.Map;
-import org.apache.beam.sdk.AggregatorValues;
-import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.Pipeline.PipelineExecutionException;
-import org.apache.beam.sdk.PipelineResult;
-import org.apache.beam.sdk.testing.NeedsRunner;
-import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.transforms.Max.MaxIntegerFn;
-import org.apache.beam.sdk.transforms.Sum.SumIntegerFn;
 import org.apache.beam.sdk.transforms.display.DisplayData;
-import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.TupleTag;
+import org.joda.time.Instant;
 import org.junit.Rule;
 import org.junit.Test;
-import org.junit.experimental.categories.Category;
 import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -134,68 +126,52 @@ public class OldDoFnTest implements Serializable {
   }
 
   @Test
-  @Category(NeedsRunner.class)
-  public void testCreateAggregatorInStartBundleThrows() {
-    TestPipeline p = createTestPipeline(new OldDoFn<String, String>() {
+  public void testCreateAggregatorThrowsWhenAggregatorsAreFinal() throws Exception {
+    OldDoFn<String, String> fn = new OldDoFn<String, String>() {
       @Override
-      public void startBundle(OldDoFn<String, String>.Context c) throws Exception {
-        createAggregator("anyAggregate", new MaxIntegerFn());
+      public void processElement(ProcessContext c) throws Exception { }
+    };
+    OldDoFn<String, String>.Context context = createContext(fn);
+    context.setupDelegateAggregators();
+
+    thrown.expect(isA(IllegalStateException.class));
+    fn.createAggregator("anyAggregate", new MaxIntegerFn());
+  }
+
+  private OldDoFn<String, String>.Context createContext(OldDoFn<String, String> fn) {
+    return fn.new Context() {
+      @Override
+      public PipelineOptions getPipelineOptions() {
+        throw new UnsupportedOperationException();
       }
 
       @Override
-      public void processElement(OldDoFn<String, String>.ProcessContext c) throws Exception {}
-    });
-
-    thrown.expect(PipelineExecutionException.class);
-    thrown.expectCause(isA(IllegalStateException.class));
-
-    p.run();
-  }
-
-  @Test
-  @Category(NeedsRunner.class)
-  public void testCreateAggregatorInProcessElementThrows() {
-    TestPipeline p = createTestPipeline(new OldDoFn<String, String>() {
-      @Override
-      public void processElement(ProcessContext c) throws Exception {
-        createAggregator("anyAggregate", new MaxIntegerFn());
-      }
-    });
-
-    thrown.expect(PipelineExecutionException.class);
-    thrown.expectCause(isA(IllegalStateException.class));
-
-    p.run();
-  }
-
-  @Test
-  @Category(NeedsRunner.class)
-  public void testCreateAggregatorInFinishBundleThrows() {
-    TestPipeline p = createTestPipeline(new OldDoFn<String, String>() {
-      @Override
-      public void finishBundle(OldDoFn<String, String>.Context c) throws Exception {
-        createAggregator("anyAggregate", new MaxIntegerFn());
+      public void output(String output) {
+        throw new UnsupportedOperationException();
       }
 
       @Override
-      public void processElement(OldDoFn<String, String>.ProcessContext c) throws Exception {}
-    });
+      public void outputWithTimestamp(String output, Instant timestamp) {
+        throw new UnsupportedOperationException();
+      }
 
-    thrown.expect(PipelineExecutionException.class);
-    thrown.expectCause(isA(IllegalStateException.class));
+      @Override
+      public <T> void sideOutput(TupleTag<T> tag, T output) {
+        throw new UnsupportedOperationException();
+      }
 
-    p.run();
-  }
+      @Override
+      public <T> void sideOutputWithTimestamp(TupleTag<T> tag, T output, Instant timestamp) {
+        throw new UnsupportedOperationException();
+      }
 
-  /**
-   * Initialize a test pipeline with the specified {@link OldDoFn}.
-   */
-  private <InputT, OutputT> TestPipeline createTestPipeline(OldDoFn<InputT, OutputT> fn) {
-    TestPipeline pipeline = TestPipeline.create();
-    pipeline.apply(Create.of((InputT) null))
-     .apply(ParDo.of(fn));
-
-    return pipeline;
+      @Override
+      public <AggInputT, AggOutputT>
+      Aggregator<AggInputT, AggOutputT> createAggregatorInternal(
+              String name, CombineFn<AggInputT, ?, AggOutputT> combiner) {
+        throw new UnsupportedOperationException();
+      }
+    };
   }
 
   @Test
@@ -208,36 +184,5 @@ public class OldDoFnTest implements Serializable {
 
     DisplayData data = DisplayData.from(usesDefault);
     assertThat(data.items(), empty());
-  }
-
-  @Test
-  @Category(NeedsRunner.class)
-  public void testAggregators() throws Exception {
-    Pipeline pipeline = TestPipeline.create();
-
-    CountOddsFn countOdds = new CountOddsFn();
-    PCollection<Void> output = pipeline
-        .apply(Create.of(1, 3, 5, 7, 2, 4, 6, 8, 10, 12, 14, 20, 42, 68, 100))
-        .apply(ParDo.of(countOdds));
-    PipelineResult result = pipeline.run();
-
-    AggregatorValues<Integer> values = result.getAggregatorValues(countOdds.aggregator);
-
-    Map<String, Integer> valuesMap = values.getValuesAtSteps();
-
-    assertThat(valuesMap.size(), equalTo(1));
-    assertThat(valuesMap.get(output.getProducingTransformInternal().getFullName()), equalTo(4));
-  }
-
-  private static class CountOddsFn extends OldDoFn<Integer, Void> {
-    @Override
-    public void processElement(ProcessContext c) throws Exception {
-      if (c.element() % 2 == 1) {
-        aggregator.addValue(1);
-      }
-    }
-
-    Aggregator<Integer, Integer> aggregator =
-        createAggregator("odds", new SumIntegerFn());
   }
 }
