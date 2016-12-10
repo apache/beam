@@ -411,11 +411,13 @@ public abstract class FileBasedSource<T> extends OffsetBasedSource<T> {
 
   @Override
   public String toString() {
+    String fileString = fileOrPatternSpec.isAccessible()
+        ? fileOrPatternSpec.get() : fileOrPatternSpec.toString();
     switch (mode) {
       case FILEPATTERN:
-        return fileOrPatternSpec.toString();
+        return fileString;
       case SINGLE_FILE_OR_SUBRANGE:
-        return fileOrPatternSpec.toString() + " range " + super.toString();
+        return fileString + " range " + super.toString();
       default:
         throw new IllegalStateException("Unexpected mode: " + mode);
     }

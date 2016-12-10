@@ -916,4 +916,18 @@ public class FileBasedSourceTest {
     TestFileBasedSource source = new TestFileBasedSource(file.getPath(), 1, 0, file.length(), null);
     assertSplitAtFractionExhaustive(source, options);
   }
+
+  @Test
+  public void testToStringFile() throws Exception {
+    String path = "/tmp/foo";
+    TestFileBasedSource source = new TestFileBasedSource(path, 1, 0, 10, null);
+    assertEquals(String.format("%s range [0, 10)", path), source.toString());
+  }
+
+  @Test
+  public void testToStringPattern() throws Exception {
+    String path = "/tmp/foo/*";
+    TestFileBasedSource source = new TestFileBasedSource(path, 1, 0, 10, null);
+    assertEquals(String.format("%s range [0, 10)", path), source.toString());
+  }
 }
