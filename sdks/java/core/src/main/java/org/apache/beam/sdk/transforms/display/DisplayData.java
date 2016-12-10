@@ -868,7 +868,7 @@ public class DisplayData implements Serializable {
    */
   public static ItemSpec<?> item(String key, @Nullable ValueProvider<?> value) {
     if (value == null) {
-      return item(key, Type.STRING, value);
+      return item(key, Type.STRING, null);
     }
     if (value.isAccessible()) {
       Object got = value.get();
