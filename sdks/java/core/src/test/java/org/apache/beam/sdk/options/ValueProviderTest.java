@@ -149,6 +149,18 @@ public class ValueProviderTest {
     assertEquals("quux", provider.get());
   }
 
+  @Test
+  public void testDefaultRuntimeProviderWithoutOverride() throws Exception {
+    TestOptions runtime = PipelineOptionsFactory.as(TestOptions.class);
+    TestOptions options = PipelineOptionsFactory.as(TestOptions.class);
+    runtime.setOptionsId(options.getOptionsId());
+    RuntimeValueProvider.setRuntimeOptions(runtime);
+
+    ValueProvider<String> provider = options.getBar();
+    assertTrue(provider.isAccessible());
+    assertEquals("bar", provider.get());
+  }
+
   /** A test interface. */
   public interface BadOptionsRuntime extends PipelineOptions {
     RuntimeValueProvider<String> getBar();
