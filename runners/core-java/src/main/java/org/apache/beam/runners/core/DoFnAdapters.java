@@ -15,14 +15,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.transforms;
+package org.apache.beam.runners.core;
 
 import java.io.IOException;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.transforms.Aggregator;
+import org.apache.beam.sdk.transforms.AggregatorRetriever;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
+import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFn.Context;
 import org.apache.beam.sdk.transforms.DoFn.OnTimerContext;
 import org.apache.beam.sdk.transforms.DoFn.ProcessContext;
+import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvoker;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvokers;
@@ -69,7 +73,7 @@ public class DoFnAdapters {
     private transient DoFnInvoker<InputT, OutputT> invoker;
 
     SimpleDoFnAdapter(DoFn<InputT, OutputT> fn) {
-      super(fn.aggregators);
+      super(AggregatorRetriever.getDelegatingAggregators(fn));
       this.fn = fn;
       this.invoker = DoFnInvokers.invokerFor(fn);
     }
