@@ -316,6 +316,8 @@ public abstract class FileBasedSink<T> extends Sink<T> {
 
     private static class TemporaryDirectoryBuilder
         implements SerializableFunction<String, String> {
+      // The intent of the code is to have a consistent value of tempDirectory across
+      // all workers, which wouldn't happen if now() was called inline.
       Instant now = Instant.now();
 
       @Override
