@@ -19,6 +19,7 @@
 package org.apache.beam.runners.spark.coders;
 
 import com.esotericsoftware.kryo.Kryo;
+import com.esotericsoftware.kryo.serializers.JavaSerializer;
 import com.google.common.collect.Iterables;
 import java.io.Serializable;
 import org.apache.beam.sdk.coders.Coder;
@@ -48,9 +49,9 @@ public class BeamSparkRunnerRegistratorTest {
 
     for (Class<?> clazz : classesForJavaSerialization) {
       Assert.assertThat("Registered serializer for class " + clazz.getName()
-          + " was not an instance of " + StatelessJavaSerializer.class.getName(),
+              + " was not an instance of " + JavaSerializer.class.getName(),
           kryo.getSerializer(clazz),
-          Matchers.instanceOf(StatelessJavaSerializer.class));
+          Matchers.instanceOf(JavaSerializer.class));
     }
   }
 }

@@ -54,7 +54,7 @@
     </profile>
 
     <profile>
-      <!-- This profile adds execution of RunnableOnService integration tests 
+      <!-- This profile adds execution of RunnableOnService integration tests
            against a local Spark endpoint. -->
       <id>local-runnable-on-service-tests</id>
       <activation><activeByDefault>false</activeByDefault></activation>
@@ -133,28 +133,14 @@
       <version>${hadoop.version}</version>
       <scope>provided</scope>
     </dependency>
+    <!-- Kryo bugfix version needed due to a state re-use issue in Kryo version 2.21 used in Spark 1.x
+    See: https://issues.apache.org/jira/browse/SPARK-7708
+    See: https://github.com/EsotericSoftware/kryo/issues/312
+    -->
     <dependency>
       <groupId>com.esotericsoftware.kryo</groupId>
       <artifactId>kryo</artifactId>
-      <version>2.21</version>
-      <scope>provided</scope>
-    </dependency>
-    <dependency>
-      <groupId>de.javakaffee</groupId>
-      <artifactId>kryo-serializers</artifactId>
-      <version>0.39</version>
-      <exclusions>
-        <!-- Use Spark's Kryo -->
-        <exclusion>
-          <groupId>com.esotericsoftware</groupId>
-          <artifactId>kryo</artifactId>
-        </exclusion>
-        <!-- We only really need the serializer implementations -->
-        <exclusion>
-          <groupId>com.google.protobuf</groupId>
-          <artifactId>protobuf-java</artifactId>
-        </exclusion>
-      </exclusions>
+      <version>2.21.1</version>
     </dependency>
     <dependency>
       <groupId>com.google.code.findbugs</groupId>
@@ -408,6 +394,10 @@
                   <relocation>
                     <pattern>com.google.thirdparty</pattern>
                     <shadedPattern>org.apache.beam.spark.relocated.com.google.thirdparty</shadedPattern>
+                  </relocation>
+                  <relocation>
+                    <pattern>com.esotericsoftware.kryo</pattern>
+                    <shadedPattern>org.apache.beam.spark.relocated.com.esotericsoftware.kryo</shadedPattern>
                   </relocation>
                 </relocations>
                 <shadedArtifactAttached>true</shadedArtifactAttached>
