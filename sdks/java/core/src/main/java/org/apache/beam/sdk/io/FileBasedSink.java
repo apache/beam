@@ -467,8 +467,8 @@ public abstract class FileBasedSink<T> extends Sink<T> {
      */
     protected final void removeTemporaryFiles(List<String> knownFiles, PipelineOptions options)
         throws IOException {
-      LOG.debug("Removing temporary bundle output files in {}.", tempDirectory.get());
       String tempDir = tempDirectory.get();
+      LOG.debug("Removing temporary bundle output files in {}.", tempDir);
       IOChannelFactory factory = IOChannelUtils.getFactory(tempDir);
 
       // To partially mitigate the effects of filesystems with eventually-consistent
