@@ -825,10 +825,14 @@ public class KafkaIO {
 
       synchronized long approxBacklogInBytes() {
         // Note that is an an estimate of uncompressed backlog.
+        return (long) (backlogCount() * avgRecordSize);
+      }
+
+      synchronized long backlogCount() {
         if (latestOffset < 0 || nextOffset < 0) {
           return UnboundedReader.BACKLOG_UNKNOWN;
         }
-        return Math.max(0, (long) ((latestOffset - nextOffset) * avgRecordSize));
+        return Math.max(0, (latestOffset - nextOffset));
       }
     }
 
@@ -1124,6 +1128,21 @@ public class KafkaIO {
       }
 
       return backlogBytes;
+    }
+
+    @Override
+    public long getSplitBacklogCount() {
+      long backlogCount = 0;
+
+      for (PartitionState p : partitionStates) {
+        long pBacklog = p.backlogCount();
+        if (pBacklog == UnboundedReader.BACKLOG_UNKNOWN) {
+          return UnboundedReader.BACKLOG_UNKNOWN;
+        }
+        backlogCount += pBacklog;
+      }
+
+      return backlogCount;
     }
 
     @Override

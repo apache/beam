@@ -245,8 +245,8 @@ public abstract class UnboundedSource<
     public static final long BACKLOG_UNKNOWN = -1L;
 
     /**
-     * Returns the size of the backlog of unread data in the underlying data source represented by
-     * this split of this source.
+     * Returns the size, in bytes, of the backlog of unread data in the underlying data source
+     * represented by this split of this source.
      *
      * <p>One of this or {@link #getTotalBacklogBytes} should be overridden in order to allow the
      * runner to scale the amount of resources allocated to the pipeline.
@@ -256,13 +256,29 @@ public abstract class UnboundedSource<
     }
 
     /**
-     * Returns the size of the backlog of unread data in the underlying data source represented by
-     * all splits of this source.
+     * Returns the size, in bytes, of the backlog of unread data in the underlying data source
+     * represented by all splits of this source.
      *
      * <p>One of this or {@link #getSplitBacklogBytes} should be overridden in order to allow the
      * runner to scale the amount of resources allocated to the pipeline.
      */
     public long getTotalBacklogBytes() {
+      return BACKLOG_UNKNOWN;
+    }
+
+    /**
+     * Returns the size, in number of events, of the backlog of unread data in the underlying data
+     * source represented by this split of this source.
+     */
+    public long getSplitBacklogCount() {
+      return BACKLOG_UNKNOWN;
+    }
+
+    /**
+     * Returns the size, in number of events, of the backlog of unread data in the underlying data
+     * source represented by all splits of this source.
+     */
+    public long getTotalBacklogCount() {
       return BACKLOG_UNKNOWN;
     }
 
