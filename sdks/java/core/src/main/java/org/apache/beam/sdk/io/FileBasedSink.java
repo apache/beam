@@ -203,13 +203,6 @@ public abstract class FileBasedSink<T> extends Sink<T> {
   /**
    * Returns the base output filename for this file based sink.
    */
-  public String getBaseOutputFilename() {
-    return baseOutputFilename.get();
-  }
-
-  /**
-   * Returns the base output filename for this file based sink.
-   */
   public ValueProvider<String> getBaseOutputFilenameProvider() {
     return baseOutputFilename;
   }
