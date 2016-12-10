@@ -26,14 +26,13 @@ import com.datatorrent.api.Sink;
 import com.datatorrent.lib.util.KryoCloneUtils;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
-
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.regex.Pattern;
-
 import org.apache.beam.runners.apex.ApexPipelineOptions;
 import org.apache.beam.runners.apex.ApexRunner;
 import org.apache.beam.runners.apex.ApexRunnerResult;
@@ -49,7 +48,8 @@ import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.transforms.OldDoFn;
+import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.DoFnAdapters;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.transforms.View;
@@ -113,8 +113,7 @@ public class ParDoBoundTranslatorTest {
     Assert.assertEquals(Sets.newHashSet(expected), EmbeddedCollector.RESULTS);
   }
 
-  @SuppressWarnings("serial")
-  private static class Add extends OldDoFn<Integer, Integer> {
+  private static class Add extends DoFn<Integer, Integer> {
     private Integer number;
     private PCollectionView<Integer> sideInputView;
 
@@ -126,7 +125,7 @@ public class ParDoBoundTranslatorTest {
       this.sideInputView = sideInputView;
     }
 
-    @Override
+    @ProcessElement
     public void processElement(ProcessContext c) throws Exception {
       if (sideInputView != null) {
         number = c.sideInput(sideInputView);
@@ -135,15 +134,14 @@ public class ParDoBoundTranslatorTest {
     }
   }
 
-  private static class EmbeddedCollector extends OldDoFn<Object, Void> {
-    private static final long serialVersionUID = 1L;
-    protected static final HashSet<Object> RESULTS = new HashSet<>();
+  private static class EmbeddedCollector extends DoFn<Object, Void> {
+    private static final Set<Object> RESULTS = Collections.synchronizedSet(new HashSet<>());
 
     public EmbeddedCollector() {
       RESULTS.clear();
     }
 
-    @Override
+    @ProcessElement
     public void processElement(ProcessContext c) throws Exception {
       RESULTS.add(c.element());
     }
@@ -207,13 +205,16 @@ public class ParDoBoundTranslatorTest {
     PCollectionView<Integer> singletonView = pipeline.apply(Create.of(1))
             .apply(Sum.integersGlobally().asSingletonView());
 
-    ApexParDoOperator<Integer, Integer> operator = new ApexParDoOperator<>(options,
-        new Add(singletonView), new TupleTag<Integer>(), TupleTagList.empty().getAll(),
-        WindowingStrategy.globalDefault(),
-        Collections.<PCollectionView<?>>singletonList(singletonView),
-        coder,
-        new ApexStateInternals.ApexStateInternalsFactory<Void>()
-        );
+    ApexParDoOperator<Integer, Integer> operator =
+        new ApexParDoOperator<>(
+            options,
+            DoFnAdapters.toOldDoFn(new Add(singletonView)),
+            new TupleTag<Integer>(),
+            TupleTagList.empty().getAll(),
+            WindowingStrategy.globalDefault(),
+            Collections.<PCollectionView<?>>singletonList(singletonView),
+            coder,
+            new ApexStateInternals.ApexStateInternalsFactory<Void>());
     operator.setup(null);
     operator.beginWindow(0);
     WindowedValue<Integer> wv1 = WindowedValue.valueInGlobalWindow(1);
@@ -303,7 +304,7 @@ public class ParDoBoundTranslatorTest {
      Assert.assertEquals(Sets.newHashSet(expected), EmbeddedCollector.RESULTS);
   }
 
-  private static class TestMultiOutputWithSideInputsFn extends OldDoFn<Integer, String> {
+  private static class TestMultiOutputWithSideInputsFn extends DoFn<Integer, String> {
     private static final long serialVersionUID = 1L;
 
     final List<PCollectionView<Integer>> sideInputViews = new ArrayList<>();
@@ -315,7 +316,7 @@ public class ParDoBoundTranslatorTest {
       this.sideOutputTupleTags.addAll(sideOutputTupleTags);
     }
 
-    @Override
+    @ProcessElement
     public void processElement(ProcessContext c) throws Exception {
       outputToAllWithSideInputs(c, "processing: " + c.element());
     }

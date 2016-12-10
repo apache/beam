@@ -25,7 +25,6 @@ import com.google.common.base.Predicate;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
-
 import java.util.Collections;
 import java.util.HashMap;
 import javax.annotation.Nullable;
@@ -35,6 +34,8 @@ import org.apache.beam.runners.flink.translation.wrappers.streaming.DoFnOperator
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.PCollectionViewTesting;
+import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.DoFnAdapters;
 import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.transforms.join.RawUnionValue;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -96,7 +97,7 @@ public class DoFnOperatorTest {
     TupleTag<String> outputTag = new TupleTag<>("main-output");
 
     DoFnOperator<String, String, String> doFnOperator = new DoFnOperator<>(
-        new IdentityDoFn<String>(),
+        DoFnAdapters.toOldDoFn(new IdentityDoFn<String>()),
         coderTypeInfo,
         outputTag,
         Collections.<TupleTag<?>>emptyList(),
@@ -140,7 +141,7 @@ public class DoFnOperatorTest {
         .build();
 
     DoFnOperator<String, String, RawUnionValue> doFnOperator = new DoFnOperator<>(
-        new MultiOutputDoFn(sideOutput1, sideOutput2),
+        DoFnAdapters.toOldDoFn(new MultiOutputDoFn(sideOutput1, sideOutput2)),
         coderTypeInfo,
         mainOutput,
         ImmutableList.<TupleTag<?>>of(sideOutput1, sideOutput2),
@@ -200,7 +201,7 @@ public class DoFnOperatorTest {
             .build();
 
     DoFnOperator<String, String, String> doFnOperator = new DoFnOperator<>(
-        new IdentityDoFn<String>(),
+        DoFnAdapters.toOldDoFn(new IdentityDoFn<String>()),
         coderTypeInfo,
         outputTag,
         Collections.<TupleTag<?>>emptyList(),
@@ -280,7 +281,7 @@ public class DoFnOperatorTest {
     });
   }
 
-  private static class MultiOutputDoFn extends OldDoFn<String, String> {
+  private static class MultiOutputDoFn extends DoFn<String, String> {
     private TupleTag<String> sideOutput1;
     private TupleTag<String> sideOutput2;
 
@@ -289,7 +290,7 @@ public class DoFnOperatorTest {
       this.sideOutput2 = sideOutput2;
     }
 
-    @Override
+    @ProcessElement
     public void processElement(ProcessContext c) throws Exception {
       if (c.element().equals("one")) {
         c.sideOutput(sideOutput1, "side: one");
@@ -303,9 +304,9 @@ public class DoFnOperatorTest {
     }
   }
 
-  private static class IdentityDoFn<T> extends OldDoFn<T, T> {
-    @Override
-    public void processElement(OldDoFn<T, T>.ProcessContext c) throws Exception {
+  private static class IdentityDoFn<T> extends DoFn<T, T> {
+    @ProcessElement
+    public void processElement(ProcessContext c) throws Exception {
       c.output(c.element());
     }
   }
