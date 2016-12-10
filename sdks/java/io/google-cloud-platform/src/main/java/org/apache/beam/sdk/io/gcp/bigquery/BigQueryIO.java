@@ -378,6 +378,15 @@ public class BigQueryIO {
     }
   }
 
+  @Nullable
+  private static ValueProvider<String> DisplayTable(
+      @Nullable ValueProvider<TableReference> table) {
+    if (table == null) {
+      return null;
+    }
+    return NestedValueProvider.of(table, new TableRefToTableSpec());
+  }
+
   /**
    * A {@link PTransform} that reads from a BigQuery table and returns a
    * {@link PCollection} of {@link TableRow TableRows} containing each of the rows of the table.
@@ -738,7 +747,7 @@ public class BigQueryIO {
       public void populateDisplayData(DisplayData.Builder builder) {
         super.populateDisplayData(builder);
         builder
-            .addIfNotNull(DisplayData.item("table", getTableProvider())
+            .addIfNotNull(DisplayData.item("table", DisplayTable(getTableProvider()))
               .withLabel("Table"))
             .addIfNotNull(DisplayData.item("query", query)
               .withLabel("Query"))
