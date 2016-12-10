@@ -38,7 +38,6 @@ import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.WindowingInternals;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
-import org.apache.beam.sdk.values.TypeDescriptor;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 
@@ -71,21 +70,6 @@ import org.joda.time.Instant;
  */
 @Deprecated
 public abstract class OldDoFn<InputT, OutputT> implements Serializable, HasDisplayData {
-
-  public DoFn<InputT, OutputT> toDoFn() {
-    DoFn<InputT, OutputT> doFn = DoFnAdapters.getDoFn(this);
-    if (doFn != null) {
-      return doFn;
-    }
-    if (this instanceof RequiresWindowAccess) {
-      // No parameters as it just accesses `this`
-      return new AdaptedRequiresWindowAccessDoFn();
-    } else {
-      // No parameters as it just accesses `this`
-      return new AdaptedDoFn();
-    }
-  }
-
   /**
    * Information accessible to all methods in this {@code OldDoFn}.
    * Used primarily to output elements.
@@ -334,7 +318,7 @@ public abstract class OldDoFn<InputT, OutputT> implements Serializable, HasDispl
     this(new HashMap<String, DelegatingAggregator<?, ?>>());
   }
 
-  OldDoFn(Map<String, DelegatingAggregator<?, ?>> aggregators) {
+  public OldDoFn(Map<String, DelegatingAggregator<?, ?>> aggregators) {
     this.aggregators = aggregators;
   }
 
@@ -419,32 +403,6 @@ public abstract class OldDoFn<InputT, OutputT> implements Serializable, HasDispl
   /////////////////////////////////////////////////////////////////////////////
 
   /**
-   * Returns a {@link TypeDescriptor} capturing what is known statically
-   * about the input type of this {@code OldDoFn} instance's most-derived
-   * class.
-   *
-   * <p>See {@link #getOutputTypeDescriptor} for more discussion.
-   */
-  protected TypeDescriptor<InputT> getInputTypeDescriptor() {
-    return new TypeDescriptor<InputT>(getClass()) {};
-  }
-
-  /**
-   * Returns a {@link TypeDescriptor} capturing what is known statically
-   * about the output type of this {@code OldDoFn} instance's
-   * most-derived class.
-   *
-   * <p>In the normal case of a concrete {@code OldDoFn} subclass with
-   * no generic type parameters of its own (including anonymous inner
-   * classes), this will be a complete non-generic type, which is good
-   * for choosing a default output {@code Coder<OutputT>} for the output
-   * {@code PCollection<OutputT>}.
-   */
-  protected TypeDescriptor<OutputT> getOutputTypeDescriptor() {
-    return new TypeDescriptor<OutputT>(getClass()) {};
-  }
-
-  /**
    * Returns an {@link Aggregator} with aggregation logic specified by the
    * {@link CombineFn} argument. The name provided must be unique across
    * {@link Aggregator}s created within the OldDoFn. Aggregators can only be created
@@ -503,256 +461,5 @@ public abstract class OldDoFn<InputT, OutputT> implements Serializable, HasDispl
    */
   Collection<Aggregator<?, ?>> getAggregators() {
     return Collections.<Aggregator<?, ?>>unmodifiableCollection(aggregators.values());
-  }
-
-  /**
-   * A {@link Context} for an {@link OldDoFn} via a context for a proper {@link DoFn}.
-   */
-  private class AdaptedContext extends Context {
-
-    private final DoFn<InputT, OutputT>.Context newContext;
-
-    public AdaptedContext(
-        DoFn<InputT, OutputT>.Context newContext) {
-      this.newContext = newContext;
-      super.setupDelegateAggregators();
-    }
-
-    @Override
-    public PipelineOptions getPipelineOptions() {
-      return newContext.getPipelineOptions();
-    }
-
-    @Override
-    public void output(OutputT output) {
-      newContext.output(output);
-    }
-
-    @Override
-    public void outputWithTimestamp(OutputT output, Instant timestamp) {
-      newContext.outputWithTimestamp(output, timestamp);
-    }
-
-    @Override
-    public <T> void sideOutput(TupleTag<T> tag, T output) {
-      newContext.sideOutput(tag, output);
-    }
-
-    @Override
-    public <T> void sideOutputWithTimestamp(TupleTag<T> tag, T output, Instant timestamp) {
-      newContext.sideOutputWithTimestamp(tag, output, timestamp);
-    }
-
-    @Override
-    protected <AggInputT, AggOutputT> Aggregator<AggInputT, AggOutputT> createAggregatorInternal(
-        String name, CombineFn<AggInputT, ?, AggOutputT> combiner) {
-      return newContext.createAggregator(name, combiner);
-    }
-  }
-
-  /**
-   * A {@link ProcessContext} for an {@link OldDoFn} via a context for a proper {@link DoFn}.
-   */
-  private class AdaptedProcessContext extends ProcessContext {
-
-    private final DoFn<InputT, OutputT>.ProcessContext newContext;
-
-    public AdaptedProcessContext(DoFn<InputT, OutputT>.ProcessContext newContext) {
-      this.newContext = newContext;
-    }
-
-    @Override
-    public InputT element() {
-      return newContext.element();
-    }
-
-    @Override
-    public <T> T sideInput(PCollectionView<T> view) {
-      return newContext.sideInput(view);
-    }
-
-    @Override
-    public Instant timestamp() {
-      return newContext.timestamp();
-    }
-
-    @Override
-    public BoundedWindow window() {
-      throw new UnsupportedOperationException(String.format(
-          "%s.%s.windowingInternals() is no longer supported. Please convert your %s to a %s",
-          OldDoFn.class.getSimpleName(),
-          OldDoFn.ProcessContext.class.getSimpleName(),
-          OldDoFn.class.getSimpleName(),
-          DoFn.class.getSimpleName()));
-    }
-
-    @Override
-    public PaneInfo pane() {
-      return newContext.pane();
-    }
-
-    @Override
-    public WindowingInternals<InputT, OutputT> windowingInternals() {
-      throw new UnsupportedOperationException(String.format(
-          "%s.%s.windowingInternals() is no longer supported. Please convert your %s to a %s",
-          OldDoFn.class.getSimpleName(),
-          OldDoFn.ProcessContext.class.getSimpleName(),
-          OldDoFn.class.getSimpleName(),
-          DoFn.class.getSimpleName()));
-    }
-
-    @Override
-    public PipelineOptions getPipelineOptions() {
-      return newContext.getPipelineOptions();
-    }
-
-    @Override
-    public void output(OutputT output) {
-      newContext.output(output);
-    }
-
-    @Override
-    public void outputWithTimestamp(OutputT output, Instant timestamp) {
-      newContext.outputWithTimestamp(output, timestamp);
-    }
-
-    @Override
-    public <T> void sideOutput(TupleTag<T> tag, T output) {
-      newContext.sideOutput(tag, output);
-    }
-
-    @Override
-    public <T> void sideOutputWithTimestamp(TupleTag<T> tag, T output, Instant timestamp) {
-      newContext.sideOutputWithTimestamp(tag, output, timestamp);
-    }
-
-    @Override
-    protected <AggInputT, AggOutputT> Aggregator<AggInputT, AggOutputT> createAggregatorInternal(
-        String name, CombineFn<AggInputT, ?, AggOutputT> combiner) {
-      return newContext.createAggregator(name, combiner);
-    }
-  }
-
-  private class AdaptedDoFn extends DoFn<InputT, OutputT> {
-
-    @Setup
-    public void setup() throws Exception {
-      OldDoFn.this.setup();
-    }
-
-    @StartBundle
-    public void startBundle(Context c) throws Exception {
-      OldDoFn.this.startBundle(OldDoFn.this.new AdaptedContext(c));
-    }
-
-    @ProcessElement
-    public void processElement(ProcessContext c) throws Exception {
-      OldDoFn.this.processElement(OldDoFn.this.new AdaptedProcessContext(c));
-    }
-
-    @FinishBundle
-    public void finishBundle(Context c) throws Exception {
-      OldDoFn.this.finishBundle(OldDoFn.this.new AdaptedContext(c));
-    }
-
-    @Teardown
-    public void teardown() throws Exception {
-      OldDoFn.this.teardown();
-    }
-
-    @Override
-    public Duration getAllowedTimestampSkew() {
-      return OldDoFn.this.getAllowedTimestampSkew();
-    }
-
-    @Override
-    public void populateDisplayData(DisplayData.Builder builder) {
-      OldDoFn.this.populateDisplayData(builder);
-    }
-
-    @Override
-    public TypeDescriptor<InputT> getInputTypeDescriptor() {
-      return OldDoFn.this.getInputTypeDescriptor();
-    }
-
-    @Override
-    Collection<Aggregator<?, ?>> getAggregators() {
-      return OldDoFn.this.getAggregators();
-    }
-
-    @Override
-    public TypeDescriptor<OutputT> getOutputTypeDescriptor() {
-      return OldDoFn.this.getOutputTypeDescriptor();
-    }
-  }
-
-  /**
-   * A {@link ProcessContext} for an {@link OldDoFn} that implements
-   * {@link RequiresWindowAccess}, via a context for a proper {@link DoFn}.
-   */
-  private class AdaptedRequiresWindowAccessProcessContext extends AdaptedProcessContext {
-
-    private final BoundedWindow window;
-
-    public AdaptedRequiresWindowAccessProcessContext(
-        DoFn<InputT, OutputT>.ProcessContext newContext,
-        BoundedWindow window) {
-      super(newContext);
-      this.window = window;
-    }
-
-    @Override
-    public BoundedWindow window() {
-      return window;
-    }
-  }
-
-  private class AdaptedRequiresWindowAccessDoFn extends DoFn<InputT, OutputT> {
-
-    @Setup
-    public void setup() throws Exception {
-      OldDoFn.this.setup();
-    }
-
-    @StartBundle
-    public void startBundle(Context c) throws Exception {
-      OldDoFn.this.startBundle(OldDoFn.this.new AdaptedContext(c));
-    }
-
-    @ProcessElement
-    public void processElement(ProcessContext c, BoundedWindow window) throws Exception {
-      OldDoFn.this.processElement(
-          OldDoFn.this.new AdaptedRequiresWindowAccessProcessContext(c, window));
-    }
-
-    @FinishBundle
-    public void finishBundle(Context c) throws Exception {
-      OldDoFn.this.finishBundle(OldDoFn.this.new AdaptedContext(c));
-    }
-
-    @Teardown
-    public void teardown() throws Exception {
-      OldDoFn.this.teardown();
-    }
-
-    @Override
-    public Duration getAllowedTimestampSkew() {
-      return OldDoFn.this.getAllowedTimestampSkew();
-    }
-
-    @Override
-    public void populateDisplayData(DisplayData.Builder builder) {
-      OldDoFn.this.populateDisplayData(builder);
-    }
-
-    @Override
-    public TypeDescriptor<InputT> getInputTypeDescriptor() {
-      return OldDoFn.this.getInputTypeDescriptor();
-    }
-
-    @Override
-    public TypeDescriptor<OutputT> getOutputTypeDescriptor() {
-      return OldDoFn.this.getOutputTypeDescriptor();
-    }
   }
 }
