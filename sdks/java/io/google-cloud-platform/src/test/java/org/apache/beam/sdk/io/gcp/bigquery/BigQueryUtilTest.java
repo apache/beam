@@ -391,29 +391,6 @@ public class BigQueryUtilTest {
     services.getTable(ref);
 
     verifyTableGet();
-    verifyTabledataList();
-  }
-
-  @Test
-  public void testWriteEmptyFail() throws InterruptedException, IOException {
-    thrown.expect(IOException.class);
-
-    onTableGet(basicTableSchema());
-
-    TableDataList dataList = rawDataList(rawRow("Arthur", 42));
-    onTableList(dataList);
-
-    TableReference ref = BigQueryIO
-        .parseTableSpec("project:dataset.table");
-
-    BigQueryServicesImpl.DatasetServiceImpl services =
-            new BigQueryServicesImpl.DatasetServiceImpl(mockClient, options);
-    try {
-      services.getTable(ref);
-    } finally {
-      verifyTableGet();
-      verifyTabledataList();
-    }
   }
 
   @Test
