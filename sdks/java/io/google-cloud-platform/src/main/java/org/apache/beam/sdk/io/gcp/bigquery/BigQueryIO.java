@@ -321,10 +321,6 @@ public class BigQueryIO {
     return sb.toString();
   }
 
-  private static String tableProvider(ValueProvider<String> table) {
-    return table.isAccessible() ? table.get() : table.toString();
-  }
-
   @VisibleForTesting
   static class JsonSchemaToTableSchema
       implements SerializableFunction<String, TableSchema> {
@@ -741,16 +737,10 @@ public class BigQueryIO {
       @Override
       public void populateDisplayData(DisplayData.Builder builder) {
         super.populateDisplayData(builder);
-        ValueProvider<TableReference> table = getTableProvider();
-
-        if (table != null) {
-          builder.add(DisplayData.item("table", table.isAccessible()
-                  ? toTableSpec(table.get()) : table.toString())
-            .withLabel("Table"));
-        }
-        String queryString = query == null ? null : tableProvider(query);
         builder
-            .addIfNotNull(DisplayData.item("query", queryString)
+            .addIfNotNull(DisplayData.item("table", getTableProvider())
+              .withLabel("Table"))
+            .addIfNotNull(DisplayData.item("query", query)
               .withLabel("Query"))
             .addIfNotNull(DisplayData.item("flattenResults", flattenResults)
               .withLabel("Flatten Query Results"))
@@ -969,7 +959,7 @@ public class BigQueryIO {
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {
       super.populateDisplayData(builder);
-      builder.add(DisplayData.item("table", tableProvider(jsonTable)));
+      builder.add(DisplayData.item("table", jsonTable));
     }
   }
 
@@ -1087,7 +1077,7 @@ public class BigQueryIO {
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {
       super.populateDisplayData(builder);
-      builder.add(DisplayData.item("query", tableProvider(query)));
+      builder.add(DisplayData.item("query", query));
     }
 
     private synchronized JobStatistics dryRunQueryIfNeeded(BigQueryOptions bqOptions)
@@ -1734,7 +1724,7 @@ public class BigQueryIO {
        *
        * <p>Does not modify this object.
        */
-      public Bound toTableRef(ValueProvider<TableReference> table) {
+      private Bound toTableRef(ValueProvider<TableReference> table) {
         return new Bound(name,
             NestedValueProvider.of(table, new TableRefToJson()),
             tableRefFunction, jsonSchema, createDisposition,
@@ -2072,10 +2062,9 @@ public class BigQueryIO {
         super.populateDisplayData(builder);
 
         builder
-            .addIfNotNull(DisplayData.item("table", tableProvider(jsonTableRef))
+            .addIfNotNull(DisplayData.item("table", jsonTableRef)
               .withLabel("Table Reference"))
-            .addIfNotNull(DisplayData.item("schema", jsonSchema != null
-                    ? tableProvider(jsonSchema) : null)
+            .addIfNotNull(DisplayData.item("schema", jsonSchema)
               .withLabel("Table Schema"));
 
         if (tableRefFunction != null) {
@@ -2379,10 +2368,9 @@ public class BigQueryIO {
                 .withLabel("Job ID Token"))
             .addIfNotNull(DisplayData.item("tempFilePrefix", tempFilePrefix)
                 .withLabel("Temporary File Prefix"))
-            .addIfNotNull(DisplayData.item("jsonTableRef", tableProvider(jsonTableRef))
+            .addIfNotNull(DisplayData.item("jsonTableRef", jsonTableRef)
                 .withLabel("Table Reference"))
-            .addIfNotNull(DisplayData.item("jsonSchema", jsonSchema != null
-                    ? tableProvider(jsonSchema) : null)
+            .addIfNotNull(DisplayData.item("jsonSchema", jsonSchema)
                 .withLabel("Table Schema"));
       }
     }
@@ -2501,7 +2489,7 @@ public class BigQueryIO {
         builder
             .addIfNotNull(DisplayData.item("jobIdToken", jobIdToken)
                 .withLabel("Job ID Token"))
-            .addIfNotNull(DisplayData.item("jsonTableRef", tableProvider(jsonTableRef))
+            .addIfNotNull(DisplayData.item("jsonTableRef", jsonTableRef)
                 .withLabel("Table Reference"))
             .add(DisplayData.item("writeDisposition", writeDisposition.toString())
                 .withLabel("Write Disposition"))
@@ -2624,7 +2612,7 @@ public class BigQueryIO {
     public void populateDisplayData(DisplayData.Builder builder) {
       super.populateDisplayData(builder);
 
-      builder.addIfNotNull(DisplayData.item("schema", tableProvider(jsonTableSchema))
+      builder.addIfNotNull(DisplayData.item("schema", jsonTableSchema)
         .withLabel("Table Schema"));
     }
 
@@ -2844,7 +2832,7 @@ public class BigQueryIO {
     public void populateDisplayData(DisplayData.Builder builder) {
       super.populateDisplayData(builder);
 
-      builder.addIfNotNull(DisplayData.item("table", tableProvider(tableSpec)));
+      builder.addIfNotNull(DisplayData.item("table", tableSpec));
       if (tableRefFunction != null) {
         builder.add(DisplayData.item("tableFn", tableRefFunction.getClass())
           .withLabel("Table Reference Function"));
