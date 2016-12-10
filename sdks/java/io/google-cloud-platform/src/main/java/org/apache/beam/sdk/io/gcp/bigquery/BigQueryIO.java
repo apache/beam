@@ -379,7 +379,7 @@ public class BigQueryIO {
   }
 
   @Nullable
-  private static ValueProvider<String> DisplayTable(
+  private static ValueProvider<String> displayTable(
       @Nullable ValueProvider<TableReference> table) {
     if (table == null) {
       return null;
@@ -747,7 +747,7 @@ public class BigQueryIO {
       public void populateDisplayData(DisplayData.Builder builder) {
         super.populateDisplayData(builder);
         builder
-            .addIfNotNull(DisplayData.item("table", DisplayTable(getTableProvider()))
+            .addIfNotNull(DisplayData.item("table", displayTable(getTableProvider()))
               .withLabel("Table"))
             .addIfNotNull(DisplayData.item("query", query)
               .withLabel("Query"))
