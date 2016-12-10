@@ -49,7 +49,6 @@ import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.DoFnAdapters;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.transforms.View;
@@ -208,7 +207,7 @@ public class ParDoBoundTranslatorTest {
     ApexParDoOperator<Integer, Integer> operator =
         new ApexParDoOperator<>(
             options,
-            DoFnAdapters.toOldDoFn(new Add(singletonView)),
+            new Add(singletonView),
             new TupleTag<Integer>(),
             TupleTagList.empty().getAll(),
             WindowingStrategy.globalDefault(),
