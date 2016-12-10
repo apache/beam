@@ -358,7 +358,7 @@ public class FlinkStreamingTransformTranslators {
       if (sideInputs.isEmpty()) {
         DoFnOperator<InputT, OutputT, WindowedValue<OutputT>> doFnOperator =
             new DoFnOperator<>(
-                transform.getFn(),
+                transform.getNewFn(),
                 inputTypeInfo,
                 new TupleTag<OutputT>("main output"),
                 Collections.<TupleTag<?>>emptyList(),
@@ -381,7 +381,7 @@ public class FlinkStreamingTransformTranslators {
 
         DoFnOperator<InputT, OutputT, WindowedValue<OutputT>> doFnOperator =
             new DoFnOperator<>(
-                transform.getFn(),
+                transform.getNewFn(),
                 inputTypeInfo,
                 new TupleTag<OutputT>("main output"),
                 Collections.<TupleTag<?>>emptyList(),
@@ -515,7 +515,7 @@ public class FlinkStreamingTransformTranslators {
       if (sideInputs.isEmpty()) {
         DoFnOperator<InputT, OutputT, RawUnionValue> doFnOperator =
             new DoFnOperator<>(
-                transform.getFn(),
+                transform.getNewFn(),
                 inputTypeInfo,
                 transform.getMainOutputTag(),
                 transform.getSideOutputTags().getAll(),
@@ -542,7 +542,7 @@ public class FlinkStreamingTransformTranslators {
 
         DoFnOperator<InputT, OutputT, RawUnionValue> doFnOperator =
             new DoFnOperator<>(
-                transform.getFn(),
+                transform.getNewFn(),
                 inputTypeInfo,
                 transform.getMainOutputTag(),
                 transform.getSideOutputTags().getAll(),

@@ -30,7 +30,6 @@ import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.DoFnAdapters;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.WindowedValue;
@@ -99,7 +98,7 @@ public class PipelineOptionsTest {
   @Test(expected = Exception.class)
   public void parDoBaseClassPipelineOptionsNullTest() {
     DoFnOperator<Object, Object, Object> doFnOperator = new DoFnOperator<>(
-        DoFnAdapters.toOldDoFn(new TestDoFn()),
+        new TestDoFn(),
         TypeInformation.of(new TypeHint<WindowedValue<Object>>() {}),
         new TupleTag<>("main-output"),
         Collections.<TupleTag<?>>emptyList(),
@@ -118,7 +117,7 @@ public class PipelineOptionsTest {
   public void parDoBaseClassPipelineOptionsSerializationTest() throws Exception {
 
     DoFnOperator<Object, Object, Object> doFnOperator = new DoFnOperator<>(
-        DoFnAdapters.toOldDoFn(new TestDoFn()),
+        new TestDoFn(),
         TypeInformation.of(new TypeHint<WindowedValue<Object>>() {}),
         new TupleTag<>("main-output"),
         Collections.<TupleTag<?>>emptyList(),

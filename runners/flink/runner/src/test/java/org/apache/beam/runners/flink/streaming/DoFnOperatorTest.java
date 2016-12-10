@@ -35,8 +35,6 @@ import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.PCollectionViewTesting;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.DoFnAdapters;
-import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.transforms.join.RawUnionValue;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
@@ -97,7 +95,7 @@ public class DoFnOperatorTest {
     TupleTag<String> outputTag = new TupleTag<>("main-output");
 
     DoFnOperator<String, String, String> doFnOperator = new DoFnOperator<>(
-        DoFnAdapters.toOldDoFn(new IdentityDoFn<String>()),
+        new IdentityDoFn<String>(),
         coderTypeInfo,
         outputTag,
         Collections.<TupleTag<?>>emptyList(),
@@ -141,7 +139,7 @@ public class DoFnOperatorTest {
         .build();
 
     DoFnOperator<String, String, RawUnionValue> doFnOperator = new DoFnOperator<>(
-        DoFnAdapters.toOldDoFn(new MultiOutputDoFn(sideOutput1, sideOutput2)),
+        new MultiOutputDoFn(sideOutput1, sideOutput2),
         coderTypeInfo,
         mainOutput,
         ImmutableList.<TupleTag<?>>of(sideOutput1, sideOutput2),
@@ -201,7 +199,7 @@ public class DoFnOperatorTest {
             .build();
 
     DoFnOperator<String, String, String> doFnOperator = new DoFnOperator<>(
-        DoFnAdapters.toOldDoFn(new IdentityDoFn<String>()),
+        new IdentityDoFn<String>(),
         coderTypeInfo,
         outputTag,
         Collections.<TupleTag<?>>emptyList(),

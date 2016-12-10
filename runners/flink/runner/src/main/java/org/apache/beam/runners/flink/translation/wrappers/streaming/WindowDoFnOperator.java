@@ -106,7 +106,7 @@ public class WindowDoFnOperator<K, InputT, OutputT>
       PipelineOptions options,
       Coder<K> keyCoder) {
     super(
-        null,
+        (OldDoFn<KeyedWorkItem<K, InputT>, KV<K, OutputT>>) null,
         inputType,
         mainOutputTag,
         sideOutputTags,
@@ -124,7 +124,7 @@ public class WindowDoFnOperator<K, InputT, OutputT>
   }
 
   @Override
-  protected OldDoFn<KeyedWorkItem<K, InputT>, KV<K, OutputT>> getDoFn() {
+  protected OldDoFn<KeyedWorkItem<K, InputT>, KV<K, OutputT>> getOldDoFn() {
     StateInternalsFactory<K> stateInternalsFactory = new StateInternalsFactory<K>() {
       @Override
       public StateInternals<K> stateInternalsForKey(K key) {
@@ -138,10 +138,10 @@ public class WindowDoFnOperator<K, InputT, OutputT>
     // has the window type as generic parameter while WindowingStrategy is almost always
     // untyped.
     @SuppressWarnings("unchecked")
-    OldDoFn<KeyedWorkItem<K, InputT>, KV<K, OutputT>> doFn =
+    OldDoFn<KeyedWorkItem<K, InputT>, KV<K, OutputT>> oldDoFn =
         GroupAlsoByWindowViaWindowSetDoFn.create(
             windowingStrategy, stateInternalsFactory, (SystemReduceFn) systemReduceFn);
-    return doFn;
+    return oldDoFn;
   }
 
 
