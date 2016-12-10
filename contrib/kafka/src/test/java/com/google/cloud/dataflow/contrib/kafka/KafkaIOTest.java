@@ -26,7 +26,6 @@ import com.google.cloud.dataflow.sdk.coders.BigEndianLongCoder;
 import com.google.cloud.dataflow.sdk.io.Read;
 import com.google.cloud.dataflow.sdk.io.UnboundedSource;
 import com.google.cloud.dataflow.sdk.io.UnboundedSource.UnboundedReader;
-import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
 import com.google.cloud.dataflow.sdk.testing.DataflowAssert;
 import com.google.cloud.dataflow.sdk.testing.TestPipeline;
 import com.google.cloud.dataflow.sdk.transforms.Count;
@@ -172,8 +171,8 @@ public class KafkaIOTest {
   }
 
   /**
-   * Creates a consumer with two topics, with 5 partitions each. numElements are (round-robin)
-   * assigned all the 10 partitions.
+   * Creates a consumer with two topics, with 10 partitions each. numElements are (round-robin)
+   * assigned all the 20 partitions.
    */
   private static KafkaIO.TypedRead<Integer, Long> mkKafkaReadTransform(
       int numElements, @Nullable SerializableFunction<KV<Integer, Long>, Instant> timestampFn) {
@@ -309,16 +308,13 @@ public class KafkaIOTest {
   public void testUnboundedSourceSplits() throws Exception {
     Pipeline p = TestPipeline.create();
     int numElements = 1000;
-    int numSplits = 10;
+    int numSplits = 20;
 
     UnboundedSource<KafkaRecord<Integer, Long>, ?> initial =
         mkKafkaReadTransform(numElements, null).makeSource();
-    List<
-            ? extends
-                UnboundedSource<
-                    com.google.cloud.dataflow.contrib.kafka.KafkaRecord<Integer, Long>, ?>>
-        splits = initial.generateInitialSplits(numSplits, p.getOptions());
-    assertEquals("Expected exact splitting", numSplits, splits.size());
+    List<? extends UnboundedSource<KafkaRecord<Integer, Long>, ?>> splits =
+        initial.generateInitialSplits(1, p.getOptions());
+    assertEquals("KafkaIO should ignore desiredNumSplits", numSplits, splits.size());
 
     long elementsPerSplit = numElements / numSplits;
     assertEquals("Expected even splits", numElements, elementsPerSplit * numSplits);
@@ -368,9 +364,7 @@ public class KafkaIOTest {
             com.google.cloud.dataflow.contrib.kafka.KafkaCheckpointMark>
         source =
             mkKafkaReadTransform(numElements, new ValueAsTimestampFn())
-                .makeSource()
-                .generateInitialSplits(1, PipelineOptionsFactory.fromArgs(new String[0]).create())
-                .get(0);
+                .makeSource();
 
     UnboundedReader<com.google.cloud.dataflow.contrib.kafka.KafkaRecord<Integer, Long>> reader =
         source.createReader(null, null);

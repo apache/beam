@@ -44,7 +44,6 @@ import com.google.cloud.dataflow.sdk.values.PDone;
 import com.google.cloud.dataflow.sdk.values.PInput;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Function;
-import com.google.common.base.Joiner;
 import com.google.common.base.Optional;
 import com.google.common.collect.ComparisonChain;
 import com.google.common.collect.ImmutableList;
@@ -714,24 +713,12 @@ public class KafkaIO {
       this.consumerConfig = consumerConfig;
     }
 
-    /**
-     * The partitions are evenly distributed among the splits. The number of splits returned is
-     * {@code min(desiredNumSplits, totalNumPartitions)}, though better not to depend on the exact
-     * count.
-     *
-     * <p> It is important to assign the partitions deterministically so that we can support
-     * resuming a split from last checkpoint. The Kafka partitions are sorted by {@code <topic,
-     * partition>} and then assigned to splits in round-robin order.
-     */
-    @Override
-    public List<UnboundedKafkaSource<K, V>> generateInitialSplits(
-        int desiredNumSplits, PipelineOptions options) throws Exception {
+    private List<TopicPartition> fetchKafkaPartitions() {
 
       List<TopicPartition> partitions = new ArrayList<>(assignedPartitions);
 
       // (a) fetch partitions for each topic
       // (b) sort by <topic, partition>
-      // (c) round-robin assign the partitions to splits
 
       if (partitions.isEmpty()) {
         try (Consumer<?, ?> consumer = consumerFactoryFn.apply(consumerConfig)) {
@@ -754,37 +741,39 @@ public class KafkaIO {
             }
           });
 
-      checkArgument(desiredNumSplits > 0);
       checkState(
           partitions.size() > 0,
           "Could not find any partitions. Please check Kafka configuration and topic names");
 
-      int numSplits = Math.min(desiredNumSplits, partitions.size());
-      List<List<TopicPartition>> assignments = new ArrayList<>(numSplits);
+      return partitions;
+    }
 
-      for (int i = 0; i < numSplits; i++) {
-        assignments.add(new ArrayList<TopicPartition>());
-      }
+    /**
+     * Returns one split for each of the Kafka partitions.
+     *
+     * <p> It is important to sort the partitions deterministically so that we can support
+     * resuming a split from last checkpoint. The Kafka partitions are sorted by {@code <topic,
+     * partition>}.
+     */
+    @Override
+    public List<UnboundedKafkaSource<K, V>> generateInitialSplits(
+        int desiredNumSplits, PipelineOptions options) throws Exception {
+
+      List<TopicPartition> partitions = fetchKafkaPartitions();
+
+      List<UnboundedKafkaSource<K, V>> result = new ArrayList<>(partitions.size());
+
+      // one split for each partition.
       for (int i = 0; i < partitions.size(); i++) {
-        assignments.get(i % numSplits).add(partitions.get(i));
-      }
+        TopicPartition partition = partitions.get(i);
 
-      List<UnboundedKafkaSource<K, V>> result = new ArrayList<>(numSplits);
-
-      for (int i = 0; i < numSplits; i++) {
-        List<TopicPartition> assignedToSplit = assignments.get(i);
-
-        LOG.info(
-            "Partitions assigned to split {} (total {}): {}",
-            i,
-            assignedToSplit.size(),
-            Joiner.on(",").join(assignedToSplit));
+        LOG.info("Partition assigned to split {} : {}", i, partition);
 
         result.add(
-            new UnboundedKafkaSource<K, V>(
+            new UnboundedKafkaSource<>(
                 i,
                 this.topics,
-                assignedToSplit,
+                ImmutableList.of(partition),
                 this.keyCoder,
                 this.valueCoder,
                 this.timestampFn,
@@ -804,7 +793,17 @@ public class KafkaIO {
         LOG.warn("Looks like generateSplits() is not called. Generate single split.");
         try {
           return new UnboundedKafkaReader<K, V>(
-              generateInitialSplits(1, options).get(0), checkpointMark);
+              new UnboundedKafkaSource<>(
+                  0,
+                  this.topics,
+                  fetchKafkaPartitions(),
+                  this.keyCoder,
+                  this.valueCoder,
+                  this.timestampFn,
+                  this.watermarkFn,
+                  this.consumerFactoryFn,
+                  this.consumerConfig),
+              checkpointMark);
         } catch (Exception e) {
           throw new RuntimeException(e);
         }
