@@ -53,7 +53,6 @@ import org.apache.beam.sdk.util.TimeDomain;
 import org.apache.beam.sdk.util.Timer;
 import org.apache.beam.sdk.util.TimerInternals;
 import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.sdk.util.WindowingInternals;
 import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.util.state.State;
 import org.apache.beam.sdk.util.state.StateInternals;
@@ -680,12 +679,6 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
 
       @Override
       public DoFn.OutputReceiver<OutputT> outputReceiver() {
-        // DoFnSignatures should have verified that this DoFn doesn't access extra context.
-        throw new IllegalStateException("Unexpected extra context access on a splittable DoFn");
-      }
-
-      @Override
-      public WindowingInternals<InputT, OutputT> windowingInternals() {
         // DoFnSignatures should have verified that this DoFn doesn't access extra context.
         throw new IllegalStateException("Unexpected extra context access on a splittable DoFn");
       }

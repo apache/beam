@@ -49,7 +49,6 @@ import org.apache.beam.sdk.util.Timer;
 import org.apache.beam.sdk.util.TimerInternals;
 import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.sdk.util.WindowingInternals;
 import org.apache.beam.sdk.util.state.InMemoryStateInternals;
 import org.apache.beam.sdk.util.state.InMemoryTimerInternals;
 import org.apache.beam.sdk.util.state.StateInternals;
@@ -332,12 +331,6 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
             public DoFn.OutputReceiver<OutputT> outputReceiver() {
               throw new UnsupportedOperationException(
                   "Not expected to access OutputReceiver from DoFnTester");
-            }
-
-            @Override
-            public WindowingInternals<InputT, OutputT> windowingInternals() {
-              throw new UnsupportedOperationException(
-                  "Not expected to access WindowingInternals from a new DoFn");
             }
 
             @Override
