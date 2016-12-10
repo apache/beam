@@ -186,7 +186,7 @@
 
 <p>This will create a directory <code class="highlighter-rouge">word-count-beam</code> that contains a simple <code class="highlighter-rouge">pom.xml</code> and a series of example pipelines that count words in text files.</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>$ cd beam-word-count/
+<div class="highlighter-rouge"><pre class="highlight"><code>$ cd word-count-beam/
 
 $ ls
 pom.xml	src
@@ -240,7 +240,8 @@ You can monitor the running job by visiting the Flink dashboard at http://&lt;fl
 </code></pre>
 </div>
 
-<div class="runner-spark highlighter-rouge"><pre class="highlight"><code>TODO BEAM-900
+<div class="runner-spark highlighter-rouge"><pre class="highlight"><code>$ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
+     -Dexec.args="--runner=SparkRunner --inputFile=pom.xml --output=counts" -Pspark-runner
 </code></pre>
 </div>
 
@@ -270,7 +271,7 @@ You can monitor the running job by visiting the Flink dashboard at http://&lt;fl
 </code></pre>
 </div>
 
-<div class="runner-spark highlighter-rouge"><pre class="highlight"><code>TODO BEAM-900
+<div class="runner-spark highlighter-rouge"><pre class="highlight"><code>$ ls counts*
 </code></pre>
 </div>
 
@@ -326,7 +327,16 @@ Foundation: 1
 </code></pre>
 </div>
 
-<div class="runner-spark highlighter-rouge"><pre class="highlight"><code>TODO BEAM-900
+<div class="runner-spark highlighter-rouge"><pre class="highlight"><code>$ more counts*
+beam: 27
+SF: 1
+fat: 1
+job: 1
+limitations: 1
+require: 1
+of: 11
+profile: 10
+...
 </code></pre>
 </div>
 
