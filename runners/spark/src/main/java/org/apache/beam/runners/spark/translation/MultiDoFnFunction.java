@@ -102,7 +102,7 @@ public class MultiDoFnFunction<InputT, OutputT>
             windowingStrategy
         );
 
-    return new SparkProcessContext<>(doFnRunner, outputManager).processPartition(iter);
+    return new SparkProcessContext<>(doFn, doFnRunner, outputManager).processPartition(iter);
   }
 
   private class DoFnOutputManager

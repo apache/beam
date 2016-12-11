@@ -25,6 +25,8 @@ import java.util.Iterator;
 import org.apache.beam.runners.core.DoFnRunner;
 import org.apache.beam.runners.core.DoFnRunners.OutputManager;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.reflect.DoFnInvokers;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.ExecutionContext.StepContext;
 import org.apache.beam.sdk.util.TimerInternals;
@@ -38,19 +40,25 @@ import org.apache.beam.sdk.values.TupleTag;
  */
 class SparkProcessContext<FnInputT, FnOutputT, OutputT> {
 
+  private final DoFn<FnInputT, FnOutputT> doFn;
   private final DoFnRunner<FnInputT, FnOutputT> doFnRunner;
   private final SparkOutputManager<OutputT> outputManager;
 
   SparkProcessContext(
+      DoFn<FnInputT, FnOutputT> doFn,
       DoFnRunner<FnInputT, FnOutputT> doFnRunner,
       SparkOutputManager<OutputT> outputManager) {
 
+    this.doFn = doFn;
     this.doFnRunner = doFnRunner;
     this.outputManager = outputManager;
   }
 
   Iterable<OutputT> processPartition(
       Iterator<WindowedValue<FnInputT>> partition) throws Exception {
+
+    // setup DoFn.
+    DoFnInvokers.invokerFor(doFn).invokeSetup();
 
     // skip if partition is empty.
     if (!partition.hasNext()) {
@@ -160,6 +168,8 @@ class SparkProcessContext<FnInputT, FnOutputT, OutputT> {
             clearOutput();
             calledFinish = true;
             doFnRunner.finishBundle();
+            // teardown DoFn.
+            DoFnInvokers.invokerFor(doFn).invokeTeardown();
             outputIterator = getOutputIterator();
             continue; // try to consume outputIterator from start of loop
           }
