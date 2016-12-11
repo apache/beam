@@ -50,7 +50,7 @@ public class BeamSparkRunnerRegistrator implements KryoRegistrator {
    */
   private static class ClassesForJavaSerialization {
     private static final Class<?>[] CLASSES_FOR_JAVA_SERIALIZATION = new Class<?>[]{
-            Coder.class, Source.class
+        Coder.class, Source.class
     };
 
     private static final Iterable<Class<?>> INSTANCE;
@@ -61,14 +61,14 @@ public class BeamSparkRunnerRegistrator implements KryoRegistrator {
     static {
       final Reflections reflections = new Reflections();
       INSTANCE = Iterables.concat(Lists.transform(Arrays.asList(CLASSES_FOR_JAVA_SERIALIZATION),
-              new Function<Class, Set<Class<?>>>() {
-                @SuppressWarnings({"unchecked", "ConstantConditions"})
-                @Nullable
-                @Override
-                public Set<Class<?>> apply(@Nullable Class clazz) {
-                  return reflections.getSubTypesOf(clazz);
-                }
-              }));
+          new Function<Class, Set<Class<?>>>() {
+            @SuppressWarnings({"unchecked", "ConstantConditions"})
+            @Nullable
+            @Override
+            public Set<Class<?>> apply(@Nullable Class clazz) {
+              return reflections.getSubTypesOf(clazz);
+            }
+          }));
     }
 
     static Iterable<Class<?>> getClasses() {
