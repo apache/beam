@@ -112,10 +112,14 @@ public class ResumeFromCheckpointStreamingTest {
 
   @Test
   public void testRun() throws Exception {
+    Duration batchIntervalDuration = Duration.standardSeconds(5);
     SparkPipelineOptions options = commonOptions.withTmpCheckpointDir(checkpointParentDir);
-    // It seems that the consumer's first "position" lookup (in unit test) takes +200 msec,
-    // so to be on the safe side we'll set to 750 msec.
-    options.setMinReadTimeMillis(750L);
+    // provide a generous enough batch-interval to have everything fit in one micro-batch.
+    options.setBatchIntervalMillis(batchIntervalDuration.getMillis());
+    // provide a very generous read time bound, we rely on num records bound here.
+    options.setMinReadTimeMillis(batchIntervalDuration.minus(1).getMillis());
+    // bound the read on the number of messages - 1 topic of 4 messages.
+    options.setMaxRecordsPerBatch(4L);
 
     // checkpoint after first (and only) interval.
     options.setCheckpointDurationMillis(options.getBatchIntervalMillis());
@@ -164,10 +168,9 @@ public class ResumeFromCheckpointStreamingTest {
         .apply(Window.<KV<String, String>>into(FixedWindows.of(windowDuration)))
         .apply(ParDo.of(new FormatAsText()));
 
-    // requires a graceful stop so that checkpointing of the first run would finish successfully
-    // before stopping and attempting to resume.
-    return PAssertStreaming.runAndAssertContents(p, formattedKV, EXPECTED,
-            Duration.standardSeconds(1L));
+    // graceful shutdown will make sure first batch (at least) will finish.
+    Duration timeout = Duration.standardSeconds(1L);
+    return PAssertStreaming.runAndAssertContents(p, formattedKV, EXPECTED, timeout);
   }
 
   @AfterClass

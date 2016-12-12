@@ -76,10 +76,15 @@ public class KafkaStreamingTest {
 
   @Test
   public void testEarliest2Topics() throws Exception {
+    Duration batchIntervalDuration = Duration.standardSeconds(5);
     SparkPipelineOptions options = commonOptions.withTmpCheckpointDir(checkpointParentDir);
-    // It seems that the consumer's first "position" lookup (in unit test) takes +200 msec,
-    // so to be on the safe side we'll set to 750 msec.
-    options.setMinReadTimeMillis(750L);
+    // provide a generous enough batch-interval to have everything fit in one micro-batch.
+    options.setBatchIntervalMillis(batchIntervalDuration.getMillis());
+    // provide a very generous read time bound, we rely on num records bound here.
+    options.setMinReadTimeMillis(batchIntervalDuration.minus(1).getMillis());
+    // bound the read on the number of messages - 2 topics of 4 messages each.
+    options.setMaxRecordsPerBatch(8L);
+
     //--- setup
     // two topics.
     final String topic1 = "topic1";
@@ -90,8 +95,6 @@ public class KafkaStreamingTest {
     );
     // expected.
     final String[] expected = {"k1,v1", "k2,v2", "k3,v3", "k4,v4"};
-    // batch and window duration.
-    final Duration batchAndWindowDuration = Duration.standardSeconds(1);
 
     // write to both topics ahead.
     produce(topic1, messages);
@@ -114,17 +117,27 @@ public class KafkaStreamingTest {
     PCollection<String> deduped =
         p.apply(read.withoutMetadata()).setCoder(
             KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of()))
-        .apply(Window.<KV<String, String>>into(FixedWindows.of(batchAndWindowDuration)))
+        .apply(Window.<KV<String, String>>into(FixedWindows.of(batchIntervalDuration)))
         .apply(ParDo.of(new FormatKVFn()))
         .apply(Distinct.<String>create());
 
-    PAssertStreaming.runAndAssertContents(p, deduped, expected, Duration.standardSeconds(1L));
+    // graceful shutdown will make sure first batch (at least) will finish.
+    Duration timeout = Duration.standardSeconds(1L);
+    PAssertStreaming.runAndAssertContents(p, deduped, expected, timeout);
   }
 
   @Test
   public void testLatest() throws Exception {
+    Duration batchIntervalDuration = Duration.standardSeconds(5);
     SparkContextOptions options =
         commonOptions.withTmpCheckpointDir(checkpointParentDir).as(SparkContextOptions.class);
+    // provide a generous enough batch-interval to have everything fit in one micro-batch.
+    options.setBatchIntervalMillis(batchIntervalDuration.getMillis());
+    // provide a very generous read time bound, we rely on num records bound here.
+    options.setMinReadTimeMillis(batchIntervalDuration.minus(1).getMillis());
+    // bound the read on the number of messages - 1 topics of 4 messages.
+    options.setMaxRecordsPerBatch(4L);
+
     //--- setup
     final String topic = "topic";
     // messages.
@@ -133,16 +146,11 @@ public class KafkaStreamingTest {
     );
     // expected.
     final String[] expected = {"k1,v1", "k2,v2", "k3,v3", "k4,v4"};
-    // batch and window duration.
-    final Duration batchAndWindowDuration = Duration.standardSeconds(1);
 
     // write once first batch completes, this will guarantee latest-like behaviour.
     options.setListeners(Collections.<JavaStreamingListener>singletonList(
         KafkaWriteOnBatchCompleted.once(messages, Collections.singletonList(topic),
             EMBEDDED_KAFKA_CLUSTER.getProps(), EMBEDDED_KAFKA_CLUSTER.getBrokerList())));
-    // It seems that the consumer's first "position" lookup (in unit test) takes +200 msec,
-    // so to be on the safe side we'll set to 750 msec.
-    options.setMinReadTimeMillis(750L);
 
     //------- test: read and format.
     Pipeline p = Pipeline.create(options);
@@ -161,7 +169,7 @@ public class KafkaStreamingTest {
     PCollection<String> formatted =
         p.apply(read.withoutMetadata()).setCoder(
             KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of()))
-        .apply(Window.<KV<String, String>>into(FixedWindows.of(batchAndWindowDuration)))
+        .apply(Window.<KV<String, String>>into(FixedWindows.of(batchIntervalDuration)))
         .apply(ParDo.of(new FormatKVFn()));
 
     // run for more than 1 batch interval, so that reading of latest is attempted in the
