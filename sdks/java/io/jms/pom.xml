@@ -49,11 +49,6 @@
       <plugin>
         <groupId>org.codehaus.mojo</groupId>
         <artifactId>findbugs-maven-plugin</artifactId>
-        <configuration>
-          <!-- JmsRecord contains Destination which is Serializable according to the JMS spec but
-           not implement java.io.Serializable. We exclude JmsRecord from the findbugs. -->
-          <onlyAnalyze>!org.apache.beam.sdk.io.jms.JmsRecord</onlyAnalyze>
-        </configuration>
       </plugin>
     </plugins>
   </build>

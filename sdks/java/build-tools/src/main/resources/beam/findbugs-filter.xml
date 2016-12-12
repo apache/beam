@@ -44,6 +44,25 @@
   </Match>
 
   <Match>
+    <Class name="org.apache.beam.sdk.io.jms.JmsRecord"/>
+    <Field name="jmsDestination"/>
+    <Bug pattern="SE_BAD_FIELD"/>
+    <!--
+    JMS destination is serializable according to the JMS spec even if it doesn't implement
+    Serializable.
+     -->
+  </Match>
+  <Match>
+    <Class name="org.apache.beam.sdk.io.jms.JmsRecord"/>
+    <Field name="jmsReplyTo"/>
+    <Bug pattern="SE_BAD_FIELD"/>
+    <!--
+    JMS ReplyTo destination is serializable according to the JMS spec even if it doesn't implement
+    Serializable.
+     -->
+  </Match>
+
+  <Match>
     <Class name="org.apache.beam.sdk.coders.InstantCoder$LexicographicLongConverter"/>
     <Bug pattern="HE_INHERITS_EQUALS_USE_HASHCODE"/>
     <!-- Converter overrides .equals() to add documentation but does not change behavior -->
