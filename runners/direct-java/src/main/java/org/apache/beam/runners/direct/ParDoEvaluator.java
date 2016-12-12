@@ -95,10 +95,6 @@ class ParDoEvaluator<InputT, OutputT> implements TransformEvaluator<InputT> {
         evaluationContext, runner, application, aggregatorChanges, outputManager, stepContext);
   }
 
-  private static boolean isKeyPreserving(Serializable fn) {
-    return false;
-  }
-
   ////////////////////////////////////////////////////////////////////////////////////////////////
 
   private final EvaluationContext evaluationContext;
