@@ -1108,7 +1108,7 @@ public class BigQueryIOTest implements Serializable {
     thrown.expect(IllegalStateException.class);
     thrown.expectMessage("must set the table reference");
     p.apply(Create.<TableRow>of().withCoder(TableRowJsonCoder.of()))
-        .apply(BigQueryIO.Write.withoutValidation());
+        .apply(BigQueryIO.Write.withSchema(null));
   }
 
   @Test
@@ -1356,7 +1356,7 @@ public class BigQueryIOTest implements Serializable {
     thrown.expectMessage("must set the table reference of a BigQueryIO.Write transform");
     TestPipeline.create()
         .apply(Create.<TableRow>of())
-        .apply("name", BigQueryIO.Write.withoutValidation());
+        .apply("name", BigQueryIO.Write.withSchema(null));
   }
 
   @Test
