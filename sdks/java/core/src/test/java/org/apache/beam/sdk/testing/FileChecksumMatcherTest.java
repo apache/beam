@@ -19,10 +19,6 @@ package org.apache.beam.sdk.testing;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyCollection;
-import static org.mockito.Mockito.doThrow;
-import static org.mockito.Mockito.spy;
 
 import com.google.api.client.util.BackOff;
 import com.google.common.io.Files;
@@ -30,9 +26,7 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.regex.Pattern;
-
 import org.apache.beam.sdk.PipelineResult;
-import org.apache.beam.sdk.util.IOChannelFactory;
 import org.apache.beam.sdk.util.IOChannelUtils;
 import org.junit.Rule;
 import org.junit.Test;
@@ -74,13 +68,6 @@ public class FileChecksumMatcherTest {
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage(containsString("Expected valid checksum, but received"));
     new FileChecksumMatcher("", tmpPath);
-  }
-
-  @Test
-  public void testPreconditionFilePathIsNull() {
-    thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage(containsString("Expected valid file path, but received"));
-    new FileChecksumMatcher("checksumString", null);
   }
 
   @Test
@@ -157,69 +144,5 @@ public class FileChecksumMatcherTest {
         customizedTemplate);
 
     assertThat(pResult, matcher);
-  }
-
-  @Test
-  public void testReadWithRetriesFailsWhenTemplateIncorrect() throws Exception {
-    File tmpFile = tmpFolder.newFile();
-    Files.write("Test for file checksum verifier.", tmpFile, StandardCharsets.UTF_8);
-
-    FileChecksumMatcher matcher = new FileChecksumMatcher(
-        "mock-checksum",
-        IOChannelUtils.resolve(tmpFolder.getRoot().getPath(), "*"),
-        Pattern.compile("incorrect-template"));
-
-    thrown.expect(IOException.class);
-    thrown.expectMessage(
-        containsString(
-            "Unable to read file(s) after retrying " + FileChecksumMatcher.MAX_READ_RETRIES));
-    matcher.readFilesWithRetries(fastClock, backOff);
-  }
-
-  @Test
-  public void testReadWithRetriesFailsSinceFilesystemError() throws Exception {
-    File tmpFile = tmpFolder.newFile();
-    Files.write("Test for file checksum verifier.", tmpFile, StandardCharsets.UTF_8);
-
-    FileChecksumMatcher matcher =
-        spy(new FileChecksumMatcher(
-            "mock-checksum", IOChannelUtils.resolve(tmpFolder.getRoot().getPath(), "*")));
-    doThrow(IOException.class)
-        .when(matcher).readLines(anyCollection(), any(IOChannelFactory.class));
-
-    thrown.expect(IOException.class);
-    thrown.expectMessage(
-        containsString(
-            "Unable to read file(s) after retrying " + FileChecksumMatcher.MAX_READ_RETRIES));
-    matcher.readFilesWithRetries(fastClock, backOff);
-  }
-
-  @Test
-  public void testReadWithRetriesFailsWhenOutputDirEmpty() throws Exception {
-    FileChecksumMatcher matcher =
-        new FileChecksumMatcher(
-            "mock-checksum", IOChannelUtils.resolve(tmpFolder.getRoot().getPath(), "*"));
-
-    thrown.expect(IOException.class);
-    thrown.expectMessage(
-        containsString(
-            "Unable to read file(s) after retrying " + FileChecksumMatcher.MAX_READ_RETRIES));
-    matcher.readFilesWithRetries(fastClock, backOff);
-  }
-
-  @Test
-  public void testReadWithRetriesFailsWhenRedundantFileLoaded() throws Exception {
-    tmpFolder.newFile("result-000-of-001");
-    tmpFolder.newFile("tmp-result-000-of-001");
-
-    FileChecksumMatcher matcher =
-        new FileChecksumMatcher(
-            "mock-checksum", IOChannelUtils.resolve(tmpFolder.getRoot().getPath(), "*"));
-
-    thrown.expect(IOException.class);
-    thrown.expectMessage(
-        containsString(
-            "Unable to read file(s) after retrying " + FileChecksumMatcher.MAX_READ_RETRIES));
-    matcher.readFilesWithRetries(fastClock, backOff);
   }
 }

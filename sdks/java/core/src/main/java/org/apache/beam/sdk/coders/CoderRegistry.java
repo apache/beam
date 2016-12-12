@@ -40,6 +40,7 @@ import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.CannotProvideCoderException.ReasonCode;
 import org.apache.beam.sdk.coders.protobuf.ProtoCoder;
 import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TimestampedValue;
@@ -107,6 +108,7 @@ public class CoderRegistry implements CoderProvider {
     registerCoder(TimestampedValue.class, TimestampedValue.TimestampedValueCoder.class);
     registerCoder(Void.class, VoidCoder.class);
     registerCoder(byte[].class, ByteArrayCoder.class);
+    registerCoder(IntervalWindow.class, IntervalWindow.getCoder());
   }
 
   /**
