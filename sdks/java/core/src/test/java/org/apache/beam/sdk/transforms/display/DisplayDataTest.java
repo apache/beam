@@ -379,6 +379,8 @@ public class DisplayDataTest implements Serializable {
       public void populateDisplayData(Builder builder) {
         builder
             .addIfNotNull(DisplayData.item("nullString", (String) null))
+            .addIfNotNull(DisplayData.item("nullVPString", (ValueProvider<String>) null))
+            .addIfNotNull(DisplayData.item("nullierVPString", StaticValueProvider.of(null)))
             .addIfNotNull(DisplayData.item("notNullString", "foo"))
             .addIfNotNull(DisplayData.item("nullLong", (Long) null))
             .addIfNotNull(DisplayData.item("notNullLong", 1234L))
