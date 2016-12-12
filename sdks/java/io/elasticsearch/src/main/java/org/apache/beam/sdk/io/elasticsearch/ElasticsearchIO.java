@@ -116,7 +116,10 @@ import org.elasticsearch.client.RestClientBuilder;
 public class ElasticsearchIO {
 
   public static Read read() {
-    return new AutoValue_ElasticsearchIO_Read.Builder().setScrollKeepalive("5m").build();
+    //default scroll keepalive to 5m as a majorant for un-predictable time between 2 start/read calls
+    // default batch size to 100 recommended by ES dev team as a safe value when dealing with big documents
+    // and still a good compromise with performances
+    return new AutoValue_ElasticsearchIO_Read.Builder().setScrollKeepalive("5m").setBatchSize(100L).build();
   }
 
   public static Write write() {
@@ -253,14 +256,17 @@ public class ElasticsearchIO {
   @AutoValue
   public abstract static class Read extends PTransform<PBegin, PCollection<String>> {
 
+    private static final long MAX_BATCH_SIZE = 10000L;
+
     @Nullable
     abstract ConnectionConfiguration getConnectionConfiguration();
 
     @Nullable
     abstract String getQuery();
 
-    @Nullable
     abstract String getScrollKeepalive();
+
+    abstract long getBatchSize();
 
     abstract Builder builder();
 
@@ -271,6 +277,8 @@ public class ElasticsearchIO {
       abstract Builder setQuery(String query);
 
       abstract Builder setScrollKeepalive(String scrollKeepalive);
+
+      abstract Builder setBatchSize(long batchSize);
 
       abstract Read build();
     }
@@ -309,13 +317,28 @@ public class ElasticsearchIO {
      * API</a> Default is "5m". Change this only if you get "No search context found" errors.
      *
      * @param scrollKeepalive keepalive duration ex "5m" from 5 minutes
-     * @return the {@link ElasticsearchIO.Read} with scroll keepalive set
+     * @return the {@link Read} with scroll keepalive set
      */
     public Read withScrollKeepalive(String scrollKeepalive) {
       checkArgument(
           scrollKeepalive != null,
           "ElasticsearchIO.read().withScrollKeepalive" + "(keepalive) called with null keepalive");
       return builder().setScrollKeepalive(scrollKeepalive).build();
+    }
+
+    /**
+     * Provide a size for the scroll read. See
+     * <a href="https://www.elastic.co/guide/en/elasticsearch/reference/2.4/search-request-scroll.html">
+     *   scroll API</a> Default is 100. Maximum is 10 000. If documents are small,
+     *   increasing batch size might improve read performance. If documents are big, you might need
+     *   to decrease batchSize
+     *
+     * @param batchSize number of documents read in each scroll read
+     * @return the {@link Read} with batch size set
+     */
+    public Read withBatchSize(long batchSize) {
+      return builder().setBatchSize(
+        batchSize > MAX_BATCH_SIZE ? MAX_BATCH_SIZE : batchSize).build();
     }
 
     @Override
@@ -466,6 +489,7 @@ public class ElasticsearchIO {
     private RestClient restClient;
     private String current;
     private String scrollId;
+    private List<String> batch;
 
     public BoundedElasticsearchReader(BoundedElasticsearchSource source) {
       this.source = source;
@@ -488,7 +512,7 @@ public class ElasticsearchIO {
               source.spec.getConnectionConfiguration().getType());
       Map<String, String> params = new HashMap<>();
       params.put("scroll", source.spec.getScrollKeepalive());
-      params.put("size", "1");
+      params.put("size", String.valueOf(source.spec.getBatchSize()));
       if (source.shardPreference != null) {
         params.put("preference", "_shards:" + source.shardPreference);
       }
@@ -497,7 +521,8 @@ public class ElasticsearchIO {
           restClient.performRequest("GET", endPoint, params, queryEntity, new BasicHeader("", ""));
       JsonObject searchResult = parseResponse(response);
       updateScrollId(searchResult);
-      return updateCurrent(searchResult);
+      batch = new ArrayList<>();
+      return updateBatchAndReadFirstDocument(searchResult);
     }
 
     private void updateScrollId(JsonObject searchResult) {
@@ -506,37 +531,47 @@ public class ElasticsearchIO {
 
     @Override
     public boolean advance() throws IOException {
-      String requestBody =
+      if (batch.size() > 0){
+        current = batch.remove(0);
+        return true;
+      }
+      else {
+        String requestBody =
           String.format(
-              "{\"scroll\" : \"%s\",\"scroll_id\" : \"%s\"}",
-              source.spec.getScrollKeepalive(), scrollId);
-      HttpEntity scrollEntity = new NStringEntity(requestBody, ContentType.APPLICATION_JSON);
-      Response response =
+            "{\"scroll\" : \"%s\",\"scroll_id\" : \"%s\"}",
+            source.spec.getScrollKeepalive(), scrollId);
+        HttpEntity scrollEntity = new NStringEntity(requestBody, ContentType.APPLICATION_JSON);
+        Response response =
           restClient.performRequest(
-              "GET",
-              "/_search/scroll",
-              Collections.<String, String>emptyMap(),
-              scrollEntity,
-              new BasicHeader("", ""));
-      JsonObject searchResult = parseResponse(response);
-      updateScrollId(searchResult);
-      return updateCurrent(searchResult);
+            "GET",
+            "/_search/scroll",
+            Collections.<String, String>emptyMap(),
+            scrollEntity,
+            new BasicHeader("", ""));
+        JsonObject searchResult = parseResponse(response);
+        updateScrollId(searchResult);
+        return updateBatchAndReadFirstDocument(searchResult);
+      }
     }
 
-    private boolean updateCurrent(JsonObject searchResult) {
+    private boolean updateBatchAndReadFirstDocument(JsonObject searchResult) {
       //stop if no more data
       if (searchResult.getAsJsonObject("hits").getAsJsonArray("hits").size() == 0) {
         current = null;
+        batch.clear();
         return false;
       }
-      current =
-          searchResult
-              .getAsJsonObject("hits")
-              .getAsJsonArray("hits")
-              .get(0)
-              .getAsJsonObject()
-              .getAsJsonObject("_source")
-              .toString();
+      JsonArray hits = searchResult
+        .getAsJsonObject("hits")
+        .getAsJsonArray("hits");
+      for (JsonElement hit:hits){
+        String document = hit.getAsJsonObject()
+          .getAsJsonObject("_source")
+          .toString();
+        batch.add(document);
+      }
+
+      current = batch.remove(0);
       return true;
     }
 

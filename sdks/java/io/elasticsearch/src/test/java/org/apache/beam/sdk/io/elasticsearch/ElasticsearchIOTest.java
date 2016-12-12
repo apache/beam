@@ -201,7 +201,13 @@ public class ElasticsearchIOTest implements Serializable {
     TestPipeline pipeline = TestPipeline.create();
 
     PCollection<String> output =
-        pipeline.apply(ElasticsearchIO.read().withConnectionConfiguration(connectionConfiguration));
+        pipeline.apply(
+            ElasticsearchIO.read()
+                .withConnectionConfiguration(connectionConfiguration)
+                //set to default value, usefull just to test parameter passing.
+                .withScrollKeepalive("5m")
+              //set to default value, usefull just to test parameter passing.
+                .withBatchSize(100L));
     PAssert.thatSingleton(output.apply("Count", Count.<String>globally())).isEqualTo(NUM_DOCS);
     pipeline.run();
   }
@@ -261,9 +267,9 @@ public class ElasticsearchIOTest implements Serializable {
   @Test
   public void testWriteWithErrors() throws Exception {
     ElasticsearchIO.Write write =
-      ElasticsearchIO.write()
-        .withConnectionConfiguration(connectionConfiguration)
-        .withMaxBatchSize(BATCH_SIZE);
+        ElasticsearchIO.write()
+            .withConnectionConfiguration(connectionConfiguration)
+            .withMaxBatchSize(BATCH_SIZE);
     ElasticsearchIO.Write.WriterFn writerFn = new ElasticsearchIO.Write.WriterFn(write);
     // write bundles size is the runner decision, we cannot force a bundle size,
     // so we test the Writer as a DoFn outside of a runner.
@@ -310,9 +316,9 @@ public class ElasticsearchIOTest implements Serializable {
   @Test
   public void testWriteWithBatchSizeMegaBytes() throws Exception {
     ElasticsearchIO.Write write =
-      ElasticsearchIO.write()
-        .withConnectionConfiguration(connectionConfiguration)
-        .withMaxBatchSizeMegaBytes(BATCH_SIZE_MEGABYTES);
+        ElasticsearchIO.write()
+            .withConnectionConfiguration(connectionConfiguration)
+            .withMaxBatchSizeMegaBytes(BATCH_SIZE_MEGABYTES);
     // write bundles size is the runner decision, we cannot force a bundle size,
     // so we test the Writer as a DoFn outside of a runner.
     ElasticsearchIO.Write.WriterFn writerFn = new ElasticsearchIO.Write.WriterFn(write);
@@ -326,9 +332,8 @@ public class ElasticsearchIOTest implements Serializable {
     // there should be only one bundle because minimum BATCH_SIZE_MEGABYTES is 1MB,
     // and 400 docs represent 10kB. To have more than 1 bundle, we should insert
     // more than 40 000 docs which is not reasonable in a unit test.
-    int numWriteBundles = (int) (
-      NUM_DOCS * AVERAGE_DOC_SIZE / (BATCH_SIZE_MEGABYTES * 1024L * 1024L)
-    );
+    int numWriteBundles =
+        (int) (NUM_DOCS * AVERAGE_DOC_SIZE / (BATCH_SIZE_MEGABYTES * 1024L * 1024L));
     // +1 because doFnTester calls finishBundle at the end
     verify(spy, times(numWriteBundles + 1)).finishBundle(Matchers.any(DoFn.Context.class));
   }
