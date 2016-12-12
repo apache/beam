@@ -153,8 +153,11 @@ public class BigqueryMatcher extends TypeSafeMatcher<PipelineResult>
   QueryResponse queryWithRetries(Bigquery bigqueryClient, QueryRequest queryContent,
                                  Sleeper sleeper, BackOff backOff)
       throws IOException, InterruptedException {
-    IOException lastException;
+    IOException lastException = null;
     do {
+      if (lastException != null) {
+        LOG.warn("Retrying query ({}) after exception", queryContent.getQuery(), lastException);
+      }
       try {
         QueryResponse response = bigqueryClient.jobs().query(projectId, queryContent).execute();
         if (response != null) {
@@ -165,14 +168,15 @@ public class BigqueryMatcher extends TypeSafeMatcher<PipelineResult>
         }
       } catch (IOException e) {
         // ignore and retry
-        LOG.warn("Ignore the error and retry the query.");
         lastException = e;
       }
     } while(BackOffUtils.next(sleeper, backOff));
 
     throw new RuntimeException(
         String.format(
-            "Unable to get BigQuery response after retrying %d times.", MAX_QUERY_RETRIES),
+            "Unable to get BigQuery response after retrying %d times using query (%s)",
+            MAX_QUERY_RETRIES,
+            queryContent.getQuery()),
         lastException);
   }
 
