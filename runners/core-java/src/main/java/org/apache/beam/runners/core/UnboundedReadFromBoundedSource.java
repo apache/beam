@@ -118,6 +118,11 @@ public class UnboundedReadFromBoundedSource<T> extends PTransform<PBegin, PColle
   public static class BoundedToUnboundedSourceAdapter<T>
       extends UnboundedSource<T, BoundedToUnboundedSourceAdapter.Checkpoint<T>> {
 
+    @SuppressWarnings("unused") // for Kryo
+    private BoundedToUnboundedSourceAdapter() {
+      this.boundedSource = null;
+    }
+
     private BoundedSource<T> boundedSource;
 
     public BoundedToUnboundedSourceAdapter(BoundedSource<T> boundedSource) {
