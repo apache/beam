@@ -47,6 +47,7 @@ class ParDoEvaluator<InputT, OutputT> implements TransformEvaluator<InputT> {
       AppliedPTransform<?, ?, ?> application,
       WindowingStrategy<?, ? extends BoundedWindow> windowingStrategy,
       Serializable fn, // may be OldDoFn or DoFn
+      StructuralKey<?> key,
       List<PCollectionView<?>> sideInputs,
       TupleTag<OutputT> mainOutputTag,
       List<TupleTag<?>> sideOutputTags,
@@ -55,8 +56,16 @@ class ParDoEvaluator<InputT, OutputT> implements TransformEvaluator<InputT> {
 
     Map<TupleTag<?>, UncommittedBundle<?>> outputBundles = new HashMap<>();
     for (Map.Entry<TupleTag<?>, PCollection<?>> outputEntry : outputs.entrySet()) {
-      outputBundles.put(
-          outputEntry.getKey(), evaluationContext.createBundle(outputEntry.getValue()));
+      // Just trust the context's decision as to whether the output should be keyed.
+      // The logic for whether this ParDo is key-preserving and whether the input
+      // is keyed lives elsewhere.
+      if (evaluationContext.isKeyed(outputEntry.getValue())) {
+        outputBundles.put(
+            outputEntry.getKey(), evaluationContext.createKeyedBundle(key, outputEntry.getValue()));
+      } else {
+        outputBundles.put(
+            outputEntry.getKey(), evaluationContext.createBundle(outputEntry.getValue()));
+      }
     }
     BundleOutputManager outputManager = BundleOutputManager.create(outputBundles);
 

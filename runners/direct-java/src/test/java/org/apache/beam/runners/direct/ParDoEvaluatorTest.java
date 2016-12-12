@@ -161,6 +161,7 @@ public class ParDoEvaluatorTest {
         transform,
         transform.getInput().getWindowingStrategy(),
         fn,
+        null /* key */,
         ImmutableList.<PCollectionView<?>>of(singletonView),
         mainOutputTag,
         sideOutputTags,
