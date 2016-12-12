@@ -24,7 +24,6 @@ import static com.google.common.base.Preconditions.checkState;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.api.client.json.JsonFactory;
-import com.google.api.services.bigquery.Bigquery;
 import com.google.api.services.bigquery.model.Job;
 import com.google.api.services.bigquery.model.JobConfigurationExtract;
 import com.google.api.services.bigquery.model.JobConfigurationLoad;
@@ -33,6 +32,7 @@ import com.google.api.services.bigquery.model.JobConfigurationTableCopy;
 import com.google.api.services.bigquery.model.JobReference;
 import com.google.api.services.bigquery.model.JobStatistics;
 import com.google.api.services.bigquery.model.JobStatus;
+import com.google.api.services.bigquery.model.Table;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
@@ -84,6 +84,8 @@ import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.io.AvroSource;
 import org.apache.beam.sdk.io.BoundedSource;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.WriteDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.DatasetService;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.JobService;
 import org.apache.beam.sdk.options.BigQueryOptions;
@@ -2471,8 +2473,9 @@ public class BigQueryIO {
   /**
    * Implementation of DoFn to perform streaming BigQuery write.
    */
+  @VisibleForTesting
   @SystemDoFnInternal
-  private static class StreamingWriteFn
+  static class StreamingWriteFn
       extends DoFn<KV<ShardedKey<String>, TableRowInfo>, Void> {
     /** TableSchema in JSON. Use String to make the class Serializable. */
     private final String jsonTableSchema;
@@ -2541,7 +2544,7 @@ public class BigQueryIO {
     }
 
     public TableReference getOrCreateTable(BigQueryOptions options, String tableSpec)
-        throws IOException {
+        throws Exception {
       TableReference tableReference = parseTableSpec(tableSpec);
       if (!createdTables.contains(tableSpec)) {
         synchronized (createdTables) {
@@ -2550,15 +2553,82 @@ public class BigQueryIO {
           // every thread from attempting a create and overwhelming our BigQuery quota.
           if (!createdTables.contains(tableSpec)) {
             TableSchema tableSchema = JSON_FACTORY.fromString(jsonTableSchema, TableSchema.class);
-            Bigquery client = Transport.newBigQueryClient(options).build();
-            BigQueryTableInserter inserter = new BigQueryTableInserter(client, options);
-            inserter.getOrCreateTable(tableReference, Write.WriteDisposition.WRITE_APPEND,
-                Write.CreateDisposition.CREATE_IF_NEEDED, tableSchema);
+            getOrCreateTable(
+                bqServices.getDatasetService(options),
+                tableReference,
+                WriteDisposition.WRITE_APPEND,
+                CreateDisposition.CREATE_IF_NEEDED,
+                tableSchema);
             createdTables.add(tableSpec);
           }
         }
       }
       return tableReference;
+    }
+
+    /**
+     * Retrieves or creates the table.
+     *
+     * <p>The table is checked to conform to insertion requirements as specified
+     * by WriteDisposition and CreateDisposition.
+     *
+     * <p>If table truncation is requested (WriteDisposition.WRITE_TRUNCATE), then
+     * this will re-create the table if necessary to ensure it is empty.
+     *
+     * <p>If an empty table is required (WriteDisposition.WRITE_EMPTY), then this
+     * will fail if the table exists and is not empty.
+     *
+     * <p>When constructing a table, a {@code TableSchema} must be available.  If a
+     * schema is provided, then it will be used.  If no schema is provided, but
+     * an existing table is being cleared (WRITE_TRUNCATE option above), then
+     * the existing schema will be re-used.  If no schema is available, then an
+     * {@code IOException} is thrown.
+     */
+    static void getOrCreateTable(
+        DatasetService datasetService,
+        TableReference ref,
+        WriteDisposition writeDisposition,
+        CreateDisposition createDisposition,
+        @Nullable TableSchema schema) throws IOException, InterruptedException {
+      // Check if table already exists.
+      Table table = datasetService.getTable(
+          ref.getProjectId(), ref.getDatasetId(), ref.getTableId());
+
+      if (table == null) {
+        if (createDisposition == CreateDisposition.CREATE_IF_NEEDED) {
+          checkNotNull(schema, "Table schema required for new table.");
+          datasetService.createTable(new Table().setTableReference(ref).setSchema(schema));
+        } else {
+          throw new IllegalStateException(String.format(
+              "Table is not found: %s, and CreateDisposition is not CREATE_IF_NEEDED", ref));
+        }
+      } else {
+        if (writeDisposition == WriteDisposition.WRITE_APPEND) {
+          return;
+        }
+        boolean empty =
+            datasetService.isTableEmpty(ref.getProjectId(), ref.getDatasetId(), ref.getTableId());
+        if (writeDisposition == WriteDisposition.WRITE_EMPTY && empty) {
+          return;
+        } else if (writeDisposition == WriteDisposition.WRITE_EMPTY && !empty) {
+          throw new IOException(
+              String.format("WriteDisposition is WRITE_EMPTY, but table: %s is not empty", ref));
+        } else if (writeDisposition == WriteDisposition.WRITE_TRUNCATE && empty) {
+          LOG.info("Empty table found, not removing {}", BigQueryIO.toTableSpec(ref));
+          return;
+        } else if (writeDisposition == WriteDisposition.WRITE_EMPTY && empty) {
+          return;
+        } else if (writeDisposition == WriteDisposition.WRITE_TRUNCATE && !empty) {
+          // Reuse the existing schema if none was provided.
+          if (schema == null) {
+            schema = table.getSchema();
+          }
+          checkNotNull(schema, "Table schema required for new table.");
+          // Delete table and fall through to re-creating it below.
+          LOG.info("Deleting table {}", BigQueryIO.toTableSpec(ref));
+          datasetService.deleteTable(ref.getProjectId(), ref.getDatasetId(), ref.getTableId());
+        }
+      }
     }
 
     /**

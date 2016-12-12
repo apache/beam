@@ -32,6 +32,7 @@ import static org.mockito.Matchers.anyString;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.google.api.client.json.GenericJson;
@@ -98,6 +99,7 @@ import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.BigQueryTableSource;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.PassThroughThenCleanup;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.PassThroughThenCleanup.CleanupOperation;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Status;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.StreamingWriteFn;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.TransformingSource;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.TableRowWriter;
@@ -508,6 +510,11 @@ public class BigQueryIOTest implements Serializable {
           datasetId,
           tableId,
           FakeDatasetService.class.getSimpleName());
+    }
+
+    @Override
+    public void createTable(Table table) throws InterruptedException, IOException {
+      throw new UnsupportedOperationException("Unsupported");
     }
 
     @Override
@@ -1440,7 +1447,7 @@ public class BigQueryIOTest implements Serializable {
     BoundedSource<TableRow> actual = sources.get(0);
     assertThat(actual, CoreMatchers.instanceOf(TransformingSource.class));
 
-    Mockito.verify(mockJobService)
+    verify(mockJobService)
         .startExtractJob(Mockito.<JobReference>any(), Mockito.<JobConfigurationExtract>any());
   }
 
@@ -1522,12 +1529,12 @@ public class BigQueryIOTest implements Serializable {
     BoundedSource<TableRow> actual = sources.get(0);
     assertThat(actual, CoreMatchers.instanceOf(TransformingSource.class));
 
-    Mockito.verify(mockJobService)
+    verify(mockJobService)
         .startQueryJob(
             Mockito.<JobReference>any(), Mockito.<JobConfigurationQuery>any());
-    Mockito.verify(mockJobService)
+    verify(mockJobService)
         .startExtractJob(Mockito.<JobReference>any(), Mockito.<JobConfigurationExtract>any());
-    Mockito.verify(mockDatasetService)
+    verify(mockDatasetService)
         .createDataset(anyString(), anyString(), anyString(), anyString());
     ArgumentCaptor<JobConfigurationQuery> queryConfigArg =
         ArgumentCaptor.forClass(JobConfigurationQuery.class);
@@ -1970,6 +1977,7 @@ public class BigQueryIOTest implements Serializable {
   }
 
   private class WriteExtractFiles implements SerializableFunction<GenericJson, Void> {
+
     private final SerializableFunction<Void, Schema> schemaGenerator;
     private final Collection<Map<String, Object>> records;
 
@@ -2003,6 +2011,69 @@ public class BigQueryIOTest implements Serializable {
         }
       }
       return null;
+    }
+  }
+
+  @Test
+  public void testStreamingWriteAppend() throws Exception {
+    when(mockDatasetService.getTable(anyString(), anyString(), anyString()))
+        .thenReturn(new Table());
+    TableReference ref = BigQueryIO
+        .parseTableSpec("project:dataset.table");
+
+    StreamingWriteFn.getOrCreateTable(
+        mockDatasetService,
+        ref,
+        BigQueryIO.Write.WriteDisposition.WRITE_APPEND,
+        BigQueryIO.Write.CreateDisposition.CREATE_NEVER,
+        null);
+
+    verify(mockDatasetService).getTable(anyString(), anyString(), anyString());
+  }
+
+  @Test
+  public void testStreamingWriteEmpty() throws Exception {
+    when(mockDatasetService.getTable(anyString(), anyString(), anyString()))
+        .thenReturn(new Table());
+    when(mockDatasetService.isTableEmpty(anyString(), anyString(), anyString()))
+        .thenReturn(true);
+
+    TableReference ref = BigQueryIO
+        .parseTableSpec("project:dataset.table");
+
+    StreamingWriteFn.getOrCreateTable(
+        mockDatasetService,
+        ref,
+        BigQueryIO.Write.WriteDisposition.WRITE_EMPTY,
+        BigQueryIO.Write.CreateDisposition.CREATE_NEVER,
+        null);
+
+    verify(mockDatasetService).getTable(anyString(), anyString(), anyString());
+    verify(mockDatasetService).isTableEmpty(anyString(), anyString(), anyString());
+  }
+
+  @Test
+  public void testStreamingWriteEmptyFail() throws Exception {
+    when(mockDatasetService.getTable(anyString(), anyString(), anyString()))
+        .thenReturn(new Table());
+    when(mockDatasetService.isTableEmpty(anyString(), anyString(), anyString()))
+        .thenReturn(false);
+
+    thrown.expect(IOException.class);
+
+    TableReference ref = BigQueryIO
+        .parseTableSpec("project:dataset.table");
+
+    try {
+      StreamingWriteFn.getOrCreateTable(
+          mockDatasetService,
+          ref,
+          BigQueryIO.Write.WriteDisposition.WRITE_EMPTY,
+          BigQueryIO.Write.CreateDisposition.CREATE_NEVER,
+          null);
+    } finally {
+      verify(mockDatasetService).getTable(anyString(), anyString(), anyString());
+      verify(mockDatasetService).isTableEmpty(anyString(), anyString(), anyString());
     }
   }
 }
