@@ -86,7 +86,7 @@ public class SourceDStream<T, CheckpointMarkT extends UnboundedSource.Checkpoint
         unboundedSource, boundReadDuration, initialParallelism, rateControlledMaxRecords(), -1,
         id());
     RDD<scala.Tuple2<Source<T>, CheckpointMarkT>> rdd = new SourceRDD.Unbounded<>(
-        ssc().sc(), runtimeContext, microbatchSource);
+        ssc().sc(), runtimeContext, microbatchSource, initialParallelism);
     return scala.Option.apply(rdd);
   }
 

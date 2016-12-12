@@ -30,8 +30,10 @@ import org.apache.beam.sdk.io.Source;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.spark.Dependency;
+import org.apache.spark.HashPartitioner;
 import org.apache.spark.InterruptibleIterator;
 import org.apache.spark.Partition;
+import org.apache.spark.Partitioner;
 import org.apache.spark.SparkContext;
 import org.apache.spark.TaskContext;
 import org.apache.spark.api.java.JavaSparkContext$;
@@ -39,6 +41,7 @@ import org.apache.spark.rdd.RDD;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import scala.Option;
 
 
 /**
@@ -215,6 +218,7 @@ public class SourceRDD {
         UnboundedSource.CheckpointMark> extends RDD<scala.Tuple2<Source<T>, CheckpointMarkT>> {
     private final MicrobatchSource<T, CheckpointMarkT> microbatchSource;
     private final SparkRuntimeContext runtimeContext;
+    private final int defaultParallelim;
 
     // to satisfy Scala API.
     private static final scala.collection.immutable.List<Dependency<?>> NIL =
@@ -223,11 +227,13 @@ public class SourceRDD {
 
     public Unbounded(SparkContext sc,
                      SparkRuntimeContext runtimeContext,
-                     MicrobatchSource<T, CheckpointMarkT> microbatchSource) {
+                     MicrobatchSource<T, CheckpointMarkT> microbatchSource,
+                     int defaultParallelim){
       super(sc, NIL,
           JavaSparkContext$.MODULE$.<scala.Tuple2<Source<T>, CheckpointMarkT>>fakeClassTag());
       this.runtimeContext = runtimeContext;
       this.microbatchSource = microbatchSource;
+      this.defaultParallelim = defaultParallelim;
     }
 
     @Override
@@ -235,10 +241,16 @@ public class SourceRDD {
       try {
         List<? extends Source<T>> partitionedSources = microbatchSource.splitIntoBundles(
             -1 /* ignored */, runtimeContext.getPipelineOptions());
-        Partition[] partitions = new CheckpointableSourcePartition[partitionedSources.size()];
-        for (int i = 0; i < partitionedSources.size(); i++) {
-          partitions[i] = new CheckpointableSourcePartition<>(id(), i, partitionedSources.get(i),
-              EmptyCheckpointMark.get());
+        // number of partitions has to match the partitioner.
+        // we know defaultParallelism >= partitionedSources.size()
+        Partition[] partitions = new CheckpointableSourcePartition[defaultParallelim];
+        for (int i = 0; i < defaultParallelim; i++) {
+          if (i < partitionedSources.size()) {
+            partitions[i] = new CheckpointableSourcePartition<>(id(), i, partitionedSources.get(i),
+                EmptyCheckpointMark.get());
+          } else {
+            partitions[i] = new CheckpointableSourcePartition<>(id(), i, null, null);
+          }
         }
         return partitions;
       } catch (Exception e) {
@@ -247,15 +259,27 @@ public class SourceRDD {
     }
 
     @Override
+    public Option<Partitioner> partitioner() {
+      // setting the partitioner helps to "keep" the same partitioner in the following
+      // mapWithState read for Read.Unbounded, preventing a post-mapWithState shuffle.
+      Partitioner partitioner = new HashPartitioner(defaultParallelim);
+      return scala.Some.apply(partitioner);
+    }
+
+    @Override
     public scala.collection.Iterator<scala.Tuple2<Source<T>, CheckpointMarkT>>
     compute(Partition split, TaskContext context) {
       @SuppressWarnings("unchecked")
       CheckpointableSourcePartition<T, CheckpointMarkT> partition =
           (CheckpointableSourcePartition<T, CheckpointMarkT>) split;
-      scala.Tuple2<Source<T>, CheckpointMarkT> tuple2 =
-          new scala.Tuple2<>(partition.getSource(), partition.checkpointMark);
+      if (partition.getSource() != null) {
+        scala.Tuple2<Source<T>, CheckpointMarkT> tuple2 =
+            new scala.Tuple2<>(partition.getSource(), partition.checkpointMark);
+        return scala.collection.JavaConversions.asScalaIterator(
+            Collections.singleton(tuple2).iterator());
+      }
       return scala.collection.JavaConversions.asScalaIterator(
-          Collections.singleton(tuple2).iterator());
+          Collections.<scala.Tuple2<Source<T>, CheckpointMarkT>>emptyList().iterator());
     }
   }
 
