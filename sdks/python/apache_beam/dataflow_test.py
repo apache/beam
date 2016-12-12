@@ -176,7 +176,9 @@ class DataflowTest(unittest.TestCase):
     assert_that(result, equal_to([(1, 'empty'), (2, 'empty')]))
     pipeline.run()
 
-  @attr('ValidatesRunner')
+  # @attr('ValidatesRunner')
+  # TODO(BEAM-1124): Temporarily disable it due to test failed running on
+  # Dataflow service.
   def test_multi_valued_singleton_side_input(self):
     pipeline = TestPipeline()
     pcol = pipeline | 'start' >> Create([1, 2])
