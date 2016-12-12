@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.util;
 
-import java.util.Arrays;
 import java.util.Objects;
 
 /**
@@ -62,7 +61,7 @@ public class UserCodeException extends RuntimeException {
    * of the current thread.
    */
   private void truncateStackTrace(Throwable t) {
-    StackTraceElement[] currentStack = Thread.currentThread().getStackTrace();
+   /*  StackTraceElement[] currentStack = Thread.currentThread().getStackTrace();
     StackTraceElement[] throwableStack = t.getStackTrace();
 
     int currentStackSize = currentStack.length;
@@ -84,7 +83,7 @@ public class UserCodeException extends RuntimeException {
 
     StackTraceElement[] truncatedStack = Arrays.copyOfRange(throwableStack, 0,
         throwableStackSize - commonFrames);
-    t.setStackTrace(truncatedStack);
+    t.setStackTrace(truncatedStack); */
   }
 
   /**
