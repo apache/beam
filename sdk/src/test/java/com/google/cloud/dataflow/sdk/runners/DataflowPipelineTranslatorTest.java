@@ -19,9 +19,9 @@ package com.google.cloud.dataflow.sdk.runners;
 import static com.google.cloud.dataflow.sdk.util.Structs.addObject;
 import static com.google.cloud.dataflow.sdk.util.Structs.getDictionary;
 import static com.google.cloud.dataflow.sdk.util.Structs.getString;
-
 import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.hasEntry;
 import static org.hamcrest.Matchers.hasKey;
 import static org.hamcrest.core.IsInstanceOf.instanceOf;
 import static org.junit.Assert.assertEquals;
@@ -60,6 +60,7 @@ import com.google.cloud.dataflow.sdk.transforms.ParDo;
 import com.google.cloud.dataflow.sdk.transforms.Sum;
 import com.google.cloud.dataflow.sdk.transforms.View;
 import com.google.cloud.dataflow.sdk.transforms.display.DisplayData;
+import com.google.cloud.dataflow.sdk.util.DataflowPathValidator;
 import com.google.cloud.dataflow.sdk.util.GcsUtil;
 import com.google.cloud.dataflow.sdk.util.OutputReference;
 import com.google.cloud.dataflow.sdk.util.PropertyNames;
@@ -91,7 +92,6 @@ import java.io.IOException;
 import java.io.Serializable;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -184,25 +184,23 @@ public class DataflowPipelineTranslatorTest implements Serializable {
             .translate(p, p.getRunner(), Collections.<DataflowPackage>emptyList())
             .getJob();
 
-    // Note that the contents of this materialized map may be changed by the act of reading an
-    // option, which will cause the default to get materialized whereas it would otherwise be
-    // left absent. It is permissible to simply alter this test to reflect current behavior.
-    Map<String, Object> settings = new HashMap<>();
-    settings.put("appName", "DataflowPipelineTranslatorTest");
-    settings.put("project", "some-project");
-    settings.put("pathValidatorClass", "com.google.cloud.dataflow.sdk.util.DataflowPathValidator");
-    settings.put("runner", "com.google.cloud.dataflow.sdk.runners.DataflowPipelineRunner");
-    settings.put("jobName", "some-job-name");
-    settings.put("tempLocation", "gs://somebucket/some/path");
-    settings.put("stagingLocation", "gs://somebucket/some/path/staging");
-    settings.put("stableUniqueNames", "WARNING");
-    settings.put("streaming", false);
-    settings.put("numberOfWorkerHarnessThreads", 0);
-    settings.put("experiments", null);
-
     Map<String, Object> sdkPipelineOptions = job.getEnvironment().getSdkPipelineOptions();
     assertThat(sdkPipelineOptions, hasKey("options"));
-    assertEquals(settings, sdkPipelineOptions.get("options"));
+    Map<String, Object> optionsMap = (Map<String, Object>) sdkPipelineOptions.get("options");
+
+    assertThat(optionsMap, hasEntry("appName", (Object) "DataflowPipelineTranslatorTest"));
+    assertThat(optionsMap, hasEntry("project", (Object) "some-project"));
+    assertThat(optionsMap,
+        hasEntry("pathValidatorClass", (Object) DataflowPathValidator.class.getName()));
+    assertThat(optionsMap,
+        hasEntry("runner", (Object) DataflowPipelineRunner.class.getName()));
+    assertThat(optionsMap, hasEntry("jobName", (Object) "some-job-name"));
+    assertThat(optionsMap, hasEntry("tempLocation", (Object) "gs://somebucket/some/path"));
+    assertThat(optionsMap,
+        hasEntry("stagingLocation", (Object) "gs://somebucket/some/path/staging"));
+    assertThat(optionsMap, hasEntry("stableUniqueNames", (Object) "WARNING"));
+    assertThat(optionsMap, hasEntry("streaming", (Object) false));
+    assertThat(optionsMap, hasEntry("numberOfWorkerHarnessThreads", (Object) 0));
   }
 
   @Test

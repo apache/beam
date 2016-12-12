@@ -275,6 +275,14 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
     if (dataflowOptions.getTempLocation() != null) {
       validator.validateOutputFilePrefixSupported(dataflowOptions.getTempLocation());
     }
+    if (!Strings.isNullOrEmpty(dataflowOptions.getSaveProfilesToGcs())) {
+      validator.validateOutputFilePrefixSupported(dataflowOptions.getSaveProfilesToGcs());
+    }
+    if (dataflowOptions.getEnableProfilingAgent()) {
+      LOG.error("--enableProfilingAgent is no longer supported, and will be ignored. "
+          + "Use --saveProfilesToGcs instead.");
+    }
+
     if (Strings.isNullOrEmpty(dataflowOptions.getTempLocation())) {
       dataflowOptions.setTempLocation(dataflowOptions.getStagingLocation());
     } else if (Strings.isNullOrEmpty(dataflowOptions.getStagingLocation())) {
