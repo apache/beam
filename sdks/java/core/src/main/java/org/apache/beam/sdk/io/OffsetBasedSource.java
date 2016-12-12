@@ -217,7 +217,7 @@ public abstract class OffsetBasedSource<T> extends BoundedSource<T> {
    */
   public abstract static class OffsetBasedReader<T> extends BoundedReader<T> {
     private static final Logger LOG = LoggerFactory.getLogger(OffsetBasedReader.class);
-    private OffsetBasedSource<T> source;
+    protected OffsetBasedSource<T> source;
 
     /**
      * Returns true if the last call to {@link #start} or {@link #advance} returned false.

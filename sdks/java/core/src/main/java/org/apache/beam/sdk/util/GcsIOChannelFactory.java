@@ -62,9 +62,14 @@ public class GcsIOChannelFactory implements IOChannelFactory {
 
   @Override
   public ReadableByteChannel open(String spec) throws IOException {
+    return open(spec, 0 /* startingPosition */);
+  }
+
+  @Override
+  public ReadableByteChannel open(String spec, long startingPosition) throws IOException {
     GcsPath path = GcsPath.fromUri(spec);
     GcsUtil util = options.getGcsUtil();
-    return util.open(path);
+    return util.open(path).position(startingPosition);
   }
 
   @Override
@@ -80,12 +85,6 @@ public class GcsIOChannelFactory implements IOChannelFactory {
     GcsPath path = GcsPath.fromUri(spec);
     GcsUtil util = options.getGcsUtil();
     return util.fileSize(path);
-  }
-
-  @Override
-  public boolean isReadSeekEfficient(String spec) throws IOException {
-    // TODO It is incorrect to return true here for files with content encoding set to gzip.
-    return true;
   }
 
   @Override

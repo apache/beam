@@ -94,8 +94,9 @@ public class FileIOChannelFactoryTest {
     File existingFile = temporaryFolder.newFile();
     Files.write(expected, existingFile, StandardCharsets.UTF_8);
     String data;
-    try (Reader reader =
-        Channels.newReader(factory.open(existingFile.getPath()), StandardCharsets.UTF_8.name())) {
+    try (Reader reader = Channels.newReader(
+        factory.open(existingFile.getPath(), 0 /* startingPosition */),
+        StandardCharsets.UTF_8.name())) {
       data = new LineReader(reader).readLine();
     }
     assertEquals(expected, data);
@@ -110,13 +111,9 @@ public class FileIOChannelFactoryTest {
                 .getRoot()
                 .toPath()
                 .resolve("non-existent-file.txt")
-                .toString())
+                .toString(),
+            0 /* startingPosition */)
         .close();
-  }
-
-  @Test
-  public void testIsReadSeekEfficient() throws Exception {
-    assertTrue(factory.isReadSeekEfficient("somePath"));
   }
 
   @Test

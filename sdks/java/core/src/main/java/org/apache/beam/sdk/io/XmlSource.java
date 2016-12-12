@@ -317,8 +317,7 @@ public class XmlSource<T> extends FileBasedSource<T> {
     @Override
     protected void startReading(ReadableByteChannel channel) throws IOException {
       // This method determines the correct starting offset of the first record by reading bytes
-      // from the ReadableByteChannel. This implementation does not need the channel to be a
-      // SeekableByteChannel.
+      // from the ReadableByteChannel.
       // The method tries to determine the first record element in the byte channel. The first
       // record must start with the characters "<recordElement" where "recordElement" is the
       // record element of the XML document described above. For the match to be complete this

@@ -28,7 +28,6 @@ import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
 import java.io.IOException;
 import java.nio.channels.ReadableByteChannel;
-import java.nio.channels.SeekableByteChannel;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -319,8 +318,8 @@ public abstract class FileBasedSource<T> extends OffsetBasedSource<T> {
       long desiredBundleSizeBytes, PipelineOptions options) throws Exception {
     // This implementation of method splitIntoBundles is provided to simplify subclasses. Here we
     // split a FileBasedSource based on a file pattern to FileBasedSources based on full single
-    // files. For files that can be efficiently seeked, we further split FileBasedSources based on
-    // those files to FileBasedSources based on sub ranges of single files.
+    // files. Then, we further split FileBasedSources based on those files
+    // to FileBasedSources based on sub ranges of single files.
 
     if (mode == Mode.FILEPATTERN) {
       long startTime = System.currentTimeMillis();
@@ -352,8 +351,7 @@ public abstract class FileBasedSource<T> extends OffsetBasedSource<T> {
         }
         return splitResults;
       } else {
-        LOG.debug("The source for file {} is not split into sub-range based sources since "
-            + "the file is not seekable",
+        LOG.debug("The source for file {} is not split into sub-range based sources.",
             fileOrPatternSpec);
         return ImmutableList.of(this);
       }
@@ -363,17 +361,10 @@ public abstract class FileBasedSource<T> extends OffsetBasedSource<T> {
   /**
    * Determines whether a file represented by this source is can be split into bundles.
    *
-   * <p>By default, a file is splittable if it is on a file system that supports efficient read
-   * seeking. Subclasses may override to provide different behavior.
+   * <p>True by default. Subclasses may override to provide different behavior.
    */
   protected boolean isSplittable() throws Exception {
-    // We split a file-based source into subranges only if the file is efficiently seekable.
-    // If a file is not efficiently seekable it would be highly inefficient to create and read a
-    // source based on a subrange of that file.
-    checkState(fileOrPatternSpec.isAccessible(),
-        "isSplittable should only be called at runtime.");
-    IOChannelFactory factory = IOChannelUtils.getFactory(fileOrPatternSpec.get());
-    return factory.isReadSeekEfficient(fileOrPatternSpec.get());
+    return true;
   }
 
   @Override
@@ -467,15 +458,11 @@ public abstract class FileBasedSource<T> extends OffsetBasedSource<T> {
    * A {@link Source.Reader reader} that implements code common to readers of
    * {@code FileBasedSource}s.
    *
-   * <h2>Seekability</h2>
+   * <h2>starting position</h2>
    *
    * <p>This reader uses a {@link ReadableByteChannel} created for the file represented by the
-   * corresponding source to efficiently move to the correct starting position defined in the
-   * source. Subclasses of this reader should implement {@link #startReading} to get access to this
-   * channel. If the source corresponding to the reader is for a subrange of a file the
-   * {@code ReadableByteChannel} provided is guaranteed to be an instance of the type
-   * {@link SeekableByteChannel}, which may be used by subclass to traverse back in the channel to
-   * determine the correct starting position.
+   * corresponding source. Subclasses of this reader should implement {@link #getStartingPosition()}
+   * to specify the starting position of the {@link ReadableByteChannel}.
    *
    * <h2>Reading Records</h2>
    *
@@ -483,9 +470,7 @@ public abstract class FileBasedSource<T> extends OffsetBasedSource<T> {
    *
    * <p>Then {@code FileBasedReader} implements "reading a range [A, B)" in the following way.
    * <ol>
-   * <li>{@link #start} opens the file
-   * <li>{@link #start} seeks the {@code SeekableByteChannel} to A (reading offset ranges for
-   * non-seekable files is not supported) and calls {@code startReading()}
+   * <li>{@link #start} opens the file with {@link #getStartingPosition()}.
    * <li>{@link #start} calls {@link #advance} once, which, via {@link #readNextRecord},
    * locates the first record which is at a split point AND its offset is at or after A.
    * If this record is at or after B, {@link #advance} returns false and reading is finished.
@@ -518,25 +503,20 @@ public abstract class FileBasedSource<T> extends OffsetBasedSource<T> {
       return (FileBasedSource<T>) super.getCurrentSource();
     }
 
+    /**
+     * The starting position to begin read.
+     */
+    protected long getStartingPosition() {
+      return source.getStartOffset();
+    }
+
     @Override
     protected final boolean startImpl() throws IOException {
       FileBasedSource<T> source = getCurrentSource();
       IOChannelFactory factory = IOChannelUtils.getFactory(
         source.getFileOrPatternSpecProvider().get());
-      this.channel = factory.open(source.getFileOrPatternSpecProvider().get());
-
-      if (channel instanceof SeekableByteChannel) {
-        SeekableByteChannel seekChannel = (SeekableByteChannel) channel;
-        seekChannel.position(source.getStartOffset());
-      } else {
-        // Channel is not seekable. Must not be a subrange.
-        checkArgument(source.mode != Mode.SINGLE_FILE_OR_SUBRANGE,
-            "Subrange-based sources must only be defined for file types that support seekable "
-            + " read channels");
-        checkArgument(source.getStartOffset() == 0,
-            "Start offset %s is not zero but channel for reading the file is not seekable.",
-            source.getStartOffset());
-      }
+      this.channel =
+          factory.open(source.getFileOrPatternSpecProvider().get(), getStartingPosition());
 
       startReading(channel);
 
@@ -563,15 +543,12 @@ public abstract class FileBasedSource<T> extends OffsetBasedSource<T> {
 
     /**
      * Performs any initialization of the subclass of {@code FileBasedReader} that involves IO
-     * operations. Will only be invoked once and before that invocation the base class will seek the
-     * channel to the source's starting offset.
+     * operations. Will only be invoked once and before that invocation the base class will open the
+     * channel to the source's starting position.
      *
      * <p>Provided {@link ReadableByteChannel} is for the file represented by the source of this
      * reader. Subclass may use the {@code channel} to build a higher level IO abstraction, e.g., a
      * BufferedReader or an XML parser.
-     *
-     * <p>If the corresponding source is for a subrange of a file, {@code channel} is guaranteed to
-     * be an instance of the type {@link SeekableByteChannel}.
      *
      * <p>After this method is invoked the base class will not be reading data from the channel or
      * adjusting the position of the channel. But the base class is responsible for properly closing

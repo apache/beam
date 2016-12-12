@@ -30,7 +30,6 @@ import java.io.OutputStream;
 import java.nio.ByteBuffer;
 import java.nio.channels.Channels;
 import java.nio.channels.ReadableByteChannel;
-import java.nio.channels.SeekableByteChannel;
 import java.nio.channels.WritableByteChannel;
 import java.nio.charset.StandardCharsets;
 import java.util.NoSuchElementException;
@@ -994,19 +993,19 @@ public class TextIO {
       }
 
       @Override
+      protected long getStartingPosition() {
+        return Math.max(0, getCurrentSource().getStartOffset() - 1);
+      }
+
+      @Override
       protected void startReading(ReadableByteChannel channel) throws IOException {
         this.inChannel = channel;
         // If the first offset is greater than zero, we need to skip bytes until we see our
         // first separator.
         if (getCurrentSource().getStartOffset() > 0) {
-          checkState(channel instanceof SeekableByteChannel,
-              "%s only supports reading from a SeekableByteChannel when given a start offset"
-              + " greater than 0.", TextSource.class.getSimpleName());
-          long requiredPosition = getCurrentSource().getStartOffset() - 1;
-          ((SeekableByteChannel) channel).position(requiredPosition);
           findSeparatorBounds();
           buffer = buffer.substring(endOfSeparatorInBuffer);
-          startOfNextRecord = requiredPosition + endOfSeparatorInBuffer;
+          startOfNextRecord = getStartingPosition() + endOfSeparatorInBuffer;
           endOfSeparatorInBuffer = 0;
           startOfSeparatorInBuffer = 0;
         }
