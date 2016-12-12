@@ -104,8 +104,8 @@ class KeyedPValueTrackingVisitor implements PipelineVisitor {
     return keyedValues;
   }
 
-  // There are currently no key-preserving transforms; this lays the infrastructure for them
   private static boolean isKeyPreserving(PTransform<?, ?> transform) {
+    // There are currently no key-preserving transforms; this lays the infrastructure for them
     return false;
   }
 }
