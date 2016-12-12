@@ -340,7 +340,7 @@ public class DirectRunner extends PipelineRunner<DirectPipelineResult> {
       try {
         result.waitUntilFinish();
       } catch (UserCodeException userException) {
-        throw new PipelineExecutionException(userException);
+        throw new PipelineExecutionException(userException.getCause());
       } catch (Throwable t) {
         if (t instanceof RuntimeException) {
           throw (RuntimeException) t;
