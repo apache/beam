@@ -49,8 +49,10 @@ import com.google.api.services.bigquery.model.JobStatus;
 import com.google.api.services.bigquery.model.Table;
 import com.google.api.services.bigquery.model.TableDataInsertAllResponse;
 import com.google.api.services.bigquery.model.TableDataInsertAllResponse.InsertErrors;
+import com.google.api.services.bigquery.model.TableFieldSchema;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableRow;
+import com.google.api.services.bigquery.model.TableSchema;
 import com.google.cloud.hadoop.util.ApiErrorExtractor;
 import com.google.cloud.hadoop.util.RetryBoundedBackOff;
 import com.google.common.collect.ImmutableList;
@@ -328,7 +330,7 @@ public class BigQueryServicesImplTest {
         bigquery.tables().get("projectId", "datasetId", "tableId"),
         "Failed to get table.",
         Sleeper.DEFAULT,
-        BackOff.STOP_BACKOFF);
+        BackOff.STOP_BACKOFF, null);
 
     assertEquals(testTable, table);
     verify(response, times(1)).getStatusCode();
@@ -493,6 +495,7 @@ public class BigQueryServicesImplTest {
     GoogleJsonError error = new GoogleJsonError();
     error.setErrors(ImmutableList.of(info));
     error.setCode(status);
+    error.setMessage(reason);
     // The actual JSON response is an error container.
     GoogleJsonErrorContainer container = new GoogleJsonErrorContainer();
     container.setError(error);
@@ -501,8 +504,9 @@ public class BigQueryServicesImplTest {
 
   @Test
   public void testCreateTableSucceeds() throws IOException {
-    Table testTable = new Table().setDescription("a table");
-
+    TableReference ref =
+        new TableReference().setProjectId("project").setDatasetId("dataset").setTableId("table");
+    Table testTable = new Table().setTableReference(ref);
     when(response.getContentType()).thenReturn(Json.MEDIA_TYPE);
     when(response.getStatusCode()).thenReturn(200);
     when(response.getContent()).thenReturn(toStream(testTable));
@@ -511,9 +515,7 @@ public class BigQueryServicesImplTest {
         new BigQueryServicesImpl.DatasetServiceImpl(bigquery, PipelineOptionsFactory.create());
     Table ret =
         services.tryCreateTable(
-            new Table(),
-            "project",
-            "dataset",
+            testTable,
             new RetryBoundedBackOff(0, BackOff.ZERO_BACKOFF),
             Sleeper.DEFAULT);
     assertEquals(testTable, ret);
@@ -527,8 +529,9 @@ public class BigQueryServicesImplTest {
    */
   @Test
   public void testCreateTableDoesNotRetry() throws IOException {
-    Table testTable = new Table().setDescription("a table");
-
+    TableReference ref =
+        new TableReference().setProjectId("project").setDatasetId("dataset").setTableId("table");
+    Table testTable = new Table().setTableReference(ref);
     // First response is 403 not-rate-limited, second response has valid payload but should not
     // be invoked.
     when(response.getContentType()).thenReturn(Json.MEDIA_TYPE);
@@ -544,9 +547,7 @@ public class BigQueryServicesImplTest {
         new BigQueryServicesImpl.DatasetServiceImpl(bigquery, PipelineOptionsFactory.create());
     try {
       services.tryCreateTable(
-          new Table(),
-          "project",
-          "dataset",
+          testTable,
           new RetryBoundedBackOff(3, BackOff.ZERO_BACKOFF),
           Sleeper.DEFAULT);
       fail();
@@ -563,15 +564,20 @@ public class BigQueryServicesImplTest {
    */
   @Test
   public void testCreateTableSucceedsAlreadyExists() throws IOException {
+    TableReference ref =
+        new TableReference().setProjectId("project").setDatasetId("dataset").setTableId("table");
+    TableSchema schema = new TableSchema().setFields(ImmutableList.of(
+        new TableFieldSchema().setName("column1").setType("String"),
+        new TableFieldSchema().setName("column2").setType("Integer")));
+    Table testTable = new Table().setTableReference(ref).setSchema(schema);
+
     when(response.getStatusCode()).thenReturn(409); // 409 means already exists
 
     BigQueryServicesImpl.DatasetServiceImpl services =
         new BigQueryServicesImpl.DatasetServiceImpl(bigquery, PipelineOptionsFactory.create());
     Table ret =
         services.tryCreateTable(
-            new Table(),
-            "project",
-            "dataset",
+            testTable,
             new RetryBoundedBackOff(0, BackOff.ZERO_BACKOFF),
             Sleeper.DEFAULT);
 
@@ -602,8 +608,6 @@ public class BigQueryServicesImplTest {
     Table ret =
         services.tryCreateTable(
             testTable,
-            "project",
-            "dataset",
             new RetryBoundedBackOff(3, BackOff.ZERO_BACKOFF),
             Sleeper.DEFAULT);
     assertEquals(testTable, ret);

@@ -365,12 +365,9 @@ public class BigQueryUtilTest {
   public void testWriteAppend() throws InterruptedException, IOException {
     onTableGet(basicTableSchema());
 
-    TableReference ref = BigQueryIO
-        .parseTableSpec("project:dataset.table");
-
     BigQueryServicesImpl.DatasetServiceImpl services =
             new BigQueryServicesImpl.DatasetServiceImpl(mockClient, options);
-    services.getTable(ref);
+    services.getTable("project", "dataset", "table");
 
     verifyTableGet();
   }
@@ -382,13 +379,10 @@ public class BigQueryUtilTest {
     TableDataList dataList = new TableDataList().setTotalRows(0L);
     onTableList(dataList);
 
-    TableReference ref = BigQueryIO
-        .parseTableSpec("project:dataset.table");
-
     BigQueryServicesImpl.DatasetServiceImpl services =
             new BigQueryServicesImpl.DatasetServiceImpl(mockClient, options);
 
-    services.getTable(ref);
+    services.getTable("project", "dataset", "get");
 
     verifyTableGet();
   }

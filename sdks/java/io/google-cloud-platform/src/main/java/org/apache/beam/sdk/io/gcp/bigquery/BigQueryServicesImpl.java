@@ -60,6 +60,7 @@ import javax.annotation.Nullable;
 import org.apache.beam.sdk.options.BigQueryOptions;
 import org.apache.beam.sdk.options.GcsOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.util.FluentBackoff;
 import org.apache.beam.sdk.util.Transport;
 import org.joda.time.Duration;
@@ -284,7 +285,7 @@ class BigQueryServicesImpl implements BigQueryServices {
               "Unable to dry run query: %s, aborting after %d retries.",
               queryConfig, MAX_RPC_RETRIES),
           Sleeper.DEFAULT,
-          backoff).getStatistics();
+          backoff, null).getStatistics();
     }
 
     /**
@@ -403,29 +404,7 @@ class BigQueryServicesImpl implements BigQueryServices {
               "Unable to get table: %s, aborting after %d retries.",
               tableId, MAX_RPC_RETRIES),
           Sleeper.DEFAULT,
-          backoff);
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public Table getTable(TableReference tableRef) throws InterruptedException, IOException {
-      // Check if table already exists.
-      Bigquery.Tables.Get get = client.tables()
-          .get(tableRef.getProjectId(), tableRef.getDatasetId(), tableRef.getTableId());
-      Table table = null;
-      try {
-        table = get.execute();
-      } catch (IOException e) {
-        ApiErrorExtractor errorExtractor = new ApiErrorExtractor();
-        if (!errorExtractor.itemNotFound(e)) {
-          // Rethrow.
-          throw e;
-        }
-      }
-
-      return table;
+          backoff, DONT_RETRY_NOT_FOUND);
     }
 
     /**
@@ -443,32 +422,31 @@ class BigQueryServicesImpl implements BigQueryServices {
      * the existing table doesn't necessarily have the same schema as specified
      * by the parameter.
      *
-     * @param schema Schema of the new BigQuery table.
      * @throws IOException if other error than already existing table occurs.
      */
-    @Nullable
     @Override
-    public void createTable(TableReference ref, TableSchema schema) throws IOException {
-      LOG.info("Trying to create BigQuery table: {}", BigQueryIO.toTableSpec(ref));
+    public void createTable(Table table) throws InterruptedException, IOException {
+      LOG.info("Trying to create BigQuery table: {}",
+          BigQueryIO.toTableSpec(table.getTableReference()));
       BackOff backoff =
               new ExponentialBackOff.Builder()
                       .setMaxElapsedTimeMillis(RETRY_CREATE_TABLE_DURATION_MILLIS)
                       .build();
 
-      Table table = new Table().setTableReference(ref).setSchema(schema);
-      tryCreateTable(table, ref.getProjectId(), ref.getDatasetId(), backoff,
-          Sleeper.DEFAULT);
+      tryCreateTable(table, backoff, Sleeper.DEFAULT);
     }
 
     @VisibleForTesting
     @Nullable
-    Table tryCreateTable(
-            Table table, String projectId, String datasetId, BackOff backoff, Sleeper sleeper)
+    Table tryCreateTable(Table table, BackOff backoff, Sleeper sleeper)
             throws IOException {
       boolean retry = false;
       while (true) {
         try {
-          return client.tables().insert(projectId, datasetId, table).execute();
+          return client.tables().insert(
+              table.getTableReference().getProjectId(),
+              table.getTableReference().getDatasetId(),
+              table).execute();
         } catch (IOException e) {
           ApiErrorExtractor extractor = new ApiErrorExtractor();
           if (extractor.itemAlreadyExists(e)) {
@@ -481,8 +459,8 @@ class BigQueryServicesImpl implements BigQueryServices {
                 if (!retry) {
                   LOG.info(
                       "Quota limit reached when creating table {}:{}.{}, retrying up to {} minutes",
-                      projectId,
-                      datasetId,
+                      table.getTableReference().getProjectId(),
+                      table.getTableReference().getDatasetId(),
                       table.getTableReference().getTableId(),
                       TimeUnit.MILLISECONDS.toSeconds(RETRY_CREATE_TABLE_DURATION_MILLIS) / 60.0);
                   retry = true;
@@ -519,7 +497,7 @@ class BigQueryServicesImpl implements BigQueryServices {
               "Unable to delete table: %s, aborting after %d retries.",
               tableId, MAX_RPC_RETRIES),
           Sleeper.DEFAULT,
-          backoff);
+          backoff, null);
     }
 
     @Override
@@ -534,7 +512,7 @@ class BigQueryServicesImpl implements BigQueryServices {
               "Unable to list table data: %s, aborting after %d retries.",
               tableId, MAX_RPC_RETRIES),
           Sleeper.DEFAULT,
-          backoff);
+          backoff, null);
       return dataList.getRows() == null || dataList.getRows().isEmpty();
     }
 
@@ -557,7 +535,7 @@ class BigQueryServicesImpl implements BigQueryServices {
               "Unable to get dataset: %s, aborting after %d retries.",
               datasetId, MAX_RPC_RETRIES),
           Sleeper.DEFAULT,
-          backoff);
+          backoff, DONT_RETRY_NOT_FOUND);
     }
 
     /**
@@ -640,7 +618,7 @@ class BigQueryServicesImpl implements BigQueryServices {
               "Unable to delete table: %s, aborting after %d retries.",
               datasetId, MAX_RPC_RETRIES),
           Sleeper.DEFAULT,
-          backoff);
+          backoff, null);
     }
 
     @VisibleForTesting
@@ -843,12 +821,22 @@ class BigQueryServicesImpl implements BigQueryServices {
     }
   }
 
+  static SerializableFunction<IOException, Boolean> DONT_RETRY_NOT_FOUND =
+      new SerializableFunction<IOException, Boolean>() {
+        @Override
+        public Boolean apply(IOException input) {
+          ApiErrorExtractor errorExtractor = new ApiErrorExtractor();
+          return !errorExtractor.itemNotFound(input);
+        }
+      };
+
   @VisibleForTesting
   static <T> T executeWithRetries(
       AbstractGoogleClientRequest<T> request,
       String errorMessage,
       Sleeper sleeper,
-      BackOff backoff)
+      BackOff backoff,
+      SerializableFunction<IOException, Boolean> shouldRetry)
       throws IOException, InterruptedException {
     Exception lastException = null;
     do {
@@ -857,6 +845,9 @@ class BigQueryServicesImpl implements BigQueryServices {
       } catch (IOException e) {
         LOG.warn("Ignore the error and retry the request.", e);
         lastException = e;
+        if (shouldRetry != null && !shouldRetry.apply(e)) {
+          break;
+        }
       }
     } while (nextBackOff(sleeper, backoff));
     throw new IOException(

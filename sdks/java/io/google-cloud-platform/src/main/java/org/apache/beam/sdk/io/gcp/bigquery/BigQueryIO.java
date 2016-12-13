@@ -2650,11 +2650,15 @@ public class BigQueryIO {
           // check again. This check isn't needed for correctness, but we add it to prevent
           // every thread from attempting a create and overwhelming our BigQuery quota.
           if (!createdTables.contains(tableSpec)) {
-            Table table = bqServices.getDatasetService(options).getTable(tableReference);
+            Table table = bqServices.getDatasetService(options).getTable(
+                tableReference.getProjectId(),
+                tableReference.getDatasetId(),
+                tableReference.getTableId());
             if (table == null) {
               TableSchema tableSchema = JSON_FACTORY.fromString(
                   jsonTableSchema.get(), TableSchema.class);
-              bqServices.getDatasetService(options).createTable(tableReference, tableSchema);
+              bqServices.getDatasetService(options).createTable(
+                  new Table().setTableReference(tableReference).setSchema(tableSchema));
             }
             createdTables.add(tableSpec);
           }
