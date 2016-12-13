@@ -2136,7 +2136,8 @@ public class BigQueryIO {
       /** Returns the table reference, or {@code null}. */
       @Nullable
       public ValueProvider<TableReference> getTable() {
-        return NestedValueProvider.of(jsonTableRef, new JsonTableRefToTableRef());
+        return jsonTableRef == null ? null :
+            NestedValueProvider.of(jsonTableRef, new JsonTableRefToTableRef());
       }
 
       /** Returns {@code true} if table validation is enabled. */
@@ -2827,7 +2828,7 @@ public class BigQueryIO {
         SerializableFunction<BoundedWindow, TableReference> tableRefFunction) {
       checkArgument(table == null ^ tableRefFunction == null,
           "Exactly one of table or tableRefFunction should be set");
-      if (table != null) {
+      if (table != null && table.get() != null) {
         if (table.isAccessible() && table.get().getProjectId() == null) {
           table.get().setProjectId(options.as(BigQueryOptions.class).getProject());
         }

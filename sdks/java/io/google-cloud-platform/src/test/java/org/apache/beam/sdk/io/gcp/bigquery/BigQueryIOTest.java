@@ -2257,32 +2257,42 @@ public class BigQueryIOTest implements Serializable {
   }
 
   @Test
-  public void testRuntimeOptionsNotCalledInApplyInputTable() {
+  public void testRuntimeOptionsNotCalledInApplyInputTable() throws IOException {
     RuntimeTestOptions options = PipelineOptionsFactory.as(RuntimeTestOptions.class);
     BigQueryOptions bqOptions = options.as(BigQueryOptions.class);
-    bqOptions.setTempLocation("gs://testbucket/testdir");
+    bqOptions.setTempLocation(testFolder.newFolder("BigQueryIOTest").getAbsolutePath());
+    FakeBigQueryServices fakeBqServices = new FakeBigQueryServices()
+        .withJobService(new FakeJobService());
     Pipeline pipeline = TestPipeline.create(options);
     pipeline
-        .apply(BigQueryIO.Read.from(options.getInputTable()).withoutValidation())
-        .apply(BigQueryIO.Write
+        .apply(BigQueryIO.Read
+            .from(options.getInputTable()).withoutValidation()
+            .withTestServices(fakeBqServices))
+            .apply(BigQueryIO.Write
             .to(options.getOutputTable())
             .withSchema(NestedValueProvider.of(
                 options.getOutputSchema(), new JsonSchemaToTableSchema()))
+            .withTestServices(fakeBqServices)
             .withoutValidation());
   }
 
   @Test
-  public void testRuntimeOptionsNotCalledInApplyInputQuery() {
+  public void testRuntimeOptionsNotCalledInApplyInputQuery() throws IOException {
     RuntimeTestOptions options = PipelineOptionsFactory.as(RuntimeTestOptions.class);
     BigQueryOptions bqOptions = options.as(BigQueryOptions.class);
-    bqOptions.setTempLocation("gs://testbucket/testdir");
+    bqOptions.setTempLocation(testFolder.newFolder("BigQueryIOTest").getAbsolutePath());
+    FakeBigQueryServices fakeBqServices = new FakeBigQueryServices()
+        .withJobService(new FakeJobService());
     Pipeline pipeline = TestPipeline.create(options);
     pipeline
-        .apply(BigQueryIO.Read.fromQuery(options.getInputQuery()).withoutValidation())
-        .apply(BigQueryIO.Write
+        .apply(BigQueryIO.Read
+            .fromQuery(options.getInputQuery()).withoutValidation()
+            .withTestServices(fakeBqServices))
+            .apply(BigQueryIO.Write
             .to(options.getOutputTable())
             .withSchema(NestedValueProvider.of(
                 options.getOutputSchema(), new JsonSchemaToTableSchema()))
+            .withTestServices(fakeBqServices)
             .withoutValidation());
   }
 
