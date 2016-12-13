@@ -144,22 +144,104 @@ public class JmsIO {
       abstract Read build();
     }
 
+    /**
+     * <p>Specify the JMS connection factory to connect to the JMS broker.
+     *
+     * <p>For instance:
+     *
+     * <pre>
+     *   {@code
+     *    pipeline.apply(JmsIO.read().withConnectionFactory(myConnectionFactory)
+     *   }
+     * </pre>
+     *
+     * @param connectionFactory The JMS {@link ConnectionFactory}.
+     * @return The corresponding {@link JmsIO.Read}.
+     */
     public Read withConnectionFactory(ConnectionFactory connectionFactory) {
       return builder().setConnectionFactory(connectionFactory).build();
     }
 
+    /**
+     * <p>Specify the JMS queue destination name where to read messages from. The
+     * {@link JmsIO.Read} acts as a consumer on the queue.
+     *
+     * <p>This method is exclusive with {@link JmsIO.Read#withTopic(String)}. The user has to
+     * specify a destination: queue or topic.
+     *
+     * <p>For instance:
+     *
+     * <pre>
+     *   {@code
+     *    pipeline.apply(JmsIO.read().withQueue("my-queue")
+     *   }
+     * </pre>
+     *
+     * @param queue The JMS queue name where to read messages from.
+     * @return The corresponding {@link JmsIO.Read}.
+     */
     public Read withQueue(String queue) {
       return builder().setQueue(queue).build();
     }
 
+    /**
+     * <p>Specify the JMS topic destination name where to receive messages from. The
+     * {@link JmsIO.Read} acts as a subscriber on the topic.
+     *
+     * <p>This method is exclusive with {@link JmsIO.Read#withQueue(String)}. The user has to
+     * specify a destination: queue or topic.
+     *
+     * <p>For instance:
+     *
+     * <pre>
+     *   {@code
+     *    pipeline.apply(JmsIO.read().withTopic("my-topic")
+     *   }
+     * </pre>
+     *
+     * @param topic The JMS topic name.
+     * @return The corresponding {@link JmsIO.Read}.
+     */
     public Read withTopic(String topic) {
       return builder().setTopic(topic).build();
     }
 
+    /**
+     * <p>Define the max number of records that the source will read. Using a max number of records
+     * different from {@code Long.MAX_VALUE} means the source will be {@code Bounded}, and will
+     * stop once the max number of records read is reached.
+     *
+     * <p>For instance:
+     *
+     * <pre>
+     *   {@code
+     *    pipeline.apply(JmsIO.read().withNumRecords(1000)
+     *   }
+     * </pre>
+     *
+     * @param maxNumRecords The max number of records to read from the JMS destination.
+     * @return The corresponding {@link JmsIO.Read}.
+     */
     public Read withMaxNumRecords(long maxNumRecords) {
       return builder().setMaxNumRecords(maxNumRecords).build();
     }
 
+    /**
+     * <p>Define the max read time that the source will read. Using a non null max read time
+     * duration means the source will be {@code Bounded}, and will stop once the max read time is
+     * reached.
+     *
+     * <p>For instance:
+     *
+     * <pre>
+     *   {@code
+     *    pipeline.apply(JmsIO.read().withMaxReadTime(Duration.minutes(10))
+     *   }
+     * </pre>
+     *
+     * @param maxReadTime The max read time duration.
+     * @return The corresponding {@link JmsIO.Read}.
+     */
     public Read withMaxReadTime(Duration maxReadTime) {
       return builder().setMaxReadTime(maxReadTime).build();
     }
@@ -414,14 +496,64 @@ public class JmsIO {
       abstract Write build();
     }
 
+    /**
+     * <p>Specify the JMS connection factory to connect to the JMS broker.
+     *
+     * <p>For instance:
+     *
+     * <pre>
+     *   {@code
+     *    .apply(JmsIO.write().withConnectionFactory(myConnectionFactory)
+     *   }
+     * </pre>
+     *
+     * @param connectionFactory The JMS {@link ConnectionFactory}.
+     * @return The corresponding {@link JmsIO.Read}.
+     */
     public Write withConnectionFactory(ConnectionFactory connectionFactory) {
       return builder().setConnectionFactory(connectionFactory).build();
     }
 
+    /**
+     * <p>Specify the JMS queue destination name where to send messages to. The
+     * {@link JmsIO.Write} acts as a producer on the queue.
+     *
+     * <p>This method is exclusive with {@link JmsIO.Write#withTopic(String)}. The user has to
+     * specify a destination: queue or topic.
+     *
+     * <p>For instance:
+     *
+     * <pre>
+     *   {@code
+     *    .apply(JmsIO.write().withQueue("my-queue")
+     *   }
+     * </pre>
+     *
+     * @param queue The JMS queue name where to send messages to.
+     * @return The corresponding {@link JmsIO.Read}.
+     */
     public Write withQueue(String queue) {
       return builder().setQueue(queue).build();
     }
 
+    /**
+     * <p>Specify the JMS topic destination name where to send messages to. The
+     * {@link JmsIO.Read} acts as a publisher on the topic.
+     *
+     * <p>This method is exclusive with {@link JmsIO.Write#withQueue(String)}. The user has to
+     * specify a destination: queue or topic.
+     *
+     * <p>For instance:
+     *
+     * <pre>
+     *   {@code
+     *    .apply(JmsIO.write().withTopic("my-topic")
+     *   }
+     * </pre>
+     *
+     * @param topic The JMS topic name.
+     * @return The corresponding {@link JmsIO.Read}.
+     */
     public Write withTopic(String topic) {
       return builder().setTopic(topic).build();
     }
