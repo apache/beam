@@ -22,6 +22,8 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import com.google.cloud.dataflow.sdk.coders.Coder;
 import com.google.cloud.dataflow.sdk.coders.SerializableCoder;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
+import com.google.cloud.dataflow.sdk.options.ValueProvider;
+import com.google.cloud.dataflow.sdk.options.ValueProvider.StaticValueProvider;
 import com.google.cloud.dataflow.sdk.transforms.display.DisplayData;
 import com.google.cloud.dataflow.sdk.util.FileIOChannelFactory;
 import com.google.cloud.dataflow.sdk.util.GcsIOChannelFactory;
@@ -71,7 +73,7 @@ public abstract class FileBasedSink<T> extends Sink<T> {
   /**
    * Base filename for final output files.
    */
-  protected final String baseOutputFilename;
+  protected final ValueProvider<String> baseOutputFilename;
 
   /**
    * The extension to be used for the final output files.
@@ -88,7 +90,7 @@ public abstract class FileBasedSink<T> extends Sink<T> {
    * Construct a FileBasedSink with the given base output filename and extension.
    */
   public FileBasedSink(String baseOutputFilename, String extension) {
-    this(baseOutputFilename, extension, ShardNameTemplate.INDEX_OF_MAX);
+    this(StaticValueProvider.of(baseOutputFilename), extension, ShardNameTemplate.INDEX_OF_MAX);
   }
 
   /**
@@ -98,6 +100,17 @@ public abstract class FileBasedSink<T> extends Sink<T> {
    * <p>See {@link ShardNameTemplate} for a description of file naming templates.
    */
   public FileBasedSink(String baseOutputFilename, String extension, String fileNamingTemplate) {
+    this(StaticValueProvider.of(baseOutputFilename), extension, fileNamingTemplate);
+  }
+
+  /**
+   * Construct a FileBasedSink with the given base output filename, extension, and file naming
+   * template.
+   *
+   * <p>See {@link ShardNameTemplate} for a description of file naming templates.
+   */
+  public FileBasedSink(ValueProvider<String> baseOutputFilename,
+      String extension, String fileNamingTemplate) {
     this.baseOutputFilename = baseOutputFilename;
     this.extension = extension;
     this.fileNamingTemplate = fileNamingTemplate;
@@ -107,6 +120,13 @@ public abstract class FileBasedSink<T> extends Sink<T> {
    * Returns the base output filename for this file based sink.
    */
   public String getBaseOutputFilename() {
+    return baseOutputFilename.get();
+  }
+
+  /**
+   * Returns the base output filename for this file based sink.
+   */
+  public ValueProvider<String> getBaseOutputFilenameProvider() {
     return baseOutputFilename;
   }
 
@@ -130,7 +150,9 @@ public abstract class FileBasedSink<T> extends Sink<T> {
     super.populateDisplayData(builder);
 
     String fileNamePattern = String.format("%s%s%s",
-        baseOutputFilename, fileNamingTemplate, getFileExtension(extension));
+        baseOutputFilename.isAccessible()
+        ? baseOutputFilename.get() : baseOutputFilename.toString(),
+        fileNamingTemplate, getFileExtension(extension));
     builder.add(DisplayData.item("fileNamePattern", fileNamePattern)
       .withLabel("File Name Pattern"));
   }
@@ -220,7 +242,7 @@ public abstract class FileBasedSink<T> extends Sink<T> {
     /**
      * Base filename used for temporary output files. Default is the baseOutputFilename.
      */
-    protected final String baseTemporaryFilename;
+    protected final ValueProvider<String> baseTemporaryFilename;
 
     /**
      * Name separator for temporary files. Temporary files will be named
@@ -243,7 +265,7 @@ public abstract class FileBasedSink<T> extends Sink<T> {
      * @param sink the FileBasedSink that will be used to configure this write operation.
      */
     public FileBasedWriteOperation(FileBasedSink<T> sink) {
-      this(sink, sink.baseOutputFilename);
+      this(sink, sink.getBaseOutputFilenameProvider(), TemporaryFileRetention.REMOVE);
     }
 
     /**
@@ -253,7 +275,7 @@ public abstract class FileBasedSink<T> extends Sink<T> {
      * @param baseTemporaryFilename the base filename to be used for temporary output files.
      */
     public FileBasedWriteOperation(FileBasedSink<T> sink, String baseTemporaryFilename) {
-      this(sink, baseTemporaryFilename, TemporaryFileRetention.REMOVE);
+      this(sink, StaticValueProvider.of(baseTemporaryFilename), TemporaryFileRetention.REMOVE);
     }
 
     /**
@@ -264,6 +286,12 @@ public abstract class FileBasedSink<T> extends Sink<T> {
      * @param temporaryFileRetention defines how temporary files are handled.
      */
     public FileBasedWriteOperation(FileBasedSink<T> sink, String baseTemporaryFilename,
+        TemporaryFileRetention temporaryFileRetention) {
+      this(sink, StaticValueProvider.of(baseTemporaryFilename), temporaryFileRetention);
+    }
+
+    private FileBasedWriteOperation(FileBasedSink<T> sink,
+        ValueProvider<String> baseTemporaryFilename,
         TemporaryFileRetention temporaryFileRetention) {
       this.sink = sink;
       this.baseTemporaryFilename = baseTemporaryFilename;
@@ -360,7 +388,7 @@ public abstract class FileBasedSink<T> extends Sink<T> {
     protected final List<String> generateDestinationFilenames(int numFiles) {
       List<String> destFilenames = new ArrayList<>();
       String extension = getSink().extension;
-      String baseOutputFilename = getSink().baseOutputFilename;
+      String baseOutputFilename = getSink().baseOutputFilename.get();
       String fileNamingTemplate = getSink().fileNamingTemplate;
 
       String suffix = getFileExtension(extension);
@@ -395,7 +423,7 @@ public abstract class FileBasedSink<T> extends Sink<T> {
      */
     protected final void removeTemporaryFiles(
         Collection<String> knownFiles, PipelineOptions options) throws IOException {
-      String pattern = buildTemporaryFilename(baseTemporaryFilename, "*");
+      String pattern = buildTemporaryFilename(baseTemporaryFilename.get(), "*");
       LOG.debug("Finding temporary bundle output files matching {}.", pattern);
       FileOperations fileOperations = FileOperationsFactory.getFileOperations(pattern, options);
       IOChannelFactory factory = IOChannelUtils.getFactory(pattern);
@@ -508,7 +536,7 @@ public abstract class FileBasedSink<T> extends Sink<T> {
     public final void open(String uId) throws Exception {
       this.id = uId;
       filename = FileBasedWriteOperation.buildTemporaryFilename(
-          getWriteOperation().baseTemporaryFilename, uId);
+          getWriteOperation().baseTemporaryFilename.get(), uId);
       LOG.debug("Opening {}.", filename);
       channel = IOChannelUtils.create(filename, mimeType);
       try {

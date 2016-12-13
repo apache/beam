@@ -93,7 +93,7 @@ public class XmlSinkTest {
             .withRootElement(testRootElement);
     assertEquals(testClass, sink.classToBind);
     assertEquals(testRootElement, sink.rootElementName);
-    assertEquals(testFilePrefix, sink.baseOutputFilename);
+    assertEquals(testFilePrefix, sink.baseOutputFilename.get());
   }
 
   /**
@@ -105,7 +105,7 @@ public class XmlSinkTest {
         XmlSink.writeOf(Bird.class, testRootElement, testFilePrefix);
     assertEquals(testClass, sink.classToBind);
     assertEquals(testRootElement, sink.rootElementName);
-    assertEquals(testFilePrefix, sink.baseOutputFilename);
+    assertEquals(testFilePrefix, sink.baseOutputFilename.get());
   }
 
   /**
@@ -142,10 +142,10 @@ public class XmlSinkTest {
         XmlSink.writeOf(testClass, testRootElement, testFilePrefix);
     XmlWriteOperation<Bird> writeOp = sink.createWriteOperation(options);
     assertEquals(testClass, writeOp.getSink().classToBind);
-    assertEquals(testFilePrefix, writeOp.getSink().baseOutputFilename);
+    assertEquals(testFilePrefix, writeOp.getSink().baseOutputFilename.get());
     assertEquals(testRootElement, writeOp.getSink().rootElementName);
     assertEquals(XmlSink.XML_EXTENSION, writeOp.getSink().extension);
-    assertEquals(testFilePrefix, writeOp.baseTemporaryFilename);
+    assertEquals(testFilePrefix, writeOp.baseTemporaryFilename.get());
   }
 
   /**
@@ -158,7 +158,7 @@ public class XmlSinkTest {
         XmlSink.writeOf(testClass, testRootElement, testFilePrefix)
             .createWriteOperation(options);
     XmlWriter<Bird> writer = writeOp.createWriter(options);
-    assertEquals(testFilePrefix, writer.getWriteOperation().baseTemporaryFilename);
+    assertEquals(testFilePrefix, writer.getWriteOperation().baseTemporaryFilename.get());
     assertEquals(testRootElement, writer.getWriteOperation().getSink().rootElementName);
     assertNotNull(writer.marshaller);
   }

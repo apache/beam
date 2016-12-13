@@ -2120,8 +2120,11 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
     public PDone apply(PCollection<T> input) {
       if (transform.getSink() instanceof FileBasedSink) {
         FileBasedSink<?> sink = (FileBasedSink<?>) transform.getSink();
-        PathValidator validator = runner.options.getPathValidator();
-        validator.validateOutputFilePrefixSupported(sink.getBaseOutputFilename());
+        if (sink.getBaseOutputFilenameProvider().isAccessible()) {
+          PathValidator validator = runner.options.getPathValidator();
+          validator.validateOutputFilePrefixSupported(
+              sink.getBaseOutputFilenameProvider().get());
+        }
       }
       return transform.apply(input);
     }
