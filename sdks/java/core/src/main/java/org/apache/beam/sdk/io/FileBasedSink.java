@@ -482,7 +482,7 @@ public abstract class FileBasedSink<T> extends Sink<T> {
       try {
         matches.addAll(factory.match(factory.resolve(tempDir, "*")));
       } catch (Exception e) {
-        LOG.warn("Failed to match temporary outputs under: [{}].", tempDir);
+        LOG.warn("Failed to match temporary files under: [{}].", tempDir);
       }
       Set<String> allMatches = new HashSet<>(matches);
       allMatches.addAll(knownFiles);
@@ -492,6 +492,7 @@ public abstract class FileBasedSink<T> extends Sink<T> {
           tempDir,
           matches.size(),
           allMatches.size() - matches.size());
+      // Deletion of the temporary directory might fail, if not all temporary files are removed.
       try {
         factory.remove(allMatches);
         factory.remove(ImmutableList.of(tempDir));
