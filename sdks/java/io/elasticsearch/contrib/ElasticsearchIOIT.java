@@ -48,6 +48,7 @@ public class ElasticsearchIOIT {
     ElasticsearchIO.ConnectionConfiguration.create(
       new String[]{"http://" + ES_IP + ":" + ES_HTTP_PORT}, ES_INDEX, ES_TYPE);
   private static final long NUM_DOCS = 60000;
+  private static final int AVERAGE_DOC_SIZE = 25;
   private static final Logger LOGGER = LoggerFactory.getLogger(ElasticsearchIOTest.class);
 
 
@@ -95,8 +96,7 @@ public class ElasticsearchIOIT {
     // (due to internal Elasticsearch implementation)
     long estimatedSize = initialSource.getEstimatedSizeBytes(options);
     LOGGER.info("Estimated size: {}", estimatedSize);
-    //average size of document in test dataset is 25
-    assertThat("Wrong estimated size", estimatedSize, greaterThan(1500000L));
+    assertThat("Wrong estimated size", estimatedSize, greaterThan(AVERAGE_DOC_SIZE * NUM_DOCS));
   }
 
 }

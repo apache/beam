@@ -116,15 +116,20 @@ import org.elasticsearch.client.RestClientBuilder;
 public class ElasticsearchIO {
 
   public static Read read() {
-    //default scroll keepalive to 5m as a majorant for un-predictable time between 2 start/read calls
-    // default batch size to 100 recommended by ES dev team as a safe value when dealing with big documents
-    // and still a good compromise with performances
-    return new AutoValue_ElasticsearchIO_Read.Builder().setScrollKeepalive("5m").setBatchSize(100L).build();
+    // default scrollKeepalive = 5m as a majorant for un-predictable time between 2 start/read calls
+    // default batchSize to 100 as recommended by ES dev team as a safe value when dealing
+    // with big documents and still a good compromise for performances
+    return new AutoValue_ElasticsearchIO_Read.Builder()
+                .setScrollKeepalive("5m")
+                .setBatchSize(100L)
+                .build();
   }
 
   public static Write write() {
     return new AutoValue_ElasticsearchIO_Write.Builder()
+        // default ElasticSearch bulk size
         .setMaxBatchSize(1000L)
+        // default ElasticSearch bulk size
         .setMaxBatchSizeMegaBytes(5)
         .build();
   }
@@ -182,17 +187,17 @@ public class ElasticsearchIO {
     public static ConnectionConfiguration create(String[] addresses, String index, String type) {
       checkArgument(
           addresses != null,
-          "ConnectionConfiguration.create(addresses, index, type) " + "called with null address");
+          "ConnectionConfiguration.create(addresses, index, type) called with null address");
       checkArgument(
           addresses.length != 0,
           "ConnectionConfiguration.create(addresses, "
               + "index, type) called with empty addresses");
       checkArgument(
           index != null,
-          "ConnectionConfiguration.create(addresses, index, type) called" + " with null index");
+          "ConnectionConfiguration.create(addresses, index, type) called with null index");
       checkArgument(
           type != null,
-          "ConnectionConfiguration.create(addresses, index, type) called " + "with null type");
+          "ConnectionConfiguration.create(addresses, index, type) called with null type");
       return new AutoValue_ElasticsearchIO_ConnectionConfiguration.Builder()
           .setAddresses(Arrays.asList(addresses))
           .setIndex(index)
@@ -307,7 +312,7 @@ public class ElasticsearchIO {
      */
     public Read withQuery(String query) {
       checkArgument(
-          query != null, "ElasticsearchIO.read().withQuery(query) called with null " + "query");
+          query != null, "ElasticsearchIO.read().withQuery(query) called with null query");
       return builder().setQuery(query).build();
     }
 
@@ -322,7 +327,7 @@ public class ElasticsearchIO {
     public Read withScrollKeepalive(String scrollKeepalive) {
       checkArgument(
           scrollKeepalive != null,
-          "ElasticsearchIO.read().withScrollKeepalive" + "(keepalive) called with null keepalive");
+          "ElasticsearchIO.read().withScrollKeepalive(keepalive) called with null keepalive");
       return builder().setScrollKeepalive(scrollKeepalive).build();
     }
 
@@ -501,7 +506,7 @@ public class ElasticsearchIO {
 
       String query = source.spec.getQuery();
       if (query == null) {
-        query = "{\n" + "  \"query\": {\n" + "    \"match_all\": {}\n" + "  }\n" + "}";
+        query = "{ \"query\": { \"match_all\": {} } }";
       }
 
       Response response;
@@ -534,8 +539,7 @@ public class ElasticsearchIO {
       if (batch.size() > 0){
         current = batch.remove(0);
         return true;
-      }
-      else {
+      } else {
         String requestBody =
           String.format(
             "{\"scroll\" : \"%s\",\"scroll_id\" : \"%s\"}",
@@ -649,7 +653,8 @@ public class ElasticsearchIO {
     /**
      * Provide a maximum size in number of documents for the batch see bulk API
      * (https://www.elastic.co/guide/en/elasticsearch/reference/2.4/docs-bulk.html).
-     * Default is 1000 docs. Depending on the execution engine, size of bundles may vary,
+     * Default is 1000 docs (like Elasticsearch bulk size default).
+     * Depending on the execution engine, size of bundles may vary,
      * this sets the maximum size. Change this if you need to have smaller ElasticSearch bulks.
      * @param batchSize maximum batch size in number of documents
      * @return the {@link Write} with connection batch size set
@@ -660,7 +665,8 @@ public class ElasticsearchIO {
 
     /**
      * Provide a maximum size in megabytes for the batch see bulk API
-     * (https://www.elastic.co/guide/en/elasticsearch/reference/2.4/docs-bulk.html). Default is 5MB.
+     * (https://www.elastic.co/guide/en/elasticsearch/reference/2.4/docs-bulk.html). Default is 5MB
+     * (like Elasticsearch bulk size default).
      * Depending on the execution engine, size of bundles may vary, this sets the maximum size.
      * Change this if you need to have smaller ElasticSearch bulks.
      * @param batchSizeMegaBytes maximum batch size in megabytes
@@ -750,7 +756,7 @@ public class ElasticsearchIO {
         if (errors) {
           StringBuilder errorMessages =
               new StringBuilder(
-                  "Error writing to Elasticsearch, " + "some elements could not be inserted:");
+                  "Error writing to Elasticsearch, some elements could not be inserted:");
           JsonArray items = searchResult.getAsJsonArray("items");
           //some items present in bulk might have errors, concatenate error messages
           for (JsonElement item : items) {

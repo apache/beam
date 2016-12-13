@@ -23,10 +23,7 @@ import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.core.Is.isA;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
 
-import java.io.File;
 import java.io.IOException;
 import java.io.Serializable;
 import java.net.ServerSocket;
@@ -43,10 +40,9 @@ import org.apache.beam.sdk.testing.SourceTestUtils;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFnTester;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.commons.io.FileUtils;
+
 import org.elasticsearch.action.admin.indices.exists.indices.IndicesExistsRequest;
 import org.elasticsearch.action.admin.indices.exists.indices.IndicesExistsResponse;
 import org.elasticsearch.action.admin.indices.upgrade.post.UpgradeRequest;
@@ -64,14 +60,14 @@ import org.hamcrest.CustomMatcher;
 import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
+import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.rules.ExpectedException;
+import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-import org.mockito.Matchers;
-import org.mockito.Mockito;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -81,7 +77,6 @@ public class ElasticsearchIOTest implements Serializable {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(ElasticsearchIOTest.class);
 
-  private static final String DATA_DIRECTORY = "target/elasticsearch";
   private static final String ES_INDEX = "beam";
   private static final String ES_TYPE = "test";
   private static final String ES_IP = "127.0.0.1";
@@ -100,6 +95,8 @@ public class ElasticsearchIOTest implements Serializable {
   private static transient Node node;
   private static ElasticsearchIO.ConnectionConfiguration connectionConfiguration;
 
+  @ClassRule public static TemporaryFolder folder = new TemporaryFolder();
+
   @BeforeClass
   public static void beforeClass() throws IOException {
     ServerSocket serverSocket = new ServerSocket(0);
@@ -108,15 +105,14 @@ public class ElasticsearchIOTest implements Serializable {
     connectionConfiguration =
         ElasticsearchIO.ConnectionConfiguration.create(
             new String[] {"http://" + ES_IP + ":" + esHttpPort}, ES_INDEX, ES_TYPE);
-    FileUtils.deleteDirectory(new File(DATA_DIRECTORY));
     LOGGER.info("Starting embedded Elasticsearch instance ({})", esHttpPort);
     Settings.Builder settingsBuilder =
         Settings.settingsBuilder()
             .put("cluster.name", "beam")
             .put("http.enabled", "true")
             .put("node.data", "true")
-            .put("path.data", DATA_DIRECTORY)
-            .put("path.home", DATA_DIRECTORY)
+            .put("path.data", folder.getRoot().getPath())
+            .put("path.home", folder.getRoot().getPath())
             .put("node.name", "beam")
             .put("network.host", ES_IP)
             .put("http.port", esHttpPort)
@@ -124,6 +120,11 @@ public class ElasticsearchIOTest implements Serializable {
     node = NodeBuilder.nodeBuilder().settings(settingsBuilder).build();
     LOGGER.info("Elasticsearch node created");
     node.start();
+  }
+
+  @AfterClass
+  public static void afterClass() {
+    node.close();
   }
 
   @Before
@@ -189,8 +190,7 @@ public class ElasticsearchIOTest implements Serializable {
     // (due to internal Elasticsearch implementation)
     long estimatedSize = initialSource.getEstimatedSizeBytes(options);
     LOGGER.info("Estimated size: {}", estimatedSize);
-    //average size of document in test dataset is 25
-    assertThat("Wrong estimated size", estimatedSize, greaterThan(10000L));
+    assertThat("Wrong estimated size", estimatedSize, greaterThan(AVERAGE_DOC_SIZE * NUM_DOCS));
   }
 
   @Test
@@ -206,7 +206,7 @@ public class ElasticsearchIOTest implements Serializable {
                 .withConnectionConfiguration(connectionConfiguration)
                 //set to default value, usefull just to test parameter passing.
                 .withScrollKeepalive("5m")
-              //set to default value, usefull just to test parameter passing.
+                //set to default value, usefull just to test parameter passing.
                 .withBatchSize(100L));
     PAssert.thatSingleton(output.apply("Count", Count.<String>globally())).isEqualTo(NUM_DOCS);
     pipeline.run();
@@ -301,16 +301,35 @@ public class ElasticsearchIOTest implements Serializable {
     // write bundles size is the runner decision, we cannot force a bundle size,
     // so we test the Writer as a DoFn outside of a runner.
     ElasticsearchIO.Write.WriterFn writerFn = new ElasticsearchIO.Write.WriterFn(write);
-    ElasticsearchIO.Write.WriterFn spy = Mockito.spy(writerFn);
-    DoFnTester<String, Void> fnTester = DoFnTester.of(spy);
+    DoFnTester<String, Void> fnTester = DoFnTester.of(writerFn);
     fnTester.setCloningBehavior(DoFnTester.CloningBehavior.DO_NOT_CLONE);
-
     List<String> input = createDocuments(NUM_DOCS, InjectionMode.DO_NOT_INJECT_INVALID_DOCS);
-    // insert into Elasticsearch
-    fnTester.processBundle(input);
-    int numWriteBundles = (int) (NUM_DOCS / BATCH_SIZE);
-    // +1 because doFnTester calls finishBundle at the end
-    verify(spy, times(numWriteBundles + 1)).finishBundle(Matchers.any(DoFn.Context.class));
+    long numDocsProcessed = 0;
+    long numDocsInserted = 0;
+    for (String document : input) {
+      fnTester.processElement(document);
+      numDocsProcessed++;
+      // test every 100 docs to avoid overloading ES
+      if ((numDocsProcessed % 100) == 0) {
+        // force the index to upgrade after inserting for the inserted docs
+        // to be searchable immediately
+        long currentNumDocs = upgradeIndexAndGetCurrentNumDocs();
+        if ((numDocsProcessed % BATCH_SIZE) == 0) {
+          /* bundle end */
+          assertEquals(
+              "we are at the end of a bundle, we should have inserted all processed documents",
+              numDocsProcessed,
+              currentNumDocs);
+          numDocsInserted = currentNumDocs;
+        } else {
+          /* not bundle end */
+          assertEquals(
+              "we are not at the end of a bundle, we should have inserted no more documents",
+              numDocsInserted,
+              currentNumDocs);
+        }
+      }
+    }
   }
 
   @Test
@@ -322,20 +341,38 @@ public class ElasticsearchIOTest implements Serializable {
     // write bundles size is the runner decision, we cannot force a bundle size,
     // so we test the Writer as a DoFn outside of a runner.
     ElasticsearchIO.Write.WriterFn writerFn = new ElasticsearchIO.Write.WriterFn(write);
-    ElasticsearchIO.Write.WriterFn spy = Mockito.spy(writerFn);
-    DoFnTester<String, Void> fnTester = DoFnTester.of(spy);
+    DoFnTester<String, Void> fnTester = DoFnTester.of(writerFn);
     fnTester.setCloningBehavior(DoFnTester.CloningBehavior.DO_NOT_CLONE);
-
     List<String> input = createDocuments(NUM_DOCS, InjectionMode.DO_NOT_INJECT_INVALID_DOCS);
-    // insert into Elasticsearch
-    fnTester.processBundle(input);
-    // there should be only one bundle because minimum BATCH_SIZE_MEGABYTES is 1MB,
-    // and 400 docs represent 10kB. To have more than 1 bundle, we should insert
-    // more than 40 000 docs which is not reasonable in a unit test.
-    int numWriteBundles =
-        (int) (NUM_DOCS * AVERAGE_DOC_SIZE / (BATCH_SIZE_MEGABYTES * 1024L * 1024L));
-    // +1 because doFnTester calls finishBundle at the end
-    verify(spy, times(numWriteBundles + 1)).finishBundle(Matchers.any(DoFn.Context.class));
+    long numDocsProcessed = 0;
+    for (String document : input) {
+      fnTester.processElement(document);
+      numDocsProcessed++;
+      // test every 100 docs to avoid overloading ES
+      if ((numDocsProcessed % 100) == 0) {
+        // there should be only one bundle because minimum BATCH_SIZE_MEGABYTES is 1MB,
+        // and 400 docs represent 10kB. To have more than 1 bundle, we should insert
+        // more than 40 000 docs which is not reasonable in a unit test. So docs should be inserted
+        // in ES only when the input collection is finished processing
+        assertEquals(
+            "we are not at the end of the bundle, we should have inserted no documents",
+            0,
+            upgradeIndexAndGetCurrentNumDocs());
+      }
+    }
+    fnTester.finishBundle();
+    assertEquals(
+        "we are at the end of the bundle, we should have inserted all documents",
+        NUM_DOCS,
+        upgradeIndexAndGetCurrentNumDocs());
+  }
+
+  private long upgradeIndexAndGetCurrentNumDocs() {
+    // force the index to upgrade after inserting for the inserted docs
+    // to be searchable immediately
+    node.client().admin().indices().upgrade(new UpgradeRequest()).actionGet();
+    SearchResponse response = node.client().prepareSearch().execute().actionGet(5000);
+    return response.getHits().getTotalHits();
   }
 
   @Test
@@ -352,6 +389,7 @@ public class ElasticsearchIOTest implements Serializable {
         initialSource.splitIntoBundles(desiredBundleSizeBytes, options);
     SourceTestUtils.assertSourcesEqualReferenceSource(initialSource, splits, options);
     //this is the number of ES shards
+    // (By default, each index in Elasticsearch is allocated 5 primary shards)
     int expectedNumSplits = 5;
     assertEquals(expectedNumSplits, splits.size());
     int nonEmptySplits = 0;
@@ -361,10 +399,5 @@ public class ElasticsearchIOTest implements Serializable {
       }
     }
     assertEquals("Wrong number of empty splits", expectedNumSplits, nonEmptySplits);
-  }
-
-  @AfterClass
-  public static void afterClass() {
-    node.close();
   }
 }
