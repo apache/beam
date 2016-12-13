@@ -17,9 +17,9 @@
  */
 package org.apache.beam.runners.core;
 
-import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.emptyIterable;
+import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertThat;
 import static org.mockito.Mockito.when;
@@ -130,7 +130,7 @@ public class PushbackSideInputDoFnRunnerTest {
             PaneInfo.ON_TIME_AND_ONLY_FIRING);
     Iterable<WindowedValue<Integer>> multiWindowPushback =
         runner.processElementInReadyWindows(multiWindow);
-    assertThat(multiWindowPushback, contains(multiWindow));
+    assertThat(multiWindowPushback, equalTo(multiWindow.explodeWindows()));
     assertThat(underlying.inputElems, Matchers.<WindowedValue<Integer>>emptyIterable());
   }
 
@@ -165,10 +165,8 @@ public class PushbackSideInputDoFnRunnerTest {
         underlying.inputElems,
         containsInAnyOrder(
             WindowedValue.of(
-                2,
-                new Instant(-2),
-                ImmutableList.of(littleWindow, bigWindow),
-                PaneInfo.NO_FIRING)));
+                2, new Instant(-2), ImmutableList.of(littleWindow), PaneInfo.NO_FIRING),
+            WindowedValue.of(2, new Instant(-2), ImmutableList.of(bigWindow), PaneInfo.NO_FIRING)));
   }
 
   @Test
@@ -191,8 +189,9 @@ public class PushbackSideInputDoFnRunnerTest {
     Iterable<WindowedValue<Integer>> multiWindowPushback =
         runner.processElementInReadyWindows(multiWindow);
     assertThat(multiWindowPushback, emptyIterable());
-    assertThat(underlying.inputElems,
-        containsInAnyOrder(ImmutableList.of(multiWindow).toArray()));
+    assertThat(
+        underlying.inputElems,
+        containsInAnyOrder(ImmutableList.copyOf(multiWindow.explodeWindows()).toArray()));
   }
 
   @Test
@@ -212,6 +211,7 @@ public class PushbackSideInputDoFnRunnerTest {
     Iterable<WindowedValue<Integer>> multiWindowPushback =
         runner.processElementInReadyWindows(multiWindow);
     assertThat(multiWindowPushback, emptyIterable());
+    // Should preserve the compressed representation when there's no side inputs.
     assertThat(underlying.inputElems, containsInAnyOrder(multiWindow));
   }
 
