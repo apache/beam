@@ -247,7 +247,8 @@ You can monitor the running job by visiting the Flink dashboard at http://&lt;fl
 
 <div class="runner-dataflow highlighter-rouge"><pre class="highlight"><code>$ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
 	 -Dexec.args="--runner=DataflowRunner --gcpTempLocation=gs://&lt;your-gcs-bucket&gt;/tmp \
-	              --inputFile=gs://apache-beam-samples/shakespeare/* --output=gs://&lt;your-gcs-bucket&gt;/counts"
+	              --inputFile=gs://apache-beam-samples/shakespeare/* --output=gs://&lt;your-gcs-bucket&gt;/counts" \
+     -Pdataflow-runner
 </code></pre>
 </div>
 
