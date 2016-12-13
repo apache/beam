@@ -833,7 +833,6 @@ public class PipelineOptionsFactoryTest {
     assertEquals(TestEnum.Value, options.getEnumValue().get());
   }
 
-
   @Test
   public void testStringValueProvider() {
     String[] args = new String[] {"--stringValue=beam"};

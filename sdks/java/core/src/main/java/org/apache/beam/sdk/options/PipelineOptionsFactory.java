@@ -1652,9 +1652,11 @@ public class PipelineOptionsFactory {
     return convertedOptions;
   }
 
+
   /**
-   * Returns true if the given type is a SIMPLE_TYPES, enum or any of these types in a
-   * parameterized ValueProvider.
+   * Returns true if the given type is one of {@code SIMPLE_TYPES} or an enum, or if the given type
+   * is a {@link ValueProvider ValueProvider&lt;T&gt;} and {@code T} is one of {@code SIMPLE_TYPES}
+   * or an enum.
    */
   private static boolean isSimpleType(Class<?> type, JavaType genericType) {
     Class<?> unwrappedType = type.equals(ValueProvider.class)
@@ -1663,23 +1665,23 @@ public class PipelineOptionsFactory {
   }
 
   /**
-   * Returns true if the given type is a any Array or Collection of SIMPLE_TYPES or enum, or
-   * any of these types in a parameterized ValueProvider.
+   * Returns true if the given type is an array or {@link Collection} of {@code SIMPLE_TYPES} or
+   * enums, or if the given type is a {@link ValueProvider ValueProvider&lt;T&gt;} and {@code T} is
+   * one of an array or {@link Collection} of {@code SIMPLE_TYPES} or enums.
    */
   private static boolean isCollectionOrArrayOfAllowedTypes(Class<?> type, JavaType genericType) {
-    Class<?> containerType = type.equals(ValueProvider.class)
-        ? genericType.containedType(0).getRawClass() : type;
+    JavaType containerType = type.equals(ValueProvider.class)
+        ? genericType.containedType(0) : genericType;
 
     // Check if it is an array of simple types or enum.
-    if (containerType.isArray() && (SIMPLE_TYPES.contains(containerType.getComponentType())
-        || containerType.getComponentType().isEnum())) {
+    if (containerType.getRawClass().isArray()
+        && (SIMPLE_TYPES.contains(containerType.getRawClass().getComponentType())
+            || containerType.getRawClass().getComponentType().isEnum())) {
         return true;
     }
     // Check if it is Collection of simple types or enum.
-    if (Collection.class.isAssignableFrom(containerType)) {
-      JavaType innerType = type.equals(ValueProvider.class)
-          ? genericType.containedType(0).containedType(0)
-          : genericType.containedType(0);
+    if (Collection.class.isAssignableFrom(containerType.getRawClass())) {
+      JavaType innerType = containerType.containedType(0);
       // Note that raw types are allowed, hence the null check.
       if (innerType == null || SIMPLE_TYPES.contains(innerType.getRawClass())
           || innerType.getRawClass().isEnum()) {
@@ -1692,8 +1694,10 @@ public class PipelineOptionsFactory {
   /**
    * Ensures that empty string value is allowed for a given type.
    *
-   * <p>Empty strings are only allowed for String, String Array, Collection of Strings or any of
-   * these types in a parameterized ValueProvider.
+   * <p>Empty strings are only allowed for {@link String}, {@link String String[]},
+   * {@link Collection Collection&lt;String&gt;}, or {@link ValueProvider ValueProvider&lt;T&gt;}
+   * and {@code T} is of type {@link String}, {@link String String[]},
+   * {@link Collection Collection&lt;String&gt;}.
    *
    * @param type class object for the type under check.
    * @param genericType complete type information for the type under check.
@@ -1701,16 +1705,14 @@ public class PipelineOptionsFactory {
    */
   private static void checkEmptyStringAllowed(Class<?> type, JavaType genericType,
       String genericTypeName) {
-    Class<?> unwrappedType = type.equals(ValueProvider.class)
-        ? genericType.containedType(0).getRawClass() : type;
+    JavaType unwrappedType = type.equals(ValueProvider.class)
+        ? genericType.containedType(0) : genericType;
 
-    Class<?> containedType = unwrappedType;
-    if (unwrappedType.isArray()) {
-      containedType = unwrappedType.getComponentType();
-    } else if (Collection.class.isAssignableFrom(unwrappedType)) {
-      JavaType innerType = type.equals(ValueProvider.class)
-          ? genericType.containedType(0).containedType(0)
-          : genericType.containedType(0);
+    Class<?> containedType = unwrappedType.getRawClass();
+    if (unwrappedType.getRawClass().isArray()) {
+      containedType = unwrappedType.getRawClass().getComponentType();
+    } else if (Collection.class.isAssignableFrom(unwrappedType.getRawClass())) {
+      JavaType innerType = unwrappedType.containedType(0);
       // Note that raw types are allowed, hence the null check.
       containedType = innerType == null ? String.class : innerType.getRawClass();
     }
