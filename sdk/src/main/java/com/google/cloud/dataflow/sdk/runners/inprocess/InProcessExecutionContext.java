@@ -26,8 +26,8 @@ import com.google.cloud.dataflow.sdk.util.state.CopyOnAccessInMemoryStateInterna
 /**
  * Execution Context for the {@link InProcessPipelineRunner}.
  *
- * This implementation is not thread safe. A new {@link InProcessExecutionContext} must be created
- * for each thread that requires it.
+ * <p>This implementation is not thread safe. A new {@link InProcessExecutionContext} must be
+ * created for each thread that requires it.
  */
 class InProcessExecutionContext
     extends BaseExecutionContext<InProcessExecutionContext.InProcessStepContext> {

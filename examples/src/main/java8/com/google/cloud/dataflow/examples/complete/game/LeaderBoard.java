@@ -57,26 +57,26 @@ import java.util.TimeZone;
  * early/speculative results; using .accumulatingFiredPanes() to do cumulative processing of late-
  * arriving data.
  *
- * <p> This pipeline processes an unbounded stream of 'game events'. The calculation of the team
+ * <p>This pipeline processes an unbounded stream of 'game events'. The calculation of the team
  * scores uses fixed windowing based on event time (the time of the game play event), not
  * processing time (the time that an event is processed by the pipeline). The pipeline calculates
  * the sum of scores per team, for each window. By default, the team scores are calculated using
  * one-hour windows.
  *
- * <p> In contrast-- to demo another windowing option-- the user scores are calculated using a
+ * <p>In contrast-- to demo another windowing option-- the user scores are calculated using a
  * global window, which periodically (every ten minutes) emits cumulative user score sums.
  *
- * <p> In contrast to the previous pipelines in the series, which used static, finite input data,
+ * <p>In contrast to the previous pipelines in the series, which used static, finite input data,
  * here we're using an unbounded data source, which lets us provide speculative results, and allows
  * handling of late data, at much lower latency. We can use the early/speculative results to keep a
  * 'leaderboard' updated in near-realtime. Our handling of late data lets us generate correct
  * results, e.g. for 'team prizes'. We're now outputting window results as they're
  * calculated, giving us much lower latency than with the previous batch examples.
  *
- * <p> Run {@link injector.Injector} to generate pubsub data for this pipeline.  The Injector
+ * <p>Run {@link injector.Injector} to generate pubsub data for this pipeline.  The Injector
  * documentation provides more detail on how to do this.
  *
- * <p> To execute this pipeline using the Dataflow service, specify the pipeline configuration
+ * <p>To execute this pipeline using the Dataflow service, specify the pipeline configuration
  * like this:
  * <pre>{@code
  *   --project=YOUR_PROJECT_ID

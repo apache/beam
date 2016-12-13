@@ -157,11 +157,10 @@ public class InProcessPipelineRunner
      * Return a new {@link CommittedBundle} that is like this one, except calls to
      * {@link #getElements()} will return the provided elements. This bundle is unchanged.
      *
-     * <p>
-     * The value of the {@link #getSynchronizedProcessingOutputWatermark() synchronized processing
-     * output watermark} of the returned {@link CommittedBundle} is equal to the value returned from
-     * the current bundle. This is used to ensure a {@link PTransform} that could not complete
-     * processing on input elements properly holds the synchronized processing time to the
+     * <p>The value of the {@link #getSynchronizedProcessingOutputWatermark() synchronized
+     * processing output watermark} of the returned {@link CommittedBundle} is equal to the value
+     * returned from the current bundle. This is used to ensure a {@link PTransform} that could not
+     * complete processing on input elements properly holds the synchronized processing time to the
      * appropriate value.
      */
     CommittedBundle<T> withElements(Iterable<WindowedValue<T>> elements);
@@ -315,7 +314,7 @@ public class InProcessPipelineRunner
   /**
    * The result of running a {@link Pipeline} with the {@link InProcessPipelineRunner}.
    *
-   * Throws {@link UnsupportedOperationException} for all methods.
+   * <p>Throws {@link UnsupportedOperationException} for all methods.
    */
   public static class InProcessPipelineResult implements PipelineResult {
     private final InProcessExecutor executor;
@@ -372,7 +371,7 @@ public class InProcessPipelineRunner
      * {@link InProcessPipelineOptions#isShutdownUnboundedProducersWithMaxWatermark()} set to false,
      * this method will never return.
      *
-     * See also {@link InProcessExecutor#awaitCompletion()}.
+     * <p>See also {@link InProcessExecutor#awaitCompletion()}.
      */
     public State awaitCompletion() throws Throwable {
       if (!state.isTerminal()) {

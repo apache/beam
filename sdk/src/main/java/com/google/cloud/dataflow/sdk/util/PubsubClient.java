@@ -85,6 +85,7 @@ public abstract class PubsubClient implements Closeable {
   /**
    * Return the timestamp (in ms since unix epoch) to use for a Pubsub message with {@code
    * attributes} and {@code pubsubTimestamp}.
+   *
    * <p>If {@code timestampLabel} is non-{@literal null} then the message attributes must contain
    * that label, and the value of that label will be taken as the timestamp.
    * Otherwise the timestamp will be taken from the Pubsub publish timestamp {@code
@@ -298,6 +299,7 @@ public abstract class PubsubClient implements Closeable {
 
   /**
    * A message to be sent to Pubsub.
+   *
    * <p>NOTE: This class is {@link Serializable} only to support the {@link PubsubTestClient}.
    * Java serialization is never used for non-test clients.
    */
@@ -356,6 +358,7 @@ public abstract class PubsubClient implements Closeable {
 
   /**
    * A message received from Pubsub.
+   *
    * <p>NOTE: This class is {@link Serializable} only to support the {@link PubsubTestClient}.
    * Java serialization is never used for non-test clients.
    */

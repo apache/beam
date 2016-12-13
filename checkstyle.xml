@@ -180,6 +180,9 @@ page at http://checkstyle.sourceforge.net/config.html -->
       <property name="allowUndeclaredRTE" value="true"/>
     </module>
 
+    <!-- Check that paragraph tags are used correctly in Javadoc. -->
+    <module name="JavadocParagraph"/>
+
     <module name="JavadocType">
       <property name="scope" value="protected"/>
       <property name="severity" value="error"/>

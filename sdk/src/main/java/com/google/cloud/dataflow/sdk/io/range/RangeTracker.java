@@ -185,12 +185,14 @@ public interface RangeTracker<PositionT> {
   /**
    * Atomically determines whether a record at the given position can be returned and updates
    * internal state. In particular:
+   *
    * <ul>
    *   <li>If {@code isAtSplitPoint} is {@code true}, and {@code recordStart} is outside the current
    *   range, returns {@code false};
    *   <li>Otherwise, updates the last-consumed position to {@code recordStart} and returns
    *   {@code true}.
    * </ul>
+   *
    * <p>This method MUST be called on all split point records. It may be called on every record.
    */
   boolean tryReturnRecordAt(boolean isAtSplitPoint, PositionT recordStart);

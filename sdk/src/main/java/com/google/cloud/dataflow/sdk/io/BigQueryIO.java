@@ -141,6 +141,7 @@ import javax.annotation.Nullable;
  * <a href="https://developers.google.com/bigquery/">BigQuery</a> tables.
  *
  * <h3>Table References</h3>
+ *
  * <p>A fully-qualified BigQuery table name consists of three components:
  * <ul>
  *   <li>{@code projectId}: the Cloud project id (defaults to
@@ -162,6 +163,7 @@ import javax.annotation.Nullable;
  * </ul>
  *
  * <h3>Reading</h3>
+ *
  * <p>To read from a BigQuery table, apply a {@link BigQueryIO.Read} transformation.
  * This produces a {@link PCollection} of {@link TableRow TableRows} as output:
  * <pre>{@code
@@ -186,6 +188,7 @@ import javax.annotation.Nullable;
  * Pipeline construction will fail with a validation error if neither or both are specified.
  *
  * <h3>Writing</h3>
+ *
  * <p>To write to a BigQuery table, apply a {@link BigQueryIO.Write} transformation.
  * This consumes a {@link PCollection} of {@link TableRow TableRows} as input.
  * <pre>{@code
@@ -209,6 +212,7 @@ import javax.annotation.Nullable;
  * dispositions are not supported in streaming mode.
  *
  * <h3>Sharding BigQuery output tables</h3>
+ *
  * <p>A common use case is to dynamically generate BigQuery table names based on
  * the current window. To support this,
  * {@link BigQueryIO.Write#to(SerializableFunction)}
@@ -234,6 +238,7 @@ import javax.annotation.Nullable;
  * <p>Per-window tables are not yet supported in batch mode.
  *
  * <h3>Permissions</h3>
+ *
  * <p>Permission requirements depend on the {@link PipelineRunner} that is used to execute the
  * Dataflow job. Please refer to the documentation of corresponding {@link PipelineRunner}s for
  * more details.

@@ -105,7 +105,7 @@ public interface BigQueryServices extends Serializable {
     /**
      * Gets the specified {@link Job} by the given {@link JobReference}.
      *
-     * Returns null if the job is not found.
+     * <p>Returns null if the job is not found.
      */
     Job getJob(JobReference jobRef) throws IOException, InterruptedException;
   }

@@ -1046,14 +1046,13 @@ class SerializableMatchers implements Serializable {
    * the {@link Matcher} returned by {@link SerializableSupplier#get() get()} when it is invoked
    * during matching (which may occur on another machine, such as a Dataflow worker).
    *
-   * <code>
+   * <pre>{@code
    * return fromSupplier(new SerializableSupplier<Matcher<T>>() {
-   *   *     @Override
    *     public Matcher<T> get() {
    *       return new MyMatcherForT();
    *     }
    * });
-   * </code>
+   * }</pre>
    */
   public static <T> SerializableMatcher<T> fromSupplier(
       SerializableSupplier<Matcher<T>> supplier) {

@@ -42,7 +42,7 @@ public class PubsubTestClient extends PubsubClient {
   /**
    * Mimic the state of the simulated Pubsub 'service'.
    *
-   * Note that the {@link PubsubTestClientFactory} is serialized/deserialized even when running
+   * <p>Note that the {@link PubsubTestClientFactory} is serialized/deserialized even when running
    * test pipelines. Meanwhile it is valid for multiple {@link PubsubTestClient}s to be created
    * from the same client factory and run in parallel. Thus we can't enforce aliasing of the
    * following data structures over all clients and must resort to a static.

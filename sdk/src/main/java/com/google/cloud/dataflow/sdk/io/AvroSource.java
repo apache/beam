@@ -122,6 +122,7 @@ import javax.annotation.concurrent.GuardedBy;
  * }</pre>
  *
  * <h3>Permissions</h3>
+ *
  * <p>Permission requirements depend on the {@link PipelineRunner} that is used to execute the
  * Dataflow job. Please refer to the documentation of corresponding {@link PipelineRunner}s for
  * more details.

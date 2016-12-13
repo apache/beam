@@ -28,14 +28,14 @@ import com.google.cloud.dataflow.sdk.values.PCollection;
  * A primitive {@link PTransform} that implements the {@link Window#into(WindowFn)}
  * {@link PTransform}.
  *
- * For an application of {@link Window#into(WindowFn)} that changes the {@link WindowFn}, applies
+ * <p>For an application of {@link Window#into(WindowFn)} that changes the {@link WindowFn}, applies
  * a primitive {@link PTransform} in the Dataflow service.
  *
- * For an application of {@link Window#into(WindowFn)} that does not change the {@link WindowFn},
+ * <p>For an application of {@link Window#into(WindowFn)} that does not change the {@link WindowFn},
  * applies an identity {@link ParDo} and sets the windowing strategy of the output
  * {@link PCollection}.
  *
- * For internal use only.
+ * <p>For internal use only.
  *
  * @param <T> the type of input element
  */

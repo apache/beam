@@ -287,9 +287,9 @@ public abstract class PTransform<InputT extends PInput, OutputT extends POutput>
    * Returns the default {@code Coder} to use for the output of this
    * single-output {@code PTransform} when applied to the given input.
    *
-   * @throws CannotProvideCoderException if none can be inferred.
-   *
    * <p>By default, always throws.
+   *
+   * @throws CannotProvideCoderException if none can be inferred.
    */
   protected Coder<?> getDefaultOutputCoder(@SuppressWarnings("unused") InputT input)
       throws CannotProvideCoderException {
@@ -300,9 +300,9 @@ public abstract class PTransform<InputT extends PInput, OutputT extends POutput>
    * Returns the default {@code Coder} to use for the given output of
    * this single-output {@code PTransform} when applied to the given input.
    *
-   * @throws CannotProvideCoderException if none can be inferred.
-   *
    * <p>By default, always throws.
+   *
+   * @throws CannotProvideCoderException if none can be inferred.
    */
   public <T> Coder<T> getDefaultOutputCoder(
       InputT input, @SuppressWarnings("unused") TypedPValue<T> output)

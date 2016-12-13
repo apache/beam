@@ -111,7 +111,7 @@ public interface TimerInternals {
    * <li>However will never be behind the global input watermark for any following computation.
    * </ol>
    *
-   * <p> In pictures:
+   * <p>In pictures:
    * <pre>
    *  |              |       |       |       |
    *  |              |   D   |   C   |   B   |   A
