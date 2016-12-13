@@ -58,7 +58,7 @@ interface InProcessTransformResult {
   /**
    * Returns the Watermark Hold for the transform at the time this result was produced.
    *
-   * If the transform does not set any watermark hold, returns
+   * <p>If the transform does not set any watermark hold, returns
    * {@link BoundedWindow#TIMESTAMP_MAX_VALUE}.
    */
   Instant getWatermarkHold();
@@ -66,7 +66,7 @@ interface InProcessTransformResult {
   /**
    * Returns the State used by the transform.
    *
-   * If this evaluation did not access state, this may return null.
+   * <p>If this evaluation did not access state, this may return null.
    */
   @Nullable
   CopyOnAccessInMemoryStateInternals<?> getState();

@@ -287,7 +287,8 @@ public class SourceTestUtils {
    * Asserts that the {@code source}'s reader either fails to {@code splitAtFraction(fraction)}
    * after reading {@code numItemsToReadBeforeSplit} items, or succeeds in a way that is
    * consistent according to {@link #assertSplitAtFractionSucceedsAndConsistent}.
-   * <p> Returns SplitAtFractionResult.
+   *
+   * <p>Returns SplitAtFractionResult.
    */
 
   public static <T> SplitAtFractionResult assertSplitAtFractionBehavior(

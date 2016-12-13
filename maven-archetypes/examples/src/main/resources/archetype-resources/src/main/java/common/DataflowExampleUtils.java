@@ -67,7 +67,7 @@ public class DataflowExampleUtils {
   /**
    * Define an interface that supports the PubSub and BigQuery example options.
    */
-  public static interface DataflowExampleUtilsOptions
+  public interface DataflowExampleUtilsOptions
         extends DataflowExampleOptions, ExamplePubsubTopicOptions, ExampleBigQueryTableOptions {
   }
 

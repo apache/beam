@@ -46,7 +46,7 @@ import java.util.TimeZone;
  * domain, following {@link UserScore}. In addition to the concepts introduced in {@link UserScore},
  * new concepts include: windowing and element timestamps; use of {@code Filter.byPredicate()}.
  *
- * <p> This pipeline processes data collected from gaming events in batch, building on {@link
+ * <p>This pipeline processes data collected from gaming events in batch, building on {@link
  * UserScore} but using fixed windows. It calculates the sum of scores per team, for each window,
  * optionally allowing specification of two timestamps before and after which data is filtered out.
  * This allows a model where late data collected after the intended analysis window can be included,
@@ -55,7 +55,7 @@ import java.util.TimeZone;
  * {@link UserScore} pipeline. However, our batch processing is high-latency, in that we don't get
  * results from plays at the beginning of the batch's time period until the batch is processed.
  *
- * <p> To execute this pipeline using the Dataflow service, specify the pipeline configuration
+ * <p>To execute this pipeline using the Dataflow service, specify the pipeline configuration
  * like this:
  * <pre>{@code
  *   --project=YOUR_PROJECT_ID
@@ -66,7 +66,7 @@ import java.util.TimeZone;
  * </pre>
  * where the BigQuery dataset you specify must already exist.
  *
- * <p> Optionally include {@code --input} to specify the batch input file path.
+ * <p>Optionally include {@code --input} to specify the batch input file path.
  * To indicate a time after which the data should be filtered out, include the
  * {@code --stopMin} arg. E.g., {@code --stopMin=2015-10-18-23-59} indicates that any data
  * timestamped after 23:59 PST on 2015-10-18 should not be included in the analysis.

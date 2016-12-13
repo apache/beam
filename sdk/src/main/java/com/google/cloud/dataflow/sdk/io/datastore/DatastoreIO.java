@@ -19,7 +19,7 @@ package com.google.cloud.dataflow.sdk.io.datastore;
 import com.google.cloud.dataflow.sdk.annotations.Experimental;
 
 /**
- * <p>{@link DatastoreIO} provides an API for reading from and writing to
+ * {@link DatastoreIO} provides an API for reading from and writing to
  * <a href="https://developers.google.com/datastore/">Google Cloud Datastore</a> over different
  * versions of the Cloud Datastore Client libraries.
  *

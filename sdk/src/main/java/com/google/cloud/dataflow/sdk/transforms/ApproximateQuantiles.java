@@ -208,7 +208,7 @@ public class ApproximateQuantiles {
    * </pre>
    *
    * <p>The default error bound is {@code 1 / N}, though in practice
-   * the accuracy tends to be much better.  <p>See
+   * the accuracy tends to be much better. See
    * {@link #create(int, Comparator, long, double)} for
    * more information about the meaning of {@code epsilon}, and
    * {@link #withEpsilon} for a convenient way to adjust it.

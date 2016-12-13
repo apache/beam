@@ -351,7 +351,7 @@ class InProcessEvaluationContext {
    * Create a {@link CounterSet} for this {@link Pipeline}. The {@link CounterSet} is independent
    * of all other {@link CounterSet CounterSets} created by this call.
    *
-   * The {@link InProcessEvaluationContext} is responsible for unifying the counters present in
+   * <p>The {@link InProcessEvaluationContext} is responsible for unifying the counters present in
    * all created {@link CounterSet CounterSets} when the transforms that call this method
    * complete.
    */

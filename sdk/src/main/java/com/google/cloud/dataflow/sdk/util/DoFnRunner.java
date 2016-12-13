@@ -47,7 +47,7 @@ public interface DoFnRunner<InputT, OutputT> {
     /**
      * Gets this object as a {@link DoFn}.
      *
-     * Most implementors of this interface are expected to be {@link DoFn} instances, and will
+     * <p>Most implementors of this interface are expected to be {@link DoFn} instances, and will
      * return themselves.
      */
     DoFn<KeyedWorkItem<K, InputT>, KV<K, OutputT>> asDoFn();

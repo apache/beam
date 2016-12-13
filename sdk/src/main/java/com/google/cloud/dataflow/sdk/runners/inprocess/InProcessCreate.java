@@ -44,8 +44,8 @@ import javax.annotation.Nullable;
  * An in-process implementation of the {@link Values Create.Values} {@link PTransform}, implemented
  * using a {@link BoundedSource}.
  *
- * The coder is inferred via the {@link Values#getDefaultOutputCoder(PInput)} method on the original
- * transform.
+ * <p>The coder is inferred via the {@link Values#getDefaultOutputCoder(PInput)} method on the
+ * original transform.
  */
 class InProcessCreate<T> extends ForwardingPTransform<PInput, PCollection<T>> {
   private final Create.Values<T> original;

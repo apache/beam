@@ -112,6 +112,7 @@ import javax.annotation.Nullable;
  * }</pre>
  *
  * <h3>Permissions</h3>
+ *
  * <p>When run using the {@link DirectPipelineRunner}, your pipeline can read and write text files
  * on your local drive and remote text files on Google Cloud Storage that you have access to using
  * your {@code gcloud} credentials. When running in the Dataflow service using
@@ -269,7 +270,7 @@ public class TextIO {
 
       /**
        * Returns a new transform for reading from text files that's like this one but
-       * that uses the given {@link Coder Coder<X>} to decode each of the
+       * that uses the given {@link Coder} to decode each of the
        * lines of the file into a value of type {@code X}.
        *
        * <p>Does not modify this object.
@@ -671,8 +672,8 @@ public class TextIO {
 
       /**
        * Returns a transform for writing to text files that's like this one
-       * but that uses the given {@link Coder Coder<X>} to encode each of
-       * the elements of the input {@link PCollection PCollection<X>} into an
+       * but that uses the given {@link Coder} to encode each of
+       * the elements of the input {@link PCollection} into an
        * output text line. Does not modify this object.
        *
        * @param <X> the type of the elements of the input {@link PCollection}
@@ -924,7 +925,7 @@ public class TextIO {
      * A {@link com.google.cloud.dataflow.sdk.io.FileBasedSource.FileBasedReader FileBasedReader}
      * which can decode records delimited by newline characters.
      *
-     * See {@link TextSource} for further details.
+     * <p>See {@link TextSource} for further details.
      */
     @VisibleForTesting
     static class TextBasedReader<T> extends FileBasedReader<T> {
@@ -1056,7 +1057,7 @@ public class TextIO {
       /**
        * Decodes the current element updating the buffer to only contain the unconsumed bytes.
        *
-       * This invalidates the currently stored {@code startOfSeparatorInBuffer} and
+       * <p>This invalidates the currently stored {@code startOfSeparatorInBuffer} and
        * {@code endOfSeparatorInBuffer}.
        */
       private void decodeCurrentElement() throws IOException {

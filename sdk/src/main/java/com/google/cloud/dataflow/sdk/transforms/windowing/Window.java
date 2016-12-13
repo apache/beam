@@ -42,7 +42,7 @@ import javax.annotation.Nullable;
  * {@link com.google.cloud.dataflow.sdk.transforms.GroupByKey GroupByKeys},
  * including one within composite transforms, will group by the combination of
  * keys and windows.
-
+ *
  * <p>See {@link com.google.cloud.dataflow.sdk.transforms.GroupByKey}
  * for more information about how grouping with windows works.
  *

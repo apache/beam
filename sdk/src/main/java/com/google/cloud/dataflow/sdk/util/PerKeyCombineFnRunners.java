@@ -49,7 +49,7 @@ public class PerKeyCombineFnRunners {
   /**
    * An implementation of {@link PerKeyCombineFnRunner} with {@link KeyedCombineFn}.
    *
-   * It forwards functions calls to the {@link KeyedCombineFn}.
+   * <p>It forwards functions calls to the {@link KeyedCombineFn}.
    */
   private static class KeyedCombineFnRunner<K, InputT, AccumT, OutputT>
       implements PerKeyCombineFnRunner<K, InputT, AccumT, OutputT> {
@@ -145,7 +145,7 @@ public class PerKeyCombineFnRunners {
   /**
    * An implementation of {@link PerKeyCombineFnRunner} with {@link KeyedCombineFnWithContext}.
    *
-   * It forwards functions calls to the {@link KeyedCombineFnWithContext}.
+   * <p>It forwards functions calls to the {@link KeyedCombineFnWithContext}.
    */
   private static class KeyedCombineFnWithContextRunner<K, InputT, AccumT, OutputT>
       implements PerKeyCombineFnRunner<K, InputT, AccumT, OutputT> {

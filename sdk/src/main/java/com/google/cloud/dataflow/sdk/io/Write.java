@@ -67,7 +67,7 @@ import java.util.concurrent.ThreadLocalRandom;
  * <p>Example usage with runner-controlled sharding:
  *
  * <pre>{@code p.apply(Write.to(new MySink(...)));}</pre>
-
+ *
  * <p>Example usage with a fixed number of shards:
  *
  * <pre>{@code p.apply(Write.to(new MySink(...)).withNumShards(3));}</pre>

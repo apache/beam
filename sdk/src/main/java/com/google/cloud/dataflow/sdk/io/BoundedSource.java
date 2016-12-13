@@ -87,11 +87,13 @@ public abstract class BoundedSource<T> extends Source<T> {
    * operations, such as progress estimation and dynamic work rebalancing.
    *
    * <h3>Boundedness</h3>
+   *
    * <p>Once {@link #start} or {@link #advance} has returned false, neither will be called
    * again on this object.
    *
    * <h3>Thread safety</h3>
-   * All methods will be run from the same thread except {@link #splitAtFraction},
+   *
+   * <p>All methods will be run from the same thread except {@link #splitAtFraction},
    * {@link #getFractionConsumed}, {@link #getCurrentSource}, {@link #getSplitPointsConsumed()},
    * and {@link #getSplitPointsRemaining()}, all of which can be called concurrently
    * from a different thread. There will not be multiple concurrent calls to
@@ -108,7 +110,8 @@ public abstract class BoundedSource<T> extends Source<T> {
    * {@link #getCurrentSource} which do not change between {@link #splitAtFraction} calls.
    *
    * <h3>Implementing {@link #splitAtFraction}</h3>
-   * In the course of dynamic work rebalancing, the method {@link #splitAtFraction}
+   *
+   * <p>In the course of dynamic work rebalancing, the method {@link #splitAtFraction}
    * may be called concurrently with {@link #advance} or {@link #start}. It is critical that
    * their interaction is implemented in a thread-safe way, otherwise data loss is possible.
    *
@@ -263,14 +266,17 @@ public abstract class BoundedSource<T> extends Source<T> {
      * (including items already read).
      *
      * <h3>Usage</h3>
+     *
      * <p>Reader subclasses can use this method for convenience to access unchanging properties of
      * the source being read. Alternatively, they can cache these properties in the constructor.
+     *
      * <p>The framework will call this method in the course of dynamic work rebalancing, e.g. after
      * a successful {@link BoundedSource.BoundedReader#splitAtFraction} call.
      *
      * <h3>Mutability and thread safety</h3>
-     * Remember that {@link Source} objects must always be immutable. However, the return value of
-     * this function may be affected by dynamic work rebalancing, happening asynchronously via
+     *
+     * <p>Remember that {@link Source} objects must always be immutable. However, the return value
+     * of this function may be affected by dynamic work rebalancing, happening asynchronously via
      * {@link BoundedSource.BoundedReader#splitAtFraction}, meaning it can return a different
      * {@link Source} object. However, the returned object itself will still itself be immutable.
      * Callers must take care not to rely on properties of the returned source that may be

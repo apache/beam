@@ -67,7 +67,7 @@ class PipelineOptionsReflector {
   /**
    * Retrieve metadata for the full set of pipeline options visible within the type hierarchy
    * closure of the set of input interfaces. An option is "visible" if:
-   * <p>
+   *
    * <ul>
    * <li>The option is defined within the interface hierarchy closure of the input
    * {@link PipelineOptions}.</li>

@@ -106,7 +106,7 @@ import javax.annotation.Nullable;
  * <p>Although most applications consumer single topic, the source can be configured to consume
  * multiple topics or even a specific set of {@link TopicPartition}s.
  *
- * <p> To configure a Kafka source, you must specify at the minimum Kafka <tt>bootstrapServers</tt>
+ * <p>To configure a Kafka source, you must specify at the minimum Kafka <tt>bootstrapServers</tt>
  * and one or more topics to consume. The following example illustrates various options for
  * configuring the source :
  *
@@ -153,7 +153,7 @@ import javax.annotation.Nullable;
  *
  * <h3>Writing to Kafka</h3>
  *
- * KafkaIO sink supports writing key-value pairs to a Kafka topic. Users can also write just the
+ * <p>KafkaIO sink supports writing key-value pairs to a Kafka topic. Users can also write just the
  * values. To configure a Kafka sink, you must specify at the minimum Kafka
  * <tt>bootstrapServers</tt> and the topic to write to. The following example illustrates various
  * options for configuring the sink:
@@ -175,7 +175,7 @@ import javax.annotation.Nullable;
  *    );
  * }</pre>
  *
- * Often you might want to write just values without any keys to Kafka. Use {@code values()} to
+ * <p>Often you might want to write just values without any keys to Kafka. Use {@code values()} to
  * write records with default empty(null) key:
  *
  * <pre>{@code
@@ -578,7 +578,7 @@ public class KafkaIO {
     }
 
     /**
-     * Creates an {@link UnboundedSource<KafkaRecord<K, V>, ?>} with the configuration in {@link
+     * Creates an {@link UnboundedSource} with the configuration in {@link
      * TypedRead}. Primary use case is unit tests, should not be used in an application.
      */
     @VisibleForTesting
@@ -751,7 +751,7 @@ public class KafkaIO {
     /**
      * Returns one split for each of the Kafka partitions.
      *
-     * <p> It is important to sort the partitions deterministically so that we can support
+     * <p>It is important to sort the partitions deterministically so that we can support
      * resuming a split from last checkpoint. The Kafka partitions are sorted by {@code <topic,
      * partition>}.
      */

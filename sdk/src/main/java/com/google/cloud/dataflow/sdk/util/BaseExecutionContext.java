@@ -38,16 +38,17 @@ import java.util.Map;
  * <p>BaseExecutionContext is generic to allow implementing subclasses to return a concrete subclass
  * of {@link StepContext} from {@link #getOrCreateStepContext(String, String, StateSampler)} and
  * {@link #getAllStepContexts()} without forcing each subclass to override the method, e.g.
- * <pre>
- * @Override
+ *
+ * <pre>{@code
+ * {@literal @}Override
  * StreamingModeExecutionContext.StepContext getOrCreateStepContext(...) {
  *   return (StreamingModeExecutionContext.StepContext) super.getOrCreateStepContext(...);
  * }
- * </pre>
+ * }</pre>
  *
  * <p>When a subclass of {@code BaseExecutionContext} has been downcast, the return types of
  * {@link #createStepContext(String, String, StateSampler)},
- * {@link #getOrCreateStepContext(String, String, StateSampler}, and {@link #getAllStepContexts()}
+ * {@link #getOrCreateStepContext(String, String, StateSampler)}, and {@link #getAllStepContexts()}
  * will be appropriately specialized.
  */
 public abstract class BaseExecutionContext<T extends ExecutionContext.StepContext>

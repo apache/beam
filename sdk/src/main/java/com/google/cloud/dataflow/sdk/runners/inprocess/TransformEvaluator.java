@@ -35,7 +35,7 @@ interface TransformEvaluator<InputT> {
   /**
    * Finish processing the bundle of this {@link TransformEvaluator}.
    *
-   * After {@link #finishBundle()} is called, the {@link TransformEvaluator} will not be reused,
+   * <p>After {@link #finishBundle()} is called, the {@link TransformEvaluator} will not be reused,
    * and no more elements will be processed.
    *
    * @return an {@link InProcessTransformResult} containing the results of this bundle evaluation.
