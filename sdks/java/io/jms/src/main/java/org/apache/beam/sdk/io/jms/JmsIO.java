@@ -18,7 +18,7 @@
 package org.apache.beam.sdk.io.jms;
 
 import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkNotNull;
+import static com.google.common.base.Preconditions.checkState;
 
 import com.google.auto.value.AutoValue;
 import com.google.common.annotations.VisibleForTesting;
@@ -145,7 +145,7 @@ public class JmsIO {
     }
 
     /**
-     * <p>Specify the JMS connection factory to connect to the JMS broker.
+     * Specify the JMS connection factory to connect to the JMS broker.
      *
      * <p>For instance:
      *
@@ -159,11 +159,13 @@ public class JmsIO {
      * @return The corresponding {@link JmsIO.Read}.
      */
     public Read withConnectionFactory(ConnectionFactory connectionFactory) {
+      checkArgument(connectionFactory != null, "withConnectionFactory(connectionFactory) called"
+          + " with null connectionFactory");
       return builder().setConnectionFactory(connectionFactory).build();
     }
 
     /**
-     * <p>Specify the JMS queue destination name where to read messages from. The
+     * Specify the JMS queue destination name where to read messages from. The
      * {@link JmsIO.Read} acts as a consumer on the queue.
      *
      * <p>This method is exclusive with {@link JmsIO.Read#withTopic(String)}. The user has to
@@ -181,11 +183,12 @@ public class JmsIO {
      * @return The corresponding {@link JmsIO.Read}.
      */
     public Read withQueue(String queue) {
+      checkArgument(queue != null, "withQueue(queue) called with null queue");
       return builder().setQueue(queue).build();
     }
 
     /**
-     * <p>Specify the JMS topic destination name where to receive messages from. The
+     * Specify the JMS topic destination name where to receive messages from. The
      * {@link JmsIO.Read} acts as a subscriber on the topic.
      *
      * <p>This method is exclusive with {@link JmsIO.Read#withQueue(String)}. The user has to
@@ -203,11 +206,12 @@ public class JmsIO {
      * @return The corresponding {@link JmsIO.Read}.
      */
     public Read withTopic(String topic) {
+      checkArgument(topic != null, "withTopic(topic) called with null topic");
       return builder().setTopic(topic).build();
     }
 
     /**
-     * <p>Define the max number of records that the source will read. Using a max number of records
+     * Define the max number of records that the source will read. Using a max number of records
      * different from {@code Long.MAX_VALUE} means the source will be {@code Bounded}, and will
      * stop once the max number of records read is reached.
      *
@@ -223,11 +227,13 @@ public class JmsIO {
      * @return The corresponding {@link JmsIO.Read}.
      */
     public Read withMaxNumRecords(long maxNumRecords) {
+      checkArgument(maxNumRecords >= 0, "withMaxNumRecords(maxNumRecords) called with invalid "
+          + "maxNumRecords");
       return builder().setMaxNumRecords(maxNumRecords).build();
     }
 
     /**
-     * <p>Define the max read time that the source will read. Using a non null max read time
+     * Define the max read time that the source will read. Using a non null max read time
      * duration means the source will be {@code Bounded}, and will stop once the max read time is
      * reached.
      *
@@ -243,6 +249,8 @@ public class JmsIO {
      * @return The corresponding {@link JmsIO.Read}.
      */
     public Read withMaxReadTime(Duration maxReadTime) {
+      checkArgument(maxReadTime != null, "withMaxReadTime(maxReadTime) called with null "
+          + "maxReadTime");
       return builder().setMaxReadTime(maxReadTime).build();
     }
 
@@ -264,9 +272,11 @@ public class JmsIO {
 
     @Override
     public void validate(PBegin input) {
-      checkNotNull(getConnectionFactory(), "ConnectionFactory not specified");
-      checkArgument((getQueue() != null || getTopic() != null), "Either queue or topic not "
-          + "specified");
+      checkState(getConnectionFactory() != null, "JmsIO.read() requires a JMS connection "
+          + "factory to be set via withConnectionFactory(connectionFactory)");
+      checkState((getQueue() != null || getTopic() != null), "JmsIO.read() requires a JMS "
+          + "destination (queue or topic) to be set via withQueue(queueName) or withTopic"
+          + "(topicName)");
     }
 
     @Override
@@ -497,7 +507,7 @@ public class JmsIO {
     }
 
     /**
-     * <p>Specify the JMS connection factory to connect to the JMS broker.
+     * Specify the JMS connection factory to connect to the JMS broker.
      *
      * <p>For instance:
      *
@@ -511,11 +521,13 @@ public class JmsIO {
      * @return The corresponding {@link JmsIO.Read}.
      */
     public Write withConnectionFactory(ConnectionFactory connectionFactory) {
+      checkArgument(connectionFactory != null, "withConnectionFactory(connectionFactory) called"
+          + " with null connectionFactory");
       return builder().setConnectionFactory(connectionFactory).build();
     }
 
     /**
-     * <p>Specify the JMS queue destination name where to send messages to. The
+     * Specify the JMS queue destination name where to send messages to. The
      * {@link JmsIO.Write} acts as a producer on the queue.
      *
      * <p>This method is exclusive with {@link JmsIO.Write#withTopic(String)}. The user has to
@@ -533,11 +545,12 @@ public class JmsIO {
      * @return The corresponding {@link JmsIO.Read}.
      */
     public Write withQueue(String queue) {
+      checkArgument(queue != null, "withQueue(queue) called with null queue");
       return builder().setQueue(queue).build();
     }
 
     /**
-     * <p>Specify the JMS topic destination name where to send messages to. The
+     * Specify the JMS topic destination name where to send messages to. The
      * {@link JmsIO.Read} acts as a publisher on the topic.
      *
      * <p>This method is exclusive with {@link JmsIO.Write#withQueue(String)}. The user has to
@@ -555,6 +568,7 @@ public class JmsIO {
      * @return The corresponding {@link JmsIO.Read}.
      */
     public Write withTopic(String topic) {
+      checkArgument(topic != null, "withTopic(topic) called with null topic");
       return builder().setTopic(topic).build();
     }
 
@@ -566,9 +580,10 @@ public class JmsIO {
 
     @Override
     public void validate(PCollection<String> input) {
-      checkNotNull(getConnectionFactory(), "ConnectionFactory is not defined");
-      checkArgument((getQueue() != null || getTopic() != null), "Either queue or topic is "
-          + "required");
+      checkState(getConnectionFactory() != null, "JmsIO.write() requires a JMS connection "
+          + "factory to be set via withConnectionFactory(connectionFactory)");
+      checkState((getQueue() != null || getTopic() != null), "JmsIO.write() requires a JMS "
+          + "destination (queue or topic) to be set via withQueue(queue) or withTopic(topic)");
     }
 
     private static class WriterFn extends DoFn<String, Void> {
