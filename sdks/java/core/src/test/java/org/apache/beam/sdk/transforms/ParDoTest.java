@@ -69,6 +69,7 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
+import org.apache.beam.sdk.transforms.windowing.SlidingWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.util.TimeDomain;
 import org.apache.beam.sdk.util.Timer;
@@ -88,6 +89,7 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
+import org.joda.time.MutableDateTime;
 import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
@@ -722,6 +724,49 @@ public class ParDoTest implements Serializable {
     thrown.expect(RuntimeException.class);
     thrown.expectMessage("calling sideInput() with unknown view");
     pipeline.run();
+  }
+
+  private static class FnWithSideInputs extends DoFn<String, String> {
+    private final PCollectionView<Integer> view;
+
+    private FnWithSideInputs(PCollectionView<Integer> view) {
+      this.view = view;
+    }
+
+    @ProcessElement
+    public void processElement(ProcessContext c) {
+      c.output(c.element() + ":" + c.sideInput(view));
+    }
+  }
+
+  @Test
+  @Category(RunnableOnService.class)
+  public void testSideInputsWithMultipleWindows() {
+    // Tests that the runner can safely run a DoFn that uses side inputs
+    // on an input where the element is in multiple windows. The complication is
+    // that side inputs are per-window, so the runner has to make sure
+    // to process each window individually.
+    Pipeline p = TestPipeline.create();
+
+    MutableDateTime mutableNow = Instant.now().toMutableDateTime();
+    mutableNow.setMillisOfSecond(0);
+    Instant now = mutableNow.toInstant();
+
+    SlidingWindows windowFn =
+        SlidingWindows.of(Duration.standardSeconds(5)).every(Duration.standardSeconds(1));
+    PCollectionView<Integer> view = p.apply(Create.of(1)).apply(View.<Integer>asSingleton());
+    PCollection<String> res =
+        p.apply(Create.timestamped(TimestampedValue.of("a", now)))
+            .apply(Window.<String>into(windowFn))
+            .apply(ParDo.of(new FnWithSideInputs(view)).withSideInputs(view));
+
+    for (int i = 0; i < 4; ++i) {
+      Instant base = now.minus(Duration.standardSeconds(i));
+      IntervalWindow window = new IntervalWindow(base, base.plus(Duration.standardSeconds(5)));
+      PAssert.that(res).inWindow(window).containsInAnyOrder("a:1");
+    }
+
+    p.run();
   }
 
   @Test
