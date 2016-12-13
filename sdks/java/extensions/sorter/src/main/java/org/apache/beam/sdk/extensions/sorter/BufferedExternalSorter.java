@@ -51,10 +51,14 @@ public class BufferedExternalSorter implements Sorter {
 
     /**
      * Sets the size of the memory buffer in megabytes. This controls both the buffer for initial in
-     * memory sorting and the buffer used when external sorting. Must be greater than zero.
+     * memory sorting and the buffer used when external sorting. Must be greater than zero and less
+     * than 2048.
      */
     public Options setMemoryMB(int memoryMB) {
       checkArgument(memoryMB > 0, "memoryMB must be greater than zero");
+      // Hadoop's external sort stores the number of available memory bytes in an int, this prevents
+      // overflow
+      checkArgument(memoryMB < 2048, "memoryMB must be less than 2048");
       this.memoryMB = memoryMB;
       return this;
     }
