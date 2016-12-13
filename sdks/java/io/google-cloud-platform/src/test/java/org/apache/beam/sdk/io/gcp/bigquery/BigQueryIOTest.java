@@ -1257,6 +1257,33 @@ public class BigQueryIOTest implements Serializable {
   }
 
   @Test
+  public void testCreateNeverWithStreaming() throws Exception {
+    BigQueryOptions options = TestPipeline.testingPipelineOptions().as(BigQueryOptions.class);
+    options.setProject("project");
+    Pipeline p = TestPipeline.create(options);
+
+    TableReference tableRef = new TableReference();
+    tableRef.setDatasetId("dataset");
+    tableRef.setTableId("sometable");
+
+    PCollection<TableRow> tableRows =
+          p.apply(CountingInput.unbounded())
+              .apply(
+                  MapElements.via(
+                      new SimpleFunction<Long, TableRow>() {
+                        @Override
+                        public TableRow apply(Long input) {
+                          return null;
+                        }
+                      }))
+              .setCoder(TableRowJsonCoder.of());
+    tableRows
+        .apply(BigQueryIO.Write.to(tableRef)
+            .withCreateDisposition(CreateDisposition.CREATE_NEVER)
+            .withoutValidation());
+  }
+
+  @Test
   public void testTableParsing() {
     TableReference ref = BigQueryIO
         .parseTableSpec("my-project:data_set.table_name");

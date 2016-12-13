@@ -1886,10 +1886,12 @@ public class BigQueryIO {
 
         if (input.isBounded() == PCollection.IsBounded.UNBOUNDED || tableRefFunction != null) {
           // We will use BigQuery's streaming write API -- validate supported dispositions.
-          checkArgument(
-              createDisposition != CreateDisposition.CREATE_NEVER,
-              "CreateDisposition.CREATE_NEVER is not supported for an unbounded PCollection or when"
-                  + " using a tablespec function.");
+          if (jsonTableRef == null) {
+            checkArgument(
+                createDisposition != CreateDisposition.CREATE_NEVER,
+                "CreateDisposition.CREATE_NEVER is not supported when using a tablespec"
+                + " function.");
+          }
 
           checkArgument(
               writeDisposition != WriteDisposition.WRITE_TRUNCATE,
@@ -1926,7 +1928,9 @@ public class BigQueryIO {
         if (input.isBounded() == IsBounded.UNBOUNDED || tableRefFunction != null) {
           return input.apply(
               new StreamWithDeDup(getTable(), tableRefFunction,
-                  NestedValueProvider.of(jsonSchema, new JsonSchemaToTableSchema()), bqServices));
+                  jsonSchema == null ? null : NestedValueProvider.of(
+                      jsonSchema, new JsonSchemaToTableSchema()),
+                  bqServices));
         }
 
         ValueProvider<TableReference> table = getTableWithDefaultProject(options);
@@ -2559,7 +2563,7 @@ public class BigQueryIO {
   private static class StreamingWriteFn
       extends DoFn<KV<ShardedKey<String>, TableRowInfo>, Void> {
     /** TableSchema in JSON. Use String to make the class Serializable. */
-    private final ValueProvider<String> jsonTableSchema;
+    @Nullable private final ValueProvider<String> jsonTableSchema;
 
     private final BigQueryServices bqServices;
 
@@ -2579,8 +2583,9 @@ public class BigQueryIO {
         createAggregator("ByteCount", new Sum.SumLongFn());
 
     /** Constructor. */
-    StreamingWriteFn(ValueProvider<TableSchema> schema, BigQueryServices bqServices) {
-      this.jsonTableSchema =
+    StreamingWriteFn(@Nullable ValueProvider<TableSchema> schema,
+        BigQueryServices bqServices) {
+      this.jsonTableSchema = schema == null ? null :
           NestedValueProvider.of(schema, new TableSchemaToJsonSchema());
       this.bqServices = checkNotNull(bqServices, "bqServices");
     }
@@ -2628,7 +2633,7 @@ public class BigQueryIO {
     public TableReference getOrCreateTable(BigQueryOptions options, String tableSpec)
         throws IOException {
       TableReference tableReference = parseTableSpec(tableSpec);
-      if (!createdTables.contains(tableSpec)) {
+      if (!createdTables.contains(tableSpec) && jsonTableSchema == null) {
         synchronized (createdTables) {
           // Another thread may have succeeded in creating the table in the meanwhile, so
           // check again. This check isn't needed for correctness, but we add it to prevent
