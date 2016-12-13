@@ -75,7 +75,7 @@
       <scope>runtime</scope>
     </dependency>
 
-    <!--- Beam -->
+    <!-- Beam -->
     <dependency>
       <groupId>org.apache.beam</groupId>
       <artifactId>beam-sdks-java-core</artifactId>
