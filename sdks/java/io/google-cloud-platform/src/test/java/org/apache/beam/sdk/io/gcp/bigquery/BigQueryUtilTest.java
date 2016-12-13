@@ -382,7 +382,7 @@ public class BigQueryUtilTest {
     BigQueryServicesImpl.DatasetServiceImpl services =
             new BigQueryServicesImpl.DatasetServiceImpl(mockClient, options);
 
-    services.getTable("project", "dataset", "get");
+    services.getTable("project", "dataset", "table");
 
     verifyTableGet();
   }
