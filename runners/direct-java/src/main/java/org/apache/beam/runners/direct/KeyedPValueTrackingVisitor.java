@@ -31,6 +31,7 @@ import org.apache.beam.sdk.Pipeline.PipelineVisitor;
 import org.apache.beam.sdk.runners.TransformHierarchy;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PValue;
 
 /**
@@ -105,7 +106,15 @@ class KeyedPValueTrackingVisitor implements PipelineVisitor {
   }
 
   private static boolean isKeyPreserving(PTransform<?, ?> transform) {
-    // There are currently no key-preserving transforms; this lays the infrastructure for them
-    return false;
+    // This is a hacky check for what is considered key-preserving to the direct runner.
+    // The most obvious alternative would be a package-private marker interface, but
+    // better to make this obviously hacky so it is less likely to proliferate. Meanwhile
+    // we intend to allow explicit expression of key-preserving DoFn in the model.
+    if (transform instanceof ParDo.BoundMulti) {
+      ParDo.BoundMulti<?, ?> parDo = (ParDo.BoundMulti<?, ?>) transform;
+      return parDo.getFn() instanceof ParDoMultiOverrideFactory.ToKeyedWorkItem;
+    } else {
+      return false;
+    }
   }
 }

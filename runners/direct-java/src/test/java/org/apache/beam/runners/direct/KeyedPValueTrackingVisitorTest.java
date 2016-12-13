@@ -22,8 +22,10 @@ import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertThat;
 
 import java.util.Collections;
+import org.apache.beam.runners.core.KeyedWorkItem;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -32,8 +34,12 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.Keys;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
+import org.apache.beam.sdk.transforms.windowing.PaneInfo;
+import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.joda.time.Instant;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -41,9 +47,7 @@ import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for {@link KeyedPValueTrackingVisitor}.
- */
+/** Tests for {@link KeyedPValueTrackingVisitor}. */
 @RunWith(JUnit4.class)
 public class KeyedPValueTrackingVisitorTest {
   @Rule public ExpectedException thrown = ExpectedException.none();
@@ -61,8 +65,7 @@ public class KeyedPValueTrackingVisitorTest {
   @Test
   public void groupByKeyProducesKeyedOutput() {
     PCollection<KV<String, Iterable<Integer>>> keyed =
-        p.apply(Create.of(KV.of("foo", 3)))
-            .apply(GroupByKey.<String, Integer>create());
+        p.apply(Create.of(KV.of("foo", 3))).apply(GroupByKey.<String, Integer>create());
 
     p.traverseTopologically(visitor);
     assertThat(visitor.getKeyedPValues(), hasItem(keyed));
@@ -91,16 +94,66 @@ public class KeyedPValueTrackingVisitorTest {
   }
 
   @Test
+  public void unkeyedInputWithKeyPreserving() {
+
+    PCollection<KV<String, Iterable<WindowedValue<KV<String, Integer>>>>> input =
+        p.apply(
+            Create.of(
+                    KV.of(
+                        "hello",
+                        (Iterable<WindowedValue<KV<String, Integer>>>)
+                            Collections.<WindowedValue<KV<String, Integer>>>emptyList()))
+                .withCoder(
+                    KvCoder.of(
+                        StringUtf8Coder.of(),
+                        IterableCoder.of(
+                            WindowedValue.getValueOnlyCoder(
+                                KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of()))))));
+
+    PCollection<KeyedWorkItem<String, KV<String, Integer>>> unkeyed =
+        input.apply(ParDo.of(new ParDoMultiOverrideFactory.ToKeyedWorkItem<String, Integer>()));
+
+    p.traverseTopologically(visitor);
+    assertThat(visitor.getKeyedPValues(), not(hasItem(unkeyed)));
+  }
+
+  @Test
+  public void keyedInputWithKeyPreserving() {
+
+    PCollection<KV<String, WindowedValue<KV<String, Integer>>>> input =
+        p.apply(
+            Create.of(
+                    KV.of(
+                        "hello",
+                        WindowedValue.of(
+                            KV.of("hello", 3),
+                            new Instant(0),
+                            new IntervalWindow(new Instant(0), new Instant(9)),
+                            PaneInfo.NO_FIRING)))
+                .withCoder(
+                    KvCoder.of(
+                        StringUtf8Coder.of(),
+                        WindowedValue.getValueOnlyCoder(
+                            KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of())))));
+
+    PCollection<KeyedWorkItem<String, KV<String, Integer>>> keyed =
+        input
+            .apply(GroupByKey.<String, WindowedValue<KV<String, Integer>>>create())
+            .apply(ParDo.of(new ParDoMultiOverrideFactory.ToKeyedWorkItem<String, Integer>()));
+
+    p.traverseTopologically(visitor);
+    assertThat(visitor.getKeyedPValues(), hasItem(keyed));
+  }
+
+  @Test
   public void traverseMultipleTimesThrows() {
     p.apply(
-            Create.<KV<Integer, Void>>of(
-                    KV.of(1, (Void) null), KV.of(2, (Void) null), KV.of(3, (Void) null))
+            Create.of(KV.of(1, (Void) null), KV.of(2, (Void) null), KV.of(3, (Void) null))
                 .withCoder(KvCoder.of(VarIntCoder.of(), VoidCoder.of())))
         .apply(GroupByKey.<Integer, Void>create())
         .apply(Keys.<Integer>create());
 
     p.traverseTopologically(visitor);
-
     thrown.expect(IllegalStateException.class);
     thrown.expectMessage("already been finalized");
     thrown.expectMessage(KeyedPValueTrackingVisitor.class.getSimpleName());
