@@ -2633,7 +2633,7 @@ public class BigQueryIO {
     public TableReference getOrCreateTable(BigQueryOptions options, String tableSpec)
         throws IOException {
       TableReference tableReference = parseTableSpec(tableSpec);
-      if (!createdTables.contains(tableSpec) && jsonTableSchema == null) {
+      if (!createdTables.contains(tableSpec) && jsonTableSchema != null) {
         synchronized (createdTables) {
           // Another thread may have succeeded in creating the table in the meanwhile, so
           // check again. This check isn't needed for correctness, but we add it to prevent
