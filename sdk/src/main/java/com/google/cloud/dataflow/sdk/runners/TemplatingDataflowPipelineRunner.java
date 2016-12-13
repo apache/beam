@@ -31,6 +31,8 @@ import com.google.common.collect.ImmutableList;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -67,6 +69,13 @@ public class TemplatingDataflowPipelineRunner extends PipelineRunner<DataflowPip
   public static TemplatingDataflowPipelineRunner fromOptions(PipelineOptions options) {
     DataflowPipelineDebugOptions dataflowOptions =
         PipelineOptionsValidator.validate(DataflowPipelineDebugOptions.class, options);
+    List<String> experiments = dataflowOptions.getExperiments();
+    if (experiments == null) {
+      experiments = new ArrayList<>();
+      dataflowOptions.setExperiments(experiments);
+    }
+    experiments.add("enable_custom_bigquery_source");
+    experiments.add("enable_custom_bigquery_sink");
     DataflowPipelineRunner dataflowPipelineRunner =
         DataflowPipelineRunner.fromOptions(dataflowOptions);
     checkArgument(!Strings.isNullOrEmpty(dataflowOptions.getDataflowJobFile()),
