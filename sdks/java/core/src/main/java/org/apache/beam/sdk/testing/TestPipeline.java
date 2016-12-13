@@ -98,7 +98,7 @@ public class TestPipeline extends Pipeline {
     return new TestPipeline(PipelineRunner.fromOptions(options), options);
   }
 
-  private TestPipeline(PipelineRunner<? extends PipelineResult> runner, PipelineOptions options) {
+  protected TestPipeline(PipelineRunner<? extends PipelineResult> runner, PipelineOptions options) {
     super(runner, options);
   }
 
