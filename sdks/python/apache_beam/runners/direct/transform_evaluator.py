@@ -505,8 +505,7 @@ class _NativeWriteEvaluator(_TransformEvaluator):
         side_inputs)
 
     assert applied_ptransform.transform.sink
-    # TODO(aaltay): Consider storing the serialized form as an optimization.
-    self._sink = pickler.loads(pickler.dumps(applied_ptransform.transform.sink))
+    self._sink = applied_ptransform.transform.sink
 
   @property
   def _is_final_bundle(self):
