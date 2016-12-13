@@ -131,6 +131,24 @@
         <skipITs>false</skipITs>
         <skipDefaultIT>true</skipDefaultIT>
       </properties>
+
+      <dependencies>
+        <!--
+          This profile requires -P apex-runner and -P spark-runner already. When they are both
+          included, the Spark runner's Kryo dependency will pull in a version that is insufficiently
+          recent for the Apex runner.
+
+          This dependency makes the Apex runner version "closer" by Maven resolution rules,
+          so it will not be overridden.
+        -->
+        <dependency>
+          <groupId>com.esotericsoftware.kryo</groupId>
+          <artifactId>kryo</artifactId>
+          <version>${apex.kryo.version}</version>
+          <scope>runtime</scope>
+        </dependency>
+      </dependencies>
+
       <build>
         <plugins>
           <plugin>
