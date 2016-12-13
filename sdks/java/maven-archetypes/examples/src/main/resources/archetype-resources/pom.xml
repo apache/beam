@@ -27,7 +27,7 @@
   <packaging>jar</packaging>
 
   <properties>
-    <beam.version>0.4.0-incubating-SNAPSHOT</beam.version>
+    <beam.version>0.4.0-incubating</beam.version>
   </properties>
 
   <repositories>
