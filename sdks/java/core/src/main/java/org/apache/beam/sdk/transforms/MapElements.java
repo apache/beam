@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.transforms;
 
 import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.apache.beam.sdk.transforms.display.HasDisplayData;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
 
@@ -77,7 +78,7 @@ extends PTransform<PCollection<? extends InputT>, PCollection<OutputT>> {
    */
   public static <InputT, OutputT> MapElements<InputT, OutputT> via(
       final SimpleFunction<InputT, OutputT> fn) {
-    return new MapElements<>(fn, fn.getClass());
+    return new MapElements<>(fn, displayDataForFn(fn));
   }
 
   /**
@@ -95,7 +96,8 @@ extends PTransform<PCollection<? extends InputT>, PCollection<OutputT>> {
 
     public MapElements<InputT, OutputT> withOutputType(final TypeDescriptor<OutputT> outputType) {
       return new MapElements<>(
-          SimpleFunction.fromSerializableFunctionWithOutputType(fn, outputType), fn.getClass());
+          SimpleFunction.fromSerializableFunctionWithOutputType(fn, outputType),
+          displayDataForFn(fn));
     }
 
   }
@@ -103,11 +105,12 @@ extends PTransform<PCollection<? extends InputT>, PCollection<OutputT>> {
   ///////////////////////////////////////////////////////////////////
 
   private final SimpleFunction<InputT, OutputT> fn;
-  private final DisplayData.ItemSpec<?> fnClassDisplayData;
+  private final DisplayData.ItemSpecBase<?, ?> fnClassDisplayData;
 
-  private MapElements(SimpleFunction<InputT, OutputT> fn, Class<?> fnClass) {
+  private MapElements(SimpleFunction<InputT, OutputT> fn,
+      DisplayData.ItemSpecBase<?, ?> fnDisplayData) {
     this.fn = fn;
-    this.fnClassDisplayData = DisplayData.item("mapFn", fnClass).withLabel("Map Function");
+    this.fnClassDisplayData = fnDisplayData;
   }
 
   @Override
@@ -141,8 +144,13 @@ extends PTransform<PCollection<? extends InputT>, PCollection<OutputT>> {
   @Override
   public void populateDisplayData(DisplayData.Builder builder) {
     super.populateDisplayData(builder);
-    builder
-        .include("mapFn", fn)
-        .add(fnClassDisplayData);
+    builder.add(fnClassDisplayData);
+  }
+
+  private static DisplayData.ItemSpecBase<?, ?> displayDataForFn(Object fn) {
+    return (fn instanceof HasDisplayData
+        ? DisplayData.nested("mapFn", (HasDisplayData) fn)
+        : DisplayData.item("mapFn", fn.getClass()))
+        .withLabel("Map Function");
   }
 }

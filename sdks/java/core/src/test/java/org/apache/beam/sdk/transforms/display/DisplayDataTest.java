@@ -20,12 +20,14 @@ package org.apache.beam.sdk.transforms.display;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasKey;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasLabel;
+import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasLinkUrl;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasNamespace;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasPath;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasType;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasValue;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.includesDisplayDataFor;
 import static org.hamcrest.Matchers.allOf;
+import static org.hamcrest.Matchers.anyOf;
 import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.everyItem;
 import static org.hamcrest.Matchers.hasItem;
@@ -154,16 +156,20 @@ public class DisplayDataTest implements Serializable {
 
   @Test
   public void testCanBuildDisplayData() {
-    DisplayData data =
-        DisplayData.from(new HasDisplayData() {
-              @Override
-              public void populateDisplayData(DisplayData.Builder builder) {
-                builder.add(DisplayData.item("foo", "bar"));
-              }
-            });
-
+    DisplayData data = DisplayData.from(new HasFooBarDisplayData());
     assertThat(data.items(), hasSize(1));
     assertThat(data, hasDisplayItem("foo", "bar"));
+  }
+
+  /**
+   * Registers a single piece of display data with key=foo and value=bar. Who knew this was such
+   * a useful pattern!
+   */
+  private static class HasFooBarDisplayData implements HasDisplayData, Serializable {
+    @Override
+    public void populateDisplayData(Builder builder) {
+      builder.add(DisplayData.item("foo", "bar"));
+    }
   }
 
   @Test
@@ -252,14 +258,7 @@ public class DisplayDataTest implements Serializable {
 
   @Test
   public void testAsMap() {
-    DisplayData data =
-        DisplayData.from(
-            new HasDisplayData() {
-              @Override
-              public void populateDisplayData(DisplayData.Builder builder) {
-                builder.add(DisplayData.item("foo", "bar"));
-              }
-            });
+    DisplayData data = DisplayData.from(new HasFooBarDisplayData());
 
     Map<DisplayData.Identifier, DisplayData.Item> map = data.asMap();
     assertEquals(map.size(), 1);
@@ -291,25 +290,18 @@ public class DisplayDataTest implements Serializable {
         hasValue(ISO_FORMATTER.print(value)),
         hasShortValue(nullValue(String.class)),
         hasLabel("the current instant"),
-        hasUrl(is("http://time.gov")));
+        hasLinkUrl("http://time.gov"));
 
     assertThat(item, matchesAllOf);
   }
 
   @Test
   public void testUnspecifiedOptionalProperties() {
-    DisplayData data =
-        DisplayData.from(
-            new HasDisplayData() {
-              @Override
-              public void populateDisplayData(DisplayData.Builder builder) {
-                builder.add(DisplayData.item("foo", "bar"));
-              }
-            });
-
     assertThat(
-        data,
-        hasDisplayItem(allOf(hasLabel(nullValue(String.class)), hasUrl(nullValue(String.class)))));
+        DisplayData.from(new HasFooBarDisplayData()),
+        hasDisplayItem(allOf(
+            hasLabel(nullValue(String.class)),
+            hasLinkUrl(nullValue(String.class)))));
   }
 
   @Test
@@ -317,6 +309,7 @@ public class DisplayDataTest implements Serializable {
     DisplayData data = DisplayData.from(new HasDisplayData() {
       @Override
       public void populateDisplayData(Builder builder) {
+        HasDisplayData comp = new HasFooBarDisplayData();
         builder
             .addIfNotDefault(DisplayData.item("defaultString", "foo"), "foo")
             .addIfNotDefault(DisplayData.item("notDefaultString", "foo"), "notFoo")
@@ -335,14 +328,16 @@ public class DisplayDataTest implements Serializable {
             .addIfNotDefault(
                 DisplayData.item("defaultClass", DisplayDataTest.class),
                 DisplayDataTest.class)
-            .addIfNotDefault(
-                DisplayData.item("notDefaultClass", DisplayDataTest.class),
-                null);
+            .addIfNotDefault(DisplayData.item("notDefaultClass", DisplayDataTest.class),
+                null)
+            .addIfNotDefault(DisplayData.nested("defaultNested", comp), comp)
+            .addIfNotDefault(DisplayData.nested("notDefaultNested", comp), null);
       }
     });
 
-    assertThat(data.items(), hasSize(7));
-    assertThat(data.items(), everyItem(hasKey(startsWith("notDefault"))));
+    assertThat(data.items(), everyItem(hasKey(anyOf(
+        startsWith("notDefault"),
+        is("foo")))));  // nested display data
   }
 
   @Test
@@ -393,12 +388,15 @@ public class DisplayDataTest implements Serializable {
             .addIfNotNull(DisplayData.item("nullDuration", (Duration) null))
             .addIfNotNull(DisplayData.item("notNullDuration", Duration.ZERO))
             .addIfNotNull(DisplayData.item("nullClass", (Class<?>) null))
-            .addIfNotNull(DisplayData.item("notNullClass", DisplayDataTest.class));
+            .addIfNotNull(DisplayData.item("notNullClass", DisplayDataTest.class))
+            .addIfNotNull(DisplayData.nested("nullNested", null))
+            .addIfNotNull(DisplayData.nested("notNullNested", new HasFooBarDisplayData()));
       }
     });
 
-    assertThat(data.items(), hasSize(7));
-    assertThat(data.items(), everyItem(hasKey(startsWith("notNull"))));
+    assertThat(data.items(), everyItem(hasKey(anyOf(
+        startsWith("notNull"),
+        is("foo")))));  // nested display data
   }
 
   @Test
@@ -495,13 +493,7 @@ public class DisplayDataTest implements Serializable {
 
   @Test
   public void testIncludes() {
-    final HasDisplayData subComponent =
-        new HasDisplayData() {
-          @Override
-          public void populateDisplayData(DisplayData.Builder builder) {
-            builder.add(DisplayData.item("foo", "bar"));
-          }
-        };
+    final HasDisplayData subComponent = new HasFooBarDisplayData();
 
     DisplayData data =
         DisplayData.from(
@@ -516,19 +508,152 @@ public class DisplayDataTest implements Serializable {
   }
 
   @Test
+  public void testNested() {
+    final HasDisplayData subComponent = new HasFooBarDisplayData();
+    DisplayData data = DisplayData.from(new HasDisplayData() {
+      @Override
+      public void populateDisplayData(DisplayData.Builder builder) {
+        builder.add(DisplayData.nested("p", subComponent));
+      }
+    });
+
+    assertThat(data, hasDisplayItem("p", subComponent.getClass()));
+    assertThat(data, includesDisplayDataFor("p", subComponent));
+  }
+
+  @Test
+  public void testNestedWithClassOverride() {
+    final Class<?> clazz = new Object() {}.getClass();
+    DisplayData data = DisplayData.from(new HasDisplayData() {
+      @Override
+      public void populateDisplayData(DisplayData.Builder builder) {
+        builder.add(DisplayData.nested("p", new HasFooBarDisplayData())
+          .withClassItem(clazz));
+      }
+    });
+
+    assertThat(data, hasDisplayItem("p", clazz));
+  }
+
+  @Test
+  public void testNestedWithMetadataOverrides() {
+    DisplayData data = DisplayData.from(new HasDisplayData() {
+      @Override
+      public void populateDisplayData(DisplayData.Builder builder) {
+        builder.add(DisplayData.nested("p", new HasFooBarDisplayData())
+            .withLabel("label1")
+            .withLinkUrl("link2"));
+      }
+    });
+
+    assertThat(data, hasDisplayItem(allOf(
+        hasKey("p"),
+        hasLabel("label1"),
+        hasLinkUrl("link2"))));
+  }
+
+  @Test
+  public void testNestedNullPath() {
+    thrown.expect(NullPointerException.class);
+    DisplayData.nested(null, new HasFooBarDisplayData());
+  }
+
+  @Test
+  public void testNestedEmptyPath() {
+    thrown.expect(NullPointerException.class);
+    DisplayData.nested(null, new HasFooBarDisplayData());
+  }
+
+
+  @Test
+  public void testNestedSameComponentDifferentPaths() {
+    final HasDisplayData subComp = new HasFooBarDisplayData();
+    DisplayData data = DisplayData.from(new HasDisplayData() {
+      @Override
+      public void populateDisplayData(Builder builder) {
+        builder
+            .add(DisplayData.nested("p1", subComp))
+            .add(DisplayData.nested("p2", subComp));
+      }
+    });
+
+    assertThat(data, hasDisplayItem("p1", HasFooBarDisplayData.class));
+    assertThat(data, includesDisplayDataFor("p1", subComp));
+    assertThat("class item for duplicate item shoudl be added",
+        data, hasDisplayItem("p2", HasFooBarDisplayData.class));
+    assertThat("duplicate subcomponent should not be included twice",
+        data, not(includesDisplayDataFor("p2", subComp)));
+  }
+
+  @Test
+  public void testNestedDuplicatePath() {
+    thrown.expect(DisplayData.PopulateDisplayDataException.class);
+    DisplayData.from(new HasDisplayData() {
+      @Override
+      public void populateDisplayData(Builder builder) {
+        builder
+            .add(DisplayData.nested("p", new HasFooBarDisplayData() {})
+              .withoutClassItem())
+            .add(DisplayData.nested("p", new HasFooBarDisplayData() {})
+              .withoutClassItem());
+      }
+    });
+  }
+
+  @Test
+  public void testNestedKeyAlreadyUsed() {
+    thrown.expect(DisplayData.PopulateDisplayDataException.class);
+    DisplayData.from(new HasDisplayData() {
+      @Override
+      public void populateDisplayData(Builder builder) {
+        builder
+            .add(DisplayData.item("key", "value"))
+            .add(DisplayData.nested("key", new HasFooBarDisplayData()));
+      }
+    });
+  }
+
+  @Test
+  public void testNestedWithoutClassItem() {
+    final HasFooBarDisplayData subComponent = new HasFooBarDisplayData();
+    DisplayData data = DisplayData.from(new HasDisplayData() {
+      @Override
+      public void populateDisplayData(Builder builder) {
+        builder.add(DisplayData.nested("p", subComponent)
+          .withoutClassItem());
+      }
+    });
+
+    assertThat(data, includesDisplayDataFor("p", subComponent));
+    assertThat(data, not(hasDisplayItem("p", HasFooBarDisplayData.class)));
+  }
+
+  @Test
+  public void testNestedWithoutClassItemKeyAlreadyUsed() {
+    DisplayData data = DisplayData.from(new HasDisplayData() {
+      @Override
+      public void populateDisplayData(Builder builder) {
+        builder
+            .add(DisplayData.item("key", "value"))
+            .add(DisplayData.nested("key", new HasFooBarDisplayData())
+              .withoutClassItem());
+      }
+    });
+
+    assertThat(data, hasDisplayItem("key", "value"));
+  }
+
+  @Test
+  public void testNestedClassOverrideNull() {
+    thrown.expect(NullPointerException.class);
+    DisplayData.nested("key", new HasFooBarDisplayData())
+        .withClassItem(null);
+  }
+
+  @Test
   public void testIncludeSameComponentAtDifferentPaths() {
-    final HasDisplayData subComponent1 = new HasDisplayData() {
-      @Override
-      public void populateDisplayData(Builder builder) {
-        builder.add(DisplayData.item("foo", "bar"));
-      }
-    };
-    final HasDisplayData subComponent2 = new HasDisplayData() {
-      @Override
-      public void populateDisplayData(Builder builder) {
-        builder.add(DisplayData.item("foo2", "bar2"));
-      }
-    };
+    final HasDisplayData subComponent1 = new HasFooBarDisplayData();
+    final HasDisplayData subComponent2 = new HasFooBarDisplayData();
 
     HasDisplayData component = new HasDisplayData() {
       @Override
@@ -536,7 +661,6 @@ public class DisplayDataTest implements Serializable {
         builder
             .include("p1", subComponent1)
             .include("p2", subComponent2);
-
       }
     };
 
@@ -589,27 +713,38 @@ public class DisplayDataTest implements Serializable {
   }
 
   @Test
-  public void testItemEquality() {
+  public void testItemSpecEquality() {
     new EqualsTester()
         .addEqualityGroup(DisplayData.item("foo", "bar"), DisplayData.item("foo", "bar"))
         .addEqualityGroup(DisplayData.item("foo", "barz"))
+        .addEqualityGroup(DisplayData.item("foo", "bar").withLabel("l"))
+        .addEqualityGroup(DisplayData.item("foo", "bar").withLinkUrl("u"))
+        .addEqualityGroup(DisplayData.item("foo", "bar").withNamespace(DisplayDataTest.class))
+        .testEquals();
+  }
+
+  @Test
+  public void testNestedItemSpecEquality() {
+    HasDisplayData comp = new HasFooBarDisplayData();
+    new EqualsTester()
+        .addEqualityGroup(DisplayData.nested("key", comp), DisplayData.nested("key", comp))
+        .addEqualityGroup(DisplayData.nested("key", new HasFooBarDisplayData()))
+        .addEqualityGroup(DisplayData.nested("key", comp).withLabel("l"))
+        .addEqualityGroup(DisplayData.nested("key", comp).withLinkUrl("u"))
+        .addEqualityGroup(DisplayData.nested("key", comp).withNamespace(DisplayDataTest.class))
+        .addEqualityGroup(
+            DisplayData.nested("key", comp).withClassItem(DisplayDataTest.class),
+            DisplayData.nested("key", comp).withoutClassItem().withClassItem(DisplayDataTest.class))
+        .addEqualityGroup(
+            DisplayData.nested("key", comp).withoutClassItem(),
+            DisplayData.nested("key", comp).withClassItem(DisplayDataTest.class).withoutClassItem())
         .testEquals();
   }
 
   @Test
   public void testDisplayDataEquality() {
-    HasDisplayData component1 = new HasDisplayData() {
-      @Override
-      public void populateDisplayData(Builder builder) {
-        builder.add(DisplayData.item("foo", "bar"));
-      }
-    };
-    HasDisplayData component2 = new HasDisplayData() {
-      @Override
-      public void populateDisplayData(Builder builder) {
-        builder.add(DisplayData.item("foo", "bar"));
-      }
-    };
+    HasDisplayData component1 = new HasFooBarDisplayData(){};
+    HasDisplayData component2 = new HasFooBarDisplayData(){};
 
     DisplayData component1DisplayData1 = DisplayData.from(component1);
     DisplayData component1DisplayData2 = DisplayData.from(component1);
@@ -619,28 +754,6 @@ public class DisplayDataTest implements Serializable {
         .addEqualityGroup(component1DisplayData1, component1DisplayData2)
         .addEqualityGroup(component2DisplayData)
         .testEquals();
-  }
-
-  @Test
-  public void testAcceptsKeysWithDifferentNamespaces() {
-    DisplayData data =
-        DisplayData.from(
-            new HasDisplayData() {
-              @Override
-              public void populateDisplayData(DisplayData.Builder builder) {
-                builder
-                    .add(DisplayData.item("foo", "bar"))
-                    .include("p",
-                        new HasDisplayData() {
-                          @Override
-                          public void populateDisplayData(DisplayData.Builder builder) {
-                            builder.add(DisplayData.item("foo", "bar"));
-                          }
-                        });
-              }
-            });
-
-    assertThat(data.items(), hasSize(2));
   }
 
   @Test
@@ -675,17 +788,13 @@ public class DisplayDataTest implements Serializable {
 
   @Test
   public void testToString() {
-    HasDisplayData component = new HasDisplayData() {
-      @Override
-      public void populateDisplayData(DisplayData.Builder builder) {
-        builder.add(DisplayData.item("foo", "bar"));
-      }
-    };
-
-    DisplayData data = DisplayData.from(component);
-    assertEquals(String.format("[]%s:foo=bar", component.getClass().getName()), data.toString());
+    DisplayData data = DisplayData.from(new HasFooBarDisplayData());
+    assertEquals(
+        String.format("[]%s:foo=bar", HasFooBarDisplayData.class.getName()),
+        data.toString());
   }
 
+  // TODO: Convert these to nested() tests or remove if redundant.
   @Test
   public void testHandlesIncludeCycles() {
 
@@ -995,20 +1104,12 @@ public class DisplayDataTest implements Serializable {
 
   @Test
   public void testContextProperlyReset() {
-    final HasDisplayData subComponent =
-        new HasDisplayData() {
-          @Override
-          public void populateDisplayData(DisplayData.Builder builder) {
-            builder.add(DisplayData.item("foo", "bar"));
-          }
-        };
-
     HasDisplayData component =
         new HasDisplayData() {
           @Override
           public void populateDisplayData(DisplayData.Builder builder) {
             builder
-              .include("p", subComponent)
+              .include("p", new HasFooBarDisplayData())
               .add(DisplayData.item("alpha", "bravo"));
           }
         };
@@ -1030,6 +1131,7 @@ public class DisplayDataTest implements Serializable {
 
   @Test
   public void testIncludeNull() {
+    thrown.expect(DisplayData.PopulateDisplayDataException.class);
     thrown.expectCause(isA(NullPointerException.class));
     DisplayData.from(
         new HasDisplayData() {
@@ -1042,6 +1144,7 @@ public class DisplayDataTest implements Serializable {
 
   @Test
   public void testIncludeNullPath() {
+    thrown.expect(DisplayData.PopulateDisplayDataException.class);
     thrown.expectCause(isA(NullPointerException.class));
     DisplayData.from(new HasDisplayData() {
       @Override
@@ -1053,6 +1156,7 @@ public class DisplayDataTest implements Serializable {
 
   @Test
   public void testIncludeEmptyPath() {
+    thrown.expect(DisplayData.PopulateDisplayDataException.class);
     thrown.expectCause(isA(IllegalArgumentException.class));
     DisplayData.from(new HasDisplayData() {
       @Override
@@ -1064,51 +1168,110 @@ public class DisplayDataTest implements Serializable {
 
   @Test
   public void testNullKey() {
+    thrown.expect(DisplayData.PopulateDisplayDataException.class);
     thrown.expectCause(isA(NullPointerException.class));
-    DisplayData.from(
-        new HasDisplayData() {
-          @Override
-          public void populateDisplayData(Builder builder) {
-            builder.add(DisplayData.item(null, "foo"));
-          }
-        });
+    DisplayData.from(new HasDisplayData() {
+        @Override
+        public void populateDisplayData(Builder builder) {
+          builder.add(DisplayData.item(null, "foo"));
+        }
+      });
   }
 
   @Test
-  public void testRejectsNullValues() {
-    DisplayData.from(
-      new HasDisplayData() {
+  public void testRejectsNullStringValues() {
+    thrown.expect(DisplayData.PopulateDisplayDataException.class);
+    thrown.expectCause(isA(NullPointerException.class));
+    DisplayData.from(new HasDisplayData() {
+      @Override
+      public void populateDisplayData(Builder builder) {
+        builder.add(DisplayData.item("key", (String) null));
+      }
+    });
+  }
+
+  @Test
+  public void testRejectsNullIntegerValues() {
+    thrown.expect(DisplayData.PopulateDisplayDataException.class);
+    thrown.expectCause(isA(NullPointerException.class));
+    DisplayData.from(new HasDisplayData() {
+      @Override
+      public void populateDisplayData(Builder builder) {
+        builder.add(DisplayData.item("key", (Integer) null));
+      }
+    });
+  }
+
+  @Test
+  public void testRejectsNullFloatingPointValues() {
+    thrown.expect(DisplayData.PopulateDisplayDataException.class);
+    thrown.expectCause(isA(NullPointerException.class));
+    DisplayData.from(new HasDisplayData() {
+      @Override
+      public void populateDisplayData(Builder builder) {
+        builder.add(DisplayData.item("key", (Double) null));
+      }
+    });
+  }
+
+  @Test
+  public void testRejectsNullBooleanValues() {
+    thrown.expect(DisplayData.PopulateDisplayDataException.class);
+    thrown.expectCause(isA(NullPointerException.class));
+    DisplayData.from(new HasDisplayData() {
+      @Override
+      public void populateDisplayData(Builder builder) {
+        builder.add(DisplayData.item("key", (Boolean) null));
+      }
+    });
+  }
+
+  @Test
+  public void testRejectsNullClassValues() {
+    thrown.expect(DisplayData.PopulateDisplayDataException.class);
+    thrown.expectCause(isA(NullPointerException.class));
+    DisplayData.from(new HasDisplayData() {
         @Override
         public void populateDisplayData(Builder builder) {
-          try {
-            builder.add(DisplayData.item("key", (String) null));
-            throw new RuntimeException("Should throw on null string value");
-          } catch (NullPointerException ex) {
-            // Expected
-          }
-
-          try {
-            builder.add(DisplayData.item("key", (Class<?>) null));
-            throw new RuntimeException("Should throw on null class value");
-          } catch (NullPointerException ex) {
-            // Expected
-          }
-
-          try {
-            builder.add(DisplayData.item("key", (Duration) null));
-            throw new RuntimeException("Should throw on null duration value");
-          } catch (NullPointerException ex) {
-            // Expected
-          }
-
-          try {
-            builder.add(DisplayData.item("key", (Instant) null));
-            throw new RuntimeException("Should throw on null instant value");
-          } catch (NullPointerException ex) {
-            // Expected
-          }
+          builder.add(DisplayData.item("key", (Class<?>) null));
         }
       });
+  }
+
+  @Test
+  public void testRejectsNullDurationValues() {
+    thrown.expect(DisplayData.PopulateDisplayDataException.class);
+    thrown.expectCause(isA(NullPointerException.class));
+    DisplayData.from(new HasDisplayData() {
+        @Override
+        public void populateDisplayData(Builder builder) {
+          builder.add(DisplayData.item("key", (Duration) null));
+        }
+      });
+  }
+
+  @Test
+  public void testRejectsNullTimestampValues() {
+    thrown.expect(DisplayData.PopulateDisplayDataException.class);
+    thrown.expectCause(isA(NullPointerException.class));
+    DisplayData.from(new HasDisplayData() {
+        @Override
+        public void populateDisplayData(Builder builder) {
+          builder.add(DisplayData.item("key", (Instant) null));
+        }
+      });
+  }
+
+  @Test
+  public void testRejectsNullNestedComponent() {
+    thrown.expect(DisplayData.PopulateDisplayDataException.class);
+    thrown.expectCause(isA(NullPointerException.class));
+    DisplayData.from(new HasDisplayData() {
+      @Override
+      public void populateDisplayData(Builder builder) {
+        builder.add(DisplayData.nested("p", null));
+      }
+    });
   }
 
   @Test
@@ -1167,12 +1330,7 @@ public class DisplayDataTest implements Serializable {
 
   @Test
   public void testJsonSerializationAnonymousClassNamespace() throws IOException {
-    HasDisplayData component = new HasDisplayData() {
-      @Override
-      public void populateDisplayData(Builder builder) {
-        builder.add(DisplayData.item("foo", "bar"));
-      }
-    };
+    HasDisplayData component = new HasFooBarDisplayData() {};
     DisplayData data = DisplayData.from(component);
 
     JsonNode json = MAPPER.readTree(MAPPER.writeValueAsBytes(data));
@@ -1191,14 +1349,21 @@ public class DisplayDataTest implements Serializable {
 
   @Test
   public void testCanSerializeItemSpecReference() {
-    DisplayData.ItemSpec<?> spec = DisplayData.item("clazz", DisplayDataTest.class);
-    SerializableUtils.ensureSerializable(new HoldsItemSpecReference(spec));
+    DisplayData.ItemSpec<?> item = DisplayData.item("clazz", DisplayDataTest.class);
+    DisplayData.NestedItemSpec nested = DisplayData.nested("p", new HasFooBarDisplayData());
+    SerializableUtils.ensureSerializable(new HoldsItemSpecReference(item, nested));
   }
 
   private static class HoldsItemSpecReference implements Serializable {
-    private final DisplayData.ItemSpec<?> spec;
-    public HoldsItemSpecReference(DisplayData.ItemSpec<?> spec) {
-      this.spec = spec;
+    @SuppressWarnings("unused") // used to test serialization
+    private final DisplayData.ItemSpec<?> item;
+    @SuppressWarnings("unused") // used to test serialization
+    private final DisplayData.NestedItemSpec nested;
+    public HoldsItemSpecReference(
+        DisplayData.ItemSpec<?> item,
+        DisplayData.NestedItemSpec nested) {
+      this.item = item;
+      this.nested = nested;
     }
   }
 
@@ -1330,16 +1495,6 @@ public class DisplayDataTest implements Serializable {
   private static class NoopDisplayData implements HasDisplayData {
     @Override
     public void populateDisplayData(Builder builder) {}
-  }
-
-  private static Matcher<DisplayData.Item> hasUrl(Matcher<String> urlMatcher) {
-    return new FeatureMatcher<DisplayData.Item, String>(
-        urlMatcher, "display item with url", "URL") {
-      @Override
-      protected String featureValueOf(DisplayData.Item actual) {
-        return actual.getLinkUrl();
-      }
-    };
   }
 
   private static  <T> Matcher<DisplayData.Item> hasShortValue(Matcher<T> valueStringMatcher) {

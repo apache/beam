@@ -71,8 +71,8 @@ public class DisplayData implements Serializable {
 
   /**
    * Collect the {@link DisplayData} from a component. This will traverse all subcomponents
-   * specified via {@link Builder#include} in the given component. Data in this component will be in
-   * a namespace derived from the component.
+   * specified via {@link DisplayData#nested} in the given component. Data in this component will be
+   * in a namespace derived from the component.
    */
   public static DisplayData from(HasDisplayData component) {
     checkNotNull(component, "component argument cannot be null");
@@ -177,6 +177,7 @@ public class DisplayData implements Serializable {
      *
      * @see HasDisplayData#populateDisplayData(DisplayData.Builder)
      */
+    // TODO: Remove this API in favor of #nested
     Builder include(String path, HasDisplayData subComponent);
 
     /**
@@ -199,17 +200,17 @@ public class DisplayData implements Serializable {
     /**
      * Register the given display item.
      */
-    Builder add(ItemSpec<?> item);
+    Builder add(ItemSpecBase<?, ?> item);
 
     /**
      * Register the given display item if the value is not null.
      */
-    Builder addIfNotNull(ItemSpec<?> item);
+    Builder addIfNotNull(ItemSpecBase<?, ?> item);
 
     /**
      * Register the given display item if the value is different than the specified default.
      */
-    <T> Builder addIfNotDefault(ItemSpec<T> item, @Nullable T defaultValue);
+    <T> Builder addIfNotDefault(ItemSpecBase<T, ?> item, @Nullable T defaultValue);
   }
 
   /**
@@ -297,13 +298,17 @@ public class DisplayData implements Serializable {
     @Nullable
     public abstract String getLinkUrl();
 
-    private static Item create(ItemSpec<?> spec, Path path) {
+    private static Item create(ItemSpecBase<?, ?> spec, Path path) {
       checkNotNull(spec, "spec cannot be null");
       checkNotNull(path, "path cannot be null");
       Class<?> ns = checkNotNull(spec.getNamespace(), "namespace must be set");
 
       return new AutoValue_DisplayData_Item(path, ns, spec.getKey(), spec.getType(),
           spec.getValue(), spec.getShortValue(), spec.getLabel(), spec.getLinkUrl());
+    }
+
+    private Identifier getIdentifier() {
+      return Identifier.of(getPath(), getNamespace(), getKey());
     }
 
     @Override
@@ -313,32 +318,69 @@ public class DisplayData implements Serializable {
   }
 
   /**
-   * Specifies an {@link Item} to register as display data. Each item is identified by a given
-   * path, key, and namespace from the component the display item belongs to.
+   * Base class to specify an {@link Item} to register as display data.
    *
-   * <p>{@link Item Items} are registered via {@link DisplayData.Builder#add}
-   * within {@link HasDisplayData#populateDisplayData} implementations.
+   *  @see ItemSpec
    */
-  @AutoValue
-  public abstract static class ItemSpec<T> implements Serializable {
-    /**
-     * The namespace for the display item. If unset, defaults to the component which
-     * the display item is registered to.
-     */
-    @Nullable
-    public abstract Class<?> getNamespace();
+  public abstract static class ItemSpecBase<ValueT, SelfT extends ItemSpecBase<ValueT, SelfT>>
+  implements Serializable {
+    private final String key;
+    private final Type type;
+
+    private FormattedItemValue value;
+    @Nullable private Class<?> namespace;
+    @Nullable private String label;
+    @Nullable private String linkUrl;
+
+    private ItemSpecBase(String key, Type type, @Nullable Object value) {
+      this.key = key;
+      this.type = type;
+
+      withRawValue(value);
+    }
 
     /**
      * The key for the display item. Each display item is created with a key and value
      * via {@link DisplayData#item}.
      */
-    public abstract String getKey();
+    public final String getKey() {
+      return key;
+    }
+
+    /**
+     * The namespace for the display item, or null if unset. If unset, the item will default to the
+     * component registering it.
+     */
+    @Nullable
+    public final Class<?> getNamespace() {
+      return namespace;
+    }
+
+    /**
+     * Set the item {@link ItemSpec#getNamespace() namespace} from the given {@link Class}.
+     */
+    public final SelfT withNamespace(Class<?> namespace) {
+      checkNotNull(namespace, "namespace cannot be null");
+      this.namespace = namespace;
+      return self();
+    }
 
     /**
      * The {@link DisplayData.Type} of display data. All display data conforms to a predefined set
      * of allowed types.
      */
-    public abstract Type getType();
+    public final Type getType() {
+      return type;
+    }
+
+    /**
+     * Set the item value from the given raw value. The {@link #getValue() value} and
+     * {@link #getShortValue()} are calculated based on the {@link #getType() type}.
+     */
+    SelfT withRawValue(@Nullable Object value) {
+      this.value = type.safeFormat(value);
+      return self();
+    }
 
     /**
      * The value of the display item. The value is translated from the input to
@@ -346,7 +388,9 @@ public class DisplayData implements Serializable {
      * item's {@link #getType() type}.
      */
     @Nullable
-    public abstract Object getValue();
+    public final Object getValue() {
+      return value.getLongValue();
+    }
 
     /**
      * The optional short value for an item, or {@code null} if none is provided.
@@ -360,81 +404,46 @@ public class DisplayData implements Serializable {
      * choose to display it instead of or in addition to the {@link #getValue() value}.
      */
     @Nullable
-    public abstract Object getShortValue();
+    public final Object getShortValue() {
+      return value.getShortValue();
+    }
 
     /**
      * The optional label for an item. The label is a human-readable description of what
      * the metadata represents. UIs may choose to display the label instead of the item key.
      */
     @Nullable
-    public abstract String getLabel();
-
-    /**
-     * The optional link URL for an item. The URL points to an address where the reader
-     * can find additional context for the display data.
-     */
-    @Nullable
-    public abstract String getLinkUrl();
-
-    private static <T> ItemSpec<T> create(String key, Type type, @Nullable T value) {
-      return ItemSpec.<T>builder()
-          .setKey(key)
-          .setType(type)
-          .setRawValue(value)
-          .build();
-    }
-
-    /**
-     * Set the item {@link ItemSpec#getNamespace() namespace} from the given {@link Class}.
-     *
-     * <p>This method does not alter the current instance, but instead returns a new
-     * {@link ItemSpec} with the namespace set.
-     */
-    public ItemSpec<T> withNamespace(Class<?> namespace) {
-      checkNotNull(namespace, "namespace argument cannot be null");
-      return toBuilder()
-          .setNamespace(namespace)
-          .build();
+    public final String getLabel() {
+      return label;
     }
 
     /**
      * Set the item {@link Item#getLabel() label}.
      *
      * <p>Specifying a null value will clear the label if it was previously defined.
-     *
-     * <p>This method does not alter the current instance, but instead returns a new
-     * {@link ItemSpec} with the label set.
      */
-    public ItemSpec<T> withLabel(@Nullable String label) {
-      return toBuilder()
-          .setLabel(label)
-          .build();
+    public final SelfT withLabel(@Nullable String label) {
+      this.label = label;
+      return self();
+    }
+
+    /**
+     * The optional link URL for an item. The URL points to an address where the reader
+     * can find additional context for the display data.
+     */
+    @Nullable
+    public final String getLinkUrl() {
+      return linkUrl;
     }
 
     /**
      * Set the item {@link Item#getLinkUrl() link url}.
      *
      * <p>Specifying a null value will clear the link url if it was previously defined.
-     *
-     * <p>This method does not alter the current instance, but instead returns a new
-     * {@link ItemSpec} with the link url set.
      */
-    public ItemSpec<T> withLinkUrl(@Nullable String url) {
-      return toBuilder()
-          .setLinkUrl(url)
-          .build();
-    }
-
-    /**
-     * Creates a similar item to the current instance but with the specified value.
-     *
-     * <p>This should only be used internally. It is useful to compare the value of a
-     * {@link DisplayData.Item} to the value derived from a specified input.
-     */
-    private ItemSpec<T> withValue(T value) {
-      return toBuilder()
-          .setRawValue(value)
-          .build();
+    public final SelfT withLinkUrl(@Nullable String linkUrl) {
+      this.linkUrl = linkUrl;
+      return self();
     }
 
     @Override
@@ -442,32 +451,155 @@ public class DisplayData implements Serializable {
       return String.format("%s:%s=%s", getNamespace(), getKey(), getValue());
     }
 
-    static <T> ItemSpec.Builder<T> builder() {
-      return new AutoValue_DisplayData_ItemSpec.Builder<>();
+    @Override
+    public int hashCode() {
+      // Exclude mutable fields from hashcode.
+      return Objects.hash(key, type);
     }
 
-    abstract ItemSpec.Builder<T> toBuilder();
-
-    @AutoValue.Builder
-    abstract static class Builder<T> {
-      public abstract ItemSpec.Builder<T> setKey(String key);
-      public abstract ItemSpec.Builder<T> setNamespace(@Nullable Class<?> namespace);
-      public abstract ItemSpec.Builder<T> setType(Type type);
-      public abstract ItemSpec.Builder<T> setValue(@Nullable Object longValue);
-      public abstract ItemSpec.Builder<T> setShortValue(@Nullable Object shortValue);
-      public abstract ItemSpec.Builder<T> setLabel(@Nullable String label);
-      public abstract ItemSpec.Builder<T> setLinkUrl(@Nullable String url);
-      public abstract ItemSpec<T> build();
-
-
-      abstract Type getType();
-
-      ItemSpec.Builder<T> setRawValue(@Nullable T value) {
-        FormattedItemValue formatted = getType().safeFormat(value);
-        return this
-            .setValue(formatted.getLongValue())
-            .setShortValue(formatted.getShortValue());
+    @Override
+    public boolean equals(Object obj) {
+      if (!(obj instanceof ItemSpecBase)) {
+        return false;
       }
+
+      ItemSpecBase other = (ItemSpecBase) obj;
+      return Objects.equals(this.key, other.key)
+          && Objects.equals(this.namespace, other.namespace)
+          && Objects.equals(this.type, other.type)
+          && Objects.equals(this.value, other.value)
+          && Objects.equals(this.label, other.label)
+          && Objects.equals(this.linkUrl, other.linkUrl);
+    }
+
+    /** Self-reference, used as return value for builder method return values. */
+    abstract SelfT self();
+
+    /** Test whether the given value is equal to the raw value representing this spec. */
+    abstract boolean rawValueEquals(@Nullable ValueT rawValue);
+
+    /**
+     * Commit zero or more items to the builder for the current item spec. Subclasses override this
+     * method in order to change how items are added.
+     */
+    void commit(InternalBuilder builder) {
+      checkNotNull(getValue(), "Input value cannot be null");
+
+      if (getNamespace() == null) {
+        namespace = builder.currentNamespace();
+      }
+
+      Item item = Item.create(this, builder.currentPath());
+      Identifier id = item.getIdentifier();
+      checkArgument(!builder.entries.containsKey(id),
+          "Display data key (%s) is not unique within the specified path and namespace: %s%s.",
+          item.getKey(), item.getPath(), item.getNamespace());
+      builder.entries.put(id, item);
+    }
+  }
+
+  /**
+   * Specifies an {@link Item} to register as display data. Each item is identified by a given
+   * path, key, and namespace from the component the display item belongs to.
+   *
+   * <p>{@link Item Items} are registered via {@link DisplayData.Builder#add}
+   * within {@link HasDisplayData#populateDisplayData} implementations.
+   */
+  public static class ItemSpec<T> extends ItemSpecBase<T, ItemSpec<T>> {
+    private ItemSpec(String key, Type type, @Nullable T value) {
+      super(key, type, value);
+    }
+
+    @Override
+    ItemSpec<T> self() {
+      return this;
+    }
+
+    /**
+     * Determine if the given value is equivalent to the raw value representing this spec. Useful
+     * to compare against a specified default value in
+     * {@link Builder#addIfNotDefault}.
+     */
+    @Override
+    boolean rawValueEquals(@Nullable T rawValue) {
+      Object otherValue = getType().safeFormat(rawValue).getLongValue();
+      return Objects.equals(getValue(), otherValue);
+    }
+  }
+
+  /**
+   * Specifies a nested sub-component to register as display data.
+   *
+   * @see ItemSpec
+   */
+  public static final class NestedItemSpec extends ItemSpecBase<HasDisplayData, NestedItemSpec> {
+    @Nullable private final HasDisplayData subComponent;
+    private boolean addClassItem = true;
+
+    private NestedItemSpec(String path, @Nullable HasDisplayData subComponent) {
+      super(path, Type.JAVA_CLASS, subComponent == null ? null : subComponent.getClass());
+      this.subComponent = subComponent;
+    }
+
+    /**
+     * Set the class identity to register for the nested subcomponent. To exclude a class item
+     * for the subcomponent, use {@link #withoutClassItem()}.
+     */
+    public NestedItemSpec withClassItem(Class<?> clazz) {
+      checkNotNull(clazz, "class must not be null");
+      return withClassItemInternal(true, clazz);
+    }
+
+    /**
+     * Exclude registering a class item for the nested subcomponent. By default, a class item is
+     * registered for nested components with the identity of the subcomponent class. To override the
+     * class identity, use {@link #withClassItem(Class)}.
+     */
+    public NestedItemSpec withoutClassItem() {
+      return withClassItemInternal(false, null);
+    }
+
+    private NestedItemSpec withClassItemInternal(boolean shouldAdd, @Nullable Class<?> clazz) {
+      addClassItem = shouldAdd;
+      withRawValue(clazz);
+      return self();
+    }
+
+    @Override
+    void commit(InternalBuilder builder) {
+      if (addClassItem) {
+        super.commit(builder);
+      }
+
+      checkNotNull(subComponent, "subComponent cannot be null");
+      builder.include(getKey(), subComponent);
+    }
+
+    @Override
+    NestedItemSpec self() {
+      return this;
+    }
+
+    @Override
+    boolean rawValueEquals(@Nullable HasDisplayData rawValue) {
+      return Objects.equals(subComponent, rawValue);
+    }
+
+    @Override
+    public int hashCode() {
+      // Exclude mutable fields from hashcode.
+      return super.hashCode();
+    }
+    @Override
+    public boolean equals(Object obj) {
+      if (!(obj instanceof NestedItemSpec)) {
+        return false;
+      }
+
+      NestedItemSpec other = (NestedItemSpec) obj;
+      return super.equals(obj)
+          && Objects.equals(this.subComponent, other.subComponent)
+          && Objects.equals(this.addClassItem, other.addClassItem);
     }
   }
 
@@ -508,7 +640,7 @@ public class DisplayData implements Serializable {
    * Structured path of registered display data within a component hierarchy.
    *
    * <p>Display data items registered directly by a component will have the {@link Path#root() root}
-   * path. If the component {@link Builder#include includes} a sub-component, its display data will
+   * path. If the component {@link DisplayData#nested nests} a sub-component, its display data will
    * be registered at the path specified. Each sub-component path is created by appending a child
    * element to the path of its parent component, forming a hierarchy.
    */
@@ -704,7 +836,7 @@ public class DisplayData implements Serializable {
     }
   }
 
-  static class FormattedItemValue {
+  static final class FormattedItemValue implements Serializable {
     /**
      * Default instance which contains null values.
      */
@@ -727,6 +859,23 @@ public class DisplayData implements Serializable {
     }
     Object getShortValue() {
       return this.shortValue;
+    }
+
+    @Override
+    public int hashCode() {
+      return longValue == null ? 0 : longValue.hashCode();
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+      if (!(obj instanceof FormattedItemValue)) {
+        return false;
+      }
+
+      FormattedItemValue other = (FormattedItemValue) obj;
+
+      // Equality based only on long value; short value is derived.
+      return Objects.equals(this.longValue, other.longValue);
     }
   }
 
@@ -801,54 +950,39 @@ public class DisplayData implements Serializable {
       return this;
     }
 
-    /**
-     * Marker exception class for exceptions encountered while populating display data.
-     */
-    private static class PopulateDisplayDataException extends RuntimeException {
-      PopulateDisplayDataException(String message, Throwable cause) {
-        super(message, cause);
-      }
-    }
-
     @Override
-    public Builder add(ItemSpec<?> item) {
+    public Builder add(ItemSpecBase<?, ?> item) {
       checkNotNull(item, "Input display item cannot be null");
       return addItemIf(true, item);
     }
 
     @Override
-    public Builder addIfNotNull(ItemSpec<?> item) {
+    public Builder addIfNotNull(ItemSpecBase<?, ?> item) {
       checkNotNull(item, "Input display item cannot be null");
       return addItemIf(item.getValue() != null, item);
     }
 
     @Override
-    public <T> Builder addIfNotDefault(ItemSpec<T> item, @Nullable T defaultValue) {
+    public <T> Builder addIfNotDefault(ItemSpecBase<T, ?> item, @Nullable T defaultValue) {
       checkNotNull(item, "Input display item cannot be null");
-      ItemSpec<T> defaultItem = item.withValue(defaultValue);
-      return addItemIf(!Objects.equals(item, defaultItem), item);
+      return addItemIf(!item.rawValueEquals(defaultValue), item);
     }
 
-    private Builder addItemIf(boolean condition, ItemSpec<?> spec) {
+    private Builder addItemIf(boolean condition, ItemSpecBase<?, ?> spec) {
       if (!condition) {
         return this;
       }
 
-      checkNotNull(spec, "Input display item cannot be null");
-      checkNotNull(spec.getValue(), "Input display value cannot be null");
-
-      if (spec.getNamespace() == null) {
-        spec = spec.withNamespace(latestNs);
-      }
-      Item item = Item.create(spec, latestPath);
-
-      Identifier id = Identifier.of(item.getPath(), item.getNamespace(), item.getKey());
-      checkArgument(!entries.containsKey(id),
-          "Display data key (%s) is not unique within the specified path and namespace: %s%s.",
-          item.getKey(), item.getPath(), item.getNamespace());
-
-      entries.put(id, item);
+      spec.commit(this);
       return this;
+    }
+
+    Class<?> currentNamespace() {
+      return latestNs;
+    }
+
+    Path currentPath() {
+      return latestPath;
     }
 
     private DisplayData build() {
@@ -940,6 +1074,15 @@ public class DisplayData implements Serializable {
     return item(key, Type.JAVA_CLASS, value);
   }
 
+  // TODO: Javadoc
+  public static <T extends HasDisplayData> NestedItemSpec nested(String path,
+      @Nullable T subComponent) {
+    checkNotNull(path, "Must specify a non-empty path");
+    checkArgument(!path.equals(""), "Must specify a non-empty path");
+
+    return new NestedItemSpec(path, subComponent);
+  }
+
   /**
    * Create a display item for the specified key, type, and value. This method should be used
    * if the type of the input value can only be determined at runtime. Otherwise,
@@ -954,6 +1097,15 @@ public class DisplayData implements Serializable {
     checkNotNull(key, "key argument cannot be null");
     checkNotNull(type, "type argument cannot be null");
 
-    return ItemSpec.create(key, type, value);
+    return new ItemSpec<>(key, type, value);
+  }
+
+  /**
+   * Marker exception class for exceptions encountered while populating display data.
+   */
+  static class PopulateDisplayDataException extends RuntimeException {
+    PopulateDisplayDataException(String message, Throwable cause) {
+      super(message, cause);
+    }
   }
 }

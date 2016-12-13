@@ -123,14 +123,16 @@ public class Combine {
     return globally(fn, displayDataForFn(fn));
   }
 
-  private static <T> DisplayData.ItemSpec<? extends Class<?>> displayDataForFn(T fn) {
-    return DisplayData.item("combineFn", fn.getClass())
+  private static DisplayData.ItemSpecBase<?, ?> displayDataForFn(Object fn) {
+    return (fn instanceof HasDisplayData
+        ? DisplayData.nested("combineFn", (HasDisplayData) fn)
+        : DisplayData.item("combineFn", fn.getClass()))
         .withLabel("Combiner");
   }
 
   private static <InputT, OutputT> Globally<InputT, OutputT> globally(
       GlobalCombineFn<? super InputT, ?, OutputT> fn,
-      DisplayData.ItemSpec<? extends Class<?>> fnDisplayData) {
+      DisplayData.ItemSpecBase<?, ?> fnDisplayData) {
     return new Globally<>(fn, fnDisplayData, true, 0);
   }
 
@@ -199,7 +201,7 @@ public class Combine {
 
   private static <K, InputT, OutputT> PerKey<K, InputT, OutputT> perKey(
           PerKeyCombineFn<? super K, ? super InputT, ?, OutputT> fn,
-      DisplayData.ItemSpec<? extends Class<?>> fnDisplayData) {
+      DisplayData.ItemSpecBase<?, ?> fnDisplayData) {
     return new PerKey<>(fn, fnDisplayData, false /*fewKeys*/);
   }
 
@@ -209,7 +211,7 @@ public class Combine {
    */
   private static <K, InputT, OutputT> PerKey<K, InputT, OutputT> fewKeys(
       PerKeyCombineFn<? super K, ? super InputT, ?, OutputT> fn,
-      DisplayData.ItemSpec<? extends Class<?>> fnDisplayData) {
+      DisplayData.ItemSpecBase<?, ?> fnDisplayData) {
     return new PerKey<>(fn, fnDisplayData, true /*fewKeys*/);
   }
 
@@ -293,7 +295,7 @@ public class Combine {
 
   private static <K, InputT, OutputT> GroupedValues<K, InputT, OutputT> groupedValues(
       PerKeyCombineFn<? super K, ? super InputT, ?, OutputT> fn,
-      DisplayData.ItemSpec<? extends Class<?>> fnDisplayData) {
+      DisplayData.ItemSpecBase<?, ?> fnDisplayData) {
     return new GroupedValues<>(fn, fnDisplayData);
   }
 
@@ -1324,13 +1326,14 @@ public class Combine {
       extends PTransform<PCollection<InputT>, PCollection<OutputT>> {
 
     private final GlobalCombineFn<? super InputT, ?, OutputT> fn;
-    private final DisplayData.ItemSpec<? extends Class<?>> fnDisplayData;
+    private final DisplayData.ItemSpecBase<?, ?> fnDisplayData;
     private final boolean insertDefault;
     private final int fanout;
     private final List<PCollectionView<?>> sideInputs;
 
     private Globally(GlobalCombineFn<? super InputT, ?, OutputT> fn,
-        DisplayData.ItemSpec<? extends Class<?>> fnDisplayData, boolean insertDefault, int fanout) {
+        DisplayData.ItemSpecBase<?, ?> fnDisplayData,
+        boolean insertDefault, int fanout) {
       this.fn = fn;
       this.fnDisplayData = fnDisplayData;
       this.insertDefault = insertDefault;
@@ -1339,7 +1342,8 @@ public class Combine {
     }
 
     private Globally(String name, GlobalCombineFn<? super InputT, ?, OutputT> fn,
-        DisplayData.ItemSpec<? extends Class<?>> fnDisplayData, boolean insertDefault, int fanout) {
+        DisplayData.ItemSpecBase<?, ?> fnDisplayData,
+        boolean insertDefault, int fanout) {
       super(name);
       this.fn = fn;
       this.fnDisplayData = fnDisplayData;
@@ -1349,7 +1353,8 @@ public class Combine {
     }
 
     private Globally(String name, GlobalCombineFn<? super InputT, ?, OutputT> fn,
-        DisplayData.ItemSpec<? extends Class<?>> fnDisplayData, boolean insertDefault, int fanout,
+        DisplayData.ItemSpecBase<?, ?> fnDisplayData,
+        boolean insertDefault, int fanout,
         List<PCollectionView<?>> sideInputs) {
       super(name);
       this.fn = fn;
@@ -1465,7 +1470,7 @@ public class Combine {
     public void populateDisplayData(DisplayData.Builder builder) {
       super.populateDisplayData(builder);
 
-      Combine.populateDisplayData(builder, fn, fnDisplayData);
+      builder.add(fnDisplayData);
       Combine.populateGlobalDisplayData(builder, fanout, insertDefault);
     }
 
@@ -1493,14 +1498,6 @@ public class Combine {
       return PCollectionList.of(maybeEmpty).and(defaultIfEmpty)
           .apply(Flatten.<OutputT>pCollections());
     }
-  }
-
-  private static void populateDisplayData(
-      DisplayData.Builder builder, HasDisplayData fn,
-      DisplayData.ItemSpec<? extends Class<?>> fnDisplayItem) {
-    builder
-        .include("combineFn", fn)
-        .add(fnDisplayItem);
   }
 
   private static void populateGlobalDisplayData(
@@ -1555,13 +1552,14 @@ public class Combine {
       extends PTransform<PCollection<InputT>, PCollectionView<OutputT>> {
 
     private final GlobalCombineFn<? super InputT, ?, OutputT> fn;
-    private final DisplayData.ItemSpec<? extends Class<?>> fnDisplayData;
+    private final DisplayData.ItemSpecBase<?, ?> fnDisplayData;
     private final boolean insertDefault;
     private final int fanout;
 
     private GloballyAsSingletonView(
         GlobalCombineFn<? super InputT, ?, OutputT> fn,
-        DisplayData.ItemSpec<? extends Class<?>> fnDisplayData, boolean insertDefault, int fanout) {
+        DisplayData.ItemSpecBase<?, ?> fnDisplayData,
+        boolean insertDefault, int fanout) {
       this.fn = fn;
       this.fnDisplayData = fnDisplayData;
       this.insertDefault = insertDefault;
@@ -1599,7 +1597,7 @@ public class Combine {
     public void populateDisplayData(DisplayData.Builder builder) {
       super.populateDisplayData(builder);
 
-      Combine.populateDisplayData(builder, fn, fnDisplayData);
+      builder.add(fnDisplayData);
       Combine.populateGlobalDisplayData(builder, fanout, insertDefault);
     }
   }
@@ -1761,13 +1759,13 @@ public class Combine {
     extends PTransform<PCollection<KV<K, InputT>>, PCollection<KV<K, OutputT>>> {
 
     private final PerKeyCombineFn<? super K, ? super InputT, ?, OutputT> fn;
-    private final DisplayData.ItemSpec<? extends Class<?>> fnDisplayData;
+    private final DisplayData.ItemSpecBase<?, ?> fnDisplayData;
     private final boolean fewKeys;
     private final List<PCollectionView<?>> sideInputs;
 
     private PerKey(
         PerKeyCombineFn<? super K, ? super InputT, ?, OutputT> fn,
-        DisplayData.ItemSpec<? extends Class<?>> fnDisplayData, boolean fewKeys) {
+        DisplayData.ItemSpecBase<?, ?> fnDisplayData, boolean fewKeys) {
       this.fn = fn;
       this.fnDisplayData = fnDisplayData;
       this.fewKeys = fewKeys;
@@ -1776,7 +1774,7 @@ public class Combine {
 
     private PerKey(String name,
         PerKeyCombineFn<? super K, ? super InputT, ?, OutputT> fn,
-        DisplayData.ItemSpec<? extends Class<?>> fnDisplayData,
+        DisplayData.ItemSpecBase<?, ?> fnDisplayData,
         boolean fewKeys, List<PCollectionView<?>> sideInputs) {
       super(name);
       this.fn = fn;
@@ -1787,7 +1785,7 @@ public class Combine {
 
     private PerKey(
         String name, PerKeyCombineFn<? super K, ? super InputT, ?, OutputT> fn,
-        DisplayData.ItemSpec<? extends Class<?>> fnDisplayData, boolean fewKeys) {
+        DisplayData.ItemSpecBase<?, ?> fnDisplayData, boolean fewKeys) {
       super(name);
       this.fn = fn;
       this.fnDisplayData = fnDisplayData;
@@ -1876,7 +1874,7 @@ public class Combine {
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {
       super.populateDisplayData(builder);
-      Combine.populateDisplayData(builder, fn, fnDisplayData);
+      builder.add(fnDisplayData);
     }
   }
 
@@ -1887,12 +1885,12 @@ public class Combine {
       extends PTransform<PCollection<KV<K, InputT>>, PCollection<KV<K, OutputT>>> {
 
     private final PerKeyCombineFn<? super K, ? super InputT, ?, OutputT> fn;
-    private final DisplayData.ItemSpec<? extends Class<?>> fnDisplayData;
+    private final DisplayData.ItemSpecBase<?, ?> fnDisplayData;
     private final SerializableFunction<? super K, Integer> hotKeyFanout;
 
     private PerKeyWithHotKeyFanout(String name,
         PerKeyCombineFn<? super K, ? super InputT, ?, OutputT> fn,
-        DisplayData.ItemSpec<? extends Class<?>> fnDisplayData,
+        DisplayData.ItemSpecBase<?, ?> fnDisplayData,
         SerializableFunction<? super K, Integer> hotKeyFanout) {
       super(name);
       this.fn = fn;
@@ -2202,12 +2200,11 @@ public class Combine {
     public void populateDisplayData(DisplayData.Builder builder) {
       super.populateDisplayData(builder);
 
-      Combine.populateDisplayData(builder, fn, fnDisplayData);
-      if (hotKeyFanout instanceof HasDisplayData) {
-        builder.include("hotKeyFanout", (HasDisplayData) hotKeyFanout);
-      }
-      builder.add(DisplayData.item("fanoutFn", hotKeyFanout.getClass())
-        .withLabel("Fanout Function"));
+      builder.add(fnDisplayData);
+      builder.add((hotKeyFanout instanceof HasDisplayData
+          ? DisplayData.nested("hotKeyFanout", (HasDisplayData) hotKeyFanout)
+          : DisplayData.item("hotKeyFanout", hotKeyFanout.getClass()))
+          .withLabel("Fanout Function"));
     }
 
     /**
@@ -2351,12 +2348,12 @@ public class Combine {
                          PCollection<KV<K, OutputT>>> {
 
     private final PerKeyCombineFn<? super K, ? super InputT, ?, OutputT> fn;
-    private final DisplayData.ItemSpec<? extends Class<?>> fnDisplayData;
+    private final DisplayData.ItemSpecBase<?, ?> fnDisplayData;
     private final List<PCollectionView<?>> sideInputs;
 
     private GroupedValues(
         PerKeyCombineFn<? super K, ? super InputT, ?, OutputT> fn,
-        DisplayData.ItemSpec<? extends Class<?>> fnDisplayData) {
+        DisplayData.ItemSpecBase<?, ?> fnDisplayData) {
       this.fn = SerializableUtils.clone(fn);
       this.fnDisplayData = fnDisplayData;
       this.sideInputs = ImmutableList.of();
@@ -2364,7 +2361,7 @@ public class Combine {
 
     private GroupedValues(
         PerKeyCombineFn<? super K, ? super InputT, ?, OutputT> fn,
-        DisplayData.ItemSpec<? extends Class<?>> fnDisplayData,
+        DisplayData.ItemSpecBase<?, ?> fnDisplayData,
         List<PCollectionView<?>> sideInputs) {
       this.fn = SerializableUtils.clone(fn);
       this.fnDisplayData = fnDisplayData;
@@ -2488,7 +2485,7 @@ public class Combine {
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {
       super.populateDisplayData(builder);
-      Combine.populateDisplayData(builder, fn, fnDisplayData);
+      builder.add(fnDisplayData);
     }
   }
 }

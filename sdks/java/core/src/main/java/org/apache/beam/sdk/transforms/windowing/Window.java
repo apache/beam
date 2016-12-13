@@ -456,12 +456,8 @@ public class Window {
     public void populateDisplayData(DisplayData.Builder builder) {
       super.populateDisplayData(builder);
 
-      if (windowFn != null) {
-        builder
-            .add(DisplayData.item("windowFn", windowFn.getClass())
-              .withLabel("Windowing Function"))
-            .include("windowFn", windowFn);
-      }
+      builder.addIfNotNull(DisplayData.nested("windowFn", windowFn)
+        .withLabel("Windowing Function"));
 
       if (allowedLateness != null) {
         builder.addIfNotDefault(DisplayData.item("allowedLateness", allowedLateness)

@@ -124,10 +124,8 @@ public class Read {
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {
       super.populateDisplayData(builder);
-      builder
-          .add(DisplayData.item("source", source.getClass())
-            .withLabel("Read Source"))
-          .include("source", source);
+      builder.add(DisplayData.nested("source", source)
+          .withLabel("Read Source"));
     }
   }
 
@@ -191,10 +189,8 @@ public class Read {
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {
       super.populateDisplayData(builder);
-      builder
-          .add(DisplayData.item("source", source.getClass())
-            .withLabel("Read Source"))
-          .include("source", source);
+      builder.add(DisplayData.nested("source", source)
+          .withLabel("Read Source"));
     }
   }
 }

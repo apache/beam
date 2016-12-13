@@ -19,6 +19,7 @@ package org.apache.beam.sdk.transforms;
 
 import java.lang.reflect.ParameterizedType;
 import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.apache.beam.sdk.transforms.display.HasDisplayData;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
@@ -89,7 +90,7 @@ extends PTransform<PCollection<? extends InputT>, PCollection<OutputT>> {
     SimpleFunction<InputT, Iterable<OutputT>> simplerFn =
         (SimpleFunction<InputT, Iterable<OutputT>>) fn;
 
-    return new FlatMapElements<>(simplerFn, fn.getClass());
+    return new FlatMapElements<>(simplerFn, displayDataForFn(fn));
   }
 
   /**
@@ -112,20 +113,20 @@ extends PTransform<PCollection<? extends InputT>, PCollection<OutputT>> {
       return new FlatMapElements<>(
           SimpleFunction.fromSerializableFunctionWithOutputType(fn,
               iterableOutputType),
-              fn.getClass());
+              displayDataForFn(fn));
     }
   }
 
   //////////////////////////////////////////////////////////////////////////////////////////////////
 
   private final SimpleFunction<InputT, ? extends Iterable<OutputT>> fn;
-  private final DisplayData.ItemSpec<?> fnClassDisplayData;
+  private final DisplayData.ItemSpecBase<?, ?> fnDisplayData;
 
   private FlatMapElements(
       SimpleFunction<InputT, ? extends Iterable<OutputT>> fn,
-      Class<?> fnClass) {
+      DisplayData.ItemSpecBase<?, ?> fnDisplayData) {
     this.fn = fn;
-    this.fnClassDisplayData = DisplayData.item("flatMapFn", fnClass).withLabel("FlatMap Function");
+    this.fnDisplayData = fnDisplayData;
   }
 
   @Override
@@ -166,9 +167,7 @@ extends PTransform<PCollection<? extends InputT>, PCollection<OutputT>> {
   @Override
   public void populateDisplayData(DisplayData.Builder builder) {
     super.populateDisplayData(builder);
-    builder
-        .include("flatMapFn", fn)
-        .add(fnClassDisplayData);
+    builder.add(fnDisplayData);
   }
 
   /**
@@ -189,5 +188,12 @@ extends PTransform<PCollection<? extends InputT>, PCollection<OutputT>> {
     ParameterizedType iterableType =
         (ParameterizedType) iterableTypeDescriptor.getSupertype(Iterable.class).getType();
     return TypeDescriptor.of(iterableType.getActualTypeArguments()[0]);
+  }
+
+  private static DisplayData.ItemSpecBase<?, ?> displayDataForFn(Object fn) {
+    return (fn instanceof HasDisplayData
+        ? DisplayData.nested("flatMapFn", (HasDisplayData) fn)
+        : DisplayData.item("flatMapFn", fn.getClass()))
+        .withLabel("FlatMap Function");
   }
 }

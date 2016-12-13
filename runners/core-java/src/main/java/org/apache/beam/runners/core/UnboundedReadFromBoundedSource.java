@@ -105,10 +105,7 @@ public class UnboundedReadFromBoundedSource<T> extends PTransform<PBegin, PColle
 
   @Override
   public void populateDisplayData(DisplayData.Builder builder) {
-    // We explicitly do not register base-class data, instead we use the delegate inner source.
-    builder
-        .add(DisplayData.item("source", source.getClass()))
-        .include("source", source);
+    builder.delegate(source);
   }
 
   /**

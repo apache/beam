@@ -117,11 +117,10 @@ public class Write {
     public void populateDisplayData(DisplayData.Builder builder) {
       super.populateDisplayData(builder);
       builder
-          .add(DisplayData.item("sink", sink.getClass()).withLabel("Write Sink"))
-          .include("sink", sink)
-          .addIfNotDefault(
-              DisplayData.item("numShards", getNumShards()).withLabel("Fixed Number of Shards"),
-              0);
+          .add(DisplayData.nested("sink", sink)
+              .withLabel("Write Sink"))
+          .addIfNotDefault(DisplayData.item("numShards", getNumShards())
+              .withLabel("Fixed Number of Shards"), 0);
     }
 
     /**

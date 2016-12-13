@@ -806,7 +806,7 @@ public class DatastoreV1 {
       builder
           .addIfNotNull(DisplayData.item("projectId", projectId)
               .withLabel("Output Project"))
-          .include("mutationFn", mutationFn);
+          .add(DisplayData.nested("mutationFn", mutationFn));
     }
 
     public String getProjectId() {
