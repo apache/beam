@@ -24,6 +24,7 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 import com.google.cloud.dataflow.sdk.runners.DirectPipelineRunner;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 
@@ -38,6 +39,7 @@ import org.junit.runners.JUnit4;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 /** Unit tests for {@link PipelineOptions}. */
@@ -122,5 +124,25 @@ public class PipelineOptionsTest {
     expectedException.expectMessage("incompatible return types");
     options.cloneAs(ConflictedTestOptions.class);
   }
-}
 
+  private interface ValueProviderOptions extends PipelineOptions {
+    ValueProvider<Boolean> getBool();
+    void setBool(ValueProvider<Boolean> value);
+
+    ValueProvider<String> getString();
+    void setString(ValueProvider<String> value);
+
+    String getNotAValueProvider();
+    void setNotAValueProvider(String value);
+  }
+
+  @Test
+  public void testOutputRuntimeOptions() {
+    ValueProviderOptions options =
+        PipelineOptionsFactory.fromArgs(
+            new String[]{"--string=baz"}).as(ValueProviderOptions.class);
+    Map<String, ?> expected = ImmutableMap.of(
+        "bool", ImmutableMap.of("type", Boolean.class));
+    assertEquals(expected, options.outputRuntimeOptions());
+  }
+}

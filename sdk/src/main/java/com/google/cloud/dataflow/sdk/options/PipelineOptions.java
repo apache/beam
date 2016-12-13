@@ -33,8 +33,9 @@ import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 
 import java.lang.reflect.Proxy;
+import java.util.Map;
 import java.util.ServiceLoader;
-
+import java.util.concurrent.atomic.AtomicLong;
 import javax.annotation.concurrent.ThreadSafe;
 
 /**
@@ -261,4 +262,33 @@ public interface PipelineOptions extends HasDisplayData {
   @Description("A pipeline level default location for storing temporary files.")
   String getTempLocation();
   void setTempLocation(String value);
+
+  /**
+   * Returns a map of properties which correspond to {@link RuntimeValueProvider},
+   * keyed by the property name.  The value is a map containing type and default
+   * information.
+   */
+  Map<String, Map<String, Object>> outputRuntimeOptions();
+
+  /**
+   * Provides a unique ID for this {@link PipelineOptions} object, assigned at graph
+   * construction time.
+   */
+  @Hidden
+  @Default.InstanceFactory(AtomicLongFactory.class)
+  Long getOptionsId();
+  void setOptionsId(Long id);
+
+  /**
+   * {@link DefaultValueFactory} which supplies an ID that is guaranteed to be unique
+   * within the given process.
+   */
+  class AtomicLongFactory implements DefaultValueFactory<Long> {
+    private static final AtomicLong NEXT_ID = new AtomicLong(0);
+
+    @Override
+    public Long create(PipelineOptions options) {
+      return NEXT_ID.getAndIncrement();
+    }
+  }
 }

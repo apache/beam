@@ -30,8 +30,8 @@ import com.google.common.base.Function;
 import com.google.common.base.Joiner;
 import com.google.common.base.Optional;
 import com.google.common.base.Predicate;
+import com.google.common.base.Predicates;
 import com.google.common.base.Strings;
-import com.google.common.collect.Collections2;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableListMultimap;
 import com.google.common.collect.ImmutableMap;
@@ -64,7 +64,9 @@ import java.io.PrintStream;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
+import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Proxy;
+import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -894,21 +896,18 @@ public class PipelineOptionsFactory {
    * resolved.
    */
   private static List<PropertyDescriptor> getPropertyDescriptors(
-      Class<? extends PipelineOptions> beanClass)
-      throws IntrospectionException {
-    // The sorting is important to make this method stable.
-    SortedSet<Method> methods = Sets.newTreeSet(MethodComparator.INSTANCE);
-    methods.addAll(
-        Collections2.filter(Arrays.asList(beanClass.getMethods()), NOT_SYNTHETIC_PREDICATE));
 
+      Set<Method> methods, Class<? extends PipelineOptions> beanClass)
+      throws IntrospectionException {
     SortedMap<String, Method> propertyNamesToGetters = new TreeMap<>();
     for (Map.Entry<String, Method> entry :
-        PipelineOptionsReflector.getPropertyNamesToGetters(methods).entries()) {
+             PipelineOptionsReflector.getPropertyNamesToGetters(methods).entries()) {
       propertyNamesToGetters.put(entry.getKey(), entry.getValue());
     }
 
     List<PropertyDescriptor> descriptors = Lists.newArrayList();
     List<TypeMismatch> mismatches = new ArrayList<>();
+    Set<String> usedDescriptors = Sets.newHashSet();
     /*
      * Add all the getter/setter pairs to the list of descriptors removing the getter once
      * it has been paired up.
@@ -925,9 +924,9 @@ public class PipelineOptionsFactory {
 
       // Validate that the getter and setter property types are the same.
       if (getterMethod != null) {
-        Class<?> getterPropertyType = getterMethod.getReturnType();
-        Class<?> setterPropertyType = method.getParameterTypes()[0];
-        if (getterPropertyType != setterPropertyType) {
+        Type getterPropertyType = getterMethod.getGenericReturnType();
+        Type setterPropertyType = method.getGenericParameterTypes()[0];
+        if (!getterPropertyType.equals(setterPropertyType)) {
           TypeMismatch mismatch = new TypeMismatch();
           mismatch.propertyName = propertyName;
           mismatch.getterPropertyType = getterPropertyType;
@@ -936,9 +935,14 @@ public class PipelineOptionsFactory {
           continue;
         }
       }
-
-      descriptors.add(new PropertyDescriptor(
-          propertyName, getterMethod, method));
+      // Properties can appear multiple times with subclasses, and we don't
+      // want to add a bad entry if we have already added a good one (with both
+      // getter and setter).
+      if (!usedDescriptors.contains(propertyName)) {
+        descriptors.add(new PropertyDescriptor(
+            propertyName, getterMethod, method));
+        usedDescriptors.add(propertyName);
+      }
     }
     throwForTypeMismatches(mismatches);
 
@@ -952,8 +956,8 @@ public class PipelineOptionsFactory {
 
   private static class TypeMismatch {
     private String propertyName;
-    private Class<?> getterPropertyType;
-    private Class<?> setterPropertyType;
+    private Type getterPropertyType;
+    private Type setterPropertyType;
   }
 
   private static void throwForTypeMismatches(List<TypeMismatch> mismatches) {
@@ -963,8 +967,8 @@ public class PipelineOptionsFactory {
           "Type mismatch between getter and setter methods for property [%s]. "
           + "Getter is of type [%s] whereas setter is of type [%s].",
           mismatch.propertyName,
-          mismatch.getterPropertyType.getName(),
-          mismatch.setterPropertyType.getName()));
+          mismatch.getterPropertyType,
+          mismatch.setterPropertyType));
     } else if (mismatches.size() > 1) {
       StringBuilder builder = new StringBuilder(
           String.format("Type mismatches between getters and setters detected:"));
@@ -972,8 +976,8 @@ public class PipelineOptionsFactory {
         builder.append(String.format(
             "%n  - Property [%s]: Getter is of type [%s] whereas setter is of type [%s].",
             mismatch.propertyName,
-            mismatch.getterPropertyType.getName(),
-            mismatch.setterPropertyType.getName()));
+            mismatch.getterPropertyType.toString(),
+            mismatch.setterPropertyType.toString()));
       }
       throw new IllegalArgumentException(builder.toString());
     }
@@ -1028,14 +1032,13 @@ public class PipelineOptionsFactory {
         methods.add(method);
       }
     }
-    // Ignore standard infrastructure methods on the generated class.
+
+    // Ignore methods on the base PipelineOptions interface.
     try {
-      methods.add(klass.getMethod("equals", Object.class));
-      methods.add(klass.getMethod("hashCode"));
-      methods.add(klass.getMethod("toString"));
-      methods.add(klass.getMethod("as", Class.class));
-      methods.add(klass.getMethod("cloneAs", Class.class));
-      methods.add(klass.getMethod("populateDisplayData", DisplayData.Builder.class));
+      methods.add(iface.getMethod("as", Class.class));
+      methods.add(iface.getMethod("outputRuntimeOptions"));
+      methods.add(iface.getMethod("cloneAs", Class.class));
+      methods.add(iface.getMethod("populateDisplayData", DisplayData.Builder.class));
     } catch (NoSuchMethodException | SecurityException e) {
       throw new RuntimeException(e);
     }
@@ -1068,7 +1071,7 @@ public class PipelineOptionsFactory {
 
     // Verify that there is no getter with a mixed @JsonIgnore annotation and verify
     // that no setter has @JsonIgnore.
-    Iterable<Method> allInterfaceMethods =
+    SortedSet<Method> allInterfaceMethods =
         FluentIterable.from(
                 ReflectHelpers.getClosureOfMethodsOnInterfaces(
                     validatedPipelineOptionsInterfaces))
@@ -1081,7 +1084,7 @@ public class PipelineOptionsFactory {
       methodNameToAllMethodMap.put(method, method);
     }
 
-    List<PropertyDescriptor> descriptors = getPropertyDescriptors(klass);
+    List<PropertyDescriptor> descriptors = getPropertyDescriptors(allInterfaceMethods, iface);
 
     List<InconsistentlyIgnoredGetters> incompletelyIgnoredGetters = new ArrayList<>();
     List<IgnoredSetter> ignoredSetters = new ArrayList<>();
@@ -1155,13 +1158,25 @@ public class PipelineOptionsFactory {
       methods.add(propertyDescriptor.getWriteMethod());
     }
     throwForMissingBeanMethod(iface, missingBeanMethods);
+    final Set<String> knownMethods = Sets.newHashSet();
+    for (Method method : methods) {
+      knownMethods.add(method.getName());
+    }
 
     // Verify that no additional methods are on an interface that aren't a bean property.
+    // Because methods can have multiple declarations, we do a name-based comparison
+    // here to prevent false positives.
     SortedSet<Method> unknownMethods = new TreeSet<>(MethodComparator.INSTANCE);
     unknownMethods.addAll(
         Sets.filter(
-            Sets.difference(Sets.newHashSet(klass.getMethods()), methods),
-            NOT_SYNTHETIC_PREDICATE));
+            Sets.difference(Sets.newHashSet(iface.getMethods()), methods),
+            Predicates.and(NOT_SYNTHETIC_PREDICATE,
+                new Predicate<Method>() {
+                  @Override
+                  public boolean apply(Method input) {
+                    return !knownMethods.contains(input.getName());
+                  }
+                })));
     checkArgument(unknownMethods.isEmpty(),
         "Methods %s on [%s] do not conform to being bean properties.",
         FluentIterable.from(unknownMethods).transform(ReflectHelpers.METHOD_FORMATTER),
@@ -1455,7 +1470,7 @@ public class PipelineOptionsFactory {
         }
 
         Method method = propertyNamesToGetters.get(entry.getKey());
-        // Only allow empty argument values for String, String Array, and Collection.
+        // Only allow empty argument values for String, String Array, and Collection<String>.
         Class<?> returnType = method.getReturnType();
         JavaType type = MAPPER.getTypeFactory().constructType(method.getGenericReturnType());
         if ("runner".equals(entry.getKey())) {
@@ -1481,8 +1496,12 @@ public class PipelineOptionsFactory {
             }
           }
         } else if ((returnType.isArray() && (SIMPLE_TYPES.contains(returnType.getComponentType())
-                || returnType.getComponentType().isEnum()))
-            || Collection.class.isAssignableFrom(returnType)) {
+                    || returnType.getComponentType().isEnum()))
+            || Collection.class.isAssignableFrom(returnType)
+            || (returnType.equals(ValueProvider.class)
+                && MAPPER.getTypeFactory().constructType(
+                    ((ParameterizedType) method.getGenericReturnType())
+                    .getActualTypeArguments()[0]).isCollectionLikeType())) {
           // Split any strings with ","
           List<String> values = FluentIterable.from(entry.getValue())
               .transformAndConcat(new Function<String, Iterable<String>>() {
@@ -1492,25 +1511,31 @@ public class PipelineOptionsFactory {
                 }
           }).toList();
 
-          if (returnType.isArray() && !returnType.getComponentType().equals(String.class)) {
+          if (returnType.isArray() && !returnType.getComponentType().equals(String.class)
+              || Collection.class.isAssignableFrom(returnType)
+              || returnType.equals(ValueProvider.class)) {
             for (String value : values) {
               checkArgument(!value.isEmpty(),
-                  "Empty argument value is only allowed for String, String Array, and Collection,"
-                  + " but received: " + returnType);
+                  "Empty argument value is only allowed for String, String Array, "
+                  + "and Collections of Strings, but received: %s",
+                  method.getGenericReturnType());
             }
           }
           convertedOptions.put(entry.getKey(), MAPPER.convertValue(values, type));
-        } else if (SIMPLE_TYPES.contains(returnType) || returnType.isEnum()) {
+        } else if (SIMPLE_TYPES.contains(returnType) || returnType.isEnum()
+            || returnType.equals(ValueProvider.class)) {
           String value = Iterables.getOnlyElement(entry.getValue());
           checkArgument(returnType.equals(String.class) || !value.isEmpty(),
-              "Empty argument value is only allowed for String, String Array, and Collection,"
-               + " but received: " + returnType);
+              "Empty argument value is only allowed for String, String Array, "
+              + "and Collections of Strings, but received: %s",
+              method.getGenericReturnType());
           convertedOptions.put(entry.getKey(), MAPPER.convertValue(value, type));
         } else {
           String value = Iterables.getOnlyElement(entry.getValue());
           checkArgument(returnType.equals(String.class) || !value.isEmpty(),
-              "Empty argument value is only allowed for String, String Array, and Collection,"
-               + " but received: " + returnType);
+              "Empty argument value is only allowed for String, String Array, "
+              + "and Collections of Strings, but received: %s",
+              method.getGenericReturnType());
           try {
             convertedOptions.put(entry.getKey(), MAPPER.readValue(value, type));
           } catch (IOException e) {

@@ -627,7 +627,10 @@ public class ApiSurface {
         .pruningPrefix("org.joda.time")
         .pruningPrefix("org.apache.avro")
         .pruningPrefix("org.junit")
-        .pruningPrefix("com.fasterxml.jackson.annotation");
+        .pruningPrefix("com.fasterxml.jackson.annotation")
+        .pruningPrefix("com.fasterxml.jackson.core")
+        .pruningPrefix("com.fasterxml.jackson.databind")
+        .pruningPrefix("com.fasterxml.jackson.deser");
   }
 
   public static void main(String[] args) throws Exception {
