@@ -54,10 +54,22 @@ public class DataSourceWrapper<T>
     }
 
     if (openReaders.size() == 1) {
+      // ~ execute the reader in a separate thread, such that
+      // we can safely quit without being blocked by the reader
+      // ~ here we specialize on the single reader scenario to
+      // avoid needlessly synchronizing on the ctx as a lock
       Reader<T> reader = openReaders.get(0);
-
-      while (isRunning && reader.hasNext()) {
-        ctx.collect(toWindowedElement(reader.next()));
+      executor = createThreadPool();
+      Future<?> task = executor.submit(() -> {
+        while (isRunning && reader.hasNext()) {
+          ctx.collect(toWindowedElement(reader.next()));
+        }
+      });
+      // ~ wait for the reader to finish or quit if request
+      try {
+        task.get();
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
       }
     } else {
       // start a new thread for each reader
@@ -72,7 +84,6 @@ public class DataSourceWrapper<T>
           }
         }));
       }
-
       // wait for all task to finish
       while (isRunning && !tasks.isEmpty()) {
         try {
