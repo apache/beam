@@ -73,6 +73,7 @@ import com.google.cloud.dataflow.sdk.options.DataflowPipelineWorkerPoolOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsValidator;
 import com.google.cloud.dataflow.sdk.options.StreamingOptions;
+import com.google.cloud.dataflow.sdk.options.ValueProvider.NestedValueProvider;
 import com.google.cloud.dataflow.sdk.runners.DataflowPipelineTranslator.JobSpecification;
 import com.google.cloud.dataflow.sdk.runners.DataflowPipelineTranslator.TransformTranslator;
 import com.google.cloud.dataflow.sdk.runners.DataflowPipelineTranslator.TranslationContext;
@@ -2379,14 +2380,27 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
                                "StreamingPubsubIORead is only for streaming pipelines.");
       context.addStep(transform, "ParallelRead");
       context.addInput(PropertyNames.FORMAT, "pubsub");
-      if (transform.getTopic() != null) {
-        context.addInput(PropertyNames.PUBSUB_TOPIC,
-                         transform.getTopic().asV1Beta1Path());
+      if (transform.getTopicProvider() != null) {
+        if (transform.getTopicProvider().isAccessible()) {
+          context.addInput(
+              PropertyNames.PUBSUB_TOPIC, transform.getTopic().asV1Beta1Path());
+        } else {
+          context.addInput(
+              PropertyNames.PUBSUB_TOPIC_OVERRIDE,
+              ((NestedValueProvider) transform.getTopicProvider()).propertyName());
+        }
       }
-      if (transform.getSubscription() != null) {
-        context.addInput(
-            PropertyNames.PUBSUB_SUBSCRIPTION,
-            transform.getSubscription().asV1Beta1Path());
+      if (transform.getSubscriptionProvider() != null) {
+        if (transform.getSubscriptionProvider().isAccessible()) {
+          context.addInput(
+              PropertyNames.PUBSUB_SUBSCRIPTION,
+              transform.getSubscription().asV1Beta1Path());
+        } else {
+          context.addInput(
+              PropertyNames.PUBSUB_SUBSCRIPTION_OVERRIDE,
+              ((NestedValueProvider) transform.getSubscriptionProvider())
+              .propertyName());
+        }
       }
       if (transform.getTimestampLabel() != null) {
         context.addInput(PropertyNames.PUBSUB_TIMESTAMP_LABEL,
@@ -2457,7 +2471,14 @@ public class DataflowPipelineRunner extends PipelineRunner<DataflowPipelineJob> 
       PubsubIO.Write.Bound<T> overriddenTransform = transform.getOverriddenTransform();
       context.addStep(transform, "ParallelWrite");
       context.addInput(PropertyNames.FORMAT, "pubsub");
-      context.addInput(PropertyNames.PUBSUB_TOPIC, overriddenTransform.getTopic().asV1Beta1Path());
+      if (overriddenTransform.getTopicProvider().isAccessible()) {
+        context.addInput(
+            PropertyNames.PUBSUB_TOPIC, overriddenTransform.getTopic().asV1Beta1Path());
+      } else {
+        context.addInput(
+            PropertyNames.PUBSUB_TOPIC_OVERRIDE,
+            ((NestedValueProvider) overriddenTransform.getTopicProvider()).propertyName());
+      }
       if (overriddenTransform.getTimestampLabel() != null) {
         context.addInput(PropertyNames.PUBSUB_TIMESTAMP_LABEL,
                          overriddenTransform.getTimestampLabel());
