@@ -1823,7 +1823,7 @@ public class BigQueryIO {
       @VisibleForTesting
       Bound withTestServices(BigQueryServices testServices) {
         return new Bound(name, jsonTableRef, tableRefFunction, jsonSchema, createDisposition,
-           writeDisposition, validate, testServices);
+          writeDisposition, validate, testServices);
       }
 
       private static void verifyTableEmpty(
@@ -2555,7 +2555,7 @@ public class BigQueryIO {
    * Clear the cached map of created tables. Used for testing.
    */
   @VisibleForTesting
-   static void clearCreatedTables() {
+  static void clearCreatedTables() {
     StreamingWriteFn.clearCreatedTables();
   }
   /////////////////////////////////////////////////////////////////////////////
@@ -2650,15 +2650,16 @@ public class BigQueryIO {
           // Another thread may have succeeded in creating the table in the meanwhile, so
           // check again. This check isn't needed for correctness, but we add it to prevent
           // every thread from attempting a create and overwhelming our BigQuery quota.
+          DatasetService datasetService = bqServices.getDatasetService(options);
           if (!createdTables.contains(tableSpec)) {
-            Table table = bqServices.getDatasetService(options).getTable(
+            Table table = datasetService.getTable(
                 tableReference.getProjectId(),
                 tableReference.getDatasetId(),
                 tableReference.getTableId());
             if (table == null) {
               TableSchema tableSchema = JSON_FACTORY.fromString(
                   jsonTableSchema.get(), TableSchema.class);
-              bqServices.getDatasetService(options).createTable(
+              datasetService.createTable(
                   new Table().setTableReference(tableReference).setSchema(tableSchema));
             }
             createdTables.add(tableSpec);

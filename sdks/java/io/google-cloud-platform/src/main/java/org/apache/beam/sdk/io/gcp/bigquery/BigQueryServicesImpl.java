@@ -284,7 +284,7 @@ class BigQueryServicesImpl implements BigQueryServices {
               "Unable to dry run query: %s, aborting after %d retries.",
               queryConfig, MAX_RPC_RETRIES),
           Sleeper.DEFAULT,
-          backoff, null).getStatistics();
+          backoff, ALWAYS_RETRY).getStatistics();
     }
 
     /**
@@ -415,9 +415,10 @@ class BigQueryServicesImpl implements BigQueryServices {
         (int) TimeUnit.MINUTES.toMillis(5);
 
     /**
-     * Tries to create the BigQuery table.
-     * If a table with the same name already exists in the dataset, the table
-     * creation fails.  In such a case,
+     * {@inheritDoc}
+     *
+     * If a table with the same name already exists in the dataset, the function simply
+     * returns. In such a case,
      * the existing table doesn't necessarily have the same schema as specified
      * by the parameter.
      *
@@ -496,7 +497,7 @@ class BigQueryServicesImpl implements BigQueryServices {
               "Unable to delete table: %s, aborting after %d retries.",
               tableId, MAX_RPC_RETRIES),
           Sleeper.DEFAULT,
-          backoff, null);
+          backoff, ALWAYS_RETRY);
     }
 
     @Override
@@ -511,7 +512,7 @@ class BigQueryServicesImpl implements BigQueryServices {
               "Unable to list table data: %s, aborting after %d retries.",
               tableId, MAX_RPC_RETRIES),
           Sleeper.DEFAULT,
-          backoff, null);
+          backoff, ALWAYS_RETRY);
       return dataList.getRows() == null || dataList.getRows().isEmpty();
     }
 
@@ -617,7 +618,7 @@ class BigQueryServicesImpl implements BigQueryServices {
               "Unable to delete table: %s, aborting after %d retries.",
               datasetId, MAX_RPC_RETRIES),
           Sleeper.DEFAULT,
-          backoff, null);
+          backoff, ALWAYS_RETRY);
     }
 
     @VisibleForTesting
@@ -708,11 +709,12 @@ class BigQueryServicesImpl implements BigQueryServices {
             List<TableDataInsertAllResponse.InsertErrors> errors = futures.get(i).get();
             if (errors != null) {
               for (TableDataInsertAllResponse.InsertErrors error : errors) {
+                allErrors.add(error);
                 if (error.getIndex() == null) {
                   throw new IOException("Insert failed: " + allErrors);
                 }
+
                 int errorIndex = error.getIndex().intValue() + strideIndices.get(i);
-                allErrors.add(error);
                 retryRows.add(rowsToPublish.get(errorIndex));
                 if (retryIds != null) {
                   retryIds.add(idsToPublish.get(errorIndex));
@@ -829,6 +831,15 @@ class BigQueryServicesImpl implements BigQueryServices {
         }
       };
 
+  static final SerializableFunction<IOException, Boolean> ALWAYS_RETRY =
+      new SerializableFunction<IOException, Boolean>() {
+        @Override
+        public Boolean apply(IOException input) {
+          return true;
+        }
+      };
+
+
   @VisibleForTesting
   static <T> T executeWithRetries(
       AbstractGoogleClientRequest<T> request,
@@ -844,7 +855,7 @@ class BigQueryServicesImpl implements BigQueryServices {
       } catch (IOException e) {
         LOG.warn("Ignore the error and retry the request.", e);
         lastException = e;
-        if (shouldRetry != null && !shouldRetry.apply(e)) {
+        if (!shouldRetry.apply(e)) {
           break;
         }
       }

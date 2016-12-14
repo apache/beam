@@ -18,10 +18,10 @@
 package org.apache.beam.sdk.io.gcp.bigquery;
 
 import static com.google.common.base.Verify.verifyNotNull;
-import static junit.framework.TestCase.assertNull;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 import static org.mockito.Mockito.times;
@@ -69,6 +69,7 @@ import org.apache.beam.sdk.testing.FastNanoClockAndSleeper;
 import org.apache.beam.sdk.util.FluentBackoff;
 import org.apache.beam.sdk.util.RetryHttpRequestInitializer;
 import org.apache.beam.sdk.util.Transport;
+import org.joda.time.Duration;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -330,7 +331,7 @@ public class BigQueryServicesImplTest {
         bigquery.tables().get("projectId", "datasetId", "tableId"),
         "Failed to get table.",
         Sleeper.DEFAULT,
-        BackOff.STOP_BACKOFF, null);
+        BackOff.STOP_BACKOFF, BigQueryServicesImpl.ALWAYS_RETRY);
 
     assertEquals(testTable, table);
     verify(response, times(1)).getStatusCode();
@@ -364,7 +365,10 @@ public class BigQueryServicesImplTest {
     expectedLogs.verifyInfo("BigQuery insertAll exceeded rate limit, retrying");
   }
   // A BackOff that makes a total of 4 attempts
-  private static final FluentBackoff TEST_BACKOFF = FluentBackoff.DEFAULT.withMaxRetries(3);
+  private static final FluentBackoff TEST_BACKOFF = FluentBackoff.DEFAULT
+      .withInitialBackoff(Duration.millis(1))
+      .withExponent(1)
+      .withMaxRetries(3);
 
   /**
    * Tests that {@link DatasetServiceImpl#insertAll} retries selected rows on failure.

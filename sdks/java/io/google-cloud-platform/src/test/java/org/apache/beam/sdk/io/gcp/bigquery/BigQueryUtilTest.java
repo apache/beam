@@ -362,18 +362,7 @@ public class BigQueryUtilTest {
   }
 
   @Test
-  public void testWriteAppend() throws InterruptedException, IOException {
-    onTableGet(basicTableSchema());
-
-    BigQueryServicesImpl.DatasetServiceImpl services =
-            new BigQueryServicesImpl.DatasetServiceImpl(mockClient, options);
-    services.getTable("project", "dataset", "table");
-
-    verifyTableGet();
-  }
-
-  @Test
-  public void testWriteEmpty() throws InterruptedException, IOException {
+  public void testTableGet() throws InterruptedException, IOException {
     onTableGet(basicTableSchema());
 
     TableDataList dataList = new TableDataList().setTotalRows(0L);
@@ -411,9 +400,7 @@ public class BigQueryUtilTest {
 
     long totalBytes = 0;
     try {
-      List<TableRow> deadLetter = new ArrayList<>();
       totalBytes = datasetService.insertAll(ref, rows, ids);
-      assertTrue(deadLetter.isEmpty());
     } finally {
       verifyInsertAll(5);
       // Each of the 25 rows is 23 bytes: "{f=[{v=foo}, {v=1234}]}"
