@@ -25,6 +25,7 @@ import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.toJsonString;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.hasItem;
+import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThat;
@@ -498,7 +499,7 @@ public class BigQueryIOTest implements Serializable {
       this.ids = new ArrayList<>();
     }
 
-     TableContainer addRow(TableRow row, String id) {
+    TableContainer addRow(TableRow row, String id) {
       rows.add(row);
       ids.add(id);
       return this;
@@ -520,30 +521,6 @@ public class BigQueryIOTest implements Serializable {
 
   /** A fake dataset service that can be serialized, for use in testReadFromTable. */
   private static class FakeDatasetService implements DatasetService, Serializable {
-
-    public FakeDatasetService withDataset(String projectId, String datasetId) {
-      synchronized (tables) {
-        Map<String, TableContainer> dataset = tables.get(projectId, datasetId);
-        if (dataset == null) {
-          dataset = new HashMap<>();
-          tables.put(projectId, datasetId, dataset);
-        }
-      }
-      return this;
-    }
-
-    public FakeDatasetService withTable(
-        String projectId, String datasetId, String tableId, Table table) throws IOException {
-      synchronized (tables) {
-        Map<String, TableContainer> dataset = tables.get(projectId, datasetId);
-        if (dataset == null) {
-          dataset = new HashMap<>();
-          tables.put(projectId, datasetId, dataset);
-        }
-        dataset.put(tableId, new TableContainer(table));
-      }
-      return this;
-    }
 
     @Override
     public Table getTable(String projectId, String datasetId, String tableId)
@@ -596,8 +573,7 @@ public class BigQueryIOTest implements Serializable {
 
 
     @Override
-    public void createTable(Table table)
-        throws IOException {
+    public void createTable(Table table) throws IOException {
       TableReference tableReference = table.getTableReference();
       synchronized (tables) {
         Map<String, TableContainer> dataset =
@@ -608,6 +584,7 @@ public class BigQueryIOTest implements Serializable {
                 tableReference.getDatasetId(),
                 FakeDatasetService.class.getSimpleName());
         TableContainer tableContainer = dataset.get(tableReference.getTableId());
+        System.out.println("CREATING TABLE " + tableReference);
         if (tableContainer == null) {
           tableContainer = new TableContainer(table);
           dataset.put(tableReference.getTableId(), tableContainer);
@@ -632,7 +609,13 @@ public class BigQueryIOTest implements Serializable {
     public void createDataset(
         String projectId, String datasetId, String location, String description)
         throws IOException, InterruptedException {
-      throw new UnsupportedOperationException("Unsupported");
+      synchronized (tables) {
+        Map<String, TableContainer> dataset = tables.get(projectId, datasetId);
+        if (dataset == null) {
+          dataset = new HashMap<>();
+          tables.put(projectId, datasetId, dataset);
+        }
+      }
     }
 
     @Override
@@ -646,10 +629,7 @@ public class BigQueryIOTest implements Serializable {
         TableReference ref, List<TableRow> rowList, @Nullable List<String> insertIdList)
         throws IOException, InterruptedException {
       synchronized (tables) {
-        if (rowList.size() != insertIdList.size()) {
-          throw new AssertionError("If insertIdList is not null it needs to have at least "
-              + "as many elements as rowList");
-        }
+        assertEquals(rowList.size(), insertIdList.size());
 
         long dataSize = 0;
         TableContainer tableContainer = getTableContainer(
@@ -780,8 +760,11 @@ public class BigQueryIOTest implements Serializable {
     bqOptions.setProject(projectId);
     bqOptions.setTempLocation("gs://testbucket/testdir");
 
-    FakeDatasetService fakeDatasetService =
-        new FakeDatasetService().withTable(projectId, datasetId, tableId, null);
+    FakeDatasetService fakeDatasetService = new FakeDatasetService();
+    fakeDatasetService.createDataset(projectId, datasetId, "", "");
+    TableReference tableReference =
+        new TableReference().setProjectId(projectId).setDatasetId(datasetId).setTableId(tableId);
+    fakeDatasetService.createTable(new Table().setTableReference(tableReference));
 
     FakeBigQueryServices fakeBqServices = new FakeBigQueryServices()
         .withJobService(new FakeJobService())
@@ -893,7 +876,7 @@ public class BigQueryIOTest implements Serializable {
 
   @Test
   @Category(NeedsRunner.class)
-  public void testReadFromTable() throws IOException {
+  public void testReadFromTable() throws IOException, InterruptedException {
     BigQueryOptions bqOptions = TestPipeline.testingPipelineOptions().as(BigQueryOptions.class);
     bqOptions.setProject("defaultProject");
     bqOptions.setTempLocation(testFolder.newFolder("BigQueryIOTest").getAbsolutePath());
@@ -914,10 +897,15 @@ public class BigQueryIOTest implements Serializable {
                 ImmutableList.of(
                     new TableFieldSchema().setName("name").setType("STRING"),
                     new TableFieldSchema().setName("number").setType("INTEGER"))));
+    sometable.setTableReference(
+        new TableReference()
+            .setProjectId("non-executing-project")
+            .setDatasetId("somedataset")
+            .setTableId("sometable"));
     sometable.setNumBytes(1024L * 1024L);
-    FakeDatasetService fakeDatasetService =
-        new FakeDatasetService()
-            .withTable("non-executing-project", "somedataset", "sometable", sometable);
+    FakeDatasetService fakeDatasetService = new FakeDatasetService();
+    fakeDatasetService.createDataset("non-executing-project", "somedataset", "", "");
+    fakeDatasetService.createTable(sometable);
     SerializableFunction<Void, Schema> schemaGenerator =
         new SerializableFunction<Void, Schema>() {
           @Override
@@ -1014,8 +1002,8 @@ public class BigQueryIOTest implements Serializable {
     bqOptions.setProject("defaultProject");
     bqOptions.setTempLocation(testFolder.newFolder("BigQueryIOTest").getAbsolutePath());
 
-    FakeDatasetService datasetService = new FakeDatasetService()
-        .withDataset("project-id", "dataset-id");
+    FakeDatasetService datasetService = new FakeDatasetService();
+    datasetService.createDataset("project-id", "dataset-id", "", "");
     FakeBigQueryServices fakeBqServices = new FakeBigQueryServices()
             .withDatasetService(datasetService);
 
@@ -1025,16 +1013,16 @@ public class BigQueryIOTest implements Serializable {
         new TableRow().set("name", "b").set("number", 2),
         new TableRow().set("name", "c").set("number", 3),
         new TableRow().set("name", "d").set("number", 4))
-        .withCoder(TableRowJsonCoder.of()))
+          .withCoder(TableRowJsonCoder.of()))
             .setIsBoundedInternal(PCollection.IsBounded.UNBOUNDED)
             .apply(BigQueryIO.Write.to("project-id:dataset-id.table-id")
-                    .withCreateDisposition(CreateDisposition.CREATE_IF_NEEDED)
-                    .withSchema(new TableSchema().setFields(
-                            ImmutableList.of(
-                                    new TableFieldSchema().setName("name").setType("STRING"),
-                                    new TableFieldSchema().setName("number").setType("INTEGER"))))
-                    .withTestServices(fakeBqServices)
-                    .withoutValidation());
+                .withCreateDisposition(CreateDisposition.CREATE_IF_NEEDED)
+                .withSchema(new TableSchema().setFields(
+                    ImmutableList.of(
+                        new TableFieldSchema().setName("name").setType("STRING"),
+                        new TableFieldSchema().setName("number").setType("INTEGER"))))
+                .withTestServices(fakeBqServices)
+                .withoutValidation());
     p.run();
 
 
@@ -1142,8 +1130,8 @@ public class BigQueryIOTest implements Serializable {
     bqOptions.setProject("defaultProject");
     bqOptions.setTempLocation(testFolder.newFolder("BigQueryIOTest").getAbsolutePath());
 
-    FakeDatasetService datasetService = new FakeDatasetService()
-        .withDataset("project-id", "dataset-id");
+    FakeDatasetService datasetService = new FakeDatasetService();
+    datasetService.createDataset("project-id", "dataset-id", "", "");
     FakeBigQueryServices fakeBqServices = new FakeBigQueryServices()
         .withDatasetService(datasetService);
 
@@ -1217,7 +1205,6 @@ public class BigQueryIOTest implements Serializable {
             new TableRow().set("name", "number4").set("number", 4),
             new TableRow().set("name", "number9").set("number", 9)));
   }
-
 
   @Test
   @Category(NeedsRunner.class)
