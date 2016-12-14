@@ -347,7 +347,7 @@ public class ElasticsearchIO {
     }
 
     @Override
-    public PCollection<String> apply(PBegin input) {
+    public PCollection<String> expand(PBegin input) {
       return input.apply(
           org.apache.beam.sdk.io.Read.from(new BoundedElasticsearchSource(this, null)));
     }
@@ -685,7 +685,7 @@ public class ElasticsearchIO {
     }
 
     @Override
-    public PDone apply(PCollection<String> input) {
+    public PDone expand(PCollection<String> input) {
       input.apply(ParDo.of(new WriterFn(this)));
       return PDone.in(input.getPipeline());
     }
