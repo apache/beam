@@ -49,7 +49,7 @@ public class BeamSparkRunnerRegistratorTest {
 
     for (Class<?> clazz : classesForJavaSerialization) {
       Assert.assertThat("Registered serializer for class " + clazz.getName()
-              + " was not an instance of " + StatelessJavaSerializer.class.getName(),
+          + " was not an instance of " + StatelessJavaSerializer.class.getName(),
           kryo.getSerializer(clazz),
           Matchers.instanceOf(StatelessJavaSerializer.class));
     }

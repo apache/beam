@@ -23,8 +23,12 @@ import com.esotericsoftware.kryo.KryoException;
 import com.esotericsoftware.kryo.Serializer;
 import com.esotericsoftware.kryo.io.Input;
 import com.esotericsoftware.kryo.io.Output;
+
+import java.io.IOException;
+import java.io.InputStream;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
+import java.io.ObjectStreamClass;
 
 
 /**
@@ -67,6 +71,27 @@ class StatelessJavaSerializer extends Serializer {
       return new ObjectInputStreamWithClassLoader(input, kryo.getClassLoader()).readObject();
     } catch (Exception e) {
       throw new KryoException("Error during Java deserialization.", e);
+    }
+  }
+
+  /**
+   * ObjectInputStream with specific ClassLoader.
+   */
+  private static class ObjectInputStreamWithClassLoader extends ObjectInputStream {
+    private final ClassLoader classLoader;
+
+    ObjectInputStreamWithClassLoader(InputStream in, ClassLoader classLoader) throws IOException {
+      super(in);
+      this.classLoader = classLoader;
+    }
+
+    @Override
+    protected Class<?> resolveClass(ObjectStreamClass desc) {
+      try {
+        return Class.forName(desc.getName(), false, classLoader);
+      } catch (ClassNotFoundException e) {
+        throw new RuntimeException("Could not find class: " + desc.getName(), e);
+      }
     }
   }
 }
