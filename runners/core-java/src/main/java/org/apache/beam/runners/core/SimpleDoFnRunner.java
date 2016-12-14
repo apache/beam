@@ -114,7 +114,7 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
       WindowingStrategy<?, ?> windowingStrategy) {
     this.fn = fn;
     this.signature = DoFnSignatures.getSignature(fn.getClass());
-    this.observesWindow = signature.processElement().observesWindow();
+    this.observesWindow = signature.processElement().observesWindow() || !sideInputReader.isEmpty();
     this.invoker = DoFnInvokers.invokerFor(fn);
     this.outputManager = outputManager;
     this.mainOutputTag = mainOutputTag;
