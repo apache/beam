@@ -31,6 +31,7 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import org.apache.beam.runners.direct.DirectRunner.CommittedBundle;
 import org.apache.beam.runners.direct.DirectRunner.UncommittedBundle;
@@ -94,6 +95,11 @@ public class StatefulParDoEvaluatorFactoryTest implements Serializable {
   public void setup() {
     MockitoAnnotations.initMocks(this);
     when((StateInternals<Object>) mockStepContext.stateInternals()).thenReturn(stateInternals);
+    when(mockEvaluationContext.createSideInputReader(anyList()))
+        .thenReturn(
+            SideInputContainer.create(
+                    mockEvaluationContext, Collections.<PCollectionView<?>>emptyList())
+                .createReaderForViews(Collections.<PCollectionView<?>>emptyList()));
   }
 
   @Test
