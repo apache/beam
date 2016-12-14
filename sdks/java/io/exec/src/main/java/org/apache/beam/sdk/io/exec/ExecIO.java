@@ -170,7 +170,7 @@ public class ExecIO {
     }
 
     @Override
-    public PCollection<String> apply(PBegin input) {
+    public PCollection<String> expand(PBegin input) {
       return input
           .apply(Create.of(getCommand()))
           .apply(ParDo.of(new ExecFn(getExecOptions())));
@@ -225,7 +225,7 @@ public class ExecIO {
     }
 
     @Override
-    public PDone apply(PCollection<String> input) {
+    public PDone expand(PCollection<String> input) {
       input.apply(ParDo.of(new ExecFn(getExecOptions())));
       return PDone.in(input.getPipeline());
     }
