@@ -23,7 +23,7 @@ import org.apache.beam.sdk.io.FileSystem;
 import org.apache.beam.sdk.options.GcsOptions;
 
 /**
- * Implements {@link FileSystem} for Google Cloud Storage.
+ * {@link FileSystem} implementation for Google Cloud Storage.
  */
 class GcsFileSystem implements FileSystem {
   private final GcsOptions options;

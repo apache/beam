@@ -18,7 +18,7 @@
 package org.apache.beam.sdk.io;
 
 /**
- * Implements {@link FileSystem} for local files.
+ * {@link FileSystem} implementation for local files.
  */
 class LocalFileSystem implements FileSystem {
 

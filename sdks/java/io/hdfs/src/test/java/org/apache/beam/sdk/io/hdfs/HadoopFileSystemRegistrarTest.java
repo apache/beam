@@ -17,14 +17,15 @@
  */
 package org.apache.beam.sdk.io.hdfs;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 import com.google.common.collect.Lists;
-import java.net.URI;
 import java.util.ServiceLoader;
 import org.apache.beam.sdk.io.FileSystemRegistrar;
 import org.apache.beam.sdk.io.FileSystems;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -40,16 +41,11 @@ public class HadoopFileSystemRegistrarTest {
     for (FileSystemRegistrar registrar
         : Lists.newArrayList(ServiceLoader.load(FileSystemRegistrar.class).iterator())) {
       if (registrar instanceof HadoopFileSystemRegistrar) {
+        assertEquals(FileSystems.DEFAULT_SCHEME, registrar.getScheme());
+        assertTrue(registrar.fromOptions(PipelineOptionsFactory.create()) instanceof HadoopFileSystem);
         return;
       }
     }
     fail("Expected to find " + HadoopFileSystemRegistrar.class);
-  }
-
-  @Test
-  public void testGetFileSystem() {
-    FileSystems.loadFileSystemRegistrars();
-    assertTrue(FileSystems.getFileSystemInternal(URI.create("unknown://home"))
-        instanceof HadoopFileSystem);
   }
 }

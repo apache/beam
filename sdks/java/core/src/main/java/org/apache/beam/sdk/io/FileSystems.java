@@ -31,12 +31,11 @@ import com.google.common.collect.Sets;
 import com.google.common.collect.TreeMultimap;
 import java.net.URI;
 import java.util.Collection;
-import java.util.Collections;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.ServiceLoader;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Pattern;
 import javax.annotation.Nonnull;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -51,51 +50,53 @@ public class FileSystems {
 
   private static final Pattern URI_SCHEME_PATTERN = Pattern.compile("^[a-zA-Z][-a-zA-Z0-9+.]*$");
 
-  private static final ClassLoader CLASS_LOADER = ReflectHelpers.findClassLoader();
+  private static final Map<String, FileSystemRegistrar> SCHEME_TO_REGISTRAR = new ConcurrentHashMap();
 
-  private static final Map<String, FileSystemRegistrar> REGISTRAR_MAP =
-      Collections.synchronizedMap(new HashMap<String, FileSystemRegistrar>());
+  private static final Map<String, PipelineOptions> SCHEME_TO_DEFAULT_CONFIG = new ConcurrentHashMap();
 
-  private static final Map<String, PipelineOptions> REGISTRAR_DEFAULT_CONFIG_MAP =
-      Collections.synchronizedMap(new HashMap<String, PipelineOptions>());
-
+  /**
+   * Loads available {@link FileSystemRegistrar} services.
+   */
   public static void loadFileSystemRegistrars() {
-    REGISTRAR_MAP.clear();
+    SCHEME_TO_REGISTRAR.clear();
     Set<FileSystemRegistrar> registrars =
         Sets.newTreeSet(ReflectHelpers.ObjectsClassComparator.INSTANCE);
     registrars.addAll(Lists.newArrayList(
-        ServiceLoader.load(FileSystemRegistrar.class, CLASS_LOADER)));
+        ServiceLoader.load(FileSystemRegistrar.class, ReflectHelpers.findClassLoader())));
 
-    checkDuplicateScheme(registrars);
+    verifySchemesAreUnique(registrars);
 
     for (FileSystemRegistrar registrar : registrars) {
-      addFileSystemRegistrar(registrar);
+      SCHEME_TO_REGISTRAR.put(registrar.getScheme().toLowerCase(), registrar);
     }
   }
 
   /**
-   * Sets the default config for {@link FileSystemRegistrar} that associates with {@code scheme}.
+   * Sets the default configuration to be used with a {@link FileSystemRegistrar} for the provided {@code scheme}.
    *
-   * <p>Syntax: scheme = alpha *( alpha | digit | "+" | "-" | "." )
+   * <p>Syntax: <pre>scheme = alpha *( alpha | digit | "+" | "-" | "." )</pre>
    * Upper case letters are treated as the same as lower case letters.
    */
   public static void setDefaultConfig(String scheme, PipelineOptions options) {
+    String lowerCaseScheme = checkNotNull(scheme, "scheme").toLowerCase();
     checkArgument(
-        URI_SCHEME_PATTERN.matcher(scheme).matches(),
+        URI_SCHEME_PATTERN.matcher(lowerCaseScheme).matches(),
         String.format("Scheme: [%s] doesn't match URI syntax: %s",
-            scheme, URI_SCHEME_PATTERN.pattern()));
-    REGISTRAR_DEFAULT_CONFIG_MAP.put(
-        checkNotNull(scheme, "scheme"), checkNotNull(options, "options"));
+            lowerCaseScheme, URI_SCHEME_PATTERN.pattern()));
+    checkArgument(
+        SCHEME_TO_REGISTRAR.containsKey(lowerCaseScheme),
+        String.format("No FileSystemRegistrar found for scheme: [%s].", lowerCaseScheme));
+    SCHEME_TO_DEFAULT_CONFIG.put(lowerCaseScheme, checkNotNull(options, "options"));
   }
 
   /**
    * Internal method to get {@link FileSystem} for {@code spec}.
    */
   @VisibleForTesting
-  public static FileSystem getFileSystemInternal(URI uri) {
-    String scheme =
-        (uri.getScheme() != null ? uri.getScheme() : LocalFileSystemRegistrar.LOCAL_FILE_SCHEME);
-    return getRegistrarInternal(scheme).fromOptions(REGISTRAR_DEFAULT_CONFIG_MAP.get(scheme));
+  static FileSystem getFileSystemInternal(URI uri) {
+    String lowerCaseScheme =
+        (uri.getScheme() != null ? uri.getScheme().toLowerCase() : LocalFileSystemRegistrar.LOCAL_FILE_SCHEME);
+    return getRegistrarInternal(lowerCaseScheme).fromOptions(SCHEME_TO_DEFAULT_CONFIG.get(lowerCaseScheme));
   }
 
   /**
@@ -103,36 +104,18 @@ public class FileSystems {
    */
   @VisibleForTesting
   static FileSystemRegistrar getRegistrarInternal(String scheme) {
-    if (REGISTRAR_MAP.containsKey(scheme)) {
-      return REGISTRAR_MAP.get(scheme);
-    } else if (REGISTRAR_MAP.containsKey(DEFAULT_SCHEME)) {
-      return REGISTRAR_MAP.get(DEFAULT_SCHEME);
+    String lowerCaseScheme = scheme.toLowerCase();
+    if (SCHEME_TO_REGISTRAR.containsKey(lowerCaseScheme)) {
+      return SCHEME_TO_REGISTRAR.get(lowerCaseScheme);
+    } else if (SCHEME_TO_REGISTRAR.containsKey(DEFAULT_SCHEME)) {
+      return SCHEME_TO_REGISTRAR.get(DEFAULT_SCHEME);
     } else {
-      throw new IllegalStateException("Unable to find handler for " + scheme);
+      throw new IllegalStateException("Unable to find registrar for " + scheme);
     }
   }
 
-  /**
-   * Adds the {@link FileSystemRegistrar} to the static {@code REGISTRAR_MAP}.
-   *
-   * @throws IllegalStateException if multiple {@link FileSystem FileSystems}
-   * for the same scheme are detected.
-   */
   @VisibleForTesting
-  private static void addFileSystemRegistrar(FileSystemRegistrar registrar) {
-    if (REGISTRAR_MAP.containsKey(registrar.getScheme())) {
-      throw new IllegalStateException(String.format(
-          "Failed to register FileSystem: %s. "
-              + "Scheme: [%s] is already registered with %s, and override is not allowed.",
-          REGISTRAR_MAP.get(registrar.getScheme()).getClass(),
-          registrar.getScheme(),
-          registrar.getClass()));
-    }
-    REGISTRAR_MAP.put(registrar.getScheme(), registrar);
-  }
-
-  @VisibleForTesting
-  static void checkDuplicateScheme(Set<FileSystemRegistrar> registrars) {
+  static void verifySchemesAreUnique(Set<FileSystemRegistrar> registrars) {
     Multimap<String, FileSystemRegistrar> registrarsBySchemes =
         TreeMultimap.create(Ordering.<String>natural(), Ordering.arbitrary());
 

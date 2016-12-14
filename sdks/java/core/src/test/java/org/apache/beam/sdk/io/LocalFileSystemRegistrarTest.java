@@ -43,13 +43,4 @@ public class LocalFileSystemRegistrarTest {
     }
     fail("Expected to find " + LocalFileSystemRegistrar.class);
   }
-
-  @Test
-  public void testGetFileSystem() throws Exception {
-    FileSystems.loadFileSystemRegistrars();
-    assertTrue(
-        FileSystems.getFileSystemInternal(URI.create("~/home/")) instanceof LocalFileSystem);
-    assertTrue(
-        FileSystems.getFileSystemInternal(URI.create("file://home")) instanceof LocalFileSystem);
-  }
 }

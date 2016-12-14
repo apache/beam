@@ -22,10 +22,17 @@ import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
+import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
+
+import java.net.URI;
+
+import static org.junit.Assert.assertTrue;
 
 /**
  * Tests for {@link FileSystems}.
  */
+@RunWith(JUnit4.class)
 public class FileSystemsTest {
 
   @Rule
@@ -44,10 +51,24 @@ public class FileSystemsTest {
   }
 
   @Test
-  public void testCheckDuplicateScheme() throws Exception {
+  public void testGetLocalFileSystem() throws Exception {
+    FileSystems.loadFileSystemRegistrars();
+    assertTrue(
+        FileSystems.getFileSystemInternal(URI.create("~/home/")) instanceof LocalFileSystem);
+    assertTrue(
+        FileSystems.getFileSystemInternal(URI.create("file://home")) instanceof LocalFileSystem);
+  }
+
+  @Test
+  public void testDefaultScheme() throws Exception {
+    FileSystems.
+  }
+
+  @Test
+  public void testVerifySchemesAreUnique() throws Exception {
     thrown.expect(RuntimeException.class);
     thrown.expectMessage("Scheme: [file] has conflicting registrars");
-    FileSystems.checkDuplicateScheme(
+    FileSystems.verifySchemesAreUnique(
         Sets.<FileSystemRegistrar>newHashSet(
             new LocalFileSystemRegistrar(),
             new LocalFileSystemRegistrar()));

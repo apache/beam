@@ -17,14 +17,14 @@
  */
 package org.apache.beam.sdk.io.gcp.storage;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 import com.google.common.collect.Lists;
-import java.net.URI;
 import java.util.ServiceLoader;
+
 import org.apache.beam.sdk.io.FileSystemRegistrar;
-import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -41,17 +41,11 @@ public class GcsFileSystemRegistrarTest {
     for (FileSystemRegistrar registrar
         : Lists.newArrayList(ServiceLoader.load(FileSystemRegistrar.class).iterator())) {
       if (registrar instanceof GcsFileSystemRegistrar) {
+        assertEquals("gs", registrar.getScheme());
+        assertTrue(registrar.fromOptions(PipelineOptionsFactory.create()) instanceof GcsFileSystem);
         return;
       }
     }
     fail("Expected to find " + GcsFileSystemRegistrar.class);
-  }
-
-  @Test
-  public void testGetFileSystem() throws Exception {
-    FileSystems.loadFileSystemRegistrars();
-    FileSystems.setDefaultConfig("gs", PipelineOptionsFactory.create());
-    assertTrue(
-        FileSystems.getFileSystemInternal(URI.create("gs://bucket/")) instanceof GcsFileSystem);
   }
 }
