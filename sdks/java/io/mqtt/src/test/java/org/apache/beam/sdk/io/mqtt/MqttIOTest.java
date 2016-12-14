@@ -17,31 +17,33 @@
  */
 package org.apache.beam.sdk.io.mqtt;
 
+import static org.junit.Assert.assertEquals;
+
 import java.io.File;
 import java.io.Serializable;
 import java.net.ServerSocket;
 import java.net.URI;
 import java.util.ArrayList;
-import java.util.List;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 
 import org.apache.activemq.broker.BrokerService;
-import org.apache.activemq.store.kahadb.KahaDBPersistenceAdapter;
+import org.apache.activemq.broker.Connection;
+import org.apache.activemq.broker.TransportConnector;
+import org.apache.activemq.store.kahadb.KahaDBStore;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
-import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.PCollection;
 import org.eclipse.paho.client.mqttv3.IMqttDeliveryToken;
 import org.eclipse.paho.client.mqttv3.MqttCallback;
 import org.eclipse.paho.client.mqttv3.MqttClient;
-import org.eclipse.paho.client.mqttv3.MqttException;
 import org.eclipse.paho.client.mqttv3.MqttMessage;
-import org.junit.AfterClass;
-import org.junit.Assert;
-import org.junit.BeforeClass;
+import org.eclipse.paho.client.mqttv3.persist.MqttDefaultFilePersistence;
+import org.junit.After;
+import org.junit.Before;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
@@ -57,70 +59,84 @@ public class MqttIOTest implements Serializable {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(MqttIOTest.class);
 
-  private static transient BrokerService broker;
+  private static transient BrokerService brokerService;
 
   private static int port;
 
-  @BeforeClass
-  public static void startBroker() throws Exception {
+  @Before
+  public void startBroker() throws Exception {
     LOGGER.info("Finding free network port");
     ServerSocket socket = new ServerSocket(0);
     port = socket.getLocalPort();
     socket.close();
 
-    LOGGER.info("Starting ActiveMQ broker on {}", port);
-    broker = new BrokerService();
-    broker.setUseJmx(false);
-    KahaDBPersistenceAdapter kahaDb = new KahaDBPersistenceAdapter();
-    kahaDb.setDirectory(new File("target/kahadb"));
-    broker.setPersistenceAdapter(kahaDb);
-    broker.addConnector(new URI("mqtt://localhost:" + port));
-    broker.start();
+    LOGGER.info("Starting ActiveMQ brokerService on {}", port);
+    brokerService = new BrokerService();
+    brokerService.setDeleteAllMessagesOnStartup(true);
+    brokerService.setPersistent(true);
+    brokerService.setDataDirectory("target/activemq-data/");
+    KahaDBStore kahaDBStore = new KahaDBStore();
+    kahaDBStore.setDirectory(new File("target/activemq-data/"));
+    brokerService.setPersistenceAdapter(kahaDBStore);
+    brokerService.setAdvisorySupport(false);
+    brokerService.setUseJmx(true);
+    brokerService.getManagementContext().setCreateConnector(false);
+    brokerService.setSchedulerSupport(true);
+    brokerService.setPopulateJMSXUserID(true);
+    TransportConnector mqttConnector = new TransportConnector();
+    mqttConnector.setName("mqtt");
+    mqttConnector.setUri(new URI("mqtt://localhost:" + port));
+    mqttConnector.setAllowLinkStealing(true);
+    brokerService.addConnector(mqttConnector);
+    brokerService.start();
+    brokerService.waitUntilStarted();
   }
 
-  @Test
+  @Test(timeout = 120 * 1000)
   @Category(NeedsRunner.class)
   public void testRead() throws Exception {
-    Pipeline pipeline = TestPipeline.create();
+    final Pipeline pipeline = TestPipeline.create();
 
     PCollection<byte[]> output = pipeline.apply(
         MqttIO.read()
             .withConnectionConfiguration(
                 MqttIO.ConnectionConfiguration.create(
                     "tcp://localhost:" + port,
-                    "READ_TOPIC"))
+                    "READ_TOPIC",
+                    "READ_PIPELINE"))
           .withMaxNumRecords(10));
+    PAssert.that(output).containsInAnyOrder(
+        "This is test 0".getBytes(),
+        "This is test 1".getBytes(),
+        "This is test 2".getBytes(),
+        "This is test 3".getBytes(),
+        "This is test 4".getBytes(),
+        "This is test 5".getBytes(),
+        "This is test 6".getBytes(),
+        "This is test 7".getBytes(),
+        "This is test 8".getBytes(),
+        "This is test 9".getBytes()
+    );
 
-    PAssert.thatSingleton(output.apply("Count", Count.<byte[]>globally()))
-        .isEqualTo(10L);
-    PAssert.that(output).satisfies(new SerializableFunction<Iterable<byte[]>, Void>() {
-      @Override
-      public Void apply(Iterable<byte[]> input) {
-        for (byte[] element : input) {
-          String inputString = new String(element);
-          Assert.assertTrue(inputString.startsWith("This is test "));
-          int count = Integer.parseInt(inputString.substring("This is test ".length()));
-          Assert.assertTrue(count < 10);
-          Assert.assertTrue(count >= 0);
-        }
-        return null;
-      }
-    });
-
-    // produce messages on the broker in another thread
+    // produce messages on the brokerService in another thread
     // This thread prevents to block the pipeline waiting for new messages
     Thread thread = new Thread() {
       public void run() {
         try {
-          // gives time to the pipeline to start
-          Thread.sleep(2000);
-        } catch (Exception e) {
-          // nothing to do
-        }
-        try {
           MqttClient client = new MqttClient("tcp://localhost:" + port,
-              MqttClient.generateClientId());
+              MqttClient.generateClientId(), new MqttDefaultFilePersistence("target/paho/"));
           client.connect();
+          LOGGER.info("Waiting pipeline connected to the MQTT broker before sending "
+              + "messages ...");
+          boolean pipelineConnected = false;
+          while (!pipelineConnected) {
+            Thread.sleep(50);
+            for (Connection connection : brokerService.getBroker().getClients()) {
+              if (connection.getConnectionId().equals("READ_PIPELINE")) {
+                pipelineConnected = true;
+              }
+            }
+          }
           for (int i = 0; i < 10; i++) {
             MqttMessage message = new MqttMessage();
             message.setQos(0);
@@ -142,13 +158,34 @@ public class MqttIOTest implements Serializable {
   @Test
   @Category(NeedsRunner.class)
   public void testWrite() throws Exception {
-    List<MqttMessage> messages = new ArrayList<>();
-    MqttClient client = receive(messages);
+    final CountDownLatch latch = new CountDownLatch(200);
+
+    MqttClient client = new MqttClient("tcp://localhost:" + port, MqttClient.generateClientId(),
+        new MqttDefaultFilePersistence("target/paho/"));
+    client.connect();
+    client.subscribe("WRITE_TOPIC");
+    client.setCallback(new MqttCallback() {
+      @Override
+      public void connectionLost(Throwable throwable) {
+        LOGGER.warn("Connection Lost", throwable);
+        throwable.printStackTrace();
+      }
+
+      @Override
+      public void messageArrived(String s, MqttMessage mqttMessage) throws Exception {
+        latch.countDown();
+      }
+
+      @Override
+      public void deliveryComplete(IMqttDeliveryToken iMqttDeliveryToken) {
+        // nothing to do
+      }
+    });
 
     Pipeline pipeline = TestPipeline.create();
 
     ArrayList<byte[]> data = new ArrayList<>();
-    for (int i = 0; i < 100; i++) {
+    for (int i = 0; i < 200; i++) {
       data.add("Test".getBytes());
     }
     pipeline.apply(Create.of(data))
@@ -156,43 +193,22 @@ public class MqttIOTest implements Serializable {
             .withConnectionConfiguration(
                 MqttIO.ConnectionConfiguration.create(
                     "tcp://localhost:" + port,
-                    "WRITE_TOPIC")));
+                    "WRITE_TOPIC", "TEST")));
     pipeline.run();
 
-    Assert.assertEquals(100, messages.size());
+    latch.await(30, TimeUnit.SECONDS);
+    assertEquals(0, latch.getCount());
 
     client.disconnect();
     client.close();
   }
 
-  private MqttClient receive(final List<MqttMessage> messages) throws MqttException {
-    MqttClient client = new MqttClient("tcp://localhost:" + port, MqttClient.generateClientId());
-    MqttCallback callback = new MqttCallback() {
-      @Override
-      public void connectionLost(Throwable cause) {
-        cause.printStackTrace();
-      }
-
-      @Override
-      public void messageArrived(String topic, MqttMessage message) throws Exception {
-          messages.add(message);
-      }
-
-      @Override
-      public void deliveryComplete(IMqttDeliveryToken token) {
-        // nothing to do
-      }
-    };
-    client.connect();
-    client.subscribe("WRITE_TOPIC");
-    client.setCallback(callback);
-    return client;
-  }
-
-  @AfterClass
-  public static void stopBroker() throws Exception {
-    if (broker != null) {
-      broker.stop();
+  @After
+  public void stopBroker() throws Exception {
+    if (brokerService != null) {
+      brokerService.stop();
+      brokerService.waitUntilStopped();
+      brokerService = null;
     }
   }
 

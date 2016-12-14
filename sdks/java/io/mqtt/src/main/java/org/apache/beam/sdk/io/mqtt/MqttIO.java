@@ -126,6 +126,7 @@ public class MqttIO {
 
     @Nullable abstract String serverUri();
     @Nullable abstract String topic();
+    @Nullable abstract String clientId();
 
     public static ConnectionConfiguration create(String serverUri, String topic) {
       checkArgument(serverUri != null,
@@ -134,18 +135,40 @@ public class MqttIO {
       checkArgument(topic != null,
           "MqttIO.ConnectionConfiguration.create(serverUri, topic) called with null "
               + "topic");
-      return new AutoValue_MqttIO_ConnectionConfiguration(serverUri, topic);
+      return new AutoValue_MqttIO_ConnectionConfiguration(serverUri, topic,
+          MqttClient.generateClientId());
+    }
+
+    public static ConnectionConfiguration create(String serverUri, String topic, String clientId) {
+      checkArgument(serverUri != null,
+          "MqttIO.ConnectionConfiguration.create(serverUri, topic) called with null "
+              + "serverUri");
+      checkArgument(topic != null,
+          "MqttIO.ConnectionConfiguration.create(serverUri, topic) called with null "
+              + "topic");
+      checkArgument(clientId != null, "MqttIO.ConnectionConfiguration.create(serverUri, topic, "
+          + "clientId) called with null clientId");
+      return new AutoValue_MqttIO_ConnectionConfiguration(serverUri, topic, clientId);
     }
 
     private void populateDisplayData(DisplayData.Builder builder) {
       builder.add(DisplayData.item("serverUri", serverUri()));
       builder.add(DisplayData.item("topic", topic()));
+      builder.add(DisplayData.item("clientId", clientId()));
+    }
+
+    private MqttClient getClient(boolean random) throws MqttException {
+      String id = clientId();
+      if (random) {
+        id = clientId() + "-" + MqttClient.generateClientId();
+      }
+      MqttClient client = new MqttClient(serverUri(), id);
+      client.connect();
+      return client;
     }
 
     private MqttClient getClient() throws MqttException {
-      MqttClient client = new MqttClient(serverUri(), MqttClient.generateClientId());
-      client.connect();
-      return client;
+      return getClient(false);
     }
 
   }
@@ -242,7 +265,7 @@ public class MqttIO {
    */
   private static class MqttCheckpointMark implements UnboundedSource.CheckpointMark {
 
-    private Read spec;
+    private transient MqttClient client;
     private Instant oldestMessageTimestamp = Instant.now();
 
     private static class MessageIdWithQos {
@@ -262,8 +285,8 @@ public class MqttIO {
     public MqttCheckpointMark() {
     }
 
-    public void setSpec(Read spec) {
-      this.spec = spec;
+    public void setClient(MqttClient client) {
+      this.client = client;
     }
 
     public void add(int id, int qos, Instant timestamp) {
@@ -276,12 +299,6 @@ public class MqttIO {
 
     @Override
     public void finalizeCheckpoint() {
-      MqttClient client;
-      try {
-        client = spec.connectionConfiguration().getClient();
-      } catch (Exception e) {
-        throw new IllegalStateException("Can't finalize checkpoint", e);
-      }
       for (MessageIdWithQos message : messages) {
         try {
           client.messageArrivedComplete(message.id, message.qos);
@@ -291,12 +308,6 @@ public class MqttIO {
       }
       oldestMessageTimestamp = Instant.now();
       messages.clear();
-      try {
-        client.disconnect();
-        client.close();
-      } catch (Exception e) {
-        // nothing to do
-      }
     }
 
   }
@@ -402,6 +413,7 @@ public class MqttIO {
           @Override
           public void connectionLost(Throwable cause) {
             LOGGER.warn("MQTT connection lost", cause);
+            cause.printStackTrace();
           }
 
           @Override
@@ -415,7 +427,7 @@ public class MqttIO {
             // nothing to do
           }
         });
-        checkpointMark.setSpec(source.spec);
+        checkpointMark.setClient(client);
         return advance();
       } catch (MqttException e) {
         throw new IOException(e);
@@ -567,7 +579,7 @@ public class MqttIO {
 
       @Setup
       public void createMqttClient() throws Exception {
-        client = spec.connectionConfiguration().getClient();
+        client = spec.connectionConfiguration().getClient(true);
       }
 
       @ProcessElement
