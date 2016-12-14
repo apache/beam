@@ -267,7 +267,34 @@ public class GcsUtil {
    * if the resource does not exist.
    */
   public long fileSize(GcsPath path) throws IOException {
-    return fileSizes(ImmutableList.of(path)).get(0);
+    return fileSize(
+        path,
+        BACKOFF_FACTORY.backoff(),
+        Sleeper.DEFAULT);
+  }
+
+  /**
+   * Returns the file size from GCS or throws {@link FileNotFoundException}
+   * if the resource does not exist.
+   */
+  @VisibleForTesting
+  long fileSize(GcsPath path, BackOff backoff, Sleeper sleeper) throws IOException {
+    Storage.Objects.Get getObject =
+            storageClient.objects().get(path.getBucket(), path.getObject());
+    try {
+      StorageObject object = ResilientOperation.retry(
+          ResilientOperation.getGoogleRequestCallable(getObject),
+          backoff,
+          RetryDeterminer.SOCKET_ERRORS,
+          IOException.class,
+          sleeper);
+      return object.getSize().longValue();
+    } catch (Exception e) {
+      if (e instanceof IOException && errorExtractor.itemNotFound((IOException) e)) {
+        throw new FileNotFoundException(path.toString());
+      }
+      throw new IOException("Unable to get file size", e);
+    }
   }
 
   /**
