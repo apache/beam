@@ -56,7 +56,7 @@ public class MetricsEnvironment {
    */
   @Nullable
   public static MetricsContainer setCurrentContainer(@Nullable MetricsContainer container) {
-    MetricsContainer previous = getCurrentContainer();
+    MetricsContainer previous = CONTAINER_FOR_THREAD.get();
     if (container == null) {
       CONTAINER_FOR_THREAD.remove();
     } else {
