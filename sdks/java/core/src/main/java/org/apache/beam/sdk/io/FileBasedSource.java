@@ -333,10 +333,8 @@ public abstract class FileBasedSource<T> extends OffsetBasedSource<T> {
                    "Bundle splitting should only happen at execution time.");
         Collection<String> expandedFiles =
             FileBasedSource.expandFilePattern(fileOrPatternSpec.get());
-        if (expandedFiles.isEmpty()) {
-          throw new IllegalArgumentException(
-              String.format("Unable to find any files matching %s", fileOrPatternSpec.get()));
-        }
+        checkArgument(!expandedFiles.isEmpty(),
+            "Unable to find any files matching %s", fileOrPatternSpec.get());
         for (final String file : expandedFiles) {
           futures.add(createFutureForFileSplit(file, desiredBundleSizeBytes, options, service));
         }
