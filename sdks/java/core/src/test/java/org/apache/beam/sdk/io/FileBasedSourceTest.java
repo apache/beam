@@ -59,6 +59,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
+import org.junit.rules.ExpectedException;
 import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -73,6 +74,7 @@ public class FileBasedSourceTest {
   Random random = new Random(0L);
 
   @Rule public TemporaryFolder tempFolder = new TemporaryFolder();
+  @Rule public ExpectedException thrown = ExpectedException.none();
 
   /**
    * If {@code splitHeader} is null, this is just a simple line-based reader. Otherwise, the file is
@@ -415,6 +417,16 @@ public class FileBasedSourceTest {
         new TestFileBasedSource(file0.getParent() + "/" + "file*", Long.MAX_VALUE, null);
     List<? extends BoundedSource<String>> splits = source.splitIntoBundles(Long.MAX_VALUE, null);
     assertEquals(numFiles, splits.size());
+  }
+
+  @Test
+  public void testSplittingFailsOnEmptyFileExpansion() throws Exception {
+    PipelineOptions options = PipelineOptionsFactory.create();
+    String missingFilePath = tempFolder.newFolder().getAbsolutePath() + "/missing.txt";
+    TestFileBasedSource source = new TestFileBasedSource(missingFilePath, Long.MAX_VALUE, null);
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage(String.format("Unable to find any files matching %s", missingFilePath));
+    source.splitIntoBundles(1234, options);
   }
 
   @Test
