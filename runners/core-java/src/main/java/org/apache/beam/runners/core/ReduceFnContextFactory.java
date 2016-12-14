@@ -28,7 +28,6 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
-import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.util.ActiveWindowSet;
 import org.apache.beam.sdk.util.SideInputReader;
 import org.apache.beam.sdk.util.TimeDomain;
@@ -98,11 +97,7 @@ class ReduceFnContextFactory<K, InputT, OutputT, W extends BoundedWindow> {
         activeWindows,
         windowingStrategy.getWindowFn().windowCoder(),
         stateInternals,
-        stateContextFromComponents(
-            options,
-            sideInputReader,
-            window,
-            windowingStrategy.getWindowFn()),
+        stateContextFromComponents(options, sideInputReader, window),
         style);
   }
 
@@ -512,8 +507,7 @@ class ReduceFnContextFactory<K, InputT, OutputT, W extends BoundedWindow> {
   private static <W extends BoundedWindow> StateContext<W> stateContextFromComponents(
       @Nullable final PipelineOptions options,
       final SideInputReader sideInputReader,
-      final W mainInputWindow,
-      final WindowFn<?, W> windowFn) {
+      final W mainInputWindow) {
     if (options == null) {
       return StateContexts.nullContext();
     } else {
@@ -526,7 +520,11 @@ class ReduceFnContextFactory<K, InputT, OutputT, W extends BoundedWindow> {
 
         @Override
         public <T> T sideInput(PCollectionView<T> view) {
-          return sideInputReader.get(view, windowFn.getSideInputWindow(mainInputWindow));
+          return sideInputReader.get(
+              view,
+              view.getWindowingStrategyInternal()
+                  .getWindowFn()
+                  .getSideInputWindow(mainInputWindow));
         }
 
         @Override
