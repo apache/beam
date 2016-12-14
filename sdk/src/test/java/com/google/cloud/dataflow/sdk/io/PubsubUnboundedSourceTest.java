@@ -30,6 +30,7 @@ import com.google.cloud.dataflow.sdk.coders.StringUtf8Coder;
 import com.google.cloud.dataflow.sdk.io.PubsubUnboundedSource.PubsubCheckpoint;
 import com.google.cloud.dataflow.sdk.io.PubsubUnboundedSource.PubsubReader;
 import com.google.cloud.dataflow.sdk.io.PubsubUnboundedSource.PubsubSource;
+import com.google.cloud.dataflow.sdk.options.ValueProvider.StaticValueProvider;
 import com.google.cloud.dataflow.sdk.testing.CoderProperties;
 import com.google.cloud.dataflow.sdk.testing.TestPipeline;
 import com.google.cloud.dataflow.sdk.util.CoderUtils;
@@ -85,8 +86,9 @@ public class PubsubUnboundedSourceTest {
     };
     factory = PubsubTestClient.createFactoryForPull(clock, SUBSCRIPTION, ACK_TIMEOUT_S, incoming);
     PubsubUnboundedSource<String> source =
-        new PubsubUnboundedSource<>(clock, factory, null, null, SUBSCRIPTION, StringUtf8Coder.of(),
-                                    TIMESTAMP_LABEL, ID_LABEL);
+        new PubsubUnboundedSource<>(
+            clock, factory, null, null, StaticValueProvider.of(SUBSCRIPTION),
+            StringUtf8Coder.of(), TIMESTAMP_LABEL, ID_LABEL);
     primSource = new PubsubSource<>(source);
   }
 

@@ -29,6 +29,7 @@ import com.google.cloud.dataflow.sdk.coders.ListCoder;
 import com.google.cloud.dataflow.sdk.coders.StringUtf8Coder;
 import com.google.cloud.dataflow.sdk.options.DataflowPipelineOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
+import com.google.cloud.dataflow.sdk.options.ValueProvider;
 import com.google.cloud.dataflow.sdk.transforms.Aggregator;
 import com.google.cloud.dataflow.sdk.transforms.Combine;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
@@ -608,7 +609,7 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
      * CAUTION: Retains {@code ackIds}.
      */
     void ackBatch(List<String> ackIds) throws IOException {
-      pubsubClient.acknowledge(outer.outer.subscription, ackIds);
+      pubsubClient.acknowledge(outer.outer.subscription.get(), ackIds);
       ackedIds.add(ackIds);
     }
 
@@ -618,7 +619,7 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
      * with the given {@code ockIds}. Does not retain {@code ackIds}.
      */
     public void nackBatch(long nowMsSinceEpoch, List<String> ackIds) throws IOException {
-      pubsubClient.modifyAckDeadline(outer.outer.subscription, ackIds, 0);
+      pubsubClient.modifyAckDeadline(outer.outer.subscription.get(), ackIds, 0);
       numNacked.add(nowMsSinceEpoch, ackIds.size());
     }
 
@@ -629,7 +630,7 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
      */
     private void extendBatch(long nowMsSinceEpoch, List<String> ackIds) throws IOException {
       int extensionSec = (ackTimeoutMs * ACK_EXTENSION_PCT) / (100 * 1000);
-      pubsubClient.modifyAckDeadline(outer.outer.subscription, ackIds, extensionSec);
+      pubsubClient.modifyAckDeadline(outer.outer.subscription.get(), ackIds, extensionSec);
       numExtendedDeadlines.add(nowMsSinceEpoch, ackIds.size());
     }
 
@@ -765,7 +766,7 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
       // BLOCKs until received.
       Collection<PubsubClient.IncomingMessage> receivedMessages =
           pubsubClient.pull(requestTimeMsSinceEpoch,
-                            outer.outer.subscription,
+              outer.outer.subscription.get(),
                             PULL_BATCH_SIZE, true);
       if (receivedMessages.isEmpty()) {
         // Nothing available yet. Try again later.
@@ -871,7 +872,7 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
     @Override
     public boolean start() throws IOException {
       // Determine the ack timeout.
-      ackTimeoutMs = pubsubClient.ackDeadlineSeconds(outer.outer.subscription) * 1000;
+      ackTimeoutMs = pubsubClient.ackDeadlineSeconds(outer.outer.subscription.get()) * 1000;
       return advance();
     }
 
@@ -1111,7 +1112,7 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
         createAggregator("elements", new Sum.SumLongFn());
 
     private final PubsubClientFactory pubsubFactory;
-    private final SubscriptionPath subscription;
+    private final ValueProvider<SubscriptionPath> subscription;
     @Nullable
     private final String timestampLabel;
     @Nullable
@@ -1119,7 +1120,7 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
 
     public StatsFn(
         PubsubClientFactory pubsubFactory,
-        SubscriptionPath subscription,
+        ValueProvider<SubscriptionPath> subscription,
         @Nullable
             String timestampLabel,
         @Nullable
@@ -1139,7 +1140,11 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
     @Override
     public void populateDisplayData(Builder builder) {
       super.populateDisplayData(builder);
-      builder.add(DisplayData.item("subscription", subscription.getPath()));
+      String subscriptionString =
+            subscription == null ? null
+            : subscription.isAccessible() ? subscription.get().getPath()
+            : subscription.toString();
+      builder.add(DisplayData.item("subscription", subscriptionString));
       builder.add(DisplayData.item("transport", pubsubFactory.getKind()));
       builder.addIfNotNull(DisplayData.item("timestampLabel", timestampLabel));
       builder.addIfNotNull(DisplayData.item("idLabel", idLabel));
@@ -1165,14 +1170,14 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
    * Project under which to create a subscription if only the {@link #topic} was given.
    */
   @Nullable
-  private final ProjectPath project;
+  private final ValueProvider<ProjectPath> project;
 
   /**
    * Topic to read from. If {@literal null}, then {@link #subscription} must be given.
    * Otherwise {@link #subscription} must be null.
    */
   @Nullable
-  private final TopicPath topic;
+  private final ValueProvider<TopicPath> topic;
 
   /**
    * Subscription to read from. If {@literal null} then {@link #topic} must be given.
@@ -1183,7 +1188,7 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
    * subscription is never deleted.
    */
   @Nullable
-  private SubscriptionPath subscription;
+  private ValueProvider<SubscriptionPath> subscription;
 
   /**
    * Coder for elements. Elements are effectively double-encoded: first to a byte array
@@ -1210,9 +1215,9 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
   PubsubUnboundedSource(
       Clock clock,
       PubsubClientFactory pubsubFactory,
-      @Nullable ProjectPath project,
-      @Nullable TopicPath topic,
-      @Nullable SubscriptionPath subscription,
+      @Nullable ValueProvider<ProjectPath> project,
+      @Nullable ValueProvider<TopicPath> topic,
+      @Nullable ValueProvider<SubscriptionPath> subscription,
       Coder<T> elementCoder,
       @Nullable String timestampLabel,
       @Nullable String idLabel) {
@@ -1235,9 +1240,9 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
    */
   public PubsubUnboundedSource(
       PubsubClientFactory pubsubFactory,
-      @Nullable ProjectPath project,
-      @Nullable TopicPath topic,
-      @Nullable SubscriptionPath subscription,
+      @Nullable ValueProvider<ProjectPath> project,
+      @Nullable ValueProvider<TopicPath> topic,
+      @Nullable ValueProvider<SubscriptionPath> subscription,
       Coder<T> elementCoder,
       @Nullable String timestampLabel,
       @Nullable String idLabel) {
@@ -1250,16 +1255,26 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
 
   @Nullable
   public ProjectPath getProject() {
-    return project;
+    return project == null ? null : project.get();
   }
 
   @Nullable
   public TopicPath getTopic() {
+    return topic == null ? null : topic.get();
+  }
+
+  @Nullable
+  public ValueProvider<TopicPath> getTopicProvider() {
     return topic;
   }
 
   @Nullable
   public SubscriptionPath getSubscription() {
+    return subscription == null ? null : subscription.get();
+  }
+
+  @Nullable
+  public ValueProvider<SubscriptionPath> getSubscriptionProvider() {
     return subscription;
   }
 
@@ -1282,8 +1297,11 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
                                          input.getPipeline()
                                               .getOptions()
                                               .as(DataflowPipelineOptions.class))) {
-          subscription =
-              pubsubClient.createRandomSubscription(project, topic, DEAULT_ACK_TIMEOUT_SEC);
+          checkState(project.isAccessible(), "createRandomSubscription must be called at runtime.");
+          checkState(topic.isAccessible(), "createRandomSubscription must be called at runtime.");
+          SubscriptionPath subscriptionPath =
+              pubsubClient.createRandomSubscription(
+                  project.get(), topic.get(), DEAULT_ACK_TIMEOUT_SEC);
           LOG.warn("Created subscription {} to topic {}."
                    + " Note this subscription WILL NOT be deleted when the pipeline terminates",
                    subscription, topic);
