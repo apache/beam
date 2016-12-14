@@ -23,9 +23,14 @@ import org.apache.beam.sdk.annotations.Experimental.Kind;
 
 /**
  * Tracks the current value (and delta) for a Distribution metric.
+ *
+ * <p>This class generally shouldn't be used directly. The only exception is within a runner where
+ * a distribution is being reported for a specific step (rather than the distribution in the current
+ * context). In that case retrieving the underlying cell and reporting directly to it avoids a step
+ * of indirection.
  */
 @Experimental(Kind.METRICS)
-class DistributionCell implements MetricCell<Distribution, DistributionData>, Distribution {
+public class DistributionCell implements MetricCell<Distribution, DistributionData>, Distribution {
 
   private final DirtyState dirty = new DirtyState();
   private final AtomicReference<DistributionData> value =

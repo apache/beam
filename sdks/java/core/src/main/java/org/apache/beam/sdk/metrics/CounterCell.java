@@ -26,9 +26,11 @@ import org.apache.beam.sdk.annotations.Experimental.Kind;
  *
  * <p>This class generally shouldn't be used directly. The only exception is within a runner where
  * a counter is being reported for a specific step (rather than the counter in the current context).
+ * In that case retrieving the underlying cell and reporting directly to it avoids a step of
+ * indirection.
  */
 @Experimental(Kind.METRICS)
-class CounterCell implements MetricCell<Counter, Long>, Counter {
+public class CounterCell implements MetricCell<Counter, Long>, Counter {
 
   private final DirtyState dirty = new DirtyState();
   private final AtomicLong value = new AtomicLong();
