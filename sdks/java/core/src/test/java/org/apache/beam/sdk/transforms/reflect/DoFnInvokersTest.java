@@ -43,7 +43,7 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFn.ProcessContinuation;
 import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvoker.FakeArgumentProvider;
-import org.apache.beam.sdk.transforms.reflect.testhelper.DoFnInvokersTestHelper;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignatures.IgnoreScopeChecking;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
@@ -202,6 +202,7 @@ public class DoFnInvokersTest {
       private final StateSpec<Object, ValueState<Integer>> spec =
           StateSpecs.value(VarIntCoder.of());
 
+      @IgnoreScopeChecking
       @ProcessElement
       public void processElement(ProcessContext c, @StateId(stateId) ValueState<Integer> valueState)
           throws Exception {}
@@ -225,10 +226,12 @@ public class DoFnInvokersTest {
       @TimerId(timerId)
       private final TimerSpec spec = TimerSpecs.timer(TimeDomain.EVENT_TIME);
 
+      @IgnoreScopeChecking
       @ProcessElement
       public void processElement(ProcessContext c, @TimerId(timerId) Timer timer)
           throws Exception {}
 
+      @IgnoreScopeChecking
       @OnTimer(timerId)
       public void onTimer() {}
     }
@@ -478,6 +481,7 @@ public class DoFnInvokersTest {
     @TimerId(TIMER_ID)
     private final TimerSpec myTimer = TimerSpecs.timer(TimeDomain.PROCESSING_TIME);
 
+    @IgnoreScopeChecking
     @OnTimer(TIMER_ID)
     public void onTimer(BoundedWindow w) {}
   }

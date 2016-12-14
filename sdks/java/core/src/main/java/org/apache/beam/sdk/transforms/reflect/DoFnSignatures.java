@@ -27,6 +27,10 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Maps;
 import java.lang.annotation.Annotation;
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
 import java.lang.reflect.AnnotatedElement;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
@@ -253,6 +257,14 @@ public class DoFnSignatures {
     }
   }
 
+  /**
+   * Annotation for unit tests to disable the timer and state scope checking.
+   */
+  @VisibleForTesting
+  @Retention(RetentionPolicy.RUNTIME)
+  @Target(ElementType.METHOD)
+  @interface IgnoreScopeChecking {}
+
   /** Analyzes a given {@link DoFn} class and extracts its {@link DoFnSignature}. */
   private static DoFnSignature parseSignature(Class<? extends DoFn<?, ?>> fnClass) {
     DoFnSignature.Builder signatureBuilder = DoFnSignature.builder();
@@ -310,14 +322,16 @@ public class DoFnSignatures {
           onTimerMethod,
           id);
 
-      TimerDeclaration timerDecl = fnContext.getTimerDeclarations().get(id);
-      errors.checkArgument(
-          timerDecl.field().getDeclaringClass().equals(onTimerMethod.getDeclaringClass()),
-          "Callback %s is for timer %s declared in a different class %s."
-              + " Timer callbacks must be declared in the same lexical scope as their timer",
-          onTimerMethod,
-          id,
-          timerDecl.field().getDeclaringClass().getCanonicalName());
+      if (onTimerMethod.getAnnotation(IgnoreScopeChecking.class) == null) {
+        TimerDeclaration timerDecl = fnContext.getTimerDeclarations().get(id);
+        errors.checkArgument(
+            timerDecl.field().getDeclaringClass().equals(onTimerMethod.getDeclaringClass()),
+            "Callback %s is for timer %s declared in a different class %s."
+                + " Timer callbacks must be declared in the same lexical scope as their timer",
+            onTimerMethod,
+            id,
+            timerDecl.field().getDeclaringClass().getCanonicalName());
+      }
 
       onTimerMethodMap.put(
           id, analyzeOnTimerMethod(errors, fnT, onTimerMethod, id, inputT, outputT, fnContext));
@@ -851,14 +865,15 @@ public class DoFnSignatures {
           TimerId.class.getSimpleName(),
           id);
 
-      paramErrors.checkArgument(
-          timerDecl.field().getDeclaringClass().equals(param.getMethod().getDeclaringClass()),
-          "%s %s declared in a different class %s."
-              + " Timers may be referenced only in the lexical scope where they are declared.",
-          TimerId.class.getSimpleName(),
-          id,
-          timerDecl.field().getDeclaringClass().getName());
-
+      if (param.getMethod().getAnnotation(IgnoreScopeChecking.class) == null) {
+        paramErrors.checkArgument(
+            timerDecl.field().getDeclaringClass().equals(param.getMethod().getDeclaringClass()),
+            "%s %s declared in a different class %s."
+                + " Timers may be referenced only in the lexical scope where they are declared.",
+            TimerId.class.getSimpleName(),
+            id,
+            timerDecl.field().getDeclaringClass().getName());
+      }
       return Parameter.timerParameter(timerDecl);
 
     } else if (State.class.isAssignableFrom(rawType)) {
@@ -892,14 +907,15 @@ public class DoFnSignatures {
           id,
           stateDecl.stateType());
 
-      paramErrors.checkArgument(
-          stateDecl.field().getDeclaringClass().equals(param.getMethod().getDeclaringClass()),
-          "%s %s declared in a different class %s."
-              + " State may be referenced only in the class where it is declared.",
-          StateId.class.getSimpleName(),
-          id,
-          stateDecl.field().getDeclaringClass().getName());
-
+      if (param.getMethod().getAnnotation(IgnoreScopeChecking.class) == null) {
+        paramErrors.checkArgument(
+            stateDecl.field().getDeclaringClass().equals(param.getMethod().getDeclaringClass()),
+            "%s %s declared in a different class %s."
+                + " State may be referenced only in the class where it is declared.",
+            StateId.class.getSimpleName(),
+            id,
+            stateDecl.field().getDeclaringClass().getName());
+      }
       return Parameter.stateParameter(stateDecl);
     } else {
       List<String> allowedParamTypes =
