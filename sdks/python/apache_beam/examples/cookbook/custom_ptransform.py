@@ -36,7 +36,7 @@ from apache_beam.utils.options import PipelineOptions
 class Count1(beam.PTransform):
   """Count as a subclass of PTransform, with an apply method."""
 
-  def apply(self, pcoll):
+  def expand(self, pcoll):
     return (
         pcoll
         | 'ParWithOne' >> beam.Map(lambda v: (v, 1))

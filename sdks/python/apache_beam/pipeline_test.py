@@ -73,7 +73,7 @@ class PipelineTest(unittest.TestCase):
 
   class CustomTransform(PTransform):
 
-    def apply(self, pcoll):
+    def expand(self, pcoll):
       return pcoll | '+1' >> FlatMap(lambda x: [x + 1])
 
   class Visitor(PipelineVisitor):
@@ -174,7 +174,7 @@ class PipelineTest(unittest.TestCase):
         # No call to super(...).__init__
         self.suffix = suffix
 
-      def apply(self, pcoll):
+      def expand(self, pcoll):
         return pcoll | Map(lambda x: x + self.suffix)
 
     self.assertEqual(

@@ -102,7 +102,7 @@ class ReadFromDatastore(PTransform):
     self._query = query
     self._num_splits = num_splits
 
-  def apply(self, pcoll):
+  def expand(self, pcoll):
     # This is a composite transform involves the following:
     #   1. Create a singleton of the user provided `query` and apply a ``ParDo``
     #   that splits the query into `num_splits` and assign each split query a
@@ -312,7 +312,7 @@ class _Mutate(PTransform):
     self._mutation_fn = mutation_fn
     logging.warning('datastoreio write transform is experimental.')
 
-  def apply(self, pcoll):
+  def expand(self, pcoll):
     return (pcoll
             | 'Convert to Mutation' >> Map(self._mutation_fn)
             | 'Write Mutation to Datastore' >> ParDo(_Mutate.DatastoreWriteFn(

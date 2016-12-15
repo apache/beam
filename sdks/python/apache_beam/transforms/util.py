@@ -99,7 +99,7 @@ class CoGroupByKey(PTransform):
       pcolls = tuple(pvalueish)
       return pcolls, pcolls
 
-  def apply(self, pcolls):
+  def expand(self, pcolls):
     """Performs CoGroupByKey on argument pcolls; see class docstring."""
     # For associating values in K-V pairs with the PCollections they came from.
     def _pair_tag_with_value((key, value), tag):
@@ -222,7 +222,7 @@ def assert_that(actual, matcher, label='assert_that'):
 
   class AssertThat(PTransform):
 
-    def apply(self, pipeline):
+    def expand(self, pipeline):
       return pipeline | 'singleton' >> Create([None]) | Map(
           match,
           AsList(actual | core.WindowInto(window.GlobalWindows())))

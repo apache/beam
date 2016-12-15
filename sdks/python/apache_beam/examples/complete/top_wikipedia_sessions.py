@@ -76,7 +76,7 @@ class ComputeSessions(beam.PTransform):
   def __init__(self):
     super(ComputeSessions, self).__init__()
 
-  def apply(self, pcoll):
+  def expand(self, pcoll):
     return (pcoll
             | beam.WindowInto('ComputeSessionsWindow',
                               window.Sessions(gap_size=ONE_HOUR_IN_SECONDS))
@@ -89,7 +89,7 @@ class TopPerMonth(beam.PTransform):
   def __init__(self):
     super(TopPerMonth, self).__init__()
 
-  def apply(self, pcoll):
+  def expand(self, pcoll):
     return (pcoll
             | beam.WindowInto('TopPerMonthWindow',
                               window.FixedWindows(
@@ -127,7 +127,7 @@ class ComputeTopSessions(beam.PTransform):
     super(ComputeTopSessions, self).__init__()
     self.sampling_threshold = sampling_threshold
 
-  def apply(self, pcoll):
+  def expand(self, pcoll):
     return (pcoll
             | beam.ParDo('ExtractUserAndTimestamp',
                          ExtractUserAndTimestampDoFn())

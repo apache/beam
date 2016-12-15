@@ -148,8 +148,8 @@ class PipelineRunner(object):
         'Execution of [%s] not implemented in runner %s.' % (transform, self))
 
   def apply_PTransform(self, transform, input):
-    # The base case of apply is to call the transform's apply.
-    return transform.apply(input)
+    # The base case of apply is to call the transform's expand.
+    return transform.expand(input)
 
   def run_transform(self, transform_node):
     """Runner callback for a pipeline.run call.
