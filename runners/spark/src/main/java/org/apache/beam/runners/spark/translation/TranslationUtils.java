@@ -26,7 +26,6 @@ import java.util.List;
 import java.util.Map;
 import org.apache.beam.runners.spark.SparkRunner;
 import org.apache.beam.runners.spark.util.BroadcastHelper;
-import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
@@ -42,6 +41,7 @@ import org.apache.beam.sdk.util.state.StateInternalsFactory;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.api.java.function.FlatMapFunction;
 import org.apache.spark.api.java.function.Function;
 import org.apache.spark.api.java.function.PairFunction;
@@ -191,8 +191,22 @@ public final class TranslationUtils {
    * @param context The {@link EvaluationContext}.
    * @return a map of tagged {@link BroadcastHelper}s and their {@link WindowingStrategy}.
    */
+  static Map<TupleTag<?>, KV<WindowingStrategy<?, ?>, BroadcastHelper<?>>>
+  getSideInputs(List<PCollectionView<?>> views, EvaluationContext context) {
+    return getSideInputs(views, context.getSparkContext(), context.getPviews());
+  }
+
+  /**
+   * Create SideInputs as Broadcast variables.
+   *
+   * @param views   The {@link PCollectionView}s.
+   * @param context The {@link JavaSparkContext}.
+   * @param pviews  The {@link SparkPCollectionView}.
+   * @return a map of tagged {@link BroadcastHelper}s and their {@link WindowingStrategy}.
+   */
   public static Map<TupleTag<?>, KV<WindowingStrategy<?, ?>, BroadcastHelper<?>>>
-      getSideInputs(List<PCollectionView<?>> views, EvaluationContext context) {
+  getSideInputs(List<PCollectionView<?>> views, JavaSparkContext context,
+                SparkPCollectionView pviews) {
 
     if (views == null) {
       return ImmutableMap.of();
@@ -200,14 +214,8 @@ public final class TranslationUtils {
       Map<TupleTag<?>, KV<WindowingStrategy<?, ?>, BroadcastHelper<?>>> sideInputs =
           Maps.newHashMap();
       for (PCollectionView<?> view : views) {
-        Iterable<? extends WindowedValue<?>> collectionView = context.getPCollectionView(view);
-        Coder<Iterable<WindowedValue<?>>> coderInternal = view.getCoderInternal();
+        BroadcastHelper helper = pviews.getPCollectionView(view, context);
         WindowingStrategy<?, ?> windowingStrategy = view.getWindowingStrategyInternal();
-        @SuppressWarnings("unchecked")
-        BroadcastHelper<?> helper =
-            BroadcastHelper.create((Iterable<WindowedValue<?>>) collectionView, coderInternal);
-        //broadcast side inputs
-        helper.broadcast(context.getSparkContext());
         sideInputs.put(view.getTagInternal(),
             KV.<WindowingStrategy<?, ?>, BroadcastHelper<?>>of(windowingStrategy, helper));
       }

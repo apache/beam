@@ -61,6 +61,7 @@ public class SparkSideInputReader implements SideInputReader {
     //--- match the appropriate sideInput window.
     // a tag will point to all matching sideInputs, that is all windows.
     // now that we've obtained the appropriate sideInputWindow, all that's left is to filter by it.
+    @SuppressWarnings("unchecked")
     Iterable<WindowedValue<?>> availableSideInputs =
         (Iterable<WindowedValue<?>>) windowedBroadcastHelper.getValue().getValue();
     Iterable<WindowedValue<?>> sideInputForWindow =

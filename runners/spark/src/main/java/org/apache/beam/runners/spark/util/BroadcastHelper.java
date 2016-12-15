@@ -21,7 +21,6 @@ package org.apache.beam.runners.spark.util;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.Serializable;
-import org.apache.beam.runners.spark.coders.CoderHelpers;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.broadcast.Broadcast;
@@ -31,7 +30,7 @@ import org.slf4j.LoggerFactory;
 /**
  * Broadcast helper.
  */
-public abstract class BroadcastHelper<T> implements Serializable {
+public class BroadcastHelper<T> implements Serializable {
 
   /**
    * If the property {@code beam.spark.directBroadcast} is set to
@@ -39,89 +38,45 @@ public abstract class BroadcastHelper<T> implements Serializable {
    * in View objects. By default this property is not set, and values are coded using
    * the appropriate {@link Coder}.
    */
-  public static final String DIRECT_BROADCAST = "beam.spark.directBroadcast";
-
   private static final Logger LOG = LoggerFactory.getLogger(BroadcastHelper.class);
+  private Broadcast<byte[]> bcast;
+  private final Coder<T> coder;
+  private transient T value;
+  private transient byte[] bytes = null;
 
-  public static <T> BroadcastHelper<T> create(T value, Coder<T> coder) {
-    if (Boolean.parseBoolean(System.getProperty(DIRECT_BROADCAST, "false"))) {
-      return new DirectBroadcastHelper<>(value);
-    }
-    return new CodedBroadcastHelper<>(value, coder);
+  private BroadcastHelper(byte[] bytes, Coder<T> coder) {
+    this.bytes = bytes;
+    this.coder = coder;
   }
 
-  public abstract T getValue();
-
-  public abstract void broadcast(JavaSparkContext jsc);
-
-  /**
-   * A {@link BroadcastHelper} that relies on the underlying
-   * Spark serialization (Kryo) to broadcast values. This is appropriate when
-   * broadcasting very large values, since no copy of the object is made.
-   * @param <T> the type of the value stored in the broadcast variable
-   */
-  static class DirectBroadcastHelper<T> extends BroadcastHelper<T> {
-    private Broadcast<T> bcast;
-    private transient T value;
-
-    DirectBroadcastHelper(T value) {
-      this.value = value;
-    }
-
-    @Override
-    public synchronized T getValue() {
-      if (value == null) {
-        value = bcast.getValue();
-      }
-      return value;
-    }
-
-    @Override
-    public void broadcast(JavaSparkContext jsc) {
-      this.bcast = jsc.broadcast(value);
-    }
+  public static <T> BroadcastHelper<T> create(byte[] bytes, Coder<T> coder) {
+    return new BroadcastHelper<>(bytes, coder);
   }
 
-  /**
-   * A {@link BroadcastHelper} that uses a
-   * {@link Coder} to encode values as byte arrays
-   * before broadcasting.
-   * @param <T> the type of the value stored in the broadcast variable
-   */
-  static class CodedBroadcastHelper<T> extends BroadcastHelper<T> {
-    private Broadcast<byte[]> bcast;
-    private final Coder<T> coder;
-    private transient T value;
-
-    CodedBroadcastHelper(T value, Coder<T> coder) {
-      this.value = value;
-      this.coder = coder;
+  public synchronized T getValue() {
+    if (value == null) {
+       value = deserialize();
     }
+    return value;
+  }
 
-    @Override
-    public synchronized T getValue() {
-      if (value == null) {
-        value = deserialize();
-      }
-      return value;
-    }
+  public void broadcast(JavaSparkContext jsc) {
+    this.bcast = jsc.broadcast(bytes);
+  }
 
-    @Override
-    public void broadcast(JavaSparkContext jsc) {
-      this.bcast = jsc.broadcast(CoderHelpers.toByteArray(value, coder));
-    }
+  public void unpersist() {
+    this.bcast.unpersist();
+  }
 
-    private T deserialize() {
-      T val;
-      try {
-        val = coder.decode(new ByteArrayInputStream(bcast.value()),
-            new Coder.Context(true));
-      } catch (IOException ioe) {
-        // this should not ever happen, log it if it does.
-        LOG.warn(ioe.getMessage());
-        val = null;
-      }
-      return val;
+  private T deserialize() {
+    T val;
+    try {
+      val = coder.decode(new ByteArrayInputStream(bcast.value()), new Coder.Context(true));
+    } catch (IOException ioe) {
+      // this should not ever happen, log it if it does.
+      LOG.warn(ioe.getMessage());
+      val = null;
     }
+    return val;
   }
 }
