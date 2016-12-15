@@ -29,6 +29,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 import static org.mockito.Matchers.anyString;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.doNothing;
@@ -1039,12 +1040,12 @@ public class BigQueryIOTest implements Serializable {
    * <p>Logically, creates multiple global windows, and the user provides a function that
    * decides which global window a value should go into.
    */
-  public static class PartitionedGlobalWindows extends
+  private static class PartitionedGlobalWindows extends
 
       NonMergingWindowFn<TableRow, PartitionedGlobalWindow> {
-    private SerializableFunction<Object, String> extractPartition;
+    private SerializableFunction<TableRow, String> extractPartition;
 
-    public PartitionedGlobalWindows(SerializableFunction<Object, String> extractPartition) {
+    public PartitionedGlobalWindows(SerializableFunction<TableRow, String> extractPartition) {
       this.extractPartition = extractPartition;
     }
 
@@ -1079,7 +1080,7 @@ public class BigQueryIOTest implements Serializable {
   /**
    * Custom Window object that encodes a String value.
    */
-  public static class PartitionedGlobalWindow extends BoundedWindow {
+  private static class PartitionedGlobalWindow extends BoundedWindow {
     String value;
 
     public PartitionedGlobalWindow(String value) {
@@ -1093,14 +1094,16 @@ public class BigQueryIOTest implements Serializable {
 
     // The following methods are only needed due to BEAM-1022. Once this issue is fixed, we will
     // no longer need these.
-    @Override public boolean equals(Object other) {
+    @Override
+    public boolean equals(Object other) {
       if (other instanceof PartitionedGlobalWindow) {
         return value.equals(((PartitionedGlobalWindow) other).value);
       }
       return false;
     }
 
-    @Override public int hashCode() {
+    @Override
+    public int hashCode() {
       return value.hashCode();
     }
   }
@@ -1108,7 +1111,7 @@ public class BigQueryIOTest implements Serializable {
   /**
    * Coder for @link{PartitionedGlobalWindow}.
    */
-  public static class PartitionedGlobalWindowCoder extends AtomicCoder<PartitionedGlobalWindow> {
+  private static class PartitionedGlobalWindowCoder extends AtomicCoder<PartitionedGlobalWindow> {
     @Override
     public void encode(PartitionedGlobalWindow window, OutputStream outStream, Context context)
         throws IOException, CoderException {
@@ -1142,16 +1145,14 @@ public class BigQueryIOTest implements Serializable {
     // Create a windowing strategy that puts the input into five different windows depending on
     // record value.
     WindowFn<TableRow, PartitionedGlobalWindow> window = new PartitionedGlobalWindows(
-        new SerializableFunction<Object, String>() {
+        new SerializableFunction<TableRow, String>() {
           @Override
-          public String apply(Object value) {
+          public String apply(TableRow value) {
             try {
-              if (value instanceof TableRow) {
-                int intValue = (Integer) ((TableRow) value).get("number") % 5;
-                return Integer.toString(intValue);
-              }
+              int intValue = (Integer) value.get("number") % 5;
+              return Integer.toString(intValue);
             } catch (NumberFormatException e) {
-              // ignored.
+              fail(e.toString());
             }
             return value.toString();
           }
@@ -1167,8 +1168,7 @@ public class BigQueryIOTest implements Serializable {
     };
 
     Pipeline p = TestPipeline.create(bqOptions);
-    p.apply(Create.of(inserts)
-        .withCoder(TableRowJsonCoder.of()))
+    p.apply(Create.of(inserts).withCoder(TableRowJsonCoder.of()))
         .setIsBoundedInternal(PCollection.IsBounded.UNBOUNDED)
         .apply(Window.<TableRow>into(window))
         .apply(BigQueryIO.Write
