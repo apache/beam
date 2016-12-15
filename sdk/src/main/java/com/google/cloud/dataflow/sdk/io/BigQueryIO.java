@@ -2200,7 +2200,8 @@ public class BigQueryIO {
       /** Returns the table reference, or {@code null}. */
       @Nullable
       public ValueProvider<TableReference> getTable() {
-        return NestedValueProvider.of(jsonTableRef, new JsonTableRefToTableRef());
+        return jsonTableRef == null
+            ? null : NestedValueProvider.of(jsonTableRef, new JsonTableRefToTableRef());
       }
 
       /** Returns {@code true} if table validation is enabled. */
