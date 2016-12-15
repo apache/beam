@@ -269,7 +269,7 @@ Use Maven Javadoc plugin to generate the new Java reference manual, as follows:
         -Ddoctitle="Apache Beam SDK for Java, version ${VERSION}" \
         -Dwindowtitle="Apache Beam SDK for Java, version ${VERSION}" \
         -Dmaven.javadoc.failOnError=false \
-        -DexcludePackageNames="org.apache.beam.examples,org.apache.beam.runners.dataflow.internal,org.apache.beam.runners.flink.examples,org.apache.beam.runners.flink.translation,org.apache.beam.runners.spark.examples,org.apache.beam.runners.spark.translation,org.apache.beam.sdk.microbenchmarks.coders.generated,org.apache.beam.sdk.microbenchmarks.transforms.generated,org.openjdk.jmh.infra.generated"
+        -DexcludePackageNames="org.apache.beam.examples,org.apache.beam.runners.dataflow.internal,org.apache.beam.runners.flink.examples,org.apache.beam.runners.flink.translation,org.apache.beam.runners.spark.examples,org.apache.beam.runners.spark.translation,org.apache.beam.runners.apex.translation,org.apache.beam.sdk.microbenchmarks.coders.generated,org.apache.beam.sdk.microbenchmarks.transforms.generated,org.openjdk.jmh.infra.generated"
 
 By default, the Javadoc will be generated in `target/site/apidocs/`. Let `${JAVADOC_ROOT}` be the absolute path to `apidocs`. ([Pull request #1015](https://github.com/apache/beam/pull/1015) will hopefully simplify this process.)
 
