@@ -125,6 +125,44 @@
   </Match>
 
   <Match>
+    <Class name="org.apache.beam.runners.spark.util.BroadcastHelper$CodedBroadcastHelper"/>
+    <Or>
+      <Field name="bcast" />
+      <Field name="value" />
+    </Or>
+    <Bug pattern="IS2_INCONSISTENT_SYNC"/>
+    <!--
+      Spark's Broadcast variables are a distributed and cached objects
+      and should not be treated as "normal" objects.
+    -->
+  </Match>
+
+  <Match>
+    <Class name="org.apache.beam.runners.spark.util.BroadcastHelper$DirectBroadcastHelper"/>
+    <Or>
+      <Field name="bcast" />
+      <Field name="value" />
+    </Or>
+    <Bug pattern="IS2_INCONSISTENT_SYNC"/>
+    <!--
+      Spark's Broadcast variables are a distributed and cached objects
+      and should not be treated as "normal" objects.
+    -->
+  </Match>
+
+  <Match>
+    <Class name="org.apache.beam.runners.spark.aggregators.metrics.sink.CsvSink"/>
+    <Bug pattern="NM_SAME_SIMPLE_NAME_AS_SUPERCLASS"/>
+    <!-- Intentionally overriding parent name because inheritors should replace the parent. -->
+  </Match>
+
+  <Match>
+    <Class name="org.apache.beam.runners.spark.aggregators.metrics.sink.GraphiteSink"/>
+    <Bug pattern="NM_SAME_SIMPLE_NAME_AS_SUPERCLASS"/>
+    <!-- Intentionally overriding parent name because inheritors should replace the parent. -->
+  </Match>
+
+  <Match>
     <Class name="org.apache.beam.sdk.util.ZipFiles"/>
     <Method name="zipDirectory" />
     <Bug pattern="NP_NULL_ON_SOME_PATH_FROM_RETURN_VALUE"/>
@@ -202,18 +240,17 @@
     <!-- Called via reflection -->
   </Match>
 
-
   <!--
     Baseline issues. No new issues should be added below this line and all existing issues should
     have an associated JIRA
   -->
 
   <Match>
-  <Class name="org.apache.beam.sdk.coders.JAXBCoder"/>
-  <Method name="getContext"/>
-  <Bug pattern="DC_DOUBLECHECK"/>
-  <!--[BEAM-398] Possible double check of field-->
-</Match>
+    <Class name="org.apache.beam.sdk.coders.JAXBCoder"/>
+    <Method name="getContext"/>
+    <Bug pattern="DC_DOUBLECHECK"/>
+    <!--[BEAM-398] Possible double check of field-->
+  </Match>
   <Match>
     <Class name="org.apache.beam.sdk.io.range.OffsetRangeTracker"/>
     <Field name="done"/>
