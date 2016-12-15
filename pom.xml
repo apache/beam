@@ -34,7 +34,7 @@
   <url>http://beam.incubator.apache.org</url>
   <inceptionYear>2016</inceptionYear>
 
-  <version>0.4.0-incubating</version>
+  <version>0.4.0-incubating-SNAPSHOT</version>
 
   <licenses>
     <license>
@@ -48,7 +48,7 @@
     <connection>scm:git:https://git-wip-us.apache.org/repos/asf/incubator-beam.git</connection>
     <developerConnection>scm:git:https://git-wip-us.apache.org/repos/asf/incubator-beam.git</developerConnection>
     <url>https://git-wip-us.apache.org/repos/asf?p=incubator-beam.git;a=summary</url>
-    <tag>v0.4.0-incubating-RC1</tag>
+    <tag>release-0.4.0-incubating</tag>
   </scm>
 
   <issueManagement>
