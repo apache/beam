@@ -1817,13 +1817,13 @@ public class BigQueryIO {
        */
       public Bound withoutValidation() {
         return new Bound(name, jsonTableRef, tableRefFunction, jsonSchema, createDisposition,
-           writeDisposition, false, bigQueryServices);
+            writeDisposition, false, bigQueryServices);
       }
 
       @VisibleForTesting
       Bound withTestServices(BigQueryServices testServices) {
         return new Bound(name, jsonTableRef, tableRefFunction, jsonSchema, createDisposition,
-          writeDisposition, validate, testServices);
+            writeDisposition, validate, testServices);
       }
 
       private static void verifyTableEmpty(
@@ -2829,7 +2829,7 @@ public class BigQueryIO {
         SerializableFunction<BoundedWindow, TableReference> tableRefFunction) {
       checkArgument(table == null ^ tableRefFunction == null,
           "Exactly one of table or tableRefFunction should be set");
-      if (table != null && table.get() != null) {
+      if (table != null) {
         if (table.isAccessible() && table.get().getProjectId() == null) {
           table.get().setProjectId(options.as(BigQueryOptions.class).getProject());
         }

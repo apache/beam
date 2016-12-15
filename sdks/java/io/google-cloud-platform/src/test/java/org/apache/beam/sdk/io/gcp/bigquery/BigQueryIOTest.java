@@ -676,9 +676,9 @@ public class BigQueryIOTest implements Serializable {
   }
 
   private void checkWriteObject(
-          BigQueryIO.Write.Bound bound, String project, String dataset, String table,
-          TableSchema schema, CreateDisposition createDisposition,
-          WriteDisposition writeDisposition) {
+      BigQueryIO.Write.Bound bound, String project, String dataset, String table,
+      TableSchema schema, CreateDisposition createDisposition,
+      WriteDisposition writeDisposition) {
     checkWriteObjectWithValidate(
         bound, project, dataset, table, schema, createDisposition, writeDisposition, true);
   }
@@ -811,7 +811,7 @@ public class BigQueryIOTest implements Serializable {
     p.apply("ReadMyTable",
         BigQueryIO.Read
             .from("foo.com:project:somedataset.sometable")
-        .fromQuery("query"));
+            .fromQuery("query"));
     p.run();
   }
 
@@ -2308,7 +2308,7 @@ public class BigQueryIOTest implements Serializable {
         String newDest = destination.replace("*", "000000000000");
         Schema schema = schemaGenerator.apply(null);
         try (WritableByteChannel channel = IOChannelUtils.create(newDest, MimeTypes.BINARY);
-             DataFileWriter<GenericRecord> tableRowWriter =
+            DataFileWriter<GenericRecord> tableRowWriter =
                 new DataFileWriter<>(new GenericDatumWriter<GenericRecord>(schema))
                     .create(schema, Channels.newOutputStream(channel))) {
           for (Map<String, Object> record : records) {
