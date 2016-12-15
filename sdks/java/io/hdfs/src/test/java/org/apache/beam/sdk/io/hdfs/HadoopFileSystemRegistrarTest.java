@@ -42,7 +42,8 @@ public class HadoopFileSystemRegistrarTest {
         : Lists.newArrayList(ServiceLoader.load(FileSystemRegistrar.class).iterator())) {
       if (registrar instanceof HadoopFileSystemRegistrar) {
         assertEquals(FileSystems.DEFAULT_SCHEME, registrar.getScheme());
-        assertTrue(registrar.fromOptions(PipelineOptionsFactory.create()) instanceof HadoopFileSystem);
+        assertTrue(
+            registrar.fromOptions(PipelineOptionsFactory.create()) instanceof HadoopFileSystem);
         return;
       }
     }

@@ -17,11 +17,9 @@
  */
 package org.apache.beam.sdk.io;
 
-import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 import com.google.common.collect.Lists;
-import java.net.URI;
 import java.util.ServiceLoader;
 import org.junit.Test;
 import org.junit.runner.RunWith;

@@ -50,14 +50,20 @@ public class FileSystems {
 
   private static final Pattern URI_SCHEME_PATTERN = Pattern.compile("^[a-zA-Z][-a-zA-Z0-9+.]*$");
 
-  private static final Map<String, FileSystemRegistrar> SCHEME_TO_REGISTRAR = new ConcurrentHashMap();
+  private static final Map<String, FileSystemRegistrar> SCHEME_TO_REGISTRAR =
+      new ConcurrentHashMap<>();
 
-  private static final Map<String, PipelineOptions> SCHEME_TO_DEFAULT_CONFIG = new ConcurrentHashMap();
+  private static final Map<String, PipelineOptions> SCHEME_TO_DEFAULT_CONFIG =
+      new ConcurrentHashMap<>();
+
+  static {
+    loadFileSystemRegistrars();
+  }
 
   /**
    * Loads available {@link FileSystemRegistrar} services.
    */
-  public static void loadFileSystemRegistrars() {
+  private static void loadFileSystemRegistrars() {
     SCHEME_TO_REGISTRAR.clear();
     Set<FileSystemRegistrar> registrars =
         Sets.newTreeSet(ReflectHelpers.ObjectsClassComparator.INSTANCE);
@@ -72,7 +78,8 @@ public class FileSystems {
   }
 
   /**
-   * Sets the default configuration to be used with a {@link FileSystemRegistrar} for the provided {@code scheme}.
+   * Sets the default configuration to be used with a {@link FileSystemRegistrar} for the provided
+   * {@code scheme}.
    *
    * <p>Syntax: <pre>scheme = alpha *( alpha | digit | "+" | "-" | "." )</pre>
    * Upper case letters are treated as the same as lower case letters.
@@ -94,9 +101,10 @@ public class FileSystems {
    */
   @VisibleForTesting
   static FileSystem getFileSystemInternal(URI uri) {
-    String lowerCaseScheme =
-        (uri.getScheme() != null ? uri.getScheme().toLowerCase() : LocalFileSystemRegistrar.LOCAL_FILE_SCHEME);
-    return getRegistrarInternal(lowerCaseScheme).fromOptions(SCHEME_TO_DEFAULT_CONFIG.get(lowerCaseScheme));
+    String lowerCaseScheme = (uri.getScheme() != null
+        ? uri.getScheme().toLowerCase() : LocalFileSystemRegistrar.LOCAL_FILE_SCHEME);
+    return getRegistrarInternal(lowerCaseScheme)
+        .fromOptions(SCHEME_TO_DEFAULT_CONFIG.get(lowerCaseScheme));
   }
 
   /**
@@ -120,7 +128,7 @@ public class FileSystems {
         TreeMultimap.create(Ordering.<String>natural(), Ordering.arbitrary());
 
     for (FileSystemRegistrar registrar : registrars) {
-      registrarsBySchemes.put(registrar.getScheme(), registrar);
+      registrarsBySchemes.put(registrar.getScheme().toLowerCase(), registrar);
     }
     for (Entry<String, Collection<FileSystemRegistrar>> entry
         : registrarsBySchemes.asMap().entrySet()) {

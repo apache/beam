@@ -25,5 +25,5 @@ package org.apache.beam.sdk.io;
  * <p>All methods are protected, and they are for file system providers to implement.
  * Clients should use {@link FileSystems} utility.
  */
-public interface FileSystem {
+public abstract class FileSystem {
 }

@@ -20,9 +20,10 @@ package org.apache.beam.sdk.io.hdfs;
 import org.apache.beam.sdk.io.FileSystem;
 
 /**
- * Adapts {@link org.apache.hadoop.fs.FileSystem} connectors to be used as Apache Beam {@link FileSystem FileSystems}.
+ * Adapts {@link org.apache.hadoop.fs.FileSystem} connectors to be used as
+ * Apache Beam {@link FileSystem FileSystems}.
  */
-class HadoopFileSystem implements FileSystem {
+class HadoopFileSystem extends FileSystem {
 
   HadoopFileSystem() {}
 }
