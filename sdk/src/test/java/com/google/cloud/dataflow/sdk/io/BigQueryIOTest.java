@@ -56,6 +56,7 @@ import com.google.cloud.dataflow.sdk.coders.TableRowJsonCoder;
 import com.google.cloud.dataflow.sdk.coders.VarLongCoder;
 import com.google.cloud.dataflow.sdk.io.BigQueryIO.BigQueryQuerySource;
 import com.google.cloud.dataflow.sdk.io.BigQueryIO.BigQueryTableSource;
+import com.google.cloud.dataflow.sdk.io.BigQueryIO.JsonSchemaToTableSchema;
 import com.google.cloud.dataflow.sdk.io.BigQueryIO.PassThroughThenCleanup;
 import com.google.cloud.dataflow.sdk.io.BigQueryIO.PassThroughThenCleanup.CleanupOperation;
 import com.google.cloud.dataflow.sdk.io.BigQueryIO.Status;
@@ -70,6 +71,8 @@ import com.google.cloud.dataflow.sdk.options.BigQueryOptions;
 import com.google.cloud.dataflow.sdk.options.DataflowPipelineOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
+import com.google.cloud.dataflow.sdk.options.ValueProvider;
+import com.google.cloud.dataflow.sdk.options.ValueProvider.NestedValueProvider;
 import com.google.cloud.dataflow.sdk.options.ValueProvider.StaticValueProvider;
 import com.google.cloud.dataflow.sdk.testing.DataflowAssert;
 import com.google.cloud.dataflow.sdk.testing.ExpectedLogs;
@@ -440,9 +443,9 @@ public class BigQueryIOTest implements Serializable {
       BigQueryIO.Write.Bound bound, String project, String dataset, String table,
       TableSchema schema, CreateDisposition createDisposition,
       WriteDisposition writeDisposition, boolean validate) {
-    assertEquals(project, bound.getTable().getProjectId());
-    assertEquals(dataset, bound.getTable().getDatasetId());
-    assertEquals(table, bound.getTable().getTableId());
+    assertEquals(project, bound.getTable().get().getProjectId());
+    assertEquals(dataset, bound.getTable().get().getDatasetId());
+    assertEquals(table, bound.getTable().get().getTableId());
     assertEquals(schema, bound.getSchema());
     assertEquals(createDisposition, bound.createDisposition);
     assertEquals(writeDisposition, bound.writeDisposition);
@@ -1542,8 +1545,8 @@ public class BigQueryIOTest implements Serializable {
         fakeBqServices,
         jobIdToken,
         tempFilePrefix,
-        jsonTable,
-        jsonSchema,
+        StaticValueProvider.of(jsonTable),
+        StaticValueProvider.of(jsonSchema),
         WriteDisposition.WRITE_EMPTY,
         CreateDisposition.CREATE_IF_NEEDED);
 
@@ -1617,7 +1620,7 @@ public class BigQueryIOTest implements Serializable {
     WriteRename writeRename = new WriteRename(
         fakeBqServices,
         jobIdToken,
-        jsonTable,
+        StaticValueProvider.of(jsonTable),
         WriteDisposition.WRITE_EMPTY,
         CreateDisposition.CREATE_IF_NEEDED,
         tempTablesView);
@@ -1656,6 +1659,65 @@ public class BigQueryIOTest implements Serializable {
     logged.verifyWarn("Failed to delete the table " + toJsonString(tableRefs.get(0)));
     logged.verifyNotLogged("Failed to delete the table " + toJsonString(tableRefs.get(1)));
     logged.verifyNotLogged("Failed to delete the table " + toJsonString(tableRefs.get(2)));
+  }
+
+  /** Test options. **/
+  public interface RuntimeTestOptions extends PipelineOptions {
+    ValueProvider<String> getInputTable();
+    void setInputTable(ValueProvider<String> value);
+
+    ValueProvider<String> getInputQuery();
+    void setInputQuery(ValueProvider<String> value);
+
+    ValueProvider<String> getOutputTable();
+    void setOutputTable(ValueProvider<String> value);
+
+    ValueProvider<String> getOutputSchema();
+    void setOutputSchema(ValueProvider<String> value);
+  }
+
+  @Test
+  public void testRuntimeOptionsNotCalledInApplyInputTable() {
+    RuntimeTestOptions options = PipelineOptionsFactory.as(RuntimeTestOptions.class);
+    BigQueryOptions bqOptions = options.as(BigQueryOptions.class);
+    bqOptions.setTempLocation("gs://testbucket/testdir");
+    Pipeline pipeline = TestPipeline.create(options);
+    BigQueryIO.Read.Bound read = BigQueryIO.Read.from(
+        options.getInputTable()).withoutValidation();
+    pipeline.apply(read);
+    // Test that this doesn't throw.
+    DisplayData.from(read);
+  }
+
+  @Test
+  public void testRuntimeOptionsNotCalledInApplyInputQuery() {
+    RuntimeTestOptions options = PipelineOptionsFactory.as(RuntimeTestOptions.class);
+    BigQueryOptions bqOptions = options.as(BigQueryOptions.class);
+    bqOptions.setTempLocation("gs://testbucket/testdir");
+    Pipeline pipeline = TestPipeline.create(options);
+    BigQueryIO.Read.Bound read = BigQueryIO.Read.fromQuery(
+        options.getInputQuery()).withoutValidation();
+    pipeline.apply(read);
+    // Test that this doesn't throw.
+    DisplayData.from(read);
+  }
+
+  @Test
+  public void testRuntimeOptionsNotCalledInApplyOutput() {
+    RuntimeTestOptions options = PipelineOptionsFactory.as(RuntimeTestOptions.class);
+    BigQueryOptions bqOptions = options.as(BigQueryOptions.class);
+    bqOptions.setTempLocation("gs://testbucket/testdir");
+    Pipeline pipeline = TestPipeline.create(options);
+    BigQueryIO.Write.Bound write = BigQueryIO.Write
+        .to(options.getOutputTable())
+        .withSchema(NestedValueProvider.of(
+            options.getOutputSchema(), new JsonSchemaToTableSchema()))
+        .withoutValidation();
+    pipeline
+        .apply(Create.<TableRow>of())
+        .apply(write);
+    // Test that this doesn't throw.
+    DisplayData.from(write);
   }
 
   private static void testNumFiles(File tempDir, int expectedNumFiles) {
