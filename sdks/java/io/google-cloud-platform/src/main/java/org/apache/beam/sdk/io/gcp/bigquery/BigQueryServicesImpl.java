@@ -417,7 +417,7 @@ class BigQueryServicesImpl implements BigQueryServices {
     /**
      * {@inheritDoc}
      *
-     * If a table with the same name already exists in the dataset, the function simply
+     * <p>If a table with the same name already exists in the dataset, the function simply
      * returns. In such a case,
      * the existing table doesn't necessarily have the same schema as specified
      * by the parameter.
