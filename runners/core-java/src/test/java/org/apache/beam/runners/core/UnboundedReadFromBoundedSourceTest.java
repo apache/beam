@@ -292,7 +292,7 @@ public class UnboundedReadFromBoundedSourceTest {
    */
   private static class UnsplittableSource extends FileBasedSource<Byte> {
     public UnsplittableSource(String fileOrPatternSpec, long minBundleSize) {
-      super(fileOrPatternSpec, minBundleSize);
+      super(fileOrPatternSpec, /* TODO */ true, minBundleSize);
     }
 
     public UnsplittableSource(

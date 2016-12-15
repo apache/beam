@@ -279,6 +279,15 @@ public class TextIO {
       }
 
       /**
+       * Configures the transform to succeed if the specified {@code filepattern} does not match any
+       * files. The default behaviour is to fail on empty input.
+       */
+      public Bound<T> withAllowedEmptyInput() {
+        // TODO
+        return this;
+      }
+
+      /**
        * Returns a new transform for reading from text files that's like this one but
        * reads from input sources using the specified compression type.
        *
@@ -907,13 +916,13 @@ public class TextIO {
 
     @VisibleForTesting
     TextSource(String fileSpec, Coder<T> coder) {
-      super(fileSpec, 1L);
+      super(fileSpec, /* TODO */ true, 1L);
       this.coder = coder;
     }
 
     @VisibleForTesting
     TextSource(ValueProvider<String> fileSpec, Coder<T> coder) {
-      super(fileSpec, 1L);
+      super(fileSpec, /* TODO */ true, 1L);
       this.coder = coder;
     }
 

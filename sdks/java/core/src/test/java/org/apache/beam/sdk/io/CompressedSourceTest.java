@@ -499,7 +499,7 @@ public class CompressedSourceTest {
    */
   private static class ByteSource extends FileBasedSource<Byte> {
     public ByteSource(String fileOrPatternSpec, long minBundleSize) {
-      super(fileOrPatternSpec, minBundleSize);
+      super(fileOrPatternSpec, /* TODO */ true, minBundleSize);
     }
 
     public ByteSource(String fileName, long minBundleSize, long startOffset, long endOffset) {
