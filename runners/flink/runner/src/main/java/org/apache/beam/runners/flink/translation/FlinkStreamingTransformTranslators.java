@@ -338,7 +338,7 @@ public class FlinkStreamingTransformTranslators {
         ParDo.Bound<InputT, OutputT> transform,
         FlinkStreamingTranslationContext context) {
 
-      DoFn<InputT, OutputT> doFn = transform.getNewFn();
+      DoFn<InputT, OutputT> doFn = transform.getFn();
       rejectStateAndTimers(doFn);
 
       WindowingStrategy<?, ?> windowingStrategy =
@@ -490,7 +490,7 @@ public class FlinkStreamingTransformTranslators {
         ParDo.BoundMulti<InputT, OutputT> transform,
         FlinkStreamingTranslationContext context) {
 
-      DoFn<InputT, OutputT> doFn = transform.getNewFn();
+      DoFn<InputT, OutputT> doFn = transform.getFn();
       rejectStateAndTimers(doFn);
 
       // we assume that the transformation does not change the windowing strategy.

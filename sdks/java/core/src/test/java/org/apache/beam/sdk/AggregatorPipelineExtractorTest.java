@@ -68,7 +68,7 @@ public class AggregatorPipelineExtractorTest {
     @SuppressWarnings("rawtypes")
     ParDo.Bound bound = mock(ParDo.Bound.class, "Bound");
     AggregatorProvidingDoFn<ThreadGroup, StrictMath> fn = new AggregatorProvidingDoFn<>();
-    when(bound.getNewFn()).thenReturn(fn);
+    when(bound.getFn()).thenReturn(fn);
 
     Aggregator<Long, Long> aggregatorOne = fn.addAggregator(new Sum.SumLongFn());
     Aggregator<Integer, Integer> aggregatorTwo = fn.addAggregator(new Min.MinIntegerFn());
@@ -96,7 +96,7 @@ public class AggregatorPipelineExtractorTest {
     @SuppressWarnings("rawtypes")
     ParDo.BoundMulti bound = mock(ParDo.BoundMulti.class, "BoundMulti");
     AggregatorProvidingDoFn<Object, Void> fn = new AggregatorProvidingDoFn<>();
-    when(bound.getNewFn()).thenReturn(fn);
+    when(bound.getFn()).thenReturn(fn);
 
     Aggregator<Long, Long> aggregatorOne = fn.addAggregator(new Max.MaxLongFn());
     Aggregator<Double, Double> aggregatorTwo = fn.addAggregator(new Min.MinDoubleFn());
@@ -126,8 +126,8 @@ public class AggregatorPipelineExtractorTest {
     @SuppressWarnings("rawtypes")
     ParDo.BoundMulti otherBound = mock(ParDo.BoundMulti.class, "otherBound");
     AggregatorProvidingDoFn<String, Math> fn = new AggregatorProvidingDoFn<>();
-    when(bound.getNewFn()).thenReturn(fn);
-    when(otherBound.getNewFn()).thenReturn(fn);
+    when(bound.getFn()).thenReturn(fn);
+    when(otherBound.getFn()).thenReturn(fn);
 
     Aggregator<Long, Long> aggregatorOne = fn.addAggregator(new Sum.SumLongFn());
     Aggregator<Double, Double> aggregatorTwo = fn.addAggregator(new Min.MinDoubleFn());
@@ -162,7 +162,7 @@ public class AggregatorPipelineExtractorTest {
     AggregatorProvidingDoFn<ThreadGroup, Void> fn = new AggregatorProvidingDoFn<>();
     Aggregator<Long, Long> aggregatorOne = fn.addAggregator(new Sum.SumLongFn());
 
-    when(bound.getNewFn()).thenReturn(fn);
+    when(bound.getFn()).thenReturn(fn);
 
     @SuppressWarnings("rawtypes")
     ParDo.BoundMulti otherBound = mock(ParDo.BoundMulti.class, "otherBound");
@@ -170,7 +170,7 @@ public class AggregatorPipelineExtractorTest {
     AggregatorProvidingDoFn<Long, Long> otherFn = new AggregatorProvidingDoFn<>();
     Aggregator<Double, Double> aggregatorTwo = otherFn.addAggregator(new Sum.SumDoubleFn());
 
-    when(otherBound.getNewFn()).thenReturn(otherFn);
+    when(otherBound.getFn()).thenReturn(otherFn);
 
     TransformHierarchy.Node transformNode = mock(TransformHierarchy.Node.class);
     when(transformNode.getTransform()).thenReturn(bound);

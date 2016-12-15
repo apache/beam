@@ -23,7 +23,6 @@ import org.apache.beam.runners.apex.ApexRunner;
 import org.apache.beam.runners.apex.translation.operators.ApexParDoOperator;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
@@ -41,7 +40,7 @@ class ParDoBoundTranslator<InputT, OutputT>
 
   @Override
   public void translate(ParDo.Bound<InputT, OutputT> transform, TranslationContext context) {
-    DoFn<InputT, OutputT> doFn = transform.getNewFn();
+    DoFn<InputT, OutputT> doFn = transform.getFn();
     DoFnSignature signature = DoFnSignatures.getSignature(doFn.getClass());
 
     if (signature.stateDeclarations().size() > 0) {
@@ -64,7 +63,6 @@ class ParDoBoundTranslator<InputT, OutputT>
               ApexRunner.class.getSimpleName()));
     }
 
-    OldDoFn<InputT, OutputT> oldDoFn = transform.getOldFn();
     PCollection<OutputT> output = context.getOutput();
     PCollection<InputT> input = context.getInput();
     List<PCollectionView<?>> sideInputs = transform.getSideInputs();
@@ -76,7 +74,7 @@ class ParDoBoundTranslator<InputT, OutputT>
     ApexParDoOperator<InputT, OutputT> operator =
         new ApexParDoOperator<>(
             context.getPipelineOptions(),
-            oldDoFn,
+            doFn,
             new TupleTag<OutputT>(),
             TupleTagList.empty().getAll() /*sideOutputTags*/,
             output.getWindowingStrategy(),

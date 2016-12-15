@@ -29,7 +29,7 @@ import org.joda.time.Instant;
 
 
 /**
- * An implementation of {@link org.apache.beam.runners.core.AssignWindows} for the Spark runner.
+ * An implementation of {@link org.apache.beam.runners.core.AssignWindowsDoFn} for the Spark runner.
  */
 public class SparkAssignWindowFn<T, W extends BoundedWindow>
     implements Function<WindowedValue<T>, WindowedValue<T>> {

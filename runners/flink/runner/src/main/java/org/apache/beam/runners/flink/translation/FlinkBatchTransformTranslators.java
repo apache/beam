@@ -50,7 +50,6 @@ import org.apache.beam.sdk.transforms.CombineFnBase;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.GroupByKey;
-import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.View;
@@ -517,13 +516,11 @@ class FlinkBatchTransformTranslators {
         ParDo.Bound<InputT, OutputT> transform,
 
         FlinkBatchTranslationContext context) {
-      DoFn<InputT, OutputT> doFn = transform.getNewFn();
+      DoFn<InputT, OutputT> doFn = transform.getFn();
       rejectStateAndTimers(doFn);
 
       DataSet<WindowedValue<InputT>> inputDataSet =
           context.getInputDataSet(context.getInput(transform));
-
-      final OldDoFn<InputT, OutputT> oldDoFn = transform.getFn();
 
       TypeInformation<WindowedValue<OutputT>> typeInformation =
           context.getTypeInfo(context.getOutput(transform));
@@ -539,7 +536,7 @@ class FlinkBatchTransformTranslators {
 
       FlinkDoFnFunction<InputT, OutputT> doFnWrapper =
           new FlinkDoFnFunction<>(
-              oldDoFn,
+              doFn,
               context.getOutput(transform).getWindowingStrategy(),
               sideInputStrategies,
               context.getPipelineOptions());
@@ -565,12 +562,10 @@ class FlinkBatchTransformTranslators {
     public void translateNode(
         ParDo.BoundMulti<InputT, OutputT> transform,
         FlinkBatchTranslationContext context) {
-      DoFn<InputT, OutputT> doFn = transform.getNewFn();
+      DoFn<InputT, OutputT> doFn = transform.getFn();
       rejectStateAndTimers(doFn);
       DataSet<WindowedValue<InputT>> inputDataSet =
           context.getInputDataSet(context.getInput(transform));
-
-      final OldDoFn<InputT, OutputT> oldDoFn = transform.getFn();
 
       Map<TupleTag<?>, PCollection<?>> outputs = context.getOutput(transform).getAll();
 
@@ -618,7 +613,7 @@ class FlinkBatchTransformTranslators {
       @SuppressWarnings("unchecked")
       FlinkMultiOutputDoFnFunction<InputT, OutputT> doFnWrapper =
           new FlinkMultiOutputDoFnFunction(
-              oldDoFn,
+              doFn,
               windowingStrategy,
               sideInputStrategies,
               context.getPipelineOptions(),

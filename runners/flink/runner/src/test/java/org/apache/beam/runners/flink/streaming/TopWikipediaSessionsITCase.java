@@ -26,7 +26,7 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.transforms.OldDoFn;
+import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.windowing.Sessions;
 import org.apache.beam.sdk.transforms.windowing.Window;
@@ -100,8 +100,8 @@ public class TopWikipediaSessionsITCase extends StreamingProgramTestBase impleme
 
 
 
-      .apply(ParDo.of(new OldDoFn<TableRow, String>() {
-        @Override
+      .apply(ParDo.of(new DoFn<TableRow, String>() {
+        @ProcessElement
         public void processElement(ProcessContext c) throws Exception {
           TableRow row = c.element();
           long timestamp = (Integer) row.get("timestamp");
@@ -117,8 +117,8 @@ public class TopWikipediaSessionsITCase extends StreamingProgramTestBase impleme
 
       .apply(Count.<String>perElement());
 
-    PCollection<String> format = output.apply(ParDo.of(new OldDoFn<KV<String, Long>, String>() {
-      @Override
+    PCollection<String> format = output.apply(ParDo.of(new DoFn<KV<String, Long>, String>() {
+      @ProcessElement
       public void processElement(ProcessContext c) throws Exception {
         KV<String, Long> el = c.element();
         String out = "user: " + el.getKey() + " value:" + el.getValue();

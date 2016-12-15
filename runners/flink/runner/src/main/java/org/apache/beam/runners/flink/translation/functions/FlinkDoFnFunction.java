@@ -18,9 +18,12 @@
 package org.apache.beam.runners.flink.translation.functions;
 
 import java.util.Map;
+import org.apache.beam.runners.core.DoFnAdapters;
 import org.apache.beam.runners.flink.translation.utils.SerializedPipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.OldDoFn;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.values.PCollectionView;
@@ -46,16 +49,17 @@ public class FlinkDoFnFunction<InputT, OutputT>
   private final WindowingStrategy<?, ?> windowingStrategy;
 
   public FlinkDoFnFunction(
-      OldDoFn<InputT, OutputT> doFn,
+      DoFn<InputT, OutputT> doFn,
       WindowingStrategy<?, ?> windowingStrategy,
       Map<PCollectionView<?>, WindowingStrategy<?, ?>> sideInputs,
       PipelineOptions options) {
-    this.doFn = doFn;
+    this.doFn = DoFnAdapters.toOldDoFn(doFn);
     this.sideInputs = sideInputs;
     this.serializedOptions = new SerializedPipelineOptions(options);
     this.windowingStrategy = windowingStrategy;
 
-    this.requiresWindowAccess = doFn instanceof OldDoFn.RequiresWindowAccess;
+    this.requiresWindowAccess =
+        DoFnSignatures.signatureForDoFn(doFn).processElement().observesWindow();
     this.hasSideInputs = !sideInputs.isEmpty();
   }
 
