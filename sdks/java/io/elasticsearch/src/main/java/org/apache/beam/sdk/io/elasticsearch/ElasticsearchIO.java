@@ -22,6 +22,7 @@ import static com.google.common.base.Preconditions.checkState;
 
 import com.google.auto.value.AutoValue;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Strings;
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
@@ -38,6 +39,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
+import java.util.ListIterator;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Set;
@@ -110,9 +112,10 @@ import org.elasticsearch.client.RestClientBuilder;
  *
  * }</pre>
  *
- * <p>Optionally, you can provide {@code withBatchSize()} and {@code withBatchSizeMegaBytes()}
- * to specify the size of the write batch in number of documents or in megabytes.
+ * <p>Optionally, you can provide {@code withBatchSize()} and {@code withBatchSizeBytes()}
+ * to specify the size of the write batch in number of documents or in bytes.
  */
+
 public class ElasticsearchIO {
 
   public static Read read() {
@@ -120,17 +123,17 @@ public class ElasticsearchIO {
     // default batchSize to 100 as recommended by ES dev team as a safe value when dealing
     // with big documents and still a good compromise for performances
     return new AutoValue_ElasticsearchIO_Read.Builder()
-                .setScrollKeepalive("5m")
-                .setBatchSize(100L)
-                .build();
+        .setScrollKeepalive("5m")
+        .setBatchSize(100L)
+        .build();
   }
 
   public static Write write() {
     return new AutoValue_ElasticsearchIO_Write.Builder()
-        // default ElasticSearch bulk size
+        //      adviced default starting bacth size
         .setMaxBatchSize(1000L)
-        // default ElasticSearch bulk size
-        .setMaxBatchSizeMegaBytes(5)
+        //      adviced default starting bacth size
+        .setMaxBatchSizeBytes(5L * 1024L * 1024L)
         .build();
   }
 
@@ -212,6 +215,10 @@ public class ElasticsearchIO {
      * @return the {@link ConnectionConfiguration} object with username set
      */
     public ConnectionConfiguration withUsername(String username) {
+      checkArgument(
+          !Strings.isNullOrEmpty(username),
+          "ConnectionConfiguration.create()"
+              + ".withUsername(username) called with incorrect null or empty username");
       return builder().setUsername(username).build();
     }
 
@@ -222,6 +229,10 @@ public class ElasticsearchIO {
      * @return the {@link ConnectionConfiguration} object with password set
      */
     public ConnectionConfiguration withPassword(String password) {
+      checkArgument(
+          !Strings.isNullOrEmpty(password),
+          "ConnectionConfiguration.create()"
+              + ".withPassword(password) called with incorrect null or empty password");
       return builder().setPassword(password).build();
     }
 
@@ -312,7 +323,8 @@ public class ElasticsearchIO {
      */
     public Read withQuery(String query) {
       checkArgument(
-          query != null, "ElasticsearchIO.read().withQuery(query) called with null query");
+          !Strings.isNullOrEmpty(query),
+          "ElasticsearchIO.read().withQuery(query) called" + " with null or empty query");
       return builder().setQuery(query).build();
     }
 
@@ -326,24 +338,32 @@ public class ElasticsearchIO {
      */
     public Read withScrollKeepalive(String scrollKeepalive) {
       checkArgument(
-          scrollKeepalive != null,
-          "ElasticsearchIO.read().withScrollKeepalive(keepalive) called with null keepalive");
+          scrollKeepalive != null && !scrollKeepalive.equals("0m"),
+          "ElasticsearchIO.read().withScrollKeepalive(keepalive) called"
+              + " with null or \"0m\" keepalive");
       return builder().setScrollKeepalive(scrollKeepalive).build();
     }
 
     /**
-     * Provide a size for the scroll read. See
-     * <a href="https://www.elastic.co/guide/en/elasticsearch/reference/2.4/search-request-scroll.html">
-     *   scroll API</a> Default is 100. Maximum is 10 000. If documents are small,
-     *   increasing batch size might improve read performance. If documents are big, you might need
-     *   to decrease batchSize
+     * Provide a size for the scroll read. See <a
+     * href="https://www.elastic.co/guide/en/elasticsearch/reference/2.4/search-request-scroll.html">
+     * scroll API</a> Default is 100. Maximum is 10 000. If documents are small, increasing batch
+     * size might improve read performance. If documents are big, you might need to decrease
+     * batchSize
      *
      * @param batchSize number of documents read in each scroll read
      * @return the {@link Read} with batch size set
      */
     public Read withBatchSize(long batchSize) {
-      return builder().setBatchSize(
-        batchSize > MAX_BATCH_SIZE ? MAX_BATCH_SIZE : batchSize).build();
+      checkArgument(
+          batchSize > 0,
+          "ElasticsearchIO.read()" + ".withBatchSize(batchSize) called with incorrect <= 0 value");
+      checkArgument(
+          batchSize <= MAX_BATCH_SIZE,
+          "ElasticsearchIO.read()"
+              + ".withBatchSize(batchSize) called with value > to maximum "
+              + String.valueOf(MAX_BATCH_SIZE));
+      return builder().setBatchSize(batchSize).build();
     }
 
     @Override
@@ -494,7 +514,7 @@ public class ElasticsearchIO {
     private RestClient restClient;
     private String current;
     private String scrollId;
-    private List<String> batch;
+    private ListIterator<String> batchIterator;
 
     public BoundedElasticsearchReader(BoundedElasticsearchSource source) {
       this.source = source;
@@ -526,8 +546,7 @@ public class ElasticsearchIO {
           restClient.performRequest("GET", endPoint, params, queryEntity, new BasicHeader("", ""));
       JsonObject searchResult = parseResponse(response);
       updateScrollId(searchResult);
-      batch = new ArrayList<>();
-      return updateBatchAndReadFirstDocument(searchResult);
+      return readNextBatchAndReturnFirstDocument(searchResult);
     }
 
     private void updateScrollId(JsonObject searchResult) {
@@ -536,46 +555,44 @@ public class ElasticsearchIO {
 
     @Override
     public boolean advance() throws IOException {
-      if (batch.size() > 0){
-        current = batch.remove(0);
+      if (batchIterator.hasNext()) {
+        current = batchIterator.next();
         return true;
       } else {
         String requestBody =
-          String.format(
-            "{\"scroll\" : \"%s\",\"scroll_id\" : \"%s\"}",
-            source.spec.getScrollKeepalive(), scrollId);
+            String.format(
+                "{\"scroll\" : \"%s\",\"scroll_id\" : \"%s\"}",
+                source.spec.getScrollKeepalive(), scrollId);
         HttpEntity scrollEntity = new NStringEntity(requestBody, ContentType.APPLICATION_JSON);
         Response response =
-          restClient.performRequest(
-            "GET",
-            "/_search/scroll",
-            Collections.<String, String>emptyMap(),
-            scrollEntity,
-            new BasicHeader("", ""));
+            restClient.performRequest(
+                "GET",
+                "/_search/scroll",
+                Collections.<String, String>emptyMap(),
+                scrollEntity,
+                new BasicHeader("", ""));
         JsonObject searchResult = parseResponse(response);
         updateScrollId(searchResult);
-        return updateBatchAndReadFirstDocument(searchResult);
+        return readNextBatchAndReturnFirstDocument(searchResult);
       }
     }
 
-    private boolean updateBatchAndReadFirstDocument(JsonObject searchResult) {
+    private boolean readNextBatchAndReturnFirstDocument(JsonObject searchResult) {
       //stop if no more data
-      if (searchResult.getAsJsonObject("hits").getAsJsonArray("hits").size() == 0) {
+      JsonArray hits = searchResult.getAsJsonObject("hits").getAsJsonArray("hits");
+      if (hits.size() == 0) {
         current = null;
-        batch.clear();
+        batchIterator = null;
         return false;
       }
-      JsonArray hits = searchResult
-        .getAsJsonObject("hits")
-        .getAsJsonArray("hits");
-      for (JsonElement hit:hits){
-        String document = hit.getAsJsonObject()
-          .getAsJsonObject("_source")
-          .toString();
+      // list behind iterator is empty
+      List<String> batch = new ArrayList<>();
+      for (JsonElement hit : hits) {
+        String document = hit.getAsJsonObject().getAsJsonObject("_source").toString();
         batch.add(document);
       }
-
-      current = batch.remove(0);
+      batchIterator = batch.listIterator();
+      current = batchIterator.next();
       return true;
     }
 
@@ -621,7 +638,7 @@ public class ElasticsearchIO {
 
     abstract long getMaxBatchSize();
 
-    abstract int getMaxBatchSizeMegaBytes();
+    abstract long getMaxBatchSizeBytes();
 
     abstract Builder builder();
 
@@ -631,7 +648,7 @@ public class ElasticsearchIO {
 
       abstract Builder setMaxBatchSize(long maxBatchSize);
 
-      abstract Builder setMaxBatchSizeMegaBytes(int maxBatchSizeMegaBytes);
+      abstract Builder setMaxBatchSizeBytes(long maxBatchSizeBytes);
 
       abstract Write build();
     }
@@ -652,28 +669,40 @@ public class ElasticsearchIO {
 
     /**
      * Provide a maximum size in number of documents for the batch see bulk API
-     * (https://www.elastic.co/guide/en/elasticsearch/reference/2.4/docs-bulk.html).
-     * Default is 1000 docs (like Elasticsearch bulk size default).
-     * Depending on the execution engine, size of bundles may vary,
-     * this sets the maximum size. Change this if you need to have smaller ElasticSearch bulks.
+     * (https://www.elastic.co/guide/en/elasticsearch/reference/2.4/docs-bulk.html). Default is 1000
+     * docs (like Elasticsearch bulk size advice). See
+     * https://www.elastic.co/guide/en/elasticsearch/guide/current/bulk.html Depending on the
+     * execution engine, size of bundles may vary, this sets the maximum size. Change this if you
+     * need to have smaller ElasticSearch bulks.
+     *
      * @param batchSize maximum batch size in number of documents
      * @return the {@link Write} with connection batch size set
      */
     public Write withMaxBatchSize(long batchSize) {
+      checkArgument(
+          batchSize > 0,
+          "ElasticsearchIO.write()"
+              + ".withMaxBatchSize(batchSize) called with incorrect <= 0 value");
       return builder().setMaxBatchSize(batchSize).build();
     }
 
     /**
-     * Provide a maximum size in megabytes for the batch see bulk API
+     * Provide a maximum size in bytes for the batch see bulk API
      * (https://www.elastic.co/guide/en/elasticsearch/reference/2.4/docs-bulk.html). Default is 5MB
-     * (like Elasticsearch bulk size default).
-     * Depending on the execution engine, size of bundles may vary, this sets the maximum size.
-     * Change this if you need to have smaller ElasticSearch bulks.
-     * @param batchSizeMegaBytes maximum batch size in megabytes
-     * @return the {@link Write} with connection batch size in megabytes set
+     * (like Elasticsearch bulk size advice). See
+     * https://www.elastic.co/guide/en/elasticsearch/guide/current/bulk.html Depending on the
+     * execution engine, size of bundles may vary, this sets the maximum size. Change this if you
+     * need to have smaller ElasticSearch bulks.
+     *
+     * @param batchSizeBytes maximum batch size in bytes
+     * @return the {@link Write} with connection batch size in bytes set
      */
-    public Write withMaxBatchSizeMegaBytes(int batchSizeMegaBytes) {
-      return builder().setMaxBatchSizeMegaBytes(batchSizeMegaBytes).build();
+    public Write withMaxBatchSizeBytes(long batchSizeBytes) {
+      checkArgument(
+          batchSizeBytes > 0,
+          "ElasticsearchIO.write()"
+              + ".withMaxBatchSizeBytes(batchSizeBytes) called with incorrect <= 0 value");
+      return builder().setMaxBatchSizeBytes(batchSizeBytes).build();
     }
 
     @Override
@@ -720,7 +749,7 @@ public class ElasticsearchIO {
         batch.add(String.format("{ \"index\" : {} }%n%s%n", document));
         currentBatchSizeBytes += document.getBytes().length;
         if (batch.size() >= spec.getMaxBatchSize()
-            || currentBatchSizeBytes >= (spec.getMaxBatchSizeMegaBytes() * 1024L * 1024L)) {
+            || currentBatchSizeBytes >= spec.getMaxBatchSizeBytes()) {
           finishBundle(context);
         }
       }
@@ -763,13 +792,15 @@ public class ElasticsearchIO {
             JsonObject creationObject = item.getAsJsonObject().getAsJsonObject("create");
             JsonObject error = creationObject.getAsJsonObject("error");
             if (error != null) {
+              String type = error.getAsJsonPrimitive("type").getAsString();
+              String reason = error.getAsJsonPrimitive("reason").getAsString();
               String docId = creationObject.getAsJsonPrimitive("_id").getAsString();
-              errorMessages.append(String.format("%n document id %s : ", docId));
+              errorMessages.append(String.format("%nDocument id %s: %s (%s)", docId, reason, type));
               JsonObject causedBy = error.getAsJsonObject("caused_by");
-              JsonElement reason;
-              if (causedBy != null && (reason = causedBy.getAsJsonPrimitive("reason")) != null) {
-                  String errorMessage = reason.getAsString();
-                  errorMessages.append(errorMessage);
+              if (causedBy != null) {
+                String cbReason = causedBy.getAsJsonPrimitive("reason").getAsString();
+                String cbType = causedBy.getAsJsonPrimitive("type").getAsString();
+                errorMessages.append(String.format("%nCaused by: %s (%s)", cbReason, cbType));
               }
             }
           }

@@ -27,7 +27,6 @@ import static org.junit.Assert.assertThat;
 import java.io.IOException;
 import java.io.Serializable;
 import java.net.ServerSocket;
-import java.util.ArrayList;
 import java.util.List;
 
 import org.apache.beam.sdk.Pipeline;
@@ -43,14 +42,13 @@ import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFnTester;
 import org.apache.beam.sdk.values.PCollection;
 
+import org.elasticsearch.action.ActionListener;
+import org.elasticsearch.action.admin.indices.delete.DeleteIndexResponse;
 import org.elasticsearch.action.admin.indices.exists.indices.IndicesExistsRequest;
 import org.elasticsearch.action.admin.indices.exists.indices.IndicesExistsResponse;
-import org.elasticsearch.action.admin.indices.upgrade.post.UpgradeRequest;
-import org.elasticsearch.action.bulk.BulkRequestBuilder;
-import org.elasticsearch.action.bulk.BulkResponse;
 import org.elasticsearch.action.search.SearchResponse;
-import org.elasticsearch.client.Client;
 import org.elasticsearch.client.IndicesAdminClient;
+import org.elasticsearch.client.Requests;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.index.query.QueryBuilder;
 import org.elasticsearch.index.query.QueryBuilders;
@@ -84,12 +82,10 @@ public class ElasticsearchIOTest implements Serializable {
   private static final int NUM_SCIENTISTS = 10;
   private static final long BATCH_SIZE = 200L;
   private static final long AVERAGE_DOC_SIZE = 25L;
-  private static final int BATCH_SIZE_MEGABYTES = 1;
+  private static final long BATCH_SIZE_BYTES = 2048L;
 
-  private enum InjectionMode {
-    INJECT_SOME_INVALID_DOCS,
-    DO_NOT_INJECT_INVALID_DOCS;
-  }
+  private boolean indexDeleted = false;
+  private boolean waitForIndexDeletion = true;
 
   private static int esHttpPort;
   private static transient Node node;
@@ -116,7 +112,10 @@ public class ElasticsearchIOTest implements Serializable {
             .put("node.name", "beam")
             .put("network.host", ES_IP)
             .put("http.port", esHttpPort)
-            .put("index.store.stats_refresh_interval", 0);
+            .put("index.store.stats_refresh_interval", 0)
+            // had problems with some jdk, embedded ES was too slow for bulk insertion,
+            // and queue of 50 was full. No pb with real ES instance (cf testWrite integration test)
+            .put("threadpool.bulk.queue_size", 100);
     node = NodeBuilder.nodeBuilder().settings(settingsBuilder).build();
     LOGGER.info("Elasticsearch node created");
     node.start();
@@ -133,55 +132,37 @@ public class ElasticsearchIOTest implements Serializable {
     IndicesExistsResponse indicesExistsResponse =
         indices.exists(new IndicesExistsRequest(ES_INDEX)).get();
     if (indicesExistsResponse.isExists()) {
-      indices.prepareDelete(ES_INDEX).get();
-    }
-  }
+      indices.prepareClose(ES_INDEX).get();
+      // delete index is an asynchronous request, neither refresh or upgrade
+      // delete all docs before starting tests. WaitForYellow() and delete directory are too slow,
+      // so block thread until it is done (make it synchronous!!!)
+      indices.delete(
+          Requests.deleteIndexRequest(ES_INDEX),
+          new ActionListener<DeleteIndexResponse>() {
+            @Override
+            public void onResponse(DeleteIndexResponse deleteIndexResponse) {
+              waitForIndexDeletion = false;
+              indexDeleted = true;
+            }
 
-  private List<String> createDocuments(long numDocs, InjectionMode injectionMode) {
-    String[] scientists = {
-      "Einstein",
-      "Darwin",
-      "Copernicus",
-      "Pasteur",
-      "Curie",
-      "Faraday",
-      "Newton",
-      "Bohr",
-      "Galilei",
-      "Maxwell"
-    };
-    ArrayList<String> data = new ArrayList<>();
-    for (int i = 0; i < numDocs; i++) {
-      int index = i % scientists.length;
-      //insert 2 malformed documents
-      if (InjectionMode.INJECT_SOME_INVALID_DOCS.equals(injectionMode) && (i == 6 || i == 7)) {
-        data.add(String.format("{\"scientist\";\"%s\", \"id\":%d}", scientists[index], i));
-      } else {
-        data.add(String.format("{\"scientist\":\"%s\", \"id\":%d}", scientists[index], i));
+            @Override
+            public void onFailure(Throwable throwable) {
+              waitForIndexDeletion = false;
+              indexDeleted = false;
+            }
+          });
+      while (waitForIndexDeletion) {
+        Thread.sleep(100);
       }
-    }
-    return data;
-  }
-
-  private void insertTestDocuments(long numDocs) throws Exception {
-    Client client = node.client();
-    final BulkRequestBuilder bulkRequestBuilder = client.prepareBulk().setRefresh(true);
-    List<String> data = createDocuments(numDocs, InjectionMode.DO_NOT_INJECT_INVALID_DOCS);
-    for (String document : data) {
-      bulkRequestBuilder.add(client.prepareIndex(ES_INDEX, ES_TYPE, null).setSource(document));
-    }
-    final BulkResponse bulkResponse = bulkRequestBuilder.execute().actionGet();
-    if (bulkResponse.hasFailures()) {
-      throw new IOException(
-          String.format(
-              "Cannot insert test documents in index %s : %s",
-              ES_INDEX, bulkResponse.buildFailureMessage()));
+      if (!indexDeleted) {
+        throw new IOException("Failed to delete index " + ES_INDEX);
+      }
     }
   }
 
   @Test
   public void testSizes() throws Exception {
-    insertTestDocuments(NUM_DOCS);
+    ElasticSearchIOTestUtils.insertTestDocuments(ES_INDEX, ES_TYPE, NUM_DOCS, node.client());
     PipelineOptions options = PipelineOptionsFactory.create();
     ElasticsearchIO.Read read =
         ElasticsearchIO.read().withConnectionConfiguration(connectionConfiguration);
@@ -196,7 +177,7 @@ public class ElasticsearchIOTest implements Serializable {
   @Test
   @Category(RunnableOnService.class)
   public void testRead() throws Exception {
-    insertTestDocuments(NUM_DOCS);
+    ElasticSearchIOTestUtils.insertTestDocuments(ES_INDEX, ES_TYPE, NUM_DOCS, node.client());
 
     TestPipeline pipeline = TestPipeline.create();
 
@@ -215,7 +196,7 @@ public class ElasticsearchIOTest implements Serializable {
   @Test
   @Category(RunnableOnService.class)
   public void testReadWithQuery() throws Exception {
-    insertTestDocuments(NUM_DOCS);
+    ElasticSearchIOTestUtils.insertTestDocuments(ES_INDEX, ES_TYPE, NUM_DOCS, node.client());
 
     String query =
         "{\n"
@@ -245,21 +226,21 @@ public class ElasticsearchIOTest implements Serializable {
   @Category(RunnableOnService.class)
   public void testWrite() throws Exception {
     Pipeline pipeline = TestPipeline.create();
-    List<String> data = createDocuments(NUM_DOCS, InjectionMode.DO_NOT_INJECT_INVALID_DOCS);
+    List<String> data =
+        ElasticSearchIOTestUtils.createDocuments(
+            NUM_DOCS, ElasticSearchIOTestUtils.InjectionMode.DO_NOT_INJECT_INVALID_DOCS);
     pipeline
         .apply(Create.of(data))
         .apply(ElasticsearchIO.write().withConnectionConfiguration(connectionConfiguration));
     pipeline.run();
 
-    // force the index to upgrade after inserting for the inserted docs to be searchable immediately
-    node.client().admin().indices().upgrade(new UpgradeRequest()).actionGet();
-
-    SearchResponse response = node.client().prepareSearch().execute().actionGet(5000);
-    assertEquals(NUM_DOCS, response.getHits().getTotalHits());
+    long currentNumDocs = ElasticSearchIOTestUtils.upgradeIndexAndGetCurrentNumDocs(node.client());
+    assertEquals(NUM_DOCS, currentNumDocs);
 
     QueryBuilder queryBuilder = QueryBuilders.queryStringQuery("Einstein").field("scientist");
-    response = node.client().prepareSearch().setQuery(queryBuilder).execute().actionGet();
-    assertEquals(NUM_DOCS / NUM_SCIENTISTS, response.getHits().getTotalHits());
+    SearchResponse searchResponse =
+        node.client().prepareSearch().setQuery(queryBuilder).execute().actionGet();
+    assertEquals(NUM_DOCS / NUM_SCIENTISTS, searchResponse.getHits().getTotalHits());
   }
 
   @Rule public ExpectedException exception = ExpectedException.none();
@@ -275,7 +256,9 @@ public class ElasticsearchIOTest implements Serializable {
     // so we test the Writer as a DoFn outside of a runner.
     DoFnTester<String, Void> fnTester = DoFnTester.of(writerFn);
 
-    List<String> input = createDocuments(NUM_DOCS, InjectionMode.INJECT_SOME_INVALID_DOCS);
+    List<String> input =
+        ElasticSearchIOTestUtils.createDocuments(
+            NUM_DOCS, ElasticSearchIOTestUtils.InjectionMode.INJECT_SOME_INVALID_DOCS);
     exception.expect(isA(IOException.class));
     exception.expectMessage(
         new CustomMatcher<String>("RegExp matcher") {
@@ -284,8 +267,11 @@ public class ElasticsearchIOTest implements Serializable {
             String message = (String) o;
             return message.matches(
                 "(?is).*Error writing to Elasticsearch, some elements could not be inserted"
-                    + ".*document id.*was expecting a colon to separate field name and value"
-                    + ".*document id.*was expecting a colon to separate field name and value.*");
+                    + ".*Document id.* failed to parse \\(mapper_parsing_exception\\).*Caused by: "
+                    + "Unexpected character.* was expecting a colon to separate field name and "
+                    + "value.*Document id.* failed to parse \\(mapper_parsing_exception\\).*"
+                    + "Caused by: Unexpected character.* was expecting a colon to separate field "
+                    + "name and value.*");
           }
         });
     // inserts into Elasticsearch
@@ -293,7 +279,7 @@ public class ElasticsearchIOTest implements Serializable {
   }
 
   @Test
-  public void testWriteWithBatchSize() throws Exception {
+  public void testWriteWithMaxBatchSize() throws Exception {
     ElasticsearchIO.Write write =
         ElasticsearchIO.write()
             .withConnectionConfiguration(connectionConfiguration)
@@ -303,7 +289,9 @@ public class ElasticsearchIOTest implements Serializable {
     ElasticsearchIO.Write.WriterFn writerFn = new ElasticsearchIO.Write.WriterFn(write);
     DoFnTester<String, Void> fnTester = DoFnTester.of(writerFn);
     fnTester.setCloningBehavior(DoFnTester.CloningBehavior.DO_NOT_CLONE);
-    List<String> input = createDocuments(NUM_DOCS, InjectionMode.DO_NOT_INJECT_INVALID_DOCS);
+    List<String> input =
+        ElasticSearchIOTestUtils.createDocuments(
+            NUM_DOCS, ElasticSearchIOTestUtils.InjectionMode.DO_NOT_INJECT_INVALID_DOCS);
     long numDocsProcessed = 0;
     long numDocsInserted = 0;
     for (String document : input) {
@@ -313,7 +301,8 @@ public class ElasticsearchIOTest implements Serializable {
       if ((numDocsProcessed % 100) == 0) {
         // force the index to upgrade after inserting for the inserted docs
         // to be searchable immediately
-        long currentNumDocs = upgradeIndexAndGetCurrentNumDocs();
+        long currentNumDocs =
+            ElasticSearchIOTestUtils.upgradeIndexAndGetCurrentNumDocs(node.client());
         if ((numDocsProcessed % BATCH_SIZE) == 0) {
           /* bundle end */
           assertEquals(
@@ -333,51 +322,55 @@ public class ElasticsearchIOTest implements Serializable {
   }
 
   @Test
-  public void testWriteWithBatchSizeMegaBytes() throws Exception {
+  public void testWriteWithMaxBatchSizeBytes() throws Exception {
     ElasticsearchIO.Write write =
         ElasticsearchIO.write()
             .withConnectionConfiguration(connectionConfiguration)
-            .withMaxBatchSizeMegaBytes(BATCH_SIZE_MEGABYTES);
+            .withMaxBatchSizeBytes(BATCH_SIZE_BYTES);
     // write bundles size is the runner decision, we cannot force a bundle size,
     // so we test the Writer as a DoFn outside of a runner.
     ElasticsearchIO.Write.WriterFn writerFn = new ElasticsearchIO.Write.WriterFn(write);
     DoFnTester<String, Void> fnTester = DoFnTester.of(writerFn);
     fnTester.setCloningBehavior(DoFnTester.CloningBehavior.DO_NOT_CLONE);
-    List<String> input = createDocuments(NUM_DOCS, InjectionMode.DO_NOT_INJECT_INVALID_DOCS);
+    List<String> input =
+        ElasticSearchIOTestUtils.createDocuments(
+            NUM_DOCS, ElasticSearchIOTestUtils.InjectionMode.DO_NOT_INJECT_INVALID_DOCS);
     long numDocsProcessed = 0;
+    long sizeProcessed = 0;
+    long numDocsInserted = 0;
+    long batchInserted = 0;
     for (String document : input) {
       fnTester.processElement(document);
       numDocsProcessed++;
-      // test every 100 docs to avoid overloading ES
-      if ((numDocsProcessed % 100) == 0) {
-        // there should be only one bundle because minimum BATCH_SIZE_MEGABYTES is 1MB,
-        // and 400 docs represent 10kB. To have more than 1 bundle, we should insert
-        // more than 40 000 docs which is not reasonable in a unit test. So docs should be inserted
-        // in ES only when the input collection is finished processing
-        assertEquals(
-            "we are not at the end of the bundle, we should have inserted no documents",
-            0,
-            upgradeIndexAndGetCurrentNumDocs());
+      sizeProcessed += document.getBytes().length;
+      // test every 40 docs to avoid overloading ES
+      if ((numDocsProcessed % 40) == 0) {
+        // force the index to upgrade after inserting for the inserted docs
+        // to be searchable immediately
+        long currentNumDocs =
+            ElasticSearchIOTestUtils.upgradeIndexAndGetCurrentNumDocs(node.client());
+        if (sizeProcessed / BATCH_SIZE_BYTES > batchInserted) {
+          /* bundle end */
+          assertThat(
+              "we have passed a bundle size, we should have inserted some documents",
+              currentNumDocs,
+              greaterThan(numDocsInserted));
+          numDocsInserted = currentNumDocs;
+          batchInserted = (sizeProcessed / BATCH_SIZE_BYTES);
+        } else {
+          /* not bundle end */
+          assertEquals(
+              "we are not at the end of a bundle, we should have inserted no more documents",
+              numDocsInserted,
+              currentNumDocs);
+        }
       }
     }
-    fnTester.finishBundle();
-    assertEquals(
-        "we are at the end of the bundle, we should have inserted all documents",
-        NUM_DOCS,
-        upgradeIndexAndGetCurrentNumDocs());
-  }
-
-  private long upgradeIndexAndGetCurrentNumDocs() {
-    // force the index to upgrade after inserting for the inserted docs
-    // to be searchable immediately
-    node.client().admin().indices().upgrade(new UpgradeRequest()).actionGet();
-    SearchResponse response = node.client().prepareSearch().execute().actionGet(5000);
-    return response.getHits().getTotalHits();
   }
 
   @Test
   public void testSplitIntoBundles() throws Exception {
-    insertTestDocuments(NUM_DOCS);
+    ElasticSearchIOTestUtils.insertTestDocuments(ES_INDEX, ES_TYPE, NUM_DOCS, node.client());
     PipelineOptions options = PipelineOptionsFactory.create();
     ElasticsearchIO.Read read =
         ElasticsearchIO.read().withConnectionConfiguration(connectionConfiguration);
