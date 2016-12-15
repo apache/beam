@@ -239,7 +239,7 @@ class ReadFromText(PTransform):
                                strip_trailing_newlines, coder,
                                validate=validate)
 
-  def apply(self, pvalue):
+  def expand(self, pvalue):
     return pvalue.pipeline | Read(self._source)
 
   def display_data(self):
@@ -297,7 +297,7 @@ class WriteToText(PTransform):
                            append_trailing_newlines, num_shards,
                            shard_name_template, coder, compression_type)
 
-  def apply(self, pcoll):
+  def expand(self, pcoll):
     return pcoll | Write(self._sink)
 
   def display_data(self):

@@ -318,7 +318,7 @@ class CombineTest(unittest.TestCase):
 
   def test_combine_globally_with_default_side_input(self):
     class CombineWithSideInput(PTransform):
-      def apply(self, pcoll):
+      def expand(self, pcoll):
         side = pcoll | CombineGlobally(sum).as_singleton_view()
         main = pcoll.pipeline | Create([None])
         return main | Map(lambda _, s: s, side)

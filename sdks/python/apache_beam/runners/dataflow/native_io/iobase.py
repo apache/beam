@@ -306,6 +306,6 @@ class _NativeWrite(ptransform.PTransform):
     super(_NativeWrite, self).__init__(label)
     self.sink = sink
 
-  def apply(self, pcoll):
+  def expand(self, pcoll):
     self._check_pcollection(pcoll)
     return pvalue.PDone(pcoll.pipeline)

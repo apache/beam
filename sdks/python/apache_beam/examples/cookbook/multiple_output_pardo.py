@@ -112,7 +112,7 @@ class CountWords(beam.PTransform):
   of "word: count" strings.
   """
 
-  def apply(self, pcoll):
+  def expand(self, pcoll):
     return (pcoll
             | 'pair_with_one' >> beam.Map(lambda x: (x, 1))
             | 'group' >> beam.GroupByKey()

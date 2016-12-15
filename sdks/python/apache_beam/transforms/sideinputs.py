@@ -50,7 +50,7 @@ class CreatePCollectionView(PTransform):
     # typehints.View[...].
     return input_type
 
-  def apply(self, pcoll):
+  def expand(self, pcoll):
     return self.view
 
 
@@ -68,7 +68,7 @@ class ViewAsSingleton(PTransform):
     self.has_default = has_default
     self.default_value = default_value
 
-  def apply(self, pcoll):
+  def expand(self, pcoll):
     self._check_pcollection(pcoll)
     input_type = pcoll.element_type
     output_type = input_type
@@ -93,7 +93,7 @@ class ViewAsIterable(PTransform):
       label = 'ViewAsIterable(%s)' % label
     super(ViewAsIterable, self).__init__(label=label)
 
-  def apply(self, pcoll):
+  def expand(self, pcoll):
     self._check_pcollection(pcoll)
     input_type = pcoll.element_type
     output_type = typehints.Iterable[input_type]
@@ -118,7 +118,7 @@ class ViewAsList(PTransform):
       label = 'ViewAsList(%s)' % label
     super(ViewAsList, self).__init__(label=label)
 
-  def apply(self, pcoll):
+  def expand(self, pcoll):
     self._check_pcollection(pcoll)
     input_type = pcoll.element_type
     output_type = typehints.List[input_type]
@@ -144,7 +144,7 @@ class ViewAsDict(PTransform):
       label = 'ViewAsDict(%s)' % label
     super(ViewAsDict, self).__init__(label=label)
 
-  def apply(self, pcoll):
+  def expand(self, pcoll):
     self._check_pcollection(pcoll)
     input_type = pcoll.element_type
     key_type, value_type = (

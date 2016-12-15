@@ -359,7 +359,7 @@ class PTransform(WithTypeHints, HasDisplayData):
     transform.label = new_label
     return transform
 
-  def apply(self, input_or_inputs):
+  def expand(self, input_or_inputs):
     raise NotImplementedError
 
   def __str__(self):
@@ -493,7 +493,7 @@ class ChainedPTransform(PTransform):
     else:
       return NotImplemented
 
-  def apply(self, pval):
+  def expand(self, pval):
     return reduce(operator.or_, self._parts, pval)
 
 
@@ -650,7 +650,7 @@ class CallablePTransform(PTransform):
     super(CallablePTransform, self).__init__(label=label)
     return self
 
-  def apply(self, pcoll):
+  def expand(self, pcoll):
     # Since the PTransform will be implemented entirely as a function
     # (once called), we need to pass through any type-hinting information that
     # may have been annotated via the .with_input_types() and
@@ -700,7 +700,7 @@ def ptransform_fn(fn):
         super(CustomMapper, self).__init__()
         self.mapfn = mapfn
 
-      def apply(self, pcoll):
+      def expand(self, pcoll):
         return pcoll | ParDo(self.mapfn)
 
   With either method the custom PTransform can be used in pipelines as if
@@ -738,5 +738,5 @@ class _NamedPTransform(PTransform):
   def __ror__(self, pvalueish):
     return self.transform.__ror__(pvalueish, self.label)
 
-  def apply(self, pvalue):
+  def expand(self, pvalue):
     raise RuntimeError("Should never be applied directly.")

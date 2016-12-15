@@ -84,7 +84,7 @@ class WriteToTestSink(PTransform):
     self.last_sink = None
     self.label = 'write_to_test_sink'
 
-  def apply(self, pcoll):
+  def expand(self, pcoll):
     self.last_sink = _TestSink(return_init_result=self.return_init_result,
                                return_write_results=self.return_write_results)
     return pcoll | beam.io.Write(self.last_sink)

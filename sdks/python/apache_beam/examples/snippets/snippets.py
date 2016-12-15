@@ -80,7 +80,7 @@ def construct_pipeline(renames):
   class ReverseWords(beam.PTransform):
     """A PTransform that reverses individual elements in a PCollection."""
 
-    def apply(self, pcoll):
+    def expand(self, pcoll):
       return pcoll | beam.Map(lambda e: e[::-1])
 
   def filter_words(unused_x):
@@ -387,7 +387,7 @@ def pipeline_monitoring(renames):
   # The CountWords Composite Transform inside the WordCount pipeline.
   class CountWords(beam.PTransform):
 
-    def apply(self, pcoll):
+    def expand(self, pcoll):
       return (pcoll
               # Convert lines of text into individual words.
               | 'ExtractWords' >> beam.ParDo(ExtractWordsFn())
@@ -508,7 +508,7 @@ def examples_wordcount_wordcount(renames):
   # [START examples_wordcount_wordcount_composite]
   class CountWords(beam.PTransform):
 
-    def apply(self, pcoll):
+    def expand(self, pcoll):
       return (pcoll
               # Convert lines of text into individual words.
               | beam.FlatMap(
@@ -705,7 +705,7 @@ def model_custom_source(count):
       super(ReadFromCountingSource, self).__init__(**kwargs)
       self._count = count
 
-    def apply(self, pcoll):
+    def expand(self, pcoll):
       return pcoll | iobase.Read(_CountingSource(count))
   # [END model_custom_source_new_ptransform]
 
@@ -838,7 +838,7 @@ def model_custom_sink(simplekv, KVs, final_table_name_no_ptransform,
       self._url = url
       self._final_table_name = final_table_name
 
-    def apply(self, pcoll):
+    def expand(self, pcoll):
       return pcoll | iobase.Write(_SimpleKVSink(self._url,
                                                 self._final_table_name))
   # [END model_custom_sink_new_ptransform]
@@ -1001,7 +1001,7 @@ def model_composite_transform_example(contents, output_path):
   class CountWords(beam.PTransform):
     # [END composite_ptransform_declare]
 
-    def apply(self, pcoll):
+    def expand(self, pcoll):
       return (pcoll
               | beam.FlatMap(lambda x: re.findall(r'\w+', x))
               | beam.combiners.Count.PerElement()
@@ -1197,7 +1197,7 @@ def model_join_using_side_inputs(
 # [START model_library_transforms_keys]
 class Keys(beam.PTransform):
 
-  def apply(self, pcoll):
+  def expand(self, pcoll):
     return pcoll | 'Keys' >> beam.Map(lambda (k, v): k)
 # [END model_library_transforms_keys]
 # pylint: enable=invalid-name
@@ -1206,7 +1206,7 @@ class Keys(beam.PTransform):
 # [START model_library_transforms_count]
 class Count(beam.PTransform):
 
-  def apply(self, pcoll):
+  def expand(self, pcoll):
     return (
         pcoll
         | 'PairWithOne' >> beam.Map(lambda v: (v, 1))

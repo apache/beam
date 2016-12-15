@@ -58,13 +58,13 @@ class Mean(object):
   class Globally(ptransform.PTransform):
     """combiners.Mean.Globally computes the arithmetic mean of the elements."""
 
-    def apply(self, pcoll):
+    def expand(self, pcoll):
       return pcoll | core.CombineGlobally(MeanCombineFn())
 
   class PerKey(ptransform.PTransform):
     """combiners.Mean.PerKey finds the means of the values for each key."""
 
-    def apply(self, pcoll):
+    def expand(self, pcoll):
       return pcoll | core.CombinePerKey(MeanCombineFn())
 
 
@@ -105,19 +105,19 @@ class Count(object):
   class Globally(ptransform.PTransform):
     """combiners.Count.Globally counts the total number of elements."""
 
-    def apply(self, pcoll):
+    def expand(self, pcoll):
       return pcoll | core.CombineGlobally(CountCombineFn())
 
   class PerKey(ptransform.PTransform):
     """combiners.Count.PerKey counts how many elements each unique key has."""
 
-    def apply(self, pcoll):
+    def expand(self, pcoll):
       return pcoll | core.CombinePerKey(CountCombineFn())
 
   class PerElement(ptransform.PTransform):
     """combiners.Count.PerElement counts how many times each element occurs."""
 
-    def apply(self, pcoll):
+    def expand(self, pcoll):
       paired_with_void_type = KV[pcoll.element_type, Any]
       return (pcoll
               | (core.Map('%s:PairWithVoid' % self.label, lambda x: (x, None))
@@ -475,7 +475,7 @@ class ToList(ptransform.PTransform):
   def __init__(self, label='ToList'):
     super(ToList, self).__init__(label)
 
-  def apply(self, pcoll):
+  def expand(self, pcoll):
     return pcoll | core.CombineGlobally(self.label, ToListCombineFn())
 
 
@@ -509,7 +509,7 @@ class ToDict(ptransform.PTransform):
   def __init__(self, label='ToDict'):
     super(ToDict, self).__init__(label)
 
-  def apply(self, pcoll):
+  def expand(self, pcoll):
     return pcoll | core.CombineGlobally(self.label, ToDictCombineFn())
 
 

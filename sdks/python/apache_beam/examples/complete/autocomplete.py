@@ -60,7 +60,7 @@ class TopPerPrefix(beam.PTransform):
     super(TopPerPrefix, self).__init__()
     self._count = count
 
-  def apply(self, words):
+  def expand(self, words):
     """Compute the most common words for each possible prefixes.
 
     Args:
