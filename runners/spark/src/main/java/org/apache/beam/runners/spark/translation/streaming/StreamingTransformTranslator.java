@@ -37,6 +37,7 @@ import org.apache.beam.runners.spark.translation.GroupCombineFunctions;
 import org.apache.beam.runners.spark.translation.MultiDoFnFunction;
 import org.apache.beam.runners.spark.translation.SparkAssignWindowFn;
 import org.apache.beam.runners.spark.translation.SparkKeyedCombineFn;
+import org.apache.beam.runners.spark.translation.SparkPCollectionView;
 import org.apache.beam.runners.spark.translation.SparkPipelineTranslator;
 import org.apache.beam.runners.spark.translation.SparkRuntimeContext;
 import org.apache.beam.runners.spark.translation.TransformEvaluator;
@@ -238,12 +239,12 @@ final class StreamingTransformTranslator {
     return new TransformEvaluator<Combine.GroupedValues<K, InputT, OutputT>>() {
       @SuppressWarnings("unchecked")
       @Override
-      public void evaluate(Combine.GroupedValues<K, InputT, OutputT> transform,
+      public void evaluate(final Combine.GroupedValues<K, InputT, OutputT> transform,
                            EvaluationContext context) {
         // get the applied combine function.
         PCollection<? extends KV<K, ? extends Iterable<InputT>>> input =
             context.getInput(transform);
-        WindowingStrategy<?, ?> windowingStrategy = input.getWindowingStrategy();
+        final WindowingStrategy<?, ?> windowingStrategy = input.getWindowingStrategy();
         final CombineWithContext.KeyedCombineFnWithContext<K, InputT, ?, OutputT> fn =
             (CombineWithContext.KeyedCombineFnWithContext<K, InputT, ?, OutputT>)
                 CombineFnUtil.toFnWithContext(transform.getFn());
@@ -252,13 +253,29 @@ final class StreamingTransformTranslator {
             ((UnboundedDataset<KV<K, Iterable<InputT>>>) context.borrowDataset(transform))
                 .getDStream();
 
-        SparkKeyedCombineFn<K, InputT, ?, OutputT> combineFnWithContext =
-            new SparkKeyedCombineFn<>(fn, context.getRuntimeContext(),
-                TranslationUtils.getSideInputs(transform.getSideInputs(), context),
-                windowingStrategy);
-        context.putDataset(transform, new UnboundedDataset<>(dStream.map(new TranslationUtils
-            .CombineGroupedValues<>(
-            combineFnWithContext))));
+        final SparkRuntimeContext runtimeContext = context.getRuntimeContext();
+        final SparkPCollectionView pviews = context.getPviews();
+
+        JavaDStream<WindowedValue<KV<K, OutputT>>> outStream = dStream.transform(
+                new Function<JavaRDD<WindowedValue<KV<K, Iterable<InputT>>>>,
+                             JavaRDD<WindowedValue<KV<K, OutputT>>>>() {
+                  @Override
+                  public JavaRDD<WindowedValue<KV<K, OutputT>>>
+                      call(JavaRDD<WindowedValue<KV<K, Iterable<InputT>>>> rdd)
+                          throws Exception {
+
+                    // TODO: check if better to create fn outside
+                    SparkKeyedCombineFn<K, InputT, ?, OutputT> combineFnWithContext =
+                            new SparkKeyedCombineFn<>(fn, runtimeContext,
+                                    TranslationUtils.getSideInputs(transform.getSideInputs(),
+                                    new JavaSparkContext(rdd.context()), pviews),
+                                    windowingStrategy);
+                    return rdd.map(
+                            new TranslationUtils.CombineGroupedValues<>(combineFnWithContext));
+                  }
+                });
+
+        context.putDataset(transform, new UnboundedDataset<>(outStream));
       }
     };
   }
@@ -269,7 +286,8 @@ final class StreamingTransformTranslator {
 
       @SuppressWarnings("unchecked")
       @Override
-      public void evaluate(Combine.Globally<InputT, OutputT> transform, EvaluationContext context) {
+      public void evaluate(final Combine.Globally<InputT, OutputT> transform,
+                           EvaluationContext context) {
         final PCollection<InputT> input = context.getInput(transform);
         // serializable arguments to pass.
         final Coder<InputT> iCoder = context.getInput(transform).getCoder();
@@ -279,9 +297,8 @@ final class StreamingTransformTranslator {
                 CombineFnUtil.toFnWithContext(transform.getFn());
         final WindowingStrategy<?, ?> windowingStrategy = input.getWindowingStrategy();
         final SparkRuntimeContext runtimeContext = context.getRuntimeContext();
-        final Map<TupleTag<?>, KV<WindowingStrategy<?, ?>, BroadcastHelper<?>>> sideInputs =
-            TranslationUtils.getSideInputs(transform.getSideInputs(), context);
         final boolean hasDefault = transform.isInsertDefault();
+        final SparkPCollectionView pviews = context.getPviews();
 
         JavaDStream<WindowedValue<InputT>> dStream =
             ((UnboundedDataset<InputT>) context.borrowDataset(transform)).getDStream();
@@ -291,6 +308,11 @@ final class StreamingTransformTranslator {
           @Override
           public JavaRDD<WindowedValue<OutputT>> call(JavaRDD<WindowedValue<InputT>> rdd)
               throws Exception {
+            //DRIVER CODE
+            final Map<TupleTag<?>, KV<WindowingStrategy<?, ?>, BroadcastHelper<?>>> sideInputs =
+                    TranslationUtils.getSideInputs(transform.getSideInputs(),
+                            JavaSparkContext.fromSparkContext(rdd.context()),
+                            pviews);
             return GroupCombineFunctions.combineGlobally(rdd, combineFn, iCoder, oCoder,
                 runtimeContext, windowingStrategy, sideInputs, hasDefault);
           }
@@ -317,8 +339,7 @@ final class StreamingTransformTranslator {
                 CombineFnUtil.toFnWithContext(transform.getFn());
         final WindowingStrategy<?, ?> windowingStrategy = input.getWindowingStrategy();
         final SparkRuntimeContext runtimeContext = context.getRuntimeContext();
-        final Map<TupleTag<?>, KV<WindowingStrategy<?, ?>, BroadcastHelper<?>>> sideInputs =
-            TranslationUtils.getSideInputs(transform.getSideInputs(), context);
+        final SparkPCollectionView pviews = context.getPviews();
 
         JavaDStream<WindowedValue<KV<K, InputT>>> dStream =
             ((UnboundedDataset<KV<K, InputT>>) context.borrowDataset(transform)).getDStream();
@@ -329,6 +350,10 @@ final class StreamingTransformTranslator {
           @Override
           public JavaRDD<WindowedValue<KV<K, OutputT>>> call(
               JavaRDD<WindowedValue<KV<K, InputT>>> rdd) throws Exception {
+            final Map<TupleTag<?>, KV<WindowingStrategy<?, ?>, BroadcastHelper<?>>> sideInputs =
+                    TranslationUtils.getSideInputs(transform.getSideInputs(),
+                                         JavaSparkContext.fromSparkContext(rdd.context()),
+                                         pviews);
             return GroupCombineFunctions.combinePerKey(rdd, combineFn, inputCoder, runtimeContext,
                 windowingStrategy, sideInputs);
           }
@@ -347,10 +372,10 @@ final class StreamingTransformTranslator {
         final DoFn<InputT, OutputT> doFn = transform.getFn();
         rejectStateAndTimers(doFn);
         final SparkRuntimeContext runtimeContext = context.getRuntimeContext();
-        final Map<TupleTag<?>, KV<WindowingStrategy<?, ?>, BroadcastHelper<?>>> sideInputs =
-            TranslationUtils.getSideInputs(transform.getSideInputs(), context);
         final WindowingStrategy<?, ?> windowingStrategy =
             context.getInput(transform).getWindowingStrategy();
+        final SparkPCollectionView pviews = context.getPviews();
+
         JavaDStream<WindowedValue<InputT>> dStream =
             ((UnboundedDataset<InputT>) context.borrowDataset(transform)).getDStream();
 
@@ -360,8 +385,15 @@ final class StreamingTransformTranslator {
           @Override
           public JavaRDD<WindowedValue<OutputT>> call(JavaRDD<WindowedValue<InputT>> rdd) throws
               Exception {
+            final JavaSparkContext jsc = new JavaSparkContext(rdd.context());
+
             final Accumulator<NamedAggregators> accum =
-                SparkAggregators.getNamedAggregators(new JavaSparkContext(rdd.context()));
+                    SparkAggregators.getNamedAggregators(jsc);
+
+            final Map<TupleTag<?>, KV<WindowingStrategy<?, ?>, BroadcastHelper<?>>> sideInputs =
+                    TranslationUtils.getSideInputs(transform.getSideInputs(),
+                                                   jsc,
+                                                   pviews);
             return rdd.mapPartitions(
                 new DoFnFunction<>(accum, doFn, runtimeContext, sideInputs, windowingStrategy));
           }
@@ -381,8 +413,7 @@ final class StreamingTransformTranslator {
         final DoFn<InputT, OutputT> doFn = transform.getFn();
         rejectStateAndTimers(doFn);
         final SparkRuntimeContext runtimeContext = context.getRuntimeContext();
-        final Map<TupleTag<?>, KV<WindowingStrategy<?, ?>, BroadcastHelper<?>>> sideInputs =
-            TranslationUtils.getSideInputs(transform.getSideInputs(), context);
+        final SparkPCollectionView pviews = context.getPviews();
         final WindowingStrategy<?, ?> windowingStrategy =
             context.getInput(transform).getWindowingStrategy();
         @SuppressWarnings("unchecked")
@@ -396,8 +427,14 @@ final class StreamingTransformTranslator {
               JavaRDD<WindowedValue<InputT>> rdd) throws Exception {
             final Accumulator<NamedAggregators> accum =
                 SparkAggregators.getNamedAggregators(new JavaSparkContext(rdd.context()));
-            return rdd.mapPartitionsToPair(new MultiDoFnFunction<>(accum, doFn,
-                runtimeContext, transform.getMainOutputTag(), sideInputs, windowingStrategy));
+
+            final Map<TupleTag<?>, KV<WindowingStrategy<?, ?>, BroadcastHelper<?>>> sideInputs =
+                    TranslationUtils.getSideInputs(transform.getSideInputs(),
+                            JavaSparkContext.fromSparkContext(rdd.context()),
+                            pviews);
+              return rdd.mapPartitionsToPair(new MultiDoFnFunction<>(accum, doFn,
+                      runtimeContext, transform.getMainOutputTag(),
+                      sideInputs, windowingStrategy));
           }
         }).cache();
         PCollectionTuple pct = context.getOutput(transform);
