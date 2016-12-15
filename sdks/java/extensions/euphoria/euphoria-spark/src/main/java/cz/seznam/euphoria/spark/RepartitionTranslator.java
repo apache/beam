@@ -47,8 +47,9 @@ class RepartitionTranslator implements SparkOperatorTranslator<Repartition> {
     @SuppressWarnings("unchecked")
     public Tuple2<Integer, WindowedElement> call(WindowedElement el)  {
       Partitioner partitioner = partitioning.getPartitioner();
-      int partition = partitioner.getPartition(el.getElement()) % partitioning.getNumPartitions();
-      return new Tuple2<>(partition, el);
+      int partitionId = partitioner.getPartition(el.getElement());
+      return new Tuple2<>(
+              (partitionId & Integer.MAX_VALUE) % partitioning.getNumPartitions(), el);
     }
   }
 

@@ -8,21 +8,25 @@ import org.apache.spark.Partitioner;
  */
 class PartitioningWrapper extends Partitioner {
 
-  private final Partitioning partitioning;
+  private final cz.seznam.euphoria.core.client.dataset.Partitioner partitioner;
+  private final int numPartitions;
 
   public PartitioningWrapper(Partitioning partitioning) {
-    this.partitioning = partitioning;
+    this.partitioner = partitioning.getPartitioner();
+    this.numPartitions = partitioning.getNumPartitions();
   }
 
   @Override
   public int numPartitions() {
-    return partitioning.getNumPartitions();
+    return numPartitions;
   }
 
   @Override
   @SuppressWarnings("unchecked")
   public int getPartition(Object el) {
     KeyedWindow kw = (KeyedWindow) el;
-    return partitioning.getPartitioner().getPartition(kw.key()) % numPartitions();
+    int partitionId = partitioner.getPartition(kw.key());
+
+    return (partitionId & Integer.MAX_VALUE) % numPartitions();
   }
 }
