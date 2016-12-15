@@ -36,6 +36,6 @@ mavenJob('beam_PostCommit_Java_RunnableOnService_Apex') {
       --also-make \
       --batch-mode \
       --errors \
-      --profile runnable-on-service-tests \
-      --profile local-runnable-on-service-tests''')
+      --activate-profiles runnable-on-service-tests \
+      --activate-profiles local-runnable-on-service-tests''')
 }
