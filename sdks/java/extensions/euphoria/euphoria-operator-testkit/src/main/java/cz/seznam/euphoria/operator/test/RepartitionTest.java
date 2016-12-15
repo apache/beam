@@ -31,13 +31,13 @@ public class RepartitionTest extends AbstractOperatorTest {
       @Override
       public void validate(Partitions<Integer> partitions) {
         assertEquals(1, partitions.size());
-        assertUnorderedEquals(Arrays.asList(1, 2, 3, 4, 5, 6, 7), partitions.get(0));
+        assertUnorderedEquals(Arrays.asList(-1, 2, -3, 4, 5, 6, 7), partitions.get(0));
       }
 
       @Override
       protected Partitions<Integer> getInput() {
         return Partitions
-            .add(1, 2, 3, 4)
+            .add(-1, 2, -3, 4)
             .add(5, 6, 7)
             .build();
       }
@@ -65,12 +65,12 @@ public class RepartitionTest extends AbstractOperatorTest {
       public void validate(Partitions<Integer> partitions) {
         assertEquals(2, partitions.size());
         assertEquals(Arrays.asList(2, 4, 6), partitions.get(0));
-        assertEquals(Arrays.asList(1, 3, 5, 7), partitions.get(1));
+        assertEquals(Arrays.asList(-1, -3, 5, 7), partitions.get(1));
       }
 
       @Override
       protected Partitions<Integer> getInput() {
-        return Partitions.add(1, 2, 3, 4, 5, 6, 7).build();
+        return Partitions.add(-1, 2, -3, 4, 5, 6, 7).build();
       }
 
       @Override
