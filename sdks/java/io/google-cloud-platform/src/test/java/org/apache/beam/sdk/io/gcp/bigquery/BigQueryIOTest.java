@@ -584,7 +584,6 @@ public class BigQueryIOTest implements Serializable {
                 tableReference.getDatasetId(),
                 FakeDatasetService.class.getSimpleName());
         TableContainer tableContainer = dataset.get(tableReference.getTableId());
-        System.out.println("CREATING TABLE " + tableReference);
         if (tableContainer == null) {
           tableContainer = new TableContainer(table);
           dataset.put(tableReference.getTableId(), tableContainer);
