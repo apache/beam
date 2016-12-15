@@ -320,7 +320,8 @@ Start the review-and-vote thread on the dev@ mailing list. Here’s an email tem
     * the official Apache source release to be deployed to dist.apache.org [2],
     * all artifacts to be deployed to the Maven Central Repository [3],
     * source code tag "v1.2.3-RC3" [4],
-    * website pull request listing the release and publishing the API reference manual [5].
+    * website pull request listing the release and publishing the API reference manual [5],
+    * the release artifacts are signed with the key with fingerprint FFFFFFFF [6].
 
     The vote will be open for at least 72 hours. It is adopted by majority approval, with at least 3 PPMC affirmative votes.
 
@@ -332,6 +333,7 @@ Start the review-and-vote thread on the dev@ mailing list. Here’s an email tem
     [3] link
     [4] link
     [5] link
+    [6] https://dist.apache.org/repos/dist/release/incubator/beam/KEYS
 
 If there are any issues found in the release candidate, reply on the vote thread to cancel the vote. There’s no need to wait 72 hours. Proceed to the `Fix Issues` step below and address the problem. However, some issues don’t require cancellation. For example, if an issue is found in the website pull request, just correct it on the spot and the vote can continue as-is.
 
