@@ -90,11 +90,11 @@
                      the second relocation. -->
                 <relocation>
                   <pattern>com.google.common</pattern>
-                  <shadedPattern>org.apache.beam.sdk.repackaged.com.google.common</shadedPattern>
+                  <shadedPattern>org.apache.beam.runners.core.repackaged.com.google.common</shadedPattern>
                 </relocation>
                 <relocation>
                   <pattern>com.google.thirdparty</pattern>
-                  <shadedPattern>org.apache.beam.sdk.repackaged.com.google.thirdparty</shadedPattern>
+                  <shadedPattern>org.apache.beam.runners.core.repackaged.com.google.thirdparty</shadedPattern>
                 </relocation>
               </relocations>
             </configuration>
