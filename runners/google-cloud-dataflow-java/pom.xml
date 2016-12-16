@@ -80,7 +80,8 @@
               <excludedGroups>
                 org.apache.beam.sdk.testing.UsesStatefulParDo,
                 org.apache.beam.sdk.testing.UsesTimersInParDo,
-                org.apache.beam.sdk.testing.UsesSplittableParDo
+                org.apache.beam.sdk.testing.UsesSplittableParDo,
+                org.apache.beam.sdk.testing.UsesMetrics
               </excludedGroups>
               <excludes>
                 <exclude>org.apache.beam.sdk.transforms.FlattenTest</exclude>
