@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.util.state;
+package org.apache.beam.runners.core;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
@@ -29,6 +29,7 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.TimeDomain;
 import org.apache.beam.sdk.util.TimerInternals;
 import org.apache.beam.sdk.util.WindowTracing;
+import org.apache.beam.sdk.util.state.StateNamespace;
 import org.joda.time.Instant;
 
 /**
@@ -270,31 +271,6 @@ public class InMemoryTimerInternals implements TimerInternals {
       return timer;
     } else {
       return null;
-    }
-  }
-
-  /** Advances processing time to the given value and fires processing-time timers accordingly.
-   *
-   *  @deprecated Use advanceProcessingTime without callback and fireProcessingTimers.
-   */
-  @Deprecated
-  public void advanceProcessingTime(
-      TimerCallback timerCallback, Instant newProcessingTime) throws Exception {
-    advanceProcessingTime(newProcessingTime);
-    advanceAndFire(timerCallback, newProcessingTime, TimeDomain.PROCESSING_TIME);
-  }
-
-  @Deprecated
-  private void advanceAndFire(
-      TimerCallback timerCallback, Instant currentTime, TimeDomain domain)
-      throws Exception {
-    checkNotNull(timerCallback);
-    TimerData timer;
-    while ((timer = removeNextTimer(currentTime, domain)) != null) {
-      WindowTracing.trace(
-          "{}.advanceAndFire: firing {} at {}",
-          getClass().getSimpleName(), timer, currentTime);
-      timerCallback.onTimer(timer);
     }
   }
 }
