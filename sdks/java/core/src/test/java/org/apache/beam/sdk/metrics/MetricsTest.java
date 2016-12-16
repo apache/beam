@@ -110,7 +110,7 @@ public class MetricsTest implements Serializable {
 
   @Category({RunnableOnService.class, UsesMetrics.class})
   @Test
-  public void metricsE2E() {
+  public void metricsReportToQuery() {
     final Counter count = Metrics.counter(MetricsTest.class, "count");
     Pipeline pipeline = TestPipeline.create();
     pipeline
