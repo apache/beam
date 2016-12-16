@@ -121,11 +121,11 @@ class common_job_properties {
         result('SUCCESS')
       }
       messages << 'org.jenkinsci.plugins.ghprb.extensions.comments.GhprbBuildResultMessage' {
-        message('--none--')
+        message('Error')
         result('ERROR')
       }
       messages << 'org.jenkinsci.plugins.ghprb.extensions.comments.GhprbBuildResultMessage' {
-        message('--none--')
+        message('Failure')
         result('FAILURE')
       }
     }
