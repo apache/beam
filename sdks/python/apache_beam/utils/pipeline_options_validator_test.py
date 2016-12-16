@@ -38,11 +38,13 @@ class MockRunners(object):
   class OtherRunner(object):
     pass
 
+
 # Matcher that always passes for testing on_success_matcher option
 class AlwaysPassMatcher(BaseMatcher):
 
   def _matches(self, item):
     return True
+
 
 class SetupTest(unittest.TestCase):
 
@@ -313,19 +315,20 @@ class SetupTest(unittest.TestCase):
       return validator
 
     test_case = [
-      {'on_success_matcher': None,
-       'errors': []},
-      {'on_success_matcher': pickler.dumps(AlwaysPassMatcher()),
-       'errors': []},
-      {'on_success_matcher': 'abc',
-       'errors': ['on_success_matcher']},
-      {'on_success_matcher': pickler.dumps(object),
-       'errors': ['on_success_matcher']},
+        {'on_success_matcher': None,
+         'errors': []},
+        {'on_success_matcher': pickler.dumps(AlwaysPassMatcher()),
+         'errors': []},
+        {'on_success_matcher': 'abc',
+         'errors': ['on_success_matcher']},
+        {'on_success_matcher': pickler.dumps(object),
+         'errors': ['on_success_matcher']},
     ]
 
     for case in test_case:
       errors = get_validator(case['on_success_matcher']).validate()
-      self.assertEqual(self.check_errors_for_arguments(errors, case['errors']), [])
+      self.assertEqual(
+          self.check_errors_for_arguments(errors, case['errors']), [])
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)

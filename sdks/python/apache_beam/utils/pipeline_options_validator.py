@@ -64,11 +64,11 @@ class PipelineOptionsValidator(object):
   ERR_INVALID_NOT_POSITIVE = ('Invalid value (%s) for option: %s. Value needs '
                               'to be positive.')
   ERR_INVALID_TEST_MATCHER_TYPE = (
-      'Invalid value (%s) for options: %s. Please extend your matcher object from '
-      'hamcrest.core.base_matcher.BaseMatcher.')
-  ERR_INVALID_TEST_MATCHER_UNPICKABLE = (
-      'Invalid value (%s) for options: %s. Please make sure the test matcher is '
-      'unpickable.')
+      'Invalid value (%s) for options: %s. Please extend your matcher object '
+      'from hamcrest.core.base_matcher.BaseMatcher.')
+  ERR_INVALID_TEST_MATCHER_UNPICKLABLE = (
+      'Invalid value (%s) for options: %s. Please make sure the test matcher '
+      'is unpicklable.')
 
   # GCS path specific patterns.
   GCS_URI = '(?P<SCHEME>[^:]+)://(?P<BUCKET>[^/]+)(/(?P<OBJECT>.*))?'
@@ -175,8 +175,8 @@ class PipelineOptionsValidator(object):
     return []
 
   def validate_test_matcher(self, view, arg_name):
-    """Validates that on_success_matcher argument (if set) is unpickable and is
-    instance of hamcrest.core.base_matcher.BaseMatcher"""
+    """Validates that on_success_matcher argument (if set) is unpicklable and
+    is instance of hamcrest.core.base_matcher.BaseMatcher"""
     from apache_beam.internal import pickler
     from hamcrest.core.base_matcher import BaseMatcher
     pickled_matcher = view.on_success_matcher
@@ -185,10 +185,12 @@ class PipelineOptionsValidator(object):
       matcher = pickler.loads(pickled_matcher)
       if not isinstance(matcher, BaseMatcher):
         errors.extend(
-          self._validate_error(
-            self.ERR_INVALID_TEST_MATCHER_TYPE, matcher, arg_name))
+            self._validate_error(
+                self.ERR_INVALID_TEST_MATCHER_TYPE, matcher, arg_name))
     except Exception:
       errors.extend(
-        self._validate_error(
-          self.ERR_INVALID_TEST_MATCHER_UNPICKABLE, pickled_matcher, arg_name))
+          self._validate_error(
+              self.ERR_INVALID_TEST_MATCHER_UNPICKLABLE,
+              pickled_matcher,
+              arg_name))
     return errors

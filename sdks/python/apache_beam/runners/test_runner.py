@@ -36,4 +36,3 @@ class TestDataflowRunner(DataflowPipelineRunner):
     if options.on_success_matcher:
       assert_that(self.result, pickler.loads(options.on_success_matcher))
     return self.result
-

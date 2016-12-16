@@ -479,16 +479,17 @@ class SetupOptions(PipelineOptions):
          '(--staging_location option) and the workers will install them in '
          'same order they were specified on the command line.'))
 
+
 class TestOptions(PipelineOptions):
 
   @classmethod
   def _add_argparse_args(cls, parser):
     # Options for e2e test pipeline.
     parser.add_argument(
-          '--on_success_matcher',
-          default=None,
-          help='Verify state/output of e2e test pipeline. This matcher should'
-               'extends hamcrest.core.base_matcher.BaseMatcher.')
+        '--on_success_matcher',
+        default=None,
+        help=('Verify state/output of e2e test pipeline. This matcher should'
+              'extends hamcrest.core.base_matcher.BaseMatcher.'))
 
   def validate(self, validator):
     errors = []

@@ -26,7 +26,7 @@ from apache_beam.utils.options import PipelineOptions
 class TestPipelineTest(unittest.TestCase):
 
   TEST_CASE = {'options':
-                 ['--test-pipeline-options', '--job=mockJob --male --age=1'],
+                   ['--test-pipeline-options', '--job=mockJob --male --age=1'],
                'expected_list': ['--job=mockJob', '--male', '--age=1'],
                'expected_dict': {'job': 'mockJob',
                                  'male': True,
@@ -37,9 +37,8 @@ class TestPipelineTest(unittest.TestCase):
 
   def test_option_args_parsing(self):
     self.assertListEqual(
-      self.pipeline.get_test_option_args(argv=self.TEST_CASE['options']),
-      self.TEST_CASE['expected_list'])
-
+        self.pipeline.get_test_option_args(argv=self.TEST_CASE['options']),
+        self.TEST_CASE['expected_list'])
 
   # Used for testing pipeline option creation.
   class MockOptions(PipelineOptions):
@@ -50,20 +49,17 @@ class TestPipelineTest(unittest.TestCase):
       parser.add_argument('--male', action='store_true', help='mock gender')
       parser.add_argument('--age', action='store', type=int, help='mock age')
 
-
   def test_create_test_pipeline_options(self):
-    test_options = self.pipeline.create_test_pipeline_options(self.TEST_CASE['options'])
+    test_options = self.pipeline.create_test_pipeline_options(
+        self.TEST_CASE['options'])
     self.assertDictContainsSubset(
-      self.TEST_CASE['expected_dict'],
-      test_options.get_all_options(),
-    )
+        self.TEST_CASE['expected_dict'], test_options.get_all_options())
 
   def test_append_extra_options(self):
     extra_opt = {'name': 'Mark'}
-    options_list = self.pipeline.get_test_option_args(argv=self.TEST_CASE['options'],
-                                                      **extra_opt)
+    options_list = self.pipeline.get_test_option_args(
+        argv=self.TEST_CASE['options'], **extra_opt)
     self.assertListEqual(
-      self.pipeline.get_test_option_args(argv=self.TEST_CASE['options']),
-      self.TEST_CASE['expected_list'],
-    )
+        self.pipeline.get_test_option_args(argv=self.TEST_CASE['options']),
+        self.TEST_CASE['expected_list'])
     self.assertIn('--name=Mark', options_list)

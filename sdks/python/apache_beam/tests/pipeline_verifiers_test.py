@@ -29,10 +29,6 @@ from hamcrest import assert_that
 
 class PipelineVerifiersTest(unittest.TestCase):
 
-  @classmethod
-  def setUpClass(cls):
-    cls._job_enum = dataflow.Job.CurrentStateValueValuesEnum
-
   def test_dataflow_job_state_matcher_success(self):
     """Test DataflowJobStateMatcher successes when job finished in DONE"""
     pipeline_result = PipelineResult(PipelineState.DONE)
@@ -41,11 +37,13 @@ class PipelineVerifiersTest(unittest.TestCase):
   def test_pipeline_state_matcher_fails(self):
     """Test DataflowJobStateMatcher fails when job finished in
     FAILED/CANCELLED/STOPPED/UNKNOWN/DRAINED"""
-    failed_state = [self._job_enum.JOB_STATE_FAILED,
-                    self._job_enum.JOB_STATE_CANCELLED,
-                    self._job_enum.JOB_STATE_STOPPED,
-                    self._job_enum.JOB_STATE_UNKNOWN,
-                    self._job_enum.JOB_STATE_DRAINED]
+    job_enum = dataflow.Job.CurrentStateValueValuesEnum
+    failed_state = [job_enum.JOB_STATE_FAILED,
+                    job_enum.JOB_STATE_CANCELLED,
+                    job_enum.JOB_STATE_STOPPED,
+                    job_enum.JOB_STATE_UNKNOWN,
+                    job_enum.JOB_STATE_DRAINED]
+
     for state in failed_state:
       pipeline_result = PipelineResult(state)
       with self.assertRaises(AssertionError):

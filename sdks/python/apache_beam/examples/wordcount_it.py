@@ -25,6 +25,7 @@ from apache_beam.test_pipeline import TestPipeline
 from apache_beam.tests.pipeline_verifiers import PipelineStateMatcher
 from nose.plugins.attrib import attr
 
+
 class WordCountIT(unittest.TestCase):
 
   @attr('IT')
