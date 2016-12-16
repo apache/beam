@@ -45,7 +45,6 @@ public interface DataflowPipelineWorkerPoolOptions extends PipelineOptions {
   /**
    * Type of autoscaling algorithm to use.
    */
-  @Experimental(Experimental.Kind.AUTOSCALING)
   enum AutoscalingAlgorithmType {
     /** Use numWorkers machines. Do not autoscale the worker pool. */
     NONE("AUTOSCALING_ALGORITHM_NONE"),
@@ -69,7 +68,7 @@ public interface DataflowPipelineWorkerPoolOptions extends PipelineOptions {
   }
 
   /**
-   * [Experimental] The autoscaling algorithm to use for the workerpool.
+   * The autoscaling algorithm to use for the workerpool.
    *
    * <ul>
    *   <li>NONE: does not change the size of the worker pool.</li>
@@ -78,12 +77,11 @@ public interface DataflowPipelineWorkerPoolOptions extends PipelineOptions {
    *   </li>
    * </ul>
    */
-  @Description("[Experimental] The autoscaling algorithm to use for the workerpool. "
+  @Description("The autoscaling algorithm to use for the workerpool. "
       + "NONE: does not change the size of the worker pool. "
       + "BASIC (deprecated): autoscale the worker pool size up to maxNumWorkers until the job "
       + "completes. "
       + "THROUGHPUT_BASED: autoscale the workerpool based on throughput (up to maxNumWorkers).")
-  @Experimental(Experimental.Kind.AUTOSCALING)
   AutoscalingAlgorithmType getAutoscalingAlgorithm();
   void setAutoscalingAlgorithm(AutoscalingAlgorithmType value);
 
