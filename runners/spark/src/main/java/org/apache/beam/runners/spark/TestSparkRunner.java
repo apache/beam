@@ -20,10 +20,10 @@ package org.apache.beam.runners.spark;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
-import static org.hamcrest.Matchers.not;
 
 import org.apache.beam.runners.core.UnboundedReadFromBoundedSource;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.PipelineResult.State;
 import org.apache.beam.sdk.io.BoundedReadFromUnboundedSource;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsValidator;
@@ -64,6 +64,7 @@ public final class TestSparkRunner extends PipelineRunner<SparkPipelineResult> {
 
   private SparkRunner delegate;
   private boolean isForceStreaming;
+  private int expectedNumberOfAssertions = 0;
 
   private TestSparkRunner(SparkPipelineOptions options) {
     this.delegate = SparkRunner.fromOptions(options);
@@ -91,6 +92,13 @@ public final class TestSparkRunner extends PipelineRunner<SparkPipelineResult> {
       return (OutputT) delegate.apply(new AdaptedBoundedAsUnbounded(
           (BoundedReadFromUnboundedSource) transform), input);
     } else {
+      // no actual override, simply counts asserting transforms in the pipeline.
+      if (transform instanceof PAssert.OneSideInputAssert
+          || transform instanceof PAssert.GroupThenAssert
+          || transform instanceof PAssert.GroupThenAssertForSingleton) {
+        expectedNumberOfAssertions += 1;
+      }
+
       return delegate.apply(transform, input);
     }
   }
@@ -100,13 +108,26 @@ public final class TestSparkRunner extends PipelineRunner<SparkPipelineResult> {
     TestPipelineOptions testPipelineOptions = pipeline.getOptions().as(TestPipelineOptions.class);
     SparkPipelineResult result = delegate.run(pipeline);
     result.waitUntilFinish();
+
+    // make sure the test pipeline finished successfully.
+    State resultState = result.getState();
+    assertThat(
+        String.format("Test pipeline result state was %s instead of %s", resultState, State.DONE),
+        resultState,
+        is(State.DONE));
     assertThat(result, testPipelineOptions.getOnCreateMatcher());
     assertThat(result, testPipelineOptions.getOnSuccessMatcher());
+
     // if the pipeline was executed in streaming mode, validate aggregators.
     if (isForceStreaming) {
       // validate assertion succeeded (at least once).
       int success = result.getAggregatorValue(PAssert.SUCCESS_COUNTER, Integer.class);
-      assertThat("Success aggregator should be greater than zero.", success, not(0));
+      assertThat(
+          String.format(
+              "Expected %d successful assertions, but found %d.",
+              expectedNumberOfAssertions, success),
+          success,
+          is(expectedNumberOfAssertions));
       // validate assertion didn't fail.
       int failure = result.getAggregatorValue(PAssert.FAILURE_COUNTER, Integer.class);
       assertThat("Failure aggregator should be zero.", failure, is(0));
