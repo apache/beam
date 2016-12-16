@@ -24,6 +24,7 @@ class common_job_properties {
   static def setTopLevelJobProperties(def context,
                                       def default_branch = 'master',
                                       def default_timeout = 100) {
+
     // GitHub project.
     context.properties {
       githubProjectUrl('https://github.com/apache/incubator-beam/')
@@ -47,7 +48,7 @@ class common_job_properties {
         remote {
           url('https://github.com/apache/incubator-beam.git')
           refspec('+refs/heads/*:refs/remotes/origin/* ' +
-                  '+refs/pull/*:refs/remotes/origin/pr/*')
+                  '+refs/pull/*/head:refs/remotes/origin/pr/*')
         }
         branch('${sha1}')
         extensions {
@@ -134,6 +135,8 @@ class common_job_properties {
   // Sets common config for Maven jobs.
   static def setMavenConfig(def context) {
     context.mavenInstallation('Maven 3.3.3')
+    context.mavenOpts('-Dorg.slf4j.simpleLogger.showDateTime=true')
+    context.mavenOpts('-Dorg.slf4j.simpleLogger.dateTimeFormat=yyyy-MM-dd\'T\'HH:mm:ss.SSS')
     context.rootPOM('pom.xml')
     // Use a repository local to the workspace for better isolation of jobs.
     context.localRepository(LocalRepositoryLocation.LOCAL_TO_WORKSPACE)
