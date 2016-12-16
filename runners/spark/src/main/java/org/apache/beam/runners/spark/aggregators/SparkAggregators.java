@@ -21,6 +21,7 @@ package org.apache.beam.runners.spark.aggregators;
 import com.google.common.collect.ImmutableList;
 import java.util.Collection;
 import java.util.Map;
+import org.apache.beam.runners.core.AggregatorFactory;
 import org.apache.beam.runners.spark.translation.SparkRuntimeContext;
 import org.apache.beam.sdk.AggregatorValues;
 import org.apache.beam.sdk.transforms.Aggregator;
@@ -99,9 +100,9 @@ public class SparkAggregators {
   }
 
   /**
-   * An implementation of {@link Aggregator.AggregatorFactory} for the SparkRunner.
+   * An implementation of {@link AggregatorFactory} for the SparkRunner.
    */
-  public static class Factory implements Aggregator.AggregatorFactory {
+  public static class Factory implements AggregatorFactory {
 
     private final SparkRuntimeContext runtimeContext;
     private final Accumulator<NamedAggregators> accumulator;
