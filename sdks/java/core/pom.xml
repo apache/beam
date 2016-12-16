@@ -34,9 +34,11 @@
 
   <packaging>jar</packaging>
 
+
   <properties>
     <timestamp>${maven.build.timestamp}</timestamp>
     <maven.build.timestamp.format>yyyy-MM-dd HH:mm</maven.build.timestamp.format>
+    <beam-sdks-java-core.skipTests>false</beam-sdks-java-core.skipTests>
   </properties>
 
   <build>
@@ -76,6 +78,7 @@
           <systemPropertyVariables>
             <beamUseDummyRunner>true</beamUseDummyRunner>
           </systemPropertyVariables>
+          <skip>${beam-sdks-java-core.skipTests}</skip>
         </configuration>
       </plugin>
 

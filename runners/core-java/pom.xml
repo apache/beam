@@ -32,6 +32,10 @@
 
   <packaging>jar</packaging>
 
+  <properties>
+    <beam-runners-core-java.skipTests>false</beam-runners-core-java.skipTests>
+  </properties>
+
   <build>
     <plugins>
       <plugin>
@@ -49,6 +53,7 @@
           <systemPropertyVariables>
             <beamUseDummyRunner>true</beamUseDummyRunner>
           </systemPropertyVariables>
+          <skip>${beam-runners-core-java.skipTests}</skip>
         </configuration>
       </plugin>
 
