@@ -18,8 +18,6 @@
 package org.apache.beam.runners.direct;
 
 import static com.google.common.base.Preconditions.checkState;
-import static org.apache.beam.sdk.metrics.MetricMatchers.metricResult;
-import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.isA;
@@ -37,7 +35,6 @@ import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.beam.runners.direct.DirectRunner.DirectPipelineResult;
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
@@ -48,13 +45,6 @@ import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.CountingInput;
 import org.apache.beam.sdk.io.CountingSource;
 import org.apache.beam.sdk.io.Read;
-import org.apache.beam.sdk.metrics.Counter;
-import org.apache.beam.sdk.metrics.Distribution;
-import org.apache.beam.sdk.metrics.DistributionResult;
-import org.apache.beam.sdk.metrics.MetricNameFilter;
-import org.apache.beam.sdk.metrics.MetricQueryResults;
-import org.apache.beam.sdk.metrics.Metrics;
-import org.apache.beam.sdk.metrics.MetricsFilter;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.runners.PipelineRunner;
@@ -465,35 +455,6 @@ public class DirectRunnerTest implements Serializable {
     public Long decode(InputStream inStream, Context context) throws IOException {
       throw new CoderException("Cannot decode a long");
     }
-  }
-
-  @Test
-  public void testMetrics() throws Exception {
-    Pipeline pipeline = getPipeline();
-    pipeline
-        .apply(Create.of(5, 8, 13))
-        .apply("MyStep", ParDo.of(new DoFn<Integer, Void>() {
-          @ProcessElement
-          public void processElement(ProcessContext c) {
-            Counter count = Metrics.counter(DirectRunnerTest.class, "count");
-            Distribution values = Metrics.distribution(DirectRunnerTest.class, "input");
-
-            count.inc();
-            values.update(c.element());
-          }
-        }));
-    PipelineResult result = pipeline.run();
-    MetricQueryResults metrics = result.metrics().queryMetrics(MetricsFilter.builder()
-        .addNameFilter(MetricNameFilter.inNamespace(DirectRunnerTest.class))
-        .build());
-
-    final String stepName = "MyStep/AnonymousParDo/AnonymousParMultiDo";
-    assertThat(metrics.counters(), contains(
-        metricResult(DirectRunnerTest.class.getName(), "count", stepName, 3L, 3L)));
-    assertThat(metrics.distributions(), contains(
-        metricResult(DirectRunnerTest.class.getName(), "input", stepName,
-            DistributionResult.create(26L, 3L, 5L, 13L),
-            DistributionResult.create(26L, 3L, 5L, 13L))));
   }
 
   private static class MustSplitSource<T> extends BoundedSource<T>{
