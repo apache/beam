@@ -272,29 +272,4 @@ public class InMemoryTimerInternals implements TimerInternals {
       return null;
     }
   }
-
-  /** Advances processing time to the given value and fires processing-time timers accordingly.
-   *
-   *  @deprecated Use advanceProcessingTime without callback and fireProcessingTimers.
-   */
-  @Deprecated
-  public void advanceProcessingTime(
-      TimerCallback timerCallback, Instant newProcessingTime) throws Exception {
-    advanceProcessingTime(newProcessingTime);
-    advanceAndFire(timerCallback, newProcessingTime, TimeDomain.PROCESSING_TIME);
-  }
-
-  @Deprecated
-  private void advanceAndFire(
-      TimerCallback timerCallback, Instant currentTime, TimeDomain domain)
-      throws Exception {
-    checkNotNull(timerCallback);
-    TimerData timer;
-    while ((timer = removeNextTimer(currentTime, domain)) != null) {
-      WindowTracing.trace(
-          "{}.advanceAndFire: firing {} at {}",
-          getClass().getSimpleName(), timer, currentTime);
-      timerCallback.onTimer(timer);
-    }
-  }
 }
