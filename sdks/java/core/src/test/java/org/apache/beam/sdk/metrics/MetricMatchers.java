@@ -78,7 +78,7 @@ public class MetricMatchers {
       protected boolean matchesSafely(MetricResult<T> item) {
         return Objects.equals(namespace, item.name().namespace())
             && Objects.equals(name, item.name().name())
-            && Objects.equals(step, item.step())
+            && item.step().contains(step)
             && Objects.equals(committed, item.committed())
             && Objects.equals(attempted, item.attempted());
       }
@@ -109,7 +109,7 @@ public class MetricMatchers {
               .appendText(" != ").appendValue(item.name().name());
         }
 
-        if (!Objects.equals(step, item.step())) {
+        if (!item.step().contains(step)) {
           mismatchDescription
               .appendText("step: ").appendValue(step)
               .appendText(" != ").appendValue(item.step());

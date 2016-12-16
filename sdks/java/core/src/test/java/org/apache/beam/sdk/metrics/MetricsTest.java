@@ -141,19 +141,18 @@ public class MetricsTest implements Serializable {
     MetricQueryResults metrics = result.metrics().queryMetrics(MetricsFilter.builder()
       .addNameFilter(MetricNameFilter.inNamespace(MetricsTest.class))
       .build());
-    final String step1Name = "MyStep1/AnonymousParDo/AnonymousParMultiDo";
+    // TODO: BEAM-1169: Metrics shouldn't verify the physical values tightly.
     assertThat(metrics.counters(), hasItem(
-        metricResult(MetricsTest.class.getName(), "count", step1Name, 3L, 3L)));
+        metricResult(MetricsTest.class.getName(), "count", "MyStep1", 3L, 3L)));
     assertThat(metrics.distributions(), hasItem(
-        metricResult(MetricsTest.class.getName(), "input", step1Name,
+        metricResult(MetricsTest.class.getName(), "input", "MyStep1",
             DistributionResult.create(26L, 3L, 5L, 13L),
             DistributionResult.create(26L, 3L, 5L, 13L))));
 
-    final String step2Name = "MyStep2/AnonymousParDo/AnonymousParMultiDo";
     assertThat(metrics.counters(), hasItem(
-        metricResult(MetricsTest.class.getName(), "count", step2Name, 6L, 6L)));
+        metricResult(MetricsTest.class.getName(), "count", "MyStep2", 6L, 6L)));
     assertThat(metrics.distributions(), hasItem(
-        metricResult(MetricsTest.class.getName(), "input", step2Name,
+        metricResult(MetricsTest.class.getName(), "input", "MyStep2",
             DistributionResult.create(52L, 6L, 5L, 13L),
             DistributionResult.create(52L, 6L, 5L, 13L))));
   }
