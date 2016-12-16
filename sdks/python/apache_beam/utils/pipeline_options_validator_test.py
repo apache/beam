@@ -20,8 +20,10 @@
 import logging
 import unittest
 
+from apache_beam.internal import pickler
 from apache_beam.utils.options import PipelineOptions
 from apache_beam.utils.pipeline_options_validator import PipelineOptionsValidator
+from hamcrest.core.base_matcher import BaseMatcher
 
 
 # Mock runners to use for validations.
@@ -30,8 +32,18 @@ class MockRunners(object):
   class DataflowPipelineRunner(object):
     pass
 
+  class TestDataflowRunner(object):
+    pass
+
   class OtherRunner(object):
     pass
+
+
+# Matcher that always passes for testing on_success_matcher option
+class AlwaysPassMatcher(BaseMatcher):
+
+  def _matches(self, item):
+    return True
 
 
 class SetupTest(unittest.TestCase):
@@ -287,6 +299,35 @@ class SetupTest(unittest.TestCase):
     validator = PipelineOptionsValidator(options, runner)
     errors = validator.validate()
     self.assertFalse(errors)
+
+  def test_test_matcher(self):
+    def get_validator(matcher):
+      options = ['--project=example:example',
+                 '--job_name=job',
+                 '--staging_location=gs://foo/bar',
+                 '--temp_location=gs://foo/bar',]
+      if matcher:
+        options.append('--on_success_matcher=' + matcher)
+
+      pipeline_options = PipelineOptions(options)
+      runner = MockRunners.TestDataflowRunner()
+      return PipelineOptionsValidator(pipeline_options, runner)
+
+    test_case = [
+        {'on_success_matcher': None,
+         'errors': []},
+        {'on_success_matcher': pickler.dumps(AlwaysPassMatcher()),
+         'errors': []},
+        {'on_success_matcher': 'abc',
+         'errors': ['on_success_matcher']},
+        {'on_success_matcher': pickler.dumps(object),
+         'errors': ['on_success_matcher']},
+    ]
+
+    for case in test_case:
+      errors = get_validator(case['on_success_matcher']).validate()
+      self.assertEqual(
+          self.check_errors_for_arguments(errors, case['errors']), [])
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)

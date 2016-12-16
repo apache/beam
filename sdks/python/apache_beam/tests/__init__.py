@@ -14,16 +14,3 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-
-"""Runner objects execute a Pipeline.
-
-This package defines runners, which are used to execute a pipeline.
-"""
-
-from apache_beam.runners.dataflow_runner import DataflowPipelineRunner
-from apache_beam.runners.direct.direct_runner import DirectPipelineRunner
-from apache_beam.runners.direct.direct_runner import EagerPipelineRunner
-from apache_beam.runners.runner import create_runner
-from apache_beam.runners.runner import PipelineRunner
-from apache_beam.runners.runner import PipelineState
-from apache_beam.runners.test.test_dataflow_runner import TestDataflowRunner
