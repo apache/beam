@@ -18,14 +18,25 @@
 
 package org.apache.beam.sdk.metrics;
 
+import static org.apache.beam.sdk.metrics.MetricMatchers.metricResult;
 import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.hasItem;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThat;
 
 import java.io.Serializable;
+import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.PipelineResult;
+import org.apache.beam.sdk.testing.RunnableOnService;
+import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.testing.UsesMetrics;
+import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.ParDo;
 import org.hamcrest.CoreMatchers;
 import org.junit.After;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 
 /**
  * Tests for {@link Metrics}.
@@ -95,5 +106,55 @@ public class MetricsTest implements Serializable {
 
     counter.dec();
     assertThat(cell.getCumulative(), CoreMatchers.equalTo(42L));
+  }
+
+  @Category({RunnableOnService.class, UsesMetrics.class})
+  @Test
+  public void metricsE2E() {
+    final Counter count = Metrics.counter(MetricsTest.class, "count");
+    Pipeline pipeline = TestPipeline.create();
+    pipeline
+        .apply(Create.of(5, 8, 13))
+        .apply("MyStep1", ParDo.of(new DoFn<Integer, Integer>() {
+          @ProcessElement
+          public void processElement(ProcessContext c) {
+            Distribution values = Metrics.distribution(MetricsTest.class, "input");
+            count.inc();
+            values.update(c.element());
+
+            c.output(c.element());
+            c.output(c.element());
+          }
+        }))
+        .apply("MyStep2", ParDo.of(new DoFn<Integer, Integer>() {
+          @ProcessElement
+          public void processElement(ProcessContext c) {
+            Distribution values = Metrics.distribution(MetricsTest.class, "input");
+            count.inc();
+            values.update(c.element());
+          }
+        }));
+    PipelineResult result = pipeline.run();
+
+    result.waitUntilFinish();
+
+    MetricQueryResults metrics = result.metrics().queryMetrics(MetricsFilter.builder()
+      .addNameFilter(MetricNameFilter.inNamespace(MetricsTest.class))
+      .build());
+    final String step1Name = "MyStep1/AnonymousParDo/AnonymousParMultiDo";
+    assertThat(metrics.counters(), hasItem(
+        metricResult(MetricsTest.class.getName(), "count", step1Name, 3L, 3L)));
+    assertThat(metrics.distributions(), hasItem(
+        metricResult(MetricsTest.class.getName(), "input", step1Name,
+            DistributionResult.create(26L, 3L, 5L, 13L),
+            DistributionResult.create(26L, 3L, 5L, 13L))));
+
+    final String step2Name = "MyStep2/AnonymousParDo/AnonymousParMultiDo";
+    assertThat(metrics.counters(), hasItem(
+        metricResult(MetricsTest.class.getName(), "count", step2Name, 6L, 6L)));
+    assertThat(metrics.distributions(), hasItem(
+        metricResult(MetricsTest.class.getName(), "input", step2Name,
+            DistributionResult.create(52L, 6L, 5L, 13L),
+            DistributionResult.create(52L, 6L, 5L, 13L))));
   }
 }
