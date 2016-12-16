@@ -19,23 +19,33 @@
 package org.apache.beam.runners.gearpump.translators;
 
 import com.google.common.collect.Iterables;
+import com.google.common.collect.Lists;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Iterator;
+import java.io.Serializable;
+import java.time.Instant;
+import java.util.Collection;
+import java.util.LinkedList;
 import java.util.List;
 
+import org.apache.beam.runners.gearpump.translators.utils.TranslatorUtils;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
+import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 
+import org.apache.beam.sdk.values.PCollection;
 import org.apache.gearpump.streaming.dsl.javaapi.JavaStream;
-import org.apache.gearpump.streaming.javaapi.dsl.functions.FlatMapFunction;
+import org.apache.gearpump.streaming.dsl.window.api.Accumulating$;
+import org.apache.gearpump.streaming.dsl.window.api.EventTimeTrigger$;
+import org.apache.gearpump.streaming.dsl.window.api.Window;
+import org.apache.gearpump.streaming.dsl.window.api.WindowFn;
+import org.apache.gearpump.streaming.dsl.window.impl.Bucket;
 import org.apache.gearpump.streaming.javaapi.dsl.functions.GroupByFunction;
 import org.apache.gearpump.streaming.javaapi.dsl.functions.MapFunction;
 import org.apache.gearpump.streaming.javaapi.dsl.functions.ReduceFunction;
-
+import scala.collection.JavaConversions;
 
 
 /**
@@ -44,56 +54,97 @@ import org.apache.gearpump.streaming.javaapi.dsl.functions.ReduceFunction;
 public class GroupByKeyTranslator<K, V> implements TransformTranslator<GroupByKey<K, V>> {
   @Override
   public void translate(GroupByKey<K, V> transform, TranslationContext context) {
+    PCollection<KV<K, V>> input = context.getInput(transform);
     JavaStream<WindowedValue<KV<K, V>>> inputStream =
-        context.getInputStream(context.getInput(transform));
+        context.getInputStream(input);
     int parallelism = context.getPipelineOptions().getParallelism();
     JavaStream<WindowedValue<KV<K, Iterable<V>>>> outputStream = inputStream
-        .flatMap(new KeyedByKeyAndWindow<K, V>(), "keyed_by_Key_and_Window")
-        .groupBy(new GroupByKeyAndWindow<K, V>(), parallelism, "group_by_Key_and_Window")
-        .map(new ExtractKeyValue<K, V>(), "extract_Key_and_Value")
+        .window(Window.apply(new GearpumpWindowFn(input.getWindowingStrategy().getWindowFn()),
+            EventTimeTrigger$.MODULE$, Accumulating$.MODULE$), "assign_window")
+        .groupBy(new GroupByFn<K, V>(), parallelism, "group_by_Key_and_Window")
+        .map(new ValueToIterable<K, V>(), "map_value_to_iterable")
         .reduce(new MergeValue<K, V>(), "merge_value");
 
     context.setOutputStream(context.getOutput(transform), outputStream);
   }
 
-  private static class KeyedByKeyAndWindow<K, V> implements
-      FlatMapFunction<WindowedValue<KV<K, V>>, WindowedValue<KV<KV<K, BoundedWindow>, V>>> {
+  private static class GearpumpWindowFn<T, W extends BoundedWindow> implements WindowFn,
+      Serializable {
+
+    private org.apache.beam.sdk.transforms.windowing.WindowFn<T, W> windowFn;
+
+    GearpumpWindowFn(org.apache.beam.sdk.transforms.windowing.WindowFn<T, W> windowFn) {
+      this.windowFn = windowFn;
+    }
 
     @Override
-    public Iterator<WindowedValue<KV<KV<K, BoundedWindow>, V>>> apply(WindowedValue<KV<K, V>> wv) {
-      List<WindowedValue<KV<KV<K, BoundedWindow>, V>>> ret = new ArrayList<>(wv.getWindows().size
-          ());
-      for (BoundedWindow window : wv.getWindows()) {
-        KV<K, BoundedWindow> keyWin = KV.of(wv.getValue().getKey(), window);
-        ret.add(WindowedValue.of(KV.of(keyWin, wv.getValue().getValue()),
-            wv.getTimestamp(), window, wv.getPane()));
+    public scala.collection.immutable.List<Bucket> apply(final Instant timestamp) {
+      try {
+        Collection<W> windows = windowFn.assignWindows(windowFn.new AssignContext() {
+          @Override
+          public T element() {
+            throw new UnsupportedOperationException();
+          }
+
+          @Override
+          public org.joda.time.Instant timestamp() {
+            return TranslatorUtils.java8TimeToJodaTime(timestamp);
+          }
+
+          @Override
+          public W window() {
+            throw new UnsupportedOperationException();
+          }
+        });
+
+        List<Bucket> buckets = new LinkedList<>();
+        for (BoundedWindow window : windows) {
+          buckets.add(getBucket(window));
+        }
+        return JavaConversions.asScalaBuffer(buckets).toList();
+      } catch (Exception e) {
+        throw new RuntimeException(e);
       }
-      return ret.iterator();
+    }
+
+    private Bucket getBucket(BoundedWindow window) {
+      if (window instanceof IntervalWindow) {
+        IntervalWindow intervalWindow = (IntervalWindow) window;
+        Instant start = TranslatorUtils.jodaTimeToJava8Time(intervalWindow.start());
+        Instant end = TranslatorUtils.jodaTimeToJava8Time(intervalWindow.end());
+        return new Bucket(start, end);
+      } else if (window instanceof GlobalWindow) {
+        Instant end = TranslatorUtils.jodaTimeToJava8Time(window.maxTimestamp());
+        return new Bucket(Instant.MIN, end);
+      } else {
+        throw new RuntimeException("unknown window " + window.getClass().getName());
+      }
     }
   }
 
-  private static class GroupByKeyAndWindow<K, V> implements
-      GroupByFunction<WindowedValue<KV<KV<K, BoundedWindow>, V>>, KV<K, BoundedWindow>> {
+  private static class GroupByFn<K, V> implements
+      GroupByFunction<WindowedValue<KV<K, V>>, K> {
 
     @Override
-    public KV<K, BoundedWindow> apply(WindowedValue<KV<KV<K, BoundedWindow>, V>> wv) {
+    public K apply(WindowedValue<KV<K, V>> wv) {
       return wv.getValue().getKey();
     }
   }
 
-  private static class ExtractKeyValue<K, V> implements
-      MapFunction<WindowedValue<KV<KV<K, BoundedWindow>, V>>,
-          WindowedValue<KV<K, Iterable<V>>>> {
+  private static class ValueToIterable<K, V>
+      implements MapFunction<WindowedValue<KV<K, V>>, WindowedValue<KV<K, Iterable<V>>>> {
+
+
     @Override
-    public WindowedValue<KV<K, Iterable<V>>> apply(WindowedValue<KV<KV<K, BoundedWindow>, V>> wv) {
-      return WindowedValue.of(KV.of(wv.getValue().getKey().getKey(),
-              (Iterable<V>) Collections.singletonList(wv.getValue().getValue())),
-          wv.getTimestamp(), wv.getWindows(), wv.getPane());
+    public WindowedValue<KV<K, Iterable<V>>> apply(WindowedValue<KV<K, V>> wv) {
+      Iterable<V> values = Lists.newArrayList(wv.getValue().getValue());
+      return wv.withValue(KV.of(wv.getValue().getKey(), values));
     }
   }
 
   private static class MergeValue<K, V> implements
       ReduceFunction<WindowedValue<KV<K, Iterable<V>>>> {
+
     @Override
     public WindowedValue<KV<K, Iterable<V>>> apply(WindowedValue<KV<K, Iterable<V>>> wv1,
         WindowedValue<KV<K, Iterable<V>>> wv2) {

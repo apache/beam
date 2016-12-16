@@ -43,7 +43,7 @@
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
-    <gearpump.version>0.8.1</gearpump.version>
+    <gearpump.version>0.8.3-SNAPSHOT</gearpump.version>
   </properties>
 
   <profiles>
@@ -121,29 +121,12 @@
       <artifactId>gearpump-core_2.11</artifactId>
       <version>${gearpump.version}</version>
       <scope>provided</scope>
-      <exclusions>
-        <exclusion>
-          <groupId>com.google.code.findbugs</groupId>
-          <artifactId>jsr305</artifactId>
-        </exclusion>
-      </exclusions>
-    </dependency>
-    <dependency>
-      <groupId>org.apache.gearpump</groupId>
-      <artifactId>gearpump-daemon_2.11</artifactId>
-      <version>${gearpump.version}</version>
-      <exclusions>
-        <exclusion>
-          <groupId>org.apache.gearpump</groupId>
-          <artifactId>gearpump-experimental-cgroup_2.11</artifactId>
-        </exclusion>
-      </exclusions>
     </dependency>
     <dependency>
       <groupId>com.typesafe</groupId>
       <artifactId>config</artifactId>
-      <scope>provided</scope>
       <version>1.3.0</version>
+      <scope>provided</scope>
     </dependency>
     <dependency>
       <groupId>org.scala-lang</groupId>
@@ -170,10 +153,6 @@
       <artifactId>beam-runners-core-java</artifactId>
     </dependency>
     <dependency>
-      <groupId>org.slf4j</groupId>
-      <artifactId>slf4j-api</artifactId>
-    </dependency>
-    <dependency>
       <groupId>joda-time</groupId>
       <artifactId>joda-time</artifactId>
     </dependency>
@@ -196,20 +175,6 @@
     <dependency>
       <groupId>com.google.code.findbugs</groupId>
       <artifactId>jsr305</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>org.apache.gearpump</groupId>
-      <artifactId>gearpump-shaded-metrics-graphite_2.11</artifactId>
-      <version>${gearpump.version}</version>
-      <classifier>assembly</classifier>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>org.apache.gearpump</groupId>
-      <artifactId>gearpump-shaded-guava_2.11</artifactId>
-      <version>${gearpump.version}</version>
-      <classifier>assembly</classifier>
-      <scope>test</scope>
     </dependency>
     <dependency>
       <groupId>junit</groupId>

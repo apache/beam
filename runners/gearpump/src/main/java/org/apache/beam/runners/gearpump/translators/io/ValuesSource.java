@@ -32,6 +32,7 @@ import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.options.PipelineOptions;
 
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.joda.time.Instant;
 
 /**
@@ -48,23 +49,19 @@ public class ValuesSource<T> extends UnboundedSource<T, UnboundedSource.Checkpoi
   }
 
   private byte[] encode(Iterable<T> values, IterableCoder<T> coder) {
-    ByteArrayOutputStream stream = new ByteArrayOutputStream();
-    try {
+    try (ByteArrayOutputStream stream = new ByteArrayOutputStream()) {
       coder.encode(values, stream, Coder.Context.OUTER);
+      return stream.toByteArray();
     } catch (IOException ex) {
       throw new RuntimeException(ex);
     }
-    return stream.toByteArray();
   }
 
   private Iterable<T> decode(byte[] bytes) throws IOException{
-    ByteArrayInputStream inputStream = new ByteArrayInputStream(bytes);
-    try {
+    try (ByteArrayInputStream inputStream = new ByteArrayInputStream(bytes)) {
       return iterableCoder.decode(inputStream, Coder.Context.OUTER);
     } catch (IOException ex) {
       throw new RuntimeException(ex);
-    } finally {
-      inputStream.close();
     }
   }
 
@@ -78,7 +75,7 @@ public class ValuesSource<T> extends UnboundedSource<T, UnboundedSource.Checkpoi
   public UnboundedReader<T> createReader(PipelineOptions options,
       @Nullable CheckpointMark checkpointMark) {
     try {
-      return new ValuesReader<>(decode(values), iterableCoder, this);
+      return new ValuesReader<>(decode(values), this);
     } catch (IOException e) {
       throw new RuntimeException(e);
     }
@@ -105,7 +102,7 @@ public class ValuesSource<T> extends UnboundedSource<T, UnboundedSource.Checkpoi
     private transient Iterator<T> iterator;
     private T current;
 
-    public ValuesReader(Iterable<T> values, IterableCoder<T> coder,
+    ValuesReader(Iterable<T> values,
         UnboundedSource<T, CheckpointMark> source) {
       this.values = values;
       this.source = source;
@@ -147,7 +144,11 @@ public class ValuesSource<T> extends UnboundedSource<T, UnboundedSource.Checkpoi
 
     @Override
     public Instant getWatermark() {
-      return Instant.now();
+      if (iterator.hasNext()) {
+        return Instant.now();
+      } else {
+        return BoundedWindow.TIMESTAMP_MAX_VALUE;
+      }
     }
 
     @Override

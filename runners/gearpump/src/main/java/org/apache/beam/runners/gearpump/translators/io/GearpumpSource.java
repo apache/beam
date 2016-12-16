@@ -22,8 +22,11 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import java.io.IOException;
+import java.time.Instant;
 
+import org.apache.beam.runners.gearpump.translators.utils.TranslatorUtils;
 import org.apache.beam.sdk.io.Source;
+import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
@@ -33,19 +36,17 @@ import org.apache.gearpump.Message;
 import org.apache.gearpump.streaming.source.DataSource;
 import org.apache.gearpump.streaming.task.TaskContext;
 
-import org.joda.time.Instant;
-
 /**
  * common methods for {@link BoundedSourceWrapper} and {@link UnboundedSourceWrapper}.
  */
 public abstract class GearpumpSource<T> implements DataSource {
 
-  protected final byte[] serializedOptions;
+  private final byte[] serializedOptions;
 
-  protected Source.Reader<T> reader;
-  protected boolean available = false;
+  private Source.Reader<T> reader;
+  private boolean available = false;
 
-  public GearpumpSource(PipelineOptions options) {
+  GearpumpSource(PipelineOptions options) {
     try {
       this.serializedOptions = new ObjectMapper().writeValueAsBytes(options);
     } catch (JsonProcessingException e) {
@@ -56,7 +57,7 @@ public abstract class GearpumpSource<T> implements DataSource {
   protected abstract Source.Reader<T> createReader(PipelineOptions options) throws IOException;
 
   @Override
-  public void open(TaskContext context, long startTime) {
+  public void open(TaskContext context, Instant startTime) {
     try {
       PipelineOptions options = new ObjectMapper()
           .readValue(serializedOptions, PipelineOptions.class);
@@ -68,13 +69,14 @@ public abstract class GearpumpSource<T> implements DataSource {
       close();
     }
   }
+
   @Override
   public Message read() {
     Message message = null;
     try {
       if (available) {
         T data = reader.getCurrent();
-        Instant timestamp = reader.getCurrentTimestamp();
+        org.joda.time.Instant timestamp = reader.getCurrentTimestamp();
         available = reader.advance();
         message = Message.apply(
             WindowedValue.of(data, timestamp, GlobalWindow.INSTANCE, PaneInfo.NO_FIRING),
@@ -96,6 +98,16 @@ public abstract class GearpumpSource<T> implements DataSource {
       }
     } catch (IOException e) {
       throw new RuntimeException(e);
+    }
+  }
+
+  @Override
+  public Instant getWatermark() {
+    if (reader instanceof UnboundedSource.UnboundedReader) {
+      return TranslatorUtils.jodaTimeToJava8Time(
+          ((UnboundedSource.UnboundedReader) reader).getWatermark());
+    } else {
+      return Instant.now();
     }
   }
 

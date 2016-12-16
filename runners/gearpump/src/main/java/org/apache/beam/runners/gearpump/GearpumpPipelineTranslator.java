@@ -29,6 +29,7 @@ import org.apache.beam.runners.gearpump.translators.ReadBoundedTranslator;
 import org.apache.beam.runners.gearpump.translators.ReadUnboundedTranslator;
 import org.apache.beam.runners.gearpump.translators.TransformTranslator;
 import org.apache.beam.runners.gearpump.translators.TranslationContext;
+import org.apache.beam.runners.gearpump.translators.WindowBoundTranslator;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.runners.TransformHierarchy;
@@ -37,6 +38,7 @@ import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.PValue;
 
 import org.apache.gearpump.util.Graph;
@@ -71,6 +73,7 @@ public class GearpumpPipelineTranslator extends Pipeline.PipelineVisitor.Default
     registerTransformTranslator(Flatten.FlattenPCollectionList.class,
         new FlattenPCollectionTranslator());
     registerTransformTranslator(ParDo.BoundMulti.class, new ParDoBoundMultiTranslator());
+    registerTransformTranslator(Window.Bound.class, new WindowBoundTranslator());
     registerTransformTranslator(Create.Values.class, new CreateValuesTranslator());
   }
 

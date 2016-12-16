@@ -33,7 +33,6 @@ public class FlattenPCollectionTranslator<T> implements
   @Override
   public void translate(Flatten.FlattenPCollectionList<T> transform, TranslationContext context) {
     JavaStream<T> merged = null;
-    System.out.println("PCollectionList size " + context.getInput(transform).size());
     for (PCollection<T> collection : context.getInput(transform).getAll()) {
       JavaStream<T> inputStream = context.getInputStream(collection);
       if (null == merged) {
