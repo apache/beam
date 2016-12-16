@@ -66,17 +66,26 @@ class TestTableRowJsonCoder(unittest.TestCase):
 
   def test_row_as_table_row(self):
     schema_definition = [
-        ('s', 'STRING'), ('i', 'INTEGER'), ('f', 'FLOAT'), ('b', 'BOOLEAN')]
+        ('s', 'STRING'),
+        ('i', 'INTEGER'),
+        ('f', 'FLOAT'),
+        ('b', 'BOOLEAN'),
+        ('r', 'RECORD')]
+    data_defination = [
+        'abc',
+        123,
+        123.456,
+        True,
+        {'a': 'b'}]
+    str_def = '{"s": "abc", "i": 123, "f": 123.456, "b": true, "r": {"a": "b"}}'
     schema = bigquery.TableSchema(
         fields=[bigquery.TableFieldSchema(name=k, type=v)
                 for k, v in schema_definition])
     coder = TableRowJsonCoder(table_schema=schema)
     test_row = bigquery.TableRow(
-        f=[bigquery.TableCell(v=to_json_value(e))
-           for e in ['abc', 123, 123.456, True]])
+        f=[bigquery.TableCell(v=to_json_value(e)) for e in data_defination])
 
-    self.assertEqual('{"s": "abc", "i": 123, "f": 123.456, "b": true}',
-                     coder.encode(test_row))
+    self.assertEqual(str_def, coder.encode(test_row))
     self.assertEqual(test_row, coder.decode(coder.encode(test_row)))
     # A coder without schema can still decode.
     self.assertEqual(
@@ -203,6 +212,14 @@ class TestBigQuerySource(unittest.TestCase):
     self.assertEqual(source.query, 'my_query')
     self.assertFalse(source.use_legacy_sql)
 
+  def test_specify_query_flattened_records(self):
+    source = beam.io.BigQuerySource(query='my_query', flatten_results=False)
+    self.assertFalse(source.flatten_results)
+
+  def test_specify_query_unflattened_records(self):
+    source = beam.io.BigQuerySource(query='my_query', flatten_results=True)
+    self.assertTrue(source.flatten_results)
+
   def test_specify_query_without_table(self):
     source = beam.io.BigQuerySource(query='my_query')
     self.assertEqual(source.query, 'my_query')
@@ -281,14 +298,31 @@ class TestBigQueryReader(unittest.TestCase):
             't': ts,
             'dt': '2016-10-31',
             'ts': '22:39:12.627498',
-            'dt_ts': '2008-12-25T07:30:00'
+            'dt_ts': '2008-12-25T07:30:00',
+            'r': {'s2': 'b'},
+            'rpr': [{'s3': 'c', 'rpr2': [{'rs': ['d', 'e'], 's4': 'f'}]}]
         },
         {
             'i': 10,
             's': 'xyz',
             'f': -3.14,
-            'b': False
+            'b': False,
+            'rpr': []
         }]
+
+    nested_schema = [
+        bigquery.TableFieldSchema(
+            name='s2', type='STRING', mode='NULLABLE')]
+    nested_schema_2 = [
+        bigquery.TableFieldSchema(
+            name='s3', type='STRING', mode='NULLABLE'),
+        bigquery.TableFieldSchema(
+            name='rpr2', type='RECORD', mode='REPEATED', fields=[
+                bigquery.TableFieldSchema(
+                    name='rs', type='STRING', mode='REPEATED'),
+                bigquery.TableFieldSchema(
+                    name='s4', type='STRING', mode='NULLABLE')])]
+
     schema = bigquery.TableSchema(
         fields=[
             bigquery.TableFieldSchema(
@@ -306,7 +340,14 @@ class TestBigQueryReader(unittest.TestCase):
             bigquery.TableFieldSchema(
                 name='ts', type='TIME', mode='NULLABLE'),
             bigquery.TableFieldSchema(
-                name='dt_ts', type='DATETIME', mode='NULLABLE')])
+                name='dt_ts', type='DATETIME', mode='NULLABLE'),
+            bigquery.TableFieldSchema(
+                name='r', type='RECORD', mode='NULLABLE',
+                fields=nested_schema),
+            bigquery.TableFieldSchema(
+                name='rpr', type='RECORD', mode='REPEATED',
+                fields=nested_schema_2)])
+
     table_rows = [
         bigquery.TableRow(f=[
             bigquery.TableCell(v=to_json_value('true')),
@@ -318,7 +359,13 @@ class TestBigQueryReader(unittest.TestCase):
             bigquery.TableCell(v=to_json_value('%f' % now)),
             bigquery.TableCell(v=to_json_value('2016-10-31')),
             bigquery.TableCell(v=to_json_value('22:39:12.627498')),
-            bigquery.TableCell(v=to_json_value('2008-12-25T07:30:00'))]),
+            bigquery.TableCell(v=to_json_value('2008-12-25T07:30:00')),
+            # For record we cannot use dict because it doesn't create nested
+            # schemas correctly so we have to use this f,v based format
+            bigquery.TableCell(v=to_json_value({'f': [{'v': 'b'}]})),
+            bigquery.TableCell(v=to_json_value([{'v':{'f':[{'v':'c'}, {'v':[
+                {'v':{'f':[{'v':[{'v':'d'}, {'v':'e'}]}, {'v':'f'}]}}]}]}}]))
+            ]),
         bigquery.TableRow(f=[
             bigquery.TableCell(v=to_json_value('false')),
             bigquery.TableCell(v=to_json_value(str(-3.14))),
@@ -327,7 +374,9 @@ class TestBigQueryReader(unittest.TestCase):
             bigquery.TableCell(v=None),
             bigquery.TableCell(v=None),
             bigquery.TableCell(v=None),
-            bigquery.TableCell(v=None)])]
+            bigquery.TableCell(v=None),
+            bigquery.TableCell(v=None),
+            bigquery.TableCell(v=to_json_value([]))])]
     return table_rows, schema, expected_rows
 
   def test_read_from_table(self):
@@ -360,6 +409,7 @@ class TestBigQueryReader(unittest.TestCase):
     self.assertEqual(actual_rows, expected_rows)
     self.assertEqual(schema, reader.schema)
     self.assertTrue(reader.use_legacy_sql)
+    self.assertTrue(reader.flatten_results)
 
   def test_read_from_query_sql_format(self):
     client = mock.Mock()
@@ -377,6 +427,25 @@ class TestBigQueryReader(unittest.TestCase):
     self.assertEqual(actual_rows, expected_rows)
     self.assertEqual(schema, reader.schema)
     self.assertFalse(reader.use_legacy_sql)
+    self.assertTrue(reader.flatten_results)
+
+  def test_read_from_query_unflatten_records(self):
+    client = mock.Mock()
+    client.jobs.Insert.return_value = bigquery.Job(
+        jobReference=bigquery.JobReference(
+            jobId='somejob'))
+    table_rows, schema, expected_rows = self.get_test_rows()
+    client.jobs.GetQueryResults.return_value = bigquery.GetQueryResultsResponse(
+        jobComplete=True, rows=table_rows, schema=schema)
+    actual_rows = []
+    with beam.io.BigQuerySource(
+        query='query', flatten_results=False).reader(client) as reader:
+      for row in reader:
+        actual_rows.append(row)
+    self.assertEqual(actual_rows, expected_rows)
+    self.assertEqual(schema, reader.schema)
+    self.assertTrue(reader.use_legacy_sql)
+    self.assertFalse(reader.flatten_results)
 
   def test_using_both_query_and_table_fails(self):
     with self.assertRaises(ValueError) as exn:
@@ -623,6 +692,96 @@ class TestBigQueryWriter(unittest.TestCase):
     sink.pipeline_options = options
     writer = sink.writer()
     self.assertEquals('myproject', writer.project_id)
+
+
+class TestBigQueryWrapper(unittest.TestCase):
+
+  def test_delete_non_existing_dataset(self):
+    client = mock.Mock()
+    client.datasets.Delete.side_effect = HttpError(
+        response={'status': '404'}, url='', content='')
+    wrapper = beam.io.bigquery.BigQueryWrapper(client)
+    wrapper._delete_dataset('', '')
+    self.assertTrue(client.datasets.Delete.called)
+
+  def test_delete_dataset_retries_fail(self):
+    client = mock.Mock()
+    client.datasets.Delete.side_effect = ValueError("Cannot delete")
+    wrapper = beam.io.bigquery.BigQueryWrapper(client)
+    with self.assertRaises(ValueError) as _:
+      wrapper._delete_dataset('', '')
+    self.assertEqual(
+        beam.io.bigquery.MAX_RETRIES + 1, client.datasets.Delete.call_count)
+    self.assertTrue(client.datasets.Delete.called)
+
+  def test_delete_non_existing_table(self):
+    client = mock.Mock()
+    client.tables.Delete.side_effect = HttpError(
+        response={'status': '404'}, url='', content='')
+    wrapper = beam.io.bigquery.BigQueryWrapper(client)
+    wrapper._delete_table('', '', '')
+    self.assertTrue(client.tables.Delete.called)
+
+  def test_delete_table_retries_fail(self):
+    client = mock.Mock()
+    client.tables.Delete.side_effect = ValueError("Cannot delete")
+    wrapper = beam.io.bigquery.BigQueryWrapper(client)
+    with self.assertRaises(ValueError) as _:
+      wrapper._delete_table('', '', '')
+    self.assertTrue(client.tables.Delete.called)
+
+  def test_delete_dataset_retries_for_timeouts(self):
+    client = mock.Mock()
+    client.datasets.Delete.side_effect = [
+        HttpError(
+            response={'status': '408'}, url='', content=''),
+        bigquery.BigqueryDatasetsDeleteResponse()
+    ]
+    wrapper = beam.io.bigquery.BigQueryWrapper(client)
+    wrapper._delete_dataset('', '')
+    self.assertTrue(client.datasets.Delete.called)
+
+  def test_delete_table_retries_for_timeouts(self):
+    client = mock.Mock()
+    client.tables.Delete.side_effect = [
+        HttpError(
+            response={'status': '408'}, url='', content=''),
+        bigquery.BigqueryTablesDeleteResponse()
+    ]
+    wrapper = beam.io.bigquery.BigQueryWrapper(client)
+    wrapper._delete_table('', '', '')
+    self.assertTrue(client.tables.Delete.called)
+
+  def test_temporary_dataset_is_unique(self):
+    client = mock.Mock()
+    client.datasets.Get.return_value = bigquery.Dataset(
+        datasetReference=bigquery.DatasetReference(
+            projectId='project_id', datasetId='dataset_id'))
+    wrapper = beam.io.bigquery.BigQueryWrapper(client)
+    with self.assertRaises(RuntimeError) as _:
+      wrapper.create_temporary_dataset('project_id')
+    self.assertTrue(client.datasets.Get.called)
+
+  def test_get_or_create_dataset_created(self):
+    client = mock.Mock()
+    client.datasets.Get.side_effect = HttpError(
+        response={'status': '404'}, url='', content='')
+    client.datasets.Insert.return_value = bigquery.Dataset(
+        datasetReference=bigquery.DatasetReference(
+            projectId='project_id', datasetId='dataset_id'))
+    wrapper = beam.io.bigquery.BigQueryWrapper(client)
+    new_dataset = wrapper.get_or_create_dataset('project_id', 'dataset_id')
+    self.assertEqual(new_dataset.datasetReference.datasetId, 'dataset_id')
+
+  def test_get_or_create_dataset_fetched(self):
+    client = mock.Mock()
+    client.datasets.Get.return_value = bigquery.Dataset(
+        datasetReference=bigquery.DatasetReference(
+            projectId='project_id', datasetId='dataset_id'))
+    wrapper = beam.io.bigquery.BigQueryWrapper(client)
+    new_dataset = wrapper.get_or_create_dataset('project_id', 'dataset_id')
+    self.assertEqual(new_dataset.datasetReference.datasetId, 'dataset_id')
+
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
