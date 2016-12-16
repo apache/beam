@@ -33,16 +33,16 @@ import java.util.Comparator;
 class InMemorySorter implements Sorter {
   /** {@code Options} contains configuration of the sorter. */
   public static class Options implements Serializable {
-    private int memoryMB = 100;
+    private long memoryMB = 100;
 
     /** Sets the size of the memory buffer in megabytes. */
-    public void setMemoryMB(int memoryMB) {
+    public void setMemoryMB(long memoryMB) {
       checkArgument(memoryMB > 0, "memoryMB must be greater than zero");
       this.memoryMB = memoryMB;
     }
 
     /** Returns the configured size of the memory buffer. */
-    public int getMemoryMB() {
+    public long getMemoryMB() {
       return memoryMB;
     }
   }
@@ -51,7 +51,7 @@ class InMemorySorter implements Sorter {
   private static final Comparator<byte[]> COMPARATOR = UnsignedBytes.lexicographicalComparator();
 
   /** How many bytes per word in the running JVM. Assumes 64 bit/8 bytes if unknown. */
-  private static final int NUM_BYTES_PER_WORD = getNumBytesPerWord();
+  private static final long NUM_BYTES_PER_WORD = getNumBytesPerWord();
 
   /**
    * Estimate of memory overhead per KV record in bytes not including memory associated with keys
@@ -64,13 +64,13 @@ class InMemorySorter implements Sorter {
    *   <li> Per-object overhead (JVM-specific, guessing 2 words * 3 objects)
    * </ul>
    */
-  private static final int RECORD_MEMORY_OVERHEAD_ESTIMATE = 11 * NUM_BYTES_PER_WORD;
+  private static final long RECORD_MEMORY_OVERHEAD_ESTIMATE = 11 * NUM_BYTES_PER_WORD;
 
   /** Maximum size of the buffer in bytes. */
-  private int maxBufferSize;
+  private long maxBufferSize;
 
   /** Current number of stored bytes. Including estimated overhead bytes. */
-  private int numBytes;
+  private long numBytes;
 
   /** Whether sort has been called. */
   private boolean sortCalled;
@@ -80,7 +80,7 @@ class InMemorySorter implements Sorter {
 
   /** Private constructor. */
   private InMemorySorter(Options options) {
-    maxBufferSize = options.getMemoryMB() * 1024 * 1024;
+    maxBufferSize = options.getMemoryMB() * 1024L * 1024L;
   }
 
   /** Create a new sorter from provided options. */
@@ -97,7 +97,7 @@ class InMemorySorter implements Sorter {
   public boolean addIfRoom(KV<byte[], byte[]> record) {
     checkState(!sortCalled, "Records can only be added before sort()");
 
-    int recordBytes = estimateRecordBytes(record);
+    long recordBytes = estimateRecordBytes(record);
     if (roomInBuffer(numBytes + recordBytes, records.size() + 1)) {
       records.add(record);
       numBytes += recordBytes;
@@ -129,7 +129,7 @@ class InMemorySorter implements Sorter {
    * Estimate the number of additional bytes required to store this record. Including the key, the
    * value and any overhead for objects and references.
    */
-  private int estimateRecordBytes(KV<byte[], byte[]> record) {
+  private long estimateRecordBytes(KV<byte[], byte[]> record) {
     return RECORD_MEMORY_OVERHEAD_ESTIMATE + record.getKey().length + record.getValue().length;
   }
 
@@ -137,7 +137,7 @@ class InMemorySorter implements Sorter {
    * Check whether we have room to store the provided total number of bytes and total number of
    * records.
    */
-  private boolean roomInBuffer(int numBytes, int numRecords) {
+  private boolean roomInBuffer(long numBytes, long numRecords) {
     // Collections.sort may allocate up to n/2 extra object references.
     // Also, ArrayList grows by a factor of 1.5x, so there might be up to n/2 null object
     // references in the backing array.
@@ -151,11 +151,11 @@ class InMemorySorter implements Sorter {
    * Returns the number of bytes in a word according to the JVM. Defaults to 8 for 64 bit if answer
    * unknown.
    */
-  private static int getNumBytesPerWord() {
+  private static long getNumBytesPerWord() {
     String bitsPerWord = System.getProperty("sun.arch.data.model");
 
     try {
-      return Integer.parseInt(bitsPerWord) / 8;
+      return Long.parseLong(bitsPerWord) / 8;
     } catch (Exception e) {
       // Can't determine whether 32 or 64 bit, so assume 64
       return 8;
