@@ -17,6 +17,10 @@
  */
 package org.apache.beam.sdk.testing;
 
+import java.io.IOException;
+import java.io.Serializable;
+import java.util.Collections;
+import java.util.List;
 import org.apache.beam.sdk.AggregatorRetrievalException;
 import org.apache.beam.sdk.AggregatorValues;
 import org.apache.beam.sdk.Pipeline;
@@ -32,15 +36,12 @@ import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.values.PCollection;
 import org.joda.time.Duration;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
+import org.junit.rules.RuleChain;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-import org.junit.runners.model.Statement;
-import java.io.IOException;
-import java.io.Serializable;
-import java.util.Collections;
-import java.util.List;
 
 /**
  * Tests for the {@link TestPipeline} as a JUnit rule.
@@ -93,17 +94,16 @@ public class TestPipelineRuleTest implements Serializable {
     }
   }
 
-  private abstract class SerializableStatement extends Statement implements Serializable {
-
-  }
-
   private static final List<String> WORDS = Collections.singletonList("hi there");
   private static final String EXPECTED = "expected";
 
-  private transient final TestPipeline pipeline =
+  private final transient TestPipeline pipeline =
       TestPipeline.fromOptions(pipelineOptions()).enableStrictPAssert(true);
 
-  private transient final ExpectedException expectedException = ExpectedException.none();
+  private final transient ExpectedException exception = ExpectedException.none();
+
+  @Rule
+  public transient RuleChain chain = RuleChain.outerRule(exception).around(pipeline);
 
   private static PipelineOptions pipelineOptions() {
     final PipelineOptions pipelineOptions = PipelineOptionsFactory.create();
@@ -112,116 +112,53 @@ public class TestPipelineRuleTest implements Serializable {
   }
 
   private PCollection<String> pCollection() {
-    return pipeline
-        .apply(Create.of(WORDS).withCoder(StringUtf8Coder.of()))
-        .apply(MapElements.via(new SimpleFunction<String, String>() {
+    return
+        pipeline
+            .apply(Create.of(WORDS).withCoder(StringUtf8Coder.of()))
+            .apply(MapElements.via(new SimpleFunction<String, String>() {
 
-          @Override
-          public String apply(final String input) {
-            return EXPECTED;
-          }
-        }));
-  }
-
-  private Statement disableStrictPAssertFlow() throws Exception {
-    return new SerializableStatement() {
-
-      @Override
-      public void evaluate() throws Throwable {
-        pCollection();
-        pipeline.enableStrictPAssert(false);
-      }
-    };
-  }
-
-  private Statement normalFlowWithPAssert() throws Exception {
-    return new SerializableStatement() {
-
-      @Override
-      public void evaluate() throws Throwable {
-        PAssert.that(pCollection()).containsInAnyOrder(EXPECTED);
-        pipeline.run().waitUntilFinish();
-      }
-    };
-  }
-
-  private Statement autoAddMissingRunFlow() throws Exception {
-    return new SerializableStatement() {
-
-      @Override
-      public void evaluate() throws Throwable {
-        PAssert.that(pCollection()).containsInAnyOrder(EXPECTED);
-        pipeline.enableAutoRunIfMissing(true);
-      }
-    };
-  }
-
-  private Statement pipelineRunMissing() throws Exception {
-    return new SerializableStatement() {
-
-      @Override
-      public void evaluate() throws Throwable {
-        PAssert.that(pCollection()).containsInAnyOrder(EXPECTED);
-      }
-    };
-  }
-
-  private Statement pipelinePAssertMissing() throws Exception {
-    return new SerializableStatement() {
-
-      @Override
-      public void evaluate() throws Throwable {
-        pipeline.run().waitUntilFinish();
-      }
-    };
-  }
-
-  private Statement abandonedPTransform() throws Exception {
-    return new SerializableStatement() {
-
-      @Override
-      public void evaluate() throws Throwable {
-        PAssert.that(pCollection()).containsInAnyOrder(EXPECTED);
-        pipeline.run().waitUntilFinish();
-        PAssert.that(pCollection()).containsInAnyOrder(EXPECTED);
-      }
-    };
-  }
-
-  private void runTestCase(final Statement testCase) throws Throwable {
-    expectedException.apply(pipeline.apply(testCase, null), null).evaluate();
+              @Override
+              public String apply(final String input) {
+                return EXPECTED;
+              }
+            }));
   }
 
   @Test
   public void testPipelineRunMissing() throws Throwable {
-    expectedException.expect(TestPipeline.PipelineRunMissingException.class);
-    runTestCase(pipelineRunMissing());
+    exception.expect(TestPipeline.PipelineRunMissingException.class);
+    PAssert.that(pCollection()).containsInAnyOrder(EXPECTED);
   }
 
   @Test
   public void testPipelineHasAbandonedPTransform() throws Throwable {
-    expectedException.expect(TestPipeline.AbandonedPTransformException.class);
-    runTestCase(abandonedPTransform());
+    exception.expect(TestPipeline.AbandonedPTransformException.class);
+    PAssert.that(pCollection()).containsInAnyOrder(EXPECTED);
+    pipeline.run().waitUntilFinish();
+    PAssert.that(pCollection()).containsInAnyOrder(EXPECTED);
   }
 
   @Test
   public void testPipelinePAssertMissing() throws Throwable {
-    expectedException.expect(TestPipeline.PAssertMissingException.class);
-    runTestCase(pipelinePAssertMissing());
+    exception.expect(TestPipeline.PAssertMissingException.class);
+    pipeline.run().waitUntilFinish();
   }
 
   @Test
   public void testNormalFlowWithPAssert() throws Throwable {
-    runTestCase(normalFlowWithPAssert());
+    PAssert.that(pCollection()).containsInAnyOrder(EXPECTED);
+    pipeline.run().waitUntilFinish();
   }
 
   @Test
   public void testAutoAddMissingRunFlow() throws Throwable {
-    runTestCase(autoAddMissingRunFlow());
+    PAssert.that(pCollection()).containsInAnyOrder(EXPECTED);
+    pipeline.enableAutoRunIfMissing(true);
   }
 
   @Test
   public void testDisableStrictPAssertFlow() throws Throwable {
-    runTestCase(disableStrictPAssertFlow());
+    pCollection();
+    pipeline.enableStrictPAssert(false);
   }
 }
