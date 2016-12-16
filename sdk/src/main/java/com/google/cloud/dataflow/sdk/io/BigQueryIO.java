@@ -385,7 +385,8 @@ public class BigQueryIO {
     }
   }
 
-  private static class TableSpecToTableRef
+  @VisibleForTesting
+  static class TableSpecToTableRef
       implements SerializableFunction<String, TableReference> {
     @Override
     public TableReference apply(String from) {
@@ -2858,7 +2859,8 @@ public class BigQueryIO {
    * a randomUUID is generated only once per bucket of data. The actual unique
    * id is created by concatenating this randomUUID with a sequential number.
    */
-  private static class TagWithUniqueIdsAndTable
+  @VisibleForTesting
+  static class TagWithUniqueIdsAndTable
       extends DoFn<TableRow, KV<ShardedKey<String>, TableRowInfo>>
       implements DoFn.RequiresWindowAccess {
     /** TableSpec to write to. */
@@ -2876,8 +2878,12 @@ public class BigQueryIO {
       checkArgument(table == null ^ tableRefFunction == null,
           "Exactly one of table or tableRefFunction should be set");
       if (table != null) {
-        if (table.isAccessible() && table.get().getProjectId() == null) {
-          table.get().setProjectId(options.as(BigQueryOptions.class).getProject());
+        if (table.isAccessible() && Strings.isNullOrEmpty(table.get().getProjectId())) {
+          TableReference tableRef = table.get()
+              .setProjectId(options.as(BigQueryOptions.class).getProject());
+          table = NestedValueProvider.of(
+              StaticValueProvider.of(toJsonString(tableRef)),
+              new JsonTableRefToTableRef());
         }
         this.tableSpec = NestedValueProvider.of(table, new TableRefToTableSpec());
       } else {
@@ -2914,6 +2920,11 @@ public class BigQueryIO {
         builder.add(DisplayData.item("tableFn", tableRefFunction.getClass())
           .withLabel("Table Reference Function"));
       }
+    }
+
+    @VisibleForTesting
+    ValueProvider<String> getTableSpec() {
+      return tableSpec;
     }
 
     private String tableSpecFromWindow(BigQueryOptions options, BoundedWindow window) {
