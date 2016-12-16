@@ -63,11 +63,11 @@ import org.apache.beam.sdk.values.POutput;
 public final class TestSparkRunner extends PipelineRunner<SparkPipelineResult> {
 
   private SparkRunner delegate;
-  private boolean isStreaming;
+  private boolean isForceStreaming;
 
   private TestSparkRunner(SparkPipelineOptions options) {
     this.delegate = SparkRunner.fromOptions(options);
-    this.isStreaming = options.isStreaming();
+    this.isForceStreaming = options.isForceStreaming();
   }
 
   public static TestSparkRunner fromOptions(PipelineOptions options) {
@@ -84,10 +84,10 @@ public final class TestSparkRunner extends PipelineRunner<SparkPipelineResult> {
   @Override
   public <OutputT extends POutput, InputT extends PInput> OutputT apply(
           PTransform<InputT, OutputT> transform, InputT input) {
-    // if the pipeline is required to execute as a streaming pipeline,
+    // if the pipeline forces execution as a streaming pipeline,
     // and the source is an adapted unbounded source (as bounded),
     // read it as unbounded source via UnboundedReadFromBoundedSource.
-    if (isStreaming && transform instanceof BoundedReadFromUnboundedSource) {
+    if (isForceStreaming && transform instanceof BoundedReadFromUnboundedSource) {
       return (OutputT) delegate.apply(new AdaptedBoundedAsUnbounded(
           (BoundedReadFromUnboundedSource) transform), input);
     } else {
@@ -103,7 +103,7 @@ public final class TestSparkRunner extends PipelineRunner<SparkPipelineResult> {
     assertThat(result, testPipelineOptions.getOnCreateMatcher());
     assertThat(result, testPipelineOptions.getOnSuccessMatcher());
     // if the pipeline was executed in streaming mode, validate aggregators.
-    if (isStreaming) {
+    if (isForceStreaming) {
       // validate assertion succeeded (at least once).
       int success = result.getAggregatorValue(PAssert.SUCCESS_COUNTER, Integer.class);
       assertThat("Success aggregator should be greater than zero.", success, not(0));

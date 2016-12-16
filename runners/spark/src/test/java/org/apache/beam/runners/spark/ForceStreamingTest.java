@@ -52,7 +52,7 @@ public class ForceStreamingTest {
     SparkPipelineOptions options = PipelineOptionsFactory.create().as(SparkPipelineOptions.class);
     options.setRunner(TestSparkRunner.class);
     // force streaming.
-    options.setStreaming(true);
+    options.setForceStreaming(true);
 
     Pipeline pipeline = Pipeline.create(options);
 
