@@ -208,7 +208,7 @@ public abstract class OldDoFn<InputT, OutputT> implements Serializable, HasDispl
      *         context
      */
     @Experimental(Kind.AGGREGATOR)
-    public abstract <AggInputT, AggOutputT> Aggregator<AggInputT, AggOutputT>
+    protected abstract <AggInputT, AggOutputT> Aggregator<AggInputT, AggOutputT>
         createAggregatorInternal(String name, CombineFn<AggInputT, ?, AggOutputT> combiner);
 
     /**

@@ -63,7 +63,7 @@ class NoOpOldDoFn<InputT, OutputT> extends OldDoFn<InputT, OutputT> {
         Instant timestamp) {
     }
     @Override
-    public <AggInputT, AggOutputT> Aggregator<AggInputT, AggOutputT>
+    protected <AggInputT, AggOutputT> Aggregator<AggInputT, AggOutputT>
         createAggregatorInternal(String name, CombineFn<AggInputT, ?, AggOutputT> combiner) {
       return null;
     }
