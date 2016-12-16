@@ -151,6 +151,49 @@ public class SimpleDoFnRunnerTest {
             TimeDomain.EVENT_TIME);
   }
 
+  @Test
+  public void testStartBundleExceptionsWrappedAsUserCodeException() {
+    ThrowingDoFn fn = new ThrowingDoFn();
+    DoFnRunner<String, String> runner =
+        new SimpleDoFnRunner<>(
+            null,
+            fn,
+            null,
+            null,
+            null,
+            Collections.<TupleTag<?>>emptyList(),
+            mockStepContext,
+            null,
+            WindowingStrategy.of(new GlobalWindows()));
+
+    thrown.expect(UserCodeException.class);
+    thrown.expectCause(is(fn.exceptionToThrow));
+
+    runner.startBundle();
+  }
+
+  @Test
+  public void testFinishBundleExceptionsWrappedAsUserCodeException() {
+    ThrowingDoFn fn = new ThrowingDoFn();
+    DoFnRunner<String, String> runner =
+        new SimpleDoFnRunner<>(
+            null,
+            fn,
+            null,
+            null,
+            null,
+            Collections.<TupleTag<?>>emptyList(),
+            mockStepContext,
+            null,
+            WindowingStrategy.of(new GlobalWindows()));
+
+    thrown.expect(UserCodeException.class);
+    thrown.expectCause(is(fn.exceptionToThrow));
+
+    runner.finishBundle();
+  }
+
+
   /**
    * Tests that {@link SimpleDoFnRunner#onTimer} properly dispatches to the underlying
    * {@link DoFn}.
@@ -199,6 +242,16 @@ public class SimpleDoFnRunnerTest {
 
     @TimerId(TIMER_ID)
     private static final TimerSpec timer = TimerSpecs.timer(TimeDomain.EVENT_TIME);
+
+    @StartBundle
+    public void startBundle(Context c) throws Exception {
+      throw exceptionToThrow;
+    }
+
+    @FinishBundle
+    public void finishBundle(Context c) throws Exception {
+      throw exceptionToThrow;
+    }
 
     @ProcessElement
     public void processElement(ProcessContext c) throws Exception {
