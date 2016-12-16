@@ -17,20 +17,18 @@
  */
 package org.apache.beam.sdk.util.state;
 
+import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.nullValue;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
-import static org.mockito.Mockito.times;
+import static org.junit.Assert.assertThat;
 
 import org.apache.beam.sdk.util.TimeDomain;
 import org.apache.beam.sdk.util.TimerInternals.TimerData;
 import org.joda.time.Instant;
-import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-import org.mockito.Mock;
-import org.mockito.Mockito;
-import org.mockito.MockitoAnnotations;
 
 /**
  * Tests for {@link InMemoryTimerInternals}.
@@ -39,14 +37,6 @@ import org.mockito.MockitoAnnotations;
 public class InMemoryTimerInternalsTest {
 
   private static final StateNamespace NS1 = new StateNamespaceForTest("NS1");
-
-  @Mock
-  private TimerCallback timerCallback;
-
-  @Before
-  public void setUp() {
-    MockitoAnnotations.initMocks(this);
-  }
 
   @Test
   public void testFiringTimers() throws Exception {
@@ -85,24 +75,24 @@ public class InMemoryTimerInternalsTest {
     underTest.setTimer(processingTime1);
     underTest.setTimer(processingTime2);
 
-    underTest.advanceProcessingTime(timerCallback, new Instant(20));
-    Mockito.verify(timerCallback).onTimer(processingTime1);
-    Mockito.verifyNoMoreInteractions(timerCallback);
+    underTest.advanceProcessingTime(new Instant(20));
+    assertThat(underTest.removeNextProcessingTimer(), equalTo(processingTime1));
+    assertThat(underTest.removeNextProcessingTimer(), nullValue());
 
     // Advancing just a little shouldn't refire
-    underTest.advanceProcessingTime(timerCallback, new Instant(21));
-    Mockito.verifyNoMoreInteractions(timerCallback);
+    underTest.advanceProcessingTime(new Instant(21));
+    assertThat(underTest.removeNextProcessingTimer(), nullValue());
 
-    // Adding the timer and advancing a little should refire
+    // Adding the timer and advancing a little should fire again
     underTest.setTimer(processingTime1);
-    underTest.advanceProcessingTime(timerCallback, new Instant(21));
-    Mockito.verify(timerCallback, times(2)).onTimer(processingTime1);
-    Mockito.verifyNoMoreInteractions(timerCallback);
+    underTest.advanceProcessingTime(new Instant(21));
+    assertThat(underTest.removeNextProcessingTimer(), equalTo(processingTime1));
+    assertThat(underTest.removeNextProcessingTimer(), nullValue());
 
     // And advancing the rest of the way should still have the other timer
-    underTest.advanceProcessingTime(timerCallback, new Instant(30));
-    Mockito.verify(timerCallback).onTimer(processingTime2);
-    Mockito.verifyNoMoreInteractions(timerCallback);
+    underTest.advanceProcessingTime(new Instant(30));
+    assertThat(underTest.removeNextProcessingTimer(), equalTo(processingTime2));
+    assertThat(underTest.removeNextProcessingTimer(), nullValue());
   }
 
   @Test
