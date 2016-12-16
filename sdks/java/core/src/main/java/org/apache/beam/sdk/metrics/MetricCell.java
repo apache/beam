@@ -28,7 +28,7 @@ import org.apache.beam.sdk.annotations.Experimental.Kind;
  * @param <DataT> The type of metric data stored (and extracted) from this cell.
  */
 @Experimental(Kind.METRICS)
-interface MetricCell<UserT extends Metric, DataT> {
+public interface MetricCell<UserT extends Metric, DataT> {
 
   /**
    * Return the {@link DirtyState} tracking whether this metric cell contains uncommitted changes.
