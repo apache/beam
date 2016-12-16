@@ -22,6 +22,7 @@ import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThat;
 
+import java.io.Serializable;
 import org.hamcrest.CoreMatchers;
 import org.junit.After;
 import org.junit.Test;
@@ -29,7 +30,7 @@ import org.junit.Test;
 /**
  * Tests for {@link Metrics}.
  */
-public class MetricsTest {
+public class MetricsTest implements Serializable {
 
   private static final String NS = "test";
   private static final String NAME = "name";

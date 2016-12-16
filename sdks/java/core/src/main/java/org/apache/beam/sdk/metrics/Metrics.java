@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.metrics;
 
+import java.io.Serializable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 
@@ -58,7 +59,7 @@ public class Metrics {
   }
 
   /** Implementation of {@link Counter} that delegates to the instance for the current context. */
-  private static class DelegatingCounter implements Counter {
+  private static class DelegatingCounter implements Counter, Serializable {
     private final MetricName name;
 
     private DelegatingCounter(MetricName name) {
@@ -92,7 +93,7 @@ public class Metrics {
   /**
    * Implementation of {@link Distribution} that delegates to the instance for the current context.
    */
-  private static class DelegatingDistribution implements Distribution {
+  private static class DelegatingDistribution implements Distribution, Serializable {
     private final MetricName name;
 
     private DelegatingDistribution(MetricName name) {
