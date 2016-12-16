@@ -17,10 +17,6 @@
  */
 package org.apache.beam.sdk.testing;
 
-import java.io.IOException;
-import java.io.Serializable;
-import java.util.Collections;
-import java.util.List;
 import org.apache.beam.sdk.AggregatorRetrievalException;
 import org.apache.beam.sdk.AggregatorValues;
 import org.apache.beam.sdk.Pipeline;
@@ -28,6 +24,7 @@ import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.metrics.MetricResults;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.runners.PipelineRunner;
 import org.apache.beam.sdk.transforms.Aggregator;
 import org.apache.beam.sdk.transforms.Create;
@@ -35,16 +32,18 @@ import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.values.PCollection;
 import org.joda.time.Duration;
-import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
-import org.junit.rules.TestRule;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.junit.runners.model.Statement;
+import java.io.IOException;
+import java.io.Serializable;
+import java.util.Collections;
+import java.util.List;
 
 /**
- * Tests for the {@link TestPipelineRule} class.
+ * Tests for the {@link TestPipeline} as a JUnit rule.
  */
 @RunWith(JUnit4.class)
 public class TestPipelineRuleTest implements Serializable {
@@ -101,16 +100,15 @@ public class TestPipelineRuleTest implements Serializable {
   private static final List<String> WORDS = Collections.singletonList("hi there");
   private static final String EXPECTED = "expected";
 
-  @Rule
-  public transient TestPipelineRule pipeline = initPipelineRule();
+  private transient final TestPipeline pipeline =
+      TestPipeline.fromOptions(pipelineOptions()).enableStrictPAssert(true);
 
-  @Rule
-  public transient ExpectedException expectedException = ExpectedException.none();
+  private transient final ExpectedException expectedException = ExpectedException.none();
 
-  private TestPipelineRule initPipelineRule() {
-    final PipelineOptions pipelineOptions = TestPipeline.testingPipelineOptions();
+  private static PipelineOptions pipelineOptions() {
+    final PipelineOptions pipelineOptions = PipelineOptionsFactory.create();
     pipelineOptions.setRunner(DummyRunner.class);
-    return new TestPipelineRule(pipelineOptions);
+    return pipelineOptions;
   }
 
   private PCollection<String> pCollection() {
@@ -125,13 +123,35 @@ public class TestPipelineRuleTest implements Serializable {
         }));
   }
 
-  private Statement normalFlow() throws Exception {
+  private Statement disableStrictPAssertFlow() throws Exception {
+    return new SerializableStatement() {
+
+      @Override
+      public void evaluate() throws Throwable {
+        pCollection();
+        pipeline.enableStrictPAssert(false);
+      }
+    };
+  }
+
+  private Statement normalFlowWithPAssert() throws Exception {
     return new SerializableStatement() {
 
       @Override
       public void evaluate() throws Throwable {
         PAssert.that(pCollection()).containsInAnyOrder(EXPECTED);
         pipeline.run().waitUntilFinish();
+      }
+    };
+  }
+
+  private Statement autoAddMissingRunFlow() throws Exception {
+    return new SerializableStatement() {
+
+      @Override
+      public void evaluate() throws Throwable {
+        PAssert.that(pCollection()).containsInAnyOrder(EXPECTED);
+        pipeline.enableAutoRunIfMissing(true);
       }
     };
   }
@@ -146,36 +166,62 @@ public class TestPipelineRuleTest implements Serializable {
     };
   }
 
-  private Statement pipelineRunBeforePAssert() throws Exception {
+  private Statement pipelinePAssertMissing() throws Exception {
     return new SerializableStatement() {
 
       @Override
       public void evaluate() throws Throwable {
+        pipeline.run().waitUntilFinish();
+      }
+    };
+  }
+
+  private Statement abandonedPTransform() throws Exception {
+    return new SerializableStatement() {
+
+      @Override
+      public void evaluate() throws Throwable {
+        PAssert.that(pCollection()).containsInAnyOrder(EXPECTED);
         pipeline.run().waitUntilFinish();
         PAssert.that(pCollection()).containsInAnyOrder(EXPECTED);
       }
     };
   }
 
-  private void runTestCase(final Statement statement) throws Throwable {
-    final TestRule rule = pipeline;
-    rule.apply(statement, null).evaluate();
+  private void runTestCase(final Statement testCase) throws Throwable {
+    expectedException.apply(pipeline.apply(testCase, null), null).evaluate();
   }
 
   @Test
   public void testPipelineRunMissing() throws Throwable {
-    expectedException.expect(TestPipelineRule.PipelineRunMissingException.class);
+    expectedException.expect(TestPipeline.PipelineRunMissingException.class);
     runTestCase(pipelineRunMissing());
   }
 
   @Test
-  public void testPipelineRunBeforePAssert() throws Throwable {
-    expectedException.expect(TestPipelineRule.PipelineRunBeforePAssertException.class);
-    runTestCase(pipelineRunBeforePAssert());
+  public void testPipelineHasAbandonedPTransform() throws Throwable {
+    expectedException.expect(TestPipeline.AbandonedPTransformException.class);
+    runTestCase(abandonedPTransform());
   }
 
   @Test
-  public void testNormalFlow() throws Throwable {
-    runTestCase(normalFlow());
+  public void testPipelinePAssertMissing() throws Throwable {
+    expectedException.expect(TestPipeline.PAssertMissingException.class);
+    runTestCase(pipelinePAssertMissing());
+  }
+
+  @Test
+  public void testNormalFlowWithPAssert() throws Throwable {
+    runTestCase(normalFlowWithPAssert());
+  }
+
+  @Test
+  public void testAutoAddMissingRunFlow() throws Throwable {
+    runTestCase(autoAddMissingRunFlow());
+  }
+
+  @Test
+  public void testDisableStrictPAssertFlow() throws Throwable {
+    runTestCase(disableStrictPAssertFlow());
   }
 }
