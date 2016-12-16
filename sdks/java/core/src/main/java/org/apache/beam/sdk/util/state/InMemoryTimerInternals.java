@@ -273,17 +273,6 @@ public class InMemoryTimerInternals implements TimerInternals {
     }
   }
 
-  /** Advances input watermark to the given value and fires event-time timers accordingly.
-   *
-   *  @deprecated Use advanceInputWatermark without callback and fireEventTimers.
-   */
-  @Deprecated
-  public void advanceInputWatermark(
-      TimerCallback timerCallback, Instant newInputWatermark) throws Exception {
-    advanceInputWatermark(newInputWatermark);
-    advanceAndFire(timerCallback, newInputWatermark, TimeDomain.EVENT_TIME);
-  }
-
   /** Advances processing time to the given value and fires processing-time timers accordingly.
    *
    *  @deprecated Use advanceProcessingTime without callback and fireProcessingTimers.
@@ -293,21 +282,6 @@ public class InMemoryTimerInternals implements TimerInternals {
       TimerCallback timerCallback, Instant newProcessingTime) throws Exception {
     advanceProcessingTime(newProcessingTime);
     advanceAndFire(timerCallback, newProcessingTime, TimeDomain.PROCESSING_TIME);
-  }
-
-  /**
-   * Advances synchronized processing time to the given value and fires processing-time timers
-   * accordingly.
-   *
-   *  @deprecated Use advanceInputWatermark without callback and fireSynchronizedProcessingTimers.
-   */
-  @Deprecated
-  public void advanceSynchronizedProcessingTime(
-      TimerCallback timerCallback, Instant newSynchronizedProcessingTime)
-      throws Exception {
-    advanceSynchronizedProcessingTime(newSynchronizedProcessingTime);
-    advanceAndFire(
-        timerCallback, newSynchronizedProcessingTime, TimeDomain.SYNCHRONIZED_PROCESSING_TIME);
   }
 
   @Deprecated
