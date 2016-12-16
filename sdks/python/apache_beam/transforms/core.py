@@ -598,7 +598,7 @@ class ParDo(PTransformWithSideInputs):
                                   label='Transform Function'),
             'fn_dd': self.fn}
 
-  def apply(self, pcoll):
+  def expand(self, pcoll):
     self.side_output_tags = set()
     # TODO(robertwb): Change all uses of the dofn attribute to use fn instead.
     self.dofn = self.fn
@@ -641,7 +641,7 @@ class _MultiParDo(PTransform):
     self._tags = tags
     self._main_tag = main_tag
 
-  def apply(self, pcoll):
+  def expand(self, pcoll):
     _ = pcoll | self._do_transform
     return pvalue.DoOutputsTuple(
         pcoll.pipeline, self._do_transform, self._tags, self._main_tag)
@@ -854,7 +854,7 @@ class CombineGlobally(PTransform):
   def as_singleton_view(self):
     return self.clone(as_view=True)
 
-  def apply(self, pcoll):
+  def expand(self, pcoll):
     def add_input_types(transform):
       type_hints = self.get_type_hints()
       if type_hints.input_types:
@@ -939,7 +939,7 @@ class CombinePerKey(PTransformWithSideInputs):
   def process_argspec_fn(self):
     return self.fn._fn  # pylint: disable=protected-access
 
-  def apply(self, pcoll):
+  def expand(self, pcoll):
     args, kwargs = util.insert_values_in_args(
         self.args, self.kwargs, self.side_inputs)
     return pcoll | GroupByKey() | CombineValues('Combine',
@@ -952,7 +952,7 @@ class CombineValues(PTransformWithSideInputs):
   def make_fn(self, fn):
     return fn if isinstance(fn, CombineFn) else CombineFn.from_callable(fn)
 
-  def apply(self, pcoll):
+  def expand(self, pcoll):
     args, kwargs = util.insert_values_in_args(
         self.args, self.kwargs, self.side_inputs)
 
@@ -1083,7 +1083,7 @@ class GroupByKey(PTransform):
               timer_window, name, time_domain, fire_time, state):
             yield wvalue.with_value((k, wvalue.value))
 
-  def apply(self, pcoll):
+  def expand(self, pcoll):
     # This code path is only used in the local direct runner.  For Dataflow
     # runner execution, the GroupByKey transform is expanded on the service.
     input_type = pcoll.element_type
@@ -1132,7 +1132,7 @@ class GroupByKeyOnly(PTransform):
     key_type, value_type = trivial_inference.key_value_types(input_type)
     return KV[key_type, Iterable[value_type]]
 
-  def apply(self, pcoll):
+  def expand(self, pcoll):
     self._check_pcollection(pcoll)
     return pvalue.PCollection(pcoll.pipeline)
 
@@ -1170,7 +1170,7 @@ class Partition(PTransformWithSideInputs):
   def make_fn(self, fn):
     return fn if isinstance(fn, PartitionFn) else CallableWrapperPartitionFn(fn)
 
-  def apply(self, pcoll):
+  def expand(self, pcoll):
     n = int(self.args[0])
     return pcoll | ParDo(
         self.ApplyPartitionFnFn(), self.fn, *self.args,
@@ -1261,14 +1261,14 @@ class WindowInto(ParDo):
   def infer_output_type(self, input_type):
     return input_type
 
-  def apply(self, pcoll):
+  def expand(self, pcoll):
     input_type = pcoll.element_type
 
     if input_type is not None:
       output_type = input_type
       self.with_input_types(input_type)
       self.with_output_types(output_type)
-    return super(WindowInto, self).apply(pcoll)
+    return super(WindowInto, self).expand(pcoll)
 
 
 # Python's pickling is broken for nested classes.
@@ -1305,7 +1305,7 @@ class Flatten(PTransform):
       raise ValueError('Input to Flatten must be an iterable.')
     return pvalueish, pvalueish
 
-  def apply(self, pcolls):
+  def expand(self, pcolls):
     for pcoll in pcolls:
       self._check_pcollection(pcoll)
     return pvalue.PCollection(self.pipeline)
@@ -1345,7 +1345,7 @@ class Create(PTransform):
     else:
       return Union[[trivial_inference.instance_to_type(v) for v in self.value]]
 
-  def apply(self, pbegin):
+  def expand(self, pbegin):
     assert isinstance(pbegin, pvalue.PBegin)
     self.pipeline = pbegin.pipeline
     return pvalue.PCollection(self.pipeline)

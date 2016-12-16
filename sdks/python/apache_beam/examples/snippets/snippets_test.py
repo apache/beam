@@ -279,7 +279,7 @@ class TypeHintsTest(unittest.TestCase):
     @beam.typehints.with_input_types(T)
     @beam.typehints.with_output_types(beam.typehints.Tuple[int, T])
     class MyTransform(beam.PTransform):
-      def apply(self, pcoll):
+      def expand(self, pcoll):
         return pcoll | beam.Map(lambda x: (len(x), x))
 
     words_with_lens = words | MyTransform()

@@ -658,7 +658,7 @@ class Read(ptransform.PTransform):
     super(Read, self).__init__(label)
     self.source = source
 
-  def apply(self, pbegin):
+  def expand(self, pbegin):
     assert isinstance(pbegin, pvalue.PBegin)
     self.pipeline = pbegin.pipeline
     return pvalue.PCollection(self.pipeline)
@@ -723,7 +723,7 @@ class Write(ptransform.PTransform):
     return {'sink': self.sink.__class__,
             'sink_dd': self.sink}
 
-  def apply(self, pcoll):
+  def expand(self, pcoll):
     from apache_beam.runners.dataflow.native_io import iobase as dataflow_io
     if isinstance(self.sink, dataflow_io.NativeSink):
       # A native sink
@@ -746,7 +746,7 @@ class WriteImpl(ptransform.PTransform):
     super(WriteImpl, self).__init__()
     self.sink = sink
 
-  def apply(self, pcoll):
+  def expand(self, pcoll):
     do_once = pcoll.pipeline | 'DoOnce' >> core.Create([None])
     init_result_coll = do_once | core.Map(
         'initialize_write', lambda _, sink: sink.initialize_write(), self.sink)

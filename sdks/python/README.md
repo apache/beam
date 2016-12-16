@@ -262,7 +262,7 @@ import re
 import apache_beam as beam
 p = beam.Pipeline('DirectPipelineRunner')
 class MyCountTransform(beam.PTransform):
-  def apply(self, pcoll):
+  def expand(self, pcoll):
     return (pcoll
             | 'one word' >> beam.Map(lambda word: (word, 1))
             # GroupByKey accepts a PCollection of (word, 1) elements and

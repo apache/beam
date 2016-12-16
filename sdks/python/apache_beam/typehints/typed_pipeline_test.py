@@ -202,7 +202,7 @@ class CustomTransformTest(unittest.TestCase):
     def _extract_input_pvalues(self, pvalueish):
       return pvalueish, (pvalueish['in0'], pvalueish['in1'])
 
-    def apply(self, pvalueish):
+    def expand(self, pvalueish):
       return {'out0': pvalueish['in0'], 'out1': pvalueish['in1']}
 
     # TODO(robertwb): (typecheck) Make these the default?

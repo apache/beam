@@ -526,7 +526,7 @@ class PTransformTest(unittest.TestCase):
 
   def test_multi_input_ptransform(self):
     class DisjointUnion(PTransform):
-      def apply(self, pcollections):
+      def expand(self, pcollections):
         return (pcollections
                 | beam.Flatten()
                 | beam.Map(lambda x: (x, None))
@@ -545,7 +545,7 @@ class PTransformTest(unittest.TestCase):
         pvalueish = list(pvalueish)
         return pvalueish, sum([list(p.values()) for p in pvalueish], [])
 
-      def apply(self, pcoll_dicts):
+      def expand(self, pcoll_dicts):
         keys = reduce(operator.or_, [set(p.keys()) for p in pcoll_dicts])
         res = {}
         for k in keys:
@@ -575,7 +575,7 @@ class PTransformLabelsTest(unittest.TestCase):
 
     pardo = None
 
-    def apply(self, pcoll):
+    def expand(self, pcoll):
       self.pardo = beam.FlatMap('*do*', lambda x: [x + 1])
       return pcoll | self.pardo
 

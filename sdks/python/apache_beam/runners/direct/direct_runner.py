@@ -92,7 +92,7 @@ class DirectPipelineRunner(PipelineRunner):
 
   def apply(self, transform, input):  # pylint: disable=redefined-builtin
     """Runner callback for a pipeline.apply call."""
-    return transform.apply(input)
+    return transform.expand(input)
 
 
 class BufferingInMemoryCache(object):

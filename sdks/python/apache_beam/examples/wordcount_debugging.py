@@ -95,7 +95,7 @@ class CountWords(beam.PTransform):
   def __init__(self):
     super(CountWords, self).__init__()
 
-  def apply(self, pcoll):
+  def expand(self, pcoll):
     return (pcoll
             | 'split' >> (beam.FlatMap(lambda x: re.findall(r'[A-Za-z\']+', x))
                           .with_output_types(unicode))
