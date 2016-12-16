@@ -15,15 +15,25 @@
 # limitations under the License.
 #
 
-[nosetests]
-# Allow discovery of Python test files marked executable.
-exe=True
-verbosity=2
-# TODO(silviuc): Find a way to run the remaining tests excluded here.
-#
-# The following tests are excluded because they try to load the Cython-based
-# fast_coders module which is not available when running unit tests:
-# fast_coders_test and typecoders_test.
-exclude=fast_coders_test|typecoders_test
-# Include end-to-end tests.
-include=wordcount_it
+"""Wrapper of Beam runners that's built for running and verifying e2e tests."""
+
+from apache_beam.internal import pickler
+from apache_beam.runners.dataflow_runner import DataflowPipelineRunner
+from apache_beam.utils.options import TestOptions
+from hamcrest import assert_that
+
+
+class TestDataflowRunner(DataflowPipelineRunner):
+
+  def __init__(self):
+    super(TestDataflowRunner, self).__init__(blocking=True)
+
+  def run(self, pipeline):
+    """Execute test pipeline and verify test matcher"""
+    self.result = super(TestDataflowRunner, self).run(pipeline)
+
+    options = pipeline.options.view_as(TestOptions)
+    if options.on_success_matcher:
+      assert_that(self.result, pickler.loads(options.on_success_matcher))
+    return self.result
+

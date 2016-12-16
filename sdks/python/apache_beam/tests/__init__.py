@@ -14,16 +14,3 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-
-[nosetests]
-# Allow discovery of Python test files marked executable.
-exe=True
-verbosity=2
-# TODO(silviuc): Find a way to run the remaining tests excluded here.
-#
-# The following tests are excluded because they try to load the Cython-based
-# fast_coders module which is not available when running unit tests:
-# fast_coders_test and typecoders_test.
-exclude=fast_coders_test|typecoders_test
-# Include end-to-end tests.
-include=wordcount_it

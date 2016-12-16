@@ -20,6 +20,7 @@
 import argparse
 import shlex
 
+from apache_beam.internal import pickler
 from apache_beam.pipeline import Pipeline
 from apache_beam.utils.options import PipelineOptions
 
@@ -54,23 +55,54 @@ class TestPipeline(Pipeline):
 
   def __init__(self, runner=None, options=None, argv=None):
     if options is None:
-      options = self.create_pipeline_opt_from_args()
+      options = self.create_test_pipeline_options()
     super(TestPipeline, self).__init__(runner, options, argv)
 
-  def create_pipeline_opt_from_args(self):
-    """Create a pipeline options from command line argument:
-    --test-pipeline-options
+  def _append_extra_opts(self, opt_list, extra_opts):
+    """Append extra pipeline options to existing option list. Test verifier
+    (if contains) should be pickled before append, and will be unpickled
+    later in TestRunner.
+    """
+    for k, v in extra_opts.items():
+      if not v:
+        continue
+      elif isinstance(v, bool) and v:
+        opt_list.append('--%s' % k)
+      elif 'matcher' in k:
+        opt_list.append('--%s=%s' % (k, pickler.dumps(v)))
+      else:
+        opt_list.append('--%s=%s' % (k, v))
+
+  def get_test_option_args(self, argv=None, **kwargs):
+    """Get pipeline options as argument list by parsing value of command line
+    argument: --test-pipeline-options combined with given extra options.
+
+    Args:
+      argv: An iterable of command line arguments to be used. If not specified
+        then sys.argv will be used as input for parsing arguments.
+      kwargs: Extra pipeline options for the test.
+
+    Returns:
+      An argument list of options that can be parsed by argparser or directly
+      build a pipeline option.
     """
     parser = argparse.ArgumentParser()
     parser.add_argument('--test-pipeline-options',
                         type=str,
                         action='store',
                         help='only run tests providing service options')
-    known, unused_argv = parser.parse_known_args()
+    known, unused_argv = parser.parse_known_args(argv)
 
-    if known.test_pipeline_options:
-      options = shlex.split(known.test_pipeline_options)
-    else:
-      options = []
+    options_list = shlex.split(known.test_pipeline_options) \
+      if known.test_pipeline_options else []
 
-    return PipelineOptions(options)
+    if kwargs:
+      self._append_extra_opts(options_list, kwargs)
+
+    return options_list
+
+  def create_test_pipeline_options(self, argv=None):
+    """Create a pipeline options from command line argument:
+    --test-pipeline-options
+    """
+    return PipelineOptions(self.get_test_option_args(argv))

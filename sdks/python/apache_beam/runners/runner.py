@@ -29,6 +29,7 @@ import tempfile
 _KNOWN_DIRECT_RUNNERS = ('DirectPipelineRunner', 'EagerPipelineRunner')
 _KNOWN_DATAFLOW_RUNNERS = ('DataflowPipelineRunner',
                            'BlockingDataflowPipelineRunner')
+_KNOWN_TEST_RUNNERS = ('TestDataflowRunner',)
 
 
 def create_runner(runner_name):
@@ -36,8 +37,8 @@ def create_runner(runner_name):
 
   Args:
     runner_name: Name of the pipeline runner. Possible values are:
-      DirectPipelineRunner, DataflowPipelineRunner and
-      BlockingDataflowPipelineRunner.
+      DirectPipelineRunner, DataflowPipelineRunner,
+      BlockingDataflowPipelineRunner and TestDataflowRunner.
 
   Returns:
     A runner object.
@@ -49,6 +50,8 @@ def create_runner(runner_name):
     runner_name = 'apache_beam.runners.direct.direct_runner.' + runner_name
   elif runner_name in _KNOWN_DATAFLOW_RUNNERS:
     runner_name = 'apache_beam.runners.dataflow_runner.' + runner_name
+  elif runner_name in _KNOWN_TEST_RUNNERS:
+    runner_name = 'apache_beam.runners.test_runner.' + runner_name
 
   if '.' in runner_name:
     module, runner = runner_name.rsplit('.', 1)
@@ -58,7 +61,8 @@ def create_runner(runner_name):
         'Unexpected pipeline runner: %s. Valid values are %s '
         'or the fully qualified name of a PipelineRunner subclass.' % (
             runner_name,
-            ', '.join(_KNOWN_DIRECT_RUNNERS + _KNOWN_DATAFLOW_RUNNERS)))
+            ', '.join(_KNOWN_DIRECT_RUNNERS + _KNOWN_DATAFLOW_RUNNERS +
+                      _KNOWN_TEST_RUNNERS)))
 
 
 class PipelineRunner(object):
