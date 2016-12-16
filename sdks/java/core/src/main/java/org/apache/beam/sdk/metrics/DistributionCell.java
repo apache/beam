@@ -36,6 +36,12 @@ public class DistributionCell implements MetricCell<Distribution, DistributionDa
   private final AtomicReference<DistributionData> value =
       new AtomicReference<DistributionData>(DistributionData.EMPTY);
 
+  /**
+   * Package-visibility because all {@link DistributionCell DistributionCells} should be created by
+   * {@link MetricsContainer#getDistribution(MetricName)}.
+   */
+  DistributionCell() {}
+
   /** Increment the counter by the given amount. */
   @Override
   public void update(long n) {

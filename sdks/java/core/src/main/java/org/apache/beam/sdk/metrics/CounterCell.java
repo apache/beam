@@ -35,6 +35,12 @@ public class CounterCell implements MetricCell<Counter, Long>, Counter {
   private final DirtyState dirty = new DirtyState();
   private final AtomicLong value = new AtomicLong();
 
+  /**
+   * Package-visibility because all {@link CounterCell CounterCells} should be created by
+   * {@link MetricsContainer#getCounter(MetricName)}.
+   */
+  CounterCell() {}
+
   /** Increment the counter by the given amount. */
   private void add(long n) {
     value.addAndGet(n);
