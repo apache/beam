@@ -1734,6 +1734,13 @@ public class BigQueryIOTest implements Serializable {
     assertNotNull(table.getProjectId());
   }
 
+  @Test
+  public void testWriteHandlesNullTable() {
+    BigQueryIO.Write.Bound write = BigQueryIO.Write
+        .withoutValidation();
+    assertNull(write.getTable());
+  }
+
   private static void testNumFiles(File tempDir, int expectedNumFiles) {
     assertEquals(expectedNumFiles, tempDir.listFiles(new FileFilter() {
       @Override
