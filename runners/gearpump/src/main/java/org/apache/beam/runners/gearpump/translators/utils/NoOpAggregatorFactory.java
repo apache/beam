@@ -36,6 +36,28 @@ public class NoOpAggregatorFactory implements AggregatorFactory, Serializable {
       ExecutionContext.StepContext stepContext,
       String aggregatorName,
       Combine.CombineFn<InputT, AccumT, OutputT> combine) {
-    return null;
+    return new NoOpAggregator<>();
   }
+
+  private static class NoOpAggregator<InputT, OutputT> implements Aggregator<InputT, OutputT>,
+      java.io.Serializable {
+    private static final long serialVersionUID = 1L;
+
+    @Override
+    public void addValue(InputT value) {
+    }
+
+    @Override
+    public String getName() {
+      // TODO Auto-generated method stub
+      return null;
+    }
+
+    @Override
+    public Combine.CombineFn<InputT, ?, OutputT> getCombineFn() {
+      // TODO Auto-generated method stub
+      return null;
+    }
+
+  };
 }
