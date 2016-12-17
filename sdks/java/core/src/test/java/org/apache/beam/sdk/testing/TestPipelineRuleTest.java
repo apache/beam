@@ -95,10 +95,10 @@ public class TestPipelineRuleTest implements Serializable {
   }
 
   private static final List<String> WORDS = Collections.singletonList("hi there");
-  private static final String EXPECTED = "expected";
+  private static final String DUMMY = "expected";
 
   private final transient TestPipeline pipeline =
-      TestPipeline.fromOptions(pipelineOptions()).enableStrictPAssert(true);
+      TestPipeline.fromOptions(pipelineOptions()).enableAbandonedNodeEnforcement(true);
 
   private final transient ExpectedException exception = ExpectedException.none();
 
@@ -111,6 +111,18 @@ public class TestPipelineRuleTest implements Serializable {
     return pipelineOptions;
   }
 
+  private PCollection<String> addTransform(final PCollection<String> actual) {
+    return actual
+        .apply(MapElements.via(new SimpleFunction<String, String>() {
+
+          @Override
+          public String apply(final String input) {
+            return DUMMY;
+          }
+        }));
+  }
+
+
   private PCollection<String> pCollection() {
     return
         pipeline
@@ -119,7 +131,7 @@ public class TestPipelineRuleTest implements Serializable {
 
               @Override
               public String apply(final String input) {
-                return EXPECTED;
+                return DUMMY;
               }
             }));
   }
@@ -127,38 +139,53 @@ public class TestPipelineRuleTest implements Serializable {
   @Test
   public void testPipelineRunMissing() throws Throwable {
     exception.expect(TestPipeline.PipelineRunMissingException.class);
-    PAssert.that(pCollection()).containsInAnyOrder(EXPECTED);
+    PAssert.that(pCollection()).containsInAnyOrder(DUMMY);
+    // missing pipeline#run
   }
 
   @Test
-  public void testPipelineHasAbandonedPTransform() throws Throwable {
-    exception.expect(TestPipeline.AbandonedPTransformException.class);
-    PAssert.that(pCollection()).containsInAnyOrder(EXPECTED);
+  public void testPipelineHasAbandonedPAssertNode() throws Throwable {
+    exception.expect(TestPipeline.AbandonedNodeException.class);
+    exception.expectMessage("PAssert");
+
+    final PCollection<String> actual = pCollection();
+    PAssert.that(actual).containsInAnyOrder(DUMMY);
     pipeline.run().waitUntilFinish();
-    PAssert.that(pCollection()).containsInAnyOrder(EXPECTED);
+
+    // dangling PAssert
+    PAssert.that(actual).containsInAnyOrder(DUMMY);
   }
 
   @Test
-  public void testPipelinePAssertMissing() throws Throwable {
-    exception.expect(TestPipeline.PAssertMissingException.class);
+  public void testPipelineHasAbandonedPTransformNode() throws Throwable {
+    exception.expect(TestPipeline.AbandonedNodeException.class);
+    exception.expectMessage("PTransform");
+
+    final PCollection<String> actual = pCollection();
+    PAssert.that(actual).containsInAnyOrder(DUMMY);
     pipeline.run().waitUntilFinish();
+
+    // dangling PTransform
+    addTransform(actual);
   }
 
   @Test
   public void testNormalFlowWithPAssert() throws Throwable {
-    PAssert.that(pCollection()).containsInAnyOrder(EXPECTED);
+    PAssert.that(pCollection()).containsInAnyOrder(DUMMY);
     pipeline.run().waitUntilFinish();
   }
 
   @Test
   public void testAutoAddMissingRunFlow() throws Throwable {
-    PAssert.that(pCollection()).containsInAnyOrder(EXPECTED);
+    PAssert.that(pCollection()).containsInAnyOrder(DUMMY);
+    // missing pipeline#run, but have it auto-added.
     pipeline.enableAutoRunIfMissing(true);
   }
 
   @Test
   public void testDisableStrictPAssertFlow() throws Throwable {
     pCollection();
-    pipeline.enableStrictPAssert(false);
+    // dangling PTransform, but ignore it
+    pipeline.enableAbandonedNodeEnforcement(false);
   }
 }
