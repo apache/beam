@@ -189,9 +189,9 @@ public class View {
 
   /**
    * Returns a {@link View.AsMap} transform that takes a
-   * {@link PCollection PCollection&lt;KV&lt;K V&gt;&gt;} as
+   * {@link PCollection PCollection&lt;KV&lt;K, V&gt;&gt;} as
    * input and produces a {@link PCollectionView} mapping each window to
-   * a {@link Map Map&gt;K, V&gt;}. It is required that each key of the input be
+   * a {@link Map Map&lt;K, V&gt;}. It is required that each key of the input be
    * associated with a single value, per window. If this is not the case, precede this
    * view with {@code Combine.perKey}, as in the example below, or alternatively
    * use {@link View#asMultimap()}.
