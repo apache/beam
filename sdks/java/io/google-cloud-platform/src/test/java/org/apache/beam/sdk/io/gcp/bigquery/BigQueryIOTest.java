@@ -2243,43 +2243,47 @@ public class BigQueryIOTest implements Serializable {
   }
 
   @Test
-  public void testRuntimeOptionsNotCalledInApplyInputTable() throws IOException {
+  public void testRuntimeOptionsNotCalledInApplyInputTable() {
     RuntimeTestOptions options = PipelineOptionsFactory.as(RuntimeTestOptions.class);
     BigQueryOptions bqOptions = options.as(BigQueryOptions.class);
-    bqOptions.setTempLocation(testFolder.newFolder("BigQueryIOTest").getAbsolutePath());
-    FakeBigQueryServices fakeBqServices = new FakeBigQueryServices()
-        .withJobService(new FakeJobService());
+    bqOptions.setTempLocation("gs://testbucket/testdir");
     Pipeline pipeline = TestPipeline.create(options);
-    pipeline
-        .apply(BigQueryIO.Read
-            .from(options.getInputTable()).withoutValidation()
-            .withTestServices(fakeBqServices))
-            .apply(BigQueryIO.Write
-            .to(options.getOutputTable())
-            .withSchema(NestedValueProvider.of(
-                options.getOutputSchema(), new JsonSchemaToTableSchema()))
-            .withTestServices(fakeBqServices)
-            .withoutValidation());
+    BigQueryIO.Read.Bound read = BigQueryIO.Read.from(
+        options.getInputTable()).withoutValidation();
+    pipeline.apply(read);
+    // Test that this doesn't throw.
+    DisplayData.from(read);
   }
 
   @Test
-  public void testRuntimeOptionsNotCalledInApplyInputQuery() throws IOException {
+  public void testRuntimeOptionsNotCalledInApplyInputQuery() {
     RuntimeTestOptions options = PipelineOptionsFactory.as(RuntimeTestOptions.class);
     BigQueryOptions bqOptions = options.as(BigQueryOptions.class);
-    bqOptions.setTempLocation(testFolder.newFolder("BigQueryIOTest").getAbsolutePath());
-    FakeBigQueryServices fakeBqServices = new FakeBigQueryServices()
-        .withJobService(new FakeJobService());
+    bqOptions.setTempLocation("gs://testbucket/testdir");
     Pipeline pipeline = TestPipeline.create(options);
+    BigQueryIO.Read.Bound read = BigQueryIO.Read.fromQuery(
+        options.getInputQuery()).withoutValidation();
+    pipeline.apply(read);
+    // Test that this doesn't throw.
+    DisplayData.from(read);
+  }
+
+  @Test
+  public void testRuntimeOptionsNotCalledInApplyOutput() {
+    RuntimeTestOptions options = PipelineOptionsFactory.as(RuntimeTestOptions.class);
+    BigQueryOptions bqOptions = options.as(BigQueryOptions.class);
+    bqOptions.setTempLocation("gs://testbucket/testdir");
+    Pipeline pipeline = TestPipeline.create(options);
+    BigQueryIO.Write.Bound write = BigQueryIO.Write
+        .to(options.getOutputTable())
+        .withSchema(NestedValueProvider.of(
+            options.getOutputSchema(), new JsonSchemaToTableSchema()))
+        .withoutValidation();
     pipeline
-        .apply(BigQueryIO.Read
-            .fromQuery(options.getInputQuery()).withoutValidation()
-            .withTestServices(fakeBqServices))
-            .apply(BigQueryIO.Write
-            .to(options.getOutputTable())
-            .withSchema(NestedValueProvider.of(
-                options.getOutputSchema(), new JsonSchemaToTableSchema()))
-            .withTestServices(fakeBqServices)
-            .withoutValidation());
+        .apply(Create.<TableRow>of())
+        .apply(write);
+    // Test that this doesn't throw.
+    DisplayData.from(write);
   }
 
   @Test
