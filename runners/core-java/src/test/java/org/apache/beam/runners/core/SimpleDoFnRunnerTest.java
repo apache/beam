@@ -33,6 +33,7 @@ import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.util.BaseExecutionContext.StepContext;
+import org.apache.beam.sdk.util.NullSideInputReader;
 import org.apache.beam.sdk.util.TimeDomain;
 import org.apache.beam.sdk.util.Timer;
 import org.apache.beam.sdk.util.TimerInternals;
@@ -77,7 +78,7 @@ public class SimpleDoFnRunnerTest {
         new SimpleDoFnRunner<>(
             null,
             fn,
-            null,
+            NullSideInputReader.empty(),
             null,
             null,
             Collections.<TupleTag<?>>emptyList(),
@@ -98,7 +99,7 @@ public class SimpleDoFnRunnerTest {
         new SimpleDoFnRunner<>(
             null,
             fn,
-            null,
+            NullSideInputReader.empty(),
             null,
             null,
             Collections.<TupleTag<?>>emptyList(),
@@ -129,7 +130,7 @@ public class SimpleDoFnRunnerTest {
         new SimpleDoFnRunner<>(
             null,
             fn,
-            null,
+            NullSideInputReader.empty(),
             null,
             null,
             Collections.<TupleTag<?>>emptyList(),
@@ -158,7 +159,7 @@ public class SimpleDoFnRunnerTest {
         new SimpleDoFnRunner<>(
             null,
             fn,
-            null,
+            NullSideInputReader.empty(),
             null,
             null,
             Collections.<TupleTag<?>>emptyList(),
@@ -179,7 +180,7 @@ public class SimpleDoFnRunnerTest {
         new SimpleDoFnRunner<>(
             null,
             fn,
-            null,
+            NullSideInputReader.empty(),
             null,
             null,
             Collections.<TupleTag<?>>emptyList(),
@@ -206,7 +207,7 @@ public class SimpleDoFnRunnerTest {
         new SimpleDoFnRunner<>(
             null,
             fn,
-            null,
+            NullSideInputReader.empty(),
             null,
             null,
             Collections.<TupleTag<?>>emptyList(),
