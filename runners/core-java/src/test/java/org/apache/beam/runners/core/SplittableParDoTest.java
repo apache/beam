@@ -28,7 +28,6 @@ import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
 import java.io.Serializable;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
@@ -191,8 +190,6 @@ public class SplittableParDoTest {
         tester;
     private Instant currentProcessingTime;
 
-    private InMemoryTimerInternals timerInternals;
-
     ProcessFnTester(
         Instant currentProcessingTime,
         DoFn<InputT, OutputT> fn,
@@ -203,7 +200,6 @@ public class SplittableParDoTest {
           new SplittableParDo.ProcessFn<>(
               fn, inputCoder, restrictionCoder, IntervalWindow.getCoder());
       this.tester = DoFnTester.of(processFn);
-      this.timerInternals = new InMemoryTimerInternals();
       processFn.setStateInternalsFactory(
           new StateInternalsFactory<String>() {
             @Override
@@ -215,7 +211,7 @@ public class SplittableParDoTest {
           new TimerInternalsFactory<String>() {
             @Override
             public TimerInternals timerInternalsForKey(String key) {
-              return timerInternals;
+              return tester.getTimerInternals();
             }
           });
       processFn.setOutputWindowedValue(
@@ -251,7 +247,7 @@ public class SplittableParDoTest {
       // through the state/timer/output callbacks.
       this.tester.setCloningBehavior(DoFnTester.CloningBehavior.DO_NOT_CLONE);
       this.tester.startBundle();
-      timerInternals.advanceProcessingTime(currentProcessingTime);
+      this.tester.advanceProcessingTime(currentProcessingTime);
 
       this.currentProcessingTime = currentProcessingTime;
     }
@@ -289,13 +285,7 @@ public class SplittableParDoTest {
      */
     boolean advanceProcessingTimeBy(Duration duration) throws Exception {
       currentProcessingTime = currentProcessingTime.plus(duration);
-      timerInternals.advanceProcessingTime(currentProcessingTime);
-
-      List<TimerInternals.TimerData> timers = new ArrayList<>();
-      TimerInternals.TimerData nextTimer;
-      while ((nextTimer = timerInternals.removeNextProcessingTimer()) != null) {
-        timers.add(nextTimer);
-      }
+      List<TimerInternals.TimerData> timers = tester.advanceProcessingTime(currentProcessingTime);
       if (timers.isEmpty()) {
         return false;
       }
