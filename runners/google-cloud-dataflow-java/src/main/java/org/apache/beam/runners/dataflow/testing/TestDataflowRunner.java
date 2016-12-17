@@ -61,7 +61,12 @@ import org.slf4j.LoggerFactory;
  */
 public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
   private static final String TENTATIVE_COUNTER = "tentative";
-  private static final String WATERMARK_METRIC_SUFFIX = "windmill-data-watermark";
+  // See https://issues.apache.org/jira/browse/BEAM-1170
+  // we need to either fix the API or pipe the DRAINED signal through
+  @VisibleForTesting
+  static final String LEGACY_WATERMARK_METRIC_SUFFIX = "windmill-data-watermark";
+  @VisibleForTesting
+  static final String WATERMARK_METRIC_SUFFIX = "DataWatermark";
   private static final long MAX_WATERMARK_VALUE = -2L;
   private static final Logger LOG = LoggerFactory.getLogger(TestDataflowRunner.class);
 
@@ -248,6 +253,23 @@ public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
   }
 
   /**
+   * Checks wether a metric is a streaming watermark.
+   *
+   * @return true if the metric is a watermark.
+   */
+  boolean isWatermark(MetricUpdate metric) {
+    if (metric.getName() == null || metric.getName().getName() == null) {
+      return false; // no name -> shouldn't happen, not the watermark
+    }
+    if (metric.getScalar() == null) {
+      return false; // no scalar value -> not the watermark
+    }
+    String name = metric.getName().getName();
+    return name.endsWith(LEGACY_WATERMARK_METRIC_SUFFIX)
+        || name.endsWith(WATERMARK_METRIC_SUFFIX);
+  }
+
+  /**
    * Check watermarks of the streaming job. At least one watermark metric must exist.
    *
    * @return true if all watermarks are at max, false otherwise.
@@ -256,10 +278,7 @@ public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
   boolean atMaxWatermark(DataflowPipelineJob job, JobMetrics metrics) {
     boolean hasMaxWatermark = false;
     for (MetricUpdate metric : metrics.getMetrics()) {
-      if (metric.getName() == null
-          || metric.getName().getName() == null
-          || !metric.getName().getName().endsWith(WATERMARK_METRIC_SUFFIX)
-          || metric.getScalar() == null) {
+      if (!isWatermark(metric)) {
         continue;
       }
       BigDecimal watermark = (BigDecimal) metric.getScalar();
