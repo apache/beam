@@ -67,3 +67,4 @@ public class DistributionCell implements MetricCell<Distribution, DistributionDa
     return this;
   }
 }
+
