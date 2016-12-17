@@ -74,6 +74,9 @@ public class TestPipelineTest implements Serializable {
   @Rule public transient RuleChain ruleOrder = RuleChain.outerRule(exception).around(pipeline);
 
   @Test
+  public void testNoTestPipelineUsed() { }
+
+  @Test
   public void testCreationUsingDefaults() {
     assertNotNull(TestPipeline.create());
   }

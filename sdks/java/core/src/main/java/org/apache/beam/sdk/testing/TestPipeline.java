@@ -169,7 +169,12 @@ public class TestPipeline extends Pipeline implements TestRule {
           throw new AbandonedNodeException("The pipeline contains abandoned PTransform(s).");
         }
       } else if (runVisitedNodes == null && !enableAutoRunIfMissing) {
-        throw new PipelineRunMissingException("The pipeline has not been run.");
+        IsEmptyVisitor isEmptyVisitor = new IsEmptyVisitor();
+        pipeline.traverseTopologically(isEmptyVisitor);
+
+        if (!isEmptyVisitor.isEmpty()) {
+          throw new PipelineRunMissingException("The pipeline has not been run.");
+        }
       }
     }
 
@@ -388,5 +393,18 @@ public class TestPipeline extends Pipeline implements TestRule {
       }
     }
     return firstInstanceAfterTestPipeline;
+  }
+
+  private static class IsEmptyVisitor extends PipelineVisitor.Defaults {
+    private boolean empty = true;
+
+    public boolean isEmpty() {
+      return empty;
+    }
+
+    @Override
+    public void visitPrimitiveTransform(TransformHierarchy.Node node) {
+      empty = false;
+    }
   }
 }
