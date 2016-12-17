@@ -17,6 +17,8 @@
  */
 package org.apache.beam.runners.dataflow.testing;
 
+import static org.apache.beam.runners.dataflow.testing.TestDataflowRunner.LEGACY_WATERMARK_METRIC_SUFFIX;
+import static org.apache.beam.runners.dataflow.testing.TestDataflowRunner.WATERMARK_METRIC_SUFFIX;
 import static org.hamcrest.Matchers.containsString;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -95,7 +97,6 @@ public class TestDataflowRunnerTest {
   @Mock private MockLowLevelHttpRequest request;
   @Mock private GcsUtil mockGcsUtil;
 
-  private static final String WATERMARK_METRIC_SUFFIX = "windmill-data-watermark";
   private static final BigDecimal DEFAULT_MAX_WATERMARK = new BigDecimal(-2);
 
   private TestDataflowPipelineOptions options;
@@ -406,6 +407,19 @@ public class TestDataflowRunnerTest {
     TestDataflowRunner runner = (TestDataflowRunner) p.getRunner();
     JobMetrics metrics = buildJobMetrics(generateMockStreamingMetrics(
         ImmutableMap.of(WATERMARK_METRIC_SUFFIX, DEFAULT_MAX_WATERMARK)));
+    doReturn(State.RUNNING).when(job).getState();
+    assertTrue(runner.atMaxWatermark(job, metrics));
+  }
+
+  @Test
+  public void testCheckMaxWatermarkWithLegacyWatermarkAtMax() throws IOException {
+    DataflowPipelineJob job = spy(new DataflowPipelineJob("test-job", options, null));
+    Pipeline p = TestPipeline.create(options);
+    p.apply(Create.of(1, 2, 3));
+
+    TestDataflowRunner runner = (TestDataflowRunner) p.getRunner();
+    JobMetrics metrics = buildJobMetrics(generateMockStreamingMetrics(
+        ImmutableMap.of(LEGACY_WATERMARK_METRIC_SUFFIX, DEFAULT_MAX_WATERMARK)));
     doReturn(State.RUNNING).when(job).getState();
     assertTrue(runner.atMaxWatermark(job, metrics));
   }
