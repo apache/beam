@@ -25,8 +25,10 @@ import java.util.HashSet;
 import java.util.Set;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.ReadyCheckingSideInputReader;
+import org.apache.beam.sdk.util.TimeDomain;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollectionView;
+import org.joda.time.Instant;
 
 /**
  * A {@link DoFnRunner} that can refuse to process elements that are not ready, instead returning
@@ -107,6 +109,12 @@ public class PushbackSideInputDoFnRunner<InputT, OutputT> implements DoFnRunner<
   @Override
   public void processElement(WindowedValue<InputT> elem) {
     underlying.processElement(elem);
+  }
+
+  @Override
+  public void onTimer(String timerId, BoundedWindow window, Instant timestamp,
+      TimeDomain timeDomain) {
+    underlying.onTimer(timerId, window, timestamp, timeDomain);
   }
 
   /**
