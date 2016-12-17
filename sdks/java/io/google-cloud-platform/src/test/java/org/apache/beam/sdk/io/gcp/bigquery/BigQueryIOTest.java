@@ -26,6 +26,7 @@ import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisp
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.hasItem;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
@@ -2279,6 +2280,19 @@ public class BigQueryIOTest implements Serializable {
                 options.getOutputSchema(), new JsonSchemaToTableSchema()))
             .withTestServices(fakeBqServices)
             .withoutValidation());
+  }
+
+  @Test
+  public void testTagWithUniqueIdsAndTableProjectNotNullWithNvp() {
+    BigQueryOptions bqOptions = PipelineOptionsFactory.as(BigQueryOptions.class);
+    bqOptions.setProject("project");
+    BigQueryIO.TagWithUniqueIdsAndTable tag =
+        new BigQueryIO.TagWithUniqueIdsAndTable(
+            bqOptions, NestedValueProvider.of(
+                StaticValueProvider.of("data_set.table_name"),
+                new BigQueryIO.TableSpecToTableRef()), null);
+    TableReference table = BigQueryIO.parseTableSpec(tag.getTableSpec().get());
+    assertNotNull(table.getProjectId());
   }
 
   private static void testNumFiles(File tempDir, int expectedNumFiles) {
