@@ -103,7 +103,7 @@ public class TestPipelineRuleTest implements Serializable {
   private final transient ExpectedException exception = ExpectedException.none();
 
   @Rule
-  public transient RuleChain chain = RuleChain.outerRule(exception).around(pipeline);
+  public transient RuleChain ruleOrder = RuleChain.outerRule(exception).around(pipeline);
 
   private static PipelineOptions pipelineOptions() {
     final PipelineOptions pipelineOptions = PipelineOptionsFactory.create();
@@ -111,22 +111,16 @@ public class TestPipelineRuleTest implements Serializable {
     return pipelineOptions;
   }
 
-  private PCollection<String> addTransform(final PCollection<String> actual) {
-    return actual
-        .apply(MapElements.via(new SimpleFunction<String, String>() {
-
-          @Override
-          public String apply(final String input) {
-            return DUMMY;
-          }
-        }));
-  }
-
-
   private PCollection<String> pCollection() {
     return
-        pipeline
-            .apply(Create.of(WORDS).withCoder(StringUtf8Coder.of()))
+        addTransform(pipeline
+                         .apply(Create.of(WORDS)
+                                      .withCoder(StringUtf8Coder.of())));
+  }
+
+  private PCollection<String> addTransform(final PCollection<String> pCollection) {
+    return
+        pCollection
             .apply(MapElements.via(new SimpleFunction<String, String>() {
 
               @Override
@@ -148,12 +142,12 @@ public class TestPipelineRuleTest implements Serializable {
     exception.expect(TestPipeline.AbandonedNodeException.class);
     exception.expectMessage("PAssert");
 
-    final PCollection<String> actual = pCollection();
-    PAssert.that(actual).containsInAnyOrder(DUMMY);
+    final PCollection<String> pCollection = pCollection();
+    PAssert.that(pCollection).containsInAnyOrder(DUMMY);
     pipeline.run().waitUntilFinish();
 
     // dangling PAssert
-    PAssert.that(actual).containsInAnyOrder(DUMMY);
+    PAssert.that(pCollection).containsInAnyOrder(DUMMY);
   }
 
   @Test
@@ -161,12 +155,12 @@ public class TestPipelineRuleTest implements Serializable {
     exception.expect(TestPipeline.AbandonedNodeException.class);
     exception.expectMessage("PTransform");
 
-    final PCollection<String> actual = pCollection();
-    PAssert.that(actual).containsInAnyOrder(DUMMY);
+    final PCollection<String> pCollection = pCollection();
+    PAssert.that(pCollection).containsInAnyOrder(DUMMY);
     pipeline.run().waitUntilFinish();
 
     // dangling PTransform
-    addTransform(actual);
+    addTransform(pCollection);
   }
 
   @Test
