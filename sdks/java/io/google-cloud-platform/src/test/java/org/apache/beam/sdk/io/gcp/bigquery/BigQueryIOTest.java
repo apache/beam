@@ -1257,9 +1257,18 @@ public class BigQueryIOTest implements Serializable {
   }
 
   @Test
+  public void testStreamingWriteFnCreateNever() throws Exception {
+    BigQueryIO.StreamingWriteFn fn = new BigQueryIO.StreamingWriteFn(
+        null, CreateDisposition.CREATE_NEVER, new FakeBigQueryServices());
+    assertEquals(BigQueryIO.parseTableSpec("dataset.table"),
+        fn.getOrCreateTable(null, "dataset.table"));
+  }
+
+  @Test
   public void testCreateNeverWithStreaming() throws Exception {
     BigQueryOptions options = TestPipeline.testingPipelineOptions().as(BigQueryOptions.class);
     options.setProject("project");
+    options.setStreaming(true);
     Pipeline p = TestPipeline.create(options);
 
     TableReference tableRef = new TableReference();
@@ -1267,16 +1276,16 @@ public class BigQueryIOTest implements Serializable {
     tableRef.setTableId("sometable");
 
     PCollection<TableRow> tableRows =
-          p.apply(CountingInput.unbounded())
-              .apply(
-                  MapElements.via(
-                      new SimpleFunction<Long, TableRow>() {
-                        @Override
-                        public TableRow apply(Long input) {
-                          return null;
-                        }
-                      }))
-              .setCoder(TableRowJsonCoder.of());
+        p.apply(CountingInput.unbounded())
+        .apply(
+            MapElements.via(
+                new SimpleFunction<Long, TableRow>() {
+                  @Override
+                  public TableRow apply(Long input) {
+                    return null;
+                  }
+                }))
+        .setCoder(TableRowJsonCoder.of());
     tableRows
         .apply(BigQueryIO.Write.to(tableRef)
             .withCreateDisposition(CreateDisposition.CREATE_NEVER)

@@ -1886,11 +1886,16 @@ public class BigQueryIO {
 
         if (input.isBounded() == PCollection.IsBounded.UNBOUNDED || tableRefFunction != null) {
           // We will use BigQuery's streaming write API -- validate supported dispositions.
-          if (jsonTableRef == null) {
+          if (tableRefFunction != null) {
             checkArgument(
                 createDisposition != CreateDisposition.CREATE_NEVER,
                 "CreateDisposition.CREATE_NEVER is not supported when using a tablespec"
                 + " function.");
+          }
+          if (jsonSchema == null) {
+            checkArgument(
+                createDisposition == CreateDisposition.CREATE_NEVER,
+                "CreateDisposition.CREATE_NEVER must be used if jsonSchema is null.");
           }
 
           checkArgument(
@@ -1930,7 +1935,7 @@ public class BigQueryIO {
               new StreamWithDeDup(getTable(), tableRefFunction,
                   jsonSchema == null ? null : NestedValueProvider.of(
                       jsonSchema, new JsonSchemaToTableSchema()),
-                  bqServices));
+                  createDisposition, bqServices));
         }
 
         ValueProvider<TableReference> table = getTableWithDefaultProject(options);
@@ -2560,7 +2565,8 @@ public class BigQueryIO {
    * Implementation of DoFn to perform streaming BigQuery write.
    */
   @SystemDoFnInternal
-  private static class StreamingWriteFn
+  @VisibleForTesting
+  static class StreamingWriteFn
       extends DoFn<KV<ShardedKey<String>, TableRowInfo>, Void> {
     /** TableSchema in JSON. Use String to make the class Serializable. */
     @Nullable private final ValueProvider<String> jsonTableSchema;
@@ -2569,6 +2575,8 @@ public class BigQueryIO {
 
     /** JsonTableRows to accumulate BigQuery rows in order to batch writes. */
     private transient Map<String, List<TableRow>> tableRows;
+
+    private final Write.CreateDisposition createDisposition;
 
     /** The list of unique ids for each BigQuery table row. */
     private transient Map<String, List<String>> uniqueIdsForTableRows;
@@ -2584,9 +2592,11 @@ public class BigQueryIO {
 
     /** Constructor. */
     StreamingWriteFn(@Nullable ValueProvider<TableSchema> schema,
+        Write.CreateDisposition createDisposition,
         BigQueryServices bqServices) {
       this.jsonTableSchema = schema == null ? null :
           NestedValueProvider.of(schema, new TableSchemaToJsonSchema());
+      this.createDisposition = createDisposition;
       this.bqServices = checkNotNull(bqServices, "bqServices");
     }
 
@@ -2633,7 +2643,8 @@ public class BigQueryIO {
     public TableReference getOrCreateTable(BigQueryOptions options, String tableSpec)
         throws IOException {
       TableReference tableReference = parseTableSpec(tableSpec);
-      if (!createdTables.contains(tableSpec) && jsonTableSchema != null) {
+      if (!createdTables.contains(tableSpec)
+          && createDisposition != createDisposition.CREATE_NEVER) {
         synchronized (createdTables) {
           // Another thread may have succeeded in creating the table in the meanwhile, so
           // check again. This check isn't needed for correctness, but we add it to prevent
@@ -2873,19 +2884,22 @@ public class BigQueryIO {
   * it leverages BigQuery best effort de-dup mechanism.
    */
   private static class StreamWithDeDup extends PTransform<PCollection<TableRow>, PDone> {
-    private final transient ValueProvider<TableReference> tableReference;
-    private final SerializableFunction<BoundedWindow, TableReference> tableRefFunction;
-    private final transient ValueProvider<TableSchema> tableSchema;
+    @Nullable private final transient ValueProvider<TableReference> tableReference;
+    @Nullable private final SerializableFunction<BoundedWindow, TableReference> tableRefFunction;
+    @Nullable private final transient ValueProvider<TableSchema> tableSchema;
+    private final Write.CreateDisposition createDisposition;
     private final BigQueryServices bqServices;
 
     /** Constructor. */
     StreamWithDeDup(ValueProvider<TableReference> tableReference,
-        SerializableFunction<BoundedWindow, TableReference> tableRefFunction,
-        ValueProvider<TableSchema> tableSchema,
+        @Nullable SerializableFunction<BoundedWindow, TableReference> tableRefFunction,
+        @Nullable ValueProvider<TableSchema> tableSchema,
+        Write.CreateDisposition createDisposition,
         BigQueryServices bqServices) {
       this.tableReference = tableReference;
       this.tableRefFunction = tableRefFunction;
       this.tableSchema = tableSchema;
+      this.createDisposition = createDisposition;
       this.bqServices = checkNotNull(bqServices, "bqServices");
     }
 
@@ -2917,7 +2931,7 @@ public class BigQueryIO {
       tagged
           .setCoder(KvCoder.of(ShardedKeyCoder.of(StringUtf8Coder.of()), TableRowInfoCoder.of()))
           .apply(Reshuffle.<ShardedKey<String>, TableRowInfo>of())
-          .apply(ParDo.of(new StreamingWriteFn(tableSchema, bqServices)));
+          .apply(ParDo.of(new StreamingWriteFn(tableSchema, createDisposition, bqServices)));
 
       // Note that the implementation to return PDone here breaks the
       // implicit assumption about the job execution order. If a user
