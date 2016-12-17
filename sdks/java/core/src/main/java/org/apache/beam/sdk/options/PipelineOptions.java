@@ -263,7 +263,7 @@ public interface PipelineOptions extends HasDisplayData {
       + "It defaults to ApplicationName-UserName-Date-RandomInteger")
   @Default.InstanceFactory(JobNameFactory.class)
   String getJobName();
-  void setJobName(String numWorkers);
+  void setJobName(String jobName);
 
   /**
    * A {@link DefaultValueFactory} that obtains the class of the {@code DirectRunner} if it exists
