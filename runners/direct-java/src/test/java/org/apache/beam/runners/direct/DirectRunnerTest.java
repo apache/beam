@@ -43,7 +43,6 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.ListCoder;
 import org.apache.beam.sdk.coders.VarIntCoder;
-import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.CountingInput;
 import org.apache.beam.sdk.io.CountingSource;
@@ -407,31 +406,31 @@ public class DirectRunnerTest implements Serializable {
     thrown.expectMessage("must not be mutated");
     pipeline.run();
   }
-
-  @Test
-  public void testUnencodableOutputElement() throws Exception {
-    Pipeline p = getPipeline();
-    PCollection<Long> pcollection =
-        p.apply(Create.of((Void) null)).apply(ParDo.of(new DoFn<Void, Long>() {
-          @ProcessElement
-          public void processElement(ProcessContext c) {
-            c.output(null);
-          }
-        })).setCoder(VarLongCoder.of());
-    pcollection
-        .apply(
-            ParDo.of(
-                new DoFn<Long, Long>() {
-                  @ProcessElement
-                  public void unreachable(ProcessContext c) {
-                    fail("Pipeline should fail to encode a null Long in VarLongCoder");
-                  }
-                }));
-
-    thrown.expectCause(isA(CoderException.class));
-    thrown.expectMessage("cannot encode a null Long");
-    p.run();
-  }
+//
+//  @Test
+//  public void testUnencodableOutputElement() throws Exception {
+//    Pipeline p = getPipeline();
+//    PCollection<Long> pcollection =
+//        p.apply(Create.of((Void) null)).apply(ParDo.of(new DoFn<Void, Long>() {
+//          @ProcessElement
+//          public void processElement(ProcessContext c) {
+//            c.output(null);
+//          }
+//        })).setCoder(VarLongCoder.of());
+//    pcollection
+//        .apply(
+//            ParDo.of(
+//                new DoFn<Long, Long>() {
+//                  @ProcessElement
+//                  public void unreachable(ProcessContext c) {
+//                    fail("Pipeline should fail to encode a null Long in VarLongCoder");
+//                  }
+//                }));
+//
+//    thrown.expectCause(isA(CoderException.class));
+//    thrown.expectMessage("cannot encode a null Long");
+//    p.run();
+//  }
 
   @Test
   public void testUnencodableOutputFromBoundedRead() throws Exception {
