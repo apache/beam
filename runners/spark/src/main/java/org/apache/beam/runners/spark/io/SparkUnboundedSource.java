@@ -173,25 +173,30 @@ public class SparkUnboundedSource {
       // compute parent.
       scala.Option<RDD<Metadata>> parentRDDOpt = parent.getOrCompute(validTime);
       long count = 0;
+      Instant globalWatermark = new Instant(Long.MIN_VALUE);
       if (parentRDDOpt.isDefined()) {
         JavaRDD<Metadata> parentRDD = parentRDDOpt.get().toJavaRDD();
         for (Metadata metadata: parentRDD.collect()) {
           count += metadata.getNumRecords();
+          // a monotonically increasing watermark.
+          globalWatermark = globalWatermark.isBefore(metadata.getWatermark())
+              ? metadata.getWatermark() : globalWatermark;
         }
       }
       // report - for RateEstimator and visibility.
-      report(validTime, count);
+      report(validTime, count, globalWatermark);
       return scala.Option.empty();
     }
 
-    private void report(Time batchTime, long count) {
+    private void report(Time batchTime, long count, Instant watermark) {
       // metadata - #records read and a description.
       scala.collection.immutable.Map<String, Object> metadata =
           new scala.collection.immutable.Map.Map1<String, Object>(
               StreamInputInfo.METADATA_KEY_DESCRIPTION(),
               String.format(
-                  "Read %d records from %s for batch time: %s",
+                  "Read %d records with observed watermark %s, from %s for batch time: %s",
                   count,
+                  watermark,
                   sourceName,
                   batchTime));
       StreamInputInfo streamInputInfo = new StreamInputInfo(inputDStreamId, count, metadata);
