@@ -36,6 +36,7 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.joda.time.Instant;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
@@ -81,12 +82,13 @@ public class HourlyTeamScoreTest implements Serializable {
       KV.of("user18_BananaEmu", 1), KV.of("user18_ApricotCaneToad", 14)
     };
 
+  @Rule
+  public TestPipeline p = TestPipeline.create();
 
   /** Test the filtering. */
   @Test
   @Category(RunnableOnService.class)
   public void testUserScoresFilter() throws Exception {
-    Pipeline p = TestPipeline.create();
 
     final Instant startMinTimestamp = new Instant(1447965680000L);
 

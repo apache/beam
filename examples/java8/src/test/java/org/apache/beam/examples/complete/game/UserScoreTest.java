@@ -36,6 +36,7 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.junit.Assert;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
@@ -81,7 +82,10 @@ public class UserScoreTest implements Serializable {
       KV.of("AndroidGreenKookaburra", 23),
       KV.of("BisqueBilby", 14));
 
-  /** Test the {@link ParseEventFn} {@link DoFn}. */
+  @Rule
+  public TestPipeline p = TestPipeline.create();
+
+  /** Test the {@link ParseEventFn} {@link org.apache.beam.sdk.transforms.DoFn}. */
   @Test
   public void testParseEventFn() throws Exception {
     DoFnTester<String, GameActionInfo> parseEventFn =
@@ -98,7 +102,6 @@ public class UserScoreTest implements Serializable {
   @Test
   @Category(RunnableOnService.class)
   public void testUserScoreSums() throws Exception {
-    Pipeline p = TestPipeline.create();
 
     PCollection<String> input = p.apply(Create.of(GAME_EVENTS).withCoder(StringUtf8Coder.of()));
 
@@ -117,7 +120,6 @@ public class UserScoreTest implements Serializable {
   @Test
   @Category(RunnableOnService.class)
   public void testTeamScoreSums() throws Exception {
-    Pipeline p = TestPipeline.create();
 
     PCollection<String> input = p.apply(Create.of(GAME_EVENTS).withCoder(StringUtf8Coder.of()));
 
@@ -136,7 +138,6 @@ public class UserScoreTest implements Serializable {
   @Test
   @Category(RunnableOnService.class)
   public void testUserScoresBadInput() throws Exception {
-    Pipeline p = TestPipeline.create();
 
     PCollection<String> input = p.apply(Create.of(GAME_EVENTS2).withCoder(StringUtf8Coder.of()));
 
