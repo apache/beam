@@ -26,7 +26,6 @@ import java.util.List;
 import java.util.Map;
 import org.apache.beam.examples.cookbook.TriggerExample.ExtractFlowInfo;
 import org.apache.beam.examples.cookbook.TriggerExample.TotalFlow;
-import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.RunnableOnService;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -42,6 +41,7 @@ import org.apache.beam.sdk.values.TimestampedValue;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Assert;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
@@ -93,6 +93,9 @@ public class TriggerExampleTest {
           .set("timing", "ON_TIME")
           .set("window", "[1970-01-01T00:00:00.000Z..1970-01-01T00:01:00.000Z)");
 
+  @Rule
+  public TestPipeline pipeline = TestPipeline.create();
+
   @Test
   public void testExtractTotalFlow() throws Exception {
     DoFnTester<String, KV<String, Integer>> extractFlowInfow = DoFnTester
@@ -110,7 +113,6 @@ public class TriggerExampleTest {
   @Test
   @Category(RunnableOnService.class)
   public void testTotalFlow () {
-    Pipeline pipeline = TestPipeline.create();
     PCollection<KV<String, Integer>> flow = pipeline
         .apply(Create.timestamped(TIME_STAMPED_INPUT))
         .apply(ParDo.of(new ExtractFlowInfo()));

@@ -22,7 +22,6 @@ import java.util.List;
 import org.apache.beam.examples.WordCount.CountWords;
 import org.apache.beam.examples.WordCount.ExtractWordsFn;
 import org.apache.beam.examples.WordCount.FormatAsTextFn;
-import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.RunnableOnService;
@@ -34,6 +33,7 @@ import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.values.PCollection;
 import org.hamcrest.CoreMatchers;
 import org.junit.Assert;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
@@ -68,12 +68,13 @@ public class WordCountTest {
   static final String[] COUNTS_ARRAY = new String[] {
       "hi: 5", "there: 1", "sue: 2", "bob: 2"};
 
+  @Rule
+  public TestPipeline p = TestPipeline.create();
+
   /** Example test that tests a PTransform by using an in-memory input and inspecting the output. */
   @Test
   @Category(RunnableOnService.class)
   public void testCountWords() throws Exception {
-    Pipeline p = TestPipeline.create();
-
     PCollection<String> input = p.apply(Create.of(WORDS).withCoder(StringUtf8Coder.of()));
 
     PCollection<String> output = input.apply(new CountWords())
