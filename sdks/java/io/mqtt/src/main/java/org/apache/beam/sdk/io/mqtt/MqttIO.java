@@ -543,9 +543,7 @@ public class MqttIO {
 
       @Setup
       public void createMqttClient() throws Exception {
-        client = new MQTT();
-        client.setHost(spec.connectionConfiguration().getServerUri());
-        // client ID is auto generated
+        client = spec.connectionConfiguration().getClient();
         connection = client.blockingConnection();
         connection.connect();
       }
