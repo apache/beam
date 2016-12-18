@@ -78,6 +78,9 @@ public class UnboundedReadFromBoundedSourceTest {
   @Rule
   public transient ExpectedException thrown = ExpectedException.none();
 
+  @Rule
+  public TestPipeline p = TestPipeline.create();
+
   @Test
   public void testCheckpointCoderNulls() throws Exception {
     CheckpointCoder<String> coder = new CheckpointCoder<>(StringUtf8Coder.of());
@@ -96,8 +99,6 @@ public class UnboundedReadFromBoundedSourceTest {
     BoundedSource<Long> boundedSource = CountingSource.upTo(numElements);
     UnboundedSource<Long, Checkpoint<Long>> unboundedSource =
         new BoundedToUnboundedSourceAdapter<>(boundedSource);
-
-    Pipeline p = TestPipeline.create();
 
     PCollection<Long> output =
         p.apply(Read.from(unboundedSource).withMaxNumRecords(numElements));
