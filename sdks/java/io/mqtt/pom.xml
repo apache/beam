@@ -60,7 +60,6 @@
   </build>
 
   <properties>
-    <paho.version>1.1.0</paho.version>
     <activemq.version>5.13.1</activemq.version>
   </properties>
 
@@ -86,9 +85,14 @@
     </dependency>
 
     <dependency>
-      <groupId>org.eclipse.paho</groupId>
-      <artifactId>org.eclipse.paho.client.mqttv3</artifactId>
-      <version>${paho.version}</version>
+      <groupId>org.fusesource.mqtt-client</groupId>
+      <artifactId>mqtt-client</artifactId>
+      <version>1.14</version>
+    </dependency>
+    <dependency>
+      <groupId>org.fusesource.hawtbuf</groupId>
+      <artifactId>hawtbuf</artifactId>
+      <version>1.11</version>
     </dependency>
 
     <dependency>

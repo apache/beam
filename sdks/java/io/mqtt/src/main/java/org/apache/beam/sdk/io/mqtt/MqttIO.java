@@ -27,9 +27,6 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.NoSuchElementException;
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.TimeUnit;
 
 import javax.annotation.Nullable;
 
@@ -45,11 +42,11 @@ import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
-import org.eclipse.paho.client.mqttv3.IMqttDeliveryToken;
-import org.eclipse.paho.client.mqttv3.MqttCallback;
-import org.eclipse.paho.client.mqttv3.MqttClient;
-import org.eclipse.paho.client.mqttv3.MqttException;
-import org.eclipse.paho.client.mqttv3.MqttMessage;
+import org.fusesource.mqtt.client.BlockingConnection;
+import org.fusesource.mqtt.client.MQTT;
+import org.fusesource.mqtt.client.Message;
+import org.fusesource.mqtt.client.QoS;
+import org.fusesource.mqtt.client.Topic;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
@@ -64,7 +61,8 @@ import org.slf4j.LoggerFactory;
  * payloads (as {@code byte[]}).
  *
  * <p>To configure a MQTT source, you have to provide a MQTT connection configuration including
- * {@code ClientId}, a {@code ServerURI}, and a {@code Topic} pattern. The following
+ * {@code ClientId}, a {@code ServerURI}, a {@code Topic} pattern, and optionally {@code
+ * username} and {@code password} to connect to the MQTT broker. The following
  * example illustrates various options for configuring the source:
  *
  * <pre>{@code
@@ -79,10 +77,10 @@ import org.slf4j.LoggerFactory;
  *
  * <h3>Writing to a MQTT broker</h3>
  *
- * <p>MqttIO sink supports writing {@code byte[]} to a topic on a MQTT broker.
+ * <p>MqttIO sink supports writing {@code byte[]} to a getTopic on a MQTT broker.
  *
  * <p>To configure a MQTT sink, as for the read, you have to specify a MQTT connection
- * configuration with {@code ClientId}, {@code ServerURI}, {@code Topic}.
+ * configuration with {@code ServerURI}, {@code Topic}, ...
  *
  * <p>The MqttIO only fully supports QoS 1 (at least once). It's the only QoS level guaranteed
  * due to potential retries on bundles.
@@ -124,51 +122,90 @@ public class MqttIO {
   @AutoValue
   public abstract static class ConnectionConfiguration implements Serializable {
 
-    @Nullable abstract String serverUri();
-    @Nullable abstract String topic();
-    @Nullable abstract String clientId();
+    @Nullable abstract String getServerUri();
+    @Nullable abstract String getTopic();
+    @Nullable abstract String getClientId();
+    @Nullable abstract String getUsername();
+    @Nullable abstract String getPassword();
 
-    public static ConnectionConfiguration create(String serverUri, String topic) {
-      checkArgument(serverUri != null,
-          "MqttIO.ConnectionConfiguration.create(serverUri, topic) called with null "
-              + "serverUri");
-      checkArgument(topic != null,
-          "MqttIO.ConnectionConfiguration.create(serverUri, topic) called with null "
-              + "topic");
-      return new AutoValue_MqttIO_ConnectionConfiguration(serverUri, topic,
-          MqttClient.generateClientId());
+    abstract Builder builder();
+
+    @AutoValue.Builder
+    abstract static class Builder {
+      abstract Builder setServerUri(String serverUri);
+      abstract Builder setTopic(String topic);
+      abstract Builder setClientId(String clientId);
+      abstract Builder setUsername(String username);
+      abstract Builder setPassword(String password);
+      abstract ConnectionConfiguration build();
     }
 
+    /**
+     * Describe a connection configuration to the MQTT broker. This method creates an unique random
+     * MQTT client ID.
+     *
+     * @param serverUri The MQTT broker URI.
+     * @param topic The MQTT getTopic pattern.
+     * @return A connection configuration to the MQTT broker.
+     */
+    public static ConnectionConfiguration create(String serverUri, String topic) {
+      checkArgument(serverUri != null,
+          "MqttIO.ConnectionConfiguration.create(getServerUri, getTopic) called with null "
+              + "getServerUri");
+      checkArgument(topic != null,
+          "MqttIO.ConnectionConfiguration.create(getServerUri, getTopic) called with null "
+              + "getTopic");
+      return new AutoValue_MqttIO_ConnectionConfiguration.Builder().setServerUri(serverUri)
+          .setTopic(topic).build();
+    }
+
+    /**
+     * Describe a connection configuration to the MQTT broker.
+     *
+     * @param serverUri The MQTT broker URI.
+     * @param topic The MQTT getTopic pattern.
+     * @param clientId A client ID prefix, used to construct an unique client ID.
+     * @return A connection configuration to the MQTT broker.
+     */
     public static ConnectionConfiguration create(String serverUri, String topic, String clientId) {
       checkArgument(serverUri != null,
-          "MqttIO.ConnectionConfiguration.create(serverUri, topic) called with null "
-              + "serverUri");
+          "MqttIO.ConnectionConfiguration.create(getServerUri, getTopic) called with null "
+              + "getServerUri");
       checkArgument(topic != null,
-          "MqttIO.ConnectionConfiguration.create(serverUri, topic) called with null "
-              + "topic");
-      checkArgument(clientId != null, "MqttIO.ConnectionConfiguration.create(serverUri, topic, "
-          + "clientId) called with null clientId");
-      return new AutoValue_MqttIO_ConnectionConfiguration(serverUri, topic, clientId);
+          "MqttIO.ConnectionConfiguration.create(getServerUri, getTopic) called with null "
+              + "getTopic");
+      checkArgument(clientId != null, "MqttIO.ConnectionConfiguration.create(getServerUri,"
+          + "getTopic, getClientId) called with null getClientId");
+      return new AutoValue_MqttIO_ConnectionConfiguration.Builder().setServerUri(serverUri)
+          .setTopic(topic).setClientId(clientId).build();
+    }
+
+    public ConnectionConfiguration withUsername(String username) {
+      return builder().setUsername(username).build();
+    }
+
+    public ConnectionConfiguration withPassword(String password) {
+      return builder().setPassword(password).build();
     }
 
     private void populateDisplayData(DisplayData.Builder builder) {
-      builder.add(DisplayData.item("serverUri", serverUri()));
-      builder.add(DisplayData.item("topic", topic()));
-      builder.add(DisplayData.item("clientId", clientId()));
+      builder.add(DisplayData.item("serverUri", getServerUri()));
+      builder.add(DisplayData.item("topic", getTopic()));
+      builder.addIfNotNull(DisplayData.item("clientId", getClientId()));
+      builder.addIfNotNull(DisplayData.item("username", getUsername()));
     }
 
-    private MqttClient getClient(boolean random) throws MqttException {
-      String id = clientId();
-      if (random) {
-        id = clientId() + "-" + MqttClient.generateClientId();
+    private MQTT getClient() throws Exception {
+      MQTT client = new MQTT();
+      client.setHost(getServerUri());
+      if (getUsername() != null) {
+        client.setUserName(getUsername());
+        client.setPassword(getPassword());
       }
-      MqttClient client = new MqttClient(serverUri(), id);
-      client.connect();
+      if (getClientId() != null) {
+        client.setClientId(getClientId() + "-" + System.currentTimeMillis());
+      }
       return client;
-    }
-
-    private MqttClient getClient() throws MqttException {
-      return getClient(false);
     }
 
   }
@@ -265,45 +302,27 @@ public class MqttIO {
    */
   private static class MqttCheckpointMark implements UnboundedSource.CheckpointMark {
 
-    private transient MqttClient client;
     private Instant oldestMessageTimestamp = Instant.now();
 
-    private static class MessageIdWithQos {
-
-      private int id;
-      private int qos;
-
-      MessageIdWithQos(int id, int qos) {
-        this.id = id;
-        this.qos = qos;
-      }
-
-    }
-
-    private final List<MessageIdWithQos> messages = new ArrayList<>();
+    private final List<Message> messages = new ArrayList<>();
 
     public MqttCheckpointMark() {
     }
 
-    public void setClient(MqttClient client) {
-      this.client = client;
-    }
-
-    public void add(int id, int qos, Instant timestamp) {
+    public void add(Message message, Instant timestamp) {
       if (timestamp.isBefore(oldestMessageTimestamp)) {
         oldestMessageTimestamp = timestamp;
       }
-      MessageIdWithQos message = new MessageIdWithQos(id, qos);
       messages.add(message);
     }
 
     @Override
     public void finalizeCheckpoint() {
-      for (MessageIdWithQos message : messages) {
+      for (Message message : messages) {
         try {
-          client.messageArrivedComplete(message.id, message.qos);
+          message.ack();
         } catch (Exception e) {
-          LOGGER.warn("Can't ack message {} with QoS {}", message.id, message.qos);
+          LOGGER.warn("Can't ack message", e);
         }
       }
       oldestMessageTimestamp = Instant.now();
@@ -331,7 +350,7 @@ public class MqttIO {
     public List<UnboundedMqttSource> generateInitialSplits(int desiredNumSplits,
                                                            PipelineOptions options) {
       // MQTT is based on a pub/sub pattern
-      // so, if we create several subscribers on the same topic, they all will receive the same
+      // so, if we create several subscribers on the same getTopic, they all will receive the same
       // message, resulting to duplicate messages in the PCollection.
       // So, for MQTT, we limit to number of split ot 1 (unique source).
       return Collections.singletonList(new UnboundedMqttSource(spec));
@@ -358,37 +377,15 @@ public class MqttIO {
     }
   }
 
-  /**
-   * POJO used to store MQTT message and its timestamp.
-   */
-  private static class MqttMessageWithTimestamp {
-
-    private final MqttMessage message;
-    private final Instant timestamp;
-
-    public MqttMessageWithTimestamp(MqttMessage message, Instant timestamp) {
-      this.message = message;
-      this.timestamp = timestamp;
-    }
-
-    public MqttMessage getMessage() {
-      return message;
-    }
-
-    public Instant getTimestamp() {
-      return timestamp;
-    }
-  }
-
   private static class UnboundedMqttReader extends UnboundedSource.UnboundedReader<byte[]> {
 
     private final UnboundedMqttSource source;
 
-    private MqttClient client;
+    private MQTT client;
+    private BlockingConnection connection;
     private byte[] current;
     private Instant currentTimestamp;
     private MqttCheckpointMark checkpointMark;
-    private BlockingQueue<MqttMessageWithTimestamp> queue;
 
     public UnboundedMqttReader(UnboundedMqttSource source, MqttCheckpointMark checkpointMark) {
       this.source = source;
@@ -398,7 +395,6 @@ public class MqttIO {
       } else {
         this.checkpointMark = new MqttCheckpointMark();
       }
-      this.queue = new LinkedBlockingQueue<>();
     }
 
     @Override
@@ -407,55 +403,26 @@ public class MqttIO {
       Read spec = source.spec;
       try {
         client = spec.connectionConfiguration().getClient();
-        client.subscribe(spec.connectionConfiguration().topic());
-        client.setManualAcks(true);
-        client.setCallback(new MqttCallback() {
-          @Override
-          public void connectionLost(Throwable cause) {
-            LOGGER.warn("MQTT connection lost", cause);
-            cause.printStackTrace();
-          }
-
-          @Override
-          public void messageArrived(String topic, MqttMessage message) throws Exception {
-            LOGGER.trace("Message arrived");
-            queue.put(new MqttMessageWithTimestamp(message, Instant.now()));
-          }
-
-          @Override
-          public void deliveryComplete(IMqttDeliveryToken token) {
-            // nothing to do
-          }
-        });
-        checkpointMark.setClient(client);
+        connection = client.blockingConnection();
+        connection.connect();
+        connection.subscribe(new Topic[]{
+            new Topic(spec.connectionConfiguration().getTopic(), QoS.AT_LEAST_ONCE)});
         return advance();
-      } catch (MqttException e) {
+      } catch (Exception e) {
         throw new IOException(e);
       }
     }
 
     @Override
     public boolean advance() throws IOException {
-      LOGGER.debug("Taking from the pending queue ({})", queue.size());
-      MqttMessageWithTimestamp message = null;
       try {
-        message = queue.poll(5, TimeUnit.SECONDS);
-      } catch (InterruptedException e) {
+        Message message = connection.receive();
+        current = message.getPayload();
+        currentTimestamp = Instant.now();
+        checkpointMark.add(message, currentTimestamp);
+      } catch (Exception e) {
         throw new IOException(e);
       }
-      if (message == null) {
-        current = null;
-        currentTimestamp = null;
-        return false;
-      }
-
-      checkpointMark.add(message.getMessage().getId(),
-          message.getMessage().getQos(),
-          message.timestamp);
-
-      current = message.message.getPayload();
-      currentTimestamp = message.timestamp;
-
       return true;
     }
 
@@ -463,15 +430,11 @@ public class MqttIO {
     public void close() throws IOException {
       LOGGER.debug("Closing MQTT reader");
       try {
-        if (client != null) {
-          try {
-            client.disconnect();
-          } finally {
-            client.close();
-          }
+        if (connection != null) {
+          connection.disconnect();
         }
-      } catch (MqttException mqttException) {
-        throw new IOException(mqttException);
+      } catch (Exception e) {
+        throw new IOException(e);
       }
     }
 
@@ -571,7 +534,8 @@ public class MqttIO {
 
       private final Write spec;
 
-      private transient MqttClient client;
+      private transient MQTT client;
+      private transient BlockingConnection connection;
 
       public WriteFn(Write spec) {
         this.spec = spec;
@@ -579,27 +543,24 @@ public class MqttIO {
 
       @Setup
       public void createMqttClient() throws Exception {
-        client = spec.connectionConfiguration().getClient(true);
+        client = new MQTT();
+        client.setHost(spec.connectionConfiguration().getServerUri());
+        // client ID is auto generated
+        connection = client.blockingConnection();
+        connection.connect();
       }
 
       @ProcessElement
       public void processElement(ProcessContext context) throws Exception {
         byte[] payload = context.element();
-        MqttMessage message = new MqttMessage();
-        message.setQos(1);
-        message.setRetained(spec.retained());
-        message.setPayload(payload);
-        client.publish(spec.connectionConfiguration().topic(), message);
+        connection.publish(spec.connectionConfiguration().getTopic(), payload, QoS.AT_LEAST_ONCE,
+            false);
       }
 
       @Teardown
       public void closeMqttClient() throws Exception {
-        if (client != null) {
-          try {
-            client.disconnect();
-          } finally {
-            client.close();
-          }
+        if (connection != null) {
+          connection.disconnect();
         }
       }
 
