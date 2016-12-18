@@ -69,7 +69,7 @@ import org.slf4j.LoggerFactory;
  * @see ByteKey
  */
 public final class ByteKeyRange implements Serializable {
-  private static final Logger logger = LoggerFactory.getLogger(ByteKeyRange.class);
+  private static final Logger LOG = LoggerFactory.getLogger(ByteKeyRange.class);
 
   /** The range of all keys, with empty start and end keys. */
   public static final ByteKeyRange ALL_KEYS = ByteKeyRange.of(ByteKey.EMPTY, ByteKey.EMPTY);
@@ -191,7 +191,7 @@ public final class ByteKeyRange implements Serializable {
     // Keys are equal subject to padding by 0.
     BigInteger range = rangeEndInt.subtract(rangeStartInt);
     if (range.equals(BigInteger.ZERO)) {
-      logger.warn(
+      LOG.warn(
           "Using 0.0 as the default fraction for this near-empty range {} where start and end keys"
               + " differ only by trailing zeros.",
           this);

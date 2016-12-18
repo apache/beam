@@ -57,7 +57,7 @@ import org.slf4j.LoggerFactory;
  * Test on the JdbcIO.
  */
 public class JdbcIOTest implements Serializable {
-  private static final Logger LOGGER = LoggerFactory.getLogger(JdbcIOTest.class);
+  private static final Logger LOG = LoggerFactory.getLogger(JdbcIOTest.class);
 
   private static NetworkServerControl derbyServer;
   private static ClientDataSource dataSource;
@@ -70,7 +70,7 @@ public class JdbcIOTest implements Serializable {
     port = socket.getLocalPort();
     socket.close();
 
-    LOGGER.info("Starting Derby database on {}", port);
+    LOG.info("Starting Derby database on {}", port);
 
     System.setProperty("derby.stream.error.file", "target/derby.log");
 
