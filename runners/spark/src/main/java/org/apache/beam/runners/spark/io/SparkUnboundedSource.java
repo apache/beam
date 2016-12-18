@@ -18,16 +18,20 @@
 
 package org.apache.beam.runners.spark.io;
 
+import java.io.Serializable;
 import java.util.Collections;
-import java.util.Iterator;
 import org.apache.beam.runners.spark.SparkPipelineOptions;
+import org.apache.beam.runners.spark.coders.CoderHelpers;
 import org.apache.beam.runners.spark.stateful.StateSpecFunctions;
 import org.apache.beam.runners.spark.translation.SparkRuntimeContext;
-import org.apache.beam.runners.spark.translation.TranslationUtils;
 import org.apache.beam.sdk.io.Source;
 import org.apache.beam.sdk.io.UnboundedSource;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext$;
+import org.apache.spark.api.java.function.FlatMapFunction;
+import org.apache.spark.api.java.function.Function;
 import org.apache.spark.rdd.RDD;
 import org.apache.spark.streaming.Duration;
 import org.apache.spark.streaming.StateSpec;
@@ -39,6 +43,10 @@ import org.apache.spark.streaming.api.java.JavaPairInputDStream$;
 import org.apache.spark.streaming.api.java.JavaStreamingContext;
 import org.apache.spark.streaming.dstream.DStream;
 import org.apache.spark.streaming.scheduler.StreamInputInfo;
+import org.joda.time.Instant;
+
+import scala.Tuple2;
+import scala.runtime.BoxedUnit;
 
 
 /**
@@ -75,20 +83,39 @@ public class SparkUnboundedSource {
 
     // call mapWithState to read from a checkpointable sources.
     JavaMapWithStateDStream<Source<T>, CheckpointMarkT, byte[],
-        Iterator<WindowedValue<T>>> mapWithStateDStream = inputDStream.mapWithState(
+        Tuple2<Iterable<byte[]>, Metadata>> mapWithStateDStream = inputDStream.mapWithState(
             StateSpec.function(StateSpecFunctions.<T, CheckpointMarkT>mapSourceFunction(rc)));
 
     // set checkpoint duration for read stream, if set.
     checkpointStream(mapWithStateDStream, options);
-    // flatmap and report read elements. Use the inputDStream's id to tie between the reported
-    // info and the inputDStream it originated from.
-    int id = inputDStream.inputDStream().id();
-    ReportingFlatMappedDStream<WindowedValue<T>> reportingFlatMappedDStream =
-        new ReportingFlatMappedDStream<>(mapWithStateDStream.dstream(), id,
-            getSourceName(source, id));
+    // cache since checkpointing is less frequent.
+    mapWithStateDStream.cache();
 
-    return JavaDStream.fromDStream(reportingFlatMappedDStream,
-        JavaSparkContext$.MODULE$.<WindowedValue<T>>fakeClassTag());
+    // report the number of input elements for this InputDStream to the InputInfoTracker.
+    int id = inputDStream.inputDStream().id();
+    JavaDStream<Metadata> metadataDStream = mapWithStateDStream.map(
+        new Function<Tuple2<Iterable<byte[]>, Metadata>, Metadata>() {
+          @Override
+          public Metadata call(Tuple2<Iterable<byte[]>, Metadata> t2) throws Exception {
+            return t2._2();
+          }
+        });
+
+    // register the ReportingDStream op.
+    new ReportingDStream(metadataDStream.dstream(), id, getSourceName(source, id)).register();
+
+    // output the actual (deserialized) stream.
+    WindowedValue.FullWindowedValueCoder<T> coder =
+        WindowedValue.FullWindowedValueCoder.of(
+            source.getDefaultOutputCoder(),
+            GlobalWindow.Coder.INSTANCE);
+    return mapWithStateDStream.flatMap(
+        new FlatMapFunction<Tuple2<Iterable<byte[]>, Metadata>, byte[]>() {
+          @Override
+          public Iterable<byte[]> call(Tuple2<Iterable<byte[]>, Metadata> t2) throws Exception {
+            return t2._1();
+          }
+        }).map(CoderHelpers.fromByteFunction(coder));
   }
 
   private static <T> String getSourceName(Source<T> source, int id) {
@@ -111,20 +138,20 @@ public class SparkUnboundedSource {
   }
 
   /**
-   * A flatMap DStream function that "flattens" the Iterators read by the
-   * {@link MicrobatchSource.Reader}s, while reporting the properties of the read to the
-   * {@link org.apache.spark.streaming.scheduler.InputInfoTracker} for RateControl purposes
-   * and visibility.
+   * A DStream function that reports the properties of the read to the
+   * {@link org.apache.spark.streaming.scheduler.InputInfoTracker}
+   * for RateControl purposes and visibility.
    */
-  private static class ReportingFlatMappedDStream<T> extends DStream<T> {
-    private final DStream<Iterator<T>> parent;
+  private static class ReportingDStream extends DStream<BoxedUnit> {
+    private final DStream<Metadata> parent;
     private final int inputDStreamId;
     private final String sourceName;
 
-    ReportingFlatMappedDStream(DStream<Iterator<T>> parent,
-                               int inputDStreamId,
-                               String sourceName) {
-      super(parent.ssc(), JavaSparkContext$.MODULE$.<T>fakeClassTag());
+    ReportingDStream(
+        DStream<Metadata> parent,
+        int inputDStreamId,
+        String sourceName) {
+      super(parent.ssc(), JavaSparkContext$.MODULE$.<BoxedUnit>fakeClassTag());
       this.parent = parent;
       this.inputDStreamId = inputDStreamId;
       this.sourceName = sourceName;
@@ -142,20 +169,19 @@ public class SparkUnboundedSource {
     }
 
     @Override
-    public scala.Option<RDD<T>> compute(Time validTime) {
+    public scala.Option<RDD<BoxedUnit>> compute(Time validTime) {
       // compute parent.
-      scala.Option<RDD<Iterator<T>>> computedParentRDD = parent.getOrCompute(validTime);
-      // compute this DStream - take single-iterator partitions an flatMap them.
-      if (computedParentRDD.isDefined()) {
-        RDD<T> computedRDD = computedParentRDD.get().toJavaRDD()
-            .flatMap(TranslationUtils.<T>flattenIter()).rdd().cache();
-        // report - for RateEstimator and visibility.
-        report(validTime, computedRDD.count());
-        return scala.Option.apply(computedRDD);
-      } else {
-        report(validTime, 0);
-        return scala.Option.empty();
+      scala.Option<RDD<Metadata>> parentRDDOpt = parent.getOrCompute(validTime);
+      long count = 0;
+      if (parentRDDOpt.isDefined()) {
+        JavaRDD<Metadata> parentRDD = parentRDDOpt.get().toJavaRDD();
+        for (Metadata metadata: parentRDD.collect()) {
+          count += metadata.getNumRecords();
+        }
       }
+      // report - for RateEstimator and visibility.
+      report(validTime, count);
+      return scala.Option.empty();
     }
 
     private void report(Time batchTime, long count) {
@@ -163,10 +189,34 @@ public class SparkUnboundedSource {
       scala.collection.immutable.Map<String, Object> metadata =
           new scala.collection.immutable.Map.Map1<String, Object>(
               StreamInputInfo.METADATA_KEY_DESCRIPTION(),
-                  String.format("Read %d records from %s for batch time: %s", count, sourceName,
-                      batchTime));
+              String.format(
+                  "Read %d records from %s for batch time: %s",
+                  count,
+                  sourceName,
+                  batchTime));
       StreamInputInfo streamInputInfo = new StreamInputInfo(inputDStreamId, count, metadata);
       ssc().scheduler().inputInfoTracker().reportInfo(batchTime, streamInputInfo);
+    }
+  }
+
+  /**
+   * A metadata holder for an input stream partition.
+   */
+  public static class Metadata implements Serializable {
+    private final long numRecords;
+    private final Instant watermark;
+
+    public Metadata(long numRecords, Instant watermark) {
+      this.numRecords = numRecords;
+      this.watermark = watermark;
+    }
+
+    public long getNumRecords() {
+      return numRecords;
+    }
+
+    public Instant getWatermark() {
+      return watermark;
     }
   }
 }

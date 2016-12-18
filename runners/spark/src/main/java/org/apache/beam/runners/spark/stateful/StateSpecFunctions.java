@@ -29,6 +29,7 @@ import java.util.concurrent.TimeUnit;
 import org.apache.beam.runners.spark.coders.CoderHelpers;
 import org.apache.beam.runners.spark.io.EmptyCheckpointMark;
 import org.apache.beam.runners.spark.io.MicrobatchSource;
+import org.apache.beam.runners.spark.io.SparkUnboundedSource.Metadata;
 import org.apache.beam.runners.spark.translation.SparkRuntimeContext;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.BoundedSource;
@@ -39,10 +40,12 @@ import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.spark.streaming.State;
 import org.apache.spark.streaming.StateSpec;
+import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import scala.Option;
+import scala.Tuple2;
 import scala.runtime.AbstractFunction3;
 
 /**
@@ -92,14 +95,17 @@ public class StateSpecFunctions {
    */
   public static <T, CheckpointMarkT extends UnboundedSource.CheckpointMark>
   scala.Function3<Source<T>, scala.Option<CheckpointMarkT>, /* CheckpointMarkT */State<byte[]>,
-      Iterator<WindowedValue<T>>> mapSourceFunction(final SparkRuntimeContext runtimeContext) {
+      Tuple2<Iterable<byte[]>, Metadata>> mapSourceFunction(
+           final SparkRuntimeContext runtimeContext) {
 
     return new SerializableFunction3<Source<T>, Option<CheckpointMarkT>, State<byte[]>,
-        Iterator<WindowedValue<T>>>() {
+        Tuple2<Iterable<byte[]>, Metadata>>() {
 
       @Override
-      public Iterator<WindowedValue<T>> apply(Source<T> source, scala.Option<CheckpointMarkT>
-          startCheckpointMark, State<byte[]> state) {
+      public Tuple2<Iterable<byte[]>, Metadata> apply(
+          Source<T> source,
+          scala.Option<CheckpointMarkT> startCheckpointMark,
+          State<byte[]> state) {
         // source as MicrobatchSource
         MicrobatchSource<T, CheckpointMarkT> microbatchSource =
             (MicrobatchSource<T, CheckpointMarkT>) source;
@@ -130,18 +136,25 @@ public class StateSpecFunctions {
           throw new RuntimeException(e);
         }
 
-        // read microbatch.
-        final List<WindowedValue<T>> readValues = new ArrayList<>();
+        // read microbatch as a serialized collection.
+        final List<byte[]> readValues = new ArrayList<>();
+        final Instant watermark;
+        WindowedValue.FullWindowedValueCoder<T> coder =
+            WindowedValue.FullWindowedValueCoder.of(
+                source.getDefaultOutputCoder(),
+                GlobalWindow.Coder.INSTANCE);
         try {
           // measure how long a read takes per-partition.
           Stopwatch stopwatch = Stopwatch.createStarted();
           boolean finished = !reader.start();
           while (!finished) {
-            readValues.add(WindowedValue.of(reader.getCurrent(), reader.getCurrentTimestamp(),
-                GlobalWindow.INSTANCE, PaneInfo.NO_FIRING));
+            WindowedValue<T> wv = WindowedValue.of(reader.getCurrent(),
+                reader.getCurrentTimestamp(), GlobalWindow.INSTANCE, PaneInfo.NO_FIRING);
+            readValues.add(CoderHelpers.toByteArray(wv, coder));
             finished = !reader.advance();
           }
 
+          watermark = ((MicrobatchSource.Reader) reader).getWatermark();
           // close and checkpoint reader.
           reader.close();
           LOG.info("Source id {} spent {} msec on reading.", microbatchSource.getId(),
@@ -160,7 +173,13 @@ public class StateSpecFunctions {
           throw new RuntimeException("Failed to read from reader.", e);
         }
 
-        return Iterators.unmodifiableIterator(readValues.iterator());
+        Iterable <byte[]> iterable = new Iterable<byte[]>() {
+          @Override
+          public Iterator<byte[]> iterator() {
+            return Iterators.unmodifiableIterator(readValues.iterator());
+          }
+        };
+        return new Tuple2<>(iterable, new Metadata(readValues.size(), watermark));
       }
     };
   }
