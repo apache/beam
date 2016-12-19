@@ -136,7 +136,7 @@ class common_job_properties {
   static def setMavenConfig(def context) {
     context.mavenInstallation('Maven 3.3.3')
     context.mavenOpts('-Dorg.slf4j.simpleLogger.showDateTime=true')
-    context.mavenOpts('-Dorg.slf4j.simpleLogger.dateTimeFormat=yyyy-MM-dd\'T\'HH:mm:ss.SSS')
+    context.mavenOpts('-Dorg.slf4j.simpleLogger.dateTimeFormat=yyyy-MM-dd\\\'T\\\'HH:mm:ss.SSS')
     context.rootPOM('pom.xml')
     // Use a repository local to the workspace for better isolation of jobs.
     context.localRepository(LocalRepositoryLocation.LOCAL_TO_WORKSPACE)
