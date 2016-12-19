@@ -18,8 +18,9 @@
 package org.apache.beam.sdk.io.jms;
 
 import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkNotNull;
+import static com.google.common.base.Preconditions.checkState;
 
+import com.google.auto.value.AutoValue;
 import com.google.common.annotations.VisibleForTesting;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -101,71 +102,19 @@ public class JmsIO {
   private static final Logger LOG = LoggerFactory.getLogger(JmsIO.class);
 
   public static Read read() {
-    return new Read(null, null, null, Long.MAX_VALUE, null);
+    return new AutoValue_JmsIO_Read.Builder().setMaxNumRecords(Long.MAX_VALUE).build();
   }
 
   public static Write write() {
-    return new Write(null, null, null);
+    return new AutoValue_JmsIO_Write.Builder().build();
   }
 
   /**
    * A {@link PTransform} to read from a JMS destination. See {@link JmsIO} for more
    * information on usage and configuration.
    */
-  public static class Read extends PTransform<PBegin, PCollection<JmsRecord>> {
-
-    public Read withConnectionFactory(ConnectionFactory connectionFactory) {
-      return new Read(connectionFactory, queue, topic, maxNumRecords, maxReadTime);
-    }
-
-    public Read withQueue(String queue) {
-      return new Read(connectionFactory, queue, topic, maxNumRecords, maxReadTime);
-    }
-
-    public Read withTopic(String topic) {
-      return new Read(connectionFactory, queue, topic, maxNumRecords, maxReadTime);
-    }
-
-    public Read withMaxNumRecords(long maxNumRecords) {
-      return new Read(connectionFactory, queue, topic, maxNumRecords, maxReadTime);
-    }
-
-    public Read withMaxReadTime(Duration maxReadTime) {
-      return new Read(connectionFactory, queue, topic, maxNumRecords, maxReadTime);
-    }
-
-    @Override
-    public PCollection<JmsRecord> expand(PBegin input) {
-      // handles unbounded source to bounded conversion if maxNumRecords is set.
-      Unbounded<JmsRecord> unbounded = org.apache.beam.sdk.io.Read.from(createSource());
-
-      PTransform<PBegin, PCollection<JmsRecord>> transform = unbounded;
-
-      if (maxNumRecords != Long.MAX_VALUE) {
-        transform = unbounded.withMaxNumRecords(maxNumRecords);
-      } else if (maxReadTime != null) {
-        transform = unbounded.withMaxReadTime(maxReadTime);
-      }
-
-      return input.getPipeline().apply(transform);
-    }
-
-    @Override
-    public void validate(PBegin input) {
-      checkNotNull(connectionFactory, "ConnectionFactory not specified");
-      checkArgument((queue != null || topic != null), "Either queue or topic not specified");
-    }
-
-    @Override
-    public void populateDisplayData(DisplayData.Builder builder) {
-      super.populateDisplayData(builder);
-
-      builder.addIfNotNull(DisplayData.item("queue", queue));
-      builder.addIfNotNull(DisplayData.item("topic", topic));
-
-    }
-
-    ///////////////////////////////////////////////////////////////////////////////////////
+  @AutoValue
+  public abstract static class Read extends PTransform<PBegin, PCollection<JmsRecord>> {
 
     /**
      * NB: According to http://docs.oracle.com/javaee/1.4/api/javax/jms/ConnectionFactory.html
@@ -177,28 +126,168 @@ public class JmsIO {
      *
      * <p>So, a {@link ConnectionFactory} implementation is serializable.
      */
-    protected ConnectionFactory connectionFactory;
-    @Nullable
-    protected String queue;
-    @Nullable
-    protected String topic;
-    protected long maxNumRecords;
-    protected Duration maxReadTime;
+    @Nullable abstract ConnectionFactory getConnectionFactory();
+    @Nullable abstract String getQueue();
+    @Nullable abstract String getTopic();
+    abstract long getMaxNumRecords();
+    @Nullable abstract Duration getMaxReadTime();
 
-    private Read(
-        ConnectionFactory connectionFactory,
-        String queue,
-        String topic,
-        long maxNumRecords,
-        Duration maxReadTime) {
-      super("JmsIO.Read");
+    abstract Builder builder();
 
-      this.connectionFactory = connectionFactory;
-      this.queue = queue;
-      this.topic = topic;
-      this.maxNumRecords = maxNumRecords;
-      this.maxReadTime = maxReadTime;
+    @AutoValue.Builder
+    abstract static class Builder {
+      abstract Builder setConnectionFactory(ConnectionFactory connectionFactory);
+      abstract Builder setQueue(String queue);
+      abstract Builder setTopic(String topic);
+      abstract Builder setMaxNumRecords(long maxNumRecords);
+      abstract Builder setMaxReadTime(Duration maxReadTime);
+      abstract Read build();
     }
+
+    /**
+     * Specify the JMS connection factory to connect to the JMS broker.
+     *
+     * <p>For instance:
+     *
+     * <pre>
+     *   {@code
+     *    pipeline.apply(JmsIO.read().withConnectionFactory(myConnectionFactory)
+     *   }
+     * </pre>
+     *
+     * @param connectionFactory The JMS {@link ConnectionFactory}.
+     * @return The corresponding {@link JmsIO.Read}.
+     */
+    public Read withConnectionFactory(ConnectionFactory connectionFactory) {
+      checkArgument(connectionFactory != null, "withConnectionFactory(connectionFactory) called"
+          + " with null connectionFactory");
+      return builder().setConnectionFactory(connectionFactory).build();
+    }
+
+    /**
+     * Specify the JMS queue destination name where to read messages from. The
+     * {@link JmsIO.Read} acts as a consumer on the queue.
+     *
+     * <p>This method is exclusive with {@link JmsIO.Read#withTopic(String)}. The user has to
+     * specify a destination: queue or topic.
+     *
+     * <p>For instance:
+     *
+     * <pre>
+     *   {@code
+     *    pipeline.apply(JmsIO.read().withQueue("my-queue")
+     *   }
+     * </pre>
+     *
+     * @param queue The JMS queue name where to read messages from.
+     * @return The corresponding {@link JmsIO.Read}.
+     */
+    public Read withQueue(String queue) {
+      checkArgument(queue != null, "withQueue(queue) called with null queue");
+      return builder().setQueue(queue).build();
+    }
+
+    /**
+     * Specify the JMS topic destination name where to receive messages from. The
+     * {@link JmsIO.Read} acts as a subscriber on the topic.
+     *
+     * <p>This method is exclusive with {@link JmsIO.Read#withQueue(String)}. The user has to
+     * specify a destination: queue or topic.
+     *
+     * <p>For instance:
+     *
+     * <pre>
+     *   {@code
+     *    pipeline.apply(JmsIO.read().withTopic("my-topic")
+     *   }
+     * </pre>
+     *
+     * @param topic The JMS topic name.
+     * @return The corresponding {@link JmsIO.Read}.
+     */
+    public Read withTopic(String topic) {
+      checkArgument(topic != null, "withTopic(topic) called with null topic");
+      return builder().setTopic(topic).build();
+    }
+
+    /**
+     * Define the max number of records that the source will read. Using a max number of records
+     * different from {@code Long.MAX_VALUE} means the source will be {@code Bounded}, and will
+     * stop once the max number of records read is reached.
+     *
+     * <p>For instance:
+     *
+     * <pre>
+     *   {@code
+     *    pipeline.apply(JmsIO.read().withNumRecords(1000)
+     *   }
+     * </pre>
+     *
+     * @param maxNumRecords The max number of records to read from the JMS destination.
+     * @return The corresponding {@link JmsIO.Read}.
+     */
+    public Read withMaxNumRecords(long maxNumRecords) {
+      checkArgument(maxNumRecords >= 0, "withMaxNumRecords(maxNumRecords) called with invalid "
+          + "maxNumRecords");
+      return builder().setMaxNumRecords(maxNumRecords).build();
+    }
+
+    /**
+     * Define the max read time that the source will read. Using a non null max read time
+     * duration means the source will be {@code Bounded}, and will stop once the max read time is
+     * reached.
+     *
+     * <p>For instance:
+     *
+     * <pre>
+     *   {@code
+     *    pipeline.apply(JmsIO.read().withMaxReadTime(Duration.minutes(10))
+     *   }
+     * </pre>
+     *
+     * @param maxReadTime The max read time duration.
+     * @return The corresponding {@link JmsIO.Read}.
+     */
+    public Read withMaxReadTime(Duration maxReadTime) {
+      checkArgument(maxReadTime != null, "withMaxReadTime(maxReadTime) called with null "
+          + "maxReadTime");
+      return builder().setMaxReadTime(maxReadTime).build();
+    }
+
+    @Override
+    public PCollection<JmsRecord> expand(PBegin input) {
+      // handles unbounded source to bounded conversion if maxNumRecords is set.
+      Unbounded<JmsRecord> unbounded = org.apache.beam.sdk.io.Read.from(createSource());
+
+      PTransform<PBegin, PCollection<JmsRecord>> transform = unbounded;
+
+      if (getMaxNumRecords() != Long.MAX_VALUE) {
+        transform = unbounded.withMaxNumRecords(getMaxNumRecords());
+      } else if (getMaxReadTime() != null) {
+        transform = unbounded.withMaxReadTime(getMaxReadTime());
+      }
+
+      return input.getPipeline().apply(transform);
+    }
+
+    @Override
+    public void validate(PBegin input) {
+      checkState(getConnectionFactory() != null, "JmsIO.read() requires a JMS connection "
+          + "factory to be set via withConnectionFactory(connectionFactory)");
+      checkState((getQueue() != null || getTopic() != null), "JmsIO.read() requires a JMS "
+          + "destination (queue or topic) to be set via withQueue(queueName) or withTopic"
+          + "(topicName)");
+    }
+
+    @Override
+    public void populateDisplayData(DisplayData.Builder builder) {
+      super.populateDisplayData(builder);
+      builder.addIfNotNull(DisplayData.item("queue", getQueue()));
+      builder.addIfNotNull(DisplayData.item("topic", getTopic()));
+
+    }
+
+    ///////////////////////////////////////////////////////////////////////////////////////
 
     /**
      * Creates an {@link UnboundedSource UnboundedSource&lt;JmsRecord, ?&gt;} with the configuration
@@ -207,10 +296,7 @@ public class JmsIO {
      */
     @VisibleForTesting
     UnboundedSource<JmsRecord, JmsCheckpointMark> createSource() {
-      return new UnboundedJmsSource(
-          connectionFactory,
-          queue,
-          topic);
+      return new UnboundedJmsSource(this);
     }
 
   }
@@ -219,17 +305,10 @@ public class JmsIO {
 
   private static class UnboundedJmsSource extends UnboundedSource<JmsRecord, JmsCheckpointMark> {
 
-    private final ConnectionFactory connectionFactory;
-    private final String queue;
-    private final String topic;
+    private final Read spec;
 
-    public UnboundedJmsSource(
-        ConnectionFactory connectionFactory,
-        String queue,
-        String topic) {
-      this.connectionFactory = connectionFactory;
-      this.queue = queue;
-      this.topic = topic;
+    public UnboundedJmsSource(Read spec) {
+      this.spec = spec;
     }
 
     @Override
@@ -237,7 +316,7 @@ public class JmsIO {
         int desiredNumSplits, PipelineOptions options) throws Exception {
       List<UnboundedJmsSource> sources = new ArrayList<>();
       for (int i = 0; i < desiredNumSplits; i++) {
-        sources.add(new UnboundedJmsSource(connectionFactory, queue, topic));
+        sources.add(new UnboundedJmsSource(spec));
       }
       return sources;
     }
@@ -250,8 +329,7 @@ public class JmsIO {
 
     @Override
     public void validate() {
-      checkNotNull(connectionFactory, "ConnectionFactory is not defined");
-      checkArgument((queue != null || topic != null), "Either queue or topic is not defined");
+      spec.validate(null);
     }
 
     @Override
@@ -291,15 +369,17 @@ public class JmsIO {
 
     @Override
     public boolean start() throws IOException {
-      ConnectionFactory connectionFactory = source.connectionFactory;
+      ConnectionFactory connectionFactory = source.spec.getConnectionFactory();
       try {
         this.connection = connectionFactory.createConnection();
         this.connection.start();
         this.session = this.connection.createSession(false, Session.AUTO_ACKNOWLEDGE);
-        if (source.topic != null) {
-          this.consumer = this.session.createConsumer(this.session.createTopic(source.topic));
+        if (source.spec.getTopic() != null) {
+          this.consumer =
+              this.session.createConsumer(this.session.createTopic(source.spec.getTopic()));
         } else {
-          this.consumer = this.session.createConsumer(this.session.createQueue(source.queue));
+          this.consumer =
+              this.session.createConsumer(this.session.createQueue(source.spec.getQueue()));
         }
 
         return advance();
@@ -409,70 +489,127 @@ public class JmsIO {
    * A {@link PTransform} to write to a JMS queue. See {@link JmsIO} for
    * more information on usage and configuration.
    */
-  public static class Write extends PTransform<PCollection<String>, PDone> {
+  @AutoValue
+  public abstract static class Write extends PTransform<PCollection<String>, PDone> {
 
-    protected ConnectionFactory connectionFactory;
-    protected String queue;
-    protected String topic;
+    @Nullable abstract ConnectionFactory getConnectionFactory();
+    @Nullable abstract String getQueue();
+    @Nullable abstract String getTopic();
 
+    abstract Builder builder();
+
+    @AutoValue.Builder
+    abstract static class Builder {
+      abstract Builder setConnectionFactory(ConnectionFactory connectionFactory);
+      abstract Builder setQueue(String queue);
+      abstract Builder setTopic(String topic);
+      abstract Write build();
+    }
+
+    /**
+     * Specify the JMS connection factory to connect to the JMS broker.
+     *
+     * <p>For instance:
+     *
+     * <pre>
+     *   {@code
+     *    .apply(JmsIO.write().withConnectionFactory(myConnectionFactory)
+     *   }
+     * </pre>
+     *
+     * @param connectionFactory The JMS {@link ConnectionFactory}.
+     * @return The corresponding {@link JmsIO.Read}.
+     */
     public Write withConnectionFactory(ConnectionFactory connectionFactory) {
-      return new Write(connectionFactory, queue, topic);
+      checkArgument(connectionFactory != null, "withConnectionFactory(connectionFactory) called"
+          + " with null connectionFactory");
+      return builder().setConnectionFactory(connectionFactory).build();
     }
 
+    /**
+     * Specify the JMS queue destination name where to send messages to. The
+     * {@link JmsIO.Write} acts as a producer on the queue.
+     *
+     * <p>This method is exclusive with {@link JmsIO.Write#withTopic(String)}. The user has to
+     * specify a destination: queue or topic.
+     *
+     * <p>For instance:
+     *
+     * <pre>
+     *   {@code
+     *    .apply(JmsIO.write().withQueue("my-queue")
+     *   }
+     * </pre>
+     *
+     * @param queue The JMS queue name where to send messages to.
+     * @return The corresponding {@link JmsIO.Read}.
+     */
     public Write withQueue(String queue) {
-      return new Write(connectionFactory, queue, topic);
+      checkArgument(queue != null, "withQueue(queue) called with null queue");
+      return builder().setQueue(queue).build();
     }
 
+    /**
+     * Specify the JMS topic destination name where to send messages to. The
+     * {@link JmsIO.Read} acts as a publisher on the topic.
+     *
+     * <p>This method is exclusive with {@link JmsIO.Write#withQueue(String)}. The user has to
+     * specify a destination: queue or topic.
+     *
+     * <p>For instance:
+     *
+     * <pre>
+     *   {@code
+     *    .apply(JmsIO.write().withTopic("my-topic")
+     *   }
+     * </pre>
+     *
+     * @param topic The JMS topic name.
+     * @return The corresponding {@link JmsIO.Read}.
+     */
     public Write withTopic(String topic) {
-      return new Write(connectionFactory, queue, topic);
-    }
-
-    private Write(ConnectionFactory connectionFactory, String queue, String topic) {
-      this.connectionFactory = connectionFactory;
-      this.queue = queue;
-      this.topic = topic;
+      checkArgument(topic != null, "withTopic(topic) called with null topic");
+      return builder().setTopic(topic).build();
     }
 
     @Override
     public PDone expand(PCollection<String> input) {
-      input.apply(ParDo.of(new JmsWriter(connectionFactory, queue, topic)));
+      input.apply(ParDo.of(new WriterFn(this)));
       return PDone.in(input.getPipeline());
     }
 
     @Override
     public void validate(PCollection<String> input) {
-      checkNotNull(connectionFactory, "ConnectionFactory is not defined");
-      checkArgument((queue != null || topic != null), "Either queue or topic is required");
+      checkState(getConnectionFactory() != null, "JmsIO.write() requires a JMS connection "
+          + "factory to be set via withConnectionFactory(connectionFactory)");
+      checkState((getQueue() != null || getTopic() != null), "JmsIO.write() requires a JMS "
+          + "destination (queue or topic) to be set via withQueue(queue) or withTopic(topic)");
     }
 
-    private static class JmsWriter extends DoFn<String, Void> {
+    private static class WriterFn extends DoFn<String, Void> {
 
-      private ConnectionFactory connectionFactory;
-      private String queue;
-      private String topic;
+      private Write spec;
 
       private Connection connection;
       private Session session;
       private MessageProducer producer;
 
-      public JmsWriter(ConnectionFactory connectionFactory, String queue, String topic) {
-        this.connectionFactory = connectionFactory;
-        this.queue = queue;
-        this.topic = topic;
+      public WriterFn(Write spec) {
+        this.spec = spec;
       }
 
       @StartBundle
       public void startBundle(Context c) throws Exception {
         if (producer == null) {
-          this.connection = connectionFactory.createConnection();
+          this.connection = spec.getConnectionFactory().createConnection();
           this.connection.start();
           // false means we don't use JMS transaction.
           this.session = this.connection.createSession(false, Session.AUTO_ACKNOWLEDGE);
           Destination destination;
-          if (queue != null) {
-            destination = session.createQueue(queue);
+          if (spec.getQueue() != null) {
+            destination = session.createQueue(spec.getQueue());
           } else {
-            destination = session.createTopic(topic);
+            destination = session.createTopic(spec.getTopic());
           }
           this.producer = this.session.createProducer(destination);
         }
@@ -481,7 +618,6 @@ public class JmsIO {
       @ProcessElement
       public void processElement(ProcessContext ctx) throws Exception {
         String value = ctx.element();
-
         try {
           TextMessage message = session.createTextMessage(value);
           producer.send(message);
