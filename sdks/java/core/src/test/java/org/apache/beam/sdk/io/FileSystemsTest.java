@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.io;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertTrue;
 
 import com.google.common.collect.Sets;
@@ -41,8 +43,17 @@ public class FileSystemsTest {
 
   @Test
   public void testSetDefaultConfig() throws Exception {
-    FileSystems.setDefaultConfig("file", PipelineOptionsFactory.create());
-    FileSystems.setDefaultConfig("FILE", PipelineOptionsFactory.create());
+    PipelineOptions first = PipelineOptionsFactory.create();
+    PipelineOptions second = PipelineOptionsFactory.create();
+    FileSystems.setDefaultConfig("file", first);
+    assertEquals(first, FileSystems.getDefaultConfig("file"));
+    assertEquals(first, FileSystems.getDefaultConfig("FILE"));
+
+    FileSystems.setDefaultConfig("FILE", second);
+    assertNotEquals(first, FileSystems.getDefaultConfig("file"));
+    assertNotEquals(first, FileSystems.getDefaultConfig("FILE"));
+    assertEquals(second, FileSystems.getDefaultConfig("file"));
+    assertEquals(second, FileSystems.getDefaultConfig("FILE"));
   }
 
   @Test

@@ -96,6 +96,11 @@ public class FileSystems {
     SCHEME_TO_DEFAULT_CONFIG.put(lowerCaseScheme, checkNotNull(options, "options"));
   }
 
+  @VisibleForTesting
+  static PipelineOptions getDefaultConfig(String scheme) {
+    return SCHEME_TO_DEFAULT_CONFIG.get(scheme.toLowerCase());
+  }
+
   /**
    * Internal method to get {@link FileSystem} for {@code spec}.
    */
@@ -103,8 +108,7 @@ public class FileSystems {
   static FileSystem getFileSystemInternal(URI uri) {
     String lowerCaseScheme = (uri.getScheme() != null
         ? uri.getScheme().toLowerCase() : LocalFileSystemRegistrar.LOCAL_FILE_SCHEME);
-    return getRegistrarInternal(lowerCaseScheme)
-        .fromOptions(SCHEME_TO_DEFAULT_CONFIG.get(lowerCaseScheme));
+    return getRegistrarInternal(lowerCaseScheme).fromOptions(getDefaultConfig(lowerCaseScheme));
   }
 
   /**
