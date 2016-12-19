@@ -88,7 +88,7 @@ import org.slf4j.LoggerFactory;
  * Test on the MongoDbGridFSIO.
  */
 public class MongoDBGridFSIOTest implements Serializable {
-  private static final Logger LOGGER = LoggerFactory.getLogger(MongoDBGridFSIOTest.class);
+  private static final Logger LOG = LoggerFactory.getLogger(MongoDBGridFSIOTest.class);
 
   private static final String MONGODB_LOCATION = "target/mongodb";
   private static final String DATABASE = "gridfs";
@@ -105,7 +105,7 @@ public class MongoDBGridFSIOTest implements Serializable {
     try (ServerSocket serverSocket = new ServerSocket(0)) {
       port = serverSocket.getLocalPort();
     }
-    LOGGER.info("Starting MongoDB embedded instance on {}", port);
+    LOG.info("Starting MongoDB embedded instance on {}", port);
     try {
       Files.forceDelete(new File(MONGODB_LOCATION));
     } catch (Exception e) {
@@ -127,7 +127,7 @@ public class MongoDBGridFSIOTest implements Serializable {
     mongodExecutable = mongodStarter.prepare(mongodConfig);
     mongodProcess = mongodExecutable.start();
 
-    LOGGER.info("Insert test data");
+    LOG.info("Insert test data");
 
     Mongo client = new Mongo("localhost", port);
     DB database = client.getDB(DATABASE);
@@ -174,7 +174,7 @@ public class MongoDBGridFSIOTest implements Serializable {
 
   @AfterClass
   public static void stop() throws Exception {
-    LOGGER.info("Stopping MongoDB instance");
+    LOG.info("Stopping MongoDB instance");
     mongodProcess.stop();
     mongodExecutable.stop();
   }

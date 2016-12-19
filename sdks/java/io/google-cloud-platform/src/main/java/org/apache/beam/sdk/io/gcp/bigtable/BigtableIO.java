@@ -154,7 +154,7 @@ import org.slf4j.LoggerFactory;
  */
 @Experimental
 public class BigtableIO {
-  private static final Logger logger = LoggerFactory.getLogger(BigtableIO.class);
+  private static final Logger LOG = LoggerFactory.getLogger(BigtableIO.class);
 
   /**
    * Creates an uninitialized {@link BigtableIO.Read}. Before use, the {@code Read} must be
@@ -307,7 +307,7 @@ public class BigtableIO {
             "Table %s does not exist",
             tableId);
       } catch (IOException e) {
-        logger.warn("Error checking whether table {} exists; proceeding.", tableId, e);
+        LOG.warn("Error checking whether table {} exists; proceeding.", tableId, e);
       }
     }
 
@@ -521,7 +521,7 @@ public class BigtableIO {
             "Table %s does not exist",
             tableId);
       } catch (IOException e) {
-        logger.warn("Error checking whether table {} exists; proceeding.", tableId, e);
+        LOG.warn("Error checking whether table {} exists; proceeding.", tableId, e);
       }
     }
 
@@ -612,7 +612,7 @@ public class BigtableIO {
       public void finishBundle(Context c) throws Exception {
         bigtableWriter.flush();
         checkForFailures();
-        logger.info("Wrote {} records", recordsWritten);
+        LOG.info("Wrote {} records", recordsWritten);
       }
 
       @Teardown
@@ -658,7 +658,7 @@ public class BigtableIO {
                 i + failures.size(),
                 i,
                 logEntry.toString());
-        logger.error(message);
+        LOG.error(message);
         throw new IOException(message);
       }
 
@@ -762,11 +762,11 @@ public class BigtableIO {
         long desiredBundleSizeBytes, List<SampleRowKeysResponse> sampleRowKeys) {
       // There are no regions, or no samples available. Just scan the entire range.
       if (sampleRowKeys.isEmpty()) {
-        logger.info("Not splitting source {} because no sample row keys are available.", this);
+        LOG.info("Not splitting source {} because no sample row keys are available.", this);
         return Collections.singletonList(this);
       }
 
-      logger.info(
+      LOG.info(
           "About to split into bundles of size {} with sampleRowKeys length {} first element {}",
           desiredBundleSizeBytes,
           sampleRowKeys.size(),
@@ -832,7 +832,7 @@ public class BigtableIO {
       }
 
       List<BigtableSource> ret = splits.build();
-      logger.info("Generated {} splits. First split: {}", ret.size(), ret.get(0));
+      LOG.info("Generated {} splits. First split: {}", ret.size(), ret.get(0));
       return ret;
     }
 
@@ -912,7 +912,7 @@ public class BigtableIO {
     private List<BigtableSource> splitKeyRangeIntoBundleSizedSubranges(
         long sampleSizeBytes, long desiredBundleSizeBytes, ByteKeyRange range) {
       // Catch the trivial cases. Split is small enough already, or this is the last region.
-      logger.debug(
+      LOG.debug(
           "Subsplit for sampleSizeBytes {} and desiredBundleSizeBytes {}",
           sampleSizeBytes,
           desiredBundleSizeBytes);
@@ -1010,7 +1010,7 @@ public class BigtableIO {
 
     @Override
     public void close() throws IOException {
-      logger.info("Closing reader after reading {} records.", recordsReturned);
+      LOG.info("Closing reader after reading {} records.", recordsReturned);
       if (reader != null) {
         reader.close();
         reader = null;
@@ -1033,11 +1033,11 @@ public class BigtableIO {
       try {
         splitKey = rangeTracker.getRange().interpolateKey(fraction);
       } catch (IllegalArgumentException e) {
-        logger.info(
+        LOG.info(
             "%s: Failed to interpolate key for fraction %s.", rangeTracker.getRange(), fraction);
         return null;
       }
-      logger.debug(
+      LOG.debug(
           "Proposing to split {} at fraction {} (key {})", rangeTracker, fraction, splitKey);
       BigtableSource primary = source.withEndKey(splitKey);
       BigtableSource residual = source.withStartKey(splitKey);

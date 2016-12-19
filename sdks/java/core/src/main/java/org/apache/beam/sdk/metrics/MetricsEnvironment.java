@@ -41,7 +41,7 @@ import org.slf4j.LoggerFactory;
  */
 public class MetricsEnvironment {
 
-  private static final Logger LOGGER = LoggerFactory.getLogger(MetricsContainer.class);
+  private static final Logger LOG = LoggerFactory.getLogger(MetricsContainer.class);
 
   private static final AtomicBoolean METRICS_SUPPORTED = new AtomicBoolean(false);
   private static final AtomicBoolean REPORTED_MISSING_CONTAINER = new AtomicBoolean(false);
@@ -107,11 +107,11 @@ public class MetricsEnvironment {
     MetricsContainer container = CONTAINER_FOR_THREAD.get();
     if (container == null && REPORTED_MISSING_CONTAINER.compareAndSet(false, true)) {
       if (METRICS_SUPPORTED.get()) {
-        LOGGER.error(
+        LOG.error(
             "Unable to update metrics on the current thread. "
                 + "Most likely caused by using metrics outside the managed work-execution thread.");
       } else {
-        LOGGER.warn("Reporting metrics are not supported in the current execution environment.");
+        LOG.warn("Reporting metrics are not supported in the current execution environment.");
       }
     }
     return container;

@@ -32,7 +32,7 @@ import org.slf4j.LoggerFactory;
  * @see ByteKeyRange
  */
 public final class ByteKeyRangeTracker implements RangeTracker<ByteKey> {
-  private static final Logger logger = LoggerFactory.getLogger(ByteKeyRangeTracker.class);
+  private static final Logger LOG = LoggerFactory.getLogger(ByteKeyRangeTracker.class);
 
   /** Instantiates a new {@link ByteKeyRangeTracker} with the specified range. */
   public static ByteKeyRangeTracker of(ByteKeyRange range) {
@@ -89,7 +89,7 @@ public final class ByteKeyRangeTracker implements RangeTracker<ByteKey> {
   public synchronized boolean trySplitAtPosition(ByteKey splitPosition) {
     // Unstarted.
     if (position == null) {
-      logger.warn(
+      LOG.warn(
           "{}: Rejecting split request at {} because no records have been returned.",
           this,
           splitPosition);
@@ -98,7 +98,7 @@ public final class ByteKeyRangeTracker implements RangeTracker<ByteKey> {
 
     // Started, but not after current position.
     if (splitPosition.compareTo(position) <= 0) {
-      logger.warn(
+      LOG.warn(
           "{}: Rejecting split request at {} because it is not after current position {}.",
           this,
           splitPosition,
@@ -108,7 +108,7 @@ public final class ByteKeyRangeTracker implements RangeTracker<ByteKey> {
 
     // Sanity check.
     if (!range.containsKey(splitPosition)) {
-      logger.warn(
+      LOG.warn(
           "{}: Rejecting split request at {} because it is not within the range.",
           this,
           splitPosition);
