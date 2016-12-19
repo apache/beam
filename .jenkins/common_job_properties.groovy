@@ -48,7 +48,7 @@ class common_job_properties {
         remote {
           url('https://github.com/apache/incubator-beam.git')
           refspec('+refs/heads/*:refs/remotes/origin/* ' +
-                  '+refs/pull/*/head:refs/remotes/origin/pr/*')
+                  '+refs/pull/*:refs/remotes/origin/pr/*')
         }
         branch('${sha1}')
         extensions {
