@@ -140,6 +140,10 @@ class common_job_properties {
     context.rootPOM('pom.xml')
     // Use a repository local to the workspace for better isolation of jobs.
     context.localRepository(LocalRepositoryLocation.LOCAL_TO_WORKSPACE)
+    // Disable archiving the built artifacts by default, as this is slow and flaky.
+    // We can usually recreate them easily, and we can also opt-in individual jobs
+    // to artifact archiving.
+    context.archivingDisabled(true)
   }
 
   // Sets common config for PreCommit jobs.
