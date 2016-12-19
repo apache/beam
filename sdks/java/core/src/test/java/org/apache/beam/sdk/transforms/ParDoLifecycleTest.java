@@ -33,6 +33,7 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
@@ -43,10 +44,13 @@ import org.junit.runners.JUnit4;
  */
 @RunWith(JUnit4.class)
 public class ParDoLifecycleTest implements Serializable {
+
+  @Rule
+  public final transient TestPipeline p = TestPipeline.create();
+
   @Test
   @Category(RunnableOnService.class)
   public void testOldFnCallSequence() {
-    TestPipeline p = TestPipeline.create();
     PCollectionList.of(p.apply("Impolite", Create.of(1, 2, 4)))
         .and(p.apply("Polite", Create.of(3, 5, 6, 7)))
         .apply(Flatten.<Integer>pCollections())
@@ -58,7 +62,6 @@ public class ParDoLifecycleTest implements Serializable {
   @Test
   @Category(RunnableOnService.class)
   public void testOldFnCallSequenceMulti() {
-    TestPipeline p = TestPipeline.create();
     PCollectionList.of(p.apply("Impolite", Create.of(1, 2, 4)))
         .and(p.apply("Polite", Create.of(3, 5, 6, 7)))
         .apply(Flatten.<Integer>pCollections())
@@ -127,7 +130,6 @@ public class ParDoLifecycleTest implements Serializable {
   @Test
   @Category(RunnableOnService.class)
   public void testFnCallSequence() {
-    TestPipeline p = TestPipeline.create();
     PCollectionList.of(p.apply("Impolite", Create.of(1, 2, 4)))
         .and(p.apply("Polite", Create.of(3, 5, 6, 7)))
         .apply(Flatten.<Integer>pCollections())
@@ -139,7 +141,6 @@ public class ParDoLifecycleTest implements Serializable {
   @Test
   @Category(RunnableOnService.class)
   public void testFnCallSequenceMulti() {
-    TestPipeline p = TestPipeline.create();
     PCollectionList.of(p.apply("Impolite", Create.of(1, 2, 4)))
         .and(p.apply("Polite", Create.of(3, 5, 6, 7)))
         .apply(Flatten.<Integer>pCollections())
@@ -206,7 +207,6 @@ public class ParDoLifecycleTest implements Serializable {
   @Test
   @Category(NeedsRunner.class)
   public void testTeardownCalledAfterExceptionInSetup() {
-    TestPipeline p = TestPipeline.create();
     ExceptionThrowingOldFn fn = new ExceptionThrowingOldFn(MethodForException.SETUP);
     p
         .apply(Create.of(1, 2, 3))
@@ -227,7 +227,6 @@ public class ParDoLifecycleTest implements Serializable {
   @Test
   @Category(NeedsRunner.class)
   public void testTeardownCalledAfterExceptionInStartBundle() {
-    TestPipeline p = TestPipeline.create();
     ExceptionThrowingOldFn fn = new ExceptionThrowingOldFn(MethodForException.START_BUNDLE);
     p
         .apply(Create.of(1, 2, 3))
@@ -246,7 +245,6 @@ public class ParDoLifecycleTest implements Serializable {
   @Test
   @Category(NeedsRunner.class)
   public void testTeardownCalledAfterExceptionInProcessElement() {
-    TestPipeline p = TestPipeline.create();
     ExceptionThrowingOldFn fn = new ExceptionThrowingOldFn(MethodForException.PROCESS_ELEMENT);
     p
         .apply(Create.of(1, 2, 3))
@@ -265,7 +263,6 @@ public class ParDoLifecycleTest implements Serializable {
   @Test
   @Category(NeedsRunner.class)
   public void testTeardownCalledAfterExceptionInFinishBundle() {
-    TestPipeline p = TestPipeline.create();
     ExceptionThrowingOldFn fn = new ExceptionThrowingOldFn(MethodForException.FINISH_BUNDLE);
     p
         .apply(Create.of(1, 2, 3))
@@ -284,7 +281,6 @@ public class ParDoLifecycleTest implements Serializable {
   @Test
   @Category(NeedsRunner.class)
   public void testWithContextTeardownCalledAfterExceptionInSetup() {
-    TestPipeline p = TestPipeline.create();
     ExceptionThrowingOldFn fn = new ExceptionThrowingOldFn(MethodForException.SETUP);
     p.apply(Create.of(1, 2, 3)).apply(ParDo.of(fn));
     try {
@@ -300,7 +296,6 @@ public class ParDoLifecycleTest implements Serializable {
   @Test
   @Category(NeedsRunner.class)
   public void testWithContextTeardownCalledAfterExceptionInStartBundle() {
-    TestPipeline p = TestPipeline.create();
     ExceptionThrowingOldFn fn = new ExceptionThrowingOldFn(MethodForException.START_BUNDLE);
     p.apply(Create.of(1, 2, 3)).apply(ParDo.of(fn));
     try {
@@ -316,7 +311,6 @@ public class ParDoLifecycleTest implements Serializable {
   @Test
   @Category(NeedsRunner.class)
   public void testWithContextTeardownCalledAfterExceptionInProcessElement() {
-    TestPipeline p = TestPipeline.create();
     ExceptionThrowingOldFn fn = new ExceptionThrowingOldFn(MethodForException.PROCESS_ELEMENT);
     p.apply(Create.of(1, 2, 3)).apply(ParDo.of(fn));
     try {
@@ -332,7 +326,6 @@ public class ParDoLifecycleTest implements Serializable {
   @Test
   @Category(NeedsRunner.class)
   public void testWithContextTeardownCalledAfterExceptionInFinishBundle() {
-    TestPipeline p = TestPipeline.create();
     ExceptionThrowingOldFn fn = new ExceptionThrowingOldFn(MethodForException.FINISH_BUNDLE);
     p.apply(Create.of(1, 2, 3)).apply(ParDo.of(fn));
     try {

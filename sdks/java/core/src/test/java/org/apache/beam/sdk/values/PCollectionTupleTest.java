@@ -24,7 +24,6 @@ import static org.junit.Assert.assertTrue;
 import java.io.Serializable;
 import java.util.Arrays;
 import java.util.List;
-import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.RunnableOnService;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -33,6 +32,7 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.values.PCollection.IsBounded;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
@@ -41,9 +41,14 @@ import org.junit.runners.JUnit4;
 /** Unit tests for {@link PCollectionTuple}. */
 @RunWith(JUnit4.class)
 public final class PCollectionTupleTest implements Serializable {
+
+  @Rule
+  public final transient TestPipeline pipeline = TestPipeline.create()
+                                                             .enableAbandonedNodeEnforcement(false);
+
   @Test
   public void testOfThenHas() {
-    Pipeline pipeline = TestPipeline.create();
+
     PCollection<Object> pCollection = PCollection.createPrimitiveOutputInternal(
         pipeline, WindowingStrategy.globalDefault(), IsBounded.BOUNDED);
     TupleTag<Object> tag = new TupleTag<>();
@@ -53,7 +58,6 @@ public final class PCollectionTupleTest implements Serializable {
 
   @Test
   public void testEmpty() {
-    Pipeline pipeline = TestPipeline.create();
     TupleTag<Object> tag = new TupleTag<>();
     assertFalse(PCollectionTuple.empty(pipeline).has(tag));
   }
@@ -61,7 +65,7 @@ public final class PCollectionTupleTest implements Serializable {
   @Test
   @Category(RunnableOnService.class)
   public void testComposePCollectionTuple() {
-    Pipeline pipeline = TestPipeline.create();
+    pipeline.enableAbandonedNodeEnforcement(true);
 
     List<Integer> inputs = Arrays.asList(3, -42, 666);
 

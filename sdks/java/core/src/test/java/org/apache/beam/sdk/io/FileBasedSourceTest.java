@@ -42,7 +42,6 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Random;
-import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.FileBasedSource.FileBasedReader;
@@ -73,6 +72,7 @@ public class FileBasedSourceTest {
 
   Random random = new Random(0L);
 
+  @Rule public final TestPipeline p = TestPipeline.create();
   @Rule public TemporaryFolder tempFolder = new TemporaryFolder();
   @Rule public ExpectedException thrown = ExpectedException.none();
 
@@ -719,7 +719,6 @@ public class FileBasedSourceTest {
   @Test
   @Category(NeedsRunner.class)
   public void testDataflowFile() throws IOException {
-    Pipeline p = TestPipeline.create();
     List<String> data = createStringDataset(3, 50);
 
     String fileName = "file";
@@ -735,7 +734,6 @@ public class FileBasedSourceTest {
   @Test
   @Category(NeedsRunner.class)
   public void testDataflowFilePattern() throws IOException {
-    Pipeline p = TestPipeline.create();
 
     List<String> data1 = createStringDataset(3, 50);
     File file1 = createFileWithData("file1", data1);

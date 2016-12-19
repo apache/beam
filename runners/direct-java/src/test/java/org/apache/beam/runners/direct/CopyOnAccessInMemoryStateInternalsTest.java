@@ -62,13 +62,9 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class CopyOnAccessInMemoryStateInternalsTest {
 
-  @Rule public TestPipeline pipeline = TestPipeline.create();
+  @Rule public final TestPipeline pipeline = TestPipeline.create();
   @Rule public ExpectedException thrown = ExpectedException.none();
   private String key = "foo";
-
-  public CopyOnAccessInMemoryStateInternalsTest() {
-    pipeline = TestPipeline.create();
-  }
 
   @Test
   public void testGetWithEmpty() {

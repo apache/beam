@@ -21,7 +21,6 @@ import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisp
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertThat;
 
-import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.CountingInput.UnboundedCountingInput;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
@@ -39,6 +38,7 @@ import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.PCollection;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
@@ -66,10 +66,12 @@ public class CountingInputTest {
         .isEqualTo(end - 1);
   }
 
+  @Rule
+  public TestPipeline p = TestPipeline.create();
+
   @Test
   @Category(RunnableOnService.class)
   public void testBoundedInput() {
-    Pipeline p = TestPipeline.create();
     long numElements = 1000;
     PCollection<Long> input = p.apply(CountingInput.upTo(numElements));
 
@@ -80,7 +82,6 @@ public class CountingInputTest {
   @Test
   @Category(RunnableOnService.class)
   public void testEmptyBoundedInput() {
-    Pipeline p = TestPipeline.create();
     PCollection<Long> input = p.apply(CountingInput.upTo(0));
 
     PAssert.that(input).empty();
@@ -90,7 +91,6 @@ public class CountingInputTest {
   @Test
   @Category(RunnableOnService.class)
   public void testEmptyBoundedInputSubrange() {
-    Pipeline p = TestPipeline.create();
     PCollection<Long> input = p.apply(CountingInput.forSubrange(42, 42));
 
     PAssert.that(input).empty();
@@ -101,7 +101,6 @@ public class CountingInputTest {
   @Test
   @Category(RunnableOnService.class)
   public void testBoundedInputSubrange() {
-    Pipeline p = TestPipeline.create();
     long start = 10;
     long end = 1000;
     PCollection<Long> input = p.apply(CountingInput.forSubrange(start, end));
@@ -128,7 +127,6 @@ public class CountingInputTest {
   @Test
   @Category(RunnableOnService.class)
   public void testUnboundedInput() {
-    Pipeline p = TestPipeline.create();
     long numElements = 1000;
 
     PCollection<Long> input = p.apply(CountingInput.unbounded().withMaxNumRecords(numElements));
@@ -140,7 +138,6 @@ public class CountingInputTest {
   @Test
   @Category(NeedsRunner.class)
   public void testUnboundedInputRate() {
-    Pipeline p = TestPipeline.create();
     long numElements = 5000;
 
     long elemsPerPeriod = 10L;
@@ -169,7 +166,6 @@ public class CountingInputTest {
   @Test
   @Category(RunnableOnService.class)
   public void testUnboundedInputTimestamps() {
-    Pipeline p = TestPipeline.create();
     long numElements = 1000;
 
     PCollection<Long> input =

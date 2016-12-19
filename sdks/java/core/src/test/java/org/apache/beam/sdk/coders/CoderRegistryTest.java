@@ -35,7 +35,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.CoderRegistry.IncompatibleCoderException;
 import org.apache.beam.sdk.coders.protobuf.ProtoCoder;
 import org.apache.beam.sdk.testing.NeedsRunner;
@@ -61,6 +60,9 @@ import org.junit.runners.JUnit4;
  */
 @RunWith(JUnit4.class)
 public class CoderRegistryTest {
+
+  @Rule
+  public TestPipeline pipeline = TestPipeline.create();
 
   @Rule
   public ExpectedException thrown = ExpectedException.none();
@@ -414,7 +416,6 @@ public class CoderRegistryTest {
   @Test
   @Category(NeedsRunner.class)
   public void testSpecializedButIgnoredGenericInPipeline() throws Exception {
-    Pipeline pipeline = TestPipeline.create();
 
     pipeline
         .apply(Create.of("hello", "goodbye"))
@@ -443,7 +444,6 @@ public class CoderRegistryTest {
   @Test
   @Category(NeedsRunner.class)
   public void testIgnoredGenericInPipeline() throws Exception {
-    Pipeline pipeline = TestPipeline.create();
 
     pipeline
         .apply(Create.of("hello", "goodbye"))

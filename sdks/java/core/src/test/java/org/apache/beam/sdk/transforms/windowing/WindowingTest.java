@@ -21,7 +21,6 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.PrintStream;
 import java.io.Serializable;
-import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.testing.NeedsRunner;
@@ -50,6 +49,10 @@ import org.junit.runners.JUnit4;
 /** Unit tests for bucketing. */
 @RunWith(JUnit4.class)
 public class WindowingTest implements Serializable {
+
+  @Rule
+  public final transient TestPipeline p = TestPipeline.create();
+
   @Rule
   public transient TemporaryFolder tmpFolder = new TemporaryFolder();
 
@@ -88,7 +91,6 @@ public class WindowingTest implements Serializable {
   @Test
   @Category(RunnableOnService.class)
   public void testPartitioningWindowing() {
-    Pipeline p = TestPipeline.create();
     PCollection<String> input =
         p.apply(
             Create.timestamped(
@@ -114,7 +116,6 @@ public class WindowingTest implements Serializable {
   @Test
   @Category(RunnableOnService.class)
   public void testNonPartitioningWindowing() {
-    Pipeline p = TestPipeline.create();
     PCollection<String> input =
         p.apply(
             Create.timestamped(
@@ -140,7 +141,6 @@ public class WindowingTest implements Serializable {
   @Test
   @Category(RunnableOnService.class)
   public void testMergingWindowing() {
-    Pipeline p = TestPipeline.create();
     PCollection<String> input =
         p.apply(
             Create.timestamped(
@@ -162,7 +162,6 @@ public class WindowingTest implements Serializable {
   @Test
   @Category(RunnableOnService.class)
   public void testWindowPreservation() {
-    Pipeline p = TestPipeline.create();
     PCollection<String> input1 = p.apply("Create12",
         Create.timestamped(
             TimestampedValue.of("a", new Instant(1)),
@@ -190,7 +189,6 @@ public class WindowingTest implements Serializable {
   @Test
   @Category(NeedsRunner.class)
   public void testEmptyInput() {
-    Pipeline p = TestPipeline.create();
     PCollection<String> input =
         p.apply(Create.<String>timestamped()
             .withCoder(StringUtf8Coder.of()));
@@ -218,7 +216,6 @@ public class WindowingTest implements Serializable {
       writer.println("d 11");
     }
 
-    Pipeline p = TestPipeline.create();
     PCollection<String> output = p.begin()
         .apply("ReadLines", TextIO.Read.from(filename))
         .apply(ParDo.of(new ExtractWordsWithTimestampsFn()))
