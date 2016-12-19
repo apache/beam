@@ -48,6 +48,8 @@ public abstract class BroadcastHelper<T> implements Serializable {
 
   public abstract void broadcast(JavaSparkContext jsc);
 
+  public abstract void unpersist(JavaSparkContext jsc);
+
   /**
    * A {@link BroadcastHelper} that uses a
    * {@link Coder} to encode values as byte arrays
@@ -76,6 +78,10 @@ public abstract class BroadcastHelper<T> implements Serializable {
     @Override
     public void broadcast(JavaSparkContext jsc) {
       this.bcast = jsc.broadcast(bytes);
+    }
+
+    @Override public void unpersist(JavaSparkContext jsc) {
+      this.bcast.unpersist();
     }
 
     private T deserialize() {

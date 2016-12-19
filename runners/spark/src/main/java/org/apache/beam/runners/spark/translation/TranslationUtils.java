@@ -206,18 +206,18 @@ public final class TranslationUtils {
    */
   public static Map<TupleTag<?>, KV<WindowingStrategy<?, ?>, BroadcastHelper<?>>>
   getSideInputs(List<PCollectionView<?>> views, JavaSparkContext context,
-          SparkPCollectionView pviews) {
+                SparkPCollectionView pviews) {
 
     if (views == null) {
       return ImmutableMap.of();
     } else {
       Map<TupleTag<?>, KV<WindowingStrategy<?, ?>, BroadcastHelper<?>>> sideInputs =
-              Maps.newHashMap();
+          Maps.newHashMap();
       for (PCollectionView<?> view : views) {
         BroadcastHelper helper = pviews.getPCollectionView(view, context);
         WindowingStrategy<?, ?> windowingStrategy = view.getWindowingStrategyInternal();
         sideInputs.put(view.getTagInternal(),
-                KV.<WindowingStrategy<?, ?>, BroadcastHelper<?>>of(windowingStrategy, helper));
+            KV.<WindowingStrategy<?, ?>, BroadcastHelper<?>>of(windowingStrategy, helper));
       }
       return sideInputs;
     }

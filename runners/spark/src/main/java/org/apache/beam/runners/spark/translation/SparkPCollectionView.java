@@ -40,21 +40,30 @@ public class SparkPCollectionView implements Serializable {
 
     // Holds the Actual data of the views in serialize form
     private Map<PCollectionView<?>,
-                Tuple2<byte[], Coder<Iterable<WindowedValue<?>>>>> pviews =
-                    Collections.synchronizedMap(
-                            new LinkedHashMap<PCollectionView<?>,
-                                   Tuple2<byte[], Coder<Iterable<WindowedValue<?>>>>>());
+        Tuple2<byte[], Coder<Iterable<WindowedValue<?>>>>> pviews =
+            Collections.synchronizedMap(
+                new LinkedHashMap<PCollectionView<?>,
+                    Tuple2<byte[], Coder<Iterable<WindowedValue<?>>>>>());
 
     // Driver only - during evaluation stage
     void putPView(PCollectionView<?> view,
                   Iterable<WindowedValue<?>> value,
-                  Coder<Iterable<WindowedValue<?>>> coder) {
+                  Coder<Iterable<WindowedValue<?>>> coder,
+                  JavaSparkContext context) {
 
         pviews.put(view, new Tuple2(CoderHelpers.toByteArray(value, coder), coder));
+        // overwrite/create broadcast
+        getPCollectionView(view, context, true);
     }
 
-    // Driver only
-    BroadcastHelper getPCollectionView(PCollectionView<?> view, JavaSparkContext context) {
+    BroadcastHelper getPCollectionView(PCollectionView<?> view,
+                                       JavaSparkContext context) {
+        return getPCollectionView(view, context, false);
+    }
+
+    private BroadcastHelper getPCollectionView(PCollectionView<?> view,
+                                               JavaSparkContext context,
+                                               boolean overwrite) {
         // initialize broadcastHelperMap if needed
         if (broadcastHelperMap == null) {
             synchronized (SparkPCollectionView.class) {
@@ -70,13 +79,23 @@ public class SparkPCollectionView implements Serializable {
             synchronized (SparkPCollectionView.class) {
                 helper = broadcastHelperMap.get(view);
                 if (helper == null) {
-                    Tuple2<byte[], Coder<Iterable<WindowedValue<?>>>> tuple2 = pviews.get(view);
-                    helper = BroadcastHelper.create(tuple2._1, tuple2._2);
-                    helper.broadcast(context);
-                    broadcastHelperMap.put(view, helper);
+                    helper = getBroadcastHelper(view, context);
                 }
             }
+        } else if (overwrite) {
+            synchronized (SparkPCollectionView.class) {
+                helper.unpersist(context);
+                helper = getBroadcastHelper(view, context);
+            }
         }
+        return helper;
+    }
+
+    private BroadcastHelper getBroadcastHelper(PCollectionView<?> view, JavaSparkContext context) {
+        Tuple2<byte[], Coder<Iterable<WindowedValue<?>>>> tuple2 = pviews.get(view);
+        BroadcastHelper helper = BroadcastHelper.create(tuple2._1, tuple2._2);
+        helper.broadcast(context);
+        broadcastHelperMap.put(view, helper);
         return helper;
     }
 }

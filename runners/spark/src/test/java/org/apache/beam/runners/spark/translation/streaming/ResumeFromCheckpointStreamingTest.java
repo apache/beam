@@ -176,12 +176,13 @@ public class ResumeFromCheckpointStreamingTest {
     PCollection<String> formattedKV =
         p.apply(read.withoutMetadata())
           .apply(ParDo.of(new DoFn<KV<String, String>, KV<String, String>>() {
-            @ProcessElement public void process(ProcessContext c) {
+               @ProcessElement
+               public void process(ProcessContext c) {
 
-              // Check side input is passed correctly
-              Assert.assertEquals(c.sideInput(expectedView), Arrays.asList(EXPECTED));
-              c.output(c.element());
-            }
+                  // Check side input is passed correctly
+                  Assert.assertEquals(c.sideInput(expectedView), Arrays.asList(EXPECTED));
+                  c.output(c.element());
+                }
           }).withSideInputs(expectedView))
         .apply(Window.<KV<String, String>>into(FixedWindows.of(windowDuration)))
         .apply(ParDo.of(new FormatAsText()));

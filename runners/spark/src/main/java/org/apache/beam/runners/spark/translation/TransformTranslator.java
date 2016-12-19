@@ -534,8 +534,9 @@ public final class TransformTranslator {
         Coder<Iterable<WindowedValue<?>>> coderInternal = output.getCoderInternal();
 
         context.getPviews().putPView(output,
-                        (Iterable<WindowedValue<?>>) iter,
-                        coderInternal);
+            (Iterable<WindowedValue<?>>) iter,
+            coderInternal,
+            context.getSparkContext());
       }
     };
   }
@@ -550,8 +551,9 @@ public final class TransformTranslator {
         Coder<Iterable<WindowedValue<?>>> coderInternal = output.getCoderInternal();
 
         context.getPviews().putPView(output,
-                (Iterable<WindowedValue<?>>) iter,
-                coderInternal);
+            (Iterable<WindowedValue<?>>) iter,
+            coderInternal,
+            context.getSparkContext());
       }
     };
   }
@@ -568,8 +570,9 @@ public final class TransformTranslator {
         Coder<Iterable<WindowedValue<?>>> coderInternal = output.getCoderInternal();
 
         context.getPviews().putPView(output,
-                (Iterable<WindowedValue<?>>) iter,
-                coderInternal);
+            (Iterable<WindowedValue<?>>) iter,
+            coderInternal,
+            context.getSparkContext());
       }
     };
   }
