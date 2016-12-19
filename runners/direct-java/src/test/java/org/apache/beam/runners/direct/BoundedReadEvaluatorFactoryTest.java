@@ -62,6 +62,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.hamcrest.Matchers;
 import org.joda.time.Instant;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -82,11 +83,13 @@ public class BoundedReadEvaluatorFactoryTest {
   private BundleFactory bundleFactory;
   private AppliedPTransform<?, ?, ?> longsProducer;
 
+  @Rule
+  public TestPipeline p = TestPipeline.create().enableAbandonedNodeEnforcement(false);
+
   @Before
   public void setup() {
     MockitoAnnotations.initMocks(this);
     source = CountingSource.upTo(10L);
-    TestPipeline p = TestPipeline.create();
     longs = p.apply(Read.from(source));
 
     factory =
@@ -142,7 +145,7 @@ public class BoundedReadEvaluatorFactoryTest {
       elems[i] = (long) i;
     }
     PCollection<Long> read =
-        TestPipeline.create().apply(Read.from(new TestSource<>(VarLongCoder.of(), 5, elems)));
+        p.apply(Read.from(new TestSource<>(VarLongCoder.of(), 5, elems)));
     AppliedPTransform<?, ?, ?> transform = DirectGraphs.getProducer(read);
     Collection<CommittedBundle<?>> unreadInputs =
         new BoundedReadEvaluatorFactory.InputProvider(context).getInitialInputs(transform, 1);
@@ -191,8 +194,7 @@ public class BoundedReadEvaluatorFactoryTest {
     BoundedReadEvaluatorFactory factory = new BoundedReadEvaluatorFactory(context, 0L);
 
     PCollection<Long> read =
-        TestPipeline.create()
-            .apply(Read.from(SourceTestUtils.toUnsplittableSource(CountingSource.upTo(10L))));
+        p.apply(Read.from(SourceTestUtils.toUnsplittableSource(CountingSource.upTo(10L))));
     AppliedPTransform<?, ?, ?> transform = DirectGraphs.getProducer(read);
 
     when(context.createRootBundle()).thenReturn(bundleFactory.createRootBundle());
@@ -298,8 +300,6 @@ public class BoundedReadEvaluatorFactoryTest {
   @Test
   public void boundedSourceEvaluatorClosesReader() throws Exception {
     TestSource<Long> source = new TestSource<>(BigEndianLongCoder.of(), 1L, 2L, 3L);
-
-    TestPipeline p = TestPipeline.create();
     PCollection<Long> pcollection = p.apply(Read.from(source));
     AppliedPTransform<?, ?, ?> sourceTransform = DirectGraphs.getProducer(pcollection);
 
@@ -320,7 +320,6 @@ public class BoundedReadEvaluatorFactoryTest {
   public void boundedSourceEvaluatorNoElementsClosesReader() throws Exception {
     TestSource<Long> source = new TestSource<>(BigEndianLongCoder.of());
 
-    TestPipeline p = TestPipeline.create();
     PCollection<Long> pcollection = p.apply(Read.from(source));
     AppliedPTransform<?, ?, ?> sourceTransform = DirectGraphs.getProducer(pcollection);
 

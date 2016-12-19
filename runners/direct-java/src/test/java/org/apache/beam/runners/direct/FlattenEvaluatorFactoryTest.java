@@ -37,6 +37,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.hamcrest.Matchers;
 import org.joda.time.Instant;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -48,9 +49,11 @@ import org.junit.runners.JUnit4;
 public class FlattenEvaluatorFactoryTest {
   private BundleFactory bundleFactory = ImmutableListBundleFactory.create();
 
+  @Rule
+  public TestPipeline p = TestPipeline.create().enableAbandonedNodeEnforcement(false);
+
   @Test
   public void testFlattenInMemoryEvaluator() throws Exception {
-    TestPipeline p = TestPipeline.create();
     PCollection<Integer> left = p.apply("left", Create.of(1, 2, 4));
     PCollection<Integer> right = p.apply("right", Create.of(-1, 2, -4));
     PCollectionList<Integer> list = PCollectionList.of(left).and(right);
@@ -118,7 +121,6 @@ public class FlattenEvaluatorFactoryTest {
 
   @Test
   public void testFlattenInMemoryEvaluatorWithEmptyPCollectionList() throws Exception {
-    TestPipeline p = TestPipeline.create();
     PCollectionList<Integer> list = PCollectionList.empty(p);
 
     PCollection<Integer> flattened = list.apply(Flatten.<Integer>pCollections());

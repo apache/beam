@@ -37,6 +37,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -51,9 +52,11 @@ public class WatermarkCallbackExecutorTest {
   private AppliedPTransform<?, ?, ?> create;
   private AppliedPTransform<?, ?, ?> sum;
 
+  @Rule
+  public TestPipeline p = TestPipeline.create().enableAbandonedNodeEnforcement(false);
+
   @Before
   public void setup() {
-    TestPipeline p = TestPipeline.create();
     PCollection<Integer> created = p.apply(Create.of(1, 2, 3));
     PCollection<Integer> summed = created.apply(Sum.integersGlobally());
     DirectGraph graph = DirectGraphs.getGraph(p);

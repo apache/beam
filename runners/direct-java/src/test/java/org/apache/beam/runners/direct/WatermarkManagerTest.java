@@ -70,6 +70,7 @@ import org.hamcrest.Matchers;
 import org.joda.time.Instant;
 import org.joda.time.ReadableInstant;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -94,9 +95,11 @@ public class WatermarkManagerTest implements Serializable {
   private transient BundleFactory bundleFactory;
   private DirectGraph graph;
 
+  @Rule
+  public transient TestPipeline p = TestPipeline.create().enableAbandonedNodeEnforcement(false);
+
   @Before
   public void setup() {
-    TestPipeline p = TestPipeline.create();
 
     createdInts = p.apply("createdInts", Create.of(1, 2, 3));
 
@@ -278,7 +281,6 @@ public class WatermarkManagerTest implements Serializable {
    */
   @Test
   public void getWatermarkMultiIdenticalInput() {
-    TestPipeline p = TestPipeline.create();
     PCollection<Integer> created = p.apply(Create.of(1, 2, 3));
     PCollection<Integer> multiConsumer =
         PCollectionList.of(created).and(created).apply(Flatten.<Integer>pCollections());
