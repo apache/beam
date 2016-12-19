@@ -60,8 +60,9 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class DirectGraphVisitorTest implements Serializable {
   @Rule public transient ExpectedException thrown = ExpectedException.none();
+  @Rule public transient TestPipeline p = TestPipeline.create()
+                                                      .enableAbandonedNodeEnforcement(false);
 
-  private transient TestPipeline p = TestPipeline.create();
   private transient DirectGraphVisitor visitor = new DirectGraphVisitor();
 
   @Test
