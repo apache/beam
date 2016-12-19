@@ -147,6 +147,9 @@ public class TextIOTest {
   private static File largeZip;
 
   @Rule
+  public TestPipeline p = TestPipeline.create();
+
+  @Rule
   public ExpectedException expectedException = ExpectedException.none();
 
   private static File writeToFile(String[] lines, String filename, CompressionType compression)
@@ -224,8 +227,6 @@ public class TextIOTest {
       }
     }
 
-    Pipeline p = TestPipeline.create();
-
     TextIO.Read.Bound<T> read;
     if (coder.equals(StringUtf8Coder.of())) {
       TextIO.Read.Bound<String> readStrings = TextIO.Read.from(filename);
@@ -273,7 +274,7 @@ public class TextIOTest {
 
   @Test
   public void testReadNamed() throws Exception {
-    Pipeline p = TestPipeline.create();
+    p.enableAbandonedNodeEnforcement(false);
 
     assertEquals(
         "TextIO.Read/Read.out",
@@ -329,8 +330,6 @@ public class TextIOTest {
     String outputName = "file.txt";
     Path baseDir = Files.createTempDirectory(tempFolder, "testwrite");
     String baseFilename = baseDir.resolve(outputName).toString();
-
-    Pipeline p = TestPipeline.create();
 
     PCollection<T> input = p.apply(Create.of(Arrays.asList(elems)).withCoder(coder));
 
@@ -511,7 +510,6 @@ public class TextIOTest {
     Coder<String> coder = StringUtf8Coder.of();
     String outputName = "file.txt";
     Path baseDir = Files.createTempDirectory(tempFolder, "testwrite");
-    Pipeline p = TestPipeline.create();
 
     PCollection<String> input = p.apply(Create.of(Arrays.asList(LINES2_ARRAY)).withCoder(coder));
 
@@ -601,10 +599,9 @@ public class TextIOTest {
 
   @Test
   public void testUnsupportedFilePattern() throws IOException {
+    p.enableAbandonedNodeEnforcement(false);
     // Windows doesn't like resolving paths with * in them.
     String filename = tempFolder.resolve("output@5").toString();
-
-    Pipeline p = TestPipeline.create();
 
     PCollection<String> input =
         p.apply(Create.of(Arrays.asList(LINES_ARRAY))
@@ -621,13 +618,13 @@ public class TextIOTest {
    */
   @Test
   public void testBadWildcardRecursive() throws Exception {
-    Pipeline pipeline = TestPipeline.create();
+    p.enableAbandonedNodeEnforcement(false);
 
     // Check that applying does fail.
     expectedException.expect(IllegalArgumentException.class);
     expectedException.expectMessage("wildcard");
 
-    pipeline.apply(TextIO.Read.from("gs://bucket/foo**/baz"));
+    p.apply(TextIO.Read.from("gs://bucket/foo**/baz"));
   }
 
   /** Options for testing. */
@@ -641,9 +638,11 @@ public class TextIOTest {
 
   @Test
   public void testRuntimeOptionsNotCalledInApply() throws Exception {
-    Pipeline pipeline = TestPipeline.create();
+    p.enableAbandonedNodeEnforcement(false);
+
     RuntimeTestOptions options = PipelineOptionsFactory.as(RuntimeTestOptions.class);
-    pipeline
+
+    p
         .apply(TextIO.Read.from(options.getInput()).withoutValidation())
         .apply(TextIO.Write.to(options.getOutput()).withoutValidation());
   }
@@ -686,12 +685,12 @@ public class TextIOTest {
    * Helper method that runs TextIO.Read.from(filename).withCompressionType(compressionType)
    * and asserts that the results match the given expected output.
    */
-  private static void assertReadingCompressedFileMatchesExpected(
+  private void assertReadingCompressedFileMatchesExpected(
       File file, CompressionType compressionType, String[] expected) {
-    Pipeline p = TestPipeline.create();
+
     TextIO.Read.Bound<String> read =
         TextIO.Read.from(file.getPath()).withCompressionType(compressionType);
-    PCollection<String> output = p.apply(read);
+    PCollection<String> output = p.apply("Read_" + file + "_" + compressionType.toString(), read);
 
     PAssert.that(output).containsInAnyOrder(expected);
     p.run();

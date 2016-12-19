@@ -65,6 +65,7 @@ import org.junit.runners.JUnit4;
  */
 @RunWith(JUnit4.class)
 public class TestStreamTest implements Serializable {
+  @Rule public transient TestPipeline p = TestPipeline.create();
   @Rule public transient ExpectedException thrown = ExpectedException.none();
 
   @Test
@@ -85,7 +86,6 @@ public class TestStreamTest implements Serializable {
             TimestampedValue.of(-3, instant))
         .advanceWatermarkToInfinity();
 
-    TestPipeline p = TestPipeline.create();
     PCollection<Integer> windowed = p
         .apply(source)
         .apply(Window.<Integer>into(FixedWindows.of(Duration.standardMinutes(5))).triggering(
@@ -146,7 +146,6 @@ public class TestStreamTest implements Serializable {
         .advanceProcessingTime(Duration.standardMinutes(6))
         .advanceWatermarkToInfinity();
 
-    TestPipeline p = TestPipeline.create();
     PCollection<Long> sum = p.apply(source)
         .apply(Window.<Long>triggering(AfterWatermark.pastEndOfWindow()
             .withEarlyFirings(AfterProcessingTime.pastFirstElementInPane()
@@ -175,7 +174,6 @@ public class TestStreamTest implements Serializable {
                 TimestampedValue.of("alsoFinalLatePane", new Instant(250)))
             .advanceWatermarkToInfinity();
 
-    TestPipeline p = TestPipeline.create();
     FixedWindows windowFn = FixedWindows.of(Duration.millis(1000L));
     Duration allowedLateness = Duration.millis(5000L);
     PCollection<String> values =
@@ -220,7 +218,6 @@ public class TestStreamTest implements Serializable {
             .addElements(TimestampedValue.of("onTime", new Instant(100)))
             .advanceWatermarkToInfinity();
 
-    TestPipeline p = TestPipeline.create();
     FixedWindows windowFn = FixedWindows.of(Duration.millis(1000L));
     Duration allowedLateness = Duration.millis(5000L);
     PCollection<String> values = p.apply(stream)
@@ -249,7 +246,6 @@ public class TestStreamTest implements Serializable {
             TimestampedValue.of("bar", endOfGlobalWindow))
         .advanceWatermarkToInfinity();
 
-    TestPipeline p = TestPipeline.create();
     FixedWindows windows = FixedWindows.of(Duration.standardHours(6));
     PCollection<String> windowedValues = p.apply(stream)
         .apply(Window.<String>into(windows))
@@ -274,7 +270,6 @@ public class TestStreamTest implements Serializable {
     TestStream<Integer> other =
         TestStream.create(VarIntCoder.of()).addElements(1, 2, 3, 4).advanceWatermarkToInfinity();
 
-    TestPipeline p = TestPipeline.create();
     PCollection<String> createStrings =
         p.apply("CreateStrings", stream)
             .apply("WindowStrings",
