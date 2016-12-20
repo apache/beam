@@ -130,9 +130,9 @@ public class ElasticsearchIO {
 
   public static Write write() {
     return new AutoValue_ElasticsearchIO_Write.Builder()
-        //      adviced default starting bacth size
+        // advised default starting batch size in ES docs
         .setMaxBatchSize(1000L)
-        //      adviced default starting bacth size
+        // advised default starting batch size in ES docs
         .setMaxBatchSizeBytes(5L * 1024L * 1024L)
         .build();
   }
