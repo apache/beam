@@ -20,7 +20,6 @@ package org.apache.beam.sdk.transforms;
 import com.google.common.collect.ImmutableList;
 import java.io.Serializable;
 import java.util.List;
-import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.values.PCollection;
@@ -38,6 +37,9 @@ import org.junit.runners.JUnit4;
 public class FlatMapElementsJava8Test implements Serializable {
 
   @Rule
+  public final transient TestPipeline pipeline = TestPipeline.create();
+
+  @Rule
   public transient ExpectedException thrown = ExpectedException.none();
 
   /**
@@ -46,7 +48,6 @@ public class FlatMapElementsJava8Test implements Serializable {
    */
   @Test
   public void testFlatMapBasic() throws Exception {
-    Pipeline pipeline = TestPipeline.create();
     PCollection<Integer> output = pipeline
         .apply(Create.of(1, 2, 3))
         .apply(FlatMapElements
@@ -63,7 +64,7 @@ public class FlatMapElementsJava8Test implements Serializable {
    */
   @Test
   public void testFlatMapMethodReference() throws Exception {
-    Pipeline pipeline = TestPipeline.create();
+
     PCollection<Integer> output = pipeline
         .apply(Create.of(1, 2, 3))
         .apply(FlatMapElements
