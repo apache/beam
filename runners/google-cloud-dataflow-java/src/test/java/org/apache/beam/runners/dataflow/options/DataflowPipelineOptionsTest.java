@@ -17,9 +17,10 @@
  */
 package org.apache.beam.runners.dataflow.options;
 
-import static com.google.common.base.Strings.isNullOrEmpty;
+import static org.hamcrest.Matchers.containsString;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
+import static org.junit.internal.matchers.ThrowableMessageMatcher.hasMessage;
 
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.ResetDateTimeProvider;
@@ -127,9 +128,10 @@ public class DataflowPipelineOptionsTest {
   public void testStagingLocation() {
     DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
     IOChannelUtils.registerIOFactoriesAllowOverride(options);
-    options.setTempLocation("file://temp_location");
+    options.setPathValidatorClass(NoopPathValidator.class);
+    options.setTempLocation("gs://temp_location");
     options.setStagingLocation("gs://staging_location");
-    assertTrue(isNullOrEmpty(options.getGcpTempLocation()));
+    assertEquals("gs://temp_location", options.getGcpTempLocation());
     assertEquals("gs://staging_location", options.getStagingLocation());
   }
 
@@ -158,8 +160,10 @@ public class DataflowPipelineOptionsTest {
     DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
     options.setTempLocation("file://temp_location");
     thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage(
-        "Error constructing default value for stagingLocation: gcpTempLocation is missing.");
+    thrown.expectMessage("Error constructing default value for stagingLocation: "
+        + "failed to retrieve gcpTempLocation.");
+    thrown.expectCause(hasMessage(containsString(
+        "Error constructing default value for gcpTempLocation")));
     options.getStagingLocation();
   }
 
@@ -171,6 +175,8 @@ public class DataflowPipelineOptionsTest {
     thrown.expectMessage(
         "Error constructing default value for stagingLocation: gcpTempLocation is not"
         + " a valid GCS path");
+    thrown.expectCause(
+        hasMessage(containsString("Expected a valid 'gs://' path")));
     options.getStagingLocation();
   }
 
@@ -178,8 +184,8 @@ public class DataflowPipelineOptionsTest {
   public void testDefaultStagingLocationUnset() {
     DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
     thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage(
-        "Error constructing default value for stagingLocation: gcpTempLocation is missing.");
+    thrown.expectMessage("Error constructing default value for stagingLocation: "
+        + "failed to retrieve gcpTempLocation.");
     options.getStagingLocation();
   }
 }
