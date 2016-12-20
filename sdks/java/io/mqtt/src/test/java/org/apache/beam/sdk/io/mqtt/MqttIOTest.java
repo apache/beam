@@ -30,6 +30,7 @@ import org.apache.activemq.broker.Connection;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
+import org.apache.beam.sdk.testing.RunnableOnService;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.values.PCollection;
@@ -43,15 +44,12 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
-import org.junit.runner.RunWith;
-import org.junit.runners.JUnit4;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
  * Tests of {@link MqttIO}.
  */
-@RunWith(JUnit4.class)
 public class MqttIOTest {
 
   private static final Logger LOG = LoggerFactory.getLogger(MqttIOTest.class);
@@ -78,7 +76,7 @@ public class MqttIOTest {
   }
 
   @Test(timeout = 60 * 1000)
-  @Category(NeedsRunner.class)
+  @Category(RunnableOnService.class)
   public void testRead() throws Exception {
     final Pipeline pipeline = TestPipeline.create();
 
@@ -140,6 +138,7 @@ public class MqttIOTest {
   }
 
   @Test
+  @Category(RunnableOnService.class)
   public void testWrite() throws Exception {
     MQTT client = new MQTT();
     client.setHost("tcp://localhost:" + port);
