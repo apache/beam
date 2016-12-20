@@ -19,6 +19,7 @@
 package org.apache.beam.runners.gearpump;
 
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsValidator;
 import org.apache.beam.sdk.runners.PipelineRunner;
@@ -52,7 +53,10 @@ public class TestGearpumpRunner extends PipelineRunner<GearpumpPipelineResult> {
   @Override
   public GearpumpPipelineResult run(Pipeline pipeline) {
     GearpumpPipelineResult result = delegate.run(pipeline);
+    PipelineResult.State state = result.waitUntilFinish();
     cluster.stop();
+    assert(state == PipelineResult.State.DONE);
+
     return result;
   }
 

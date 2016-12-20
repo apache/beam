@@ -134,7 +134,6 @@ public class GroupByKeyTranslator<K, V> implements TransformTranslator<GroupByKe
   private static class ValueToIterable<K, V>
       implements MapFunction<WindowedValue<KV<K, V>>, WindowedValue<KV<K, Iterable<V>>>> {
 
-
     @Override
     public WindowedValue<KV<K, Iterable<V>>> apply(WindowedValue<KV<K, V>> wv) {
       Iterable<V> values = Lists.newArrayList(wv.getValue().getValue());

@@ -18,6 +18,7 @@
 package org.apache.beam.runners.gearpump;
 
 import java.io.IOException;
+import java.util.List;
 
 import org.apache.beam.sdk.AggregatorRetrievalException;
 import org.apache.beam.sdk.AggregatorValues;
@@ -26,31 +27,62 @@ import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.metrics.MetricResults;
 import org.apache.beam.sdk.transforms.Aggregator;
 
+import org.apache.gearpump.cluster.MasterToAppMaster;
+import org.apache.gearpump.cluster.MasterToAppMaster.AppMasterData;
+import org.apache.gearpump.cluster.client.ClientContext;
 import org.joda.time.Duration;
 
+import scala.collection.JavaConverters;
+import scala.collection.Seq;
 
 /**
  * Result of executing a {@link Pipeline} with Gearpump.
  */
 public class GearpumpPipelineResult implements PipelineResult {
+
+  private final ClientContext client;
+  private final int appId;
+  private final Duration defaultWaitDuration = Duration.standardSeconds(60);
+  private final Duration defaultWaitInterval = Duration.standardSeconds(10);
+
+  public GearpumpPipelineResult(ClientContext client, int appId) {
+    this.client = client;
+    this.appId = appId;
+  }
+
   @Override
   public State getState() {
-    return null;
+    return getGearpumpState();
   }
 
   @Override
   public State cancel() throws IOException {
-    return null;
+    client.shutdown(appId);
+    return State.CANCELLED;
   }
 
   @Override
   public State waitUntilFinish(Duration duration) {
-    return null;
+    long start = System.currentTimeMillis();
+    do {
+      try {
+        Thread.sleep(defaultWaitInterval.getMillis());
+      } catch (InterruptedException e) {
+        throw new RuntimeException(e);
+      }
+    } while (State.RUNNING == getGearpumpState()
+        && (System.currentTimeMillis() - start) < duration.getMillis());
+
+    if (State.RUNNING == getGearpumpState()) {
+      return State.DONE;
+    } else {
+      return State.FAILED;
+    }
   }
 
   @Override
   public State waitUntilFinish() {
-    return null;
+    return waitUntilFinish(defaultWaitDuration);
   }
 
   @Override
@@ -64,6 +96,25 @@ public class GearpumpPipelineResult implements PipelineResult {
   @Override
   public MetricResults metrics() {
     return null;
+  }
+
+  private State getGearpumpState() {
+    String status = null;
+    List<AppMasterData> apps =
+        JavaConverters.<AppMasterData>seqAsJavaListConverter(
+            (Seq<AppMasterData>) client.listApps().appMasters()).asJava();
+    for (AppMasterData app: apps) {
+      if (app.appId() == appId) {
+        status = app.status();
+      }
+    }
+    if (null == status || status.equals(MasterToAppMaster.AppMasterNonExist())) {
+      return State.UNKNOWN;
+    } else if (status.equals(MasterToAppMaster.AppMasterActive())) {
+      return State.RUNNING;
+    } else {
+      return State.STOPPED;
+    }
   }
 
 }

@@ -69,6 +69,7 @@
                   <dependenciesToScan>
                     <dependency>org.apache.beam:beam-sdks-java-core</dependency>
                   </dependenciesToScan>
+                  <argLine>-noverify</argLine>
                   <excludes>
                     <!-- side input is not supported in Gearpump -->
                     <exclude>
