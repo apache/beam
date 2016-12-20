@@ -14,34 +14,29 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
+ *
  */
+
 package org.apache.beam.sdk.values;
 
-import java.util.Collections;
-import java.util.List;
-import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.transforms.PTransform;
+import com.google.auto.value.AutoValue;
 
 /**
- * {@link PDone} is the output of a {@link PTransform} that has a trivial result,
- * such as a {@link org.apache.beam.sdk.io.Write}.
+ * A (TupleTag, PValue) pair used in the expansion of a {@link PInput} or {@link POutput}.
  */
-public class PDone extends POutputValueBase {
+@AutoValue
+public abstract class TaggedPValue {
+  public static TaggedPValue of(TupleTag<?> tag, PValue value) {
+    return new AutoValue_TaggedPValue(tag, value);
+  }
 
   /**
-   * Creates a {@link PDone} in the given {@link Pipeline}.
+   * Returns the local tag associated with the {@link PValue}.
    */
-  public static PDone in(Pipeline pipeline) {
-    return new PDone(pipeline);
-  }
+  public abstract TupleTag<?> getTag();
 
-  @Override
-  public List<TaggedPValue> expand() {
-    // A PDone contains no PValues.
-    return Collections.emptyList();
-  }
-
-  private PDone(Pipeline pipeline) {
-    super(pipeline);
-  }
+  /**
+   * Returns the {@link PValue}.
+   */
+  public abstract PValue getValue();
 }

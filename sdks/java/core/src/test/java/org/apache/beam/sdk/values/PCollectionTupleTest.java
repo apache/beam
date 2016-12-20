@@ -17,21 +17,31 @@
  */
 package org.apache.beam.sdk.values;
 
+import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
+import com.google.common.collect.ImmutableMap;
+import com.google.common.testing.EqualsTester;
 import java.io.Serializable;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
+import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.io.CountingInput;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.RunnableOnService;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.values.PCollection.IsBounded;
+import org.hamcrest.Matchers;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -93,4 +103,64 @@ public final class PCollectionTupleTest implements Serializable {
     pipeline.run();
   }
 
+  @Test
+  public void testEquals() {
+    TestPipeline p = TestPipeline.create();
+    TupleTag<Long> longTag = new TupleTag<>();
+    PCollection<Long> longs = p.apply(CountingInput.unbounded());
+    TupleTag<String> strTag = new TupleTag<>();
+    PCollection<String> strs = p.apply(Create.of("foo", "bar"));
+
+    EqualsTester tester = new EqualsTester();
+    // Empty tuples in the same pipeline are equal
+    tester.addEqualityGroup(PCollectionTuple.empty(p), PCollectionTuple.empty(p));
+
+    tester.addEqualityGroup(PCollectionTuple.of(longTag, longs).and(strTag, strs),
+        PCollectionTuple.of(longTag, longs).and(strTag, strs));
+
+    tester.addEqualityGroup(PCollectionTuple.of(longTag, longs));
+    tester.addEqualityGroup(PCollectionTuple.of(strTag, strs));
+
+    TestPipeline otherPipeline = TestPipeline.create();
+    // Empty tuples in different pipelines are not equal
+    tester.addEqualityGroup(PCollectionTuple.empty(otherPipeline));
+    tester.testEquals();
+  }
+
+  @Test
+  public void testExpandHasMatchingTags() {
+    TupleTag<Integer> intTag = new TupleTag<>();
+    TupleTag<String> strTag = new TupleTag<>();
+    TupleTag<Long> longTag = new TupleTag<>();
+
+    Pipeline p = TestPipeline.create();
+    PCollection<Long> longs = p.apply(CountingInput.upTo(100L));
+    PCollection<String> strs = p.apply(Create.of("foo", "bar", "baz"));
+    PCollection<Integer> ints = longs.apply(MapElements.via(new SimpleFunction<Long, Integer>() {
+      @Override
+      public Integer apply(Long input) {
+        return input.intValue();
+      }
+    }));
+
+    Map<TupleTag<?>, PCollection<?>> pcsByTag =
+        ImmutableMap.<TupleTag<?>, PCollection<?>>builder()
+            .put(strTag, strs)
+            .put(intTag, ints)
+            .put(longTag, longs)
+            .build();
+    PCollectionTuple tuple =
+        PCollectionTuple.of(intTag, ints).and(longTag, longs).and(strTag, strs);
+    assertThat(tuple.getAll(), equalTo(pcsByTag));
+    PCollectionTuple reconstructed = PCollectionTuple.empty(p);
+    for (TaggedPValue taggedValue : tuple.expand()) {
+      TupleTag<?> tag = taggedValue.getTag();
+      PValue value = taggedValue.getValue();
+      assertThat("The tag should map back to the value", tuple.get(tag), equalTo(value));
+      assertThat(value, Matchers.<PValue>equalTo(pcsByTag.get(tag)));
+      reconstructed = reconstructed.and(tag, (PCollection) value);
+    }
+
+    assertThat(reconstructed, equalTo(tuple));
+  }
 }
