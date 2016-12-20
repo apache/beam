@@ -27,6 +27,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.NoSuchElementException;
+import java.util.UUID;
 
 import javax.annotation.Nullable;
 
@@ -195,7 +196,7 @@ public class MqttIO {
       builder.addIfNotNull(DisplayData.item("username", getUsername()));
     }
 
-    private MQTT getClient() throws Exception {
+    private MQTT createClient() throws Exception {
       LOG.debug("Creating MQTT client to {}", getServerUri());
       MQTT client = new MQTT();
       client.setHost(getServerUri());
@@ -205,7 +206,7 @@ public class MqttIO {
         client.setPassword(getPassword());
       }
       if (getClientId() != null) {
-        String clientId = getClientId() + "-" + System.currentTimeMillis();
+        String clientId = getClientId() + "-" + UUID.randomUUID().toString();
         LOG.debug("MQTT client id set to {}", clientId);
         client.setClientId(clientId);
       }
@@ -275,13 +276,9 @@ public class MqttIO {
       PTransform<PBegin, PCollection<byte[]>> transform = unbounded;
 
       if (maxNumRecords() != Long.MAX_VALUE) {
-        LOG.debug("Bound MqttIO.Read to {} records", maxNumRecords());
         transform = unbounded.withMaxNumRecords(maxNumRecords());
       } else if (maxReadTime() != null) {
-        LOG.debug("Bound MqttIO.Read to {} max read time", maxReadTime());
         transform = unbounded.withMaxReadTime(maxReadTime());
-      } else {
-        LOG.debug("Unbounded MqttIO.Read ...");
       }
 
       return input.getPipeline().apply(transform);
@@ -310,8 +307,8 @@ public class MqttIO {
    */
   private static class MqttCheckpointMark implements UnboundedSource.CheckpointMark, Serializable {
 
+    private String clientId;
     private Instant oldestMessageTimestamp = Instant.now();
-
     private transient List<Message> messages = new ArrayList<>();
 
     public MqttCheckpointMark() {
@@ -326,12 +323,12 @@ public class MqttIO {
 
     @Override
     public void finalizeCheckpoint() {
-      LOG.debug("Finalizing checkpoint acknowledging pending messages");
+      LOG.debug("Finalizing checkpoint acknowledging pending messages for client ID {}", clientId);
       for (Message message : messages) {
         try {
           message.ack();
         } catch (Exception e) {
-          LOG.warn("Can't ack message", e);
+          LOG.warn("Can't ack message for client ID {}", clientId, e);
         }
       }
       oldestMessageTimestamp = Instant.now();
@@ -414,10 +411,12 @@ public class MqttIO {
 
     @Override
     public boolean start() throws IOException {
-      LOG.debug("Starting MQTT reader");
+      LOG.debug("Starting MQTT reader ...");
       Read spec = source.spec;
       try {
-        client = spec.connectionConfiguration().getClient();
+        client = spec.connectionConfiguration().createClient();
+        LOG.debug("Reader client ID is {}", client.getClientId());
+        checkpointMark.clientId = client.getClientId().toString();
         connection = client.blockingConnection();
         connection.connect();
         connection.subscribe(new Topic[]{
@@ -431,7 +430,7 @@ public class MqttIO {
     @Override
     public boolean advance() throws IOException {
       try {
-        LOG.debug("MQTT reading waiting message ...");
+        LOG.debug("MQTT reader (client ID {}) waiting message ...", client.getClientId());
         Message message = connection.receive();
         current = message.getPayload();
         currentTimestamp = Instant.now();
@@ -444,7 +443,7 @@ public class MqttIO {
 
     @Override
     public void close() throws IOException {
-      LOG.debug("Closing MQTT reader");
+      LOG.debug("Closing MQTT reader (client ID {})", client.getClientId());
       try {
         if (connection != null) {
           connection.disconnect();
@@ -559,8 +558,9 @@ public class MqttIO {
 
       @Setup
       public void createMqttClient() throws Exception {
-        client = spec.connectionConfiguration().getClient();
-        LOG.debug("Start MQTT connection");
+        LOG.debug("Starting MQTT writer");
+        client = spec.connectionConfiguration().createClient();
+        LOG.debug("MQTT writer client ID is {}", client.getClientId());
         connection = client.blockingConnection();
         connection.connect();
       }
@@ -576,7 +576,7 @@ public class MqttIO {
       @Teardown
       public void closeMqttClient() throws Exception {
         if (connection != null) {
-          LOG.debug("Disconnecting MQTT connection");
+          LOG.debug("Disconnecting MQTT connection (client ID {})", client.getClientId());
           connection.disconnect();
         }
       }

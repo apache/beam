@@ -35,8 +35,6 @@ import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.values.PCollection;
 import org.fusesource.hawtbuf.Buffer;
 import org.fusesource.mqtt.client.BlockingConnection;
-import org.fusesource.mqtt.client.Future;
-import org.fusesource.mqtt.client.FutureConnection;
 import org.fusesource.mqtt.client.MQTT;
 import org.fusesource.mqtt.client.Message;
 import org.fusesource.mqtt.client.QoS;
@@ -56,7 +54,7 @@ import org.slf4j.LoggerFactory;
 @RunWith(JUnit4.class)
 public class MqttIOTest {
 
-  private static final Logger LOGGER = LoggerFactory.getLogger(MqttIOTest.class);
+  private static final Logger LOG = LoggerFactory.getLogger(MqttIOTest.class);
 
   private static transient BrokerService brokerService;
 
@@ -64,14 +62,15 @@ public class MqttIOTest {
 
   @Before
   public void startBroker() throws Exception {
-    LOGGER.info("Finding free network port");
+    LOG.info("Finding free network port");
     ServerSocket socket = new ServerSocket(0);
     port = socket.getLocalPort();
     socket.close();
 
-    LOGGER.info("Starting ActiveMQ brokerService on {}", port);
+    LOG.info("Starting ActiveMQ brokerService on {}", port);
     brokerService = new BrokerService();
     brokerService.setDeleteAllMessagesOnStartup(true);
+    // use memory persistence for the test: it's faster and don't pollute test folder with KahaDB
     brokerService.setPersistent(false);
     brokerService.addConnector("mqtt://localhost:" + port);
     brokerService.start();
@@ -113,7 +112,7 @@ public class MqttIOTest {
     Thread publisherThread = new Thread() {
       public void run() {
         try {
-          LOGGER.info("Waiting pipeline connected to the MQTT broker before sending "
+          LOG.info("Waiting pipeline connected to the MQTT broker before sending "
               + "messages ...");
           boolean pipelineConnected = false;
           while (!pipelineConnected) {
@@ -144,10 +143,26 @@ public class MqttIOTest {
   public void testWrite() throws Exception {
     MQTT client = new MQTT();
     client.setHost("tcp://localhost:" + port);
-    FutureConnection connection = client.futureConnection();
-    Future<Void> f1 = connection.connect();
-    Future<Message> receive = connection.receive();
-    connection.subscribe(new Topic[]{new Topic(Buffer.utf8("WRITE_TOPIC"), QoS.EXACTLY_ONCE)});
+    final BlockingConnection connection = client.blockingConnection();
+    connection.connect();
+    connection.subscribe(new Topic[]{new Topic(Buffer.utf8("WRITE_TOPIC"), QoS.AT_LEAST_ONCE)});
+
+    final Set<String> messages = new HashSet<>();
+
+    Thread subscriber = new Thread() {
+      public void run() {
+        try {
+          for (int i = 0; i < 200; i++) {
+            Message message = connection.receive();
+            messages.add(new String(message.getPayload()));
+            message.ack();
+          }
+        } catch (Exception e) {
+          LOG.error("Can't receive message", e);
+        }
+      }
+    };
+    subscriber.start();
 
     Pipeline pipeline = TestPipeline.create();
 
@@ -162,18 +177,9 @@ public class MqttIOTest {
                     "tcp://localhost:" + port,
                     "WRITE_TOPIC")));
     pipeline.run();
+    subscriber.join();
 
-    Set<String> messages = new HashSet<>();
-
-    for (int i = 0; i < 200; i++) {
-      Message message = receive.await();
-      messages.add(new String(message.getPayload()));
-      message.ack();
-      receive = connection.receive();
-    }
-
-    Future<Void> f4 = connection.disconnect();
-    f4.await();
+    connection.disconnect();
 
     assertEquals(200, messages.size());
     for (int i = 0; i < 200; i++) {
