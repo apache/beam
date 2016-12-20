@@ -48,6 +48,7 @@ import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.BeforeClass;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.slf4j.Logger;
@@ -63,6 +64,9 @@ public class JdbcIOTest implements Serializable {
   private static ClientDataSource dataSource;
 
   private static int port;
+
+  @Rule
+  public final transient TestPipeline pipeline = TestPipeline.create();
 
   @BeforeClass
   public static void startDatabase() throws Exception {
@@ -207,7 +211,6 @@ public class JdbcIOTest implements Serializable {
   @Test
   @Category(NeedsRunner.class)
   public void testRead() throws Exception {
-    TestPipeline pipeline = TestPipeline.create();
 
     PCollection<KV<String, Integer>> output = pipeline.apply(
         JdbcIO.<KV<String, Integer>>read()
@@ -245,7 +248,6 @@ public class JdbcIOTest implements Serializable {
    @Test
    @Category(NeedsRunner.class)
    public void testReadWithSingleStringParameter() throws Exception {
-     TestPipeline pipeline = TestPipeline.create();
 
      PCollection<KV<String, Integer>> output = pipeline.apply(
              JdbcIO.<KV<String, Integer>>read()
@@ -278,7 +280,6 @@ public class JdbcIOTest implements Serializable {
   @Test
   @Category(NeedsRunner.class)
   public void testWrite() throws Exception {
-    TestPipeline pipeline = TestPipeline.create();
 
     ArrayList<KV<Integer, String>> data = new ArrayList<>();
     for (int i = 0; i < 1000; i++) {
@@ -316,7 +317,6 @@ public class JdbcIOTest implements Serializable {
   @Test
   @Category(NeedsRunner.class)
   public void testWriteWithEmptyPCollection() throws Exception {
-    TestPipeline pipeline = TestPipeline.create();
 
     pipeline.apply(Create.of(new ArrayList<KV<Integer, String>>()))
         .apply(JdbcIO.<KV<Integer, String>>write()
