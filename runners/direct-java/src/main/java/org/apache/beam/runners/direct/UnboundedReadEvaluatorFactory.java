@@ -17,9 +17,12 @@
  */
 package org.apache.beam.runners.direct;
 
+import static com.google.common.collect.Iterables.getOnlyElement;
+
 import com.google.auto.value.AutoValue;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Iterables;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.Collections;
@@ -115,7 +118,9 @@ class UnboundedReadEvaluatorFactory implements TransformEvaluatorFactory {
     @Override
     public void processElement(
         WindowedValue<UnboundedSourceShard<OutputT, CheckpointMarkT>> element) throws IOException {
-      UncommittedBundle<OutputT> output = evaluationContext.createBundle(transform.getOutput());
+      UncommittedBundle<OutputT> output =
+          evaluationContext.createBundle(
+              (PCollection<OutputT>) getOnlyElement(transform.getOutputs()).getValue());
       UnboundedSourceShard<OutputT, CheckpointMarkT> shard = element.getValue();
       UnboundedReader<OutputT> reader = null;
       try {
@@ -202,10 +207,12 @@ class UnboundedReadEvaluatorFactory implements TransformEvaluatorFactory {
       // If the watermark is the max value, this source may not be invoked again. Finalize after
       // committing the output.
       if (!reader.getWatermark().isBefore(BoundedWindow.TIMESTAMP_MAX_VALUE)) {
+        PCollection<OutputT> outputPc =
+            (PCollection<OutputT>) Iterables.getOnlyElement(transform.getOutputs()).getValue();
         evaluationContext.scheduleAfterOutputWouldBeProduced(
-            transform.getOutput(),
+            outputPc,
             GlobalWindow.INSTANCE,
-            transform.getOutput().getWindowingStrategy(),
+            outputPc.getWindowingStrategy(),
             new Runnable() {
               @Override
               public void run() {

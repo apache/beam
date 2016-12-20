@@ -568,7 +568,7 @@ public class DataflowPipelineTranslatorTest implements Serializable {
       implements TransformTranslator<EmbeddedTransform> {
     @Override public void translate(EmbeddedTransform transform, TranslationContext context) {
       addObject(transform.step.getProperties(), PropertyNames.PARALLEL_INPUT,
-          context.asOutputReference(context.getInput(transform)));
+          context.asOutputReference(context.getOnlyInput(transform)));
       context.addStep(transform, transform.step);
     }
   }

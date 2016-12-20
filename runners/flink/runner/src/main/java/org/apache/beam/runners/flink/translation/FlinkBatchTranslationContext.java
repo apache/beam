@@ -17,7 +17,9 @@
  */
 package org.apache.beam.runners.flink.translation;
 
+import com.google.common.collect.Iterables;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import org.apache.beam.runners.flink.translation.types.CoderTypeInformation;
 import org.apache.beam.sdk.coders.Coder;
@@ -28,9 +30,8 @@ import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
-import org.apache.beam.sdk.values.PInput;
-import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.PValue;
+import org.apache.beam.sdk.values.TaggedPValue;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
@@ -133,13 +134,21 @@ public class FlinkBatchTranslationContext {
     return new CoderTypeInformation<>(windowedValueCoder);
   }
 
-  @SuppressWarnings("unchecked")
-  <T extends PInput> T getInput(PTransform<T, ?> transform) {
-    return (T) currentTransform.getInput();
+  List<TaggedPValue> getInput(PTransform<?, ?> transform) {
+    return currentTransform.getInputs();
   }
 
   @SuppressWarnings("unchecked")
-  <T extends POutput> T getOutput(PTransform<?, T> transform) {
-    return (T) currentTransform.getOutput();
+  <T extends PValue> T getOnlyInput(PTransform<T, ?> transform) {
+    return (T) Iterables.getOnlyElement(currentTransform.getInputs()).getValue();
+  }
+
+  List<TaggedPValue> getOutput(PTransform<?, ?> transform) {
+    return currentTransform.getOutputs();
+  }
+
+  @SuppressWarnings("unchecked")
+  <T extends PValue> T getOnlyOutput(PTransform<?, T> transform) {
+    return (T) Iterables.getOnlyElement(currentTransform.getOutputs()).getValue();
   }
 }

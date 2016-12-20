@@ -114,7 +114,7 @@ public final class TranslationUtils {
     @SuppressWarnings("unchecked")
     WindowFn<? super T, W> windowFn = (WindowFn<? super T, W>) transform.getWindowFn();
     return windowFn == null
-        || (context.getInput(transform).getWindowingStrategy().getWindowFn()
+        || (context.getOnlyInput(transform).getWindowingStrategy().getWindowFn()
             instanceof GlobalWindows
                 && windowFn instanceof GlobalWindows);
   }

@@ -37,8 +37,8 @@ import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
 import org.apache.beam.sdk.util.WindowedValue.FullWindowedValueCoder;
 import org.apache.beam.sdk.util.WindowedValue.WindowedValueCoder;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PCollectionView;
+import org.apache.beam.sdk.values.TaggedPValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -76,8 +76,8 @@ class ParDoBoundMultiTranslator<InputT, OutputT>
               ApexRunner.class.getSimpleName()));
     }
 
-    PCollectionTuple output = context.getOutput();
-    PCollection<InputT> input = context.getInput();
+    List<TaggedPValue> outputs = context.getOutput();
+    PCollection<InputT> input = (PCollection<InputT>) context.getOnlyInput();
     List<PCollectionView<?>> sideInputs = transform.getSideInputs();
     Coder<InputT> inputCoder = input.getCoder();
     WindowedValueCoder<InputT> wvInputCoder =
@@ -90,21 +90,28 @@ class ParDoBoundMultiTranslator<InputT, OutputT>
             doFn,
             transform.getMainOutputTag(),
             transform.getSideOutputTags().getAll(),
-            context.<PCollection<?>>getInput().getWindowingStrategy(),
+            ((PCollection<InputT>) context.getOnlyInput()).getWindowingStrategy(),
             sideInputs,
             wvInputCoder,
             context.<Void>stateInternalsFactory());
 
-    Map<TupleTag<?>, PCollection<?>> outputs = output.getAll();
     Map<PCollection<?>, OutputPort<?>> ports = Maps.newHashMapWithExpectedSize(outputs.size());
-    for (Map.Entry<TupleTag<?>, PCollection<?>> outputEntry : outputs.entrySet()) {
-      if (outputEntry.getKey() == transform.getMainOutputTag()) {
-        ports.put(outputEntry.getValue(), operator.output);
+    for (TaggedPValue output : outputs) {
+      checkArgument(
+          output.getValue() instanceof PCollection,
+          "%s %s outputs non-PCollection %s of type %s",
+          ParDo.BoundMulti.class.getSimpleName(),
+          context.getFullName(),
+          output.getValue(),
+          output.getValue().getClass().getSimpleName());
+      PCollection<?> pc = (PCollection<?>) output.getValue();
+      if (output.getTag () == transform.getMainOutputTag()) {
+        ports.put(pc, operator.output);
       } else {
         int portIndex = 0;
         for (TupleTag<?> tag : transform.getSideOutputTags().getAll()) {
-          if (tag == outputEntry.getKey()) {
-            ports.put(outputEntry.getValue(), operator.sideOutputPorts[portIndex]);
+          if (tag == output.getTag()) {
+            ports.put(pc, operator.sideOutputPorts[portIndex]);
             break;
           }
           portIndex++;
@@ -112,7 +119,7 @@ class ParDoBoundMultiTranslator<InputT, OutputT>
       }
     }
     context.addOperator(operator, ports);
-    context.addStream(context.getInput(), operator.input);
+    context.addStream(context.getOnlyInput(), operator.input);
     if (!sideInputs.isEmpty()) {
       addSideInputs(operator, sideInputs, context);
     }

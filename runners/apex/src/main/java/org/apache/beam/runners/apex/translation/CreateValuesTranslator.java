@@ -20,11 +20,9 @@ package org.apache.beam.runners.apex.translation;
 
 import org.apache.beam.runners.apex.translation.operators.ApexReadUnboundedInputOperator;
 import org.apache.beam.runners.apex.translation.utils.ValuesSource;
-import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.values.PBegin;
-
+import org.apache.beam.sdk.values.PCollection;
 
 /**
  * Wraps elements from Create.Values into an {@link UnboundedSource}.
@@ -35,14 +33,10 @@ class CreateValuesTranslator<T> implements TransformTranslator<Create.Values<T>>
 
   @Override
   public void translate(Create.Values<T> transform, TranslationContext context) {
-    try {
-      UnboundedSource<T, ?> unboundedSource = new ValuesSource<>(transform.getElements(),
-          transform.getDefaultOutputCoder((PBegin) context.getInput()));
-      ApexReadUnboundedInputOperator<T, ?> operator = new ApexReadUnboundedInputOperator<>(
-          unboundedSource, context.getPipelineOptions());
-      context.addOperator(operator, operator.output);
-    } catch (CannotProvideCoderException e) {
-      throw new RuntimeException(e);
-    }
+    UnboundedSource<T, ?> unboundedSource = new ValuesSource<>(transform.getElements(),
+        ((PCollection<T>) context.getOnlyOutput()).getCoder());
+    ApexReadUnboundedInputOperator<T, ?> operator =
+        new ApexReadUnboundedInputOperator<>(unboundedSource, context.getPipelineOptions());
+    context.addOperator(operator, operator.output);
   }
 }

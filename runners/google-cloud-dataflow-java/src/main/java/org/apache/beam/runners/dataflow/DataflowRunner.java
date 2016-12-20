@@ -2158,7 +2158,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
             byteArrayToJsonString(
                 serializeToByteArray(overriddenTransform.getWithAttributesParseFn())));
       }
-      stepContext.addOutput(context.getOutput(transform));
+      stepContext.addOutput(context.getOnlyOutput(transform));
     }
   }
 
@@ -2238,7 +2238,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
         stepContext.addEncodingInput(WindowedValue.getValueOnlyCoder(
             overriddenTransform.getElementCoder()));
       }
-      stepContext.addInput(PropertyNames.PARALLEL_INPUT, context.getInput(transform));
+      stepContext.addInput(PropertyNames.PARALLEL_INPUT, context.getOnlyInput(transform));
     }
   }
 

@@ -24,6 +24,7 @@ import com.datatorrent.api.DAG;
 import com.datatorrent.api.Operator;
 import com.datatorrent.api.Operator.InputPort;
 import com.datatorrent.api.Operator.OutputPort;
+import com.google.common.collect.Iterables;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -40,7 +41,8 @@ import org.apache.beam.sdk.util.state.StateInternalsFactory;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PInput;
-import org.apache.beam.sdk.values.POutput;
+import org.apache.beam.sdk.values.PValue;
+import org.apache.beam.sdk.values.TaggedPValue;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
 
@@ -57,7 +59,7 @@ class TranslationContext {
   private final Map<PCollectionView<?>, PInput> viewInputs = new HashMap<>();
 
   public void addView(PCollectionView<?> view) {
-    this.viewInputs.put(view, this.getInput());
+    this.viewInputs.put(view, this.getOnlyInput());
   }
 
   public <InputT extends PInput> InputT getViewInput(PCollectionView<?> view) {
@@ -78,12 +80,24 @@ class TranslationContext {
     return pipelineOptions;
   }
 
-  public <InputT extends PInput> InputT getInput() {
-    return (InputT) getCurrentTransform().getInput();
+  public String getFullName() {
+    return getCurrentTransform().getFullName();
   }
 
-  public <OutputT extends POutput> OutputT getOutput() {
-    return (OutputT) getCurrentTransform().getOutput();
+  public List<TaggedPValue> getInput() {
+    return getCurrentTransform().getInputs();
+  }
+
+  public PValue getOnlyInput() {
+    return Iterables.getOnlyElement(getCurrentTransform().getInputs()).getValue();
+  }
+
+  public List<TaggedPValue> getOutput() {
+    return getCurrentTransform().getOutputs();
+  }
+
+  public PValue getOnlyOutput() {
+    return Iterables.getOnlyElement(getCurrentTransform().getOutputs()).getValue();
   }
 
   private AppliedPTransform<?, ?, ?> getCurrentTransform() {
@@ -92,7 +106,7 @@ class TranslationContext {
   }
 
   public void addOperator(Operator operator, OutputPort port) {
-    addOperator(operator, port, this.<PCollection<?>>getOutput());
+    addOperator(operator, port, (PCollection<?>) getOnlyOutput());
   }
 
   /**
@@ -170,5 +184,4 @@ class TranslationContext {
   public <K> StateInternalsFactory<K> stateInternalsFactory() {
     return new ApexStateInternals.ApexStateInternalsFactory();
   }
-
 }

@@ -64,7 +64,7 @@ class ReadTranslator implements TransformTranslator<Read.Bounded<?>> {
           PropertyNames.SOURCE_STEP_INPUT,
           cloudSourceToDictionary(
               CustomSources.serializeToCloudSource(source, context.getPipelineOptions())));
-      stepContext.addOutput(context.getOutput(transform));
+      stepContext.addOutput(context.getOnlyOutput(transform));
     } catch (Exception e) {
       throw new RuntimeException(e);
     }

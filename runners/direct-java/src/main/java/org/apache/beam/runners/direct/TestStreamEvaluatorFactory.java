@@ -23,6 +23,7 @@ import static com.google.common.base.Preconditions.checkState;
 import com.google.auto.value.AutoValue;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Supplier;
+import com.google.common.collect.Iterables;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
@@ -103,7 +104,9 @@ class TestStreamEvaluatorFactory implements TransformEvaluatorFactory {
       Event<T> event = events.get(index);
 
       if (event.getType().equals(EventType.ELEMENT)) {
-        UncommittedBundle<T> bundle = context.createBundle(application.getOutput());
+        UncommittedBundle<T> bundle =
+            context.createBundle(
+                (PCollection<T>) Iterables.getOnlyElement(application.getOutputs()).getValue());
         for (TimestampedValue<T> elem : ((ElementEvent<T>) event).getElements()) {
           bundle.add(
               WindowedValue.timestampedValueInGlobalWindow(elem.getValue(), elem.getTimestamp()));
