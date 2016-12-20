@@ -643,6 +643,7 @@ public class BigQueryIOTest implements Serializable {
     }
   }
 
+  @Rule public final transient TestPipeline p = TestPipeline.create();
   @Rule public transient ExpectedException thrown = ExpectedException.none();
   @Rule public transient ExpectedLogs logged = ExpectedLogs.none(BigQueryIO.class);
   @Rule public transient TemporaryFolder testFolder = new TemporaryFolder();
@@ -1370,7 +1371,7 @@ public class BigQueryIOTest implements Serializable {
   @Test
   @Category(NeedsRunner.class)
   public void testBuildWriteWithoutTable() {
-    Pipeline p = TestPipeline.create();
+
     thrown.expect(IllegalStateException.class);
     thrown.expectMessage("must set the table reference");
     p.apply(Create.<TableRow>of().withCoder(TableRowJsonCoder.of()))
@@ -1591,9 +1592,11 @@ public class BigQueryIOTest implements Serializable {
 
   @Test
   public void testWriteValidateFailsCreateNoSchema() {
+    p.enableAbandonedNodeEnforcement(false);
+
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage("no schema was provided");
-    TestPipeline.create()
+    p
         .apply(Create.<TableRow>of())
         .apply(BigQueryIO.Write
             .to("dataset.table")
@@ -1602,9 +1605,11 @@ public class BigQueryIOTest implements Serializable {
 
   @Test
   public void testWriteValidateFailsTableAndTableSpec() {
+    p.enableAbandonedNodeEnforcement(false);
+
     thrown.expect(IllegalStateException.class);
     thrown.expectMessage("Cannot set both a table reference and a table function");
-    TestPipeline.create()
+    p
         .apply(Create.<TableRow>of())
         .apply(BigQueryIO.Write
             .to("dataset.table")
@@ -1618,9 +1623,11 @@ public class BigQueryIOTest implements Serializable {
 
   @Test
   public void testWriteValidateFailsNoTableAndNoTableSpec() {
+    p.enableAbandonedNodeEnforcement(false);
+
     thrown.expect(IllegalStateException.class);
     thrown.expectMessage("must set the table reference of a BigQueryIO.Write transform");
-    TestPipeline.create()
+    p
         .apply(Create.<TableRow>of())
         .apply("name", BigQueryIO.Write.withoutValidation());
   }
@@ -1950,7 +1957,6 @@ public class BigQueryIOTest implements Serializable {
   @Test
   @Category(NeedsRunner.class)
   public void testPassThroughThenCleanup() throws Exception {
-    Pipeline p = TestPipeline.create();
 
     PCollection<Integer> output = p
         .apply(Create.of(1, 2, 3))
@@ -1968,7 +1974,6 @@ public class BigQueryIOTest implements Serializable {
   @Test
   @Category(NeedsRunner.class)
   public void testPassThroughThenCleanupExecuted() throws Exception {
-    Pipeline p = TestPipeline.create();
 
     p.apply(Create.<Integer>of())
         .apply(new PassThroughThenCleanup<Integer>(new CleanupOperation() {
@@ -2025,6 +2030,8 @@ public class BigQueryIOTest implements Serializable {
 
   private void testWritePartition(long numFiles, long fileSize, long expectedNumPartitions)
       throws Exception {
+    p.enableAbandonedNodeEnforcement(false);
+
     List<Long> expectedPartitionIds = Lists.newArrayList();
     for (long i = 1; i <= expectedNumPartitions; ++i) {
       expectedPartitionIds.add(i);
@@ -2044,7 +2051,7 @@ public class BigQueryIOTest implements Serializable {
         new TupleTag<KV<Long, List<String>>>("singlePartitionTag") {};
 
     PCollectionView<Iterable<KV<String, Long>>> filesView = PCollectionViews.iterableView(
-        TestPipeline.create(),
+        p,
         WindowingStrategy.globalDefault(),
         KvCoder.of(StringUtf8Coder.of(), VarLongCoder.of()));
 
@@ -2164,6 +2171,8 @@ public class BigQueryIOTest implements Serializable {
 
   @Test
   public void testWriteRename() throws Exception {
+    p.enableAbandonedNodeEnforcement(false);
+
     FakeBigQueryServices fakeBqServices = new FakeBigQueryServices()
         .withJobService(new FakeJobService()
             .startJobReturns("done", "done")
@@ -2179,7 +2188,7 @@ public class BigQueryIOTest implements Serializable {
     }
 
     PCollectionView<Iterable<String>> tempTablesView = PCollectionViews.iterableView(
-        TestPipeline.create(),
+        p,
         WindowingStrategy.globalDefault(),
         StringUtf8Coder.of());
 
