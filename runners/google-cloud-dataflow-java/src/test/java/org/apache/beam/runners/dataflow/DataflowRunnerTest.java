@@ -267,7 +267,7 @@ public class DataflowRunnerTest {
         "--runner=DataflowRunner",
         "--tempLocation=/tmp/not/a/gs/path",
         "--project=test-project",
-        "--credentialFactoryClass=" + NoopCredentialFactory.class.getCanonicalName(),
+        "--credentialFactoryClass=" + NoopCredentialFactory.class.getName(),
     };
 
     try {
@@ -286,7 +286,7 @@ public class DataflowRunnerTest {
         "--runner=DataflowRunner",
         "--tempLocation=gs://does/not/exist",
         "--project=test-project",
-        "--credentialFactoryClass=" + NoopCredentialFactory.class.getCanonicalName(),
+        "--credentialFactoryClass=" + NoopCredentialFactory.class.getName(),
     };
 
     try {
@@ -306,8 +306,8 @@ public class DataflowRunnerTest {
         "--runner=DataflowRunner",
         "--tempLocation=/tmp/testing",
         "--project=test-project",
-        "--credentialFactoryClass=" + NoopCredentialFactory.class.getCanonicalName(),
-        "--pathValidatorClass=" + NoopPathValidator.class.getCanonicalName(),
+        "--credentialFactoryClass=" + NoopCredentialFactory.class.getName(),
+        "--pathValidatorClass=" + NoopPathValidator.class.getName(),
     };
     // Should not crash, because gcpTempLocation should get set from tempLocation
     TestPipeline.fromOptions(PipelineOptionsFactory.fromArgs(args).create());
