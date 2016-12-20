@@ -29,10 +29,9 @@ from nose.plugins.attrib import attr
 class WordCountIT(unittest.TestCase):
 
   @attr('IT')
-  def wordcount_it(self):
+  def test_wordcount_it(self):
     # Set extra options to the pipeline for test purpose
-    extra_opts = dict()
-    extra_opts['on_success_matcher'] = PipelineStateMatcher()
+    extra_opts = {'on_success_matcher': PipelineStateMatcher()}
 
     # Get pipeline options from command argument: --test-pipeline-options,
     # and start pipeline job by calling pipeline main function.

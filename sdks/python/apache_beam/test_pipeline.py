@@ -55,13 +55,14 @@ class TestPipeline(Pipeline):
 
   def __init__(self, runner=None, options=None, argv=None):
     if options is None:
-      options = self.create_test_pipeline_options()
+      options = PipelineOptions(self.get_test_option_args())
     super(TestPipeline, self).__init__(runner, options, argv)
 
   def _append_extra_opts(self, opt_list, extra_opts):
-    """Append extra pipeline options to existing option list. Test verifier
-    (if contains) should be pickled before append, and will be unpickled
-    later in TestRunner.
+    """Append extra pipeline options to existing option list.
+
+    Test verifier (if contains) should be pickled before append, and
+    will be unpickled later in TestRunner.
     """
     for k, v in extra_opts.items():
       if not v:
@@ -100,9 +101,3 @@ class TestPipeline(Pipeline):
       self._append_extra_opts(options_list, kwargs)
 
     return options_list
-
-  def create_test_pipeline_options(self, argv=None):
-    """Create a pipeline options from command line argument:
-    --test-pipeline-options
-    """
-    return PipelineOptions(self.get_test_option_args(argv))

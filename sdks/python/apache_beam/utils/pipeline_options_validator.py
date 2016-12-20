@@ -19,6 +19,7 @@
 """
 import re
 
+from apache_beam.internal import pickler
 from apache_beam.utils.options import DebugOptions
 from apache_beam.utils.options import GoogleCloudOptions
 from apache_beam.utils.options import SetupOptions
@@ -64,10 +65,10 @@ class PipelineOptionsValidator(object):
   ERR_INVALID_NOT_POSITIVE = ('Invalid value (%s) for option: %s. Value needs '
                               'to be positive.')
   ERR_INVALID_TEST_MATCHER_TYPE = (
-      'Invalid value (%s) for options: %s. Please extend your matcher object '
+      'Invalid value (%s) for option: %s. Please extend your matcher object '
       'from hamcrest.core.base_matcher.BaseMatcher.')
   ERR_INVALID_TEST_MATCHER_UNPICKLABLE = (
-      'Invalid value (%s) for options: %s. Please make sure the test matcher '
+      'Invalid value (%s) for option: %s. Please make sure the test matcher '
       'is unpicklable.')
 
   # GCS path specific patterns.
@@ -175,9 +176,12 @@ class PipelineOptionsValidator(object):
     return []
 
   def validate_test_matcher(self, view, arg_name):
-    """Validates that on_success_matcher argument (if set) is unpicklable and
-    is instance of hamcrest.core.base_matcher.BaseMatcher"""
-    from apache_beam.internal import pickler
+    """Validates that on_success_matcher argument if set.
+
+    Validates that on_success_matcher is unpicklable and is instance
+    of `hamcrest.core.base_matcher.BaseMatcher`.
+    """
+    # This is a test only method and requires hamcrest
     from hamcrest.core.base_matcher import BaseMatcher
     pickled_matcher = view.on_success_matcher
     errors = []
@@ -187,7 +191,7 @@ class PipelineOptionsValidator(object):
         errors.extend(
             self._validate_error(
                 self.ERR_INVALID_TEST_MATCHER_TYPE, matcher, arg_name))
-    except Exception:
+    except:   # pylint: disable=bare-except
       errors.extend(
           self._validate_error(
               self.ERR_INVALID_TEST_MATCHER_UNPICKLABLE,

@@ -24,7 +24,7 @@ from apache_beam.internal.clients import dataflow
 from apache_beam.runners.runner import PipelineState
 from apache_beam.runners.runner import PipelineResult
 from apache_beam.tests.pipeline_verifiers import PipelineStateMatcher
-from hamcrest import assert_that
+from hamcrest import assert_that as hc_assert_that
 
 
 class PipelineVerifiersTest(unittest.TestCase):
@@ -32,7 +32,7 @@ class PipelineVerifiersTest(unittest.TestCase):
   def test_dataflow_job_state_matcher_success(self):
     """Test DataflowJobStateMatcher successes when job finished in DONE"""
     pipeline_result = PipelineResult(PipelineState.DONE)
-    assert_that(pipeline_result, PipelineStateMatcher())
+    hc_assert_that(pipeline_result, PipelineStateMatcher())
 
   def test_pipeline_state_matcher_fails(self):
     """Test DataflowJobStateMatcher fails when job finished in
@@ -47,7 +47,7 @@ class PipelineVerifiersTest(unittest.TestCase):
     for state in failed_state:
       pipeline_result = PipelineResult(state)
       with self.assertRaises(AssertionError):
-        assert_that(pipeline_result, PipelineStateMatcher())
+        hc_assert_that(pipeline_result, PipelineStateMatcher())
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)

@@ -19,7 +19,7 @@
 
 A set of verifiers that are used in end-to-end tests to verify state/output
 of test pipeline job. Customized verifier should extend
-hamcrest.core.base_matcher.BaseMatcher and override _matches.
+`hamcrest.core.base_matcher.BaseMatcher` and override _matches.
 """
 
 from apache_beam.runners.runner import PipelineState

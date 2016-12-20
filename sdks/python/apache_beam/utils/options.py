@@ -488,8 +488,9 @@ class TestOptions(PipelineOptions):
     parser.add_argument(
         '--on_success_matcher',
         default=None,
-        help=('Verify state/output of e2e test pipeline. This matcher should'
-              'extends hamcrest.core.base_matcher.BaseMatcher.'))
+        help=('Verify state/output of e2e test pipeline. This is pickled '
+              'version of the matcher which should extends '
+              'hamcrest.core.base_matcher.BaseMatcher.'))
 
   def validate(self, validator):
     errors = []

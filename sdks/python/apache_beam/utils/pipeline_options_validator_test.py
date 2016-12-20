@@ -306,13 +306,12 @@ class SetupTest(unittest.TestCase):
                  '--job_name=job',
                  '--staging_location=gs://foo/bar',
                  '--temp_location=gs://foo/bar',]
-      if matcher is not None:
+      if matcher:
         options.append('--on_success_matcher=' + matcher)
 
       pipeline_options = PipelineOptions(options)
       runner = MockRunners.TestDataflowRunner()
-      validator = PipelineOptionsValidator(pipeline_options, runner)
-      return validator
+      return PipelineOptionsValidator(pipeline_options, runner)
 
     test_case = [
         {'on_success_matcher': None,

@@ -35,11 +35,6 @@ class TestPipelineTest(unittest.TestCase):
   def setUp(self):
     self.pipeline = TestPipeline()
 
-  def test_option_args_parsing(self):
-    self.assertListEqual(
-        self.pipeline.get_test_option_args(argv=self.TEST_CASE['options']),
-        self.TEST_CASE['expected_list'])
-
   # Used for testing pipeline option creation.
   class MockOptions(PipelineOptions):
 
@@ -49,9 +44,14 @@ class TestPipelineTest(unittest.TestCase):
       parser.add_argument('--male', action='store_true', help='mock gender')
       parser.add_argument('--age', action='store', type=int, help='mock age')
 
+  def test_option_args_parsing(self):
+    self.assertListEqual(
+        self.pipeline.get_test_option_args(argv=self.TEST_CASE['options']),
+        self.TEST_CASE['expected_list'])
+
   def test_create_test_pipeline_options(self):
-    test_options = self.pipeline.create_test_pipeline_options(
-        self.TEST_CASE['options'])
+    test_options = PipelineOptions(
+        self.pipeline.get_test_option_args(self.TEST_CASE['options']))
     self.assertDictContainsSubset(
         self.TEST_CASE['expected_dict'], test_options.get_all_options())
 

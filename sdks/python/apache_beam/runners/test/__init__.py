@@ -15,24 +15,10 @@
 # limitations under the License.
 #
 
-"""Wrapper of Beam runners that's built for running and verifying e2e tests."""
+"""Test runner objects that's only for end-to-end tests.
 
-from apache_beam.internal import pickler
-from apache_beam.runners.dataflow_runner import DataflowPipelineRunner
-from apache_beam.utils.options import TestOptions
-from hamcrest import assert_that
+This package defines runners, which are used to execute test pipeline and
+verify results.
+"""
 
-
-class TestDataflowRunner(DataflowPipelineRunner):
-
-  def __init__(self):
-    super(TestDataflowRunner, self).__init__(blocking=True)
-
-  def run(self, pipeline):
-    """Execute test pipeline and verify test matcher"""
-    self.result = super(TestDataflowRunner, self).run(pipeline)
-
-    options = pipeline.options.view_as(TestOptions)
-    if options.on_success_matcher:
-      assert_that(self.result, pickler.loads(options.on_success_matcher))
-    return self.result
+from apache_beam.runners.test.test_dataflow_runner import TestDataflowRunner

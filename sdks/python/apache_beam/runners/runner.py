@@ -51,7 +51,7 @@ def create_runner(runner_name):
   elif runner_name in _KNOWN_DATAFLOW_RUNNERS:
     runner_name = 'apache_beam.runners.dataflow_runner.' + runner_name
   elif runner_name in _KNOWN_TEST_RUNNERS:
-    runner_name = 'apache_beam.runners.test_runner.' + runner_name
+    runner_name = 'apache_beam.runners.test.' + runner_name
 
   if '.' in runner_name:
     module, runner = runner_name.rsplit('.', 1)
