@@ -1314,8 +1314,18 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
   }
 
   @Nullable
+  public ValueProvider<TopicPath> getTopicProvider() {
+    return topic;
+  }
+
+  @Nullable
   public SubscriptionPath getSubscription() {
     return subscription == null ? null : subscription.get();
+  }
+
+  @Nullable
+  public ValueProvider<SubscriptionPath> getSubscriptionProvider() {
+    return subscription;
   }
 
   @Nullable
@@ -1329,7 +1339,7 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
   }
 
   @Override
-  public PCollection<T> apply(PBegin input) {
+  public PCollection<T> expand(PBegin input) {
     return input.getPipeline().begin()
                 .apply(Read.from(new PubsubSource<T>(this)))
                 .apply("PubsubUnboundedSource.Stats",

@@ -22,7 +22,7 @@
   <parent>
     <groupId>org.apache.beam</groupId>
     <artifactId>beam-runners-parent</artifactId>
-    <version>0.4.0-incubating-SNAPSHOT</version>
+    <version>0.5.0-incubating-SNAPSHOT</version>
     <relativePath>../pom.xml</relativePath>
   </parent>
 
@@ -79,7 +79,9 @@
             <configuration>
               <excludedGroups>
                 org.apache.beam.sdk.testing.UsesStatefulParDo,
-                org.apache.beam.sdk.testing.UsesSplittableParDo
+                org.apache.beam.sdk.testing.UsesTimersInParDo,
+                org.apache.beam.sdk.testing.UsesSplittableParDo,
+                org.apache.beam.sdk.testing.UsesMetrics
               </excludedGroups>
               <excludes>
                 <exclude>org.apache.beam.sdk.transforms.FlattenTest</exclude>
@@ -132,15 +134,15 @@
                     <!-- com.google.common is too generic, need to exclude guava-testlib -->
                     <exclude>com.google.common.**.testing.*</exclude>
                   </excludes>
-                  <shadedPattern>org.apache.beam.sdk.repackaged.com.google.common</shadedPattern>
+                  <shadedPattern>org.apache.beam.runners.dataflow.repackaged.com.google.common</shadedPattern>
                 </relocation>
                 <relocation>
                   <pattern>com.google.thirdparty</pattern>
-                  <shadedPattern>org.apache.beam.sdk.repackaged.com.google.thirdparty</shadedPattern>
+                  <shadedPattern>org.apache.beam.runners.dataflow.repackaged.com.google.thirdparty</shadedPattern>
                 </relocation>
                 <relocation>
                   <pattern>com.google.cloud.bigtable</pattern>
-                  <shadedPattern>org.apache.beam.sdk.repackaged.com.google.cloud.bigtable</shadedPattern>
+                  <shadedPattern>org.apache.beam.runners.dataflow.repackaged.com.google.cloud.bigtable</shadedPattern>
                   <excludes>
                     <exclude>com.google.cloud.bigtable.config.BigtableOptions*</exclude>
                     <exclude>com.google.cloud.bigtable.config.CredentialOptions*</exclude>

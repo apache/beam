@@ -34,6 +34,7 @@ import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.View.CreatePCollectionView;
+import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PValue;
 import org.slf4j.Logger;
@@ -70,6 +71,7 @@ public class ApexPipelineTranslator implements Pipeline.PipelineVisitor {
         new CreateApexPCollectionViewTranslator());
     registerTransformTranslator(CreatePCollectionView.class,
         new CreatePCollectionViewTranslator());
+    registerTransformTranslator(Window.Bound.class, new WindowBoundTranslator());
   }
 
   public ApexPipelineTranslator(ApexPipelineOptions options) {

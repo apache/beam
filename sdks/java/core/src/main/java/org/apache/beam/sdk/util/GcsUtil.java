@@ -93,8 +93,10 @@ public class GcsUtil {
     public GcsUtil create(PipelineOptions options) {
       LOG.debug("Creating new GcsUtil");
       GcsOptions gcsOptions = options.as(GcsOptions.class);
-      return new GcsUtil(Transport.newStorageClient(gcsOptions).build(),
-          gcsOptions.getExecutorService(), gcsOptions.getGcsUploadBufferSizeBytes());
+      return new GcsUtil(
+          Transport.newStorageClient(gcsOptions).build(),
+          gcsOptions.getExecutorService(),
+          gcsOptions.getGcsUploadBufferSizeBytes());
     }
   }
 
@@ -153,7 +155,8 @@ public class GcsUtil {
   }
 
   private GcsUtil(
-      Storage storageClient, ExecutorService executorService,
+      Storage storageClient,
+      ExecutorService executorService,
       @Nullable Integer uploadBufferSizeBytes) {
     this.storageClient = storageClient;
     this.uploadBufferSizeBytes = uploadBufferSizeBytes;
@@ -276,22 +279,38 @@ public class GcsUtil {
    */
   @VisibleForTesting
   long fileSize(GcsPath path, BackOff backoff, Sleeper sleeper) throws IOException {
-      Storage.Objects.Get getObject =
-          storageClient.objects().get(path.getBucket(), path.getObject());
-      try {
-        StorageObject object = ResilientOperation.retry(
-            ResilientOperation.getGoogleRequestCallable(getObject),
-            backoff,
-            RetryDeterminer.SOCKET_ERRORS,
-            IOException.class,
-            sleeper);
-        return object.getSize().longValue();
-      } catch (Exception e) {
-        if (e instanceof IOException && errorExtractor.itemNotFound((IOException) e)) {
-          throw new FileNotFoundException(path.toString());
-        }
-        throw new IOException("Unable to get file size", e);
-     }
+    Storage.Objects.Get getObject =
+            storageClient.objects().get(path.getBucket(), path.getObject());
+    try {
+      StorageObject object = ResilientOperation.retry(
+          ResilientOperation.getGoogleRequestCallable(getObject),
+          backoff,
+          RetryDeterminer.SOCKET_ERRORS,
+          IOException.class,
+          sleeper);
+      return object.getSize().longValue();
+    } catch (Exception e) {
+      if (e instanceof IOException && errorExtractor.itemNotFound((IOException) e)) {
+        throw new FileNotFoundException(path.toString());
+      }
+      throw new IOException("Unable to get file size", e);
+    }
+  }
+
+  /**
+   * Returns the file size from GCS or throws {@link FileNotFoundException}
+   * if the resource does not exist.
+   */
+  @VisibleForTesting
+  List<Long> fileSizes(Collection<GcsPath> paths) throws IOException {
+    List<long[]> results = Lists.newArrayList();
+    executeBatches(makeGetBatches(paths, results));
+
+    ImmutableList.Builder<Long> ret = ImmutableList.builder();
+    for (long[] result : results) {
+      ret.add(result[0]);
+    }
+    return ret.build();
   }
 
   /**
@@ -483,10 +502,37 @@ public class GcsUtil {
       Thread.currentThread().interrupt();
       throw new IOException("Interrupted while executing batch GCS request", e);
     } catch (ExecutionException e) {
+      if (e.getCause() instanceof FileNotFoundException) {
+        throw (FileNotFoundException) e.getCause();
+      }
       throw new IOException("Error executing batch GCS request", e);
     } finally {
       executor.shutdown();
     }
+  }
+
+  /**
+   * Makes get {@link BatchRequest BatchRequests}.
+   *
+   * @param paths {@link GcsPath GcsPaths}.
+   * @param results mutable {@link List} for return values.
+   * @return {@link BatchRequest BatchRequests} to execute.
+   * @throws IOException
+   */
+  @VisibleForTesting
+  List<BatchRequest> makeGetBatches(
+      Collection<GcsPath> paths,
+      List<long[]> results) throws IOException {
+    List<BatchRequest> batches = new LinkedList<>();
+    for (List<GcsPath> filesToGet :
+        Lists.partition(Lists.newArrayList(paths), MAX_REQUESTS_PER_BATCH)) {
+      BatchRequest batch = storageClient.batch();
+      for (GcsPath path : filesToGet) {
+        results.add(enqueueGetFileSize(path, batch));
+      }
+      batches.add(batch);
+    }
+    return batches;
   }
 
   public void copy(List<String> srcFilenames, List<String> destFilenames) throws IOException {
@@ -533,6 +579,29 @@ public class GcsUtil {
 
   public void remove(Collection<String> filenames) throws IOException {
     executeBatches(makeRemoveBatches(filenames));
+  }
+
+  private long[] enqueueGetFileSize(final GcsPath path, BatchRequest batch) throws IOException {
+    final long[] fileSize = new long[1];
+
+    Storage.Objects.Get getRequest = storageClient.objects()
+        .get(path.getBucket(), path.getObject());
+    getRequest.queue(batch, new JsonBatchCallback<StorageObject>() {
+      @Override
+      public void onSuccess(StorageObject response, HttpHeaders httpHeaders) throws IOException {
+        fileSize[0] = response.getSize().longValue();
+      }
+
+      @Override
+      public void onFailure(GoogleJsonError e, HttpHeaders httpHeaders) throws IOException {
+        if (errorExtractor.itemNotFound(e)) {
+          throw new FileNotFoundException(path.toString());
+        } else {
+          throw new IOException(String.format("Error trying to get %s: %s", path, e));
+        }
+      }
+    });
+    return fileSize;
   }
 
   private void enqueueCopy(final GcsPath from, final GcsPath to, BatchRequest batch)

@@ -20,7 +20,6 @@ package org.apache.beam.runners.flink.translation;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.runners.TransformHierarchy;
-import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
@@ -113,8 +112,7 @@ public class FlinkBatchPipelineTranslator extends FlinkPipelineTranslator {
     BatchTransformTranslator<T> typedTranslator = (BatchTransformTranslator<T>) translator;
 
     // create the applied PTransform on the batchContext
-    batchContext.setCurrentTransform(AppliedPTransform.of(
-        node.getFullName(), node.getInput(), node.getOutput(), (PTransform) transform));
+    batchContext.setCurrentTransform(node.toAppliedPTransform());
     typedTranslator.translateNode(typedTransform, batchContext);
   }
 

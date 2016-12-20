@@ -20,7 +20,6 @@ package org.apache.beam.sdk.runners;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.is;
-import static org.hamcrest.Matchers.nullValue;
 import static org.junit.Assert.assertThat;
 
 import java.util.HashSet;
@@ -38,8 +37,6 @@ import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollection.IsBounded;
 import org.apache.beam.sdk.values.PCollectionList;
-import org.apache.beam.sdk.values.PInput;
-import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.PValue;
 import org.hamcrest.Matchers;
 import org.junit.Before;
@@ -101,7 +98,7 @@ public class TransformHierarchyTest {
             pcList,
             new PTransform<PCollectionList<Long>, PCollection<Long>>() {
               @Override
-              public PCollection<Long> apply(PCollectionList<Long> input) {
+              public PCollection<Long> expand(PCollectionList<Long> input) {
                 return input.get(0);
               }
             });
@@ -133,7 +130,7 @@ public class TransformHierarchyTest {
         pcList,
         new PTransform<PCollectionList<Long>, PCollectionList<Long>>() {
           @Override
-          public PCollectionList<Long> apply(PCollectionList<Long> input) {
+          public PCollectionList<Long> expand(PCollectionList<Long> input) {
             return appended;
           }
         });
@@ -172,24 +169,24 @@ public class TransformHierarchyTest {
 
     TransformHierarchy.Node compositeNode = hierarchy.pushNode("Create", begin, create);
     assertThat(hierarchy.getCurrent(), equalTo(compositeNode));
-    assertThat(compositeNode.getInput(), Matchers.<PInput>equalTo(begin));
+    assertThat(compositeNode.getInputs(), Matchers.emptyIterable());
     assertThat(compositeNode.getTransform(), Matchers.<PTransform<?, ?>>equalTo(create));
     // Not yet set
-    assertThat(compositeNode.getOutput(), nullValue());
+    assertThat(compositeNode.getOutputs(), Matchers.emptyIterable());
     assertThat(compositeNode.getEnclosingNode().isRootNode(), is(true));
 
     TransformHierarchy.Node primitiveNode = hierarchy.pushNode("Create/Read", begin, read);
     assertThat(hierarchy.getCurrent(), equalTo(primitiveNode));
     hierarchy.setOutput(created);
     hierarchy.popNode();
-    assertThat(primitiveNode.getOutput(), Matchers.<POutput>equalTo(created));
-    assertThat(primitiveNode.getInput(), Matchers.<PInput>equalTo(begin));
+    assertThat(primitiveNode.getOutputs(), Matchers.<PValue>containsInAnyOrder(created));
+    assertThat(primitiveNode.getInputs(), Matchers.<PValue>emptyIterable());
     assertThat(primitiveNode.getTransform(), Matchers.<PTransform<?, ?>>equalTo(read));
     assertThat(primitiveNode.getEnclosingNode(), equalTo(compositeNode));
 
     hierarchy.setOutput(created);
     // The composite is listed as outputting a PValue created by the contained primitive
-    assertThat(compositeNode.getOutput(), Matchers.<POutput>equalTo(created));
+    assertThat(compositeNode.getOutputs(), Matchers.<PValue>containsInAnyOrder(created));
     // The producer of that PValue is still the primitive in which it is first output
     assertThat(hierarchy.getProducer(created), equalTo(primitiveNode));
     hierarchy.popNode();

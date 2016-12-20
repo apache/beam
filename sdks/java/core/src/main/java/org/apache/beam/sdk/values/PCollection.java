@@ -202,8 +202,8 @@ public class PCollection<T> extends TypedPValue<T> {
    * etc., to provide more detailed reflective information.
    */
   @Override
-  public PCollection<T> setTypeDescriptorInternal(TypeDescriptor<T> typeDescriptor) {
-    super.setTypeDescriptorInternal(typeDescriptor);
+  public PCollection<T> setTypeDescriptor(TypeDescriptor<T> typeDescriptor) {
+    super.setTypeDescriptor(typeDescriptor);
     return this;
   }
 

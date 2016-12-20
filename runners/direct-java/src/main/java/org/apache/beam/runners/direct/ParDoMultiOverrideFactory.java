@@ -20,10 +20,12 @@ package org.apache.beam.runners.direct;
 import org.apache.beam.runners.core.SplittableParDo;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.runners.PTransformOverrideFactory;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.ParDo.BoundMulti;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
 import org.apache.beam.sdk.values.KV;
@@ -39,20 +41,27 @@ import org.apache.beam.sdk.values.TypedPValue;
  */
 class ParDoMultiOverrideFactory<InputT, OutputT>
     implements PTransformOverrideFactory<
-        PCollection<? extends InputT>, PCollectionTuple, ParDo.BoundMulti<InputT, OutputT>> {
-
+        PCollection<? extends InputT>, PCollectionTuple, BoundMulti<InputT, OutputT>> {
   @Override
   @SuppressWarnings("unchecked")
-  public PTransform<PCollection<? extends InputT>, PCollectionTuple> override(
-      ParDo.BoundMulti<InputT, OutputT> transform) {
+  public PTransform<PCollection<? extends InputT>, PCollectionTuple> getReplacementTransform(
+      BoundMulti<InputT, OutputT> transform) {
 
-    DoFn<InputT, OutputT> fn = transform.getNewFn();
+    DoFn<InputT, OutputT> fn = transform.getFn();
     DoFnSignature signature = DoFnSignatures.getSignature(fn.getClass());
     if (signature.processElement().isSplittable()) {
       return new SplittableParDo(transform);
-    } else if (signature.stateDeclarations().size() > 0
-        || signature.timerDeclarations().size() > 0) {
+    } else if (signature.timerDeclarations().size() > 0) {
+      // Temporarily actually reject timers
+      throw new UnsupportedOperationException(
+          String.format(
+              "Found %s annotations on %s, but %s cannot yet be used with timers in the %s.",
+              DoFn.TimerId.class.getSimpleName(),
+              fn.getClass().getName(),
+              DoFn.class.getSimpleName(),
+              DirectRunner.class.getSimpleName()));
 
+    } else if (signature.stateDeclarations().size() > 0) {
       // Based on the fact that the signature is stateful, DoFnSignatures ensures
       // that it is also keyed
       ParDo.BoundMulti<KV<?, ?>, OutputT> keyedTransform =
@@ -73,7 +82,7 @@ class ParDoMultiOverrideFactory<InputT, OutputT>
     }
 
     @Override
-    public PCollectionTuple apply(PCollection<KV<K, InputT>> input) {
+    public PCollectionTuple expand(PCollection<KV<K, InputT>> input) {
 
       PCollectionTuple outputs = input
           .apply("Group by key", GroupByKey.<K, InputT>create())
@@ -106,7 +115,7 @@ class ParDoMultiOverrideFactory<InputT, OutputT>
       return underlyingParDo.getDefaultOutputCoder(originalInput, output);
     }
 
-    public PCollectionTuple apply(PCollection<? extends KV<K, Iterable<InputT>>> input) {
+    public PCollectionTuple expand(PCollection<? extends KV<K, Iterable<InputT>>> input) {
 
       PCollectionTuple outputs = PCollectionTuple.ofPrimitiveOutputsInternal(
           input.getPipeline(),

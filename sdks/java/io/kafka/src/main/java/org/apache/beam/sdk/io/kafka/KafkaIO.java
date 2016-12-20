@@ -106,7 +106,7 @@ import org.slf4j.LoggerFactory;
  * metadata like topic-partition and offset, along with key and value associated with a Kafka
  * record.
  *
- * <p>Although most applications consumer single topic, the source can be configured to consume
+ * <p>Although most applications consume a single topic, the source can be configured to consume
  * multiple topics or even a specific set of {@link TopicPartition}s.
  *
  * <p>To configure a Kafka source, you must specify at the minimum Kafka <tt>bootstrapServers</tt>
@@ -250,8 +250,8 @@ public class KafkaIO {
     }
 
     /**
-     * Returns a new {@link Read} that reads from the topics. All the partitions are from each
-     * of the topics is read.
+     * Returns a new {@link Read} that reads from the topics. All the partitions from each
+     * of the topics are read.
      * See {@link UnboundedKafkaSource#generateInitialSplits(int, PipelineOptions)} for description
      * of how the partitions are distributed among the splits.
      */
@@ -445,7 +445,7 @@ public class KafkaIO {
     }
 
     @Override
-    public PCollection<KafkaRecord<K, V>> apply(PBegin input) {
+    public PCollection<KafkaRecord<K, V>> expand(PBegin input) {
      // Handles unbounded source to bounded conversion if maxNumRecords or maxReadTime is set.
       Unbounded<KafkaRecord<K, V>> unbounded =
           org.apache.beam.sdk.io.Read.from(makeSource());
@@ -544,9 +544,9 @@ public class KafkaIO {
     }
 
     @Override
-    public PCollection<KV<K, V>> apply(PBegin begin) {
+    public PCollection<KV<K, V>> expand(PBegin begin) {
       return typedRead
-          .apply(begin)
+          .expand(begin)
           .apply("Remove Kafka Metadata",
               ParDo.of(new DoFn<KafkaRecord<K, V>, KV<K, V>>() {
                 @ProcessElement
@@ -1134,7 +1134,7 @@ public class KafkaIO {
 
       boolean isShutdown = false;
 
-      // Wait for threads to shutdown. Trying this a loop to handle a tiny race where poll thread
+      // Wait for threads to shutdown. Trying this as a loop to handle a tiny race where poll thread
       // might block to enqueue right after availableRecordsQueue.poll() below.
       while (!isShutdown) {
 
@@ -1178,7 +1178,7 @@ public class KafkaIO {
     }
 
     /**
-     * Returns a new {@link Write} transform that write to given topic.
+     * Returns a new {@link Write} transform that writes to given topic.
      */
     public Write<K, V> withTopic(String topic) {
       return new Write<K, V>(topic, keyCoder, valueCoder, producerConfig);
@@ -1244,7 +1244,7 @@ public class KafkaIO {
     }
 
     @Override
-    public PDone apply(PCollection<KV<K, V>> input) {
+    public PDone expand(PCollection<KV<K, V>> input) {
       input.apply(ParDo.of(new KafkaWriter<K, V>(
           topic, keyCoder, valueCoder, producerConfig, producerFactoryFnOpt)));
       return PDone.in(input.getPipeline());
@@ -1311,7 +1311,7 @@ public class KafkaIO {
     }
 
     @Override
-    public PDone apply(PCollection<V> input) {
+    public PDone expand(PCollection<V> input) {
       return input
         .apply("Kafka values with default key",
           MapElements.via(new SimpleFunction<V, KV<Void, V>>() {

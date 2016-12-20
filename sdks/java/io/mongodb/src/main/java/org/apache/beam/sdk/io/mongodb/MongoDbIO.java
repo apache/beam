@@ -93,7 +93,7 @@ import org.slf4j.LoggerFactory;
  */
 public class MongoDbIO {
 
-  private static final Logger LOGGER = LoggerFactory.getLogger(MongoDbIO.class);
+  private static final Logger LOG = LoggerFactory.getLogger(MongoDbIO.class);
 
   /** Read data from MongoDB. */
   public static Read read() {
@@ -160,7 +160,7 @@ public class MongoDbIO {
     }
 
     @Override
-    public PCollection<Document> apply(PBegin input) {
+    public PCollection<Document> expand(PBegin input) {
       return input.apply(org.apache.beam.sdk.io.Read.from(new BoundedMongoDbSource(this)));
     }
 
@@ -253,19 +253,19 @@ public class MongoDbIO {
       splitVectorCommand.append("keyPattern", new BasicDBObject().append("_id", 1));
       splitVectorCommand.append("force", false);
       // maxChunkSize is the Mongo partition size in MB
-      LOGGER.debug("Splitting in chunk of {} MB", desiredBundleSizeBytes / 1024 / 1024);
+      LOG.debug("Splitting in chunk of {} MB", desiredBundleSizeBytes / 1024 / 1024);
       splitVectorCommand.append("maxChunkSize", desiredBundleSizeBytes / 1024 / 1024);
       Document splitVectorCommandResult = mongoDatabase.runCommand(splitVectorCommand);
       splitKeys = (List<Document>) splitVectorCommandResult.get("splitKeys");
 
       List<BoundedSource<Document>> sources = new ArrayList<>();
       if (splitKeys.size() < 1) {
-        LOGGER.debug("Split keys is low, using an unique source");
+        LOG.debug("Split keys is low, using an unique source");
         sources.add(this);
         return sources;
       }
 
-      LOGGER.debug("Number of splits is {}", splitKeys.size());
+      LOG.debug("Number of splits is {}", splitKeys.size());
       for (String shardFilter : splitKeysToFilters(splitKeys, spec.filter())) {
         sources.add(new BoundedMongoDbSource(spec.withFilter(shardFilter)));
       }
@@ -392,12 +392,12 @@ public class MongoDbIO {
           cursor.close();
         }
       } catch (Exception e) {
-        LOGGER.warn("Error closing MongoDB cursor", e);
+        LOG.warn("Error closing MongoDB cursor", e);
       }
       try {
         client.close();
       } catch (Exception e) {
-        LOGGER.warn("Error closing MongoDB client", e);
+        LOG.warn("Error closing MongoDB client", e);
       }
     }
 
@@ -441,7 +441,7 @@ public class MongoDbIO {
     }
 
     @Override
-    public PDone apply(PCollection<Document> input) {
+    public PDone expand(PCollection<Document> input) {
       input.apply(ParDo.of(new WriteFn(this)));
       return PDone.in(input.getPipeline());
     }

@@ -66,7 +66,7 @@ public final class SparkContextFactory {
     }
   }
 
-  static synchronized void stopSparkContext(JavaSparkContext context) {
+  public static synchronized void stopSparkContext(JavaSparkContext context) {
     if (!Boolean.getBoolean(TEST_REUSE_SPARK_CONTEXT)) {
       context.stop();
     }

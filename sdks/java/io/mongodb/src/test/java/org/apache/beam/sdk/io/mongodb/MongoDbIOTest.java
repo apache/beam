@@ -67,7 +67,7 @@ import org.slf4j.LoggerFactory;
  */
 public class MongoDbIOTest implements Serializable {
 
-  private static final Logger LOGGER = LoggerFactory.getLogger(MongoDbIOTest.class);
+  private static final Logger LOG = LoggerFactory.getLogger(MongoDbIOTest.class);
 
   private static final String MONGODB_LOCATION = "target/mongodb";
   private static final String DATABASE = "beam";
@@ -92,7 +92,7 @@ public class MongoDbIOTest implements Serializable {
 
   @Before
   public void setup() throws Exception {
-    LOGGER.info("Starting MongoDB embedded instance on {}", port);
+    LOG.info("Starting MongoDB embedded instance on {}", port);
     try {
       Files.forceDelete(new File(MONGODB_LOCATION));
     } catch (Exception e) {
@@ -114,7 +114,7 @@ public class MongoDbIOTest implements Serializable {
     mongodExecutable = mongodStarter.prepare(mongodConfig);
     mongodProcess = mongodExecutable.start();
 
-    LOGGER.info("Insert test data");
+    LOG.info("Insert test data");
 
     MongoClient client = new MongoClient("localhost", port);
     MongoDatabase database = client.getDatabase(DATABASE);
@@ -135,7 +135,7 @@ public class MongoDbIOTest implements Serializable {
 
   @After
   public void stop() throws Exception {
-    LOGGER.info("Stopping MongoDB instance");
+    LOG.info("Stopping MongoDB instance");
     mongodProcess.stop();
     mongodExecutable.stop();
   }

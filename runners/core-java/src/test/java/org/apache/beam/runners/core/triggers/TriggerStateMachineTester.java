@@ -32,14 +32,14 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import javax.annotation.Nullable;
+import org.apache.beam.runners.core.ActiveWindowSet;
+import org.apache.beam.runners.core.ActiveWindowSet.MergeCallback;
+import org.apache.beam.runners.core.MergingActiveWindowSet;
+import org.apache.beam.runners.core.NonMergingActiveWindowSet;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
-import org.apache.beam.sdk.util.ActiveWindowSet;
-import org.apache.beam.sdk.util.ActiveWindowSet.MergeCallback;
-import org.apache.beam.sdk.util.MergingActiveWindowSet;
-import org.apache.beam.sdk.util.NonMergingActiveWindowSet;
 import org.apache.beam.sdk.util.TimeDomain;
 import org.apache.beam.sdk.util.TimerInternals.TimerData;
 import org.apache.beam.sdk.util.Timers;
@@ -53,7 +53,6 @@ import org.apache.beam.sdk.util.state.StateNamespaces;
 import org.apache.beam.sdk.util.state.StateNamespaces.WindowAndTriggerNamespace;
 import org.apache.beam.sdk.util.state.StateNamespaces.WindowNamespace;
 import org.apache.beam.sdk.util.state.TestInMemoryStateInternals;
-import org.apache.beam.sdk.util.state.TimerCallback;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -221,14 +220,22 @@ public class TriggerStateMachineTester<InputT, W extends BoundedWindow> {
    * possible.
    */
   public void advanceInputWatermark(Instant newInputWatermark) throws Exception {
-    // TODO: Should test timer firings: see https://issues.apache.org/jira/browse/BEAM-694
-    timerInternals.advanceInputWatermark(TimerCallback.NO_OP, newInputWatermark);
+    timerInternals.advanceInputWatermark(newInputWatermark);
+    while (timerInternals.removeNextEventTimer() != null) {
+      // TODO: Should test timer firings: see https://issues.apache.org/jira/browse/BEAM-694
+    }
   }
 
   /** Advance the processing time to the specified time. */
   public void advanceProcessingTime(Instant newProcessingTime) throws Exception {
-    // TODO: Should test timer firings: see https://issues.apache.org/jira/browse/BEAM-694
-    timerInternals.advanceProcessingTime(TimerCallback.NO_OP, newProcessingTime);
+    timerInternals.advanceProcessingTime(newProcessingTime);
+    while (timerInternals.removeNextProcessingTimer() != null) {
+      // TODO: Should test timer firings: see https://issues.apache.org/jira/browse/BEAM-694
+    }
+    timerInternals.advanceSynchronizedProcessingTime(newProcessingTime);
+    while (timerInternals.removeNextSynchronizedProcessingTimer() != null) {
+      // TODO: Should test timer firings: see https://issues.apache.org/jira/browse/BEAM-694
+    }
   }
 
   /**

@@ -442,6 +442,53 @@ public class DoFnSignaturesTest {
   }
 
   @Test
+  public void testSimpleTimerWithContext() throws Exception {
+    DoFnSignature sig =
+        DoFnSignatures.getSignature(
+            new DoFn<KV<String, Integer>, Long>() {
+              @TimerId("foo")
+              private final TimerSpec bizzle = TimerSpecs.timer(TimeDomain.EVENT_TIME);
+
+              @ProcessElement
+              public void foo(ProcessContext context) {}
+
+              @OnTimer("foo")
+              public void onFoo(OnTimerContext c) {}
+            }.getClass());
+
+    assertThat(sig.timerDeclarations().size(), equalTo(1));
+    DoFnSignature.TimerDeclaration decl = sig.timerDeclarations().get("foo");
+
+    assertThat(decl.id(), equalTo("foo"));
+    assertThat(decl.field().getName(), equalTo("bizzle"));
+
+    assertThat(
+        sig.onTimerMethods().get("foo").extraParameters().get(0),
+        equalTo((Parameter) Parameter.onTimerContext()));
+  }
+
+  @Test
+  public void testProcessElementWithOnTimerContextRejected() throws Exception {
+    thrown.expect(IllegalArgumentException.class);
+    // The message should at least mention @ProcessElement and OnTimerContext
+    thrown.expectMessage("@" + DoFn.ProcessElement.class.getSimpleName());
+    thrown.expectMessage(DoFn.OnTimerContext.class.getSimpleName());
+
+    DoFnSignature sig =
+        DoFnSignatures.getSignature(
+            new DoFn<KV<String, Integer>, Long>() {
+              @TimerId("foo")
+              private final TimerSpec bizzle = TimerSpecs.timer(TimeDomain.EVENT_TIME);
+
+              @ProcessElement
+              public void foo(ProcessContext context, OnTimerContext bogus) {}
+
+              @OnTimer("foo")
+              public void onFoo() {}
+            }.getClass());
+  }
+
+  @Test
   public void testSimpleTimerIdNamedDoFn() throws Exception {
     class DoFnForTestSimpleTimerIdNamedDoFn extends DoFn<KV<String, Integer>, Long> {
       @TimerId("foo")

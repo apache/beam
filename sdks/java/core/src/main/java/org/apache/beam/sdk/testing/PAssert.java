@@ -763,7 +763,7 @@ public class PAssert {
     }
 
     @Override
-    public PCollectionView<ActualT> apply(PBegin input) {
+    public PCollectionView<ActualT> expand(PBegin input) {
       final Coder<T> coder = actual.getCoder();
       return actual
           .apply("FilterActuals", rewindowActuals.<T>prepareActuals())
@@ -833,7 +833,7 @@ public class PAssert {
     }
 
     @Override
-    public PCollection<Iterable<ValueInSingleWindow<T>>> apply(PCollection<T> input) {
+    public PCollection<Iterable<ValueInSingleWindow<T>>> expand(PCollection<T> input) {
       final int combinedKey = 42;
 
       // Remove the triggering on both
@@ -925,7 +925,7 @@ public class PAssert {
     }
 
     @Override
-    public PDone apply(PCollection<T> input) {
+    public PDone expand(PCollection<T> input) {
       input
           .apply("GroupGlobally", new GroupGlobally<T>(rewindowingStrategy))
           .apply("GetPane", MapElements.via(paneExtractor))
@@ -958,7 +958,7 @@ public class PAssert {
     }
 
     @Override
-    public PDone apply(PCollection<Iterable<T>> input) {
+    public PDone expand(PCollection<Iterable<T>> input) {
       input
           .apply("GroupGlobally", new GroupGlobally<Iterable<T>>(rewindowingStrategy))
           .apply("GetPane", MapElements.via(paneExtractor))
@@ -995,7 +995,7 @@ public class PAssert {
     }
 
     @Override
-    public PDone apply(PBegin input) {
+    public PDone expand(PBegin input) {
       final PCollectionView<ActualT> actual = input.apply("CreateActual", createActual);
 
       input
@@ -1321,7 +1321,7 @@ public class PAssert {
     }
 
     @Override
-    public PCollection<T> apply(PCollection<T> input) {
+    public PCollection<T> expand(PCollection<T> input) {
       return input.apply("FilterWindows", ParDo.of(new Fn()));
     }
 

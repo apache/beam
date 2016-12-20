@@ -24,8 +24,7 @@ import com.google.common.collect.Iterables;
 import org.apache.beam.sdk.transforms.Aggregator;
 import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.util.KeyedWorkItem;
-import org.apache.beam.sdk.util.KeyedWorkItems;
+import org.apache.beam.sdk.util.TimeDomain;
 import org.apache.beam.sdk.util.TimerInternals;
 import org.apache.beam.sdk.util.WindowTracing;
 import org.apache.beam.sdk.util.WindowedValue;
@@ -75,6 +74,12 @@ public class LateDataDroppingDoFnRunner<K, InputT, OutputT, W extends BoundedWin
   }
 
   @Override
+  public void onTimer(String timerId, BoundedWindow window, Instant timestamp,
+      TimeDomain timeDomain) {
+    doFnRunner.onTimer(timerId, window, timestamp, timeDomain);
+  }
+
+  @Override
   public void finishBundle() {
     doFnRunner.finishBundle();
   }
@@ -118,21 +123,30 @@ public class LateDataDroppingDoFnRunner<K, InputT, OutputT, W extends BoundedWin
                     }
                   });
             }});
+      Iterable<WindowedValue<InputT>> concatElements = Iterables.concat(windowsExpandedElements);
+
+      // Bump the counter separately since we don't want multiple iterations to
+      // increase it multiple times.
+      for (WindowedValue<InputT> input : concatElements) {
+        BoundedWindow window = Iterables.getOnlyElement(input.getWindows());
+        if (canDropDueToExpiredWindow(window)) {
+          // The element is too late for this window.
+          droppedDueToLateness.addValue(1L);
+          WindowTracing.debug(
+              "ReduceFnRunner.processElement: Dropping element at {} for key:{}; window:{} "
+              + "since too far behind inputWatermark:{}; outputWatermark:{}",
+              input.getTimestamp(), key, window, timerInternals.currentInputWatermarkTime(),
+              timerInternals.currentOutputWatermarkTime());
+        }
+      }
 
       Iterable<WindowedValue<InputT>> nonLateElements = Iterables.filter(
-          Iterables.concat(windowsExpandedElements),
+          concatElements,
           new Predicate<WindowedValue<InputT>>() {
             @Override
             public boolean apply(WindowedValue<InputT> input) {
               BoundedWindow window = Iterables.getOnlyElement(input.getWindows());
               if (canDropDueToExpiredWindow(window)) {
-                // The element is too late for this window.
-                droppedDueToLateness.addValue(1L);
-                WindowTracing.debug(
-                    "ReduceFnRunner.processElement: Dropping element at {} for key:{}; window:{} "
-                    + "since too far behind inputWatermark:{}; outputWatermark:{}",
-                    input.getTimestamp(), key, window, timerInternals.currentInputWatermarkTime(),
-                    timerInternals.currentOutputWatermarkTime());
                 return false;
               } else {
                 return true;

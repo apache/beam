@@ -50,7 +50,7 @@ public class ParDoLifecycleTest implements Serializable {
     PCollectionList.of(p.apply("Impolite", Create.of(1, 2, 4)))
         .and(p.apply("Polite", Create.of(3, 5, 6, 7)))
         .apply(Flatten.<Integer>pCollections())
-        .apply(ParDo.of(new CallSequenceEnforcingOldFn<Integer>()));
+        .apply(ParDo.of(new CallSequenceEnforcingDoFn<Integer>()));
 
     p.run();
   }
@@ -62,19 +62,19 @@ public class ParDoLifecycleTest implements Serializable {
     PCollectionList.of(p.apply("Impolite", Create.of(1, 2, 4)))
         .and(p.apply("Polite", Create.of(3, 5, 6, 7)))
         .apply(Flatten.<Integer>pCollections())
-        .apply(ParDo.of(new CallSequenceEnforcingOldFn<Integer>())
+        .apply(ParDo.of(new CallSequenceEnforcingDoFn<Integer>())
             .withOutputTags(new TupleTag<Integer>() {}, TupleTagList.empty()));
 
     p.run();
   }
 
-  private static class CallSequenceEnforcingOldFn<T> extends OldDoFn<T, T> {
+  private static class CallSequenceEnforcingDoFn<T> extends DoFn<T, T> {
     private boolean setupCalled = false;
     private int startBundleCalls = 0;
     private int finishBundleCalls = 0;
     private boolean teardownCalled = false;
 
-    @Override
+    @Setup
     public void setup() {
       assertThat("setup should not be called twice", setupCalled, is(false));
       assertThat("setup should be called before startBundle", startBundleCalls, equalTo(0));
@@ -83,7 +83,7 @@ public class ParDoLifecycleTest implements Serializable {
       setupCalled = true;
     }
 
-    @Override
+    @StartBundle
     public void startBundle(Context c) {
       assertThat("setup should have been called", setupCalled, is(true));
       assertThat(
@@ -94,7 +94,7 @@ public class ParDoLifecycleTest implements Serializable {
       startBundleCalls++;
     }
 
-    @Override
+    @ProcessElement
     public void processElement(ProcessContext c) throws Exception {
       assertThat("startBundle should have been called", startBundleCalls, greaterThan(0));
       assertThat(
@@ -104,7 +104,7 @@ public class ParDoLifecycleTest implements Serializable {
       assertThat("teardown should not have been called", teardownCalled, is(false));
     }
 
-    @Override
+    @FinishBundle
     public void finishBundle(Context c) {
       assertThat("startBundle should have been called", startBundleCalls, greaterThan(0));
       assertThat(
@@ -115,7 +115,7 @@ public class ParDoLifecycleTest implements Serializable {
       finishBundleCalls++;
     }
 
-    @Override
+    @Teardown
     public void teardown() {
       assertThat(setupCalled, is(true));
       assertThat(startBundleCalls, anyOf(equalTo(finishBundleCalls)));
@@ -345,7 +345,7 @@ public class ParDoLifecycleTest implements Serializable {
     }
   }
 
-  private static class ExceptionThrowingOldFn extends OldDoFn<Object, Object> {
+  private static class ExceptionThrowingOldFn extends DoFn<Object, Object> {
     static AtomicBoolean teardownCalled = new AtomicBoolean(false);
 
     private final MethodForException toThrow;
@@ -355,22 +355,22 @@ public class ParDoLifecycleTest implements Serializable {
       this.toThrow = toThrow;
     }
 
-    @Override
+    @Setup
     public void setup() throws Exception {
       throwIfNecessary(MethodForException.SETUP);
     }
 
-    @Override
+    @StartBundle
     public void startBundle(Context c) throws Exception {
       throwIfNecessary(MethodForException.START_BUNDLE);
     }
 
-    @Override
+    @ProcessElement
     public void processElement(ProcessContext c) throws Exception {
       throwIfNecessary(MethodForException.PROCESS_ELEMENT);
     }
 
-    @Override
+    @FinishBundle
     public void finishBundle(Context c) throws Exception {
       throwIfNecessary(MethodForException.FINISH_BUNDLE);
     }
@@ -382,7 +382,7 @@ public class ParDoLifecycleTest implements Serializable {
       }
     }
 
-    @Override
+    @Teardown
     public void teardown() {
       if (!thrown) {
         fail("Excepted to have a processing method throw an exception");

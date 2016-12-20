@@ -73,7 +73,7 @@ public class TransformTreeTest {
       extends PTransform<PBegin, PCollectionList<String>> {
 
     @Override
-    public PCollectionList<String> apply(PBegin b) {
+    public PCollectionList<String> expand(PBegin b) {
       // Composite transform: apply delegates to other transformations,
       // here a Create transform.
       PCollection<String> result = b.apply(Create.of("hello", "world"));
@@ -95,7 +95,7 @@ public class TransformTreeTest {
       extends PTransform<PCollection<Integer>, PDone> {
 
     @Override
-    public PDone apply(PCollection<Integer> input) {
+    public PDone expand(PCollection<Integer> input) {
       // Apply an operation so that this is a composite transform.
       input.apply(Count.<Integer>perElement());
 

@@ -219,7 +219,7 @@ public class PCollectionTuple implements PInput, POutput {
       TypeDescriptor<Object> token = (TypeDescriptor<Object>) outputTag.getTypeDescriptor();
       PCollection<Object> outputCollection = PCollection
           .createPrimitiveOutputInternal(pipeline, windowingStrategy, isBounded)
-          .setTypeDescriptorInternal(token);
+          .setTypeDescriptor(token);
 
       pcollectionMap.put(outputTag, outputCollection);
     }
