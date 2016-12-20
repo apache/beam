@@ -29,7 +29,6 @@ import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
@@ -54,6 +53,7 @@ import org.apache.beam.sdk.values.TupleTagList;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.joda.time.MutableDateTime;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
@@ -151,10 +151,13 @@ public class SplittableDoFnTest {
     }
   }
 
+  @Rule
+  public final transient TestPipeline p = TestPipeline.create();
+
   @Test
   @Category({RunnableOnService.class, UsesSplittableParDo.class})
   public void testPairWithIndexBasic() {
-    Pipeline p = TestPipeline.create();
+
     PCollection<KV<String, Integer>> res =
         p.apply(Create.of("a", "bb", "ccccc"))
             .apply(ParDo.of(new PairStringWithIndexToLength()))
@@ -180,7 +183,6 @@ public class SplittableDoFnTest {
   public void testPairWithIndexWindowedTimestamped() {
     // Tests that Splittable DoFn correctly propagates windowing strategy, windows and timestamps
     // of elements in the input collection.
-    Pipeline p = TestPipeline.create();
 
     MutableDateTime mutableNow = Instant.now().toMutableDateTime();
     mutableNow.setMillisOfSecond(0);
@@ -277,7 +279,6 @@ public class SplittableDoFnTest {
   @Test
   @Category({RunnableOnService.class, UsesSplittableParDo.class})
   public void testOutputAfterCheckpoint() throws Exception {
-    Pipeline p = TestPipeline.create();
     PCollection<Integer> outputs = p.apply(Create.of("foo"))
         .apply(ParDo.of(new SDFWithMultipleOutputsPerBlock()));
     PAssert.thatSingleton(outputs.apply(Count.<Integer>globally()))
@@ -317,7 +318,6 @@ public class SplittableDoFnTest {
   @Test
   @Category({RunnableOnService.class, UsesSplittableParDo.class})
   public void testSideInputsAndOutputs() throws Exception {
-    Pipeline p = TestPipeline.create();
 
     PCollectionView<String> sideInput =
         p.apply("side input", Create.of("foo")).apply(View.<String>asSingleton());
@@ -344,7 +344,6 @@ public class SplittableDoFnTest {
   @Test
   @Category({RunnableOnService.class, UsesSplittableParDo.class})
   public void testLateData() throws Exception {
-    Pipeline p = TestPipeline.create();
 
     Instant base = Instant.now();
 
@@ -439,7 +438,6 @@ public class SplittableDoFnTest {
   @Test
   @Category({RunnableOnService.class, UsesSplittableParDo.class})
   public void testLifecycleMethods() throws Exception {
-    Pipeline p = TestPipeline.create();
 
     PCollection<String> res =
         p.apply(Create.of("a", "b", "c")).apply(ParDo.of(new SDFWithLifecycle()));

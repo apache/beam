@@ -72,6 +72,7 @@ import org.joda.time.DateTime;
 import org.joda.time.Instant;
 import org.joda.time.ReadableInstant;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -93,10 +94,12 @@ public class UnboundedReadEvaluatorFactoryTest {
   private UnboundedSource<Long, ?> source;
   private DirectGraph graph;
 
+  @Rule
+  public TestPipeline p = TestPipeline.create().enableAbandonedNodeEnforcement(false);
+
   @Before
   public void setup() {
     source = CountingSource.unboundedWithTimestampFn(new LongToInstantFn());
-    TestPipeline p = TestPipeline.create();
     longs = p.apply(Read.from(source));
 
     context = mock(EvaluationContext.class);
@@ -190,7 +193,6 @@ public class UnboundedReadEvaluatorFactoryTest {
         new TestUnboundedSource<>(BigEndianLongCoder.of(), outputs);
     source.dedupes = true;
 
-    TestPipeline p = TestPipeline.create();
     PCollection<Long> pcollection = p.apply(Read.from(source));
     AppliedPTransform<?, ?, ?> sourceTransform = getProducer(pcollection);
 
@@ -231,7 +233,6 @@ public class UnboundedReadEvaluatorFactoryTest {
 
   @Test
   public void noElementsAvailableReaderIncludedInResidual() throws Exception {
-    TestPipeline p = TestPipeline.create();
     // Read with a very slow rate so by the second read there are no more elements
     PCollection<Long> pcollection =
         p.apply(Read.from(new TestUnboundedSource<>(VarLongCoder.of(), 1L)));
@@ -291,7 +292,6 @@ public class UnboundedReadEvaluatorFactoryTest {
     TestUnboundedSource<Long> source =
         new TestUnboundedSource<>(BigEndianLongCoder.of(), elems.toArray(new Long[0]));
 
-    TestPipeline p = TestPipeline.create();
     PCollection<Long> pcollection = p.apply(Read.from(source));
     DirectGraph graph = DirectGraphs.getGraph(p);
     AppliedPTransform<?, ?, ?> sourceTransform =
@@ -337,7 +337,6 @@ public class UnboundedReadEvaluatorFactoryTest {
     TestUnboundedSource<Long> source =
         new TestUnboundedSource<>(BigEndianLongCoder.of(), elems.toArray(new Long[0]));
 
-    TestPipeline p = TestPipeline.create();
     PCollection<Long> pcollection = p.apply(Read.from(source));
     AppliedPTransform<?, ?, ?> sourceTransform =
         DirectGraphs.getGraph(p).getProducer(pcollection);

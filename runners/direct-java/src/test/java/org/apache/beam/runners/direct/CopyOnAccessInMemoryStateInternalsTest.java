@@ -61,8 +61,11 @@ import org.junit.runners.JUnit4;
  */
 @RunWith(JUnit4.class)
 public class CopyOnAccessInMemoryStateInternalsTest {
+
+  @Rule public final TestPipeline pipeline = TestPipeline.create();
   @Rule public ExpectedException thrown = ExpectedException.none();
   private String key = "foo";
+
   @Test
   public void testGetWithEmpty() {
     CopyOnAccessInMemoryStateInternals<String> internals =
@@ -167,7 +170,7 @@ public class CopyOnAccessInMemoryStateInternalsTest {
     CombineFn<Long, long[], Long> sumLongFn = new Sum.SumLongFn();
 
     StateNamespace namespace = new StateNamespaceForTest("foo");
-    CoderRegistry reg = TestPipeline.create().getCoderRegistry();
+    CoderRegistry reg = pipeline.getCoderRegistry();
     StateTag<Object, AccumulatorCombiningState<Long, long[], Long>> stateTag =
         StateTags.combiningValue("summer",
             sumLongFn.getAccumulatorCoder(reg, reg.getDefaultCoder(Long.class)), sumLongFn);
@@ -197,7 +200,7 @@ public class CopyOnAccessInMemoryStateInternalsTest {
     KeyedCombineFn<String, Long, long[], Long> sumLongFn = new Sum.SumLongFn().asKeyedFn();
 
     StateNamespace namespace = new StateNamespaceForTest("foo");
-    CoderRegistry reg = TestPipeline.create().getCoderRegistry();
+    CoderRegistry reg = pipeline.getCoderRegistry();
     StateTag<String, AccumulatorCombiningState<Long, long[], Long>> stateTag =
         StateTags.keyedCombiningValue(
             "summer",

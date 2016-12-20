@@ -41,6 +41,7 @@ import org.hamcrest.Matchers;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -52,6 +53,9 @@ public class TestStreamEvaluatorFactoryTest {
   private BundleFactory bundleFactory;
   private EvaluationContext context;
 
+  @Rule
+  public TestPipeline p = TestPipeline.create().enableAbandonedNodeEnforcement(false);
+
   @Before
   public void setup() {
     context = mock(EvaluationContext.class);
@@ -62,7 +66,6 @@ public class TestStreamEvaluatorFactoryTest {
   /** Demonstrates that returned evaluators produce elements in sequence. */
   @Test
   public void producesElementsInSequence() throws Exception {
-    TestPipeline p = TestPipeline.create();
     PCollection<Integer> streamVals =
         p.apply(
             TestStream.create(VarIntCoder.of())

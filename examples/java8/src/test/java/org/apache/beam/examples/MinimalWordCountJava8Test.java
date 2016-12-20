@@ -26,7 +26,6 @@ import java.nio.file.Files;
 import java.nio.file.StandardOpenOption;
 import java.util.Arrays;
 import java.util.List;
-import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.options.GcsOptions;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -38,6 +37,7 @@ import org.apache.beam.sdk.util.GcsUtil;
 import org.apache.beam.sdk.util.gcsfs.GcsPath;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TypeDescriptors;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -52,12 +52,14 @@ import org.mockito.stubbing.Answer;
 @RunWith(JUnit4.class)
 public class MinimalWordCountJava8Test implements Serializable {
 
+  @Rule
+  public TestPipeline p = TestPipeline.create().enableAbandonedNodeEnforcement(false);
+
   /**
    * A basic smoke test that ensures there is no crash at pipeline construction time.
    */
   @Test
   public void testMinimalWordCountJava8() throws Exception {
-    Pipeline p = TestPipeline.create();
     p.getOptions().as(GcsOptions.class).setGcsUtil(buildMockGcsUtil());
 
     p.apply(TextIO.Read.from("gs://apache-beam-samples/shakespeare/*"))

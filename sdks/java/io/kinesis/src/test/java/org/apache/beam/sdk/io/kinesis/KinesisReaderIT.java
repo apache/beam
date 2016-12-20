@@ -31,7 +31,6 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
-import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.PAssert;
@@ -43,6 +42,7 @@ import org.apache.commons.lang.RandomStringUtils;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Ignore;
+import org.junit.Rule;
 import org.junit.Test;
 
 /**
@@ -53,6 +53,8 @@ public class KinesisReaderIT {
     private static final long PIPELINE_STARTUP_TIME = TimeUnit.SECONDS.toMillis(10);
     private ExecutorService singleThreadExecutor = newSingleThreadExecutor();
 
+    @Rule
+    public final transient TestPipeline p = TestPipeline.create();
 
     @Ignore
     @Test
@@ -76,7 +78,7 @@ public class KinesisReaderIT {
 
     private Future<?> startTestPipeline(List<String> testData, KinesisTestOptions options)
             throws InterruptedException {
-        final Pipeline p = TestPipeline.create();
+
         PCollection<String> result = p.
                 apply(KinesisIO.Read.
                         from(options.getAwsKinesisStream(), Instant.now()).

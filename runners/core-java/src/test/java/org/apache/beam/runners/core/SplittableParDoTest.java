@@ -57,6 +57,7 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -132,9 +133,13 @@ public class SplittableParDoTest {
     return ParDo.of(fn).withOutputTags(MAIN_OUTPUT_TAG, TupleTagList.empty());
   }
 
+  @Rule
+  public TestPipeline pipeline = TestPipeline.create();
+
   @Test
   public void testBoundednessForBoundedFn() {
-    Pipeline pipeline = TestPipeline.create();
+    pipeline.enableAbandonedNodeEnforcement(false);
+
     DoFn<Integer, String> boundedFn = new BoundedFakeFn();
     assertEquals(
         "Applying a bounded SDF to a bounded collection produces a bounded collection",
@@ -154,7 +159,8 @@ public class SplittableParDoTest {
 
   @Test
   public void testBoundednessForUnboundedFn() {
-    Pipeline pipeline = TestPipeline.create();
+    pipeline.enableAbandonedNodeEnforcement(false);
+
     DoFn<Integer, String> unboundedFn = new UnboundedFakeFn();
     assertEquals(
         "Applying an unbounded SDF to a bounded collection produces a bounded collection",

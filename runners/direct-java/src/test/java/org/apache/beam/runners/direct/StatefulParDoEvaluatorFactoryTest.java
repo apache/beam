@@ -67,6 +67,7 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -91,6 +92,10 @@ public class StatefulParDoEvaluatorFactoryTest implements Serializable {
 
   private static final BundleFactory BUNDLE_FACTORY = ImmutableListBundleFactory.create();
 
+  @Rule
+  public transient TestPipeline pipeline =
+      TestPipeline.create().enableAbandonedNodeEnforcement(false);
+
   @Before
   public void setup() {
     MockitoAnnotations.initMocks(this);
@@ -106,7 +111,6 @@ public class StatefulParDoEvaluatorFactoryTest implements Serializable {
   public void windowCleanupScheduled() throws Exception {
     // To test the factory, first we set up a pipeline and then we use the constructed
     // pipeline to create the right parameters to pass to the factory
-    TestPipeline pipeline = TestPipeline.create();
 
     final String stateId = "my-state-id";
 
@@ -208,7 +212,6 @@ public class StatefulParDoEvaluatorFactoryTest implements Serializable {
   public void testUnprocessedElements() throws Exception {
     // To test the factory, first we set up a pipeline and then we use the constructed
     // pipeline to create the right parameters to pass to the factory
-    TestPipeline pipeline = TestPipeline.create();
 
     final String stateId = "my-state-id";
 

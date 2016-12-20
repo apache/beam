@@ -19,7 +19,6 @@ package org.apache.beam.examples.complete;
 
 import java.net.URI;
 import java.util.Arrays;
-import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.StringDelegateCoder;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.RunnableOnService;
@@ -29,6 +28,7 @@ import org.apache.beam.sdk.transforms.Distinct;
 import org.apache.beam.sdk.transforms.Keys;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
@@ -40,11 +40,13 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class TfIdfTest {
 
+  @Rule
+  public TestPipeline pipeline = TestPipeline.create();
+
   /** Test that the example runs. */
   @Test
   @Category(RunnableOnService.class)
   public void testTfIdf() throws Exception {
-    Pipeline pipeline = TestPipeline.create();
 
     pipeline.getCoderRegistry().registerCoder(URI.class, StringDelegateCoder.of(URI.class));
 
