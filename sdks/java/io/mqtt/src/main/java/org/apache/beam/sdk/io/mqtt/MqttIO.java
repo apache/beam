@@ -30,9 +30,9 @@ import java.util.NoSuchElementException;
 
 import javax.annotation.Nullable;
 
-import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -308,11 +308,11 @@ public class MqttIO {
    * Checkpoint for an unbounded MQTT source. Consists of the MQTT messages waiting to be
    * acknowledged and oldest pending message timestamp.
    */
-  private static class MqttCheckpointMark implements UnboundedSource.CheckpointMark {
+  private static class MqttCheckpointMark implements UnboundedSource.CheckpointMark, Serializable {
 
     private Instant oldestMessageTimestamp = Instant.now();
 
-    private final List<Message> messages = new ArrayList<>();
+    private transient List<Message> messages = new ArrayList<>();
 
     public MqttCheckpointMark() {
     }
@@ -336,6 +336,12 @@ public class MqttIO {
       }
       oldestMessageTimestamp = Instant.now();
       messages.clear();
+    }
+
+    // set an empty list to messages when deserialize
+    private void readObject(java.io.ObjectInputStream stream)
+        throws java.io.IOException, ClassNotFoundException {
+      messages = new ArrayList<>();
     }
 
   }
@@ -377,7 +383,7 @@ public class MqttIO {
 
     @Override
     public Coder<MqttCheckpointMark> getCheckpointMarkCoder() {
-      return AvroCoder.of(MqttCheckpointMark.class);
+      return SerializableCoder.of(MqttCheckpointMark.class);
     }
 
     @Override
