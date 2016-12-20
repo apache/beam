@@ -662,14 +662,14 @@ public class DataflowRunnerTest {
       DataflowRunner.fromOptions(options);
       fail("fromOptions should have failed");
     } catch (IllegalArgumentException e) {
-      assertThat(e.getMessage(), containsString("expected a valid 'gs://' path but was given"));
+      assertThat(e.getMessage(), containsString("Expected a valid 'gs://' path but was given"));
     }
     options.setSaveProfilesToGcs("my/staging/location");
     try {
       DataflowRunner.fromOptions(options);
       fail("fromOptions should have failed");
     } catch (IllegalArgumentException e) {
-      assertThat(e.getMessage(), containsString("expected a valid 'gs://' path but was given"));
+      assertThat(e.getMessage(), containsString("Expected a valid 'gs://' path but was given"));
     }
   }
 
