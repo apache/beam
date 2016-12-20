@@ -107,7 +107,7 @@ public class GearpumpRunner extends PipelineRunner<GearpumpPipelineResult> {
     TranslationContext translationContext = new TranslationContext(streamApp, options);
     GearpumpPipelineTranslator translator = new GearpumpPipelineTranslator(translationContext);
     translator.translate(pipeline);
-    streamApp.run();
+    streamApp.submit();
 
     return null;
   }
