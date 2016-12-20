@@ -69,7 +69,7 @@ public class TestStreamTest implements Serializable {
   @Rule public transient ExpectedException thrown = ExpectedException.none();
 
   @Test
-  @Category(NeedsRunner.class)
+  @Category({NeedsRunner.class, UsesTestStream.class})
   public void testLateDataAccumulating() {
     Instant instant = new Instant(0);
     TestStream<Integer> source = TestStream.create(VarIntCoder.of())
@@ -136,7 +136,7 @@ public class TestStreamTest implements Serializable {
   }
 
   @Test
-  @Category(NeedsRunner.class)
+  @Category({NeedsRunner.class, UsesTestStream.class})
   public void testProcessingTimeTrigger() {
     TestStream<Long> source = TestStream.create(VarLongCoder.of())
         .addElements(TimestampedValue.of(1L, new Instant(1000L)),
@@ -159,7 +159,7 @@ public class TestStreamTest implements Serializable {
   }
 
   @Test
-  @Category(NeedsRunner.class)
+  @Category({NeedsRunner.class, UsesTestStream.class})
   public void testDiscardingMode() {
     TestStream<String> stream =
         TestStream.create(StringUtf8Coder.of())
@@ -208,7 +208,7 @@ public class TestStreamTest implements Serializable {
   }
 
   @Test
-  @Category(NeedsRunner.class)
+  @Category({NeedsRunner.class, UsesTestStream.class})
   public void testFirstElementLate() {
     Instant lateElementTimestamp = new Instant(-1_000_000);
     TestStream<String> stream =
@@ -238,7 +238,7 @@ public class TestStreamTest implements Serializable {
   }
 
   @Test
-  @Category(NeedsRunner.class)
+  @Category({NeedsRunner.class, UsesTestStream.class})
   public void testElementsAtAlmostPositiveInfinity() {
     Instant endOfGlobalWindow = GlobalWindow.INSTANCE.maxTimestamp();
     TestStream<String> stream = TestStream.create(StringUtf8Coder.of())
@@ -261,7 +261,7 @@ public class TestStreamTest implements Serializable {
   }
 
   @Test
-  @Category(NeedsRunner.class)
+  @Category({NeedsRunner.class, UsesTestStream.class})
   public void testMultipleStreams() {
     TestStream<String> stream = TestStream.create(StringUtf8Coder.of())
         .addElements("foo", "bar")
