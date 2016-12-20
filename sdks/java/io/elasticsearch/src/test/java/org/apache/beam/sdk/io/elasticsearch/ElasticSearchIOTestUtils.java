@@ -26,14 +26,10 @@ import org.elasticsearch.action.bulk.BulkResponse;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.client.Client;
 
-/**
- * Test class to use with ElasticSearch IO.
- */
+/** Test class to use with ElasticSearch IO. */
 public class ElasticSearchIOTestUtils {
 
-  /**
-   * Enumeration that specifies whether to insert malformed documents.
-   */
+  /** Enumeration that specifies whether to insert malformed documents. */
   enum InjectionMode {
     INJECT_SOME_INVALID_DOCS,
     DO_NOT_INJECT_INVALID_DOCS;
@@ -41,6 +37,7 @@ public class ElasticSearchIOTestUtils {
 
   /**
    * Method to insert test documents into the ElasticSearch instance to which client points.
+   *
    * @param index Index to insert into
    * @param type Type of documents to insert
    * @param numDocs Number of docs to insert
@@ -67,6 +64,7 @@ public class ElasticSearchIOTestUtils {
 
   /**
    * For an upgrade of all indices to make recently inserted documents available for search.
+   *
    * @param client Elasticsearch TCP client to use for upgrade
    * @return The number of docs in the index
    */
@@ -80,6 +78,7 @@ public class ElasticSearchIOTestUtils {
 
   /**
    * Generates a list of test documents for insertion.
+   *
    * @param numDocs Number of docs to generate
    * @param injectionMode {@link InjectionMode} that specifies whether to insert malformed documents
    * @return the list of json String representing the documents
