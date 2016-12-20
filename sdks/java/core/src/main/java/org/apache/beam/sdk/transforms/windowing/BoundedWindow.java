@@ -39,6 +39,18 @@ public abstract class BoundedWindow {
   public static final Instant TIMESTAMP_MAX_VALUE =
       new Instant(TimeUnit.MICROSECONDS.toMillis(Long.MAX_VALUE));
 
+  public static String formatTimestamp(Instant timestamp) {
+    if (timestamp.equals(TIMESTAMP_MIN_VALUE)) {
+      return timestamp.toString() + " (TIMESTAMP_MIN_VALUE)";
+    } else if (timestamp.equals(TIMESTAMP_MAX_VALUE)) {
+      return timestamp.toString() + " (TIMESTAMP_MAX_VALUE)";
+    } else if (timestamp.equals(GlobalWindow.INSTANCE.maxTimestamp())) {
+      return timestamp.toString() + " (end of global window)";
+    } else {
+      return timestamp.toString();
+    }
+  }
+
   /**
    * Returns the inclusive upper bound of timestamps for values in this window.
    */
