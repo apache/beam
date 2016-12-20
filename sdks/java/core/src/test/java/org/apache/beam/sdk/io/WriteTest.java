@@ -25,11 +25,14 @@ import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 import com.google.common.base.MoreObjects;
 import com.google.common.base.Optional;
+import java.io.IOException;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -42,6 +45,7 @@ import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.Pipeline.PipelineExecutionException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
@@ -50,6 +54,7 @@ import org.apache.beam.sdk.io.Sink.Writer;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactoryTest.TestPipelineOptions;
+import org.apache.beam.sdk.testing.ExpectedLogs;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
@@ -73,6 +78,8 @@ import org.junit.experimental.categories.Category;
 import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Tests for the Write PTransform.
@@ -81,6 +88,7 @@ import org.junit.runners.JUnit4;
 public class WriteTest {
   @Rule public final TestPipeline p = TestPipeline.create();
   @Rule public ExpectedException thrown = ExpectedException.none();
+  @Rule public ExpectedLogs expectedLogs = ExpectedLogs.none(TestSinkWriter.class);
 
   // Static store that can be accessed within the writer
   private static List<String> sinkContents = new ArrayList<>();
@@ -142,6 +150,33 @@ public class WriteTest {
     List<String> inputs = Arrays.asList("Critical canary", "Apprehensive eagle",
         "Intimidating pigeon", "Pedantic gull", "Frisky finch");
     runWrite(inputs, IDENTITY_MAP);
+    expectedLogs.verifyInfo("open");
+    expectedLogs.verifyInfo("write");
+    expectedLogs.verifyInfo("close");
+    expectedLogs.verifyNotLogged("abort");
+  }
+
+  /**
+   * Test a Write transform with failures in Writer.
+   */
+  @Test
+  @Category(NeedsRunner.class)
+  public void testWriteWithFailure() {
+    thrown.expect(PipelineExecutionException.class);
+    thrown.expectMessage("Throw exception on purpose to test failed bundles.");
+
+    List<String> inputs = Arrays.asList("Critical canary", "Apprehensive eagle",
+        "Intimidating pigeon", "Pedantic gull", "Frisky finch");
+    try {
+      runWriteWithFailure(inputs, IDENTITY_MAP);
+      fail();
+    } catch (Exception e) {
+      expectedLogs.verifyInfo("open");
+      expectedLogs.verifyInfo("write");
+      expectedLogs.verifyInfo("abort");
+      expectedLogs.verifyNotLogged("close");
+      throw e;
+    }
   }
 
   /**
@@ -251,7 +286,7 @@ public class WriteTest {
 
   @Test
   public void testBuildWrite() {
-    Sink<String> sink = new TestSink() {};
+    Sink<String> sink = new TestSink(false /* failInWrite */) {};
     Write.Bound<String> write = Write.to(sink).withNumShards(3);
     assertEquals(3, write.getNumShards());
     assertThat(write.getSink(), is(sink));
@@ -265,7 +300,7 @@ public class WriteTest {
 
   @Test
   public void testDisplayData() {
-    TestSink sink = new TestSink() {
+    TestSink sink = new TestSink(false /* failInWrite */) {
       @Override
       public void populateDisplayData(DisplayData.Builder builder) {
         builder.add(DisplayData.item("foo", "bar"));
@@ -280,7 +315,7 @@ public class WriteTest {
 
   @Test
   public void testShardedDisplayData() {
-    TestSink sink = new TestSink() {
+    TestSink sink = new TestSink(false /* failInWrite */) {
       @Override
       public void populateDisplayData(DisplayData.Builder builder) {
         builder.add(DisplayData.item("foo", "bar"));
@@ -298,7 +333,7 @@ public class WriteTest {
     PCollection<String> unbounded = p.apply(CountingInput.unbounded())
         .apply(MapElements.via(new ToStringFn()));
 
-    TestSink sink = new TestSink();
+    TestSink sink = new TestSink(false /* failInWrite */);
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage("Write can only be applied to a Bounded PCollection");
     unbounded.apply(Write.to(sink));
@@ -311,14 +346,35 @@ public class WriteTest {
     }
   }
 
+  private static void runWrite(
+      List<String> inputs,
+      PTransform<PCollection<String>, PCollection<String>> transform) {
+    runWriteInternal(inputs, transform, false /* failInWrite */);
+  }
+
+  private static void runWriteWithFailure(
+      List<String> inputs,
+      PTransform<PCollection<String>, PCollection<String>> transform) {
+    runWriteInternal(inputs, transform, true /* failInWrite */);
+  }
+
   /**
    * Performs a Write transform and verifies the Write transform calls the appropriate methods on
    * a test sink in the correct order, as well as verifies that the elements of a PCollection are
    * written to the sink.
    */
-  private static void runWrite(
-      List<String> inputs, PTransform<PCollection<String>, PCollection<String>> transform) {
-    runShardedWrite(inputs, transform, Optional.<Integer>absent());
+  private static void runWriteInternal(
+      List<String> inputs,
+      PTransform<PCollection<String>, PCollection<String>> transform,
+      boolean failInWrite) {
+    runShardedWriteInternal(inputs, transform, Optional.<Integer>absent(), failInWrite);
+  }
+
+  private static void runShardedWrite(
+      List<String> inputs,
+      PTransform<PCollection<String>, PCollection<String>> transform,
+      Optional<Integer> numConfiguredShards) {
+     runShardedWriteInternal(inputs, transform, numConfiguredShards, false /* failInWrite */);
   }
 
   /**
@@ -327,9 +383,11 @@ public class WriteTest {
    * the elements of a PCollection are written to the sink. If numConfiguredShards is not null, also
    * verifies that the output number of shards is correct.
    */
-  private static void runShardedWrite(
-      List<String> inputs, PTransform<PCollection<String>, PCollection<String>> transform,
-      Optional<Integer> numConfiguredShards) {
+  private static void runShardedWriteInternal(
+      List<String> inputs,
+      PTransform<PCollection<String>, PCollection<String>> transform,
+      Optional<Integer> numConfiguredShards,
+      boolean failInWrite) {
     // Flag to validate that the pipeline options are passed to the Sink
     WriteOptions options = TestPipeline.testingPipelineOptions().as(WriteOptions.class);
     options.setTestFlag("test_value");
@@ -348,7 +406,7 @@ public class WriteTest {
       timestamps.add(i + 1);
     }
 
-    TestSink sink = new TestSink();
+    TestSink sink = new TestSink(failInWrite);
     Write.Bound<String> write = Write.to(sink);
     if (numConfiguredShards.isPresent()) {
       write = write.withNumShards(numConfiguredShards.get());
@@ -370,15 +428,21 @@ public class WriteTest {
   // TestWriter each verify that the sequence of method calls is consistent with the specification
   // of the Write PTransform.
   private static class TestSink extends Sink<String> {
+    private final boolean failInWrite;
+
     private boolean createCalled = false;
     private boolean validateCalled = false;
+
+    TestSink(boolean failInWrite) {
+      this.failInWrite = failInWrite;
+    }
 
     @Override
     public WriteOperation<String, ?> createWriteOperation(PipelineOptions options) {
       assertTrue(validateCalled);
       assertTestFlagPresent(options);
       createCalled = true;
-      return new TestSinkWriteOperation(this);
+      return new TestSinkWriteOperation(this, failInWrite);
     }
 
     @Override
@@ -432,10 +496,12 @@ public class WriteTest {
     private State state = State.INITIAL;
 
     private final TestSink sink;
+    private final boolean failInWrite;
     private final UUID id = UUID.randomUUID();
 
-    public TestSinkWriteOperation(TestSink sink) {
+    public TestSinkWriteOperation(TestSink sink, boolean failInWrite) {
       this.sink = sink;
+      this.failInWrite = failInWrite;
     }
 
     @Override
@@ -473,7 +539,7 @@ public class WriteTest {
 
     @Override
     public Writer<String, TestWriterResult> createWriter(PipelineOptions options) {
-      return new TestSinkWriter(this);
+      return new TestSinkWriter(this, failInWrite);
     }
 
     @Override
@@ -526,11 +592,15 @@ public class WriteTest {
   }
 
   private static class TestSinkWriter extends Writer<String, TestWriterResult> {
+
+    private static final Logger LOG = LoggerFactory.getLogger(TestSinkWriter.class);
+
     private enum State {
       INITIAL,
       OPENED,
       WRITING,
-      CLOSED
+      CLOSED,
+      FAILED
     }
 
     private State state = State.INITIAL;
@@ -538,9 +608,11 @@ public class WriteTest {
     private String uId;
 
     private final TestSinkWriteOperation writeOperation;
+    private final boolean failInWrite;
 
-    public TestSinkWriter(TestSinkWriteOperation writeOperation) {
+    public TestSinkWriter(TestSinkWriteOperation writeOperation, boolean failInWrite) {
       this.writeOperation = writeOperation;
+      this.failInWrite = failInWrite;
     }
 
     @Override
@@ -550,6 +622,7 @@ public class WriteTest {
 
     @Override
     public void open(String uId) throws Exception {
+      LOG.info("open");
       numShards.incrementAndGet();
       this.uId = uId;
       assertEquals(State.INITIAL, state);
@@ -558,6 +631,10 @@ public class WriteTest {
 
     @Override
     public void write(String value) throws Exception {
+      LOG.info("write");
+      if (failInWrite) {
+        throw new IOException("Throw exception on purpose to test failed bundles.");
+      }
       assertThat(state, anyOf(equalTo(State.OPENED), equalTo(State.WRITING)));
       state = State.WRITING;
       elementsWritten.add(value);
@@ -565,9 +642,19 @@ public class WriteTest {
 
     @Override
     public TestWriterResult close() throws Exception {
+      LOG.info("close");
+      assertFalse(failInWrite);
       assertThat(state, anyOf(equalTo(State.OPENED), equalTo(State.WRITING)));
       state = State.CLOSED;
       return new TestWriterResult(uId, elementsWritten);
+    }
+
+    @Override
+    public void abort() throws Exception {
+      LOG.info("abort");
+      assertTrue(failInWrite);
+      assertThat(state, anyOf(equalTo(State.OPENED), equalTo(State.WRITING)));
+      state = State.FAILED;
     }
   }
 

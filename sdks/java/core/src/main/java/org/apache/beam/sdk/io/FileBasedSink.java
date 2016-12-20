@@ -636,6 +636,15 @@ public abstract class FileBasedSink<T> extends Sink<T> {
       return result;
     }
 
+    @Override
+    public final void abort() throws Exception {
+      try {
+        close();
+      } finally {
+        IOChannelUtils.getFactory(filename).remove(ImmutableList.of(filename));
+      }
+    }
+
     /**
      * Return the FileBasedWriteOperation that this Writer belongs to.
      */

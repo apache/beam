@@ -159,6 +159,11 @@ public class WriteSinkITCase extends JavaProgramTestBase {
         }
 
         @Override
+        public void abort() throws Exception {
+          close();
+        }
+
+        @Override
         public WriteOperation<String, String> getWriteOperation() {
           return MyWriteOperation.this;
         }

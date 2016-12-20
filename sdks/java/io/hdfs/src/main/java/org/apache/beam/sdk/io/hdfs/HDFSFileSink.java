@@ -265,6 +265,11 @@ public class HDFSFileSink<K, V> extends Sink<KV<K, V>> {
     }
 
     @Override
+    public void abort() throws Exception {
+      close();
+    }
+
+    @Override
     public WriteOperation<KV<K, V>, String> getWriteOperation() {
       return writeOperation;
     }
