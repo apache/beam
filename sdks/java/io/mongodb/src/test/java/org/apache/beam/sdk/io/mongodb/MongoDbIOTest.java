@@ -57,6 +57,7 @@ import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.BeforeClass;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.slf4j.Logger;
@@ -79,6 +80,9 @@ public class MongoDbIOTest implements Serializable {
   private transient MongodProcess mongodProcess;
 
   private static int port;
+
+  @Rule
+  public final transient TestPipeline pipeline = TestPipeline.create();
 
   /**
    * Looking for an available network port.
@@ -143,7 +147,6 @@ public class MongoDbIOTest implements Serializable {
   @Test
   @Category(NeedsRunner.class)
   public void testFullRead() throws Exception {
-    TestPipeline pipeline = TestPipeline.create();
 
     PCollection<Document> output = pipeline.apply(
         MongoDbIO.read()
@@ -177,7 +180,6 @@ public class MongoDbIOTest implements Serializable {
   @Test
   @Category(NeedsRunner.class)
   public void testReadWithFilter() throws Exception {
-    TestPipeline pipeline = TestPipeline.create();
 
     PCollection<Document> output = pipeline.apply(
         MongoDbIO.read()
@@ -195,7 +197,6 @@ public class MongoDbIOTest implements Serializable {
   @Test
   @Category(NeedsRunner.class)
   public void testWrite() throws Exception {
-    TestPipeline pipeline = TestPipeline.create();
 
     ArrayList<Document> data = new ArrayList<>();
     for (int i = 0; i < 10000; i++) {
