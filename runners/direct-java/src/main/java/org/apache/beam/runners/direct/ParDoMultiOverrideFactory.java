@@ -17,9 +17,15 @@
  */
 package org.apache.beam.runners.direct;
 
+import static com.google.common.base.Preconditions.checkState;
+
+import org.apache.beam.runners.core.KeyedWorkItem;
+import org.apache.beam.runners.core.KeyedWorkItemCoder;
+import org.apache.beam.runners.core.KeyedWorkItems;
 import org.apache.beam.runners.core.SplittableParDo;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.runners.PTransformOverrideFactory;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.GroupByKey;
@@ -28,6 +34,8 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.ParDo.BoundMulti;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
@@ -84,16 +92,41 @@ class ParDoMultiOverrideFactory<InputT, OutputT>
     @Override
     public PCollectionTuple expand(PCollection<KV<K, InputT>> input) {
 
-      PCollectionTuple outputs = input
-          .apply("Group by key", GroupByKey.<K, InputT>create())
-          .apply("Stateful ParDo", new StatefulParDo<>(underlyingParDo, input));
+      // A KvCoder is required since this goes through GBK. Further, WindowedValueCoder
+      // is not registered by default, so we explicitly set the relevant coders.
+      checkState(input.getCoder() instanceof KvCoder,
+          "Input to a %s using state requires a %s, but the coder was %s",
+          ParDo.class.getSimpleName(),
+          KvCoder.class.getSimpleName(),
+          input.getCoder());
+      KvCoder<K, InputT> kvCoder = (KvCoder<K, InputT>) input.getCoder();
+      Coder<K> keyCoder = kvCoder.getKeyCoder();
+      Coder<? extends BoundedWindow> windowCoder =
+          input.getWindowingStrategy().getWindowFn().windowCoder();
+
+      PCollectionTuple outputs =
+          input
+              // Stash the original timestamps, etc, for when it is fed to the user's DoFn
+              .apply("Reify timestamps", ParDo.of(new ReifyWindowedValueFn<K, InputT>()))
+              .setCoder(KvCoder.of(keyCoder, WindowedValue.getFullCoder(kvCoder, windowCoder)))
+
+              // A full GBK to group by key _and_ window
+              .apply("Group by key", GroupByKey.<K, WindowedValue<KV<K, InputT>>>create())
+
+              // Adapt to KeyedWorkItem; that is how this runner delivers timers
+              .apply("To KeyedWorkItem", ParDo.of(new ToKeyedWorkItem<K, InputT>()))
+              .setCoder(KeyedWorkItemCoder.of(keyCoder, kvCoder, windowCoder))
+
+              // Explode the resulting iterable into elements that are exactly the ones from
+              // the input
+              .apply("Stateful ParDo", new StatefulParDo<>(underlyingParDo, input));
 
       return outputs;
     }
   }
 
   static class StatefulParDo<K, InputT, OutputT>
-      extends PTransform<PCollection<? extends KV<K, Iterable<InputT>>>, PCollectionTuple> {
+      extends PTransform<PCollection<? extends KeyedWorkItem<K, KV<K, InputT>>>, PCollectionTuple> {
     private final transient ParDo.BoundMulti<KV<K, InputT>, OutputT> underlyingParDo;
     private final transient PCollection<KV<K, InputT>> originalInput;
 
@@ -110,21 +143,58 @@ class ParDoMultiOverrideFactory<InputT, OutputT>
 
     @Override
     public <T> Coder<T> getDefaultOutputCoder(
-        PCollection<? extends KV<K, Iterable<InputT>>> input, TypedPValue<T> output)
+        PCollection<? extends KeyedWorkItem<K, KV<K, InputT>>> input, TypedPValue<T> output)
         throws CannotProvideCoderException {
       return underlyingParDo.getDefaultOutputCoder(originalInput, output);
     }
 
-    public PCollectionTuple expand(PCollection<? extends KV<K, Iterable<InputT>>> input) {
+    @Override
+    public PCollectionTuple expand(PCollection<? extends KeyedWorkItem<K, KV<K, InputT>>> input) {
 
-      PCollectionTuple outputs = PCollectionTuple.ofPrimitiveOutputsInternal(
-          input.getPipeline(),
-          TupleTagList.of(underlyingParDo.getMainOutputTag())
-              .and(underlyingParDo.getSideOutputTags().getAll()),
-          input.getWindowingStrategy(),
-          input.isBounded());
+      PCollectionTuple outputs =
+          PCollectionTuple.ofPrimitiveOutputsInternal(
+              input.getPipeline(),
+              TupleTagList.of(underlyingParDo.getMainOutputTag())
+                  .and(underlyingParDo.getSideOutputTags().getAll()),
+              input.getWindowingStrategy(),
+              input.isBounded());
 
       return outputs;
+    }
+  }
+
+  /**
+   * A distinguished key-preserving {@link DoFn}.
+   *
+   * <p>This wraps the {@link GroupByKey} output in a {@link KeyedWorkItem} to be able to deliver
+   * timers. It also explodes them into single {@link KV KVs} since this is what the user's {@link
+   * DoFn} needs to process anyhow.
+   */
+  static class ReifyWindowedValueFn<K, V> extends DoFn<KV<K, V>, KV<K, WindowedValue<KV<K, V>>>> {
+    @ProcessElement
+    public void processElement(final ProcessContext c, final BoundedWindow window) {
+      c.output(
+          KV.of(
+              c.element().getKey(),
+              WindowedValue.of(c.element(), c.timestamp(), window, c.pane())));
+    }
+  }
+
+  /**
+   * A runner-specific primitive that is just a key-preserving {@link ParDo}, but we do not have the
+   * machinery to detect or enforce that yet.
+   *
+   * <p>This wraps the {@link GroupByKey} output in a {@link KeyedWorkItem} to be able to deliver
+   * timers. It also explodes them into single {@link KV KVs} since this is what the user's {@link
+   * DoFn} needs to process anyhow.
+   */
+  static class ToKeyedWorkItem<K, V>
+      extends DoFn<KV<K, Iterable<WindowedValue<KV<K, V>>>>, KeyedWorkItem<K, KV<K, V>>> {
+
+    @ProcessElement
+    public void processElement(final ProcessContext c, final BoundedWindow window) {
+      final K key = c.element().getKey();
+      c.output(KeyedWorkItems.elementsWorkItem(key, c.element().getValue()));
     }
   }
 }
