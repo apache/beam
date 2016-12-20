@@ -92,7 +92,7 @@ public class CreateTest {
 
   @Test
   @Category(RunnableOnService.class)
-  public void testCreateEmpty() {
+  public void testCreateWithEmptyData() {
     Pipeline p = TestPipeline.create();
 
     PCollection<String> output =
@@ -105,13 +105,28 @@ public class CreateTest {
   }
 
   @Test
-  public void testCreateEmptyInfersCoder() {
+  public void testCreateWithEmptyDataInfersCoder() {
     Pipeline p = TestPipeline.create();
 
     PCollection<Object> output =
         p.apply(Create.of());
 
     assertEquals(VoidCoder.of(), output.getCoder());
+  }
+
+  @Test
+  @Category(RunnableOnService.class)
+  public void testCreateEmpty() {
+    Pipeline p = TestPipeline.create();
+
+    PCollection<String> output =
+        p.apply(Create.empty(StringUtf8Coder.of()));
+
+    PAssert.that(output)
+        .containsInAnyOrder(NO_LINES_ARRAY);
+
+    assertEquals(StringUtf8Coder.of(), output.getCoder());
+    p.run();
   }
 
   static class Record implements Serializable {
