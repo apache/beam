@@ -70,6 +70,8 @@ public interface POutput {
    * <p>Automatically invoked whenever this {@link POutput} is output, after {@link
    * PValue#finishSpecifyingOutput(PInput, PTransform)} has been called on each component {@link
    * PValue} returned by {@link #expand()}.
+   *
+   * @deprecated see BEAM-1199
    */
   @Deprecated
   void finishSpecifyingOutput(PInput input, PTransform<?, ?> transform);
