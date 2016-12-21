@@ -45,6 +45,14 @@ public class ElasticSearchIOTestUtils {
     DO_NOT_INJECT_INVALID_DOCS;
   }
 
+  /**
+   * Deletes an index and block until deletion is complete.
+   * @param index The index to delete
+   * @param client The client which points to the Elasticsearch instance
+   * @throws InterruptedException if blocking thread is interrupted or index existence check failed
+   * @throws java.util.concurrent.ExecutionException if index existence check failed
+   * @throws IOException if deletion failed
+   */
   static void deleteIndex(String index, Client client)
       throws InterruptedException, java.util.concurrent.ExecutionException, IOException {
     IndicesAdminClient indices = client.admin().indices();
@@ -80,7 +88,7 @@ public class ElasticSearchIOTestUtils {
   }
 
   /**
-   * Method to insert test documents into the ElasticSearch instance to which client points.
+   * Inserts test documents into the ElasticSearch instance to which client points.
    *
    * @param index Index to insert into
    * @param type Type of documents to insert
