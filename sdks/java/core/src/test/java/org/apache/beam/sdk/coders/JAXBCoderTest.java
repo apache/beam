@@ -175,7 +175,7 @@ public class JAXBCoderTest {
       Context subContext = context.nested();
       VarIntCoder.of().encode(3, outStream, subContext);
       jaxbCoder.encode(value, outStream, subContext);
-      VarLongCoder.of().encode(22L, outStream, subContext);
+      VarLongCoder.of().encode(22L, outStream, context);
     }
 
     @Override
@@ -184,7 +184,7 @@ public class JAXBCoderTest {
       Context subContext = context.nested();
       VarIntCoder.of().decode(inStream, subContext);
       TestType result = jaxbCoder.decode(inStream, subContext);
-      VarLongCoder.of().decode(inStream, subContext);
+      VarLongCoder.of().decode(inStream, context);
       return result;
     }
 

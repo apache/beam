@@ -268,9 +268,11 @@ public class CoGbkResult {
       if (!schema.equals(value.getSchema())) {
         throw new CoderException("input schema does not match coder schema");
       }
-      for (int unionTag = 0; unionTag < schema.size(); unionTag++) {
+      int lastTag = schema.size() - 1;
+      for (int unionTag = 0; unionTag < lastTag; unionTag++) {
         tagListCoder(unionTag).encode(value.valueMap.get(unionTag), outStream, Context.NESTED);
       }
+      tagListCoder(lastTag).encode(value.valueMap.get(lastTag), outStream, context);
     }
 
     @Override
@@ -279,9 +281,11 @@ public class CoGbkResult {
         Context context)
         throws CoderException, IOException {
       List<Iterable<?>> valueMap = new ArrayList<>();
-      for (int unionTag = 0; unionTag < schema.size(); unionTag++) {
+      int lastTag = schema.size() - 1;
+      for (int unionTag = 0; unionTag < lastTag; unionTag++) {
         valueMap.add(tagListCoder(unionTag).decode(inStream, Context.NESTED));
       }
+      valueMap.add(tagListCoder(lastTag).decode(inStream, context));
       return new CoGbkResult(schema, valueMap);
     }
 

@@ -28,6 +28,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.Arrays;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -81,10 +82,10 @@ public class MapCoder<K, V> extends StandardCoder<Map<K, V>> {
 
   /////////////////////////////////////////////////////////////////////////////
 
-  Coder<K> keyCoder;
-  Coder<V> valueCoder;
+  private Coder<K> keyCoder;
+  private Coder<V> valueCoder;
 
-  MapCoder(Coder<K> keyCoder, Coder<V> valueCoder) {
+  private MapCoder(Coder<K> keyCoder, Coder<V> valueCoder) {
     this.keyCoder = keyCoder;
     this.valueCoder = valueCoder;
   }
@@ -99,10 +100,17 @@ public class MapCoder<K, V> extends StandardCoder<Map<K, V>> {
       throw new CoderException("cannot encode a null Map");
     }
     DataOutputStream dataOutStream = new DataOutputStream(outStream);
-    dataOutStream.writeInt(map.size());
+    int size = map.size();
+    dataOutStream.writeInt(size);
+    int i = 0;
     for (Entry<K, V> entry : map.entrySet()) {
       keyCoder.encode(entry.getKey(), outStream, context.nested());
-      valueCoder.encode(entry.getValue(), outStream, context.nested());
+      if (i < size - 1) {
+        valueCoder.encode(entry.getValue(), outStream, context.nested());
+      } else {
+        valueCoder.encode(entry.getValue(), outStream, context);
+      }
+      ++i;
     }
     dataOutStream.flush();
   }
@@ -115,7 +123,12 @@ public class MapCoder<K, V> extends StandardCoder<Map<K, V>> {
     Map<K, V> retval = Maps.newHashMapWithExpectedSize(size);
     for (int i = 0; i < size; ++i) {
       K key = keyCoder.decode(inStream, context.nested());
-      V value = valueCoder.decode(inStream, context.nested());
+      V value;
+      if (i < size - 1) {
+        value = valueCoder.decode(inStream, context.nested());
+      } else {
+        value = valueCoder.decode(inStream, context);
+      }
       retval.put(key, value);
     }
     return retval;
@@ -149,11 +162,15 @@ public class MapCoder<K, V> extends StandardCoder<Map<K, V>> {
       Map<K, V> map, ElementByteSizeObserver observer, Context context)
       throws Exception {
     observer.update(4L);
-    for (Entry<K, V> entry : map.entrySet()) {
-      keyCoder.registerByteSizeObserver(
-          entry.getKey(), observer, context.nested());
-      valueCoder.registerByteSizeObserver(
-          entry.getValue(), observer, context.nested());
+    Iterator<Entry<K, V>> entries = map.entrySet().iterator();
+    while (entries.hasNext()) {
+      Entry<K, V> entry = entries.next();
+      keyCoder.registerByteSizeObserver(entry.getKey(), observer, context.nested());
+      if (entries.hasNext()) {
+        valueCoder.registerByteSizeObserver(entry.getValue(), observer, context.nested());
+      } else {
+        valueCoder.registerByteSizeObserver(entry.getValue(), observer, context);
+      }
     }
   }
 }

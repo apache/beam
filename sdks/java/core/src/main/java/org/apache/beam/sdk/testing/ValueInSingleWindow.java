@@ -109,7 +109,7 @@ public abstract class ValueInSingleWindow<T> {
       T value = valueCoder.decode(inStream, nestedContext);
       Instant timestamp = InstantCoder.of().decode(inStream, nestedContext);
       BoundedWindow window = windowCoder.decode(inStream, nestedContext);
-      PaneInfo pane = PaneInfo.PaneInfoCoder.INSTANCE.decode(inStream, nestedContext);
+      PaneInfo pane = PaneInfo.PaneInfoCoder.INSTANCE.decode(inStream, context);
       return new AutoValue_ValueInSingleWindow<>(value, timestamp, window, pane);
     }
 

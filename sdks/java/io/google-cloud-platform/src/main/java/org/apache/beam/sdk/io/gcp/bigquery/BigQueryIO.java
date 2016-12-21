@@ -2778,7 +2778,7 @@ public class BigQueryIO {
         throw new CoderException("cannot encode a null value");
       }
       tableRowCoder.encode(value.tableRow, outStream, context.nested());
-      idCoder.encode(value.uniqueId, outStream, context.nested());
+      idCoder.encode(value.uniqueId, outStream, context);
     }
 
     @Override
@@ -2786,7 +2786,7 @@ public class BigQueryIO {
       throws IOException {
       return new TableRowInfo(
           tableRowCoder.decode(inStream, context.nested()),
-          idCoder.decode(inStream, context.nested()));
+          idCoder.decode(inStream, context));
     }
 
     @Override

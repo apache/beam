@@ -671,7 +671,7 @@ public abstract class WindowedValue<T> {
       Instant timestamp = InstantCoder.of().decode(inStream, nestedContext);
       Collection<? extends BoundedWindow> windows =
           windowsCoder.decode(inStream, nestedContext);
-      PaneInfo pane = PaneInfoCoder.INSTANCE.decode(inStream, nestedContext);
+      PaneInfo pane = PaneInfoCoder.INSTANCE.decode(inStream, context);
       return WindowedValue.of(value, timestamp, windows, pane);
     }
 
