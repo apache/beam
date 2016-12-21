@@ -223,6 +223,15 @@ public class Window {
   }
 
   /**
+   * <b><i>(Experimental)</i></b> Override the default {@link OutputTimeFn}, to control
+   * the output timestamp of values output from a {@link GroupByKey} operation.
+   */
+  @Experimental(Kind.OUTPUT_TIME)
+  public static <T> Bound<T> withOutputTimeFn(OutputTimeFn<?> outputTimeFn) {
+    return new Bound(null).withOutputTimeFn(outputTimeFn);
+  }
+
+  /**
    * A {@code PTransform} that windows the elements of a {@code PCollection<T>},
    * into finite windows according to a user-specified {@code WindowFn}.
    *
