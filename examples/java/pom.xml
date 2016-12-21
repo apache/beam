@@ -233,8 +233,6 @@
                   <includes>
                     <include>WordCountIT.java</include>
                   </includes>
-                  <parallel>all</parallel>
-                  <threadCount>4</threadCount>
                   <systemPropertyVariables>
                     <beamTestPipelineOptions>
                       [
