@@ -319,11 +319,6 @@ public class Create<T> {
       }
 
       @Override
-      public boolean producesSortedKeys(PipelineOptions options) throws Exception {
-        return false;
-      }
-
-      @Override
       public BoundedSource.BoundedReader<T> createReader(PipelineOptions options)
           throws IOException {
         return new BytesReader<>(this);

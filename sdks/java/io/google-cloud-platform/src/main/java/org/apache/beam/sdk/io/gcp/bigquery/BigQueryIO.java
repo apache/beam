@@ -1200,11 +1200,6 @@ public class BigQueryIO {
     protected abstract void cleanupTempResource(BigQueryOptions bqOptions) throws Exception;
 
     @Override
-    public boolean producesSortedKeys(PipelineOptions options) throws Exception {
-      return false;
-    }
-
-    @Override
     public void validate() {
       // Do nothing, validation is done in BigQuery.Read.
     }
@@ -1333,11 +1328,6 @@ public class BigQueryIO {
     @Override
     public long getEstimatedSizeBytes(PipelineOptions options) throws Exception {
       return boundedSource.getEstimatedSizeBytes(options);
-    }
-
-    @Override
-    public boolean producesSortedKeys(PipelineOptions options) throws Exception {
-      return boundedSource.producesSortedKeys(options);
     }
 
     @Override

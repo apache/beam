@@ -112,11 +112,6 @@ public class MicrobatchSource<T, CheckpointMarkT extends UnboundedSource.Checkpo
   }
 
   @Override
-  public boolean producesSortedKeys(PipelineOptions options) throws Exception {
-    return false;
-  }
-
-  @Override
   public BoundedReader<T> createReader(PipelineOptions options) throws IOException {
     return createReader(options, null);
   }

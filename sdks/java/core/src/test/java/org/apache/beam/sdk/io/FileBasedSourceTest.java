@@ -104,11 +104,6 @@ public class FileBasedSourceTest {
     }
 
     @Override
-    public boolean producesSortedKeys(PipelineOptions options) throws Exception {
-      return false;
-    }
-
-    @Override
     public void validate() {}
 
     @Override

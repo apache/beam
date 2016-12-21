@@ -63,10 +63,6 @@ public class DataflowUnboundedReadFromBoundedSourceTest {
       return 0;
     }
     @Override
-    public boolean producesSortedKeys(PipelineOptions options) throws Exception {
-      return false;
-    }
-    @Override
     public BoundedReader<String> createReader(
         PipelineOptions options) throws IOException {
       return null;
