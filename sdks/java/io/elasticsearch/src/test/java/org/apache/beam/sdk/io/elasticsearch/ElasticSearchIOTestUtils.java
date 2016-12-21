@@ -20,6 +20,7 @@ package org.apache.beam.sdk.io.elasticsearch;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.admin.indices.delete.DeleteIndexResponse;
 import org.elasticsearch.action.admin.indices.exists.indices.IndicesExistsRequest;
@@ -36,8 +37,8 @@ import org.elasticsearch.index.IndexNotFoundException;
 /** Test class to use with ElasticSearch IO. */
 public class ElasticSearchIOTestUtils {
 
-  private static boolean indexDeleted = false;
-  private static boolean waitForIndexDeletion = true;
+  private static AtomicBoolean indexDeleted = new AtomicBoolean(false);
+  private static AtomicBoolean waitForIndexDeletion = new AtomicBoolean(true);
 
   /** Enumeration that specifies whether to insert malformed documents. */
   enum InjectionMode {
@@ -47,6 +48,7 @@ public class ElasticSearchIOTestUtils {
 
   /**
    * Deletes an index and block until deletion is complete.
+   *
    * @param index The index to delete
    * @param client The client which points to the Elasticsearch instance
    * @throws InterruptedException if blocking thread is interrupted or index existence check failed
@@ -68,20 +70,20 @@ public class ElasticSearchIOTestUtils {
           new ActionListener<DeleteIndexResponse>() {
             @Override
             public void onResponse(DeleteIndexResponse deleteIndexResponse) {
-              waitForIndexDeletion = false;
-              indexDeleted = true;
+              waitForIndexDeletion.set(false);
+              indexDeleted.set(true);
             }
 
             @Override
             public void onFailure(Throwable throwable) {
-              waitForIndexDeletion = false;
-              indexDeleted = false;
+              waitForIndexDeletion.set(false);
+              indexDeleted.set(false);
             }
           });
-      while (waitForIndexDeletion) {
+      while (waitForIndexDeletion.get()) {
         Thread.sleep(100);
       }
-      if (!indexDeleted) {
+      if (!indexDeleted.get()) {
         throw new IOException("Failed to delete index " + index);
       }
     }
