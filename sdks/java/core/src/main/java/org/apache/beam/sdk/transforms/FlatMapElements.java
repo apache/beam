@@ -129,7 +129,7 @@ extends PTransform<PCollection<? extends InputT>, PCollection<OutputT>> {
   }
 
   @Override
-  public PCollection<OutputT> apply(PCollection<? extends InputT> input) {
+  public PCollection<OutputT> expand(PCollection<? extends InputT> input) {
     return input.apply(
         "FlatMap",
         ParDo.of(

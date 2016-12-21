@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.values;
 
-import java.util.Collection;
+import java.util.List;
 import org.apache.beam.sdk.Pipeline;
 
 /**
@@ -43,7 +43,7 @@ public interface PInput {
    *
    * <p>Not intended to be invoked directly by user code.
    */
-  Collection<? extends PValue> expand();
+  List<TaggedPValue> expand();
 
   /**
    * After building, finalizes this {@code PInput} to make it ready for

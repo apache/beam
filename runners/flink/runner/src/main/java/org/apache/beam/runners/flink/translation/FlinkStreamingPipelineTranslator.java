@@ -18,8 +18,7 @@
 package org.apache.beam.runners.flink.translation;
 
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.runners.TransformTreeNode;
-import org.apache.beam.sdk.transforms.AppliedPTransform;
+import org.apache.beam.sdk.runners.TransformHierarchy;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -50,7 +49,7 @@ public class FlinkStreamingPipelineTranslator extends FlinkPipelineTranslator {
   // --------------------------------------------------------------------------------------------
 
   @Override
-  public CompositeBehavior enterCompositeTransform(TransformTreeNode node) {
+  public CompositeBehavior enterCompositeTransform(TransformHierarchy.Node node) {
     LOG.info(genSpaces(this.depth) + "enterCompositeTransform- " + formatNodeName(node));
     this.depth++;
 
@@ -69,13 +68,13 @@ public class FlinkStreamingPipelineTranslator extends FlinkPipelineTranslator {
   }
 
   @Override
-  public void leaveCompositeTransform(TransformTreeNode node) {
+  public void leaveCompositeTransform(TransformHierarchy.Node node) {
     this.depth--;
     LOG.info(genSpaces(this.depth) + "leaveCompositeTransform- " + formatNodeName(node));
   }
 
   @Override
-  public void visitPrimitiveTransform(TransformTreeNode node) {
+  public void visitPrimitiveTransform(TransformHierarchy.Node node) {
     LOG.info(genSpaces(this.depth) + "visitPrimitiveTransform- " + formatNodeName(node));
     // get the transformation corresponding to hte node we are
     // currently visiting and translate it into its Flink alternative.
@@ -93,13 +92,13 @@ public class FlinkStreamingPipelineTranslator extends FlinkPipelineTranslator {
   }
 
   @Override
-  public void visitValue(PValue value, TransformTreeNode producer) {
+  public void visitValue(PValue value, TransformHierarchy.Node producer) {
     // do nothing here
   }
 
   private <T extends PTransform<?, ?>> void applyStreamingTransform(
       PTransform<?, ?> transform,
-      TransformTreeNode node,
+      TransformHierarchy.Node node,
       StreamTransformTranslator<?> translator) {
 
     @SuppressWarnings("unchecked")
@@ -109,14 +108,13 @@ public class FlinkStreamingPipelineTranslator extends FlinkPipelineTranslator {
     StreamTransformTranslator<T> typedTranslator = (StreamTransformTranslator<T>) translator;
 
     // create the applied PTransform on the streamingContext
-    streamingContext.setCurrentTransform(AppliedPTransform.of(
-        node.getFullName(), node.getInput(), node.getOutput(), (PTransform) transform));
+    streamingContext.setCurrentTransform(node.toAppliedPTransform());
     typedTranslator.translateNode(typedTransform, streamingContext);
   }
 
   private <T extends PTransform<?, ?>> boolean applyCanTranslate(
       PTransform<?, ?> transform,
-      TransformTreeNode node,
+      TransformHierarchy.Node node,
       StreamTransformTranslator<?> translator) {
 
     @SuppressWarnings("unchecked")
@@ -125,8 +123,7 @@ public class FlinkStreamingPipelineTranslator extends FlinkPipelineTranslator {
     @SuppressWarnings("unchecked")
     StreamTransformTranslator<T> typedTranslator = (StreamTransformTranslator<T>) translator;
 
-    streamingContext.setCurrentTransform(AppliedPTransform.of(
-        node.getFullName(), node.getInput(), node.getOutput(), (PTransform) transform));
+    streamingContext.setCurrentTransform(node.toAppliedPTransform());
 
     return typedTranslator.canTranslate(typedTransform, streamingContext);
   }
@@ -151,7 +148,7 @@ public class FlinkStreamingPipelineTranslator extends FlinkPipelineTranslator {
     }
   }
 
-  private static String formatNodeName(TransformTreeNode node) {
+  private static String formatNodeName(TransformHierarchy.Node node) {
     return node.toString().split("@")[1] + node.getTransform();
   }
 }

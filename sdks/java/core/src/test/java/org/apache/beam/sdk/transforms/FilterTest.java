@@ -26,6 +26,7 @@ import org.apache.beam.sdk.testing.RunnableOnService;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.PCollection;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
@@ -57,11 +58,12 @@ public class FilterTest implements Serializable {
     }
   }
 
+  @Rule
+  public final TestPipeline p = TestPipeline.create();
+
   @Test
   @Category(RunnableOnService.class)
   public void testIdentityFilterByPredicate() {
-    TestPipeline p = TestPipeline.create();
-
     PCollection<Integer> output = p
         .apply(Create.of(591, 11789, 1257, 24578, 24799, 307))
         .apply(Filter.by(new TrivialFn(true)));
@@ -73,8 +75,6 @@ public class FilterTest implements Serializable {
   @Test
   @Category(RunnableOnService.class)
   public void testNoFilterByPredicate() {
-    TestPipeline p = TestPipeline.create();
-
     PCollection<Integer> output = p
         .apply(Create.of(1, 2, 4, 5))
         .apply(Filter.by(new TrivialFn(false)));
@@ -86,8 +86,6 @@ public class FilterTest implements Serializable {
   @Test
   @Category(RunnableOnService.class)
   public void testFilterByPredicate() {
-    TestPipeline p = TestPipeline.create();
-
     PCollection<Integer> output = p
         .apply(Create.of(1, 2, 3, 4, 5, 6, 7))
         .apply(Filter.by(new EvenFn()));
@@ -99,8 +97,6 @@ public class FilterTest implements Serializable {
   @Test
   @Category(RunnableOnService.class)
   public void testFilterLessThan() {
-    TestPipeline p = TestPipeline.create();
-
     PCollection<Integer> output = p
         .apply(Create.of(1, 2, 3, 4, 5, 6, 7))
         .apply(Filter.lessThan(4));
@@ -112,8 +108,6 @@ public class FilterTest implements Serializable {
   @Test
   @Category(RunnableOnService.class)
   public void testFilterGreaterThan() {
-    TestPipeline p = TestPipeline.create();
-
     PCollection<Integer> output = p
         .apply(Create.of(1, 2, 3, 4, 5, 6, 7))
         .apply(Filter.greaterThan(4));
@@ -125,8 +119,6 @@ public class FilterTest implements Serializable {
   @Test
   @Category(RunnableOnService.class)
   public void testFilterLessThanEq() {
-    TestPipeline p = TestPipeline.create();
-
     PCollection<Integer> output = p
         .apply(Create.of(1, 2, 3, 4, 5, 6, 7))
         .apply(Filter.lessThanEq(4));
@@ -138,8 +130,6 @@ public class FilterTest implements Serializable {
   @Test
   @Category(RunnableOnService.class)
   public void testFilterGreaterThanEq() {
-    TestPipeline p = TestPipeline.create();
-
     PCollection<Integer> output = p
         .apply(Create.of(1, 2, 3, 4, 5, 6, 7))
         .apply(Filter.greaterThanEq(4));

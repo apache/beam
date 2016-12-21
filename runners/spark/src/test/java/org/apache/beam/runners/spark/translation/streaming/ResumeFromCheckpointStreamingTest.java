@@ -27,9 +27,9 @@ import java.util.Collections;
 import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.TimeUnit;
-import org.apache.beam.runners.spark.EvaluationResult;
 import org.apache.beam.runners.spark.SparkPipelineOptions;
-import org.apache.beam.runners.spark.aggregators.AccumulatorSingleton;
+import org.apache.beam.runners.spark.SparkPipelineResult;
+import org.apache.beam.runners.spark.aggregators.ClearAggregatorsRule;
 import org.apache.beam.runners.spark.translation.streaming.utils.EmbeddedKafkaCluster;
 import org.apache.beam.runners.spark.translation.streaming.utils.PAssertStreaming;
 import org.apache.beam.runners.spark.translation.streaming.utils.SparkTestPipelineOptionsForStreaming;
@@ -83,6 +83,9 @@ public class ResumeFromCheckpointStreamingTest {
   public SparkTestPipelineOptionsForStreaming commonOptions =
       new SparkTestPipelineOptionsForStreaming();
 
+  @Rule
+  public ClearAggregatorsRule clearAggregatorsRule = new ClearAggregatorsRule();
+
   @BeforeClass
   public static void init() throws IOException {
     EMBEDDED_ZOOKEEPER.startup();
@@ -109,16 +112,20 @@ public class ResumeFromCheckpointStreamingTest {
 
   @Test
   public void testRun() throws Exception {
+    Duration batchIntervalDuration = Duration.standardSeconds(5);
     SparkPipelineOptions options = commonOptions.withTmpCheckpointDir(checkpointParentDir);
-    // It seems that the consumer's first "position" lookup (in unit test) takes +200 msec,
-    // so to be on the safe side we'll set to 750 msec.
-    options.setMinReadTimeMillis(750L);
+    // provide a generous enough batch-interval to have everything fit in one micro-batch.
+    options.setBatchIntervalMillis(batchIntervalDuration.getMillis());
+    // provide a very generous read time bound, we rely on num records bound here.
+    options.setMinReadTimeMillis(batchIntervalDuration.minus(1).getMillis());
+    // bound the read on the number of messages - 1 topic of 4 messages.
+    options.setMaxRecordsPerBatch(4L);
 
     // checkpoint after first (and only) interval.
     options.setCheckpointDurationMillis(options.getBatchIntervalMillis());
 
     // first run will read from Kafka backlog - "auto.offset.reset=smallest"
-    EvaluationResult res = run(options);
+    SparkPipelineResult res = run(options);
     long processedMessages1 = res.getAggregatorValue("processedMessages", Long.class);
     assertThat(String.format("Expected %d processed messages count but "
         + "found %d", EXPECTED_AGG_FIRST, processedMessages1), processedMessages1,
@@ -132,14 +139,14 @@ public class ResumeFromCheckpointStreamingTest {
             equalTo(EXPECTED_AGG_FIRST));
   }
 
-  private static EvaluationResult runAgain(SparkPipelineOptions options) {
-    AccumulatorSingleton.clear();
+  private SparkPipelineResult runAgain(SparkPipelineOptions options) {
+    clearAggregatorsRule.clearNamedAggregators();
     // sleep before next run.
     Uninterruptibles.sleepUninterruptibly(100, TimeUnit.MILLISECONDS);
     return run(options);
   }
 
-  private static EvaluationResult run(SparkPipelineOptions options) {
+  private static SparkPipelineResult run(SparkPipelineOptions options) {
     // write to Kafka
     produce();
     Map<String, Object> consumerProps = ImmutableMap.<String, Object>of(
@@ -161,10 +168,9 @@ public class ResumeFromCheckpointStreamingTest {
         .apply(Window.<KV<String, String>>into(FixedWindows.of(windowDuration)))
         .apply(ParDo.of(new FormatAsText()));
 
-    // requires a graceful stop so that checkpointing of the first run would finish successfully
-    // before stopping and attempting to resume.
-    return PAssertStreaming.runAndAssertContents(p, formattedKV, EXPECTED,
-            Duration.standardSeconds(1L));
+    // graceful shutdown will make sure first batch (at least) will finish.
+    Duration timeout = Duration.standardSeconds(1L);
+    return PAssertStreaming.runAndAssertContents(p, formattedKV, EXPECTED, timeout);
   }
 
   @AfterClass

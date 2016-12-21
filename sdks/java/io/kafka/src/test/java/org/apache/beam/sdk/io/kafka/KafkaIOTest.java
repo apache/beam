@@ -39,7 +39,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
 import javax.annotation.Nullable;
-import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.Pipeline.PipelineExecutionException;
 import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
 import org.apache.beam.sdk.coders.BigEndianLongCoder;
@@ -93,6 +92,9 @@ public class KafkaIOTest {
    * Other tests to consider :
    *   - test KafkaRecordCoder
    */
+
+  @Rule
+  public final transient TestPipeline p = TestPipeline.create();
 
   @Rule
   public ExpectedException thrown = ExpectedException.none();
@@ -268,7 +270,6 @@ public class KafkaIOTest {
   @Test
   @Category(NeedsRunner.class)
   public void testUnboundedSource() {
-    Pipeline p = TestPipeline.create();
     int numElements = 1000;
 
     PCollection<Long> input = p
@@ -283,7 +284,6 @@ public class KafkaIOTest {
   @Test
   @Category(NeedsRunner.class)
   public void testUnboundedSourceWithExplicitPartitions() {
-    Pipeline p = TestPipeline.create();
     int numElements = 1000;
 
     List<String> topics = ImmutableList.of("test");
@@ -322,7 +322,7 @@ public class KafkaIOTest {
   @Test
   @Category(NeedsRunner.class)
   public void testUnboundedSourceTimestamps() {
-    Pipeline p = TestPipeline.create();
+
     int numElements = 1000;
 
     PCollection<Long> input = p
@@ -350,7 +350,7 @@ public class KafkaIOTest {
   @Test
   @Category(NeedsRunner.class)
   public void testUnboundedSourceSplits() throws Exception {
-    Pipeline p = TestPipeline.create();
+
     int numElements = 1000;
     int numSplits = 10;
 
@@ -514,10 +514,9 @@ public class KafkaIOTest {
 
       ProducerSendCompletionThread completionThread = new ProducerSendCompletionThread().start();
 
-      Pipeline pipeline = TestPipeline.create();
       String topic = "test";
 
-      pipeline
+      p
         .apply(mkKafkaReadTransform(numElements, new ValueAsTimestampFn())
             .withoutMetadata())
         .apply(KafkaIO.write()
@@ -527,7 +526,7 @@ public class KafkaIOTest {
             .withValueCoder(BigEndianLongCoder.of())
             .withProducerFactoryFn(new ProducerFactoryFn()));
 
-      pipeline.run();
+      p.run();
 
       completionThread.shutdown();
 
@@ -547,10 +546,9 @@ public class KafkaIOTest {
 
       ProducerSendCompletionThread completionThread = new ProducerSendCompletionThread().start();
 
-      Pipeline pipeline = TestPipeline.create();
       String topic = "test";
 
-      pipeline
+      p
         .apply(mkKafkaReadTransform(numElements, new ValueAsTimestampFn())
             .withoutMetadata())
         .apply(Values.<Long>create()) // there are no keys
@@ -562,7 +560,7 @@ public class KafkaIOTest {
             .withProducerFactoryFn(new ProducerFactoryFn())
             .values());
 
-      pipeline.run();
+      p.run();
 
       completionThread.shutdown();
 
@@ -588,13 +586,12 @@ public class KafkaIOTest {
 
       MOCK_PRODUCER.clear();
 
-      Pipeline pipeline = TestPipeline.create();
       String topic = "test";
 
       ProducerSendCompletionThread completionThreadWithErrors =
           new ProducerSendCompletionThread(10, 100).start();
 
-      pipeline
+      p
         .apply(mkKafkaReadTransform(numElements, new ValueAsTimestampFn())
             .withoutMetadata())
         .apply(KafkaIO.write()
@@ -605,7 +602,7 @@ public class KafkaIOTest {
             .withProducerFactoryFn(new ProducerFactoryFn()));
 
       try {
-        pipeline.run();
+        p.run();
       } catch (PipelineExecutionException e) {
         // throwing inner exception helps assert that first exception is thrown from the Sink
         throw e.getCause().getCause();

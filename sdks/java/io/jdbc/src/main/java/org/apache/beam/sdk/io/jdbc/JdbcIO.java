@@ -18,7 +18,7 @@
 package org.apache.beam.sdk.io.jdbc;
 
 import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkNotNull;
+import static com.google.common.base.Preconditions.checkState;
 
 import com.google.auto.value.AutoValue;
 
@@ -183,16 +183,20 @@ public class JdbcIO {
     }
 
     public static DataSourceConfiguration create(DataSource dataSource) {
-      checkNotNull(dataSource, "dataSource");
-      checkArgument(dataSource instanceof Serializable, "dataSource must be Serializable");
+      checkArgument(dataSource != null, "DataSourceConfiguration.create(dataSource) called with "
+          + "null data source");
+      checkArgument(dataSource instanceof Serializable,
+          "DataSourceConfiguration.create(dataSource) called with a dataSource not Serializable");
       return new AutoValue_JdbcIO_DataSourceConfiguration.Builder()
           .setDataSource(dataSource)
           .build();
     }
 
     public static DataSourceConfiguration create(String driverClassName, String url) {
-      checkNotNull(driverClassName, "driverClassName");
-      checkNotNull(url, "url");
+      checkArgument(driverClassName != null,
+          "DataSourceConfiguration.create(driverClassName, url) called with null driverClassName");
+      checkArgument(url != null,
+          "DataSourceConfiguration.create(driverClassName, url) called with null url");
       return new AutoValue_JdbcIO_DataSourceConfiguration.Builder()
           .setDriverClassName(driverClassName)
           .setUrl(url)
@@ -263,32 +267,36 @@ public class JdbcIO {
     }
 
     public Read<T> withDataSourceConfiguration(DataSourceConfiguration configuration) {
-      checkNotNull(configuration, "configuration");
+      checkArgument(configuration != null, "JdbcIO.read().withDataSourceConfiguration"
+          + "(configuration) called with null configuration");
       return toBuilder().setDataSourceConfiguration(configuration).build();
     }
 
     public Read<T> withQuery(String query) {
-      checkNotNull(query, "query");
+      checkArgument(query != null, "JdbcIO.read().withQuery(query) called with null query");
       return toBuilder().setQuery(query).build();
     }
 
     public Read<T> withStatementPrepator(StatementPreparator statementPreparator) {
-      checkNotNull(statementPreparator, "statementPreparator");
+      checkArgument(statementPreparator != null,
+          "JdbcIO.read().withStatementPreparator(statementPreparator) called "
+              + "with null statementPreparator");
       return toBuilder().setStatementPreparator(statementPreparator).build();
     }
 
     public Read<T> withRowMapper(RowMapper<T> rowMapper) {
-      checkNotNull(rowMapper, "rowMapper");
+      checkArgument(rowMapper != null,
+          "JdbcIO.read().withRowMapper(rowMapper) called with null rowMapper");
       return toBuilder().setRowMapper(rowMapper).build();
     }
 
     public Read<T> withCoder(Coder<T> coder) {
-      checkNotNull(coder, "coder");
+      checkArgument(coder != null, "JdbcIO.read().withCoder(coder) called with null coder");
       return toBuilder().setCoder(coder).build();
     }
 
     @Override
-    public PCollection<T> apply(PBegin input) {
+    public PCollection<T> expand(PBegin input) {
       return input
           .apply(Create.of(getQuery()))
           .apply(ParDo.of(new ReadFn<>(this))).setCoder(getCoder())
@@ -314,10 +322,15 @@ public class JdbcIO {
 
     @Override
     public void validate(PBegin input) {
-      checkNotNull(getQuery(), "query");
-      checkNotNull(getRowMapper(), "rowMapper");
-      checkNotNull(getCoder(), "coder");
-      checkNotNull(getDataSourceConfiguration());
+      checkState(getQuery() != null,
+          "JdbcIO.read() requires a query to be set via withQuery(query)");
+      checkState(getRowMapper() != null,
+          "JdbcIO.read() requires a rowMapper to be set via withRowMapper(rowMapper)");
+      checkState(getCoder() != null,
+          "JdbcIO.read() requires a coder to be set via withCoder(coder)");
+      checkState(getDataSourceConfiguration() != null,
+          "JdbcIO.read() requires a DataSource configuration to be set via "
+              + "withDataSourceConfiguration(dataSourceConfiguration)");
     }
 
     @Override
@@ -404,16 +417,21 @@ public class JdbcIO {
     }
 
     @Override
-    public PDone apply(PCollection<T> input) {
+    public PDone expand(PCollection<T> input) {
       input.apply(ParDo.of(new WriteFn<T>(this)));
       return PDone.in(input.getPipeline());
     }
 
     @Override
     public void validate(PCollection<T> input) {
-      checkNotNull(getDataSourceConfiguration(), "dataSourceConfiguration");
-      checkNotNull(getStatement(), "statement");
-      checkNotNull(getPreparedStatementSetter(), "preparedStatementSetter");
+      checkArgument(getDataSourceConfiguration() != null,
+          "JdbcIO.write() requires a configuration to be set via "
+              + ".withDataSourceConfiguration(configuration)");
+      checkArgument(getStatement() != null,
+          "JdbcIO.write() requires a statement to be set via .withStatement(statement)");
+      checkArgument(getPreparedStatementSetter() != null,
+          "JdbcIO.write() requires a preparedStatementSetter to be set via "
+              + ".withPreparedStatementSetter(preparedStatementSetter)");
     }
 
     private static class WriteFn<T> extends DoFn<T, Void> {

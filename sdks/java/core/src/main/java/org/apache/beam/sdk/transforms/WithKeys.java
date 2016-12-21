@@ -111,7 +111,7 @@ public class WithKeys<K, V> extends PTransform<PCollection<V>,
   }
 
   @Override
-  public PCollection<KV<K, V>> apply(PCollection<V> in) {
+  public PCollection<KV<K, V>> expand(PCollection<V> in) {
     PCollection<KV<K, V>> result =
         in.apply("AddKeys", MapElements.via(new SimpleFunction<V, KV<K, V>>() {
           @Override

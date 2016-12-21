@@ -29,6 +29,7 @@ import org.apache.beam.sdk.options.ValueProvider.NestedValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.RuntimeValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.util.SerializableUtils;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -148,6 +149,18 @@ public class ValueProviderTest {
     assertEquals("quux", provider.get());
   }
 
+  @Test
+  public void testDefaultRuntimeProviderWithoutOverride() throws Exception {
+    TestOptions runtime = PipelineOptionsFactory.as(TestOptions.class);
+    TestOptions options = PipelineOptionsFactory.as(TestOptions.class);
+    runtime.setOptionsId(options.getOptionsId());
+    RuntimeValueProvider.setRuntimeOptions(runtime);
+
+    ValueProvider<String> provider = options.getBar();
+    assertTrue(provider.isAccessible());
+    assertEquals("bar", provider.get());
+  }
+
   /** A test interface. */
   public interface BadOptionsRuntime extends PipelineOptions {
     RuntimeValueProvider<String> getBar();
@@ -245,9 +258,35 @@ public class ValueProviderTest {
           return from + "bar";
         }
       });
+    ValueProvider<String> doubleNvp = NestedValueProvider.of(
+      nvp, new SerializableFunction<String, String>() {
+        @Override
+        public String apply(String from) {
+          return from;
+        }
+      });
+    assertEquals("bar", ((NestedValueProvider) nvp).propertyName());
+    assertEquals("bar", ((NestedValueProvider) doubleNvp).propertyName());
     assertFalse(nvp.isAccessible());
     expectedException.expect(RuntimeException.class);
     expectedException.expectMessage("Not called from a runtime context");
     nvp.get();
+  }
+
+  private static class NonSerializable {}
+
+  private static class NonSerializableTranslator
+      implements SerializableFunction<String, NonSerializable> {
+    @Override
+    public NonSerializable apply(String from) {
+      return new NonSerializable();
+    }
+  }
+
+  @Test
+  public void testNestedValueProviderSerialize() throws Exception {
+    ValueProvider<NonSerializable> nvp = NestedValueProvider.of(
+        StaticValueProvider.of("foo"), new NonSerializableTranslator());
+    SerializableUtils.ensureSerializable(nvp);
   }
 }

@@ -17,8 +17,8 @@
  */
 package org.apache.beam.runners.dataflow.options;
 
+import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -38,9 +38,9 @@ public class DataflowProfilingOptionsTest {
   @Test
   public void testOptionsObject() throws Exception {
     DataflowPipelineOptions options = PipelineOptionsFactory.fromArgs(new String[] {
-        "--enableProfilingAgent", "--profilingAgentConfiguration={\"interval\": 21}"})
+        "--saveProfilesToGcs=path", "--profilingAgentConfiguration={\"interval\": 21}"})
         .as(DataflowPipelineOptions.class);
-    assertTrue(options.getEnableProfilingAgent());
+    assertThat(options.getSaveProfilesToGcs(), equalTo("path"));
 
     String json = MAPPER.writeValueAsString(options);
     assertThat(json, Matchers.containsString(

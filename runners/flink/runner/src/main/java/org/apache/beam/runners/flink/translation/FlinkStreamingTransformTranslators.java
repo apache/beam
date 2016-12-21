@@ -18,7 +18,6 @@
 
 package org.apache.beam.runners.flink.translation;
 
-import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import java.nio.ByteBuffer;
@@ -31,6 +30,7 @@ import java.util.Map;
 import java.util.Set;
 import org.apache.beam.runners.core.SystemReduceFn;
 import org.apache.beam.runners.flink.FlinkRunner;
+import org.apache.beam.runners.flink.translation.functions.FlinkAssignWindows;
 import org.apache.beam.runners.flink.translation.types.CoderTypeInformation;
 import org.apache.beam.runners.flink.translation.types.FlinkCoder;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.DoFnOperator;
@@ -53,11 +53,11 @@ import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.GroupByKey;
-import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.join.RawUnionValue;
 import org.apache.beam.sdk.transforms.join.UnionCoder;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
@@ -79,11 +79,13 @@ import org.apache.flink.api.common.functions.RichFlatMapFunction;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.fs.FileSystem;
+import org.apache.flink.streaming.api.collector.selector.OutputSelector;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSink;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.datastream.KeyedStream;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
+import org.apache.flink.streaming.api.datastream.SplitStream;
 import org.apache.flink.streaming.api.functions.AssignerWithPeriodicWatermarks;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
@@ -303,6 +305,30 @@ public class FlinkStreamingTransformTranslators {
     }
   }
 
+  private static void rejectStateAndTimers(DoFn<?, ?> doFn) {
+    DoFnSignature signature = DoFnSignatures.getSignature(doFn.getClass());
+
+    if (signature.stateDeclarations().size() > 0) {
+      throw new UnsupportedOperationException(
+          String.format(
+              "Found %s annotations on %s, but %s cannot yet be used with state in the %s.",
+              DoFn.StateId.class.getSimpleName(),
+              doFn.getClass().getName(),
+              DoFn.class.getSimpleName(),
+              FlinkRunner.class.getSimpleName()));
+    }
+
+    if (signature.timerDeclarations().size() > 0) {
+      throw new UnsupportedOperationException(
+          String.format(
+              "Found %s annotations on %s, but %s cannot yet be used with timers in the %s.",
+              DoFn.TimerId.class.getSimpleName(),
+              doFn.getClass().getName(),
+              DoFn.class.getSimpleName(),
+              FlinkRunner.class.getSimpleName()));
+    }
+  }
+
   private static class ParDoBoundStreamingTranslator<InputT, OutputT>
       extends FlinkStreamingPipelineTranslator.StreamTransformTranslator<
         ParDo.Bound<InputT, OutputT>> {
@@ -312,16 +338,8 @@ public class FlinkStreamingTransformTranslators {
         ParDo.Bound<InputT, OutputT> transform,
         FlinkStreamingTranslationContext context) {
 
-      DoFn<InputT, OutputT> doFn = transform.getNewFn();
-      if (DoFnSignatures.getSignature(doFn.getClass()).stateDeclarations().size() > 0) {
-        throw new UnsupportedOperationException(
-            String.format(
-                "Found %s annotations on %s, but %s cannot yet be used with state in the %s.",
-                DoFn.StateId.class.getSimpleName(),
-                doFn.getClass().getName(),
-                DoFn.class.getSimpleName(),
-                FlinkRunner.class.getSimpleName()));
-      }
+      DoFn<InputT, OutputT> doFn = transform.getFn();
+      rejectStateAndTimers(doFn);
 
       WindowingStrategy<?, ?> windowingStrategy =
           context.getOutput(transform).getWindowingStrategy();
@@ -472,16 +490,8 @@ public class FlinkStreamingTransformTranslators {
         ParDo.BoundMulti<InputT, OutputT> transform,
         FlinkStreamingTranslationContext context) {
 
-      DoFn<InputT, OutputT> doFn = transform.getNewFn();
-      if (DoFnSignatures.getSignature(doFn.getClass()).stateDeclarations().size() > 0) {
-        throw new UnsupportedOperationException(
-            String.format(
-                "Found %s annotations on %s, but %s cannot yet be used with state in the %s.",
-                DoFn.StateId.class.getSimpleName(),
-                doFn.getClass().getName(),
-                DoFn.class.getSimpleName(),
-                FlinkRunner.class.getSimpleName()));
-      }
+      DoFn<InputT, OutputT> doFn = transform.getFn();
+      rejectStateAndTimers(doFn);
 
       // we assume that the transformation does not change the windowing strategy.
       WindowingStrategy<?, ?> windowingStrategy =
@@ -555,6 +565,14 @@ public class FlinkStreamingTransformTranslators {
             .transform(transform.getName(), outputUnionTypeInformation, doFnOperator);
       }
 
+      SplitStream<RawUnionValue> splitStream = unionOutputStream
+              .split(new OutputSelector<RawUnionValue>() {
+                @Override
+                public Iterable<String> select(RawUnionValue value) {
+                  return Collections.singletonList(Integer.toString(value.getUnionTag()));
+                }
+              });
+
       for (Map.Entry<TupleTag<?>, PCollection<?>> output : outputs.entrySet()) {
         final int outputTag = tagsToLabels.get(output.getKey());
 
@@ -562,17 +580,15 @@ public class FlinkStreamingTransformTranslators {
             context.getTypeInfo(output.getValue());
 
         @SuppressWarnings("unchecked")
-        DataStream filtered =
-            unionOutputStream.flatMap(new FlatMapFunction<RawUnionValue, Object>() {
-              @Override
-              public void flatMap(RawUnionValue value, Collector<Object> out) throws Exception {
-                if (value.getUnionTag() == outputTag) {
-                  out.collect(value.getValue());
-                }
-              }
-            }).returns(outputTypeInfo);
+        DataStream unwrapped = splitStream.select(String.valueOf(outputTag))
+          .flatMap(new FlatMapFunction<RawUnionValue, Object>() {
+            @Override
+            public void flatMap(RawUnionValue value, Collector<Object> out) throws Exception {
+              out.collect(value.getValue());
+            }
+          }).returns(outputTypeInfo);
 
-        context.setOutputDataStream(output.getValue(), filtered);
+        context.setOutputDataStream(output.getValue(), unwrapped);
       }
     }
 
@@ -637,64 +653,20 @@ public class FlinkStreamingTransformTranslators {
       TypeInformation<WindowedValue<T>> typeInfo =
           context.getTypeInfo(context.getOutput(transform));
 
-      OldDoFn<T, T> windowAssignerDoFn =
-          createWindowAssigner(windowingStrategy.getWindowFn());
-
-      @SuppressWarnings("unchecked")
-      PCollection<T> inputPCollection = context.getInput(transform);
-
-      TypeInformation<WindowedValue<T>> inputTypeInfo =
-          context.getTypeInfo(inputPCollection);
-
-      DoFnOperator<T, T, WindowedValue<T>> doFnOperator = new DoFnOperator<>(
-          windowAssignerDoFn,
-          inputTypeInfo,
-          new TupleTag<T>("main output"),
-          Collections.<TupleTag<?>>emptyList(),
-          new DoFnOperator.DefaultOutputManagerFactory<WindowedValue<T>>(),
-          windowingStrategy,
-          new HashMap<Integer, PCollectionView<?>>(), /* side-input mapping */
-          Collections.<PCollectionView<?>>emptyList(), /* side inputs */
-          context.getPipelineOptions());
-
       DataStream<WindowedValue<T>> inputDataStream =
           context.getInputDataStream(context.getInput(transform));
 
-      SingleOutputStreamOperator<WindowedValue<T>> outDataStream = inputDataStream
-          .transform(transform.getName(), typeInfo, doFnOperator);
+      WindowFn<T, ? extends BoundedWindow> windowFn = windowingStrategy.getWindowFn();
 
-      context.setOutputDataStream(context.getOutput(transform), outDataStream);
-    }
+      FlinkAssignWindows<T, ? extends BoundedWindow> assignWindowsFunction =
+          new FlinkAssignWindows<>(windowFn);
 
-    private static <T, W extends BoundedWindow> OldDoFn<T, T> createWindowAssigner(
-        final WindowFn<T, W> windowFn) {
+      SingleOutputStreamOperator<WindowedValue<T>> outputDataStream = inputDataStream
+          .flatMap(assignWindowsFunction)
+          .name(context.getOutput(transform).getName())
+          .returns(typeInfo);
 
-      return new OldDoFn<T, T>() {
-
-        @Override
-        public void processElement(final ProcessContext c) throws Exception {
-          Collection<W> windows = windowFn.assignWindows(
-              windowFn.new AssignContext() {
-                @Override
-                public T element() {
-                  return c.element();
-                }
-
-                @Override
-                public Instant timestamp() {
-                  return c.timestamp();
-                }
-
-                @Override
-                public BoundedWindow window() {
-                  return Iterables.getOnlyElement(c.windowingInternals().windows());
-                }
-              });
-
-          c.windowingInternals().outputWindowedValue(
-              c.element(), c.timestamp(), windows, c.pane());
-        }
-      };
+      context.setOutputDataStream(context.getOutput(transform), outputDataStream);
     }
   }
 

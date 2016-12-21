@@ -281,7 +281,7 @@ public class AvroIO {
       }
 
       @Override
-      public PCollection<T> apply(PBegin input) {
+      public PCollection<T> expand(PBegin input) {
         if (filepattern == null) {
           throw new IllegalStateException(
               "need to set the filepattern of an AvroIO.Read transform");
@@ -795,7 +795,7 @@ public class AvroIO {
       }
 
       @Override
-      public PDone apply(PCollection<T> input) {
+      public PDone expand(PCollection<T> input) {
         if (filenamePrefix == null) {
           throw new IllegalStateException(
               "need to set the filename prefix of an AvroIO.Write transform");

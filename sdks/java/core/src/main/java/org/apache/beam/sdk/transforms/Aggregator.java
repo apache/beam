@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.transforms;
 
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
-import org.apache.beam.sdk.util.ExecutionContext;
 
 /**
  * An {@code Aggregator<InputT>} enables monitoring of values of type {@code InputT},
@@ -68,22 +67,4 @@ public interface Aggregator<InputT, OutputT> {
    * aggregator.
    */
   CombineFn<InputT, ?, OutputT> getCombineFn();
-
-  /**
-   * @deprecated this is for use only by runners and exists only for a migration period. Please
-   * use the identical interface in org.apache.beam.runners.core
-   */
-  @Deprecated
-  interface AggregatorFactory {
-    /**
-     * Create an aggregator with the given {@code name} and {@link CombineFn}.
-     *
-     *  <p>This method is called to create an aggregator for a {@link DoFn}. It receives the
-     *  class of the {@link DoFn} being executed and the context of the step it is being
-     *  executed in.
-     */
-    <InputT, AccumT, OutputT> Aggregator<InputT, OutputT> createAggregatorForDoFn(
-        Class<?> fnClass, ExecutionContext.StepContext stepContext,
-        String aggregatorName, CombineFn<InputT, AccumT, OutputT> combine);
-  }
 }

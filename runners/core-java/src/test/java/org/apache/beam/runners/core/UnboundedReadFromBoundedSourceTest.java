@@ -36,7 +36,6 @@ import java.util.Random;
 import org.apache.beam.runners.core.UnboundedReadFromBoundedSource.BoundedToUnboundedSourceAdapter;
 import org.apache.beam.runners.core.UnboundedReadFromBoundedSource.BoundedToUnboundedSourceAdapter.Checkpoint;
 import org.apache.beam.runners.core.UnboundedReadFromBoundedSource.BoundedToUnboundedSourceAdapter.CheckpointCoder;
-import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
@@ -78,6 +77,9 @@ public class UnboundedReadFromBoundedSourceTest {
   @Rule
   public transient ExpectedException thrown = ExpectedException.none();
 
+  @Rule
+  public TestPipeline p = TestPipeline.create();
+
   @Test
   public void testCheckpointCoderNulls() throws Exception {
     CheckpointCoder<String> coder = new CheckpointCoder<>(StringUtf8Coder.of());
@@ -96,8 +98,6 @@ public class UnboundedReadFromBoundedSourceTest {
     BoundedSource<Long> boundedSource = CountingSource.upTo(numElements);
     UnboundedSource<Long, Checkpoint<Long>> unboundedSource =
         new BoundedToUnboundedSourceAdapter<>(boundedSource);
-
-    Pipeline p = TestPipeline.create();
 
     PCollection<Long> output =
         p.apply(Read.from(unboundedSource).withMaxNumRecords(numElements));

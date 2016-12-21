@@ -93,7 +93,7 @@ public class XmlSinkTest {
             .withRootElement(testRootElement);
     assertEquals(testClass, sink.classToBind);
     assertEquals(testRootElement, sink.rootElementName);
-    assertEquals(testFilePrefix, sink.baseOutputFilename);
+    assertEquals(testFilePrefix, sink.baseOutputFilename.get());
   }
 
   /**
@@ -105,7 +105,7 @@ public class XmlSinkTest {
         XmlSink.writeOf(Bird.class, testRootElement, testFilePrefix);
     assertEquals(testClass, sink.classToBind);
     assertEquals(testRootElement, sink.rootElementName);
-    assertEquals(testFilePrefix, sink.baseOutputFilename);
+    assertEquals(testFilePrefix, sink.baseOutputFilename.get());
   }
 
   /**
@@ -142,11 +142,11 @@ public class XmlSinkTest {
         XmlSink.writeOf(testClass, testRootElement, testFilePrefix);
     XmlWriteOperation<Bird> writeOp = sink.createWriteOperation(options);
     assertEquals(testClass, writeOp.getSink().classToBind);
-    assertEquals(testFilePrefix, writeOp.getSink().baseOutputFilename);
+    assertEquals(testFilePrefix, writeOp.getSink().baseOutputFilename.get());
     assertEquals(testRootElement, writeOp.getSink().rootElementName);
     assertEquals(XmlSink.XML_EXTENSION, writeOp.getSink().extension);
     Path outputPath = new File(testFilePrefix).toPath();
-    Path tempPath = new File(writeOp.tempDirectory).toPath();
+    Path tempPath = new File(writeOp.tempDirectory.get()).toPath();
     assertEquals(outputPath.getParent(), tempPath.getParent());
     assertThat(
         tempPath.getFileName().toString(), containsString("temp-beam-" + outputPath.getFileName()));
@@ -163,7 +163,7 @@ public class XmlSinkTest {
             .createWriteOperation(options);
     XmlWriter<Bird> writer = writeOp.createWriter(options);
     Path outputPath = new File(testFilePrefix).toPath();
-    Path tempPath = new File(writer.getWriteOperation().tempDirectory).toPath();
+    Path tempPath = new File(writer.getWriteOperation().tempDirectory.get()).toPath();
     assertEquals(outputPath.getParent(), tempPath.getParent());
     assertThat(
         tempPath.getFileName().toString(), containsString("temp-beam-" + outputPath.getFileName()));

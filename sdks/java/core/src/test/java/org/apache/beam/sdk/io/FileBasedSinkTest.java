@@ -51,6 +51,7 @@ import org.apache.beam.sdk.io.FileBasedSink.FileResult;
 import org.apache.beam.sdk.io.FileBasedSink.WritableByteChannelFactory;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.util.IOChannelUtils;
 import org.apache.commons.compress.compressors.bzip2.BZip2CompressorInputStream;
 import org.junit.Rule;
 import org.junit.Test;
@@ -88,8 +89,7 @@ public class FileBasedSinkTest {
   @Test
   public void testWriter() throws Exception {
     String testUid = "testId";
-    String expectedFilename =
-        getBaseTempDirectory() + "/" + testUid;
+    String expectedFilename = IOChannelUtils.resolve(getBaseTempDirectory(), testUid);
     SimpleSink.SimpleWriter writer = buildWriter();
 
     List<String> values = Arrays.asList("sympathetic vulture", "boresome hummingbird");
@@ -231,7 +231,9 @@ public class FileBasedSinkTest {
       assertFalse(temporaryFiles.get(i).exists());
     }
 
-    assertFalse(new File(writeOp.tempDirectory).exists());
+    assertFalse(new File(writeOp.tempDirectory.get()).exists());
+    // Test that repeated requests of the temp directory return a stable result.
+    assertEquals(writeOp.tempDirectory.get(), writeOp.tempDirectory.get());
   }
 
   /**
@@ -486,8 +488,7 @@ public class FileBasedSinkTest {
             .createWriteOperation(null);
     final FileBasedWriter<String> writer =
         writeOp.createWriter(null);
-    final String expectedFilename =
-        writeOp.tempDirectory + "/" + testUid;
+    final String expectedFilename = IOChannelUtils.resolve(writeOp.tempDirectory.get(), testUid);
 
     final List<String> expected = new ArrayList<>();
     expected.add("header");

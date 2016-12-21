@@ -62,6 +62,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.hamcrest.Matchers;
 import org.joda.time.Instant;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -80,18 +81,22 @@ public class BoundedReadEvaluatorFactoryTest {
   private BoundedReadEvaluatorFactory factory;
   @Mock private EvaluationContext context;
   private BundleFactory bundleFactory;
+  private AppliedPTransform<?, ?, ?> longsProducer;
+
+  @Rule
+  public TestPipeline p = TestPipeline.create().enableAbandonedNodeEnforcement(false);
 
   @Before
   public void setup() {
     MockitoAnnotations.initMocks(this);
     source = CountingSource.upTo(10L);
-    TestPipeline p = TestPipeline.create();
     longs = p.apply(Read.from(source));
 
     factory =
         new BoundedReadEvaluatorFactory(
             context, Long.MAX_VALUE /* minimum size for dynamic splits */);
     bundleFactory = ImmutableListBundleFactory.create();
+    longsProducer = DirectGraphs.getProducer(longs);
   }
 
   @Test
@@ -102,15 +107,15 @@ public class BoundedReadEvaluatorFactoryTest {
 
     Collection<CommittedBundle<?>> initialInputs =
         new BoundedReadEvaluatorFactory.InputProvider(context)
-            .getInitialInputs(longs.getProducingTransformInternal(), 1);
+            .getInitialInputs(longsProducer, 1);
     List<WindowedValue<?>> outputs = new ArrayList<>();
     for (CommittedBundle<?> shardBundle : initialInputs) {
       TransformEvaluator<?> evaluator =
-          factory.forApplication(longs.getProducingTransformInternal(), null);
+          factory.forApplication(longsProducer, null);
       for (WindowedValue<?> shard : shardBundle.getElements()) {
         evaluator.processElement((WindowedValue) shard);
       }
-      TransformResult result = evaluator.finishBundle();
+      TransformResult<?> result = evaluator.finishBundle();
       assertThat(result.getWatermarkHold(), equalTo(BoundedWindow.TIMESTAMP_MAX_VALUE));
       assertThat(
           Iterables.size(result.getOutputBundles()),
@@ -140,8 +145,8 @@ public class BoundedReadEvaluatorFactoryTest {
       elems[i] = (long) i;
     }
     PCollection<Long> read =
-        TestPipeline.create().apply(Read.from(new TestSource<>(VarLongCoder.of(), 5, elems)));
-    AppliedPTransform<?, ?, ?> transform = read.getProducingTransformInternal();
+        p.apply(Read.from(new TestSource<>(VarLongCoder.of(), 5, elems)));
+    AppliedPTransform<?, ?, ?> transform = DirectGraphs.getProducer(read);
     Collection<CommittedBundle<?>> unreadInputs =
         new BoundedReadEvaluatorFactory.InputProvider(context).getInitialInputs(transform, 1);
 
@@ -154,11 +159,11 @@ public class BoundedReadEvaluatorFactoryTest {
 
       Collection<CommittedBundle<?>> newUnreadInputs = new ArrayList<>();
       for (CommittedBundle<?> shardBundle : unreadInputs) {
-        TransformEvaluator<?> evaluator = factory.forApplication(transform, null);
+        TransformEvaluator<Long> evaluator = factory.forApplication(transform, null);
         for (WindowedValue<?> shard : shardBundle.getElements()) {
           evaluator.processElement((WindowedValue) shard);
         }
-        TransformResult result = evaluator.finishBundle();
+        TransformResult<Long> result = evaluator.finishBundle();
         assertThat(result.getWatermarkHold(), equalTo(BoundedWindow.TIMESTAMP_MAX_VALUE));
         assertThat(
             Iterables.size(result.getOutputBundles()),
@@ -189,9 +194,8 @@ public class BoundedReadEvaluatorFactoryTest {
     BoundedReadEvaluatorFactory factory = new BoundedReadEvaluatorFactory(context, 0L);
 
     PCollection<Long> read =
-        TestPipeline.create()
-            .apply(Read.from(SourceTestUtils.toUnsplittableSource(CountingSource.upTo(10L))));
-    AppliedPTransform<?, ?, ?> transform = read.getProducingTransformInternal();
+        p.apply(Read.from(SourceTestUtils.toUnsplittableSource(CountingSource.upTo(10L))));
+    AppliedPTransform<?, ?, ?> transform = DirectGraphs.getProducer(read);
 
     when(context.createRootBundle()).thenReturn(bundleFactory.createRootBundle());
     when(context.createRootBundle()).thenReturn(bundleFactory.createRootBundle());
@@ -207,7 +211,7 @@ public class BoundedReadEvaluatorFactoryTest {
       for (WindowedValue<?> shard : shardBundle.getElements()) {
         evaluator.processElement((WindowedValue) shard);
       }
-      TransformResult result = evaluator.finishBundle();
+      TransformResult<?> result = evaluator.finishBundle();
       assertThat(result.getWatermarkHold(), equalTo(BoundedWindow.TIMESTAMP_MAX_VALUE));
       assertThat(
           Iterables.size(result.getOutputBundles()),
@@ -238,7 +242,7 @@ public class BoundedReadEvaluatorFactoryTest {
             });
     Collection<CommittedBundle<?>> initialInputs =
         new BoundedReadEvaluatorFactory.InputProvider(context)
-            .getInitialInputs(longs.getProducingTransformInternal(), 3);
+            .getInitialInputs(longsProducer, 3);
 
     assertThat(initialInputs, hasSize(allOf(greaterThanOrEqualTo(3), lessThanOrEqualTo(4))));
 
@@ -271,13 +275,13 @@ public class BoundedReadEvaluatorFactoryTest {
     CommittedBundle<BoundedSourceShard<Long>> shards = rootBundle.commit(Instant.now());
 
     TransformEvaluator<BoundedSourceShard<Long>> evaluator =
-        factory.forApplication(longs.getProducingTransformInternal(), shards);
+        factory.forApplication(longsProducer, shards);
     for (WindowedValue<BoundedSourceShard<Long>> shard : shards.getElements()) {
       UncommittedBundle<Long> outputBundle = bundleFactory.createBundle(longs);
       when(context.createBundle(longs)).thenReturn(outputBundle);
       evaluator.processElement(shard);
     }
-    TransformResult result = evaluator.finishBundle();
+    TransformResult<?> result = evaluator.finishBundle();
     assertThat(Iterables.size(result.getOutputBundles()), equalTo(splits.size()));
 
     List<WindowedValue<?>> outputElems = new ArrayList<>();
@@ -296,10 +300,8 @@ public class BoundedReadEvaluatorFactoryTest {
   @Test
   public void boundedSourceEvaluatorClosesReader() throws Exception {
     TestSource<Long> source = new TestSource<>(BigEndianLongCoder.of(), 1L, 2L, 3L);
-
-    TestPipeline p = TestPipeline.create();
     PCollection<Long> pcollection = p.apply(Read.from(source));
-    AppliedPTransform<?, ?, ?> sourceTransform = pcollection.getProducingTransformInternal();
+    AppliedPTransform<?, ?, ?> sourceTransform = DirectGraphs.getProducer(pcollection);
 
     UncommittedBundle<Long> output = bundleFactory.createBundle(pcollection);
     when(context.createBundle(pcollection)).thenReturn(output);
@@ -318,9 +320,8 @@ public class BoundedReadEvaluatorFactoryTest {
   public void boundedSourceEvaluatorNoElementsClosesReader() throws Exception {
     TestSource<Long> source = new TestSource<>(BigEndianLongCoder.of());
 
-    TestPipeline p = TestPipeline.create();
     PCollection<Long> pcollection = p.apply(Read.from(source));
-    AppliedPTransform<?, ?, ?> sourceTransform = pcollection.getProducingTransformInternal();
+    AppliedPTransform<?, ?, ?> sourceTransform = DirectGraphs.getProducer(pcollection);
 
     UncommittedBundle<Long> output = bundleFactory.createBundle(pcollection);
     when(context.createBundle(pcollection)).thenReturn(output);
@@ -333,6 +334,12 @@ public class BoundedReadEvaluatorFactoryTest {
     CommittedBundle<Long> committed = output.commit(Instant.now());
     assertThat(committed.getElements(), emptyIterable());
     assertThat(TestSource.readerClosed, is(true));
+  }
+
+  @Test
+  public void cleanupShutsDownExecutor() {
+    factory.cleanup();
+    assertThat(factory.executor.isShutdown(), is(true));
   }
 
   private static class TestSource<T> extends OffsetBasedSource<T> {

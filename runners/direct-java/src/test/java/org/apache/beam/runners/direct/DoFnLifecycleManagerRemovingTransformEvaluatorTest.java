@@ -115,7 +115,7 @@ public class DoFnLifecycleManagerRemovingTransformEvaluatorTest {
     }
 
     @Override
-    public TransformResult finishBundle() throws Exception {
+    public TransformResult<Object> finishBundle() throws Exception {
       finishBundleCalled = true;
       return null;
     }
@@ -128,7 +128,7 @@ public class DoFnLifecycleManagerRemovingTransformEvaluatorTest {
     }
 
     @Override
-    public TransformResult finishBundle() throws Exception {
+    public TransformResult<Object> finishBundle() throws Exception {
       throw new Exception();
     }
   }

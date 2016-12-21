@@ -20,14 +20,11 @@ package org.apache.beam.runners.flink.translation.functions;
 import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.common.collect.Iterables;
-import java.io.IOException;
-import java.io.Serializable;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.Map;
 import org.apache.beam.runners.flink.translation.wrappers.SerializableFnAggregatorWrapper;
-import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.Aggregator;
 import org.apache.beam.sdk.transforms.Combine;
@@ -41,7 +38,6 @@ import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.util.state.StateInternals;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
-import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.joda.time.Instant;
 
@@ -153,12 +149,6 @@ abstract class FlinkProcessContextBase<InputT, OutputT>
       }
 
       @Override
-      public <T> void writePCollectionViewData(TupleTag<?> tag,
-          Iterable<WindowedValue<T>> data, Coder<T> elemCoder) throws IOException {
-        throw new UnsupportedOperationException();
-      }
-
-      @Override
       public <ViewT> ViewT sideInput(
           PCollectionView<ViewT> view,
           BoundedWindow sideInputWindow) {
@@ -264,15 +254,14 @@ abstract class FlinkProcessContextBase<InputT, OutputT>
   @Override
   protected <AggInputT, AggOutputT> Aggregator<AggInputT, AggOutputT>
   createAggregatorInternal(String name, Combine.CombineFn<AggInputT, ?, AggOutputT> combiner) {
-    SerializableFnAggregatorWrapper<AggInputT, AggOutputT> wrapper =
-        new SerializableFnAggregatorWrapper<>(combiner);
-    Accumulator<?, ?> existingAccum =
-        (Accumulator<AggInputT, Serializable>) runtimeContext.getAccumulator(name);
-    if (existingAccum != null) {
-      return wrapper;
-    } else {
-      runtimeContext.addAccumulator(name, wrapper);
+    @SuppressWarnings("unchecked")
+    SerializableFnAggregatorWrapper<AggInputT, AggOutputT> result =
+        (SerializableFnAggregatorWrapper<AggInputT, AggOutputT>)
+            runtimeContext.getAccumulator(name);
+
+    if (result == null) {
+      result = new SerializableFnAggregatorWrapper<>(combiner);
+      runtimeContext.addAccumulator(name, result);
     }
-    return wrapper;
-  }
+    return result;  }
 }

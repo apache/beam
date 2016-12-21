@@ -62,7 +62,7 @@ public final class ConsoleIO {
       }
 
       @Override
-      public PDone apply(PCollection<T> input) {
+      public PDone expand(PCollection<T> input) {
         return PDone.in(input.getPipeline());
       }
     }

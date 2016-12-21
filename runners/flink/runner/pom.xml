@@ -22,7 +22,7 @@
   <parent>
     <groupId>org.apache.beam</groupId>
     <artifactId>beam-runners-flink-parent</artifactId>
-    <version>0.4.0-incubating-SNAPSHOT</version>
+    <version>0.5.0-incubating-SNAPSHOT</version>
     <relativePath>../pom.xml</relativePath>
   </parent>
 
@@ -53,7 +53,12 @@
                 </goals>
                 <configuration>
                   <groups>org.apache.beam.sdk.testing.RunnableOnService</groups>
-                  <excludedGroups>org.apache.beam.sdk.testing.UsesStatefulParDo</excludedGroups>
+                  <excludedGroups>
+                    org.apache.beam.sdk.testing.UsesStatefulParDo,
+                    org.apache.beam.sdk.testing.UsesTimersInParDo,
+                    org.apache.beam.sdk.testing.UsesSplittableParDo,
+                    org.apache.beam.sdk.testing.UsesMetrics
+                  </excludedGroups>
                   <parallel>none</parallel>
                   <failIfNoTests>true</failIfNoTests>
                   <dependenciesToScan>
@@ -79,6 +84,12 @@
                 </goals>
                 <configuration>
                   <groups>org.apache.beam.sdk.testing.RunnableOnService</groups>
+                  <excludedGroups>
+                    org.apache.beam.sdk.testing.UsesStatefulParDo,
+                    org.apache.beam.sdk.testing.UsesTimersInParDo,
+                    org.apache.beam.sdk.testing.UsesSplittableParDo,
+                    org.apache.beam.sdk.testing.UsesMetrics
+                  </excludedGroups>
                   <parallel>none</parallel>
                   <failIfNoTests>true</failIfNoTests>
                   <dependenciesToScan>

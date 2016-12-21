@@ -63,7 +63,7 @@ public final class CreateStream<T> {
     }
 
     @Override
-    public PCollection<T> apply(PBegin input) {
+    public PCollection<T> expand(PBegin input) {
       // Spark streaming micro batches are bounded by default
       return PCollection.createPrimitiveOutputInternal(input.getPipeline(),
           WindowingStrategy.globalDefault(), PCollection.IsBounded.UNBOUNDED);

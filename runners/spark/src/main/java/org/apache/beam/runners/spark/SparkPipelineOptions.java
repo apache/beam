@@ -44,10 +44,20 @@ public interface SparkPipelineOptions
   Long getBatchIntervalMillis();
   void setBatchIntervalMillis(Long batchInterval);
 
+  @Description("Batch default storage level")
+  @Default.String("MEMORY_ONLY")
+  String getStorageLevel();
+  void setStorageLevel(String storageLevel);
+
   @Description("Minimum time to spend on read, for each micro-batch.")
   @Default.Long(200)
   Long getMinReadTimeMillis();
   void setMinReadTimeMillis(Long minReadTimeMillis);
+
+  @Description("Max records per micro-batch. For streaming sources only.")
+  @Default.Long(-1)
+  Long getMaxRecordsPerBatch();
+  void setMaxRecordsPerBatch(Long maxRecordsPerBatch);
 
   @Description("A value between 0-1 to describe the percentage of a micro-batch dedicated "
       + "to reading from UnboundedSource.")
@@ -90,4 +100,9 @@ public interface SparkPipelineOptions
   @Default.Boolean(false)
   boolean getUsesProvidedSparkContext();
   void setUsesProvidedSparkContext(boolean value);
+
+  @Description("A special flag that forces streaming in tests.")
+  @Default.Boolean(false)
+  boolean isForceStreaming();
+  void setForceStreaming(boolean forceStreaming);
 }

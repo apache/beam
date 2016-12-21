@@ -33,6 +33,6 @@ abstract class AbstractModelEnforcement<T> implements ModelEnforcement<T> {
   @Override
   public void afterFinish(
       CommittedBundle<T> input,
-      TransformResult result,
+      TransformResult<T> result,
       Iterable<? extends CommittedBundle<?>> outputs) {}
 }

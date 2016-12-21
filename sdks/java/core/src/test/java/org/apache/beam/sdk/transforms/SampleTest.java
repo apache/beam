@@ -32,6 +32,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.TreeSet;
+
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
@@ -41,6 +42,7 @@ import org.apache.beam.sdk.testing.RunnableOnService;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.PCollection;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
@@ -102,71 +104,70 @@ public class SampleTest {
     }
   }
 
+  @Rule
+  public final transient TestPipeline pipeline = TestPipeline.create();
+
   @Test
   @Category(RunnableOnService.class)
   public void testSample() {
-    Pipeline p = TestPipeline.create();
 
-    PCollection<Integer> input = p.apply(Create.of(DATA)
+    PCollection<Integer> input = pipeline.apply(Create.of(DATA)
         .withCoder(BigEndianIntegerCoder.of()));
     PCollection<Iterable<Integer>> output = input.apply(
         Sample.<Integer>fixedSizeGlobally(3));
 
     PAssert.thatSingletonIterable(output)
         .satisfies(new VerifyCorrectSample<>(3, DATA));
-    p.run();
+    pipeline.run();
   }
 
   @Test
   @Category(RunnableOnService.class)
   public void testSampleEmpty() {
-    Pipeline p = TestPipeline.create();
 
-    PCollection<Integer> input = p.apply(Create.of(EMPTY)
+    PCollection<Integer> input = pipeline.apply(Create.of(EMPTY)
         .withCoder(BigEndianIntegerCoder.of()));
     PCollection<Iterable<Integer>> output = input.apply(
         Sample.<Integer>fixedSizeGlobally(3));
 
     PAssert.thatSingletonIterable(output)
         .satisfies(new VerifyCorrectSample<>(0, EMPTY));
-    p.run();
+    pipeline.run();
   }
 
   @Test
   @Category(RunnableOnService.class)
   public void testSampleZero() {
-    Pipeline p = TestPipeline.create();
 
-    PCollection<Integer> input = p.apply(Create.of(DATA)
+    PCollection<Integer> input = pipeline.apply(Create.of(DATA)
         .withCoder(BigEndianIntegerCoder.of()));
     PCollection<Iterable<Integer>> output = input.apply(
         Sample.<Integer>fixedSizeGlobally(0));
 
     PAssert.thatSingletonIterable(output)
         .satisfies(new VerifyCorrectSample<>(0, DATA));
-    p.run();
+    pipeline.run();
   }
 
   @Test
   @Category(RunnableOnService.class)
   public void testSampleInsufficientElements() {
-    Pipeline p = TestPipeline.create();
 
-    PCollection<Integer> input = p.apply(Create.of(DATA)
+    PCollection<Integer> input = pipeline.apply(Create.of(DATA)
         .withCoder(BigEndianIntegerCoder.of()));
     PCollection<Iterable<Integer>> output = input.apply(
         Sample.<Integer>fixedSizeGlobally(10));
 
     PAssert.thatSingletonIterable(output)
         .satisfies(new VerifyCorrectSample<>(5, DATA));
-    p.run();
+    pipeline.run();
   }
 
   @Test(expected = IllegalArgumentException.class)
   public void testSampleNegative() {
-    Pipeline p = TestPipeline.create();
+    pipeline.enableAbandonedNodeEnforcement(false);
 
-    PCollection<Integer> input = p.apply(Create.of(DATA)
+    PCollection<Integer> input = pipeline.apply(Create.of(DATA)
         .withCoder(BigEndianIntegerCoder.of()));
     input.apply(Sample.<Integer>fixedSizeGlobally(-1));
   }
@@ -174,9 +175,8 @@ public class SampleTest {
   @Test
   @Category(RunnableOnService.class)
   public void testSampleMultiplicity() {
-    Pipeline p = TestPipeline.create();
 
-    PCollection<Integer> input = p.apply(Create.of(REPEATED_DATA)
+    PCollection<Integer> input = pipeline.apply(Create.of(REPEATED_DATA)
         .withCoder(BigEndianIntegerCoder.of()));
     // At least one value must be selected with multiplicity.
     PCollection<Iterable<Integer>> output = input.apply(
@@ -184,7 +184,7 @@ public class SampleTest {
 
     PAssert.thatSingletonIterable(output)
         .satisfies(new VerifyCorrectSample<>(6, REPEATED_DATA));
-    p.run();
+    pipeline.run();
   }
 
   private static class VerifyAnySample implements SerializableFunction<Iterable<String>, Void> {

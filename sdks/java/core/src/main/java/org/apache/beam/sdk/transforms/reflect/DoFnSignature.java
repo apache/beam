@@ -105,6 +105,13 @@ public abstract class DoFnSignature {
   @Nullable
   public abstract Map<String, OnTimerMethod> onTimerMethods();
 
+  /**
+   * Whether the {@link DoFn} described by this signature uses state.
+   */
+  public boolean isStateful() {
+    return stateDeclarations().size() > 0;
+  }
+
   static Builder builder() {
     return new AutoValue_DoFnSignature.Builder();
   }
@@ -168,6 +175,8 @@ public abstract class DoFnSignature {
         return cases.dispatch((ContextParameter) this);
       } else if (this instanceof ProcessContextParameter) {
         return cases.dispatch((ProcessContextParameter) this);
+      } else if (this instanceof OnTimerContextParameter) {
+        return cases.dispatch((OnTimerContextParameter) this);
       } else if (this instanceof WindowParameter) {
         return cases.dispatch((WindowParameter) this);
       } else if (this instanceof RestrictionTrackerParameter) {
@@ -193,6 +202,7 @@ public abstract class DoFnSignature {
     public interface Cases<ResultT> {
       ResultT dispatch(ContextParameter p);
       ResultT dispatch(ProcessContextParameter p);
+      ResultT dispatch(OnTimerContextParameter p);
       ResultT dispatch(WindowParameter p);
       ResultT dispatch(InputProviderParameter p);
       ResultT dispatch(OutputReceiverParameter p);
@@ -214,6 +224,11 @@ public abstract class DoFnSignature {
 
         @Override
         public ResultT dispatch(ProcessContextParameter p) {
+          return dispatchDefault(p);
+        }
+
+        @Override
+        public ResultT dispatch(OnTimerContextParameter p) {
           return dispatchDefault(p);
         }
 
@@ -254,12 +269,14 @@ public abstract class DoFnSignature {
         new AutoValue_DoFnSignature_Parameter_ContextParameter();
     private static final ProcessContextParameter PROCESS_CONTEXT_PARAMETER =
           new AutoValue_DoFnSignature_Parameter_ProcessContextParameter();
+    private static final OnTimerContextParameter ON_TIMER_CONTEXT_PARAMETER =
+        new AutoValue_DoFnSignature_Parameter_OnTimerContextParameter();
     private static final InputProviderParameter INPUT_PROVIDER_PARAMETER =
         new AutoValue_DoFnSignature_Parameter_InputProviderParameter();
     private static final OutputReceiverParameter OUTPUT_RECEIVER_PARAMETER =
         new AutoValue_DoFnSignature_Parameter_OutputReceiverParameter();
 
-    /** Returns a {@link ProcessContextParameter}. */
+    /** Returns a {@link ContextParameter}. */
     public static ContextParameter context() {
       return CONTEXT_PARAMETER;
     }
@@ -267,6 +284,11 @@ public abstract class DoFnSignature {
     /** Returns a {@link ProcessContextParameter}. */
     public static ProcessContextParameter processContext() {
       return PROCESS_CONTEXT_PARAMETER;
+    }
+
+    /** Returns a {@link OnTimerContextParameter}. */
+    public static OnTimerContextParameter onTimerContext() {
+      return ON_TIMER_CONTEXT_PARAMETER;
     }
 
     /** Returns a {@link WindowParameter}. */
@@ -326,6 +348,15 @@ public abstract class DoFnSignature {
       ProcessContextParameter() {}
     }
 
+    /**
+     * Descriptor for a {@link Parameter} of type {@link DoFn.OnTimerContext}.
+     *
+     * <p>All such descriptors are equal.
+     */
+    @AutoValue
+    public abstract static class OnTimerContextParameter extends Parameter {
+      OnTimerContextParameter() {}
+    }
     /**
      * Descriptor for a {@link Parameter} of type {@link BoundedWindow}.
      *
@@ -523,6 +554,7 @@ public abstract class DoFnSignature {
 
     static StateDeclaration create(
         String id, Field field, TypeDescriptor<? extends State> stateType) {
+      field.setAccessible(true);
       return new AutoValue_DoFnSignature_StateDeclaration(id, field, stateType);
     }
   }

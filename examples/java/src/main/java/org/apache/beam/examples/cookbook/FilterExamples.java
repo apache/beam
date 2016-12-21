@@ -153,7 +153,7 @@ public class FilterExamples {
 
 
     @Override
-    public PCollection<TableRow> apply(PCollection<TableRow> rows) {
+    public PCollection<TableRow> expand(PCollection<TableRow> rows) {
 
       // Extract the mean_temp from each row.
       PCollection<Double> meanTemps = rows.apply(

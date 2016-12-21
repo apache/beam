@@ -29,7 +29,6 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import org.apache.beam.runners.direct.DirectExecutionContext.DirectStepContext;
@@ -59,7 +58,6 @@ import org.apache.beam.sdk.util.TimerInternals.TimerData;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.util.state.BagState;
-import org.apache.beam.sdk.util.state.CopyOnAccessInMemoryStateInternals;
 import org.apache.beam.sdk.util.state.StateNamespaces;
 import org.apache.beam.sdk.util.state.StateTag;
 import org.apache.beam.sdk.util.state.StateTags;
@@ -67,10 +65,10 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollection.IsBounded;
 import org.apache.beam.sdk.values.PCollectionView;
-import org.apache.beam.sdk.values.PValue;
 import org.hamcrest.Matchers;
 import org.joda.time.Instant;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -80,46 +78,50 @@ import org.junit.runners.JUnit4;
  */
 @RunWith(JUnit4.class)
 public class EvaluationContextTest {
-  private TestPipeline p;
   private EvaluationContext context;
 
   private PCollection<Integer> created;
   private PCollection<KV<String, Integer>> downstream;
   private PCollectionView<Iterable<Integer>> view;
   private PCollection<Long> unbounded;
-  private Collection<AppliedPTransform<?, ?, ?>> rootTransforms;
-  private Map<PValue, Collection<AppliedPTransform<?, ?, ?>>> valueToConsumers;
 
-  private BundleFactory bundleFactory;
+  private DirectGraph graph;
+
+  private AppliedPTransform<?, ?, ?> createdProducer;
+  private AppliedPTransform<?, ?, ?> downstreamProducer;
+  private AppliedPTransform<?, ?, ?> viewProducer;
+  private AppliedPTransform<?, ?, ?> unboundedProducer;
+
+  @Rule
+  public TestPipeline p = TestPipeline.create().enableAbandonedNodeEnforcement(false);
 
   @Before
   public void setup() {
     DirectRunner runner =
         DirectRunner.fromOptions(PipelineOptionsFactory.create());
 
-    p = TestPipeline.create();
-
     created = p.apply(Create.of(1, 2, 3));
     downstream = created.apply(WithKeys.<String, Integer>of("foo"));
     view = created.apply(View.<Integer>asIterable());
     unbounded = p.apply(CountingInput.unbounded());
 
-    ConsumerTrackingPipelineVisitor cVis = new ConsumerTrackingPipelineVisitor();
-    p.traverseTopologically(cVis);
-    rootTransforms = cVis.getRootTransforms();
-    valueToConsumers = cVis.getValueToConsumers();
+    KeyedPValueTrackingVisitor keyedPValueTrackingVisitor = KeyedPValueTrackingVisitor.create();
+    p.traverseTopologically(keyedPValueTrackingVisitor);
 
-    bundleFactory = ImmutableListBundleFactory.create();
-
+    BundleFactory bundleFactory = ImmutableListBundleFactory.create();
+    graph = DirectGraphs.getGraph(p);
     context =
         EvaluationContext.create(
             runner.getPipelineOptions(),
             NanosOffsetClock.create(),
-            ImmutableListBundleFactory.create(),
-            rootTransforms,
-            valueToConsumers,
-            cVis.getStepNames(),
-            cVis.getViews());
+            bundleFactory,
+            graph,
+            keyedPValueTrackingVisitor.getKeyedPValues());
+
+    createdProducer = graph.getProducer(created);
+    downstreamProducer = graph.getProducer(downstream);
+    viewProducer = graph.getProducer(view);
+    unboundedProducer = graph.getProducer(unbounded);
   }
 
   @Test
@@ -157,7 +159,7 @@ public class EvaluationContextTest {
   @Test
   public void getExecutionContextSameStepSameKeyState() {
     DirectExecutionContext fooContext =
-        context.getExecutionContext(created.getProducingTransformInternal(),
+        context.getExecutionContext(createdProducer,
             StructuralKey.of("foo", StringUtf8Coder.of()));
 
     StateTag<Object, BagState<Integer>> intBag = StateTags.bag("myBag", VarIntCoder.of());
@@ -170,12 +172,12 @@ public class EvaluationContextTest {
             .createKeyedBundle(StructuralKey.of("foo", StringUtf8Coder.of()), created)
             .commit(Instant.now()),
         ImmutableList.<TimerData>of(),
-        StepTransformResult.withoutHold(created.getProducingTransformInternal())
+        StepTransformResult.withoutHold(createdProducer)
             .withState(stepContext.commitState())
             .build());
 
     DirectExecutionContext secondFooContext =
-        context.getExecutionContext(created.getProducingTransformInternal(),
+        context.getExecutionContext(createdProducer,
             StructuralKey.of("foo", StringUtf8Coder.of()));
     assertThat(
         secondFooContext
@@ -190,7 +192,7 @@ public class EvaluationContextTest {
   @Test
   public void getExecutionContextDifferentKeysIndependentState() {
     DirectExecutionContext fooContext =
-        context.getExecutionContext(created.getProducingTransformInternal(),
+        context.getExecutionContext(createdProducer,
             StructuralKey.of("foo", StringUtf8Coder.of()));
 
     StateTag<Object, BagState<Integer>> intBag = StateTags.bag("myBag", VarIntCoder.of());
@@ -202,7 +204,7 @@ public class EvaluationContextTest {
         .add(1);
 
     DirectExecutionContext barContext =
-        context.getExecutionContext(created.getProducingTransformInternal(),
+        context.getExecutionContext(createdProducer,
             StructuralKey.of("bar", StringUtf8Coder.of()));
     assertThat(barContext, not(equalTo(fooContext)));
     assertThat(
@@ -218,7 +220,7 @@ public class EvaluationContextTest {
   public void getExecutionContextDifferentStepsIndependentState() {
     StructuralKey<?> myKey = StructuralKey.of("foo", StringUtf8Coder.of());
     DirectExecutionContext fooContext =
-        context.getExecutionContext(created.getProducingTransformInternal(), myKey);
+        context.getExecutionContext(createdProducer, myKey);
 
     StateTag<Object, BagState<Integer>> intBag = StateTags.bag("myBag", VarIntCoder.of());
 
@@ -229,7 +231,7 @@ public class EvaluationContextTest {
         .add(1);
 
     DirectExecutionContext barContext =
-        context.getExecutionContext(downstream.getProducingTransformInternal(), myKey);
+        context.getExecutionContext(downstreamProducer, myKey);
     assertThat(
         barContext
             .getOrCreateStepContext("s1", "s1")
@@ -243,15 +245,15 @@ public class EvaluationContextTest {
   public void handleResultCommitsAggregators() {
     Class<?> fn = getClass();
     DirectExecutionContext fooContext =
-        context.getExecutionContext(created.getProducingTransformInternal(), null);
+        context.getExecutionContext(createdProducer, null);
     DirectExecutionContext.StepContext stepContext = fooContext.createStepContext(
-        "STEP", created.getProducingTransformInternal().getTransform().getName());
+        "STEP", createdProducer.getTransform().getName());
     AggregatorContainer container = context.getAggregatorContainer();
     AggregatorContainer.Mutator mutator = container.createMutator();
     mutator.createAggregatorForDoFn(fn, stepContext, "foo", new SumLongFn()).addValue(4L);
 
-    TransformResult result =
-        StepTransformResult.withoutHold(created.getProducingTransformInternal())
+    TransformResult<?> result =
+        StepTransformResult.withoutHold(createdProducer)
             .withAggregatorChanges(mutator)
             .build();
     context.handleResult(null, ImmutableList.<TimerData>of(), result);
@@ -260,8 +262,8 @@ public class EvaluationContextTest {
     AggregatorContainer.Mutator mutatorAgain = container.createMutator();
     mutatorAgain.createAggregatorForDoFn(fn, stepContext, "foo", new SumLongFn()).addValue(12L);
 
-    TransformResult secondResult =
-        StepTransformResult.withoutHold(downstream.getProducingTransformInternal())
+    TransformResult<?> secondResult =
+        StepTransformResult.withoutHold(downstreamProducer)
             .withAggregatorChanges(mutatorAgain)
             .build();
     context.handleResult(
@@ -275,7 +277,7 @@ public class EvaluationContextTest {
   public void handleResultStoresState() {
     StructuralKey<?> myKey = StructuralKey.of("foo".getBytes(), ByteArrayCoder.of());
     DirectExecutionContext fooContext =
-        context.getExecutionContext(downstream.getProducingTransformInternal(), myKey);
+        context.getExecutionContext(downstreamProducer, myKey);
 
     StateTag<Object, BagState<Integer>> intBag = StateTags.bag("myBag", VarIntCoder.of());
 
@@ -286,8 +288,8 @@ public class EvaluationContextTest {
     bag.add(2);
     bag.add(4);
 
-    TransformResult stateResult =
-        StepTransformResult.withoutHold(downstream.getProducingTransformInternal())
+    TransformResult<?> stateResult =
+        StepTransformResult.withoutHold(downstreamProducer)
             .withState(state)
             .build();
 
@@ -297,7 +299,7 @@ public class EvaluationContextTest {
         stateResult);
 
     DirectExecutionContext afterResultContext =
-        context.getExecutionContext(downstream.getProducingTransformInternal(), myKey);
+        context.getExecutionContext(downstreamProducer, myKey);
 
     CopyOnAccessInMemoryStateInternals<Object> afterResultState =
         afterResultContext.getOrCreateStepContext("s1", "s1").stateInternals();
@@ -319,8 +321,8 @@ public class EvaluationContextTest {
     context.scheduleAfterOutputWouldBeProduced(
         downstream, GlobalWindow.INSTANCE, WindowingStrategy.globalDefault(), callback);
 
-    TransformResult result =
-        StepTransformResult.withHold(created.getProducingTransformInternal(), new Instant(0))
+    TransformResult<?> result =
+        StepTransformResult.withHold(createdProducer, new Instant(0))
             .build();
 
     context.handleResult(null, ImmutableList.<TimerData>of(), result);
@@ -328,8 +330,8 @@ public class EvaluationContextTest {
     // will likely be flaky if this logic is broken
     assertThat(callLatch.await(500L, TimeUnit.MILLISECONDS), is(false));
 
-    TransformResult finishedResult =
-        StepTransformResult.withoutHold(created.getProducingTransformInternal()).build();
+    TransformResult<?> finishedResult =
+        StepTransformResult.withoutHold(createdProducer).build();
     context.handleResult(null, ImmutableList.<TimerData>of(), finishedResult);
     context.forceRefresh();
     // Obtain the value via blocking call
@@ -338,8 +340,8 @@ public class EvaluationContextTest {
 
   @Test
   public void callAfterOutputMustHaveBeenProducedAlreadyAfterCallsImmediately() throws Exception {
-    TransformResult finishedResult =
-        StepTransformResult.withoutHold(created.getProducingTransformInternal()).build();
+    TransformResult<?> finishedResult =
+        StepTransformResult.withoutHold(createdProducer).build();
     context.handleResult(null, ImmutableList.<TimerData>of(), finishedResult);
 
     final CountDownLatch callLatch = new CountDownLatch(1);
@@ -358,16 +360,16 @@ public class EvaluationContextTest {
 
   @Test
   public void extractFiredTimersExtractsTimers() {
-    TransformResult holdResult =
-        StepTransformResult.withHold(created.getProducingTransformInternal(), new Instant(0))
+    TransformResult<?> holdResult =
+        StepTransformResult.withHold(createdProducer, new Instant(0))
             .build();
     context.handleResult(null, ImmutableList.<TimerData>of(), holdResult);
 
     StructuralKey<?> key = StructuralKey.of("foo".length(), VarIntCoder.of());
     TimerData toFire =
         TimerData.of(StateNamespaces.global(), new Instant(100L), TimeDomain.EVENT_TIME);
-    TransformResult timerResult =
-        StepTransformResult.withoutHold(downstream.getProducingTransformInternal())
+    TransformResult<?> timerResult =
+        StepTransformResult.withoutHold(downstreamProducer)
             .withState(CopyOnAccessInMemoryStateInternals.withUnderlying(key, null))
             .withTimerUpdate(TimerUpdate.builder(key).setTimer(toFire).build())
             .build();
@@ -382,8 +384,8 @@ public class EvaluationContextTest {
     // timer hasn't fired
     assertThat(context.extractFiredTimers(), emptyIterable());
 
-    TransformResult advanceResult =
-        StepTransformResult.withoutHold(created.getProducingTransformInternal()).build();
+    TransformResult<?> advanceResult =
+        StepTransformResult.withoutHold(createdProducer).build();
     // Should cause the downstream timer to fire
     context.handleResult(null, ImmutableList.<TimerData>of(), advanceResult);
 
@@ -414,39 +416,39 @@ public class EvaluationContextTest {
   @Test
   public void isDoneWithUnboundedPCollectionAndShutdown() {
     context.getPipelineOptions().setShutdownUnboundedProducersWithMaxWatermark(true);
-    assertThat(context.isDone(unbounded.getProducingTransformInternal()), is(false));
+    assertThat(context.isDone(unboundedProducer), is(false));
 
     context.handleResult(
         null,
         ImmutableList.<TimerData>of(),
-        StepTransformResult.withoutHold(unbounded.getProducingTransformInternal()).build());
+        StepTransformResult.withoutHold(unboundedProducer).build());
     context.extractFiredTimers();
-    assertThat(context.isDone(unbounded.getProducingTransformInternal()), is(true));
+    assertThat(context.isDone(unboundedProducer), is(true));
   }
 
   @Test
   public void isDoneWithUnboundedPCollectionAndNotShutdown() {
     context.getPipelineOptions().setShutdownUnboundedProducersWithMaxWatermark(false);
-    assertThat(context.isDone(unbounded.getProducingTransformInternal()), is(false));
+    assertThat(context.isDone(graph.getProducer(unbounded)), is(false));
 
     context.handleResult(
         null,
         ImmutableList.<TimerData>of(),
-        StepTransformResult.withoutHold(unbounded.getProducingTransformInternal()).build());
-    assertThat(context.isDone(unbounded.getProducingTransformInternal()), is(false));
+        StepTransformResult.withoutHold(graph.getProducer(unbounded)).build());
+    assertThat(context.isDone(graph.getProducer(unbounded)), is(false));
   }
 
   @Test
   public void isDoneWithOnlyBoundedPCollections() {
     context.getPipelineOptions().setShutdownUnboundedProducersWithMaxWatermark(false);
-    assertThat(context.isDone(created.getProducingTransformInternal()), is(false));
+    assertThat(context.isDone(createdProducer), is(false));
 
     context.handleResult(
         null,
         ImmutableList.<TimerData>of(),
-        StepTransformResult.withoutHold(created.getProducingTransformInternal()).build());
+        StepTransformResult.withoutHold(createdProducer).build());
     context.extractFiredTimers();
-    assertThat(context.isDone(created.getProducingTransformInternal()), is(true));
+    assertThat(context.isDone(createdProducer), is(true));
   }
 
   @Test
@@ -460,7 +462,7 @@ public class EvaluationContextTest {
         context.handleResult(
             null,
             ImmutableList.<TimerData>of(),
-            StepTransformResult.withoutHold(created.getProducingTransformInternal())
+            StepTransformResult.<Integer>withoutHold(createdProducer)
                 .addOutput(rootBundle)
                 .build());
     @SuppressWarnings("unchecked")
@@ -469,10 +471,10 @@ public class EvaluationContextTest {
     context.handleResult(
         null,
         ImmutableList.<TimerData>of(),
-        StepTransformResult.withoutHold(unbounded.getProducingTransformInternal()).build());
+        StepTransformResult.withoutHold(unboundedProducer).build());
     assertThat(context.isDone(), is(false));
 
-    for (AppliedPTransform<?, ?, ?> consumers : valueToConsumers.get(created)) {
+    for (AppliedPTransform<?, ?, ?> consumers : graph.getPrimitiveConsumers(created)) {
       context.handleResult(
           committedBundle,
           ImmutableList.<TimerData>of(),
@@ -490,22 +492,22 @@ public class EvaluationContextTest {
     context.handleResult(
         null,
         ImmutableList.<TimerData>of(),
-        StepTransformResult.withoutHold(created.getProducingTransformInternal()).build());
+        StepTransformResult.withoutHold(createdProducer).build());
     context.handleResult(
         null,
         ImmutableList.<TimerData>of(),
-        StepTransformResult.withoutHold(unbounded.getProducingTransformInternal()).build());
+        StepTransformResult.withoutHold(unboundedProducer).build());
     context.handleResult(
         context.createBundle(created).commit(Instant.now()),
         ImmutableList.<TimerData>of(),
-        StepTransformResult.withoutHold(downstream.getProducingTransformInternal()).build());
+        StepTransformResult.withoutHold(downstreamProducer).build());
     context.extractFiredTimers();
     assertThat(context.isDone(), is(false));
 
     context.handleResult(
         context.createBundle(created).commit(Instant.now()),
         ImmutableList.<TimerData>of(),
-        StepTransformResult.withoutHold(view.getProducingTransformInternal()).build());
+        StepTransformResult.withoutHold(viewProducer).build());
     context.extractFiredTimers();
     assertThat(context.isDone(), is(false));
   }

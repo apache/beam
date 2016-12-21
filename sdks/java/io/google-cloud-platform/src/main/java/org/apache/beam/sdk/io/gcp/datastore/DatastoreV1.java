@@ -411,7 +411,7 @@ public class DatastoreV1 {
     }
 
     @Override
-    public PCollection<Entity> apply(PBegin input) {
+    public PCollection<Entity> expand(PBegin input) {
       V1Options v1Options = V1Options.from(getProjectId(), getQuery(),
           getNamespace());
 
@@ -779,7 +779,7 @@ public class DatastoreV1 {
     }
 
     @Override
-    public PDone apply(PCollection<T> input) {
+    public PDone expand(PCollection<T> input) {
       input.apply("Convert to Mutation", MapElements.via(mutationFn))
           .apply("Write Mutation to Datastore", ParDo.of(new DatastoreWriterFn(projectId)));
 

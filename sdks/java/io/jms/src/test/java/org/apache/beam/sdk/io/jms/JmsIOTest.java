@@ -28,7 +28,6 @@ import javax.jms.TextMessage;
 import org.apache.activemq.ActiveMQConnectionFactory;
 import org.apache.activemq.broker.BrokerService;
 import org.apache.activemq.store.memory.MemoryPersistenceAdapter;
-import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -38,6 +37,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
@@ -54,6 +54,9 @@ public class JmsIOTest {
 
   private BrokerService broker;
   private ConnectionFactory connectionFactory;
+
+  @Rule
+  public final transient TestPipeline pipeline = TestPipeline.create();
 
   @Before
   public void startBroker() throws Exception {
@@ -92,8 +95,6 @@ public class JmsIOTest {
     session.close();
     connection.close();
 
-    Pipeline pipeline = TestPipeline.create();
-
     // read from the queue
     PCollection<JmsRecord> output = pipeline.apply(
         JmsIO.read()
@@ -116,8 +117,6 @@ public class JmsIOTest {
   @Test
   @Category(NeedsRunner.class)
   public void testWriteMessage() throws Exception {
-
-    Pipeline pipeline = TestPipeline.create();
 
     ArrayList<String> data = new ArrayList<>();
     for (int i = 0; i < 100; i++) {

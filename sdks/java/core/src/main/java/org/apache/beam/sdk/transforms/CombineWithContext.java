@@ -48,7 +48,7 @@ public class CombineWithContext {
 
     /**
      * Returns the value of the side input for the window corresponding to the
-     * window of the main input element.
+     * main input's window in which values are being combined.
      */
     public abstract <T> T sideInput(PCollectionView<T> view);
   }

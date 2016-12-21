@@ -20,17 +20,11 @@ package org.apache.beam.runners.spark.translation;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.collect.ImmutableList;
 import java.io.IOException;
 import java.io.Serializable;
-import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
-import org.apache.beam.runners.spark.SparkPipelineOptions;
-import org.apache.beam.runners.spark.aggregators.AccumulatorSingleton;
 import org.apache.beam.runners.spark.aggregators.NamedAggregators;
-import org.apache.beam.runners.spark.aggregators.metrics.AggregatorMetricSource;
-import org.apache.beam.sdk.AggregatorValues;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
@@ -43,10 +37,6 @@ import org.apache.beam.sdk.transforms.Min;
 import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.spark.Accumulator;
-import org.apache.spark.SparkEnv$;
-import org.apache.spark.api.java.JavaSparkContext;
-import org.apache.spark.metrics.MetricsSystem;
-
 
 /**
  * The SparkRuntimeContext allows us to define useful features on the client side before our
@@ -61,12 +51,11 @@ public class SparkRuntimeContext implements Serializable {
   private final Map<String, Aggregator<?, ?>> aggregators = new HashMap<>();
   private transient CoderRegistry coderRegistry;
 
-  SparkRuntimeContext(Pipeline pipeline, JavaSparkContext jsc) {
+  SparkRuntimeContext(Pipeline pipeline) {
     this.serializedPipelineOptions = serializePipelineOptions(pipeline.getOptions());
-    registerMetrics(pipeline.getOptions().as(SparkPipelineOptions.class), jsc);
   }
 
-  private static String serializePipelineOptions(PipelineOptions pipelineOptions) {
+  private String serializePipelineOptions(PipelineOptions pipelineOptions) {
     try {
       return new ObjectMapper().writeValueAsString(pipelineOptions);
     } catch (JsonProcessingException e) {
@@ -80,53 +69,6 @@ public class SparkRuntimeContext implements Serializable {
     } catch (IOException e) {
       throw new IllegalStateException("Failed to deserialize the pipeline options.", e);
     }
-  }
-
-  private void registerMetrics(final SparkPipelineOptions opts, final JavaSparkContext jsc) {
-    final Accumulator<NamedAggregators> accum = AccumulatorSingleton.getInstance(jsc);
-    final NamedAggregators initialValue = accum.value();
-
-    if (opts.getEnableSparkMetricSinks()) {
-      final MetricsSystem metricsSystem = SparkEnv$.MODULE$.get().metricsSystem();
-      final AggregatorMetricSource aggregatorMetricSource =
-          new AggregatorMetricSource(opts.getAppName(), initialValue);
-      // re-register the metrics in case of context re-use
-      metricsSystem.removeSource(aggregatorMetricSource);
-      metricsSystem.registerSource(aggregatorMetricSource);
-    }
-  }
-
-  /**
-   * Retrieves corresponding value of an aggregator.
-   *
-   * @param accum          The Spark Accumulator holding all Aggregators.
-   * @param aggregatorName Name of the aggregator to retrieve the value of.
-   * @param typeClass      Type class of value to be retrieved.
-   * @param <T>            Type of object to be returned.
-   * @return The value of the aggregator.
-   */
-  public <T> T getAggregatorValue(Accumulator<NamedAggregators> accum,
-                                  String aggregatorName,
-                                  Class<T> typeClass) {
-    return accum.value().getValue(aggregatorName, typeClass);
-  }
-
-  public <T> AggregatorValues<T> getAggregatorValues(Accumulator<NamedAggregators> accum,
-                                                     Aggregator<?, T> aggregator) {
-    @SuppressWarnings("unchecked")
-    Class<T> aggValueClass = (Class<T>) aggregator.getCombineFn().getOutputType().getRawType();
-    final T aggregatorValue = getAggregatorValue(accum, aggregator.getName(), aggValueClass);
-    return new AggregatorValues<T>() {
-      @Override
-      public Collection<T> getValues() {
-        return ImmutableList.of(aggregatorValue);
-      }
-
-      @Override
-      public Map<String, T> getValuesAtSteps() {
-        throw new UnsupportedOperationException("getValuesAtSteps is not supported.");
-      }
-    };
   }
 
   public synchronized PipelineOptions getPipelineOptions() {

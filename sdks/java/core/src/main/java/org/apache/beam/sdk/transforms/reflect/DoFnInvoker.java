@@ -84,6 +84,9 @@ public interface DoFnInvoker<InputT, OutputT> {
   <RestrictionT, TrackerT extends RestrictionTracker<RestrictionT>> TrackerT invokeNewTracker(
       RestrictionT restriction);
 
+  /** Get the bound {@link DoFn}. */
+  DoFn<InputT, OutputT> getFn();
+
   /**
    * Interface for runner implementors to provide implementations of extra context information.
    *
@@ -108,6 +111,9 @@ public interface DoFnInvoker<InputT, OutputT> {
 
     /** Provide a {@link DoFn.ProcessContext} to use with the given {@link DoFn}. */
     DoFn<InputT, OutputT>.ProcessContext processContext(DoFn<InputT, OutputT> doFn);
+
+    /** Provide a {@link DoFn.OnTimerContext} to use with the given {@link DoFn}. */
+    DoFn<InputT, OutputT>.OnTimerContext onTimerContext(DoFn<InputT, OutputT> doFn);
 
     /** A placeholder for testing purposes. */
     InputProvider<InputT> inputProvider();
@@ -155,6 +161,11 @@ public interface DoFnInvoker<InputT, OutputT> {
 
     @Override
     public DoFn<InputT, OutputT>.Context context(DoFn<InputT, OutputT> doFn) {
+      return null;
+    }
+
+    @Override
+    public DoFn<InputT, OutputT>.OnTimerContext onTimerContext(DoFn<InputT, OutputT> doFn) {
       return null;
     }
 

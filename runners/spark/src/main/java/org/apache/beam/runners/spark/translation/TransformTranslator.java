@@ -23,17 +23,18 @@ import static org.apache.beam.runners.spark.io.hadoop.ShardNameBuilder.getOutput
 import static org.apache.beam.runners.spark.io.hadoop.ShardNameBuilder.getOutputFilePrefix;
 import static org.apache.beam.runners.spark.io.hadoop.ShardNameBuilder.getOutputFileTemplate;
 import static org.apache.beam.runners.spark.io.hadoop.ShardNameBuilder.replaceShardCount;
+import static org.apache.beam.runners.spark.translation.TranslationUtils.rejectStateAndTimers;
 
 import com.google.common.collect.Maps;
 import java.io.IOException;
+import java.util.Collections;
 import java.util.Map;
 import org.apache.avro.mapred.AvroKey;
 import org.apache.avro.mapreduce.AvroJob;
 import org.apache.avro.mapreduce.AvroKeyInputFormat;
-import org.apache.beam.runners.core.AssignWindowsDoFn;
-import org.apache.beam.runners.spark.SparkRunner;
-import org.apache.beam.runners.spark.aggregators.AccumulatorSingleton;
 import org.apache.beam.runners.spark.aggregators.NamedAggregators;
+import org.apache.beam.runners.spark.aggregators.SparkAggregators;
+import org.apache.beam.runners.spark.coders.CoderHelpers;
 import org.apache.beam.runners.spark.io.SourceRDD;
 import org.apache.beam.runners.spark.io.hadoop.HadoopIO;
 import org.apache.beam.runners.spark.io.hadoop.ShardNameTemplateHelper;
@@ -42,6 +43,7 @@ import org.apache.beam.runners.spark.io.hadoop.TemplatedTextOutputFormat;
 import org.apache.beam.runners.spark.util.BroadcastHelper;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.AvroIO;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.io.TextIO;
@@ -51,14 +53,12 @@ import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.GroupByKey;
-import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.Window;
-import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.util.CombineFnUtil;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowingStrategy;
@@ -122,7 +122,7 @@ public final class TransformTranslator {
         final KvCoder<K, V> coder = (KvCoder<K, V>) context.getInput(transform).getCoder();
 
         final Accumulator<NamedAggregators> accum =
-                AccumulatorSingleton.getInstance(context.getSparkContext());
+            SparkAggregators.getNamedAggregators(context.getSparkContext());
 
         context.putDataset(transform,
             new BoundedDataset<>(GroupCombineFunctions.groupByKey(inRDD, accum, coder,
@@ -228,29 +228,20 @@ public final class TransformTranslator {
     return new TransformEvaluator<ParDo.Bound<InputT, OutputT>>() {
       @Override
       public void evaluate(ParDo.Bound<InputT, OutputT> transform, EvaluationContext context) {
-        DoFn<InputT, OutputT> doFn = transform.getNewFn();
-        if (DoFnSignatures.getSignature(doFn.getClass()).stateDeclarations().size() > 0) {
-          throw new UnsupportedOperationException(
-              String.format(
-                  "Found %s annotations on %s, but %s cannot yet be used with state in the %s.",
-                  DoFn.StateId.class.getSimpleName(),
-                  doFn.getClass().getName(),
-                  DoFn.class.getSimpleName(),
-                  SparkRunner.class.getSimpleName()));
-        }
+        DoFn<InputT, OutputT> doFn = transform.getFn();
+        rejectStateAndTimers(doFn);
         @SuppressWarnings("unchecked")
         JavaRDD<WindowedValue<InputT>> inRDD =
             ((BoundedDataset<InputT>) context.borrowDataset(transform)).getRDD();
-        @SuppressWarnings("unchecked")
-        final WindowFn<Object, ?> windowFn =
-            (WindowFn<Object, ?>) context.getInput(transform).getWindowingStrategy().getWindowFn();
+        WindowingStrategy<?, ?> windowingStrategy =
+            context.getInput(transform).getWindowingStrategy();
         Accumulator<NamedAggregators> accum =
-            AccumulatorSingleton.getInstance(context.getSparkContext());
+            SparkAggregators.getNamedAggregators(context.getSparkContext());
         Map<TupleTag<?>, KV<WindowingStrategy<?, ?>, BroadcastHelper<?>>> sideInputs =
             TranslationUtils.getSideInputs(transform.getSideInputs(), context);
         context.putDataset(transform,
-            new BoundedDataset<>(inRDD.mapPartitions(new DoFnFunction<>(accum, transform.getFn(),
-                context.getRuntimeContext(), sideInputs, windowFn))));
+            new BoundedDataset<>(inRDD.mapPartitions(new DoFnFunction<>(accum, doFn,
+                context.getRuntimeContext(), sideInputs, windowingStrategy))));
       }
     };
   }
@@ -260,29 +251,20 @@ public final class TransformTranslator {
     return new TransformEvaluator<ParDo.BoundMulti<InputT, OutputT>>() {
       @Override
       public void evaluate(ParDo.BoundMulti<InputT, OutputT> transform, EvaluationContext context) {
-        DoFn<InputT, OutputT> doFn = transform.getNewFn();
-        if (DoFnSignatures.getSignature(doFn.getClass()).stateDeclarations().size() > 0) {
-          throw new UnsupportedOperationException(
-              String.format(
-                  "Found %s annotations on %s, but %s cannot yet be used with state in the %s.",
-                  DoFn.StateId.class.getSimpleName(),
-                  doFn.getClass().getName(),
-                  DoFn.class.getSimpleName(),
-                  SparkRunner.class.getSimpleName()));
-        }
+        DoFn<InputT, OutputT> doFn = transform.getFn();
+        rejectStateAndTimers(doFn);
         @SuppressWarnings("unchecked")
         JavaRDD<WindowedValue<InputT>> inRDD =
             ((BoundedDataset<InputT>) context.borrowDataset(transform)).getRDD();
-        @SuppressWarnings("unchecked")
-        final WindowFn<Object, ?> windowFn =
-            (WindowFn<Object, ?>) context.getInput(transform).getWindowingStrategy().getWindowFn();
+        WindowingStrategy<?, ?> windowingStrategy =
+            context.getInput(transform).getWindowingStrategy();
         Accumulator<NamedAggregators> accum =
-            AccumulatorSingleton.getInstance(context.getSparkContext());
+            SparkAggregators.getNamedAggregators(context.getSparkContext());
         JavaPairRDD<TupleTag<?>, WindowedValue<?>> all = inRDD
             .mapPartitionsToPair(
-                new MultiDoFnFunction<>(accum, transform.getFn(), context.getRuntimeContext(),
+                new MultiDoFnFunction<>(accum, doFn, context.getRuntimeContext(),
                 transform.getMainOutputTag(), TranslationUtils.getSideInputs(
-                    transform.getSideInputs(), context), windowFn)).cache();
+                    transform.getSideInputs(), context), windowingStrategy)).cache();
         PCollectionTuple pct = context.getOutput(transform);
         for (Map.Entry<TupleTag<?>, PCollection<?>> e : pct.getAll().entrySet()) {
           @SuppressWarnings("unchecked")
@@ -522,14 +504,8 @@ public final class TransformTranslator {
         if (TranslationUtils.skipAssignWindows(transform, context)) {
           context.putDataset(transform, new BoundedDataset<>(inRDD));
         } else {
-          @SuppressWarnings("unchecked")
-          WindowFn<? super T, W> windowFn = (WindowFn<? super T, W>) transform.getWindowFn();
-          OldDoFn<T, T> addWindowsDoFn = new AssignWindowsDoFn<>(windowFn);
-          Accumulator<NamedAggregators> accum =
-              AccumulatorSingleton.getInstance(context.getSparkContext());
-          context.putDataset(transform,
-              new BoundedDataset<>(inRDD.mapPartitions(new DoFnFunction<>(accum, addWindowsDoFn,
-                  context.getRuntimeContext(), null, null))));
+          context.putDataset(transform, new BoundedDataset<>(
+              inRDD.map(new SparkAssignWindowFn<>(transform.getWindowFn()))));
         }
       }
     };
@@ -583,6 +559,27 @@ public final class TransformTranslator {
     };
   }
 
+  private static TransformEvaluator<StorageLevelPTransform> storageLevel() {
+    return new TransformEvaluator<StorageLevelPTransform>() {
+      @Override
+      public void evaluate(StorageLevelPTransform transform, EvaluationContext context) {
+        JavaRDD rdd = ((BoundedDataset) (context).borrowDataset(transform)).getRDD();
+        JavaSparkContext javaSparkContext = context.getSparkContext();
+
+        WindowedValue.ValueOnlyWindowedValueCoder<String> windowCoder =
+            WindowedValue.getValueOnlyCoder(StringUtf8Coder.of());
+        JavaRDD output =
+            javaSparkContext.parallelize(
+                CoderHelpers.toByteArrays(
+                    Collections.singletonList(rdd.getStorageLevel().description()),
+                    StringUtf8Coder.of()))
+            .map(CoderHelpers.fromByteFunction(windowCoder));
+
+        context.putDataset(transform, new BoundedDataset<String>(output));
+      }
+    };
+  }
+
   private static final Map<Class<? extends PTransform>, TransformEvaluator<?>> EVALUATORS = Maps
       .newHashMap();
 
@@ -602,6 +599,8 @@ public final class TransformTranslator {
     EVALUATORS.put(View.AsIterable.class, viewAsIter());
     EVALUATORS.put(View.CreatePCollectionView.class, createPCollView());
     EVALUATORS.put(Window.Bound.class, window());
+    // mostly test evaluators
+    EVALUATORS.put(StorageLevelPTransform.class, storageLevel());
   }
 
   /**

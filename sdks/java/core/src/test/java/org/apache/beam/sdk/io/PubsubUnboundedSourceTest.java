@@ -45,6 +45,7 @@ import org.apache.beam.sdk.io.PubsubUnboundedSource.PubsubReader;
 import org.apache.beam.sdk.io.PubsubUnboundedSource.PubsubSource;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.testing.CoderProperties;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.util.CoderUtils;
@@ -56,6 +57,7 @@ import org.apache.beam.sdk.util.PubsubTestClient;
 import org.apache.beam.sdk.util.PubsubTestClient.PubsubTestClientFactory;
 import org.joda.time.Instant;
 import org.junit.After;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -81,6 +83,9 @@ public class PubsubUnboundedSourceTest {
   private PubsubTestClientFactory factory;
   private PubsubSource<String> primSource;
 
+  @Rule
+  public TestPipeline p = TestPipeline.create();
+
   private void setupOneMessage(Iterable<IncomingMessage> incoming) {
     now = new AtomicLong(REQ_TIME);
     clock = new Clock() {
@@ -91,8 +96,9 @@ public class PubsubUnboundedSourceTest {
     };
     factory = PubsubTestClient.createFactoryForPull(clock, SUBSCRIPTION, ACK_TIMEOUT_S, incoming);
     PubsubUnboundedSource<String> source =
-        new PubsubUnboundedSource<>(clock, factory, null, null, SUBSCRIPTION, StringUtf8Coder.of(),
-                                    TIMESTAMP_LABEL, ID_LABEL);
+        new PubsubUnboundedSource<>(
+            clock, factory, null, null, StaticValueProvider.of(SUBSCRIPTION),
+            StringUtf8Coder.of(), TIMESTAMP_LABEL, ID_LABEL);
     primSource = new PubsubSource<>(source);
   }
 
@@ -122,7 +128,6 @@ public class PubsubUnboundedSourceTest {
   @Test
   public void readOneMessage() throws IOException {
     setupOneMessage();
-    TestPipeline p = TestPipeline.create();
     PubsubReader<String> reader = primSource.createReader(p.getOptions(), null);
     // Read one message.
     assertTrue(reader.start());
@@ -137,7 +142,6 @@ public class PubsubUnboundedSourceTest {
   @Test
   public void timeoutAckAndRereadOneMessage() throws IOException {
     setupOneMessage();
-    TestPipeline p = TestPipeline.create();
     PubsubReader<String> reader = primSource.createReader(p.getOptions(), null);
     PubsubTestClient pubsubClient = (PubsubTestClient) reader.getPubsubClient();
     assertTrue(reader.start());
@@ -158,7 +162,6 @@ public class PubsubUnboundedSourceTest {
   @Test
   public void extendAck() throws IOException {
     setupOneMessage();
-    TestPipeline p = TestPipeline.create();
     PubsubReader<String> reader = primSource.createReader(p.getOptions(), null);
     PubsubTestClient pubsubClient = (PubsubTestClient) reader.getPubsubClient();
     // Pull the first message but don't take a checkpoint for it.
@@ -181,7 +184,6 @@ public class PubsubUnboundedSourceTest {
   @Test
   public void timeoutAckExtensions() throws IOException {
     setupOneMessage();
-    TestPipeline p = TestPipeline.create();
     PubsubReader<String> reader = primSource.createReader(p.getOptions(), null);
     PubsubTestClient pubsubClient = (PubsubTestClient) reader.getPubsubClient();
     // Pull the first message but don't take a checkpoint for it.
@@ -218,7 +220,6 @@ public class PubsubUnboundedSourceTest {
       incoming.add(new IncomingMessage(data.getBytes(), TIMESTAMP, 0, ackid, RECORD_ID));
     }
     setupOneMessage(incoming);
-    TestPipeline p = TestPipeline.create();
     PubsubReader<String> reader = primSource.createReader(p.getOptions(), null);
     // Consume two messages, only read one.
     assertTrue(reader.start());
@@ -279,7 +280,6 @@ public class PubsubUnboundedSourceTest {
     }
     setupOneMessage(incoming);
 
-    TestPipeline p = TestPipeline.create();
     PubsubReader<String> reader = primSource.createReader(p.getOptions(), null);
     PubsubTestClient pubsubClient = (PubsubTestClient) reader.getPubsubClient();
 
@@ -332,15 +332,14 @@ public class PubsubUnboundedSourceTest {
     PubsubUnboundedSource<String> source =
         new PubsubUnboundedSource<>(
             factory,
-            PubsubClient.projectPathFromId("my_project"),
-            topicPath,
+            StaticValueProvider.of(PubsubClient.projectPathFromId("my_project")),
+            StaticValueProvider.of(topicPath),
             null,
             StringUtf8Coder.of(),
             null,
             null);
     assertThat(source.getSubscription(), nullValue());
 
-    TestPipeline.create().apply(source);
     assertThat(source.getSubscription(), nullValue());
 
     PipelineOptions options = PipelineOptionsFactory.create();
@@ -363,15 +362,14 @@ public class PubsubUnboundedSourceTest {
     PubsubUnboundedSource<String> source =
         new PubsubUnboundedSource<>(
             factory,
-            PubsubClient.projectPathFromId("my_project"),
-            topicPath,
+            StaticValueProvider.of(PubsubClient.projectPathFromId("my_project")),
+            StaticValueProvider.of(topicPath),
             null,
             StringUtf8Coder.of(),
             null,
             null);
     assertThat(source.getSubscription(), nullValue());
 
-    TestPipeline.create().apply(source);
     assertThat(source.getSubscription(), nullValue());
 
     PipelineOptions options = PipelineOptionsFactory.create();

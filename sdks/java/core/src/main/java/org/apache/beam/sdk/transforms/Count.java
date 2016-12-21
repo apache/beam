@@ -103,7 +103,7 @@ public class Count {
     public PerElement() { }
 
     @Override
-    public PCollection<KV<T, Long>> apply(PCollection<T> input) {
+    public PCollection<KV<T, Long>> expand(PCollection<T> input) {
       return
           input
           .apply("Init", MapElements.via(new SimpleFunction<T, KV<T, Void>>() {

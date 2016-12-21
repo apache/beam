@@ -47,6 +47,7 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TupleTag;
 import org.joda.time.Duration;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
@@ -118,13 +119,14 @@ public class CoGroupByKeyTest implements Serializable {
     return coGbkResults;
   }
 
+  @Rule
+  public final transient TestPipeline p = TestPipeline.create();
+
   @Test
   @Category(RunnableOnService.class)
   public void testCoGroupByKeyGetOnly() {
     final TupleTag<String> tag1 = new TupleTag<>();
     final TupleTag<String> tag2 = new TupleTag<>();
-
-    Pipeline p = TestPipeline.create();
 
     PCollection<KV<Integer, CoGbkResult>> coGbkResults =
         buildGetOnlyGbk(p, tag1, tag2);
@@ -264,7 +266,6 @@ public class CoGroupByKeyTest implements Serializable {
     final TupleTag<String> addressesTag = new TupleTag<>();
     final TupleTag<String> purchasesTag = new TupleTag<>();
 
-    Pipeline p = TestPipeline.create();
 
     PCollection<KV<Integer, CoGbkResult>> coGbkResults =
         buildPurchasesCoGbk(p, purchasesTag, addressesTag, namesTag);
@@ -456,8 +457,6 @@ public class CoGroupByKeyTest implements Serializable {
     TupleTag<String> addressesTag = new TupleTag<>();
     TupleTag<String> purchasesTag = new TupleTag<>();
 
-    Pipeline p = TestPipeline.create();
-
     PCollection<KV<Integer, CoGbkResult>> coGbkResults =
         buildPurchasesCoGbk(p, purchasesTag, addressesTag, namesTag);
 
@@ -485,8 +484,6 @@ public class CoGroupByKeyTest implements Serializable {
   public void testCoGroupByKeyWithWindowing() {
     TupleTag<String> clicksTag = new TupleTag<>();
     TupleTag<String> purchasesTag = new TupleTag<>();
-
-    Pipeline p = TestPipeline.create();
 
     PCollection<KV<Integer, CoGbkResult>> coGbkResults =
         buildPurchasesCoGbkWithWindowing(p, clicksTag, purchasesTag);

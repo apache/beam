@@ -25,7 +25,6 @@ import static org.junit.Assert.assertTrue;
 
 import java.io.IOException;
 import java.util.List;
-import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.BoundedSource.BoundedReader;
 import org.apache.beam.sdk.io.CountingSource.CounterMark;
 import org.apache.beam.sdk.io.CountingSource.UnboundedCountingSource;
@@ -48,6 +47,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
@@ -79,10 +79,12 @@ public class CountingSourceTest {
       .isEqualTo(numElements - 1);
   }
 
+  @Rule
+  public TestPipeline p = TestPipeline.create();
+
   @Test
   @Category(RunnableOnService.class)
   public void testBoundedSource() {
-    Pipeline p = TestPipeline.create();
     long numElements = 1000;
     PCollection<Long> input = p.apply(Read.from(CountingSource.upTo(numElements)));
 
@@ -92,8 +94,16 @@ public class CountingSourceTest {
 
   @Test
   @Category(RunnableOnService.class)
+  public void testEmptyBoundedSource() {
+    PCollection<Long> input = p.apply(Read.from(CountingSource.upTo(0)));
+
+    PAssert.that(input).empty();
+    p.run();
+  }
+
+  @Test
+  @Category(RunnableOnService.class)
   public void testBoundedSourceSplits() throws Exception {
-    Pipeline p = TestPipeline.create();
     long numElements = 1000;
     long numSplits = 10;
     long splitSizeBytes = numElements * 8 / numSplits;  // 8 bytes per long element.
@@ -147,7 +157,6 @@ public class CountingSourceTest {
   @Test
   @Category(RunnableOnService.class)
   public void testUnboundedSource() {
-    Pipeline p = TestPipeline.create();
     long numElements = 1000;
 
     PCollection<Long> input = p
@@ -167,7 +176,6 @@ public class CountingSourceTest {
   @Test
   @Category(RunnableOnService.class)
   public void testUnboundedSourceTimestamps() {
-    Pipeline p = TestPipeline.create();
     long numElements = 1000;
 
     PCollection<Long> input = p.apply(
@@ -187,7 +195,6 @@ public class CountingSourceTest {
   @Test
   @Category(NeedsRunner.class)
   public void testUnboundedSourceWithRate() {
-    Pipeline p = TestPipeline.create();
 
     Duration period = Duration.millis(5);
     long numElements = 1000L;
@@ -222,7 +229,6 @@ public class CountingSourceTest {
   @Test
   @Category(RunnableOnService.class)
   public void testUnboundedSourceSplits() throws Exception {
-    Pipeline p = TestPipeline.create();
     long numElements = 1000;
     int numSplits = 10;
 
@@ -247,7 +253,6 @@ public class CountingSourceTest {
   @Test
   @Category(NeedsRunner.class)
   public void testUnboundedSourceRateSplits() throws Exception {
-    Pipeline p = TestPipeline.create();
     int elementsPerPeriod = 10;
     Duration period = Duration.millis(5);
 

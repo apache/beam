@@ -361,60 +361,18 @@ public class BigQueryUtilTest {
   }
 
   @Test
-  public void testWriteAppend() throws IOException {
-    onTableGet(basicTableSchema());
-
-    TableReference ref = BigQueryIO
-        .parseTableSpec("project:dataset.table");
-
-    BigQueryTableInserter inserter = new BigQueryTableInserter(mockClient, options);
-
-    inserter.getOrCreateTable(ref, BigQueryIO.Write.WriteDisposition.WRITE_APPEND,
-        BigQueryIO.Write.CreateDisposition.CREATE_NEVER, null);
-
-    verifyTableGet();
-  }
-
-  @Test
-  public void testWriteEmpty() throws IOException {
+  public void testTableGet() throws InterruptedException, IOException {
     onTableGet(basicTableSchema());
 
     TableDataList dataList = new TableDataList().setTotalRows(0L);
     onTableList(dataList);
 
-    TableReference ref = BigQueryIO
-        .parseTableSpec("project:dataset.table");
+    BigQueryServicesImpl.DatasetServiceImpl services =
+            new BigQueryServicesImpl.DatasetServiceImpl(mockClient, options);
 
-    BigQueryTableInserter inserter = new BigQueryTableInserter(mockClient, options);
-
-    inserter.getOrCreateTable(ref, BigQueryIO.Write.WriteDisposition.WRITE_EMPTY,
-        BigQueryIO.Write.CreateDisposition.CREATE_NEVER, null);
+    services.getTable("project", "dataset", "table");
 
     verifyTableGet();
-    verifyTabledataList();
-  }
-
-  @Test
-  public void testWriteEmptyFail() throws IOException {
-    thrown.expect(IOException.class);
-
-    onTableGet(basicTableSchema());
-
-    TableDataList dataList = rawDataList(rawRow("Arthur", 42));
-    onTableList(dataList);
-
-    TableReference ref = BigQueryIO
-        .parseTableSpec("project:dataset.table");
-
-    BigQueryTableInserter inserter = new BigQueryTableInserter(mockClient, options);
-
-    try {
-      inserter.getOrCreateTable(ref, BigQueryIO.Write.WriteDisposition.WRITE_EMPTY,
-          BigQueryIO.Write.CreateDisposition.CREATE_NEVER, null);
-    } finally {
-      verifyTableGet();
-      verifyTabledataList();
-    }
   }
 
   @Test

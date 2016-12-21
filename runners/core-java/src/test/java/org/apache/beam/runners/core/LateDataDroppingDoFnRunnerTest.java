@@ -80,6 +80,9 @@ public class LateDataDroppingDoFnRunnerTest {
         createDatum(18, 18L));
     assertThat(expected, containsInAnyOrder(Iterables.toArray(actual, WindowedValue.class)));
     assertEquals(1, droppedDueToLateness.sum);
+    // Ensure that reiterating returns the same results and doesn't increment the counter again.
+    assertThat(expected, containsInAnyOrder(Iterables.toArray(actual, WindowedValue.class)));
+    assertEquals(1, droppedDueToLateness.sum);
   }
 
   private <T> WindowedValue<T> createDatum(T element, long timestampMillis) {

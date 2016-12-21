@@ -84,12 +84,14 @@ public class ViewTest implements Serializable {
   // anonymous inner classes inside the non-static test methods.
 
   @Rule
+  public final transient TestPipeline pipeline = TestPipeline.create();
+
+  @Rule
   public transient ExpectedException thrown = ExpectedException.none();
 
   @Test
   @Category(RunnableOnService.class)
   public void testSingletonSideInput() {
-    Pipeline pipeline = TestPipeline.create();
 
     final PCollectionView<Integer> view =
         pipeline.apply("Create47", Create.of(47)).apply(View.<Integer>asSingleton());
@@ -112,7 +114,6 @@ public class ViewTest implements Serializable {
   @Test
   @Category(RunnableOnService.class)
   public void testWindowedSingletonSideInput() {
-    Pipeline pipeline = TestPipeline.create();
 
     final PCollectionView<Integer> view =
         pipeline.apply("Create47", Create.timestamped(
@@ -143,7 +144,6 @@ public class ViewTest implements Serializable {
   @Test
   @Category(NeedsRunner.class)
   public void testEmptySingletonSideInput() throws Exception {
-    Pipeline pipeline = TestPipeline.create();
 
     final PCollectionView<Integer> view =
         pipeline.apply("CreateEmptyIntegers", Create.<Integer>of().withCoder(VarIntCoder.of()))
@@ -169,7 +169,6 @@ public class ViewTest implements Serializable {
   @Test
   @Category(NeedsRunner.class)
   public void testNonSingletonSideInput() throws Exception {
-    Pipeline pipeline = TestPipeline.create();
 
     PCollection<Integer> oneTwoThree = pipeline.apply(Create.<Integer>of(1, 2, 3));
     final PCollectionView<Integer> view = oneTwoThree.apply(View.<Integer>asSingleton());
@@ -194,7 +193,6 @@ public class ViewTest implements Serializable {
   @Test
   @Category(RunnableOnService.class)
   public void testListSideInput() {
-    Pipeline pipeline = TestPipeline.create();
 
     final PCollectionView<List<Integer>> view =
         pipeline.apply("CreateSideInput", Create.of(11, 13, 17, 23)).apply(View.<Integer>asList());
@@ -221,7 +219,6 @@ public class ViewTest implements Serializable {
   @Test
   @Category(RunnableOnService.class)
   public void testWindowedListSideInput() {
-    Pipeline pipeline = TestPipeline.create();
 
     final PCollectionView<List<Integer>> view =
         pipeline.apply("CreateSideInput", Create.timestamped(
@@ -262,7 +259,6 @@ public class ViewTest implements Serializable {
   @Test
   @Category(RunnableOnService.class)
   public void testEmptyListSideInput() throws Exception {
-    Pipeline pipeline = TestPipeline.create();
 
     final PCollectionView<List<Integer>> view =
         pipeline.apply("CreateEmptyView", Create.<Integer>of().withCoder(VarIntCoder.of()))
@@ -289,7 +285,6 @@ public class ViewTest implements Serializable {
   @Test
   @Category(RunnableOnService.class)
   public void testListSideInputIsImmutable() {
-    Pipeline pipeline = TestPipeline.create();
 
     final PCollectionView<List<Integer>> view =
         pipeline.apply("CreateSideInput", Create.of(11)).apply(View.<Integer>asList());
@@ -335,7 +330,6 @@ public class ViewTest implements Serializable {
   @Test
   @Category(RunnableOnService.class)
   public void testIterableSideInput() {
-    Pipeline pipeline = TestPipeline.create();
 
     final PCollectionView<Iterable<Integer>> view =
         pipeline.apply("CreateSideInput", Create.of(11, 13, 17, 23))
@@ -361,7 +355,6 @@ public class ViewTest implements Serializable {
   @Test
   @Category(RunnableOnService.class)
   public void testWindowedIterableSideInput() {
-    Pipeline pipeline = TestPipeline.create();
 
     final PCollectionView<Iterable<Integer>> view =
         pipeline.apply("CreateSideInput", Create.timestamped(
@@ -401,7 +394,6 @@ public class ViewTest implements Serializable {
   @Test
   @Category(RunnableOnService.class)
   public void testEmptyIterableSideInput() throws Exception {
-    Pipeline pipeline = TestPipeline.create();
 
     final PCollectionView<Iterable<Integer>> view =
         pipeline.apply("CreateEmptyView", Create.<Integer>of().withCoder(VarIntCoder.of()))
@@ -427,7 +419,6 @@ public class ViewTest implements Serializable {
   @Test
   @Category(RunnableOnService.class)
   public void testIterableSideInputIsImmutable() {
-    Pipeline pipeline = TestPipeline.create();
 
     final PCollectionView<Iterable<Integer>> view =
         pipeline.apply("CreateSideInput", Create.of(11)).apply(View.<Integer>asIterable());
@@ -459,7 +450,6 @@ public class ViewTest implements Serializable {
   @Test
   @Category(RunnableOnService.class)
   public void testMultimapSideInput() {
-    Pipeline pipeline = TestPipeline.create();
 
     final PCollectionView<Map<String, Iterable<Integer>>> view =
         pipeline.apply("CreateSideInput", Create.of(KV.of("a", 1), KV.of("a", 2), KV.of("b", 3)))
@@ -487,7 +477,6 @@ public class ViewTest implements Serializable {
   @Test
   @Category(RunnableOnService.class)
   public void testMultimapAsEntrySetSideInput() {
-    Pipeline pipeline = TestPipeline.create();
 
     final PCollectionView<Map<String, Iterable<Integer>>> view =
         pipeline.apply("CreateSideInput", Create.of(KV.of("a", 1), KV.of("a", 2), KV.of("b", 3)))
@@ -539,7 +528,6 @@ public class ViewTest implements Serializable {
   @Test
   @Category(RunnableOnService.class)
   public void testMultimapSideInputWithNonDeterministicKeyCoder() {
-    Pipeline pipeline = TestPipeline.create();
 
     final PCollectionView<Map<String, Iterable<Integer>>> view =
         pipeline.apply("CreateSideInput",
@@ -569,7 +557,6 @@ public class ViewTest implements Serializable {
   @Test
   @Category(RunnableOnService.class)
   public void testWindowedMultimapSideInput() {
-    Pipeline pipeline = TestPipeline.create();
 
     final PCollectionView<Map<String, Iterable<Integer>>> view =
         pipeline.apply("CreateSideInput", Create.timestamped(
@@ -608,7 +595,6 @@ public class ViewTest implements Serializable {
   @Test
   @Category(RunnableOnService.class)
   public void testWindowedMultimapAsEntrySetSideInput() {
-    Pipeline pipeline = TestPipeline.create();
 
     final PCollectionView<Map<String, Iterable<Integer>>> view =
         pipeline.apply("CreateSideInput", Create.timestamped(
@@ -651,7 +637,6 @@ public class ViewTest implements Serializable {
   @Test
   @Category(RunnableOnService.class)
   public void testWindowedMultimapSideInputWithNonDeterministicKeyCoder() {
-    Pipeline pipeline = TestPipeline.create();
 
     final PCollectionView<Map<String, Iterable<Integer>>> view =
         pipeline.apply("CreateSideInput",
@@ -691,7 +676,6 @@ public class ViewTest implements Serializable {
   @Test
   @Category(RunnableOnService.class)
   public void testEmptyMultimapSideInput() throws Exception {
-    Pipeline pipeline = TestPipeline.create();
 
     final PCollectionView<Map<String, Iterable<Integer>>> view =
         pipeline.apply("CreateEmptyView", Create.<KV<String, Integer>>of().withCoder(
@@ -720,7 +704,6 @@ public class ViewTest implements Serializable {
   @Test
   @Category(RunnableOnService.class)
   public void testEmptyMultimapSideInputWithNonDeterministicKeyCoder() throws Exception {
-    Pipeline pipeline = TestPipeline.create();
 
     final PCollectionView<Map<String, Iterable<Integer>>> view =
         pipeline.apply("CreateEmptyView",
@@ -750,7 +733,6 @@ public class ViewTest implements Serializable {
   @Test
   @Category(RunnableOnService.class)
   public void testMultimapSideInputIsImmutable() {
-    Pipeline pipeline = TestPipeline.create();
 
     final PCollectionView<Map<String, Iterable<Integer>>> view =
         pipeline.apply("CreateSideInput", Create.of(KV.of("a", 1)))
@@ -798,7 +780,6 @@ public class ViewTest implements Serializable {
   @Test
   @Category(RunnableOnService.class)
   public void testMapSideInput() {
-    Pipeline pipeline = TestPipeline.create();
 
     final PCollectionView<Map<String, Integer>> view =
         pipeline.apply("CreateSideInput", Create.of(KV.of("a", 1), KV.of("b", 3)))
@@ -825,7 +806,6 @@ public class ViewTest implements Serializable {
   @Test
   @Category(RunnableOnService.class)
   public void testMapAsEntrySetSideInput() {
-    Pipeline pipeline = TestPipeline.create();
 
     final PCollectionView<Map<String, Integer>> view =
         pipeline.apply("CreateSideInput", Create.of(KV.of("a", 1), KV.of("b", 3)))
@@ -855,7 +835,6 @@ public class ViewTest implements Serializable {
   @Test
   @Category(RunnableOnService.class)
   public void testMapSideInputWithNonDeterministicKeyCoder() {
-    Pipeline pipeline = TestPipeline.create();
 
     final PCollectionView<Map<String, Integer>> view =
         pipeline.apply("CreateSideInput",
@@ -884,7 +863,6 @@ public class ViewTest implements Serializable {
   @Test
   @Category(RunnableOnService.class)
   public void testWindowedMapSideInput() {
-    Pipeline pipeline = TestPipeline.create();
 
     final PCollectionView<Map<String, Integer>> view =
         pipeline.apply("CreateSideInput", Create.timestamped(
@@ -922,7 +900,6 @@ public class ViewTest implements Serializable {
   @Test
   @Category(RunnableOnService.class)
   public void testWindowedMapAsEntrySetSideInput() {
-    Pipeline pipeline = TestPipeline.create();
 
     final PCollectionView<Map<String, Integer>> view =
         pipeline.apply("CreateSideInput", Create.timestamped(
@@ -964,7 +941,6 @@ public class ViewTest implements Serializable {
   @Test
   @Category(RunnableOnService.class)
   public void testWindowedMapSideInputWithNonDeterministicKeyCoder() {
-    Pipeline pipeline = TestPipeline.create();
 
     final PCollectionView<Map<String, Integer>> view =
         pipeline.apply("CreateSideInput",
@@ -1004,7 +980,6 @@ public class ViewTest implements Serializable {
   @Test
   @Category(RunnableOnService.class)
   public void testEmptyMapSideInput() throws Exception {
-    Pipeline pipeline = TestPipeline.create();
 
     final PCollectionView<Map<String, Integer>> view =
         pipeline.apply("CreateEmptyView", Create.<KV<String, Integer>>of().withCoder(
@@ -1033,7 +1008,6 @@ public class ViewTest implements Serializable {
   @Test
   @Category(RunnableOnService.class)
   public void testEmptyMapSideInputWithNonDeterministicKeyCoder() throws Exception {
-    Pipeline pipeline = TestPipeline.create();
 
     final PCollectionView<Map<String, Integer>> view =
         pipeline.apply("CreateEmptyView", Create.<KV<String, Integer>>of().withCoder(
@@ -1062,7 +1036,6 @@ public class ViewTest implements Serializable {
   @Test
   @Category(NeedsRunner.class)
   public void testMapSideInputWithNullValuesCatchesDuplicates() {
-    Pipeline pipeline = TestPipeline.create();
 
     final PCollectionView<Map<String, Integer>> view =
         pipeline
@@ -1098,7 +1071,6 @@ public class ViewTest implements Serializable {
   @Test
   @Category(RunnableOnService.class)
   public void testMapSideInputIsImmutable() {
-    Pipeline pipeline = TestPipeline.create();
 
     final PCollectionView<Map<String, Integer>> view =
         pipeline.apply("CreateSideInput", Create.of(KV.of("a", 1)))
@@ -1145,7 +1117,6 @@ public class ViewTest implements Serializable {
   @Test
   @Category(RunnableOnService.class)
   public void testCombinedMapSideInput() {
-    Pipeline pipeline = TestPipeline.create();
 
     final PCollectionView<Map<String, Integer>> view =
         pipeline.apply("CreateSideInput", Create.of(KV.of("a", 1), KV.of("a", 20), KV.of("b", 3)))
@@ -1172,10 +1143,9 @@ public class ViewTest implements Serializable {
   @Test
   @Category(RunnableOnService.class)
   public void testWindowedSideInputFixedToFixed() {
-    Pipeline p = TestPipeline.create();
 
     final PCollectionView<Integer> view =
-        p.apply(
+        pipeline.apply(
              "CreateSideInput",
              Create.timestamped(TimestampedValue.of(1, new Instant(1)),
                  TimestampedValue.of(2, new Instant(11)), TimestampedValue.of(3, new Instant(13))))
@@ -1184,7 +1154,7 @@ public class ViewTest implements Serializable {
             .apply(View.<Integer>asSingleton());
 
     PCollection<String> output =
-        p.apply("CreateMainInput", Create.timestamped(
+        pipeline.apply("CreateMainInput", Create.timestamped(
                                        TimestampedValue.of("A", new Instant(4)),
                                        TimestampedValue.of("B", new Instant(15)),
                                        TimestampedValue.of("C", new Instant(7))))
@@ -1199,16 +1169,15 @@ public class ViewTest implements Serializable {
 
     PAssert.that(output).containsInAnyOrder("A1", "B5", "C1");
 
-    p.run();
+    pipeline.run();
   }
 
   @Test
   @Category(RunnableOnService.class)
   public void testWindowedSideInputFixedToGlobal() {
-    Pipeline p = TestPipeline.create();
 
     final PCollectionView<Integer> view =
-        p.apply(
+        pipeline.apply(
              "CreateSideInput",
              Create.timestamped(TimestampedValue.of(1, new Instant(1)),
                  TimestampedValue.of(2, new Instant(11)), TimestampedValue.of(3, new Instant(13))))
@@ -1217,7 +1186,7 @@ public class ViewTest implements Serializable {
             .apply(View.<Integer>asSingleton());
 
     PCollection<String> output =
-        p.apply("CreateMainInput", Create.timestamped(
+        pipeline.apply("CreateMainInput", Create.timestamped(
                                        TimestampedValue.of("A", new Instant(4)),
                                        TimestampedValue.of("B", new Instant(15)),
                                        TimestampedValue.of("C", new Instant(7))))
@@ -1232,23 +1201,22 @@ public class ViewTest implements Serializable {
 
     PAssert.that(output).containsInAnyOrder("A6", "B6", "C6");
 
-    p.run();
+    pipeline.run();
   }
 
   @Test
   @Category(RunnableOnService.class)
   public void testWindowedSideInputFixedToFixedWithDefault() {
-    Pipeline p = TestPipeline.create();
 
     final PCollectionView<Integer> view =
-        p.apply("CreateSideInput", Create.timestamped(
+        pipeline.apply("CreateSideInput", Create.timestamped(
                                        TimestampedValue.of(2, new Instant(11)),
                                        TimestampedValue.of(3, new Instant(13))))
             .apply("WindowSideInput", Window.<Integer>into(FixedWindows.of(Duration.millis(10))))
             .apply(Sum.integersGlobally().asSingletonView());
 
     PCollection<String> output =
-        p.apply("CreateMainInput", Create.timestamped(
+        pipeline.apply("CreateMainInput", Create.timestamped(
                                        TimestampedValue.of("A", new Instant(4)),
                                        TimestampedValue.of("B", new Instant(15)),
                                        TimestampedValue.of("C", new Instant(7))))
@@ -1263,16 +1231,15 @@ public class ViewTest implements Serializable {
 
     PAssert.that(output).containsInAnyOrder("A0", "B5", "C0");
 
-    p.run();
+    pipeline.run();
   }
 
   @Test
   @Category(RunnableOnService.class)
   public void testSideInputWithNullDefault() {
-    Pipeline p = TestPipeline.create();
 
     final PCollectionView<Void> view =
-        p.apply("CreateSideInput", Create.of((Void) null).withCoder(VoidCoder.of()))
+        pipeline.apply("CreateSideInput", Create.of((Void) null).withCoder(VoidCoder.of()))
             .apply(Combine.globally(new SerializableFunction<Iterable<Void>, Void>() {
               @Override
               public Void apply(Iterable<Void> input) {
@@ -1281,7 +1248,7 @@ public class ViewTest implements Serializable {
             }).asSingletonView());
 
     PCollection<String> output =
-        p.apply("CreateMainInput", Create.of(""))
+        pipeline.apply("CreateMainInput", Create.of(""))
             .apply(
                 "OutputMainAndSideInputs",
                 ParDo.withSideInputs(view).of(new DoFn<String, String>() {
@@ -1293,13 +1260,12 @@ public class ViewTest implements Serializable {
 
     PAssert.that(output).containsInAnyOrder("null");
 
-    p.run();
+    pipeline.run();
   }
 
   @Test
   @Category(RunnableOnService.class)
   public void testSideInputWithNestedIterables() {
-    Pipeline pipeline = TestPipeline.create();
     final PCollectionView<Iterable<Integer>> view1 =
         pipeline.apply("CreateVoid1", Create.of((Void) null).withCoder(VoidCoder.of()))
             .apply("OutputOneInteger", ParDo.of(new DoFn<Void, Integer>() {
@@ -1360,12 +1326,12 @@ public class ViewTest implements Serializable {
         .apply(
             new PTransform<PBegin, PCollection<KV<String, Integer>>>() {
               @Override
-              public PCollection<KV<String, Integer>> apply(PBegin input) {
+              public PCollection<KV<String, Integer>> expand(PBegin input) {
                 return PCollection.<KV<String, Integer>>createPrimitiveOutputInternal(
                         input.getPipeline(),
                         WindowingStrategy.globalDefault(),
                         PCollection.IsBounded.UNBOUNDED)
-                    .setTypeDescriptorInternal(new TypeDescriptor<KV<String, Integer>>() {});
+                    .setTypeDescriptor(new TypeDescriptor<KV<String, Integer>>() {});
               }
             })
         .apply(view);
@@ -1386,51 +1352,51 @@ public class ViewTest implements Serializable {
 
   @Test
   public void testViewUnboundedAsSingletonDirect() {
-    testViewUnbounded(TestPipeline.create(), View.<KV<String, Integer>>asSingleton());
+    testViewUnbounded(pipeline, View.<KV<String, Integer>>asSingleton());
   }
 
   @Test
   public void testViewUnboundedAsIterableDirect() {
-    testViewUnbounded(TestPipeline.create(), View.<KV<String, Integer>>asIterable());
+    testViewUnbounded(pipeline, View.<KV<String, Integer>>asIterable());
   }
 
   @Test
   public void testViewUnboundedAsListDirect() {
-    testViewUnbounded(TestPipeline.create(), View.<KV<String, Integer>>asList());
+    testViewUnbounded(pipeline, View.<KV<String, Integer>>asList());
   }
 
   @Test
   public void testViewUnboundedAsMapDirect() {
-    testViewUnbounded(TestPipeline.create(), View.<String, Integer>asMap());
+    testViewUnbounded(pipeline, View.<String, Integer>asMap());
   }
 
   @Test
   public void testViewUnboundedAsMultimapDirect() {
-    testViewUnbounded(TestPipeline.create(), View.<String, Integer>asMultimap());
+    testViewUnbounded(pipeline, View.<String, Integer>asMultimap());
   }
 
   @Test
   public void testViewNonmergingAsSingletonDirect() {
-    testViewNonmerging(TestPipeline.create(), View.<KV<String, Integer>>asSingleton());
+    testViewNonmerging(pipeline, View.<KV<String, Integer>>asSingleton());
   }
 
   @Test
   public void testViewNonmergingAsIterableDirect() {
-    testViewNonmerging(TestPipeline.create(), View.<KV<String, Integer>>asIterable());
+    testViewNonmerging(pipeline, View.<KV<String, Integer>>asIterable());
   }
 
   @Test
   public void testViewNonmergingAsListDirect() {
-    testViewNonmerging(TestPipeline.create(), View.<KV<String, Integer>>asList());
+    testViewNonmerging(pipeline, View.<KV<String, Integer>>asList());
   }
 
   @Test
   public void testViewNonmergingAsMapDirect() {
-    testViewNonmerging(TestPipeline.create(), View.<String, Integer>asMap());
+    testViewNonmerging(pipeline, View.<String, Integer>asMap());
   }
 
   @Test
   public void testViewNonmergingAsMultimapDirect() {
-    testViewNonmerging(TestPipeline.create(), View.<String, Integer>asMultimap());
+    testViewNonmerging(pipeline, View.<String, Integer>asMultimap());
   }
 }

@@ -56,9 +56,9 @@ class DoFnLifecycleManager {
     thrownOnTeardown = new ConcurrentHashMap<>();
   }
 
-  public DoFn<?, ?> get() throws Exception {
+  public <InputT, OutputT> DoFn<InputT, OutputT> get() throws Exception {
     Thread currentThread = Thread.currentThread();
-    return outstanding.get(currentThread);
+    return (DoFn<InputT, OutputT>) outstanding.get(currentThread);
   }
 
   public void remove() throws Exception {

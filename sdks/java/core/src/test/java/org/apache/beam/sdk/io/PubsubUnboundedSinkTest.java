@@ -25,6 +25,7 @@ import java.util.ArrayList;
 import java.util.List;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.PubsubUnboundedSink.RecordIdMethod;
+import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.testing.CoderProperties;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -38,6 +39,7 @@ import org.apache.beam.sdk.util.PubsubTestClient;
 import org.apache.beam.sdk.util.PubsubTestClient.PubsubTestClientFactory;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
@@ -66,6 +68,9 @@ public class PubsubUnboundedSinkTest {
     return Hashing.murmur3_128().hashBytes(data.getBytes()).toString();
   }
 
+  @Rule
+  public TestPipeline p = TestPipeline.create();
+
   @Test
   public void saneCoder() throws Exception {
     OutgoingMessage message = new OutgoingMessage(DATA.getBytes(), TIMESTAMP, getRecordId(DATA));
@@ -84,10 +89,10 @@ public class PubsubUnboundedSinkTest {
              PubsubTestClient.createFactoryForPublish(TOPIC, outgoing,
                                                       ImmutableList.<OutgoingMessage>of())) {
       PubsubUnboundedSink<String> sink =
-          new PubsubUnboundedSink<>(factory, TOPIC, StringUtf8Coder.of(), TIMESTAMP_LABEL, ID_LABEL,
-                                    NUM_SHARDS, batchSize, batchBytes, Duration.standardSeconds(2),
-                                    RecordIdMethod.DETERMINISTIC);
-      TestPipeline p = TestPipeline.create();
+          new PubsubUnboundedSink<>(factory, StaticValueProvider.of(TOPIC), StringUtf8Coder.of(),
+              TIMESTAMP_LABEL, ID_LABEL, NUM_SHARDS, batchSize, batchBytes,
+              Duration.standardSeconds(2), RecordIdMethod.DETERMINISTIC);
+
       p.apply(Create.of(ImmutableList.of(DATA)))
        .apply(ParDo.of(new Stamp()))
        .apply(sink);
@@ -113,10 +118,10 @@ public class PubsubUnboundedSinkTest {
              PubsubTestClient.createFactoryForPublish(TOPIC, outgoing,
                                                       ImmutableList.<OutgoingMessage>of())) {
       PubsubUnboundedSink<String> sink =
-          new PubsubUnboundedSink<>(factory, TOPIC, StringUtf8Coder.of(), TIMESTAMP_LABEL, ID_LABEL,
-                                    NUM_SHARDS, batchSize, batchBytes, Duration.standardSeconds(2),
-                                    RecordIdMethod.DETERMINISTIC);
-      TestPipeline p = TestPipeline.create();
+          new PubsubUnboundedSink<>(factory, StaticValueProvider.of(TOPIC), StringUtf8Coder.of(),
+              TIMESTAMP_LABEL, ID_LABEL, NUM_SHARDS, batchSize, batchBytes,
+              Duration.standardSeconds(2), RecordIdMethod.DETERMINISTIC);
+
       p.apply(Create.of(data))
        .apply(ParDo.of(new Stamp()))
        .apply(sink);
@@ -148,10 +153,11 @@ public class PubsubUnboundedSinkTest {
              PubsubTestClient.createFactoryForPublish(TOPIC, outgoing,
                                                       ImmutableList.<OutgoingMessage>of())) {
       PubsubUnboundedSink<String> sink =
-          new PubsubUnboundedSink<>(factory, TOPIC, StringUtf8Coder.of(), TIMESTAMP_LABEL, ID_LABEL,
-                                    NUM_SHARDS, batchSize, batchBytes, Duration.standardSeconds(2),
-                                    RecordIdMethod.DETERMINISTIC);
-      TestPipeline p = TestPipeline.create();
+          new PubsubUnboundedSink<>(factory, StaticValueProvider.of(TOPIC),
+              StringUtf8Coder.of(), TIMESTAMP_LABEL, ID_LABEL,
+              NUM_SHARDS, batchSize, batchBytes, Duration.standardSeconds(2),
+              RecordIdMethod.DETERMINISTIC);
+
       p.apply(Create.of(data))
        .apply(ParDo.of(new Stamp()))
        .apply(sink);
