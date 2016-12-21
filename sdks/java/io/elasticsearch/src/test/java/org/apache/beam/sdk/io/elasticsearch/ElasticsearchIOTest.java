@@ -234,12 +234,18 @@ public class ElasticsearchIOTest implements Serializable {
         .apply(ElasticsearchIO.write().withConnectionConfiguration(connectionConfiguration));
     pipeline.run();
 
-    long currentNumDocs = ElasticSearchIOTestUtils.upgradeIndexAndGetCurrentNumDocs(node.client());
+    long currentNumDocs =
+        ElasticSearchIOTestUtils.upgradeIndexAndGetCurrentNumDocs(ES_INDEX, ES_TYPE, node.client());
     assertEquals(NUM_DOCS, currentNumDocs);
 
     QueryBuilder queryBuilder = QueryBuilders.queryStringQuery("Einstein").field("scientist");
     SearchResponse searchResponse =
-        node.client().prepareSearch().setQuery(queryBuilder).execute().actionGet();
+        node.client()
+            .prepareSearch(ES_INDEX)
+            .setTypes(ES_TYPE)
+            .setQuery(queryBuilder)
+            .execute()
+            .actionGet();
     assertEquals(NUM_DOCS / NUM_SCIENTISTS, searchResponse.getHits().getTotalHits());
   }
 
@@ -302,7 +308,8 @@ public class ElasticsearchIOTest implements Serializable {
         // force the index to upgrade after inserting for the inserted docs
         // to be searchable immediately
         long currentNumDocs =
-            ElasticSearchIOTestUtils.upgradeIndexAndGetCurrentNumDocs(node.client());
+            ElasticSearchIOTestUtils.upgradeIndexAndGetCurrentNumDocs(
+                ES_INDEX, ES_TYPE, node.client());
         if ((numDocsProcessed % BATCH_SIZE) == 0) {
           /* bundle end */
           assertEquals(
@@ -348,7 +355,8 @@ public class ElasticsearchIOTest implements Serializable {
         // force the index to upgrade after inserting for the inserted docs
         // to be searchable immediately
         long currentNumDocs =
-            ElasticSearchIOTestUtils.upgradeIndexAndGetCurrentNumDocs(node.client());
+            ElasticSearchIOTestUtils.upgradeIndexAndGetCurrentNumDocs(
+                ES_INDEX, ES_TYPE, node.client());
         if (sizeProcessed / BATCH_SIZE_BYTES > batchInserted) {
           /* bundle end */
           assertThat(

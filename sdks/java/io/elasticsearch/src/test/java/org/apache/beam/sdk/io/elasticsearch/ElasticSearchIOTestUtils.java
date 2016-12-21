@@ -25,6 +25,7 @@ import org.elasticsearch.action.bulk.BulkRequestBuilder;
 import org.elasticsearch.action.bulk.BulkResponse;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.client.Client;
+import org.elasticsearch.index.IndexNotFoundException;
 
 /** Test class to use with ElasticSearch IO. */
 public class ElasticSearchIOTestUtils {
@@ -63,17 +64,28 @@ public class ElasticSearchIOTestUtils {
   }
 
   /**
-   * For an upgrade of all indices to make recently inserted documents available for search.
+   * Force an upgrade of all indices to make recently inserted documents available for search.
    *
    * @param client Elasticsearch TCP client to use for upgrade
    * @return The number of docs in the index
    */
-  static long upgradeIndexAndGetCurrentNumDocs(Client client) {
-    // force the index to upgrade after inserting for the inserted docs
-    // to be searchable immediately
-    client.admin().indices().upgrade(new UpgradeRequest()).actionGet();
-    SearchResponse response = client.prepareSearch().execute().actionGet(5000);
-    return response.getHits().getTotalHits();
+  static long upgradeIndexAndGetCurrentNumDocs(String index, String type, Client client) {
+    try {
+      client.admin().indices().upgrade(new UpgradeRequest(index)).actionGet();
+      SearchResponse response =
+          client.prepareSearch(index).setTypes(type).execute().actionGet(5000);
+      return response.getHits().getTotalHits();
+      // it is fine to ignore bellow exceptions because in testWriteWithBatchSize* sometimes,
+      // we call upgrade before any doc have been written
+      // (when there are fewer docs processed than batchSize).
+      // In that cases index/type has not been created (created upon first doc insertion)
+    } catch (IndexNotFoundException e) {
+    } catch (java.lang.IllegalArgumentException e) {
+      if (!e.getMessage().contains("No search type")) {
+        throw e;
+      }
+    }
+    return 0;
   }
 
   /**
