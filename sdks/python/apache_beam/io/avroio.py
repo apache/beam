@@ -176,7 +176,7 @@ class _AvroBlock(object):
     # Decompress data early on (if needed) and thus decrease the number of
     # parallel copies of the data in memory at any given in time during
     # block iteration.
-    self._block_bytes = self._decompress_bytes(block_bytes, codec)
+    self._decompressed_block_bytes = self._decompress_bytes(block_bytes, codec)
     self._num_records = num_records
     self._schema = schema.parse(schema_string)
 
@@ -208,7 +208,8 @@ class _AvroBlock(object):
     return self._num_records
 
   def records(self):
-    decoder = avroio.BinaryDecoder(StringIO.StringIO(self._block_bytes))
+    decoder = avroio.BinaryDecoder(
+        StringIO.StringIO(self._decompressed_block_bytes))
     reader = avroio.DatumReader(
         writers_schema=self._schema, readers_schema=self._schema)
 
