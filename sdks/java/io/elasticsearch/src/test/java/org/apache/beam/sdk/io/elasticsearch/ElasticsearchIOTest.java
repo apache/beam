@@ -42,13 +42,7 @@ import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFnTester;
 import org.apache.beam.sdk.values.PCollection;
 
-import org.elasticsearch.action.ActionListener;
-import org.elasticsearch.action.admin.indices.delete.DeleteIndexResponse;
-import org.elasticsearch.action.admin.indices.exists.indices.IndicesExistsRequest;
-import org.elasticsearch.action.admin.indices.exists.indices.IndicesExistsResponse;
 import org.elasticsearch.action.search.SearchResponse;
-import org.elasticsearch.client.IndicesAdminClient;
-import org.elasticsearch.client.Requests;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.index.query.QueryBuilder;
 import org.elasticsearch.index.query.QueryBuilders;
@@ -83,9 +77,6 @@ public class ElasticsearchIOTest implements Serializable {
   private static final long BATCH_SIZE = 200L;
   private static final long AVERAGE_DOC_SIZE = 25L;
   private static final long BATCH_SIZE_BYTES = 2048L;
-
-  private boolean indexDeleted = false;
-  private boolean waitForIndexDeletion = true;
 
   private static int esHttpPort;
   private static transient Node node;
@@ -128,36 +119,7 @@ public class ElasticsearchIOTest implements Serializable {
 
   @Before
   public void before() throws Exception {
-    IndicesAdminClient indices = node.client().admin().indices();
-    IndicesExistsResponse indicesExistsResponse =
-        indices.exists(new IndicesExistsRequest(ES_INDEX)).get();
-    if (indicesExistsResponse.isExists()) {
-      indices.prepareClose(ES_INDEX).get();
-      // delete index is an asynchronous request, neither refresh or upgrade
-      // delete all docs before starting tests. WaitForYellow() and delete directory are too slow,
-      // so block thread until it is done (make it synchronous!!!)
-      indices.delete(
-          Requests.deleteIndexRequest(ES_INDEX),
-          new ActionListener<DeleteIndexResponse>() {
-            @Override
-            public void onResponse(DeleteIndexResponse deleteIndexResponse) {
-              waitForIndexDeletion = false;
-              indexDeleted = true;
-            }
-
-            @Override
-            public void onFailure(Throwable throwable) {
-              waitForIndexDeletion = false;
-              indexDeleted = false;
-            }
-          });
-      while (waitForIndexDeletion) {
-        Thread.sleep(100);
-      }
-      if (!indexDeleted) {
-        throw new IOException("Failed to delete index " + ES_INDEX);
-      }
-    }
+    ElasticSearchIOTestUtils.deleteIndex(ES_INDEX, node.client());
   }
 
   @Test

@@ -20,20 +20,63 @@ package org.apache.beam.sdk.io.elasticsearch;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import org.elasticsearch.action.ActionListener;
+import org.elasticsearch.action.admin.indices.delete.DeleteIndexResponse;
+import org.elasticsearch.action.admin.indices.exists.indices.IndicesExistsRequest;
+import org.elasticsearch.action.admin.indices.exists.indices.IndicesExistsResponse;
 import org.elasticsearch.action.admin.indices.upgrade.post.UpgradeRequest;
 import org.elasticsearch.action.bulk.BulkRequestBuilder;
 import org.elasticsearch.action.bulk.BulkResponse;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.client.Client;
+import org.elasticsearch.client.IndicesAdminClient;
+import org.elasticsearch.client.Requests;
 import org.elasticsearch.index.IndexNotFoundException;
 
 /** Test class to use with ElasticSearch IO. */
 public class ElasticSearchIOTestUtils {
 
+  private static boolean indexDeleted = false;
+  private static boolean waitForIndexDeletion = true;
+
   /** Enumeration that specifies whether to insert malformed documents. */
   enum InjectionMode {
     INJECT_SOME_INVALID_DOCS,
     DO_NOT_INJECT_INVALID_DOCS;
+  }
+
+  static void deleteIndex(String index, Client client)
+      throws InterruptedException, java.util.concurrent.ExecutionException, IOException {
+    IndicesAdminClient indices = client.admin().indices();
+    IndicesExistsResponse indicesExistsResponse =
+        indices.exists(new IndicesExistsRequest(index)).get();
+    if (indicesExistsResponse.isExists()) {
+      indices.prepareClose(index).get();
+      // delete index is an asynchronous request, neither refresh or upgrade
+      // delete all docs before starting tests. WaitForYellow() and delete directory are too slow,
+      // so block thread until it is done (make it synchronous!!!)
+      indices.delete(
+          Requests.deleteIndexRequest(index),
+          new ActionListener<DeleteIndexResponse>() {
+            @Override
+            public void onResponse(DeleteIndexResponse deleteIndexResponse) {
+              waitForIndexDeletion = false;
+              indexDeleted = true;
+            }
+
+            @Override
+            public void onFailure(Throwable throwable) {
+              waitForIndexDeletion = false;
+              indexDeleted = false;
+            }
+          });
+      while (waitForIndexDeletion) {
+        Thread.sleep(100);
+      }
+      if (!indexDeleted) {
+        throw new IOException("Failed to delete index " + index);
+      }
+    }
   }
 
   /**
