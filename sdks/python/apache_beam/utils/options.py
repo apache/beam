@@ -224,11 +224,16 @@ class TypeOptions(PipelineOptions):
 class GoogleCloudOptions(PipelineOptions):
   """Google Cloud Dataflow service execution options."""
 
+  BIGQUERY_API_SERVICE = 'bigquery.googleapis.com'
+  COMPUTE_API_SERVICE = 'compute.googleapis.com'
+  STORAGE_API_SERVICE = 'storage.googleapis.com'
+  DATAFLOW_ENDPOINT = 'https://dataflow.googleapis.com'
+
   @classmethod
   def _add_argparse_args(cls, parser):
     parser.add_argument(
         '--dataflow_endpoint',
-        default='https://dataflow.googleapis.com',
+        default=cls.DATAFLOW_ENDPOINT,
         help=
         ('The URL for the Dataflow API. If not set, the default public URL '
          'will be used.'))
@@ -251,7 +256,6 @@ class GoogleCloudOptions(PipelineOptions):
     parser.add_argument('--temp_location',
                         default=None,
                         help='GCS path for saving temporary workflow jobs.')
-    # Options for using service account credentials.
     parser.add_argument('--service_account_name',
                         default=None,
                         help='Name of the service account for Google APIs.')
@@ -272,10 +276,10 @@ class GoogleCloudOptions(PipelineOptions):
     errors = []
     if validator.is_service_runner():
       errors.extend(validator.validate_cloud_options(self))
-      errors.extend(validator.validate_gcs_path(self, 'staging_location'))
-      if getattr(self, 'temp_location',
-                 None) or getattr(self, 'staging_location', None) is None:
-        errors.extend(validator.validate_gcs_path(self, 'temp_location'))
+      errors.extend(validator.validate_gcs_path(self, 'temp_location'))
+      if getattr(self, 'staging_location',
+                 None) or getattr(self, 'temp_location', None) is None:
+        errors.extend(validator.validate_gcs_path(self, 'staging_location'))
 
     if self.view_as(DebugOptions).dataflow_job_file:
       if self.view_as(GoogleCloudOptions).template_location:
@@ -312,9 +316,8 @@ class WorkerOptions(PipelineOptions):
         default=None,  # Meaning unset, distinct from 'NONE' meaning don't scale
         help=
         ('If and how to auotscale the workerpool.'))
-    # TODO(silviuc): Remove --machine_type variant of the flag.
     parser.add_argument(
-        '--worker_machine_type', '--machine_type',
+        '--worker_machine_type',
         dest='machine_type',
         default=None,
         help=('Machine type to create Dataflow worker VMs as. See '
@@ -329,20 +332,11 @@ class WorkerOptions(PipelineOptions):
         help=
         ('Remote worker disk size, in gigabytes, or 0 to use the default size. '
          'If not set, the Dataflow service will use a reasonable default.'))
-    # TODO(silviuc): Remove --disk_type variant of the flag.
     parser.add_argument(
-        '--worker_disk_type', '--disk_type',
+        '--worker_disk_type',
         dest='disk_type',
         default=None,
         help=('Specifies what type of persistent disk should be used.'))
-    parser.add_argument(
-        '--disk_source_image',
-        default=None,
-        help=
-        ('Disk source image to use by VMs for jobs. See '
-         'https://developers.google.com/compute/docs/images for further '
-         'details. If not set, the Dataflow service will use a reasonable '
-         'default.'))
     parser.add_argument(
         '--zone',
         default=None,
@@ -461,9 +455,6 @@ class SetupOptions(PipelineOptions):
          'Some workflows do not need the session state if for instance all '
          'their functions/classes are defined in proper modules (not __main__)'
          ' and the modules are importable in the worker. '))
-    parser.add_argument('--no_save_main_session',
-                        dest='save_main_session',
-                        action='store_false')
     parser.add_argument(
         '--sdk_location',
         default='default',

@@ -18,6 +18,8 @@
 """Dataflow client utility functions."""
 
 import codecs
+from datetime import datetime
+import getpass
 import json
 import logging
 import os
@@ -45,10 +47,6 @@ from apache_beam.utils.options import StandardOptions
 from apache_beam.utils.options import WorkerOptions
 from apache_beam.internal.clients import storage
 import apache_beam.internal.clients.dataflow as dataflow
-
-BIGQUERY_API_SERVICE = 'bigquery.googleapis.com'
-COMPUTE_API_SERVICE = 'compute.googleapis.com'
-STORAGE_API_SERVICE = 'storage.googleapis.com'
 
 
 class Step(object):
@@ -121,11 +119,13 @@ class Environment(object):
     self.worker_options = options.view_as(WorkerOptions)
     self.debug_options = options.view_as(DebugOptions)
     self.proto = dataflow.Environment()
-    self.proto.clusterManagerApiService = COMPUTE_API_SERVICE
-    self.proto.dataset = '%s/cloud_dataflow' % BIGQUERY_API_SERVICE
+    self.proto.clusterManagerApiService = GoogleCloudOptions.COMPUTE_API_SERVICE
+    self.proto.dataset = '{}/cloud_dataflow'.format(
+        GoogleCloudOptions.BIGQUERY_API_SERVICE)
     self.proto.tempStoragePrefix = (
-        self.google_cloud_options.temp_location.replace('gs:/',
-                                                        STORAGE_API_SERVICE))
+        self.google_cloud_options.temp_location.replace(
+            'gs:/',
+            GoogleCloudOptions.STORAGE_API_SERVICE))
     # User agent information.
     self.proto.userAgent = dataflow.Environment.UserAgentValue()
     self.local = 'localhost' in self.google_cloud_options.dataflow_endpoint
@@ -165,7 +165,7 @@ class Environment(object):
           dataflow.Package(
               location='%s/%s' % (
                   self.google_cloud_options.staging_location.replace(
-                      'gs:/', STORAGE_API_SERVICE),
+                      'gs:/', GoogleCloudOptions.STORAGE_API_SERVICE),
                   package),
               name=package))
 
@@ -174,7 +174,7 @@ class Environment(object):
         packages=package_descriptors,
         taskrunnerSettings=dataflow.TaskRunnerSettings(
             parallelWorkerSettings=dataflow.WorkerSettings(
-                baseUrl='https://dataflow.googleapis.com',
+                baseUrl=GoogleCloudOptions.DATAFLOW_ENDPOINT,
                 servicePath=self.google_cloud_options.dataflow_endpoint)))
     pool.autoscalingSettings = dataflow.AutoscalingSettings()
     # Set worker pool options received through command line.
@@ -195,8 +195,6 @@ class Environment(object):
       pool.diskSizeGb = self.worker_options.disk_size_gb
     if self.worker_options.disk_type:
       pool.diskType = self.worker_options.disk_type
-    if self.worker_options.disk_source_image:
-      pool.diskSourceImage = self.worker_options.disk_source_image
     if self.worker_options.zone:
       pool.zone = self.worker_options.zone
     if self.worker_options.network:
@@ -299,10 +297,23 @@ class Job(object):
         json.loads(encoding.MessageToJson(self.proto), encoding='shortstrings'),
         indent=2, sort_keys=True)
 
+  @staticmethod
+  def default_job_name(job_name):
+    if job_name is None:
+      user_name = getpass.getuser().lower()
+      date_component = datetime.utcnow().strftime('%m%d%H%M%S-%f')
+      app_name = 'beamapp'
+      job_name = '{}-{}-{}'.format(app_name, user_name, date_component)
+    return job_name
+
   def __init__(self, options):
     self.options = options
     self.google_cloud_options = options.view_as(GoogleCloudOptions)
-    required_google_cloud_options = ['project', 'job_name', 'staging_location']
+    if not self.google_cloud_options.job_name:
+      self.google_cloud_options.job_name = self.default_job_name(
+          self.google_cloud_options.job_name)
+
+    required_google_cloud_options = ['project', 'job_name', 'temp_location']
     missing = [
         option for option in required_google_cloud_options
         if not getattr(self.google_cloud_options, option)]
@@ -310,11 +321,11 @@ class Job(object):
       raise ValueError(
           'Missing required configuration parameters: %s' % missing)
 
-    if not self.google_cloud_options.temp_location:
-      logging.info('Defaulting to the staging_location as temp_location: %s',
-                   self.google_cloud_options.staging_location)
+    if not self.google_cloud_options.staging_location:
+      logging.info('Defaulting to the temp_location as staging_location: %s',
+                   self.google_cloud_options.temp_location)
       (self.google_cloud_options
-       .temp_location) = self.google_cloud_options.staging_location
+       .staging_location) = self.google_cloud_options.temp_location
 
     # Make the staging and temp locations job name and time specific. This is
     # needed to avoid clashes between job submissions using the same staging
