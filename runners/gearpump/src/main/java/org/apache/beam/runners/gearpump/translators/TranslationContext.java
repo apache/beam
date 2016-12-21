@@ -54,8 +54,7 @@ public class TranslationContext {
   }
 
   public void setCurrentTransform(TransformHierarchy.Node treeNode) {
-    this.currentTransform = AppliedPTransform.of(treeNode.getFullName(),
-        treeNode.getInput(), treeNode.getOutput(), (PTransform) treeNode.getTransform());
+    this.currentTransform = treeNode.toAppliedPTransform();
   }
 
   public GearpumpPipelineOptions getPipelineOptions() {

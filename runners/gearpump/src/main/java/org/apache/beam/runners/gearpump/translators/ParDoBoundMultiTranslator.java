@@ -64,7 +64,7 @@ public class ParDoBoundMultiTranslator<InputT, OutputT> implements
     JavaStream<WindowedValue<KV<TupleTag<OutputT>, OutputT>>> outputStream = inputStream.flatMap(
         new DoFnMultiFunction<>(
             context.getPipelineOptions(),
-            transform.getNewFn(),
+            transform.getFn(),
             transform.getMainOutputTag(),
             transform.getSideOutputTags(),
             inputT.getWindowingStrategy(),
