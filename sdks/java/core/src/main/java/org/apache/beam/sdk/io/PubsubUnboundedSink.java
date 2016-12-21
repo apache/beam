@@ -110,17 +110,17 @@ public class PubsubUnboundedSink<T> extends PTransform<PCollection<T>, PDone> {
     public void encode(
         OutgoingMessage value, OutputStream outStream, Context context)
         throws CoderException, IOException {
-      ByteArrayCoder.of().encode(value.elementBytes, outStream, Context.NESTED);
-      BigEndianLongCoder.of().encode(value.timestampMsSinceEpoch, outStream, Context.NESTED);
-      RECORD_ID_CODER.encode(value.recordId, outStream, Context.NESTED);
+      ByteArrayCoder.of().encode(value.elementBytes, outStream, context.nested());
+      BigEndianLongCoder.of().encode(value.timestampMsSinceEpoch, outStream, context.nested());
+      RECORD_ID_CODER.encode(value.recordId, outStream, context);
     }
 
     @Override
     public OutgoingMessage decode(
         InputStream inStream, Context context) throws CoderException, IOException {
-      byte[] elementBytes = ByteArrayCoder.of().decode(inStream, Context.NESTED);
-      long timestampMsSinceEpoch = BigEndianLongCoder.of().decode(inStream, Context.NESTED);
-      @Nullable String recordId = RECORD_ID_CODER.decode(inStream, Context.NESTED);
+      byte[] elementBytes = ByteArrayCoder.of().decode(inStream, context.nested());
+      long timestampMsSinceEpoch = BigEndianLongCoder.of().decode(inStream, context.nested());
+      @Nullable String recordId = RECORD_ID_CODER.decode(inStream, context);
       return new OutgoingMessage(elementBytes, timestampMsSinceEpoch, recordId);
     }
   }

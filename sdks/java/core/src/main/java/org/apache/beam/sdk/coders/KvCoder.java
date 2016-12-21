@@ -83,17 +83,15 @@ public class KvCoder<K, V> extends StandardCoder<KV<K, V>> {
     if (kv == null) {
       throw new CoderException("cannot encode a null KV");
     }
-    Context nestedContext = context.nested();
-    keyCoder.encode(kv.getKey(), outStream, nestedContext);
-    valueCoder.encode(kv.getValue(), outStream, nestedContext);
+    keyCoder.encode(kv.getKey(), outStream, context.nested());
+    valueCoder.encode(kv.getValue(), outStream, context);
   }
 
   @Override
   public KV<K, V> decode(InputStream inStream, Context context)
       throws IOException, CoderException {
-    Context nestedContext = context.nested();
-    K key = keyCoder.decode(inStream, nestedContext);
-    V value = valueCoder.decode(inStream, nestedContext);
+    K key = keyCoder.decode(inStream, context.nested());
+    V value = valueCoder.decode(inStream, context);
     return KV.of(key, value);
   }
 
@@ -135,10 +133,8 @@ public class KvCoder<K, V> extends StandardCoder<KV<K, V>> {
    */
   @Override
   public boolean isRegisterByteSizeObserverCheap(KV<K, V> kv, Context context) {
-    return keyCoder.isRegisterByteSizeObserverCheap(kv.getKey(),
-                                                    context.nested())
-        && valueCoder.isRegisterByteSizeObserverCheap(kv.getValue(),
-                                                      context.nested());
+    return keyCoder.isRegisterByteSizeObserverCheap(kv.getKey(), context.nested())
+        && valueCoder.isRegisterByteSizeObserverCheap(kv.getValue(), context);
   }
 
   /**
@@ -152,9 +148,7 @@ public class KvCoder<K, V> extends StandardCoder<KV<K, V>> {
     if (kv == null) {
       throw new CoderException("cannot encode a null KV");
     }
-    keyCoder.registerByteSizeObserver(
-        kv.getKey(), observer, context.nested());
-    valueCoder.registerByteSizeObserver(
-        kv.getValue(), observer, context.nested());
+    keyCoder.registerByteSizeObserver(kv.getKey(), observer, context.nested());
+    valueCoder.registerByteSizeObserver(kv.getValue(), observer, context);
   }
 }

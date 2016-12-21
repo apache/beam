@@ -1984,7 +1984,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     public void encode(TransformedMap<K, V1, V2> value, OutputStream outStream,
         Coder.Context context) throws CoderException, IOException {
       transformCoder.encode(value.transform, outStream, context.nested());
-      originalMapCoder.encode(value.originalMap, outStream, context.nested());
+      originalMapCoder.encode(value.originalMap, outStream, context);
     }
 
     @Override
@@ -1992,7 +1992,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
         InputStream inStream, Coder.Context context) throws CoderException, IOException {
       return new TransformedMap<>(
           transformCoder.decode(inStream, context.nested()),
-          originalMapCoder.decode(inStream, context.nested()));
+          originalMapCoder.decode(inStream, context));
     }
 
     @Override

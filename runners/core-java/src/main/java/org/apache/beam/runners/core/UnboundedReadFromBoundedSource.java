@@ -235,19 +235,17 @@ public class UnboundedReadFromBoundedSource<T> extends PTransform<PBegin, PColle
       @Override
       public void encode(Checkpoint<T> value, OutputStream outStream, Context context)
           throws CoderException, IOException {
-        Context nested = context.nested();
-        elemsCoder.encode(value.residualElements, outStream, nested);
-        sourceCoder.encode(value.residualSource, outStream, nested);
+        elemsCoder.encode(value.residualElements, outStream, context.nested());
+        sourceCoder.encode(value.residualSource, outStream, context);
       }
 
       @SuppressWarnings("unchecked")
       @Override
       public Checkpoint<T> decode(InputStream inStream, Context context)
           throws CoderException, IOException {
-        Context nested = context.nested();
         return new Checkpoint<>(
-            elemsCoder.decode(inStream, nested),
-            sourceCoder.decode(inStream, nested));
+            elemsCoder.decode(inStream, context.nested()),
+            sourceCoder.decode(inStream, context));
       }
 
       @Override
