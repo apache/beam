@@ -49,7 +49,7 @@ public interface PValue extends POutput, PInput {
   List<TaggedPValue> expand();
 
   /**
-   * After building, finalizes this {@code PInput} to make it ready for being used as an input to a
+   * After building, finalizes this {@code PValue} to make it ready for being used as an input to a
    * {@link org.apache.beam.sdk.transforms.PTransform}.
    *
    * <p>Automatically invoked whenever {@code apply()} is invoked on this {@code PValue}, after

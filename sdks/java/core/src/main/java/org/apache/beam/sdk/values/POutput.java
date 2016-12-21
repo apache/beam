@@ -71,5 +71,6 @@ public interface POutput {
    * PValue#finishSpecifyingOutput(PInput, PTransform)} has been called on each component {@link
    * PValue} returned by {@link #expand()}.
    */
+  @Deprecated
   void finishSpecifyingOutput(PInput input, PTransform<?, ?> transform);
 }

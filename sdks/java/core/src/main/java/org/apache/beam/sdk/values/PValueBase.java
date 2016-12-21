@@ -17,8 +17,6 @@
  */
 package org.apache.beam.sdk.values;
 
-import static com.google.common.base.Preconditions.checkState;
-
 import java.util.Collections;
 import java.util.List;
 import org.apache.beam.sdk.Pipeline;
@@ -137,15 +135,6 @@ public abstract class PValueBase extends POutputValueBase implements PValue {
   @Override
   public final List<TaggedPValue> expand() {
     return Collections.singletonList(TaggedPValue.of(tag, this));
-  }
-
-  @Override
-  public void finishSpecifying() {
-    checkState(
-        finishedSpecifying,
-        "%s must be finished specifying with finishSpecifying(PInput, PTransform) before any "
-            + "calls to finishSpecifying()",
-        getClass().getSimpleName());
   }
 
   @Override

@@ -152,12 +152,6 @@ public class KeyedPCollectionTuple<K> implements PInput {
     return pipeline;
   }
 
-  @Override
-  public void finishSpecifying() {
-    // TODO: Make sure key coder is consistent between PCollections. All component PCollections will
-    // have already been finished.
-  }
-
   private static <K, V> Coder<K> getKeyCoder(PCollection<KV<K, V>> pc) {
     // TODO: This should already have run coder inference for output, but may not have been consumed
     // as input yet (and won't be fully specified); This is fine

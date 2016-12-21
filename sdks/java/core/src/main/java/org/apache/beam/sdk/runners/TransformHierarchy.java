@@ -47,6 +47,7 @@ import org.apache.beam.sdk.values.TaggedPValue;
 public class TransformHierarchy {
   private final Node root;
   private final Map<POutput, Node> producers;
+  // A map of PValue to the PInput the producing PTransform is applied to
   private final Map<PValue, PInput> producerInput;
   // Maintain a stack based on the enclosing nodes
   private Node current;
@@ -101,7 +102,6 @@ public class TransformHierarchy {
           "Producer unknown for input %s",
           inputValue.getValue());
     }
-    current.input.finishSpecifying();
   }
 
   /**
