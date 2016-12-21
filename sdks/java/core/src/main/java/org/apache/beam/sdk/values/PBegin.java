@@ -69,11 +69,6 @@ public class PBegin implements PInput {
     return Collections.emptyList();
   }
 
-  @Override
-  public void finishSpecifying() {
-    // Nothing more to be done.
-  }
-
   /////////////////////////////////////////////////////////////////////////////
 
   /**
