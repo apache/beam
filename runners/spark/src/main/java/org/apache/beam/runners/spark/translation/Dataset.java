@@ -26,7 +26,7 @@ import java.io.Serializable;
  */
 public interface Dataset extends Serializable {
 
-  void cache();
+  void cache(String storageLevel);
 
   void action();
 

@@ -24,7 +24,6 @@ import static org.junit.Assert.assertThat;
 
 import java.io.Serializable;
 import java.util.Set;
-import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.RunnableOnService;
@@ -46,6 +45,9 @@ import org.junit.runners.JUnit4;
  */
 @RunWith(JUnit4.class)
 public class MapElementsTest implements Serializable {
+
+  @Rule
+  public final transient TestPipeline pipeline = TestPipeline.create();
 
   @Rule
   public transient ExpectedException thrown = ExpectedException.none();
@@ -79,7 +81,6 @@ public class MapElementsTest implements Serializable {
   @Test
   @Category(NeedsRunner.class)
   public void testMapBasic() throws Exception {
-    Pipeline pipeline = TestPipeline.create();
     PCollection<Integer> output = pipeline
         .apply(Create.of(1, 2, 3))
         .apply(MapElements.via(new SimpleFunction<Integer, Integer>() {
@@ -98,7 +99,8 @@ public class MapElementsTest implements Serializable {
    */
   @Test
   public void testPolymorphicSimpleFunction() throws Exception {
-    Pipeline pipeline = TestPipeline.create();
+    pipeline.enableAbandonedNodeEnforcement(false);
+
     PCollection<Integer> output = pipeline
         .apply(Create.of(1, 2, 3))
 
@@ -120,7 +122,8 @@ public class MapElementsTest implements Serializable {
    */
   @Test
   public void testNestedPolymorphicSimpleFunction() throws Exception {
-    Pipeline pipeline = TestPipeline.create();
+    pipeline.enableAbandonedNodeEnforcement(false);
+
     PCollection<Integer> output =
         pipeline
             .apply(Create.of(1, 2, 3))
@@ -149,7 +152,6 @@ public class MapElementsTest implements Serializable {
   @Test
   @Category(NeedsRunner.class)
   public void testMapBasicSerializableFunction() throws Exception {
-    Pipeline pipeline = TestPipeline.create();
     PCollection<Integer> output = pipeline
         .apply(Create.of(1, 2, 3))
         .apply(MapElements.via(new SerializableFunction<Integer, Integer>() {
@@ -170,7 +172,6 @@ public class MapElementsTest implements Serializable {
   @Test
   @Category(NeedsRunner.class)
   public void testSimpleFunctionOutputTypeDescriptor() throws Exception {
-    Pipeline pipeline = TestPipeline.create();
     PCollection<String> output = pipeline
         .apply(Create.of("hello"))
         .apply(MapElements.via(new SimpleFunction<String, String>() {
@@ -191,7 +192,6 @@ public class MapElementsTest implements Serializable {
   @Test
   @Category(NeedsRunner.class)
   public void testVoidValues() throws Exception {
-    Pipeline pipeline = TestPipeline.create();
     pipeline
         .apply(Create.of("hello"))
         .apply(WithKeys.<String, String>of("k"))
@@ -271,7 +271,7 @@ public class MapElementsTest implements Serializable {
       extends PTransform<PCollection<KV<K, V>>, PCollection<KV<K, Void>>> {
 
     @Override
-    public PCollection<KV<K, Void>> apply(PCollection<KV<K, V>> input) {
+    public PCollection<KV<K, Void>> expand(PCollection<KV<K, V>> input) {
       return input.apply(MapElements.via(
           new SimpleFunction<KV<K, V>, KV<K, Void>>() {
             @Override

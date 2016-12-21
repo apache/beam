@@ -19,9 +19,11 @@ package org.apache.beam.sdk.transforms;
 
 import java.io.IOException;
 import java.util.Collection;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.transforms.DoFn.Context;
+import org.apache.beam.sdk.transforms.DoFn.OnTimerContext;
 import org.apache.beam.sdk.transforms.DoFn.ProcessContext;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvoker;
@@ -185,6 +187,7 @@ public class DoFnAdapters {
    * If the fn was created using {@link #toOldDoFn}, returns the original {@link DoFn}. Otherwise,
    * returns {@code null}.
    */
+  @Nullable
   public static <InputT, OutputT> DoFn<InputT, OutputT> getDoFn(OldDoFn<InputT, OutputT> fn) {
     if (fn instanceof SimpleDoFnAdapter) {
       return ((SimpleDoFnAdapter<InputT, OutputT>) fn).fn;
@@ -343,6 +346,12 @@ public class DoFnAdapters {
     }
 
     @Override
+    public OnTimerContext onTimerContext(DoFn<InputT, OutputT> doFn) {
+      throw new UnsupportedOperationException(
+          "Timers are not supported for OldDoFn");
+    }
+
+    @Override
     public WindowingInternals<InputT, OutputT> windowingInternals() {
       // The OldDoFn doesn't allow us to ask for these outside ProcessElements, so this
       // should be unreachable.
@@ -455,6 +464,11 @@ public class DoFnAdapters {
     @Override
     public ProcessContext processContext(DoFn<InputT, OutputT> doFn) {
       return this;
+    }
+
+    @Override
+    public OnTimerContext onTimerContext(DoFn<InputT, OutputT> doFn) {
+      throw new UnsupportedOperationException("Timers are not supported for OldDoFn");
     }
 
     @Override

@@ -17,11 +17,13 @@
  */
 package org.apache.beam.sdk.values;
 
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -178,7 +180,7 @@ public class PCollectionTuple implements PInput, POutput {
   /////////////////////////////////////////////////////////////////////////////
   // Internal details below here.
 
-  Pipeline pipeline;
+  final Pipeline pipeline;
   final Map<TupleTag<?>, PCollection<?>> pcollectionMap;
 
   PCollectionTuple(Pipeline pipeline) {
@@ -219,7 +221,7 @@ public class PCollectionTuple implements PInput, POutput {
       TypeDescriptor<Object> token = (TypeDescriptor<Object>) outputTag.getTypeDescriptor();
       PCollection<Object> outputCollection = PCollection
           .createPrimitiveOutputInternal(pipeline, windowingStrategy, isBounded)
-          .setTypeDescriptorInternal(token);
+          .setTypeDescriptor(token);
 
       pcollectionMap.put(outputTag, outputCollection);
     }
@@ -232,8 +234,12 @@ public class PCollectionTuple implements PInput, POutput {
   }
 
   @Override
-  public Collection<? extends PValue> expand() {
-    return pcollectionMap.values();
+  public List<TaggedPValue> expand() {
+    ImmutableList.Builder<TaggedPValue> values = ImmutableList.builder();
+    for (Map.Entry<TupleTag<?>, PCollection<?>> entry : pcollectionMap.entrySet()) {
+      values.add(TaggedPValue.of(entry.getKey(), entry.getValue()));
+    }
+    return values.build();
   }
 
   @Override
@@ -260,5 +266,19 @@ public class PCollectionTuple implements PInput, POutput {
     for (PCollection<?> pc : pcollectionMap.values()) {
       pc.finishSpecifyingOutput();
     }
+  }
+
+  @Override
+  public boolean equals(Object other) {
+    if (!(other instanceof PCollectionTuple)) {
+      return false;
+    }
+    PCollectionTuple that = (PCollectionTuple) other;
+    return this.pipeline.equals(that.pipeline) && this.pcollectionMap.equals(that.pcollectionMap);
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(this.pipeline, this.pcollectionMap);
   }
 }

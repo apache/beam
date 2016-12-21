@@ -40,6 +40,9 @@ import org.junit.runners.JUnit4;
 /** Tests for {@link DoFn}. */
 @RunWith(JUnit4.class)
 public class DoFnTest implements Serializable {
+
+  @Rule public final transient TestPipeline pipeline = TestPipeline.create();
+
   @Rule
   public transient ExpectedException thrown = ExpectedException.none();
 
@@ -200,7 +203,6 @@ public class DoFnTest implements Serializable {
    * Initialize a test pipeline with the specified {@link DoFn}.
    */
   private <InputT, OutputT> TestPipeline createTestPipeline(DoFn<InputT, OutputT> fn) {
-    TestPipeline pipeline = TestPipeline.create();
     pipeline.apply(Create.of((InputT) null))
      .apply(ParDo.of(fn));
 

@@ -79,6 +79,7 @@ import org.junit.runners.JUnit4;
  */
 @RunWith(JUnit4.class)
 public class WriteTest {
+  @Rule public final TestPipeline p = TestPipeline.create();
   @Rule public ExpectedException thrown = ExpectedException.none();
 
   // Static store that can be accessed within the writer
@@ -123,7 +124,7 @@ public class WriteTest {
     }
 
     @Override
-    public PCollection<T> apply(PCollection<T> input) {
+    public PCollection<T> expand(PCollection<T> input) {
       return input
           .apply(window)
           .apply(ParDo.of(new AddArbitraryKey<T>()))
@@ -294,7 +295,6 @@ public class WriteTest {
 
   @Test
   public void testWriteUnbounded() {
-    TestPipeline p = TestPipeline.create();
     PCollection<String> unbounded = p.apply(CountingInput.unbounded())
         .apply(MapElements.via(new ToStringFn()));
 

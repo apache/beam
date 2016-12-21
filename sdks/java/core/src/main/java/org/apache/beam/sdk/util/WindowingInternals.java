@@ -17,9 +17,7 @@
  */
 package org.apache.beam.sdk.util;
 
-import java.io.IOException;
 import java.util.Collection;
-import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
@@ -76,14 +74,6 @@ public interface WindowingInternals<InputT, OutputT> {
    * Access the pane of the current window(s).
    */
   PaneInfo pane();
-
-  /**
-   * Write the given {@link PCollectionView} data to a location accessible by other workers.
-   */
-  <T> void writePCollectionViewData(
-      TupleTag<?> tag,
-      Iterable<WindowedValue<T>> data,
-      Coder<T> elemCoder) throws IOException;
 
   /**
    * Return the value of the side input for a particular side input window.

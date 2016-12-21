@@ -23,12 +23,12 @@ import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertThat;
 
 import java.io.Serializable;
-import org.apache.beam.runners.spark.EvaluationResult;
+import org.apache.beam.runners.spark.SparkPipelineResult;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.transforms.Aggregator;
+import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.GroupByKey;
-import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.transforms.Values;
@@ -55,11 +55,12 @@ public final class PAssertStreaming implements Serializable {
    * Note that it is oblivious to windowing, so the assertion will apply indiscriminately to all
    * windows.
    */
-  public static <T> EvaluationResult runAndAssertContents(Pipeline p,
-                                                          PCollection<T> actual,
-                                                          T[] expected,
-                                                          Duration timeout,
-                                                          boolean stopGracefully) {
+  public static <T> SparkPipelineResult runAndAssertContents(
+      Pipeline p,
+      PCollection<T> actual,
+      T[] expected,
+      Duration timeout,
+      boolean stopGracefully) {
     // Because PAssert does not support non-global windowing, but all our data is in one window,
     // we set up the assertion directly.
     actual
@@ -69,9 +70,8 @@ public final class PAssertStreaming implements Serializable {
         .apply(ParDo.of(new AssertDoFn<>(expected)));
 
     // run the pipeline.
-    EvaluationResult res = (EvaluationResult) p.run();
+    SparkPipelineResult res = (SparkPipelineResult) p.run();
     res.waitUntilFinish(timeout);
-    res.close(stopGracefully);
     // validate assertion succeeded (at least once).
     int success = res.getAggregatorValue(PAssert.SUCCESS_COUNTER, Integer.class);
     Assert.assertThat("Success aggregator should be greater than zero.", success, not(0));
@@ -87,14 +87,15 @@ public final class PAssertStreaming implements Serializable {
    * Default to stop gracefully so that tests will finish processing even if slower for reasons
    * such as a slow runtime environment.
    */
-  public static <T> EvaluationResult runAndAssertContents(Pipeline p,
-                                                          PCollection<T> actual,
-                                                          T[] expected,
-                                                          Duration timeout) {
+  public static <T> SparkPipelineResult runAndAssertContents(
+      Pipeline p,
+      PCollection<T> actual,
+      T[] expected,
+      Duration timeout) {
     return runAndAssertContents(p, actual, expected, timeout, true);
   }
 
-  private static class AssertDoFn<T> extends OldDoFn<Iterable<T>, Void> {
+  private static class AssertDoFn<T> extends DoFn<Iterable<T>, Void> {
     private final Aggregator<Integer, Integer> success =
         createAggregator(PAssert.SUCCESS_COUNTER, new Sum.SumIntegerFn());
     private final Aggregator<Integer, Integer> failure =
@@ -105,7 +106,7 @@ public final class PAssertStreaming implements Serializable {
       this.expected = expected;
     }
 
-    @Override
+    @ProcessElement
     public void processElement(ProcessContext c) throws Exception {
       try {
         assertThat(c.element(), containsInAnyOrder(expected));

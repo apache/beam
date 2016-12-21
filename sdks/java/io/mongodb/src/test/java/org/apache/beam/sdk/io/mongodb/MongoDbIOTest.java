@@ -57,6 +57,7 @@ import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.BeforeClass;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.slf4j.Logger;
@@ -67,7 +68,7 @@ import org.slf4j.LoggerFactory;
  */
 public class MongoDbIOTest implements Serializable {
 
-  private static final Logger LOGGER = LoggerFactory.getLogger(MongoDbIOTest.class);
+  private static final Logger LOG = LoggerFactory.getLogger(MongoDbIOTest.class);
 
   private static final String MONGODB_LOCATION = "target/mongodb";
   private static final String DATABASE = "beam";
@@ -79,6 +80,9 @@ public class MongoDbIOTest implements Serializable {
   private transient MongodProcess mongodProcess;
 
   private static int port;
+
+  @Rule
+  public final transient TestPipeline pipeline = TestPipeline.create();
 
   /**
    * Looking for an available network port.
@@ -92,7 +96,7 @@ public class MongoDbIOTest implements Serializable {
 
   @Before
   public void setup() throws Exception {
-    LOGGER.info("Starting MongoDB embedded instance on {}", port);
+    LOG.info("Starting MongoDB embedded instance on {}", port);
     try {
       Files.forceDelete(new File(MONGODB_LOCATION));
     } catch (Exception e) {
@@ -114,7 +118,7 @@ public class MongoDbIOTest implements Serializable {
     mongodExecutable = mongodStarter.prepare(mongodConfig);
     mongodProcess = mongodExecutable.start();
 
-    LOGGER.info("Insert test data");
+    LOG.info("Insert test data");
 
     MongoClient client = new MongoClient("localhost", port);
     MongoDatabase database = client.getDatabase(DATABASE);
@@ -135,7 +139,7 @@ public class MongoDbIOTest implements Serializable {
 
   @After
   public void stop() throws Exception {
-    LOGGER.info("Stopping MongoDB instance");
+    LOG.info("Stopping MongoDB instance");
     mongodProcess.stop();
     mongodExecutable.stop();
   }
@@ -143,7 +147,6 @@ public class MongoDbIOTest implements Serializable {
   @Test
   @Category(NeedsRunner.class)
   public void testFullRead() throws Exception {
-    TestPipeline pipeline = TestPipeline.create();
 
     PCollection<Document> output = pipeline.apply(
         MongoDbIO.read()
@@ -177,7 +180,6 @@ public class MongoDbIOTest implements Serializable {
   @Test
   @Category(NeedsRunner.class)
   public void testReadWithFilter() throws Exception {
-    TestPipeline pipeline = TestPipeline.create();
 
     PCollection<Document> output = pipeline.apply(
         MongoDbIO.read()
@@ -195,7 +197,6 @@ public class MongoDbIOTest implements Serializable {
   @Test
   @Category(NeedsRunner.class)
   public void testWrite() throws Exception {
-    TestPipeline pipeline = TestPipeline.create();
 
     ArrayList<Document> data = new ArrayList<>();
     for (int i = 0; i < 10000; i++) {

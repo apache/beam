@@ -82,7 +82,7 @@ public class Distinct<T> extends PTransform<PCollection<T>,
   }
 
   @Override
-  public PCollection<T> apply(PCollection<T> in) {
+  public PCollection<T> expand(PCollection<T> in) {
     return in
         .apply("CreateIndex", MapElements.via(new SimpleFunction<T, KV<T, Void>>() {
           @Override
@@ -121,7 +121,7 @@ public class Distinct<T> extends PTransform<PCollection<T>,
     }
 
     @Override
-    public PCollection<T> apply(PCollection<T> in) {
+    public PCollection<T> expand(PCollection<T> in) {
       WithKeys<IdT, T> withKeys = WithKeys.of(fn);
       if (representativeType != null) {
         withKeys = withKeys.withKeyType(representativeType);

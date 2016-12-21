@@ -18,11 +18,10 @@
 package org.apache.beam.sdk.values;
 
 import com.google.common.collect.ImmutableList;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
+import com.google.common.collect.Iterables;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Objects;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.Flatten;
@@ -115,9 +114,9 @@ public class PCollectionList<T> implements PInput, POutput {
           "PCollections come from different Pipelines");
     }
     return new PCollectionList<>(pipeline,
-        new ImmutableList.Builder<PCollection<T>>()
+        ImmutableList.<TaggedPValue>builder()
             .addAll(pcollections)
-            .add(pc)
+            .add(Iterables.getOnlyElement(pc.expand()))
             .build());
   }
 
@@ -130,15 +129,16 @@ public class PCollectionList<T> implements PInput, POutput {
    * part of the same {@link Pipeline}.
    */
   public PCollectionList<T> and(Iterable<PCollection<T>> pcs) {
-    List<PCollection<T>> copy = new ArrayList<>(pcollections);
+    ImmutableList.Builder<TaggedPValue> builder = ImmutableList.builder();
+    builder.addAll(pcollections);
     for (PCollection<T> pc : pcs) {
       if (pc.getPipeline() != pipeline) {
         throw new IllegalArgumentException(
             "PCollections come from different Pipelines");
       }
-      copy.add(pc);
+      builder.add(Iterables.getOnlyElement(pc.expand()));
     }
-    return new PCollectionList<>(pipeline, copy);
+    return new PCollectionList<>(pipeline, builder.build());
   }
 
   /**
@@ -155,7 +155,9 @@ public class PCollectionList<T> implements PInput, POutput {
    * {@code [0..size()-1]}.
    */
   public PCollection<T> get(int index) {
-    return pcollections.get(index);
+    @SuppressWarnings("unchecked") // Type-safe by construction
+    PCollection<T> value = (PCollection<T>) pcollections.get(index).getValue();
+    return value;
   }
 
   /**
@@ -163,7 +165,13 @@ public class PCollectionList<T> implements PInput, POutput {
    * {@link PCollectionList}.
    */
   public List<PCollection<T>> getAll() {
-    return pcollections;
+    ImmutableList.Builder<PCollection<T>> res = ImmutableList.builder();
+    for (TaggedPValue value : pcollections) {
+      @SuppressWarnings("unchecked") // Type-safe by construction
+      PCollection<T> typedValue = (PCollection<T>) value.getValue();
+      res.add(typedValue);
+    }
+    return res.build();
   }
 
   /**
@@ -192,15 +200,16 @@ public class PCollectionList<T> implements PInput, POutput {
   // Internal details below here.
 
   final Pipeline pipeline;
-  final List<PCollection<T>> pcollections;
+  // ImmutableMap has a defined iteration order.
+  final List<TaggedPValue> pcollections;
 
   PCollectionList(Pipeline pipeline) {
-    this(pipeline, new ArrayList<PCollection<T>>());
+    this(pipeline, ImmutableList.<TaggedPValue>of());
   }
 
-  PCollectionList(Pipeline pipeline, List<PCollection<T>> pcollections) {
+  PCollectionList(Pipeline pipeline, List<TaggedPValue> values) {
     this.pipeline = pipeline;
-    this.pcollections = Collections.unmodifiableList(pcollections);
+    this.pcollections = ImmutableList.copyOf(values);
   }
 
   @Override
@@ -209,14 +218,16 @@ public class PCollectionList<T> implements PInput, POutput {
   }
 
   @Override
-  public Collection<? extends PValue> expand() {
+  public List<TaggedPValue> expand() {
     return pcollections;
   }
 
   @Override
   public void recordAsOutput(AppliedPTransform<?, ?, ?> transform) {
     int i = 0;
-    for (PCollection<T> pc : pcollections) {
+    for (TaggedPValue tpv : pcollections) {
+      @SuppressWarnings("unchecked")
+      PCollection<T> pc = (PCollection<T>) tpv.getValue();
       pc.recordAsOutput(transform, "out" + i);
       i++;
     }
@@ -224,15 +235,29 @@ public class PCollectionList<T> implements PInput, POutput {
 
   @Override
   public void finishSpecifying() {
-    for (PCollection<T> pc : pcollections) {
-      pc.finishSpecifying();
+    for (TaggedPValue pc : pcollections) {
+      pc.getValue().finishSpecifying();
     }
   }
 
   @Override
   public void finishSpecifyingOutput() {
-    for (PCollection<T> pc : pcollections) {
-      pc.finishSpecifyingOutput();
+    for (TaggedPValue pc : pcollections) {
+      pc.getValue().finishSpecifyingOutput();
     }
+  }
+
+  @Override
+  public boolean equals(Object other) {
+    if (!(other instanceof PCollectionList)) {
+      return false;
+    }
+    PCollectionList that = (PCollectionList) other;
+    return this.pipeline.equals(that.pipeline) && this.pcollections.equals(that.pcollections);
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(this.pipeline, this.pcollections);
   }
 }

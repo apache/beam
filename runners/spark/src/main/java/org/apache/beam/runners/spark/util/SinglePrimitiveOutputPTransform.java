@@ -35,7 +35,7 @@ public class SinglePrimitiveOutputPTransform<T> extends PTransform<PInput, PColl
   }
 
   @Override
-  public PCollection<T> apply(PInput input) {
+  public PCollection<T> expand(PInput input) {
     try {
       PCollection<T> collection = PCollection.<T>createPrimitiveOutputInternal(
               input.getPipeline(), WindowingStrategy.globalDefault(), IsBounded.BOUNDED);

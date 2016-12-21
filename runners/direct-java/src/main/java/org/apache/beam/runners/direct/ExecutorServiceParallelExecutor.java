@@ -31,7 +31,6 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Map;
 import java.util.Queue;
-import java.util.Set;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -43,13 +42,13 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import javax.annotation.Nullable;
+import org.apache.beam.runners.core.KeyedWorkItem;
+import org.apache.beam.runners.core.KeyedWorkItems;
 import org.apache.beam.runners.direct.DirectRunner.CommittedBundle;
 import org.apache.beam.runners.direct.WatermarkManager.FiredTimers;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.sdk.util.KeyedWorkItem;
-import org.apache.beam.sdk.util.KeyedWorkItems;
 import org.apache.beam.sdk.util.TimerInternals.TimerData;
 import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.beam.sdk.util.WindowedValue;
@@ -69,8 +68,7 @@ final class ExecutorServiceParallelExecutor implements PipelineExecutor {
   private final int targetParallelism;
   private final ExecutorService executorService;
 
-  private final Map<PValue, Collection<AppliedPTransform<?, ?, ?>>> valueToConsumers;
-  private final Set<PValue> keyedPValues;
+  private final DirectGraph graph;
   private final RootProviderRegistry rootProviderRegistry;
   private final TransformEvaluatorRegistry registry;
   @SuppressWarnings("rawtypes")
@@ -104,8 +102,7 @@ final class ExecutorServiceParallelExecutor implements PipelineExecutor {
 
   public static ExecutorServiceParallelExecutor create(
       int targetParallelism,
-      Map<PValue, Collection<AppliedPTransform<?, ?, ?>>> valueToConsumers,
-      Set<PValue> keyedPValues,
+      DirectGraph graph,
       RootProviderRegistry rootProviderRegistry,
       TransformEvaluatorRegistry registry,
       @SuppressWarnings("rawtypes")
@@ -114,8 +111,7 @@ final class ExecutorServiceParallelExecutor implements PipelineExecutor {
       EvaluationContext context) {
     return new ExecutorServiceParallelExecutor(
         targetParallelism,
-        valueToConsumers,
-        keyedPValues,
+        graph,
         rootProviderRegistry,
         registry,
         transformEnforcements,
@@ -124,8 +120,7 @@ final class ExecutorServiceParallelExecutor implements PipelineExecutor {
 
   private ExecutorServiceParallelExecutor(
       int targetParallelism,
-      Map<PValue, Collection<AppliedPTransform<?, ?, ?>>> valueToConsumers,
-      Set<PValue> keyedPValues,
+      DirectGraph graph,
       RootProviderRegistry rootProviderRegistry,
       TransformEvaluatorRegistry registry,
       @SuppressWarnings("rawtypes")
@@ -133,8 +128,7 @@ final class ExecutorServiceParallelExecutor implements PipelineExecutor {
       EvaluationContext context) {
     this.targetParallelism = targetParallelism;
     this.executorService = Executors.newFixedThreadPool(targetParallelism);
-    this.valueToConsumers = valueToConsumers;
-    this.keyedPValues = keyedPValues;
+    this.graph = graph;
     this.rootProviderRegistry = rootProviderRegistry;
     this.registry = registry;
     this.transformEnforcements = transformEnforcements;
@@ -229,7 +223,7 @@ final class ExecutorServiceParallelExecutor implements PipelineExecutor {
   }
 
   private boolean isKeyed(PValue pvalue) {
-    return keyedPValues.contains(pvalue);
+    return evaluationContext.isKeyed(pvalue);
   }
 
   private void scheduleConsumers(ExecutorUpdate update) {
@@ -270,11 +264,12 @@ final class ExecutorServiceParallelExecutor implements PipelineExecutor {
 
     @Override
     public final CommittedResult handleResult(
-        CommittedBundle<?> inputBundle, TransformResult result) {
+        CommittedBundle<?> inputBundle, TransformResult<?> result) {
       CommittedResult committedResult = evaluationContext.handleResult(inputBundle, timers, result);
       for (CommittedBundle<?> outputBundle : committedResult.getOutputs()) {
-        allUpdates.offer(ExecutorUpdate.fromBundle(outputBundle,
-            valueToConsumers.get(outputBundle.getPCollection())));
+        allUpdates.offer(
+            ExecutorUpdate.fromBundle(
+                outputBundle, graph.getPrimitiveConsumers(outputBundle.getPCollection())));
       }
       CommittedBundle<?> unprocessedInputs = committedResult.getUnprocessedInputs();
       if (unprocessedInputs != null && !Iterables.isEmpty(unprocessedInputs.getElements())) {

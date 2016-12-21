@@ -51,12 +51,13 @@ import org.junit.runners.JUnit4;
  */
 @RunWith(JUnit4.class)
 public class LatestTest implements Serializable {
+
+  @Rule public final transient TestPipeline p = TestPipeline.create();
   @Rule public transient ExpectedException thrown = ExpectedException.none();
 
   @Test
   @Category(NeedsRunner.class)
   public void testGloballyEventTimestamp() {
-    TestPipeline p = TestPipeline.create();
     PCollection<String> output =
         p.apply(Create.timestamped(
             TimestampedValue.of("foo", new Instant(100)),
@@ -71,7 +72,8 @@ public class LatestTest implements Serializable {
 
   @Test
   public void testGloballyOutputCoder() {
-    TestPipeline p = TestPipeline.create();
+    p.enableAbandonedNodeEnforcement(false);
+
     BigEndianLongCoder inputCoder = BigEndianLongCoder.of();
 
     PCollection<Long> output =
@@ -86,7 +88,6 @@ public class LatestTest implements Serializable {
   @Test
   @Category(NeedsRunner.class)
   public void testGloballyEmptyCollection() {
-    TestPipeline p = TestPipeline.create();
     PCollection<Long> emptyInput = p.apply(Create.<Long>of()
         // Explicitly set coder such that then runner enforces encodability.
         .withCoder(VarLongCoder.of()));
@@ -99,7 +100,6 @@ public class LatestTest implements Serializable {
   @Test
   @Category(NeedsRunner.class)
   public void testPerKeyEventTimestamp() {
-    TestPipeline p = TestPipeline.create();
     PCollection<KV<String, String>> output =
         p.apply(Create.timestamped(
             TimestampedValue.of(KV.of("A", "foo"), new Instant(100)),
@@ -114,7 +114,8 @@ public class LatestTest implements Serializable {
 
   @Test
   public void testPerKeyOutputCoder() {
-    TestPipeline p = TestPipeline.create();
+    p.enableAbandonedNodeEnforcement(false);
+
     KvCoder<String, Long> inputCoder = KvCoder.of(
         AvroCoder.of(String.class), AvroCoder.of(Long.class));
 
@@ -128,7 +129,6 @@ public class LatestTest implements Serializable {
   @Test
   @Category(NeedsRunner.class)
   public void testPerKeyEmptyCollection() {
-    TestPipeline p = TestPipeline.create();
     PCollection<KV<String, String>> output =
         p.apply(Create.<KV<String, String>>of().withCoder(KvCoder.of(
             StringUtf8Coder.of(), StringUtf8Coder.of())))

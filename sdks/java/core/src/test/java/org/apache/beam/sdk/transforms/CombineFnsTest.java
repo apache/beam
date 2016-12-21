@@ -28,7 +28,6 @@ import java.io.OutputStream;
 import java.io.Serializable;
 import java.util.Arrays;
 import java.util.List;
-import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
@@ -62,6 +61,7 @@ import org.junit.runners.JUnit4;
  */
 @RunWith(JUnit4.class)
 public class  CombineFnsTest {
+  @Rule public final TestPipeline p = TestPipeline.create();
   @Rule public ExpectedException expectedException = ExpectedException.none();
 
   @Test
@@ -123,7 +123,6 @@ public class  CombineFnsTest {
   @Test
   @Category(RunnableOnService.class)
   public void testComposedCombine() {
-    Pipeline p = TestPipeline.create();
     p.getCoderRegistry().registerCoder(UserString.class, UserStringCoder.of());
 
     PCollection<KV<String, KV<Integer, UserString>>> perKeyInput = p.apply(
@@ -178,7 +177,6 @@ public class  CombineFnsTest {
   @Test
   @Category(RunnableOnService.class)
   public void testComposedCombineWithContext() {
-    Pipeline p = TestPipeline.create();
     p.getCoderRegistry().registerCoder(UserString.class, UserStringCoder.of());
 
     PCollectionView<String> view = p
@@ -240,7 +238,6 @@ public class  CombineFnsTest {
   @Test
   @Category(RunnableOnService.class)
   public void testComposedCombineNullValues() {
-    Pipeline p = TestPipeline.create();
     p.getCoderRegistry().registerCoder(UserString.class, NullableCoder.of(UserStringCoder.of()));
     p.getCoderRegistry().registerCoder(String.class, NullableCoder.of(StringUtf8Coder.of()));
 

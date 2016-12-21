@@ -74,7 +74,7 @@ class ImmutabilityEnforcementFactory implements ModelEnforcementFactory {
     @Override
     public void afterFinish(
         CommittedBundle<T> input,
-        TransformResult result,
+        TransformResult<T> result,
         Iterable<? extends CommittedBundle<?>> outputs) {
       for (MutationDetector detector : mutationElements.values()) {
         verifyUnmodified(detector);

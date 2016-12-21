@@ -55,7 +55,6 @@ import java.util.List;
 import java.util.Random;
 import java.util.Scanner;
 
-import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
@@ -79,6 +78,7 @@ import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.slf4j.Logger;
@@ -88,7 +88,7 @@ import org.slf4j.LoggerFactory;
  * Test on the MongoDbGridFSIO.
  */
 public class MongoDBGridFSIOTest implements Serializable {
-  private static final Logger LOGGER = LoggerFactory.getLogger(MongoDBGridFSIOTest.class);
+  private static final Logger LOG = LoggerFactory.getLogger(MongoDBGridFSIOTest.class);
 
   private static final String MONGODB_LOCATION = "target/mongodb";
   private static final String DATABASE = "gridfs";
@@ -100,12 +100,15 @@ public class MongoDBGridFSIOTest implements Serializable {
 
   private static int port;
 
+  @Rule
+  public final transient TestPipeline pipeline = TestPipeline.create();
+
   @BeforeClass
   public static void setup() throws Exception {
     try (ServerSocket serverSocket = new ServerSocket(0)) {
       port = serverSocket.getLocalPort();
     }
-    LOGGER.info("Starting MongoDB embedded instance on {}", port);
+    LOG.info("Starting MongoDB embedded instance on {}", port);
     try {
       Files.forceDelete(new File(MONGODB_LOCATION));
     } catch (Exception e) {
@@ -127,7 +130,7 @@ public class MongoDBGridFSIOTest implements Serializable {
     mongodExecutable = mongodStarter.prepare(mongodConfig);
     mongodProcess = mongodExecutable.start();
 
-    LOGGER.info("Insert test data");
+    LOG.info("Insert test data");
 
     Mongo client = new Mongo("localhost", port);
     DB database = client.getDB(DATABASE);
@@ -174,7 +177,7 @@ public class MongoDBGridFSIOTest implements Serializable {
 
   @AfterClass
   public static void stop() throws Exception {
-    LOGGER.info("Stopping MongoDB instance");
+    LOG.info("Stopping MongoDB instance");
     mongodProcess.stop();
     mongodExecutable.stop();
   }
@@ -182,7 +185,6 @@ public class MongoDBGridFSIOTest implements Serializable {
   @Test
   @Category(NeedsRunner.class)
   public void testFullRead() throws Exception {
-    TestPipeline pipeline = TestPipeline.create();
 
     PCollection<String> output = pipeline.apply(
         MongoDbGridFSIO.<String>read()
@@ -212,7 +214,6 @@ public class MongoDBGridFSIOTest implements Serializable {
   @Test
   @Category(NeedsRunner.class)
   public void testReadWithParser() throws Exception {
-    TestPipeline pipeline = TestPipeline.create();
 
     PCollection<KV<String, Integer>> output = pipeline.apply(
         MongoDbGridFSIO.<KV<String, Integer>>read()
@@ -296,8 +297,6 @@ public class MongoDBGridFSIOTest implements Serializable {
   @Test
   @Category(NeedsRunner.class)
   public void testWriteMessage() throws Exception {
-
-    Pipeline pipeline = TestPipeline.create();
 
     ArrayList<String> data = new ArrayList<>(100);
     ArrayList<Integer> intData = new ArrayList<>(100);

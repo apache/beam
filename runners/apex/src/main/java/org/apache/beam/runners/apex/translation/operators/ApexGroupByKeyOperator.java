@@ -30,8 +30,6 @@ import com.esotericsoftware.kryo.serializers.JavaSerializer;
 import com.google.common.base.Throwables;
 import com.google.common.collect.HashMultimap;
 import com.google.common.collect.Multimap;
-
-import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.Collection;
 import java.util.Collections;
@@ -40,11 +38,12 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
-
 import org.apache.beam.runners.apex.ApexPipelineOptions;
 import org.apache.beam.runners.apex.translation.utils.ApexStreamTuple;
 import org.apache.beam.runners.apex.translation.utils.SerializablePipelineOptions;
 import org.apache.beam.runners.core.GroupAlsoByWindowViaWindowSetDoFn;
+import org.apache.beam.runners.core.KeyedWorkItem;
+import org.apache.beam.runners.core.KeyedWorkItems;
 import org.apache.beam.runners.core.SystemReduceFn;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
@@ -57,8 +56,6 @@ import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.CoderUtils;
-import org.apache.beam.sdk.util.KeyedWorkItem;
-import org.apache.beam.sdk.util.KeyedWorkItems;
 import org.apache.beam.sdk.util.TimeDomain;
 import org.apache.beam.sdk.util.TimerInternals;
 import org.apache.beam.sdk.util.WindowedValue;
@@ -392,13 +389,6 @@ public class ApexGroupByKeyOperator<K, V> implements Operator {
         }
 
         @Override
-        public <T> void writePCollectionViewData(
-            TupleTag<?> tag, Iterable<WindowedValue<T>> data, Coder<T> elemCoder)
-            throws IOException {
-          throw new RuntimeException("writePCollectionViewData() not available in Streaming mode.");
-        }
-
-        @Override
         public <T> T sideInput(PCollectionView<T> view, BoundedWindow mainInputWindow) {
           throw new RuntimeException("sideInput() is not available in Streaming mode.");
         }
@@ -435,11 +425,18 @@ public class ApexGroupByKeyOperator<K, V> implements Operator {
    */
   public class ApexTimerInternals implements TimerInternals {
 
+    @Deprecated
     @Override
-    public void setTimer(TimerData timerKey) {
-      registerActiveTimer(context.element().key(), timerKey);
+    public void setTimer(TimerData timerData) {
+      registerActiveTimer(context.element().key(), timerData);
     }
 
+    @Override
+    public void deleteTimer(StateNamespace namespace, String timerId, TimeDomain timeDomain) {
+      throw new UnsupportedOperationException("Canceling of timer by ID is not yet supported.");
+    }
+
+    @Deprecated
     @Override
     public void deleteTimer(TimerData timerKey) {
       unregisterActiveTimer(context.element().key(), timerKey);
@@ -473,6 +470,7 @@ public class ApexGroupByKeyOperator<K, V> implements Operator {
       throw new UnsupportedOperationException("Setting timer by ID not yet supported.");
     }
 
+    @Deprecated
     @Override
     public void deleteTimer(StateNamespace namespace, String timerId) {
       throw new UnsupportedOperationException("Canceling of timer by ID is not yet supported.");

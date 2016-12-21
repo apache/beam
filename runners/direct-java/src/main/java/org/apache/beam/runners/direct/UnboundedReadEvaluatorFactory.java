@@ -229,7 +229,8 @@ class UnboundedReadEvaluatorFactory implements TransformEvaluatorFactory {
     }
 
     @Override
-    public TransformResult finishBundle() throws IOException {
+    public TransformResult<UnboundedSourceShard<OutputT, CheckpointMarkT>> finishBundle()
+        throws IOException {
       return resultBuilder.build();
     }
   }

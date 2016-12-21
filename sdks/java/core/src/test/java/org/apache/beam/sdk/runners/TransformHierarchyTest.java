@@ -22,7 +22,10 @@ import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertThat;
 
+import com.google.common.base.Function;
+import com.google.common.collect.Lists;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 import org.apache.beam.sdk.Pipeline.PipelineVisitor;
 import org.apache.beam.sdk.io.CountingSource;
@@ -30,10 +33,15 @@ import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.MapElements;
+import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.SimpleFunction;
+import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollection.IsBounded;
+import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.PValue;
+import org.apache.beam.sdk.values.TaggedPValue;
 import org.hamcrest.Matchers;
 import org.junit.Before;
 import org.junit.Rule;
@@ -47,14 +55,16 @@ import org.junit.runners.JUnit4;
  */
 @RunWith(JUnit4.class)
 public class TransformHierarchyTest {
+
+  @Rule public final TestPipeline pipeline = TestPipeline.create();
   @Rule public ExpectedException thrown = ExpectedException.none();
+
   private TransformHierarchy hierarchy;
-  private TestPipeline pipeline;
+
 
   @Before
   public void setup() {
     hierarchy = new TransformHierarchy();
-    pipeline = TestPipeline.create();
   }
 
   @Test
@@ -63,80 +73,174 @@ public class TransformHierarchyTest {
   }
 
   @Test
-  public void popWithoutPushThrows() {
+  public void pushWithoutPushFails() {
     thrown.expect(IllegalStateException.class);
     hierarchy.popNode();
   }
 
   @Test
   public void pushThenPopSucceeds() {
-    TransformTreeNode root = hierarchy.getCurrent();
-    TransformTreeNode node =
-        new TransformTreeNode(hierarchy.getCurrent(), Create.of(1), "Create", PBegin.in(pipeline));
-    hierarchy.pushNode(node);
+    TransformHierarchy.Node root = hierarchy.getCurrent();
+    TransformHierarchy.Node node = hierarchy.pushNode("Create", PBegin.in(pipeline), Create.of(1));
     assertThat(hierarchy.getCurrent(), equalTo(node));
     hierarchy.popNode();
+    assertThat(node.finishedSpecifying, is(true));
     assertThat(hierarchy.getCurrent(), equalTo(root));
   }
 
   @Test
+  public void emptyCompositeSucceeds() {
+    PCollection<Long> created =
+        PCollection.createPrimitiveOutputInternal(
+            pipeline, WindowingStrategy.globalDefault(), IsBounded.BOUNDED);
+    TransformHierarchy.Node node = hierarchy.pushNode("Create", PBegin.in(pipeline), Create.of(1));
+    hierarchy.setOutput(created);
+    hierarchy.popNode();
+    PCollectionList<Long> pcList = PCollectionList.of(created);
+
+    TransformHierarchy.Node emptyTransform =
+        hierarchy.pushNode(
+            "Extract",
+            pcList,
+            new PTransform<PCollectionList<Long>, PCollection<Long>>() {
+              @Override
+              public PCollection<Long> expand(PCollectionList<Long> input) {
+                return input.get(0);
+              }
+            });
+    hierarchy.setOutput(created);
+    hierarchy.popNode();
+    assertThat(hierarchy.getProducer(created), equalTo(node));
+    assertThat(
+        "A Transform that produces non-primtive output should be composite",
+        emptyTransform.isCompositeNode(),
+        is(true));
+  }
+
+  @Test
+  public void producingOwnAndOthersOutputsFails() {
+    PCollection<Long> created =
+        PCollection.createPrimitiveOutputInternal(
+            pipeline, WindowingStrategy.globalDefault(), IsBounded.BOUNDED);
+    hierarchy.pushNode("Create", PBegin.in(pipeline), Create.of(1));
+    hierarchy.setOutput(created);
+    hierarchy.popNode();
+    PCollectionList<Long> pcList = PCollectionList.of(created);
+
+    final PCollectionList<Long> appended =
+        pcList.and(
+            PCollection.<Long>createPrimitiveOutputInternal(
+                pipeline, WindowingStrategy.globalDefault(), IsBounded.BOUNDED));
+    hierarchy.pushNode(
+        "AddPc",
+        pcList,
+        new PTransform<PCollectionList<Long>, PCollectionList<Long>>() {
+          @Override
+          public PCollectionList<Long> expand(PCollectionList<Long> input) {
+            return appended;
+          }
+        });
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage("produced by it as well as other Transforms");
+    thrown.expectMessage("primitive transform must produce all of its outputs");
+    thrown.expectMessage("composite transform must be produced by a component transform");
+    thrown.expectMessage("AddPc");
+    thrown.expectMessage("Create");
+    thrown.expectMessage(appended.expand().toString());
+    hierarchy.setOutput(appended);
+  }
+
+  @Test
   public void visitVisitsAllPushed() {
-    TransformTreeNode root = hierarchy.getCurrent();
-    Create.Values<Integer> create = Create.of(1);
-    PCollection<Integer> created = pipeline.apply(create);
+    TransformHierarchy.Node root = hierarchy.getCurrent();
     PBegin begin = PBegin.in(pipeline);
 
-    TransformTreeNode compositeNode =
-        new TransformTreeNode(root, create, "Create", begin);
-    root.addComposite(compositeNode);
-    TransformTreeNode primitiveNode =
-        new TransformTreeNode(
-            compositeNode, Read.from(CountingSource.upTo(1L)), "Create/Read", begin);
-    compositeNode.addComposite(primitiveNode);
+    Create.Values<Long> create = Create.of(1L);
+    Read.Bounded<Long> read = Read.from(CountingSource.upTo(1L));
 
-    TransformTreeNode otherPrimitive =
-        new TransformTreeNode(
-            root, MapElements.via(new SimpleFunction<Integer, Integer>() {
-          @Override
-          public Integer apply(Integer input) {
-            return input;
-          }
-        }), "ParDo", created);
-    root.addComposite(otherPrimitive);
-    otherPrimitive.addInputProducer(created, primitiveNode);
+    PCollection<Long> created =
+        PCollection.createPrimitiveOutputInternal(
+            pipeline, WindowingStrategy.globalDefault(), IsBounded.BOUNDED);
 
-    hierarchy.pushNode(compositeNode);
-    hierarchy.pushNode(primitiveNode);
+    MapElements<Long, Long> map = MapElements.via(new SimpleFunction<Long, Long>() {
+      @Override
+      public Long apply(Long input) {
+        return input;
+      }
+    });
+
+    PCollection<Long> mapped =
+        PCollection.createPrimitiveOutputInternal(
+            pipeline, WindowingStrategy.globalDefault(), IsBounded.BOUNDED);
+
+    TransformHierarchy.Node compositeNode = hierarchy.pushNode("Create", begin, create);
+    assertThat(hierarchy.getCurrent(), equalTo(compositeNode));
+    assertThat(compositeNode.getInputs(), Matchers.emptyIterable());
+    assertThat(compositeNode.getTransform(), Matchers.<PTransform<?, ?>>equalTo(create));
+    // Not yet set
+    assertThat(compositeNode.getOutputs(), Matchers.emptyIterable());
+    assertThat(compositeNode.getEnclosingNode().isRootNode(), is(true));
+
+    TransformHierarchy.Node primitiveNode = hierarchy.pushNode("Create/Read", begin, read);
+    assertThat(hierarchy.getCurrent(), equalTo(primitiveNode));
+    hierarchy.setOutput(created);
     hierarchy.popNode();
-    hierarchy.popNode();
-    hierarchy.pushNode(otherPrimitive);
+    assertThat(
+        fromTaggedValues(primitiveNode.getOutputs()), Matchers.<PValue>containsInAnyOrder(created));
+    assertThat(primitiveNode.getInputs(), Matchers.<TaggedPValue>emptyIterable());
+    assertThat(primitiveNode.getTransform(), Matchers.<PTransform<?, ?>>equalTo(read));
+    assertThat(primitiveNode.getEnclosingNode(), equalTo(compositeNode));
+
+    hierarchy.setOutput(created);
+    // The composite is listed as outputting a PValue created by the contained primitive
+    assertThat(
+        fromTaggedValues(compositeNode.getOutputs()), Matchers.<PValue>containsInAnyOrder(created));
+    // The producer of that PValue is still the primitive in which it is first output
+    assertThat(hierarchy.getProducer(created), equalTo(primitiveNode));
     hierarchy.popNode();
 
-    final Set<TransformTreeNode> visitedCompositeNodes = new HashSet<>();
-    final Set<TransformTreeNode> visitedPrimitiveNodes = new HashSet<>();
+    TransformHierarchy.Node otherPrimitive = hierarchy.pushNode("ParDo", created, map);
+    hierarchy.setOutput(mapped);
+    hierarchy.popNode();
+
+    final Set<TransformHierarchy.Node> visitedCompositeNodes = new HashSet<>();
+    final Set<TransformHierarchy.Node> visitedPrimitiveNodes = new HashSet<>();
     final Set<PValue> visitedValuesInVisitor = new HashSet<>();
 
-    Set<PValue> visitedValues = new HashSet<>();
-    hierarchy.visit(new PipelineVisitor.Defaults() {
-      @Override
-      public CompositeBehavior enterCompositeTransform(TransformTreeNode node) {
-        visitedCompositeNodes.add(node);
-        return CompositeBehavior.ENTER_TRANSFORM;
-      }
+    Set<PValue> visitedValues =
+        hierarchy.visit(
+            new PipelineVisitor.Defaults() {
+              @Override
+              public CompositeBehavior enterCompositeTransform(TransformHierarchy.Node node) {
+                visitedCompositeNodes.add(node);
+                return CompositeBehavior.ENTER_TRANSFORM;
+              }
 
-      @Override
-      public void visitPrimitiveTransform(TransformTreeNode node) {
-        visitedPrimitiveNodes.add(node);
-      }
+              @Override
+              public void visitPrimitiveTransform(TransformHierarchy.Node node) {
+                visitedPrimitiveNodes.add(node);
+              }
 
-      @Override
-      public void visitValue(PValue value, TransformTreeNode producer) {
-        visitedValuesInVisitor.add(value);
-      }
-    }, visitedValues);
+              @Override
+              public void visitValue(PValue value, TransformHierarchy.Node producer) {
+                visitedValuesInVisitor.add(value);
+              }
+            });
 
     assertThat(visitedCompositeNodes, containsInAnyOrder(root, compositeNode));
     assertThat(visitedPrimitiveNodes, containsInAnyOrder(primitiveNode, otherPrimitive));
-    assertThat(visitedValuesInVisitor, Matchers.<PValue>containsInAnyOrder(created));
+    assertThat(visitedValuesInVisitor, Matchers.<PValue>containsInAnyOrder(created, mapped));
+    assertThat(visitedValuesInVisitor, equalTo(visitedValues));
+  }
+
+  private static List<PValue> fromTaggedValues(List<TaggedPValue> taggedValues) {
+    return Lists.transform(
+        taggedValues,
+        new Function<TaggedPValue, PValue>() {
+          @Override
+          public PValue apply(TaggedPValue input) {
+            return input.getValue();
+          }
+        });
   }
 }

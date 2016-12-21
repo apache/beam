@@ -114,10 +114,15 @@ interface BigQueryServices extends Serializable {
    */
   interface DatasetService {
     /**
-     * Gets the specified {@link Table} resource by table ID.
+     * Gets the specified {@link Table} resource by table ID or {@code null} if no table exists.
      */
     Table getTable(String projectId, String datasetId, String tableId)
         throws InterruptedException, IOException;
+
+    /**
+     * Creates the specified table if it does not exist.
+     */
+    void createTable(Table table) throws InterruptedException, IOException;
 
     /**
      * Deletes the table specified by tableId from the dataset.

@@ -43,6 +43,7 @@ import org.apache.beam.sdk.transforms.display.HasDisplayData;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
+import org.apache.beam.sdk.util.TimeDomain;
 import org.apache.beam.sdk.util.Timer;
 import org.apache.beam.sdk.util.TimerSpec;
 import org.apache.beam.sdk.util.state.State;
@@ -120,6 +121,9 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
      * should be in, throwing an exception if the {@code WindowFn} attempts
      * to access any information about the input element. The output element
      * will have a timestamp of negative infinity.
+     *
+     * <p><i>Note:</i> A splittable {@link DoFn} is not allowed to output from
+     * {@link StartBundle} or {@link FinishBundle} methods.
      */
     public abstract void output(OutputT output);
 
@@ -142,6 +146,9 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
      * should be in, throwing an exception if the {@code WindowFn} attempts
      * to access any information about the input element except for the
      * timestamp.
+     *
+     * <p><i>Note:</i> A splittable {@link DoFn} is not allowed to output from
+     * {@link StartBundle} or {@link FinishBundle} methods.
      */
     public abstract void outputWithTimestamp(OutputT output, Instant timestamp);
 
@@ -168,6 +175,9 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
      * to access any information about the input element. The output element
      * will have a timestamp of negative infinity.
      *
+     * <p><i>Note:</i> A splittable {@link DoFn} is not allowed to output from
+     * {@link StartBundle} or {@link FinishBundle} methods.
+     *
      * @see ParDo#withOutputTags
      */
     public abstract <T> void sideOutput(TupleTag<T> tag, T output);
@@ -191,6 +201,9 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
      * should be in, throwing an exception if the {@code WindowFn} attempts
      * to access any information about the input element except for the
      * timestamp.
+     *
+     * <p><i>Note:</i> A splittable {@link DoFn} is not allowed to output from
+     * {@link StartBundle} or {@link FinishBundle} methods.
      *
      * @see ParDo#withOutputTags
      */
@@ -283,6 +296,27 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
   }
 
   /**
+   * Information accessible when running a {@link DoFn.OnTimer} method.
+   */
+  public abstract class OnTimerContext extends Context {
+
+    /**
+     * Returns the timestamp of the current timer.
+     */
+    public abstract Instant timestamp();
+
+    /**
+     * Returns the window in which the timer is firing.
+     */
+    public abstract BoundedWindow window();
+
+    /**
+     * Returns the time domain of the current timer.
+     */
+    public abstract TimeDomain timeDomain();
+  }
+
+  /**
    * Returns the allowed timestamp skew duration, which is the maximum
    * duration that timestamps can be shifted backward in
    * {@link DoFn.Context#outputWithTimestamp}.
@@ -315,7 +349,7 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
    *
    * <p>See {@link #getOutputTypeDescriptor} for more discussion.
    */
-  protected TypeDescriptor<InputT> getInputTypeDescriptor() {
+  public TypeDescriptor<InputT> getInputTypeDescriptor() {
     return new TypeDescriptor<InputT>(getClass()) {};
   }
 
@@ -330,7 +364,7 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
    * for choosing a default output {@code Coder<O>} for the output
    * {@code PCollection<O>}.
    */
-  protected TypeDescriptor<OutputT> getOutputTypeDescriptor() {
+  public TypeDescriptor<OutputT> getOutputTypeDescriptor() {
     return new TypeDescriptor<OutputT>(getClass()) {};
   }
 

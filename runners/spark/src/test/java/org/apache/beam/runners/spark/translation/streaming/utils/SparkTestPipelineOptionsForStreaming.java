@@ -28,12 +28,6 @@ import org.junit.rules.TemporaryFolder;
  */
 public class SparkTestPipelineOptionsForStreaming extends SparkTestPipelineOptions {
 
-  @Override
-  protected void before() throws Throwable {
-    super.before();
-    options.setStreaming(true);
-  }
-
   public SparkPipelineOptions withTmpCheckpointDir(TemporaryFolder parent)
       throws IOException {
     // tests use JUnit's TemporaryFolder path in the form of: /.../junit/...

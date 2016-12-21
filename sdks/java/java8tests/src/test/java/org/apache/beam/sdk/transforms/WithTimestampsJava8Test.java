@@ -24,6 +24,7 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.joda.time.Instant;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
@@ -34,15 +35,18 @@ import org.junit.runners.JUnit4;
  */
 @RunWith(JUnit4.class)
 public class WithTimestampsJava8Test implements Serializable {
+
+  @Rule
+  public final transient TestPipeline p = TestPipeline.create();
+
   @Test
   @Category(RunnableOnService.class)
   public void withTimestampsLambdaShouldApplyTimestamps() {
-    TestPipeline p = TestPipeline.create();
 
-    String yearTwoThousand = "946684800000";
+    final String yearTwoThousand = "946684800000";
     PCollection<String> timestamped =
         p.apply(Create.of("1234", "0", Integer.toString(Integer.MAX_VALUE), yearTwoThousand))
-         .apply(WithTimestamps.of((String input) -> new Instant(Long.valueOf(yearTwoThousand))));
+         .apply(WithTimestamps.of((String input) -> new Instant(Long.valueOf(input))));
 
     PCollection<KV<String, Instant>> timestampedVals =
         timestamped.apply(ParDo.of(new DoFn<String, KV<String, Instant>>() {
@@ -58,8 +62,10 @@ public class WithTimestampsJava8Test implements Serializable {
     PAssert.that(timestampedVals)
         .containsInAnyOrder(
             KV.of("0", new Instant(0)),
-            KV.of("1234", new Instant("1234")),
+            KV.of("1234", new Instant(Long.valueOf("1234"))),
             KV.of(Integer.toString(Integer.MAX_VALUE), new Instant(Integer.MAX_VALUE)),
             KV.of(yearTwoThousand, new Instant(Long.valueOf(yearTwoThousand))));
+
+    p.run();
   }
 }

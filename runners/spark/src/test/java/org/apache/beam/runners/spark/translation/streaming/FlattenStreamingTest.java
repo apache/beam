@@ -63,6 +63,7 @@ public class FlattenStreamingTest {
   @Test
   public void testFlattenUnbounded() throws Exception {
     SparkPipelineOptions options = commonOptions.withTmpCheckpointDir(checkpointParentDir);
+    options.setStreaming(true);
 
     Pipeline p = Pipeline.create(options);
     PCollection<String> w1 =
@@ -82,6 +83,7 @@ public class FlattenStreamingTest {
   @Test
   public void testFlattenBoundedUnbounded() throws Exception {
     SparkPipelineOptions options = commonOptions.withTmpCheckpointDir(checkpointParentDir);
+    options.setStreaming(true);
 
     Pipeline p = Pipeline.create(options);
     PCollection<String> w1 =

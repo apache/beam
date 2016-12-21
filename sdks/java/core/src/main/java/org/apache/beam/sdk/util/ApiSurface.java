@@ -75,13 +75,13 @@ import org.slf4j.LoggerFactory;
  */
 @SuppressWarnings("rawtypes")
 public class ApiSurface {
-  private static Logger logger = LoggerFactory.getLogger(ApiSurface.class);
+  private static final Logger LOG = LoggerFactory.getLogger(ApiSurface.class);
 
   /**
    * Returns an empty {@link ApiSurface}.
    */
   public static ApiSurface empty() {
-    logger.debug("Returning an empty ApiSurface");
+    LOG.debug("Returning an empty ApiSurface");
     return new ApiSurface(Collections.<Class<?>>emptySet(), Collections.<Pattern>emptySet());
   }
 
@@ -113,7 +113,7 @@ public class ApiSurface {
         newRootClasses.add(clazz);
       }
     }
-    logger.debug("Including package {} and subpackages: {}", packageName, newRootClasses);
+    LOG.debug("Including package {} and subpackages: {}", packageName, newRootClasses);
     newRootClasses.addAll(rootClasses);
 
     return new ApiSurface(newRootClasses, patternsToPrune);
@@ -124,7 +124,7 @@ public class ApiSurface {
    */
   public ApiSurface includingClass(Class<?> clazz) {
     Set<Class<?>> newRootClasses = Sets.newHashSet();
-    logger.debug("Including class {}", clazz);
+    LOG.debug("Including class {}", clazz);
     newRootClasses.add(clazz);
     newRootClasses.addAll(rootClasses);
     return new ApiSurface(newRootClasses, patternsToPrune);
@@ -360,7 +360,7 @@ public class ApiSurface {
    * See {@link #addExposedTypes(Type, Class)}.
    */
   private void addExposedTypes(TypeToken type, Class<?> cause) {
-    logger.debug(
+    LOG.debug(
         "Adding exposed types from {}, which is the type in type token {}", type.getType(), type);
     addExposedTypes(type.getType(), cause);
   }
@@ -372,19 +372,19 @@ public class ApiSurface {
    */
   private void addExposedTypes(Type type, Class<?> cause) {
     if (type instanceof TypeVariable) {
-      logger.debug("Adding exposed types from {}, which is a type variable", type);
+      LOG.debug("Adding exposed types from {}, which is a type variable", type);
       addExposedTypes((TypeVariable) type, cause);
     } else if (type instanceof WildcardType) {
-      logger.debug("Adding exposed types from {}, which is a wildcard type", type);
+      LOG.debug("Adding exposed types from {}, which is a wildcard type", type);
       addExposedTypes((WildcardType) type, cause);
     } else if (type instanceof GenericArrayType) {
-      logger.debug("Adding exposed types from {}, which is a generic array type", type);
+      LOG.debug("Adding exposed types from {}, which is a generic array type", type);
       addExposedTypes((GenericArrayType) type, cause);
     } else if (type instanceof ParameterizedType) {
-      logger.debug("Adding exposed types from {}, which is a parameterized type", type);
+      LOG.debug("Adding exposed types from {}, which is a parameterized type", type);
       addExposedTypes((ParameterizedType) type, cause);
     } else if (type instanceof Class) {
-      logger.debug("Adding exposed types from {}, which is a class", type);
+      LOG.debug("Adding exposed types from {}, which is a class", type);
       addExposedTypes((Class) type, cause);
     } else {
       throw new IllegalArgumentException("Unknown implementation of Type");
@@ -402,7 +402,7 @@ public class ApiSurface {
     }
     visit(type);
     for (Type bound : type.getBounds()) {
-      logger.debug("Adding exposed types from {}, which is a type bound on {}", bound, type);
+      LOG.debug("Adding exposed types from {}, which is a type bound on {}", bound, type);
       addExposedTypes(bound, cause);
     }
   }
@@ -414,14 +414,14 @@ public class ApiSurface {
   private void addExposedTypes(WildcardType type, Class<?> cause) {
     visit(type);
     for (Type lowerBound : type.getLowerBounds()) {
-      logger.debug(
+      LOG.debug(
           "Adding exposed types from {}, which is a type lower bound on wildcard type {}",
           lowerBound,
           type);
       addExposedTypes(lowerBound, cause);
     }
     for (Type upperBound : type.getUpperBounds()) {
-      logger.debug(
+      LOG.debug(
           "Adding exposed types from {}, which is a type upper bound on wildcard type {}",
           upperBound,
           type);
@@ -439,7 +439,7 @@ public class ApiSurface {
       return;
     }
     visit(type);
-    logger.debug(
+    LOG.debug(
         "Adding exposed types from {}, which is the component type on generic array type {}",
         type.getGenericComponentType(),
         type);
@@ -467,13 +467,13 @@ public class ApiSurface {
     // The type parameters themselves may not be pruned,
     // for example with List<MyApiType> probably the
     // standard List is pruned, but MyApiType is not.
-    logger.debug(
+    LOG.debug(
         "Adding exposed types from {}, which is the raw type on parameterized type {}",
         type.getRawType(),
         type);
     addExposedTypes(type.getRawType(), cause);
     for (Type typeArg : type.getActualTypeArguments()) {
-      logger.debug(
+      LOG.debug(
           "Adding exposed types from {}, which is a type argument on parameterized type {}",
           typeArg,
           type);
@@ -501,14 +501,14 @@ public class ApiSurface {
     TypeToken<?> token = TypeToken.of(clazz);
     for (TypeToken<?> superType : token.getTypes()) {
       if (!superType.equals(token)) {
-        logger.debug(
+        LOG.debug(
             "Adding exposed types from {}, which is a super type token on {}", superType, clazz);
         addExposedTypes(superType, clazz);
       }
     }
     for (Class innerClass : clazz.getDeclaredClasses()) {
       if (exposed(innerClass.getModifiers())) {
-        logger.debug(
+        LOG.debug(
             "Adding exposed types from {}, which is an exposed inner class of {}",
             innerClass,
             clazz);
@@ -517,12 +517,12 @@ public class ApiSurface {
     }
     for (Field field : clazz.getDeclaredFields()) {
       if (exposed(field.getModifiers())) {
-        logger.debug("Adding exposed types from {}, which is an exposed field on {}", field, clazz);
+        LOG.debug("Adding exposed types from {}, which is an exposed field on {}", field, clazz);
         addExposedTypes(field, clazz);
       }
     }
     for (Invokable invokable : getExposedInvokables(token)) {
-      logger.debug(
+      LOG.debug(
           "Adding exposed types from {}, which is an exposed invokable on {}", invokable, clazz);
       addExposedTypes(invokable, clazz);
     }
@@ -531,21 +531,21 @@ public class ApiSurface {
   private void addExposedTypes(Invokable<?, ?> invokable, Class<?> cause) {
     addExposedTypes(invokable.getReturnType(), cause);
     for (Annotation annotation : invokable.getAnnotations()) {
-      logger.debug(
+      LOG.debug(
           "Adding exposed types from {}, which is an annotation on invokable {}",
           annotation,
           invokable);
      addExposedTypes(annotation.annotationType(), cause);
     }
     for (Parameter parameter : invokable.getParameters()) {
-      logger.debug(
+      LOG.debug(
           "Adding exposed types from {}, which is a parameter on invokable {}",
           parameter,
           invokable);
       addExposedTypes(parameter, cause);
     }
     for (TypeToken<?> exceptionType : invokable.getExceptionTypes()) {
-      logger.debug(
+      LOG.debug(
           "Adding exposed types from {}, which is an exception type on invokable {}",
           exceptionType,
           invokable);
@@ -554,13 +554,13 @@ public class ApiSurface {
   }
 
   private void addExposedTypes(Parameter parameter, Class<?> cause) {
-    logger.debug(
+    LOG.debug(
         "Adding exposed types from {}, which is the type of parameter {}",
         parameter.getType(),
         parameter);
     addExposedTypes(parameter.getType(), cause);
     for (Annotation annotation : parameter.getAnnotations()) {
-      logger.debug(
+      LOG.debug(
           "Adding exposed types from {}, which is an annotation on parameter {}",
           annotation,
           parameter);
@@ -571,7 +571,7 @@ public class ApiSurface {
   private void addExposedTypes(Field field, Class<?> cause) {
     addExposedTypes(field.getGenericType(), cause);
     for (Annotation annotation : field.getDeclaredAnnotations()) {
-      logger.debug(
+      LOG.debug(
           "Adding exposed types from {}, which is an annotation on field {}", annotation, field);
       addExposedTypes(annotation.annotationType(), cause);
     }

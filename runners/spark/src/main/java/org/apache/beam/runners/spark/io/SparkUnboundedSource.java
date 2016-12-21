@@ -61,19 +61,25 @@ public class SparkUnboundedSource {
   JavaDStream<WindowedValue<T>> read(JavaStreamingContext jssc,
                                      SparkRuntimeContext rc,
                                      UnboundedSource<T, CheckpointMarkT> source) {
+    SparkPipelineOptions options = rc.getPipelineOptions().as(SparkPipelineOptions.class);
+    Long maxRecordsPerBatch = options.getMaxRecordsPerBatch();
+    SourceDStream<T, CheckpointMarkT> sourceDStream = new SourceDStream<>(jssc.ssc(), source, rc);
+    // if max records per batch was set by the user.
+    if (maxRecordsPerBatch > 0) {
+      sourceDStream.setMaxRecordsPerBatch(maxRecordsPerBatch);
+    }
     JavaPairInputDStream<Source<T>, CheckpointMarkT> inputDStream =
-        JavaPairInputDStream$.MODULE$.fromInputDStream(new SourceDStream<>(jssc.ssc(), source, rc),
+        JavaPairInputDStream$.MODULE$.fromInputDStream(sourceDStream,
             JavaSparkContext$.MODULE$.<Source<T>>fakeClassTag(),
                 JavaSparkContext$.MODULE$.<CheckpointMarkT>fakeClassTag());
 
     // call mapWithState to read from a checkpointable sources.
-    //TODO: consider broadcasting the rc instead of re-sending every batch.
     JavaMapWithStateDStream<Source<T>, CheckpointMarkT, byte[],
         Iterator<WindowedValue<T>>> mapWithStateDStream = inputDStream.mapWithState(
             StateSpec.function(StateSpecFunctions.<T, CheckpointMarkT>mapSourceFunction(rc)));
 
     // set checkpoint duration for read stream, if set.
-    checkpointStream(mapWithStateDStream, rc);
+    checkpointStream(mapWithStateDStream, options);
     // flatmap and report read elements. Use the inputDStream's id to tie between the reported
     // info and the inputDStream it originated from.
     int id = inputDStream.inputDStream().id();
@@ -97,9 +103,8 @@ public class SparkUnboundedSource {
   }
 
   private static void checkpointStream(JavaDStream<?> dStream,
-                                       SparkRuntimeContext rc) {
-    long checkpointDurationMillis = rc.getPipelineOptions().as(SparkPipelineOptions.class)
-        .getCheckpointDurationMillis();
+                                       SparkPipelineOptions options) {
+    long checkpointDurationMillis = options.getCheckpointDurationMillis();
     if (checkpointDurationMillis > 0) {
       dStream.checkpoint(new Duration(checkpointDurationMillis));
     }

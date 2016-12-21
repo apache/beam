@@ -35,12 +35,13 @@ public class BufferedExternalSorter implements Sorter {
     private int memoryMB = 100;
 
     /** Sets the path to a temporary location where the sorter writes intermediate files. */
-    public void setTempLocation(String tempLocation) {
+    public Options setTempLocation(String tempLocation) {
       checkArgument(
           !tempLocation.startsWith("gs://"),
           "BufferedExternalSorter does not support GCS temporary location");
 
       this.tempLocation = tempLocation;
+      return this;
     }
 
     /** Returns the configured temporary location. */
@@ -50,11 +51,16 @@ public class BufferedExternalSorter implements Sorter {
 
     /**
      * Sets the size of the memory buffer in megabytes. This controls both the buffer for initial in
-     * memory sorting and the buffer used when external sorting. Must be greater than zero.
+     * memory sorting and the buffer used when external sorting. Must be greater than zero and less
+     * than 2048.
      */
-    public void setMemoryMB(int memoryMB) {
+    public Options setMemoryMB(int memoryMB) {
       checkArgument(memoryMB > 0, "memoryMB must be greater than zero");
+      // Hadoop's external sort stores the number of available memory bytes in an int, this prevents
+      // overflow
+      checkArgument(memoryMB < 2048, "memoryMB must be less than 2048");
       this.memoryMB = memoryMB;
+      return this;
     }
 
     /** Returns the configured size of the memory buffer. */

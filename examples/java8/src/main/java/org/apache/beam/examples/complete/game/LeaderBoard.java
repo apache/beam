@@ -234,7 +234,7 @@ public class LeaderBoard extends HourlyTeamScore {
     }
 
     @Override
-    public PCollection<KV<String, Integer>> apply(PCollection<GameActionInfo> infos) {
+    public PCollection<KV<String, Integer>> expand(PCollection<GameActionInfo> infos) {
       return infos.apply("LeaderboardTeamFixedWindows",
           Window.<GameActionInfo>into(FixedWindows.of(teamWindowDuration))
               // We will get early (speculative) results as well as cumulative
@@ -267,7 +267,7 @@ public class LeaderBoard extends HourlyTeamScore {
     }
 
     @Override
-    public PCollection<KV<String, Integer>> apply(PCollection<GameActionInfo> input) {
+    public PCollection<KV<String, Integer>> expand(PCollection<GameActionInfo> input) {
       return input.apply("LeaderboardUserGlobalWindow",
           Window.<GameActionInfo>into(new GlobalWindows())
               // Get periodic results every ten minutes.

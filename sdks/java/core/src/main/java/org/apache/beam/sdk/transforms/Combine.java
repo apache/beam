@@ -42,6 +42,7 @@ import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StandardCoder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.CombineFnBase.AbstractGlobalCombineFn;
 import org.apache.beam.sdk.transforms.CombineFnBase.AbstractPerKeyCombineFn;
 import org.apache.beam.sdk.transforms.CombineFnBase.GlobalCombineFn;
@@ -57,8 +58,6 @@ import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.util.AppliedCombineFn;
-import org.apache.beam.sdk.util.PerKeyCombineFnRunner;
-import org.apache.beam.sdk.util.PerKeyCombineFnRunners;
 import org.apache.beam.sdk.util.PropertyNames;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.util.WindowingStrategy;
@@ -1432,7 +1431,7 @@ public class Combine {
     }
 
     @Override
-    public PCollection<OutputT> apply(PCollection<InputT> input) {
+    public PCollection<OutputT> expand(PCollection<InputT> input) {
       PCollection<KV<Void, InputT>> withKeys = input
           .apply(WithKeys.<Void, InputT>of((Void) null))
           .setCoder(KvCoder.of(VoidCoder.of(), input.getCoder()));
@@ -1570,7 +1569,7 @@ public class Combine {
     }
 
     @Override
-    public PCollectionView<OutputT> apply(PCollection<InputT> input) {
+    public PCollectionView<OutputT> expand(PCollection<InputT> input) {
       Globally<InputT, OutputT> combineGlobally =
           Combine.<InputT, OutputT>globally(fn).withoutDefaults().withFanout(fanout);
       if (insertDefault) {
@@ -1867,7 +1866,7 @@ public class Combine {
     }
 
     @Override
-    public PCollection<KV<K, OutputT>> apply(PCollection<KV<K, InputT>> input) {
+    public PCollection<KV<K, OutputT>> expand(PCollection<KV<K, InputT>> input) {
       return input
           .apply(GroupByKey.<K, InputT>create(fewKeys))
           .apply(Combine.<K, InputT, OutputT>groupedValues(fn, fnDisplayData)
@@ -1902,7 +1901,7 @@ public class Combine {
     }
 
     @Override
-    public PCollection<KV<K, OutputT>> apply(PCollection<KV<K, InputT>> input) {
+    public PCollection<KV<K, OutputT>> expand(PCollection<KV<K, InputT>> input) {
       return applyHelper(input);
     }
 
@@ -1940,7 +1939,7 @@ public class Combine {
       // on that does addInput + merge and another that does merge + extract.
       PerKeyCombineFn<KV<K, Integer>, InputT, AccumT, AccumT> hotPreCombine;
       PerKeyCombineFn<K, InputOrAccum<InputT, AccumT>, AccumT, OutputT> postCombine;
-      if (!(typedFn instanceof RequiresContextInternal)) {
+      if (typedFn instanceof KeyedCombineFn) {
         final KeyedCombineFn<K, InputT, AccumT, OutputT> keyedFn =
             (KeyedCombineFn<K, InputT, AccumT, OutputT>) typedFn;
         hotPreCombine =
@@ -2027,7 +2026,7 @@ public class Combine {
                 builder.delegate(PerKeyWithHotKeyFanout.this);
               }
             };
-      } else {
+      } else if (typedFn instanceof KeyedCombineFnWithContext) {
         final KeyedCombineFnWithContext<K, InputT, AccumT, OutputT> keyedFnWithContext =
             (KeyedCombineFnWithContext<K, InputT, AccumT, OutputT>) typedFn;
         hotPreCombine =
@@ -2120,6 +2119,9 @@ public class Combine {
                 builder.delegate(PerKeyWithHotKeyFanout.this);
               }
             };
+      } else {
+        throw new IllegalStateException(
+            String.format("Unknown type of CombineFn: %s", typedFn.getClass()));
       }
 
       // Use the provided hotKeyFanout fn to split into "hot" and "cold" keys,
@@ -2386,18 +2388,37 @@ public class Combine {
     }
 
     @Override
-    public PCollection<KV<K, OutputT>> apply(
+    public PCollection<KV<K, OutputT>> expand(
         PCollection<? extends KV<K, ? extends Iterable<InputT>>> input) {
 
-      final PerKeyCombineFnRunner<? super K, ? super InputT, ?, OutputT> combineFnRunner =
-          PerKeyCombineFnRunners.create(fn);
       PCollection<KV<K, OutputT>> output = input.apply(ParDo.of(
-          new OldDoFn<KV<K, ? extends Iterable<InputT>>, KV<K, OutputT>>() {
-            @Override
-            public void processElement(ProcessContext c) {
+          new DoFn<KV<K, ? extends Iterable<InputT>>, KV<K, OutputT>>() {
+            @ProcessElement
+            public void processElement(final ProcessContext c) {
               K key = c.element().getKey();
 
-              c.output(KV.of(key, combineFnRunner.apply(key, c.element().getValue(), c)));
+              OutputT output;
+              if (fn instanceof KeyedCombineFnWithContext) {
+                output = ((KeyedCombineFnWithContext<? super K, ? super InputT, ?, OutputT>) fn)
+                    .apply(key, c.element().getValue(), new CombineWithContext.Context() {
+                      @Override
+                      public PipelineOptions getPipelineOptions() {
+                        return c.getPipelineOptions();
+                      }
+
+                      @Override
+                      public <T> T sideInput(PCollectionView<T> view) {
+                        return c.sideInput(view);
+                      }
+                    });
+              } else if (fn instanceof KeyedCombineFn) {
+                output = ((KeyedCombineFn<? super K, ? super InputT, ?, OutputT>) fn)
+                    .apply(key, c.element().getValue());
+              } else {
+                throw new IllegalStateException(
+                    String.format("Unknown type of CombineFn: %s", fn.getClass()));
+              }
+              c.output(KV.of(key, output));
             }
 
             @Override

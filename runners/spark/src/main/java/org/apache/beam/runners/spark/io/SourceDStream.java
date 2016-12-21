@@ -53,7 +53,7 @@ import scala.Tuple2;
  * {@link SparkPipelineOptions#getMinReadTimeMillis()}.
  * Records bound is controlled by the {@link RateController} mechanism.
  */
-public class SourceDStream<T, CheckpointMarkT extends UnboundedSource.CheckpointMark>
+class SourceDStream<T, CheckpointMarkT extends UnboundedSource.CheckpointMark>
       extends InputDStream<Tuple2<Source<T>, CheckpointMarkT>> {
   private static final Logger LOG = LoggerFactory.getLogger(SourceDStream.class);
 
@@ -64,10 +64,16 @@ public class SourceDStream<T, CheckpointMarkT extends UnboundedSource.Checkpoint
   // in case of resuming/recovering from checkpoint, the DStream will be reconstructed and this
   // property should not be reset.
   private final int initialParallelism;
+  // the bound on max records is optional.
+  // in case it is set explicitly via PipelineOptions, it takes precedence
+  // otherwise it could be activated via RateController.
+  private Long boundMaxRecords = null;
 
-  public SourceDStream(StreamingContext ssc,
-                       UnboundedSource<T, CheckpointMarkT> unboundedSource,
-                       SparkRuntimeContext runtimeContext) {
+  SourceDStream(
+      StreamingContext ssc,
+      UnboundedSource<T, CheckpointMarkT> unboundedSource,
+      SparkRuntimeContext runtimeContext) {
+
     super(ssc, JavaSparkContext$.MODULE$.<scala.Tuple2<Source<T>, CheckpointMarkT>>fakeClassTag());
     this.unboundedSource = unboundedSource;
     this.runtimeContext = runtimeContext;
@@ -80,10 +86,16 @@ public class SourceDStream<T, CheckpointMarkT extends UnboundedSource.Checkpoint
     checkArgument(this.initialParallelism > 0, "Number of partitions must be greater than zero.");
   }
 
+  public void setMaxRecordsPerBatch(long maxRecordsPerBatch) {
+    boundMaxRecords = maxRecordsPerBatch;
+  }
+
   @Override
   public scala.Option<RDD<Tuple2<Source<T>, CheckpointMarkT>>> compute(Time validTime) {
+    long maxNumRecords = boundMaxRecords != null ? boundMaxRecords : rateControlledMaxRecords();
     MicrobatchSource<T, CheckpointMarkT> microbatchSource = new MicrobatchSource<>(
-        unboundedSource, boundReadDuration, initialParallelism, rateControlledMaxRecords(), -1);
+        unboundedSource, boundReadDuration, initialParallelism, maxNumRecords, -1,
+        id());
     RDD<scala.Tuple2<Source<T>, CheckpointMarkT>> rdd = new SourceRDD.Unbounded<>(
         ssc().sc(), runtimeContext, microbatchSource);
     return scala.Option.apply(rdd);

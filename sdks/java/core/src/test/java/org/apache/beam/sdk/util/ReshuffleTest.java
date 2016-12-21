@@ -21,7 +21,6 @@ import static org.junit.Assert.assertEquals;
 
 import com.google.common.collect.ImmutableList;
 import java.util.List;
-import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
@@ -36,6 +35,7 @@ import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.joda.time.Duration;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
@@ -65,10 +65,12 @@ public class ReshuffleTest {
         KV.of("k1", (Iterable<Integer>) ImmutableList.of(3)),
         KV.of("k2", (Iterable<Integer>) ImmutableList.of(4)));
 
+  @Rule
+  public final TestPipeline pipeline = TestPipeline.create();
+
   @Test
   @Category(RunnableOnService.class)
   public void testJustReshuffle() {
-    Pipeline pipeline = TestPipeline.create();
 
     PCollection<KV<String, Integer>> input = pipeline
         .apply(Create.of(ARBITRARY_KVS)
@@ -89,7 +91,6 @@ public class ReshuffleTest {
   @Test
   @Category(RunnableOnService.class)
   public void testReshuffleAfterSessionsAndGroupByKey() {
-    Pipeline pipeline = TestPipeline.create();
 
     PCollection<KV<String, Iterable<Integer>>> input = pipeline
         .apply(Create.of(GBK_TESTABLE_KVS)
@@ -113,7 +114,6 @@ public class ReshuffleTest {
   @Test
   @Category(RunnableOnService.class)
   public void testReshuffleAfterFixedWindowsAndGroupByKey() {
-    Pipeline pipeline = TestPipeline.create();
 
     PCollection<KV<String, Iterable<Integer>>> input = pipeline
         .apply(Create.of(GBK_TESTABLE_KVS)
@@ -137,7 +137,6 @@ public class ReshuffleTest {
   @Test
   @Category(RunnableOnService.class)
   public void testReshuffleAfterSlidingWindowsAndGroupByKey() {
-    Pipeline pipeline = TestPipeline.create();
 
     PCollection<KV<String, Iterable<Integer>>> input = pipeline
         .apply(Create.of(GBK_TESTABLE_KVS)
@@ -161,7 +160,6 @@ public class ReshuffleTest {
   @Test
   @Category(RunnableOnService.class)
   public void testReshuffleAfterFixedWindows() {
-    Pipeline pipeline = TestPipeline.create();
 
     PCollection<KV<String, Integer>> input = pipeline
         .apply(Create.of(ARBITRARY_KVS)
@@ -185,7 +183,6 @@ public class ReshuffleTest {
   @Test
   @Category(RunnableOnService.class)
   public void testReshuffleAfterSlidingWindows() {
-    Pipeline pipeline = TestPipeline.create();
 
     PCollection<KV<String, Integer>> input = pipeline
         .apply(Create.of(ARBITRARY_KVS)

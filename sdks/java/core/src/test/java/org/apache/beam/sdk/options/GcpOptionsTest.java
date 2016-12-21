@@ -17,10 +17,10 @@
  */
 package org.apache.beam.sdk.options;
 
-import static com.google.common.base.Strings.isNullOrEmpty;
+import static org.hamcrest.Matchers.containsString;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
+import static org.junit.internal.matchers.ThrowableMessageMatcher.hasMessage;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
 
@@ -35,6 +35,7 @@ import org.apache.beam.sdk.testing.RestoreSystemProperties;
 import org.apache.beam.sdk.util.NoopPathValidator;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 import org.junit.rules.TemporaryFolder;
 import org.junit.rules.TestRule;
 import org.junit.runner.RunWith;
@@ -45,6 +46,7 @@ import org.junit.runners.JUnit4;
 public class GcpOptionsTest {
   @Rule public TestRule restoreSystemProperties = new RestoreSystemProperties();
   @Rule public TemporaryFolder tmpFolder = new TemporaryFolder();
+  @Rule public ExpectedException thrown = ExpectedException.none();
 
   @Test
   public void testGetProjectFromCloudSdkConfigEnv() throws Exception {
@@ -107,7 +109,10 @@ public class GcpOptionsTest {
   @Test
   public void testEmptyGcpTempLocation() throws Exception {
     GcpOptions options = PipelineOptionsFactory.as(GcpOptions.class);
-    assertTrue(isNullOrEmpty(options.getGcpTempLocation()));
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage(
+        "Error constructing default value for gcpTempLocation: tempLocation is not set");
+    options.getGcpTempLocation();
   }
 
   @Test
@@ -123,7 +128,26 @@ public class GcpOptionsTest {
   public void testDefaultGcpTempLocationInvalid() throws Exception {
     GcpOptions options = PipelineOptionsFactory.as(GcpOptions.class);
     options.setTempLocation("file://");
-    assertTrue(isNullOrEmpty(options.getGcpTempLocation()));
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage(
+        "Error constructing default value for gcpTempLocation: tempLocation is not"
+            + " a valid GCS path");
+    options.getGcpTempLocation();
+  }
+
+  @Test
+  public void testDefaultGcpTempLocationDoesNotExist() {
+    GcpOptions options = PipelineOptionsFactory.as(GcpOptions.class);
+    String tempLocation = "gs://does/not/exist";
+    options.setTempLocation(tempLocation);
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage(
+        "Error constructing default value for gcpTempLocation: tempLocation is not"
+            + " a valid GCS path");
+    thrown.expectCause(
+        hasMessage(containsString("Output path does not exist or is not writeable")));
+
+    options.getGcpTempLocation();
   }
 
   private static void makePropertiesFileWithProject(File path, String projectId)

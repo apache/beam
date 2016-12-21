@@ -21,20 +21,14 @@ package org.apache.beam.runners.spark.translation;
 import static com.google.common.base.Preconditions.checkArgument;
 
 import com.google.common.collect.Iterables;
-import java.io.IOException;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Set;
-import org.apache.beam.runners.spark.EvaluationResult;
-import org.apache.beam.runners.spark.aggregators.AccumulatorSingleton;
+import org.apache.beam.runners.spark.SparkPipelineOptions;
 import org.apache.beam.runners.spark.translation.streaming.UnboundedDataset;
-import org.apache.beam.sdk.AggregatorRetrievalException;
-import org.apache.beam.sdk.AggregatorValues;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.metrics.MetricResults;
-import org.apache.beam.sdk.transforms.Aggregator;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.util.WindowedValue;
@@ -45,15 +39,13 @@ import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext;
-import org.apache.spark.streaming.StreamingContextState;
 import org.apache.spark.streaming.api.java.JavaStreamingContext;
-import org.joda.time.Duration;
-
 
 /**
- * Evaluation context allows us to define how pipeline instructions.
+ * The EvaluationContext allows us to define pipeline instructions and translate between
+ * {@code PObject<T>}s or {@code PCollection<T>}s and Ts or DStreams/RDDs of Ts.
  */
-public class EvaluationContext implements EvaluationResult {
+public class EvaluationContext {
   private final JavaSparkContext jsc;
   private JavaStreamingContext jssc;
   private final SparkRuntimeContext runtime;
@@ -65,24 +57,19 @@ public class EvaluationContext implements EvaluationResult {
   private final Map<PValue, Object> pobjects = new LinkedHashMap<>();
   private final Map<PValue, Iterable<? extends WindowedValue<?>>> pview = new LinkedHashMap<>();
   private AppliedPTransform<?, ?, ?> currentTransform;
-  private State state;
 
   public EvaluationContext(JavaSparkContext jsc, Pipeline pipeline) {
     this.jsc = jsc;
     this.pipeline = pipeline;
-    this.runtime = new SparkRuntimeContext(pipeline, jsc);
-    // A batch pipeline is blocking by nature
-    this.state = State.DONE;
+    this.runtime = new SparkRuntimeContext(pipeline);
   }
 
-  public EvaluationContext(JavaSparkContext jsc, Pipeline pipeline,
-                           JavaStreamingContext jssc) {
+  public EvaluationContext(JavaSparkContext jsc, Pipeline pipeline, JavaStreamingContext jssc) {
     this(jsc, pipeline);
     this.jssc = jssc;
-    this.state = State.RUNNING;
   }
 
-  JavaSparkContext getSparkContext() {
+  public JavaSparkContext getSparkContext() {
     return jsc;
   }
 
@@ -155,7 +142,7 @@ public class EvaluationContext implements EvaluationResult {
     leaves.remove(dataset);
     if (multiReads.contains(pvalue)) {
       // Ensure the RDD is marked as cached
-      dataset.cache();
+      dataset.cache(storageLevel());
     } else {
       multiReads.add(pvalue);
     }
@@ -172,13 +159,20 @@ public class EvaluationContext implements EvaluationResult {
    */
   public void computeOutputs() {
     for (Dataset dataset : leaves) {
-      dataset.cache(); // cache so that any subsequent get() is cheap.
+      // cache so that any subsequent get() is cheap.
+      dataset.cache(storageLevel());
       dataset.action(); // force computation.
     }
   }
 
+  /**
+   * Retrieve an object of Type T associated with the PValue passed in.
+   *
+   * @param value PValue to retrieve associated data for.
+   * @param <T>  Type of object to return.
+   * @return Native object.
+   */
   @SuppressWarnings("unchecked")
-  @Override
   public <T> T get(PValue value) {
     if (pobjects.containsKey(value)) {
       T result = (T) pobjects.get(value);
@@ -193,23 +187,13 @@ public class EvaluationContext implements EvaluationResult {
     throw new IllegalStateException("Cannot resolve un-known PObject: " + value);
   }
 
-  @Override
-  public <T> T getAggregatorValue(String named, Class<T> resultType) {
-    return runtime.getAggregatorValue(AccumulatorSingleton.getInstance(jsc), named, resultType);
-  }
-
-  @Override
-  public <T> AggregatorValues<T> getAggregatorValues(Aggregator<?, T> aggregator)
-      throws AggregatorRetrievalException {
-    return runtime.getAggregatorValues(AccumulatorSingleton.getInstance(jsc), aggregator);
-  }
-
-  @Override
-  public MetricResults metrics() {
-    throw new UnsupportedOperationException("The SparkRunner does not currently support metrics.");
-  }
-
-  @Override
+  /**
+   * Retrieves an iterable of results associated with the PCollection passed in.
+   *
+   * @param pcollection Collection we wish to translate.
+   * @param <T>         Type of elements contained in collection.
+   * @return Natively types result associated with collection.
+   */
   public <T> Iterable<T> get(PCollection<T> pcollection) {
     @SuppressWarnings("unchecked")
     BoundedDataset<T> boundedDataset = (BoundedDataset<T>) datasets.get(pcollection);
@@ -223,76 +207,7 @@ public class EvaluationContext implements EvaluationResult {
     return boundedDataset.getValues(pcollection);
   }
 
-  @Override
-  public void close(boolean gracefully) {
-    // Stopping streaming job if running
-    if (isStreamingPipeline() && !state.isTerminal()) {
-      try {
-        cancel(gracefully);
-      } catch (IOException e) {
-        throw new RuntimeException("Failed to cancel streaming job", e);
-      }
-    }
-    SparkContextFactory.stopSparkContext(jsc);
-  }
-
-  @Override
-  public State getState() {
-    return state;
-  }
-
-  @Override
-  public State cancel() throws IOException {
-    return cancel(true);
-  }
-
-  private State cancel(boolean gracefully) throws IOException {
-    if (isStreamingPipeline()) {
-      if (!state.isTerminal()) {
-        jssc.stop(false, gracefully);
-        state = State.CANCELLED;
-      }
-      return state;
-    } else {
-      // Batch is currently blocking so
-      // there is no way to cancel a batch job
-      // will be handled at BEAM-1000
-      throw new UnsupportedOperationException(
-          "Spark runner EvaluationContext does not support cancel.");
-    }
-  }
-
-  @Override
-  public State waitUntilFinish() {
-    return waitUntilFinish(Duration.ZERO);
-  }
-
-  @Override
-  public State waitUntilFinish(Duration duration) {
-    if (isStreamingPipeline()) {
-      // According to PipelineResult: Provide a value less than 1 ms for an infinite wait
-      if (duration.getMillis() < 1L) {
-        jssc.awaitTermination();
-        state = State.DONE;
-      } else {
-        jssc.awaitTermination(duration.getMillis());
-        // According to PipelineResult: The final state of the pipeline or null on timeout
-        if (jssc.getState().equals(StreamingContextState.STOPPED)) {
-          state = State.DONE;
-        } else {
-          return null;
-        }
-      }
-      return state;
-    } else {
-      // This is no-op, since Spark runner in batch is blocking.
-      // It needs to be updated once SparkRunner supports non-blocking execution:
-      // https://issues.apache.org/jira/browse/BEAM-595
-      return State.DONE;
-    }
-  }
-
-  private boolean isStreamingPipeline() {
-    return jssc != null;
+  private String storageLevel() {
+    return runtime.getPipelineOptions().as(SparkPipelineOptions.class).getStorageLevel();
   }
 }

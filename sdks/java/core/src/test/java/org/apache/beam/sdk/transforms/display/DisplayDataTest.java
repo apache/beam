@@ -53,6 +53,8 @@ import java.io.Serializable;
 import java.util.Collection;
 import java.util.Map;
 import java.util.regex.Pattern;
+import org.apache.beam.sdk.options.ValueProvider;
+import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.display.DisplayData.Builder;
 import org.apache.beam.sdk.transforms.display.DisplayData.Item;
@@ -109,7 +111,7 @@ public class DisplayDataTest implements Serializable {
           Instant startTime = defaultStartTime;
 
           @Override
-          public PCollection<String> apply(PCollection<String> begin) {
+          public PCollection<String> expand(PCollection<String> begin) {
             throw new IllegalArgumentException("Should never be applied");
           }
 
@@ -162,6 +164,90 @@ public class DisplayDataTest implements Serializable {
 
     assertThat(data.items(), hasSize(1));
     assertThat(data, hasDisplayItem("foo", "bar"));
+  }
+
+  @Test
+  public void testStaticValueProviderDate() {
+    final Instant value = Instant.now();
+    DisplayData data =
+        DisplayData.from(new HasDisplayData() {
+              @Override
+              public void populateDisplayData(DisplayData.Builder builder) {
+                builder.add(DisplayData.item(
+                    "foo", StaticValueProvider.of(value)));
+              }
+            });
+
+    @SuppressWarnings("unchecked")
+    DisplayData.Item item = (DisplayData.Item) data.items().toArray()[0];
+
+    @SuppressWarnings("unchecked")
+    Matcher<Item> matchesAllOf = Matchers.allOf(
+        hasKey("foo"),
+        hasType(DisplayData.Type.TIMESTAMP),
+        hasValue(ISO_FORMATTER.print(value)));
+
+    assertThat(item, matchesAllOf);
+  }
+
+  @Test
+  public void testStaticValueProviderString() {
+    DisplayData data =
+        DisplayData.from(new HasDisplayData() {
+              @Override
+              public void populateDisplayData(DisplayData.Builder builder) {
+                builder.add(DisplayData.item(
+                    "foo", StaticValueProvider.of("bar")));
+              }
+            });
+
+    assertThat(data.items(), hasSize(1));
+    assertThat(data, hasDisplayItem("foo", "bar"));
+  }
+
+  @Test
+  public void testStaticValueProviderInt() {
+    DisplayData data =
+        DisplayData.from(new HasDisplayData() {
+              @Override
+              public void populateDisplayData(DisplayData.Builder builder) {
+                builder.add(DisplayData.item(
+                    "foo", StaticValueProvider.of(1)));
+              }
+            });
+
+    assertThat(data.items(), hasSize(1));
+    assertThat(data, hasDisplayItem("foo", 1));
+  }
+
+  @Test
+  public void testInaccessibleValueProvider() {
+    DisplayData data =
+        DisplayData.from(new HasDisplayData() {
+              @Override
+              public void populateDisplayData(DisplayData.Builder builder) {
+                builder.add(DisplayData.item(
+                    "foo", new ValueProvider<String>() {
+                        @Override
+                        public boolean isAccessible() {
+                          return false;
+                        }
+
+                        @Override
+                        public String get() {
+                          return "bar";
+                        }
+
+                        @Override
+                        public String toString() {
+                          return "toString";
+                        }
+                      }));
+              }
+            });
+
+    assertThat(data.items(), hasSize(1));
+    assertThat(data, hasDisplayItem("foo", "toString"));
   }
 
   @Test
@@ -293,6 +379,8 @@ public class DisplayDataTest implements Serializable {
       public void populateDisplayData(Builder builder) {
         builder
             .addIfNotNull(DisplayData.item("nullString", (String) null))
+            .addIfNotNull(DisplayData.item("nullVPString", (ValueProvider<String>) null))
+            .addIfNotNull(DisplayData.item("nullierVPString", StaticValueProvider.of(null)))
             .addIfNotNull(DisplayData.item("notNullString", "foo"))
             .addIfNotNull(DisplayData.item("nullLong", (Long) null))
             .addIfNotNull(DisplayData.item("notNullLong", 1234L))

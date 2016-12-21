@@ -238,10 +238,10 @@ class ByteBuddyOnTimerInvokerFactory implements OnTimerInvokerFactory {
       // To load the delegate, push `this` and then access the field
       StackManipulation pushDelegate =
           new StackManipulation.Compound(
-              MethodVariableAccess.REFERENCE.loadOffset(0),
+              MethodVariableAccess.REFERENCE.loadFrom(0),
               FieldAccess.forField(delegateField).getter());
 
-      StackManipulation pushExtraContextFactory = MethodVariableAccess.REFERENCE.loadOffset(1);
+      StackManipulation pushExtraContextFactory = MethodVariableAccess.REFERENCE.loadFrom(1);
 
       // Push the extra arguments in their actual order.
       for (DoFnSignature.Parameter param : signature.extraParameters()) {
@@ -275,7 +275,7 @@ class ByteBuddyOnTimerInvokerFactory implements OnTimerInvokerFactory {
           StackManipulation.Size size =
               new StackManipulation.Compound(
                       // Load the this reference
-                      MethodVariableAccess.REFERENCE.loadOffset(0),
+                      MethodVariableAccess.REFERENCE.loadFrom(0),
                       // Invoke the super constructor (default constructor of Object)
                       MethodInvocation.invoke(
                           new TypeDescription.ForLoadedType(Object.class)
@@ -285,9 +285,9 @@ class ByteBuddyOnTimerInvokerFactory implements OnTimerInvokerFactory {
                                       .and(ElementMatchers.takesArguments(0)))
                               .getOnly()),
                       // Load the this reference
-                      MethodVariableAccess.REFERENCE.loadOffset(0),
+                      MethodVariableAccess.REFERENCE.loadFrom(0),
                       // Load the delegate argument
-                      MethodVariableAccess.REFERENCE.loadOffset(1),
+                      MethodVariableAccess.REFERENCE.loadFrom(1),
                       // Assign the delegate argument to the delegate field
                       FieldAccess.forField(
                               implementationTarget

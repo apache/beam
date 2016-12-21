@@ -17,8 +17,8 @@
  */
 package org.apache.beam.sdk.values;
 
-import java.util.Collection;
 import java.util.Collections;
+import java.util.List;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.transforms.PTransform;
 
@@ -36,7 +36,7 @@ public class PDone extends POutputValueBase {
   }
 
   @Override
-  public Collection<? extends PValue> expand() {
+  public List<TaggedPValue> expand() {
     // A PDone contains no PValues.
     return Collections.emptyList();
   }
