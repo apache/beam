@@ -19,8 +19,6 @@ package org.apache.beam.runners.core;
 
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.nullValue;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThat;
 
 import org.apache.beam.sdk.util.TimeDomain;
@@ -39,37 +37,79 @@ import org.junit.runners.JUnit4;
 public class InMemoryTimerInternalsTest {
 
   private static final StateNamespace NS1 = new StateNamespaceForTest("NS1");
+  private static final String ID1 = "id1";
+  private static final String ID2 = "id2";
 
   @Test
-  public void testFiringTimers() throws Exception {
+  public void testFiringEventTimers() throws Exception {
     InMemoryTimerInternals underTest = new InMemoryTimerInternals();
-    TimerData processingTime1 = TimerData.of(NS1, new Instant(19), TimeDomain.PROCESSING_TIME);
-    TimerData processingTime2 = TimerData.of(NS1, new Instant(29), TimeDomain.PROCESSING_TIME);
+    TimerData eventTimer1 = TimerData.of(ID1, NS1, new Instant(19), TimeDomain.EVENT_TIME);
+    TimerData eventTimer2 = TimerData.of(ID2, NS1, new Instant(29), TimeDomain.EVENT_TIME);
 
-    underTest.setTimer(processingTime1);
-    underTest.setTimer(processingTime2);
+    underTest.setTimer(eventTimer1);
+    underTest.setTimer(eventTimer2);
 
-    underTest.advanceProcessingTime(new Instant(20));
-    assertEquals(processingTime1, underTest.removeNextProcessingTimer());
-    assertNull(underTest.removeNextProcessingTimer());
+    underTest.advanceInputWatermark(new Instant(20));
+    assertThat(underTest.removeNextEventTimer(), equalTo(eventTimer1));
+    assertThat(underTest.removeNextEventTimer(), nullValue());
 
     // Advancing just a little shouldn't refire
-    underTest.advanceProcessingTime(new Instant(21));
-    assertNull(underTest.removeNextProcessingTimer());
+    underTest.advanceInputWatermark(new Instant(21));
+    assertThat(underTest.removeNextEventTimer(), nullValue());
 
     // Adding the timer and advancing a little should refire
-    underTest.setTimer(processingTime1);
-    assertEquals(processingTime1, underTest.removeNextProcessingTimer());
-    assertNull(underTest.removeNextProcessingTimer());
+    underTest.setTimer(eventTimer1);
+    assertThat(underTest.removeNextEventTimer(), equalTo(eventTimer1));
+    assertThat(underTest.removeNextEventTimer(), nullValue());
 
     // And advancing the rest of the way should still have the other timer
-    underTest.advanceProcessingTime(new Instant(30));
-    assertEquals(processingTime2, underTest.removeNextProcessingTimer());
-    assertNull(underTest.removeNextProcessingTimer());
+    underTest.advanceInputWatermark(new Instant(30));
+    assertThat(underTest.removeNextEventTimer(), equalTo(eventTimer2));
+    assertThat(underTest.removeNextEventTimer(), nullValue());
   }
 
   @Test
-  public void testFiringTimersWithCallback() throws Exception {
+  public void testResetById() throws Exception {
+    InMemoryTimerInternals underTest = new InMemoryTimerInternals();
+    Instant earlyTimestamp = new Instant(13);
+    Instant laterTimestamp = new Instant(42);
+
+    underTest.advanceInputWatermark(new Instant(0));
+    underTest.setTimer(NS1, ID1, earlyTimestamp, TimeDomain.EVENT_TIME);
+    underTest.setTimer(NS1, ID1, laterTimestamp, TimeDomain.EVENT_TIME);
+    underTest.advanceInputWatermark(earlyTimestamp.plus(1L));
+    assertThat(underTest.removeNextEventTimer(), nullValue());
+
+    underTest.advanceInputWatermark(laterTimestamp.plus(1L));
+    assertThat(
+        underTest.removeNextEventTimer(),
+        equalTo(TimerData.of(ID1, NS1, laterTimestamp, TimeDomain.EVENT_TIME)));
+  }
+
+  @Test
+  public void testDeletionIdempotent() throws Exception {
+    InMemoryTimerInternals underTest = new InMemoryTimerInternals();
+    Instant timestamp = new Instant(42);
+    underTest.setTimer(NS1, ID1, timestamp, TimeDomain.EVENT_TIME);
+    underTest.deleteTimer(NS1, ID1);
+    underTest.deleteTimer(NS1, ID1);
+  }
+
+  @Test
+  public void testDeletionById() throws Exception {
+    InMemoryTimerInternals underTest = new InMemoryTimerInternals();
+    Instant timestamp = new Instant(42);
+
+    underTest.advanceInputWatermark(new Instant(0));
+    underTest.setTimer(NS1, ID1, timestamp, TimeDomain.EVENT_TIME);
+    underTest.deleteTimer(NS1, ID1);
+    underTest.advanceInputWatermark(new Instant(43));
+
+    assertThat(underTest.removeNextEventTimer(), nullValue());
+  }
+
+  @Test
+  public void testFiringProcessingTimeTimers() throws Exception {
     InMemoryTimerInternals underTest = new InMemoryTimerInternals();
     TimerData processingTime1 = TimerData.of(NS1, new Instant(19), TimeDomain.PROCESSING_TIME);
     TimerData processingTime2 = TimerData.of(NS1, new Instant(29), TimeDomain.PROCESSING_TIME);
@@ -116,23 +156,25 @@ public class InMemoryTimerInternalsTest {
     underTest.setTimer(eventTime2);
     underTest.setTimer(synchronizedProcessingTime2);
 
-    assertNull(underTest.removeNextEventTimer());
+    assertThat(underTest.removeNextEventTimer(), nullValue());
     underTest.advanceInputWatermark(new Instant(30));
-    assertEquals(eventTime1, underTest.removeNextEventTimer());
-    assertEquals(eventTime2, underTest.removeNextEventTimer());
-    assertNull(underTest.removeNextEventTimer());
+    assertThat(underTest.removeNextEventTimer(), equalTo(eventTime1));
+    assertThat(underTest.removeNextEventTimer(), equalTo(eventTime2));
+    assertThat(underTest.removeNextEventTimer(), nullValue());
 
-    assertNull(underTest.removeNextProcessingTimer());
+    assertThat(underTest.removeNextProcessingTimer(), nullValue());
     underTest.advanceProcessingTime(new Instant(30));
-    assertEquals(processingTime1, underTest.removeNextProcessingTimer());
-    assertEquals(processingTime2, underTest.removeNextProcessingTimer());
-    assertNull(underTest.removeNextProcessingTimer());
+    assertThat(underTest.removeNextProcessingTimer(), equalTo(processingTime1));
+    assertThat(underTest.removeNextProcessingTimer(), equalTo(processingTime2));
+    assertThat(underTest.removeNextProcessingTimer(), nullValue());
 
-    assertNull(underTest.removeNextSynchronizedProcessingTimer());
+    assertThat(underTest.removeNextSynchronizedProcessingTimer(), nullValue());
     underTest.advanceSynchronizedProcessingTime(new Instant(30));
-    assertEquals(synchronizedProcessingTime1, underTest.removeNextSynchronizedProcessingTimer());
-    assertEquals(synchronizedProcessingTime2, underTest.removeNextSynchronizedProcessingTimer());
-    assertNull(underTest.removeNextProcessingTimer());
+    assertThat(
+        underTest.removeNextSynchronizedProcessingTimer(), equalTo(synchronizedProcessingTime1));
+    assertThat(
+        underTest.removeNextSynchronizedProcessingTimer(), equalTo(synchronizedProcessingTime2));
+    assertThat(underTest.removeNextProcessingTimer(), nullValue());
   }
 
   @Test
@@ -147,9 +189,9 @@ public class InMemoryTimerInternalsTest {
     underTest.advanceProcessingTime(new Instant(20));
     underTest.advanceInputWatermark(new Instant(20));
 
-    assertEquals(processingTime, underTest.removeNextProcessingTimer());
-    assertNull(underTest.removeNextProcessingTimer());
-    assertEquals(eventTime, underTest.removeNextEventTimer());
-    assertNull(underTest.removeNextEventTimer());
+    assertThat(underTest.removeNextProcessingTimer(), equalTo(processingTime));
+    assertThat(underTest.removeNextProcessingTimer(), nullValue());
+    assertThat(underTest.removeNextEventTimer(), equalTo(eventTime));
+    assertThat(underTest.removeNextEventTimer(), nullValue());
   }
 }
