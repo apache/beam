@@ -32,6 +32,7 @@ import org.apache.beam.runners.direct.TestStreamEvaluatorFactory.TestStreamIndex
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestStream;
+import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollection;
@@ -80,15 +81,16 @@ public class TestStreamEvaluatorFactoryTest {
     when(context.createBundle(streamVals))
         .thenReturn(bundleFactory.createBundle(streamVals), bundleFactory.createBundle(streamVals));
 
+    AppliedPTransform<?, ?, ?> streamProducer = DirectGraphs.getProducer(streamVals);
     Collection<CommittedBundle<?>> initialInputs =
         new TestStreamEvaluatorFactory.InputProvider(context)
-            .getInitialInputs(streamVals.getProducingTransformInternal(), 1);
+            .getInitialInputs(streamProducer, 1);
     @SuppressWarnings("unchecked")
     CommittedBundle<TestStreamIndex<Integer>> initialBundle =
         (CommittedBundle<TestStreamIndex<Integer>>) Iterables.getOnlyElement(initialInputs);
 
     TransformEvaluator<TestStreamIndex<Integer>> firstEvaluator =
-        factory.forApplication(streamVals.getProducingTransformInternal(), initialBundle);
+        factory.forApplication(streamProducer, initialBundle);
     firstEvaluator.processElement(Iterables.getOnlyElement(initialBundle.getElements()));
     TransformResult<TestStreamIndex<Integer>> firstResult = firstEvaluator.finishBundle();
 
@@ -101,7 +103,7 @@ public class TestStreamEvaluatorFactoryTest {
     CommittedBundle<TestStreamIndex<Integer>> secondBundle =
         initialBundle.withElements(Collections.singleton(firstResidual));
     TransformEvaluator<TestStreamIndex<Integer>> secondEvaluator =
-        factory.forApplication(streamVals.getProducingTransformInternal(), secondBundle);
+        factory.forApplication(streamProducer, secondBundle);
     secondEvaluator.processElement(firstResidual);
     TransformResult<TestStreamIndex<Integer>> secondResult = secondEvaluator.finishBundle();
 
@@ -114,7 +116,7 @@ public class TestStreamEvaluatorFactoryTest {
     CommittedBundle<TestStreamIndex<Integer>> thirdBundle =
         secondBundle.withElements(Collections.singleton(secondResidual));
     TransformEvaluator<TestStreamIndex<Integer>> thirdEvaluator =
-        factory.forApplication(streamVals.getProducingTransformInternal(), thirdBundle);
+        factory.forApplication(streamProducer, thirdBundle);
     thirdEvaluator.processElement(secondResidual);
     TransformResult<TestStreamIndex<Integer>> thirdResult = thirdEvaluator.finishBundle();
 
@@ -128,7 +130,7 @@ public class TestStreamEvaluatorFactoryTest {
     CommittedBundle<TestStreamIndex<Integer>> fourthBundle =
         thirdBundle.withElements(Collections.singleton(thirdResidual));
     TransformEvaluator<TestStreamIndex<Integer>> fourthEvaluator =
-        factory.forApplication(streamVals.getProducingTransformInternal(), fourthBundle);
+        factory.forApplication(streamProducer, fourthBundle);
     fourthEvaluator.processElement(thirdResidual);
     TransformResult<TestStreamIndex<Integer>> fourthResult = fourthEvaluator.finishBundle();
 
@@ -142,7 +144,7 @@ public class TestStreamEvaluatorFactoryTest {
     CommittedBundle<TestStreamIndex<Integer>> fifthBundle =
         thirdBundle.withElements(Collections.singleton(fourthResidual));
     TransformEvaluator<TestStreamIndex<Integer>> fifthEvaluator =
-        factory.forApplication(streamVals.getProducingTransformInternal(), fifthBundle);
+        factory.forApplication(streamProducer, fifthBundle);
     fifthEvaluator.processElement(fourthResidual);
     TransformResult<TestStreamIndex<Integer>> fifthResult = fifthEvaluator.finishBundle();
 

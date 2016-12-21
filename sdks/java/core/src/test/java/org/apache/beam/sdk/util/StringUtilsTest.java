@@ -69,13 +69,13 @@ public class StringUtilsTest {
 
   private class EmbeddedPTransform extends PTransform<PBegin, PDone> {
     @Override
-    public PDone apply(PBegin begin) {
+    public PDone expand(PBegin begin) {
       throw new IllegalArgumentException("Should never be applied");
     }
 
     private class Bound extends PTransform<PBegin, PDone> {
       @Override
-      public PDone apply(PBegin begin) {
+      public PDone expand(PBegin begin) {
         throw new IllegalArgumentException("Should never be applied");
       }
     }
@@ -129,7 +129,7 @@ public class StringUtilsTest {
     AnonymousClass anonymousClassObj = new AnonymousClass() {
       class NamedInnerClass extends PTransform<PBegin, PDone> {
         @Override
-        public PDone apply(PBegin begin) {
+        public PDone expand(PBegin begin) {
           throw new IllegalArgumentException("Should never be applied");
         }
       }

@@ -88,7 +88,7 @@ public class HadoopFileFormatPipelineTest {
     HadoopIO.Write.Bound<IntWritable, Text> write = HadoopIO.Write.to(outputFile.getAbsolutePath(),
         outputFormatClass, IntWritable.class, Text.class);
     input.apply(write.withoutSharding());
-    p.run();
+    p.run().waitUntilFinish();
 
     IntWritable key = new IntWritable();
     Text value = new Text();

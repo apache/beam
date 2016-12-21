@@ -74,7 +74,7 @@ class KeyedPValueTrackingVisitor implements PipelineVisitor {
     if (node.isRootNode()) {
       finalized = true;
     } else if (producesKeyedOutputs.contains(node.getTransform().getClass())) {
-      keyedValues.addAll(node.getOutput().expand());
+      keyedValues.addAll(node.getOutputs());
     }
   }
 
@@ -84,7 +84,7 @@ class KeyedPValueTrackingVisitor implements PipelineVisitor {
   @Override
   public void visitValue(PValue value, TransformHierarchy.Node producer) {
     if (producesKeyedOutputs.contains(producer.getTransform().getClass())) {
-      keyedValues.addAll(value.expand());
+      keyedValues.add(value);
     }
   }
 

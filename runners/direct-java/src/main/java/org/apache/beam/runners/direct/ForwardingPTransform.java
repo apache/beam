@@ -28,15 +28,15 @@ import org.apache.beam.sdk.values.TypedPValue;
 /**
  * A base class for implementing {@link PTransform} overrides, which behave identically to the
  * delegate transform but with overridden methods. Implementors are required to implement
- * {@link #delegate()}, which returns the object to forward calls to, and {@link #apply(PInput)}.
+ * {@link #delegate()}, which returns the object to forward calls to, and {@link #expand(PInput)}.
  */
 public abstract class ForwardingPTransform<InputT extends PInput, OutputT extends POutput>
     extends PTransform<InputT, OutputT> {
   protected abstract PTransform<InputT, OutputT> delegate();
 
   @Override
-  public OutputT apply(InputT input) {
-    return delegate().apply(input);
+  public OutputT expand(InputT input) {
+    return delegate().expand(input);
   }
 
   @Override

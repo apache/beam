@@ -55,7 +55,7 @@ class GatherAllPanes<T>
   private GatherAllPanes() {}
 
   @Override
-  public PCollection<Iterable<ValueInSingleWindow<T>>> apply(PCollection<T> input) {
+  public PCollection<Iterable<ValueInSingleWindow<T>>> expand(PCollection<T> input) {
     WindowFn<?, ?> originalWindowFn = input.getWindowingStrategy().getWindowFn();
 
     return input

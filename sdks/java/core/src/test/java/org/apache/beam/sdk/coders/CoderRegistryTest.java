@@ -370,7 +370,7 @@ public class CoderRegistryTest {
 
     @Override
     public PCollection<KV<String, MySerializableGeneric<String>>>
-    apply(PCollection<String> input) {
+    expand(PCollection<String> input) {
       return input.apply(ParDo.of(new OutputDoFn()));
     }
   }
@@ -435,7 +435,7 @@ public class CoderRegistryTest {
 
     @Override
     public PCollection<KV<String, MySerializableGeneric<T>>>
-    apply(PCollection<String> input) {
+    expand(PCollection<String> input) {
       return input.apply(ParDo.of(new OutputDoFn()));
     }
   }

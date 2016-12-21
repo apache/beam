@@ -70,7 +70,7 @@ public class WindowingTest implements Serializable {
       this.windowFn = windowFn;
     }
     @Override
-    public PCollection<String> apply(PCollection<String> in) {
+    public PCollection<String> expand(PCollection<String> in) {
       return in.apply("Window",
               Window.<String>into(windowFn)
                   .withOutputTimeFn(OutputTimeFns.outputAtEarliestInputTimestamp()))

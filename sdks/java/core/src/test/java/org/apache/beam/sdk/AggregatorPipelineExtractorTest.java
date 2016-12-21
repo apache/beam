@@ -33,9 +33,9 @@ import org.apache.beam.sdk.Pipeline.PipelineVisitor;
 import org.apache.beam.sdk.runners.TransformHierarchy;
 import org.apache.beam.sdk.transforms.Aggregator;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
+import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Max;
 import org.apache.beam.sdk.transforms.Min;
-import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Sum;
@@ -208,7 +208,7 @@ public class AggregatorPipelineExtractorTest {
     }
   }
 
-  private static class AggregatorProvidingDoFn<InT, OuT> extends OldDoFn<InT, OuT> {
+  private static class AggregatorProvidingDoFn<InT, OuT> extends DoFn<InT, OuT> {
     public <InputT, OutT> Aggregator<InputT, OutT> addAggregator(
         CombineFn<InputT, ?, OutT> combiner) {
       return createAggregator(randomName(), combiner);
@@ -218,8 +218,8 @@ public class AggregatorPipelineExtractorTest {
       return UUID.randomUUID().toString();
     }
 
-    @Override
-    public void processElement(OldDoFn<InT, OuT>.ProcessContext c) throws Exception {
+    @ProcessElement
+    public void processElement(DoFn<InT, OuT>.ProcessContext c) throws Exception {
       fail();
     }
   }

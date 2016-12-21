@@ -28,6 +28,7 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import org.apache.beam.runners.core.AggregatorFactory;
 import org.apache.beam.runners.core.DoFnRunner;
 import org.apache.beam.runners.core.DoFnRunners;
 import org.apache.beam.runners.core.PushbackSideInputDoFnRunner;
@@ -40,6 +41,7 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.Aggregator;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.DoFnAdapters;
 import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.transforms.join.RawUnionValue;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -88,7 +90,8 @@ public class DoFnOperator<InputT, FnOutputT, OutputT>
     implements OneInputStreamOperator<WindowedValue<InputT>, OutputT>,
       TwoInputStreamOperator<WindowedValue<InputT>, RawUnionValue, OutputT> {
 
-  protected OldDoFn<InputT, FnOutputT> doFn;
+  protected OldDoFn<InputT, FnOutputT> oldDoFn;
+
   protected final SerializedPipelineOptions serializedOptions;
 
   protected final TupleTag<FnOutputT> mainOutputTag;
@@ -117,8 +120,9 @@ public class DoFnOperator<InputT, FnOutputT, OutputT>
 
   private transient Map<String, KvStateSnapshot<?, ?, ?, ?, ?>> restoredSideInputState;
 
+  @Deprecated
   public DoFnOperator(
-      OldDoFn<InputT, FnOutputT> doFn,
+      OldDoFn<InputT, FnOutputT> oldDoFn,
       TypeInformation<WindowedValue<InputT>> inputType,
       TupleTag<FnOutputT> mainOutputTag,
       List<TupleTag<?>> sideOutputTags,
@@ -127,7 +131,7 @@ public class DoFnOperator<InputT, FnOutputT, OutputT>
       Map<Integer, PCollectionView<?>> sideInputTagMapping,
       Collection<PCollectionView<?>> sideInputs,
       PipelineOptions options) {
-    this.doFn = doFn;
+    this.oldDoFn = oldDoFn;
     this.mainOutputTag = mainOutputTag;
     this.sideOutputTags = sideOutputTags;
     this.sideInputTagMapping = sideInputTagMapping;
@@ -148,26 +152,48 @@ public class DoFnOperator<InputT, FnOutputT, OutputT>
     setChainingStrategy(ChainingStrategy.ALWAYS);
   }
 
+  public DoFnOperator(
+      DoFn<InputT, FnOutputT> doFn,
+      TypeInformation<WindowedValue<InputT>> inputType,
+      TupleTag<FnOutputT> mainOutputTag,
+      List<TupleTag<?>> sideOutputTags,
+      OutputManagerFactory<OutputT> outputManagerFactory,
+      WindowingStrategy<?, ?> windowingStrategy,
+      Map<Integer, PCollectionView<?>> sideInputTagMapping,
+      Collection<PCollectionView<?>> sideInputs,
+      PipelineOptions options) {
+    this(
+        DoFnAdapters.toOldDoFn(doFn),
+        inputType,
+        mainOutputTag,
+        sideOutputTags,
+        outputManagerFactory,
+        windowingStrategy,
+        sideInputTagMapping,
+        sideInputs,
+        options);
+  }
+
   protected ExecutionContext.StepContext createStepContext() {
     return new StepContext();
   }
 
   // allow overriding this in WindowDoFnOperator because this one dynamically creates
   // the DoFn
-  protected OldDoFn<InputT, FnOutputT> getDoFn() {
-    return doFn;
+  protected OldDoFn<InputT, FnOutputT> getOldDoFn() {
+    return oldDoFn;
   }
 
   @Override
   public void open() throws Exception {
     super.open();
 
-    this.doFn = getDoFn();
+    this.oldDoFn = getOldDoFn();
 
     currentInputWatermark = Long.MIN_VALUE;
     currentOutputWatermark = currentInputWatermark;
 
-    Aggregator.AggregatorFactory aggregatorFactory = new Aggregator.AggregatorFactory() {
+    AggregatorFactory aggregatorFactory = new AggregatorFactory() {
       @Override
       public <InputT, AccumT, OutputT> Aggregator<InputT, OutputT> createAggregatorForDoFn(
           Class<?> fnClass,
@@ -220,7 +246,7 @@ public class DoFnOperator<InputT, FnOutputT, OutputT>
 
     DoFnRunner<InputT, FnOutputT> doFnRunner = DoFnRunners.createDefault(
         serializedOptions.getPipelineOptions(),
-        doFn,
+        oldDoFn,
         sideInputReader,
         outputManagerFactory.create(output),
         mainOutputTag,
@@ -232,13 +258,13 @@ public class DoFnOperator<InputT, FnOutputT, OutputT>
     pushbackDoFnRunner =
         PushbackSideInputDoFnRunner.create(doFnRunner, sideInputs, sideInputHandler);
 
-    doFn.setup();
+    oldDoFn.setup();
   }
 
   @Override
   public void close() throws Exception {
     super.close();
-    doFn.teardown();
+    oldDoFn.teardown();
   }
 
   protected final long getPushbackWatermarkHold() {

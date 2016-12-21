@@ -20,8 +20,8 @@ package org.apache.beam.runners.gearpump.translators.utils;
 
 import java.io.Serializable;
 
+import org.apache.beam.runners.core.AggregatorFactory;
 import org.apache.beam.sdk.transforms.Aggregator;
-import org.apache.beam.sdk.transforms.Aggregator.AggregatorFactory;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.util.ExecutionContext;
 

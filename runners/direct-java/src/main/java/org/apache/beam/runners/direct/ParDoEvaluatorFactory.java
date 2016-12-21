@@ -65,7 +65,7 @@ final class ParDoEvaluatorFactory<InputT, OutputT> implements TransformEvaluator
                 application;
 
     ParDo.BoundMulti<InputT, OutputT> transform = parDoApplication.getTransform();
-    final DoFn<InputT, OutputT> doFn = transform.getNewFn();
+    final DoFn<InputT, OutputT> doFn = transform.getFn();
 
     @SuppressWarnings({"unchecked", "rawtypes"})
     TransformEvaluator<T> evaluator =

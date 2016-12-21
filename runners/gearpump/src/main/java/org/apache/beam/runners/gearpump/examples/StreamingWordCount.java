@@ -24,7 +24,7 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.Count;
-import org.apache.beam.sdk.transforms.OldDoFn;
+import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
@@ -42,10 +42,10 @@ import org.slf4j.LoggerFactory;
  */
 public class StreamingWordCount {
 
-  static class ExtractWordsFn extends OldDoFn<String, String> {
+  static class ExtractWordsFn extends DoFn<String, String> {
 
-    @Override
-    public void processElement(ProcessContext c) {
+    @ProcessElement
+    public void process(ProcessContext c) {
       // Split the line into words.
       String[] words = c.element().split("[^a-zA-Z']+");
 
@@ -58,11 +58,11 @@ public class StreamingWordCount {
     }
   }
 
-  static class FormatAsStringFn extends OldDoFn<KV<String, Long>, String> {
+  static class FormatAsStringFn extends DoFn<KV<String, Long>, String> {
     private static final Logger LOG = LoggerFactory.getLogger(FormatAsStringFn.class);
 
-    @Override
-    public void processElement(ProcessContext c) {
+    @ProcessElement
+    public void process(ProcessContext c) {
       String row = c.element().getKey()
           + " - " + c.element().getValue()
           + " @ " + c.timestamp().toString();
