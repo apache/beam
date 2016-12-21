@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.dataflow.testing;
 
+import static com.google.common.base.Strings.isNullOrEmpty;
 import static org.hamcrest.MatcherAssert.assertThat;
 
 import com.google.api.services.dataflow.model.JobMessage;
@@ -25,7 +26,6 @@ import com.google.api.services.dataflow.model.MetricUpdate;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Joiner;
 import com.google.common.base.Optional;
-import com.google.common.base.Strings;
 import com.google.common.base.Throwables;
 import java.io.IOException;
 import java.math.BigDecimal;
@@ -86,12 +86,14 @@ public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
    */
   public static TestDataflowRunner fromOptions(PipelineOptions options) {
     TestDataflowPipelineOptions dataflowOptions = options.as(TestDataflowPipelineOptions.class);
-    String tempLocation = Joiner.on("/").join(
-        dataflowOptions.getTempRoot(),
-        dataflowOptions.getJobName(),
-        "output",
-        "results");
-    dataflowOptions.setTempLocation(tempLocation);
+    if (isNullOrEmpty(dataflowOptions.getTempLocation())) {
+      String tempLocation = Joiner.on("/").join(
+          dataflowOptions.getTempRoot(),
+          dataflowOptions.getJobName(),
+          "output",
+          "results");
+      dataflowOptions.setTempLocation(tempLocation);
+    }
 
     return new TestDataflowRunner(dataflowOptions);
   }
@@ -163,7 +165,7 @@ public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
             "The dataflow did not output a success or failure metric.");
       } else if (!success.get()) {
         throw new AssertionError(
-            Strings.isNullOrEmpty(messageHandler.getErrorMessage())
+            isNullOrEmpty(messageHandler.getErrorMessage())
                 ? String.format(
                     "Dataflow job %s terminated in state %s but did not return a failure reason.",
                     job.getJobId(), job.getState())
