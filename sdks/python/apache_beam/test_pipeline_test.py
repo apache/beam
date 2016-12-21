@@ -59,7 +59,5 @@ class TestPipelineTest(unittest.TestCase):
     extra_opt = {'name': 'Mark'}
     options_list = self.pipeline.get_test_option_args(
         argv=self.TEST_CASE['options'], **extra_opt)
-    self.assertListEqual(
-        self.pipeline.get_test_option_args(argv=self.TEST_CASE['options']),
-        self.TEST_CASE['expected_list'])
-    self.assertIn('--name=Mark', options_list)
+    expected_list = self.TEST_CASE['expected_list'] + ['--name=Mark']
+    self.assertListEqual(expected_list, options_list)
