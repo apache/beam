@@ -25,6 +25,7 @@ import com.google.api.services.dataflow.model.SourceMetadata;
 import java.util.HashMap;
 import java.util.Map;
 import org.apache.beam.runners.dataflow.DataflowPipelineTranslator;
+import org.apache.beam.runners.dataflow.DataflowPipelineTranslator.StepTranslationContext;
 import org.apache.beam.runners.dataflow.DataflowPipelineTranslator.TransformTranslator;
 import org.apache.beam.runners.dataflow.DataflowPipelineTranslator.TranslationContext;
 import org.apache.beam.sdk.io.FileBasedSource;
@@ -60,13 +61,13 @@ public class ReadTranslator implements TransformTranslator<Read.Bounded<?>> {
         }
       }
 
-      context.addStep(transform, "ParallelRead");
-      context.addInput(PropertyNames.FORMAT, PropertyNames.CUSTOM_SOURCE_FORMAT);
-      context.addInput(
+      StepTranslationContext stepContext = context.addStep(transform, "ParallelRead");
+      stepContext.addInput(PropertyNames.FORMAT, PropertyNames.CUSTOM_SOURCE_FORMAT);
+      stepContext.addInput(
           PropertyNames.SOURCE_STEP_INPUT,
           cloudSourceToDictionary(
               CustomSources.serializeToCloudSource(source, context.getPipelineOptions())));
-      context.addValueOnlyOutput(context.getOutput(transform));
+      stepContext.addValueOnlyOutput(context.getOutput(transform));
     } catch (Exception e) {
       throw new RuntimeException(e);
     }

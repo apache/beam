@@ -61,6 +61,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.regex.Pattern;
+import org.apache.beam.runners.dataflow.DataflowPipelineTranslator.StepTranslationContext;
 import org.apache.beam.runners.dataflow.DataflowRunner.BatchViewAsList;
 import org.apache.beam.runners.dataflow.DataflowRunner.BatchViewAsMap;
 import org.apache.beam.runners.dataflow.DataflowRunner.BatchViewAsMultimap;
@@ -998,8 +999,8 @@ public class DataflowRunnerTest {
 
             // Note: This is about the minimum needed to fake out a
             // translation. This obviously isn't a real translation.
-            context.addStep(transform, "TestTranslate");
-            context.addOutput(context.getOutput(transform));
+            StepTranslationContext stepContext = context.addStep(transform, "TestTranslate");
+            stepContext.addOutput(context.getOutput(transform));
           }
         });
 
