@@ -107,6 +107,7 @@ public class InMemoryTimerInternals implements TimerInternals {
     throw new UnsupportedOperationException("Setting a timer by ID is not yet supported.");
   }
 
+  @Deprecated
   @Override
   public void setTimer(TimerData timerData) {
     WindowTracing.trace("{}.setTimer: {}", getClass().getSimpleName(), timerData);
@@ -116,10 +117,17 @@ public class InMemoryTimerInternals implements TimerInternals {
   }
 
   @Override
+  public void deleteTimer(StateNamespace namespace, String timerId, TimeDomain timeDomain) {
+    throw new UnsupportedOperationException("Canceling a timer by ID is not yet supported.");
+  }
+
+  @Deprecated
+  @Override
   public void deleteTimer(StateNamespace namespace, String timerId) {
     throw new UnsupportedOperationException("Canceling a timer by ID is not yet supported.");
   }
 
+  @Deprecated
   @Override
   public void deleteTimer(TimerData timer) {
     WindowTracing.trace("{}.deleteTimer: {}", getClass().getSimpleName(), timer);

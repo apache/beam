@@ -455,6 +455,7 @@ public class WindowDoFnOperator<K, InputT, OutputT>
           throw new UnsupportedOperationException("Setting a timer by ID is not yet supported.");
         }
 
+        @Deprecated
         @Override
         public void setTimer(TimerData timerKey) {
           if (timerKey.getDomain().equals(TimeDomain.EVENT_TIME)) {
@@ -468,11 +469,19 @@ public class WindowDoFnOperator<K, InputT, OutputT>
         }
 
         @Override
+        public void deleteTimer(StateNamespace namespace, String timerId, TimeDomain timeDomain) {
+          throw new UnsupportedOperationException(
+              "Canceling of a timer by ID is not yet supported.");
+        }
+
+        @Deprecated
+        @Override
         public void deleteTimer(StateNamespace namespace, String timerId) {
           throw new UnsupportedOperationException(
               "Canceling of a timer by ID is not yet supported.");
         }
 
+        @Deprecated
         @Override
         public void deleteTimer(TimerData timerKey) {
           if (timerKey.getDomain().equals(TimeDomain.EVENT_TIME)) {
