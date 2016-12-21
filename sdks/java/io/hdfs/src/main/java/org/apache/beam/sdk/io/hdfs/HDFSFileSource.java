@@ -260,11 +260,6 @@ public class HDFSFileSource<K, V> extends BoundedSource<KV<K, V>> {
     return stat;
   }
 
-  @Override
-  public boolean producesSortedKeys(PipelineOptions options) throws Exception {
-    return false;
-  }
-
   static class HDFSFileReader<K, V> extends BoundedSource.BoundedReader<KV<K, V>> {
 
     private final BoundedSource<KV<K, V>> source;

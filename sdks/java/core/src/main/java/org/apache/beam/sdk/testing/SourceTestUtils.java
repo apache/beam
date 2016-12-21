@@ -719,11 +719,6 @@ public class SourceTestUtils {
     }
 
     @Override
-    public boolean producesSortedKeys(PipelineOptions options) throws Exception {
-      return boundedSource.producesSortedKeys(options);
-    }
-
-    @Override
     public BoundedReader<T> createReader(PipelineOptions options) throws IOException {
       return new UnsplittableReader<>(boundedSource, boundedSource.createReader(options));
     }

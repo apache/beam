@@ -194,11 +194,6 @@ public class BoundedReadFromUnboundedSource<T> extends PTransform<PBegin, PColle
     }
 
     @Override
-    public boolean producesSortedKeys(PipelineOptions options) {
-      return false;
-    }
-
-    @Override
     public Coder<ValueWithRecordId<T>> getDefaultOutputCoder() {
       return ValueWithRecordId.ValueWithRecordIdCoder.of(source.getDefaultOutputCoder());
     }
