@@ -23,6 +23,7 @@ import static org.junit.Assert.assertThat;
 
 import java.util.Collections;
 import org.apache.beam.runners.core.KeyedWorkItem;
+import org.apache.beam.runners.core.KeyedWorkItemCoder;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
@@ -34,6 +35,7 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.Keys;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.WindowedValue;
@@ -111,7 +113,13 @@ public class KeyedPValueTrackingVisitorTest {
                                 KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of()))))));
 
     PCollection<KeyedWorkItem<String, KV<String, Integer>>> unkeyed =
-        input.apply(ParDo.of(new ParDoMultiOverrideFactory.ToKeyedWorkItem<String, Integer>()));
+        input
+            .apply(ParDo.of(new ParDoMultiOverrideFactory.ToKeyedWorkItem<String, Integer>()))
+            .setCoder(
+                KeyedWorkItemCoder.of(
+                    StringUtf8Coder.of(),
+                    KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of()),
+                    GlobalWindow.Coder.INSTANCE));
 
     p.traverseTopologically(visitor);
     assertThat(visitor.getKeyedPValues(), not(hasItem(unkeyed)));
@@ -139,7 +147,12 @@ public class KeyedPValueTrackingVisitorTest {
     PCollection<KeyedWorkItem<String, KV<String, Integer>>> keyed =
         input
             .apply(GroupByKey.<String, WindowedValue<KV<String, Integer>>>create())
-            .apply(ParDo.of(new ParDoMultiOverrideFactory.ToKeyedWorkItem<String, Integer>()));
+            .apply(ParDo.of(new ParDoMultiOverrideFactory.ToKeyedWorkItem<String, Integer>()))
+            .setCoder(
+                KeyedWorkItemCoder.of(
+                    StringUtf8Coder.of(),
+                    KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of()),
+                    GlobalWindow.Coder.INSTANCE));
 
     p.traverseTopologically(visitor);
     assertThat(visitor.getKeyedPValues(), hasItem(keyed));
