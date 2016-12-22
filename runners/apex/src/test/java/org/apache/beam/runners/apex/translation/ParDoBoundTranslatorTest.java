@@ -45,6 +45,7 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.coders.VarIntCoder;
+import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.transforms.Create;
@@ -286,21 +287,22 @@ public class ParDoBoundTranslatorTest {
                 Arrays.asList(sideInput1, sideInput2),
                 Arrays.<TupleTag<String>>asList())));
 
-     outputs.get(mainOutputTag).apply(ParDo.of(new EmbeddedCollector()));
-     ApexRunnerResult result = (ApexRunnerResult) pipeline.run();
+    outputs.get(mainOutputTag).apply(ParDo.of(new EmbeddedCollector()));
+    outputs.get(sideOutputTag).setCoder(VoidCoder.of());
+    ApexRunnerResult result = (ApexRunnerResult) pipeline.run();
 
-     HashSet<String> expected = Sets.newHashSet("processing: 3: [11, 222]",
-         "processing: -42: [11, 222]", "processing: 666: [11, 222]");
-     long timeout = System.currentTimeMillis() + TIMEOUT_MILLIS;
-     while (System.currentTimeMillis() < timeout) {
-       if (EmbeddedCollector.RESULTS.containsAll(expected)) {
-         break;
-       }
-       LOG.info("Waiting for expected results.");
-       Thread.sleep(SLEEP_MILLIS);
-     }
-     result.cancel();
-     Assert.assertEquals(Sets.newHashSet(expected), EmbeddedCollector.RESULTS);
+    HashSet<String> expected = Sets.newHashSet("processing: 3: [11, 222]",
+        "processing: -42: [11, 222]", "processing: 666: [11, 222]");
+    long timeout = System.currentTimeMillis() + TIMEOUT_MILLIS;
+    while (System.currentTimeMillis() < timeout) {
+      if (EmbeddedCollector.RESULTS.containsAll(expected)) {
+        break;
+      }
+      LOG.info("Waiting for expected results.");
+      Thread.sleep(SLEEP_MILLIS);
+    }
+    result.cancel();
+    Assert.assertEquals(Sets.newHashSet(expected), EmbeddedCollector.RESULTS);
   }
 
   private static class TestMultiOutputWithSideInputsFn extends DoFn<Integer, String> {
