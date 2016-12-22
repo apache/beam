@@ -95,10 +95,10 @@ public class ApproximateUniqueTest implements Serializable {
     final double error = 100.0 * Math.abs(estimate - uniqueCount) / uniqueCount;
     final double maxError = 100.0 * 2 / Math.sqrt(sampleSize);
 
-    assertTrue("Estimate= " + estimate + " Actual=" + uniqueCount + " Error="
+    assertTrue("Estimate=" + estimate + " Actual=" + uniqueCount + " Error="
                    + error + "%, MaxError=" + maxError + "%.", error < maxError);
 
-    assertTrue("Estimate= " + estimate + " Actual=" + uniqueCount + " Error="
+    assertTrue("Estimate=" + estimate + " Actual=" + uniqueCount + " Error="
                    + error + "%, MaxError=" + maxError + "%.", error < maxError);
   }
 
@@ -185,8 +185,7 @@ public class ApproximateUniqueTest implements Serializable {
    * Tests for ApproximateUnique with different sample sizes.
    */
   @RunWith(Parameterized.class)
-  public static class ApproximateUniqueVariationsTest extends
-                                                      ApproximateUniqueTest {
+  public static class ApproximateUniqueVariationsTest extends ApproximateUniqueTest {
 
     private static final int TEST_PAGES = 100;
     private static final List<String> TEST_LINES =
@@ -277,7 +276,6 @@ public class ApproximateUniqueTest implements Serializable {
         } catch (final IllegalArgumentException e) {
           assertTrue("Expected an exception due to sampleSize < 16",
                      e.getMessage().startsWith("ApproximateUnique needs a sampleSize >= 16"));
-
         }
       }
     }
