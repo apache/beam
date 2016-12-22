@@ -45,11 +45,11 @@ from apache_beam.utils.options import StandardOptions
 from apache_beam.internal.clients import dataflow as dataflow_api
 
 
-def BlockingDataflowPipelineRunner(*args, **kwargs):
-  return DataflowPipelineRunner(*args, blocking=True, **kwargs)
+def BlockingDataflowRunner(*args, **kwargs):
+  return DataflowRunner(*args, blocking=True, **kwargs)
 
 
-class DataflowPipelineRunner(PipelineRunner):
+class DataflowRunner(PipelineRunner):
   """A runner that creates job graphs and submits them for remote execution.
 
   Every execution of the run() method will submit an independent job for
@@ -162,13 +162,13 @@ class DataflowPipelineRunner(PipelineRunner):
     self.job = apiclient.Job(pipeline.options)
 
     # The superclass's run will trigger a traversal of all reachable nodes.
-    super(DataflowPipelineRunner, self).run(pipeline)
+    super(DataflowRunner, self).run(pipeline)
 
     standard_options = pipeline.options.view_as(StandardOptions)
     if standard_options.streaming:
-      job_version = DataflowPipelineRunner.STREAMING_ENVIRONMENT_MAJOR_VERSION
+      job_version = DataflowRunner.STREAMING_ENVIRONMENT_MAJOR_VERSION
     else:
-      job_version = DataflowPipelineRunner.BATCH_ENVIRONMENT_MAJOR_VERSION
+      job_version = DataflowRunner.BATCH_ENVIRONMENT_MAJOR_VERSION
 
     # Get a Dataflow API client and set its options
     self.dataflow_client = apiclient.DataflowApplicationClient(
@@ -180,7 +180,7 @@ class DataflowPipelineRunner(PipelineRunner):
 
     if self.result.has_job and self.blocking:
       thread = threading.Thread(
-          target=DataflowPipelineRunner.poll_for_job_completion,
+          target=DataflowRunner.poll_for_job_completion,
           args=(self, self.result.job_id()))
       # Mark the thread as a daemon thread so a keyboard interrupt on the main
       # thread will terminate everything. This is also the reason we will not

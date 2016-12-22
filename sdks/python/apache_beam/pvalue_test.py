@@ -39,12 +39,12 @@ class FakePipeline(Pipeline):
 class PValueTest(unittest.TestCase):
 
   def test_pvalue_expected_arguments(self):
-    pipeline = Pipeline('DirectPipelineRunner')
+    pipeline = Pipeline('DirectRunner')
     value = PValue(pipeline)
     self.assertEqual(pipeline, value.pipeline)
 
   def test_pcollectionview_not_recreated(self):
-    pipeline = Pipeline('DirectPipelineRunner')
+    pipeline = Pipeline('DirectRunner')
     value = pipeline | 'create1' >> Create([1, 2, 3])
     value2 = pipeline | 'create2' >> Create([(1, 1), (2, 2), (3, 3)])
     value3 = pipeline | 'create3' >> Create([(1, 1), (2, 2), (3, 3)])

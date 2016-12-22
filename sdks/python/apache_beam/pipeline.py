@@ -28,7 +28,7 @@ to be executed for each node visited is specified through a runner object.
 Typical usage:
 
   # Create a pipeline object using a local runner for execution.
-  pipeline = Pipeline(runner=DirectPipelineRunner())
+  pipeline = Pipeline(runner=DirectRunner())
 
   # Add to the pipeline a "Create" transform. When executed this
   # transform will produce a PCollection object with the specified values.

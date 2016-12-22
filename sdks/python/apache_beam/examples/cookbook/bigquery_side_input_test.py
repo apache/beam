@@ -27,7 +27,7 @@ from apache_beam.examples.cookbook import bigquery_side_input
 class BigQuerySideInputTest(unittest.TestCase):
 
   def test_create_groups(self):
-    p = beam.Pipeline('DirectPipelineRunner')
+    p = beam.Pipeline('DirectRunner')
 
     group_ids_pcoll = p | 'create_group_ids' >> beam.Create(['A', 'B', 'C'])
     corpus_pcoll = p | beam.Create('create_corpus',

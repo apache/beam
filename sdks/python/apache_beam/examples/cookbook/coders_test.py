@@ -34,7 +34,7 @@ class CodersTest(unittest.TestCase):
       {'host': ['Brasil', 1], 'guest': ['Italy', 0]}]
 
   def test_compute_points(self):
-    p = beam.Pipeline('DirectPipelineRunner')
+    p = beam.Pipeline('DirectRunner')
     records = p | 'create' >> beam.Create(self.SAMPLE_RECORDS)
     result = (records
               | 'points' >> beam.FlatMap(coders.compute_points)

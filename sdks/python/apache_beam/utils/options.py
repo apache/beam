@@ -178,15 +178,15 @@ class PipelineOptions(HasDisplayData):
 
 class StandardOptions(PipelineOptions):
 
-  DEFAULT_RUNNER = 'DirectPipelineRunner'
+  DEFAULT_RUNNER = 'DirectRunner'
 
   @classmethod
   def _add_argparse_args(cls, parser):
     parser.add_argument(
         '--runner',
         help=('Pipeline runner used to execute the workflow. Valid values are '
-              'DirectPipelineRunner, DataflowPipelineRunner, '
-              'and BlockingDataflowPipelineRunner.'))
+              'DirectRunner, DataflowRunner, '
+              'and BlockingDataflowRunner.'))
     # Whether to enable streaming mode.
     parser.add_argument('--streaming',
                         default=False,
@@ -218,7 +218,7 @@ class TypeOptions(PipelineOptions):
                         action='store_true',
                         help='Enable type checking at pipeline execution '
                         'time. NOTE: only supported with the '
-                        'DirectPipelineRunner')
+                        'DirectRunner')
 
 
 class GoogleCloudOptions(PipelineOptions):

@@ -35,7 +35,7 @@ class FiltersTest(unittest.TestCase):
       ]
 
   def _get_result_for_month(self, month):
-    p = beam.Pipeline('DirectPipelineRunner')
+    p = beam.Pipeline('DirectRunner')
     rows = (p | 'create' >> beam.Create(self.input_data))
 
     results = filters.filter_cold_days(rows, month)

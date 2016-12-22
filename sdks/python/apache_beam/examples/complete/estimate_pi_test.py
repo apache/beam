@@ -38,7 +38,7 @@ def in_between(lower, upper):
 class EstimatePiTest(unittest.TestCase):
 
   def test_basics(self):
-    p = beam.Pipeline('DirectPipelineRunner')
+    p = beam.Pipeline('DirectRunner')
     result = p | 'Estimate' >> estimate_pi.EstimatePiTransform()
 
     # Note: Probabilistically speaking this test can fail with a probability

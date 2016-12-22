@@ -54,12 +54,12 @@ class PTransformTest(unittest.TestCase):
     self.assertEqual('<PTransform(PTransform) label=[PTransform]>',
                      str(PTransform()))
 
-    pa = Pipeline('DirectPipelineRunner')
+    pa = Pipeline('DirectRunner')
     res = pa | 'a_label' >> beam.Create([1, 2])
     self.assertEqual('AppliedPTransform(a_label, Create)',
                      str(res.producer))
 
-    pc = Pipeline('DirectPipelineRunner')
+    pc = Pipeline('DirectRunner')
     res = pc | beam.Create([1, 2])
     inputs_tr = res.producer.transform
     inputs_tr.inputs = ('ci',)
@@ -67,7 +67,7 @@ class PTransformTest(unittest.TestCase):
         """<Create(PTransform) label=[Create] inputs=('ci',)>""",
         str(inputs_tr))
 
-    pd = Pipeline('DirectPipelineRunner')
+    pd = Pipeline('DirectRunner')
     res = pd | beam.Create([1, 2])
     side_tr = res.producer.transform
     side_tr.side_inputs = (4,)
@@ -111,7 +111,7 @@ class PTransformTest(unittest.TestCase):
       def process(self, context, addon):
         return [context.element + addon]
 
-    pipeline = Pipeline('DirectPipelineRunner')
+    pipeline = Pipeline('DirectRunner')
     pcoll = pipeline | 'start' >> beam.Create([1, 2, 3])
     result = pcoll | 'do' >> beam.ParDo(AddNDoFn(), 10)
     assert_that(result, equal_to([11, 12, 13]))
@@ -123,20 +123,20 @@ class PTransformTest(unittest.TestCase):
       def process(self, context):
         pass
 
-    pipeline = Pipeline('DirectPipelineRunner')
+    pipeline = Pipeline('DirectRunner')
     pcoll = pipeline | 'start' >> beam.Create([1, 2, 3])
     with self.assertRaises(ValueError):
       pcoll | 'do' >> beam.ParDo(MyDoFn)  # Note the lack of ()'s
 
   def test_do_with_callable(self):
-    pipeline = Pipeline('DirectPipelineRunner')
+    pipeline = Pipeline('DirectRunner')
     pcoll = pipeline | 'start' >> beam.Create([1, 2, 3])
     result = pcoll | 'do' >> beam.FlatMap(lambda x, addon: [x + addon], 10)
     assert_that(result, equal_to([11, 12, 13]))
     pipeline.run()
 
   def test_do_with_side_input_as_arg(self):
-    pipeline = Pipeline('DirectPipelineRunner')
+    pipeline = Pipeline('DirectRunner')
     side = pipeline | 'side' >> beam.Create([10])
     pcoll = pipeline | 'start' >> beam.Create([1, 2, 3])
     result = pcoll | beam.FlatMap(
@@ -145,7 +145,7 @@ class PTransformTest(unittest.TestCase):
     pipeline.run()
 
   def test_do_with_side_input_as_keyword_arg(self):
-    pipeline = Pipeline('DirectPipelineRunner')
+    pipeline = Pipeline('DirectRunner')
     side = pipeline | 'side' >> beam.Create([10])
     pcoll = pipeline | 'start' >> beam.Create([1, 2, 3])
     result = pcoll | beam.FlatMap(
@@ -154,7 +154,7 @@ class PTransformTest(unittest.TestCase):
     pipeline.run()
 
   def test_do_with_do_fn_returning_string_raises_warning(self):
-    pipeline = Pipeline('DirectPipelineRunner')
+    pipeline = Pipeline('DirectRunner')
     pcoll = pipeline | 'start' >> beam.Create(['2', '9', '3'])
     pcoll | 'do' >> beam.FlatMap(lambda x: x + '1')
 
@@ -168,7 +168,7 @@ class PTransformTest(unittest.TestCase):
     self.assertStartswith(cm.exception.message, expected_error_prefix)
 
   def test_do_with_do_fn_returning_dict_raises_warning(self):
-    pipeline = Pipeline('DirectPipelineRunner')
+    pipeline = Pipeline('DirectRunner')
     pcoll = pipeline | 'start' >> beam.Create(['2', '9', '3'])
     pcoll | 'do' >> beam.FlatMap(lambda x: {x: '1'})
 
@@ -182,7 +182,7 @@ class PTransformTest(unittest.TestCase):
     self.assertStartswith(cm.exception.message, expected_error_prefix)
 
   def test_do_with_side_outputs_maintains_unique_name(self):
-    pipeline = Pipeline('DirectPipelineRunner')
+    pipeline = Pipeline('DirectRunner')
     pcoll = pipeline | 'start' >> beam.Create([1, 2, 3])
     r1 = pcoll | 'a' >> beam.FlatMap(lambda x: [x + 1]).with_outputs(main='m')
     r2 = pcoll | 'b' >> beam.FlatMap(lambda x: [x + 2]).with_outputs(main='m')
@@ -195,7 +195,7 @@ class PTransformTest(unittest.TestCase):
     # iterable.
     def incorrect_par_do_fn(x):
       return x + 5
-    pipeline = Pipeline('DirectPipelineRunner')
+    pipeline = Pipeline('DirectRunner')
     pcoll = pipeline | 'start' >> beam.Create([2, 9, 3])
     pcoll | 'do' >> beam.FlatMap(incorrect_par_do_fn)
     # It's a requirement that all user-defined functions to a ParDo return
@@ -216,7 +216,7 @@ class PTransformTest(unittest.TestCase):
 
       def finish_bundle(self, c):
         yield 'finish'
-    pipeline = Pipeline('DirectPipelineRunner')
+    pipeline = Pipeline('DirectRunner')
     pcoll = pipeline | 'start' >> beam.Create([1, 2, 3])
     result = pcoll | 'do' >> beam.ParDo(MyDoFn())
 
@@ -231,7 +231,7 @@ class PTransformTest(unittest.TestCase):
     pipeline.run()
 
   def test_filter(self):
-    pipeline = Pipeline('DirectPipelineRunner')
+    pipeline = Pipeline('DirectRunner')
     pcoll = pipeline | 'start' >> beam.Create([1, 2, 3, 4])
     result = pcoll | beam.Filter(
         'filter', lambda x: x % 2 == 0)
@@ -257,7 +257,7 @@ class PTransformTest(unittest.TestCase):
 
   def test_combine_with_combine_fn(self):
     vals = [1, 2, 3, 4, 5, 6, 7]
-    pipeline = Pipeline('DirectPipelineRunner')
+    pipeline = Pipeline('DirectRunner')
     pcoll = pipeline | 'start' >> beam.Create(vals)
     result = pcoll | 'mean' >> beam.CombineGlobally(self._MeanCombineFn())
     assert_that(result, equal_to([sum(vals) / len(vals)]))
@@ -265,7 +265,7 @@ class PTransformTest(unittest.TestCase):
 
   def test_combine_with_callable(self):
     vals = [1, 2, 3, 4, 5, 6, 7]
-    pipeline = Pipeline('DirectPipelineRunner')
+    pipeline = Pipeline('DirectRunner')
     pcoll = pipeline | 'start' >> beam.Create(vals)
     result = pcoll | beam.CombineGlobally(sum)
     assert_that(result, equal_to([sum(vals)]))
@@ -273,7 +273,7 @@ class PTransformTest(unittest.TestCase):
 
   def test_combine_with_side_input_as_arg(self):
     values = [1, 2, 3, 4, 5, 6, 7]
-    pipeline = Pipeline('DirectPipelineRunner')
+    pipeline = Pipeline('DirectRunner')
     pcoll = pipeline | 'start' >> beam.Create(values)
     divisor = pipeline | 'divisor' >> beam.Create([2])
     result = pcoll | beam.CombineGlobally(
@@ -288,7 +288,7 @@ class PTransformTest(unittest.TestCase):
   def test_combine_per_key_with_combine_fn(self):
     vals_1 = [1, 2, 3, 4, 5, 6, 7]
     vals_2 = [2, 4, 6, 8, 10, 12, 14]
-    pipeline = Pipeline('DirectPipelineRunner')
+    pipeline = Pipeline('DirectRunner')
     pcoll = pipeline | 'start' >> beam.Create(([('a', x) for x in vals_1] +
                                                [('b', x) for x in vals_2]))
     result = pcoll | 'mean' >> beam.CombinePerKey(self._MeanCombineFn())
@@ -299,7 +299,7 @@ class PTransformTest(unittest.TestCase):
   def test_combine_per_key_with_callable(self):
     vals_1 = [1, 2, 3, 4, 5, 6, 7]
     vals_2 = [2, 4, 6, 8, 10, 12, 14]
-    pipeline = Pipeline('DirectPipelineRunner')
+    pipeline = Pipeline('DirectRunner')
     pcoll = pipeline | 'start' >> beam.Create(([('a', x) for x in vals_1] +
                                                [('b', x) for x in vals_2]))
     result = pcoll | beam.CombinePerKey(sum)
@@ -309,7 +309,7 @@ class PTransformTest(unittest.TestCase):
   def test_combine_per_key_with_side_input_as_arg(self):
     vals_1 = [1, 2, 3, 4, 5, 6, 7]
     vals_2 = [2, 4, 6, 8, 10, 12, 14]
-    pipeline = Pipeline('DirectPipelineRunner')
+    pipeline = Pipeline('DirectRunner')
     pcoll = pipeline | 'start' >> beam.Create(([('a', x) for x in vals_1] +
                                                [('b', x) for x in vals_2]))
     divisor = pipeline | 'divisor' >> beam.Create([2])
@@ -322,7 +322,7 @@ class PTransformTest(unittest.TestCase):
     pipeline.run()
 
   def test_group_by_key(self):
-    pipeline = Pipeline('DirectPipelineRunner')
+    pipeline = Pipeline('DirectRunner')
     pcoll = pipeline | beam.Create(
         'start', [(1, 1), (2, 1), (3, 1), (1, 2), (2, 2), (1, 3)])
     result = pcoll | 'group' >> beam.GroupByKey()
@@ -336,7 +336,7 @@ class PTransformTest(unittest.TestCase):
       def partition_for(self, context, num_partitions, offset):
         return (context.element % 3) + offset
 
-    pipeline = Pipeline('DirectPipelineRunner')
+    pipeline = Pipeline('DirectRunner')
     pcoll = pipeline | 'start' >> beam.Create([0, 1, 2, 3, 4, 5, 6, 7, 8])
     # Attempt nominal partition operation.
     partitions = pcoll | 'part1' >> beam.Partition(SomePartitionFn(), 4, 1)
@@ -347,15 +347,15 @@ class PTransformTest(unittest.TestCase):
     pipeline.run()
 
     # Check that a bad partition label will yield an error. For the
-    # DirectPipelineRunner, this error manifests as an exception.
-    pipeline = Pipeline('DirectPipelineRunner')
+    # DirectRunner, this error manifests as an exception.
+    pipeline = Pipeline('DirectRunner')
     pcoll = pipeline | 'start' >> beam.Create([0, 1, 2, 3, 4, 5, 6, 7, 8])
     partitions = pcoll | 'part2' >> beam.Partition(SomePartitionFn(), 4, 10000)
     with self.assertRaises(ValueError):
       pipeline.run()
 
   def test_partition_with_callable(self):
-    pipeline = Pipeline('DirectPipelineRunner')
+    pipeline = Pipeline('DirectRunner')
     pcoll = pipeline | 'start' >> beam.Create([0, 1, 2, 3, 4, 5, 6, 7, 8])
     partitions = (
         pcoll | beam.Partition(
@@ -370,7 +370,7 @@ class PTransformTest(unittest.TestCase):
 
   def test_partition_followed_by_flatten_and_groupbykey(self):
     """Regression test for an issue with how partitions are handled."""
-    pipeline = Pipeline('DirectPipelineRunner')
+    pipeline = Pipeline('DirectRunner')
     contents = [('aa', 1), ('bb', 2), ('aa', 2)]
     created = pipeline | 'A' >> beam.Create(contents)
     partitioned = created | 'B' >> beam.Partition(lambda x, n: len(x) % n, 3)
@@ -380,7 +380,7 @@ class PTransformTest(unittest.TestCase):
     pipeline.run()
 
   def test_flatten_pcollections(self):
-    pipeline = Pipeline('DirectPipelineRunner')
+    pipeline = Pipeline('DirectRunner')
     pcoll_1 = pipeline | 'start_1' >> beam.Create([0, 1, 2, 3])
     pcoll_2 = pipeline | 'start_2' >> beam.Create([4, 5, 6, 7])
     result = (pcoll_1, pcoll_2) | 'flatten' >> beam.Flatten()
@@ -388,7 +388,7 @@ class PTransformTest(unittest.TestCase):
     pipeline.run()
 
   def test_flatten_no_pcollections(self):
-    pipeline = Pipeline('DirectPipelineRunner')
+    pipeline = Pipeline('DirectRunner')
     with self.assertRaises(ValueError):
       () | 'pipeline arg missing' >> beam.Flatten()
     result = () | 'empty' >> beam.Flatten(pipeline=pipeline)
@@ -396,7 +396,7 @@ class PTransformTest(unittest.TestCase):
     pipeline.run()
 
   def test_flatten_pcollections_in_iterable(self):
-    pipeline = Pipeline('DirectPipelineRunner')
+    pipeline = Pipeline('DirectRunner')
     pcoll_1 = pipeline | 'start_1' >> beam.Create([0, 1, 2, 3])
     pcoll_2 = pipeline | 'start_2' >> beam.Create([4, 5, 6, 7])
     result = ([pcoll for pcoll in (pcoll_1, pcoll_2)]
@@ -417,7 +417,7 @@ class PTransformTest(unittest.TestCase):
       set([1, 2, 3]) | 'flatten' >> beam.Flatten()
 
   def test_co_group_by_key_on_list(self):
-    pipeline = Pipeline('DirectPipelineRunner')
+    pipeline = Pipeline('DirectRunner')
     pcoll_1 = pipeline | beam.Create(
         'start_1', [('a', 1), ('a', 2), ('b', 3), ('c', 4)])
     pcoll_2 = pipeline | beam.Create(
@@ -429,7 +429,7 @@ class PTransformTest(unittest.TestCase):
     pipeline.run()
 
   def test_co_group_by_key_on_iterable(self):
-    pipeline = Pipeline('DirectPipelineRunner')
+    pipeline = Pipeline('DirectRunner')
     pcoll_1 = pipeline | beam.Create(
         'start_1', [('a', 1), ('a', 2), ('b', 3), ('c', 4)])
     pcoll_2 = pipeline | beam.Create(
@@ -442,7 +442,7 @@ class PTransformTest(unittest.TestCase):
     pipeline.run()
 
   def test_co_group_by_key_on_dict(self):
-    pipeline = Pipeline('DirectPipelineRunner')
+    pipeline = Pipeline('DirectRunner')
     pcoll_1 = pipeline | beam.Create(
         'start_1', [('a', 1), ('a', 2), ('b', 3), ('c', 4)])
     pcoll_2 = pipeline | beam.Create(
@@ -454,7 +454,7 @@ class PTransformTest(unittest.TestCase):
     pipeline.run()
 
   def test_group_by_key_input_must_be_kv_pairs(self):
-    pipeline = Pipeline('DirectPipelineRunner')
+    pipeline = Pipeline('DirectRunner')
     pcolls = pipeline | 'A' >> beam.Create([1, 2, 3, 4, 5])
 
     with self.assertRaises(typehints.TypeCheckError) as e:
@@ -467,7 +467,7 @@ class PTransformTest(unittest.TestCase):
         'Tuple[TypeVariable[K], TypeVariable[V]]')
 
   def test_group_by_key_only_input_must_be_kv_pairs(self):
-    pipeline = Pipeline('DirectPipelineRunner')
+    pipeline = Pipeline('DirectRunner')
     pcolls = pipeline | 'A' >> beam.Create(['a', 'b', 'f'])
     with self.assertRaises(typehints.TypeCheckError) as cm:
       pcolls | 'D' >> beam.GroupByKeyOnly()
@@ -478,7 +478,7 @@ class PTransformTest(unittest.TestCase):
     self.assertStartswith(cm.exception.message, expected_error_prefix)
 
   def test_keys_and_values(self):
-    pipeline = Pipeline('DirectPipelineRunner')
+    pipeline = Pipeline('DirectRunner')
     pcoll = pipeline | beam.Create(
         'start', [(3, 1), (2, 1), (1, 1), (3, 2), (2, 2), (3, 3)])
     keys = pcoll.apply('keys', beam.Keys())
@@ -488,7 +488,7 @@ class PTransformTest(unittest.TestCase):
     pipeline.run()
 
   def test_kv_swap(self):
-    pipeline = Pipeline('DirectPipelineRunner')
+    pipeline = Pipeline('DirectRunner')
     pcoll = pipeline | beam.Create(
         'start', [(6, 3), (1, 2), (7, 1), (5, 2), (3, 2)])
     result = pcoll.apply('swap', beam.KvSwap())
@@ -496,7 +496,7 @@ class PTransformTest(unittest.TestCase):
     pipeline.run()
 
   def test_remove_duplicates(self):
-    pipeline = Pipeline('DirectPipelineRunner')
+    pipeline = Pipeline('DirectRunner')
     pcoll = pipeline | beam.Create(
         'start', [6, 3, 1, 1, 9, 'pleat', 'pleat', 'kazoo', 'navel'])
     result = pcoll.apply('nodupes', beam.RemoveDuplicates())
@@ -504,7 +504,7 @@ class PTransformTest(unittest.TestCase):
     pipeline.run()
 
   def test_chained_ptransforms(self):
-    pipeline = Pipeline('DirectPipelineRunner')
+    pipeline = Pipeline('DirectRunner')
     t = (beam.Map(lambda x: (x, 1))
          | beam.GroupByKey()
          | beam.Map(lambda (x, ones): (x, sum(ones))))
@@ -581,7 +581,7 @@ class PTransformLabelsTest(unittest.TestCase):
 
   def test_chained_ptransforms(self):
     """Tests that chaining gets proper nesting."""
-    pipeline = Pipeline('DirectPipelineRunner')
+    pipeline = Pipeline('DirectRunner')
     map1 = beam.Map('map1', lambda x: (x, 1))
     gbk = beam.GroupByKey('gbk')
     map2 = beam.Map('map2', lambda (x, ones): (x, sum(ones)))
@@ -594,7 +594,7 @@ class PTransformLabelsTest(unittest.TestCase):
     pipeline.run()
 
   def test_apply_custom_transform_without_label(self):
-    pipeline = Pipeline('DirectPipelineRunner')
+    pipeline = Pipeline('DirectRunner')
     pcoll = pipeline | 'pcoll' >> beam.Create([1, 2, 3])
     custom = PTransformLabelsTest.CustomTransform()
     result = pipeline.apply(custom, pcoll)
@@ -604,7 +604,7 @@ class PTransformLabelsTest(unittest.TestCase):
     pipeline.run()
 
   def test_apply_custom_transform_with_label(self):
-    pipeline = Pipeline('DirectPipelineRunner')
+    pipeline = Pipeline('DirectRunner')
     pcoll = pipeline | 'pcoll' >> beam.Create([1, 2, 3])
     custom = PTransformLabelsTest.CustomTransform('*custom*')
     result = pipeline.apply(custom, pcoll)
@@ -615,7 +615,7 @@ class PTransformLabelsTest(unittest.TestCase):
 
   def test_combine_without_label(self):
     vals = [1, 2, 3, 4, 5, 6, 7]
-    pipeline = Pipeline('DirectPipelineRunner')
+    pipeline = Pipeline('DirectRunner')
     pcoll = pipeline | 'start' >> beam.Create(vals)
     combine = beam.CombineGlobally(sum)
     result = pcoll | combine
@@ -624,7 +624,7 @@ class PTransformLabelsTest(unittest.TestCase):
     pipeline.run()
 
   def test_apply_ptransform_using_decorator(self):
-    pipeline = Pipeline('DirectPipelineRunner')
+    pipeline = Pipeline('DirectRunner')
     pcoll = pipeline | 'pcoll' >> beam.Create([1, 2, 3])
     sample = SamplePTransform('*sample*')
     _ = pcoll | sample
@@ -635,7 +635,7 @@ class PTransformLabelsTest(unittest.TestCase):
 
   def test_combine_with_label(self):
     vals = [1, 2, 3, 4, 5, 6, 7]
-    pipeline = Pipeline('DirectPipelineRunner')
+    pipeline = Pipeline('DirectRunner')
     pcoll = pipeline | 'start' >> beam.Create(vals)
     combine = beam.CombineGlobally('*sum*', sum)
     result = pcoll | combine
@@ -644,7 +644,7 @@ class PTransformLabelsTest(unittest.TestCase):
     pipeline.run()
 
   def check_label(self, ptransform, expected_label):
-    pipeline = Pipeline('DirectPipelineRunner')
+    pipeline = Pipeline('DirectRunner')
     pipeline | 'start' >> beam.Create([('a', 1)]) | ptransform
     actual_label = sorted(pipeline.applied_labels - {'start'})[0]
     self.assertEqual(expected_label, re.sub(r'\d{3,}', '#', actual_label))

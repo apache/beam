@@ -32,7 +32,7 @@ pipeline configuration::
   --staging_location gs://YOUR_STAGING_DIRECTORY
   --temp_location gs://YOUR_TEMP_DIRECTORY
   --job_name YOUR_JOB_NAME
-  --runner BlockingDataflowPipelineRunner
+  --runner BlockingDataflowRunner
 
 and an output prefix on GCS::
 

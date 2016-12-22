@@ -20,9 +20,9 @@
 This package defines runners, which are used to execute a pipeline.
 """
 
-from apache_beam.runners.dataflow_runner import DataflowPipelineRunner
-from apache_beam.runners.direct.direct_runner import DirectPipelineRunner
-from apache_beam.runners.direct.direct_runner import EagerPipelineRunner
+from apache_beam.runners.dataflow_runner import DataflowRunner
+from apache_beam.runners.direct.direct_runner import DirectRunner
+from apache_beam.runners.direct.direct_runner import EagerRunner
 from apache_beam.runners.runner import create_runner
 from apache_beam.runners.runner import PipelineRunner
 from apache_beam.runners.runner import PipelineState

@@ -44,7 +44,7 @@ class CombinersTest(unittest.TestCase):
     can be used.
     """
     result = (
-        beam.Pipeline(runner=beam.runners.DirectPipelineRunner())
+        beam.Pipeline(runner=beam.runners.DirectRunner())
         | beam.Create(CombinersTest.SAMPLE_DATA)
         | beam.CombinePerKey(sum))
 
@@ -60,7 +60,7 @@ class CombinersTest(unittest.TestCase):
       return result
 
     result = (
-        beam.Pipeline(runner=beam.runners.DirectPipelineRunner())
+        beam.Pipeline(runner=beam.runners.DirectRunner())
         | beam.Create(CombinersTest.SAMPLE_DATA)
         | beam.CombinePerKey(multiply))
 

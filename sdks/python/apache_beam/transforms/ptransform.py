@@ -413,7 +413,7 @@ class PTransform(WithTypeHints, HasDisplayData):
       from apache_beam.utils.options import PipelineOptions
       # pylint: enable=wrong-import-order, wrong-import-position
       p = pipeline.Pipeline(
-          'DirectPipelineRunner', PipelineOptions(sys.argv))
+          'DirectRunner', PipelineOptions(sys.argv))
     else:
       if not pipelines:
         if self.pipeline is not None:
