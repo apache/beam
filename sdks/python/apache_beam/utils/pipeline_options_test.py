@@ -138,6 +138,10 @@ class PipelineOptionsTest(unittest.TestCase):
     self.assertEqual(
         sorted(options.get_all_options()['experiments']), ['abc', 'def'])
 
+    options = PipelineOptions(['--experiments', 'abc', '--experiments', 'def'])
+    self.assertEqual(
+        sorted(options.get_all_options()['experiments']), ['abc', 'def'])
+
     options = PipelineOptions(flags=[''])
     self.assertEqual(options.get_all_options()['experiments'], None)
 
