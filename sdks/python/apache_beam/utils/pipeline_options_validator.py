@@ -19,10 +19,12 @@
 """
 import re
 
+from apache_beam.internal import pickler
 from apache_beam.utils.options import DebugOptions
 from apache_beam.utils.options import GoogleCloudOptions
 from apache_beam.utils.options import SetupOptions
 from apache_beam.utils.options import StandardOptions
+from apache_beam.utils.options import TestOptions
 from apache_beam.utils.options import TypeOptions
 from apache_beam.utils.options import WorkerOptions
 
@@ -40,7 +42,7 @@ class PipelineOptionsValidator(object):
 
   # Validator will call validate on these subclasses of PipelineOptions
   OPTIONS = [DebugOptions, GoogleCloudOptions, SetupOptions, StandardOptions,
-             TypeOptions, WorkerOptions]
+             TypeOptions, WorkerOptions, TestOptions]
 
   # Possible validation errors.
   ERR_MISSING_OPTION = 'Missing required option: %s.'
@@ -62,6 +64,12 @@ class PipelineOptionsValidator(object):
       'not project description.')
   ERR_INVALID_NOT_POSITIVE = ('Invalid value (%s) for option: %s. Value needs '
                               'to be positive.')
+  ERR_INVALID_TEST_MATCHER_TYPE = (
+      'Invalid value (%s) for option: %s. Please extend your matcher object '
+      'from hamcrest.core.base_matcher.BaseMatcher.')
+  ERR_INVALID_TEST_MATCHER_UNPICKLABLE = (
+      'Invalid value (%s) for option: %s. Please make sure the test matcher '
+      'is unpicklable.')
 
   # GCS path specific patterns.
   GCS_URI = '(?P<SCHEME>[^:]+)://(?P<BUCKET>[^/]+)(/(?P<OBJECT>.*))?'
@@ -98,7 +106,8 @@ class PipelineOptionsValidator(object):
     is_service_runner = (self.runner is not None and
                          type(self.runner).__name__ in [
                              'DataflowPipelineRunner',
-                             'BlockingDataflowPipelineRunner'])
+                             'BlockingDataflowPipelineRunner',
+                             'TestDataflowRunner'])
 
     dataflow_endpoint = (
         self.options.view_as(GoogleCloudOptions).dataflow_endpoint)
@@ -165,3 +174,27 @@ class PipelineOptionsValidator(object):
     if arg is not None and int(arg) <= 0:
       return self._validate_error(self.ERR_INVALID_NOT_POSITIVE, arg, arg_name)
     return []
+
+  def validate_test_matcher(self, view, arg_name):
+    """Validates that on_success_matcher argument if set.
+
+    Validates that on_success_matcher is unpicklable and is instance
+    of `hamcrest.core.base_matcher.BaseMatcher`.
+    """
+    # This is a test only method and requires hamcrest
+    from hamcrest.core.base_matcher import BaseMatcher
+    pickled_matcher = view.on_success_matcher
+    errors = []
+    try:
+      matcher = pickler.loads(pickled_matcher)
+      if not isinstance(matcher, BaseMatcher):
+        errors.extend(
+            self._validate_error(
+                self.ERR_INVALID_TEST_MATCHER_TYPE, matcher, arg_name))
+    except:   # pylint: disable=bare-except
+      errors.extend(
+          self._validate_error(
+              self.ERR_INVALID_TEST_MATCHER_UNPICKLABLE,
+              pickled_matcher,
+              arg_name))
+    return errors

@@ -33,6 +33,7 @@ from apache_beam.pipeline import Pipeline
 from apache_beam.runners import create_runner
 from apache_beam.runners import DataflowPipelineRunner
 from apache_beam.runners import DirectPipelineRunner
+from apache_beam.runners import TestDataflowRunner
 import apache_beam.transforms as ptransform
 from apache_beam.transforms.display import DisplayDataItem
 from apache_beam.utils.options import PipelineOptions
@@ -56,6 +57,9 @@ class RunnerTest(unittest.TestCase):
     self.assertTrue(
         isinstance(create_runner('BlockingDataflowPipelineRunner'),
                    DataflowPipelineRunner))
+    self.assertTrue(
+        isinstance(create_runner('TestDataflowRunner'),
+                   TestDataflowRunner))
     self.assertRaises(ValueError, create_runner, 'xyz')
 
   def test_remote_runner_translation(self):
