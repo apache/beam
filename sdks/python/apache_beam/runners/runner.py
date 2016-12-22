@@ -30,7 +30,7 @@ _KNOWN_DIRECT_RUNNERS = ('DirectRunner', 'EagerRunner')
 _KNOWN_DATAFLOW_RUNNERS = ('DataflowRunner', 'BlockingDataflowRunner')
 _KNOWN_TEST_RUNNERS = ('TestDataflowRunner',)
 _ALL_KNOWN_RUNNERS = (
-  _KNOWN_DIRECT_RUNNERS + _KNOWN_DATAFLOW_RUNNERS + _KNOWN_TEST_RUNNERS)
+    _KNOWN_DIRECT_RUNNERS + _KNOWN_DATAFLOW_RUNNERS + _KNOWN_TEST_RUNNERS)
 
 
 def create_runner(runner_name):
@@ -54,6 +54,11 @@ def create_runner(runner_name):
       logging.warning(
           '%s is deprecated, use %s instead.', runner_name, new_runner_name)
       runner_name = new_runner_name
+
+  # TODO(BEAM-759): Remove when all BlockingDataflowRunner references are gone.
+  if runner_name == 'BlockingDataflowRunner':
+    logging.warning(
+        'BlockingDataflowRunner is deprecated, use DataflowRunner instead.')
 
   if runner_name in _KNOWN_DIRECT_RUNNERS:
     runner_name = 'apache_beam.runners.direct.direct_runner.' + runner_name
