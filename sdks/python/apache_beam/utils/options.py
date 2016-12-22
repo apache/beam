@@ -252,7 +252,7 @@ class GoogleCloudOptions(PipelineOptions):
                         help='GCS path for staging code packages needed by '
                         'workers.')
     # Remote execution must check that this option is not None.
-    # If temp_location is not set, it defaults to staging_location.
+    # If staging_location is not set, it defaults to temp_location.
     parser.add_argument('--temp_location',
                         default=None,
                         help='GCS path for saving temporary workflow jobs.')
