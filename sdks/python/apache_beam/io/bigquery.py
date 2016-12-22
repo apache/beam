@@ -139,6 +139,7 @@ __all__ = [
     ]
 
 JSON_COMPLIANCE_ERROR = 'NAN, INF and -INF values are not JSON compliant.'
+MAX_RETRIES = 3
 
 
 class RowAsDictJsonCoder(coders.Coder):
@@ -325,7 +326,8 @@ class BigQuerySource(dataflow_io.NativeSource):
   """A source based on a BigQuery table."""
 
   def __init__(self, table=None, dataset=None, project=None, query=None,
-               validate=False, coder=None, use_standard_sql=False):
+               validate=False, coder=None, use_standard_sql=False,
+               flatten_results=True):
     """Initialize a BigQuerySource.
 
     Args:
@@ -357,6 +359,8 @@ class BigQuerySource(dataflow_io.NativeSource):
         SQL dialect for this query. The default value is False. If set to True,
         the query will use BigQuery's updated SQL dialect with improved
         standards compliance. This parameter is ignored for table inputs.
+      flatten_results: Flattens all nested and repeated fields in the
+        query results. The default value is true.
 
     Raises:
       ValueError: if any of the following is true
@@ -381,6 +385,7 @@ class BigQuerySource(dataflow_io.NativeSource):
       self.table_reference = None
 
     self.validate = validate
+    self.flatten_results = flatten_results
     self.coder = coder or RowAsDictJsonCoder()
 
   def display_data(self):
@@ -409,7 +414,8 @@ class BigQuerySource(dataflow_io.NativeSource):
     return BigQueryReader(
         source=self,
         test_bigquery_client=test_bigquery_client,
-        use_legacy_sql=self.use_legacy_sql)
+        use_legacy_sql=self.use_legacy_sql,
+        flatten_results=self.flatten_results)
 
 
 class BigQuerySink(dataflow_io.NativeSink):
@@ -543,7 +549,8 @@ class BigQuerySink(dataflow_io.NativeSink):
 class BigQueryReader(dataflow_io.NativeSourceReader):
   """A reader for a BigQuery source."""
 
-  def __init__(self, source, test_bigquery_client=None, use_legacy_sql=True):
+  def __init__(self, source, test_bigquery_client=None, use_legacy_sql=True,
+               flatten_results=True):
     self.source = source
     self.test_bigquery_client = test_bigquery_client
     if auth.is_running_in_gce:
@@ -566,6 +573,8 @@ class BigQueryReader(dataflow_io.NativeSourceReader):
     # getting additional details.
     self.schema = None
     self.use_legacy_sql = use_legacy_sql
+    self.flatten_results = flatten_results
+
     if self.source.query is None:
       # If table schema did not define a project we default to executing
       # project.
@@ -581,15 +590,17 @@ class BigQueryReader(dataflow_io.NativeSourceReader):
 
   def __enter__(self):
     self.client = BigQueryWrapper(client=self.test_bigquery_client)
+    self.client.create_temporary_dataset(self.executing_project)
     return self
 
   def __exit__(self, exception_type, exception_value, traceback):
-    pass
+    self.client.clean_up_temporary_dataset(self.executing_project)
 
   def __iter__(self):
     for rows, schema in self.client.run_query(
         project_id=self.executing_project, query=self.query,
-        use_legacy_sql=self.use_legacy_sql):
+        use_legacy_sql=self.use_legacy_sql,
+        flatten_results=self.flatten_results):
       if self.schema is None:
         self.schema = schema
       for row in rows:
@@ -666,6 +677,9 @@ class BigQueryWrapper(object):
   (e.g., find and create tables, query a table, etc.).
   """
 
+  TEMP_TABLE = 'temp_table_'
+  TEMP_DATASET = 'temp_dataset_'
+
   def __init__(self, client=None):
     self.client = client or bigquery.BigqueryV2(
         credentials=auth.get_service_credentials())
@@ -673,6 +687,7 @@ class BigQueryWrapper(object):
     # For testing scenarios where we pass in a client we do not want a
     # randomized prefix for row IDs.
     self._row_id_prefix = '' if client else uuid.uuid4()
+    self._temporary_table_suffix = uuid.uuid4().hex
 
   @property
   def unique_row_id(self):
@@ -689,19 +704,37 @@ class BigQueryWrapper(object):
     self._unique_row_id += 1
     return '%s_%d' % (self._row_id_prefix, self._unique_row_id)
 
-  @retry.with_exponential_backoff()  # Using retry defaults from utils/retry.py
-  def _start_query_job(self, project_id, query, use_legacy_sql, dry_run=False):
+  def _get_temp_table(self, project_id):
+    return _parse_table_reference(
+        table=BigQueryWrapper.TEMP_TABLE + self._temporary_table_suffix,
+        dataset=BigQueryWrapper.TEMP_DATASET + self._temporary_table_suffix,
+        project=project_id)
+
+  @retry.with_exponential_backoff(
+      num_retries=MAX_RETRIES,
+      retry_filter=retry.retry_on_server_errors_and_timeout_filter)
+  def _start_query_job(self, project_id, query, use_legacy_sql, flatten_results,
+                       job_id, dry_run=False):
+    reference = bigquery.JobReference(jobId=job_id, projectId=project_id)
     request = bigquery.BigqueryJobsInsertRequest(
         projectId=project_id,
         job=bigquery.Job(
             configuration=bigquery.JobConfiguration(
                 dryRun=dry_run,
                 query=bigquery.JobConfigurationQuery(
-                    query=query, useLegacySql=use_legacy_sql))))
+                    query=query,
+                    useLegacySql=use_legacy_sql,
+                    allowLargeResults=True,
+                    destinationTable=self._get_temp_table(project_id),
+                    flattenResults=flatten_results)),
+            jobReference=reference))
+
     response = self.client.jobs.Insert(request)
     return response.jobReference.jobId
 
-  @retry.with_exponential_backoff()  # Using retry defaults from utils/retry.py
+  @retry.with_exponential_backoff(
+      num_retries=MAX_RETRIES,
+      retry_filter=retry.retry_on_server_errors_and_timeout_filter)
   def _get_query_results(self, project_id, job_id,
                          page_token=None, max_results=10000):
     request = bigquery.BigqueryJobsGetQueryResultsRequest(
@@ -710,11 +743,13 @@ class BigQueryWrapper(object):
     response = self.client.jobs.GetQueryResults(request)
     return response
 
-  @retry.with_exponential_backoff()  # Using retry defaults from utils/retry.py
+  @retry.with_exponential_backoff(
+      num_retries=MAX_RETRIES,
+      retry_filter=retry.retry_on_server_errors_filter)
   def _insert_all_rows(self, project_id, dataset_id, table_id, rows):
     # The rows argument is a list of
     # bigquery.TableDataInsertAllRequest.RowsValueListEntry instances as
-    # required bu the InsertAll() method.
+    # required by the InsertAll() method.
     request = bigquery.BigqueryTabledataInsertAllRequest(
         projectId=project_id, datasetId=dataset_id, tableId=table_id,
         tableDataInsertAllRequest=bigquery.TableDataInsertAllRequest(
@@ -725,7 +760,9 @@ class BigQueryWrapper(object):
     # response.insertErrors is not [] if errors encountered.
     return not response.insertErrors, response.insertErrors
 
-  @retry.with_exponential_backoff()  # Using retry defaults from utils/retry.py
+  @retry.with_exponential_backoff(
+      num_retries=MAX_RETRIES,
+      retry_filter=retry.retry_on_server_errors_and_timeout_filter)
   def _get_table(self, project_id, dataset_id, table_id):
     request = bigquery.BigqueryTablesGetRequest(
         projectId=project_id, datasetId=dataset_id, tableId=table_id)
@@ -733,7 +770,6 @@ class BigQueryWrapper(object):
     # The response is a bigquery.Table instance.
     return response
 
-  @retry.with_exponential_backoff()  # Using retry defaults from utils/retry.py
   def _create_table(self, project_id, dataset_id, table_id, schema):
     table = bigquery.Table(
         tableReference=bigquery.TableReference(
@@ -745,7 +781,31 @@ class BigQueryWrapper(object):
     # The response is a bigquery.Table instance.
     return response
 
-  @retry.with_exponential_backoff()  # Using retry defaults from utils/retry.py
+  @retry.with_exponential_backoff(
+      num_retries=MAX_RETRIES,
+      retry_filter=retry.retry_on_server_errors_and_timeout_filter)
+  def get_or_create_dataset(self, project_id, dataset_id):
+    # Check if dataset already exists otherwise create it
+    try:
+      dataset = self.client.datasets.Get(bigquery.BigqueryDatasetsGetRequest(
+          projectId=project_id, datasetId=dataset_id))
+      return dataset
+    except HttpError as exn:
+      if exn.status_code == 404:
+        dataset = bigquery.Dataset(
+            datasetReference=bigquery.DatasetReference(
+                projectId=project_id, datasetId=dataset_id))
+        request = bigquery.BigqueryDatasetsInsertRequest(
+            projectId=project_id, dataset=dataset)
+        response = self.client.datasets.Insert(request)
+        # The response is a bigquery.Dataset instance.
+        return response
+      else:
+        raise
+
+  @retry.with_exponential_backoff(
+      num_retries=MAX_RETRIES,
+      retry_filter=retry.retry_on_server_errors_and_timeout_filter)
   def _is_table_empty(self, project_id, dataset_id, table_id):
     request = bigquery.BigqueryTabledataListRequest(
         projectId=project_id, datasetId=dataset_id, tableId=table_id,
@@ -754,12 +814,80 @@ class BigQueryWrapper(object):
     # The response is a bigquery.TableDataList instance.
     return response.totalRows == 0
 
-  @retry.with_exponential_backoff()  # Using retry defaults from utils/retry.py
+  @retry.with_exponential_backoff(
+      num_retries=MAX_RETRIES,
+      retry_filter=retry.retry_on_server_errors_and_timeout_filter)
   def _delete_table(self, project_id, dataset_id, table_id):
     request = bigquery.BigqueryTablesDeleteRequest(
         projectId=project_id, datasetId=dataset_id, tableId=table_id)
-    self.client.tables.Delete(request)
+    try:
+      self.client.tables.Delete(request)
+    except HttpError as exn:
+      if exn.status_code == 404:
+        logging.warning('Table %s:%s.%s does not exist', project_id,
+                        dataset_id, table_id)
+        return
+      else:
+        raise
 
+  @retry.with_exponential_backoff(
+      num_retries=MAX_RETRIES,
+      retry_filter=retry.retry_on_server_errors_and_timeout_filter)
+  def _delete_dataset(self, project_id, dataset_id, delete_contents=True):
+    request = bigquery.BigqueryDatasetsDeleteRequest(
+        projectId=project_id, datasetId=dataset_id,
+        deleteContents=delete_contents)
+    try:
+      self.client.datasets.Delete(request)
+    except HttpError as exn:
+      if exn.status_code == 404:
+        logging.warning('Dataaset %s:%s does not exist', project_id,
+                        dataset_id)
+        return
+      else:
+        raise
+
+  @retry.with_exponential_backoff(
+      num_retries=MAX_RETRIES,
+      retry_filter=retry.retry_on_server_errors_and_timeout_filter)
+  def create_temporary_dataset(self, project_id):
+    dataset_id = BigQueryWrapper.TEMP_DATASET + self._temporary_table_suffix
+    # Check if dataset exists to make sure that the temporary id is unique
+    try:
+      self.client.datasets.Get(bigquery.BigqueryDatasetsGetRequest(
+          projectId=project_id, datasetId=dataset_id))
+      if project_id is not None:
+        # Unittests don't pass projectIds so they can be run without error
+        raise RuntimeError(
+            'Dataset %s:%s already exists so cannot be used as temporary.'
+            % (project_id, dataset_id))
+    except HttpError as exn:
+      if exn.status_code == 404:
+        logging.warning('Dataset does not exist so we will create it')
+        self.get_or_create_dataset(project_id, dataset_id)
+      else:
+        raise
+
+  @retry.with_exponential_backoff(
+      num_retries=MAX_RETRIES,
+      retry_filter=retry.retry_on_server_errors_and_timeout_filter)
+  def clean_up_temporary_dataset(self, project_id):
+    temp_table = self._get_temp_table(project_id)
+    try:
+      self.client.datasets.Get(bigquery.BigqueryDatasetsGetRequest(
+          projectId=project_id, datasetId=temp_table.datasetId))
+    except HttpError as exn:
+      if exn.status_code == 404:
+        logging.warning('Dataset %s:%s does not exist', project_id,
+                        temp_table.datasetId)
+        return
+      else:
+        raise
+    self._delete_dataset(temp_table.projectId, temp_table.datasetId, True)
+
+  @retry.with_exponential_backoff(
+      num_retries=MAX_RETRIES,
+      retry_filter=retry.retry_on_server_errors_and_timeout_filter)
   def get_or_create_table(
       self, project_id, dataset_id, table_id, schema,
       create_disposition, write_disposition):
@@ -828,8 +956,11 @@ class BigQueryWrapper(object):
                                 table_id=table_id,
                                 schema=schema or found_table.schema)
 
-  def run_query(self, project_id, query, use_legacy_sql, dry_run=False):
-    job_id = self._start_query_job(project_id, query, use_legacy_sql, dry_run)
+  def run_query(self, project_id, query, use_legacy_sql, flatten_results,
+                dry_run=False):
+    job_id = self._start_query_job(project_id, query, use_legacy_sql,
+                                   flatten_results, job_id=uuid.uuid4().hex,
+                                   dry_run=dry_run)
     if dry_run:
       # If this was a dry run then the fact that we get here means the
       # query has no errors. The start_query_job would raise an error otherwise.
@@ -888,57 +1019,65 @@ class BigQueryWrapper(object):
         project_id, dataset_id, table_id, final_rows)
     return result, errors
 
+  def _convert_cell_value_to_dict(self, value, field):
+    if field.type == 'STRING':
+      # Input: "XYZ" --> Output: "XYZ"
+      return value
+    elif field.type == 'BOOLEAN':
+      # Input: "true" --> Output: True
+      return value == 'true'
+    elif field.type == 'INTEGER':
+      # Input: "123" --> Output: 123
+      return int(value)
+    elif field.type == 'FLOAT':
+      # Input: "1.23" --> Output: 1.23
+      return float(value)
+    elif field.type == 'TIMESTAMP':
+      # The UTC should come from the timezone library but this is a known
+      # issue in python 2.7 so we'll just hardcode it as we're reading using
+      # utcfromtimestamp. This is just to match the output from the dataflow
+      # runner with the local runner.
+      # Input: 1478134176.985864 --> Output: "2016-11-03 00:49:36.985864 UTC"
+      dt = datetime.datetime.utcfromtimestamp(float(value))
+      return dt.strftime('%Y-%m-%d %H:%M:%S.%f UTC')
+    elif field.type == 'BYTES':
+      # Input: "YmJi" --> Output: "YmJi"
+      return value
+    elif field.type == 'DATE':
+      # Input: "2016-11-03" --> Output: "2016-11-03"
+      return value
+    elif field.type == 'DATETIME':
+      # Input: "2016-11-03T00:49:36" --> Output: "2016-11-03T00:49:36"
+      return value
+    elif field.type == 'TIME':
+      # Input: "00:49:36" --> Output: "00:49:36"
+      return value
+    elif field.type == 'RECORD':
+      # Note that a schema field object supports also a RECORD type. However
+      # when querying, the repeated and/or record fields are flattened
+      # unless we pass the flatten_results flag as False to the source
+      return self.convert_row_to_dict(value, field)
+    else:
+      raise RuntimeError('Unexpected field type: %s' % field.type)
+
   def convert_row_to_dict(self, row, schema):
     """Converts a TableRow instance using the schema to a Python dict."""
     result = {}
     for index, field in enumerate(schema.fields):
-      cell = row.f[index]
-      if cell.v is None:
-        continue  # Field not present in the row.
-      # The JSON values returned by BigQuery for table fields in a row have
-      # always set the string_value attribute, which means the value below will
-      # be a string. Converting to the appropriate type is not tricky except
-      # for boolean values. For such values the string values are 'true' or
-      # 'false', which cannot be converted by simply calling bool() (it will
-      # return True for both!).
-      value = from_json_value(cell.v)
-      if field.type == 'STRING':
-        # Input: "XYZ" --> Output: "XYZ"
-        value = value
-      elif field.type == 'BOOLEAN':
-        # Input: "true" --> Output: True
-        value = value == 'true'
-      elif field.type == 'INTEGER':
-        # Input: "123" --> Output: 123
-        value = int(value)
-      elif field.type == 'FLOAT':
-        # Input: "1.23" --> Output: 1.23
-        value = float(value)
-      elif field.type == 'TIMESTAMP':
-        # The UTC should come from the timezone library but this is a known
-        # issue in python 2.7 so we'll just hardcode it as we're reading using
-        # utcfromtimestamp. This is just to match the output from the dataflow
-        # runner with the local runner.
-        # Input: 1478134176.985864 --> Output: "2016-11-03 00:49:36.985864 UTC"
-        dt = datetime.datetime.utcfromtimestamp(float(value))
-        value = dt.strftime('%Y-%m-%d %H:%M:%S.%f UTC')
-      elif field.type == 'BYTES':
-        # Input: "YmJi" --> Output: "YmJi"
-        value = value
-      elif field.type == 'DATE':
-        # Input: "2016-11-03" --> Output: "2016-11-03"
-        value = value
-      elif field.type == 'DATETIME':
-        # Input: "2016-11-03T00:49:36" --> Output: "2016-11-03T00:49:36"
-        value = value
-      elif field.type == 'TIME':
-        # Input: "00:49:36" --> Output: "00:49:36"
-        value = value
+      value = None
+      if isinstance(schema, bigquery.TableSchema):
+        cell = row.f[index]
+        if cell.v is None:
+          continue  # Field not present in the row.
+        value = from_json_value(cell.v)
+      elif isinstance(schema, bigquery.TableFieldSchema):
+        cell = row['f'][index]
+        if 'v' not in cell:
+          continue  # Field not present in the row.
+        value = cell['v']
+      if field.mode == 'REPEATED':
+        result[field.name] = [self._convert_cell_value_to_dict(x['v'], field)
+                              for x in value]
       else:
-        # Note that a schema field object supports also a RECORD type. However
-        # when querying, the repeated and/or record fields always come
-        # flattened.  For more details please read:
-        # https://cloud.google.com/bigquery/docs/data
-        raise RuntimeError('Unexpected field type: %s' % field.type)
-      result[field.name] = value
+        result[field.name] = self._convert_cell_value_to_dict(value, field)
     return result
