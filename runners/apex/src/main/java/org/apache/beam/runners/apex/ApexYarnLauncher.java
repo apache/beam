@@ -260,8 +260,10 @@ public class ApexYarnLauncher {
             if (!relativePath.endsWith("/")) {
               relativePath += "/";
             }
-            final Path dstDir = zipfs.getPath(relativePath);
-            Files.createDirectory(dstDir);
+            if (!relativePath.equals("META-INF/")) {
+              final Path dstDir = zipfs.getPath(relativePath);
+              Files.createDirectory(dstDir);
+            }
           }
           return super.preVisitDirectory(dir, attrs);
         }
