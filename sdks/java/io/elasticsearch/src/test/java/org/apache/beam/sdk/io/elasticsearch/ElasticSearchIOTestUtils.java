@@ -34,16 +34,36 @@ import org.elasticsearch.client.IndicesAdminClient;
 import org.elasticsearch.client.Requests;
 import org.elasticsearch.index.IndexNotFoundException;
 
-/** Test class to use with ElasticSearch IO. */
+/** Test util class to use with ElasticSearch IO. */
 public class ElasticSearchIOTestUtils {
-
-  private static AtomicBoolean indexDeleted = new AtomicBoolean(false);
-  private static AtomicBoolean waitForIndexDeletion = new AtomicBoolean(true);
 
   /** Enumeration that specifies whether to insert malformed documents. */
   enum InjectionMode {
     INJECT_SOME_INVALID_DOCS,
     DO_NOT_INJECT_INVALID_DOCS;
+  }
+
+  private static class DeleteActionListener implements ActionListener<DeleteIndexResponse> {
+
+    public DeleteActionListener(AtomicBoolean indexDeleted, AtomicBoolean waitForIndexDeletion) {
+      this.indexDeleted = indexDeleted;
+      this.waitForIndexDeletion = waitForIndexDeletion;
+    }
+
+    private AtomicBoolean indexDeleted;
+    private AtomicBoolean waitForIndexDeletion;
+
+    @Override
+    public void onResponse(DeleteIndexResponse deleteIndexResponse) {
+      waitForIndexDeletion.set(false);
+      indexDeleted.set(true);
+    }
+
+    @Override
+    public void onFailure(Throwable throwable) {
+      waitForIndexDeletion.set(false);
+      indexDeleted.set(false);
+    }
   }
 
   /**
@@ -65,21 +85,11 @@ public class ElasticSearchIOTestUtils {
       // delete index is an asynchronous request, neither refresh or upgrade
       // delete all docs before starting tests. WaitForYellow() and delete directory are too slow,
       // so block thread until it is done (make it synchronous!!!)
+      AtomicBoolean indexDeleted = new AtomicBoolean(false);
+      AtomicBoolean waitForIndexDeletion = new AtomicBoolean(true);
       indices.delete(
           Requests.deleteIndexRequest(index),
-          new ActionListener<DeleteIndexResponse>() {
-            @Override
-            public void onResponse(DeleteIndexResponse deleteIndexResponse) {
-              waitForIndexDeletion.set(false);
-              indexDeleted.set(true);
-            }
-
-            @Override
-            public void onFailure(Throwable throwable) {
-              waitForIndexDeletion.set(false);
-              indexDeleted.set(false);
-            }
-          });
+          new DeleteActionListener(indexDeleted, waitForIndexDeletion));
       while (waitForIndexDeletion.get()) {
         Thread.sleep(100);
       }
@@ -96,7 +106,7 @@ public class ElasticSearchIOTestUtils {
    * @param type Type of documents to insert
    * @param numDocs Number of docs to insert
    * @param client Elasticsearch TCP client to use for insertion
-   * @throws Exception
+   * @throws IOException
    */
   static void insertTestDocuments(String index, String type, long numDocs, Client client)
       throws Exception {
