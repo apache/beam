@@ -231,7 +231,7 @@ class Pipeline(object):
       raise NotImplementedError(
           'Unable to extract PValue inputs from %s; either %s does not accept '
           'inputs of this format, or it does not properly override '
-          '_extract_input_values' % (pvalueish, transform))
+          '_extract_input_pvalues' % (pvalueish, transform))
 
     current = AppliedPTransform(
         self._current_transform(), transform, full_label, inputs)
