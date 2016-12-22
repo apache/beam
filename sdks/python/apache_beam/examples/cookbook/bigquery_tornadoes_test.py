@@ -27,7 +27,7 @@ from apache_beam.examples.cookbook import bigquery_tornadoes
 class BigQueryTornadoesTest(unittest.TestCase):
 
   def test_basics(self):
-    p = beam.Pipeline('DirectPipelineRunner')
+    p = beam.Pipeline('DirectRunner')
     rows = (p | 'create' >> beam.Create([
         {'month': 1, 'day': 1, 'tornado': False},
         {'month': 1, 'day': 2, 'tornado': True},

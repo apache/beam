@@ -212,7 +212,7 @@ class ConcatSourceTest(unittest.TestCase):
                            RangeSource(10, 100),
                            RangeSource(100, 1000),
                           ])
-    pipeline = beam.Pipeline('DirectPipelineRunner')
+    pipeline = beam.Pipeline('DirectRunner')
     pcoll = pipeline | beam.Read(source)
     assert_that(pcoll, equal_to(range(1000)))
 

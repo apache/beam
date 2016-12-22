@@ -171,7 +171,7 @@ the `|` operator is used to chain them.
 # Standard imports
 import apache_beam as beam
 # Create a pipeline executing on a direct runner (local, non-cloud).
-p = beam.Pipeline('DirectPipelineRunner')
+p = beam.Pipeline('DirectRunner')
 # Create a PCollection with names and write it to a file.
 (p
  | 'add names' >> beam.Create(['Ann', 'Joe'])
@@ -186,7 +186,7 @@ The `Map` `PTransform` returns one output per input. It takes a callable that is
 
 ```python
 import apache_beam as beam
-p = beam.Pipeline('DirectPipelineRunner')
+p = beam.Pipeline('DirectRunner')
 # Read a file containing names, add a greeting to each name, and write to a file.
 (p
  | 'load names' >> beam.Read(beam.io.TextFileSource('./names'))
@@ -204,7 +204,7 @@ The `FlatMap` transform returns zero to many output per input. It accepts a call
 
 ```python
 import apache_beam as beam
-p = beam.Pipeline('DirectPipelineRunner')
+p = beam.Pipeline('DirectRunner')
 # Read a file containing names, add two greetings to each name, and write to a file.
 (p
  | 'load names' >> beam.Read(beam.io.TextFileSource('./names'))
@@ -222,7 +222,7 @@ a function using `yield`.
 
 ```python
 import apache_beam as beam
-p = beam.Pipeline('DirectPipelineRunner')
+p = beam.Pipeline('DirectRunner')
 # Read a file containing names, add two greetings to each name
 # (with FlatMap using a yield generator), and write to a file.
 def add_greetings(name, messages):
@@ -243,7 +243,7 @@ This example shows how to read a text file from [Google Cloud Storage](https://c
 ```python
 import re
 import apache_beam as beam
-p = beam.Pipeline('DirectPipelineRunner')
+p = beam.Pipeline('DirectRunner')
 (p
  | 'read' >> beam.Read(
     beam.io.TextFileSource('gs://dataflow-samples/shakespeare/kinglear.txt'))
@@ -260,7 +260,7 @@ This is a somewhat forced example of `GroupByKey` to count words as the previous
 ```python
 import re
 import apache_beam as beam
-p = beam.Pipeline('DirectPipelineRunner')
+p = beam.Pipeline('DirectRunner')
 class MyCountTransform(beam.PTransform):
   def expand(self, pcoll):
     return (pcoll
@@ -286,7 +286,7 @@ of the data encoding.
 ```python
 import apache_beam as beam
 from apache_beam.typehints import typehints
-p = beam.Pipeline('DirectPipelineRunner')
+p = beam.Pipeline('DirectRunner')
 (p
  | 'read' >> beam.Read(beam.io.TextFileSource('./names'))
  | 'add types' >> beam.Map(lambda x: (x, 1)).with_output_types(typehints.KV[str, int])
@@ -347,7 +347,7 @@ Combiner transforms use "reducing" functions, such as sum, min, or max, to combi
 
 ```python
 import apache_beam as beam
-p = beam.Pipeline('DirectPipelineRunner')
+p = beam.Pipeline('DirectRunner')
 
 SAMPLE_DATA = [('a', 1), ('b', 10), ('a', 2), ('a', 3), ('b', 20)]
 

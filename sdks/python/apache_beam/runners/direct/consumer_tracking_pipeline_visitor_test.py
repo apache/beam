@@ -25,7 +25,7 @@ from apache_beam.io import Read
 from apache_beam.io import TextFileSource
 from apache_beam.pipeline import Pipeline
 from apache_beam.pvalue import AsList
-from apache_beam.runners.direct import DirectPipelineRunner
+from apache_beam.runners.direct import DirectRunner
 from apache_beam.runners.direct.consumer_tracking_pipeline_visitor import ConsumerTrackingPipelineVisitor
 from apache_beam.transforms import CoGroupByKey
 from apache_beam.transforms import Create
@@ -42,7 +42,7 @@ from apache_beam.transforms import ParDo
 class ConsumerTrackingPipelineVisitorTest(unittest.TestCase):
 
   def setUp(self):
-    self.pipeline = Pipeline(DirectPipelineRunner())
+    self.pipeline = Pipeline(DirectRunner())
     self.visitor = ConsumerTrackingPipelineVisitor()
 
   def test_root_transforms(self):

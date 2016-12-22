@@ -325,16 +325,16 @@ class TestAvro(unittest.TestCase):
 
   def test_source_transform(self):
     path = self._write_data()
-    with beam.Pipeline('DirectPipelineRunner') as p:
+    with beam.Pipeline('DirectRunner') as p:
       assert_that(p | avroio.ReadFromAvro(path), equal_to(self.RECORDS))
 
   def test_sink_transform(self):
     with tempfile.NamedTemporaryFile() as dst:
       path = dst.name
-      with beam.Pipeline('DirectPipelineRunner') as p:
+      with beam.Pipeline('DirectRunner') as p:
         # pylint: disable=expression-not-assigned
         p | beam.Create(self.RECORDS) | avroio.WriteToAvro(path, self.SCHEMA)
-      with beam.Pipeline('DirectPipelineRunner') as p:
+      with beam.Pipeline('DirectRunner') as p:
         # json used for stable sortability
         readback = p | avroio.ReadFromAvro(path + '*') | beam.Map(json.dumps)
         assert_that(readback, equal_to([json.dumps(r) for r in self.RECORDS]))
@@ -344,13 +344,13 @@ class TestAvro(unittest.TestCase):
       import snappy  # pylint: disable=unused-variable
       with tempfile.NamedTemporaryFile() as dst:
         path = dst.name
-        with beam.Pipeline('DirectPipelineRunner') as p:
+        with beam.Pipeline('DirectRunner') as p:
           # pylint: disable=expression-not-assigned
           p | beam.Create(self.RECORDS) | avroio.WriteToAvro(
               path,
               self.SCHEMA,
               codec='snappy')
-        with beam.Pipeline('DirectPipelineRunner') as p:
+        with beam.Pipeline('DirectRunner') as p:
           # json used for stable sortability
           readback = p | avroio.ReadFromAvro(path + '*') | beam.Map(json.dumps)
           assert_that(readback, equal_to([json.dumps(r) for r in self.RECORDS]))

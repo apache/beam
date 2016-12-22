@@ -16,4 +16,4 @@
 #
 
 """Inprocess runner executes pipelines locally in a single process."""
-from apache_beam.runners.direct.direct_runner import DirectPipelineRunner
+from apache_beam.runners.direct.direct_runner import DirectRunner

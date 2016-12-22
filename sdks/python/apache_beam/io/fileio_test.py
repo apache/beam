@@ -760,7 +760,7 @@ class TestNativeTextFileSink(unittest.TestCase):
       self.assertEqual(f.read().splitlines(), [])
 
   def test_write_dataflow(self):
-    pipeline = beam.Pipeline('DirectPipelineRunner')
+    pipeline = beam.Pipeline('DirectRunner')
     pcoll = pipeline | beam.core.Create('Create', self.lines)
     pcoll | 'Write' >> beam.Write(fileio.NativeTextFileSink(self.path))  # pylint: disable=expression-not-assigned
     pipeline.run()
@@ -773,7 +773,7 @@ class TestNativeTextFileSink(unittest.TestCase):
     self.assertEqual(read_result, self.lines)
 
   def test_write_dataflow_auto_compression(self):
-    pipeline = beam.Pipeline('DirectPipelineRunner')
+    pipeline = beam.Pipeline('DirectRunner')
     pcoll = pipeline | beam.core.Create('Create', self.lines)
     pcoll | 'Write' >> beam.Write(  # pylint: disable=expression-not-assigned
         fileio.NativeTextFileSink(
@@ -788,7 +788,7 @@ class TestNativeTextFileSink(unittest.TestCase):
     self.assertEqual(read_result, self.lines)
 
   def test_write_dataflow_auto_compression_unsharded(self):
-    pipeline = beam.Pipeline('DirectPipelineRunner')
+    pipeline = beam.Pipeline('DirectRunner')
     pcoll = pipeline | beam.core.Create('Create', self.lines)
     pcoll | 'Write' >> beam.Write(  # pylint: disable=expression-not-assigned
         fileio.NativeTextFileSink(
@@ -880,7 +880,7 @@ class TestFileSink(unittest.TestCase):
     temp_path = tempfile.NamedTemporaryFile().name
     sink = MyFileSink(
         temp_path, file_name_suffix='.foo', coder=coders.ToStringCoder())
-    p = beam.Pipeline('DirectPipelineRunner')
+    p = beam.Pipeline('DirectRunner')
     p | beam.Create([]) | beam.io.Write(sink)  # pylint: disable=expression-not-assigned
     p.run()
     self.assertEqual(
@@ -894,7 +894,7 @@ class TestFileSink(unittest.TestCase):
         num_shards=3,
         shard_name_template='_NN_SSS_',
         coder=coders.ToStringCoder())
-    p = beam.Pipeline('DirectPipelineRunner')
+    p = beam.Pipeline('DirectRunner')
     p | beam.Create(['a', 'b']) | beam.io.Write(sink)  # pylint: disable=expression-not-assigned
 
     p.run()

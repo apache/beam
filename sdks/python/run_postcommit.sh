@@ -73,7 +73,7 @@ SDK_LOCATION=$(find dist/apache-beam-sdk-*.tar.gz)
 # Run ValidatesRunner tests on Google Cloud Dataflow service
 python setup.py nosetests \
   -a ValidatesRunner --test-pipeline-options=" \
-    --runner=BlockingDataflowPipelineRunner \
+    --runner=BlockingDataflowRunner \
     --project=$PROJECT \
     --staging_location=$GCS_LOCATION/staging-validatesrunner-test \
     --temp_location=$GCS_LOCATION/temp-validatesrunner-test \
@@ -86,7 +86,7 @@ python -m apache_beam.examples.wordcount \
   --output $GCS_LOCATION/py-wordcount-cloud \
   --staging_location $GCS_LOCATION/staging-wordcount \
   --temp_location $GCS_LOCATION/temp-wordcount \
-  --runner BlockingDataflowPipelineRunner \
+  --runner BlockingDataflowRunner \
   --job_name $JOBNAME_E2E \
   --project $PROJECT \
   --sdk_location $SDK_LOCATION \

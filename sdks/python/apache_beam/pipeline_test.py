@@ -61,7 +61,7 @@ class FakeSource(NativeSource):
 class PipelineTest(unittest.TestCase):
 
   def setUp(self):
-    self.runner_name = 'DirectPipelineRunner'
+    self.runner_name = 'DirectRunner'
 
   @staticmethod
   def custom_callable(pcoll):
@@ -202,7 +202,7 @@ class PipelineTest(unittest.TestCase):
     num_elements = 10
     num_maps = 100
 
-    pipeline = Pipeline('DirectPipelineRunner')
+    pipeline = Pipeline('DirectRunner')
 
     # Consumed memory should not be proportional to the number of maps.
     memory_threshold = (
@@ -231,7 +231,7 @@ class PipelineTest(unittest.TestCase):
         p | Create([ValueError]) | Map(raise_exception)
 
   def test_eager_pipeline(self):
-    p = Pipeline('EagerPipelineRunner')
+    p = Pipeline('EagerRunner')
     self.assertEqual([1, 4, 9], p | Create([1, 2, 3]) | Map(lambda x: x*x))
 
 

@@ -41,7 +41,7 @@ class TestPipeline(Pipeline):
   For example, use following command line to execute all ValidatesRunner tests::
 
     python setup.py nosetests -a ValidatesRunner \
-        --test-pipeline-options="--runner=DirectPipelineRunner \
+        --test-pipeline-options="--runner=DirectRunner \
                                  --job_name=myJobName \
                                  --num_workers=1"
 

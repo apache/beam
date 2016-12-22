@@ -25,12 +25,12 @@ import tempfile
 
 import apache_beam as beam
 from apache_beam.pipeline import Pipeline
-from apache_beam.runners.dataflow_runner import DataflowPipelineRunner
+from apache_beam.runners.dataflow_runner import DataflowRunner
 from apache_beam.utils.options import PipelineOptions
 from apache_beam.internal import apiclient
 
 
-class TemplatingDataflowPipelineRunnerTest(unittest.TestCase):
+class TemplatingDataflowRunnerTest(unittest.TestCase):
   """TemplatingDataflow tests."""
   def test_full_completion(self):
     # Create dummy file and close it.  Note that we need to do this because
@@ -42,7 +42,7 @@ class TemplatingDataflowPipelineRunnerTest(unittest.TestCase):
 
     dummy_dir = tempfile.mkdtemp()
 
-    remote_runner = DataflowPipelineRunner()
+    remote_runner = DataflowRunner()
     pipeline = Pipeline(remote_runner,
                         options=PipelineOptions([
                             '--dataflow_endpoint=ignored',
@@ -67,7 +67,7 @@ class TemplatingDataflowPipelineRunnerTest(unittest.TestCase):
 
   def test_bad_path(self):
     dummy_sdk_file = tempfile.NamedTemporaryFile()
-    remote_runner = DataflowPipelineRunner()
+    remote_runner = DataflowRunner()
     pipeline = Pipeline(remote_runner,
                         options=PipelineOptions([
                             '--dataflow_endpoint=ignored',

@@ -26,10 +26,11 @@ import shutil
 import tempfile
 
 
-_KNOWN_DIRECT_RUNNERS = ('DirectPipelineRunner', 'EagerPipelineRunner')
-_KNOWN_DATAFLOW_RUNNERS = ('DataflowPipelineRunner',
-                           'BlockingDataflowPipelineRunner')
+_KNOWN_DIRECT_RUNNERS = ('DirectRunner', 'EagerRunner')
+_KNOWN_DATAFLOW_RUNNERS = ('DataflowRunner', 'BlockingDataflowRunner')
 _KNOWN_TEST_RUNNERS = ('TestDataflowRunner',)
+_ALL_KNOWN_RUNNERS = (
+  _KNOWN_DIRECT_RUNNERS + _KNOWN_DATAFLOW_RUNNERS + _KNOWN_TEST_RUNNERS)
 
 
 def create_runner(runner_name):
@@ -37,8 +38,7 @@ def create_runner(runner_name):
 
   Args:
     runner_name: Name of the pipeline runner. Possible values are:
-      DirectPipelineRunner, DataflowPipelineRunner,
-      BlockingDataflowPipelineRunner and TestDataflowRunner.
+      DirectRunner, DataflowRunner and TestDataflowRunner.
 
   Returns:
     A runner object.
@@ -46,6 +46,15 @@ def create_runner(runner_name):
   Raises:
     RuntimeError: if an invalid runner name is used.
   """
+
+  # TODO(BEAM-1185): Remove when all references to PipelineRunners are gone.
+  if 'PipelineRunner' in runner_name:
+    new_runner_name = runner_name.replace('PipelineRunner', 'Runner')
+    if new_runner_name in _ALL_KNOWN_RUNNERS:
+      logging.warning(
+          '%s is deprecated, use %s instead.', runner_name, new_runner_name)
+      runner_name = new_runner_name
+
   if runner_name in _KNOWN_DIRECT_RUNNERS:
     runner_name = 'apache_beam.runners.direct.direct_runner.' + runner_name
   elif runner_name in _KNOWN_DATAFLOW_RUNNERS:
@@ -60,9 +69,7 @@ def create_runner(runner_name):
     raise ValueError(
         'Unexpected pipeline runner: %s. Valid values are %s '
         'or the fully qualified name of a PipelineRunner subclass.' % (
-            runner_name,
-            ', '.join(_KNOWN_DIRECT_RUNNERS + _KNOWN_DATAFLOW_RUNNERS +
-                      _KNOWN_TEST_RUNNERS)))
+            runner_name, ', '.join(_ALL_KNOWN_RUNNERS)))
 
 
 class PipelineRunner(object):
