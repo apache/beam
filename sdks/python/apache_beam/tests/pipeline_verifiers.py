@@ -27,17 +27,24 @@ from hamcrest.core.base_matcher import BaseMatcher
 
 
 class PipelineStateMatcher(BaseMatcher):
-  """Matcher that verify pipeline job terminated in success"""
+  """Matcher that verify pipeline job terminated in expected state
 
-  def _matches(self, item):
-    return item.current_state() == PipelineState.DONE
+  Matcher compares the actual pipeline terminate state with expected.
+  By default, `PipelineState.DONE` is used as expected state.
+  """
+
+  def __init__(self, expected_state=PipelineState.DONE):
+    self.expected_state = expected_state
+
+  def _matches(self, pipeline_result):
+    return pipeline_result.current_state() == self.expected_state
 
   def describe_to(self, description):
     description \
       .append_text("Test pipeline expected terminated in state: ") \
-      .append_text(PipelineState.DONE)
+      .append_text(self.expected_state)
 
-  def describe_mismatch(self, item, mismatch_description):
+  def describe_mismatch(self, pipeline_result, mismatch_description):
     mismatch_description \
       .append_text("Test pipeline job terminated in state: ") \
-      .append_text(item.current_state())
+      .append_text(pipeline_result.current_state())

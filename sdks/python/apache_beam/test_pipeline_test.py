@@ -36,7 +36,7 @@ class TestPipelineTest(unittest.TestCase):
     self.pipeline = TestPipeline()
 
   # Used for testing pipeline option creation.
-  class MockOptions(PipelineOptions):
+  class TestParsingOptions(PipelineOptions):
 
     @classmethod
     def _add_argparse_args(cls, parser):
