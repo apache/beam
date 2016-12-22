@@ -76,6 +76,7 @@ python setup.py nosetests \
     --runner=BlockingDataflowPipelineRunner \
     --project=$PROJECT \
     --staging_location=$GCS_LOCATION/staging-validatesrunner-test \
+    --temp_location=$GCS_LOCATION/temp-validatesrunner-test \
     --sdk_location=$SDK_LOCATION \
     --job_name=$JOBNAME_VR_TEST \
     --num_workers=1"
