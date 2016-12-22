@@ -384,7 +384,7 @@ class DebugOptions(PipelineOptions):
                         default=None,
                         help='Debug file to write the workflow specification.')
     parser.add_argument(
-        '--experiment',
+        '--experiment', '--experiments',
         dest='experiments',
         action='append',
         default=None,
