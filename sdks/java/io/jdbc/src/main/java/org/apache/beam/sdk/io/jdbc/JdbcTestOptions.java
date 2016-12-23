@@ -37,5 +37,4 @@ public interface JdbcTestOptions extends TestPipelineOptions {
     @Default.Boolean(true)
     Boolean getPostgresSsl();
     void setPostgresSsl(Boolean value);
-
 }
