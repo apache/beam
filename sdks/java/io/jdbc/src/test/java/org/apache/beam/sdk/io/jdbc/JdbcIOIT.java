@@ -63,7 +63,6 @@ public class JdbcIOIT {
     dataSource.setUser(options.getPostgresUsername());
     dataSource.setPassword(options.getPostgresPassword());
     dataSource.setSsl(options.getPostgresSsl());
-
     return dataSource;
   }
 
