@@ -1,5 +1,6 @@
 package cz.seznam.euphoria.core.executor.inmem;
 
+import cz.seznam.euphoria.core.client.dataset.windowing.TimedWindow;
 import cz.seznam.euphoria.core.client.dataset.windowing.Window;
 import cz.seznam.euphoria.core.client.io.Context;
 
@@ -19,7 +20,18 @@ class WindowedElementCollector<T> implements Context<T> {
 
   @Override
   public void collect(T elem) {
-    wrap.collect(Datum.of(window, elem, stampSupplier.get()));
+    long endWindowStamp = (window instanceof TimedWindow)
+            ? ((TimedWindow) window).maxTimestamp()
+            : Long.MAX_VALUE;
+
+    // ~ timestamp assigned to element can be either end of window
+    // or current watermark supplied by triggering
+    // ~ this is a workaround for NoopTriggerScheduler
+    // used for batch processing that fires all windows
+    // at the end of bounded input
+    long stamp = Math.min(endWindowStamp, stampSupplier.get());
+
+    wrap.collect(Datum.of(window, elem, stamp));
   }
 
   void setWindow(Window window) {
