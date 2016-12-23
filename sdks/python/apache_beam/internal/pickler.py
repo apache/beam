@@ -191,19 +191,19 @@ def dumps(o):
     dill.dill._trace(False)  # pylint: disable=protected-access
 
   # Compress as compactly as possible to decrease peak memory usage (of multiple
-  # in-memory copies). Also use a separate statement in order to decrease peak
-  # memory usage (by allowing unneeded data to go out of scope).
-  s = zlib.compress(s, 9)
+  # in-memory copies) and free up some possibly large and no-longer-needed
+  # memory.
+  c = zlib.compress(s, 9)
+  del s
 
-  return base64.b64encode(s)
+  return base64.b64encode(c)
 
 
 def loads(encoded):
-  s = base64.b64decode(encoded)
+  c = base64.b64decode(encoded)
 
-  # Separate statement in order to decrease peak memory usage (by allowing
-  # unneeded data to go out of scope).
-  s = zlib.decompress(s)
+  s = zlib.decompress(c)
+  del c  # Free up some possibly large and no-longer-needed memory.
 
   try:
     return dill.loads(s)
