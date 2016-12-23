@@ -108,11 +108,11 @@ class EvaluationContext(object):
   """Evaluation context with the global state information of the pipeline.
 
   The evaluation context for a specific pipeline being executed by the
-  DirectPipelineRunner. Contains state shared within the execution across all
+  DirectRunner. Contains state shared within the execution across all
   transforms.
 
   EvaluationContext contains shared state for an execution of the
-  DirectPipelineRunner that can be used while evaluating a PTransform. This
+  DirectRunner that can be used while evaluating a PTransform. This
   consists of views into underlying state and watermark implementations, access
   to read and write PCollectionViews, and constructing counter sets and
   execution contexts. This includes executing callbacks asynchronously when

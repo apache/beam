@@ -18,11 +18,11 @@
 """Wrapper of Beam runners that's built for running and verifying e2e tests."""
 
 from apache_beam.internal import pickler
-from apache_beam.runners.dataflow_runner import DataflowPipelineRunner
+from apache_beam.runners.dataflow_runner import DataflowRunner
 from apache_beam.utils.options import TestOptions
 
 
-class TestDataflowRunner(DataflowPipelineRunner):
+class TestDataflowRunner(DataflowRunner):
 
   def __init__(self):
     super(TestDataflowRunner, self).__init__(blocking=True)

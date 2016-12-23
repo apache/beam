@@ -21,7 +21,7 @@ An example that reads Wikipedia edit data from Cloud Storage and computes the
 user with the longest string of edits separated by no more than an hour within
 each 30 day period.
 
-To execute this pipeline locally using the DirectPipelineRunner, specify an
+To execute this pipeline locally using the DirectRunner, specify an
 output prefix on GCS:
   --output gs://YOUR_OUTPUT_PREFIX
 
@@ -31,7 +31,7 @@ pipeline configuration in addition to the above:
   --project YOUR_PROJECT_ID
   --staging_location gs://YOUR_STAGING_DIRECTORY
   --temp_location gs://YOUR_TEMPORARY_DIRECTORY
-  --runner BlockingDataflowPipelineRunner
+  --runner BlockingDataflowRunner
 
 The default input is gs://dataflow-samples/wikipedia_edits/*.json and can be
 overridden with --input.

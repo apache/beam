@@ -131,7 +131,7 @@ class WindowTest(unittest.TestCase):
             | Map(lambda x: WindowedValue((key, x), x, [])))
 
   def test_sliding_windows(self):
-    p = Pipeline('DirectPipelineRunner')
+    p = Pipeline('DirectRunner')
     pcoll = self.timestamped_key_values(p, 'key', 1, 2, 3)
     result = (pcoll
               | 'w' >> WindowInto(SlidingWindows(period=2, size=4))
@@ -144,7 +144,7 @@ class WindowTest(unittest.TestCase):
     p.run()
 
   def test_sessions(self):
-    p = Pipeline('DirectPipelineRunner')
+    p = Pipeline('DirectRunner')
     pcoll = self.timestamped_key_values(p, 'key', 1, 2, 3, 20, 35, 27)
     result = (pcoll
               | 'w' >> WindowInto(Sessions(10))
@@ -157,7 +157,7 @@ class WindowTest(unittest.TestCase):
     p.run()
 
   def test_timestamped_value(self):
-    p = Pipeline('DirectPipelineRunner')
+    p = Pipeline('DirectRunner')
     result = (p
               | 'start' >> Create([(k, k) for k in range(10)])
               | Map(lambda (x, t): TimestampedValue(x, t))
@@ -169,7 +169,7 @@ class WindowTest(unittest.TestCase):
     p.run()
 
   def test_timestamped_with_combiners(self):
-    p = Pipeline('DirectPipelineRunner')
+    p = Pipeline('DirectRunner')
     result = (p
               # Create some initial test values.
               | 'start' >> Create([(k, k) for k in range(10)])

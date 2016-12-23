@@ -105,8 +105,8 @@ class PipelineOptionsValidator(object):
     """True if pipeline will execute on the Google Cloud Dataflow service."""
     is_service_runner = (self.runner is not None and
                          type(self.runner).__name__ in [
-                             'DataflowPipelineRunner',
-                             'BlockingDataflowPipelineRunner',
+                             'DataflowRunner',
+                             'BlockingDataflowRunner',
                              'TestDataflowRunner'])
 
     dataflow_endpoint = (

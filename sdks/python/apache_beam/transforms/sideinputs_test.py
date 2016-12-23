@@ -28,7 +28,7 @@ from apache_beam.transforms.util import assert_that, equal_to
 class SideInputsTest(unittest.TestCase):
 
   def create_pipeline(self):
-    return beam.Pipeline('DirectPipelineRunner')
+    return beam.Pipeline('DirectRunner')
 
   def run_windowed_side_inputs(self, elements, main_window_fn,
                                side_window_fn=None,

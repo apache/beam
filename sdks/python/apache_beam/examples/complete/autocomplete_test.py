@@ -30,7 +30,7 @@ class AutocompleteTest(unittest.TestCase):
   WORDS = ['this', 'this', 'that', 'to', 'to', 'to']
 
   def test_top_prefixes(self):
-    p = beam.Pipeline('DirectPipelineRunner')
+    p = beam.Pipeline('DirectRunner')
     words = p | beam.Create(self.WORDS)
     result = words | autocomplete.TopPerPrefix(5)
     # values must be hashable for now

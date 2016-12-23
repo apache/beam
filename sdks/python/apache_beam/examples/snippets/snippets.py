@@ -220,14 +220,14 @@ def pipeline_options_remote(argv):
   options = PipelineOptions(flags=argv)
 
   # For Cloud execution, set the Cloud Platform project, job_name,
-  # staging location, temp_location and specify DataflowPipelineRunner or
-  # BlockingDataflowPipelineRunner.
+  # staging location, temp_location and specify DataflowRunner or
+  # BlockingDataflowRunner.
   google_cloud_options = options.view_as(GoogleCloudOptions)
   google_cloud_options.project = 'my-project-id'
   google_cloud_options.job_name = 'myjob'
   google_cloud_options.staging_location = 'gs://my-bucket/binaries'
   google_cloud_options.temp_location = 'gs://my-bucket/temp'
-  options.view_as(StandardOptions).runner = 'DataflowPipelineRunner'
+  options.view_as(StandardOptions).runner = 'DataflowRunner'
 
   # Create the Pipeline with the specified options.
   p = Pipeline(options=options)
@@ -238,7 +238,7 @@ def pipeline_options_remote(argv):
   my_output = my_options.output
 
   # Overriding the runner for tests.
-  options.view_as(StandardOptions).runner = 'DirectPipelineRunner'
+  options.view_as(StandardOptions).runner = 'DirectRunner'
   p = Pipeline(options=options)
 
   lines = p | beam.io.Read(beam.io.TextFileSource(my_input))
@@ -436,7 +436,7 @@ def examples_wordcount_minimal(renames):
   google_cloud_options.job_name = 'myjob'
   google_cloud_options.staging_location = 'gs://your-bucket-name-here/staging'
   google_cloud_options.temp_location = 'gs://your-bucket-name-here/temp'
-  options.view_as(StandardOptions).runner = 'BlockingDataflowPipelineRunner'
+  options.view_as(StandardOptions).runner = 'BlockingDataflowRunner'
   # [END examples_wordcount_minimal_options]
 
   # Run it locally for testing.

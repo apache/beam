@@ -379,10 +379,11 @@ class TriggerTest(unittest.TestCase):
       self.assertEqual(pickle.loads(pickle.dumps(unwindowed)).value,
                        range(10))
 
+
 class TriggerPipelineTest(unittest.TestCase):
 
   def test_after_count(self):
-    p = Pipeline('DirectPipelineRunner')
+    p = Pipeline('DirectRunner')
     result = (p
               | beam.Create([1, 2, 3, 4, 5, 10, 11])
               | beam.FlatMap(lambda t: [('A', t), ('B', t + 5)])
@@ -492,13 +493,12 @@ class TranscriptTest(unittest.TestCase):
 
     # pylint: disable=wrong-import-order, wrong-import-position
     from apache_beam.transforms import window as window_module
-    from apache_beam.transforms import trigger as trigger_module
     # pylint: enable=wrong-import-order, wrong-import-position
     window_fn_names = dict(window_module.__dict__)
     window_fn_names.update({'CustomTimestampingFixedWindowsWindowFn':
                             CustomTimestampingFixedWindowsWindowFn})
     trigger_names = {'Default': DefaultTrigger}
-    trigger_names.update(trigger_module.__dict__)
+    trigger_names.update(trigger.__dict__)
 
     window_fn = parse_fn(spec.get('window_fn', 'GlobalWindows'),
                          window_fn_names)
