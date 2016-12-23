@@ -189,11 +189,22 @@ def dumps(o):
     s = dill.dumps(o)
   finally:
     dill.dill._trace(False)  # pylint: disable=protected-access
-  return base64.b64encode(zlib.compress(s))
+
+  # Compress as compactly as possible to decrease peak memory usage (of multiple
+  # in-memory copies) and free up some possibly large and no-longer-needed
+  # memory.
+  c = zlib.compress(s, 9)
+  del s
+
+  return base64.b64encode(c)
 
 
 def loads(encoded):
-  s = zlib.decompress(base64.b64decode(encoded))
+  c = base64.b64decode(encoded)
+
+  s = zlib.decompress(c)
+  del c  # Free up some possibly large and no-longer-needed memory.
+
   try:
     return dill.loads(s)
   except Exception:          # pylint: disable=broad-except
