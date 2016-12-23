@@ -58,7 +58,7 @@ public class WatermarkTriggerScheduler<W extends Window, K>
           // need to collect to list to prevent ConcurrentModificationException
           .collect(Collectors.toList())
           .forEach(p -> {
-            // move the clock to the trigerring time
+            // move the clock to the triggering time
             currentWatermark = p.getFirst();
             KeyedWindow<W, K> w = p.getSecond().getFirst();
             Triggerable<W, K> purged = purge(w, currentWatermark);
