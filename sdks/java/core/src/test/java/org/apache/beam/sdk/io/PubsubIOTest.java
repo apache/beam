@@ -68,6 +68,22 @@ public class PubsubIOTest {
   }
 
   @Test
+  public void testTopicValidationBadCharacter() throws Exception {
+    thrown.expect(IllegalArgumentException.class);
+    PubsubIO.Read.topic("projects/my-project/topics/abc-*-abc");
+  }
+
+  @Test
+  public void testTopicValidationTooLong() throws Exception {
+    thrown.expect(IllegalArgumentException.class);
+    PubsubIO.Read.topic(new StringBuilder().append("projects/my-project/topics/A-really-long-one-")
+        .append("111111111111111111111111111111111111111111111111111111111111111111111111111111111")
+        .append("111111111111111111111111111111111111111111111111111111111111111111111111111111111")
+        .append("1111111111111111111111111111111111111111111111111111111111111111111111111111")
+        .toString());
+  }
+
+  @Test
   public void testReadDisplayData() {
     String topic = "projects/project/topics/topic";
     String subscription = "projects/project/subscriptions/subscription";
