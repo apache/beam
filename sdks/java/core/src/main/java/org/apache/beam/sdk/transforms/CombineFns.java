@@ -995,10 +995,13 @@ public class CombineFns {
         throws CoderException, IOException {
       checkArgument(value.length == codersCount);
       Context nestedContext = context.nested();
-      for (int i = 0; i < codersCount - 1; ++i) {
-        coders.get(i).encode(value[i], outStream, nestedContext);
+      for (int i = 0; i < codersCount; ++i) {
+        if (i < codersCount - 1) {
+          coders.get(i).encode(value[i], outStream, nestedContext);
+        } else {
+          coders.get(i).encode(value[i], outStream, context);
+        }
       }
-      coders.get(codersCount - 1).encode(value[codersCount - 1], outStream, context);
     }
 
     @Override
@@ -1006,10 +1009,13 @@ public class CombineFns {
         throws CoderException, IOException {
       Object[] ret = new Object[codersCount];
       Context nestedContext = context.nested();
-      for (int i = 0; i < codersCount - 1; ++i) {
-        ret[i] = coders.get(i).decode(inStream, nestedContext);
+      for (int i = 0; i < codersCount; ++i) {
+        if (i < codersCount - 1) {
+          ret[i] = coders.get(i).decode(inStream, nestedContext);
+        } else {
+          ret[i] = coders.get(i).decode(inStream, context);
+        }
       }
-      ret[codersCount - 1] = coders.get(codersCount - 1).decode(inStream, context);
       return ret;
     }
 
