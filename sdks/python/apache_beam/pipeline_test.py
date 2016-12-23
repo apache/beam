@@ -18,6 +18,7 @@
 """Unit tests for the Pipeline class."""
 
 import logging
+import platform
 import unittest
 
 from apache_beam.pipeline import Pipeline
@@ -187,6 +188,10 @@ class PipelineTest(unittest.TestCase):
     except ImportError:
       # Skip the test if resource module is not available (e.g. non-Unix os).
       self.skipTest('resource module not available.')
+    if platform.mac_ver()[0]:
+      # Skip the test on macos, depending on version it returns ru_maxrss in
+      # different units.
+      self.skipTest('ru_maxrss is not in standard units.')
 
     def get_memory_usage_in_bytes():
       return resource.getrusage(resource.RUSAGE_SELF).ru_maxrss * (2 ** 10)
