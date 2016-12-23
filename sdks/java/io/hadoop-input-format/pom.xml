@@ -5,11 +5,11 @@
   <parent>
     <groupId>org.apache.beam</groupId>
     <artifactId>beam-sdks-java-io-parent</artifactId>
-    <version>0.4.0-incubating-SNAPSHOT</version>
+    <version>0.5.0-incubating-SNAPSHOT</version>
   </parent>
   <groupId>hadoop</groupId>
   <artifactId>hadoop-input-format</artifactId>
-  <version>0.4.0-incubating-SNAPSHOT</version>
+  <version>0.5.0-incubating-SNAPSHOT</version>
   <name>Archetype - hadoop-inputformat</name>
   <url>http://maven.apache.org</url>
 
