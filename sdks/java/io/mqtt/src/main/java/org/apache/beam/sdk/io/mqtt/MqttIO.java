@@ -78,7 +78,7 @@ import org.slf4j.LoggerFactory;
  *
  * <h3>Writing to a MQTT broker</h3>
  *
- * <p>MqttIO sink supports writing {@code byte[]} to a getTopic on a MQTT broker.
+ * <p>MqttIO sink supports writing {@code byte[]} to a topic on a MQTT broker.
  *
  * <p>To configure a MQTT sink, as for the read, you have to specify a MQTT connection
  * configuration with {@code ServerURI}, {@code Topic}, ...
@@ -151,11 +151,11 @@ public class MqttIO {
      */
     public static ConnectionConfiguration create(String serverUri, String topic) {
       checkArgument(serverUri != null,
-          "MqttIO.ConnectionConfiguration.create(getServerUri, getTopic) called with null "
-              + "getServerUri");
+          "MqttIO.ConnectionConfiguration.create(serverUri, topic) called with null "
+              + "serverUri");
       checkArgument(topic != null,
-          "MqttIO.ConnectionConfiguration.create(getServerUri, getTopic) called with null "
-              + "getTopic");
+          "MqttIO.ConnectionConfiguration.create(serverUri, topic) called with null "
+              + "topic");
       return new AutoValue_MqttIO_ConnectionConfiguration.Builder().setServerUri(serverUri)
           .setTopic(topic).build();
     }
@@ -170,13 +170,13 @@ public class MqttIO {
      */
     public static ConnectionConfiguration create(String serverUri, String topic, String clientId) {
       checkArgument(serverUri != null,
-          "MqttIO.ConnectionConfiguration.create(getServerUri, getTopic) called with null "
-              + "getServerUri");
+          "MqttIO.ConnectionConfiguration.create(serverUri, topic) called with null "
+              + "serverUri");
       checkArgument(topic != null,
-          "MqttIO.ConnectionConfiguration.create(getServerUri, getTopic) called with null "
-              + "getTopic");
-      checkArgument(clientId != null, "MqttIO.ConnectionConfiguration.create(getServerUri,"
-          + "getTopic, getClientId) called with null getClientId");
+          "MqttIO.ConnectionConfiguration.create(serverUri, topic) called with null "
+              + "topic");
+      checkArgument(clientId != null, "MqttIO.ConnectionConfiguration.create(serverUri,"
+          + "topic, clientId) called with null clientId");
       return new AutoValue_MqttIO_ConnectionConfiguration.Builder().setServerUri(serverUri)
           .setTopic(topic).setClientId(clientId).build();
     }
@@ -362,7 +362,7 @@ public class MqttIO {
     public List<UnboundedMqttSource> generateInitialSplits(int desiredNumSplits,
                                                            PipelineOptions options) {
       // MQTT is based on a pub/sub pattern
-      // so, if we create several subscribers on the same getTopic, they all will receive the same
+      // so, if we create several subscribers on the same topic, they all will receive the same
       // message, resulting to duplicate messages in the PCollection.
       // So, for MQTT, we limit to number of split ot 1 (unique source).
       return Collections.singletonList(new UnboundedMqttSource(spec));
