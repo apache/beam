@@ -331,7 +331,11 @@ public abstract class FileBasedSource<T> extends OffsetBasedSource<T> {
       try {
         checkState(fileOrPatternSpec.isAccessible(),
                    "Bundle splitting should only happen at execution time.");
-        for (final String file : FileBasedSource.expandFilePattern(fileOrPatternSpec.get())) {
+        Collection<String> expandedFiles =
+            FileBasedSource.expandFilePattern(fileOrPatternSpec.get());
+        checkArgument(!expandedFiles.isEmpty(),
+            "Unable to find any files matching %s", fileOrPatternSpec.get());
+        for (final String file : expandedFiles) {
           futures.add(createFutureForFileSplit(file, desiredBundleSizeBytes, options, service));
         }
         List<? extends FileBasedSource<T>> splitResults =
@@ -411,11 +415,13 @@ public abstract class FileBasedSource<T> extends OffsetBasedSource<T> {
 
   @Override
   public String toString() {
+    String fileString = fileOrPatternSpec.isAccessible()
+        ? fileOrPatternSpec.get() : fileOrPatternSpec.toString();
     switch (mode) {
       case FILEPATTERN:
-        return fileOrPatternSpec.toString();
+        return fileString;
       case SINGLE_FILE_OR_SUBRANGE:
-        return fileOrPatternSpec.toString() + " range " + super.toString();
+        return fileString + " range " + super.toString();
       default:
         throw new IllegalStateException("Unexpected mode: " + mode);
     }

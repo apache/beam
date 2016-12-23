@@ -54,6 +54,7 @@ import org.apache.beam.sdk.values.TupleTagList;
 import org.hamcrest.Matchers;
 import org.joda.time.Instant;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -72,10 +73,12 @@ public class ParDoEvaluatorTest {
   private List<TupleTag<?>> sideOutputTags;
   private BundleFactory bundleFactory;
 
+  @Rule
+  public TestPipeline p = TestPipeline.create().enableAbandonedNodeEnforcement(false);
+
   @Before
   public void setup() {
     MockitoAnnotations.initMocks(this);
-    TestPipeline p = TestPipeline.create();
     inputPc = p.apply(Create.of(1, 2, 3));
     mainOutputTag = new TupleTag<Integer>() {};
     sideOutputTags = TupleTagList.empty().getAll();
@@ -152,14 +155,16 @@ public class ParDoEvaluatorTest {
     when(evaluationContext.getAggregatorContainer()).thenReturn(container);
     when(evaluationContext.getAggregatorMutator()).thenReturn(mutator);
 
+    @SuppressWarnings("unchecked")
     AppliedPTransform<PCollection<Integer>, ?, ?> transform =
-        (AppliedPTransform<PCollection<Integer>, ?, ?>) output.getProducingTransformInternal();
+        (AppliedPTransform<PCollection<Integer>, ?, ?>) DirectGraphs.getProducer(output);
     return ParDoEvaluator.create(
         evaluationContext,
         stepContext,
         transform,
         transform.getInput().getWindowingStrategy(),
         fn,
+        null /* key */,
         ImmutableList.<PCollectionView<?>>of(singletonView),
         mainOutputTag,
         sideOutputTags,

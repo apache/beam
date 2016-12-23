@@ -405,6 +405,10 @@ public class PubsubUnboundedSink<T> extends PTransform<PCollection<T>, PDone> {
     return topic.get();
   }
 
+  public ValueProvider<TopicPath> getTopicProvider() {
+    return topic;
+  }
+
   @Nullable
   public String getTimestampLabel() {
     return timestampLabel;
@@ -420,7 +424,7 @@ public class PubsubUnboundedSink<T> extends PTransform<PCollection<T>, PDone> {
   }
 
   @Override
-  public PDone apply(PCollection<T> input) {
+  public PDone expand(PCollection<T> input) {
     input.apply("PubsubUnboundedSink.Window", Window.<T>into(new GlobalWindows())
         .triggering(
             Repeatedly.forever(

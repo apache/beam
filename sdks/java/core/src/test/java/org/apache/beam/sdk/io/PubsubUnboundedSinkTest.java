@@ -39,6 +39,7 @@ import org.apache.beam.sdk.util.PubsubTestClient;
 import org.apache.beam.sdk.util.PubsubTestClient.PubsubTestClientFactory;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
@@ -67,6 +68,9 @@ public class PubsubUnboundedSinkTest {
     return Hashing.murmur3_128().hashBytes(data.getBytes()).toString();
   }
 
+  @Rule
+  public TestPipeline p = TestPipeline.create();
+
   @Test
   public void saneCoder() throws Exception {
     OutgoingMessage message = new OutgoingMessage(DATA.getBytes(), TIMESTAMP, getRecordId(DATA));
@@ -88,7 +92,7 @@ public class PubsubUnboundedSinkTest {
           new PubsubUnboundedSink<>(factory, StaticValueProvider.of(TOPIC), StringUtf8Coder.of(),
               TIMESTAMP_LABEL, ID_LABEL, NUM_SHARDS, batchSize, batchBytes,
               Duration.standardSeconds(2), RecordIdMethod.DETERMINISTIC);
-      TestPipeline p = TestPipeline.create();
+
       p.apply(Create.of(ImmutableList.of(DATA)))
        .apply(ParDo.of(new Stamp()))
        .apply(sink);
@@ -117,7 +121,7 @@ public class PubsubUnboundedSinkTest {
           new PubsubUnboundedSink<>(factory, StaticValueProvider.of(TOPIC), StringUtf8Coder.of(),
               TIMESTAMP_LABEL, ID_LABEL, NUM_SHARDS, batchSize, batchBytes,
               Duration.standardSeconds(2), RecordIdMethod.DETERMINISTIC);
-      TestPipeline p = TestPipeline.create();
+
       p.apply(Create.of(data))
        .apply(ParDo.of(new Stamp()))
        .apply(sink);
@@ -153,7 +157,7 @@ public class PubsubUnboundedSinkTest {
               StringUtf8Coder.of(), TIMESTAMP_LABEL, ID_LABEL,
               NUM_SHARDS, batchSize, batchBytes, Duration.standardSeconds(2),
               RecordIdMethod.DETERMINISTIC);
-      TestPipeline p = TestPipeline.create();
+
       p.apply(Create.of(data))
        .apply(ParDo.of(new Stamp()))
        .apply(sink);

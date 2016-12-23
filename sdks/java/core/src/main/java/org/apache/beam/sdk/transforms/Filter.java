@@ -201,7 +201,7 @@ public class Filter<T> extends PTransform<PCollection<T>, PCollection<T>> {
   }
 
   @Override
-  public PCollection<T> apply(PCollection<T> input) {
+  public PCollection<T> expand(PCollection<T> input) {
     return input.apply(ParDo.of(new DoFn<T, T>() {
       @ProcessElement
       public void processElement(ProcessContext c) {

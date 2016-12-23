@@ -27,7 +27,6 @@ import java.util.Map;
 import java.util.Set;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.Pipeline.PipelineVisitor;
-import org.apache.beam.sdk.runners.PipelineRunner;
 import org.apache.beam.sdk.runners.TransformHierarchy;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -35,6 +34,7 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.PValue;
+import org.apache.beam.sdk.values.TaggedPValue;
 
 /**
  * Tracks the {@link AppliedPTransform AppliedPTransforms} that consume each {@link PValue} in the
@@ -50,7 +50,6 @@ class DirectGraphVisitor extends PipelineVisitor.Defaults {
   private Set<PCollectionView<?>> views = new HashSet<>();
   private Set<AppliedPTransform<?, ?, ?>> rootTransforms = new HashSet<>();
   private Map<AppliedPTransform<?, ?, ?>, String> stepNames = new HashMap<>();
-  private Set<PValue> toFinalize = new HashSet<>();
   private int numTransforms = 0;
   private boolean finalized = false;
 
@@ -79,59 +78,36 @@ class DirectGraphVisitor extends PipelineVisitor.Defaults {
 
   @Override
   public void visitPrimitiveTransform(TransformHierarchy.Node node) {
-    toFinalize.removeAll(node.getInput().expand());
     AppliedPTransform<?, ?, ?> appliedTransform = getAppliedTransform(node);
     stepNames.put(appliedTransform, genStepName());
-    if (node.getInput().expand().isEmpty()) {
+    if (node.getInputs().isEmpty()) {
       rootTransforms.add(appliedTransform);
     } else {
-      for (PValue value : node.getInput().expand()) {
-        primitiveConsumers.put(value, appliedTransform);
+      for (TaggedPValue value : node.getInputs()) {
+        primitiveConsumers.put(value.getValue(), appliedTransform);
       }
     }
   }
 
  @Override
   public void visitValue(PValue value, TransformHierarchy.Node producer) {
-    toFinalize.add(value);
-
     AppliedPTransform<?, ?, ?> appliedTransform = getAppliedTransform(producer);
+    if (value instanceof PCollectionView) {
+      views.add((PCollectionView<?>) value);
+    }
     if (!producers.containsKey(value)) {
       producers.put(value, appliedTransform);
-    }
-    for (PValue expandedValue : value.expand()) {
-      if (expandedValue instanceof PCollectionView) {
-        views.add((PCollectionView<?>) expandedValue);
-      }
-      if (!producers.containsKey(expandedValue)) {
-        producers.put(value, appliedTransform);
-      }
     }
   }
 
   private AppliedPTransform<?, ?, ?> getAppliedTransform(TransformHierarchy.Node node) {
     @SuppressWarnings({"rawtypes", "unchecked"})
-    AppliedPTransform<?, ?, ?> application = AppliedPTransform.of(
-        node.getFullName(), node.getInput(), node.getOutput(), (PTransform) node.getTransform());
+    AppliedPTransform<?, ?, ?> application = node.toAppliedPTransform();
     return application;
   }
 
   private String genStepName() {
     return String.format("s%s", numTransforms++);
-  }
-
-  /**
-   * Returns all of the {@link PValue PValues} that have been produced but not consumed. These
-   * {@link PValue PValues} should be finalized by the {@link PipelineRunner} before the
-   * {@link Pipeline} is executed.
-   */
-  public void finishSpecifyingRemainder() {
-    checkState(
-        finalized,
-        "Can't call finishSpecifyingRemainder before the Pipeline has been completely traversed");
-    for (PValue unfinalized : toFinalize) {
-      unfinalized.finishSpecifying();
-    }
   }
 
   /**

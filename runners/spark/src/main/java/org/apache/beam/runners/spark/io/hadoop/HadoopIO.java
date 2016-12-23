@@ -94,7 +94,7 @@ public final class HadoopIO {
       }
 
       @Override
-      public PCollection<KV<K, V>> apply(PBegin input) {
+      public PCollection<KV<K, V>> expand(PBegin input) {
         return PCollection.createPrimitiveOutputInternal(input.getPipeline(),
             WindowingStrategy.globalDefault(), PCollection.IsBounded.BOUNDED);
       }
@@ -197,7 +197,7 @@ public final class HadoopIO {
       }
 
       @Override
-      public PDone apply(PCollection<KV<K, V>> input) {
+      public PDone expand(PCollection<KV<K, V>> input) {
         checkNotNull(
             filenamePrefix, "need to set the filename prefix of an HadoopIO.Write transform");
         checkNotNull(formatClass, "need to set the format class of an HadoopIO.Write transform");

@@ -28,6 +28,7 @@ import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
 import java.io.Serializable;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
@@ -57,6 +58,7 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -132,9 +134,13 @@ public class SplittableParDoTest {
     return ParDo.of(fn).withOutputTags(MAIN_OUTPUT_TAG, TupleTagList.empty());
   }
 
+  @Rule
+  public TestPipeline pipeline = TestPipeline.create();
+
   @Test
   public void testBoundednessForBoundedFn() {
-    Pipeline pipeline = TestPipeline.create();
+    pipeline.enableAbandonedNodeEnforcement(false);
+
     DoFn<Integer, String> boundedFn = new BoundedFakeFn();
     assertEquals(
         "Applying a bounded SDF to a bounded collection produces a bounded collection",
@@ -154,7 +160,8 @@ public class SplittableParDoTest {
 
   @Test
   public void testBoundednessForUnboundedFn() {
-    Pipeline pipeline = TestPipeline.create();
+    pipeline.enableAbandonedNodeEnforcement(false);
+
     DoFn<Integer, String> unboundedFn = new UnboundedFakeFn();
     assertEquals(
         "Applying an unbounded SDF to a bounded collection produces a bounded collection",
@@ -190,6 +197,8 @@ public class SplittableParDoTest {
         tester;
     private Instant currentProcessingTime;
 
+    private InMemoryTimerInternals timerInternals;
+
     ProcessFnTester(
         Instant currentProcessingTime,
         DoFn<InputT, OutputT> fn,
@@ -200,6 +209,7 @@ public class SplittableParDoTest {
           new SplittableParDo.ProcessFn<>(
               fn, inputCoder, restrictionCoder, IntervalWindow.getCoder());
       this.tester = DoFnTester.of(processFn);
+      this.timerInternals = new InMemoryTimerInternals();
       processFn.setStateInternalsFactory(
           new StateInternalsFactory<String>() {
             @Override
@@ -211,7 +221,7 @@ public class SplittableParDoTest {
           new TimerInternalsFactory<String>() {
             @Override
             public TimerInternals timerInternalsForKey(String key) {
-              return tester.getTimerInternals();
+              return timerInternals;
             }
           });
       processFn.setOutputWindowedValue(
@@ -247,7 +257,7 @@ public class SplittableParDoTest {
       // through the state/timer/output callbacks.
       this.tester.setCloningBehavior(DoFnTester.CloningBehavior.DO_NOT_CLONE);
       this.tester.startBundle();
-      this.tester.advanceProcessingTime(currentProcessingTime);
+      timerInternals.advanceProcessingTime(currentProcessingTime);
 
       this.currentProcessingTime = currentProcessingTime;
     }
@@ -285,7 +295,13 @@ public class SplittableParDoTest {
      */
     boolean advanceProcessingTimeBy(Duration duration) throws Exception {
       currentProcessingTime = currentProcessingTime.plus(duration);
-      List<TimerInternals.TimerData> timers = tester.advanceProcessingTime(currentProcessingTime);
+      timerInternals.advanceProcessingTime(currentProcessingTime);
+
+      List<TimerInternals.TimerData> timers = new ArrayList<>();
+      TimerInternals.TimerData nextTimer;
+      while ((nextTimer = timerInternals.removeNextProcessingTimer()) != null) {
+        timers.add(nextTimer);
+      }
       if (timers.isEmpty()) {
         return false;
       }

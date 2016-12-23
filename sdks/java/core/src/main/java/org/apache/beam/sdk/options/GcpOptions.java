@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.options;
 
+import static com.google.common.base.Preconditions.checkArgument;
+
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.google.auth.Credentials;
 import com.google.common.annotations.VisibleForTesting;
@@ -195,14 +197,15 @@ public interface GcpOptions extends GoogleApiDebugOptions, PipelineOptions {
     @Nullable
     public String create(PipelineOptions options) {
       String tempLocation = options.getTempLocation();
-      if (!Strings.isNullOrEmpty(tempLocation)) {
-        try {
-          PathValidator validator = options.as(GcsOptions.class).getPathValidator();
-          validator.validateOutputFilePrefixSupported(tempLocation);
-        } catch (Exception e) {
-          // Ignore the temp location because it is not a valid 'gs://' path.
-          return null;
-        }
+      checkArgument(!Strings.isNullOrEmpty(options.getTempLocation()),
+          "Error constructing default value for gcpTempLocation: tempLocation is not set");
+      try {
+        PathValidator validator = options.as(GcsOptions.class).getPathValidator();
+        validator.validateOutputFilePrefixSupported(tempLocation);
+      } catch (Exception e) {
+        throw new IllegalArgumentException(String.format(
+            "Error constructing default value for gcpTempLocation: tempLocation is not"
+                + " a valid GCS path, %s. ", tempLocation), e);
       }
       return tempLocation;
     }

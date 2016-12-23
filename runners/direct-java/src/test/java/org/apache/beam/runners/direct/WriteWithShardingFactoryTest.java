@@ -69,6 +69,7 @@ public class WriteWithShardingFactoryTest {
   public static final int INPUT_SIZE = 10000;
   @Rule public TemporaryFolder tmp = new TemporaryFolder();
   private WriteWithShardingFactory<Object> factory = new WriteWithShardingFactory<>();
+  @Rule public final TestPipeline p = TestPipeline.create().enableAbandonedNodeEnforcement(false);
 
   @Test
   public void dynamicallyReshardedWrite() throws Exception {
@@ -81,7 +82,6 @@ public class WriteWithShardingFactoryTest {
     String fileName = "resharded_write";
     String outputPath = tmp.getRoot().getAbsolutePath();
     String targetLocation = IOChannelUtils.resolve(outputPath, fileName);
-    TestPipeline p = TestPipeline.create();
     // TextIO is implemented in terms of the Write PTransform. When sharding is not specified,
     // resharding should be automatically applied
     p.apply(Create.of(strs)).apply(TextIO.Write.to(targetLocation));
@@ -121,20 +121,20 @@ public class WriteWithShardingFactoryTest {
   public void withShardingSpecifiesOriginalTransform() {
     Write.Bound<Object> original = Write.to(new TestSink()).withNumShards(3);
 
-    assertThat(factory.override(original), equalTo((Object) original));
+    assertThat(factory.getReplacementTransform(original), equalTo((Object) original));
   }
 
   @Test
   public void withNoShardingSpecifiedReturnsNewTransform() {
     Write.Bound<Object> original = Write.to(new TestSink());
-    assertThat(factory.override(original), not(equalTo((Object) original)));
+    assertThat(factory.getReplacementTransform(original), not(equalTo((Object) original)));
   }
 
   @Test
   public void keyBasedOnCountFnWithOneElement() throws Exception {
     PCollectionView<Long> elementCountView =
         PCollectionViews.singletonView(
-            TestPipeline.create(), WindowingStrategy.globalDefault(), true, 0L, VarLongCoder.of());
+            p, WindowingStrategy.globalDefault(), true, 0L, VarLongCoder.of());
     KeyBasedOnCountFn<String> fn = new KeyBasedOnCountFn<>(elementCountView, 0);
     DoFnTester<String, KV<Integer, String>> fnTester = DoFnTester.of(fn);
 
@@ -149,7 +149,7 @@ public class WriteWithShardingFactoryTest {
   public void keyBasedOnCountFnWithTwoElements() throws Exception {
     PCollectionView<Long> elementCountView =
         PCollectionViews.singletonView(
-            TestPipeline.create(), WindowingStrategy.globalDefault(), true, 0L, VarLongCoder.of());
+            p, WindowingStrategy.globalDefault(), true, 0L, VarLongCoder.of());
     KeyBasedOnCountFn<String> fn = new KeyBasedOnCountFn<>(elementCountView, 0);
     DoFnTester<String, KV<Integer, String>> fnTester = DoFnTester.of(fn);
 
@@ -167,7 +167,7 @@ public class WriteWithShardingFactoryTest {
   public void keyBasedOnCountFnFewElementsThreeShards() throws Exception {
     PCollectionView<Long> elementCountView =
         PCollectionViews.singletonView(
-            TestPipeline.create(), WindowingStrategy.globalDefault(), true, 0L, VarLongCoder.of());
+            p, WindowingStrategy.globalDefault(), true, 0L, VarLongCoder.of());
     KeyBasedOnCountFn<String> fn = new KeyBasedOnCountFn<>(elementCountView, 0);
     DoFnTester<String, KV<Integer, String>> fnTester = DoFnTester.of(fn);
 
@@ -191,7 +191,7 @@ public class WriteWithShardingFactoryTest {
   public void keyBasedOnCountFnManyElements() throws Exception {
     PCollectionView<Long> elementCountView =
         PCollectionViews.singletonView(
-            TestPipeline.create(), WindowingStrategy.globalDefault(), true, 0L, VarLongCoder.of());
+            p, WindowingStrategy.globalDefault(), true, 0L, VarLongCoder.of());
     KeyBasedOnCountFn<String> fn = new KeyBasedOnCountFn<>(elementCountView, 0);
     DoFnTester<String, KV<Integer, String>> fnTester = DoFnTester.of(fn);
 
@@ -214,7 +214,7 @@ public class WriteWithShardingFactoryTest {
   public void keyBasedOnCountFnFewElementsExtraShards() throws Exception {
     PCollectionView<Long> elementCountView =
         PCollectionViews.singletonView(
-            TestPipeline.create(), WindowingStrategy.globalDefault(), true, 0L, VarLongCoder.of());
+            p, WindowingStrategy.globalDefault(), true, 0L, VarLongCoder.of());
     KeyBasedOnCountFn<String> fn = new KeyBasedOnCountFn<>(elementCountView, 10);
     DoFnTester<String, KV<Integer, String>> fnTester = DoFnTester.of(fn);
 
@@ -238,7 +238,7 @@ public class WriteWithShardingFactoryTest {
   public void keyBasedOnCountFnManyElementsExtraShards() throws Exception {
     PCollectionView<Long> elementCountView =
         PCollectionViews.singletonView(
-            TestPipeline.create(), WindowingStrategy.globalDefault(), true, 0L, VarLongCoder.of());
+            p, WindowingStrategy.globalDefault(), true, 0L, VarLongCoder.of());
     KeyBasedOnCountFn<String> fn = new KeyBasedOnCountFn<>(elementCountView, 3);
     DoFnTester<String, KV<Integer, String>> fnTester = DoFnTester.of(fn);
 

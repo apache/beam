@@ -24,7 +24,6 @@ import java.util.Collection;
 import java.util.List;
 import org.apache.beam.examples.complete.AutoComplete.CompletionCandidate;
 import org.apache.beam.examples.complete.AutoComplete.ComputeTopCompletions;
-import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
@@ -40,6 +39,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -50,6 +50,9 @@ import org.junit.runners.Parameterized;
 @RunWith(Parameterized.class)
 public class AutoCompleteTest implements Serializable {
   private boolean recursive;
+
+  @Rule
+  public transient TestPipeline p = TestPipeline.create();
 
   public AutoCompleteTest(Boolean recursive) {
     this.recursive = recursive;
@@ -76,8 +79,6 @@ public class AutoCompleteTest implements Serializable {
         "blueberry",
         "blueberry",
         "cherry");
-
-    Pipeline p = TestPipeline.create();
 
     PCollection<String> input = p.apply(Create.of(words));
 
@@ -106,8 +107,6 @@ public class AutoCompleteTest implements Serializable {
   public void testTinyAutoComplete() {
     List<String> words = Arrays.asList("x", "x", "x", "xy", "xy", "xyz");
 
-    Pipeline p = TestPipeline.create();
-
     PCollection<String> input = p.apply(Create.of(words));
 
     PCollection<KV<String, List<CompletionCandidate>>> output =
@@ -128,8 +127,6 @@ public class AutoCompleteTest implements Serializable {
         TimestampedValue.of("xB", new Instant(1)),
         TimestampedValue.of("xB", new Instant(2)),
         TimestampedValue.of("xB", new Instant(2)));
-
-    Pipeline p = TestPipeline.create();
 
     PCollection<String> input = p
       .apply(Create.of(words))
@@ -168,7 +165,7 @@ public class AutoCompleteTest implements Serializable {
   private static class ReifyTimestamps<T>
       extends PTransform<PCollection<TimestampedValue<T>>, PCollection<T>> {
     @Override
-    public PCollection<T> apply(PCollection<TimestampedValue<T>> input) {
+    public PCollection<T> expand(PCollection<TimestampedValue<T>> input) {
       return input.apply(ParDo.of(new DoFn<TimestampedValue<T>, T>() {
         @ProcessElement
         public void processElement(ProcessContext c) {

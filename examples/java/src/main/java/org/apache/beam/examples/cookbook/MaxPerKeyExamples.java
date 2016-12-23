@@ -100,7 +100,7 @@ public class MaxPerKeyExamples {
   static class MaxMeanTemp
       extends PTransform<PCollection<TableRow>, PCollection<TableRow>> {
     @Override
-    public PCollection<TableRow> apply(PCollection<TableRow> rows) {
+    public PCollection<TableRow> expand(PCollection<TableRow> rows) {
 
       // row... => <month, mean_temp> ...
       PCollection<KV<Integer, Double>> temps = rows.apply(

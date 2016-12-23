@@ -34,7 +34,7 @@ import org.apache.beam.sdk.transforms.GroupByKey;
  * are persisted together with the completion status of the processing that produced these
  * writes.
  *
- * <p>This is a low-level API intended for use by the Dataflow SDK. It should not be
+ * <p>This is a low-level API intended for use by the Beam SDK. It should not be
  * used directly, and is highly likely to change.
  */
 @Experimental(Kind.STATE)

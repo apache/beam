@@ -41,13 +41,16 @@ import org.junit.runners.JUnit4;
  */
 @RunWith(JUnit4.class)
 public class WithTimestampsTest implements Serializable {
+
+  @Rule
+  public final transient TestPipeline p = TestPipeline.create();
+
   @Rule
   public transient ExpectedException thrown = ExpectedException.none();
 
   @Test
   @Category(RunnableOnService.class)
   public void withTimestampsShouldApplyTimestamps() {
-    TestPipeline p = TestPipeline.create();
 
     SerializableFunction<String, Instant> timestampFn =
         new SerializableFunction<String, Instant>() {
@@ -86,7 +89,6 @@ public class WithTimestampsTest implements Serializable {
   @Test
   @Category(NeedsRunner.class)
   public void withTimestampsBackwardsInTimeShouldThrow() {
-    TestPipeline p = TestPipeline.create();
 
     SerializableFunction<String, Instant> timestampFn =
         new SerializableFunction<String, Instant>() {
@@ -120,7 +122,6 @@ public class WithTimestampsTest implements Serializable {
   @Test
   @Category(RunnableOnService.class)
   public void withTimestampsBackwardsInTimeAndWithAllowedTimestampSkewShouldSucceed() {
-    TestPipeline p = TestPipeline.create();
 
     SerializableFunction<String, Instant> timestampFn =
         new SerializableFunction<String, Instant>() {
@@ -181,7 +182,6 @@ public class WithTimestampsTest implements Serializable {
           }
         };
 
-    TestPipeline p = TestPipeline.create();
     String yearTwoThousand = "946684800000";
     p.apply(Create.of("1234", "0", Integer.toString(Integer.MAX_VALUE), yearTwoThousand))
      .apply(WithTimestamps.of(timestampFn));
@@ -197,7 +197,6 @@ public class WithTimestampsTest implements Serializable {
   @Test
   @Category(RunnableOnService.class)
   public void withTimestampsWithNullFnShouldThrowOnConstruction() {
-    TestPipeline p = TestPipeline.create();
 
     SerializableFunction<String, Instant> timestampFn = null;
 

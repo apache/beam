@@ -43,6 +43,7 @@ import org.apache.beam.sdk.transforms.display.HasDisplayData;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
+import org.apache.beam.sdk.util.TimeDomain;
 import org.apache.beam.sdk.util.Timer;
 import org.apache.beam.sdk.util.TimerSpec;
 import org.apache.beam.sdk.util.state.State;
@@ -292,6 +293,27 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
      * for more information.
      */
     public abstract PaneInfo pane();
+  }
+
+  /**
+   * Information accessible when running a {@link DoFn.OnTimer} method.
+   */
+  public abstract class OnTimerContext extends Context {
+
+    /**
+     * Returns the timestamp of the current timer.
+     */
+    public abstract Instant timestamp();
+
+    /**
+     * Returns the window in which the timer is firing.
+     */
+    public abstract BoundedWindow window();
+
+    /**
+     * Returns the time domain of the current timer.
+     */
+    public abstract TimeDomain timeDomain();
   }
 
   /**

@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.transforms;
 
 import java.util.Arrays;
-import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
@@ -27,6 +26,7 @@ import org.apache.beam.sdk.testing.RunnableOnService;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
@@ -50,11 +50,12 @@ public class KvSwapTest {
   static final KV<String, Integer>[] EMPTY_TABLE = new KV[] {
   };
 
+  @Rule
+  public final TestPipeline p = TestPipeline.create();
+
   @Test
   @Category(RunnableOnService.class)
   public void testKvSwap() {
-    Pipeline p = TestPipeline.create();
-
     PCollection<KV<String, Integer>> input =
         p.apply(Create.of(Arrays.asList(TABLE)).withCoder(
             KvCoder.of(StringUtf8Coder.of(), BigEndianIntegerCoder.of())));
@@ -75,8 +76,6 @@ public class KvSwapTest {
   @Test
   @Category(RunnableOnService.class)
   public void testKvSwapEmpty() {
-    Pipeline p = TestPipeline.create();
-
     PCollection<KV<String, Integer>> input =
         p.apply(Create.of(Arrays.asList(EMPTY_TABLE)).withCoder(
             KvCoder.of(StringUtf8Coder.of(), BigEndianIntegerCoder.of())));

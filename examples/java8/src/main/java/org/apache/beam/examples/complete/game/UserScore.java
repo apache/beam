@@ -160,7 +160,7 @@ public class UserScore {
     }
 
     @Override
-    public PCollection<KV<String, Integer>> apply(
+    public PCollection<KV<String, Integer>> expand(
         PCollection<GameActionInfo> gameInfo) {
 
       return gameInfo

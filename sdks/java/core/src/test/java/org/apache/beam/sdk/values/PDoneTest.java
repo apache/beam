@@ -20,7 +20,6 @@ package org.apache.beam.sdk.values;
 import static org.apache.beam.sdk.TestUtils.LINES;
 
 import java.io.File;
-import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.RunnableOnService;
@@ -40,6 +39,10 @@ import org.junit.runners.JUnit4;
  */
 @RunWith(JUnit4.class)
 public class PDoneTest {
+
+  @Rule
+  public final TestPipeline p = TestPipeline.create();
+
   @Rule
   public TemporaryFolder tmpFolder = new TemporaryFolder();
 
@@ -48,7 +51,7 @@ public class PDoneTest {
    */
   static class EmptyTransform extends PTransform<PBegin, PDone> {
     @Override
-    public PDone apply(PBegin begin) {
+    public PDone expand(PBegin begin) {
       return PDone.in(begin.getPipeline());
     }
   }
@@ -64,7 +67,7 @@ public class PDoneTest {
     }
 
     @Override
-    public PDone apply(PBegin begin) {
+    public PDone expand(PBegin begin) {
       return
           begin
           .apply(Create.of(LINES))
@@ -78,8 +81,6 @@ public class PDoneTest {
   @Test
   @Category(RunnableOnService.class)
   public void testEmptyTransform() {
-    Pipeline p = TestPipeline.create();
-
     p.begin().apply(new EmptyTransform());
 
     p.run();
@@ -93,8 +94,6 @@ public class PDoneTest {
   public void testSimpleTransform() throws Exception {
     File tmpFile = tmpFolder.newFile("file.txt");
     String filename = tmpFile.getPath();
-
-    Pipeline p = TestPipeline.create();
 
     p.begin().apply(new SimpleTransform(filename));
 

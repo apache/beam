@@ -39,7 +39,6 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ThreadLocalRandom;
-import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
 import org.apache.beam.sdk.coders.Coder;
@@ -81,6 +80,9 @@ import org.junit.runners.JUnit4;
 public class GroupByKeyTest {
 
   @Rule
+  public final TestPipeline p = TestPipeline.create();
+
+  @Rule
   public ExpectedException thrown = ExpectedException.none();
 
   @Test
@@ -94,8 +96,6 @@ public class GroupByKeyTest {
         KV.of("k1", 4),
         KV.of("k2", -33),
         KV.of("k3", 0));
-
-    Pipeline p = TestPipeline.create();
 
     PCollection<KV<String, Integer>> input =
         p.apply(Create.of(ungroupedPairs)
@@ -137,8 +137,6 @@ public class GroupByKeyTest {
         KV.of("k2", -33),  // window [5, 10)
         KV.of("k3", 0));  // window [5, 10)
 
-    Pipeline p = TestPipeline.create();
-
     PCollection<KV<String, Integer>> input =
         p.apply(Create.timestamped(ungroupedPairs, Arrays.asList(1L, 2L, 3L, 4L, 5L, 6L, 7L))
             .withCoder(KvCoder.of(StringUtf8Coder.of(), BigEndianIntegerCoder.of())));
@@ -174,8 +172,6 @@ public class GroupByKeyTest {
   public void testGroupByKeyEmpty() {
     List<KV<String, Integer>> ungroupedPairs = Arrays.asList();
 
-    Pipeline p = TestPipeline.create();
-
     PCollection<KV<String, Integer>> input =
         p.apply(Create.of(ungroupedPairs)
             .withCoder(KvCoder.of(StringUtf8Coder.of(), BigEndianIntegerCoder.of())));
@@ -193,8 +189,6 @@ public class GroupByKeyTest {
 
     List<KV<Map<String, String>, Integer>> ungroupedPairs = Arrays.asList();
 
-    Pipeline p = TestPipeline.create();
-
     PCollection<KV<Map<String, String>, Integer>> input =
         p.apply(Create.of(ungroupedPairs)
             .withCoder(
@@ -209,7 +203,6 @@ public class GroupByKeyTest {
   @Test
   @Category(NeedsRunner.class)
   public void testIdentityWindowFnPropagation() {
-    Pipeline p = TestPipeline.create();
 
     List<KV<String, Integer>> ungroupedPairs = Arrays.asList();
 
@@ -230,7 +223,6 @@ public class GroupByKeyTest {
   @Test
   @Category(NeedsRunner.class)
   public void testWindowFnInvalidation() {
-    Pipeline p = TestPipeline.create();
 
     List<KV<String, Integer>> ungroupedPairs = Arrays.asList();
 
@@ -255,7 +247,6 @@ public class GroupByKeyTest {
 
   @Test
   public void testInvalidWindowsDirect() {
-    Pipeline p = TestPipeline.create();
 
     List<KV<String, Integer>> ungroupedPairs = Arrays.asList();
 
@@ -275,7 +266,6 @@ public class GroupByKeyTest {
   @Test
   @Category(NeedsRunner.class)
   public void testRemerge() {
-    Pipeline p = TestPipeline.create();
 
     List<KV<String, Integer>> ungroupedPairs = Arrays.asList();
 
@@ -300,18 +290,17 @@ public class GroupByKeyTest {
 
   @Test
   public void testGroupByKeyDirectUnbounded() {
-    Pipeline p = TestPipeline.create();
 
     PCollection<KV<String, Integer>> input =
         p.apply(
             new PTransform<PBegin, PCollection<KV<String, Integer>>>() {
               @Override
-              public PCollection<KV<String, Integer>> apply(PBegin input) {
+              public PCollection<KV<String, Integer>> expand(PBegin input) {
                 return PCollection.<KV<String, Integer>>createPrimitiveOutputInternal(
                         input.getPipeline(),
                         WindowingStrategy.globalDefault(),
                         PCollection.IsBounded.UNBOUNDED)
-                    .setTypeDescriptorInternal(new TypeDescriptor<KV<String, Integer>>() {});
+                    .setTypeDescriptor(new TypeDescriptor<KV<String, Integer>>() {});
               }
             });
 
@@ -331,9 +320,8 @@ public class GroupByKeyTest {
   @Test
   @Category(RunnableOnService.class)
   public void testOutputTimeFnEarliest() {
-    Pipeline pipeline = TestPipeline.create();
 
-    pipeline.apply(
+    p.apply(
         Create.timestamped(
             TimestampedValue.of(KV.of(0, "hello"), new Instant(0)),
             TimestampedValue.of(KV.of(0, "goodbye"), new Instant(10))))
@@ -342,7 +330,7 @@ public class GroupByKeyTest {
         .apply(GroupByKey.<Integer, String>create())
         .apply(ParDo.of(new AssertTimestamp(new Instant(0))));
 
-    pipeline.run();
+    p.run();
   }
 
 
@@ -353,9 +341,7 @@ public class GroupByKeyTest {
   @Test
   @Category(RunnableOnService.class)
   public void testOutputTimeFnLatest() {
-    Pipeline pipeline = TestPipeline.create();
-
-    pipeline.apply(
+    p.apply(
         Create.timestamped(
             TimestampedValue.of(KV.of(0, "hello"), new Instant(0)),
             TimestampedValue.of(KV.of(0, "goodbye"), new Instant(10))))
@@ -364,7 +350,7 @@ public class GroupByKeyTest {
         .apply(GroupByKey.<Integer, String>create())
         .apply(ParDo.of(new AssertTimestamp(new Instant(10))));
 
-    pipeline.run();
+    p.run();
   }
 
   private static class AssertTimestamp<K, V> extends DoFn<KV<K, V>, Void> {
@@ -407,8 +393,6 @@ public class GroupByKeyTest {
   public void testGroupByKeyWithBadEqualsHashCode() throws Exception {
     final int numValues = 10;
     final int numKeys = 5;
-
-    Pipeline p = TestPipeline.create();
 
     p.getCoderRegistry().registerCoder(BadEqualityKey.class, DeterministicKeyCoder.class);
 

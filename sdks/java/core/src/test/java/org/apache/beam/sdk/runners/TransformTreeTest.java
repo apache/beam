@@ -55,6 +55,8 @@ import org.junit.runners.JUnit4;
  */
 @RunWith(JUnit4.class)
 public class TransformTreeTest {
+
+  @Rule public final TestPipeline p = TestPipeline.create();
   @Rule public TemporaryFolder tmpFolder = new TemporaryFolder();
 
   enum TransformsSeen {
@@ -73,7 +75,7 @@ public class TransformTreeTest {
       extends PTransform<PBegin, PCollectionList<String>> {
 
     @Override
-    public PCollectionList<String> apply(PBegin b) {
+    public PCollectionList<String> expand(PBegin b) {
       // Composite transform: apply delegates to other transformations,
       // here a Create transform.
       PCollection<String> result = b.apply(Create.of("hello", "world"));
@@ -95,7 +97,7 @@ public class TransformTreeTest {
       extends PTransform<PCollection<Integer>, PDone> {
 
     @Override
-    public PDone apply(PCollection<Integer> input) {
+    public PDone expand(PCollection<Integer> input) {
       // Apply an operation so that this is a composite transform.
       input.apply(Count.<Integer>perElement());
 
@@ -112,10 +114,10 @@ public class TransformTreeTest {
   // visits the nodes and verifies that the hierarchy was captured.
   @Test
   public void testCompositeCapture() throws Exception {
+    p.enableAbandonedNodeEnforcement(false);
+
     File inputFile = tmpFolder.newFile();
     File outputFile = tmpFolder.newFile();
-
-    Pipeline p = TestPipeline.create();
 
     p.apply("ReadMyFile", TextIO.Read.from(inputFile.getPath()))
         .apply(Sample.<String>any(10))
@@ -170,18 +172,15 @@ public class TransformTreeTest {
 
   @Test(expected = IllegalArgumentException.class)
   public void testOutputChecking() throws Exception {
-    Pipeline p = TestPipeline.create();
+    p.enableAbandonedNodeEnforcement(false);
 
     p.apply(new InvalidCompositeTransform());
-
     p.traverseTopologically(new Pipeline.PipelineVisitor.Defaults() {});
   }
 
   @Test
   @Category(NeedsRunner.class)
   public void testMultiGraphSetup() {
-    Pipeline p = TestPipeline.create();
-
     PCollection<Integer> input = p.begin()
         .apply(Create.of(1, 2, 3));
 

@@ -18,6 +18,7 @@
 
 package org.apache.beam.runners.spark.translation;
 
+import javax.annotation.Nonnull;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.spark.api.java.function.Function;
 
@@ -84,7 +85,7 @@ public final class WindowingHelpers {
   public static <T> com.google.common.base.Function<WindowedValue<T>, T> unwindowValueFunction() {
     return new com.google.common.base.Function<WindowedValue<T>, T>() {
       @Override
-      public T apply(WindowedValue<T> t) {
+      public T apply(@Nonnull WindowedValue<T> t) {
         return t.getValue();
       }
     };

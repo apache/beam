@@ -42,7 +42,6 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Random;
-import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.FileBasedSource.FileBasedReader;
@@ -59,6 +58,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
+import org.junit.rules.ExpectedException;
 import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -72,7 +72,9 @@ public class FileBasedSourceTest {
 
   Random random = new Random(0L);
 
+  @Rule public final TestPipeline p = TestPipeline.create();
   @Rule public TemporaryFolder tempFolder = new TemporaryFolder();
+  @Rule public ExpectedException thrown = ExpectedException.none();
 
   /**
    * If {@code splitHeader} is null, this is just a simple line-based reader. Otherwise, the file is
@@ -418,6 +420,16 @@ public class FileBasedSourceTest {
   }
 
   @Test
+  public void testSplittingFailsOnEmptyFileExpansion() throws Exception {
+    PipelineOptions options = PipelineOptionsFactory.create();
+    String missingFilePath = tempFolder.newFolder().getAbsolutePath() + "/missing.txt";
+    TestFileBasedSource source = new TestFileBasedSource(missingFilePath, Long.MAX_VALUE, null);
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage(String.format("Unable to find any files matching %s", missingFilePath));
+    source.splitIntoBundles(1234, options);
+  }
+
+  @Test
   public void testFractionConsumedWhenReadingFilepattern() throws IOException {
     List<String> data1 = createStringDataset(3, 1000);
     File file1 = createFileWithData("file1", data1);
@@ -707,7 +719,6 @@ public class FileBasedSourceTest {
   @Test
   @Category(NeedsRunner.class)
   public void testDataflowFile() throws IOException {
-    Pipeline p = TestPipeline.create();
     List<String> data = createStringDataset(3, 50);
 
     String fileName = "file";
@@ -723,7 +734,6 @@ public class FileBasedSourceTest {
   @Test
   @Category(NeedsRunner.class)
   public void testDataflowFilePattern() throws IOException {
-    Pipeline p = TestPipeline.create();
 
     List<String> data1 = createStringDataset(3, 50);
     File file1 = createFileWithData("file1", data1);
@@ -915,5 +925,19 @@ public class FileBasedSourceTest {
 
     TestFileBasedSource source = new TestFileBasedSource(file.getPath(), 1, 0, file.length(), null);
     assertSplitAtFractionExhaustive(source, options);
+  }
+
+  @Test
+  public void testToStringFile() throws Exception {
+    String path = "/tmp/foo";
+    TestFileBasedSource source = new TestFileBasedSource(path, 1, 0, 10, null);
+    assertEquals(String.format("%s range [0, 10)", path), source.toString());
+  }
+
+  @Test
+  public void testToStringPattern() throws Exception {
+    String path = "/tmp/foo/*";
+    TestFileBasedSource source = new TestFileBasedSource(path, 1, 0, 10, null);
+    assertEquals(String.format("%s range [0, 10)", path), source.toString());
   }
 }

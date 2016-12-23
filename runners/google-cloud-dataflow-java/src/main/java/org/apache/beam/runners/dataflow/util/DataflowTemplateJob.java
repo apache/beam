@@ -30,7 +30,7 @@ public class DataflowTemplateJob extends DataflowPipelineJob {
       "The result of template creation should not be used.";
 
   public DataflowTemplateJob() {
-    super(null, null, null, null);
+    super(null, null, null);
   }
 
   @Override

@@ -35,6 +35,7 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.ValueInSingleWindow;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
+import org.apache.beam.sdk.transforms.DoFn.OnTimerContext;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvoker;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvokers;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
@@ -45,14 +46,11 @@ import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.util.Timer;
-import org.apache.beam.sdk.util.TimerInternals;
 import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowingInternals;
 import org.apache.beam.sdk.util.state.InMemoryStateInternals;
-import org.apache.beam.sdk.util.state.InMemoryTimerInternals;
 import org.apache.beam.sdk.util.state.StateInternals;
-import org.apache.beam.sdk.util.state.TimerCallback;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TupleTag;
@@ -143,10 +141,6 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
     return (StateInternals<K>) stateInternals;
   }
 
-  public TimerInternals getTimerInternals() {
-    return timerInternals;
-  }
-
   /**
    * When a {@link DoFnTester} should clone the {@link DoFn} under test and how it should manage
    * the lifecycle of the {@link DoFn}.
@@ -233,7 +227,6 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
     context.setupDelegateAggregators();
     // State and timer internals are per-bundle.
     stateInternals = InMemoryStateInternals.forKey(new Object());
-    timerInternals = new InMemoryTimerInternals();
     try {
       fnInvoker.invokeStartBundle(context);
     } catch (UserCodeException e) {
@@ -314,6 +307,12 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
             @Override
             public DoFn<InputT, OutputT>.ProcessContext processContext(DoFn<InputT, OutputT> doFn) {
               return processContext;
+            }
+
+            @Override
+            public OnTimerContext onTimerContext(DoFn<InputT, OutputT> doFn) {
+              throw new UnsupportedOperationException(
+                  "DoFnTester doesn't support timers yet.");
             }
 
             @Override
@@ -534,35 +533,6 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
    */
   public <AggregateT> AggregateT getAggregatorValue(Aggregator<?, AggregateT> agg) {
     return extractAggregatorValue(agg.getName(), agg.getCombineFn());
-  }
-
-  private static TimerCallback collectInto(final List<TimerInternals.TimerData> firedTimers) {
-    return new TimerCallback() {
-      @Override
-      public void onTimer(TimerInternals.TimerData timer) throws Exception {
-        firedTimers.add(timer);
-      }
-    };
-  }
-
-  public List<TimerInternals.TimerData> advanceInputWatermark(Instant newWatermark) {
-    try {
-      final List<TimerInternals.TimerData> firedTimers = new ArrayList<>();
-      timerInternals.advanceInputWatermark(collectInto(firedTimers), newWatermark);
-      return firedTimers;
-    } catch (Exception e) {
-      throw new RuntimeException(e);
-    }
-  }
-
-  public List<TimerInternals.TimerData> advanceProcessingTime(Instant newProcessingTime) {
-    try {
-      final List<TimerInternals.TimerData> firedTimers = new ArrayList<>();
-      timerInternals.advanceProcessingTime(collectInto(firedTimers), newProcessingTime);
-      return firedTimers;
-    } catch (Exception e) {
-      throw new RuntimeException(e);
-    }
   }
 
   private <AccumT, AggregateT> AggregateT extractAggregatorValue(
@@ -809,7 +779,6 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
   private Map<TupleTag<?>, List<ValueInSingleWindow<?>>> outputs;
 
   private InMemoryStateInternals<?> stateInternals;
-  private InMemoryTimerInternals timerInternals;
 
   /** The state of processing of the {@link DoFn} under test. */
   private State state = State.UNINITIALIZED;

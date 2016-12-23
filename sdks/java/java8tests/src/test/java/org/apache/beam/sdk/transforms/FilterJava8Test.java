@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.transforms;
 
 import java.io.Serializable;
-import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.RunnableOnService;
@@ -39,12 +38,14 @@ import org.junit.runners.JUnit4;
 public class FilterJava8Test implements Serializable {
 
   @Rule
+  public final transient TestPipeline pipeline = TestPipeline.create();
+
+  @Rule
   public transient ExpectedException thrown = ExpectedException.none();
 
   @Test
   @Category(RunnableOnService.class)
   public void testIdentityFilterByPredicate() {
-    Pipeline pipeline = TestPipeline.create();
 
     PCollection<Integer> output = pipeline
         .apply(Create.of(591, 11789, 1257, 24578, 24799, 307))
@@ -56,7 +57,6 @@ public class FilterJava8Test implements Serializable {
 
   @Test
   public void testNoFilterByPredicate() {
-    Pipeline pipeline = TestPipeline.create();
 
     PCollection<Integer> output = pipeline
         .apply(Create.of(1, 2, 4, 5))
@@ -69,7 +69,6 @@ public class FilterJava8Test implements Serializable {
   @Test
   @Category(RunnableOnService.class)
   public void testFilterByPredicate() {
-    Pipeline pipeline = TestPipeline.create();
 
     PCollection<Integer> output = pipeline
         .apply(Create.of(1, 2, 3, 4, 5, 6, 7))
@@ -85,7 +84,6 @@ public class FilterJava8Test implements Serializable {
    */
   @Test
   public void testFilterParDoOutputTypeDescriptorRaw() throws Exception {
-    Pipeline pipeline = TestPipeline.create();
 
     @SuppressWarnings({"unchecked", "rawtypes"})
     PCollection<String> output = pipeline
@@ -99,7 +97,6 @@ public class FilterJava8Test implements Serializable {
   @Test
   @Category(RunnableOnService.class)
   public void testFilterByMethodReference() {
-    Pipeline pipeline = TestPipeline.create();
 
     PCollection<Integer> output = pipeline
         .apply(Create.of(1, 2, 3, 4, 5, 6, 7))

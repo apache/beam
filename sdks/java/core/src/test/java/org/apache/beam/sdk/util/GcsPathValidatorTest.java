@@ -21,11 +21,8 @@ import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyString;
 import static org.mockito.Mockito.when;
 
-import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.options.GcsOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.sdk.runners.PipelineRunner;
 import org.apache.beam.sdk.util.gcsfs.GcsPath;
 import org.junit.Before;
 import org.junit.Rule;
@@ -44,20 +41,12 @@ public class GcsPathValidatorTest {
   @Mock private GcsUtil mockGcsUtil;
   private GcsPathValidator validator;
 
-  private class FakeRunner extends PipelineRunner<PipelineResult> {
-    @Override
-    public PipelineResult run(Pipeline pipeline) {
-      throw new UnsupportedOperationException();
-    }
-  }
-
   @Before
   public void setUp() throws Exception {
     MockitoAnnotations.initMocks(this);
     when(mockGcsUtil.bucketAccessible(any(GcsPath.class))).thenReturn(true);
     when(mockGcsUtil.isGcsPatternSupported(anyString())).thenCallRealMethod();
     GcsOptions options = PipelineOptionsFactory.as(GcsOptions.class);
-    options.setRunner(FakeRunner.class);
     options.setGcpCredential(new TestCredential());
     options.setGcsUtil(mockGcsUtil);
     validator = GcsPathValidator.fromOptions(options);
@@ -72,7 +61,7 @@ public class GcsPathValidatorTest {
   public void testInvalidFilePattern() {
     expectedException.expect(IllegalArgumentException.class);
     expectedException.expectMessage(
-        "FakeRunner expected a valid 'gs://' path but was given '/local/path'");
+        "Expected a valid 'gs://' path but was given '/local/path'");
     validator.validateInputFilePatternSupported("/local/path");
   }
 
@@ -94,7 +83,7 @@ public class GcsPathValidatorTest {
   public void testInvalidOutputPrefix() {
     expectedException.expect(IllegalArgumentException.class);
     expectedException.expectMessage(
-        "FakeRunner expected a valid 'gs://' path but was given '/local/path'");
+        "Expected a valid 'gs://' path but was given '/local/path'");
     validator.validateOutputFilePrefixSupported("/local/path");
   }
 }

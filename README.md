@@ -39,7 +39,7 @@ fully endorsed by the ASF.
 _**The Apache Beam project is in the process of bootstrapping. This includes the creation of project resources, the refactoring of the initial code submissions, and the formulation of project documentation, planning, and design documents. Please expect a significant amount of churn and breaking changes in the near future.**_
 
 [![Build Status](https://api.travis-ci.org/apache/incubator-beam.svg?branch=master)](https://travis-ci.org/apache/incubator-beam?branch=master)
-[![Build Status](https://builds.apache.org/buildStatus/icon?job=beam_PostCommit_MavenVerify)](https://builds.apache.org/job/beam_PostCommit_MavenVerify/)
+[![Build Status](https://builds.apache.org/buildStatus/icon?job=beam_PostCommit_Java_MavenInstall)](https://builds.apache.org/job/beam_PostCommit_MavenVerify/)
 [![Coverage Status](https://coveralls.io/repos/github/apache/incubator-beam/badge.svg?branch=master)](https://coveralls.io/github/apache/incubator-beam?branch=master)
 
 ## Overview

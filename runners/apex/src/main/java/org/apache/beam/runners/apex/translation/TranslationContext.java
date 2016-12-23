@@ -35,7 +35,6 @@ import org.apache.beam.runners.apex.translation.utils.CoderAdapterStreamCodec;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.runners.TransformHierarchy;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
-import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.util.WindowedValue.FullWindowedValueCoder;
 import org.apache.beam.sdk.util.state.StateInternalsFactory;
 import org.apache.beam.sdk.values.PCollection;
@@ -72,8 +71,7 @@ class TranslationContext {
   }
 
   public void setCurrentTransform(TransformHierarchy.Node treeNode) {
-    this.currentTransform = AppliedPTransform.of(treeNode.getFullName(),
-        treeNode.getInput(), treeNode.getOutput(), (PTransform) treeNode.getTransform());
+    this.currentTransform = treeNode.toAppliedPTransform();
   }
 
   public ApexPipelineOptions getPipelineOptions() {

@@ -19,12 +19,12 @@ package org.apache.beam.examples.complete;
 
 import com.google.api.services.bigquery.model.TableRow;
 import java.util.Arrays;
-import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.RunnableOnService;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.values.PCollection;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
@@ -33,10 +33,13 @@ import org.junit.runners.JUnit4;
 /** Unit tests for {@link TopWikipediaSessions}. */
 @RunWith(JUnit4.class)
 public class TopWikipediaSessionsTest {
+
+  @Rule
+  public TestPipeline p = TestPipeline.create();
+
   @Test
   @Category(RunnableOnService.class)
   public void testComputeTopUsers() {
-    Pipeline p = TestPipeline.create();
 
     PCollection<String> output =
         p.apply(Create.of(Arrays.asList(

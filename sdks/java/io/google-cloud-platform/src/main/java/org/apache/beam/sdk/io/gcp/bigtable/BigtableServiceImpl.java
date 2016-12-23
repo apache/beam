@@ -52,7 +52,7 @@ import org.slf4j.LoggerFactory;
  * service.
  */
 class BigtableServiceImpl implements BigtableService {
-  private static final Logger logger = LoggerFactory.getLogger(BigtableService.class);
+  private static final Logger LOG = LoggerFactory.getLogger(BigtableService.class);
 
   public BigtableServiceImpl(BigtableOptions options) {
     this.options = options;
@@ -75,7 +75,7 @@ class BigtableServiceImpl implements BigtableService {
   @Override
   public boolean tableExists(String tableId) throws IOException {
     if (!BigtableSession.isAlpnProviderEnabled()) {
-      logger.info(
+      LOG.info(
           "Skipping existence check for table {} (BigtableOptions {}) because ALPN is not"
               + " configured.",
           tableId,
@@ -97,7 +97,7 @@ class BigtableServiceImpl implements BigtableService {
       String message =
           String.format(
               "Error checking whether table %s (BigtableOptions %s) exists", tableId, options);
-      logger.error(message, e);
+      LOG.error(message, e);
       throw new IOException(message, e);
     }
   }

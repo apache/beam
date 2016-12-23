@@ -123,4 +123,20 @@ public class ExternalSorterTest {
     ExternalSorter.Options options = new ExternalSorter.Options();
     options.setMemoryMB(-1);
   }
+
+  @Test
+  public void testZeroMemory() throws Exception {
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage("memoryMB must be greater than zero");
+    ExternalSorter.Options options = new ExternalSorter.Options();
+    options.setMemoryMB(0);
+  }
+
+  @Test
+  public void testMemoryTooLarge() throws Exception {
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage("memoryMB must be less than 2048");
+    ExternalSorter.Options options = new ExternalSorter.Options();
+    options.setMemoryMB(2048);
+  }
 }

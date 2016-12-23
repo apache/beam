@@ -23,7 +23,6 @@ import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.WriteDisposition;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.OldDoFn.RequiresWindowAccess;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.PCollection;
@@ -43,9 +42,7 @@ public class WriteWindowedToBigQuery<T>
   }
 
   /** Convert each key/score pair into a BigQuery TableRow. */
-  protected class BuildRowFn extends DoFn<T, TableRow>
-      implements RequiresWindowAccess {
-
+  protected class BuildRowFn extends DoFn<T, TableRow> {
     @ProcessElement
     public void processElement(ProcessContext c, BoundedWindow window) {
 
@@ -60,7 +57,7 @@ public class WriteWindowedToBigQuery<T>
   }
 
   @Override
-  public PDone apply(PCollection<T> teamAndScore) {
+  public PDone expand(PCollection<T> teamAndScore) {
     return teamAndScore
       .apply("ConvertToRow", ParDo.of(new BuildRowFn()))
       .apply(BigQueryIO.Write

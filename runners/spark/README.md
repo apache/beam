@@ -38,32 +38,25 @@ with Apache Spark. This runner allows to execute both batch and streaming pipeli
 - Side inputs/outputs
 - Encoding
 
-### Sources and Sinks
-
-- Text
-- Hadoop
-- Avro
-- Kafka
-
 ### Fault-Tolerance
 
 The Spark runner fault-tolerance guarantees the same guarantees as [Apache Spark](http://spark.apache.org/).
 
 ### Monitoring
 
-The Spark runner supports monitoring via Beam Aggregators implemented on top of Spark's [Accumulators](http://spark.apache.org/docs/latest/programming-guide.html#accumulators).  
-Spark also provides a web UI for monitoring, more details [here](http://spark.apache.org/docs/latest/monitoring.html).
+The Spark runner supports user-defined counters via Beam Aggregators implemented on top of Spark's [Accumulators](http://spark.apache.org/docs/1.6.3/programming-guide.html#accumulators).  
+The Aggregators (defined by the pipeline author) and Spark's internal metrics are reported using Spark's [metrics system](http://spark.apache.org/docs/1.6.3/monitoring.html#metrics).  
+Spark also provides a web UI for monitoring, more details [here](http://spark.apache.org/docs/1.6.3/monitoring.html).
 
 ## Beam Model support
 
 ### Batch
 
-The Spark runner provides support for batch processing of Beam bounded PCollections as Spark [RDD](http://spark.apache.org/docs/latest/programming-guide.html#resilient-distributed-datasets-rdds)s.
+The Spark runner provides full support for the Beam Model in batch processing via Spark [RDD](http://spark.apache.org/docs/1.6.3/programming-guide.html#resilient-distributed-datasets-rdds)s.
 
 ### Streaming
 
-The Spark runner currently provides partial support for stream processing of Beam unbounded PCollections as Spark [DStream](http://spark.apache.org/docs/latest/streaming-programming-guide.html#discretized-streams-dstreams)s.  
-Currently, both *FixedWindows* and *SlidingWindows* are supported, but only with processing-time triggers and discarding pane.  
+Providing full support for the Beam Model in streaming pipelines is under development. To follow-up you can subscribe to our [mailing list](http://beam.incubator.apache.org/get-started/support/).
 
 ### issue tracking
 
@@ -84,19 +77,21 @@ Then switch to the newly created directory and run Maven to build the Apache Bea
 
 Now Apache Beam and the Spark Runner are installed in your local maven repository.
 
-If we wanted to run a Beam pipeline with the default options of a single threaded Spark
-instance in local mode, we would do the following:
+If we wanted to run a Beam pipeline with the default options of a Spark instance in local mode, 
+we would do the following:
 
     Pipeline p = <logic for pipeline creation >
-    EvaluationResult result = SparkRunner.create().run(p);
+    PipelineResult result = p.run();
+    result.waitUntilFinish();
 
 To create a pipeline runner to run against a different Spark cluster, with a custom master url we
 would do the following:
 
-    Pipeline p = <logic for pipeline creation >
-    SparkPipelineOptions options = SparkPipelineOptionsFactory.create();
+    SparkPipelineOptions options = PipelineOptionsFactory.as(SparkPipelineOptions.class);
     options.setSparkMaster("spark://host:port");
-    EvaluationResult result = SparkRunner.create(options).run(p);
+    Pipeline p = <logic for pipeline creation >
+    PipelineResult result = p.run();
+    result.waitUntilFinish();
 
 ## Word Count Example
 
@@ -108,12 +103,11 @@ Switch to the Spark runner directory:
 
     cd runners/spark
     
-Then run the [word count example][wc] from the SDK using a single threaded Spark instance
-in local mode:
+Then run the [word count example][wc] from the SDK using a Spark instance in local mode:
 
-    mvn exec:exec -DmainClass=org.apache.beam.examples.WordCount \
-      -Dinput=/tmp/kinglear.txt -Doutput=/tmp/out -Drunner=SparkRunner \
-      -DsparkMaster=local
+    mvn exec:exec -DmainClass=org.apache.beam.runners.spark.examples.WordCount \
+          -Dinput=/tmp/kinglear.txt -Doutput=/tmp/out -Drunner=SparkRunner \
+          -DsparkMaster=local
 
 Check the output by running:
 
@@ -122,24 +116,9 @@ Check the output by running:
 __Note: running examples using `mvn exec:exec` only works for Spark local mode at the
 moment. See the next section for how to run on a cluster.__
 
-[wc]: https://github.com/apache/incubator-beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/WordCount.java
+[wc]: https://github.com/apache/incubator-beam/blob/master/runners/spark/src/main/java/org/apache/beam/runners/spark/examples/WordCount.java
 ## Running on a Cluster
 
 Spark Beam pipelines can be run on a cluster using the `spark-submit` command.
 
-First copy a text document to HDFS:
-
-    curl http://www.gutenberg.org/cache/epub/1128/pg1128.txt | hadoop fs -put - kinglear.txt
-
-Then run the word count example using Spark submit with the `yarn-client` master
-(`yarn-cluster` works just as well):
-
-    spark-submit \
-      --class org.apache.beam.examples.WordCount \
-      --master yarn-client \
-      target/spark-runner-*-spark-app.jar \
-        --inputFile=kinglear.txt --output=out --runner=SparkRunner --sparkMaster=yarn-client
-
-Check the output by running:
-
-    hadoop fs -tail out-00000-of-00002
+TBD pending native HDFS support (currently blocked by [BEAM-59](https://issues.apache.org/jira/browse/BEAM-59)).

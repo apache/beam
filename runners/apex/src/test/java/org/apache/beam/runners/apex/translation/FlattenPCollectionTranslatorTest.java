@@ -19,12 +19,11 @@
 package org.apache.beam.runners.apex.translation;
 
 import com.google.common.collect.Sets;
-
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Set;
-
 import org.apache.beam.runners.apex.ApexPipelineOptions;
 import org.apache.beam.runners.apex.ApexRunner;
 import org.apache.beam.runners.apex.ApexRunnerResult;
@@ -32,8 +31,8 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Flatten;
-import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
@@ -83,14 +82,10 @@ public class FlattenPCollectionTranslatorTest {
     Assert.assertEquals(expected, Sets.newHashSet(EmbeddedCollector.RESULTS));
   }
 
-  @SuppressWarnings("serial")
-  private static class EmbeddedCollector extends OldDoFn<Object, Void> {
-    protected static final ArrayList<Object> RESULTS = new ArrayList<>();
+  private static class EmbeddedCollector extends DoFn<Object, Void> {
+    private static final List<Object> RESULTS = Collections.synchronizedList(new ArrayList<>());
 
-    public EmbeddedCollector() {
-    }
-
-    @Override
+    @ProcessElement
     public void processElement(ProcessContext c) throws Exception {
       RESULTS.add(c.element());
     }
