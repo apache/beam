@@ -577,7 +577,7 @@ public class ReduceByKeyTest extends AbstractOperatorTest {
           public TriggerResult onElement(long time, Window window, TriggerContext ctx) {
             // ~ we expect the 'time' to be the end of the window which produced the
             // element in the preceding upstream (stateful and windowed) operator
-            assertTrue(time == 15_000L || time == 25_000L);
+            assertTrue(time == 15_000L - 1 || time == 25_000L - 1);
             return super.onElement(time, window, ctx);
           }
         };
@@ -728,7 +728,7 @@ public class ReduceByKeyTest extends AbstractOperatorTest {
 
         ArrayList<Long> times = new ArrayList<>(TETETS_SEEN_TIMES);
         times.sort(Comparator.naturalOrder());
-        assertEquals(asList(15_000L, 20_000L, 25_000L, 30_000L), times);
+        assertEquals(asList(15_000L, 19_999L, 25_000L, 29_999L), times);
       }
     });
   }

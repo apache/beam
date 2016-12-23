@@ -44,7 +44,10 @@ public final class TimeInterval
 
   @Override
   public long maxTimestamp() {
-    return this.endMillis;
+    // ~ TimeInterval is practically right-open interval.
+    // End time should be excluded because it would overlap with
+    // the start time of the following window.
+    return this.endMillis - 1;
   }
 
   @Override

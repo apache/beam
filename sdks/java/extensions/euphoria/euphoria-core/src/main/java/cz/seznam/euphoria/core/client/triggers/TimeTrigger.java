@@ -23,7 +23,7 @@ public class TimeTrigger implements Trigger<TimeInterval> {
 
   @Override
   public TriggerResult onTimer(long time, TimeInterval window, TriggerContext ctx) {
-    if (time == window.getEndMillis()) {
+    if (time == window.maxTimestamp()) {
       LOG.debug("Firing TimeTrigger, time {}, window: {}", time, window);
       return TriggerResult.FLUSH_AND_PURGE;
     }
@@ -32,7 +32,7 @@ public class TimeTrigger implements Trigger<TimeInterval> {
 
   @Override
   public void onClear(TimeInterval window, TriggerContext ctx) {
-    ctx.deleteTimer(window.getEndMillis(), window);
+    ctx.deleteTimer(window.maxTimestamp(), window);
   }
 
   @Override
@@ -41,7 +41,7 @@ public class TimeTrigger implements Trigger<TimeInterval> {
   }
 
   private TriggerResult registerTimer(TimeInterval window, TriggerContext ctx) {
-    if (ctx.registerTimer(window.getEndMillis(), window)) {
+    if (ctx.registerTimer(window.maxTimestamp(), window)) {
       return TriggerResult.NOOP;
     }
 

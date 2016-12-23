@@ -23,6 +23,7 @@ import org.junit.runners.Suite;
     SumByKeyTest.class,
     TopPerKeyTest.class,
     UnionTest.class,
+    WindowingTest.class,
 })
 public abstract class AllOperatorsSuite implements ExecutorProvider {
 

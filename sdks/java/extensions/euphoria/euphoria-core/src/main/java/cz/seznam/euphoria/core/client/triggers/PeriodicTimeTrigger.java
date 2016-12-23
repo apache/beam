@@ -41,8 +41,11 @@ public class PeriodicTimeTrigger implements Trigger<TimeInterval> {
     ValueStorage<Long> fireStamp = ctx.getValueStorage(fireTimeDescriptor);
 
     if (fireStamp.get().equals(time)) {
-      ctx.registerTimer(time + interval, window);
-      fireStamp.set(time + interval);
+      long nextTimestamp = time + interval;
+      if (nextTimestamp < window.getEndMillis()) {
+        ctx.registerTimer(time + interval, window);
+        fireStamp.set(time + interval);
+      }
 
       return TriggerResult.FLUSH;
     }
