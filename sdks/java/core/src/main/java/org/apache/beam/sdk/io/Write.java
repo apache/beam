@@ -104,7 +104,7 @@ public class Write {
     }
 
     @Override
-    public PDone apply(PCollection<T> input) {
+    public PDone expand(PCollection<T> input) {
       checkArgument(IsBounded.BOUNDED == input.isBounded(),
           "%s can only be applied to a Bounded PCollection",
           Write.class.getSimpleName());

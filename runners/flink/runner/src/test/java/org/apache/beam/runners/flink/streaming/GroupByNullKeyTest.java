@@ -24,8 +24,8 @@ import org.apache.beam.runners.flink.FlinkTestPipeline;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.GroupByKey;
-import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.windowing.AfterWatermark;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
@@ -64,10 +64,8 @@ public class GroupByNullKeyTest extends StreamingProgramTestBase implements Seri
   /**
    * DoFn extracting user and timestamp.
    */
-  public static class ExtractUserAndTimestamp extends OldDoFn<KV<Integer, String>, String> {
-    private static final long serialVersionUID = 0;
-
-    @Override
+  private static class ExtractUserAndTimestamp extends DoFn<KV<Integer, String>, String> {
+    @ProcessElement
     public void processElement(ProcessContext c) {
       KV<Integer, String> record = c.element();
       int timestamp = record.getKey();
@@ -100,16 +98,16 @@ public class GroupByNullKeyTest extends StreamingProgramTestBase implements Seri
               .withAllowedLateness(Duration.ZERO)
               .discardingFiredPanes())
 
-          .apply(ParDo.of(new OldDoFn<String, KV<Void, String>>() {
-            @Override
+          .apply(ParDo.of(new DoFn<String, KV<Void, String>>() {
+            @ProcessElement
             public void processElement(ProcessContext c) throws Exception {
               String elem = c.element();
-              c.output(KV.<Void, String>of((Void) null, elem));
+              c.output(KV.<Void, String>of(null, elem));
             }
           }))
           .apply(GroupByKey.<Void, String>create())
-          .apply(ParDo.of(new OldDoFn<KV<Void, Iterable<String>>, String>() {
-            @Override
+          .apply(ParDo.of(new DoFn<KV<Void, Iterable<String>>, String>() {
+            @ProcessElement
             public void processElement(ProcessContext c) throws Exception {
               KV<Void, Iterable<String>> elem = c.element();
               StringBuilder str = new StringBuilder();

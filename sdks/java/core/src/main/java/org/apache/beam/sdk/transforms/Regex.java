@@ -179,7 +179,7 @@ public class Regex {
       this.group = group;
     }
 
-    public PCollection<String> apply(PCollection<String> in) {
+    public PCollection<String> expand(PCollection<String> in) {
       return in.apply(
           ParDo.of(
               new DoFn<String, String>() {
@@ -224,7 +224,7 @@ public class Regex {
       this.valueGroup = valueGroup;
     }
 
-    public PCollection<KV<String, String>> apply(PCollection<String> in) {
+    public PCollection<KV<String, String>> expand(PCollection<String> in) {
       return in.apply(
           ParDo.of(
               new DoFn<String, KV<String, String>>() {
@@ -266,7 +266,7 @@ public class Regex {
       this.group = group;
     }
 
-    public PCollection<String> apply(PCollection<String> in) {
+    public PCollection<String> expand(PCollection<String> in) {
       return in.apply(
           ParDo.of(
               new DoFn<String, String>() {
@@ -312,7 +312,7 @@ public class Regex {
       this.valueGroup = valueGroup;
     }
 
-    public PCollection<KV<String, String>> apply(PCollection<String> in) {
+    public PCollection<KV<String, String>> expand(PCollection<String> in) {
       return in.apply(
           ParDo.of(
               new DoFn<String, KV<String, String>>() {
@@ -354,7 +354,7 @@ public class Regex {
       this.replacement = replacement;
     }
 
-    public PCollection<String> apply(PCollection<String> in) {
+    public PCollection<String> expand(PCollection<String> in) {
       return in.apply(
           ParDo.of(
               new DoFn<String, String>() {
@@ -393,7 +393,7 @@ public class Regex {
       this.replacement = replacement;
     }
 
-    public PCollection<String> apply(PCollection<String> in) {
+    public PCollection<String> expand(PCollection<String> in) {
       return in.apply(
           ParDo.of(
               new DoFn<String, String>() {
@@ -434,7 +434,7 @@ public class Regex {
       this.outputEmpty = outputEmpty;
     }
 
-    public PCollection<String> apply(PCollection<String> in) {
+    public PCollection<String> expand(PCollection<String> in) {
       return in.apply(
           ParDo.of(
               new DoFn<String, String>() {

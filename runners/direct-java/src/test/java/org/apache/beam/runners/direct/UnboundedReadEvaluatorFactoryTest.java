@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.direct;
 
+import static org.apache.beam.runners.direct.DirectGraphs.getProducer;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasSize;
@@ -71,6 +72,7 @@ import org.joda.time.DateTime;
 import org.joda.time.Instant;
 import org.joda.time.ReadableInstant;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -90,16 +92,20 @@ public class UnboundedReadEvaluatorFactoryTest {
   private BundleFactory bundleFactory = ImmutableListBundleFactory.create();
 
   private UnboundedSource<Long, ?> source;
+  private DirectGraph graph;
+
+  @Rule
+  public TestPipeline p = TestPipeline.create().enableAbandonedNodeEnforcement(false);
 
   @Before
   public void setup() {
     source = CountingSource.unboundedWithTimestampFn(new LongToInstantFn());
-    TestPipeline p = TestPipeline.create();
     longs = p.apply(Read.from(source));
 
     context = mock(EvaluationContext.class);
     factory = new UnboundedReadEvaluatorFactory(context);
     output = bundleFactory.createBundle(longs);
+    graph = DirectGraphs.getGraph(p);
     when(context.createBundle(longs)).thenReturn(output);
   }
 
@@ -115,7 +121,7 @@ public class UnboundedReadEvaluatorFactoryTest {
     int numSplits = 5;
     Collection<CommittedBundle<?>> initialInputs =
         new UnboundedReadEvaluatorFactory.InputProvider(context)
-            .getInitialInputs(longs.getProducingTransformInternal(), numSplits);
+            .getInitialInputs(graph.getProducer(longs), numSplits);
     // CountingSource.unbounded has very good splitting behavior
     assertThat(initialInputs, hasSize(numSplits));
 
@@ -148,15 +154,14 @@ public class UnboundedReadEvaluatorFactoryTest {
 
     Collection<CommittedBundle<?>> initialInputs =
         new UnboundedReadEvaluatorFactory.InputProvider(context)
-            .getInitialInputs(longs.getProducingTransformInternal(), 1);
+            .getInitialInputs(graph.getProducer(longs), 1);
 
     CommittedBundle<?> inputShards = Iterables.getOnlyElement(initialInputs);
     UnboundedSourceShard<Long, ?> inputShard =
         (UnboundedSourceShard<Long, ?>)
             Iterables.getOnlyElement(inputShards.getElements()).getValue();
     TransformEvaluator<? super UnboundedSourceShard<Long, ?>> evaluator =
-        factory.forApplication(
-            longs.getProducingTransformInternal(), inputShards);
+        factory.forApplication(graph.getProducer(longs), inputShards);
 
     evaluator.processElement((WindowedValue) Iterables.getOnlyElement(inputShards.getElements()));
     TransformResult<? super UnboundedSourceShard<Long, ?>> result = evaluator.finishBundle();
@@ -188,9 +193,8 @@ public class UnboundedReadEvaluatorFactoryTest {
         new TestUnboundedSource<>(BigEndianLongCoder.of(), outputs);
     source.dedupes = true;
 
-    TestPipeline p = TestPipeline.create();
     PCollection<Long> pcollection = p.apply(Read.from(source));
-    AppliedPTransform<?, ?, ?> sourceTransform = pcollection.getProducingTransformInternal();
+    AppliedPTransform<?, ?, ?> sourceTransform = getProducer(pcollection);
 
     when(context.createRootBundle()).thenReturn(bundleFactory.createRootBundle());
     Collection<CommittedBundle<?>> initialInputs =
@@ -229,11 +233,10 @@ public class UnboundedReadEvaluatorFactoryTest {
 
   @Test
   public void noElementsAvailableReaderIncludedInResidual() throws Exception {
-    TestPipeline p = TestPipeline.create();
     // Read with a very slow rate so by the second read there are no more elements
     PCollection<Long> pcollection =
         p.apply(Read.from(new TestUnboundedSource<>(VarLongCoder.of(), 1L)));
-    AppliedPTransform<?, ?, ?> sourceTransform = pcollection.getProducingTransformInternal();
+    AppliedPTransform<?, ?, ?> sourceTransform = DirectGraphs.getProducer(pcollection);
 
     when(context.createRootBundle()).thenReturn(bundleFactory.createRootBundle());
     Collection<CommittedBundle<?>> initialInputs =
@@ -289,9 +292,10 @@ public class UnboundedReadEvaluatorFactoryTest {
     TestUnboundedSource<Long> source =
         new TestUnboundedSource<>(BigEndianLongCoder.of(), elems.toArray(new Long[0]));
 
-    TestPipeline p = TestPipeline.create();
     PCollection<Long> pcollection = p.apply(Read.from(source));
-    AppliedPTransform<?, ?, ?> sourceTransform = pcollection.getProducingTransformInternal();
+    DirectGraph graph = DirectGraphs.getGraph(p);
+    AppliedPTransform<?, ?, ?> sourceTransform =
+        graph.getProducer(pcollection);
 
     when(context.createRootBundle()).thenReturn(bundleFactory.createRootBundle());
     UncommittedBundle<Long> output = bundleFactory.createBundle(pcollection);
@@ -307,8 +311,7 @@ public class UnboundedReadEvaluatorFactoryTest {
             .commit(Instant.now());
     UnboundedReadEvaluatorFactory factory =
         new UnboundedReadEvaluatorFactory(context, 1.0 /* Always reuse */);
-    new UnboundedReadEvaluatorFactory.InputProvider(context)
-        .getInitialInputs(pcollection.getProducingTransformInternal(), 1);
+    new UnboundedReadEvaluatorFactory.InputProvider(context).getInitialInputs(sourceTransform, 1);
     TransformEvaluator<UnboundedSourceShard<Long, TestCheckpointMark>> evaluator =
         factory.forApplication(sourceTransform, inputBundle);
     evaluator.processElement(shard);
@@ -334,9 +337,9 @@ public class UnboundedReadEvaluatorFactoryTest {
     TestUnboundedSource<Long> source =
         new TestUnboundedSource<>(BigEndianLongCoder.of(), elems.toArray(new Long[0]));
 
-    TestPipeline p = TestPipeline.create();
     PCollection<Long> pcollection = p.apply(Read.from(source));
-    AppliedPTransform<?, ?, ?> sourceTransform = pcollection.getProducingTransformInternal();
+    AppliedPTransform<?, ?, ?> sourceTransform =
+        DirectGraphs.getGraph(p).getProducer(pcollection);
 
     when(context.createRootBundle()).thenReturn(bundleFactory.createRootBundle());
     UncommittedBundle<Long> output = bundleFactory.createBundle(pcollection);

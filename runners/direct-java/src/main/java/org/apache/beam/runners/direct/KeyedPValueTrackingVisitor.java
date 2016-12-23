@@ -19,13 +19,20 @@ package org.apache.beam.runners.direct;
 
 import static com.google.common.base.Preconditions.checkState;
 
+import com.google.common.collect.ImmutableSet;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
+import org.apache.beam.runners.core.SplittableParDo;
+import org.apache.beam.runners.direct.DirectGroupByKey.DirectGroupAlsoByWindow;
+import org.apache.beam.runners.direct.DirectGroupByKey.DirectGroupByKeyOnly;
 import org.apache.beam.sdk.Pipeline.PipelineVisitor;
 import org.apache.beam.sdk.runners.TransformHierarchy;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PValue;
+import org.apache.beam.sdk.values.TaggedPValue;
 
 /**
  * A pipeline visitor that tracks all keyed {@link PValue PValues}. A {@link PValue} is keyed if it
@@ -38,19 +45,21 @@ import org.apache.beam.sdk.values.PValue;
 // TODO: Handle Key-preserving transforms when appropriate and more aggressively make PTransforms
 // unkeyed
 class KeyedPValueTrackingVisitor implements PipelineVisitor {
-  @SuppressWarnings("rawtypes")
-  private final Set<Class<? extends PTransform>> producesKeyedOutputs;
+
+  private static final Set<Class<? extends PTransform>> PRODUCES_KEYED_OUTPUTS =
+      ImmutableSet.of(
+          SplittableParDo.GBKIntoKeyedWorkItems.class,
+          DirectGroupByKeyOnly.class,
+          DirectGroupAlsoByWindow.class);
+
   private final Set<PValue> keyedValues;
   private boolean finalized;
 
-  public static KeyedPValueTrackingVisitor create(
-      @SuppressWarnings("rawtypes") Set<Class<? extends PTransform>> producesKeyedOutputs) {
-    return new KeyedPValueTrackingVisitor(producesKeyedOutputs);
+  public static KeyedPValueTrackingVisitor create() {
+    return new KeyedPValueTrackingVisitor();
   }
 
-  private KeyedPValueTrackingVisitor(
-      @SuppressWarnings("rawtypes") Set<Class<? extends PTransform>> producesKeyedOutputs) {
-    this.producesKeyedOutputs = producesKeyedOutputs;
+  private KeyedPValueTrackingVisitor() {
     this.keyedValues = new HashSet<>();
   }
 
@@ -73,8 +82,11 @@ class KeyedPValueTrackingVisitor implements PipelineVisitor {
         node);
     if (node.isRootNode()) {
       finalized = true;
-    } else if (producesKeyedOutputs.contains(node.getTransform().getClass())) {
-      keyedValues.addAll(node.getOutput().expand());
+    } else if (PRODUCES_KEYED_OUTPUTS.contains(node.getTransform().getClass())) {
+      List<TaggedPValue> outputs = node.getOutputs();
+      for (TaggedPValue output : outputs) {
+        keyedValues.add(output.getValue());
+      }
     }
   }
 
@@ -83,8 +95,13 @@ class KeyedPValueTrackingVisitor implements PipelineVisitor {
 
   @Override
   public void visitValue(PValue value, TransformHierarchy.Node producer) {
-    if (producesKeyedOutputs.contains(producer.getTransform().getClass())) {
-      keyedValues.addAll(value.expand());
+    boolean inputsAreKeyed = true;
+    for (TaggedPValue input : producer.getInputs()) {
+      inputsAreKeyed = inputsAreKeyed && keyedValues.contains(input.getValue());
+    }
+    if (PRODUCES_KEYED_OUTPUTS.contains(producer.getTransform().getClass())
+        || (isKeyPreserving(producer.getTransform()) && inputsAreKeyed)) {
+      keyedValues.add(value);
     }
   }
 
@@ -92,5 +109,18 @@ class KeyedPValueTrackingVisitor implements PipelineVisitor {
     checkState(
         finalized, "can't call getKeyedPValues before a Pipeline has been completely traversed");
     return keyedValues;
+  }
+
+  private static boolean isKeyPreserving(PTransform<?, ?> transform) {
+    // This is a hacky check for what is considered key-preserving to the direct runner.
+    // The most obvious alternative would be a package-private marker interface, but
+    // better to make this obviously hacky so it is less likely to proliferate. Meanwhile
+    // we intend to allow explicit expression of key-preserving DoFn in the model.
+    if (transform instanceof ParDo.BoundMulti) {
+      ParDo.BoundMulti<?, ?> parDo = (ParDo.BoundMulti<?, ?>) transform;
+      return parDo.getFn() instanceof ParDoMultiOverrideFactory.ToKeyedWorkItem;
+    } else {
+      return false;
+    }
   }
 }

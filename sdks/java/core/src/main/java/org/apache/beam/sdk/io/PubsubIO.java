@@ -700,7 +700,7 @@ public class PubsubIO {
       }
 
       @Override
-      public PCollection<T> apply(PBegin input) {
+      public PCollection<T> expand(PBegin input) {
         if (topic == null && subscription == null) {
           throw new IllegalStateException("Need to set either the topic or the subscription for "
               + "a PubsubIO.Read transform");
@@ -1057,7 +1057,7 @@ public class PubsubIO {
       }
 
       @Override
-      public PDone apply(PCollection<T> input) {
+      public PDone expand(PCollection<T> input) {
         if (topic == null) {
           throw new IllegalStateException("need to set the topic of a PubsubIO.Write transform");
         }

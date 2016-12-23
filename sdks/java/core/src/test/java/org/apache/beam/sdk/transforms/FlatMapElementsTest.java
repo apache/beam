@@ -27,7 +27,6 @@ import java.io.Serializable;
 import java.util.Collections;
 import java.util.List;
 import java.util.Set;
-import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -49,6 +48,9 @@ import org.junit.runners.JUnit4;
 public class FlatMapElementsTest implements Serializable {
 
   @Rule
+  public final transient TestPipeline pipeline = TestPipeline.create();
+
+  @Rule
   public transient ExpectedException thrown = ExpectedException.none();
 
   /**
@@ -57,7 +59,6 @@ public class FlatMapElementsTest implements Serializable {
   @Test
   @Category(NeedsRunner.class)
   public void testFlatMapBasic() throws Exception {
-    Pipeline pipeline = TestPipeline.create();
     PCollection<Integer> output = pipeline
         .apply(Create.of(1, 2, 3))
 
@@ -82,7 +83,6 @@ public class FlatMapElementsTest implements Serializable {
   @Test
   @Category(NeedsRunner.class)
   public void testFlatMapFnOutputTypeDescriptor() throws Exception {
-    Pipeline pipeline = TestPipeline.create();
     PCollection<String> output = pipeline
         .apply(Create.of("hello"))
         .apply(FlatMapElements.via(new SimpleFunction<String, Set<String>>() {
@@ -117,7 +117,8 @@ public class FlatMapElementsTest implements Serializable {
    */
   @Test
   public void testPolymorphicSimpleFunction() throws Exception {
-    Pipeline pipeline = TestPipeline.create();
+    pipeline.enableAbandonedNodeEnforcement(false);
+
     PCollection<Integer> output = pipeline
         .apply(Create.of(1, 2, 3))
 
@@ -168,7 +169,6 @@ public class FlatMapElementsTest implements Serializable {
   @Test
   @Category(NeedsRunner.class)
   public void testVoidValues() throws Exception {
-    Pipeline pipeline = TestPipeline.create();
     pipeline
         .apply(Create.of("hello"))
         .apply(WithKeys.<String, String>of("k"))
@@ -181,7 +181,7 @@ public class FlatMapElementsTest implements Serializable {
       extends PTransform<PCollection<KV<K, V>>, PCollection<KV<K, Void>>> {
 
     @Override
-    public PCollection<KV<K, Void>> apply(PCollection<KV<K, V>> input) {
+    public PCollection<KV<K, Void>> expand(PCollection<KV<K, V>> input) {
       return input.apply(FlatMapElements.<KV<K, V>, KV<K, Void>>via(
           new SimpleFunction<KV<K, V>, Iterable<KV<K, Void>>>() {
             @Override

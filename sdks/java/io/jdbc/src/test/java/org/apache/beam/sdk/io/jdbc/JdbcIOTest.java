@@ -48,6 +48,7 @@ import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.BeforeClass;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.slf4j.Logger;
@@ -57,12 +58,15 @@ import org.slf4j.LoggerFactory;
  * Test on the JdbcIO.
  */
 public class JdbcIOTest implements Serializable {
-  private static final Logger LOGGER = LoggerFactory.getLogger(JdbcIOTest.class);
+  private static final Logger LOG = LoggerFactory.getLogger(JdbcIOTest.class);
 
   private static NetworkServerControl derbyServer;
   private static ClientDataSource dataSource;
 
   private static int port;
+
+  @Rule
+  public final transient TestPipeline pipeline = TestPipeline.create();
 
   @BeforeClass
   public static void startDatabase() throws Exception {
@@ -70,7 +74,7 @@ public class JdbcIOTest implements Serializable {
     port = socket.getLocalPort();
     socket.close();
 
-    LOGGER.info("Starting Derby database on {}", port);
+    LOG.info("Starting Derby database on {}", port);
 
     System.setProperty("derby.stream.error.file", "target/derby.log");
 
@@ -207,7 +211,6 @@ public class JdbcIOTest implements Serializable {
   @Test
   @Category(NeedsRunner.class)
   public void testRead() throws Exception {
-    TestPipeline pipeline = TestPipeline.create();
 
     PCollection<KV<String, Integer>> output = pipeline.apply(
         JdbcIO.<KV<String, Integer>>read()
@@ -245,7 +248,6 @@ public class JdbcIOTest implements Serializable {
    @Test
    @Category(NeedsRunner.class)
    public void testReadWithSingleStringParameter() throws Exception {
-     TestPipeline pipeline = TestPipeline.create();
 
      PCollection<KV<String, Integer>> output = pipeline.apply(
              JdbcIO.<KV<String, Integer>>read()
@@ -278,7 +280,6 @@ public class JdbcIOTest implements Serializable {
   @Test
   @Category(NeedsRunner.class)
   public void testWrite() throws Exception {
-    TestPipeline pipeline = TestPipeline.create();
 
     ArrayList<KV<Integer, String>> data = new ArrayList<>();
     for (int i = 0; i < 1000; i++) {
@@ -316,7 +317,6 @@ public class JdbcIOTest implements Serializable {
   @Test
   @Category(NeedsRunner.class)
   public void testWriteWithEmptyPCollection() throws Exception {
-    TestPipeline pipeline = TestPipeline.create();
 
     pipeline.apply(Create.of(new ArrayList<KV<Integer, String>>()))
         .apply(JdbcIO.<KV<Integer, String>>write()

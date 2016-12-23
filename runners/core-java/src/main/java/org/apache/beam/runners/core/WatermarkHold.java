@@ -207,7 +207,9 @@ class WatermarkHold<W extends BoundedWindow> implements Serializable {
     Instant shifted = windowingStrategy.getOutputTimeFn().assignOutputTime(timestamp, window);
     checkState(!shifted.isBefore(timestamp),
         "OutputTimeFn moved element from %s to earlier time %s for window %s",
-        timestamp, shifted, window);
+        BoundedWindow.formatTimestamp(timestamp),
+        BoundedWindow.formatTimestamp(shifted),
+        window);
     checkState(timestamp.isAfter(window.maxTimestamp())
             || !shifted.isAfter(window.maxTimestamp()),
         "OutputTimeFn moved element from %s to %s which is beyond end of "
@@ -442,6 +444,11 @@ class WatermarkHold<W extends BoundedWindow> implements Serializable {
       this.oldHold = oldHold;
       this.newHold = newHold;
     }
+  }
+
+  public void prefetchExtract(final ReduceFn<?, ?, ?, W>.Context context) {
+    context.state().access(elementHoldTag).readLater();
+    context.state().access(EXTRA_HOLD_TAG).readLater();
   }
 
   /**

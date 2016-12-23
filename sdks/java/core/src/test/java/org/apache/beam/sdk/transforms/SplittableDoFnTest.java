@@ -19,6 +19,8 @@ package org.apache.beam.sdk.transforms;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.sdk.transforms.DoFn.ProcessContinuation.resume;
+import static org.apache.beam.sdk.transforms.DoFn.ProcessContinuation.stop;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
@@ -27,7 +29,6 @@ import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
@@ -36,6 +37,7 @@ import org.apache.beam.sdk.testing.RunnableOnService;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestStream;
 import org.apache.beam.sdk.testing.UsesSplittableParDo;
+import org.apache.beam.sdk.transforms.DoFn.BoundedPerElement;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
@@ -51,6 +53,7 @@ import org.apache.beam.sdk.values.TupleTagList;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.joda.time.MutableDateTime;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
@@ -117,10 +120,10 @@ public class SplittableDoFnTest {
       for (int i = tracker.currentRestriction().from; tracker.tryClaim(i); ++i) {
         c.output(KV.of(c.element(), i));
         if (i % 3 == 0) {
-          return ProcessContinuation.resume();
+          return resume();
         }
       }
-      return ProcessContinuation.stop();
+      return stop();
     }
 
     @GetInitialRestriction
@@ -148,10 +151,13 @@ public class SplittableDoFnTest {
     }
   }
 
+  @Rule
+  public final transient TestPipeline p = TestPipeline.create();
+
   @Test
   @Category({RunnableOnService.class, UsesSplittableParDo.class})
   public void testPairWithIndexBasic() {
-    Pipeline p = TestPipeline.create();
+
     PCollection<KV<String, Integer>> res =
         p.apply(Create.of("a", "bb", "ccccc"))
             .apply(ParDo.of(new PairStringWithIndexToLength()))
@@ -177,7 +183,6 @@ public class SplittableDoFnTest {
   public void testPairWithIndexWindowedTimestamped() {
     // Tests that Splittable DoFn correctly propagates windowing strategy, windows and timestamps
     // of elements in the input collection.
-    Pipeline p = TestPipeline.create();
 
     MutableDateTime mutableNow = Instant.now().toMutableDateTime();
     mutableNow.setMillisOfSecond(0);
@@ -231,6 +236,56 @@ public class SplittableDoFnTest {
     p.run();
   }
 
+  @BoundedPerElement
+  private static class SDFWithMultipleOutputsPerBlock extends DoFn<String, Integer> {
+    private static final int MAX_INDEX = 98765;
+
+    private static int snapToNextBlock(int index, int[] blockStarts) {
+      for (int i = 1; i < blockStarts.length; ++i) {
+        if (index > blockStarts[i - 1] && index <= blockStarts[i]) {
+          return i;
+        }
+      }
+      throw new IllegalStateException("Shouldn't get here");
+    }
+
+    @ProcessElement
+    public ProcessContinuation processElement(ProcessContext c, OffsetRangeTracker tracker) {
+      int[] blockStarts = {-1, 0, 12, 123, 1234, 12345, 34567, MAX_INDEX};
+      int trueStart = snapToNextBlock(tracker.currentRestriction().from, blockStarts);
+      int trueEnd = snapToNextBlock(tracker.currentRestriction().to, blockStarts);
+      for (int i = trueStart; i < trueEnd; ++i) {
+        if (!tracker.tryClaim(blockStarts[i])) {
+          return resume();
+        }
+        for (int index = blockStarts[i]; index < blockStarts[i + 1]; ++index) {
+          c.output(index);
+        }
+      }
+      return stop();
+    }
+
+    @GetInitialRestriction
+    public OffsetRange getInitialRange(String element) {
+      return new OffsetRange(0, MAX_INDEX);
+    }
+
+    @NewTracker
+    public OffsetRangeTracker newTracker(OffsetRange range) {
+      return new OffsetRangeTracker(range);
+    }
+  }
+
+  @Test
+  @Category({RunnableOnService.class, UsesSplittableParDo.class})
+  public void testOutputAfterCheckpoint() throws Exception {
+    PCollection<Integer> outputs = p.apply(Create.of("foo"))
+        .apply(ParDo.of(new SDFWithMultipleOutputsPerBlock()));
+    PAssert.thatSingleton(outputs.apply(Count.<Integer>globally()))
+        .isEqualTo((long) SDFWithMultipleOutputsPerBlock.MAX_INDEX);
+    p.run();
+  }
+
   private static class SDFWithSideInputsAndOutputs extends DoFn<Integer, String> {
     private final PCollectionView<String> sideInput;
     private final TupleTag<String> sideOutput;
@@ -263,7 +318,6 @@ public class SplittableDoFnTest {
   @Test
   @Category({RunnableOnService.class, UsesSplittableParDo.class})
   public void testSideInputsAndOutputs() throws Exception {
-    Pipeline p = TestPipeline.create();
 
     PCollectionView<String> sideInput =
         p.apply("side input", Create.of("foo")).apply(View.<String>asSingleton());
@@ -290,7 +344,6 @@ public class SplittableDoFnTest {
   @Test
   @Category({RunnableOnService.class, UsesSplittableParDo.class})
   public void testLateData() throws Exception {
-    Pipeline p = TestPipeline.create();
 
     Instant base = Instant.now();
 
@@ -385,7 +438,6 @@ public class SplittableDoFnTest {
   @Test
   @Category({RunnableOnService.class, UsesSplittableParDo.class})
   public void testLifecycleMethods() throws Exception {
-    Pipeline p = TestPipeline.create();
 
     PCollection<String> res =
         p.apply(Create.of("a", "b", "c")).apply(ParDo.of(new SDFWithLifecycle()));

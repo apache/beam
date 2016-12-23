@@ -77,7 +77,7 @@ public class GroupByKeyViaGroupByKeyOnly<K, V>
   }
 
   @Override
-  public PCollection<KV<K, Iterable<V>>> apply(PCollection<KV<K, V>> input) {
+  public PCollection<KV<K, Iterable<V>>> expand(PCollection<KV<K, V>> input) {
     WindowingStrategy<?, ?> windowingStrategy = input.getWindowingStrategy();
 
     return input
@@ -109,7 +109,7 @@ public class GroupByKeyViaGroupByKeyOnly<K, V>
 
     @SuppressWarnings({"rawtypes", "unchecked"})
     @Override
-    public PCollection<KV<K, Iterable<WindowedValue<V>>>> apply(PCollection<KV<K, V>> input) {
+    public PCollection<KV<K, Iterable<WindowedValue<V>>>> expand(PCollection<KV<K, V>> input) {
       return PCollection.createPrimitiveOutputInternal(
           input.getPipeline(), input.getWindowingStrategy(), input.isBounded());
     }
@@ -128,7 +128,7 @@ public class GroupByKeyViaGroupByKeyOnly<K, V>
           PCollection<KV<K, Iterable<WindowedValue<V>>>>,
           PCollection<KV<K, Iterable<WindowedValue<V>>>>> {
     @Override
-    public PCollection<KV<K, Iterable<WindowedValue<V>>>> apply(
+    public PCollection<KV<K, Iterable<WindowedValue<V>>>> expand(
         PCollection<KV<K, Iterable<WindowedValue<V>>>> input) {
       return input
           .apply(
@@ -225,7 +225,7 @@ public class GroupByKeyViaGroupByKeyOnly<K, V>
     }
 
     @Override
-    public PCollection<KV<K, Iterable<V>>> apply(
+    public PCollection<KV<K, Iterable<V>>> expand(
         PCollection<KV<K, Iterable<WindowedValue<V>>>> input) {
       @SuppressWarnings("unchecked")
       KvCoder<K, Iterable<WindowedValue<V>>> inputKvCoder =

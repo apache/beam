@@ -17,37 +17,59 @@
  */
 package org.apache.beam.examples;
 
-import java.io.IOException;
+import static org.hamcrest.Matchers.equalTo;
+
+import com.google.api.client.util.Sleeper;
+import com.google.common.base.MoreObjects;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Lists;
+import java.util.Collections;
 import java.util.Date;
+import java.util.List;
+import java.util.SortedMap;
+import java.util.TreeMap;
+import org.apache.beam.examples.common.WriteWindowedFilesDoFn;
+import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.StreamingOptions;
-import org.apache.beam.sdk.testing.BigqueryMatcher;
+import org.apache.beam.sdk.testing.FileChecksumMatcher;
+import org.apache.beam.sdk.testing.SerializableMatcher;
 import org.apache.beam.sdk.testing.StreamingIT;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestPipelineOptions;
+import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
+import org.apache.beam.sdk.util.ExplicitShardedFile;
+import org.apache.beam.sdk.util.FluentBackoff;
 import org.apache.beam.sdk.util.IOChannelUtils;
+import org.apache.beam.sdk.util.ShardedFile;
+import org.hamcrest.Description;
+import org.hamcrest.TypeSafeMatcher;
+import org.joda.time.Duration;
+import org.joda.time.Instant;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-/**
- * End-to-end integration test of {@link WindowedWordCount}.
- */
+/** End-to-end integration test of {@link WindowedWordCount}. */
 @RunWith(JUnit4.class)
 public class WindowedWordCountIT {
 
   private static final String DEFAULT_INPUT =
       "gs://apache-beam-samples/shakespeare/winterstale-personae";
-  private static final String DEFAULT_OUTPUT_CHECKSUM = "cd5b52939257e12428a9fa085c32a84dd209b180";
+  static final int MAX_READ_RETRIES = 4;
+  static final Duration DEFAULT_SLEEP_DURATION = Duration.standardSeconds(10L);
+  static final FluentBackoff BACK_OFF_FACTORY =
+      FluentBackoff.DEFAULT
+          .withInitialBackoff(DEFAULT_SLEEP_DURATION)
+          .withMaxRetries(MAX_READ_RETRIES);
 
-  /**
-   * Options for the {@link WindowedWordCount} Integration Test.
-   */
+  /** Options for the {@link WindowedWordCount} Integration Test. */
   public interface WindowedWordCountITOptions
-      extends WindowedWordCount.Options, TestPipelineOptions, StreamingOptions {
-  }
+      extends WindowedWordCount.Options, TestPipelineOptions, StreamingOptions {}
 
   @BeforeClass
   public static void setUp() {
@@ -55,36 +77,140 @@ public class WindowedWordCountIT {
   }
 
   @Test
-  public void testWindowedWordCountInBatch() throws IOException {
-    testWindowedWordCountPipeline(false /* isStreaming */);
+  public void testWindowedWordCountInBatch() throws Exception {
+    testWindowedWordCountPipeline(defaultOptions());
   }
 
   @Test
   @Category(StreamingIT.class)
-  public void testWindowedWordCountInStreaming() throws IOException {
-    testWindowedWordCountPipeline(true /* isStreaming */);
+  public void testWindowedWordCountInStreaming() throws Exception {
+    testWindowedWordCountPipeline(streamingOptions());
   }
 
-  private void testWindowedWordCountPipeline(boolean isStreaming) throws IOException {
+  private WindowedWordCountITOptions defaultOptions() throws Exception {
     WindowedWordCountITOptions options =
         TestPipeline.testingPipelineOptions().as(WindowedWordCountITOptions.class);
-    options.setStreaming(isStreaming);
     options.setInputFile(DEFAULT_INPUT);
+    options.setTestTimeoutSeconds(1200L);
 
-    // Note: currently unused because the example writes to BigQuery, but WindowedWordCount.Options
-    // are tightly coupled to WordCount.Options, where the option is required.
-    options.setOutput(IOChannelUtils.resolve(
-        options.getTempRoot(),
-        String.format("WindowedWordCountIT-%tF-%<tH-%<tM-%<tS-%<tL", new Date()),
-        "output",
-        "results"));
+    options.setMinTimestampMillis(0L);
+    options.setMinTimestampMillis(Duration.standardHours(1).getMillis());
+    options.setWindowSize(10);
 
-    String query = String.format("SELECT word, SUM(count) FROM [%s:%s.%s] GROUP BY word",
-        options.getProject(), options.getBigQueryDataset(), options.getBigQueryTable());
+    options.setOutput(
+        IOChannelUtils.resolve(
+            options.getTempRoot(),
+            String.format("WindowedWordCountIT-%tF-%<tH-%<tM-%<tS-%<tL", new Date()),
+            "output",
+            "results"));
+    return options;
+  }
+
+  private WindowedWordCountITOptions streamingOptions() throws Exception {
+    WindowedWordCountITOptions options = defaultOptions();
+    options.setStreaming(true);
+    return options;
+  }
+
+  private WindowedWordCountITOptions batchOptions() throws Exception {
+    WindowedWordCountITOptions options = defaultOptions();
+    // This is the default value, but make it explicit
+    options.setStreaming(false);
+    return options;
+  }
+
+  private void testWindowedWordCountPipeline(WindowedWordCountITOptions options) throws Exception {
+
+    String outputPrefix = options.getOutput();
+
+    List<String> expectedOutputFiles = Lists.newArrayListWithCapacity(6);
+    for (int startMinute : ImmutableList.of(0, 10, 20, 30, 40, 50)) {
+      Instant windowStart =
+          new Instant(options.getMinTimestampMillis()).plus(Duration.standardMinutes(startMinute));
+      expectedOutputFiles.add(
+          WriteWindowedFilesDoFn.fileForWindow(
+              outputPrefix,
+              new IntervalWindow(windowStart, windowStart.plus(Duration.standardMinutes(10)))));
+    }
+
+    ShardedFile inputFile =
+        new ExplicitShardedFile(Collections.singleton(options.getInputFile()));
+
+    // For this integration test, input is tiny and we can build the expected counts
+    SortedMap<String, Long> expectedWordCounts = new TreeMap<>();
+    for (String line :
+        inputFile.readFilesWithRetries(Sleeper.DEFAULT, BACK_OFF_FACTORY.backoff())) {
+      String[] words = line.split("[^a-zA-Z']+");
+
+      for (String word : words) {
+        if (!word.isEmpty()) {
+          expectedWordCounts.put(word,
+              MoreObjects.firstNonNull(expectedWordCounts.get(word), 0L) + 1L);
+        }
+      }
+    }
+
     options.setOnSuccessMatcher(
-        new BigqueryMatcher(
-            options.getAppName(), options.getProject(), query, DEFAULT_OUTPUT_CHECKSUM));
+        new WordCountsMatcher(expectedWordCounts, new ExplicitShardedFile(expectedOutputFiles)));
 
     WindowedWordCount.main(TestPipeline.convertToArgs(options));
+  }
+
+  /**
+   * A matcher that bakes in expected word counts, so they can be read directly via some other
+   * mechanism, and compares a sharded output file with the result.
+   */
+  private static class WordCountsMatcher extends TypeSafeMatcher<PipelineResult>
+      implements SerializableMatcher<PipelineResult> {
+
+    private static final Logger LOG = LoggerFactory.getLogger(FileChecksumMatcher.class);
+
+    private final SortedMap<String, Long> expectedWordCounts;
+    private final ShardedFile outputFile;
+    private SortedMap<String, Long> actualCounts;
+
+    public WordCountsMatcher(SortedMap<String, Long> expectedWordCounts, ShardedFile outputFile) {
+      this.expectedWordCounts = expectedWordCounts;
+      this.outputFile = outputFile;
+    }
+
+    @Override
+    public boolean matchesSafely(PipelineResult pipelineResult) {
+      try {
+        // Load output data
+        List<String> lines =
+            outputFile.readFilesWithRetries(Sleeper.DEFAULT, BACK_OFF_FACTORY.backoff());
+
+        // Since the windowing is nondeterministic we only check the sums
+        actualCounts = new TreeMap<>();
+        for (String line : lines) {
+          String[] splits = line.split(": ");
+          String word = splits[0];
+          long count = Long.parseLong(splits[1]);
+
+          Long current = actualCounts.get(word);
+          if (current == null) {
+            actualCounts.put(word, count);
+          } else {
+            actualCounts.put(word, current + count);
+          }
+        }
+
+        return actualCounts.equals(expectedWordCounts);
+      } catch (Exception e) {
+        throw new RuntimeException(
+            String.format("Failed to read from sharded output: %s", outputFile));
+      }
+    }
+
+    @Override
+    public void describeTo(Description description) {
+      equalTo(expectedWordCounts).describeTo(description);
+    }
+
+    @Override
+    public void describeMismatchSafely(PipelineResult pResult, Description description) {
+      equalTo(expectedWordCounts).describeMismatch(actualCounts, description);
+    }
   }
 }

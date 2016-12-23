@@ -29,7 +29,7 @@ import org.apache.beam.sdk.values.PCollection;
 public final class StorageLevelPTransform extends PTransform<PCollection<?>, PCollection<String>> {
 
   @Override
-  public PCollection<String> apply(PCollection<?> input) {
+  public PCollection<String> expand(PCollection<?> input) {
     return PCollection.createPrimitiveOutputInternal(input.getPipeline(),
         WindowingStrategy.globalDefault(),
         PCollection.IsBounded.BOUNDED);

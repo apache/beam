@@ -27,9 +27,11 @@ import java.util.Collection;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import javax.annotation.Nullable;
+import org.apache.beam.runners.core.ExecutionContext;
 import org.apache.beam.runners.direct.CommittedResult.OutputType;
 import org.apache.beam.runners.direct.DirectGroupByKey.DirectGroupByKeyOnly;
 import org.apache.beam.runners.direct.DirectRunner.CommittedBundle;
@@ -42,17 +44,16 @@ import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.Trigger;
-import org.apache.beam.sdk.util.ExecutionContext;
 import org.apache.beam.sdk.util.ReadyCheckingSideInputReader;
 import org.apache.beam.sdk.util.SideInputReader;
 import org.apache.beam.sdk.util.TimerInternals.TimerData;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowingStrategy;
-import org.apache.beam.sdk.util.state.CopyOnAccessInMemoryStateInternals;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollection.IsBounded;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PValue;
+import org.apache.beam.sdk.values.TaggedPValue;
 import org.joda.time.Instant;
 
 /**
@@ -100,17 +101,28 @@ class EvaluationContext {
 
   private final DirectMetrics metrics;
 
+  private final Set<PValue> keyedPValues;
+
   public static EvaluationContext create(
-      DirectOptions options, Clock clock, BundleFactory bundleFactory, DirectGraph graph) {
-    return new EvaluationContext(options, clock, bundleFactory, graph);
+      DirectOptions options,
+      Clock clock,
+      BundleFactory bundleFactory,
+      DirectGraph graph,
+      Set<PValue> keyedPValues) {
+    return new EvaluationContext(options, clock, bundleFactory, graph, keyedPValues);
   }
 
   private EvaluationContext(
-      DirectOptions options, Clock clock, BundleFactory bundleFactory, DirectGraph graph) {
+      DirectOptions options,
+      Clock clock,
+      BundleFactory bundleFactory,
+      DirectGraph graph,
+      Set<PValue> keyedPValues) {
     this.options = checkNotNull(options);
     this.clock = clock;
     this.bundleFactory = checkNotNull(bundleFactory);
     this.graph = checkNotNull(graph);
+    this.keyedPValues = keyedPValues;
 
     this.watermarkManager = WatermarkManager.create(clock, graph);
     this.sideInputContainer = SideInputContainer.create(this, graph.getViews());
@@ -242,6 +254,14 @@ class EvaluationContext {
   public <K, T> UncommittedBundle<T> createKeyedBundle(
       StructuralKey<K> key, PCollection<T> output) {
     return bundleFactory.createKeyedBundle(key, output);
+  }
+
+  /**
+   * Indicate whether or not this {@link PCollection} has been determined to be
+   * keyed.
+   */
+  public <T> boolean isKeyed(PValue pValue) {
+    return keyedPValues.contains(pValue);
   }
 
   /**
@@ -400,9 +420,9 @@ class EvaluationContext {
     }
     // If the PTransform has any unbounded outputs, and unbounded producers should not be shut down,
     // the PTransform may produce additional output. It is not done.
-    for (PValue output : transform.getOutput().expand()) {
-      if (output instanceof PCollection) {
-        IsBounded bounded = ((PCollection<?>) output).isBounded();
+    for (TaggedPValue output : transform.getOutput().expand()) {
+      if (output.getValue() instanceof PCollection) {
+        IsBounded bounded = ((PCollection<?>) output.getValue()).isBounded();
         if (bounded.equals(IsBounded.UNBOUNDED)
             && !options.isShutdownUnboundedProducersWithMaxWatermark()) {
           return false;

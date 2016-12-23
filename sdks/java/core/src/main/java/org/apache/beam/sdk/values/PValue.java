@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.values;
 
+import java.util.List;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.PTransform;
 
@@ -35,5 +36,29 @@ public interface PValue extends POutput, PInput {
    *
    * <p>For internal use only.
    */
+  @Deprecated
   AppliedPTransform<?, ?, ?> getProducingTransformInternal();
+
+  /**
+   * {@inheritDoc}.
+   *
+   * <p>A {@link PValue} always expands into itself. Calling {@link #expand()} on a PValue is almost
+   * never appropriate.
+   */
+  @Deprecated
+  List<TaggedPValue> expand();
+
+  /**
+   * After building, finalizes this {@code PValue} to make it ready for being used as an input to a
+   * {@link org.apache.beam.sdk.transforms.PTransform}.
+   *
+   * <p>Automatically invoked whenever {@code apply()} is invoked on this {@code PValue}, after
+   * {@link PValue#finishSpecifying(PInput, PTransform)} has been called on each component {@link
+   * PValue}, so users do not normally call this explicitly.
+   *
+   * @param upstreamInput the {@link PInput} the {@link PTransform} was applied to to produce this
+   *     output
+   * @param upstreamTransform the {@link PTransform} that produced this {@link PValue}
+   */
+  void finishSpecifying(PInput upstreamInput, PTransform<?, ?> upstreamTransform);
 }

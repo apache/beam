@@ -74,6 +74,10 @@ import org.junit.runners.JUnit4;
  */
 @RunWith(JUnit4.class)
 public class AvroIOTest {
+
+  @Rule
+  public TestPipeline p = TestPipeline.create();
+
   @Rule
   public TemporaryFolder tmpFolder = new TemporaryFolder();
 
@@ -135,7 +139,6 @@ public class AvroIOTest {
   @Test
   @Category(NeedsRunner.class)
   public void testAvroIOWriteAndReadASingleFile() throws Throwable {
-    TestPipeline p = TestPipeline.create();
     List<GenericClass> values = ImmutableList.of(new GenericClass(3, "hi"),
         new GenericClass(5, "bar"));
     File outputFile = tmpFolder.newFile("output.avro");
@@ -146,7 +149,6 @@ public class AvroIOTest {
           .withSchema(GenericClass.class));
     p.run();
 
-    p = TestPipeline.create();
     PCollection<GenericClass> input = p
         .apply(AvroIO.Read.from(outputFile.getAbsolutePath()).withSchema(GenericClass.class));
 
@@ -158,7 +160,6 @@ public class AvroIOTest {
   @SuppressWarnings("unchecked")
   @Category(NeedsRunner.class)
   public void testAvroIOCompressedWriteAndReadASingleFile() throws Throwable {
-    TestPipeline p = TestPipeline.create();
     List<GenericClass> values = ImmutableList.of(new GenericClass(3, "hi"),
         new GenericClass(5, "bar"));
     File outputFile = tmpFolder.newFile("output.avro");
@@ -170,7 +171,6 @@ public class AvroIOTest {
             .withSchema(GenericClass.class));
     p.run();
 
-    p = TestPipeline.create();
     PCollection<GenericClass> input = p
         .apply(AvroIO.Read
             .from(outputFile.getAbsolutePath())
@@ -187,7 +187,6 @@ public class AvroIOTest {
   @SuppressWarnings("unchecked")
   @Category(NeedsRunner.class)
   public void testAvroIONullCodecWriteAndReadASingleFile() throws Throwable {
-    TestPipeline p = TestPipeline.create();
     List<GenericClass> values = ImmutableList.of(new GenericClass(3, "hi"),
         new GenericClass(5, "bar"));
     File outputFile = tmpFolder.newFile("output.avro");
@@ -199,7 +198,6 @@ public class AvroIOTest {
             .withCodec(CodecFactory.nullCodec()));
     p.run();
 
-    p = TestPipeline.create();
     PCollection<GenericClass> input = p
         .apply(AvroIO.Read
             .from(outputFile.getAbsolutePath())
@@ -257,7 +255,6 @@ public class AvroIOTest {
   @Test
   @Category(NeedsRunner.class)
   public void testAvroIOWriteAndReadSchemaUpgrade() throws Throwable {
-    TestPipeline p = TestPipeline.create();
     List<GenericClass> values = ImmutableList.of(new GenericClass(3, "hi"),
         new GenericClass(5, "bar"));
     File outputFile = tmpFolder.newFile("output.avro");
@@ -270,7 +267,7 @@ public class AvroIOTest {
 
     List<GenericClassV2> expected = ImmutableList.of(new GenericClassV2(3, "hi", null),
         new GenericClassV2(5, "bar", null));
-    p = TestPipeline.create();
+
     PCollection<GenericClassV2> input = p
         .apply(AvroIO.Read.from(outputFile.getAbsolutePath()).withSchema(GenericClassV2.class));
 
@@ -321,7 +318,6 @@ public class AvroIOTest {
   @SuppressWarnings("unchecked")
   @Category(NeedsRunner.class)
   public void testMetdata() throws Exception {
-    TestPipeline p = TestPipeline.create();
     List<GenericClass> values = ImmutableList.of(new GenericClass(3, "hi"),
         new GenericClass(5, "bar"));
     File outputFile = tmpFolder.newFile("output.avro");
@@ -348,7 +344,7 @@ public class AvroIOTest {
   private void runTestWrite(String[] expectedElements, int numShards) throws IOException {
     File baseOutputFile = new File(tmpFolder.getRoot(), "prefix");
     String outputFilePrefix = baseOutputFile.getAbsolutePath();
-    TestPipeline p = TestPipeline.create();
+
     Bound<String> write = AvroIO.Write.to(outputFilePrefix).withSchema(String.class);
     if (numShards > 1) {
       write = write.withNumShards(numShards);

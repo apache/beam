@@ -73,6 +73,9 @@ public class TransformExecutorTest {
   @Mock private EvaluationContext evaluationContext;
   @Mock private TransformEvaluatorRegistry registry;
 
+  @Rule
+  public TestPipeline p = TestPipeline.create().enableAbandonedNodeEnforcement(false);
+
   @Before
   public void setup() {
     MockitoAnnotations.initMocks(this);
@@ -85,12 +88,12 @@ public class TransformExecutorTest {
     evaluatorCompleted = new CountDownLatch(1);
     completionCallback = new RegisteringCompletionCallback(evaluatorCompleted);
 
-    TestPipeline p = TestPipeline.create();
     created = p.apply(Create.of("foo", "spam", "third"));
     PCollection<KV<Integer, String>> downstream = created.apply(WithKeys.<Integer, String>of(3));
 
-    createdProducer = created.getProducingTransformInternal();
-    downstreamProducer = downstream.getProducingTransformInternal();
+    DirectGraph graph = DirectGraphs.getGraph(p);
+    createdProducer = graph.getProducer(created);
+    downstreamProducer = graph.getProducer(downstream);
 
     when(evaluationContext.getMetrics()).thenReturn(metrics);
   }
@@ -317,7 +320,7 @@ public class TransformExecutorTest {
   @Test
   public void callWithEnforcementThrowsOnFinishPropagates() throws Exception {
     final TransformResult<Object> result =
-        StepTransformResult.withoutHold(created.getProducingTransformInternal()).build();
+        StepTransformResult.withoutHold(createdProducer).build();
 
     TransformEvaluator<Object> evaluator =
         new TransformEvaluator<Object>() {
@@ -356,7 +359,7 @@ public class TransformExecutorTest {
   @Test
   public void callWithEnforcementThrowsOnElementPropagates() throws Exception {
     final TransformResult<Object> result =
-        StepTransformResult.withoutHold(created.getProducingTransformInternal()).build();
+        StepTransformResult.withoutHold(createdProducer).build();
 
     TransformEvaluator<Object> evaluator =
         new TransformEvaluator<Object>() {

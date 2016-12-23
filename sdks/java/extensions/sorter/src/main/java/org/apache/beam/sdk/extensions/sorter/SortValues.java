@@ -74,7 +74,7 @@ public class SortValues<PrimaryKeyT, SecondaryKeyT, ValueT>
   }
 
   @Override
-  public PCollection<KV<PrimaryKeyT, Iterable<KV<SecondaryKeyT, ValueT>>>> apply(
+  public PCollection<KV<PrimaryKeyT, Iterable<KV<SecondaryKeyT, ValueT>>>> expand(
       PCollection<KV<PrimaryKeyT, Iterable<KV<SecondaryKeyT, ValueT>>>> input) {
     return input.apply(
         ParDo.of(

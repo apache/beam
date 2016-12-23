@@ -19,13 +19,13 @@ package org.apache.beam.sdk.extensions.joinlibrary;
 
 import java.util.ArrayList;
 import java.util.List;
-import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 
 
@@ -34,15 +34,16 @@ import org.junit.Test;
  */
 public class OuterLeftJoinTest {
 
-  Pipeline p;
   List<KV<String, Long>> leftListOfKv;
   List<KV<String, String>> listRightOfKv;
   List<KV<String, KV<Long, String>>> expectedResult;
 
+  @Rule
+  public final transient TestPipeline p = TestPipeline.create();
+
   @Before
   public void setup() {
 
-    p = TestPipeline.create();
     leftListOfKv = new ArrayList<>();
     listRightOfKv = new ArrayList<>();
 
@@ -133,16 +134,19 @@ public class OuterLeftJoinTest {
 
   @Test(expected = NullPointerException.class)
   public void testJoinLeftCollectionNull() {
+    p.enableAbandonedNodeEnforcement(false);
     Join.leftOuterJoin(null, p.apply(Create.of(listRightOfKv)), "");
   }
 
   @Test(expected = NullPointerException.class)
   public void testJoinRightCollectionNull() {
+    p.enableAbandonedNodeEnforcement(false);
     Join.leftOuterJoin(p.apply(Create.of(leftListOfKv)), null, "");
   }
 
   @Test(expected = NullPointerException.class)
   public void testJoinNullValueIsNull() {
+    p.enableAbandonedNodeEnforcement(false);
     Join.leftOuterJoin(
         p.apply("CreateLeft", Create.of(leftListOfKv)),
         p.apply("CreateRight", Create.of(listRightOfKv)),

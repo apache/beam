@@ -73,12 +73,10 @@ import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowingInternals;
 import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.util.WindowingStrategy.AccumulationMode;
-import org.apache.beam.sdk.util.state.InMemoryTimerInternals;
 import org.apache.beam.sdk.util.state.StateNamespace;
 import org.apache.beam.sdk.util.state.StateNamespaces;
 import org.apache.beam.sdk.util.state.StateTag;
 import org.apache.beam.sdk.util.state.TestInMemoryStateInternals;
-import org.apache.beam.sdk.util.state.TimerCallback;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TupleTag;
@@ -100,7 +98,7 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
 
   private final TestInMemoryStateInternals<String> stateInternals =
       new TestInMemoryStateInternals<>(KEY);
-  private final TestTimerInternals timerInternals = new TestTimerInternals();
+  private final InMemoryTimerInternals timerInternals = new InMemoryTimerInternals();
 
   private final WindowFn<Object, W> windowFn;
   private final TestOutputWindowedValue testOutputter;
@@ -443,8 +441,29 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
    * fire. Then advance the output watermark as far as possible.
    */
   public void advanceInputWatermark(Instant newInputWatermark) throws Exception {
+    timerInternals.advanceInputWatermark(newInputWatermark);
     ReduceFnRunner<String, InputT, OutputT, W> runner = createRunner();
-    timerInternals.advanceInputWatermark(runner, newInputWatermark);
+    while (true) {
+      TimerData timer;
+      List<TimerInternals.TimerData> timers = new ArrayList<>();
+      while ((timer = timerInternals.removeNextEventTimer()) != null) {
+        timers.add(timer);
+      }
+      if (timers.isEmpty()) {
+        break;
+      }
+      runner.onTimers(timers);
+    }
+    if (autoAdvanceOutputWatermark) {
+      Instant hold = stateInternals.earliestWatermarkHold();
+      if (hold == null) {
+        WindowTracing.trace(
+            "TestInMemoryTimerInternals.advanceInputWatermark: no holds, "
+                + "so output watermark = input watermark");
+        hold = timerInternals.currentInputWatermarkTime();
+      }
+      advanceOutputWatermark(hold);
+    }
     runner.persist();
   }
 
@@ -458,8 +477,19 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
 
   /** Advance the processing time to the specified time, firing any timers that should fire. */
   public void advanceProcessingTime(Instant newProcessingTime) throws Exception {
+    timerInternals.advanceProcessingTime(newProcessingTime);
     ReduceFnRunner<String, InputT, OutputT, W> runner = createRunner();
-    timerInternals.advanceProcessingTime(runner, newProcessingTime);
+    while (true) {
+      TimerData timer;
+      List<TimerInternals.TimerData> timers = new ArrayList<>();
+      while ((timer = timerInternals.removeNextProcessingTimer()) != null) {
+        timers.add(timer);
+      }
+      if (timers.isEmpty()) {
+        break;
+      }
+      runner.onTimers(timers);
+    }
     runner.persist();
   }
 
@@ -467,9 +497,21 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
    * Advance the synchronized processing time to the specified time,
    * firing any timers that should fire.
    */
-  public void advanceSynchronizedProcessingTime(Instant newProcessingTime) throws Exception {
+  public void advanceSynchronizedProcessingTime(
+      Instant newSynchronizedProcessingTime) throws Exception {
+    timerInternals.advanceSynchronizedProcessingTime(newSynchronizedProcessingTime);
     ReduceFnRunner<String, InputT, OutputT, W> runner = createRunner();
-    timerInternals.advanceSynchronizedProcessingTime(runner, newProcessingTime);
+    while (true) {
+      TimerData timer;
+      List<TimerInternals.TimerData> timers = new ArrayList<>();
+      while ((timer = timerInternals.removeNextSynchronizedProcessingTimer()) != null) {
+        timers.add(timer);
+      }
+      if (timers.isEmpty()) {
+        break;
+      }
+      runner.onTimers(timers);
+    }
     runner.persist();
   }
 
@@ -509,8 +551,10 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
 
   public void fireTimer(W window, Instant timestamp, TimeDomain domain) throws Exception {
     ReduceFnRunner<String, InputT, OutputT, W> runner = createRunner();
-    runner.onTimer(
+    ArrayList timers = new ArrayList(1);
+    timers.add(
         TimerData.of(StateNamespaces.window(windowFn.windowCoder(), window), timestamp, domain));
+    runner.onTimers(timers);
     runner.persist();
   }
 
@@ -599,24 +643,6 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
 
     public long getSum() {
       return sum;
-    }
-  }
-
-  private class TestTimerInternals extends InMemoryTimerInternals {
-    @Override
-    public void advanceInputWatermark(TimerCallback timerCallback, Instant newInputWatermark)
-        throws Exception {
-      super.advanceInputWatermark(timerCallback, newInputWatermark);
-      if (autoAdvanceOutputWatermark) {
-        Instant hold = stateInternals.earliestWatermarkHold();
-        if (hold == null) {
-          WindowTracing.trace(
-              "TestInMemoryTimerInternals.advanceInputWatermark: no holds, "
-                  + "so output watermark = input watermark");
-          hold = currentInputWatermarkTime();
-        }
-        advanceOutputWatermark(hold);
-      }
     }
   }
 }

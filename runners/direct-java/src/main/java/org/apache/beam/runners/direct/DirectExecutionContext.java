@@ -17,13 +17,12 @@
  */
 package org.apache.beam.runners.direct;
 
+import org.apache.beam.runners.core.BaseExecutionContext;
+import org.apache.beam.runners.core.ExecutionContext;
 import org.apache.beam.runners.direct.DirectExecutionContext.DirectStepContext;
 import org.apache.beam.runners.direct.WatermarkManager.TimerUpdate;
 import org.apache.beam.runners.direct.WatermarkManager.TransformWatermarks;
-import org.apache.beam.sdk.util.BaseExecutionContext;
-import org.apache.beam.sdk.util.ExecutionContext;
 import org.apache.beam.sdk.util.TimerInternals;
-import org.apache.beam.sdk.util.state.CopyOnAccessInMemoryStateInternals;
 
 /**
  * Execution Context for the {@link DirectRunner}.
@@ -55,7 +54,7 @@ class DirectExecutionContext
    * Step Context for the {@link DirectRunner}.
    */
   public class DirectStepContext
-      extends org.apache.beam.sdk.util.BaseExecutionContext.StepContext {
+      extends BaseExecutionContext.StepContext {
     private CopyOnAccessInMemoryStateInternals<Object> stateInternals;
     private DirectTimerInternals timerInternals;
 

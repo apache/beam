@@ -47,7 +47,6 @@ import java.util.NoSuchElementException;
 import java.util.Random;
 import java.util.zip.GZIPOutputStream;
 import javax.annotation.Nullable;
-import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.io.BoundedSource.BoundedReader;
@@ -80,6 +79,10 @@ import org.junit.runners.JUnit4;
  */
 @RunWith(JUnit4.class)
 public class CompressedSourceTest {
+
+  @Rule
+  public TestPipeline p = TestPipeline.create();
+
   @Rule
   public TemporaryFolder tmpFolder = new TemporaryFolder();
 
@@ -199,8 +202,6 @@ public class CompressedSourceTest {
       os.write(totalGz);
     }
 
-    Pipeline p = TestPipeline.create();
-
     CompressedSource<Byte> source =
         CompressedSource.from(new ByteSource(tmpFile.getAbsolutePath(), 1))
             .withDecompression(CompressionMode.GZIP);
@@ -273,8 +274,6 @@ public class CompressedSourceTest {
     expected.addAll(Bytes.asList(generated));
 
     String filePattern = new File(tmpFolder.getRoot().toString(), baseName + ".*").toString();
-
-    Pipeline p = TestPipeline.create();
 
     CompressedSource<Byte> source =
         CompressedSource.from(new ByteSource(filePattern, 1));
@@ -395,8 +394,6 @@ public class CompressedSourceTest {
       expected.addAll(Bytes.asList(generated));
     }
 
-    Pipeline p = TestPipeline.create();
-
     CompressedSource<Byte> source =
         CompressedSource.from(new ByteSource(filePattern, 1))
             .withDecompression(CompressionMode.GZIP);
@@ -476,7 +473,6 @@ public class CompressedSourceTest {
 
   private void verifyReadContents(byte[] expected, File inputFile,
       @Nullable DecompressingChannelFactory decompressionFactory) {
-    Pipeline p = TestPipeline.create();
     CompressedSource<Byte> source =
         CompressedSource.from(new ByteSource(inputFile.toPath().toString(), 1));
     if (decompressionFactory != null) {

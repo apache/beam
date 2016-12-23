@@ -19,10 +19,6 @@ package org.apache.beam.sdk.transforms;
 
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
-import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.transforms.windowing.PaneInfo;
-import org.apache.beam.sdk.util.WindowingInternals;
-import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.joda.time.Instant;
 
@@ -43,13 +39,6 @@ class NoOpOldDoFn<InputT, OutputT> extends OldDoFn<InputT, OutputT> {
    */
   public OldDoFn<InputT, OutputT>.Context context() {
     return new NoOpDoFnContext();
-  }
-
-  /**
-   * Returns a new NoOp Process Context.
-   */
-  public OldDoFn<InputT, OutputT>.ProcessContext processContext() {
-    return new NoOpDoFnProcessContext();
   }
 
   /**
@@ -78,66 +67,5 @@ class NoOpOldDoFn<InputT, OutputT> extends OldDoFn<InputT, OutputT> {
         createAggregatorInternal(String name, CombineFn<AggInputT, ?, AggOutputT> combiner) {
       return null;
     }
-  }
-
-  /**
-   * A {@link OldDoFn.ProcessContext} that does nothing and returns exclusively
-   * null.
-   */
-  private class NoOpDoFnProcessContext extends OldDoFn<InputT, OutputT>.ProcessContext {
-    @Override
-    public InputT element() {
-      return null;
-    }
-
-    @Override
-    public <T> T sideInput(PCollectionView<T> view) {
-      return null;
-    }
-
-    @Override
-    public Instant timestamp() {
-      return null;
-    }
-
-    @Override
-    public BoundedWindow window() {
-      return null;
-    }
-
-    @Override
-    public PaneInfo pane() {
-      return null;
-    }
-
-    @Override
-    public WindowingInternals<InputT, OutputT> windowingInternals() {
-      return null;
-    }
-
-    @Override
-    public PipelineOptions getPipelineOptions() {
-      return null;
-    }
-
-    @Override
-    public void output(OutputT output) {}
-
-    @Override
-    public void outputWithTimestamp(OutputT output, Instant timestamp) {}
-
-    @Override
-    public <T> void sideOutput(TupleTag<T> tag, T output) {}
-
-    @Override
-    public <T> void sideOutputWithTimestamp(TupleTag<T> tag, T output,
-        Instant timestamp) {}
-
-    @Override
-    protected <AggInputT, AggOutputT> Aggregator<AggInputT, AggOutputT>
-        createAggregatorInternal(String name, CombineFn<AggInputT, ?, AggOutputT> combiner) {
-      return null;
-    }
-
   }
 }
