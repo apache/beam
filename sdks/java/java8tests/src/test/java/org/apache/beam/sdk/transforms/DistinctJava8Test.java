@@ -44,11 +44,13 @@ import org.junit.runners.JUnit4;
 public class DistinctJava8Test {
 
   @Rule
+  public final transient TestPipeline p = TestPipeline.create();
+
+  @Rule
   public ExpectedException thrown = ExpectedException.none();
 
   @Test
   public void withLambdaRepresentativeValuesFnAndTypeDescriptorShouldApplyFn() {
-    TestPipeline p = TestPipeline.create();
 
     Multimap<Integer, String> predupedContents = HashMultimap.create();
     predupedContents.put(3, "foo");
@@ -76,7 +78,6 @@ public class DistinctJava8Test {
 
   @Test
   public void withLambdaRepresentativeValuesFnNoTypeDescriptorShouldThrow() {
-    TestPipeline p = TestPipeline.create();
 
     Multimap<Integer, String> predupedContents = HashMultimap.create();
     predupedContents.put(3, "foo");

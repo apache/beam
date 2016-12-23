@@ -56,7 +56,7 @@ public class Values<V> extends PTransform<PCollection<? extends KV<?, V>>,
   private Values() { }
 
   @Override
-  public PCollection<V> apply(PCollection<? extends KV<?, V>> in) {
+  public PCollection<V> expand(PCollection<? extends KV<?, V>> in) {
     return
         in.apply("Values", MapElements.via(new SimpleFunction<KV<?, V>, V>() {
           @Override

@@ -29,7 +29,6 @@ import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.when;
 
 import java.io.Serializable;
-import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.Coder.NonDeterministicException;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
@@ -62,11 +61,15 @@ import org.mockito.Mockito;
 public class WindowTest implements Serializable {
 
   @Rule
+  public final transient TestPipeline pipeline = TestPipeline.create()
+                                                             .enableAbandonedNodeEnforcement(false);
+
+  @Rule
   public transient ExpectedException thrown = ExpectedException.none();
 
   @Test
   public void testWindowIntoSetWindowfn() {
-    WindowingStrategy<?, ?> strategy = TestPipeline.create()
+    WindowingStrategy<?, ?> strategy = pipeline
       .apply(Create.of("hello", "world").withCoder(StringUtf8Coder.of()))
       .apply(Window.<String>into(FixedWindows.of(Duration.standardMinutes(10))))
       .getWindowingStrategy();
@@ -79,7 +82,7 @@ public class WindowTest implements Serializable {
   public void testWindowIntoTriggersAndAccumulating() {
     FixedWindows fixed10 = FixedWindows.of(Duration.standardMinutes(10));
     Repeatedly trigger = Repeatedly.forever(AfterPane.elementCountAtLeast(5));
-    WindowingStrategy<?, ?> strategy = TestPipeline.create()
+    WindowingStrategy<?, ?> strategy = pipeline
       .apply(Create.of("hello", "world").withCoder(StringUtf8Coder.of()))
       .apply(Window.<String>into(fixed10)
           .triggering(trigger)
@@ -96,7 +99,7 @@ public class WindowTest implements Serializable {
   public void testWindowPropagatesEachPart() {
     FixedWindows fixed10 = FixedWindows.of(Duration.standardMinutes(10));
     Repeatedly trigger = Repeatedly.forever(AfterPane.elementCountAtLeast(5));
-    WindowingStrategy<?, ?> strategy = TestPipeline.create()
+    WindowingStrategy<?, ?> strategy = pipeline
       .apply(Create.of("hello", "world").withCoder(StringUtf8Coder.of()))
       .apply("Mode", Window.<String>accumulatingFiredPanes())
       .apply("Lateness", Window.<String>withAllowedLateness(Duration.standardDays(1)))
@@ -112,9 +115,10 @@ public class WindowTest implements Serializable {
 
   @Test
   public void testWindowIntoPropagatesLateness() {
+
     FixedWindows fixed10 = FixedWindows.of(Duration.standardMinutes(10));
     FixedWindows fixed25 = FixedWindows.of(Duration.standardMinutes(25));
-    WindowingStrategy<?, ?> strategy = TestPipeline.create()
+    WindowingStrategy<?, ?> strategy = pipeline
         .apply(Create.of("hello", "world").withCoder(StringUtf8Coder.of()))
         .apply("WindowInto10", Window.<String>into(fixed10)
             .withAllowedLateness(Duration.standardDays(1))
@@ -157,7 +161,7 @@ public class WindowTest implements Serializable {
 
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage("requires that the accumulation mode");
-    TestPipeline.create()
+    pipeline
       .apply(Create.of("hello", "world").withCoder(StringUtf8Coder.of()))
       .apply("Window", Window.<String>into(fixed10))
       .apply("Lateness", Window.<String>withAllowedLateness(Duration.standardDays(1)))
@@ -171,7 +175,7 @@ public class WindowTest implements Serializable {
 
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage("requires that the allowed lateness");
-    TestPipeline.create()
+    pipeline
       .apply(Create.of("hello", "world").withCoder(StringUtf8Coder.of()))
       .apply("Mode", Window.<String>accumulatingFiredPanes())
       .apply("Window", Window.<String>into(fixed10))
@@ -185,7 +189,7 @@ public class WindowTest implements Serializable {
   @Test
   @Category(RunnableOnService.class)
   public void testOutputTimeFnDefault() {
-    Pipeline pipeline = TestPipeline.create();
+    pipeline.enableAbandonedNodeEnforcement(true);
 
     pipeline
         .apply(
@@ -219,7 +223,7 @@ public class WindowTest implements Serializable {
   @Test
   @Category(RunnableOnService.class)
   public void testOutputTimeFnEndOfWindow() {
-    Pipeline pipeline = TestPipeline.create();
+    pipeline.enableAbandonedNodeEnforcement(true);
 
     pipeline.apply(
         Create.timestamped(

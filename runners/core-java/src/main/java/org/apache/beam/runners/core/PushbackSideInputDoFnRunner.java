@@ -25,8 +25,10 @@ import java.util.HashSet;
 import java.util.Set;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.ReadyCheckingSideInputReader;
+import org.apache.beam.sdk.util.TimeDomain;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollectionView;
+import org.joda.time.Instant;
 
 /**
  * A {@link DoFnRunner} that can refuse to process elements that are not ready, instead returning
@@ -71,32 +73,23 @@ public class PushbackSideInputDoFnRunner<InputT, OutputT> implements DoFnRunner<
    */
   public Iterable<WindowedValue<InputT>> processElementInReadyWindows(WindowedValue<InputT> elem) {
     if (views.isEmpty()) {
+      // When there are no side inputs, we can preserve the compressed representation.
       processElement(elem);
       return Collections.emptyList();
     }
-    ImmutableList.Builder<BoundedWindow> readyWindowsBuilder = ImmutableList.builder();
-    ImmutableList.Builder<BoundedWindow> pushedBackWindowsBuilder = ImmutableList.builder();
+    ImmutableList.Builder<WindowedValue<InputT>> pushedBack = ImmutableList.builder();
     for (WindowedValue<InputT> windowElem : elem.explodeWindows()) {
       BoundedWindow mainInputWindow = Iterables.getOnlyElement(windowElem.getWindows());
       if (isReady(mainInputWindow)) {
-        readyWindowsBuilder.add(mainInputWindow);
+        // When there are any side inputs, we have to process the element in each window
+        // individually, to disambiguate access to per-window side inputs.
+        processElement(windowElem);
       } else {
         notReadyWindows.add(mainInputWindow);
-        pushedBackWindowsBuilder.add(mainInputWindow);
+        pushedBack.add(windowElem);
       }
     }
-    ImmutableList<BoundedWindow> readyWindows = readyWindowsBuilder.build();
-    ImmutableList<BoundedWindow> pushedBackWindows = pushedBackWindowsBuilder.build();
-    if (!readyWindows.isEmpty()) {
-      processElement(
-          WindowedValue.of(
-              elem.getValue(), elem.getTimestamp(), readyWindows, elem.getPane()));
-    }
-    return pushedBackWindows.isEmpty()
-        ? ImmutableList.<WindowedValue<InputT>>of()
-        : ImmutableList.of(
-            WindowedValue.of(
-                elem.getValue(), elem.getTimestamp(), pushedBackWindows, elem.getPane()));
+    return pushedBack.build();
   }
 
   private boolean isReady(BoundedWindow mainInputWindow) {
@@ -116,6 +109,12 @@ public class PushbackSideInputDoFnRunner<InputT, OutputT> implements DoFnRunner<
   @Override
   public void processElement(WindowedValue<InputT> elem) {
     underlying.processElement(elem);
+  }
+
+  @Override
+  public void onTimer(String timerId, BoundedWindow window, Instant timestamp,
+      TimeDomain timeDomain) {
+    underlying.onTimer(timerId, window, timestamp, timeDomain);
   }
 
   /**

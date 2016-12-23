@@ -425,11 +425,18 @@ public class ApexGroupByKeyOperator<K, V> implements Operator {
    */
   public class ApexTimerInternals implements TimerInternals {
 
+    @Deprecated
     @Override
     public void setTimer(TimerData timerData) {
       registerActiveTimer(context.element().key(), timerData);
     }
 
+    @Override
+    public void deleteTimer(StateNamespace namespace, String timerId, TimeDomain timeDomain) {
+      throw new UnsupportedOperationException("Canceling of timer by ID is not yet supported.");
+    }
+
+    @Deprecated
     @Override
     public void deleteTimer(TimerData timerKey) {
       unregisterActiveTimer(context.element().key(), timerKey);
@@ -463,6 +470,7 @@ public class ApexGroupByKeyOperator<K, V> implements Operator {
       throw new UnsupportedOperationException("Setting timer by ID not yet supported.");
     }
 
+    @Deprecated
     @Override
     public void deleteTimer(StateNamespace namespace, String timerId) {
       throw new UnsupportedOperationException("Canceling of timer by ID is not yet supported.");

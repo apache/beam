@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.options;
 
-import static com.google.common.base.MoreObjects.firstNonNull;
 import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.fasterxml.jackson.core.JsonGenerator;
@@ -134,6 +133,20 @@ public interface ValueProvider<T> extends Serializable {
       return value.isAccessible();
     }
 
+    /**
+     * Returns the property name associated with this provider.
+     */
+    public String propertyName() {
+      if (value instanceof RuntimeValueProvider) {
+        return ((RuntimeValueProvider) value).propertyName();
+      } else if (value instanceof NestedValueProvider) {
+        return ((NestedValueProvider) value).propertyName();
+      } else {
+        throw new RuntimeException("Only a RuntimeValueProvider or a NestedValueProvider can supply"
+            + " a property name.");
+      }
+    }
+
     @Override
     public String toString() {
       return MoreObjects.toStringHelper(this)
@@ -208,8 +221,16 @@ public interface ValueProvider<T> extends Serializable {
         Method method = klass.getMethod(methodName);
         PipelineOptions methodOptions = options.as(klass);
         InvocationHandler handler = Proxy.getInvocationHandler(methodOptions);
-        T value = ((ValueProvider<T>) handler.invoke(methodOptions, method, null)).get();
-        return firstNonNull(value, defaultValue);
+        ValueProvider<T> result =
+            (ValueProvider<T>) handler.invoke(methodOptions, method, null);
+        // Two cases: If we have deserialized a new value from JSON, it will
+        // be wrapped in a StaticValueProvider, which we can provide here.  If
+        // not, there was no JSON value, and we return the default, whether or
+        // not it is null.
+        if (result instanceof StaticValueProvider) {
+          return result.get();
+        }
+        return defaultValue;
       } catch (Throwable e) {
         throw new RuntimeException("Unable to load runtime value.", e);
       }

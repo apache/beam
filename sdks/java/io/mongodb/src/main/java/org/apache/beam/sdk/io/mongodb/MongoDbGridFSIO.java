@@ -308,7 +308,7 @@ public class MongoDbGridFSIO {
     }
 
     @Override
-    public PCollection<T> apply(PBegin input) {
+    public PCollection<T> expand(PBegin input) {
       final BoundedGridFSSource source = new BoundedGridFSSource(this, null);
       org.apache.beam.sdk.io.Read.Bounded<ObjectId> objectIds =
           org.apache.beam.sdk.io.Read.from(source);
@@ -621,7 +621,7 @@ public class MongoDbGridFSIO {
     }
 
     @Override
-    public PDone apply(PCollection<T> input) {
+    public PDone expand(PCollection<T> input) {
       input.apply(ParDo.of(new GridFsWriteFn<T>(this)));
       return PDone.in(input.getPipeline());
     }

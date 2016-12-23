@@ -62,15 +62,6 @@ import org.joda.time.Instant;
  *
  * <p>The default input is {@code gs://apache-beam-samples/wikipedia_edits/*.json} and can be
  * overridden with {@code --input}.
- *
- * <p>The input for this example is large enough that it's a good place to enable (experimental)
- * autoscaling:
- * <pre>{@code
- *   --autoscalingAlgorithm=BASIC
- *   --maxNumWorkers=20
- * }
- * </pre>
- * This will automatically scale the number of workers up over time until the job completes.
  */
 public class TopWikipediaSessions {
   private static final String EXPORTED_WIKI_TABLE =
@@ -99,7 +90,7 @@ public class TopWikipediaSessions {
   static class ComputeSessions
       extends PTransform<PCollection<String>, PCollection<KV<String, Long>>> {
     @Override
-    public PCollection<KV<String, Long>> apply(PCollection<String> actions) {
+    public PCollection<KV<String, Long>> expand(PCollection<String> actions) {
       return actions
           .apply(Window.<String>into(Sessions.withGapDuration(Duration.standardHours(1))))
 
@@ -113,7 +104,7 @@ public class TopWikipediaSessions {
   private static class TopPerMonth
       extends PTransform<PCollection<KV<String, Long>>, PCollection<List<KV<String, Long>>>> {
     @Override
-    public PCollection<List<KV<String, Long>>> apply(PCollection<KV<String, Long>> sessions) {
+    public PCollection<List<KV<String, Long>>> expand(PCollection<KV<String, Long>> sessions) {
       return sessions
         .apply(Window.<KV<String, Long>>into(CalendarWindows.months(1)))
 
@@ -154,7 +145,7 @@ public class TopWikipediaSessions {
     }
 
     @Override
-    public PCollection<String> apply(PCollection<TableRow> input) {
+    public PCollection<String> expand(PCollection<TableRow> input) {
       return input
           .apply(ParDo.of(new ExtractUserAndTimestamp()))
 

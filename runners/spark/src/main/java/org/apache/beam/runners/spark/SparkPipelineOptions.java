@@ -54,6 +54,11 @@ public interface SparkPipelineOptions
   Long getMinReadTimeMillis();
   void setMinReadTimeMillis(Long minReadTimeMillis);
 
+  @Description("Max records per micro-batch. For streaming sources only.")
+  @Default.Long(-1)
+  Long getMaxRecordsPerBatch();
+  void setMaxRecordsPerBatch(Long maxRecordsPerBatch);
+
   @Description("A value between 0-1 to describe the percentage of a micro-batch dedicated "
       + "to reading from UnboundedSource.")
   @Default.Double(0.1)
@@ -95,4 +100,9 @@ public interface SparkPipelineOptions
   @Default.Boolean(false)
   boolean getUsesProvidedSparkContext();
   void setUsesProvidedSparkContext(boolean value);
+
+  @Description("A special flag that forces streaming in tests.")
+  @Default.Boolean(false)
+  boolean isForceStreaming();
+  void setForceStreaming(boolean forceStreaming);
 }

@@ -65,7 +65,7 @@ final class ParDoEvaluatorFactory<InputT, OutputT> implements TransformEvaluator
                 application;
 
     ParDo.BoundMulti<InputT, OutputT> transform = parDoApplication.getTransform();
-    final DoFn<InputT, OutputT> doFn = transform.getNewFn();
+    final DoFn<InputT, OutputT> doFn = transform.getFn();
 
     @SuppressWarnings({"unchecked", "rawtypes"})
     TransformEvaluator<T> evaluator =
@@ -112,6 +112,7 @@ final class ParDoEvaluatorFactory<InputT, OutputT> implements TransformEvaluator
     return DoFnLifecycleManagerRemovingTransformEvaluator.wrapping(
         createParDoEvaluator(
             application,
+            inputBundleKey,
             sideInputs,
             mainOutputTag,
             sideOutputTags,
@@ -123,6 +124,7 @@ final class ParDoEvaluatorFactory<InputT, OutputT> implements TransformEvaluator
 
   ParDoEvaluator<InputT, OutputT> createParDoEvaluator(
       AppliedPTransform<PCollection<InputT>, PCollectionTuple, ?> application,
+      StructuralKey<?> key,
       List<PCollectionView<?>> sideInputs,
       TupleTag<OutputT> mainOutputTag,
       List<TupleTag<?>> sideOutputTags,
@@ -137,6 +139,7 @@ final class ParDoEvaluatorFactory<InputT, OutputT> implements TransformEvaluator
           application,
           application.getInput().getWindowingStrategy(),
           fn,
+          key,
           sideInputs,
           mainOutputTag,
           sideOutputTags,

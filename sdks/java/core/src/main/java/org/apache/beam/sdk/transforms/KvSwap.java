@@ -60,7 +60,7 @@ public class KvSwap<K, V> extends PTransform<PCollection<KV<K, V>>,
   private KvSwap() { }
 
   @Override
-  public PCollection<KV<V, K>> apply(PCollection<KV<K, V>> in) {
+  public PCollection<KV<V, K>> expand(PCollection<KV<K, V>> in) {
     return
         in.apply("KvSwap", MapElements.via(new SimpleFunction<KV<K, V>, KV<V, K>>() {
           @Override

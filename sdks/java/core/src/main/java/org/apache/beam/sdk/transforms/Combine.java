@@ -1431,7 +1431,7 @@ public class Combine {
     }
 
     @Override
-    public PCollection<OutputT> apply(PCollection<InputT> input) {
+    public PCollection<OutputT> expand(PCollection<InputT> input) {
       PCollection<KV<Void, InputT>> withKeys = input
           .apply(WithKeys.<Void, InputT>of((Void) null))
           .setCoder(KvCoder.of(VoidCoder.of(), input.getCoder()));
@@ -1569,7 +1569,7 @@ public class Combine {
     }
 
     @Override
-    public PCollectionView<OutputT> apply(PCollection<InputT> input) {
+    public PCollectionView<OutputT> expand(PCollection<InputT> input) {
       Globally<InputT, OutputT> combineGlobally =
           Combine.<InputT, OutputT>globally(fn).withoutDefaults().withFanout(fanout);
       if (insertDefault) {
@@ -1866,7 +1866,7 @@ public class Combine {
     }
 
     @Override
-    public PCollection<KV<K, OutputT>> apply(PCollection<KV<K, InputT>> input) {
+    public PCollection<KV<K, OutputT>> expand(PCollection<KV<K, InputT>> input) {
       return input
           .apply(GroupByKey.<K, InputT>create(fewKeys))
           .apply(Combine.<K, InputT, OutputT>groupedValues(fn, fnDisplayData)
@@ -1901,7 +1901,7 @@ public class Combine {
     }
 
     @Override
-    public PCollection<KV<K, OutputT>> apply(PCollection<KV<K, InputT>> input) {
+    public PCollection<KV<K, OutputT>> expand(PCollection<KV<K, InputT>> input) {
       return applyHelper(input);
     }
 
@@ -2388,12 +2388,12 @@ public class Combine {
     }
 
     @Override
-    public PCollection<KV<K, OutputT>> apply(
+    public PCollection<KV<K, OutputT>> expand(
         PCollection<? extends KV<K, ? extends Iterable<InputT>>> input) {
 
       PCollection<KV<K, OutputT>> output = input.apply(ParDo.of(
-          new OldDoFn<KV<K, ? extends Iterable<InputT>>, KV<K, OutputT>>() {
-            @Override
+          new DoFn<KV<K, ? extends Iterable<InputT>>, KV<K, OutputT>>() {
+            @ProcessElement
             public void processElement(final ProcessContext c) {
               K key = c.element().getKey();
 

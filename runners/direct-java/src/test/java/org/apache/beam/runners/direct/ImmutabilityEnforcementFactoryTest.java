@@ -42,6 +42,8 @@ import org.junit.runners.JUnit4;
  */
 @RunWith(JUnit4.class)
 public class ImmutabilityEnforcementFactoryTest implements Serializable {
+  @Rule public transient TestPipeline p =
+      TestPipeline.create().enableAbandonedNodeEnforcement(false);
   @Rule public transient ExpectedException thrown = ExpectedException.none();
   private transient ImmutabilityEnforcementFactory factory;
   private transient BundleFactory bundleFactory;
@@ -52,7 +54,6 @@ public class ImmutabilityEnforcementFactoryTest implements Serializable {
   public void setup() {
     factory = new ImmutabilityEnforcementFactory();
     bundleFactory = ImmutableListBundleFactory.create();
-    TestPipeline p = TestPipeline.create();
     pcollection =
         p.apply(Create.of("foo".getBytes(), "spamhameggs".getBytes()))
             .apply(
@@ -64,7 +65,7 @@ public class ImmutabilityEnforcementFactoryTest implements Serializable {
                         c.element()[0] = 'b';
                       }
                     }));
-    consumer = pcollection.apply(Count.<byte[]>globally()).getProducingTransformInternal();
+    consumer = DirectGraphs.getProducer(pcollection.apply(Count.<byte[]>globally()));
   }
 
   @Test

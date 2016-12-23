@@ -21,13 +21,17 @@ package org.apache.beam.runners.spark.aggregators;
 import com.google.common.collect.ImmutableList;
 import java.util.Collection;
 import java.util.Map;
+import org.apache.beam.runners.core.AggregatorFactory;
+import org.apache.beam.runners.core.ExecutionContext;
+import org.apache.beam.runners.spark.translation.SparkRuntimeContext;
 import org.apache.beam.sdk.AggregatorValues;
 import org.apache.beam.sdk.transforms.Aggregator;
+import org.apache.beam.sdk.transforms.Combine;
 import org.apache.spark.Accumulator;
 import org.apache.spark.api.java.JavaSparkContext;
 
 /**
- * A utility class for retrieving aggregator values.
+ * A utility class for handling Beam {@link Aggregator}s.
  */
 public class SparkAggregators {
 
@@ -94,4 +98,29 @@ public class SparkAggregators {
                               final JavaSparkContext javaSparkContext) {
     return valueOf(getNamedAggregators(javaSparkContext), name, typeClass);
   }
+
+  /**
+   * An implementation of {@link AggregatorFactory} for the SparkRunner.
+   */
+  public static class Factory implements AggregatorFactory {
+
+    private final SparkRuntimeContext runtimeContext;
+    private final Accumulator<NamedAggregators> accumulator;
+
+    public Factory(SparkRuntimeContext runtimeContext, Accumulator<NamedAggregators> accumulator) {
+      this.runtimeContext = runtimeContext;
+      this.accumulator = accumulator;
+    }
+
+    @Override
+    public <InputT, AccumT, OutputT> Aggregator<InputT, OutputT> createAggregatorForDoFn(
+        Class<?> fnClass,
+        ExecutionContext.StepContext stepContext,
+        String aggregatorName,
+        Combine.CombineFn<InputT, AccumT, OutputT> combine) {
+
+      return runtimeContext.createAggregator(accumulator, aggregatorName, combine);
+    }
+  }
+
 }

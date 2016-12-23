@@ -40,6 +40,7 @@ import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
@@ -51,6 +52,9 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class ApproximateUniqueTest implements Serializable {
   // implements Serializable just to make it easy to use anonymous inner DoFn subclasses
+
+  @Rule
+  public final transient TestPipeline p = TestPipeline.create();
 
   @Test
   public void testEstimationErrorToSampleSize() {
@@ -67,8 +71,6 @@ public class ApproximateUniqueTest implements Serializable {
   @Test
   @Category(RunnableOnService.class)
   public void testApproximateUniqueWithSmallInput() {
-    Pipeline p = TestPipeline.create();
-
     PCollection<Integer> input = p.apply(
         Create.of(Arrays.asList(1, 2, 3, 3)));
 

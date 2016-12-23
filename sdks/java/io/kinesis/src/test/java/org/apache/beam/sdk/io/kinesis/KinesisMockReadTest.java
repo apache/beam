@@ -22,19 +22,23 @@ import static com.google.common.collect.Lists.newArrayList;
 import com.amazonaws.services.kinesis.clientlibrary.lib.worker.InitialPositionInStream;
 import com.google.common.collect.Iterables;
 import java.util.List;
-import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
 import org.joda.time.DateTime;
+import org.junit.Rule;
 import org.junit.Test;
 
 /**
  * Tests {@link AmazonKinesisMock}.
  */
 public class KinesisMockReadTest {
+
+    @Rule
+    public final transient TestPipeline p = TestPipeline.create();
+
     @Test
     public void readsDataFromMockKinesis() {
         int noOfShards = 3;
@@ -42,7 +46,6 @@ public class KinesisMockReadTest {
         List<List<AmazonKinesisMock.TestData>> testData =
                 provideTestData(noOfShards, noOfEventsPerShard);
 
-        final Pipeline p = TestPipeline.create();
         PCollection<AmazonKinesisMock.TestData> result = p.
                 apply(
                         KinesisIO.Read.

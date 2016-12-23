@@ -18,29 +18,38 @@
 package org.apache.beam.runners.core;
 
 import org.apache.beam.sdk.transforms.Aggregator;
+import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.OldDoFn;
-import org.apache.beam.sdk.transforms.OldDoFn.ProcessContext;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.util.TimeDomain;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
+import org.joda.time.Instant;
 
 /**
- * An wrapper interface that represents the execution of a {@link OldDoFn}.
+ * An wrapper interface that represents the execution of a {@link DoFn}.
  */
 public interface DoFnRunner<InputT, OutputT> {
   /**
-   * Prepares and calls {@link OldDoFn#startBundle}.
+   * Prepares and calls a {@link DoFn DoFn's} {@link DoFn.StartBundle @StartBundle} method.
    */
   void startBundle();
 
   /**
-   * Calls {@link OldDoFn#processElement} with a {@link ProcessContext} containing the current
-   * element.
+   * Calls a {@link DoFn DoFn's} {@link DoFn.ProcessElement @ProcessElement} method with a
+   * {@link DoFn.ProcessContext} containing the provided element.
    */
   void processElement(WindowedValue<InputT> elem);
 
   /**
-   * Calls {@link OldDoFn#finishBundle} and performs additional tasks, such as
-   * flushing in-memory states.
+   * Calls a {@link DoFn DoFn's} {@link DoFn.OnTimer @OnTimer} method for the given timer
+   * in the given window.
+   */
+  void onTimer(String timerId, BoundedWindow window, Instant timestamp, TimeDomain timeDomain);
+
+  /**
+   * Calls a {@link DoFn DoFn's} {@link DoFn.FinishBundle @FinishBundle} method and performs
+   * additional tasks, such as flushing in-memory states.
    */
   void finishBundle();
 

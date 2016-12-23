@@ -159,7 +159,7 @@ public class TfIdf {
     }
 
     @Override
-    public PCollection<KV<URI, String>> apply(PBegin input) {
+    public PCollection<KV<URI, String>> expand(PBegin input) {
       Pipeline pipeline = input.getPipeline();
 
       // Create one TextIO.Read transform for each document
@@ -200,7 +200,7 @@ public class TfIdf {
     public ComputeTfIdf() { }
 
     @Override
-    public PCollection<KV<String, KV<URI, Double>>> apply(
+    public PCollection<KV<String, KV<URI, Double>>> expand(
       PCollection<KV<URI, String>> uriToContent) {
 
       // Compute the total number of documents, and
@@ -390,7 +390,7 @@ public class TfIdf {
     }
 
     @Override
-    public PDone apply(PCollection<KV<String, KV<URI, Double>>> wordToUriAndTfIdf) {
+    public PDone expand(PCollection<KV<String, KV<URI, Double>>> wordToUriAndTfIdf) {
       return wordToUriAndTfIdf
           .apply("Format", ParDo.of(new DoFn<KV<String, KV<URI, Double>>, String>() {
             @ProcessElement

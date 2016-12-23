@@ -121,8 +121,8 @@ public class WithNamedAggregatorsSupport extends MetricRegistry {
         final String parentName = entry.getKey();
         final Map<String, Gauge> gaugeMap = Maps.transformEntries(agg.renderAll(), toGauge());
         final Map<String, Gauge> fullNameGaugeMap = Maps.newLinkedHashMap();
-        for (String shortName : gaugeMap.keySet()) {
-          fullNameGaugeMap.put(parentName + "." + shortName, gaugeMap.get(shortName));
+        for (Map.Entry<String, Gauge> gaugeEntry : gaugeMap.entrySet()) {
+          fullNameGaugeMap.put(parentName + "." + gaugeEntry.getKey(), gaugeEntry.getValue());
         }
         return Maps.filterValues(fullNameGaugeMap, Predicates.notNull());
       }

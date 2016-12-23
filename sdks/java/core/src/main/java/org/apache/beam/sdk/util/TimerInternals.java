@@ -34,6 +34,7 @@ import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.InstantCoder;
 import org.apache.beam.sdk.coders.StandardCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.state.StateNamespace;
 import org.apache.beam.sdk.util.state.StateNamespaces;
@@ -61,18 +62,30 @@ public interface TimerInternals {
   void setTimer(StateNamespace namespace, String timerId, Instant target, TimeDomain timeDomain);
 
   /**
-   * Sets the timer described by {@code timerData}.
+   * @deprecated use {@link #setTimer(StateNamespace, String, Instant, TimeDomain)}.
    */
+  @Deprecated
   void setTimer(TimerData timerData);
 
   /**
    * Deletes the given timer.
+   *
+   * <p>A timer's ID is enforced to be unique in validation of a {@link DoFn}, but runners
+   * often manage timers for different time domains in very different ways, thus the
+   * {@link TimeDomain} is a required parameter.
    */
+  void deleteTimer(StateNamespace namespace, String timerId, TimeDomain timeDomain);
+
+  /**
+   * @deprecated use {@link #deleteTimer(StateNamespace, String, TimeDomain)}.
+   */
+  @Deprecated
   void deleteTimer(StateNamespace namespace, String timerId);
 
   /**
-   * Deletes the timer with the ID contained in the provided {@link TimerData}.
+   * @deprecated use {@link #deleteTimer(StateNamespace, String, TimeDomain)}.
    */
+  @Deprecated
   void deleteTimer(TimerData timerKey);
 
   /**

@@ -149,6 +149,18 @@ public class ValueProviderTest {
     assertEquals("quux", provider.get());
   }
 
+  @Test
+  public void testDefaultRuntimeProviderWithoutOverride() throws Exception {
+    TestOptions runtime = PipelineOptionsFactory.as(TestOptions.class);
+    TestOptions options = PipelineOptionsFactory.as(TestOptions.class);
+    runtime.setOptionsId(options.getOptionsId());
+    RuntimeValueProvider.setRuntimeOptions(runtime);
+
+    ValueProvider<String> provider = options.getBar();
+    assertTrue(provider.isAccessible());
+    assertEquals("bar", provider.get());
+  }
+
   /** A test interface. */
   public interface BadOptionsRuntime extends PipelineOptions {
     RuntimeValueProvider<String> getBar();
@@ -246,6 +258,15 @@ public class ValueProviderTest {
           return from + "bar";
         }
       });
+    ValueProvider<String> doubleNvp = NestedValueProvider.of(
+      nvp, new SerializableFunction<String, String>() {
+        @Override
+        public String apply(String from) {
+          return from;
+        }
+      });
+    assertEquals("bar", ((NestedValueProvider) nvp).propertyName());
+    assertEquals("bar", ((NestedValueProvider) doubleNvp).propertyName());
     assertFalse(nvp.isAccessible());
     expectedException.expect(RuntimeException.class);
     expectedException.expectMessage("Not called from a runtime context");

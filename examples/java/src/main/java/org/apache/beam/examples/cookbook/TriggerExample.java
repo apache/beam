@@ -171,7 +171,7 @@ public class TriggerExample {
     }
 
     @Override
-    public PCollectionList<TableRow> apply(PCollection<KV<String, Integer>> flowInfo) {
+    public PCollectionList<TableRow> expand(PCollection<KV<String, Integer>> flowInfo) {
 
       // Concept #1: The default triggering behavior
       // By default Beam uses a trigger which fires when the watermark has passed the end of the
@@ -332,7 +332,7 @@ public class TriggerExample {
     }
 
     @Override
-    public PCollection<TableRow> apply(PCollection<KV<String, Integer>> flowInfo) {
+    public PCollection<TableRow> expand(PCollection<KV<String, Integer>> flowInfo) {
       PCollection<KV<String, Iterable<Integer>>> flowPerFreeway = flowInfo
           .apply(GroupByKey.<String, Integer>create());
 

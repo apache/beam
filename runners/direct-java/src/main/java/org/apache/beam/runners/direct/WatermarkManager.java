@@ -23,11 +23,13 @@ import com.google.auto.value.AutoValue;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.MoreObjects;
 import com.google.common.collect.ComparisonChain;
+import com.google.common.collect.HashBasedTable;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Ordering;
 import com.google.common.collect.SortedMultiset;
+import com.google.common.collect.Table;
 import com.google.common.collect.TreeMultiset;
 import java.io.Serializable;
 import java.util.ArrayList;
@@ -56,8 +58,9 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.TimeDomain;
 import org.apache.beam.sdk.util.TimerInternals;
 import org.apache.beam.sdk.util.TimerInternals.TimerData;
+import org.apache.beam.sdk.util.state.StateNamespace;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PValue;
+import org.apache.beam.sdk.values.TaggedPValue;
 import org.joda.time.Instant;
 
 /**
@@ -208,6 +211,16 @@ public class WatermarkManager {
   private static class AppliedPTransformInputWatermark implements Watermark {
     private final Collection<? extends Watermark> inputWatermarks;
     private final SortedMultiset<CommittedBundle<?>> pendingElements;
+
+    // This tracks only the quantity of timers at each timestamp, for quickly getting the cross-key
+    // minimum
+    private final SortedMultiset<Instant> pendingTimers;
+
+    // Entries in this table represent the authoritative timestamp for which
+    // a per-key-and-StateNamespace timer is set.
+    private final Map<StructuralKey<?>, Table<StateNamespace, String, TimerData>> existingTimers;
+
+    // This per-key sorted set allows quick retrieval of timers that should fire for a key
     private final Map<StructuralKey<?>, NavigableSet<TimerData>> objectTimers;
 
     private AtomicReference<Instant> currentWatermark;
@@ -217,11 +230,15 @@ public class WatermarkManager {
       // The ordering must order elements by timestamp, and must not compare two distinct elements
       // as equal. This is built on the assumption that any element added as a pending element will
       // be consumed without modifications.
+      //
+      // The same logic is applied for pending timers
       Ordering<CommittedBundle<?>> pendingBundleComparator =
           new BundleByElementTimestampComparator().compound(Ordering.arbitrary());
       this.pendingElements =
           TreeMultiset.create(pendingBundleComparator);
+      this.pendingTimers = TreeMultiset.create();
       this.objectTimers = new HashMap<>();
+      this.existingTimers = new HashMap<>();
       currentWatermark = new AtomicReference<>(BoundedWindow.TIMESTAMP_MIN_VALUE);
     }
 
@@ -270,23 +287,64 @@ public class WatermarkManager {
       pendingElements.remove(completed);
     }
 
+    private synchronized Instant getEarliestTimerTimestamp() {
+      if (pendingTimers.isEmpty()) {
+        return BoundedWindow.TIMESTAMP_MAX_VALUE;
+      } else {
+        return pendingTimers.firstEntry().getElement();
+      }
+    }
+
     private synchronized void updateTimers(TimerUpdate update) {
       NavigableSet<TimerData> keyTimers = objectTimers.get(update.key);
       if (keyTimers == null) {
         keyTimers = new TreeSet<>();
         objectTimers.put(update.key, keyTimers);
       }
-      for (TimerData timer : update.setTimers) {
+      Table<StateNamespace, String, TimerData> existingTimersForKey =
+          existingTimers.get(update.key);
+      if (existingTimersForKey == null) {
+        existingTimersForKey = HashBasedTable.create();
+        existingTimers.put(update.key, existingTimersForKey);
+      }
+
+      for (TimerData timer : update.getSetTimers()) {
         if (TimeDomain.EVENT_TIME.equals(timer.getDomain())) {
-          keyTimers.add(timer);
+          @Nullable
+          TimerData existingTimer =
+              existingTimersForKey.get(timer.getNamespace(), timer.getTimerId());
+
+          if (existingTimer == null) {
+            pendingTimers.add(timer.getTimestamp());
+            keyTimers.add(timer);
+          } else if (!existingTimer.equals(timer)) {
+            keyTimers.remove(existingTimer);
+            keyTimers.add(timer);
+          } // else the timer is already set identically, so noop
+
+          existingTimersForKey.put(timer.getNamespace(), timer.getTimerId(), timer);
         }
       }
-      for (TimerData timer : update.deletedTimers) {
+
+      for (TimerData timer : update.getDeletedTimers()) {
         if (TimeDomain.EVENT_TIME.equals(timer.getDomain())) {
-          keyTimers.remove(timer);
+          @Nullable
+          TimerData existingTimer =
+              existingTimersForKey.get(timer.getNamespace(), timer.getTimerId());
+
+          if (existingTimer != null) {
+            pendingTimers.remove(existingTimer.getTimestamp());
+            keyTimers.remove(existingTimer);
+            existingTimersForKey.remove(existingTimer.getNamespace(), existingTimer.getTimerId());
+          }
         }
       }
-      // We don't keep references to timers that have been fired and delivered via #getFiredTimers()
+
+      for (TimerData timer : update.getCompletedTimers()) {
+        if (TimeDomain.EVENT_TIME.equals(timer.getDomain())) {
+          pendingTimers.remove(timer.getTimestamp());
+        }
+      }
     }
 
     private synchronized Map<StructuralKey<?>, List<TimerData>> extractFiredEventTimeTimers() {
@@ -311,11 +369,12 @@ public class WatermarkManager {
    * {@link #refresh()} for more information.
    */
   private static class AppliedPTransformOutputWatermark implements Watermark {
-    private final Watermark inputWatermark;
+    private final AppliedPTransformInputWatermark inputWatermark;
     private final PerKeyHolds holds;
     private AtomicReference<Instant> currentWatermark;
 
-    public AppliedPTransformOutputWatermark(AppliedPTransformInputWatermark inputWatermark) {
+    public AppliedPTransformOutputWatermark(
+        AppliedPTransformInputWatermark inputWatermark) {
       this.inputWatermark = inputWatermark;
       holds = new PerKeyHolds();
       currentWatermark = new AtomicReference<>(BoundedWindow.TIMESTAMP_MIN_VALUE);
@@ -352,7 +411,10 @@ public class WatermarkManager {
     @Override
     public synchronized WatermarkUpdate refresh() {
       Instant oldWatermark = currentWatermark.get();
-      Instant newWatermark = INSTANT_ORDERING.min(inputWatermark.get(), holds.getMinHold());
+      Instant newWatermark = INSTANT_ORDERING.min(
+          inputWatermark.get(),
+          inputWatermark.getEarliestTimerTimestamp(),
+          holds.getMinHold());
       newWatermark = INSTANT_ORDERING.max(oldWatermark, newWatermark);
       currentWatermark.set(newWatermark);
       return WatermarkUpdate.fromTimestamps(oldWatermark, newWatermark);
@@ -755,13 +817,14 @@ public class WatermarkManager {
 
   private Collection<Watermark> getInputProcessingWatermarks(AppliedPTransform<?, ?, ?> transform) {
     ImmutableList.Builder<Watermark> inputWmsBuilder = ImmutableList.builder();
-    Collection<? extends PValue> inputs = transform.getInput().expand();
+    List<TaggedPValue> inputs = transform.getInput().expand();
     if (inputs.isEmpty()) {
       inputWmsBuilder.add(THE_END_OF_TIME);
     }
-    for (PValue pvalue : inputs) {
+    for (TaggedPValue pvalue : inputs) {
       Watermark producerOutputWatermark =
-          getTransformWatermark(graph.getProducer(pvalue)).synchronizedProcessingOutputWatermark;
+          getTransformWatermark(graph.getProducer(pvalue.getValue()))
+              .synchronizedProcessingOutputWatermark;
       inputWmsBuilder.add(producerOutputWatermark);
     }
     return inputWmsBuilder.build();
@@ -769,13 +832,13 @@ public class WatermarkManager {
 
   private List<Watermark> getInputWatermarks(AppliedPTransform<?, ?, ?> transform) {
     ImmutableList.Builder<Watermark> inputWatermarksBuilder = ImmutableList.builder();
-    Collection<? extends PValue> inputs = transform.getInput().expand();
+    List<TaggedPValue> inputs = transform.getInput().expand();
     if (inputs.isEmpty()) {
       inputWatermarksBuilder.add(THE_END_OF_TIME);
     }
-    for (PValue pvalue : inputs) {
+    for (TaggedPValue pvalue : inputs) {
       Watermark producerOutputWatermark =
-          getTransformWatermark(graph.getProducer(pvalue)).outputWatermark;
+          getTransformWatermark(graph.getProducer(pvalue.getValue())).outputWatermark;
       inputWatermarksBuilder.add(producerOutputWatermark);
     }
     List<Watermark> inputCollectionWatermarks = inputWatermarksBuilder.build();
@@ -959,8 +1022,8 @@ public class WatermarkManager {
     WatermarkUpdate updateResult = myWatermarks.refresh();
     if (updateResult.isAdvanced()) {
       Set<AppliedPTransform<?, ?, ?>> additionalRefreshes = new HashSet<>();
-      for (PValue outputPValue : toRefresh.getOutput().expand()) {
-        additionalRefreshes.addAll(graph.getPrimitiveConsumers(outputPValue));
+      for (TaggedPValue outputPValue : toRefresh.getOutput().expand()) {
+        additionalRefreshes.addAll(graph.getPrimitiveConsumers(outputPValue.getValue()));
       }
       return additionalRefreshes;
     }

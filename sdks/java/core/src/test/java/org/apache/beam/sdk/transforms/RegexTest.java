@@ -25,6 +25,7 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
@@ -33,11 +34,13 @@ import org.junit.runners.JUnit4;
 /** Tests for {@link Regex}. */
 @RunWith(JUnit4.class)
 public class RegexTest implements Serializable {
+
+  @Rule
+  public final transient TestPipeline p = TestPipeline.create();
+
   @Test
   @Category(NeedsRunner.class)
   public void testFind() {
-    TestPipeline p = TestPipeline.create();
-
     PCollection<String> output =
         p.apply(Create.of("aj", "xj", "yj", "zj")).apply(Regex.find("[xyz]"));
 
@@ -48,8 +51,6 @@ public class RegexTest implements Serializable {
   @Test
   @Category(NeedsRunner.class)
   public void testFindGroup() {
-    TestPipeline p = TestPipeline.create();
-
     PCollection<String> output =
         p.apply(Create.of("aj", "xj", "yj", "zj")).apply(Regex.find("([xyz])", 1));
 
@@ -60,8 +61,6 @@ public class RegexTest implements Serializable {
   @Test
   @Category(NeedsRunner.class)
   public void testFindNone() {
-    TestPipeline p = TestPipeline.create();
-
     PCollection<String> output = p.apply(Create.of("a", "b", "c", "d")).apply(Regex.find("[xyz]"));
 
     PAssert.that(output).empty();
@@ -71,7 +70,6 @@ public class RegexTest implements Serializable {
   @Test
   @Category(NeedsRunner.class)
   public void testKVFind() {
-    TestPipeline p = TestPipeline.create();
 
     PCollection<KV<String, String>> output =
         p.apply(Create.of("a b c")).apply(Regex.findKV("a (b) (c)", 1, 2));
@@ -83,7 +81,6 @@ public class RegexTest implements Serializable {
   @Test
   @Category(NeedsRunner.class)
   public void testKVFindNone() {
-    TestPipeline p = TestPipeline.create();
 
     PCollection<KV<String, String>> output =
         p.apply(Create.of("x y z")).apply(Regex.findKV("a (b) (c)", 1, 2));
@@ -95,7 +92,6 @@ public class RegexTest implements Serializable {
   @Test
   @Category(NeedsRunner.class)
   public void testMatches() {
-    TestPipeline p = TestPipeline.create();
 
     PCollection<String> output =
         p.apply(Create.of("a", "x", "y", "z")).apply(Regex.matches("[xyz]"));
@@ -107,7 +103,6 @@ public class RegexTest implements Serializable {
   @Test
   @Category(NeedsRunner.class)
   public void testMatchesNone() {
-    TestPipeline p = TestPipeline.create();
 
     PCollection<String> output =
         p.apply(Create.of("a", "b", "c", "d")).apply(Regex.matches("[xyz]"));
@@ -119,7 +114,6 @@ public class RegexTest implements Serializable {
   @Test
   @Category(NeedsRunner.class)
   public void testMatchesGroup() {
-    TestPipeline p = TestPipeline.create();
 
     PCollection<String> output =
         p.apply(Create.of("a", "x xxx", "x yyy", "x zzz")).apply(Regex.matches("x ([xyz]*)", 1));
@@ -131,7 +125,6 @@ public class RegexTest implements Serializable {
   @Test
   @Category(NeedsRunner.class)
   public void testKVMatches() {
-    TestPipeline p = TestPipeline.create();
 
     PCollection<KV<String, String>> output =
         p.apply(Create.of("a b c")).apply(Regex.matchesKV("a (b) (c)", 1, 2));
@@ -143,7 +136,6 @@ public class RegexTest implements Serializable {
   @Test
   @Category(NeedsRunner.class)
   public void testKVMatchesNone() {
-    TestPipeline p = TestPipeline.create();
 
     PCollection<KV<String, String>> output =
         p.apply(Create.of("x y z")).apply(Regex.matchesKV("a (b) (c)", 1, 2));
@@ -154,7 +146,6 @@ public class RegexTest implements Serializable {
   @Test
   @Category(NeedsRunner.class)
   public void testReplaceAll() {
-    TestPipeline p = TestPipeline.create();
 
     PCollection<String> output =
         p.apply(Create.of("xj", "yj", "zj")).apply(Regex.replaceAll("[xyz]", "new"));
@@ -166,7 +157,6 @@ public class RegexTest implements Serializable {
   @Test
   @Category(NeedsRunner.class)
   public void testReplaceAllMixed() {
-    TestPipeline p = TestPipeline.create();
 
     PCollection<String> output =
         p.apply(Create.of("abc", "xj", "yj", "zj", "def")).apply(Regex.replaceAll("[xyz]", "new"));
@@ -178,7 +168,6 @@ public class RegexTest implements Serializable {
   @Test
   @Category(NeedsRunner.class)
   public void testReplaceFirst() {
-    TestPipeline p = TestPipeline.create();
 
     PCollection<String> output =
         p.apply(Create.of("xjx", "yjy", "zjz")).apply(Regex.replaceFirst("[xyz]", "new"));
@@ -190,7 +179,6 @@ public class RegexTest implements Serializable {
   @Test
   @Category(NeedsRunner.class)
   public void testReplaceFirstMixed() {
-    TestPipeline p = TestPipeline.create();
 
     PCollection<String> output =
         p.apply(Create.of("abc", "xjx", "yjy", "zjz", "def"))
@@ -203,7 +191,6 @@ public class RegexTest implements Serializable {
   @Test
   @Category(NeedsRunner.class)
   public void testSplits() {
-    TestPipeline p = TestPipeline.create();
 
     PCollection<String> output =
         p.apply(Create.of("The  quick   brown fox jumps over    the lazy dog"))
@@ -217,7 +204,6 @@ public class RegexTest implements Serializable {
   @Test
   @Category(NeedsRunner.class)
   public void testSplitsWithEmpty() {
-    TestPipeline p = TestPipeline.create();
 
     PCollection<String> output =
         p.apply(Create.of("The  quick   brown fox jumps over    the lazy dog"))
@@ -235,7 +221,6 @@ public class RegexTest implements Serializable {
   @Test
   @Category(NeedsRunner.class)
   public void testSplitsWithoutEmpty() {
-    TestPipeline p = TestPipeline.create();
 
     PCollection<String> output =
         p.apply(Create.of("The  quick   brown fox jumps over    the lazy dog"))

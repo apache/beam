@@ -31,6 +31,7 @@ import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.values.PCollection;
 import org.hamcrest.Matchers;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -44,11 +45,13 @@ public class StepTransformResultTest {
   private BundleFactory bundleFactory;
   private PCollection<Integer> pc;
 
+  @Rule
+  public TestPipeline p = TestPipeline.create().enableAbandonedNodeEnforcement(false);
+
   @Before
   public void setup() {
-    TestPipeline p = TestPipeline.create();
     pc = p.apply(Create.of(1, 2, 3));
-    transform = pc.getProducingTransformInternal();
+    transform = DirectGraphs.getGraph(p).getProducer(pc);
 
     bundleFactory = ImmutableListBundleFactory.create();
   }

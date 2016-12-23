@@ -115,6 +115,7 @@ public class DataflowPipelineJobTest {
 
     options = PipelineOptionsFactory.as(TestDataflowPipelineOptions.class);
     options.setDataflowClient(mockWorkflowClient);
+    options.setProject(PROJECT_ID);
   }
 
   /**
@@ -156,12 +157,13 @@ public class DataflowPipelineJobTest {
     Messages.List listRequest = mock(Dataflow.Projects.Jobs.Messages.List.class);
     when(mockJobs.messages()).thenReturn(mockMessages);
     when(mockMessages.list(eq(PROJECT_ID), eq(JOB_ID))).thenReturn(listRequest);
+    when(listRequest.setPageToken(eq((String) null))).thenReturn(listRequest);
     when(listRequest.execute()).thenThrow(SocketTimeoutException.class);
     DataflowAggregatorTransforms dataflowAggregatorTransforms =
         mock(DataflowAggregatorTransforms.class);
 
-    DataflowPipelineJob job = new DataflowPipelineJob(
-        PROJECT_ID, JOB_ID, options, dataflowAggregatorTransforms);
+    DataflowPipelineJob job =
+        new DataflowPipelineJob(JOB_ID, options, dataflowAggregatorTransforms);
 
     State state = job.waitUntilFinish(
         Duration.standardMinutes(5), jobHandler, fastClock, fastClock);
@@ -182,8 +184,8 @@ public class DataflowPipelineJobTest {
     DataflowAggregatorTransforms dataflowAggregatorTransforms =
         mock(DataflowAggregatorTransforms.class);
 
-    DataflowPipelineJob job = new DataflowPipelineJob(
-        PROJECT_ID, JOB_ID, options, dataflowAggregatorTransforms);
+    DataflowPipelineJob job =
+        new DataflowPipelineJob(JOB_ID, options, dataflowAggregatorTransforms);
 
     return job.waitUntilFinish(Duration.standardMinutes(1), null, fastClock, fastClock);
   }
@@ -249,8 +251,8 @@ public class DataflowPipelineJobTest {
     DataflowAggregatorTransforms dataflowAggregatorTransforms =
         mock(DataflowAggregatorTransforms.class);
 
-    DataflowPipelineJob job = new DataflowPipelineJob(
-        PROJECT_ID, JOB_ID, options, dataflowAggregatorTransforms);
+    DataflowPipelineJob job =
+        new DataflowPipelineJob(JOB_ID, options, dataflowAggregatorTransforms);
 
     long startTime = fastClock.nanoTime();
     State state = job.waitUntilFinish(Duration.standardMinutes(5), null, fastClock, fastClock);
@@ -269,8 +271,8 @@ public class DataflowPipelineJobTest {
     DataflowAggregatorTransforms dataflowAggregatorTransforms =
         mock(DataflowAggregatorTransforms.class);
 
-    DataflowPipelineJob job = new DataflowPipelineJob(
-        PROJECT_ID, JOB_ID, options, dataflowAggregatorTransforms);
+    DataflowPipelineJob job =
+        new DataflowPipelineJob(JOB_ID, options, dataflowAggregatorTransforms);
     long startTime = fastClock.nanoTime();
     State state = job.waitUntilFinish(Duration.millis(4), null, fastClock, fastClock);
     assertEquals(null, state);
@@ -294,7 +296,7 @@ public class DataflowPipelineJobTest {
     FastNanoClockAndFuzzySleeper clock = new FastNanoClockAndFuzzySleeper();
 
     DataflowPipelineJob job = new DataflowPipelineJob(
-        PROJECT_ID, JOB_ID, options, dataflowAggregatorTransforms);
+        JOB_ID, options, dataflowAggregatorTransforms);
     long startTime = clock.nanoTime();
     State state = job.waitUntilFinish(Duration.millis(4), null, clock, clock);
     assertEquals(null, state);
@@ -317,7 +319,7 @@ public class DataflowPipelineJobTest {
         mock(DataflowAggregatorTransforms.class);
 
     DataflowPipelineJob job = new DataflowPipelineJob(
-        PROJECT_ID, JOB_ID, options, dataflowAggregatorTransforms);
+        JOB_ID, options, dataflowAggregatorTransforms);
 
     assertEquals(
         State.RUNNING,
@@ -333,8 +335,8 @@ public class DataflowPipelineJobTest {
     DataflowAggregatorTransforms dataflowAggregatorTransforms =
         mock(DataflowAggregatorTransforms.class);
 
-    DataflowPipelineJob job = new DataflowPipelineJob(
-        PROJECT_ID, JOB_ID, options, dataflowAggregatorTransforms);
+    DataflowPipelineJob job =
+        new DataflowPipelineJob(JOB_ID, options, dataflowAggregatorTransforms);
 
     long startTime = fastClock.nanoTime();
     assertEquals(
@@ -373,7 +375,7 @@ public class DataflowPipelineJobTest {
     modelJob.setCurrentState(State.RUNNING.toString());
 
     DataflowPipelineJob job =
-        new DataflowPipelineJob(PROJECT_ID, JOB_ID, options, aggregatorTransforms);
+        new DataflowPipelineJob(JOB_ID, options, aggregatorTransforms);
 
     AggregatorValues<?> values = job.getAggregatorValues(aggregator);
 
@@ -408,7 +410,7 @@ public class DataflowPipelineJobTest {
     modelJob.setCurrentState(State.RUNNING.toString());
 
     DataflowPipelineJob job =
-        new DataflowPipelineJob(PROJECT_ID, JOB_ID, options, aggregatorTransforms);
+        new DataflowPipelineJob(JOB_ID, options, aggregatorTransforms);
 
     AggregatorValues<?> values = job.getAggregatorValues(aggregator);
 
@@ -453,8 +455,7 @@ public class DataflowPipelineJobTest {
     when(getState.execute()).thenReturn(modelJob);
     modelJob.setCurrentState(State.RUNNING.toString());
 
-    DataflowPipelineJob job =
-        new DataflowPipelineJob(PROJECT_ID, JOB_ID, options, aggregatorTransforms);
+    DataflowPipelineJob job = new DataflowPipelineJob(JOB_ID, options, aggregatorTransforms);
 
     AggregatorValues<Long> values = job.getAggregatorValues(aggregator);
 
@@ -521,8 +522,7 @@ public class DataflowPipelineJobTest {
     when(getState.execute()).thenReturn(modelJob);
     modelJob.setCurrentState(State.RUNNING.toString());
 
-    DataflowPipelineJob job =
-        new DataflowPipelineJob(PROJECT_ID, JOB_ID, options, aggregatorTransforms);
+    DataflowPipelineJob job = new DataflowPipelineJob(JOB_ID, options, aggregatorTransforms);
 
     AggregatorValues<Long> values = job.getAggregatorValues(aggregator);
 
@@ -571,7 +571,7 @@ public class DataflowPipelineJobTest {
     modelJob.setCurrentState(State.RUNNING.toString());
 
     DataflowPipelineJob job =
-        new DataflowPipelineJob(PROJECT_ID, JOB_ID, options, aggregatorTransforms);
+        new DataflowPipelineJob(JOB_ID, options, aggregatorTransforms);
 
     AggregatorValues<Long> values = job.getAggregatorValues(aggregator);
 
@@ -589,7 +589,7 @@ public class DataflowPipelineJobTest {
         ImmutableMap.<AppliedPTransform<?, ?, ?>, String>of());
 
     DataflowPipelineJob job =
-        new DataflowPipelineJob(PROJECT_ID, JOB_ID, options, aggregatorTransforms);
+        new DataflowPipelineJob(JOB_ID, options, aggregatorTransforms);
 
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage("not used in this pipeline");
@@ -624,8 +624,7 @@ public class DataflowPipelineJobTest {
     when(getState.execute()).thenReturn(modelJob);
     modelJob.setCurrentState(State.RUNNING.toString());
 
-    DataflowPipelineJob job =
-        new DataflowPipelineJob(PROJECT_ID, JOB_ID, options, aggregatorTransforms);
+    DataflowPipelineJob job = new DataflowPipelineJob(JOB_ID, options, aggregatorTransforms);
 
     thrown.expect(AggregatorRetrievalException.class);
     thrown.expectCause(is(cause));
@@ -690,7 +689,7 @@ public class DataflowPipelineJobTest {
     when(mockJobs.update(anyString(), anyString(), any(Job.class))).thenReturn(update);
     when(update.execute()).thenReturn(new Job());
 
-    DataflowPipelineJob job = new DataflowPipelineJob(PROJECT_ID, JOB_ID, options, null);
+    DataflowPipelineJob job = new DataflowPipelineJob(JOB_ID, options, null);
 
     assertEquals(State.CANCELLED, job.cancel());
     Job content = new Job();
@@ -714,7 +713,7 @@ public class DataflowPipelineJobTest {
     when(mockJobs.update(anyString(), anyString(), any(Job.class))).thenReturn(update);
     when(update.execute()).thenThrow(new IOException());
 
-    DataflowPipelineJob job = new DataflowPipelineJob(PROJECT_ID, JOB_ID, options, null);
+    DataflowPipelineJob job = new DataflowPipelineJob(JOB_ID, options, null);
 
     thrown.expect(IOException.class);
     thrown.expectMessage("Failed to cancel the job, "
@@ -742,7 +741,7 @@ public class DataflowPipelineJobTest {
     when(mockJobs.update(anyString(), anyString(), any(Job.class))).thenReturn(update);
     when(update.execute()).thenThrow(new IOException());
 
-    DataflowPipelineJob job = new DataflowPipelineJob(PROJECT_ID, JOB_ID, options, null);
+    DataflowPipelineJob job = new DataflowPipelineJob(JOB_ID, options, null);
 
     assertEquals(State.FAILED, job.cancel());
     Job content = new Job();

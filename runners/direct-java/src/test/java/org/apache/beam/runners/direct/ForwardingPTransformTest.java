@@ -66,8 +66,8 @@ public class ForwardingPTransformTest {
     PCollection<Integer> collection = mock(PCollection.class);
     @SuppressWarnings("unchecked")
     PCollection<String> output = mock(PCollection.class);
-    when(delegate.apply(collection)).thenReturn(output);
-    PCollection<String> result = forwarding.apply(collection);
+    when(delegate.expand(collection)).thenReturn(output);
+    PCollection<String> result = forwarding.expand(collection);
     assertThat(result, equalTo(output));
   }
 

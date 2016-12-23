@@ -105,7 +105,7 @@ public class Flatten {
     private FlattenPCollectionList() { }
 
     @Override
-    public PCollection<T> apply(PCollectionList<T> inputs) {
+    public PCollection<T> expand(PCollectionList<T> inputs) {
       WindowingStrategy<?, ?> windowingStrategy;
       IsBounded isBounded = IsBounded.BOUNDED;
       if (!inputs.getAll().isEmpty()) {
@@ -163,7 +163,7 @@ public class Flatten {
       extends PTransform<PCollection<? extends Iterable<T>>, PCollection<T>> {
 
     @Override
-    public PCollection<T> apply(PCollection<? extends Iterable<T>> in) {
+    public PCollection<T> expand(PCollection<? extends Iterable<T>> in) {
       Coder<? extends Iterable<T>> inCoder = in.getCoder();
       if (!(inCoder instanceof IterableLikeCoder)) {
         throw new IllegalArgumentException(

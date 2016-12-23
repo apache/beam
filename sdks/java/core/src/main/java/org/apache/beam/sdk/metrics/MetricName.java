@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.metrics;
 
 import com.google.auto.value.AutoValue;
+import java.io.Serializable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 
@@ -28,7 +29,7 @@ import org.apache.beam.sdk.annotations.Experimental.Kind;
  */
 @Experimental(Kind.METRICS)
 @AutoValue
-public abstract class MetricName {
+public abstract class MetricName implements Serializable {
 
   /** The namespace associated with this metric. */
   public abstract String namespace();
