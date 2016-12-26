@@ -649,7 +649,7 @@ class _CompressedFile(object):
   def __init__(self,
                fileobj,
                compression_type=CompressionTypes.GZIP,
-               read_size=16384):
+               read_size=gcsio.DEFAULT_READ_BUFFER_SIZE):
     if not fileobj:
       raise ValueError('fileobj must be opened file but was %s' % fileobj)
     self._validate_compression_type(compression_type)
