@@ -8,9 +8,7 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.io.hadoop.inputformat.HadoopInputFormatIO;
 import org.apache.beam.sdk.io.hadoop.inputformat.HadoopInputFormatIO.Read;
-import org.apache.beam.sdk.io.hadoop.inputformat.coders.CassandraRowCoder;
 import org.apache.beam.sdk.io.hadoop.inputformat.coders.WritableCoder;
-import org.apache.beam.sdk.io.hadoop.inputformat.custom.MyCassandraRow;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.CoderProperties;
 import org.apache.beam.sdk.util.CoderUtils;
@@ -36,12 +34,7 @@ public class HadoopInputFormatCoderTests {
 		map.put(new Text("@timestamp"), new Text("2016-11-11T08:06:42.260Z"));
 		map.put(new Text("gender"), new Text("Male"));
 		map.put(new Text("@version"), new Text("1"));
-		map.put(new Text("city"), new Text("Žleby"));
-		map.put(new Text("host"), new Text("hj-ctocto3079.persistent.co.in"));
 		map.put(new Text("Id"), new Text("131"));
-		map.put(new Text("message"),
-				new Text(
-						"131,anichols3m@fastcompany.com,Male,$8.65 ,\"Other contact with macaw, subsequent encounter\",Žleby,Czech Republic"));
 		map.put(new Text("salary"), new Text("$8.65"));
 		map.put(new Text("email"), new Text("anichols3m@fastcompany.com"));
 		map.put(new Text("desc"), new Text(
@@ -84,23 +77,6 @@ public class HadoopInputFormatCoderTests {
 		Coder coder = read.getDefaultCoder(td, pipeline);
 
 		assertEquals(coder.getClass(), WritableCoder.class);
-	}
-
-	@Test
-	public void testRegisteredCustomCoder() {
-		TypeDescriptor<MyCassandraRow> td = new TypeDescriptor<MyCassandraRow>() {
-		};
-		Configuration conf = loadTestConfiguration();
-		DirectOptions directRunnerOptions = PipelineOptionsFactory
-				.as(DirectOptions.class);
-		Pipeline pipeline = Pipeline.create(directRunnerOptions);
-		pipeline.getCoderRegistry().registerCoder(MyCassandraRow.class,
-				CassandraRowCoder.class);
-		Read read = HadoopInputFormatIO.<KV<Text, String>> read()
-				.withConfiguration(conf);
-		Coder coder = read.getDefaultCoder(td, pipeline);
-
-		assertEquals(coder.getClass(), CassandraRowCoder.class);
 	}
 
 	@Test(expected=IllegalStateException.class)

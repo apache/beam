@@ -5,13 +5,13 @@ import java.io.Serializable;
 
 import org.apache.beam.runners.direct.DirectOptions;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.coders.AvroCoder;
+import org.apache.beam.sdk.coders.DefaultCoder;
 import org.apache.beam.sdk.io.hadoop.inputformat.HadoopInputFormatIO;
-import org.apache.beam.sdk.io.hadoop.inputformat.coders.CassandraRowCoder;
-import org.apache.beam.sdk.io.hadoop.inputformat.custom.MyCassandraRow;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.values.KV;
-import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.POutput;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.mapreduce.InputFormat;
 import org.junit.Test;
@@ -68,15 +68,11 @@ public class HIFWithCassandraTest implements Serializable {
 				@Override
 				public MyCassandraRow apply(Row input) {
 					return new MyCassandraRow(
-							input.getString("subscriber_email")); // no idea if
-																	// getColumn
-					//  is a real
-					// function
+							input.getString("subscriber_email"));
 				}
 			};
-			p.getCoderRegistry().registerCoder(MyCassandraRow.class,
-					CassandraRowCoder.class);
-			PCollection<?> cassandraData = p.apply(HadoopInputFormatIO
+
+			POutput cassandraData = p.apply(HadoopInputFormatIO
 					.<KV<Long, MyCassandraRow>> read().withConfiguration(conf)
 					.withValueTranslation(myValueTranslate));
 			/*
@@ -88,5 +84,22 @@ public class HIFWithCassandraTest implements Serializable {
 		} catch (ClassNotFoundException e) {
 			// Need to handle
 		}
+	}
+
+	@DefaultCoder(AvroCoder.class)
+	class MyCassandraRow implements Serializable{
+		private String subscriberEmail;
+		public MyCassandraRow(String email) {
+			this.subscriberEmail = email;
+		}
+
+		public String getSubscriberEmail() {
+			return subscriberEmail;
+		}
+
+		public void setSubscriberEmail(String subscriberEmail) {
+			this.subscriberEmail = subscriberEmail;
+		}
+
 	}
 }

@@ -99,11 +99,11 @@
     </dependency> -->
 
     <!-- https://mvnrepository.com/artifact/com.google.code.findbugs/jsr305 -->
-<dependency>
+<!-- <dependency>
     <groupId>com.google.code.findbugs</groupId>
     <artifactId>jsr305</artifactId>
     <version>3.0.1</version>
-</dependency>
+</dependency> -->
 
 
     <!-- <dependency>
@@ -299,11 +299,11 @@
     <version>1.7.10</version>
 </dependency> -->
 <!-- https://mvnrepository.com/artifact/org.cassandraunit/cassandra-unit -->
-<dependency>
+<!-- <dependency>
     <groupId>org.cassandraunit</groupId>
     <artifactId>cassandra-unit</artifactId>
     <version>0.8.0.2.4</version>
-</dependency>
+</dependency> -->
 
   </dependencies>
 </project>

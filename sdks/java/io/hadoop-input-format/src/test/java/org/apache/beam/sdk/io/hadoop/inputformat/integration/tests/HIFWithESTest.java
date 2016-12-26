@@ -7,7 +7,7 @@ import org.apache.beam.sdk.io.hadoop.inputformat.HadoopInputFormatIO;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.values.KV;
-import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.POutput;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.MapWritable;
 import org.apache.hadoop.io.Text;
@@ -52,7 +52,7 @@ public class HIFWithESTest implements Serializable {
 				return input.toString();
 			}
 		};
-		PCollection<?> esData = p.apply(HadoopInputFormatIO
+		POutput esData = p.apply(HadoopInputFormatIO
 				.<KV<Text, MapWritable>> read().withConfiguration(conf));
 		/*
 		 * PCollection<Long> apply = esData.apply(Count.<KV<Text,
