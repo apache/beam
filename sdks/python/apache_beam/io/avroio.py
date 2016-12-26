@@ -198,7 +198,9 @@ class _AvroBlock(object):
         raise ValueError('Snappy does not seem to be installed.')
 
       # Compressed data includes a 4-byte CRC32 checksum which we verify.
-      result = snappy.decompress(data[:-4])
+      # We take care to avoid extra copies of data while slicing large objects
+      # by use of a buffer.
+      result = snappy.decompress(buffer(data)[:-4])
       avroio.BinaryDecoder(StringIO.StringIO(data[-4:])).check_crc32(result)
       return result
     else:
