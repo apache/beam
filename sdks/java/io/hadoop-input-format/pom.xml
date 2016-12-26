@@ -10,7 +10,7 @@
   <groupId>hadoop</groupId>
   <artifactId>hadoop-input-format</artifactId>
   <version>0.5.0-incubating-SNAPSHOT</version>
-  <name>Archetype - hadoop-inputformat</name>
+  <name>Apache Beam :: SDKs :: Java :: IO :: Hadoop Input Format</name>
   <url>http://maven.apache.org</url>
 
   <build>
