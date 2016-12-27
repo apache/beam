@@ -107,17 +107,17 @@ public class HadoopInputFormatIO {
 		}
 
 		public Read<K, V> withConfiguration(Configuration configuration) {
-			checkNotNull(configuration, "configuration");
+			checkNotNull(configuration,  "Configuration cannot be null.");
 			return toBuilder().setConfiguration(new SerializableConfiguration(configuration)).build();
 		}
 
 		public Read<K, V> withKeyTranslation(SimpleFunction<?, ?> simpleFuncForKeyTranslation) {
-			checkNotNull(simpleFuncForKeyTranslation, "simpleFuncForKeyTranslation");
+			checkNotNull(simpleFuncForKeyTranslation, "Simple function for key translation cannot be null.");
 			return toBuilder().setKeyTranslation(simpleFuncForKeyTranslation).build();
 		}
 
 		public Read<K, V> withValueTranslation(SimpleFunction<?, ?> simpleFuncForValueTranslation) {
-			checkNotNull(simpleFuncForValueTranslation, "simpleFuncForValueTranslation");
+			checkNotNull(simpleFuncForValueTranslation, "Simple function for value translation cannot be null.");
 			return toBuilder().setValueTranslation(simpleFuncForValueTranslation).build();
 		}
 
@@ -167,31 +167,30 @@ public class HadoopInputFormatIO {
 		}
 
 		public void validate(PBegin input) {
-			checkNotNull(this.getConfiguration(), "Need to set the configuration of a HadoopInputFormatIO Read.");
-			if (configuration.getConfiguration().get("mapreduce.job.inputformat.class") == null) {
-				throw new IllegalArgumentException("inputformat property mapreduce.job.inputformat.class is not set");
+			checkNotNull(this.getConfiguration(), "Need to set the configuration of a HadoopInputFormatIO Read using method Read.withConfiguration().");
+			String inputFormatClassProperty = configuration.getConfiguration().get("mapreduce.job.inputformat.class") ;
+			if (inputFormatClassProperty == null) {
+				throw new IllegalArgumentException("Hadoop InputFormat class property \"mapreduce.job.inputformat.class\" is not set in configuration.");
 
 			}
 			String keyClassProperty = configuration.getConfiguration().get("key.class");
 			if (keyClassProperty == null) {
-				throw new IllegalArgumentException("inputformat property key.class is not set");
+				throw new IllegalArgumentException("Configuration property \"key.class\" is not set.");
 
 			}
 			String valueClassProperty = configuration.getConfiguration().get("value.class");
 			if (valueClassProperty == null) {
-				throw new IllegalArgumentException("inputformat property value.class is not set");
+				throw new IllegalArgumentException("Configuration property \"value.class\" is not set.");
 
 			}
 			Class<?> inputFormatKeyClass = configuration.getConfiguration().getClass("key.class", Object.class);
 			if (this.getSimpleFuncForKeyTranslation() != null) {
 				if (this.getSimpleFuncForKeyTranslation().getInputTypeDescriptor()
 						.getRawType() != inputFormatKeyClass) {
-					throw new IllegalArgumentException(
-							"Key translation's input type is not same as input format key type");
+					throw new IllegalArgumentException(	"Key translation's input type is not same as hadoop input format : "+inputFormatClassProperty+" key class : "+ keyClassProperty);
 
 				}
-				this.setKeyClass(
-						(Class<K>) this.getSimpleFuncForKeyTranslation().getOutputTypeDescriptor().getRawType());
+				this.setKeyClass((Class<K>) this.getSimpleFuncForKeyTranslation().getOutputTypeDescriptor().getRawType());
 			} else {
 				this.setKeyClass((Class<K>) inputFormatKeyClass);
 			}
@@ -200,11 +199,9 @@ public class HadoopInputFormatIO {
 			if (this.getSimpleFuncForValueTranslation() != null) {
 				if (this.getSimpleFuncForValueTranslation().getInputTypeDescriptor()
 						.getRawType() != inputFormatValueClass) {
-					throw new IllegalArgumentException(
-							"Value translation's input type is not same as input format value type");
+					throw new IllegalArgumentException("Value translation's input type is not same as hadoop input format : "+inputFormatClassProperty+" value class : "+ valueClassProperty);
 				}
-				this.setValueClass(
-						(Class<V>) this.getSimpleFuncForValueTranslation().getOutputTypeDescriptor().getRawType());
+				this.setValueClass((Class<V>) this.getSimpleFuncForValueTranslation().getOutputTypeDescriptor().getRawType());
 			} else {
 				this.setValueClass((Class<V>) inputFormatValueClass);
 			}
@@ -318,7 +315,7 @@ public class HadoopInputFormatIO {
 		protected List<InputSplit> computeSplits() throws IOException, IllegalAccessException, InstantiationException,
 				InterruptedException, ClassNotFoundException {
 			@SuppressWarnings("deprecation")
-			Job job = new Job(conf.getConfiguration(), "ApacheBeam");
+			Job job = Job.getInstance(conf.getConfiguration());
 			List<InputSplit> splits = job.getInputFormatClass().newInstance().getSplits(job);
 			return splits;
 		}
@@ -381,7 +378,7 @@ public class HadoopInputFormatIO {
 				this.source = source;
 				Job job;
 				try {
-					job = new Job(source.getConfiguration().getConfiguration(), "HadoopInputFormatBeam");
+					job =  Job.getInstance(source.getConfiguration().getConfiguration());
 					inputFormatObj = (InputFormat) job.getInputFormatClass().newInstance();
 				} catch (IOException | InstantiationException | IllegalAccessException | ClassNotFoundException e) {
 					// throw custom exception
