@@ -20,10 +20,12 @@
 
 from __future__ import absolute_import
 
-from apache_beam.pvalue import AsList
-from apache_beam.transforms import core
 from apache_beam.transforms import window
-from apache_beam.transforms.core import CombinePerKey, Create, Flatten, GroupByKey, Map
+from apache_beam.transforms.core import CombinePerKey
+from apache_beam.transforms.core import Flatten
+from apache_beam.transforms.core import GroupByKey
+from apache_beam.transforms.core import Map
+from apache_beam.transforms.core import WindowInto
 from apache_beam.transforms.ptransform import PTransform
 from apache_beam.transforms.ptransform import ptransform_fn
 
@@ -217,17 +219,17 @@ def assert_that(actual, matcher, label='assert_that'):
     Ignored.
   """
 
-  def match(_, actual):
-    matcher(actual)
-
   class AssertThat(PTransform):
 
-    def expand(self, pipeline):
-      return pipeline | 'singleton' >> Create([None]) | Map(
-          match,
-          AsList(actual | core.WindowInto(window.GlobalWindows())))
+    def expand(self, pcoll):
+      return (pcoll
+              | WindowInto(window.GlobalWindows())
+              | "ToVoidKey" >> Map(lambda v: (None, v))
+              | "Group" >> GroupByKey()
+              | "UnKey" >> Map(lambda (k, v): v)
+              | "Match" >> Map(matcher))
 
     def default_label(self):
       return label
 
-  actual.pipeline | AssertThat()  # pylint: disable=expression-not-assigned
+  actual | AssertThat()  # pylint: disable=expression-not-assigned
