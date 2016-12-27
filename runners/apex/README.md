@@ -37,13 +37,13 @@ The following shows how to run the WordCount example that is provided with the s
 To get the latest version of Beam with Apex-Runner, first clone the Beam repository:
 
 ```
-git clone https://github.com/apache/incubator‐beam
+git clone https://github.com/apache/beam
 ```
 
 Then switch to the newly created directory and run Maven to build the Apache Beam:
 
 ```
-cd incubator‐beam
+cd beam
 mvn clean install ‐DskipTests
 ```
 
