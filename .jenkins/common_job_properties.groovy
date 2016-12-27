@@ -26,7 +26,7 @@ class common_job_properties {
                                       def default_timeout = 100) {
     // GitHub project.
     context.properties {
-      githubProjectUrl('https://github.com/apache/incubator-beam/')
+      githubProjectUrl('https://github.com/apache/beam/')
     }
 
     // Set JDK version.
@@ -45,7 +45,7 @@ class common_job_properties {
     context.scm {
       git {
         remote {
-          url('https://github.com/apache/incubator-beam.git')
+          url('https://github.com/apache/beam.git')
           refspec('+refs/heads/*:refs/remotes/origin/* ' +
                   '+refs/pull/*:refs/remotes/origin/pr/*')
         }
@@ -149,7 +149,7 @@ class common_job_properties {
   static def setPostCommit(def context,
                            def build_schedule = '0 */6 * * *',
                            def scm_schedule = '* * * * *',
-                           def notify_address = 'commits@beam.incubator.apache.org') {
+                           def notify_address = 'commits@beam.apache.org') {
     // Set build triggers
     context.triggers {
       // By default runs every 6 hours.
