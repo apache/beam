@@ -31,7 +31,7 @@
   <description>Apache Beam provides a simple, Java-based interface
   for processing virtually any size data. This artifact includes the parent POM
   for other Beam artifacts.</description>
-  <url>http://beam.incubator.apache.org</url>
+  <url>http://beam.apache.org/</url>
   <inceptionYear>2016</inceptionYear>
 
   <version>0.5.0-SNAPSHOT</version>
@@ -45,10 +45,9 @@
   </licenses>
 
   <scm>
-    <connection>scm:git:https://git-wip-us.apache.org/repos/asf/incubator-beam.git</connection>
-    <developerConnection>scm:git:https://git-wip-us.apache.org/repos/asf/incubator-beam.git</developerConnection>
-    <url>https://git-wip-us.apache.org/repos/asf?p=incubator-beam.git;a=summary</url>
-    <tag>release-0.2.0-incubating</tag>
+    <connection>scm:git:https://git-wip-us.apache.org/repos/asf/beam.git</connection>
+    <developerConnection>scm:git:https://git-wip-us.apache.org/repos/asf/beam.git</developerConnection>
+    <url>https://git-wip-us.apache.org/repos/asf?p=beam.git;a=summary</url>
   </scm>
 
   <issueManagement>
@@ -59,32 +58,32 @@
   <mailingLists>
     <mailingList>
       <name>Beam Dev</name>
-      <subscribe>dev-subscribe@beam.incubator.apache.org</subscribe>
-      <unsubscribe>dev-unsubscribe@beam.incubator.apache.org</unsubscribe>
-      <post>dev@beam.incubator.apache.org</post>
-      <archive>http://www.mail-archive.com/dev%beam.incubator.apache.org</archive>
+      <subscribe>dev-subscribe@beam.apache.org</subscribe>
+      <unsubscribe>dev-unsubscribe@beam.apache.org</unsubscribe>
+      <post>dev@beam.apache.org</post>
+      <archive>http://www.mail-archive.com/dev%beam.apache.org</archive>
     </mailingList>
     <mailingList>
       <name>Beam User</name>
-      <subscribe>user-subscribe@beam.incubator.apache.org</subscribe>
-      <unsubscribe>user-unsubscribe@beam.incubator.apache.org</unsubscribe>
-      <post>user@beam.incubator.apache.org</post>
-      <archive>http://www.mail-archive.com/user%beam.incubator.apache.org</archive>
+      <subscribe>user-subscribe@beam.apache.org</subscribe>
+      <unsubscribe>user-unsubscribe@beam.apache.org</unsubscribe>
+      <post>user@beam.apache.org</post>
+      <archive>http://www.mail-archive.com/user%beam.apache.org</archive>
     </mailingList>
     <mailingList>
       <name>Beam Commits</name>
-      <subscribe>commits-subscribe@beam.incubator.apache.org</subscribe>
-      <unsubscribe>commits-unsubscribe@beam.incubator.apache.org</unsubscribe>
-      <post>commits@beam.incubator.apache.org</post>
-      <archive>http://www.mail-archive.com/commits%beam.incubator.apache.org</archive>
+      <subscribe>commits-subscribe@beam.apache.org</subscribe>
+      <unsubscribe>commits-unsubscribe@beam.apache.org</unsubscribe>
+      <post>commits@beam.apache.org</post>
+      <archive>http://www.mail-archive.com/commits%beam.apache.org</archive>
     </mailingList>
   </mailingLists>
 
   <developers>
     <developer>
       <name>The Apache Beam Team</name>
-      <email>dev@beam.incubator.apache.org</email>
-      <url>http://beam.incubator.apache.org</url>
+      <email>dev@beam.apache.org</email>
+      <url>http://beam.apache.org</url>
       <organization>Apache Software Foundation</organization>
       <organizationUrl>http://www.apache.org</organizationUrl>
     </developer>
