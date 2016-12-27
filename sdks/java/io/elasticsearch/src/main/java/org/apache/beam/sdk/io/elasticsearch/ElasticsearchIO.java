@@ -71,14 +71,14 @@ import org.elasticsearch.client.RestClient;
 import org.elasticsearch.client.RestClientBuilder;
 
 /**
- * IO to read and write data on Elasticsearch.
+ * Transforms for reading and writing data from/to Elasticsearch.
  *
  * <h3>Reading from Elasticsearch</h3>
  *
- * <p>ElasticsearchIO source returns a bounded collection of String representing JSON document
- * as {@code PCollection<String>}.
+ * <p>{@link ElasticsearchIO#read ElasticsearchIO.read()} returns a bounded
+ * {@link PCollection PCollection&lt;String&gt;} representing JSON documents.
  *
- * <p>To configure the Elasticsearch source, you have to provide a connection configuration
+ * <p>To configure the {@link ElasticsearchIO#read}, you have to provide a connection configuration
  * containing the HTTP address of the instances, an index name and a type. The following example
  * illustrates options for configuring the source:
  *
@@ -97,10 +97,12 @@ import org.elasticsearch.client.RestClientBuilder;
  *
  * <h3>Writing to Elasticsearch</h3>
  *
- * <p>ElasticsearchIO supports sink to write documents (as JSON String).
+ * <p>To write documents to Elasticsearch, use
+ * {@link ElasticsearchIO#write ElasticsearchIO.write()}, which writes JSON documents from a
+ * {@link PCollection PCollection&lt;String&gt;} (which can be bounded or unbounded).
  *
- * <p>To configure Elasticsearch sink, similar to the read, you have to provide a connection
- * configuration. For instance:
+ * <p>To configure {@link ElasticsearchIO#write ElasticsearchIO.write()}, similar to the read, you
+ * have to provide a connection configuration. For instance:
  *
  * <pre>{@code
  *
@@ -180,7 +182,7 @@ public class ElasticsearchIO {
     }
 
     /**
-     * Create Elasticsearch connection configuration.
+     * Creates a new Elasticsearch connection configuration.
      *
      * @param addresses list of addresses of Elasticsearch nodes
      * @param index the index toward which the requests will be issued
@@ -216,9 +218,11 @@ public class ElasticsearchIO {
      */
     public ConnectionConfiguration withUsername(String username) {
       checkArgument(
-          !Strings.isNullOrEmpty(username),
-          "ConnectionConfiguration.create()"
-              + ".withUsername(username) called with incorrect null or empty username");
+          username != null,
+          "ConnectionConfiguration.create().withUsername(username) called with null username");
+      checkArgument(
+          !username.isEmpty(),
+          "ConnectionConfiguration.create().withUsername(username) called with empty username");
       return builder().setUsername(username).build();
     }
 
@@ -230,9 +234,11 @@ public class ElasticsearchIO {
      */
     public ConnectionConfiguration withPassword(String password) {
       checkArgument(
-          !Strings.isNullOrEmpty(password),
-          "ConnectionConfiguration.create()"
-              + ".withPassword(password) called with incorrect null or empty password");
+          password != null,
+          "ConnectionConfiguration.create().withPassword(password) called with null password");
+      checkArgument(
+          !password.isEmpty(),
+          "ConnectionConfiguration.create().withPassword(password) called with empty password");
       return builder().setPassword(password).build();
     }
 
@@ -357,12 +363,14 @@ public class ElasticsearchIO {
     public Read withBatchSize(long batchSize) {
       checkArgument(
           batchSize > 0,
-          "ElasticsearchIO.read()" + ".withBatchSize(batchSize) called with incorrect <= 0 value");
+          "ElasticsearchIO.read().withBatchSize(batchSize) called with a negative value: %s",
+          batchSize);
       checkArgument(
           batchSize <= MAX_BATCH_SIZE,
-          "ElasticsearchIO.read()"
-              + ".withBatchSize(batchSize) called with value > to maximum "
-              + String.valueOf(MAX_BATCH_SIZE));
+          "ElasticsearchIO.read().withBatchSize(batchSize) " +
+              "called with a too large value (over %s): %s",
+          MAX_BATCH_SIZE,
+          batchSize);
       return builder().setBatchSize(batchSize).build();
     }
 
@@ -396,7 +404,7 @@ public class ElasticsearchIO {
     // shardPreference is the shard number where the source will read the documents
     @Nullable private final String shardPreference;
 
-    BoundedElasticsearchSource(Read spec, String shardPreference) {
+    BoundedElasticsearchSource(Read spec, @Nullable String shardPreference) {
       this.spec = spec;
       this.shardPreference = shardPreference;
     }
@@ -441,6 +449,7 @@ public class ElasticsearchIO {
           sources.add(new BoundedElasticsearchSource(spec, shardId));
         }
       }
+      checkArgument(!sources.isEmpty(), "No primary shard found");
       return sources;
     }
 
@@ -491,19 +500,15 @@ public class ElasticsearchIO {
     }
 
     private JsonObject getStats(boolean shardLevel) throws IOException {
-      RestClient restClient = spec.getConnectionConfiguration().createClient();
       HashMap<String, String> params = new HashMap<>();
       if (shardLevel) {
         params.put("level", "shards");
       }
       String endpoint = String.format("/%s/_stats", spec.getConnectionConfiguration().getIndex());
-      Response response;
-      try {
-        response = restClient.performRequest("GET", endpoint, params, new BasicHeader("", ""));
-      } finally {
-        restClient.close();
+      try (RestClient restClient = spec.getConnectionConfiguration().createClient()) {
+        return parseResponse(
+            restClient.performRequest("GET", endpoint, params, new BasicHeader("", "")));
       }
-      return parseResponse(response);
     }
   }
 
@@ -516,7 +521,7 @@ public class ElasticsearchIO {
     private String scrollId;
     private ListIterator<String> batchIterator;
 
-    public BoundedElasticsearchReader(BoundedElasticsearchSource source) {
+    private BoundedElasticsearchReader(BoundedElasticsearchSource source) {
       this.source = source;
     }
 
@@ -715,12 +720,12 @@ public class ElasticsearchIO {
 
     @Override
     public PDone expand(PCollection<String> input) {
-      input.apply(ParDo.of(new WriterFn(this)));
+      input.apply(ParDo.of(new WriteFn(this)));
       return PDone.in(input.getPipeline());
     }
 
     @VisibleForTesting
-    static class WriterFn extends DoFn<String, Void> {
+    static class WriteFn extends DoFn<String, Void> {
 
       private final Write spec;
 
@@ -728,7 +733,7 @@ public class ElasticsearchIO {
       private ArrayList<String> batch;
       private long currentBatchSizeBytes;
 
-      public WriterFn(Write spec) {
+      WriteFn(Write spec) {
         this.spec = spec;
       }
 

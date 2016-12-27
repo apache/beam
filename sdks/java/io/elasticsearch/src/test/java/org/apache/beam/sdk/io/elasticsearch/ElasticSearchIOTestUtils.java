@@ -20,7 +20,10 @@ package org.apache.beam.sdk.io.elasticsearch;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.admin.indices.delete.DeleteIndexResponse;
 import org.elasticsearch.action.admin.indices.exists.indices.IndicesExistsRequest;
@@ -34,8 +37,8 @@ import org.elasticsearch.client.IndicesAdminClient;
 import org.elasticsearch.client.Requests;
 import org.elasticsearch.index.IndexNotFoundException;
 
-/** Test util class to use with ElasticSearch IO. */
-public class ElasticSearchIOTestUtils {
+/** Test utilities to use with {@link ElasticsearchIO}. */
+class ElasticSearchIOTestUtils {
 
   /** Enumeration that specifies whether to insert malformed documents. */
   enum InjectionMode {
@@ -43,71 +46,18 @@ public class ElasticSearchIOTestUtils {
     DO_NOT_INJECT_INVALID_DOCS;
   }
 
-  private static class DeleteActionListener implements ActionListener<DeleteIndexResponse> {
-
-    public DeleteActionListener(AtomicBoolean indexDeleted, AtomicBoolean waitForIndexDeletion) {
-      this.indexDeleted = indexDeleted;
-      this.waitForIndexDeletion = waitForIndexDeletion;
-    }
-
-    private AtomicBoolean indexDeleted;
-    private AtomicBoolean waitForIndexDeletion;
-
-    @Override
-    public void onResponse(DeleteIndexResponse deleteIndexResponse) {
-      waitForIndexDeletion.set(false);
-      indexDeleted.set(true);
-    }
-
-    @Override
-    public void onFailure(Throwable throwable) {
-      waitForIndexDeletion.set(false);
-      indexDeleted.set(false);
-    }
-  }
-
-  /**
-   * Deletes an index and block until deletion is complete.
-   *
-   * @param index The index to delete
-   * @param client The client which points to the Elasticsearch instance
-   * @throws InterruptedException if blocking thread is interrupted or index existence check failed
-   * @throws java.util.concurrent.ExecutionException if index existence check failed
-   * @throws IOException if deletion failed
-   */
-  static void deleteIndex(String index, Client client)
-      throws InterruptedException, java.util.concurrent.ExecutionException, IOException {
+  /** Deletes the given index synchronously. */
+  static void deleteIndex(String index, Client client) throws Exception {
     IndicesAdminClient indices = client.admin().indices();
     IndicesExistsResponse indicesExistsResponse =
         indices.exists(new IndicesExistsRequest(index)).get();
     if (indicesExistsResponse.isExists()) {
       indices.prepareClose(index).get();
-      // delete index is an asynchronous request, neither refresh or upgrade
-      // delete all docs before starting tests. WaitForYellow() and delete directory are too slow,
-      // so block thread until it is done (make it synchronous!!!)
-      AtomicBoolean indexDeleted = new AtomicBoolean(false);
-      AtomicBoolean waitForIndexDeletion = new AtomicBoolean(true);
-      indices.delete(
-          Requests.deleteIndexRequest(index),
-          new DeleteActionListener(indexDeleted, waitForIndexDeletion));
-      while (waitForIndexDeletion.get()) {
-        Thread.sleep(100);
-      }
-      if (!indexDeleted.get()) {
-        throw new IOException("Failed to delete index " + index);
-      }
+      indices.delete(Requests.deleteIndexRequest(index)).get();
     }
   }
 
-  /**
-   * Inserts test documents into the ElasticSearch instance to which client points.
-   *
-   * @param index Index to insert into
-   * @param type Type of documents to insert
-   * @param numDocs Number of docs to insert
-   * @param client Elasticsearch TCP client to use for insertion
-   * @throws IOException
-   */
+  /** Inserts the given number of test documents into Elasticsearch. */
   static void insertTestDocuments(String index, String type, long numDocs, Client client)
       throws Exception {
     final BulkRequestBuilder bulkRequestBuilder = client.prepareBulk().setRefresh(true);
@@ -127,9 +77,8 @@ public class ElasticSearchIOTestUtils {
   }
 
   /**
-   * Force an upgrade of all indices to make recently inserted documents available for search.
+   * Forces an upgrade of the given index to make recently inserted documents available for search.
    *
-   * @param client Elasticsearch TCP client to use for upgrade
    * @return The number of docs in the index
    */
   static long upgradeIndexAndGetCurrentNumDocs(String index, String type, Client client) {
@@ -174,7 +123,7 @@ public class ElasticSearchIOTestUtils {
     ArrayList<String> data = new ArrayList<>();
     for (int i = 0; i < numDocs; i++) {
       int index = i % scientists.length;
-      //insert 2 malformed documents
+      // insert 2 malformed documents
       if (InjectionMode.INJECT_SOME_INVALID_DOCS.equals(injectionMode) && (i == 6 || i == 7)) {
         data.add(String.format("{\"scientist\";\"%s\", \"id\":%d}", scientists[index], i));
       } else {

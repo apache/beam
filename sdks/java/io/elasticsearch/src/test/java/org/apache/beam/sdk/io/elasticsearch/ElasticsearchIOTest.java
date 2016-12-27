@@ -28,8 +28,6 @@ import java.io.IOException;
 import java.io.Serializable;
 import java.net.ServerSocket;
 import java.util.List;
-
-import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -41,7 +39,6 @@ import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFnTester;
 import org.apache.beam.sdk.values.PCollection;
-
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.index.query.QueryBuilder;
@@ -63,7 +60,7 @@ import org.junit.runners.JUnit4;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** Test on {@link ElasticsearchIO}. */
+/** Tests for {@link ElasticsearchIO}. */
 @RunWith(JUnit4.class)
 public class ElasticsearchIOTest implements Serializable {
 
@@ -78,16 +75,17 @@ public class ElasticsearchIOTest implements Serializable {
   private static final long AVERAGE_DOC_SIZE = 25L;
   private static final long BATCH_SIZE_BYTES = 2048L;
 
-  private static int esHttpPort;
-  private static transient Node node;
+  private static Node node;
   private static ElasticsearchIO.ConnectionConfiguration connectionConfiguration;
 
   @ClassRule public static TemporaryFolder folder = new TemporaryFolder();
+  @Rule
+  public TestPipeline pipeline = TestPipeline.create();
 
   @BeforeClass
   public static void beforeClass() throws IOException {
     ServerSocket serverSocket = new ServerSocket(0);
-    esHttpPort = serverSocket.getLocalPort();
+    int esHttpPort = serverSocket.getLocalPort();
     serverSocket.close();
     connectionConfiguration =
         ElasticsearchIO.ConnectionConfiguration.create(
@@ -141,15 +139,13 @@ public class ElasticsearchIOTest implements Serializable {
   public void testRead() throws Exception {
     ElasticSearchIOTestUtils.insertTestDocuments(ES_INDEX, ES_TYPE, NUM_DOCS, node.client());
 
-    TestPipeline pipeline = TestPipeline.create();
-
     PCollection<String> output =
         pipeline.apply(
             ElasticsearchIO.read()
                 .withConnectionConfiguration(connectionConfiguration)
-                //set to default value, usefull just to test parameter passing.
+                //set to default value, useful just to test parameter passing.
                 .withScrollKeepalive("5m")
-                //set to default value, usefull just to test parameter passing.
+                //set to default value, useful just to test parameter passing.
                 .withBatchSize(100L));
     PAssert.thatSingleton(output.apply("Count", Count.<String>globally())).isEqualTo(NUM_DOCS);
     pipeline.run();
@@ -172,8 +168,6 @@ public class ElasticsearchIOTest implements Serializable {
             + "  }\n"
             + "}";
 
-    Pipeline pipeline = TestPipeline.create();
-
     PCollection<String> output =
         pipeline.apply(
             ElasticsearchIO.read()
@@ -187,7 +181,6 @@ public class ElasticsearchIOTest implements Serializable {
   @Test
   @Category(RunnableOnService.class)
   public void testWrite() throws Exception {
-    Pipeline pipeline = TestPipeline.create();
     List<String> data =
         ElasticSearchIOTestUtils.createDocuments(
             NUM_DOCS, ElasticSearchIOTestUtils.InjectionMode.DO_NOT_INJECT_INVALID_DOCS);
@@ -219,10 +212,10 @@ public class ElasticsearchIOTest implements Serializable {
         ElasticsearchIO.write()
             .withConnectionConfiguration(connectionConfiguration)
             .withMaxBatchSize(BATCH_SIZE);
-    ElasticsearchIO.Write.WriterFn writerFn = new ElasticsearchIO.Write.WriterFn(write);
+    ElasticsearchIO.Write.WriteFn writeFn = new ElasticsearchIO.Write.WriteFn(write);
     // write bundles size is the runner decision, we cannot force a bundle size,
     // so we test the Writer as a DoFn outside of a runner.
-    DoFnTester<String, Void> fnTester = DoFnTester.of(writerFn);
+    DoFnTester<String, Void> fnTester = DoFnTester.of(writeFn);
 
     List<String> input =
         ElasticSearchIOTestUtils.createDocuments(
@@ -235,11 +228,7 @@ public class ElasticsearchIOTest implements Serializable {
             String message = (String) o;
             return message.matches(
                 "(?is).*Error writing to Elasticsearch, some elements could not be inserted"
-                    + ".*Document id.* failed to parse \\(mapper_parsing_exception\\).*Caused by: "
-                    + "Unexpected character.* was expecting a colon to separate field name and "
-                    + "value.*Document id.* failed to parse \\(mapper_parsing_exception\\).*"
-                    + "Caused by: Unexpected character.* was expecting a colon to separate field "
-                    + "name and value.*");
+                    + ".*Document id.* failed to parse.*");
           }
         });
     // inserts into Elasticsearch
@@ -254,9 +243,7 @@ public class ElasticsearchIOTest implements Serializable {
             .withMaxBatchSize(BATCH_SIZE);
     // write bundles size is the runner decision, we cannot force a bundle size,
     // so we test the Writer as a DoFn outside of a runner.
-    ElasticsearchIO.Write.WriterFn writerFn = new ElasticsearchIO.Write.WriterFn(write);
-    DoFnTester<String, Void> fnTester = DoFnTester.of(writerFn);
-    fnTester.setCloningBehavior(DoFnTester.CloningBehavior.DO_NOT_CLONE);
+    DoFnTester<String, Void> fnTester = DoFnTester.of(new ElasticsearchIO.Write.WriteFn(write));
     List<String> input =
         ElasticSearchIOTestUtils.createDocuments(
             NUM_DOCS, ElasticSearchIOTestUtils.InjectionMode.DO_NOT_INJECT_INVALID_DOCS);
@@ -298,9 +285,7 @@ public class ElasticsearchIOTest implements Serializable {
             .withMaxBatchSizeBytes(BATCH_SIZE_BYTES);
     // write bundles size is the runner decision, we cannot force a bundle size,
     // so we test the Writer as a DoFn outside of a runner.
-    ElasticsearchIO.Write.WriterFn writerFn = new ElasticsearchIO.Write.WriterFn(write);
-    DoFnTester<String, Void> fnTester = DoFnTester.of(writerFn);
-    fnTester.setCloningBehavior(DoFnTester.CloningBehavior.DO_NOT_CLONE);
+    DoFnTester<String, Void> fnTester = DoFnTester.of(new ElasticsearchIO.Write.WriteFn(write));
     List<String> input =
         ElasticSearchIOTestUtils.createDocuments(
             NUM_DOCS, ElasticSearchIOTestUtils.InjectionMode.DO_NOT_INJECT_INVALID_DOCS);
