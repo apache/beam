@@ -101,7 +101,8 @@ public class V1ReadIT {
     Key ancestorKey = makeAncestorKey(options.getNamespace(), options.getKind(), ancestor);
 
     for (long i = 0; i < numEntities; i++) {
-      Entity entity = makeEntity(i, ancestorKey, options.getKind(), options.getNamespace());
+      Entity entity = makeEntity(String.valueOf(i), ancestorKey, options.getKind(),
+          options.getNamespace(), 1);
       writer.write(entity);
     }
     writer.close();
