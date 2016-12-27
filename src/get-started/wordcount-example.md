@@ -25,7 +25,7 @@ Each WordCount example introduces different concepts in the Beam programming mod
 
 Minimal WordCount demonstrates a simple pipeline that can read from a text file, apply transforms to tokenize and count the words, and write the data to an output text file. This example hard-codes the locations for its input and output files and doesn't perform any error checking; it is intended to only show you the "bare bones" of creating a Beam pipeline. This lack of parameterization makes this particular pipeline less portable across different runners than standard Beam pipelines. In later examples, we will parameterize the pipeline's input and output sources and show other best practices.
 
-To run this example, follow the instructions in the [Beam Examples README](https://github.com/apache/incubator-beam/blob/master/examples/java/README.md#building-and-running). To view the full code, see **[MinimalWordCount](https://github.com/apache/incubator-beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/MinimalWordCount.java).**
+To run this example, follow the instructions in the [Beam Examples README](https://github.com/apache/beam/blob/master/examples/java/README.md#building-and-running). To view the full code, see **[MinimalWordCount](https://github.com/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/MinimalWordCount.java).**
 
 **Key Concepts:**
 
@@ -143,7 +143,7 @@ This WordCount example introduces a few recommended programming practices that c
 
 This section assumes that you have a good understanding of the basic concepts in building a pipeline. If you feel that you aren't at that point yet, read the above section, [Minimal WordCount](#minimalwordcount).
 
-To run this example, follow the instructions in the [Beam Examples README](https://github.com/apache/incubator-beam/blob/master/examples/java/README.md#building-and-running). To view the full code, see **[WordCount](https://github.com/apache/incubator-beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/WordCount.java).**
+To run this example, follow the instructions in the [Beam Examples README](https://github.com/apache/beam/blob/master/examples/java/README.md#building-and-running). To view the full code, see **[WordCount](https://github.com/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/WordCount.java).**
 
 **New Concepts:**
 
@@ -238,7 +238,7 @@ public static void main(String[] args) {
 
 The Debugging WordCount example demonstrates some best practices for instrumenting your pipeline code.
 
-To run this example, follow the instructions in the [Beam Examples README](https://github.com/apache/incubator-beam/blob/master/examples/java/README.md#building-and-running). To view the full code, see **[DebuggingWordCount](https://github.com/apache/incubator-beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/DebuggingWordCount.java).**
+To run this example, follow the instructions in the [Beam Examples README](https://github.com/apache/beam/blob/master/examples/java/README.md#building-and-running). To view the full code, see **[DebuggingWordCount](https://github.com/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/DebuggingWordCount.java).**
 
 **New Concepts:**
 
@@ -297,7 +297,7 @@ The default Dataflow worker logging configuration can be overridden by specifyin
 
 `PAssert` is a set of convenient `PTransform`s in the style of Hamcrest's collection matchers that can be used when writing Pipeline level tests to validate the contents of PCollections. `PAssert` is best used in unit tests with small data sets, but is demonstrated here as a teaching tool.
 
-Below, we verify that the set of filtered words matches our expected counts. Note that `PAssert` does not provide any output, and that successful completion of the pipeline implies that the expectations were met. See [DebuggingWordCountTest](https://github.com/apache/incubator-beam/blob/master/examples/java/src/test/java/org/apache/beam/examples/DebuggingWordCountTest.java) for an example unit test.
+Below, we verify that the set of filtered words matches our expected counts. Note that `PAssert` does not provide any output, and that successful completion of the pipeline implies that the expectations were met. See [DebuggingWordCountTest](https://github.com/apache/beam/blob/master/examples/java/src/test/java/org/apache/beam/examples/DebuggingWordCountTest.java) for an example unit test.
 
 ```java
 public static void main(String[] args) {

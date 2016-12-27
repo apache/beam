@@ -271,7 +271,7 @@ Use Maven Javadoc plugin to generate the new Java reference manual, as follows:
         -Dmaven.javadoc.failOnError=false \
         -DexcludePackageNames="org.apache.beam.examples,org.apache.beam.runners.dataflow.internal,org.apache.beam.runners.flink.examples,org.apache.beam.runners.flink.translation,org.apache.beam.runners.spark.examples,org.apache.beam.runners.spark.translation,org.apache.beam.sdk.microbenchmarks.coders.generated,org.apache.beam.sdk.microbenchmarks.transforms.generated,org.openjdk.jmh.infra.generated"
 
-By default, the Javadoc will be generated in `target/site/apidocs/`. Let `${JAVADOC_ROOT}` be the absolute path to `apidocs`. ([Pull request #1015](https://github.com/apache/incubator-beam/pull/1015) will hopefully simplify this process.)
+By default, the Javadoc will be generated in `target/site/apidocs/`. Let `${JAVADOC_ROOT}` be the absolute path to `apidocs`. ([Pull request #1015](https://github.com/apache/beam/pull/1015) will hopefully simplify this process.)
 
 Please carefully review the generated Javadoc. Check for completeness and presence of all relevant packages and `package-info.java`; consider adding less relevant packages to the `excludePackageNames` configuration. The index page is generated at `${JAVADOC_ROOT}/index.html`.
 
@@ -306,7 +306,7 @@ Once you have built and individually reviewed the release candidate, please shar
 Start the review-and-vote thread on the dev@ mailing list. Here’s an email template; please adjust as you see fit.
 
     From: Release Manager
-    To: dev@beam.incubator.apache.org
+    To: dev@beam.apache.org
     Subject: [VOTE] Release 1.2.3, release candidate #3
 
     Hi everyone,
@@ -338,7 +338,7 @@ If there are any issues found in the release candidate, reply on the vote thread
 If there are no issues, reply on the vote thread to close the voting. Then, tally the votes in a separate email. Here’s an email template; please adjust as you see fit.
 
     From: Release Manager
-    To: dev@beam.incubator.apache.org
+    To: dev@beam.apache.org
     Subject: [RESULT] [VOTE] Release 1.2.3, release candidate #3
 
     I'm happy to announce that we have unanimously approved this release.
@@ -357,7 +357,7 @@ While in incubation, the Apache Incubator PMC must also vote on each release, us
 
     From: Release Manager
     To: general@incubator.apache.org
-    Cc: dev@beam.incubator.apache.org
+    Cc: dev@beam.apache.org
     Subject: [VOTE] Apache Beam release 1.2.3-incubating
 
     Hi everyone,
@@ -392,7 +392,7 @@ If passed, close the voting and summarize the results.
 
     From: Release Manager
     To: general@incubator.apache.org
-    Cc: dev@beam.incubator.apache.org
+    Cc: dev@beam.apache.org
     Subject: [RESULT] [VOTE] Apache Beam release 1.2.3-incubating
 
     There are XXX approving votes, all of which are binding:
