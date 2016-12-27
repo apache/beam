@@ -108,6 +108,7 @@ public interface ValueProvider<T> extends Serializable {
 
     private final ValueProvider<X> value;
     private final SerializableFunction<X, T> translator;
+    private transient X cachedValue;
 
     NestedValueProvider(ValueProvider<X> value, SerializableFunction<X, T> translator) {
       this.value = checkNotNull(value);
@@ -125,7 +126,10 @@ public interface ValueProvider<T> extends Serializable {
 
     @Override
     public T get() {
-      return translator.apply(value.get());
+      if (cachedValue == null) {
+        cachedValue = translator.apply(value.get());
+      }
+      return cachedValue;
     }
 
     @Override
