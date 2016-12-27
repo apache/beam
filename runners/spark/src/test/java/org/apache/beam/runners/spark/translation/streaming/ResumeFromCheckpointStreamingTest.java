@@ -19,7 +19,10 @@ package org.apache.beam.runners.spark.translation.streaming;
 
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
 
+import com.google.common.base.Predicates;
+import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.util.concurrent.Uninterruptibles;
 import java.io.IOException;
@@ -30,6 +33,7 @@ import java.util.concurrent.TimeUnit;
 import org.apache.beam.runners.spark.SparkPipelineOptions;
 import org.apache.beam.runners.spark.SparkPipelineResult;
 import org.apache.beam.runners.spark.aggregators.ClearAggregatorsRule;
+import org.apache.beam.runners.spark.aggregators.metrics.sink.graphite.InMemoryGraphiteServer;
 import org.apache.beam.runners.spark.translation.streaming.utils.EmbeddedKafkaCluster;
 import org.apache.beam.runners.spark.translation.streaming.utils.PAssertStreaming;
 import org.apache.beam.runners.spark.translation.streaming.utils.SparkTestPipelineOptionsForStreaming;
@@ -65,6 +69,7 @@ import org.junit.rules.TemporaryFolder;
  * expected values for the recovered (second) run.
  */
 public class ResumeFromCheckpointStreamingTest {
+
   private static final EmbeddedKafkaCluster.EmbeddedZookeeper EMBEDDED_ZOOKEEPER =
       new EmbeddedKafkaCluster.EmbeddedZookeeper();
   private static final EmbeddedKafkaCluster EMBEDDED_KAFKA_CLUSTER =
@@ -75,6 +80,9 @@ public class ResumeFromCheckpointStreamingTest {
   );
   private static final String[] EXPECTED = {"k1,v1", "k2,v2", "k3,v3", "k4,v4"};
   private static final long EXPECTED_AGG_FIRST = 4L;
+  private static final String STREAMING_METRICS = "StreamingMetrics";
+  private static final String PROCESSED_MESSAGES = "processedMessages";
+  private static final int GRAPHITE_PORT = 2003;
 
   @Rule
   public TemporaryFolder checkpointParentDir = new TemporaryFolder();
@@ -85,6 +93,9 @@ public class ResumeFromCheckpointStreamingTest {
 
   @Rule
   public ClearAggregatorsRule clearAggregatorsRule = new ClearAggregatorsRule();
+
+  @Rule
+  public final InMemoryGraphiteServer graphiteServer = new InMemoryGraphiteServer(GRAPHITE_PORT);
 
   @BeforeClass
   public static void init() throws IOException {
@@ -110,8 +121,32 @@ public class ResumeFromCheckpointStreamingTest {
         }
   }
 
+  private void assertRunResults(SparkPipelineResult result) {
+    final Long processedMessages = result.getAggregatorValue(PROCESSED_MESSAGES, Long.class);
+    assertThat(String.format("Expected %d processed messages count but found %d",
+                             EXPECTED_AGG_FIRST, processedMessages),
+               processedMessages,
+               equalTo(EXPECTED_AGG_FIRST));
+    assertTrue(receivedMetrics(STREAMING_METRICS));
+  }
+
+  private boolean receivedMetrics(final String streamingMetrics) {
+    return FluentIterable.from(graphiteServer.getMetrics().keySet())
+                         .anyMatch(Predicates.containsPattern(streamingMetrics));
+  }
+
   @Test
   public void testRun() throws Exception {
+    final SparkPipelineOptions options = pipelineOptions();
+
+    // first run will read from Kafka backlog - "auto.offset.reset=smallest"
+    assertRunResults(run(options));
+
+    // recovery should resume from last read offset, and read the second batch of input.
+    assertRunResults(runAgain(options));
+  }
+
+  private SparkPipelineOptions pipelineOptions() throws IOException {
     Duration batchIntervalDuration = Duration.standardSeconds(5);
     SparkPipelineOptions options = commonOptions.withTmpCheckpointDir(checkpointParentDir);
     // provide a generous enough batch-interval to have everything fit in one micro-batch.
@@ -123,30 +158,18 @@ public class ResumeFromCheckpointStreamingTest {
 
     // checkpoint after first (and only) interval.
     options.setCheckpointDurationMillis(options.getBatchIntervalMillis());
-
-    // first run will read from Kafka backlog - "auto.offset.reset=smallest"
-    SparkPipelineResult res = run(options);
-    long processedMessages1 = res.getAggregatorValue("processedMessages", Long.class);
-    assertThat(String.format("Expected %d processed messages count but "
-        + "found %d", EXPECTED_AGG_FIRST, processedMessages1), processedMessages1,
-            equalTo(EXPECTED_AGG_FIRST));
-
-    // recovery should resume from last read offset, and read the second batch of input.
-    res = runAgain(options);
-    long processedMessages2 = res.getAggregatorValue("processedMessages", Long.class);
-    assertThat(String.format("Expected %d processed messages count but "
-        + "found %d", EXPECTED_AGG_FIRST, processedMessages2), processedMessages2,
-            equalTo(EXPECTED_AGG_FIRST));
+    return options;
   }
 
   private SparkPipelineResult runAgain(SparkPipelineOptions options) {
+    graphiteServer.clearMetrics();
     clearAggregatorsRule.clearNamedAggregators();
     // sleep before next run.
     Uninterruptibles.sleepUninterruptibly(100, TimeUnit.MILLISECONDS);
     return run(options);
   }
 
-  private static SparkPipelineResult run(SparkPipelineOptions options) {
+  private SparkPipelineResult run(SparkPipelineOptions options) {
     // write to Kafka
     produce();
     Map<String, Object> consumerProps = ImmutableMap.<String, Object>of(
