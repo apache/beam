@@ -20,7 +20,6 @@
 import logging
 import unittest
 
-from apache_beam.internal.clients import dataflow
 from apache_beam.runners.runner import PipelineState
 from apache_beam.runners.runner import PipelineResult
 from apache_beam.tests.pipeline_verifiers import PipelineStateMatcher
@@ -29,20 +28,27 @@ from hamcrest import assert_that as hc_assert_that
 
 class PipelineVerifiersTest(unittest.TestCase):
 
-  def test_dataflow_job_state_matcher_success(self):
-    """Test DataflowJobStateMatcher successes when job finished in DONE"""
+  def test_pipeline_state_matcher_success(self):
+    """Test PipelineStateMatcher successes when using default expected state
+    and job actually finished in DONE
+    """
     pipeline_result = PipelineResult(PipelineState.DONE)
     hc_assert_that(pipeline_result, PipelineStateMatcher())
 
+  def test_pipeline_state_matcher_given_state(self):
+    """Test PipelineStateMatcher successes when matches given state"""
+    pipeline_result = PipelineResult(PipelineState.FAILED)
+    hc_assert_that(pipeline_result, PipelineStateMatcher(PipelineState.FAILED))
+
   def test_pipeline_state_matcher_fails(self):
-    """Test DataflowJobStateMatcher fails when job finished in
-    FAILED/CANCELLED/STOPPED/UNKNOWN/DRAINED"""
-    job_enum = dataflow.Job.CurrentStateValueValuesEnum
-    failed_state = [job_enum.JOB_STATE_FAILED,
-                    job_enum.JOB_STATE_CANCELLED,
-                    job_enum.JOB_STATE_STOPPED,
-                    job_enum.JOB_STATE_UNKNOWN,
-                    job_enum.JOB_STATE_DRAINED]
+    """Test PipelineStateMatcher fails when using default expected state
+    and job actually finished in CANCELLED/DRAINED/FAILED/STOPPED/UNKNOWN
+    """
+    failed_state = [PipelineState.CANCELLED,
+                    PipelineState.DRAINED,
+                    PipelineState.FAILED,
+                    PipelineState.STOPPED,
+                    PipelineState.UNKNOWN]
 
     for state in failed_state:
       pipeline_result = PipelineResult(state)
