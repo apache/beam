@@ -16,7 +16,7 @@
 #
 
 import bz2
-import cStringIO as StringIO
+import cStringIO
 import gzip
 import logging
 import math
@@ -451,7 +451,7 @@ class TestFileBasedSource(unittest.TestCase):
     chunks = [lines[splits[i-1]:splits[i]] for i in xrange(1, len(splits))]
     compressed_chunks = []
     for c in chunks:
-      out = StringIO.StringIO()
+      out = cStringIO.StringIO()
       with gzip.GzipFile(fileobj=out, mode="w") as f:
         f.write('\n'.join(c))
       compressed_chunks.append(out.getvalue())
@@ -498,7 +498,7 @@ class TestFileBasedSource(unittest.TestCase):
     chunks = [lines[splits[i - 1]:splits[i]] for i in xrange(1, len(splits))]
     compressed_chunks = []
     for c in chunks:
-      out = StringIO.StringIO()
+      out = cStringIO.StringIO()
       with gzip.GzipFile(fileobj=out, mode="w") as f:
         f.write('\n'.join(c))
       compressed_chunks.append(out.getvalue())
@@ -518,7 +518,7 @@ class TestFileBasedSource(unittest.TestCase):
     chunks_to_write = []
     for i, c in enumerate(chunks):
       if i%2 == 0:
-        out = StringIO.StringIO()
+        out = cStringIO.StringIO()
         with gzip.GzipFile(fileobj=out, mode="w") as f:
           f.write('\n'.join(c))
         chunks_to_write.append(out.getvalue())

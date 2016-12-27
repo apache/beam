@@ -20,7 +20,7 @@ This library evolved from the Google App Engine GCS client available at
 https://github.com/GoogleCloudPlatform/appengine-gcs-client.
 """
 
-import cStringIO as StringIO
+import cStringIO
 import errno
 import fnmatch
 import logging
@@ -418,7 +418,7 @@ class GcsBufferedReader(object):
     get_request.generation = metadata.generation
 
     # Initialize read buffer state.
-    self.download_stream = StringIO.StringIO()
+    self.download_stream = cStringIO.StringIO()
     self.downloader = transfer.Download(
         self.download_stream, auto_transfer=False, chunksize=buffer_size)
     self.client.objects.Get(get_request, download=self.downloader)
@@ -558,7 +558,7 @@ class GcsBufferedReader(object):
     end = start + size - 1
     self.downloader.GetRange(start, end)
     value = self.download_stream.getvalue()
-    # Clear the StringIO object after we've read its contents.
+    # Clear the cStringIO object after we've read its contents.
     self.download_stream.truncate(0)
     assert len(value) == size
     return value
