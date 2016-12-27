@@ -16,7 +16,6 @@
 #
 """Unit tests for the apiclient module."""
 
-import re
 import unittest
 
 from apache_beam.utils.options import PipelineOptions
