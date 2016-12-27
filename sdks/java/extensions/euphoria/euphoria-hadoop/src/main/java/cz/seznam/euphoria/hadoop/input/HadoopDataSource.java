@@ -16,7 +16,6 @@ import org.apache.hadoop.mapreduce.RecordReader;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
 
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
@@ -29,58 +28,27 @@ public class HadoopDataSource<K, V> implements DataSource<Pair<K, V>> {
   private final Class<V> valueClass;
   private final Class<? extends InputFormat<K, V>> hadoopFormatCls;
   private final SerializableWritable<Configuration> conf;
-  private final int maxSplits;
 
   private transient InputFormat<K, V> hadoopFormatInstance;
 
   public HadoopDataSource(Class<K> keyClass, Class<V> valueClass,
       Class<? extends InputFormat<K, V>> hadoopFormatCls,
       SerializableWritable<Configuration> conf) {
-    
-    this(keyClass, valueClass, hadoopFormatCls, conf, -1);
-  }
-
-
-  public HadoopDataSource(Class<K> keyClass, Class<V> valueClass,
-      Class<? extends InputFormat<K, V>> hadoopFormatCls,
-      SerializableWritable<Configuration> conf,
-      int maxSplits) {
 
     this.keyClass = keyClass;
     this.valueClass = valueClass;
     this.hadoopFormatCls = Objects.requireNonNull(hadoopFormatCls);
     this.conf = Objects.requireNonNull(conf);
-    this.maxSplits = maxSplits;
   }
 
   @Override
   @SneakyThrows
   public List<Partition<Pair<K, V>>> getPartitions() {
     Configuration c = conf.getWritable();
-    List<InputSplit> splits = getHadoopFormatInstance().getSplits(
-        HadoopUtils.createJobContext(c));
-    if (maxSplits > 0 && splits.size() > maxSplits) {
-      List<List<InputSplit>> merged = new ArrayList<>(maxSplits);
-      for (int i = 0; i < maxSplits; i++) {
-        merged.add(new ArrayList<>());
-      }
-      int j = 0;
-      for (int i = 0; i < splits.size(); i++) {
-        merged.get(j++).add(splits.get(i));
-        j %= maxSplits;
-      }
-      return merged
-          .stream()
-          .map(s -> new HadoopPartition<>(keyClass, valueClass, hadoopFormatCls,
-              conf, s.toArray(new InputSplit[s.size()])))
-          .collect(Collectors.toList());
-    }
-    // do not merge splits
-    return splits
+    return getHadoopFormatInstance()
+            .getSplits(HadoopUtils.createJobContext(c))
             .stream()
-            .map(split -> new HadoopPartition<>(
-                keyClass, valueClass, hadoopFormatCls, conf,
-                new InputSplit[] { split }))
+            .map(split -> new HadoopPartition<>(keyClass, valueClass, hadoopFormatCls, conf, split))
             .collect(Collectors.toList());
 
   }
@@ -112,29 +80,20 @@ public class HadoopDataSource<K, V> implements DataSource<Pair<K, V>> {
   /**
    * Wraps Hadoop {@link RecordReader}
    */
-  private static class HadoopMultiReader<K, V>
+  private static class HadoopReader<K, V>
       extends AbstractIterator<Pair<K, V>>
       implements Reader<Pair<K, V>> {
-    
-    private final TaskAttemptContext ctx;
-    private final InputFormat inputFormat;
-    private final InputSplit[] inputSplits;
+
+    private final RecordReader<?, ?> hadoopReader;
     private final Cloner<K> keyCloner;
     private final Cloner<V> valueCloner;
 
-    private int nextReader = 0;
-    private RecordReader<?, ?> currentReader;
-
-    public HadoopMultiReader(
-        TaskAttemptContext ctx,
-        InputFormat inputFormat,
-        InputSplit[] splits,
+    public HadoopReader(
+        RecordReader<?, ?> hadoopReader,
         Class<K> keyClass, Class<V> valueClass,
         Configuration conf) {
 
-      this.ctx = Objects.requireNonNull(ctx);
-      this.inputFormat = Objects.requireNonNull(inputFormat);
-      this.inputSplits = Objects.requireNonNull(splits);
+      this.hadoopReader = Objects.requireNonNull(hadoopReader);
       this.keyCloner = Objects.requireNonNull(Cloner.get(keyClass, conf));
       this.valueCloner = Objects.requireNonNull(Cloner.get(valueClass, conf));
     }
@@ -142,13 +101,9 @@ public class HadoopDataSource<K, V> implements DataSource<Pair<K, V>> {
     @Override
     @SneakyThrows
     protected Pair<K, V> computeNext() {
-      if (currentReader == null || !currentReader.nextKeyValue()) {
-        moveToNextReader();
-      }
-      if (currentReader != null) {
-
-        K key = (K) currentReader.getCurrentKey();
-        V value = (V) currentReader.getCurrentValue();
+      if (hadoopReader.nextKeyValue()) {
+        K key = (K) hadoopReader.getCurrentKey();
+        V value = (V) hadoopReader.getCurrentValue();
 
         // ~ clone key values since they are reused
         // between calls to RecordReader#nextKeyValue
@@ -160,33 +115,7 @@ public class HadoopDataSource<K, V> implements DataSource<Pair<K, V>> {
 
     @Override
     public void close() throws IOException {
-      if (currentReader != null) {
-        currentReader.close();
-        currentReader = null;
-      }
-    }
-
-    /**
-     * Set {@code currentReader} to next valid reader or null if no valid
-     * readers left. The returned reader is ready to be called {@code getCurrentKey}.
-     */
-    @SuppressWarnings("unchecked")
-    private void moveToNextReader() throws IOException, InterruptedException {
-      if (currentReader != null) {
-        currentReader.close();
-        currentReader = null;
-      }
-      while (nextReader < inputSplits.length) {
-        InputSplit split = inputSplits[nextReader++];
-        RecordReader reader = inputFormat.createRecordReader(split, ctx);
-        reader.initialize(split, ctx);
-        if (reader.nextKeyValue()) {
-          currentReader = reader;
-          return;
-        }
-     }
-      // no more iterators
-      currentReader = null;
+      hadoopReader.close();
     }
   }
 
@@ -198,7 +127,7 @@ public class HadoopDataSource<K, V> implements DataSource<Pair<K, V>> {
     private final Class<? extends InputFormat<K, V>> hadoopFormatCls;
     private SerializableWritable<Configuration> conf;
     private Set<String> locations;
-    private final byte[][] hadoopSplits; // ~ serialized
+    private final byte[] hadoopSplit; // ~ serialized
     private final Class<K> keyClass;
     private final Class<V> valueClass;
 
@@ -207,27 +136,15 @@ public class HadoopDataSource<K, V> implements DataSource<Pair<K, V>> {
     public HadoopPartition(Class<K> keyClass, Class<V> valueClass,
                            Class<? extends InputFormat<K, V>> hadoopFormatCls,
                            SerializableWritable<Configuration> conf,
-                           InputSplit[] hadoopSplits) {
+                           InputSplit hadoopSplit) {
 
       this.keyClass = keyClass;
       this.valueClass = valueClass;
       this.hadoopFormatCls = Objects.requireNonNull(hadoopFormatCls);
       this.conf = Objects.requireNonNull(conf);
-
-      this.locations = Arrays.stream(hadoopSplits)
-          .flatMap(is -> {
-            try {
-              return Arrays.stream(is.getLocations());
-            } catch (Exception ex) {
-              throw new RuntimeException(ex);
-            }
-          })
-          .collect(Collectors.toSet());
-      
-      this.hadoopSplits = new byte[hadoopSplits.length][];
-      for (int i = 0; i < this.hadoopSplits.length; i++) {
-        this.hadoopSplits[i] = HadoopUtils.serializeToBytes(hadoopSplits[i]);
-      }
+      this.locations = Arrays.stream(hadoopSplit.getLocations())
+              .collect(Collectors.toSet());
+      this.hadoopSplit = HadoopUtils.serializeToBytes(hadoopSplit);
     }
 
     @Override
@@ -238,20 +155,21 @@ public class HadoopDataSource<K, V> implements DataSource<Pair<K, V>> {
     @Override
     @SneakyThrows
     public Reader<Pair<K, V>> openReader() throws IOException {
-      InputSplit[] splits = new InputSplit[hadoopSplits.length];
-      for (int i = 0; i < hadoopSplits.length; i++) {
-        splits[i] = (InputSplit) HadoopUtils.deserializeFromBytes(hadoopSplits[i]);
-      }
+      InputSplit hadoopSplit =
+              (InputSplit) HadoopUtils.deserializeFromBytes(this.hadoopSplit);
       Configuration conf = this.conf.getWritable();
       TaskAttemptContext ctx = HadoopUtils.createTaskContext(conf, 0);
       @SuppressWarnings("unchecked")
-      InputFormat inputFormat = HadoopUtils.instantiateHadoopFormat(
-          hadoopFormatCls,
-          InputFormat.class,
-          conf);
+      RecordReader<K, V> reader =
+              HadoopUtils.instantiateHadoopFormat(
+                      hadoopFormatCls,
+                      InputFormat.class,
+                      conf)
+                      .createRecordReader(hadoopSplit, ctx);
 
-      return new HadoopMultiReader<>(
-          ctx, inputFormat, splits, keyClass, valueClass, conf);
+      reader.initialize(hadoopSplit, ctx);
+
+      return new HadoopReader<>(reader, keyClass, valueClass, conf);
 
     }
   }
