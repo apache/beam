@@ -1,6 +1,6 @@
-# Apache Beam (incubating) website
+# Apache Beam website
 
-This is the website for [Apache Beam](http://beam.incubator.apache.org) (incubating).
+This is the website for [Apache Beam](http://beam.apache.org/).
 
 ## About this site
 
@@ -10,7 +10,7 @@ for additional formatting capabilities, this website uses
 
 This website is hosted at:
 
-    http://beam.incubator.apache.org
+    http://beam.apache.org
 
 
 ### Repository Structure
