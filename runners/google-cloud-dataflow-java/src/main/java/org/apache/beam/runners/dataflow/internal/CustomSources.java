@@ -83,11 +83,6 @@ public class CustomSources {
     SourceMetadata metadata = new SourceMetadata();
     if (source instanceof BoundedSource) {
       BoundedSource<?> boundedSource = (BoundedSource<?>) source;
-      try {
-        metadata.setProducesSortedKeys(boundedSource.producesSortedKeys(options));
-      } catch (Exception e) {
-        LOG.warn("Failed to check if the source produces sorted keys: " + source, e);
-      }
 
       // Size estimation is best effort so we continue even if it fails here.
       try {

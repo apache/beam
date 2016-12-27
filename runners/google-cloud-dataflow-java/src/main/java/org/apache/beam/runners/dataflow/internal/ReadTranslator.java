@@ -93,9 +93,6 @@ public class ReadTranslator implements TransformTranslator<Read.Bounded<?>> {
 
   private static Map<String, Object> cloudSourceMetadataToDictionary(SourceMetadata metadata) {
     Map<String, Object> res = new HashMap<>();
-    if (metadata.getProducesSortedKeys() != null) {
-      addBoolean(res, PropertyNames.SOURCE_PRODUCES_SORTED_KEYS, metadata.getProducesSortedKeys());
-    }
     if (metadata.getEstimatedSizeBytes() != null) {
       addLong(res, PropertyNames.SOURCE_ESTIMATED_SIZE_BYTES, metadata.getEstimatedSizeBytes());
     }
