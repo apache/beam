@@ -620,7 +620,7 @@ public class PubsubIO {
         if (subscription.isAccessible()) {
           // Validate.
           PubsubSubscription.fromPath(subscription.get());
-        }        
+        }
         return new Bound<>(name,
             NestedValueProvider.of(subscription, new SubscriptionTranslator()),
             topic, timestampLabel, coder, idLabel, maxNumRecords, maxReadTime);
@@ -645,7 +645,7 @@ public class PubsubIO {
         if (topic.isAccessible()) {
           // Validate.
           PubsubTopic.fromPath(topic.get());
-        }        
+        }
         return new Bound<>(name, subscription,
             NestedValueProvider.of(topic, new TopicTranslator()),
             timestampLabel, coder, idLabel, maxNumRecords, maxReadTime);
