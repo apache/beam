@@ -45,8 +45,8 @@ from the Mobile Gaming example series.
 
 ## LeaderBoard and the Mobile Gaming Example
 
-[LeaderBoard](https://github.com/apache/incubator-beam/blob/master/examples/java8/src/main/java/org/apache/beam/examples/complete/game/LeaderBoard.java#L177)
-is part of the [Beam mobile gaming examples](https://github.com/apache/incubator-beam/tree/master/examples/java8/src/main/java/org/apache/beam/examples/complete/game)
+[LeaderBoard](https://github.com/apache/beam/blob/master/examples/java8/src/main/java/org/apache/beam/examples/complete/game/LeaderBoard.java#L177)
+is part of the [Beam mobile gaming examples](https://github.com/apache/beam/tree/master/examples/java8/src/main/java/org/apache/beam/examples/complete/game)
 (and [walkthroughs]({{ site.baseurl }}/get-started/mobile-gaming-example/))
 which produces a continuous accounting of user and team scores. User scores are
 calculated over the lifetime of the program, while team scores are calculated
@@ -63,7 +63,7 @@ The Beam testing infrastructure provides the
 [PAssert]({{ site.baseurl }}/documentation/sdks/javadoc/{{ site.release_latest }}/org/apache/beam/sdk/testing/PAssert.html)
 methods, which assert properties about the contents of a PCollection from within
 a pipeline. We have expanded this infrastructure to include
-[TestStream](https://github.com/apache/incubator-beam/blob/master/sdks/java/core/src/main/java/org/apache/beam/sdk/testing/TestStream.java),
+[TestStream](https://github.com/apache/beam/blob/master/sdks/java/core/src/main/java/org/apache/beam/sdk/testing/TestStream.java),
 which is a PTransform that performs a series of events, consisting of adding
 additional elements to a pipeline, advancing the watermark of the TestStream,
 and advancing the pipeline processing time clock. TestStream permits tests which

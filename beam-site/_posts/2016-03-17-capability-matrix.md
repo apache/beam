@@ -573,7 +573,7 @@ capability-matrix-snapshot:
 
 ---
 
-With initial code drops complete ([Dataflow SDK and Runner](https://github.com/apache/incubator-beam/pull/1), [Flink Runner](https://github.com/apache/incubator-beam/pull/12), [Spark Runner](https://github.com/apache/incubator-beam/pull/42)) and expressed interest in runner implementations for [Storm](https://issues.apache.org/jira/browse/BEAM-9), [Hadoop](https://issues.apache.org/jira/browse/BEAM-19), and [Gearpump](https://issues.apache.org/jira/browse/BEAM-79) (amongst others), we wanted to start addressing a big question in the Apache Beam (incubating) community: what capabilities will each runner be able to support?
+With initial code drops complete ([Dataflow SDK and Runner](https://github.com/apache/beam/pull/1), [Flink Runner](https://github.com/apache/beam/pull/12), [Spark Runner](https://github.com/apache/beam/pull/42)) and expressed interest in runner implementations for [Storm](https://issues.apache.org/jira/browse/BEAM-9), [Hadoop](https://issues.apache.org/jira/browse/BEAM-19), and [Gearpump](https://issues.apache.org/jira/browse/BEAM-79) (amongst others), we wanted to start addressing a big question in the Apache Beam (incubating) community: what capabilities will each runner be able to support?
 
 <!--more-->
 

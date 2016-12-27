@@ -11,7 +11,7 @@ permalink: /contribute/testing/
 
 ## Overview
 
-Apache Beam (incubating) is a rapidly-maturing software project with a strong
+Apache Beam is a rapidly-maturing software project with a strong
 commitment to testing. Consequently, it has many testing-related needs. It
 requires precommit tests to ensure code going into the repository meets a
 certain quality bar and it requires ongoing postcommit tests to make sure that
@@ -50,7 +50,7 @@ details on those testing types.
    </td>
    <td>DoFnTester
    </td>
-   <td><a href="https://github.com/apache/incubator-beam/blob/master/sdks/java/io/google-cloud-platform/src/test/java/org/apache/beam/sdk/io/gcp/bigquery/BigQueryIOTest.java#L1325">BigQueryIOTest</a>
+   <td><a href="https://github.com/apache/beam/blob/master/sdks/java/io/google-cloud-platform/src/test/java/org/apache/beam/sdk/io/gcp/bigquery/BigQueryIOTest.java#L1325">BigQueryIOTest</a>
    </td>
    <td>Unit
    </td>
@@ -62,9 +62,9 @@ details on those testing types.
    </td>
    <td>Correctly Reads Input
    </td>
-   <td><a href="https://github.com/apache/incubator-beam/blob/master/sdks/java/core/src/main/java/org/apache/beam/sdk/testing/SourceTestUtils.java#L128">SourceTestUtils.readFromSource</a>
+   <td><a href="https://github.com/apache/beam/blob/master/sdks/java/core/src/main/java/org/apache/beam/sdk/testing/SourceTestUtils.java#L128">SourceTestUtils.readFromSource</a>
    </td>
-   <td><a href="https://github.com/apache/incubator-beam/blob/84a0dd1714028370befa80dea16f720edce05252/sdks/java/core/src/test/java/org/apache/beam/sdk/io/TextIOTest.java#L972">TextIOTest</a>
+   <td><a href="https://github.com/apache/beam/blob/84a0dd1714028370befa80dea16f720edce05252/sdks/java/core/src/test/java/org/apache/beam/sdk/io/TextIOTest.java#L972">TextIOTest</a>
    </td>
    <td>Unit
    </td>
@@ -76,9 +76,9 @@ details on those testing types.
    </td>
    <td>Correct Initial Splitting
    </td>
-   <td><a href="https://github.com/apache/incubator-beam/blob/master/sdks/java/core/src/main/java/org/apache/beam/sdk/testing/SourceTestUtils.java#L201">SourceTestUtils.assertSourcesEqualReferenceSource</a>
+   <td><a href="https://github.com/apache/beam/blob/master/sdks/java/core/src/main/java/org/apache/beam/sdk/testing/SourceTestUtils.java#L201">SourceTestUtils.assertSourcesEqualReferenceSource</a>
    </td>
-   <td><a href="https://github.com/apache/incubator-beam/blob/8b1e64a668489297e11926124c4eee6c8f69a3a7/sdks/java/io/google-cloud-platform/src/test/java/org/apache/beam/sdk/io/gcp/bigtable/BigtableIOTest.java#L339">BigtableTest</a>
+   <td><a href="https://github.com/apache/beam/blob/8b1e64a668489297e11926124c4eee6c8f69a3a7/sdks/java/io/google-cloud-platform/src/test/java/org/apache/beam/sdk/io/gcp/bigtable/BigtableIOTest.java#L339">BigtableTest</a>
    </td>
    <td>Unit
    </td>
@@ -90,9 +90,9 @@ details on those testing types.
    </td>
    <td>Correct Dynamic Splitting
    </td>
-   <td><a href="https://github.com/apache/incubator-beam/blob/master/sdks/java/core/src/main/java/org/apache/beam/sdk/testing/SourceTestUtils.java#L541">SourceTestUtils. assertSplitAtFractionExhaustive</a>
+   <td><a href="https://github.com/apache/beam/blob/master/sdks/java/core/src/main/java/org/apache/beam/sdk/testing/SourceTestUtils.java#L541">SourceTestUtils. assertSplitAtFractionExhaustive</a>
    </td>
-   <td><a href="https://github.com/apache/incubator-beam/blob/84a0dd1714028370befa80dea16f720edce05252/sdks/java/core/src/test/java/org/apache/beam/sdk/io/TextIOTest.java#L1021">TextIOTest</a>
+   <td><a href="https://github.com/apache/beam/blob/84a0dd1714028370befa80dea16f720edce05252/sdks/java/core/src/test/java/org/apache/beam/sdk/io/TextIOTest.java#L1021">TextIOTest</a>
    </td>
    <td>Unit
    </td>
@@ -106,7 +106,7 @@ details on those testing types.
    </td>
    <td>@NeedsRunner Test
    </td>
-   <td><a href="https://github.com/apache/incubator-beam/blob/master/sdks/java/core/src/test/java/org/apache/beam/sdk/transforms/ParDoTest.java#L1199">ParDoTest</a>
+   <td><a href="https://github.com/apache/beam/blob/master/sdks/java/core/src/test/java/org/apache/beam/sdk/transforms/ParDoTest.java#L1199">ParDoTest</a>
    </td>
    <td>@NeedsRunner
    </td>
@@ -120,7 +120,7 @@ details on those testing types.
    </td>
    <td>E2E Test
    </td>
-   <td><a href="https://github.com/apache/incubator-beam/blob/master/examples/java/src/test/java/org/apache/beam/examples/WordCountIT.java#L76">WordCountIT</a>
+   <td><a href="https://github.com/apache/beam/blob/master/examples/java/src/test/java/org/apache/beam/examples/WordCountIT.java#L76">WordCountIT</a>
    </td>
    <td>E2E
    </td>
@@ -134,7 +134,7 @@ details on those testing types.
    </td>
    <td>Unit / @NeedsRunner Test
    </td>
-   <td><a href="https://github.com/apache/incubator-beam/blob/84a0dd1714028370befa80dea16f720edce05252/sdks/java/io/google-cloud-platform/src/test/java/org/apache/beam/sdk/io/gcp/bigtable/BigtableIOTest.java#L646">FakeBigtableService in BigtableTest</a>
+   <td><a href="https://github.com/apache/beam/blob/84a0dd1714028370befa80dea16f720edce05252/sdks/java/io/google-cloud-platform/src/test/java/org/apache/beam/sdk/io/gcp/bigtable/BigtableIOTest.java#L646">FakeBigtableService in BigtableTest</a>
    </td>
    <td>Unit / @NeedsRunner
    </td>
@@ -148,7 +148,7 @@ details on those testing types.
    </td>
    <td>E2E Test
    </td>
-   <td><a href="https://github.com/apache/incubator-beam/blob/84a0dd1714028370befa80dea16f720edce05252/sdks/java/io/google-cloud-platform/src/test/java/org/apache/beam/sdk/io/gcp/bigtable/BigtableReadIT.java#L40">BigtableReadIT</a>
+   <td><a href="https://github.com/apache/beam/blob/84a0dd1714028370befa80dea16f720edce05252/sdks/java/io/google-cloud-platform/src/test/java/org/apache/beam/sdk/io/gcp/bigtable/BigtableReadIT.java#L40">BigtableReadIT</a>
    </td>
    <td>E2E
    </td>
@@ -160,9 +160,9 @@ details on those testing types.
    </td>
    <td>Correctness
    </td>
-   <td>E2E Test, <a href="https://github.com/apache/incubator-beam/blob/master/runners/pom.xml#L47">@RunnableonService</a>
+   <td>E2E Test, <a href="https://github.com/apache/beam/blob/master/runners/pom.xml#L47">@RunnableonService</a>
    </td>
-   <td><a href="https://github.com/apache/incubator-beam/blob/master/examples/java/src/test/java/org/apache/beam/examples/WordCountIT.java#L78">WordCountIT</a>, <a href="https://github.com/apache/incubator-beam/blob/master/sdks/java/core/src/test/java/org/apache/beam/sdk/transforms/ParDoTest.java">ParDoTest</a>
+   <td><a href="https://github.com/apache/beam/blob/master/examples/java/src/test/java/org/apache/beam/examples/WordCountIT.java#L78">WordCountIT</a>, <a href="https://github.com/apache/beam/blob/master/sdks/java/core/src/test/java/org/apache/beam/sdk/transforms/ParDoTest.java">ParDoTest</a>
    </td>
    <td>E2E, @RunnableonService
    </td>
@@ -174,9 +174,9 @@ details on those testing types.
    </td>
    <td>Encoding/decoding elements
    </td>
-   <td><a href="https://github.com/apache/incubator-beam/blob/master/sdks/java/core/src/main/java/org/apache/beam/sdk/testing/CoderProperties.java">CoderProperties</a>
+   <td><a href="https://github.com/apache/beam/blob/master/sdks/java/core/src/main/java/org/apache/beam/sdk/testing/CoderProperties.java">CoderProperties</a>
    </td>
-   <td><a href="https://github.com/apache/incubator-beam/blob/master/sdks/java/core/src/test/java/org/apache/beam/sdk/coders/NullableCoderTest.java">NullableCoderTest</a>
+   <td><a href="https://github.com/apache/beam/blob/master/sdks/java/core/src/test/java/org/apache/beam/sdk/coders/NullableCoderTest.java">NullableCoderTest</a>
    </td>
    <td>Unit
    </td>
@@ -188,9 +188,9 @@ details on those testing types.
    </td>
    <td>Serialization/deserialization of Coder
    </td>
-   <td><a href="https://github.com/apache/incubator-beam/blob/master/sdks/java/core/src/main/java/org/apache/beam/sdk/testing/CoderProperties.java">CoderProperties</a>
+   <td><a href="https://github.com/apache/beam/blob/master/sdks/java/core/src/main/java/org/apache/beam/sdk/testing/CoderProperties.java">CoderProperties</a>
    </td>
-   <td><a href="https://github.com/apache/incubator-beam/blob/master/sdks/java/core/src/test/java/org/apache/beam/sdk/coders/NullableCoderTest.java">NullableCoderTest</a>
+   <td><a href="https://github.com/apache/beam/blob/master/sdks/java/core/src/test/java/org/apache/beam/sdk/coders/NullableCoderTest.java">NullableCoderTest</a>
    </td>
    <td>Unit
    </td>
@@ -202,9 +202,9 @@ details on those testing types.
    </td>
    <td>Sizing of elements
    </td>
-   <td><a href="https://github.com/apache/incubator-beam/blob/master/sdks/java/core/src/main/java/org/apache/beam/sdk/testing/CoderProperties.java">CoderProperties</a>
+   <td><a href="https://github.com/apache/beam/blob/master/sdks/java/core/src/main/java/org/apache/beam/sdk/testing/CoderProperties.java">CoderProperties</a>
    </td>
-   <td><a href="https://github.com/apache/incubator-beam/blob/master/sdks/java/core/src/test/java/org/apache/beam/sdk/coders/NullableCoderTest.java">NullableCoderTest</a>
+   <td><a href="https://github.com/apache/beam/blob/master/sdks/java/core/src/test/java/org/apache/beam/sdk/coders/NullableCoderTest.java">NullableCoderTest</a>
    </td>
    <td>Unit
    </td>
@@ -216,9 +216,9 @@ details on those testing types.
    </td>
    <td>Deterministic
    </td>
-   <td><a href="https://github.com/apache/incubator-beam/blob/master/sdks/java/core/src/main/java/org/apache/beam/sdk/testing/CoderProperties.java">CoderProperties</a>
+   <td><a href="https://github.com/apache/beam/blob/master/sdks/java/core/src/main/java/org/apache/beam/sdk/testing/CoderProperties.java">CoderProperties</a>
    </td>
-   <td><a href="https://github.com/apache/incubator-beam/blob/master/sdks/java/core/src/test/java/org/apache/beam/sdk/coders/NullableCoderTest.java">NullableCoderTest</a>
+   <td><a href="https://github.com/apache/beam/blob/master/sdks/java/core/src/test/java/org/apache/beam/sdk/coders/NullableCoderTest.java">NullableCoderTest</a>
    </td>
    <td>Unit
    </td>
@@ -230,9 +230,9 @@ details on those testing types.
    </td>
    <td>Structural value equality
    </td>
-   <td><a href="https://github.com/apache/incubator-beam/blob/master/sdks/java/core/src/main/java/org/apache/beam/sdk/testing/CoderProperties.java">CoderProperties</a>
+   <td><a href="https://github.com/apache/beam/blob/master/sdks/java/core/src/main/java/org/apache/beam/sdk/testing/CoderProperties.java">CoderProperties</a>
    </td>
-   <td><a href="https://github.com/apache/incubator-beam/blob/master/sdks/java/core/src/test/java/org/apache/beam/sdk/coders/NullableCoderTest.java">NullableCoderTest</a>
+   <td><a href="https://github.com/apache/beam/blob/master/sdks/java/core/src/test/java/org/apache/beam/sdk/coders/NullableCoderTest.java">NullableCoderTest</a>
    </td>
    <td>Unit
    </td>
@@ -259,7 +259,7 @@ For precommit testing, Beam uses
 [Jenkins](https://builds.apache.org/view/Beam/),
 [Travis](http://travis-ci.org/apache/incubator-beam), and a code coverage tool
 called [Coveralls](https://coveralls.io/github/apache/incubator-beam), hooked up
-to [Github](https://github.com/apache/incubator-beam), to ensure that pull
+to [Github](https://github.com/apache/beam), to ensure that pull
 requests meet a certain quality bar. These precommits verify correctness via two
 of the below testing tools: unit tests (with coverage monitored by Coveralls)
 and E2E tests. We run the full slate of unit tests in precommit, ensuring
@@ -290,7 +290,7 @@ tests run periodically, with timing defined in their Jenkins configurations.
 Adding new postcommit E2E tests is generally as easy as adding a \*IT.java file
 to the repository - Failsafe will notice it and run it - but if you want to do
 more interesting things, take a look at
-[WordCountIT.java](https://github.com/apache/incubator-beam/blob/master/examples/java/src/test/java/org/apache/beam/examples/WordCountIT.java).
+[WordCountIT.java](https://github.com/apache/beam/blob/master/examples/java/src/test/java/org/apache/beam/examples/WordCountIT.java).
 
 Postcommit test results can be found in
 [Jenkins](https://builds.apache.org/view/Beam/).

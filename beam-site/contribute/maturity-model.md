@@ -29,27 +29,27 @@ The following table summarizes project's self-assessment against the Apache Matu
     <tr>
       <td><p>CD10</p></td>
       <td><p>The project produces Open Source software, for distribution to the public at no charge. [1]</p></td>
-      <td><p><b>YES.</b> The project source code is <a href="https://github.com/apache/incubator-beam/blob/master/LICENSE">licensed</a> under the Apache License, version 2.0.</p></td>
+      <td><p><b>YES.</b> The project source code is <a href="https://github.com/apache/beam/blob/master/LICENSE">licensed</a> under the Apache License, version 2.0.</p></td>
     </tr>
     <tr>
       <td><p>CD20</p></td>
       <td><p>The project&#39;s code is easily discoverable and publicly accessible.</p></td>
-      <td><p><b>YES.</b> Linked from the <a href="{{ site.baseurl }}/contribute/source-repository/">website</a>, available via <a href="https://git-wip-us.apache.org/repos/asf?p%3Dincubator-beam.git">git.apache.org</a> and <a href="https://github.com/apache/incubator-beam">GitHub</a>.</p></td>
+      <td><p><b>YES.</b> Linked from the <a href="{{ site.baseurl }}/contribute/source-repository/">website</a>, available via <a href="https://git-wip-us.apache.org/repos/asf?p%3Dbeam.git">git.apache.org</a> and <a href="https://github.com/apache/beam">GitHub</a>.</p></td>
     </tr>
     <tr>
       <td><p>CD30</p></td>
       <td><p>The code can be built in a reproducible way using widely available standard tools.</p></td>
-      <td><p><b>YES.</b> The project uses Apache Maven and can be built via <a href="https://github.com/apache/incubator-beam/blob/master/README.md">the standard &ldquo;mvn install&rdquo; on any platform</a>.</p></td>
+      <td><p><b>YES.</b> The project uses Apache Maven and can be built via <a href="https://github.com/apache/beam/blob/master/README.md">the standard &ldquo;mvn install&rdquo; on any platform</a>.</p></td>
     </tr>
     <tr>
       <td><p>CD40</p></td>
       <td><p>The full history of the project&#39;s code is available via a source code control system, in a way that allows any released version to be recreated.</p></td>
-      <td><p><b>YES.</b> The project uses a <a href="https://github.com/apache/incubator-beam">git repository</a> and releases are <a href="https://github.com/apache/incubator-beam/releases">tagged</a>.</p><p><b>Even further</b>, all release candidates are <a href="https://github.com/apache/incubator-beam/releases">tagged</a> as well.</p></td>
+      <td><p><b>YES.</b> The project uses a <a href="https://github.com/apache/beam">git repository</a> and releases are <a href="https://github.com/apache/beam/releases">tagged</a>.</p><p><b>Even further</b>, all release candidates are <a href="https://github.com/apache/beam/releases">tagged</a> as well.</p></td>
     </tr>
     <tr>
       <td><p>CD50</p></td>
       <td><p>The provenance of each line of code is established via the source code control system, in a reliable way based on strong authentication of the committer. When third-party contributions are committed, commit messages provide reliable information about the code provenance. [2]</p></td>
-      <td><p><b>YES.</b> The project uses a <a href="https://github.com/apache/incubator-beam">git repository</a>, managed by Apache Infra, ensuring provenance of each line of code to a committer. Third party contributions are accepted in accordance with the <a href="{{ site.baseurl }}/contribute/contribution-guide/">Contribution Guide</a> only.</p></td>
+      <td><p><b>YES.</b> The project uses a <a href="https://github.com/apache/beam">git repository</a>, managed by Apache Infra, ensuring provenance of each line of code to a committer. Third party contributions are accepted in accordance with the <a href="{{ site.baseurl }}/contribute/contribution-guide/">Contribution Guide</a> only.</p></td>
     </tr>
 
     <tr>
@@ -58,7 +58,7 @@ The following table summarizes project's self-assessment against the Apache Matu
     <tr>
       <td><p>LC10</p></td>
       <td><p>The code is released under the Apache License, version 2.0.</p></td>
-      <td><p><b>YES.</b> Source distributions clearly state <a href="https://github.com/apache/incubator-beam/blob/master/LICENSE">license</a>. Convenience binaries clearly state <a href="https://github.com/apache/incubator-beam/blob/master/pom.xml#L41">license</a>.</p></td>
+      <td><p><b>YES.</b> Source distributions clearly state <a href="https://github.com/apache/beam/blob/master/LICENSE">license</a>. Convenience binaries clearly state <a href="https://github.com/apache/beam/blob/master/pom.xml#L41">license</a>.</p></td>
     </tr>
     <tr>
       <td><p>LC20</p></td>
@@ -116,7 +116,7 @@ The following table summarizes project's self-assessment against the Apache Matu
     <tr>
       <td><p>QU10</p></td>
       <td><p>The project is open and honest about the quality of its code. Various levels of quality and maturity for various modules are natural and acceptable as long as they are clearly communicated.</p></td>
-      <td><p><b>YES.</b> The project records all bugs in the <a href="https://issues.apache.org/jira/browse/BEAM">Apache&rsquo;s JIRA issue tracker</a>.</p><p><b>Even further</b>, the project <a href="{{ site.baseurl }}/get-started/downloads/">clearly documents</a> that APIs are subject to change before the first stable release, and which APIs are <a href="https://github.com/apache/incubator-beam/blob/master/sdks/java/core/src/main/java/org/apache/beam/sdk/annotations/Experimental.java#L47">@Experimental</a>.</p></td>
+      <td><p><b>YES.</b> The project records all bugs in the <a href="https://issues.apache.org/jira/browse/BEAM">Apache&rsquo;s JIRA issue tracker</a>.</p><p><b>Even further</b>, the project <a href="{{ site.baseurl }}/get-started/downloads/">clearly documents</a> that APIs are subject to change before the first stable release, and which APIs are <a href="https://github.com/apache/beam/blob/master/sdks/java/core/src/main/java/org/apache/beam/sdk/annotations/Experimental.java#L47">@Experimental</a>.</p></td>
     </tr>
     <tr>
       <td><p>QU20</p></td>
