@@ -21,4 +21,4 @@ As a community, we want to build a shared collection of high quality presentatio
 * Using Apache Beam with runners
     * [Google Cloud Dataflow](https://goo.gl/2ay8mi)
 
-As Apache Beam grows, so will this repository of presentation materials. We are excited to add new materials as the Apache Beam ecosystem grows with new runners, SDKs, and so on. If you are interested in contributing content or have a request, please see the [Apache Beam presentation materials]({{ site.baseurl }}/learn/presentation-materials/) page or email the [`user@beam.incubator.apache.org`](mailto:user@beam.incubator.apache.org) mailing list with your ideas or questions.
+As Apache Beam grows, so will this repository of presentation materials. We are excited to add new materials as the Apache Beam ecosystem grows with new runners, SDKs, and so on. If you are interested in contributing content or have a request, please see the [Apache Beam presentation materials]({{ site.baseurl }}/learn/presentation-materials/) page or email the [`user@beam.apache.org`](mailto:user@beam.apache.org) mailing list with your ideas or questions.
