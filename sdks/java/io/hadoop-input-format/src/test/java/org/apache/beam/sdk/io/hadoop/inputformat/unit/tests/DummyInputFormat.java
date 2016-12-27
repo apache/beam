@@ -54,9 +54,10 @@ public class DummyInputFormat extends InputFormat {
 			this.endIndex = endIndex;
 		}
 
+		//returns number of records in each split
 		@Override
 		public long getLength() throws IOException, InterruptedException {
-			return 0;
+			return this.endIndex-this.startIndex ;
 		}
 
 		@Override
@@ -81,7 +82,8 @@ public class DummyInputFormat extends InputFormat {
 	class DummyRecordReader extends RecordReader<String, String> {
 
 		String currentValue = null;
-		int pointer = 0;
+		int pointer = 0,recordsRead=0;
+		long numberOfRecordsInSplit=0;
 		HashMap<Integer, String> hmap = new HashMap<Integer, String>();
 
 		public DummyRecordReader() {
@@ -106,7 +108,7 @@ public class DummyInputFormat extends InputFormat {
 
 		@Override
 		public float getProgress() throws IOException, InterruptedException {
-			return 0;
+			return (float)recordsRead/numberOfRecordsInSplit;
 		}
 
 		@Override
@@ -126,14 +128,13 @@ public class DummyInputFormat extends InputFormat {
 			DummyInputSplit dummySplit = (DummyInputSplit) split;
 			// String[] splitData=dummySplit.getLocations();
 			pointer = dummySplit.startIndex - 1;
-			i = 0;
+			numberOfRecordsInSplit=dummySplit.getLength();
+			recordsRead = 0;
 		}
-
-		int i;
 
 		@Override
 		public boolean nextKeyValue() throws IOException, InterruptedException {
-			if ((i++) == 3)
+			if ((recordsRead++) == numberOfRecordsInSplit)
 				return false;
 			pointer++;
 			boolean hasNext = hmap.containsKey(pointer);
