@@ -20,12 +20,12 @@ Java with the `DirectRunner`, add the following dependencies to your
     <dependency>
       <groupId>org.apache.beam</groupId>
       <artifactId>beam-sdks-java-core</artifactId>
-      <version>0.3.0-incubating</version>
+      <version>{{ site.release_latest }}</version>
     </dependency>
     <dependency>
       <groupId>org.apache.beam</groupId>
       <artifactId>beam-runners-direct-java</artifactId>
-      <version>0.3.0-incubating</version>
+      <version>{{ site.release_latest }}</version>
       <scope>runtime</scope>
     </dependency>
 
