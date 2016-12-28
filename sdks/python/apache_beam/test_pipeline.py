@@ -23,6 +23,7 @@ import shlex
 from apache_beam.internal import pickler
 from apache_beam.pipeline import Pipeline
 from apache_beam.utils.options import PipelineOptions
+from nose.plugins.skip import SkipTest
 
 
 class TestPipeline(Pipeline):
@@ -53,10 +54,28 @@ class TestPipeline(Pipeline):
     pipeline.run()
   """
 
-  def __init__(self, runner=None, options=None, argv=None):
+  def __init__(self, runner=None, options=None, argv=None, is_it=False):
+    """Initialize a pipeline object for test.
+
+    Args:
+      runner: An object of type 'PipelineRunner' that will be used to execute
+        the pipeline. For registered runners, the runner name can be specified,
+        otherwise a runner object must be supplied.
+      options: A configured 'PipelineOptions' object containing arguments
+        that should be used for running the pipeline job.
+      argv: A list of arguments (such as sys.argv) to be used for building a
+        'PipelineOptions' object. This will only be used if argument 'options'
+        is None.
+      is_it: True if the test is an integration test, False otherwise.
+
+    Raises:
+      ValueError: if either the runner or options argument is not of the
+      expected type.
+    """
+    self.is_it = is_it
     if options is None:
-      options = PipelineOptions(self.get_test_option_args())
-    super(TestPipeline, self).__init__(runner, options, argv)
+      options = PipelineOptions(self.get_test_option_args(argv))
+    super(TestPipeline, self).__init__(runner, options)
 
   def _append_extra_opts(self, opt_list, extra_opts):
     """Append extra pipeline options to existing option list.
@@ -93,6 +112,12 @@ class TestPipeline(Pipeline):
                         action='store',
                         help='only run tests providing service options')
     known, unused_argv = parser.parse_known_args(argv)
+
+    if self.is_it and not known.test_pipeline_options:
+      # Skip test since commandline argument '--test-pipeline-options'
+      # is required to run an integration test.
+      raise SkipTest('IT is skipped because --test-pipeline-options '
+                     'is not specified')
 
     options_list = shlex.split(known.test_pipeline_options) \
       if known.test_pipeline_options else []

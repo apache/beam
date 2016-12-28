@@ -35,7 +35,7 @@ class WordCountIT(unittest.TestCase):
 
     # Get pipeline options from command argument: --test-pipeline-options,
     # and start pipeline job by calling pipeline main function.
-    test_pipeline = TestPipeline()
+    test_pipeline = TestPipeline(is_it=True)
     wordcount.run(test_pipeline.get_test_option_args(**extra_opts))
 
 if __name__ == '__main__':
