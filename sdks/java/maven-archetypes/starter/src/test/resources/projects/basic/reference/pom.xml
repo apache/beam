@@ -25,7 +25,7 @@
   <version>0.1</version>
 
   <properties>
-    <beam.version>0.5.0-incubating-SNAPSHOT</beam.version>
+    <beam.version>0.5.0-SNAPSHOT</beam.version>
   </properties>
 
   <repositories>
@@ -81,7 +81,7 @@
       to enable development and testing of pipelines. To run on another of the
       Beam runners, add its module to this pom.xml according to the
       runner-specific setup instructions on the Beam website:
-        http://beam.incubator.apache.org/documentation/#runners
+        http://beam.apache.org/documentation/#runners
     -->
     <dependency>
       <groupId>org.apache.beam</groupId>

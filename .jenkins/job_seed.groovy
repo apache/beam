@@ -33,7 +33,7 @@ job('beam_SeedJob_Main') {
       delegate,
       '0 6 * * *',
       '0 5 31 2 *',
-      'dev@beam.incubator.apache.org')
+      'dev@beam.apache.org')
 
   steps {
     dsl {

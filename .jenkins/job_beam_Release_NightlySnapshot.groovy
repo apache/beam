@@ -39,7 +39,7 @@ mavenJob('beam_Release_NightlySnapshot') {
       delegate,
       '0 7 * * *',
       '0 5 31 2 *',
-      'dev@beam.incubator.apache.org')
+      'dev@beam.apache.org')
 
   // Maven goals for this job.
   goals('-B -e clean deploy -P release,dataflow-runner -DskipITs=false -DintegrationTestPipelineOptions=\'[ "--project=apache-beam-testing", "--tempRoot=gs://temp-storage-for-end-to-end-tests", "--runner=org.apache.beam.runners.dataflow.testing.TestDataflowRunner" ]\'')

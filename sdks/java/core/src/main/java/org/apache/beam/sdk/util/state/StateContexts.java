@@ -54,7 +54,7 @@ public class StateContexts {
   /**
    * @deprecated This exists only for temporary compatibility with Dataflow worker and should be
    *     deleted once a worker image is released that uses runners-core build after
-   *     https://github.com/apache/incubator-beam/pull/1353.
+   *     https://github.com/apache/beam/pull/1353.
    */
   @Deprecated
   public static <W extends BoundedWindow> StateContext<W> windowOnly(final W window) {
@@ -80,7 +80,7 @@ public class StateContexts {
   /**
    * @deprecated This exists only for temporary compatibility with Dataflow worker and should be
    *     deleted once a worker image is released that uses runners-core build after
-   *     https://github.com/apache/incubator-beam/pull/1353.
+   *     https://github.com/apache/beam/pull/1353.
    */
   @Deprecated
   public static <W extends BoundedWindow> StateContext<W> createFromComponents(

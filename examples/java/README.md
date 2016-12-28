@@ -26,21 +26,21 @@ the development of more complex pipelines.
 ## Word Count
 
 A good starting point for new users is our set of
-[word count](https://github.com/apache/incubator-beam/blob/master/examples/java/src/main/java/org/apache/beam/examples) examples, which computes word frequencies.  This series of four successively more detailed pipelines is described in detail in the accompanying [walkthrough](https://cloud.google.com/dataflow/examples/wordcount-example).
+[word count](https://github.com/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples) examples, which computes word frequencies.  This series of four successively more detailed pipelines is described in detail in the accompanying [walkthrough](https://cloud.google.com/dataflow/examples/wordcount-example).
 
-1. [`MinimalWordCount`](https://github.com/apache/incubator-beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/MinimalWordCount.java) is the simplest word count pipeline and introduces basic concepts like [Pipelines](https://cloud.google.com/dataflow/model/pipelines),
+1. [`MinimalWordCount`](https://github.com/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/MinimalWordCount.java) is the simplest word count pipeline and introduces basic concepts like [Pipelines](https://cloud.google.com/dataflow/model/pipelines),
 [PCollections](https://cloud.google.com/dataflow/model/pcollection),
 [ParDo](https://cloud.google.com/dataflow/model/par-do),
 and [reading and writing data](https://cloud.google.com/dataflow/model/reading-and-writing-data) from external storage.
 
-1. [`WordCount`](https://github.com/apache/incubator-beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/WordCount.java) introduces Dataflow best practices like [PipelineOptions](https://cloud.google.com/dataflow/pipelines/constructing-your-pipeline#Creating) and custom [PTransforms](https://cloud.google.com/dataflow/model/composite-transforms).
+1. [`WordCount`](https://github.com/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/WordCount.java) introduces Dataflow best practices like [PipelineOptions](https://cloud.google.com/dataflow/pipelines/constructing-your-pipeline#Creating) and custom [PTransforms](https://cloud.google.com/dataflow/model/composite-transforms).
 
-1. [`DebuggingWordCount`](https://github.com/apache/incubator-beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/DebuggingWordCount.java)
+1. [`DebuggingWordCount`](https://github.com/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/DebuggingWordCount.java)
 shows how to view live aggregators in the [Dataflow Monitoring Interface](https://cloud.google.com/dataflow/pipelines/dataflow-monitoring-intf), get the most out of
 [Cloud Logging](https://cloud.google.com/dataflow/pipelines/logging) integration, and start writing
 [good tests](https://cloud.google.com/dataflow/pipelines/testing-your-pipeline).
 
-1. [`WindowedWordCount`](https://github.com/apache/incubator-beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/WindowedWordCount.java) shows how to run the same pipeline over either unbounded PCollections in streaming mode or bounded PCollections in batch mode.
+1. [`WindowedWordCount`](https://github.com/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/WindowedWordCount.java) shows how to run the same pipeline over either unbounded PCollections in streaming mode or bounded PCollections in batch mode.
 
 ## Building and Running
 
@@ -99,14 +99,14 @@ example, input file pattern of `c:\*.txt` should be entered as `c:\\*.txt`.
 
 ## Beyond Word Count
 
-After you've finished running your first few word count pipelines, take a look at the [cookbook](https://github.com/apache/incubator-beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/cookbook)
+After you've finished running your first few word count pipelines, take a look at the [cookbook](https://github.com/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/cookbook)
 directory for some common and useful patterns like joining, filtering, and combining.
 
-The [complete](https://github.com/apache/incubator-beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/complete)
+The [complete](https://github.com/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/complete)
 directory contains a few realistic end-to-end pipelines.
 
 See the
-[Java 8](https://github.com/apache/incubator-beam/tree/master/examples/java8/src/main/java/org/apache/beam/examples)
+[Java 8](https://github.com/apache/beam/tree/master/examples/java8/src/main/java/org/apache/beam/examples)
 examples as well. This directory includes a Java 8 version of the
 MinimalWordCount example, as well as series of examples in a simple 'mobile
 gaming' domain. This series introduces some advanced concepts and provides
