@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.transforms;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -53,13 +55,76 @@ public class Regex {
 
   /**
    * Returns a {@link Regex.Matches} {@link PTransform} that checks if the entire line matches the
+   * Regex. Returns the entire line (group 0) as a {@link PCollection}.
+   *
+   * @param pattern The regular expression to run
+   */
+  public static Matches matches(Pattern pattern) {
+    return matches(pattern, 0);
+  }
+
+  /**
+   * Returns a {@link Regex.Matches} {@link PTransform} that checks if the entire line matches the
    * Regex. Returns the group as a {@link PCollection}.
    *
    * @param regex The regular expression to run
    * @param group The Regex group to return as a PCollection
    */
   public static Matches matches(String regex, int group) {
-    return new Matches(regex, group);
+    return matches(Pattern.compile(regex), group);
+  }
+
+  /**
+   * Returns a {@link Regex.Matches} {@link PTransform} that checks if the entire line matches the
+   * Regex. Returns the group as a {@link PCollection}.
+   *
+   * @param pattern The regular expression to run
+   * @param group The Regex group to return as a PCollection
+   */
+  public static Matches matches(Pattern pattern, int group) {
+    return new Matches(pattern, group);
+  }
+
+  /**
+   * Returns a {@link Regex.MatchesName} {@link PTransform} that checks if the entire line matches
+   * the Regex. Returns the group as a {@link PCollection}.
+   *
+   * @param regex The regular expression to run
+   * @param groupName The Regex group name to return as a PCollection
+   */
+  public static MatchesName matches(String regex, String groupName) {
+    return matches(Pattern.compile(regex), groupName);
+  }
+
+  /**
+   * Returns a {@link Regex.MatchesName} {@link PTransform} that checks if the entire line matches
+   * the Regex. Returns the group as a {@link PCollection}.
+   *
+   * @param pattern The regular expression to run
+   * @param groupName The Regex group name to return as a PCollection
+   */
+  public static MatchesName matches(Pattern pattern, String groupName) {
+    return new MatchesName(pattern, groupName);
+  }
+
+  /**
+   * Returns a {@link Regex.AllMatches} {@link PTransform} that checks if the entire line matches
+   * the Regex. Returns all groups as a List&lt;String&gt; in a {@link PCollection}.
+   *
+   * @param regex The regular expression to run
+   */
+  public static AllMatches allMatches(String regex) {
+    return allMatches(Pattern.compile(regex));
+  }
+
+  /**
+   * Returns a {@link Regex.AllMatches} {@link PTransform} that checks if the entire line matches
+   * the Regex. Returns all groups as a List&lt;String&gt; in a {@link PCollection}.
+   *
+   * @param pattern The regular expression to run
+   */
+  public static AllMatches allMatches(Pattern pattern) {
+    return new AllMatches(pattern);
   }
 
   /**
@@ -71,7 +136,44 @@ public class Regex {
    * @param valueGroup The Regex group to use the value
    */
   public static MatchesKV matchesKV(String regex, int keyGroup, int valueGroup) {
-    return new MatchesKV(regex, keyGroup, valueGroup);
+    return matchesKV(Pattern.compile(regex), keyGroup, valueGroup);
+  }
+
+  /**
+   * Returns a {@link Regex.MatchesKV} {@link PTransform} that checks if the entire line matches the
+   * Regex. Returns the specified groups as the key and value as a {@link PCollection}.
+   *
+   * @param pattern The regular expression to run
+   * @param keyGroup The Regex group to use as the key
+   * @param valueGroup The Regex group to use the value
+   */
+  public static MatchesKV matchesKV(Pattern pattern, int keyGroup, int valueGroup) {
+    return new MatchesKV(pattern, keyGroup, valueGroup);
+  }
+
+  /**
+   * Returns a {@link Regex.MatchesNameKV} {@link PTransform} that checks if the entire line matches
+   * the Regex. Returns the specified groups as the key and value as a {@link PCollection}.
+   *
+   * @param regex The regular expression to run
+   * @param keyGroupName The Regex group name to use as the key
+   * @param valueGroupName The Regex group name to use the value
+   */
+  public static MatchesNameKV matchesKV(String regex, String keyGroupName, String valueGroupName) {
+    return matchesKV(Pattern.compile(regex), keyGroupName, valueGroupName);
+  }
+
+  /**
+   * Returns a {@link Regex.MatchesNameKV} {@link PTransform} that checks if the entire line matches
+   * the Regex. Returns the specified groups as the key and value as a {@link PCollection}.
+   *
+   * @param pattern The regular expression to run
+   * @param keyGroupName The Regex group name to use as the key
+   * @param valueGroupName The Regex group name to use the value
+   */
+  public static MatchesNameKV matchesKV(
+      Pattern pattern, String keyGroupName, String valueGroupName) {
+    return new MatchesNameKV(pattern, keyGroupName, valueGroupName);
   }
 
   /**
@@ -86,13 +188,76 @@ public class Regex {
 
   /**
    * Returns a {@link Regex.Find} {@link PTransform} that checks if a portion of the line matches
+   * the Regex. Returns the entire line (group 0) as a {@link PCollection}.
+   *
+   * @param pattern The regular expression to run
+   */
+  public static Find find(Pattern pattern) {
+    return find(pattern, 0);
+  }
+
+  /**
+   * Returns a {@link Regex.Find} {@link PTransform} that checks if a portion of the line matches
    * the Regex. Returns the group as a {@link PCollection}.
    *
    * @param regex The regular expression to run
    * @param group The Regex group to return as a PCollection
    */
   public static Find find(String regex, int group) {
-    return new Find(regex, group);
+    return find(Pattern.compile(regex), group);
+  }
+
+  /**
+   * Returns a {@link Regex.Find} {@link PTransform} that checks if a portion of the line matches
+   * the Regex. Returns the group as a {@link PCollection}.
+   *
+   * @param pattern The regular expression to run
+   * @param group The Regex group to return as a PCollection
+   */
+  public static Find find(Pattern pattern, int group) {
+    return new Find(pattern, group);
+  }
+
+  /**
+   * Returns a {@link Regex.FindName} {@link PTransform} that checks if a portion of the line
+   * matches the Regex. Returns the group as a {@link PCollection}.
+   *
+   * @param regex The regular expression to run
+   * @param groupName The Regex group name to return as a PCollection
+   */
+  public static FindName find(String regex, String groupName) {
+    return find(Pattern.compile(regex), groupName);
+  }
+
+  /**
+   * Returns a {@link Regex.FindName} {@link PTransform} that checks if a portion of the line
+   * matches the Regex. Returns the group as a {@link PCollection}.
+   *
+   * @param pattern The regular expression to run
+   * @param groupName The Regex group name to return as a PCollection
+   */
+  public static FindName find(Pattern pattern, String groupName) {
+    return new FindName(pattern, groupName);
+  }
+
+  /**
+   * Returns a {@link Regex.FindAll} {@link PTransform} that checks if a portion of the line matches
+   * the Regex. Returns all the groups as a List&lt;String&gt; in a {@link PCollection}.
+   *
+   * @param regex The regular expression to run
+   */
+  public static FindAll findAll(String regex) {
+    return findAll(Pattern.compile(regex));
+  }
+
+  /**
+   * Returns a {@link Regex.FindAll} {@link PTransform} that checks if a portion of the line matches
+   * the Regex. Returns all the groups as a List&lt;String&gt; in a {@link PCollection}.
+   *
+   * @param pattern The regular expression to run
+   */
+  public static FindAll findAll(Pattern pattern) {
+    return new FindAll(pattern);
   }
 
   /**
@@ -104,7 +269,43 @@ public class Regex {
    * @param valueGroup The Regex group to use the value
    */
   public static FindKV findKV(String regex, int keyGroup, int valueGroup) {
-    return new FindKV(regex, keyGroup, valueGroup);
+    return findKV(Pattern.compile(regex), keyGroup, valueGroup);
+  }
+
+  /**
+   * Returns a {@link Regex.FindKV} {@link PTransform} that checks if a portion of the line matches
+   * the Regex. Returns the specified groups as the key and value as a {@link PCollection}.
+   *
+   * @param pattern The regular expression to run
+   * @param keyGroup The Regex group to use as the key
+   * @param valueGroup The Regex group to use the value
+   */
+  public static FindKV findKV(Pattern pattern, int keyGroup, int valueGroup) {
+    return new FindKV(pattern, keyGroup, valueGroup);
+  }
+
+  /**
+   * Returns a {@link Regex.FindNameKV} {@link PTransform} that checks if a portion of the line
+   * matches the Regex. Returns the specified groups as the key and value as a {@link PCollection}.
+   *
+   * @param regex The regular expression to run
+   * @param keyGroupName The Regex group name to use as the key
+   * @param valueGroupName The Regex group name to use the value
+   */
+  public static FindNameKV findKV(String regex, String keyGroupName, String valueGroupName) {
+    return findKV(Pattern.compile(regex), keyGroupName, valueGroupName);
+  }
+
+  /**
+   * Returns a {@link Regex.FindNameKV} {@link PTransform} that checks if a portion of the line
+   * matches the Regex. Returns the specified groups as the key and value as a {@link PCollection}.
+   *
+   * @param pattern The regular expression to run
+   * @param keyGroupName The Regex group name to use as the key
+   * @param valueGroupName The Regex group name to use the value
+   */
+  public static FindNameKV findKV(Pattern pattern, String keyGroupName, String valueGroupName) {
+    return new FindNameKV(pattern, keyGroupName, valueGroupName);
   }
 
   /**
@@ -116,7 +317,19 @@ public class Regex {
    * @param replacement The string to be substituted for each match
    */
   public static ReplaceAll replaceAll(String regex, String replacement) {
-    return new ReplaceAll(regex, replacement);
+    return replaceAll(Pattern.compile(regex), replacement);
+  }
+
+  /**
+   * Returns a {@link Regex.ReplaceAll} {@link PTransform} that checks if a portion of the line
+   * matches the Regex and replaces all matches with the replacement String. Returns the group as a
+   * {@link PCollection}.
+   *
+   * @param pattern The regular expression to run
+   * @param replacement The string to be substituted for each match
+   */
+  public static ReplaceAll replaceAll(Pattern pattern, String replacement) {
+    return new ReplaceAll(pattern, replacement);
   }
 
   /**
@@ -128,7 +341,19 @@ public class Regex {
    * @param replacement The string to be substituted for each match
    */
   public static ReplaceFirst replaceFirst(String regex, String replacement) {
-    return new ReplaceFirst(regex, replacement);
+    return replaceFirst(Pattern.compile(regex), replacement);
+  }
+
+  /**
+   * Returns a {@link Regex.ReplaceAll} {@link PTransform} that checks if a portion of the line
+   * matches the Regex and replaces the first match with the replacement String. Returns the group
+   * as a {@link PCollection}.
+   *
+   * @param pattern The regular expression to run
+   * @param replacement The string to be substituted for each match
+   */
+  public static ReplaceFirst replaceFirst(Pattern pattern, String replacement) {
+    return new ReplaceFirst(pattern, replacement);
   }
 
   /**
@@ -139,7 +364,18 @@ public class Regex {
    * @param regex The regular expression to run
    */
   public static Split split(String regex) {
-    return split(regex, false);
+    return split(Pattern.compile(regex), false);
+  }
+
+  /**
+   * Returns a {@link Regex.Split} {@link PTransform} that splits a string on the regular expression
+   * and then outputs each item. It will not output empty items. Returns the group as a {@link
+   * PCollection}. a {@link PCollection}.
+   *
+   * @param pattern The regular expression to run
+   */
+  public static Split split(Pattern pattern) {
+    return split(pattern, false);
   }
 
   /**
@@ -150,7 +386,18 @@ public class Regex {
    * @param outputEmpty Should empty be output. True to output empties and false if not.
    */
   public static Split split(String regex, boolean outputEmpty) {
-    return new Split(regex, outputEmpty);
+    return split(Pattern.compile(regex), outputEmpty);
+  }
+
+  /**
+   * Returns a {@link Regex.Split} {@link PTransform} that splits a string on the regular expression
+   * and then outputs each item. Returns the group as a {@link PCollection}.
+   *
+   * @param pattern The regular expression to run
+   * @param outputEmpty Should empty be output. True to output empties and false if not.
+   */
+  public static Split split(Pattern pattern, boolean outputEmpty) {
+    return new Split(pattern, outputEmpty);
   }
 
   /**
@@ -171,11 +418,11 @@ public class Regex {
    * }</pre>
    */
   public static class Matches extends PTransform<PCollection<String>, PCollection<String>> {
-    Pattern pattern;
+    final Pattern pattern;
     int group;
 
-    public Matches(String regex, int group) {
-      this.pattern = Pattern.compile(regex);
+    public Matches(Pattern pattern, int group) {
+      this.pattern = pattern;
       this.group = group;
     }
 
@@ -185,10 +432,100 @@ public class Regex {
               new DoFn<String, String>() {
                 @ProcessElement
                 public void processElement(ProcessContext c) throws Exception {
-                  Matcher m = pattern.matcher((String) c.element());
+                  Matcher m = pattern.matcher(c.element());
 
                   if (m.matches()) {
                     c.output(m.group(group));
+                  }
+                }
+              }));
+    }
+  }
+
+  /**
+   * {@code Regex.MatchesName<String>} takes a {@code PCollection<String>} and returns a {@code
+   * PCollection<String>} representing the value extracted from the Regex groups of the input {@code
+   * PCollection} to the number of times that element occurs in the input.
+   *
+   * <p>This transform runs a Regex on the entire input line. If the entire line does not match the
+   * Regex, the line will not be output. If it does match the entire line, the group in the Regex
+   * will be used. The output will be the Regex group.
+   *
+   * <p>Example of use:
+   *
+   * <pre>{@code
+   * PCollection<String> words = ...;
+   * PCollection<String> values =
+   *     words.apply(Regex.matches("myregex (?<namedgroup>mygroup)", "namedgroup"));
+   * }</pre>
+   */
+  public static class MatchesName extends PTransform<PCollection<String>, PCollection<String>> {
+    final Pattern pattern;
+    String groupName;
+
+    public MatchesName(Pattern pattern, String groupName) {
+      this.pattern = pattern;
+      this.groupName = groupName;
+    }
+
+    public PCollection<String> expand(PCollection<String> in) {
+      return in.apply(
+          ParDo.of(
+              new DoFn<String, String>() {
+                @ProcessElement
+                public void processElement(ProcessContext c) throws Exception {
+                  Matcher m = pattern.matcher(c.element());
+
+                  if (m.matches()) {
+                    c.output(m.group(groupName));
+                  }
+                }
+              }));
+    }
+  }
+
+  /**
+   * {@code Regex.MatchesName<String>} takes a {@code PCollection<String>} and returns a {@code
+   * PCollection<String>} representing the value extracted from all the Regex groups of the input
+   * {@code PCollection} to the number of times that element occurs in the input.
+   *
+   * <p>This transform runs a Regex on the entire input line. If the entire line does not match the
+   * Regex, the line will not be output. If it does match the entire line, the groups in the Regex
+   * will be used. The output will be all of the Regex groups.
+   *
+   * <p>Example of use:
+   *
+   * <pre>{@code
+   * PCollection<String> words = ...;
+   * PCollection<String> values =
+   *     words.apply(Regex.matches("myregex (mygroup)"));
+   * }</pre>
+   */
+  public static class AllMatches
+      extends PTransform<PCollection<String>, PCollection<List<String>>> {
+    final Pattern pattern;
+
+    public AllMatches(Pattern pattern) {
+      this.pattern = pattern;
+    }
+
+    public PCollection<List<String>> expand(PCollection<String> in) {
+      return in.apply(
+          ParDo.of(
+              new DoFn<String, List<String>>() {
+                @ProcessElement
+                public void processElement(ProcessContext c) throws Exception {
+                  Matcher m = pattern.matcher(c.element());
+
+                  if (m.matches()) {
+                    ArrayList list = new ArrayList(m.groupCount());
+
+                    // +1 because group 0 isn't included
+                    for (int i = 0; i < m.groupCount() + 1; i++) {
+                      list.add(m.group(i));
+                    }
+
+                    c.output(list);
                   }
                 }
               }));
@@ -215,11 +552,11 @@ public class Regex {
    */
   public static class MatchesKV
       extends PTransform<PCollection<String>, PCollection<KV<String, String>>> {
-    Pattern pattern;
+    final Pattern pattern;
     int keyGroup, valueGroup;
 
-    public MatchesKV(String regex, int keyGroup, int valueGroup) {
-      this.pattern = Pattern.compile(regex);
+    public MatchesKV(Pattern pattern, int keyGroup, int valueGroup) {
+      this.pattern = pattern;
       this.keyGroup = keyGroup;
       this.valueGroup = valueGroup;
     }
@@ -230,10 +567,56 @@ public class Regex {
               new DoFn<String, KV<String, String>>() {
                 @ProcessElement
                 public void processElement(ProcessContext c) throws Exception {
-                  Matcher m = pattern.matcher((String) c.element());
+                  Matcher m = pattern.matcher(c.element());
 
                   if (m.find()) {
                     c.output(KV.of(m.group(keyGroup), m.group(valueGroup)));
+                  }
+                }
+              }));
+    }
+  }
+
+  /**
+   * {@code Regex.MatchesNameKV<KV<String, String>>} takes a {@code PCollection<String>} and returns
+   * a {@code PCollection<KV<String, String>>} representing the key and value extracted from the
+   * Regex groups of the input {@code PCollection} to the number of times that element occurs in the
+   * input.
+   *
+   * <p>This transform runs a Regex on the entire input line. If the entire line does not match the
+   * Regex, the line will not be output. If it does match the entire line, the groups in the Regex
+   * will be used. The key will be the key's group and the value will be the value's group.
+   *
+   * <p>Example of use:
+   *
+   * <pre>{@code
+   * PCollection<String> words = ...;
+   * PCollection<KV<String, String>> keysAndValues =
+   *     words.apply(Regex.matchesKV("myregex (?<keyname>mykeygroup) (?<valuename>myvaluegroup)",
+   *       "keyname", "valuename"));
+   * }</pre>
+   */
+  public static class MatchesNameKV
+      extends PTransform<PCollection<String>, PCollection<KV<String, String>>> {
+    final Pattern pattern;
+    String keyGroupName, valueGroupName;
+
+    public MatchesNameKV(Pattern pattern, String keyGroupName, String valueGroupName) {
+      this.pattern = pattern;
+      this.keyGroupName = keyGroupName;
+      this.valueGroupName = valueGroupName;
+    }
+
+    public PCollection<KV<String, String>> expand(PCollection<String> in) {
+      return in.apply(
+          ParDo.of(
+              new DoFn<String, KV<String, String>>() {
+                @ProcessElement
+                public void processElement(ProcessContext c) throws Exception {
+                  Matcher m = pattern.matcher(c.element());
+
+                  if (m.find()) {
+                    c.output(KV.of(m.group(keyGroupName), m.group(valueGroupName)));
                   }
                 }
               }));
@@ -258,11 +641,11 @@ public class Regex {
    * }</pre>
    */
   public static class Find extends PTransform<PCollection<String>, PCollection<String>> {
-    Pattern pattern;
+    final Pattern pattern;
     int group;
 
-    public Find(String regex, int group) {
-      this.pattern = Pattern.compile(regex);
+    public Find(Pattern pattern, int group) {
+      this.pattern = pattern;
       this.group = group;
     }
 
@@ -272,10 +655,99 @@ public class Regex {
               new DoFn<String, String>() {
                 @ProcessElement
                 public void processElement(ProcessContext c) throws Exception {
-                  Matcher m = pattern.matcher((String) c.element());
+                  Matcher m = pattern.matcher(c.element());
 
                   if (m.find()) {
                     c.output(m.group(group));
+                  }
+                }
+              }));
+    }
+  }
+
+  /**
+   * {@code Regex.Find<String>} takes a {@code PCollection<String>} and returns a {@code
+   * PCollection<String>} representing the value extracted from the Regex groups of the input {@code
+   * PCollection} to the number of times that element occurs in the input.
+   *
+   * <p>This transform runs a Regex on the entire input line. If a portion of the line does not
+   * match the Regex, the line will not be output. If it does match a portion of the line, the group
+   * in the Regex will be used. The output will be the Regex group.
+   *
+   * <p>Example of use:
+   *
+   * <pre>{@code
+   * PCollection<String> words = ...;
+   * PCollection<String> values =
+   *     words.apply(Regex.find("myregex (?<namedgroup>mygroup)", "namedgroup"));
+   * }</pre>
+   */
+  public static class FindName extends PTransform<PCollection<String>, PCollection<String>> {
+    final Pattern pattern;
+    String groupName;
+
+    public FindName(Pattern pattern, String groupName) {
+      this.pattern = pattern;
+      this.groupName = groupName;
+    }
+
+    public PCollection<String> expand(PCollection<String> in) {
+      return in.apply(
+          ParDo.of(
+              new DoFn<String, String>() {
+                @ProcessElement
+                public void processElement(ProcessContext c) throws Exception {
+                  Matcher m = pattern.matcher(c.element());
+
+                  if (m.find()) {
+                    c.output(m.group(groupName));
+                  }
+                }
+              }));
+    }
+  }
+
+  /**
+   * {@code Regex.Find<String>} takes a {@code PCollection<String>} and returns a {@code
+   * PCollection<String>} representing the value extracted from the Regex groups of the input {@code
+   * PCollection} to the number of times that element occurs in the input.
+   *
+   * <p>This transform runs a Regex on the entire input line. If a portion of the line does not
+   * match the Regex, the line will not be output. If it does match a portion of the line, the
+   * groups in the Regex will be used. The output will be the Regex groups.
+   *
+   * <p>Example of use:
+   *
+   * <pre>{@code
+   * PCollection<String> words = ...;
+   * PCollection<String> values =
+   *     words.apply(Regex.find("myregex (mygroup)"));
+   * }</pre>
+   */
+  public static class FindAll extends PTransform<PCollection<String>, PCollection<List<String>>> {
+    final Pattern pattern;
+
+    public FindAll(Pattern pattern) {
+      this.pattern = pattern;
+    }
+
+    public PCollection<List<String>> expand(PCollection<String> in) {
+      return in.apply(
+          ParDo.of(
+              new DoFn<String, List<String>>() {
+                @ProcessElement
+                public void processElement(ProcessContext c) throws Exception {
+                  Matcher m = pattern.matcher(c.element());
+
+                  if (m.find()) {
+                    ArrayList list = new ArrayList(m.groupCount());
+
+                    // +1 because group 0 isn't included
+                    for (int i = 0; i < m.groupCount() + 1; i++) {
+                      list.add(m.group(i));
+                    }
+
+                    c.output(list);
                   }
                 }
               }));
@@ -303,11 +775,11 @@ public class Regex {
    */
   public static class FindKV
       extends PTransform<PCollection<String>, PCollection<KV<String, String>>> {
-    Pattern pattern;
+    final Pattern pattern;
     int keyGroup, valueGroup;
 
-    public FindKV(String regex, int keyGroup, int valueGroup) {
-      this.pattern = Pattern.compile(regex);
+    public FindKV(Pattern pattern, int keyGroup, int valueGroup) {
+      this.pattern = pattern;
       this.keyGroup = keyGroup;
       this.valueGroup = valueGroup;
     }
@@ -318,10 +790,57 @@ public class Regex {
               new DoFn<String, KV<String, String>>() {
                 @ProcessElement
                 public void processElement(ProcessContext c) throws Exception {
-                  Matcher m = pattern.matcher((String) c.element());
+                  Matcher m = pattern.matcher(c.element());
 
                   if (m.find()) {
                     c.output(KV.of(m.group(keyGroup), m.group(valueGroup)));
+                  }
+                }
+              }));
+    }
+  }
+
+  /**
+   * {@code Regex.MatchesKV<KV<String, String>>} takes a {@code PCollection<String>} and returns a
+   * {@code PCollection<KV<String, String>>} representing the key and value extracted from the Regex
+   * groups of the input {@code PCollection} to the number of times that element occurs in the
+   * input.
+   *
+   * <p>This transform runs a Regex on the entire input line. If a portion of the line does not
+   * match the Regex, the line will not be output. If it does match a portion of the line, the
+   * groups in the Regex will be used. The key will be the key's group and the value will be the
+   * value's group.
+   *
+   * <p>Example of use:
+   *
+   * <pre>{@code
+   * PCollection<String> words = ...;
+   * PCollection<KV<String, String>> keysAndValues =
+   *     words.apply(Regex.findKV("myregex (?<keyname>mykeygroup) (?<valuename>myvaluegroup)",
+   *       "keyname", "valuename"));
+   * }</pre>
+   */
+  public static class FindNameKV
+      extends PTransform<PCollection<String>, PCollection<KV<String, String>>> {
+    final Pattern pattern;
+    String keyGroupName, valueGroupName;
+
+    public FindNameKV(Pattern pattern, String keyGroupName, String valueGroupName) {
+      this.pattern = pattern;
+      this.keyGroupName = keyGroupName;
+      this.valueGroupName = valueGroupName;
+    }
+
+    public PCollection<KV<String, String>> expand(PCollection<String> in) {
+      return in.apply(
+          ParDo.of(
+              new DoFn<String, KV<String, String>>() {
+                @ProcessElement
+                public void processElement(ProcessContext c) throws Exception {
+                  Matcher m = pattern.matcher(c.element());
+
+                  if (m.find()) {
+                    c.output(KV.of(m.group(keyGroupName), m.group(valueGroupName)));
                   }
                 }
               }));
@@ -346,11 +865,11 @@ public class Regex {
    * }</pre>
    */
   public static class ReplaceAll extends PTransform<PCollection<String>, PCollection<String>> {
-    Pattern pattern;
+    final Pattern pattern;
     String replacement;
 
-    public ReplaceAll(String regex, String replacement) {
-      this.pattern = Pattern.compile(regex);
+    public ReplaceAll(Pattern pattern, String replacement) {
+      this.pattern = pattern;
       this.replacement = replacement;
     }
 
@@ -360,7 +879,7 @@ public class Regex {
               new DoFn<String, String>() {
                 @ProcessElement
                 public void processElement(ProcessContext c) throws Exception {
-                  Matcher m = pattern.matcher((String) c.element());
+                  Matcher m = pattern.matcher(c.element());
                   c.output(m.replaceAll(replacement));
                 }
               }));
@@ -385,11 +904,11 @@ public class Regex {
    * }</pre>
    */
   public static class ReplaceFirst extends PTransform<PCollection<String>, PCollection<String>> {
-    Pattern pattern;
+    final Pattern pattern;
     String replacement;
 
-    public ReplaceFirst(String regex, String replacement) {
-      this.pattern = Pattern.compile(regex);
+    public ReplaceFirst(Pattern pattern, String replacement) {
+      this.pattern = pattern;
       this.replacement = replacement;
     }
 
@@ -399,7 +918,7 @@ public class Regex {
               new DoFn<String, String>() {
                 @ProcessElement
                 public void processElement(ProcessContext c) throws Exception {
-                  Matcher m = pattern.matcher((String) c.element());
+                  Matcher m = pattern.matcher(c.element());
                   c.output(m.replaceFirst(replacement));
                 }
               }));
@@ -426,11 +945,11 @@ public class Regex {
    * }</pre>
    */
   public static class Split extends PTransform<PCollection<String>, PCollection<String>> {
-    Pattern pattern;
+    final Pattern pattern;
     boolean outputEmpty;
 
-    public Split(String regex, boolean outputEmpty) {
-      this.pattern = Pattern.compile(regex);
+    public Split(Pattern pattern, boolean outputEmpty) {
+      this.pattern = pattern;
       this.outputEmpty = outputEmpty;
     }
 
