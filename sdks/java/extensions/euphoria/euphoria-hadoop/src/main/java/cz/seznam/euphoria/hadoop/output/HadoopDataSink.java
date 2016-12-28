@@ -26,10 +26,10 @@ public class HadoopDataSink<K extends Writable, V extends Writable>
   private transient OutputFormat<?, ?> hadoopFormatInstance;
 
   public HadoopDataSink(Class<? extends OutputFormat<K, V>> hadoopFormatCls,
-                        SerializableWritable<Configuration> conf)
+                        Configuration hadoopConf)
   {
     this.hadoopFormatCls = Objects.requireNonNull(hadoopFormatCls);
-    this.conf = Objects.requireNonNull(conf);
+    this.conf = new SerializableWritable<>(Objects.requireNonNull(hadoopConf));
   }
 
   @Override
