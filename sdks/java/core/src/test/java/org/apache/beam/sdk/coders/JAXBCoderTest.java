@@ -172,18 +172,18 @@ public class JAXBCoderTest {
     @Override
     public void encode(TestType value, OutputStream outStream, Context context)
         throws CoderException, IOException {
-      Context subContext = context.nested();
-      VarIntCoder.of().encode(3, outStream, subContext);
-      jaxbCoder.encode(value, outStream, subContext);
+      Context nestedContext = context.nested();
+      VarIntCoder.of().encode(3, outStream, nestedContext);
+      jaxbCoder.encode(value, outStream, nestedContext);
       VarLongCoder.of().encode(22L, outStream, context);
     }
 
     @Override
     public TestType decode(InputStream inStream, Context context)
         throws CoderException, IOException {
-      Context subContext = context.nested();
-      VarIntCoder.of().decode(inStream, subContext);
-      TestType result = jaxbCoder.decode(inStream, subContext);
+      Context nestedContext = context.nested();
+      VarIntCoder.of().decode(inStream, nestedContext);
+      TestType result = jaxbCoder.decode(inStream, nestedContext);
       VarLongCoder.of().decode(inStream, context);
       return result;
     }

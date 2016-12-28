@@ -994,28 +994,28 @@ public class CombineFns {
     public void encode(Object[] value, OutputStream outStream, Context context)
         throws CoderException, IOException {
       checkArgument(value.length == codersCount);
-      Context nestedContext = context.nested();
-      for (int i = 0; i < codersCount; ++i) {
-        if (i < codersCount - 1) {
-          coders.get(i).encode(value[i], outStream, nestedContext);
-        } else {
-          coders.get(i).encode(value[i], outStream, context);
-        }
+      if (value.length == 0) {
+        return;
       }
+      Context nestedContext = context.nested();
+      for (int i = 0; i < codersCount - 1; ++i) {
+        coders.get(i).encode(value[i], outStream, nestedContext);
+      }
+      coders.get(codersCount - 1).encode(value[codersCount - 1], outStream, context);
     }
 
     @Override
     public Object[] decode(InputStream inStream, Context context)
         throws CoderException, IOException {
       Object[] ret = new Object[codersCount];
-      Context nestedContext = context.nested();
-      for (int i = 0; i < codersCount; ++i) {
-        if (i < codersCount - 1) {
-          ret[i] = coders.get(i).decode(inStream, nestedContext);
-        } else {
-          ret[i] = coders.get(i).decode(inStream, context);
-        }
+      if (codersCount == 0) {
+        return ret;
       }
+      Context nestedContext = context.nested();
+      for (int i = 0; i < codersCount - 1; ++i) {
+        ret[i] = coders.get(i).decode(inStream, nestedContext);
+      }
+      ret[codersCount - 1] = coders.get(codersCount - 1).decode(inStream, context);
       return ret;
     }
 
