@@ -13,11 +13,15 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.ListIterator;
 import java.util.Map.Entry;
+
+import javax.annotation.Nullable;
+
 import java.util.NoSuchElementException;
 
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.io.BoundedSource;
@@ -43,6 +47,7 @@ import org.apache.hadoop.mapreduce.task.TaskAttemptContextImpl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.auto.value.AutoValue;
 import com.google.common.base.Function;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
@@ -55,28 +60,23 @@ public class HadoopInputFormatIO {
 
 	private static final Logger logger = LoggerFactory.getLogger(HadoopInputFormatIO.class);
 
-	public static Read read() {
-		return new Read.ReadBuilder().build();
+	public static <K,V> Read<K,V> read() {
+		return new AutoValue_HadoopInputFormatIO_Read.Builder<K,V>().build();
 	}
 
-	public static class Read<K, V> extends PTransform<PBegin, PCollection<KV<K, V>>> {
+	@AutoValue
+	public abstract static class Read<K, V> extends PTransform<PBegin, PCollection<KV<K, V>>> {
 
 		private static final long serialVersionUID = 1L;
-		private final SimpleFunction<?, ?> simpleFuncForKeyTranslation;
-		private final SimpleFunction<?, ?> simpleFuncForValueTranslation;
-		private final SerializableConfiguration configuration;
 		private Class<K> keyClass;
 		private Class<V> valueClass;
 		private Coder<K> keyCoder;
 		private Coder<V> valueCoder;
 
-		public SimpleFunction<?, ?> getSimpleFuncForKeyTranslation() {
-			return simpleFuncForKeyTranslation;
-		}
-
-		public SimpleFunction<?, ?> getSimpleFuncForValueTranslation() {
-			return simpleFuncForValueTranslation;
-		}
+		abstract Builder<K, V> toBuilder();
+		@Nullable public abstract  SimpleFunction< ?, K> getSimpleFuncForKeyTranslation();
+		@Nullable public abstract  SimpleFunction< ?, V> getSimpleFuncForValueTranslation();
+		@Nullable public abstract  SerializableConfiguration getConfiguration();
 
 		public void setKeyClass(Class<K> keyClass) {
 			this.keyClass = keyClass;
@@ -102,88 +102,47 @@ public class HadoopInputFormatIO {
 			return valueCoder;
 		}
 
-		public SerializableConfiguration getConfiguration() {
-			return configuration;
-		}
-
 		public Read<K, V> withConfiguration(Configuration configuration) {
 			checkNotNull(configuration,  "Configuration cannot be null.");
 			return toBuilder().setConfiguration(new SerializableConfiguration(configuration)).build();
 		}
 
-		public Read<K, V> withKeyTranslation(SimpleFunction<?, ?> simpleFuncForKeyTranslation) {
+		public Read<K, V> withKeyTranslation(SimpleFunction<?, K> simpleFuncForKeyTranslation) {
 			checkNotNull(simpleFuncForKeyTranslation, "Simple function for key translation cannot be null.");
-			return toBuilder().setKeyTranslation(simpleFuncForKeyTranslation).build();
+			return toBuilder().setSimpleFuncForKeyTranslation(simpleFuncForKeyTranslation).build();
 		}
 
-		public Read<K, V> withValueTranslation(SimpleFunction<?, ?> simpleFuncForValueTranslation) {
+		public Read<K, V> withValueTranslation(SimpleFunction< ?, V> simpleFuncForValueTranslation) {
 			checkNotNull(simpleFuncForValueTranslation, "Simple function for value translation cannot be null.");
-			return toBuilder().setValueTranslation(simpleFuncForValueTranslation).build();
+			return toBuilder().setSimpleFuncForValueTranslation(simpleFuncForValueTranslation).build();
 		}
 
-		private Read(ReadBuilder<K, V> builder) {
-			this.configuration = builder.configuration;
-			this.simpleFuncForKeyTranslation = builder.simpleFuncForKeyTranslation;
-			this.simpleFuncForValueTranslation = builder.simpleFuncForValueTranslation;
-		}
-
-		public ReadBuilder<K, V> toBuilder() {
-			return new ReadBuilder<K, V>(this);
-		}
-
-		public static class ReadBuilder<K, V> {
-			private SerializableConfiguration configuration;
-			private SimpleFunction<?, ?> simpleFuncForKeyTranslation;
-			private SimpleFunction<?, ?> simpleFuncForValueTranslation;
-
-			public ReadBuilder(Read<K, V> read) {
-				this.configuration = read.getConfiguration();
-				this.simpleFuncForKeyTranslation = read.getSimpleFuncForKeyTranslation();
-				this.simpleFuncForValueTranslation = read.getSimpleFuncForValueTranslation();
-			}
-
-			public ReadBuilder() {
-			}
-
-			public ReadBuilder<K, V> setConfiguration(SerializableConfiguration configuration) {
-				this.configuration = configuration;
-				return this;
-			}
-
-			public ReadBuilder<K, V> setKeyTranslation(SimpleFunction<?, ?> simpleFuncForKeyTranslation) {
-				this.simpleFuncForKeyTranslation = simpleFuncForKeyTranslation;
-				return this;
-			}
-
-			public ReadBuilder<K, V> setValueTranslation(SimpleFunction<?, ?> simpleFuncForValueTranslation) {
-				this.simpleFuncForValueTranslation = simpleFuncForValueTranslation;
-				return this;
-			}
-
-			public Read<K, V> build() {
-				return new Read<K, V>(this);
-			}
-
+		@AutoValue.Builder
+		abstract static class Builder<K, V> {
+			abstract Builder<K,V> setConfiguration(SerializableConfiguration configuration);
+			abstract Builder<K,V> setSimpleFuncForKeyTranslation(SimpleFunction< ?,K> simpleFuncForKeyTranslation);
+			abstract Builder<K,V> setSimpleFuncForValueTranslation(SimpleFunction<?,V> simpleFuncForValueTranslation);
+			abstract Read<K,V> build();
 		}
 
 		public void validate(PBegin input) {
 			checkNotNull(this.getConfiguration(), "Need to set the configuration of a HadoopInputFormatIO Read using method Read.withConfiguration().");
-			String inputFormatClassProperty = configuration.getConfiguration().get("mapreduce.job.inputformat.class") ;
+			String inputFormatClassProperty = this.getConfiguration().getConfiguration().get("mapreduce.job.inputformat.class") ;
 			if (inputFormatClassProperty == null) {
 				throw new IllegalArgumentException("Hadoop InputFormat class property \"mapreduce.job.inputformat.class\" is not set in configuration.");
 
 			}
-			String keyClassProperty = configuration.getConfiguration().get("key.class");
+			String keyClassProperty = this.getConfiguration().getConfiguration().get("key.class");
 			if (keyClassProperty == null) {
 				throw new IllegalArgumentException("Configuration property \"key.class\" is not set.");
 
 			}
-			String valueClassProperty = configuration.getConfiguration().get("value.class");
+			String valueClassProperty = this.getConfiguration().getConfiguration().get("value.class");
 			if (valueClassProperty == null) {
 				throw new IllegalArgumentException("Configuration property \"value.class\" is not set.");
 
 			}
-			Class<?> inputFormatKeyClass = configuration.getConfiguration().getClass("key.class", Object.class);
+			Class<?> inputFormatKeyClass = this.getConfiguration().getConfiguration().getClass("key.class", Object.class);
 			if (this.getSimpleFuncForKeyTranslation() != null) {
 				if (this.getSimpleFuncForKeyTranslation().getInputTypeDescriptor()
 						.getRawType() != inputFormatKeyClass) {
@@ -195,7 +154,7 @@ public class HadoopInputFormatIO {
 				this.setKeyClass((Class<K>) inputFormatKeyClass);
 			}
 
-			Class<?> inputFormatValueClass = configuration.getConfiguration().getClass("value.class", Object.class);
+			Class<?> inputFormatValueClass = this.getConfiguration().getConfiguration().getClass("value.class", Object.class);
 			if (this.getSimpleFuncForValueTranslation() != null) {
 				if (this.getSimpleFuncForValueTranslation().getInputTypeDescriptor()
 						.getRawType() != inputFormatValueClass) {
@@ -221,21 +180,21 @@ public class HadoopInputFormatIO {
 		@Override
 		public void populateDisplayData(DisplayData.Builder builder) {
 			super.populateDisplayData(builder);
-			if (configuration.getConfiguration() != null) {
-				Iterator<Entry<String, String>> propertyElement = configuration.getConfiguration().iterator();
+			if (this.getConfiguration().getConfiguration() != null) {
+				Iterator<Entry<String, String>> propertyElement = this.getConfiguration().getConfiguration().iterator();
 				while (propertyElement.hasNext()) {
 					Entry<String, String> element = propertyElement.next();
 					builder.add(DisplayData.item(element.getKey(), element.getValue()).withLabel(element.getKey()));
 				}
 			}
 			builder.addIfNotNull(DisplayData.item("KeyClass", getKeyClass()).withLabel("Output key class"))
-					.addIfNotNull(DisplayData.item("ValueClass", getValueClass()).withLabel("Output value class"));
+			.addIfNotNull(DisplayData.item("ValueClass", getValueClass()).withLabel("Output value class"));
 
 		}
 
 		@Override
 		public PCollection<KV<K, V>> expand(PBegin input) {
-			HadoopInputFormatBoundedSource<K, V> source = new HadoopInputFormatBoundedSource<K, V>(configuration,
+			HadoopInputFormatBoundedSource<K, V> source = new HadoopInputFormatBoundedSource<K, V>(this.getConfiguration(),
 					this.getKeyCoder(), this.getValueCoder(), this.getSimpleFuncForKeyTranslation(),
 					this.getSimpleFuncForValueTranslation(), null);
 			return input.getPipeline().apply(org.apache.beam.sdk.io.Read.from(source));
@@ -263,17 +222,17 @@ public class HadoopInputFormatIO {
 		private static final long serialVersionUID = 0L;
 		protected final SerializableConfiguration conf;
 		protected final SerializableSplit serializableSplit;
-		protected final Coder keyCoder;
-		protected final Coder valueCoder;
-		protected final SimpleFunction simpleFuncForKeyTranslation;
-		protected final SimpleFunction simpleFuncForValueTranslation;
+		protected final Coder<K> keyCoder;
+		protected final Coder<V> valueCoder;
+		protected final SimpleFunction<?,K> simpleFuncForKeyTranslation;
+		protected final SimpleFunction< ? ,V> simpleFuncForValueTranslation;
 
-		public HadoopInputFormatBoundedSource(SerializableConfiguration conf, Coder keyCoder, Coder valueCoder) {
+		public HadoopInputFormatBoundedSource(SerializableConfiguration conf, Coder<K> keyCoder, Coder<V> valueCoder) {
 			this(conf, keyCoder, valueCoder, null, null, null);
 		}
 
-		public HadoopInputFormatBoundedSource(SerializableConfiguration conf, Coder keyCoder, Coder valueCoder,
-				SimpleFunction keyTranslation, SimpleFunction valueTranslation, SerializableSplit serializableSplit) {
+		public HadoopInputFormatBoundedSource(SerializableConfiguration conf, Coder<K> keyCoder, Coder<V> valueCoder,
+				SimpleFunction<?,K> keyTranslation, SimpleFunction< ? ,V> valueTranslation, SerializableSplit serializableSplit) {
 			this.conf = conf;
 			this.serializableSplit = serializableSplit;
 			this.keyCoder = keyCoder;
@@ -292,46 +251,56 @@ public class HadoopInputFormatIO {
 			checkNotNull(keyCoder, "KeyCoder should not be null in HadoopInputFormatSource");
 			checkNotNull(valueCoder, "ValueCoder should not be null in HadoopInputFormatSource");
 		}
-
+		boolean isSplitted=false;
 		@Override
-		public List<? extends BoundedSource<KV<K, V>>> splitIntoBundles(long desiredBundleSizeBytes,
-				PipelineOptions options) throws Exception {
+		public List<BoundedSource<KV<K, V>>> splitIntoBundles(long desiredBundleSizeBytes,PipelineOptions options) throws Exception {
 			// add comments
 			if (serializableSplit == null) {
-				return Lists.transform(inputSplitList, new Function<SerializableSplit, BoundedSource<KV<K, V>>>() {
+				if (serInputSplitList == null) {
+					computeSplits();
+				}
+				return Lists.transform(serInputSplitList, new Function<SerializableSplit, BoundedSource<KV<K, V>>>() {
 					@Override
 					public BoundedSource<KV<K, V>> apply(SerializableSplit serializableInputSplit) {
 						HadoopInputFormatBoundedSource<K, V> hifBoundedSource = new HadoopInputFormatBoundedSource<K, V>(
 								conf, keyCoder, valueCoder, simpleFuncForKeyTranslation, simpleFuncForValueTranslation,
 								serializableInputSplit);
+						isSplitted=true;
 						return hifBoundedSource;
 					}
 				});
 			} else {
-				return ImmutableList.of(this);
+				isSplitted=true;
+				return ImmutableList.of((BoundedSource<KV<K, V>>) this);
 			}
+
 		}
 
-		protected List<InputSplit> computeSplits() throws IOException, IllegalAccessException, InstantiationException,
-				InterruptedException, ClassNotFoundException {
-			@SuppressWarnings("deprecation")
+		private void computeSplits() throws IOException, IllegalAccessException, InstantiationException,
+		InterruptedException, ClassNotFoundException {
+
 			Job job = Job.getInstance(conf.getConfiguration());
 			List<InputSplit> splits = job.getInputFormatClass().newInstance().getSplits(job);
-			return splits;
+			if(splits == null)
+				throw new IOException("Cannot split the source as getSplits() is returning null value.");
+			if(splits.isEmpty())
+				throw new IOException("Cannot split the source as getSplits() is returning empty list.");
+			boundedSourceEstimatedSize=0;
+			serInputSplitList = new ArrayList<SerializableSplit>();
+			for (InputSplit inputSplit :splits) {
+				boundedSourceEstimatedSize = boundedSourceEstimatedSize + inputSplit.getLength();
+				serInputSplitList.add(new SerializableSplit(inputSplit));
+			}
+
 		}
 
-		List<SerializableSplit> inputSplitList;
+		List<SerializableSplit> serInputSplitList;
 		long boundedSourceEstimatedSize = 0;
 
 		@Override
 		public long getEstimatedSizeBytes(PipelineOptions po) throws Exception {
-
-			if (inputSplitList == null) {
-				inputSplitList = new ArrayList<SerializableSplit>();
-				for (InputSplit inputSplit : computeSplits()) {
-					boundedSourceEstimatedSize = boundedSourceEstimatedSize + inputSplit.getLength();
-					inputSplitList.add(new SerializableSplit(inputSplit));
-				}
+			if (serInputSplitList == null) {
+				computeSplits();
 			}
 			return boundedSourceEstimatedSize;
 		}
@@ -349,42 +318,44 @@ public class HadoopInputFormatIO {
 		@Override
 		public BoundedReader<KV<K, V>> createReader(PipelineOptions options) throws IOException {
 			this.validate();
-
 			if (serializableSplit == null) {
-				throw new IOException("Cannot read data as split is null.");
+				if(!isSplitted)
+					throw new IOException("Cannot create reader as source is not split yet.");
+				else
+					throw new IOException("Cannot read data as split is null.");
 			} else {
-				return new HadoopInputFormatReader<K, V>(this, simpleFuncForKeyTranslation,
-						simpleFuncForValueTranslation, serializableSplit.getSplit());
+				try {
+					return new HadoopInputFormatReader<Object>(this, simpleFuncForKeyTranslation,simpleFuncForValueTranslation, serializableSplit.getSplit());
+				} catch (InstantiationException e) {
+					throw new IOException("InstantiationException : Unable to create reader.");
+				} catch (IllegalAccessException e) {
+					throw new IOException("Unable to create reader. Couldnot create job object.");
+				} catch (ClassNotFoundException e) {
+					throw new IOException("Unable to create reader. Couldnot create job object Class not found "+e.getClass());
+				}
 			}
-
+			
 		}
 
-		class HadoopInputFormatReader<K, V> extends BoundedSource.BoundedReader<KV<K, V>> {
+		class HadoopInputFormatReader<T extends Object> extends BoundedSource.BoundedReader<KV<K, V>> {
 
 			private InputFormat inputFormatObj;
 			private TaskAttemptContextImpl attemptContext;
 			private List<InputSplit> splits;
 			private ListIterator<InputSplit> splitsIterator;
-			private RecordReader currentReader;
+			private  RecordReader<T,T>  currentReader;
 			private KV<K, V> currentPair;
 			private volatile boolean done = false;
 			private final HadoopInputFormatBoundedSource<K, V> source;
-			private final SimpleFunction simpleFuncForKeyTranslation;
-			private final SimpleFunction simpleFuncForValueTranslation;
+			private final SimpleFunction< T, K> simpleFuncForKeyTranslation;
+			private final SimpleFunction< T, V> simpleFuncForValueTranslation;
 
-			@SuppressWarnings("deprecation")
-			public HadoopInputFormatReader(HadoopInputFormatBoundedSource source, SimpleFunction keyTranslation,
-					SimpleFunction valueTranslation, InputSplit split) {
+
+			public HadoopInputFormatReader(HadoopInputFormatBoundedSource<K,V> source, SimpleFunction keyTranslation,
+					SimpleFunction valueTranslation, InputSplit split) throws IOException , InstantiationException , IllegalAccessException , ClassNotFoundException  {
 				this.source = source;
-				Job job;
-				try {
-					job =  Job.getInstance(source.getConfiguration().getConfiguration());
-					inputFormatObj = (InputFormat) job.getInputFormatClass().newInstance();
-				} catch (IOException | InstantiationException | IllegalAccessException | ClassNotFoundException e) {
-					// throw custom exception
-					e.printStackTrace();
-				}
-
+				Job job =  Job.getInstance(source.getConfiguration().getConfiguration());
+				inputFormatObj = (InputFormat) job.getInputFormatClass().newInstance();
 				if (split != null) {
 					this.splits = ImmutableList.of(split);
 					this.splitsIterator = splits.listIterator();
@@ -394,7 +365,7 @@ public class HadoopInputFormatIO {
 			}
 
 			@Override
-			public HadoopInputFormatBoundedSource getCurrentSource() {
+			public HadoopInputFormatBoundedSource<K,V> getCurrentSource() {
 				return source;
 			}
 
@@ -405,8 +376,7 @@ public class HadoopInputFormatIO {
 				InputSplit nextSplit = splitsIterator.next();
 				try {
 					@SuppressWarnings("unchecked")
-					RecordReader<K, V> reader = (RecordReader<K, V>) inputFormatObj.createRecordReader(nextSplit,
-							attemptContext);
+					RecordReader<T, T> reader = (RecordReader<T, T>) inputFormatObj.createRecordReader(nextSplit,attemptContext);
 					if (currentReader != null) {
 						currentReader.close();
 					}
@@ -442,29 +412,33 @@ public class HadoopInputFormatIO {
 				}
 			}
 
+
 			public KV<K, V> nextPair() throws IOException, InterruptedException {
 				K key;
 				V value;
 				if (null != simpleFuncForKeyTranslation) {
-					key = (K) simpleFuncForKeyTranslation.apply(currentReader.getCurrentKey());
+					key = simpleFuncForKeyTranslation.apply(currentReader.getCurrentKey());
 				} else {
 					key = (K) currentReader.getCurrentKey();
 				}
 
 				if (null != simpleFuncForValueTranslation) {
-					value = (V) simpleFuncForValueTranslation.apply(currentReader.getCurrentValue());
+					value = simpleFuncForValueTranslation.apply(currentReader.getCurrentValue());
 				} else {
 					value = (V) currentReader.getCurrentValue();
 				}
+				return cloneKeyValue(key,value);
+			}
+
+			private KV<K, V> cloneKeyValue(K key,V value) throws CoderException {
 
 				if (!HadoopInputFormatUtils.isImmutable(key)) {
-					key = (K) CoderUtils.clone(keyCoder, key);
+					key = (K) CoderUtils.clone((Coder<K>)keyCoder,(K) key);
 				}
 				if (!HadoopInputFormatUtils.isImmutable(value)) {
-					value = (V) CoderUtils.clone(valueCoder, value);
+					value = (V) CoderUtils.clone((Coder<V>)valueCoder, (V) value);
 				}
-
-				return KV.of(key, value);
+				return KV.of(key,value);
 			}
 
 			@Override
