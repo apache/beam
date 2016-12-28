@@ -26,7 +26,7 @@ import tempfile
 import apache_beam as beam
 from apache_beam.pipeline import Pipeline
 from apache_beam.runners.dataflow_runner import DataflowRunner
-from apache_beam.utils.options import PipelineOptions
+from apache_beam.utils.pipeline_options import PipelineOptions
 from apache_beam.internal import apiclient
 
 

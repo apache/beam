@@ -36,7 +36,7 @@ from apache_beam.runners import DirectRunner
 from apache_beam.runners import TestDataflowRunner
 import apache_beam.transforms as ptransform
 from apache_beam.transforms.display import DisplayDataItem
-from apache_beam.utils.options import PipelineOptions
+from apache_beam.utils.pipeline_options import PipelineOptions
 
 
 class RunnerTest(unittest.TestCase):

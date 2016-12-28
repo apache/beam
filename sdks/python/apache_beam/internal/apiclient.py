@@ -41,10 +41,10 @@ from apache_beam.utils import retry
 from apache_beam.utils.dependency import get_required_container_version
 from apache_beam.utils.dependency import get_sdk_name_and_version
 from apache_beam.utils.names import PropertyNames
-from apache_beam.utils.options import DebugOptions
-from apache_beam.utils.options import GoogleCloudOptions
-from apache_beam.utils.options import StandardOptions
-from apache_beam.utils.options import WorkerOptions
+from apache_beam.utils.pipeline_options import DebugOptions
+from apache_beam.utils.pipeline_options import GoogleCloudOptions
+from apache_beam.utils.pipeline_options import StandardOptions
+from apache_beam.utils.pipeline_options import WorkerOptions
 from apache_beam.internal.clients import storage
 import apache_beam.internal.clients.dataflow as dataflow
 

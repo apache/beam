@@ -15,10 +15,7 @@
 # limitations under the License.
 #
 
-"""Pipeline options obtained from command line parsing.
-
-TODO(silviuc): Should rename this module to pipeline_options.
-"""
+"""Pipeline options obtained from command line parsing."""
 
 import argparse
 

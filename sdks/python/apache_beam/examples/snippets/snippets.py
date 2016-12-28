@@ -88,7 +88,7 @@ def construct_pipeline(renames):
     return True
 
   # [START pipelines_constructing_creating]
-  from apache_beam.utils.options import PipelineOptions
+  from apache_beam.utils.pipeline_options import PipelineOptions
 
   p = beam.Pipeline(options=PipelineOptions())
   # [END pipelines_constructing_creating]
@@ -125,7 +125,7 @@ def model_pipelines(argv):
   import re
 
   import apache_beam as beam
-  from apache_beam.utils.options import PipelineOptions
+  from apache_beam.utils.pipeline_options import PipelineOptions
 
   class MyOptions(PipelineOptions):
 
@@ -161,7 +161,7 @@ def model_pcollection(argv):
 
   URL: https://cloud.google.com/dataflow/model/pcollection
   """
-  from apache_beam.utils.options import PipelineOptions
+  from apache_beam.utils.pipeline_options import PipelineOptions
 
   class MyOptions(PipelineOptions):
 
@@ -197,7 +197,7 @@ def pipeline_options_remote(argv):
   """
 
   from apache_beam import Pipeline
-  from apache_beam.utils.options import PipelineOptions
+  from apache_beam.utils.pipeline_options import PipelineOptions
 
   # [START pipeline_options_create]
   options = PipelineOptions(flags=argv)
@@ -212,8 +212,8 @@ def pipeline_options_remote(argv):
       parser.add_argument('--output')
   # [END pipeline_options_define_custom]
 
-  from apache_beam.utils.options import GoogleCloudOptions
-  from apache_beam.utils.options import StandardOptions
+  from apache_beam.utils.pipeline_options import GoogleCloudOptions
+  from apache_beam.utils.pipeline_options import StandardOptions
 
   # [START pipeline_options_dataflow_service]
   # Create and set your PipelineOptions.
@@ -254,7 +254,7 @@ def pipeline_options_local(argv):
   """
 
   from apache_beam import Pipeline
-  from apache_beam.utils.options import PipelineOptions
+  from apache_beam.utils.pipeline_options import PipelineOptions
 
   options = PipelineOptions(flags=argv)
 
@@ -320,7 +320,7 @@ def pipeline_logging(lines, output):
 
   import re
   import apache_beam as beam
-  from apache_beam.utils.options import PipelineOptions
+  from apache_beam.utils.pipeline_options import PipelineOptions
 
   # [START pipeline_logging]
   # import Python logging module.
@@ -357,7 +357,7 @@ def pipeline_monitoring(renames):
 
   import re
   import apache_beam as beam
-  from apache_beam.utils.options import PipelineOptions
+  from apache_beam.utils.pipeline_options import PipelineOptions
 
   class WordCountOptions(PipelineOptions):
 
@@ -425,9 +425,9 @@ def examples_wordcount_minimal(renames):
 
   import apache_beam as beam
 
-  from apache_beam.utils.options import GoogleCloudOptions
-  from apache_beam.utils.options import StandardOptions
-  from apache_beam.utils.options import PipelineOptions
+  from apache_beam.utils.pipeline_options import GoogleCloudOptions
+  from apache_beam.utils.pipeline_options import StandardOptions
+  from apache_beam.utils.pipeline_options import PipelineOptions
 
   # [START examples_wordcount_minimal_options]
   options = PipelineOptions()
@@ -485,7 +485,7 @@ def examples_wordcount_wordcount(renames):
   import re
 
   import apache_beam as beam
-  from apache_beam.utils.options import PipelineOptions
+  from apache_beam.utils.pipeline_options import PipelineOptions
 
   argv = []
 
@@ -544,7 +544,7 @@ def examples_wordcount_debugging(renames):
   import re
 
   import apache_beam as beam
-  from apache_beam.utils.options import PipelineOptions
+  from apache_beam.utils.pipeline_options import PipelineOptions
 
   # [START example_wordcount_debugging_logging]
   # [START example_wordcount_debugging_aggregators]
@@ -635,7 +635,7 @@ def model_custom_source(count):
   from apache_beam.io import iobase
   from apache_beam.io.range_trackers import OffsetRangeTracker
   from apache_beam.transforms.core import PTransform
-  from apache_beam.utils.options import PipelineOptions
+  from apache_beam.utils.pipeline_options import PipelineOptions
 
   # Defining a new source.
   # [START model_custom_source_new_source]
@@ -766,7 +766,7 @@ def model_custom_sink(simplekv, KVs, final_table_name_no_ptransform,
   import apache_beam as beam
   from apache_beam.io import iobase
   from apache_beam.transforms.core import PTransform
-  from apache_beam.utils.options import PipelineOptions
+  from apache_beam.utils.pipeline_options import PipelineOptions
 
   # Defining the new sink.
   # [START model_custom_sink_new_sink]
@@ -867,7 +867,7 @@ def model_textio(renames):
     return re.findall(r'[A-Za-z\']+', x)
 
   import apache_beam as beam
-  from apache_beam.utils.options import PipelineOptions
+  from apache_beam.utils.pipeline_options import PipelineOptions
 
   # [START model_textio_read]
   p = beam.Pipeline(options=PipelineOptions())
@@ -902,7 +902,7 @@ def model_datastoreio():
   from google.datastore.v1 import query_pb2
   import googledatastore
   import apache_beam as beam
-  from apache_beam.utils.options import PipelineOptions
+  from apache_beam.utils.pipeline_options import PipelineOptions
   from apache_beam.io.datastore.v1.datastoreio import ReadFromDatastore
   from apache_beam.io.datastore.v1.datastoreio import WriteToDatastore
 
@@ -938,7 +938,7 @@ def model_bigqueryio():
   URL: https://cloud.google.com/dataflow/model/bigquery-io
   """
   import apache_beam as beam
-  from apache_beam.utils.options import PipelineOptions
+  from apache_beam.utils.pipeline_options import PipelineOptions
 
   # [START model_bigqueryio_read]
   p = beam.Pipeline(options=PipelineOptions())
@@ -1009,7 +1009,7 @@ def model_composite_transform_example(contents, output_path):
   # [END composite_ptransform_apply_method]
   # [END composite_transform_example]
 
-  from apache_beam.utils.options import PipelineOptions
+  from apache_beam.utils.pipeline_options import PipelineOptions
   p = beam.Pipeline(options=PipelineOptions())
   (p
    | beam.Create(contents)
@@ -1025,7 +1025,7 @@ def model_multiple_pcollections_flatten(contents, output_path):
   """
   some_hash_fn = lambda s: ord(s[0])
   import apache_beam as beam
-  from apache_beam.utils.options import PipelineOptions
+  from apache_beam.utils.pipeline_options import PipelineOptions
   p = beam.Pipeline(options=PipelineOptions())
   partition_fn = lambda element, partitions: some_hash_fn(element) % partitions
 
@@ -1066,7 +1066,7 @@ def model_multiple_pcollections_partition(contents, output_path):
     """Assume i in [0,100)."""
     return i
   import apache_beam as beam
-  from apache_beam.utils.options import PipelineOptions
+  from apache_beam.utils.pipeline_options import PipelineOptions
   p = beam.Pipeline(options=PipelineOptions())
 
   students = p | beam.Create(contents)
@@ -1096,7 +1096,7 @@ def model_group_by_key(contents, output_path):
   import re
 
   import apache_beam as beam
-  from apache_beam.utils.options import PipelineOptions
+  from apache_beam.utils.pipeline_options import PipelineOptions
   p = beam.Pipeline(options=PipelineOptions())
   words_and_counts = (
       p
@@ -1123,7 +1123,7 @@ def model_co_group_by_key_tuple(email_list, phone_list, output_path):
   URL: https://cloud.google.com/dataflow/model/group-by-key
   """
   import apache_beam as beam
-  from apache_beam.utils.options import PipelineOptions
+  from apache_beam.utils.pipeline_options import PipelineOptions
   p = beam.Pipeline(options=PipelineOptions())
   # [START model_group_by_key_cogroupbykey_tuple]
   # Each data set is represented by key-value pairs in separate PCollections.
@@ -1161,7 +1161,7 @@ def model_join_using_side_inputs(
 
   import apache_beam as beam
   from apache_beam.pvalue import AsIter
-  from apache_beam.utils.options import PipelineOptions
+  from apache_beam.utils.pipeline_options import PipelineOptions
 
   p = beam.Pipeline(options=PipelineOptions())
   # [START model_join_using_side_inputs]

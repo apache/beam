@@ -35,7 +35,7 @@ from apache_beam.io.bigquery import TableRowJsonCoder
 from apache_beam.io.bigquery import parse_table_schema_from_json
 from apache_beam.transforms.display import DisplayData
 from apache_beam.transforms.display_test import DisplayDataItemMatcher
-from apache_beam.utils.options import PipelineOptions
+from apache_beam.utils.pipeline_options import PipelineOptions
 
 
 class TestRowAsDictJsonCoder(unittest.TestCase):
