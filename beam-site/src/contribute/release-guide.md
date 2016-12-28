@@ -279,15 +279,12 @@ Please carefully review the generated Javadoc. Check for completeness and presen
 
 The final step of building the candidate is to propose a website pull request.
 
-Add the new release to the [Apache Beam Releases]({{ site.baseurl }}/use/releases/) page, as follows:
+Start by updating `release_latest` version flag in the top-level `_config.yml`, and list the new release in the [Apache Beam Downloads]({{ site.baseurl }}/get-started/downloads/), linking to the source code download and the Release Notes in JIRA.
 
-* Update the `<version>` tags in the sample `pom.xml` snippet to the new release.
-* Add the new version to the `Release Notes` section below, along with links to the source code download and the Release Notes in JIRA.
+Add the new Javadoc to [SDK API Reference page]({{ site.baseurl }}/documentation/sdks/javadoc/) page, as follows:
 
-Add the new Javadoc to [SDK API Reference page]({{ site.baseurl }}/learn/sdks/javadoc/) page, as follows:
-
-* Copy the generated Javadoc into the website repository: `cp -r ${JAVADOC_ROOT} learn/sdks/javadoc/${VERSION}`.
-* Update the Javadoc link on this page to point to the new version.
+* Copy the generated Javadoc into the website repository: `cp -r ${JAVADOC_ROOT} documentation/sdks/javadoc/${VERSION}`.
+* Update the Javadoc link on this page to point to the new version (in `src/documentation/sdks/javadoc/current.md`).
 
 Finally, propose a pull request with these changes. (Don’t merge before finalizing the release.)
 
