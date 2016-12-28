@@ -148,6 +148,14 @@
 
 <p>The <strong>Beam Programming Guide</strong> is intended for Beam users who want to use the Beam SDKs to create data processing pipelines. It provides guidance for using the Beam SDK classes to build and test your pipeline. It is not intended as an exhaustive reference, but as a language-agnostic, high-level guide to programmatically building your Beam pipeline. As the programming guide is filled out, the text will include code samples in multiple languages to help illustrate how to implement Beam concepts in your programs.</p>
 
+<nav class="language-switcher">
+  <strong>Adapt for:</strong> 
+  <ul>
+    <li data-type="language-java">Java SDK</li>
+    <li data-type="language-py">Python SDK</li>
+  </ul>
+</nav>
+
 <h2 id="contents">Contents</h2>
 
 <ul>
@@ -219,13 +227,13 @@
 
 <h2 id="a-namepipelineacreating-the-pipeline"><a name="pipeline"></a>Creating the Pipeline</h2>
 
-<p>The <code class="highlighter-rouge">Pipeline</code> abstraction encapsulates all the data and steps in your data processing task. Your Beam driver program typically starts by constructing a <a href="https://github.com/apache/beam/blob/master/sdks/java/core/src/main/java/org/apache/beam/sdk/Pipeline.java">Pipeline</a> object, and then using that object as the basis for creating the pipeline’s data sets as <code class="highlighter-rouge">PCollection</code>s and its operations as <code class="highlighter-rouge">Transform</code>s.</p>
+<p>The <code class="highlighter-rouge">Pipeline</code> abstraction encapsulates all the data and steps in your data processing task. Your Beam driver program typically starts by constructing a <span class="language-java"><a href="/documentation/sdks/javadoc/0.3.0-incubating/index.html?org/apache/beam/sdk/Pipeline.html">Pipeline</a></span><span class="language-py"><a href="https://github.com/apache/beam/blob/python-sdk/sdks/python/apache_beam/pipeline.py">Pipeline</a></span> object, and then using that object as the basis for creating the pipeline’s data sets as <code class="highlighter-rouge">PCollection</code>s and its operations as <code class="highlighter-rouge">Transform</code>s.</p>
 
 <p>To use Beam, your driver program must first create an instance of the Beam SDK class <code class="highlighter-rouge">Pipeline</code> (typically in the <code class="highlighter-rouge">main()</code> function). When you create your <code class="highlighter-rouge">Pipeline</code>, you’ll also need to set some <strong>configuration options</strong>. You can set your pipeline’s configuration options programatically, but it’s often easier to set the options ahead of time (or read them from the command line) and pass them to the <code class="highlighter-rouge">Pipeline</code> object when you create the object.</p>
 
 <p>The pipeline configuration options determine, among other things, the <code class="highlighter-rouge">PipelineRunner</code> that determines where the pipeline gets executed: locally, or using a distributed back-end of your choice. Depending on where your pipeline gets executed and what your specifed Runner requires, the options can also help you specify other aspects of execution.</p>
 
-<p>To set your pipeline’s configuration options and create the pipeline, create an object of type <a href="https://github.com/apache/beam/blob/master/sdks/java/core/src/main/java/org/apache/beam/sdk/options/PipelineOptions.java">PipelineOptions</a> and pass it to <code class="highlighter-rouge">Pipeline.Create()</code>. The most common way to do this is by parsing arguments from the command-line:</p>
+<p>To set your pipeline’s configuration options and create the pipeline, create an object of type <span class="language-java"><a href="/documentation/sdks/javadoc/0.3.0-incubating/index.html?org/apache/beam/sdk/options/PipelineOptions.html">PipelineOptions</a></span><span class="language-py"><a href="https://github.com/apache/beam/blob/python-sdk/sdks/python/apache_beam/utils/options.py">PipelineOptions</a></span> and pass it to <code class="highlighter-rouge">Pipeline.Create()</code>. The most common way to do this is by parsing arguments from the command-line:</p>
 
 <div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="kd">public</span> <span class="kd">static</span> <span class="kt">void</span> <span class="nf">main</span><span class="o">(</span><span class="n">String</span><span class="o">[]</span> <span class="n">args</span><span class="o">)</span> <span class="o">{</span>
    <span class="c1">// Will parse the arguments passed into the application and construct a PipelineOptions</span>
@@ -238,11 +246,19 @@
 </code></pre>
 </div>
 
+<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="kn">from</span> <span class="nn">apache_beam.utils.options</span> <span class="kn">import</span> <span class="n">PipelineOptions</span>
+
+<span class="c"># Will parse the arguments passed into the application and construct a PipelineOptions</span>
+<span class="c"># Note that --help will print registered options.</span>
+<span class="n">p</span> <span class="o">=</span> <span class="n">beam</span><span class="o">.</span><span class="n">Pipeline</span><span class="p">(</span><span class="n">options</span><span class="o">=</span><span class="n">PipelineOptions</span><span class="p">())</span>
+</code></pre>
+</div>
+
 <p>The Beam SDKs contain various subclasses of <code class="highlighter-rouge">PipelineOptions</code> that correspond to different Runners. For example, <code class="highlighter-rouge">DirectPipelineOptions</code> contains options for the Direct (local) pipeline runner, while <code class="highlighter-rouge">DataflowPipelineOptions</code> contains options for using the runner for Google Cloud Dataflow. You can also define your own custom <code class="highlighter-rouge">PipelineOptions</code> by creating an interface that extends the Beam SDKs’ <code class="highlighter-rouge">PipelineOptions</code> class.</p>
 
 <h2 id="a-namepcollectionaworking-with-pcollections"><a name="pcollection"></a>Working with PCollections</h2>
 
-<p>The <a href="https://github.com/apache/beam/blob/master/sdks/java/core/src/main/java/org/apache/beam/sdk/values/PCollection.java">PCollection</a> abstraction represents a potentially distributed, multi-element data set. You can think of a <code class="highlighter-rouge">PCollection</code> as “pipeline” data; Beam transforms use <code class="highlighter-rouge">PCollection</code> objects as inputs and outputs. As such, if you want to work with data in your pipeline, it must be in the form of a <code class="highlighter-rouge">PCollection</code>.</p>
+<p>The <span class="language-java"><a href="/documentation/sdks/javadoc/0.3.0-incubating/index.html?org/apache/beam/sdk/values/PCollection.html">PCollection</a></span><span class="language-py"><code class="highlighter-rouge">PCollection</code></span> abstraction represents a potentially distributed, multi-element data set. You can think of a <code class="highlighter-rouge">PCollection</code> as “pipeline” data; Beam transforms use <code class="highlighter-rouge">PCollection</code> objects as inputs and outputs. As such, if you want to work with data in your pipeline, it must be in the form of a <code class="highlighter-rouge">PCollection</code>.</p>
 
 <p>After you’ve created your <code class="highlighter-rouge">Pipeline</code>, you’ll need to begin by creating at least one <code class="highlighter-rouge">PCollection</code> in some form. The <code class="highlighter-rouge">PCollection</code> you create serves as the input for the first operation in your pipeline.</p>
 
@@ -254,7 +270,7 @@
 
 <p>To read from an external source, you use one of the <a href="#io">Beam-provided I/O adapters</a>. The adapters vary in their exact usage, but all of them from some external data source and return a <code class="highlighter-rouge">PCollection</code> whose elements represent the data records in that source.</p>
 
-<p>Each data source adapter has a <code class="highlighter-rouge">Read</code> transform; to read, you must apply that transform to the <code class="highlighter-rouge">Pipeline</code> object itself. <code class="highlighter-rouge">TextIO.Read</code>, for example, reads from an external text file and returns a <code class="highlighter-rouge">PCollection</code> whose elements are of type <code class="highlighter-rouge">String</code>; each <code class="highlighter-rouge">String</code> represents one line from the text file. Here’s how you would apply <code class="highlighter-rouge">TextIO.Read</code> to your <code class="highlighter-rouge">Pipeline</code> to create a <code class="highlighter-rouge">PCollection</code>:</p>
+<p>Each data source adapter has a <code class="highlighter-rouge">Read</code> transform; to read, you must apply that transform to the <code class="highlighter-rouge">Pipeline</code> object itself. <span class="language-java"><code class="highlighter-rouge">TextIO.Read</code></span><span class="language-py"><code class="highlighter-rouge">io.TextFileSource</code></span>, for example, reads from an external text file and returns a <code class="highlighter-rouge">PCollection</code> whose elements are of type <code class="highlighter-rouge">String</code>, each <code class="highlighter-rouge">String</code> represents one line from the text file. Here’s how you would apply <span class="language-java"><code class="highlighter-rouge">TextIO.Read</code></span><span class="language-py"><code class="highlighter-rouge">io.TextFileSource</code></span> to your <code class="highlighter-rouge">Pipeline</code> to create a <code class="highlighter-rouge">PCollection</code>:</p>
 
 <div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="kd">public</span> <span class="kd">static</span> <span class="kt">void</span> <span class="nf">main</span><span class="o">(</span><span class="n">String</span><span class="o">[]</span> <span class="n">args</span><span class="o">)</span> <span class="o">{</span>
     <span class="c1">// Create the pipeline.</span>
@@ -263,8 +279,18 @@
     <span class="n">Pipeline</span> <span class="n">p</span> <span class="o">=</span> <span class="n">Pipeline</span><span class="o">.</span><span class="na">create</span><span class="o">(</span><span class="n">options</span><span class="o">);</span>
 
     <span class="n">PCollection</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">lines</span> <span class="o">=</span> <span class="n">p</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span>
-      <span class="n">TextIO</span><span class="o">.</span><span class="na">Read</span><span class="o">.</span><span class="na">named</span><span class="o">(</span><span class="s">"ReadMyFile"</span><span class="o">).</span><span class="na">from</span><span class="o">(</span><span class="s">"gs://some/inputData.txt"</span><span class="o">));</span>
+      <span class="n">TextIO</span><span class="o">.</span><span class="na">Read</span><span class="o">.</span><span class="na">named</span><span class="o">(</span><span class="s">"ReadMyFile"</span><span class="o">).</span><span class="na">from</span><span class="o">(</span><span class="s">"protocol://path/to/some/inputData.txt"</span><span class="o">));</span>
 <span class="o">}</span>
+</code></pre>
+</div>
+
+<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">apache_beam</span> <span class="kn">as</span> <span class="nn">beam</span>
+
+<span class="c"># Create the pipeline.</span>
+<span class="n">p</span> <span class="o">=</span> <span class="n">beam</span><span class="o">.</span><span class="n">Pipeline</span><span class="p">()</span>
+
+<span class="c"># Read the text file into a PCollection.</span>
+<span class="n">lines</span> <span class="o">=</span> <span class="n">p</span> <span class="o">|</span> <span class="s">'ReadMyFile'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">Read</span><span class="p">(</span><span class="n">beam</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">TextFileSource</span><span class="p">(</span><span class="s">"protocol://path/to/some/inputData.txt"</span><span class="p">))</span>
 </code></pre>
 </div>
 
@@ -272,11 +298,13 @@
 
 <h4 id="creating-a-pcollection-from-in-memory-data">Creating a PCollection from In-Memory Data</h4>
 
-<p>To create a <code class="highlighter-rouge">PCollection</code> from an in-memory Java <code class="highlighter-rouge">Collection</code>, you use the Beam-provided <code class="highlighter-rouge">Create</code> transform. Much like a data adapter’s <code class="highlighter-rouge">Read</code>, you apply <code class="highlighter-rouge">Create</code> sirectly to your <code class="highlighter-rouge">Pipeline</code> object itself.</p>
+<p class="language-java">To create a <code class="highlighter-rouge">PCollection</code> from an in-memory Java <code class="highlighter-rouge">Collection</code>, you use the Beam-provided <code class="highlighter-rouge">Create</code> transform. Much like a data adapter’s <code class="highlighter-rouge">Read</code>, you apply <code class="highlighter-rouge">Create</code> directly to your <code class="highlighter-rouge">Pipeline</code> object itself.</p>
 
-<p>As parameters, <code class="highlighter-rouge">Create</code> accepts the Java <code class="highlighter-rouge">Collection</code> and a <code class="highlighter-rouge">Coder</code> object. The <code class="highlighter-rouge">Coder</code> specifies how the elements in the <code class="highlighter-rouge">Collection</code> should be <a href="#pcelementtype">encoded</a>.</p>
+<p class="language-java">As parameters, <code class="highlighter-rouge">Create</code> accepts the Java <code class="highlighter-rouge">Collection</code> and a <code class="highlighter-rouge">Coder</code> object. The <code class="highlighter-rouge">Coder</code> specifies how the elements in the <code class="highlighter-rouge">Collection</code> should be <a href="#pcelementtype">encoded</a>.</p>
 
-<p>The following example code shows how to create a <code class="highlighter-rouge">PCollection</code> from an in-memory Java <code class="highlighter-rouge">List</code>:</p>
+<p class="language-py">To create a <code class="highlighter-rouge">PCollection</code> from an in-memory <code class="highlighter-rouge">list</code>, you use the Beam-provided <code class="highlighter-rouge">Create</code> transform. Apply this transform directly to your <code class="highlighter-rouge">Pipeline</code> object itself.</p>
+
+<p>The following example code shows how to create a <code class="highlighter-rouge">PCollection</code> from an in-memory <span class="language-java"><code class="highlighter-rouge">List</code></span><span class="language-py"><code class="highlighter-rouge">list</code></span>:</p>
 
 <div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="kd">public</span> <span class="kd">static</span> <span class="kt">void</span> <span class="nf">main</span><span class="o">(</span><span class="n">String</span><span class="o">[]</span> <span class="n">args</span><span class="o">)</span> <span class="o">{</span>
     <span class="c1">// Create a Java Collection, in this case a List of Strings.</span>
@@ -296,7 +324,25 @@
 <span class="o">}</span>
 </code></pre>
 </div>
-<h3 id="a-namepccharacteristicspcollection-characteristics"><a name="pccharacteristics">PCollection Characteristics</a></h3>
+
+<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">apache_beam</span> <span class="kn">as</span> <span class="nn">beam</span>
+
+<span class="c"># python list</span>
+<span class="n">lines</span> <span class="o">=</span> <span class="p">[</span>
+  <span class="s">"To be, or not to be: that is the question: "</span><span class="p">,</span>
+  <span class="s">"Whether 'tis nobler in the mind to suffer "</span><span class="p">,</span>
+  <span class="s">"The slings and arrows of outrageous fortune, "</span><span class="p">,</span>
+  <span class="s">"Or to take arms against a sea of troubles, "</span>
+<span class="p">]</span>
+
+<span class="c"># Create the pipeline.</span>
+<span class="n">p</span> <span class="o">=</span> <span class="n">beam</span><span class="o">.</span><span class="n">Pipeline</span><span class="p">()</span>
+
+<span class="n">collection</span> <span class="o">=</span> <span class="n">p</span> <span class="o">|</span> <span class="s">'ReadMyLines'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Create</span><span class="p">(</span><span class="n">lines</span><span class="p">)</span>
+</code></pre>
+</div>
+
+<h3 id="a-namepccharacteristicsapcollection-characteristics"><a name="pccharacteristics"></a>PCollection Characteristics</h3>
 
 <p>A <code class="highlighter-rouge">PCollection</code> is owned by the specific <code class="highlighter-rouge">Pipeline</code> object for which it is created; multiple pipelines cannot share a <code class="highlighter-rouge">PCollection</code>. In some respects, a <code class="highlighter-rouge">PCollection</code> functions like a collection class. However, a <code class="highlighter-rouge">PCollection</code> can differ in a few key ways:</p>
 
@@ -338,9 +384,13 @@
 
 <p>In the Beam SDKs, <strong>transforms</strong> are the operations in your pipeline. A transform takes a <code class="highlighter-rouge">PCollection</code> (or more than one <code class="highlighter-rouge">PCollection</code>) as input, performs an operation that you specify on each element in that collection, and produces a new output <code class="highlighter-rouge">PCollection</code>. To invoke a transform, you must <strong>apply</strong> it to the input <code class="highlighter-rouge">PCollection</code>.</p>
 
-<p>In Beam SDK for Java, each transform has a generic <code class="highlighter-rouge">apply</code> method. In the Beam SDK for Python, you use the pipe operator (<code class="highlighter-rouge">|</code>) to apply a transform. Invoking multiple Beam transforms is similar to <em>method chaining</em>, but with one slight difference: You apply the transform to the input <code class="highlighter-rouge">PCollection</code>, passing the transform itself as an argument, and the operation returns the output <code class="highlighter-rouge">PCollection</code>. This takes the general form:</p>
+<p>In Beam SDK each transform has a generic <code class="highlighter-rouge">apply</code> method <span class="language-py">(or pipe operator <code class="highlighter-rouge">|</code>)</span>. Invoking multiple Beam transforms is similar to <em>method chaining</em>, but with one slight difference: You apply the transform to the input <code class="highlighter-rouge">PCollection</code>, passing the transform itself as an argument, and the operation returns the output <code class="highlighter-rouge">PCollection</code>. This takes the general form:</p>
 
 <div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="o">[</span><span class="n">Output</span> <span class="n">PCollection</span><span class="o">]</span> <span class="o">=</span> <span class="o">[</span><span class="n">Input</span> <span class="n">PCollection</span><span class="o">].</span><span class="na">apply</span><span class="o">([</span><span class="n">Transform</span><span class="o">])</span>
+</code></pre>
+</div>
+
+<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="p">[</span><span class="n">Output</span> <span class="n">PCollection</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="n">Input</span> <span class="n">PCollection</span><span class="p">]</span> <span class="o">|</span> <span class="p">[</span><span class="n">Transform</span><span class="p">]</span>
 </code></pre>
 </div>
 
@@ -354,14 +404,20 @@
 </code></pre>
 </div>
 
+<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="p">[</span><span class="n">Final</span> <span class="n">Output</span> <span class="n">PCollection</span><span class="p">]</span> <span class="o">=</span> <span class="p">([</span><span class="n">Initial</span> <span class="n">Input</span> <span class="n">PCollection</span><span class="p">]</span> <span class="o">|</span> <span class="p">[</span><span class="n">First</span> <span class="n">Transform</span><span class="p">]</span>
+              <span class="o">|</span> <span class="p">[</span><span class="n">Second</span> <span class="n">Transform</span><span class="p">]</span>
+              <span class="o">|</span> <span class="p">[</span><span class="n">Third</span> <span class="n">Transform</span><span class="p">])</span>
+</code></pre>
+</div>
+
 <p>The resulting workflow graph of the above pipeline looks like this:</p>
 
 <p>[Sequential Graph Graphic]</p>
 
 <p>However, note that a transform <em>does not consume or otherwise alter</em> the input collection–remember that a <code class="highlighter-rouge">PCollection</code> is immutable by definition. This means that you can apply multiple transforms to the same input <code class="highlighter-rouge">PCollection</code> to create a branching pipeline, like so:</p>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="o">[</span><span class="n">Output</span> <span class="n">PCollection</span> <span class="mi">1</span><span class="o">]</span> <span class="o">=</span> <span class="o">[</span><span class="n">Input</span> <span class="n">PCollection</span><span class="o">].</span><span class="na">apply</span><span class="o">([</span><span class="n">Transform</span> <span class="mi">1</span><span class="o">])</span>
-<span class="o">[</span><span class="n">Output</span> <span class="n">PCollection</span> <span class="mi">2</span><span class="o">]</span> <span class="o">=</span> <span class="o">[</span><span class="n">Input</span> <span class="n">PCollection</span><span class="o">].</span><span class="na">apply</span><span class="o">([</span><span class="n">Transform</span> <span class="mi">2</span><span class="o">])</span>
+<div class="highlighter-rouge"><pre class="highlight"><code>[Output PCollection 1] = [Input PCollection].apply([Transform 1])
+[Output PCollection 2] = [Input PCollection].apply([Transform 2])
 </code></pre>
 </div>
 
@@ -425,6 +481,22 @@
 </code></pre>
 </div>
 
+<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="c"># The input PCollection of Strings.</span>
+<span class="n">words</span> <span class="o">=</span> <span class="o">...</span>
+
+<span class="c"># The DoFn to perform on each element in the input PCollection.</span>
+<span class="k">class</span> <span class="nc">ComputeWordLengthFn</span><span class="p">(</span><span class="n">beam</span><span class="o">.</span><span class="n">DoFn</span><span class="p">):</span>
+  <span class="k">def</span> <span class="nf">process</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">context</span><span class="p">):</span>
+    <span class="c"># Get the input element from ProcessContext.</span>
+    <span class="n">word</span> <span class="o">=</span> <span class="n">context</span><span class="o">.</span><span class="n">element</span>
+    <span class="c"># Use return to emit the output element.</span>
+    <span class="k">return</span> <span class="p">[</span><span class="nb">len</span><span class="p">(</span><span class="n">word</span><span class="p">)]</span>
+
+<span class="c"># Apply a ParDo to the PCollection "words" to compute lengths for each word.</span>
+<span class="n">word_lengths</span> <span class="o">=</span> <span class="n">words</span> <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">ParDo</span><span class="p">(</span><span class="n">ComputeWordLengthFn</span><span class="p">())</span>
+</code></pre>
+</div>
+
 <p>In the example, our input <code class="highlighter-rouge">PCollection</code> contains <code class="highlighter-rouge">String</code> values. We apply a <code class="highlighter-rouge">ParDo</code> transform that specifies a function (<code class="highlighter-rouge">ComputeWordLengthFn</code>) to compute the length of each string, and outputs the result to a new <code class="highlighter-rouge">PCollection</code> of <code class="highlighter-rouge">Integer</code> values that stores the length of each word.</p>
 
 <h5 id="creating-a-dofn">Creating a DoFn</h5>
@@ -435,13 +507,15 @@
   <p><strong>Note:</strong> When you create your <code class="highlighter-rouge">DoFn</code>, be mindful of the <a href="#transforms-usercodereqs">General Requirements for Writing User Code for Beam Transforms</a> and ensure that your code follows them.</p>
 </blockquote>
 
-<p>A <code class="highlighter-rouge">DoFn</code> processes one element at a time from the input <code class="highlighter-rouge">PCollection</code>. When you create a subclass of <code class="highlighter-rouge">DoFn</code>, you’ll need to provide type paraemters that match the types of the input and output elements. If your <code class="highlighter-rouge">DoFn</code> processes incoming <code class="highlighter-rouge">String</code> elements and produces <code class="highlighter-rouge">Integer</code> elements for the output collection (like our previous example, <code class="highlighter-rouge">ComputeWordLengthFn</code>), your class declaration would look like this:</p>
+<p class="language-java">A <code class="highlighter-rouge">DoFn</code> processes one element at a time from the input <code class="highlighter-rouge">PCollection</code>. When you create a subclass of <code class="highlighter-rouge">DoFn</code>, you’ll need to provide type paraemters that match the types of the input and output elements. If your <code class="highlighter-rouge">DoFn</code> processes incoming <code class="highlighter-rouge">String</code> elements and produces <code class="highlighter-rouge">Integer</code> elements for the output collection (like our previous example, <code class="highlighter-rouge">ComputeWordLengthFn</code>), your class declaration would look like this:</p>
 
 <div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="kd">static</span> <span class="kd">class</span> <span class="nc">ComputeWordLengthFn</span> <span class="kd">extends</span> <span class="n">DoFn</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">Integer</span><span class="o">&gt;</span> <span class="o">{</span> <span class="o">...</span> <span class="o">}</span>
 </code></pre>
 </div>
 
-<p>Inside your <code class="highlighter-rouge">DoFn</code> subclass, you’ll write a method annotated with <code class="highlighter-rouge">@ProcessElement</code> where you provide the actual processing logic. You don’t need to manually extract the elements from the input collection; the Beam SDKs handle that for you. Your <code class="highlighter-rouge">@ProcessElement</code> method should accept an object of type <code class="highlighter-rouge">ProcessContext</code>. The <code class="highlighter-rouge">ProcessContext</code> object gives you access to an input element and a method for emitting an output element:</p>
+<p class="language-java">Inside your <code class="highlighter-rouge">DoFn</code> subclass, you’ll write a method annotated with <code class="highlighter-rouge">@ProcessElement</code> where you provide the actual processing logic. You don’t need to manually extract the elements from the input collection; the Beam SDKs handle that for you. Your <code class="highlighter-rouge">@ProcessElement</code> method should accept an object of type <code class="highlighter-rouge">ProcessContext</code>. The <code class="highlighter-rouge">ProcessContext</code> object gives you access to an input element and a method for emitting an output element:</p>
+
+<p class="language-py">Inside your <code class="highlighter-rouge">DoFn</code> subclass, you’ll write a method <code class="highlighter-rouge">process</code> where you provide the actual processing logic. You don’t need to manually extract the elements from the input collection; the Beam SDKs handle that for you. Your <code class="highlighter-rouge">process</code> method should accept an object of type <code class="highlighter-rouge">context</code>. The <code class="highlighter-rouge">context</code> object gives you access to an input element and output is emitted by using <code class="highlighter-rouge">yield</code> or <code class="highlighter-rouge">return</code> statement inside <code class="highlighter-rouge">process</code> method.</p>
 
 <div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="kd">static</span> <span class="kd">class</span> <span class="nc">ComputeWordLengthFn</span> <span class="kd">extends</span> <span class="n">DoFn</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">Integer</span><span class="o">&gt;</span> <span class="o">{</span>
   <span class="nd">@ProcessElement</span>
@@ -455,24 +529,33 @@
 </code></pre>
 </div>
 
-<blockquote>
+<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="k">class</span> <span class="nc">ComputeWordLengthFn</span><span class="p">(</span><span class="n">beam</span><span class="o">.</span><span class="n">DoFn</span><span class="p">):</span>
+  <span class="k">def</span> <span class="nf">process</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">context</span><span class="p">):</span>
+    <span class="c"># Get the input element from ProcessContext.</span>
+    <span class="n">word</span> <span class="o">=</span> <span class="n">context</span><span class="o">.</span><span class="n">element</span>
+    <span class="c"># Use return to emit the output element.</span>
+    <span class="k">return</span> <span class="p">[</span><span class="nb">len</span><span class="p">(</span><span class="n">word</span><span class="p">)]</span>
+</code></pre>
+</div>
+
+<blockquote class="language-java">
   <p><strong>Note:</strong> If the elements in your input <code class="highlighter-rouge">PCollection</code> are key/value pairs, you can access the key or value by using <code class="highlighter-rouge">ProcessContext.element().getKey()</code> or <code class="highlighter-rouge">ProcessContext.element().getValue()</code>, respectively.</p>
 </blockquote>
 
-<p>A given <code class="highlighter-rouge">DoFn</code> instance generally gets invoked one or more times to process some arbitrary bundle of elements. However, Beam doesn’t guarantee an exact number of invocations; it may be invoked multiple times on a given worker node to account for failures and retries. As such, you can cache information across multiple calls to your <code class="highlighter-rouge">@ProcessElement</code> method, but if you do so, make sure the implementation <strong>does not depend on the number of invocations</strong>.</p>
+<p>A given <code class="highlighter-rouge">DoFn</code> instance generally gets invoked one or more times to process some arbitrary bundle of elements. However, Beam doesn’t guarantee an exact number of invocations; it may be invoked multiple times on a given worker node to account for failures and retries. As such, you can cache information across multiple calls to your processing method, but if you do so, make sure the implementation <strong>does not depend on the number of invocations</strong>.</p>
 
-<p>In your <code class="highlighter-rouge">@ProcessElement</code> method, you’ll also need to meet some immutability requirements to ensure that Beam and the processing back-end can safely serialize and cache the values in your pipeline. Your method should meet the following requirements:</p>
+<p>In your processing method, you’ll also need to meet some immutability requirements to ensure that Beam and the processing back-end can safely serialize and cache the values in your pipeline. Your method should meet the following requirements:</p>
 
-<ul>
+<ul class="language-java">
   <li>You should not in any way modify an element returned by <code class="highlighter-rouge">ProcessContext.element()</code> or <code class="highlighter-rouge">ProcessContext.sideInput()</code> (the incoming elements from the input collection).</li>
   <li>Once you output a value using <code class="highlighter-rouge">ProcessContext.output()</code> or <code class="highlighter-rouge">ProcessContext.sideOutput()</code>, you should not modify that value in any way.</li>
 </ul>
 
 <h5 id="lightweight-dofns-and-other-abstractions">Lightweight DoFns and Other Abstractions</h5>
 
-<p>If your function is relatively straightforward, you can simply your use of <code class="highlighter-rouge">ParDo</code> by providing a lightweight <code class="highlighter-rouge">DoFn</code> in-line. In Java, you can specify your <code class="highlighter-rouge">DoFn</code> as an anonymous inner class instance, and in Python you can use a <code class="highlighter-rouge">Callable</code>.</p>
+<p>If your function is relatively straightforward, you can simplify your use of <code class="highlighter-rouge">ParDo</code> by providing a lightweight <code class="highlighter-rouge">DoFn</code> in-line, as <span class="language-java">an anonymous inner class instance</span><span class="language-py">a lambda function</span>.</p>
 
-<p>Here’s the previous example, <code class="highlighter-rouge">ParDo</code> with <code class="highlighter-rouge">ComputeLengthWordsFn</code>, with the <code class="highlighter-rouge">DoFn</code> specified as an anonymous inner class instance:</p>
+<p>Here’s the previous example, <code class="highlighter-rouge">ParDo</code> with <code class="highlighter-rouge">ComputeLengthWordsFn</code>, with the <code class="highlighter-rouge">DoFn</code> specified as <span class="language-java">an anonymous inner class instance</span><span class="language-py">a lambda function</span>:</p>
 
 <div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="c1">// The input PCollection.</span>
 <span class="n">PCollection</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">words</span> <span class="o">=</span> <span class="o">...;</span>
@@ -491,22 +574,40 @@
 </code></pre>
 </div>
 
-<p>If your <code class="highlighter-rouge">ParDo</code> performs a one-to-one mapping of input elements to output elements–that is, for each input element, it applies a function that produces <em>exactly one</em> output element, you can use the higher-level <code class="highlighter-rouge">MapElements</code> transform. <code class="highlighter-rouge">MapElements</code> can accept an anonymous Java 8 lambda function for additional brevity.</p>
+<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="c"># The input PCollection of strings.</span>
+<span class="n">words</span> <span class="o">=</span> <span class="o">...</span>
 
-<p>Here’s the previous example using <code class="highlighter-rouge">MapElements</code>:</p>
-
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="c1">// The input PCollection.</span>
-<span class="n">PCollection</span><span class="o">&amp;</span><span class="n">lt</span><span class="o">;</span><span class="n">String</span><span class="o">&amp;</span><span class="n">gt</span><span class="o">;</span> <span class="n">words</span> <span class="o">=</span> <span class="o">...;</span>
-
-<span class="c1">// Apply a MapElements with an anonymous lambda function to the PCollection words.</span>
-<span class="c1">// Save the result as the PCollection wordLengths.</span>
-<span class="n">PCollection</span><span class="o">&amp;</span><span class="n">lt</span><span class="o">;</span><span class="n">Integer</span><span class="o">&amp;</span><span class="n">gt</span><span class="o">;</span> <span class="n">wordLengths</span> <span class="o">=</span> <span class="n">words</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span>
-  <span class="n">MapElements</span><span class="o">.</span><span class="na">via</span><span class="o">((</span><span class="n">String</span> <span class="n">word</span><span class="o">)</span> <span class="o">-&amp;</span><span class="n">gt</span><span class="o">;</span> <span class="n">word</span><span class="o">.</span><span class="na">length</span><span class="o">())</span>
-      <span class="o">.</span><span class="na">withOutputType</span><span class="o">(</span><span class="k">new</span> <span class="n">TypeDescriptor</span><span class="o">&amp;</span><span class="n">lt</span><span class="o">;</span><span class="n">Integer</span><span class="o">&amp;</span><span class="n">gt</span><span class="o">;()</span> <span class="o">{});</span>
+<span class="c"># Apply a lambda function to the PCollection words.</span>
+<span class="c"># Save the result as the PCollection word_lengths.</span>
+<span class="n">word_lengths</span> <span class="o">=</span> <span class="n">words</span> <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">FlatMap</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="p">[</span><span class="nb">len</span><span class="p">(</span><span class="n">x</span><span class="p">)])</span>
 </code></pre>
 </div>
 
-<blockquote>
+<p>If your <code class="highlighter-rouge">ParDo</code> performs a one-to-one mapping of input elements to output elements–that is, for each input element, it applies a function that produces <em>exactly one</em> output element, you can use the higher-level <span class="language-java"><code class="highlighter-rouge">MapElements</code></span><span class="language-py"><code class="highlighter-rouge">Map</code></span> transform. <span class="language-java"><code class="highlighter-rouge">MapElements</code> can accept an anonymous Java 8 lambda function for additional brevity.</span></p>
+
+<p>Here’s the previous example using <span class="language-java"><code class="highlighter-rouge">MapElements</code></span><span class="language-py"><code class="highlighter-rouge">Map</code></span>:</p>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="c1">// The input PCollection.</span>
+<span class="n">PCollection</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">words</span> <span class="o">=</span> <span class="o">...;</span>
+
+<span class="c1">// Apply a MapElements with an anonymous lambda function to the PCollection words.</span>
+<span class="c1">// Save the result as the PCollection wordLengths.</span>
+<span class="n">PCollection</span><span class="o">&lt;</span><span class="n">Integer</span><span class="o">&gt;</span> <span class="n">wordLengths</span> <span class="o">=</span> <span class="n">words</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span>
+  <span class="n">MapElements</span><span class="o">.</span><span class="na">via</span><span class="o">((</span><span class="n">String</span> <span class="n">word</span><span class="o">)</span> <span class="o">-&gt;</span> <span class="n">word</span><span class="o">.</span><span class="na">length</span><span class="o">())</span>
+      <span class="o">.</span><span class="na">withOutputType</span><span class="o">(</span><span class="k">new</span> <span class="n">TypeDescriptor</span><span class="o">&lt;</span><span class="n">Integer</span><span class="o">&gt;()</span> <span class="o">{});</span>
+</code></pre>
+</div>
+
+<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="c"># The input PCollection of string.</span>
+<span class="n">words</span> <span class="o">=</span> <span class="o">...</span>
+
+<span class="c"># Apply a Map with a lambda function to the PCollection words.</span>
+<span class="c"># Save the result as the PCollection word_lengths.</span>
+<span class="n">word_lengths</span> <span class="o">=</span> <span class="n">words</span> <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="nb">len</span><span class="p">(</span><span class="n">x</span><span class="p">))</span>
+</code></pre>
+</div>
+
+<blockquote class="language-java">
   <p><strong>Note:</strong> You can use Java 8 lambda functions with several other Beam transforms, including <code class="highlighter-rouge">Filter</code>, <code class="highlighter-rouge">FlatMapElements</code>, and <code class="highlighter-rouge">Partition</code>.</p>
 </blockquote>
 
@@ -553,7 +654,7 @@ tree, [2]
 
 <h4 id="a-nametransforms-combineausing-combine"><a name="transforms-combine"></a>Using Combine</h4>
 
-<p><span class="language-java"><a href="/documentation/sdks/javadoc/0.3.0-incubating/index.html?org/apache/beam/sdk/transforms/Combine.html"><code class="highlighter-rouge">Combine</code></a></span><span class="language-python"><a href="https://github.com/apache/beam/blob/python-sdk/sdks/python/apache_beam/transforms/core.py"><code class="highlighter-rouge">Combine</code></a></span> is a Beam transform for combining collections of elements or values in your data. <code class="highlighter-rouge">Combine</code> has variants that work on entire <code class="highlighter-rouge">PCollection</code>s, and some that combine the values for each key in <code class="highlighter-rouge">PCollection</code>s of key/value pairs.</p>
+<p><span class="language-java"><a href="/documentation/sdks/javadoc/0.3.0-incubating/index.html?org/apache/beam/sdk/transforms/Combine.html"><code class="highlighter-rouge">Combine</code></a></span><span class="language-py"><a href="https://github.com/apache/beam/blob/python-sdk/sdks/python/apache_beam/transforms/core.py"><code class="highlighter-rouge">Combine</code></a></span> is a Beam transform for combining collections of elements or values in your data. <code class="highlighter-rouge">Combine</code> has variants that work on entire <code class="highlighter-rouge">PCollection</code>s, and some that combine the values for each key in <code class="highlighter-rouge">PCollection</code>s of key/value pairs.</p>
 
 <p>When you apply a <code class="highlighter-rouge">Combine</code> transform, you must provide the function that contains the logic for combining the elements or values. The combining function should be commutative and associative, as the function is not necessarily invoked exactly once on all values with a given key. Because the input data (including the value collection) may be distributed across multiple workers, the combining function might be called multiple times to perform partial combining on subsets of the value collection. The Beam SDK also provides some pre-built combine functions for common numeric combination operations such as sum, min, and max.</p>
 
@@ -577,7 +678,7 @@ tree, [2]
 </code></pre>
 </div>
 
-<div class="language-python highlighter-rouge"><pre class="highlight"><code><span class="c"># A bounded sum of positive integers.</span>
+<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="c"># A bounded sum of positive integers.</span>
 <span class="k">def</span> <span class="nf">bounded_sum</span><span class="p">(</span><span class="n">values</span><span class="p">,</span> <span class="n">bound</span><span class="o">=</span><span class="mi">500</span><span class="p">):</span>
   <span class="k">return</span> <span class="nb">min</span><span class="p">(</span><span class="nb">sum</span><span class="p">(</span><span class="n">values</span><span class="p">),</span> <span class="n">bound</span><span class="p">)</span>
 </code></pre>
@@ -640,7 +741,7 @@ tree, [2]
 </code></pre>
 </div>
 
-<div class="language-python highlighter-rouge"><pre class="highlight"><code><span class="n">pc</span> <span class="o">=</span> <span class="o">...</span>
+<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="n">pc</span> <span class="o">=</span> <span class="o">...</span>
 <span class="k">class</span> <span class="nc">AverageFn</span><span class="p">(</span><span class="n">beam</span><span class="o">.</span><span class="n">CombineFn</span><span class="p">):</span>
   <span class="k">def</span> <span class="nf">create_accumulator</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
     <span class="k">return</span> <span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
@@ -671,7 +772,7 @@ tree, [2]
 </code></pre>
 </div>
 
-<div class="language-python highlighter-rouge"><pre class="highlight"><code><span class="c"># sum combines the elements in the input PCollection.</span>
+<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="c"># sum combines the elements in the input PCollection.</span>
 <span class="c"># The resulting PCollection, called result, contains one value: the sum of all the elements in the input PCollection.</span>
 <span class="n">pc</span> <span class="o">=</span> <span class="o">...</span>
 <span class="n">result</span> <span class="o">=</span> <span class="n">pc</span> <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">CombineGlobally</span><span class="p">(</span><span class="nb">sum</span><span class="p">)</span>
@@ -690,7 +791,7 @@ tree, [2]
 </code></pre>
 </div>
 
-<div class="language-python highlighter-rouge"><pre class="highlight"><code><span class="n">pc</span> <span class="o">=</span> <span class="o">...</span>
+<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="n">pc</span> <span class="o">=</span> <span class="o">...</span>
 <span class="nb">sum</span> <span class="o">=</span> <span class="n">pc</span> <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">CombineGlobally</span><span class="p">(</span><span class="nb">sum</span><span class="p">)</span><span class="o">.</span><span class="n">without_defaults</span><span class="p">()</span>
 
 </code></pre>
@@ -736,7 +837,7 @@ tree, [2]
 </code></pre>
 </div>
 
-<div class="language-python highlighter-rouge"><pre class="highlight"><code><span class="c"># PCollection is grouped by key and the numeric values associated with each key are averaged into a float.</span>
+<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="c"># PCollection is grouped by key and the numeric values associated with each key are averaged into a float.</span>
 <span class="n">player_accuracies</span> <span class="o">=</span> <span class="o">...</span>
 <span class="n">avg_accuracy_per_player</span> <span class="o">=</span> <span class="p">(</span><span class="n">player_accuracies</span>
                            <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">CombinePerKey</span><span class="p">(</span>
@@ -746,7 +847,7 @@ tree, [2]
 
 <h4 id="a-nametransforms-flatten-partitionausing-flatten-and-partition"><a name="transforms-flatten-partition"></a>Using Flatten and Partition</h4>
 
-<p><span class="language-java"><a href="/documentation/sdks/javadoc/0.3.0-incubating/index.html?org/apache/beam/sdk/transforms/Flatten.html"><code class="highlighter-rouge">Flatten</code></a></span><span class="language-python"><a href="https://github.com/apache/beam/blob/python-sdk/sdks/python/apache_beam/transforms/core.py"><code class="highlighter-rouge">Flatten</code></a></span> and <span class="language-java"><a href="/documentation/sdks/javadoc/0.3.0-incubating/index.html?org/apache/beam/sdk/transforms/Partition.html"><code class="highlighter-rouge">Partition</code></a></span><span class="language-python"><a href="https://github.com/apache/beam/blob/python-sdk/sdks/python/apache_beam/transforms/core.py"><code class="highlighter-rouge">Partition</code></a></span> are Beam transforms for <code class="highlighter-rouge">PCollection</code> objects that store the same data type. <code class="highlighter-rouge">Flatten</code> merges multiple <code class="highlighter-rouge">PCollection</code> objects into a single logical <code class="highlighter-rouge">PCollection</code>, and <code class="highlighter-rouge">Partition</code> splits a single <code class="highlighter-rouge">PCollection</code> into a fixed number of smaller collections.</p>
+<p><span class="language-java"><a href="/documentation/sdks/javadoc/0.3.0-incubating/index.html?org/apache/beam/sdk/transforms/Flatten.html"><code class="highlighter-rouge">Flatten</code></a></span><span class="language-py"><a href="https://github.com/apache/beam/blob/python-sdk/sdks/python/apache_beam/transforms/core.py"><code class="highlighter-rouge">Flatten</code></a></span> and <span class="language-java"><a href="/documentation/sdks/javadoc/0.3.0-incubating/index.html?org/apache/beam/sdk/transforms/Partition.html"><code class="highlighter-rouge">Partition</code></a></span><span class="language-py"><a href="https://github.com/apache/beam/blob/python-sdk/sdks/python/apache_beam/transforms/core.py"><code class="highlighter-rouge">Partition</code></a></span> are Beam transforms for <code class="highlighter-rouge">PCollection</code> objects that store the same data type. <code class="highlighter-rouge">Flatten</code> merges multiple <code class="highlighter-rouge">PCollection</code> objects into a single logical <code class="highlighter-rouge">PCollection</code>, and <code class="highlighter-rouge">Partition</code> splits a single <code class="highlighter-rouge">PCollection</code> into a fixed number of smaller collections.</p>
 
 <h5 id="flatten"><strong>Flatten</strong></h5>
 
@@ -763,7 +864,7 @@ tree, [2]
 </code></pre>
 </div>
 
-<div class="language-python highlighter-rouge"><pre class="highlight"><code><span class="c"># Flatten takes a tuple of PCollection objects.</span>
+<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="c"># Flatten takes a tuple of PCollection objects.</span>
 <span class="c"># Returns a single PCollection that contains all of the elements in the PCollection objects in that tuple.</span>
 <span class="n">merged</span> <span class="o">=</span> <span class="p">(</span>
     <span class="p">(</span><span class="n">pcoll1</span><span class="p">,</span> <span class="n">pcoll2</span><span class="p">,</span> <span class="n">pcoll3</span><span class="p">)</span>
@@ -805,7 +906,7 @@ tree, [2]
 </code></pre>
 </div>
 
-<div class="language-python highlighter-rouge"><pre class="highlight"><code><span class="c"># Provide an int value with the desired number of result partitions, and a partitioning function (partition_fn in this example).</span>
+<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="c"># Provide an int value with the desired number of result partitions, and a partitioning function (partition_fn in this example).</span>
 <span class="c"># Returns a tuple of PCollection objects containing each of the resulting partitions as individual PCollection objects.</span>
 <span class="k">def</span> <span class="nf">partition_fn</span><span class="p">(</span><span class="n">student</span><span class="p">,</span> <span class="n">num_partitions</span><span class="p">):</span>
   <span class="k">return</span> <span class="nb">int</span><span class="p">(</span><span class="n">get_percentile</span><span class="p">(</span><span class="n">student</span><span class="p">)</span> <span class="o">*</span> <span class="n">num_partitions</span> <span class="o">/</span> <span class="mi">100</span><span class="p">)</span>
@@ -895,7 +996,7 @@ tree, [2]
 </code></pre>
 </div>
 
-<div class="language-python highlighter-rouge"><pre class="highlight"><code><span class="c"># Side inputs are available as extra arguments in the DoFn's process method or Map / FlatMap's callable.</span>
+<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="c"># Side inputs are available as extra arguments in the DoFn's process method or Map / FlatMap's callable.</span>
 <span class="c"># Optional, positional, and keyword arguments are all supported. Deferred arguments are unwrapped into their actual values.</span>
 <span class="c"># For example, using pvalue.AsIter(pcoll) at pipeline construction time results in an iterable of the actual elements of pcoll being passed into each process invocation.</span>
 <span class="c"># In this example, side inputs are passed to a FlatMap transform as extra arguments and consumed by filter_using_length.</span>
@@ -1004,7 +1105,7 @@ tree, [2]
 </code></pre>
 </div>
 
-<div class="language-python highlighter-rouge"><pre class="highlight"><code><span class="c"># To emit elements to a side output PCollection, invoke with_outputs() on the ParDo, optionally specifying the expected tags for the output.</span>
+<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="c"># To emit elements to a side output PCollection, invoke with_outputs() on the ParDo, optionally specifying the expected tags for the output.</span>
 <span class="c"># with_outputs() returns a DoOutputsTuple object. Tags specified in with_outputs are attributes on the returned DoOutputsTuple object.</span>
 <span class="c"># The tags give access to the corresponding output PCollections.</span>
 
@@ -1052,7 +1153,7 @@ tree, [2]
 </code></pre>
 </div>
 
-<div class="language-python highlighter-rouge"><pre class="highlight"><code><span class="c"># Inside your ParDo's DoFn, you can emit an element to a side output by wrapping the value and the output tag (str).</span>
+<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="c"># Inside your ParDo's DoFn, you can emit an element to a side output by wrapping the value and the output tag (str).</span>
 <span class="c"># using the pvalue.SideOutputValue wrapper class.</span>
 <span class="c"># Based on the previous example, this shows the DoFn emitting to the main and side outputs.</span>
 

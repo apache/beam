@@ -6056,3 +6056,17 @@ div.cap-toggle {
   position: absolute;
   font-size: 12px;
   font-weight: normal; }
+
+nav.language-switcher, nav.runner-switcher {
+  margin: 25px 0; }
+  nav.language-switcher ul, nav.runner-switcher ul {
+    display: inline;
+    padding-left: 5px; }
+    nav.language-switcher ul li, nav.runner-switcher ul li {
+      display: inline;
+      cursor: pointer;
+      padding: 10px;
+      background-color: #f8f8f8; }
+      nav.language-switcher ul li.active, nav.runner-switcher ul li.active {
+        background-color: #222c37;
+        color: #fff; }
