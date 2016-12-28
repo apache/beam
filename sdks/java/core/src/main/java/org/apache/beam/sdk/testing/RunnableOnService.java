@@ -23,11 +23,15 @@ package org.apache.beam.sdk.testing;
  * <pre><code>
  *     {@literal @}Test
  *     {@literal @}Category(RunnableOnService.class)
- *     public void testParDo() {
- *       Pipeline p = TestPipeline.create();
- *       p.apply(...);
- *       PAssert.that(p);
- *       p.run();
+ *     public class ParDoTest {
+ *       {@literal @}Rule
+ *       public final transient TestPipeline p = TestPipeline.create();
+ *
+ *       public void testParDo() {
+ *         p.apply(...);
+ *         PAssert.that(p);
+ *         p.run();
+ *       }
  *     }
  * </code></pre>
  */
