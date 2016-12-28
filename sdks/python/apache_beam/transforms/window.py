@@ -111,7 +111,7 @@ class WindowFn(object):
     raise NotImplementedError
 
   def get_window_coder(self):
-    return coders.PickleCoder()
+    return coders.WindowCoder()
 
   def get_transformed_output_time(self, window, input_timestamp):  # pylint: disable=unused-argument
     """Given input time and output window, returns output time for window.
@@ -240,7 +240,7 @@ class GlobalWindows(WindowFn):
     pass  # No merging.
 
   def get_window_coder(self):
-    return coders.SingletonCoder(GlobalWindow())
+    return coders.GlobalWindowCoder()
 
   def __hash__(self):
     return hash(type(self))

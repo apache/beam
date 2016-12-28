@@ -23,6 +23,13 @@ import google.protobuf
 
 from apache_beam.coders import coder_impl
 
+# pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports
+try:
+  from stream import get_varint_size
+except ImportError:
+  from slow_stream import get_varint_size
+# pylint: enable=wrong-import-order, wrong-import-position, ungrouped-imports
+
 
 # pylint: disable=wrong-import-order, wrong-import-position
 # Avoid dependencies on the full SDK.
@@ -161,7 +168,8 @@ class Coder(object):
         '@type': serialize_coder(self),
         'component_encodings': list(
             component.as_cloud_object()
-            for component in self._get_component_coders())
+            for component in self._get_component_coders()
+        ),
     }
     return value
 
@@ -501,9 +509,17 @@ class TupleCoder(FastCoder):
     return TupleCoder([registry.get_coder(t) for t in typehint.tuple_types])
 
   def as_cloud_object(self):
-    value = super(TupleCoder, self).as_cloud_object()
-    value['is_pair_like'] = True
-    return value
+    if self.is_kv_coder():
+      return {
+          '@type': 'kind:pair',
+          'is_pair_like': True,
+          'component_encodings': list(
+              component.as_cloud_object()
+              for component in self._get_component_coders()
+          ),
+      }
+
+    return super(TupleCoder, self).as_cloud_object()
 
   def _get_component_coders(self):
     return self.coders()
@@ -563,6 +579,16 @@ class IterableCoder(FastCoder):
   def is_deterministic(self):
     return self._elem_coder.is_deterministic()
 
+  def as_cloud_object(self):
+    return {
+        '@type': 'kind:stream',
+        'is_stream_like': True,
+        'component_encodings': [self._elem_coder.as_cloud_object()],
+    }
+
+  def value_coder(self):
+    return self._elem_coder
+
   @staticmethod
   def from_type_hint(typehint, registry):
     return IterableCoder(registry.get_coder(typehint.inner_type))
@@ -590,17 +616,27 @@ class WindowCoder(PickleCoder):
     return super(WindowCoder, self).as_cloud_object(is_pair_like=False)
 
 
+class GlobalWindowCoder(SingletonCoder):
+  """Coder for global windows."""
+
+  def __init__(self):
+    from apache_beam.transforms import window
+    super(GlobalWindowCoder, self).__init__(window.GlobalWindow())
+
+  def as_cloud_object(self):
+    return {
+        '@type': 'kind:global_window',
+    }
+
+
 class WindowedValueCoder(FastCoder):
   """Coder for windowed values."""
 
-  def __init__(self, wrapped_value_coder, timestamp_coder=None,
-               window_coder=None):
-    if not timestamp_coder:
-      timestamp_coder = TimestampCoder()
+  def __init__(self, wrapped_value_coder, window_coder=None):
     if not window_coder:
       window_coder = PickleCoder()
     self.wrapped_value_coder = wrapped_value_coder
-    self.timestamp_coder = timestamp_coder
+    self.timestamp_coder = TimestampCoder()
     self.window_coder = window_coder
 
   def _create_impl(self):
@@ -615,12 +651,16 @@ class WindowedValueCoder(FastCoder):
                                               self.window_coder])
 
   def as_cloud_object(self):
-    value = super(WindowedValueCoder, self).as_cloud_object()
-    value['is_wrapper'] = True
-    return value
+    return {
+        '@type': 'kind:windowed_value',
+        'is_wrapper': True,
+        'component_encodings': [
+            component.as_cloud_object()
+            for component in self._get_component_coders()],
+    }
 
   def _get_component_coders(self):
-    return [self.wrapped_value_coder, self.timestamp_coder, self.window_coder]
+    return [self.wrapped_value_coder, self.window_coder]
 
   def is_kv_coder(self):
     return self.wrapped_value_coder.is_kv_coder()
@@ -633,3 +673,36 @@ class WindowedValueCoder(FastCoder):
 
   def __repr__(self):
     return 'WindowedValueCoder[%s]' % self.wrapped_value_coder
+
+
+class LengthPrefixCoder(FastCoder):
+  """Coder which prefixes the length of the encoded object in the stream."""
+
+  def __init__(self, value_coder):
+    self._value_coder = value_coder
+
+  def _create_impl(self):
+    return coder_impl.LengthPrefixCoderImpl(self._value_coder)
+
+  def is_deterministic(self):
+    return self._value_coder.is_deterministic()
+
+  def estimate_size(self, value):
+    value_size = self._value_coder.estimate_size(value)
+    return get_varint_size(value_size) + value_size
+
+  def value_coder(self):
+    return self._value_coder
+
+  def as_cloud_object(self):
+    return {
+        '@type': 'kind:length_prefix',
+        'component_encodings': [self._value_coder.as_cloud_object()],
+    }
+
+  def _get_component_coders(self):
+    return (self._value_coder,)
+
+  def __repr__(self):
+    return 'LengthPrefixCoder[%r]' % self._value_coder
+

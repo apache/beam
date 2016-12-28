@@ -60,7 +60,7 @@ class CoderImpl(object):
     raise NotImplementedError
 
   def decode(self, encoded):
-    """Encodes an object to an unnested string."""
+    """Decodes an object to an unnested string."""
     raise NotImplementedError
 
   def estimate_size(self, value, nested=False):
@@ -535,7 +535,7 @@ class WindowedValueCoderImpl(StreamCoderImpl):
   """A coder for windowed values."""
 
   def __init__(self, value_coder, timestamp_coder, window_coder):
-    # TODO(robertwb): Do we need the ability to customize timestamp_coder?
+    # TODO(lcwik): Remove the timestamp coder field
     self._value_coder = value_coder
     self._timestamp_coder = timestamp_coder
     self._windows_coder = TupleSequenceCoderImpl(window_coder)
@@ -543,20 +543,15 @@ class WindowedValueCoderImpl(StreamCoderImpl):
   def encode_to_stream(self, value, out, nested):
     wv = value  # type cast
     self._value_coder.encode_to_stream(wv.value, out, True)
-    if isinstance(self._timestamp_coder, TimestampCoderImpl):
-      # Avoid creation of Timestamp object.
-      out.write_bigendian_int64(wv.timestamp_micros)
-    else:
-      self._timestamp_coder.encode_to_stream(wv.timestamp, out, True)
+    # Avoid creation of Timestamp object.
+    out.write_bigendian_int64(wv.timestamp_micros)
     self._windows_coder.encode_to_stream(wv.windows, out, True)
 
   def decode_from_stream(self, in_stream, nested):
     return windowed_value.create(
         self._value_coder.decode_from_stream(in_stream, True),
         # Avoid creation of Timestamp object.
-        in_stream.read_bigendian_int64()
-        if isinstance(self._timestamp_coder, TimestampCoderImpl)
-        else self._timestamp_coder.decode_from_stream(in_stream, True).micros,
+        in_stream.read_bigendian_int64(),
         self._windows_coder.decode_from_stream(in_stream, True))
 
   def get_estimated_size_and_observables(self, value, nested=False):
@@ -577,3 +572,23 @@ class WindowedValueCoderImpl(StreamCoderImpl):
     estimated_size += (
         self._windows_coder.estimate_size(value.windows, nested=True))
     return estimated_size, observables
+
+
+class LengthPrefixCoderImpl(StreamCoderImpl):
+  """Coder which prefixes the length of the encoded object in the stream."""
+
+  def __init__(self, value_coder):
+    self._value_coder = value_coder
+
+  def encode_to_stream(self, value, out, nested):
+    encoded_value = self._value_coder.encode(value)
+    out.write_var_int64(len(encoded_value))
+    out.write(encoded_value)
+
+  def decode_from_stream(self, in_stream, nested):
+    value_length = in_stream.read_var_int64()
+    return self._value_coder.decode(in_stream.read(value_length))
+
+  def estimate_size(self, value, nested=False):
+    value_size = self._value_coder.estimate_size(value)
+    return get_varint_size(value_size) + value_size

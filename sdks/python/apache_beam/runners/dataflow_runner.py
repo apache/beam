@@ -206,8 +206,7 @@ class DataflowRunner(PipelineRunner):
     if window_coder:
       return coders.WindowedValueCoder(
           coders.registry.get_coder(typehint),
-          coders.TimestampCoder(),
-          window_coder)
+          window_coder=window_coder)
     else:
       return coders.registry.get_coder(typehint)
 

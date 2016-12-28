@@ -28,6 +28,8 @@ from apache_beam.transforms import GroupByKey
 from apache_beam.transforms import Map
 from apache_beam.transforms import window
 from apache_beam.transforms import WindowInto
+from apache_beam.transforms.timeutil import MAX_TIMESTAMP
+from apache_beam.transforms.timeutil import MIN_TIMESTAMP
 from apache_beam.transforms.util import assert_that, equal_to
 from apache_beam.transforms.window import FixedWindows
 from apache_beam.transforms.window import IntervalWindow
@@ -54,6 +56,13 @@ reify_windows = core.ParDo(ReifyWindowsFn())
 
 
 class WindowTest(unittest.TestCase):
+
+  def test_global_window(self):
+    self.assertEqual(window.GlobalWindow(), window.GlobalWindow())
+    self.assertNotEqual(window.GlobalWindow(),
+                        window.IntervalWindow(MIN_TIMESTAMP, MAX_TIMESTAMP))
+    self.assertNotEqual(window.IntervalWindow(MIN_TIMESTAMP, MAX_TIMESTAMP),
+                        window.GlobalWindow())
 
   def test_fixed_windows(self):
     # Test windows with offset: 2, 7, 12, 17, ...
