@@ -27,6 +27,6 @@ job('beam_SeedJob_Website') {
 
   publishers {
     // Notify the mailing list for each failed build.
-    mailer('dev@beam.incubator.apache.org', false, false)
+    mailer('dev@beam.apache.org', false, false)
   }
 }

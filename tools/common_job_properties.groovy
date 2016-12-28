@@ -7,7 +7,7 @@ class common_job_properties {
 
     // GitHub project.
     context.properties {
-      githubProjectUrl('https://github.com/apache/incubator-beam-site/')
+      githubProjectUrl('https://github.com/apache/beam-site/')
     }
 
     // Restrict this project to run only on Jenkins executors dedicated to the
@@ -23,7 +23,7 @@ class common_job_properties {
     context.scm {
       git {
         remote {
-          url('https://github.com/apache/incubator-beam-site.git')
+          url('https://github.com/apache/beam-site.git')
           refspec('+refs/heads/*:refs/remotes/origin/* ' +
                   '+refs/pull/*:refs/remotes/origin/pr/*')
         }

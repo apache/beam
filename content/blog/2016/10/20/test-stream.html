@@ -14,8 +14,8 @@
   <script src="https://ajax.googleapis.com/ajax/libs/jquery/2.2.0/jquery.min.js"></script>
   <script src="/js/bootstrap.min.js"></script>
   <script src="/js/language-switch.js"></script>
-  <link rel="canonical" href="http://beam.incubator.apache.org/blog/2016/10/20/test-stream.html" data-proofer-ignore>
-  <link rel="alternate" type="application/rss+xml" title="Apache Beam (incubating)" href="http://beam.incubator.apache.org/feed.xml">
+  <link rel="canonical" href="http://beam.apache.org/blog/2016/10/20/test-stream.html" data-proofer-ignore>
+  <link rel="alternate" type="application/rss+xml" title="Apache Beam" href="http://beam.apache.org/feed.xml">
   <script>
     (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
     (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
@@ -191,8 +191,8 @@ from the Mobile Gaming example series.</p>
 
 <h2 id="leaderboard-and-the-mobile-gaming-example">LeaderBoard and the Mobile Gaming Example</h2>
 
-<p><a href="https://github.com/apache/incubator-beam/blob/master/examples/java8/src/main/java/org/apache/beam/examples/complete/game/LeaderBoard.java#L177">LeaderBoard</a>
-is part of the <a href="https://github.com/apache/incubator-beam/tree/master/examples/java8/src/main/java/org/apache/beam/examples/complete/game">Beam mobile gaming examples</a>
+<p><a href="https://github.com/apache/beam/blob/master/examples/java8/src/main/java/org/apache/beam/examples/complete/game/LeaderBoard.java#L177">LeaderBoard</a>
+is part of the <a href="https://github.com/apache/beam/tree/master/examples/java8/src/main/java/org/apache/beam/examples/complete/game">Beam mobile gaming examples</a>
 (and <a href="/get-started/mobile-gaming-example/">walkthroughs</a>)
 which produces a continuous accounting of user and team scores. User scores are
 calculated over the lifetime of the program, while team scores are calculated
@@ -209,7 +209,7 @@ be controlled within a test.</p>
 <a href="/documentation/sdks/javadoc/0.3.0-incubating/org/apache/beam/sdk/testing/PAssert.html">PAssert</a>
 methods, which assert properties about the contents of a PCollection from within
 a pipeline. We have expanded this infrastructure to include
-<a href="https://github.com/apache/incubator-beam/blob/master/sdks/java/core/src/main/java/org/apache/beam/sdk/testing/TestStream.java">TestStream</a>,
+<a href="https://github.com/apache/beam/blob/master/sdks/java/core/src/main/java/org/apache/beam/sdk/testing/TestStream.java">TestStream</a>,
 which is a PTransform that performs a series of events, consisting of adding
 additional elements to a pipeline, advancing the watermark of the TestStream,
 and advancing the pipeline processing time clock. TestStream permits tests which
