@@ -273,11 +273,11 @@ public class CoGbkResult {
       if (schema.size() == 0) {
         return;
       }
-      int nested = schema.size() - 1;
-      for (int unionTag = 0; unionTag < nested; unionTag++) {
+      int lastIndex = schema.size() - 1;
+      for (int unionTag = 0; unionTag < lastIndex; unionTag++) {
         tagListCoder(unionTag).encode(value.valueMap.get(unionTag), outStream, context.nested());
       }
-      tagListCoder(nested).encode(value.valueMap.get(nested), outStream, context);
+      tagListCoder(lastIndex).encode(value.valueMap.get(lastIndex), outStream, context);
     }
 
     @Override
@@ -288,12 +288,12 @@ public class CoGbkResult {
       if (schema.size() == 0) {
         return new CoGbkResult(schema, ImmutableList.<Iterable<?>>of());
       }
-      int nested = schema.size() - 1;
+      int lastIndex = schema.size() - 1;
       List<Iterable<?>> valueMap = Lists.newArrayListWithExpectedSize(schema.size());
-      for (int unionTag = 0; unionTag < nested; unionTag++) {
+      for (int unionTag = 0; unionTag < lastIndex; unionTag++) {
         valueMap.add(tagListCoder(unionTag).decode(inStream, context.nested()));
       }
-      valueMap.add(tagListCoder(nested).decode(inStream, context));
+      valueMap.add(tagListCoder(lastIndex).decode(inStream, context));
       return new CoGbkResult(schema, valueMap);
     }
 

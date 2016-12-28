@@ -997,11 +997,12 @@ public class CombineFns {
       if (value.length == 0) {
         return;
       }
+      int lastIndex = codersCount - 1;
       Context nestedContext = context.nested();
-      for (int i = 0; i < codersCount - 1; ++i) {
+      for (int i = 0; i < lastIndex; ++i) {
         coders.get(i).encode(value[i], outStream, nestedContext);
       }
-      coders.get(codersCount - 1).encode(value[codersCount - 1], outStream, context);
+      coders.get(lastIndex).encode(value[lastIndex], outStream, context);
     }
 
     @Override
@@ -1011,11 +1012,12 @@ public class CombineFns {
       if (codersCount == 0) {
         return ret;
       }
+      int lastIndex = codersCount - 1;
       Context nestedContext = context.nested();
-      for (int i = 0; i < codersCount - 1; ++i) {
+      for (int i = 0; i < lastIndex; ++i) {
         ret[i] = coders.get(i).decode(inStream, nestedContext);
       }
-      ret[codersCount - 1] = coders.get(codersCount - 1).decode(inStream, context);
+      ret[lastIndex] = coders.get(lastIndex).decode(inStream, context);
       return ret;
     }
 

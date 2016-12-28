@@ -108,7 +108,7 @@ public class MapCoder<K, V> extends StandardCoder<Map<K, V>> {
       return;
     }
 
-    // Since we handled size == 0 above, entry is guaranteed to exist after before and after loop
+    // Since we handled size == 0 above, entry is guaranteed to exist before and after loop
     Iterator<Entry<K, V>> iterator = map.entrySet().iterator();
     Entry<K, V> entry = iterator.next();
     while (iterator.hasNext()) {
@@ -172,7 +172,7 @@ public class MapCoder<K, V> extends StandardCoder<Map<K, V>> {
       Map<K, V> map, ElementByteSizeObserver observer, Context context)
       throws Exception {
     observer.update(4L);
-    if (map.isEmpty()){
+    if (map.isEmpty()) {
       return;
     }
     Iterator<Entry<K, V>> entries = map.entrySet().iterator();
