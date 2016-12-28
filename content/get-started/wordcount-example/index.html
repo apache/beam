@@ -180,10 +180,6 @@
   </li>
 </ul>
 
-<blockquote>
-  <p><strong>Note:</strong> This walkthrough is still in progress. Detailed instructions for running the example pipelines across multiple runners are yet to be added. There is an open issue to finish the walkthrough (<a href="https://issues.apache.org/jira/browse/BEAM-664">BEAM-664</a>).</p>
-</blockquote>
-
 <p>The WordCount examples demonstrate how to set up a processing pipeline that can read text, tokenize the text lines into individual words, and perform a frequency count on each of those words. The Beam SDKs contain a series of these four successively more detailed WordCount examples that build on each other. The input text for all the examples is a set of Shakespeare’s texts.</p>
 
 <p>Each WordCount example introduces different concepts in the Beam programming model. Begin by understanding Minimal WordCount, the simplest of the examples. Once you feel comfortable with the basic principles in building a pipeline, continue on to learn more concepts in the other examples.</p>
@@ -250,7 +246,7 @@
 
 <p>Each transform takes some kind of input (data or otherwise), and produces some output data. The input and output data is represented by the SDK class <code class="highlighter-rouge">PCollection</code>. <code class="highlighter-rouge">PCollection</code> is a special class, provided by the Beam SDK, that you can use to represent a data set of virtually any size, including infinite data sets.</p>
 
-<p>&lt;img src=”/images/wordcount-pipeline.png alt=”Word Count pipeline diagram””&gt;
+<p><img src="/images/wordcount-pipeline.png" alt="Word Count pipeline diagram" />
 Figure 1: The pipeline data flow.</p>
 
 <p>The Minimal WordCount pipeline contains five transforms:</p>
@@ -305,7 +301,7 @@ Figure 1: The pipeline data flow.</p>
   <li>
     <p>A text file <code class="highlighter-rouge">Write</code>. This transform takes the final <code class="highlighter-rouge">PCollection</code> of formatted Strings as input and writes each element to an output text file. Each element in the input <code class="highlighter-rouge">PCollection</code> represents one line of text in the resulting output file.</p>
 
-    <div class="language-java highlighter-rouge"><pre class="highlight"><code>        <span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">TextIO</span><span class="o">.</span><span class="na">Write</span><span class="o">.</span><span class="na">to</span><span class="o">(</span><span class="s">"gs://YOUR_OUTPUT_BUCKET/AND_OUTPUT_PREFIX"</span><span class="o">));</span>
+    <div class="language-java highlighter-rouge"><pre class="highlight"><code>        <span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">TextIO</span><span class="o">.</span><span class="na">Write</span><span class="o">.</span><span class="na">to</span><span class="o">(</span><span class="s">"wordcounts"</span><span class="o">));</span>
 </code></pre>
     </div>
   </li>
@@ -317,9 +313,11 @@ Figure 1: The pipeline data flow.</p>
 
 <p>Run the pipeline by calling the <code class="highlighter-rouge">run</code> method, which sends your pipeline to be executed by the pipeline runner that you specified when you created your pipeline.</p>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">p</span><span class="o">.</span><span class="na">run</span><span class="o">();</span>
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">p</span><span class="o">.</span><span class="na">run</span><span class="o">().</span><span class="na">waitUntilFinish</span><span class="o">();</span>
 </code></pre>
 </div>
+
+<p>Note that the <code class="highlighter-rouge">run</code> method is asynchronous. For a blocking execution instead, run your pipeline appending the <code class="highlighter-rouge">waitUntilFinish</code> method.</p>
 
 <h2 id="wordcount-example">WordCount Example</h2>
 
@@ -465,7 +463,6 @@ Figure 1: The pipeline data flow.</p>
     <span class="o">}</span>
   <span class="o">}</span>
 <span class="o">}</span>
-
 </code></pre>
 </div>
 
@@ -527,9 +524,6 @@ Figure 1: The pipeline data flow.</p>
     <span class="n">Options</span> <span class="n">options</span> <span class="o">=</span> <span class="o">...</span>
     <span class="n">Pipeline</span> <span class="n">pipeline</span> <span class="o">=</span> <span class="n">Pipeline</span><span class="o">.</span><span class="na">create</span><span class="o">(</span><span class="n">options</span><span class="o">);</span>
 
-    <span class="cm">/**
-     * Concept #1: The Beam SDK allows running the same pipeline with a bounded or unbounded input source.
-     */</span>
     <span class="n">PCollection</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">input</span> <span class="o">=</span> <span class="n">pipeline</span>
       <span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">TextIO</span><span class="o">.</span><span class="na">Read</span><span class="o">.</span><span class="na">from</span><span class="o">(</span><span class="n">options</span><span class="o">.</span><span class="na">getInputFile</span><span class="o">()))</span>
 
@@ -540,39 +534,30 @@ Figure 1: The pipeline data flow.</p>
 
 <p>Each element in a <code class="highlighter-rouge">PCollection</code> has an associated <strong>timestamp</strong>. The timestamp for each element is initially assigned by the source that creates the <code class="highlighter-rouge">PCollection</code> and can be adjusted by a <code class="highlighter-rouge">DoFn</code>. In this example the input is bounded. For the purpose of the example, the <code class="highlighter-rouge">DoFn</code> method named <code class="highlighter-rouge">AddTimestampsFn</code> (invoked by <code class="highlighter-rouge">ParDo</code>) will set a timestamp for each element in the <code class="highlighter-rouge">PCollection</code>.</p>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="c1">// Concept #2: Add an element timestamp, using an artificial time just to show windowing.</span>
-<span class="c1">// See AddTimestampFn for more details on this.</span>
-<span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">ParDo</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="k">new</span> <span class="n">AddTimestampFn</span><span class="o">()));</span>
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">ParDo</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="k">new</span> <span class="n">AddTimestampFn</span><span class="o">()));</span>
 </code></pre>
 </div>
 
 <p>Below is the code for <code class="highlighter-rouge">AddTimestampFn</code>, a <code class="highlighter-rouge">DoFn</code> invoked by <code class="highlighter-rouge">ParDo</code>, that sets the data element of the timestamp given the element itself. For example, if the elements were log lines, this <code class="highlighter-rouge">ParDo</code> could parse the time out of the log string and set it as the element’s timestamp. There are no timestamps inherent in the works of Shakespeare, so in this case we’ve made up random timestamps just to illustrate the concept. Each line of the input text will get a random associated timestamp sometime in a 2-hour period.</p>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="cm">/**
-   * Concept #2: A DoFn that sets the data element timestamp. This is a silly method, just for
-   * this example, for the bounded data case. Imagine that many ghosts of Shakespeare are all 
-   * typing madly at the same time to recreate his masterworks. Each line of the corpus will 
-   * get a random associated timestamp somewhere in a 2-hour period.
-   */</span>
-  <span class="kd">static</span> <span class="kd">class</span> <span class="nc">AddTimestampFn</span> <span class="kd">extends</span> <span class="n">DoFn</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">String</span><span class="o">&gt;</span> <span class="o">{</span>
-    <span class="kd">private</span> <span class="kd">static</span> <span class="kd">final</span> <span class="n">Duration</span> <span class="n">RAND_RANGE</span> <span class="o">=</span> <span class="n">Duration</span><span class="o">.</span><span class="na">standardHours</span><span class="o">(</span><span class="mi">2</span><span class="o">);</span>
-    <span class="kd">private</span> <span class="kd">final</span> <span class="n">Instant</span> <span class="n">minTimestamp</span><span class="o">;</span>
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="kd">static</span> <span class="kd">class</span> <span class="nc">AddTimestampFn</span> <span class="kd">extends</span> <span class="n">DoFn</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">String</span><span class="o">&gt;</span> <span class="o">{</span>
+  <span class="kd">private</span> <span class="kd">static</span> <span class="kd">final</span> <span class="n">Duration</span> <span class="n">RAND_RANGE</span> <span class="o">=</span> <span class="n">Duration</span><span class="o">.</span><span class="na">standardHours</span><span class="o">(</span><span class="mi">2</span><span class="o">);</span>
+  <span class="kd">private</span> <span class="kd">final</span> <span class="n">Instant</span> <span class="n">minTimestamp</span><span class="o">;</span>
 
-    <span class="n">AddTimestampFn</span><span class="o">()</span> <span class="o">{</span>
-      <span class="k">this</span><span class="o">.</span><span class="na">minTimestamp</span> <span class="o">=</span> <span class="k">new</span> <span class="n">Instant</span><span class="o">(</span><span class="n">System</span><span class="o">.</span><span class="na">currentTimeMillis</span><span class="o">());</span>
-    <span class="o">}</span>
-
-    <span class="nd">@ProcessElement</span>
-    <span class="kd">public</span> <span class="kt">void</span> <span class="nf">processElement</span><span class="o">(</span><span class="n">ProcessContext</span> <span class="n">c</span><span class="o">)</span> <span class="o">{</span>
-      <span class="c1">// Generate a timestamp that falls somewhere in the past two hours.</span>
-      <span class="kt">long</span> <span class="n">randMillis</span> <span class="o">=</span> <span class="o">(</span><span class="kt">long</span><span class="o">)</span> <span class="o">(</span><span class="n">Math</span><span class="o">.</span><span class="na">random</span><span class="o">()</span> <span class="o">*</span> <span class="n">RAND_RANGE</span><span class="o">.</span><span class="na">getMillis</span><span class="o">());</span>
-      <span class="n">Instant</span> <span class="n">randomTimestamp</span> <span class="o">=</span> <span class="n">minTimestamp</span><span class="o">.</span><span class="na">plus</span><span class="o">(</span><span class="n">randMillis</span><span class="o">);</span>
-      <span class="cm">/**
-       * Set the data element with that timestamp.
-       */</span>
-      <span class="n">c</span><span class="o">.</span><span class="na">outputWithTimestamp</span><span class="o">(</span><span class="n">c</span><span class="o">.</span><span class="na">element</span><span class="o">(),</span> <span class="k">new</span> <span class="n">Instant</span><span class="o">(</span><span class="n">randomTimestamp</span><span class="o">));</span>
-    <span class="o">}</span>
+  <span class="n">AddTimestampFn</span><span class="o">()</span> <span class="o">{</span>
+    <span class="k">this</span><span class="o">.</span><span class="na">minTimestamp</span> <span class="o">=</span> <span class="k">new</span> <span class="n">Instant</span><span class="o">(</span><span class="n">System</span><span class="o">.</span><span class="na">currentTimeMillis</span><span class="o">());</span>
   <span class="o">}</span>
+
+  <span class="nd">@ProcessElement</span>
+  <span class="kd">public</span> <span class="kt">void</span> <span class="nf">processElement</span><span class="o">(</span><span class="n">ProcessContext</span> <span class="n">c</span><span class="o">)</span> <span class="o">{</span>
+    <span class="c1">// Generate a timestamp that falls somewhere in the past two hours.</span>
+    <span class="kt">long</span> <span class="n">randMillis</span> <span class="o">=</span> <span class="o">(</span><span class="kt">long</span><span class="o">)</span> <span class="o">(</span><span class="n">Math</span><span class="o">.</span><span class="na">random</span><span class="o">()</span> <span class="o">*</span> <span class="n">RAND_RANGE</span><span class="o">.</span><span class="na">getMillis</span><span class="o">());</span>
+    <span class="n">Instant</span> <span class="n">randomTimestamp</span> <span class="o">=</span> <span class="n">minTimestamp</span><span class="o">.</span><span class="na">plus</span><span class="o">(</span><span class="n">randMillis</span><span class="o">);</span>
+
+    <span class="c1">// Set the data element with that timestamp.</span>
+    <span class="n">c</span><span class="o">.</span><span class="na">outputWithTimestamp</span><span class="o">(</span><span class="n">c</span><span class="o">.</span><span class="na">element</span><span class="o">(),</span> <span class="k">new</span> <span class="n">Instant</span><span class="o">(</span><span class="n">randomTimestamp</span><span class="o">));</span>
+  <span class="o">}</span>
+<span class="o">}</span>
 </code></pre>
 </div>
 
@@ -582,11 +567,7 @@ Figure 1: The pipeline data flow.</p>
 
 <p>The <code class="highlighter-rouge">WindowingWordCount</code> example applies fixed-time windowing, wherein each window represents a fixed time interval. The fixed window size for this example defaults to 1 minute (you can change this with a command-line option).</p>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="cm">/**
- * Concept #3: Window into fixed windows. The fixed window size for this example defaults to 1
- * minute (you can change this with a command-line option).
- */</span>
-<span class="n">PCollection</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">windowedWords</span> <span class="o">=</span> <span class="n">input</span>
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">PCollection</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">windowedWords</span> <span class="o">=</span> <span class="n">input</span>
   <span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">Window</span><span class="o">.&lt;</span><span class="n">String</span><span class="o">&gt;</span><span class="n">into</span><span class="o">(</span>
     <span class="n">FixedWindows</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="n">Duration</span><span class="o">.</span><span class="na">standardMinutes</span><span class="o">(</span><span class="n">options</span><span class="o">.</span><span class="na">getWindowSize</span><span class="o">()))));</span>
 </code></pre>
@@ -596,11 +577,7 @@ Figure 1: The pipeline data flow.</p>
 
 <p>You can reuse existing <code class="highlighter-rouge">PTransform</code>s, that were created for manipulating simple <code class="highlighter-rouge">PCollection</code>s, over windowed <code class="highlighter-rouge">PCollection</code>s as well.</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>/**
- * Concept #4: Re-use our existing CountWords transform that does not have knowledge of
- * windows over a PCollection containing windowed values.
- */
-PCollection&lt;KV&lt;String, Long&gt;&gt; wordCounts = windowedWords.apply(new WordCount.CountWords());
+<div class="highlighter-rouge"><pre class="highlight"><code>PCollection&lt;KV&lt;String, Long&gt;&gt; wordCounts = windowedWords.apply(new WordCount.CountWords());
 </code></pre>
 </div>
 
@@ -610,11 +587,7 @@ PCollection&lt;KV&lt;String, Long&gt;&gt; wordCounts = windowedWords.apply(new W
 
 <p>In this example, we stream the results to a BigQuery table. The results are then formatted for a BigQuery table, and then written to BigQuery using BigQueryIO.Write.</p>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="cm">/**
- * Concept #5: Format the results for a BigQuery table, then write to BigQuery.
- * The BigQuery output source supports both bounded and unbounded data.
- */</span>
-<span class="n">wordCounts</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">ParDo</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="k">new</span> <span class="n">FormatAsTableRowFn</span><span class="o">()))</span>
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">wordCounts</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">ParDo</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="k">new</span> <span class="n">FormatAsTableRowFn</span><span class="o">()))</span>
     <span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">BigQueryIO</span><span class="o">.</span><span class="na">Write</span>
       <span class="o">.</span><span class="na">to</span><span class="o">(</span><span class="n">getTableReference</span><span class="o">(</span><span class="n">options</span><span class="o">))</span>
       <span class="o">.</span><span class="na">withSchema</span><span class="o">(</span><span class="n">getSchema</span><span class="o">())</span>

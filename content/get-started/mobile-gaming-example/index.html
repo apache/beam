@@ -196,9 +196,16 @@
   <li>A timestamp that records when the particular instance of play happened–this is the event time for each game data event.</li>
 </ul>
 
-<p>When the user completes an instance of the game, their phone sends the data event to a game server, where the data is logged and stored in a file. Generally the data is sent to the game server immediately upon completion. However, users can play the game “offline”, when their phones are out of contact with the server (such as on an airplane, or outside network coverage area). When the user’s phone comes back into contact with the game server, the phone will send all accumulated game data.</p>
+<p>When the user completes an instance of the game, their phone sends the data event to a game server, where the data is logged and stored in a file. Generally the data is sent to the game server immediately upon completion. However, sometimes delays happen in the network or users play the game “offline”, when their phones are out of contact with the server (such as on an airplane, or outside network coverage area). When the user’s phone comes back into contact with the game server, the phone will send all accumulated game data. This means that some data events may arrive delayed and out of order.</p>
 
-<p>This means that some data events might be received by the game server significantly later than users generate them. This time difference can have processing implications for pipelines that make calculations that consider when each score was generated. Such pipelines might track scores generated during each hour of a day, for example, or they calculate the length of time that users are continuously playing the game—both of which depend on each data record’s event time.</p>
+<p>The following diagram shows the ideal situation vs reality. The X-axis represents event time: the actual time a game event occurred. The Y-axis represents processing time: the time at which a game event was processed. Ideally, events should be processed as they occur, depicted by the dotted line in the diagram. However, in reality that is not the case and reality looks more like what is depicted by the red squiggly line.</p>
+
+<figure id="fig1">
+    <img src="/images/gaming-example-basic.png" width="264" height="260" alt="Score data for three users." />
+</figure>
+<p>Figure 1: Ideally, events are processed when they occur, with no delays.</p>
+
+<p>The data events might be received by the game server significantly later than users generate them. This time difference (called <strong>skew</strong>) can have processing implications for pipelines that make calculations that consider when each score was generated. Such pipelines might track scores generated during each hour of a day, for example, or they calculate the length of time that users are continuously playing the game—both of which depend on each data record’s event time.</p>
 
 <p>Because some of our example pipelines use data files (like logs from the game server) as input, the event timestamp for each game might be embedded in the data–that is, it’s a field in each data record. Those pipelines need to parse the event timestamp from each data record after reading it from the input file.</p>
 
@@ -234,12 +241,12 @@
   <li>Write the result data to a <a href="https://cloud.google.com/bigquery/">Google Cloud BigQuery</a> table.</li>
 </ol>
 
-<p>The following diagram shows score data for a several users over the pipeline analysis period. In the diagram, each data point is an event that results in one user/score pair:</p>
+<p>The following diagram shows score data for several users over the pipeline analysis period. In the diagram, each data point is an event that results in one user/score pair:</p>
 
-<figure id="fig1">
+<figure id="fig2">
     <img src="/images/gaming-example.gif" width="900" height="263" alt="Score data for three users." />
 </figure>
-<p>Figure 1: Score data for three users.</p>
+<p>Figure 2: Score data for three users.</p>
 
 <p>This example uses batch processing, and the diagram’s Y axis represents processing time: the pipeline processes events lower on the Y-axis first, and events higher up the axis later. The diagram’s X axis represents the event time for each game event, as denoted by that event’s timestamp. Note that the individual events in the diagram are not processed by the pipeline in the same order as they occurred (according to their timestamps).</p>
 
@@ -355,10 +362,10 @@
 
 <p>The following diagram shows how the pipeline processes a day’s worth of a single team’s scoring data after applying fixed-time windowing:</p>
 
-<figure id="fig2">
+<figure id="fig3">
     <img src="/images/gaming-example-team-scores-narrow.gif" width="900" height="390" alt="Score data for two teams." />
 </figure>
-<p>Figure 2: Score data for two teams. Each team’s scores are divided into logical windows based on when those scores occurred in event time.</p>
+<p>Figure 3: Score data for two teams. Each team’s scores are divided into logical windows based on when those scores occurred in event time.</p>
 
 <p>Notice that as processing time advances, the sums are now <em>per window</em>; each window represents an hour of <em>event time</em> during the day in which the scores occurred.</p>
 
@@ -493,12 +500,12 @@
 
 <p>Because we want all the data that has arrived in the pipeline every time we update our calculation, we have the pipeline consider all of the user score data in a <strong>single global window</strong>. The single global window is unbounded, but we can specify a kind of temporary cut-off point for each ten-minute calculation by using a processing time <a href="/documentation/programming-guide/#triggers">trigger</a>.</p>
 
-<p>When we specify a ten-minute processing time trigger for the single global window, the effect is that the pipeline effectively takes a “snapshot” of the contents of the window every time the trigger fires (which it does at ten-minute intervals). Since we’re using a single global window, each snapshot contains all the data collected <em>to that point in time</em>. The following diagram shows the effects of using a processing time trigger on the single global window:</p>
+<p>When we specify a ten-minute processing time trigger for the single global window, the pipeline effectively takes a “snapshot” of the contents of the window every time the trigger fires. This snapshot happens at ten-minute intervals as long as data has arrived. If no data has arrived, the pipeline will take its next “snapshot” 10 minutes past an element arriving. Since we’re using a single global window, each snapshot contains all the data collected <em>to that point in time</em>. The following diagram shows the effects of using a processing time trigger on the single global window:</p>
 
-<figure id="fig3">
+<figure id="fig4">
     <img src="/images/gaming-example-proc-time-narrow.gif" width="900" height="263" alt="Score data for for three users." />
 </figure>
-<p>Figure 3: Score data for for three users. Each user’s scores are grouped together in a single global window, with a trigger that generates a snapshot for output every ten minutes.</p>
+<p>Figure 4: Score data for for three users. Each user’s scores are grouped together in a single global window, with a trigger that generates a snapshot for output every ten minutes.</p>
 
 <p>As processing time advances and more scores are processed, the trigger outputs the updated sum for each user.</p>
 
@@ -547,12 +554,12 @@
 
 <p>The following diagram shows the relationship between ongoing processing time and each score’s event time for two teams:</p>
 
-<figure id="fig4">
+<figure id="fig5">
     <img src="/images/gaming-example-event-time-narrow.gif" width="900" height="390" alt="Score data by team, windowed by event time." />
 </figure>
-<p>Figure 4: Score data by team, windowed by event time. A trigger based on processing time causes the window to emit speculative early results and include late results.</p>
+<p>Figure 5: Score data by team, windowed by event time. A trigger based on processing time causes the window to emit speculative early results and include late results.</p>
 
-<p>The dotted line in the diagram is the “ideal” <strong>watermark</strong>: Beam’s notion of when all data in a given window can reasonably considered to have arrived. The irregular solid line represents the actual watermark, as determined by the data source.</p>
+<p>The dotted line in the diagram is the “ideal” <strong>watermark</strong>: Beam’s notion of when all data in a given window can reasonably be considered to have arrived. The irregular solid line represents the actual watermark, as determined by the data source.</p>
 
 <p>Data arriving above the solid watermark line is <em>late data</em>—this is a score event that was delayed (perhaps generated offline) and arrived after the window to which it belongs had closed. Our pipeline’s late-firing trigger ensures that this late data is still included in the sum.</p>
 
@@ -698,10 +705,10 @@
 
 <p>The following diagram shows how data might look when grouped into session windows. Unlike fixed windows, session windows are <em>different for each user</em> and is dependent on each individual user’s play pattern:</p>
 
-<figure id="fig5">
+<figure id="fig6">
     <img src="/images/gaming-example-session-windows.png" width="662" height="521" alt="User sessions, with a minimum gap duration." />
 </figure>
-<p>Figure 5: User sessions, with a minimum gap duration. Note how each user has different sessions, according to how many instances they play and how long their breaks between instances are.</p>
+<p>Figure 6: User sessions, with a minimum gap duration. Note how each user has different sessions, according to how many instances they play and how long their breaks between instances are.</p>
 
 <p>We can use the session-windowed data to determine the average length of uninterrupted play time for all of our users, as well as the total score they achieve during each session. We can do this in the code by first applying session windows, summing the score per user and session, and then using a transform to calculate the length of each individual session:</p>
 
