@@ -15,8 +15,8 @@
   <script src="https://ajax.googleapis.com/ajax/libs/jquery/2.2.0/jquery.min.js"></script>
   <script src="/js/bootstrap.min.js"></script>
   <script src="/js/language-switch.js"></script>
-  <link rel="canonical" href="http://beam.incubator.apache.org/contribute/release-guide/" data-proofer-ignore>
-  <link rel="alternate" type="application/rss+xml" title="Apache Beam (incubating)" href="http://beam.incubator.apache.org/feed.xml">
+  <link rel="canonical" href="http://beam.apache.org/contribute/release-guide/" data-proofer-ignore>
+  <link rel="alternate" type="application/rss+xml" title="Apache Beam" href="http://beam.apache.org/feed.xml">
   <script>
     (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
     (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
@@ -528,7 +528,7 @@ TAG="v${VERSION}-RC${RC_NUM}"
 </code></pre>
 </div>
 
-<p>By default, the Javadoc will be generated in <code class="highlighter-rouge">target/site/apidocs/</code>. Let <code class="highlighter-rouge">${JAVADOC_ROOT}</code> be the absolute path to <code class="highlighter-rouge">apidocs</code>. (<a href="https://github.com/apache/incubator-beam/pull/1015">Pull request #1015</a> will hopefully simplify this process.)</p>
+<p>By default, the Javadoc will be generated in <code class="highlighter-rouge">target/site/apidocs/</code>. Let <code class="highlighter-rouge">${JAVADOC_ROOT}</code> be the absolute path to <code class="highlighter-rouge">apidocs</code>. (<a href="https://github.com/apache/beam/pull/1015">Pull request #1015</a> will hopefully simplify this process.)</p>
 
 <p>Please carefully review the generated Javadoc. Check for completeness and presence of all relevant packages and <code class="highlighter-rouge">package-info.java</code>; consider adding less relevant packages to the <code class="highlighter-rouge">excludePackageNames</code> configuration. The index page is generated at <code class="highlighter-rouge">${JAVADOC_ROOT}/index.html</code>.</p>
 
@@ -569,7 +569,7 @@ TAG="v${VERSION}-RC${RC_NUM}"
 <p>Start the review-and-vote thread on the dev@ mailing list. Here’s an email template; please adjust as you see fit.</p>
 
 <div class="highlighter-rouge"><pre class="highlight"><code>From: Release Manager
-To: dev@beam.incubator.apache.org
+To: dev@beam.apache.org
 Subject: [VOTE] Release 1.2.3, release candidate #3
 
 Hi everyone,
@@ -603,7 +603,7 @@ Release Manager
 <p>If there are no issues, reply on the vote thread to close the voting. Then, tally the votes in a separate email. Here’s an email template; please adjust as you see fit.</p>
 
 <div class="highlighter-rouge"><pre class="highlight"><code>From: Release Manager
-To: dev@beam.incubator.apache.org
+To: dev@beam.apache.org
 Subject: [RESULT] [VOTE] Release 1.2.3, release candidate #3
 
 I'm happy to announce that we have unanimously approved this release.
@@ -624,7 +624,7 @@ Thanks everyone!
 
 <div class="highlighter-rouge"><pre class="highlight"><code>From: Release Manager
 To: general@incubator.apache.org
-Cc: dev@beam.incubator.apache.org
+Cc: dev@beam.apache.org
 Subject: [VOTE] Apache Beam release 1.2.3-incubating
 
 Hi everyone,
@@ -661,7 +661,7 @@ Thanks!
 
 <div class="highlighter-rouge"><pre class="highlight"><code>From: Release Manager
 To: general@incubator.apache.org
-Cc: dev@beam.incubator.apache.org
+Cc: dev@beam.apache.org
 Subject: [RESULT] [VOTE] Apache Beam release 1.2.3-incubating
 
 There are XXX approving votes, all of which are binding:

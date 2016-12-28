@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
   <channel>
-    <title>Apache Beam (incubating)</title>
+    <title>Apache Beam</title>
     <description>Apache Beam is an open source, unified model and set of language-specific SDKs for defining and executing data processing workflows, and also data ingestion and integration flows, supporting Enterprise Integration Patterns (EIPs) and Domain Specific Languages (DSLs). Dataflow pipelines simplify the mechanics of large-scale batch and streaming data processing and can run on a number of runtimes like Apache Flink, Apache Spark, and Google Cloud Dataflow (a cloud service). Beam also brings DSL in different languages, allowing users to easily implement their data integration processes.
 </description>
-    <link>http://beam.incubator.apache.org/</link>
-    <atom:link href="http://beam.incubator.apache.org/feed.xml" rel="self" type="application/rss+xml"/>
+    <link>http://beam.apache.org/</link>
+    <atom:link href="http://beam.apache.org/feed.xml" rel="self" type="application/rss+xml"/>
     <generator>Jekyll v3.2.0</generator>
     
       <item>
@@ -47,8 +47,8 @@ from the Mobile Gaming example series.&lt;/p&gt;
 
 &lt;h2 id=&quot;leaderboard-and-the-mobile-gaming-example&quot;&gt;LeaderBoard and the Mobile Gaming Example&lt;/h2&gt;
 
-&lt;p&gt;&lt;a href=&quot;https://github.com/apache/incubator-beam/blob/master/examples/java8/src/main/java/org/apache/beam/examples/complete/game/LeaderBoard.java#L177&quot;&gt;LeaderBoard&lt;/a&gt;
-is part of the &lt;a href=&quot;https://github.com/apache/incubator-beam/tree/master/examples/java8/src/main/java/org/apache/beam/examples/complete/game&quot;&gt;Beam mobile gaming examples&lt;/a&gt;
+&lt;p&gt;&lt;a href=&quot;https://github.com/apache/beam/blob/master/examples/java8/src/main/java/org/apache/beam/examples/complete/game/LeaderBoard.java#L177&quot;&gt;LeaderBoard&lt;/a&gt;
+is part of the &lt;a href=&quot;https://github.com/apache/beam/tree/master/examples/java8/src/main/java/org/apache/beam/examples/complete/game&quot;&gt;Beam mobile gaming examples&lt;/a&gt;
 (and &lt;a href=&quot;/get-started/mobile-gaming-example/&quot;&gt;walkthroughs&lt;/a&gt;)
 which produces a continuous accounting of user and team scores. User scores are
 calculated over the lifetime of the program, while team scores are calculated
@@ -65,7 +65,7 @@ be controlled within a test.&lt;/p&gt;
 &lt;a href=&quot;/documentation/sdks/javadoc/0.3.0-incubating/org/apache/beam/sdk/testing/PAssert.html&quot;&gt;PAssert&lt;/a&gt;
 methods, which assert properties about the contents of a PCollection from within
 a pipeline. We have expanded this infrastructure to include
-&lt;a href=&quot;https://github.com/apache/incubator-beam/blob/master/sdks/java/core/src/main/java/org/apache/beam/sdk/testing/TestStream.java&quot;&gt;TestStream&lt;/a&gt;,
+&lt;a href=&quot;https://github.com/apache/beam/blob/master/sdks/java/core/src/main/java/org/apache/beam/sdk/testing/TestStream.java&quot;&gt;TestStream&lt;/a&gt;,
 which is a PTransform that performs a series of events, consisting of adding
 additional elements to a pipeline, advancing the watermark of the TestStream,
 and advancing the pipeline processing time clock. TestStream permits tests which
@@ -313,8 +313,8 @@ Java SDK. If you have questions or comments, we’d love to hear them on the
 &lt;a href=&quot;/use/mailing-lists/&quot;&gt;mailing lists&lt;/a&gt;.&lt;/p&gt;
 </description>
         <pubDate>Thu, 20 Oct 2016 11:00:00 -0700</pubDate>
-        <link>http://beam.incubator.apache.org/blog/2016/10/20/test-stream.html</link>
-        <guid isPermaLink="true">http://beam.incubator.apache.org/blog/2016/10/20/test-stream.html</guid>
+        <link>http://beam.apache.org/blog/2016/10/20/test-stream.html</link>
+        <guid isPermaLink="true">http://beam.apache.org/blog/2016/10/20/test-stream.html</guid>
         
         
         <category>blog</category>
@@ -327,13 +327,13 @@ Java SDK. If you have questions or comments, we’d love to hear them on the
 
 &lt;p&gt;&lt;img src=&quot;/images/blog/IMG_20160927_170956.jpg&quot; alt=&quot;Exercise time&quot; /&gt;&lt;/p&gt;
 
-&lt;p&gt;If you want to take a look at the tutorial materials, we’ve put them up &lt;a href=&quot;https://github.com/eljefe6a/beamexample&quot;&gt;on GitHub&lt;/a&gt;. This includes the &lt;a href=&quot;https://github.com/eljefe6a/beamexample/blob/master/BeamTutorial/slides.pdf&quot;&gt;actual slides&lt;/a&gt; as well as the &lt;a href=&quot;https://github.com/eljefe6a/beamexample/tree/master/BeamTutorial/src/main/java/org/apache/beam/examples/tutorial/game&quot;&gt;exercises&lt;/a&gt; that we covered. If you’re looking to learn a little about Beam, this is a good way to start. The exercises are based on an imaginary mobile game where data needs processing and are based on code in the &lt;a href=&quot;https://github.com/apache/incubator-beam/tree/master/examples/java8/src/main/java/org/apache/beam/examples/complete/game&quot;&gt;Beam examples directory&lt;/a&gt;. The code has TODOs for where you need to fill in code or there are full sample solutions to look over our code. You can run these examples on your own machine or on a cluster using a runner that Beam supports.&lt;/p&gt;
+&lt;p&gt;If you want to take a look at the tutorial materials, we’ve put them up &lt;a href=&quot;https://github.com/eljefe6a/beamexample&quot;&gt;on GitHub&lt;/a&gt;. This includes the &lt;a href=&quot;https://github.com/eljefe6a/beamexample/blob/master/BeamTutorial/slides.pdf&quot;&gt;actual slides&lt;/a&gt; as well as the &lt;a href=&quot;https://github.com/eljefe6a/beamexample/tree/master/BeamTutorial/src/main/java/org/apache/beam/examples/tutorial/game&quot;&gt;exercises&lt;/a&gt; that we covered. If you’re looking to learn a little about Beam, this is a good way to start. The exercises are based on an imaginary mobile game where data needs processing and are based on code in the &lt;a href=&quot;https://github.com/apache/beam/tree/master/examples/java8/src/main/java/org/apache/beam/examples/complete/game&quot;&gt;Beam examples directory&lt;/a&gt;. The code has TODOs for where you need to fill in code or there are full sample solutions to look over our code. You can run these examples on your own machine or on a cluster using a runner that Beam supports.&lt;/p&gt;
 
 &lt;p&gt;I want to share some of takeaways I had about Beam during the conference.&lt;/p&gt;
 
 &lt;p&gt;The Data Engineers are looking to Beam as a way to &lt;a href=&quot;https://www.oreilly.com/ideas/future-proof-and-scale-proof-your-code&quot;&gt;future-proof&lt;/a&gt;, meaning that code is portable between the various Big Data frameworks. In fact, many of the attendees were still on Hadoop MapReduce and looking to transition to a new framework. They’re realizing that continually rewriting code isn’t the most productive approach.&lt;/p&gt;
 
-&lt;p&gt;Data Scientists are really interested in using Beam. They interested in having a single API for doing analysis instead of several different APIs. We talked about Beam’s progress on the Python API. If you want to take a peek, it’s being actively developed on a &lt;a href=&quot;https://github.com/apache/incubator-beam/tree/python-sdk&quot;&gt;feature branch&lt;/a&gt;. As Beam matures, we’re looking to add other supported languages.&lt;/p&gt;
+&lt;p&gt;Data Scientists are really interested in using Beam. They interested in having a single API for doing analysis instead of several different APIs. We talked about Beam’s progress on the Python API. If you want to take a peek, it’s being actively developed on a &lt;a href=&quot;https://github.com/apache/beam/tree/python-sdk&quot;&gt;feature branch&lt;/a&gt;. As Beam matures, we’re looking to add other supported languages.&lt;/p&gt;
 
 &lt;p&gt;We heard &lt;a href=&quot;https://twitter.com/jessetanderson/status/781124173108305920&quot;&gt;loud and clear&lt;/a&gt; from Beam users that great runner support is crucial to adoption. We have great Apache Flink support. During the conference we had some more volunteers offer their help on the Spark runner.&lt;/p&gt;
 
@@ -347,8 +347,8 @@ Java SDK. If you have questions or comments, we’d love to hear them on the
 
 </description>
         <pubDate>Tue, 11 Oct 2016 10:00:00 -0700</pubDate>
-        <link>http://beam.incubator.apache.org/beam/update/2016/10/11/strata-hadoop-world-and-beam.html</link>
-        <guid isPermaLink="true">http://beam.incubator.apache.org/beam/update/2016/10/11/strata-hadoop-world-and-beam.html</guid>
+        <link>http://beam.apache.org/beam/update/2016/10/11/strata-hadoop-world-and-beam.html</link>
+        <guid isPermaLink="true">http://beam.apache.org/beam/update/2016/10/11/strata-hadoop-world-and-beam.html</guid>
         
         
         <category>beam</category>
@@ -400,8 +400,8 @@ Java SDK. If you have questions or comments, we’d love to hear them on the
 
 </description>
         <pubDate>Wed, 03 Aug 2016 00:00:01 -0700</pubDate>
-        <link>http://beam.incubator.apache.org/blog/2016/08/03/six-months.html</link>
-        <guid isPermaLink="true">http://beam.incubator.apache.org/blog/2016/08/03/six-months.html</guid>
+        <link>http://beam.apache.org/blog/2016/08/03/six-months.html</link>
+        <guid isPermaLink="true">http://beam.apache.org/blog/2016/08/03/six-months.html</guid>
         
         
         <category>blog</category>
@@ -441,8 +441,8 @@ to us via &lt;a href=&quot;/use/mailing-lists/&quot;&gt;user’s mailing list&lt
 &lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM/&quot;&gt;Apache JIRA issue tracker&lt;/a&gt;.&lt;/p&gt;
 </description>
         <pubDate>Wed, 15 Jun 2016 00:00:01 -0700</pubDate>
-        <link>http://beam.incubator.apache.org/beam/release/2016/06/15/first-release.html</link>
-        <guid isPermaLink="true">http://beam.incubator.apache.org/beam/release/2016/06/15/first-release.html</guid>
+        <link>http://beam.apache.org/beam/release/2016/06/15/first-release.html</link>
+        <guid isPermaLink="true">http://beam.apache.org/beam/release/2016/06/15/first-release.html</guid>
         
         
         <category>beam</category>
@@ -478,8 +478,8 @@ to us via &lt;a href=&quot;/use/mailing-lists/&quot;&gt;user’s mailing list&lt
 &lt;p&gt;We reached a major milestone in adding windowing support to the Flink Batch runner, thereby making it compatible with the Beam model. Because of the large suite of tests that can now be executed on the runner we are also confident about the correctness of the implementation and about it staying that way in the future.&lt;/p&gt;
 </description>
         <pubDate>Mon, 13 Jun 2016 09:00:00 -0700</pubDate>
-        <link>http://beam.incubator.apache.org/blog/2016/06/13/flink-batch-runner-milestone.html</link>
-        <guid isPermaLink="true">http://beam.incubator.apache.org/blog/2016/06/13/flink-batch-runner-milestone.html</guid>
+        <link>http://beam.apache.org/blog/2016/06/13/flink-batch-runner-milestone.html</link>
+        <guid isPermaLink="true">http://beam.apache.org/blog/2016/06/13/flink-batch-runner-milestone.html</guid>
         
         
         <category>blog</category>
@@ -570,8 +570,8 @@ PCollection&amp;lt;O&amp;gt; output = input
 &lt;p&gt;Although it’s tempting to add methods to PCollections, such an approach is not scalable, extensible, or sufficiently expressive. Putting a single apply method on PCollection and all the logic into the operation itself lets us have the best of both worlds, and avoids hard cliffs of complexity by having a single consistent style across simple and complex pipelines, and between predefined and user-defined operations.&lt;/p&gt;
 </description>
         <pubDate>Fri, 27 May 2016 09:00:00 -0700</pubDate>
-        <link>http://beam.incubator.apache.org/blog/2016/05/27/where-is-my-pcollection-dot-map.html</link>
-        <guid isPermaLink="true">http://beam.incubator.apache.org/blog/2016/05/27/where-is-my-pcollection-dot-map.html</guid>
+        <link>http://beam.apache.org/blog/2016/05/27/where-is-my-pcollection-dot-map.html</link>
+        <guid isPermaLink="true">http://beam.apache.org/blog/2016/05/27/where-is-my-pcollection-dot-map.html</guid>
         
         
         <category>blog</category>
@@ -586,11 +586,11 @@ PCollection&amp;lt;O&amp;gt; output = input
 
 &lt;p&gt;In a large batch processing job with many tasks executing in parallel, some of the tasks – the stragglers – can take a much longer time to complete than others, perhaps due to imperfect splitting of the work into parallel chunks when issuing the job. Typically, waiting for stragglers means that the overall job completes later than it should, and may also reserve too many machines that may be underutilized at the end. Cloud Dataflow’s dynamic work rebalancing can mitigate stragglers in most cases.&lt;/p&gt;
 
-&lt;p&gt;What I’d like to highlight for the Apache Beam (incubating) community is that Cloud Dataflow’s dynamic work rebalancing is implemented using &lt;em&gt;runner-specific&lt;/em&gt; control logic on top of Beam’s &lt;em&gt;runner-independent&lt;/em&gt; &lt;a href=&quot;https://github.com/apache/incubator-beam/blob/9fa97fb2491bc784df53fb0f044409dbbc2af3d7/sdks/java/core/src/main/java/org/apache/beam/sdk/io/BoundedSource.java&quot;&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;BoundedSource API&lt;/code&gt;&lt;/a&gt;. Specifically, to steal work from a straggler, a runner need only call the reader’s &lt;a href=&quot;https://github.com/apache/incubator-beam/blob/3edae9b8b4d7afefb5c803c19bb0a1c21ebba89d/sdks/java/core/src/main/java/org/apache/beam/sdk/io/BoundedSource.java#L266&quot;&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;splitAtFraction method&lt;/code&gt;&lt;/a&gt;. This will generate a new source containing leftover work, and then the runner can pass that source off to another idle worker. As Beam matures, I hope that other runners are interested in figuring out whether these APIs can help them improve performance, implementing dynamic work rebalancing, and collaborating on API changes that will help solve other pain points.&lt;/p&gt;
+&lt;p&gt;What I’d like to highlight for the Apache Beam (incubating) community is that Cloud Dataflow’s dynamic work rebalancing is implemented using &lt;em&gt;runner-specific&lt;/em&gt; control logic on top of Beam’s &lt;em&gt;runner-independent&lt;/em&gt; &lt;a href=&quot;https://github.com/apache/beam/blob/9fa97fb2491bc784df53fb0f044409dbbc2af3d7/sdks/java/core/src/main/java/org/apache/beam/sdk/io/BoundedSource.java&quot;&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;BoundedSource API&lt;/code&gt;&lt;/a&gt;. Specifically, to steal work from a straggler, a runner need only call the reader’s &lt;a href=&quot;https://github.com/apache/beam/blob/3edae9b8b4d7afefb5c803c19bb0a1c21ebba89d/sdks/java/core/src/main/java/org/apache/beam/sdk/io/BoundedSource.java#L266&quot;&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;splitAtFraction method&lt;/code&gt;&lt;/a&gt;. This will generate a new source containing leftover work, and then the runner can pass that source off to another idle worker. As Beam matures, I hope that other runners are interested in figuring out whether these APIs can help them improve performance, implementing dynamic work rebalancing, and collaborating on API changes that will help solve other pain points.&lt;/p&gt;
 </description>
         <pubDate>Wed, 18 May 2016 11:00:00 -0700</pubDate>
-        <link>http://beam.incubator.apache.org/blog/2016/05/18/splitAtFraction-method.html</link>
-        <guid isPermaLink="true">http://beam.incubator.apache.org/blog/2016/05/18/splitAtFraction-method.html</guid>
+        <link>http://beam.apache.org/blog/2016/05/18/splitAtFraction-method.html</link>
+        <guid isPermaLink="true">http://beam.apache.org/blog/2016/05/18/splitAtFraction-method.html</guid>
         
         
         <category>blog</category>
@@ -619,11 +619,11 @@ PCollection&amp;lt;O&amp;gt; output = input
   &lt;/li&gt;
 &lt;/ul&gt;
 
-&lt;p&gt;As Apache Beam grows, so will this repository of presentation materials. We are excited to add new materials as the Apache Beam ecosystem grows with new runners, SDKs, and so on. If you are interested in contributing content or have a request, please see the &lt;a href=&quot;/learn/presentation-materials/&quot;&gt;Apache Beam presentation materials&lt;/a&gt; page or email the &lt;a href=&quot;mailto:user@beam.incubator.apache.org&quot;&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;user@beam.incubator.apache.org&lt;/code&gt;&lt;/a&gt; mailing list with your ideas or questions.&lt;/p&gt;
+&lt;p&gt;As Apache Beam grows, so will this repository of presentation materials. We are excited to add new materials as the Apache Beam ecosystem grows with new runners, SDKs, and so on. If you are interested in contributing content or have a request, please see the &lt;a href=&quot;/learn/presentation-materials/&quot;&gt;Apache Beam presentation materials&lt;/a&gt; page or email the &lt;a href=&quot;mailto:user@beam.apache.org&quot;&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;user@beam.apache.org&lt;/code&gt;&lt;/a&gt; mailing list with your ideas or questions.&lt;/p&gt;
 </description>
         <pubDate>Sun, 03 Apr 2016 11:00:00 -0700</pubDate>
-        <link>http://beam.incubator.apache.org/beam/capability/2016/04/03/presentation-materials.html</link>
-        <guid isPermaLink="true">http://beam.incubator.apache.org/beam/capability/2016/04/03/presentation-materials.html</guid>
+        <link>http://beam.apache.org/beam/capability/2016/04/03/presentation-materials.html</link>
+        <guid isPermaLink="true">http://beam.apache.org/beam/capability/2016/04/03/presentation-materials.html</guid>
         
         
         <category>beam</category>
@@ -634,7 +634,7 @@ PCollection&amp;lt;O&amp;gt; output = input
     
       <item>
         <title>Clarifying &amp; Formalizing Runner Capabilities</title>
-        <description>&lt;p&gt;With initial code drops complete (&lt;a href=&quot;https://github.com/apache/incubator-beam/pull/1&quot;&gt;Dataflow SDK and Runner&lt;/a&gt;, &lt;a href=&quot;https://github.com/apache/incubator-beam/pull/12&quot;&gt;Flink Runner&lt;/a&gt;, &lt;a href=&quot;https://github.com/apache/incubator-beam/pull/42&quot;&gt;Spark Runner&lt;/a&gt;) and expressed interest in runner implementations for &lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-9&quot;&gt;Storm&lt;/a&gt;, &lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-19&quot;&gt;Hadoop&lt;/a&gt;, and &lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-79&quot;&gt;Gearpump&lt;/a&gt; (amongst others), we wanted to start addressing a big question in the Apache Beam (incubating) community: what capabilities will each runner be able to support?&lt;/p&gt;
+        <description>&lt;p&gt;With initial code drops complete (&lt;a href=&quot;https://github.com/apache/beam/pull/1&quot;&gt;Dataflow SDK and Runner&lt;/a&gt;, &lt;a href=&quot;https://github.com/apache/beam/pull/12&quot;&gt;Flink Runner&lt;/a&gt;, &lt;a href=&quot;https://github.com/apache/beam/pull/42&quot;&gt;Spark Runner&lt;/a&gt;) and expressed interest in runner implementations for &lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-9&quot;&gt;Storm&lt;/a&gt;, &lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-19&quot;&gt;Hadoop&lt;/a&gt;, and &lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-79&quot;&gt;Gearpump&lt;/a&gt; (amongst others), we wanted to start addressing a big question in the Apache Beam (incubating) community: what capabilities will each runner be able to support?&lt;/p&gt;
 
 &lt;!--more--&gt;
 
@@ -1419,8 +1419,8 @@ PCollection&amp;lt;O&amp;gt; output = input
 
 </description>
         <pubDate>Thu, 17 Mar 2016 11:00:00 -0700</pubDate>
-        <link>http://beam.incubator.apache.org/beam/capability/2016/03/17/capability-matrix.html</link>
-        <guid isPermaLink="true">http://beam.incubator.apache.org/beam/capability/2016/03/17/capability-matrix.html</guid>
+        <link>http://beam.apache.org/beam/capability/2016/03/17/capability-matrix.html</link>
+        <guid isPermaLink="true">http://beam.apache.org/beam/capability/2016/03/17/capability-matrix.html</guid>
         
         
         <category>beam</category>
@@ -1445,8 +1445,8 @@ included the &lt;a href=&quot;https://github.com/GoogleCloudPlatform/DataflowJav
 &lt;p&gt;Apache Beam Team&lt;/p&gt;
 </description>
         <pubDate>Thu, 25 Feb 2016 13:00:00 -0800</pubDate>
-        <link>http://beam.incubator.apache.org/beam/python/sdk/2016/02/25/python-sdk-now-public.html</link>
-        <guid isPermaLink="true">http://beam.incubator.apache.org/beam/python/sdk/2016/02/25/python-sdk-now-public.html</guid>
+        <link>http://beam.apache.org/beam/python/sdk/2016/02/25/python-sdk-now-public.html</link>
+        <guid isPermaLink="true">http://beam.apache.org/beam/python/sdk/2016/02/25/python-sdk-now-public.html</guid>
         
         
         <category>beam</category>
