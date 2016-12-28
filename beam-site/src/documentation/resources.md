@@ -28,7 +28,7 @@ Presented by Tyler Akidau, *Apache Beam PPMC member*
 
 Hadoop Summit, San Jose, CA, 2016 
 
-Presented by Davor Bonacci, *Apache Beam PPMC member* 
+Presented by Davor Bonaci, *Apache Beam PPMC member* 
 
 <iframe width="560" height="315" src="https://www.youtube.com/embed/7DZ8ONmeP5A" frameborder="0" allowfullscreen></iframe>
 <br>
