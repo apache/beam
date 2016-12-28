@@ -33,12 +33,12 @@ public class HadoopDataSource<K, V> implements DataSource<Pair<K, V>> {
 
   public HadoopDataSource(Class<K> keyClass, Class<V> valueClass,
       Class<? extends InputFormat<K, V>> hadoopFormatCls,
-      SerializableWritable<Configuration> conf) {
+      Configuration hadoopConf) {
 
     this.keyClass = keyClass;
     this.valueClass = valueClass;
     this.hadoopFormatCls = Objects.requireNonNull(hadoopFormatCls);
-    this.conf = Objects.requireNonNull(conf);
+    this.conf = new SerializableWritable<>(Objects.requireNonNull(hadoopConf));
   }
 
   @Override
