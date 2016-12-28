@@ -27,13 +27,13 @@ The Beam SDKs provide a number of ways to unit test your pipeline code, from the
 *   You can test an entire [Composite Transform]({{ site.baseurl }}/documentation/programming-guide/#transforms-composite) as a unit.
 *   You can perform an end-to-end test for an entire pipeline.
 
-To support unit testing, the Beam SDK for Java provides a number of test classes in the [testing package](https://github.com/apache/incubator-beam/tree/master/sdks/java/core/src/test/java/org/apache/beam/sdk). You can use these tests as references and guides.
+To support unit testing, the Beam SDK for Java provides a number of test classes in the [testing package](https://github.com/apache/beam/tree/master/sdks/java/core/src/test/java/org/apache/beam/sdk). You can use these tests as references and guides.
 
 ## Testing Individual DoFn Objects
 
 The code in your pipeline's `DoFn` functions runs often, and often across multiple Compute Engine instances. Unit-testing your `DoFn` objects before running them using a runner service can save a great deal of debugging time and energy.
 
-The Beam SDK for Java provides a convenient way to test an individual `DoFn` called [DoFnTester](https://github.com/apache/incubator-beam/blob/master/sdks/java/core/src/test/java/org/apache/beam/sdk/transforms/DoFnTesterTest.java), which is included in the SDK `Transforms` package.
+The Beam SDK for Java provides a convenient way to test an individual `DoFn` called [DoFnTester](https://github.com/apache/beam/blob/master/sdks/java/core/src/test/java/org/apache/beam/sdk/transforms/DoFnTesterTest.java), which is included in the SDK `Transforms` package.
 
 `DoFnTester`uses the [JUnit](http://junit.org) framework. To use `DoFnTester`, you'll need to do the following:
 
@@ -136,7 +136,7 @@ To test a composite transform you've created, you can use the following pattern:
 
 ### TestPipeline
 
-[TestPipeline](https://github.com/apache/incubator-beam/blob/master/sdks/java/core/src/main/java/org/apache/beam/sdk/testing/TestPipeline.java) is a class included in the Beam Java SDK specifically for testing transforms. For tests, use `TestPipeline` in place of `Pipeline` when you create the pipeline object. Unlike `Pipeline.create`, `TestPipeline.create` handles setting `PipelineOptions` interally.
+[TestPipeline](https://github.com/apache/beam/blob/master/sdks/java/core/src/main/java/org/apache/beam/sdk/testing/TestPipeline.java) is a class included in the Beam Java SDK specifically for testing transforms. For tests, use `TestPipeline` in place of `Pipeline` when you create the pipeline object. Unlike `Pipeline.create`, `TestPipeline.create` handles setting `PipelineOptions` interally.
 
 You create a `TestPipeline` as follows:
 
@@ -178,7 +178,7 @@ Any code that uses `PAssert` must link in `JUnit` and `Hamcrest`. If you're usin
 </dependency>
 ```
 
-For more information on how these classes work, see the [org.apache.beam.sdk.testing](http://beam.incubator.apache.org/documentation/sdks/javadoc/0.3.0-incubating/org/apache/beam/sdk/testing/package-summary.html) package documentation.
+For more information on how these classes work, see the [org.apache.beam.sdk.testing](http://beam.apache.org/documentation/sdks/javadoc/0.3.0-incubating/org/apache/beam/sdk/testing/package-summary.html) package documentation.
 
 ### An Example Test for a Composite Transform
 

@@ -24,15 +24,15 @@ We use a review-then-commit workflow in Beam for all contributions.
 **For all contributions:**
 
 1. **Code:** The best part ;-)
-1. **Review:** Submit a pull request with your contribution to our [GitHub mirror](https://github.com/apache/incubator-beam/). Work with a committer to review and iterate on the code, if needed.
-1. **Commit:** A Beam committer merges the pull request into our [Apache repository](https://git-wip-us.apache.org/repos/asf/incubator-beam.git).
+1. **Review:** Submit a pull request with your contribution to our [GitHub mirror](https://github.com/apache/beam/). Work with a committer to review and iterate on the code, if needed.
+1. **Commit:** A Beam committer merges the pull request into our [Apache repository](https://git-wip-us.apache.org/repos/asf/beam.git).
 
 We look forward to working with you!
 
 ## Engage
 
 ### Mailing list(s)
-We discuss design and implementation issues on dev@beam.incubator.apache.org mailing list, which is archived [here](https://lists.apache.org/list.html?dev@beam.apache.org). Join by emailing [`dev-subscribe@beam.incubator.apache.org`](mailto:dev-subscribe@beam.incubator.apache.org).
+We discuss design and implementation issues on dev@beam.apache.org mailing list, which is archived [here](https://lists.apache.org/list.html?dev@beam.apache.org). Join by emailing [`dev-subscribe@beam.apache.org`](mailto:dev-subscribe@beam.apache.org).
 
 If interested, you can also join the other [mailing lists]({{ site.baseurl }}/use/mailing-lists/) too.
 
@@ -71,7 +71,7 @@ We use GitHub’s pull request functionality to review proposed code changes.
 If you do not already have a personal GitHub account, sign up [here](https://github.com/join).
 
 #### Fork the repository on GitHub
-Go to the [Beam GitHub mirror](https://github.com/apache/incubator-beam/) and fork the repository to your own private account. This will be your private workspace for staging changes.
+Go to the [Beam GitHub mirror](https://github.com/apache/beam/) and fork the repository to your own private account. This will be your private workspace for staging changes.
 
 We recommend enabling Travis-CI continuous integration coverage on your private fork in order to easily test your changes before proposing a pull request. Go to [Travis-CI](https://travis-ci.org), log in with your GitHub account, and enable coverage for your repository.
 
@@ -82,12 +82,12 @@ We assume you are using SSH-based authentication with GitHub. If necessary, exch
 
 Clone Beam’s read-only GitHub mirror.
 
-    $ git clone https://github.com/apache/incubator-beam.git
+    $ git clone https://github.com/apache/beam.git
     $ cd incubator-beam
 
 Add your forked repository as an additional Git remote, where you’ll push your changes.
 
-	$ git remote add <GitHub_user> git@github.com:<GitHub_user>/incubator-beam.git
+	$ git remote add <GitHub_user> git@github.com:<GitHub_user>/beam.git
 
 You are now ready to start developing!
 
@@ -203,7 +203,7 @@ Organize your commits to make your reviewer’s job easier. Use the following co
 
     $ git rebase -i origin/master
 
-Navigate to the [Beam GitHub mirror](https://github.com/apache/incubator-beam) to create a pull request. The title of the pull request should be strictly in the following format:
+Navigate to the [Beam GitHub mirror](https://github.com/apache/beam) to create a pull request. The title of the pull request should be strictly in the following format:
 
 	[BEAM-<JIRA-issue-#>] <Title of the pull request>
 
@@ -237,7 +237,7 @@ From another local branch, run:
 	$ git push <GitHub_user> --delete <my-branch>
 
 ## Commit (committers only)
-Once the code has been peer reviewed by a committer, the next step is for the committer to merge it into the [authoritative Apache repository](https://git-wip-us.apache.org/repos/asf/incubator-beam.git), not the read-only GitHub mirror. (In the case that the author is also a committer, it is acceptable for either the author or reviewer to do the merge. Just be explicit about whose job it is!)
+Once the code has been peer reviewed by a committer, the next step is for the committer to merge it into the [authoritative Apache repository](https://git-wip-us.apache.org/repos/asf/beam.git), not the read-only GitHub mirror. (In the case that the author is also a committer, it is acceptable for either the author or reviewer to do the merge. Just be explicit about whose job it is!)
 
 Pull requests should not be merged before the review has received an explicit LGTM from another committer. Exceptions to this rule may be made rarely, on a case-by-case basis only, in the committer’s discretion for situations such as build breakages.
 
@@ -248,7 +248,7 @@ Committing is currently a manual process, but we are investigating tools to auto
 ### One-time Setup
 Add the Apache Git remote in your local clone, by running:
 
-    $ git remote add apache https://git-wip-us.apache.org/repos/asf/incubator-beam.git
+    $ git remote add apache https://git-wip-us.apache.org/repos/asf/beam.git
 
 We recommend renaming the `origin` remote to `github`, to avoid confusion when dealing with this many remotes.
 
@@ -262,10 +262,10 @@ For the `github` remote, add an additional fetch reference, which will cause eve
 You can confirm your configuration by running the following command.
 
 	$ git remote -v
-	apache	https://git-wip-us.apache.org/repos/asf/incubator-beam.git (fetch)
-	apache	https://git-wip-us.apache.org/repos/asf/incubator-beam.git (push)
-	github	https://github.com/apache/incubator-beam.git (fetch)
-	github	https://github.com/apache/incubator-beam.git (push)
+	apache	https://git-wip-us.apache.org/repos/asf/beam.git (fetch)
+	apache	https://git-wip-us.apache.org/repos/asf/beam.git (push)
+	github	https://github.com/apache/beam.git (fetch)
+	github	https://github.com/apache/beam.git (push)
 	<username>	git@github.com:<username>/beam.git (fetch)
 	<username>	git@github.com:<username>/beam.git (push)
 
@@ -380,17 +380,17 @@ A new SDK should:
 
 ### Website
 
-The Beam website is in the [Beam Site GitHub mirror](https://github.com/apache/incubator-beam-site) repository in the `asf-site` branch (_not_ `master`). 
+The Beam website is in the [Beam Site GitHub mirror](https://github.com/apache/beam-site) repository in the `asf-site` branch (_not_ `master`). 
 
 Issues are tracked in the [website](https://issues.apache.org/jira/browse/BEAM/component/12328906) component in JIRA.
 
 #### One-time Setup
 
-The [README file](https://github.com/apache/incubator-beam-site/blob/asf-site/README.md) in the website repository has more information on how to set up the required dependencies for your development environment.
+The [README file](https://github.com/apache/beam-site/blob/asf-site/README.md) in the website repository has more information on how to set up the required dependencies for your development environment.
 
 The general guidelines for cloning a repository can be adjusted to use the `asf-site` branch of `incubator-beam-site`:
 
-	$ git clone -b asf-site https://github.com/apache/incubator-beam-site.git
+	$ git clone -b asf-site https://github.com/apache/beam-site.git
 	$ cd incubator-beam-site
 	$ git remote add <GitHub_user> git@github.com:<GitHub_user>/incubator-beam-site.git
 	$ git fetch --all
@@ -412,7 +412,7 @@ Both of these commands will cause the `content/` directory to be generated. Merg
 
 	$ git checkout -- content
 
-When you are ready, submit a pull request using the [Beam Site GitHub mirror](https://github.com/apache/incubator-beam-site), including the JIRA issue as usual.
+When you are ready, submit a pull request using the [Beam Site GitHub mirror](https://github.com/apache/beam-site), including the JIRA issue as usual.
 
 During review, committers will patch in your PR, generate the static `content/`, and review the changes.
 

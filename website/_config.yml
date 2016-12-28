@@ -6,7 +6,7 @@
 # 'jekyll serve'. If you change this file, please restart the server process.
 
 # Site settings
-title: Apache Beam (incubating)
+title: Apache Beam
 description: > # this means to ignore newlines until "baseurl:"
   Apache Beam is an open source, unified model and set of language-specific
   SDKs for defining and executing data processing workflows, and also data
@@ -25,7 +25,7 @@ source: src
 destination: content
 
 # the base hostname & protocol for your site
-url: "http://beam.incubator.apache.org"
+url: "http://beam.apache.org"
 
 twitter_username: apachebeam
 
