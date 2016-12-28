@@ -54,7 +54,11 @@ class TestPipeline(Pipeline):
     pipeline.run()
   """
 
-  def __init__(self, runner=None, options=None, argv=None, is_it=False):
+  def __init__(self,
+               runner=None,
+               options=None,
+               argv=None,
+               is_integration_test=False):
     """Initialize a pipeline object for test.
 
     Args:
@@ -66,13 +70,14 @@ class TestPipeline(Pipeline):
       argv: A list of arguments (such as sys.argv) to be used for building a
         'PipelineOptions' object. This will only be used if argument 'options'
         is None.
-      is_it: True if the test is an integration test, False otherwise.
+      is_integration_test: True if the test is an integration test, False
+        otherwise.
 
     Raises:
       ValueError: if either the runner or options argument is not of the
       expected type.
     """
-    self.is_it = is_it
+    self.is_integration_test = is_integration_test
     if options is None:
       options = PipelineOptions(self.get_test_option_args(argv))
     super(TestPipeline, self).__init__(runner, options)
@@ -113,9 +118,10 @@ class TestPipeline(Pipeline):
                         help='only run tests providing service options')
     known, unused_argv = parser.parse_known_args(argv)
 
-    if self.is_it and not known.test_pipeline_options:
-      # Skip test since commandline argument '--test-pipeline-options'
-      # is required to run an integration test.
+    if self.is_integration_test and not known.test_pipeline_options:
+      # Skip integration test when argument '--test-pipeline-options' is not
+      # specified since nose calls integration tests when runs unit test by
+      # 'setup.py test'.
       raise SkipTest('IT is skipped because --test-pipeline-options '
                      'is not specified')
 
