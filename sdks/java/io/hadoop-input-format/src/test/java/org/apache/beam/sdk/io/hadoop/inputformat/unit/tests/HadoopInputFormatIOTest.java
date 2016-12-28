@@ -3,11 +3,28 @@ package org.apache.beam.sdk.io.hadoop.inputformat.unit.tests;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
-//import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
+import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
+import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasKey;
+import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasLabel;
+import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasValue;
+import static org.hamcrest.Matchers.allOf;
+import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.hamcrest.Matchers.greaterThan;
+import static org.hamcrest.Matchers.hasItems;
+import static org.hamcrest.Matchers.hasSize;
+import static org.hamcrest.Matchers.lessThan;
+
+
+
+
+
+
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
+import java.util.Map.Entry;
 
 import org.apache.beam.runners.direct.DirectOptions;
 import org.apache.beam.sdk.Pipeline;
@@ -19,18 +36,25 @@ import org.apache.beam.sdk.io.hadoop.inputformat.HadoopInputFormatIO;
 import org.apache.beam.sdk.io.hadoop.inputformat.HadoopInputFormatIO.HadoopInputFormatBoundedSource;
 import org.apache.beam.sdk.io.hadoop.inputformat.HadoopInputFormatIO.Read;
 import org.apache.beam.sdk.io.hadoop.inputformat.HadoopInputFormatIO.SerializableConfiguration;
+import org.apache.beam.sdk.io.hadoop.inputformat.unit.tests.inputformats.DummyBadInputFormat;
+import org.apache.beam.sdk.io.hadoop.inputformat.unit.tests.inputformats.DummyBadInputFormat2;
+import org.apache.beam.sdk.io.hadoop.inputformat.unit.tests.inputformats.DummyInputFormat;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.SourceTestUtils;
 import org.apache.beam.sdk.transforms.SimpleFunction;
+import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
+import org.apache.cassandra.hadoop.cql3.CqlInputFormat;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.InputFormat;
 import org.junit.Before;
 import org.junit.Test;
+
+import com.datastax.driver.core.Row;
 
 public class HadoopInputFormatIOTest {
 	SerializableConfiguration serConf;
@@ -237,7 +261,7 @@ public class HadoopInputFormatIOTest {
 	}
 
 
-	/*@Test
+	@Test
 	public void testReadDisplayData() {
 
 		Configuration conf = new Configuration();
@@ -277,11 +301,11 @@ public class HadoopInputFormatIOTest {
 			Iterator<Entry<String, String>> propertyElement = conf.iterator();
 			while (propertyElement.hasNext()) {
 				Entry<String, String> element = propertyElement.next();
-				assertThat(displayData, DisplayDataMatchers.hasDisplayItem(element.getKey(),element.getValue()));
+				assertThat(displayData, hasDisplayItem(element.getKey(),element.getValue()));
 			}
 		}
 
-	}*/
+	}
 
 	///This test validates functionality of Read.validate() function when Read transform is created without calling withConfiguration().
 	@Test

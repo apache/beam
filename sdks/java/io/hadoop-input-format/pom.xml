@@ -79,7 +79,12 @@
 			<groupId>org.apache.beam</groupId>
 			<artifactId>beam-sdks-java-core</artifactId>
 		</dependency>
-
+   <dependency>
+      <groupId>org.apache.beam</groupId>
+      <artifactId>beam-sdks-java-core</artifactId>
+      <classifier>tests</classifier>
+      <scope>test</scope>
+    </dependency>
 		<dependency>
 			<groupId>com.google.auto.value</groupId>
 			<artifactId>auto-value</artifactId>

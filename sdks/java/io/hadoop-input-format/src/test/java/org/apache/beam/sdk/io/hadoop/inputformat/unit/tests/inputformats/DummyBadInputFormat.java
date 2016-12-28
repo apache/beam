@@ -1,4 +1,4 @@
-package org.apache.beam.sdk.io.hadoop.inputformat.unit.tests;
+package org.apache.beam.sdk.io.hadoop.inputformat.unit.tests.inputformats;
 
 import java.io.DataInput;
 import java.io.DataOutput;
