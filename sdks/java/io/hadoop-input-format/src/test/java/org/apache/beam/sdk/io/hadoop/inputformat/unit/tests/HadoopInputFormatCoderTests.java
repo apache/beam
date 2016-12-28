@@ -56,7 +56,7 @@ public class HadoopInputFormatCoderTests {
 		DirectOptions directRunnerOptions = PipelineOptionsFactory
 				.as(DirectOptions.class);
 		Pipeline pipeline = Pipeline.create(directRunnerOptions);
-		Read read = HadoopInputFormatIO.<KV<Text, String>> read()
+		Read read = HadoopInputFormatIO.<Text, String> read()
 				.withConfiguration(conf);
 		Coder coder = read.getDefaultCoder(td, pipeline);
 
@@ -72,7 +72,7 @@ public class HadoopInputFormatCoderTests {
 		DirectOptions directRunnerOptions = PipelineOptionsFactory
 				.as(DirectOptions.class);
 		Pipeline pipeline = Pipeline.create(directRunnerOptions);
-		Read read = HadoopInputFormatIO.<KV<Text, String>> read()
+		Read read = HadoopInputFormatIO.<Text, String> read()
 				.withConfiguration(conf);
 		Coder coder = read.getDefaultCoder(td, pipeline);
 
@@ -88,7 +88,7 @@ public class HadoopInputFormatCoderTests {
 				.as(DirectOptions.class);
 		Pipeline pipeline = Pipeline.create(directRunnerOptions);
 
-		Read read = HadoopInputFormatIO.<KV<Text, String>> read()
+		Read read = HadoopInputFormatIO.<Text, String> read()
 				.withConfiguration(conf);
 		Coder coder = read.getDefaultCoder(td, pipeline);
 

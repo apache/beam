@@ -73,7 +73,7 @@ public class HIFWithCassandraTest implements Serializable {
 			};
 
 			POutput cassandraData = p.apply(HadoopInputFormatIO
-					.<KV<Long, MyCassandraRow>> read().withConfiguration(conf)
+					.<Long, MyCassandraRow> read().withConfiguration(conf)
 					.withValueTranslation(myValueTranslate));
 			/*
 			 * PCollection<Long> apply = cassandraData.apply(Count.<KV<Long,
