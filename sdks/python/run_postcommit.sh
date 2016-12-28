@@ -60,7 +60,7 @@ python -m apache_beam.examples.wordcount --output /tmp/py-wordcount-direct
 GCS_LOCATION=gs://temp-storage-for-end-to-end-tests
 
 # Job name needs to be unique
-JOBNAME_E2E=py-wordcount-`date +%s`
+JOBNAME_E2E_WC=py-wordcount-`date +%s`
 JOBNAME_VR_TEST=py-validatesrunner-`date +%s`
 
 PROJECT=apache-beam-testing
@@ -71,6 +71,7 @@ python setup.py sdist
 SDK_LOCATION=$(find dist/apache-beam-sdk-*.tar.gz)
 
 # Run ValidatesRunner tests on Google Cloud Dataflow service
+echo ">>> RUNNING DATAFLOW RUNNER VALIDATESRUNNER TESTS"
 python setup.py nosetests \
   -a ValidatesRunner --test-pipeline-options=" \
     --runner=BlockingDataflowRunner \
@@ -82,23 +83,15 @@ python setup.py nosetests \
     --num_workers=1"
 
 # Run wordcount on the Google Cloud Dataflow service
-python -m apache_beam.examples.wordcount \
-  --output $GCS_LOCATION/py-wordcount-cloud \
-  --staging_location $GCS_LOCATION/staging-wordcount \
-  --temp_location $GCS_LOCATION/temp-wordcount \
-  --runner BlockingDataflowRunner \
-  --job_name $JOBNAME_E2E \
-  --project $PROJECT \
-  --sdk_location $SDK_LOCATION \
-  --num_workers 1 >> job_output 2>&1 || true;
-
-# Print full job output, validate correct, then remove it.
-echo ">>> JOB OUTPUT FOLLOWS"
-cat job_output
-
-# Grep will exit with status 1 if success message was not found.
-echo ">>> CHECKING JOB SUCCESS"
-grep JOB_STATE_DONE job_output
-
-# Remove the job output.
-rm job_output
+# and validate job that finishes successfully.
+echo ">>> RUNNING TEST DATAFLOW RUNNER py-wordcount"
+python setup.py nosetests \
+  -a IT --test-pipeline-options=" \
+    --runner=TestDataflowRunner \
+    --project=$PROJECT \
+    --staging_location=$GCS_LOCATION/staging-wordcount \
+    --temp_location=$GCS_LOCATION/temp-wordcount \
+    --output=$GCS_LOCATION/py-wordcount-cloud/output \
+    --sdk_location=$SDK_LOCATION \
+    --job_name=$JOBNAME_E2E_WC \
+    --num_workers=1"
