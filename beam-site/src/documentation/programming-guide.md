@@ -11,6 +11,15 @@ redirect_from:
 
 The **Beam Programming Guide** is intended for Beam users who want to use the Beam SDKs to create data processing pipelines. It provides guidance for using the Beam SDK classes to build and test your pipeline. It is not intended as an exhaustive reference, but as a language-agnostic, high-level guide to programmatically building your Beam pipeline. As the programming guide is filled out, the text will include code samples in multiple languages to help illustrate how to implement Beam concepts in your programs.
 
+
+<nav class="language-switcher">
+  <strong>Adapt for:</strong> 
+  <ul>
+    <li data-type="language-java">Java SDK</li>
+    <li data-type="language-py">Python SDK</li>
+  </ul>
+</nav>
+
 ## Contents
 
 * [Overview](#overview)
@@ -62,13 +71,13 @@ When you run your Beam driver program, the Pipeline Runner that you designate co
 
 ## <a name="pipeline"></a>Creating the Pipeline
 
-The `Pipeline` abstraction encapsulates all the data and steps in your data processing task. Your Beam driver program typically starts by constructing a [Pipeline](https://github.com/apache/beam/blob/master/sdks/java/core/src/main/java/org/apache/beam/sdk/Pipeline.java) object, and then using that object as the basis for creating the pipeline's data sets as `PCollection`s and its operations as `Transform`s.
+The `Pipeline` abstraction encapsulates all the data and steps in your data processing task. Your Beam driver program typically starts by constructing a <span class="language-java">[Pipeline]({{ site.baseurl }}/documentation/sdks/javadoc/{{ site.release_latest }}/index.html?org/apache/beam/sdk/Pipeline.html)</span><span class="language-py">[Pipeline](https://github.com/apache/beam/blob/python-sdk/sdks/python/apache_beam/pipeline.py)</span> object, and then using that object as the basis for creating the pipeline's data sets as `PCollection`s and its operations as `Transform`s.
 
 To use Beam, your driver program must first create an instance of the Beam SDK class `Pipeline` (typically in the `main()` function). When you create your `Pipeline`, you'll also need to set some **configuration options**. You can set your pipeline's configuration options programatically, but it's often easier to set the options ahead of time (or read them from the command line) and pass them to the `Pipeline` object when you create the object.
 
 The pipeline configuration options determine, among other things, the `PipelineRunner` that determines where the pipeline gets executed: locally, or using a distributed back-end of your choice. Depending on where your pipeline gets executed and what your specifed Runner requires, the options can also help you specify other aspects of execution.
 
-To set your pipeline's configuration options and create the pipeline, create an object of type [PipelineOptions](https://github.com/apache/beam/blob/master/sdks/java/core/src/main/java/org/apache/beam/sdk/options/PipelineOptions.java) and pass it to `Pipeline.Create()`. The most common way to do this is by parsing arguments from the command-line:
+To set your pipeline's configuration options and create the pipeline, create an object of type <span class="language-java">[PipelineOptions]({{ site.baseurl }}/documentation/sdks/javadoc/{{ site.release_latest }}/index.html?org/apache/beam/sdk/options/PipelineOptions.html)</span><span class="language-py">[PipelineOptions](https://github.com/apache/beam/blob/python-sdk/sdks/python/apache_beam/utils/options.py)</span> and pass it to `Pipeline.Create()`. The most common way to do this is by parsing arguments from the command-line:
 
 ```java
 public static void main(String[] args) {
@@ -81,11 +90,19 @@ public static void main(String[] args) {
    Pipeline p = Pipeline.create(options);
 ```
 
+```py
+from apache_beam.utils.options import PipelineOptions
+
+# Will parse the arguments passed into the application and construct a PipelineOptions
+# Note that --help will print registered options.
+p = beam.Pipeline(options=PipelineOptions())
+```
+
 The Beam SDKs contain various subclasses of `PipelineOptions` that correspond to different Runners. For example, `DirectPipelineOptions` contains options for the Direct (local) pipeline runner, while `DataflowPipelineOptions` contains options for using the runner for Google Cloud Dataflow. You can also define your own custom `PipelineOptions` by creating an interface that extends the Beam SDKs' `PipelineOptions` class.
 
 ## <a name="pcollection"></a>Working with PCollections
 
-The [PCollection](https://github.com/apache/beam/blob/master/sdks/java/core/src/main/java/org/apache/beam/sdk/values/PCollection.java) abstraction represents a potentially distributed, multi-element data set. You can think of a `PCollection` as "pipeline" data; Beam transforms use `PCollection` objects as inputs and outputs. As such, if you want to work with data in your pipeline, it must be in the form of a `PCollection`.
+The <span class="language-java">[PCollection]({{ site.baseurl }}/documentation/sdks/javadoc/{{ site.release_latest }}/index.html?org/apache/beam/sdk/values/PCollection.html)</span><span class="language-py">`PCollection`</span> abstraction represents a potentially distributed, multi-element data set. You can think of a `PCollection` as "pipeline" data; Beam transforms use `PCollection` objects as inputs and outputs. As such, if you want to work with data in your pipeline, it must be in the form of a `PCollection`.
 
 After you've created your `Pipeline`, you'll need to begin by creating at least one `PCollection` in some form. The `PCollection` you create serves as the input for the first operation in your pipeline.
 
@@ -97,7 +114,7 @@ You create a `PCollection` by either reading data from an external source using 
 
 To read from an external source, you use one of the [Beam-provided I/O adapters](#io). The adapters vary in their exact usage, but all of them from some external data source and return a `PCollection` whose elements represent the data records in that source. 
 
-Each data source adapter has a `Read` transform; to read, you must apply that transform to the `Pipeline` object itself. `TextIO.Read`, for example, reads from an external text file and returns a `PCollection` whose elements are of type `String`; each `String` represents one line from the text file. Here's how you would apply `TextIO.Read` to your `Pipeline` to create a `PCollection`:
+Each data source adapter has a `Read` transform; to read, you must apply that transform to the `Pipeline` object itself. <span class="language-java">`TextIO.Read`</span><span class="language-py">`io.TextFileSource`</span>, for example, reads from an external text file and returns a `PCollection` whose elements are of type `String`, each `String` represents one line from the text file. Here's how you would apply <span class="language-java">`TextIO.Read`</span><span class="language-py">`io.TextFileSource`</span> to your `Pipeline` to create a `PCollection`:
 
 ```java
 public static void main(String[] args) {
@@ -107,19 +124,35 @@ public static void main(String[] args) {
     Pipeline p = Pipeline.create(options);
 
     PCollection<String> lines = p.apply(
-      TextIO.Read.named("ReadMyFile").from("gs://some/inputData.txt"));
+      TextIO.Read.named("ReadMyFile").from("protocol://path/to/some/inputData.txt"));
 }
 ```
+
+```py
+import apache_beam as beam
+
+# Create the pipeline.
+p = beam.Pipeline()
+
+# Read the text file into a PCollection.
+lines = p | 'ReadMyFile' >> beam.io.Read(beam.io.TextFileSource("protocol://path/to/some/inputData.txt"))
+```
+
 
 See the [section on I/O](#io) to learn more about how to read from the various data sources supported by the Beam SDK.
 
 #### Creating a PCollection from In-Memory Data
 
-To create a `PCollection` from an in-memory Java `Collection`, you use the Beam-provided `Create` transform. Much like a data adapter's `Read`, you apply `Create` sirectly to your `Pipeline` object itself. 
+{:.language-java}
+To create a `PCollection` from an in-memory Java `Collection`, you use the Beam-provided `Create` transform. Much like a data adapter's `Read`, you apply `Create` directly to your `Pipeline` object itself.
 
+{:.language-java}
 As parameters, `Create` accepts the Java `Collection` and a `Coder` object. The `Coder` specifies how the elements in the `Collection` should be [encoded](#pcelementtype).
 
-The following example code shows how to create a `PCollection` from an in-memory Java `List`:
+{:.language-py}
+To create a `PCollection` from an in-memory `list`, you use the Beam-provided `Create` transform. Apply this transform directly to your `Pipeline` object itself.
+
+The following example code shows how to create a `PCollection` from an in-memory <span class="language-java">`List`</span><span class="language-py">`list`</span>:
 
 ```java
 public static void main(String[] args) {
@@ -139,7 +172,25 @@ public static void main(String[] args) {
     p.apply(Create.of(LINES)).setCoder(StringUtf8Coder.of())
 }
 ```
-### <a name="pccharacteristics">PCollection Characteristics
+
+```py
+import apache_beam as beam
+
+# python list
+lines = [
+  "To be, or not to be: that is the question: ",
+  "Whether 'tis nobler in the mind to suffer ",
+  "The slings and arrows of outrageous fortune, ",
+  "Or to take arms against a sea of troubles, "
+]
+
+# Create the pipeline.
+p = beam.Pipeline()
+
+collection = p | 'ReadMyLines' >> beam.Create(lines)
+```
+
+### <a name="pccharacteristics"></a>PCollection Characteristics
 
 A `PCollection` is owned by the specific `Pipeline` object for which it is created; multiple pipelines cannot share a `PCollection`. In some respects, a `PCollection` functions like a collection class. However, a `PCollection` can differ in a few key ways:
 
@@ -179,10 +230,14 @@ You can manually assign timestamps to the elements of a `PCollection` if the sou
 
 In the Beam SDKs, **transforms** are the operations in your pipeline. A transform takes a `PCollection` (or more than one `PCollection`) as input, performs an operation that you specify on each element in that collection, and produces a new output `PCollection`. To invoke a transform, you must **apply** it to the input `PCollection`.
 
-In Beam SDK for Java, each transform has a generic `apply` method. In the Beam SDK for Python, you use the pipe operator (`|`) to apply a transform. Invoking multiple Beam transforms is similar to *method chaining*, but with one slight difference: You apply the transform to the input `PCollection`, passing the transform itself as an argument, and the operation returns the output `PCollection`. This takes the general form:
+In Beam SDK each transform has a generic `apply` method <span class="language-py">(or pipe operator `|`)</span>. Invoking multiple Beam transforms is similar to *method chaining*, but with one slight difference: You apply the transform to the input `PCollection`, passing the transform itself as an argument, and the operation returns the output `PCollection`. This takes the general form:
 
 ```java
 [Output PCollection] = [Input PCollection].apply([Transform])
+```
+
+```py
+[Output PCollection] = [Input PCollection] | [Transform]
 ```
 
 Because Beam uses a generic `apply` method for `PCollection`, you can both chain transforms sequentially and also apply transforms that contain other transforms nested within (called **composite transforms** in the Beam SDKs).
@@ -195,13 +250,19 @@ How you apply your pipeline's transforms determines the structure of your pipeli
 							.apply([Third Transform])
 ```
 
+```py
+[Final Output PCollection] = ([Initial Input PCollection] | [First Transform]
+              | [Second Transform]
+              | [Third Transform])
+```
+
 The resulting workflow graph of the above pipeline looks like this:
 
 [Sequential Graph Graphic]
 
 However, note that a transform *does not consume or otherwise alter* the input collection--remember that a `PCollection` is immutable by definition. This means that you can apply multiple transforms to the same input `PCollection` to create a branching pipeline, like so:
 
-```java
+```
 [Output PCollection 1] = [Input PCollection].apply([Transform 1])
 [Output PCollection 2] = [Input PCollection].apply([Transform 2])
 ```
@@ -260,6 +321,22 @@ PCollection<Integer> wordLengths = words.apply(
                                             // we define above.
 ```
 
+```py
+# The input PCollection of Strings.
+words = ...
+
+# The DoFn to perform on each element in the input PCollection.
+class ComputeWordLengthFn(beam.DoFn):
+  def process(self, context):
+    # Get the input element from ProcessContext.
+    word = context.element
+    # Use return to emit the output element.
+    return [len(word)]
+
+# Apply a ParDo to the PCollection "words" to compute lengths for each word.
+word_lengths = words | beam.ParDo(ComputeWordLengthFn())
+```
+
 In the example, our input `PCollection` contains `String` values. We apply a `ParDo` transform that specifies a function (`ComputeWordLengthFn`) to compute the length of each string, and outputs the result to a new `PCollection` of `Integer` values that stores the length of each word.
 
 ##### Creating a DoFn
@@ -268,13 +345,18 @@ The `DoFn` object that you pass to `ParDo` contains the processing logic that ge
 
 > **Note:** When you create your `DoFn`, be mindful of the [General Requirements for Writing User Code for Beam Transforms](#transforms-usercodereqs) and ensure that your code follows them.
 
+{:.language-java}
 A `DoFn` processes one element at a time from the input `PCollection`. When you create a subclass of `DoFn`, you'll need to provide type paraemters that match the types of the input and output elements. If your `DoFn` processes incoming `String` elements and produces `Integer` elements for the output collection (like our previous example, `ComputeWordLengthFn`), your class declaration would look like this:
 
 ```java
 static class ComputeWordLengthFn extends DoFn<String, Integer> { ... }
 ```
 
+{:.language-java}
 Inside your `DoFn` subclass, you'll write a method annotated with `@ProcessElement` where you provide the actual processing logic. You don't need to manually extract the elements from the input collection; the Beam SDKs handle that for you. Your `@ProcessElement` method should accept an object of type `ProcessContext`. The `ProcessContext` object gives you access to an input element and a method for emitting an output element:
+
+{:.language-py}
+Inside your `DoFn` subclass, you'll write a method `process` where you provide the actual processing logic. You don't need to manually extract the elements from the input collection; the Beam SDKs handle that for you. Your `process` method should accept an object of type `context`. The `context` object gives you access to an input element and output is emitted by using `yield` or `return` statement inside `process` method.
 
 ```java
 static class ComputeWordLengthFn extends DoFn<String, Integer> {
@@ -288,20 +370,32 @@ static class ComputeWordLengthFn extends DoFn<String, Integer> {
 }
 ```
 
+```py
+class ComputeWordLengthFn(beam.DoFn):
+  def process(self, context):
+    # Get the input element from ProcessContext.
+    word = context.element
+    # Use return to emit the output element.
+    return [len(word)]
+```
+
+{:.language-java}
 > **Note:** If the elements in your input `PCollection` are key/value pairs, you can access the key or value by using `ProcessContext.element().getKey()` or `ProcessContext.element().getValue()`, respectively.
 
-A given `DoFn` instance generally gets invoked one or more times to process some arbitrary bundle of elements. However, Beam doesn't guarantee an exact number of invocations; it may be invoked multiple times on a given worker node to account for failures and retries. As such, you can cache information across multiple calls to your `@ProcessElement` method, but if you do so, make sure the implementation **does not depend on the number of invocations**.
+A given `DoFn` instance generally gets invoked one or more times to process some arbitrary bundle of elements. However, Beam doesn't guarantee an exact number of invocations; it may be invoked multiple times on a given worker node to account for failures and retries. As such, you can cache information across multiple calls to your processing method, but if you do so, make sure the implementation **does not depend on the number of invocations**.
 
-In your `@ProcessElement` method, you'll also need to meet some immutability requirements to ensure that Beam and the processing back-end can safely serialize and cache the values in your pipeline. Your method should meet the following requirements:
+In your processing method, you'll also need to meet some immutability requirements to ensure that Beam and the processing back-end can safely serialize and cache the values in your pipeline. Your method should meet the following requirements:
 
+{:.language-java}
 * You should not in any way modify an element returned by `ProcessContext.element()` or `ProcessContext.sideInput()` (the incoming elements from the input collection).
 * Once you output a value using `ProcessContext.output()` or `ProcessContext.sideOutput()`, you should not modify that value in any way.
 
+
 ##### Lightweight DoFns and Other Abstractions
 
-If your function is relatively straightforward, you can simply your use of `ParDo` by providing a lightweight `DoFn` in-line. In Java, you can specify your `DoFn` as an anonymous inner class instance, and in Python you can use a `Callable`.
+If your function is relatively straightforward, you can simplify your use of `ParDo` by providing a lightweight `DoFn` in-line, as <span class="language-java">an anonymous inner class instance</span><span class="language-py">a lambda function</span>.
 
-Here's the previous example, `ParDo` with `ComputeLengthWordsFn`, with the `DoFn` specified as an anonymous inner class instance:
+Here's the previous example, `ParDo` with `ComputeLengthWordsFn`, with the `DoFn` specified as <span class="language-java">an anonymous inner class instance</span><span class="language-py">a lambda function</span>:
 
 ```java
 // The input PCollection.
@@ -320,21 +414,40 @@ PCollection<Integer> wordLengths = words.apply(
     }));
 ```
 
-If your `ParDo` performs a one-to-one mapping of input elements to output elements--that is, for each input element, it applies a function that produces *exactly one* output element, you can use the higher-level `MapElements` transform. `MapElements` can accept an anonymous Java 8 lambda function for additional brevity.
+```py
+# The input PCollection of strings.
+words = ...
 
-Here's the previous example using `MapElements`:
+# Apply a lambda function to the PCollection words.
+# Save the result as the PCollection word_lengths.
+word_lengths = words | beam.FlatMap(lambda x: [len(x)])
+```
+
+If your `ParDo` performs a one-to-one mapping of input elements to output elements--that is, for each input element, it applies a function that produces *exactly one* output element, you can use the higher-level <span class="language-java">`MapElements`</span><span class="language-py">`Map`</span> transform. <span class="language-java">`MapElements` can accept an anonymous Java 8 lambda function for additional brevity.</span>
+
+Here's the previous example using <span class="language-java">`MapElements`</span><span class="language-py">`Map`</span>:
 
 ```java
 // The input PCollection.
-PCollection&lt;String&gt; words = ...;
+PCollection<String> words = ...;
 
 // Apply a MapElements with an anonymous lambda function to the PCollection words.
 // Save the result as the PCollection wordLengths.
-PCollection&lt;Integer&gt; wordLengths = words.apply(
-  MapElements.via((String word) -&gt; word.length())
-      .withOutputType(new TypeDescriptor&lt;Integer&gt;() {});
+PCollection<Integer> wordLengths = words.apply(
+  MapElements.via((String word) -> word.length())
+      .withOutputType(new TypeDescriptor<Integer>() {});
 ```
 
+```py
+# The input PCollection of string.
+words = ...
+
+# Apply a Map with a lambda function to the PCollection words.
+# Save the result as the PCollection word_lengths.
+word_lengths = words | beam.Map(lambda x: len(x))
+```
+
+{:.language-java}
 > **Note:** You can use Java 8 lambda functions with several other Beam transforms, including `Filter`, `FlatMapElements`, and `Partition`.
 
 #### <a name="transforms-gbk"></a>Using GroupByKey
@@ -379,7 +492,7 @@ Thus, `GroupByKey` represents a transform from a multimap (multiple keys to indi
 
 #### <a name="transforms-combine"></a>Using Combine
 
-<span class="language-java">[`Combine`]({{ site.baseurl }}/documentation/sdks/javadoc/{{ site.release_latest }}/index.html?org/apache/beam/sdk/transforms/Combine.html)</span><span class="language-python">[`Combine`](https://github.com/apache/beam/blob/python-sdk/sdks/python/apache_beam/transforms/core.py)</span> is a Beam transform for combining collections of elements or values in your data. `Combine` has variants that work on entire `PCollection`s, and some that combine the values for each key in `PCollection`s of key/value pairs.
+<span class="language-java">[`Combine`]({{ site.baseurl }}/documentation/sdks/javadoc/{{ site.release_latest }}/index.html?org/apache/beam/sdk/transforms/Combine.html)</span><span class="language-py">[`Combine`](https://github.com/apache/beam/blob/python-sdk/sdks/python/apache_beam/transforms/core.py)</span> is a Beam transform for combining collections of elements or values in your data. `Combine` has variants that work on entire `PCollection`s, and some that combine the values for each key in `PCollection`s of key/value pairs.
 
 When you apply a `Combine` transform, you must provide the function that contains the logic for combining the elements or values. The combining function should be commutative and associative, as the function is not necessarily invoked exactly once on all values with a given key. Because the input data (including the value collection) may be distributed across multiple workers, the combining function might be called multiple times to perform partial combining on subsets of the value collection. The Beam SDK also provides some pre-built combine functions for common numeric combination operations such as sum, min, and max.
 
@@ -403,7 +516,7 @@ public static class SumInts implements SerializableFunction<Iterable<Integer>, I
 }
 ```
 
-```python
+```py
 # A bounded sum of positive integers.
 def bounded_sum(values, bound=500):
   return min(sum(values), bound)
@@ -459,7 +572,7 @@ public class AverageFn extends CombineFn<Integer, AverageFn.Accum, Double> {
 }
 ```
 
-```python
+```py
 pc = ...
 class AverageFn(beam.CombineFn):
   def create_accumulator(self):
@@ -490,7 +603,7 @@ PCollection<Integer> sum = pc.apply(
    Combine.globally(new Sum.SumIntegerFn()));
 ```
 
-```python
+```py
 # sum combines the elements in the input PCollection.
 # The resulting PCollection, called result, contains one value: the sum of all the elements in the input PCollection.
 pc = ...
@@ -509,7 +622,7 @@ PCollection<Integer> sum = pc.apply(
   Combine.globally(new Sum.SumIntegerFn()).withoutDefaults());
 ```
 
-```python
+```py
 pc = ...
 sum = pc | beam.CombineGlobally(sum).without_defaults()
 
@@ -554,7 +667,7 @@ PCollection<KV<String, Double>> avgAccuracyPerPlayer =
     new MeanInts())));
 ```
 
-```python
+```py
 # PCollection is grouped by key and the numeric values associated with each key are averaged into a float.
 player_accuracies = ...
 avg_accuracy_per_player = (player_accuracies
@@ -564,7 +677,7 @@ avg_accuracy_per_player = (player_accuracies
 
 #### <a name="transforms-flatten-partition"></a>Using Flatten and Partition
 
-<span class="language-java">[`Flatten`]({{ site.baseurl }}/documentation/sdks/javadoc/{{ site.release_latest }}/index.html?org/apache/beam/sdk/transforms/Flatten.html)</span><span class="language-python">[`Flatten`](https://github.com/apache/beam/blob/python-sdk/sdks/python/apache_beam/transforms/core.py)</span> and <span class="language-java">[`Partition`]({{ site.baseurl }}/documentation/sdks/javadoc/{{ site.release_latest }}/index.html?org/apache/beam/sdk/transforms/Partition.html)</span><span class="language-python">[`Partition`](https://github.com/apache/beam/blob/python-sdk/sdks/python/apache_beam/transforms/core.py)</span> are Beam transforms for `PCollection` objects that store the same data type. `Flatten` merges multiple `PCollection` objects into a single logical `PCollection`, and `Partition` splits a single `PCollection` into a fixed number of smaller collections.
+<span class="language-java">[`Flatten`]({{ site.baseurl }}/documentation/sdks/javadoc/{{ site.release_latest }}/index.html?org/apache/beam/sdk/transforms/Flatten.html)</span><span class="language-py">[`Flatten`](https://github.com/apache/beam/blob/python-sdk/sdks/python/apache_beam/transforms/core.py)</span> and <span class="language-java">[`Partition`]({{ site.baseurl }}/documentation/sdks/javadoc/{{ site.release_latest }}/index.html?org/apache/beam/sdk/transforms/Partition.html)</span><span class="language-py">[`Partition`](https://github.com/apache/beam/blob/python-sdk/sdks/python/apache_beam/transforms/core.py)</span> are Beam transforms for `PCollection` objects that store the same data type. `Flatten` merges multiple `PCollection` objects into a single logical `PCollection`, and `Partition` splits a single `PCollection` into a fixed number of smaller collections.
 
 ##### **Flatten**
 
@@ -581,7 +694,7 @@ PCollectionList<String> collections = PCollectionList.of(pc1).and(pc2).and(pc3);
 PCollection<String> merged = collections.apply(Flatten.<String>pCollections());
 ```
 
-```python
+```py
 # Flatten takes a tuple of PCollection objects.
 # Returns a single PCollection that contains all of the elements in the PCollection objects in that tuple.
 merged = (
@@ -623,7 +736,7 @@ PCollectionList<Student> studentsByPercentile =
 PCollection<Student> fortiethPercentile = studentsByPercentile.get(4);
 ```
 
-```python
+```py
 # Provide an int value with the desired number of result partitions, and a partitioning function (partition_fn in this example).
 # Returns a tuple of PCollection objects containing each of the resulting partitions as individual PCollection objects.
 def partition_fn(student, num_partitions):
@@ -708,7 +821,7 @@ Side inputs are useful if your `ParDo` needs to inject additional data when proc
   }}));
 ```
 
-```python
+```py
 # Side inputs are available as extra arguments in the DoFn's process method or Map / FlatMap's callable.
 # Optional, positional, and keyword arguments are all supported. Deferred arguments are unwrapped into their actual values.
 # For example, using pvalue.AsIter(pcoll) at pipeline construction time results in an iterable of the actual elements of pcoll being passed into each process invocation.
@@ -817,7 +930,7 @@ While `ParDo` always produces a main output `PCollection` (as the return value f
           }
 ```
 
-```python
+```py
 # To emit elements to a side output PCollection, invoke with_outputs() on the ParDo, optionally specifying the expected tags for the output.
 # with_outputs() returns a DoOutputsTuple object. Tags specified in with_outputs are attributes on the returned DoOutputsTuple object.
 # The tags give access to the corresponding output PCollections.
@@ -865,7 +978,7 @@ below, above, marked = (words
 
 ```
 
-```python
+```py
 # Inside your ParDo's DoFn, you can emit an element to a side output by wrapping the value and the output tag (str).
 # using the pvalue.SideOutputValue wrapper class.
 # Based on the previous example, this shows the DoFn emitting to the main and side outputs.
