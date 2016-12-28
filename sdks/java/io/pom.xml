@@ -80,6 +80,7 @@
     <module>mongodb</module>
     <module>mqtt</module>
     <module>xml</module>
+    <module>amqp</module>
   </modules>
 
   <profiles>
