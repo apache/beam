@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.transforms;
 
 import static com.google.common.base.Preconditions.checkArgument;
-import static org.apache.beam.sdk.TestUtils.LINES;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertEquals;
@@ -33,6 +32,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.TreeSet;
+import org.apache.beam.sdk.TestUtils;
 import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.testing.PAssert;
@@ -69,36 +69,51 @@ public class SampleTest {
     @Rule
     public final transient TestPipeline p = TestPipeline.create();
 
-    @Parameterized.Parameters(name = "limit_{0}")
+    @Parameterized.Parameters(name = "limit_{1}")
     public static Iterable<Object[]> data() throws IOException {
       return ImmutableList.<Object[]>builder()
           .add(
               new Object[] {
+                  TestUtils.NO_LINES,
                   0
               },
               new Object[] {
+                  TestUtils.NO_LINES,
                   1
               },
               new Object[] {
-                  LINES.size() / 2
+                  TestUtils.LINES,
+                  1
               },
               new Object[] {
-                  LINES.size() * 2
+                  TestUtils.LINES,
+                  TestUtils.LINES.size() / 2
               },
               new Object[] {
-                  LINES.size() - 1
+                  TestUtils.LINES,
+                  TestUtils.LINES.size() * 2
               },
               new Object[] {
-                  LINES.size()
+                  TestUtils.LINES,
+                  TestUtils.LINES.size() - 1
               },
               new Object[] {
-                  LINES.size() + 1
+                  TestUtils.LINES,
+                  TestUtils.LINES.size()
+              },
+              new Object[] {
+                  TestUtils.LINES,
+                  TestUtils.LINES.size() + 1
               }
               )
           .build();
     }
 
-    @Parameterized.Parameter
+    @SuppressWarnings("DefaultAnnotationParam")
+    @Parameterized.Parameter(0)
+    public List<String> lines;
+
+    @Parameterized.Parameter(1)
     public int limit;
 
     private static class VerifyAnySample implements SerializableFunction<Iterable<String>, Void> {
@@ -149,7 +164,7 @@ public class SampleTest {
     @Test
     @Category(RunnableOnService.class)
     public void testPickAny() {
-      runPickAnyTest(LINES, limit);
+      runPickAnyTest(lines, limit);
     }
   }
 
