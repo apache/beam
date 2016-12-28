@@ -1,6 +1,5 @@
 package cz.seznam.euphoria.hadoop.output;
 
-import cz.seznam.euphoria.hadoop.SerializableWritable;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.Writable;
@@ -17,10 +16,8 @@ public class SequenceFileDataSinkFactory<K extends Writable, V extends Writable>
     conf.set(JobContext.OUTPUT_KEY_CLASS, keyCls.getName());
     conf.set(JobContext.OUTPUT_VALUE_CLASS, valueCls.getName());
 
-    return
-      new HadoopDataSink<>(
-        (Class) SequenceFileOutputFormat.class,
-        new SerializableWritable<>(conf)
-      );
+    return new HadoopDataSink<>(
+            (Class) SequenceFileOutputFormat.class,
+            conf);
   }
 }
