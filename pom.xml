@@ -45,9 +45,9 @@
   </licenses>
 
   <scm>
-    <connection>scm:git:https://git-wip-us.apache.org/repos/asf/incubator-beam.git</connection>
-    <developerConnection>scm:git:https://git-wip-us.apache.org/repos/asf/incubator-beam.git</developerConnection>
-    <url>https://git-wip-us.apache.org/repos/asf?p=incubator-beam.git;a=summary</url>
+    <connection>scm:git:https://git-wip-us.apache.org/repos/asf/beam.git</connection>
+    <developerConnection>scm:git:https://git-wip-us.apache.org/repos/asf/beam.git</developerConnection>
+    <url>https://git-wip-us.apache.org/repos/asf?p=beam.git;a=summary</url>
     <tag>release-0.4.0-incubating</tag>
   </scm>
 
