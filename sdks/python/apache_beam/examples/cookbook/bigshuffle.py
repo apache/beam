@@ -25,8 +25,8 @@ import logging
 
 
 import apache_beam as beam
-from apache_beam.utils.options import PipelineOptions
-from apache_beam.utils.options import SetupOptions
+from apache_beam.utils.pipeline_options import PipelineOptions
+from apache_beam.utils.pipeline_options import SetupOptions
 
 
 def crc32line(line):

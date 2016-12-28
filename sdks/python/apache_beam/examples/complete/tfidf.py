@@ -30,8 +30,8 @@ import re
 
 import apache_beam as beam
 from apache_beam.pvalue import AsSingleton
-from apache_beam.utils.options import PipelineOptions
-from apache_beam.utils.options import SetupOptions
+from apache_beam.utils.pipeline_options import PipelineOptions
+from apache_beam.utils.pipeline_options import SetupOptions
 
 
 def read_documents(pipeline, uris):

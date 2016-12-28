@@ -26,9 +26,9 @@ import unittest
 from apache_beam import utils
 from apache_beam.utils import dependency
 from apache_beam.utils import names
-from apache_beam.utils.options import GoogleCloudOptions
-from apache_beam.utils.options import PipelineOptions
-from apache_beam.utils.options import SetupOptions
+from apache_beam.utils.pipeline_options import GoogleCloudOptions
+from apache_beam.utils.pipeline_options import PipelineOptions
+from apache_beam.utils.pipeline_options import SetupOptions
 
 
 class SetupTest(unittest.TestCase):

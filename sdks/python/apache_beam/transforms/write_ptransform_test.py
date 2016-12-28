@@ -25,7 +25,7 @@ from apache_beam.io import iobase
 from apache_beam.pipeline import Pipeline
 from apache_beam.transforms.ptransform import PTransform
 from apache_beam.transforms.util import assert_that, is_empty
-from apache_beam.utils.options import PipelineOptions
+from apache_beam.utils.pipeline_options import PipelineOptions
 
 
 class _TestSink(iobase.Sink):

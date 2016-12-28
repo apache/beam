@@ -22,8 +22,8 @@ import shlex
 
 from apache_beam.internal import pickler
 from apache_beam.pipeline import Pipeline
-from apache_beam.utils.options import PipelineOptions
 from nose.plugins.skip import SkipTest
+from apache_beam.utils.pipeline_options import PipelineOptions
 
 
 class TestPipeline(Pipeline):

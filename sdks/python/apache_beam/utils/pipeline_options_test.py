@@ -23,7 +23,7 @@ import unittest
 import hamcrest as hc
 from apache_beam.transforms.display import DisplayData
 from apache_beam.transforms.display_test import DisplayDataItemMatcher
-from apache_beam.utils.options import PipelineOptions
+from apache_beam.utils.pipeline_options import PipelineOptions
 
 
 class PipelineOptionsTest(unittest.TestCase):

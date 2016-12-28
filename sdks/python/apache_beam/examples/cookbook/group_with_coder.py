@@ -35,8 +35,8 @@ import apache_beam as beam
 from apache_beam import coders
 from apache_beam.typehints import typehints
 from apache_beam.typehints.decorators import with_output_types
-from apache_beam.utils.options import PipelineOptions
-from apache_beam.utils.options import SetupOptions
+from apache_beam.utils.pipeline_options import PipelineOptions
+from apache_beam.utils.pipeline_options import SetupOptions
 
 
 class Player(object):
