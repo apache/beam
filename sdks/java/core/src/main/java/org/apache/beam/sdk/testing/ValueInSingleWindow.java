@@ -97,19 +97,19 @@ public abstract class ValueInSingleWindow<T> {
     public void encode(ValueInSingleWindow<T> windowedElem, OutputStream outStream, Context context)
         throws IOException {
       Context nestedContext = context.nested();
-      valueCoder.encode(windowedElem.getValue(), outStream, nestedContext);
       InstantCoder.of().encode(windowedElem.getTimestamp(), outStream, nestedContext);
       windowCoder.encode(windowedElem.getWindow(), outStream, nestedContext);
-      PaneInfo.PaneInfoCoder.INSTANCE.encode(windowedElem.getPane(), outStream, context);
+      PaneInfo.PaneInfoCoder.INSTANCE.encode(windowedElem.getPane(), outStream, nestedContext);
+      valueCoder.encode(windowedElem.getValue(), outStream, context);
     }
 
     @Override
     public ValueInSingleWindow<T> decode(InputStream inStream, Context context) throws IOException {
       Context nestedContext = context.nested();
-      T value = valueCoder.decode(inStream, nestedContext);
       Instant timestamp = InstantCoder.of().decode(inStream, nestedContext);
       BoundedWindow window = windowCoder.decode(inStream, nestedContext);
       PaneInfo pane = PaneInfo.PaneInfoCoder.INSTANCE.decode(inStream, nestedContext);
+      T value = valueCoder.decode(inStream, context);
       return new AutoValue_ValueInSingleWindow<>(value, timestamp, window, pane);
     }
 

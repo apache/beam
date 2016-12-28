@@ -647,15 +647,15 @@ public class IsmFormat {
           value);
       VarIntCoder.of().encode(value.getId(), outStream, context.nested());
       VarLongCoder.of().encode(value.getBlockOffset(), outStream, context.nested());
-      VarLongCoder.of().encode(value.getIndexOffset(), outStream, context.nested());
+      VarLongCoder.of().encode(value.getIndexOffset(), outStream, context);
     }
 
     @Override
     public IsmShard decode(
         InputStream inStream, Coder.Context context) throws CoderException, IOException {
       return IsmShard.of(
-          VarIntCoder.of().decode(inStream, context),
-          VarLongCoder.of().decode(inStream, context),
+          VarIntCoder.of().decode(inStream, context.nested()),
+          VarLongCoder.of().decode(inStream, context.nested()),
           VarLongCoder.of().decode(inStream, context));
     }
 

@@ -53,7 +53,7 @@ class KinesisRecordCoder extends AtomicCoder<KinesisRecord> {
         VAR_LONG_CODER.encode(value.getSubSequenceNumber(), outStream, nested);
         INSTANT_CODER.encode(value.getReadTime(), outStream, nested);
         STRING_CODER.encode(value.getStreamName(), outStream, nested);
-        STRING_CODER.encode(value.getShardId(), outStream, nested);
+        STRING_CODER.encode(value.getShardId(), outStream, context);
     }
 
     @Override
@@ -66,7 +66,7 @@ class KinesisRecordCoder extends AtomicCoder<KinesisRecord> {
         long subSequenceNumber = VAR_LONG_CODER.decode(inStream, nested);
         Instant readTimestamp = INSTANT_CODER.decode(inStream, nested);
         String streamName = STRING_CODER.decode(inStream, nested);
-        String shardId = STRING_CODER.decode(inStream, nested);
+        String shardId = STRING_CODER.decode(inStream, context);
         return new KinesisRecord(data, sequenceNumber, subSequenceNumber, partitionKey,
                 approximateArrivalTimestamp, readTimestamp, streamName, shardId
         );

@@ -185,18 +185,16 @@ public class Mean {
      @Override
      public void encode(CountSum<NumT> value, OutputStream outStream, Coder.Context context)
          throws CoderException, IOException {
-       Coder.Context nestedContext = context.nested();
-       LONG_CODER.encode(value.count, outStream, nestedContext);
-       DOUBLE_CODER.encode(value.sum, outStream, nestedContext);
+       LONG_CODER.encode(value.count, outStream, context.nested());
+       DOUBLE_CODER.encode(value.sum, outStream, context);
      }
 
      @Override
      public CountSum<NumT> decode(InputStream inStream, Coder.Context context)
          throws CoderException, IOException {
-       Coder.Context nestedContext = context.nested();
        return new CountSum<>(
-           LONG_CODER.decode(inStream, nestedContext),
-           DOUBLE_CODER.decode(inStream, nestedContext));
+           LONG_CODER.decode(inStream, context.nested()),
+           DOUBLE_CODER.decode(inStream, context));
     }
   }
 }

@@ -905,14 +905,14 @@ public class CombineTest implements Serializable {
       @Override
       public void encode(CountSum value, OutputStream outStream,
           Context context) throws CoderException, IOException {
-        LONG_CODER.encode(value.count, outStream, context);
+        LONG_CODER.encode(value.count, outStream, context.nested());
         DOUBLE_CODER.encode(value.sum, outStream, context);
       }
 
       @Override
       public CountSum decode(InputStream inStream, Coder.Context context)
           throws CoderException, IOException {
-        long count = LONG_CODER.decode(inStream, context);
+        long count = LONG_CODER.decode(inStream, context.nested());
         double sum = DOUBLE_CODER.decode(inStream, context);
         return new CountSum(count, sum);
       }
@@ -930,7 +930,7 @@ public class CombineTest implements Serializable {
       public void registerByteSizeObserver(
           CountSum value, ElementByteSizeObserver observer, Context context)
           throws Exception {
-        LONG_CODER.registerByteSizeObserver(value.count, observer, context);
+        LONG_CODER.registerByteSizeObserver(value.count, observer, context.nested());
         DOUBLE_CODER.registerByteSizeObserver(value.sum, observer, context);
       }
     }
