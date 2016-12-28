@@ -536,18 +536,13 @@ TAG="v${VERSION}-RC${RC_NUM}"
 
 <p>The final step of building the candidate is to propose a website pull request.</p>
 
-<p>Add the new release to the <a href="/use/releases/">Apache Beam Releases</a> page, as follows:</p>
+<p>Start by updating <code class="highlighter-rouge">release_latest</code> version flag in the top-level <code class="highlighter-rouge">_config.yml</code>, and list the new release in the <a href="/get-started/downloads/">Apache Beam Downloads</a>, linking to the source code download and the Release Notes in JIRA.</p>
+
+<p>Add the new Javadoc to <a href="/documentation/sdks/javadoc/">SDK API Reference page</a> page, as follows:</p>
 
 <ul>
-  <li>Update the <code class="highlighter-rouge">&lt;version&gt;</code> tags in the sample <code class="highlighter-rouge">pom.xml</code> snippet to the new release.</li>
-  <li>Add the new version to the <code class="highlighter-rouge">Release Notes</code> section below, along with links to the source code download and the Release Notes in JIRA.</li>
-</ul>
-
-<p>Add the new Javadoc to <a href="/learn/sdks/javadoc/">SDK API Reference page</a> page, as follows:</p>
-
-<ul>
-  <li>Copy the generated Javadoc into the website repository: <code class="highlighter-rouge">cp -r ${JAVADOC_ROOT} learn/sdks/javadoc/${VERSION}</code>.</li>
-  <li>Update the Javadoc link on this page to point to the new version.</li>
+  <li>Copy the generated Javadoc into the website repository: <code class="highlighter-rouge">cp -r ${JAVADOC_ROOT} documentation/sdks/javadoc/${VERSION}</code>.</li>
+  <li>Update the Javadoc link on this page to point to the new version (in <code class="highlighter-rouge">src/documentation/sdks/javadoc/current.md</code>).</li>
 </ul>
 
 <p>Finally, propose a pull request with these changes. (Don’t merge before finalizing the release.)</p>
