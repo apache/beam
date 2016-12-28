@@ -1,6 +1,5 @@
 package cz.seznam.euphoria.hadoop.input;
 
-import cz.seznam.euphoria.hadoop.SerializableWritable;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.Writable;
@@ -18,6 +17,6 @@ public class SequenceFileDataSourceFactory<K extends Writable, V extends Writabl
     return new HadoopDataSource<>(
         (Class) Writable.class, (Class) Writable.class,
         (Class) SequenceFileInputFormat.class,
-        new SerializableWritable<>(conf));
+        conf);
   }
 }

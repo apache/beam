@@ -4,7 +4,6 @@ import cz.seznam.euphoria.core.client.io.DataSource;
 import cz.seznam.euphoria.core.client.io.DataSourceFactory;
 import cz.seznam.euphoria.core.util.Settings;
 import cz.seznam.euphoria.hadoop.HadoopUtils;
-import cz.seznam.euphoria.hadoop.SerializableWritable;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.Text;
@@ -25,6 +24,6 @@ public class HadoopTextFileSourceFactory implements DataSourceFactory {
 
     return (DataSource<T>) new HadoopDataSource(
         LongWritable.class, Text.class,
-        TextInputFormat.class, new SerializableWritable<>(conf));
+        TextInputFormat.class, conf);
   }
 }
