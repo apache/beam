@@ -64,6 +64,7 @@
   </dependencyManagement>
 
   <modules>
+    <module>amqp</module>
     <module>cassandra</module>
     <module>common</module>
     <module>elasticsearch</module>
