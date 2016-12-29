@@ -25,7 +25,7 @@ import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.display.DisplayData.Builder;
 import org.apache.beam.sdk.transforms.display.HasDisplayData;
-import org.apache.beam.sdk.util.StringUtils;
+import org.apache.beam.sdk.util.NameUtils;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.TypedPValue;
@@ -243,7 +243,7 @@ public abstract class PTransform<InputT extends PInput, OutputT extends POutput>
     if (getClass().isAnonymousClass()) {
       return "AnonymousTransform";
     } else {
-      return StringUtils.approximatePTransformName(getClass());
+      return NameUtils.approximatePTransformName(getClass());
     }
   }
 

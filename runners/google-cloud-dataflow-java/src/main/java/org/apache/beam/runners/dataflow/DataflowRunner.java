@@ -21,8 +21,6 @@ import static com.google.common.base.MoreObjects.firstNonNull;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.base.Strings.isNullOrEmpty;
-import static org.apache.beam.sdk.util.StringUtils.approximatePTransformName;
-import static org.apache.beam.sdk.util.StringUtils.approximateSimpleName;
 import static org.apache.beam.sdk.util.WindowedValue.valueInEmptyWindows;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
@@ -143,6 +141,7 @@ import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.IOChannelUtils;
 import org.apache.beam.sdk.util.InstanceBuilder;
 import org.apache.beam.sdk.util.MimeTypes;
+import org.apache.beam.sdk.util.NameUtils;
 import org.apache.beam.sdk.util.PCollectionViews;
 import org.apache.beam.sdk.util.PathValidator;
 import org.apache.beam.sdk.util.PropertyNames;
@@ -2309,7 +2308,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
 
     @Override
     public String getKindString() {
-      return "Read(" + approximateSimpleName(source.getClass()) + ")";
+      return String.format("Read(%s)", NameUtils.approximateSimpleName(source.getClass()));
     }
 
     static {
@@ -2785,8 +2784,8 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
           ? "streaming" : "batch";
       String name =
           transform == null
-              ? approximateSimpleName(doFn.getClass())
-              : approximatePTransformName(transform.getClass());
+              ? NameUtils.approximateSimpleName(doFn.getClass())
+              : NameUtils.approximatePTransformName(transform.getClass());
       throw new UnsupportedOperationException(
           String.format("The DataflowRunner in %s mode does not support %s.", mode, name));
     }

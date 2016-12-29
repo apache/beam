@@ -17,12 +17,11 @@
  */
 package org.apache.beam.sdk.io;
 
-import static org.apache.beam.sdk.util.StringUtils.approximateSimpleName;
-
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.apache.beam.sdk.util.NameUtils;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.values.PBegin;
@@ -118,7 +117,7 @@ public class Read {
 
     @Override
     public String getKindString() {
-      return "Read(" + approximateSimpleName(source.getClass()) + ")";
+      return "Read(" + NameUtils.approximateSimpleName(source.getClass()) + ")";
     }
 
     @Override
@@ -185,7 +184,7 @@ public class Read {
 
     @Override
     public String getKindString() {
-      return "Read(" + approximateSimpleName(source.getClass()) + ")";
+      return String.format("Read(%s)", NameUtils.approximateSimpleName(source.getClass()));
     }
 
     @Override
