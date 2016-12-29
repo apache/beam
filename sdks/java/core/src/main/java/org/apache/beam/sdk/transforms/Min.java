@@ -52,7 +52,7 @@ public class Min {
    * {@code PCollection}'s elements, or {@code Integer.MAX_VALUE} if there are no elements.
    */
   public static Combine.Globally<Integer, Integer> integersGlobally() {
-    return Combine.globally(new MinIntegerFn()).named("Min.Globally");
+    return Combine.globally(new MinIntegerFn());
   }
 
   /**
@@ -64,7 +64,7 @@ public class Min {
    * <p>See {@link Combine.PerKey} for how this affects timestamps and windowing.
    */
   public static <K> Combine.PerKey<K, Integer, Integer> integersPerKey() {
-    return Combine.<K, Integer, Integer>perKey(new MinIntegerFn()).named("Min.PerKey");
+    return Combine.<K, Integer, Integer>perKey(new MinIntegerFn());
   }
 
   /**
@@ -73,7 +73,7 @@ public class Min {
    * or {@code Long.MAX_VALUE} if there are no elements.
    */
   public static Combine.Globally<Long, Long> longsGlobally() {
-    return Combine.globally(new MinLongFn()).named("Min.Globally");
+    return Combine.globally(new MinLongFn());
   }
 
   /**
@@ -85,7 +85,7 @@ public class Min {
    * <p>See {@link Combine.PerKey} for how this affects timestamps and windowing.
    */
   public static <K> Combine.PerKey<K, Long, Long> longsPerKey() {
-   return Combine.<K, Long, Long>perKey(new MinLongFn()).named("Min.PerKey");
+   return Combine.<K, Long, Long>perKey(new MinLongFn());
   }
 
   /**
@@ -94,7 +94,7 @@ public class Min {
    * elements, or {@code Double.POSITIVE_INFINITY} if there are no elements.
    */
   public static Combine.Globally<Double, Double> doublesGlobally() {
-    return Combine.globally(new MinDoubleFn()).named("Min.Globally");
+    return Combine.globally(new MinDoubleFn());
   }
 
   /**
@@ -106,7 +106,7 @@ public class Min {
    * <p>See {@link Combine.PerKey} for how this affects timestamps and windowing.
    */
   public static <K> Combine.PerKey<K, Double, Double> doublesPerKey() {
-    return Combine.<K, Double, Double>perKey(new MinDoubleFn()).named("Min.PerKey");
+    return Combine.<K, Double, Double>perKey(new MinDoubleFn());
   }
 
   /**
@@ -116,7 +116,7 @@ public class Min {
    */
   public static <T extends Comparable<? super T>>
   Combine.Globally<T, T> globally() {
-    return Combine.<T, T>globally(MinFn.<T>naturalOrder()).named("Min.Globally");
+    return Combine.<T, T>globally(MinFn.<T>naturalOrder());
   }
 
   /**
@@ -129,7 +129,7 @@ public class Min {
    */
   public static <K, T extends Comparable<? super T>>
   Combine.PerKey<K, T, T> perKey() {
-    return Combine.<K, T, T>perKey(MinFn.<T>naturalOrder()).named("Min.PerKey");
+    return Combine.<K, T, T>perKey(MinFn.<T>naturalOrder());
   }
 
   /**
@@ -139,7 +139,7 @@ public class Min {
    */
   public static <T, ComparatorT extends Comparator<? super T> & Serializable>
   Combine.Globally<T, T> globally(ComparatorT comparator) {
-    return Combine.<T, T>globally(MinFn.of(comparator)).named("Min.Globally");
+    return Combine.<T, T>globally(MinFn.of(comparator));
   }
 
   /**
@@ -151,7 +151,7 @@ public class Min {
    */
   public static <K, T, ComparatorT extends Comparator<? super T> & Serializable>
   Combine.PerKey<K, T, T> perKey(ComparatorT comparator) {
-    return Combine.<K, T, T>perKey(MinFn.of(comparator)).named("Min.PerKey");
+    return Combine.<K, T, T>perKey(MinFn.of(comparator));
   }
 
   /////////////////////////////////////////////////////////////////////////////

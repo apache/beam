@@ -762,12 +762,7 @@ public class ParDo {
 
     @Override
     protected String getKindString() {
-      Class<?> clazz = getFn().getClass();
-      if (clazz.isAnonymousClass()) {
-        return "AnonymousParDo";
-      } else {
-        return String.format("ParDo(%s)", NameUtils.approximateSimpleName(clazz));
-      }
+      return String.format("ParDo(%s)", NameUtils.approximateSimpleName(getFn()));
     }
 
     /**
@@ -976,12 +971,7 @@ public class ParDo {
 
     @Override
     protected String getKindString() {
-      Class<?> clazz = getFn().getClass();
-      if (clazz.isAnonymousClass()) {
-        return "AnonymousParMultiDo";
-      } else {
-        return String.format("ParMultiDo(%s)", NameUtils.approximateSimpleName(clazz));
-      }
+      return String.format("ParMultiDo(%s)", NameUtils.approximateSimpleName(getFn()));
     }
 
     @Override

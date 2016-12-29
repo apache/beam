@@ -34,13 +34,13 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class MaxTest {
   @Test
-  public void testMeanGetNames() {
-    assertEquals("Max.Globally", Max.integersGlobally().getName());
-    assertEquals("Max.Globally", Max.doublesGlobally().getName());
-    assertEquals("Max.Globally", Max.longsGlobally().getName());
-    assertEquals("Max.PerKey", Max.integersPerKey().getName());
-    assertEquals("Max.PerKey", Max.doublesPerKey().getName());
-    assertEquals("Max.PerKey", Max.longsPerKey().getName());
+  public void testMaxGetNames() {
+    assertEquals("Combine.globally(MaxInteger)", Max.integersGlobally().getName());
+    assertEquals("Combine.globally(MaxDouble)", Max.doublesGlobally().getName());
+    assertEquals("Combine.globally(MaxLong)", Max.longsGlobally().getName());
+    assertEquals("Combine.perKey(MaxInteger)", Max.integersPerKey().getName());
+    assertEquals("Combine.perKey(MaxDouble)", Max.doublesPerKey().getName());
+    assertEquals("Combine.perKey(MaxLong)", Max.longsPerKey().getName());
   }
 
   @Test

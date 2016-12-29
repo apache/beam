@@ -111,16 +111,12 @@ public class NameUtilsTest {
 
   @Test
   public void testSimpleName() {
-    assertEquals("Embedded", NameUtils.approximateSimpleName(EmbeddedOldDoFn.class));
+    assertEquals("Embedded", NameUtils.approximateSimpleName(new EmbeddedOldDoFn()));
   }
 
   @Test
   public void testAnonSimpleName() throws Exception {
-    thrown.expect(IllegalArgumentException.class);
-
-    EmbeddedOldDoFn anon = new EmbeddedOldDoFn(){};
-
-    NameUtils.approximateSimpleName(anon.getClass());
+    assertEquals("Anonymous", NameUtils.approximateSimpleName(new EmbeddedOldDoFn() {}));
   }
 
   @Test
@@ -128,7 +124,7 @@ public class NameUtilsTest {
     EmbeddedOldDoFn fn = new EmbeddedOldDoFn();
     EmbeddedOldDoFn inner = fn.getEmbedded();
 
-    assertEquals("DeeperEmbedded", NameUtils.approximateSimpleName(inner.getClass()));
+    assertEquals("DeeperEmbedded", NameUtils.approximateSimpleName(inner));
   }
 
   @Test
@@ -160,9 +156,8 @@ public class NameUtilsTest {
     };
 
     assertEquals("NamedInnerClass",
-        NameUtils.approximateSimpleName(anonymousClassObj.getInnerClassInstance().getClass()));
+        NameUtils.approximateSimpleName(anonymousClassObj.getInnerClassInstance()));
     assertEquals("NameUtilsTest.NamedInnerClass",
-        NameUtils.approximatePTransformName(
-            anonymousClassObj.getInnerClassInstance().getClass()));
+        NameUtils.approximatePTransformName(anonymousClassObj.getInnerClassInstance().getClass()));
   }
 }

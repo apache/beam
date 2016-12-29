@@ -36,10 +36,11 @@ import org.junit.runners.JUnit4;
  */
 @RunWith(JUnit4.class)
 public class MeanTest {
+
   @Test
   public void testMeanGetNames() {
-    assertEquals("Mean.Globally", Mean.globally().getName());
-    assertEquals("Mean.PerKey", Mean.perKey().getName());
+    assertEquals("Combine.globally(Mean)", Mean.globally().getName());
+    assertEquals("Combine.perKey(Mean)", Mean.perKey().getName());
   }
 
   private static final Coder<CountSum<Number>> TEST_CODER = new CountSumCoder<>();

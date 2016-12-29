@@ -41,12 +41,12 @@ public class SumTest {
 
   @Test
   public void testSumGetNames() {
-    assertEquals("Sum.Globally", Sum.integersGlobally().getName());
-    assertEquals("Sum.Globally", Sum.doublesGlobally().getName());
-    assertEquals("Sum.Globally", Sum.longsGlobally().getName());
-    assertEquals("Sum.PerKey", Sum.integersPerKey().getName());
-    assertEquals("Sum.PerKey", Sum.doublesPerKey().getName());
-    assertEquals("Sum.PerKey", Sum.longsPerKey().getName());
+    assertEquals("Combine.globally(SumInteger)", Sum.integersGlobally().getName());
+    assertEquals("Combine.globally(SumDouble)", Sum.doublesGlobally().getName());
+    assertEquals("Combine.globally(SumLong)", Sum.longsGlobally().getName());
+    assertEquals("Combine.perKey(SumInteger)", Sum.integersPerKey().getName());
+    assertEquals("Combine.perKey(SumDouble)", Sum.doublesPerKey().getName());
+    assertEquals("Combine.perKey(SumLong)", Sum.longsPerKey().getName());
   }
 
   @Test
