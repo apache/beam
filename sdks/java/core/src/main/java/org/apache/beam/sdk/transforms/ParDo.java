@@ -36,8 +36,8 @@ import org.apache.beam.sdk.transforms.reflect.DoFnSignature.OnTimerMethod;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
+import org.apache.beam.sdk.util.NameUtils;
 import org.apache.beam.sdk.util.SerializableUtils;
-import org.apache.beam.sdk.util.StringUtils;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PCollectionView;
@@ -772,7 +772,7 @@ public class ParDo {
       if (clazz.isAnonymousClass()) {
         return "AnonymousParDo";
       } else {
-        return String.format("ParDo(%s)", StringUtils.approximateSimpleName(clazz));
+        return String.format("ParDo(%s)", NameUtils.approximateSimpleName(clazz));
       }
     }
 
@@ -994,7 +994,7 @@ public class ParDo {
       if (clazz.isAnonymousClass()) {
         return "AnonymousParMultiDo";
       } else {
-        return String.format("ParMultiDo(%s)", StringUtils.approximateSimpleName(clazz));
+        return String.format("ParMultiDo(%s)", NameUtils.approximateSimpleName(clazz));
       }
     }
 
