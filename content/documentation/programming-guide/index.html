@@ -233,7 +233,7 @@
 
 <p>The pipeline configuration options determine, among other things, the <code class="highlighter-rouge">PipelineRunner</code> that determines where the pipeline gets executed: locally, or using a distributed back-end of your choice. Depending on where your pipeline gets executed and what your specifed Runner requires, the options can also help you specify other aspects of execution.</p>
 
-<p>To set your pipeline’s configuration options and create the pipeline, create an object of type <span class="language-java"><a href="/documentation/sdks/javadoc/0.3.0-incubating/index.html?org/apache/beam/sdk/options/PipelineOptions.html">PipelineOptions</a></span><span class="language-py"><a href="https://github.com/apache/beam/blob/python-sdk/sdks/python/apache_beam/utils/options.py">PipelineOptions</a></span> and pass it to <code class="highlighter-rouge">Pipeline.Create()</code>. The most common way to do this is by parsing arguments from the command-line:</p>
+<p>To set your pipeline’s configuration options and create the pipeline, create an object of type <span class="language-java"><a href="/documentation/sdks/javadoc/0.3.0-incubating/index.html?org/apache/beam/sdk/options/PipelineOptions.html">PipelineOptions</a></span><span class="language-py"><a href="https://github.com/apache/beam/blob/python-sdk/sdks/python/apache_beam/utils/pipeline_options.py">PipelineOptions</a></span> and pass it to <code class="highlighter-rouge">Pipeline.Create()</code>. The most common way to do this is by parsing arguments from the command-line:</p>
 
 <div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="kd">public</span> <span class="kd">static</span> <span class="kt">void</span> <span class="nf">main</span><span class="o">(</span><span class="n">String</span><span class="o">[]</span> <span class="n">args</span><span class="o">)</span> <span class="o">{</span>
    <span class="c1">// Will parse the arguments passed into the application and construct a PipelineOptions</span>
@@ -246,7 +246,7 @@
 </code></pre>
 </div>
 
-<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="kn">from</span> <span class="nn">apache_beam.utils.options</span> <span class="kn">import</span> <span class="n">PipelineOptions</span>
+<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="kn">from</span> <span class="nn">apache_beam.utils.pipeline_options</span> <span class="kn">import</span> <span class="n">PipelineOptions</span>
 
 <span class="c"># Will parse the arguments passed into the application and construct a PipelineOptions</span>
 <span class="c"># Note that --help will print registered options.</span>
