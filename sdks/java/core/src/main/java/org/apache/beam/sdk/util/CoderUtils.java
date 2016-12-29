@@ -31,6 +31,7 @@ import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.fasterxml.jackson.databind.type.TypeFactory;
 import com.google.api.client.util.Base64;
 import com.google.common.base.Throwables;
+import com.google.common.collect.ImmutableMap;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -39,10 +40,13 @@ import java.io.OutputStream;
 import java.lang.ref.SoftReference;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.TypeVariable;
+import java.util.Map;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.coders.LengthPrefixCoder;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.values.TypeDescriptor;
 
 /**
@@ -51,15 +55,15 @@ import org.apache.beam.sdk.values.TypeDescriptor;
 public final class CoderUtils {
   private CoderUtils() {}  // Non-instantiable
 
-  /**
-   * Coder class-name alias for a key-value type.
-   */
-  public static final String KIND_PAIR = "kind:pair";
-
-  /**
-   * Coder class-name alias for a stream type.
-   */
-  public static final String KIND_STREAM = "kind:stream";
+  /** A mapping from well known coder types to their implementing classes. */
+  private static final Map<String, Class<?>> WELL_KNOWN_CODER_TYPES =
+      ImmutableMap.<String, Class<?>>builder()
+      .put("kind:pair", KvCoder.class)
+      .put("kind:stream", IterableCoder.class)
+      .put("kind:global_window", GlobalWindow.Coder.class)
+      .put("kind:length_prefix", LengthPrefixCoder.class)
+      .put("kind:windowed_value", WindowedValue.FullWindowedValueCoder.class)
+      .build();
 
   private static ThreadLocal<SoftReference<ExposedByteArrayOutputStream>>
       threadLocalOutputStream = new ThreadLocal<>();
@@ -266,10 +270,8 @@ public final class CoderUtils {
             return Class.forName(id);
           }
 
-          if (id.equals(KIND_STREAM)) {
-            return IterableCoder.class;
-          } else if (id.equals(KIND_PAIR)) {
-            return KvCoder.class;
+          if (WELL_KNOWN_CODER_TYPES.containsKey(id)) {
+            return WELL_KNOWN_CODER_TYPES.get(id);
           }
 
           // Otherwise, see if the ID is the name of a class in
