@@ -121,8 +121,7 @@ import org.joda.time.Duration;
  *
  * <pre>{@code
  * PCollection<String> windowed_items = items.apply(
- *   Window.<String>into(FixedWindows.of(Duration.standardMinutes(1))
- *      .triggering(
+ *   Window.<String>into(FixedWindows.of(Duration.standardMinutes(1)))
  *      .triggering(
  *          AfterWatermark.pastEndOfWindow()
  *              .withEarlyFirings(AfterProcessingTime
