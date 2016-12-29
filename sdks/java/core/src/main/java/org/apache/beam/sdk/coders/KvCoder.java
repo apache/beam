@@ -123,7 +123,7 @@ public class KvCoder<K, V> extends StandardCoder<KV<K, V>> {
 
   @Override
   protected CloudObject initializeCloudObject() {
-    CloudObject result = CloudObject.forClass(getClass());
+    CloudObject result = CloudObject.forClassName("kind:pair");
     addBoolean(result, PropertyNames.IS_PAIR_LIKE, true);
     return result;
   }
