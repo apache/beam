@@ -129,7 +129,7 @@ public class LengthPrefixCoder<T> extends StandardCoder<T> {
     }
 
     // If value is not a StandardCoder then fall back to the default StandardCoder behavior
-    // of encoding and counting the bytes. The encoding will include the null indicator byte.
+    // of encoding and counting the bytes. The encoding will include the length prefix.
     return super.getEncodedElementByteSize(value, context);
   }
 

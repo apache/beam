@@ -83,10 +83,10 @@ public class LengthPrefixCoderTest {
   @Test
   public void testRegisterByteSizeObserver() throws Exception {
     CoderProperties.testByteCount(TEST_CODER, Coder.Context.OUTER,
-                                   new byte[][]{{ 0xa, 0xb, 0xc }});
+        new byte[][]{{ 0xa, 0xb, 0xc }});
 
     CoderProperties.testByteCount(TEST_CODER, Coder.Context.NESTED,
-                                   new byte[][]{{ 0xa, 0xb, 0xc }, {}, {}, { 0xd, 0xe }, {}});
+        new byte[][]{{ 0xa, 0xb, 0xc }, {}, {}, { 0xd, 0xe }, {}});
   }
 
   @Test
@@ -110,7 +110,7 @@ public class LengthPrefixCoderTest {
    * Generated data to check that the wire format has not changed. To regenerate, see
    * {@link org.apache.beam.sdk.coders.PrintBase64Encodings}.
    */
-  private static final List<String> TEST_ENCODINGS = Arrays.asList(
+  private static final List<String> TEST_ENCODINGS = ImmutableList.of(
       "AwoLDA",
       "Ag0D",
       "Ag0O",
