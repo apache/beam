@@ -24,7 +24,6 @@ import static com.google.common.base.Preconditions.checkState;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.api.client.json.JsonFactory;
-import com.google.api.services.bigquery.Bigquery;
 import com.google.api.services.bigquery.model.Job;
 import com.google.api.services.bigquery.model.JobConfigurationExtract;
 import com.google.api.services.bigquery.model.JobConfigurationLoad;
@@ -33,6 +32,7 @@ import com.google.api.services.bigquery.model.JobConfigurationTableCopy;
 import com.google.api.services.bigquery.model.JobReference;
 import com.google.api.services.bigquery.model.JobStatistics;
 import com.google.api.services.bigquery.model.JobStatus;
+import com.google.api.services.bigquery.model.Table;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
@@ -370,7 +370,8 @@ public class BigQueryIO {
     }
   }
 
-  private static class TableSpecToTableRef
+  @VisibleForTesting
+  static class TableSpecToTableRef
       implements SerializableFunction<String, TableReference> {
     @Override
     public TableReference apply(String from) {
@@ -807,6 +808,7 @@ public class BigQueryIO {
       /**
        * Returns the query to be read, or {@code null} if reading from a table instead.
        */
+      @Nullable
       public String getQuery() {
         return query == null ? null : query.get();
       }
@@ -814,7 +816,8 @@ public class BigQueryIO {
       /**
        * Returns the query to be read, or {@code null} if reading from a table instead.
        */
-      public ValueProvider<String> getQueryProivder() {
+      @Nullable
+      public ValueProvider<String> getQueryProvider() {
         return query;
       }
 
@@ -1796,8 +1799,8 @@ public class BigQueryIO {
        * <p>Does not modify this object.
        */
       public Bound withCreateDisposition(CreateDisposition createDisposition) {
-        return new Bound(name, jsonTableRef, tableRefFunction, jsonSchema, createDisposition,
-            writeDisposition, validate, bigQueryServices);
+        return new Bound(name, jsonTableRef, tableRefFunction, jsonSchema,
+            createDisposition, writeDisposition, validate, bigQueryServices);
       }
 
       /**
@@ -1806,8 +1809,8 @@ public class BigQueryIO {
        * <p>Does not modify this object.
        */
       public Bound withWriteDisposition(WriteDisposition writeDisposition) {
-        return new Bound(name, jsonTableRef, tableRefFunction, jsonSchema, createDisposition,
-            writeDisposition, validate, bigQueryServices);
+        return new Bound(name, jsonTableRef, tableRefFunction, jsonSchema,
+            createDisposition, writeDisposition, validate, bigQueryServices);
       }
 
       /**
@@ -2136,7 +2139,8 @@ public class BigQueryIO {
       /** Returns the table reference, or {@code null}. */
       @Nullable
       public ValueProvider<TableReference> getTable() {
-        return NestedValueProvider.of(jsonTableRef, new JsonTableRefToTableRef());
+        return jsonTableRef == null ? null :
+            NestedValueProvider.of(jsonTableRef, new JsonTableRefToTableRef());
       }
 
       /** Returns {@code true} if table validation is enabled. */
@@ -2550,6 +2554,13 @@ public class BigQueryIO {
     }
   }
 
+  /**
+   * Clear the cached map of created tables. Used for testing.
+   */
+  @VisibleForTesting
+  static void clearCreatedTables() {
+    StreamingWriteFn.clearCreatedTables();
+  }
   /////////////////////////////////////////////////////////////////////////////
 
   /**
@@ -2583,6 +2594,15 @@ public class BigQueryIO {
       this.jsonTableSchema =
           NestedValueProvider.of(schema, new TableSchemaToJsonSchema());
       this.bqServices = checkNotNull(bqServices, "bqServices");
+    }
+
+    /**
+     * Clear the cached map of created tables. Used for testing.
+     */
+    private static void clearCreatedTables() {
+      synchronized (createdTables) {
+        createdTables.clear();
+      }
     }
 
     /** Prepares a target BigQuery table. */
@@ -2626,20 +2646,25 @@ public class BigQueryIO {
     }
 
     public TableReference getOrCreateTable(BigQueryOptions options, String tableSpec)
-        throws IOException {
+        throws InterruptedException, IOException {
       TableReference tableReference = parseTableSpec(tableSpec);
       if (!createdTables.contains(tableSpec)) {
         synchronized (createdTables) {
           // Another thread may have succeeded in creating the table in the meanwhile, so
           // check again. This check isn't needed for correctness, but we add it to prevent
           // every thread from attempting a create and overwhelming our BigQuery quota.
+          DatasetService datasetService = bqServices.getDatasetService(options);
           if (!createdTables.contains(tableSpec)) {
-            TableSchema tableSchema = JSON_FACTORY.fromString(
-                jsonTableSchema.get(), TableSchema.class);
-            Bigquery client = Transport.newBigQueryClient(options).build();
-            BigQueryTableInserter inserter = new BigQueryTableInserter(client, options);
-            inserter.getOrCreateTable(tableReference, Write.WriteDisposition.WRITE_APPEND,
-                Write.CreateDisposition.CREATE_IF_NEEDED, tableSchema);
+            Table table = datasetService.getTable(
+                tableReference.getProjectId(),
+                tableReference.getDatasetId(),
+                tableReference.getTableId());
+            if (table == null) {
+              TableSchema tableSchema = JSON_FACTORY.fromString(
+                  jsonTableSchema.get(), TableSchema.class);
+              datasetService.createTable(
+                  new Table().setTableReference(tableReference).setSchema(tableSchema));
+            }
             createdTables.add(tableSpec);
           }
         }
@@ -2791,7 +2816,8 @@ public class BigQueryIO {
    * a randomUUID is generated only once per bucket of data. The actual unique
    * id is created by concatenating this randomUUID with a sequential number.
    */
-  private static class TagWithUniqueIdsAndTable
+  @VisibleForTesting
+  static class TagWithUniqueIdsAndTable
       extends DoFn<TableRow, KV<ShardedKey<String>, TableRowInfo>> {
     /** TableSpec to write to. */
     private final ValueProvider<String> tableSpec;
@@ -2808,8 +2834,12 @@ public class BigQueryIO {
       checkArgument(table == null ^ tableRefFunction == null,
           "Exactly one of table or tableRefFunction should be set");
       if (table != null) {
-        if (table.isAccessible() && table.get().getProjectId() == null) {
-          table.get().setProjectId(options.as(BigQueryOptions.class).getProject());
+        if (table.isAccessible() && Strings.isNullOrEmpty(table.get().getProjectId())) {
+          TableReference tableRef = table.get()
+              .setProjectId(options.as(BigQueryOptions.class).getProject());
+          table = NestedValueProvider.of(
+              StaticValueProvider.of(toJsonString(tableRef)),
+              new JsonTableRefToTableRef());
         }
         this.tableSpec = NestedValueProvider.of(table, new TableRefToTableSpec());
       } else {
@@ -2846,6 +2876,11 @@ public class BigQueryIO {
         builder.add(DisplayData.item("tableFn", tableRefFunction.getClass())
           .withLabel("Table Reference Function"));
       }
+    }
+
+    @VisibleForTesting
+    ValueProvider<String> getTableSpec() {
+      return tableSpec;
     }
 
     private String tableSpecFromWindow(BigQueryOptions options, BoundedWindow window) {
