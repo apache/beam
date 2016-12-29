@@ -100,8 +100,8 @@ public class AvroWrapperCoder<WrapperT extends AvroWrapper<DatumT>, DatumT>
   }
 
   @Override
-  public CloudObject asCloudObject() {
-    CloudObject result = super.asCloudObject();
+  public CloudObject initializeCloudObject() {
+    CloudObject result = CloudObject.forClass(getClass());
     result.put("wrapperType", wrapperType.getName());
     return result;
   }

@@ -327,8 +327,8 @@ public class AvroCoder<T> extends StandardCoder<T> {
   }
 
   @Override
-  public CloudObject asCloudObject() {
-    CloudObject result = super.asCloudObject();
+  protected CloudObject initializeCloudObject() {
+    CloudObject result = CloudObject.forClass(getClass());
     addString(result, "type", type.getName());
     addString(result, "schema", schemaSupplier.get().toString());
     return result;

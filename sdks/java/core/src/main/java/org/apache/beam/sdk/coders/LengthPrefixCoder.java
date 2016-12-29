@@ -65,6 +65,8 @@ public class LengthPrefixCoder<T> extends StandardCoder<T> {
     this.valueCoder = valueCoder;
   }
 
+
+
   @Override
   public void encode(T value, OutputStream outStream, Context context)
       throws CoderException, IOException {

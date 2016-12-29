@@ -125,7 +125,7 @@ public class IsmFormat {
       checkArgument(!keyComponents.isEmpty(), "Expected non-empty list of key components.");
       checkArgument(!isMetadataKey(keyComponents),
           "Expected key components to not contain metadata key.");
-      return new AutoValue_IsmFormat_IsmRecord<V>(keyComponents, value, null);
+      return new AutoValue_IsmFormat_IsmRecord<>(keyComponents, value, null);
     }
 
     public static <V> IsmRecord<V> meta(List<?> keyComponents, byte[] metadata) {
@@ -133,7 +133,7 @@ public class IsmFormat {
       checkArgument(!keyComponents.isEmpty(), "Expected non-empty list of key components.");
       checkArgument(isMetadataKey(keyComponents),
           "Expected key components to contain metadata key.");
-      return new AutoValue_IsmFormat_IsmRecord<V>(keyComponents, null, metadata);
+      return new AutoValue_IsmFormat_IsmRecord<>(keyComponents, null, metadata);
     }
 
     /** Returns the list of key components. */
@@ -379,11 +379,11 @@ public class IsmFormat {
     }
 
     @Override
-    public CloudObject asCloudObject() {
-      CloudObject cloudObject = super.asCloudObject();
-      addLong(cloudObject, PropertyNames.NUM_SHARD_CODERS, numberOfShardKeyCoders);
-      addLong(cloudObject, PropertyNames.NUM_METADATA_SHARD_CODERS, numberOfMetadataShardKeyCoders);
-      return cloudObject;
+    protected CloudObject initializeCloudObject() {
+      CloudObject result = CloudObject.forClass(getClass());
+      addLong(result, PropertyNames.NUM_SHARD_CODERS, numberOfShardKeyCoders);
+      addLong(result, PropertyNames.NUM_METADATA_SHARD_CODERS, numberOfMetadataShardKeyCoders);
+      return result;
     }
 
     @Override

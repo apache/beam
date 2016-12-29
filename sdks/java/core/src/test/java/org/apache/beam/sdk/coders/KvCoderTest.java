@@ -95,6 +95,11 @@ public class KvCoderTest {
   private static final Coder<KV<String, Integer>> TEST_CODER =
       KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of());
 
+  @Test
+  public void testEnc() {
+    System.out.println(TEST_CODER.asCloudObject());
+  }
+
   private static final List<KV<String, Integer>> TEST_VALUES =
       Arrays.asList(KV.of("", -1), KV.of("hello", 0), KV.of("goodbye", Integer.MAX_VALUE));
 

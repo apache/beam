@@ -17,17 +17,12 @@
  */
 package org.apache.beam.sdk.coders;
 
-import static com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.beam.sdk.util.Structs.addString;
-import static org.apache.beam.sdk.util.Structs.addStringList;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.google.common.collect.Lists;
 import java.io.Serializable;
-import java.util.Collection;
 import org.apache.beam.sdk.util.CloudObject;
-import org.apache.beam.sdk.util.PropertyNames;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.util.StringUtils;
 
@@ -72,7 +67,7 @@ public abstract class CustomCoder<T> extends AtomicCoder<T>
    * @return A thin {@link CloudObject} wrapping of the Java serialization of {@code this}.
    */
   @Override
-  public CloudObject asCloudObject() {
+  public CloudObject initializeCloudObject() {
     // N.B. We use the CustomCoder class, not the derived class, since during
     // deserialization we will be using the CustomCoder's static factory method
     // to construct an instance of the derived class.
@@ -81,17 +76,6 @@ public abstract class CustomCoder<T> extends AtomicCoder<T>
     addString(result, "serialized_coder",
         StringUtils.byteArrayToJsonString(
             SerializableUtils.serializeToByteArray(this)));
-
-    String encodingId = getEncodingId();
-    checkNotNull(encodingId, "Coder.getEncodingId() must not return null.");
-    if (!encodingId.isEmpty()) {
-      addString(result, PropertyNames.ENCODING_ID, encodingId);
-    }
-
-    Collection<String> allowedEncodings = getAllowedEncodings();
-    if (!allowedEncodings.isEmpty()) {
-      addStringList(result, PropertyNames.ALLOWED_ENCODINGS, Lists.newArrayList(allowedEncodings));
-    }
 
     return result;
   }

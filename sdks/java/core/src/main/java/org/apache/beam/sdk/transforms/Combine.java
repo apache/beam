@@ -27,7 +27,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
@@ -43,6 +42,7 @@ import org.apache.beam.sdk.coders.StandardCoder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.transforms.Combine.AccumulatingCombineFn;
 import org.apache.beam.sdk.transforms.CombineFnBase.AbstractGlobalCombineFn;
 import org.apache.beam.sdk.transforms.CombineFnBase.AbstractPerKeyCombineFn;
 import org.apache.beam.sdk.transforms.CombineFnBase.GlobalCombineFn;
@@ -633,11 +633,6 @@ public class Combine {
 
     public HolderCoder(Coder<V> valueCoder) {
       this.valueCoder = valueCoder;
-    }
-
-    @Override
-    public List<Coder<?>> getCoderArguments() {
-      return Arrays.<Coder<?>>asList(valueCoder);
     }
 
     @Override
@@ -2224,11 +2219,11 @@ public class Combine {
       }
 
       public static <InputT, AccumT> InputOrAccum<InputT, AccumT> input(InputT input) {
-        return new InputOrAccum<InputT, AccumT>(input, null);
+        return new InputOrAccum<>(input, null);
       }
 
       public static <InputT, AccumT> InputOrAccum<InputT, AccumT> accum(AccumT aggr) {
-        return new InputOrAccum<InputT, AccumT>(null, aggr);
+        return new InputOrAccum<>(null, aggr);
       }
 
       private static class InputOrAccumCoder<InputT, AccumT>

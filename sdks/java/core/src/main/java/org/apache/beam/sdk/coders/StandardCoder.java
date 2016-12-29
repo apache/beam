@@ -120,9 +120,13 @@ public abstract class StandardCoder<T> implements Coder<T> {
     return builder.toString();
   }
 
+  /**
+   * {@link StandardCoder} implementations should override {@link #initializeCloudObject}
+   * if the default {@link CloudObject} representation needs to change.
+   */
   @Override
-  public CloudObject asCloudObject() {
-    CloudObject result = CloudObject.forClass(getClass());
+  public final CloudObject asCloudObject() {
+    CloudObject result = initializeCloudObject();
 
     List<? extends Coder<?>> components = getComponents();
     if (!components.isEmpty()) {
@@ -145,6 +149,10 @@ public abstract class StandardCoder<T> implements Coder<T> {
     }
 
     return result;
+  }
+
+  protected CloudObject initializeCloudObject() {
+    return CloudObject.forClass(getClass());
   }
 
   /**

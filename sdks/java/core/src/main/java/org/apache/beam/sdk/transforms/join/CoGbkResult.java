@@ -30,7 +30,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Objects;
@@ -242,20 +241,14 @@ public class CoGbkResult {
       this.unionCoder = unionCoder;
     }
 
-
     @Override
     public List<? extends Coder<?>> getCoderArguments() {
-      return null;
+      return ImmutableList.of(unionCoder);
     }
 
     @Override
-    public List<? extends Coder<?>> getComponents() {
-      return Arrays.<Coder<?>>asList(unionCoder);
-    }
-
-    @Override
-    public CloudObject asCloudObject() {
-      CloudObject result = super.asCloudObject();
+    public CloudObject initializeCloudObject() {
+      CloudObject result = CloudObject.forClass(getClass());
       addObject(result, PropertyNames.CO_GBK_RESULT_SCHEMA, schema.asCloudObject());
       return result;
     }
