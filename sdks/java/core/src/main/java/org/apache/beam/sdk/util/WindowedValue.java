@@ -697,7 +697,7 @@ public abstract class WindowedValue<T> {
 
     @Override
     public CloudObject initializeCloudObject() {
-      CloudObject result = CloudObject.forClass(getClass());
+      CloudObject result = CloudObject.forClassName("kind:windowed_value");
       addBoolean(result, PropertyNames.IS_WRAPPER, true);
       return result;
     }

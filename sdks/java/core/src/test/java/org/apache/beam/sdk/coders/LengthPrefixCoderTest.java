@@ -25,6 +25,7 @@ import com.google.common.collect.ImmutableList;
 import java.util.Arrays;
 import java.util.List;
 import org.apache.beam.sdk.testing.CoderProperties;
+import org.apache.beam.sdk.util.CloudObject;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -39,6 +40,22 @@ public class LengthPrefixCoderTest {
     new byte[]{ 0xd, 0x3 },
     new byte[]{ 0xd, 0xe },
     new byte[]{ });
+
+  /**
+   * Generated data to check that the wire format has not changed. To regenerate, see
+   * {@link org.apache.beam.sdk.coders.PrintBase64Encodings}.
+   */
+  private static final List<String> TEST_ENCODINGS = ImmutableList.of(
+      "AwoLDA",
+      "Ag0D",
+      "Ag0O",
+      "AA");
+
+  @Test
+  public void testCloudObjectRepresentation() throws Exception {
+    CloudObject cloudObject = TEST_CODER.asCloudObject();
+    assertEquals("kind:length_prefix", cloudObject.getClassName());
+  }
 
   @Test
   public void testCoderSerializable() throws Exception {
@@ -76,10 +93,10 @@ public class LengthPrefixCoderTest {
   @Test
   public void testRegisterByteSizeObserver() throws Exception {
     CoderProperties.testByteCount(TEST_CODER, Coder.Context.OUTER,
-                                   new byte[][]{{ 0xa, 0xb, 0xc }});
+        new byte[][]{{ 0xa, 0xb, 0xc }});
 
     CoderProperties.testByteCount(TEST_CODER, Coder.Context.NESTED,
-                                   new byte[][]{{ 0xa, 0xb, 0xc }, {}, {}, { 0xd, 0xe }, {}});
+        new byte[][]{{ 0xa, 0xb, 0xc }, {}, {}, { 0xd, 0xe }, {}});
   }
 
   @Test
@@ -98,16 +115,6 @@ public class LengthPrefixCoderTest {
   public void testEncodingId() throws Exception {
     CoderProperties.coderHasEncodingId(TEST_CODER, EXPECTED_ENCODING_ID);
   }
-
-  /**
-   * Generated data to check that the wire format has not changed. To regenerate, see
-   * {@link org.apache.beam.sdk.coders.PrintBase64Encodings}.
-   */
-  private static final List<String> TEST_ENCODINGS = Arrays.asList(
-      "AwoLDA",
-      "Ag0D",
-      "Ag0O",
-      "AA");
 
   @Test
   public void testWireFormatEncode() throws Exception {

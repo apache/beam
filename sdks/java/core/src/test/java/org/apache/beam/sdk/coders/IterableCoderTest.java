@@ -19,13 +19,16 @@ package org.apache.beam.sdk.coders;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
 
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
 import org.apache.beam.sdk.testing.CoderProperties;
+import org.apache.beam.sdk.util.CloudObject;
 import org.apache.beam.sdk.util.CoderUtils;
+import org.apache.beam.sdk.util.Structs;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -42,7 +45,14 @@ public class IterableCoderTest {
       Collections.<Integer>emptyList(),
       Collections.<Integer>singletonList(13),
       Arrays.<Integer>asList(1, 2, 3, 4),
-      new LinkedList<Integer>(Arrays.asList(7, 6, 5)));
+      new LinkedList<>(Arrays.asList(7, 6, 5)));
+
+  @Test
+  public void testCloudObjectRepresentation() throws Exception {
+    CloudObject cloudObject = TEST_CODER.asCloudObject();
+    assertEquals("kind:stream", cloudObject.getClassName());
+    assertTrue(Structs.getBoolean(cloudObject, "is_stream_like"));
+  }
 
   @Test
   public void testDecodeEncodeContentsInSameOrder() throws Exception {

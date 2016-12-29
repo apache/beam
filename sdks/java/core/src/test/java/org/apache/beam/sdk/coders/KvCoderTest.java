@@ -17,11 +17,16 @@
  */
 package org.apache.beam.sdk.coders;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import org.apache.beam.sdk.testing.CoderProperties;
+import org.apache.beam.sdk.util.CloudObject;
 import org.apache.beam.sdk.util.CoderUtils;
+import org.apache.beam.sdk.util.Structs;
 import org.apache.beam.sdk.values.KV;
 import org.junit.Rule;
 import org.junit.Test;
@@ -96,8 +101,10 @@ public class KvCoderTest {
       KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of());
 
   @Test
-  public void testEnc() {
-    System.out.println(TEST_CODER.asCloudObject());
+  public void testCloudObjectRepresentation() throws Exception {
+    CloudObject cloudObject = TEST_CODER.asCloudObject();
+    assertEquals("kind:pair", cloudObject.getClassName());
+    assertTrue(Structs.getBoolean(cloudObject, "is_pair_like"));
   }
 
   private static final List<KV<String, Integer>> TEST_VALUES =

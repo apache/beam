@@ -20,6 +20,7 @@ package org.apache.beam.sdk.transforms.windowing;
 import java.io.InputStream;
 import java.io.OutputStream;
 import org.apache.beam.sdk.coders.AtomicCoder;
+import org.apache.beam.sdk.util.CloudObject;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 
@@ -60,6 +61,11 @@ public class GlobalWindow extends BoundedWindow {
     @Override
     public GlobalWindow decode(InputStream inStream, Context context) {
       return GlobalWindow.INSTANCE;
+    }
+
+    @Override
+    protected CloudObject initializeCloudObject() {
+      return CloudObject.forClassName("kind:global_window");
     }
 
     private Coder() {}
