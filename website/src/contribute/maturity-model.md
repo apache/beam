@@ -87,7 +87,7 @@ The following table summarizes project's self-assessment against the Apache Matu
     <tr>
       <td><p>RE10</p></td>
       <td><p>Releases consist of source code, distributed using standard and open archive formats that are expected to stay readable in the long term. [6]</p></td>
-      <td><p><b>YES.</b> <a href="https://dist.apache.org/repos/dist/release/incubator/beam/">Source releases</a> are distributed via dist.apache.org and linked from the <a href="{{ site.baseurl }}/get-started/downloads/">website</a>.</p></td>
+      <td><p><b>YES.</b> <a href="https://dist.apache.org/repos/dist/release/beam/">Source releases</a> are distributed via dist.apache.org and linked from the <a href="{{ site.baseurl }}/get-started/downloads/">website</a>.</p></td>
     </tr>
     <tr>
       <td><p>RE20</p></td>
@@ -97,7 +97,7 @@ The following table summarizes project's self-assessment against the Apache Matu
     <tr>
       <td><p>RE30</p></td>
       <td><p>Releases are signed and/or distributed along with digests that can be reliably used to validate the downloaded archives.</p></td>
-      <td><p><b>YES.</b> All releases are signed, and the <a href="https://dist.apache.org/repos/dist/release/incubator/beam/KEYS">KEYS file</a> is provided on dist.apache.org.</p></td>
+      <td><p><b>YES.</b> All releases are signed, and the <a href="https://dist.apache.org/repos/dist/release/beam/KEYS">KEYS file</a> is provided on dist.apache.org.</p></td>
     </tr>
     <tr>
       <td><p>RE40</p></td>
