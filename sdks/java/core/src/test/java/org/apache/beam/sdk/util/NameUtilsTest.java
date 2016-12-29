@@ -39,6 +39,42 @@ public class NameUtilsTest {
   @Rule
   public ExpectedException thrown = ExpectedException.none();
 
+  @Test
+  public void testDropsStandardSuffixes() {
+    assertEquals("Embedded", NameUtils.approximateSimpleName("EmbeddedOldDoFn", true));
+    assertEquals("Embedded", NameUtils.approximateSimpleName("EmbeddedDoFn", true));
+    assertEquals("Embedded", NameUtils.approximateSimpleName("EmbeddedFn", true));
+
+    assertEquals("Embedded", NameUtils.approximateSimpleName("EmbeddedOldDoFn", false));
+    assertEquals("Embedded", NameUtils.approximateSimpleName("EmbeddedDoFn", false));
+    assertEquals("Embedded", NameUtils.approximateSimpleName("EmbeddedFn", false));
+  }
+
+  @Test
+  public void testDropsStandardSuffixesInAllComponents() {
+    assertEquals("Embedded", NameUtils.approximateSimpleName("SomeOldDoFn$EmbeddedFn", true));
+    assertEquals("Embedded", NameUtils.approximateSimpleName("SomeDoFn$EmbeddedDoFn", true));
+    assertEquals("Embedded", NameUtils.approximateSimpleName("SomeFn$EmbeddedFn", true));
+
+    assertEquals("Some.Embedded", NameUtils.approximateSimpleName("SomeOldDoFn$EmbeddedFn", false));
+    assertEquals("Some.Embedded", NameUtils.approximateSimpleName("SomeDoFn$EmbeddedDoFn", false));
+    assertEquals("Some.Embedded", NameUtils.approximateSimpleName("SomeFn$EmbeddedFn", false));
+  }
+
+  @Test
+  public void testDropsOuterClassNamesTrue() {
+    assertEquals("Bar", NameUtils.approximateSimpleName("Foo$1$Bar", true));
+    assertEquals("Foo$1", NameUtils.approximateSimpleName("Foo$1", true));
+    assertEquals("Foo$1$2", NameUtils.approximateSimpleName("Foo$1$2", true));
+  }
+
+  @Test
+  public void testDropsOuterClassNamesFalse() {
+    assertEquals("Foo.Bar", NameUtils.approximateSimpleName("Foo$1$Bar", false));
+    assertEquals("Foo.1", NameUtils.approximateSimpleName("Foo$1", false));
+    assertEquals("Foo.2", NameUtils.approximateSimpleName("Foo$1$2", false));
+  }
+
   /**
    * Inner class for simple name test.
    */

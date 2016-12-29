@@ -20,6 +20,7 @@ package org.apache.beam.sdk.util;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Joiner;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -47,8 +48,11 @@ public class NameUtils {
   private static String approximateSimpleName(Class<?> clazz, boolean dropOuterClassNames) {
     checkArgument(!clazz.isAnonymousClass(),
         "Attempted to get simple name of anonymous class");
+    return approximateSimpleName(clazz.getName(), dropOuterClassNames);
+  }
 
-    String fullName = clazz.getName();
+  @VisibleForTesting
+  static String approximateSimpleName(String fullName, boolean dropOuterClassNames) {
     String shortName = fullName.substring(fullName.lastIndexOf('.') + 1);
 
     // Drop common suffixes for each named component.
@@ -71,6 +75,7 @@ public class NameUtils {
     }
     return shortName;
   }
+
 
   private static String simplifyNameComponent(String name) {
     for (String suffix : STANDARD_NAME_SUFFIXES) {
