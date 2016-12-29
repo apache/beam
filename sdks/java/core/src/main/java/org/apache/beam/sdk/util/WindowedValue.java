@@ -131,7 +131,7 @@ public abstract class WindowedValue<T> {
    */
   @Deprecated
   public static <T> WindowedValue<T> valueInEmptyWindows(T value) {
-    return new ValueInEmptyWindows<T>(value, PaneInfo.NO_FIRING);
+    return new ValueInEmptyWindows<>(value, PaneInfo.NO_FIRING);
   }
 
   /**
@@ -143,7 +143,7 @@ public abstract class WindowedValue<T> {
    */
   @Deprecated
   public static <T> WindowedValue<T> valueInEmptyWindows(T value, PaneInfo pane) {
-    return new ValueInEmptyWindows<T>(value, pane);
+    return new ValueInEmptyWindows<>(value, pane);
   }
 
   /**
@@ -696,8 +696,8 @@ public abstract class WindowedValue<T> {
     }
 
     @Override
-    public CloudObject asCloudObject() {
-      CloudObject result = super.asCloudObject();
+    public CloudObject initializeCloudObject() {
+      CloudObject result = CloudObject.forClass(getClass());
       addBoolean(result, PropertyNames.IS_WRAPPER, true);
       return result;
     }
@@ -770,8 +770,8 @@ public abstract class WindowedValue<T> {
     }
 
     @Override
-    public CloudObject asCloudObject() {
-      CloudObject result = super.asCloudObject();
+    public CloudObject initializeCloudObject() {
+      CloudObject result = CloudObject.forClass(getClass());
       addBoolean(result, PropertyNames.IS_WRAPPER, true);
       return result;
     }

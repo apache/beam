@@ -68,8 +68,8 @@ public class IterableCoder<T> extends IterableLikeCoder<T, Iterable<T>> {
   }
 
   @Override
-  public CloudObject asCloudObject() {
-    CloudObject result = super.asCloudObject();
+  protected CloudObject initializeCloudObject() {
+    CloudObject result = CloudObject.forClass(getClass());
     addBoolean(result, PropertyNames.IS_STREAM_LIKE, true);
     return result;
   }
