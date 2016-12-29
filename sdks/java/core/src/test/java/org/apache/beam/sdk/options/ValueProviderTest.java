@@ -19,6 +19,7 @@ package org.apache.beam.sdk.options;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertTrue;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -288,5 +289,35 @@ public class ValueProviderTest {
     ValueProvider<NonSerializable> nvp = NestedValueProvider.of(
         StaticValueProvider.of("foo"), new NonSerializableTranslator());
     SerializableUtils.ensureSerializable(nvp);
+  }
+
+  private static class SelfIncrement {
+    private static int counter = 0;
+
+    public int getValue() {
+      return counter++;
+    }
+  }
+
+  private static class SelfIncrementTranslator
+      implements SerializableFunction<SelfIncrement, Integer> {
+    @Override
+    public Integer apply(SelfIncrement from) {
+      return from.getValue();
+    }
+  }
+
+  @Test
+  public void testNestedValueProviderCached() throws Exception {
+    SelfIncrement increment = new SelfIncrement();
+    ValueProvider<Integer> nvp = NestedValueProvider.of(
+        StaticValueProvider.of(increment), new SelfIncrementTranslator());
+    Integer originalValue = nvp.get();
+    Integer cachedValue = nvp.get();
+    Integer incrementValue = increment.getValue();
+    Integer secondCachedValue = nvp.get();
+    assertEquals(originalValue, cachedValue);
+    assertEquals(secondCachedValue, cachedValue);
+    assertNotEquals(originalValue, incrementValue);
   }
 }
