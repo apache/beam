@@ -37,7 +37,7 @@ You must specify your dependency on the Direct Runner.
 
 When executing your pipeline from the command-line, set `runner` to `direct`. The default values for the other pipeline options are generally sufficient.
 
-See the reference documentation for the  <span class="language-java">[`DirectOptions`]({{ site.baseurl }}/documentation/sdks/javadoc/{{ site.release_latest }}/index.html?org/apache/beam/runners/direct/DirectOptions.html)</span><span class="language-python">[`PipelineOptions`](https://github.com/apache/beam/blob/python-sdk/sdks/python/apache_beam/utils/options.py)</span> interface (and its subinterfaces) for defaults and the complete list of pipeline configuration options.
+See the reference documentation for the  <span class="language-java">[`DirectOptions`]({{ site.baseurl }}/documentation/sdks/javadoc/{{ site.release_latest }}/index.html?org/apache/beam/runners/direct/DirectOptions.html)</span><span class="language-python">[`PipelineOptions`](https://github.com/apache/beam/blob/python-sdk/sdks/python/apache_beam/utils/pipeline_options.py)</span> interface (and its subinterfaces) for defaults and the complete list of pipeline configuration options.
 
 ## Additional information and caveats
 
