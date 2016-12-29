@@ -594,15 +594,13 @@ public class ParDo {
    * bind the input/output types of this {@link PTransform}.
    */
   public static class Unbound {
-    private final String name;
     private final List<PCollectionView<?>> sideInputs;
 
     Unbound() {
-      this(null, ImmutableList.<PCollectionView<?>>of());
+      this(ImmutableList.<PCollectionView<?>>of());
     }
 
-    Unbound(String name, List<PCollectionView<?>> sideInputs) {
-      this.name = name;
+    Unbound(List<PCollectionView<?>> sideInputs) {
       this.sideInputs = sideInputs;
     }
 
@@ -632,7 +630,7 @@ public class ParDo {
       ImmutableList.Builder<PCollectionView<?>> builder = ImmutableList.builder();
       builder.addAll(this.sideInputs);
       builder.addAll(sideInputs);
-      return new Unbound(name, builder.build());
+      return new Unbound(builder.build());
     }
 
     /**
@@ -658,12 +656,12 @@ public class ParDo {
      */
     public <OutputT> UnboundMulti<OutputT> withOutputTags(
         TupleTag<OutputT> mainOutputTag, TupleTagList sideOutputTags) {
-      return new UnboundMulti<>(name, sideInputs, mainOutputTag, sideOutputTags);
+      return new UnboundMulti<>(sideInputs, mainOutputTag, sideOutputTags);
     }
 
     private <InputT, OutputT> Bound<InputT, OutputT> of(
         DoFn<InputT, OutputT> doFn, DisplayData.ItemSpec<? extends Class<?>> fnDisplayData) {
-      return new Bound<>(name, doFn, sideInputs, fnDisplayData);
+      return new Bound<>(doFn, sideInputs, fnDisplayData);
     }
   }
 
@@ -681,17 +679,14 @@ public class ParDo {
    */
   public static class Bound<InputT, OutputT>
       extends PTransform<PCollection<? extends InputT>, PCollection<OutputT>> {
-    // Inherits name.
     private final List<PCollectionView<?>> sideInputs;
     private final DoFn<InputT, OutputT> fn;
     private final DisplayData.ItemSpec<? extends Class<?>> fnDisplayData;
 
     Bound(
-        String name,
         DoFn<InputT, OutputT> fn,
         List<PCollectionView<?>> sideInputs,
         DisplayData.ItemSpec<? extends Class<?>> fnDisplayData) {
-      super(name);
       this.fn = SerializableUtils.clone(fn);
       this.fnDisplayData = fnDisplayData;
       this.sideInputs = sideInputs;
@@ -720,7 +715,6 @@ public class ParDo {
     public Bound<InputT, OutputT> withSideInputs(
         Iterable<? extends PCollectionView<?>> sideInputs) {
       return new Bound<>(
-          name,
           fn,
           ImmutableList.<PCollectionView<?>>builder()
               .addAll(this.sideInputs)
@@ -739,7 +733,7 @@ public class ParDo {
      */
     public BoundMulti<InputT, OutputT> withOutputTags(
         TupleTag<OutputT> mainOutputTag, TupleTagList sideOutputTags) {
-      return new BoundMulti<>(name, fn, sideInputs, mainOutputTag, sideOutputTags, fnDisplayData);
+      return new BoundMulti<>(fn, sideInputs, mainOutputTag, sideOutputTags, fnDisplayData);
     }
 
     @Override
@@ -809,16 +803,13 @@ public class ParDo {
    * @param <OutputT> the type of the main output {@code PCollection} elements
    */
   public static class UnboundMulti<OutputT> {
-    private final String name;
     private final List<PCollectionView<?>> sideInputs;
     private final TupleTag<OutputT> mainOutputTag;
     private final TupleTagList sideOutputTags;
 
-    UnboundMulti(String name,
-                 List<PCollectionView<?>> sideInputs,
+    UnboundMulti(List<PCollectionView<?>> sideInputs,
                  TupleTag<OutputT> mainOutputTag,
                  TupleTagList sideOutputTags) {
-      this.name = name;
       this.sideInputs = sideInputs;
       this.mainOutputTag = mainOutputTag;
       this.sideOutputTags = sideOutputTags;
@@ -850,7 +841,6 @@ public class ParDo {
     public UnboundMulti<OutputT> withSideInputs(
         Iterable<? extends PCollectionView<?>> sideInputs) {
       return new UnboundMulti<>(
-          name,
           ImmutableList.<PCollectionView<?>>builder()
               .addAll(this.sideInputs)
               .addAll(sideInputs)
@@ -874,7 +864,7 @@ public class ParDo {
 
     private <InputT> BoundMulti<InputT, OutputT> of(
         DoFn<InputT, OutputT> fn, DisplayData.ItemSpec<? extends Class<?>> fnDisplayData) {
-      return new BoundMulti<>(name, fn, sideInputs, mainOutputTag, sideOutputTags, fnDisplayData);
+      return new BoundMulti<>(fn, sideInputs, mainOutputTag, sideOutputTags, fnDisplayData);
     }
   }
 
@@ -891,7 +881,6 @@ public class ParDo {
    */
   public static class BoundMulti<InputT, OutputT>
       extends PTransform<PCollection<? extends InputT>, PCollectionTuple> {
-    // Inherits name.
     private final List<PCollectionView<?>> sideInputs;
     private final TupleTag<OutputT> mainOutputTag;
     private final TupleTagList sideOutputTags;
@@ -899,13 +888,11 @@ public class ParDo {
     private final DoFn<InputT, OutputT> fn;
 
     BoundMulti(
-        String name,
         DoFn<InputT, OutputT> fn,
         List<PCollectionView<?>> sideInputs,
         TupleTag<OutputT> mainOutputTag,
         TupleTagList sideOutputTags,
         DisplayData.ItemSpec<? extends Class<?>> fnDisplayData) {
-      super(name);
       this.sideInputs = sideInputs;
       this.mainOutputTag = mainOutputTag;
       this.sideOutputTags = sideOutputTags;
@@ -937,7 +924,6 @@ public class ParDo {
     public BoundMulti<InputT, OutputT> withSideInputs(
         Iterable<? extends PCollectionView<?>> sideInputs) {
       return new BoundMulti<>(
-          name,
           fn,
           ImmutableList.<PCollectionView<?>>builder()
               .addAll(this.sideInputs)
