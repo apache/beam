@@ -41,7 +41,7 @@ from apache_beam.typehints import typehints
 from apache_beam.utils import names
 from apache_beam.utils.names import PropertyNames
 from apache_beam.utils.names import TransformNames
-from apache_beam.utils.options import StandardOptions
+from apache_beam.utils.pipeline_options import StandardOptions
 from apache_beam.internal.clients import dataflow as dataflow_api
 
 

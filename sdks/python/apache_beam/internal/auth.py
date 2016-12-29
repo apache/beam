@@ -29,8 +29,8 @@ from oauth2client.client import OAuth2Credentials
 
 from apache_beam.utils import processes
 from apache_beam.utils import retry
-from apache_beam.utils.options import GoogleCloudOptions
-from apache_beam.utils.options import PipelineOptions
+from apache_beam.utils.pipeline_options import GoogleCloudOptions
+from apache_beam.utils.pipeline_options import PipelineOptions
 
 
 # When we are running in GCE, we can authenticate with VM credentials.

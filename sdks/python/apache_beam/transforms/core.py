@@ -46,7 +46,7 @@ from apache_beam.typehints import TypeCheckError
 from apache_beam.typehints import Union
 from apache_beam.typehints import WithTypeHints
 from apache_beam.typehints.trivial_inference import element_type
-from apache_beam.utils.options import TypeOptions
+from apache_beam.utils.pipeline_options import TypeOptions
 
 # Type variables
 T = typehints.TypeVariable('T')

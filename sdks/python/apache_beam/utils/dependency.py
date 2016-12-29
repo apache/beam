@@ -66,8 +66,8 @@ from apache_beam import version as beam_version
 from apache_beam.internal import pickler
 from apache_beam.utils import names
 from apache_beam.utils import processes
-from apache_beam.utils.options import GoogleCloudOptions
-from apache_beam.utils.options import SetupOptions
+from apache_beam.utils.pipeline_options import GoogleCloudOptions
+from apache_beam.utils.pipeline_options import SetupOptions
 
 
 # Standard file names used for staging files.

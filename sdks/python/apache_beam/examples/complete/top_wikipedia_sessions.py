@@ -46,8 +46,8 @@ import logging
 import apache_beam as beam
 from apache_beam import combiners
 from apache_beam import window
-from apache_beam.utils.options import PipelineOptions
-from apache_beam.utils.options import SetupOptions
+from apache_beam.utils.pipeline_options import PipelineOptions
+from apache_beam.utils.pipeline_options import SetupOptions
 
 
 ONE_HOUR_IN_SECONDS = 3600

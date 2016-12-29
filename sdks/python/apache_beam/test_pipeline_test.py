@@ -20,7 +20,7 @@
 import unittest
 
 from apache_beam.test_pipeline import TestPipeline
-from apache_beam.utils.options import PipelineOptions
+from apache_beam.utils.pipeline_options import PipelineOptions
 
 
 class TestPipelineTest(unittest.TestCase):

@@ -19,7 +19,7 @@
 
 from apache_beam.internal import pickler
 from apache_beam.runners.dataflow_runner import DataflowRunner
-from apache_beam.utils.options import TestOptions
+from apache_beam.utils.pipeline_options import TestOptions
 
 
 class TestDataflowRunner(DataflowRunner):

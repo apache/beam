@@ -73,9 +73,9 @@ from googledatastore import helper as datastore_helper, PropertyFilter
 import apache_beam as beam
 from apache_beam.io.datastore.v1.datastoreio import ReadFromDatastore
 from apache_beam.io.datastore.v1.datastoreio import WriteToDatastore
-from apache_beam.utils.options import GoogleCloudOptions
-from apache_beam.utils.options import PipelineOptions
-from apache_beam.utils.options import SetupOptions
+from apache_beam.utils.pipeline_options import GoogleCloudOptions
+from apache_beam.utils.pipeline_options import PipelineOptions
+from apache_beam.utils.pipeline_options import SetupOptions
 
 empty_line_aggregator = beam.Aggregator('emptyLines')
 average_word_size_aggregator = beam.Aggregator('averageWordLength',
