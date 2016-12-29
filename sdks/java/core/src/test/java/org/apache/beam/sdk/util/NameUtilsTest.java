@@ -22,6 +22,7 @@ import static org.junit.Assert.assertEquals;
 
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.util.NameUtils.NameOverride;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PDone;
 import org.junit.Rule;
@@ -159,5 +160,22 @@ public class NameUtilsTest {
         NameUtils.approximateSimpleName(anonymousClassObj.getInnerClassInstance()));
     assertEquals("NameUtilsTest.NamedInnerClass",
         NameUtils.approximatePTransformName(anonymousClassObj.getInnerClassInstance().getClass()));
+  }
+
+  @Test
+  public void testApproximateSimpleNameOverride() {
+    Object overriddenName = new NameOverride() {
+      @Override
+      public String getNameOverride() {
+        return "CUSTOM_NAME";
+      }
+    };
+    assertEquals("CUSTOM_NAME", NameUtils.approximateSimpleName(overriddenName));
+  }
+
+  @Test
+  public void testApproximateSimpleNameCustomAnonymous() {
+    Object overriddenName = new Object() {};
+    assertEquals("CUSTOM_NAME", NameUtils.approximateSimpleName(overriddenName, "CUSTOM_NAME"));
   }
 }
