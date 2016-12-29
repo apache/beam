@@ -16,6 +16,7 @@
 #
 """Unit tests for the apiclient module."""
 
+import re
 import unittest
 
 from apache_beam.utils.options import PipelineOptions
@@ -36,6 +37,11 @@ class UtilTest(unittest.TestCase):
     job_name = apiclient.Job.default_job_name(None)
     regexp = 'beamapp-.*-[0-9]{10}-[0-9]{6}'
     self.assertRegexpMatches(job_name, regexp)
+
+  def test_default_job_name(self):
+    job_name = apiclient.Job.default_job_name(None)
+    regexp = 'beamapp-[a-z]*-[0-9]{10}-[0-9]{6}'
+    self.assertTrue(re.match(regexp, job_name))
 
 
 if __name__ == '__main__':
