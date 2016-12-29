@@ -19,11 +19,13 @@ package org.apache.beam.sdk.options;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertTrue;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.List;
 import org.apache.beam.sdk.options.ValueProvider.NestedValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.RuntimeValueProvider;
@@ -288,5 +290,27 @@ public class ValueProviderTest {
     ValueProvider<NonSerializable> nvp = NestedValueProvider.of(
         StaticValueProvider.of("foo"), new NonSerializableTranslator());
     SerializableUtils.ensureSerializable(nvp);
+  }
+
+  private static class IncrementAtomicIntegerTranslator
+      implements SerializableFunction<AtomicInteger, Integer> {
+    @Override
+    public Integer apply(AtomicInteger from) {
+      return from.incrementAndGet();
+    }
+  }
+
+  @Test
+  public void testNestedValueProviderCached() throws Exception {
+    AtomicInteger increment = new AtomicInteger();
+    ValueProvider<Integer> nvp = NestedValueProvider.of(
+        StaticValueProvider.of(increment), new IncrementAtomicIntegerTranslator());
+    Integer originalValue = nvp.get();
+    Integer cachedValue = nvp.get();
+    Integer incrementValue = increment.incrementAndGet();
+    Integer secondCachedValue = nvp.get();
+    assertEquals(originalValue, cachedValue);
+    assertEquals(secondCachedValue, cachedValue);
+    assertNotEquals(originalValue, incrementValue);
   }
 }
