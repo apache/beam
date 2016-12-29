@@ -117,7 +117,6 @@ import org.elasticsearch.client.RestClientBuilder;
  * <p>Optionally, you can provide {@code withBatchSize()} and {@code withBatchSizeBytes()}
  * to specify the size of the write batch in number of documents or in bytes.
  */
-
 public class ElasticsearchIO {
 
   public static Read read() {
@@ -363,12 +362,13 @@ public class ElasticsearchIO {
     public Read withBatchSize(long batchSize) {
       checkArgument(
           batchSize > 0,
-          "ElasticsearchIO.read().withBatchSize(batchSize) called with a negative value: %s",
+          "ElasticsearchIO.read().withBatchSize(batchSize) called with a negative "
+              + "or equal to 0 value: %s",
           batchSize);
       checkArgument(
           batchSize <= MAX_BATCH_SIZE,
-          "ElasticsearchIO.read().withBatchSize(batchSize) " +
-              "called with a too large value (over %s): %s",
+          "ElasticsearchIO.read().withBatchSize(batchSize) "
+              + "called with a too large value (over %s): %s",
           MAX_BATCH_SIZE,
           batchSize);
       return builder().setBatchSize(batchSize).build();

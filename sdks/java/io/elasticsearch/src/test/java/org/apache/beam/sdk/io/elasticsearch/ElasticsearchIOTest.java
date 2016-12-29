@@ -212,10 +212,9 @@ public class ElasticsearchIOTest implements Serializable {
         ElasticsearchIO.write()
             .withConnectionConfiguration(connectionConfiguration)
             .withMaxBatchSize(BATCH_SIZE);
-    ElasticsearchIO.Write.WriteFn writeFn = new ElasticsearchIO.Write.WriteFn(write);
     // write bundles size is the runner decision, we cannot force a bundle size,
     // so we test the Writer as a DoFn outside of a runner.
-    DoFnTester<String, Void> fnTester = DoFnTester.of(writeFn);
+    DoFnTester<String, Void> fnTester = DoFnTester.of(new ElasticsearchIO.Write.WriteFn(write));
 
     List<String> input =
         ElasticSearchIOTestUtils.createDocuments(
@@ -226,9 +225,17 @@ public class ElasticsearchIOTest implements Serializable {
           @Override
           public boolean matches(Object o) {
             String message = (String) o;
+            // This regexp tests that 2 malformed documents are actually in error
+            // and that the message contains their IDs.
+            // It also ensures that root reason, root error type,
+            // caused by reason and caused by error type are present in message.
+            // To avoid flakiness of the test in case of Elasticsearch error message change,
+            // only "failed to parse" root reason is matched,
+            // the other messages are matched using .+
             return message.matches(
                 "(?is).*Error writing to Elasticsearch, some elements could not be inserted"
-                    + ".*Document id.* failed to parse.*");
+                    + ".*Document id .+: failed to parse \\(.+\\).*Caused by: .+ \\(.+\\).*"
+                    + "Document id .+: failed to parse \\(.+\\).*Caused by: .+ \\(.+\\).*");
           }
         });
     // inserts into Elasticsearch
