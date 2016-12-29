@@ -29,12 +29,18 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 
 /**
- * Helpers for extracting the name of objects (most commonly {@link DoFn} and {@link CombineFn}).
+ * Helpers for extracting the name of objects and classes.
  */
 public class NameUtils {
 
+  /** Classes may implement this interface to change how names are generated for their instances. */
+  public interface NameOverride {
+    /** Return the name to use for this instance. */
+    String getNameOverride();
+  }
+
   private static final String[] STANDARD_NAME_SUFFIXES =
-      new String[]{"OldDoFn", "DoFn", "Fn"};
+      new String[]{"OldDoFn", "DoFn", "CombineFn", "Fn"};
 
   /**
    * Pattern to match a non-anonymous inner class.
@@ -87,7 +93,16 @@ public class NameUtils {
   }
 
   /**
-   * Returns a simple name for a class.
+   * As {@link #approximateSimpleName(Object, String)} but returning {@code "Anonymous"} when
+   * {@code object} is an instance of anonymous class.
+   */
+  public static String approximateSimpleName(Object object) {
+    return approximateSimpleName(object, "Anonymous");
+  }
+
+  /**
+   * Returns a simple name describing a class that is being used as a function (eg., a {@link DoFn}
+   * or {@link CombineFn}, etc.).
    *
    * <p>Note: this is non-invertible - the name may be simplified to an
    * extent that it cannot be mapped back to the original class.
@@ -96,15 +111,28 @@ public class NameUtils {
    * removes the package and outer classes from the name,
    * and removes common suffixes.
    *
+   * <p>If the object is an instanceof {@link NameOverride}, the result of
+   * {@link NameOverride#getNameOverride()} is returned. This allows classes that act as wrappers to
+   * override the handling of names by delegating to the objects they wrap.
+   *
+   * <p>If the class is anonymous, the string {@code anonymousValue} is returned.
+   *
    * <p>Examples:
    * <ul>
    *   <li>{@code some.package.Word.SummaryDoFn} becomes "Summary"
    *   <li>{@code another.package.PairingFn} becomes "Pairing"
    * </ul>
-   *
-   * @throws IllegalArgumentException if the class is anonymous
    */
-  public static String approximateSimpleName(Class<?> clazz) {
+  public static String approximateSimpleName(Object object, String anonymousValue) {
+    if (object instanceof NameOverride) {
+      return ((NameOverride) object).getNameOverride();
+    }
+
+    Class<?> clazz = object.getClass();
+    if (clazz.isAnonymousClass()) {
+      return anonymousValue;
+    }
+
     return approximateSimpleName(clazz, /* dropOuterClassNames */ true);
   }
 

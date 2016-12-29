@@ -24,6 +24,7 @@ import static org.apache.beam.sdk.TestUtils.checkCombineFn;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasNamespace;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.includesDisplayDataFor;
+import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasItem;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
@@ -470,8 +471,7 @@ public class CombineTest implements Serializable {
     runTestAccumulatingCombine(EMPTY_TABLE, 0.0, Collections.<KV<String, Double>>emptyList());
   }
 
-  // Checks that Min, Max, Mean, Sum (operations that pass-through to Combine),
-  // provide their own top-level name.
+  // Checks that Min, Max, Mean, Sum (operations that pass-through to Combine) have good names.
   @Test
   public void testCombinerNames() {
     Combine.PerKey<String, Integer, Integer> min = Min.integersPerKey();
@@ -479,10 +479,10 @@ public class CombineTest implements Serializable {
     Combine.PerKey<String, Integer, Double> mean = Mean.perKey();
     Combine.PerKey<String, Integer, Integer> sum = Sum.integersPerKey();
 
-    assertThat(min.getName(), Matchers.startsWith("Min"));
-    assertThat(max.getName(), Matchers.startsWith("Max"));
-    assertThat(mean.getName(), Matchers.startsWith("Mean"));
-    assertThat(sum.getName(), Matchers.startsWith("Sum"));
+    assertThat(min.getName(), equalTo("Combine.perKey(MinInteger)"));
+    assertThat(max.getName(), equalTo("Combine.perKey(MaxInteger)"));
+    assertThat(mean.getName(), equalTo("Combine.perKey(Mean)"));
+    assertThat(sum.getName(), equalTo("Combine.perKey(SumInteger)"));
   }
 
   private static final SerializableFunction<String, Integer> hotKeyFanout =
@@ -635,18 +635,13 @@ public class CombineTest implements Serializable {
 
   @Test
   public void testCombineGetName() {
-    assertEquals("Combine.Globally", Combine.globally(new SumInts()).getName());
-    assertEquals(
-        "MyCombineGlobally", Combine.globally(new SumInts()).named("MyCombineGlobally").getName());
+    assertEquals("Combine.globally(SumInts)", Combine.globally(new SumInts()).getName());
     assertEquals(
         "Combine.GloballyAsSingletonView",
         Combine.globally(new SumInts()).asSingletonView().getName());
-    assertEquals("Combine.PerKey", Combine.perKey(new TestKeyedCombineFn()).getName());
+    assertEquals("Combine.perKey(TestKeyed)", Combine.perKey(new TestKeyedCombineFn()).getName());
     assertEquals(
-        "MyCombinePerKey",
-        Combine.perKey(new TestKeyedCombineFn()).named("MyCombinePerKey").getName());
-    assertEquals(
-        "Combine.PerKeyWithHotKeyFanout",
+        "Combine.perKeyWithFanout(TestKeyed)",
         Combine.perKey(new TestKeyedCombineFn()).withHotKeyFanout(10).getName());
   }
 

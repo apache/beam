@@ -22,6 +22,7 @@ import static org.junit.Assert.assertEquals;
 
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.util.NameUtils.NameOverride;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PDone;
 import org.junit.Rule;
@@ -111,16 +112,12 @@ public class NameUtilsTest {
 
   @Test
   public void testSimpleName() {
-    assertEquals("Embedded", NameUtils.approximateSimpleName(EmbeddedOldDoFn.class));
+    assertEquals("Embedded", NameUtils.approximateSimpleName(new EmbeddedOldDoFn()));
   }
 
   @Test
   public void testAnonSimpleName() throws Exception {
-    thrown.expect(IllegalArgumentException.class);
-
-    EmbeddedOldDoFn anon = new EmbeddedOldDoFn(){};
-
-    NameUtils.approximateSimpleName(anon.getClass());
+    assertEquals("Anonymous", NameUtils.approximateSimpleName(new EmbeddedOldDoFn() {}));
   }
 
   @Test
@@ -128,7 +125,7 @@ public class NameUtilsTest {
     EmbeddedOldDoFn fn = new EmbeddedOldDoFn();
     EmbeddedOldDoFn inner = fn.getEmbedded();
 
-    assertEquals("DeeperEmbedded", NameUtils.approximateSimpleName(inner.getClass()));
+    assertEquals("DeeperEmbedded", NameUtils.approximateSimpleName(inner));
   }
 
   @Test
@@ -160,9 +157,25 @@ public class NameUtilsTest {
     };
 
     assertEquals("NamedInnerClass",
-        NameUtils.approximateSimpleName(anonymousClassObj.getInnerClassInstance().getClass()));
+        NameUtils.approximateSimpleName(anonymousClassObj.getInnerClassInstance()));
     assertEquals("NameUtilsTest.NamedInnerClass",
-        NameUtils.approximatePTransformName(
-            anonymousClassObj.getInnerClassInstance().getClass()));
+        NameUtils.approximatePTransformName(anonymousClassObj.getInnerClassInstance().getClass()));
+  }
+
+  @Test
+  public void testApproximateSimpleNameOverride() {
+    Object overriddenName = new NameOverride() {
+      @Override
+      public String getNameOverride() {
+        return "CUSTOM_NAME";
+      }
+    };
+    assertEquals("CUSTOM_NAME", NameUtils.approximateSimpleName(overriddenName));
+  }
+
+  @Test
+  public void testApproximateSimpleNameCustomAnonymous() {
+    Object overriddenName = new Object() {};
+    assertEquals("CUSTOM_NAME", NameUtils.approximateSimpleName(overriddenName, "CUSTOM_NAME"));
   }
 }

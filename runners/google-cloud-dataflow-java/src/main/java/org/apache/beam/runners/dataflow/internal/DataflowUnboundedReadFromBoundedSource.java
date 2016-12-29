@@ -105,14 +105,7 @@ public class DataflowUnboundedReadFromBoundedSource<T> extends PTransform<PBegin
 
   @Override
   public String getKindString() {
-    String sourceName;
-    if (source.getClass().isAnonymousClass()) {
-      sourceName = "AnonymousSource";
-    } else {
-      sourceName = NameUtils.approximateSimpleName(source.getClass());
-    }
-
-    return String.format("Read(%s)", sourceName);
+    return String.format("Read(%s)", NameUtils.approximateSimpleName(source, "AnonymousSource"));
   }
 
   @Override

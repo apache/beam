@@ -100,7 +100,7 @@ public class UnboundedReadFromBoundedSource<T> extends PTransform<PBegin, PColle
 
   @Override
   public String getKindString() {
-    return String.format("Read(%s)", NameUtils.approximateSimpleName(source.getClass()));
+    return String.format("Read(%s)", NameUtils.approximateSimpleName(source));
   }
 
   @Override

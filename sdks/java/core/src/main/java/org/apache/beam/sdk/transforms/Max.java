@@ -52,7 +52,7 @@ public class Max {
    * elements, or {@code Integer.MIN_VALUE} if there are no elements.
    */
   public static Combine.Globally<Integer, Integer> integersGlobally() {
-    return Combine.globally(new MaxIntegerFn()).named("Max.Globally");
+    return Combine.globally(new MaxIntegerFn());
   }
 
   /**
@@ -64,7 +64,7 @@ public class Max {
    * <p>See {@link Combine.PerKey} for how this affects timestamps and windowing.
    */
   public static <K> Combine.PerKey<K, Integer, Integer> integersPerKey() {
-    return Combine.<K, Integer, Integer>perKey(new MaxIntegerFn()).named("Max.PerKey");
+    return Combine.<K, Integer, Integer>perKey(new MaxIntegerFn());
   }
 
   /**
@@ -73,7 +73,7 @@ public class Max {
    * or {@code Long.MIN_VALUE} if there are no elements.
    */
   public static Combine.Globally<Long, Long> longsGlobally() {
-    return Combine.globally(new MaxLongFn()).named("Max.Globally");
+    return Combine.globally(new MaxLongFn());
   }
 
   /**
@@ -85,7 +85,7 @@ public class Max {
    * <p>See {@link Combine.PerKey} for how this affects timestamps and windowing.
    */
   public static <K> Combine.PerKey<K, Long, Long> longsPerKey() {
-    return Combine.<K, Long, Long>perKey(new MaxLongFn()).named("Max.PerKey");
+    return Combine.<K, Long, Long>perKey(new MaxLongFn());
   }
 
   /**
@@ -94,7 +94,7 @@ public class Max {
    * elements, or {@code Double.NEGATIVE_INFINITY} if there are no elements.
    */
   public static Combine.Globally<Double, Double> doublesGlobally() {
-    return Combine.globally(new MaxDoubleFn()).named("Max.Globally");
+    return Combine.globally(new MaxDoubleFn());
   }
 
   /**
@@ -106,7 +106,7 @@ public class Max {
    * <p>See {@link Combine.PerKey} for how this affects timestamps and windowing.
    */
   public static <K> Combine.PerKey<K, Double, Double> doublesPerKey() {
-    return Combine.<K, Double, Double>perKey(new MaxDoubleFn()).named("Max.PerKey");
+    return Combine.<K, Double, Double>perKey(new MaxDoubleFn());
   }
 
   /**
@@ -116,7 +116,7 @@ public class Max {
    */
   public static <T extends Comparable<? super T>>
   Combine.Globally<T, T> globally() {
-    return Combine.<T, T>globally(MaxFn.<T>naturalOrder()).named("Max.Globally");
+    return Combine.<T, T>globally(MaxFn.<T>naturalOrder());
   }
 
   /**
@@ -129,7 +129,7 @@ public class Max {
    */
   public static <K, T extends Comparable<? super T>>
   Combine.PerKey<K, T, T> perKey() {
-    return Combine.<K, T, T>perKey(MaxFn.<T>naturalOrder()).named("Max.PerKey");
+    return Combine.<K, T, T>perKey(MaxFn.<T>naturalOrder());
   }
 
   /**
@@ -139,7 +139,7 @@ public class Max {
    */
   public static <T, ComparatorT extends Comparator<? super T> & Serializable>
   Combine.Globally<T, T> globally(ComparatorT comparator) {
-    return Combine.<T, T>globally(MaxFn.of(comparator)).named("Max.Globally");
+    return Combine.<T, T>globally(MaxFn.of(comparator));
   }
 
   /**
@@ -151,7 +151,7 @@ public class Max {
    */
   public static <K, T, ComparatorT extends Comparator<? super T> & Serializable>
   Combine.PerKey<K, T, T> perKey(ComparatorT comparator) {
-    return Combine.<K, T, T>perKey(MaxFn.of(comparator)).named("Max.PerKey");
+    return Combine.<K, T, T>perKey(MaxFn.of(comparator));
   }
 
   /////////////////////////////////////////////////////////////////////////////

@@ -117,7 +117,7 @@ public class Read {
 
     @Override
     public String getKindString() {
-      return "Read(" + NameUtils.approximateSimpleName(source.getClass()) + ")";
+      return String.format("Read(%s)", NameUtils.approximateSimpleName(source));
     }
 
     @Override
@@ -184,7 +184,7 @@ public class Read {
 
     @Override
     public String getKindString() {
-      return String.format("Read(%s)", NameUtils.approximateSimpleName(source.getClass()));
+      return String.format("Read(%s)", NameUtils.approximateSimpleName(source));
     }
 
     @Override
