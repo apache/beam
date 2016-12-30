@@ -21,8 +21,10 @@ import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisp
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
 
 import java.io.IOException;
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
@@ -30,7 +32,9 @@ import java.util.Map.Entry;
 
 import org.apache.beam.runners.direct.DirectOptions;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.DefaultCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.BoundedSource.BoundedReader;
@@ -38,9 +42,13 @@ import org.apache.beam.sdk.io.hadoop.inputformat.HadoopInputFormatIO;
 import org.apache.beam.sdk.io.hadoop.inputformat.HadoopInputFormatIO.HadoopInputFormatBoundedSource;
 import org.apache.beam.sdk.io.hadoop.inputformat.HadoopInputFormatIO.Read;
 import org.apache.beam.sdk.io.hadoop.inputformat.HadoopInputFormatIO.SerializableConfiguration;
+import org.apache.beam.sdk.io.hadoop.inputformat.unit.tests.coders.EmployeeCoder;
 import org.apache.beam.sdk.io.hadoop.inputformat.unit.tests.inputformats.DummyBadInputFormat;
 import org.apache.beam.sdk.io.hadoop.inputformat.unit.tests.inputformats.DummyBadInputFormat2;
+import org.apache.beam.sdk.io.hadoop.inputformat.unit.tests.inputformats.DummyBadInputFormat3;
 import org.apache.beam.sdk.io.hadoop.inputformat.unit.tests.inputformats.DummyInputFormat;
+import org.apache.beam.sdk.io.hadoop.inputformat.unit.tests.inputformats.DummyInputFormatWithImmutableRecords;
+import org.apache.beam.sdk.io.hadoop.inputformat.unit.tests.inputformats.DummyInputFormatWithMutableRecords;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.SourceTestUtils;
@@ -54,32 +62,38 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.InputFormat;
-import org.junit.Before;
+import org.junit.BeforeClass;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
 
 import com.datastax.driver.core.Row;
+import com.google.common.base.Function;
+import com.google.common.collect.Lists;
 
+
+/**
+ * Unit tests for {@link HadoopInputFormatIO}.
+ */
+@RunWith(JUnit4.class)
 public class HadoopInputFormatIOTest {
 	SerializableConfiguration serConf;
-	private DirectOptions directRunnerOptions;
-	private Pipeline pipeline ;
-	Configuration conf ;
-	SimpleFunction<Text, String> myKeyTranslate;
-	SimpleFunction<Text, String> myValueTranslate;
-	PBegin input;
+	private static DirectOptions directRunnerOptions;
+	private static Pipeline pipeline ;
+	static PipelineOptions options ;
+	static Configuration conf ;
+	static SimpleFunction<Text, String> myKeyTranslate;
+	static SimpleFunction<Text, String> myValueTranslate;
+	static PBegin input;
 
-	@Before
-	public void setUp() {
-		if(directRunnerOptions == null)
-			directRunnerOptions = PipelineOptionsFactory.as(DirectOptions.class);
-		if(pipeline == null){
-			pipeline = Pipeline.create(directRunnerOptions);
-			input = PBegin.in(pipeline);
-		}
-		if(conf == null)
-			conf  = getConfiguration(TypeDescriptor.of(DummyInputFormat.class),TypeDescriptor.of(Text.class),TypeDescriptor.of(Text.class)).getConfiguration();
-		if(myKeyTranslate == null)
-			myKeyTranslate = new SimpleFunction<Text, String>() {
+	@BeforeClass
+	public static void setUp() {
+		options = PipelineOptionsFactory.create();
+		directRunnerOptions = PipelineOptionsFactory.as(DirectOptions.class);
+		pipeline = Pipeline.create(directRunnerOptions);
+		input = PBegin.in(pipeline);
+		conf  = getConfiguration(TypeDescriptor.of(DummyInputFormat.class),TypeDescriptor.of(Text.class),TypeDescriptor.of(Text.class)).getConfiguration();
+		myKeyTranslate = new SimpleFunction<Text, String>() {
 			private static final long serialVersionUID = 1L;
 			@Override
 			public String apply(Text input) {
@@ -87,8 +101,7 @@ public class HadoopInputFormatIOTest {
 			}
 		};
 
-		if(myValueTranslate == null)
-			myValueTranslate = new SimpleFunction<Text, String>(){
+		myValueTranslate = new SimpleFunction<Text, String>(){
 			private static final long serialVersionUID = 1L;
 			@Override
 			public String apply(Text input){
@@ -276,12 +289,15 @@ public class HadoopInputFormatIOTest {
 		conf.set("cassandra.input.keyspace", KEYSPACE);
 		conf.set("cassandra.input.columnfamily", COLUMN_FAMILY);
 		TypeDescriptor<CqlInputFormat> inputFormatClassName = new TypeDescriptor<CqlInputFormat>() {
+			private static final long serialVersionUID = 1L;
 		};
 		conf.setClass("mapreduce.job.inputformat.class", inputFormatClassName.getRawType(), InputFormat.class);
 		TypeDescriptor<Long> keyClass = new TypeDescriptor<Long>() {
+			private static final long serialVersionUID = 1L;
 		};
 		conf.setClass("key.class", keyClass.getRawType(), Object.class);
 		TypeDescriptor<com.datastax.driver.core.Row> valueClass = new TypeDescriptor<Row>() {
+			private static final long serialVersionUID = 1L;
 		};
 		conf.setClass("value.class", valueClass.getRawType(), Object.class);
 		SimpleFunction<Row, String> myValueTranslateFunc = new SimpleFunction<Row, String>() {
@@ -317,8 +333,6 @@ public class HadoopInputFormatIOTest {
 	///This test validates functionality of Read.validate() function when Read transform is created without calling withConfiguration().
 	@Test
 	public void testReadObjectCreationIfWithConfigurationIsNotCalled() {
-		DirectOptions directRunnerOptions = PipelineOptionsFactory.as(DirectOptions.class);
-		Pipeline pipeline = Pipeline.create(directRunnerOptions);
 		Read<String, String> read = HadoopInputFormatIO.<String, String>read();
 		PBegin input = PBegin.in(pipeline);
 		try{
@@ -336,13 +350,13 @@ public class HadoopInputFormatIOTest {
 	@Test
 	public void testIfInputFormatIsNotProvided() {
 
-		DirectOptions directRunnerOptions = PipelineOptionsFactory.as(DirectOptions.class);
-		Pipeline pipeline = Pipeline.create(directRunnerOptions);
 		Configuration conf = new Configuration();
 		TypeDescriptor<String> keyClass = new TypeDescriptor<String>() {
+			private static final long serialVersionUID = 1L;
 		};
- 		conf.setClass("key.class", keyClass.getRawType(), Object.class);
- 		TypeDescriptor<String> valueClass = new TypeDescriptor<String>() {
+		conf.setClass("key.class", keyClass.getRawType(), Object.class);
+		TypeDescriptor<String> valueClass = new TypeDescriptor<String>() {
+			private static final long serialVersionUID = 1L;
 		};
 		conf.setClass("value.class", valueClass.getRawType(), Object.class);
 		Read<String, String> read = HadoopInputFormatIO.<String, String>read()
@@ -362,13 +376,14 @@ public class HadoopInputFormatIOTest {
 	@Test
 	public void testIfKeyClassIsNotProvided() {
 
-		DirectOptions directRunnerOptions = PipelineOptionsFactory.as(DirectOptions.class);
-		Pipeline pipeline = Pipeline.create(directRunnerOptions);
 		Configuration conf = new Configuration();
 		TypeDescriptor<DummyInputFormat> inputFormatClassName = new TypeDescriptor<DummyInputFormat>() {
+			private static final long serialVersionUID = 1L;
 		};
 		conf.setClass("mapreduce.job.inputformat.class", inputFormatClassName.getRawType(), InputFormat.class);
 		TypeDescriptor<String> valueClass = new TypeDescriptor<String>() {
+
+			private static final long serialVersionUID = 1L;
 		};
 		conf.setClass("value.class", valueClass.getRawType(), Object.class);
 		Read<String, String> read = HadoopInputFormatIO.<String, String>read()
@@ -388,14 +403,14 @@ public class HadoopInputFormatIOTest {
 	@Test
 	public void testIfValueClassIsNotProvided() {
 
-		DirectOptions directRunnerOptions = PipelineOptionsFactory.as(DirectOptions.class);
-		Pipeline pipeline = Pipeline.create(directRunnerOptions);
 		Configuration conf = new Configuration();
 		TypeDescriptor<DummyInputFormat> inputFormatClassName = new TypeDescriptor<DummyInputFormat>() {
+			private static final long serialVersionUID = 1L;
 		};
 
 		conf.setClass("mapreduce.job.inputformat.class", inputFormatClassName.getRawType(), InputFormat.class);
 		TypeDescriptor<String> keyClass = new TypeDescriptor<String>() {
+			private static final long serialVersionUID = 1L;
 		};
 		conf.setClass("key.class", keyClass.getRawType(), Object.class);
 		Read<String, String> read = HadoopInputFormatIO.<String, String>read()
@@ -417,8 +432,6 @@ public class HadoopInputFormatIOTest {
 	//input type is not same as hadoop input format's keyClass(Which is property set in configuration as "key.class").
 	@Test
 	public void testKeyTranslationFunctionIfInputTypeIsWrong() {
-		DirectOptions directRunnerOptions = PipelineOptionsFactory.as(DirectOptions.class);
-		Pipeline pipeline = Pipeline.create(directRunnerOptions);
 		Configuration conf =getConfiguration(TypeDescriptor.of(DummyInputFormat.class),TypeDescriptor.of(Text.class),TypeDescriptor.of(java.lang.String.class)).getConfiguration();
 		SimpleFunction<LongWritable, String> myKeyTranslate = new SimpleFunction<LongWritable, String>() {
 			private static final long serialVersionUID = 1L;
@@ -447,9 +460,7 @@ public class HadoopInputFormatIOTest {
 	//input type is not same as hadoop input format's valueClass(Which is property set in configuration as "value.class").
 	@Test
 	public void testValueTranslationFunctionIfInputTypeIsWrong() {
-		DirectOptions directRunnerOptions = PipelineOptionsFactory.as(DirectOptions.class);
-		Pipeline pipeline = Pipeline.create(directRunnerOptions);
-		Configuration conf = getConfiguration(TypeDescriptor.of(DummyInputFormat.class),TypeDescriptor.of(java.lang.String.class),TypeDescriptor.of(Text.class)).getConfiguration();
+		serConf = getConfiguration(TypeDescriptor.of(DummyInputFormat.class),TypeDescriptor.of(java.lang.String.class),TypeDescriptor.of(Text.class));
 		SimpleFunction<LongWritable, String> myValueTranslate = new SimpleFunction<LongWritable, String>() {
 			private static final long serialVersionUID = 1L;
 			@Override
@@ -466,8 +477,8 @@ public class HadoopInputFormatIOTest {
 		}
 		catch(IllegalArgumentException ex)
 		{
-			String inputFormatClassProperty= conf.get("mapreduce.job.inputformat.class") ;
-			String keyClassProperty= conf.get("value.class");
+			String inputFormatClassProperty= serConf.getConfiguration().get("mapreduce.job.inputformat.class") ;
+			String keyClassProperty= serConf.getConfiguration().get("value.class");
 			String expectedMessage="Value translation's input type is not same as hadoop input format : "+inputFormatClassProperty+" value class : "+ keyClassProperty;
 			assertEquals(expectedMessage,ex.getMessage());
 		}
@@ -475,7 +486,6 @@ public class HadoopInputFormatIOTest {
 
 	@Test
 	public void testReadingData()  throws Exception {
-		PipelineOptions options = PipelineOptionsFactory.create();
 		serConf = getConfiguration(TypeDescriptor.of(DummyInputFormat.class),TypeDescriptor.of(java.lang.String.class),TypeDescriptor.of(java.lang.String.class));
 		Coder<String> keyCoder = StringUtf8Coder.of();
 		Coder<String> valueCoder = StringUtf8Coder.of();
@@ -491,10 +501,58 @@ public class HadoopInputFormatIOTest {
 		assertThat(bundleRecords, containsInAnyOrder(referenceRecords.toArray()));
 	}
 
+
+
+	// This test validates behaviour HadoopInputFormatSource if RecordReader object creation fails in start() method.
+	@Test
+	public void testReadersStartIfCreateRecordReaderFails() throws Exception {
+		long inputDataSize=9,numberOfSplitsOfDummyInputFormat=3;
+		serConf = getConfiguration(TypeDescriptor.of(DummyBadInputFormat3.class),TypeDescriptor.of(java.lang.String.class),TypeDescriptor.of(java.lang.String.class)); 
+		Coder<String> keyCoder = StringUtf8Coder.of();
+		Coder<String> valueCoder = StringUtf8Coder.of();
+		HadoopInputFormatBoundedSource<String, String> parentHIFSource = new HadoopInputFormatBoundedSource<String, String>(serConf, keyCoder, valueCoder);
+		long estimatedSize = parentHIFSource.getEstimatedSizeBytes(options);
+		assertEquals(inputDataSize,estimatedSize);//
+		List<BoundedSource<KV<String, String>>> boundedSourceList = (List<BoundedSource<KV<String, String>>>) parentHIFSource.splitIntoBundles(0, options);
+		assertEquals(numberOfSplitsOfDummyInputFormat,boundedSourceList.size());
+		for (BoundedSource<KV<String, String>> source : boundedSourceList) {
+			BoundedReader<KV<String, String>> reader=source.createReader(options);
+			assertEquals(new Double((float)0),reader.getFractionConsumed());
+			try{
+				reader.start();
+			}
+			catch(Exception ex){
+				assertEquals("Exception in creating RecordRader in DummyBadInputFormat4.",ex.getMessage());
+			}
+		}
+
+	}
+
+
+	// This test validate's createReader() and start() methods.
+	// This test validates behaviour of createReader() and start() method if InputFormat's getSplits() returns InputSplitList having having no records.  
+	@Test
+	public void testReadersCreateReaderAndStartWithZeroRecords() throws Exception {
+		long inputDataSize=9,numberOfSplitsOfDummyInputFormat=3;
+
+		serConf = getConfiguration(TypeDescriptor.of(DummyBadInputFormat3.class),TypeDescriptor.of(java.lang.String.class),TypeDescriptor.of(java.lang.String.class)); 
+		Coder<String> keyCoder = StringUtf8Coder.of();
+		Coder<String> valueCoder = StringUtf8Coder.of();
+		HadoopInputFormatBoundedSource<String, String> parentHIFSource = new HadoopInputFormatBoundedSource<String, String>(serConf, keyCoder, valueCoder);
+		long estimatedSize = parentHIFSource.getEstimatedSizeBytes(options);
+		assertEquals(inputDataSize,estimatedSize);//
+		List<BoundedSource<KV<String, String>>> boundedSourceList = (List<BoundedSource<KV<String, String>>>) parentHIFSource.splitIntoBundles(0, options);
+		assertEquals(numberOfSplitsOfDummyInputFormat,boundedSourceList.size());
+		for (BoundedSource<KV<String, String>> source : boundedSourceList) {
+			BoundedReader<KV<String, String>> reader=source.createReader(options);
+			assertEquals(new Double((float)0),reader.getFractionConsumed());
+			assertEquals(false,reader.start());
+
+		}
+	}
 	@Test
 	public void testReadersGetFractionConsumed() throws Exception {
 		long inputDataSize=9,numberOfSplitsOfDummyInputFormat=3;
-		PipelineOptions options = PipelineOptionsFactory.create();
 		serConf = getConfiguration(TypeDescriptor.of(DummyInputFormat.class),TypeDescriptor.of(java.lang.String.class),TypeDescriptor.of(java.lang.String.class));
 		Coder<String> keyCoder = StringUtf8Coder.of();
 		Coder<String> valueCoder = StringUtf8Coder.of();
@@ -509,20 +567,24 @@ public class HadoopInputFormatIOTest {
 			List<KV<String, String>> elements = new ArrayList<KV<String, String>>();
 			BoundedReader<KV<String, String>> reader=source.createReader(options);
 			assertEquals(new Double((float)0),reader.getFractionConsumed());
-
-			reader.start();
-			elements.add(reader.getCurrent());
-			assertEquals(new Double((float)1/3),reader.getFractionConsumed());
-
-			reader.advance();
-			elements.add(reader.getCurrent());
-			assertEquals(new Double((float)2/3),reader.getFractionConsumed());
-
-			reader.advance();
-			elements.add(reader.getCurrent());
-			assertEquals(new Double((float)1),reader.getFractionConsumed());
-
-			bundleRecords.addAll(elements);
+			assertEquals(new Double((float)0),reader.getFractionConsumed());
+			int i=0;
+			boolean temp = reader.start();
+			assertEquals(true,temp);
+			if(temp){
+				elements.add(reader.getCurrent());
+				assertEquals(new Double((float)++i/numberOfSplitsOfDummyInputFormat),reader.getFractionConsumed());
+				temp=reader.advance();
+				assertEquals(true,temp);
+				while(temp){
+					assertEquals(true,temp);
+					elements.add(reader.getCurrent());
+					assertEquals(new Double((float)++i/numberOfSplitsOfDummyInputFormat),reader.getFractionConsumed());
+					temp=reader.advance();
+				}
+				assertEquals(false,temp);
+				bundleRecords.addAll(elements);
+			}
 		}
 		assertThat(bundleRecords, containsInAnyOrder(referenceRecords.toArray()));
 	}
@@ -531,7 +593,6 @@ public class HadoopInputFormatIOTest {
 	@Test
 	public void testReaderAndParentSourceReadsSameData() throws Exception
 	{
-		PipelineOptions options = PipelineOptionsFactory.create();
 		serConf = getConfiguration(TypeDescriptor.of(DummyInputFormat.class),TypeDescriptor.of(java.lang.String.class),TypeDescriptor.of(java.lang.String.class));
 		Coder<String> keyCoder = StringUtf8Coder.of();
 		Coder<String> valueCoder = StringUtf8Coder.of();
@@ -549,7 +610,6 @@ public class HadoopInputFormatIOTest {
 	@Test
 	public void testGetCurrentSourceFunc() throws Exception
 	{
-		PipelineOptions options = PipelineOptionsFactory.create();
 		serConf = getConfiguration(TypeDescriptor.of(DummyInputFormat.class),TypeDescriptor.of(java.lang.String.class),TypeDescriptor.of(java.lang.String.class));
 		Coder<String> keyCoder = StringUtf8Coder.of();
 		Coder<String> valueCoder = StringUtf8Coder.of();
@@ -569,7 +629,6 @@ public class HadoopInputFormatIOTest {
 	@Test
 	public void testCreateReaderIfSplitIntoBundlesNotCalled() throws Exception
 	{
-		PipelineOptions options = PipelineOptionsFactory.create();
 		serConf = getConfiguration(TypeDescriptor.of(DummyInputFormat.class),TypeDescriptor.of(java.lang.String.class),TypeDescriptor.of(java.lang.String.class));
 		Coder<String> keyCoder = StringUtf8Coder.of();
 		Coder<String> valueCoder = StringUtf8Coder.of();
@@ -588,7 +647,6 @@ public class HadoopInputFormatIOTest {
 	@Test
 	public void testSplitIntoBundlesIfGetSplitsReturnsEmptyList() throws Exception
 	{
-		PipelineOptions options = PipelineOptionsFactory.create();
 		serConf = getConfiguration(TypeDescriptor.of(DummyBadInputFormat.class),TypeDescriptor.of(java.lang.String.class),TypeDescriptor.of(java.lang.String.class));
 		Coder<String> keyCoder = StringUtf8Coder.of();
 		Coder<String> valueCoder = StringUtf8Coder.of();
@@ -615,7 +673,6 @@ public class HadoopInputFormatIOTest {
 	@Test
 	public void testSplitIntoBundlesIfGetSplitsReturnsNullValue() throws Exception
 	{
-		PipelineOptions options = PipelineOptionsFactory.create();
 		serConf = getConfiguration(TypeDescriptor.of(DummyBadInputFormat2.class),TypeDescriptor.of(java.lang.String.class),TypeDescriptor.of(java.lang.String.class));
 		Coder<String> keyCoder = StringUtf8Coder.of();
 		Coder<String> valueCoder = StringUtf8Coder.of();
@@ -637,35 +694,96 @@ public class HadoopInputFormatIOTest {
 
 	}
 
-	//Verify a scenario where the computeSplits () method returns empty List<InputSplit>
+	//This test validates functionality of HadoopInputFormatIO if user sets wrong key class and value class.
 	@Test
-	public void test() throws Exception
-	{
-		PipelineOptions options = PipelineOptionsFactory.create();
-		Configuration conf = new Configuration();
-		TypeDescriptor<DummyInputFormat> inputFormatClassName = new TypeDescriptor<DummyInputFormat>() {
-		};
-		conf.setClass("mapreduce.job.inputformat.class", inputFormatClassName.getRawType(), InputFormat.class);
-		TypeDescriptor<String> keyClass = new TypeDescriptor<String>() {
-		};
-		conf.setClass("key.class", keyClass.getRawType(), Object.class);
-		TypeDescriptor<String> valueClass = new TypeDescriptor<String>() {
-		};
-		conf.setClass("value.class", valueClass.getRawType(), Object.class);
-		final SerializableConfiguration serConf = new SerializableConfiguration(conf);
+	public void testHIFSourceIfUserSetsWrongKeyOrValueClass() throws Exception 
+	{	
+		serConf = getConfiguration(TypeDescriptor.of(DummyInputFormatWithMutableRecords.class),TypeDescriptor.of(java.lang.String.class),TypeDescriptor.of(java.lang.String.class)); 
 		Coder<String> keyCoder = StringUtf8Coder.of();
 		Coder<String> valueCoder = StringUtf8Coder.of();
 		HadoopInputFormatBoundedSource<String, String> parentHIFSource = new HadoopInputFormatBoundedSource<String, String>(serConf, keyCoder, valueCoder);
+		List<BoundedSource<KV<String, String>>> boundedSourceList = parentHIFSource.splitIntoBundles(0, options);
+		List<KV<String, String>> bundleRecords = new ArrayList<>();
 		try{
-			parentHIFSource.createReader(options);
+			for (BoundedSource<KV<String, String>> source : boundedSourceList) {
+				List<KV<String, String>> elems = SourceTestUtils.readFromSource(source, options);
+				bundleRecords.addAll(elems);
+			}
 		}
-		catch(IOException ex){
-			assertEquals("Cannot create reader as source is not split yet.",ex.getMessage());
+		catch(ClassCastException ex){
+			assertTrue((ex.getMessage().startsWith("ValueClass set in configuration "+serConf.getConfiguration().get("value.class")+" is not compatible with valueClass of record reader "))
+					|| (ex.getMessage().startsWith("KeyClass set in configuration "+serConf.getConfiguration().get("key.class")+" is not compatible with keyClass of record reader "))
+					);
 		}
+	}
 
+	// This test validates records emitted in PCollection are immutable 
+	// if InputFormat's recordReader returns same objects(i.e. same locations in memory) but with updated values for each record.
+	@Test
+	public void testImmutablityOfOutputOfReadIfRecordReaderObjectsAreMutable()  throws Exception {
+		serConf = getConfiguration(TypeDescriptor.of(DummyInputFormatWithMutableRecords.class),TypeDescriptor.of(java.lang.String.class),TypeDescriptor.of(Employee.class)); 
+		Coder<String> keyCoder = StringUtf8Coder.of();
+		//Coder<Employee> valueCoder = AvroCoder.of(Employee.class);
+		Coder<Employee> valueCoder = EmployeeCoder.of();
+		//Create read to validate conf and myValueTranslateFunc.
+		/*Read<String, Employee> read = HadoopInputFormatIO.<String, Employee>read()
+				.withConfiguration(serConf.getConfiguration());		
+		PBegin input = PBegin.in(pipeline);
+		read.validate(input);
+		 */
+		//./valueCoder=read.getValueCoder();
+		HadoopInputFormatBoundedSource<String, Employee> parentHIFSource = new HadoopInputFormatBoundedSource<String, Employee>(serConf, keyCoder, valueCoder);
+		List<BoundedSource<KV<String, Employee>>> boundedSourceList = parentHIFSource.splitIntoBundles(0, options);
+		List<KV<String, Employee>> bundleRecords = new ArrayList<>();
+		for (BoundedSource<KV<String, Employee>> source : boundedSourceList) {
+			List<KV<String, Employee>> elems = SourceTestUtils.readFromSource(source, options);
+			bundleRecords.addAll(elems);
+		}
+		List<KV<String, String>> referenceRecords = getDummyDataOfRecordReader();
+		List<KV<String, String>> transformedBundleRecords = Lists.transform(bundleRecords,new Function<KV<String, Employee>, KV<String, String>>(){
+			@Override 
+			public KV<String, String> apply(KV<String, Employee> input){
+				return KV.of(input.getValue().getEmpID().trim(),input.getValue().getEmpName().trim());
+			}
+		});
+
+		assertThat(transformedBundleRecords, containsInAnyOrder(referenceRecords.toArray()));
 	}
 
 
+	//This test validates records emitted in Pcollection are immutable 
+	// if InputFormat's recordReader returns different objects (i.e. different locations in memory)
+	@Test
+	public void testImmutablityOfOutputOfReadIfRecordReaderObjectsAreImmutable()  throws Exception {
+
+		serConf = getConfiguration(TypeDescriptor.of(DummyInputFormatWithImmutableRecords.class),TypeDescriptor.of(java.lang.String.class),TypeDescriptor.of(Employee.class)); 
+		Coder<String> keyCoder = StringUtf8Coder.of();
+		//Coder<Employee> valueCoder = AvroCoder.of(Employee.class);
+		Coder<Employee> valueCoder = EmployeeCoder.of();
+		//Create read to validate conf and myValueTranslateFunc.
+		/*Read<String, Employee> read = HadoopInputFormatIO.<String, Employee>read()
+				.withConfiguration(serConf.getConfiguration());		
+		PBegin input = PBegin.in(pipeline);
+		read.validate(input);
+		 */
+		//./valueCoder=read.getValueCoder();
+		HadoopInputFormatBoundedSource<String, Employee> parentHIFSource = new HadoopInputFormatBoundedSource<String, Employee>(serConf, keyCoder, valueCoder);
+		List<BoundedSource<KV<String, Employee>>> boundedSourceList = parentHIFSource.splitIntoBundles(0, options);
+		List<KV<String, Employee>> bundleRecords = new ArrayList<>();
+		for (BoundedSource<KV<String, Employee>> source : boundedSourceList) {
+			List<KV<String, Employee>> elems = SourceTestUtils.readFromSource(source, options);
+			bundleRecords.addAll(elems);
+		}
+		List<KV<String, String>> referenceRecords = getDummyDataOfRecordReader();
+		List<KV<String, String>> transformedBundleRecords = Lists.transform(bundleRecords,new Function<KV<String, Employee>, KV<String, String>>(){
+			@Override 
+			public KV<String, String> apply(KV<String, Employee> input){
+				return KV.of(input.getValue().getEmpID().trim(),input.getValue().getEmpName().trim());
+			}
+		});
+
+		assertThat(transformedBundleRecords, containsInAnyOrder(referenceRecords.toArray()));
+	}
 
 
 	private List<KV<String, String>> getDummyDataOfRecordReader() {
@@ -682,12 +800,41 @@ public class HadoopInputFormatIOTest {
 		return data;
 	}
 
+	private static SerializableConfiguration getConfiguration(TypeDescriptor<?> inputFormatClassName, TypeDescriptor<?> keyClass, TypeDescriptor<?> valueClass) {
 
-	private SerializableConfiguration getConfiguration(TypeDescriptor<?> inputFormatClassName,TypeDescriptor<?> keyClass,TypeDescriptor<?> valueClass){
 		Configuration conf = new Configuration();
 		conf.setClass("mapreduce.job.inputformat.class", inputFormatClassName.getRawType(), InputFormat.class);
 		conf.setClass("key.class", keyClass.getRawType(), Object.class);
 		conf.setClass("value.class", valueClass.getRawType(), Object.class);
 		return new SerializableConfiguration(conf);
+	}
+
+	@DefaultCoder(AvroCoder.class)
+	public class Employee implements Serializable{
+
+		/**
+		 * 
+		 */
+		private static final long serialVersionUID = 1L;
+		private String empID;
+		private String empName;
+
+		public Employee(String empId, String empName) {
+			this.empID = empId;
+			this.empName = empName;
+		}
+
+		public String getEmpID() {
+			return empID;
+		}
+		public void setEmpID(String empID) {
+			this.empID = empID;
+		}
+		public String getEmpName() {
+			return empName;
+		}
+		public void setEmpName(String empName) {
+			this.empName = empName;
+		}
 	}
 }

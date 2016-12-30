@@ -37,7 +37,6 @@ import javax.annotation.Nullable;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.io.BoundedSource;
@@ -64,6 +63,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.auto.value.AutoValue;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Function;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
@@ -289,6 +289,7 @@ public class HadoopInputFormatIO {
 
 		}
 
+		@VisibleForTesting
 		private void computeSplits() throws IOException, IllegalAccessException, InstantiationException,
 		InterruptedException, ClassNotFoundException {
 
@@ -443,13 +444,23 @@ public class HadoopInputFormatIO {
 				return cloneKeyValue(key,value);
 			}
 
-			private KV<K, V> cloneKeyValue(K key,V value) throws CoderException {
+			private KV<K, V> cloneKeyValue(K key,V value) throws IOException, InterruptedException {
 
 				if (!HadoopInputFormatUtils.isImmutable(key)) {
-					key = (K) CoderUtils.clone((Coder<K>)keyCoder,(K) key);
+					try {
+						key = (K) CoderUtils.clone((Coder<K>)keyCoder,(K) key);
+					} 
+					catch (ClassCastException ex) {
+						throw new ClassCastException("KeyClass set in configuration "+conf.getConfiguration().get("key.class")+" is not compatible with keyClass of record reader "+currentReader.getCurrentKey().getClass().toString());
+					}
 				}
 				if (!HadoopInputFormatUtils.isImmutable(value)) {
-					value = (V) CoderUtils.clone((Coder<V>)valueCoder, (V) value);
+					try{
+						value = (V) CoderUtils.clone((Coder<V>)valueCoder, (V) value);
+					} 
+					catch (ClassCastException ex) {
+						throw new ClassCastException("ValueClass set in configuration "+conf.getConfiguration().get("value.class")+" is not compatible with valueClass of record reader "+currentReader.getCurrentValue().getClass().toString());
+					}
 				}
 				return KV.of(key,value);
 			}
