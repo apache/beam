@@ -412,7 +412,7 @@ public class AutoComplete {
    *
    * <p>Inherits standard Beam example configuration options.
    */
-  private interface Options
+  public interface Options
       extends ExampleOptions, ExampleBigQueryTableOptions, StreamingOptions {
     @Description("Input text file")
     @Validation.Required

@@ -656,22 +656,22 @@ public abstract class WindowedValue<T> {
                        Context context)
         throws CoderException, IOException {
       Context nestedContext = context.nested();
-      valueCoder.encode(windowedElem.getValue(), outStream, nestedContext);
       InstantCoder.of().encode(
           windowedElem.getTimestamp(), outStream, nestedContext);
       windowsCoder.encode(windowedElem.getWindows(), outStream, nestedContext);
-      PaneInfoCoder.INSTANCE.encode(windowedElem.getPane(), outStream, context);
+      PaneInfoCoder.INSTANCE.encode(windowedElem.getPane(), outStream, nestedContext);
+      valueCoder.encode(windowedElem.getValue(), outStream, context);
     }
 
     @Override
     public WindowedValue<T> decode(InputStream inStream, Context context)
         throws CoderException, IOException {
       Context nestedContext = context.nested();
-      T value = valueCoder.decode(inStream, nestedContext);
       Instant timestamp = InstantCoder.of().decode(inStream, nestedContext);
       Collection<? extends BoundedWindow> windows =
           windowsCoder.decode(inStream, nestedContext);
       PaneInfo pane = PaneInfoCoder.INSTANCE.decode(inStream, nestedContext);
+      T value = valueCoder.decode(inStream, context);
       return WindowedValue.of(value, timestamp, windows, pane);
     }
 
@@ -689,9 +689,10 @@ public abstract class WindowedValue<T> {
     public void registerByteSizeObserver(WindowedValue<T> value,
                                          ElementByteSizeObserver observer,
                                          Context context) throws Exception {
+      InstantCoder.of().registerByteSizeObserver(value.getTimestamp(), observer, context.nested());
+      windowsCoder.registerByteSizeObserver(value.getWindows(), observer, context.nested());
+      PaneInfoCoder.INSTANCE.registerByteSizeObserver(value.getPane(), observer, context.nested());
       valueCoder.registerByteSizeObserver(value.getValue(), observer, context);
-      InstantCoder.of().registerByteSizeObserver(value.getTimestamp(), observer, context);
-      windowsCoder.registerByteSizeObserver(value.getWindows(), observer, context);
     }
 
     @Override

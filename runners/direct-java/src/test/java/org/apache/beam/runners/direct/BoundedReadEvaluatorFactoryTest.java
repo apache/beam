@@ -376,11 +376,6 @@ public class BoundedReadEvaluatorFactoryTest {
     }
 
     @Override
-    public boolean producesSortedKeys(PipelineOptions options) throws Exception {
-      return false;
-    }
-
-    @Override
     public BoundedSource.BoundedReader<T> createReader(PipelineOptions options) throws IOException {
       subrangesCompleted = new CountDownLatch(2);
       return new TestReader<>(this, firstSplitIndex, subrangesCompleted);

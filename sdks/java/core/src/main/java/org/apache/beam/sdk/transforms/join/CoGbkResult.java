@@ -22,7 +22,9 @@ import static org.apache.beam.sdk.util.Structs.addObject;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterators;
+import com.google.common.collect.Lists;
 import com.google.common.collect.PeekingIterator;
 import java.io.IOException;
 import java.io.InputStream;
@@ -268,9 +270,14 @@ public class CoGbkResult {
       if (!schema.equals(value.getSchema())) {
         throw new CoderException("input schema does not match coder schema");
       }
-      for (int unionTag = 0; unionTag < schema.size(); unionTag++) {
-        tagListCoder(unionTag).encode(value.valueMap.get(unionTag), outStream, Context.NESTED);
+      if (schema.size() == 0) {
+        return;
       }
+      int lastIndex = schema.size() - 1;
+      for (int unionTag = 0; unionTag < lastIndex; unionTag++) {
+        tagListCoder(unionTag).encode(value.valueMap.get(unionTag), outStream, context.nested());
+      }
+      tagListCoder(lastIndex).encode(value.valueMap.get(lastIndex), outStream, context);
     }
 
     @Override
@@ -278,10 +285,15 @@ public class CoGbkResult {
         InputStream inStream,
         Context context)
         throws CoderException, IOException {
-      List<Iterable<?>> valueMap = new ArrayList<>();
-      for (int unionTag = 0; unionTag < schema.size(); unionTag++) {
-        valueMap.add(tagListCoder(unionTag).decode(inStream, Context.NESTED));
+      if (schema.size() == 0) {
+        return new CoGbkResult(schema, ImmutableList.<Iterable<?>>of());
       }
+      int lastIndex = schema.size() - 1;
+      List<Iterable<?>> valueMap = Lists.newArrayListWithExpectedSize(schema.size());
+      for (int unionTag = 0; unionTag < lastIndex; unionTag++) {
+        valueMap.add(tagListCoder(unionTag).decode(inStream, context.nested()));
+      }
+      valueMap.add(tagListCoder(lastIndex).decode(inStream, context));
       return new CoGbkResult(schema, valueMap);
     }
 

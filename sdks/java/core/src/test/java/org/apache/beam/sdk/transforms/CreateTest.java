@@ -23,7 +23,6 @@ import static org.apache.beam.sdk.TestUtils.NO_LINES;
 import static org.apache.beam.sdk.TestUtils.NO_LINES_ARRAY;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasSize;
-import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 
@@ -344,13 +343,6 @@ public class CreateTest {
     PipelineOptions options = PipelineOptionsFactory.create();
     List<? extends BoundedSource<Integer>> splitSources = source.splitIntoBundles(12, options);
     SourceTestUtils.assertSourcesEqualReferenceSource(source, splitSources, options);
-  }
-
-  @Test
-  public void testSourceDoesNotProduceSortedKeys() throws Exception {
-    CreateSource<String> source =
-        CreateSource.fromIterable(ImmutableList.of("spam", "ham", "eggs"), StringUtf8Coder.of());
-    assertThat(source.producesSortedKeys(PipelineOptionsFactory.create()), is(false));
   }
 
   @Test

@@ -933,11 +933,6 @@ public class TextIO {
     }
 
     @Override
-    public boolean producesSortedKeys(PipelineOptions options) throws Exception {
-      return false;
-    }
-
-    @Override
     public Coder<T> getDefaultOutputCoder() {
       return coder;
     }
