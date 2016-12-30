@@ -11,8 +11,8 @@ import org.apache.flink.api.common.io.statistics.BaseStatistics;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.core.io.InputSplit;
 import org.apache.flink.core.io.InputSplitAssigner;
+import org.apache.flink.core.io.LocatableInputSplit;
 
 import java.io.IOException;
 import java.util.List;
@@ -24,13 +24,13 @@ public class DataSourceWrapper<T>
         ResultTypeQueryable<T> {
 
   private final DataSource<T> dataSource;
-  private final BiFunction<InputSplit[], Integer, InputSplitAssigner> splitAssignerFactory;
+  private final BiFunction<LocatableInputSplit[], Integer, InputSplitAssigner> splitAssignerFactory;
 
   /** currently opened reader (if any) */
   private transient Reader<T> reader;
   
   public DataSourceWrapper(DataSource<T> dataSource, 
-                           BiFunction<InputSplit[], Integer, InputSplitAssigner> splitAssignerFactory) {
+                           BiFunction<LocatableInputSplit[], Integer, InputSplitAssigner> splitAssignerFactory) {
     Preconditions.checkArgument(dataSource.isBounded());
     this.dataSource = dataSource;
     this.splitAssignerFactory = splitAssignerFactory;

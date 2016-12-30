@@ -18,11 +18,11 @@ import cz.seznam.euphoria.flink.FlowOptimizer;
 import cz.seznam.euphoria.flink.FlowTranslator;
 import cz.seznam.euphoria.flink.batch.io.DataSinkWrapper;
 import cz.seznam.euphoria.guava.shaded.com.google.common.base.Preconditions;
-import org.apache.flink.api.common.io.DefaultInputSplitAssigner;
+import org.apache.flink.api.common.io.LocatableInputSplitAssigner;
 import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.core.io.InputSplit;
 import org.apache.flink.core.io.InputSplitAssigner;
+import org.apache.flink.core.io.LocatableInputSplit;
 
 import java.io.Serializable;
 import java.util.ArrayList;
@@ -37,10 +37,10 @@ import java.util.stream.Collectors;
 public class BatchFlowTranslator extends FlowTranslator {
   
   public interface SplitAssignerFactory
-  extends BiFunction<InputSplit[], Integer, InputSplitAssigner>, Serializable {}
+  extends BiFunction<LocatableInputSplit[], Integer, InputSplitAssigner>, Serializable {}
   
   public static final SplitAssignerFactory DEFAULT_SPLIT_ASSIGNER_FACTORY =
-      (splits, partitions) -> new DefaultInputSplitAssigner(splits);
+      (splits, partitions) -> new LocatableInputSplitAssigner(splits);
   
   private static class Translation<O extends Operator<?, ?>> {
     final BatchOperatorTranslator<O> translator;

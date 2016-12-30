@@ -1,21 +1,17 @@
 package cz.seznam.euphoria.flink.batch.io;
 
 import cz.seznam.euphoria.core.client.io.Partition;
-import org.apache.flink.core.io.InputSplit;
+import org.apache.flink.core.io.LocatableInputSplit;
 
-class PartitionWrapper<T> implements InputSplit {
+class PartitionWrapper<T> extends LocatableInputSplit {
 
-  private final int splitNumber;
   private final Partition<T> partition;
 
   public PartitionWrapper(int splitNumber, Partition<T> partition) {
-    this.splitNumber = splitNumber;
-    this.partition = partition;
-  }
+    super(splitNumber, partition.getLocations().toArray(
+            new String[partition.getLocations().size()]));
 
-  @Override
-  public int getSplitNumber() {
-    return splitNumber;
+    this.partition = partition;
   }
 
   public Partition<T> getPartition() {
