@@ -122,7 +122,7 @@ class DoFnProcessContext(DoFnContext):
 class DoFn(WithTypeHints, HasDisplayData):
   """A function object used by a transform with custom processing.
 
-  The ParDo transform is such a transform. The ParDo.apply
+  The ParDo transform is such a transform. The ParDo.expand()
   method will take an object of type DoFn and apply it to all elements of a
   PCollection object.
 
@@ -551,7 +551,7 @@ class ParDo(PTransformWithSideInputs):
   returning the accumulated results into an output PCollection. The type of the
   elements is not fixed as long as the DoFn can deal with it. In reality
   the type is restrained to some extent because the elements sometimes must be
-  persisted to external storage. See the apply() method comments for a detailed
+  persisted to external storage. See the expand() method comments for a detailed
   description of all possible arguments.
 
   Note that the DoFn must return an iterable for each element of the input

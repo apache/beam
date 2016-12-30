@@ -21,11 +21,11 @@ A PTransform is an object describing (not executing) a computation. The actual
 execution semantics for a transform is captured by a runner object. A transform
 object always belongs to a pipeline object.
 
-A PTransform derived class needs to define the apply() method that describes
+A PTransform derived class needs to define the expand() method that describes
 how one or more PValues are created by the transform.
 
 The module defines a few standard transforms: FlatMap (parallel do),
-GroupByKey (group by key), etc. Note that the apply() methods for these
+GroupByKey (group by key), etc. Note that the expand() methods for these
 classes contain code that will add nodes to the processing graph associated
 with a pipeline.
 
@@ -172,12 +172,12 @@ class ZipPValues(_PValueishTransform):
 class PTransform(WithTypeHints, HasDisplayData):
   """A transform object used to modify one or more PCollections.
 
-  Subclasses must define an apply() method that will be used when the transform
+  Subclasses must define an expand() method that will be used when the transform
   is applied to some arguments. Typical usage pattern will be:
 
     input | CustomTransform(...)
 
-  The apply() method of the CustomTransform object passed in will be called
+  The expand() method of the CustomTransform object passed in will be called
   with input as an argument.
   """
   # By default, transforms don't have any side inputs.
@@ -683,7 +683,7 @@ def ptransform_fn(fn):
     A CallablePTransform instance wrapping the function-based PTransform.
 
   This wrapper provides an alternative, simpler way to define a PTransform.
-  The standard method is to subclass from PTransform and override the apply()
+  The standard method is to subclass from PTransform and override the expand()
   method. An equivalent effect can be obtained by defining a function that
   an input PCollection and additional optional arguments and returns a
   resulting PCollection. For example::
@@ -739,4 +739,4 @@ class _NamedPTransform(PTransform):
     return self.transform.__ror__(pvalueish, self.label)
 
   def expand(self, pvalue):
-    raise RuntimeError("Should never be applied directly.")
+    raise RuntimeError("Should never be expanded directly.")
