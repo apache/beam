@@ -41,6 +41,16 @@ public class LengthPrefixCoderTest {
     new byte[]{ 0xd, 0xe },
     new byte[]{ });
 
+  /**
+   * Generated data to check that the wire format has not changed. To regenerate, see
+   * {@link org.apache.beam.sdk.coders.PrintBase64Encodings}.
+   */
+  private static final List<String> TEST_ENCODINGS = ImmutableList.of(
+      "AwoLDA",
+      "Ag0D",
+      "Ag0O",
+      "AA");
+
   @Test
   public void testCloudObjectRepresentation() throws Exception {
     CloudObject cloudObject = TEST_CODER.asCloudObject();
@@ -105,16 +115,6 @@ public class LengthPrefixCoderTest {
   public void testEncodingId() throws Exception {
     CoderProperties.coderHasEncodingId(TEST_CODER, EXPECTED_ENCODING_ID);
   }
-
-  /**
-   * Generated data to check that the wire format has not changed. To regenerate, see
-   * {@link org.apache.beam.sdk.coders.PrintBase64Encodings}.
-   */
-  private static final List<String> TEST_ENCODINGS = ImmutableList.of(
-      "AwoLDA",
-      "Ag0D",
-      "Ag0O",
-      "AA");
 
   @Test
   public void testWireFormatEncode() throws Exception {
