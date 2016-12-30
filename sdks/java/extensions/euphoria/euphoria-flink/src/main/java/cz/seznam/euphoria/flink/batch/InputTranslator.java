@@ -5,16 +5,16 @@ import cz.seznam.euphoria.core.executor.FlowUnfolder;
 import cz.seznam.euphoria.flink.FlinkOperator;
 import cz.seznam.euphoria.flink.batch.io.DataSourceWrapper;
 import org.apache.flink.api.java.DataSet;
-import org.apache.flink.core.io.InputSplit;
 import org.apache.flink.core.io.InputSplitAssigner;
+import org.apache.flink.core.io.LocatableInputSplit;
 
 import java.util.function.BiFunction;
 
 class InputTranslator implements BatchOperatorTranslator<FlowUnfolder.InputOperator> {
   
-  private final BiFunction<InputSplit[], Integer, InputSplitAssigner> splitAssignerFactory;
+  private final BiFunction<LocatableInputSplit[], Integer, InputSplitAssigner> splitAssignerFactory;
   
-  InputTranslator(BiFunction<InputSplit[], Integer, InputSplitAssigner> splitAssignerFactory) {
+  InputTranslator(BiFunction<LocatableInputSplit[], Integer, InputSplitAssigner> splitAssignerFactory) {
     this.splitAssignerFactory = splitAssignerFactory;
   }
 
