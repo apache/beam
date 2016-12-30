@@ -34,6 +34,10 @@ class TransformResult(object):
     self._watermark_hold = watermark_hold
     # Only used when caching (materializing) all values is requested.
     self._undeclared_tag_values = undeclared_tag_values
+    self.metric_updates = None
+
+  def logical_metric_updates(self):
+    return self.metric_updates
 
   @property
   def transform(self):
