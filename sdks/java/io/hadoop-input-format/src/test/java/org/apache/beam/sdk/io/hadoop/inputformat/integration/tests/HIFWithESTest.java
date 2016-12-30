@@ -25,12 +25,13 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.POutput;
+import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.MapWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.InputFormat;
 import org.elasticsearch.hadoop.cfg.ConfigurationOptions;
+import org.elasticsearch.hadoop.mr.EsInputFormat;
 import org.junit.Test;
 
 public class HIFWithESTest implements Serializable {
@@ -48,20 +49,20 @@ public class HIFWithESTest implements Serializable {
 		conf.set(ConfigurationOptions.ES_NODES, "10.51.234.135:9200");
 		conf.set("es.resource", "/my_data/logs");
 
-		Class inputFormatClassName;
-		inputFormatClassName = org.elasticsearch.hadoop.mr.EsInputFormat.class;
+		TypeDescriptor<EsInputFormat> inputFormatClassName = new TypeDescriptor<EsInputFormat>() {
+		};
+		conf.setClass("mapreduce.job.inputformat.class",
+				inputFormatClassName.getRawType(), InputFormat.class);
 
-		conf.setClass("mapreduce.job.inputformat.class", inputFormatClassName,
-				InputFormat.class);
+		TypeDescriptor<Text> keyClass = new TypeDescriptor<Text>() {
+		};
+		conf.setClass("key.class", keyClass.getRawType(), Object.class);
 
-		Class keyClass = Text.class;
-
-		conf.setClass("key.class", keyClass, Object.class);
-
-		Class valueClass = MapWritable.class;
-
-		conf.setClass("value.class", valueClass, Object.class);
-		conf.setClass("mapred.mapoutput.value.class", valueClass, Object.class);
+		TypeDescriptor<MapWritable> valueClass = new TypeDescriptor<MapWritable>() {
+		};
+		conf.setClass("value.class", valueClass.getRawType(), Object.class);
+		conf.setClass("mapred.mapoutput.value.class", valueClass.getRawType(),
+				Object.class);
 
 		SimpleFunction<MapWritable, String> myValueTranslate = new SimpleFunction<MapWritable, String>() {
 

@@ -27,8 +27,8 @@ import org.apache.beam.sdk.coders.DefaultCoder;
 import org.apache.beam.sdk.io.hadoop.inputformat.HadoopInputFormatIO;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.SimpleFunction;
-import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.POutput;
+import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.mapreduce.InputFormat;
 import org.junit.Test;
@@ -64,48 +64,44 @@ public class HIFWithCassandraTest implements Serializable {
 
 		conf.set("cassandra.input.columnfamily", COLUMN_FAMILY);
 
-		Class<?> inputFormatClassName;
-		try {
-			inputFormatClassName = Class
-					.forName("org.apache.cassandra.hadoop.cql3.CqlInputFormat");
+		TypeDescriptor<org.apache.cassandra.hadoop.cql3.CqlInputFormat> inputFormatTypeDesc = new TypeDescriptor<org.apache.cassandra.hadoop.cql3.CqlInputFormat>() {
+		};
+		conf.setClass("mapreduce.job.inputformat.class",
+				inputFormatTypeDesc.getRawType(), InputFormat.class);
 
-			conf.setClass("mapreduce.job.inputformat.class",
-					inputFormatClassName, InputFormat.class);
+		TypeDescriptor<Long> keyTypeDesc = new TypeDescriptor<Long>() {
+		};
 
-			Class<?> keyClass = Class.forName("java.lang.Long");
+		conf.setClass("key.class", keyTypeDesc.getRawType(), Object.class);
 
-			conf.setClass("key.class", keyClass, Object.class);
+		TypeDescriptor<com.datastax.driver.core.Row> valueTypeDesc = new TypeDescriptor<com.datastax.driver.core.Row>() {
+		};
 
-			Class<?> valueClass = Class.forName("com.datastax.driver.core.Row");
+		conf.setClass("value.class", valueTypeDesc.getRawType(), Object.class);
 
-			conf.setClass("value.class", valueClass, Object.class);
+		SimpleFunction<Row, MyCassandraRow> myValueTranslate = new SimpleFunction<Row, MyCassandraRow>() {
 
-			SimpleFunction<Row, MyCassandraRow> myValueTranslate = new SimpleFunction<Row, MyCassandraRow>() {
+			@Override
+			public MyCassandraRow apply(Row input) {
+				return new MyCassandraRow(input.getString("subscriber_email"));
+			}
+		};
 
-				@Override
-				public MyCassandraRow apply(Row input) {
-					return new MyCassandraRow(
-							input.getString("subscriber_email"));
-				}
-			};
-
-			POutput cassandraData = p.apply(HadoopInputFormatIO
-					.<Long, MyCassandraRow> read().withConfiguration(conf)
-					.withValueTranslation(myValueTranslate));
-			/*
-			 * PCollection<Long> apply = cassandraData.apply(Count.<KV<Long,
-			 * MyCassandraRow>>globally());
-			 * PAssert.thatSingleton(apply).isEqualTo((long) 3);
-			 */
-			p.run().waitUntilFinish();
-		} catch (ClassNotFoundException e) {
-			// Need to handle
-		}
+		POutput cassandraData = p.apply(HadoopInputFormatIO
+				.<Long, MyCassandraRow> read().withConfiguration(conf)
+				.withValueTranslation(myValueTranslate));
+		/*
+		 * PCollection<Long> apply = cassandraData.apply(Count.<KV<Long,
+		 * MyCassandraRow>>globally());
+		 * PAssert.thatSingleton(apply).isEqualTo((long) 3);
+		 */
+		p.run().waitUntilFinish();
 	}
 
 	@DefaultCoder(AvroCoder.class)
-	class MyCassandraRow implements Serializable{
+	class MyCassandraRow implements Serializable {
 		private String subscriberEmail;
+
 		public MyCassandraRow(String email) {
 			this.subscriberEmail = email;
 		}

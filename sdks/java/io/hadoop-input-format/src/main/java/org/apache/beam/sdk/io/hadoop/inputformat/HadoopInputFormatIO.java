@@ -30,10 +30,9 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.ListIterator;
 import java.util.Map.Entry;
+import java.util.NoSuchElementException;
 
 import javax.annotation.Nullable;
-
-import java.util.NoSuchElementException;
 
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
@@ -82,8 +81,8 @@ public class HadoopInputFormatIO {
 	public abstract static class Read<K, V> extends PTransform<PBegin, PCollection<KV<K, V>>> {
 
 		private static final long serialVersionUID = 1L;
-		private Class<K> keyClass;
-		private Class<V> valueClass;
+		private TypeDescriptor<K> keyClass;
+		private TypeDescriptor<V> valueClass;
 		private Coder<K> keyCoder;
 		private Coder<V> valueCoder;
 
@@ -92,20 +91,12 @@ public class HadoopInputFormatIO {
 		@Nullable public abstract  SimpleFunction< ?, V> getSimpleFuncForValueTranslation();
 		@Nullable public abstract  SerializableConfiguration getConfiguration();
 
-		public void setKeyClass(Class<K> keyClass) {
+		public void setKeyClass(TypeDescriptor<K> keyClass) {
 			this.keyClass = keyClass;
 		}
 
-		public void setValueClass(Class<V> valueClass) {
+		public void setValueClass(TypeDescriptor<V> valueClass) {
 			this.valueClass = valueClass;
-		}
-
-		public Class<K> getKeyClass() {
-			return keyClass;
-		}
-
-		public Class<V> getValueClass() {
-			return valueClass;
 		}
 
 		public Coder<K> getKeyCoder() {
@@ -156,27 +147,27 @@ public class HadoopInputFormatIO {
 				throw new IllegalArgumentException("Configuration property \"value.class\" is not set.");
 
 			}
-			Class<?> inputFormatKeyClass = this.getConfiguration().getConfiguration().getClass("key.class", Object.class);
+			TypeDescriptor<K> inputFormatKeyClass = (TypeDescriptor<K>) TypeDescriptor.of(this.getConfiguration().getConfiguration().getClass("key.class", Object.class));
 			if (this.getSimpleFuncForKeyTranslation() != null) {
-				if (this.getSimpleFuncForKeyTranslation().getInputTypeDescriptor()
-						.getRawType() != inputFormatKeyClass) {
-					throw new IllegalArgumentException(	"Key translation's input type is not same as hadoop input format : "+inputFormatClassProperty+" key class : "+ keyClassProperty);
+				if (!this.getSimpleFuncForKeyTranslation().getInputTypeDescriptor().equals(inputFormatKeyClass)) {
+					throw new IllegalArgumentException(
+							"Key translation's input type is not same as hadoop input format : "+inputFormatClassProperty+" key class : "+ keyClassProperty);
 
 				}
-				this.setKeyClass((Class<K>) this.getSimpleFuncForKeyTranslation().getOutputTypeDescriptor().getRawType());
+				this.setKeyClass((TypeDescriptor<K>) this.getSimpleFuncForKeyTranslation().getOutputTypeDescriptor());
 			} else {
-				this.setKeyClass((Class<K>) inputFormatKeyClass);
+				this.setKeyClass(inputFormatKeyClass);
 			}
 
-			Class<?> inputFormatValueClass = this.getConfiguration().getConfiguration().getClass("value.class", Object.class);
+			TypeDescriptor<V> inputFormatValueClass = (TypeDescriptor<V>) TypeDescriptor.of(this.getConfiguration().getConfiguration().getClass("value.class", Object.class));
 			if (this.getSimpleFuncForValueTranslation() != null) {
-				if (this.getSimpleFuncForValueTranslation().getInputTypeDescriptor()
-						.getRawType() != inputFormatValueClass) {
-					throw new IllegalArgumentException("Value translation's input type is not same as hadoop input format : "+inputFormatClassProperty+" value class : "+ valueClassProperty);
+				if (!this.getSimpleFuncForValueTranslation().getInputTypeDescriptor().equals(inputFormatValueClass)) {
+					throw new IllegalArgumentException(
+							"Value translation's input type is not same as hadoop input format : "+inputFormatClassProperty+" value class : "+ valueClassProperty);
 				}
-				this.setValueClass((Class<V>) this.getSimpleFuncForValueTranslation().getOutputTypeDescriptor().getRawType());
+				this.setValueClass((TypeDescriptor<V>) this.getSimpleFuncForValueTranslation().getOutputTypeDescriptor());
 			} else {
-				this.setValueClass((Class<V>) inputFormatValueClass);
+				this.setValueClass(inputFormatValueClass);
 			}
 			checkNotNull(this.getKeyClass(), "The key class of HadoopInputFormatIO Read can't be null.");
 			checkNotNull(this.getValueClass(), "The value class of HadoopInputFormatIO Read can't be null.");
@@ -186,9 +177,17 @@ public class HadoopInputFormatIO {
 
 		}
 
+		public TypeDescriptor<K> getKeyClass() {
+			return keyClass;
+		}
+
+		public TypeDescriptor<V> getValueClass() {
+			return valueClass;
+		}
+
 		protected void getKeyAndValueCoder(PBegin input) {
-			keyCoder = getDefaultCoder(TypeDescriptor.of(this.getKeyClass()), input.getPipeline());
-			valueCoder = getDefaultCoder(TypeDescriptor.of(this.getValueClass()), input.getPipeline());
+			keyCoder = getDefaultCoder(this.getKeyClass(), input.getPipeline());
+			valueCoder = getDefaultCoder(this.getValueClass(), input.getPipeline());
 		}
 
 		@Override
@@ -201,8 +200,8 @@ public class HadoopInputFormatIO {
 					builder.add(DisplayData.item(element.getKey(), element.getValue()).withLabel(element.getKey()));
 				}
 			}
-			builder.addIfNotNull(DisplayData.item("KeyClass", getKeyClass()).withLabel("Output key class"))
-			.addIfNotNull(DisplayData.item("ValueClass", getValueClass()).withLabel("Output value class"));
+			builder.addIfNotNull(DisplayData.item("KeyClass", getKeyClass().getRawType()).withLabel("Output key class"))
+					.addIfNotNull(DisplayData.item("ValueClass", getValueClass().getRawType()).withLabel("Output value class"));
 
 		}
 
@@ -348,7 +347,7 @@ public class HadoopInputFormatIO {
 					throw new IOException("Unable to create reader. Couldnot create job object Class not found "+e.getClass());
 				}
 			}
-			
+
 		}
 
 		class HadoopInputFormatReader<T extends Object> extends BoundedSource.BoundedReader<KV<K, V>> {
