@@ -59,6 +59,7 @@ import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SimpleFunction;
+import org.apache.beam.sdk.transforms.ToString;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.Sessions;
@@ -296,19 +297,12 @@ public class WriteTest {
   @Test
   public void testWriteUnbounded() {
     PCollection<String> unbounded = p.apply(CountingInput.unbounded())
-        .apply(MapElements.via(new ToStringFn()));
+        .apply(ToString.<Long>element());
 
     TestSink sink = new TestSink();
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage("Write can only be applied to a Bounded PCollection");
     unbounded.apply(Write.to(sink));
-  }
-
-  private static class ToStringFn extends SimpleFunction<Long, String> {
-    @Override
-    public String apply(Long input) {
-      return Long.toString(input);
-    }
   }
 
   /**
