@@ -41,6 +41,7 @@ import com.google.auto.value.AutoValue;
 import com.google.cloud.hadoop.util.ChainingHttpRequestInitializer;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.MoreObjects;
+import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
 import com.google.datastore.v1.CommitRequest;
 import com.google.datastore.v1.Entity;
@@ -293,7 +294,7 @@ public class DatastoreV1 {
       Query.Builder query = Query.newBuilder();
       // Note: namespace either being null or empty represents the default namespace, in which
       // case we treat it as not provided by the user.
-      if (namespace == null || namespace.isEmpty()) {
+      if (Strings.isNullOrEmpty(namespace)) {
         query.addKindBuilder().setName("__Stat_Total__");
       } else {
         query.addKindBuilder().setName("__Stat_Ns_Total__");
@@ -328,7 +329,7 @@ public class DatastoreV1 {
       LOG.info("Latest stats timestamp for kind {} is {}", ourKind, latestTimestamp);
 
       Query.Builder queryBuilder = Query.newBuilder();
-      if (namespace == null || namespace.isEmpty()) {
+      if (Strings.isNullOrEmpty(namespace)) {
         queryBuilder.addKindBuilder().setName("__Stat_Kind__");
       } else {
         queryBuilder.addKindBuilder().setName("__Stat_Ns_Kind__");
@@ -359,7 +360,7 @@ public class DatastoreV1 {
       // Note: namespace either being null or empty represents the default namespace.
       // Datastore Client libraries expect users to not set the namespace proto field in
       // either of these cases.
-      if (namespace != null && !namespace.isEmpty()) {
+      if (!Strings.isNullOrEmpty(namespace)) {
         requestBuilder.getPartitionIdBuilder().setNamespaceId(namespace);
       }
       return requestBuilder.build();
@@ -368,7 +369,7 @@ public class DatastoreV1 {
     /** Builds a {@link RunQueryRequest} from the {@code GqlQuery} and {@code namespace}. */
     static RunQueryRequest makeRequest(GqlQuery gqlQuery, @Nullable String namespace) {
       RunQueryRequest.Builder requestBuilder = RunQueryRequest.newBuilder().setGqlQuery(gqlQuery);
-      if (namespace != null && !namespace.isEmpty()) {
+      if (!Strings.isNullOrEmpty(namespace)) {
         requestBuilder.getPartitionIdBuilder().setNamespaceId(namespace);
       }
       return requestBuilder.build();
@@ -382,7 +383,7 @@ public class DatastoreV1 {
         Datastore datastore, QuerySplitter querySplitter, int numSplits) throws DatastoreException {
       // If namespace is set, include it in the split request so splits are calculated accordingly.
       PartitionId.Builder partitionBuilder = PartitionId.newBuilder();
-      if (namespace != null && !namespace.isEmpty()) {
+      if (!Strings.isNullOrEmpty(namespace)) {
         partitionBuilder.setNamespaceId(namespace);
       }
 
@@ -402,7 +403,7 @@ public class DatastoreV1 {
      * Same as {@link Read#withProjectId(String)} but with a {@link ValueProvider}.
      */
     public DatastoreV1.Read withProjectId(ValueProvider<String> projectId) {
-      checkNotNull(projectId, "projectId ValueProvider");
+      checkNotNull(projectId, "projectId");
       return toBuilder().setProjectId(projectId).build();
     }
 
@@ -422,7 +423,9 @@ public class DatastoreV1 {
     }
 
     /**
-     * Returns a new {@link DatastoreV1.Read} that reads the results of the specified gql query.
+     * Returns a new {@link DatastoreV1.Read} that reads the results of the specified GQL query.
+     * See <a href="https://cloud.google.com/datastore/docs/reference/gql_reference">GQL Reference
+     * </a> to know more about GQL grammar.
      */
     @Experimental(Kind.SOURCE_SINK)
     public DatastoreV1.Read withGqlQuery(String gqlQuery) {
@@ -435,7 +438,7 @@ public class DatastoreV1 {
      */
     @Experimental(Kind.SOURCE_SINK)
     public DatastoreV1.Read withGqlQuery(ValueProvider<String> gqlQuery) {
-      checkNotNull(gqlQuery, "gql query ValueProvider");
+      checkNotNull(gqlQuery, "gqlQuery");
       return toBuilder().setGqlQuery(gqlQuery).build();
     }
 
@@ -509,20 +512,20 @@ public class DatastoreV1 {
        *   a {@code PCollection<Entity>}.
        */
 
-      PCollection<KV<Integer, Query>> queries;
+      PCollection<Query> inputQuery;
       if (getQuery() != null) {
-        queries = input
-            .apply(Create.of(getQuery()))
-            .apply(ParDo.of(new SplitQueryFn(v1Options, getNumQuerySplits())));
+        inputQuery = input.apply(Create.of(getQuery()));
       } else {
-        queries = input
-            .apply(Create.of(getGqlQuery()).withCoder(
-                SerializableCoder.of(new TypeDescriptor<ValueProvider<String>>() {})))
-            .apply(ParDo.of(new GqlQueryTranslatorFn(v1Options)))
-            .apply(ParDo.of(new SplitQueryFn(v1Options, getNumQuerySplits())));
+        inputQuery = input
+            .apply(Create.of(getGqlQuery())
+                .withCoder(SerializableCoder.of(new TypeDescriptor<ValueProvider<String>>() {})))
+            .apply(ParDo.of(new GqlQueryTranslatorFn(v1Options)));
       }
 
-      PCollection<Query> shardedQueries = queries
+      PCollection<KV<Integer, Query>> splitQueries = inputQuery
+          .apply(ParDo.of(new SplitQueryFn(v1Options, getNumQuerySplits())));
+
+      PCollection<Query> shardedQueries = splitQueries
           .apply(GroupByKey.<Integer, Query>create())
           .apply(Values.<Iterable<Query>>create())
           .apply(Flatten.<Query>iterables());
@@ -535,10 +538,10 @@ public class DatastoreV1 {
 
     @Override
     public void validate(PBegin input) {
-      checkNotNull(getProjectId(), "projectId ValueProvider");
+      checkNotNull(getProjectId(), "projectId");
 
-      if (getProjectId().isAccessible()) {
-        checkNotNull(getProjectId().get(), "projectId");
+      if (getProjectId().isAccessible() && getProjectId().get() == null) {
+        throw new IllegalArgumentException("Project id cannot be null");
       }
 
       if (getQuery() == null && getGqlQuery() == null) {
@@ -552,7 +555,7 @@ public class DatastoreV1 {
       }
 
       if (getGqlQuery() != null && getGqlQuery().isAccessible()) {
-        checkNotNull(getGqlQuery().get(), "gql query");
+        checkNotNull(getGqlQuery().get(), "gqlQuery");
       }
     }
 

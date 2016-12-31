@@ -189,7 +189,7 @@ public class DatastoreV1Test {
   public void testReadValidationFailsProject() throws Exception {
     DatastoreV1.Read read = DatastoreIO.v1().read().withQuery(QUERY);
     thrown.expect(NullPointerException.class);
-    thrown.expectMessage("projectId ValueProvider");
+    thrown.expectMessage("projectId");
     read.validate(null);
 
     read = DatastoreIO.v1().read().withQuery(QUERY)
