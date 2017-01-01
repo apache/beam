@@ -2577,7 +2577,7 @@ public class BigQueryIO {
 
     /** Tracks bytes written, exposed as "ByteCount" Counter. */
     private Aggregator<Long, Long> byteCountAggregator =
-        createAggregator("ByteCount", new Sum.SumLongFn());
+        createAggregator("ByteCount", Sum.ofLongs());
 
     /** Constructor. */
     StreamingWriteFn(ValueProvider<TableSchema> schema, BigQueryServices bqServices) {

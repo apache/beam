@@ -420,7 +420,7 @@ public class DataflowPipelineJobTest {
   @Test
   public void testGetAggregatorValuesWithSingleMetricUpdateReturnsSingletonCollection()
       throws IOException, AggregatorRetrievalException {
-    CombineFn<Long, long[], Long> combineFn = new Sum.SumLongFn();
+    CombineFn<Long, long[], Long> combineFn = Sum.ofLongs();
     String aggregatorName = "agg";
     Aggregator<Long, Long> aggregator = new TestAggregator<>(combineFn, aggregatorName);
     @SuppressWarnings("unchecked")
@@ -468,7 +468,7 @@ public class DataflowPipelineJobTest {
   @Test
   public void testGetAggregatorValuesWithMultipleMetricUpdatesReturnsCollection()
       throws IOException, AggregatorRetrievalException {
-    CombineFn<Long, long[], Long> combineFn = new Sum.SumLongFn();
+    CombineFn<Long, long[], Long> combineFn = Sum.ofLongs();
     String aggregatorName = "agg";
     Aggregator<Long, Long> aggregator = new TestAggregator<>(combineFn, aggregatorName);
 
@@ -536,7 +536,7 @@ public class DataflowPipelineJobTest {
   @Test
   public void testGetAggregatorValuesWithUnrelatedMetricUpdateIgnoresUpdate()
       throws IOException, AggregatorRetrievalException {
-    CombineFn<Long, long[], Long> combineFn = new Sum.SumLongFn();
+    CombineFn<Long, long[], Long> combineFn = Sum.ofLongs();
     String aggregatorName = "agg";
     Aggregator<Long, Long> aggregator = new TestAggregator<>(combineFn, aggregatorName);
     @SuppressWarnings("unchecked")
@@ -600,7 +600,7 @@ public class DataflowPipelineJobTest {
   @Test
   public void testGetAggregatorValuesWhenClientThrowsExceptionThrowsAggregatorRetrievalException()
       throws IOException, AggregatorRetrievalException {
-    CombineFn<Long, long[], Long> combineFn = new Sum.SumLongFn();
+    CombineFn<Long, long[], Long> combineFn = Sum.ofLongs();
     String aggregatorName = "agg";
     Aggregator<Long, Long> aggregator = new TestAggregator<>(combineFn, aggregatorName);
     @SuppressWarnings("unchecked")

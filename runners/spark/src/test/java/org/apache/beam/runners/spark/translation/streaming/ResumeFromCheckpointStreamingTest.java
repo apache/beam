@@ -182,7 +182,7 @@ public class ResumeFromCheckpointStreamingTest {
   private static class FormatAsText extends DoFn<KV<String, String>, String> {
 
     private final Aggregator<Long, Long> aggregator =
-        createAggregator("processedMessages", new Sum.SumLongFn());
+        createAggregator("processedMessages", Sum.ofLongs());
 
     @ProcessElement
     public void process(ProcessContext c) {

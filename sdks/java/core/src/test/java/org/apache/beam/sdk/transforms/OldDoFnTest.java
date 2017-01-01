@@ -26,7 +26,6 @@ import static org.junit.Assert.assertThat;
 import java.io.Serializable;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
-import org.apache.beam.sdk.transforms.Max.MaxIntegerFn;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.TupleTag;
 import org.joda.time.Instant;
@@ -48,7 +47,7 @@ public class OldDoFnTest implements Serializable {
   @Test
   public void testCreateAggregatorWithCombinerSucceeds() {
     String name = "testAggregator";
-    Sum.SumLongFn combiner = new Sum.SumLongFn();
+    Combine.BinaryCombineLongFn combiner = Sum.ofLongs();
 
     OldDoFn<Void, Void> doFn = new NoOpOldDoFn<>();
 
@@ -65,7 +64,7 @@ public class OldDoFnTest implements Serializable {
 
     OldDoFn<Void, Void> doFn = new NoOpOldDoFn<>();
 
-    doFn.createAggregator(null, new Sum.SumLongFn());
+    doFn.createAggregator(null, Sum.ofLongs());
   }
 
   @Test
@@ -95,7 +94,7 @@ public class OldDoFnTest implements Serializable {
   @Test
   public void testCreateAggregatorWithSameNameThrowsException() {
     String name = "testAggregator";
-    CombineFn<Double, ?, Double> combiner = new Max.MaxDoubleFn();
+    CombineFn<Double, ?, Double> combiner = Max.ofDoubles();
 
     OldDoFn<Void, Void> doFn = new NoOpOldDoFn<>();
 
@@ -113,7 +112,7 @@ public class OldDoFnTest implements Serializable {
   public void testCreateAggregatorsWithDifferentNamesSucceeds() {
     String nameOne = "testAggregator";
     String nameTwo = "aggregatorPrime";
-    CombineFn<Double, ?, Double> combiner = new Max.MaxDoubleFn();
+    CombineFn<Double, ?, Double> combiner = Max.ofDoubles();
 
     OldDoFn<Void, Void> doFn = new NoOpOldDoFn<>();
 
@@ -135,7 +134,7 @@ public class OldDoFnTest implements Serializable {
     context.setupDelegateAggregators();
 
     thrown.expect(isA(IllegalStateException.class));
-    fn.createAggregator("anyAggregate", new MaxIntegerFn());
+    fn.createAggregator("anyAggregate", Max.ofIntegers());
   }
 
   private OldDoFn<String, String>.Context createContext(OldDoFn<String, String> fn) {

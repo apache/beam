@@ -46,7 +46,7 @@ public class MaxTest {
   @Test
   public void testMaxIntegerFn() {
     checkCombineFn(
-        new Max.MaxIntegerFn(),
+        Max.ofIntegers(),
         Lists.newArrayList(1, 2, 3, 4),
         4);
   }
@@ -54,7 +54,7 @@ public class MaxTest {
   @Test
   public void testMaxLongFn() {
     checkCombineFn(
-        new Max.MaxLongFn(),
+        Max.ofLongs(),
         Lists.newArrayList(1L, 2L, 3L, 4L),
         4L);
   }
@@ -62,7 +62,7 @@ public class MaxTest {
   @Test
   public void testMaxDoubleFn() {
     checkCombineFn(
-        new Max.MaxDoubleFn(),
+        Max.ofDoubles(),
         Lists.newArrayList(1.0, 2.0, 3.0, 4.0),
         4.0);
   }

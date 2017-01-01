@@ -147,10 +147,10 @@ class GroupAlsoByWindowEvaluatorFactory implements TransformEvaluatorFactory {
       reduceFn = SystemReduceFn.buffering(valueCoder);
       droppedDueToClosedWindow = aggregatorChanges.createSystemAggregator(stepContext,
           GroupAlsoByWindowsDoFn.DROPPED_DUE_TO_CLOSED_WINDOW_COUNTER,
-          new Sum.SumLongFn());
+          Sum.ofLongs());
       droppedDueToLateness = aggregatorChanges.createSystemAggregator(stepContext,
           GroupAlsoByWindowsDoFn.DROPPED_DUE_TO_LATENESS_COUNTER,
-          new Sum.SumLongFn());
+          Sum.ofLongs());
     }
 
     @Override

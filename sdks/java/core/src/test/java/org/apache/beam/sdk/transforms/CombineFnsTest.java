@@ -41,8 +41,6 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Combine.BinaryCombineFn;
 import org.apache.beam.sdk.transforms.CombineFns.CoCombineResult;
 import org.apache.beam.sdk.transforms.CombineWithContext.KeyedCombineFnWithContext;
-import org.apache.beam.sdk.transforms.Max.MaxIntegerFn;
-import org.apache.beam.sdk.transforms.Min.MinIntegerFn;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
@@ -71,8 +69,8 @@ public class  CombineFnsTest {
 
     TupleTag<Integer> tag = new TupleTag<Integer>();
     CombineFns.compose()
-      .with(new GetIntegerFunction(), new MaxIntegerFn(), tag)
-      .with(new GetIntegerFunction(), new MinIntegerFn(), tag);
+      .with(new GetIntegerFunction(), Max.ofIntegers(), tag)
+      .with(new GetIntegerFunction(), Min.ofIntegers(), tag);
   }
 
   @Test
@@ -82,8 +80,8 @@ public class  CombineFnsTest {
 
     TupleTag<Integer> tag = new TupleTag<Integer>();
     CombineFns.composeKeyed()
-      .with(new GetIntegerFunction(), new MaxIntegerFn(), tag)
-      .with(new GetIntegerFunction(), new MinIntegerFn(), tag);
+      .with(new GetIntegerFunction(), Max.ofIntegers(), tag)
+      .with(new GetIntegerFunction(), Min.ofIntegers(), tag);
   }
 
   @Test
@@ -145,7 +143,7 @@ public class  CombineFnsTest {
         .apply(Combine.globally(CombineFns.compose()
             .with(
                 new GetIntegerFunction(),
-                new MaxIntegerFn(),
+                Max.ofIntegers(),
                 maxIntTag)
             .with(
                 new GetUserStringFunction(),
@@ -159,7 +157,7 @@ public class  CombineFnsTest {
         .apply(Combine.perKey(CombineFns.composeKeyed()
             .with(
                 new GetIntegerFunction(),
-                new MaxIntegerFn().<String>asKeyedFn(),
+                Max.ofIntegers().<String>asKeyedFn(),
                 maxIntTag)
             .with(
                 new GetUserStringFunction(),
@@ -203,7 +201,7 @@ public class  CombineFnsTest {
         .apply(Combine.globally(CombineFns.compose()
             .with(
                 new GetIntegerFunction(),
-                new MaxIntegerFn(),
+                Max.ofIntegers(),
                 maxIntTag)
             .with(
                 new GetUserStringFunction(),
@@ -219,7 +217,7 @@ public class  CombineFnsTest {
         .apply(Combine.perKey(CombineFns.composeKeyed()
             .with(
                 new GetIntegerFunction(),
-                new MaxIntegerFn().<String>asKeyedFn(),
+                Max.ofIntegers().<String>asKeyedFn(),
                 maxIntTag)
             .with(
                 new GetUserStringFunction(),
@@ -262,7 +260,7 @@ public class  CombineFnsTest {
         .apply(Combine.perKey(CombineFns.composeKeyed()
             .with(
                 new GetIntegerFunction(),
-                new MaxIntegerFn().<String>asKeyedFn(),
+                Max.ofIntegers().<String>asKeyedFn(),
                 maxIntTag)
             .with(
                 new GetUserStringFunction(),

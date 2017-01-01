@@ -110,13 +110,69 @@ public class Min {
   }
 
   /**
+   * A {@code CombineFn} that computes the minimum of a collection of {@code Integer}s, useful as an
+   * argument to {@link Combine#globally} or {@link Combine#perKey}.
+   */
+  public static Combine.BinaryCombineIntegerFn ofIntegers() {
+    return new Min.MinIntegerFn();
+  }
+
+  /**
+   * A {@code CombineFn} that computes the minimum of a collection of {@code Long}s, useful as an
+   * argument to {@link Combine#globally} or {@link Combine#perKey}.
+   */
+  public static Combine.BinaryCombineLongFn ofLongs() {
+    return new Min.MinLongFn();
+  }
+
+  /**
+   * A {@code CombineFn} that computes the minimum of a collection of {@code Double}s, useful as an
+   * argument to {@link Combine#globally} or {@link Combine#perKey}.
+   */
+  public static Combine.BinaryCombineDoubleFn ofDoubles() {
+    return new Min.MinDoubleFn();
+  }
+
+  /**
+   * A {@code CombineFn} that computes the maximum of a collection of elements of type {@code T}
+   * using an arbitrary {@link Comparator} and an {@code identity},
+   * useful as an argument to {@link Combine#globally} or {@link Combine#perKey}.
+   *
+   * @param <T> the type of the values being compared
+   */
+  public static <T, ComparatorT extends Comparator<? super T> & Serializable>
+  BinaryCombineFn<T> of(T identity, ComparatorT comparator) {
+    return new MinFn<T>(identity, comparator);
+  }
+
+  /**
+   * A {@code CombineFn} that computes the maximum of a collection of elements of type {@code T}
+   * using an arbitrary {@link Comparator}, useful as an argument to {@link Combine#globally} or
+   * {@link Combine#perKey}.
+   *
+   * @param <T> the type of the values being compared
+   */
+  public static <T, ComparatorT extends Comparator<? super T> & Serializable>
+  BinaryCombineFn<T> of(ComparatorT comparator) {
+    return new MinFn<T>(null, comparator);
+  }
+
+  public static <T extends Comparable<? super T>> BinaryCombineFn<T> naturalOrder(T identity) {
+    return new MinFn<T>(identity, new Top.Largest<T>());
+  }
+
+  public static <T extends Comparable<? super T>> BinaryCombineFn<T> naturalOrder() {
+    return new MinFn<T>(null, new Top.Largest<T>());
+  }
+
+  /**
    * Returns a {@code PTransform} that takes an input {@code PCollection<T>} and returns a {@code
    * PCollection<T>} whose contents is the minimum according to the natural ordering of {@code T}
    * of the input {@code PCollection}'s elements, or {@code null} if there are no elements.
    */
   public static <T extends Comparable<? super T>>
   Combine.Globally<T, T> globally() {
-    return Combine.<T, T>globally(MinFn.<T>naturalOrder());
+    return Combine.<T, T>globally(Min.<T>naturalOrder());
   }
 
   /**
@@ -129,7 +185,7 @@ public class Min {
    */
   public static <K, T extends Comparable<? super T>>
   Combine.PerKey<K, T, T> perKey() {
-    return Combine.<K, T, T>perKey(MinFn.<T>naturalOrder());
+    return Combine.<K, T, T>perKey(Min.<T>naturalOrder());
   }
 
   /**
@@ -139,7 +195,7 @@ public class Min {
    */
   public static <T, ComparatorT extends Comparator<? super T> & Serializable>
   Combine.Globally<T, T> globally(ComparatorT comparator) {
-    return Combine.<T, T>globally(MinFn.of(comparator));
+    return Combine.<T, T>globally(Min.of(comparator));
   }
 
   /**
@@ -151,19 +207,12 @@ public class Min {
    */
   public static <K, T, ComparatorT extends Comparator<? super T> & Serializable>
   Combine.PerKey<K, T, T> perKey(ComparatorT comparator) {
-    return Combine.<K, T, T>perKey(MinFn.of(comparator));
+    return Combine.<K, T, T>perKey(Min.of(comparator));
   }
 
   /////////////////////////////////////////////////////////////////////////////
 
-  /**
-   * A {@code CombineFn} that computes the maximum of a collection of elements of type {@code T}
-   * using an arbitrary {@link Comparator}, useful as an argument to {@link Combine#globally} or
-   * {@link Combine#perKey}.
-   *
-   * @param <T> the type of the values being compared
-   */
-  public static class MinFn<T> extends BinaryCombineFn<T> {
+  private static class MinFn<T> extends BinaryCombineFn<T> {
 
     private final T identity;
     private final Comparator<? super T> comparator;
@@ -172,24 +221,6 @@ public class Min {
         T identity, ComparatorT comparator) {
       this.identity = identity;
       this.comparator = comparator;
-    }
-
-    public static <T, ComparatorT extends Comparator<? super T> & Serializable>
-    MinFn<T> of(T identity, ComparatorT comparator) {
-      return new MinFn<T>(identity, comparator);
-    }
-
-    public static <T, ComparatorT extends Comparator<? super T> & Serializable>
-    MinFn<T> of(ComparatorT comparator) {
-      return new MinFn<T>(null, comparator);
-    }
-
-    public static <T extends Comparable<? super T>> MinFn<T> naturalOrder(T identity) {
-      return new MinFn<T>(identity, new Top.Largest<T>());
-    }
-
-    public static <T extends Comparable<? super T>> MinFn<T> naturalOrder() {
-      return new MinFn<T>(null, new Top.Largest<T>());
     }
 
     @Override
@@ -210,11 +241,7 @@ public class Min {
     }
   }
 
-  /**
-   * A {@code CombineFn} that computes the minimum of a collection of {@code Integer}s, useful as an
-   * argument to {@link Combine#globally} or {@link Combine#perKey}.
-   */
-  public static class MinIntegerFn extends Combine.BinaryCombineIntegerFn {
+  private static class MinIntegerFn extends Combine.BinaryCombineIntegerFn {
 
     @Override
     public int apply(int left, int right) {
@@ -227,11 +254,8 @@ public class Min {
     }
   }
 
-  /**
-   * A {@code CombineFn} that computes the minimum of a collection of {@code Long}s, useful as an
-   * argument to {@link Combine#globally} or {@link Combine#perKey}.
-   */
-  public static class MinLongFn extends Combine.BinaryCombineLongFn {
+  private static class MinLongFn extends Combine.BinaryCombineLongFn {
+
     @Override
     public long apply(long left, long right) {
       return left <= right ? left : right;
@@ -243,11 +267,7 @@ public class Min {
     }
   }
 
-  /**
-   * A {@code CombineFn} that computes the minimum of a collection of {@code Double}s, useful as an
-   * argument to {@link Combine#globally} or {@link Combine#perKey}.
-   */
-  public static class MinDoubleFn extends Combine.BinaryCombineDoubleFn {
+  private static class MinDoubleFn extends Combine.BinaryCombineDoubleFn {
 
     @Override
     public double apply(double left, double right) {

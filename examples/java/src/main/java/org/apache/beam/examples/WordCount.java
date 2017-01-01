@@ -87,7 +87,7 @@ public class WordCount {
    */
   static class ExtractWordsFn extends DoFn<String, String> {
     private final Aggregator<Long, Long> emptyLines =
-        createAggregator("emptyLines", new Sum.SumLongFn());
+        createAggregator("emptyLines", Sum.ofLongs());
 
     @ProcessElement
     public void processElement(ProcessContext c) {
