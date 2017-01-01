@@ -154,7 +154,7 @@ public class PubsubUnboundedSink<T> extends PTransform<PCollection<T>, PDone> {
    */
   private static class ShardFn<T> extends DoFn<T, KV<Integer, OutgoingMessage>> {
     private final Aggregator<Long, Long> elementCounter =
-        createAggregator("elements", new Sum.SumLongFn());
+        createAggregator("elements", Sum.ofLongs());
     private final Coder<T> elementCoder;
     private final int numShards;
     private final RecordIdMethod recordIdMethod;
@@ -219,11 +219,11 @@ public class PubsubUnboundedSink<T> extends PTransform<PCollection<T>, PDone> {
     private transient PubsubClient pubsubClient;
 
     private final Aggregator<Long, Long> batchCounter =
-        createAggregator("batches", new Sum.SumLongFn());
+        createAggregator("batches", Sum.ofLongs());
     private final Aggregator<Long, Long> elementCounter =
-        createAggregator("elements", new Sum.SumLongFn());
+        createAggregator("elements", Sum.ofLongs());
     private final Aggregator<Long, Long> byteCounter =
-        createAggregator("bytes", new Sum.SumLongFn());
+        createAggregator("bytes", Sum.ofLongs());
 
     WriterFn(
         PubsubClientFactory pubsubFactory, ValueProvider<TopicPath> topic,

@@ -28,7 +28,6 @@ import org.apache.beam.sdk.Pipeline.PipelineExecutionException;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
-import org.apache.beam.sdk.transforms.Max.MaxIntegerFn;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.junit.Rule;
 import org.junit.Test;
@@ -59,7 +58,7 @@ public class DoFnTest implements Serializable {
   @Test
   public void testCreateAggregatorWithCombinerSucceeds() {
     String name = "testAggregator";
-    Sum.SumLongFn combiner = new Sum.SumLongFn();
+    Combine.BinaryCombineLongFn combiner = Sum.ofLongs();
 
     DoFn<Void, Void> doFn = new NoOpDoFn();
 
@@ -76,7 +75,7 @@ public class DoFnTest implements Serializable {
 
     DoFn<Void, Void> doFn = new NoOpDoFn();
 
-    doFn.createAggregator(null, new Sum.SumLongFn());
+    doFn.createAggregator(null, Sum.ofLongs());
   }
 
   @Test
@@ -106,7 +105,7 @@ public class DoFnTest implements Serializable {
   @Test
   public void testCreateAggregatorWithSameNameThrowsException() {
     String name = "testAggregator";
-    CombineFn<Double, ?, Double> combiner = new Max.MaxDoubleFn();
+    CombineFn<Double, ?, Double> combiner = Max.ofDoubles();
 
     DoFn<Void, Void> doFn = new NoOpDoFn();
 
@@ -124,7 +123,7 @@ public class DoFnTest implements Serializable {
   public void testCreateAggregatorsWithDifferentNamesSucceeds() {
     String nameOne = "testAggregator";
     String nameTwo = "aggregatorPrime";
-    CombineFn<Double, ?, Double> combiner = new Max.MaxDoubleFn();
+    CombineFn<Double, ?, Double> combiner = Max.ofDoubles();
 
     DoFn<Void, Void> doFn = new NoOpDoFn();
 
@@ -151,7 +150,7 @@ public class DoFnTest implements Serializable {
     TestPipeline p = createTestPipeline(new DoFn<String, String>() {
       @StartBundle
       public void startBundle(Context c) {
-        createAggregator("anyAggregate", new MaxIntegerFn());
+        createAggregator("anyAggregate", Max.ofIntegers());
       }
 
       @ProcessElement
@@ -170,7 +169,7 @@ public class DoFnTest implements Serializable {
     TestPipeline p = createTestPipeline(new DoFn<String, String>() {
       @ProcessElement
       public void processElement(ProcessContext c) {
-        createAggregator("anyAggregate", new MaxIntegerFn());
+        createAggregator("anyAggregate", Max.ofIntegers());
       }
     });
 
@@ -186,7 +185,7 @@ public class DoFnTest implements Serializable {
     TestPipeline p = createTestPipeline(new DoFn<String, String>() {
       @FinishBundle
       public void finishBundle(Context c) {
-        createAggregator("anyAggregate", new MaxIntegerFn());
+        createAggregator("anyAggregate", Max.ofIntegers());
       }
 
       @ProcessElement

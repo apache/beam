@@ -121,7 +121,7 @@ public abstract class NonEmptyPanes<K, W extends BoundedWindow> {
     private static final StateTag<Object, AccumulatorCombiningState<Long, long[], Long>>
         PANE_ADDITIONS_TAG =
         StateTags.makeSystemTagInternal(StateTags.combiningValueFromInputInternal(
-            "count", VarLongCoder.of(), new Sum.SumLongFn()));
+            "count", VarLongCoder.of(), Sum.ofLongs()));
 
     @Override
     public void recordContent(StateAccessor<K> state) {

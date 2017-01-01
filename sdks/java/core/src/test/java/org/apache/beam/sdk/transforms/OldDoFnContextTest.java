@@ -55,7 +55,7 @@ public class OldDoFnContextTest {
 
   @Test
   public void testSetupDelegateAggregatorsCreatesAndLinksDelegateAggregators() {
-    Sum.SumLongFn combiner = new Sum.SumLongFn();
+    Combine.BinaryCombineLongFn combiner = Sum.ofLongs();
     Aggregator<Long, Long> delegateAggregator =
         fn.createAggregator("test", combiner);
 

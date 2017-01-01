@@ -97,9 +97,9 @@ public final class PAssertStreaming implements Serializable {
 
   private static class AssertDoFn<T> extends DoFn<Iterable<T>, Void> {
     private final Aggregator<Integer, Integer> success =
-        createAggregator(PAssert.SUCCESS_COUNTER, new Sum.SumIntegerFn());
+        createAggregator(PAssert.SUCCESS_COUNTER, Sum.ofIntegers());
     private final Aggregator<Integer, Integer> failure =
-        createAggregator(PAssert.FAILURE_COUNTER, new Sum.SumIntegerFn());
+        createAggregator(PAssert.FAILURE_COUNTER, Sum.ofIntegers());
     private final T[] expected;
 
     AssertDoFn(T[] expected) {
