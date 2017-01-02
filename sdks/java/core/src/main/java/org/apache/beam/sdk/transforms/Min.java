@@ -195,7 +195,7 @@ public class Min {
    */
   public static <T, ComparatorT extends Comparator<? super T> & Serializable>
   Combine.Globally<T, T> globally(ComparatorT comparator) {
-    return Combine.<T, T>globally(Min.of(comparator));
+    return Combine.<T, T>globally(Min.<T, ComparatorT>of(comparator));
   }
 
   /**
@@ -207,7 +207,7 @@ public class Min {
    */
   public static <K, T, ComparatorT extends Comparator<? super T> & Serializable>
   Combine.PerKey<K, T, T> perKey(ComparatorT comparator) {
-    return Combine.<K, T, T>perKey(Min.of(comparator));
+    return Combine.<K, T, T>perKey(Min.<T, ComparatorT>of(comparator));
   }
 
   /////////////////////////////////////////////////////////////////////////////

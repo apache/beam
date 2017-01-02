@@ -195,7 +195,7 @@ public class Max {
    */
   public static <T, ComparatorT extends Comparator<? super T> & Serializable>
   Combine.Globally<T, T> globally(ComparatorT comparator) {
-    return Combine.<T, T>globally(Max.of(comparator));
+    return Combine.<T, T>globally(Max.<T, ComparatorT>of(comparator));
   }
 
   /**
@@ -207,7 +207,7 @@ public class Max {
    */
   public static <K, T, ComparatorT extends Comparator<? super T> & Serializable>
   Combine.PerKey<K, T, T> perKey(ComparatorT comparator) {
-    return Combine.<K, T, T>perKey(Max.of(comparator));
+    return Combine.<K, T, T>perKey(Max.<T, ComparatorT>of(comparator));
   }
 
   /////////////////////////////////////////////////////////////////////////////
