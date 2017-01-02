@@ -32,7 +32,11 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.AppliedPTransform;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.sdk.values.*;
+import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionView;
+import org.apache.beam.sdk.values.PInput;
+import org.apache.beam.sdk.values.POutput;
+import org.apache.beam.sdk.values.PValue;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.streaming.api.java.JavaStreamingContext;
@@ -189,20 +193,20 @@ public class EvaluationContext {
     return Iterables.transform(windowedValues, WindowingHelpers.<T>unwindowValueFunction());
   }
 
-	/**
-     * Retruns the current views creates in the pipepline
-     * @return SparkPCollectionView
-     */
-    public SparkPCollectionView getPviews() {
+  /**
+   * Retruns the current views creates in the pipepline.
+   * @return SparkPCollectionView
+   */
+  public SparkPCollectionView getPviews() {
     return pviews;
   }
 
-	/**
-     * Adds/Replaces a view to the current views creates in the pipepline
-     * @param view - Identifier of the view
-     * @param value - Actual value of the view
-     * @param coder - Coder of the value
-     */
+  /**
+   * Adds/Replaces a view to the current views creates in the pipepline.
+   * @param view - Identifier of the view
+   * @param value - Actual value of the view
+   * @param coder - Coder of the value
+   */
   public void putPView(PCollectionView<?> view,
           Iterable<WindowedValue<?>> value,
           Coder<Iterable<WindowedValue<?>>> coder) {
