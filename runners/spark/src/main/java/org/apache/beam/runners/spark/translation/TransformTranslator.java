@@ -533,10 +533,9 @@ public final class TransformTranslator {
         PCollectionView<T> output = context.getOutput(transform);
         Coder<Iterable<WindowedValue<?>>> coderInternal = output.getCoderInternal();
 
-        context.getPviews().putPView(output,
-            (Iterable<WindowedValue<?>>) iter,
-            coderInternal,
-            context.getSparkContext());
+        context.putPView(output,
+                (Iterable<WindowedValue<?>>) iter,
+                coderInternal);
       }
     };
   }
@@ -550,10 +549,9 @@ public final class TransformTranslator {
         PCollectionView<Iterable<T>> output = context.getOutput(transform);
         Coder<Iterable<WindowedValue<?>>> coderInternal = output.getCoderInternal();
 
-        context.getPviews().putPView(output,
+        context.putPView(output,
             (Iterable<WindowedValue<?>>) iter,
-            coderInternal,
-            context.getSparkContext());
+            coderInternal);
       }
     };
   }
@@ -569,10 +567,9 @@ public final class TransformTranslator {
         PCollectionView<WriteT> output = context.getOutput(transform);
         Coder<Iterable<WindowedValue<?>>> coderInternal = output.getCoderInternal();
 
-        context.getPviews().putPView(output,
-            (Iterable<WindowedValue<?>>) iter,
-            coderInternal,
-            context.getSparkContext());
+        context.putPView(output,
+                (Iterable<WindowedValue<?>>) iter,
+                coderInternal);
       }
     };
   }
