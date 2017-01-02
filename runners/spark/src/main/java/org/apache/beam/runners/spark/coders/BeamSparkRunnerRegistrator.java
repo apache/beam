@@ -40,7 +40,7 @@ public class BeamSparkRunnerRegistrator implements KryoRegistrator {
   @Override
   public void registerClasses(Kryo kryo) {
     for (Class<?> clazz : ClassesForJavaSerialization.getClasses()) {
-      kryo.register(clazz, new JavaSerializer());
+      kryo.register(clazz, new StatelessJavaSerializer());
     }
   }
 
