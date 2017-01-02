@@ -208,8 +208,8 @@ public class EvaluationContext {
    * @param coder - Coder of the value
    */
   public void putPView(PCollectionView<?> view,
-          Iterable<WindowedValue<?>> value,
-          Coder<Iterable<WindowedValue<?>>> coder) {
+      Iterable<WindowedValue<?>> value,
+      Coder<Iterable<WindowedValue<?>>> coder) {
     pviews.putPView(view, value, coder, jsc);
   }
 
