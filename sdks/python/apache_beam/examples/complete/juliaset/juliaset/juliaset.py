@@ -25,6 +25,7 @@ from __future__ import absolute_import
 import argparse
 
 import apache_beam as beam
+from apache_beam.io import WriteToText
 
 
 def from_pixel(x, y, n):
@@ -110,7 +111,7 @@ def run(argv=None):  # pylint: disable=missing-docstring
    | 'x coord' >> beam.GroupByKey()
    | 'format' >> beam.Map(
        lambda (k, coords): ' '.join('(%s, %s, %s)' % coord for coord in coords))
-   | beam.io.Write(beam.io.TextFileSink(known_args.coordinate_output)))
+   | WriteToText(known_args.coordinate_output))
   # pylint: enable=expression-not-assigned
   p.run()
 

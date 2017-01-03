@@ -35,6 +35,8 @@ import json
 import logging
 
 import apache_beam as beam
+from apache_beam.io import ReadFromText
+from apache_beam.io import WriteToText
 from apache_beam.utils.pipeline_options import PipelineOptions
 from apache_beam.utils.pipeline_options import SetupOptions
 
@@ -87,12 +89,10 @@ def run(argv=None):
 
   p = beam.Pipeline(argv=pipeline_args)
   (p  # pylint: disable=expression-not-assigned
-   | beam.io.Read('read',
-                  beam.io.TextFileSource(known_args.input, coder=JsonCoder()))
+   | 'read' >> ReadFromText(known_args.input, coder=JsonCoder())
    | 'points' >> beam.FlatMap(compute_points)
    | beam.CombinePerKey(sum)
-   | beam.io.Write('write',
-                   beam.io.TextFileSink(known_args.output, coder=JsonCoder())))
+   | 'write' >> WriteToText(known_args.output, coder=JsonCoder()))
   p.run()
 
 

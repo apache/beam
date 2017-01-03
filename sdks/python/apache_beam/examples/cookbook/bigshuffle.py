@@ -25,6 +25,8 @@ import logging
 
 
 import apache_beam as beam
+from apache_beam.io import ReadFromText
+from apache_beam.io import WriteToText
 from apache_beam.utils.pipeline_options import PipelineOptions
 from apache_beam.utils.pipeline_options import SetupOptions
 
@@ -53,9 +55,7 @@ def run(argv=None):
   p = beam.Pipeline(options=pipeline_options)
 
   # Read the text file[pattern] into a PCollection.
-  lines = p | beam.io.Read(
-      beam.io.TextFileSource(known_args.input,
-                             coder=beam.coders.BytesCoder()))
+  lines = p | ReadFromText(known_args.input, coder=beam.coders.BytesCoder())
 
   # Count the occurrences of each word.
   output = (lines
@@ -68,7 +68,7 @@ def run(argv=None):
                 lambda (key, vals): ['%s%s' % (key, val) for val in vals]))
 
   # Write the output using a "Write" transform that has side effects.
-  output | beam.io.Write(beam.io.TextFileSink(known_args.output))
+  output | WriteToText(known_args.output)
 
   # Optionally write the input and output checksums.
   if known_args.checksum_output:
@@ -76,15 +76,15 @@ def run(argv=None):
                   | 'input-csum' >> beam.Map(crc32line)
                   | 'combine-input-csum' >> beam.CombineGlobally(sum)
                   | 'hex-format' >> beam.Map(lambda x: '%x' % x))
-    input_csum | 'write-input-csum' >> beam.io.Write(
-        beam.io.TextFileSink(known_args.checksum_output + '-input'))
+    input_csum | 'write-input-csum' >> WriteToText(
+        known_args.checksum_output + '-input')
 
     output_csum = (output
                    | 'output-csum' >> beam.Map(crc32line)
                    | 'combine-output-csum' >> beam.CombineGlobally(sum)
                    | 'hex-format-output' >> beam.Map(lambda x: '%x' % x))
-    output_csum | 'write-output-csum' >> beam.io.Write(
-        beam.io.TextFileSink(known_args.checksum_output + '-output'))
+    output_csum | 'write-output-csum' >> WriteToText(
+        known_args.checksum_output + '-output')
 
   # Actually run the pipeline (all operations above are deferred).
   p.run()

@@ -21,8 +21,8 @@ import logging
 import unittest
 
 from apache_beam import pvalue
+from apache_beam.io import iobase
 from apache_beam.io import Read
-from apache_beam.io import TextFileSource
 from apache_beam.pipeline import Pipeline
 from apache_beam.pvalue import AsList
 from apache_beam.runners.direct import DirectRunner
@@ -47,7 +47,11 @@ class ConsumerTrackingPipelineVisitorTest(unittest.TestCase):
 
   def test_root_transforms(self):
     root_create = Create('create', [[1, 2, 3]])
-    root_read = Read('read', TextFileSource('/tmp/somefile'))
+
+    class DummySource(iobase.BoundedSource):
+      pass
+
+    root_read = Read('read', DummySource())
     root_flatten = Flatten('flatten', pipeline=self.pipeline)
 
     pbegin = pvalue.PBegin(self.pipeline)

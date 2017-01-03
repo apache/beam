@@ -24,6 +24,8 @@ import logging
 import re
 
 import apache_beam as beam
+from apache_beam.io import ReadFromText
+from apache_beam.io import WriteToText
 from apache_beam.utils.pipeline_options import PipelineOptions
 from apache_beam.utils.pipeline_options import SetupOptions
 
@@ -45,12 +47,12 @@ def run(argv=None):
   p = beam.Pipeline(options=pipeline_options)
 
   (p  # pylint: disable=expression-not-assigned
-   | 'read' >> beam.io.Read(beam.io.TextFileSource(known_args.input))
+   | 'read' >> ReadFromText(known_args.input)
    | 'split' >> beam.FlatMap(lambda x: re.findall(r'[A-Za-z\']+', x))
    | 'TopPerPrefix' >> TopPerPrefix(5)
    | 'format' >> beam.Map(
        lambda (prefix, candidates): '%s: %s' % (prefix, candidates))
-   | 'write' >> beam.io.Write(beam.io.TextFileSink(known_args.output)))
+   | 'write' >> WriteToText(known_args.output))
   p.run()
 
 

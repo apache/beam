@@ -51,6 +51,8 @@ import logging
 import re
 
 import apache_beam as beam
+from apache_beam.io import ReadFromText
+from apache_beam.io import WriteToText
 from apache_beam.utils.pipeline_options import PipelineOptions
 from apache_beam.utils.pipeline_options import SetupOptions
 
@@ -93,7 +95,7 @@ def run(argv=None):
   p = beam.Pipeline(options=pipeline_options)
 
   # Read the text file[pattern] into a PCollection.
-  lines = p | 'read' >> beam.io.Read(beam.io.TextFileSource(known_args.input))
+  lines = p | 'read' >> ReadFromText(known_args.input)
 
   # Count the occurrences of each word.
   counts = (lines
@@ -108,7 +110,7 @@ def run(argv=None):
 
   # Write the output using a "Write" transform that has side effects.
   # pylint: disable=expression-not-assigned
-  output | 'write' >> beam.io.Write(beam.io.TextFileSink(known_args.output))
+  output | 'write' >> WriteToText(known_args.output)
 
   # Actually run the pipeline (all operations above are deferred).
   p.run()
