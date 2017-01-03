@@ -32,12 +32,11 @@ import org.apache.hadoop.mapreduce.RecordReader;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
 
 //Bad input format which returns empty list of input splits in getSplits() method
-public class EmptyInputSplitsInputFormat extends InputFormat {
+public class EmptyInputSplitsInputFormat extends InputFormat<String, String> {
 	int numberOfRecordsInEachSplits = 3;
 	int numberOfSplits = 3;
 
 	public EmptyInputSplitsInputFormat() {
-
 	}
 
 	@Override
@@ -50,7 +49,7 @@ public class EmptyInputSplitsInputFormat extends InputFormat {
 
 	@Override
 	public List<InputSplit> getSplits(JobContext arg0) throws IOException, InterruptedException {
-		List<InputSplit> inputSplitList = new ArrayList();
+		List<InputSplit> inputSplitList = new ArrayList<InputSplit>();
 		return inputSplitList;
 	}
 
@@ -58,7 +57,6 @@ public class EmptyInputSplitsInputFormat extends InputFormat {
 		public int startIndex, endIndex;
 
 		public DummyInputSplit() {
-
 		}
 
 		public DummyInputSplit(int startIndex, int endIndex) {
@@ -79,14 +77,10 @@ public class EmptyInputSplitsInputFormat extends InputFormat {
 
 		@Override
 		public void readFields(DataInput arg0) throws IOException {
-			// TODO Auto-generated method stub
-
 		}
 
 		@Override
 		public void write(DataOutput arg0) throws IOException {
-			// TODO Auto-generated method stub
-
 		}
 
 	}
@@ -99,17 +93,14 @@ public class EmptyInputSplitsInputFormat extends InputFormat {
 		HashMap<Integer, String> hmap = new HashMap<Integer, String>();
 
 		public DummyRecordReader() {
-
 		}
 
 		@Override
 		public void close() throws IOException {
-
 		}
 
 		@Override
 		public String getCurrentKey() throws IOException, InterruptedException {
-
 			return String.valueOf(pointer);
 		}
 
@@ -135,10 +126,8 @@ public class EmptyInputSplitsInputFormat extends InputFormat {
 			hmap.put(6, "persistent");
 			hmap.put(7, "apache");
 			hmap.put(8, "beam");
-			hmap.put(9, "beam");
 
 			DummyInputSplit dummySplit = (DummyInputSplit) split;
-			// String[] splitData=dummySplit.getLocations();
 			pointer = dummySplit.startIndex - 1;
 			numberOfRecordsInSplit=dummySplit.getLength();
 			recordsRead = 0;
@@ -150,7 +139,6 @@ public class EmptyInputSplitsInputFormat extends InputFormat {
 				return false;
 			pointer++;
 			boolean hasNext = hmap.containsKey(pointer);
-
 			return hasNext;
 		}
 

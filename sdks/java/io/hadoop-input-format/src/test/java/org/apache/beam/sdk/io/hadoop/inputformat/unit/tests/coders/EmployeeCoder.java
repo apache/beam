@@ -8,15 +8,16 @@ import java.io.Serializable;
 import java.util.Collections;
 import java.util.List;
 
-import org.apache.beam.sdk.io.hadoop.inputformat.unit.tests.HadoopInputFormatIOTest;
-import org.apache.beam.sdk.io.hadoop.inputformat.unit.tests.HadoopInputFormatIOTest.Employee;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.StandardCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.io.hadoop.inputformat.unit.tests.HadoopInputFormatIOTest;
+import org.apache.beam.sdk.io.hadoop.inputformat.unit.tests.HadoopInputFormatIOTest.Employee;
 
 
 public class EmployeeCoder extends StandardCoder<Employee> implements Serializable{
+	private static final long serialVersionUID = 1L;
 	HadoopInputFormatIOTest hadoopInputFormatIOTest=new HadoopInputFormatIOTest();
 	private static final StringUtf8Coder stringCoder = StringUtf8Coder.of();
 
@@ -29,7 +30,7 @@ public class EmployeeCoder extends StandardCoder<Employee> implements Serializab
 			org.apache.beam.sdk.coders.Coder.Context context)
 					throws CoderException, IOException {
 		Context nested = context.nested();
-		stringCoder.encode(value.getEmpID()+"###"+value.getEmpName(), outStream, nested);
+		stringCoder.encode(value.getEmpName()+"###"+value.getEmpAddress(), outStream, nested);
 
 	}
 
@@ -56,7 +57,7 @@ public class EmployeeCoder extends StandardCoder<Employee> implements Serializab
 		return new EmployeeCoder();
 	}
 
-	public <Employee> List<Object> getInstanceComponents(Employee exampleValue){
+	public  List<Employee> getInstanceComponents(Employee exampleValue){
 		return Collections.emptyList();
 	}
 

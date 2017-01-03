@@ -32,7 +32,7 @@ import org.apache.hadoop.mapreduce.RecordReader;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
 
 //Throws exception when createRecordReader is called
-public class BadCreateRecordReaderInputFormat extends InputFormat {
+public class BadCreateRecordReaderInputFormat extends InputFormat<String, String> {
 	int numberOfRecordsInEachSplits = 3;
 	int numberOfSplits = 3;
 
@@ -51,7 +51,7 @@ public class BadCreateRecordReaderInputFormat extends InputFormat {
 	@Override
 	public List<InputSplit> getSplits(JobContext arg0) throws IOException, InterruptedException {
 		InputSplit dummyInputSplitObj;
-		List<InputSplit> inputSplitList = new ArrayList();
+		List<InputSplit> inputSplitList = new ArrayList<InputSplit>();
 		for (int i = 0; i < numberOfSplits; i++) {
 			dummyInputSplitObj = new DummyInputSplit((i * numberOfSplits),
 					((i * numberOfSplits) + numberOfRecordsInEachSplits));
@@ -85,14 +85,10 @@ public class BadCreateRecordReaderInputFormat extends InputFormat {
 
 		@Override
 		public void readFields(DataInput arg0) throws IOException {
-			// TODO Auto-generated method stub
-
 		}
 
 		@Override
 		public void write(DataOutput arg0) throws IOException {
-			// TODO Auto-generated method stub
-
 		}
 
 	}
@@ -111,12 +107,10 @@ public class BadCreateRecordReaderInputFormat extends InputFormat {
 
 		@Override
 		public void close() throws IOException {
-
 		}
 
 		@Override
 		public String getCurrentKey() throws IOException, InterruptedException {
-
 			return String.valueOf(pointer);
 		}
 
@@ -142,10 +136,8 @@ public class BadCreateRecordReaderInputFormat extends InputFormat {
 			hmap.put(6, "persistent");
 			hmap.put(7, "apache");
 			hmap.put(8, "beam");
-			hmap.put(9, "beam");
-
+			
 			DummyInputSplit dummySplit = (DummyInputSplit) split;
-			// String[] splitData=dummySplit.getLocations();
 			pointer = dummySplit.startIndex - 1;
 			numberOfRecordsInSplit=dummySplit.getLength();
 			recordsRead = 0;

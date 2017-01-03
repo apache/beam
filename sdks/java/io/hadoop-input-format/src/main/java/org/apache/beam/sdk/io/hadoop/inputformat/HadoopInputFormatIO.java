@@ -353,7 +353,7 @@ public class HadoopInputFormatIO {
 
 		class HadoopInputFormatReader<T extends Object> extends BoundedSource.BoundedReader<KV<K, V>> {
 
-			private InputFormat inputFormatObj;
+			private InputFormat<?,?> inputFormatObj;
 			private TaskAttemptContextImpl attemptContext;
 			private List<InputSplit> splits;
 			private ListIterator<InputSplit> splitsIterator;
@@ -369,7 +369,7 @@ public class HadoopInputFormatIO {
 					SimpleFunction valueTranslation, InputSplit split) throws IOException , InstantiationException , IllegalAccessException , ClassNotFoundException  {
 				this.source = source;
 				Job job =  Job.getInstance(source.getConfiguration().getConfiguration());
-				inputFormatObj = (InputFormat) job.getInputFormatClass().newInstance();
+				inputFormatObj = (InputFormat<?,?>) job.getInputFormatClass().newInstance();
 				if (split != null) {
 					this.splits = ImmutableList.of(split);
 					this.splitsIterator = splits.listIterator();

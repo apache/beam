@@ -6,6 +6,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+
 import org.apache.hadoop.io.Writable;
 import org.apache.hadoop.mapreduce.InputFormat;
 import org.apache.hadoop.mapreduce.InputSplit;
@@ -14,7 +15,7 @@ import org.apache.hadoop.mapreduce.RecordReader;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
 
 //Bad input format which returns no records in nextKeyValue() method of RecordReader.
-public class BadRecordReaderNoRecordsInputFormat extends InputFormat {
+public class BadRecordReaderNoRecordsInputFormat extends InputFormat<String, String> {
 	int numberOfRecordsInEachSplits = 3;
 	int numberOfSplits = 3;
 
@@ -44,7 +45,6 @@ public class BadRecordReaderNoRecordsInputFormat extends InputFormat {
 
 	public class DummyInputSplit extends InputSplit implements Writable {
 		public int startIndex, endIndex;
-
 		public DummyInputSplit() {
 		}
 
@@ -66,14 +66,10 @@ public class BadRecordReaderNoRecordsInputFormat extends InputFormat {
 
 		@Override
 		public void readFields(DataInput arg0) throws IOException {
-			// TODO Auto-generated method stub
-
 		}
 
 		@Override
 		public void write(DataOutput arg0) throws IOException {
-			// TODO Auto-generated method stub
-
 		}
 
 	}
@@ -86,7 +82,7 @@ public class BadRecordReaderNoRecordsInputFormat extends InputFormat {
 		HashMap<Integer, String> hmap = new HashMap<Integer, String>();
 
 		public DummyRecordReader() {
-			
+
 		}
 
 		@Override
@@ -122,10 +118,8 @@ public class BadRecordReaderNoRecordsInputFormat extends InputFormat {
 			hmap.put(6, "persistent");
 			hmap.put(7, "apache");
 			hmap.put(8, "beam");
-			hmap.put(9, "beam");
 
 			DummyInputSplit dummySplit = (DummyInputSplit) split;
-			// String[] splitData=dummySplit.getLocations();
 			pointer = dummySplit.startIndex - 1;
 			numberOfRecordsInSplit=dummySplit.getLength();
 			recordsRead = 0;
@@ -133,11 +127,6 @@ public class BadRecordReaderNoRecordsInputFormat extends InputFormat {
 
 		@Override
 		public boolean nextKeyValue() throws IOException, InterruptedException {
-			/*if ((recordsRead++) == numberOfRecordsInSplit)
-				return false;
-			pointer++;
-			boolean hasNext = hmap.containsKey(pointer);
-*/
 			return false;
 		}
 

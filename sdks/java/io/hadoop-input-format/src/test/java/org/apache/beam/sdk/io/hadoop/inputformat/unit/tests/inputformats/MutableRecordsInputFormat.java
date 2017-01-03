@@ -33,7 +33,7 @@ import org.apache.hadoop.mapreduce.JobContext;
 import org.apache.hadoop.mapreduce.RecordReader;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
 
-public class MutableRecordsInputFormat extends InputFormat {
+public class MutableRecordsInputFormat extends InputFormat<String, Employee> {
 	int numberOfRecordsInEachSplits = 3;
 	int numberOfSplits = 3;
 
@@ -52,7 +52,7 @@ public class MutableRecordsInputFormat extends InputFormat {
 	@Override
 	public List<InputSplit> getSplits(JobContext arg0) throws IOException, InterruptedException {
 		InputSplit dummyInputSplitObj;
-		List<InputSplit> inputSplitList = new ArrayList();
+		List<InputSplit> inputSplitList = new ArrayList<InputSplit>();
 		for (int i = 0; i < numberOfSplits; i++) {
 			dummyInputSplitObj = new DummyInputSplit((i * numberOfSplits),
 					((i * numberOfSplits) + numberOfRecordsInEachSplits));
@@ -86,14 +86,10 @@ public class MutableRecordsInputFormat extends InputFormat {
 
 		@Override
 		public void readFields(DataInput arg0) throws IOException {
-			// TODO Auto-generated method stub
-
 		}
 
 		@Override
 		public void write(DataOutput arg0) throws IOException {
-			// TODO Auto-generated method stub
-
 		}
 
 	}
@@ -133,18 +129,17 @@ public class MutableRecordsInputFormat extends InputFormat {
 		@Override
 		public void initialize(InputSplit split, TaskAttemptContext arg1) throws IOException, InterruptedException {
 			/* Adding elements to HashMap */
-			hmap.put(0, "Chaitanya");
+			hmap.put(0, "Prabhanj");
 			hmap.put(1, "Rahul");
-			hmap.put(2, "Singh");
-			hmap.put(3, "Ajeet");
-			hmap.put(4, "Anuj");
-			hmap.put(5, "xyz");
-			hmap.put(6, "persistent");
-			hmap.put(7, "apache");
-			hmap.put(8, "beam");
-			hmap.put(9, "beam");
+			hmap.put(2, "Saikat");
+			hmap.put(3, "Gurumoorthy");
+			hmap.put(4, "Shubham");
+			hmap.put(5, "Neha");
+			hmap.put(6, "Priyanka");
+			hmap.put(7, "Nikita");
+			hmap.put(8, "Pallavi");
+
 			DummyInputSplit dummySplit = (DummyInputSplit) split;
-			// String[] splitData=dummySplit.getLocations();
 			pointer = dummySplit.startIndex - 1;
 			numberOfRecordsInSplit=dummySplit.getLength();
 			recordsRead = 0;
@@ -158,7 +153,6 @@ public class MutableRecordsInputFormat extends InputFormat {
 			pointer++;
 			boolean hasNext = hmap.containsKey(pointer);
 			if(hasNext){
-				currentEmp.setEmpID(String.valueOf(pointer));
 				currentEmp.setEmpName(hmap.get(new Integer(pointer)));
 			}
 			return hasNext;
