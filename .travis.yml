@@ -30,9 +30,7 @@ before_install:
 
 install:
   - travis_retry mvn install clean -U -DskipTests=true
-  - travis_retry mvn -f contrib/kafka/pom.xml install clean -U -DskipTests=true
 
 script:
   - travis_retry mvn $MAVEN_OVERRIDE install -U
-  - travis_retry mvn -f contrib/kafka/pom.xml $MAVEN_OVERRIDE install -U
   - travis_retry travis/test_wordcount.sh
