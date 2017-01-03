@@ -68,7 +68,6 @@
             </goals>
             <configuration>
               <groups>org.apache.beam.sdk.testing.NeedsRunner</groups>
-              <excludedGroups>org.apache.beam.sdk.testing.UsesTimersInParDo</excludedGroups>
               <parallel>none</parallel>
               <failIfNoTests>true</failIfNoTests>
               <dependenciesToScan>
