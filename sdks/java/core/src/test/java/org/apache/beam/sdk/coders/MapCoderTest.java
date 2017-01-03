@@ -28,6 +28,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 import org.apache.beam.sdk.testing.CoderProperties;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.junit.Rule;
 import org.junit.Test;
@@ -44,7 +45,7 @@ public class MapCoderTest {
 
   private static final List<Map<Integer, String>> TEST_VALUES = Arrays.<Map<Integer, String>>asList(
       Collections.<Integer, String>emptyMap(),
-      new TreeMap<Integer, String>(new ImmutableMap.Builder<Integer, String>()
+      new TreeMap<>(new ImmutableMap.Builder<Integer, String>()
           .put(1, "hello").put(-1, "foo").build()));
 
   @Test
@@ -52,6 +53,12 @@ public class MapCoderTest {
     for (Map<Integer, String> value : TEST_VALUES) {
       CoderProperties.coderDecodeEncodeEqual(TEST_CODER, value);
     }
+  }
+
+  @Test
+  public void testCoderIsSerializableWithWellKnownCoderType() throws Exception {
+    CoderProperties.coderSerializable(
+        MapCoder.of(GlobalWindow.Coder.INSTANCE, GlobalWindow.Coder.INSTANCE));
   }
 
   @Test

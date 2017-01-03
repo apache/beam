@@ -25,6 +25,7 @@ import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
 import org.apache.beam.sdk.testing.CoderProperties;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.junit.Rule;
 import org.junit.Test;
@@ -42,7 +43,12 @@ public class ListCoderTest {
       Collections.<Integer>emptyList(),
       Collections.singletonList(43),
       Arrays.asList(1, 2, 3, 4),
-      new LinkedList<Integer>(Arrays.asList(7, 6, 5)));
+      new LinkedList<>(Arrays.asList(7, 6, 5)));
+
+  @Test
+  public void testCoderIsSerializableWithWellKnownCoderType() throws Exception {
+    CoderProperties.coderSerializable(ListCoder.of(GlobalWindow.Coder.INSTANCE));
+  }
 
   @Test
   public void testDecodeEncodeContentsInSameOrder() throws Exception {

@@ -15,33 +15,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.transforms.join;
+package org.apache.beam.sdk.util;
 
-import com.google.common.collect.ImmutableList;
-import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.coders.DoubleCoder;
-import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.testing.CoderProperties;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
-import org.apache.beam.sdk.util.TimerInternals.TimerDataCoder;
+import org.apache.beam.sdk.util.ValueWithRecordId.ValueWithRecordIdCoder;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests the UnionCoder.
- */
+/** Tests for {@link ValueWithRecordId}. */
 @RunWith(JUnit4.class)
-public class UnionCoderTest {
-
-  @Test
-  public void testCoderIsSerializable() {
-    CoderProperties.coderSerializable(UnionCoder.of(ImmutableList.<Coder<?>>of(
-        StringUtf8Coder.of(), DoubleCoder.of())));
-  }
-
+public class ValueWithRecordIdTest {
   @Test
   public void testCoderIsSerializableWithWellKnownCoderType() {
-    CoderProperties.coderSerializable(TimerDataCoder.of(GlobalWindow.Coder.INSTANCE));
+    CoderProperties.coderSerializable(ValueWithRecordIdCoder.of(GlobalWindow.Coder.INSTANCE));
   }
 }
