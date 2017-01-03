@@ -28,15 +28,19 @@ to be executed for each node visited is specified through a runner object.
 Typical usage:
 
   # Create a pipeline object using a local runner for execution.
-  pipeline = Pipeline(runner=DirectRunner())
+  p = beam.Pipeline('DirectRunner')
 
   # Add to the pipeline a "Create" transform. When executed this
   # transform will produce a PCollection object with the specified values.
-  pcoll = pipeline.create('label', [1, 2, 3])
+  pcoll = p | 'create' >> beam.Create([1, 2, 3])
+
+  # Another transform could be applied to pcoll, e.g., writing to a text file.
+  # For other transforms, refer to transforms/ directory.
+  pcoll | 'write' >> beam.io.WriteToText('./output')
 
   # run() will execute the DAG stored in the pipeline.  The execution of the
   # nodes visited is done using the specified local runner.
-  pipeline.run()
+  p.run()
 
 """
 
