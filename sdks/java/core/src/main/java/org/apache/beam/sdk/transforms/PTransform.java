@@ -84,9 +84,8 @@ import org.apache.beam.sdk.values.TypedPValue;
  * <p>PTransform operations have unique names, which are used by the
  * system when explaining what's going on during optimization and
  * execution.  Each PTransform gets a system-provided default name,
- * but it's a good practice to specify an explicit name, where
- * possible, using the {@code named()} method offered by some
- * PTransforms such as {@link ParDo}.  For example:
+ * but it's a good practice to specify a more informative explicit
+ * name when applying the transform. For example:
  *
  * <pre> {@code
  * ...
