@@ -272,7 +272,7 @@ final class ExecutorServiceParallelExecutor implements InProcessExecutor {
   /**
    * An internal status update on the state of the executor.
    *
-   * Used to signal when the executor should be shut down (due to an exception).
+   * <p>Used to signal when the executor should be shut down (due to an exception).
    */
   @AutoValue
   abstract static class ExecutorUpdate {

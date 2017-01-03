@@ -88,7 +88,7 @@ import java.util.NoSuchElementException;
 import javax.annotation.Nullable;
 
 /**
- * <p>{@link DatastoreV1} provides an API to Read, Write and Delete {@link PCollection PCollections}
+ * {@link DatastoreV1} provides an API to Read, Write and Delete {@link PCollection PCollections}
  * of <a href="https://developers.google.com/datastore/">Google Cloud Datastore</a> version v1
  * {@link Entity} objects.
  *

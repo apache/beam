@@ -165,7 +165,7 @@ public class DisplayData implements Serializable {
      * }
      * </code></pre>
      *
-     * Using {@code include(subcomponent)} will associate each of the registered items with the
+     * <p>Using {@code include(subcomponent)} will associate each of the registered items with the
      * namespace of the {@code subcomponent} being registered. To register display data in the
      * current namespace, such as from a base class implementation, use
      * {@code subcomponent.populateDisplayData(builder)} instead.
@@ -234,7 +234,7 @@ public class DisplayData implements Serializable {
 
     /**
      * The key for the display item. Each display item is created with a key and value
-     * via {@link DisplayData#item).
+     * via {@link DisplayData#item}.
      */
     @JsonGetter("key")
     public String getKey() {
@@ -270,8 +270,8 @@ public class DisplayData implements Serializable {
      * value. For example, the {@link #getValue() value} for {@link Type#JAVA_CLASS} items contains
      * the full class name with package, while the short value contains just the class name.
      *
-     * A {@link #getValue() value} will be provided for each display item, and some types may also
-     * provide a short-value. If a short value is provided, display data consumers may
+     * <p>A {@link #getValue() value} will be provided for each display item, and some types may
+     * also provide a short-value. If a short value is provided, display data consumers may
      * choose to display it instead of or in addition to the {@link #getValue() value}.
      */
     @JsonGetter("shortValue")

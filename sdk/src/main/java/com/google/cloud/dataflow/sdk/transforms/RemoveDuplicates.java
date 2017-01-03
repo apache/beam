@@ -105,7 +105,7 @@ public class RemoveDuplicates<T> extends PTransform<PCollection<T>,
    * A {@link RemoveDuplicates} {@link PTransform} that uses a {@link SerializableFunction} to
    * obtain a representative value for each input element.
    *
-   * Construct via {@link RemoveDuplicates#withRepresentativeValueFn(SerializableFunction)}.
+   * <p>Construct via {@link RemoveDuplicates#withRepresentativeValueFn(SerializableFunction)}.
    *
    * @param <T> the type of input and output element
    * @param <IdT> the type of representative values used to dedup
@@ -143,8 +143,9 @@ public class RemoveDuplicates<T> extends PTransform<PCollection<T>,
      * Return a {@code WithRepresentativeValues} {@link PTransform} that is like this one, but with
      * the specified output type descriptor.
      *
-     * Required for use of {@link RemoveDuplicates#withRepresentativeValueFn(SerializableFunction)}
-     * in Java 8 with a lambda as the fn.
+     * <p>Required for use of
+     * {@link RemoveDuplicates#withRepresentativeValueFn(SerializableFunction)} in Java 8 with a
+     * lambda as the fn.
      *
      * @param type a {@link TypeDescriptor} describing the representative type of this
      *             {@code WithRepresentativeValues}

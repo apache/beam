@@ -101,7 +101,7 @@ import javax.annotation.Nullable;
  *     If this method is not overridden, this call may be optimized away.</li>
  * </ol>
  *
- * Each of the calls to any of the {@link DoFn DoFn's} processing
+ * <p>Each of the calls to any of the {@link DoFn DoFn's} processing
  * methods can produce zero or more output elements. All of the
  * of output elements from all of the {@link DoFn} instances
  * are included in the output {@link PCollection}.

@@ -63,7 +63,7 @@ public class CombineWithContext {
    * A combine function that has access to {@code PipelineOptions} and side inputs through
    * {@code CombineWithContext.Context}.
    *
-   * See the equivalent {@link CombineFn} for details about combine functions.
+   * <p>See the equivalent {@link CombineFn} for details about combine functions.
    */
   public abstract static class CombineFnWithContext<InputT, AccumT, OutputT>
       extends CombineFnBase.AbstractGlobalCombineFn<InputT, AccumT, OutputT>
@@ -180,7 +180,7 @@ public class CombineWithContext {
    * A keyed combine function that has access to {@code PipelineOptions} and side inputs through
    * {@code CombineWithContext.Context}.
    *
-   * See the equivalent {@link KeyedCombineFn} for details about keyed combine functions.
+   * <p>See the equivalent {@link KeyedCombineFn} for details about keyed combine functions.
    */
   public abstract static class KeyedCombineFnWithContext<K, InputT, AccumT, OutputT>
       extends CombineFnBase.AbstractPerKeyCombineFn<K, InputT, AccumT, OutputT>

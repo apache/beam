@@ -44,8 +44,8 @@ import javax.annotation.concurrent.NotThreadSafe;
  * also provides random access to bytes stored within. This wrapper allows users to finely
  * control the number of byte copies that occur.
  *
- * Anything stored within the in-memory buffer from offset {@link #size()} is considered temporary
- * unused storage.
+ * <p>Anything stored within the in-memory buffer from offset {@link #size()} is considered
+ * temporary unused storage.
  */
 @NotThreadSafe
 public class RandomAccessData {
@@ -54,7 +54,7 @@ public class RandomAccessData {
    * This follows the same encoding scheme as {@link ByteArrayCoder}.
    * This coder is deterministic and consistent with equals.
    *
-   * This coder does not support encoding positive infinity.
+   * <p>This coder does not support encoding positive infinity.
    */
   public static class RandomAccessDataCoder extends AtomicCoder<RandomAccessData> {
     private static final RandomAccessDataCoder INSTANCE = new RandomAccessDataCoder();
@@ -192,7 +192,7 @@ public class RandomAccessData {
    * is strictly greater than this. Note that if this is empty or is all 0xFF then
    * a token value of positive infinity is returned.
    *
-   * The {@link UnsignedLexicographicalComparator} supports comparing {@link RandomAccessData}
+   * <p>The {@link UnsignedLexicographicalComparator} supports comparing {@link RandomAccessData}
    * with support for positive infinitiy.
    */
   public RandomAccessData increment() throws IOException {

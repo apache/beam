@@ -64,7 +64,6 @@ import java.io.PrintStream;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
-import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Proxy;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
@@ -1495,13 +1494,7 @@ public class PipelineOptionsFactory {
                 throw new IllegalArgumentException(msg, e);
             }
           }
-        } else if ((returnType.isArray() && (SIMPLE_TYPES.contains(returnType.getComponentType())
-                    || returnType.getComponentType().isEnum()))
-            || Collection.class.isAssignableFrom(returnType)
-            || (returnType.equals(ValueProvider.class)
-                && MAPPER.getTypeFactory().constructType(
-                    ((ParameterizedType) method.getGenericReturnType())
-                    .getActualTypeArguments()[0]).isCollectionLikeType())) {
+        } else if (isCollectionOrArrayOfAllowedTypes(returnType, type)) {
           // Split any strings with ","
           List<String> values = FluentIterable.from(entry.getValue())
               .transformAndConcat(new Function<String, Iterable<String>>() {
@@ -1509,33 +1502,23 @@ public class PipelineOptionsFactory {
                 public Iterable<String> apply(String input) {
                   return Arrays.asList(input.split(","));
                 }
-          }).toList();
+              }).toList();
 
-          if (returnType.isArray() && !returnType.getComponentType().equals(String.class)
-              || Collection.class.isAssignableFrom(returnType)
-              || returnType.equals(ValueProvider.class)) {
-            for (String value : values) {
-              checkArgument(!value.isEmpty(),
-                  "Empty argument value is only allowed for String, String Array, "
-                  + "and Collections of Strings, but received: %s",
-                  method.getGenericReturnType());
-            }
+          if (values.contains("")) {
+            checkEmptyStringAllowed(returnType, type, method.getGenericReturnType().toString());
           }
           convertedOptions.put(entry.getKey(), MAPPER.convertValue(values, type));
-        } else if (SIMPLE_TYPES.contains(returnType) || returnType.isEnum()
-            || returnType.equals(ValueProvider.class)) {
+        } else if (isSimpleType(returnType, type)) {
           String value = Iterables.getOnlyElement(entry.getValue());
-          checkArgument(returnType.equals(String.class) || !value.isEmpty(),
-              "Empty argument value is only allowed for String, String Array, "
-              + "and Collections of Strings, but received: %s",
-              method.getGenericReturnType());
+          if (value.isEmpty()) {
+            checkEmptyStringAllowed(returnType, type, method.getGenericReturnType().toString());
+          }
           convertedOptions.put(entry.getKey(), MAPPER.convertValue(value, type));
         } else {
           String value = Iterables.getOnlyElement(entry.getValue());
-          checkArgument(returnType.equals(String.class) || !value.isEmpty(),
-              "Empty argument value is only allowed for String, String Array, "
-              + "and Collections of Strings, but received: %s",
-              method.getGenericReturnType());
+          if (value.isEmpty()) {
+            checkEmptyStringAllowed(returnType, type, method.getGenericReturnType().toString());
+          }
           try {
             convertedOptions.put(entry.getKey(), MAPPER.readValue(value, type));
           } catch (IOException e) {
@@ -1552,5 +1535,77 @@ public class PipelineOptionsFactory {
       }
     }
     return convertedOptions;
+  }
+
+  /**
+   * Returns true if the given type is one of {@code SIMPLE_TYPES} or an enum, or if the given type
+   * is a {@link ValueProvider ValueProvider&lt;T&gt;} and {@code T} is one of {@code SIMPLE_TYPES}
+   * or an enum.
+   */
+  private static boolean isSimpleType(Class<?> type, JavaType genericType) {
+    Class<?> unwrappedType = type.equals(ValueProvider.class)
+        ? genericType.containedType(0).getRawClass() : type;
+    return SIMPLE_TYPES.contains(unwrappedType) || unwrappedType.isEnum();
+  }
+
+  /**
+   * Returns true if the given type is an array or {@link Collection} of {@code SIMPLE_TYPES} or
+   * enums, or if the given type is a {@link ValueProvider ValueProvider&lt;T&gt;} and {@code T} is
+   * one of an array or {@link Collection} of {@code SIMPLE_TYPES} or enums.
+   */
+  private static boolean isCollectionOrArrayOfAllowedTypes(Class<?> type, JavaType genericType) {
+    JavaType containerType = type.equals(ValueProvider.class)
+        ? genericType.containedType(0) : genericType;
+
+    // Check if it is an array of simple types or enum.
+    if (containerType.getRawClass().isArray()
+        && (SIMPLE_TYPES.contains(containerType.getRawClass().getComponentType())
+        || containerType.getRawClass().getComponentType().isEnum())) {
+      return true;
+    }
+    // Check if it is Collection of simple types or enum.
+    if (Collection.class.isAssignableFrom(containerType.getRawClass())) {
+      JavaType innerType = containerType.containedType(0);
+      // Note that raw types are allowed, hence the null check.
+      if (innerType == null || SIMPLE_TYPES.contains(innerType.getRawClass())
+          || innerType.getRawClass().isEnum()) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /**
+   * Ensures that empty string value is allowed for a given type.
+   *
+   * <p>Empty strings are only allowed for {@link String}, {@link String String[]},
+   * {@link Collection Collection&lt;String&gt;}, or {@link ValueProvider ValueProvider&lt;T&gt;}
+   * and {@code T} is of type {@link String}, {@link String String[]},
+   * {@link Collection Collection&lt;String&gt;}.
+   *
+   * @param type class object for the type under check.
+   * @param genericType complete type information for the type under check.
+   * @param genericTypeName a string representation of the complete type information.
+   */
+  private static void checkEmptyStringAllowed(Class<?> type, JavaType genericType,
+      String genericTypeName) {
+    JavaType unwrappedType = type.equals(ValueProvider.class)
+        ? genericType.containedType(0) : genericType;
+
+    Class<?> containedType = unwrappedType.getRawClass();
+    if (unwrappedType.getRawClass().isArray()) {
+      containedType = unwrappedType.getRawClass().getComponentType();
+    } else if (Collection.class.isAssignableFrom(unwrappedType.getRawClass())) {
+      JavaType innerType = unwrappedType.containedType(0);
+      // Note that raw types are allowed, hence the null check.
+      containedType = innerType == null ? String.class : innerType.getRawClass();
+    }
+    if (!containedType.equals(String.class)) {
+      String msg = String.format("Empty argument value is only allowed for String, String Array, "
+              + "Collections of Strings or any of these types in a parameterized ValueProvider, "
+              + "but received: %s",
+          genericTypeName);
+      throw new IllegalArgumentException(msg);
+    }
   }
 }

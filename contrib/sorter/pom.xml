@@ -150,8 +150,6 @@
               <shadeTestJar>true</shadeTestJar>
               <artifactSet>
                 <includes>
-                  <include>org.apache.hadoop:hadoop-mapreduce-client-core</include>
-                  <include>org.apache.hadoop:hadoop-common</include>
                   <include>com.google.guava:guava</include>
                 </includes>
               </artifactSet>
@@ -166,10 +164,6 @@
                 </filter>
               </filters>
               <relocations>
-                <relocation>
-                  <pattern>org.apache.hadoop</pattern>
-                  <shadedPattern>com.google.cloud.dataflow.repackaged.org.apache.hadoop</shadedPattern>
-                </relocation>
                 <relocation>
                   <pattern>com.google.common</pattern>
                   <shadedPattern>com.google.cloud.dataflow.repackaged.com.google.common</shadedPattern>
@@ -198,12 +192,14 @@
       <groupId>org.apache.hadoop</groupId>
       <artifactId>hadoop-mapreduce-client-core</artifactId>
       <version>${hadoop.version}</version>
+      <scope>provided</scope>
     </dependency>
     
     <dependency>
       <groupId>org.apache.hadoop</groupId>
       <artifactId>hadoop-common</artifactId>
       <version>${hadoop.version}</version>
+      <scope>provided</scope>
     </dependency>
     
     <dependency>

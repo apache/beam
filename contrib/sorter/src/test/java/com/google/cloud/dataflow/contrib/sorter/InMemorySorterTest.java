@@ -139,4 +139,12 @@ public class InMemorySorterTest {
     InMemorySorter.Options options = new InMemorySorter.Options();
     options.setMemoryMB(-1);
   }
+
+  @Test
+  public void testZeroMemory() throws Exception {
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage("memoryMB must be greater than zero");
+    InMemorySorter.Options options = new InMemorySorter.Options();
+    options.setMemoryMB(0);
+  }
 }

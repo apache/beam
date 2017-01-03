@@ -228,8 +228,7 @@ public interface DataflowPipelineDebugOptions extends PipelineOptions {
    * thrashing or out of memory. The location of the heap file will either be echoed back
    * to the user, or the user will be given the opportunity to download the heap file.
    *
-   * <p>
-   * CAUTION: Heap dumps can of comparable size to the default boot disk. Consider increasing
+   * <p>CAUTION: Heap dumps can of comparable size to the default boot disk. Consider increasing
    * the boot disk size before setting this flag to true.
    */
   @Description("If {@literal true}, save a heap dump before killing a thread or process "

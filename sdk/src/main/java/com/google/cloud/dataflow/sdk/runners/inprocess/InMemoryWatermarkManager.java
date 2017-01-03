@@ -167,7 +167,7 @@ class InMemoryWatermarkManager {
     /**
      * Returns the {@link WatermarkUpdate} that is a result of combining the two watermark updates.
      *
-     * If either of the input {@link WatermarkUpdate WatermarkUpdates} were advanced, the result
+     * <p>If either of the input {@link WatermarkUpdate WatermarkUpdates} were advanced, the result
      * {@link WatermarkUpdate} has been advanced.
      */
     public WatermarkUpdate union(WatermarkUpdate that) {
@@ -640,7 +640,7 @@ class InMemoryWatermarkManager {
    * latestTime argument and put in in the result with the same key, then remove all of the keys
    * which have no more pending timers.
    *
-   * The result collection retains ordering of timers (from earliest to latest).
+   * <p>The result collection retains ordering of timers (from earliest to latest).
    */
   private static Map<StructuralKey<?>, List<TimerData>> extractFiredTimers(
       Instant latestTime, Map<StructuralKey<?>, NavigableSet<TimerData>> objectTimers) {

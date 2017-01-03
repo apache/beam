@@ -49,15 +49,15 @@ import java.util.Map;
  * BigQuery; using standalone DoFns; use of the sum by key transform; examples of
  * Java 8 lambda syntax.
  *
- * <p> In this gaming scenario, many users play, as members of different teams, over the course of a
+ * <p>In this gaming scenario, many users play, as members of different teams, over the course of a
  * day, and their actions are logged for processing.  Some of the logged game events may be late-
  * arriving, if users play on mobile devices and go transiently offline for a period.
  *
- * <p> This pipeline does batch processing of data collected from gaming events. It calculates the
+ * <p>This pipeline does batch processing of data collected from gaming events. It calculates the
  * sum of scores per user, over an entire batch of gaming data (collected, say, for each day). The
  * batch processing will not include any late data that arrives after the day's cutoff point.
  *
- * <p> To execute this pipeline using the Dataflow service and static example input data, specify
+ * <p>To execute this pipeline using the Dataflow service and static example input data, specify
  * the pipeline configuration like this:
  * <pre>{@code
  *   --project=YOUR_PROJECT_ID
@@ -68,7 +68,7 @@ import java.util.Map;
  * </pre>
  * where the BigQuery dataset you specify must already exist.
  *
- * <p> Optionally include the --input argument to specify a batch input file.
+ * <p>Optionally include the --input argument to specify a batch input file.
  * See the --input default value for example batch data file, or use {@link injector.Injector} to
  * generate your own batch data.
   */

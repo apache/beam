@@ -178,7 +178,7 @@ public class WindowedWordCount {
    * table and the PubSub topic, as well as the {@link WordCount.WordCountOptions} support for
    * specification of the input file.
    */
-  public static interface Options
+  public interface Options
         extends WordCount.WordCountOptions, DataflowExampleUtils.DataflowExampleUtilsOptions {
     @Description("Fixed window duration, in minutes")
     @Default.Integer(WINDOW_SIZE)

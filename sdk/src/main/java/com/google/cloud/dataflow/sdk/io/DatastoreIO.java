@@ -78,7 +78,7 @@ import java.util.NoSuchElementException;
 import javax.annotation.Nullable;
 
 /**
- * <p>{@link DatastoreIO} provides an API to Read and Write {@link PCollection PCollections} of
+ * {@link DatastoreIO} provides an API to Read and Write {@link PCollection PCollections} of
  * <a href="https://developers.google.com/datastore/">Google Cloud Datastore</a>
  * {@link Entity} objects.
  *

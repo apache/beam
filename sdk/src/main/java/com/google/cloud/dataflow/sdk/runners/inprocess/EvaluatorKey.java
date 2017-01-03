@@ -22,8 +22,8 @@ import java.util.Objects;
 /**
  * A (Transform, Pipeline Execution) key for stateful evaluators.
  *
- * Source evaluators are stateful to ensure data is not read multiple times. Evaluators are cached
- * to ensure that the reader is not restarted if the evaluator is retriggered. An
+ * <p>Source evaluators are stateful to ensure data is not read multiple times. Evaluators are
+ * cached to ensure that the reader is not restarted if the evaluator is retriggered. An
  * {@link EvaluatorKey} is used to ensure that multiple Pipelines can be executed without sharing
  * the same evaluators.
  */

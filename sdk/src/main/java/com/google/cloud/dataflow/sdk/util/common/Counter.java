@@ -364,11 +364,11 @@ public abstract class Counter<T> {
   /**
    * Changes the counter from {@code CommitState.COMMITTING} to {@code CommitState.COMMITTED}.
    *
-   * @return true if successful.
-   *
    * <p>False return indicates that the counter was updated while the committing is pending.
    * That counter update might or might not has been committed. The {@code commitState} has to
    * stay in {@code CommitState.DIRTY}.
+   *
+   * @return true if successful.
    */
   public boolean committed() {
     return commitState.compareAndSet(CommitState.COMMITTING, CommitState.COMMITTED);

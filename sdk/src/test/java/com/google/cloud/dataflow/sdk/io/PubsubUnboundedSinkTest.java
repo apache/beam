@@ -18,6 +18,7 @@ package com.google.cloud.dataflow.sdk.io;
 
 import com.google.cloud.dataflow.sdk.coders.StringUtf8Coder;
 import com.google.cloud.dataflow.sdk.io.PubsubUnboundedSink.RecordIdMethod;
+import com.google.cloud.dataflow.sdk.options.ValueProvider.StaticValueProvider;
 import com.google.cloud.dataflow.sdk.testing.CoderProperties;
 import com.google.cloud.dataflow.sdk.testing.TestPipeline;
 import com.google.cloud.dataflow.sdk.transforms.Create;
@@ -82,9 +83,9 @@ public class PubsubUnboundedSinkTest {
              PubsubTestClient.createFactoryForPublish(TOPIC, outgoing,
                                                       ImmutableList.<OutgoingMessage>of())) {
       PubsubUnboundedSink<String> sink =
-          new PubsubUnboundedSink<>(factory, TOPIC, StringUtf8Coder.of(), TIMESTAMP_LABEL, ID_LABEL,
-                                    NUM_SHARDS, batchSize, batchBytes, Duration.standardSeconds(2),
-                                    RecordIdMethod.DETERMINISTIC);
+          new PubsubUnboundedSink<>(factory, StaticValueProvider.of(TOPIC), StringUtf8Coder.of(),
+              TIMESTAMP_LABEL, ID_LABEL, NUM_SHARDS, batchSize, batchBytes,
+              Duration.standardSeconds(2), RecordIdMethod.DETERMINISTIC);
       TestPipeline p = TestPipeline.create();
       p.apply(Create.of(ImmutableList.of(DATA)))
        .apply(ParDo.of(new Stamp()))
@@ -110,9 +111,9 @@ public class PubsubUnboundedSinkTest {
              PubsubTestClient.createFactoryForPublish(TOPIC, outgoing,
                                                       ImmutableList.<OutgoingMessage>of())) {
       PubsubUnboundedSink<String> sink =
-          new PubsubUnboundedSink<>(factory, TOPIC, StringUtf8Coder.of(), TIMESTAMP_LABEL, ID_LABEL,
-                                    NUM_SHARDS, batchSize, batchBytes, Duration.standardSeconds(2),
-                                    RecordIdMethod.DETERMINISTIC);
+          new PubsubUnboundedSink<>(factory, StaticValueProvider.of(TOPIC), StringUtf8Coder.of(),
+              TIMESTAMP_LABEL, ID_LABEL, NUM_SHARDS, batchSize, batchBytes,
+              Duration.standardSeconds(2), RecordIdMethod.DETERMINISTIC);
       TestPipeline p = TestPipeline.create();
       p.apply(Create.of(data))
        .apply(ParDo.of(new Stamp()))
@@ -144,9 +145,10 @@ public class PubsubUnboundedSinkTest {
              PubsubTestClient.createFactoryForPublish(TOPIC, outgoing,
                                                       ImmutableList.<OutgoingMessage>of())) {
       PubsubUnboundedSink<String> sink =
-          new PubsubUnboundedSink<>(factory, TOPIC, StringUtf8Coder.of(), TIMESTAMP_LABEL, ID_LABEL,
-                                    NUM_SHARDS, batchSize, batchBytes, Duration.standardSeconds(2),
-                                    RecordIdMethod.DETERMINISTIC);
+          new PubsubUnboundedSink<>(factory, StaticValueProvider.of(TOPIC),
+              StringUtf8Coder.of(), TIMESTAMP_LABEL, ID_LABEL,
+              NUM_SHARDS, batchSize, batchBytes, Duration.standardSeconds(2),
+              RecordIdMethod.DETERMINISTIC);
       TestPipeline p = TestPipeline.create();
       p.apply(Create.of(data))
        .apply(ParDo.of(new Stamp()))

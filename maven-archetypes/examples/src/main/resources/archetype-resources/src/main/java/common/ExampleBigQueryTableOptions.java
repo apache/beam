@@ -43,7 +43,7 @@ public interface ExampleBigQueryTableOptions extends DataflowPipelineOptions {
   /**
    * Returns the job name as the default BigQuery table name.
    */
-  static class BigQueryTableFactory implements DefaultValueFactory<String> {
+  class BigQueryTableFactory implements DefaultValueFactory<String> {
     @Override
     public String create(PipelineOptions options) {
       return options.as(DataflowPipelineOptions.class).getJobName()

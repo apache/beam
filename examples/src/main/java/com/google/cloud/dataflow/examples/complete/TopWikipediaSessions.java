@@ -68,15 +68,6 @@ import java.util.List;
  *
  * <p>The default input is {@code gs://dataflow-samples/wikipedia_edits/*.json} and can be
  * overridden with {@code --input}.
- *
- * <p>The input for this example is large enough that it's a good place to enable (experimental)
- * autoscaling:
- * <pre>{@code
- *   --autoscalingAlgorithm=BASIC
- *   --maxNumWorkers=20
- * }
- * </pre>
- * This will automatically scale the number of workers up over time until the job completes.
  */
 public class TopWikipediaSessions {
   private static final String EXPORTED_WIKI_TABLE = "gs://dataflow-samples/wikipedia_edits/*.json";

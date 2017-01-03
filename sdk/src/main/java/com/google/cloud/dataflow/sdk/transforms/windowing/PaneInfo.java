@@ -94,7 +94,7 @@ public final class PaneInfo {
    * And a {@code LATE} pane cannot contain locally on-time elements.
    * </ol>
    *
-   * However, note that:
+   * <p>However, note that:
    * <ol>
    * <li> An {@code ON_TIME} pane may contain locally late elements. It may even contain only
    * locally late elements. Provided a locally late element finds its way into an {@code ON_TIME}
@@ -256,7 +256,7 @@ public final class PaneInfo {
   /**
    * The zero-based index of this trigger firing among non-speculative panes.
    *
-   * <p> This will return 0 for the first non-{@link Timing#EARLY} timer firing, 1 for the next one,
+   * <p>This will return 0 for the first non-{@link Timing#EARLY} timer firing, 1 for the next one,
    * etc.
    *
    * <p>Always -1 for speculative data.

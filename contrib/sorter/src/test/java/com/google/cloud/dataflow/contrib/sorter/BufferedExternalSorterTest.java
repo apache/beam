@@ -173,4 +173,20 @@ public class BufferedExternalSorterTest {
     BufferedExternalSorter.Options options = new BufferedExternalSorter.Options();
     options.setMemoryMB(-1);
   }
+
+  @Test
+  public void testZeroMemory() throws Exception {
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage("memoryMB must be greater than zero");
+    BufferedExternalSorter.Options options = new BufferedExternalSorter.Options();
+    options.setMemoryMB(0);
+  }
+
+  @Test
+  public void testMemoryTooLarge() throws Exception {
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage("memoryMB must be less than 2048");
+    BufferedExternalSorter.Options options = new BufferedExternalSorter.Options();
+    options.setMemoryMB(2048);
+  }
 }
