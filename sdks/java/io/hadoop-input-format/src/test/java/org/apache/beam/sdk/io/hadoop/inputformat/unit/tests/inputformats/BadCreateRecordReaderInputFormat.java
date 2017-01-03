@@ -31,12 +31,12 @@ import org.apache.hadoop.mapreduce.JobContext;
 import org.apache.hadoop.mapreduce.RecordReader;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
 
-//Bad input format which returns empty list of input splits in getSplits() method
-public class DummyBadInputFormat extends InputFormat {
+//Throws exception when createRecordReader is called
+public class BadCreateRecordReaderInputFormat extends InputFormat {
 	int numberOfRecordsInEachSplits = 3;
 	int numberOfSplits = 3;
 
-	public DummyBadInputFormat() {
+	public BadCreateRecordReaderInputFormat() {
 
 	}
 
@@ -50,7 +50,13 @@ public class DummyBadInputFormat extends InputFormat {
 
 	@Override
 	public List<InputSplit> getSplits(JobContext arg0) throws IOException, InterruptedException {
+		InputSplit dummyInputSplitObj;
 		List<InputSplit> inputSplitList = new ArrayList();
+		for (int i = 0; i < numberOfSplits; i++) {
+			dummyInputSplitObj = new DummyInputSplit((i * numberOfSplits),
+					((i * numberOfSplits) + numberOfRecordsInEachSplits));
+			inputSplitList.add(dummyInputSplitObj);
+		}
 		return inputSplitList;
 	}
 
@@ -98,9 +104,10 @@ public class DummyBadInputFormat extends InputFormat {
 		long numberOfRecordsInSplit=0;
 		HashMap<Integer, String> hmap = new HashMap<Integer, String>();
 
-		public DummyRecordReader() {
-
+		public DummyRecordReader() throws IOException {
+			throw new IOException("Exception in creating RecordReader in BadCreateRecordReaderInputFormat.");
 		}
+
 
 		@Override
 		public void close() throws IOException {

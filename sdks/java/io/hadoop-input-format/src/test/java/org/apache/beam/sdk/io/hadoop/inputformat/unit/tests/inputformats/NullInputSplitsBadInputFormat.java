@@ -31,11 +31,12 @@ import org.apache.hadoop.mapreduce.JobContext;
 import org.apache.hadoop.mapreduce.RecordReader;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
 
-public class DummyBadInputFormat4 extends InputFormat {
+//Bad input format which returns null in getSplits() method
+public class NullInputSplitsBadInputFormat extends InputFormat {
 	int numberOfRecordsInEachSplits = 3;
 	int numberOfSplits = 3;
 
-	public DummyBadInputFormat4() {
+	public NullInputSplitsBadInputFormat() {
 
 	}
 
@@ -49,14 +50,7 @@ public class DummyBadInputFormat4 extends InputFormat {
 
 	@Override
 	public List<InputSplit> getSplits(JobContext arg0) throws IOException, InterruptedException {
-		InputSplit dummyInputSplitObj;
-		List<InputSplit> inputSplitList = new ArrayList();
-		for (int i = 0; i < numberOfSplits; i++) {
-			dummyInputSplitObj = new DummyInputSplit((i * numberOfSplits),
-					((i * numberOfSplits) + numberOfRecordsInEachSplits));
-			inputSplitList.add(dummyInputSplitObj);
-		}
-		return inputSplitList;
+		return null;
 	}
 
 	public class DummyInputSplit extends InputSplit implements Writable {
@@ -103,10 +97,9 @@ public class DummyBadInputFormat4 extends InputFormat {
 		long numberOfRecordsInSplit=0;
 		HashMap<Integer, String> hmap = new HashMap<Integer, String>();
 
-		public DummyRecordReader() throws IOException {
-			throw new IOException("Exception in creating RecordRader in DummyBadInputFormat4.");
-		}
+		public DummyRecordReader() {
 
+		}
 
 		@Override
 		public void close() throws IOException {

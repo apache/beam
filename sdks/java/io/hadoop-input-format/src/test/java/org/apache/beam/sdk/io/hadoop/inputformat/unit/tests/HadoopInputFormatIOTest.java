@@ -43,15 +43,17 @@ import org.apache.beam.sdk.io.hadoop.inputformat.HadoopInputFormatIO.HadoopInput
 import org.apache.beam.sdk.io.hadoop.inputformat.HadoopInputFormatIO.Read;
 import org.apache.beam.sdk.io.hadoop.inputformat.HadoopInputFormatIO.SerializableConfiguration;
 import org.apache.beam.sdk.io.hadoop.inputformat.unit.tests.coders.EmployeeCoder;
-import org.apache.beam.sdk.io.hadoop.inputformat.unit.tests.inputformats.DummyBadInputFormat;
-import org.apache.beam.sdk.io.hadoop.inputformat.unit.tests.inputformats.DummyBadInputFormat2;
-import org.apache.beam.sdk.io.hadoop.inputformat.unit.tests.inputformats.DummyBadInputFormat3;
+import org.apache.beam.sdk.io.hadoop.inputformat.unit.tests.inputformats.BadCreateRecordReaderInputFormat;
+import org.apache.beam.sdk.io.hadoop.inputformat.unit.tests.inputformats.EmptyInputSplitsInputFormat;
+import org.apache.beam.sdk.io.hadoop.inputformat.unit.tests.inputformats.NullInputSplitsBadInputFormat;
+import org.apache.beam.sdk.io.hadoop.inputformat.unit.tests.inputformats.BadRecordReaderNoRecordsInputFormat;
 import org.apache.beam.sdk.io.hadoop.inputformat.unit.tests.inputformats.DummyInputFormat;
-import org.apache.beam.sdk.io.hadoop.inputformat.unit.tests.inputformats.DummyInputFormatWithImmutableRecords;
-import org.apache.beam.sdk.io.hadoop.inputformat.unit.tests.inputformats.DummyInputFormatWithMutableRecords;
+import org.apache.beam.sdk.io.hadoop.inputformat.unit.tests.inputformats.ImmutableRecordsInputFormat;
+import org.apache.beam.sdk.io.hadoop.inputformat.unit.tests.inputformats.MutableRecordsInputFormat;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.SourceTestUtils;
+import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.KV;
@@ -63,7 +65,9 @@ import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.InputFormat;
 import org.junit.BeforeClass;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
@@ -86,11 +90,12 @@ public class HadoopInputFormatIOTest {
 	static SimpleFunction<Text, String> myValueTranslate;
 	static PBegin input;
 
+	@Rule public final transient TestPipeline p = TestPipeline.create();
+	@Rule public ExpectedException thrown = ExpectedException.none();
+
 	@BeforeClass
 	public static void setUp() {
-		options = PipelineOptionsFactory.create();
-		directRunnerOptions = PipelineOptionsFactory.as(DirectOptions.class);
-		pipeline = Pipeline.create(directRunnerOptions);
+		pipeline = TestPipeline.create();
 		input = PBegin.in(pipeline);
 		conf  = getConfiguration(TypeDescriptor.of(DummyInputFormat.class),TypeDescriptor.of(Text.class),TypeDescriptor.of(Text.class)).getConfiguration();
 		myKeyTranslate = new SimpleFunction<Text, String>() {
@@ -111,6 +116,7 @@ public class HadoopInputFormatIOTest {
 	}
 
 
+	//Read validation
 	@Test
 	public void testReadBuildsCorrectly() {
 		Configuration conf = getConfiguration(TypeDescriptor.of(DummyInputFormat.class),TypeDescriptor.of(java.lang.Long.class),TypeDescriptor.of(Text.class)).getConfiguration();
@@ -173,14 +179,13 @@ public class HadoopInputFormatIOTest {
 	// withConfiguration() checks configuration is null or not and throws exception if null value is send to withConfiguration().
 	@Test
 	public void testReadObjectCreationWithOnlyConfigurationAndNullIsPassed() {
-		try{
-			HadoopInputFormatIO.<String, String>read()
-			.withConfiguration(null);
-		}
-		catch(NullPointerException ex)
-		{
-			assertEquals("Configuration cannot be null.",ex.getMessage());
-		}
+
+		thrown.expect(NullPointerException.class);
+		thrown.expectMessage("Configuration cannot be null");
+		HadoopInputFormatIO.<String, String>read()
+		.withConfiguration(null);
+	
+
 	}
 
 
@@ -198,20 +203,16 @@ public class HadoopInputFormatIOTest {
 
 	}
 
-	// This test validates behaviour Read transform object creation if withConfiguration() and withKeyTranslation() are called and null value is passed to kayTranslation.
+	// This test validates behavior Read transform object creation if withConfiguration() and withKeyTranslation() are called and null value is passed to kayTranslation.
 	// withKeyTranslation() checks keyTranslation is null or not and throws exception if null value is send to withKeyTranslation().
 	@Test
 	public void testReadObjectCreationWithConfigurationKeyTranslationIfKeyTranslationIsNull() {
-		try{
-			HadoopInputFormatIO.<String, String>read()
-			.withConfiguration(conf)
-			.withKeyTranslation(null);
-		}
-		catch(NullPointerException ex)
-		{
-			assertEquals("Simple function for key translation cannot be null.",ex.getMessage());
-		}
 
+		thrown.expect(NullPointerException.class);
+		thrown.expectMessage("Simple function for key translation cannot be null.");
+		HadoopInputFormatIO.<String, String>read()
+		.withConfiguration(conf)
+		.withKeyTranslation(null);
 	}
 
 
@@ -233,16 +234,13 @@ public class HadoopInputFormatIOTest {
 	// withValueTranslation() checks valueTranslation is null or not and throws exception if null value is send to withValueTranslation().
 	@Test
 	public void testReadObjectCreationWithConfigurationValueTranslationIfValueTranslationIsNull() {
-		try{
-			HadoopInputFormatIO.<String, String>read()
-			.withConfiguration(conf)
-			.withValueTranslation(null);
-		}
-		catch(NullPointerException ex)
-		{
-			assertEquals("Simple function for value translation cannot be null.",ex.getMessage());
-		}
 
+		thrown.expect(NullPointerException.class);
+		thrown.expectMessage("Simple function for value translation cannot be null.");
+		HadoopInputFormatIO.<String, String>read()
+		.withConfiguration(conf)
+		.withValueTranslation(null);
+	
 	}
 
 	// This test validates Read transform object creation if withConfiguration() and withValueTranslation() are called.
@@ -335,14 +333,9 @@ public class HadoopInputFormatIOTest {
 	public void testReadObjectCreationIfWithConfigurationIsNotCalled() {
 		Read<String, String> read = HadoopInputFormatIO.<String, String>read();
 		PBegin input = PBegin.in(pipeline);
-		try{
-			read.validate(input);
-		}
-		catch(NullPointerException ex)
-		{
-			assertEquals( "Need to set the configuration of a HadoopInputFormatIO Read using method Read.withConfiguration().",ex.getMessage());
-		}
-
+		thrown.expect(NullPointerException.class);
+		thrown.expectMessage("Need to set the configuration of a HadoopInputFormatIO Read using method Read.withConfiguration().");
+		read.validate(input);
 	}
 
 
@@ -362,14 +355,10 @@ public class HadoopInputFormatIOTest {
 		Read<String, String> read = HadoopInputFormatIO.<String, String>read()
 				.withConfiguration(conf);
 		PBegin input = PBegin.in(pipeline);
-		try{
-			read.validate(input);
-		}
-		catch(IllegalArgumentException ex)
-		{
-			assertEquals("Hadoop InputFormat class property \"mapreduce.job.inputformat.class\" is not set in configuration.",ex.getMessage());
-		}
 
+		thrown.expect(IllegalArgumentException.class);
+		thrown.expectMessage("Hadoop InputFormat class property \"mapreduce.job.inputformat.class\" is not set in configuration.");
+		read.validate(input);
 	}
 
 	//This test validates functionality of Read.validate() function when key class is not provided by user in configuration.
@@ -389,13 +378,9 @@ public class HadoopInputFormatIOTest {
 		Read<String, String> read = HadoopInputFormatIO.<String, String>read()
 				.withConfiguration(conf);
 		PBegin input = PBegin.in(pipeline);
-		try{
-			read.validate(input);
-		}
-		catch(IllegalArgumentException ex)
-		{
-			assertEquals("Configuration property \"key.class\" is not set.",ex.getMessage());
-		}
+		thrown.expect(IllegalArgumentException.class);
+		thrown.expectMessage("Configuration property \"key.class\" is not set.");
+		read.validate(input);
 
 	}
 
@@ -416,14 +401,9 @@ public class HadoopInputFormatIOTest {
 		Read<String, String> read = HadoopInputFormatIO.<String, String>read()
 				.withConfiguration(conf);
 		PBegin input = PBegin.in(pipeline);
-		try{
-			read.validate(input);
-		}
-		catch(IllegalArgumentException ex)
-		{
-			assertEquals("Configuration property \"value.class\" is not set.",ex.getMessage());
-		}
-
+		thrown.expect(IllegalArgumentException.class);
+		thrown.expectMessage("Configuration property \"value.class\" is not set.");
+		read.validate(input);
 	}
 
 
@@ -444,16 +424,12 @@ public class HadoopInputFormatIOTest {
 				.withConfiguration(conf)
 				.withKeyTranslation(myKeyTranslate);
 		PBegin input = PBegin.in(pipeline);
-		try{
-			read.validate(input);
-		}
-		catch(IllegalArgumentException ex)
-		{
-			String inputFormatClassProperty= conf.get("mapreduce.job.inputformat.class") ;
-			String keyClassProperty= conf.get("key.class");
-			String expectedMessage="Key translation's input type is not same as hadoop input format : "+inputFormatClassProperty+" key class : "+ keyClassProperty;
-			assertEquals(expectedMessage,ex.getMessage());
-		}
+		thrown.expect(IllegalArgumentException.class);
+		String inputFormatClassProperty= conf.get("mapreduce.job.inputformat.class") ;
+		String keyClassProperty= conf.get("key.class");
+		thrown.expectMessage("Key translation's input type is not same as hadoop input format : "+inputFormatClassProperty+" key class : "+ keyClassProperty);
+		read.validate(input);
+
 	}
 
 	//This test validates functionality of Read.validate() function when myValueTranslate's (simple function provided by user for value translation)
@@ -472,16 +448,14 @@ public class HadoopInputFormatIOTest {
 				.withConfiguration(conf)
 				.withValueTranslation(myValueTranslate);
 		PBegin input = PBegin.in(pipeline);
-		try{
-			read.validate(input);
-		}
-		catch(IllegalArgumentException ex)
-		{
-			String inputFormatClassProperty= serConf.getConfiguration().get("mapreduce.job.inputformat.class") ;
-			String keyClassProperty= serConf.getConfiguration().get("value.class");
-			String expectedMessage="Value translation's input type is not same as hadoop input format : "+inputFormatClassProperty+" value class : "+ keyClassProperty;
-			assertEquals(expectedMessage,ex.getMessage());
-		}
+		
+		thrown.expect(IllegalArgumentException.class);
+
+		String inputFormatClassProperty= serConf.getConfiguration().get("mapreduce.job.inputformat.class") ;
+		String keyClassProperty= serConf.getConfiguration().get("value.class");
+		String expectedMessage="Value translation's input type is not same as hadoop input format : "+inputFormatClassProperty+" value class : "+ keyClassProperty;
+		thrown.expectMessage(expectedMessage);
+		read.validate(input);
 	}
 
 	@Test
@@ -503,11 +477,11 @@ public class HadoopInputFormatIOTest {
 
 
 
-	// This test validates behaviour HadoopInputFormatSource if RecordReader object creation fails in start() method.
+	// This test validates behavior HadoopInputFormatSource if RecordReader object creation fails in start() method.
 	@Test
 	public void testReadersStartIfCreateRecordReaderFails() throws Exception {
 		long inputDataSize=9,numberOfSplitsOfDummyInputFormat=3;
-		serConf = getConfiguration(TypeDescriptor.of(DummyBadInputFormat3.class),TypeDescriptor.of(java.lang.String.class),TypeDescriptor.of(java.lang.String.class)); 
+		serConf = getConfiguration(TypeDescriptor.of(BadCreateRecordReaderInputFormat.class),TypeDescriptor.of(java.lang.String.class),TypeDescriptor.of(java.lang.String.class)); 
 		Coder<String> keyCoder = StringUtf8Coder.of();
 		Coder<String> valueCoder = StringUtf8Coder.of();
 		HadoopInputFormatBoundedSource<String, String> parentHIFSource = new HadoopInputFormatBoundedSource<String, String>(serConf, keyCoder, valueCoder);
@@ -518,12 +492,11 @@ public class HadoopInputFormatIOTest {
 		for (BoundedSource<KV<String, String>> source : boundedSourceList) {
 			BoundedReader<KV<String, String>> reader=source.createReader(options);
 			assertEquals(new Double((float)0),reader.getFractionConsumed());
-			try{
-				reader.start();
-			}
-			catch(Exception ex){
-				assertEquals("Exception in creating RecordRader in DummyBadInputFormat4.",ex.getMessage());
-			}
+			thrown.expect(Exception.class);
+			thrown.expectMessage("Exception in creating RecordReader in BadCreateRecordReaderInputFormat");
+			reader.start();
+			
+
 		}
 
 	}
@@ -535,7 +508,7 @@ public class HadoopInputFormatIOTest {
 	public void testReadersCreateReaderAndStartWithZeroRecords() throws Exception {
 		long inputDataSize=9,numberOfSplitsOfDummyInputFormat=3;
 
-		serConf = getConfiguration(TypeDescriptor.of(DummyBadInputFormat3.class),TypeDescriptor.of(java.lang.String.class),TypeDescriptor.of(java.lang.String.class)); 
+		serConf = getConfiguration(TypeDescriptor.of(BadRecordReaderNoRecordsInputFormat.class),TypeDescriptor.of(java.lang.String.class),TypeDescriptor.of(java.lang.String.class)); 
 		Coder<String> keyCoder = StringUtf8Coder.of();
 		Coder<String> valueCoder = StringUtf8Coder.of();
 		HadoopInputFormatBoundedSource<String, String> parentHIFSource = new HadoopInputFormatBoundedSource<String, String>(serConf, keyCoder, valueCoder);
@@ -625,7 +598,7 @@ public class HadoopInputFormatIOTest {
 	}
 
 
-	//This test validates behaviour of HadoopInputFormatSource.createReader() method when HadoopInputFormatSource.splitIntoBundles() is not called.
+	//This test validates behavior of HadoopInputFormatSource.createReader() method when HadoopInputFormatSource.splitIntoBundles() is not called.
 	@Test
 	public void testCreateReaderIfSplitIntoBundlesNotCalled() throws Exception
 	{
@@ -633,13 +606,11 @@ public class HadoopInputFormatIOTest {
 		Coder<String> keyCoder = StringUtf8Coder.of();
 		Coder<String> valueCoder = StringUtf8Coder.of();
 		HadoopInputFormatBoundedSource<String, String> parentHIFSource = new HadoopInputFormatBoundedSource<String, String>(serConf, keyCoder, valueCoder);
-		try{
-			parentHIFSource.createReader(options);
-		}
-		catch(IOException ex){
-			assertEquals("Cannot create reader as source is not split yet.",ex.getMessage());
-		}
+		thrown.expect(IOException.class);
+		thrown.expectMessage("Cannot create reader as source is not split yet.");
 
+		parentHIFSource.createReader(options);
+	
 	}
 
 
@@ -647,24 +618,19 @@ public class HadoopInputFormatIOTest {
 	@Test
 	public void testSplitIntoBundlesIfGetSplitsReturnsEmptyList() throws Exception
 	{
-		serConf = getConfiguration(TypeDescriptor.of(DummyBadInputFormat.class),TypeDescriptor.of(java.lang.String.class),TypeDescriptor.of(java.lang.String.class));
+		serConf = getConfiguration(TypeDescriptor.of(EmptyInputSplitsInputFormat.class),TypeDescriptor.of(java.lang.String.class),TypeDescriptor.of(java.lang.String.class));
 		Coder<String> keyCoder = StringUtf8Coder.of();
 		Coder<String> valueCoder = StringUtf8Coder.of();
 		HadoopInputFormatBoundedSource<String, String> parentHIFSource = new HadoopInputFormatBoundedSource<String, String>(serConf, keyCoder, valueCoder);
-		try{
-			parentHIFSource.getEstimatedSizeBytes(options);
-		}
-		catch(IOException ex)
-		{
-			assertEquals("Cannot split the source as getSplits() is returning empty list.",ex.getMessage());
-		}
-		try{
-			parentHIFSource.splitIntoBundles(0, options);
-		}
-		catch(IOException ex)
-		{
-			assertEquals("Cannot split the source as getSplits() is returning empty list.",ex.getMessage());
-		}
+		thrown.expect(IOException.class);
+		thrown.expectMessage("Cannot split the source as getSplits() is returning empty list.");
+		parentHIFSource.getEstimatedSizeBytes(options);
+		
+		
+		thrown.expect(IOException.class);
+		thrown.expectMessage("Cannot split the source as getSplits() is returning empty list.");
+		parentHIFSource.splitIntoBundles(0, options);
+
 
 	}
 
@@ -673,55 +639,48 @@ public class HadoopInputFormatIOTest {
 	@Test
 	public void testSplitIntoBundlesIfGetSplitsReturnsNullValue() throws Exception
 	{
-		serConf = getConfiguration(TypeDescriptor.of(DummyBadInputFormat2.class),TypeDescriptor.of(java.lang.String.class),TypeDescriptor.of(java.lang.String.class));
+		serConf = getConfiguration(TypeDescriptor.of(NullInputSplitsBadInputFormat.class),TypeDescriptor.of(java.lang.String.class),TypeDescriptor.of(java.lang.String.class));
 		Coder<String> keyCoder = StringUtf8Coder.of();
 		Coder<String> valueCoder = StringUtf8Coder.of();
 		HadoopInputFormatBoundedSource<String, String> parentHIFSource = new HadoopInputFormatBoundedSource<String, String>(serConf, keyCoder, valueCoder);
-		try{
+			thrown.expect(IOException.class);
+			thrown.expectMessage("Cannot split the source as getSplits() is returning null value.");
 			parentHIFSource.getEstimatedSizeBytes(options);
-		}
-		catch(IOException ex)
-		{
-			assertEquals("Cannot split the source as getSplits() is returning null value.",ex.getMessage());
-		}
-		try{
+				
+			thrown.expect(IOException.class);
+			thrown.expectMessage("Cannot split the source as getSplits() is returning null value.");
 			parentHIFSource.splitIntoBundles(0, options);
-		}
-		catch(IOException ex)
-		{
-			assertEquals("Cannot split the source as getSplits() is returning null value.",ex.getMessage());
-		}
-
+			
 	}
 
 	//This test validates functionality of HadoopInputFormatIO if user sets wrong key class and value class.
 	@Test
 	public void testHIFSourceIfUserSetsWrongKeyOrValueClass() throws Exception 
 	{	
-		serConf = getConfiguration(TypeDescriptor.of(DummyInputFormatWithMutableRecords.class),TypeDescriptor.of(java.lang.String.class),TypeDescriptor.of(java.lang.String.class)); 
+		serConf = getConfiguration(TypeDescriptor.of(MutableRecordsInputFormat.class),TypeDescriptor.of(java.lang.String.class),TypeDescriptor.of(java.lang.String.class)); 
 		Coder<String> keyCoder = StringUtf8Coder.of();
 		Coder<String> valueCoder = StringUtf8Coder.of();
 		HadoopInputFormatBoundedSource<String, String> parentHIFSource = new HadoopInputFormatBoundedSource<String, String>(serConf, keyCoder, valueCoder);
 		List<BoundedSource<KV<String, String>>> boundedSourceList = parentHIFSource.splitIntoBundles(0, options);
 		List<KV<String, String>> bundleRecords = new ArrayList<>();
-		try{
+		
 			for (BoundedSource<KV<String, String>> source : boundedSourceList) {
+				thrown.expect(ClassCastException.class);
 				List<KV<String, String>> elems = SourceTestUtils.readFromSource(source, options);
 				bundleRecords.addAll(elems);
 			}
-		}
-		catch(ClassCastException ex){
-			assertTrue((ex.getMessage().startsWith("ValueClass set in configuration "+serConf.getConfiguration().get("value.class")+" is not compatible with valueClass of record reader "))
-					|| (ex.getMessage().startsWith("KeyClass set in configuration "+serConf.getConfiguration().get("key.class")+" is not compatible with keyClass of record reader "))
-					);
-		}
+			
+			//	assertTrue((ex.getMessage().startsWith("ValueClass set in configuration "+serConf.getConfiguration().get("value.class")+" is not compatible with valueClass of record reader "))
+				//	|| (ex.getMessage().startsWith("KeyClass set in configuration "+serConf.getConfiguration().get("key.class")+" is not compatible with keyClass of record reader "))
+				//	);
+		
 	}
 
 	// This test validates records emitted in PCollection are immutable 
 	// if InputFormat's recordReader returns same objects(i.e. same locations in memory) but with updated values for each record.
 	@Test
 	public void testImmutablityOfOutputOfReadIfRecordReaderObjectsAreMutable()  throws Exception {
-		serConf = getConfiguration(TypeDescriptor.of(DummyInputFormatWithMutableRecords.class),TypeDescriptor.of(java.lang.String.class),TypeDescriptor.of(Employee.class)); 
+		serConf = getConfiguration(TypeDescriptor.of(MutableRecordsInputFormat.class),TypeDescriptor.of(java.lang.String.class),TypeDescriptor.of(Employee.class)); 
 		Coder<String> keyCoder = StringUtf8Coder.of();
 		//Coder<Employee> valueCoder = AvroCoder.of(Employee.class);
 		Coder<Employee> valueCoder = EmployeeCoder.of();
@@ -756,7 +715,7 @@ public class HadoopInputFormatIOTest {
 	@Test
 	public void testImmutablityOfOutputOfReadIfRecordReaderObjectsAreImmutable()  throws Exception {
 
-		serConf = getConfiguration(TypeDescriptor.of(DummyInputFormatWithImmutableRecords.class),TypeDescriptor.of(java.lang.String.class),TypeDescriptor.of(Employee.class)); 
+		serConf = getConfiguration(TypeDescriptor.of(ImmutableRecordsInputFormat.class),TypeDescriptor.of(java.lang.String.class),TypeDescriptor.of(Employee.class)); 
 		Coder<String> keyCoder = StringUtf8Coder.of();
 		//Coder<Employee> valueCoder = AvroCoder.of(Employee.class);
 		Coder<Employee> valueCoder = EmployeeCoder.of();

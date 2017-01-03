@@ -26,6 +26,7 @@ import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.DefaultCoder;
 import org.apache.beam.sdk.io.hadoop.inputformat.HadoopInputFormatIO;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.TypeDescriptor;
@@ -45,9 +46,8 @@ public class HIFWithCassandraTest implements Serializable {
 	@Test
 	public void testHadoopInputFormatSource() throws IOException {
 
-		DirectOptions directRunnerOptions = PipelineOptionsFactory
-				.as(DirectOptions.class);
-		Pipeline p = Pipeline.create(directRunnerOptions);
+		
+		Pipeline p = TestPipeline.create();
 		Configuration conf = new Configuration();
 
 		String KEYSPACE = "mobile_data_usage";

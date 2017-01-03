@@ -24,6 +24,8 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 
+import org.apache.beam.sdk.io.hadoop.inputformat.unit.tests.HadoopInputFormatIOTest;
+import org.apache.beam.sdk.io.hadoop.inputformat.unit.tests.HadoopInputFormatIOTest.Employee;
 import org.apache.hadoop.io.Writable;
 import org.apache.hadoop.mapreduce.InputFormat;
 import org.apache.hadoop.mapreduce.InputSplit;
@@ -31,17 +33,16 @@ import org.apache.hadoop.mapreduce.JobContext;
 import org.apache.hadoop.mapreduce.RecordReader;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
 
-//Bad input format which returns null in getSplits() method
-public class DummyBadInputFormat2 extends InputFormat {
+public class ImmutableRecordsInputFormat extends InputFormat {
 	int numberOfRecordsInEachSplits = 3;
 	int numberOfSplits = 3;
 
-	public DummyBadInputFormat2() {
+	public ImmutableRecordsInputFormat() {
 
 	}
 
 	@Override
-	public RecordReader<String, String> createRecordReader(InputSplit split, TaskAttemptContext context)
+	public RecordReader<String, Employee> createRecordReader(InputSplit split, TaskAttemptContext context)
 			throws IOException, InterruptedException {
 		DummyRecordReader dummyRecordReaderObj = new DummyRecordReader();
 		dummyRecordReaderObj.initialize(split, context);
@@ -50,7 +51,14 @@ public class DummyBadInputFormat2 extends InputFormat {
 
 	@Override
 	public List<InputSplit> getSplits(JobContext arg0) throws IOException, InterruptedException {
-		return null;
+		InputSplit dummyInputSplitObj;
+		List<InputSplit> inputSplitList = new ArrayList();
+		for (int i = 0; i < numberOfSplits; i++) {
+			dummyInputSplitObj = new DummyInputSplit((i * numberOfSplits),
+					((i * numberOfSplits) + numberOfRecordsInEachSplits));
+			inputSplitList.add(dummyInputSplitObj);
+		}
+		return inputSplitList;
 	}
 
 	public class DummyInputSplit extends InputSplit implements Writable {
@@ -90,13 +98,13 @@ public class DummyBadInputFormat2 extends InputFormat {
 
 	}
 
-	class DummyRecordReader extends RecordReader<String, String> {
+	class DummyRecordReader extends RecordReader<String, Employee> {
 
-		String currentValue = null;
 		int pointer = 0,recordsRead=0;
 		long numberOfRecordsInSplit=0;
+		Employee currentEmp;
 		HashMap<Integer, String> hmap = new HashMap<Integer, String>();
-
+		HadoopInputFormatIOTest hadoopInputFormatIOTest=new HadoopInputFormatIOTest();
 		public DummyRecordReader() {
 
 		}
@@ -108,13 +116,12 @@ public class DummyBadInputFormat2 extends InputFormat {
 
 		@Override
 		public String getCurrentKey() throws IOException, InterruptedException {
-
 			return String.valueOf(pointer);
 		}
 
 		@Override
-		public String getCurrentValue() throws IOException, InterruptedException {
-			return hmap.get(new Integer(pointer));
+		public Employee getCurrentValue() throws IOException, InterruptedException {
+			return currentEmp;
 		}
 
 		@Override
@@ -135,12 +142,11 @@ public class DummyBadInputFormat2 extends InputFormat {
 			hmap.put(7, "apache");
 			hmap.put(8, "beam");
 			hmap.put(9, "beam");
-
 			DummyInputSplit dummySplit = (DummyInputSplit) split;
-			// String[] splitData=dummySplit.getLocations();
 			pointer = dummySplit.startIndex - 1;
 			numberOfRecordsInSplit=dummySplit.getLength();
 			recordsRead = 0;
+			currentEmp = hadoopInputFormatIOTest.new Employee(null,null);
 		}
 
 		@Override
@@ -149,7 +155,8 @@ public class DummyBadInputFormat2 extends InputFormat {
 				return false;
 			pointer++;
 			boolean hasNext = hmap.containsKey(pointer);
-
+			if(hasNext)
+				currentEmp=hadoopInputFormatIOTest.new Employee(String.valueOf(pointer), hmap.get(new Integer(pointer)));
 			return hasNext;
 		}
 

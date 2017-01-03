@@ -33,11 +33,11 @@ import org.apache.hadoop.mapreduce.JobContext;
 import org.apache.hadoop.mapreduce.RecordReader;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
 
-public class DummyInputFormatWithMutableRecords extends InputFormat {
+public class MutableRecordsInputFormat extends InputFormat {
 	int numberOfRecordsInEachSplits = 3;
 	int numberOfSplits = 3;
 
-	public DummyInputFormatWithMutableRecords() {
+	public MutableRecordsInputFormat() {
 
 	}
 
