@@ -46,7 +46,7 @@ public class MinTest {
   @Test
   public void testMinIntegerFn() {
     checkCombineFn(
-        new Min.MinIntegerFn(),
+        Min.ofIntegers(),
         Lists.newArrayList(1, 2, 3, 4),
         1);
   }
@@ -54,7 +54,7 @@ public class MinTest {
   @Test
   public void testMinLongFn() {
     checkCombineFn(
-        new Min.MinLongFn(),
+        Min.ofLongs(),
         Lists.newArrayList(1L, 2L, 3L, 4L),
         1L);
   }
@@ -62,7 +62,7 @@ public class MinTest {
   @Test
   public void testMinDoubleFn() {
     checkCombineFn(
-        new Min.MinDoubleFn(),
+        Min.ofDoubles(),
         Lists.newArrayList(1.0, 2.0, 3.0, 4.0),
         1.0);
   }

@@ -127,7 +127,7 @@ public class GameStats extends LeaderBoard {
               .withSideInputs(globalMeanScore)
               .of(new DoFn<KV<String, Integer>, KV<String, Integer>>() {
                 private final Aggregator<Long, Long> numSpammerUsers =
-                  createAggregator("SpammerUsers", new Sum.SumLongFn());
+                  createAggregator("SpammerUsers", Sum.ofLongs());
                 @ProcessElement
                 public void processElement(ProcessContext c) {
                   Integer score = c.element().getValue();

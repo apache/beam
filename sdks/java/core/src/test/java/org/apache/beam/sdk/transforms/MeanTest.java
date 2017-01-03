@@ -65,7 +65,7 @@ public class MeanTest {
   @Test
   public void testMeanFn() throws Exception {
     checkCombineFn(
-        new Mean.MeanFn<Integer>(),
+        Mean.<Integer>of(),
         Lists.newArrayList(1, 2, 3, 4),
         2.5);
   }

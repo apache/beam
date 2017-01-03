@@ -37,7 +37,7 @@ public class AfterPane extends OnceTrigger {
 private static final StateTag<Object, AccumulatorCombiningState<Long, long[], Long>>
       ELEMENTS_IN_PANE_TAG =
       StateTags.makeSystemTagInternal(StateTags.combiningValueFromInputInternal(
-          "count", VarLongCoder.of(), new Sum.SumLongFn()));
+          "count", VarLongCoder.of(), Sum.ofLongs()));
 
   private final int countElems;
 
