@@ -36,7 +36,7 @@ page at http://checkstyle.sourceforge.net/config.html -->
       </pre>
     -->
     <property name="format"
-        value="^(//| \*) Copyright (\([cC]\) )?[\d]{4}(\-[\d]{4})? (Google Inc\.|The Google Cloud Dataflow.*Authors).*$" />
+        value="^(//| \*|#) Copyright (\([cC]\) )?[\d]{4}(\-[\d]{4})? (Google Inc\.|The Google Cloud Dataflow.*Authors).*$" />
     <property name="minimum" value="1" />
     <property name="maximum" value="10" />
     <property name="message" value="Google copyright is missing or malformed." />

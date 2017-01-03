@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-  ~ Copyright (C) 2015 Google Inc.
+  ~ Copyright (C) 2017 Google Inc.
   ~
   ~ Licensed under the Apache License, Version 2.0 (the "License"); you may not
   ~ use this file except in compliance with the License. You may obtain a copy of
@@ -22,16 +22,16 @@
   <parent>
     <groupId>com.google.cloud.dataflow</groupId>
     <artifactId>google-cloud-dataflow-java-sdk-parent</artifactId>
-    <version>1.10.0-SNAPSHOT</version>
+    <version>2.0.0-beta1-SNAPSHOT</version>
     <relativePath>../../pom.xml</relativePath>
   </parent>
 
-  <groupId>com.google.cloud.dataflow</groupId>
   <artifactId>google-cloud-dataflow-java-archetypes-starter</artifactId>
-  <name>Google Cloud Dataflow Java SDK - Starter Archetype</name>
-  <description>A Maven archetype to create a simple starter pipeline to
-    get started using the Google Cloud Dataflow Java SDK. </description>
-  <url>http://cloud.google.com/dataflow</url>
+  <name>Google Cloud Dataflow SDK for Java - Starter Archetype</name>
+  <description>Google Cloud Dataflow SDK for Java is a distribution of Apache
+      Beam designed to simplify usage of Apache Beam on Google Cloud Dataflow
+      service. This archetype creates a simple starter pipeline to get started
+      using the Google Cloud Dataflow SDK for Java.</description>
 
   <packaging>maven-archetype</packaging>
 
@@ -43,14 +43,5 @@
         <version>2.4</version>
       </extension>
     </extensions>
-
-    <pluginManagement>
-      <plugins>
-        <plugin>
-          <artifactId>maven-archetype-plugin</artifactId>
-          <version>2.4</version>
-        </plugin>
-      </plugins>
-    </pluginManagement>
   </build>
 </project>
