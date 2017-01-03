@@ -48,7 +48,7 @@ public class SparkPCollectionView implements Serializable {
         Coder<Iterable<WindowedValue<?>>> coder,
         JavaSparkContext context) {
 
-        pviews.put(view, new Tuple2(CoderHelpers.toByteArray(value, coder), coder));
+        pviews.put(view, new Tuple2<>(CoderHelpers.toByteArray(value, coder), coder));
         // overwrite/create broadcast
         getPCollectionView(view, context, true);
     }
@@ -84,7 +84,7 @@ public class SparkPCollectionView implements Serializable {
         } else if (overwrite) {
             synchronized (SparkPCollectionView.class) {
                 // Currently unsynchronized unpersist, if needed can be changed to blocking
-                helper.unpersist(context);
+                helper.unpersist();
                 helper = createBroadcastHelper(view, context);
             }
         }

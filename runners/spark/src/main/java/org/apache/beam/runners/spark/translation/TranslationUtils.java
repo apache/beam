@@ -191,7 +191,7 @@ public final class TranslationUtils {
    * @param context The {@link EvaluationContext}.
    * @return a map of tagged {@link BroadcastHelper}s and their {@link WindowingStrategy}.
    */
-  public static Map<TupleTag<?>, KV<WindowingStrategy<?, ?>, BroadcastHelper<?>>>
+  static Map<TupleTag<?>, KV<WindowingStrategy<?, ?>, BroadcastHelper<?>>>
   getSideInputs(List<PCollectionView<?>> views, EvaluationContext context) {
     return getSideInputs(views, context.getSparkContext(), context.getPviews());
   }

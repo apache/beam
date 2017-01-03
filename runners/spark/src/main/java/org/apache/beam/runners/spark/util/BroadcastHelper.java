@@ -50,7 +50,7 @@ public class BroadcastHelper<T> implements Serializable {
   }
 
   public static <T> BroadcastHelper<T> create(byte[] bytes, Coder<T> coder) {
-    return new BroadcastHelper<T>(bytes, coder);
+    return new BroadcastHelper<>(bytes, coder);
   }
 
     public synchronized T getValue() {
@@ -64,7 +64,7 @@ public class BroadcastHelper<T> implements Serializable {
       this.bcast = jsc.broadcast(bytes);
     }
 
-   public void unpersist(JavaSparkContext jsc) {
+   public void unpersist() {
       this.bcast.unpersist();
     }
 

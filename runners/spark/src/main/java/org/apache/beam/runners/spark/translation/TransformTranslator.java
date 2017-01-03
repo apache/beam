@@ -534,8 +534,8 @@ public final class TransformTranslator {
         Coder<Iterable<WindowedValue<?>>> coderInternal = output.getCoderInternal();
 
         context.putPView(output,
-                (Iterable<WindowedValue<?>>) iter,
-                coderInternal);
+            (Iterable<WindowedValue<?>>) iter,
+            coderInternal);
       }
     };
   }
@@ -568,8 +568,8 @@ public final class TransformTranslator {
         Coder<Iterable<WindowedValue<?>>> coderInternal = output.getCoderInternal();
 
         context.putPView(output,
-                (Iterable<WindowedValue<?>>) iter,
-                coderInternal);
+            (Iterable<WindowedValue<?>>) iter,
+            coderInternal);
       }
     };
   }
