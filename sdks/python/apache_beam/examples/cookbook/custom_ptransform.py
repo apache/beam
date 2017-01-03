@@ -26,7 +26,8 @@ import argparse
 import logging
 
 import apache_beam as beam
-
+from apache_beam.io import ReadFromText
+from apache_beam.io import WriteToText
 from apache_beam.utils.pipeline_options import PipelineOptions
 
 
@@ -66,9 +67,9 @@ def run_count2(known_args, options):
   """Runs the second example pipeline."""
   logging.info('Running second pipeline')
   p = beam.Pipeline(options=options)
-  (p | beam.io.Read(beam.io.TextFileSource(known_args.input))
+  (p | ReadFromText(known_args.input)
    | Count2()  # pylint: disable=no-value-for-parameter
-   | beam.io.Write(beam.io.TextFileSink(known_args.output)))
+   | WriteToText(known_args.output))
   p.run()
 
 
@@ -93,9 +94,9 @@ def run_count3(known_args, options):
   """Runs the third example pipeline."""
   logging.info('Running third pipeline')
   p = beam.Pipeline(options=options)
-  (p | beam.io.Read(beam.io.TextFileSource(known_args.input))
+  (p | ReadFromText(known_args.input)
    | Count3(2)  # pylint: disable=no-value-for-parameter
-   | beam.io.Write(beam.io.TextFileSink(known_args.output)))
+   | WriteToText(known_args.output))
   p.run()
 
 

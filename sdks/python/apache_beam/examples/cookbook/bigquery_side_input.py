@@ -33,6 +33,7 @@ from random import randrange
 
 import apache_beam as beam
 
+from apache_beam.io import WriteToText
 from apache_beam.pvalue import AsList
 from apache_beam.pvalue import AsSingleton
 from apache_beam.utils.pipeline_options import PipelineOptions
@@ -113,7 +114,7 @@ def run(argv=None):
                                pcoll_ignore_corpus, pcoll_ignore_word)
 
   # pylint:disable=expression-not-assigned
-  pcoll_groups | beam.io.Write(beam.io.TextFileSink(known_args.output))
+  pcoll_groups | WriteToText(known_args.output)
   p.run()
 
 

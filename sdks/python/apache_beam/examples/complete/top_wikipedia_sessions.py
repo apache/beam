@@ -46,6 +46,8 @@ import logging
 import apache_beam as beam
 from apache_beam import combiners
 from apache_beam import window
+from apache_beam.io import ReadFromText
+from apache_beam.io import WriteToText
 from apache_beam.utils.pipeline_options import PipelineOptions
 from apache_beam.utils.pipeline_options import SetupOptions
 
@@ -168,9 +170,9 @@ def run(argv=None):
   p = beam.Pipeline(options=pipeline_options)
 
   (p  # pylint: disable=expression-not-assigned
-   | beam.Read(beam.io.TextFileSource(known_args.input))
+   | ReadFromText(known_args.input)
    | ComputeTopSessions(known_args.sampling_threshold)
-   | beam.io.Write(beam.io.TextFileSink(known_args.output)))
+   | WriteToText(known_args.output))
 
   p.run()
 

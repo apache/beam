@@ -46,6 +46,8 @@ import logging
 import re
 
 import apache_beam as beam
+from apache_beam.io import ReadFromText
+from apache_beam.io import WriteToText
 from apache_beam.utils.pipeline_options import PipelineOptions
 from apache_beam.utils.pipeline_options import SetupOptions
 
@@ -126,7 +128,7 @@ def run(argv=None):
   # Read the text file[pattern] into a PCollection, count the occurrences of
   # each word and filter by a list of words.
   filtered_words = (
-      p | 'read' >> beam.io.Read(beam.io.TextFileSource(known_args.input))
+      p | 'read' >> ReadFromText(known_args.input)
       | CountWords()
       | 'FilterText' >> beam.ParDo(FilterTextFn('Flourish|stomach')))
 
@@ -146,7 +148,7 @@ def run(argv=None):
   # pylint: disable=unused-variable
   output = (filtered_words
             | 'format' >> beam.Map(lambda (word, c): '%s: %s' % (word, c))
-            | 'write' >> beam.io.Write(beam.io.TextFileSink(known_args.output)))
+            | 'write' >> WriteToText(known_args.output))
 
   # Actually run the pipeline (all operations above are deferred).
   p.run()
