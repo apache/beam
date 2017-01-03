@@ -152,6 +152,8 @@ include "beam-sdks-java-io-mqtt"
 project(":beam-sdks-java-io-mqtt").dir = file("sdks/java/io/mqtt")
 include "beam-sdks-java-io-parquet"
 project(":beam-sdks-java-io-parquet").dir = file("sdks/java/io/parquet")
+include "beam-sdks-java-io-rabbitmq"
+project(":beam-sdks-java-io-rabbitmq").dir = file("sdks/java/io/rabbitmq")
 include "beam-sdks-java-io-redis"
 project(":beam-sdks-java-io-redis").dir = file("sdks/java/io/redis")
 include "beam-sdks-java-io-solr"
