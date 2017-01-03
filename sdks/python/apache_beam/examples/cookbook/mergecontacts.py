@@ -36,6 +36,8 @@ import logging
 import re
 
 import apache_beam as beam
+from apache_beam.io import ReadFromText
+from apache_beam.io import WriteToText
 from apache_beam.utils.pipeline_options import PipelineOptions
 from apache_beam.utils.pipeline_options import SetupOptions
 
@@ -72,7 +74,7 @@ def run(argv=None, assert_results=None):
   # quotes/backslashes, and convert it a PCollection of (key, value) pairs.
   def read_kv_textfile(label, textfile):
     return (p
-            | beam.io.Read('read_%s' % label, textfile)
+            | 'read_%s' % label >> ReadFromText(textfile)
             | beam.Map('backslash_%s' % label,
                        lambda x: re.sub(r'\\', r'\\\\', x))
             | beam.Map('escape_quotes_%s' % label,
@@ -80,12 +82,9 @@ def run(argv=None, assert_results=None):
             | beam.Map('split_%s' % label, lambda x: re.split(r'\t+', x, 1)))
 
   # Read input databases.
-  email = read_kv_textfile('email',
-                           beam.io.TextFileSource(known_args.input_email))
-  phone = read_kv_textfile('phone',
-                           beam.io.TextFileSource(known_args.input_phone))
-  snailmail = read_kv_textfile('snailmail', beam.io.TextFileSource(
-      known_args.input_snailmail))
+  email = read_kv_textfile('email', known_args.input_email)
+  phone = read_kv_textfile('phone', known_args.input_phone)
+  snailmail = read_kv_textfile('snailmail', known_args.input_snailmail)
 
   # Group together all entries under the same name.
   grouped = (email, phone, snailmail) | 'group_by_name' >> beam.CoGroupByKey()
@@ -113,8 +112,7 @@ def run(argv=None, assert_results=None):
 
   # Write tab-delimited output.
   # pylint: disable=expression-not-assigned
-  tsv_lines | beam.io.Write('write_tsv',
-                            beam.io.TextFileSink(known_args.output_tsv))
+  tsv_lines | 'write_tsv' >> WriteToText(known_args.output_tsv)
 
   # TODO(silviuc): Move the assert_results logic to the unit test.
   if assert_results is not None:

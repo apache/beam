@@ -33,6 +33,8 @@ import sys
 
 import apache_beam as beam
 from apache_beam import coders
+from apache_beam.io import ReadFromText
+from apache_beam.io import WriteToText
 from apache_beam.typehints import typehints
 from apache_beam.typehints.decorators import with_output_types
 from apache_beam.utils.pipeline_options import PipelineOptions
@@ -98,7 +100,7 @@ def run(argv=sys.argv[1:]):
   coders.registry.register_coder(Player, PlayerCoder)
 
   (p  # pylint: disable=expression-not-assigned
-   | beam.io.Read(beam.io.TextFileSource(known_args.input))
+   | ReadFromText(known_args.input)
    # The get_players function is annotated with a type hint above, so the type
    # system knows the output type of the following operation is a key-value pair
    # of a Player and an int. Please see the documentation for details on
@@ -111,7 +113,7 @@ def run(argv=sys.argv[1:]):
    # encode Player objects as keys for this combine operation.
    | beam.CombinePerKey(sum)
    | beam.Map(lambda (k, v): '%s,%d' % (k.name, v))
-   | beam.io.Write(beam.io.TextFileSink(known_args.output)))
+   | WriteToText(known_args.output))
   p.run()
 
 

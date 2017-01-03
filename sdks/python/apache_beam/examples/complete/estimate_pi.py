@@ -33,6 +33,7 @@ import random
 
 
 import apache_beam as beam
+from apache_beam.io import WriteToText
 from apache_beam.typehints import Any
 from apache_beam.typehints import Iterable
 from apache_beam.typehints import Tuple
@@ -113,8 +114,7 @@ def run(argv=None):
 
   (p  # pylint: disable=expression-not-assigned
    | EstimatePiTransform()
-   | beam.io.Write(beam.io.TextFileSink(known_args.output,
-                                        coder=JsonCoder())))
+   | WriteToText(known_args.output, coder=JsonCoder()))
 
   # Actually run the pipeline (all operations above are deferred).
   p.run()

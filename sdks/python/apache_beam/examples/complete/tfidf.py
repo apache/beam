@@ -29,6 +29,8 @@ import math
 import re
 
 import apache_beam as beam
+from apache_beam.io import ReadFromText
+from apache_beam.io import WriteToText
 from apache_beam.pvalue import AsSingleton
 from apache_beam.utils.pipeline_options import PipelineOptions
 from apache_beam.utils.pipeline_options import SetupOptions
@@ -40,7 +42,7 @@ def read_documents(pipeline, uris):
   for uri in uris:
     pcolls.append(
         pipeline
-        | beam.io.Read('read: %s' % uri, beam.io.TextFileSource(uri))
+        | 'read: %s' % uri >> ReadFromText(uri)
         | beam.Map('withkey: %s' % uri, lambda v, uri: (uri, v), uri))
   return pcolls | 'flatten read pcolls' >> beam.Flatten()
 
@@ -197,7 +199,7 @@ def run(argv=None):
   output = pcoll | TfIdf()
   # Write the output using a "Write" transform that has side effects.
   # pylint: disable=expression-not-assigned
-  output | 'write' >> beam.io.Write(beam.io.TextFileSink(known_args.output))
+  output | 'write' >> WriteToText(known_args.output)
   p.run()
 
 

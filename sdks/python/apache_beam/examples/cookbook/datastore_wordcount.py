@@ -71,6 +71,7 @@ from google.datastore.v1 import query_pb2
 from googledatastore import helper as datastore_helper, PropertyFilter
 
 import apache_beam as beam
+from apache_beam.io import ReadFromText
 from apache_beam.io.datastore.v1.datastoreio import ReadFromDatastore
 from apache_beam.io.datastore.v1.datastoreio import WriteToDatastore
 from apache_beam.utils.pipeline_options import GoogleCloudOptions
@@ -133,7 +134,7 @@ def write_to_datastore(project, user_options, pipeline_options):
 
   # pylint: disable=expression-not-assigned
   (p
-   | 'read' >> beam.io.Read(beam.io.TextFileSource(user_options.input))
+   | 'read' >> ReadFromText(user_options.input)
    | 'create entity' >> beam.Map(
        EntityWrapper(user_options.namespace, user_options.kind,
                      user_options.ancestor).make_entity)
