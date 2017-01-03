@@ -117,7 +117,7 @@ final class ParDoEvaluatorFactory<InputT, OutputT> implements TransformEvaluator
             mainOutputTag,
             sideOutputTags,
             stepContext,
-            fnManager.<InputT, OutputT>get(),
+            fnManager.<InputT, OutputT>get().getFn(),
             fnManager),
         fnManager);
   }

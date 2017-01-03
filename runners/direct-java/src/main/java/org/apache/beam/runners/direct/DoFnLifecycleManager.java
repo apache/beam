@@ -30,6 +30,7 @@ import org.apache.beam.sdk.runners.PipelineRunner;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFn.Setup;
 import org.apache.beam.sdk.transforms.DoFn.Teardown;
+import org.apache.beam.sdk.transforms.reflect.DoFnInvoker;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvokers;
 import org.apache.beam.sdk.util.SerializableUtils;
 
@@ -46,7 +47,7 @@ class DoFnLifecycleManager {
     return new DoFnLifecycleManager(original);
   }
 
-  private final LoadingCache<Thread, DoFn<?, ?>> outstanding;
+  private final LoadingCache<Thread, DoFnInvoker<?, ?>> outstanding;
   private final ConcurrentMap<Thread, Exception> thrownOnTeardown;
 
   private DoFnLifecycleManager(DoFn<?, ?> original) {
@@ -56,9 +57,9 @@ class DoFnLifecycleManager {
     thrownOnTeardown = new ConcurrentHashMap<>();
   }
 
-  public <InputT, OutputT> DoFn<InputT, OutputT> get() throws Exception {
+  public <InputT, OutputT> DoFnInvoker<InputT, OutputT> get() throws Exception {
     Thread currentThread = Thread.currentThread();
-    return (DoFn<InputT, OutputT>) outstanding.get(currentThread);
+    return (DoFnInvoker<InputT, OutputT>) outstanding.get(currentThread);
   }
 
   public void remove() throws Exception {
@@ -88,7 +89,7 @@ class DoFnLifecycleManager {
     return thrownOnTeardown.values();
   }
 
-  private static class DeserializingCacheLoader extends CacheLoader<Thread, DoFn<?, ?>> {
+  private static class DeserializingCacheLoader extends CacheLoader<Thread, DoFnInvoker<?, ?>> {
     private final byte[] original;
 
     public DeserializingCacheLoader(DoFn<?, ?> original) {
@@ -96,19 +97,20 @@ class DoFnLifecycleManager {
     }
 
     @Override
-    public DoFn<?, ?> load(Thread key) throws Exception {
+    public DoFnInvoker<?, ?> load(Thread key) throws Exception {
       DoFn<?, ?> fn = (DoFn<?, ?>) SerializableUtils.deserializeFromByteArray(original,
           "DoFn Copy in thread " + key.getName());
-      DoFnInvokers.invokerFor(fn).invokeSetup();
-      return fn;
+      DoFnInvoker<?, ?> invoker = DoFnInvokers.invokerFor(fn);
+      invoker.invokeSetup();
+      return invoker;
     }
   }
 
-  private class TeardownRemovedFnListener implements RemovalListener<Thread, DoFn<?, ?>> {
+  private class TeardownRemovedFnListener implements RemovalListener<Thread, DoFnInvoker<?, ?>> {
     @Override
-    public void onRemoval(RemovalNotification<Thread, DoFn<?, ?>> notification) {
+    public void onRemoval(RemovalNotification<Thread, DoFnInvoker<?, ?>> notification) {
       try {
-        DoFnInvokers.invokerFor(notification.getValue()).invokeTeardown();
+        notification.getValue().invokeTeardown();
       } catch (Exception e) {
         thrownOnTeardown.put(notification.getKey(), e);
       }

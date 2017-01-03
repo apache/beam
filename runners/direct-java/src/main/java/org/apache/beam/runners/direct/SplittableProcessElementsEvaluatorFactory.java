@@ -79,7 +79,7 @@ class SplittableProcessElementsEvaluatorFactory<InputT, OutputT, RestrictionT>
     DoFnLifecycleManager fnManager = delegateFactory.getManagerForCloneOf(transform.getFn());
 
     SplittableParDo.ProcessFn<InputT, OutputT, RestrictionT, ?> processFn =
-        transform.newProcessFn(fnManager.<InputT, OutputT>get());
+        transform.newProcessFn(fnManager.<InputT, OutputT>get().getFn());
 
     String stepName = evaluationContext.getStepName(application);
     final DirectExecutionContext.DirectStepContext stepContext =
