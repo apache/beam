@@ -134,7 +134,7 @@ public class Min {
   }
 
   /**
-   * A {@code CombineFn} that computes the maximum of a collection of elements of type {@code T}
+   * A {@code CombineFn} that computes the minimum of a collection of elements of type {@code T}
    * using an arbitrary {@link Comparator} and an {@code identity},
    * useful as an argument to {@link Combine#globally} or {@link Combine#perKey}.
    *
@@ -146,7 +146,7 @@ public class Min {
   }
 
   /**
-   * A {@code CombineFn} that computes the maximum of a collection of elements of type {@code T}
+   * A {@code CombineFn} that computes the minimum of a collection of elements of type {@code T}
    * using an arbitrary {@link Comparator}, useful as an argument to {@link Combine#globally} or
    * {@link Combine#perKey}.
    *

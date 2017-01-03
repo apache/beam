@@ -153,9 +153,9 @@ public class NamedAggregators implements Serializable {
   }
 
   /**
-   * @param <InputT>    Input data type
+   * @param <InputT> Input data type
    * @param <InterT> Intermediate data type (useful for averages)
-   * @param <OutputT>   Output data type
+   * @param <OutputT> Output data type
    */
   public static class CombineFunctionState<InputT, InterT, OutputT>
       implements State<InputT, InterT, OutputT> {
