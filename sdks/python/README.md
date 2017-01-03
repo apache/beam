@@ -175,7 +175,7 @@ p = beam.Pipeline('DirectRunner')
 # Create a PCollection with names and write it to a file.
 (p
  | 'add names' >> beam.Create(['Ann', 'Joe'])
- | 'save' >> beam.io.Write(beam.io.TextFileSink('./names')))
+ | 'save' >> beam.io.WriteToText('./names'))
 # Execute the pipeline.
 p.run()
 ```
@@ -189,9 +189,9 @@ import apache_beam as beam
 p = beam.Pipeline('DirectRunner')
 # Read a file containing names, add a greeting to each name, and write to a file.
 (p
- | 'load names' >> beam.Read(beam.io.TextFileSource('./names'))
+ | 'load names' >> beam.io.ReadFromText('./names')
  | 'add greeting' >> beam.Map(lambda name, msg: '%s, %s!' % (msg, name), 'Hello')
- | 'save' >> beam.Write(beam.io.TextFileSink('./greetings')))
+ | 'save' >> beam.io.WriteToText('./greetings'))
 p.run()
 ```
 
@@ -207,11 +207,11 @@ import apache_beam as beam
 p = beam.Pipeline('DirectRunner')
 # Read a file containing names, add two greetings to each name, and write to a file.
 (p
- | 'load names' >> beam.Read(beam.io.TextFileSource('./names'))
+ | 'load names' >> beam.io.ReadFromText('./names')
  | 'add greetings' >> beam.FlatMap(
     lambda name, messages: ['%s %s!' % (msg, name) for msg in messages],
     ['Hello', 'Hola'])
- | 'save' >> beam.Write(beam.io.TextFileSink('./greetings')))
+ | 'save' >> beam.io.WriteToText('./greetings'))
 p.run()
 ```
 
@@ -230,9 +230,9 @@ def add_greetings(name, messages):
     yield '%s %s!' % (msg, name)
 
 (p
- | 'load names' >> beam.Read(beam.io.TextFileSource('./names'))
+ | 'load names' >> beam.io.ReadFromText('./names')
  | 'add greetings' >> beam.FlatMap(add_greetings, ['Hello', 'Hola'])
- | 'save' >> beam.Write(beam.io.TextFileSink('./greetings')))
+ | 'save' >> beam.io.WriteToText('./greetings'))
 p.run()
 ```
 
@@ -245,11 +245,10 @@ import re
 import apache_beam as beam
 p = beam.Pipeline('DirectRunner')
 (p
- | 'read' >> beam.Read(
-    beam.io.TextFileSource('gs://dataflow-samples/shakespeare/kinglear.txt'))
+ | 'read' >> beam.io.ReadFromText('gs://dataflow-samples/shakespeare/kinglear.txt')
  | 'split' >> beam.FlatMap(lambda x: re.findall(r'\w+', x))
  | 'count words' >> beam.combiners.Count.PerElement()
- | 'save' >> beam.Write(beam.io.TextFileSink('./word_count')))
+ | 'save' >> beam.io.WriteToText('./word_count'))
 p.run()
 ```
 
@@ -271,10 +270,10 @@ class MyCountTransform(beam.PTransform):
             | 'count words' >> beam.Map(lambda (word, counts): (word, len(counts))))
 
 (p
- | 'read' >> beam.Read(beam.io.TextFileSource('./names*'))
+ | 'read' >> beam.io.ReadFromText('./names*')
  | 'split' >> beam.FlatMap(lambda x: re.findall(r'\w+', x))
  | MyCountTransform()
- | 'write' >> beam.Write(beam.io.TextFileSink('./word_count')))
+ | 'write' >> beam.io.WriteToText('./word_count'))
 p.run()
 ```
 
@@ -288,10 +287,10 @@ import apache_beam as beam
 from apache_beam.typehints import typehints
 p = beam.Pipeline('DirectRunner')
 (p
- | 'read' >> beam.Read(beam.io.TextFileSource('./names'))
+ | 'read' >> beam.io.ReadFromText('./names')
  | 'add types' >> beam.Map(lambda x: (x, 1)).with_output_types(typehints.KV[str, int])
  | 'group words' >> beam.GroupByKey()
- | 'save' >> beam.Write(beam.io.TextFileSink('./typed_names')))
+ | 'save' >> beam.io.WriteToText('./typed_names'))
 p.run()
 ```
 
@@ -354,7 +353,7 @@ SAMPLE_DATA = [('a', 1), ('b', 10), ('a', 2), ('a', 3), ('b', 20)]
 (p
  | beam.Create(SAMPLE_DATA)
  | beam.CombinePerKey(sum)
- | beam.Write(beam.io.TextFileSink('./sums')))
+ | beam.io.WriteToText('./sums'))
 p.run()
 ```
 
