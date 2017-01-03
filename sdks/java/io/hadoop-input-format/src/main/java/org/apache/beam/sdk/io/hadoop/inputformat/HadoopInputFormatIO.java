@@ -201,7 +201,7 @@ public class HadoopInputFormatIO {
 				}
 			}
 			builder.addIfNotNull(DisplayData.item("KeyClass", getKeyClass().getRawType()).withLabel("Output key class"))
-					.addIfNotNull(DisplayData.item("ValueClass", getValueClass().getRawType()).withLabel("Output value class"));
+			.addIfNotNull(DisplayData.item("ValueClass", getValueClass().getRawType()).withLabel("Output value class"));
 
 		}
 
@@ -403,7 +403,8 @@ public class HadoopInputFormatIO {
 					currentReader.close();
 					currentReader = null;
 				} catch (InterruptedException e) {
-					e.printStackTrace();
+					Thread.currentThread().interrupt();
+					throw new IOException(e);
 				}
 				currentPair = null;
 				done = true;
@@ -444,6 +445,7 @@ public class HadoopInputFormatIO {
 				return cloneKeyValue(key,value);
 			}
 
+			//Cloning/Serialization  is required to take care of Hadoops mutable objects if returned by RecordReadr as Beam needs immutable objects 
 			private KV<K, V> cloneKeyValue(K key,V value) throws IOException, InterruptedException {
 
 				if (!HadoopInputFormatUtils.isImmutable(key)) {
@@ -504,6 +506,7 @@ public class HadoopInputFormatIO {
 				return before + fractionOfCurrentReader * (after - before);
 			}
 
+			//Get RecordReader Progress
 			private Double getProgress() {
 				try {
 					return (double) currentReader.getProgress();
@@ -567,6 +570,12 @@ public class HadoopInputFormatIO {
 		}
 	}
 
+	/**
+	 * A wrapper to allow Hadoop
+	 * {@link org.apache.hadoop.conf.Configuration} is to be serialized
+	 * using Java's standard serialization mechanisms. Note that the
+	 * org.apache.hadoop.conf.Configuration has to be Writable (which most are).
+	 */
 	public static class SerializableConfiguration implements Externalizable {
 		private static final long serialVersionUID = 0L;
 

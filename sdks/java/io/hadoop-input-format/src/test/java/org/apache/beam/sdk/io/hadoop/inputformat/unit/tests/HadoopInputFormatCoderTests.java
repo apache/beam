@@ -28,6 +28,7 @@ import org.apache.beam.sdk.io.hadoop.inputformat.HadoopInputFormatIO.Read;
 import org.apache.beam.sdk.io.hadoop.inputformat.coders.WritableCoder;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.CoderProperties;
+import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TypeDescriptor;
@@ -67,12 +68,11 @@ public class HadoopInputFormatCoderTests {
 
 	@Test
 	public void testDefaultCoderFromCodeRegistry() {
-		TypeDescriptor<Long> td = new TypeDescriptor<Long>() {
+		TypeDescriptor<Long> td = new TypeDescriptor<Long>() {			
 		};
 		Configuration conf = loadTestConfiguration();
-		DirectOptions directRunnerOptions = PipelineOptionsFactory
-				.as(DirectOptions.class);
-		Pipeline pipeline = Pipeline.create(directRunnerOptions);
+		
+		Pipeline pipeline = TestPipeline.create();
 		Read read = HadoopInputFormatIO.<Text, String> read()
 				.withConfiguration(conf);
 		Coder coder = read.getDefaultCoder(td, pipeline);
