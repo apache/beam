@@ -30,7 +30,7 @@ import org.slf4j.LoggerFactory;
 /**
  * Broadcast helper.
  */
-public abstract class BroadcastHelper<T> implements Serializable {
+public class BroadcastHelper<T> implements Serializable {
 
   /**
    * If the property {@code beam.spark.directBroadcast} is set to
@@ -39,35 +39,20 @@ public abstract class BroadcastHelper<T> implements Serializable {
    * the appropriate {@link Coder}.
    */
   private static final Logger LOG = LoggerFactory.getLogger(BroadcastHelper.class);
+  private Broadcast<byte[]> bcast;
+  private final Coder<T> coder;
+  private transient T value;
+  private transient byte[] bytes = null;
 
-  public static <T> BroadcastHelper<T> create(byte[] bytes, Coder<T> coder) {
-    return new CodedBroadcastHelper<>(bytes, coder);
+  private BroadcastHelper(byte[] bytes, Coder<T> coder) {
+    this.bytes = bytes;
+    this.coder = coder;
   }
 
-  public abstract T getValue();
+  public static <T> BroadcastHelper<T> create(byte[] bytes, Coder<T> coder) {
+    return new BroadcastHelper<T>(bytes, coder);
+  }
 
-  public abstract void broadcast(JavaSparkContext jsc);
-
-  public abstract void unpersist(JavaSparkContext jsc);
-
-  /**
-   * A {@link BroadcastHelper} that uses a
-   * {@link Coder} to encode values as byte arrays
-   * before broadcasting.
-   * @param <T> the type of the value stored in the broadcast variable
-   */
-  static class CodedBroadcastHelper<T> extends BroadcastHelper<T> {
-    private Broadcast<byte[]> bcast;
-    private final Coder<T> coder;
-    private transient T value;
-    private transient byte[] bytes = null;
-
-    CodedBroadcastHelper(byte[] bytes, Coder<T> coder) {
-      this.bytes = bytes;
-      this.coder = coder;
-    }
-
-    @Override
     public synchronized T getValue() {
       if (value == null) {
         value = deserialize();
@@ -75,12 +60,11 @@ public abstract class BroadcastHelper<T> implements Serializable {
       return value;
     }
 
-    @Override
     public void broadcast(JavaSparkContext jsc) {
       this.bcast = jsc.broadcast(bytes);
     }
 
-    @Override public void unpersist(JavaSparkContext jsc) {
+   public void unpersist(JavaSparkContext jsc) {
       this.bcast.unpersist();
     }
 
@@ -96,5 +80,4 @@ public abstract class BroadcastHelper<T> implements Serializable {
       }
       return val;
     }
-  }
 }
