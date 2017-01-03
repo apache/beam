@@ -34,7 +34,7 @@ Typical usage:
   # transform will produce a PCollection object with the specified values.
   pcoll = p | 'create' >> beam.Create([1, 2, 3])
 
-  # Another transform to pcoll, e.g., writing to a text file.
+  # Another transform could be applied to pcoll, e.g., writing to a text file.
   # For other transforms, refer to transforms/ directory.
   pcoll | 'write' >> beam.io.WriteToText('./output')
 
