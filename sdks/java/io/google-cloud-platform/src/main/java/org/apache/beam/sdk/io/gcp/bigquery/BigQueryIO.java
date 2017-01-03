@@ -2685,7 +2685,7 @@ public class BigQueryIO {
     private final int shardNumber;
 
     public static <K> ShardedKey<K> of(K key, int shardNumber) {
-      return new ShardedKey<K>(key, shardNumber);
+      return new ShardedKey<>(key, shardNumber);
     }
 
     private ShardedKey(K key, int shardNumber) {
@@ -2705,7 +2705,8 @@ public class BigQueryIO {
   /**
    * A {@link Coder} for {@link ShardedKey}, using a wrapped key {@link Coder}.
    */
-  private static class ShardedKeyCoder<KeyT>
+  @VisibleForTesting
+  static class ShardedKeyCoder<KeyT>
       extends StandardCoder<ShardedKey<KeyT>> {
     public static <KeyT> ShardedKeyCoder<KeyT> of(Coder<KeyT> keyCoder) {
       return new ShardedKeyCoder<>(keyCoder);
@@ -2739,7 +2740,7 @@ public class BigQueryIO {
     @Override
     public ShardedKey<KeyT> decode(InputStream inStream, Context context)
         throws IOException {
-      return new ShardedKey<KeyT>(
+      return new ShardedKey<>(
           keyCoder.decode(inStream, context.nested()),
           shardNumberCoder.decode(inStream, context));
     }

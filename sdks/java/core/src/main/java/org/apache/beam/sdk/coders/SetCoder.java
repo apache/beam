@@ -47,9 +47,9 @@ public class SetCoder<T> extends IterableLikeCoder<T, Set<T>> {
   @JsonCreator
   public static SetCoder<?> of(
       @JsonProperty(PropertyNames.COMPONENT_ENCODINGS)
-      List<Object> components) {
+      List<Coder<?>> components) {
     checkArgument(components.size() == 1, "Expecting 1 component, got %s", components.size());
-    return of((Coder<?>) components.get(0));
+    return of(components.get(0));
   }
 
   /**

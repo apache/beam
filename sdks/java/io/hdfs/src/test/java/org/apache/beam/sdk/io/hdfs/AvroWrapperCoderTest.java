@@ -47,5 +47,4 @@ public class AvroWrapperCoderTest {
 
     CoderProperties.coderDecodeEncodeEqual(coder, value);
   }
-
 }

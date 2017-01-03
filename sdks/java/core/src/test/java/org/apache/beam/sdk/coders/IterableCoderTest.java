@@ -26,6 +26,7 @@ import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
 import org.apache.beam.sdk.testing.CoderProperties;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.util.CloudObject;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.Structs;
@@ -52,6 +53,11 @@ public class IterableCoderTest {
     CloudObject cloudObject = TEST_CODER.asCloudObject();
     assertEquals("kind:stream", cloudObject.getClassName());
     assertTrue(Structs.getBoolean(cloudObject, "is_stream_like"));
+  }
+
+  @Test
+  public void testCoderIsSerializableWithWellKnownCoderType() throws Exception {
+    CoderProperties.coderSerializable(ListCoder.of(GlobalWindow.Coder.INSTANCE));
   }
 
   @Test

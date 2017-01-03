@@ -30,6 +30,7 @@ import java.util.Arrays;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.testing.CoderProperties;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
@@ -72,6 +73,17 @@ public class WindowedValueTest {
         StringUtf8Coder.of(), GlobalWindow.Coder.INSTANCE).asCloudObject();
     assertEquals("kind:windowed_value", cloudObject.getClassName());
     assertTrue(Structs.getBoolean(cloudObject, "is_wrapper"));
+  }
+
+  @Test
+  public void testFullWindowedValueCoderIsSerializableWithWellKnownCoderType() {
+    CoderProperties.coderSerializable(WindowedValue.getFullCoder(
+        GlobalWindow.Coder.INSTANCE, GlobalWindow.Coder.INSTANCE));
+  }
+
+  @Test
+  public void testValueOnlyWindowedValueCoderIsSerializableWithWellKnownCoderType() {
+    CoderProperties.coderSerializable(WindowedValue.getValueOnlyCoder(GlobalWindow.Coder.INSTANCE));
   }
 
   @Test
