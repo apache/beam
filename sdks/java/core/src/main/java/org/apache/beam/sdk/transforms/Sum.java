@@ -140,6 +140,11 @@ public class Sum {
 
   /////////////////////////////////////////////////////////////////////////////
 
+  /**
+   * A {@code SerializableFunction} that computes the sum of an
+   * {@code Iterable} of {@code Integer}s, useful as an argument to
+   * {@link Combine#globally} or {@link Combine#perKey}.
+   */
   public static class SumIntegerFn extends Combine.BinaryCombineIntegerFn {
 
     @Override
@@ -153,6 +158,11 @@ public class Sum {
     }
   }
 
+  /**
+   * A {@code SerializableFunction} that computes the sum of an
+   * {@code Iterable} of {@code Long}s, useful as an argument to
+   * {@link Combine#globally} or {@link Combine#perKey}.
+   */
   public static class SumLongFn extends Combine.BinaryCombineLongFn {
 
     @Override
@@ -166,6 +176,11 @@ public class Sum {
     }
   }
 
+  /**
+   * A {@code SerializableFunction} that computes the sum of an
+   * {@code Iterable} of {@code Double}s, useful as an argument to
+   * {@link Combine#globally} or {@link Combine#perKey}.
+   */
   public static class SumDoubleFn extends Combine.BinaryCombineDoubleFn {
 
     @Override
