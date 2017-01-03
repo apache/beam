@@ -480,11 +480,6 @@ public class ElasticsearchIO {
     }
 
     @Override
-    public boolean producesSortedKeys(PipelineOptions options) throws Exception {
-      return false;
-    }
-
-    @Override
     public BoundedReader<String> createReader(PipelineOptions options) throws IOException {
       return new BoundedElasticsearchReader(this);
     }
