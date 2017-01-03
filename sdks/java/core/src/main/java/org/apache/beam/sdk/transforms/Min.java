@@ -212,7 +212,7 @@ public class Min {
 
   /////////////////////////////////////////////////////////////////////////////
 
-  private static class MinFn<T> extends BinaryCombineFn<T> {
+  public static class MinFn<T> extends BinaryCombineFn<T> {
 
     private final T identity;
     private final Comparator<? super T> comparator;
@@ -241,7 +241,7 @@ public class Min {
     }
   }
 
-  private static class MinIntegerFn extends Combine.BinaryCombineIntegerFn {
+  public static class MinIntegerFn extends Combine.BinaryCombineIntegerFn {
 
     @Override
     public int apply(int left, int right) {
@@ -254,7 +254,7 @@ public class Min {
     }
   }
 
-  private static class MinLongFn extends Combine.BinaryCombineLongFn {
+  public static class MinLongFn extends Combine.BinaryCombineLongFn {
 
     @Override
     public long apply(long left, long right) {
@@ -267,7 +267,7 @@ public class Min {
     }
   }
 
-  private static class MinDoubleFn extends Combine.BinaryCombineDoubleFn {
+  public static class MinDoubleFn extends Combine.BinaryCombineDoubleFn {
 
     @Override
     public double apply(double left, double right) {

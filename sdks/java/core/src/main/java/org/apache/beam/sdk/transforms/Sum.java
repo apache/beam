@@ -140,7 +140,7 @@ public class Sum {
 
   /////////////////////////////////////////////////////////////////////////////
 
-  private static class SumIntegerFn extends Combine.BinaryCombineIntegerFn {
+  public static class SumIntegerFn extends Combine.BinaryCombineIntegerFn {
 
     @Override
     public int apply(int a, int b) {
@@ -153,7 +153,7 @@ public class Sum {
     }
   }
 
-  private static class SumLongFn extends Combine.BinaryCombineLongFn {
+  public static class SumLongFn extends Combine.BinaryCombineLongFn {
 
     @Override
     public long apply(long a, long b) {
@@ -166,7 +166,7 @@ public class Sum {
     }
   }
 
-  private static class SumDoubleFn extends Combine.BinaryCombineDoubleFn {
+  public static class SumDoubleFn extends Combine.BinaryCombineDoubleFn {
 
     @Override
     public double apply(double a, double b) {

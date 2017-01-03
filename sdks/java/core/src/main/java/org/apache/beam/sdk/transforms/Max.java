@@ -212,7 +212,7 @@ public class Max {
 
   /////////////////////////////////////////////////////////////////////////////
 
-  private static class MaxFn<T> extends BinaryCombineFn<T> {
+  public static class MaxFn<T> extends BinaryCombineFn<T> {
 
     private final T identity;
     private final Comparator<? super T> comparator;
@@ -241,7 +241,7 @@ public class Max {
     }
   }
 
-  private static class MaxIntegerFn extends Combine.BinaryCombineIntegerFn {
+  public static class MaxIntegerFn extends Combine.BinaryCombineIntegerFn {
 
     @Override
     public int apply(int left, int right) {
@@ -254,7 +254,7 @@ public class Max {
     }
   }
 
-  private static class MaxLongFn extends Combine.BinaryCombineLongFn {
+  public static class MaxLongFn extends Combine.BinaryCombineLongFn {
 
     @Override
     public long apply(long left, long right) {
@@ -267,7 +267,7 @@ public class Max {
     }
   }
 
-  private static class MaxDoubleFn extends Combine.BinaryCombineDoubleFn {
+  public static class MaxDoubleFn extends Combine.BinaryCombineDoubleFn {
 
     @Override
     public double apply(double left, double right) {
