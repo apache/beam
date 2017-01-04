@@ -126,8 +126,8 @@
             </dependency>
           </dependencies>
           <configuration>
-            <configLocation>checkstyle.xml</configLocation>
-            <suppressionsLocation>suppressions.xml</suppressionsLocation>
+            <configLocation>sdk/checkstyle.xml</configLocation>
+            <suppressionsLocation>sdk/suppressions.xml</suppressionsLocation>
             <consoleOutput>true</consoleOutput>
             <failOnViolation>true</failOnViolation>
             <includeResources>true</includeResources>

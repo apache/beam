@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-  ~ Copyright (C) 2015 Google Inc.
+  ~ Copyright (C) 2017 Google Inc.
   ~
   ~ Licensed under the Apache License, Version 2.0 (the "License"); you may not
   ~ use this file except in compliance with the License. You may obtain a copy of
@@ -30,7 +30,7 @@ page at http://checkstyle.sourceforge.net/config.html -->
       notice, so that this required text appears on the second line:
       <pre>
         /*
-         * Copyright 2015 Google Inc.
+         * Copyright 2017 Google Inc.
          *
          * (details of open-source license...)
       </pre>
