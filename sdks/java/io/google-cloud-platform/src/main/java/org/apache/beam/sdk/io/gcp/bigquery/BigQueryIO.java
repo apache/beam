@@ -516,6 +516,9 @@ public class BigQueryIO {
       @Nullable final Boolean useLegacySql;
       @Nullable BigQueryServices bigQueryServices;
 
+      @VisibleForTesting @Nullable String stepUuid;
+      @VisibleForTesting @Nullable ValueProvider<String> jobUuid;
+
       private static final String QUERY_VALIDATION_FAILURE_ERROR =
           "Validation of query \"%1$s\" failed. If the query depends on an earlier stage of the"
           + " pipeline, This validation can be disabled using #withoutValidation.";
@@ -712,9 +715,9 @@ public class BigQueryIO {
 
       @Override
       public PCollection<TableRow> expand(PBegin input) {
-        String stepUuid = randomUUIDString();
+        stepUuid = randomUUIDString();
         BigQueryOptions bqOptions = input.getPipeline().getOptions().as(BigQueryOptions.class);
-        ValueProvider<String> jobUuid = NestedValueProvider.of(
+        jobUuid = NestedValueProvider.of(
            StaticValueProvider.of(bqOptions.getJobName()), new CreatePerBeamJobUuid(stepUuid));
         final ValueProvider<String> jobIdToken = NestedValueProvider.of(
             jobUuid, new BeamJobUuidToBigQueryJobUuid());
@@ -1692,6 +1695,9 @@ public class BigQueryIO {
 
       @Nullable private BigQueryServices bigQueryServices;
 
+      @VisibleForTesting @Nullable String stepUuid;
+      @VisibleForTesting @Nullable ValueProvider<String> jobUuid;
+
       private static class TranslateTableSpecFunction implements
           SerializableFunction<BoundedWindow, TableReference> {
         private SerializableFunction<BoundedWindow, String> tableSpecFunction;
@@ -1972,8 +1978,8 @@ public class BigQueryIO {
 
         ValueProvider<TableReference> table = getTableWithDefaultProject(options);
 
-        String stepUuid = randomUUIDString();
-        ValueProvider<String> jobUuid = NestedValueProvider.of(
+        stepUuid = randomUUIDString();
+        jobUuid = NestedValueProvider.of(
            StaticValueProvider.of(options.getJobName()), new CreatePerBeamJobUuid(stepUuid));
         ValueProvider<String> jobIdToken = NestedValueProvider.of(
             jobUuid, new BeamJobUuidToBigQueryJobUuid());

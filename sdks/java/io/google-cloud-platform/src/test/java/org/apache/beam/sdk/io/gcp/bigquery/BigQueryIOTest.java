@@ -26,6 +26,7 @@ import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisp
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.hasItem;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThat;
@@ -2354,5 +2355,47 @@ public class BigQueryIOTest implements Serializable {
       }
       return null;
     }
+  }
+
+  @Test
+  public void testUniqueStepIdRead() {
+    RuntimeTestOptions options = PipelineOptionsFactory.as(RuntimeTestOptions.class);
+    BigQueryOptions bqOptions = options.as(BigQueryOptions.class);
+    Pipeline pipeline = TestPipeline.create(options);
+    bqOptions.setTempLocation("gs://testbucket/testdir");
+    BigQueryIO.Read.Bound read1 = BigQueryIO.Read.fromQuery(
+        options.getInputQuery()).withoutValidation();
+    pipeline.apply(read1);
+    BigQueryIO.Read.Bound read2 = BigQueryIO.Read.fromQuery(
+        options.getInputQuery()).withoutValidation();
+    pipeline.apply(read2);
+    assertNotEquals(read1.stepUuid, read2.stepUuid);
+    assertNotEquals(read1.jobUuid.get(), read2.jobUuid.get());
+  }
+
+  @Test
+  public void testUniqueStepIdWrite() {
+    RuntimeTestOptions options = PipelineOptionsFactory.as(RuntimeTestOptions.class);
+    BigQueryOptions bqOptions = options.as(BigQueryOptions.class);
+    bqOptions.setTempLocation("gs://testbucket/testdir");
+    Pipeline pipeline = TestPipeline.create(options);
+    BigQueryIO.Write.Bound write1 = BigQueryIO.Write
+        .to(options.getOutputTable())
+        .withSchema(NestedValueProvider.of(
+            options.getOutputSchema(), new JsonSchemaToTableSchema()))
+        .withoutValidation();
+    BigQueryIO.Write.Bound write2 = BigQueryIO.Write
+        .to(options.getOutputTable())
+        .withSchema(NestedValueProvider.of(
+            options.getOutputSchema(), new JsonSchemaToTableSchema()))
+        .withoutValidation();
+    pipeline
+        .apply(Create.<TableRow>of())
+        .apply(write1);
+    pipeline
+        .apply(Create.<TableRow>of())
+        .apply(write2);
+    assertNotEquals(write1.stepUuid, write2.stepUuid);
+    assertNotEquals(write1.jobUuid.get(), write2.jobUuid.get());
   }
 }
