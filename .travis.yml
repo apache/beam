@@ -15,14 +15,15 @@ matrix:
   include:
     # On OSX, run with default JDK only.
     - os: osx
-      env: MAVEN_OVERRIDE=""
     # On Linux, run with specific JDKs only.
     - os: linux
-      env: CUSTOM_JDK="oraclejdk8" MAVEN_OVERRIDE="-Ddataflow.surefire_argline='-Xmx512m'"
-    - os: linux
-      env: CUSTOM_JDK="oraclejdk7" MAVEN_OVERRIDE="-Ddataflow.surefire_argline='-Xmx512m'"
-    - os: linux
-      env: CUSTOM_JDK="openjdk7" MAVEN_OVERRIDE="-Ddataflow.surefire_argline='-Xmx512m'"
+      env: CUSTOM_JDK="oraclejdk8"
+    # The distribution does not build with Java 7 by design. We need to rewrite these tests
+    # to, for example, build and install with Java 8 and then test examples with Java 7.
+    # - os: linux
+    #   env: CUSTOM_JDK="oraclejdk7"
+    # - os: linux
+    #  env: CUSTOM_JDK="openjdk7"
 
 before_install:
   - if [ "$TRAVIS_OS_NAME" == "osx" ]; then export JAVA_HOME=$(/usr/libexec/java_home); fi
@@ -32,4 +33,4 @@ install:
   - travis_retry mvn install clean -U -DskipTests=true
 
 script:
-  - travis_retry mvn $MAVEN_OVERRIDE install -U
+  - travis_retry mvn install -U
