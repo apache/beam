@@ -36,7 +36,6 @@ import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.BoundedSource.BoundedReader;
 import org.apache.beam.sdk.io.hadoop.inputformat.HadoopInputFormatIO;
 import org.apache.beam.sdk.io.hadoop.inputformat.HadoopInputFormatIO.HadoopInputFormatBoundedSource;
-import org.apache.beam.sdk.io.hadoop.inputformat.HadoopInputFormatIO.Read;
 import org.apache.beam.sdk.io.hadoop.inputformat.HadoopInputFormatIO.SerializableConfiguration;
 import org.apache.beam.sdk.io.hadoop.inputformat.unit.tests.coders.EmployeeCoder;
 import org.apache.beam.sdk.io.hadoop.inputformat.unit.tests.inputformats.BadCreateRecordReaderInputFormat;
@@ -46,12 +45,15 @@ import org.apache.beam.sdk.io.hadoop.inputformat.unit.tests.inputformats.EmptyIn
 import org.apache.beam.sdk.io.hadoop.inputformat.unit.tests.inputformats.ImmutableRecordsInputFormat;
 import org.apache.beam.sdk.io.hadoop.inputformat.unit.tests.inputformats.MutableRecordsInputFormat;
 import org.apache.beam.sdk.io.hadoop.inputformat.unit.tests.inputformats.NullInputSplitsBadInputFormat;
+import org.apache.beam.sdk.testing.ExpectedLogs;
+import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.SourceTestUtils;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
+import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.cassandra.hadoop.cql3.CqlInputFormat;
 import org.apache.hadoop.conf.Configuration;
@@ -79,10 +81,10 @@ public class HadoopInputFormatIOTest {
 	static SimpleFunction<Text, String> myKeyTranslate;
 	static SimpleFunction<Employee, String> myValueTranslate;
 
-
 	@Rule public final transient TestPipeline p = TestPipeline.create();
 	@Rule public ExpectedException thrown = ExpectedException.none();
-	public PBegin input= PBegin.in(p);
+	@Rule public ExpectedLogs logged = ExpectedLogs.none(HadoopInputFormatIO.class);
+	private PBegin input = PBegin.in(p);
 
 	@BeforeClass
 	public static void setUp() {
@@ -133,101 +135,6 @@ public class HadoopInputFormatIOTest {
 		assertEquals(myValueTranslate, read.getSimpleFuncForValueTranslation());
 	}
 
-
-
-	// This test validates Read transform object creation if only withConfiguration() is called with null value.
-	// withConfiguration() checks configuration is null or not and throws exception if null value is send to withConfiguration().
-	@Test
-	public void testReadObjectCreationWithOnlyConfigurationAndNullIsPassed() {
-		thrown.expect(NullPointerException.class);
-		thrown.expectMessage("Configuration cannot be null");
-		HadoopInputFormatIO.<Text, Employee>read()
-		.withConfiguration(null);
-
-	}
-
-
-	// This test validates Read transform object creation if only withConfiguration() is called.
-	@Test
-	public void testReadObjectCreationWithOnlyConfiguration() {
-		Read<Text, Employee> read = HadoopInputFormatIO.<Text, Employee>read()
-				.withConfiguration(serConf.getConfiguration());
-		read.validate(input);
-		assertEquals(serConf.getConfiguration(),read.getConfiguration().getConfiguration());
-		assertEquals(null,read.getSimpleFuncForKeyTranslation());
-		assertEquals(null,read.getSimpleFuncForValueTranslation());
-		assertEquals(serConf.getConfiguration().getClass("key.class", Object.class),read.getKeyClass().getRawType());
-		assertEquals(serConf.getConfiguration().getClass("value.class", Object.class),read.getValueClass().getRawType());
-
-	}
-
-	// This test validates behavior Read transform object creation if withConfiguration() and withKeyTranslation() are called and null value is passed to kayTranslation.
-	// withKeyTranslation() checks keyTranslation is null or not and throws exception if null value is send to withKeyTranslation().
-	@Test
-	public void testReadObjectCreationWithConfigurationKeyTranslationIfKeyTranslationIsNull() {
-		thrown.expect(NullPointerException.class);
-		thrown.expectMessage("Simple function for key translation cannot be null.");
-		HadoopInputFormatIO.<String, Employee>read()
-		.withConfiguration(serConf.getConfiguration())
-		.withKeyTranslation(null);
-	}
-
-
-	// This test validates Read transform object creation if withConfiguration() and withKeyTranslation() are called.
-	@Test
-	public void testReadObjectCreationWithConfigurationKeyTranslation() {
-		Read<String, Employee> read = HadoopInputFormatIO.<String, Employee>read()
-				.withConfiguration(serConf.getConfiguration())
-				.withKeyTranslation(myKeyTranslate);
-		read.validate(input);
-		assertEquals(serConf.getConfiguration(),read.getConfiguration().getConfiguration());
-		assertEquals(myKeyTranslate,read.getSimpleFuncForKeyTranslation());
-		assertEquals(null,read.getSimpleFuncForValueTranslation());
-		assertEquals(myKeyTranslate.getOutputTypeDescriptor().getRawType(),read.getKeyClass().getRawType());
-		assertEquals(serConf.getConfiguration().getClass("value.class", Object.class),read.getValueClass().getRawType());
-	}
-
-	// This test validates behaviour Read transform object creation if withConfiguration() and withValueTranslation() are called and null value is passed to valueTranslation.
-	// withValueTranslation() checks valueTranslation is null or not and throws exception if null value is send to withValueTranslation().
-	@Test
-	public void testReadObjectCreationWithConfigurationValueTranslationIfValueTranslationIsNull() {
-		thrown.expect(NullPointerException.class);
-		thrown.expectMessage("Simple function for value translation cannot be null.");
-		HadoopInputFormatIO.<Text, String>read()
-		.withConfiguration(serConf.getConfiguration())
-		.withValueTranslation(null);
-
-	}
-
-	// This test validates Read transform object creation if withConfiguration() and withValueTranslation() are called.
-	@Test
-	public void testReadObjectCreationWithConfigurationValueTranslation() {
-		Read<Text, String> read = HadoopInputFormatIO.<Text, String>read()
-				.withConfiguration(serConf.getConfiguration())
-				.withValueTranslation(myValueTranslate);
-		read.validate(input);
-		assertEquals(serConf.getConfiguration(),read.getConfiguration().getConfiguration());
-		assertEquals(null,read.getSimpleFuncForKeyTranslation());
-		assertEquals(myValueTranslate,read.getSimpleFuncForValueTranslation());
-		assertEquals(serConf.getConfiguration().getClass("key.class", Object.class),read.getKeyClass().getRawType());
-		assertEquals(myValueTranslate.getOutputTypeDescriptor().getRawType(),read.getValueClass().getRawType());
-	}
-
-
-	// This test validates Read transform object creation if withConfiguration() , withKeyTranslation() and withValueTranslation() are called.
-	@Test
-	public void testReadObjectCreationWithConfigurationKeyTranslationValueTranslation() {
-		Read<String, String> read = HadoopInputFormatIO.<String, String>read()
-				.withConfiguration(serConf.getConfiguration())
-				.withKeyTranslation(myKeyTranslate)
-				.withValueTranslation(myValueTranslate);
-		read.validate(input);
-		assertEquals(serConf.getConfiguration(),read.getConfiguration().getConfiguration());
-		assertEquals(myKeyTranslate,read.getSimpleFuncForKeyTranslation());
-		assertEquals(myValueTranslate,read.getSimpleFuncForValueTranslation());
-		assertEquals(myKeyTranslate.getOutputTypeDescriptor().getRawType(),read.getKeyClass().getRawType());
-		assertEquals(myValueTranslate.getOutputTypeDescriptor().getRawType(),read.getValueClass().getRawType());
-	}
 
 
 	@Test
@@ -282,10 +189,105 @@ public class HadoopInputFormatIOTest {
 
 	}
 
+	// This test validates Read transform object creation if only withConfiguration() is called with null value.
+	// withConfiguration() checks configuration is null or not and throws exception if null value is send to withConfiguration().
+	@Test
+	public void testReadObjectCreationFailsIfConfigurationIsNull() {
+		thrown.expect(NullPointerException.class);
+		thrown.expectMessage("Configuration cannot be null");
+		HadoopInputFormatIO.<Text, Employee>read()
+		.withConfiguration(null);
+
+	}
+
+
+	// This test validates Read transform object creation if only withConfiguration() is called.
+	@Test
+	public void testReadObjectCreationWithConfiguration() {
+		HadoopInputFormatIO.Read<Text, Employee> read = HadoopInputFormatIO.<Text, Employee>read()
+				.withConfiguration(serConf.getConfiguration());
+		read.validate(input);
+		assertEquals(serConf.getConfiguration(),read.getConfiguration().getConfiguration());
+		assertEquals(null,read.getSimpleFuncForKeyTranslation());
+		assertEquals(null,read.getSimpleFuncForValueTranslation());
+		assertEquals(serConf.getConfiguration().getClass("key.class", Object.class),read.getKeyClass().getRawType());
+		assertEquals(serConf.getConfiguration().getClass("value.class", Object.class),read.getValueClass().getRawType());
+
+	}
+
+	// This test validates behavior Read transform object creation if withConfiguration() and withKeyTranslation() are called and null value is passed to kayTranslation.
+	// withKeyTranslation() checks keyTranslation is null or not and throws exception if null value is send to withKeyTranslation().
+	@Test
+	public void testReadObjectCreationFailsIfKeyTranslationFunctionIsNull() {
+		thrown.expect(NullPointerException.class);
+		thrown.expectMessage("Simple function for key translation cannot be null.");
+		HadoopInputFormatIO.<String, Employee>read()
+		.withConfiguration(serConf.getConfiguration())
+		.withKeyTranslation(null);
+	}
+
+
+	// This test validates Read transform object creation if withConfiguration() and withKeyTranslation() are called.
+	@Test
+	public void testReadObjectCreationWithConfigurationKeyTranslation() {
+		HadoopInputFormatIO.Read<String, Employee> read = HadoopInputFormatIO.<String, Employee>read()
+				.withConfiguration(serConf.getConfiguration())
+				.withKeyTranslation(myKeyTranslate);
+		read.validate(input);
+		assertEquals(serConf.getConfiguration(),read.getConfiguration().getConfiguration());
+		assertEquals(myKeyTranslate,read.getSimpleFuncForKeyTranslation());
+		assertEquals(null,read.getSimpleFuncForValueTranslation());
+		assertEquals(myKeyTranslate.getOutputTypeDescriptor().getRawType(),read.getKeyClass().getRawType());
+		assertEquals(serConf.getConfiguration().getClass("value.class", Object.class),read.getValueClass().getRawType());
+	}
+
+	// This test validates behaviour Read transform object creation if withConfiguration() and withValueTranslation() are called and null value is passed to valueTranslation.
+	// withValueTranslation() checks valueTranslation is null or not and throws exception if null value is send to withValueTranslation().
+	@Test
+	public void testReadObjectCreationFailsIfValueTranslationFunctionIsNull() {
+		thrown.expect(NullPointerException.class);
+		thrown.expectMessage("Simple function for value translation cannot be null.");
+		HadoopInputFormatIO.<Text, String>read()
+		.withConfiguration(serConf.getConfiguration())
+		.withValueTranslation(null);
+
+	}
+
+	// This test validates Read transform object creation if withConfiguration() and withValueTranslation() are called.
+	@Test
+	public void testReadObjectCreationWithConfigurationValueTranslation() {
+		HadoopInputFormatIO.Read<Text, String> read = HadoopInputFormatIO.<Text, String>read()
+				.withConfiguration(serConf.getConfiguration())
+				.withValueTranslation(myValueTranslate);
+		read.validate(input);
+		assertEquals(serConf.getConfiguration(),read.getConfiguration().getConfiguration());
+		assertEquals(null,read.getSimpleFuncForKeyTranslation());
+		assertEquals(myValueTranslate,read.getSimpleFuncForValueTranslation());
+		assertEquals(serConf.getConfiguration().getClass("key.class", Object.class),read.getKeyClass().getRawType());
+		assertEquals(myValueTranslate.getOutputTypeDescriptor().getRawType(),read.getValueClass().getRawType());
+	}
+
+
+	// This test validates Read transform object creation if withConfiguration() , withKeyTranslation() and withValueTranslation() are called.
+	@Test
+	public void testReadObjectCreationWithConfigurationKeyTranslationValueTranslation() {
+		HadoopInputFormatIO.Read<String, String> read = HadoopInputFormatIO.<String, String>read()
+				.withConfiguration(serConf.getConfiguration())
+				.withKeyTranslation(myKeyTranslate)
+				.withValueTranslation(myValueTranslate);
+		read.validate(input);
+		assertEquals(serConf.getConfiguration(),read.getConfiguration().getConfiguration());
+		assertEquals(myKeyTranslate,read.getSimpleFuncForKeyTranslation());
+		assertEquals(myValueTranslate,read.getSimpleFuncForValueTranslation());
+		assertEquals(myKeyTranslate.getOutputTypeDescriptor().getRawType(),read.getKeyClass().getRawType());
+		assertEquals(myValueTranslate.getOutputTypeDescriptor().getRawType(),read.getValueClass().getRawType());
+	}
+
+
 	///This test validates functionality of Read.validate() function when Read transform is created without calling withConfiguration().
 	@Test
-	public void testReadObjectCreationIfWithConfigurationIsNotCalled() {
-		Read<String, String> read = HadoopInputFormatIO.<String, String>read();
+	public void testReadValidationFailsMissingConfiguration() {
+		HadoopInputFormatIO.Read<String, String> read = HadoopInputFormatIO.<String, String>read();
 		thrown.expect(NullPointerException.class);
 		thrown.expectMessage("Need to set the configuration of a HadoopInputFormatIO Read using method Read.withConfiguration().");
 		read.validate(input);
@@ -294,11 +296,11 @@ public class HadoopInputFormatIOTest {
 
 	//This test validates functionality of Read.validate() function when Hadoop InputFormat class is not provided by user in configuration.
 	@Test
-	public void testIfInputFormatIsNotProvided() {
+	public void testReadValidationFailsMissingInputFormatInConf() {
 		Configuration configuration = new Configuration();
 		configuration.setClass("key.class", Text.class, Object.class);
 		configuration.setClass("value.class", Employee.class, Object.class);
-		Read<Text, Employee> read = HadoopInputFormatIO.<Text, Employee>read()
+		HadoopInputFormatIO.Read<Text, Employee> read = HadoopInputFormatIO.<Text, Employee>read()
 				.withConfiguration(configuration);
 		thrown.expect(IllegalArgumentException.class);
 		thrown.expectMessage("Hadoop InputFormat class property \"mapreduce.job.inputformat.class\" is not set in configuration."); 
@@ -307,11 +309,11 @@ public class HadoopInputFormatIOTest {
 
 	//This test validates functionality of Read.validate() function when key class is not provided by user in configuration.
 	@Test
-	public void testIfKeyClassIsNotProvided() {
+	public void testReadValidationFailsMissingKeyClassInConf() {
 		Configuration configuration = new Configuration();
 		configuration.setClass("mapreduce.job.inputformat.class", EmployeeInputFormat.class, InputFormat.class);
 		configuration.setClass("value.class", Employee.class, Object.class);
-		Read<Text, Employee> read = HadoopInputFormatIO.<Text, Employee>read()
+		HadoopInputFormatIO.Read<Text, Employee> read = HadoopInputFormatIO.<Text, Employee>read()
 				.withConfiguration(configuration);
 		thrown.expect(IllegalArgumentException.class);
 		thrown.expectMessage("Configuration property \"key.class\" is not set.");
@@ -320,11 +322,11 @@ public class HadoopInputFormatIOTest {
 
 	//This test validates functionality of Read.validate() function when value class is not provided by user in configuration.
 	@Test
-	public void testIfValueClassIsNotProvided() {
+	public void testReadValidationFailsMissingValueClassInConf() {
 		Configuration configuration = new Configuration();
 		configuration.setClass("mapreduce.job.inputformat.class", EmployeeInputFormat.class, InputFormat.class);
 		configuration.setClass("key.class", Text.class, Object.class);
-		Read<Text, Employee> read = HadoopInputFormatIO.<Text, Employee>read()
+		HadoopInputFormatIO.Read<Text, Employee> read = HadoopInputFormatIO.<Text, Employee>read()
 				.withConfiguration(configuration);
 		thrown.expect(IllegalArgumentException.class);
 		thrown.expectMessage("Configuration property \"value.class\" is not set.");
@@ -332,12 +334,10 @@ public class HadoopInputFormatIOTest {
 
 	}
 
-
-
 	//This test validates functionality of Read.validate() function when myKeyTranslate's (simple function provided by user for key translation)
 	//input type is not same as hadoop input format's keyClass(Which is property set in configuration as "key.class").
 	@Test
-	public void testKeyTranslationFunctionIfInputTypeIsWrong() {
+	public void testReadValidationFailsWithWrongInputTypeKeyTranslationFunction() {
 		SimpleFunction<LongWritable, String> myKeyTranslateWithWrongInputType = new SimpleFunction<LongWritable, String>() {
 			private static final long serialVersionUID = 1L;
 			@Override
@@ -345,7 +345,7 @@ public class HadoopInputFormatIOTest {
 				return input.toString();
 			}
 		};
-		Read<String, Employee> read = HadoopInputFormatIO.<String, Employee>read()
+		HadoopInputFormatIO.Read<String, Employee> read = HadoopInputFormatIO.<String, Employee>read()
 				.withConfiguration(serConf.getConfiguration())
 				.withKeyTranslation(myKeyTranslateWithWrongInputType);
 		thrown.expect(IllegalArgumentException.class);
@@ -359,7 +359,7 @@ public class HadoopInputFormatIOTest {
 	//This test validates functionality of Read.validate() function when myValueTranslate's (simple function provided by user for value translation)
 	//input type is not same as hadoop input format's valueClass(Which is property set in configuration as "value.class").
 	@Test
-	public void testValueTranslationFunctionIfInputTypeIsWrong() {
+	public void testReadValidationFailsWithWrongInputTypeValueTranslationFunction() {
 		SimpleFunction<LongWritable, String> myValueTranslateWithWrongInputType = new SimpleFunction<LongWritable, String>() {
 			private static final long serialVersionUID = 1L;
 			@Override
@@ -367,7 +367,7 @@ public class HadoopInputFormatIOTest {
 				return input.toString();
 			}
 		};
-		Read<Text, String> read = HadoopInputFormatIO.<Text, String>read()
+		HadoopInputFormatIO.Read<Text, String> read = HadoopInputFormatIO.<Text, String>read()
 				.withConfiguration(serConf.getConfiguration())
 				.withValueTranslation(myValueTranslateWithWrongInputType);
 		String inputFormatClassProperty= serConf.getConfiguration().get("mapreduce.job.inputformat.class") ;
@@ -380,17 +380,15 @@ public class HadoopInputFormatIOTest {
 
 	@Test
 	public void testReadingData()  throws Exception {
-		HadoopInputFormatBoundedSource<String, String> parentHIFSource = new HadoopInputFormatBoundedSource<String, String>(serConf, StringUtf8Coder.of(), StringUtf8Coder.of(),myKeyTranslate,myValueTranslate,null);
-		List<BoundedSource<KV<String, String>>> boundedSourceList = parentHIFSource.splitIntoBundles(0, p.getOptions());
-		List<KV<String, String>> referenceRecords =getEmployeeNameList();
-		List<KV<String, String>> bundleRecords = new ArrayList<>();
-		for (BoundedSource<KV<String, String>> source : boundedSourceList) {
-			List<KV<String, String>> elems = SourceTestUtils.readFromSource(source, p.getOptions());
-			bundleRecords.addAll(elems);
-		}
-		assertThat(bundleRecords, containsInAnyOrder(referenceRecords.toArray()));
+		HadoopInputFormatIO.Read<String, String> read = HadoopInputFormatIO.<String, String>read()
+				.withConfiguration(serConf.getConfiguration())
+				.withKeyTranslation(myKeyTranslate)
+				.withValueTranslation(myValueTranslate);
+		List<KV<String, String>> expected = getEmployeeNameList();
+		PCollection<KV<String, String>> actual = p.apply("ReadTest" , read);
+		PAssert.that(actual).containsInAnyOrder(expected);
+		p.run();
 	}
-
 
 
 	// This test validates behavior HadoopInputFormatSource if RecordReader object creation fails in start() method.
@@ -462,7 +460,9 @@ public class HadoopInputFormatIOTest {
 				}
 				assertEquals(false,advance);
 				bundleRecords.addAll(elements);
+
 			}
+			reader.close();
 		}
 		assertThat(bundleRecords, containsInAnyOrder(referenceRecords.toArray()));
 	}

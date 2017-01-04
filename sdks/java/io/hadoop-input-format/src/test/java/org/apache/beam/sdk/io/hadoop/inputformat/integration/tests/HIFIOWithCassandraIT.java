@@ -1,13 +1,9 @@
 package org.apache.beam.sdk.io.hadoop.inputformat.integration.tests;
 
-import java.io.IOException;
 import java.io.Serializable;
 import java.util.Arrays;
 import java.util.List;
 
-import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.coders.AvroCoder;
-import org.apache.beam.sdk.coders.DefaultCoder;
 import org.apache.beam.sdk.io.hadoop.inputformat.HadoopInputFormatIO;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -19,10 +15,13 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.mapreduce.InputFormat;
 import org.cassandraunit.utils.EmbeddedCassandraServerHelper;
 import org.junit.After;
+import org.junit.AfterClass;
 import org.junit.Before;
+import org.junit.BeforeClass;
+import org.junit.Rule;
 import org.junit.Test;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
 
 import com.datastax.driver.core.Cluster;
 import com.datastax.driver.core.Row;
@@ -30,37 +29,37 @@ import com.datastax.driver.core.Session;
 import com.datastax.driver.mapping.annotations.Column;
 import com.datastax.driver.mapping.annotations.Table;
 
-
+@RunWith(JUnit4.class)
 public class HIFIOWithCassandraIT implements Serializable {
 	private static final long serialVersionUID = 1L;
 	private static final String CASSANDRA_KEYSPACE = "hif_keyspace";
 	private static final String CASSANDRA_HOST = "127.0.0.1";
 	private static final String CASSANDRA_TABLE = "person";
-	private static final Logger LOGGER = LoggerFactory.getLogger(HIFIOWithCassandraIT.class);
-	private transient Cluster cluster;
-	private transient Session session;
+	private static transient Cluster cluster;
+	private static transient Session session;
+	@Rule public final transient TestPipeline p = TestPipeline.create();
 
-	@Before
-	public void startCassandra() throws Exception {
-		EmbeddedCassandraServerHelper.startEmbeddedCassandra("/cassandra.yaml","target/cassandra", 999999999);
+	
+	@BeforeClass
+	public static void startCassandra() throws Exception {
+		EmbeddedCassandraServerHelper.startEmbeddedCassandra("/cassandra.yaml","target/cassandra", Long.MAX_VALUE);
 		cluster = Cluster.builder().addContactPoint(CASSANDRA_HOST).withClusterName("beam").build();
 		session = cluster.connect();
-		LOGGER.info("Creating the Cassandra keyspace");
-		session.execute("CREATE KEYSPACE " + CASSANDRA_KEYSPACE + " WITH REPLICATION = {'class':'SimpleStrategy', 'replication_factor':3};");
-		LOGGER.info(CASSANDRA_KEYSPACE + " keyspace created");
-		LOGGER.info("Use the Cassandra keyspace");
+	}
+	
+	@Before
+	public  void createTable() throws Exception {
+		session.execute("CREATE KEYSPACE " + CASSANDRA_KEYSPACE + " WITH REPLICATION = {'class':'SimpleStrategy', 'replication_factor':1};");
 		session.execute("USE " + CASSANDRA_KEYSPACE);
-		LOGGER.info("Create Cassandra table");
 		session.execute("CREATE TABLE person(person_id int, person_name text, PRIMARY KEY(person_id));");
-		LOGGER.info("Insert records");
 		session.execute("INSERT INTO person(person_id, person_name) values(0, 'John Foo');");
 		session.execute("INSERT INTO person(person_id, person_name) values(1, 'David Bar');");
 	}
 
 
 	@Test
-	public void testHIFReadForCassandra() throws IOException {
-		Pipeline p = TestPipeline.create();
+	public void testHIFReadForCassandra() throws Exception {
+		//Pipeline p = TestPipeline.create();
 		Configuration conf = new Configuration();
 		conf.set("cassandra.input.thrift.port","9061");
 		conf.set("cassandra.input.thrift.address", CASSANDRA_HOST);
@@ -77,21 +76,27 @@ public class HIFIOWithCassandraIT implements Serializable {
 				return input.getString("person_name");
 			}
 		};
-		PCollection<KV<Long,String>> cassandraData =(PCollection<KV<Long, String>>)  p.apply(HadoopInputFormatIO
+		PCollection<KV<Long,String>> cassandraData = p.apply(HadoopInputFormatIO
 				.<Long, String> read().withConfiguration(conf)
 				.withValueTranslation(myValueTranslate));
 		PAssert.thatSingleton(cassandraData.apply("Count", Count.<KV<Long,String>>globally())).isEqualTo(2L);
 		List<KV<Long,String>> expectedResults=Arrays.asList(KV.of(2L,"John Foo"),KV.of(1L, "David Bar"));
 		PAssert.that(cassandraData).containsInAnyOrder(expectedResults);
-		p.run().waitUntilFinish();
+		//EmbeddedCassandraServerHelper.startEmbeddedCassandra("/cassandra.yaml","target/cassandra", 300000);
+		p.run();
 	}
 
 
 	@After
-	public void stopCassandra() throws Exception {
-		EmbeddedCassandraServerHelper.cleanEmbeddedCassandra();
+	public void dropTable() throws Exception {
+		session.execute("Drop TABLE person");
 	}
 	
+	@AfterClass
+	public static void stopCassandra() throws Exception {
+		EmbeddedCassandraServerHelper.cleanEmbeddedCassandra();
+	}
+/*
 	@DefaultCoder(AvroCoder.class)
 	class MyCassandraRow implements Serializable{
 		private static final long serialVersionUID = 1L;
@@ -106,7 +111,7 @@ public class HIFIOWithCassandraIT implements Serializable {
 			this.person_name = person_name;
 		}
 
-	}
+	}*/
 
 	@Table(name = "person", keyspace = CASSANDRA_KEYSPACE)
 	public static class Person implements Serializable {

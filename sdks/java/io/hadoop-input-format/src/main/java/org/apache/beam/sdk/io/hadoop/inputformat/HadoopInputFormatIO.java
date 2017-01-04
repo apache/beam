@@ -71,7 +71,7 @@ import com.google.common.collect.Lists;
 
 public class HadoopInputFormatIO {
 
-	private static final Logger logger = LoggerFactory.getLogger(HadoopInputFormatIO.class);
+	private static final Logger LOG = LoggerFactory.getLogger(HadoopInputFormatIO.class);
 
 	public static <K,V> Read<K,V> read() {
 		return new AutoValue_HadoopInputFormatIO_Read.Builder<K,V>().build();
@@ -134,24 +134,26 @@ public class HadoopInputFormatIO {
 			checkNotNull(this.getConfiguration(), "Need to set the configuration of a HadoopInputFormatIO Read using method Read.withConfiguration().");
 			String inputFormatClassProperty = this.getConfiguration().getConfiguration().get("mapreduce.job.inputformat.class") ;
 			if (inputFormatClassProperty == null) {
+				LOG.error("Hadoop InputFormat class property \"mapreduce.job.inputformat.class\" is not set in configuration.");
 				throw new IllegalArgumentException("Hadoop InputFormat class property \"mapreduce.job.inputformat.class\" is not set in configuration.");
-
 			}
 			String keyClassProperty = this.getConfiguration().getConfiguration().get("key.class");
 			if (keyClassProperty == null) {
+				LOG.error("Configuration property \"key.class\" is not set.");
 				throw new IllegalArgumentException("Configuration property \"key.class\" is not set.");
 
 			}
 			String valueClassProperty = this.getConfiguration().getConfiguration().get("value.class");
 			if (valueClassProperty == null) {
+				LOG.error("Configuration property \"value.class\" is not set.");
 				throw new IllegalArgumentException("Configuration property \"value.class\" is not set.");
 
 			}
 			TypeDescriptor<K> inputFormatKeyClass = (TypeDescriptor<K>) TypeDescriptor.of(this.getConfiguration().getConfiguration().getClass("key.class", Object.class));
 			if (this.getSimpleFuncForKeyTranslation() != null) {
 				if (!this.getSimpleFuncForKeyTranslation().getInputTypeDescriptor().equals(inputFormatKeyClass)) {
-					throw new IllegalArgumentException(
-							"Key translation's input type is not same as hadoop input format : "+inputFormatClassProperty+" key class : "+ keyClassProperty);
+					LOG.error("Key translation's input type is not same as hadoop input format : "+inputFormatClassProperty+" key class : "+ keyClassProperty);
+					throw new IllegalArgumentException("Key translation's input type is not same as hadoop input format : "+inputFormatClassProperty+" key class : "+ keyClassProperty);
 
 				}
 				this.setKeyClass((TypeDescriptor<K>) this.getSimpleFuncForKeyTranslation().getOutputTypeDescriptor());
@@ -162,8 +164,8 @@ public class HadoopInputFormatIO {
 			TypeDescriptor<V> inputFormatValueClass = (TypeDescriptor<V>) TypeDescriptor.of(this.getConfiguration().getConfiguration().getClass("value.class", Object.class));
 			if (this.getSimpleFuncForValueTranslation() != null) {
 				if (!this.getSimpleFuncForValueTranslation().getInputTypeDescriptor().equals(inputFormatValueClass)) {
-					throw new IllegalArgumentException(
-							"Value translation's input type is not same as hadoop input format : "+inputFormatClassProperty+" value class : "+ valueClassProperty);
+					LOG.error("Value translation's input type is not same as hadoop input format : "+inputFormatClassProperty+" value class : "+ valueClassProperty);
+					throw new IllegalArgumentException("Value translation's input type is not same as hadoop input format : "+inputFormatClassProperty+" value class : "+ valueClassProperty);
 				}
 				this.setValueClass((TypeDescriptor<V>) this.getSimpleFuncForValueTranslation().getOutputTypeDescriptor());
 			} else {
@@ -223,6 +225,7 @@ public class HadoopInputFormatIO {
 				try {
 					return (Coder<T>) coderRegistry.getCoder(typeDesc);
 				} catch (CannotProvideCoderException e) {
+					LOG.error("Cannot find coder for " + typeDesc);
 					throw new IllegalStateException("Cannot find coder for " + typeDesc);
 				}
 			}
@@ -269,9 +272,11 @@ public class HadoopInputFormatIO {
 		public List<BoundedSource<KV<K, V>>> splitIntoBundles(long desiredBundleSizeBytes,PipelineOptions options) throws Exception {
 			// add comments
 			if (serializableSplit == null) {
+
 				if (serInputSplitList == null) {
 					computeSplits();
 				}
+				LOG.info("Generated {} splits each of size {} ",serInputSplitList.size(),serInputSplitList.get(0).getSplit().getLength());
 				return Lists.transform(serInputSplitList, new Function<SerializableSplit, BoundedSource<KV<K, V>>>() {
 					@Override
 					public BoundedSource<KV<K, V>> apply(SerializableSplit serializableInputSplit) {
@@ -284,6 +289,7 @@ public class HadoopInputFormatIO {
 				});
 			} else {
 				isSplitted=true;
+				LOG.info("Not splitting source {} because source is already split.", this);
 				return ImmutableList.of((BoundedSource<KV<K, V>>) this);
 			}
 
@@ -292,13 +298,16 @@ public class HadoopInputFormatIO {
 		@VisibleForTesting
 		private void computeSplits() throws IOException, IllegalAccessException, InstantiationException,
 		InterruptedException, ClassNotFoundException {
-
 			Job job = Job.getInstance(conf.getConfiguration());
 			List<InputSplit> splits = job.getInputFormatClass().newInstance().getSplits(job);
-			if(splits == null)
+			if(splits == null){
+				LOG.error("Cannot split the source as getSplits() is returning null value.");
 				throw new IOException("Cannot split the source as getSplits() is returning null value.");
-			if(splits.isEmpty())
+			}
+			if(splits.isEmpty()){
+				LOG.error("Cannot split the source as getSplits() is returning empty list.");
 				throw new IOException("Cannot split the source as getSplits() is returning empty list.");
+			}
 			boundedSourceEstimatedSize=0;
 			serInputSplitList = new ArrayList<SerializableSplit>();
 			for (InputSplit inputSplit :splits) {
@@ -333,18 +342,27 @@ public class HadoopInputFormatIO {
 		public BoundedReader<KV<K, V>> createReader(PipelineOptions options) throws IOException {
 			this.validate();
 			if (serializableSplit == null) {
-				if(!isSplitted)
+				if(!isSplitted){
+					LOG.error("Cannot create reader as source is not split yet.");
 					throw new IOException("Cannot create reader as source is not split yet.");
+				}
 				else
+				{
+					LOG.error("Cannot read data as split is null.");
 					throw new IOException("Cannot read data as split is null.");
+
+				}
 			} else {
 				try {
 					return new HadoopInputFormatReader<Object>(this, simpleFuncForKeyTranslation,simpleFuncForValueTranslation, serializableSplit.getSplit());
 				} catch (InstantiationException e) {
+					LOG.error("InstantiationException : Unable to create reader.");
 					throw new IOException("InstantiationException : Unable to create reader.");
 				} catch (IllegalAccessException e) {
+					LOG.error("Unable to create reader. Couldnot create job object.");
 					throw new IOException("Unable to create reader. Couldnot create job object.");
 				} catch (ClassNotFoundException e) {
+					LOG.error("Unable to create reader. Couldnot create job object Class not found "+e.getClass());
 					throw new IOException("Unable to create reader. Couldnot create job object Class not found "+e.getClass());
 				}
 			}
@@ -363,6 +381,7 @@ public class HadoopInputFormatIO {
 			private final HadoopInputFormatBoundedSource<K, V> source;
 			private final SimpleFunction< T, K> simpleFuncForKeyTranslation;
 			private final SimpleFunction< T, V> simpleFuncForValueTranslation;
+			private long recordsReturned = 0;
 
 
 			public HadoopInputFormatReader(HadoopInputFormatBoundedSource<K,V> source, SimpleFunction keyTranslation,
@@ -404,6 +423,7 @@ public class HadoopInputFormatIO {
 					currentReader = null;
 				} catch (InterruptedException e) {
 					Thread.currentThread().interrupt();
+					LOG.error(e.getMessage());
 					throw new IOException(e);
 				}
 				currentPair = null;
@@ -423,6 +443,7 @@ public class HadoopInputFormatIO {
 					return false;
 				} catch (InterruptedException e) {
 					Thread.currentThread().interrupt();
+					LOG.error(e.getMessage());
 					throw new IOException(e);
 				}
 			}
@@ -442,6 +463,7 @@ public class HadoopInputFormatIO {
 				} else {
 					value = (V) currentReader.getCurrentValue();
 				}
+				recordsReturned++;
 				return cloneKeyValue(key,value);
 			}
 
@@ -453,6 +475,7 @@ public class HadoopInputFormatIO {
 						key = (K) CoderUtils.clone((Coder<K>)keyCoder,(K) key);
 					} 
 					catch (ClassCastException ex) {
+						LOG.error("KeyClass set in configuration "+conf.getConfiguration().get("key.class")+" is not compatible with keyClass of record reader "+currentReader.getCurrentKey().getClass().toString());
 						throw new ClassCastException("KeyClass set in configuration "+conf.getConfiguration().get("key.class")+" is not compatible with keyClass of record reader "+currentReader.getCurrentKey().getClass().toString());
 					}
 				}
@@ -461,6 +484,7 @@ public class HadoopInputFormatIO {
 						value = (V) CoderUtils.clone((Coder<V>)valueCoder, (V) value);
 					} 
 					catch (ClassCastException ex) {
+						LOG.error("ValueClass set in configuration "+conf.getConfiguration().get("value.class")+" is not compatible with valueClass of record reader "+currentReader.getCurrentValue().getClass().toString());
 						throw new ClassCastException("ValueClass set in configuration "+conf.getConfiguration().get("value.class")+" is not compatible with valueClass of record reader "+currentReader.getCurrentValue().getClass().toString());
 					}
 				}
@@ -470,6 +494,7 @@ public class HadoopInputFormatIO {
 			@Override
 			public KV<K, V> getCurrent() throws NoSuchElementException {
 				if (currentPair == null) {
+					LOG.error("NoSuchElementException");
 					throw new NoSuchElementException();
 				}
 				return currentPair;
@@ -477,6 +502,7 @@ public class HadoopInputFormatIO {
 
 			@Override
 			public void close() throws IOException {
+				LOG.info("Closing reader after reading {} records.", recordsReturned);
 				if (currentReader != null) {
 					currentReader.close();
 					currentReader = null;
@@ -564,6 +590,7 @@ public class HadoopInputFormatIO {
 					split = (InputSplit) Class.forName(className).newInstance();
 					((Writable) split).readFields(in);
 				} catch (InstantiationException | IllegalAccessException e) {
+					LOG.error(e.getMessage());
 					throw new IOException(e);
 				}
 			}
@@ -605,6 +632,7 @@ public class HadoopInputFormatIO {
 				conf = (Configuration) Class.forName(className).newInstance();
 				conf.readFields(in);
 			} catch (InstantiationException | IllegalAccessException e) {
+				LOG.error(e.getMessage());
 				throw new IOException(e);
 			}
 		}
