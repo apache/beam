@@ -203,7 +203,7 @@ public interface DataflowPipelineWorkerPoolOptions extends PipelineOptions {
   @JsonIgnore
   List<String> getFilesToStage();
   void setFilesToStage(List<String> value);
-  
+
   /**
    * Specifies what type of persistent disk is used. The value is a full disk type resource,
    * e.g., compute.googleapis.com/projects//zones//diskTypes/pd-ssd. For more information,
