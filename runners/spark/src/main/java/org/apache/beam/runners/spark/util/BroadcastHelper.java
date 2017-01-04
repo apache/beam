@@ -53,31 +53,30 @@ public class BroadcastHelper<T> implements Serializable {
     return new BroadcastHelper<>(bytes, coder);
   }
 
-    public synchronized T getValue() {
-      if (value == null) {
-        value = deserialize();
-      }
-      return value;
+  public synchronized T getValue() {
+    if (value == null) {
+       value = deserialize();
     }
+    return value;
+  }
 
-    public void broadcast(JavaSparkContext jsc) {
-      this.bcast = jsc.broadcast(bytes);
-    }
+  public void broadcast(JavaSparkContext jsc) {
+    this.bcast = jsc.broadcast(bytes);
+  }
 
-   public void unpersist() {
-      this.bcast.unpersist();
-    }
+  public void unpersist() {
+    this.bcast.unpersist();
+  }
 
-    private T deserialize() {
-      T val;
-      try {
-        val = coder.decode(new ByteArrayInputStream(bcast.value()),
-            new Coder.Context(true));
-      } catch (IOException ioe) {
-        // this should not ever happen, log it if it does.
-        LOG.warn(ioe.getMessage());
-        val = null;
-      }
-      return val;
+  private T deserialize() {
+    T val;
+    try {
+      val = coder.decode(new ByteArrayInputStream(bcast.value()), new Coder.Context(true));
+    } catch (IOException ioe) {
+      // this should not ever happen, log it if it does.
+      LOG.warn(ioe.getMessage());
+      val = null;
     }
+    return val;
+  }
 }

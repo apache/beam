@@ -49,7 +49,7 @@ public class SparkPCollectionView implements Serializable {
         JavaSparkContext context) {
 
         pviews.put(view, new Tuple2<>(CoderHelpers.toByteArray(value, coder), coder));
-        // overwrite/create broadcast
+        // overwrite/create broadcast - Future improvement is to initialize the BH lazily
         getPCollectionView(view, context, true);
     }
 
