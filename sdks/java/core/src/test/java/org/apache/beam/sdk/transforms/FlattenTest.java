@@ -155,8 +155,10 @@ public class FlattenTest implements Serializable {
   @Category({RunnableOnService.class, FlattenWithHeterogeneousCoders.class})
   public void testFlattenMultipleCoders() throws CannotProvideCoderException {
     PCollection<Long> bigEndianLongs =
-        p.apply("BigEndianLongs", CountingInput.upTo(10L))
-            .setCoder(NullableCoder.of(BigEndianLongCoder.of()));
+        p.apply(
+            "BigEndianLongs",
+            Create.of(0L, 1L, 2L, 3L, null, 4L, 5L, null, 6L, 7L, 8L, null, 9L)
+                .withCoder(NullableCoder.of(BigEndianLongCoder.of())));
     PCollection<Long> varLongs =
         p.apply("VarLengthLongs", CountingInput.upTo(5L)).setCoder(VarLongCoder.of());
 
@@ -164,9 +166,10 @@ public class FlattenTest implements Serializable {
         PCollectionList.of(bigEndianLongs)
             .and(varLongs)
             .apply(Flatten.<Long>pCollections())
-            .setCoder(BigEndianLongCoder.of());
+            .setCoder(NullableCoder.of(VarLongCoder.of()));
     PAssert.that(flattened)
-        .containsInAnyOrder(0L, 0L, 1L, 1L, 2L, 3L, 2L, 4L, 5L, 3L, 6L, 7L, 4L, 8L, 9L);
+        .containsInAnyOrder(
+            0L, 0L, 1L, 1L, 2L, 3L, 2L, 4L, 5L, 3L, 6L, 7L, 4L, 8L, 9L, null, null, null);
     p.run();
   }
 
