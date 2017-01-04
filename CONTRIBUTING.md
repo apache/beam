@@ -1,6 +1,15 @@
 Want to contribute? Great! First, read this page (including the small print at
 the end).
 
+Google Cloud Dataflow SDK is a distribution of Apache Beam. If you'd like to
+change anything under the `org.apache.beam.*` namespace, please submit that
+change directly to the [Apache Beam](https://github.com/apache/beam) project.
+
+This repository contains code to build the Dataflow distribution of Beam, and
+some Dataflow-specific code. Only changes to how the distribution is built, or
+the Dataflow-specific code under the `com.google.cloud.dataflow.*` namespace,
+can be merged here.
+
 ### Before you contribute
 Before we can use your code, you must sign the
 [Google Individual Contributor License Agreement](https://developers.google.com/open-source/cla/individual?csw=1)
@@ -20,11 +29,6 @@ frustration later on.
 ### Code reviews
 All submissions, including submissions by project members, require review. We
 use GitHub pull requests for this purpose.
-
-### Organization
-During our review and triage of incoming pull requests, we'll advise whether to
-include your contribution into the mainline SDK, or to maintain it within the
-separate group of [community-contributed modules](https://github.com/GoogleCloudPlatform/DataflowJavaSDK/tree/master/contrib).
 
 ### The small print
 Contributions made by corporations are covered by a different agreement than
