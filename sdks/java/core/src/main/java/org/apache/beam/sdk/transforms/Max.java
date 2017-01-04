@@ -64,7 +64,7 @@ public class Max {
    * <p>See {@link Combine.PerKey} for how this affects timestamps and windowing.
    */
   public static <K> Combine.PerKey<K, Integer, Integer> integersPerKey() {
-    return Combine.<K, Integer, Integer>perKey(new MaxIntegerFn());
+    return Combine.<K, Integer, Integer>perKey(Max.ofIntegers());
   }
 
   /**
@@ -85,7 +85,7 @@ public class Max {
    * <p>See {@link Combine.PerKey} for how this affects timestamps and windowing.
    */
   public static <K> Combine.PerKey<K, Long, Long> longsPerKey() {
-    return Combine.<K, Long, Long>perKey(new MaxLongFn());
+    return Combine.<K, Long, Long>perKey(Max.ofLongs());
   }
 
   /**
@@ -94,7 +94,7 @@ public class Max {
    * elements, or {@code Double.NEGATIVE_INFINITY} if there are no elements.
    */
   public static Combine.Globally<Double, Double> doublesGlobally() {
-    return Combine.globally(new MaxDoubleFn());
+    return Combine.globally(Max.ofDoubles());
   }
 
   /**
@@ -106,7 +106,63 @@ public class Max {
    * <p>See {@link Combine.PerKey} for how this affects timestamps and windowing.
    */
   public static <K> Combine.PerKey<K, Double, Double> doublesPerKey() {
-    return Combine.<K, Double, Double>perKey(new MaxDoubleFn());
+    return Combine.<K, Double, Double>perKey(Max.ofDoubles());
+  }
+
+  /**
+   * A {@code CombineFn} that computes the maximum of a collection of {@code Integer}s, useful as an
+   * argument to {@link Combine#globally} or {@link Combine#perKey}.
+   */
+  public static Combine.BinaryCombineIntegerFn ofIntegers() {
+    return new Max.MaxIntegerFn();
+  }
+
+  /**
+   * A {@code CombineFn} that computes the maximum of a collection of {@code Long}s, useful as an
+   * argument to {@link Combine#globally} or {@link Combine#perKey}.
+   */
+  public static Combine.BinaryCombineLongFn ofLongs() {
+    return new Max.MaxLongFn();
+  }
+
+  /**
+   * A {@code CombineFn} that computes the maximum of a collection of {@code Double}s, useful as an
+   * argument to {@link Combine#globally} or {@link Combine#perKey}.
+   */
+  public static Combine.BinaryCombineDoubleFn ofDoubles() {
+    return new Max.MaxDoubleFn();
+  }
+
+  /**
+   * A {@code CombineFn} that computes the maximum of a collection of elements of type {@code T}
+   * using an arbitrary {@link Comparator} and {@code identity},
+   * useful as an argument to {@link Combine#globally} or {@link Combine#perKey}.
+   *
+   * @param <T> the type of the values being compared
+   */
+  public static <T, ComparatorT extends Comparator<? super T> & Serializable>
+  BinaryCombineFn<T> of(final T identity, final ComparatorT comparator) {
+    return new MaxFn<T>(identity, comparator);
+  }
+
+  /**
+   * A {@code CombineFn} that computes the maximum of a collection of elements of type {@code T}
+   * using an arbitrary {@link Comparator}, useful as an argument to {@link Combine#globally} or
+   * {@link Combine#perKey}.
+   *
+   * @param <T> the type of the values being compared
+   */
+  public static <T, ComparatorT extends Comparator<? super T> & Serializable>
+  BinaryCombineFn<T> of(final ComparatorT comparator) {
+    return new MaxFn<T>(null, comparator);
+  }
+
+  public static <T extends Comparable<? super T>> BinaryCombineFn<T> naturalOrder(T identity) {
+    return new MaxFn<T>(identity, new Top.Largest<T>());
+  }
+
+  public static <T extends Comparable<? super T>> BinaryCombineFn<T> naturalOrder() {
+    return new MaxFn<T>(null, new Top.Largest<T>());
   }
 
   /**
