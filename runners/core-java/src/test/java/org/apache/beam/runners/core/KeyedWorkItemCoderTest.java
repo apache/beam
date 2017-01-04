@@ -61,4 +61,10 @@ public class KeyedWorkItemCoderTest {
     CoderProperties.coderDecodeEncodeEqual(
         coder, KeyedWorkItems.<String, Integer>timersWorkItem("foo", timers));
   }
+
+  @Test
+  public void testCoderIsSerializableWithWellKnownCoderType() throws Exception {
+    CoderProperties.coderSerializable(KeyedWorkItemCoder.of(
+        GlobalWindow.Coder.INSTANCE, GlobalWindow.Coder.INSTANCE, GlobalWindow.Coder.INSTANCE));
+  }
 }

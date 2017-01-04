@@ -23,6 +23,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.TreeSet;
 import org.apache.beam.sdk.testing.CoderProperties;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.junit.Rule;
 import org.junit.Test;
@@ -42,6 +43,11 @@ public class SetCoderTest {
       Collections.<Integer>emptySet(),
       Collections.singleton(13),
       new TreeSet<>(Arrays.asList(31, -5, 83)));
+
+  @Test
+  public void testCoderIsSerializableWithWellKnownCoderType() throws Exception {
+    CoderProperties.coderSerializable(SetCoder.of(GlobalWindow.Coder.INSTANCE));
+  }
 
   @Test
   public void testDecodeEncodeContentsEqual() throws Exception {

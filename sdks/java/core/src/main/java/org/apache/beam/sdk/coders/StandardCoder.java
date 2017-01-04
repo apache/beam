@@ -120,9 +120,24 @@ public abstract class StandardCoder<T> implements Coder<T> {
     return builder.toString();
   }
 
+  /**
+   * Adds the following properties to the {@link CloudObject} representation:
+   * <ul>
+   *   <li>component_encodings: A list of coders represented as {@link CloudObject}s
+   *       equivalent to the {@link #getCoderArguments}.</li>
+   *   <li>encoding_id: An identifier for the binary format written by {@link #encode}. See
+   *       {@link #getEncodingId} for further details.</li>
+   *   <li>allowed_encodings: A collection of encodings supported by {@link #decode} in
+   *       addition to the encoding from {@link #getEncodingId()} (which is assumed supported).
+   *       See {@link #getAllowedEncodings} for further details.</li>
+   * </ul>
+   *
+   * <p>{@link StandardCoder} implementations should override {@link #initializeCloudObject}
+   * to customize the {@link CloudObject} representation.
+   */
   @Override
-  public CloudObject asCloudObject() {
-    CloudObject result = CloudObject.forClass(getClass());
+  public final CloudObject asCloudObject() {
+    CloudObject result = initializeCloudObject();
 
     List<? extends Coder<?>> components = getComponents();
     if (!components.isEmpty()) {
@@ -145,6 +160,18 @@ public abstract class StandardCoder<T> implements Coder<T> {
     }
 
     return result;
+  }
+
+  /**
+   * Subclasses should override this method to customize the {@link CloudObject}
+   * representation. {@link StandardCoder#asCloudObject} delegates to this method
+   * to provide an initial {@link CloudObject}.
+   *
+   * <p>The default implementation returns a {@link CloudObject} using
+   * {@link Object#getClass} for the type.
+   */
+  protected CloudObject initializeCloudObject() {
+    return CloudObject.forClass(getClass());
   }
 
   /**

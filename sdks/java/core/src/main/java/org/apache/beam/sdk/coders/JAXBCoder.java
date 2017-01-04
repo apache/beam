@@ -167,8 +167,8 @@ public class JAXBCoder<T> extends AtomicCoder<T> {
   }
 
   @Override
-  public CloudObject asCloudObject() {
-    CloudObject result = super.asCloudObject();
+  protected CloudObject initializeCloudObject() {
+    CloudObject result = CloudObject.forClass(getClass());
     Structs.addString(result, JAXB_CLASS, jaxbClass.getName());
     return result;
   }
