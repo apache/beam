@@ -533,8 +533,11 @@ public final class TransformTranslator {
         PCollectionView<T> output = context.getOutput(transform);
         Coder<Iterable<WindowedValue<?>>> coderInternal = output.getCoderInternal();
 
+        @SuppressWarnings("unchecked")
+        Iterable<WindowedValue<?>> iterCast =  (Iterable<WindowedValue<?>>) iter;
+
         context.putPView(output,
-            (Iterable<WindowedValue<?>>) iter,
+            iterCast,
             coderInternal);
       }
     };
@@ -549,8 +552,11 @@ public final class TransformTranslator {
         PCollectionView<Iterable<T>> output = context.getOutput(transform);
         Coder<Iterable<WindowedValue<?>>> coderInternal = output.getCoderInternal();
 
+        @SuppressWarnings("unchecked")
+        Iterable<WindowedValue<?>> iterCast =  (Iterable<WindowedValue<?>>) iter;
+
         context.putPView(output,
-            (Iterable<WindowedValue<?>>) iter,
+            iterCast,
             coderInternal);
       }
     };
@@ -567,8 +573,11 @@ public final class TransformTranslator {
         PCollectionView<WriteT> output = context.getOutput(transform);
         Coder<Iterable<WindowedValue<?>>> coderInternal = output.getCoderInternal();
 
+        @SuppressWarnings("unchecked")
+        Iterable<WindowedValue<?>> iterCast =  (Iterable<WindowedValue<?>>) iter;
+
         context.putPView(output,
-            (Iterable<WindowedValue<?>>) iter,
+            iterCast,
             coderInternal);
       }
     };
