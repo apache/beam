@@ -101,17 +101,7 @@ public class Mean {
 
   /////////////////////////////////////////////////////////////////////////////
 
-  /**
-   * A {@code Combine.CombineFn} that computes the arithmetic mean
-   * (a.k.a. average) of an {@code Iterable} of numbers of type
-   * {@code N}, useful as an argument to {@link Combine#globally} or
-   * {@link Combine#perKey}.
-   *
-   * <p>Returns {@code Double.NaN} if combining zero elements.
-   *
-   * @param <NumT> the type of the {@code Number}s being combined
-   */
-  public static class MeanFn<NumT extends Number>
+  private static class MeanFn<NumT extends Number>
   extends Combine.AccumulatingCombineFn<NumT, CountSum<NumT>, Double> {
     /**
      * Constructs a combining function that computes the mean over
