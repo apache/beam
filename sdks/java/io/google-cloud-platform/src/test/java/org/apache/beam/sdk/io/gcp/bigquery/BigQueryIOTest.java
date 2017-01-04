@@ -1646,7 +1646,8 @@ public class BigQueryIOTest implements Serializable {
     TableReference table = BigQueryIO.parseTableSpec("project.data_set.table_name");
     String extractDestinationDir = "mock://tempLocation";
     BoundedSource<TableRow> bqSource = BigQueryTableSource.create(
-        jobIdToken, StaticValueProvider.of(table), extractDestinationDir, fakeBqServices,
+        StaticValueProvider.of(jobIdToken), StaticValueProvider.of(table),
+        extractDestinationDir, fakeBqServices,
         StaticValueProvider.of("project"));
 
     List<TableRow> expected = ImmutableList.of(
@@ -1684,7 +1685,7 @@ public class BigQueryIOTest implements Serializable {
     TableReference table = BigQueryIO.parseTableSpec("project:data_set.table_name");
     String extractDestinationDir = "mock://tempLocation";
     BoundedSource<TableRow> bqSource = BigQueryTableSource.create(
-        jobIdToken, StaticValueProvider.of(table),
+        StaticValueProvider.of(jobIdToken), StaticValueProvider.of(table),
         extractDestinationDir, fakeBqServices, StaticValueProvider.of("project"));
 
     List<TableRow> expected = ImmutableList.of(
@@ -1750,7 +1751,8 @@ public class BigQueryIOTest implements Serializable {
     String extractDestinationDir = "mock://tempLocation";
     TableReference destinationTable = BigQueryIO.parseTableSpec("project:data_set.table_name");
     BoundedSource<TableRow> bqSource = BigQueryQuerySource.create(
-        jobIdToken, StaticValueProvider.of("query"), StaticValueProvider.of(destinationTable),
+        StaticValueProvider.of(jobIdToken), StaticValueProvider.of("query"),
+        StaticValueProvider.of(destinationTable),
         true /* flattenResults */, true /* useLegacySql */,
         extractDestinationDir, fakeBqServices);
 
@@ -1842,7 +1844,8 @@ public class BigQueryIOTest implements Serializable {
     String extractDestinationDir = "mock://tempLocation";
     TableReference destinationTable = BigQueryIO.parseTableSpec("project:data_set.table_name");
     BoundedSource<TableRow> bqSource = BigQueryQuerySource.create(
-        jobIdToken, StaticValueProvider.of("query"), StaticValueProvider.of(destinationTable),
+        StaticValueProvider.of(jobIdToken), StaticValueProvider.of("query"),
+        StaticValueProvider.of(destinationTable),
         true /* flattenResults */, true /* useLegacySql */,
         extractDestinationDir, fakeBqServices);
 
@@ -2117,7 +2120,7 @@ public class BigQueryIOTest implements Serializable {
     WriteTables writeTables = new WriteTables(
         false,
         fakeBqServices,
-        jobIdToken,
+        StaticValueProvider.of(jobIdToken),
         tempFilePrefix,
         StaticValueProvider.of(jsonTable),
         StaticValueProvider.of(jsonSchema),
@@ -2195,7 +2198,7 @@ public class BigQueryIOTest implements Serializable {
 
     WriteRename writeRename = new WriteRename(
         fakeBqServices,
-        jobIdToken,
+        StaticValueProvider.of(jobIdToken),
         StaticValueProvider.of(jsonTable),
         WriteDisposition.WRITE_EMPTY,
         CreateDisposition.CREATE_IF_NEEDED,
