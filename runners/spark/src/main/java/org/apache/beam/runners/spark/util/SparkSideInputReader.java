@@ -37,10 +37,10 @@ import org.apache.beam.sdk.values.TupleTag;
  * A {@link SideInputReader} for thw SparkRunner.
  */
 public class SparkSideInputReader implements SideInputReader {
-  private final Map<TupleTag<?>, KV<WindowingStrategy<?, ?>, BroadcastHelper<?>>> sideInputs;
+  private final Map<TupleTag<?>, KV<WindowingStrategy<?, ?>, SideInputBroadcast<?>>> sideInputs;
 
-  public SparkSideInputReader(Map<TupleTag<?>, KV<WindowingStrategy<?, ?>, BroadcastHelper<?>>>
-                                  sideInputs) {
+  public SparkSideInputReader(
+      Map<TupleTag<?>, KV<WindowingStrategy<?, ?>, SideInputBroadcast<?>>> sideInputs) {
     this.sideInputs = sideInputs;
   }
 
@@ -49,7 +49,7 @@ public class SparkSideInputReader implements SideInputReader {
   public <T> T get(PCollectionView<T> view, BoundedWindow window) {
     //--- validate sideInput.
     checkNotNull(view, "The PCollectionView passed to sideInput cannot be null ");
-    KV<WindowingStrategy<?, ?>, BroadcastHelper<?>> windowedBroadcastHelper =
+    KV<WindowingStrategy<?, ?>, SideInputBroadcast<?>> windowedBroadcastHelper =
         sideInputs.get(view.getTagInternal());
     checkNotNull(windowedBroadcastHelper, "SideInput for view " + view + " is not available.");
 
@@ -61,7 +61,6 @@ public class SparkSideInputReader implements SideInputReader {
     //--- match the appropriate sideInput window.
     // a tag will point to all matching sideInputs, that is all windows.
     // now that we've obtained the appropriate sideInputWindow, all that's left is to filter by it.
-    @SuppressWarnings("unchecked")
     Iterable<WindowedValue<?>> availableSideInputs =
         (Iterable<WindowedValue<?>>) windowedBroadcastHelper.getValue().getValue();
     Iterable<WindowedValue<?>> sideInputForWindow =

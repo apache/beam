@@ -192,23 +192,26 @@ public class EvaluationContext {
   }
 
   /**
-   * Retruns the current views creates in the pipepline.
+   * Retrun the current views creates in the pipepline.
+   *
    * @return SparkPCollectionView
    */
-  public SparkPCollectionView getPviews() {
+  public SparkPCollectionView getPViews() {
     return pviews;
   }
 
   /**
    * Adds/Replaces a view to the current views creates in the pipepline.
+   *
    * @param view - Identifier of the view
    * @param value - Actual value of the view
    * @param coder - Coder of the value
    */
-  public void putPView(PCollectionView<?> view,
+  public void putPView(
+      PCollectionView<?> view,
       Iterable<WindowedValue<?>> value,
       Coder<Iterable<WindowedValue<?>>> coder) {
-    pviews.putPView(view, value, coder, jsc);
+    pviews.putPView(view, value, coder);
   }
 
   <T> Iterable<WindowedValue<T>> getWindowedValues(PCollection<T> pcollection) {
