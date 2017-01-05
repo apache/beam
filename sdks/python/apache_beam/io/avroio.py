@@ -28,6 +28,7 @@ from avro import schema
 import apache_beam as beam
 from apache_beam.io import filebasedsource
 from apache_beam.io import fileio
+from apache_beam.io import iobase
 from apache_beam.io.iobase import Read
 from apache_beam.transforms import PTransform
 
@@ -135,6 +136,7 @@ class _AvroUtils(object):
       ValueError: If the block cannot be read properly because the file doesn't
         match the specification.
     """
+    offset = f.tell()
     decoder = avroio.BinaryDecoder(f)
     num_records = decoder.read_long()
     block_size = decoder.read_long()
@@ -144,7 +146,8 @@ class _AvroUtils(object):
       raise ValueError('Unexpected sync marker (actual "%s" vs expected "%s"). '
                        'Maybe the underlying avro file is corrupted?',
                        sync_marker, expected_sync_marker)
-    return _AvroBlock(block_bytes, num_records, codec, schema)
+    size = f.tell() - offset
+    return _AvroBlock(block_bytes, num_records, codec, schema, offset, size)
 
   @staticmethod
   def advance_file_past_next_sync_marker(f, sync_marker):
@@ -172,13 +175,22 @@ class _AvroUtils(object):
 class _AvroBlock(object):
   """Represents a block of an Avro file."""
 
-  def __init__(self, block_bytes, num_records, codec, schema_string):
+  def __init__(self, block_bytes, num_records, codec, schema_string,
+               offset, size):
     # Decompress data early on (if needed) and thus decrease the number of
     # parallel copies of the data in memory at any given in time during
     # block iteration.
     self._decompressed_block_bytes = self._decompress_bytes(block_bytes, codec)
     self._num_records = num_records
     self._schema = schema.parse(schema_string)
+    self._offset = offset
+    self._size = size
+
+  def size(self):
+    return self._size
+
+  def offset(self):
+    return self._offset
 
   @staticmethod
   def _decompress_bytes(data, codec):
@@ -232,12 +244,26 @@ class _AvroSource(filebasedsource.FileBasedSource):
   """
 
   def read_records(self, file_name, range_tracker):
+    next_block_start = -1
+
+    def split_points_unclaimed(stop_position):
+      if next_block_start >= stop_position:
+        # Next block starts at or after the suggested stop position. Hence
+        # there will not be split points to be claimed for the range ending at
+        # suggested stop position.
+        return 0
+
+      return iobase.RangeTracker.SPLIT_POINTS_UNKNOWN
+
+    range_tracker.set_split_points_unclaimed_callback(split_points_unclaimed)
+
     start_offset = range_tracker.start_position()
     if start_offset is None:
       start_offset = 0
 
     with self.open_file(file_name) as f:
-      codec, schema_string, sync_marker = _AvroUtils.read_meta_data_from_file(f)
+      codec, schema_string, sync_marker = _AvroUtils.read_meta_data_from_file(
+          f)
 
       # We have to start at current position if previous bundle ended at the
       # end of a sync marker.
@@ -248,6 +274,7 @@ class _AvroSource(filebasedsource.FileBasedSource):
       while range_tracker.try_claim(f.tell()):
         block = _AvroUtils.read_block_from_file(f, codec, schema_string,
                                                 sync_marker)
+        next_block_start = block.offset() + block.size()
         for record in block.records():
           yield record
 
