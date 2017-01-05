@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-  ~ Copyright (C) 2015 Google Inc.
+  ~ Copyright (C) 2017 Google Inc.
   ~
   ~ Licensed under the Apache License, Version 2.0 (the "License"); you may not
   ~ use this file except in compliance with the License. You may obtain a copy of
@@ -27,15 +27,15 @@
 
   <groupId>com.google.cloud.dataflow</groupId>
   <artifactId>google-cloud-dataflow-java-sdk-parent</artifactId>
-  <name>Google Cloud Dataflow Java SDK - Parent</name>
-  <description>Google Cloud Dataflow Java SDK provides a simple, Java-based
-    interface for processing virtually any size data using Google cloud
-    resources. This artifact includes the parent POM for other Dataflow
-    artifacts.</description>
+  <name>Google Cloud Dataflow SDK for Java - Parent</name>
+  <description>Google Cloud Dataflow SDK for Java is a distribution of Apache
+      Beam designed to simplify usage of Apache Beam on Google Cloud Dataflow
+      service. This artifact includes the parent POM for other Dataflow SDK
+      artifacts.</description>
   <url>http://cloud.google.com/dataflow</url>
   <inceptionYear>2013</inceptionYear>
 
-  <version>1.10.0-SNAPSHOT</version>
+  <version>2.0.0-beta1-SNAPSHOT</version>
 
   <licenses>
     <license>
@@ -58,43 +58,27 @@
     <url>git@github.com:GoogleCloudPlatform/DataflowJavaSDK.git</url>
   </scm>
 
+  <distributionManagement>
+    <snapshotRepository>
+      <id>ossrh</id>
+      <url>https://oss.sonatype.org/content/repositories/snapshots</url>
+    </snapshotRepository>
+    <repository>
+      <id>ossrh</id>
+      <url>https://oss.sonatype.org/service/local/staging/deploy/maven2/</url>
+    </repository>
+  </distributionManagement>
+
   <prerequisites>
     <maven>3.0.3</maven>
   </prerequisites>
 
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-    <dataflow.javadoc_opts></dataflow.javadoc_opts>
-    <dataflow.surefire_argline></dataflow.surefire_argline>
+    <timestamp>${maven.build.timestamp}</timestamp>
+    <maven.build.timestamp.format>yyyy-MM-dd HH:mm</maven.build.timestamp.format>
 
-    <!-- If updating dependencies, please update any relevant javadoc offlineLinks -->
-    <avro.version>1.7.7</avro.version>
-    <bigquery.version>v2-rev295-1.22.0</bigquery.version>
-    <pubsubgrpc.version>0.0.2</pubsubgrpc.version>
-    <bigtable.version>0.3.0</bigtable.version>
-    <clouddebugger.version>v2-rev8-1.22.0</clouddebugger.version>
-    <dataflow.version>v1b3-rev43-1.22.0</dataflow.version>
-    <dataflow.proto.version>0.5.160222</dataflow.proto.version>
-    <datastore.version>v1beta2-rev1-4.0.0</datastore.version>
-    <datastore.client.version>1.1.0</datastore.client.version>
-    <datastore.proto.version>1.0.1</datastore.proto.version>
-    <google-clients.version>1.22.0</google-clients.version>
-    <grpc.version>0.13.1</grpc.version>
-    <guava.version>19.0</guava.version>
-    <hamcrest.version>1.3</hamcrest.version>
-    <jackson.version>2.7.0</jackson.version>
-    <joda.version>2.4</joda.version>
-    <jsr305.version>3.0.1</jsr305.version>
-    <junit.version>4.11</junit.version>
-    <protobuf.version>3.0.0-beta-1</protobuf.version>
-    <pubsub.version>v1-rev10-1.22.0</pubsub.version>
-    <slf4j.version>1.7.14</slf4j.version>
-    <stax2.version>3.1.4</stax2.version>
-    <storage.version>v1-rev71-1.22.0</storage.version>
-    <woodstox.version>4.4.1</woodstox.version>
-
-    <compiler.default.pkginfo.flag>-Xpkginfo:always</compiler.default.pkginfo.flag>
-    <compiler.default.exclude>nothing</compiler.default.exclude>
+    <beam.version>0.4.0</beam.version>
   </properties>
 
   <packaging>pom</packaging>
@@ -105,107 +89,56 @@
     <module>maven-archetypes/examples</module>
   </modules>
 
-  <profiles>
-    <profile>
-      <id>doclint-java8-disable</id>
-      <activation>
-        <jdk>[1.8,)</jdk>
-      </activation>
-      <properties>
-        <dataflow.javadoc_opts>-Xdoclint:-missing</dataflow.javadoc_opts>
-      </properties>
-    </profile>
-
-    <profile>
-      <id>java7-packageinfo</id>
-      <activation>
-        <jdk>1.7</jdk>
-      </activation>
-      <properties>
-        <!--
-         Exclude package-info.java from main compilation to work around
-         https://jira.codehaus.org/browse/MCOMPILER-205
-         -->
-        <compiler.default.pkginfo.flag>-Xpkginfo:legacy</compiler.default.pkginfo.flag>
-        <compiler.default.exclude>**/package-info.java</compiler.default.exclude>
-      </properties>
-      <build>
-        <plugins>
-          <plugin>
-            <artifactId>maven-compiler-plugin</artifactId>
-            <executions>
-              <!--
-               Compile just package-info.java to avoid
-               https://bugs.openjdk.java.net/browse/JDK-8022161
-               -->
-              <execution>
-                <id>compile-package-info</id>
-                <goals>
-                  <goal>compile</goal>
-                </goals>
-                <phase>compile</phase>
-                <configuration>
-                  <compilerArgs>
-                    <arg>-Xpkginfo:always</arg>
-                  </compilerArgs>
-                  <includes>
-                    <include>**/package-info.java</include>
-                  </includes>
-                </configuration>
-              </execution>
-            </executions>
-          </plugin>
-        </plugins>
-      </build>
-    </profile>
-  </profiles>
-
   <build>
     <pluginManagement>
       <plugins>
         <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-clean-plugin</artifactId>
+          <version>3.0.0</version>
+        </plugin>
+
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-compiler-plugin</artifactId>
-          <version>3.1</version>
+          <version>3.6.0</version>
           <configuration>
             <source>1.7</source>
             <target>1.7</target>
             <compilerArgs>
               <arg>-Xlint:all</arg>
               <arg>-Werror</arg>
-              <!-- Override options warnings to support cross-compilation -->
               <arg>-Xlint:-options</arg>
-              <!-- Temporary lint overrides, to be removed over time. -->
-              <arg>-Xlint:-cast</arg>
-              <arg>-Xlint:-deprecation</arg>
-              <arg>-Xlint:-processing</arg>
-              <arg>-Xlint:-rawtypes</arg>
-              <arg>-Xlint:-serial</arg>
-              <arg>-Xlint:-try</arg>
-              <arg>-Xlint:-unchecked</arg>
-              <arg>-Xlint:-varargs</arg>
-              <!-- Uncomment the following args to display more warnings.  -->
-              <!-- -Xmaxwarns -->
-              <!-- 10000 -->
             </compilerArgs>
             <showWarnings>true</showWarnings>
-            <!-- Another temp override, to be set to true in due course. -->
-            <showDeprecation>false</showDeprecation>
+          </configuration>
+        </plugin>
+
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-checkstyle-plugin</artifactId>
+          <version>2.17</version>
+          <dependencies>
+            <dependency>
+              <groupId>com.puppycrawl.tools</groupId>
+              <artifactId>checkstyle</artifactId>
+              <version>6.19</version>
+            </dependency>
+          </dependencies>
+          <configuration>
+            <configLocation>sdk/checkstyle.xml</configLocation>
+            <suppressionsLocation>sdk/suppressions.xml</suppressionsLocation>
+            <consoleOutput>true</consoleOutput>
+            <failOnViolation>true</failOnViolation>
+            <includeResources>true</includeResources>
+            <includeTestSourceDirectory>true</includeTestSourceDirectory>
           </configuration>
           <executions>
             <execution>
-              <id>default-compile</id>
+              <phase>verify</phase>
               <goals>
-                <goal>compile</goal>
+                <goal>check</goal>
               </goals>
-              <phase>compile</phase>
-              <configuration>
-                <compilerArgs>
-                  <arg>${compiler.default.pkginfo.flag}</arg>
-                </compilerArgs>
-                <excludes>
-                  <exclude>${compiler.default.exclude}</exclude>
-                </excludes>
-              </configuration>
             </execution>
           </executions>
         </plugin>
@@ -213,195 +146,194 @@
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-jar-plugin</artifactId>
-          <version>2.5</version>
+          <version>3.0.2</version>
+          <configuration>
+            <skipIfEmpty>true</skipIfEmpty>
+          </configuration>
+          <executions>
+            <execution>
+              <id>default-jar</id>
+              <goals>
+                <goal>jar</goal>
+              </goals>
+            </execution>
+            <execution>
+              <id>default-test-jar</id>
+              <goals>
+                <goal>test-jar</goal>
+              </goals>
+            </execution>
+          </executions>
         </plugin>
 
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
-          <artifactId>maven-javadoc-plugin</artifactId>
-          <version>2.10.3</version>
-        </plugin>
-
-        <plugin>
-          <groupId>org.codehaus.mojo</groupId>
-          <artifactId>versions-maven-plugin</artifactId>
-          <version>2.1</version>
-        </plugin>
-
-        <plugin>
-          <groupId>org.codehaus.mojo</groupId>
-          <artifactId>exec-maven-plugin</artifactId>
-          <version>1.4.0</version>
+          <artifactId>maven-source-plugin</artifactId>
+          <version>3.0.1</version>
           <executions>
             <execution>
-              <phase>verify</phase>
+              <id>attach-sources</id>
+              <phase>compile</phase>
               <goals>
-                <goal>java</goal>
+                <goal>jar</goal>
+              </goals>
+            </execution>
+            <execution>
+              <id>attach-test-sources</id>
+              <phase>test-compile</phase>
+              <goals>
+                <goal>test-jar</goal>
               </goals>
             </execution>
           </executions>
-          <configuration>
-            <cleanupDaemonThreads>false</cleanupDaemonThreads>
-            <systemProperties>
-              <systemProperty>
-                <key>java.util.logging.config.file</key>
-                <value>logging.properties</value>
-              </systemProperty>
-            </systemProperties>
-          </configuration>
         </plugin>
 
-        <!-- Coverage analysis for tests -->
         <plugin>
-          <groupId>org.jacoco</groupId>
-          <artifactId>jacoco-maven-plugin</artifactId>
-          <version>0.7.5.201505241946</version>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-dependency-plugin</artifactId>
+          <version>3.0.0</version>
           <executions>
             <execution>
               <goals>
-                <goal>prepare-agent</goal>
+                <goal>analyze-only</goal>
               </goals>
               <configuration>
-                <output>file</output>
-                <dumpOnExit>true</dumpOnExit>
+                <failOnWarning>true</failOnWarning>
               </configuration>
             </execution>
-            <execution>
-              <id>report</id>
-              <phase>prepare-package</phase>
-              <goals>
-                <goal>report</goal>
-              </goals>
-            </execution>
           </executions>
-          <configuration>
-            <excludes>
-              <exclude>**/AutoValue_*.class</exclude>
-            </excludes>
-          </configuration>
         </plugin>
 
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-surefire-plugin</artifactId>
-          <version>2.18.1</version>
-          <configuration>
-            <parallel>${testParallelValue}</parallel>
-            <threadCount>4</threadCount>
-            <additionalClasspathElements>
-              <additionalClasspathElement>${project.build.directory}/${project.artifactId}-${project.version}.jar</additionalClasspathElement>
-              <additionalClasspathElement>${project.build.directory}/${project.artifactId}-${project.version}-tests.jar</additionalClasspathElement>
-            </additionalClasspathElements>
-            <groups>${testGroups}</groups>
-            <systemPropertyVariables>
-              <runIntegrationTestOnService>${runIntegrationTestOnService}</runIntegrationTestOnService>
-              <projectName>${dataflowProjectName}</projectName>
-            </systemPropertyVariables>
-            <useManifestOnlyJar>false</useManifestOnlyJar>
-            <trimStackTrace>false</trimStackTrace>
-            <redirectTestOutputToFile>true</redirectTestOutputToFile>
-            <argLine>${dataflow.surefire_argline}</argLine>
-          </configuration>
-          <dependencies>
-            <dependency>
-              <groupId>org.apache.maven.surefire</groupId>
-              <artifactId>surefire-junit47</artifactId>
-              <version>2.18.1</version>
-            </dependency>
-          </dependencies>
+          <version>2.19.1</version>
         </plugin>
 
-        <!-- This plugin's configuration tells the m2e plugin how to import this
-             Maven project into the Eclipse environment. -->
-        <plugin>
-          <groupId>org.eclipse.m2e</groupId>
-          <artifactId>lifecycle-mapping</artifactId>
-          <version>1.0.0</version>
-          <configuration>
-            <lifecycleMappingMetadata>
-              <pluginExecutions>
-                <pluginExecution>
-                  <pluginExecutionFilter>
-                    <groupId>org.apache.avro</groupId>
-                    <artifactId>avro-maven-plugin</artifactId>
-                    <versionRange>${avro.version}</versionRange>
-                    <goals>
-                      <goal>schema</goal>
-                    </goals>
-                  </pluginExecutionFilter>
-                  <action>
-                    <execute>
-                      <runOnIncremental>false</runOnIncremental>
-                    </execute>
-                  </action>
-                </pluginExecution>
-                <pluginExecution>
-                  <pluginExecutionFilter>
-                    <groupId>org.apache.maven.plugins</groupId>
-                    <artifactId>maven-jar-plugin</artifactId>
-                    <versionRange>[2.5,)</versionRange>
-                    <goals>
-                      <goal>jar</goal>
-                      <goal>test-jar</goal>
-                    </goals>
-                  </pluginExecutionFilter>
-                  <action>
-                    <ignore/>
-                  </action>
-                </pluginExecution>
-                <pluginExecution>
-                  <pluginExecutionFilter>
-                    <groupId>org.jacoco</groupId>
-                    <artifactId>jacoco-maven-plugin</artifactId>
-                    <versionRange>[0.7.5,)</versionRange>
-                    <goals>
-                      <goal>report</goal>
-                      <goal>prepare-agent</goal>
-                    </goals>
-                  </pluginExecutionFilter>
-                  <action>
-                    <ignore/>
-                  </action>
-                </pluginExecution>
-              </pluginExecutions>
-            </lifecycleMappingMetadata>
-          </configuration>
-        </plugin>
-
-        <!-- Ignore runtime-only dependencies in analysis -->
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
-          <artifactId>maven-dependency-plugin</artifactId>
-          <version>2.10</version>
+          <artifactId>maven-archetype-plugin</artifactId>
+          <version>2.4</version>
+          <dependencies>
+            <dependency>
+              <groupId>org.apache.maven.shared</groupId>
+              <artifactId>maven-invoker</artifactId>
+              <version>2.2</version>
+            </dependency>
+          </dependencies>
+          <executions>
+            <!-- archetype-packaging above binds this plugin's goals as follows:
+                     archetype:jar to the package phase,
+                     archetype:integration-test to the integration-test phase,
+                     archetype:update-local-catalog to the install phase.
+                 We defer the integration-test goal to the install phase, since
+                 this test actually depends on the core SDK to be installed. -->
+            <execution>
+              <id>default-integration-test</id>
+              <phase>install</phase>
+              <goals>
+                <goal>integration-test</goal>
+              </goals>
+              <configuration>
+                <ignoreEOLStyle>true</ignoreEOLStyle>
+              </configuration>
+            </execution>
+          </executions>
+        </plugin>
+
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-release-plugin</artifactId>
+          <version>2.5.3</version>
           <configuration>
-            <ignoreNonCompile>true</ignoreNonCompile>
+            <autoVersionSubmodules>true</autoVersionSubmodules>
+            <useReleaseProfile>true</useReleaseProfile>
+            <goals>deploy</goals>
           </configuration>
         </plugin>
 
         <plugin>
           <groupId>org.codehaus.mojo</groupId>
-          <artifactId>build-helper-maven-plugin</artifactId>
-          <version>1.10</version>
+          <artifactId>exec-maven-plugin</artifactId>
+          <version>1.5.0</version>
+          <configuration>
+            <cleanupDaemonThreads>false</cleanupDaemonThreads>
+          </configuration>
         </plugin>
       </plugins>
     </pluginManagement>
-  </build>
 
-  <reporting>
     <plugins>
       <plugin>
-        <groupId>org.codehaus.mojo</groupId>
-        <artifactId>versions-maven-plugin</artifactId>
-        <version>2.1</version>
-        <reportSets>
-          <reportSet>
-            <reports>
-              <report>dependency-updates-report</report>
-              <report>plugin-updates-report</report>
-            </reports>
-          </reportSet>
-        </reportSets>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-compiler-plugin</artifactId>
+      </plugin>
+
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-source-plugin</artifactId>
+      </plugin>
+
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-dependency-plugin</artifactId>
+      </plugin>
+
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-surefire-plugin</artifactId>
+      </plugin>
+
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-checkstyle-plugin</artifactId>
       </plugin>
     </plugins>
-  </reporting>
+  </build>
+
+  <dependencyManagement>
+    <dependencies>
+      <dependency>
+        <groupId>com.google.cloud.dataflow</groupId>
+        <artifactId>google-cloud-dataflow-java-sdk-all</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.apache.beam</groupId>
+        <artifactId>beam-sdks-java-core</artifactId>
+        <version>${beam.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.apache.beam</groupId>
+        <artifactId>beam-sdks-java-io-google-cloud-platform</artifactId>
+        <version>${beam.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.apache.beam</groupId>
+        <artifactId>beam-runners-direct-java</artifactId>
+        <version>${beam.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.apache.beam</groupId>
+        <artifactId>beam-runners-google-cloud-dataflow-java</artifactId>
+        <version>${beam.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.apache.beam</groupId>
+        <artifactId>beam-examples-java</artifactId>
+        <version>${beam.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.apache.beam</groupId>
+        <artifactId>beam-examples-java8</artifactId>
+        <version>${beam.version}</version>
+      </dependency>
+    </dependencies>
+  </dependencyManagement>
 </project>
