@@ -150,11 +150,15 @@
   </modules>
 
   <profiles>
-    <!-- A global profile defined for all modules for release-level verification. 
-      Optional processes such as building source and javadoc should be limited 
-      to this profile. -->
+
+    <!-- A global profile defined for all modules that enables a higher level of validation.
+      This profile is off by default to streamline development, but it is automatically enabled
+      during releases and precommit testing. Developers can enable it manually on the command line
+      using -Pall-checks.
+
+      Optional processes such as building source and javadoc should be limited to this profile. -->
     <profile>
-      <id>release</id>
+      <id>all-checks</id>
       <build>
         <pluginManagement>
           <plugins>
@@ -1145,7 +1149,7 @@
           <artifactId>maven-release-plugin</artifactId>
           <version>2.5.3</version>
           <configuration>
-            <releaseProfiles>release</releaseProfiles>
+            <releaseProfiles>all-checks</releaseProfiles>
             <preparationGoals>clean install</preparationGoals>
             <goals>deploy</goals>
             <autoVersionSubmodules>true</autoVersionSubmodules>

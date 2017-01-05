@@ -43,7 +43,7 @@
 
   <profiles>
     <profile>
-      <id>release</id>
+      <id>all-checks</id>
       <build>
         <plugins>
           <plugin>
