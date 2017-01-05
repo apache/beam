@@ -49,20 +49,22 @@ public class SparkPCollectionView implements Serializable {
         JavaSparkContext context) {
 
         pviews.put(view, new Tuple2<>(CoderHelpers.toByteArray(value, coder), coder));
-        // overwrite/create broadcast - Future improvement is to initialize the BH lazily
-        getPCollectionView(view, context, true);
+
+        // Currently unsynchronized unpersist, if needed can be changed to blocking
+        if (broadcastHelperMap != null) {
+            synchronized (SparkPCollectionView.class) {
+                BroadcastHelper helper = broadcastHelperMap.get(view);
+                if (helper != null) {
+                    helper.unpersist();
+                    broadcastHelperMap.remove(view);
+                }
+            }
+        }
     }
 
     BroadcastHelper getPCollectionView(
         PCollectionView<?> view,
         JavaSparkContext context) {
-        return getPCollectionView(view, context, false);
-    }
-
-    private BroadcastHelper getPCollectionView(
-        PCollectionView<?> view,
-        JavaSparkContext context,
-        boolean overwrite) {
         // initialize broadcastHelperMap if needed
         if (broadcastHelperMap == null) {
             synchronized (SparkPCollectionView.class) {
@@ -80,12 +82,6 @@ public class SparkPCollectionView implements Serializable {
                 if (helper == null) {
                     helper = createBroadcastHelper(view, context);
                 }
-            }
-        } else if (overwrite) {
-            synchronized (SparkPCollectionView.class) {
-                // Currently unsynchronized unpersist, if needed can be changed to blocking
-                helper.unpersist();
-                helper = createBroadcastHelper(view, context);
             }
         }
         return helper;
