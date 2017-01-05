@@ -21,8 +21,6 @@ import os
 import tempfile
 import unittest
 
-import hamcrest as hc
-
 import apache_beam as beam
 from apache_beam.io import avroio
 from apache_beam.io import filebasedsource
@@ -40,6 +38,15 @@ import avro.datafile
 from avro.datafile import DataFileWriter
 from avro.io import DatumWriter
 import avro.schema
+import hamcrest as hc
+
+
+# Import snappy optionally; some tests will be skipped when import fails.
+try:
+  import snappy  # pylint: disable=import-error
+except ImportError:
+  snappy = None  # pylint: disable=invalid-name
+  logging.warning('snappy is not installed; some tests will be skipped.')
 
 
 class TestAvro(unittest.TestCase):
@@ -256,27 +263,17 @@ class TestAvro(unittest.TestCase):
     expected_result = self.RECORDS
     self._run_avro_test(file_name, 100, True, expected_result)
 
+  @unittest.skipIf(snappy is None, 'snappy not installed.')
   def test_read_without_splitting_compressed_snappy(self):
-    try:
-      import snappy  # pylint: disable=unused-variable
-      file_name = self._write_data(codec='snappy')
-      expected_result = self.RECORDS
-      self._run_avro_test(file_name, None, False, expected_result)
-    except ImportError:
-      logging.warning(
-          'Skipped test_read_without_splitting_compressed_snappy since snappy '
-          'appears to not be installed.')
+    file_name = self._write_data(codec='snappy')
+    expected_result = self.RECORDS
+    self._run_avro_test(file_name, None, False, expected_result)
 
+  @unittest.skipIf(snappy is None, 'snappy not installed.')
   def test_read_with_splitting_compressed_snappy(self):
-    try:
-      import snappy  # pylint: disable=unused-variable
-      file_name = self._write_data(codec='snappy')
-      expected_result = self.RECORDS
-      self._run_avro_test(file_name, 100, True, expected_result)
-    except ImportError:
-      logging.warning(
-          'Skipped test_read_with_splitting_compressed_snappy since snappy '
-          'appears to not be installed.')
+    file_name = self._write_data(codec='snappy')
+    expected_result = self.RECORDS
+    self._run_avro_test(file_name, 100, True, expected_result)
 
   def test_read_without_splitting_pattern(self):
     pattern = self._write_pattern(3)
@@ -339,25 +336,18 @@ class TestAvro(unittest.TestCase):
         readback = p | avroio.ReadFromAvro(path + '*') | beam.Map(json.dumps)
         assert_that(readback, equal_to([json.dumps(r) for r in self.RECORDS]))
 
+  @unittest.skipIf(snappy is None, 'snappy not installed.')
   def test_sink_transform_snappy(self):
-    try:
-      import snappy  # pylint: disable=unused-variable
-      with tempfile.NamedTemporaryFile() as dst:
-        path = dst.name
-        with beam.Pipeline('DirectRunner') as p:
-          # pylint: disable=expression-not-assigned
-          p | beam.Create(self.RECORDS) | avroio.WriteToAvro(
-              path,
-              self.SCHEMA,
-              codec='snappy')
-        with beam.Pipeline('DirectRunner') as p:
-          # json used for stable sortability
-          readback = p | avroio.ReadFromAvro(path + '*') | beam.Map(json.dumps)
-          assert_that(readback, equal_to([json.dumps(r) for r in self.RECORDS]))
-    except ImportError:
-      logging.warning(
-          'Skipped test_sink_transform_snappy since snappy appears to not be '
-          'installed.')
+    with tempfile.NamedTemporaryFile() as dst:
+      path = dst.name
+      with beam.Pipeline('DirectRunner') as p:
+        # pylint: disable=expression-not-assigned
+        p | beam.Create(self.RECORDS) | avroio.WriteToAvro(
+            path, self.SCHEMA, codec='snappy')
+      with beam.Pipeline('DirectRunner') as p:
+        # json used for stable sortability
+        readback = p | avroio.ReadFromAvro(path + '*') | beam.Map(json.dumps)
+        assert_that(readback, equal_to([json.dumps(r) for r in self.RECORDS]))
 
 
 if __name__ == '__main__':
