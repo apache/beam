@@ -298,6 +298,8 @@ class RangeTracker(object):
   the current reader and by a reader of the task starting at 43).
   """
 
+  SPLIT_POINTS_UNKNOWN = object()
+
   def start_position(self):
     """Returns the starting position of the current range, inclusive."""
     raise NotImplementedError(type(self))
@@ -315,8 +317,8 @@ class RangeTracker(object):
 
     ** Thread safety **
 
-    This method along with several other methods of this class may be invoked by
-    multiple threads, hence must be made thread-safe, e.g. by using a single
+    Methods of the class ``RangeTracker`` including this method may get invoked
+    by different threads, hence must be made thread-safe, e.g. by using a single
     lock object.
 
     Args:
@@ -350,8 +352,8 @@ class RangeTracker(object):
 
     ** Thread safety **
 
-    This method along with several other methods of this class may be invoked by
-    multiple threads, hence must be made thread-safe, e.g. by using a single
+    Methods of the class ``RangeTracker`` including this method may get invoked
+    by different threads, hence must be made thread-safe, e.g. by using a single
     lock object.
 
     Args:
@@ -385,8 +387,8 @@ class RangeTracker(object):
 
     ** Thread safety **
 
-    This method along with several other methods of this class may be invoked by
-    multiple threads, hence must be made thread-safe, e.g. by using a single
+    Methods of the class ``RangeTracker`` including this method may get invoked
+    by different threads, hence must be made thread-safe, e.g. by using a single
     lock object.
 
     Args:
@@ -403,8 +405,8 @@ class RangeTracker(object):
 
     ** Thread safety **
 
-    This method along with several other methods of this class may be invoked by
-    multiple threads, hence must be made thread-safe, e.g. by using a single
+    Methods of the class ``RangeTracker`` including this method may get invoked
+    by different threads, hence must be made thread-safe, e.g. by using a single
     lock object.
 
     Returns:
@@ -413,6 +415,143 @@ class RangeTracker(object):
       0.0 if no such calls have happened.
     """
     raise NotImplementedError
+
+  def split_points(self):
+    """Gives the number of split points consumed and remaining.
+
+    For a ``RangeTracker`` used by a ``BoundedSource`` (within a
+    ``BoundedSource.read()`` invocation) this method produces a 2-tuple that
+    gives the number of split points consumed by the ``BoundedSource`` and the
+    number of split points remaining within the range of the ``RangeTracker``
+    that has not been consumed by the ``BoundedSource``.
+
+    More specifically, given that the position of the current record being read
+    by ``BoundedSource`` is current_position this method produces a tuple that
+    consists of
+    (1) number of split points in the range [self.start_position(),
+    current_position) without including the split point that is currently being
+    consumed. This represents the total amount of parallelism in the consumed
+    part of the source.
+    (2) number of split points within the range
+    [current_position, self.stop_position()) including the split point that is
+    currently being consumed. This represents the total amount of parallelism in
+    the unconsumed part of the source.
+
+    Methods of the class ``RangeTracker`` including this method may get invoked
+    by different threads, hence must be made thread-safe, e.g. by using a single
+    lock object.
+
+    ** General information about consumed and remaining number of split
+       points returned by this method. **
+
+      * Before a source read (``BoundedSource.read()`` invocation) claims the
+        first split point, number of consumed split points is 0. This condition
+        holds independent of whether the input is "splittable". A splittable
+        source is a source that has more than one split point.
+      * Any source read that has only claimed one split point has 0 consumed
+        split points since the first split point is the current split point and
+        is still being processed. This condition holds independent of whether
+        the input is splittable.
+      * For an empty source read which never invokes
+        ``RangeTracker.try_claim()``, the consumed number of split points is 0.
+        This condition holds independent of whether the input is splittable.
+      * For a source read which has invoked ``RangeTracker.try_claim()`` n
+        times, the consumed number of split points is  n -1.
+      * If a ``BoundedSource`` sets a callback through function
+        ``set_split_points_unclaimed_callback()``, ``RangeTracker`` can use that
+        callback when determining remaining number of split points.
+      * Remaining split points should include the split point that is currently
+        being consumed by the source read. Hence if the above callback returns
+        an integer value n, remaining number of split points should be (n + 1).
+      * After last split point is claimed remaining split points becomes 1,
+        because this unfinished read itself represents an  unfinished split
+        point.
+      * After all records of the source has been consumed, remaining number of
+        split points becomes 0 and consumed number of split points becomes equal
+        to the total number of split points within the range being read by the
+        source. This method does not address this condition and will continue to
+        report number of consumed split points as
+        ("total number of split points" - 1) and number of remaining split
+        points as 1. A runner that performs the reading of the source can
+        detect when all records have been consumed and adjust remaining and
+        consumed number of split points accordingly.
+
+    ** Examples **
+
+    (1) A "perfectly splittable" input which can be read in parallel down to the
+        individual records.
+
+        Consider a perfectly splittable input that consists of 50 split points.
+
+      * Before a source read (``BoundedSource.read()`` invocation) claims the
+        first split point, number of consumed split points is 0 number of
+        remaining split points is 50.
+      * After claiming first split point, consumed number of split points is 0
+        and remaining number of split is 50.
+      * After claiming split point #30, consumed number of split points is 29
+        and remaining number of split points is 21.
+      * After claiming all 50 split points, consumed number of split points is
+        49 and remaining number of split points is 1.
+
+    (2) a "block-compressed" file format such as ``avroio``, in which a block of
+        records has to be read as a whole, but different blocks can be read in
+        parallel.
+
+        Consider a block compressed input that consists of 5 blocks.
+
+      * Before a source read (``BoundedSource.read()`` invocation) claims the
+        first split point (first block), number of consumed split points is 0
+        number of remaining split points is 5.
+      * After claiming first split point, consumed number of split points is 0
+        and remaining number of split is 5.
+      * After claiming split point #3, consumed number of split points is 2
+        and remaining number of split points is 3.
+      * After claiming all 5 split points, consumed number of split points is
+        4 and remaining number of split points is 1.
+
+    (3) an "unsplittable" input such as a cursor in a database or a gzip
+        compressed file.
+
+        Such an input is considered to have only a single split point. Number of
+        consumed split points is always 0 and number of remaining split points
+        is always 1.
+
+    By default ``RangeTracker` returns ``RangeTracker.SPLIT_POINTS_UNKNOWN`` for
+    both consumed and remaining number of split points, which indicates that the
+    number of split points consumed and remaining is unknown.
+
+    Returns:
+      A pair that gives consumed and remaining number of split points. Consumed
+      number of split points should be an integer larger than or equal to zero
+      or ``RangeTracker.SPLIT_POINTS_UNKNOWN``. Remaining number of split points
+      should be an integer larger than zero or
+      ``RangeTracker.SPLIT_POINTS_UNKNOWN``.
+    """
+    return (RangeTracker.SPLIT_POINTS_UNKNOWN,
+            RangeTracker.SPLIT_POINTS_UNKNOWN)
+
+  def set_split_points_unclaimed_callback(self, callback):
+    """Sets a callback for determining the unclaimed number of split points.
+
+    By invoking this function, a ``BoundedSource`` can set a callback function
+    that may get invoked by the ``RangeTracker`` to determine the number of
+    unclaimed split points. A split point is unclaimed if
+    ``RangeTracker.try_claim()`` method has not been successfully invoked for
+    that particular split point. The callback function accepts a single
+    parameter, a stop position for the BoundedSource (stop_position). If the
+    record currently being consumed by the ``BoundedSource`` is at position
+    current_position, callback should return the number of split points within
+    the range (current_position, stop_position). Note that, this should not
+    include the split point that is currently being consumed by the source.
+
+    Args:
+      callback: a function that takes a single parameter, a stop position,
+                and returns unclaimed number of split points for the source read
+                operation that is calling this function. Value returned from
+                callback should be either an integer larger than or equal to
+                zero or ``RangeTracker.SPLIT_POINTS_UNKNOWN``.
+    """
+    pass
 
 
 class Sink(HasDisplayData):

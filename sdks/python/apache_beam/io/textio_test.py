@@ -28,6 +28,7 @@ import unittest
 import hamcrest as hc
 
 import apache_beam as beam
+from apache_beam.io import iobase
 import apache_beam.io.source_test_utils as source_test_utils
 
 # Importing following private classes for testing.
@@ -237,13 +238,25 @@ class TextSourceTest(unittest.TestCase):
     splits = [split for split in source.split(desired_bundle_size=100000)]
     assert len(splits) == 1
     fraction_consumed_report = []
+    split_points_report = []
     range_tracker = splits[0].source.get_range_tracker(
         splits[0].start_position, splits[0].stop_position)
     for _ in splits[0].source.read(range_tracker):
       fraction_consumed_report.append(range_tracker.fraction_consumed())
+      split_points_report.append(range_tracker.split_points())
 
     self.assertEqual(
         [float(i) / 10 for i in range(0, 10)], fraction_consumed_report)
+    expected_split_points_report = [
+        ((i - 1), iobase.RangeTracker.SPLIT_POINTS_UNKNOWN)
+        for i in range(1, 10)]
+
+    # At last split point, the remaining split points callback returns 1 since
+    # the expected position of next record becomes equal to the stop position.
+    expected_split_points_report.append((9, 1))
+
+    self.assertEqual(
+        expected_split_points_report, split_points_report)
 
   def test_read_reentrant_without_splitting(self):
     file_name, expected_data = write_data(10)

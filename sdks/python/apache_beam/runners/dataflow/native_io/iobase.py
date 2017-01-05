@@ -136,7 +136,8 @@ class NativeSourceReader(object):
 class ReaderProgress(object):
   """A representation of how far a NativeSourceReader has read."""
 
-  def __init__(self, position=None, percent_complete=None, remaining_time=None):
+  def __init__(self, position=None, percent_complete=None, remaining_time=None,
+               consumed_split_points=None, remaining_split_points=None):
 
     self._position = position
 
@@ -149,6 +150,8 @@ class ReaderProgress(object):
     self._percent_complete = percent_complete
 
     self._remaining_time = remaining_time
+    self._consumed_split_points = consumed_split_points
+    self._remaining_split_points = remaining_split_points
 
   @property
   def position(self):
@@ -171,6 +174,14 @@ class ReaderProgress(object):
   def remaining_time(self):
     """Returns progress, represented as an estimated time remaining."""
     return self._remaining_time
+
+  @property
+  def consumed_split_points(self):
+    return self._consumed_split_points
+
+  @property
+  def remaining_split_points(self):
+    return self._remaining_split_points
 
 
 class ReaderPosition(object):

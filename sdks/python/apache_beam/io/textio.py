@@ -22,6 +22,7 @@ from __future__ import absolute_import
 from apache_beam import coders
 from apache_beam.io import filebasedsource
 from apache_beam.io import fileio
+from apache_beam.io import iobase
 from apache_beam.io.iobase import Read
 from apache_beam.io.iobase import Write
 from apache_beam.transforms import PTransform
@@ -87,6 +88,14 @@ class _TextSource(filebasedsource.FileBasedSource):
     start_offset = range_tracker.start_position()
     read_buffer = _TextSource.ReadBuffer('', 0)
 
+    next_record_start_position = -1
+
+    def split_points_unclaimed(stop_position):
+      return (0 if stop_position <= next_record_start_position
+              else iobase.RangeTracker.SPLIT_POINTS_UNKNOWN)
+
+    range_tracker.set_split_points_unclaimed_callback(split_points_unclaimed)
+
     with self.open_file(file_name) as file_to_read:
       if start_offset > 0:
         # Seeking to one position before the start index and ignoring the
@@ -120,10 +129,14 @@ class _TextSource(filebasedsource.FileBasedSource):
         if len(record) == 0 and num_bytes_to_next_record < 0:
           break
 
+        # Record separator must be larger than zero bytes.
+        assert num_bytes_to_next_record != 0
+        if num_bytes_to_next_record > 0:
+          next_record_start_position += num_bytes_to_next_record
+
         yield self._coder.decode(record)
         if num_bytes_to_next_record < 0:
           break
-        next_record_start_position += num_bytes_to_next_record
 
   def _find_separator_bounds(self, file_to_read, read_buffer):
     # Determines the start and end positions within 'read_buffer.data' of the
@@ -173,7 +186,7 @@ class _TextSource(filebasedsource.FileBasedSource):
 
   def _read_record(self, file_to_read, read_buffer):
     # Returns a tuple containing the current_record and number of bytes to the
-    # next record starting from 'self._next_position_in_buffer'. If EOF is
+    # next record starting from 'read_buffer.position'. If EOF is
     # reached, returns a tuple containing the current record and -1.
 
     if read_buffer.position > self._buffer_size:

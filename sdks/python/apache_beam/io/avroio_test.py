@@ -22,6 +22,7 @@ import tempfile
 import unittest
 
 import apache_beam as beam
+from apache_beam.io import iobase
 from apache_beam.io import avroio
 from apache_beam.io import filebasedsource
 from apache_beam.io import source_test_utils
@@ -252,6 +253,36 @@ class TestAvro(unittest.TestCase):
     file_name = self._write_data(count=12000)
     expected_result = self.RECORDS * 2000
     self._run_avro_test(file_name, 10000, True, expected_result)
+
+  def test_split_points(self):
+    file_name = self._write_data(count=12000)
+    source = AvroSource(file_name)
+
+    splits = [
+        split
+        for split in source.split(desired_bundle_size=float('inf'))
+    ]
+    assert len(splits) == 1
+
+    range_tracker = splits[0].source.get_range_tracker(
+        splits[0].start_position, splits[0].stop_position)
+
+    split_points_report = []
+
+    for _ in splits[0].source.read(range_tracker):
+      split_points_report.append(range_tracker.split_points())
+
+    # There are a total of three blocks. Each block has more than 10 records.
+
+    # When reading records of the first block, range_tracker.split_points()
+    # should return (0, iobase.RangeTracker.SPLIT_POINTS_UNKNOWN)
+    self.assertEquals(
+        split_points_report[:10],
+        [(0, iobase.RangeTracker.SPLIT_POINTS_UNKNOWN)] * 10)
+
+    # When reading records of last block, range_tracker.split_points() should
+    # return (2, 1)
+    self.assertEquals(split_points_report[-10:], [(2, 1)] * 10)
 
   def test_read_without_splitting_compressed_deflate(self):
     file_name = self._write_data(codec='deflate')

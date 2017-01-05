@@ -55,6 +55,9 @@ class OffsetRangeTracker(iobase.RangeTracker):
     self._offset_of_last_split_point = -1
     self._lock = threading.Lock()
 
+    self._split_points_seen = 0
+    self._split_points_unclaimed_callback = None
+
   def start_position(self):
     return self._start_offset
 
@@ -106,6 +109,7 @@ class OffsetRangeTracker(iobase.RangeTracker):
         return False
       self._offset_of_last_split_point = record_start
       self._last_record_start = record_start
+      self._split_points_seen += 1
       return True
 
   def set_current_position(self, record_start):
@@ -167,6 +171,24 @@ class OffsetRangeTracker(iobase.RangeTracker):
     return int(math.ceil(self.start_position() + fraction * (
         self.stop_position() - self.start_position())))
 
+  def split_points(self):
+    with self._lock:
+      split_points_consumed = (
+          0 if self._split_points_seen == 0 else self._split_points_seen - 1)
+      split_points_unclaimed = (
+          self._split_points_unclaimed_callback(self.stop_position())
+          if self._split_points_unclaimed_callback
+          else iobase.RangeTracker.SPLIT_POINTS_UNKNOWN)
+      split_points_remaining = (
+          iobase.RangeTracker.SPLIT_POINTS_UNKNOWN if
+          split_points_unclaimed == iobase.RangeTracker.SPLIT_POINTS_UNKNOWN
+          else (split_points_unclaimed + 1))
+
+      return (split_points_consumed, split_points_remaining)
+
+  def set_split_points_unclaimed_callback(self, callback):
+    self._split_points_unclaimed_callback = callback
+
 
 class GroupedShuffleRangeTracker(iobase.RangeTracker):
   """A 'RangeTracker' for positions used by'GroupedShuffleReader'.
@@ -184,6 +206,7 @@ class GroupedShuffleRangeTracker(iobase.RangeTracker):
     self._decoded_stop_pos = decoded_stop_pos
     self._decoded_last_group_start = None
     self._last_group_was_at_a_split_point = False
+    self._split_points_seen = 0
     self._lock = threading.Lock()
 
   def start_position(self):
@@ -240,6 +263,7 @@ class GroupedShuffleRangeTracker(iobase.RangeTracker):
 
       self._decoded_last_group_start = decoded_group_start
       self._last_group_was_at_a_split_point = True
+      self._split_points_seen += 1
       return True
 
   def set_current_position(self, decoded_group_start):
@@ -284,6 +308,14 @@ class GroupedShuffleRangeTracker(iobase.RangeTracker):
     raise RuntimeError('GroupedShuffleRangeTracker does not measure fraction'
                        ' consumed due to positions being opaque strings'
                        ' that are interpreted by the service')
+
+  def split_points(self):
+    with self._lock:
+      splits_points_consumed = (
+          0 if self._split_points_seen <= 1 else (self._split_points_seen - 1))
+
+      return (splits_points_consumed,
+              iobase.RangeTracker.SPLIT_POINTS_UNKNOWN)
 
 
 class OrderedPositionRangeTracker(iobase.RangeTracker):
@@ -380,7 +412,7 @@ class UnsplittableRangeTracker(iobase.RangeTracker):
       range_tracker: a ``RangeTracker`` to which all method calls expect calls
       to ``try_split()`` will be delegated.
     """
-    assert range_tracker
+    assert isinstance(range_tracker, iobase.RangeTracker)
     self._range_tracker = range_tracker
 
   def start_position(self):
@@ -403,6 +435,10 @@ class UnsplittableRangeTracker(iobase.RangeTracker):
 
   def fraction_consumed(self):
     return self._range_tracker.fraction_consumed()
+
+  def split_points(self):
+    # An unsplittable range only contains a single split point.
+    return (0, 1)
 
 
 class LexicographicKeyRangeTracker(OrderedPositionRangeTracker):
