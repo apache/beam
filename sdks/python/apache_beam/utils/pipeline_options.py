@@ -354,13 +354,6 @@ class WorkerOptions(PipelineOptions):
               'SDK. Note: currently, only approved Google Cloud Dataflow '
               'container images may be used here.'))
     parser.add_argument(
-        '--teardown_policy',
-        choices=['TEARDOWN_ALWAYS', 'TEARDOWN_NEVER', 'TEARDOWN_ON_SUCCESS'],
-        default=None,
-        help=
-        ('The teardown policy for the VMs. By default this is left unset and '
-         'the service sets the default policy.'))
-    parser.add_argument(
         '--use_public_ips',
         default=None,
         help='Whether to assign public IP addresses to the worker machines.')
