@@ -16,9 +16,9 @@
     specific language governing permissions and limitations
     under the License.
 -->
-# Apache Beam (incubating) - Python SDK
+# Apache Beam - Python SDK
 
-[Apache Beam](http://beam.incubator.apache.org) is a unified model for defining both batch and streaming data-parallel processing pipelines. Beam provides a set of language-specific SDKs for constructing pipelines. These pipelines can be executed on distributed processing backends like [Apache Spark](http://spark.apache.org/), [Apache Flink](http://flink.apache.org), and [Google Cloud Dataflow](http://cloud.google.com/dataflow).
+[Apache Beam](http://beam.apache.org) is a unified model for defining both batch and streaming data-parallel processing pipelines. Beam provides a set of language-specific SDKs for constructing pipelines. These pipelines can be executed on distributed processing backends like [Apache Spark](http://spark.apache.org/), [Apache Flink](http://flink.apache.org), and [Google Cloud Dataflow](http://cloud.google.com/dataflow).
 
 Apache Beam for Python provides access to Beam capabilities from the Python programming language.
 
@@ -58,7 +58,7 @@ for execution.
 * Runner - specifies where and how the Pipeline should execute.
 
 For a further, detailed introduction, please read the
-[Beam Programming Model](http://beam.incubator.apache.org/learn/programming-guide.md). 
+[Beam Programming Model](http://beam.apache.org/documentation/programming-guide).
 
 ## Getting Started
 
@@ -107,10 +107,10 @@ directory you created.
 #### Download and install
 
 1. Clone the Apache Beam repo from GitHub: 
-  `git clone https://github.com/apache/incubator-beam.git --branch python-sdk`
+  `git clone https://github.com/apache/beam.git --branch python-sdk`
 
 2. Navigate to the `python` directory: 
-  `cd incubator-beam/sdks/python/`
+  `cd beam/sdks/python/`
 
 3. Create the Apache Beam Python SDK installation package: 
   `python setup.py sdist`
@@ -123,7 +123,7 @@ directory you created.
 
 ### Execute a pipeline locally
 
-The Apache Beam [examples](https://github.com/apache/incubator-beam/tree/python-sdk/sdks/python/apache_beam/examples) directory has many examples. All examples can be run locally by passing the arguments required by the example script. 
+The Apache Beam [examples](https://github.com/apache/beam/tree/python-sdk/sdks/python/apache_beam/examples) directory has many examples. All examples can be run locally by passing the arguments required by the example script.
 
 For example, to run `wordcount.py`, run:
 
@@ -157,7 +157,7 @@ Make sure you installed the package first. If not, run `python setup.py install`
 
 ## Simple Examples
 
-The following examples demonstrate some basic, fundamental concepts for using Apache Beam's Python SDK. For more detailed examples, Beam provides a [directory of examples](https://github.com/apache/incubator-beam/tree/python-sdk/sdks/python/apache_beam/examples) for Python.  
+The following examples demonstrate some basic, fundamental concepts for using Apache Beam's Python SDK. For more detailed examples, Beam provides a [directory of examples](https://github.com/apache/beam/tree/python-sdk/sdks/python/apache_beam/examples) for Python.
 
 ### Basic pipeline
 
@@ -357,16 +357,16 @@ SAMPLE_DATA = [('a', 1), ('b', 10), ('a', 2), ('a', 3), ('b', 20)]
 p.run()
 ```
 
-The [combiners_test.py](https://github.com/apache/incubator-beam/blob/python-sdk/sdks/python/apache_beam/examples/cookbook/combiners_test.py) file contains more combiner examples.
+The [combiners_test.py](https://github.com/apache/beam/blob/python-sdk/sdks/python/apache_beam/examples/cookbook/combiners_test.py) file contains more combiner examples.
 
 ## Organizing Your Code
 
 Many projects will grow to multiple source code files. It is recommended that you organize your project so that all code involved in running your pipeline can be built as a Python package. This way, the package can easily be installed in the VM workers executing the job.
 
-Follow the [Juliaset example](https://github.com/apache/incubator-beam/tree/python-sdk/sdks/python/apache_beam/examples/complete/juliaset). If the code is organized in this fashion, you can use the `--setup_file` command line option to create a source distribution out of the project files, stage the resulting tarball, and later install it in the workers executing the job.
+Follow the [Juliaset example](https://github.com/apache/beam/tree/python-sdk/sdks/python/apache_beam/examples/complete/juliaset). If the code is organized in this fashion, you can use the `--setup_file` command line option to create a source distribution out of the project files, stage the resulting tarball, and later install it in the workers executing the job.
 
 ## More Information
 
 Please report any issues on [JIRA](https://issues.apache.org/jira/browse/BEAM/component/12328910).
 
-If you’re interested in contributing to the Beam SDK, start by reading the [Contribute](http://beam.incubator.apache.org/contribute/) guide.
+If you’re interested in contributing to the Beam SDK, start by reading the [Contribute](http://beam.apache.org/contribute/) guide.
