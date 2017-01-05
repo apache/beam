@@ -664,7 +664,7 @@ class _CompressedFile(object):
         self._decompressor = bz2.BZ2Decompressor()
       else:
         self._decompressor = zlib.decompressobj(self._gzip_mask)
-      self.read_eof = False
+      self._read_eof = False
     else:
       self._decompressor = None
 
@@ -708,7 +708,7 @@ class _CompressedFile(object):
 
   def _fetch_to_internal_buffer(self, num_bytes):
     """Fetch up to num_bytes into the internal buffer."""
-    while not self.read_eof and len(self._data) < num_bytes:
+    while not self._read_eof and len(self._data) < num_bytes:
       buf = self._file.read(self._read_size)
       if buf:
         self._data += self._decompressor.decompress(buf)
@@ -731,7 +731,7 @@ class _CompressedFile(object):
           self._data += self._decompressor.flush()
         # Record that we have hit the end of file, so we won't unnecessarily
         # repeat the completeness verification step above.
-        self.read_eof = True
+        self._read_eof = True
         return
 
   def _read_from_internal_buffer(self, num_bytes):
