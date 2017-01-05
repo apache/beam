@@ -6,9 +6,6 @@ import cz.seznam.euphoria.core.executor.Executor;
 import cz.seznam.euphoria.core.util.Settings;
 import cz.seznam.euphoria.flink.batch.BatchFlowTranslator;
 import cz.seznam.euphoria.flink.streaming.StreamingFlowTranslator;
-import org.apache.flink.api.common.io.DefaultInputSplitAssigner;
-import org.apache.flink.core.io.InputSplit;
-import org.apache.flink.core.io.InputSplitAssigner;
 import org.apache.flink.core.memory.HeapMemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.runtime.state.AbstractStateBackend;
@@ -24,7 +21,6 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.function.BiFunction;
 
 /**
  * Executor implementation using Apache Flink as a runtime.
@@ -117,8 +113,10 @@ public class FlinkExecutor implements Executor {
       }
 
       try {
+        LOG.info("Before execute");
         environment.execute(); // blocking operation
-      } catch (Exception e) {
+        LOG.info("After execute");
+      } catch (Throwable e) {
         // when exception thrown rollback all sinks
         for (DataSink<?> s : sinks) {
           try {
@@ -130,6 +128,7 @@ public class FlinkExecutor implements Executor {
         throw e;
       }
 
+      LOG.info("Before commit");
       // when the execution is successful commit all sinks
       Exception ex = null;
       for (DataSink<?> s : sinks) {
