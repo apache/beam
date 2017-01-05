@@ -35,6 +35,8 @@ import java.util.Map;
 import java.util.Map.Entry;
 import org.apache.beam.sdk.util.PropertyNames;
 import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
+import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.sdk.values.TypeParameter;
 
 /**
  * A {@link Coder} for {@link Map Maps} that encodes them according to provided
@@ -184,5 +186,12 @@ public class MapCoder<K, V> extends StandardCoder<Map<K, V>> {
     }
     keyCoder.registerByteSizeObserver(entry.getKey(), observer, context.nested());
     valueCoder.registerByteSizeObserver(entry.getValue(), observer, context);
+  }
+
+  @Override
+  public TypeDescriptor<Map<K, V>> getEncodedTypeDescriptor() {
+    return new TypeDescriptor<Map<K, V>>() {}.where(
+            new TypeParameter<K>() {}, keyCoder.getEncodedTypeDescriptor())
+        .where(new TypeParameter<V>() {}, valueCoder.getEncodedTypeDescriptor());
   }
 }

@@ -151,6 +151,12 @@ public class TimestampedValue<V> {
     public static <T> List<Object> getInstanceComponents(TimestampedValue<T> exampleValue) {
       return Arrays.<Object>asList(exampleValue.getValue());
     }
+
+    @Override
+    public TypeDescriptor<TimestampedValue<T>> getEncodedTypeDescriptor() {
+      return new TypeDescriptor<TimestampedValue<T>>() {}.where(
+          new TypeParameter<T>() {}, valueCoder.getEncodedTypeDescriptor());
+    }
   }
 
   /////////////////////////////////////////////////////////////////////////////

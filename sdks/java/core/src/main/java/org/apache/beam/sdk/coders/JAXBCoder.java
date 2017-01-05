@@ -32,6 +32,7 @@ import javax.xml.bind.Unmarshaller;
 import org.apache.beam.sdk.util.CloudObject;
 import org.apache.beam.sdk.util.Structs;
 import org.apache.beam.sdk.util.VarInt;
+import org.apache.beam.sdk.values.TypeDescriptor;
 
 /**
  * A coder for JAXB annotated objects. This coder uses JAXB marshalling/unmarshalling mechanisms
@@ -42,6 +43,7 @@ import org.apache.beam.sdk.util.VarInt;
 public class JAXBCoder<T> extends AtomicCoder<T> {
 
   private final Class<T> jaxbClass;
+  private final TypeDescriptor<T> typeDescriptor;
   private transient volatile JAXBContext jaxbContext;
 
   public Class<T> getJAXBClass() {
@@ -50,6 +52,7 @@ public class JAXBCoder<T> extends AtomicCoder<T> {
 
   private JAXBCoder(Class<T> jaxbClass) {
     this.jaxbClass = jaxbClass;
+    this.typeDescriptor = TypeDescriptor.of(jaxbClass);
   }
 
   /**
@@ -120,6 +123,11 @@ public class JAXBCoder<T> extends AtomicCoder<T> {
   @Override
   public String getEncodingId() {
     return getJAXBClass().getName();
+  }
+
+  @Override
+  public TypeDescriptor<T> getEncodedTypeDescriptor() {
+    return typeDescriptor;
   }
 
   private static class CloseIgnoringInputStream extends FilterInputStream {
