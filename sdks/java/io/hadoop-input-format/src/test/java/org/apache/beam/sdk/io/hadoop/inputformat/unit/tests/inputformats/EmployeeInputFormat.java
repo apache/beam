@@ -17,13 +17,6 @@
  */
 package org.apache.beam.sdk.io.hadoop.inputformat.unit.tests.inputformats;
 
-import java.io.DataInput;
-import java.io.DataOutput;
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-
 import org.apache.beam.sdk.io.hadoop.inputformat.unit.tests.HadoopInputFormatIOTest;
 import org.apache.beam.sdk.io.hadoop.inputformat.unit.tests.HadoopInputFormatIOTest.Employee;
 import org.apache.hadoop.io.Text;
@@ -34,13 +27,18 @@ import org.apache.hadoop.mapreduce.JobContext;
 import org.apache.hadoop.mapreduce.RecordReader;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
 
+import java.io.DataInput;
+import java.io.DataOutput;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+
 public class EmployeeInputFormat extends InputFormat<Text, Employee> {
 	int numberOfRecordsInEachSplits = 3;
 	int numberOfSplits = 3;
 
-	public EmployeeInputFormat() {
-
-	}
+	public EmployeeInputFormat() {}
 
 	@Override
 	public RecordReader<Text, Employee> createRecordReader(InputSplit split, TaskAttemptContext context)
@@ -63,11 +61,10 @@ public class EmployeeInputFormat extends InputFormat<Text, Employee> {
 	}
 
 	public class DummyInputSplit extends InputSplit implements Writable {
-		public int startIndex, endIndex;
+		public int startIndex;
+		public int endIndex;
 
-		public DummyInputSplit() {
-
-		}
+		public DummyInputSplit() {}
 
 		public DummyInputSplit(int startIndex, int endIndex) {
 			this.startIndex = startIndex;
@@ -86,15 +83,10 @@ public class EmployeeInputFormat extends InputFormat<Text, Employee> {
 		}
 
 		@Override
-		public void readFields(DataInput arg0) throws IOException {
-			
-		}
+		public void readFields(DataInput arg0) throws IOException {}
 
 		@Override
-		public void write(DataOutput arg0) throws IOException {
-		
-		}
-
+		public void write(DataOutput arg0) throws IOException {}
 	}
 
 	class DummyRecordReader extends RecordReader<Text, Employee> {
@@ -105,18 +97,13 @@ public class EmployeeInputFormat extends InputFormat<Text, Employee> {
 		HashMap<Integer, Employee> hmap = new HashMap<Integer, Employee>();
 		HadoopInputFormatIOTest hadoopInputFormatIOTest=new HadoopInputFormatIOTest();
 
-		public DummyRecordReader() {
-
-		}
+		public DummyRecordReader() {}
 
 		@Override
-		public void close() throws IOException {
-
-		}
+		public void close() throws IOException {}
 
 		@Override
 		public Text getCurrentKey() throws IOException, InterruptedException {
-
 			return new Text(String.valueOf(pointer));
 		}
 
@@ -142,7 +129,6 @@ public class EmployeeInputFormat extends InputFormat<Text, Employee> {
 			hmap.put(6, hadoopInputFormatIOTest.new Employee ("Priyanka", "Pune"));
 			hmap.put(7, hadoopInputFormatIOTest.new Employee ("Nikita", "Chennai"));
 			hmap.put(8, hadoopInputFormatIOTest.new Employee ("Pallavi", "Pune"));
-			
 			DummyInputSplit dummySplit = (DummyInputSplit) split;
 			pointer = dummySplit.startIndex - 1;
 			numberOfRecordsInSplit=dummySplit.getLength();
@@ -157,6 +143,5 @@ public class EmployeeInputFormat extends InputFormat<Text, Employee> {
 			boolean hasNext = hmap.containsKey(pointer);			
 			return hasNext;
 		}
-
 	}
 }

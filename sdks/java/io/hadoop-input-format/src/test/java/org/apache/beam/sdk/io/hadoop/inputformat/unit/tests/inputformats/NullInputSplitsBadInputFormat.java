@@ -17,13 +17,6 @@
  */
 package org.apache.beam.sdk.io.hadoop.inputformat.unit.tests.inputformats;
 
-import java.io.DataInput;
-import java.io.DataOutput;
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-
 import org.apache.hadoop.io.Writable;
 import org.apache.hadoop.mapreduce.InputFormat;
 import org.apache.hadoop.mapreduce.InputSplit;
@@ -31,14 +24,18 @@ import org.apache.hadoop.mapreduce.JobContext;
 import org.apache.hadoop.mapreduce.RecordReader;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
 
+import java.io.DataInput;
+import java.io.DataOutput;
+import java.io.IOException;
+import java.util.HashMap;
+import java.util.List;
+
 //Bad input format which returns null in getSplits() method
 public class NullInputSplitsBadInputFormat extends InputFormat {
 	int numberOfRecordsInEachSplits = 3;
 	int numberOfSplits = 3;
 
-	public NullInputSplitsBadInputFormat() {
-
-	}
+	public NullInputSplitsBadInputFormat() {}
 
 	@Override
 	public RecordReader<String, String> createRecordReader(InputSplit split, TaskAttemptContext context)
@@ -54,11 +51,10 @@ public class NullInputSplitsBadInputFormat extends InputFormat {
 	}
 
 	public class DummyInputSplit extends InputSplit implements Writable {
-		public int startIndex, endIndex;
+		int startIndex;
+		int endIndex;
 
-		public DummyInputSplit() {
-
-		}
+		public DummyInputSplit() {}
 
 		public DummyInputSplit(int startIndex, int endIndex) {
 			this.startIndex = startIndex;
@@ -77,38 +73,28 @@ public class NullInputSplitsBadInputFormat extends InputFormat {
 		}
 
 		@Override
-		public void readFields(DataInput arg0) throws IOException {
-			// TODO Auto-generated method stub
-
-		}
+		public void readFields(DataInput arg0) throws IOException {}
 
 		@Override
-		public void write(DataOutput arg0) throws IOException {
-			// TODO Auto-generated method stub
-
-		}
+		public void write(DataOutput arg0) throws IOException {}
 
 	}
 
 	class DummyRecordReader extends RecordReader<String, String> {
 
 		String currentValue = null;
-		int pointer = 0,recordsRead=0;
+		int pointer = 0;
+		int recordsRead=0;
 		long numberOfRecordsInSplit=0;
 		HashMap<Integer, String> hmap = new HashMap<Integer, String>();
 
-		public DummyRecordReader() {
-
-		}
+		public DummyRecordReader() {}
 
 		@Override
-		public void close() throws IOException {
-
-		}
+		public void close() throws IOException {}
 
 		@Override
 		public String getCurrentKey() throws IOException, InterruptedException {
-
 			return String.valueOf(pointer);
 		}
 
@@ -125,7 +111,7 @@ public class NullInputSplitsBadInputFormat extends InputFormat {
 		@Override
 		public void initialize(InputSplit split, TaskAttemptContext arg1) throws IOException, InterruptedException {
 			/* Adding elements to HashMap */
-			hmap.put(0, "Chaitanya");
+			hmap.put(0, "Alex");
 			hmap.put(1, "Rahul");
 			hmap.put(2, "Singh");
 			hmap.put(3, "Ajeet");
@@ -135,9 +121,7 @@ public class NullInputSplitsBadInputFormat extends InputFormat {
 			hmap.put(7, "apache");
 			hmap.put(8, "beam");
 			hmap.put(9, "beam");
-
 			DummyInputSplit dummySplit = (DummyInputSplit) split;
-			// String[] splitData=dummySplit.getLocations();
 			pointer = dummySplit.startIndex - 1;
 			numberOfRecordsInSplit=dummySplit.getLength();
 			recordsRead = 0;
@@ -149,9 +133,7 @@ public class NullInputSplitsBadInputFormat extends InputFormat {
 				return false;
 			pointer++;
 			boolean hasNext = hmap.containsKey(pointer);
-
 			return hasNext;
 		}
-
 	}
 }
