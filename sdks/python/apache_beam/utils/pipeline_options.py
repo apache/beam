@@ -483,16 +483,17 @@ class TestOptions(PipelineOptions):
   def _add_argparse_args(cls, parser):
     # Options for e2e test pipeline.
     parser.add_argument(
-        '--on_success_matcher',
+        '--on_success_matchers',
         default=None,
         help=('Verify state/output of e2e test pipeline. This is pickled '
-              'version of the matcher which should extends '
+              'version of iterable matchers which should extend '
               'hamcrest.core.base_matcher.BaseMatcher.'))
 
   def validate(self, validator):
     errors = []
-    if self.view_as(TestOptions).on_success_matcher:
-      errors.extend(validator.validate_test_matcher(self, 'on_success_matcher'))
+    if self.view_as(TestOptions).on_success_matchers:
+      errors.extend(
+          validator.validate_test_matcher(self, 'on_success_matchers'))
     return errors
 
 # TODO(silviuc): Add --files_to_stage option.

@@ -67,9 +67,12 @@ class PipelineOptionsValidator(object):
   ERR_INVALID_TEST_MATCHER_TYPE = (
       'Invalid value (%s) for option: %s. Please extend your matcher object '
       'from hamcrest.core.base_matcher.BaseMatcher.')
+  ERR_INVALID_TEST_MATCHER_UNITERABLE = (
+      'Invalid value (%s) for option: %s. Please make sure that matchers are '
+      'itarable after unpickled.')
   ERR_INVALID_TEST_MATCHER_UNPICKLABLE = (
-      'Invalid value (%s) for option: %s. Please make sure the test matcher '
-      'is unpicklable.')
+      'Invalid value (%s) for option: %s. Please make sure the value can be '
+      'unpickled.')
 
   # GCS path specific patterns.
   GCS_URI = '(?P<SCHEME>[^:]+)://(?P<BUCKET>[^/]+)(/(?P<OBJECT>.*))?'
@@ -176,25 +179,32 @@ class PipelineOptionsValidator(object):
     return []
 
   def validate_test_matcher(self, view, arg_name):
-    """Validates that on_success_matcher argument if set.
+    """Validates on_success_matchers (if set).
 
-    Validates that on_success_matcher is unpicklable and is instance
-    of `hamcrest.core.base_matcher.BaseMatcher`.
+    Validates that on_success_matchers is unpicklable, iterable after unpickled
+    and all matchers are instance of `hamcrest.core.base_matcher.BaseMatcher`.
     """
     # This is a test only method and requires hamcrest
     from hamcrest.core.base_matcher import BaseMatcher
-    pickled_matcher = view.on_success_matcher
+    pickled_matchers = view.on_success_matchers
     errors = []
     try:
-      matcher = pickler.loads(pickled_matcher)
-      if not isinstance(matcher, BaseMatcher):
-        errors.extend(
-            self._validate_error(
-                self.ERR_INVALID_TEST_MATCHER_TYPE, matcher, arg_name))
+      for matcher in pickler.loads(pickled_matchers):
+        if not isinstance(matcher, BaseMatcher):
+          errors.extend(
+              self._validate_error(
+                  self.ERR_INVALID_TEST_MATCHER_TYPE, matcher, arg_name))
+    except TypeError:
+      errors.extend(
+          self._validate_error(
+              self.ERR_INVALID_TEST_MATCHER_UNITERABLE,
+              pickled_matchers,
+              arg_name)
+      )
     except:   # pylint: disable=bare-except
       errors.extend(
           self._validate_error(
               self.ERR_INVALID_TEST_MATCHER_UNPICKLABLE,
-              pickled_matcher,
+              pickled_matchers,
               arg_name))
     return errors

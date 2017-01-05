@@ -31,7 +31,7 @@ class WordCountIT(unittest.TestCase):
   @attr('IT')
   def test_wordcount_it(self):
     # Set extra options to the pipeline for test purpose
-    extra_opts = {'on_success_matcher': PipelineStateMatcher()}
+    extra_opts = {'on_success_matchers': [PipelineStateMatcher()]}
 
     # Get pipeline options from command argument: --test-pipeline-options,
     # and start pipeline job by calling pipeline main function.
