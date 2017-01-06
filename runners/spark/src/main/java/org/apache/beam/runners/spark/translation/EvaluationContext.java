@@ -194,16 +194,15 @@ public class EvaluationContext {
    * @param <T>         Type of elements contained in collection.
    * @return Natively types result associated with collection.
    */
-  public <T> Iterable<T> get(PCollection<T> pcollection) {
-    @SuppressWarnings("unchecked")
-    BoundedDataset<T> boundedDataset = (BoundedDataset<T>) datasets.get(pcollection);
-    Iterable<WindowedValue<T>> windowedValues = boundedDataset.getValues(pcollection);
+  <T> Iterable<T> get(PCollection<T> pcollection) {
+    Iterable<WindowedValue<T>> windowedValues = getWindowedValues(pcollection);
     return Iterables.transform(windowedValues, WindowingHelpers.<T>unwindowValueFunction());
   }
 
   <T> Iterable<WindowedValue<T>> getWindowedValues(PCollection<T> pcollection) {
     @SuppressWarnings("unchecked")
     BoundedDataset<T> boundedDataset = (BoundedDataset<T>) datasets.get(pcollection);
+    leaves.remove(boundedDataset);
     return boundedDataset.getValues(pcollection);
   }
 
