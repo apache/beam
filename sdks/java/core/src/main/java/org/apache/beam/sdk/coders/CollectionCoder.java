@@ -24,6 +24,8 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.Collection;
 import java.util.List;
 import org.apache.beam.sdk.util.PropertyNames;
+import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.sdk.values.TypeParameter;
 
 /**
  * A {@link CollectionCoder} encodes {@link Collection Collections} in the format
@@ -52,9 +54,9 @@ public class CollectionCoder<T> extends IterableLikeCoder<T, Collection<T>> {
   @JsonCreator
   public static CollectionCoder<?> of(
       @JsonProperty(PropertyNames.COMPONENT_ENCODINGS)
-      List<Object> components) {
+      List<Coder<?>> components) {
     checkArgument(components.size() == 1, "Expecting 1 component, got %s", components.size());
-    return of((Coder<?>) components.get(0));
+    return of(components.get(0));
   }
 
   /**
@@ -68,5 +70,11 @@ public class CollectionCoder<T> extends IterableLikeCoder<T, Collection<T>> {
 
   protected CollectionCoder(Coder<T> elemCoder) {
     super(elemCoder, "Collection");
+  }
+
+  @Override
+  public TypeDescriptor<Collection<T>> getEncodedTypeDescriptor() {
+    return new TypeDescriptor<Collection<T>>() {}.where(
+        new TypeParameter<T>() {}, getElemCoder().getEncodedTypeDescriptor());
   }
 }

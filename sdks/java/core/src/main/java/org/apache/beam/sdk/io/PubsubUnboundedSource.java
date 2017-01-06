@@ -59,7 +59,6 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Sum;
-import org.apache.beam.sdk.transforms.Sum.SumLongFn;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.DisplayData.Builder;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -216,7 +215,7 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
         }
       };
 
-  private static final Combine.BinaryCombineLongFn SUM = new SumLongFn();
+  private static final Combine.BinaryCombineLongFn SUM = Sum.ofLongs();
 
   // ================================================================================
   // Checkpoint
@@ -1159,7 +1158,7 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
 
   private static class StatsFn<T> extends DoFn<T, T> {
     private final Aggregator<Long, Long> elementCounter =
-        createAggregator("elements", new Sum.SumLongFn());
+        createAggregator("elements", Sum.ofLongs());
 
     private final PubsubClientFactory pubsubFactory;
     private final ValueProvider<SubscriptionPath> subscription;

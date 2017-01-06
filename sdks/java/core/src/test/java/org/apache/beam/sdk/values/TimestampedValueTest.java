@@ -21,9 +21,10 @@ package org.apache.beam.sdk.values;
 import static org.junit.Assert.assertEquals;
 
 import com.google.common.testing.EqualsTester;
-
+import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.testing.CoderProperties;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-
+import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.joda.time.Instant;
 import org.junit.Rule;
 import org.junit.Test;
@@ -79,5 +80,19 @@ public class TimestampedValueTest {
             TimestampedValue.of("foo", BoundedWindow.TIMESTAMP_MIN_VALUE),
             TimestampedValue.atMinimumTimestamp("foo"))
         .testEquals();
+  }
+
+  private static final Coder<TimestampedValue<GlobalWindow>> CODER =
+      TimestampedValue.TimestampedValueCoder.of(GlobalWindow.Coder.INSTANCE);
+
+  @Test
+  public void testCoderEncodeDecodeEquals() throws Exception {
+    CoderProperties.coderDecodeEncodeEqual(CODER,
+        TimestampedValue.of(GlobalWindow.INSTANCE, Instant.now()));
+  }
+
+  @Test
+  public void testCoderIsSerializableWithWellKnownCoderType() {
+    CoderProperties.coderSerializable(CODER);
   }
 }

@@ -24,15 +24,13 @@ import static org.apache.beam.sdk.TestUtils.checkCombineFn;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasNamespace;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.includesDisplayDataFor;
+import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasItem;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 
-import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.MoreObjects;
 import com.google.common.collect.ImmutableSet;
-import com.google.common.collect.Sets;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -51,10 +49,8 @@ import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.coders.DoubleCoder;
-import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.SerializableCoder;
-import org.apache.beam.sdk.coders.StandardCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.testing.NeedsRunner;
@@ -74,7 +70,6 @@ import org.apache.beam.sdk.transforms.windowing.Sessions;
 import org.apache.beam.sdk.transforms.windowing.SlidingWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.transforms.windowing.Window.ClosingBehavior;
-import org.apache.beam.sdk.util.PropertyNames;
 import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
@@ -199,7 +194,6 @@ public class CombineTest implements Serializable {
   private void runTestBasicCombine(List<KV<String, Integer>> table,
                                    Set<Integer> globalUnique,
                                    List<KV<String, Set<Integer>>> perKeyUnique) {
-    pipeline.getCoderRegistry().registerCoder(Set.class, SetCoder.class);
     PCollection<KV<String, Integer>> input = createInput(pipeline, table);
 
     PCollection<Set<Integer>> unique = input
@@ -470,8 +464,7 @@ public class CombineTest implements Serializable {
     runTestAccumulatingCombine(EMPTY_TABLE, 0.0, Collections.<KV<String, Double>>emptyList());
   }
 
-  // Checks that Min, Max, Mean, Sum (operations that pass-through to Combine),
-  // provide their own top-level name.
+  // Checks that Min, Max, Mean, Sum (operations that pass-through to Combine) have good names.
   @Test
   public void testCombinerNames() {
     Combine.PerKey<String, Integer, Integer> min = Min.integersPerKey();
@@ -479,10 +472,10 @@ public class CombineTest implements Serializable {
     Combine.PerKey<String, Integer, Double> mean = Mean.perKey();
     Combine.PerKey<String, Integer, Integer> sum = Sum.integersPerKey();
 
-    assertThat(min.getName(), Matchers.startsWith("Min"));
-    assertThat(max.getName(), Matchers.startsWith("Max"));
-    assertThat(mean.getName(), Matchers.startsWith("Mean"));
-    assertThat(sum.getName(), Matchers.startsWith("Sum"));
+    assertThat(min.getName(), equalTo("Combine.perKey(MinInteger)"));
+    assertThat(max.getName(), equalTo("Combine.perKey(MaxInteger)"));
+    assertThat(mean.getName(), equalTo("Combine.perKey(Mean)"));
+    assertThat(sum.getName(), equalTo("Combine.perKey(SumInteger)"));
   }
 
   private static final SerializableFunction<String, Integer> hotKeyFanout =
@@ -635,18 +628,13 @@ public class CombineTest implements Serializable {
 
   @Test
   public void testCombineGetName() {
-    assertEquals("Combine.Globally", Combine.globally(new SumInts()).getName());
-    assertEquals(
-        "MyCombineGlobally", Combine.globally(new SumInts()).named("MyCombineGlobally").getName());
+    assertEquals("Combine.globally(SumInts)", Combine.globally(new SumInts()).getName());
     assertEquals(
         "Combine.GloballyAsSingletonView",
         Combine.globally(new SumInts()).asSingletonView().getName());
-    assertEquals("Combine.PerKey", Combine.perKey(new TestKeyedCombineFn()).getName());
+    assertEquals("Combine.perKey(TestKeyed)", Combine.perKey(new TestKeyedCombineFn()).getName());
     assertEquals(
-        "MyCombinePerKey",
-        Combine.perKey(new TestKeyedCombineFn()).named("MyCombinePerKey").getName());
-    assertEquals(
-        "Combine.PerKeyWithHotKeyFanout",
+        "Combine.perKeyWithFanout(TestKeyed)",
         Combine.perKey(new TestKeyedCombineFn()).withHotKeyFanout(10).getName());
   }
 
@@ -761,69 +749,6 @@ public class CombineTest implements Serializable {
     @Override
     public Set<Integer> extractOutput(Set<Integer> accumulator) {
       return accumulator;
-    }
-  }
-
-  // Note: not a deterministic encoding
-  private static class SetCoder<T> extends StandardCoder<Set<T>> {
-
-    public static <T> SetCoder<T> of(Coder<T> elementCoder) {
-      return new SetCoder<>(elementCoder);
-    }
-
-    @JsonCreator
-    public static SetCoder<?> of(
-        @JsonProperty(PropertyNames.COMPONENT_ENCODINGS)
-        List<Coder<?>> components) {
-      checkArgument(components.size() == 1, "Expecting 1 component, got %s", components.size());
-      return of((Coder<?>) components.get(0));
-    }
-
-    @SuppressWarnings("unused") // required for coder instantiation
-    public static <T> List<Object> getInstanceComponents(Set<T> exampleValue) {
-      return IterableCoder.getInstanceComponents(exampleValue);
-    }
-
-    private final Coder<Iterable<T>> iterableCoder;
-
-    private SetCoder(Coder<T> elementCoder) {
-      iterableCoder = IterableCoder.of(elementCoder);
-    }
-
-    @Override
-    public void encode(Set<T> value, OutputStream outStream, Context context)
-        throws CoderException, IOException {
-      iterableCoder.encode(value, outStream, context);
-    }
-
-    @Override
-    public Set<T> decode(InputStream inStream, Context context)
-        throws CoderException, IOException {
-      // TODO: Eliminate extra copy if used in production.
-      return Sets.newHashSet(iterableCoder.decode(inStream, context));
-    }
-
-    @Override
-    public List<? extends Coder<?>> getCoderArguments() {
-      return iterableCoder.getCoderArguments();
-    }
-
-    @Override
-    public void verifyDeterministic() throws NonDeterministicException {
-      throw new NonDeterministicException(this,
-          "CombineTest.SetCoder does not encode in a deterministic order.");
-    }
-
-    @Override
-    public boolean isRegisterByteSizeObserverCheap(Set<T> value, Context context) {
-      return iterableCoder.isRegisterByteSizeObserverCheap(value, context);
-    }
-
-    @Override
-    public void registerByteSizeObserver(
-        Set<T> value, ElementByteSizeObserver observer, Context context)
-        throws Exception {
-      iterableCoder.registerByteSizeObserver(value, observer, context);
     }
   }
 

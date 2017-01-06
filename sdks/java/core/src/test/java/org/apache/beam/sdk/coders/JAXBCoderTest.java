@@ -17,7 +17,9 @@
  */
 package org.apache.beam.sdk.coders;
 
+import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThat;
 
 import com.google.common.collect.ImmutableList;
 import java.io.IOException;
@@ -32,6 +34,7 @@ import javax.xml.bind.annotation.XmlRootElement;
 import org.apache.beam.sdk.testing.CoderProperties;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.SerializableUtils;
+import org.apache.beam.sdk.values.TypeDescriptor;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -209,5 +212,12 @@ public class JAXBCoderTest {
     Coder<TestType> coder = JAXBCoder.of(TestType.class);
     CoderProperties.coderHasEncodingId(
         coder, TestType.class.getName());
+  }
+
+  @Test
+  public void testEncodedTypeDescriptor() throws Exception {
+    assertThat(
+        JAXBCoder.of(TestType.class).getEncodedTypeDescriptor(),
+        equalTo(TypeDescriptor.of(TestType.class)));
   }
 }

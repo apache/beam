@@ -167,7 +167,7 @@ public class CopyOnAccessInMemoryStateInternalsTest {
   public void testAccumulatorCombiningStateWithUnderlying() throws CannotProvideCoderException {
     CopyOnAccessInMemoryStateInternals<String> underlying =
         CopyOnAccessInMemoryStateInternals.withUnderlying(key, null);
-    CombineFn<Long, long[], Long> sumLongFn = new Sum.SumLongFn();
+    CombineFn<Long, long[], Long> sumLongFn = Sum.ofLongs();
 
     StateNamespace namespace = new StateNamespaceForTest("foo");
     CoderRegistry reg = pipeline.getCoderRegistry();
@@ -197,7 +197,7 @@ public class CopyOnAccessInMemoryStateInternalsTest {
   public void testKeyedAccumulatorCombiningStateWithUnderlying() throws Exception {
     CopyOnAccessInMemoryStateInternals<String> underlying =
         CopyOnAccessInMemoryStateInternals.withUnderlying(key, null);
-    KeyedCombineFn<String, Long, long[], Long> sumLongFn = new Sum.SumLongFn().asKeyedFn();
+    KeyedCombineFn<String, Long, long[], Long> sumLongFn = Sum.ofLongs().asKeyedFn();
 
     StateNamespace namespace = new StateNamespaceForTest("foo");
     CoderRegistry reg = pipeline.getCoderRegistry();

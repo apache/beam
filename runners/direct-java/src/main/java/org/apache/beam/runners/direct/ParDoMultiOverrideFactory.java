@@ -64,17 +64,8 @@ class ParDoMultiOverrideFactory<InputT, OutputT>
     DoFnSignature signature = DoFnSignatures.getSignature(fn.getClass());
     if (signature.processElement().isSplittable()) {
       return new SplittableParDo(transform);
-    } else if (signature.timerDeclarations().size() > 0) {
-      // Temporarily actually reject timers
-      throw new UnsupportedOperationException(
-          String.format(
-              "Found %s annotations on %s, but %s cannot yet be used with timers in the %s.",
-              DoFn.TimerId.class.getSimpleName(),
-              fn.getClass().getName(),
-              DoFn.class.getSimpleName(),
-              DirectRunner.class.getSimpleName()));
-
-    } else if (signature.stateDeclarations().size() > 0) {
+    } else if (signature.stateDeclarations().size() > 0
+        || signature.timerDeclarations().size() > 0) {
       // Based on the fact that the signature is stateful, DoFnSignatures ensures
       // that it is also keyed
       ParDo.BoundMulti<KV<?, ?>, OutputT> keyedTransform =

@@ -31,6 +31,8 @@ import org.apache.beam.sdk.util.CloudObject;
 import org.apache.beam.sdk.util.PropertyNames;
 import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.sdk.values.TypeParameter;
 
 /**
  * A {@code KvCoder} encodes {@link KV}s.
@@ -122,8 +124,8 @@ public class KvCoder<K, V> extends StandardCoder<KV<K, V>> {
   }
 
   @Override
-  public CloudObject asCloudObject() {
-    CloudObject result = super.asCloudObject();
+  protected CloudObject initializeCloudObject() {
+    CloudObject result = CloudObject.forClassName("kind:pair");
     addBoolean(result, PropertyNames.IS_PAIR_LIKE, true);
     return result;
   }
@@ -150,5 +152,12 @@ public class KvCoder<K, V> extends StandardCoder<KV<K, V>> {
     }
     keyCoder.registerByteSizeObserver(kv.getKey(), observer, context.nested());
     valueCoder.registerByteSizeObserver(kv.getValue(), observer, context);
+  }
+
+  @Override
+  public TypeDescriptor<KV<K, V>> getEncodedTypeDescriptor() {
+    return new TypeDescriptor<KV<K, V>>() {}.where(
+            new TypeParameter<K>() {}, keyCoder.getEncodedTypeDescriptor())
+        .where(new TypeParameter<V>() {}, valueCoder.getEncodedTypeDescriptor());
   }
 }

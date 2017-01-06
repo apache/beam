@@ -46,6 +46,8 @@ import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TimestampedValue.TimestampedValueCoder;
+import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.sdk.values.TypeParameter;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.joda.time.ReadableDuration;
@@ -363,6 +365,12 @@ public final class TestStream<T> extends PTransform<PBegin, PCollection<T>> {
       elementCoder.verifyDeterministic();
       DURATION_CODER.verifyDeterministic();
       INSTANT_CODER.verifyDeterministic();
+    }
+
+    @Override
+    public TypeDescriptor<Event<T>> getEncodedTypeDescriptor() {
+      return new TypeDescriptor<Event<T>>() {}.where(
+          new TypeParameter<T>() {}, valueCoder.getEncodedTypeDescriptor());
     }
   }
 }

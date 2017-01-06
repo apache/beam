@@ -24,6 +24,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import org.apache.beam.sdk.util.VarInt;
+import org.apache.beam.sdk.values.TypeDescriptor;
 
 /**
  * A {@link Coder} for {@link ByteString} objects based on their encoded Protocol Buffer form.
@@ -41,6 +42,8 @@ public class ByteStringCoder extends AtomicCoder<ByteString> {
   /***************************/
 
   private static final ByteStringCoder INSTANCE = new ByteStringCoder();
+  private static final TypeDescriptor<ByteString> TYPE_DESCRIPTOR =
+      new TypeDescriptor<ByteString>() {};
 
   private ByteStringCoder() {}
 
@@ -101,5 +104,10 @@ public class ByteStringCoder extends AtomicCoder<ByteString> {
   @Override
   public boolean isRegisterByteSizeObserverCheap(ByteString value, Context context) {
     return true;
+  }
+
+  @Override
+  public TypeDescriptor<ByteString> getEncodedTypeDescriptor() {
+    return TYPE_DESCRIPTOR;
   }
 }

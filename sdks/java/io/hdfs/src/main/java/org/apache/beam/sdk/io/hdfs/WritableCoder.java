@@ -101,8 +101,8 @@ public class WritableCoder<T extends Writable> extends StandardCoder<T> {
   }
 
   @Override
-  public CloudObject asCloudObject() {
-    CloudObject result = super.asCloudObject();
+  public CloudObject initializeCloudObject() {
+    CloudObject result = CloudObject.forClass(getClass());
     result.put("type", type.getName());
     return result;
   }

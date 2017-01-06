@@ -17,8 +17,6 @@
  */
 package org.apache.beam.sdk.io;
 
-import static org.apache.beam.sdk.util.StringUtils.approximateSimpleName;
-
 import com.google.api.client.util.BackOff;
 import com.google.common.util.concurrent.Uninterruptibles;
 import java.io.IOException;
@@ -36,6 +34,7 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.util.FluentBackoff;
+import org.apache.beam.sdk.util.NameUtils;
 import org.apache.beam.sdk.util.ValueWithRecordId;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
@@ -118,7 +117,7 @@ public class BoundedReadFromUnboundedSource<T> extends PTransform<PBegin, PColle
 
   @Override
   public String getKindString() {
-    return "Read(" + approximateSimpleName(source.getClass()) + ")";
+    return String.format("Read(%s)", NameUtils.approximateSimpleName(source));
   }
 
   @Override

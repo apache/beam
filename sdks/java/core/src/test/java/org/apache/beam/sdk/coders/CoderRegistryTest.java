@@ -459,6 +459,7 @@ public class CoderRegistryTest {
   private static class MyValueCoder implements Coder<MyValue> {
 
     private static final MyValueCoder INSTANCE = new MyValueCoder();
+    private static final TypeDescriptor<MyValue> TYPE_DESCRIPTOR = TypeDescriptor.of(MyValue.class);
 
     public static MyValueCoder of() {
       return INSTANCE;
@@ -524,6 +525,11 @@ public class CoderRegistryTest {
     @Override
     public Collection<String> getAllowedEncodings() {
       return Collections.singletonList(getEncodingId());
+    }
+
+    @Override
+    public TypeDescriptor<MyValue> getEncodedTypeDescriptor() {
+      return TYPE_DESCRIPTOR;
     }
   }
 

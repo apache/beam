@@ -258,8 +258,8 @@ public class MicrobatchSource<T, CheckpointMarkT extends UnboundedSource.Checkpo
       return (CheckpointMarkT) reader.getCheckpointMark();
     }
 
-    public long getNumRecordsRead() {
-      return recordsRead;
+    public Instant getWatermark() {
+      return reader.getWatermark();
     }
   }
 }

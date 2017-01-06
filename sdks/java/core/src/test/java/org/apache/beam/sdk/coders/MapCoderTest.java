@@ -17,8 +17,10 @@
  */
 package org.apache.beam.sdk.coders;
 
+import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertThat;
 
 import com.google.common.collect.ImmutableMap;
 import java.util.Arrays;
@@ -28,7 +30,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 import org.apache.beam.sdk.testing.CoderProperties;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.util.CoderUtils;
+import org.apache.beam.sdk.values.TypeDescriptor;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -44,7 +48,7 @@ public class MapCoderTest {
 
   private static final List<Map<Integer, String>> TEST_VALUES = Arrays.<Map<Integer, String>>asList(
       Collections.<Integer, String>emptyMap(),
-      new TreeMap<Integer, String>(new ImmutableMap.Builder<Integer, String>()
+      new TreeMap<>(new ImmutableMap.Builder<Integer, String>()
           .put(1, "hello").put(-1, "foo").build()));
 
   @Test
@@ -52,6 +56,12 @@ public class MapCoderTest {
     for (Map<Integer, String> value : TEST_VALUES) {
       CoderProperties.coderDecodeEncodeEqual(TEST_CODER, value);
     }
+  }
+
+  @Test
+  public void testCoderIsSerializableWithWellKnownCoderType() throws Exception {
+    CoderProperties.coderSerializable(
+        MapCoder.of(GlobalWindow.Coder.INSTANCE, GlobalWindow.Coder.INSTANCE));
   }
 
   @Test
@@ -101,5 +111,12 @@ public class MapCoderTest {
     thrown.expectMessage("cannot encode a null Map");
 
     CoderUtils.encodeToBase64(TEST_CODER, null);
+  }
+
+  @Test
+  public void testEncodedTypeDescriptor() throws Exception {
+    TypeDescriptor<Map<Integer, String>> typeDescriptor =
+        new TypeDescriptor<Map<Integer, String>>() {};
+    assertThat(TEST_CODER.getEncodedTypeDescriptor(), equalTo(typeDescriptor));
   }
 }

@@ -167,6 +167,7 @@ public class AvroCoder<T> extends StandardCoder<T> {
 
   private final Class<T> type;
   private final SerializableSchemaSupplier schemaSupplier;
+  private final TypeDescriptor<T> typeDescriptor;
 
   private final List<String> nonDeterministicReasons;
 
@@ -239,6 +240,7 @@ public class AvroCoder<T> extends StandardCoder<T> {
   protected AvroCoder(Class<T> type, Schema schema) {
     this.type = type;
     this.schemaSupplier = new SerializableSchemaSupplier(schema);
+    typeDescriptor = TypeDescriptor.of(type);
     nonDeterministicReasons = new AvroDeterminismChecker().check(TypeDescriptor.of(type), schema);
 
     // Decoder and Encoder start off null for each thread. They are allocated and potentially
@@ -327,8 +329,8 @@ public class AvroCoder<T> extends StandardCoder<T> {
   }
 
   @Override
-  public CloudObject asCloudObject() {
-    CloudObject result = super.asCloudObject();
+  protected CloudObject initializeCloudObject() {
+    CloudObject result = CloudObject.forClass(getClass());
     addString(result, "type", type.getName());
     addString(result, "schema", schemaSupplier.get().toString());
     return result;
@@ -382,6 +384,11 @@ public class AvroCoder<T> extends StandardCoder<T> {
    */
   public Schema getSchema() {
     return schemaSupplier.get();
+  }
+
+  @Override
+  public TypeDescriptor<T> getEncodedTypeDescriptor() {
+    return typeDescriptor;
   }
 
   /**

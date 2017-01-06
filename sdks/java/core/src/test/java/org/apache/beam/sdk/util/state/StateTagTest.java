@@ -24,10 +24,9 @@ import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.coders.VarIntCoder;
+import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.Max;
-import org.apache.beam.sdk.transforms.Max.MaxIntegerFn;
 import org.apache.beam.sdk.transforms.Min;
-import org.apache.beam.sdk.transforms.Min.MinIntegerFn;
 import org.apache.beam.sdk.transforms.windowing.OutputTimeFns;
 import org.apache.beam.sdk.util.CombineFnUtil;
 import org.junit.Test;
@@ -86,10 +85,10 @@ public class StateTagTest {
   @SuppressWarnings({"unchecked", "rawtypes"})
   @Test
   public void testCombiningValueEquality() {
-    MaxIntegerFn maxFn = new Max.MaxIntegerFn();
+    Combine.BinaryCombineIntegerFn maxFn = Max.ofIntegers();
     Coder<Integer> input1 = VarIntCoder.of();
     Coder<Integer> input2 = BigEndianIntegerCoder.of();
-    MinIntegerFn minFn = new Min.MinIntegerFn();
+    Combine.BinaryCombineIntegerFn minFn = Min.ofIntegers();
 
     StateTag<?, ?> fooCoder1Max1 = StateTags.combiningValueFromInputInternal("foo", input1, maxFn);
     StateTag<?, ?> fooCoder1Max2 = StateTags.combiningValueFromInputInternal("foo", input1, maxFn);
@@ -129,8 +128,8 @@ public class StateTagTest {
     CoderRegistry registry = new CoderRegistry();
     registry.registerStandardCoders();
 
-    MaxIntegerFn maxFn = new Max.MaxIntegerFn();
-    MinIntegerFn minFn = new Min.MinIntegerFn();
+    Combine.BinaryCombineIntegerFn maxFn = Max.ofIntegers();
+    Combine.BinaryCombineIntegerFn minFn = Min.ofIntegers();
 
     Coder<int[]> accum1 = maxFn.getAccumulatorCoder(registry, VarIntCoder.of());
     Coder<int[]> accum2 = minFn.getAccumulatorCoder(registry, BigEndianIntegerCoder.of());

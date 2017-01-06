@@ -93,7 +93,7 @@ final class ParDoEvaluatorFactory<InputT, OutputT> implements TransformEvaluator
    * correspond with the type in the unpacked {@link DoFn}, side inputs, and output tags.
    */
   @SuppressWarnings({"unchecked", "rawtypes"})
-  TransformEvaluator<InputT> createEvaluator(
+  DoFnLifecycleManagerRemovingTransformEvaluator<InputT> createEvaluator(
       AppliedPTransform<PCollection<InputT>, PCollectionTuple, ?> application,
       StructuralKey<?> inputBundleKey,
       DoFn<InputT, OutputT> doFn,

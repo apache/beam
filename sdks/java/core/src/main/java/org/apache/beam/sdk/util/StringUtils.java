@@ -17,15 +17,10 @@
  */
 package org.apache.beam.sdk.util;
 
-import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 
-import com.google.common.base.Joiner;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-import org.apache.beam.sdk.transforms.PTransform;
 
 /**
  * Utilities for working with JSON and other human-readable string formats.
@@ -95,64 +90,6 @@ public class StringUtils {
     return byteArray;
   }
 
-  private static final String[] STANDARD_NAME_SUFFIXES =
-      new String[]{"OldDoFn", "DoFn", "Fn"};
-
-  /**
-   * Pattern to match a non-anonymous inner class.
-   * Eg, matches "Foo$Bar", or even "Foo$1$Bar", but not "Foo$1" or "Foo$1$2".
-   */
-  private static final Pattern NAMED_INNER_CLASS =
-      Pattern.compile(".+\\$(?<INNER>[^0-9].*)");
-
-  private static final String ANONYMOUS_CLASS_REGEX = "\\$[0-9]+\\$";
-
-  /**
-   * Returns a simple name for a class.
-   *
-   * <p>Note: this is non-invertible - the name may be simplified to an
-   * extent that it cannot be mapped back to the original class.
-   *
-   * <p>This can be used to generate human-readable names. It
-   * removes the package and outer classes from the name,
-   * and removes common suffixes.
-   *
-   * <p>Examples:
-   * <ul>
-   *   <li>{@code some.package.Word.SummaryDoFn} becomes "Summary"
-   *   <li>{@code another.package.PairingFn} becomes "Pairing"
-   * </ul>
-   *
-   * @throws IllegalArgumentException if the class is anonymous
-   */
-  public static String approximateSimpleName(Class<?> clazz) {
-    return approximateSimpleName(clazz, /* dropOuterClassNames */ true);
-  }
-
-  /**
-   * Returns a name for a PTransform class.
-   *
-   * <p>This can be used to generate human-readable transform names. It
-   * removes the package from the name, and removes common suffixes.
-   *
-   * <p>It is different than approximateSimpleName:
-   * <ul>
-   *   <li>1. It keeps the outer classes names.
-   *   <li>2. It removes the common transform inner class: "Bound".
-   * </ul>
-   *
-   * <p>Examples:
-   * <ul>
-   *   <li>{@code some.package.Word.Summary} becomes "Word.Summary"
-   *   <li>{@code another.package.Pairing.Bound} becomes "Pairing"
-   * </ul>
-   */
-  public static String approximatePTransformName(Class<?> clazz) {
-    checkArgument(PTransform.class.isAssignableFrom(clazz));
-    return approximateSimpleName(clazz, /* dropOuterClassNames */ false)
-        .replaceFirst("\\.Bound$", "");
-  }
-
   /**
    * Calculate the Levenshtein distance between two strings.
    *
@@ -203,42 +140,5 @@ public class StringUtils {
     }
 
     return v1[t.length()];
-  }
-
-  private static String approximateSimpleName(Class<?> clazz, boolean dropOuterClassNames) {
-    checkArgument(!clazz.isAnonymousClass(),
-        "Attempted to get simple name of anonymous class");
-
-    String fullName = clazz.getName();
-    String shortName = fullName.substring(fullName.lastIndexOf('.') + 1);
-
-    // Drop common suffixes for each named component.
-    String[] names = shortName.split("\\$");
-    for (int i = 0; i < names.length; i++) {
-      names[i] = simplifyNameComponent(names[i]);
-    }
-    shortName = Joiner.on('$').join(names);
-
-    if (dropOuterClassNames) {
-      // Simplify inner class name by dropping outer class prefixes.
-      Matcher m = NAMED_INNER_CLASS.matcher(shortName);
-      if (m.matches()) {
-        shortName = m.group("INNER");
-      }
-    } else {
-      // Dropping anonymous outer classes
-      shortName = shortName.replaceAll(ANONYMOUS_CLASS_REGEX, ".");
-      shortName = shortName.replaceAll("\\$", ".");
-    }
-    return shortName;
-  }
-
-  private static String simplifyNameComponent(String name) {
-    for (String suffix : STANDARD_NAME_SUFFIXES) {
-      if (name.endsWith(suffix) && name.length() > suffix.length()) {
-        return name.substring(0, name.length() - suffix.length());
-      }
-    }
-    return name;
   }
 }

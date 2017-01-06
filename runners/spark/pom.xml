@@ -135,14 +135,11 @@
       <version>${hadoop.version}</version>
       <scope>provided</scope>
     </dependency>
-    <!-- Kryo bugfix version needed due to a state re-use issue in Kryo version 2.21 used in Spark 1.x
-    See: https://issues.apache.org/jira/browse/SPARK-7708
-    See: https://github.com/EsotericSoftware/kryo/issues/312
-    -->
     <dependency>
       <groupId>com.esotericsoftware.kryo</groupId>
       <artifactId>kryo</artifactId>
-      <version>2.21.1</version>
+      <version>2.21</version>
+      <scope>provided</scope>
     </dependency>
     <dependency>
       <groupId>com.google.code.findbugs</groupId>
@@ -249,11 +246,6 @@
       <groupId>io.dropwizard.metrics</groupId>
       <artifactId>metrics-core</artifactId>
       <version>${dropwizard.metrics.version}</version>
-    </dependency>
-    <dependency>
-      <groupId>org.reflections</groupId>
-      <artifactId>reflections</artifactId>
-      <version>0.9.10</version>
     </dependency>
 
     <!-- KafkaIO -->
@@ -387,13 +379,7 @@
                     <pattern>com.google.thirdparty</pattern>
                     <shadedPattern>org.apache.beam.spark.relocated.com.google.thirdparty</shadedPattern>
                   </relocation>
-                  <relocation>
-                    <pattern>com.esotericsoftware.kryo</pattern>
-                    <shadedPattern>org.apache.beam.spark.relocated.com.esotericsoftware.kryo</shadedPattern>
-                  </relocation>
                 </relocations>
-                <shadedArtifactAttached>true</shadedArtifactAttached>
-                <shadedClassifierName>spark-app</shadedClassifierName>
                 <transformers>
                   <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer" />
                 </transformers>

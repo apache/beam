@@ -35,6 +35,8 @@ import java.util.Collections;
 import java.util.List;
 import org.apache.beam.sdk.coders.Coder.Context;
 import org.apache.beam.sdk.testing.CoderProperties;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
+import org.apache.beam.sdk.values.TypeDescriptor;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -64,6 +66,11 @@ public class NullableCoderTest {
   @Test
   public void testCoderSerializable() throws Exception {
     CoderProperties.coderSerializable(TEST_CODER);
+  }
+
+  @Test
+  public void testCoderIsSerializableWithWellKnownCoderType() throws Exception {
+    CoderProperties.coderSerializable(NullableCoder.of(GlobalWindow.Coder.INSTANCE));
   }
 
   // If this changes, it implies the binary format has changed.
@@ -163,6 +170,11 @@ public class NullableCoderTest {
   public void testNestedNullableCoder() {
     NullableCoder<Double> coder = NullableCoder.of(DoubleCoder.of());
     assertThat(NullableCoder.of(coder), theInstance(coder));
+  }
+
+  @Test
+  public void testEncodedTypeDescriptor() throws Exception {
+    assertThat(TEST_CODER.getEncodedTypeDescriptor(), equalTo(TypeDescriptor.of(String.class)));
   }
 
   private static class EntireStreamExpectingCoder extends DeterministicStandardCoder<String> {

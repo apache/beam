@@ -52,7 +52,7 @@ public class Max {
    * elements, or {@code Integer.MIN_VALUE} if there are no elements.
    */
   public static Combine.Globally<Integer, Integer> integersGlobally() {
-    return Combine.globally(new MaxIntegerFn()).named("Max.Globally");
+    return Combine.globally(new MaxIntegerFn());
   }
 
   /**
@@ -64,7 +64,7 @@ public class Max {
    * <p>See {@link Combine.PerKey} for how this affects timestamps and windowing.
    */
   public static <K> Combine.PerKey<K, Integer, Integer> integersPerKey() {
-    return Combine.<K, Integer, Integer>perKey(new MaxIntegerFn()).named("Max.PerKey");
+    return Combine.<K, Integer, Integer>perKey(new MaxIntegerFn());
   }
 
   /**
@@ -73,7 +73,7 @@ public class Max {
    * or {@code Long.MIN_VALUE} if there are no elements.
    */
   public static Combine.Globally<Long, Long> longsGlobally() {
-    return Combine.globally(new MaxLongFn()).named("Max.Globally");
+    return Combine.globally(new MaxLongFn());
   }
 
   /**
@@ -85,7 +85,7 @@ public class Max {
    * <p>See {@link Combine.PerKey} for how this affects timestamps and windowing.
    */
   public static <K> Combine.PerKey<K, Long, Long> longsPerKey() {
-    return Combine.<K, Long, Long>perKey(new MaxLongFn()).named("Max.PerKey");
+    return Combine.<K, Long, Long>perKey(new MaxLongFn());
   }
 
   /**
@@ -94,7 +94,7 @@ public class Max {
    * elements, or {@code Double.NEGATIVE_INFINITY} if there are no elements.
    */
   public static Combine.Globally<Double, Double> doublesGlobally() {
-    return Combine.globally(new MaxDoubleFn()).named("Max.Globally");
+    return Combine.globally(new MaxDoubleFn());
   }
 
   /**
@@ -106,7 +106,63 @@ public class Max {
    * <p>See {@link Combine.PerKey} for how this affects timestamps and windowing.
    */
   public static <K> Combine.PerKey<K, Double, Double> doublesPerKey() {
-    return Combine.<K, Double, Double>perKey(new MaxDoubleFn()).named("Max.PerKey");
+    return Combine.<K, Double, Double>perKey(new MaxDoubleFn());
+  }
+
+  /**
+   * A {@code CombineFn} that computes the maximum of a collection of {@code Integer}s, useful as an
+   * argument to {@link Combine#globally} or {@link Combine#perKey}.
+   */
+  public static Combine.BinaryCombineIntegerFn ofIntegers() {
+    return new Max.MaxIntegerFn();
+  }
+
+  /**
+   * A {@code CombineFn} that computes the maximum of a collection of {@code Long}s, useful as an
+   * argument to {@link Combine#globally} or {@link Combine#perKey}.
+   */
+  public static Combine.BinaryCombineLongFn ofLongs() {
+    return new Max.MaxLongFn();
+  }
+
+  /**
+   * A {@code CombineFn} that computes the maximum of a collection of {@code Double}s, useful as an
+   * argument to {@link Combine#globally} or {@link Combine#perKey}.
+   */
+  public static Combine.BinaryCombineDoubleFn ofDoubles() {
+    return new Max.MaxDoubleFn();
+  }
+
+  /**
+   * A {@code CombineFn} that computes the maximum of a collection of elements of type {@code T}
+   * using an arbitrary {@link Comparator} and {@code identity},
+   * useful as an argument to {@link Combine#globally} or {@link Combine#perKey}.
+   *
+   * @param <T> the type of the values being compared
+   */
+  public static <T, ComparatorT extends Comparator<? super T> & Serializable>
+  BinaryCombineFn<T> of(final T identity, final ComparatorT comparator) {
+    return new MaxFn<T>(identity, comparator);
+  }
+
+  /**
+   * A {@code CombineFn} that computes the maximum of a collection of elements of type {@code T}
+   * using an arbitrary {@link Comparator}, useful as an argument to {@link Combine#globally} or
+   * {@link Combine#perKey}.
+   *
+   * @param <T> the type of the values being compared
+   */
+  public static <T, ComparatorT extends Comparator<? super T> & Serializable>
+  BinaryCombineFn<T> of(final ComparatorT comparator) {
+    return new MaxFn<T>(null, comparator);
+  }
+
+  public static <T extends Comparable<? super T>> BinaryCombineFn<T> naturalOrder(T identity) {
+    return new MaxFn<T>(identity, new Top.Largest<T>());
+  }
+
+  public static <T extends Comparable<? super T>> BinaryCombineFn<T> naturalOrder() {
+    return new MaxFn<T>(null, new Top.Largest<T>());
   }
 
   /**
@@ -116,7 +172,7 @@ public class Max {
    */
   public static <T extends Comparable<? super T>>
   Combine.Globally<T, T> globally() {
-    return Combine.<T, T>globally(MaxFn.<T>naturalOrder()).named("Max.Globally");
+    return Combine.<T, T>globally(Max.<T>naturalOrder());
   }
 
   /**
@@ -129,7 +185,7 @@ public class Max {
    */
   public static <K, T extends Comparable<? super T>>
   Combine.PerKey<K, T, T> perKey() {
-    return Combine.<K, T, T>perKey(MaxFn.<T>naturalOrder()).named("Max.PerKey");
+    return Combine.<K, T, T>perKey(Max.<T>naturalOrder());
   }
 
   /**
@@ -139,7 +195,7 @@ public class Max {
    */
   public static <T, ComparatorT extends Comparator<? super T> & Serializable>
   Combine.Globally<T, T> globally(ComparatorT comparator) {
-    return Combine.<T, T>globally(MaxFn.of(comparator)).named("Max.Globally");
+    return Combine.<T, T>globally(Max.<T, ComparatorT>of(comparator));
   }
 
   /**
@@ -151,19 +207,12 @@ public class Max {
    */
   public static <K, T, ComparatorT extends Comparator<? super T> & Serializable>
   Combine.PerKey<K, T, T> perKey(ComparatorT comparator) {
-    return Combine.<K, T, T>perKey(MaxFn.of(comparator)).named("Max.PerKey");
+    return Combine.<K, T, T>perKey(Max.<T, ComparatorT>of(comparator));
   }
 
   /////////////////////////////////////////////////////////////////////////////
 
-  /**
-   * A {@code CombineFn} that computes the maximum of a collection of elements of type {@code T}
-   * using an arbitrary {@link Comparator}, useful as an argument to {@link Combine#globally} or
-   * {@link Combine#perKey}.
-   *
-   * @param <T> the type of the values being compared
-   */
-  public static class MaxFn<T> extends BinaryCombineFn<T> {
+  private static class MaxFn<T> extends BinaryCombineFn<T> {
 
     private final T identity;
     private final Comparator<? super T> comparator;
@@ -172,24 +221,6 @@ public class Max {
         T identity, ComparatorT comparator) {
       this.identity = identity;
       this.comparator = comparator;
-    }
-
-    public static <T, ComparatorT extends Comparator<? super T> & Serializable>
-    MaxFn<T> of(T identity, ComparatorT comparator) {
-      return new MaxFn<T>(identity, comparator);
-    }
-
-    public static <T, ComparatorT extends Comparator<? super T> & Serializable>
-    MaxFn<T> of(ComparatorT comparator) {
-      return new MaxFn<T>(null, comparator);
-    }
-
-    public static <T extends Comparable<? super T>> MaxFn<T> naturalOrder(T identity) {
-      return new MaxFn<T>(identity, new Top.Largest<T>());
-    }
-
-    public static <T extends Comparable<? super T>> MaxFn<T> naturalOrder() {
-      return new MaxFn<T>(null, new Top.Largest<T>());
     }
 
     @Override
@@ -210,11 +241,8 @@ public class Max {
     }
   }
 
-  /**
-   * A {@code CombineFn} that computes the maximum of a collection of {@code Integer}s, useful as an
-   * argument to {@link Combine#globally} or {@link Combine#perKey}.
-   */
-  public static class MaxIntegerFn extends Combine.BinaryCombineIntegerFn {
+  private static class MaxIntegerFn extends Combine.BinaryCombineIntegerFn {
+
     @Override
     public int apply(int left, int right) {
       return left >= right ? left : right;
@@ -226,11 +254,8 @@ public class Max {
     }
   }
 
-  /**
-   * A {@code CombineFn} that computes the maximum of a collection of {@code Long}s, useful as an
-   * argument to {@link Combine#globally} or {@link Combine#perKey}.
-   */
-  public static class MaxLongFn extends Combine.BinaryCombineLongFn {
+  private static class MaxLongFn extends Combine.BinaryCombineLongFn {
+
     @Override
     public long apply(long left, long right) {
       return left >= right ? left : right;
@@ -242,11 +267,8 @@ public class Max {
     }
   }
 
-  /**
-   * A {@code CombineFn} that computes the maximum of a collection of {@code Double}s, useful as an
-   * argument to {@link Combine#globally} or {@link Combine#perKey}.
-   */
-  public static class MaxDoubleFn extends Combine.BinaryCombineDoubleFn {
+  private static class MaxDoubleFn extends Combine.BinaryCombineDoubleFn {
+
     @Override
     public double apply(double left, double right) {
       return left >= right ? left : right;

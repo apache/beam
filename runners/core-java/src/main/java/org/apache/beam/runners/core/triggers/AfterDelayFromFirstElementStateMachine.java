@@ -56,7 +56,7 @@ public abstract class AfterDelayFromFirstElementStateMachine extends OnceTrigger
   protected static final StateTag<Object, AccumulatorCombiningState<Instant,
                                               Combine.Holder<Instant>, Instant>> DELAYED_UNTIL_TAG =
       StateTags.makeSystemTagInternal(StateTags.combiningValueFromInputInternal(
-          "delayed", InstantCoder.of(), Min.MinFn.<Instant>naturalOrder()));
+          "delayed", InstantCoder.of(), Min.<Instant>naturalOrder()));
 
   private static final PeriodFormatter PERIOD_FORMATTER = PeriodFormat.wordBased(Locale.ENGLISH);
 
