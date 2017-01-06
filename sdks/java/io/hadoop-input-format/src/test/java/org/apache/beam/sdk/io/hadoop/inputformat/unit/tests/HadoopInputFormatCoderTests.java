@@ -16,8 +16,6 @@ package org.apache.beam.sdk.io.hadoop.inputformat.unit.tests;
 
 import static org.junit.Assert.assertEquals;
 
-import com.datastax.driver.core.Row;
-
 import org.apache.beam.runners.direct.DirectOptions;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
@@ -35,14 +33,18 @@ import org.apache.hadoop.io.MapWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.InputFormat;
 import org.elasticsearch.hadoop.cfg.ConfigurationOptions;
-import org.elasticsearch.hadoop.mr.LinkedMapWritable;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
 
+import com.datastax.driver.core.Row;
+
+@RunWith(JUnit4.class)
 public class HadoopInputFormatCoderTests {
 
   @Test
   public void testMapWritableEncoding() throws Exception {
-    MapWritable map = new LinkedMapWritable();
+    MapWritable map = new MapWritable();
     map.put(new Text("path"), new Text("/home/asharma/MOCK1.csv"));
     map.put(new Text("country"), new Text("Czech Republic"));
     map.put(new Text("@timestamp"), new Text("2016-11-11T08:06:42.260Z"));

@@ -262,18 +262,18 @@ public class HadoopInputFormatIO {
     protected final SimpleFunction<?, V> simpleFuncForValueTranslation;
 
     public HadoopInputFormatBoundedSource(
-        SerializableConfiguration conf, 
+        SerializableConfiguration conf,
         Coder<K> keyCoder,
         Coder<V> valueCoder) {
       this(conf, keyCoder, valueCoder, null, null, null);
     }
 
     public HadoopInputFormatBoundedSource(
-        SerializableConfiguration conf, 
+        SerializableConfiguration conf,
         Coder<K> keyCoder,
-        Coder<V> valueCoder, 
+        Coder<V> valueCoder,
         SimpleFunction<?, K> keyTranslation,
-        SimpleFunction<?, V> valueTranslation, 
+        SimpleFunction<?, V> valueTranslation,
         SerializableSplit serializableSplit) {
       this.conf = conf;
       this.serializableSplit = serializableSplit;
@@ -337,11 +337,11 @@ public class HadoopInputFormatIO {
     private long boundedSourceEstimatedSize = 0;
     private List<SerializableSplit> serInputSplitList;
 
-    private void computeSplits() 
-        throws  IOException, 
-        IllegalAccessException, 
+    private void computeSplits()
+        throws  IOException,
+        IllegalAccessException,
         InstantiationException,
-        InterruptedException, 
+        InterruptedException,
         ClassNotFoundException {
       Job job = Job.getInstance(conf.getConfiguration());
       List<InputSplit> splits = job.getInputFormatClass().newInstance().getSplits(job);
@@ -359,7 +359,6 @@ public class HadoopInputFormatIO {
       }
     }
 
-    @Override
     public boolean producesSortedKeys(PipelineOptions po) throws Exception {
       return false;
     }
@@ -394,8 +393,8 @@ public class HadoopInputFormatIO {
 
       public HadoopInputFormatReader(
           HadoopInputFormatBoundedSource<K, V> source,
-          SimpleFunction keyTranslation, 
-          SimpleFunction valueTranslation, 
+          SimpleFunction keyTranslation,
+          SimpleFunction valueTranslation,
           InputSplit split){
         this.source = source;
         this.split = split;
@@ -432,7 +431,7 @@ public class HadoopInputFormatIO {
           }
         } catch (Exception e) {
           throw new IOException(e);
-        } 
+        }
         currentReader = null;
         currentPair = null;
         done = true;
@@ -502,15 +501,15 @@ public class HadoopInputFormatIO {
 
       private boolean isKnownImmutable(Object o) {
         Set<Class<?>> immutableTypes = new HashSet<Class<?>>(
-            Arrays.asList(String.class, 
-                Byte.class, 
-                Short.class, 
-                Integer.class, 
+            Arrays.asList(String.class,
+                Byte.class,
+                Short.class,
+                Integer.class,
                 Long.class,
-                Float.class, 
-                Double.class, 
-                Boolean.class, 
-                BigInteger.class, 
+                Float.class,
+                Double.class,
+                Boolean.class,
+                BigInteger.class,
                 BigDecimal.class));
         return immutableTypes.contains(o.getClass());
       }
