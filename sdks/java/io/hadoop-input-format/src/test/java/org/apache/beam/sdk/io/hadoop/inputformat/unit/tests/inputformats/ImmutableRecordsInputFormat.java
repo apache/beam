@@ -14,8 +14,6 @@
  */
 package org.apache.beam.sdk.io.hadoop.inputformat.unit.tests.inputformats;
 
-import org.apache.beam.sdk.io.hadoop.inputformat.unit.tests.HadoopInputFormatIOTest;
-import org.apache.beam.sdk.io.hadoop.inputformat.unit.tests.HadoopInputFormatIOTest.Employee;
 import org.apache.hadoop.io.Writable;
 import org.apache.hadoop.mapreduce.InputFormat;
 import org.apache.hadoop.mapreduce.InputSplit;
@@ -31,37 +29,37 @@ import java.util.HashMap;
 import java.util.List;
 
 public class ImmutableRecordsInputFormat extends InputFormat<String, Employee> {
-  int numberOfRecordsInEachSplits = 3;
-  int numberOfSplits = 3;
+  private final long numberOfRecordsInEachSplit = 3L;
+  private final long numberOfSplits = 3L;
 
   public ImmutableRecordsInputFormat() {}
 
   @Override
   public RecordReader<String, Employee> createRecordReader(InputSplit split,
       TaskAttemptContext context) throws IOException, InterruptedException {
-    ImmutableRecordsRecordReader recordReaderObj = new ImmutableRecordsRecordReader();
-    recordReaderObj.initialize(split, context);
-    return recordReaderObj;
+    // ImmutableRecordsRecordReader recordReaderObj = new ImmutableRecordsRecordReader();
+    // recordReaderObj.initialize(split, context);
+    return new ImmutableRecordsRecordReader();
   }
 
   @Override
   public List<InputSplit> getSplits(JobContext arg0) throws IOException, InterruptedException {
-    InputSplit inputSplitObj;
     List<InputSplit> inputSplitList = new ArrayList<InputSplit>();
     for (int i = 0; i < numberOfSplits; i++) {
-      inputSplitObj = new ImmutableRecordsInputSplit((i * numberOfSplits),
-          ((i * numberOfSplits) + numberOfRecordsInEachSplits));
+      InputSplit inputSplitObj = new ImmutableRecordsInputSplit((i * numberOfSplits),
+          ((i * numberOfSplits) + numberOfRecordsInEachSplit));
       inputSplitList.add(inputSplitObj);
     }
     return inputSplitList;
   }
 
   public class ImmutableRecordsInputSplit extends InputSplit implements Writable {
-    public int startIndex, endIndex;
+    private long startIndex;
+    private long endIndex;
 
     public ImmutableRecordsInputSplit() {}
 
-    public ImmutableRecordsInputSplit(int startIndex, int endIndex) {
+    public ImmutableRecordsInputSplit(long startIndex, long endIndex) {
       this.startIndex = startIndex;
       this.endIndex = endIndex;
     }
@@ -77,22 +75,34 @@ public class ImmutableRecordsInputFormat extends InputFormat<String, Employee> {
       return null;
     }
 
-    @Override
-    public void readFields(DataInput arg0) throws IOException {}
+    public long getStartIndex() {
+      return startIndex;
+    }
+
+    public long getEndIndex() {
+      return endIndex;
+    }
 
     @Override
-    public void write(DataOutput arg0) throws IOException {}
+    public void readFields(DataInput dataIn) throws IOException {
+      startIndex = dataIn.readLong();
+      endIndex = dataIn.readLong();
+    }
 
+    @Override
+    public void write(DataOutput dataOut) throws IOException {
+      dataOut.writeLong(startIndex);
+      dataOut.writeLong(endIndex);
+    }
   }
 
-  class ImmutableRecordsRecordReader extends RecordReader<String, Employee> {
+  public class ImmutableRecordsRecordReader extends RecordReader<String, Employee> {
 
-    int pointer = 0;
-    int recordsRead = 0;
-    long numberOfRecordsInSplit = 0L;
-    Employee currentEmp;
-    HashMap<Integer, String> hmap = new HashMap<Integer, String>();
-    HadoopInputFormatIOTest hadoopInputFormatIOTest = new HadoopInputFormatIOTest();
+    private ImmutableRecordsInputSplit split;
+    private String currentKey;
+    private Employee currentValue;
+    private long pointer = 0L;
+    private long recordsRead = 0L;
 
     public ImmutableRecordsRecordReader() {}
 
@@ -101,49 +111,56 @@ public class ImmutableRecordsInputFormat extends InputFormat<String, Employee> {
 
     @Override
     public String getCurrentKey() throws IOException, InterruptedException {
-      return String.valueOf(pointer);
+      return currentKey;
     }
 
     @Override
     public Employee getCurrentValue() throws IOException, InterruptedException {
-      return currentEmp;
+      return currentValue;
     }
 
     @Override
     public float getProgress() throws IOException, InterruptedException {
-      return (float) recordsRead / numberOfRecordsInSplit;
+      return (float) recordsRead / split.getLength();
     }
 
     @Override
     public void initialize(InputSplit split, TaskAttemptContext arg1)
         throws IOException, InterruptedException {
-      /* Adding elements to HashMap */
-      hmap.put(0, "Prabhanj");
-      hmap.put(1, "Rahul");
-      hmap.put(2, "Saikat");
-      hmap.put(3, "Gurumoorthy");
-      hmap.put(4, "Shubham");
-      hmap.put(5, "Neha");
-      hmap.put(6, "Priyanka");
-      hmap.put(7, "Nikita");
-      hmap.put(8, "Pallavi");
-      ImmutableRecordsInputSplit dummySplit = (ImmutableRecordsInputSplit) split;
-      pointer = dummySplit.startIndex - 1;
-      numberOfRecordsInSplit = dummySplit.getLength();
+      this.split = (ImmutableRecordsInputSplit) split;
+      pointer = this.split.getStartIndex() - 1;
       recordsRead = 0;
-      currentEmp = hadoopInputFormatIOTest.new Employee(null, null);
+      makeData();
+      currentValue = new Employee(null, null);
     }
 
     @Override
     public boolean nextKeyValue() throws IOException, InterruptedException {
-      if ((recordsRead++) == numberOfRecordsInSplit)
+      if ((recordsRead++) == split.getLength())
         return false;
       pointer++;
       boolean hasNext = hmap.containsKey(pointer);
-      if (hasNext)
-        currentEmp = hadoopInputFormatIOTest.new Employee(hmap.get(new Integer(pointer)),
-            String.valueOf(pointer));
+      if (hasNext) {
+        currentKey = String.valueOf(pointer);
+        currentValue = new Employee(hmap.get(pointer), String.valueOf(pointer));
+      }
       return hasNext;
+    }
+
+
+    private HashMap<Long, String> hmap = new HashMap<Long, String>();
+
+    private void makeData() {
+      /* Adding elements to HashMap */
+      hmap.put(0L, "Alex");
+      hmap.put(1L, "John");
+      hmap.put(2L, "Tom");
+      hmap.put(3L, "Nick");
+      hmap.put(4L, "Smith");
+      hmap.put(5L, "Taylor");
+      hmap.put(6L, "Gray");
+      hmap.put(7L, "James");
+      hmap.put(8L, "Jordan");
     }
   }
 }

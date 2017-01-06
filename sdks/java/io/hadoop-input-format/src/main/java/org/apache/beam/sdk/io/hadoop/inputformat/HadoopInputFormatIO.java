@@ -76,9 +76,9 @@ public class HadoopInputFormatIO {
 
   @AutoValue
   public abstract static class Read<K, V> extends PTransform<PBegin, PCollection<KV<K, V>>> {
-    
+
     private static final long serialVersionUID = 1L;
-    
+
     @Nullable public abstract SimpleFunction<?, K> getSimpleFuncForKeyTranslation();
     @Nullable public abstract SimpleFunction<?, V> getSimpleFuncForValueTranslation();
     @Nullable public abstract SerializableConfiguration getConfiguration();
@@ -193,7 +193,7 @@ public class HadoopInputFormatIO {
       }
       getKeyAndValueCoder(input);
     }
-    
+
     private Coder<K> keyCoder;
     private Coder<V> valueCoder;
 
@@ -239,6 +239,14 @@ public class HadoopInputFormatIO {
           .withLabel("Output key class"))
       .addIfNotNull(DisplayData.item("ValueClass", getValueClass().getRawType())
           .withLabel("Output value class"));
+      if(getSimpleFuncForKeyTranslation() != null)
+        builder
+        .addIfNotNull(DisplayData.item("KeyTranslationSimpleFunction", getSimpleFuncForKeyTranslation().toString())
+            .withLabel("Key translation simple function"));
+      if(getSimpleFuncForValueTranslation() != null)
+        builder
+        .addIfNotNull(DisplayData.item("ValueTranslationSimpleFunction", getSimpleFuncForValueTranslation().toString())
+            .withLabel("Value translation simple function"));
 
     }
   }
@@ -285,10 +293,10 @@ public class HadoopInputFormatIO {
       checkNotNull(keyCoder, "KeyCoder should not be null in HadoopInputFormatSource");
       checkNotNull(valueCoder, "ValueCoder should not be null in HadoopInputFormatSource");
     }
-    
+
 
     private boolean isSourceSplit = false;
-    
+
     @Override
     public List<BoundedSource<KV<K, V>>> splitIntoBundles(
         long desiredBundleSizeBytes,
@@ -325,10 +333,10 @@ public class HadoopInputFormatIO {
       }
       return boundedSourceEstimatedSize;
     }
-    
+
     private long boundedSourceEstimatedSize = 0;
     private List<SerializableSplit> serInputSplitList;
-    
+
     private void computeSplits() 
         throws  IOException, 
         IllegalAccessException, 
@@ -404,7 +412,7 @@ public class HadoopInputFormatIO {
       private KV<K, V> currentPair;
       private volatile boolean done = false;
       private long recordsReturned = 0L;
-      
+
       @Override
       public boolean start() throws IOException {
         try {

@@ -30,37 +30,34 @@ import java.util.List;
 
 // Bad input format which returns empty list of input splits in getSplits() method
 public class EmptyInputSplitsInputFormat extends InputFormat<String, String> {
-  int numberOfRecordsInEachSplits = 3;
-  int numberOfSplits = 3;
 
   public EmptyInputSplitsInputFormat() {}
 
   @Override
   public RecordReader<String, String> createRecordReader(InputSplit split,
       TaskAttemptContext context) throws IOException, InterruptedException {
-    DummyRecordReader dummyRecordReaderObj = new DummyRecordReader();
-    dummyRecordReaderObj.initialize(split, context);
-    return dummyRecordReaderObj;
+    // DummyRecordReader dummyRecordReaderObj = new DummyRecordReader();
+    // dummyRecordReaderObj.initialize(split, context);
+    return new EmptyInputSplitsRecordReader();
   }
 
   @Override
   public List<InputSplit> getSplits(JobContext arg0) throws IOException, InterruptedException {
-    List<InputSplit> inputSplitList = new ArrayList<InputSplit>();
-    return inputSplitList;
+    return new ArrayList<InputSplit>();
   }
 
-  public class DummyInputSplit extends InputSplit implements Writable {
-    int startIndex;
-    int endIndex;
+  public class EmptyInputSplitsInputSplit extends InputSplit implements Writable {
+    private long startIndex;
+    private long endIndex;
 
-    public DummyInputSplit() {}
+    public EmptyInputSplitsInputSplit() {}
 
-    public DummyInputSplit(int startIndex, int endIndex) {
+    public EmptyInputSplitsInputSplit(long startIndex, long endIndex) {
       this.startIndex = startIndex;
       this.endIndex = endIndex;
     }
 
-    // returns number of records in each split
+    // Returns number of records in each split.
     @Override
     public long getLength() throws IOException, InterruptedException {
       return this.endIndex - this.startIndex;
@@ -71,68 +68,93 @@ public class EmptyInputSplitsInputFormat extends InputFormat<String, String> {
       return null;
     }
 
-    @Override
-    public void readFields(DataInput arg0) throws IOException {}
+    public long getStartIndex() {
+      return startIndex;
+    }
+
+    public long getEndIndex() {
+      return endIndex;
+    }
+
 
     @Override
-    public void write(DataOutput arg0) throws IOException {}
+    public void readFields(DataInput dataIn) throws IOException {
+      startIndex = dataIn.readLong();
+      endIndex = dataIn.readLong();
+    }
+
+    @Override
+    public void write(DataOutput dataOut) throws IOException {
+      dataOut.writeLong(startIndex);
+      dataOut.writeLong(endIndex);
+    }
 
   }
 
-  class DummyRecordReader extends RecordReader<String, String> {
+  class EmptyInputSplitsRecordReader extends RecordReader<String, String> {
 
-    String currentValue = null;
-    long pointer = 0L;
-    long recordsRead = 0L;
-    long numberOfRecordsInSplit = 0L;
-    HashMap<Integer, String> hmap = new HashMap<Integer, String>();
+    private EmptyInputSplitsInputSplit split;
+    private String currentKey;
+    private String currentValue;
+    private long pointer = 0L;
+    private long recordsRead = 0L;
 
-    public DummyRecordReader() {}
+    public EmptyInputSplitsRecordReader() {}
 
     @Override
     public void close() throws IOException {}
 
     @Override
     public String getCurrentKey() throws IOException, InterruptedException {
-      return String.valueOf(pointer);
+      return currentKey;
     }
 
     @Override
     public String getCurrentValue() throws IOException, InterruptedException {
-      return hmap.get(new Integer((int) pointer));
+      return currentValue;
     }
 
     @Override
     public float getProgress() throws IOException, InterruptedException {
-      return (float) recordsRead / numberOfRecordsInSplit;
+      return (float) recordsRead / split.getLength();
     }
 
     @Override
     public void initialize(InputSplit split, TaskAttemptContext arg1)
         throws IOException, InterruptedException {
-      /* Adding elements to HashMap */
-      hmap.put(0, "Chaitanya");
-      hmap.put(1, "Rahul");
-      hmap.put(2, "Singh");
-      hmap.put(3, "Ajeet");
-      hmap.put(4, "Anuj");
-      hmap.put(5, "xyz");
-      hmap.put(6, "persistent");
-      hmap.put(7, "apache");
-      hmap.put(8, "beam");
-      DummyInputSplit dummySplit = (DummyInputSplit) split;
-      pointer = dummySplit.startIndex - 1;
-      numberOfRecordsInSplit = dummySplit.getLength();
+      this.split = (EmptyInputSplitsInputSplit) split;
+      pointer = this.split.getStartIndex() - 1;
       recordsRead = 0;
+      makeData();
     }
 
     @Override
     public boolean nextKeyValue() throws IOException, InterruptedException {
-      if ((recordsRead++) == numberOfRecordsInSplit)
+      if ((recordsRead++) == split.getLength())
         return false;
       pointer++;
       boolean hasNext = hmap.containsKey(pointer);
+      if (hasNext) {
+        currentKey = String.valueOf(pointer);
+        currentValue = hmap.get(pointer);
+      }
       return hasNext;
+    }
+
+
+    private HashMap<Long, String> hmap = new HashMap<Long, String>();
+
+    private void makeData() {
+      /* Adding elements to HashMap */
+      hmap.put(0L, "Alex");
+      hmap.put(1L, "John");
+      hmap.put(2L, "Tom");
+      hmap.put(3L, "Nick");
+      hmap.put(4L, "Smith");
+      hmap.put(5L, "Taylor");
+      hmap.put(6L, "Gray");
+      hmap.put(7L, "James");
+      hmap.put(8L, "Jordan");
     }
   }
 }

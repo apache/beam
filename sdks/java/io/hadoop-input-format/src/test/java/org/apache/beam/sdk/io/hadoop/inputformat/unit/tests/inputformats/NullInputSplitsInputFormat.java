@@ -24,47 +24,41 @@ import org.apache.hadoop.mapreduce.TaskAttemptContext;
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 
-public class MutableRecordsInputFormat extends InputFormat<String, Employee> {
+// Bad input format which returns null in getSplits() method
+public class NullInputSplitsInputFormat extends InputFormat {
   private final long numberOfRecordsInEachSplit = 3L;
   private final long numberOfSplits = 3L;
 
-  public MutableRecordsInputFormat() {}
+  public NullInputSplitsInputFormat() {}
 
   @Override
-  public RecordReader<String, Employee> createRecordReader(InputSplit split,
+  public RecordReader<String, String> createRecordReader(InputSplit split,
       TaskAttemptContext context) throws IOException, InterruptedException {
-   // DummyRecordReader dummyRecordReaderObj = new DummyRecordReader();
-   // dummyRecordReaderObj.initialize(split, context);
-    return new MutableRecordsRecordReader();
+    // DummyRecordReader dummyRecordReaderObj = new DummyRecordReader();
+    // dummyRecordReaderObj.initialize(split, context);
+    return new NullInputSplitsRecordReader();
   }
 
   @Override
   public List<InputSplit> getSplits(JobContext arg0) throws IOException, InterruptedException {
-    List<InputSplit> inputSplitList = new ArrayList<InputSplit>();
-    for (int i = 0; i < numberOfSplits; i++) {
-      InputSplit dummyInputSplitObj = new MutableRecordsInputSplit((i * numberOfSplits),
-          ((i * numberOfSplits) + numberOfRecordsInEachSplit));
-      inputSplitList.add(dummyInputSplitObj);
-    }
-    return inputSplitList;
+    return null;
   }
 
-  public class MutableRecordsInputSplit extends InputSplit implements Writable {
+  public class NullInputSplitsInputSplit extends InputSplit implements Writable {
     private long startIndex;
     private long endIndex;
 
-    public MutableRecordsInputSplit() {}
+    public NullInputSplitsInputSplit() {}
 
-    public MutableRecordsInputSplit(long startIndex, long endIndex) {
+    public NullInputSplitsInputSplit(long startIndex, long endIndex) {
       this.startIndex = startIndex;
       this.endIndex = endIndex;
     }
 
-    // returns number of records in each split
+    // Returns number of records in each split.
     @Override
     public long getLength() throws IOException, InterruptedException {
       return this.endIndex - this.startIndex;
@@ -74,7 +68,6 @@ public class MutableRecordsInputFormat extends InputFormat<String, Employee> {
     public String[] getLocations() throws IOException, InterruptedException {
       return null;
     }
-
 
     public long getStartIndex() {
       return startIndex;
@@ -97,15 +90,15 @@ public class MutableRecordsInputFormat extends InputFormat<String, Employee> {
     }
   }
 
-  class MutableRecordsRecordReader extends RecordReader<String, Employee> {
+  public class NullInputSplitsRecordReader extends RecordReader<String, String> {
 
-    private MutableRecordsInputSplit split;
+    private NullInputSplitsInputSplit split;
     private String currentKey;
-    private Employee currentValue;
+    private String currentValue;
     private long pointer = 0L;
     private long recordsRead = 0L;
 
-    public MutableRecordsRecordReader() {}
+    public NullInputSplitsRecordReader() {}
 
     @Override
     public void close() throws IOException {}
@@ -116,7 +109,7 @@ public class MutableRecordsInputFormat extends InputFormat<String, Employee> {
     }
 
     @Override
-    public Employee getCurrentValue() throws IOException, InterruptedException {
+    public String getCurrentValue() throws IOException, InterruptedException {
       return currentValue;
     }
 
@@ -128,26 +121,25 @@ public class MutableRecordsInputFormat extends InputFormat<String, Employee> {
     @Override
     public void initialize(InputSplit split, TaskAttemptContext arg1)
         throws IOException, InterruptedException {
-      this.split = (MutableRecordsInputSplit) split;
+      this.split = (NullInputSplitsInputSplit) split;
       pointer = this.split.getStartIndex() - 1;
       recordsRead = 0;
       makeData();
-      currentValue = new Employee(null, null);
     }
 
     @Override
     public boolean nextKeyValue() throws IOException, InterruptedException {
-      if ((recordsRead++) == split.getLength())
+      if ((recordsRead++) == split.getLength()) {
         return false;
+      }
       pointer++;
       boolean hasNext = hmap.containsKey(pointer);
       if (hasNext) {
         currentKey = String.valueOf(pointer);
-        currentValue.setEmpName(hmap.get(pointer));
+        currentValue = hmap.get(pointer);
       }
       return hasNext;
     }
-
 
     private HashMap<Long, String> hmap = new HashMap<Long, String>();
     private void makeData() {
