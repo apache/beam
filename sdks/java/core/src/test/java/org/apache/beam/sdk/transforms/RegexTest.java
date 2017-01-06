@@ -18,6 +18,8 @@
 package org.apache.beam.sdk.transforms;
 
 import java.io.Serializable;
+import java.util.Arrays;
+import java.util.List;
 
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
@@ -35,8 +37,7 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class RegexTest implements Serializable {
 
-  @Rule
-  public final transient TestPipeline p = TestPipeline.create();
+  @Rule public final transient TestPipeline p = TestPipeline.create();
 
   @Test
   @Category(NeedsRunner.class)
@@ -69,6 +70,42 @@ public class RegexTest implements Serializable {
 
   @Test
   @Category(NeedsRunner.class)
+  public void testFindNameGroup() {
+    PCollection<String> output =
+        p.apply(Create.of("aj", "xj", "yj", "zj"))
+            .apply(Regex.find("(?<namedgroup>[xyz])", "namedgroup"));
+
+    PAssert.that(output).containsInAnyOrder("x", "y", "z");
+    p.run();
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void testFindAllGroups() {
+    PCollection<List<String>> output =
+        p.apply(Create.of("aj", "xjx", "yjy", "zjz")).apply(Regex.findAll("([xyz])j([xyz])"));
+
+    PAssert.that(output)
+        .containsInAnyOrder(
+            Arrays.asList("xjx", "x", "x"),
+            Arrays.asList("yjy", "y", "y"),
+            Arrays.asList("zjz", "z", "z"));
+    p.run();
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void testFindNameNone() {
+    PCollection<String> output =
+        p.apply(Create.of("a", "b", "c", "d"))
+            .apply(Regex.find("(?<namedgroup>[xyz])", "namedgroup"));
+
+    PAssert.that(output).empty();
+    p.run();
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
   public void testKVFind() {
 
     PCollection<KV<String, String>> output =
@@ -84,6 +121,30 @@ public class RegexTest implements Serializable {
 
     PCollection<KV<String, String>> output =
         p.apply(Create.of("x y z")).apply(Regex.findKV("a (b) (c)", 1, 2));
+
+    PAssert.that(output).empty();
+    p.run();
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void testKVFindName() {
+
+    PCollection<KV<String, String>> output =
+        p.apply(Create.of("a b c"))
+            .apply(Regex.findKV("a (?<keyname>b) (?<valuename>c)", "keyname", "valuename"));
+
+    PAssert.that(output).containsInAnyOrder(KV.of("b", "c"));
+    p.run();
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void testKVFindNameNone() {
+
+    PCollection<KV<String, String>> output =
+        p.apply(Create.of("x y z"))
+            .apply(Regex.findKV("a (?<keyname>b) (?<valuename>c)", "keyname", "valuename"));
 
     PAssert.that(output).empty();
     p.run();
@@ -124,6 +185,45 @@ public class RegexTest implements Serializable {
 
   @Test
   @Category(NeedsRunner.class)
+  public void testMatchesName() {
+
+    PCollection<String> output =
+        p.apply(Create.of("a", "x xxx", "x yyy", "x zzz"))
+            .apply(Regex.matches("x (?<namedgroup>[xyz]*)", "namedgroup"));
+
+    PAssert.that(output).containsInAnyOrder("xxx", "yyy", "zzz");
+    p.run();
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void testMatchesNameNone() {
+
+    PCollection<String> output =
+        p.apply(Create.of("a", "b", "c", "d"))
+            .apply(Regex.matches("x (?<namedgroup>[xyz]*)", "namedgroup"));
+
+    PAssert.that(output).empty();
+    p.run();
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void testAllMatches() {
+
+    PCollection<List<String>> output =
+        p.apply(Create.of("a x", "x x", "y y", "z z")).apply(Regex.allMatches("([xyz]) ([xyz])"));
+
+    PAssert.that(output)
+        .containsInAnyOrder(
+            Arrays.asList("x x", "x", "x"),
+            Arrays.asList("y y", "y", "y"),
+            Arrays.asList("z z", "z", "z"));
+    p.run();
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
   public void testKVMatches() {
 
     PCollection<KV<String, String>> output =
@@ -139,6 +239,29 @@ public class RegexTest implements Serializable {
 
     PCollection<KV<String, String>> output =
         p.apply(Create.of("x y z")).apply(Regex.matchesKV("a (b) (c)", 1, 2));
+    PAssert.that(output).empty();
+    p.run();
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void testKVMatchesName() {
+
+    PCollection<KV<String, String>> output =
+        p.apply(Create.of("a b c"))
+            .apply(Regex.findKV("a (?<keyname>b) (?<valuename>c)", "keyname", "valuename"));
+
+    PAssert.that(output).containsInAnyOrder(KV.of("b", "c"));
+    p.run();
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void testKVMatchesNameNone() {
+
+    PCollection<KV<String, String>> output =
+        p.apply(Create.of("x y z"))
+            .apply(Regex.findKV("a (?<keyname>b) (?<valuename>c)", "keyname", "valuename"));
     PAssert.that(output).empty();
     p.run();
   }
