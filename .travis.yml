@@ -50,5 +50,5 @@ script:
   # Verify that the project can be built and installed.
   - mvn install
   # Verify that starter and examples archetypes have the correct version of the NOTICE file.
-  - diff -q NOTICE maven-archetypes/starter/src/main/resources/archetype-resources/NOTICE
-  - diff -q NOTICE maven-archetypes/examples/src/main/resources/archetype-resources/NOTICE
+  - diff -q NOTICE maven-archetypes/starter/src/main/resources/NOTICE
+  - diff -q NOTICE maven-archetypes/examples/src/main/resources/NOTICE
