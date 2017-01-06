@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.dataflow.internal;
+package org.apache.beam.runners.dataflow;
 
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -41,7 +41,7 @@ import org.apache.beam.sdk.values.PCollection;
  *
  * @param <T> the type of input element
  */
-public class AssignWindows<T> extends PTransform<PCollection<T>, PCollection<T>> {
+class AssignWindows<T> extends PTransform<PCollection<T>, PCollection<T>> {
   private final Window.Bound<T> transform;
 
   /**

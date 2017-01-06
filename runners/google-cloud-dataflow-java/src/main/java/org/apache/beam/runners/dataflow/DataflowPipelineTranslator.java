@@ -58,7 +58,6 @@ import javax.annotation.Nullable;
 import org.apache.beam.runners.dataflow.DataflowRunner.GroupByKeyAndSortValuesOnly;
 import org.apache.beam.runners.dataflow.TransformTranslator.StepTranslationContext;
 import org.apache.beam.runners.dataflow.TransformTranslator.TranslationContext;
-import org.apache.beam.runners.dataflow.internal.ReadTranslator;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
 import org.apache.beam.runners.dataflow.util.DoFnInfo;
 import org.apache.beam.runners.dataflow.util.OutputReference;
@@ -106,7 +105,7 @@ import org.slf4j.LoggerFactory;
  * into Cloud Dataflow Service API {@link Job}s.
  */
 @SuppressWarnings({"rawtypes", "unchecked"})
-public class DataflowPipelineTranslator {
+class DataflowPipelineTranslator {
   // Must be kept in sync with their internal counterparts.
   private static final Logger LOG = LoggerFactory.getLogger(DataflowPipelineTranslator.class);
   private static final ObjectMapper MAPPER = new ObjectMapper();

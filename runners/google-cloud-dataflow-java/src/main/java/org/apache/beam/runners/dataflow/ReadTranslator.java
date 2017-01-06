@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.dataflow.internal;
+package org.apache.beam.runners.dataflow;
 
 import static org.apache.beam.sdk.util.Structs.addBoolean;
 import static org.apache.beam.sdk.util.Structs.addDictionary;
@@ -24,7 +24,7 @@ import static org.apache.beam.sdk.util.Structs.addLong;
 import com.google.api.services.dataflow.model.SourceMetadata;
 import java.util.HashMap;
 import java.util.Map;
-import org.apache.beam.runners.dataflow.TransformTranslator;
+import org.apache.beam.runners.dataflow.internal.CustomSources;
 import org.apache.beam.sdk.io.FileBasedSource;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.io.Source;
@@ -36,7 +36,7 @@ import org.apache.beam.sdk.values.PValue;
 /**
  * Translator for the {@code Read} {@code PTransform} for the Dataflow back-end.
  */
-public class ReadTranslator implements TransformTranslator<Read.Bounded<?>> {
+class ReadTranslator implements TransformTranslator<Read.Bounded<?>> {
   @Override
   public void translate(Read.Bounded<?> transform, TranslationContext context) {
     translateReadHelper(transform.getSource(), transform, context);

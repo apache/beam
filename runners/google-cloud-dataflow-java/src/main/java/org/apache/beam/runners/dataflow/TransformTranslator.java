@@ -33,7 +33,7 @@ import org.apache.beam.sdk.values.PValue;
  * A {@link TransformTranslator} knows how to translate a particular subclass of {@link PTransform}
  * for the Cloud Dataflow service. It does so by mutating the {@link TranslationContext}.
  */
-public interface TransformTranslator<TransformT extends PTransform> {
+interface TransformTranslator<TransformT extends PTransform> {
   void translate(TransformT transform, TranslationContext context);
 
   /**

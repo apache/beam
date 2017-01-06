@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.dataflow.internal;
+package org.apache.beam.runners.dataflow;
 
 import com.google.common.collect.BiMap;
 import com.google.common.collect.HashBiMap;
@@ -32,7 +32,7 @@ import org.apache.beam.sdk.transforms.PTransform;
 /**
  * A mapping relating {@link Aggregator}s and the {@link PTransform} in which they are used.
  */
-public class DataflowAggregatorTransforms {
+class DataflowAggregatorTransforms {
   private final Map<Aggregator<?, ?>, Collection<PTransform<?, ?>>> aggregatorTransforms;
   private final Multimap<PTransform<?, ?>, AppliedPTransform<?, ?, ?>> transformAppliedTransforms;
   private final BiMap<AppliedPTransform<?, ?, ?>, String> appliedStepNames;
