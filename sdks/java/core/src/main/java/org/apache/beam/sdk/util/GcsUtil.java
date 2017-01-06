@@ -532,7 +532,7 @@ public class GcsUtil {
     List<BatchRequest> batches = new LinkedList<>();
     for (List<GcsPath> filesToGet :
         Lists.partition(Lists.newArrayList(paths), MAX_REQUESTS_PER_BATCH)) {
-      BatchRequest batch = storageClient.batch(httpRequestInitializer);
+      BatchRequest batch = createBatchRequest();
       for (GcsPath path : filesToGet) {
         results.add(enqueueGetFileSize(path, batch));
       }
@@ -554,14 +554,14 @@ public class GcsUtil {
         destFilenames.size());
 
     List<BatchRequest> batches = new LinkedList<>();
-    BatchRequest batch = storageClient.batch(httpRequestInitializer);
+    BatchRequest batch = createBatchRequest();
     for (int i = 0; i < srcFilenames.size(); i++) {
       final GcsPath sourcePath = GcsPath.fromUri(srcFilenames.get(i));
       final GcsPath destPath = GcsPath.fromUri(destFilenames.get(i));
       enqueueCopy(sourcePath, destPath, batch);
       if (batch.size() >= MAX_REQUESTS_PER_BATCH) {
         batches.add(batch);
-        batch = storageClient.batch(httpRequestInitializer);
+        batch = createBatchRequest();
       }
     }
     if (batch.size() > 0) {
@@ -574,7 +574,7 @@ public class GcsUtil {
     List<BatchRequest> batches = new LinkedList<>();
     for (List<String> filesToDelete :
         Lists.partition(Lists.newArrayList(filenames), MAX_REQUESTS_PER_BATCH)) {
-      BatchRequest batch = storageClient.batch(httpRequestInitializer);
+      BatchRequest batch = createBatchRequest();
       for (String file : filesToDelete) {
         enqueueDelete(GcsPath.fromUri(file), batch);
       }
@@ -652,6 +652,10 @@ public class GcsUtil {
         throw new IOException(String.format("Error trying to delete %s: %s", file, e));
       }
     });
+  }
+
+  private BatchRequest createBatchRequest() {
+    return storageClient.batch(httpRequestInitializer);
   }
 
   /**

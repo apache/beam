@@ -56,7 +56,6 @@ import com.google.cloud.hadoop.gcsio.GoogleCloudStorageReadChannel;
 import com.google.cloud.hadoop.util.ClientRequestHelper;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
-
 import java.io.ByteArrayInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -405,6 +404,38 @@ public class GcsUtilTest {
         + "\n"
         + error.toString();
     thrown.expect(FileNotFoundException.class);
+    MockLowLevelHttpResponse notFoundResponse = new MockLowLevelHttpResponse()
+        .setContentType("multipart/mixed; boundary=" + contentBoundary)
+        .setContent(content)
+        .setStatusCode(HttpStatusCodes.STATUS_CODE_OK);
+
+    MockHttpTransport mockTransport =
+        new MockHttpTransport.Builder().setLowLevelHttpResponse(notFoundResponse).build();
+
+    GcsUtil gcsUtil = gcsOptionsWithTestCredential().getGcsUtil();
+
+    gcsUtil.setStorageClient(new Storage(mockTransport, Transport.getJsonFactory(), null));
+    gcsUtil.fileSizes(ImmutableList.of(GcsPath.fromComponents("testbucket", "testobject")));
+  }
+
+  @Test
+  public void testGetSizeBytesWhenFileNotFoundBatchRetry() throws Exception {
+    JsonFactory jsonFactory = new JacksonFactory();
+
+    String contentBoundary = "batch_foobarbaz";
+
+    GenericJson error = new GenericJson()
+        .set("error", new GenericJson().set("code", 404));
+    error.setFactory(jsonFactory);
+
+    String content = contentBoundary + "\n"
+        + "Content-Type: application/http\n"
+        + "\n"
+        + "HTTP/1.1 404 Not Found\n"
+        + "Content-Length: 105\n"
+        + "\n"
+        + error.toString();
+    thrown.expect(FileNotFoundException.class);
 
     final LowLevelHttpResponse mockResponse = Mockito.mock(LowLevelHttpResponse.class);
     when(mockResponse.getContentType()).thenReturn("multipart/mixed; boundary=" + contentBoundary);
@@ -427,7 +458,7 @@ public class GcsUtilTest {
 
     GcsUtil gcsUtil = gcsOptionsWithTestCredential().getGcsUtil();
 
-    gcsUtil.setStorageClient(
+        gcsUtil.setStorageClient(
         new Storage(mockTransport, Transport.getJsonFactory(), new RetryHttpRequestInitializer()));
     gcsUtil.fileSizes(ImmutableList.of(GcsPath.fromComponents("testbucket", "testobject")));
   }
@@ -742,7 +773,9 @@ public class GcsUtilTest {
     assertEquals(501, results.size());
   }
 
-  /** A helper to wrap a {@link GenericJson} object in a content stream. */
+  /**
+   * A helper to wrap a {@link GenericJson} object in a content stream.
+   */
   private static InputStream toStream(String content) throws IOException {
     return new ByteArrayInputStream(content.getBytes(StandardCharsets.UTF_8));
   }
