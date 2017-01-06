@@ -43,13 +43,12 @@ class GroupWithCoderTest(unittest.TestCase):
       return f.name
 
   def test_basics_with_type_check(self):
-    # Run the workflow with --pipeline_type_check option. This will make sure
+    # Run the workflow with pipeline_type_check option. This will make sure
     # the typehints associated with all transforms will have non-default values
     # and therefore any custom coders will be used. In our case we want to make
     # sure the coder for the Player class will be used.
     temp_path = self.create_temp_file(self.SAMPLE_RECORDS)
     group_with_coder.run([
-        '--pipeline_type_check',
         '--input=%s*' % temp_path,
         '--output=%s.result' % temp_path])
     # Parse result file and compare.
@@ -64,7 +63,7 @@ class GroupWithCoderTest(unittest.TestCase):
         sorted([('x:ann', 15), ('x:fred', 9), ('x:joe', 60), ('x:mary', 8)]))
 
   def test_basics_without_type_check(self):
-    # Run the workflow without --pipeline_type_check option. This will make sure
+    # Run the workflow without pipeline_type_check option. This will make sure
     # the typehints associated with all transforms will have default values and
     # therefore any custom coders will not be used. The default coder (pickler)
     # will be used instead.

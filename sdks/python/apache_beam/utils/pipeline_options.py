@@ -206,10 +206,6 @@ class TypeOptions(PipelineOptions):
                         action='store_false',
                         help='Disable type checking at pipeline construction '
                         'time')
-    parser.add_argument('--pipeline_type_check',
-                        action='store_true',
-                        help='Enable type checking at pipeline construction '
-                        'time')
     parser.add_argument('--runtime_type_check',
                         default=False,
                         action='store_true',
