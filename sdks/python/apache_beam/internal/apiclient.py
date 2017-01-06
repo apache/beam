@@ -208,17 +208,6 @@ class Environment(object):
       pool.workerHarnessContainerImage = (
           'dataflow.gcr.io/v1beta3/python:%s' %
           get_required_container_version())
-    if self.worker_options.teardown_policy:
-      if self.worker_options.teardown_policy == 'TEARDOWN_NEVER':
-        pool.teardownPolicy = (
-            dataflow.WorkerPool.TeardownPolicyValueValuesEnum.TEARDOWN_NEVER)
-      elif self.worker_options.teardown_policy == 'TEARDOWN_ALWAYS':
-        pool.teardownPolicy = (
-            dataflow.WorkerPool.TeardownPolicyValueValuesEnum.TEARDOWN_ALWAYS)
-      elif self.worker_options.teardown_policy == 'TEARDOWN_ON_SUCCESS':
-        pool.teardownPolicy = (
-            dataflow.WorkerPool
-            .TeardownPolicyValueValuesEnum.TEARDOWN_ON_SUCCESS)
     if self.worker_options.use_public_ips is not None:
       if self.worker_options.use_public_ips:
         pool.ipConfiguration = (
