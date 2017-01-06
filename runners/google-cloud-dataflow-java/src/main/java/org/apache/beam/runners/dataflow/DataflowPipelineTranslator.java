@@ -79,6 +79,7 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.HasDisplayData;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
 import org.apache.beam.sdk.transforms.windowing.DefaultTrigger;
 import org.apache.beam.sdk.transforms.windowing.Window;
@@ -836,7 +837,6 @@ class DataflowPipelineTranslator {
 
           private <InputT, OutputT> void translateMultiHelper(
               ParDo.BoundMulti<InputT, OutputT> transform, TranslationContext context) {
-            DataflowPipelineTranslator.rejectStatefulDoFn(transform.getFn());
 
             StepTranslationContext stepContext = context.addStep(transform, "ParallelDo");
             translateInputs(
@@ -865,7 +865,6 @@ class DataflowPipelineTranslator {
 
           private <InputT, OutputT> void translateSingleHelper(
               ParDo.Bound<InputT, OutputT> transform, TranslationContext context) {
-            rejectStatefulDoFn(transform.getFn());
 
             StepTranslationContext stepContext = context.addStep(transform, "ParallelDo");
             translateInputs(
@@ -914,18 +913,6 @@ class DataflowPipelineTranslator {
     registerTransformTranslator(Read.Bounded.class, new ReadTranslator());
   }
 
-  private static void rejectStatefulDoFn(DoFn<?, ?> doFn) {
-    if (DoFnSignatures.getSignature(doFn.getClass()).isStateful()) {
-    throw new UnsupportedOperationException(
-        String.format(
-            "Found %s annotations on %s, but %s cannot yet be used with state in the %s.",
-            DoFn.StateId.class.getSimpleName(),
-            doFn.getClass().getName(),
-            DoFn.class.getSimpleName(),
-            DataflowRunner.class.getSimpleName()));
-    }
-  }
-
   private static void translateInputs(
       StepTranslationContext stepContext,
       PCollection<?> input,
@@ -960,6 +947,9 @@ class DataflowPipelineTranslator {
       TranslationContext context,
       long mainOutput,
       Map<Long, TupleTag<?>> outputMap) {
+
+    DoFnSignature signature = DoFnSignatures.getSignature(fn.getClass());
+
     stepContext.addInput(PropertyNames.USER_FN, fn.getClass().getName());
     stepContext.addInput(
         PropertyNames.SERIALIZED_FN,
@@ -967,6 +957,10 @@ class DataflowPipelineTranslator {
             serializeToByteArray(
                 DoFnInfo.forFn(
                     fn, windowingStrategy, sideInputs, inputCoder, mainOutput, outputMap))));
+
+    if (signature.isStateful()) {
+      stepContext.addInput(PropertyNames.USES_KEYED_STATE, "true");
+    }
   }
 
   private static BiMap<Long, TupleTag<?>> translateOutputs(
