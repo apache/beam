@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.dataflow.internal;
+package org.apache.beam.runners.dataflow;
 
 import com.google.api.services.dataflow.model.MetricStructuredName;
 import com.google.api.services.dataflow.model.MetricUpdate;
@@ -32,7 +32,7 @@ import org.apache.beam.sdk.transforms.PTransform;
  * Methods for extracting the values of an {@link Aggregator} from a collection of {@link
  * MetricUpdate MetricUpdates}.
  */
-public final class DataflowMetricUpdateExtractor {
+final class DataflowMetricUpdateExtractor {
   private static final String STEP_NAME_CONTEXT_KEY = "step";
   private static final String IS_TENTATIVE_KEY = "tentative";
 
