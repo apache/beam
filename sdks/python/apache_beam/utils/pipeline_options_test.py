@@ -24,6 +24,8 @@ import hamcrest as hc
 from apache_beam.transforms.display import DisplayData
 from apache_beam.transforms.display_test import DisplayDataItemMatcher
 from apache_beam.utils.pipeline_options import PipelineOptions
+from apache_beam.utils.pipeline_options import static_value_provider_of
+from apache_beam.utils.value_provider import StaticValueProvider
 
 
 class PipelineOptionsTest(unittest.TestCase):
@@ -169,6 +171,26 @@ class PipelineOptionsTest(unittest.TestCase):
 
     options = PipelineOptions(flags=[''])
     self.assertEqual(options.get_all_options()['template_location'], None)
+
+  def test_static_value_provider_of(self):
+    class TestOptions(PipelineOptions):
+      @classmethod
+      def _add_argparse_args(cls, parser):
+        parser.add_argument(
+            '--int_flag',
+            type=static_value_provider_of(int),
+            help='--int_flag description')
+        parser.add_argument(
+            '--str_flag',
+            type=static_value_provider_of(str),
+            help='--str_flag descriptions')
+    # TODO: Make flags be capable of having
+    # the same name for vp and non-vp values.
+    options = TestOptions(['--int_flag', '1', '--str_flag', '/dev/null'])
+    assert isinstance(options.int_flag, StaticValueProvider)
+    assert isinstance(options.str_flag, StaticValueProvider)
+    assert options.int_flag.get() == 1
+    assert options.str_flag.get() == '/dev/null'
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)

@@ -36,6 +36,8 @@ from apache_beam.io import fileio
 from apache_beam.io import iobase
 from apache_beam.io import range_trackers
 from apache_beam.transforms.display import DisplayDataItem
+from apache_beam.utils.value_provider import ValueProvider
+from apache_beam.utils.value_provider import StaticValueProvider
 
 MAX_NUM_THREADS_FOR_SIZE_ESTIMATION = 25
 
@@ -55,7 +57,8 @@ class FileBasedSource(iobase.BoundedSource):
     """Initializes ``FileBasedSource``.
 
     Args:
-      file_pattern: the file glob to read.
+      file_pattern: the file glob to read or a ValueProvider (place holder to
+                    inject a runtime value).
       min_bundle_size: minimum size of bundles that should be generated when
                        performing initial splitting on this source.
       compression_type: compression type to use
@@ -77,11 +80,15 @@ class FileBasedSource(iobase.BoundedSource):
       ValueError: when compression and splittable files are specified.
       IOError: when the file pattern specified yields an empty result.
     """
-    if not isinstance(file_pattern, basestring):
-      raise TypeError(
-          '%s: file_pattern must be a string;  got %r instead' %
-          (self.__class__.__name__, file_pattern))
+    if (not isinstance(file_pattern, basestring)
+        or isinstance(file_pattern, ValueProvider)):
+      raise TypeError('%s: file_pattern must be of type string'
+                      ' or ValueProvider; got %r instead'
+                      % (self.__class__.__name__, file_pattern))
 
+    self._pattern = file_pattern
+    if isinstance(file_pattern, basestring):
+      file_pattern = StaticValueProvider(str, file_pattern)
     self._pattern = file_pattern
     self._concat_source = None
     self._min_bundle_size = min_bundle_size
@@ -99,17 +106,20 @@ class FileBasedSource(iobase.BoundedSource):
       self._validate()
 
   def display_data(self):
-    return {'file_pattern': DisplayDataItem(self._pattern,
+    return {'file_pattern': DisplayDataItem(str(self._pattern),
                                             label="File Pattern"),
             'compression': DisplayDataItem(str(self._compression_type),
                                            label='Compression Type')}
 
   def _get_concat_source(self):
     if self._concat_source is None:
+      if not self._pattern.is_accessible():
+        raise RuntimeError('value not accessible')
+
       single_file_sources = []
-      file_names = [f for f in fileio.ChannelFactory.glob(self._pattern)]
-      sizes = FileBasedSource._estimate_sizes_of_files(file_names,
-                                                       self._pattern)
+      pattern = self._pattern.get()
+      file_names = [f for f in fileio.ChannelFactory.glob(pattern)]
+      sizes = FileBasedSource._estimate_sizes_of_files(file_names, pattern)
 
       # We create a reference for FileBasedSource that will be serialized along
       # with each _SingleFileSource. To prevent this FileBasedSource from having
@@ -176,10 +186,14 @@ class FileBasedSource(iobase.BoundedSource):
   def _validate(self):
     """Validate if there are actual files in the specified glob pattern
     """
+    if not self._pattern.is_accessible():
+      raise RuntimeError('value not accessible')
+    pattern = self._pattern.get()
+
     # Limit the responses as we only want to check if something exists
-    if len(fileio.ChannelFactory.glob(self._pattern, limit=1)) <= 0:
+    if len(fileio.ChannelFactory.glob(pattern, limit=1)) <= 0:
       raise IOError(
-          'No files found based on the file pattern %s' % self._pattern)
+          'No files found based on the file pattern %s' % pattern)
 
   def split(
       self, desired_bundle_size=None, start_position=None, stop_position=None):
@@ -189,7 +203,11 @@ class FileBasedSource(iobase.BoundedSource):
         stop_position=stop_position)
 
   def estimate_size(self):
-    file_names = [f for f in fileio.ChannelFactory.glob(self._pattern)]
+    if not self._pattern.is_accessible():
+      raise RuntimeError('value not accessible')
+    pattern = self._pattern.get()
+    file_names = [f for f in fileio.ChannelFactory.glob(pattern)]
+
     # We're reading very few files so we can pass names file names to
     # _estimate_sizes_of_files without pattern as otherwise we'll try to do
     # optimization based on the pattern and might end up reading much more

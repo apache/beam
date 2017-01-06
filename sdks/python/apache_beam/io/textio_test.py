@@ -49,6 +49,8 @@ from apache_beam.transforms.display_test import DisplayDataItemMatcher
 from apache_beam.transforms.util import assert_that
 from apache_beam.transforms.util import equal_to
 
+from apache_beam.utils.value_provider import StaticValueProvider
+
 
 class TextSourceTest(unittest.TestCase):
 
@@ -297,7 +299,8 @@ class TextSourceTest(unittest.TestCase):
     dd = DisplayData.create_from(read)
     expected_items = [
         DisplayDataItemMatcher('compression', 'auto'),
-        DisplayDataItemMatcher('file_pattern', 'prefix'),
+        DisplayDataItemMatcher('file_pattern',
+                               str(StaticValueProvider(str, 'prefix'))),
         DisplayDataItemMatcher('strip_newline', True)]
     hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
 

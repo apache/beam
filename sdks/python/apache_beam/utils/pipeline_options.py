@@ -20,6 +20,20 @@
 import argparse
 
 from apache_beam.transforms.display import HasDisplayData
+from apache_beam.utils.value_provider import StaticValueProvider
+
+
+def static_value_provider_of(type):
+  """"Helper function to plug a ValueProvider into argparse.
+
+  Args:
+    type: the type of the value. Since the type param of argparse's
+          add_argument will always be ValueProvider, we need to
+          preserve the type of the actual value.
+  """
+  def _f(value):
+    return StaticValueProvider(type, value)
+  return _f
 
 
 class PipelineOptions(HasDisplayData):
