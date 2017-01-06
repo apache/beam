@@ -47,4 +47,8 @@ install:
   - travis_retry mvn install clean -U -DskipTests=true
 
 script:
-  - travis_retry mvn install -U
+  # Verify that the project can be built and installed.
+  - mvn install
+  # Verify that starter and examples archetypes have the correct version of the NOTICE file.
+  - diff -q NOTICE maven-archetypes/starter/src/main/resources/archetype-resources/NOTICE
+  - diff -q NOTICE maven-archetypes/examples/src/main/resources/archetype-resources/NOTICE
