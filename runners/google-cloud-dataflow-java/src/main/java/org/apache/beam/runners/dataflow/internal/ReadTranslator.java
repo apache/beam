@@ -24,10 +24,7 @@ import static org.apache.beam.sdk.util.Structs.addLong;
 import com.google.api.services.dataflow.model.SourceMetadata;
 import java.util.HashMap;
 import java.util.Map;
-import org.apache.beam.runners.dataflow.DataflowPipelineTranslator;
-import org.apache.beam.runners.dataflow.DataflowPipelineTranslator.StepTranslationContext;
-import org.apache.beam.runners.dataflow.DataflowPipelineTranslator.TransformTranslator;
-import org.apache.beam.runners.dataflow.DataflowPipelineTranslator.TranslationContext;
+import org.apache.beam.runners.dataflow.TransformTranslator;
 import org.apache.beam.sdk.io.FileBasedSource;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.io.Source;
@@ -47,7 +44,7 @@ public class ReadTranslator implements TransformTranslator<Read.Bounded<?>> {
 
   public static <T> void translateReadHelper(Source<T> source,
       PTransform<?, ? extends PValue> transform,
-      DataflowPipelineTranslator.TranslationContext context) {
+      TranslationContext context) {
     try {
       // TODO: Move this validation out of translation once IOChannelUtils is portable
       // and can be reconstructed on the worker.

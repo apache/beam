@@ -61,7 +61,6 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.regex.Pattern;
-import org.apache.beam.runners.dataflow.DataflowPipelineTranslator.StepTranslationContext;
 import org.apache.beam.runners.dataflow.DataflowRunner.BatchViewAsList;
 import org.apache.beam.runners.dataflow.DataflowRunner.BatchViewAsMap;
 import org.apache.beam.runners.dataflow.DataflowRunner.BatchViewAsMultimap;
@@ -989,12 +988,12 @@ public class DataflowRunnerTest {
 
     DataflowPipelineTranslator.registerTransformTranslator(
         TestTransform.class,
-        new DataflowPipelineTranslator.TransformTranslator<TestTransform>() {
+        new TransformTranslator<TestTransform>() {
           @SuppressWarnings("unchecked")
           @Override
           public void translate(
               TestTransform transform,
-              DataflowPipelineTranslator.TranslationContext context) {
+              TranslationContext context) {
             transform.translated = true;
 
             // Note: This is about the minimum needed to fake out a
