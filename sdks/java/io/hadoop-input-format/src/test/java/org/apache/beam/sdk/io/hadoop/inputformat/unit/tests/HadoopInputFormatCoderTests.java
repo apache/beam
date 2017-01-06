@@ -98,7 +98,8 @@ public class HadoopInputFormatCoderTests {
     Configuration conf = new Configuration();
     conf.set(ConfigurationOptions.ES_NODES, "10.51.234.135:9200");
     conf.set("es.resource", "/my_data/logs");
-    conf.setClass("mapreduce.job.inputformat.class", org.elasticsearch.hadoop.mr.EsInputFormat.class, InputFormat.class);
+    conf.setClass("mapreduce.job.inputformat.class",org.elasticsearch.hadoop.mr.EsInputFormat.class,
+        InputFormat.class);
     conf.setClass("key.class", Text.class, Object.class);
     conf.setClass("value.class", MapWritable.class, Object.class);
     return conf;

@@ -19,12 +19,9 @@ import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 
-import com.datastax.driver.core.Row;
 import com.google.common.base.Function;
 import com.google.common.collect.Lists;
 
-import org.apache.beam.sdk.coders.AvroCoder;
-import org.apache.beam.sdk.coders.DefaultCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.BoundedSource.BoundedReader;
@@ -34,11 +31,12 @@ import org.apache.beam.sdk.io.hadoop.inputformat.HadoopInputFormatIO.Serializabl
 import org.apache.beam.sdk.io.hadoop.inputformat.unit.tests.coders.EmployeeCoder;
 import org.apache.beam.sdk.io.hadoop.inputformat.unit.tests.inputformats.BadCreateRecordReaderInputFormat;
 import org.apache.beam.sdk.io.hadoop.inputformat.unit.tests.inputformats.BadRecordReaderNoRecordsInputFormat;
+import org.apache.beam.sdk.io.hadoop.inputformat.unit.tests.inputformats.Employee;
 import org.apache.beam.sdk.io.hadoop.inputformat.unit.tests.inputformats.EmployeeInputFormat;
 import org.apache.beam.sdk.io.hadoop.inputformat.unit.tests.inputformats.EmptyInputSplitsInputFormat;
 import org.apache.beam.sdk.io.hadoop.inputformat.unit.tests.inputformats.ImmutableRecordsInputFormat;
 import org.apache.beam.sdk.io.hadoop.inputformat.unit.tests.inputformats.MutableRecordsInputFormat;
-import org.apache.beam.sdk.io.hadoop.inputformat.unit.tests.inputformats.NullInputSplitsBadInputFormat;
+import org.apache.beam.sdk.io.hadoop.inputformat.unit.tests.inputformats.NullInputSplitsInputFormat;
 import org.apache.beam.sdk.testing.ExpectedLogs;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.SourceTestUtils;
@@ -49,7 +47,6 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
-import org.apache.cassandra.hadoop.cql3.CqlInputFormat;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.Text;
@@ -62,7 +59,6 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 import java.io.IOException;
-import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
@@ -132,53 +128,20 @@ public class HadoopInputFormatIOTest {
 
   @Test
   public void testReadDisplayData() {
-    String KEYSPACE = "mobile_data_usage";
-    String COLUMN_FAMILY = "subscriber";
-    Configuration cassandraConf = new Configuration();
-    cassandraConf.set("cassandra.input.thrift.port", "9160");
-    cassandraConf.set("cassandra.input.thrift.address", "127.0.0.1");
-    cassandraConf.set("cassandra.input.partitioner.class", "Murmur3Partitioner");
-    cassandraConf.set("cassandra.input.keyspace", KEYSPACE);
-    cassandraConf.set("cassandra.input.columnfamily", COLUMN_FAMILY);
-    TypeDescriptor<CqlInputFormat> inputFormatClassName = new TypeDescriptor<CqlInputFormat>() {
-      private static final long serialVersionUID = 1L;
-    };
-    cassandraConf.setClass("mapreduce.job.inputformat.class", inputFormatClassName.getRawType(),
-        InputFormat.class);
-    TypeDescriptor<Long> keyClass = new TypeDescriptor<Long>() {
-      private static final long serialVersionUID = 1L;
-    };
-    cassandraConf.setClass("key.class", keyClass.getRawType(), Object.class);
-    TypeDescriptor<com.datastax.driver.core.Row> valueClass = new TypeDescriptor<Row>() {
-      private static final long serialVersionUID = 1L;
-    };
-    cassandraConf.setClass("value.class", valueClass.getRawType(), Object.class);
-    SimpleFunction<Row, String> myValueTranslateFunc = new SimpleFunction<Row, String>() {
-      private static final long serialVersionUID = 1L;
-      @Override
-      public String apply(Row input) {
-        return input.getString("subscriber_email");
-      }
-    };
-    SimpleFunction<Long, String> myKeyTranslateFunc = new SimpleFunction<Long, String>() {
-      private static final long serialVersionUID = 1L;
-      @Override
-      public String apply(Long input) {
-        return input.toString();
-      }
-    };
     HadoopInputFormatIO.Read<String, String> read =
-        HadoopInputFormatIO.<String, String>read().withConfiguration(cassandraConf)
-            .withKeyTranslation(myKeyTranslateFunc).withValueTranslation(myValueTranslateFunc);
+        HadoopInputFormatIO.<String, String>read()
+            .withConfiguration(serConf.getConfiguration())
+            .withKeyTranslation(myKeyTranslate)
+            .withValueTranslation(myValueTranslate);
     read.validate(input);
     DisplayData displayData = DisplayData.from(read);
-    if (cassandraConf != null) {
-      Iterator<Entry<String, String>> propertyElement = cassandraConf.iterator();
+      Iterator<Entry<String, String>> propertyElement = serConf.getConfiguration().iterator();
       while (propertyElement.hasNext()) {
         Entry<String, String> element = propertyElement.next();
         assertThat(displayData, hasDisplayItem(element.getKey(), element.getValue()));
       }
-    }
+      assertThat(displayData, hasDisplayItem("KeyTranslationSimpleFunction", myKeyTranslate.toString()));
+      assertThat(displayData, hasDisplayItem("ValueTranslationSimpleFunction", myValueTranslate.toString()));
   }
 
   // This test validates Read transform object creation if only withConfiguration() is called with
@@ -578,7 +541,7 @@ public class HadoopInputFormatIOTest {
   @Test
   public void testSplitIntoBundlesIfGetSplitsReturnsNullValue() throws Exception {
     SerializableConfiguration serConf =
-        getConfiguration(TypeDescriptor.of(NullInputSplitsBadInputFormat.class),
+        getConfiguration(TypeDescriptor.of(NullInputSplitsInputFormat.class),
             TypeDescriptor.of(java.lang.String.class), TypeDescriptor.of(java.lang.String.class));
     HadoopInputFormatBoundedSource<String, String> parentHIFSource =
         new HadoopInputFormatBoundedSource<String, String>(serConf, StringUtf8Coder.of(),
@@ -670,11 +633,11 @@ public class HadoopInputFormatIOTest {
     assertThat(transformedBundleRecords, containsInAnyOrder(referenceRecords.toArray()));
   }
 
-  private List<KV<Text, Employee>> getEmployeeData() {
+/*  private List<KV<Text, Employee>> getEmployeeData() {
     List<KV<Text, Employee>> data = new ArrayList<KV<Text, Employee>>();
-    data.add(KV.of(new Text("0"), new Employee("Prabhanj", "Pune")));
-    data.add(KV.of(new Text("1"), new Employee("Rahul", "Pune")));
-    data.add(KV.of(new Text("2"), new Employee("Saikat", "Mumbai")));
+    data.add(KV.of(new Text("0"), new Employee("Alex", "US")));
+    data.add(KV.of(new Text("1"), new Employee("John", "UK")));
+    data.add(KV.of(new Text("2"), new Employee("Tom", "UK")));
     data.add(KV.of(new Text("3"), new Employee("Gurumoorthy", "Hyderabad")));
     data.add(KV.of(new Text("4"), new Employee("Shubham", "Banglore")));
     data.add(KV.of(new Text("5"), new Employee("Neha", "Chennai")));
@@ -682,8 +645,21 @@ public class HadoopInputFormatIOTest {
     data.add(KV.of(new Text("7"), new Employee("Nikita", "Chennai")));
     data.add(KV.of(new Text("8"), new Employee("Pallavi", "Pune")));
     return data;
-  }
-
+  }*/
+  private List<KV<Text, Employee>> getEmployeeData() {
+    List<KV<Text, Employee>> data = new ArrayList<KV<Text, Employee>>();
+    data.add(KV.of(new Text("0"),  new Employee("Alex", "US")));
+    data.add(KV.of(new Text("1"),  new Employee("John", "UK")));
+    data.add(KV.of(new Text("2"),  new Employee("Tom", "UK")));
+    data.add(KV.of(new Text("3"),  new Employee("Nick", "UAE")));
+    data.add(KV.of(new Text("4"),  new Employee("Smith", "IND")));
+    data.add(KV.of(new Text("5"),  new Employee("Taylor", "US")));
+    data.add(KV.of(new Text("6"),  new Employee("Gray", "UK")));
+    data.add(KV.of(new Text("7"),  new Employee("James", "UAE")));
+    data.add(KV.of(new Text("8"),  new Employee("Jordan", "IND")));
+    return data;
+    }
+  
   private List<KV<String, String>> getEmployeeNameList() {
     return Lists.transform(getEmployeeData(),
         new Function<KV<Text, Employee>, KV<String, String>>() {
@@ -702,33 +678,5 @@ public class HadoopInputFormatIOTest {
     conf.setClass("key.class", keyClass.getRawType(), Object.class);
     conf.setClass("value.class", valueClass.getRawType(), Object.class);
     return new SerializableConfiguration(conf);
-  }
-
-  @DefaultCoder(AvroCoder.class)
-  public class Employee implements Serializable {
-    private static final long serialVersionUID = 1L;
-    private String empAddress;
-    private String empName;
-
-    public Employee(String empName, String empAddress) {
-      this.empAddress = empAddress;
-      this.empName = empName;
-    }
-
-    public String getEmpName() {
-      return empName;
-    }
-
-    public void setEmpName(String empName) {
-      this.empName = empName;
-    }
-
-    public String getEmpAddress() {
-      return empAddress;
-    }
-
-    public void setEmpAddress(String empAddress) {
-      this.empAddress = empAddress;
-    }
   }
 }

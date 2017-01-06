@@ -1,6 +1,12 @@
 package org.apache.beam.sdk.io.hadoop.inputformat.unit.tests.coders;
 
 
+import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.CoderException;
+import org.apache.beam.sdk.coders.StandardCoder;
+import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.io.hadoop.inputformat.unit.tests.inputformats.Employee;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -8,17 +14,9 @@ import java.io.Serializable;
 import java.util.Collections;
 import java.util.List;
 
-import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.coders.CoderException;
-import org.apache.beam.sdk.coders.StandardCoder;
-import org.apache.beam.sdk.coders.StringUtf8Coder;
-import org.apache.beam.sdk.io.hadoop.inputformat.unit.tests.HadoopInputFormatIOTest;
-import org.apache.beam.sdk.io.hadoop.inputformat.unit.tests.HadoopInputFormatIOTest.Employee;
-
 
 public class EmployeeCoder extends StandardCoder<Employee> implements Serializable{
 	private static final long serialVersionUID = 1L;
-	HadoopInputFormatIOTest hadoopInputFormatIOTest=new HadoopInputFormatIOTest();
 	private static final StringUtf8Coder stringCoder = StringUtf8Coder.of();
 
 	public EmployeeCoder() {
@@ -40,7 +38,7 @@ public class EmployeeCoder extends StandardCoder<Employee> implements Serializab
 					throws CoderException, IOException {
 		Context nested = context.nested();
 		String data[]=stringCoder.decode(inStream, nested).split("###");
-		return hadoopInputFormatIOTest.new Employee(data[0],data[1]);
+		return new Employee(data[0],data[1]);
 	}
 
 	@Override

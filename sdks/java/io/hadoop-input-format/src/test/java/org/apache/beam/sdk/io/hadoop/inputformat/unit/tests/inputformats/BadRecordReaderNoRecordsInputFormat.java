@@ -1,3 +1,17 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more contributor license
+ * agreements. See the NOTICE file distributed with this work for additional information regarding
+ * copyright ownership. The ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the License. You may obtain a
+ * copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software distributed under the License
+ * is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express
+ * or implied. See the License for the specific language governing permissions and limitations under
+ * the License.
+ */
 package org.apache.beam.sdk.io.hadoop.inputformat.unit.tests.inputformats;
 
 import org.apache.hadoop.io.Writable;
@@ -16,37 +30,35 @@ import java.util.List;
 
 // Bad input format which returns no records in nextKeyValue() method of RecordReader.
 public class BadRecordReaderNoRecordsInputFormat extends InputFormat<String, String> {
-  int numberOfRecordsInEachSplits = 3;
-  int numberOfSplits = 3;
+  private final long numberOfRecordsInEachSplit = 3L;
+  private final long numberOfSplits = 3L;
 
   public BadRecordReaderNoRecordsInputFormat() {}
 
   @Override
   public RecordReader<String, String> createRecordReader(InputSplit split,
       TaskAttemptContext context) throws IOException, InterruptedException {
-    DummyRecordReader dummyRecordReaderObj = new DummyRecordReader();
-    dummyRecordReaderObj.initialize(split, context);
-    return dummyRecordReaderObj;
+    return new BadRecordReaderNoRecordsRecordReader();
   }
 
   @Override
   public List<InputSplit> getSplits(JobContext arg0) throws IOException, InterruptedException {
-    InputSplit dummyInputSplitObj;
     List<InputSplit> inputSplitList = new ArrayList<InputSplit>();
     for (int i = 0; i < numberOfSplits; i++) {
-      dummyInputSplitObj = new DummyInputSplit((i * numberOfSplits),
-          ((i * numberOfSplits) + numberOfRecordsInEachSplits));
-      inputSplitList.add(dummyInputSplitObj);
+      InputSplit inputSplit = new BadRecordReaderNoRecordsInputSplit((i * numberOfSplits),
+          ((i * numberOfSplits) + numberOfRecordsInEachSplit));
+      inputSplitList.add(inputSplit);
     }
     return inputSplitList;
   }
 
-  public class DummyInputSplit extends InputSplit implements Writable {
-    public int startIndex, endIndex;
+  public class BadRecordReaderNoRecordsInputSplit extends InputSplit implements Writable {
+    private long startIndex;
+    private long endIndex;
 
-    public DummyInputSplit() {}
+    public BadRecordReaderNoRecordsInputSplit() {}
 
-    public DummyInputSplit(int startIndex, int endIndex) {
+    public BadRecordReaderNoRecordsInputSplit(long startIndex, long endIndex) {
       this.startIndex = startIndex;
       this.endIndex = endIndex;
     }
@@ -62,63 +74,79 @@ public class BadRecordReaderNoRecordsInputFormat extends InputFormat<String, Str
       return null;
     }
 
-    @Override
-    public void readFields(DataInput arg0) throws IOException {}
+    public long getStartIndex() {
+      return startIndex;
+    }
+
+    public long getEndIndex() {
+      return endIndex;
+    }
 
     @Override
-    public void write(DataOutput arg0) throws IOException {}
+    public void readFields(DataInput dataIn) throws IOException {
+      startIndex = dataIn.readLong();
+      endIndex = dataIn.readLong();
+    }
 
+    @Override
+    public void write(DataOutput dataOut) throws IOException {
+      dataOut.writeLong(startIndex);
+      dataOut.writeLong(endIndex);
+    }
   }
 
-  class DummyRecordReader extends RecordReader<String, String> {
+  class BadRecordReaderNoRecordsRecordReader extends RecordReader<String, String> {
 
-    String currentValue = null;
-    int pointer = 0, recordsRead = 0;
-    long numberOfRecordsInSplit = 0;
-    HashMap<Integer, String> hmap = new HashMap<Integer, String>();
+    private BadRecordReaderNoRecordsInputSplit split;
+    private String currentKey;
+    private String currentValue;
+    private long pointer;
+    private long recordsRead;
+    private HashMap<Long, String> dataHmap = new HashMap<Long, String>();
 
-    public DummyRecordReader() {}
+
+    public BadRecordReaderNoRecordsRecordReader() {}
 
     @Override
     public void close() throws IOException {}
 
     @Override
     public String getCurrentKey() throws IOException, InterruptedException {
-      return String.valueOf(pointer);
+      return currentKey;
     }
 
     @Override
     public String getCurrentValue() throws IOException, InterruptedException {
-      return hmap.get(new Integer(pointer));
+      return currentValue;
     }
 
     @Override
     public float getProgress() throws IOException, InterruptedException {
-      return (float) recordsRead / numberOfRecordsInSplit;
+      return (float) recordsRead / split.getLength();
     }
 
     @Override
     public void initialize(InputSplit split, TaskAttemptContext arg1)
         throws IOException, InterruptedException {
-      /* Adding elements to HashMap */
-      hmap.put(0, "Chaitanya");
-      hmap.put(1, "Rahul");
-      hmap.put(2, "Singh");
-      hmap.put(3, "Ajeet");
-      hmap.put(4, "Anuj");
-      hmap.put(5, "xyz");
-      hmap.put(6, "persistent");
-      hmap.put(7, "apache");
-      hmap.put(8, "beam");
-      DummyInputSplit dummySplit = (DummyInputSplit) split;
-      pointer = dummySplit.startIndex - 1;
-      numberOfRecordsInSplit = dummySplit.getLength();
+      this.split = (BadRecordReaderNoRecordsInputSplit) split;
+      pointer = this.split.getStartIndex() - 1;
       recordsRead = 0;
     }
 
+    //As dataHmap contains no data nextKeyValue() will return false for first record.
     @Override
     public boolean nextKeyValue() throws IOException, InterruptedException {
-      return false;
+      if ((recordsRead++) == split.getLength()){
+        return false;
+      }
+      pointer++;
+      boolean hasNext = dataHmap.containsKey(pointer);
+      if(hasNext)
+      {
+        currentKey=String.valueOf(pointer);
+        currentValue=dataHmap.get(pointer);
+      }
+      return hasNext;
     }
   }
 }

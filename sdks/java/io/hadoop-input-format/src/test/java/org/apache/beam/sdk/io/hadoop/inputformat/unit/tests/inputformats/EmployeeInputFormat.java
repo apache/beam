@@ -1,24 +1,20 @@
 /*
- * Licensed to the Apache Software Foundation (ASF) under one
- * or more contributor license agreements.  See the NOTICE file
- * distributed with this work for additional information
- * regarding copyright ownership.  The ASF licenses this file
- * to you under the Apache License, Version 2.0 (the
- * "License"); you may not use this file except in compliance
- * with the License.  You may obtain a copy of the License at
+ * Licensed to the Apache Software Foundation (ASF) under one or more contributor license
+ * agreements. See the NOTICE file distributed with this work for additional information regarding
+ * copyright ownership. The ASF licenses this file to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance with the License. You may obtain a
+ * copy of the License at
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing, software distributed under the License
+ * is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express
+ * or implied. See the License for the specific language governing permissions and limitations under
+ * the License.
  */
 package org.apache.beam.sdk.io.hadoop.inputformat.unit.tests.inputformats;
 
 import org.apache.beam.sdk.io.hadoop.inputformat.unit.tests.HadoopInputFormatIOTest;
-import org.apache.beam.sdk.io.hadoop.inputformat.unit.tests.HadoopInputFormatIOTest.Employee;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.io.Writable;
 import org.apache.hadoop.mapreduce.InputFormat;
@@ -35,113 +31,134 @@ import java.util.HashMap;
 import java.util.List;
 
 public class EmployeeInputFormat extends InputFormat<Text, Employee> {
-	int numberOfRecordsInEachSplits = 3;
-	int numberOfSplits = 3;
+  private final long numberOfRecordsInEachSplit = 3L;
+  private final long numberOfSplits = 3L;
 
-	public EmployeeInputFormat() {}
+  public EmployeeInputFormat() {}
 
-	@Override
-	public RecordReader<Text, Employee> createRecordReader(InputSplit split, TaskAttemptContext context)
-			throws IOException, InterruptedException {
-		DummyRecordReader dummyRecordReaderObj = new DummyRecordReader();
-		dummyRecordReaderObj.initialize(split, context);
-		return dummyRecordReaderObj;
-	}
+  @Override
+  public RecordReader<Text, Employee> createRecordReader(InputSplit split,
+      TaskAttemptContext context) throws IOException, InterruptedException {
+    return new EmployeeRecordReader();
+  }
 
-	@Override
-	public List<InputSplit> getSplits(JobContext arg0) throws IOException, InterruptedException {
-		InputSplit dummyInputSplitObj;
-		List<InputSplit> inputSplitList = new ArrayList<InputSplit>();
-		for (int i = 0; i < numberOfSplits; i++) {
-			dummyInputSplitObj = new DummyInputSplit((i * numberOfSplits),
-					((i * numberOfSplits) + numberOfRecordsInEachSplits));
-			inputSplitList.add(dummyInputSplitObj);
-		}
-		return inputSplitList;
-	}
+  @Override
+  public List<InputSplit> getSplits(JobContext arg0) throws IOException, InterruptedException {
+    List<InputSplit> inputSplitList = new ArrayList<InputSplit>();
+    for (int i = 0; i < numberOfSplits; i++) {
+      InputSplit inputSplit = new EmployeeInputSplit((i * numberOfSplits),
+          ((i * numberOfSplits) + numberOfRecordsInEachSplit));
+      inputSplitList.add(inputSplit);
+    }
+    return inputSplitList;
+  }
 
-	public class DummyInputSplit extends InputSplit implements Writable {
-		public int startIndex;
-		public int endIndex;
+  public class EmployeeInputSplit extends InputSplit implements Writable {
+    private long startIndex;
+    private long endIndex;
 
-		public DummyInputSplit() {}
+    public EmployeeInputSplit() {}
 
-		public DummyInputSplit(int startIndex, int endIndex) {
-			this.startIndex = startIndex;
-			this.endIndex = endIndex;
-		}
+    public EmployeeInputSplit(long startIndex, long endIndex) {
+      this.startIndex = startIndex;
+      this.endIndex = endIndex;
+    }
 
-		//returns number of records in each split
-		@Override
-		public long getLength() throws IOException, InterruptedException {
-			return this.endIndex-this.startIndex ;
-		}
+    // Returns number of records in each split.
+    @Override
+    public long getLength() throws IOException, InterruptedException {
+      return this.endIndex - this.startIndex;
+    }
 
-		@Override
-		public String[] getLocations() throws IOException, InterruptedException {
-			return null;
-		}
+    @Override
+    public String[] getLocations() throws IOException, InterruptedException {
+      return null;
+    }
 
-		@Override
-		public void readFields(DataInput arg0) throws IOException {}
+    public long getStartIndex() {
+      return startIndex;
+    }
 
-		@Override
-		public void write(DataOutput arg0) throws IOException {}
-	}
+    public long getEndIndex() {
+      return endIndex;
+    }
 
-	class DummyRecordReader extends RecordReader<Text, Employee> {
+    @Override
+    public void readFields(DataInput dataIn) throws IOException {
+      startIndex = dataIn.readLong();
+      endIndex = dataIn.readLong();
+    }
 
-		String currentValue = null;
-		int pointer = 0,recordsRead=0;
-		long numberOfRecordsInSplit=0;
-		HashMap<Integer, Employee> hmap = new HashMap<Integer, Employee>();
-		HadoopInputFormatIOTest hadoopInputFormatIOTest=new HadoopInputFormatIOTest();
+    @Override
+    public void write(DataOutput dataOut) throws IOException {
+      dataOut.writeLong(startIndex);
+      dataOut.writeLong(endIndex);
+    }
+  }
+  public class EmployeeRecordReader extends RecordReader<Text, Employee> {
 
-		public DummyRecordReader() {}
+    private EmployeeInputSplit split;
+    private Text currentKey;
+    private Employee currentValue;
+    private long pointer = 0L;
+    private long recordsRead = 0L;
+    private HadoopInputFormatIOTest hadoopInputFormatIOTest = new HadoopInputFormatIOTest();
 
-		@Override
-		public void close() throws IOException {}
+    public EmployeeRecordReader() {}
 
-		@Override
-		public Text getCurrentKey() throws IOException, InterruptedException {
-			return new Text(String.valueOf(pointer));
-		}
+    @Override
+    public void close() throws IOException {}
 
-		@Override
-		public Employee getCurrentValue() throws IOException, InterruptedException {
-			return hmap.get(pointer);
-		}
+    @Override
+    public Text getCurrentKey() throws IOException, InterruptedException {
+      return currentKey;
+    }
 
-		@Override
-		public float getProgress() throws IOException, InterruptedException {
-			return (float)recordsRead/numberOfRecordsInSplit;
-		}
-		
-		@Override
-		public void initialize(InputSplit split, TaskAttemptContext arg1) throws IOException, InterruptedException {
-			/* Adding elements to HashMap */
-			hmap.put(0, hadoopInputFormatIOTest.new Employee ("Prabhanj", "Pune"));
-			hmap.put(1, hadoopInputFormatIOTest.new Employee ("Rahul", "Pune"));
-			hmap.put(2, hadoopInputFormatIOTest.new Employee ("Saikat", "Mumbai"));
-			hmap.put(3, hadoopInputFormatIOTest.new Employee ("Gurumoorthy", "Hyderabad"));
-			hmap.put(4, hadoopInputFormatIOTest.new Employee ("Shubham", "Banglore"));
-			hmap.put(5, hadoopInputFormatIOTest.new Employee ("Neha", "Chennai"));
-			hmap.put(6, hadoopInputFormatIOTest.new Employee ("Priyanka", "Pune"));
-			hmap.put(7, hadoopInputFormatIOTest.new Employee ("Nikita", "Chennai"));
-			hmap.put(8, hadoopInputFormatIOTest.new Employee ("Pallavi", "Pune"));
-			DummyInputSplit dummySplit = (DummyInputSplit) split;
-			pointer = dummySplit.startIndex - 1;
-			numberOfRecordsInSplit=dummySplit.getLength();
-			recordsRead = 0;
-		}
+    @Override
+    public Employee getCurrentValue() throws IOException, InterruptedException {
+      return currentValue;
+    }
 
-		@Override
-		public boolean nextKeyValue() throws IOException, InterruptedException {
-			if ((recordsRead++) == numberOfRecordsInSplit)
-				return false;
-			pointer++;
-			boolean hasNext = hmap.containsKey(pointer);			
-			return hasNext;
-		}
-	}
+    @Override
+    public float getProgress() throws IOException, InterruptedException {
+      return (float) recordsRead / split.getLength();
+    }
+
+    @Override
+    public void initialize(InputSplit split, TaskAttemptContext arg1)
+        throws IOException, InterruptedException {
+      this.split = (EmployeeInputSplit) split;
+      pointer = this.split.getStartIndex() - 1;
+      recordsRead = 0;
+      makeData();
+    }
+
+    @Override
+    public boolean nextKeyValue() throws IOException, InterruptedException {
+      if ((recordsRead++) == split.getLength())
+        return false;
+      pointer++;
+      boolean hasNext = hmap.containsKey(pointer);
+      if (hasNext) {
+        currentKey = new Text(String.valueOf(pointer));
+        currentValue = hmap.get(pointer);
+      }
+      return hasNext;
+    }
+
+    private HashMap<Long, Employee> hmap = new HashMap<Long, Employee>();
+
+    private void makeData() {
+      /* Adding elements to HashMap */
+      hmap.put(0L, new Employee("Alex", "US"));
+      hmap.put(1L, new Employee("John", "UK"));
+      hmap.put(2L, new Employee("Tom", "UK"));
+      hmap.put(3L, new Employee("Nick", "UAE"));
+      hmap.put(4L, new Employee("Smith", "IND"));
+      hmap.put(5L, new Employee("Taylor", "US"));
+      hmap.put(6L, new Employee("Gray", "UK"));
+      hmap.put(7L, new Employee("James", "UAE"));
+      hmap.put(8L, new Employee("Jordan", "IND"));
+    }
+  }
 }

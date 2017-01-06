@@ -30,42 +30,41 @@ import java.util.List;
 
 // Throws exception when createRecordReader is called
 public class BadCreateRecordReaderInputFormat extends InputFormat<String, String> {
-  int numberOfRecordsInEachSplits = 3;
-  int numberOfSplits = 3;
+  private final long numberOfRecordsInEachSplit = 3L;
+  private final long numberOfSplits = 3L;
 
   public BadCreateRecordReaderInputFormat() {}
 
   @Override
   public RecordReader<String, String> createRecordReader(InputSplit split,
       TaskAttemptContext context) throws IOException, InterruptedException {
-    DummyRecordReader dummyRecordReaderObj = new DummyRecordReader();
-    dummyRecordReaderObj.initialize(split, context);
-    return dummyRecordReaderObj;
+    return new BadCreateRecordRecordReader();
   }
 
   @Override
-  public List<InputSplit> getSplits(JobContext arg0) throws IOException, InterruptedException {
-    InputSplit dummyInputSplitObj;
+  public List<InputSplit> getSplits(JobContext jobContext)
+      throws IOException, InterruptedException {
     List<InputSplit> inputSplitList = new ArrayList<InputSplit>();
-    for (int i = 0; i < numberOfSplits; i++) {
-      dummyInputSplitObj = new DummyInputSplit((i * numberOfSplits),
-          ((i * numberOfSplits) + numberOfRecordsInEachSplits));
-      inputSplitList.add(dummyInputSplitObj);
+    for (long i = 0L; i < numberOfSplits; i++) {
+      InputSplit inputSplit = new BadCreateRecordReaderInputSplit((i * numberOfSplits),
+          ((i * numberOfSplits) + numberOfRecordsInEachSplit));
+      inputSplitList.add(inputSplit);
     }
     return inputSplitList;
   }
 
-  public class DummyInputSplit extends InputSplit implements Writable {
-    public int startIndex, endIndex;
+  public class BadCreateRecordReaderInputSplit extends InputSplit implements Writable {
+    private long startIndex;
+    private long endIndex;
 
-    public DummyInputSplit() {}
+    public BadCreateRecordReaderInputSplit() {}
 
-    public DummyInputSplit(int startIndex, int endIndex) {
+    public BadCreateRecordReaderInputSplit(long startIndex, long endIndex) {
       this.startIndex = startIndex;
       this.endIndex = endIndex;
     }
 
-    // returns number of records in each split
+    // Returns number of records in each split.
     @Override
     public long getLength() throws IOException, InterruptedException {
       return this.endIndex - this.startIndex;
@@ -76,22 +75,36 @@ public class BadCreateRecordReaderInputFormat extends InputFormat<String, String
       return null;
     }
 
-    @Override
-    public void readFields(DataInput arg0) throws IOException {}
+    public long getStartIndex() {
+      return startIndex;
+    }
+
+    public long getEndIndex() {
+      return endIndex;
+    }
 
     @Override
-    public void write(DataOutput arg0) throws IOException {}
+    public void readFields(DataInput dataIn) throws IOException {
+      startIndex = dataIn.readLong();
+      endIndex = dataIn.readLong();
+    }
 
+    @Override
+    public void write(DataOutput dataOut) throws IOException {
+      dataOut.writeLong(startIndex);
+      dataOut.writeLong(endIndex);
+    }
   }
 
-  class DummyRecordReader extends RecordReader<String, String> {
+  public class BadCreateRecordRecordReader extends RecordReader<String, String> {
 
-    String currentValue = null;
-    int pointer = 0, recordsRead = 0;
-    long numberOfRecordsInSplit = 0;
-    HashMap<Integer, String> hmap = new HashMap<Integer, String>();
+    private BadCreateRecordReaderInputSplit split;
+    private String currentKey;
+    private String currentValue;
+    private long pointer = 0L;
+    private long recordsRead = 0L;
 
-    public DummyRecordReader() throws IOException {
+    public BadCreateRecordRecordReader() throws IOException {
       throw new IOException(
           "Exception in creating RecordReader in BadCreateRecordReaderInputFormat.");
     }
@@ -101,45 +114,55 @@ public class BadCreateRecordReaderInputFormat extends InputFormat<String, String
 
     @Override
     public String getCurrentKey() throws IOException, InterruptedException {
-      return String.valueOf(pointer);
+      return currentKey;
     }
 
     @Override
     public String getCurrentValue() throws IOException, InterruptedException {
-      return hmap.get(new Integer(pointer));
+      return currentValue;
     }
 
     @Override
     public float getProgress() throws IOException, InterruptedException {
-      return (float) recordsRead / numberOfRecordsInSplit;
+      return (float) recordsRead / split.getLength();
     }
 
     @Override
     public void initialize(InputSplit split, TaskAttemptContext arg1)
         throws IOException, InterruptedException {
-      /* Adding elements to HashMap */
-      hmap.put(0, "Chaitanya");
-      hmap.put(1, "Rahul");
-      hmap.put(2, "Singh");
-      hmap.put(3, "Ajeet");
-      hmap.put(4, "Anuj");
-      hmap.put(5, "xyz");
-      hmap.put(6, "persistent");
-      hmap.put(7, "apache");
-      hmap.put(8, "beam");
-      DummyInputSplit dummySplit = (DummyInputSplit) split;
-      pointer = dummySplit.startIndex - 1;
-      numberOfRecordsInSplit = dummySplit.getLength();
+      this.split = (BadCreateRecordReaderInputSplit) split;
+      pointer = this.split.getStartIndex() - 1;
       recordsRead = 0;
+      makeData();      
     }
 
     @Override
     public boolean nextKeyValue() throws IOException, InterruptedException {
-      if ((recordsRead++) == numberOfRecordsInSplit)
+      if ((recordsRead++) == split.getLength()){
         return false;
+      }
       pointer++;
       boolean hasNext = hmap.containsKey(pointer);
+      if(hasNext)
+      {
+        currentKey=String.valueOf(pointer);
+        currentValue=hmap.get(pointer);
+      }
       return hasNext;
+    }
+
+    private HashMap<Long, String> hmap = new HashMap<Long, String>();
+    private void makeData() {
+      /* Adding elements to HashMap */
+      hmap.put(0L, "Alex");
+      hmap.put(1L, "John");
+      hmap.put(2L, "Tom");
+      hmap.put(3L, "Nick");
+      hmap.put(4L, "Smith");
+      hmap.put(5L, "Taylor");
+      hmap.put(6L, "Gray");
+      hmap.put(7L, "James");
+      hmap.put(8L, "Jordan");
     }
   }
 }
