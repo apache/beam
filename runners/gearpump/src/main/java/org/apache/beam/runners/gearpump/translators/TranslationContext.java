@@ -50,7 +50,6 @@ public class TranslationContext {
   public TranslationContext(JavaStreamApp streamApp, GearpumpPipelineOptions pipelineOptions) {
     this.streamApp = streamApp;
     this.pipelineOptions = pipelineOptions;
-
   }
 
   public void setCurrentTransform(TransformHierarchy.Node treeNode) {

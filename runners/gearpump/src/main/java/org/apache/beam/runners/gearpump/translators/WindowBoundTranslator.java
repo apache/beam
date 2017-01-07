@@ -31,8 +31,12 @@ import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.gearpump.Message;
+import org.apache.gearpump.cluster.UserConfig;
 import org.apache.gearpump.streaming.dsl.javaapi.JavaStream;
+import org.apache.gearpump.streaming.javaapi.Task;
 import org.apache.gearpump.streaming.javaapi.dsl.functions.FlatMapFunction;
+import org.apache.gearpump.streaming.task.TaskContext;
 import org.joda.time.Instant;
 
 /**
@@ -50,10 +54,12 @@ public class WindowBoundTranslator<T> implements  TransformTranslator<Window.Bou
     WindowFn<T, BoundedWindow> windowFn =
         (WindowFn<T, BoundedWindow>) outputStrategy.getWindowFn();
     JavaStream<WindowedValue<T>> outputStream =
-        inputStream.flatMap(new AssignWindows(windowFn), "assign_windows");
+        inputStream
+            .flatMap(new AssignWindows(windowFn), "assign_windows")
+            .process(AssignTimestampTask.class, 1, UserConfig.empty(), "assign_timestamp");
+
     context.setOutputStream(context.getOutput(transform), outputStream);
   }
-
 
   private static class AssignWindows<T> implements
       FlatMapFunction<WindowedValue<T>, WindowedValue<T>> {
@@ -92,6 +98,23 @@ public class WindowBoundTranslator<T> implements  TransformTranslator<Window.Bou
         throw new RuntimeException(e);
       }
       return ret.iterator();
+    }
+  }
+
+  /**
+   * Assign WindowedValue timestamp to Gearpump message.
+   * @param <T> element type of WindowedValue
+   */
+  public static class AssignTimestampTask<T> extends Task {
+
+    public AssignTimestampTask(TaskContext taskContext, UserConfig userConfig) {
+      super(taskContext, userConfig);
+    }
+
+    @Override
+    public void onNext(Message message) {
+      final WindowedValue<T> value = (WindowedValue<T>) message.msg();
+      context.output(Message.apply(value, value.getTimestamp().getMillis()));
     }
   }
 }
