@@ -49,7 +49,7 @@
   <profiles>
     <profile>
       <id>local-runnable-on-service-tests</id>
-      <activation><activeByDefault>false</activeByDefault></activation>
+      <activation><activeByDefault>true</activeByDefault></activation>
       <build>
         <plugins>
           <plugin>
