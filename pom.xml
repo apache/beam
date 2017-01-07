@@ -78,6 +78,10 @@
     <maven.build.timestamp.format>yyyy-MM-dd HH:mm</maven.build.timestamp.format>
 
     <beam.version>0.4.0</beam.version>
+
+    <dataflow.release_name>Google Cloud Dataflow SDK for Java</dataflow.release_name>
+    <dataflow.container_version>${project.version}-20170103</dataflow.container_version>
+    <dataflow.environment_major_version>6</dataflow.environment_major_version>
   </properties>
 
   <packaging>pom</packaging>
