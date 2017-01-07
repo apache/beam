@@ -85,6 +85,7 @@ else:
 
 REQUIRED_PACKAGES = [
     'avro>=1.7.7,<2.0.0',
+    'crcmod>=1.7,<2.0',
     'dill>=0.2.5,<0.3',
     'google-apitools>=0.5.6,<1.0.0',
     'googledatastore==6.4.1',
