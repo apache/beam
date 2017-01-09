@@ -105,9 +105,16 @@ class SetupTest(unittest.TestCase):
         [],
         dependency.stage_job_resources(options))
 
+  def test_default_requirements_cache_dir(self):
+    self.assertEqual(
+        os.path.join(tempfile.gettempdir(), 'dataflow-requirements-cache'),
+        dependency.REQUIREMENTS_CACHE_DIR)
+
   def test_with_requirements_file(self):
     staging_dir = tempfile.mkdtemp()
     source_dir = tempfile.mkdtemp()
+    if os.path.exists(dependency.REQUIREMENTS_CACHE_DIR):
+      shutil.rmtree(dependency.REQUIREMENTS_CACHE_DIR)
 
     options = PipelineOptions()
     options.view_as(GoogleCloudOptions).staging_location = staging_dir

@@ -73,6 +73,8 @@ from apache_beam.utils.pipeline_options import SetupOptions
 # Standard file names used for staging files.
 WORKFLOW_TARBALL_FILE = 'workflow.tar.gz'
 REQUIREMENTS_FILE = 'requirements.txt'
+REQUIREMENTS_CACHE_DIR = os.path.join(
+    tempfile.gettempdir(), 'dataflow-requirements-cache')
 EXTRA_PACKAGES_FILE = 'extra_packages.txt'
 
 GOOGLE_PACKAGE_NAME = 'google-cloud-dataflow'
@@ -274,7 +276,7 @@ def stage_job_resources(
     file_copy(setup_options.requirements_file, staged_path)
     resources.append(REQUIREMENTS_FILE)
     requirements_cache_path = (
-        os.path.join(tempfile.gettempdir(), 'dataflow-requirements-cache')
+        REQUIREMENTS_CACHE_DIR
         if setup_options.requirements_cache is None
         else setup_options.requirements_cache)
     # Populate cache with packages from requirements and stage the files
