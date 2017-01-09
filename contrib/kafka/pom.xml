@@ -28,7 +28,7 @@
     <version>0.1.0-SNAPSHOT</version>
 
     <properties>
-      <dataflow.version>[1.6.0, 2.0.0)</dataflow.version>
+      <dataflow.version>[1.6.0, 1.99)</dataflow.version>
       <kafka.version>0.9.0.1</kafka.version>
 
       <guava.version>19.0</guava.version>

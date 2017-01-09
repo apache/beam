@@ -50,7 +50,7 @@
 
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-    <google-cloud-dataflow-version>[1.0.0, 2.0.0)</google-cloud-dataflow-version>
+    <google-cloud-dataflow-version>[1.0.0, 1.99)</google-cloud-dataflow-version>
   </properties>
 
   <build>
