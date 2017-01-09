@@ -42,7 +42,6 @@ from apache_beam.transforms.display import DisplayData
 from apache_beam.transforms.display_test import DisplayDataItemMatcher
 from apache_beam.transforms.util import assert_that
 from apache_beam.transforms.util import equal_to
-from apache_beam.utils.value_provider import StaticValueProvider
 
 
 class LineSource(FileBasedSource):
@@ -254,10 +253,10 @@ class TestFileBasedSource(unittest.TestCase):
     fbs = LineSource(file_name)
     dd = DisplayData.create_from(fbs)
     expected_items = [
-        DisplayDataItemMatcher('file_pattern',
-                               str(StaticValueProvider(str, file_name))),
+        DisplayDataItemMatcher(
+            'file_pattern',
+            'StaticValueProvider(type=str, value=\'%s\')' % file_name),
         DisplayDataItemMatcher('compression', 'auto')]
-    print dd.items
     hc.assert_that(dd.items,
                    hc.contains_inanyorder(*expected_items))
 
@@ -589,8 +588,9 @@ class TestSingleFileSource(unittest.TestCase):
     dd = DisplayData.create_from(fbs)
     expected_items = [
         DisplayDataItemMatcher('compression', 'auto'),
-        DisplayDataItemMatcher('file_pattern',
-                               str(StaticValueProvider(str, file_name)))]
+        DisplayDataItemMatcher(
+            'file_pattern',
+            'StaticValueProvider(type=str, value=\'%s\')' % file_name)]
     hc.assert_that(dd.items,
                    hc.contains_inanyorder(*expected_items))
 
