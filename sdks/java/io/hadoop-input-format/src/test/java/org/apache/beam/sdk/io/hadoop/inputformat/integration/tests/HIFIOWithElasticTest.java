@@ -46,21 +46,22 @@ import org.elasticsearch.node.NodeValidationException;
 import org.elasticsearch.node.internal.InternalSettingsPreparer;
 import org.elasticsearch.plugins.Plugin;
 import org.elasticsearch.transport.Netty4Plugin;
-import org.junit.After;
-import org.junit.Before;
+import org.junit.AfterClass;
+import org.junit.BeforeClass;
+import org.junit.FixMethodOrder;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+import org.junit.runners.MethodSorters;
 
 @RunWith(JUnit4.class)
+@FixMethodOrder(MethodSorters.JVM)
 public class HIFIOWithElasticTest implements Serializable {
 
   /**
 	 *
 	 */
   private static final long serialVersionUID = 1L;
-
-  private ElasticEmbeddedServer elasticInMemServer;
 
   private static final String ELASTIC_IN_MEM_HOSTNAME = "127.0.0.1";
   private static final String ELASTIC_IN_MEM_PORT = "9200";
@@ -70,15 +71,12 @@ public class HIFIOWithElasticTest implements Serializable {
   private static final String ELASTIC_TYPE_NAME = "employee";
   private static final String ELASTIC_RESOURCE = "/" + ELASTIC_INDEX_NAME + "/" + ELASTIC_TYPE_NAME;
 
-  @Before
-  public void startServer() throws NodeValidationException, InterruptedException, IOException {
-    elasticInMemServer = new ElasticEmbeddedServer();
+  @BeforeClass
+  public static void startServer() throws NodeValidationException, InterruptedException,
+      IOException {
+    ElasticEmbeddedServer.startElasticEmbeddedServer();
   }
 
-  /**
-   * @throws IOException
-   * @throws InterruptedException
-   */
   @Test
   public void testHifIOWithElastic() {
     TestPipeline p = TestPipeline.create();
@@ -87,6 +85,23 @@ public class HIFIOWithElasticTest implements Serializable {
         p.apply(HadoopInputFormatIO.<Text, MapWritable>read().withConfiguration(conf));
     PCollection<Long> count = esData.apply(Count.<KV<Text, MapWritable>>globally());
     PAssert.thatSingleton(count).isEqualTo((long) 10);
+
+    p.run().waitUntilFinish();
+  }
+
+  @Test
+  public void testHifIOWithElasticQuery() {
+    TestPipeline p = TestPipeline.create();
+    Configuration conf = getConfiguration();
+    String query =
+        "{\n" + "  \"query\": {\n" + "  \"match\" : {\n" + "    \"empid\" : {\n"
+            + "      \"query\" : \"xyz22602\",\n" + "      \"type\" : \"boolean\"\n" + "    }\n"
+            + "  }\n" + "  }\n" + "}";
+    conf.set(ConfigurationOptions.ES_QUERY, query);
+    PCollection<KV<Text, MapWritable>> esData =
+        p.apply(HadoopInputFormatIO.<Text, MapWritable>read().withConfiguration(conf));
+    PCollection<Long> count = esData.apply(Count.<KV<Text, MapWritable>>globally());
+    PAssert.thatSingleton(count).isEqualTo((long) 1);
 
     p.run().waitUntilFinish();
   }
@@ -102,32 +117,26 @@ public class HIFIOWithElasticTest implements Serializable {
     return data;
   }
 
-  @After
-  public void shutdownServer() throws IOException {
-    elasticInMemServer.shutdown();
+  @AfterClass
+  public static void shutdownServer() throws IOException {
+    ElasticEmbeddedServer.shutdown();
   }
 
   /**
    * Class for in memory elastic server
    *
    */
-  class ElasticEmbeddedServer implements Serializable {
+  static class ElasticEmbeddedServer implements Serializable {
     /**
 		 *
 		 */
     private static final long serialVersionUID = 1L;
-    private Node node;
-    private String directoryPath;
+    private static Node node;
     private static final String DEFAULT_PATH = "target/ESData";
 
-    public ElasticEmbeddedServer() throws UnknownHostException, NodeValidationException {
-      this(DEFAULT_PATH);
-    }
-
-    public ElasticEmbeddedServer(String directoryPath) throws UnknownHostException,
+    public static void startElasticEmbeddedServer() throws UnknownHostException,
         NodeValidationException {
 
-      this.directoryPath = directoryPath;
       Settings settings =
           Settings.builder().put("node.data", TRUE).put("network.host", ELASTIC_IN_MEM_HOSTNAME)
               .put("http.port", ELASTIC_IN_MEM_PORT).put("path.data", DEFAULT_PATH)
@@ -139,14 +148,14 @@ public class HIFIOWithElasticTest implements Serializable {
 
     }
 
-    private void prepareElasticIndex() {
+    private static void prepareElasticIndex() {
       CreateIndexRequest indexRequest = new CreateIndexRequest(ELASTIC_INDEX_NAME);
       node.client().admin().indices().create(indexRequest).actionGet();
       for (int i = 0; i < 10; i++) {
         node.client()
             .prepareIndex(ELASTIC_INDEX_NAME, ELASTIC_TYPE_NAME, String.valueOf(i))
             .setSource(
-                populateElasticData("xyz22601", "John Foo", new Date(), new String[] {"java"},
+                populateElasticData("xyz2260" + i, "John Foo", new Date(), new String[] {"java"},
                     "Software engineer")).execute();
       }
       GetResponse response =
@@ -159,17 +168,16 @@ public class HIFIOWithElasticTest implements Serializable {
       return node.client();
     }
 
-    @After
-    public void shutdown() throws IOException {
+    public static void shutdown() throws IOException {
       DeleteIndexRequest indexRequest = new DeleteIndexRequest(ELASTIC_INDEX_NAME);
       node.client().admin().indices().delete(indexRequest).actionGet();
       node.close();
       deleteElasticDataDirectory();
     }
 
-    private void deleteElasticDataDirectory() {
+    private static void deleteElasticDataDirectory() {
       try {
-        FileUtils.deleteDirectory(new File(directoryPath));
+        FileUtils.deleteDirectory(new File(DEFAULT_PATH));
       } catch (IOException e) {
         throw new RuntimeException("Exception: Could not delete elastic data directory", e);
       }
