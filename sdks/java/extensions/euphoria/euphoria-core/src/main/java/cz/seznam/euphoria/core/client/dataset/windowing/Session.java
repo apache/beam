@@ -6,6 +6,7 @@ import cz.seznam.euphoria.core.client.triggers.PeriodicTimeTrigger;
 import cz.seznam.euphoria.core.client.triggers.TimeTrigger;
 import cz.seznam.euphoria.core.client.triggers.Trigger;
 import cz.seznam.euphoria.core.client.util.Pair;
+import cz.seznam.euphoria.guava.shaded.com.google.common.base.Preconditions;
 
 import java.time.Duration;
 import java.util.ArrayList;
@@ -30,6 +31,7 @@ public final class Session<T> implements MergingWindowing<T, TimeInterval> {
   }
 
   private Session(long gapDurationMillis) {
+    Preconditions.checkArgument(gapDurationMillis > 0, "Windowing with zero duration");
     this.gapDurationMillis = gapDurationMillis;
   }
 
