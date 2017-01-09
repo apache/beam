@@ -102,7 +102,7 @@ public class BadRecordReaderNoRecordsInputFormat extends InputFormat<String, Str
     private String currentValue;
     private long pointer;
     private long recordsRead;
-    private HashMap<Long, String> dataHmap = new HashMap<Long, String>();
+    private HashMap<Long, String> emptyDataHmap = new HashMap<Long, String>();
 
 
     public BadRecordReaderNoRecordsRecordReader() {}
@@ -140,11 +140,11 @@ public class BadRecordReaderNoRecordsInputFormat extends InputFormat<String, Str
         return false;
       }
       pointer++;
-      boolean hasNext = dataHmap.containsKey(pointer);
+      boolean hasNext = emptyDataHmap.containsKey(pointer);
       if(hasNext)
       {
         currentKey=String.valueOf(pointer);
-        currentValue=dataHmap.get(pointer);
+        currentValue=emptyDataHmap.get(pointer);
       }
       return hasNext;
     }

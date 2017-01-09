@@ -14,6 +14,13 @@
  */
 package org.apache.beam.sdk.io.hadoop.inputformat.unit.tests.inputformats;
 
+import java.io.DataInput;
+import java.io.DataOutput;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+
 import org.apache.beam.sdk.io.hadoop.inputformat.unit.tests.HadoopInputFormatIOTest;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.io.Writable;
@@ -22,13 +29,6 @@ import org.apache.hadoop.mapreduce.InputSplit;
 import org.apache.hadoop.mapreduce.JobContext;
 import org.apache.hadoop.mapreduce.RecordReader;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
-
-import java.io.DataInput;
-import java.io.DataOutput;
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
 
 public class EmployeeInputFormat extends InputFormat<Text, Employee> {
   private final long numberOfRecordsInEachSplit = 3L;
@@ -135,8 +135,9 @@ public class EmployeeInputFormat extends InputFormat<Text, Employee> {
 
     @Override
     public boolean nextKeyValue() throws IOException, InterruptedException {
-      if ((recordsRead++) == split.getLength())
+      if ((recordsRead++) == split.getLength()) {
         return false;
+      }
       pointer++;
       boolean hasNext = hmap.containsKey(pointer);
       if (hasNext) {
@@ -149,7 +150,6 @@ public class EmployeeInputFormat extends InputFormat<Text, Employee> {
     private HashMap<Long, Employee> hmap = new HashMap<Long, Employee>();
 
     private void makeData() {
-      /* Adding elements to HashMap */
       hmap.put(0L, new Employee("Alex", "US"));
       hmap.put(1L, new Employee("John", "UK"));
       hmap.put(2L, new Employee("Tom", "UK"));

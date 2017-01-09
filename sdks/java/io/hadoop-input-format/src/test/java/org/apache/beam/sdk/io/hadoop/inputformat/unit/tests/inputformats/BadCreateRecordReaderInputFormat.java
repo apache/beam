@@ -14,19 +14,19 @@
  */
 package org.apache.beam.sdk.io.hadoop.inputformat.unit.tests.inputformats;
 
-import org.apache.hadoop.io.Writable;
-import org.apache.hadoop.mapreduce.InputFormat;
-import org.apache.hadoop.mapreduce.InputSplit;
-import org.apache.hadoop.mapreduce.JobContext;
-import org.apache.hadoop.mapreduce.RecordReader;
-import org.apache.hadoop.mapreduce.TaskAttemptContext;
-
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+
+import org.apache.hadoop.io.Writable;
+import org.apache.hadoop.mapreduce.InputFormat;
+import org.apache.hadoop.mapreduce.InputSplit;
+import org.apache.hadoop.mapreduce.JobContext;
+import org.apache.hadoop.mapreduce.RecordReader;
+import org.apache.hadoop.mapreduce.TaskAttemptContext;
 
 // Throws exception when createRecordReader is called
 public class BadCreateRecordReaderInputFormat extends InputFormat<String, String> {
@@ -153,16 +153,15 @@ public class BadCreateRecordReaderInputFormat extends InputFormat<String, String
 
     private HashMap<Long, String> hmap = new HashMap<Long, String>();
     private void makeData() {
-      /* Adding elements to HashMap */
-      hmap.put(0L, "Alex");
-      hmap.put(1L, "John");
-      hmap.put(2L, "Tom");
-      hmap.put(3L, "Nick");
-      hmap.put(4L, "Smith");
-      hmap.put(5L, "Taylor");
-      hmap.put(6L, "Gray");
-      hmap.put(7L, "James");
-      hmap.put(8L, "Jordan");
+      hmap.put(0L, "Alex_US");
+      hmap.put(1L, "John_UK");
+      hmap.put(2L, "Tom_UK");
+      hmap.put(3L, "Nick_UAE");
+      hmap.put(4L, "Smith_IND");
+      hmap.put(5L, "Taylor_US");
+      hmap.put(6L, "Gray_UK");
+      hmap.put(7L, "James_UAE");
+      hmap.put(8L, "Jordan_IND");
     }
   }
 }

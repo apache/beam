@@ -14,13 +14,6 @@
  */
 package org.apache.beam.sdk.io.hadoop.inputformat.unit.tests.inputformats;
 
-import org.apache.hadoop.io.Writable;
-import org.apache.hadoop.mapreduce.InputFormat;
-import org.apache.hadoop.mapreduce.InputSplit;
-import org.apache.hadoop.mapreduce.JobContext;
-import org.apache.hadoop.mapreduce.RecordReader;
-import org.apache.hadoop.mapreduce.TaskAttemptContext;
-
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
@@ -28,17 +21,23 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 
-public class MutableRecordsInputFormat extends InputFormat<String, Employee> {
+import org.apache.hadoop.io.Text;
+import org.apache.hadoop.io.Writable;
+import org.apache.hadoop.mapreduce.InputFormat;
+import org.apache.hadoop.mapreduce.InputSplit;
+import org.apache.hadoop.mapreduce.JobContext;
+import org.apache.hadoop.mapreduce.RecordReader;
+import org.apache.hadoop.mapreduce.TaskAttemptContext;
+
+public class MutableRecordsInputFormat extends InputFormat<Text, Employee> {
   private final long numberOfRecordsInEachSplit = 3L;
   private final long numberOfSplits = 3L;
 
   public MutableRecordsInputFormat() {}
 
   @Override
-  public RecordReader<String, Employee> createRecordReader(InputSplit split,
+  public RecordReader<Text, Employee> createRecordReader(InputSplit split,
       TaskAttemptContext context) throws IOException, InterruptedException {
-   // DummyRecordReader dummyRecordReaderObj = new DummyRecordReader();
-   // dummyRecordReaderObj.initialize(split, context);
     return new MutableRecordsRecordReader();
   }
 
@@ -97,11 +96,11 @@ public class MutableRecordsInputFormat extends InputFormat<String, Employee> {
     }
   }
 
-  class MutableRecordsRecordReader extends RecordReader<String, Employee> {
+  class MutableRecordsRecordReader extends RecordReader<Text, Employee> {
 
     private MutableRecordsInputSplit split;
-    private String currentKey;
-    private Employee currentValue;
+    private Text currentKey = new Text();
+    private Employee currentValue = new Employee();
     private long pointer = 0L;
     private long recordsRead = 0L;
 
@@ -111,7 +110,7 @@ public class MutableRecordsInputFormat extends InputFormat<String, Employee> {
     public void close() throws IOException {}
 
     @Override
-    public String getCurrentKey() throws IOException, InterruptedException {
+    public Text getCurrentKey() throws IOException, InterruptedException {
       return currentKey;
     }
 
@@ -132,35 +131,36 @@ public class MutableRecordsInputFormat extends InputFormat<String, Employee> {
       pointer = this.split.getStartIndex() - 1;
       recordsRead = 0;
       makeData();
-      currentValue = new Employee(null, null);
     }
 
     @Override
     public boolean nextKeyValue() throws IOException, InterruptedException {
-      if ((recordsRead++) == split.getLength())
+      if ((recordsRead++) == split.getLength()) {
         return false;
+      }
       pointer++;
       boolean hasNext = hmap.containsKey(pointer);
       if (hasNext) {
-        currentKey = String.valueOf(pointer);
-        currentValue.setEmpName(hmap.get(pointer));
+        String empData[] = hmap.get(pointer).split("_");
+        currentKey.set(String.valueOf(pointer));
+        currentValue.setEmpName(empData[0]);
+        currentValue.setEmpAddress(empData[1]);
       }
       return hasNext;
     }
 
-
     private HashMap<Long, String> hmap = new HashMap<Long, String>();
+
     private void makeData() {
-      /* Adding elements to HashMap */
-      hmap.put(0L, "Alex");
-      hmap.put(1L, "John");
-      hmap.put(2L, "Tom");
-      hmap.put(3L, "Nick");
-      hmap.put(4L, "Smith");
-      hmap.put(5L, "Taylor");
-      hmap.put(6L, "Gray");
-      hmap.put(7L, "James");
-      hmap.put(8L, "Jordan");
+      hmap.put(0L, "Alex_US");
+      hmap.put(1L, "John_UK");
+      hmap.put(2L, "Tom_UK");
+      hmap.put(3L, "Nick_UAE");
+      hmap.put(4L, "Smith_IND");
+      hmap.put(5L, "Taylor_US");
+      hmap.put(6L, "Gray_UK");
+      hmap.put(7L, "James_UAE");
+      hmap.put(8L, "Jordan_IND");
     }
   }
 }
