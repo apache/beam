@@ -101,13 +101,6 @@ public class WritableCoder<T extends Writable> extends StandardCoder<T> {
   }
 
   @Override
-  public CloudObject asCloudObject() {
-    CloudObject result = super.asCloudObject();
-    result.put("type", type.getName());
-    return result;
-  }
-
-  @Override
   public void verifyDeterministic() throws NonDeterministicException {
     throw new NonDeterministicException(this,
         "Hadoop Writable may be non-deterministic.");
