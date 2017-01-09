@@ -35,16 +35,15 @@ __all__ = ['ReadFromTFRecord', 'WriteToTFRecord']
 def _default_crc32c_fn(value):
   """Calculates crc32c by either snappy or crcmod based on installation."""
 
-  if _default_crc32c_fn.fn:
-    return _default_crc32c_fn.fn(value)
-  try:
-    import snappy  # pylint: disable=import-error
-    _default_crc32c_fn.fn = snappy._crc32c  # pylint: disable=protected-access
-  except ImportError:
-    logging.warning('Couldn\'t find python-snappy so the implementation of '
-                    '_TFRecordUtil._masked_crc32c is not as fast as it could '
-                    'be.')
-    _default_crc32c_fn.fn = crcmod.predefined.mkPredefinedCrcFun('crc-32c')
+  if not _default_crc32c_fn.fn:
+    try:
+      import snappy  # pylint: disable=import-error
+      _default_crc32c_fn.fn = snappy._crc32c  # pylint: disable=protected-access
+    except ImportError:
+      logging.warning('Couldn\'t find python-snappy so the implementation of '
+                      '_TFRecordUtil._masked_crc32c is not as fast as it could '
+                      'be.')
+      _default_crc32c_fn.fn = crcmod.predefined.mkPredefinedCrcFun('crc-32c')
   return _default_crc32c_fn.fn(value)
 _default_crc32c_fn.fn = None
 
