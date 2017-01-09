@@ -40,7 +40,7 @@ public class PeriodicTimeTrigger implements Trigger<TimeInterval> {
   public TriggerResult onTimer(long time, TimeInterval window, TriggerContext ctx) {
     ValueStorage<Long> fireStamp = ctx.getValueStorage(fireTimeDescriptor);
 
-    if (fireStamp.get().equals(time)) {
+    if (fireStamp.get() == time) {
       long nextTimestamp = time + interval;
       if (nextTimestamp < window.getEndMillis()) {
         ctx.registerTimer(time + interval, window);

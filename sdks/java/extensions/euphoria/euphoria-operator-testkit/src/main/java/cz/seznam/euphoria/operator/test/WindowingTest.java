@@ -15,6 +15,7 @@ import cz.seznam.euphoria.core.client.operator.state.StorageProvider;
 import cz.seznam.euphoria.core.client.operator.state.ValueStorage;
 import cz.seznam.euphoria.core.client.operator.state.ValueStorageDescriptor;
 import cz.seznam.euphoria.core.client.util.Pair;
+import cz.seznam.euphoria.core.client.util.Sums;
 import cz.seznam.euphoria.core.client.util.Triple;
 import cz.seznam.euphoria.guava.shaded.com.google.common.base.Preconditions;
 import cz.seznam.euphoria.guava.shaded.com.google.common.collect.Sets;
@@ -52,13 +53,7 @@ public class WindowingTest extends AbstractOperatorTest {
         Dataset<Pair<Type, Long>> reduced = ReduceByKey.of(distinct)
                 .keyBy(Pair::getFirst)
                 .valueBy(p -> 1L)
-                .combineBy(it -> {
-                  long cnt = 0;
-                  for (Long s : it) {
-                    cnt += s;
-                  }
-                  return cnt;
-                })
+                .combineBy(Sums.ofLongs())
                 .windowBy(Time.of(Duration.ofHours(1)))
                 .output();
 
@@ -138,13 +133,7 @@ public class WindowingTest extends AbstractOperatorTest {
         Dataset<Pair<Type, Long>> reduced = ReduceByKey.of(distinct)
                 .keyBy(Pair::getFirst)
                 .valueBy(p -> 1L)
-                .combineBy(it -> {
-                  long cnt = 0;
-                  for (Long s : it) {
-                    cnt += s;
-                  }
-                  return cnt;
-                })
+                .combineBy(Sums.ofLongs())
                 .windowBy(Time.of(Duration.ofHours(1)))
                 .output();
 

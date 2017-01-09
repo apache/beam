@@ -4,10 +4,10 @@ package cz.seznam.euphoria.core.client.dataset.windowing;
 import cz.seznam.euphoria.core.client.io.Context;
 import cz.seznam.euphoria.core.client.triggers.TimeTrigger;
 import cz.seznam.euphoria.core.client.triggers.Trigger;
+import cz.seznam.euphoria.guava.shaded.com.google.common.base.Preconditions;
 import cz.seznam.euphoria.guava.shaded.com.google.common.collect.Sets;
 
 import java.time.Duration;
-import java.util.HashSet;
 import java.util.Set;
 
 /**
@@ -34,6 +34,8 @@ public final class TimeSliding<T>
 
     this.duration = duration;
     this.slide = slide;
+
+    Preconditions.checkArgument(duration > 0, "Windowing with zero duration");
 
     if (duration % slide != 0) {
       throw new IllegalArgumentException(
