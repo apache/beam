@@ -17,7 +17,6 @@ package org.apache.beam.sdk.io.hadoop.inputformat.unit.tests.inputformats;
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 
@@ -29,41 +28,34 @@ import org.apache.hadoop.mapreduce.JobContext;
 import org.apache.hadoop.mapreduce.RecordReader;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
 
-public class ImmutableRecordsInputFormat extends InputFormat<Text, Employee> {
-  private final long numberOfRecordsInEachSplit = 3L;
-  private final long numberOfSplits = 3L;
+// Bad input format which returns null in getSplits() method
+public class BadNullSplitsEmpInputFormat extends InputFormat<Text, Employee> {
 
-  public ImmutableRecordsInputFormat() {}
+  public BadNullSplitsEmpInputFormat() {}
 
   @Override
   public RecordReader<Text, Employee> createRecordReader(InputSplit split,
       TaskAttemptContext context) throws IOException, InterruptedException {
-    return new ImmutableRecordsRecordReader();
+    return new NullInputSplitsRecordReader();
   }
 
   @Override
   public List<InputSplit> getSplits(JobContext arg0) throws IOException, InterruptedException {
-    List<InputSplit> inputSplitList = new ArrayList<InputSplit>();
-    for (int i = 0; i < numberOfSplits; i++) {
-      InputSplit inputSplitObj = new ImmutableRecordsInputSplit((i * numberOfSplits),
-          ((i * numberOfSplits) + numberOfRecordsInEachSplit));
-      inputSplitList.add(inputSplitObj);
-    }
-    return inputSplitList;
+    return null;
   }
 
-  public class ImmutableRecordsInputSplit extends InputSplit implements Writable {
+  public class NullInputSplitsInputSplit extends InputSplit implements Writable {
     private long startIndex;
     private long endIndex;
 
-    public ImmutableRecordsInputSplit() {}
+    public NullInputSplitsInputSplit() {}
 
-    public ImmutableRecordsInputSplit(long startIndex, long endIndex) {
+    public NullInputSplitsInputSplit(long startIndex, long endIndex) {
       this.startIndex = startIndex;
       this.endIndex = endIndex;
     }
 
-    // returns number of records in each split
+    // Returns number of records in each split.
     @Override
     public long getLength() throws IOException, InterruptedException {
       return this.endIndex - this.startIndex;
@@ -95,15 +87,15 @@ public class ImmutableRecordsInputFormat extends InputFormat<Text, Employee> {
     }
   }
 
-  public class ImmutableRecordsRecordReader extends RecordReader<Text, Employee> {
+  public class NullInputSplitsRecordReader extends RecordReader<Text, Employee> {
 
-    private ImmutableRecordsInputSplit split;
+    private NullInputSplitsInputSplit split;
     private Text currentKey;
     private Employee currentValue;
     private long pointer = 0L;
     private long recordsRead = 0L;
 
-    public ImmutableRecordsRecordReader() {}
+    public NullInputSplitsRecordReader() {}
 
     @Override
     public void close() throws IOException {}
@@ -126,11 +118,10 @@ public class ImmutableRecordsInputFormat extends InputFormat<Text, Employee> {
     @Override
     public void initialize(InputSplit split, TaskAttemptContext arg1)
         throws IOException, InterruptedException {
-      this.split = (ImmutableRecordsInputSplit) split;
+      this.split = (NullInputSplitsInputSplit) split;
       pointer = this.split.getStartIndex() - 1;
       recordsRead = 0;
       makeData();
-      currentValue = new Employee(null, null);
     }
 
     @Override
@@ -141,25 +132,24 @@ public class ImmutableRecordsInputFormat extends InputFormat<Text, Employee> {
       pointer++;
       boolean hasNext = hmap.containsKey(pointer);
       if (hasNext) {
-        String empData[] = hmap.get(pointer).split("_");
         currentKey = new Text(String.valueOf(pointer));
-        currentValue = new Employee(empData[0], empData[1]);
+        currentValue = hmap.get(pointer);
       }
       return hasNext;
     }
 
-    private HashMap<Long, String> hmap = new HashMap<Long, String>();
+    private HashMap<Long, Employee> hmap = new HashMap<Long, Employee>();
 
     private void makeData() {
-      hmap.put(0L, "Alex_US");
-      hmap.put(1L, "John_UK");
-      hmap.put(2L, "Tom_UK");
-      hmap.put(3L, "Nick_UAE");
-      hmap.put(4L, "Smith_IND");
-      hmap.put(5L, "Taylor_US");
-      hmap.put(6L, "Gray_UK");
-      hmap.put(7L, "James_UAE");
-      hmap.put(8L, "Jordan_IND");
+      hmap.put(0L, new Employee("Alex", "US"));
+      hmap.put(1L, new Employee("John", "UK"));
+      hmap.put(2L, new Employee("Tom", "UK"));
+      hmap.put(3L, new Employee("Nick", "UAE"));
+      hmap.put(4L, new Employee("Smith", "IND"));
+      hmap.put(5L, new Employee("Taylor", "US"));
+      hmap.put(6L, new Employee("Gray", "UK"));
+      hmap.put(7L, new Employee("James", "UAE"));
+      hmap.put(8L, new Employee("Jordan", "IND"));
     }
   }
 }

@@ -17,9 +17,11 @@ package org.apache.beam.sdk.io.hadoop.inputformat.unit.tests.inputformats;
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 
+import org.apache.hadoop.io.Text;
 import org.apache.hadoop.io.Writable;
 import org.apache.hadoop.mapreduce.InputFormat;
 import org.apache.hadoop.mapreduce.InputSplit;
@@ -27,36 +29,41 @@ import org.apache.hadoop.mapreduce.JobContext;
 import org.apache.hadoop.mapreduce.RecordReader;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
 
-// Bad input format which returns null in getSplits() method
-public class NullInputSplitsInputFormat extends InputFormat {
+public class MutableRecordsEmpInputFormat extends InputFormat<Text, Employee> {
   private final long numberOfRecordsInEachSplit = 3L;
   private final long numberOfSplits = 3L;
 
-  public NullInputSplitsInputFormat() {}
+  public MutableRecordsEmpInputFormat() {}
 
   @Override
-  public RecordReader<String, String> createRecordReader(InputSplit split,
+  public RecordReader<Text, Employee> createRecordReader(InputSplit split,
       TaskAttemptContext context) throws IOException, InterruptedException {
-    return new NullInputSplitsRecordReader();
+    return new MutableRecordsRecordReader();
   }
 
   @Override
   public List<InputSplit> getSplits(JobContext arg0) throws IOException, InterruptedException {
-    return null;
+    List<InputSplit> inputSplitList = new ArrayList<InputSplit>();
+    for (int i = 0; i < numberOfSplits; i++) {
+      InputSplit dummyInputSplitObj = new MutableRecordsInputSplit((i * numberOfSplits),
+          ((i * numberOfSplits) + numberOfRecordsInEachSplit));
+      inputSplitList.add(dummyInputSplitObj);
+    }
+    return inputSplitList;
   }
 
-  public class NullInputSplitsInputSplit extends InputSplit implements Writable {
+  public class MutableRecordsInputSplit extends InputSplit implements Writable {
     private long startIndex;
     private long endIndex;
 
-    public NullInputSplitsInputSplit() {}
+    public MutableRecordsInputSplit() {}
 
-    public NullInputSplitsInputSplit(long startIndex, long endIndex) {
+    public MutableRecordsInputSplit(long startIndex, long endIndex) {
       this.startIndex = startIndex;
       this.endIndex = endIndex;
     }
 
-    // Returns number of records in each split.
+    // returns number of records in each split
     @Override
     public long getLength() throws IOException, InterruptedException {
       return this.endIndex - this.startIndex;
@@ -66,6 +73,7 @@ public class NullInputSplitsInputFormat extends InputFormat {
     public String[] getLocations() throws IOException, InterruptedException {
       return null;
     }
+
 
     public long getStartIndex() {
       return startIndex;
@@ -88,26 +96,26 @@ public class NullInputSplitsInputFormat extends InputFormat {
     }
   }
 
-  public class NullInputSplitsRecordReader extends RecordReader<String, String> {
+  class MutableRecordsRecordReader extends RecordReader<Text, Employee> {
 
-    private NullInputSplitsInputSplit split;
-    private String currentKey;
-    private String currentValue;
+    private MutableRecordsInputSplit split;
+    private Text currentKey = new Text();
+    private Employee currentValue = new Employee();
     private long pointer = 0L;
     private long recordsRead = 0L;
 
-    public NullInputSplitsRecordReader() {}
+    public MutableRecordsRecordReader() {}
 
     @Override
     public void close() throws IOException {}
 
     @Override
-    public String getCurrentKey() throws IOException, InterruptedException {
+    public Text getCurrentKey() throws IOException, InterruptedException {
       return currentKey;
     }
 
     @Override
-    public String getCurrentValue() throws IOException, InterruptedException {
+    public Employee getCurrentValue() throws IOException, InterruptedException {
       return currentValue;
     }
 
@@ -119,7 +127,7 @@ public class NullInputSplitsInputFormat extends InputFormat {
     @Override
     public void initialize(InputSplit split, TaskAttemptContext arg1)
         throws IOException, InterruptedException {
-      this.split = (NullInputSplitsInputSplit) split;
+      this.split = (MutableRecordsInputSplit) split;
       pointer = this.split.getStartIndex() - 1;
       recordsRead = 0;
       makeData();
@@ -133,8 +141,10 @@ public class NullInputSplitsInputFormat extends InputFormat {
       pointer++;
       boolean hasNext = hmap.containsKey(pointer);
       if (hasNext) {
-        currentKey = String.valueOf(pointer);
-        currentValue = hmap.get(pointer);
+        String empData[] = hmap.get(pointer).split("_");
+        currentKey.set(String.valueOf(pointer));
+        currentValue.setEmpName(empData[0]);
+        currentValue.setEmpAddress(empData[1]);
       }
       return hasNext;
     }

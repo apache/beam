@@ -29,36 +29,37 @@ import org.apache.hadoop.mapreduce.JobContext;
 import org.apache.hadoop.mapreduce.RecordReader;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
 
-public class MutableRecordsInputFormat extends InputFormat<Text, Employee> {
+// Bad input format which returns no records in nextKeyValue() method of RecordReader.
+public class BadNoRecordsEmpInputFormat extends InputFormat<Text, Employee> {
   private final long numberOfRecordsInEachSplit = 3L;
   private final long numberOfSplits = 3L;
 
-  public MutableRecordsInputFormat() {}
+  public BadNoRecordsEmpInputFormat() {}
 
   @Override
   public RecordReader<Text, Employee> createRecordReader(InputSplit split,
       TaskAttemptContext context) throws IOException, InterruptedException {
-    return new MutableRecordsRecordReader();
+    return new BadRecordReaderNoRecordsRecordReader();
   }
 
   @Override
   public List<InputSplit> getSplits(JobContext arg0) throws IOException, InterruptedException {
     List<InputSplit> inputSplitList = new ArrayList<InputSplit>();
-    for (int i = 0; i < numberOfSplits; i++) {
-      InputSplit dummyInputSplitObj = new MutableRecordsInputSplit((i * numberOfSplits),
+    for (long i = 0; i < numberOfSplits; i++) {
+      InputSplit inputSplit = new BadRecordReaderNoRecordsInputSplit((i * numberOfSplits),
           ((i * numberOfSplits) + numberOfRecordsInEachSplit));
-      inputSplitList.add(dummyInputSplitObj);
+      inputSplitList.add(inputSplit);
     }
     return inputSplitList;
   }
 
-  public class MutableRecordsInputSplit extends InputSplit implements Writable {
+  public class BadRecordReaderNoRecordsInputSplit extends InputSplit implements Writable {
     private long startIndex;
     private long endIndex;
 
-    public MutableRecordsInputSplit() {}
+    public BadRecordReaderNoRecordsInputSplit() {}
 
-    public MutableRecordsInputSplit(long startIndex, long endIndex) {
+    public BadRecordReaderNoRecordsInputSplit(long startIndex, long endIndex) {
       this.startIndex = startIndex;
       this.endIndex = endIndex;
     }
@@ -73,7 +74,6 @@ public class MutableRecordsInputFormat extends InputFormat<Text, Employee> {
     public String[] getLocations() throws IOException, InterruptedException {
       return null;
     }
-
 
     public long getStartIndex() {
       return startIndex;
@@ -96,15 +96,17 @@ public class MutableRecordsInputFormat extends InputFormat<Text, Employee> {
     }
   }
 
-  class MutableRecordsRecordReader extends RecordReader<Text, Employee> {
+  class BadRecordReaderNoRecordsRecordReader extends RecordReader<Text, Employee> {
 
-    private MutableRecordsInputSplit split;
-    private Text currentKey = new Text();
-    private Employee currentValue = new Employee();
-    private long pointer = 0L;
-    private long recordsRead = 0L;
+    private BadRecordReaderNoRecordsInputSplit split;
+    private Text currentKey;
+    private Employee currentValue;
+    private long pointer;
+    private long recordsRead;
+    private HashMap<Text, Employee> emptyDataHmap = new HashMap<Text, Employee>();
 
-    public MutableRecordsRecordReader() {}
+
+    public BadRecordReaderNoRecordsRecordReader() {}
 
     @Override
     public void close() throws IOException {}
@@ -127,40 +129,24 @@ public class MutableRecordsInputFormat extends InputFormat<Text, Employee> {
     @Override
     public void initialize(InputSplit split, TaskAttemptContext arg1)
         throws IOException, InterruptedException {
-      this.split = (MutableRecordsInputSplit) split;
+      this.split = (BadRecordReaderNoRecordsInputSplit) split;
       pointer = this.split.getStartIndex() - 1;
       recordsRead = 0;
-      makeData();
     }
 
+    // As dataHmap contains no data nextKeyValue() will return false for first record.
     @Override
     public boolean nextKeyValue() throws IOException, InterruptedException {
       if ((recordsRead++) == split.getLength()) {
         return false;
       }
       pointer++;
-      boolean hasNext = hmap.containsKey(pointer);
+      boolean hasNext = emptyDataHmap.containsKey(pointer);
       if (hasNext) {
-        String empData[] = hmap.get(pointer).split("_");
-        currentKey.set(String.valueOf(pointer));
-        currentValue.setEmpName(empData[0]);
-        currentValue.setEmpAddress(empData[1]);
+        currentKey = new Text(String.valueOf(pointer));
+        currentValue = emptyDataHmap.get(pointer);
       }
       return hasNext;
-    }
-
-    private HashMap<Long, String> hmap = new HashMap<Long, String>();
-
-    private void makeData() {
-      hmap.put(0L, "Alex_US");
-      hmap.put(1L, "John_UK");
-      hmap.put(2L, "Tom_UK");
-      hmap.put(3L, "Nick_UAE");
-      hmap.put(4L, "Smith_IND");
-      hmap.put(5L, "Taylor_US");
-      hmap.put(6L, "Gray_UK");
-      hmap.put(7L, "James_UAE");
-      hmap.put(8L, "Jordan_IND");
     }
   }
 }

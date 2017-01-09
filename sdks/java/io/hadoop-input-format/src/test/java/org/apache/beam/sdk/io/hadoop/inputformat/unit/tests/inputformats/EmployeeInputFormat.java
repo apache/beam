@@ -21,7 +21,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 
-import org.apache.beam.sdk.io.hadoop.inputformat.unit.tests.HadoopInputFormatIOTest;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.io.Writable;
 import org.apache.hadoop.mapreduce.InputFormat;
@@ -45,7 +44,7 @@ public class EmployeeInputFormat extends InputFormat<Text, Employee> {
   @Override
   public List<InputSplit> getSplits(JobContext arg0) throws IOException, InterruptedException {
     List<InputSplit> inputSplitList = new ArrayList<InputSplit>();
-    for (int i = 0; i < numberOfSplits; i++) {
+    for (long i = 0; i < numberOfSplits; i++) {
       InputSplit inputSplit = new EmployeeInputSplit((i * numberOfSplits),
           ((i * numberOfSplits) + numberOfRecordsInEachSplit));
       inputSplitList.add(inputSplit);
@@ -102,7 +101,6 @@ public class EmployeeInputFormat extends InputFormat<Text, Employee> {
     private Employee currentValue;
     private long pointer = 0L;
     private long recordsRead = 0L;
-    private HadoopInputFormatIOTest hadoopInputFormatIOTest = new HadoopInputFormatIOTest();
 
     public EmployeeRecordReader() {}
 

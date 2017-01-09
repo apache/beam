@@ -14,13 +14,6 @@
  */
 package org.apache.beam.sdk.io.hadoop.inputformat.unit.tests.inputformats;
 
-import org.apache.hadoop.io.Writable;
-import org.apache.hadoop.mapreduce.InputFormat;
-import org.apache.hadoop.mapreduce.InputSplit;
-import org.apache.hadoop.mapreduce.JobContext;
-import org.apache.hadoop.mapreduce.RecordReader;
-import org.apache.hadoop.mapreduce.TaskAttemptContext;
-
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
@@ -28,37 +21,44 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 
-// Bad input format which returns no records in nextKeyValue() method of RecordReader.
-public class BadRecordReaderNoRecordsInputFormat extends InputFormat<String, String> {
+import org.apache.hadoop.io.Text;
+import org.apache.hadoop.io.Writable;
+import org.apache.hadoop.mapreduce.InputFormat;
+import org.apache.hadoop.mapreduce.InputSplit;
+import org.apache.hadoop.mapreduce.JobContext;
+import org.apache.hadoop.mapreduce.RecordReader;
+import org.apache.hadoop.mapreduce.TaskAttemptContext;
+
+public class ImmutableRecordsEmpInputFormat extends InputFormat<Text, Employee> {
   private final long numberOfRecordsInEachSplit = 3L;
   private final long numberOfSplits = 3L;
 
-  public BadRecordReaderNoRecordsInputFormat() {}
+  public ImmutableRecordsEmpInputFormat() {}
 
   @Override
-  public RecordReader<String, String> createRecordReader(InputSplit split,
+  public RecordReader<Text, Employee> createRecordReader(InputSplit split,
       TaskAttemptContext context) throws IOException, InterruptedException {
-    return new BadRecordReaderNoRecordsRecordReader();
+    return new ImmutableRecordsRecordReader();
   }
 
   @Override
   public List<InputSplit> getSplits(JobContext arg0) throws IOException, InterruptedException {
     List<InputSplit> inputSplitList = new ArrayList<InputSplit>();
     for (int i = 0; i < numberOfSplits; i++) {
-      InputSplit inputSplit = new BadRecordReaderNoRecordsInputSplit((i * numberOfSplits),
+      InputSplit inputSplitObj = new ImmutableRecordsInputSplit((i * numberOfSplits),
           ((i * numberOfSplits) + numberOfRecordsInEachSplit));
-      inputSplitList.add(inputSplit);
+      inputSplitList.add(inputSplitObj);
     }
     return inputSplitList;
   }
 
-  public class BadRecordReaderNoRecordsInputSplit extends InputSplit implements Writable {
+  public class ImmutableRecordsInputSplit extends InputSplit implements Writable {
     private long startIndex;
     private long endIndex;
 
-    public BadRecordReaderNoRecordsInputSplit() {}
+    public ImmutableRecordsInputSplit() {}
 
-    public BadRecordReaderNoRecordsInputSplit(long startIndex, long endIndex) {
+    public ImmutableRecordsInputSplit(long startIndex, long endIndex) {
       this.startIndex = startIndex;
       this.endIndex = endIndex;
     }
@@ -95,28 +95,26 @@ public class BadRecordReaderNoRecordsInputFormat extends InputFormat<String, Str
     }
   }
 
-  class BadRecordReaderNoRecordsRecordReader extends RecordReader<String, String> {
+  public class ImmutableRecordsRecordReader extends RecordReader<Text, Employee> {
 
-    private BadRecordReaderNoRecordsInputSplit split;
-    private String currentKey;
-    private String currentValue;
-    private long pointer;
-    private long recordsRead;
-    private HashMap<Long, String> emptyDataHmap = new HashMap<Long, String>();
+    private ImmutableRecordsInputSplit split;
+    private Text currentKey;
+    private Employee currentValue;
+    private long pointer = 0L;
+    private long recordsRead = 0L;
 
-
-    public BadRecordReaderNoRecordsRecordReader() {}
+    public ImmutableRecordsRecordReader() {}
 
     @Override
     public void close() throws IOException {}
 
     @Override
-    public String getCurrentKey() throws IOException, InterruptedException {
+    public Text getCurrentKey() throws IOException, InterruptedException {
       return currentKey;
     }
 
     @Override
-    public String getCurrentValue() throws IOException, InterruptedException {
+    public Employee getCurrentValue() throws IOException, InterruptedException {
       return currentValue;
     }
 
@@ -128,25 +126,40 @@ public class BadRecordReaderNoRecordsInputFormat extends InputFormat<String, Str
     @Override
     public void initialize(InputSplit split, TaskAttemptContext arg1)
         throws IOException, InterruptedException {
-      this.split = (BadRecordReaderNoRecordsInputSplit) split;
+      this.split = (ImmutableRecordsInputSplit) split;
       pointer = this.split.getStartIndex() - 1;
       recordsRead = 0;
+      makeData();
+      currentValue = new Employee(null, null);
     }
 
-    //As dataHmap contains no data nextKeyValue() will return false for first record.
     @Override
     public boolean nextKeyValue() throws IOException, InterruptedException {
-      if ((recordsRead++) == split.getLength()){
+      if ((recordsRead++) == split.getLength()) {
         return false;
       }
       pointer++;
-      boolean hasNext = emptyDataHmap.containsKey(pointer);
-      if(hasNext)
-      {
-        currentKey=String.valueOf(pointer);
-        currentValue=emptyDataHmap.get(pointer);
+      boolean hasNext = hmap.containsKey(pointer);
+      if (hasNext) {
+        String empData[] = hmap.get(pointer).split("_");
+        currentKey = new Text(String.valueOf(pointer));
+        currentValue = new Employee(empData[0], empData[1]);
       }
       return hasNext;
+    }
+
+    private HashMap<Long, String> hmap = new HashMap<Long, String>();
+
+    private void makeData() {
+      hmap.put(0L, "Alex_US");
+      hmap.put(1L, "John_UK");
+      hmap.put(2L, "Tom_UK");
+      hmap.put(3L, "Nick_UAE");
+      hmap.put(4L, "Smith_IND");
+      hmap.put(5L, "Taylor_US");
+      hmap.put(6L, "Gray_UK");
+      hmap.put(7L, "James_UAE");
+      hmap.put(8L, "Jordan_IND");
     }
   }
 }

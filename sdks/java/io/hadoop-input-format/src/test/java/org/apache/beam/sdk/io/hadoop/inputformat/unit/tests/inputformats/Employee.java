@@ -5,7 +5,6 @@ import org.apache.beam.sdk.coders.DefaultCoder;
 
 @DefaultCoder(AvroCoder.class)
 public class Employee {
-  private static final long serialVersionUID = 1L;
   private String empAddress;
   private String empName;
 
