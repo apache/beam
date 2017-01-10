@@ -527,12 +527,22 @@ class BigQueryServicesImpl implements BigQueryServices {
       BackOff backoff =
           FluentBackoff.DEFAULT
               .withMaxRetries(MAX_RPC_RETRIES).withInitialBackoff(INITIAL_RPC_BACKOFF).backoff();
+      return isTableEmpty(
+          new TableReference().setProjectId(projectId).setDatasetId(datasetId).setTableId(tableId),
+          backoff,
+          Sleeper.DEFAULT);
+    }
+
+    @VisibleForTesting
+    boolean isTableEmpty(TableReference tableRef, BackOff backoff, Sleeper sleeper)
+        throws IOException, InterruptedException {
       TableDataList dataList = executeWithRetries(
-          client.tabledata().list(projectId, datasetId, tableId),
+          client.tabledata().list(
+              tableRef.getProjectId(), tableRef.getDatasetId(), tableRef.getTableId()),
           String.format(
               "Unable to list table data: %s, aborting after %d retries.",
-              tableId, MAX_RPC_RETRIES),
-          Sleeper.DEFAULT,
+              tableRef.getTableId(), MAX_RPC_RETRIES),
+          sleeper,
           backoff,
           DONT_RETRY_NOT_FOUND);
       return dataList.getRows() == null || dataList.getRows().isEmpty();
