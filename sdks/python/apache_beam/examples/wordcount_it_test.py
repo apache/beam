@@ -20,23 +20,38 @@
 import logging
 import unittest
 
+from datetime import datetime as dt
+from hamcrest.core.core.allof import all_of
+from nose.plugins.attrib import attr
+
 from apache_beam.examples import wordcount
 from apache_beam.test_pipeline import TestPipeline
 from apache_beam.tests.pipeline_verifiers import PipelineStateMatcher
-from nose.plugins.attrib import attr
+from apache_beam.tests.pipeline_verifiers import FileChecksumMatcher
 
 
 class WordCountIT(unittest.TestCase):
 
+  DEFAULT_CHECKSUM = 'c780e9466b8635af1d11b74bbd35233a82908a02'
+
   @attr('IT')
   def test_wordcount_it(self):
+    test_pipeline = TestPipeline(is_integration_test=True)
+
     # Set extra options to the pipeline for test purpose
-    extra_opts = {'on_success_matcher': PipelineStateMatcher()}
+    output = '/'.join([test_pipeline.get_option('output'),
+                       dt.now().strftime('py-wordcount-%Y-%m-%d-%H-%M-%S'),
+                       'results'])
+    pipeline_verifiers = [PipelineStateMatcher(),
+                          FileChecksumMatcher(output + '*-of-*',
+                                              self.DEFAULT_CHECKSUM)]
+    extra_opts = {'output': output,
+                  'on_success_matcher': all_of(*pipeline_verifiers)}
 
     # Get pipeline options from command argument: --test-pipeline-options,
     # and start pipeline job by calling pipeline main function.
-    test_pipeline = TestPipeline(is_integration_test=True)
-    wordcount.run(test_pipeline.get_test_option_args(**extra_opts))
+    wordcount.run(test_pipeline.get_full_options_as_args(**extra_opts))
+
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.DEBUG)
