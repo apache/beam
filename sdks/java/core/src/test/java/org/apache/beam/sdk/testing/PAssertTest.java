@@ -24,6 +24,7 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.google.common.base.Throwables;
 import com.google.common.collect.Iterables;
 import java.io.IOException;
 import java.io.InputStream;
@@ -378,7 +379,7 @@ public class PAssertTest implements Serializable {
             + " but the message was \""
             + exc.getMessage()
             + "\"",
-        expectedPattern.matcher(exc.getMessage()).find());
+        expectedPattern.matcher(Throwables.getStackTraceAsString(exc)).find());
   }
 
   @Test
@@ -389,7 +390,29 @@ public class PAssertTest implements Serializable {
 
     Throwable thrown = runExpectingAssertionFailure(pipeline);
 
-    assertThat(thrown.getMessage(), containsString("Expected: iterable over [] in any order"));
+    assertThat(
+        Throwables.getStackTraceAsString(thrown),
+        containsString("Expected: iterable over [] in any order"));
+  }
+
+  @Test
+  @Category(RunnableOnService.class)
+  public void testAssertionSiteAndMessageIsCaptured() throws Exception {
+    PCollection<Long> vals = pipeline.apply(CountingInput.upTo(5L));
+    assertThatCollectionIsEmpty(vals);
+
+    Throwable thrown = runExpectingAssertionFailure(pipeline);
+
+    String str = Throwables.getStackTraceAsString(thrown);
+    assertThat(
+        str,
+        containsString("Expected: iterable over [] in any order"));
+    assertThat(str, containsString("testAssertionSiteAndMessageIsCaptured"));
+    assertThat(str, containsString("assertThatCollectionIsEmpty"));
+  }
+
+  private static void assertThatCollectionIsEmpty(PCollection<Long> vals) {
+    PAssert.that("Should be empty", vals).empty();
   }
 
   private static Throwable runExpectingAssertionFailure(Pipeline pipeline) {

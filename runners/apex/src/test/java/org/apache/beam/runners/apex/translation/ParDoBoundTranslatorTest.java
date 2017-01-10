@@ -24,6 +24,7 @@ import static org.junit.Assert.fail;
 import com.datatorrent.api.DAG;
 import com.datatorrent.api.Sink;
 import com.datatorrent.lib.util.KryoCloneUtils;
+import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import java.util.ArrayList;
@@ -182,7 +183,7 @@ public class ParDoBoundTranslatorTest {
             + " but the message was \""
             + exc.getMessage()
             + "\"",
-        expectedPattern.matcher(exc.getMessage()).find());
+        expectedPattern.matcher(Throwables.getStackTraceAsString(exc)).find());
   }
 
   @Test
