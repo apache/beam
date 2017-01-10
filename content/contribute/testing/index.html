@@ -406,7 +406,7 @@ details on those testing types.</p>
 <h3 id="python-sdk">Python SDK</h3>
 
 <p>The Python SDK is currently under development on a feature branch. We have initial
-postcommit tests by a Jenkins build; precommit testing and a full testing 
+postcommit tests by a Jenkins build; precommit testing and a full testing
 matrix will be coming soon.</p>
 
 <h2 id="testing-scenarios">Testing Scenarios</h2>
@@ -419,8 +419,8 @@ precommit and postcommit testing.</p>
 
 <p>For precommit testing, Beam uses
 <a href="https://builds.apache.org/view/Beam/">Jenkins</a>,
-<a href="http://travis-ci.org/apache/incubator-beam">Travis</a>, and a code coverage tool
-called <a href="https://coveralls.io/github/apache/incubator-beam">Coveralls</a>, hooked up
+<a href="http://travis-ci.org/apache/beam">Travis</a>, and a code coverage tool
+called <a href="https://coveralls.io/github/apache/beam">Coveralls</a>, hooked up
 to <a href="https://github.com/apache/beam">Github</a>, to ensure that pull
 requests meet a certain quality bar. These precommits verify correctness via two
 of the below testing tools: unit tests (with coverage monitored by Coveralls)
@@ -433,7 +433,7 @@ that this hits the appropriate tradeoff between a desire for short (ideally
 function in the way in which they are intended.</p>
 
 <p>Precommit tests are kicked off when a user makes a Pull Request against the
-apache/incubator-beam repository and the Travis, Jenkins, and Coveralls statuses
+<code class="highlighter-rouge">apache/beam</code> repository and the Travis, Jenkins, and Coveralls statuses
 are displayed at the bottom of the pull request page. Clicking on “Details” will
 open the status page in the selected tool; there, test status and output can be
 viewed.</p>
@@ -535,7 +535,6 @@ Cloud Dataflow service.</p>
 which enables test authors to write simple functionality verification. They are
 meant to use some of the built-in utilities of the SDK, namely PAssert, to
 verify that the simple pipelines they run end in the correct state.</p>
-
 
       </div>
 
