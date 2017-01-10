@@ -1,7 +1,7 @@
 ---
 layout: post
 title:  "Release 0.4.0 adds a runner for Apache Apex"
-date:   2016-01-09 00:00:01 -0700
+date:   2016-01-09 10:00:01 -0700
 excerpt_separator: <!--more-->
 categories: blog
 authors:
