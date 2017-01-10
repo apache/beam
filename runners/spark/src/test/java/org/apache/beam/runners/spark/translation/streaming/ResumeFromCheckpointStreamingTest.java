@@ -178,8 +178,7 @@ public class ResumeFromCheckpointStreamingTest {
           .apply(ParDo.of(new DoFn<KV<String, String>, KV<String, String>>() {
                @ProcessElement
                public void process(ProcessContext c) {
-
-                  // Check side input is passed correctly
+                  // Check side input is passed correctly also after resuming from checkpoint
                   Assert.assertEquals(c.sideInput(expectedView), Arrays.asList(EXPECTED));
                   c.output(c.element());
                 }

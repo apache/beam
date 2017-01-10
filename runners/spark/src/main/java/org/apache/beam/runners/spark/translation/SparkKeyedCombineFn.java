@@ -25,7 +25,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import javax.annotation.Nullable;
-import org.apache.beam.runners.spark.util.BroadcastHelper;
+import org.apache.beam.runners.spark.util.SideInputBroadcast;
 import org.apache.beam.sdk.transforms.CombineWithContext;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
@@ -46,12 +46,11 @@ import org.joda.time.Instant;
 public class SparkKeyedCombineFn<K, InputT, AccumT, OutputT> extends SparkAbstractCombineFn {
   private final CombineWithContext.KeyedCombineFnWithContext<K, InputT, AccumT, OutputT> combineFn;
 
-  public SparkKeyedCombineFn(CombineWithContext.KeyedCombineFnWithContext<K, InputT, AccumT,
-                                 OutputT> combineFn,
-                             SparkRuntimeContext runtimeContext,
-                             Map<TupleTag<?>, KV<WindowingStrategy<?, ?>, BroadcastHelper<?>>>
-                                 sideInputs,
-                             WindowingStrategy<?, ?> windowingStrategy) {
+  public SparkKeyedCombineFn(
+      CombineWithContext.KeyedCombineFnWithContext<K, InputT, AccumT, OutputT> combineFn,
+      SparkRuntimeContext runtimeContext,
+      Map<TupleTag<?>, KV<WindowingStrategy<?, ?>, SideInputBroadcast<?>>> sideInputs,
+      WindowingStrategy<?, ?> windowingStrategy) {
     super(runtimeContext, sideInputs, windowingStrategy);
     this.combineFn = combineFn;
   }

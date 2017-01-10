@@ -28,29 +28,24 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Broadcast helper.
+ * Broadcast helper for side inputs. Helps to do the transformation from
+ * bytes transform to broadcast transform to value by coder
  */
-public class BroadcastHelper<T> implements Serializable {
+public class SideInputBroadcast<T> implements Serializable {
 
-  /**
-   * If the property {@code beam.spark.directBroadcast} is set to
-   * {@code true} then Spark serialization (Kryo) will be used to broadcast values
-   * in View objects. By default this property is not set, and values are coded using
-   * the appropriate {@link Coder}.
-   */
-  private static final Logger LOG = LoggerFactory.getLogger(BroadcastHelper.class);
+  private static final Logger LOG = LoggerFactory.getLogger(SideInputBroadcast.class);
   private Broadcast<byte[]> bcast;
   private final Coder<T> coder;
   private transient T value;
   private transient byte[] bytes = null;
 
-  private BroadcastHelper(byte[] bytes, Coder<T> coder) {
+  private SideInputBroadcast(byte[] bytes, Coder<T> coder) {
     this.bytes = bytes;
     this.coder = coder;
   }
 
-  public static <T> BroadcastHelper<T> create(byte[] bytes, Coder<T> coder) {
-    return new BroadcastHelper<>(bytes, coder);
+  public static <T> SideInputBroadcast<T> create(byte[] bytes, Coder<T> coder) {
+    return new SideInputBroadcast<>(bytes, coder);
   }
 
   public synchronized T getValue() {
