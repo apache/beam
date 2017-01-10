@@ -9,6 +9,47 @@
     <generator>Jekyll v3.2.0</generator>
     
       <item>
+        <title>Release 0.4.0 adds a runner for Apache Apex</title>
+        <description>&lt;p&gt;The latest release 0.4.0 of &lt;a href=&quot;https://beam.apache.org&quot;&gt;Apache Beam&lt;/a&gt; adds a new runner for &lt;a href=&quot;http://apex.apache.org/&quot;&gt;Apache Apex&lt;/a&gt;. We are excited to reach this initial milestone and are looking forward to continued collaboration between the Beam and Apex communities to advance the runner.&lt;/p&gt;
+
+&lt;!--more--&gt;
+
+&lt;p&gt;Beam evolved from the Google Dataflow SDK and as incubator project has quickly adapted the Apache way, grown the community and attracts increasing interest from users that hope to benefit from a conceptual strong unified programming model that is portable between different big data processing frameworks (see &lt;a href=&quot;https://www.oreilly.com/ideas/the-world-beyond-batch-streaming-101&quot;&gt;Streaming-101&lt;/a&gt; and &lt;a href=&quot;https://www.oreilly.com/ideas/the-world-beyond-batch-streaming-102&quot;&gt;Streaming-102&lt;/a&gt;). Multiple Apache projects already provide runners for Beam (see &lt;a href=&quot;http://beam.apache.org/documentation/runners/capability-matrix/&quot;&gt;runners and capabilities matrix&lt;/a&gt;).&lt;/p&gt;
+
+&lt;p&gt;Apex is a stream processing framework for low-latency, high-throughput, stateful and reliable processing of complex analytics pipelines on clusters. Apex was developed since 2012 and is used in production by large companies for real-time and batch processing at scale.&lt;/p&gt;
+
+&lt;p&gt;The initial revision of the runner was focussed on broad coverage of the Beam model on a functional level. That means, there will be follow up work in several areas to take the runner from functional to scalable and high performance to match the capabilities of Apex and its native API. The runner capabilities matrix shows that the Apex capabilities are well aligned with the Beam model. Specifically, the ability to track computational state in a fault tolerant and efficient manner is needed to broadly support the windowing concepts, including event time based processing.&lt;/p&gt;
+
+&lt;h2 id=&quot;stateful-stream-processor&quot;&gt;Stateful Stream Processor&lt;/h2&gt;
+
+&lt;p&gt;Apex was built as stateful stream processor from the ground up. Operators &lt;a href=&quot;https://www.datatorrent.com/blog/blog-introduction-to-checkpoint/&quot;&gt;checkpoint&lt;/a&gt; state in a distributed and asynchronous manner that produces a consistent snapshot for the entire processing graph, which can be used for recovery. Apex also supports such recovery in an incremental, or fine grained, manner. This means only the portion of the DAG that is actually affected by a failure will be recovered while the remaining pipeline continues processing (this can be leveraged to implement use cases with special needs, such as speculative execution to achieve SLA on the processing latency). The state checkpointing along with idempotent processing guarantee is the basis for &lt;a href=&quot;https://www.datatorrent.com/blog/end-to-end-exactly-once-with-apache-apex/&quot;&gt;exactly-once results&lt;/a&gt; support in Apex.&lt;/p&gt;
+
+&lt;h2 id=&quot;translation-to-apex-dag&quot;&gt;Translation to Apex DAG&lt;/h2&gt;
+
+&lt;p&gt;A Beam runner needs to implement the translation from the Beam model to the underlying frameworks execution model. In the case of Apex, the runner will translate the pipeline into the &lt;a href=&quot;https://www.datatorrent.com/blog/tracing-dags-from-specification-to-execution/&quot;&gt;native (compositional, low level) DAG API&lt;/a&gt; (which is also the base for a number of other API that are available to specify applications that run on Apex). The DAG consists of operators (functional building blocks that are connected with streams. The runner provides the execution layer. In the case of Apex it is distributed stream processing, operators process data event by event. The minimum set of operators covers Beam’s primitive transforms: &lt;code class=&quot;highlighter-rouge&quot;&gt;ParDo.Bound&lt;/code&gt;,  &lt;code class=&quot;highlighter-rouge&quot;&gt;ParDo.BoundMulti&lt;/code&gt;, &lt;code class=&quot;highlighter-rouge&quot;&gt;Read.Unbounded&lt;/code&gt;, &lt;code class=&quot;highlighter-rouge&quot;&gt;Read.Bounded&lt;/code&gt;, &lt;code class=&quot;highlighter-rouge&quot;&gt;GroupByKey&lt;/code&gt;, &lt;code class=&quot;highlighter-rouge&quot;&gt;Flatten.FlattenPCollectionList&lt;/code&gt; etc.&lt;/p&gt;
+
+&lt;h2 id=&quot;execution-and-testing&quot;&gt;Execution and Testing&lt;/h2&gt;
+
+&lt;p&gt;In this release, the Apex runner executes the pipelines in embedded mode, where, similar to the direct runner, everything is executed in a single JVM. See &lt;a href=&quot;https://beam.apache.org/get-started/quickstart/&quot;&gt;quickstart&lt;/a&gt; on how to run the Beam examples with the Apex runner.&lt;/p&gt;
+
+&lt;p&gt;Embedded mode is useful for development and debugging. Apex in production runs distributed on Apache Hadoop YARN clusters. An example how a Beam pipeline can be embedded into an Apex application package to run on YARN can be found &lt;a href=&quot;https://github.com/tweise/apex-samples/tree/master/beam-apex-wordcount&quot;&gt;here&lt;/a&gt; and support for direct launch in the runner is currently being worked on.&lt;/p&gt;
+
+&lt;p&gt;The Beam project has a strong focus on development process and tooling, including testing. For the runners, there is a comprehensive test suite with more than 200 integration tests that are executed against each runner to ensure they don’t break as changes are made. The tests cover the capabilities of the matrix and thus are a measure of completeness and correctness of the runner implementations. The suite was very helpful when developing the Apex runner.&lt;/p&gt;
+
+&lt;h2 id=&quot;outlook&quot;&gt;Outlook&lt;/h2&gt;
+
+&lt;p&gt;The next step is to take the Apex runner from functional to ready for real applications that run distributed, leveraging the scalability and performance features of Apex, similar to its native API. This includes chaining of ParDos, partitioning, optimizing combine operations etc. To get involved, please see &lt;a href=&quot;https://issues.apache.org/jira/issues/?jql=project%20%3D%20BEAM%20and%20component%20%3D%20runner-apex%20and%20resolution%20%3D%20unresolved&quot;&gt;JIRA&lt;/a&gt; and join the Beam community.&lt;/p&gt;
+</description>
+        <pubDate>Mon, 09 Jan 2017 09:00:01 -0800</pubDate>
+        <link>http://beam.apache.org/blog/2017/01/09/added-apex-runner.html</link>
+        <guid isPermaLink="true">http://beam.apache.org/blog/2017/01/09/added-apex-runner.html</guid>
+        
+        
+        <category>blog</category>
+        
+      </item>
+    
+      <item>
         <title>Testing Unbounded Pipelines in Apache Beam</title>
         <description>&lt;p&gt;The Beam Programming Model unifies writing pipelines for Batch and Streaming
 pipelines. We’ve recently introduced a new PTransform to write tests for
@@ -1426,34 +1467,6 @@ PCollection&amp;lt;O&amp;gt; output = input
         <category>beam</category>
         
         <category>capability</category>
-        
-      </item>
-    
-      <item>
-        <title>Dataflow Python SDK is now public!</title>
-        <description>&lt;p&gt;When the Apache Beam project proposed entry into the &lt;a href=&quot;http://wiki.apache.org/incubator/BeamProposal&quot;&gt;Apache Incubator&lt;/a&gt; the proposal
-included the &lt;a href=&quot;https://github.com/GoogleCloudPlatform/DataflowJavaSDK&quot;&gt;Dataflow Java SDK&lt;/a&gt;. In the long term, however, Apache Beam aims to support SDKs implemented in multiple languages, such as Python.&lt;/p&gt;
-
-&lt;!--more--&gt;
-
-&lt;p&gt;Today, Google submitted the &lt;a href=&quot;http://github.com/GoogleCloudPlatform/DataflowPythonSDK&quot;&gt;Dataflow Python (2.x) SDK&lt;/a&gt; on GitHub. Google is committed to including the in progress python SDK in Apache Beam and, in that spirit, we’ve moved development of the Python SDK to a public repository. While this SDK will not be included with the initial (incubating) releases of Apache Beam, our we plan on incorporating the Python SDK into beam during incubation. We want to take the time to implement changes from the &lt;a href=&quot;https://goo.gl/nk5OM0&quot;&gt;technical vision&lt;/a&gt; into the Java SDK before we introduce a Python SDK for Apache Beam. We believe this will allow us to work on the model and SDKs in an ordered fashion.&lt;/p&gt;
-
-&lt;p&gt;You can look for the Apache Beam Python SDK in the coming months once we finish forking and refactoring the Java SDK.&lt;/p&gt;
-
-&lt;p&gt;Best,&lt;/p&gt;
-
-&lt;p&gt;Apache Beam Team&lt;/p&gt;
-</description>
-        <pubDate>Thu, 25 Feb 2016 13:00:00 -0800</pubDate>
-        <link>http://beam.apache.org/beam/python/sdk/2016/02/25/python-sdk-now-public.html</link>
-        <guid isPermaLink="true">http://beam.apache.org/beam/python/sdk/2016/02/25/python-sdk-now-public.html</guid>
-        
-        
-        <category>beam</category>
-        
-        <category>python</category>
-        
-        <category>sdk</category>
         
       </item>
     
