@@ -398,14 +398,30 @@ class BigQueryServicesImpl implements BigQueryServices {
       BackOff backoff =
           FluentBackoff.DEFAULT
               .withMaxRetries(MAX_RPC_RETRIES).withInitialBackoff(INITIAL_RPC_BACKOFF).backoff();
-      return executeWithRetries(
-          client.tables().get(projectId, datasetId, tableId),
-          String.format(
-              "Unable to get table: %s, aborting after %d retries.",
-              tableId, MAX_RPC_RETRIES),
-          Sleeper.DEFAULT,
+      return getTable(
+          new TableReference().setProjectId(projectId).setDatasetId(datasetId).setTableId(tableId),
           backoff,
-          DONT_RETRY_NOT_FOUND);
+          Sleeper.DEFAULT);
+    }
+
+    @VisibleForTesting
+    Table getTable(TableReference ref, BackOff backoff, Sleeper sleeper)
+        throws IOException, InterruptedException {
+      try {
+        return executeWithRetries(
+            client.tables().get(ref.getProjectId(), ref.getDatasetId(), ref.getTableId()),
+            String.format(
+                "Unable to get table: %s, aborting after %d retries.",
+                ref.getTableId(), MAX_RPC_RETRIES),
+            sleeper,
+            backoff,
+            DONT_RETRY_NOT_FOUND);
+      } catch (IOException e) {
+        if (errorExtractor.itemNotFound(e)) {
+          return null;
+        }
+        throw e;
+      }
     }
 
     /**
