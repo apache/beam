@@ -45,7 +45,7 @@ class AutocompleteTest(unittest.TestCase):
             ('tha', ((1, 'that'), )),
             ('that', ((1, 'that'), )),
         ]))
-    p.run()
+    p.run().wait_until_finish()
 
 if __name__ == '__main__':
   unittest.main()

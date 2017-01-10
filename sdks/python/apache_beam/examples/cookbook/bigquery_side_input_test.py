@@ -48,7 +48,7 @@ class BigQuerySideInputTest(unittest.TestCase):
         [('A', 'corpus2', 'word2'),
          ('B', 'corpus2', 'word2'),
          ('C', 'corpus2', 'word2')]))
-    p.run()
+    p.run().wait_until_finish()
 
 
 if __name__ == '__main__':

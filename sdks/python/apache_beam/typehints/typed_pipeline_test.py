@@ -173,7 +173,7 @@ class SideInputTest(unittest.TestCase):
     side_input = p | 'side' >> beam.Create([3])
     result = main_input | beam.Map(repeat, pvalue.AsSingleton(side_input))
     assert_that(result, equal_to(['aaa', 'bbbbbb', 'ccc']))
-    p.run()
+    p.run().wait_until_finish()
 
     bad_side_input = p | 'bad_side' >> beam.Create(['z'])
     with self.assertRaises(typehints.TypeCheckError):
@@ -188,7 +188,7 @@ class SideInputTest(unittest.TestCase):
     side_input = p | 'side' >> beam.Create(['x', 'y', 'z'])
     result = main_input | beam.Map(concat, pvalue.AsIter(side_input))
     assert_that(result, equal_to(['xayaz', 'xbbybbz', 'xcycz']))
-    p.run()
+    p.run().wait_until_finish()
 
     bad_side_input = p | 'bad_side' >> beam.Create([1, 2, 3])
     with self.assertRaises(typehints.TypeCheckError):

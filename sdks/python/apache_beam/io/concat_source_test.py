@@ -216,7 +216,7 @@ class ConcatSourceTest(unittest.TestCase):
     pcoll = pipeline | beam.Read(source)
     assert_that(pcoll, equal_to(range(1000)))
 
-    pipeline.run()
+    pipeline.run().wait_until_finish()
 
   def test_conact_source_exhaustive(self):
     source = ConcatSource([RangeSource(0, 10),

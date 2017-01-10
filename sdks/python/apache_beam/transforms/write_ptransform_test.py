@@ -103,7 +103,7 @@ class WriteTest(unittest.TestCase):
     result = p | beam.Create(data) | write_to_test_sink | beam.Map(list)
 
     assert_that(result, is_empty())
-    p.run()
+    p.run().wait_until_finish()
 
     sink = write_to_test_sink.last_sink
     self.assertIsNotNone(sink)

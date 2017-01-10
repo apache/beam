@@ -48,19 +48,19 @@ class FiltersTest(unittest.TestCase):
         results,
         beam.equal_to([{'year': 2010, 'month': 1, 'day': 1, 'mean_temp': 3},
                        {'year': 2012, 'month': 1, 'day': 2, 'mean_temp': 3}]))
-    results.pipeline.run()
+    results.pipeline.run().wait_until_finish()
 
   def test_basic_empty(self):
     """Test that the correct empty result is returned for a simple dataset."""
     results = self._get_result_for_month(3)
     beam.assert_that(results, beam.equal_to([]))
-    results.pipeline.run()
+    results.pipeline.run().wait_until_finish()
 
   def test_basic_empty_missing(self):
     """Test that the correct empty result is returned for a missing month."""
     results = self._get_result_for_month(4)
     beam.assert_that(results, beam.equal_to([]))
-    results.pipeline.run()
+    results.pipeline.run().wait_until_finish()
 
 
 if __name__ == '__main__':

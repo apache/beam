@@ -44,7 +44,7 @@ class CustomCountTest(unittest.TestCase):
     result = words | count_implementation
     assert_that(
         result, equal_to([('CAT', (3 * factor)), ('DOG', (2 * factor))]))
-    p.run()
+    p.run().wait_until_finish()
 
 
 if __name__ == '__main__':

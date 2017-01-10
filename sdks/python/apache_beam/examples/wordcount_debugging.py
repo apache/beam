@@ -32,7 +32,7 @@ pipeline configuration::
   --staging_location gs://YOUR_STAGING_DIRECTORY
   --temp_location gs://YOUR_TEMP_DIRECTORY
   --job_name YOUR_JOB_NAME
-  --runner BlockingDataflowRunner
+  --runner DataflowRunner
 
 and an output prefix on GCS::
 
@@ -151,7 +151,7 @@ def run(argv=None):
             | 'write' >> WriteToText(known_args.output))
 
   # Actually run the pipeline (all operations above are deferred).
-  p.run()
+  p.run().wait_until_finish()
 
 
 if __name__ == '__main__':

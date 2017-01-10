@@ -150,7 +150,7 @@ class WindowTest(unittest.TestCase):
                 ('key @ [0.0, 4.0)', [1, 2, 3]),
                 ('key @ [2.0, 6.0)', [2, 3])]
     assert_that(result, equal_to(expected))
-    p.run()
+    p.run().wait_until_finish()
 
   def test_sessions(self):
     p = Pipeline('DirectRunner')
@@ -163,7 +163,7 @@ class WindowTest(unittest.TestCase):
     expected = [('key @ [1.0, 13.0)', [1, 2, 3]),
                 ('key @ [20.0, 45.0)', [20, 27, 35])]
     assert_that(result, equal_to(expected))
-    p.run()
+    p.run().wait_until_finish()
 
   def test_timestamped_value(self):
     p = Pipeline('DirectRunner')
@@ -175,7 +175,7 @@ class WindowTest(unittest.TestCase):
               | GroupByKey())
     assert_that(result, equal_to([('key', [0, 1, 2, 3, 4]),
                                   ('key', [5, 6, 7, 8, 9])]))
-    p.run()
+    p.run().wait_until_finish()
 
   def test_timestamped_with_combiners(self):
     p = Pipeline('DirectRunner')
@@ -207,7 +207,7 @@ class WindowTest(unittest.TestCase):
                 label='assert:sum')
     assert_that(mean_per_window, equal_to([(0, 2.0), (1, 7.0)]),
                 label='assert:mean')
-    p.run()
+    p.run().wait_until_finish()
 
 
 if __name__ == '__main__':

@@ -124,7 +124,7 @@ def run(argv=None, assert_results=None):
     beam.assert_that(num_nomads, beam.equal_to([expected_nomads]),
                      label='assert:nomads')
   # Execute pipeline.
-  p.run()
+  p.run().wait_until_finish()
 
 
 if __name__ == '__main__':

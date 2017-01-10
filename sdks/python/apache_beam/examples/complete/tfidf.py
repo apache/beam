@@ -200,7 +200,7 @@ def run(argv=None):
   # Write the output using a "Write" transform that has side effects.
   # pylint: disable=expression-not-assigned
   output | 'write' >> WriteToText(known_args.output)
-  p.run()
+  p.run().wait_until_finish()
 
 
 if __name__ == '__main__':

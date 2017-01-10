@@ -59,7 +59,7 @@ class CombineTest(unittest.TestCase):
     result_key_count = pcoll | 'count-perkey' >> combine.Count.PerKey()
     assert_that(result_key_mean, equal_to([('a', mean)]), label='key:mean')
     assert_that(result_key_count, equal_to([('a', size)]), label='key:size')
-    pipeline.run()
+    pipeline.run().wait_until_finish()
 
   def test_top(self):
     pipeline = Pipeline('DirectRunner')
@@ -108,7 +108,7 @@ class CombineTest(unittest.TestCase):
                 label='key:bot')
     assert_that(result_key_cmp, equal_to([('a', [9, 6, 6, 5, 3, 2])]),
                 label='key:cmp')
-    pipeline.run()
+    pipeline.run().wait_until_finish()
 
   def test_top_key(self):
     self.assertEqual(
@@ -216,7 +216,7 @@ class CombineTest(unittest.TestCase):
         combine.Smallest(4))
     assert_that(result_ktop, equal_to([('a', [9, 6, 6, 5, 3])]), label='k:top')
     assert_that(result_kbot, equal_to([('a', [0, 1, 1, 1])]), label='k:bot')
-    pipeline.run()
+    pipeline.run().wait_until_finish()
 
   def test_sample(self):
 
@@ -238,7 +238,7 @@ class CombineTest(unittest.TestCase):
           equal_to([1, 2])([num_ones, num_twos])
         return match
       assert_that(result, matcher())
-      pipeline.run()
+      pipeline.run().wait_until_finish()
 
     # Now test per-key samples.
     pipeline = Pipeline('DirectRunner')
@@ -255,7 +255,7 @@ class CombineTest(unittest.TestCase):
           equal_to([1, 2])([num_ones, num_twos])
       return match
     assert_that(result, matcher())
-    pipeline.run()
+    pipeline.run().wait_until_finish()
 
   def test_tuple_combine_fn(self):
     p = Pipeline('DirectRunner')
@@ -266,7 +266,7 @@ class CombineTest(unittest.TestCase):
                                                       combine.MeanCombineFn(),
                                                       sum)).without_defaults())
     assert_that(result, equal_to([('c', 111.0 / 3, 99.0)]))
-    p.run()
+    p.run().wait_until_finish()
 
   def test_tuple_combine_fn_without_defaults(self):
     p = Pipeline('DirectRunner')
@@ -277,7 +277,7 @@ class CombineTest(unittest.TestCase):
             combine.TupleCombineFn(min, combine.MeanCombineFn(), max)
             .with_common_input()).without_defaults())
     assert_that(result, equal_to([(1, 7.0 / 4, 3)]))
-    p.run()
+    p.run().wait_until_finish()
 
   def test_to_list_and_to_dict(self):
     pipeline = Pipeline('DirectRunner')
@@ -290,7 +290,7 @@ class CombineTest(unittest.TestCase):
         equal_to(expected[0])(actual[0])
       return match
     assert_that(result, matcher([the_list]))
-    pipeline.run()
+    pipeline.run().wait_until_finish()
 
     pipeline = Pipeline('DirectRunner')
     pairs = [(1, 2), (3, 4), (5, 6)]
@@ -303,18 +303,18 @@ class CombineTest(unittest.TestCase):
         equal_to(pairs)(actual[0].iteritems())
       return match
     assert_that(result, matcher())
-    pipeline.run()
+    pipeline.run().wait_until_finish()
 
   def test_combine_globally_with_default(self):
     p = Pipeline('DirectRunner')
     assert_that(p | Create([]) | CombineGlobally(sum), equal_to([0]))
-    p.run()
+    p.run().wait_until_finish()
 
   def test_combine_globally_without_default(self):
     p = Pipeline('DirectRunner')
     result = p | Create([]) | CombineGlobally(sum).without_defaults()
     assert_that(result, equal_to([]))
-    p.run()
+    p.run().wait_until_finish()
 
   def test_combine_globally_with_default_side_input(self):
     class CombineWithSideInput(PTransform):
@@ -328,7 +328,7 @@ class CombineTest(unittest.TestCase):
     result2 = p | 'i2' >> Create([1, 2, 3, 4]) | 'c2' >> CombineWithSideInput()
     assert_that(result1, equal_to([0]), label='r1')
     assert_that(result2, equal_to([10]), label='r2')
-    p.run()
+    p.run().wait_until_finish()
 
 
 if __name__ == '__main__':

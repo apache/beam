@@ -53,7 +53,7 @@ def run(argv=None):
    | 'format' >> beam.Map(
        lambda (prefix, candidates): '%s: %s' % (prefix, candidates))
    | 'write' >> WriteToText(known_args.output))
-  p.run()
+  p.run().wait_until_finish()
 
 
 class TopPerPrefix(beam.PTransform):

@@ -61,7 +61,7 @@ class TfIdfTest(unittest.TestCase):
     # Run the pipeline. Note that the assert_that above adds to the pipeline
     # a check that the result PCollection contains expected values. To actually
     # trigger the check the pipeline must be run.
-    p.run()
+    p.run().wait_until_finish()
 
   def test_basics(self):
     # Setup the files with expected content.

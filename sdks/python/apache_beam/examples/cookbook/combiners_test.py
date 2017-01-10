@@ -49,7 +49,7 @@ class CombinersTest(unittest.TestCase):
         | beam.CombinePerKey(sum))
 
     beam.assert_that(result, beam.equal_to([('a', 6), ('b', 30), ('c', 100)]))
-    result.pipeline.run()
+    result.pipeline.run().wait_until_finish()
 
   def test_combine_per_key_with_custom_callable(self):
     """CombinePerKey using a custom function reducing iterables."""
@@ -65,7 +65,7 @@ class CombinersTest(unittest.TestCase):
         | beam.CombinePerKey(multiply))
 
     beam.assert_that(result, beam.equal_to([('a', 6), ('b', 200), ('c', 100)]))
-    result.pipeline.run()
+    result.pipeline.run().wait_until_finish()
 
 
 if __name__ == '__main__':

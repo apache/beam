@@ -115,7 +115,7 @@ def run(argv=None):
 
   # pylint:disable=expression-not-assigned
   pcoll_groups | WriteToText(known_args.output)
-  p.run()
+  p.run().wait_until_finish()
 
 
 if __name__ == '__main__':

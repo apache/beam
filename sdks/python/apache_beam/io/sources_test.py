@@ -102,7 +102,7 @@ class SourcesTest(unittest.TestCase):
     pcoll = pipeline | beam.Read(LineSource(file_name))
     assert_that(pcoll, equal_to(['aaaa', 'bbbb', 'cccc', 'dddd']))
 
-    pipeline.run()
+    pipeline.run().wait_until_finish()
 
 
 if __name__ == '__main__':

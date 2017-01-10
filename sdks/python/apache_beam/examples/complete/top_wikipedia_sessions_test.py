@@ -54,7 +54,7 @@ class ComputeTopSessionsTest(unittest.TestCase):
     result = edits | top_wikipedia_sessions.ComputeTopSessions(1.0)
 
     beam.assert_that(result, beam.equal_to(self.EXPECTED))
-    p.run()
+    p.run().wait_until_finish()
 
 
 if __name__ == '__main__':

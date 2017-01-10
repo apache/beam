@@ -307,7 +307,7 @@ class TextSourceTest(unittest.TestCase):
     pipeline = beam.Pipeline('DirectRunner')
     pcoll = pipeline | 'Read' >> ReadFromText(file_name)
     assert_that(pcoll, equal_to(expected_data))
-    pipeline.run()
+    pipeline.run().wait_until_finish()
 
   def test_dataflow_single_file_with_coder(self):
     class DummyCoder(coders.Coder):
@@ -322,7 +322,7 @@ class TextSourceTest(unittest.TestCase):
     pipeline = beam.Pipeline('DirectRunner')
     pcoll = pipeline | 'Read' >> ReadFromText(file_name, coder=DummyCoder())
     assert_that(pcoll, equal_to([record * 2 for record in expected_data]))
-    pipeline.run()
+    pipeline.run().wait_until_finish()
 
   def test_dataflow_file_pattern(self):
     pattern, expected_data = write_pattern([5, 3, 12, 8, 8, 4])
@@ -330,7 +330,7 @@ class TextSourceTest(unittest.TestCase):
     pipeline = beam.Pipeline('DirectRunner')
     pcoll = pipeline | 'Read' >> ReadFromText(pattern)
     assert_that(pcoll, equal_to(expected_data))
-    pipeline.run()
+    pipeline.run().wait_until_finish()
 
   def test_read_auto_bzip2(self):
     _, lines = write_data(15)
@@ -342,7 +342,7 @@ class TextSourceTest(unittest.TestCase):
     pipeline = beam.Pipeline('DirectRunner')
     pcoll = pipeline | 'Read' >> ReadFromText(file_name)
     assert_that(pcoll, equal_to(lines))
-    pipeline.run()
+    pipeline.run().wait_until_finish()
 
   def test_read_auto_gzip(self):
     _, lines = write_data(15)
@@ -354,7 +354,7 @@ class TextSourceTest(unittest.TestCase):
     pipeline = beam.Pipeline('DirectRunner')
     pcoll = pipeline | 'Read' >> ReadFromText(file_name)
     assert_that(pcoll, equal_to(lines))
-    pipeline.run()
+    pipeline.run().wait_until_finish()
 
   def test_read_bzip2(self):
     _, lines = write_data(15)
@@ -368,7 +368,7 @@ class TextSourceTest(unittest.TestCase):
         file_name,
         compression_type=CompressionTypes.BZIP2)
     assert_that(pcoll, equal_to(lines))
-    pipeline.run()
+    pipeline.run().wait_until_finish()
 
   def test_read_gzip(self):
     _, lines = write_data(15)
@@ -383,7 +383,7 @@ class TextSourceTest(unittest.TestCase):
         0, CompressionTypes.GZIP,
         True, coders.StrUtf8Coder())
     assert_that(pcoll, equal_to(lines))
-    pipeline.run()
+    pipeline.run().wait_until_finish()
 
   def test_read_gzip_large(self):
     _, lines = write_data(10000)
@@ -398,7 +398,7 @@ class TextSourceTest(unittest.TestCase):
         0, CompressionTypes.GZIP,
         True, coders.StrUtf8Coder())
     assert_that(pcoll, equal_to(lines))
-    pipeline.run()
+    pipeline.run().wait_until_finish()
 
   def test_read_gzip_large_after_splitting(self):
     _, lines = write_data(10000)
@@ -431,7 +431,7 @@ class TextSourceTest(unittest.TestCase):
         0, CompressionTypes.GZIP,
         True, coders.StrUtf8Coder())
     assert_that(pcoll, equal_to([]))
-    pipeline.run()
+    pipeline.run().wait_until_finish()
 
 
 class TextSinkTest(unittest.TestCase):
@@ -524,7 +524,7 @@ class TextSinkTest(unittest.TestCase):
     pipeline = beam.Pipeline('DirectRunner')
     pcoll = pipeline | beam.core.Create('Create', self.lines)
     pcoll | 'Write' >> WriteToText(self.path)  # pylint: disable=expression-not-assigned
-    pipeline.run()
+    pipeline.run().wait_until_finish()
 
     read_result = []
     for file_name in glob.glob(self.path + '*'):
@@ -537,7 +537,7 @@ class TextSinkTest(unittest.TestCase):
     pipeline = beam.Pipeline('DirectRunner')
     pcoll = pipeline | beam.core.Create('Create', self.lines)
     pcoll | 'Write' >> WriteToText(self.path, file_name_suffix='.gz')  # pylint: disable=expression-not-assigned
-    pipeline.run()
+    pipeline.run().wait_until_finish()
 
     read_result = []
     for file_name in glob.glob(self.path + '*'):
@@ -550,7 +550,7 @@ class TextSinkTest(unittest.TestCase):
     pipeline = beam.Pipeline('DirectRunner')
     pcoll = pipeline | beam.core.Create('Create', self.lines)
     pcoll | 'Write' >> WriteToText(self.path + '.gz', shard_name_template='')  # pylint: disable=expression-not-assigned
-    pipeline.run()
+    pipeline.run().wait_until_finish()
 
     read_result = []
     for file_name in glob.glob(self.path + '*'):

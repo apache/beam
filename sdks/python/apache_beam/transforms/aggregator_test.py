@@ -66,6 +66,7 @@ class AggregatorTest(unittest.TestCase):
     p = beam.Pipeline('DirectRunner')
     p | beam.Create([0, 1, 2, 3]) | beam.ParDo(UpdateAggregators())  # pylint: disable=expression-not-assigned
     res = p.run()
+    res.wait_until_finish()
     for (_, _, expected), a in zip(counter_types, aggregators):
       actual = res.aggregated_values(a).values()[0]
       self.assertEqual(expected, actual)

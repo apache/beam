@@ -106,8 +106,9 @@ def construct_pipeline(renames):
   p.visit(SnippetUtils.RenameFiles(renames))
 
   # [START pipelines_constructing_running]
-  p.run()
+  result = p.run()
   # [END pipelines_constructing_running]
+  result.wait_until_finish()
 
 
 def model_pipelines(argv):
@@ -144,8 +145,9 @@ def model_pipelines(argv):
    | beam.combiners.Count.PerKey()
    | beam.io.WriteToText(my_options.output))
 
-  p.run()
+  result = p.run()
   # [END model_pipelines]
+  result.wait_until_finish()
 
 
 def model_pcollection(argv):
@@ -175,8 +177,9 @@ def model_pcollection(argv):
        'Or to take arms against a sea of troubles, '])
    | beam.io.WriteToText(my_options.output))
 
-  p.run()
+  result = p.run()
   # [END model_pcollection]
+  result.wait_until_finish()
 
 
 def pipeline_options_remote(argv):
@@ -206,8 +209,7 @@ def pipeline_options_remote(argv):
   options = PipelineOptions(flags=argv)
 
   # For Cloud execution, set the Cloud Platform project, job_name,
-  # staging location, temp_location and specify DataflowRunner or
-  # BlockingDataflowRunner.
+  # staging location, temp_location and specify DataflowRunner.
   google_cloud_options = options.view_as(GoogleCloudOptions)
   google_cloud_options.project = 'my-project-id'
   google_cloud_options.job_name = 'myjob'
@@ -230,7 +232,7 @@ def pipeline_options_remote(argv):
   lines = p | beam.io.ReadFromText(my_input)
   lines | beam.io.WriteToText(my_output)
 
-  p.run()
+  p.run().wait_until_finish()
 
 
 def pipeline_options_local(argv):
@@ -267,7 +269,7 @@ def pipeline_options_local(argv):
 
   lines = p | beam.io.ReadFromText(my_input)
   lines | beam.io.WriteToText(my_output)
-  p.run()
+  p.run().wait_until_finish()
 
 
 def pipeline_options_command_line(argv):
@@ -288,7 +290,7 @@ def pipeline_options_command_line(argv):
   lines | 'WriteToText' >> beam.io.WriteToText(known_args.output)
   # [END pipeline_options_command_line]
 
-  p.run()
+  p.run().wait_until_finish()
 
 
 def pipeline_logging(lines, output):
@@ -322,7 +324,7 @@ def pipeline_logging(lines, output):
    | beam.ParDo(ExtractWordsFn())
    | beam.io.WriteToText(output))
 
-  p.run()
+  p.run().wait_until_finish()
 
 
 def pipeline_monitoring(renames):
@@ -385,7 +387,7 @@ def pipeline_monitoring(renames):
   # [END pipeline_monitoring_execution]
 
   p.visit(SnippetUtils.RenameFiles(renames))
-  p.run()
+  p.run().wait_until_finish()
 
 
 def examples_wordcount_minimal(renames):
@@ -405,7 +407,7 @@ def examples_wordcount_minimal(renames):
   google_cloud_options.job_name = 'myjob'
   google_cloud_options.staging_location = 'gs://your-bucket-name-here/staging'
   google_cloud_options.temp_location = 'gs://your-bucket-name-here/temp'
-  options.view_as(StandardOptions).runner = 'BlockingDataflowRunner'
+  options.view_as(StandardOptions).runner = 'DataflowRunner'
   # [END examples_wordcount_minimal_options]
 
   # Run it locally for testing.
@@ -441,8 +443,9 @@ def examples_wordcount_minimal(renames):
   p.visit(SnippetUtils.RenameFiles(renames))
 
   # [START examples_wordcount_minimal_run]
-  p.run()
+  result = p.run()
   # [END examples_wordcount_minimal_run]
+  result.wait_until_finish()
 
 
 def examples_wordcount_wordcount(renames):
@@ -497,7 +500,7 @@ def examples_wordcount_wordcount(renames):
 
   formatted |  beam.io.WriteToText('gs://my-bucket/counts.txt')
   p.visit(SnippetUtils.RenameFiles(renames))
-  p.run()
+  p.run().wait_until_finish()
 
 
 def examples_wordcount_debugging(renames):
@@ -565,7 +568,7 @@ def examples_wordcount_debugging(renames):
             | 'Write' >> beam.io.WriteToText('gs://my-bucket/counts.txt'))
 
   p.visit(SnippetUtils.RenameFiles(renames))
-  p.run()
+  p.run().wait_until_finish()
 
 
 def model_custom_source(count):
@@ -649,7 +652,7 @@ def model_custom_source(count):
       lines, beam.equal_to(
           ['line ' + str(number) for number in range(0, count)]))
 
-  p.run()
+  p.run().wait_until_finish()
 
   # We recommend users to start Source classes with an underscore to discourage
   # using the Source class directly when a PTransform for the source is
@@ -679,7 +682,7 @@ def model_custom_source(count):
       lines, beam.equal_to(
           ['line ' + str(number) for number in range(0, count)]))
 
-  p.run()
+  p.run().wait_until_finish()
 
 
 def model_custom_sink(simplekv, KVs, final_table_name_no_ptransform,
@@ -781,7 +784,7 @@ def model_custom_sink(simplekv, KVs, final_table_name_no_ptransform,
                                    final_table_name))
   # [END model_custom_sink_use_new_sink]
 
-  p.run()
+  p.run().wait_until_finish()
 
   # We recommend users to start Sink class names with an underscore to
   # discourage using the Sink class directly when a PTransform for the sink is
@@ -812,7 +815,7 @@ def model_custom_sink(simplekv, KVs, final_table_name_no_ptransform,
                       'http://url_to_simple_kv/', final_table_name)
   # [END model_custom_sink_use_ptransform]
 
-  p.run()
+  p.run().wait_until_finish()
 
 
 def model_textio(renames):
@@ -841,7 +844,7 @@ def model_textio(renames):
   # [END model_textio_write]
 
   p.visit(SnippetUtils.RenameFiles(renames))
-  p.run()
+  p.run().wait_until_finish()
 
 
 def model_datastoreio():
@@ -960,7 +963,7 @@ def model_composite_transform_example(contents, output_path):
    | beam.Create(contents)
    | CountWords()
    | beam.io.WriteToText(output_path))
-  p.run()
+  p.run().wait_until_finish()
 
 
 def model_multiple_pcollections_flatten(contents, output_path):
@@ -994,7 +997,7 @@ def model_multiple_pcollections_flatten(contents, output_path):
   # [END model_multiple_pcollections_flatten]
   merged | beam.io.WriteToText(output_path)
 
-  p.run()
+  p.run().wait_until_finish()
 
 
 def model_multiple_pcollections_partition(contents, output_path):
@@ -1024,7 +1027,7 @@ def model_multiple_pcollections_partition(contents, output_path):
    | beam.Flatten()
    | beam.io.WriteToText(output_path))
 
-  p.run()
+  p.run().wait_until_finish()
 
 
 def model_group_by_key(contents, output_path):
@@ -1050,7 +1053,7 @@ def model_group_by_key(contents, output_path):
   (grouped_words
    | 'count words' >> beam.Map(lambda (word, counts): (word, len(counts)))
    | beam.io.WriteToText(output_path))
-  p.run()
+  p.run().wait_until_finish()
 
 
 def model_co_group_by_key_tuple(email_list, phone_list, output_path):
@@ -1085,7 +1088,7 @@ def model_co_group_by_key_tuple(email_list, phone_list, output_path):
   contact_lines = result | beam.Map(join_info)
   # [END model_group_by_key_cogroupbykey_tuple]
   contact_lines | beam.io.WriteToText(output_path)
-  p.run()
+  p.run().wait_until_finish()
 
 
 def model_join_using_side_inputs(
@@ -1124,7 +1127,7 @@ def model_join_using_side_inputs(
       "CreateContacts", join_info, AsIter(emails), AsIter(phones))
   # [END model_join_using_side_inputs]
   contact_lines | beam.io.WriteToText(output_path)
-  p.run()
+  p.run().wait_until_finish()
 
 
 # [START model_library_transforms_keys]

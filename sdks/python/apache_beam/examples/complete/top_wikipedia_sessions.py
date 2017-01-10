@@ -31,7 +31,7 @@ pipeline configuration in addition to the above:
   --project YOUR_PROJECT_ID
   --staging_location gs://YOUR_STAGING_DIRECTORY
   --temp_location gs://YOUR_TEMPORARY_DIRECTORY
-  --runner BlockingDataflowRunner
+  --runner DataflowRunner
 
 The default input is gs://dataflow-samples/wikipedia_edits/*.json and can be
 overridden with --input.
@@ -174,7 +174,7 @@ def run(argv=None):
    | ComputeTopSessions(known_args.sampling_threshold)
    | WriteToText(known_args.output))
 
-  p.run()
+  p.run().wait_until_finish()
 
 
 if __name__ == '__main__':

@@ -102,19 +102,19 @@ class PipelineTest(unittest.TestCase):
     pcoll2 = pipeline | 'label2' >> Create(iter((4, 5, 6)))
     pcoll3 = pcoll2 | 'do' >> FlatMap(lambda x: [x + 10])
     assert_that(pcoll3, equal_to([14, 15, 16]), label='pcoll3')
-    pipeline.run()
+    pipeline.run().wait_until_finish()
 
   def test_create_singleton_pcollection(self):
     pipeline = Pipeline(self.runner_name)
     pcoll = pipeline | 'label' >> Create([[1, 2, 3]])
     assert_that(pcoll, equal_to([[1, 2, 3]]))
-    pipeline.run()
+    pipeline.run().wait_until_finish()
 
   def test_read(self):
     pipeline = Pipeline(self.runner_name)
     pcoll = pipeline | 'read' >> Read(FakeSource([1, 2, 3]))
     assert_that(pcoll, equal_to([1, 2, 3]))
-    pipeline.run()
+    pipeline.run().wait_until_finish()
 
   def test_visit_entire_graph(self):
     pipeline = Pipeline(self.runner_name)
@@ -140,7 +140,7 @@ class PipelineTest(unittest.TestCase):
     pcoll = pipeline | 'pcoll' >> Create([1, 2, 3])
     result = pcoll | PipelineTest.CustomTransform()
     assert_that(result, equal_to([2, 3, 4]))
-    pipeline.run()
+    pipeline.run().wait_until_finish()
 
   def test_reuse_custom_transform_instance(self):
     pipeline = Pipeline(self.runner_name)
@@ -166,7 +166,7 @@ class PipelineTest(unittest.TestCase):
     result2 = pcoll2 | 'new_label' >> transform
     assert_that(result1, equal_to([2, 3, 4]), label='r1')
     assert_that(result2, equal_to([5, 6, 7]), label='r2')
-    pipeline.run()
+    pipeline.run().wait_until_finish()
 
   def test_transform_no_super_init(self):
     class AddSuffix(PTransform):
@@ -221,7 +221,7 @@ class PipelineTest(unittest.TestCase):
     assert_that(result, equal_to(
         ['x' * len_elements + 'y' * num_maps] * num_elements))
 
-    pipeline.run()
+    pipeline.run().wait_until_finish()
 
   def test_aggregator_empty_input(self):
     actual = [] | CombineGlobally(max).without_defaults()

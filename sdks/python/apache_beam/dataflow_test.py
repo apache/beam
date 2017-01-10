@@ -67,7 +67,7 @@ class DataflowTest(unittest.TestCase):
         (lines | 'GetWords' >> FlatMap(lambda x: re.findall(r'\w+', x)))
         .apply('CountWords', DataflowTest.Count))
     assert_that(result, equal_to(DataflowTest.SAMPLE_RESULT))
-    pipeline.run()
+    pipeline.run().wait_until_finish()
 
   @attr('ValidatesRunner')
   def test_map(self):
@@ -77,7 +77,7 @@ class DataflowTest(unittest.TestCase):
               | 'upper' >> Map(str.upper)
               | 'prefix' >> Map(lambda x, prefix: prefix + x, 'foo-'))
     assert_that(result, equal_to(['foo-A', 'foo-B', 'foo-C']))
-    pipeline.run()
+    pipeline.run().wait_until_finish()
 
   @attr('ValidatesRunner')
   def test_par_do_with_side_input_as_arg(self):
@@ -91,7 +91,7 @@ class DataflowTest(unittest.TestCase):
         lambda x, pfx, sfx: ['%s-%s-%s' % (pfx, x, sfx)],
         AsSingleton(prefix), suffix)
     assert_that(result, equal_to(['xyz-%s-zyx' % x for x in words_list]))
-    pipeline.run()
+    pipeline.run().wait_until_finish()
 
   @attr('ValidatesRunner')
   def test_par_do_with_side_input_as_keyword_arg(self):
@@ -105,7 +105,7 @@ class DataflowTest(unittest.TestCase):
         lambda x, pfx, sfx: ['%s-%s-%s' % (pfx, x, sfx)],
         prefix, sfx=AsSingleton(suffix))
     assert_that(result, equal_to(['zyx-%s-xyz' % x for x in words_list]))
-    pipeline.run()
+    pipeline.run().wait_until_finish()
 
   @attr('ValidatesRunner')
   def test_par_do_with_do_fn_object(self):
@@ -123,7 +123,7 @@ class DataflowTest(unittest.TestCase):
     result = words | 'DecorateWordsDoFn' >> ParDo(
         SomeDoFn(), prefix, suffix=AsSingleton(suffix))
     assert_that(result, equal_to(['zyx-%s-xyz' % x for x in words_list]))
-    pipeline.run()
+    pipeline.run().wait_until_finish()
 
   @attr('ValidatesRunner')
   def test_par_do_with_multiple_outputs_and_using_yield(self):
@@ -144,7 +144,7 @@ class DataflowTest(unittest.TestCase):
     assert_that(results.main, equal_to([1, 2, 3, 4]))
     assert_that(results.odd, equal_to([1, 3]), label='assert:odd')
     assert_that(results.even, equal_to([2, 4]), label='assert:even')
-    pipeline.run()
+    pipeline.run().wait_until_finish()
 
   @attr('ValidatesRunner')
   def test_par_do_with_multiple_outputs_and_using_return(self):
@@ -161,7 +161,7 @@ class DataflowTest(unittest.TestCase):
     assert_that(results.main, equal_to([1, 2, 3, 4]))
     assert_that(results.odd, equal_to([1, 3]), label='assert:odd')
     assert_that(results.even, equal_to([2, 4]), label='assert:even')
-    pipeline.run()
+    pipeline.run().wait_until_finish()
 
   @attr('ValidatesRunner')
   def test_empty_singleton_side_input(self):
@@ -174,7 +174,7 @@ class DataflowTest(unittest.TestCase):
       return [(k, v)]
     result = pcol | 'compute' >> FlatMap(my_fn, AsSingleton(side))
     assert_that(result, equal_to([(1, 'empty'), (2, 'empty')]))
-    pipeline.run()
+    pipeline.run().wait_until_finish()
 
   # @attr('ValidatesRunner')
   # TODO(BEAM-1124): Temporarily disable it due to test failed running on
@@ -185,7 +185,7 @@ class DataflowTest(unittest.TestCase):
     side = pipeline | 'side' >> Create([3, 4])  # 2 values in side input.
     pcol | 'compute' >> FlatMap(lambda x, s: [x * s], AsSingleton(side))  # pylint: disable=expression-not-assigned
     with self.assertRaises(ValueError):
-      pipeline.run()
+      pipeline.run().wait_until_finish()
 
   @attr('ValidatesRunner')
   def test_default_value_singleton_side_input(self):
@@ -194,7 +194,7 @@ class DataflowTest(unittest.TestCase):
     side = pipeline | 'side' >> Create([])  # 0 values in side input.
     result = pcol | FlatMap(lambda x, s: [x * s], AsSingleton(side, 10))
     assert_that(result, equal_to([10, 20]))
-    pipeline.run()
+    pipeline.run().wait_until_finish()
 
   @attr('ValidatesRunner')
   def test_iterable_side_input(self):
@@ -204,7 +204,7 @@ class DataflowTest(unittest.TestCase):
     result = pcol | FlatMap('compute',
                             lambda x, s: [x * y for y in s], AllOf(side))
     assert_that(result, equal_to([3, 4, 6, 8]))
-    pipeline.run()
+    pipeline.run().wait_until_finish()
 
   @attr('ValidatesRunner')
   def test_undeclared_side_outputs(self):
@@ -217,7 +217,7 @@ class DataflowTest(unittest.TestCase):
     assert_that(results[None], equal_to([1, 2, 3, 4]))
     assert_that(results.odd, equal_to([1, 3]), label='assert:odd')
     assert_that(results.even, equal_to([2, 4]), label='assert:even')
-    pipeline.run()
+    pipeline.run().wait_until_finish()
 
   @attr('ValidatesRunner')
   def test_empty_side_outputs(self):
@@ -230,7 +230,7 @@ class DataflowTest(unittest.TestCase):
     assert_that(results[None], equal_to([1, 3, 5]))
     assert_that(results.odd, equal_to([1, 3, 5]), label='assert:odd')
     assert_that(results.even, equal_to([]), label='assert:even')
-    pipeline.run()
+    pipeline.run().wait_until_finish()
 
   @attr('ValidatesRunner')
   def test_as_list_and_as_dict_side_inputs(self):
@@ -254,7 +254,7 @@ class DataflowTest(unittest.TestCase):
       return match
 
     assert_that(results, matcher(1, a_list, some_pairs))
-    pipeline.run()
+    pipeline.run().wait_until_finish()
 
   @attr('ValidatesRunner')
   def test_as_singleton_without_unique_labels(self):
@@ -278,7 +278,7 @@ class DataflowTest(unittest.TestCase):
       return match
 
     assert_that(results, matcher(1, 2))
-    pipeline.run()
+    pipeline.run().wait_until_finish()
 
   @attr('ValidatesRunner')
   def test_as_singleton_with_different_defaults_without_unique_labels(self):
@@ -320,7 +320,7 @@ class DataflowTest(unittest.TestCase):
       return match
 
     assert_that(results, matcher(1, 2, 3))
-    pipeline.run()
+    pipeline.run().wait_until_finish()
 
   @attr('ValidatesRunner')
   def test_as_list_without_unique_labels(self):
@@ -344,7 +344,7 @@ class DataflowTest(unittest.TestCase):
       return match
 
     assert_that(results, matcher(1, [1, 2, 3]))
-    pipeline.run()
+    pipeline.run().wait_until_finish()
 
   @attr('ValidatesRunner')
   def test_as_list_with_unique_labels(self):
@@ -366,7 +366,7 @@ class DataflowTest(unittest.TestCase):
       return match
 
     assert_that(results, matcher(1, [1, 2, 3]))
-    pipeline.run()
+    pipeline.run().wait_until_finish()
 
   @attr('ValidatesRunner')
   def test_as_dict_with_unique_labels(self):
@@ -388,7 +388,7 @@ class DataflowTest(unittest.TestCase):
       return match
 
     assert_that(results, matcher(1, some_kvs))
-    pipeline.run()
+    pipeline.run().wait_until_finish()
 
   @attr('ValidatesRunner')
   def test_window_transform(self):
@@ -410,7 +410,7 @@ class DataflowTest(unittest.TestCase):
     assert_that(
         result, equal_to([(1, [10]), (1, [10]), (2, [20]),
                           (2, [20]), (3, [30]), (3, [30])]))
-    pipeline.run()
+    pipeline.run().wait_until_finish()
 
 
 if __name__ == '__main__':

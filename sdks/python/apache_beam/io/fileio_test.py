@@ -763,7 +763,7 @@ class TestNativeTextFileSink(unittest.TestCase):
     pipeline = beam.Pipeline('DirectRunner')
     pcoll = pipeline | beam.core.Create('Create', self.lines)
     pcoll | 'Write' >> beam.Write(fileio.NativeTextFileSink(self.path))  # pylint: disable=expression-not-assigned
-    pipeline.run()
+    pipeline.run().wait_until_finish()
 
     read_result = []
     for file_name in glob.glob(self.path + '*'):
@@ -778,7 +778,7 @@ class TestNativeTextFileSink(unittest.TestCase):
     pcoll | 'Write' >> beam.Write(  # pylint: disable=expression-not-assigned
         fileio.NativeTextFileSink(
             self.path, file_name_suffix='.gz'))
-    pipeline.run()
+    pipeline.run().wait_until_finish()
 
     read_result = []
     for file_name in glob.glob(self.path + '*'):
@@ -793,7 +793,7 @@ class TestNativeTextFileSink(unittest.TestCase):
     pcoll | 'Write' >> beam.Write(  # pylint: disable=expression-not-assigned
         fileio.NativeTextFileSink(
             self.path + '.gz', shard_name_template=''))
-    pipeline.run()
+    pipeline.run().wait_until_finish()
 
     read_result = []
     for file_name in glob.glob(self.path + '*'):
@@ -882,7 +882,7 @@ class TestFileSink(unittest.TestCase):
         temp_path, file_name_suffix='.foo', coder=coders.ToStringCoder())
     p = beam.Pipeline('DirectRunner')
     p | beam.Create([]) | beam.io.Write(sink)  # pylint: disable=expression-not-assigned
-    p.run()
+    p.run().wait_until_finish()
     self.assertEqual(
         open(temp_path + '-00000-of-00001.foo').read(), '[start][end]')
 
@@ -897,7 +897,7 @@ class TestFileSink(unittest.TestCase):
     p = beam.Pipeline('DirectRunner')
     p | beam.Create(['a', 'b']) | beam.io.Write(sink)  # pylint: disable=expression-not-assigned
 
-    p.run()
+    p.run().wait_until_finish()
 
     concat = ''.join(
         open(temp_path + '_03_%03d_.foo' % shard_num).read()

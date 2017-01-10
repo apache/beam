@@ -368,7 +368,7 @@ class TestFileBasedSource(unittest.TestCase):
     pcoll = pipeline | 'Read' >> beam.Read(LineSource(
         pattern, splittable=splittable))
     assert_that(pcoll, equal_to(expected_data))
-    pipeline.run()
+    pipeline.run().wait_until_finish()
 
   def test_source_file(self):
     file_name, expected_data = write_data(100)
@@ -410,7 +410,7 @@ class TestFileBasedSource(unittest.TestCase):
         splittable=False,
         compression_type=fileio.CompressionTypes.BZIP2))
     assert_that(pcoll, equal_to(lines))
-    pipeline.run()
+    pipeline.run().wait_until_finish()
 
   def test_read_file_gzip(self):
     _, lines = write_data(10)
@@ -425,7 +425,7 @@ class TestFileBasedSource(unittest.TestCase):
         splittable=False,
         compression_type=fileio.CompressionTypes.GZIP))
     assert_that(pcoll, equal_to(lines))
-    pipeline.run()
+    pipeline.run().wait_until_finish()
 
   def test_read_pattern_bzip2(self):
     _, lines = write_data(200)
@@ -443,7 +443,7 @@ class TestFileBasedSource(unittest.TestCase):
         splittable=False,
         compression_type=fileio.CompressionTypes.BZIP2))
     assert_that(pcoll, equal_to(lines))
-    pipeline.run()
+    pipeline.run().wait_until_finish()
 
   def test_read_pattern_gzip(self):
     _, lines = write_data(200)
@@ -462,7 +462,7 @@ class TestFileBasedSource(unittest.TestCase):
         splittable=False,
         compression_type=fileio.CompressionTypes.GZIP))
     assert_that(pcoll, equal_to(lines))
-    pipeline.run()
+    pipeline.run().wait_until_finish()
 
   def test_read_auto_single_file_bzip2(self):
     _, lines = write_data(10)
@@ -476,7 +476,7 @@ class TestFileBasedSource(unittest.TestCase):
         filename,
         compression_type=fileio.CompressionTypes.AUTO))
     assert_that(pcoll, equal_to(lines))
-    pipeline.run()
+    pipeline.run().wait_until_finish()
 
   def test_read_auto_single_file_gzip(self):
     _, lines = write_data(10)
@@ -490,7 +490,7 @@ class TestFileBasedSource(unittest.TestCase):
         filename,
         compression_type=fileio.CompressionTypes.AUTO))
     assert_that(pcoll, equal_to(lines))
-    pipeline.run()
+    pipeline.run().wait_until_finish()
 
   def test_read_auto_pattern(self):
     _, lines = write_data(200)
@@ -509,7 +509,7 @@ class TestFileBasedSource(unittest.TestCase):
         file_pattern,
         compression_type=fileio.CompressionTypes.AUTO))
     assert_that(pcoll, equal_to(lines))
-    pipeline.run()
+    pipeline.run().wait_until_finish()
 
   def test_read_auto_pattern_compressed_and_uncompressed(self):
     _, lines = write_data(200)
@@ -531,7 +531,7 @@ class TestFileBasedSource(unittest.TestCase):
         file_pattern,
         compression_type=fileio.CompressionTypes.AUTO))
     assert_that(pcoll, equal_to(lines))
-    pipeline.run()
+    pipeline.run().wait_until_finish()
 
   def test_splits_get_coder_from_fbs(self):
     class DummyCoder(object):

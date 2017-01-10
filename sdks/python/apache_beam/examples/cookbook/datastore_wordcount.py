@@ -141,7 +141,7 @@ def write_to_datastore(project, user_options, pipeline_options):
    | 'write to datastore' >> WriteToDatastore(project))
 
   # Actually run the pipeline (all operations above are deferred).
-  p.run()
+  p.run().wait_until_finish()
 
 
 def make_ancestor_query(kind, namespace, ancestor):
@@ -192,7 +192,7 @@ def read_from_datastore(project, user_options, pipeline_options):
                                           num_shards=user_options.num_shards)
 
   # Actually run the pipeline (all operations above are deferred).
-  return p.run()
+  return p.run().wait_until_finish()
 
 
 def run(argv=None):
