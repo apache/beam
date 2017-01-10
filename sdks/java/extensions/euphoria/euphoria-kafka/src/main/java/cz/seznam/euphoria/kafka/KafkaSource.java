@@ -1,8 +1,5 @@
 package cz.seznam.euphoria.kafka;
 
-import cz.seznam.euphoria.guava.shaded.com.google.common.collect.AbstractIterator;
-import cz.seznam.euphoria.guava.shaded.com.google.common.collect.Lists;
-import cz.seznam.euphoria.guava.shaded.com.google.common.collect.Sets;
 import cz.seznam.euphoria.core.client.io.DataSource;
 import cz.seznam.euphoria.core.client.io.DataSourceFactory;
 import cz.seznam.euphoria.core.client.io.Partition;
@@ -10,8 +7,13 @@ import cz.seznam.euphoria.core.client.io.Reader;
 import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.core.util.Settings;
 import cz.seznam.euphoria.core.util.URIParams;
+import cz.seznam.euphoria.guava.shaded.com.google.common.collect.AbstractIterator;
+import cz.seznam.euphoria.guava.shaded.com.google.common.collect.Lists;
+import cz.seznam.euphoria.guava.shaded.com.google.common.collect.Sets;
 import org.apache.kafka.clients.consumer.Consumer;
+import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
+import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.common.PartitionInfo;
 import org.apache.kafka.common.TopicPartition;
 import org.slf4j.Logger;
@@ -25,23 +27,17 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 import static java.util.Objects.requireNonNull;
-import java.util.UUID;
-import org.apache.kafka.clients.consumer.ConsumerConfig;
-import org.apache.kafka.clients.consumer.ConsumerRecords;
 
 public class KafkaSource implements DataSource<Pair<byte[], byte[]>> {
 
   // config options
-  public static final String CFG_READER_BATCH_SIZE = "kafka.reader.batch.size";
   public static final String CFG_RESET_OFFSET_TIMESTAMP_MILLIS = "reset.offset.timestamp.millis";
   public static final String CFG_STOP_AT_TIMESTAMP_MILLIS = "stop.at.timestamp.millis";
   public static final String CFG_SINGLE_READER_ONLY = "single.reader.only";
-
-  // config defaults
-  public static final int DEFAULT_BATCH_SIZE = 500;
 
   private static final Logger LOG = LoggerFactory.getLogger(KafkaSource.class);
 
@@ -50,19 +46,13 @@ public class KafkaSource implements DataSource<Pair<byte[], byte[]>> {
       implements Reader<Pair<byte[], byte[]>> {
     
     private final Consumer<byte[], byte[]> c;
-    private final int batchSize;
     private final long stopReadingAtStamp;
     
     private Iterator<ConsumerRecord<byte[], byte[]>> next;
     private int uncommittedCount = 0;
         
-    ConsumerReader(
-        Consumer<byte[], byte[]> c,
-        int batchSize,
-        long stopReadingAtStamp) {
-
+    ConsumerReader(Consumer<byte[], byte[]> c, long stopReadingAtStamp) {
       this.c = c;
-      this.batchSize = batchSize;
       this.stopReadingAtStamp = stopReadingAtStamp;
     }
 
@@ -70,8 +60,7 @@ public class KafkaSource implements DataSource<Pair<byte[], byte[]>> {
     protected Pair<byte[], byte[]> computeNext() {
       while (next == null || !next.hasNext()) {
         commitIfNeeded();
-        LOG.debug("Polling for next consumer records: {}", c.assignment());
-        ConsumerRecords<byte[], byte[]> polled = c.poll(batchSize);
+        ConsumerRecords<byte[], byte[]> polled = c.poll(500);
         next = polled.iterator();
       }
       ConsumerRecord<byte[], byte[]> r = this.next.next();
@@ -114,8 +103,6 @@ public class KafkaSource implements DataSource<Pair<byte[], byte[]>> {
     private final Settings config;
     private final long startOffset;
 
-    private final int batchSize;
-
     // should we stop reading when reaching the current offset?
     private final long stopReadingAtStamp;
 
@@ -134,8 +121,6 @@ public class KafkaSource implements DataSource<Pair<byte[], byte[]>> {
       this.config = config;
       this.startOffset = startOffset;
       this.stopReadingAtStamp = stopReadingAtStamp;
-      this.batchSize = readWithDefault(
-          CFG_READER_BATCH_SIZE, DEFAULT_BATCH_SIZE, config);
     }
 
     @Override
@@ -155,7 +140,7 @@ public class KafkaSource implements DataSource<Pair<byte[], byte[]>> {
       } else if (startOffset == 0) {
         c.seekToBeginning(partitionList);
       }
-      return new ConsumerReader(c, batchSize, stopReadingAtStamp);
+      return new ConsumerReader(c, stopReadingAtStamp);
     }
 
   }
@@ -166,7 +151,6 @@ public class KafkaSource implements DataSource<Pair<byte[], byte[]>> {
     private final String groupId;
     private final Settings config; // ~ optional
     private final long offsetTimestamp; // ~ effective iff > 0
-    private final int batchSize;
     private final long stopReadingAtStamp;
 
     AllPartitionsConsumer(
@@ -182,8 +166,6 @@ public class KafkaSource implements DataSource<Pair<byte[], byte[]>> {
       this.groupId = groupId;
       this.config = config;
       this.offsetTimestamp = offsetTimestamp;
-      this.batchSize = readWithDefault(
-          CFG_READER_BATCH_SIZE, DEFAULT_BATCH_SIZE, config);
       this.stopReadingAtStamp = stopReadingStamp;
     }
 
@@ -196,7 +178,7 @@ public class KafkaSource implements DataSource<Pair<byte[], byte[]>> {
     public Reader<Pair<byte[], byte[]>> openReader() throws IOException {
       Consumer<byte[], byte[]> c = KafkaUtils.newConsumer(
           brokerList, groupId, config);
-      
+
       c.assign(
           c.partitionsFor(topicId)
               .stream()
@@ -209,7 +191,7 @@ public class KafkaSource implements DataSource<Pair<byte[], byte[]>> {
           c.seek(new TopicPartition(topicId, off.getKey()), off.getValue());
         }
       }
-      return new ConsumerReader(c, batchSize, stopReadingAtStamp);
+      return new ConsumerReader(c, stopReadingAtStamp);
     }
   }
 
@@ -235,14 +217,6 @@ public class KafkaSource implements DataSource<Pair<byte[], byte[]>> {
     }
   }
 
-  private static int readWithDefault(
-      String option, int defVal, Settings config) {
-
-    if (config == null) return defVal;
-    return config.getInt(option, defVal);
-  }
-
-  
   // ~ -----------------------------------------------------------------------------
 
   private final String brokerList;
