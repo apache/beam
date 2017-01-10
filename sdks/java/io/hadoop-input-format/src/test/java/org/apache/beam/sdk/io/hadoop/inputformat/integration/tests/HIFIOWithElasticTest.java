@@ -57,12 +57,7 @@ import org.junit.runners.MethodSorters;
 @RunWith(JUnit4.class)
 @FixMethodOrder(MethodSorters.JVM)
 public class HIFIOWithElasticTest implements Serializable {
-
-  /**
-	 *
-	 */
   private static final long serialVersionUID = 1L;
-
   private static final String ELASTIC_IN_MEM_HOSTNAME = "127.0.0.1";
   private static final String ELASTIC_IN_MEM_PORT = "9200";
   private static final String ELASTIC_INTERNAL_VERSION = "5.x";
@@ -72,8 +67,8 @@ public class HIFIOWithElasticTest implements Serializable {
   private static final String ELASTIC_RESOURCE = "/" + ELASTIC_INDEX_NAME + "/" + ELASTIC_TYPE_NAME;
 
   @BeforeClass
-  public static void startServer() throws NodeValidationException, InterruptedException,
-      IOException {
+  public static void startServer()
+      throws NodeValidationException, InterruptedException, IOException {
     ElasticEmbeddedServer.startElasticEmbeddedServer();
   }
 
@@ -93,10 +88,9 @@ public class HIFIOWithElasticTest implements Serializable {
   public void testHifIOWithElasticQuery() {
     TestPipeline p = TestPipeline.create();
     Configuration conf = getConfiguration();
-    String query =
-        "{\n" + "  \"query\": {\n" + "  \"match\" : {\n" + "    \"empid\" : {\n"
-            + "      \"query\" : \"xyz22602\",\n" + "      \"type\" : \"boolean\"\n" + "    }\n"
-            + "  }\n" + "  }\n" + "}";
+    String query = "{\n" + "  \"query\": {\n" + "  \"match\" : {\n" + "    \"empid\" : {\n"
+        + "      \"query\" : \"xyz22602\",\n" + "      \"type\" : \"boolean\"\n" + "    }\n"
+        + "  }\n" + "  }\n" + "}";
     conf.set(ConfigurationOptions.ES_QUERY, query);
     PCollection<KV<Text, MapWritable>> esData =
         p.apply(HadoopInputFormatIO.<Text, MapWritable>read().withConfiguration(conf));
@@ -106,8 +100,8 @@ public class HIFIOWithElasticTest implements Serializable {
     p.run().waitUntilFinish();
   }
 
-  public static Map<String, Object> populateElasticData(String empid, String name,
-      Date joiningDate, String[] skills, String designation) {
+  public static Map<String, Object> populateElasticData(String empid, String name, Date joiningDate,
+      String[] skills, String designation) {
     Map<String, Object> data = new HashMap<String, Object>();
     data.put("empid", empid);
     data.put("name", name);
@@ -127,15 +121,13 @@ public class HIFIOWithElasticTest implements Serializable {
    *
    */
   static class ElasticEmbeddedServer implements Serializable {
-    /**
-		 *
-		 */
+
     private static final long serialVersionUID = 1L;
     private static Node node;
     private static final String DEFAULT_PATH = "target/ESData";
 
-    public static void startElasticEmbeddedServer() throws UnknownHostException,
-        NodeValidationException {
+    public static void startElasticEmbeddedServer()
+        throws UnknownHostException, NodeValidationException {
 
       Settings settings =
           Settings.builder().put("node.data", TRUE).put("network.host", ELASTIC_IN_MEM_HOSTNAME)
@@ -152,15 +144,13 @@ public class HIFIOWithElasticTest implements Serializable {
       CreateIndexRequest indexRequest = new CreateIndexRequest(ELASTIC_INDEX_NAME);
       node.client().admin().indices().create(indexRequest).actionGet();
       for (int i = 0; i < 10; i++) {
-        node.client()
-            .prepareIndex(ELASTIC_INDEX_NAME, ELASTIC_TYPE_NAME, String.valueOf(i))
-            .setSource(
-                populateElasticData("xyz2260" + i, "John Foo", new Date(), new String[] {"java"},
-                    "Software engineer")).execute();
+        node.client().prepareIndex(ELASTIC_INDEX_NAME, ELASTIC_TYPE_NAME, String.valueOf(i))
+            .setSource(populateElasticData("xyz2260" + i, "John Foo", new Date(),
+                new String[] {"java"}, "Software engineer"))
+            .execute();
       }
-      GetResponse response =
-          node.client().prepareGet(ELASTIC_INDEX_NAME, ELASTIC_TYPE_NAME, "1").execute()
-              .actionGet();
+      GetResponse response = node.client().prepareGet(ELASTIC_INDEX_NAME, ELASTIC_TYPE_NAME, "1")
+          .execute().actionGet();
 
     }
 
@@ -191,9 +181,7 @@ public class HIFIOWithElasticTest implements Serializable {
    *
    */
   static class PluginNode extends Node implements Serializable {
-    /**
-		 *
-		 */
+
     private static final long serialVersionUID = 1L;
     static Collection<Class<? extends Plugin>> list = new ArrayList<Class<? extends Plugin>>();
     static {

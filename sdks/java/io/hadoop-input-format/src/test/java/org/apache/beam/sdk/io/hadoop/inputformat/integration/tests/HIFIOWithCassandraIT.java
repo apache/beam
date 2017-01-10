@@ -1,10 +1,8 @@
 package org.apache.beam.sdk.io.hadoop.inputformat.integration.tests;
 
-import com.datastax.driver.core.Cluster;
-import com.datastax.driver.core.Row;
-import com.datastax.driver.core.Session;
-import com.datastax.driver.mapping.annotations.Column;
-import com.datastax.driver.mapping.annotations.Table;
+import java.io.Serializable;
+import java.util.Arrays;
+import java.util.List;
 
 import org.apache.beam.sdk.io.hadoop.inputformat.HadoopInputFormatIO;
 import org.apache.beam.sdk.testing.PAssert;
@@ -25,9 +23,11 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-import java.io.Serializable;
-import java.util.Arrays;
-import java.util.List;
+import com.datastax.driver.core.Cluster;
+import com.datastax.driver.core.Row;
+import com.datastax.driver.core.Session;
+import com.datastax.driver.mapping.annotations.Column;
+import com.datastax.driver.mapping.annotations.Table;
 
 @RunWith(JUnit4.class)
 public class HIFIOWithCassandraIT implements Serializable {
@@ -87,8 +87,6 @@ public class HIFIOWithCassandraIT implements Serializable {
     List<KV<Long, String>> expectedResults =
         Arrays.asList(KV.of(2L, "John Foo"), KV.of(1L, "David Bar"));
     PAssert.that(cassandraData).containsInAnyOrder(expectedResults);
-    // EmbeddedCassandraServerHelper.startEmbeddedCassandra("/cassandra.yaml","target/cassandra",
-    // 300000);
     p.run();
   }
 

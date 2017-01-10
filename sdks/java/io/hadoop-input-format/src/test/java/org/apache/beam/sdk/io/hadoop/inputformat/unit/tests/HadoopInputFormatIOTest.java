@@ -5,7 +5,7 @@
  * "License"); you may not use this file except in compliance with the License. You may obtain a
  * copy of the License at
  *
- * http://www.apache.org/licenses/LICENSE-2.0
+ * http:www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software distributed under the License
  * is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express
@@ -73,7 +73,7 @@ public class HadoopInputFormatIOTest {
   public final transient TestPipeline p = TestPipeline.create();
   @Rule
   public ExpectedException thrown = ExpectedException.none();
-  
+
   private PBegin input = PBegin.in(p);
 
   @BeforeClass
@@ -139,10 +139,10 @@ public class HadoopInputFormatIOTest {
         hasDisplayItem("ValueTranslationSimpleFunction", myValueTranslate.toString()));
   }
 
-  // This test validates Read transform object creation if only withConfiguration() is called with
-  // null value.
-  // withConfiguration() checks configuration is null or not and throws exception if null value is
-  // send to withConfiguration().
+  /**
+   * This test validates Read transform object creation fails with null configuration.
+   * withConfiguration() method checks configuration is null and throws exception if it is null.
+   */
   @Test
   public void testReadObjectCreationFailsIfConfigurationIsNull() {
     thrown.expect(NullPointerException.class);
@@ -150,7 +150,9 @@ public class HadoopInputFormatIOTest {
     HadoopInputFormatIO.<Text, Employee>read().withConfiguration(null);
   }
 
-  // This test validates Read transform object creation if only withConfiguration() is called.
+  /**
+   * This test validates Read transform object creation with only configuration.
+   */
   @Test
   public void testReadObjectCreationWithConfiguration() {
     HadoopInputFormatIO.Read<Text, Employee> read =
@@ -166,10 +168,11 @@ public class HadoopInputFormatIOTest {
 
   }
 
-  // This test validates behavior Read transform object creation if withConfiguration() and
-  // withKeyTranslation() are called and null value is passed to kayTranslation.
-  // withKeyTranslation() checks keyTranslation is null or not and throws exception if null value is
-  // send to withKeyTranslation().
+  /**
+   * This test validates Read transform object creation fails with configuration and null key
+   * translation. withKeyTranslation() checks keyTranslation is null and throws exception if it null
+   * value is passed.
+   */
   @Test
   public void testReadObjectCreationFailsIfKeyTranslationFunctionIsNull() {
     thrown.expect(NullPointerException.class);
@@ -178,8 +181,9 @@ public class HadoopInputFormatIOTest {
         .withKeyTranslation(null);
   }
 
-  // This test validates Read transform object creation if withConfiguration() and
-  // withKeyTranslation() are called.
+  /**
+   * This test validates Read transform object creation with configuration and key translation.
+   */
   @Test
   public void testReadObjectCreationWithConfigurationKeyTranslation() {
     HadoopInputFormatIO.Read<String, Employee> read = HadoopInputFormatIO.<String, Employee>read()
@@ -194,10 +198,11 @@ public class HadoopInputFormatIOTest {
         read.getValueClass().getRawType());
   }
 
-  // This test validates behaviour Read transform object creation if withConfiguration() and
-  // withValueTranslation() are called and null value is passed to valueTranslation.
-  // withValueTranslation() checks valueTranslation is null or not and throws exception if null
-  // value is send to withValueTranslation().
+  /**
+   * This test validates Read transform object creation fails with configuration and null value
+   * translation. withValueTranslation() checks valueTranslation is null and throws exception if
+   * null value is passed.
+   */
   @Test
   public void testReadObjectCreationFailsIfValueTranslationFunctionIsNull() {
     thrown.expect(NullPointerException.class);
@@ -207,8 +212,9 @@ public class HadoopInputFormatIOTest {
 
   }
 
-  // This test validates Read transform object creation if withConfiguration() and
-  // withValueTranslation() are called.
+  /**
+   * This test validates Read transform object creation with configuration and value translation.
+   */
   @Test
   public void testReadObjectCreationWithConfigurationValueTranslation() {
     HadoopInputFormatIO.Read<Text, String> read = HadoopInputFormatIO.<Text, String>read()
@@ -223,8 +229,10 @@ public class HadoopInputFormatIOTest {
         read.getValueClass().getRawType());
   }
 
-  // This test validates Read transform object creation if withConfiguration() ,
-  // withKeyTranslation() and withValueTranslation() are called.
+  /**
+   * This test validates Read transform object creation with configuration , key translation and
+   * value translation.
+   */
   @Test
   public void testReadObjectCreationWithConfigurationKeyTranslationValueTranslation() {
     HadoopInputFormatIO.Read<String, String> read =
@@ -240,8 +248,10 @@ public class HadoopInputFormatIOTest {
         read.getValueClass().getRawType());
   }
 
-  /// This test validates functionality of Read.validate() function when Read transform is created
-  /// without calling withConfiguration().
+  /**
+   * This test validates functionality of Read.validate() function when Read transform is created
+   * without calling withConfiguration().
+   */
   @Test
   public void testReadValidationFailsMissingConfiguration() {
     HadoopInputFormatIO.Read<String, String> read = HadoopInputFormatIO.<String, String>read();
@@ -251,8 +261,10 @@ public class HadoopInputFormatIOTest {
     read.validate(input);
   }
 
-  // This test validates functionality of Read.validate() function when Hadoop InputFormat class is
-  // not provided by user in configuration.
+  /**
+   * This test validates functionality of Read.validate() function when Hadoop InputFormat class is
+   * not provided by the user in configuration.
+   */
   @Test
   public void testReadValidationFailsMissingInputFormatInConf() {
     Configuration configuration = new Configuration();
@@ -266,8 +278,10 @@ public class HadoopInputFormatIOTest {
     read.validate(input);
   }
 
-  // This test validates functionality of Read.validate() function when key class is not provided by
-  // user in configuration.
+  /**
+   * This test validates functionality of Read.validate() function when key class is not provided by
+   * the user in configuration.
+   */
   @Test
   public void testReadValidationFailsMissingKeyClassInConf() {
     Configuration configuration = new Configuration();
@@ -281,8 +295,10 @@ public class HadoopInputFormatIOTest {
     read.validate(input);
   }
 
-  // This test validates functionality of Read.validate() function when value class is not provided
-  // by user in configuration.
+  /**
+   * This test validates functionality of Read.validate() function when value class is not provided
+   * by the user in configuration.
+   */
   @Test
   public void testReadValidationFailsMissingValueClassInConf() {
     Configuration configuration = new Configuration();
@@ -297,10 +313,11 @@ public class HadoopInputFormatIOTest {
 
   }
 
-  // This test validates functionality of Read.validate() function when myKeyTranslate's (simple
-  // function provided by user for key translation)
-  // input type is not same as hadoop input format's keyClass(Which is property set in configuration
-  // as "key.class").
+  /**
+   * This test validates functionality of Read.validate() function when myKeyTranslate's (simple
+   * function provided by user for key translation) input type is not same as hadoop input format's
+   * keyClass(Which is property set in configuration as "key.class").
+   */
   @Test
   public void testReadValidationFailsWithWrongInputTypeKeyTranslationFunction() {
     SimpleFunction<LongWritable, String> myKeyTranslateWithWrongInputType =
@@ -325,10 +342,11 @@ public class HadoopInputFormatIOTest {
 
   }
 
-  // This test validates functionality of Read.validate() function when myValueTranslate's (simple
-  // function provided by user for value translation)
-  // input type is not same as hadoop input format's valueClass(Which is property set in
-  // configuration as "value.class").
+  /**
+   * This test validates functionality of Read.validate() function when myValueTranslate's (simple
+   * function provided by user for value translation) input type is not same as hadoop input
+   * format's valueClass(Which is property set in configuration as "value.class").
+   */
   @Test
   public void testReadValidationFailsWithWrongInputTypeValueTranslationFunction() {
     SimpleFunction<LongWritable, String> myValueTranslateWithWrongInputType =
@@ -361,10 +379,12 @@ public class HadoopInputFormatIOTest {
     PCollection<KV<Text, Employee>> actual = p.apply("ReadTest", read);
     PAssert.that(actual).containsInAnyOrder(expected);
     p.run();
-   }
+  }
 
-  // This test validates behavior HadoopInputFormatSource if RecordReader object creation fails in
-  // start() method.
+  /**
+   * This test validates behaviour of HadoopInputFormatSource if RecordReader object creation fails
+   * in start() method.
+   */
   @Test
   public void testReadersStartIfCreateRecordReaderFails() throws Exception {
     long inputDataSize = 9L;
@@ -390,9 +410,10 @@ public class HadoopInputFormatIOTest {
     }
   }
 
-  // This test validate's createReader() and start() methods.
-  // This test validates behaviour of createReader() and start() method if InputFormat's getSplits()
-  // returns InputSplitList having having no records.
+  /**
+   * This test validates behaviour of createReader() and start() methods if InputFormat's getSplits()
+   * returns InputSplitList having having no records.
+   */
   @Test
   public void testReadersCreateReaderAndStartWithZeroRecords() throws Exception {
     long inputDataSize = 9L;
@@ -414,7 +435,7 @@ public class HadoopInputFormatIOTest {
       assertEquals(false, reader.start());
     }
   }
-
+  
   @Test
   public void testReadersGetFractionConsumed() throws Exception {
     long inputDataSize = 9L;
@@ -459,7 +480,9 @@ public class HadoopInputFormatIOTest {
     assertThat(bundleRecords, containsInAnyOrder(referenceRecords.toArray()));
   }
 
-  // Validate that the Reader and its parent source reads the same records.
+  /**
+   * This test validates that Reader and its parent source reads the same records.
+   */
   @Test
   public void testReaderAndParentSourceReadsSameData() throws Exception {
     HadoopInputFormatBoundedSource<String, String> parentHIFSource =
@@ -474,8 +497,10 @@ public class HadoopInputFormatIOTest {
     }
   }
 
-  // This test verifies that the method HadoopInputFormatReader.getCurrentSource() returns correct
-  // source object.
+  /**
+   * This test verifies that the method HadoopInputFormatReader.getCurrentSource() returns correct
+   * source object.
+   */
   @Test
   public void testGetCurrentSourceFunc() throws Exception {
     HadoopInputFormatBoundedSource<String, String> parentHIFSource =
@@ -491,8 +516,10 @@ public class HadoopInputFormatIOTest {
     }
   }
 
-  // This test validates behavior of HadoopInputFormatSource.createReader() method when
-  // HadoopInputFormatSource.splitIntoBundles() is not called.
+  /**
+   * This test validates behavior of HadoopInputFormatSource.createReader() method when
+   * HadoopInputFormatSource.splitIntoBundles() is not called.
+   */
   @Test
   public void testCreateReaderIfSplitIntoBundlesNotCalled() throws Exception {
     HadoopInputFormatBoundedSource<String, String> parentHIFSource =
@@ -503,8 +530,10 @@ public class HadoopInputFormatIOTest {
     parentHIFSource.createReader(p.getOptions());
   }
 
-  // This test validates behavior of getEstimatedSizeBytes() and splitIntoBundles() when Hadoop
-  // InputFormat's getSplits() returns empty list.
+  /**
+   * This test validates behavior of getEstimatedSizeBytes() and splitIntoBundles() when Hadoop
+   * InputFormat's getSplits() returns empty list.
+   */
   @Test
   public void testSplitIntoBundlesIfGetSplitsReturnsEmptyList() throws Exception {
     SerializableConfiguration serConf =
@@ -520,8 +549,10 @@ public class HadoopInputFormatIOTest {
     parentHIFSource.splitIntoBundles(0, p.getOptions());
   }
 
-  // This test validates behavior of getEstimatedSizeBytes() and splitIntoBundles() when Hadoop
-  // InputFormat's getSplits() returns NULL value.
+  /**
+   * This test validates behavior of getEstimatedSizeBytes() and splitIntoBundles() when Hadoop
+   * InputFormat's getSplits() returns NULL value.
+   */
   @Test
   public void testSplitIntoBundlesIfGetSplitsReturnsNullValue() throws Exception {
     SerializableConfiguration serConf = getConfiguration(BadNullSplitsEmpInputFormat.class,
@@ -538,8 +569,10 @@ public class HadoopInputFormatIOTest {
     parentHIFSource.splitIntoBundles(0, p.getOptions());
   }
 
-  // This test validates functionality of HadoopInputFormatIO if user sets wrong key class and value
-  // class.
+  /**
+   * This test validates functionality of HadoopInputFormatIO if user sets wrong key class and value
+   * class.
+   */
   @Test
   public void testHIFSourceIfUserSetsWrongKeyOrValueClass() throws Exception {
     SerializableConfiguration serConf =
@@ -557,9 +590,10 @@ public class HadoopInputFormatIOTest {
     }
   }
 
-  // This test validates records emitted in PCollection are immutable
-  // if InputFormat's recordReader returns same objects(i.e. same locations in memory) but with
-  // updated values for each record.
+  /**
+   * This test validates records emitted in PCollection are immutable if InputFormat's recordReader
+   * returns same objects(i.e. same locations in memory) but with updated values for each record.
+   */
   @Test
   public void testImmutablityOfOutputOfReadIfRecordReaderObjectsAreMutable() throws Exception {
     SerializableConfiguration serConf =
@@ -578,8 +612,10 @@ public class HadoopInputFormatIOTest {
     assertThat(bundleRecords, containsInAnyOrder(referenceRecords.toArray()));
   }
 
-  // This test validates records emitted in Pcollection are immutable
-  // if InputFormat's recordReader returns different objects (i.e. different locations in memory)
+  /**
+   * This test validates records emitted in Pcollection are immutable if InputFormat's recordReader
+   * returns different objects (i.e. different locations in memory)
+   */
   @Test
   public void testImmutablityOfOutputOfReadIfRecordReaderObjectsAreImmutable() throws Exception {
     SerializableConfiguration serConf =
@@ -597,7 +633,8 @@ public class HadoopInputFormatIOTest {
     List<KV<Text, Employee>> referenceRecords = getEmployeeData();
     assertThat(bundleRecords, containsInAnyOrder(referenceRecords.toArray()));
   }
-
+  
+  /** Helper function to get sample employee data */
   private List<KV<Text, Employee>> getEmployeeData() {
     List<KV<Text, Employee>> data = new ArrayList<KV<Text, Employee>>();
     data.add(KV.of(new Text("0"), new Employee("Alex", "US")));
