@@ -29,7 +29,9 @@ import org.apache.hadoop.mapreduce.JobContext;
 import org.apache.hadoop.mapreduce.RecordReader;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
 
-// Bad input format which returns no records in nextKeyValue() method of RecordReader.
+/**
+ *  Bad input format which returns no records in nextKeyValue() method of RecordReader.
+ */
 public class BadNoRecordsEmpInputFormat extends InputFormat<Text, Employee> {
   private final long numberOfRecordsInEachSplit = 3L;
   private final long numberOfSplits = 3L;
@@ -64,7 +66,9 @@ public class BadNoRecordsEmpInputFormat extends InputFormat<Text, Employee> {
       this.endIndex = endIndex;
     }
 
-    // returns number of records in each split
+    /**
+     * returns number of records in each split
+     */
     @Override
     public long getLength() throws IOException, InterruptedException {
       return this.endIndex - this.startIndex;
@@ -134,7 +138,9 @@ public class BadNoRecordsEmpInputFormat extends InputFormat<Text, Employee> {
       recordsRead = 0;
     }
 
-    // As dataHmap contains no data nextKeyValue() will return false for first record.
+    /**
+     *  As dataHmap contains no data nextKeyValue() will return false for first record.
+     */
     @Override
     public boolean nextKeyValue() throws IOException, InterruptedException {
       if ((recordsRead++) == split.getLength()) {

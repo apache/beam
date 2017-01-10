@@ -542,10 +542,10 @@ public class HadoopInputFormatIOTest {
         new HadoopInputFormatBoundedSource<Text, Employee>(serConf, WritableCoder.of(Text.class),
             AvroCoder.of(Employee.class));
     thrown.expect(IOException.class);
-    thrown.expectMessage("Cannot split the source as getSplits() is returning empty list.");
+    thrown.expectMessage("Error in computing splits, getSplits() returns a null list");
     parentHIFSource.getEstimatedSizeBytes(p.getOptions());
     thrown.expect(IOException.class);
-    thrown.expectMessage("Cannot split the source as getSplits() is returning empty list.");
+    thrown.expectMessage("Error in computing splits, getSplits() returns a null list");
     parentHIFSource.splitIntoBundles(0, p.getOptions());
   }
 
@@ -561,11 +561,11 @@ public class HadoopInputFormatIOTest {
         new HadoopInputFormatBoundedSource<Text, Employee>(serConf, WritableCoder.of(Text.class),
             AvroCoder.of(Employee.class));
     thrown.expect(IOException.class);
-    thrown.expectMessage("Cannot split the source as getSplits() is returning null value.");
+    thrown.expectMessage("Error in computing splits, getSplits() returns null");
     parentHIFSource.getEstimatedSizeBytes(p.getOptions());
 
     thrown.expect(IOException.class);
-    thrown.expectMessage("Cannot split the source as getSplits() is returning null value.");
+    thrown.expectMessage("Error in computing splits, getSplits() returns null");
     parentHIFSource.splitIntoBundles(0, p.getOptions());
   }
 

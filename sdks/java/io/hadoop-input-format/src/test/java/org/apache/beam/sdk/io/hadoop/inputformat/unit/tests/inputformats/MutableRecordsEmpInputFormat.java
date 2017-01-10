@@ -63,7 +63,9 @@ public class MutableRecordsEmpInputFormat extends InputFormat<Text, Employee> {
       this.endIndex = endIndex;
     }
 
-    // returns number of records in each split
+    /**
+     *  returns number of records in each split
+     */
     @Override
     public long getLength() throws IOException, InterruptedException {
       return this.endIndex - this.startIndex;

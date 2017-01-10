@@ -63,7 +63,9 @@ public class EmployeeInputFormat extends InputFormat<Text, Employee> {
       this.endIndex = endIndex;
     }
 
-    // Returns number of records in each split.
+    /**
+     *  Returns number of records in each split.
+     */
     @Override
     public long getLength() throws IOException, InterruptedException {
       return this.endIndex - this.startIndex;

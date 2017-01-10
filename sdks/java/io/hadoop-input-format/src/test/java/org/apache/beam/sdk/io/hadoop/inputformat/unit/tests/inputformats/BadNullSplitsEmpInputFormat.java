@@ -28,7 +28,9 @@ import org.apache.hadoop.mapreduce.JobContext;
 import org.apache.hadoop.mapreduce.RecordReader;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
 
-// Bad input format which returns null in getSplits() method
+/**
+ *  Bad input format which returns null in getSplits() method
+ */
 public class BadNullSplitsEmpInputFormat extends InputFormat<Text, Employee> {
 
   public BadNullSplitsEmpInputFormat() {}

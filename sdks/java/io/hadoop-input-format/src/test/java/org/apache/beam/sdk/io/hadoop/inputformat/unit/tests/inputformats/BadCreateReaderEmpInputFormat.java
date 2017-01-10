@@ -29,10 +29,12 @@ import org.apache.hadoop.mapreduce.JobContext;
 import org.apache.hadoop.mapreduce.RecordReader;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
 
-// Throws exception when createRecordReader is called
+/**
+ * Throws exception when createRecordReader is called.
+ */
 public class BadCreateReaderEmpInputFormat extends InputFormat<Text, Employee> {
-  private final long numberOfRecordsInEachSplit = 3L;
-  private final long numberOfSplits = 3L;
+  private static final long numberOfRecordsInEachSplit = 3L;
+  private static final long numberOfSplits = 3L;
 
   public BadCreateReaderEmpInputFormat() {}
 
@@ -65,7 +67,9 @@ public class BadCreateReaderEmpInputFormat extends InputFormat<Text, Employee> {
       this.endIndex = endIndex;
     }
 
-    // Returns number of records in each split.
+    /**
+     *  Returns number of records in each split.
+     */
     @Override
     public long getLength() throws IOException, InterruptedException {
       return this.endIndex - this.startIndex;

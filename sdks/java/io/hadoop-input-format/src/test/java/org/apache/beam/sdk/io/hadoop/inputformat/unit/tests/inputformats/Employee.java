@@ -8,7 +8,9 @@ public class Employee {
   private String empAddress;
   private String empName;
 
-  // Empty constructor required for Avro decoding.
+  /**
+   *  Empty constructor required for Avro decoding.
+   */
   public Employee() {}
 
   public Employee(String empName, String empAddress) {
