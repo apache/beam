@@ -157,7 +157,7 @@ class DistributionCell(Distribution, MetricCell):
   """
   def __init__(self, *args):
     super(DistributionCell, self).__init__(*args)
-    self.data = DistributionData(0, 0, None, None)
+    self.data = DistributionData(0, 0, None, None, 0)
 
   def combine(self, other):
     result = DistributionCell()
@@ -179,6 +179,7 @@ class DistributionCell(Distribution, MetricCell):
     self.data.max = (value
                      if self.data.max is None or self.data.max < value
                      else self.data.max)
+    self.data.sum_of_squares += value*value
 
   def get_cumulative(self):
     with self._lock:
@@ -211,6 +212,10 @@ class DistributionResult(object):
     return self.data.sum
 
   @property
+  def sum_of_squares(self):
+    return self.data.sum_of_squares
+
+  @property
   def mean(self):
     """Returns the float mean of the distribution.
 
@@ -230,29 +235,33 @@ class DistributionData(object):
   This object is not thread safe, so it's not supposed to be modified
   by other than the DistributionCell that contains it.
   """
-  def __init__(self, sum, count, min, max):
+  def __init__(self, sum, count, min, max, sum_of_squares):
     self.sum = sum
     self.count = count
     self.min = min
     self.max = max
+    self.sum_of_squares = sum_of_squares
 
   def __eq__(self, other):
     return (self.sum == other.sum and
             self.count == other.count and
             self.min == other.min and
-            self.max == other.max)
+            self.max == other.max and
+            self.sum_of_squares == other.sum_of_squares)
 
   def __neq__(self, other):
     return not self.__eq__(other)
 
   def __repr__(self):
-    return '<DistributionData({}, {}, {}, {})>'.format(self.sum,
-                                                       self.count,
-                                                       self.min,
-                                                       self.max)
+    return '<DistributionData({}, {}, {}, {}, {})>'.format(self.sum,
+                                                           self.count,
+                                                           self.min,
+                                                           self.max,
+                                                           self.sum_of_squares)
 
   def get_cumulative(self):
-    return DistributionData(self.sum, self.count, self.min, self.max)
+    return DistributionData(self.sum, self.count, self.min,
+                            self.max, self.sum_of_squares)
 
   def combine(self, other):
     if other is None:
@@ -266,11 +275,12 @@ class DistributionData(object):
           self.sum + other.sum,
           self.count + other.count,
           new_min,
-          new_max)
+          new_max,
+          self.sum_of_squares + other.sum_of_squares)
 
   @classmethod
   def singleton(cls, value):
-    return DistributionData(value, 1, value, value)
+    return DistributionData(value, 1, value, value, value*value)
 
 
 class MetricAggregator(object):
@@ -306,7 +316,7 @@ class DistributionAggregator(MetricAggregator):
   Values aggregated should be ``DistributionData`` objects.
   """
   def zero(self):
-    return DistributionData(0, 0, None, None)
+    return DistributionData(0, 0, None, None, 0)
 
   def combine(self, x, y):
     return x.combine(y)

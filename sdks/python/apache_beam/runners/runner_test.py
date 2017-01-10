@@ -175,8 +175,8 @@ class RunnerTest(unittest.TestCase):
         hc.contains_inanyorder(
             MetricResult(
                 MetricKey('do', MetricName(namespace, 'element-dist')),
-                DistributionResult(DistributionData(15, 5, 1, 5)),
-                DistributionResult(DistributionData(15, 5, 1, 5)))))
+                DistributionResult(DistributionData(15, 5, 1, 5, 55)),
+                DistributionResult(DistributionData(15, 5, 1, 5, 55)))))
 
   def test_no_group_by_key_directly_after_bigquery(self):
     remote_runner = DataflowRunner()

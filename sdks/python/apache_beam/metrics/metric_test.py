@@ -78,7 +78,7 @@ class MetricsTest(unittest.TestCase):
         7)
     self.assertEqual(
         container.distributions[MetricName(distro_ns, name)].get_cumulative(),
-        DistributionData(12, 2, 2, 10))
+        DistributionData(12, 2, 2, 10, 104))
 
 
 if __name__ == '__main__':

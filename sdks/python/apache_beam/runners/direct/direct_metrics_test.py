@@ -45,9 +45,9 @@ class DirectMetricsTest(unittest.TestCase):
       counter.commit_logical(self.bundle1, None)
 
     distribution = metrics._distributions['anykey']
-    distribution.commit_logical(self.bundle1, DistributionData(4, 1, 4, 4))
+    distribution.commit_logical(self.bundle1, DistributionData(4, 1, 4, 4, 16))
     self.assertEqual(distribution.extract_committed(),
-                     DistributionResult(DistributionData(4, 1, 4, 4)))
+                     DistributionResult(DistributionData(4, 1, 4, 4, 16)))
 
     with self.assertRaises(AttributeError):
       distribution.commit_logical(self.bundle1, None)
@@ -60,7 +60,8 @@ class DirectMetricsTest(unittest.TestCase):
             counters={MetricKey('step1', self.name1): 5,
                       MetricKey('step1', self.name2): 8},
             distributions={
-                MetricKey('step1', self.name1): DistributionData(8, 2, 3, 5)}))
+                MetricKey('step1', self.name1): DistributionData(8, 2, 3,
+                                                                 5, 34)}))
 
     metrics.commit_logical(
         self.bundle1,
@@ -68,7 +69,8 @@ class DirectMetricsTest(unittest.TestCase):
             counters={MetricKey('step2', self.name1): 7,
                       MetricKey('step1', self.name2): 4},
             distributions={
-                MetricKey('step1', self.name1): DistributionData(4, 1, 4, 4)}))
+                MetricKey('step1', self.name1): DistributionData(4, 1, 4,
+                                                                 4, 16)}))
 
     results = metrics.query()
     hc.assert_that(
@@ -82,9 +84,9 @@ class DirectMetricsTest(unittest.TestCase):
         hc.contains_inanyorder(
             MetricResult(MetricKey('step1', self.name1),
                          DistributionResult(
-                             DistributionData(12, 3, 3, 5)),
+                             DistributionData(12, 3, 3, 5, 50)),
                          DistributionResult(
-                             DistributionData(0, 0, None, None)))))
+                             DistributionData(0, 0, None, None, 0)))))
 
   def test_apply_physical_no_filter(self):
     metrics = DirectMetrics()
@@ -114,7 +116,7 @@ class DirectMetricsTest(unittest.TestCase):
 
   def test_apply_physical_logical(self):
     metrics = DirectMetrics()
-    dist_zero = DistributionData(0, 0, None, None)
+    dist_zero = DistributionData(0, 0, None, None, 0)
     metrics.update_physical(
         object(),
         MetricUpdates(
@@ -122,9 +124,9 @@ class DirectMetricsTest(unittest.TestCase):
                       MetricKey('step1', self.name2): 5,
                       MetricKey('step2', self.name1): 1},
             distributions={MetricKey('step1', self.name1):
-                           DistributionData(3, 1, 3, 3),
+                           DistributionData(3, 1, 3, 3, 9),
                            MetricKey('step2', self.name3):
-                           DistributionData(8, 2, 4, 4)}))
+                           DistributionData(8, 2, 4, 4, 32)}))
     results = metrics.query()
     hc.assert_that(results['counters'],
                    hc.contains_inanyorder(*[
@@ -136,11 +138,12 @@ class DirectMetricsTest(unittest.TestCase):
                        MetricResult(
                            MetricKey('step1', self.name1),
                            DistributionResult(dist_zero),
-                           DistributionResult(DistributionData(3, 1, 3, 3))),
+                           DistributionResult(DistributionData(3, 1, 3, 3, 9))),
                        MetricResult(
                            MetricKey('step2', self.name3),
                            DistributionResult(dist_zero),
-                           DistributionResult(DistributionData(8, 2, 4, 4)))]))
+                           DistributionResult(
+                               DistributionData(8, 2, 4, 4, 32)))]))
 
     metrics.commit_physical(
         object(),
@@ -148,9 +151,9 @@ class DirectMetricsTest(unittest.TestCase):
             counters={MetricKey('step1', self.name1): -3,
                       MetricKey('step2', self.name1): -5},
             distributions={MetricKey('step1', self.name1):
-                           DistributionData(8, 4, 1, 5),
+                           DistributionData(8, 4, 1, 5, 28),
                            MetricKey('step2', self.name2):
-                           DistributionData(8, 8, 1, 1)}))
+                           DistributionData(8, 8, 1, 1, 8)}))
     results = metrics.query()
     hc.assert_that(results['counters'],
                    hc.contains_inanyorder(*[
@@ -162,15 +165,18 @@ class DirectMetricsTest(unittest.TestCase):
                        MetricResult(
                            MetricKey('step1', self.name1),
                            DistributionResult(dist_zero),
-                           DistributionResult(DistributionData(11, 5, 1, 5))),
+                           DistributionResult(
+                               DistributionData(11, 5, 1, 5, 37))),
                        MetricResult(
                            MetricKey('step2', self.name3),
                            DistributionResult(dist_zero),
-                           DistributionResult(DistributionData(8, 2, 4, 4))),
+                           DistributionResult(
+                               DistributionData(8, 2, 4, 4, 32))),
                        MetricResult(
                            MetricKey('step2', self.name2),
                            DistributionResult(dist_zero),
-                           DistributionResult(DistributionData(8, 8, 1, 1)))]))
+                           DistributionResult(
+                               DistributionData(8, 8, 1, 1, 8)))]))
 
     metrics.commit_logical(
         object(),
@@ -179,11 +185,11 @@ class DirectMetricsTest(unittest.TestCase):
                       MetricKey('step1', self.name2): 5,
                       MetricKey('step2', self.name1): -3},
             distributions={MetricKey('step1', self.name1):
-                           DistributionData(11, 5, 1, 5),
+                           DistributionData(11, 5, 1, 5, 37),
                            MetricKey('step2', self.name2):
-                           DistributionData(8, 8, 1, 1),
+                           DistributionData(8, 8, 1, 1, 8),
                            MetricKey('step2', self.name3):
-                           DistributionData(4, 1, 4, 4)}))
+                           DistributionData(4, 1, 4, 4, 16)}))
 
     results = metrics.query()
     hc.assert_that(results['counters'],
@@ -195,16 +201,22 @@ class DirectMetricsTest(unittest.TestCase):
                    hc.contains_inanyorder(*[
                        MetricResult(
                            MetricKey('step1', self.name1),
-                           DistributionResult(DistributionData(11, 5, 1, 5)),
-                           DistributionResult(DistributionData(11, 5, 1, 5))),
+                           DistributionResult(
+                               DistributionData(11, 5, 1, 5, 37)),
+                           DistributionResult(
+                               DistributionData(11, 5, 1, 5, 37))),
                        MetricResult(
                            MetricKey('step2', self.name3),
-                           DistributionResult(DistributionData(4, 1, 4, 4)),
-                           DistributionResult(DistributionData(8, 2, 4, 4))),
+                           DistributionResult(
+                               DistributionData(4, 1, 4, 4, 16)),
+                           DistributionResult(
+                               DistributionData(8, 2, 4, 4, 32))),
                        MetricResult(
                            MetricKey('step2', self.name2),
-                           DistributionResult(DistributionData(8, 8, 1, 1)),
-                           DistributionResult(DistributionData(8, 8, 1, 1)))]))
+                           DistributionResult(
+                               DistributionData(8, 8, 1, 1, 8)),
+                           DistributionResult(
+                               DistributionData(8, 8, 1, 1, 8)))]))
 
 
 if __name__ == '__main__':
