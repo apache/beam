@@ -6,16 +6,15 @@
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <meta name="viewport" content="width=device-width, initial-scale=1">
 
-  <title>Apache Beam</title>
-  <meta name="description" content="Apache Beam is an open source, unified model and set of language-specific SDKs for defining and executing data processing workflows, and also data ingestion and integration flows, supporting Enterprise Integration Patterns (EIPs) and Domain Specific Languages (DSLs). Dataflow pipelines simplify the mechanics of large-scale batch and streaming data processing and can run on a number of runtimes like Apache Flink, Apache Spark, and Google Cloud Dataflow (a cloud service). Beam also brings DSL in different languages, allowing users to easily implement their data integration processes.
-">
+  <title>Release 0.4.0 adds a runner for Apache Apex</title>
+  <meta name="description" content="The latest release 0.4.0 of Apache Beam adds a new runner for Apache Apex. We are excited to reach this initial milestone and are looking forward to continue...">
 
   <link rel="stylesheet" href="/styles/site.css">
   <link rel="stylesheet" href="/css/theme.css">
   <script src="https://ajax.googleapis.com/ajax/libs/jquery/2.2.0/jquery.min.js"></script>
   <script src="/js/bootstrap.min.js"></script>
   <script src="/js/language-switch.js"></script>
-  <link rel="canonical" href="http://beam.apache.org/" data-proofer-ignore>
+  <link rel="canonical" href="http://beam.apache.org/blog/2016/01/08/added-apex-runner.html" data-proofer-ignore>
   <link rel="alternate" type="application/rss+xml" title="Apache Beam" href="http://beam.apache.org/feed.xml">
   <script>
     (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
@@ -144,64 +143,50 @@
     <div class="container" role="main">
 
       <div class="row">
-        <h1 id="apache-beam">Apache Beam</h1>
+        
 
-<h4 id="apache-beam-provides-an-advanced-unified-programming-model-allowing-you-to-implement-batch-and-streaming-data-processing-jobs-that-can-run-on-any-execution-engine">Apache Beam provides an advanced unified programming model, allowing you to implement batch and streaming data processing jobs that can run on any execution engine.</h4>
+<article class="post" itemscope itemtype="http://schema.org/BlogPosting">
 
-<p>Apache Beam is:</p>
-<ul>
-  <li><strong>UNIFIED</strong> - Use a single programming model for both batch and streaming use cases.</li>
-  <li><strong>PORTABLE</strong> - Execute pipelines on multiple execution environments, including Apache Apex, Apache Flink, Apache Spark, and Google Cloud Dataflow.</li>
-  <li><strong>EXTENSIBLE</strong> - Write and share new SDKs, IO connectors, and transformation libraries.</li>
-</ul>
+  <header class="post-header">
+    <h1 class="post-title" itemprop="name headline">Release 0.4.0 adds a runner for Apache Apex</h1>
+    <p class="post-meta"><time datetime="2016-01-08T23:00:01-08:00" itemprop="datePublished">Jan 8, 2016</time> •  Thomas Weise [<a href="https://twitter.com/thweise">@thweise</a>]
+</p>
+  </header>
 
-<h2 id="get-started">Get Started</h2>
+  <div class="post-content" itemprop="articleBody">
+    <p>The latest release 0.4.0 of <a href="https://beam.apache.org">Apache Beam</a> adds a new runner for <a href="http://apex.apache.org/">Apache Apex</a>. We are excited to reach this initial milestone and are looking forward to continued collaboration between the Beam and Apex communities to advance the runner.</p>
 
-<p>To use Beam for your data processing tasks, start by reading the <a href="/get-started/beam-overview">Beam Overview</a> and performing the steps in the <a href="/get-started/quickstart">Quickstart</a>. Then dive into the <a href="/documentation/">Documentation</a> section for in-depth concepts and reference materials for the Beam model, SDKs, and runners.</p>
+<!--more-->
 
-<h2 id="contribute">Contribute</h2>
+<p>Beam evolved from the Google Dataflow SDK and as incubator project has quickly adapted the Apache way, grown the community and attracts increasing interest from users that hope to benefit from a conceptual strong unified programming model that is portable between different big data processing frameworks (see <a href="https://www.oreilly.com/ideas/the-world-beyond-batch-streaming-101">Streaming-101</a> and <a href="https://www.oreilly.com/ideas/the-world-beyond-batch-streaming-102">Streaming-102</a>). Multiple Apache projects already provide runners for Beam (see <a href="http://beam.apache.org/documentation/runners/capability-matrix/">runners and capabilities matrix</a>).</p>
 
-<p>Beam is an <a href="http://www.apache.org">Apache Software Foundation</a> project, available under the Apache v2 license. Beam is an open source community and contributions are greatly appreciated! If you’d like to contribute, please see the <a href="/contribute/">Contribute</a> section.</p>
+<p>Apex is a stream processing framework for low-latency, high-throughput, stateful and reliable processing of complex analytics pipelines on clusters. Apex was developed since 2012 and is used in production by large companies for real-time and batch processing at scale.</p>
 
-<hr />
+<p>The initial revision of the runner was focussed on broad coverage of the Beam model on a functional level. That means, there will be follow up work in several areas to take the runner from functional to scalable and high performance to match the capabilities of Apex and its native API. The runner capabilities matrix shows that the Apex capabilities are well aligned with the Beam model. Specifically, the ability to track computational state in a fault tolerant and efficient manner is needed to broadly support the windowing concepts, including event time based processing.</p>
 
-<div class="row">
-  <div class="col-md-6">
-    <h2>Blog</h2>
-    <div class="list-group">
-    
-    <a class="list-group-item" href="/blog/2016/10/20/test-stream.html">Oct 20, 2016 - Testing Unbounded Pipelines in Apache Beam</a>
-    
-    <a class="list-group-item" href="/beam/update/2016/10/11/strata-hadoop-world-and-beam.html">Oct 11, 2016 - Strata+Hadoop World and Beam</a>
-    
-    <a class="list-group-item" href="/blog/2016/08/03/six-months.html">Aug 3, 2016 - Apache Beam: Six Months in Incubation</a>
-    
-    <a class="list-group-item" href="/beam/release/2016/06/15/first-release.html">Jun 15, 2016 - The first release of Apache Beam!</a>
-    
-    <a class="list-group-item" href="/blog/2016/06/13/flink-batch-runner-milestone.html">Jun 13, 2016 - How We Added Windowing to the Apache Flink Batch Runner</a>
-    
-    <a class="list-group-item" href="/blog/2016/05/27/where-is-my-pcollection-dot-map.html">May 27, 2016 - Where's my PCollection.map()?</a>
-    
-    <a class="list-group-item" href="/blog/2016/05/18/splitAtFraction-method.html">May 18, 2016 - Dynamic work rebalancing for Beam</a>
-    
-    <a class="list-group-item" href="/beam/capability/2016/04/03/presentation-materials.html">Apr 3, 2016 - Apache Beam Presentation Materials</a>
-    
-    <a class="list-group-item" href="/beam/capability/2016/03/17/capability-matrix.html">Mar 17, 2016 - Clarifying &amp; Formalizing Runner Capabilities</a>
-    
-    <a class="list-group-item" href="/beam/python/sdk/2016/02/25/python-sdk-now-public.html">Feb 25, 2016 - Dataflow Python SDK is now public!</a>
-    
-    <a class="list-group-item" href="/beam/update/website/2016/02/22/beam-has-a-logo.html">Feb 22, 2016 - Apache Beam has a logo!</a>
-    
-    <a class="list-group-item" href="/blog/2016/01/08/added-apex-runner.html">Jan 8, 2016 - Release 0.4.0 adds a runner for Apache Apex</a>
-    
-    </div>
+<h2 id="stateful-stream-processor">Stateful Stream Processor</h2>
+
+<p>Apex was built as stateful stream processor from the ground up. Operators <a href="https://www.datatorrent.com/blog/blog-introduction-to-checkpoint/">checkpoint</a> state in a distributed and asynchronous manner that produces a consistent snapshot for the entire processing graph, which can be used for recovery. Apex also supports such recovery in an incremental, or fine grained, manner. This means only the portion of the DAG that is actually affected by a failure will be recovered while the remaining pipeline continues processing (this can be leveraged to implement use cases with special needs, such as speculative execution to achieve SLA on the processing latency). The state checkpointing along with idempotent processing guarantee is the basis for <a href="https://www.datatorrent.com/blog/end-to-end-exactly-once-with-apache-apex/">exactly-once results</a> support in Apex.</p>
+
+<h2 id="translation-to-apex-dag">Translation to Apex DAG</h2>
+
+<p>A Beam runner needs to implement the translation from the Beam model to the underlying frameworks execution model. In the case of Apex, the runner will translate the pipeline into the <a href="https://www.datatorrent.com/blog/tracing-dags-from-specification-to-execution/">native (compositional, low level) DAG API</a> (which is also the base for a number of other API that are available to specify applications that run on Apex). The DAG consists of operators (functional building blocks that are connected with streams. The runner provides the execution layer. In the case of Apex it is distributed stream processing, operators process data event by event. The minimum set of operators covers Beam’s primitive transforms: <code class="highlighter-rouge">ParDo.Bound</code>,  <code class="highlighter-rouge">ParDo.BoundMulti</code>, <code class="highlighter-rouge">Read.Unbounded</code>, <code class="highlighter-rouge">Read.Bounded</code>, <code class="highlighter-rouge">GroupByKey</code>, <code class="highlighter-rouge">Flatten.FlattenPCollectionList</code> etc.</p>
+
+<h2 id="execution-and-testing">Execution and Testing</h2>
+
+<p>In this release, the Apex runner executes the pipelines in embedded mode, where, similar to the direct runner, everything is executed in a single JVM. See <a href="https://beam.apache.org/get-started/quickstart/">quickstart</a> on how to run the Beam examples with the Apex runner.</p>
+
+<p>Embedded mode is useful for development and debugging. Apex in production runs distributed on Apache Hadoop YARN clusters. An example how a Beam pipeline can be embedded into an Apex application package to run on YARN can be found <a href="https://github.com/tweise/apex-samples/tree/master/beam-apex-wordcount">here</a> and support for direct launch in the runner is currently being worked on.</p>
+
+<p>The Beam project has a strong focus on development process and tooling, including testing. For the runners, there is a comprehensive test suite with more than 200 integration tests that are executed against each runner to ensure they don’t break as changes are made. The tests cover the capabilities of the matrix and thus are a measure of completeness and correctness of the runner implementations. The suite was very helpful when developing the Apex runner.</p>
+
+<h2 id="outlook">Outlook</h2>
+
+<p>The next step is to take the Apex runner from functional to ready for real applications that run distributed, leveraging the scalability and performance features of Apex, similar to its native API. This includes chaining of ParDos, partitioning, optimizing combine operations etc. To get involved, please see <a href="https://issues.apache.org/jira/issues/?jql=project%20%3D%20BEAM%20and%20component%20%3D%20runner-apex%20and%20resolution%20%3D%20unresolved">JIRA</a> and join the Beam community.</p>
+
   </div>
-  <div class="col-md-6">
-    <h2>Twitter</h2>
-    <a class="twitter-timeline" href="https://twitter.com/ApacheBeam" data-widget-id="697809684422533120">Tweets by @ApacheBeam</a>
-    <script>!function(d,s,id){var js,fjs=d.getElementsByTagName(s)[0],p=/^http:/.test(d.location)?'http':'https';if(!d.getElementById(id)){js=d.createElement(s);js.id=id;js.src=p+"://platform.twitter.com/widgets.js";fjs.parentNode.insertBefore(js,fjs);}}(document,"script","twitter-wjs");</script>
-  </div>
-</div>
+
+</article>
 
       </div>
 
