@@ -10,7 +10,7 @@ redirect_from: /contribution-guide/
 * TOC
 {:toc}
 
-The Apache Beam community welcomes contributions from anyone with a passion for data processing! Beam has many different opportunities for contributions -- write new examples, add new user-facing libraries (new statistical libraries, new IO connectors, etc), work on the core programming model, build specific runners (Apache Flink, Apache Spark, Google Cloud Dataflow, etc), or participate on the documentation effort.
+The Apache Beam community welcomes contributions from anyone with a passion for data processing! Beam has many different opportunities for contributions -- write new examples, add new user-facing libraries (new statistical libraries, new IO connectors, etc), work on the core programming model, build specific runners (Apache Apex, Apache Flink, Apache Spark, Google Cloud Dataflow, etc), or participate on the documentation effort.
 
 We use a review-then-commit workflow in Beam for all contributions.
 
@@ -32,12 +32,12 @@ We look forward to working with you!
 ## Engage
 
 ### Mailing list(s)
-We discuss design and implementation issues on dev@beam.apache.org mailing list, which is archived [here](https://lists.apache.org/list.html?dev@beam.apache.org). Join by emailing [`dev-subscribe@beam.apache.org`](mailto:dev-subscribe@beam.apache.org).
+We discuss design and implementation issues on the dev@beam.apache.org mailing list, which is archived [here](https://lists.apache.org/list.html?dev@beam.apache.org). Join by emailing [`dev-subscribe@beam.apache.org`](mailto:dev-subscribe@beam.apache.org).
 
-If interested, you can also join the other [mailing lists]({{ site.baseurl }}/use/mailing-lists/) too.
+If interested, you can also join the other [mailing lists]({{ site.baseurl }}/use/mailing-lists/).
 
-### Apache JIRA
-We use [Apache JIRA](https://issues.apache.org/jira/browse/BEAM) as an issue tracking and project management tool, as well as a way to communicate among a very diverse and distributed set of contributors. To be able to gather feedback, avoid frustration, and avoid duplicated efforts all Beam-related work should be tracked there.
+### JIRA issue tracker
+We use the Apache Software Foundation's [JIRA](https://issues.apache.org/jira/browse/BEAM) as an issue tracking and project management tool, as well as a way to communicate among a very diverse and distributed set of contributors. To be able to gather feedback, avoid frustration, and avoid duplicated efforts all Beam-related work should be tracked there.
 
 If you do not already have an Apache JIRA account, sign up [here](https://issues.apache.org/jira/).
 
@@ -63,7 +63,7 @@ To contribute code to Apache Beam, you’ll have to do a few administrative step
 #### [Potentially] Submit Contributor License Agreement
 Apache Software Foundation (ASF) desires that all contributors of ideas, code, or documentation to the Apache projects complete, sign, and submit an [Individual Contributor License Agreement](https://www.apache.org/licenses/icla.txt) (ICLA). The purpose of this agreement is to clearly define the terms under which intellectual property has been contributed to the ASF and thereby allow us to defend the project should there be a legal dispute regarding the software at some future time.
 
-We require you to have an ICLA on file with the Apache Secretary for larger contributions only. For smaller ones, however, we rely on  [clause five](http://www.apache.org/licenses/LICENSE-2.0#contributions) of the Apache License, Version 2.0, describing licensing of intentionally submitted contributions and do not require an ICLA in that case.
+We require you to have an ICLA on file with the Apache Secretary for larger contributions only. For smaller ones, however, we rely on [clause five](http://www.apache.org/licenses/LICENSE-2.0#contributions) of the Apache License, Version 2.0, describing licensing of intentionally submitted contributions and do not require an ICLA in that case.
 
 #### Obtain a GitHub account
 We use GitHub’s pull request functionality to review proposed code changes.
@@ -83,7 +83,7 @@ We assume you are using SSH-based authentication with GitHub. If necessary, exch
 Clone Beam’s read-only GitHub mirror.
 
     $ git clone https://github.com/apache/beam.git
-    $ cd incubator-beam
+    $ cd beam
 
 Add your forked repository as an additional Git remote, where you’ll push your changes.
 
@@ -137,11 +137,11 @@ Note: Selecting "Check Project" may report some errors from the archetype
 modules as they are not configured for Checkstyle validation.
 
 ##### Eclipse
- 
+
 Use a recent eclipse version that includes m2e. Currently we recommend Eclipse Neon.
 Start eclipse with a fresh workspace in a separate directory from your checkout.
 
-1. Install m2e-apt: Beam uses apt annotation processing to provide auto generated code. One example is the usage of [google auto value](https://github.com/google/auto/tree/master/value). By default m2e does not support this and you will see compile errors.
+1. Install m2e-apt: Beam uses apt annotation processing to provide auto generated code. One example is the usage of [Google AutoValue](https://github.com/google/auto/tree/master/value). By default m2e does not support this and you will see compile errors.
 
 	Help
 	-> Eclipse Marketplace
@@ -162,7 +162,7 @@ Start eclipse with a fresh workspace in a separate directory from your checkout.
 	File
 	-> Import...
 	-> Existing Maven Projects
-	-> Browse to the directory you cloned into and select incubator-beam
+	-> Browse to the directory you cloned into and select "beam"
 	-> make sure all beam projects are selected
 	-> Finalize
 
@@ -186,7 +186,7 @@ Remember to always use `--rebase` parameter to avoid extraneous merge commits.
 
 To push your local, committed changes to your (forked) repository on GitHub, run:
 
-	$ git push <GitHub_user> <my-branch>	
+	$ git push <GitHub_user> <my-branch>
 
 ### Testing
 All code should have appropriate unit testing coverage. New code should have new tests in the same contribution. Bug fixes should include a regression test to prevent the issue from reoccurring.
@@ -312,7 +312,7 @@ At this point, you want to ensure everything is right. Test it with `mvn verify`
 
     $ git push apache HEAD:master
 
-Done. You can delete the local <code>finish-pr-<pull-request-#></code> branch if you like.
+Done. You can delete the local `finish-pr-<pull-request-#>` branch if you like.
 
 ## Granting more rights to a contributor
 
@@ -329,11 +329,11 @@ Nothing gives us greater joy than recognizing new committers or PMC members -- t
 
 ## Special Cases
 
-The directions above assume you are submitting code to the `incubator-beam` repository's `master` branch. In addition, there are a few other locations where code is maintained. Generally these follow the same *engage*-*design*-**code**-**review**-**commit** process as above, with some minor adjustments to commands.
+The directions above assume you are submitting code to the `beam` repository's `master` branch. In addition, there are a few other locations where code is maintained. Generally these follow the same *engage*-*design*-**code**-**review**-**commit** process as above, with some minor adjustments to commands.
 
 ### Feature Branches
 
-Some larger features are developed on a feature branch before being merged into `master`. In particular, this is often used for initial development of new components like SDKs or runners. 
+Some larger features are developed on a feature branch before being merged into `master`. In particular, this is often used for initial development of new components like SDKs or runners.
 
 #### Developing
 
@@ -380,7 +380,7 @@ A new SDK should:
 
 ### Website
 
-The Beam website is in the [Beam Site GitHub mirror](https://github.com/apache/beam-site) repository in the `asf-site` branch (_not_ `master`). 
+The Beam website is in the [Beam Site GitHub mirror](https://github.com/apache/beam-site) repository in the `asf-site` branch (_not_ `master`).
 
 Issues are tracked in the [website](https://issues.apache.org/jira/browse/BEAM/component/12328906) component in JIRA.
 
@@ -388,26 +388,26 @@ Issues are tracked in the [website](https://issues.apache.org/jira/browse/BEAM/c
 
 The [README file](https://github.com/apache/beam-site/blob/asf-site/README.md) in the website repository has more information on how to set up the required dependencies for your development environment.
 
-The general guidelines for cloning a repository can be adjusted to use the `asf-site` branch of `incubator-beam-site`:
+The general guidelines for cloning a repository can be adjusted to use the `asf-site` branch of `beam-site`:
 
 	$ git clone -b asf-site https://github.com/apache/beam-site.git
-	$ cd incubator-beam-site
-	$ git remote add <GitHub_user> git@github.com:<GitHub_user>/incubator-beam-site.git
+	$ cd beam-site
+	$ git remote add <GitHub_user> git@github.com:<GitHub_user>/beam-site.git
 	$ git fetch --all
 	$ git checkout -b <my-branch> origin/asf-site
-	
+
 #### Working on your change
 
 While you are working on your pull request, you can test and develop live by running the following command in the root folder of the website:
 
 	$ bundle exec jekyll serve
 
-Jekyll will start a webserver on port 4000. As you make changes to the content, Jekyll will rebuild it automatically. 
+Jekyll will start a webserver on port 4000. As you make changes to the content, Jekyll will rebuild it automatically.
 
 In addition, you can run the tests to valid your links using:
 
 	$ bundle exec rake test
-	
+
 Both of these commands will cause the `content/` directory to be generated. Merging autogenerated content can get tricky, so please leave this directory out of your commits and pull request by doing:
 
 	$ git checkout -- content
@@ -418,6 +418,6 @@ During review, committers will patch in your PR, generate the static `content/`,
 
 #### Committing website changes
 
-Follow the same committer process as above, but using `incubator-beam-site` and `asf-site`. 
+Follow the same committer process as above, but using repository `apache/beam-site` and branch `asf-site`.
 
-In addition, the committer is responsible for doing the final `jekyll build` to generate the static content, so follow the instructions above to install jekyll.
+In addition, the committer is responsible for doing the final `jekyll build` to generate the static content, so follow the instructions above to install `jekyll`.
