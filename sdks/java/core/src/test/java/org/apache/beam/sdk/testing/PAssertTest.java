@@ -379,7 +379,7 @@ public class PAssertTest implements Serializable {
             + " but the message was \""
             + exc.getMessage()
             + "\"",
-        expectedPattern.matcher(Throwables.getStackTraceAsString(exc)).find());
+        expectedPattern.matcher(exc.getMessage()).find());
   }
 
   @Test
@@ -390,29 +390,50 @@ public class PAssertTest implements Serializable {
 
     Throwable thrown = runExpectingAssertionFailure(pipeline);
 
-    assertThat(
-        Throwables.getStackTraceAsString(thrown),
-        containsString("Expected: iterable over [] in any order"));
+    assertThat(thrown.getMessage(), containsString("Expected: iterable over [] in any order"));
   }
 
   @Test
   @Category(RunnableOnService.class)
-  public void testAssertionSiteAndMessageIsCaptured() throws Exception {
+  public void testAssertionSiteIsCapturedWithMessage() throws Exception {
     PCollection<Long> vals = pipeline.apply(CountingInput.upTo(5L));
-    assertThatCollectionIsEmpty(vals);
+    assertThatCollectionIsEmptyWithMessage(vals);
 
     Throwable thrown = runExpectingAssertionFailure(pipeline);
 
-    String str = Throwables.getStackTraceAsString(thrown);
     assertThat(
-        str,
+        thrown.getMessage(),
+        containsString("Should be empty"));
+    assertThat(
+        thrown.getMessage(),
         containsString("Expected: iterable over [] in any order"));
-    assertThat(str, containsString("testAssertionSiteAndMessageIsCaptured"));
-    assertThat(str, containsString("assertThatCollectionIsEmpty"));
+    String stacktrace = Throwables.getStackTraceAsString(thrown);
+    assertThat(stacktrace, containsString("testAssertionSiteIsCapturedWithMessage"));
+    assertThat(stacktrace, containsString("assertThatCollectionIsEmptyWithMessage"));
   }
 
-  private static void assertThatCollectionIsEmpty(PCollection<Long> vals) {
+  @Test
+  @Category(RunnableOnService.class)
+  public void testAssertionSiteIsCapturedWithoutMessage() throws Exception {
+    PCollection<Long> vals = pipeline.apply(CountingInput.upTo(5L));
+    assertThatCollectionIsEmptyWithoutMessage(vals);
+
+    Throwable thrown = runExpectingAssertionFailure(pipeline);
+
+    assertThat(
+        thrown.getMessage(),
+        containsString("Expected: iterable over [] in any order"));
+    String stacktrace = Throwables.getStackTraceAsString(thrown);
+    assertThat(stacktrace, containsString("testAssertionSiteIsCapturedWithoutMessage"));
+    assertThat(stacktrace, containsString("assertThatCollectionIsEmptyWithoutMessage"));
+  }
+
+  private static void assertThatCollectionIsEmptyWithMessage(PCollection<Long> vals) {
     PAssert.that("Should be empty", vals).empty();
+  }
+
+  private static void assertThatCollectionIsEmptyWithoutMessage(PCollection<Long> vals) {
+    PAssert.that(vals).empty();
   }
 
   private static Throwable runExpectingAssertionFailure(Pipeline pipeline) {

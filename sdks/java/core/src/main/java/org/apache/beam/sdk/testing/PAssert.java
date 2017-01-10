@@ -391,7 +391,8 @@ public class PAssert {
 
     public AssertionError wrap(Throwable t) {
       AssertionError res =
-          new AssertionError(message.isEmpty() ? "PAssert assertion failed" : message, t);
+          new AssertionError(
+              message.isEmpty() ? t.getMessage() : (message + ": " + t.getMessage()), t);
       res.setStackTrace(creationStackTrace);
       return res;
     }
