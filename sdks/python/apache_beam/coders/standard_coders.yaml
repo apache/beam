@@ -1,0 +1,25 @@
+coder:
+  urn: "beam:coders:bytes:0.1"
+nested: false
+examples:
+  abc: abc
+  "ab\0c": "ab\0c"
+
+---
+
+coder:
+  urn: "beam:coders:varint:0.1"
+examples:
+  "\0": 0
+  "\u0001": 1
+  "\u000A": 10
+
+---
+
+coder:
+  urn: "beam:coders:kv:0.1"
+  components: [{urn: "beam:coders:bytes:0.1"},
+               {urn: "beam:coders:varint:0.1"}]
+examples:
+  "\u0003abc\0": {key: abc, value: 0}
+  "\u0004ab\0c\u000A": {key: "ab\0c", value: 10}
