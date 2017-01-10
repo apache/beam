@@ -192,7 +192,9 @@ def read_from_datastore(project, user_options, pipeline_options):
                                           num_shards=user_options.num_shards)
 
   # Actually run the pipeline (all operations above are deferred).
-  return p.run().wait_until_finish()
+  result = p.run()
+  result.wait_until_finish()
+  return result
 
 
 def run(argv=None):

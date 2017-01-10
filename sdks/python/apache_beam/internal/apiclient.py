@@ -439,7 +439,7 @@ class DataflowApplicationClient(object):
         packages=resources, options=job.options,
         environment_version=self.environment_version).proto
     # TODO(silviuc): Remove the debug logging eventually.
-    # logging.info('JOB: %s', job)
+    logging.info('JOB: %s', job)
 
   def submit_job_description(self, job):
     """Creates and excutes a job request."""
