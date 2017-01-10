@@ -393,6 +393,7 @@ class BigQueryServicesImpl implements BigQueryServices {
      * @throws IOException if it exceeds {@code MAX_RPC_RETRIES} attempts.
      */
     @Override
+    @Nullable
     public Table getTable(String projectId, String datasetId, String tableId)
         throws IOException, InterruptedException {
       BackOff backoff =
@@ -405,6 +406,7 @@ class BigQueryServicesImpl implements BigQueryServices {
     }
 
     @VisibleForTesting
+    @Nullable
     Table getTable(TableReference ref, BackOff backoff, Sleeper sleeper)
         throws IOException, InterruptedException {
       try {

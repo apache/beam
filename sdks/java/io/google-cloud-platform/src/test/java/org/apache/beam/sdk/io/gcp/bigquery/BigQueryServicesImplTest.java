@@ -330,18 +330,20 @@ public class BigQueryServicesImplTest {
     testTable.setTableReference(tableRef);
 
     when(response.getContentType()).thenReturn(Json.MEDIA_TYPE);
-    when(response.getStatusCode()).thenReturn(200);
-    when(response.getContent()).thenReturn(toStream(testTable));
+    when(response.getStatusCode()).thenReturn(403).thenReturn(200);
+    when(response.getContent())
+        .thenReturn(toStream(errorWithReasonAndStatus("rateLimitExceeded", 403)))
+        .thenReturn(toStream(testTable));
 
     BigQueryServicesImpl.DatasetServiceImpl datasetService =
         new BigQueryServicesImpl.DatasetServiceImpl(bigquery, PipelineOptionsFactory.create());
 
-    Table table = datasetService.getTable(tableRef, BackOff.STOP_BACKOFF, Sleeper.DEFAULT);
+    Table table = datasetService.getTable(tableRef, BackOff.ZERO_BACKOFF, Sleeper.DEFAULT);
 
     assertEquals(testTable, table);
-    verify(response, times(1)).getStatusCode();
-    verify(response, times(1)).getContent();
-    verify(response, times(1)).getContentType();
+    verify(response, times(2)).getStatusCode();
+    verify(response, times(2)).getContent();
+    verify(response, times(2)).getContentType();
   }
 
   @Test
@@ -356,7 +358,7 @@ public class BigQueryServicesImplTest {
         .setProjectId("projectId")
         .setDatasetId("datasetId")
         .setTableId("tableId");
-    Table table = datasetService.getTable(tableRef, BackOff.STOP_BACKOFF, Sleeper.DEFAULT);
+    Table table = datasetService.getTable(tableRef, BackOff.ZERO_BACKOFF, Sleeper.DEFAULT);
 
     assertNull(table);
     verify(response, times(1)).getStatusCode();
