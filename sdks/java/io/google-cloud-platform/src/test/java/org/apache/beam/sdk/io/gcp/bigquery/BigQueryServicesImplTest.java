@@ -320,6 +320,71 @@ public class BigQueryServicesImplTest {
   }
 
   @Test
+  public void testGetTableSucceeds() throws Exception {
+    TableReference tableRef = new TableReference()
+        .setProjectId("projectId")
+        .setDatasetId("datasetId")
+        .setTableId("tableId");
+
+    Table testTable = new Table();
+    testTable.setTableReference(tableRef);
+
+    when(response.getContentType()).thenReturn(Json.MEDIA_TYPE);
+    when(response.getStatusCode()).thenReturn(403).thenReturn(200);
+    when(response.getContent())
+        .thenReturn(toStream(errorWithReasonAndStatus("rateLimitExceeded", 403)))
+        .thenReturn(toStream(testTable));
+
+    BigQueryServicesImpl.DatasetServiceImpl datasetService =
+        new BigQueryServicesImpl.DatasetServiceImpl(bigquery, PipelineOptionsFactory.create());
+
+    Table table = datasetService.getTable(tableRef, BackOff.ZERO_BACKOFF, Sleeper.DEFAULT);
+
+    assertEquals(testTable, table);
+    verify(response, times(2)).getStatusCode();
+    verify(response, times(2)).getContent();
+    verify(response, times(2)).getContentType();
+  }
+
+  @Test
+  public void testGetTableNotFound() throws IOException, InterruptedException {
+    when(response.getContentType()).thenReturn(Json.MEDIA_TYPE);
+    when(response.getStatusCode()).thenReturn(404);
+
+    BigQueryServicesImpl.DatasetServiceImpl datasetService =
+        new BigQueryServicesImpl.DatasetServiceImpl(bigquery, PipelineOptionsFactory.create());
+
+    TableReference tableRef = new TableReference()
+        .setProjectId("projectId")
+        .setDatasetId("datasetId")
+        .setTableId("tableId");
+    Table table = datasetService.getTable(tableRef, BackOff.ZERO_BACKOFF, Sleeper.DEFAULT);
+
+    assertNull(table);
+    verify(response, times(1)).getStatusCode();
+    verify(response, times(1)).getContent();
+    verify(response, times(1)).getContentType();
+  }
+
+  @Test
+  public void testGetTableThrows() throws Exception {
+    when(response.getContentType()).thenReturn(Json.MEDIA_TYPE);
+    when(response.getStatusCode()).thenReturn(401);
+
+    TableReference tableRef = new TableReference()
+        .setProjectId("projectId")
+        .setDatasetId("datasetId")
+        .setTableId("tableId");
+
+    thrown.expect(IOException.class);
+    thrown.expectMessage(String.format("Unable to get table: %s", tableRef.getTableId()));
+
+    BigQueryServicesImpl.DatasetServiceImpl datasetService =
+        new BigQueryServicesImpl.DatasetServiceImpl(bigquery, PipelineOptionsFactory.create());
+    datasetService.getTable(tableRef, BackOff.STOP_BACKOFF, Sleeper.DEFAULT);
+  }
+
+  @Test
   public void testExecuteWithRetries() throws IOException, InterruptedException {
     Table testTable = new Table();
 
