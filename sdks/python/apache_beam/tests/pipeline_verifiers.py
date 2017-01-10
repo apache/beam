@@ -22,8 +22,15 @@ of test pipeline job. Customized verifier should extend
 `hamcrest.core.base_matcher.BaseMatcher` and override _matches.
 """
 
+import hashlib
+import logging
+
+from apache_beam.io.fileio import TextFileSource
 from apache_beam.runners.runner import PipelineState
+from apache_beam.utils import retry
 from hamcrest.core.base_matcher import BaseMatcher
+
+MAX_RETRIES = 4
 
 
 class PipelineStateMatcher(BaseMatcher):
@@ -48,3 +55,63 @@ class PipelineStateMatcher(BaseMatcher):
     mismatch_description \
       .append_text("Test pipeline job terminated in state: ") \
       .append_text(pipeline_result.current_state())
+
+
+def retry_on_fileio_error(exception):
+  """Filter allowing retries on file I/O errors."""
+  if isinstance(exception, RuntimeError) or \
+          isinstance(exception, IOError):
+    # GCS I/O raises RuntimeError and local filesystem I/O
+    # raises IOError when file reading is failed.
+    return True
+  else:
+    return False
+
+
+class FileChecksumMatcher(BaseMatcher):
+  """Matcher that verifies file(s) content by comparing file checksum.
+
+  Use fileio to fetch file(s) from given path. Currently, fileio supports
+  local filesystem and GCS.
+
+  File checksum is a SHA-1 hash computed from content of file(s).
+  """
+
+  def __init__(self, file_path, expected_checksum):
+    self.file_path = file_path
+    self.expected_checksum = expected_checksum
+
+  @retry.with_exponential_backoff(num_retries=MAX_RETRIES,
+                                  retry_filter=retry_on_fileio_error)
+  def _read_with_retry(self):
+    """Read path with retry if I/O failed"""
+    source = TextFileSource(self.file_path)
+    read_lines = []
+    with source.reader() as reader:
+      for line in reader:
+        read_lines.append(line)
+    return read_lines
+
+  def _matches(self, _):
+    # Read from given file(s) path
+    read_lines = self._read_with_retry()
+
+    # Compute checksum
+    read_lines.sort()
+    m = hashlib.new('sha1')
+    for line in read_lines:
+      m.update(line)
+    self.checksum, num_lines = (m.hexdigest(), len(read_lines))
+    logging.info('Read from given path %s, %d lines, checksum: %s.',
+                 self.file_path, num_lines, self.checksum)
+    return self.checksum == self.expected_checksum
+
+  def describe_to(self, description):
+    description \
+      .append_text("Expected checksum is ") \
+      .append_text(self.expected_checksum)
+
+  def describe_mismatch(self, pipeline_result, mismatch_description):
+    mismatch_description \
+      .append_text("Actual checksum is ") \
+      .append_text(self.checksum)
