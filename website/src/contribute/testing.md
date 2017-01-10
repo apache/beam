@@ -244,7 +244,7 @@ details on those testing types.
 ### Python SDK
 
 The Python SDK is currently under development on a feature branch. We have initial
-postcommit tests by a Jenkins build; precommit testing and a full testing 
+postcommit tests by a Jenkins build; precommit testing and a full testing
 matrix will be coming soon.
 
 ## Testing Scenarios
@@ -257,8 +257,8 @@ precommit and postcommit testing.
 
 For precommit testing, Beam uses
 [Jenkins](https://builds.apache.org/view/Beam/),
-[Travis](http://travis-ci.org/apache/incubator-beam), and a code coverage tool
-called [Coveralls](https://coveralls.io/github/apache/incubator-beam), hooked up
+[Travis](http://travis-ci.org/apache/beam), and a code coverage tool
+called [Coveralls](https://coveralls.io/github/apache/beam), hooked up
 to [Github](https://github.com/apache/beam), to ensure that pull
 requests meet a certain quality bar. These precommits verify correctness via two
 of the below testing tools: unit tests (with coverage monitored by Coveralls)
@@ -271,7 +271,7 @@ that this hits the appropriate tradeoff between a desire for short (ideally
 function in the way in which they are intended.
 
 Precommit tests are kicked off when a user makes a Pull Request against the
-apache/incubator-beam repository and the Travis, Jenkins, and Coveralls statuses
+`apache/beam` repository and the Travis, Jenkins, and Coveralls statuses
 are displayed at the bottom of the pull request page. Clicking on “Details” will
 open the status page in the selected tool; there, test status and output can be
 viewed.
@@ -371,4 +371,3 @@ RunnableOnService tests are tests built to use the Beam TestPipeline class,
 which enables test authors to write simple functionality verification. They are
 meant to use some of the built-in utilities of the SDK, namely PAssert, to
 verify that the simple pipelines they run end in the correct state.
-
