@@ -6,16 +6,15 @@
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <meta name="viewport" content="width=device-width, initial-scale=1">
 
-  <title>Apache Beam</title>
-  <meta name="description" content="Apache Beam is an open source, unified model and set of language-specific SDKs for defining and executing data processing workflows, and also data ingestion and integration flows, supporting Enterprise Integration Patterns (EIPs) and Domain Specific Languages (DSLs). Dataflow pipelines simplify the mechanics of large-scale batch and streaming data processing and can run on a number of runtimes like Apache Flink, Apache Spark, and Google Cloud Dataflow (a cloud service). Beam also brings DSL in different languages, allowing users to easily implement their data integration processes.
-">
+  <title>Apache Beam established as a new top-level project</title>
+  <meta name="description" content="Today, the Apache Software Foundation announcedthat Apache Beam has successfully graduated from incubation, becoming a newTop-Level Project at the foundation...">
 
   <link rel="stylesheet" href="/styles/site.css">
   <link rel="stylesheet" href="/css/theme.css">
   <script src="https://ajax.googleapis.com/ajax/libs/jquery/2.2.0/jquery.min.js"></script>
   <script src="/js/bootstrap.min.js"></script>
   <script src="/js/language-switch.js"></script>
-  <link rel="canonical" href="http://beam.apache.org/" data-proofer-ignore>
+  <link rel="canonical" href="http://beam.apache.org/blog/2017/01/10/beam-graduates.html" data-proofer-ignore>
   <link rel="alternate" type="application/rss+xml" title="Apache Beam" href="http://beam.apache.org/feed.xml">
   <script>
     (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
@@ -144,54 +143,76 @@
     <div class="container" role="main">
 
       <div class="row">
-        <h1 id="apache-beam">Apache Beam</h1>
+        
 
-<h4 id="apache-beam-provides-an-advanced-unified-programming-model-allowing-you-to-implement-batch-and-streaming-data-processing-jobs-that-can-run-on-any-execution-engine">Apache Beam provides an advanced unified programming model, allowing you to implement batch and streaming data processing jobs that can run on any execution engine.</h4>
+<article class="post" itemscope itemtype="http://schema.org/BlogPosting">
 
-<p>Apache Beam is:</p>
-<ul>
-  <li><strong>UNIFIED</strong> - Use a single programming model for both batch and streaming use cases.</li>
-  <li><strong>PORTABLE</strong> - Execute pipelines on multiple execution environments, including Apache Apex, Apache Flink, Apache Spark, and Google Cloud Dataflow.</li>
-  <li><strong>EXTENSIBLE</strong> - Write and share new SDKs, IO connectors, and transformation libraries.</li>
-</ul>
+  <header class="post-header">
+    <h1 class="post-title" itemprop="name headline">Apache Beam established as a new top-level project</h1>
+    <p class="post-meta"><time datetime="2017-01-10T00:00:01-08:00" itemprop="datePublished">Jan 10, 2017</time> •  Davor Bonaci [<a href="https://twitter.com/BonaciDavor">@BonaciDavor</a>]
+</p>
+  </header>
 
-<h2 id="get-started">Get Started</h2>
+  <div class="post-content" itemprop="articleBody">
+    <p>Today, the Apache Software Foundation <a href="https://blogs.apache.org/foundation/entry/the-apache-software-foundation-announces">announced</a>
+that Apache Beam has successfully graduated from incubation, becoming a new
+Top-Level Project at the foundation and signifying that its “community and
+products have been well-governed under the foundation’s meritocratic process
+and principles”.</p>
 
-<p>To use Beam for your data processing tasks, start by reading the <a href="/get-started/beam-overview">Beam Overview</a> and performing the steps in the <a href="/get-started/quickstart">Quickstart</a>. Then dive into the <a href="/documentation/">Documentation</a> section for in-depth concepts and reference materials for the Beam model, SDKs, and runners.</p>
+<!--more-->
 
-<h2 id="contribute">Contribute</h2>
+<p>Graduation is an exciting milestone for Apache Beam. Becoming a top-level
+project is a recognition of the amazing growth of the Apache Beam community,
+both in terms of size and diversity. It is fantastic to see ever-increasing
+participation on our development and user mailing lists, in pull requests,
+and at conferences and meetups. Contributions of additional runners and IO
+connectors further show the significant interest from other projects and
+organizations in being part of our growing community.</p>
 
-<p>Beam is an <a href="http://www.apache.org">Apache Software Foundation</a> project, available under the Apache v2 license. Beam is an open source community and contributions are greatly appreciated! If you’d like to contribute, please see the <a href="/contribute/">Contribute</a> section.</p>
+<p>Although graduation is a statement about community, our technical progress has
+also been impressive. We started with code donations from several companies
+that were tailored with a specific vendor and scenario in mind and had fragile
+component boundaries. The whole community worked extremely hard over the past
+year to refactor the codebase and documentation into a truly vendor-neutral and
+extensible framework. We have established an impressive engineering system and
+processes that promote test-driven development. This concerted focus on quality
+and execution excellence enabled us to publish four releases, each significantly
+better than the previous.</p>
 
-<hr />
+<p>Going forward, we will continue to extend the core abstractions to distill
+additional complex data processing patterns into intuitive APIs, and, at the
+same time, enhance the ability to interconnect additional storage/messaging
+systems and execution engines. Together, we are excited to push forward the
+state of the art in distributed data processing.</p>
 
-<div class="row">
-  <div class="col-md-6">
-    <h2>Blog</h2>
-    <div class="list-group">
-    
-    <a class="list-group-item" href="/blog/2017/01/10/beam-graduates.html">Jan 10, 2017 - Apache Beam established as a new top-level project</a>
-    
-    <a class="list-group-item" href="/blog/2017/01/09/added-apex-runner.html">Jan 9, 2017 - Release 0.4.0 adds a runner for Apache Apex</a>
-    
-    <a class="list-group-item" href="/blog/2016/10/20/test-stream.html">Oct 20, 2016 - Testing Unbounded Pipelines in Apache Beam</a>
-    
-    <a class="list-group-item" href="/beam/update/2016/10/11/strata-hadoop-world-and-beam.html">Oct 11, 2016 - Strata+Hadoop World and Beam</a>
-    
-    <a class="list-group-item" href="/blog/2016/08/03/six-months.html">Aug 3, 2016 - Apache Beam: Six Months in Incubation</a>
-    
-    <a class="list-group-item" href="/beam/release/2016/06/15/first-release.html">Jun 15, 2016 - The first release of Apache Beam!</a>
-    
-    <a class="list-group-item" href="/blog/2016/06/13/flink-batch-runner-milestone.html">Jun 13, 2016 - How We Added Windowing to the Apache Flink Batch Runner</a>
-    
-    </div>
+<p>This is also an opportunity to thank those who helped and supported us reaching
+this milestone. None of this would be possible without the Apache Software
+Foundation and its amazing volunteers who have wholeheartedly welcomed us into
+the family. In particular, we’d like to thank the Apache Incubator community
+for their guidance producing releases and following processes. We are especially
+thankful to the Apache Infra team for their assistance establishing Beam’s
+engineering system, particularly in the areas of testing infrastructure and
+development productivity.</p>
+
+<p>On behalf of the whole Apache Beam community, thank you to our incubation
+mentors Ted Dunning, Venkatesh Seetharam, and, previously, Bertrand Delacretaz
+and Jim Jagielski, for teaching us the Apache Way and guiding us through
+incubation. In particular, special thanks goes to our incubation champion and
+mentor Jean-Baptiste Onofré, whose extraordinary help, day after day, was
+instrumental in getting us here, and who continues as an active code contributor
+and a member of the project management committee.</p>
+
+<p>Please consider joining us, whether as a user or a contributor, as we work
+towards our first release with API stability. If you’d like to try out Apache
+Beam today, check out the latest
+<a href="/get-started/downloads/">0.4.0 release</a>. We welcome
+contribution and participation from anyone through our mailing lists, issue
+tracker, pull requests, and events.</p>
+
   </div>
-  <div class="col-md-6">
-    <h2>Twitter</h2>
-    <a class="twitter-timeline" href="https://twitter.com/ApacheBeam" data-widget-id="697809684422533120">Tweets by @ApacheBeam</a>
-    <script>!function(d,s,id){var js,fjs=d.getElementsByTagName(s)[0],p=/^http:/.test(d.location)?'http':'https';if(!d.getElementById(id)){js=d.createElement(s);js.id=id;js.src=p+"://platform.twitter.com/widgets.js";fjs.parentNode.insertBefore(js,fjs);}}(document,"script","twitter-wjs");</script>
-  </div>
-</div>
+
+</article>
 
       </div>
 
