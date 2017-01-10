@@ -182,8 +182,7 @@ class StandardOptions(PipelineOptions):
     parser.add_argument(
         '--runner',
         help=('Pipeline runner used to execute the workflow. Valid values are '
-              'DirectRunner, DataflowRunner, '
-              'and BlockingDataflowRunner.'))
+              'DirectRunner, DataflowRunner.'))
     # Whether to enable streaming mode.
     parser.add_argument('--streaming',
                         default=False,
