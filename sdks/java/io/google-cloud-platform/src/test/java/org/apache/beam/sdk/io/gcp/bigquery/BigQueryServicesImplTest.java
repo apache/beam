@@ -449,11 +449,11 @@ public class BigQueryServicesImplTest {
         .setDatasetId("datasetId")
         .setTableId("tableId");
 
-    thrown.expect(IOException.class);
-    thrown.expectMessage(String.format("Unable to list table data: %s", tableRef.getTableId()));
-
     BigQueryServicesImpl.DatasetServiceImpl datasetService =
         new BigQueryServicesImpl.DatasetServiceImpl(bigquery, PipelineOptionsFactory.create());
+
+    thrown.expect(IOException.class);
+    thrown.expectMessage(String.format("Unable to list table data: %s", tableRef.getTableId()));
 
     datasetService.isTableEmpty(tableRef, BackOff.STOP_BACKOFF, Sleeper.DEFAULT);
   }
