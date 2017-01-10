@@ -140,8 +140,7 @@ public abstract class SparkPipelineResult implements PipelineResult {
    */
   static class BatchMode extends SparkPipelineResult {
 
-    BatchMode(final Future<?> pipelineExecution,
-              final JavaSparkContext javaSparkContext) {
+    BatchMode(final Future<?> pipelineExecution, final JavaSparkContext javaSparkContext) {
       super(pipelineExecution, javaSparkContext);
     }
 
@@ -165,8 +164,9 @@ public abstract class SparkPipelineResult implements PipelineResult {
 
     private final JavaStreamingContext javaStreamingContext;
 
-    StreamingMode(final Future<?> pipelineExecution,
-                  final JavaStreamingContext javaStreamingContext) {
+    StreamingMode(
+        final Future<?> pipelineExecution,
+        final JavaStreamingContext javaStreamingContext) {
       super(pipelineExecution, javaStreamingContext.sparkContext());
       this.javaStreamingContext = javaStreamingContext;
     }
@@ -178,14 +178,11 @@ public abstract class SparkPipelineResult implements PipelineResult {
     }
 
     @Override
-    protected State awaitTermination(final Duration duration) throws TimeoutException,
-        ExecutionException, InterruptedException {
+    protected State awaitTermination(
+        final Duration duration) throws TimeoutException, ExecutionException, InterruptedException {
       pipelineExecution.get(duration.getMillis(), TimeUnit.MILLISECONDS);
-      if (javaStreamingContext.awaitTerminationOrTimeout(duration.getMillis())) {
-        return State.DONE;
-      } else {
-        return null;
-      }
+      javaStreamingContext.awaitTerminationOrTimeout(duration.getMillis());
+      return PipelineResult.State.DONE;
     }
 
   }
