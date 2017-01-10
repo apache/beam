@@ -24,7 +24,7 @@ Beam is an [Apache Software Foundation](http://www.apache.org) project, availabl
   <div class="col-md-6">
     <h2>Blog</h2>
     <div class="list-group">
-    {% for post in site.posts %}
+    {% for post in site.posts limit:7 %}
     <a class="list-group-item" href="{{ post.url | prepend: site.baseurl }}">{{ post.date | date: "%b %-d, %Y" }} - {{ post.title }}</a>
     {% endfor %}
     </div>
