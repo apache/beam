@@ -534,7 +534,7 @@ class BigQueryServicesImpl implements BigQueryServices {
               tableId, MAX_RPC_RETRIES),
           Sleeper.DEFAULT,
           backoff,
-          ALWAYS_RETRY);
+          DONT_RETRY_NOT_FOUND);
       return dataList.getRows() == null || dataList.getRows().isEmpty();
     }
 
