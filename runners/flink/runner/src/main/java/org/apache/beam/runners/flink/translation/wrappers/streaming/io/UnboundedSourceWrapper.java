@@ -143,7 +143,7 @@ public class UnboundedSourceWrapper<
     } else {
 
       Coder<? extends UnboundedSource<OutputT, CheckpointMarkT>> sourceCoder =
-          SerializableCoder.of(new TypeDescriptor<UnboundedSource<OutputT, CheckpointMarkT>>() {
+          (Coder) SerializableCoder.of(new TypeDescriptor<UnboundedSource>() {
           });
 
       checkpointCoder = (ListCoder) ListCoder.of(KvCoder.of(sourceCoder, checkpointMarkCoder));
