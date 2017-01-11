@@ -89,6 +89,10 @@ public class EvaluationContext {
     this.currentTransform = transform;
   }
 
+  public AppliedPTransform<?, ?, ?> getCurrentTransform() {
+    return currentTransform;
+  }
+
   public <T extends PValue> T getInput(PTransform<T, ?> transform) {
     @SuppressWarnings("unchecked")
     T input = (T) Iterables.getOnlyElement(getInputs(transform)).getValue();
