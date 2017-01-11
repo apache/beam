@@ -20,8 +20,19 @@ coder:
   urn: "beam:coders:bytes:0.1"
 nested: false
 examples:
-  abc: abc
+  "abc": abc
   "ab\0c": "ab\0c"
+
+---
+
+coder:
+  urn: "beam:coders:bytes:0.1"
+nested: true
+examples:
+  "\u0003abc": abc
+  "\u0004ab\0c": "ab\0c"
+  "\u00c8\u0001       10|       20|       30|       40|       50|       60|       70|       80|       90|      100|      110|      120|      130|      140|      150|      160|      170|      180|      190|      200|":
+              "       10|       20|       30|       40|       50|       60|       70|       80|       90|      100|      110|      120|      130|      140|      150|      160|      170|      180|      190|      200|"
 
 ---
 
@@ -31,6 +42,9 @@ examples:
   "\0": 0
   "\u0001": 1
   "\u000A": 10
+  "\u00c8\u0001": 200
+  "\u00e8\u0007": 1000
+  "\u00ff\u00ff\u00ff\u00ff\u00ff\u00ff\u00ff\u00ff\u00ff\u0001": -1
 
 ---
 
