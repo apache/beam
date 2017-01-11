@@ -18,7 +18,9 @@ import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Count;
+import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.junit.Test;
@@ -105,6 +107,7 @@ public class JdbcIOIT {
             KV.of(resultSet.getString("name"), resultSet.getInt("id"));
         return kv;
       }
+      return tableName;
     }
 
     private static class ValidateCountFn implements SerializableFunction<Iterable<KV<String, Long>>, Void> {
