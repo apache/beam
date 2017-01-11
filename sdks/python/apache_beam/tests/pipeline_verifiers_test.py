@@ -21,10 +21,11 @@ import logging
 import tempfile
 import unittest
 
+from apitools.base.py.exceptions import HttpError
 from hamcrest import assert_that as hc_assert_that
 from mock import Mock, patch
 
-from apache_beam.io.fileio import TextFileSource
+from apache_beam.io.fileio import ChannelFactory
 from apache_beam.runners.runner import PipelineState
 from apache_beam.runners.runner import PipelineResult
 from apache_beam.tests import pipeline_verifiers as verifiers
@@ -91,23 +92,25 @@ class PipelineVerifiersTest(unittest.TestCase):
                                               case['expected_checksum'])
       hc_assert_that(self._mock_result, matcher)
 
-  @patch.object(TextFileSource, 'reader')
-  def test_file_checksum_matcher_read_failed(self, mock_reader):
-    mock_reader.side_effect = IOError('No file found.')
+  @patch.object(ChannelFactory, 'glob')
+  def test_file_checksum_matcher_read_failed(self, mock_glob):
+    mock_glob.side_effect = IOError('No file found.')
     matcher = verifiers.FileChecksumMatcher('dummy/path', Mock())
     with self.assertRaises(IOError):
       hc_assert_that(self._mock_result, matcher)
-    self.assertTrue(mock_reader.called)
-    self.assertEqual(verifiers.MAX_RETRIES + 1, mock_reader.call_count)
+    self.assertTrue(mock_glob.called)
+    self.assertEqual(verifiers.MAX_RETRIES + 1, mock_glob.call_count)
 
-  @patch.object(TextFileSource, 'reader')
-  def test_file_checksum_matcher_service_error(self, mock_reader):
-    mock_reader.side_effect = RuntimeError('GCS service failed.')
-    matcher = verifiers.FileChecksumMatcher('dummy/path', Mock())
-    with self.assertRaises(RuntimeError):
+  @patch.object(ChannelFactory, 'glob')
+  def test_file_checksum_matcher_service_error(self, mock_glob):
+    mock_glob.side_effect = HttpError(
+        response={'status': '404'}, url='', content='Not Found',
+    )
+    matcher = verifiers.FileChecksumMatcher('gs://dummy/path', Mock())
+    with self.assertRaises(HttpError):
       hc_assert_that(self._mock_result, matcher)
-    self.assertTrue(mock_reader.called)
-    self.assertEqual(verifiers.MAX_RETRIES + 1, mock_reader.call_count)
+    self.assertTrue(mock_glob.called)
+    self.assertEqual(verifiers.MAX_RETRIES + 1, mock_glob.call_count)
 
 
 if __name__ == '__main__':

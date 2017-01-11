@@ -20,7 +20,6 @@
 import logging
 import unittest
 
-from datetime import datetime as dt
 from hamcrest.core.core.allof import all_of
 from nose.plugins.attrib import attr
 
@@ -32,7 +31,9 @@ from apache_beam.tests.pipeline_verifiers import FileChecksumMatcher
 
 class WordCountIT(unittest.TestCase):
 
-  DEFAULT_CHECKSUM = 'c780e9466b8635af1d11b74bbd35233a82908a02'
+  # The default checksum is a SHA-1 hash generated from a sorted list of
+  # lines read from expected output.
+  DEFAULT_CHECKSUM = '33535a832b7db6d78389759577d4ff495980b9c0'
 
   @attr('IT')
   def test_wordcount_it(self):
@@ -40,7 +41,7 @@ class WordCountIT(unittest.TestCase):
 
     # Set extra options to the pipeline for test purpose
     output = '/'.join([test_pipeline.get_option('output'),
-                       dt.now().strftime('py-wordcount-%Y-%m-%d-%H-%M-%S'),
+                       test_pipeline.get_option('job_name'),
                        'results'])
     pipeline_verifiers = [PipelineStateMatcher(),
                           FileChecksumMatcher(output + '*-of-*',

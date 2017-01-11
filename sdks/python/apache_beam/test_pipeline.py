@@ -117,7 +117,7 @@ class TestPipeline(Pipeline):
 
     Append extra pipeline options to existing option list if provided.
     Test verifier (if contains in extra options) should be pickled before
-    append, and will be unpickled later in TestRunner.
+    appending, and will be unpickled later in the TestRunner.
     """
     options = list(self.options_list)
     for k, v in extra_opts.items():

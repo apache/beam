@@ -25,10 +25,12 @@ of test pipeline job. Customized verifier should extend
 import hashlib
 import logging
 
-from apache_beam.io.fileio import TextFileSource
+from apitools.base.py.exceptions import HttpError
+from hamcrest.core.base_matcher import BaseMatcher
+
+from apache_beam.io.fileio import ChannelFactory
 from apache_beam.runners.runner import PipelineState
 from apache_beam.utils import retry
-from hamcrest.core.base_matcher import BaseMatcher
 
 MAX_RETRIES = 4
 
@@ -57,12 +59,10 @@ class PipelineStateMatcher(BaseMatcher):
       .append_text(pipeline_result.current_state())
 
 
-def retry_on_fileio_error(exception):
-  """Filter allowing retries on file I/O errors."""
-  if isinstance(exception, RuntimeError) or \
+def retry_on_io_error_and_server_error(exception):
+  """Filter allowing retries on file I/O errors and service error."""
+  if isinstance(exception, HttpError) or \
           isinstance(exception, IOError):
-    # GCS I/O raises RuntimeError and local filesystem I/O
-    # raises IOError when file reading is failed.
     return True
   else:
     return False
@@ -71,25 +71,27 @@ def retry_on_fileio_error(exception):
 class FileChecksumMatcher(BaseMatcher):
   """Matcher that verifies file(s) content by comparing file checksum.
 
-  Use fileio to fetch file(s) from given path. Currently, fileio supports
-  local filesystem and GCS.
-
-  File checksum is a SHA-1 hash computed from content of file(s).
+  Use apache_beam.io.fileio to fetch file(s) from given path. File checksum
+  is a SHA-1 hash computed from content of file(s).
   """
 
   def __init__(self, file_path, expected_checksum):
     self.file_path = file_path
     self.expected_checksum = expected_checksum
 
-  @retry.with_exponential_backoff(num_retries=MAX_RETRIES,
-                                  retry_filter=retry_on_fileio_error)
+  @retry.with_exponential_backoff(
+      num_retries=MAX_RETRIES,
+      retry_filter=retry_on_io_error_and_server_error)
   def _read_with_retry(self):
     """Read path with retry if I/O failed"""
-    source = TextFileSource(self.file_path)
     read_lines = []
-    with source.reader() as reader:
-      for line in reader:
-        read_lines.append(line)
+    matched_path = ChannelFactory.glob(self.file_path)
+    if not matched_path:
+      raise IOError('No such file or directory: %s' % self.file_path)
+    for path in matched_path:
+      with ChannelFactory.open(path, 'r') as f:
+        for line in f:
+          read_lines.append(line)
     return read_lines
 
   def _matches(self, _):
