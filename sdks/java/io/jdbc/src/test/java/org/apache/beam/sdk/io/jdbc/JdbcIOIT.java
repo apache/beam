@@ -63,6 +63,7 @@ public class JdbcIOIT {
     dataSource.setUser(options.getPostgresUsername());
     dataSource.setPassword(options.getPostgresPassword());
     dataSource.setSsl(options.getPostgresSsl());
+
     return dataSource;
   }
 
@@ -107,6 +108,7 @@ public class JdbcIOIT {
             KV.of(resultSet.getString("name"), resultSet.getInt("id"));
         return kv;
       }
+      return tableName;
     }
 
     private static class ValidateCountFn implements SerializableFunction<Iterable<KV<String, Long>>, Void> {
@@ -145,8 +147,8 @@ public class JdbcIOIT {
       PAssert.that(output
           .apply("Count Scientist", Count.<String, Integer>perKey())
       ).satisfies(new ValidateCountFn());
-
       pipeline.run().waitUntilFinish();
+
     } finally {
       // cleanup!
       if (tableName != null) {
