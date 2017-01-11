@@ -16,8 +16,6 @@
  * limitations under the License.
  */
 /**
- * Defines transforms for reading from Data sources which implement Hadoop Input Format.
- *
- * @see org.apache.beam.sdk.io.hadoop.inputformat.HadoopInputFormatIO
+ * Defines Coders.
  */
-package org.apache.beam.sdk.io.hadoop.inputformat;
+package org.apache.beam.sdk.io.hadoop.inputformat.coders;
