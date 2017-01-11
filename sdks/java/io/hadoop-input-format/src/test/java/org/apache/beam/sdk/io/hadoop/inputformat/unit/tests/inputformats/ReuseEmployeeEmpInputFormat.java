@@ -20,6 +20,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.io.Writable;
@@ -29,43 +30,58 @@ import org.apache.hadoop.mapreduce.JobContext;
 import org.apache.hadoop.mapreduce.RecordReader;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
 
-public class ImmutableRecordsEmpInputFormat extends InputFormat<Text, Employee> {
+/**
+ * <p>
+ * ReuseEmployeeEmpInputFormat for reading employee data which is stored in map employeeData.
+ * <p>
+ * employeeData has 9 employee records.
+ * <p>
+ * ReuseEmployeeEmpInputFormat splits data into 3 splits each having 3 records.
+ * <p>
+ * ReuseEmployeeEmpInputFormat reads data from employeeData and produces a key of type Text -> is
+ * employee id and value is of type
+ * {@link org.apache.beam.sdk.io.hadoop.inputformat.unit.tests.inputformats.Employee Employee}.
+ * <p>
+ * NewEmployeeEmpInputFormat is input to test whether HadoopInputFormatIO source returns immutable
+ * records for a scenario when RecordReader provides same key and value object with updating values
+ * every time it reads employee data.
+ */
+public class ReuseEmployeeEmpInputFormat extends InputFormat<Text, Employee> {
   private final long numberOfRecordsInEachSplit = 3L;
   private final long numberOfSplits = 3L;
 
-  public ImmutableRecordsEmpInputFormat() {}
+  public ReuseEmployeeEmpInputFormat() {}
 
   @Override
   public RecordReader<Text, Employee> createRecordReader(InputSplit split,
       TaskAttemptContext context) throws IOException, InterruptedException {
-    return new ImmutableRecordsRecordReader();
+    return new ReuseEmployeeRecordReader();
   }
 
   @Override
   public List<InputSplit> getSplits(JobContext arg0) throws IOException, InterruptedException {
     List<InputSplit> inputSplitList = new ArrayList<InputSplit>();
     for (int i = 0; i < numberOfSplits; i++) {
-      InputSplit inputSplitObj = new ImmutableRecordsInputSplit((i * numberOfSplits),
+      InputSplit dummyInputSplitObj = new ReuseEmployeeInputSplit((i * numberOfSplits),
           ((i * numberOfSplits) + numberOfRecordsInEachSplit));
-      inputSplitList.add(inputSplitObj);
+      inputSplitList.add(dummyInputSplitObj);
     }
     return inputSplitList;
   }
 
-  public class ImmutableRecordsInputSplit extends InputSplit implements Writable {
+  public class ReuseEmployeeInputSplit extends InputSplit implements Writable {
+    // Start and end map index of each split of employeeData
     private long startIndex;
     private long endIndex;
 
-    public ImmutableRecordsInputSplit() {}
+    public ReuseEmployeeInputSplit() {}
 
-    public ImmutableRecordsInputSplit(long startIndex, long endIndex) {
+    public ReuseEmployeeInputSplit(long startIndex, long endIndex) {
       this.startIndex = startIndex;
       this.endIndex = endIndex;
     }
 
-    /**
-     *  returns number of records in each split
-     */
+    /** Returns number of records in each split. */
     @Override
     public long getLength() throws IOException, InterruptedException {
       return this.endIndex - this.startIndex;
@@ -75,6 +91,7 @@ public class ImmutableRecordsEmpInputFormat extends InputFormat<Text, Employee> 
     public String[] getLocations() throws IOException, InterruptedException {
       return null;
     }
+
 
     public long getStartIndex() {
       return startIndex;
@@ -97,15 +114,16 @@ public class ImmutableRecordsEmpInputFormat extends InputFormat<Text, Employee> 
     }
   }
 
-  public class ImmutableRecordsRecordReader extends RecordReader<Text, Employee> {
+  class ReuseEmployeeRecordReader extends RecordReader<Text, Employee> {
 
-    private ImmutableRecordsInputSplit split;
-    private Text currentKey;
-    private Employee currentValue;
-    private long pointer = 0L;
+    private ReuseEmployeeInputSplit split;
+    private Text currentKey = new Text();
+    private Employee currentValue = new Employee();
+    private long employeeMapIndex = 0L;
     private long recordsRead = 0L;
+    private Map<Long, String> employeeData = new HashMap<Long, String>();
 
-    public ImmutableRecordsRecordReader() {}
+    public ReuseEmployeeRecordReader() {}
 
     @Override
     public void close() throws IOException {}
@@ -128,11 +146,10 @@ public class ImmutableRecordsEmpInputFormat extends InputFormat<Text, Employee> 
     @Override
     public void initialize(InputSplit split, TaskAttemptContext arg1)
         throws IOException, InterruptedException {
-      this.split = (ImmutableRecordsInputSplit) split;
-      pointer = this.split.getStartIndex() - 1;
+      this.split = (ReuseEmployeeInputSplit) split;
+      employeeMapIndex = this.split.getStartIndex() - 1;
       recordsRead = 0;
-      makeData();
-      currentValue = new Employee(null, null);
+      populateEmployeeData();
     }
 
     @Override
@@ -140,28 +157,28 @@ public class ImmutableRecordsEmpInputFormat extends InputFormat<Text, Employee> 
       if ((recordsRead++) == split.getLength()) {
         return false;
       }
-      pointer++;
-      boolean hasNext = hmap.containsKey(pointer);
+      employeeMapIndex++;
+      boolean hasNext = employeeData.containsKey(employeeMapIndex);
       if (hasNext) {
-        String empData[] = hmap.get(pointer).split("_");
-        currentKey = new Text(String.valueOf(pointer));
-        currentValue = new Employee(empData[0], empData[1]);
+        String empData[] = employeeData.get(employeeMapIndex).split("_");
+        // Updating the same key and value objects with new employee data
+        currentKey.set(String.valueOf(employeeMapIndex));
+        currentValue.setEmpName(empData[0]);
+        currentValue.setEmpAddress(empData[1]);
       }
       return hasNext;
     }
 
-    private HashMap<Long, String> hmap = new HashMap<Long, String>();
-
-    private void makeData() {
-      hmap.put(0L, "Alex_US");
-      hmap.put(1L, "John_UK");
-      hmap.put(2L, "Tom_UK");
-      hmap.put(3L, "Nick_UAE");
-      hmap.put(4L, "Smith_IND");
-      hmap.put(5L, "Taylor_US");
-      hmap.put(6L, "Gray_UK");
-      hmap.put(7L, "James_UAE");
-      hmap.put(8L, "Jordan_IND");
+    private void populateEmployeeData() {
+      employeeData.put(0L, "Alex_US");
+      employeeData.put(1L, "John_UK");
+      employeeData.put(2L, "Tom_UK");
+      employeeData.put(3L, "Nick_UAE");
+      employeeData.put(4L, "Smith_IND");
+      employeeData.put(5L, "Taylor_US");
+      employeeData.put(6L, "Gray_UK");
+      employeeData.put(7L, "James_UAE");
+      employeeData.put(8L, "Jordan_IND");
     }
   }
 }

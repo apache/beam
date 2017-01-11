@@ -99,8 +99,9 @@ public class BadEmptySplitsEmpInputFormat extends InputFormat<Text, Employee> {
     private EmptyInputSplitsInputSplit split;
     private Text currentKey;
     private Employee currentValue;
-    private long pointer = 0L;
+    private long employeeMapIndex = 0L;
     private long recordsRead = 0L;
+    private HashMap<Long, Employee> employeeData = new HashMap<Long, Employee>();
 
     public EmptyInputSplitsRecordReader() {}
 
@@ -126,36 +127,34 @@ public class BadEmptySplitsEmpInputFormat extends InputFormat<Text, Employee> {
     public void initialize(InputSplit split, TaskAttemptContext arg1)
         throws IOException, InterruptedException {
       this.split = (EmptyInputSplitsInputSplit) split;
-      pointer = this.split.getStartIndex() - 1;
+      employeeMapIndex = this.split.getStartIndex() - 1;
       recordsRead = 0;
-      makeData();
+      populateEmployeeData();
     }
 
     @Override
     public boolean nextKeyValue() throws IOException, InterruptedException {
       if ((recordsRead++) == split.getLength())
         return false;
-      pointer++;
-      boolean hasNext = hmap.containsKey(pointer);
+      employeeMapIndex++;
+      boolean hasNext = employeeData.containsKey(employeeMapIndex);
       if (hasNext) {
-        currentKey = new Text(String.valueOf(pointer));
-        currentValue = hmap.get(pointer);
+        currentKey = new Text(String.valueOf(employeeMapIndex));
+        currentValue = employeeData.get(employeeMapIndex);
       }
       return hasNext;
     }
 
-    private HashMap<Long, Employee> hmap = new HashMap<Long, Employee>();
-
-    private void makeData() {
-      hmap.put(0L, new Employee("Alex", "US"));
-      hmap.put(1L, new Employee("John", "UK"));
-      hmap.put(2L, new Employee("Tom", "UK"));
-      hmap.put(3L, new Employee("Nick", "UAE"));
-      hmap.put(4L, new Employee("Smith", "IND"));
-      hmap.put(5L, new Employee("Taylor", "US"));
-      hmap.put(6L, new Employee("Gray", "UK"));
-      hmap.put(7L, new Employee("James", "UAE"));
-      hmap.put(8L, new Employee("Jordan", "IND"));
+    private void populateEmployeeData() {
+      employeeData.put(0L, new Employee("Alex", "US"));
+      employeeData.put(1L, new Employee("John", "UK"));
+      employeeData.put(2L, new Employee("Tom", "UK"));
+      employeeData.put(3L, new Employee("Nick", "UAE"));
+      employeeData.put(4L, new Employee("Smith", "IND"));
+      employeeData.put(5L, new Employee("Taylor", "US"));
+      employeeData.put(6L, new Employee("Gray", "UK"));
+      employeeData.put(7L, new Employee("James", "UAE"));
+      employeeData.put(8L, new Employee("Jordan", "IND"));
     }
   }
 }

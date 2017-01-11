@@ -67,7 +67,7 @@ public class BadNoRecordsEmpInputFormat extends InputFormat<Text, Employee> {
     }
 
     /**
-     * returns number of records in each split
+     * Returns number of records in each split.
      */
     @Override
     public long getLength() throws IOException, InterruptedException {
@@ -105,7 +105,7 @@ public class BadNoRecordsEmpInputFormat extends InputFormat<Text, Employee> {
     private BadRecordReaderNoRecordsInputSplit split;
     private Text currentKey;
     private Employee currentValue;
-    private long pointer;
+    private long employeeMapIndex;
     private long recordsRead;
     private HashMap<Text, Employee> emptyDataHmap = new HashMap<Text, Employee>();
 
@@ -134,7 +134,7 @@ public class BadNoRecordsEmpInputFormat extends InputFormat<Text, Employee> {
     public void initialize(InputSplit split, TaskAttemptContext arg1)
         throws IOException, InterruptedException {
       this.split = (BadRecordReaderNoRecordsInputSplit) split;
-      pointer = this.split.getStartIndex() - 1;
+      employeeMapIndex = this.split.getStartIndex() - 1;
       recordsRead = 0;
     }
 
@@ -146,11 +146,11 @@ public class BadNoRecordsEmpInputFormat extends InputFormat<Text, Employee> {
       if ((recordsRead++) == split.getLength()) {
         return false;
       }
-      pointer++;
-      boolean hasNext = emptyDataHmap.containsKey(pointer);
+      employeeMapIndex++;
+      boolean hasNext = emptyDataHmap.containsKey(employeeMapIndex);
       if (hasNext) {
-        currentKey = new Text(String.valueOf(pointer));
-        currentValue = emptyDataHmap.get(pointer);
+        currentKey = new Text(String.valueOf(employeeMapIndex));
+        currentValue = emptyDataHmap.get(employeeMapIndex);
       }
       return hasNext;
     }

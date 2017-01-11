@@ -67,6 +67,7 @@ import com.google.common.base.Function;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 
+
 /**
  * A bounded source for HadoopInputFormat.
  *
@@ -75,53 +76,208 @@ import com.google.common.collect.Lists;
  * pairs returning a {@code PCollection<KV>}.
  * 
  * 
- * HadoopConfiguration is mandatory for reading the data using HadoopInputFormat source which is set
- * using HadoopInputFormatIO.Read#withConfiguration(HadoopConfiguration). Key/value translation is a
- * simple function used to translate input formats keys/values to some other user provided class for
- * which coder is available. Key/value translation function is optional and can be
- * set using
- * HadoopInputFormatIO.Read#withKeyTranslation/HadoopInputFormatIO.Read#withValueTranslation.
+ * <p>
+ * HadoopConfiguration is mandatory for reading the data using HadoopInputFormat source.
+ * <p>
+ * {@link org.apache.hadoop.conf.Configuration HadoopConfiguration} object will have to be set with
+ * following properties without fail:
+ * <ul>
+ * <li>mapreduce.job.inputformat.class</li>
+ * <li>key.class</li>
+ * <li>value.class</li>
+ * </ul>
+ * For example:
  * 
- * Example simple functions:
+ * <pre>
+ * <tt>
+ *   Configuration myHadoopConfiguration = new Configuration(false);
+ *   // Set Hadoop InputFormat, key and value class in configuration
+ *   myHadoopConfiguration.setClass("mapreduce.job.inputformat.class", InputFormatClass, InputFormat.class);
+ *   myHadoopConfiguration.setClass("key.class", InputFormatKeyClass, Object.class);
+ *   myHadoopConfiguration.setClass("value.class", InputFormatValueClass, Object.class);
+ * </tt>
+ * </pre>
+ * <p>
+ * Key/value translation is a mechanism provided to user for translating input format's key/value
+ * <br>
+ * type to any other class type for which a coder should be available.<br>
+ * For example:
+ * 
+ * <pre>
+ * <tt>
+ *  SimpleFunction<InputFormatKeyClass, MyKeyTranslate> myKeyTranslateFunc = new SimpleFunction<InputFormatKeyClass, MyKeyTranslate>() {
+ *    <tt>@Override
+ *     public MyKeyTranslate apply(InputFormatKeyClass input) {
+ *       //...logic to transform InputFormatKeyClass to MyKeyTranslate
+ *     }
+ *  };
  *  
-   SimpleFunction<Text, String> myKeyTranslate = new SimpleFunction<Text, String>() {
-      private static final long serialVersionUID = 1L;
-
-      @Override
-      public String apply(Text input) {
-        return input.toString();
-      }
-    };
-    SimpleFunction<Employee, String> myValueTranslate = new SimpleFunction<Employee, String>() {
-      private static final long serialVersionUID = 1L;
-
-      @Override
-      public String apply(Employee input) {
-        return input.getEmpName() + "_" + input.getEmpAddress();
-      }
-    };
- *           
- * Example: HadoopInputFormatIO.Read<MyKey, MyValue> read =
- *          HadoopInputFormatIO.<MyKey, MyValue>read() 
- *              .withConfiguration(myConfiguration);
+ *  SimpleFunction<InputFormatValueClass, MyValueTranslate> myValueTranslateFunc = new SimpleFunction<InputFormatValueClass, MyValueTranslate>() {
+ *    <tt>@Override
+ *     public MyValueTranslate apply(InputFormatValueClass input) {
+ *       //...logic to transform InputFormatValueClass to MyValueTranslate
+ *    }
+ *  };   
+ * </tt>
+ * </pre>
  * 
- * Example: HadoopInputFormatIO.Read<MyKey, MyValue> read = HadoopInputFormatIO.<MyKey,
- *          MyValue>read() 
- *            .withConfiguration(myConfiguration) 
- *            .withKeyTranslation(myKeyTranslate);
+ * <h3>Read options supported for HadoopInputFormatIO</h3>
+ * <p>
+ * HadoopConfiguration is set using {@link #withConfiguration}. Key/value translation function<br>
+ * is optional and can be set using {@link #withKeyTranslation}/{@link #withValueTranslation}.<br>
+ * For example :
  * 
- * Example : HadoopInputFormatIO.Read<MyKey, MyValue> read = 
- *           HadoopInputFormatIO.<MyKey,MyValue>read() 
- *             .withConfiguration(myConfiguration) 
- *             .withKeyTranslation(myKeyTranslate);
+ * <pre>
+ * {
+ *   &#64;code
+ *   HadoopInputFormatIO.Read<MyKeyTranslate, MyValueTranslate> read = HadoopInputFormatIO
+ *       .<MyKeyTranslate, MyValueTranslate>read().withConfiguration(myHadoopConfiguration)
+ *       .withKeyTranslation(myKeyTranslate).withValueTranslation(myValueTranslate);
+ * }
+ * </pre>
  * 
- * Example : HadoopInputFormatIO.Read<MyKey, MyValue> read = 
- *           HadoopInputFormatIO.<MyKey,MyValue>read() 
- *              .withConfiguration(myConfiguration) 
+ * Pipeline p = ...;
+ * <P>
+ * //Read data only with Hadoop configuration.
+ * 
+ * <pre>
+ * {@code 
+ * p.apply("read",
+ *     HadoopInputFormatIO.<InputFormatKeyClass, InputFormatKeyClass>read() 
+ *              .withConfiguration(myHadoopConfiguration); 
+ * }
+ * </pre>
+ * <P>
+ * // Read data with configuration and key translation (Example scenario: Coder is not available
+ * for<br>
+ * // key type hence key translation is required.).
+ * 
+ * <pre>
+ * {@code 
+ * p.apply("read",
+ *     HadoopInputFormatIO.<MyKeyTranslate, InputFormatKeyClass>read() 
+ *              .withConfiguration(myHadoopConfiguration) 
+ *              .withKeyTranslation(myKeyTranslate);
+ * }
+ * </pre>
+ * </p>
+ * <P>
+ * // Read data with configuration and value translation (Example scenario: Coder is not
+ * available<br>
+ * // for value type hence value translation is required.).
+ * 
+ * <pre>
+ * {@code 
+ * p.apply("read",
+ *     HadoopInputFormatIO.<InputFormatKeyClass, MyValueTranslate>read() 
+ *              .withConfiguration(myHadoopConfiguration) 
+ *              .withValueTranslation(myValueTranslate);
+ * }
+ * </pre>
+ * 
+ * <P>
+ * // Read data with configuration, value translation and key translation (Example scenario:
+ * Coders<br>
+ * // are not available for both key type and value type of InputFormat hence key and value
+ * translation<br>
+ * // is required.).
+ * 
+ * <pre>
+ * {@code 
+ * p.apply("read",
+ *     HadoopInputFormatIO.<MyKeyTranslate, MyValueTranslate>read() 
+ *              .withConfiguration(myHadoopConfiguration) 
  *              .withKeyTranslation(myKeyTranslate)
  *              .withValueTranslation(myValueTranslate);
+ * }
+ * </pre>
  * 
+ * <h3>Read data from Cassandra using HadoopInputFormatIO transform</h3>
+ * <p>
+ * To read data from Cassandra, CqlInputFormat can be used which needs following properties to
+ * be<br>
+ * set.
+ * <p>
+ * Create Cassandra Hadoop configuration as follows:
+ * </p>
+ * 
+ * <pre>
+ * {@code 
+ * Configuration cassandraConf = new Configuration();
+ *   cassandraConf.set("cassandra.input.thrift.port" , "9160");
+ *   cassandraConf.set("cassandra.input.thrift.address" , CassandraHostIp);
+ *   cassandraConf.set("cassandra.input.partitioner.class" , "Murmur3Partitioner");
+ *   cassandraConf.set("cassandra.input.keyspace" , "myKeySpace");
+ *   cassandraConf.set("cassandra.input.columnfamily" , "myColumnFamily");
+ *   cassandraConf.setClass("key.class" ,{@link java.lang.Long.class} , Object.class);
+ *   cassandraConf.setClass("value.class" ,{@link com.datastax.driver.core.Row.class} , Object.class);
+ *   cassandraConf.setClass("mapreduce.job.inputformat.class" ,{@link org.apache.cassandra.hadoop.cql3.CqlInputFormat.class} , InputFormat.class); }
+ * </pre>
+ * <p>
+ * Read Cassandra data as follows:
+ * </p>
+ * 
+ * <pre>
+ * {@code
+ * PCollection<KV<Long,String>> cassandraData =
+ *          p.apply("read",
+ *                  HadoopInputFormatIO.<Long, String>read() 
+ *                      .withConfiguration( cassandraConf ) 
+ *                      .withValueTranslation( cassandraValueTranslate );
+ *   }
+ * </pre>
+ * <p>
+ * As coder is available for CqlInputFormat key class i.e. {@link java.lang.Long} , key
+ * translation<br>
+ * is not required. For CqlInputFormat value class i.e. {@link com.datastax.driver.core.Row}
+ * coder<br>
+ * is not available in Beam, user will need to provide his own translation mechanism like following:
+ * </p>
+ * 
+ * <pre>
+ * <tt>
+ * SimpleFunction<Row, String> cassandraValueTranslate = SimpleFunction<Row, String>() 
+ * {
+ *    <tt>@override
+ *    public String apply(Row row) {
+ *      return row.getString('myColName'); 
+ *    }
+ * };
+ * </tt>
+ * </pre>
+ * 
+ * <h3>Read data from ElasticSearch using HadoopInputFormatIO transform</h3>
+ * <p>
+ * To read data from ElasticSearch, EsInputFormat can be used which needs following properties to be
+ * set.
+ * <p>
+ * Create ElasticSearch Hadoop configuration as follows:
+ * </p>
+ * 
+ * <pre>
+ * <tt>
+ * Configuration elasticSearchConf = new Configuration();
+ *   elasticSearchConf.set("es.nodes", ElasticSearchHostIp);
+ *   elasticSearchConf.set("es.port", "9200");
+ *   elasticSearchConf.set("es.resource","ElasticIndexName/ElasticTypeName");
+ *   elasticSearchConf.setClass("key.class" ,{@link org.apache.hadoop.io.Text.class}, Object.class);
+ *   elasticSearchConf.setClass("value.class" ,{@link org.apache.hadoop.io.MapWritable.class} , Object.class); 
+ *   elasticSearchConf.setClass("mapreduce.job.inputformat.class",{@link org.elasticsearch.hadoop.mr.EsInputFormat.class}, InputFormat.class);
+ *  </tt>
+ * </pre>
+ * 
+ * Read ElasticSearch data as follows:
+ * 
+ * <pre>
+ * {@code
+ * PCollection<KV<Text,MapWritable>> elasticData=
+ *            p.apply("read",
+ *                   HadoopInputFormatIO.<Text,MapWritable>read() 
+ *                        .withConfiguration(elasticSearchConf));}
+ * 
+ * <pre>
  */
+
 public class HadoopInputFormatIO {
   private static final Logger LOG = LoggerFactory.getLogger(HadoopInputFormatIO.class);
 
@@ -241,9 +397,8 @@ public class HadoopInputFormatIO {
       return input.getPipeline().apply(org.apache.beam.sdk.io.Read.from(source));
     }
 
-    /**
-     * Validates inputs provided by the pipeline user before reading the data.
-     */
+    /** Validates inputs provided by the pipeline user before reading the data. */
+    @Override
     public void validate(PBegin input) {
       checkNotNull(this.getConfiguration(),
           "Need to set the configuration of a HadoopInputFormatIO "
@@ -253,9 +408,6 @@ public class HadoopInputFormatIO {
       getKeyAndValueCoder(input);
     }
 
-    /**
-     * Validates configuration
-     */
     private void validateConfiguration() {
       String inputFormatClassProperty =
           this.getConfiguration().getConfiguration().get("mapreduce.job.inputformat.class");
@@ -274,15 +426,14 @@ public class HadoopInputFormatIO {
     }
 
     /**
-     * Validates translation function's of key/value
+     * Validates translation function's of key/value. Key translation input type must be same as key
+     * class of input format. Value translation input type must be same as value class of input
+     * format.
      */
     private void validateTranslationFunctions() {
       if (this.getSimpleFuncForKeyTranslation() != null) {
         TypeDescriptor<?> inputFormatKeyClass = TypeDescriptor
             .of(this.getConfiguration().getConfiguration().getClass("key.class", Object.class));
-        /**
-         * key translation input type must be same as key class of input format
-         */
         if (!this.getSimpleFuncForKeyTranslation().getInputTypeDescriptor()
             .equals(inputFormatKeyClass)) {
           String inputFormatClass =
@@ -296,9 +447,6 @@ public class HadoopInputFormatIO {
       if (this.getSimpleFuncForValueTranslation() != null) {
         TypeDescriptor<?> inputFormatValueClass = TypeDescriptor
             .of(this.getConfiguration().getConfiguration().getClass("value.class", Object.class));
-        /**
-         * value translation input type must be same as value class of input format
-         */
         if (!this.getSimpleFuncForValueTranslation().getInputTypeDescriptor()
             .equals(inputFormatValueClass)) {
           String inputFormatClass =
@@ -314,9 +462,7 @@ public class HadoopInputFormatIO {
     private Coder<K> keyCoder;
     private Coder<V> valueCoder;
 
-    /**
-     * Set the key and value coder based on the key class and value class
-     */
+    /** Set the key and value coder based on the key class and value class */
     protected void getKeyAndValueCoder(PBegin input) {
       keyCoder = getDefaultCoder(this.getKeyClass(), input.getPipeline().getCoderRegistry());
       valueCoder = getDefaultCoder(this.getValueClass(), input.getPipeline().getCoderRegistry());
@@ -504,9 +650,7 @@ public class HadoopInputFormatIO {
       }
     }
 
-    /**
-     * BoundedReader for HadoopInputFormatSource
-     */
+    /** BoundedReader for HadoopInputFormatSource */
     class HadoopInputFormatReader<T extends Object> extends BoundedSource.BoundedReader<KV<K, V>> {
 
       private final HadoopInputFormatBoundedSource<K, V> source;
