@@ -110,6 +110,16 @@ class _TextSource(filebasedsource.FileBasedSource):
       while range_tracker.try_claim(next_record_start_position):
         record, num_bytes_to_next_record = self._read_record(file_to_read,
                                                              read_buffer)
+
+        # For compressed text files that use an unsplittable OffsetRangeTracker
+        # with infinity as the end position, above 'try_claim()' invocation
+        # would pass for an empty record at the end of file that is not
+        # followed by a new line character. Since such a record is at the last
+        # position of a file, it should not be a part of the considered range.
+        # We do this check to ignore such records.
+        if len(record) == 0 and num_bytes_to_next_record < 0:
+          break
+
         yield self._coder.decode(record)
         if num_bytes_to_next_record < 0:
           break
