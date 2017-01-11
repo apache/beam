@@ -37,7 +37,7 @@ import com.google.api.client.util.BackOffUtils;
 import com.google.api.client.util.Sleeper;
 import com.google.auth.Credentials;
 import com.google.auth.http.HttpCredentialsAdapter;
-import com.google.auto.value.;
+import com.google.auto.value.AutoValue;
 import com.google.cloud.hadoop.util.ChainingHttpRequestInitializer;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.MoreObjects;
@@ -237,7 +237,7 @@ public class DatastoreV1 {
 
     abstract Builder toBuilder();
 
-    @.Builder
+    @AutoValue.Builder
     abstract static class Builder {
       abstract Builder setProjectId(String projectId);
       abstract Builder setQuery(Query query);
