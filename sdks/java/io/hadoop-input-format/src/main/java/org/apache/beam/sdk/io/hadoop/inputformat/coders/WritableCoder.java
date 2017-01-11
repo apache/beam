@@ -104,5 +104,4 @@ public class WritableCoder<T extends Writable> extends StandardCoder<T> {
     throw new NonDeterministicException(this,
         "Hadoop Writable may be non-deterministic.");
   }
-
 }
