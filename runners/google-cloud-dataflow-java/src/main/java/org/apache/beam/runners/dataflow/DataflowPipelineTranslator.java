@@ -598,23 +598,6 @@ public class DataflowPipelineTranslator {
     }
 
     @Override
-    public long addValueOnlyOutput(PValue value) {
-      Coder<?> coder;
-      if (value instanceof TypedPValue) {
-        coder = ((TypedPValue<?>) value).getCoder();
-        if (value instanceof PCollection) {
-          // Wrap the PCollection element Coder inside a ValueOnly
-          // WindowedValueCoder.
-          coder = WindowedValue.getValueOnlyCoder(coder);
-        }
-      } else {
-        // No output coder to encode.
-        coder = null;
-      }
-      return addOutput(value, coder);
-    }
-
-    @Override
     public long addCollectionToSingletonOutput(
         PValue inputValue, PValue outputValue) {
       Coder<?> inputValueCoder =
