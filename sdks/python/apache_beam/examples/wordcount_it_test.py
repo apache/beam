@@ -33,7 +33,7 @@ class WordCountIT(unittest.TestCase):
 
   # The default checksum is a SHA-1 hash generated from a sorted list of
   # lines read from expected output.
-  DEFAULT_CHECKSUM = 'c780e9466b8635af1d11b74bbd35233a82908a02'
+  DEFAULT_CHECKSUM = '33535a832b7db6d78389759577d4ff495980b9c0'
 
   @attr('IT')
   def test_wordcount_it(self):
