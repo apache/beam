@@ -33,6 +33,8 @@ import org.slf4j.LoggerFactory;
 public final class SparkContextFactory {
   private static final Logger LOG = LoggerFactory.getLogger(SparkContextFactory.class);
 
+  public static final JavaSparkContext EMPTY_CONTEXT = null;
+
   /**
    * If the property {@code beam.spark.test.reuseSparkContext} is set to
    * {@code true} then the Spark context will be reused for beam pipelines.

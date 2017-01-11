@@ -20,6 +20,8 @@ package org.apache.beam.sdk.metrics;
 
 import static org.apache.beam.sdk.metrics.MetricMatchers.attemptedMetricsResult;
 import static org.apache.beam.sdk.metrics.MetricMatchers.committedMetricsResult;
+import static org.apache.beam.sdk.metrics.MetricMatchers.distributionAttemptedMinMax;
+import static org.apache.beam.sdk.metrics.MetricMatchers.distributionCommittedMinMax;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasItem;
 import static org.junit.Assert.assertNull;
@@ -116,8 +118,8 @@ public class MetricsTest implements Serializable {
     PipelineResult result = runPipelineWithMetrics();
 
     MetricQueryResults metrics = result.metrics().queryMetrics(MetricsFilter.builder()
-      .addNameFilter(MetricNameFilter.inNamespace(MetricsTest.class))
-      .build());
+        .addNameFilter(MetricNameFilter.inNamespace(MetricsTest.class))
+        .build());
 
     assertThat(metrics.counters(), hasItem(
         committedMetricsResult(MetricsTest.class.getName(), "count", "MyStep1", 3L)));
@@ -130,6 +132,9 @@ public class MetricsTest implements Serializable {
     assertThat(metrics.distributions(), hasItem(
         committedMetricsResult(MetricsTest.class.getName(), "input", "MyStep2",
             DistributionResult.create(52L, 6L, 5L, 13L))));
+
+    assertThat(metrics.distributions(), hasItem(
+        distributionCommittedMinMax(MetricsTest.class.getName(), "bundle", "MyStep1", 10L, 40L)));
   }
 
 
@@ -154,6 +159,9 @@ public class MetricsTest implements Serializable {
     assertThat(metrics.distributions(), hasItem(
         attemptedMetricsResult(MetricsTest.class.getName(), "input", "MyStep2",
             DistributionResult.create(52L, 6L, 5L, 13L))));
+
+    assertThat(metrics.distributions(), hasItem(
+        distributionAttemptedMinMax(MetricsTest.class.getName(), "bundle", "MyStep1", 10L, 40L)));
   }
 
   private PipelineResult runPipelineWithMetrics() {
@@ -162,6 +170,13 @@ public class MetricsTest implements Serializable {
     pipeline
         .apply(Create.of(5, 8, 13))
         .apply("MyStep1", ParDo.of(new DoFn<Integer, Integer>() {
+          Distribution bundleDist = Metrics.distribution(MetricsTest.class, "bundle");
+
+          @StartBundle
+          public void startBundle(Context c) {
+            bundleDist.update(10L);
+          }
+
           @SuppressWarnings("unused")
           @ProcessElement
           public void processElement(ProcessContext c) {
@@ -171,6 +186,11 @@ public class MetricsTest implements Serializable {
 
             c.output(c.element());
             c.output(c.element());
+          }
+
+          @DoFn.FinishBundle
+          public void finishBundle(Context c) {
+            bundleDist.update(40L);
           }
         }))
         .apply("MyStep2", ParDo.of(new DoFn<Integer, Integer>() {

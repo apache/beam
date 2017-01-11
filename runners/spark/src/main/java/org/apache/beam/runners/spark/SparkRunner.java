@@ -29,6 +29,7 @@ import org.apache.beam.runners.spark.aggregators.AccumulatorSingleton;
 import org.apache.beam.runners.spark.aggregators.NamedAggregators;
 import org.apache.beam.runners.spark.aggregators.SparkAggregators;
 import org.apache.beam.runners.spark.aggregators.metrics.AggregatorMetricSource;
+import org.apache.beam.runners.spark.metrics.SparkMetricsContainer;
 import org.apache.beam.runners.spark.translation.EvaluationContext;
 import org.apache.beam.runners.spark.translation.SparkContextFactory;
 import org.apache.beam.runners.spark.translation.SparkPipelineTranslator;
@@ -141,6 +142,8 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
     final Accumulator<NamedAggregators> accum =
         SparkAggregators.getOrCreateNamedAggregators(jsc, maybeCheckpointDir);
     final NamedAggregators initialValue = accum.value();
+    // Instantiate metrics accumulator
+    SparkMetricsContainer.getAccumulator(jsc);
 
     if (opts.getEnableSparkMetricSinks()) {
       final MetricsSystem metricsSystem = SparkEnv$.MODULE$.get().metricsSystem();
