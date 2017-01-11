@@ -19,7 +19,6 @@
 
 import logging
 import unittest
-import mock
 
 from hamcrest.core.base_matcher import BaseMatcher
 from hamcrest.core.assert_that import assert_that as hc_assert_that
@@ -76,7 +75,9 @@ class TestPipelineTest(unittest.TestCase):
       {'options': {'student': True},
        'expected': ['--student']},
       {'options': {'student': False},
-       'expected': []}
+       'expected': []},
+      {'options': {'name': 'Mark', 'student': True},
+       'expected': ['--name=Mark', '--student']}
   ]
 
   def test_append_extra_options(self):
@@ -90,7 +91,7 @@ class TestPipelineTest(unittest.TestCase):
     opt_list = TestPipeline().get_full_options_as_args(**extra_opt)
     matcher = pickler.loads(opt_list[0].split('=')[1])
     self.assertTrue(isinstance(matcher, BaseMatcher))
-    hc_assert_that(mock.Mock(), matcher)
+    hc_assert_that(None, matcher)
 
   def test_get_option(self):
     name, value = ('job', 'mockJob')

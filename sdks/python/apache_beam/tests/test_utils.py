@@ -23,8 +23,17 @@ from mock import Mock, patch
 from apache_beam.utils import retry
 
 
-def patch_retry(cls, module):
-  """A function to patch retry module to use mock clock and logger."""
+def patch_retry(testcase, module):
+  """A function to patch retry module to use mock clock and logger.
+
+  Clock and logger that defined in retry decorator will be replaced in test
+  in order to skip sleep phase when retry happens.
+
+  Args:
+    testcase: A test class that calls this function to patch retry module.
+    module: The module that uses retry and need to be replaced with mock
+      clock and logger in test.
+  """
   real_retry_with_exponential_backoff = retry.with_exponential_backoff
 
   def patched_retry_with_exponential_backoff(num_retries, retry_filter):
@@ -44,4 +53,4 @@ def patch_retry(cls, module):
     # Reload module again after removing patch.
     imp.reload(module)
 
-  cls.addCleanup(kill_patches)
+  testcase.addCleanup(kill_patches)
