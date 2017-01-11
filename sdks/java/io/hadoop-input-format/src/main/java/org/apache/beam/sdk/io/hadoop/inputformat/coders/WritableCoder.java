@@ -28,7 +28,6 @@ import java.util.List;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.StandardCoder;
-import org.apache.beam.sdk.util.CloudObject;
 import org.apache.hadoop.io.NullWritable;
 import org.apache.hadoop.io.Writable;
 
