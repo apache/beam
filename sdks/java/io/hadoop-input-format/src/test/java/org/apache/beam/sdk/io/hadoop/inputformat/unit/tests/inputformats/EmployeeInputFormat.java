@@ -29,6 +29,14 @@ import org.apache.hadoop.mapreduce.JobContext;
 import org.apache.hadoop.mapreduce.RecordReader;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
 
+/**
+ * <p>This is InputFormat for reading employee data which is stored in map employeeData. employeeData
+ * has 9 employee records. 
+ * <p>EmployeeInputFormat splits data into 3 splits each having 3 records.
+ * <p>EmployeeInputFormat reads data from employeeData and produces a key is of type Text which is employee id and
+ * value of type {@link org.apache.beam.sdk.io.hadoop.inputformat.unit.tests.inputformats.Employee
+ * Employee}.
+ */
 public class EmployeeInputFormat extends InputFormat<Text, Employee> {
   private final long numberOfRecordsInEachSplit = 3L;
   private final long numberOfSplits = 3L;
@@ -53,6 +61,7 @@ public class EmployeeInputFormat extends InputFormat<Text, Employee> {
   }
 
   public class EmployeeInputSplit extends InputSplit implements Writable {
+    // Start and end map index of each split of employeeData
     private long startIndex;
     private long endIndex;
 
@@ -63,7 +72,9 @@ public class EmployeeInputFormat extends InputFormat<Text, Employee> {
       this.endIndex = endIndex;
     }
 
-    // Returns number of records in each split.
+    /**
+     * Returns number of records in each split.
+     */
     @Override
     public long getLength() throws IOException, InterruptedException {
       return this.endIndex - this.startIndex;
@@ -99,8 +110,9 @@ public class EmployeeInputFormat extends InputFormat<Text, Employee> {
     private EmployeeInputSplit split;
     private Text currentKey;
     private Employee currentValue;
-    private long pointer = 0L;
+    private long employeeMapIndex = 0L;
     private long recordsRead = 0L;
+    private HashMap<Long, Employee> employeeData = new HashMap<Long, Employee>();
 
     public EmployeeRecordReader() {}
 
@@ -126,9 +138,9 @@ public class EmployeeInputFormat extends InputFormat<Text, Employee> {
     public void initialize(InputSplit split, TaskAttemptContext arg1)
         throws IOException, InterruptedException {
       this.split = (EmployeeInputSplit) split;
-      pointer = this.split.getStartIndex() - 1;
+      employeeMapIndex = this.split.getStartIndex() - 1;
       recordsRead = 0;
-      makeData();
+      populateEmployeeData();
     }
 
     @Override
@@ -136,27 +148,25 @@ public class EmployeeInputFormat extends InputFormat<Text, Employee> {
       if ((recordsRead++) == split.getLength()) {
         return false;
       }
-      pointer++;
-      boolean hasNext = hmap.containsKey(pointer);
+      employeeMapIndex++;
+      boolean hasNext = employeeData.containsKey(employeeMapIndex);
       if (hasNext) {
-        currentKey = new Text(String.valueOf(pointer));
-        currentValue = hmap.get(pointer);
+        currentKey = new Text(String.valueOf(employeeMapIndex));
+        currentValue = employeeData.get(employeeMapIndex);
       }
       return hasNext;
     }
 
-    private HashMap<Long, Employee> hmap = new HashMap<Long, Employee>();
-
-    private void makeData() {
-      hmap.put(0L, new Employee("Alex", "US"));
-      hmap.put(1L, new Employee("John", "UK"));
-      hmap.put(2L, new Employee("Tom", "UK"));
-      hmap.put(3L, new Employee("Nick", "UAE"));
-      hmap.put(4L, new Employee("Smith", "IND"));
-      hmap.put(5L, new Employee("Taylor", "US"));
-      hmap.put(6L, new Employee("Gray", "UK"));
-      hmap.put(7L, new Employee("James", "UAE"));
-      hmap.put(8L, new Employee("Jordan", "IND"));
+    private void populateEmployeeData() {
+      employeeData.put(0L, new Employee("Alex", "US"));
+      employeeData.put(1L, new Employee("John", "UK"));
+      employeeData.put(2L, new Employee("Tom", "UK"));
+      employeeData.put(3L, new Employee("Nick", "UAE"));
+      employeeData.put(4L, new Employee("Smith", "IND"));
+      employeeData.put(5L, new Employee("Taylor", "US"));
+      employeeData.put(6L, new Employee("Gray", "UK"));
+      employeeData.put(7L, new Employee("James", "UAE"));
+      employeeData.put(8L, new Employee("Jordan", "IND"));
     }
   }
 }

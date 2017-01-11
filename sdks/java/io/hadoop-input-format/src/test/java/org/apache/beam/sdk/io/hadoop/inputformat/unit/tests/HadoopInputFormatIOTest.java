@@ -39,8 +39,8 @@ import org.apache.beam.sdk.io.hadoop.inputformat.unit.tests.inputformats.BadNoRe
 import org.apache.beam.sdk.io.hadoop.inputformat.unit.tests.inputformats.BadNullSplitsEmpInputFormat;
 import org.apache.beam.sdk.io.hadoop.inputformat.unit.tests.inputformats.Employee;
 import org.apache.beam.sdk.io.hadoop.inputformat.unit.tests.inputformats.EmployeeInputFormat;
-import org.apache.beam.sdk.io.hadoop.inputformat.unit.tests.inputformats.ImmutableRecordsEmpInputFormat;
-import org.apache.beam.sdk.io.hadoop.inputformat.unit.tests.inputformats.MutableRecordsEmpInputFormat;
+import org.apache.beam.sdk.io.hadoop.inputformat.unit.tests.inputformats.NewEmployeeEmpInputFormat;
+import org.apache.beam.sdk.io.hadoop.inputformat.unit.tests.inputformats.ReuseEmployeeEmpInputFormat;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.SourceTestUtils;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -542,10 +542,10 @@ public class HadoopInputFormatIOTest {
         new HadoopInputFormatBoundedSource<Text, Employee>(serConf, WritableCoder.of(Text.class),
             AvroCoder.of(Employee.class));
     thrown.expect(IOException.class);
-    thrown.expectMessage("Cannot split the source as getSplits() is returning empty list.");
+    thrown.expectMessage("Error in computing splits, getSplits() returns a null list");
     parentHIFSource.getEstimatedSizeBytes(p.getOptions());
     thrown.expect(IOException.class);
-    thrown.expectMessage("Cannot split the source as getSplits() is returning empty list.");
+    thrown.expectMessage("Error in computing splits, getSplits() returns a null list");
     parentHIFSource.splitIntoBundles(0, p.getOptions());
   }
 
@@ -561,11 +561,11 @@ public class HadoopInputFormatIOTest {
         new HadoopInputFormatBoundedSource<Text, Employee>(serConf, WritableCoder.of(Text.class),
             AvroCoder.of(Employee.class));
     thrown.expect(IOException.class);
-    thrown.expectMessage("Cannot split the source as getSplits() is returning null value.");
+    thrown.expectMessage("Error in computing splits, getSplits() returns null");
     parentHIFSource.getEstimatedSizeBytes(p.getOptions());
 
     thrown.expect(IOException.class);
-    thrown.expectMessage("Cannot split the source as getSplits() is returning null value.");
+    thrown.expectMessage("Error in computing splits, getSplits() returns null");
     parentHIFSource.splitIntoBundles(0, p.getOptions());
   }
 
@@ -597,7 +597,7 @@ public class HadoopInputFormatIOTest {
   @Test
   public void testImmutablityOfOutputOfReadIfRecordReaderObjectsAreMutable() throws Exception {
     SerializableConfiguration serConf =
-        getConfiguration(MutableRecordsEmpInputFormat.class, Text.class, Employee.class);
+        getConfiguration(ReuseEmployeeEmpInputFormat.class, Text.class, Employee.class);
     HadoopInputFormatBoundedSource<Text, Employee> parentHIFSource =
         new HadoopInputFormatBoundedSource<Text, Employee>(serConf, WritableCoder.of(Text.class),
             AvroCoder.of(Employee.class));
@@ -619,7 +619,7 @@ public class HadoopInputFormatIOTest {
   @Test
   public void testImmutablityOfOutputOfReadIfRecordReaderObjectsAreImmutable() throws Exception {
     SerializableConfiguration serConf =
-        getConfiguration(ImmutableRecordsEmpInputFormat.class, Text.class, Employee.class);
+        getConfiguration(NewEmployeeEmpInputFormat.class, Text.class, Employee.class);
     HadoopInputFormatBoundedSource<Text, Employee> parentHIFSource =
         new HadoopInputFormatBoundedSource<Text, Employee>(serConf, WritableCoder.of(Text.class),
             AvroCoder.of(Employee.class));

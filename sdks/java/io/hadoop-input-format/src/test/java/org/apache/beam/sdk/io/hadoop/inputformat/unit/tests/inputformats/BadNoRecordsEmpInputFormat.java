@@ -29,7 +29,9 @@ import org.apache.hadoop.mapreduce.JobContext;
 import org.apache.hadoop.mapreduce.RecordReader;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
 
-// Bad input format which returns no records in nextKeyValue() method of RecordReader.
+/**
+ *  Bad input format which returns no records in nextKeyValue() method of RecordReader.
+ */
 public class BadNoRecordsEmpInputFormat extends InputFormat<Text, Employee> {
   private final long numberOfRecordsInEachSplit = 3L;
   private final long numberOfSplits = 3L;
@@ -64,7 +66,9 @@ public class BadNoRecordsEmpInputFormat extends InputFormat<Text, Employee> {
       this.endIndex = endIndex;
     }
 
-    // returns number of records in each split
+    /**
+     * Returns number of records in each split.
+     */
     @Override
     public long getLength() throws IOException, InterruptedException {
       return this.endIndex - this.startIndex;
@@ -101,7 +105,7 @@ public class BadNoRecordsEmpInputFormat extends InputFormat<Text, Employee> {
     private BadRecordReaderNoRecordsInputSplit split;
     private Text currentKey;
     private Employee currentValue;
-    private long pointer;
+    private long employeeMapIndex;
     private long recordsRead;
     private HashMap<Text, Employee> emptyDataHmap = new HashMap<Text, Employee>();
 
@@ -130,21 +134,23 @@ public class BadNoRecordsEmpInputFormat extends InputFormat<Text, Employee> {
     public void initialize(InputSplit split, TaskAttemptContext arg1)
         throws IOException, InterruptedException {
       this.split = (BadRecordReaderNoRecordsInputSplit) split;
-      pointer = this.split.getStartIndex() - 1;
+      employeeMapIndex = this.split.getStartIndex() - 1;
       recordsRead = 0;
     }
 
-    // As dataHmap contains no data nextKeyValue() will return false for first record.
+    /**
+     *  As dataHmap contains no data nextKeyValue() will return false for first record.
+     */
     @Override
     public boolean nextKeyValue() throws IOException, InterruptedException {
       if ((recordsRead++) == split.getLength()) {
         return false;
       }
-      pointer++;
-      boolean hasNext = emptyDataHmap.containsKey(pointer);
+      employeeMapIndex++;
+      boolean hasNext = emptyDataHmap.containsKey(employeeMapIndex);
       if (hasNext) {
-        currentKey = new Text(String.valueOf(pointer));
-        currentValue = emptyDataHmap.get(pointer);
+        currentKey = new Text(String.valueOf(employeeMapIndex));
+        currentValue = emptyDataHmap.get(employeeMapIndex);
       }
       return hasNext;
     }
