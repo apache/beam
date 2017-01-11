@@ -65,6 +65,7 @@ See apache_beam.typehints.decorators module for more details.
 """
 
 import logging
+import warnings
 
 from apache_beam.coders import coders
 from apache_beam.typehints import typehints
@@ -132,7 +133,7 @@ class CoderRegistry(object):
         # TODO(robertwb): Clean this up when type inference is fully enabled.
         pass
       else:
-        logging.warning('Using fallback coder for typehint: %r.', typehint)
+        warnings.warn('Using fallback coder for typehint: %r.' % typehint)
       coder = self._fallback_coder
     return coder.from_type_hint(typehint, self)
 
