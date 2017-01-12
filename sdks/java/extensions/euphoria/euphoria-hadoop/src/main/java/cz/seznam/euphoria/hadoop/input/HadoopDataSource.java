@@ -22,6 +22,12 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+/**
+ * A general purpose data source based on top of hadoop input formats.
+ *
+ * @param <K> the type of record keys
+ * @param <V> the type of record values
+ */
 public class HadoopDataSource<K, V> implements DataSource<Pair<K, V>> {
 
   private final Class<K> keyClass;
@@ -84,12 +90,12 @@ public class HadoopDataSource<K, V> implements DataSource<Pair<K, V>> {
       extends AbstractIterator<Pair<K, V>>
       implements Reader<Pair<K, V>> {
 
-    private final RecordReader<?, ?> hadoopReader;
+    private final RecordReader<K, V> hadoopReader;
     private final Cloner<K> keyCloner;
     private final Cloner<V> valueCloner;
 
     public HadoopReader(
-        RecordReader<?, ?> hadoopReader,
+        RecordReader<K, V> hadoopReader,
         Class<K> keyClass, Class<V> valueClass,
         Configuration conf) {
 
@@ -102,8 +108,8 @@ public class HadoopDataSource<K, V> implements DataSource<Pair<K, V>> {
     @SneakyThrows
     protected Pair<K, V> computeNext() {
       if (hadoopReader.nextKeyValue()) {
-        K key = (K) hadoopReader.getCurrentKey();
-        V value = (V) hadoopReader.getCurrentValue();
+        K key = hadoopReader.getCurrentKey();
+        V value = hadoopReader.getCurrentValue();
 
         // ~ clone key values since they are reused
         // between calls to RecordReader#nextKeyValue
