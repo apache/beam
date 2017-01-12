@@ -2149,7 +2149,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
       if (overriddenTransform.getIdLabel() != null) {
         stepContext.addInput(PropertyNames.PUBSUB_ID_LABEL, overriddenTransform.getIdLabel());
       }
-      stepContext.addValueOnlyOutput(context.getOutput(transform));
+      stepContext.addOutput(context.getOutput(transform));
     }
   }
 
