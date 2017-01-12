@@ -108,7 +108,6 @@ public class JdbcIOIT {
             KV.of(resultSet.getString("name"), resultSet.getInt("id"));
         return kv;
       }
-      return tableName;
     }
 
     private static class ValidateCountFn implements SerializableFunction<Iterable<KV<String, Long>>, Void> {
