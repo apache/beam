@@ -36,21 +36,12 @@ public class DoFnInvokers {
     return ByteBuddyDoFnInvokerFactory.only().newByteBuddyInvoker(fn);
   }
 
-  /**
-   * Temporarily retained for compatibility with Dataflow worker.
-   * TODO: delete this when Dataflow worker is fixed to call {@link #invokerFor(DoFn)}.
-   *
-   * @deprecated Use {@link #invokerFor(DoFn)}.
-   */
-  @SuppressWarnings("unchecked")
+  /** TODO: remove this when Dataflow worker uses the DoFn overload. */
   @Deprecated
+  @SuppressWarnings({"unchecked"})
   public static <InputT, OutputT> DoFnInvoker<InputT, OutputT> invokerFor(
-      Serializable deserializedFn) {
-    if (deserializedFn instanceof DoFn) {
-      return invokerFor((DoFn<InputT, OutputT>) deserializedFn);
-    }
-    throw new UnsupportedOperationException(
-        "Only DoFn supported, was: " + deserializedFn.getClass());
+      Serializable fn) {
+    return invokerFor((DoFn) fn);
   }
 
   private DoFnInvokers() {}
