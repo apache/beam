@@ -31,7 +31,7 @@ import org.apache.hadoop.mapreduce.RecordReader;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
 
 /**
- * <p>This is a dummy InputFormat for reading employee data which is stored in a map employeeData. employeeData
+ * <p>This is a valid InputFormat for reading employee data which is stored in a map employeeData. employeeData
  * has 9 employee records. 
  * <p>EmployeeInputFormat splits data into 3 splits, each split having 3 records each.
  * <p>EmployeeInputFormat reads data from employeeData and produces a key (employee id) of type Text and

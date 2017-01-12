@@ -19,6 +19,7 @@ import java.io.DataOutput;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.io.Writable;
@@ -29,7 +30,7 @@ import org.apache.hadoop.mapreduce.RecordReader;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
 
 /**
- *  Bad input format which returns null in getSplits() method
+ *  Bad Employee input format returns null in getSplits() method used for validation of SplitIntoBundles testing
  */
 public class BadNullSplitsEmpInputFormat extends InputFormat<Text, Employee> {
 
@@ -43,7 +44,7 @@ public class BadNullSplitsEmpInputFormat extends InputFormat<Text, Employee> {
 
   @Override
   public List<InputSplit> getSplits(JobContext arg0) throws IOException, InterruptedException {
-    return null;
+    return null; //Bad Input Format to return null for getSplits()
   }
 
   public class NullInputSplitsInputSplit extends InputSplit implements Writable {
@@ -96,7 +97,7 @@ public class BadNullSplitsEmpInputFormat extends InputFormat<Text, Employee> {
     private Employee currentValue;
     private long employeeMapIndex = 0L;
     private long recordsRead = 0L;
-    private HashMap<Long, Employee> employeeData = new HashMap<Long, Employee>();
+    private Map<Long, Employee> employeeData = new HashMap<Long, Employee>();
 
     public NullInputSplitsRecordReader() {}
 

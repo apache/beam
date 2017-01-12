@@ -20,6 +20,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.io.Writable;
@@ -30,7 +31,7 @@ import org.apache.hadoop.mapreduce.RecordReader;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
 
 /**
- *  Bad input format which returns no records in nextKeyValue() method of RecordReader.
+ *  Bad Employee input format which returns no records in nextKeyValue() method of RecordReader.
  */
 public class BadNoRecordsEmpInputFormat extends InputFormat<Text, Employee> {
   private final long numberOfRecordsInEachSplit = 3L;
@@ -107,7 +108,7 @@ public class BadNoRecordsEmpInputFormat extends InputFormat<Text, Employee> {
     private Employee currentValue;
     private long employeeMapIndex;
     private long recordsRead;
-    private HashMap<Text, Employee> emptyDataHmap = new HashMap<Text, Employee>();
+    private Map<Text, Employee> emptyDataHmap = new HashMap<Text, Employee>();
 
 
     public BadRecordReaderNoRecordsRecordReader() {}
@@ -139,7 +140,7 @@ public class BadNoRecordsEmpInputFormat extends InputFormat<Text, Employee> {
     }
 
     /**
-     *  As dataHmap contains no data nextKeyValue() will return false for first record.
+     *  As Employee data hashMap contains no data nextKeyValue() will return false for first record.
      */
     @Override
     public boolean nextKeyValue() throws IOException, InterruptedException {

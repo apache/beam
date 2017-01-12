@@ -20,6 +20,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.io.Writable;
@@ -30,7 +31,7 @@ import org.apache.hadoop.mapreduce.RecordReader;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
 
 /**
- *  Bad input format which returns empty list of input splits in getSplits() method
+ *  Bad Employee input format which returns empty list of input splits in getSplits() method
  */
 public class BadEmptySplitsEmpInputFormat extends InputFormat<Text, Employee> {
 
@@ -44,7 +45,7 @@ public class BadEmptySplitsEmpInputFormat extends InputFormat<Text, Employee> {
 
   @Override
   public List<InputSplit> getSplits(JobContext arg0) throws IOException, InterruptedException {
-    return new ArrayList<InputSplit>();
+    return new ArrayList<InputSplit>(); //return empty splits
   }
 
   public class EmptyInputSplitsInputSplit extends InputSplit implements Writable {
@@ -101,7 +102,7 @@ public class BadEmptySplitsEmpInputFormat extends InputFormat<Text, Employee> {
     private Employee currentValue;
     private long employeeMapIndex = 0L;
     private long recordsRead = 0L;
-    private HashMap<Long, Employee> employeeData = new HashMap<Long, Employee>();
+    private Map<Long, Employee> employeeData = new HashMap<Long, Employee>();
 
     public EmptyInputSplitsRecordReader() {}
 
