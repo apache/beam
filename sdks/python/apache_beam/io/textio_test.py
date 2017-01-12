@@ -446,7 +446,7 @@ class TextSourceTest(unittest.TestCase):
     """
     curr = 0
     result = []
-    for offset in offsets:
+    for offset in sublist_lengths:
       end = curr + offset
       start = min(curr + num_to_remove, end)
       result += lines[start:end]
