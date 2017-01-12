@@ -58,8 +58,7 @@ public class ValueProviderTest {
 
   @Test
   public void testCommandLineNoDefault() {
-    TestOptions options = PipelineOptionsFactory.fromArgs(
-      new String[]{"--foo=baz"}).as(TestOptions.class);
+    TestOptions options = PipelineOptionsFactory.fromArgs("--foo=baz").as(TestOptions.class);
     ValueProvider<String> provider = options.getFoo();
     assertEquals("baz", provider.get());
     assertTrue(provider.isAccessible());
@@ -67,8 +66,7 @@ public class ValueProviderTest {
 
   @Test
   public void testListValueProvider() {
-    TestOptions options = PipelineOptionsFactory.fromArgs(
-      new String[]{"--list=1,2,3"}).as(TestOptions.class);
+    TestOptions options = PipelineOptionsFactory.fromArgs("--list=1,2,3").as(TestOptions.class);
     ValueProvider<List<Integer>> provider = options.getList();
     assertEquals(ImmutableList.of(1, 2, 3), provider.get());
     assertTrue(provider.isAccessible());
@@ -76,8 +74,7 @@ public class ValueProviderTest {
 
   @Test
   public void testCommandLineWithDefault() {
-    TestOptions options = PipelineOptionsFactory.fromArgs(
-      new String[]{"--bar=baz"}).as(TestOptions.class);
+    TestOptions options = PipelineOptionsFactory.fromArgs("--bar=baz").as(TestOptions.class);
     ValueProvider<String> provider = options.getBar();
     assertEquals("baz", provider.get());
     assertTrue(provider.isAccessible());
@@ -215,8 +212,7 @@ public class ValueProviderTest {
 
   @Test
   public void testSerializeDeserializeWithArg() throws Exception {
-    TestOptions submitOptions = PipelineOptionsFactory.fromArgs(
-      new String[]{"--foo=baz"}).as(TestOptions.class);
+    TestOptions submitOptions = PipelineOptionsFactory.fromArgs("--foo=baz").as(TestOptions.class);
     assertEquals("baz", submitOptions.getFoo().get());
     assertTrue(submitOptions.getFoo().isAccessible());
     ObjectMapper mapper = new ObjectMapper();

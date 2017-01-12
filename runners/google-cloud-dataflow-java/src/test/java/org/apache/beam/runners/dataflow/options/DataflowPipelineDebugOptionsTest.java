@@ -32,7 +32,7 @@ public class DataflowPipelineDebugOptionsTest {
   @Test
   public void testTransformNameMapping() throws Exception {
     DataflowPipelineDebugOptions options = PipelineOptionsFactory
-        .fromArgs(new String[]{"--transformNameMapping={\"a\":\"b\",\"foo\":\"\",\"bar\":\"baz\"}"})
+        .fromArgs("--transformNameMapping={\"a\":\"b\",\"foo\":\"\",\"bar\":\"baz\"}")
         .as(DataflowPipelineDebugOptions.class);
     assertEquals(3, options.getTransformNameMapping().size());
     assertThat(options.getTransformNameMapping(), hasEntry("a", "b"));

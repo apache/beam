@@ -53,7 +53,7 @@ public class ValueProviderUtilsTest {
   @Test
   public void testUpdateSerializeExistingValue() throws Exception {
     TestOptions submitOptions = PipelineOptionsFactory.fromArgs(
-      new String[]{"--string=baz", "--otherString=quux"}).as(TestOptions.class);
+        "--string=baz", "--otherString=quux").as(TestOptions.class);
     ObjectMapper mapper = new ObjectMapper();
     String serializedOptions = mapper.writeValueAsString(submitOptions);
     String updatedOptions = ValueProviderUtils.updateSerializedOptions(
