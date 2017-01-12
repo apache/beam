@@ -225,7 +225,9 @@ public class ReduceByKeyTest extends AbstractOperatorTest {
     });
   }
 
-  @Processing(Processing.Type.BOUNDED) // FIXME #16911 euphoria: Unbounded source without explicit windowing defined
+  // ~ Makes no sense to test UNBOUNDED input without windowing defined.
+  // It would run infinitely without providing any result.
+  @Processing(Processing.Type.BOUNDED)
   @Test
   public void testReduceWithoutWindowing() throws Exception {
     execute(new AbstractTestCase<String, Pair<String, Long>>() {
@@ -559,9 +561,10 @@ public class ReduceByKeyTest extends AbstractOperatorTest {
   public void testElementTimestamp() throws Exception {
     class AssertingWindowing<T> implements Windowing<T, TimeInterval> {
       @Override
-      public Set<TimeInterval> assignWindowsToElement(WindowedElement<?, T> input) {
-        // FIXME: #16648 once WindowedElement has the timestamp make the same
-        // assumption on that timestamp as in the trigger below
+      public Set<TimeInterval> assignWindowsToElement(WindowedElement<?, T> el) {
+        // ~ we expect the 'element time' to be the end of the window which produced the
+        // element in the preceding upstream (stateful and windowed) operator
+        assertTrue(el.getTimestamp() == 15_000L - 1 || el.getTimestamp() == 25_000L - 1);
         return Collections.singleton(new TimeInterval(0, Long.MAX_VALUE));
       }
 
@@ -638,16 +641,16 @@ public class ReduceByKeyTest extends AbstractOperatorTest {
     });
   }
 
-  static List<Long> TETETS_SEEN_TIMES = Collections.synchronizedList(new ArrayList<>());
+  static List<Long> TETETS_SEEN_TIMES_TRIGGER = Collections.synchronizedList(new ArrayList<>());
+  static List<Long> TETETS_SEEN_TIMES_ASSIGNER = Collections.synchronizedList(new ArrayList<>());
 
   @Processing(Processing.Type.UNBOUNDED)
   @Test
   public void testElementTimestampEarlyTriggeredStreaming() throws Exception {
     class TimeCollectingWindowing<T> implements Windowing<T, TimeInterval> {
       @Override
-      public Set<TimeInterval> assignWindowsToElement(WindowedElement<?, T> input) {
-        // FIXME: #16648 once WindowedElement has the timestamp make the same
-        // assumption on that timestamp as in the trigger below
+      public Set<TimeInterval> assignWindowsToElement(WindowedElement<?, T> el) {
+        TETETS_SEEN_TIMES_ASSIGNER.add(el.getTimestamp());
         return Collections.singleton(new TimeInterval(0, Long.MAX_VALUE));
       }
 
@@ -661,14 +664,15 @@ public class ReduceByKeyTest extends AbstractOperatorTest {
           }
           @Override
           public TriggerResult onElement(long time, Window window, TriggerContext ctx) {
-            TETETS_SEEN_TIMES.add(time);
+            TETETS_SEEN_TIMES_TRIGGER.add(time);
             return super.onElement(time, window, ctx);
           }
         };
       }
     }
 
-    TETETS_SEEN_TIMES.clear();
+    TETETS_SEEN_TIMES_TRIGGER.clear();
+    TETETS_SEEN_TIMES_ASSIGNER.clear();
     execute(new AbstractTestCase<Pair<Integer, Long>, Integer>() {
       @Override
       protected Partitions<Pair<Integer, Long>> getInput() {
@@ -726,9 +730,13 @@ public class ReduceByKeyTest extends AbstractOperatorTest {
         // never-ending.
         assertTrue(partitions.get(0).size() > 3);
 
-        ArrayList<Long> times = new ArrayList<>(TETETS_SEEN_TIMES);
-        times.sort(Comparator.naturalOrder());
-        assertEquals(asList(15_000L, 19_999L, 25_000L, 29_999L), times);
+        ArrayList<Long> triggerTimes = new ArrayList<>(TETETS_SEEN_TIMES_TRIGGER);
+        triggerTimes.sort(Comparator.naturalOrder());
+        assertEquals(asList(15_000L, 19_999L, 25_000L, 29_999L), triggerTimes);
+
+        ArrayList<Long> assignerTimes = new ArrayList<>(TETETS_SEEN_TIMES_ASSIGNER);
+        assignerTimes.sort(Comparator.naturalOrder());
+        assertEquals(asList(15_000L, 19_999L, 25_000L, 29_999L), assignerTimes);
       }
     });
   }
