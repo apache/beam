@@ -147,10 +147,18 @@ class RunnerTest(unittest.TestCase):
     from apache_beam.metrics.metric import Metrics
 
     class MyDoFn(beam.DoFn):
+      def start_bundle(self, context):
+        count = Metrics.counter(self.__class__, 'bundles')
+        count.inc()
+
+      def finish_bundle(self, context):
+        count = Metrics.counter(self.__class__, 'finished_bundles')
+        count.inc()
+
       def process(self, context):
         count = Metrics.counter(self.__class__, 'elements')
         count.inc()
-        distro = Metrics.distribution(self.__class__, 'element-dist')
+        distro = Metrics.distribution(self.__class__, 'element_dist')
         distro.update(context.element)
         return [context.element]
 
@@ -164,17 +172,24 @@ class RunnerTest(unittest.TestCase):
     metrics = result.metrics().query()
     namespace = '{}.{}'.format(MyDoFn.__module__,
                                MyDoFn.__name__)
+
     hc.assert_that(
         metrics['counters'],
         hc.contains_inanyorder(
             MetricResult(
                 MetricKey('do', MetricName(namespace, 'elements')),
-                5, 5)))
+                5, 5),
+            MetricResult(
+                MetricKey('do', MetricName(namespace, 'bundles')),
+                1, 1),
+            MetricResult(
+                MetricKey('do', MetricName(namespace, 'finished_bundles')),
+                1, 1)))
     hc.assert_that(
         metrics['distributions'],
         hc.contains_inanyorder(
             MetricResult(
-                MetricKey('do', MetricName(namespace, 'element-dist')),
+                MetricKey('do', MetricName(namespace, 'element_dist')),
                 DistributionResult(DistributionData(15, 5, 1, 5)),
                 DistributionResult(DistributionData(15, 5, 1, 5)))))
 
