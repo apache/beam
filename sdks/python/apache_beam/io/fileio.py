@@ -100,7 +100,7 @@ class CompressionTypes(object):
 
   @classmethod
   def detect_compression_type(cls, file_path):
-    """Returns the compression type of a file (based on its suffix)"""
+    """Returns the compression type of a file (based on its suffix)."""
     compression_types_by_suffix = {'.bz2': cls.BZIP2, '.gz': cls.GZIP}
     lowercased_path = file_path.lower()
     for suffix, compression_type in compression_types_by_suffix.iteritems():
@@ -1037,8 +1037,9 @@ class TextFileSink(FileSink):
                num_shards=0,
                shard_name_template=None,
                coder=coders.ToStringCoder(),
-               compression_type=CompressionTypes.AUTO):
-    """Initialize a TextFileSink.
+               compression_type=CompressionTypes.AUTO,
+               header=None):
+    r"""Initialize a TextFileSink.
 
     Args:
       file_path_prefix: The file path to write to. The files written will begin
@@ -1064,10 +1065,12 @@ class TextFileSink(FileSink):
         generated. The default pattern used is '-SSSSS-of-NNNNN'.
       coder: Coder used to encode each line.
       compression_type: Used to handle compressed output files. Typical value
-          is CompressionTypes.AUTO, in which case the final file path's
-          extension (as determined by file_path_prefix, file_name_suffix,
-          num_shards and shard_name_template) will be used to detect the
-          compression.
+        is CompressionTypes.AUTO, in which case the final file path's
+        extension (as determined by file_path_prefix, file_name_suffix,
+        num_shards and shard_name_template) will be used to detect the
+        compression.
+      header: String to write at beginning of file as a header. If not None and
+        append_trailing_newlines is set, '\n' will be added.
 
     Returns:
       A TextFileSink object usable for writing.
@@ -1081,11 +1084,19 @@ class TextFileSink(FileSink):
         mime_type='text/plain',
         compression_type=compression_type)
     self.append_trailing_newlines = append_trailing_newlines
-
+    self.header = header
     if type(self) is TextFileSink:
       logging.warning('Direct usage of TextFileSink is deprecated. Please use '
                       '\'textio.WriteToText()\' instead of directly '
                       'instantiating a TextFileSink object.')
+
+  def open(self, temp_path):
+    file_handle = super(TextFileSink, self).open(temp_path)
+    if self.header is not None:
+      file_handle.write(self.header)
+      if self.append_trailing_newlines:
+        file_handle.write('\n')
+    return file_handle
 
   def write_encoded_record(self, file_handle, encoded_value):
     """Writes a single encoded record."""

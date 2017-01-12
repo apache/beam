@@ -71,9 +71,15 @@ class _TextSource(filebasedsource.FileBasedSource):
                          'size of data %d.', value, len(self._data))
       self._position = value
 
-  def __init__(self, file_pattern, min_bundle_size,
-               compression_type, strip_trailing_newlines, coder,
-               buffer_size=DEFAULT_READ_BUFFER_SIZE, validate=True):
+  def __init__(self,
+               file_pattern,
+               min_bundle_size,
+               compression_type,
+               strip_trailing_newlines,
+               coder,
+               buffer_size=DEFAULT_READ_BUFFER_SIZE,
+               validate=True,
+               skip_header_lines=0):
     super(_TextSource, self).__init__(file_pattern, min_bundle_size,
                                       compression_type=compression_type,
                                       validate=validate)
@@ -82,13 +88,22 @@ class _TextSource(filebasedsource.FileBasedSource):
     self._compression_type = compression_type
     self._coder = coder
     self._buffer_size = buffer_size
+    if skip_header_lines < 0:
+      raise ValueError('Cannot skip negative number of header lines: %d',
+                       skip_header_lines)
+
+    self._skip_header_lines = skip_header_lines
 
   def read_records(self, file_name, range_tracker):
     start_offset = range_tracker.start_position()
     read_buffer = _TextSource.ReadBuffer('', 0)
 
     with self.open_file(file_name) as file_to_read:
-      if start_offset > 0:
+      current_position = self._skip_lines(
+          file_to_read, read_buffer,
+          self._skip_header_lines) if self._skip_header_lines else 0
+      start_offset = max(start_offset, current_position)
+      if start_offset > current_position:
         # Seeking to one position before the start index and ignoring the
         # current line. If start_position is at beginning if the line, that line
         # belongs to the current bundle, hence ignoring that is incorrect.
@@ -105,7 +120,7 @@ class _TextSource(filebasedsource.FileBasedSource):
         read_buffer.data = read_buffer.data[sep_end:]
         next_record_start_position = start_offset -1 + sep_end
       else:
-        next_record_start_position = 0
+        next_record_start_position = current_position
 
       while range_tracker.try_claim(next_record_start_position):
         record, num_bytes_to_next_record = self._read_record(file_to_read,
@@ -171,6 +186,19 @@ class _TextSource(filebasedsource.FileBasedSource):
 
     return True
 
+  def _skip_lines(self, file_to_read, read_buffer, num_lines):
+    if file_to_read.tell() > 0:
+      file_to_read.seek(0)
+    position = 0
+    for _ in range(num_lines):
+      _, num_bytes_to_next_record = self._read_record(file_to_read, read_buffer)
+      if num_bytes_to_next_record < 0:
+        # We reached end of file. It is OK to just break here
+        # because subsequent _read_record will return same result.
+        break
+      position += num_bytes_to_next_record
+    return position
+
   def _read_record(self, file_to_read, read_buffer):
     # Returns a tuple containing the current_record and number of bytes to the
     # next record starting from 'self._next_position_in_buffer'. If EOF is
@@ -222,6 +250,7 @@ class ReadFromText(PTransform):
       strip_trailing_newlines=True,
       coder=coders.StrUtf8Coder(),
       validate=True,
+      skip_header_lines=0,
       **kwargs):
     """Initialize the ReadFromText transform.
 
@@ -240,6 +269,9 @@ class ReadFromText(PTransform):
                                decoding that line.
       validate: flag to verify that the files exist during the pipeline
                 creation time.
+      skip_header_lines: Number of header lines to skip. Same number is skipped
+                         from each source file. Must be 0 or higher. Large
+                         number of skipped lines might impact performance.
       coder: Coder used to decode each line.
     """
 
@@ -261,16 +293,16 @@ class ReadFromText(PTransform):
 class WriteToText(PTransform):
   """A PTransform for writing to text files."""
 
-  def __init__(
-      self,
-      file_path_prefix,
-      file_name_suffix='',
-      append_trailing_newlines=True,
-      num_shards=0,
-      shard_name_template=None,
-      coder=coders.ToStringCoder(),
-      compression_type=fileio.CompressionTypes.AUTO):
-    """Initialize a WriteToText PTransform.
+  def __init__(self,
+               file_path_prefix,
+               file_name_suffix='',
+               append_trailing_newlines=True,
+               num_shards=0,
+               shard_name_template=None,
+               coder=coders.ToStringCoder(),
+               compression_type=fileio.CompressionTypes.AUTO,
+               header=None):
+    r"""Initialize a WriteToText PTransform.
 
     Args:
       file_path_prefix: The file path to write to. The files written will begin
@@ -300,12 +332,14 @@ class WriteToText(PTransform):
           extension (as determined by file_path_prefix, file_name_suffix,
           num_shards and shard_name_template) will be used to detect the
           compression.
+      header: String to write at beginning of file as a header. If not None and
+          append_trailing_newlines is set, '\n' will be added.
     """
 
     self._append_trailing_newlines = append_trailing_newlines
     self._sink = _TextSink(file_path_prefix, file_name_suffix,
                            append_trailing_newlines, num_shards,
-                           shard_name_template, coder, compression_type)
+                           shard_name_template, coder, compression_type, header)
 
   def expand(self, pcoll):
     return pcoll | Write(self._sink)

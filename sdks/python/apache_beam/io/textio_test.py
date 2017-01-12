@@ -433,6 +433,80 @@ class TextSourceTest(unittest.TestCase):
     assert_that(pcoll, equal_to([]))
     pipeline.run()
 
+  def _remove_lines(self, lines, sublist_lengths, num_to_remove):
+    """Utility function to remove num_to_remove lines from each sublist.
+
+    Args:
+      lines: list of items.
+      sublist_lengths: list of integers representing length of sublist
+        corresponding to each source file.
+      num_to_remove: number of lines to remove from each sublist.
+    Returns:
+      remaining lines.
+    """
+    curr = 0
+    result = []
+    for offset in offsets:
+      end = curr + offset
+      start = min(curr + num_to_remove, end)
+      result += lines[start:end]
+      curr += offset
+    return result
+
+  def _read_skip_header_lines(self, file_or_pattern, skip_header_lines):
+    """Simple wrapper function for instantiating TextSource."""
+    source = TextSource(
+        file_or_pattern,
+        0,
+        CompressionTypes.UNCOMPRESSED,
+        True,
+        coders.StrUtf8Coder(),
+        skip_header_lines=skip_header_lines)
+
+    range_tracker = source.get_range_tracker(None, None)
+    return [record for record in source.read(range_tracker)]
+
+  def test_read_skip_header_single(self):
+    file_name, expected_data = write_data(TextSourceTest.DEFAULT_NUM_RECORDS)
+    assert len(expected_data) == TextSourceTest.DEFAULT_NUM_RECORDS
+    skip_header_lines = 1
+    expected_data = self._remove_lines(expected_data,
+                                       [TextSourceTest.DEFAULT_NUM_RECORDS],
+                                       skip_header_lines)
+    read_data = self._read_skip_header_lines(file_name, skip_header_lines)
+    self.assertEqual(len(expected_data), len(read_data))
+    self.assertItemsEqual(expected_data, read_data)
+
+  def test_read_skip_header_pattern(self):
+    line_counts = [
+        TextSourceTest.DEFAULT_NUM_RECORDS * 5,
+        TextSourceTest.DEFAULT_NUM_RECORDS * 3,
+        TextSourceTest.DEFAULT_NUM_RECORDS * 12,
+        TextSourceTest.DEFAULT_NUM_RECORDS * 8,
+        TextSourceTest.DEFAULT_NUM_RECORDS * 8,
+        TextSourceTest.DEFAULT_NUM_RECORDS * 4
+    ]
+    skip_header_lines = 2
+    pattern, data = write_pattern(line_counts)
+
+    expected_data = self._remove_lines(data, line_counts, skip_header_lines)
+    read_data = self._read_skip_header_lines(pattern, skip_header_lines)
+    self.assertEqual(len(expected_data), len(read_data))
+    self.assertItemsEqual(expected_data, read_data)
+
+  def test_read_skip_header_pattern_insufficient_lines(self):
+    line_counts = [
+        5, 3, # Fewer lines in file than we want to skip
+        12, 8, 8, 4
+    ]
+    skip_header_lines = 4
+    pattern, data = write_pattern(line_counts)
+
+    data = self._remove_lines(data, line_counts, skip_header_lines)
+    read_data = self._read_skip_header_lines(pattern, skip_header_lines)
+    self.assertEqual(len(data), len(read_data))
+    self.assertItemsEqual(data, read_data)
+
 
 class TextSinkTest(unittest.TestCase):
 
@@ -503,6 +577,22 @@ class TextSinkTest(unittest.TestCase):
 
     with gzip.GzipFile(self.path, 'r') as f:
       self.assertEqual(f.read().splitlines(), [])
+
+  def test_write_text_file_with_header(self):
+    header = 'header1\nheader2'
+    sink = TextSink(self.path, header=header)
+    self._write_lines(sink, self.lines)
+
+    with open(self.path, 'r') as f:
+      self.assertEqual(f.read().splitlines(), header.splitlines() + self.lines)
+
+  def test_write_text_file_empty_with_heather(self):
+    header = 'header1\nheader2'
+    sink = TextSink(self.path, header=header)
+    self._write_lines(sink, [])
+
+    with open(self.path, 'r') as f:
+      self.assertEqual(f.read().splitlines(), header.splitlines())
 
   def test_write_display_data(self):
     write = WriteToText('prefix')
