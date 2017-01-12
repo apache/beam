@@ -34,19 +34,9 @@ TODO
 
 ```java
 // Define data source and data sinks
-// Euphoria is fully compatible with Hadoop input formats
-Configuration conf = new Configuration();
-conf.set(FileInputFormat.INPUT_DIR, inputPath);
-DataSource<Pair<LongWritable, Text>> dataSource = new HadoopDataSource<>(
-        LongWritable.class, // key class
-        Text.class, // value class
-        TextInputFormat.class, // input format class
-        conf);// configuration
+DataSource<Pair<LongWritable, Text>> dataSource = new HadoopTextFileDataSource<>();
 
-conf = new Configuration();
-conf.set(FileOutputFormat.OUTDIR, outputPath);
-DataSink<Pair<Text, NullWritable>> dataSink =
-        new HadoopDataSink<>((Class) TextOutputFormat.class, conf);
+DataSink<Pair<Text, Void>> dataSink = new HadoopTextFileDataSink<>;
 
 // Define chain of transformations (flow)
 Flow flow = Flow.create("WordCount");
@@ -71,7 +61,7 @@ Dataset<Pair<String, Long>> counted = ReduceByKey.named("COUNT")
 
 MapElements.named("FORMAT-OUTPUT")
            .of(counted)
-           .using(p -> Pair.of(new Text(p.getFirst() + "\n" + p.getSecond()), NullWritable.get()))
+           .using(p -> Pair.of(p.getFirst() + "\n" + p.getSecond(), (Void) null))
            .output()
            .persist(dataSink);
 
