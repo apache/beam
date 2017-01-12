@@ -35,6 +35,7 @@ import java.util.Set;
 
 import javax.annotation.Nullable;
 
+import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
@@ -69,8 +70,8 @@ import com.google.common.collect.Lists;
 
 
 /**
- * A bounded source for HadoopInputFormat.
- *
+ * A bounded source for any Data source which implements HadoopInputFormat.
+ * For E.g. Cassandra, Elastic Search, HBase, Redis , PostGres etc.
  * <p>
  * The HadoopInputFormat source returns a set of {@link org.apache.beam.sdk.values.KV} key-value
  * pairs returning a {@code PCollection<KV>}.
@@ -106,22 +107,22 @@ import com.google.common.collect.Lists;
  * <pre>
  * <tt>
  *  SimpleFunction<InputFormatKeyClass, MyKeyTranslate> myKeyTranslateFunc = new SimpleFunction<InputFormatKeyClass, MyKeyTranslate>() {
- *    <tt>@Override
+ *    <tt>@Override</tt>
  *     public MyKeyTranslate apply(InputFormatKeyClass input) {
  *       //...logic to transform InputFormatKeyClass to MyKeyTranslate
  *     }
  *  };
  *  
  *  SimpleFunction<InputFormatValueClass, MyValueTranslate> myValueTranslateFunc = new SimpleFunction<InputFormatValueClass, MyValueTranslate>() {
- *    <tt>@Override
+ *    <tt>@Override</tt>
  *     public MyValueTranslate apply(InputFormatValueClass input) {
  *       //...logic to transform InputFormatValueClass to MyValueTranslate
- *    }
+ *     }
  *  };   
  * </tt>
  * </pre>
  * 
- * <h3>Read options supported for HadoopInputFormatIO</h3>
+ * <h3>Read configuration options supported for HadoopInputFormatIO</h3>
  * <p>
  * HadoopConfiguration is set using {@link #withConfiguration}. Key/value translation function<br>
  * is optional and can be set using {@link #withKeyTranslation}/{@link #withValueTranslation}.<br>
@@ -136,7 +137,7 @@ import com.google.common.collect.Lists;
  * }
  * </pre>
  * 
- * Pipeline p = ...;
+ * Pipeline p = ...; //Create pipeline
  * <P>
  * //Read data only with Hadoop configuration.
  * 
@@ -214,7 +215,7 @@ import com.google.common.collect.Lists;
  *   cassandraConf.setClass("mapreduce.job.inputformat.class" ,{@link org.apache.cassandra.hadoop.cql3.CqlInputFormat.class} , InputFormat.class); }
  * </pre>
  * <p>
- * Read Cassandra data as follows:
+ * Call Read transform as follows:
  * </p>
  * 
  * <pre>
@@ -266,7 +267,7 @@ import com.google.common.collect.Lists;
  *  </tt>
  * </pre>
  * 
- * Read ElasticSearch data as follows:
+ * Call Read transform as follows:
  * 
  * <pre>
  * {@code
@@ -275,7 +276,7 @@ import com.google.common.collect.Lists;
  *                   HadoopInputFormatIO.<Text,MapWritable>read() 
  *                        .withConfiguration(elasticSearchConf));}
  * 
- * <pre>
+ *</pre>
  */
 
 public class HadoopInputFormatIO {
@@ -292,7 +293,7 @@ public class HadoopInputFormatIO {
   }
 
   /**
-   * A Ptransform to read data from any source which supports HadoopInputFormat.
+   * A Ptransform to read data from any source which provides implementation of HadoopInputFormat.
    *
    * @param <K> The type of PCollection output keys
    * @param <V> The type of PCollection output values
@@ -337,10 +338,10 @@ public class HadoopInputFormatIO {
     }
 
     /**
-     * Set the configuration provided by the user. Also set key and value classes to input format's
+     * Set the configuration provided by the user. Also set key and value classes to Input Format's
      * key and value classes if no key or value translation is provided. If key translation is
-     * applied then key class is not changed. If value translation is applied then vale class is not
-     * changed.
+     * applied before withConfiguration(), then key class set in configuration object will not override 
+     * the key class set by keyTranslate method. Same applies to value class changed.
      */
     public Read<K, V> withConfiguration(Configuration configuration) {
       checkNotNull(configuration, "Configuration cannot be null.");
@@ -348,20 +349,14 @@ public class HadoopInputFormatIO {
           (TypeDescriptor<K>) TypeDescriptor.of(configuration.getClass("key.class", Object.class));
       TypeDescriptor<V> inputFormatValueClass = (TypeDescriptor<V>) TypeDescriptor
           .of(configuration.getClass("value.class", Object.class));
-      if (this.getKeyClass() != null && this.getValueClass() != null) {
-        return toBuilder().setConfiguration(new SerializableConfiguration(configuration)).build();
+      Builder<K, V> builder=toBuilder().setConfiguration(new SerializableConfiguration(configuration));
+      if (this.getKeyClass() == null){
+        builder.setKeyClass(inputFormatKeyClass);
       }
-      if (this.getKeyClass() == null && this.getValueClass() != null) {
-        return toBuilder().setConfiguration(new SerializableConfiguration(configuration))
-            .setKeyClass(inputFormatKeyClass).build();
+      if (this.getValueClass() == null){
+        builder.setValueClass(inputFormatValueClass);
       }
-      if (this.getKeyClass() != null && this.getValueClass() == null) {
-        return toBuilder().setConfiguration(new SerializableConfiguration(configuration))
-            .setValueClass(inputFormatValueClass).build();
-      }
-      return toBuilder().setConfiguration(new SerializableConfiguration(configuration))
-          .setKeyClass(inputFormatKeyClass).setValueClass(inputFormatValueClass).build();
-
+      return  builder.build();
     }
 
     /**
@@ -397,7 +392,9 @@ public class HadoopInputFormatIO {
       return input.getPipeline().apply(org.apache.beam.sdk.io.Read.from(source));
     }
 
-    /** Validates inputs provided by the pipeline user before reading the data. */
+    /** 
+     * Validates inputs provided by the pipeline user before reading the data. 
+     */
     @Override
     public void validate(PBegin input) {
       checkNotNull(this.getConfiguration(),
@@ -407,7 +404,11 @@ public class HadoopInputFormatIO {
       validateTranslationFunctions();
       getKeyAndValueCoder(input);
     }
-
+    
+    /**
+     * Validate the configuration object to see if mandatory configurations of inputformat class name, 
+     * key class name and value class name are set
+     */
     private void validateConfiguration() {
       String inputFormatClassProperty =
           this.getConfiguration().getConfiguration().get("mapreduce.job.inputformat.class");
@@ -464,8 +465,9 @@ public class HadoopInputFormatIO {
 
     /** Set the key and value coder based on the key class and value class */
     protected void getKeyAndValueCoder(PBegin input) {
-      keyCoder = getDefaultCoder(this.getKeyClass(), input.getPipeline().getCoderRegistry());
-      valueCoder = getDefaultCoder(this.getValueClass(), input.getPipeline().getCoderRegistry());
+      CoderRegistry coderRegistry=input.getPipeline().getCoderRegistry();
+      keyCoder = getDefaultCoder(getKeyClass(), coderRegistry);
+      valueCoder = getDefaultCoder(getValueClass(), coderRegistry);
     }
 
     /**
@@ -480,7 +482,7 @@ public class HadoopInputFormatIO {
         try {
           return (Coder<T>) coderRegistry.getCoder(typeDesc);
         } catch (CannotProvideCoderException e) {
-          throw new IllegalStateException("Cannot find coder for " + typeDesc + e.getMessage());
+          throw new IllegalStateException("Cannot find coder for " + typeDesc +" : "+ e.getMessage(),e);
         }
       }
     }
@@ -497,12 +499,12 @@ public class HadoopInputFormatIO {
     public void populateDisplayData(DisplayData.Builder builder) {
       super.populateDisplayData(builder);
       if (this.getConfiguration().getConfiguration() != null) {
-        Iterator<Entry<String, String>> propertyElement =
+        Iterator<Entry<String, String>> configProperties =
             this.getConfiguration().getConfiguration().iterator();
-        while (propertyElement.hasNext()) {
-          Entry<String, String> element = propertyElement.next();
+        while (configProperties.hasNext()) {
+          Entry<String, String> property = configProperties.next();
           builder.add(
-              DisplayData.item(element.getKey(), element.getValue()).withLabel(element.getKey()));
+              DisplayData.item(property.getKey(), property.getValue()).withLabel(property.getKey()));
         }
       }
       builder
@@ -513,11 +515,11 @@ public class HadoopInputFormatIO {
       if (getSimpleFuncForKeyTranslation() != null)
         builder.addIfNotNull(DisplayData
             .item("KeyTranslationSimpleFunction", getSimpleFuncForKeyTranslation().toString())
-            .withLabel("Key translation simple function"));
+            .withLabel("Key translation SimpleFunction"));
       if (getSimpleFuncForValueTranslation() != null)
         builder.addIfNotNull(DisplayData
             .item("ValueTranslationSimpleFunction", getSimpleFuncForValueTranslation().toString())
-            .withLabel("Value translation simple function"));
+            .withLabel("Value translation SimpleFunction"));
 
     }
   }
@@ -565,9 +567,18 @@ public class HadoopInputFormatIO {
       checkNotNull(valueCoder, "ValueCoder should not be null in HadoopInputFormatSource");
     }
 
+    //Indicates if the source is split or not
     private boolean isSourceSplit = false;
 
-    @Override
+    public boolean isSourceSplit() {
+		return isSourceSplit;
+	}
+
+	public void setSourceSplit(boolean isSourceSplit) {
+		this.isSourceSplit = isSourceSplit;
+	}
+
+	@Override
     public List<BoundedSource<KV<K, V>>> splitIntoBundles(long desiredBundleSizeBytes,
         PipelineOptions options) throws Exception {
       if (serializableSplit == null) {
@@ -576,7 +587,7 @@ public class HadoopInputFormatIO {
         }
         LOG.info("Generated {} splits each of size {} ", inputSplits.size(),
             inputSplits.get(0).getSplit().getLength());
-        isSourceSplit = true;
+        setSourceSplit(true);
         return Lists.transform(inputSplits,
             new Function<SerializableSplit, BoundedSource<KV<K, V>>>() {
               @Override
@@ -589,7 +600,7 @@ public class HadoopInputFormatIO {
               }
             });
       } else {
-        isSourceSplit = true;
+    	  setSourceSplit(true);
         LOG.info("Not splitting source {} because source is already split.", this);
         return ImmutableList.of((BoundedSource<KV<K, V>>) this);
       }
@@ -639,7 +650,7 @@ public class HadoopInputFormatIO {
       this.validate();
       //
       if (serializableSplit == null) {
-        if (!isSourceSplit) {
+        if (!isSourceSplit()) {
           throw new IOException("Cannot create reader as source is not split yet.");
         } else {
           throw new IOException("Cannot read data as split is null.");
@@ -713,7 +724,7 @@ public class HadoopInputFormatIO {
           }
           currentRecord = null;
           doneReading = true;
-          return false;
+          return false; // no more records to read
         } catch (Exception e) {
           throw new IOException(e);
         }
@@ -743,6 +754,7 @@ public class HadoopInputFormatIO {
         } else {
           output = (T1) input;
         }
+        // return the serialized output by cloning
         return clone(output, coder);
       }
 
@@ -865,7 +877,14 @@ public class HadoopInputFormatIO {
         }
       }
     }
-  }
+
+	
+	public boolean producesSortedKeys(PipelineOptions arg0) throws Exception {
+		// TODO Auto-generated method stub
+		return false;
+	}
+
+	}
 
   /**
    * A wrapper to allow Hadoop {@link org.apache.hadoop.conf.Configuration} to be serialized using
