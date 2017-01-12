@@ -498,7 +498,7 @@ public class BigQueryServicesImplTest {
 
     DatasetServiceImpl dataService =
         new DatasetServiceImpl(bigquery, PipelineOptionsFactory.create());
-    dataService.insertAll(ref, rows, null, TEST_BACKOFF.backoff(), new MockSleeper());
+    dataService.insertAll(ref, rows, null, TEST_BACKOFF.backoff(), new MockSleeper(), false);
     verify(response, times(2)).getStatusCode();
     verify(response, times(2)).getContent();
     verify(response, times(2)).getContentType();
@@ -534,7 +534,7 @@ public class BigQueryServicesImplTest {
 
     DatasetServiceImpl dataService =
         new DatasetServiceImpl(bigquery, PipelineOptionsFactory.create());
-    dataService.insertAll(ref, rows, insertIds, TEST_BACKOFF.backoff(), new MockSleeper());
+    dataService.insertAll(ref, rows, insertIds, TEST_BACKOFF.backoff(), new MockSleeper(), false);
     verify(response, times(2)).getStatusCode();
     verify(response, times(2)).getContent();
     verify(response, times(2)).getContentType();
@@ -575,7 +575,7 @@ public class BigQueryServicesImplTest {
 
     // Expect it to fail.
     try {
-      dataService.insertAll(ref, rows, null, TEST_BACKOFF.backoff(), new MockSleeper());
+      dataService.insertAll(ref, rows, null, TEST_BACKOFF.backoff(), new MockSleeper(), false);
       fail();
     } catch (IOException e) {
       assertThat(e, instanceOf(IOException.class));
@@ -615,7 +615,7 @@ public class BigQueryServicesImplTest {
         new DatasetServiceImpl(bigquery, PipelineOptionsFactory.create());
 
     try {
-      dataService.insertAll(ref, rows, null, TEST_BACKOFF.backoff(), new MockSleeper());
+      dataService.insertAll(ref, rows, null, TEST_BACKOFF.backoff(), new MockSleeper(), false);
       fail();
     } catch (RuntimeException e) {
       verify(response, times(1)).getStatusCode();

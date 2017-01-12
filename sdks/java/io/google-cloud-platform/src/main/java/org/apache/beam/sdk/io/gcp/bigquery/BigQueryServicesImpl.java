@@ -657,7 +657,8 @@ class BigQueryServicesImpl implements BigQueryServices {
 
     @VisibleForTesting
     long insertAll(TableReference ref, List<TableRow> rowList, @Nullable List<String> insertIdList,
-        BackOff backoff, final Sleeper sleeper) throws IOException, InterruptedException {
+        BackOff backoff, final Sleeper sleeper, Boolean ignoreUnknownValues)
+        throws IOException, InterruptedException {
       checkNotNull(ref, "ref");
       if (executor == null) {
         this.executor = options.as(GcsOptions.class).getExecutorService();
@@ -699,6 +700,7 @@ class BigQueryServicesImpl implements BigQueryServices {
               || i == rowsToPublish.size() - 1) {
             TableDataInsertAllRequest content = new TableDataInsertAllRequest();
             content.setRows(rows);
+            content.setIgnoreUnknownValues(ignoreUnknownValues);
 
             final Bigquery.Tabledata.InsertAll insert = client.tabledata()
                 .insertAll(ref.getProjectId(), ref.getDatasetId(), ref.getTableId(),
@@ -794,8 +796,20 @@ class BigQueryServicesImpl implements BigQueryServices {
         TableReference ref, List<TableRow> rowList, @Nullable List<String> insertIdList)
         throws IOException, InterruptedException {
       return insertAll(
-          ref, rowList, insertIdList, INSERT_BACKOFF_FACTORY.backoff(), Sleeper.DEFAULT);
+          ref, rowList, insertIdList, INSERT_BACKOFF_FACTORY.backoff(), Sleeper.DEFAULT,
+          false);
     }
+
+    @Override
+    public long insertAll(
+        TableReference ref, List<TableRow> rowList, @Nullable List<String> insertIdList,
+        Boolean ignoreUnknownValues)
+        throws IOException, InterruptedException {
+      return insertAll(
+          ref, rowList, insertIdList, INSERT_BACKOFF_FACTORY.backoff(), Sleeper.DEFAULT,
+          ignoreUnknownValues);
+    }
+
   }
 
   private static class BigQueryJsonReaderImpl implements BigQueryJsonReader {

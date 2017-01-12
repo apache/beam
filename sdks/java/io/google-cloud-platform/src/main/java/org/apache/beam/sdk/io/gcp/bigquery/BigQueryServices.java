@@ -166,7 +166,18 @@ interface BigQueryServices extends Serializable {
      *
      * <p>Returns the total bytes count of {@link TableRow TableRows}.
      */
-    long insertAll(TableReference ref, List<TableRow> rowList, @Nullable List<String> insertIdList)
+    long insertAll(
+        TableReference ref, List<TableRow> rowList, @Nullable List<String> insertIdList)
+        throws IOException, InterruptedException;
+
+    /**
+     * Inserts {@link TableRow TableRows} with the specified insertIds if not null.
+     *
+     * <p>Returns the total bytes count of {@link TableRow TableRows}.
+     */
+    long insertAll(
+        TableReference ref, List<TableRow> rowList, @Nullable List<String> insertIdList,
+        Boolean ignoreUnknownValues)
         throws IOException, InterruptedException;
   }
 
