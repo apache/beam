@@ -33,15 +33,21 @@ import org.postgresql.ds.PGSimpleDataSource;
 
 
 /**
- * TODO - java doc.
- * You can run this example by doing the following:
- * mvn test-compile failsafe:integration-test -D beamTestPipelineOptions='[
+ * Runs tests to validate JdbcIO works with a real instance of a datastore. You'll need
+ * a running instance of postgres to validate this test.
+ *
+ * <p>Cleanup notes: this test cleans up after itself, but only if it gets a chance. It
+ * is intended to be run in an db that is cleaned up regularly (ie, server reset every
+ * week.)
+ *
+ * <p>You can run just this test by doing the following:
+ * mvn test-compile compile failsafe:integration-test -D beamTestPipelineOptions='[
  * "--postgresIp=1.2.3.4",
  * "--postgresUsername=postgres",
- * "--postgresDatabaseName=yoink",
+ * "--postgresDatabaseName=myfancydb",
  * "--postgresPassword=yourpassword",
  * "--postgresSsl=false"
- ]'
+ * ]'
  */
 @RunWith(JUnit4.class)
 public class JdbcIOIT {
@@ -70,7 +76,7 @@ public class JdbcIOIT {
       // alternatively, we may have a pipelineoption indicating whether we want to
       // re-use the database or create a new one
       try (Statement statement = connection.createStatement()) {
-        statement.executeUpdate(
+        statement.execute(
             String.format("create table %s (id INT, name VARCHAR(500))", tableName));
       }
 
@@ -96,6 +102,24 @@ public class JdbcIOIT {
       return tableName;
     }
 
+    private static class TestRowMapper implements JdbcIO.RowMapper<KV<String, Integer>> {
+      @Override
+      public KV<String, Integer> mapRow(ResultSet resultSet) throws Exception {
+        KV<String, Integer> kv =
+            KV.of(resultSet.getString("name"), resultSet.getInt("id"));
+        return kv;
+      }
+    }
+
+    private static class ValidateCountFn implements SerializableFunction<Iterable<KV<String, Long>>, Void> {
+        @Override
+        public Void apply(Iterable<KV<String, Long>> input) {
+          for (KV<String, Long> element : input) {
+            assertEquals(element.getKey(), 100L, element.getValue().longValue());
+          }
+          return null;
+        }
+      };
 
   @Test
   @Category(NeedsRunner.class)
@@ -110,35 +134,10 @@ public class JdbcIOIT {
 
       TestPipeline pipeline = TestPipeline.create();
 
-      // !!!!!!!!!!!!!!
-      // Currently, JdbcIOIT is failing.
-      // This snippet here is the code inside of JDBCIO causing the issue
-      // since it can't be serialized.
-      // TODO - remove this once the issue is fixed :)
-      SerializableUtils.serializeToByteArray(
-          new DoFn<Integer, KV<Integer, Integer>>() {
-            private Random random;
-            @Setup
-            public void setup() {
-              random = new Random();
-            }
-            @ProcessElement
-            public void processElement(DoFn.ProcessContext context) {
-              context.output(KV.of(random.nextInt(), context.element()));
-            }
-          });
-
       PCollection<KV<String, Integer>> output = pipeline.apply(JdbcIO.<KV<String, Integer>>read()
               .withDataSourceConfiguration(JdbcIO.DataSourceConfiguration.create(dataSource))
-              .withQuery("select name,id from BEAMTEST")
-              .withRowMapper(new JdbcIO.RowMapper<KV<String, Integer>>() {
-                @Override
-                public KV<String, Integer> mapRow(ResultSet resultSet) throws Exception {
-                  KV<String, Integer> kv =
-                      KV.of(resultSet.getString("name"), resultSet.getInt("id"));
-                  return kv;
-                }
-              })
+              .withQuery("select name,id from " + tableName)
+              .withRowMapper(new TestRowMapper())
               .withCoder(KvCoder.of(StringUtf8Coder.of(), BigEndianIntegerCoder.of())));
 
       PAssert.thatSingleton(
@@ -147,15 +146,7 @@ public class JdbcIOIT {
 
       PAssert.that(output
           .apply("Count Scientist", Count.<String, Integer>perKey())
-      ).satisfies(new SerializableFunction<Iterable<KV<String, Long>>, Void>() {
-        @Override
-        public Void apply(Iterable<KV<String, Long>> input) {
-          for (KV<String, Long> element : input) {
-            assertEquals(element.getKey(), 100L, element.getValue().longValue());
-          }
-          return null;
-        }
-      });
+      ).satisfies(new ValidateCountFn());
 
       pipeline.run().waitUntilFinish();
     } finally {
