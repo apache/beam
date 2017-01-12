@@ -75,31 +75,6 @@ public interface PerKeyCombineFnRunner<K, InputT, AccumT, OutputT> extends Seria
    */
   OutputT extractOutput(K key, AccumT accumulator, OldDoFn<?, ?>.ProcessContext c);
 
-  /**
-   * Forwards the call to a {@link PerKeyCombineFn} to compact the accumulator in a {@link OldDoFn}.
-   *
-   * <p>It constructs a {@code CombineWithContext.Context} from {@code OldDoFn.ProcessContext}
-   * if it is required.
-   */
-  AccumT compact(K key, AccumT accumulator, OldDoFn<?, ?>.ProcessContext c);
-
-  /**
-   * Forwards the call to a {@link PerKeyCombineFn} to combine the inputs and extract output
-   * in a {@link OldDoFn}.
-   *
-   * <p>It constructs a {@code CombineWithContext.Context} from {@code OldDoFn.ProcessContext}
-   * if it is required.
-   */
-  OutputT apply(K key, Iterable<? extends InputT> inputs, OldDoFn<?, ?>.ProcessContext c);
-
-  /**
-   * Forwards the call to a {@link PerKeyCombineFn} to add all inputs in a {@link OldDoFn}.
-   *
-   * <p>It constructs a {@code CombineWithContext.Context} from {@code OldDoFn.ProcessContext}
-   * if it is required.
-   */
-  AccumT addInputs(K key, Iterable<InputT> inputs, OldDoFn<?, ?>.ProcessContext c);
-
   /////////////////////////////////////////////////////////////////////////////
 
   /**
