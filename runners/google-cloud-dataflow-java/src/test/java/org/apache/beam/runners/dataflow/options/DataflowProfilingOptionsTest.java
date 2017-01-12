@@ -37,8 +37,8 @@ public class DataflowProfilingOptionsTest {
 
   @Test
   public void testOptionsObject() throws Exception {
-    DataflowPipelineOptions options = PipelineOptionsFactory.fromArgs(new String[] {
-        "--saveProfilesToGcs=path", "--profilingAgentConfiguration={\"interval\": 21}"})
+    DataflowPipelineOptions options = PipelineOptionsFactory.fromArgs(
+        "--saveProfilesToGcs=path", "--profilingAgentConfiguration={\"interval\": 21}")
         .as(DataflowPipelineOptions.class);
     assertThat(options.getSaveProfilesToGcs(), equalTo("path"));
 
