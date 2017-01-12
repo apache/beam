@@ -48,11 +48,15 @@ class SnippetUtils(object):
   from apache_beam.pipeline import PipelineVisitor
 
   class RenameFiles(PipelineVisitor):
-    """RenameFiles will rewire source and sink for unit testing.
+    """RenameFiles will rewire read/write paths for unit testing.
 
-    RenameFiles will rewire the GCS files specified in the source and
-    sink in the snippet pipeline to local files so the pipeline can be run as a
-    unit test. This is as close as we can get to have code snippets that are
+    RenameFiles will replace the GCS files specified in the read and
+    write transforms to local files so the pipeline can be run as a
+    unit test. This assumes that read and write transforms defined in snippets
+    have already been replaced by transforms 'DummyReadForTesting' and
+    'DummyReadForTesting' (see snippets_test.py).
+
+    This is as close as we can get to have code snippets that are
     executed and are also ready to presented in webdocs.
     """
 
@@ -60,14 +64,10 @@ class SnippetUtils(object):
       self.renames = renames
 
     def visit_transform(self, transform_node):
-      if hasattr(transform_node.transform, 'source'):
-        source = transform_node.transform.source
-        source.file_path = self.renames['read']
-        source.is_gcs_source = False
-      elif hasattr(transform_node.transform, 'sink'):
-        sink = transform_node.transform.sink
-        sink.file_path = self.renames['write']
-        sink.is_gcs_sink = False
+      if transform_node.full_label.find('DummyReadForTesting') >= 0:
+        transform_node.transform.fn.file_to_read = self.renames['read']
+      elif transform_node.full_label.find('DummyWriteForTesting') >= 0:
+        transform_node.transform.fn.file_to_write = self.renames['write']
 
 
 def construct_pipeline(renames):
@@ -94,8 +94,7 @@ def construct_pipeline(renames):
   # [END pipelines_constructing_creating]
 
   # [START pipelines_constructing_reading]
-  lines = p | beam.io.Read('ReadMyFile',
-                           beam.io.TextFileSource('gs://some/inputData.txt'))
+  lines = p | 'ReadMyFile' >> beam.io.ReadFromText('gs://some/inputData.txt')
   # [END pipelines_constructing_reading]
 
   # [START pipelines_constructing_applying]
@@ -105,8 +104,8 @@ def construct_pipeline(renames):
 
   # [START pipelines_constructing_writing]
   filtered_words = reversed_words | 'FilterWords' >> beam.Filter(filter_words)
-  filtered_words | 'WriteMyFile' >> beam.io.Write(
-      beam.io.TextFileSink('gs://some/outputData.txt'))
+  filtered_words | 'WriteMyFile' >> beam.io.WriteToText(
+      'gs://some/outputData.txt')
   # [END pipelines_constructing_writing]
 
   p.visit(SnippetUtils.RenameFiles(renames))
@@ -147,10 +146,11 @@ def model_pipelines(argv):
   p = beam.Pipeline(options=pipeline_options)
 
   (p
-   | beam.io.Read(beam.io.TextFileSource(my_options.input))
+   | beam.io.ReadFromText(my_options.input)
    | beam.FlatMap(lambda x: re.findall(r'[A-Za-z\']+', x))
-   | beam.Map(lambda x: (x, 1)) | beam.combiners.Count.PerKey()
-   | beam.io.Write(beam.io.TextFileSink(my_options.output)))
+   | beam.Map(lambda x: (x, 1))
+   | beam.combiners.Count.PerKey()
+   | beam.io.WriteToText(my_options.output))
 
   p.run()
   # [END model_pipelines]
@@ -184,7 +184,7 @@ def model_pcollection(argv):
        'Whether \'tis nobler in the mind to suffer ',
        'The slings and arrows of outrageous fortune, ',
        'Or to take arms against a sea of troubles, '])
-   | beam.io.Write(beam.io.TextFileSink(my_options.output)))
+   | beam.io.WriteToText(my_options.output))
 
   p.run()
   # [END model_pcollection]
@@ -241,8 +241,8 @@ def pipeline_options_remote(argv):
   options.view_as(StandardOptions).runner = 'DirectRunner'
   p = Pipeline(options=options)
 
-  lines = p | beam.io.Read(beam.io.TextFileSource(my_input))
-  lines | beam.io.Write(beam.io.TextFileSink(my_output))
+  lines = p | beam.io.ReadFromText(my_input)
+  lines | beam.io.WriteToText(my_output)
 
   p.run()
 
@@ -282,8 +282,8 @@ def pipeline_options_local(argv):
   p = Pipeline(options=options)
   # [END pipeline_options_local]
 
-  lines = p | beam.io.Read(beam.io.TextFileSource(my_input))
-  lines | beam.io.Write(beam.io.TextFileSink(my_output))
+  lines = p | beam.io.ReadFromText(my_input)
+  lines | beam.io.WriteToText(my_output)
   p.run()
 
 
@@ -304,9 +304,8 @@ def pipeline_options_command_line(argv):
 
   # Create the Pipeline with remaining arguments.
   p = beam.Pipeline(argv=pipeline_args)
-  lines = p | beam.io.Read('ReadFromText',
-                           beam.io.TextFileSource(known_args.input))
-  lines | beam.io.Write(beam.io.TextFileSink(known_args.output))
+  lines = p | 'ReadFromText' >> beam.io.ReadFromText(known_args.input)
+  lines | 'WriteToText' >> beam.io.WriteToText(known_args.output)
   # [END pipeline_options_command_line]
 
   p.run()
@@ -344,7 +343,7 @@ def pipeline_logging(lines, output):
   (p
    | beam.Create(lines)
    | beam.ParDo(ExtractWordsFn())
-   | beam.io.Write(beam.io.TextFileSink(output)))
+   | beam.io.WriteToText(output))
 
   p.run()
 
@@ -404,11 +403,11 @@ def pipeline_monitoring(renames):
   # [START pipeline_monitoring_execution]
   (p
    # Read the lines of the input text.
-   | 'ReadLines' >> beam.io.Read(beam.io.TextFileSource(options.input))
+   | 'ReadLines' >> beam.io.ReadFromText(options.input)
    # Count the words.
    | CountWords()
    # Write the formatted word counts to output.
-   | 'WriteCounts' >> beam.io.Write(beam.io.TextFileSink(options.output)))
+   | 'WriteCounts' >> beam.io.WriteToText(options.output))
   # [END pipeline_monitoring_execution]
 
   p.visit(SnippetUtils.RenameFiles(renames))
@@ -448,8 +447,8 @@ def examples_wordcount_minimal(renames):
 
   (
       # [START examples_wordcount_minimal_read]
-      p | beam.io.Read(beam.io.TextFileSource(
-          'gs://dataflow-samples/shakespeare/kinglear.txt'))
+      p | beam.io.ReadFromText(
+          'gs://dataflow-samples/shakespeare/kinglear.txt')
       # [END examples_wordcount_minimal_read]
 
       # [START examples_wordcount_minimal_pardo]
@@ -465,7 +464,7 @@ def examples_wordcount_minimal(renames):
       # [END examples_wordcount_minimal_map]
 
       # [START examples_wordcount_minimal_write]
-      | beam.io.Write(beam.io.TextFileSink('gs://my-bucket/counts.txt'))
+      | beam.io.WriteToText('gs://my-bucket/counts.txt')
       # [END examples_wordcount_minimal_write]
   )
 
@@ -502,8 +501,8 @@ def examples_wordcount_wordcount(renames):
   p = beam.Pipeline(options=options)
   # [END examples_wordcount_wordcount_options]
 
-  lines = p | beam.io.Read(beam.io.TextFileSource(
-      'gs://dataflow-samples/shakespeare/kinglear.txt'))
+  lines = p | beam.io.ReadFromText(
+      'gs://dataflow-samples/shakespeare/kinglear.txt')
 
   # [START examples_wordcount_wordcount_composite]
   class CountWords(beam.PTransform):
@@ -530,7 +529,7 @@ def examples_wordcount_wordcount(renames):
   formatted = counts | beam.ParDo(FormatAsTextFn())
   # [END examples_wordcount_wordcount_dofn]
 
-  formatted |  beam.io.Write(beam.io.TextFileSink('gs://my-bucket/counts.txt'))
+  formatted |  beam.io.WriteToText('gs://my-bucket/counts.txt')
   p.visit(SnippetUtils.RenameFiles(renames))
   p.run()
 
@@ -588,8 +587,8 @@ def examples_wordcount_debugging(renames):
   p = beam.Pipeline(options=PipelineOptions())
   filtered_words = (
       p
-      | beam.io.Read(beam.io.TextFileSource(
-          'gs://dataflow-samples/shakespeare/kinglear.txt'))
+      | beam.io.ReadFromText(
+          'gs://dataflow-samples/shakespeare/kinglear.txt')
       | 'ExtractWords' >> beam.FlatMap(lambda x: re.findall(r'[A-Za-z\']+', x))
       | beam.combiners.Count.PerElement()
       | 'FilterText' >> beam.ParDo(FilterTextFn('Flourish|stomach')))
@@ -601,8 +600,7 @@ def examples_wordcount_debugging(renames):
 
   output = (filtered_words
             | 'format' >> beam.Map(lambda (word, c): '%s: %s' % (word, c))
-            | beam.io.Write(
-                'write', beam.io.TextFileSink('gs://my-bucket/counts.txt')))
+            | 'Write' >> beam.io.WriteToText('gs://my-bucket/counts.txt'))
 
   p.visit(SnippetUtils.RenameFiles(renames))
   p.run()
@@ -872,18 +870,16 @@ def model_textio(renames):
   # [START model_textio_read]
   p = beam.Pipeline(options=PipelineOptions())
   # [START model_pipelineio_read]
-  lines = p | beam.io.Read(
-      'ReadFromText',
-      beam.io.TextFileSource('gs://my_bucket/path/to/input-*.csv'))
+  lines = p | 'ReadFromText' >> beam.io.ReadFromText(
+      'gs://my_bucket/path/to/input-*.csv')
   # [END model_pipelineio_read]
   # [END model_textio_read]
 
   # [START model_textio_write]
   filtered_words = lines | 'FilterWords' >> beam.FlatMap(filter_words)
   # [START model_pipelineio_write]
-  filtered_words | beam.io.Write(
-      'WriteToText', beam.io.TextFileSink('gs://my_bucket/path/to/numbers',
-                                          file_name_suffix='.csv'))
+  filtered_words | 'WriteToText' >> beam.io.WriteToText(
+      'gs://my_bucket/path/to/numbers', file_name_suffix='.csv')
   # [END model_pipelineio_write]
   # [END model_textio_write]
 
@@ -1014,7 +1010,7 @@ def model_composite_transform_example(contents, output_path):
   (p
    | beam.Create(contents)
    | CountWords()
-   | beam.io.Write(beam.io.TextFileSink(output_path)))
+   | beam.io.WriteToText(output_path))
   p.run()
 
 
@@ -1050,7 +1046,7 @@ def model_multiple_pcollections_flatten(contents, output_path):
       # A list of tuples can be "piped" directly into a Flatten transform.
       | beam.Flatten())
   # [END model_multiple_pcollections_flatten]
-  merged | beam.io.Write(beam.io.TextFileSink(output_path))
+  merged | beam.io.WriteToText(output_path)
 
   p.run()
 
@@ -1083,7 +1079,7 @@ def model_multiple_pcollections_partition(contents, output_path):
 
   ([by_decile[d] for d in xrange(10) if d != 4] + [fortieth_percentile]
    | beam.Flatten()
-   | beam.io.Write(beam.io.TextFileSink(output_path)))
+   | beam.io.WriteToText(output_path))
 
   p.run()
 
@@ -1113,7 +1109,7 @@ def model_group_by_key(contents, output_path):
   # [END model_group_by_key_transform]
   (grouped_words
    | 'count words' >> beam.Map(lambda (word, counts): (word, len(counts)))
-   | beam.io.Write(beam.io.TextFileSink(output_path)))
+   | beam.io.WriteToText(output_path))
   p.run()
 
 
@@ -1151,7 +1147,7 @@ def model_co_group_by_key_tuple(email_list, phone_list, output_path):
 
   contact_lines = result | beam.Map(join_info)
   # [END model_group_by_key_cogroupbykey_tuple]
-  contact_lines | beam.io.Write(beam.io.TextFileSink(output_path))
+  contact_lines | beam.io.WriteToText(output_path)
   p.run()
 
 
@@ -1190,7 +1186,7 @@ def model_join_using_side_inputs(
   contact_lines = names | beam.core.Map(
       "CreateContacts", join_info, AsIter(emails), AsIter(phones))
   # [END model_join_using_side_inputs]
-  contact_lines | beam.io.Write(beam.io.TextFileSink(output_path))
+  contact_lines | beam.io.WriteToText(output_path)
   p.run()
 
 
