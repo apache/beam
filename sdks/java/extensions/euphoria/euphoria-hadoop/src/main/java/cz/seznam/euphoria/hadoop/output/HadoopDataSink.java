@@ -7,7 +7,6 @@ import cz.seznam.euphoria.hadoop.HadoopUtils;
 import cz.seznam.euphoria.hadoop.SerializableWritable;
 import lombok.SneakyThrows;
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.io.Writable;
 import org.apache.hadoop.mapreduce.JobStatus;
 import org.apache.hadoop.mapreduce.OutputCommitter;
 import org.apache.hadoop.mapreduce.OutputFormat;
@@ -17,13 +16,13 @@ import org.apache.hadoop.mapreduce.TaskAttemptContext;
 import java.io.IOException;
 import java.util.Objects;
 
-public class HadoopDataSink<K extends Writable, V extends Writable>
+public class HadoopDataSink<K, V>
     implements DataSink<Pair<K, V>> {
 
   private final Class<? extends OutputFormat<K, V>> hadoopFormatCls;
   private final SerializableWritable<Configuration> conf;
 
-  private transient OutputFormat<?, ?> hadoopFormatInstance;
+  private transient OutputFormat<K, V> hadoopFormatInstance;
 
   public HadoopDataSink(Class<? extends OutputFormat<K, V>> hadoopFormatCls,
                         Configuration hadoopConf)
@@ -48,7 +47,7 @@ public class HadoopDataSink<K extends Writable, V extends Writable>
     TaskAttemptContext ctx =
             HadoopUtils.createTaskContext(conf.getWritable(), partitionId);
 
-    RecordWriter<?, ?> writer =
+    RecordWriter<K, V> writer =
             getHadoopFormatInstance().getRecordWriter(ctx);
 
     OutputCommitter committer =
@@ -60,7 +59,8 @@ public class HadoopDataSink<K extends Writable, V extends Writable>
   /**
    * Retrieves the instance or create new if not exists.
    */
-  private OutputFormat<?, ?> getHadoopFormatInstance()
+  @SuppressWarnings("unchecked")
+  private OutputFormat<K, V> getHadoopFormatInstance()
           throws InstantiationException, IllegalAccessException
   {
     if (hadoopFormatInstance == null) {
@@ -97,14 +97,14 @@ public class HadoopDataSink<K extends Writable, V extends Writable>
   /**
    * Wraps Hadoop {@link RecordWriter}
    */
-  private static class HadoopWriter<K extends  Writable, V extends  Writable>
+  private static class HadoopWriter<K, V>
       implements Writer<Pair<K, V>> {
 
-    private final RecordWriter hadoopWriter;
+    private final RecordWriter<K, V> hadoopWriter;
     private final OutputCommitter hadoopCommitter;
     private final TaskAttemptContext ctx;
 
-    public HadoopWriter(RecordWriter hadoopWriter,
+    public HadoopWriter(RecordWriter<K, V> hadoopWriter,
                         OutputCommitter committer,
                         TaskAttemptContext ctx)
     {
@@ -113,7 +113,6 @@ public class HadoopDataSink<K extends Writable, V extends Writable>
       this.ctx = ctx;
     }
 
-    @SuppressWarnings("unchecked")
     @Override
     public void write(Pair<K, V> record) throws IOException {
       try {
