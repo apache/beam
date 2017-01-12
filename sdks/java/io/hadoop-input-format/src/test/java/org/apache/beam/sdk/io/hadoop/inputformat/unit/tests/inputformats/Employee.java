@@ -3,14 +3,16 @@ package org.apache.beam.sdk.io.hadoop.inputformat.unit.tests.inputformats;
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.DefaultCoder;
 /**
- * This class is Employee pojo class with properties employee name and address.
+ * This class is Employee POJO class with properties- employee name and address.
  */
 @DefaultCoder(AvroCoder.class)
 public class Employee {
   private String empAddress;
   private String empName;
 
-  /** Empty constructor required for Avro decoding. */
+  /** 
+   * Empty constructor required for Avro decoding. 
+   */
   public Employee() {}
 
   public Employee(String empName, String empAddress) {

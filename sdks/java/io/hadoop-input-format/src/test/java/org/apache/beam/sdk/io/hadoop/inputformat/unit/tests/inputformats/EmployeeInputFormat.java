@@ -20,6 +20,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.io.Writable;
@@ -30,10 +31,10 @@ import org.apache.hadoop.mapreduce.RecordReader;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
 
 /**
- * <p>This is InputFormat for reading employee data which is stored in map employeeData. employeeData
+ * <p>This is a dummy InputFormat for reading employee data which is stored in a map employeeData. employeeData
  * has 9 employee records. 
- * <p>EmployeeInputFormat splits data into 3 splits each having 3 records.
- * <p>EmployeeInputFormat reads data from employeeData and produces a key is of type Text which is employee id and
+ * <p>EmployeeInputFormat splits data into 3 splits, each split having 3 records each.
+ * <p>EmployeeInputFormat reads data from employeeData and produces a key (employee id) of type Text and
  * value of type {@link org.apache.beam.sdk.io.hadoop.inputformat.unit.tests.inputformats.Employee
  * Employee}.
  */
@@ -112,7 +113,7 @@ public class EmployeeInputFormat extends InputFormat<Text, Employee> {
     private Employee currentValue;
     private long employeeMapIndex = 0L;
     private long recordsRead = 0L;
-    private HashMap<Long, Employee> employeeData = new HashMap<Long, Employee>();
+    private Map<Long, Employee> employeeData = new HashMap<Long, Employee>();
 
     public EmployeeRecordReader() {}
 
