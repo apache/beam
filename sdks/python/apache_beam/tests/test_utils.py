@@ -30,7 +30,8 @@ def patch_retry(testcase, module):
   in order to skip sleep phase when retry happens.
 
   Args:
-    testcase: A test class that calls this function to patch retry module.
+    testcase: An instance of unittest.TestCase that calls this function to
+      patch retry module.
     module: The module that uses retry and need to be replaced with mock
       clock and logger in test.
   """
@@ -48,9 +49,9 @@ def patch_retry(testcase, module):
   # Reload module after patching.
   imp.reload(module)
 
-  def kill_patches():
+  def remove_patches():
     patch.stopall()
     # Reload module again after removing patch.
     imp.reload(module)
 
-  testcase.addCleanup(kill_patches)
+  testcase.addCleanup(remove_patches)
