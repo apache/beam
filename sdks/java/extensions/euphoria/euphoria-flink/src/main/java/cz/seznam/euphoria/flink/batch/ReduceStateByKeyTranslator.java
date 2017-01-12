@@ -41,7 +41,7 @@ public class ReduceStateByKeyTranslator implements BatchOperatorTranslator<Reduc
   public DataSet translate(FlinkOperator<ReduceStateByKey> operator,
                            BatchExecutorContext context) {
 
-    // FIXME #16800 - parallelism should be set to the same level as parent until we reach "shuffling"
+    // FIXME parallelism should be set to the same level as parent until we reach "shuffling"
 
     DataSet input = Iterables.getOnlyElement(context.getInputStreams(operator));
 
