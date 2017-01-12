@@ -32,7 +32,8 @@ class TestDataflowRunner(DataflowRunner):
     self.result = super(TestDataflowRunner, self).run(pipeline)
 
     options = pipeline.options.view_as(TestOptions)
-    if options.on_success_matcher:
-      from hamcrest import assert_that as hc_assert_that
-      hc_assert_that(self.result, pickler.loads(options.on_success_matcher))
+    if options.on_success_matchers:
+      for verifier in pickler.loads(options.on_success_matchers):
+        from hamcrest import assert_that as hc_assert_that
+        hc_assert_that(self.result, verifier)
     return self.result

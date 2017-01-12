@@ -39,11 +39,21 @@ class MockRunners(object):
     pass
 
 
-# Matcher that always passes for testing on_success_matcher option
+# Matcher that always passes for testing on_success_matchers option
 class AlwaysPassMatcher(BaseMatcher):
 
   def _matches(self, item):
     return True
+
+
+# Matcher that always fails for testing on_success_matchers option
+class AlwaysFailMatcher(BaseMatcher):
+
+  def _matches(self, item):
+    return False
+
+  def describe_to(self, description):
+    description.append_text('Always fails.')
 
 
 class SetupTest(unittest.TestCase):
@@ -307,25 +317,34 @@ class SetupTest(unittest.TestCase):
                  '--staging_location=gs://foo/bar',
                  '--temp_location=gs://foo/bar',]
       if matcher:
-        options.append('--on_success_matcher=' + matcher)
+        options.append('--on_success_matchers=' + matcher)
 
       pipeline_options = PipelineOptions(options)
       runner = MockRunners.TestDataflowRunner()
       return PipelineOptionsValidator(pipeline_options, runner)
 
     test_case = [
-        {'on_success_matcher': None,
+        {'on_success_matchers': None,
          'errors': []},
-        {'on_success_matcher': pickler.dumps(AlwaysPassMatcher()),
+        # Can't be unpickled
+        {'on_success_matchers': 'abc',
+         'errors': ['on_success_matchers']},
+        # Uniterable
+        {'on_success_matchers': pickler.dumps(object),
+         'errors': ['on_success_matchers']},
+        {'on_success_matchers': pickler.dumps(AlwaysPassMatcher()),
+         'errors': ['on_success_matchers']},
+        # Incorrect Matcher Type
+        {'on_success_matchers': pickler.dumps(['abc', 123]),
+         'errors': ['on_success_matchers', 'on_success_matchers']},
+        # Correct case
+        {'on_success_matchers':
+             pickler.dumps([AlwaysPassMatcher(), AlwaysFailMatcher()]),
          'errors': []},
-        {'on_success_matcher': 'abc',
-         'errors': ['on_success_matcher']},
-        {'on_success_matcher': pickler.dumps(object),
-         'errors': ['on_success_matcher']},
     ]
 
     for case in test_case:
-      errors = get_validator(case['on_success_matcher']).validate()
+      errors = get_validator(case['on_success_matchers']).validate()
       self.assertEqual(
           self.check_errors_for_arguments(errors, case['errors']), [])
 
