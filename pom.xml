@@ -111,7 +111,7 @@
     <datastore.client.version>1.2.0</datastore.client.version>
     <datastore.proto.version>1.2.0</datastore.proto.version>
     <google-auto-service.version>1.0-rc2</google-auto-service.version>
-    <google-auto-value.version>1.1</google-auto-value.version>
+    <google-auto-value.version>1.4-rc1</google-auto-value.version>
     <google-auth.version>0.6.0</google-auth.version>
     <google-clients.version>1.22.0</google-clients.version>
     <google-cloud-bigdataoss.version>1.4.5</google-cloud-bigdataoss.version>
