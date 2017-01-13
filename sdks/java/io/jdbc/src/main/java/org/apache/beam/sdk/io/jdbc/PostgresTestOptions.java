@@ -5,9 +5,9 @@ import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.testing.TestPipelineOptions;
 
 /**
- * TODO - non horrible javadoc.
+ * These options can be used by a test connecting to a postgres database to configure their connection.
  */
-public interface JdbcTestOptions extends TestPipelineOptions {
+public interface PostgresTestOptions extends TestPipelineOptions {
     @Description("IP for postgres server")
     @Default.String("postgres-ip")
     String getPostgresIp();

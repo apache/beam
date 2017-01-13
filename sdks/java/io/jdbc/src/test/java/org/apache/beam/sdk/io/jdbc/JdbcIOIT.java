@@ -18,9 +18,7 @@ import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Count;
-import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.SerializableFunction;
-import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.junit.Test;
@@ -51,11 +49,14 @@ import org.postgresql.ds.PGSimpleDataSource;
 public class JdbcIOIT {
 
   public PGSimpleDataSource getDataSource() throws SQLException {
-    PipelineOptionsFactory.register(JdbcTestOptions.class);
-    JdbcTestOptions options = TestPipeline.testingPipelineOptions()
-        .as(JdbcTestOptions.class);
+    PipelineOptionsFactory.register(PostgresTestOptions.class);
+    PostgresTestOptions options = TestPipeline.testingPipelineOptions()
+        .as(PostgresTestOptions.class);
     PGSimpleDataSource dataSource = new PGSimpleDataSource();
 
+    // Tests must receive parameters for connections from PipelineOptions
+    // Parameters should be generic to all tests that use a particular datasource, not
+    // the particular test.
     dataSource.setDatabaseName(options.getPostgresDatabaseName());
     dataSource.setServerName(options.getPostgresIp());
     dataSource.setPortNumber(options.getPostgresPort());
