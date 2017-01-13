@@ -363,22 +363,22 @@ class TestFileBasedSource(unittest.TestCase):
 
     self.assertItemsEqual(expected_data, read_data)
 
-  def _run_dataflow_test(self, pattern, expected_data, splittable=True):
+  def _run_source_test(self, pattern, expected_data, splittable=True):
     pipeline = beam.Pipeline('DirectRunner')
     pcoll = pipeline | 'Read' >> beam.Read(LineSource(
         pattern, splittable=splittable))
     assert_that(pcoll, equal_to(expected_data))
     pipeline.run()
 
-  def test_dataflow_file(self):
+  def test_source_file(self):
     file_name, expected_data = write_data(100)
     assert len(expected_data) == 100
-    self._run_dataflow_test(file_name, expected_data)
+    self._run_source_test(file_name, expected_data)
 
-  def test_dataflow_pattern(self):
+  def test_source_pattern(self):
     pattern, expected_data = write_pattern([34, 66, 40, 24, 24, 12])
     assert len(expected_data) == 200
-    self._run_dataflow_test(pattern, expected_data)
+    self._run_source_test(pattern, expected_data)
 
   def test_unsplittable_does_not_split(self):
     pattern, expected_data = write_pattern([5, 9, 6])
@@ -387,15 +387,15 @@ class TestFileBasedSource(unittest.TestCase):
     splits = [split for split in fbs.split(desired_bundle_size=15)]
     self.assertEquals(3, len(splits))
 
-  def test_dataflow_file_unsplittable(self):
+  def test_source_file_unsplittable(self):
     file_name, expected_data = write_data(100)
     assert len(expected_data) == 100
-    self._run_dataflow_test(file_name, expected_data, False)
+    self._run_source_test(file_name, expected_data, False)
 
-  def test_dataflow_pattern_unsplittable(self):
+  def test_source_pattern_unsplittable(self):
     pattern, expected_data = write_pattern([34, 66, 40, 24, 24, 12])
     assert len(expected_data) == 200
-    self._run_dataflow_test(pattern, expected_data, False)
+    self._run_source_test(pattern, expected_data, False)
 
   def test_read_file_bzip2(self):
     _, lines = write_data(10)

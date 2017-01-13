@@ -15,21 +15,19 @@
 # limitations under the License.
 #
 
-"""Code snippets used in Cloud Dataflow webdocs.
+"""Code snippets used in webdocs.
 
 The examples here are written specifically to read well with the accompanying
-web docs from https://cloud.google.com/dataflow. Do not rewrite them until you
-make sure the webdocs still read well and the rewritten code supports the
-concept being described. For example, there are snippets that could be shorter
-but they are written like this to make a specific point in the docs.
+web docs. Do not rewrite them until you make sure the webdocs still read well
+and the rewritten code supports the concept being described. For example, there
+are snippets that could be shorter but they are written like this to make a
+specific point in the docs.
 
 The code snippets are all organized as self contained functions. Parts of the
 function body delimited by [START tag] and [END tag] will be included
 automatically in the web docs. The naming convention for the tags is to have as
 prefix the PATH_TO_HTML where they are included followed by a descriptive
-string. For instance a code snippet that will be used as a code example
-at https://cloud.google.com/dataflow/model/pipelines will have the tag
-model_pipelines_DESCRIPTION. The tags can contain only letters, digits and _.
+string. The tags can contain only letters, digits and _.
 """
 
 import apache_beam as beam
@@ -71,10 +69,7 @@ class SnippetUtils(object):
 
 
 def construct_pipeline(renames):
-  """A reverse words snippet as an example for constructing a pipeline.
-
-  URL: https://cloud.google.com/dataflow/pipelines/constructing-your-pipeline
-  """
+  """A reverse words snippet as an example for constructing a pipeline."""
   import re
 
   class ReverseWords(beam.PTransform):
@@ -117,10 +112,7 @@ def construct_pipeline(renames):
 
 
 def model_pipelines(argv):
-  """A wordcount snippet as a simple pipeline example.
-
-  URL: https://cloud.google.com/dataflow/model/pipelines
-  """
+  """A wordcount snippet as a simple pipeline example."""
   # [START model_pipelines]
   import re
 
@@ -157,10 +149,7 @@ def model_pipelines(argv):
 
 
 def model_pcollection(argv):
-  """Creating a PCollection from data in local memory.
-
-  URL: https://cloud.google.com/dataflow/model/pcollection
-  """
+  """Creating a PCollection from data in local memory."""
   from apache_beam.utils.pipeline_options import PipelineOptions
 
   class MyOptions(PipelineOptions):
@@ -191,10 +180,7 @@ def model_pcollection(argv):
 
 
 def pipeline_options_remote(argv):
-  """"Creating a Pipeline using a PipelineOptions object for remote execution.
-
-  URL: https://cloud.google.com/dataflow/pipelines/specifying-exec-params
-  """
+  """Creating a Pipeline using a PipelineOptions object for remote execution."""
 
   from apache_beam import Pipeline
   from apache_beam.utils.pipeline_options import PipelineOptions
@@ -248,10 +234,7 @@ def pipeline_options_remote(argv):
 
 
 def pipeline_options_local(argv):
-  """"Creating a Pipeline using a PipelineOptions object for local execution.
-
-  URL: https://cloud.google.com/dataflow/pipelines/specifying-exec-params
-  """
+  """Creating a Pipeline using a PipelineOptions object for local execution."""
 
   from apache_beam import Pipeline
   from apache_beam.utils.pipeline_options import PipelineOptions
@@ -264,10 +247,10 @@ def pipeline_options_local(argv):
     @classmethod
     def _add_argparse_args(cls, parser):
       parser.add_argument('--input',
-                          help='Input for the dataflow pipeline',
+                          help='Input for the pipeline',
                           default='gs://my-bucket/input')
       parser.add_argument('--output',
-                          help='Output for the dataflow pipeline',
+                          help='Output for the pipeline',
                           default='gs://my-bucket/output')
   # [END pipeline_options_define_custom_with_help_and_default]
 
@@ -288,10 +271,7 @@ def pipeline_options_local(argv):
 
 
 def pipeline_options_command_line(argv):
-  """Creating a Pipeline by passing a list of arguments.
-
-  URL: https://cloud.google.com/dataflow/pipelines/specifying-exec-params
-  """
+  """Creating a Pipeline by passing a list of arguments."""
 
   # [START pipeline_options_command_line]
   # Use Python argparse module to parse custom arguments
@@ -313,10 +293,7 @@ def pipeline_options_command_line(argv):
 
 
 def pipeline_logging(lines, output):
-  """Logging Pipeline Messages.
-
-  URL: https://cloud.google.com/dataflow/pipelines/logging
-  """
+  """Logging Pipeline Messages."""
 
   import re
   import apache_beam as beam
@@ -350,10 +327,7 @@ def pipeline_logging(lines, output):
 
 
 def pipeline_monitoring(renames):
-  """Using monitoring interface snippets.
-
-  URL: https://cloud.google.com/dataflow/pipelines/dataflow-monitoring-intf
-  """
+  """Using monitoring interface snippets."""
 
   import re
   import apache_beam as beam
@@ -364,10 +338,10 @@ def pipeline_monitoring(renames):
     @classmethod
     def _add_argparse_args(cls, parser):
       parser.add_argument('--input',
-                          help='Input for the dataflow pipeline',
+                          help='Input for the pipeline',
                           default='gs://my-bucket/input')
       parser.add_argument('--output',
-                          help='output for the dataflow pipeline',
+                          help='output for the pipeline',
                           default='gs://my-bucket/output')
 
   class ExtractWordsFn(beam.DoFn):
@@ -416,11 +390,7 @@ def pipeline_monitoring(renames):
 
 
 def examples_wordcount_minimal(renames):
-  """MinimalWordCount example snippets.
-
-  URL:
-  https://cloud.google.com/dataflow/examples/wordcount-example#MinimalWordCount
-  """
+  """MinimalWordCount example snippets."""
   import re
 
   import apache_beam as beam
@@ -477,11 +447,7 @@ def examples_wordcount_minimal(renames):
 
 
 def examples_wordcount_wordcount(renames):
-  """WordCount example snippets.
-
-  URL:
-  https://cloud.google.com/dataflow/examples/wordcount-example#WordCount
-  """
+  """WordCount example snippets."""
   import re
 
   import apache_beam as beam
@@ -495,7 +461,7 @@ def examples_wordcount_wordcount(renames):
     @classmethod
     def _add_argparse_args(cls, parser):
       parser.add_argument('--input',
-                          help='Input for the dataflow pipeline',
+                          help='Input for the pipeline',
                           default='gs://my-bucket/input')
 
   options = PipelineOptions(argv)
@@ -536,11 +502,7 @@ def examples_wordcount_wordcount(renames):
 
 
 def examples_wordcount_debugging(renames):
-  """DebuggingWordCount example snippets.
-
-  URL:
-  https://cloud.google.com/dataflow/examples/wordcount-example#DebuggingWordCount
-  """
+  """DebuggingWordCount example snippets."""
   import re
 
   import apache_beam as beam
@@ -856,12 +818,7 @@ def model_custom_sink(simplekv, KVs, final_table_name_no_ptransform,
 
 
 def model_textio(renames):
-  """Using a Read and Write transform to read/write text files.
-
-  URLs:
-    https://cloud.google.com/dataflow/model/pipeline-io
-    https://cloud.google.com/dataflow/model/text-io
-  """
+  """Using a Read and Write transform to read/write text files."""
   def filter_words(x):
     import re
     return re.findall(r'[A-Za-z\']+', x)
@@ -892,10 +849,7 @@ def model_textio(renames):
 
 
 def model_datastoreio():
-  """Using a Read and Write transform to read/write to Cloud Datastore.
-
-  URL: https://cloud.google.com/dataflow/model/datastoreio
-  """
+  """Using a Read and Write transform to read/write to Cloud Datastore."""
 
   import uuid
   from google.datastore.v1 import entity_pb2
@@ -933,10 +887,7 @@ def model_datastoreio():
 
 
 def model_bigqueryio():
-  """Using a Read and Write transform to read/write to BigQuery.
-
-  URL: https://cloud.google.com/dataflow/model/bigquery-io
-  """
+  """Using a Read and Write transform to read/write to BigQuery."""
   import apache_beam as beam
   from apache_beam.utils.pipeline_options import PipelineOptions
 
@@ -988,8 +939,6 @@ def model_composite_transform_example(contents, output_path):
 
   To override the apply method, define a method "apply" that
   takes a PCollection as its only parameter and returns a PCollection.
-
-  URL: https://cloud.google.com/dataflow/model/composite-transforms
   """
   import re
 
@@ -1019,10 +968,7 @@ def model_composite_transform_example(contents, output_path):
 
 
 def model_multiple_pcollections_flatten(contents, output_path):
-  """Merging a PCollection with Flatten.
-
-  URL: https://cloud.google.com/dataflow/model/multiple-pcollections
-  """
+  """Merging a PCollection with Flatten."""
   some_hash_fn = lambda s: ord(s[0])
   import apache_beam as beam
   from apache_beam.utils.pipeline_options import PipelineOptions
@@ -1056,10 +1002,7 @@ def model_multiple_pcollections_flatten(contents, output_path):
 
 
 def model_multiple_pcollections_partition(contents, output_path):
-  """Splitting a PCollection with Partition.
-
-  URL: https://cloud.google.com/dataflow/model/multiple-pcollections
-  """
+  """Splitting a PCollection with Partition."""
   some_hash_fn = lambda s: ord(s[0])
 
   def get_percentile(i):
@@ -1089,10 +1032,7 @@ def model_multiple_pcollections_partition(contents, output_path):
 
 
 def model_group_by_key(contents, output_path):
-  """Applying a GroupByKey Transform.
-
-  URL: https://cloud.google.com/dataflow/model/group-by-key
-  """
+  """Applying a GroupByKey Transform."""
   import re
 
   import apache_beam as beam
@@ -1118,10 +1058,7 @@ def model_group_by_key(contents, output_path):
 
 
 def model_co_group_by_key_tuple(email_list, phone_list, output_path):
-  """Applying a CoGroupByKey Transform to a tuple.
-
-  URL: https://cloud.google.com/dataflow/model/group-by-key
-  """
+  """Applying a CoGroupByKey Transform to a tuple."""
   import apache_beam as beam
   from apache_beam.utils.pipeline_options import PipelineOptions
   p = beam.Pipeline(options=PipelineOptions())

@@ -24,7 +24,6 @@ import unittest
 from apache_beam.examples.cookbook import bigshuffle
 
 
-# TODO(dataflow-python): use gensort to generate input files.
 class BigShuffleTest(unittest.TestCase):
 
   SAMPLE_TEXT = 'a b c a b a\naa bb cc aa bb aa'
