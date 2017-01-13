@@ -15,7 +15,7 @@
 # limitations under the License.
 #
 
-"""An example that verifies the counts and includes Dataflow best practices.
+"""An example that verifies the counts and includes best practices.
 
 On top of the basic concepts in the wordcount example, this workflow introduces
 logging to Cloud Logging, and using assertions in a Dataflow pipeline.

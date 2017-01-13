@@ -145,13 +145,13 @@ http://localhost:8888/apache_beam.html
 Some interesting classes to navigate to:
 
 * `PCollection`, in file
-[`google/cloud/dataflow/pvalue.py`](http://localhost:8888/google.cloud.dataflow.pvalue.html)
+[`apache_beam/pvalue.py`](http://localhost:8888/apache_beam.pvalue.html)
 * `PTransform`, in file
-[`google/cloud/dataflow/transforms/ptransform.py`](http://localhost:8888/google.cloud.dataflow.transforms.ptransform.html)
+[`apache_beam/transforms/ptransform.py`](http://localhost:8888/apache_beamtransforms.ptransform.html)
 * `FlatMap`, `GroupByKey`, and `Map`, in file
-[`google/cloud/dataflow/transforms/core.py`](http://localhost:8888/google.cloud.dataflow.transforms.core.html)
+[`apache_beam/transforms/core.py`](http://localhost:8888/apache_beam.transforms.core.html)
 * combiners, in file
-[`google/cloud/dataflow/transforms/combiners.py`](http://localhost:8888/google.cloud.dataflow.transforms.combiners.html)
+[`apache_beam/transforms/combiners.py`](http://localhost:8888/apache_beam.transforms.combiners.html)
 
 Make sure you installed the package first. If not, run `python setup.py install`, then run pydoc with `pydoc -p 8888`.
 
