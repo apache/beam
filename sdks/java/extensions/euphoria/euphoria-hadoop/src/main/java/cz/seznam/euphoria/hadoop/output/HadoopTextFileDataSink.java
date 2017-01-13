@@ -37,7 +37,7 @@ public class HadoopTextFileDataSink<K, V> extends HadoopDataSink<K, V> {
    *
    * @param path the path where to place the output to
    *
-   * @throws NullPointerException if any of the given paremeters is {@code null}
+   * @throws NullPointerException if any of the given parameters is {@code null}
    */
   public HadoopTextFileDataSink(String path) {
     this(path, new Configuration());
