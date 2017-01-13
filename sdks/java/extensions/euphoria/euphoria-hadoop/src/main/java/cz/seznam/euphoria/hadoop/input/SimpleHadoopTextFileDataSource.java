@@ -18,6 +18,10 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 
+/**
+ * A convenience, easy-to-use data source reading hadoop based inputs
+ * as lines of UTF-8 encoded text and delivering them as strings.
+ */
 public class SimpleHadoopTextFileDataSource implements DataSource<String> {
 
   /**
