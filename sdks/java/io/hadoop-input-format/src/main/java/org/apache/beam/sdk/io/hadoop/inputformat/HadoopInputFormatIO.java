@@ -444,8 +444,7 @@ public class HadoopInputFormatIO {
         } catch (CannotProvideCoderException e) {
           throw new IllegalStateException(
               String.format(HadoopInputFormatIOContants.CANNOT_FIND_CODER_ERROR_MSG, typeDesc)
-                  + e.getMessage(),
-              e);
+                  + e.getMessage(),e);
         }
       }
     }
@@ -676,7 +675,7 @@ public class HadoopInputFormatIO {
             }
           } else {
             throw new IOException(String.format(
-                HadoopInputFormatIOContants.NULL_CREATE_RECORDREADER_ERROR_MSG, inputFormatObj));
+                HadoopInputFormatIOContants.NULL_CREATE_RECORDREADER_ERROR_MSG, inputFormatObj.getClass()));
           }
         } catch (InterruptedException e) {
           throw new IOException(e);
@@ -745,8 +744,13 @@ public class HadoopInputFormatIO {
       private <T1 extends Object> T1 clone(T1 input, Coder<T1> coder)
           throws IOException, InterruptedException, CoderException {
         // If the input object is not of known immutable type, clone the object.
-        if (!isKnownImmutable(input)) {
-          input = CoderUtils.clone(coder, input);
+        try {
+          if (!isKnownImmutable(input)) {
+            input = CoderUtils.clone(coder, input);
+          }
+        } catch (ClassCastException e) {
+          // Throws exception if wrong InputFormat key/value class set in configuration.
+          throw e;
         }
         return input;
       }

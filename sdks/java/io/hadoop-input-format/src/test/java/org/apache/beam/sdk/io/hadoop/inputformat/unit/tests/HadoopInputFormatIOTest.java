@@ -37,6 +37,7 @@ import org.apache.beam.sdk.io.hadoop.inputformat.coders.WritableCoder;
 import org.apache.beam.sdk.io.hadoop.inputformat.unit.tests.inputformats.BadCreateReaderInputFormat;
 import org.apache.beam.sdk.io.hadoop.inputformat.unit.tests.inputformats.BadEmptySplitsInputFormat;
 import org.apache.beam.sdk.io.hadoop.inputformat.unit.tests.inputformats.BadNoRecordsInputFormat;
+import org.apache.beam.sdk.io.hadoop.inputformat.unit.tests.inputformats.BadNullCreateReaderInputFormat;
 import org.apache.beam.sdk.io.hadoop.inputformat.unit.tests.inputformats.BadNullSplitsInputFormat;
 import org.apache.beam.sdk.io.hadoop.inputformat.unit.tests.inputformats.Employee;
 import org.apache.beam.sdk.io.hadoop.inputformat.unit.tests.inputformats.EmployeeInputFormat;
@@ -416,6 +417,29 @@ public class HadoopInputFormatIOTest {
   }
 
   /**
+   * This test validates behavior of HadoopInputFormatSource if createRecordReader() of InputFormat returns null.
+   */
+  @Test
+  public void testReadersStartWithNullCreateRecordReader() throws Exception {
+    SerializableConfiguration serConf =
+        loadTestConfiguration(BadNullCreateReaderInputFormat.class, Text.class, Employee.class);
+    HadoopInputFormatBoundedSource<Text, Employee> parentHIFSource =
+        new HadoopInputFormatBoundedSource<Text, Employee>(serConf, WritableCoder.of(Text.class),
+            AvroCoder.of(Employee.class));
+    List<BoundedSource<KV<Text, Employee>>> boundedSourceList =
+        (List<BoundedSource<KV<Text, Employee>>>) parentHIFSource.splitIntoBundles(0,
+            p.getOptions());
+    for (BoundedSource<KV<Text, Employee>> source : boundedSourceList) {
+      BoundedReader<KV<Text, Employee>> reader = source.createReader(p.getOptions());
+      thrown.expect(IOException.class);
+      thrown
+          .expectMessage(String.format(
+              HadoopInputFormatIOContants.NULL_CREATE_RECORDREADER_ERROR_MSG, new BadNullCreateReaderInputFormat().getClass()));
+      reader.start();
+    }
+  }
+
+  /**
    * This test validates behavior of createReader() and start() methods if InputFormat's
    * getSplits() returns InputSplitList having having no records.
    */
@@ -583,7 +607,7 @@ public class HadoopInputFormatIOTest {
         parentHIFSource.splitIntoBundles(0, p.getOptions());
     List<KV<String, String>> bundleRecords = new ArrayList<>();
     for (BoundedSource<KV<String, String>> source : boundedSourceList) {
-      thrown.expect(IOException.class);
+      thrown.expect(ClassCastException.class);
       List<KV<String, String>> elems = SourceTestUtils.readFromSource(source, p.getOptions());
       bundleRecords.addAll(elems);
     }
