@@ -38,7 +38,7 @@ from apache_beam.examples.snippets import snippets
 
 
 class ParDoTest(unittest.TestCase):
-  """Tests for dataflow/model/par-do."""
+  """Tests for model/par-do."""
 
   def test_pardo(self):
     # Note: "words" and "ComputeWordLengthFn" are referenced by name in
@@ -658,7 +658,7 @@ class SnippetsTest(unittest.TestCase):
 
 
 class CombineTest(unittest.TestCase):
-  """Tests for dataflow/model/combine."""
+  """Tests for model/combine."""
 
   def test_global_sum(self):
     pc = [1, 2, 3]

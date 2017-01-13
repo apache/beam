@@ -759,7 +759,7 @@ class TestNativeTextFileSink(unittest.TestCase):
     with bz2.BZ2File(self.path, 'r') as f:
       self.assertEqual(f.read().splitlines(), [])
 
-  def test_write_dataflow(self):
+  def test_write_native(self):
     pipeline = beam.Pipeline('DirectRunner')
     pcoll = pipeline | beam.core.Create('Create', self.lines)
     pcoll | 'Write' >> beam.Write(fileio.NativeTextFileSink(self.path))  # pylint: disable=expression-not-assigned
@@ -772,7 +772,7 @@ class TestNativeTextFileSink(unittest.TestCase):
 
     self.assertEqual(read_result, self.lines)
 
-  def test_write_dataflow_auto_compression(self):
+  def test_write_native_auto_compression(self):
     pipeline = beam.Pipeline('DirectRunner')
     pcoll = pipeline | beam.core.Create('Create', self.lines)
     pcoll | 'Write' >> beam.Write(  # pylint: disable=expression-not-assigned
@@ -787,7 +787,7 @@ class TestNativeTextFileSink(unittest.TestCase):
 
     self.assertEqual(read_result, self.lines)
 
-  def test_write_dataflow_auto_compression_unsharded(self):
+  def test_write_native_auto_compression_unsharded(self):
     pipeline = beam.Pipeline('DirectRunner')
     pcoll = pipeline | beam.core.Create('Create', self.lines)
     pcoll | 'Write' >> beam.Write(  # pylint: disable=expression-not-assigned
