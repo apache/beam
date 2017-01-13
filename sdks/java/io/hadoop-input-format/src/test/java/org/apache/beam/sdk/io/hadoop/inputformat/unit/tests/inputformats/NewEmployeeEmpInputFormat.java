@@ -20,6 +20,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.io.Writable;
@@ -30,12 +31,8 @@ import org.apache.hadoop.mapreduce.RecordReader;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
 
 /**
- * <p>This is InputFormat for reading employee data which is stored in map employeeData.
- * <p>employeeData has 9 employee records. InputFormat splits data into 3 splits each having 3 records. 
- * <p>NewEmployeeEmpInputFormat reads data from employeeData and produces a key of type Text -> is employee id and value is of
- * type {@link org.apache.beam.sdk.io.hadoop.inputformat.unit.tests.inputformats.Employee Employee}.
  * <p>NewEmployeeEmpInputFormat is input to test whether HadoopInputFormatIO source returns immutable records for a 
- * scenario when RecordReader provides new key and value objects every time it reads employee data.
+ * scenario when RecordReader creates and provides new key and value objects every time it reads employee data.
  */
 public class NewEmployeeEmpInputFormat extends InputFormat<Text, Employee> {
   private final long numberOfRecordsInEachSplit = 3L;
@@ -113,7 +110,7 @@ public class NewEmployeeEmpInputFormat extends InputFormat<Text, Employee> {
     private Employee currentValue;
     private long employeeMapIndex = 0L;
     private long recordsRead = 0L;
-    private HashMap<Long, String> employeeData = new HashMap<Long, String>();
+    private Map<Long, String> employeeData = new HashMap<Long, String>();
 
     public NewEmployeeRecordReader() {}
 

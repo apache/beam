@@ -31,19 +31,8 @@ import org.apache.hadoop.mapreduce.RecordReader;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
 
 /**
- * <p>
- * ReuseEmployeeEmpInputFormat for reading employee data which is stored in map employeeData.
- * <p>
- * employeeData has 9 employee records.
- * <p>
- * ReuseEmployeeEmpInputFormat splits data into 3 splits each having 3 records.
- * <p>
- * ReuseEmployeeEmpInputFormat reads data from employeeData and produces a key of type Text -> is
- * employee id and value is of type
- * {@link org.apache.beam.sdk.io.hadoop.inputformat.unit.tests.inputformats.Employee Employee}.
- * <p>
- * NewEmployeeEmpInputFormat is input to test whether HadoopInputFormatIO source returns immutable
- * records for a scenario when RecordReader provides same key and value object with updating values
+ * ReuseEmployeeEmpInputFormat is sample Input Format to test whether HadoopInputFormatIO source returns immutable
+ * records for a scenario when RecordReader reuses the Employee object and returns the same key and value object with updating values
  * every time it reads employee data.
  */
 public class ReuseEmployeeEmpInputFormat extends InputFormat<Text, Employee> {
