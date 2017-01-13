@@ -15,7 +15,7 @@
 # limitations under the License.
 #
 
-"""Module for credentials and authentication."""
+"""Dataflow credentials and authentication."""
 
 import datetime
 import json
