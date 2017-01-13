@@ -55,8 +55,8 @@ class TestPipelineTest(unittest.TestCase):
   def test_option_args_parsing(self):
     test_pipeline = TestPipeline(argv=self.TEST_CASE['options'])
     self.assertListEqual(
-        test_pipeline.get_full_options_as_args(),
-        self.TEST_CASE['expected_list'])
+        sorted(test_pipeline.get_full_options_as_args()),
+        sorted(self.TEST_CASE['expected_list']))
 
   def test_empty_option_args_parsing(self):
     test_pipeline = TestPipeline()
@@ -84,7 +84,7 @@ class TestPipelineTest(unittest.TestCase):
     test_pipeline = TestPipeline()
     for case in self.EXTRA_OPT_CASES:
       opt_list = test_pipeline.get_full_options_as_args(**case['options'])
-      self.assertListEqual(opt_list, case['expected'])
+      self.assertListEqual(sorted(opt_list), sorted(case['expected']))
 
   def test_append_verifier_in_extra_opt(self):
     extra_opt = {'matcher': SimpleMatcher()}
