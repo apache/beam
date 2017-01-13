@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.dataflow.internal;
+package org.apache.beam.runners.dataflow;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
@@ -78,7 +78,7 @@ import org.slf4j.LoggerFactory;
  * time dependency. It should be replaced in the dataflow worker as an execution time dependency.
  */
 @Deprecated
-public class DataflowUnboundedReadFromBoundedSource<T> extends PTransform<PBegin, PCollection<T>> {
+class DataflowUnboundedReadFromBoundedSource<T> extends PTransform<PBegin, PCollection<T>> {
 
   private static final Logger LOG =
       LoggerFactory.getLogger(DataflowUnboundedReadFromBoundedSource.class);

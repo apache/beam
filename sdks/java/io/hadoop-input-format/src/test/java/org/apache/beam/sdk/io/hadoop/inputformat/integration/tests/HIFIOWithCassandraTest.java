@@ -4,6 +4,7 @@ import java.io.Serializable;
 import java.util.Arrays;
 import java.util.List;
 
+import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.hadoop.inputformat.HadoopInputFormatIO;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -30,7 +31,7 @@ import com.datastax.driver.mapping.annotations.Column;
 import com.datastax.driver.mapping.annotations.Table;
 
 @RunWith(JUnit4.class)
-public class HIFIOWithCassandraIT implements Serializable {
+public class HIFIOWithCassandraTest implements Serializable {
   private static final long serialVersionUID = 1L;
   private static final String CASSANDRA_KEYSPACE = "hif_keyspace";
   private static final String CASSANDRA_HOST = "127.0.0.1";
@@ -61,17 +62,8 @@ public class HIFIOWithCassandraIT implements Serializable {
 
   @Test
   public void testHIFReadForCassandra() throws Exception {
-    // Pipeline p = TestPipeline.create();
-    Configuration conf = new Configuration();
-    conf.set("cassandra.input.thrift.port", "9061");
-    conf.set("cassandra.input.thrift.address", CASSANDRA_HOST);
-    conf.set("cassandra.input.partitioner.class", "Murmur3Partitioner");
-    conf.set("cassandra.input.keyspace", CASSANDRA_KEYSPACE);
-    conf.set("cassandra.input.columnfamily", CASSANDRA_TABLE);
-    conf.setClass("mapreduce.job.inputformat.class",
-        org.apache.cassandra.hadoop.cql3.CqlInputFormat.class, InputFormat.class);
-    conf.setClass("key.class", java.lang.Long.class, Object.class);
-    conf.setClass("value.class", com.datastax.driver.core.Row.class, Object.class);
+    Pipeline p = TestPipeline.create();
+    Configuration conf = getConfiguration();
     SimpleFunction<Row, String> myValueTranslate = new SimpleFunction<Row, String>() {
       private static final long serialVersionUID = 1L;
 
@@ -80,13 +72,38 @@ public class HIFIOWithCassandraIT implements Serializable {
         return input.getString("person_name");
       }
     };
-    PCollection<KV<Long, String>> cassandraData = p.apply(HadoopInputFormatIO.<Long, String>read()
-        .withConfiguration(conf).withValueTranslation(myValueTranslate));
+    PCollection<KV<Long, String>> cassandraData =
+        p.apply(HadoopInputFormatIO.<Long, String>read().withConfiguration(conf)
+            .withValueTranslation(myValueTranslate));
     PAssert.thatSingleton(cassandraData.apply("Count", Count.<KV<Long, String>>globally()))
         .isEqualTo(2L);
     List<KV<Long, String>> expectedResults =
         Arrays.asList(KV.of(2L, "John Foo"), KV.of(1L, "David Bar"));
     PAssert.that(cassandraData).containsInAnyOrder(expectedResults);
+    p.run();
+  }
+
+  @Test
+  public void testHIFReadForCassandraQuery() throws Exception {
+    Pipeline p = TestPipeline.create();
+    Configuration conf = getConfiguration();
+    conf.set(
+        "cassandra.input.cql",
+        "select * from hif_keyspace.person where token(person_id) > ? and token(person_id) <= ? and person_name='David Bar' allow filtering");
+    SimpleFunction<Row, String> myValueTranslate = new SimpleFunction<Row, String>() {
+      private static final long serialVersionUID = 1L;
+
+      @Override
+      public String apply(Row input) {
+        return input.getString("person_name");
+      }
+    };
+    PCollection<KV<Long, String>> cassandraData =
+        p.apply(HadoopInputFormatIO.<Long, String>read().withConfiguration(conf)
+            .withValueTranslation(myValueTranslate));
+    PAssert.thatSingleton(cassandraData.apply("Count", Count.<KV<Long, String>>globally()))
+        .isEqualTo(1L);
+
     p.run();
   }
 
@@ -127,6 +144,20 @@ public class HIFIOWithCassandraIT implements Serializable {
     public String toString() {
       return id + ":" + name;
     }
+  }
+
+  public Configuration getConfiguration() {
+    Configuration conf = new Configuration();
+    conf.set("cassandra.input.thrift.port", "9061");
+    conf.set("cassandra.input.thrift.address", CASSANDRA_HOST);
+    conf.set("cassandra.input.partitioner.class", "Murmur3Partitioner");
+    conf.set("cassandra.input.keyspace", CASSANDRA_KEYSPACE);
+    conf.set("cassandra.input.columnfamily", CASSANDRA_TABLE);
+    conf.setClass("mapreduce.job.inputformat.class",
+        org.apache.cassandra.hadoop.cql3.CqlInputFormat.class, InputFormat.class);
+    conf.setClass("key.class", java.lang.Long.class, Object.class);
+    conf.setClass("value.class", com.datastax.driver.core.Row.class, Object.class);
+    return conf;
   }
 
 }

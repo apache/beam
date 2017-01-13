@@ -29,7 +29,7 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
-import org.apache.beam.runners.spark.util.BroadcastHelper;
+import org.apache.beam.runners.spark.util.SideInputBroadcast;
 import org.apache.beam.runners.spark.util.SparkSideInputReader;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.CombineWithContext;
@@ -49,14 +49,14 @@ import org.apache.beam.sdk.values.TupleTag;
  */
 public class SparkAbstractCombineFn implements Serializable {
   protected final SparkRuntimeContext runtimeContext;
-  protected final Map<TupleTag<?>, KV<WindowingStrategy<?, ?>, BroadcastHelper<?>>> sideInputs;
+  protected final Map<TupleTag<?>, KV<WindowingStrategy<?, ?>, SideInputBroadcast<?>>> sideInputs;
   protected final WindowingStrategy<?, ?> windowingStrategy;
 
 
-  public SparkAbstractCombineFn(SparkRuntimeContext runtimeContext,
-                                Map<TupleTag<?>,  KV<WindowingStrategy<?, ?>, BroadcastHelper<?>>>
-                                    sideInputs,
-                                WindowingStrategy<?, ?> windowingStrategy) {
+  public SparkAbstractCombineFn(
+      SparkRuntimeContext runtimeContext,
+      Map<TupleTag<?>,  KV<WindowingStrategy<?, ?>, SideInputBroadcast<?>>> sideInputs,
+      WindowingStrategy<?, ?> windowingStrategy) {
     this.runtimeContext = runtimeContext;
     this.sideInputs = sideInputs;
     this.windowingStrategy = windowingStrategy;

@@ -27,6 +27,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
@@ -1401,6 +1402,14 @@ public class Combine {
      * Returns a {@link PTransform} identical to this, but with the specified side inputs to use
      * in {@link CombineFnWithContext}.
      */
+    public Globally<InputT, OutputT> withSideInputs(PCollectionView<?>... sideInputs) {
+      return withSideInputs(Arrays.asList(sideInputs));
+    }
+
+    /**
+     * Returns a {@link PTransform} identical to this, but with the specified side inputs to use
+     * in {@link CombineFnWithContext}.
+     */
     public Globally<InputT, OutputT> withSideInputs(
         Iterable<? extends PCollectionView<?>> sideInputs) {
       checkState(fn instanceof RequiresContextInternal);
@@ -1793,6 +1802,14 @@ public class Combine {
     @Override
     protected String getKindString() {
       return String.format("Combine.perKey(%s)", NameUtils.approximateSimpleName(fn));
+    }
+
+    /**
+     * Returns a {@link PTransform} identical to this, but with the specified side inputs to use
+     * in {@link KeyedCombineFnWithContext}.
+     */
+    public PerKey<K, InputT, OutputT> withSideInputs(PCollectionView<?>... sideInputs) {
+      return withSideInputs(Arrays.asList(sideInputs));
     }
 
     /**
@@ -2365,6 +2382,10 @@ public class Combine {
       this.fn = SerializableUtils.clone(fn);
       this.fnDisplayData = fnDisplayData;
       this.sideInputs = sideInputs;
+    }
+
+    public GroupedValues<K, InputT, OutputT> withSideInputs(PCollectionView<?>... sideInputs) {
+      return withSideInputs(Arrays.asList(sideInputs));
     }
 
     public GroupedValues<K, InputT, OutputT> withSideInputs(

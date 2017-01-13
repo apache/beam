@@ -393,19 +393,37 @@ class BigQueryServicesImpl implements BigQueryServices {
      * @throws IOException if it exceeds {@code MAX_RPC_RETRIES} attempts.
      */
     @Override
+    @Nullable
     public Table getTable(String projectId, String datasetId, String tableId)
         throws IOException, InterruptedException {
       BackOff backoff =
           FluentBackoff.DEFAULT
               .withMaxRetries(MAX_RPC_RETRIES).withInitialBackoff(INITIAL_RPC_BACKOFF).backoff();
-      return executeWithRetries(
-          client.tables().get(projectId, datasetId, tableId),
-          String.format(
-              "Unable to get table: %s, aborting after %d retries.",
-              tableId, MAX_RPC_RETRIES),
-          Sleeper.DEFAULT,
+      return getTable(
+          new TableReference().setProjectId(projectId).setDatasetId(datasetId).setTableId(tableId),
           backoff,
-          DONT_RETRY_NOT_FOUND);
+          Sleeper.DEFAULT);
+    }
+
+    @VisibleForTesting
+    @Nullable
+    Table getTable(TableReference ref, BackOff backoff, Sleeper sleeper)
+        throws IOException, InterruptedException {
+      try {
+        return executeWithRetries(
+            client.tables().get(ref.getProjectId(), ref.getDatasetId(), ref.getTableId()),
+            String.format(
+                "Unable to get table: %s, aborting after %d retries.",
+                ref.getTableId(), MAX_RPC_RETRIES),
+            sleeper,
+            backoff,
+            DONT_RETRY_NOT_FOUND);
+      } catch (IOException e) {
+        if (errorExtractor.itemNotFound(e)) {
+          return null;
+        }
+        throw e;
+      }
     }
 
     /**
@@ -509,14 +527,24 @@ class BigQueryServicesImpl implements BigQueryServices {
       BackOff backoff =
           FluentBackoff.DEFAULT
               .withMaxRetries(MAX_RPC_RETRIES).withInitialBackoff(INITIAL_RPC_BACKOFF).backoff();
+      return isTableEmpty(
+          new TableReference().setProjectId(projectId).setDatasetId(datasetId).setTableId(tableId),
+          backoff,
+          Sleeper.DEFAULT);
+    }
+
+    @VisibleForTesting
+    boolean isTableEmpty(TableReference tableRef, BackOff backoff, Sleeper sleeper)
+        throws IOException, InterruptedException {
       TableDataList dataList = executeWithRetries(
-          client.tabledata().list(projectId, datasetId, tableId),
+          client.tabledata().list(
+              tableRef.getProjectId(), tableRef.getDatasetId(), tableRef.getTableId()),
           String.format(
               "Unable to list table data: %s, aborting after %d retries.",
-              tableId, MAX_RPC_RETRIES),
-          Sleeper.DEFAULT,
+              tableRef.getTableId(), MAX_RPC_RETRIES),
+          sleeper,
           backoff,
-          ALWAYS_RETRY);
+          DONT_RETRY_NOT_FOUND);
       return dataList.getRows() == null || dataList.getRows().isEmpty();
     }
 

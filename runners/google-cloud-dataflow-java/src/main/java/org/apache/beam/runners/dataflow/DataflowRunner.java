@@ -72,16 +72,10 @@ import java.util.SortedSet;
 import java.util.TreeSet;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.dataflow.DataflowPipelineTranslator.JobSpecification;
-import org.apache.beam.runners.dataflow.DataflowPipelineTranslator.TransformTranslator;
-import org.apache.beam.runners.dataflow.DataflowPipelineTranslator.TranslationContext;
-import org.apache.beam.runners.dataflow.internal.AssignWindows;
-import org.apache.beam.runners.dataflow.internal.DataflowAggregatorTransforms;
-import org.apache.beam.runners.dataflow.internal.DataflowUnboundedReadFromBoundedSource;
 import org.apache.beam.runners.dataflow.internal.IsmFormat;
 import org.apache.beam.runners.dataflow.internal.IsmFormat.IsmRecord;
 import org.apache.beam.runners.dataflow.internal.IsmFormat.IsmRecordCoder;
 import org.apache.beam.runners.dataflow.internal.IsmFormat.MetadataKeyCoder;
-import org.apache.beam.runners.dataflow.internal.ReadTranslator;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineDebugOptions;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineWorkerPoolOptions;
@@ -2116,50 +2110,46 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     }
   }
 
-  /**
-   * Rewrite {@link StreamingPubsubIORead} to the appropriate internal node.
-   */
-  private static class StreamingPubsubIOReadTranslator<T> implements
-      TransformTranslator<StreamingPubsubIORead<T>> {
+  /** Rewrite {@link StreamingPubsubIORead} to the appropriate internal node. */
+  private static class StreamingPubsubIOReadTranslator<T>
+      implements TransformTranslator<StreamingPubsubIORead<T>> {
     @Override
-    public void translate(
-        StreamingPubsubIORead<T> transform,
-        TranslationContext context) {
-      checkArgument(context.getPipelineOptions().isStreaming(),
-                    "StreamingPubsubIORead is only for streaming pipelines.");
+    public void translate(StreamingPubsubIORead<T> transform, TranslationContext context) {
+      checkArgument(
+          context.getPipelineOptions().isStreaming(),
+          "StreamingPubsubIORead is only for streaming pipelines.");
       PubsubUnboundedSource<T> overriddenTransform = transform.getOverriddenTransform();
-      context.addStep(transform, "ParallelRead");
-      context.addInput(PropertyNames.FORMAT, "pubsub");
+      StepTranslationContext stepContext = context.addStep(transform, "ParallelRead");
+      stepContext.addInput(PropertyNames.FORMAT, "pubsub");
       if (overriddenTransform.getTopicProvider() != null) {
         if (overriddenTransform.getTopicProvider().isAccessible()) {
-          context.addInput(
+          stepContext.addInput(
               PropertyNames.PUBSUB_TOPIC, overriddenTransform.getTopic().getV1Beta1Path());
         } else {
-          context.addInput(
+          stepContext.addInput(
               PropertyNames.PUBSUB_TOPIC_OVERRIDE,
               ((NestedValueProvider) overriddenTransform.getTopicProvider()).propertyName());
         }
       }
       if (overriddenTransform.getSubscriptionProvider() != null) {
         if (overriddenTransform.getSubscriptionProvider().isAccessible()) {
-          context.addInput(
+          stepContext.addInput(
               PropertyNames.PUBSUB_SUBSCRIPTION,
               overriddenTransform.getSubscription().getV1Beta1Path());
         } else {
-          context.addInput(
+          stepContext.addInput(
               PropertyNames.PUBSUB_SUBSCRIPTION_OVERRIDE,
-              ((NestedValueProvider) overriddenTransform.getSubscriptionProvider())
-              .propertyName());
+              ((NestedValueProvider) overriddenTransform.getSubscriptionProvider()).propertyName());
         }
       }
       if (overriddenTransform.getTimestampLabel() != null) {
-        context.addInput(PropertyNames.PUBSUB_TIMESTAMP_LABEL,
-                         overriddenTransform.getTimestampLabel());
+        stepContext.addInput(
+            PropertyNames.PUBSUB_TIMESTAMP_LABEL, overriddenTransform.getTimestampLabel());
       }
       if (overriddenTransform.getIdLabel() != null) {
-        context.addInput(PropertyNames.PUBSUB_ID_LABEL, overriddenTransform.getIdLabel());
+        stepContext.addInput(PropertyNames.PUBSUB_ID_LABEL, overriddenTransform.getIdLabel());
       }
-      context.addValueOnlyOutput(context.getOutput(transform));
+      stepContext.addOutput(context.getOutput(transform));
     }
   }
 
@@ -2211,26 +2201,26 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
       checkArgument(context.getPipelineOptions().isStreaming(),
                     "StreamingPubsubIOWrite is only for streaming pipelines.");
       PubsubUnboundedSink<T> overriddenTransform = transform.getOverriddenTransform();
-      context.addStep(transform, "ParallelWrite");
-      context.addInput(PropertyNames.FORMAT, "pubsub");
+      StepTranslationContext stepContext = context.addStep(transform, "ParallelWrite");
+      stepContext.addInput(PropertyNames.FORMAT, "pubsub");
       if (overriddenTransform.getTopicProvider().isAccessible()) {
-        context.addInput(
+        stepContext.addInput(
             PropertyNames.PUBSUB_TOPIC, overriddenTransform.getTopic().getV1Beta1Path());
       } else {
-        context.addInput(
+        stepContext.addInput(
             PropertyNames.PUBSUB_TOPIC_OVERRIDE,
             ((NestedValueProvider) overriddenTransform.getTopicProvider()).propertyName());
       }
       if (overriddenTransform.getTimestampLabel() != null) {
-        context.addInput(PropertyNames.PUBSUB_TIMESTAMP_LABEL,
-                         overriddenTransform.getTimestampLabel());
+        stepContext.addInput(
+            PropertyNames.PUBSUB_TIMESTAMP_LABEL, overriddenTransform.getTimestampLabel());
       }
       if (overriddenTransform.getIdLabel() != null) {
-        context.addInput(PropertyNames.PUBSUB_ID_LABEL, overriddenTransform.getIdLabel());
+        stepContext.addInput(PropertyNames.PUBSUB_ID_LABEL, overriddenTransform.getIdLabel());
       }
-      context.addEncodingInput(
+      stepContext.addEncodingInput(
           WindowedValue.getValueOnlyCoder(overriddenTransform.getElementCoder()));
-      context.addInput(PropertyNames.PARALLEL_INPUT, context.getInput(transform));
+      stepContext.addInput(PropertyNames.PARALLEL_INPUT, context.getInput(transform));
     }
   }
 
@@ -2317,10 +2307,10 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     }
 
     private static class ReadWithIdsTranslator
-        implements DataflowPipelineTranslator.TransformTranslator<ReadWithIds<?>> {
+        implements TransformTranslator<ReadWithIds<?>> {
       @Override
       public void translate(ReadWithIds<?> transform,
-          DataflowPipelineTranslator.TranslationContext context) {
+          TranslationContext context) {
         ReadTranslator.translateReadHelper(transform.getSource(), transform, context);
       }
     }
