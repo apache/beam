@@ -55,8 +55,8 @@ public class EvaluationContext {
   private final Set<Dataset> leaves = new LinkedHashSet<>();
   private final Set<PValue> multiReads = new LinkedHashSet<>();
   private final Map<PValue, Object> pobjects = new LinkedHashMap<>();
-  private final Map<PValue, Iterable<? extends WindowedValue<?>>> pview = new LinkedHashMap<>();
   private AppliedPTransform<?, ?, ?> currentTransform;
+  private final SparkPCollectionView pviews = new SparkPCollectionView();
 
   public EvaluationContext(JavaSparkContext jsc, Pipeline pipeline) {
     this.jsc = jsc;
@@ -129,10 +129,6 @@ public class EvaluationContext {
     datasets.put((PValue) getOutput(transform), new UnboundedDataset<>(values, jssc, coder));
   }
 
-  void putPView(PValue view, Iterable<? extends WindowedValue<?>> value) {
-    pview.put(view, value);
-  }
-
   public Dataset borrowDataset(PTransform<?, ?> transform) {
     return borrowDataset((PValue) getInput(transform));
   }
@@ -147,10 +143,6 @@ public class EvaluationContext {
       multiReads.add(pvalue);
     }
     return dataset;
-  }
-
-  <T> Iterable<? extends WindowedValue<?>> getPCollectionView(PCollectionView<T> view) {
-    return pview.get(view);
   }
 
   /**
@@ -194,20 +186,43 @@ public class EvaluationContext {
    * @param <T>         Type of elements contained in collection.
    * @return Natively types result associated with collection.
    */
-  public <T> Iterable<T> get(PCollection<T> pcollection) {
-    @SuppressWarnings("unchecked")
-    BoundedDataset<T> boundedDataset = (BoundedDataset<T>) datasets.get(pcollection);
-    Iterable<WindowedValue<T>> windowedValues = boundedDataset.getValues(pcollection);
+  <T> Iterable<T> get(PCollection<T> pcollection) {
+    Iterable<WindowedValue<T>> windowedValues = getWindowedValues(pcollection);
     return Iterables.transform(windowedValues, WindowingHelpers.<T>unwindowValueFunction());
+  }
+
+  /**
+   * Retrun the current views creates in the pipepline.
+   *
+   * @return SparkPCollectionView
+   */
+  public SparkPCollectionView getPViews() {
+    return pviews;
+  }
+
+  /**
+   * Adds/Replaces a view to the current views creates in the pipepline.
+   *
+   * @param view - Identifier of the view
+   * @param value - Actual value of the view
+   * @param coder - Coder of the value
+   */
+  public void putPView(
+      PCollectionView<?> view,
+      Iterable<WindowedValue<?>> value,
+      Coder<Iterable<WindowedValue<?>>> coder) {
+    pviews.putPView(view, value, coder);
   }
 
   <T> Iterable<WindowedValue<T>> getWindowedValues(PCollection<T> pcollection) {
     @SuppressWarnings("unchecked")
     BoundedDataset<T> boundedDataset = (BoundedDataset<T>) datasets.get(pcollection);
+    leaves.remove(boundedDataset);
     return boundedDataset.getValues(pcollection);
   }
 
   private String storageLevel() {
     return runtime.getPipelineOptions().as(SparkPipelineOptions.class).getStorageLevel();
   }
+
 }

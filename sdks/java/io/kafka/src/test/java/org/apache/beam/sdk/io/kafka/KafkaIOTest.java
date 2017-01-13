@@ -37,7 +37,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
-
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.Pipeline.PipelineExecutionException;
 import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
@@ -143,6 +142,7 @@ public class KafkaIOTest {
     final MockConsumer<byte[], byte[]> consumer =
         new MockConsumer<byte[], byte[]>(offsetResetStrategy) {
           // override assign() in order to set offset limits & to save assigned partitions.
+          @Override
           public void assign(final List<TopicPartition> assigned) {
             super.assign(assigned);
             assignedPartitions.set(ImmutableList.copyOf(assigned));
@@ -200,6 +200,7 @@ public class KafkaIOTest {
       this.offsetResetStrategy = offsetResetStrategy;
     }
 
+    @Override
     public Consumer<byte[], byte[]> apply(Map<String, Object> config) {
       return mkMockConsumer(topics, partitionsPerTopic, numElements, offsetResetStrategy);
     }
@@ -414,7 +415,7 @@ public class KafkaIOTest {
     UnboundedSource<KafkaRecord<Integer, Long>, KafkaCheckpointMark> source =
         mkKafkaReadTransform(numElements, new ValueAsTimestampFn())
           .makeSource()
-          .generateInitialSplits(1, PipelineOptionsFactory.fromArgs(new String[0]).create())
+          .generateInitialSplits(1, PipelineOptionsFactory.create())
           .get(0);
 
     UnboundedReader<KafkaRecord<Integer, Long>> reader = source.createReader(null, null);
@@ -454,7 +455,7 @@ public class KafkaIOTest {
     UnboundedSource<KafkaRecord<Integer, Long>, KafkaCheckpointMark> source =
         mkKafkaReadTransform(initialNumElements, new ValueAsTimestampFn())
             .makeSource()
-            .generateInitialSplits(1, PipelineOptionsFactory.fromArgs(new String[0]).create())
+            .generateInitialSplits(1, PipelineOptionsFactory.create())
             .get(0);
 
     UnboundedReader<KafkaRecord<Integer, Long>> reader = source.createReader(null, null);
@@ -483,7 +484,7 @@ public class KafkaIOTest {
         .withMaxNumRecords(numElements)
         .withTimestampFn(new ValueAsTimestampFn())
         .makeSource()
-        .generateInitialSplits(1, PipelineOptionsFactory.fromArgs(new String[0]).create())
+        .generateInitialSplits(1, PipelineOptionsFactory.create())
         .get(0);
 
     reader = source.createReader(null, mark);

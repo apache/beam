@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.dataflow.internal;
+package org.apache.beam.runners.dataflow;
 
 import static org.apache.beam.sdk.util.Structs.addBoolean;
 import static org.apache.beam.sdk.util.Structs.addDictionary;
@@ -24,9 +24,7 @@ import static org.apache.beam.sdk.util.Structs.addLong;
 import com.google.api.services.dataflow.model.SourceMetadata;
 import java.util.HashMap;
 import java.util.Map;
-import org.apache.beam.runners.dataflow.DataflowPipelineTranslator;
-import org.apache.beam.runners.dataflow.DataflowPipelineTranslator.TransformTranslator;
-import org.apache.beam.runners.dataflow.DataflowPipelineTranslator.TranslationContext;
+import org.apache.beam.runners.dataflow.internal.CustomSources;
 import org.apache.beam.sdk.io.FileBasedSource;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.io.Source;
@@ -38,7 +36,7 @@ import org.apache.beam.sdk.values.PValue;
 /**
  * Translator for the {@code Read} {@code PTransform} for the Dataflow back-end.
  */
-public class ReadTranslator implements TransformTranslator<Read.Bounded<?>> {
+class ReadTranslator implements TransformTranslator<Read.Bounded<?>> {
   @Override
   public void translate(Read.Bounded<?> transform, TranslationContext context) {
     translateReadHelper(transform.getSource(), transform, context);
@@ -46,7 +44,7 @@ public class ReadTranslator implements TransformTranslator<Read.Bounded<?>> {
 
   public static <T> void translateReadHelper(Source<T> source,
       PTransform<?, ? extends PValue> transform,
-      DataflowPipelineTranslator.TranslationContext context) {
+      TranslationContext context) {
     try {
       // TODO: Move this validation out of translation once IOChannelUtils is portable
       // and can be reconstructed on the worker.
@@ -60,13 +58,13 @@ public class ReadTranslator implements TransformTranslator<Read.Bounded<?>> {
         }
       }
 
-      context.addStep(transform, "ParallelRead");
-      context.addInput(PropertyNames.FORMAT, PropertyNames.CUSTOM_SOURCE_FORMAT);
-      context.addInput(
+      StepTranslationContext stepContext = context.addStep(transform, "ParallelRead");
+      stepContext.addInput(PropertyNames.FORMAT, PropertyNames.CUSTOM_SOURCE_FORMAT);
+      stepContext.addInput(
           PropertyNames.SOURCE_STEP_INPUT,
           cloudSourceToDictionary(
               CustomSources.serializeToCloudSource(source, context.getPipelineOptions())));
-      context.addValueOnlyOutput(context.getOutput(transform));
+      stepContext.addOutput(context.getOutput(transform));
     } catch (Exception e) {
       throw new RuntimeException(e);
     }

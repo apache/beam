@@ -16,7 +16,7 @@
  *  limitations under the License.
  */
 
-package org.apache.beam.runners.dataflow.internal;
+package org.apache.beam.runners.dataflow;
 
 import static org.junit.Assert.assertEquals;
 
