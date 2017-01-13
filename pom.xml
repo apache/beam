@@ -147,6 +147,7 @@
     <module>sdks</module>
     <module>runners</module>
     <module>examples</module>
+    <module>javadoc-aggregate</module>
   </modules>
 
   <profiles>
@@ -158,12 +159,10 @@
       <build>
         <pluginManagement>
           <plugins>
+            <!-- with -Prelease, build and attach javadoc jar files to each module.-->
             <plugin>
               <groupId>org.apache.maven.plugins</groupId>
               <artifactId>maven-javadoc-plugin</artifactId>
-              <configuration>
-                <additionalparam>${beam.javadoc_opts}</additionalparam>
-              </configuration>
               <executions>
                 <execution>
                   <id>javadoc</id>
@@ -316,6 +315,12 @@
 
       <dependency>
         <groupId>org.apache.beam</groupId>
+        <artifactId>beam-runners-flink_2.10-examples</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.apache.beam</groupId>
         <artifactId>beam-sdks-java-core</artifactId>
         <version>${project.version}</version>
       </dependency>
@@ -328,7 +333,49 @@
 
       <dependency>
         <groupId>org.apache.beam</groupId>
+        <artifactId>beam-sdks-java-io-elasticsearch</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.apache.beam</groupId>
+        <artifactId>beam-sdks-java-io-hdfs</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.apache.beam</groupId>
+        <artifactId>beam-sdks-java-io-jdbc</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.apache.beam</groupId>
+        <artifactId>beam-sdks-java-io-jms</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.apache.beam</groupId>
         <artifactId>beam-sdks-java-io-kafka</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.apache.beam</groupId>
+        <artifactId>beam-sdks-java-io-kinesis</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.apache.beam</groupId>
+        <artifactId>beam-sdks-java-io-mongodb</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.apache.beam</groupId>
+        <artifactId>beam-sdks-java-io-mqtt</artifactId>
         <version>${project.version}</version>
       </dependency>
 
@@ -371,6 +418,12 @@
       <dependency>
         <groupId>org.apache.beam</groupId>
         <artifactId>beam-examples-java</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.apache.beam</groupId>
+        <artifactId>beam-examples-java8</artifactId>
         <version>${project.version}</version>
       </dependency>
 
@@ -827,6 +880,12 @@
       <plugins>
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-antrun-plugin</artifactId>
+          <version>1.8</version>
+        </plugin>
+        
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-checkstyle-plugin</artifactId>
           <version>2.17</version>
           <dependencies>
@@ -941,11 +1000,22 @@
         </plugin>
 
         <plugin>
+          <!-- Set up Javadoc configuration for javadoc run via in the Maven build.
+               Beam only uses the plugin to create the individual javadoc attached artifacts
+               used for IDEs. The combined javadoc for the website is built in the
+               aggregate-javadoc directory. Rather than duplicate a raft of configuration
+               between the ant.xml there and here, we leave things simple here. -->
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-javadoc-plugin</artifactId>
           <version>2.10.3</version>
+          <configuration>
+            <additionalparam>${beam.javadoc_opts}</additionalparam>
+            <windowtitle>Apache Beam SDK for Java, version ${project.version} API</windowtitle>
+            <doctitle>Apache Beam SDK for Java, version ${project.version}</doctitle>
+            <use>false</use>
+            <quiet>true</quiet>
+          </configuration>
         </plugin>
-
         <plugin>
           <groupId>org.apache.rat</groupId>
           <artifactId>apache-rat-plugin</artifactId>
@@ -983,7 +1053,11 @@
           <artifactId>versions-maven-plugin</artifactId>
           <version>2.1</version>
         </plugin>
-
+        <plugin>
+          <groupId>org.codehaus.mojo</groupId>
+          <artifactId>build-helper-maven-plugin</artifactId>
+          <version>1.12</version>
+        </plugin>
         <plugin>
           <groupId>org.codehaus.mojo</groupId>
           <artifactId>exec-maven-plugin</artifactId>
@@ -1120,12 +1194,6 @@
               </pluginExecutions>
             </lifecycleMappingMetadata>
           </configuration>
-        </plugin>
-
-        <plugin>
-          <groupId>org.codehaus.mojo</groupId>
-          <artifactId>build-helper-maven-plugin</artifactId>
-          <version>1.10</version>
         </plugin>
 
         <plugin>

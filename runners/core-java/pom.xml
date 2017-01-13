@@ -30,8 +30,6 @@
   <name>Apache Beam :: Runners :: Core Java</name>
   <description>Beam Runners Core provides utilities to aid runner authors.</description>
 
-  <packaging>jar</packaging>
-
   <build>
     <plugins>
       <plugin>

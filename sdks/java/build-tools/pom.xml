@@ -28,5 +28,4 @@
 
   <artifactId>beam-sdks-java-build-tools</artifactId>
   <name>Apache Beam :: SDKs :: Java :: Build Tools</name>
-  
 </project>

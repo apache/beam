@@ -30,8 +30,6 @@
 
   <name>Apache Beam :: Runners :: Direct Java</name>
 
-  <packaging>jar</packaging>
-
   <build>
     <resources>
       <resource>

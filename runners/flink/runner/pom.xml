@@ -30,8 +30,6 @@
 
   <name>Apache Beam :: Runners :: Flink :: Core</name>
 
-  <packaging>jar</packaging>
-
   <profiles>
     <profile>
       <id>local-runnable-on-service-tests</id>
