@@ -5,26 +5,27 @@ import cz.seznam.euphoria.core.client.io.DataSourceFactory;
 import cz.seznam.euphoria.core.util.Settings;
 import cz.seznam.euphoria.hadoop.HadoopUtils;
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.io.LongWritable;
-import org.apache.hadoop.io.Text;
-import org.apache.hadoop.mapreduce.lib.input.TextInputFormat;
+import org.apache.hadoop.io.Writable;
+import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
+import org.apache.hadoop.mapreduce.lib.input.SequenceFileInputFormat;
 
 import java.net.URI;
-import java.util.Objects;
 
 /**
- * A data source reading hadoop based inputs as a sequences of text lines.
+ * A data source reading hadoop based inputs as a sequences of records persisted in
+ * (binary) sequence files.
  */
-public class HadoopTextFileDataSource extends HadoopDataSource<LongWritable, Text> {
+public class SequenceFileSource<K extends Writable, V extends Writable>
+    extends HadoopSource<K, V> {
 
   /**
-   * A standard URI based factory for instances of {@link HadoopTextFileDataSource}.
+   * A standard URI based factory for instances of {@link SequenceFileSource}.
    */
   public static final class Factory implements DataSourceFactory {
     @Override
     @SuppressWarnings("unchecked")
     public <T> DataSource<T> get(URI uri, Settings settings) {
-      return (DataSource<T>) new HadoopTextFileDataSource(
+      return (DataSource<T>) new SequenceFileSource<>(
           uri.toString(), HadoopUtils.createConfiguration(settings));
     }
   }
@@ -32,17 +33,17 @@ public class HadoopTextFileDataSource extends HadoopDataSource<LongWritable, Tex
 
   /**
    * Convenience constructor invoking
-   * {@link #HadoopTextFileDataSource(String, Configuration)} with a newly created
+   * {@link #SequenceFileSource(String, Configuration)} with a newly created
    * hadoop configuration.
    *
    * @throws NullPointerException if the given path is {@code null}
    */
-  public HadoopTextFileDataSource(String path) {
+  public SequenceFileSource(String path) {
     this(path, new Configuration());
   }
 
   /**
-   * Constructs a data source based on hadoop's {@link TextInputFormat}.
+   * Constructs a data source based on hadoop's {@link SequenceFileInputFormat}.
    * The specified path is automatically set/overridden in the given hadoop
    * configuration.
    *
@@ -51,8 +52,11 @@ public class HadoopTextFileDataSource extends HadoopDataSource<LongWritable, Tex
    *
    * @throws NullPointerException if any of the parameters is {@code null}
    */
-  public HadoopTextFileDataSource(String path, Configuration hadoopConfig) {
-    super(LongWritable.class, Text.class, TextInputFormat.class, hadoopConfig);
-    hadoopConfig.set(TextInputFormat.INPUT_DIR, Objects.requireNonNull(path));
+  @SuppressWarnings("unchecked")
+  public SequenceFileSource(String path, Configuration hadoopConfig) {
+    super((Class) Writable.class, (Class) Writable.class,
+        (Class) SequenceFileInputFormat.class, hadoopConfig);
+    hadoopConfig.set(FileInputFormat.INPUT_DIR, path);
   }
+
 }

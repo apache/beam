@@ -13,13 +13,13 @@ import java.net.URI;
 import java.util.Objects;
 
 /**
- * A convenience data sink based on {@link HadoopTextFileDataSink} to provide
+ * A convenience data sink based on {@link HadoopTextFileSink} to provide
  * a simpler API consuming only a single value for emission (as opposed to the
  * more general key/value pair.)
  *
  * @param <V> the type of value emitted (as text)
  */
-public class SimpleHadoopTextFileDataSink<V> implements DataSink<V> {
+public class SimpleHadoopTextFileSink<V> implements DataSink<V> {
 
   /**
    * Wraps a {@code Writer<Pair<Void, V>>} and provides an API as {@code Writer<W>}.
@@ -48,34 +48,34 @@ public class SimpleHadoopTextFileDataSink<V> implements DataSink<V> {
   }
 
   /**
-   * A standard URI based factory for instance of {@link SimpleHadoopTextFileDataSink}.
+   * A standard URI based factory for instance of {@link SimpleHadoopTextFileSink}.
    */
   public static final class Factory implements DataSinkFactory {
     @Override
     @SuppressWarnings("unchecked")
     public <T> DataSink<T> get(URI uri, Settings settings) {
-      return (DataSink<T>) new SimpleHadoopTextFileDataSink<>(
+      return (DataSink<T>) new SimpleHadoopTextFileSink<>(
           uri.toString(), HadoopUtils.createConfiguration(settings));
     }
   }
 
-  private final HadoopTextFileDataSink<Void, V> wrap;
+  private final HadoopTextFileSink<Void, V> wrap;
 
   /**
    * Convenience constructor invoking
-   * {@link #SimpleHadoopTextFileDataSink(String, Configuration)} with a newly created
+   * {@link #SimpleHadoopTextFileSink(String, Configuration)} with a newly created
    * hadoop configuration.
    *
    * @param path the path where to place the output to
    *
    * @throws NullPointerException if any of the given parameters is {@code null}
    */
-  public SimpleHadoopTextFileDataSink(String path) {
+  public SimpleHadoopTextFileSink(String path) {
     this(path, new Configuration());
   }
 
   /**
-   * Constructs a data sink based on {@link HadoopTextFileDataSink}.
+   * Constructs a data sink based on {@link HadoopTextFileSink}.
    * The specified path is automatically set/overridden in the given hadoop
    * configuration.
    *
@@ -85,8 +85,8 @@ public class SimpleHadoopTextFileDataSink<V> implements DataSink<V> {
    * @throws NullPointerException if any of the parameters is {@code null}
    */
   @SuppressWarnings("unchecked")
-  public SimpleHadoopTextFileDataSink(String path, Configuration hadoopConfig) {
-    this.wrap = new HadoopTextFileDataSink<>(path, hadoopConfig);
+  public SimpleHadoopTextFileSink(String path, Configuration hadoopConfig) {
+    this.wrap = new HadoopTextFileSink<>(path, hadoopConfig);
   }
 
   @Override
