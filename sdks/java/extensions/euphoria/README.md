@@ -22,7 +22,7 @@ Euphoria translates the flow you define into the specific API of supported big-d
  * __Dataset__: Represents a logical view on distributed data. A data set can be _bounded_  or _unbounded_
  * __DataSource__: Creates a data set from a given input (local/remote file, cloud storage, network stream)
  * __DataSink__: Writes the content of a data set to a given output.
- * __Flow__: Chain of transformations applied on a data set. Typically forms a _direct acyclic graph (DAG)_ starting with one or more data sources while ending in one or more data sinks.
+ * __Flow__: A chain of transformations applied on a data set. Typically forms a _direct acyclic graph (DAG)_ starting with one or more data sources while ending in one or more data sinks.
 
 ## Getting started
 
@@ -34,11 +34,10 @@ TODO
 
 ```java
 // Define data source and data sinks
-DataSource<Pair<LongWritable, Text>> dataSource = new HadoopTextFileDataSource<>();
+DataSource<Pair<LongWritable, Text>> dataSource = new HadoopTextFileDataSource(inputPath);
+DataSink<String> dataSink = new SimpleHadoopTextFileDataSink<>(outputPath);
 
-DataSink<Pair<Text, Void>> dataSink = new HadoopTextFileDataSink<>;
-
-// Define chain of transformations (flow)
+// Define a flow, i.e. a chain of transformations
 Flow flow = Flow.create("WordCount");
 
 Dataset<Pair<LongWritable, Text>> lines = flow.createInput(dataSource);
@@ -59,20 +58,20 @@ Dataset<Pair<String, Long>> counted = ReduceByKey.named("COUNT")
         .combineBy(Sums.ofLongs())
         .output();
 
-MapElements.named("FORMAT-OUTPUT")
+MapElements.named("FORMAT")
            .of(counted)
-           .using(p -> Pair.of(p.getFirst() + "\n" + p.getSecond(), (Void) null))
+           .using(p -> p.getFirst() + "\n" + p.getSecond())
            .output()
            .persist(dataSink);
 
-// initialize executor and run existing flow
+// Initialize an executor and run the flow
 Executor executor = new FlinkExecutor();
 executor.submit(flow).get();
 ```
 
 ### Building from source
 
-To build the latest devel version of Euphoria use following commands
+To build the latest development version use the following commands:
 
 ```
 git clone XXX
