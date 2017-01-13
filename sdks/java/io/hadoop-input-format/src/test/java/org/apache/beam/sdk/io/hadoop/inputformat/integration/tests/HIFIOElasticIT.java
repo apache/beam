@@ -89,9 +89,15 @@ public class HIFIOElasticIT implements Serializable {
   @Test
   public void testHifIOWithElasticQuery() {
     String query =
-        "{\n" + "  \"query\": {\n" + "  \"match\" : {\n" + "    \"Item_Code\" : {\n"
-            + "      \"query\" : \"86345\",\n" + "      \"type\" : \"boolean\"\n" + "    }\n"
-            + "  }\n" + "  }\n" + "}";
+        "{\n" + "  \"query\": {\n"
+              + "  \"match\" : {\n"
+              + "    \"Item_Code\" : {\n"
+              + "      \"query\" : \"86345\",\n"
+              + "      \"type\" : \"boolean\"\n"
+              + "    }\n"
+              + "  }\n"
+              + "  }\n"
+              + "}";
     conf.set(ConfigurationOptions.ES_QUERY, query);
     PCollection<KV<Text, MapWritable>> esData =
         pipeline.apply(HadoopInputFormatIO.<Text, MapWritable>read().withConfiguration(conf));
