@@ -12,13 +12,13 @@ import org.apache.hadoop.mapreduce.lib.output.SequenceFileOutputFormat;
  * @param <K> the type of the keys emitted
  * @param <V> the type of the values emitted
  */
-public class SequenceFileDataSink<K, V> extends HadoopDataSink<K, V> {
+public class SequenceFileSink<K, V> extends HadoopSink<K, V> {
 
   // TODO provide factory: how to parse out the keyType and valueType info from the URI?
 
   /**
    * Convenience constructor delegating to
-   * {@link #SequenceFileDataSink(Class, Class, String, Configuration)} with a newly
+   * {@link #SequenceFileSink(Class, Class, String, Configuration)} with a newly
    * created hadoop configuration.
    *
    * @param keyType the type of the key consumed and emitted to the output
@@ -27,7 +27,7 @@ public class SequenceFileDataSink<K, V> extends HadoopDataSink<K, V> {
    *         by the new data sink
    * @param path the destination where to place the output to
    */
-  public SequenceFileDataSink(Class<K> keyType, Class<V> valueType, String path) {
+  public SequenceFileSink(Class<K> keyType, Class<V> valueType, String path) {
     this(keyType, valueType, path, new Configuration());
   }
 
@@ -42,8 +42,8 @@ public class SequenceFileDataSink<K, V> extends HadoopDataSink<K, V> {
    * @throws NullPointerException if any of the parameters is {@code null}
    */
   @SuppressWarnings("unchecked")
-  public SequenceFileDataSink(Class<K> keyType, Class<V> valueType,
-                              String path, Configuration hadoopConfig) {
+  public SequenceFileSink(Class<K> keyType, Class<V> valueType,
+                          String path, Configuration hadoopConfig) {
     super((Class) SequenceFileOutputFormat.class, hadoopConfig);
     hadoopConfig.set(FileOutputFormat.OUTDIR, path);
     hadoopConfig.set(JobContext.OUTPUT_KEY_CLASS, keyType.getName());
