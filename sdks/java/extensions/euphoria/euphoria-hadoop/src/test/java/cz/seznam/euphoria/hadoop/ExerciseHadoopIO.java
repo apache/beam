@@ -11,7 +11,7 @@ import cz.seznam.euphoria.core.client.util.Sums;
 import cz.seznam.euphoria.core.executor.Executor;
 import cz.seznam.euphoria.core.executor.inmem.InMemExecutor;
 import cz.seznam.euphoria.core.util.Settings;
-import cz.seznam.euphoria.hadoop.input.HadoopTextFileDataSource;
+import cz.seznam.euphoria.hadoop.input.HadoopTextFileSource;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.Text;
 
@@ -22,7 +22,7 @@ public class ExerciseHadoopIO {
   public static void main(String[] args) throws Exception {
     Settings settings = new Settings();
     settings.setClass("euphoria.io.datasource.factory.webhdfs",
-        HadoopTextFileDataSource.Factory.class);
+        HadoopTextFileSource.Factory.class);
 
     Flow flow = Flow.create("Test", settings);
 

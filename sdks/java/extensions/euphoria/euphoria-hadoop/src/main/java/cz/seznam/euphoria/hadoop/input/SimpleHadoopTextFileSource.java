@@ -22,7 +22,7 @@ import java.util.Set;
  * A convenience, easy-to-use data source reading hadoop based inputs
  * as lines of UTF-8 encoded text and delivering them as strings.
  */
-public class SimpleHadoopTextFileDataSource implements DataSource<String> {
+public class SimpleHadoopTextFileSource implements DataSource<String> {
 
   /**
    * Wraps a {@code Reader<Pair<LongWritable, Text>>} to provide an API as
@@ -77,18 +77,18 @@ public class SimpleHadoopTextFileDataSource implements DataSource<String> {
   }
 
   /**
-   * A standard URI based factory for instances of {@link SimpleHadoopTextFileDataSource}.
+   * A standard URI based factory for instances of {@link SimpleHadoopTextFileSource}.
    */
   public static final class Factory implements DataSourceFactory {
     @Override
     @SuppressWarnings("unchecked")
     public <T> DataSource<T> get(URI uri, Settings settings) {
-      return (DataSource<T>) new SimpleHadoopTextFileDataSource(
+      return (DataSource<T>) new SimpleHadoopTextFileSource(
           uri.toString(), HadoopUtils.createConfiguration(settings));
     }
   }
 
-  private final HadoopTextFileDataSource wrap;
+  private final HadoopTextFileSource wrap;
 
   @Override
   public List<Partition<String>> getPartitions() {
@@ -107,19 +107,19 @@ public class SimpleHadoopTextFileDataSource implements DataSource<String> {
 
   /**
    * Convenience constructor invoking
-   * {@link #SimpleHadoopTextFileDataSource(String, Configuration)}
+   * {@link #SimpleHadoopTextFileSource(String, Configuration)}
    * with a newly created hadoop configuration.
    *
    * @param path the path where to place the output to
    *
    * @throws NullPointerException if any of the given parameters is {@code null}
    */
-  public SimpleHadoopTextFileDataSource(String path) {
+  public SimpleHadoopTextFileSource(String path) {
     this(path, new Configuration());
   }
 
   /**
-   * Constructs a data sink based on hadoop's {@link HadoopTextFileDataSource}.
+   * Constructs a data sink based on hadoop's {@link HadoopTextFileSource}.
    * The specified path is automatically set/overridden in the given hadoop
    * configuration.
    *
@@ -129,8 +129,8 @@ public class SimpleHadoopTextFileDataSource implements DataSource<String> {
    * @throws NullPointerException if any of the parameters is {@code null}
    */
   @SuppressWarnings("unchecked")
-  public SimpleHadoopTextFileDataSource(String path, Configuration hadoopConfig) {
-    this.wrap = new HadoopTextFileDataSource(path, hadoopConfig);
+  public SimpleHadoopTextFileSource(String path, Configuration hadoopConfig) {
+    this.wrap = new HadoopTextFileSource(path, hadoopConfig);
   }
 
 }

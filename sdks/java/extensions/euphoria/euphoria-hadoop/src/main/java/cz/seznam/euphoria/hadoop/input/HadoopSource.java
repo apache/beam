@@ -28,7 +28,7 @@ import java.util.stream.Collectors;
  * @param <K> the type of record keys
  * @param <V> the type of record values
  */
-public class HadoopDataSource<K, V> implements DataSource<Pair<K, V>> {
+public class HadoopSource<K, V> implements DataSource<Pair<K, V>> {
 
   private final Class<K> keyClass;
   private final Class<V> valueClass;
@@ -37,9 +37,9 @@ public class HadoopDataSource<K, V> implements DataSource<Pair<K, V>> {
 
   private transient InputFormat<K, V> hadoopFormatInstance;
 
-  public HadoopDataSource(Class<K> keyClass, Class<V> valueClass,
-      Class<? extends InputFormat<K, V>> hadoopFormatCls,
-      Configuration hadoopConf) {
+  public HadoopSource(Class<K> keyClass, Class<V> valueClass,
+                      Class<? extends InputFormat<K, V>> hadoopFormatCls,
+                      Configuration hadoopConf) {
 
     this.keyClass = keyClass;
     this.valueClass = valueClass;
