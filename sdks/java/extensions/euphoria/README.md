@@ -34,35 +34,35 @@ TODO
 
 ```java
 // Define data source and data sinks
-DataSource<Pair<LongWritable, Text>> dataSource = new HadoopTextFileDataSource(inputPath);
+DataSource<String> dataSource = new SimpleHadoopTextFileDataSource(inputPath);
 DataSink<String> dataSink = new SimpleHadoopTextFileDataSink<>(outputPath);
 
 // Define a flow, i.e. a chain of transformations
 Flow flow = Flow.create("WordCount");
 
-Dataset<Pair<LongWritable, Text>> lines = flow.createInput(dataSource);
+Dataset<String> lines = flow.createInput(dataSource);
 
 Dataset<String> words = FlatMap.named("TOKENIZER")
-        .of(lines)
-        .using((Pair<LongWritable, Text> line, Context<String> context) -> {
-          for (String word : line.getSecond().toString().split("\\s+")) {
-            context.collect(word);
-          }
-        })
-        .output();
+    .of(lines)
+    .using((String line, Context<String> context) -> {
+      for (String word : line.split("\\s+")) {
+        context.collect(word);
+      }
+    })
+    .output();
 
 Dataset<Pair<String, Long>> counted = ReduceByKey.named("COUNT")
-        .of(words)
-        .keyBy(w -> w)
-        .valueBy(w -> 1L)
-        .combineBy(Sums.ofLongs())
-        .output();
+    .of(words)
+    .keyBy(w -> w)
+    .valueBy(w -> 1L)
+    .combineBy(Sums.ofLongs())
+    .output();
 
 MapElements.named("FORMAT")
-           .of(counted)
-           .using(p -> p.getFirst() + "\n" + p.getSecond())
-           .output()
-           .persist(dataSink);
+    .of(counted)
+    .using(p -> p.getFirst() + "\n" + p.getSecond())
+    .output()
+    .persist(dataSink);
 
 // Initialize an executor and run the flow
 Executor executor = new FlinkExecutor();

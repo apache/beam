@@ -68,7 +68,7 @@ public class SimpleHadoopTextFileDataSink<V> implements DataSink<V> {
    *
    * @param path the path where to place the output to
    *
-   * @throws NullPointerException if any of the given paremeters is {@code null}
+   * @throws NullPointerException if any of the given parameters is {@code null}
    */
   public SimpleHadoopTextFileDataSink(String path) {
     this(path, new Configuration());
