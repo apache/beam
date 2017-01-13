@@ -17,6 +17,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
+import java.util.stream.Collectors;
+
+import static java.util.stream.Collectors.toList;
 
 /**
  * A convenience, easy-to-use data source reading hadoop based inputs
@@ -92,12 +95,7 @@ public class SimpleHadoopTextFileSource implements DataSource<String> {
 
   @Override
   public List<Partition<String>> getPartitions() {
-    List<Partition<Pair<LongWritable, Text>>> ps = this.wrap.getPartitions();
-    ArrayList<Partition<String>> wrapped = new ArrayList<>(ps.size());
-    for (Partition<Pair<LongWritable, Text>> p : ps) {
-      wrapped.add(new WrapPartition(p));
-    }
-    return wrapped;
+    return this.wrap.getPartitions().stream().map(WrapPartition::new).collect(toList());
   }
 
   @Override
