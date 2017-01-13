@@ -196,9 +196,6 @@ class TestAvro(unittest.TestCase):
             'file_pattern',
             'some_avro_sink-%(shard_num)05d-of-%(num_shards)05d.end'),
         DisplayDataItemMatcher(
-            'shards',
-            0),
-        DisplayDataItemMatcher(
             'codec',
             'null'),
         DisplayDataItemMatcher(
@@ -218,9 +215,6 @@ class TestAvro(unittest.TestCase):
         DisplayDataItemMatcher(
             'file_pattern',
             'some_avro_sink-%(shard_num)05d-of-%(num_shards)05d'),
-        DisplayDataItemMatcher(
-            'shards',
-            0),
         DisplayDataItemMatcher(
             'codec',
             'deflate'),

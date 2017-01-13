@@ -547,7 +547,8 @@ class FileSink(iobase.Sink):
 
   def display_data(self):
     return {'shards':
-            DisplayDataItem(self.num_shards, label='Number of Shards'),
+            DisplayDataItem(self.num_shards,
+                            label='Number of Shards').drop_if_default(0),
             'compression':
             DisplayDataItem(str(self.compression_type)),
             'file_pattern':
@@ -786,6 +787,13 @@ class TextFileSink(FileSink):
       logging.warning('Direct usage of TextFileSink is deprecated. Please use '
                       '\'textio.WriteToText()\' instead of directly '
                       'instantiating a TextFileSink object.')
+
+  def display_data(self):
+    dd_parent = super(TextFileSink, self).display_data()
+    dd_parent['append_newline'] = DisplayDataItem(
+        self.append_trailing_newlines,
+        label='Append Trailing New Lines')
+    return dd_parent
 
   def write_encoded_record(self, file_handle, encoded_value):
     """Writes a single encoded record."""
