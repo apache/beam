@@ -58,7 +58,8 @@ class TestPipeline(Pipeline):
                runner=None,
                options=None,
                argv=None,
-               is_integration_test=False):
+               is_integration_test=False,
+               blocking=True):
     """Initialize a pipeline object for test.
 
     Args:
@@ -72,6 +73,7 @@ class TestPipeline(Pipeline):
         is None.
       is_integration_test: True if the test is an integration test, False
         otherwise.
+      blocking: Run method will wait until pipeline execution is completed.
 
     Raises:
       ValueError: if either the runner or options argument is not of the
@@ -79,9 +81,16 @@ class TestPipeline(Pipeline):
     """
     self.is_integration_test = is_integration_test
     self.options_list = self._parse_test_option_args(argv)
+    self.blocking = blocking
     if options is None:
       options = PipelineOptions(self.options_list)
     super(TestPipeline, self).__init__(runner, options)
+
+  def run(self):
+    result = super(TestPipeline, self).run()
+    if self.blocking:
+      result.wait_until_finish()
+    return result
 
   def _parse_test_option_args(self, argv):
     """Parse value of command line argument: --test-pipeline-options to get
