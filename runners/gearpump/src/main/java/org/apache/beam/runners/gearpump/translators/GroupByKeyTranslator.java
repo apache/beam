@@ -32,6 +32,7 @@ import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
+import org.apache.beam.sdk.transforms.windowing.OutputTimeFn;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 
@@ -58,12 +59,16 @@ public class GroupByKeyTranslator<K, V> implements TransformTranslator<GroupByKe
     JavaStream<WindowedValue<KV<K, V>>> inputStream =
         context.getInputStream(input);
     int parallelism = context.getPipelineOptions().getParallelism();
+    OutputTimeFn<? super BoundedWindow> outputTimeFn = (OutputTimeFn<? super BoundedWindow>)
+        input.getWindowingStrategy().getOutputTimeFn();
     JavaStream<WindowedValue<KV<K, Iterable<V>>>> outputStream = inputStream
         .window(Window.apply(new GearpumpWindowFn(input.getWindowingStrategy().getWindowFn()),
             EventTimeTrigger$.MODULE$, Discarding$.MODULE$), "assign_window")
         .groupBy(new GroupByFn<K, V>(), parallelism, "group_by_Key_and_Window")
         .map(new ValueToIterable<K, V>(), "map_value_to_iterable")
-        .reduce(new MergeValue<K, V>(), "merge_value");
+        .map(new KeyedByTimestamp<K, V>(), "keyed_by_timestamp")
+        .reduce(new Merge<K, V>(outputTimeFn), "merge")
+        .map(new Values<K, V>(), "values");
 
     context.setOutputStream(context.getOutput(transform), outputStream);
   }
@@ -141,15 +146,53 @@ public class GroupByKeyTranslator<K, V> implements TransformTranslator<GroupByKe
     }
   }
 
-  private static class MergeValue<K, V> extends
-      ReduceFunction<WindowedValue<KV<K, Iterable<V>>>> {
+  private static class KeyedByTimestamp<K, V>
+      extends MapFunction<WindowedValue<KV<K, Iterable<V>>>,
+      KV<org.joda.time.Instant, WindowedValue<KV<K, Iterable<V>>>>> {
 
     @Override
-    public WindowedValue<KV<K, Iterable<V>>> apply(WindowedValue<KV<K, Iterable<V>>> wv1,
-        WindowedValue<KV<K, Iterable<V>>> wv2) {
-      return WindowedValue.of(KV.of(wv1.getValue().getKey(),
+    public KV<org.joda.time.Instant, WindowedValue<KV<K, Iterable<V>>>> apply(
+        WindowedValue<KV<K, Iterable<V>>> wv) {
+      return KV.of(wv.getTimestamp(), wv);
+    }
+  }
+
+  private static class Merge<K, V> extends
+      ReduceFunction<KV<org.joda.time.Instant, WindowedValue<KV<K, Iterable<V>>>>> {
+
+    private final OutputTimeFn<? super BoundedWindow> outputTimeFn;
+
+    Merge(OutputTimeFn<? super BoundedWindow> outputTimeFn) {
+      this.outputTimeFn = outputTimeFn;
+    }
+
+    @Override
+    public KV<org.joda.time.Instant, WindowedValue<KV<K, Iterable<V>>>> apply(
+        KV<org.joda.time.Instant, WindowedValue<KV<K, Iterable<V>>>> kv1,
+        KV<org.joda.time.Instant, WindowedValue<KV<K, Iterable<V>>>> kv2) {
+      org.joda.time.Instant t1 = kv1.getKey();
+      org.joda.time.Instant t2 = kv2.getKey();
+
+      WindowedValue<KV<K, Iterable<V>>> wv1 = kv1.getValue();
+      WindowedValue<KV<K, Iterable<V>>> wv2 = kv2.getValue();
+
+      return KV.of(outputTimeFn.combine(t1, t2),
+          WindowedValue.of(KV.of(wv1.getValue().getKey(),
               Iterables.concat(wv1.getValue().getValue(), wv2.getValue().getValue())),
-          wv1.getTimestamp(), wv1.getWindows(), wv1.getPane());
+              wv1.getTimestamp(), wv1.getWindows(), wv1.getPane()));
+    }
+  }
+
+  private static class Values<K, V> extends
+      MapFunction<KV<org.joda.time.Instant, WindowedValue<KV<K, Iterable<V>>>>,
+          WindowedValue<KV<K, Iterable<V>>>> {
+
+    @Override
+    public WindowedValue<KV<K, Iterable<V>>> apply(KV<org.joda.time.Instant,
+        WindowedValue<KV<K, Iterable<V>>>> kv) {
+      org.joda.time.Instant timestamp = kv.getKey();
+      WindowedValue<KV<K, Iterable<V>>> wv = kv.getValue();
+      return WindowedValue.of(wv.getValue(), timestamp, wv.getWindows(), wv.getPane());
     }
   }
 }
