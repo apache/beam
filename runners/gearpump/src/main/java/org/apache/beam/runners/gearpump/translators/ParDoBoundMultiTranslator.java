@@ -33,6 +33,7 @@ import org.apache.beam.runners.gearpump.translators.utils.NoOpSideInputReader;
 import org.apache.beam.runners.gearpump.translators.utils.NoOpStepContext;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.reflect.DoFnInvokers;
 import org.apache.beam.sdk.util.SideInputReader;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowingStrategy;
@@ -41,10 +42,10 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 
+import org.apache.gearpump.streaming.dsl.api.functions.FilterFunction;
+import org.apache.gearpump.streaming.dsl.api.functions.MapFunction;
 import org.apache.gearpump.streaming.dsl.javaapi.JavaStream;
-import org.apache.gearpump.streaming.javaapi.dsl.functions.FilterFunction;
-import org.apache.gearpump.streaming.javaapi.dsl.functions.FlatMapFunction;
-import org.apache.gearpump.streaming.javaapi.dsl.functions.MapFunction;
+import org.apache.gearpump.streaming.dsl.javaapi.functions.FlatMapFunction;
 
 /**
  * {@link ParDo.BoundMulti} is translated to Gearpump flatMap function
@@ -83,12 +84,13 @@ public class ParDoBoundMultiTranslator<InputT, OutputT> implements
   /**
    * Gearpump {@link FlatMapFunction} wrapper over Beam {@link DoFnMultiFunction}.
    */
-  private static class DoFnMultiFunction<InputT, OutputT> implements
-      FlatMapFunction<WindowedValue<InputT>, WindowedValue<KV<TupleTag<OutputT>, OutputT>>>,
-      DoFnRunners.OutputManager {
+  private static class DoFnMultiFunction<InputT, OutputT>
+    extends FlatMapFunction<WindowedValue<InputT>, WindowedValue<KV<TupleTag<OutputT>, OutputT>>>
+    implements DoFnRunners.OutputManager {
 
     private final DoFnRunnerFactory<InputT, OutputT> doFnRunnerFactory;
     private DoFnRunner<InputT, OutputT> doFnRunner;
+    private final DoFn<InputT, OutputT> doFn;
     private final List<WindowedValue<KV<TupleTag<OutputT>, OutputT>>> outputs = Lists
         .newArrayList();
 
@@ -99,6 +101,7 @@ public class ParDoBoundMultiTranslator<InputT, OutputT> implements
         TupleTagList sideOutputTags,
         WindowingStrategy<?, ?> windowingStrategy,
         SideInputReader sideInputReader) {
+      this.doFn = doFn;
       this.doFnRunnerFactory = new DoFnRunnerFactory<>(
           pipelineOptions,
           doFn,
@@ -110,6 +113,16 @@ public class ParDoBoundMultiTranslator<InputT, OutputT> implements
           new NoOpAggregatorFactory(),
           windowingStrategy
       );
+    }
+
+    @Override
+    public void setup() {
+      DoFnInvokers.invokerFor(doFn).invokeSetup();
+    }
+
+    @Override
+    public void teardown() {
+      DoFnInvokers.invokerFor(doFn).invokeTeardown();
     }
 
     @Override
@@ -133,7 +146,7 @@ public class ParDoBoundMultiTranslator<InputT, OutputT> implements
     }
   }
 
-  private static class FilterByOutputTag<OutputT> implements
+  private static class FilterByOutputTag<OutputT> extends
       FilterFunction<WindowedValue<KV<TupleTag<OutputT>, OutputT>>> {
 
     private final TupleTag<OutputT> tupleTag;
@@ -148,7 +161,7 @@ public class ParDoBoundMultiTranslator<InputT, OutputT> implements
     }
   }
 
-  private static class ExtractOutput<OutputT> implements
+  private static class ExtractOutput<OutputT> extends
       MapFunction<WindowedValue<KV<TupleTag<OutputT>, OutputT>>, WindowedValue<OutputT>> {
 
     @Override

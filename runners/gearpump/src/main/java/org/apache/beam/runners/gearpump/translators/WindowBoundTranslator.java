@@ -34,8 +34,8 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.gearpump.Message;
 import org.apache.gearpump.cluster.UserConfig;
 import org.apache.gearpump.streaming.dsl.javaapi.JavaStream;
+import org.apache.gearpump.streaming.dsl.javaapi.functions.FlatMapFunction;
 import org.apache.gearpump.streaming.javaapi.Task;
-import org.apache.gearpump.streaming.javaapi.dsl.functions.FlatMapFunction;
 import org.apache.gearpump.streaming.task.TaskContext;
 import org.joda.time.Instant;
 
@@ -61,7 +61,7 @@ public class WindowBoundTranslator<T> implements  TransformTranslator<Window.Bou
     context.setOutputStream(context.getOutput(transform), outputStream);
   }
 
-  private static class AssignWindows<T> implements
+  private static class AssignWindows<T> extends
       FlatMapFunction<WindowedValue<T>, WindowedValue<T>> {
 
     private final WindowFn<T, BoundedWindow> fn;
