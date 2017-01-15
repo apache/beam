@@ -25,6 +25,7 @@ from apache_beam.pipeline import Pipeline
 from apache_beam.pipeline import PipelineOptions
 from apache_beam.pipeline import PipelineVisitor
 from apache_beam.runners.dataflow.native_io.iobase import NativeSource
+from apache_beam.test_pipeline import TestPipeline
 from apache_beam.transforms import CombineGlobally
 from apache_beam.transforms import Create
 from apache_beam.transforms import FlatMap
@@ -94,7 +95,7 @@ class PipelineTest(unittest.TestCase):
       self.leave_composite.append(transform_node)
 
   def test_create(self):
-    pipeline = Pipeline(self.runner_name)
+    pipeline = TestPipeline(runner=self.runner_name)
     pcoll = pipeline | 'label1' >> Create([1, 2, 3])
     assert_that(pcoll, equal_to([1, 2, 3]))
 
@@ -102,19 +103,19 @@ class PipelineTest(unittest.TestCase):
     pcoll2 = pipeline | 'label2' >> Create(iter((4, 5, 6)))
     pcoll3 = pcoll2 | 'do' >> FlatMap(lambda x: [x + 10])
     assert_that(pcoll3, equal_to([14, 15, 16]), label='pcoll3')
-    pipeline.run().wait_until_finish()
+    pipeline.run()
 
   def test_create_singleton_pcollection(self):
-    pipeline = Pipeline(self.runner_name)
+    pipeline = TestPipeline(runner=self.runner_name)
     pcoll = pipeline | 'label' >> Create([[1, 2, 3]])
     assert_that(pcoll, equal_to([[1, 2, 3]]))
-    pipeline.run().wait_until_finish()
+    pipeline.run()
 
   def test_read(self):
-    pipeline = Pipeline(self.runner_name)
+    pipeline = TestPipeline(runner=self.runner_name)
     pcoll = pipeline | 'read' >> Read(FakeSource([1, 2, 3]))
     assert_that(pcoll, equal_to([1, 2, 3]))
-    pipeline.run().wait_until_finish()
+    pipeline.run()
 
   def test_visit_entire_graph(self):
     pipeline = Pipeline(self.runner_name)
@@ -136,11 +137,11 @@ class PipelineTest(unittest.TestCase):
     self.assertEqual(visitor.leave_composite[0].transform, transform)
 
   def test_apply_custom_transform(self):
-    pipeline = Pipeline(self.runner_name)
+    pipeline = TestPipeline(runner=self.runner_name)
     pcoll = pipeline | 'pcoll' >> Create([1, 2, 3])
     result = pcoll | PipelineTest.CustomTransform()
     assert_that(result, equal_to([2, 3, 4]))
-    pipeline.run().wait_until_finish()
+    pipeline.run()
 
   def test_reuse_custom_transform_instance(self):
     pipeline = Pipeline(self.runner_name)
@@ -158,7 +159,7 @@ class PipelineTest(unittest.TestCase):
         'pvalue | "label" >> transform')
 
   def test_reuse_cloned_custom_transform_instance(self):
-    pipeline = Pipeline(self.runner_name)
+    pipeline = TestPipeline(runner=self.runner_name)
     pcoll1 = pipeline | 'pc1' >> Create([1, 2, 3])
     pcoll2 = pipeline | 'pc2' >> Create([4, 5, 6])
     transform = PipelineTest.CustomTransform()
@@ -166,7 +167,7 @@ class PipelineTest(unittest.TestCase):
     result2 = pcoll2 | 'new_label' >> transform
     assert_that(result1, equal_to([2, 3, 4]), label='r1')
     assert_that(result2, equal_to([5, 6, 7]), label='r2')
-    pipeline.run().wait_until_finish()
+    pipeline.run()
 
   def test_transform_no_super_init(self):
     class AddSuffix(PTransform):
@@ -207,7 +208,7 @@ class PipelineTest(unittest.TestCase):
     num_elements = 10
     num_maps = 100
 
-    pipeline = Pipeline('DirectRunner')
+    pipeline = TestPipeline(runner='DirectRunner')
 
     # Consumed memory should not be proportional to the number of maps.
     memory_threshold = (
@@ -221,7 +222,7 @@ class PipelineTest(unittest.TestCase):
     assert_that(result, equal_to(
         ['x' * len_elements + 'y' * num_maps] * num_elements))
 
-    pipeline.run().wait_until_finish()
+    pipeline.run()
 
   def test_aggregator_empty_input(self):
     actual = [] | CombineGlobally(max).without_defaults()

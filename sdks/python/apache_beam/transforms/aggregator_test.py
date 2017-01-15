@@ -22,6 +22,7 @@ import unittest
 import apache_beam as beam
 from apache_beam.transforms import combiners
 from apache_beam.transforms.aggregator import Aggregator
+from apache_beam.test_pipeline import TestPipeline
 
 
 class AggregatorTest(unittest.TestCase):
@@ -63,10 +64,9 @@ class AggregatorTest(unittest.TestCase):
         for a in aggregators:
           context.aggregate_to(a, context.element)
 
-    p = beam.Pipeline('DirectRunner')
+    p = TestPipeline()
     p | beam.Create([0, 1, 2, 3]) | beam.ParDo(UpdateAggregators())  # pylint: disable=expression-not-assigned
     res = p.run()
-    res.wait_until_finish()
     for (_, _, expected), a in zip(counter_types, aggregators):
       actual = res.aggregated_values(a).values()[0]
       self.assertEqual(expected, actual)

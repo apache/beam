@@ -19,7 +19,7 @@
 
 import unittest
 
-from apache_beam.pipeline import Pipeline
+from apache_beam.test_pipeline import TestPipeline
 from apache_beam.transforms import CombinePerKey
 from apache_beam.transforms import combiners
 from apache_beam.transforms import core
@@ -140,7 +140,7 @@ class WindowTest(unittest.TestCase):
             | Map(lambda x: WindowedValue((key, x), x, [])))
 
   def test_sliding_windows(self):
-    p = Pipeline('DirectRunner')
+    p = TestPipeline()
     pcoll = self.timestamped_key_values(p, 'key', 1, 2, 3)
     result = (pcoll
               | 'w' >> WindowInto(SlidingWindows(period=2, size=4))
@@ -150,10 +150,10 @@ class WindowTest(unittest.TestCase):
                 ('key @ [0.0, 4.0)', [1, 2, 3]),
                 ('key @ [2.0, 6.0)', [2, 3])]
     assert_that(result, equal_to(expected))
-    p.run().wait_until_finish()
+    p.run()
 
   def test_sessions(self):
-    p = Pipeline('DirectRunner')
+    p = TestPipeline()
     pcoll = self.timestamped_key_values(p, 'key', 1, 2, 3, 20, 35, 27)
     result = (pcoll
               | 'w' >> WindowInto(Sessions(10))
@@ -163,10 +163,10 @@ class WindowTest(unittest.TestCase):
     expected = [('key @ [1.0, 13.0)', [1, 2, 3]),
                 ('key @ [20.0, 45.0)', [20, 27, 35])]
     assert_that(result, equal_to(expected))
-    p.run().wait_until_finish()
+    p.run()
 
   def test_timestamped_value(self):
-    p = Pipeline('DirectRunner')
+    p = TestPipeline()
     result = (p
               | 'start' >> Create([(k, k) for k in range(10)])
               | Map(lambda (x, t): TimestampedValue(x, t))
@@ -175,10 +175,10 @@ class WindowTest(unittest.TestCase):
               | GroupByKey())
     assert_that(result, equal_to([('key', [0, 1, 2, 3, 4]),
                                   ('key', [5, 6, 7, 8, 9])]))
-    p.run().wait_until_finish()
+    p.run()
 
   def test_timestamped_with_combiners(self):
-    p = Pipeline('DirectRunner')
+    p = TestPipeline()
     result = (p
               # Create some initial test values.
               | 'start' >> Create([(k, k) for k in range(10)])
@@ -207,7 +207,7 @@ class WindowTest(unittest.TestCase):
                 label='assert:sum')
     assert_that(mean_per_window, equal_to([(0, 2.0), (1, 7.0)]),
                 label='assert:mean')
-    p.run().wait_until_finish()
+    p.run()
 
 
 if __name__ == '__main__':
