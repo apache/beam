@@ -31,6 +31,7 @@ string. The tags can contain only letters, digits and _.
 """
 
 import apache_beam as beam
+from apache_beam.test_pipeline import TestPipeline
 
 # Quiet some pylint warnings that happen because of the somewhat special
 # format for the code snippets.
@@ -88,6 +89,8 @@ def construct_pipeline(renames):
   p = beam.Pipeline(options=PipelineOptions())
   # [END pipelines_constructing_creating]
 
+  p = TestPipeline() # Use TestPipeline for testing.
+
   # [START pipelines_constructing_reading]
   lines = p | 'ReadMyFile' >> beam.io.ReadFromText('gs://some/inputData.txt')
   # [END pipelines_constructing_reading]
@@ -106,8 +109,9 @@ def construct_pipeline(renames):
   p.visit(SnippetUtils.RenameFiles(renames))
 
   # [START pipelines_constructing_running]
-  p.run()
+  result = p.run()
   # [END pipelines_constructing_running]
+  result
 
 
 def model_pipelines(argv):
@@ -144,8 +148,9 @@ def model_pipelines(argv):
    | beam.combiners.Count.PerKey()
    | beam.io.WriteToText(my_options.output))
 
-  p.run()
+  result = p.run()
   # [END model_pipelines]
+  result.wait_until_finish()
 
 
 def model_pcollection(argv):
@@ -175,8 +180,9 @@ def model_pcollection(argv):
        'Or to take arms against a sea of troubles, '])
    | beam.io.WriteToText(my_options.output))
 
-  p.run()
+  result = p.run()
   # [END model_pcollection]
+  result.wait_until_finish()
 
 
 def pipeline_options_remote(argv):
@@ -206,8 +212,7 @@ def pipeline_options_remote(argv):
   options = PipelineOptions(flags=argv)
 
   # For Cloud execution, set the Cloud Platform project, job_name,
-  # staging location, temp_location and specify DataflowRunner or
-  # BlockingDataflowRunner.
+  # staging location, temp_location and specify DataflowRunner.
   google_cloud_options = options.view_as(GoogleCloudOptions)
   google_cloud_options.project = 'my-project-id'
   google_cloud_options.job_name = 'myjob'
@@ -223,9 +228,7 @@ def pipeline_options_remote(argv):
   my_input = my_options.input
   my_output = my_options.output
 
-  # Overriding the runner for tests.
-  options.view_as(StandardOptions).runner = 'DirectRunner'
-  p = Pipeline(options=options)
+  p = TestPipeline()  # Use TestPipeline for testing.
 
   lines = p | beam.io.ReadFromText(my_input)
   lines | beam.io.WriteToText(my_output)
@@ -265,6 +268,7 @@ def pipeline_options_local(argv):
   p = Pipeline(options=options)
   # [END pipeline_options_local]
 
+  p = TestPipeline()  # Use TestPipeline for testing.
   lines = p | beam.io.ReadFromText(my_input)
   lines | beam.io.WriteToText(my_output)
   p.run()
@@ -288,7 +292,7 @@ def pipeline_options_command_line(argv):
   lines | 'WriteToText' >> beam.io.WriteToText(known_args.output)
   # [END pipeline_options_command_line]
 
-  p.run()
+  p.run().wait_until_finish()
 
 
 def pipeline_logging(lines, output):
@@ -296,7 +300,6 @@ def pipeline_logging(lines, output):
 
   import re
   import apache_beam as beam
-  from apache_beam.utils.pipeline_options import PipelineOptions
 
   # [START pipeline_logging]
   # import Python logging module.
@@ -316,7 +319,7 @@ def pipeline_logging(lines, output):
   # Remaining WordCount example code ...
   # [END pipeline_logging]
 
-  p = beam.Pipeline(options=PipelineOptions())
+  p = TestPipeline()  # Use TestPipeline for testing.
   (p
    | beam.Create(lines)
    | beam.ParDo(ExtractWordsFn())
@@ -372,7 +375,7 @@ def pipeline_monitoring(renames):
 
   pipeline_options = PipelineOptions()
   options = pipeline_options.view_as(WordCountOptions)
-  p = beam.Pipeline(options=pipeline_options)
+  p = TestPipeline()  # Use TestPipeline for testing.
 
   # [START pipeline_monitoring_execution]
   (p
@@ -405,7 +408,7 @@ def examples_wordcount_minimal(renames):
   google_cloud_options.job_name = 'myjob'
   google_cloud_options.staging_location = 'gs://your-bucket-name-here/staging'
   google_cloud_options.temp_location = 'gs://your-bucket-name-here/temp'
-  options.view_as(StandardOptions).runner = 'BlockingDataflowRunner'
+  options.view_as(StandardOptions).runner = 'DataflowRunner'
   # [END examples_wordcount_minimal_options]
 
   # Run it locally for testing.
@@ -441,8 +444,9 @@ def examples_wordcount_minimal(renames):
   p.visit(SnippetUtils.RenameFiles(renames))
 
   # [START examples_wordcount_minimal_run]
-  p.run()
+  result = p.run()
   # [END examples_wordcount_minimal_run]
+  result.wait_until_finish()
 
 
 def examples_wordcount_wordcount(renames):
@@ -497,7 +501,7 @@ def examples_wordcount_wordcount(renames):
 
   formatted |  beam.io.WriteToText('gs://my-bucket/counts.txt')
   p.visit(SnippetUtils.RenameFiles(renames))
-  p.run()
+  p.run().wait_until_finish()
 
 
 def examples_wordcount_debugging(renames):
@@ -505,7 +509,6 @@ def examples_wordcount_debugging(renames):
   import re
 
   import apache_beam as beam
-  from apache_beam.utils.pipeline_options import PipelineOptions
 
   # [START example_wordcount_debugging_logging]
   # [START example_wordcount_debugging_aggregators]
@@ -546,7 +549,7 @@ def examples_wordcount_debugging(renames):
   # [END example_wordcount_debugging_logging]
   # [END example_wordcount_debugging_aggregators]
 
-  p = beam.Pipeline(options=PipelineOptions())
+  p = TestPipeline()  # Use TestPipeline for testing.
   filtered_words = (
       p
       | beam.io.ReadFromText(
@@ -649,7 +652,7 @@ def model_custom_source(count):
       lines, beam.equal_to(
           ['line ' + str(number) for number in range(0, count)]))
 
-  p.run()
+  p.run().wait_until_finish()
 
   # We recommend users to start Source classes with an underscore to discourage
   # using the Source class directly when a PTransform for the source is
@@ -679,7 +682,7 @@ def model_custom_source(count):
       lines, beam.equal_to(
           ['line ' + str(number) for number in range(0, count)]))
 
-  p.run()
+  p.run().wait_until_finish()
 
 
 def model_custom_sink(simplekv, KVs, final_table_name_no_ptransform,
@@ -781,7 +784,7 @@ def model_custom_sink(simplekv, KVs, final_table_name_no_ptransform,
                                    final_table_name))
   # [END model_custom_sink_use_new_sink]
 
-  p.run()
+  p.run().wait_until_finish()
 
   # We recommend users to start Sink class names with an underscore to
   # discourage using the Sink class directly when a PTransform for the sink is
@@ -812,7 +815,7 @@ def model_custom_sink(simplekv, KVs, final_table_name_no_ptransform,
                       'http://url_to_simple_kv/', final_table_name)
   # [END model_custom_sink_use_ptransform]
 
-  p.run()
+  p.run().wait_until_finish()
 
 
 def model_textio(renames):
@@ -841,7 +844,7 @@ def model_textio(renames):
   # [END model_textio_write]
 
   p.visit(SnippetUtils.RenameFiles(renames))
-  p.run()
+  p.run().wait_until_finish()
 
 
 def model_datastoreio():
@@ -954,8 +957,7 @@ def model_composite_transform_example(contents, output_path):
   # [END composite_ptransform_apply_method]
   # [END composite_transform_example]
 
-  from apache_beam.utils.pipeline_options import PipelineOptions
-  p = beam.Pipeline(options=PipelineOptions())
+  p = TestPipeline()  # Use TestPipeline for testing.
   (p
    | beam.Create(contents)
    | CountWords()
@@ -967,8 +969,7 @@ def model_multiple_pcollections_flatten(contents, output_path):
   """Merging a PCollection with Flatten."""
   some_hash_fn = lambda s: ord(s[0])
   import apache_beam as beam
-  from apache_beam.utils.pipeline_options import PipelineOptions
-  p = beam.Pipeline(options=PipelineOptions())
+  p = TestPipeline()  # Use TestPipeline for testing.
   partition_fn = lambda element, partitions: some_hash_fn(element) % partitions
 
   # Partition into deciles
@@ -1005,8 +1006,7 @@ def model_multiple_pcollections_partition(contents, output_path):
     """Assume i in [0,100)."""
     return i
   import apache_beam as beam
-  from apache_beam.utils.pipeline_options import PipelineOptions
-  p = beam.Pipeline(options=PipelineOptions())
+  p = TestPipeline()  # Use TestPipeline for testing.
 
   students = p | beam.Create(contents)
 
@@ -1032,8 +1032,7 @@ def model_group_by_key(contents, output_path):
   import re
 
   import apache_beam as beam
-  from apache_beam.utils.pipeline_options import PipelineOptions
-  p = beam.Pipeline(options=PipelineOptions())
+  p = TestPipeline()  # Use TestPipeline for testing.
   words_and_counts = (
       p
       | beam.Create(contents)
@@ -1056,8 +1055,7 @@ def model_group_by_key(contents, output_path):
 def model_co_group_by_key_tuple(email_list, phone_list, output_path):
   """Applying a CoGroupByKey Transform to a tuple."""
   import apache_beam as beam
-  from apache_beam.utils.pipeline_options import PipelineOptions
-  p = beam.Pipeline(options=PipelineOptions())
+  p = TestPipeline()  # Use TestPipeline for testing.
   # [START model_group_by_key_cogroupbykey_tuple]
   # Each data set is represented by key-value pairs in separate PCollections.
   # Both data sets share a common key type (in this example str).
@@ -1094,9 +1092,8 @@ def model_join_using_side_inputs(
 
   import apache_beam as beam
   from apache_beam.pvalue import AsIter
-  from apache_beam.utils.pipeline_options import PipelineOptions
 
-  p = beam.Pipeline(options=PipelineOptions())
+  p = TestPipeline()  # Use TestPipeline for testing.
   # [START model_join_using_side_inputs]
   # This code performs a join by receiving the set of names as an input and
   # passing PCollections that contain emails and phone numbers as side inputs

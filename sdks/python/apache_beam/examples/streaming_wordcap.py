@@ -56,7 +56,7 @@ def run(argv=None):
   transformed | beam.io.Write(
       beam.io.PubSubSink(known_args.output_topic))
 
-  p.run()
+  p.run().wait_until_finish()
 
 
 if __name__ == '__main__':

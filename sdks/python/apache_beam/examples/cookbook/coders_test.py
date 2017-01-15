@@ -22,6 +22,7 @@ import unittest
 
 import apache_beam as beam
 from apache_beam.examples.cookbook import coders
+from apache_beam.test_pipeline import TestPipeline
 from apache_beam.transforms.util import assert_that
 from apache_beam.transforms.util import equal_to
 
@@ -34,7 +35,7 @@ class CodersTest(unittest.TestCase):
       {'host': ['Brasil', 1], 'guest': ['Italy', 0]}]
 
   def test_compute_points(self):
-    p = beam.Pipeline('DirectRunner')
+    p = TestPipeline()
     records = p | 'create' >> beam.Create(self.SAMPLE_RECORDS)
     result = (records
               | 'points' >> beam.FlatMap(coders.compute_points)

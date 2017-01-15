@@ -22,6 +22,7 @@ import unittest
 
 import apache_beam as beam
 from apache_beam.examples.cookbook import filters
+from apache_beam.test_pipeline import TestPipeline
 
 
 class FiltersTest(unittest.TestCase):
@@ -35,7 +36,7 @@ class FiltersTest(unittest.TestCase):
       ]
 
   def _get_result_for_month(self, month):
-    p = beam.Pipeline('DirectRunner')
+    p = TestPipeline()
     rows = (p | 'create' >> beam.Create(self.input_data))
 
     results = filters.filter_cold_days(rows, month)

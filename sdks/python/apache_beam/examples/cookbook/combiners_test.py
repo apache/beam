@@ -27,6 +27,7 @@ import logging
 import unittest
 
 import apache_beam as beam
+from apache_beam.test_pipeline import TestPipeline
 
 
 class CombinersTest(unittest.TestCase):
@@ -44,7 +45,7 @@ class CombinersTest(unittest.TestCase):
     can be used.
     """
     result = (
-        beam.Pipeline(runner=beam.runners.DirectRunner())
+        TestPipeline()
         | beam.Create(CombinersTest.SAMPLE_DATA)
         | beam.CombinePerKey(sum))
 
@@ -60,7 +61,7 @@ class CombinersTest(unittest.TestCase):
       return result
 
     result = (
-        beam.Pipeline(runner=beam.runners.DirectRunner())
+        TestPipeline()
         | beam.Create(CombinersTest.SAMPLE_DATA)
         | beam.CombinePerKey(multiply))
 

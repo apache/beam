@@ -36,7 +36,7 @@ class BigQueryTornadoesTest(unittest.TestCase):
     results = bigquery_tornadoes.count_tornadoes(rows)
     beam.assert_that(results, beam.equal_to([{'month': 1, 'tornado_count': 2},
                                              {'month': 2, 'tornado_count': 1}]))
-    p.run()
+    p.run().wait_until_finish()
 
 
 if __name__ == '__main__':

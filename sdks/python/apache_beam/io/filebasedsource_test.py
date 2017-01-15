@@ -38,6 +38,7 @@ from apache_beam.io.concat_source import ConcatSource
 from apache_beam.io.filebasedsource import _SingleFileSource as SingleFileSource
 
 from apache_beam.io.filebasedsource import FileBasedSource
+from apache_beam.test_pipeline import TestPipeline
 from apache_beam.transforms.display import DisplayData
 from apache_beam.transforms.display_test import DisplayDataItemMatcher
 from apache_beam.transforms.util import assert_that
@@ -364,7 +365,7 @@ class TestFileBasedSource(unittest.TestCase):
     self.assertItemsEqual(expected_data, read_data)
 
   def _run_source_test(self, pattern, expected_data, splittable=True):
-    pipeline = beam.Pipeline('DirectRunner')
+    pipeline = TestPipeline()
     pcoll = pipeline | 'Read' >> beam.Read(LineSource(
         pattern, splittable=splittable))
     assert_that(pcoll, equal_to(expected_data))
@@ -404,7 +405,7 @@ class TestFileBasedSource(unittest.TestCase):
     with bz2.BZ2File(filename, 'wb') as f:
       f.write('\n'.join(lines))
 
-    pipeline = beam.Pipeline('DirectRunner')
+    pipeline = TestPipeline()
     pcoll = pipeline | 'Read' >> beam.Read(LineSource(
         filename,
         splittable=False,
@@ -419,7 +420,7 @@ class TestFileBasedSource(unittest.TestCase):
     with gzip.GzipFile(filename, 'wb') as f:
       f.write('\n'.join(lines))
 
-    pipeline = beam.Pipeline('DirectRunner')
+    pipeline = TestPipeline()
     pcoll = pipeline | 'Read' >> beam.Read(LineSource(
         filename,
         splittable=False,
@@ -437,7 +438,7 @@ class TestFileBasedSource(unittest.TestCase):
       compressed_chunks.append(
           compressobj.compress('\n'.join(c)) + compressobj.flush())
     file_pattern = write_prepared_pattern(compressed_chunks)
-    pipeline = beam.Pipeline('DirectRunner')
+    pipeline = TestPipeline()
     pcoll = pipeline | 'Read' >> beam.Read(LineSource(
         file_pattern,
         splittable=False,
@@ -456,7 +457,7 @@ class TestFileBasedSource(unittest.TestCase):
         f.write('\n'.join(c))
       compressed_chunks.append(out.getvalue())
     file_pattern = write_prepared_pattern(compressed_chunks)
-    pipeline = beam.Pipeline('DirectRunner')
+    pipeline = TestPipeline()
     pcoll = pipeline | 'Read' >> beam.Read(LineSource(
         file_pattern,
         splittable=False,
@@ -471,7 +472,7 @@ class TestFileBasedSource(unittest.TestCase):
     with bz2.BZ2File(filename, 'wb') as f:
       f.write('\n'.join(lines))
 
-    pipeline = beam.Pipeline('DirectRunner')
+    pipeline = TestPipeline()
     pcoll = pipeline | 'Read' >> beam.Read(LineSource(
         filename,
         compression_type=fileio.CompressionTypes.AUTO))
@@ -485,7 +486,7 @@ class TestFileBasedSource(unittest.TestCase):
     with gzip.GzipFile(filename, 'wb') as f:
       f.write('\n'.join(lines))
 
-    pipeline = beam.Pipeline('DirectRunner')
+    pipeline = TestPipeline()
     pcoll = pipeline | 'Read' >> beam.Read(LineSource(
         filename,
         compression_type=fileio.CompressionTypes.AUTO))
@@ -504,7 +505,7 @@ class TestFileBasedSource(unittest.TestCase):
       compressed_chunks.append(out.getvalue())
     file_pattern = write_prepared_pattern(
         compressed_chunks, suffixes=['.gz']*len(chunks))
-    pipeline = beam.Pipeline('DirectRunner')
+    pipeline = TestPipeline()
     pcoll = pipeline | 'Read' >> beam.Read(LineSource(
         file_pattern,
         compression_type=fileio.CompressionTypes.AUTO))
@@ -526,7 +527,7 @@ class TestFileBasedSource(unittest.TestCase):
         chunks_to_write.append('\n'.join(c))
     file_pattern = write_prepared_pattern(chunks_to_write,
                                           suffixes=(['.gz', '']*3))
-    pipeline = beam.Pipeline('DirectRunner')
+    pipeline = TestPipeline()
     pcoll = pipeline | 'Read' >> beam.Read(LineSource(
         file_pattern,
         compression_type=fileio.CompressionTypes.AUTO))

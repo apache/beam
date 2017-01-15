@@ -52,7 +52,7 @@ class JuliaSetTest(unittest.TestCase):
     if image_file_name is not None:
       args.append('--image_output=%s' % image_file_name)
 
-    juliaset.run(args)
+    juliaset.run(args).wait_until_finish()
 
   def test_output_file_format(self):
     grid_size = 5

@@ -34,6 +34,7 @@ import apache_beam as beam
 from apache_beam import coders
 from apache_beam.io import fileio
 from apache_beam.runners.dataflow.native_io import iobase as dataflow_io
+from apache_beam.test_pipeline import TestPipeline
 from apache_beam.transforms.display import DisplayData
 from apache_beam.transforms.display_test import DisplayDataItemMatcher
 
@@ -760,7 +761,7 @@ class TestNativeTextFileSink(unittest.TestCase):
       self.assertEqual(f.read().splitlines(), [])
 
   def test_write_native(self):
-    pipeline = beam.Pipeline('DirectRunner')
+    pipeline = TestPipeline()
     pcoll = pipeline | beam.core.Create('Create', self.lines)
     pcoll | 'Write' >> beam.Write(fileio.NativeTextFileSink(self.path))  # pylint: disable=expression-not-assigned
     pipeline.run()
@@ -773,7 +774,7 @@ class TestNativeTextFileSink(unittest.TestCase):
     self.assertEqual(read_result, self.lines)
 
   def test_write_native_auto_compression(self):
-    pipeline = beam.Pipeline('DirectRunner')
+    pipeline = TestPipeline()
     pcoll = pipeline | beam.core.Create('Create', self.lines)
     pcoll | 'Write' >> beam.Write(  # pylint: disable=expression-not-assigned
         fileio.NativeTextFileSink(
@@ -788,7 +789,7 @@ class TestNativeTextFileSink(unittest.TestCase):
     self.assertEqual(read_result, self.lines)
 
   def test_write_native_auto_compression_unsharded(self):
-    pipeline = beam.Pipeline('DirectRunner')
+    pipeline = TestPipeline()
     pcoll = pipeline | beam.core.Create('Create', self.lines)
     pcoll | 'Write' >> beam.Write(  # pylint: disable=expression-not-assigned
         fileio.NativeTextFileSink(
@@ -880,7 +881,7 @@ class TestFileSink(unittest.TestCase):
     temp_path = tempfile.NamedTemporaryFile().name
     sink = MyFileSink(
         temp_path, file_name_suffix='.foo', coder=coders.ToStringCoder())
-    p = beam.Pipeline('DirectRunner')
+    p = TestPipeline()
     p | beam.Create([]) | beam.io.Write(sink)  # pylint: disable=expression-not-assigned
     p.run()
     self.assertEqual(
@@ -894,7 +895,7 @@ class TestFileSink(unittest.TestCase):
         num_shards=3,
         shard_name_template='_NN_SSS_',
         coder=coders.ToStringCoder())
-    p = beam.Pipeline('DirectRunner')
+    p = TestPipeline()
     p | beam.Create(['a', 'b']) | beam.io.Write(sink)  # pylint: disable=expression-not-assigned
 
     p.run()

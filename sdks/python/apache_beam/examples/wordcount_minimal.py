@@ -73,7 +73,7 @@ def run(argv=None):
                       help='Output file to write results to.')
   known_args, pipeline_args = parser.parse_known_args(argv)
   pipeline_args.extend([
-      # CHANGE 2/5: (OPTIONAL) Change this to BlockingDataflowRunner to
+      # CHANGE 2/5: (OPTIONAL) Change this to DataflowRunner to
       # run your pipeline on the Google Cloud Dataflow Service.
       '--runner=DirectRunner',
       # CHANGE 3/5: Your project ID is required in order to run your pipeline on
@@ -113,7 +113,7 @@ def run(argv=None):
   output | 'write' >> WriteToText(known_args.output)
 
   # Actually run the pipeline (all operations above are deferred).
-  p.run()
+  p.run().wait_until_finish()
 
 
 if __name__ == '__main__':
