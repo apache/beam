@@ -174,7 +174,7 @@ def run(argv=None):
    | ComputeTopSessions(known_args.sampling_threshold)
    | WriteToText(known_args.output))
 
-  p.run().wait_until_finish()
+  p.run()
 
 
 if __name__ == '__main__':

@@ -27,6 +27,7 @@ import logging
 import unittest
 
 import apache_beam as beam
+from apache_beam.test_pipeline import TestPipeline
 
 
 class CombinersTest(unittest.TestCase):
@@ -44,12 +45,12 @@ class CombinersTest(unittest.TestCase):
     can be used.
     """
     result = (
-        beam.Pipeline(runner=beam.runners.DirectRunner())
+        TestPipeline()
         | beam.Create(CombinersTest.SAMPLE_DATA)
         | beam.CombinePerKey(sum))
 
     beam.assert_that(result, beam.equal_to([('a', 6), ('b', 30), ('c', 100)]))
-    result.pipeline.run().wait_until_finish()
+    result.pipeline.run()
 
   def test_combine_per_key_with_custom_callable(self):
     """CombinePerKey using a custom function reducing iterables."""
@@ -60,12 +61,12 @@ class CombinersTest(unittest.TestCase):
       return result
 
     result = (
-        beam.Pipeline(runner=beam.runners.DirectRunner())
+        TestPipeline()
         | beam.Create(CombinersTest.SAMPLE_DATA)
         | beam.CombinePerKey(multiply))
 
     beam.assert_that(result, beam.equal_to([('a', 6), ('b', 200), ('c', 100)]))
-    result.pipeline.run().wait_until_finish()
+    result.pipeline.run()
 
 
 if __name__ == '__main__':

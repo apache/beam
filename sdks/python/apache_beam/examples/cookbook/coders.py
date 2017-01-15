@@ -93,7 +93,7 @@ def run(argv=None):
    | 'points' >> beam.FlatMap(compute_points)
    | beam.CombinePerKey(sum)
    | 'write' >> WriteToText(known_args.output, coder=JsonCoder()))
-  p.run().wait_until_finish()
+  p.run()
 
 
 if __name__ == '__main__':

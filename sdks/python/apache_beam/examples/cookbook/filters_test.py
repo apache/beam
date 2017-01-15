@@ -22,6 +22,7 @@ import unittest
 
 import apache_beam as beam
 from apache_beam.examples.cookbook import filters
+from apache_beam.test_pipeline import TestPipeline
 
 
 class FiltersTest(unittest.TestCase):
@@ -35,7 +36,7 @@ class FiltersTest(unittest.TestCase):
       ]
 
   def _get_result_for_month(self, month):
-    p = beam.Pipeline('DirectRunner')
+    p = TestPipeline()
     rows = (p | 'create' >> beam.Create(self.input_data))
 
     results = filters.filter_cold_days(rows, month)
@@ -48,19 +49,19 @@ class FiltersTest(unittest.TestCase):
         results,
         beam.equal_to([{'year': 2010, 'month': 1, 'day': 1, 'mean_temp': 3},
                        {'year': 2012, 'month': 1, 'day': 2, 'mean_temp': 3}]))
-    results.pipeline.run().wait_until_finish()
+    results.pipeline.run()
 
   def test_basic_empty(self):
     """Test that the correct empty result is returned for a simple dataset."""
     results = self._get_result_for_month(3)
     beam.assert_that(results, beam.equal_to([]))
-    results.pipeline.run().wait_until_finish()
+    results.pipeline.run()
 
   def test_basic_empty_missing(self):
     """Test that the correct empty result is returned for a missing month."""
     results = self._get_result_for_month(4)
     beam.assert_that(results, beam.equal_to([]))
-    results.pipeline.run().wait_until_finish()
+    results.pipeline.run()
 
 
 if __name__ == '__main__':

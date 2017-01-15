@@ -200,6 +200,7 @@ def run(argv=None):
   # Write the output using a "Write" transform that has side effects.
   # pylint: disable=expression-not-assigned
   output | 'write' >> WriteToText(known_args.output)
+  # Execute the pipeline and wait until it is completed.
   p.run().wait_until_finish()
 
 

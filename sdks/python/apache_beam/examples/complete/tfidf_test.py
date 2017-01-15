@@ -25,6 +25,7 @@ import unittest
 
 import apache_beam as beam
 from apache_beam.examples.complete import tfidf
+from apache_beam.test_pipeline import TestPipeline
 
 
 EXPECTED_RESULTS = set([
@@ -47,7 +48,7 @@ class TfIdfTest(unittest.TestCase):
       f.write(contents)
 
   def test_tfidf_transform(self):
-    p = beam.Pipeline('DirectRunner')
+    p = TestPipeline()
     uri_to_line = p | beam.Create(
         'create sample',
         [('1.txt', 'abc def ghi'),
@@ -61,7 +62,7 @@ class TfIdfTest(unittest.TestCase):
     # Run the pipeline. Note that the assert_that above adds to the pipeline
     # a check that the result PCollection contains expected values. To actually
     # trigger the check the pipeline must be run.
-    p.run().wait_until_finish()
+    p.run()
 
   def test_basics(self):
     # Setup the files with expected content.

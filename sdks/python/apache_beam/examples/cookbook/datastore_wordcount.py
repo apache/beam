@@ -193,6 +193,7 @@ def read_from_datastore(project, user_options, pipeline_options):
 
   # Actually run the pipeline (all operations above are deferred).
   result = p.run()
+  # Wait until completion, main thread would access post-completion job results.
   result.wait_until_finish()
   return result
 

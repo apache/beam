@@ -31,6 +31,7 @@ string. The tags can contain only letters, digits and _.
 """
 
 import apache_beam as beam
+from apache_beam.test_pipeline import TestPipeline
 
 # Quiet some pylint warnings that happen because of the somewhat special
 # format for the code snippets.
@@ -88,6 +89,8 @@ def construct_pipeline(renames):
   p = beam.Pipeline(options=PipelineOptions())
   # [END pipelines_constructing_creating]
 
+  p = TestPipeline() # Use TestPipeline for testing.
+
   # [START pipelines_constructing_reading]
   lines = p | 'ReadMyFile' >> beam.io.ReadFromText('gs://some/inputData.txt')
   # [END pipelines_constructing_reading]
@@ -108,7 +111,7 @@ def construct_pipeline(renames):
   # [START pipelines_constructing_running]
   result = p.run()
   # [END pipelines_constructing_running]
-  result.wait_until_finish()
+  result
 
 
 def model_pipelines(argv):
@@ -225,14 +228,12 @@ def pipeline_options_remote(argv):
   my_input = my_options.input
   my_output = my_options.output
 
-  # Overriding the runner for tests.
-  options.view_as(StandardOptions).runner = 'DirectRunner'
-  p = Pipeline(options=options)
+  p = TestPipeline()  # Use TestPipeline for testing.
 
   lines = p | beam.io.ReadFromText(my_input)
   lines | beam.io.WriteToText(my_output)
 
-  p.run().wait_until_finish()
+  p.run()
 
 
 def pipeline_options_local(argv):
@@ -267,9 +268,10 @@ def pipeline_options_local(argv):
   p = Pipeline(options=options)
   # [END pipeline_options_local]
 
+  p = TestPipeline()  # Use TestPipeline for testing.
   lines = p | beam.io.ReadFromText(my_input)
   lines | beam.io.WriteToText(my_output)
-  p.run().wait_until_finish()
+  p.run()
 
 
 def pipeline_options_command_line(argv):
@@ -298,7 +300,6 @@ def pipeline_logging(lines, output):
 
   import re
   import apache_beam as beam
-  from apache_beam.utils.pipeline_options import PipelineOptions
 
   # [START pipeline_logging]
   # import Python logging module.
@@ -318,13 +319,13 @@ def pipeline_logging(lines, output):
   # Remaining WordCount example code ...
   # [END pipeline_logging]
 
-  p = beam.Pipeline(options=PipelineOptions())
+  p = TestPipeline()  # Use TestPipeline for testing.
   (p
    | beam.Create(lines)
    | beam.ParDo(ExtractWordsFn())
    | beam.io.WriteToText(output))
 
-  p.run().wait_until_finish()
+  p.run()
 
 
 def pipeline_monitoring(renames):
@@ -374,7 +375,7 @@ def pipeline_monitoring(renames):
 
   pipeline_options = PipelineOptions()
   options = pipeline_options.view_as(WordCountOptions)
-  p = beam.Pipeline(options=pipeline_options)
+  p = TestPipeline()  # Use TestPipeline for testing.
 
   # [START pipeline_monitoring_execution]
   (p
@@ -387,7 +388,7 @@ def pipeline_monitoring(renames):
   # [END pipeline_monitoring_execution]
 
   p.visit(SnippetUtils.RenameFiles(renames))
-  p.run().wait_until_finish()
+  p.run()
 
 
 def examples_wordcount_minimal(renames):
@@ -508,7 +509,6 @@ def examples_wordcount_debugging(renames):
   import re
 
   import apache_beam as beam
-  from apache_beam.utils.pipeline_options import PipelineOptions
 
   # [START example_wordcount_debugging_logging]
   # [START example_wordcount_debugging_aggregators]
@@ -549,7 +549,7 @@ def examples_wordcount_debugging(renames):
   # [END example_wordcount_debugging_logging]
   # [END example_wordcount_debugging_aggregators]
 
-  p = beam.Pipeline(options=PipelineOptions())
+  p = TestPipeline()  # Use TestPipeline for testing.
   filtered_words = (
       p
       | beam.io.ReadFromText(
@@ -568,7 +568,7 @@ def examples_wordcount_debugging(renames):
             | 'Write' >> beam.io.WriteToText('gs://my-bucket/counts.txt'))
 
   p.visit(SnippetUtils.RenameFiles(renames))
-  p.run().wait_until_finish()
+  p.run()
 
 
 def model_custom_source(count):
@@ -957,21 +957,19 @@ def model_composite_transform_example(contents, output_path):
   # [END composite_ptransform_apply_method]
   # [END composite_transform_example]
 
-  from apache_beam.utils.pipeline_options import PipelineOptions
-  p = beam.Pipeline(options=PipelineOptions())
+  p = TestPipeline()  # Use TestPipeline for testing.
   (p
    | beam.Create(contents)
    | CountWords()
    | beam.io.WriteToText(output_path))
-  p.run().wait_until_finish()
+  p.run()
 
 
 def model_multiple_pcollections_flatten(contents, output_path):
   """Merging a PCollection with Flatten."""
   some_hash_fn = lambda s: ord(s[0])
   import apache_beam as beam
-  from apache_beam.utils.pipeline_options import PipelineOptions
-  p = beam.Pipeline(options=PipelineOptions())
+  p = TestPipeline()  # Use TestPipeline for testing.
   partition_fn = lambda element, partitions: some_hash_fn(element) % partitions
 
   # Partition into deciles
@@ -997,7 +995,7 @@ def model_multiple_pcollections_flatten(contents, output_path):
   # [END model_multiple_pcollections_flatten]
   merged | beam.io.WriteToText(output_path)
 
-  p.run().wait_until_finish()
+  p.run()
 
 
 def model_multiple_pcollections_partition(contents, output_path):
@@ -1008,8 +1006,7 @@ def model_multiple_pcollections_partition(contents, output_path):
     """Assume i in [0,100)."""
     return i
   import apache_beam as beam
-  from apache_beam.utils.pipeline_options import PipelineOptions
-  p = beam.Pipeline(options=PipelineOptions())
+  p = TestPipeline()  # Use TestPipeline for testing.
 
   students = p | beam.Create(contents)
 
@@ -1027,7 +1024,7 @@ def model_multiple_pcollections_partition(contents, output_path):
    | beam.Flatten()
    | beam.io.WriteToText(output_path))
 
-  p.run().wait_until_finish()
+  p.run()
 
 
 def model_group_by_key(contents, output_path):
@@ -1035,8 +1032,7 @@ def model_group_by_key(contents, output_path):
   import re
 
   import apache_beam as beam
-  from apache_beam.utils.pipeline_options import PipelineOptions
-  p = beam.Pipeline(options=PipelineOptions())
+  p = TestPipeline()  # Use TestPipeline for testing.
   words_and_counts = (
       p
       | beam.Create(contents)
@@ -1053,14 +1049,13 @@ def model_group_by_key(contents, output_path):
   (grouped_words
    | 'count words' >> beam.Map(lambda (word, counts): (word, len(counts)))
    | beam.io.WriteToText(output_path))
-  p.run().wait_until_finish()
+  p.run()
 
 
 def model_co_group_by_key_tuple(email_list, phone_list, output_path):
   """Applying a CoGroupByKey Transform to a tuple."""
   import apache_beam as beam
-  from apache_beam.utils.pipeline_options import PipelineOptions
-  p = beam.Pipeline(options=PipelineOptions())
+  p = TestPipeline()  # Use TestPipeline for testing.
   # [START model_group_by_key_cogroupbykey_tuple]
   # Each data set is represented by key-value pairs in separate PCollections.
   # Both data sets share a common key type (in this example str).
@@ -1088,7 +1083,7 @@ def model_co_group_by_key_tuple(email_list, phone_list, output_path):
   contact_lines = result | beam.Map(join_info)
   # [END model_group_by_key_cogroupbykey_tuple]
   contact_lines | beam.io.WriteToText(output_path)
-  p.run().wait_until_finish()
+  p.run()
 
 
 def model_join_using_side_inputs(
@@ -1097,9 +1092,8 @@ def model_join_using_side_inputs(
 
   import apache_beam as beam
   from apache_beam.pvalue import AsIter
-  from apache_beam.utils.pipeline_options import PipelineOptions
 
-  p = beam.Pipeline(options=PipelineOptions())
+  p = TestPipeline()  # Use TestPipeline for testing.
   # [START model_join_using_side_inputs]
   # This code performs a join by receiving the set of names as an input and
   # passing PCollections that contain emails and phone numbers as side inputs
@@ -1127,7 +1121,7 @@ def model_join_using_side_inputs(
       "CreateContacts", join_info, AsIter(emails), AsIter(phones))
   # [END model_join_using_side_inputs]
   contact_lines | beam.io.WriteToText(output_path)
-  p.run().wait_until_finish()
+  p.run()
 
 
 # [START model_library_transforms_keys]

@@ -20,8 +20,8 @@
 import logging
 import unittest
 
-import apache_beam as beam
 from apache_beam.examples.complete import estimate_pi
+from apache_beam.test_pipeline import TestPipeline
 from apache_beam.transforms.util import assert_that
 from apache_beam.transforms.util import DataflowAssertException
 
@@ -38,13 +38,13 @@ def in_between(lower, upper):
 class EstimatePiTest(unittest.TestCase):
 
   def test_basics(self):
-    p = beam.Pipeline('DirectRunner')
+    p = TestPipeline()
     result = p | 'Estimate' >> estimate_pi.EstimatePiTransform()
 
     # Note: Probabilistically speaking this test can fail with a probability
     # that is very small (VERY) given that we run at least 10 million trials.
     assert_that(result, in_between(3.13, 3.15))
-    p.run().wait_until_finish()
+    p.run()
 
 
 if __name__ == '__main__':

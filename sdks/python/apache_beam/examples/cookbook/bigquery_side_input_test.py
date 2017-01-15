@@ -22,12 +22,13 @@ import unittest
 
 import apache_beam as beam
 from apache_beam.examples.cookbook import bigquery_side_input
+from apache_beam.test_pipeline import TestPipeline
 
 
 class BigQuerySideInputTest(unittest.TestCase):
 
   def test_create_groups(self):
-    p = beam.Pipeline('DirectRunner')
+    p = TestPipeline()
 
     group_ids_pcoll = p | 'create_group_ids' >> beam.Create(['A', 'B', 'C'])
     corpus_pcoll = p | beam.Create('create_corpus',
@@ -48,7 +49,7 @@ class BigQuerySideInputTest(unittest.TestCase):
         [('A', 'corpus2', 'word2'),
          ('B', 'corpus2', 'word2'),
          ('C', 'corpus2', 'word2')]))
-    p.run().wait_until_finish()
+    p.run()
 
 
 if __name__ == '__main__':

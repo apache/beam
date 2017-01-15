@@ -38,7 +38,7 @@ class BigShuffleTest(unittest.TestCase):
     bigshuffle.run([
         '--input=%s*' % temp_path,
         '--output=%s.result' % temp_path,
-        '--checksum_output=%s.checksum' % temp_path])
+        '--checksum_output=%s.checksum' % temp_path]).wait_until_finish()
     # Parse result file and compare.
     results = []
     with open(temp_path + '.result-00000-of-00001') as result_file:

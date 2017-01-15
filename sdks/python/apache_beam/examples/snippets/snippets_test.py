@@ -20,7 +20,6 @@
 import glob
 import logging
 import os
-import sys
 import tempfile
 import unittest
 import uuid
@@ -35,6 +34,7 @@ from apache_beam.utils.pipeline_options import TypeOptions
 from apache_beam.examples.snippets import snippets
 
 # pylint: disable=expression-not-assigned
+from apache_beam.test_pipeline import TestPipeline
 
 
 class ParDoTest(unittest.TestCase):
@@ -110,7 +110,7 @@ class ParDoTest(unittest.TestCase):
     self.assertEqual({1, 2, 4}, set(result))
 
   def test_pardo_side_input(self):
-    p = beam.Pipeline('DirectRunner')
+    p = TestPipeline()
     words = p | 'start' >> beam.Create(['a', 'bb', 'ccc', 'dddd'])
 
     # [START model_pardo_side_input]
@@ -144,7 +144,7 @@ class ParDoTest(unittest.TestCase):
                      label='larger_than_average')
     beam.assert_that(small_but_nontrivial, beam.equal_to(['bb']),
                      label='small_but_not_trivial')
-    p.run().wait_until_finish()
+    p.run()
 
   def test_pardo_side_input_dofn(self):
     words = ['a', 'bb', 'ccc', 'dddd']
@@ -228,7 +228,7 @@ class ParDoTest(unittest.TestCase):
 class TypeHintsTest(unittest.TestCase):
 
   def test_bad_types(self):
-    p = beam.Pipeline('DirectRunner', argv=sys.argv)
+    p = TestPipeline()
     evens = None  # pylint: disable=unused-variable
 
     # [START type_hints_missing_define_numbers]
@@ -247,7 +247,7 @@ class TypeHintsTest(unittest.TestCase):
     # possibly on a remote machine, possibly very late.
 
     with self.assertRaises(TypeError):
-      p.run().wait_until_finish()
+      p.run()
 
     # To catch this early, we can assert what types we expect.
     with self.assertRaises(typehints.TypeCheckError):
@@ -290,26 +290,24 @@ class TypeHintsTest(unittest.TestCase):
 
   def test_runtime_checks_off(self):
     # pylint: disable=expression-not-assigned
-    p = beam.Pipeline('DirectRunner', argv=sys.argv)
+    p = TestPipeline()
     # [START type_hints_runtime_off]
     p | beam.Create(['a']) | beam.Map(lambda x: 3).with_output_types(str)
-    result = p.run()
+    p.run()
     # [END type_hints_runtime_off]
-    result.wait_until_finish()
 
   def test_runtime_checks_on(self):
     # pylint: disable=expression-not-assigned
-    p = beam.Pipeline('DirectRunner', argv=sys.argv)
+    p = TestPipeline()
     with self.assertRaises(typehints.TypeCheckError):
       # [START type_hints_runtime_on]
       p.options.view_as(TypeOptions).runtime_type_check = True
       p | beam.Create(['a']) | beam.Map(lambda x: 3).with_output_types(str)
-      result = p.run()
+      p.run()
       # [END type_hints_runtime_on]
-      result.wait_until_finish()
 
   def test_deterministic_key(self):
-    p = beam.Pipeline('DirectRunner')
+    p = TestPipeline()
     lines = (p | beam.Create(
         ['banana,fruit,3', 'kiwi,fruit,2', 'kiwi,fruit,2', 'zucchini,veg,3']))
 
@@ -346,7 +344,7 @@ class TypeHintsTest(unittest.TestCase):
         totals | beam.Map(lambda (k, v): (k.name, v)),
         equal_to([('banana', 3), ('kiwi', 4), ('zucchini', 3)]))
 
-    p.run().wait_until_finish()
+    p.run()
 
 
 class SnippetsTest(unittest.TestCase):

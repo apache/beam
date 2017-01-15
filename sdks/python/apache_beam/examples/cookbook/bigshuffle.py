@@ -87,7 +87,7 @@ def run(argv=None):
         known_args.checksum_output + '-output')
 
   # Actually run the pipeline (all operations above are deferred).
-  p.run().wait_until_finish()
+  return p.run()
 
 
 if __name__ == '__main__':

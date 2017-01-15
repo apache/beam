@@ -55,4 +55,4 @@ from apache_beam.examples.complete.juliaset.juliaset import juliaset
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
-  juliaset.run().wait_until_finish()
+  juliaset.run()

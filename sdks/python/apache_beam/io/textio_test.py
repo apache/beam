@@ -43,6 +43,8 @@ from apache_beam.io.filebasedsource_test import write_data
 from apache_beam.io.filebasedsource_test import write_pattern
 from apache_beam.io.fileio import CompressionTypes
 
+from apache_beam.test_pipeline import TestPipeline
+
 from apache_beam.transforms.display import DisplayData
 from apache_beam.transforms.display_test import DisplayDataItemMatcher
 
@@ -304,10 +306,10 @@ class TextSourceTest(unittest.TestCase):
   def test_dataflow_single_file(self):
     file_name, expected_data = write_data(5)
     assert len(expected_data) == 5
-    pipeline = beam.Pipeline('DirectRunner')
+    pipeline = TestPipeline()
     pcoll = pipeline | 'Read' >> ReadFromText(file_name)
     assert_that(pcoll, equal_to(expected_data))
-    pipeline.run().wait_until_finish()
+    pipeline.run()
 
   def test_dataflow_single_file_with_coder(self):
     class DummyCoder(coders.Coder):
@@ -319,18 +321,18 @@ class TextSourceTest(unittest.TestCase):
 
     file_name, expected_data = write_data(5)
     assert len(expected_data) == 5
-    pipeline = beam.Pipeline('DirectRunner')
+    pipeline = TestPipeline()
     pcoll = pipeline | 'Read' >> ReadFromText(file_name, coder=DummyCoder())
     assert_that(pcoll, equal_to([record * 2 for record in expected_data]))
-    pipeline.run().wait_until_finish()
+    pipeline.run()
 
   def test_dataflow_file_pattern(self):
     pattern, expected_data = write_pattern([5, 3, 12, 8, 8, 4])
     assert len(expected_data) == 40
-    pipeline = beam.Pipeline('DirectRunner')
+    pipeline = TestPipeline()
     pcoll = pipeline | 'Read' >> ReadFromText(pattern)
     assert_that(pcoll, equal_to(expected_data))
-    pipeline.run().wait_until_finish()
+    pipeline.run()
 
   def test_read_auto_bzip2(self):
     _, lines = write_data(15)
@@ -339,10 +341,10 @@ class TextSourceTest(unittest.TestCase):
     with bz2.BZ2File(file_name, 'wb') as f:
       f.write('\n'.join(lines))
 
-    pipeline = beam.Pipeline('DirectRunner')
+    pipeline = TestPipeline()
     pcoll = pipeline | 'Read' >> ReadFromText(file_name)
     assert_that(pcoll, equal_to(lines))
-    pipeline.run().wait_until_finish()
+    pipeline.run()
 
   def test_read_auto_gzip(self):
     _, lines = write_data(15)
@@ -351,10 +353,10 @@ class TextSourceTest(unittest.TestCase):
     with gzip.GzipFile(file_name, 'wb') as f:
       f.write('\n'.join(lines))
 
-    pipeline = beam.Pipeline('DirectRunner')
+    pipeline = TestPipeline()
     pcoll = pipeline | 'Read' >> ReadFromText(file_name)
     assert_that(pcoll, equal_to(lines))
-    pipeline.run().wait_until_finish()
+    pipeline.run()
 
   def test_read_bzip2(self):
     _, lines = write_data(15)
@@ -363,12 +365,12 @@ class TextSourceTest(unittest.TestCase):
     with bz2.BZ2File(file_name, 'wb') as f:
       f.write('\n'.join(lines))
 
-    pipeline = beam.Pipeline('DirectRunner')
+    pipeline = TestPipeline()
     pcoll = pipeline | 'Read' >> ReadFromText(
         file_name,
         compression_type=CompressionTypes.BZIP2)
     assert_that(pcoll, equal_to(lines))
-    pipeline.run().wait_until_finish()
+    pipeline.run()
 
   def test_read_gzip(self):
     _, lines = write_data(15)
@@ -377,13 +379,13 @@ class TextSourceTest(unittest.TestCase):
     with gzip.GzipFile(file_name, 'wb') as f:
       f.write('\n'.join(lines))
 
-    pipeline = beam.Pipeline('DirectRunner')
+    pipeline = TestPipeline()
     pcoll = pipeline | 'Read' >> ReadFromText(
         file_name,
         0, CompressionTypes.GZIP,
         True, coders.StrUtf8Coder())
     assert_that(pcoll, equal_to(lines))
-    pipeline.run().wait_until_finish()
+    pipeline.run()
 
   def test_read_gzip_large(self):
     _, lines = write_data(10000)
@@ -392,13 +394,13 @@ class TextSourceTest(unittest.TestCase):
     with gzip.GzipFile(file_name, 'wb') as f:
       f.write('\n'.join(lines))
 
-    pipeline = beam.Pipeline('DirectRunner')
+    pipeline = TestPipeline()
     pcoll = pipeline | 'Read' >> ReadFromText(
         file_name,
         0, CompressionTypes.GZIP,
         True, coders.StrUtf8Coder())
     assert_that(pcoll, equal_to(lines))
-    pipeline.run().wait_until_finish()
+    pipeline.run()
 
   def test_read_gzip_large_after_splitting(self):
     _, lines = write_data(10000)
@@ -425,13 +427,13 @@ class TextSourceTest(unittest.TestCase):
   def test_read_gzip_empty_file(self):
     filename = tempfile.NamedTemporaryFile(
         delete=False, prefix=tempfile.template).name
-    pipeline = beam.Pipeline('DirectRunner')
+    pipeline = TestPipeline()
     pcoll = pipeline | 'Read' >> ReadFromText(
         filename,
         0, CompressionTypes.GZIP,
         True, coders.StrUtf8Coder())
     assert_that(pcoll, equal_to([]))
-    pipeline.run().wait_until_finish()
+    pipeline.run()
 
 
 class TextSinkTest(unittest.TestCase):
@@ -521,10 +523,10 @@ class TextSinkTest(unittest.TestCase):
     hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
 
   def test_write_dataflow(self):
-    pipeline = beam.Pipeline('DirectRunner')
+    pipeline = TestPipeline()
     pcoll = pipeline | beam.core.Create('Create', self.lines)
     pcoll | 'Write' >> WriteToText(self.path)  # pylint: disable=expression-not-assigned
-    pipeline.run().wait_until_finish()
+    pipeline.run()
 
     read_result = []
     for file_name in glob.glob(self.path + '*'):
@@ -534,10 +536,10 @@ class TextSinkTest(unittest.TestCase):
     self.assertEqual(read_result, self.lines)
 
   def test_write_dataflow_auto_compression(self):
-    pipeline = beam.Pipeline('DirectRunner')
+    pipeline = TestPipeline()
     pcoll = pipeline | beam.core.Create('Create', self.lines)
     pcoll | 'Write' >> WriteToText(self.path, file_name_suffix='.gz')  # pylint: disable=expression-not-assigned
-    pipeline.run().wait_until_finish()
+    pipeline.run()
 
     read_result = []
     for file_name in glob.glob(self.path + '*'):
@@ -547,10 +549,10 @@ class TextSinkTest(unittest.TestCase):
     self.assertEqual(read_result, self.lines)
 
   def test_write_dataflow_auto_compression_unsharded(self):
-    pipeline = beam.Pipeline('DirectRunner')
+    pipeline = TestPipeline()
     pcoll = pipeline | beam.core.Create('Create', self.lines)
     pcoll | 'Write' >> WriteToText(self.path + '.gz', shard_name_template='')  # pylint: disable=expression-not-assigned
-    pipeline.run().wait_until_finish()
+    pipeline.run()
 
     read_result = []
     for file_name in glob.glob(self.path + '*'):

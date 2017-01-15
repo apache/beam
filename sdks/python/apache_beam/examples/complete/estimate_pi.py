@@ -117,7 +117,7 @@ def run(argv=None):
    | WriteToText(known_args.output, coder=JsonCoder()))
 
   # Actually run the pipeline (all operations above are deferred).
-  p.run().wait_until_finish()
+  p.run()
 
 
 if __name__ == '__main__':

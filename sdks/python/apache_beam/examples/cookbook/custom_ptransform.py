@@ -97,7 +97,7 @@ def run_count3(known_args, options):
   (p | ReadFromText(known_args.input)
    | Count3(2)  # pylint: disable=no-value-for-parameter
    | WriteToText(known_args.output))
-  p.run().wait_until_finish()
+  p.run()
 
 
 def get_args(argv):

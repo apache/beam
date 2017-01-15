@@ -173,7 +173,7 @@ def run(argv=None):
    | 'count words' >> CountWords()
    | 'write words' >> WriteToText(known_args.output + '-words'))
 
-  p.run().wait_until_finish()
+  return p.run()
 
 
 if __name__ == '__main__':

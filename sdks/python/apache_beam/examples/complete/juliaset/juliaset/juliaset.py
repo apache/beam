@@ -113,7 +113,7 @@ def run(argv=None):  # pylint: disable=missing-docstring
        lambda (k, coords): ' '.join('(%s, %s, %s)' % coord for coord in coords))
    | WriteToText(known_args.coordinate_output))
   # pylint: enable=expression-not-assigned
-  p.run().wait_until_finish()
+  return p.run()
 
   # Optionally render the image and save it to a file.
   # TODO(silviuc): Add this functionality.

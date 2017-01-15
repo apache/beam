@@ -114,7 +114,7 @@ def run(argv=sys.argv[1:]):
    | beam.CombinePerKey(sum)
    | beam.Map(lambda (k, v): '%s,%d' % (k.name, v))
    | WriteToText(known_args.output))
-  p.run().wait_until_finish()
+  return p.run()
 
 
 if __name__ == '__main__':

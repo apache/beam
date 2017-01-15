@@ -21,6 +21,7 @@ import unittest
 
 import apache_beam as beam
 from apache_beam.examples.complete import autocomplete
+from apache_beam.test_pipeline import TestPipeline
 from apache_beam.transforms.util import assert_that
 from apache_beam.transforms.util import equal_to
 
@@ -30,7 +31,7 @@ class AutocompleteTest(unittest.TestCase):
   WORDS = ['this', 'this', 'that', 'to', 'to', 'to']
 
   def test_top_prefixes(self):
-    p = beam.Pipeline('DirectRunner')
+    p = TestPipeline()
     words = p | beam.Create(self.WORDS)
     result = words | autocomplete.TopPerPrefix(5)
     # values must be hashable for now
@@ -45,7 +46,7 @@ class AutocompleteTest(unittest.TestCase):
             ('tha', ((1, 'that'), )),
             ('that', ((1, 'that'), )),
         ]))
-    p.run().wait_until_finish()
+    p.run()
 
 if __name__ == '__main__':
   unittest.main()

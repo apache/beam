@@ -99,7 +99,7 @@ def run(argv=None):
        write_disposition=beam.io.BigQueryDisposition.WRITE_TRUNCATE)))
 
   # Actually run the pipeline (all operations above are deferred).
-  p.run().wait_until_finish()
+  p.run()
 
 
 if __name__ == '__main__':
