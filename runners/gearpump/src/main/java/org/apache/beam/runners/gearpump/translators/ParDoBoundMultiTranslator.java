@@ -91,8 +91,7 @@ public class ParDoBoundMultiTranslator<InputT, OutputT> implements
     private final DoFnRunnerFactory<InputT, OutputT> doFnRunnerFactory;
     private DoFnRunner<InputT, OutputT> doFnRunner;
     private final DoFn<InputT, OutputT> doFn;
-    private final List<WindowedValue<KV<TupleTag<OutputT>, OutputT>>> outputs = Lists
-        .newArrayList();
+    private List<WindowedValue<KV<TupleTag<OutputT>, OutputT>>> outputs;
 
     public DoFnMultiFunction(
         GearpumpPipelineOptions pipelineOptions,
@@ -127,6 +126,8 @@ public class ParDoBoundMultiTranslator<InputT, OutputT> implements
 
     @Override
     public Iterator<WindowedValue<KV<TupleTag<OutputT>, OutputT>>> apply(WindowedValue<InputT> wv) {
+      outputs = Lists.newArrayList();
+
       if (null == doFnRunner) {
         doFnRunner = doFnRunnerFactory.createRunner();
       }
@@ -166,6 +167,7 @@ public class ParDoBoundMultiTranslator<InputT, OutputT> implements
 
     @Override
     public WindowedValue<OutputT> apply(WindowedValue<KV<TupleTag<OutputT>, OutputT>> wv) {
+      // System.out.println(wv.getValue().getKey() + ":" + wv.getValue().getValue());
       return WindowedValue.of(wv.getValue().getValue(), wv.getTimestamp(),
           wv.getWindows(), wv.getPane());
     }
