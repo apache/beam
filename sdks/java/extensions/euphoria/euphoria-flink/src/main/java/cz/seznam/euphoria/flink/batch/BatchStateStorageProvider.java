@@ -1,4 +1,3 @@
-
 package cz.seznam.euphoria.flink.batch;
 
 import com.esotericsoftware.kryo.Kryo;

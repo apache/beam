@@ -1,4 +1,3 @@
-
 package cz.seznam.euphoria.core.client.flow;
 
 import cz.seznam.euphoria.core.client.dataset.Dataset;
@@ -8,8 +7,8 @@ import cz.seznam.euphoria.core.client.io.DataSource;
 import cz.seznam.euphoria.core.client.io.IORegistry;
 import cz.seznam.euphoria.core.client.operator.Operator;
 import cz.seznam.euphoria.core.util.Settings;
-import org.apache.commons.io.output.CountingOutputStream;
-import org.apache.commons.io.output.NullOutputStream;
+import cz.seznam.euphoria.guava.shaded.com.google.common.io.ByteStreams;
+import cz.seznam.euphoria.guava.shaded.com.google.common.io.CountingOutputStream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -146,12 +145,12 @@ public class Flow implements Serializable {
   private void validateSerializable(Operator o) {
     try {
       final CountingOutputStream outCounter =
-              new CountingOutputStream(new NullOutputStream());
+          new CountingOutputStream(ByteStreams.nullOutputStream());
       try (ObjectOutputStream out = new ObjectOutputStream(outCounter)) {
         out.writeObject(o);
       }
       LOG.debug("Serialized operator {} ({}) into {} bytes",
-              new Object[] {o.toString(), o.getClass(), outCounter.getByteCount()});
+              new Object[] {o.toString(), o.getClass(), outCounter.getCount()});
     } catch (IOException e) {
       throw new IllegalStateException("Operator " + o + " not serializable!", e);
     }
