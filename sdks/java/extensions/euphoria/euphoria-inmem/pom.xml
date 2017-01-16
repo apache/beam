@@ -10,7 +10,7 @@
   </parent>
   <modelVersion>4.0.0</modelVersion>
 
-  <artifactId>euphoria-spark</artifactId>
+  <artifactId>euphoria-inmem</artifactId>
   <packaging>jar</packaging>
   <name>${project.artifactId}-${project.version}</name>
 
@@ -20,26 +20,14 @@
       <artifactId>euphoria-core</artifactId>
     </dependency>
 
-    <dependency>
-      <groupId>cz.seznam.euphoria</groupId>
-      <artifactId>euphoria-hadoop</artifactId>
-    </dependency>
-
-    <!-- Spark dependencies -->
-    <dependency>
-      <groupId>org.apache.spark</groupId>
-      <artifactId>spark-core_2.10</artifactId>
-      <version>${spark.version}</version>
-      <scope>provided</scope>
-    </dependency>
-
     <!-- test -->
+
     <dependency>
       <groupId>cz.seznam.euphoria</groupId>
       <artifactId>euphoria-operator-testkit</artifactId>
-      <version>${project.version}</version>
       <scope>test</scope>
     </dependency>
+
     <dependency>
       <groupId>junit</groupId>
       <artifactId>junit</artifactId>
