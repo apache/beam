@@ -10,8 +10,8 @@ import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.io.StdoutSink;
 import cz.seznam.euphoria.core.client.operator.FlatMap;
 import cz.seznam.euphoria.core.client.util.Pair;
-import cz.seznam.euphoria.core.executor.inmem.InMemExecutor;
 import cz.seznam.euphoria.core.util.Settings;
+import cz.seznam.euphoria.inmem.InMemExecutor;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
