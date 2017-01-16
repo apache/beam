@@ -12,7 +12,7 @@
  * or implied. See the License for the specific language governing permissions and limitations under
  * the License.
  */
-package org.apache.beam.sdk.io.hadoop.inputformat.unit.tests.inputformats;
+package org.apache.beam.sdk.io.hadoop.inputformat.unit.tests.inputs;
 
 import java.io.DataInput;
 import java.io.DataOutput;
@@ -29,33 +29,26 @@ import org.apache.hadoop.mapreduce.RecordReader;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
 
 /**
- * <p>
- * This is a bad InputFormat
- * <p>
- * This is test input to validate if HadoopInputFormatIO stops reading if createRecordReader returns
- * null.
+ * Bad InputFormat which returns empty list of input splits in getSplits() method
  */
-public class BadNullCreateReaderInputFormat extends InputFormat<Text, Employee> {
+public class BadEmptySplitsInputFormat extends InputFormat<Text, Employee> {
 
-  public BadNullCreateReaderInputFormat() {}
+  public BadEmptySplitsInputFormat() {}
 
   @Override
   public RecordReader<Text, Employee> createRecordReader(InputSplit split,
       TaskAttemptContext context) throws IOException, InterruptedException {
-    return null;
+    return new EmptyInputSplitsRecordReader();
   }
+
 
   @Override
-  public List<InputSplit> getSplits(JobContext jobContext)
-      throws IOException, InterruptedException {
-    List<InputSplit> inputSplitList = new ArrayList<InputSplit>();
-    inputSplitList.add(new BadCreateRecordReaderInputSplit());
-    return inputSplitList;
+  public List<InputSplit> getSplits(JobContext arg0) throws IOException, InterruptedException {
+    // Returns empty splits.
+    return new ArrayList<InputSplit>();
   }
 
-  public class BadCreateRecordReaderInputSplit extends InputSplit implements Writable {
-
-    public BadCreateRecordReaderInputSplit() {}
+  public class EmptyInputSplitsInputSplit extends InputSplit implements Writable {
 
     @Override
     public void readFields(DataInput in) throws IOException {}
@@ -72,8 +65,10 @@ public class BadNullCreateReaderInputFormat extends InputFormat<Text, Employee> 
     public String[] getLocations() throws IOException, InterruptedException {
       return null;
     }
+
   }
-  public class BadCreateRecordRecordReader extends RecordReader<Text, Employee> {
+
+  class EmptyInputSplitsRecordReader extends RecordReader<Text, Employee> {
 
     @Override
     public void close() throws IOException {}
@@ -101,6 +96,5 @@ public class BadNullCreateReaderInputFormat extends InputFormat<Text, Employee> 
     public boolean nextKeyValue() throws IOException, InterruptedException {
       return false;
     }
-
   }
 }

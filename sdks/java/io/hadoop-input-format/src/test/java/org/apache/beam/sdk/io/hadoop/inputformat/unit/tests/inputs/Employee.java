@@ -1,4 +1,4 @@
-package org.apache.beam.sdk.io.hadoop.inputformat.unit.tests.inputformats;
+package org.apache.beam.sdk.io.hadoop.inputformat.unit.tests.inputs;
 
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.DefaultCoder;

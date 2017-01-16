@@ -12,16 +12,16 @@
  * or implied. See the License for the specific language governing permissions and limitations under
  * the License.
  */
-package org.apache.beam.sdk.io.hadoop.inputformat.unit.tests.inputformats;
+package org.apache.beam.sdk.io.hadoop.inputformat.unit.tests.inputs;
 
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
+import org.apache.beam.sdk.io.hadoop.inputformat.HadoopInputFormatIO;
+import org.apache.beam.sdk.values.KV;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.io.Writable;
 import org.apache.hadoop.mapreduce.InputFormat;
@@ -31,56 +31,65 @@ import org.apache.hadoop.mapreduce.RecordReader;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
 
 /**
- * <p>NewEmployeeEmpInputFormat is input to test whether HadoopInputFormatIO source returns immutable records for a 
- * scenario when RecordReader creates and provides new key and value objects every time it reads employee data.
+ * <p>
+ * This is a valid InputFormat for reading employee data which is available in the form of
+ * {@link List<KV>} as employeeDataList. employeeDataList is populated using
+ * {@link UnitTestsUtils.#populateEmployeeDataNew()}.
+ * <p>
+ * ReuseEmployeeEmpInputFormat splits data into {@link UnitTestsUtils.#NUMBER_OF_SPLITS} splits,
+ * each split having {@link UnitTestsUtils.#NUMBER_OF_RECORDS_IN_EACH_SPLIT} records each.
+ * ReuseEmployeeEmpInputFormat reads data from employeeDataList and produces a key (employee id) of
+ * type Text and value of type {@link Employee Employee}.
+ * <p>
+ * ReuseEmployeeEmpInputFormat is also input to test whether {@link HadoopInputFormatIO } source
+ * returns immutable records for a scenario when RecordReader reuses the Employee object and returns
+ * the same key and value object with updating values every time it reads employee data.
  */
-public class NewEmployeeEmpInputFormat extends InputFormat<Text, Employee> {
-  private final long numberOfRecordsInEachSplit = 3L;
-  private final long numberOfSplits = 3L;
+public class ReuseEmployeeEmpployeeInputFormat extends InputFormat<Text, Employee> {
 
-  public NewEmployeeEmpInputFormat() {}
+  public ReuseEmployeeEmpployeeInputFormat() {}
 
   @Override
   public RecordReader<Text, Employee> createRecordReader(InputSplit split,
       TaskAttemptContext context) throws IOException, InterruptedException {
-    return new NewEmployeeRecordReader();
+    return new ReuseEmployeeRecordReader();
   }
 
   @Override
   public List<InputSplit> getSplits(JobContext arg0) throws IOException, InterruptedException {
     List<InputSplit> inputSplitList = new ArrayList<InputSplit>();
-    for (int i = 0; i < numberOfSplits; i++) {
-      InputSplit inputSplitObj = new NewEmployeeInputSplit((i * numberOfSplits),
-          ((i * numberOfSplits) + numberOfRecordsInEachSplit));
+    for (int i = 1; i <= UnitTestUtils.NUMBER_OF_SPLITS; i++) {
+      InputSplit inputSplitObj =
+          new ReuseEmployeeInputSplit(((i - 1) * UnitTestUtils.NUMBER_OF_RECORDS_IN_EACH_SPLIT),
+              (i * UnitTestUtils.NUMBER_OF_RECORDS_IN_EACH_SPLIT - 1));
       inputSplitList.add(inputSplitObj);
     }
     return inputSplitList;
   }
 
-  public class NewEmployeeInputSplit extends InputSplit implements Writable {
+  public class ReuseEmployeeInputSplit extends InputSplit implements Writable {
     // Start and end map index of each split of employeeData
     private long startIndex;
     private long endIndex;
 
-    public NewEmployeeInputSplit() {}
+    public ReuseEmployeeInputSplit() {}
 
-    public NewEmployeeInputSplit(long startIndex, long endIndex) {
+    public ReuseEmployeeInputSplit(long startIndex, long endIndex) {
       this.startIndex = startIndex;
       this.endIndex = endIndex;
     }
 
-    /**
-     * returns number of records in each split
-     */
+    /** Returns number of records in each split. */
     @Override
     public long getLength() throws IOException, InterruptedException {
-      return this.endIndex - this.startIndex;
+      return this.endIndex - this.startIndex + 1;
     }
 
     @Override
     public String[] getLocations() throws IOException, InterruptedException {
       return null;
     }
+
 
     public long getStartIndex() {
       return startIndex;
@@ -103,16 +112,16 @@ public class NewEmployeeEmpInputFormat extends InputFormat<Text, Employee> {
     }
   }
 
-  public class NewEmployeeRecordReader extends RecordReader<Text, Employee> {
+  class ReuseEmployeeRecordReader extends RecordReader<Text, Employee> {
 
-    private NewEmployeeInputSplit split;
-    private Text currentKey;
-    private Employee currentValue;
+    private ReuseEmployeeInputSplit split;
+    private Text currentKey = new Text();
+    private Employee currentValue = new Employee();
     private long employeeMapIndex = 0L;
     private long recordsRead = 0L;
-    private Map<Long, String> employeeData = new HashMap<Long, String>();
+    private List<KV<String, String>> employeeDataList;
 
-    public NewEmployeeRecordReader() {}
+    public ReuseEmployeeRecordReader() {}
 
     @Override
     public void close() throws IOException {}
@@ -135,39 +144,25 @@ public class NewEmployeeEmpInputFormat extends InputFormat<Text, Employee> {
     @Override
     public void initialize(InputSplit split, TaskAttemptContext arg1)
         throws IOException, InterruptedException {
-      this.split = (NewEmployeeInputSplit) split;
+      this.split = (ReuseEmployeeInputSplit) split;
       employeeMapIndex = this.split.getStartIndex() - 1;
       recordsRead = 0;
-      populateEmployeeData();
-      currentValue = new Employee(null, null);
+      employeeDataList = UnitTestUtils.populateEmployeeDataNew();
     }
 
     @Override
     public boolean nextKeyValue() throws IOException, InterruptedException {
-      if ((recordsRead++) == split.getLength()) {
+      if ((recordsRead++) >= split.getLength()) {
         return false;
       }
       employeeMapIndex++;
-      boolean hasNext = employeeData.containsKey(employeeMapIndex);
-      if (hasNext) {
-        String empData[] = employeeData.get(employeeMapIndex).split("_");
-        // New objects returned every time for key and value to signify the same object's state is not changed and returned
-        currentKey = new Text(String.valueOf(employeeMapIndex));
-        currentValue = new Employee(empData[0], empData[1]);
-      }
-      return hasNext;
-    }
-
-    private void populateEmployeeData() {
-      employeeData.put(0L, "Alex_US");
-      employeeData.put(1L, "John_UK");
-      employeeData.put(2L, "Tom_UK");
-      employeeData.put(3L, "Nick_UAE");
-      employeeData.put(4L, "Smith_IND");
-      employeeData.put(5L, "Taylor_US");
-      employeeData.put(6L, "Gray_UK");
-      employeeData.put(7L, "James_UAE");
-      employeeData.put(8L, "Jordan_IND");
+      KV<String, String> employee = employeeDataList.get((int) employeeMapIndex);
+      String empData[] = employee.getValue().split("_");
+      // Updating the same key and value objects with new employee data
+      currentKey.set(employee.getKey());
+      currentValue.setEmpName(empData[0]);
+      currentValue.setEmpAddress(empData[1]);
+      return true;
     }
   }
 }

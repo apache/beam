@@ -12,7 +12,7 @@
  * or implied. See the License for the specific language governing permissions and limitations under
  * the License.
  */
-package org.apache.beam.sdk.io.hadoop.inputformat.unit.tests.inputformats;
+package org.apache.beam.sdk.io.hadoop.inputformat.unit.tests.inputs;
 
 import java.io.DataInput;
 import java.io.DataOutput;
@@ -29,26 +29,29 @@ import org.apache.hadoop.mapreduce.RecordReader;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
 
 /**
- * Bad InputFormat which returns empty list of input splits in getSplits() method
+ * Bad InputFormat which returns no records in nextKeyValue() method of RecordReader.
  */
-public class BadEmptySplitsInputFormat extends InputFormat<Text, Employee> {
+public class BadNoRecordsInputFormat extends InputFormat<Text, Employee> {
 
-  public BadEmptySplitsInputFormat() {}
+  public BadNoRecordsInputFormat() {}
 
   @Override
   public RecordReader<Text, Employee> createRecordReader(InputSplit split,
       TaskAttemptContext context) throws IOException, InterruptedException {
-    return new EmptyInputSplitsRecordReader();
+    return new BadRecordReaderNoRecordsRecordReader();
   }
-
 
   @Override
   public List<InputSplit> getSplits(JobContext arg0) throws IOException, InterruptedException {
-    // Returns empty splits.
-    return new ArrayList<InputSplit>();
+    List<InputSplit> inputSplitList = new ArrayList<InputSplit>();
+    InputSplit inputSplit = new BadRecordReaderNoRecordsInputSplit();
+    inputSplitList.add(inputSplit);
+    return inputSplitList;
   }
 
-  public class EmptyInputSplitsInputSplit extends InputSplit implements Writable {
+  public class BadRecordReaderNoRecordsInputSplit extends InputSplit implements Writable {
+
+    public BadRecordReaderNoRecordsInputSplit() {}
 
     @Override
     public void readFields(DataInput in) throws IOException {}
@@ -65,10 +68,9 @@ public class BadEmptySplitsInputFormat extends InputFormat<Text, Employee> {
     public String[] getLocations() throws IOException, InterruptedException {
       return null;
     }
-
   }
 
-  class EmptyInputSplitsRecordReader extends RecordReader<Text, Employee> {
+  class BadRecordReaderNoRecordsRecordReader extends RecordReader<Text, Employee> {
 
     @Override
     public void close() throws IOException {}
@@ -84,17 +86,20 @@ public class BadEmptySplitsInputFormat extends InputFormat<Text, Employee> {
     }
 
     @Override
-    public float getProgress() throws IOException, InterruptedException {
-      return 0;
-    }
-
-    @Override
-    public void initialize(InputSplit split, TaskAttemptContext context)
+    public void initialize(InputSplit split, TaskAttemptContext arg1)
         throws IOException, InterruptedException {}
 
+    /**
+     * nextKeyValue() will return false means there are no records.
+     */
     @Override
     public boolean nextKeyValue() throws IOException, InterruptedException {
       return false;
+    }
+
+    @Override
+    public float getProgress() throws IOException, InterruptedException {
+      return 0;
     }
   }
 }

@@ -130,10 +130,10 @@ import com.google.common.collect.Lists;
  * For example :
  * 
  * <pre>
- *  
- * HadoopInputFormatIO.Read<MyKeyType, MyValueType> read = HadoopInputFormatIO
- *     .<MyKeyType, MyValueType>read().withConfiguration(myHadoopConfiguration)
- *     .withKeyTranslation(myOutputKeyType).withValueTranslation(myOutputValueType);
+ * 
+ * HadoopInputFormatIO.Read<MyKeyType, MyValueType> read =
+ *     HadoopInputFormatIO.<MyKeyType, MyValueType>read().withConfiguration(myHadoopConfiguration)
+ *         .withKeyTranslation(myOutputKeyType).withValueTranslation(myOutputValueType);
  * </pre>
  * 
  * <h3>ReadadoopInputFormatIO</h3> Pipeline p = ...; //Create pipeline
@@ -148,7 +148,8 @@ import com.google.common.collect.Lists;
  * }
  * </pre>
  * <P>
- * // Read data with configuration and key translation (Example scenario: Coder is not available for key type hence key translation is required.).
+ * // Read data with configuration and key translation (Example scenario: Coder is not available for
+ * key type hence key translation is required.).
  * 
  * <pre>
  * {@code 
@@ -159,7 +160,8 @@ import com.google.common.collect.Lists;
  * }
  * </pre>
  * <P>
- * // Read data with configuration and value translation (Example scenario: Coder is not available for value type hence value translation is required.).
+ * // Read data with configuration and value translation (Example scenario: Coder is not available
+ * for value type hence value translation is required.).
  * 
  * <pre>
  * {@code 
@@ -171,8 +173,9 @@ import com.google.common.collect.Lists;
  * </pre>
  * 
  * <P>
- * // Read data with configuration, value translation and key translation (Example scenario: Coders are not available for both key type and value type of InputFormat hence key and value
- * translation  is required.).
+ * // Read data with configuration, value translation and key translation (Example scenario: Coders
+ * are not available for both key type and value type of InputFormat hence key and value translation
+ * is required.).
  * 
  * <pre>
  * {@code 
@@ -232,8 +235,8 @@ import com.google.common.collect.Lists;
  * 
  * <h3>Read data from ElasticSearch using HadoopInputFormatIO transform</h3>
  * <p>
- * To read data from ElasticSearch, EsInputFormat can be used which needs
- * following properties to be set.
+ * To read data from ElasticSearch, EsInputFormat can be used which needs following properties to be
+ * set.
  * <p>
  * Create ElasticSearch Hadoop configuration as follows:
  * 
@@ -287,21 +290,35 @@ public class HadoopInputFormatIO {
     /**
      * Returns the Hadoop Configuration which contains specification of source.
      */
-    @Nullable public abstract SerializableConfiguration getConfiguration();
-    @Nullable public abstract SimpleFunction<?, K> getKeyTranslationFunction();
-    @Nullable public abstract SimpleFunction<?, V> getValueTranslationFunction();
-    @Nullable public abstract TypeDescriptor<K> getKeyClass();
-    @Nullable public abstract TypeDescriptor<V> getValueClass();
+    @Nullable
+    public abstract SerializableConfiguration getConfiguration();
+
+    @Nullable
+    public abstract SimpleFunction<?, K> getKeyTranslationFunction();
+
+    @Nullable
+    public abstract SimpleFunction<?, V> getValueTranslationFunction();
+
+    @Nullable
+    public abstract TypeDescriptor<K> getKeyClass();
+
+    @Nullable
+    public abstract TypeDescriptor<V> getValueClass();
 
     abstract Builder<K, V> toBuilder();
 
     @AutoValue.Builder
     abstract static class Builder<K, V> {
       abstract Builder<K, V> setConfiguration(SerializableConfiguration configuration);
+
       abstract Builder<K, V> setKeyTranslationFunction(SimpleFunction<?, K> function);
+
       abstract Builder<K, V> setValueTranslationFunction(SimpleFunction<?, V> function);
+
       abstract Builder<K, V> setKeyClass(TypeDescriptor<K> keyClass);
+
       abstract Builder<K, V> setValueClass(TypeDescriptor<V> valueClass);
+
       abstract Read<K, V> build();
     }
 
@@ -313,25 +330,38 @@ public class HadoopInputFormatIO {
      * Does not modify this object.
      */
     public Read<K, V> withConfiguration(Configuration configuration) {
-      checkNotNull(configuration, HadoopInputFormatIOContants.NULL_CONFIGURATION_ERROR_MSG);
-      inputFormatClass = TypeDescriptor
-          .of(configuration.getClass("mapreduce.job.inputformat.class", Object.class));
-      inputFormatKeyClass = TypeDescriptor.of(configuration.getClass("key.class", Object.class));
-      inputFormatValueClass =
-          TypeDescriptor.of(configuration.getClass("value.class", Object.class));
+      validateConfiguration(configuration);
+      inputFormatClass =
+          TypeDescriptor.of(configuration.getClass("mapreduce.job.inputformat.class", null));
+      inputFormatKeyClass = TypeDescriptor.of(configuration.getClass("key.class", null));
+      inputFormatValueClass = TypeDescriptor.of(configuration.getClass("value.class", null));
       // Sets the configuration.
       Builder<K, V> builder =
           toBuilder().setConfiguration(new SerializableConfiguration(configuration));
-      // Sets the output key class to InputFormat key class if withKeyTranslation() is not called yet.
+      // Sets the output key class to InputFormat key class if withKeyTranslation() is not called
+      // yet.
       if (this.getKeyClass() == null) {
         builder.setKeyClass((TypeDescriptor<K>) inputFormatKeyClass);
       }
-       // Sets the output value class to InputFormat value class if withValueTranslation() is not
-       // called yet.
+      // Sets the output value class to InputFormat value class if withValueTranslation() is not
+      // called yet.
       if (this.getValueClass() == null) {
         builder.setValueClass((TypeDescriptor<V>) inputFormatValueClass);
       }
       return builder.build();
+    }
+    
+    /**
+     * Validates that the mandatory configuration properties such as InputFormat class, InputFormat
+     * key class and InputFormat value class are provided in the given Hadoop configuration.
+     */
+    private void validateConfiguration(Configuration configuration) {
+      checkNotNull(configuration, HadoopInputFormatIOContants.NULL_CONFIGURATION_ERROR_MSG);
+      checkNotNull(configuration.get("mapreduce.job.inputformat.class"), HadoopInputFormatIOContants.MISSING_INPUTFORMAT_ERROR_MSG);
+      checkNotNull(configuration.get("key.class"),
+          HadoopInputFormatIOContants.MISSING_INPUTFORMAT_KEY_CLASS_ERROR_MSG);
+      checkNotNull(configuration.get("value.class"),
+          HadoopInputFormatIOContants.MISSING_INPUTFORMAT_VALUE_CLASS_ERROR_MSG);
     }
 
     /**
@@ -377,7 +407,6 @@ public class HadoopInputFormatIO {
     public void validate(PBegin input) {
       checkNotNull(this.getConfiguration(),
           HadoopInputFormatIOContants.MISSING_CONFIGURATION_ERROR_MSG);
-      validateConfiguration();
       // Validate that the key translation input type must be same as key class of InputFormat.
       validateTranslationFunction(inputFormatKeyClass, getKeyTranslationFunction(),
           HadoopInputFormatIOContants.WRONG_KEY_TRANSLATIONFUNC_ERROR_MSG);
@@ -387,31 +416,12 @@ public class HadoopInputFormatIO {
       getKeyAndValueCoder(input);
     }
 
-    /**
-     * Validates that the mandatory configuration properties such as
-     * InputFormat class, InputFormat key class and InputFormat value class are provided in the
-     * given Hadoop configuration.
-     */
-    private void validateConfiguration() {
-      if (inputFormatClass.getRawType().isInstance(Object.class)) {
-        throw new IllegalArgumentException(
-            HadoopInputFormatIOContants.MISSING_INPUTFORMAT_ERROR_MSG);
-      }
-      if (inputFormatKeyClass.getRawType().isInstance(Object.class)) {
-        throw new IllegalArgumentException(
-            HadoopInputFormatIOContants.MISSING_INPUTFORMAT_KEY_CLASS_ERROR_MSG);
-      }
-      if (inputFormatValueClass.getRawType().isInstance(Object.class)) {
-        throw new IllegalArgumentException(
-            HadoopInputFormatIOContants.MISSING_INPUTFORMAT_VALUE_CLASS_ERROR_MSG);
-      }
-    }
 
     /**
      * Validates translation function given for key/value translation.
      */
     private void validateTranslationFunction(TypeDescriptor<?> inputType,
-        SimpleFunction<?,?> simpleFunction, String errorMsg) {
+        SimpleFunction<?, ?> simpleFunction, String errorMsg) {
       if (simpleFunction != null) {
         if (!simpleFunction.getInputTypeDescriptor().equals(inputType)) {
           throw new IllegalArgumentException(
@@ -432,7 +442,8 @@ public class HadoopInputFormatIO {
 
     /**
      * Returns the default coder for a given type descriptor. If type descriptor class is of type
-     * Writable, then WritableCoder is returned, else CoderRegistry is queried for the correct coder.
+     * Writable, then WritableCoder is returned, else CoderRegistry is queried for the correct
+     * coder.
      */
     public <T> Coder<T> getDefaultCoder(TypeDescriptor<?> typeDesc, CoderRegistry coderRegistry) {
       Class classType = typeDesc.getRawType();
@@ -444,7 +455,8 @@ public class HadoopInputFormatIO {
         } catch (CannotProvideCoderException e) {
           throw new IllegalStateException(
               String.format(HadoopInputFormatIOContants.CANNOT_FIND_CODER_ERROR_MSG, typeDesc)
-                  + e.getMessage(),e);
+                  + e.getMessage(),
+              e);
         }
       }
     }
@@ -503,20 +515,14 @@ public class HadoopInputFormatIO {
     private transient List<SerializableSplit> inputSplits;
     private long boundedSourceEstimatedSize = 0;
 
-    public HadoopInputFormatBoundedSource(
-        SerializableConfiguration conf, 
-        Coder<K> keyCoder,
+    public HadoopInputFormatBoundedSource(SerializableConfiguration conf, Coder<K> keyCoder,
         Coder<V> valueCoder) {
       this(conf, keyCoder, valueCoder, null, null, null);
     }
 
-    public HadoopInputFormatBoundedSource(
-        SerializableConfiguration conf, 
-        Coder<K> keyCoder,
-        Coder<V> valueCoder, 
-        SimpleFunction<?, K> keyTranslationFunction,
-        SimpleFunction<?, V> valueTranslationFunction, 
-        SerializableSplit inputSplit) {
+    public HadoopInputFormatBoundedSource(SerializableConfiguration conf, Coder<K> keyCoder,
+        Coder<V> valueCoder, SimpleFunction<?, K> keyTranslationFunction,
+        SimpleFunction<?, V> valueTranslationFunction, SerializableSplit inputSplit) {
       this.conf = conf;
       this.inputSplit = inputSplit;
       this.keyCoder = keyCoder;
@@ -563,8 +569,7 @@ public class HadoopInputFormatIO {
               public BoundedSource<KV<K, V>> apply(SerializableSplit serializableInputSplit) {
                 HadoopInputFormatBoundedSource<K, V> hifBoundedSource =
                     new HadoopInputFormatBoundedSource<K, V>(conf, keyCoder, valueCoder,
-                        keyTranslationFunction, valueTranslationFunction,
-                        serializableInputSplit);
+                        keyTranslationFunction, valueTranslationFunction, serializableInputSplit);
                 return hifBoundedSource;
               }
             });
@@ -585,10 +590,9 @@ public class HadoopInputFormatIO {
 
 
     /**
-     * This is helper function to compute splits. This method will also calculates size
-     * of the data being read.
-     * Note : This method is called exactly once, the splits are retrieved and cached for further
-     * use by splitIntoBundles() and getEstimatesSizeBytes().
+     * This is helper function to compute splits. This method will also calculates size of the data
+     * being read. Note : This method is called exactly once, the splits are retrieved and cached
+     * for further use by splitIntoBundles() and getEstimatesSizeBytes().
      */
     private void computeSplits() throws IOException, IllegalAccessException, InstantiationException,
         InterruptedException, ClassNotFoundException {
@@ -633,16 +637,16 @@ public class HadoopInputFormatIO {
 
       private final HadoopInputFormatBoundedSource<K, V> source;
       private final InputSplit split;
-      @Nullable private final SimpleFunction<T, K> keyTranslationFunction;
-      @Nullable private final SimpleFunction<T, V> valueTranslationFunction;
+      @Nullable
+      private final SimpleFunction<T, K> keyTranslationFunction;
+      @Nullable
+      private final SimpleFunction<T, V> valueTranslationFunction;
       private volatile boolean doneReading = false;
       private long recordsReturned = 0L;
 
-      public HadoopInputFormatReader(
-          HadoopInputFormatBoundedSource<K, V> source,
-          @Nullable SimpleFunction keyTranslationFunction, 
-          @Nullable SimpleFunction valueTranslationFunction, 
-          InputSplit split) {
+      public HadoopInputFormatReader(HadoopInputFormatBoundedSource<K, V> source,
+          @Nullable SimpleFunction keyTranslationFunction,
+          @Nullable SimpleFunction valueTranslationFunction, InputSplit split) {
         this.source = source;
         this.split = split;
         this.keyTranslationFunction = keyTranslationFunction;
@@ -674,8 +678,9 @@ public class HadoopInputFormatIO {
               return true;
             }
           } else {
-            throw new IOException(String.format(
-                HadoopInputFormatIOContants.NULL_CREATE_RECORDREADER_ERROR_MSG, inputFormatObj.getClass()));
+            throw new IOException(
+                String.format(HadoopInputFormatIOContants.NULL_CREATE_RECORDREADER_ERROR_MSG,
+                    inputFormatObj.getClass()));
           }
         } catch (InterruptedException e) {
           throw new IOException(e);
@@ -722,12 +727,12 @@ public class HadoopInputFormatIO {
       }
 
       /**
-       * Return the serialized output by cloning.
-       * Given input is transformed with the given SimpleFunction.
+       * Return the serialized output by cloning. Given input is transformed with the given
+       * SimpleFunction.
        */
-      private <T1 extends Object> T1 transformKeyOrValue(T input, 
-          @Nullable SimpleFunction<T, T1> simpleFunction,
-          Coder<T1> coder) throws IOException, InterruptedException {
+      private <T1 extends Object> T1 transformKeyOrValue(T input,
+          @Nullable SimpleFunction<T, T1> simpleFunction, Coder<T1> coder)
+          throws IOException, InterruptedException {
         T1 output;
         if (null != simpleFunction) {
           output = simpleFunction.apply(input);
