@@ -41,6 +41,39 @@ from apache_beam.transforms.display_test import DisplayDataItemMatcher
 # compressed and uncompressed files.
 
 
+class TestCompressedFile(unittest.TestCase):
+
+  def create_temp_file(self, mode):
+    return tempfile.NamedTemporaryFile(mode=mode, delete=False)
+
+  def test_seekable(self):
+    readable = fileio._CompressedFile(self.create_temp_file('r'))
+    self.assertFalse(readable.seekable)
+
+    writeable = fileio._CompressedFile(self.create_temp_file('w'))
+    self.assertFalse(writeable.seekable)
+
+  def test_tell(self):
+    lines = ['line%d\n' % i for i in range(10)]
+    tmpfile = self.create_temp_file('w')
+    writeable = fileio._CompressedFile(tmpfile)
+    current_offset = 0
+    for line in lines:
+      writeable.write(line)
+      current_offset += len(line)
+      self.assertEqual(current_offset, writeable.tell())
+
+    writeable.close()
+    readable = fileio._CompressedFile(open(tmpfile.name))
+    current_offset = 0
+    while True:
+      line = readable.readline()
+      current_offset += len(line)
+      self.assertEqual(current_offset, readable.tell())
+      if not line:
+        break
+
+
 class TestTextFileSource(unittest.TestCase):
 
   def create_temp_file(self, text, suffix=''):

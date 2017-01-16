@@ -17,7 +17,9 @@
 
 """A source and a sink for reading from and writing to text files."""
 
+
 from __future__ import absolute_import
+import logging
 
 from apache_beam import coders
 from apache_beam.io import filebasedsource
@@ -31,7 +33,7 @@ __all__ = ['ReadFromText', 'WriteToText']
 
 
 class _TextSource(filebasedsource.FileBasedSource):
-  """A source for reading text files.
+  r"""A source for reading text files.
 
   Parses a text file as newline-delimited elements. Supports newline delimiters
   '\n' and '\r\n.
@@ -91,7 +93,10 @@ class _TextSource(filebasedsource.FileBasedSource):
     if skip_header_lines < 0:
       raise ValueError('Cannot skip negative number of header lines: %d',
                        skip_header_lines)
-
+    elif skip_header_lines > 10:
+      logging.warning(
+          'Skipping %d header lines. Skipping large number of header '
+          'lines might significantly slow down processing.')
     self._skip_header_lines = skip_header_lines
 
   def read_records(self, file_name, range_tracker):
@@ -99,17 +104,18 @@ class _TextSource(filebasedsource.FileBasedSource):
     read_buffer = _TextSource.ReadBuffer('', 0)
 
     with self.open_file(file_name) as file_to_read:
-      current_position = self._skip_lines(
+      position_after_skipping_header_lines = self._skip_lines(
           file_to_read, read_buffer,
           self._skip_header_lines) if self._skip_header_lines else 0
-      start_offset = max(start_offset, current_position)
-      if start_offset > current_position:
+      start_offset = max(start_offset, position_after_skipping_header_lines)
+      if start_offset > position_after_skipping_header_lines:
         # Seeking to one position before the start index and ignoring the
         # current line. If start_position is at beginning if the line, that line
         # belongs to the current bundle, hence ignoring that is incorrect.
         # Seeking to one byte before prevents that.
 
         file_to_read.seek(start_offset - 1)
+        read_buffer = _TextSource.ReadBuffer('', 0)
         sep_bounds = self._find_separator_bounds(file_to_read, read_buffer)
         if not sep_bounds:
           # Could not find a separator after (start_offset - 1). This means that
@@ -118,14 +124,13 @@ class _TextSource(filebasedsource.FileBasedSource):
 
         _, sep_end = sep_bounds
         read_buffer.data = read_buffer.data[sep_end:]
-        next_record_start_position = start_offset -1 + sep_end
+        next_record_start_position = start_offset - 1 + sep_end
       else:
-        next_record_start_position = current_position
+        next_record_start_position = position_after_skipping_header_lines
 
       while range_tracker.try_claim(next_record_start_position):
         record, num_bytes_to_next_record = self._read_record(file_to_read,
                                                              read_buffer)
-
         # For compressed text files that use an unsplittable OffsetRangeTracker
         # with infinity as the end position, above 'try_claim()' invocation
         # would pass for an empty record at the end of file that is not
@@ -187,6 +192,7 @@ class _TextSource(filebasedsource.FileBasedSource):
     return True
 
   def _skip_lines(self, file_to_read, read_buffer, num_lines):
+    """Skip num_lines from file_to_read, return num_lines+1 start position."""
     if file_to_read.tell() > 0:
       file_to_read.seek(0)
     position = 0
@@ -277,9 +283,10 @@ class ReadFromText(PTransform):
 
     super(ReadFromText, self).__init__(**kwargs)
     self._strip_trailing_newlines = strip_trailing_newlines
-    self._source = _TextSource(file_pattern, min_bundle_size, compression_type,
-                               strip_trailing_newlines, coder,
-                               validate=validate)
+    self._source = _TextSource(
+        file_pattern, min_bundle_size, compression_type,
+        strip_trailing_newlines, coder, validate=validate,
+        skip_header_lines=skip_header_lines)
 
   def expand(self, pvalue):
     return pvalue.pipeline | Read(self._source)

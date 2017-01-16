@@ -658,7 +658,10 @@ class _CompressedFile(object):
     self._data = ''
     self._read_size = read_size
     self._compression_type = compression_type
-
+    if self._file.tell() != 0:
+      raise ValueError('fileobj must be at position 0 but was %d' %
+                       self._file.tell())
+    self._uncompressed_position = 0
     if self._readable():
       if self._compression_type == CompressionTypes.BZIP2:
         self._decompressor = bz2.BZ2Decompressor()
@@ -702,6 +705,7 @@ class _CompressedFile(object):
     """Write data to file."""
     if not self._compressor:
       raise ValueError('compressor not initialized')
+    self._uncompressed_position += len(data)
     compressed = self._compressor.compress(data)
     if compressed:
       self._file.write(compressed)
@@ -738,6 +742,7 @@ class _CompressedFile(object):
     """Read up to num_bytes from the internal buffer."""
     # TODO: this can be optimized to avoid a string copy operation.
     result = self._data[:num_bytes]
+    self._uncompressed_position += len(result)
     self._data = self._data[num_bytes:]
     return result
 
@@ -785,6 +790,9 @@ class _CompressedFile(object):
   @property
   def seekable(self):
     return False
+
+  def tell(self):
+    return self._uncompressed_position
 
   def __enter__(self):
     return self
@@ -1083,8 +1091,8 @@ class TextFileSink(FileSink):
         coder=coder,
         mime_type='text/plain',
         compression_type=compression_type)
-    self.append_trailing_newlines = append_trailing_newlines
-    self.header = header
+    self._append_trailing_newlines = append_trailing_newlines
+    self._header = header
     if type(self) is TextFileSink:
       logging.warning('Direct usage of TextFileSink is deprecated. Please use '
                       '\'textio.WriteToText()\' instead of directly '
@@ -1092,16 +1100,16 @@ class TextFileSink(FileSink):
 
   def open(self, temp_path):
     file_handle = super(TextFileSink, self).open(temp_path)
-    if self.header is not None:
-      file_handle.write(self.header)
-      if self.append_trailing_newlines:
+    if self._header is not None:
+      file_handle.write(self._header)
+      if self._append_trailing_newlines:
         file_handle.write('\n')
     return file_handle
 
   def write_encoded_record(self, file_handle, encoded_value):
     """Writes a single encoded record."""
     file_handle.write(encoded_value)
-    if self.append_trailing_newlines:
+    if self._append_trailing_newlines:
       file_handle.write('\n')
 
 

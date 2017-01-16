@@ -507,6 +507,40 @@ class TextSourceTest(unittest.TestCase):
     self.assertEqual(len(data), len(read_data))
     self.assertItemsEqual(data, read_data)
 
+  def test_read_gzip_with_skip_lines(self):
+    _, lines = write_data(15)
+    file_name = tempfile.NamedTemporaryFile(
+        delete=False, prefix=tempfile.template).name
+    with gzip.GzipFile(file_name, 'wb') as f:
+      f.write('\n'.join(lines))
+
+    pipeline = beam.Pipeline('DirectRunner')
+    pcoll = pipeline | 'Read' >> ReadFromText(
+        file_name, 0, CompressionTypes.GZIP,
+        True, coders.StrUtf8Coder(), skip_header_lines=2)
+    assert_that(pcoll, equal_to(lines[2:]))
+    pipeline.run()
+
+  def test_read_after_splitting_skip_header(self):
+    file_name, expected_data = write_data(100)
+    assert len(expected_data) == 100
+    source = TextSource(file_name, 0, CompressionTypes.UNCOMPRESSED, True,
+                        coders.StrUtf8Coder(), skip_header_lines=2)
+    splits = [split for split in source.split(desired_bundle_size=33)]
+
+    reference_source_info = (source, None, None)
+    sources_info = ([
+        (split.source, split.start_position, split.stop_position) for
+        split in splits])
+    self.assertGreater(len(sources_info), 1)
+    reference_lines = source_test_utils.readFromSource(*reference_source_info)
+    split_lines = []
+    for source_info in sources_info:
+      split_lines.extend(source_test_utils.readFromSource(*source_info))
+
+    self.assertEqual(expected_data[2:], reference_lines)
+    self.assertEqual(reference_lines, split_lines)
+
 
 class TextSinkTest(unittest.TestCase):
 
@@ -586,7 +620,7 @@ class TextSinkTest(unittest.TestCase):
     with open(self.path, 'r') as f:
       self.assertEqual(f.read().splitlines(), header.splitlines() + self.lines)
 
-  def test_write_text_file_empty_with_heather(self):
+  def test_write_text_file_empty_with_header(self):
     header = 'header1\nheader2'
     sink = TextSink(self.path, header=header)
     self._write_lines(sink, [])
@@ -639,7 +673,9 @@ class TextSinkTest(unittest.TestCase):
   def test_write_dataflow_auto_compression_unsharded(self):
     pipeline = beam.Pipeline('DirectRunner')
     pcoll = pipeline | beam.core.Create('Create', self.lines)
-    pcoll | 'Write' >> WriteToText(self.path + '.gz', shard_name_template='')  # pylint: disable=expression-not-assigned
+    pcoll | 'Write' >> WriteToText(
+        self.path + '.gz',
+        shard_name_template='')  # pylint: disable=expression-not-assigned
     pipeline.run()
 
     read_result = []
@@ -649,7 +685,22 @@ class TextSinkTest(unittest.TestCase):
 
     self.assertEqual(read_result, self.lines)
 
+  def test_write_dataflow_header(self):
+    pipeline = beam.Pipeline('DirectRunner')
+    pcoll = pipeline | beam.core.Create('Create', self.lines)
+    header_text = 'foo'
+    pcoll | 'Write' >> WriteToText(
+        self.path + '.gz',
+        shard_name_template='',
+        header=header_text)  # pylint: disable=expression-not-assigned
+    pipeline.run()
 
+    read_result = []
+    for file_name in glob.glob(self.path + '*'):
+      with gzip.GzipFile(file_name, 'r') as f:
+        read_result.extend(f.read().splitlines())
+
+    self.assertEqual(read_result, [header_text] + self.lines)
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
   unittest.main()
