@@ -1,4 +1,4 @@
-package org.apache.beam.sdk.io.hadoop.inputformat.integration.tests;
+package org.apache.beam.sdk.io.hadoop.inputformat.unit.tests;
 
 import java.io.Serializable;
 import java.util.Arrays;
@@ -19,10 +19,12 @@ import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
+import org.junit.FixMethodOrder;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+import org.junit.runners.MethodSorters;
 
 import com.datastax.driver.core.Cluster;
 import com.datastax.driver.core.Row;
@@ -30,7 +32,13 @@ import com.datastax.driver.core.Session;
 import com.datastax.driver.mapping.annotations.Column;
 import com.datastax.driver.mapping.annotations.Table;
 
+/**
+ *
+ * Tests to validate HadoopInputFormatIO for embedded Cassandra instance.
+ *
+ */
 @RunWith(JUnit4.class)
+@FixMethodOrder(MethodSorters.JVM)
 public class HIFIOWithCassandraTest implements Serializable {
   private static final long serialVersionUID = 1L;
   private static final String CASSANDRA_KEYSPACE = "hif_keyspace";
@@ -60,6 +68,12 @@ public class HIFIOWithCassandraTest implements Serializable {
     session.execute("INSERT INTO person(person_id, person_name) values(1, 'David Bar');");
   }
 
+  /**
+   * Test to read data from embedded Cassandra instance and verify whether data is read
+   * successfully.
+   *
+   * @throws Exception
+   */
   @Test
   public void testHIFReadForCassandra() throws Exception {
     Pipeline p = TestPipeline.create();
@@ -83,6 +97,11 @@ public class HIFIOWithCassandraTest implements Serializable {
     p.run();
   }
 
+  /**
+   * Test to read data from embedded Cassandra instance based on query and verify whether data is
+   * read successfully.
+   * @throws Exception
+   */
   @Test
   public void testHIFReadForCassandraQuery() throws Exception {
     Pipeline p = TestPipeline.create();
@@ -109,7 +128,8 @@ public class HIFIOWithCassandraTest implements Serializable {
 
   @After
   public void dropTable() throws Exception {
-    session.execute("Drop TABLE person");
+    session.execute("Drop TABLE " + CASSANDRA_TABLE);
+    session.execute("Drop KEYSPACE " + CASSANDRA_KEYSPACE);
   }
 
   @AfterClass

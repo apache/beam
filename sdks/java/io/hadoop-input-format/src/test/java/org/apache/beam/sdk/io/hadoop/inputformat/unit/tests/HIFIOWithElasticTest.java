@@ -12,7 +12,7 @@
  * or implied. See the License for the specific language governing permissions and limitations under
  * the License.
  */
-package org.apache.beam.sdk.io.hadoop.inputformat.integration.tests;
+package org.apache.beam.sdk.io.hadoop.inputformat.unit.tests;
 
 import java.io.File;
 import java.io.IOException;
@@ -53,11 +53,20 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.junit.runners.MethodSorters;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
+/**
+ *
+ * Tests to validate HadoopInputFormatIO for embedded Elastic instance.
+ *
+ */
 @RunWith(JUnit4.class)
 @FixMethodOrder(MethodSorters.JVM)
 public class HIFIOWithElasticTest implements Serializable {
+
   private static final long serialVersionUID = 1L;
+  private static final Logger LOGGER = LoggerFactory.getLogger(HIFIOWithElasticTest.class);
   private static final String ELASTIC_IN_MEM_HOSTNAME = "127.0.0.1";
   private static final String ELASTIC_IN_MEM_PORT = "9200";
   private static final String ELASTIC_INTERNAL_VERSION = "5.x";
@@ -72,6 +81,10 @@ public class HIFIOWithElasticTest implements Serializable {
     ElasticEmbeddedServer.startElasticEmbeddedServer();
   }
 
+  /**
+   * Test to read data from embedded Elastic instance and verify whether data is read
+   * successfully.
+   */
   @Test
   public void testHifIOWithElastic() {
     TestPipeline p = TestPipeline.create();
@@ -84,13 +97,24 @@ public class HIFIOWithElasticTest implements Serializable {
     p.run().waitUntilFinish();
   }
 
+  /**
+   * Test to read data from embedded Elastic instance based on query and verify whether data is
+   * read successfully.
+   */
   @Test
   public void testHifIOWithElasticQuery() {
     TestPipeline p = TestPipeline.create();
     Configuration conf = getConfiguration();
-    String query = "{\n" + "  \"query\": {\n" + "  \"match\" : {\n" + "    \"empid\" : {\n"
-        + "      \"query\" : \"xyz22602\",\n" + "      \"type\" : \"boolean\"\n" + "    }\n"
-        + "  }\n" + "  }\n" + "}";
+    String query =
+        "{\n" + "  \"query\": {\n"
+              + "  \"match\" : {\n"
+              + "    \"empid\" : {\n"
+              + "      \"query\" : \"xyz22602\",\n"
+              + "      \"type\" : \"boolean\"\n"
+              + "    }\n"
+              + "  }\n"
+              + "  }\n"
+              + "}";
     conf.set(ConfigurationOptions.ES_QUERY, query);
     PCollection<KV<Text, MapWritable>> esData =
         p.apply(HadoopInputFormatIO.<Text, MapWritable>read().withConfiguration(conf));
@@ -136,8 +160,10 @@ public class HIFIOWithElasticTest implements Serializable {
               .put("http.enabled", TRUE).put("node.ingest", TRUE).build();
       node = new PluginNode(settings);
       node.start();
+      LOGGER.info("Elastic im memory server started..");
       prepareElasticIndex();
-
+      LOGGER.info("Prepared index " + ELASTIC_INDEX_NAME
+          + "and populated data on elastic in memory server..");
     }
 
     private static void prepareElasticIndex() {
@@ -161,7 +187,9 @@ public class HIFIOWithElasticTest implements Serializable {
     public static void shutdown() throws IOException {
       DeleteIndexRequest indexRequest = new DeleteIndexRequest(ELASTIC_INDEX_NAME);
       node.client().admin().indices().delete(indexRequest).actionGet();
+      LOGGER.info("Deleted index " + ELASTIC_INDEX_NAME + " from elastic in memory server");
       node.close();
+      LOGGER.info("Closed elastic in memory server node.");
       deleteElasticDataDirectory();
     }
 
