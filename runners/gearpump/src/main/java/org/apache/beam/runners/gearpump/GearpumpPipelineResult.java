@@ -42,8 +42,8 @@ public class GearpumpPipelineResult implements PipelineResult {
 
   private final ClientContext client;
   private final int appId;
-  private final Duration defaultWaitDuration = Duration.standardSeconds(60);
-  private final Duration defaultWaitInterval = Duration.standardSeconds(10);
+  private final Duration defaultWaitDuration = Duration.standardSeconds(30);
+  private final Duration defaultWaitInterval = Duration.standardSeconds(5);
 
   public GearpumpPipelineResult(ClientContext client, int appId) {
     this.client = client;
