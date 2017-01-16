@@ -1,6 +1,5 @@
 package cz.seznam.euphoria.fluent;
 
-import cz.seznam.euphoria.guava.shaded.com.google.common.collect.Sets;
 import cz.seznam.euphoria.core.client.dataset.windowing.Count;
 import cz.seznam.euphoria.core.client.functional.ReduceFunction;
 import cz.seznam.euphoria.core.client.io.Context;
@@ -8,7 +7,8 @@ import cz.seznam.euphoria.core.client.io.ListDataSink;
 import cz.seznam.euphoria.core.client.io.ListDataSource;
 import cz.seznam.euphoria.core.client.operator.ReduceByKey;
 import cz.seznam.euphoria.core.client.util.Pair;
-import cz.seznam.euphoria.core.executor.inmem.InMemExecutor;
+import cz.seznam.euphoria.guava.shaded.com.google.common.collect.Sets;
+import cz.seznam.euphoria.inmem.InMemExecutor;
 import org.junit.Test;
 
 import java.time.Duration;

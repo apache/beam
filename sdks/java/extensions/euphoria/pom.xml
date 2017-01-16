@@ -8,7 +8,7 @@
   <version>0.5.0-SNAPSHOT</version>
   <packaging>pom</packaging>
 
-  <name>euphoria-parent-${project.version}</name>
+  <name>${project.artifactId}-${project.version}</name>
 
   <scm>
     <connection>scm:git:git@gitlab.kancelar.seznam.cz:euphoria/euphoria.git</connection>
@@ -72,6 +72,7 @@
   <modules>
     <module>euphoria-core</module>
     <module>euphoria-fluent</module>
+    <module>euphoria-inmem</module>
     <module>euphoria-kafka</module>
     <module>euphoria-hadoop</module>
     <module>euphoria-testapps</module>
@@ -360,6 +361,12 @@
 
       <dependency>
         <groupId>cz.seznam.euphoria</groupId>
+        <artifactId>euphoria-inmem</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>cz.seznam.euphoria</groupId>
         <artifactId>euphoria-kafka_0.10</artifactId>
         <version>${project.version}</version>
       </dependency>
@@ -380,6 +387,13 @@
         <groupId>cz.seznam.euphoria</groupId>
         <artifactId>euphoria-hadoop</artifactId>
         <version>${project.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>cz.seznam.euphoria</groupId>
+        <artifactId>euphoria-operator-testkit</artifactId>
+        <version>${project.version}</version>
+        <scope>test</scope>
       </dependency>
 
       <!-- other dependencies -->

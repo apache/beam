@@ -9,9 +9,9 @@ import cz.seznam.euphoria.core.client.operator.ReduceByKey;
 import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.core.client.util.Sums;
 import cz.seznam.euphoria.core.executor.Executor;
-import cz.seznam.euphoria.core.executor.inmem.InMemExecutor;
 import cz.seznam.euphoria.core.util.Settings;
 import cz.seznam.euphoria.hadoop.input.HadoopTextFileSource;
+import cz.seznam.euphoria.inmem.InMemExecutor;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.Text;
 

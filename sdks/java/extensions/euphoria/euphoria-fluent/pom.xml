@@ -12,7 +12,7 @@
 
   <artifactId>euphoria-fluent</artifactId>
   <packaging>jar</packaging>
-  <name>euphoria-fluent-${project.version}</name>
+  <name>${project.artifactId}-${project.version}</name>
 
   <dependencies>
     <dependency>
@@ -24,6 +24,11 @@
       <artifactId>euphoria-core</artifactId>
     </dependency>
 
+    <dependency>
+      <groupId>cz.seznam.euphoria</groupId>
+      <artifactId>euphoria-inmem</artifactId>
+      <scope>test</scope>
+    </dependency>
     <dependency>
       <groupId>junit</groupId>
       <artifactId>junit</artifactId>
