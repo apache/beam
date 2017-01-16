@@ -17,12 +17,21 @@
  */
 package org.apache.beam.sdk.util;
 
+import static org.hamcrest.Matchers.anyOf;
+
+import com.google.common.base.Function;
 import com.google.common.base.Joiner;
+import com.google.common.base.Predicate;
 import com.google.common.base.Supplier;
+import com.google.common.collect.FluentIterable;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Multimap;
 import com.google.common.collect.Multimaps;
+import com.google.common.collect.Ordering;
 import com.google.common.collect.Sets;
 import com.google.common.reflect.ClassPath;
 import com.google.common.reflect.ClassPath.ClassInfo;
@@ -45,6 +54,11 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 import java.util.regex.Pattern;
+import javax.annotation.Nonnull;
+import org.hamcrest.Description;
+import org.hamcrest.Matcher;
+import org.hamcrest.StringDescription;
+import org.hamcrest.TypeSafeDiagnosingMatcher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -76,6 +90,231 @@ import org.slf4j.LoggerFactory;
 @SuppressWarnings("rawtypes")
 public class ApiSurface {
   private static final Logger LOG = LoggerFactory.getLogger(ApiSurface.class);
+
+  /**
+   * {@link Matcher}s for use in {@link ApiSurface} related tests that aim to keep the public API
+   * conformant to a hard-coded policy by controlling what classes are allowed to be exposed by an
+   * API surface.
+   */
+  // based on previous code by @kennknowles and others.
+  public static class Matchers {
+
+    private static class ClassInPackage extends TypeSafeDiagnosingMatcher<Class<?>> {
+
+      private final String packageName;
+
+      private ClassInPackage(final String packageName) {
+        this.packageName = packageName;
+      }
+
+      @Override
+      public void describeTo(final Description description) {
+        description.appendText("Classes in package \"");
+        description.appendText(packageName);
+        description.appendText("\"");
+      }
+
+      @Override
+      protected boolean matchesSafely(final Class<?> clazz,
+                                      final Description mismatchDescription) {
+        return clazz.getName().startsWith(packageName + ".");
+      }
+    }
+
+    private static class SurfaceMatcher extends TypeSafeDiagnosingMatcher<ApiSurface> {
+
+      private final Set<Matcher<Class<?>>> classMatchers;
+
+      private SurfaceMatcher(final Set<Matcher<Class<?>>> classMatchers) {
+        this.classMatchers = classMatchers;
+      }
+
+      private boolean verifyNoAbandoned(final ApiSurface checkedApiSurface,
+                                        final Set<Matcher<Class<?>>> allowedClasses,
+                                        final Description mismatchDescription) {
+
+        // <helper_lambdas>
+
+        final Function<Matcher<Class<?>>, String> toMessage =
+            new Function<Matcher<Class<?>>, String>() {
+
+              @Override
+              public String apply(@Nonnull final Matcher<Class<?>> abandonedClassMacther) {
+                final StringDescription description = new StringDescription();
+                description.appendText("No ");
+                abandonedClassMacther.describeTo(description);
+                return description.toString();
+              }
+            };
+
+        final Predicate<Matcher<Class<?>>> matchedByExposedClasses =
+            new Predicate<Matcher<Class<?>>>() {
+
+              @Override
+              public boolean apply(@Nonnull final Matcher<Class<?>> classMatcher) {
+                return
+                    FluentIterable
+                        .from(checkedApiSurface.getExposedClasses())
+                        .anyMatch(new Predicate<Class<?>>() {
+
+                          @Override
+                          public boolean apply(@Nonnull final Class<?> aClass) {
+                            return classMatcher.matches(aClass);
+                          }
+                        });
+              }
+            };
+
+        // </helper_lambdas>
+
+        final ImmutableSet<Matcher<Class<?>>> matchedClassMatchers =
+            FluentIterable
+                .from(allowedClasses)
+                .filter(matchedByExposedClasses)
+                .toSet();
+
+        final Sets.SetView<Matcher<Class<?>>> abandonedClassMatchers =
+            Sets.difference(allowedClasses, matchedClassMatchers);
+
+        final ImmutableList<String> messages =
+            FluentIterable
+                .from(abandonedClassMatchers)
+                .transform(toMessage)
+                .toSortedList(Ordering.<String>natural());
+
+        if (!messages.isEmpty()) {
+          mismatchDescription.appendText(
+              "The following white-listed scopes did not have matching classes on the API surface:"
+                  + "\n\t"
+                  + Joiner.on("\n\t").join(messages));
+        }
+
+        return messages.isEmpty();
+      }
+
+      private boolean verifyNoDisallowed(final ApiSurface checkedApiSurface,
+                                         final Set<Matcher<Class<?>>> allowedClasses,
+                                         final Description mismatchDescription) {
+
+    /* <helper_lambdas> */
+
+        final Function<Class<?>, List<Class<?>>> toExposure =
+            new Function<Class<?>, List<Class<?>>>() {
+
+              @Override
+              public List<Class<?>> apply(@Nonnull final Class<?> aClass) {
+                return checkedApiSurface.getAnyExposurePath(aClass);
+              }
+            };
+
+        final Maps.EntryTransformer<Class<?>, List<Class<?>>, String> toMessage =
+            new Maps.EntryTransformer<Class<?>, List<Class<?>>, String>() {
+
+              @Override
+              public String transformEntry(@Nonnull final Class<?> aClass,
+                                           @Nonnull final List<Class<?>> exposure) {
+                return aClass
+                    + " exposed via:\n\t\t"
+                    + Joiner.on("\n\t\t").join(exposure);
+              }
+            };
+
+        final Predicate<Class<?>> disallowed = new Predicate<Class<?>>() {
+
+          @Override
+          public boolean apply(@Nonnull final Class<?> aClass) {
+            return !classIsAllowed(aClass, allowedClasses);
+          }
+        };
+
+    /* </helper_lambdas> */
+
+        final FluentIterable<Class<?>> disallowedClasses =
+            FluentIterable
+                .from(checkedApiSurface.getExposedClasses())
+                .filter(disallowed);
+
+        final ImmutableMap<Class<?>, List<Class<?>>> exposures =
+            Maps.toMap(disallowedClasses, toExposure);
+
+        final ImmutableList<String> messages =
+            FluentIterable
+                .from(Maps.transformEntries(exposures, toMessage).values())
+                .toSortedList(Ordering.<String>natural());
+
+        if (!messages.isEmpty()) {
+          mismatchDescription.appendText(
+              "The following disallowed classes appeared on the API surface:\n\t"
+                  + Joiner.on("\n\t").join(messages));
+        }
+
+        return messages.isEmpty();
+      }
+
+      @SuppressWarnings({ "rawtypes", "unchecked" })
+      private boolean classIsAllowed(final Class<?> clazz,
+                                     final Set<Matcher<Class<?>>> allowedClasses) {
+        // Safe cast inexpressible in Java without rawtypes
+        return anyOf((Iterable) allowedClasses).matches(clazz);
+      }
+
+      @Override
+      protected boolean matchesSafely(final ApiSurface apiSurface,
+                                      final Description mismatchDescription) {
+        final boolean noDisallowed =
+            verifyNoDisallowed(apiSurface, classMatchers, mismatchDescription);
+
+        final boolean noAbandoned =
+            verifyNoAbandoned(apiSurface, classMatchers, mismatchDescription);
+
+        return noDisallowed & noAbandoned;
+      }
+
+      @Override
+      public void describeTo(final Description description) {
+        description.appendText("API surface to include only:" + "\n\t");
+        for (final Matcher<Class<?>> classMatcher : classMatchers) {
+          classMatcher.describeTo(description);
+          description.appendText("\n\t");
+        }
+      }
+
+    }
+
+    /**
+     * A factory method to create an {@link ApiSurface} matcher, producing a positive match
+     * if the set of class matchers passed in is exposed by the queried api surface,
+     * AND
+     * none of the provided class matchers remains unmatched.
+     *
+     * @param classMatchers the class matchers that will produce a positive match for this matcher.
+     */
+    public static Matcher<ApiSurface> containsOnlyClassesMatching(
+        final Set<Matcher<Class<?>>> classMatchers) {
+      return new SurfaceMatcher(classMatchers);
+    }
+
+    /**
+     * See {@link ApiSurface.Matchers#containsOnlyClassesMatching(Set)}.
+     */
+    @SafeVarargs
+    public static Matcher<ApiSurface> containsOnlyClassesMatching(
+        final Matcher<Class<?>>... classMatchers) {
+      return new SurfaceMatcher(Sets.newHashSet(classMatchers));
+    }
+
+    /**
+     * A factory method to create a {@link Class} matcher for classes residing in a given package.
+     *
+     * @param packageName the package whose classes will produce a positive match for this matcher.
+     */
+    public static Matcher<Class<?>> classesInPackage(final String packageName) {
+      return new ClassInPackage(packageName);
+    }
+
+  }
+
+  ///////////////
 
   /**
    * Returns an empty {@link ApiSurface}.
@@ -616,6 +855,7 @@ public class ApiSurface {
   public static ApiSurface getSdkApiSurface() throws IOException {
     return ApiSurface.ofPackage("org.apache.beam")
         .pruningPattern("org[.]apache[.]beam[.].*Test")
+
 
         // Exposes Guava, but not intended for users
         .pruningClassName("org.apache.beam.sdk.util.common.ReflectHelpers")

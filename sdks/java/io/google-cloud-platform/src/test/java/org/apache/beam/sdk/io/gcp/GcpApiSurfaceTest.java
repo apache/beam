@@ -17,14 +17,19 @@
  */
 package org.apache.beam.sdk.io.gcp;
 
-import static org.hamcrest.Matchers.equalTo;
+import static org.apache.beam.sdk.util.ApiSurface.Matchers.classesInPackage;
+import static org.apache.beam.sdk.util.ApiSurface.Matchers.containsOnlyClassesMatching;
+import static org.hamcrest.MatcherAssert.assertThat;
 
 import com.google.cloud.bigtable.grpc.BigtableInstanceName;
 import com.google.cloud.bigtable.grpc.BigtableTableName;
 import com.google.common.collect.ImmutableSet;
+import java.io.IOException;
 import java.util.Set;
-import org.apache.beam.sdk.util.ApiSurfaceVerification;
+import org.apache.beam.sdk.util.ApiSurface;
 import org.hamcrest.Matcher;
+import org.hamcrest.Matchers;
+import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
@@ -32,33 +37,48 @@ import org.junit.runners.JUnit4;
  * API surface verification for {@link org.apache.beam.sdk.io.gcp}.
  */
 @RunWith(JUnit4.class)
-public class GcpApiSurfaceTest extends ApiSurfaceVerification {
+public class GcpApiSurfaceTest {
 
-  @Override
-  protected Set<Matcher<? extends Class<?>>> allowedPackages() {
-    return
-        ImmutableSet.of(
-            inPackage("com.google.api.client.json"),
-            inPackage("com.google.api.client.util"),
-            inPackage("com.google.api.services.bigquery.model"),
-            inPackage("com.google.auth"),
-            inPackage("com.google.bigtable.v2"),
-            inPackage("com.google.cloud.bigtable.config"),
-            equalTo(BigtableInstanceName.class),
-            equalTo(BigtableTableName.class),
-            // https://github.com/GoogleCloudPlatform/cloud-bigtable-client/pull/1056
-            inPackage("com.google.common.collect"), // via Bigtable, PR above out to fix.
-            inPackage("com.google.datastore.v1"),
-            inPackage("com.google.protobuf"),
-            inPackage("com.google.type"),
-            inPackage("com.fasterxml.jackson.annotation"),
-            inPackage("com.fasterxml.jackson.core"),
-            inPackage("com.fasterxml.jackson.databind"),
-            inPackage("io.grpc"),
-            inPackage("java"),
-            inPackage("javax"),
-            inPackage("org.apache.beam"),
-            inPackage("org.apache.commons.logging"), // via Bigtable
-            inPackage("org.joda.time"));
+  @SuppressWarnings("unchecked")
+  private final Set<Matcher<Class<?>>> allowedClasses =
+      ImmutableSet.of(classesInPackage("com.google.api.client.json"),
+                      classesInPackage("com.google.api.client.util"),
+                      classesInPackage("com.google.api.services.bigquery.model"),
+                      classesInPackage("com.google.auth"),
+                      classesInPackage("com.google.bigtable.v2"),
+                      classesInPackage("com.google.cloud.bigtable.config"),
+                      Matchers.<Class<?>>equalTo(BigtableInstanceName.class),
+                      Matchers.<Class<?>>equalTo(BigtableTableName.class),
+                      // https://github.com/GoogleCloudPlatform/cloud-bigtable-client/pull/1056
+                      classesInPackage("com.google.common.collect"),
+                      // via Bigtable, PR above out to fix.
+                      classesInPackage("com.google.datastore.v1"),
+                      classesInPackage("com.google.protobuf"),
+                      classesInPackage("com.google.type"),
+                      classesInPackage("com.fasterxml.jackson.annotation"),
+                      classesInPackage("com.fasterxml.jackson.core"),
+                      classesInPackage("com.fasterxml.jackson.databind"),
+                      classesInPackage("io.grpc"),
+                      classesInPackage("java"),
+                      classesInPackage("javax"),
+                      classesInPackage("org.apache.beam"),
+                      classesInPackage("org.apache.commons.logging"),
+                      // via Bigtable
+                      classesInPackage("org.joda.time"));
+
+  private final ApiSurface apiSurface =
+      ApiSurface
+          .ofPackage(getClass().getPackage().getName())
+          .pruningPattern("org[.]apache[.]beam[.].*Test.*")
+          .pruningPattern("org[.]apache[.]beam[.].*IT")
+          .pruningPattern("java[.]lang.*");
+
+  // required on account of the apiSurface field
+  public GcpApiSurfaceTest() throws IOException {
+  }
+
+  @Test
+  public void testGcpApiSurface() throws Exception {
+    assertThat(apiSurface, containsOnlyClassesMatching(allowedClasses));
   }
 }
