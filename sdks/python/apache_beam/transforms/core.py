@@ -323,10 +323,7 @@ class CallableWrapperDoFn(NewDoFn):
       raise TypeError('Expected a callable object instead of: %r' % fn)
 
     self._fn = fn
-    if _fn_takes_side_inputs(fn):
-      self.process = fn
-    else:
-      self.process = lambda e: fn(e)
+    self.process = fn
 
     super(CallableWrapperDoFn, self).__init__()
 
@@ -672,7 +669,7 @@ class ParDo(PTransformWithSideInputs):
   def __init__(self, fn_or_label, *args, **kwargs):
     super(ParDo, self).__init__(fn_or_label, *args, **kwargs)
 
-    if not (isinstance(self.fn, DoFn) or isinstance(self.fn, NewDoFn)):
+    if not isinstance(self.fn, (DoFn, NewDoFn)):
       raise TypeError('ParDo must be called with a DoFn instance.')
 
   def default_type_hints(self):
@@ -683,7 +680,7 @@ class ParDo(PTransformWithSideInputs):
         self.fn.infer_output_type(input_type))
 
   def make_fn(self, fn):
-    if isinstance(fn, DoFn) or isinstance(fn, NewDoFn):
+    if isinstance(fn, (DoFn, NewDoFn)):
       return fn
     return CallableWrapperDoFn(fn)
 

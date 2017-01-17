@@ -72,27 +72,33 @@ class DoFnRunner(Receiver):
                # Preferred alternative to context
                # TODO(robertwb): Remove once all runners are updated.
                state=None):
+    self.step_name = step_name
+    self.window_fn = windowing.windowfn
+    self.tagged_receivers = tagged_receivers
+
+    global_window = window.GlobalWindow()
+
+    if logging_context:
+      self.logging_context = logging_context
+    else:
+      self.logging_context = get_logging_context(logger, step_name=step_name)
+
+    # Optimize for the common case.
+    self.main_receivers = as_receiver(tagged_receivers[None])
+
+    # TODO(sourabh): Deprecate the use of context
+    if state:
+      assert context is None
+      self.context = DoFnContext(self.step_name, state=state)
+    else:
+      assert context is not None
+      self.context = context
+
     # TODO(Sourabhbajaj): Remove the usage of OldDoFn
     if isinstance(fn, core.NewDoFn):
       self.is_new_dofn = True
-      self.step_name = step_name
-      self.window_fn = windowing.windowfn
-      self.tagged_receivers = tagged_receivers
-
-      # TODO(sourabh): Deprecate the use of context
-      # TODO(sourabh): Move state to be independent
-      if context is not None:
-        self.context = context
-      else:
-        self.context = DoFnContext(step_name, state=state)
-
-      # TODO(Sourabhbajaj): The old code validates that state and context are
-      # mutually exclusive. That shouldn't matter anymore as we're trying to
-      # deprecate that.
-      self.state = state
 
       # SideInputs
-      global_window = window.GlobalWindow()
       self.side_inputs = [side_input
                           if isinstance(side_input, sideinputs.SideInputMap)
                           else {global_window: side_input}
@@ -100,22 +106,10 @@ class DoFnRunner(Receiver):
 
       self.args = args if args else []
       self.kwargs = kwargs if kwargs else {}
-
-      if logging_context:
-        self.logging_context = logging_context
-      else:
-        self.logging_context = get_logging_context(logger, step_name=step_name)
-
-      # Optimize for the common case.
-      self.main_receivers = as_receiver(tagged_receivers[None])
-
-      # we've removed curried Fn from everything and instead callableWrapperFn
-      # should take care of this.
       self.dofn = fn
 
     else:
       self.is_new_dofn = False
-
       self.has_windowed_side_inputs = False  # Set to True in one case below.
       if not args and not kwargs:
         self.dofn = fn
@@ -157,24 +151,6 @@ class DoFnRunner(Receiver):
 
         self.dofn = CurriedFn()
 
-      self.window_fn = windowing.windowfn
-      self.tagged_receivers = tagged_receivers
-      self.step_name = step_name
-
-      if state:
-        assert context is None
-        self.context = DoFnContext(self.step_name, state=state)
-      else:
-        assert context is not None
-        self.context = context
-
-      if logging_context:
-        self.logging_context = logging_context
-      else:
-        self.logging_context = get_logging_context(logger, step_name=step_name)
-
-      # Optimize for the common case.
-      self.main_receivers = as_receiver(tagged_receivers[None])
 
   def receive(self, windowed_value):
     self.process(windowed_value)
@@ -201,8 +177,8 @@ class DoFnRunner(Receiver):
     # Call for the process function for each window if has windowed side inputs
     # otherwise we can optimize the runner by calling process for entire window
     # set in one go.
-    if all(isinstance(s, dict) or s.is_globally_windowed()
-           for s in self.side_inputs):
+    if all(isinstance(si, dict) or si.is_globally_windowed()
+           for si in self.side_inputs):
       windows = [(window.GlobalWindow(), element.windows)]
     else:
       windows = [(w, (w,)) for w in element.windows]
