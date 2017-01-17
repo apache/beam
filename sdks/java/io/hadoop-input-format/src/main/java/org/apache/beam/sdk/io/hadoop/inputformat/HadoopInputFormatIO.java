@@ -683,13 +683,13 @@ public class HadoopInputFormatIO {
                     inputFormatObj.getClass()));
           }
         } catch (InterruptedException e) {
-          throw new IOException(e);
+          throw new IOException("Unable to read data : ",e);
         } catch (InstantiationException e) {
-          throw new IOException(e);
+          throw new IOException("Unable to create InputFormat : ",e);
         } catch (IllegalAccessException e) {
-          throw new IOException(e);
+          throw new IOException("Unable to create InputFormat : ",e);
         } catch (ClassNotFoundException e) {
-          throw new IOException(e);
+          throw new IOException("Unable to create InputFormat : ",e);
         }
         currentReader = null;
         currentRecord = null;
@@ -707,7 +707,7 @@ public class HadoopInputFormatIO {
           currentRecord = null;
           doneReading = true;
         } catch (InterruptedException e) {
-          throw new IOException(e);
+          throw new IOException("Unable to read data : ",e);
         }
         return false;
       }
@@ -747,16 +747,12 @@ public class HadoopInputFormatIO {
        * RecordReader as Beam needs immutable objects.
        */
       private <T1 extends Object> T1 clone(T1 input, Coder<T1> coder)
-          throws IOException, InterruptedException, CoderException {
+          throws IOException, InterruptedException, CoderException, ClassCastException{
         // If the input object is not of known immutable type, clone the object.
-        try {
           if (!isKnownImmutable(input)) {
             input = CoderUtils.clone(coder, input);
           }
-        } catch (ClassCastException e) {
-          // Throws exception if wrong InputFormat key/value class set in configuration.
-          throw e;
-        }
+       
         return input;
       }
 
@@ -860,7 +856,7 @@ public class HadoopInputFormatIO {
           split = (InputSplit) Class.forName(className).newInstance();
           ((Writable) split).readFields(in);
         } catch (InstantiationException | IllegalAccessException e) {
-          throw new IOException(e);
+          throw new IOException("Unable to create split : "+e);
         }
       }
     }
@@ -905,7 +901,7 @@ public class HadoopInputFormatIO {
         conf = (Configuration) Class.forName(className).newInstance();
         conf.readFields(in);
       } catch (InstantiationException | IllegalAccessException e) {
-        throw new IOException(e);
+        throw new IOException("Unable to create configuration : "+e);
       }
     }
   }
