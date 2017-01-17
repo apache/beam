@@ -16,24 +16,35 @@
  * limitations under the License.
  */
 
-package org.apache.beam.runners.spark.aggregators.metrics.sink;
+package org.apache.beam.runners.spark.metrics;
 
 import com.codahale.metrics.MetricRegistry;
 
-import java.util.Properties;
+import org.apache.spark.metrics.source.Source;
 
-import org.apache.beam.runners.spark.aggregators.metrics.AggregatorMetric;
-import org.apache.beam.runners.spark.aggregators.metrics.WithNamedAggregatorsSupport;
-import org.apache.spark.metrics.sink.Sink;
 
 /**
- * A Spark {@link Sink} that is tailored to report {@link AggregatorMetric} metrics
- * to Graphite.
+ * A Spark {@link Source} that is tailored to expose a {@link SparkBeamMetric},
+ * wrapping an underlying {@link SparkMetricsContainer} instance.
  */
-public class GraphiteSink extends org.apache.spark.metrics.sink.GraphiteSink {
-  public GraphiteSink(final Properties properties,
-                      final MetricRegistry metricRegistry,
-                      final org.apache.spark.SecurityManager securityMgr) {
-    super(properties, WithNamedAggregatorsSupport.forRegistry(metricRegistry), securityMgr);
+public class SparkBeamMetricSource implements Source {
+
+  private final String sourceName;
+
+  private final MetricRegistry metricRegistry = new MetricRegistry();
+
+  public SparkBeamMetricSource(final String appName) {
+    sourceName = appName;
+    metricRegistry.register("Beam.Metrics", new SparkBeamMetric());
+  }
+
+  @Override
+  public String sourceName() {
+    return sourceName;
+  }
+
+  @Override
+  public MetricRegistry metricRegistry() {
+    return metricRegistry;
   }
 }

@@ -39,8 +39,10 @@ class DoFnRunnerWithMetrics<InputT, OutputT> implements DoFnRunner<InputT, Outpu
   private final String stepName;
   private final Accumulator<SparkMetricsContainer> metricsAccum;
 
-  DoFnRunnerWithMetrics(String stepName, DoFnRunner<InputT, OutputT> delegate,
-                        Accumulator<SparkMetricsContainer>metricsAccum) {
+  DoFnRunnerWithMetrics(
+      String stepName,
+      DoFnRunner<InputT, OutputT> delegate,
+      Accumulator<SparkMetricsContainer> metricsAccum) {
     this.delegate = delegate;
     this.stepName = stepName;
     this.metricsAccum = metricsAccum;
@@ -48,51 +50,42 @@ class DoFnRunnerWithMetrics<InputT, OutputT> implements DoFnRunner<InputT, Outpu
 
   @Override
   public void startBundle() {
-    doWithMetricsContainer(new Runnable() {
-      @Override
-      public void run() {
-        delegate.startBundle();
-      }
-    });
+    try (Closeable ignored = MetricsEnvironment.scopedMetricsContainer(metricsContainer())) {
+      delegate.startBundle();
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
   }
 
   @Override
   public void processElement(final WindowedValue<InputT> elem) {
-    doWithMetricsContainer(new Runnable() {
-      @Override
-      public void run() {
-        delegate.processElement(elem);
-      }
-    });
+    try (Closeable ignored = MetricsEnvironment.scopedMetricsContainer(metricsContainer())) {
+      delegate.processElement(elem);
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
   }
 
   @Override
   public void onTimer(final String timerId, final BoundedWindow window, final Instant timestamp,
                       final TimeDomain timeDomain) {
-    doWithMetricsContainer(new Runnable() {
-      @Override
-      public void run() {
-        delegate.onTimer(timerId, window, timestamp, timeDomain);
-      }
-    });
+    try (Closeable ignored = MetricsEnvironment.scopedMetricsContainer(metricsContainer())) {
+      delegate.onTimer(timerId, window, timestamp, timeDomain);
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
   }
 
   @Override
   public void finishBundle() {
-    doWithMetricsContainer(new Runnable() {
-      @Override
-      public void run() {
-        delegate.finishBundle();
-      }
-    });
-  }
-
-  private void doWithMetricsContainer(Runnable runnable) {
-    MetricsContainer metricsContainer = metricsAccum.localValue().getContainer(stepName);
-    try (Closeable ignored = MetricsEnvironment.scopedMetricsContainer(metricsContainer)) {
-      runnable.run();
+    try (Closeable ignored = MetricsEnvironment.scopedMetricsContainer(metricsContainer())) {
+      delegate.finishBundle();
     } catch (IOException e) {
       throw new RuntimeException(e);
     }
+  }
+
+  private MetricsContainer metricsContainer() {
+    return metricsAccum.localValue().getContainer(stepName);
   }
 }

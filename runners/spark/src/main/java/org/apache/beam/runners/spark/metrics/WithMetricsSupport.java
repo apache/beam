@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.beam.runners.spark.aggregators.metrics;
+package org.apache.beam.runners.spark.metrics;
 
 import com.codahale.metrics.Counter;
 import com.codahale.metrics.Gauge;
@@ -26,45 +26,42 @@ import com.codahale.metrics.Metric;
 import com.codahale.metrics.MetricFilter;
 import com.codahale.metrics.MetricRegistry;
 import com.codahale.metrics.Timer;
-
 import com.google.common.base.Function;
 import com.google.common.base.Optional;
 import com.google.common.base.Predicate;
 import com.google.common.base.Predicates;
 import com.google.common.collect.FluentIterable;
-import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSortedMap;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Ordering;
-
+import java.util.HashMap;
 import java.util.Map;
 import java.util.SortedMap;
-
 import org.apache.beam.runners.spark.aggregators.NamedAggregators;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+
 /**
- * A {@link MetricRegistry} decorator-like* that supports {@link AggregatorMetric} by exposing
- * the underlying * {@link org.apache.beam.runners.spark.aggregators.NamedAggregators}'
- * aggregators as {@link Gauge}s.
+ * A {@link MetricRegistry} decorator-like that supports {@link AggregatorMetric} and
+ * {@link SparkBeamMetric} as {@link Gauge Gauges}.
  * <p>
- * *{@link MetricRegistry} is not an interface, so this is not a by-the-book decorator.
+ * {@link MetricRegistry} is not an interface, so this is not a by-the-book decorator.
  * That said, it delegates all metric related getters to the "decorated" instance.
  * </p>
  */
-public class WithNamedAggregatorsSupport extends MetricRegistry {
+public class WithMetricsSupport extends MetricRegistry {
 
-  private static final Logger LOG = LoggerFactory.getLogger(WithNamedAggregatorsSupport.class);
+  private static final Logger LOG = LoggerFactory.getLogger(WithMetricsSupport.class);
 
-  private MetricRegistry internalMetricRegistry;
+  private final MetricRegistry internalMetricRegistry;
 
-  private WithNamedAggregatorsSupport(final MetricRegistry internalMetricRegistry) {
+  private WithMetricsSupport(final MetricRegistry internalMetricRegistry) {
     this.internalMetricRegistry = internalMetricRegistry;
   }
 
-  public static WithNamedAggregatorsSupport forRegistry(final MetricRegistry metricRegistry) {
-    return new WithNamedAggregatorsSupport(metricRegistry);
+  public static WithMetricsSupport forRegistry(final MetricRegistry metricRegistry) {
+    return new WithMetricsSupport(metricRegistry);
   }
 
   @Override
@@ -99,27 +96,56 @@ public class WithNamedAggregatorsSupport extends MetricRegistry {
 
   private Map<String, Gauge> extractGauges(final MetricRegistry metricRegistry,
                                            final MetricFilter filter) {
+    Map<String, Gauge> gauges = new HashMap<>();
 
     // find the AggregatorMetric metrics from within all currently registered metrics
-    final Optional<Map<String, Gauge>> gauges =
+    final Optional<Map<String, Gauge>> aggregatorMetrics =
         FluentIterable
             .from(metricRegistry.getMetrics().entrySet())
             .firstMatch(isAggregatorMetric())
-            .transform(toGauges());
+            .transform(aggregatorMetricToGauges());
 
-    return
-        gauges.isPresent()
-            ? Maps.filterEntries(gauges.get(), matches(filter))
-            : ImmutableMap.<String, Gauge>of();
+    // find the SparkBeamMetric metrics from within all currently registered metrics
+    final Optional<Map<String, Gauge>> beamMetrics =
+        FluentIterable
+            .from(metricRegistry.getMetrics().entrySet())
+            .firstMatch(isSparkBeamMetric())
+            .transform(beamMetricToGauges());
+
+    if (aggregatorMetrics.isPresent()) {
+      gauges.putAll(Maps.filterEntries(aggregatorMetrics.get(), matches(filter)));
+    }
+
+    if (beamMetrics.isPresent()) {
+      gauges.putAll(Maps.filterEntries(beamMetrics.get(), matches(filter)));
+    }
+
+    return gauges;
   }
 
-  private Function<Map.Entry<String, Metric>, Map<String, Gauge>> toGauges() {
+  private Function<Map.Entry<String, Metric>, Map<String, Gauge>> aggregatorMetricToGauges() {
     return new Function<Map.Entry<String, Metric>, Map<String, Gauge>>() {
       @Override
       public Map<String, Gauge> apply(final Map.Entry<String, Metric> entry) {
         final NamedAggregators agg = ((AggregatorMetric) entry.getValue()).getNamedAggregators();
         final String parentName = entry.getKey();
         final Map<String, Gauge> gaugeMap = Maps.transformEntries(agg.renderAll(), toGauge());
+        final Map<String, Gauge> fullNameGaugeMap = Maps.newLinkedHashMap();
+        for (Map.Entry<String, Gauge> gaugeEntry : gaugeMap.entrySet()) {
+          fullNameGaugeMap.put(parentName + "." + gaugeEntry.getKey(), gaugeEntry.getValue());
+        }
+        return Maps.filterValues(fullNameGaugeMap, Predicates.notNull());
+      }
+    };
+  }
+
+  private Function<Map.Entry<String, Metric>, Map<String, Gauge>> beamMetricToGauges() {
+    return new Function<Map.Entry<String, Metric>, Map<String, Gauge>>() {
+      @Override
+      public Map<String, Gauge> apply(final Map.Entry<String, Metric> entry) {
+        final Map<String, ?> metrics = ((SparkBeamMetric) entry.getValue()).renderAll();
+        final String parentName = entry.getKey();
+        final Map<String, Gauge> gaugeMap = Maps.transformEntries(metrics, toGauge());
         final Map<String, Gauge> fullNameGaugeMap = Maps.newLinkedHashMap();
         for (Map.Entry<String, Gauge> gaugeEntry : gaugeMap.entrySet()) {
           fullNameGaugeMap.put(parentName + "." + gaugeEntry.getKey(), gaugeEntry.getValue());
@@ -168,6 +194,15 @@ public class WithNamedAggregatorsSupport extends MetricRegistry {
       @Override
       public boolean apply(final Map.Entry<String, Metric> metricEntry) {
         return (metricEntry.getValue() instanceof AggregatorMetric);
+      }
+    };
+  }
+
+  private Predicate<Map.Entry<String, Metric>> isSparkBeamMetric() {
+    return new Predicate<Map.Entry<String, Metric>>() {
+      @Override
+      public boolean apply(final Map.Entry<String, Metric> metricEntry) {
+        return (metricEntry.getValue() instanceof SparkBeamMetric);
       }
     };
   }

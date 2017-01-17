@@ -85,7 +85,7 @@ public class SparkAggregators {
   public static Accumulator<NamedAggregators> getOrCreateNamedAggregators(
       JavaSparkContext jsc,
       Optional<CheckpointDir> checkpointDir) {
-    return AccumulatorSingleton.getInstance(jsc, checkpointDir);
+    return AggregatorsAccumulator.getInstance(jsc, checkpointDir);
   }
 
   /**

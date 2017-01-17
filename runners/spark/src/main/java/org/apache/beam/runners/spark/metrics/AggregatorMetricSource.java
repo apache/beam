@@ -16,29 +16,35 @@
  * limitations under the License.
  */
 
-package org.apache.beam.runners.spark.aggregators.metrics;
+package org.apache.beam.runners.spark.metrics;
 
-import com.codahale.metrics.Metric;
-
+import com.codahale.metrics.MetricRegistry;
 import org.apache.beam.runners.spark.aggregators.NamedAggregators;
+import org.apache.spark.metrics.source.Source;
+
 
 /**
- * An adapter between the {@link NamedAggregators} and codahale's {@link Metric}
- * interface.
+ * A Spark {@link Source} that is tailored to expose an {@link AggregatorMetric},
+ * wrapping an underlying {@link NamedAggregators} instance.
  */
-public class AggregatorMetric implements Metric {
+public class AggregatorMetricSource implements Source {
 
-  private final NamedAggregators namedAggregators;
+  private final String sourceName;
 
-  private AggregatorMetric(final NamedAggregators namedAggregators) {
-    this.namedAggregators = namedAggregators;
+  private final MetricRegistry metricRegistry = new MetricRegistry();
+
+  public AggregatorMetricSource(final String appName, final NamedAggregators aggregators) {
+    sourceName = appName;
+    metricRegistry.register("Beam.Aggregators", AggregatorMetric.of(aggregators));
   }
 
-  public static AggregatorMetric of(final NamedAggregators namedAggregators) {
-    return new AggregatorMetric(namedAggregators);
+  @Override
+  public String sourceName() {
+    return sourceName;
   }
 
-  NamedAggregators getNamedAggregators() {
-    return namedAggregators;
+  @Override
+  public MetricRegistry metricRegistry() {
+    return metricRegistry;
   }
 }

@@ -40,8 +40,8 @@ import org.slf4j.LoggerFactory;
  * For resilience, {@link Accumulator}s are required to be wrapped in a Singleton.
  * @see <a href="https://spark.apache.org/docs/1.6.3/streaming-programming-guide.html#accumulators-and-broadcast-variables">accumulators</a>
  */
-public class AccumulatorSingleton {
-  private static final Logger LOG = LoggerFactory.getLogger(AccumulatorSingleton.class);
+public class AggregatorsAccumulator {
+  private static final Logger LOG = LoggerFactory.getLogger(AggregatorsAccumulator.class);
 
   private static final String ACCUMULATOR_CHECKPOINT_FILENAME = "beam_aggregators";
 
@@ -56,7 +56,7 @@ public class AccumulatorSingleton {
       JavaSparkContext jsc,
       Optional<CheckpointDir> checkpointDir) {
     if (instance == null) {
-      synchronized (AccumulatorSingleton.class) {
+      synchronized (AggregatorsAccumulator.class) {
         if (instance == null) {
           instance = jsc.sc().accumulator(new NamedAggregators(), new AggAccumParam());
           if (checkpointDir.isPresent()) {
@@ -116,7 +116,7 @@ public class AccumulatorSingleton {
 
   @VisibleForTesting
   static void clear() {
-    synchronized (AccumulatorSingleton.class) {
+    synchronized (AggregatorsAccumulator.class) {
       instance = null;
     }
   }
