@@ -782,7 +782,7 @@ class WriteImpl(ptransform.PTransform):
         min_shards)
 
 
-class _WriteBundleDoFn(core.DoFn):
+class _WriteBundleDoFn(core.NewDoFn):
   """A DoFn for writing elements to an iobase.Writer.
 
   Opens a writer at the first element and closes the writer at finish_bundle().
@@ -791,12 +791,12 @@ class _WriteBundleDoFn(core.DoFn):
   def __init__(self):
     self.writer = None
 
-  def process(self, context, sink, init_result):
+  def process(self, element, sink, init_result=core.NewDoFn.SideInputParam):
     if self.writer is None:
       self.writer = sink.open_writer(init_result, str(uuid.uuid4()))
-    self.writer.write(context.element)
+    self.writer.write(element)
 
-  def finish_bundle(self, context, *args, **kwargs):
+  def finish_bundle(self, *args, **kwargs):
     if self.writer is not None:
       yield window.TimestampedValue(self.writer.close(), window.MAX_TIMESTAMP)
 
@@ -822,19 +822,19 @@ def _finalize_write(_, sink, init_result, write_results, min_shards):
     return (window.TimestampedValue(v, window.MAX_TIMESTAMP) for v in outputs)
 
 
-class _RoundRobinKeyFn(core.DoFn):
+class _RoundRobinKeyFn(core.NewDoFn):
 
   def __init__(self, count):
     self.count = count
 
-  def start_bundle(self, context):
+  def start_bundle(self):
     self.counter = random.randint(0, self.count - 1)
 
-  def process(self, context):
+  def process(self, element):
     self.counter += 1
     if self.counter >= self.count:
       self.counter -= self.count
-    yield self.counter, context.element
+    yield self.counter, element
 
 
 # For backwards compatibility.

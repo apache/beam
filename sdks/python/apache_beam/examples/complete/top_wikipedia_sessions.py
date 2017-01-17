@@ -57,11 +57,11 @@ THIRTY_DAYS_IN_SECONDS = 30 * 24 * ONE_HOUR_IN_SECONDS
 MAX_TIMESTAMP = 0x7fffffffffffffff
 
 
-class ExtractUserAndTimestampDoFn(beam.DoFn):
+class ExtractUserAndTimestampDoFn(beam.NewDoFn):
   """Extracts user and timestamp representing a Wikipedia edit."""
 
-  def process(self, context):
-    table_row = json.loads(context.element)
+  def process(self, element):
+    table_row = json.loads(element)
     if 'contributor_username' in table_row:
       user_name = table_row['contributor_username']
       timestamp = table_row['timestamp']
@@ -101,23 +101,23 @@ class TopPerMonth(beam.PTransform):
             .without_defaults())
 
 
-class SessionsToStringsDoFn(beam.DoFn):
+class SessionsToStringsDoFn(beam.NewDoFn):
   """Adds the session information to be part of the key."""
 
-  def process(self, context):
-    yield (context.element[0] + ' : ' +
-           ', '.join([str(w) for w in context.windows]), context.element[1])
+  def process(self, element, windows=beam.NewDoFn.WindowsParam):
+    yield (element[0] + ' : ' +
+           ', '.join([str(w) for w in windows]), element[1])
 
 
-class FormatOutputDoFn(beam.DoFn):
+class FormatOutputDoFn(beam.NewDoFn):
   """Formats a string containing the user, count, and session."""
 
-  def process(self, context):
-    for kv in context.element:
+  def process(self, element, windows=beam.NewDoFn.WindowsParam):
+    for kv in element:
       session = kv[0]
       count = kv[1]
       yield (session + ' : ' + str(count) + ' : '
-             + ', '.join([str(w) for w in context.windows]))
+             + ', '.join([str(w) for w in windows]))
 
 
 class ComputeTopSessions(beam.PTransform):
