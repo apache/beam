@@ -213,6 +213,17 @@ class NewDoFn(WithTypeHints, HasDisplayData):
     """
     return self.process
 
+  def is_process_bounded(self):
+    """Checks if an object is a bound method on an instance."""
+    if not isinstance(self.process, types.MethodType):
+      return False # Not a method
+    if self.process.im_self is None:
+      return False # Method is not bound
+    if issubclass(self.process.im_class, type) or \
+        self.process.im_class is types.ClassType:
+      return False # Method is a classmethod
+    return True
+
 
 # TODO(Sourabh): Remove after migration to NewDoFn
 class DoFn(WithTypeHints, HasDisplayData):

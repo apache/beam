@@ -193,6 +193,9 @@ class AbstractDoFnWrapper(NewDoFn):
   def finish_bundle(self, *args, **kwargs):
     return self.wrapper(self.dofn.finish_bundle, args, kwargs)
 
+  def is_process_bounded(self):
+    return self.dofn.is_process_bounded()
+
 
 class OutputCheckWrapperNewDoFn(AbstractDoFnWrapper):
   """A DoFn that verifies against common errors in the output type."""

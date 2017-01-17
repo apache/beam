@@ -20,7 +20,6 @@
 """Worker operations executor."""
 
 import sys
-import types
 
 from apache_beam.internal import util
 from apache_beam.pvalue import SideOutputValue
@@ -151,7 +150,6 @@ class DoFnRunner(Receiver):
 
         self.dofn = CurriedFn()
 
-
   def receive(self, windowed_value):
     self.process(windowed_value)
 
@@ -170,9 +168,7 @@ class DoFnRunner(Receiver):
     arguments, _, _, defaults = self.dofn.get_function_arguments('process')
     defaults = defaults if defaults else []
 
-    self_in_args = int(isinstance(self.dofn.process, types.MethodType) and \
-        self.dofn.process.im_self is not None and \
-        'self' in arguments)
+    self_in_args = int(self.dofn.is_process_bounded())
 
     # Call for the process function for each window if has windowed side inputs
     # otherwise we can optimize the runner by calling process for entire window
