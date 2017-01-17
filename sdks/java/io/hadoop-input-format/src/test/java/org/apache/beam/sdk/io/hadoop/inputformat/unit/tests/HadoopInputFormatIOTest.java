@@ -40,8 +40,8 @@ import org.apache.beam.sdk.io.hadoop.inputformat.unit.tests.inputs.BadNoRecordsI
 import org.apache.beam.sdk.io.hadoop.inputformat.unit.tests.inputs.BadNullCreateReaderInputFormat;
 import org.apache.beam.sdk.io.hadoop.inputformat.unit.tests.inputs.BadNullSplitsInputFormat;
 import org.apache.beam.sdk.io.hadoop.inputformat.unit.tests.inputs.Employee;
-import org.apache.beam.sdk.io.hadoop.inputformat.unit.tests.inputs.NewEmployeeEmployeeInputFormat;
-import org.apache.beam.sdk.io.hadoop.inputformat.unit.tests.inputs.ReuseEmployeeEmpployeeInputFormat;
+import org.apache.beam.sdk.io.hadoop.inputformat.unit.tests.inputs.NewObjectsEmployeeInputFormat;
+import org.apache.beam.sdk.io.hadoop.inputformat.unit.tests.inputs.ReuseObjectsEmployeeInputFormat;
 import org.apache.beam.sdk.io.hadoop.inputformat.unit.tests.inputs.UnitTestUtils;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.SourceTestUtils;
@@ -71,16 +71,15 @@ public class HadoopInputFormatIOTest {
   static SimpleFunction<Text, String> myKeyTranslate;
   static SimpleFunction<Employee, String> myValueTranslate;
 
-  @Rule
-  public final transient TestPipeline p = TestPipeline.create();
-  @Rule
-  public ExpectedException thrown = ExpectedException.none();
+  @Rule public final transient TestPipeline p = TestPipeline.create();
+  @Rule public ExpectedException thrown = ExpectedException.none();
 
   private PBegin input = PBegin.in(p);
 
   @BeforeClass
   public static void setUp() {
-    serConf = loadTestConfiguration(NewEmployeeEmployeeInputFormat.class, Text.class, Employee.class);
+    serConf =
+        loadTestConfiguration(NewObjectsEmployeeInputFormat.class, Text.class, Employee.class);
     myKeyTranslate = new SimpleFunction<Text, String>() {
       private static final long serialVersionUID = 1L;
 
@@ -269,8 +268,8 @@ public class HadoopInputFormatIOTest {
   }
 
   /**
-   * This test validates functionality of withConfiguration() function when Hadoop InputFormat class is
-   * not provided by the user in configuration.
+   * This test validates functionality of withConfiguration() function when Hadoop InputFormat class
+   * is not provided by the user in configuration.
    */
   @Test
   public void testReadValidationFailsMissingInputFormatInConf() {
@@ -284,13 +283,13 @@ public class HadoopInputFormatIOTest {
   }
 
   /**
-   * This test validates functionality of withConfiguration() function when key class is not provided by
-   * the user in configuration.
+   * This test validates functionality of withConfiguration() function when key class is not
+   * provided by the user in configuration.
    */
   @Test
   public void testReadValidationFailsMissingKeyClassInConf() {
     Configuration configuration = new Configuration();
-    configuration.setClass("mapreduce.job.inputformat.class", NewEmployeeEmployeeInputFormat.class,
+    configuration.setClass("mapreduce.job.inputformat.class", NewObjectsEmployeeInputFormat.class,
         InputFormat.class);
     configuration.setClass("value.class", Employee.class, Object.class);
     thrown.expect(NullPointerException.class);
@@ -300,13 +299,13 @@ public class HadoopInputFormatIOTest {
   }
 
   /**
-   * This test validates functionality of withConfiguration() function when value class is not provided
-   * by the user in configuration.
+   * This test validates functionality of withConfiguration() function when value class is not
+   * provided by the user in configuration.
    */
   @Test
   public void testReadValidationFailsMissingValueClassInConf() {
     Configuration configuration = new Configuration();
-    configuration.setClass("mapreduce.job.inputformat.class", NewEmployeeEmployeeInputFormat.class,
+    configuration.setClass("mapreduce.job.inputformat.class", NewObjectsEmployeeInputFormat.class,
         InputFormat.class);
     configuration.setClass("key.class", Text.class, Object.class);
     thrown.expect(NullPointerException.class);
@@ -411,7 +410,8 @@ public class HadoopInputFormatIOTest {
   }
 
   /**
-   * This test validates behavior of HadoopInputFormatSource if createRecordReader() of InputFormat returns null.
+   * This test validates behavior of HadoopInputFormatSource if createRecordReader() of InputFormat
+   * returns null.
    */
   @Test
   public void testReadersStartWithNullCreateRecordReader() throws Exception {
@@ -426,18 +426,18 @@ public class HadoopInputFormatIOTest {
     for (BoundedSource<KV<Text, Employee>> source : boundedSourceList) {
       BoundedReader<KV<Text, Employee>> reader = source.createReader(p.getOptions());
       thrown.expect(IOException.class);
-      thrown
-          .expectMessage(String.format(
-              HadoopInputFormatIOContants.NULL_CREATE_RECORDREADER_ERROR_MSG, new BadNullCreateReaderInputFormat().getClass()));
+      thrown.expectMessage(
+          String.format(HadoopInputFormatIOContants.NULL_CREATE_RECORDREADER_ERROR_MSG,
+              new BadNullCreateReaderInputFormat().getClass()));
       reader.start();
     }
   }
 
   /**
-   * This test validates behavior of createReader() and start() methods if InputFormat's
-   * getSplits() returns InputSplitList having having no records.
+   * This test validates behavior of createReader() and start() methods if InputFormat's getSplits()
+   * returns InputSplitList having having no records.
    */
-    @Test
+  @Test
   public void testReadersCreateReaderAndStartWithZeroRecords() throws Exception {
     SerializableConfiguration serConf = loadTestConfiguration(BadNoRecordsInputFormat.class,
         java.lang.String.class, java.lang.String.class);
@@ -453,6 +453,9 @@ public class HadoopInputFormatIOTest {
     }
   }
 
+  /**
+   * This test validates fractions consumed while reading data.
+   */
   @Test
   public void testReadersGetFractionConsumed() throws Exception {
     List<KV<Text, Employee>> referenceRecords = UnitTestUtils.getEmployeeData();
@@ -494,8 +497,8 @@ public class HadoopInputFormatIOTest {
     }
     assertThat(bundleRecords, containsInAnyOrder(referenceRecords.toArray()));
   }
-/*
-  *//**
+
+  /**
    * This test validates that Reader and its parent source reads the same records.
    */
   @Test
@@ -590,7 +593,7 @@ public class HadoopInputFormatIOTest {
    */
   @Test
   public void testHIFSourceIfUserSetsWrongKeyOrValueClass() throws Exception {
-    SerializableConfiguration serConf = loadTestConfiguration(NewEmployeeEmployeeInputFormat.class,
+    SerializableConfiguration serConf = loadTestConfiguration(NewObjectsEmployeeInputFormat.class,
         java.lang.String.class, java.lang.String.class);
     HadoopInputFormatBoundedSource<String, String> parentHIFSource =
         new HadoopInputFormatBoundedSource<String, String>(serConf, StringUtf8Coder.of(),
@@ -613,7 +616,7 @@ public class HadoopInputFormatIOTest {
   @Test
   public void testImmutablityOfOutputOfReadIfRecordReaderObjectsAreMutable() throws Exception {
     SerializableConfiguration serConf =
-        loadTestConfiguration(ReuseEmployeeEmpployeeInputFormat.class, Text.class, Employee.class);
+        loadTestConfiguration(ReuseObjectsEmployeeInputFormat.class, Text.class, Employee.class);
     HadoopInputFormatBoundedSource<Text, Employee> parentHIFSource =
         new HadoopInputFormatBoundedSource<Text, Employee>(serConf, WritableCoder.of(Text.class),
             AvroCoder.of(Employee.class));
@@ -629,13 +632,13 @@ public class HadoopInputFormatIOTest {
   }
 
   /**
-   * This test validates records emitted in Pcollection are immutable if InputFormat's recordReader
-   * returns different objects (i.e. different locations in memory)
+   * This test validates records emitted in PCollection are immutable if InputFormat's recordReader
+   * returns different objects (i.e. different locations in memory).
    */
   @Test
   public void testImmutablityOfOutputOfReadIfRecordReaderObjectsAreImmutable() throws Exception {
     SerializableConfiguration serConf =
-        loadTestConfiguration(NewEmployeeEmployeeInputFormat.class, Text.class, Employee.class);
+        loadTestConfiguration(NewObjectsEmployeeInputFormat.class, Text.class, Employee.class);
     HadoopInputFormatBoundedSource<Text, Employee> parentHIFSource =
         new HadoopInputFormatBoundedSource<Text, Employee>(serConf, WritableCoder.of(Text.class),
             AvroCoder.of(Employee.class));

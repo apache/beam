@@ -11,19 +11,24 @@ import com.google.common.collect.Lists;
 
 public class UnitTestUtils {
   /**
-   * Used in {@link NewEmployeeEmployeeInputFormat} and {@link ReuseEmployeeEmpployeeInputFormat} for computing
-   * splits.
+   * Used in {@link NewObjectsEmployeeInputFormat} and {@link ReuseObjectsEmployeeInputFormat}
+   * for computing splits.
    */
   public static final long NUMBER_OF_RECORDS_IN_EACH_SPLIT = 5L;
   public static final long NUMBER_OF_SPLITS = 3L;
 
+  private static final List<KV<String, String>> data = new ArrayList<KV<String, String>>();
+
   /**
-   * Returns List of {@link KV} of employee data. Key is employee id and value contains employee
-   * name and address separated by _. This is input to {@link NewEmployeeEmployeeInputFormat} and
-   * {@link ReuseEmployeeEmpployeeInputFormat}.
+   * Returns List of employee details.Employee details are available in the form of {@link KV} in
+   * which key indicates employee id and value indicates employee details such as name and address
+   * separated by '_'. This is data input to {@link NewObjectsEmployeeInputFormat} and
+   * {@link ReuseObjectsEmployeeInputFormat}.
    */
-  public static List<KV<String, String>> populateEmployeeDataNew() {
-    List<KV<String, String>> data = new ArrayList<KV<String, String>>();
+  public static List<KV<String, String>> populateEmployeeData() {
+    if (!data.isEmpty()) {
+      return data;
+    }
     data.add(KV.of("0", "Alex_US"));
     data.add(KV.of("1", "John_UK"));
     data.add(KV.of("2", "Tom_UK"));
@@ -44,11 +49,10 @@ public class UnitTestUtils {
 
   /**
    * This is helper function used in unit tests for validating data against data read using
-   * {@link NewEmployeeEmployeeInputFormat} and {@link ReuseEmployeeEmpployeeInputFormat}.
+   * {@link NewObjectsEmployeeInputFormat} and {@link ReuseObjectsEmployeeInputFormat}.
    */
   public static List<KV<Text, Employee>> getEmployeeData() {
-
-    return Lists.transform(populateEmployeeDataNew(),
+    return Lists.transform((data.isEmpty() ? populateEmployeeData() : data),
         new Function<KV<String, String>, KV<Text, Employee>>() {
           @Override
           public KV<Text, Employee> apply(KV<String, String> input) {
@@ -56,7 +60,6 @@ public class UnitTestUtils {
             return KV.of(new Text(input.getKey()), new Employee(empData[0], empData[1]));
           }
         });
-
   }
 
 }
