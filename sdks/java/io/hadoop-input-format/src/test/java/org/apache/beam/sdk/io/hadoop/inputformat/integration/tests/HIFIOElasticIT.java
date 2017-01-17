@@ -18,7 +18,7 @@ import java.io.Serializable;
 
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.hadoop.inputformat.HadoopInputFormatIO;
-import org.apache.beam.sdk.io.hadoop.inputformat.custom.options.HIFElasticOptions;
+import org.apache.beam.sdk.io.hadoop.inputformat.custom.options.HIFTestOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -45,19 +45,15 @@ import org.slf4j.LoggerFactory;
  * You need to pass elastic server IP and port in beamTestPipelineOptions
  *
  * <p>
- * You can run just this test by doing the following: mvn test-compile compile
- * failsafe:integration-test -D beamTestPipelineOptions='[ "--elasticServerIp=1.2.3.4",
- * "--elasticServerPort=<elastic-port>" ]'
+ * You can run just this test by doing the following:
+ * mvn test-compile compile failsafe:integration-test -D beamTestPipelineOptions='[ "--serverIp=1.2.3.4",
+ * "--serverPort=<port>" ]'
  *
  */
 @RunWith(JUnit4.class)
 @FixMethodOrder(MethodSorters.JVM)
 public class HIFIOElasticIT implements Serializable {
 
-  /**
-	 *
-	 */
-  private static final long serialVersionUID = 1L;
   private static final Logger LOGGER = LoggerFactory.getLogger(HIFIOElasticIT.class);
   private static final String ELASTIC_INTERNAL_VERSION = "5.x";
   private static final String TRUE = "true";
@@ -65,19 +61,22 @@ public class HIFIOElasticIT implements Serializable {
   private static final String ELASTIC_TYPE_NAME = "test_type";
   private static final String ELASTIC_RESOURCE = "/" + ELASTIC_INDEX_NAME + "/" + ELASTIC_TYPE_NAME;
   private static Configuration conf;
-  private static Pipeline pipeline;
-
+  private static HIFTestOptions options;
 
   @BeforeClass
   public static void setUp() {
-    PipelineOptionsFactory.register(HIFElasticOptions.class);
-    HIFElasticOptions options = TestPipeline.testingPipelineOptions().as(HIFElasticOptions.class);
-    pipeline = TestPipeline.create(options);
+    PipelineOptionsFactory.register(HIFTestOptions.class);
+    options = TestPipeline.testingPipelineOptions().as(HIFTestOptions.class);
+    LOGGER.info("Pipeline created successfully with the options");
     conf = getConfiguration(options);
   }
 
+  /**
+   * This test reads data from the elastic instance and verifies whether data is read successfully.
+   */
   @Test
   public void testHifIOWithElastic() {
+    Pipeline pipeline = TestPipeline.create(options);
     PCollection<KV<Text, MapWritable>> esData =
         pipeline.apply(HadoopInputFormatIO.<Text, MapWritable>read().withConfiguration(conf));
     PCollection<Long> count = esData.apply(Count.<KV<Text, MapWritable>>globally());
@@ -86,8 +85,13 @@ public class HIFIOElasticIT implements Serializable {
     pipeline.run().waitUntilFinish();
   }
 
+  /**
+   * This test reads data from the elastic instance based on a query and verifies if data is read
+   * successfully.
+   */
   @Test
   public void testHifIOWithElasticQuery() {
+    Pipeline pipeline = TestPipeline.create(options);
     String query =
         "{\n" + "  \"query\": {\n"
               + "  \"match\" : {\n"
@@ -107,11 +111,11 @@ public class HIFIOElasticIT implements Serializable {
     pipeline.run().waitUntilFinish();
   }
 
-  public static Configuration getConfiguration(HIFElasticOptions options) {
+  public static Configuration getConfiguration(HIFTestOptions options) {
     Configuration conf = new Configuration();
 
-    conf.set(ConfigurationOptions.ES_NODES, options.getElasticServerIp());
-    conf.set(ConfigurationOptions.ES_PORT, String.format("%d", options.getElasticServerPort()));
+    conf.set(ConfigurationOptions.ES_NODES, options.getServerIp());
+    conf.set(ConfigurationOptions.ES_PORT, String.format("%d", options.getServerPort()));
     conf.set(ConfigurationOptions.ES_RESOURCE, ELASTIC_RESOURCE);
     conf.set("es.internal.es.version", ELASTIC_INTERNAL_VERSION);
     conf.set(ConfigurationOptions.ES_NODES_DISCOVERY, TRUE);
