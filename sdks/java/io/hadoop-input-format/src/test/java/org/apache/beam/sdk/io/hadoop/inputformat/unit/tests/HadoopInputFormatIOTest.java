@@ -476,14 +476,14 @@ public class HadoopInputFormatIOTest {
       assertEquals(true, start);
       if (start) {
         elements.add(reader.getCurrent());
-        assertEquals(new Double((float) ++i / UnitTestUtils.NUMBER_OF_SPLITS),
+        assertEquals(new Double((float) ++i / UnitTestUtils.NUMBER_OF_RECORDS_IN_EACH_SPLIT),
             reader.getFractionConsumed());
         boolean advance = reader.advance();
         assertEquals(true, advance);
         while (advance) {
           assertEquals(true, advance);
           elements.add(reader.getCurrent());
-          assertEquals(new Double((float) ++i / UnitTestUtils.NUMBER_OF_SPLITS),
+          assertEquals(new Double((float) ++i / UnitTestUtils.NUMBER_OF_RECORDS_IN_EACH_SPLIT),
               reader.getFractionConsumed());
           advance = reader.advance();
         }
