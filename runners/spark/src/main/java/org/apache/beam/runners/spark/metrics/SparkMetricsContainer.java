@@ -285,4 +285,13 @@ public class SparkMetricsContainer implements Serializable {
       return h;
     }
   }
+
+  @Override
+  public String toString() {
+    StringBuilder sb = new StringBuilder();
+    for (Map.Entry<String, ?> metric :  new SparkBeamMetric().renderAll().entrySet()) {
+      sb.append(metric.getKey()).append(": ").append(metric.getValue()).append(" ");
+    }
+    return sb.toString();
+  }
 }

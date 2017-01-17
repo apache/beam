@@ -16,24 +16,28 @@
  * limitations under the License.
  */
 
-package org.apache.beam.runners.spark.aggregators.metrics.sink;
+package org.apache.beam.runners.spark.metrics;
 
-import com.codahale.metrics.MetricRegistry;
+import com.codahale.metrics.Metric;
 
-import java.util.Properties;
-
-import org.apache.beam.runners.spark.aggregators.metrics.AggregatorMetric;
-import org.apache.beam.runners.spark.aggregators.metrics.WithNamedAggregatorsSupport;
-import org.apache.spark.metrics.sink.Sink;
+import org.apache.beam.runners.spark.aggregators.NamedAggregators;
 
 /**
- * A Spark {@link Sink} that is tailored to report {@link AggregatorMetric} metrics
- * to a CSV file.
+ * An adapter between the {@link NamedAggregators} and Codahale's {@link Metric} interface.
  */
-public class CsvSink extends org.apache.spark.metrics.sink.CsvSink {
-  public CsvSink(final Properties properties,
-                 final MetricRegistry metricRegistry,
-                 final org.apache.spark.SecurityManager securityMgr) {
-    super(properties, WithNamedAggregatorsSupport.forRegistry(metricRegistry), securityMgr);
+public class AggregatorMetric implements Metric {
+
+  private final NamedAggregators namedAggregators;
+
+  private AggregatorMetric(final NamedAggregators namedAggregators) {
+    this.namedAggregators = namedAggregators;
+  }
+
+  public static AggregatorMetric of(final NamedAggregators namedAggregators) {
+    return new AggregatorMetric(namedAggregators);
+  }
+
+  NamedAggregators getNamedAggregators() {
+    return namedAggregators;
   }
 }

@@ -155,13 +155,13 @@
   </Match>
 
   <Match>
-    <Class name="org.apache.beam.runners.spark.aggregators.metrics.sink.CsvSink"/>
+    <Class name="org.apache.beam.runners.spark.metrics.sink.CsvSink"/>
     <Bug pattern="NM_SAME_SIMPLE_NAME_AS_SUPERCLASS"/>
     <!-- Intentionally overriding parent name because inheritors should replace the parent. -->
   </Match>
 
   <Match>
-    <Class name="org.apache.beam.runners.spark.aggregators.metrics.sink.GraphiteSink"/>
+    <Class name="org.apache.beam.runners.spark.metrics.sink.GraphiteSink"/>
     <Bug pattern="NM_SAME_SIMPLE_NAME_AS_SUPERCLASS"/>
     <!-- Intentionally overriding parent name because inheritors should replace the parent. -->
   </Match>
