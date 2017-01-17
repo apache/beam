@@ -20,6 +20,7 @@
 """Worker operations executor."""
 
 import sys
+import types
 
 from apache_beam.internal import util
 from apache_beam.pvalue import SideOutputValue
@@ -71,99 +72,214 @@ class DoFnRunner(Receiver):
                # Preferred alternative to context
                # TODO(robertwb): Remove once all runners are updated.
                state=None):
-    self.has_windowed_side_inputs = False  # Set to True in one case below.
-    if not args and not kwargs:
-      self.dofn = fn
-      self.dofn_process = fn.process
-    else:
-      global_window = window.GlobalWindow()
-      # TODO(robertwb): Remove when all runners pass side input maps.
-      side_inputs = [side_input
-                     if isinstance(side_input, sideinputs.SideInputMap)
-                     else {global_window: side_input}
-                     for side_input in side_inputs]
-      if side_inputs and all(
-          isinstance(side_input, dict) or side_input.is_globally_windowed()
-          for side_input in side_inputs):
-        args, kwargs = util.insert_values_in_args(
-            args, kwargs, [side_input[global_window]
-                           for side_input in side_inputs])
-        side_inputs = []
-      if side_inputs:
-        self.has_windowed_side_inputs = True
+    # TODO(Sourabhbajaj): Remove the usage of OldDoFn
+    if isinstance(fn, core.NewDoFn):
+      self.is_new_dofn = True
+      self.step_name = step_name
+      self.window_fn = windowing.windowfn
+      self.tagged_receivers = tagged_receivers
 
-        def process(context):
-          w = context.windows[0]
-          cur_args, cur_kwargs = util.insert_values_in_args(
-              args, kwargs, [side_input[w] for side_input in side_inputs])
-          return fn.process(context, *cur_args, **cur_kwargs)
-        self.dofn_process = process
-      elif kwargs:
-        self.dofn_process = lambda context: fn.process(context, *args, **kwargs)
+      # TODO(sourabh): Deprecate the use of context
+      # TODO(sourabh): Move state to be independent
+      if context is not None:
+        self.context = context
       else:
-        self.dofn_process = lambda context: fn.process(context, *args)
+        self.context = DoFnContext(step_name, state=state)
 
-      class CurriedFn(core.DoFn):
+      # TODO(Sourabhbajaj): The old code validates that state and context are
+      # mutually exclusive. That shouldn't matter anymore as we're trying to
+      # deprecate that.
+      self.state = state
 
-        start_bundle = staticmethod(fn.start_bundle)
-        process = staticmethod(self.dofn_process)
-        finish_bundle = staticmethod(fn.finish_bundle)
+      # SideInputs
+      global_window = window.GlobalWindow()
+      self.side_inputs = [side_input
+                          if isinstance(side_input, sideinputs.SideInputMap)
+                          else {global_window: side_input}
+                          for side_input in side_inputs]
 
-      self.dofn = CurriedFn()
+      self.args = args if args else []
+      self.kwargs = kwargs if kwargs else {}
 
-    self.window_fn = windowing.windowfn
-    self.tagged_receivers = tagged_receivers
-    self.step_name = step_name
+      if logging_context:
+        self.logging_context = logging_context
+      else:
+        self.logging_context = get_logging_context(logger, step_name=step_name)
 
-    if state:
-      assert context is None
-      self.context = DoFnContext(self.step_name, state=state)
+      # Optimize for the common case.
+      self.main_receivers = as_receiver(tagged_receivers[None])
+
+      # we've removed curried Fn from everything and instead callableWrapperFn
+      # should take care of this.
+      self.dofn = fn
+
     else:
-      assert context is not None
-      self.context = context
+      self.is_new_dofn = False
 
-    if logging_context:
-      self.logging_context = logging_context
-    else:
-      self.logging_context = get_logging_context(logger, step_name=step_name)
+      self.has_windowed_side_inputs = False  # Set to True in one case below.
+      if not args and not kwargs:
+        self.dofn = fn
+        self.dofn_process = fn.process
+      else:
+        global_window = window.GlobalWindow()
+        # TODO(robertwb): Remove when all runners pass side input maps.
+        side_inputs = [side_input
+                       if isinstance(side_input, sideinputs.SideInputMap)
+                       else {global_window: side_input}
+                       for side_input in side_inputs]
+        if side_inputs and all(
+            isinstance(side_input, dict) or side_input.is_globally_windowed()
+            for side_input in side_inputs):
+          args, kwargs = util.insert_values_in_args(
+              args, kwargs, [side_input[global_window]
+                             for side_input in side_inputs])
+          side_inputs = []
+        if side_inputs:
+          self.has_windowed_side_inputs = True
 
-    # Optimize for the common case.
-    self.main_receivers = as_receiver(tagged_receivers[None])
+          def process(context):
+            w = context.windows[0]
+            cur_args, cur_kwargs = util.insert_values_in_args(
+                args, kwargs, [side_input[w] for side_input in side_inputs])
+            return fn.process(context, *cur_args, **cur_kwargs)
+          self.dofn_process = process
+        elif kwargs:
+          self.dofn_process = lambda context: fn.process(
+              context, *args, **kwargs)
+        else:
+          self.dofn_process = lambda context: fn.process(context, *args)
+
+        class CurriedFn(core.DoFn):
+
+          start_bundle = staticmethod(fn.start_bundle)
+          process = staticmethod(self.dofn_process)
+          finish_bundle = staticmethod(fn.finish_bundle)
+
+        self.dofn = CurriedFn()
+
+      self.window_fn = windowing.windowfn
+      self.tagged_receivers = tagged_receivers
+      self.step_name = step_name
+
+      if state:
+        assert context is None
+        self.context = DoFnContext(self.step_name, state=state)
+      else:
+        assert context is not None
+        self.context = context
+
+      if logging_context:
+        self.logging_context = logging_context
+      else:
+        self.logging_context = get_logging_context(logger, step_name=step_name)
+
+      # Optimize for the common case.
+      self.main_receivers = as_receiver(tagged_receivers[None])
 
   def receive(self, windowed_value):
     self.process(windowed_value)
 
-  def start(self):
-    self.context.set_element(None)
+  def old_dofn_process(self, element):
+    if self.has_windowed_side_inputs and len(element.windows) > 1:
+      for w in element.windows:
+        self.context.set_element(
+            WindowedValue(element.value, element.timestamp, (w,)))
+        self._process_outputs(element, self.dofn_process(self.context))
+    else:
+      self.context.set_element(element)
+      self._process_outputs(element, self.dofn_process(self.context))
+
+  def new_dofn_process(self, element):
+    self.context.set_element(element)
+    arguments, _, _, defaults = self.dofn.get_function_arguments('process')
+    defaults = defaults if defaults else []
+
+    self_in_args = int(isinstance(self.dofn.process, types.MethodType) and \
+        self.dofn.process.im_self is not None and \
+        'self' in arguments)
+
+    # Call for the process function for each window if has windowed side inputs
+    # otherwise we can optimize the runner by calling process for entire window
+    # set in one go.
+    if all(isinstance(s, dict) or s.is_globally_windowed()
+           for s in self.side_inputs):
+      windows = [(window.GlobalWindow(), element.windows)]
+    else:
+      windows = [(w, (w,)) for w in element.windows]
+
+    for side_input_window, window_set in windows:
+      args, kwargs = util.insert_values_in_args(
+          self.args, self.kwargs,
+          [s[side_input_window] for s in self.side_inputs])
+
+      # If there are more arguments than the default then the first argument
+      # should be the element and the rest should be picked from the side
+      # inputs as window and timestamp should always be tagged
+      if len(arguments) > len(defaults) + self_in_args:
+        if core.NewDoFn.ElementParam not in defaults:
+          args_to_pick = len(arguments) - len(defaults) - 1 - self_in_args
+          final_args = [element.value] + args[:args_to_pick]
+        else:
+          args_to_pick = len(arguments) - len(defaults) - self_in_args
+          final_args = args[:args_to_pick]
+      else:
+        args_to_pick = 0
+        final_args = []
+      args = iter(args[args_to_pick:])
+
+      for a, d in zip(arguments[-len(defaults):], defaults):
+        if d == core.NewDoFn.ElementParam:
+          final_args.append(element.value)
+        elif d == core.NewDoFn.ContextParam:
+          final_args.append(self.context)
+        elif d == core.NewDoFn.WindowsParam:
+          final_args.append(window_set)
+        elif d == core.NewDoFn.SideInputParam:
+          final_args.append(args.next())
+        elif d == core.NewDoFn.TimestampParam:
+          final_args.append(element.timestamp)
+        else:
+          try:
+            final_args.append(args.next())
+          except StopIteration:
+            if a not in kwargs:
+              kwargs[a] = d
+      final_args.extend(list(args))
+      self._process_outputs(element, self.dofn.process(*final_args, **kwargs))
+
+  def _invoke_bundle_method(self, method):
     try:
       self.logging_context.enter()
-      self._process_outputs(None, self.dofn.start_bundle(self.context))
+      self.context.set_element(None)
+      f = getattr(self.dofn, method)
+
+      # TODO(Sourabhbajaj): Remove this if-else
+      if self.is_new_dofn:
+        _, _, _, defaults = self.dofn.get_function_arguments(method)
+        defaults = defaults if defaults else []
+        args = [self.context if d == core.NewDoFn.ContextParam else d
+                for d in defaults]
+        self._process_outputs(None, f(*args))
+      else:
+        self._process_outputs(None, f(self.context))
     except BaseException as exn:
       self.reraise_augmented(exn)
     finally:
       self.logging_context.exit()
 
+  def start(self):
+    self._invoke_bundle_method('start_bundle')
+
   def finish(self):
-    self.context.set_element(None)
-    try:
-      self.logging_context.enter()
-      self._process_outputs(None, self.dofn.finish_bundle(self.context))
-    except BaseException as exn:
-      self.reraise_augmented(exn)
-    finally:
-      self.logging_context.exit()
+    self._invoke_bundle_method('finish_bundle')
 
   def process(self, element):
     try:
       self.logging_context.enter()
-      if self.has_windowed_side_inputs and len(element.windows) > 1:
-        for w in element.windows:
-          self.context.set_element(
-              WindowedValue(element.value, element.timestamp, (w,)))
-          self._process_outputs(element, self.dofn_process(self.context))
+      if self.is_new_dofn:
+        self.new_dofn_process(element)
       else:
-        self.context.set_element(element)
-        self._process_outputs(element, self.dofn_process(self.context))
+        self.old_dofn_process(element)
     except BaseException as exn:
       self.reraise_augmented(exn)
     finally:
