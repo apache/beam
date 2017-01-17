@@ -59,7 +59,7 @@ class MetricsTest(unittest.TestCase):
     MetricsEnvironment.set_current_container(MetricsContainer('mystep'))
     counter_ns = 'aCounterNamespace'
     distro_ns = 'aDistributionNamespace'
-    name = 'aName'
+    name = 'a_name'
     counter = Metrics.counter(counter_ns, name)
     distro = Metrics.distribution(distro_ns, name)
     counter.inc(10)

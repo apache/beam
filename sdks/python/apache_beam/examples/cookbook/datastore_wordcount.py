@@ -74,14 +74,14 @@ import apache_beam as beam
 from apache_beam.io import ReadFromText
 from apache_beam.io.datastore.v1.datastoreio import ReadFromDatastore
 from apache_beam.io.datastore.v1.datastoreio import WriteToDatastore
+from apache_beam.metrics import Metrics
 from apache_beam.utils.pipeline_options import GoogleCloudOptions
 from apache_beam.utils.pipeline_options import PipelineOptions
 from apache_beam.utils.pipeline_options import SetupOptions
 
-empty_line_aggregator = beam.Aggregator('emptyLines')
-average_word_size_aggregator = beam.Aggregator('averageWordLength',
-                                               beam.combiners.MeanCombineFn(),
-                                               float)
+empty_line_counter = Metrics.counter('main', 'empty_lines')
+word_length_counter = Metrics.counter('main', 'word_lengths')
+word_counter = Metrics.counter('main', 'total_words')
 
 
 class WordExtractingDoFn(beam.DoFn):
@@ -91,7 +91,7 @@ class WordExtractingDoFn(beam.DoFn):
     """Returns an iterator over words in contents of Cloud Datastore entity.
     The element is a line of text.  If the line is blank, note that, too.
     Args:
-      context: the call-specific context: data and aggregator.
+      context: the call-specific context with input data.
     Returns:
       The processed element.
     """
@@ -101,10 +101,11 @@ class WordExtractingDoFn(beam.DoFn):
       text_line = content_value.string_value
 
     if not text_line:
-      context.aggregate_to(empty_line_aggregator, 1)
+      empty_line_counter.inc()
     words = re.findall(r'[A-Za-z\']+', text_line)
     for w in words:
-      context.aggregate_to(average_word_size_aggregator, len(w))
+      word_length_counter.inc(len(w))
+      word_counter.inc()
     return words
 
 
@@ -246,10 +247,9 @@ def run(argv=None):
   result = read_from_datastore(gcloud_options.project, known_args,
                                pipeline_options)
 
-  empty_line_values = result.aggregated_values(empty_line_aggregator)
-  logging.info('number of empty lines: %d', sum(empty_line_values.values()))
-  word_length_values = result.aggregated_values(average_word_size_aggregator)
-  logging.info('average word lengths: %s', word_length_values.values())
+  result.metrics().query()
+  #TODO(pabloem): Fix these once metrics are 100% queriable.
+
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)

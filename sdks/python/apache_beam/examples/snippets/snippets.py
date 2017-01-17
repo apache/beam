@@ -32,6 +32,7 @@ string. The tags can contain only letters, digits and _.
 
 import apache_beam as beam
 from apache_beam.test_pipeline import TestPipeline
+from apache_beam.metrics import Metrics
 
 # Quiet some pylint warnings that happen because of the somewhat special
 # format for the code snippets.
@@ -516,13 +517,12 @@ def examples_wordcount_debugging(renames):
   class FilterTextFn(beam.DoFn):
     """A DoFn that filters for a specific key based on a regular expression."""
 
-    # A custom aggregator can track values in your pipeline as it runs. Create
-    # custom aggregators matched_word and unmatched_words.
-    matched_words = beam.Aggregator('matched_words')
-    umatched_words = beam.Aggregator('umatched_words')
-
     def __init__(self, pattern):
       self.pattern = pattern
+      # A custom metric can track values in your pipeline as it runs. Create
+      # custom metrics matched_word and unmatched_words.
+      self.matched_words = Metrics.counter(self.__class__, 'matched_words')
+      self.umatched_words = Metrics.counter(self.__class__, 'umatched_words')
 
     def process(self, context):
       word, _ = context.element
@@ -532,8 +532,8 @@ def examples_wordcount_debugging(renames):
         # Logging UI.
         logging.info('Matched %s', word)
 
-        # Add 1 to the custom aggregator matched_words
-        context.aggregate_to(self.matched_words, 1)
+        # Add 1 to the custom metric counter matched_words
+        self.matched_words.inc()
         yield context.element
       else:
         # Log at the "DEBUG" level each element that is not matched. Different
@@ -543,8 +543,8 @@ def examples_wordcount_debugging(renames):
         # Logger. This log message will not be visible in the Cloud Logger.
         logging.debug('Did not match %s', word)
 
-        # Add 1 to the custom aggregator umatched_words
-        context.aggregate_to(self.umatched_words, 1)
+        # Add 1 to the custom metric counter umatched_words
+        self.umatched_words.inc()
   # [END example_wordcount_debugging_logging]
   # [END example_wordcount_debugging_aggregators]
 

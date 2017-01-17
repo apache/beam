@@ -48,25 +48,22 @@ import re
 import apache_beam as beam
 from apache_beam.io import ReadFromText
 from apache_beam.io import WriteToText
+from apache_beam.metrics import Metrics
 from apache_beam.utils.pipeline_options import PipelineOptions
 from apache_beam.utils.pipeline_options import SetupOptions
 
 
 class FilterTextFn(beam.DoFn):
   """A DoFn that filters for a specific key based on a regular expression."""
-
-  # A custom aggregator can track values in your pipeline as it runs. Those
-  # values will be displayed in the Dataflow Monitoring UI when this pipeline is
-  # run using the Dataflow service. These aggregators below track the number of
-  # matched and unmatched words. Learn more at
-  # https://cloud.google.com/dataflow/pipelines/dataflow-monitoring-intf about
-  # the Dataflow Monitoring UI.
-  matched_words = beam.Aggregator('matched_words')
-  umatched_words = beam.Aggregator('umatched_words')
-
   def __init__(self, pattern):
     super(FilterTextFn, self).__init__()
     self.pattern = pattern
+    # A custom metric can track values in your pipeline as it runs. Those
+    # values will be displayed in the Dataflow Monitoring UI when this pipeline
+    # is run using the Dataflow service. These metrics below track the number of
+    # matched and unmatched words.
+    self.matched_words = Metrics.counter(self.__class__, 'matched_words')
+    self.umatched_words = Metrics.counter(self.__class__, 'umatched_words')
 
   def process(self, context):
     word, _ = context.element
@@ -75,7 +72,7 @@ class FilterTextFn(beam.DoFn):
       # using the Dataflow service, these log lines will appear in the Cloud
       # Logging UI.
       logging.info('Matched %s', word)
-      context.aggregate_to(self.matched_words, 1)
+      self.matched_words.inc()
       yield context.element
     else:
       # Log at the "DEBUG" level each element that is not matched. Different log
@@ -84,7 +81,7 @@ class FilterTextFn(beam.DoFn):
       # Note currently only "INFO" and higher level logs are emitted to the
       # Cloud Logger. This log message will not be visible in the Cloud Logger.
       logging.debug('Did not match %s', word)
-      context.aggregate_to(self.umatched_words, 1)
+      self.umatched_words.inc()
 
 
 class CountWords(beam.PTransform):
