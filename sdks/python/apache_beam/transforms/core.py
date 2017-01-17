@@ -74,7 +74,7 @@ class DoFnProcessContext(DoFnContext):
     windows: windows of the element
       (in process method only; always None in start_bundle and finish_bundle)
     state: a DoFnState object, which holds the runner's internal state
-      for this element.  For example, aggregator state is here.
+      for this element.
       Not used by the pipeline code.
   """
 
@@ -108,16 +108,6 @@ class DoFnProcessContext(DoFnContext):
       self.element = windowed_value.value
       self.timestamp = windowed_value.timestamp
       self.windows = windowed_value.windows
-
-  # TODO(sourabhbajaj): Move as we're trying to deprecate the use of context
-  def aggregate_to(self, aggregator, input_value):
-    """Provide a new input value for the aggregator.
-
-    Args:
-      aggregator: the aggregator to update
-      input_value: the new value to input to the combine_fn of this aggregator.
-    """
-    self.state.counter_for(aggregator).update(input_value)
 
 
 class NewDoFn(WithTypeHints, HasDisplayData):

@@ -26,18 +26,19 @@ import re
 import apache_beam as beam
 from apache_beam.io import ReadFromText
 from apache_beam.io import WriteToText
+from apache_beam.metrics import Metrics
 from apache_beam.utils.pipeline_options import PipelineOptions
 from apache_beam.utils.pipeline_options import SetupOptions
 
 
-empty_line_aggregator = beam.Aggregator('emptyLines')
-average_word_size_aggregator = beam.Aggregator('averageWordLength',
-                                               beam.combiners.MeanCombineFn(),
-                                               float)
-
-
 class WordExtractingDoFn(beam.DoFn):
   """Parse each line of input text into words."""
+
+  def __init__(self):
+    super(WordExtractingDoFn, self).__init__()
+    self.words_counter = Metrics.counter(self.__class__, 'words')
+    self.word_lengths_counter = Metrics.counter(self.__class__, 'word_lengths')
+    self.empty_line_counter = Metrics.counter(self.__class__, 'empty_lines')
 
   def process(self, context):
     """Returns an iterator over the words of this element.
@@ -45,17 +46,18 @@ class WordExtractingDoFn(beam.DoFn):
     The element is a line of text.  If the line is blank, note that, too.
 
     Args:
-      context: the call-specific context: data and aggregator.
+      context: the call-specific context.
 
     Returns:
       The processed element.
     """
     text_line = context.element.strip()
     if not text_line:
-      context.aggregate_to(empty_line_aggregator, 1)
+      self.empty_line_counter.inc(1)
     words = re.findall(r'[A-Za-z\']+', text_line)
     for w in words:
-      context.aggregate_to(average_word_size_aggregator, len(w))
+      self.words_counter.inc()
+      self.word_lengths_counter.inc(len(w))
     return words
 
 
@@ -98,11 +100,7 @@ def run(argv=None):
   # Actually run the pipeline (all operations above are deferred).
   result = p.run()
   result.wait_until_finish()
-  empty_line_values = result.aggregated_values(empty_line_aggregator)
-  logging.info('number of empty lines: %d', sum(empty_line_values.values()))
-  word_length_values = result.aggregated_values(average_word_size_aggregator)
-  logging.info('average word lengths: %s', word_length_values.values())
-
+  #TODO(pabloem)(BEAM-1366) Add querying of metrics once they are queriable.
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
