@@ -109,9 +109,8 @@ def construct_pipeline(renames):
   p.visit(SnippetUtils.RenameFiles(renames))
 
   # [START pipelines_constructing_running]
-  result = p.run()
+  p.run()
   # [END pipelines_constructing_running]
-  result
 
 
 def model_pipelines(argv):
