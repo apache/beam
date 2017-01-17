@@ -350,7 +350,7 @@
       <dependency>
         <groupId>cz.seznam.euphoria</groupId>
         <artifactId>guava-shaded</artifactId>
-        <version>19.0-SZN-1-SNAPSHOT</version>
+        <version>21.0</version>
       </dependency>
 
       <dependency>
