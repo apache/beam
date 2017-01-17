@@ -19,7 +19,6 @@ package org.apache.beam.sdk.util;
 
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.CombineWithContext.Context;
-import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.state.StateContext;
 import org.apache.beam.sdk.values.PCollectionView;
@@ -46,23 +45,6 @@ public class CombineContextFactory {
    */
   public static Context nullContext() {
     return NULL_CONTEXT;
-  }
-
-  /**
-   * Returns a {@code Combine.Context} that wraps a {@code OldDoFn.ProcessContext}.
-   */
-  public static Context createFromProcessContext(final OldDoFn<?, ?>.ProcessContext c) {
-    return new Context() {
-      @Override
-      public PipelineOptions getPipelineOptions() {
-        return c.getPipelineOptions();
-      }
-
-      @Override
-      public <T> T sideInput(PCollectionView<T> view) {
-        return c.sideInput(view);
-      }
-    };
   }
 
   /**

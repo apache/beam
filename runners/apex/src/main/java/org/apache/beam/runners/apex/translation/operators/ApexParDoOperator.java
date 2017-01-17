@@ -38,6 +38,7 @@ import org.apache.beam.runners.apex.translation.utils.NoOpStepContext;
 import org.apache.beam.runners.apex.translation.utils.SerializablePipelineOptions;
 import org.apache.beam.runners.apex.translation.utils.ValueAndCoderKryoSerializable;
 import org.apache.beam.runners.core.AggregatorFactory;
+import org.apache.beam.runners.core.DoFnAdapters;
 import org.apache.beam.runners.core.DoFnRunner;
 import org.apache.beam.runners.core.DoFnRunners;
 import org.apache.beam.runners.core.DoFnRunners.OutputManager;
@@ -49,7 +50,6 @@ import org.apache.beam.sdk.coders.ListCoder;
 import org.apache.beam.sdk.transforms.Aggregator;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.DoFnAdapters;
 import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.util.NullSideInputReader;
 import org.apache.beam.sdk.util.SideInputReader;
@@ -305,7 +305,7 @@ public class ApexParDoOperator<InputT, OutputT> extends BaseOperator implements 
       sideOutputPortMapping.put(sideOutputTags.get(i), port);
     }
 
-    DoFnRunner<InputT, OutputT> doFnRunner = DoFnRunners.createDefault(
+    DoFnRunner<InputT, OutputT> doFnRunner = DoFnRunners.simpleRunner(
         pipelineOptions.get(),
         doFn,
         sideInputReader,

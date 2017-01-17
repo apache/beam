@@ -38,7 +38,6 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.spark.Accumulator;
 import org.apache.spark.api.java.function.PairFlatMapFunction;
-
 import scala.Tuple2;
 
 
@@ -88,8 +87,11 @@ public class MultiDoFnFunction<InputT, OutputT>
       Iterator<WindowedValue<InputT>> iter) throws Exception {
 
     DoFnOutputManager outputManager = new DoFnOutputManager();
+
+    // Unlike for OldDoFn, there is no ReduceFnExecutor that is a new DoFn,
+    // and window-exploded processing is achieved within the simple runner
     DoFnRunner<InputT, OutputT> doFnRunner =
-        DoFnRunners.createDefault(
+        DoFnRunners.simpleRunner(
             runtimeContext.getPipelineOptions(),
             doFn,
             new SparkSideInputReader(sideInputs),
@@ -98,8 +100,7 @@ public class MultiDoFnFunction<InputT, OutputT>
             Collections.<TupleTag<?>>emptyList(),
             new SparkProcessContext.NoOpStepContext(),
             new SparkAggregators.Factory(runtimeContext, accumulator),
-            windowingStrategy
-        );
+            windowingStrategy);
 
     return new SparkProcessContext<>(doFn, doFnRunner, outputManager).processPartition(iter);
   }
