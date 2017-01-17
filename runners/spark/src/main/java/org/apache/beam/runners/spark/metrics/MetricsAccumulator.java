@@ -27,15 +27,12 @@ import org.apache.spark.api.java.JavaSparkContext;
  * For resilience, {@link Accumulator Accumulators} are required to be wrapped in a Singleton.
  * @see <a href="https://spark.apache.org/docs/1.6.3/streaming-programming-guide.html#accumulators-and-broadcast-variables">accumulators</a>
  */
-class MetricsAccumulator {
+public class MetricsAccumulator {
 
   private static volatile Accumulator<SparkMetricsContainer> instance = null;
 
-  static Accumulator<SparkMetricsContainer> getInstance(JavaSparkContext jsc) {
+  public static Accumulator<SparkMetricsContainer> getOrCreateInstance(JavaSparkContext jsc) {
     if (instance == null) {
-      if (jsc == null) {
-        throw new IllegalStateException("Metrics accumulator has not been instantiated");
-      }
       synchronized (MetricsAccumulator.class) {
         if (instance == null) {
           // TODO: currently when recovering from checkpoint, Spark does not recover the
@@ -48,6 +45,14 @@ class MetricsAccumulator {
       }
     }
     return instance;
+  }
+
+  static Accumulator<SparkMetricsContainer> getInstance() {
+    if (instance == null) {
+      throw new IllegalStateException("Metrics accumulator has not been instantiated");
+    } else {
+      return instance;
+    }
   }
 
   @SuppressWarnings("unused")

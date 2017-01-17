@@ -33,25 +33,19 @@ import org.apache.beam.sdk.metrics.MetricQueryResults;
 import org.apache.beam.sdk.metrics.MetricResult;
 import org.apache.beam.sdk.metrics.MetricResults;
 import org.apache.beam.sdk.metrics.MetricsFilter;
-import org.apache.spark.Accumulator;
 
 
 /**
  * Implementation of {@link MetricResults} for the Spark Runner.
  */
 public class SparkMetricResults extends MetricResults {
-  private final Accumulator<SparkMetricsContainer> metricsAccum;
-
-  public SparkMetricResults(Accumulator<SparkMetricsContainer> metricsAccum) {
-    this.metricsAccum = metricsAccum;
-  }
 
   @Override
   public MetricQueryResults queryMetrics(MetricsFilter filter) {
     return new SparkMetricQueryResults(filter);
   }
 
-  private class SparkMetricQueryResults implements MetricQueryResults {
+  private static class SparkMetricQueryResults implements MetricQueryResults {
     private final MetricsFilter filter;
 
     SparkMetricQueryResults(MetricsFilter filter) {
@@ -62,7 +56,7 @@ public class SparkMetricResults extends MetricResults {
     public Iterable<MetricResult<Long>> counters() {
       return
           FluentIterable
-              .from(metricsAccum.value().getCounters())
+              .from(SparkMetricsContainer.getCounters())
               .filter(matchesFilter(filter))
               .transform(TO_COUNTER_RESULT)
               .toList();
@@ -72,7 +66,7 @@ public class SparkMetricResults extends MetricResults {
     public Iterable<MetricResult<DistributionResult>> distributions() {
       return
           FluentIterable
-              .from(metricsAccum.value().getDistributions())
+              .from(SparkMetricsContainer.getDistributions())
               .filter(matchesFilter(filter))
               .transform(TO_DISTRIBUTION_RESULT)
               .toList();

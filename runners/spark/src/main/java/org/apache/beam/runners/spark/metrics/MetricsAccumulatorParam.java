@@ -37,6 +37,6 @@ class MetricsAccumulatorParam implements AccumulatorParam<SparkMetricsContainer>
 
   @Override
   public SparkMetricsContainer zero(SparkMetricsContainer initialValue) {
-    return initialValue;
+    return new SparkMetricsContainer();
   }
 }
