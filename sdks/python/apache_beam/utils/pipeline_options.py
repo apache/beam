@@ -21,19 +21,66 @@ import argparse
 
 from apache_beam.transforms.display import HasDisplayData
 from apache_beam.utils.value_provider import StaticValueProvider
+from apache_beam.utils.value_provider import RuntimeValueProvider
+from apache_beam.utils.value_provider import ValueProvider
 
 
-def static_value_provider_of(type):
+def static_value_provider_of(value_type):
   """"Helper function to plug a ValueProvider into argparse.
 
   Args:
-    type: the type of the value. Since the type param of argparse's
+    value_type: the type of the value. Since the type param of argparse's
           add_argument will always be ValueProvider, we need to
           preserve the type of the actual value.
   """
   def _f(value):
-    return StaticValueProvider(type, value)
+    _f.func_name = value_type.__name__
+    return StaticValueProvider(value_type, value)
   return _f
+
+
+class ValueProviderArgumentParser(argparse.ArgumentParser):
+  """This class provides an API to add options of ValueProvider type.
+
+  It preserves the functionalities of the parent ArgumentParser.
+  A template user willing to define parameterizable options will
+  only need to define a subclass of PipelineOptions in this manner:
+
+    class TemplateUserOptions(PipelineOptions):
+
+      @classmethod
+      def _add_argparse_args(cls, parser):
+          parser.add_value_provider_argument('--abc', default='start')
+          parser.add_value_provider_argument('--xyz', default='end')
+  """
+  def add_value_provider_argument(self, *args, **kwargs):
+    # extract the option name.
+    # TODO (mariapython): handle multiple positional args like ('--quux',)
+    option_name = args[0].replace('-', '')
+
+    # reassign the type to make room for StaticValueProvider
+    value_type = kwargs.get('type') or str
+
+    # use StaticValueProvider as the type of the argument
+    kwargs['type'] = static_value_provider_of(value_type)
+
+    # reassign default to value_default to make room for using
+    # RuntimeValueProvider as the default for add_argument
+    default_value = kwargs.get('default')
+
+    # use RuntimeValueProvider() as the default
+    kwargs['default'] = RuntimeValueProvider(
+        pipeline_options_subclass=(self.pipeline_options_subclass
+                                   or PipelineOptions),
+        option_name=option_name,
+        value_type=value_type,
+        default_value=default_value,
+        optionsid='id'
+    )
+    kwargs['nargs'] = '?'  # make positional arguments optionally templated
+
+    # we still want add_argument to do most of the work
+    self.add_argument(*args, **kwargs)
 
 
 class PipelineOptions(HasDisplayData):
@@ -81,11 +128,13 @@ class PipelineOptions(HasDisplayData):
     """
     self._flags = flags
     self._all_options = kwargs
-    parser = argparse.ArgumentParser()
+    parser = ValueProviderArgumentParser()
+
     for cls in type(self).mro():
       if cls == PipelineOptions:
         break
       elif '_add_argparse_args' in cls.__dict__:
+        parser.pipeline_options_subclass = cls
         cls._add_argparse_args(parser)
     # The _visible_options attribute will contain only those options from the
     # flags (i.e., command line) that can be recognized. The _all_options
@@ -130,8 +179,9 @@ class PipelineOptions(HasDisplayData):
     Returns:
       Dictionary of all args and values.
     """
-    parser = argparse.ArgumentParser()
+    parser = ValueProviderArgumentParser()
     for cls in PipelineOptions.__subclasses__():
+      parser.pipeline_options_subclass = cls
       cls._add_argparse_args(parser)  # pylint: disable=protected-access
     known_args, _ = parser.parse_known_args(self._flags)
     result = vars(known_args)
@@ -140,7 +190,9 @@ class PipelineOptions(HasDisplayData):
     for k in result.keys():
       if k in self._all_options:
         result[k] = self._all_options[k]
-      if drop_default and parser.get_default(k) == result[k]:
+      if (drop_default and
+          parser.get_default(k) == result[k] and
+          not isinstance(parser.get_default(k), ValueProvider)):
         del result[k]
 
     return result

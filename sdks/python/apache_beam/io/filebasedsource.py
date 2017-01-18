@@ -114,7 +114,7 @@ class FileBasedSource(iobase.BoundedSource):
   def _get_concat_source(self):
     if self._concat_source is None:
       if not self._pattern.is_accessible():
-        raise RuntimeError('value not accessible')
+        raise RuntimeError('%s not accessible' % self._pattern)
 
       single_file_sources = []
       pattern = self._pattern.get()
@@ -187,7 +187,7 @@ class FileBasedSource(iobase.BoundedSource):
     """Validate if there are actual files in the specified glob pattern
     """
     if not self._pattern.is_accessible():
-      raise RuntimeError('value not accessible')
+      raise RuntimeError('%s not accessible' % self._pattern)
     pattern = self._pattern.get()
 
     # Limit the responses as we only want to check if something exists
@@ -204,7 +204,7 @@ class FileBasedSource(iobase.BoundedSource):
 
   def estimate_size(self):
     if not self._pattern.is_accessible():
-      raise RuntimeError('value not accessible')
+      raise RuntimeError('%s not accessible' % self._pattern)
     pattern = self._pattern.get()
     file_names = [f for f in fileio.ChannelFactory.glob(pattern)]
 

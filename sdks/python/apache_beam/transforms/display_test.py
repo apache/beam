@@ -30,7 +30,6 @@ from apache_beam.transforms.display import HasDisplayData
 from apache_beam.transforms.display import DisplayData
 from apache_beam.transforms.display import DisplayDataItem
 from apache_beam.utils.pipeline_options import PipelineOptions
-from apache_beam.utils.pipeline_options import static_value_provider_of
 
 
 class DisplayDataItemMatcher(BaseMatcher):
@@ -115,21 +114,20 @@ class DisplayDataTest(unittest.TestCase):
     with self.assertRaises(ValueError):
       DisplayData.create_from_options(MyDisplayComponent())
 
-  def test_vp_display_data(self):
+  def test_value_provider_display_data(self):
     class TestOptions(PipelineOptions):
       @classmethod
       def _add_argparse_args(cls, parser):
-        parser.add_argument(
+        parser.add_value_provider_argument(
             '--int_flag',
-            type=static_value_provider_of(int),
+            type=int,
             help='int_flag description')
-        parser.add_argument(
+        parser.add_value_provider_argument(
             '--str_flag',
-            type=static_value_provider_of(str),
+            type=str,
+            default='hello',
             help='str_flag description')
-    options = TestOptions(['--int_flag', '1', '--str_flag', '/dev/null'])
-    # TODO: Make flags be capable of having
-    # the same name for vp and non-vp values.
+    options = TestOptions(['--int_flag', '1'])
     items = DisplayData.create_from_options(options).items
     expected_items = [
         DisplayDataItemMatcher(
@@ -137,7 +135,8 @@ class DisplayDataTest(unittest.TestCase):
             'StaticValueProvider(type=int, value=1)'),
         DisplayDataItemMatcher(
             'str_flag',
-            'StaticValueProvider(type=str, value=\'/dev/null\')'
+            'RuntimeValueProvider(option=str_flag,'
+            ' type=str, default_value=\'hello\', value=None)'
         )
     ]
     hc.assert_that(items, hc.contains_inanyorder(*expected_items))

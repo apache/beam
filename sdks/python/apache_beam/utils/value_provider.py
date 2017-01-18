@@ -15,7 +15,7 @@
 # limitations under the License.
 #
 
-"""A ValueProvider class to implement templates with both hard-coded
+"""A ValueProvider class to implement templates with both statically
 and dynamically provided values.
 """
 
@@ -33,18 +33,65 @@ class ValueProvider(object):
 
 
 class StaticValueProvider(object):
-  def __init__(self, value_class, value):
-    self.value_class = value_class
-    self.data = value_class(value)
-    self.accessible = True
+  def __init__(self, value_type, value):
+    self.value_type = value_type
+    self.data = value_type(value)
 
   def is_accessible(self):
-    return self.accessible
+    return True
 
   def get(self):
     return self.data
 
   def __str__(self):
     return '%s(type=%s, value=%s)' % (self.__class__.__name__,
-                                      self.value_class.__name__,
+                                      self.value_type.__name__,
                                       repr(self.data))
+
+
+class RuntimeValueProvider(ValueProvider):
+  options_map = {}
+
+  def __init__(self, pipeline_options_subclass, option_name,
+               value_type, default_value, optionsid):
+    self.pipeline_options_subclass = pipeline_options_subclass
+    self.option_name = option_name
+    self.default_value = default_value
+    self.value_type = value_type
+    self.optionsid = 'id'  # TODO (mariapython): remove hard-coded value
+    # self.optionsid = optionsid
+    self.data = None
+
+  def is_accessible(self):
+    options = RuntimeValueProvider.options_map.get(self.optionsid)
+    return options is not None
+
+  def get(self):
+    options = RuntimeValueProvider.options_map.get(self.optionsid)
+    if options is None:
+      # raise RuntimeError('Not called from a runtime context')
+      raise RuntimeError('%s.get() not called from a runtime context' %self)
+    result = (
+        options.view_as(self.pipeline_options_subclass)
+        ._visible_options
+        .__dict__
+        .get(self.option_name)
+    )
+    value = (
+        result.get()
+        if isinstance(result, StaticValueProvider)
+        else self.default_value
+    )
+    return value
+
+  def set_runtime_options(self, options):
+    RuntimeValueProvider.options_map['id'] = options
+
+  def __str__(self):
+    return '%s(option=%s, type=%s, default_value=%s, value=%s)' % (
+        self.__class__.__name__,
+        self.option_name,
+        self.value_type.__name__,
+        repr(self.default_value),
+        repr(self.data)
+    )
