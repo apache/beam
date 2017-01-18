@@ -29,9 +29,6 @@
   <artifactId>beam-sdks-java-io-elasticsearch</artifactId>
   <name>Apache Beam :: SDKs :: Java :: IO :: Elasticsearch</name>
   <description>IO to read and write on Elasticsearch.</description>
-  <properties>
-
-  </properties>
 
   <build>
     <plugins>
