@@ -290,22 +290,40 @@ public class TransformHierarchy {
       for (TaggedPValue outputValue : output.expand()) {
         outputProducers.add(getProducer(outputValue.getValue()));
       }
-      if (outputProducers.contains(this) && outputProducers.size() != 1) {
-        Set<String> otherProducerNames = new HashSet<>();
-        for (Node outputProducer : outputProducers) {
-          if (outputProducer != this) {
-            otherProducerNames.add(outputProducer.getFullName());
+      if (outputProducers.contains(this)) {
+        if (outputProducers.size() > 1) {
+          Set<String> otherProducerNames = new HashSet<>();
+          for (Node outputProducer : outputProducers) {
+            if (outputProducer != this) {
+              otherProducerNames.add(outputProducer.getFullName());
+            }
+            throw new IllegalArgumentException(
+                String.format(
+                    "Output of transform [%s] contains a %s produced by it as well as other "
+                        + "Transforms. A primitive transform must produce all of its outputs, and "
+                        + "outputs of a composite transform must be produced by a component "
+                        + "transform or be part of the input."
+                        + "%n    Other Outputs: %s"
+                        + "%n    Other Producers: %s",
+                    getFullName(),
+                    POutput.class.getSimpleName(),
+                    output.expand(),
+                    otherProducerNames));
           }
         }
-        throw new IllegalArgumentException(
-            String.format(
-                "Output of transform [%s] contains a %s produced by it as well as other "
-                    + "Transforms. A primitive transform must produce all of its outputs, and "
-                    + "outputs of a composite transform must be produced by a component transform "
-                    + "or be part of the input."
-                    + "%n    Other Outputs: %s"
-                    + "%n    Other Producers: %s",
-                getFullName(), POutput.class.getSimpleName(), output.expand(), otherProducerNames));
+        if (!parts.isEmpty()) {
+          throw new IllegalArgumentException(
+              String.format(
+                  "Output of transform [%s] contains a %s produced by it, but it is a composite "
+                      + "Transform. Output of composite transforms must be produced by component "
+                      + "transforms."
+                      + "%n    Outputs: %s"
+                      + "%n    Component Nodes: %s",
+                  getFullName(),
+                  POutput.class.getSimpleName(),
+                  output.expand(),
+                  parts));
+        }
       }
     }
 

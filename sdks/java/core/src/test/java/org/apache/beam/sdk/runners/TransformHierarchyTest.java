@@ -150,6 +150,30 @@ public class TransformHierarchyTest implements Serializable {
   }
 
   @Test
+  public void producingOwnOutputWithCompsiteFails() {
+    final PCollection<Long> comp =
+        PCollection.createPrimitiveOutputInternal(
+            pipeline, WindowingStrategy.globalDefault(), IsBounded.BOUNDED);
+    PTransform<PBegin, PCollection<Long>> root =
+        new PTransform<PBegin, PCollection<Long>>() {
+          @Override
+          public PCollection<Long> expand(PBegin input) {
+            return comp;
+          }
+        };
+    hierarchy.pushNode("Composite", PBegin.in(pipeline), root);
+
+    Create.Values<Integer> create = Create.of(1);
+    hierarchy.pushNode("Create", PBegin.in(pipeline), create);
+    hierarchy.setOutput(pipeline.apply(create));
+    hierarchy.popNode();
+
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage("composite transforms must be produced by component");
+    hierarchy.setOutput(comp);
+  }
+
+  @Test
   public void visitVisitsAllPushed() {
     TransformHierarchy.Node root = hierarchy.getCurrent();
     PBegin begin = PBegin.in(pipeline);
