@@ -18,8 +18,8 @@
 package org.apache.beam.runners.flink;
 
 import java.io.Serializable;
+import org.apache.beam.runners.core.OldDoFn;
 import org.apache.beam.sdk.transforms.CombineFnBase.PerKeyCombineFn;
-import org.apache.beam.sdk.transforms.OldDoFn;
 
 /**
  * An interface that runs a {@link PerKeyCombineFn} with unified APIs using
