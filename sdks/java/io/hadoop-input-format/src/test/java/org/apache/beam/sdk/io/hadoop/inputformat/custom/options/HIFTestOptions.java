@@ -21,5 +21,6 @@ public interface HIFTestOptions extends TestPipelineOptions {
   Integer getServerPort();
 
   void setServerPort(Integer serverPort);
+  //We can add user name and password
 
 }

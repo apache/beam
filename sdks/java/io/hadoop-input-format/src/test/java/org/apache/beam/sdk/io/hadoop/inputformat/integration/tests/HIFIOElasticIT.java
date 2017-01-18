@@ -18,6 +18,7 @@ import java.io.Serializable;
 
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.hadoop.inputformat.HadoopInputFormatIO;
+import org.apache.beam.sdk.io.hadoop.inputformat.HadoopInputFormatIOContants;
 import org.apache.beam.sdk.io.hadoop.inputformat.custom.options.HIFTestOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.PAssert;
@@ -40,9 +41,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Runs integration test to validate HadoopInputFromatIO for an Elastic instance on GCP.
+ * Runs integration test to validate HadoopInputFromatIO for an Elasticsearch instance on GCP.
  *
- * You need to pass elastic server IP and port in beamTestPipelineOptions
+ * You need to pass Elasticsearch server IP and port in beamTestPipelineOptions
  *
  * <p>
  * You can run just this test by doing the following:
@@ -72,7 +73,7 @@ public class HIFIOElasticIT implements Serializable {
   }
 
   /**
-   * This test reads data from the elastic instance and verifies whether data is read successfully.
+   * This test reads data from the Elasticsearch instance and verifies whether data is read successfully.
    */
   @Test
   public void testHifIOWithElastic() {
@@ -86,7 +87,7 @@ public class HIFIOElasticIT implements Serializable {
   }
 
   /**
-   * This test reads data from the elastic instance based on a query and verifies if data is read
+   * This test reads data from the Elasticsearch instance based on a query and verifies if data is read
    * successfully.
    */
   @Test
@@ -111,21 +112,25 @@ public class HIFIOElasticIT implements Serializable {
     pipeline.run().waitUntilFinish();
   }
 
+  /**
+	 * Set the Elasticsearch configuration parameters in the Hadoop
+	 * configuration object. Configuration object should have InputFormat class,
+	 * key class and value class to be set Mandatory fields for ESInputFormat to
+	 * be set are es.resource, es.nodes, es.port, es.internal.es.version
+	 */
   public static Configuration getConfiguration(HIFTestOptions options) {
     Configuration conf = new Configuration();
-
     conf.set(ConfigurationOptions.ES_NODES, options.getServerIp());
     conf.set(ConfigurationOptions.ES_PORT, String.format("%d", options.getServerPort()));
     conf.set(ConfigurationOptions.ES_RESOURCE, ELASTIC_RESOURCE);
     conf.set("es.internal.es.version", ELASTIC_INTERNAL_VERSION);
     conf.set(ConfigurationOptions.ES_NODES_DISCOVERY, TRUE);
     conf.set(ConfigurationOptions.ES_INDEX_AUTO_CREATE, TRUE);
-    conf.setClass("mapreduce.job.inputformat.class",
+    conf.setClass(HadoopInputFormatIOContants.INPUTFORMAT_CLASSNAME,
         org.elasticsearch.hadoop.mr.EsInputFormat.class, InputFormat.class);
-    conf.setClass("key.class", Text.class, Object.class);
-    conf.setClass("value.class", MapWritable.class, Object.class);
+    conf.setClass(HadoopInputFormatIOContants.KEY_CLASS, Text.class, Object.class);
+    conf.setClass(HadoopInputFormatIOContants.VALUE_CLASS, MapWritable.class, Object.class);
     conf.setClass("mapred.mapoutput.value.class", MapWritable.class, Object.class);
-
     return conf;
   }
 }

@@ -68,25 +68,25 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 
 /**
- * A bounded source for any data source which implements Hadoop InputFormat. For e.g. Cassandra,
- * Elasticsearch, HBase, Redis , Postgres etc.
+ * A read transform for any data source which implements Hadoop InputFormat. For example- Cassandra,
+ * Elasticsearch, HBase, Redis, Postgres etc.
  * <p>
  * The Hadoop InputFormat source returns a set of {@link org.apache.beam.sdk.values.KV} key-value
  * pairs returning a {@code PCollection<KV>}.
  * <p>
- * Hadoop Configuration is mandatory for reading the data using Hadoop InputFormat source.
+ * Hadoop Configuration is mandatory for reading data using Hadoop InputFormat source.
  * <p>
  * Hadoop {@link org.apache.hadoop.conf.Configuration Configuration} object will have to be set with
  * following properties without fail:
  * <ul>
  * <li>mapreduce.job.inputformat.class : Signifies InputFormat class required to read data from
- * source. For e.g., if user wants to read data from Cassandra using CqlInputFormat, then
+ * source. For example, if user wants to read data from Cassandra using CqlInputFormat, then
  * 'mapreduce.job.inputformat.class' property must be set to CqlInputFormat.class.</li>
  * <li>key.class : Signifies output key class of InputFormat specified in
- * 'mapreduce.job.inputformat.class'. For e.g., if class CqlInputFormat is specified in
+ * 'mapreduce.job.inputformat.class'. For example, if class CqlInputFormat is specified in
  * 'mapreduce.job.inputformat.class', then 'key.class' property must be set to Long.class.</li>
  * <li>value.class : Signifies output value class of InputFormat specified in
- * 'mapreduce.job.inputformat.class'. For e.g., if class CqlInputFormat is specified in
+ * 'mapreduce.job.inputformat.class'. For example, if class CqlInputFormat is specified in
  * 'mapreduce.job.inputformat.class', then 'key.class' property must be set to Row.class.</li>
  * </ul>
  * For example:
@@ -127,7 +127,7 @@ import com.google.common.collect.Lists;
  * HadoopConfiguration is set using {@link #withConfiguration}. Key/value translation function is
  * optional and can be set using {@link #withKeyTranslation}/{@link #withValueTranslation}.
  * <p>
- * For example :
+ * For example:
  * 
  * <pre>
  * 
@@ -219,9 +219,9 @@ import com.google.common.collect.Lists;
  *   }
  * </pre>
  * <p>
- * As coder is available for CqlInputFormat key class i.e. {@link java.lang.Long} , key translation
- * is not required. For CqlInputFormat value class i.e. {@link com.datastax.driver.core.Row} coder
- * is not available in Beam, user will need to provide his own translation mechanism like following:
+ * As default coder is available for CqlInputFormat key class i.e. {@link java.lang.Long} , key translation
+ * is not required. For CqlInputFormat value class i.e. {@link com.datastax.driver.core.Row}, default coder
+ * is not available in Beam, user will need to provide his/her own translation mechanism like following:
  * 
  * <pre>
  * SimpleFunction<Row, String> cassandraOutputValueType = SimpleFunction<Row, String>() 
@@ -256,6 +256,7 @@ import com.google.common.collect.Lists;
  * PCollection<KV<Text, MapWritable>> elasticData = p.apply("read",
  *     HadoopInputFormatIO.<Text, MapWritable>read().withConfiguration(elasticSearchConf));
  * </pre>
+ * Here no translation mechanism is required as key and value class both have default coders available.
  */
 
 public class HadoopInputFormatIO {
@@ -273,7 +274,7 @@ public class HadoopInputFormatIO {
 
   /**
    * A {@link PTransform} that reads from for any data source which implements Hadoop InputFormat.
-   * For e.g. Cassandra, Elasticsearch, HBase, Redis , Postgres etc. See the class-level Javadoc on
+   * For e.g. Cassandra, Elasticsearch, HBase, Redis, Postgres etc. See the class-level Javadoc on
    * {@link HadoopInputFormatIO} for more information.
    * 
    * @param <K> Type of keys to be read.
@@ -323,7 +324,7 @@ public class HadoopInputFormatIO {
     }
 
     /**
-     * Returns a new {@link HadoopInputFormatIO.Read} that will read from the source along with
+     * Returns a new {@link HadoopInputFormatIO.Read} that will read from the source using the 
      * options indicated by the given configuration.
      *
      * <p>
@@ -332,9 +333,9 @@ public class HadoopInputFormatIO {
     public Read<K, V> withConfiguration(Configuration configuration) {
       validateConfiguration(configuration);
       inputFormatClass =
-          TypeDescriptor.of(configuration.getClass("mapreduce.job.inputformat.class", null));
-      inputFormatKeyClass = TypeDescriptor.of(configuration.getClass("key.class", null));
-      inputFormatValueClass = TypeDescriptor.of(configuration.getClass("value.class", null));
+          TypeDescriptor.of(configuration.getClass(HadoopInputFormatIOContants.INPUTFORMAT_CLASSNAME, null));
+      inputFormatKeyClass = TypeDescriptor.of(configuration.getClass(HadoopInputFormatIOContants.KEY_CLASS, null));
+      inputFormatValueClass = TypeDescriptor.of(configuration.getClass(HadoopInputFormatIOContants.VALUE_CLASS, null));
       // Sets the configuration.
       Builder<K, V> builder =
           toBuilder().setConfiguration(new SerializableConfiguration(configuration));
@@ -683,13 +684,13 @@ public class HadoopInputFormatIO {
                     inputFormatObj.getClass()));
           }
         } catch (InterruptedException e) {
-          throw new IOException(e);
+          throw new IOException("Unable to read data : ",e);
         } catch (InstantiationException e) {
-          throw new IOException(e);
+          throw new IOException("Unable to create InputFormat : ",e);
         } catch (IllegalAccessException e) {
-          throw new IOException(e);
+          throw new IOException("Unable to create InputFormat : ",e);
         } catch (ClassNotFoundException e) {
-          throw new IOException(e);
+          throw new IOException("Unable to create InputFormat : ",e);
         }
         currentReader = null;
         currentRecord = null;
@@ -707,7 +708,7 @@ public class HadoopInputFormatIO {
           currentRecord = null;
           doneReading = true;
         } catch (InterruptedException e) {
-          throw new IOException(e);
+          throw new IOException("Unable to read data : ",e);
         }
         return false;
       }
@@ -746,12 +747,12 @@ public class HadoopInputFormatIO {
        * RecordReader as Beam needs immutable objects.
        */
       private <T1 extends Object> T1 clone(T1 input, Coder<T1> coder)
-          throws IOException, InterruptedException, CoderException,ClassCastException {
+
+          throws IOException, InterruptedException, CoderException, ClassCastException{
         // If the input object is not of known immutable type, clone the object.
           if (!isKnownImmutable(input)) {
             input = CoderUtils.clone(coder, input);
           }
-        
         return input;
       }
 
@@ -855,7 +856,7 @@ public class HadoopInputFormatIO {
           split = (InputSplit) Class.forName(className).newInstance();
           ((Writable) split).readFields(in);
         } catch (InstantiationException | IllegalAccessException e) {
-          throw new IOException(e);
+          throw new IOException("Unable to create split : "+e);
         }
       }
     }
@@ -900,7 +901,7 @@ public class HadoopInputFormatIO {
         conf = (Configuration) Class.forName(className).newInstance();
         conf.readFields(in);
       } catch (InstantiationException | IllegalAccessException e) {
-        throw new IOException(e);
+        throw new IOException("Unable to create configuration : "+e);
       }
     }
   }

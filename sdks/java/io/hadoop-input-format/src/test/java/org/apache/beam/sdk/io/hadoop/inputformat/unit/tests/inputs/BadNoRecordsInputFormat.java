@@ -30,6 +30,7 @@ import org.apache.hadoop.mapreduce.TaskAttemptContext;
 
 /**
  * Bad InputFormat which returns no records in nextKeyValue() method of RecordReader.
+ * 
  */
 public class BadNoRecordsInputFormat extends InputFormat<Text, Employee> {
 

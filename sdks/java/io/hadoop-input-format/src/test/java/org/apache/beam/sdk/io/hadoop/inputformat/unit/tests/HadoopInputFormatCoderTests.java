@@ -22,6 +22,7 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.io.hadoop.inputformat.HadoopInputFormatIO;
 import org.apache.beam.sdk.io.hadoop.inputformat.HadoopInputFormatIO.Read;
+import org.apache.beam.sdk.io.hadoop.inputformat.HadoopInputFormatIOContants;
 import org.apache.beam.sdk.io.hadoop.inputformat.coders.WritableCoder;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.CoderProperties;
@@ -42,68 +43,79 @@ import com.datastax.driver.core.Row;
 @RunWith(JUnit4.class)
 public class HadoopInputFormatCoderTests {
 
-  @Test
-  public void testMapWritableEncoding() throws Exception {
-    MapWritable map = new MapWritable();
-    map.put(new Text("path"), new Text("/home/asharma/MOCK1.csv"));
-    map.put(new Text("country"), new Text("Czech Republic"));
-    map.put(new Text("@timestamp"), new Text("2016-11-11T08:06:42.260Z"));
-    map.put(new Text("gender"), new Text("Male"));
-    map.put(new Text("@version"), new Text("1"));
-    map.put(new Text("Id"), new Text("131"));
-    map.put(new Text("salary"), new Text("$8.65"));
-    map.put(new Text("email"), new Text("alex@example.com"));
-    map.put(new Text("desc"), new Text("Other contact with macaw, subsequent encounter"));
-    WritableCoder<MapWritable> coder = WritableCoder.of(MapWritable.class);
-    CoderUtils.clone(coder, map);
-    CoderProperties.coderDecodeEncodeEqual(coder, map);
-  }
+	@Test
+	public void testMapWritableEncoding() throws Exception {
+		MapWritable map = new MapWritable();
+		map.put(new Text("path"), new Text("/home/asharma/MOCK1.csv"));
+		map.put(new Text("country"), new Text("Czech Republic"));
+		map.put(new Text("@timestamp"), new Text("2016-11-11T08:06:42.260Z"));
+		map.put(new Text("gender"), new Text("Male"));
+		map.put(new Text("@version"), new Text("1"));
+		map.put(new Text("Id"), new Text("131"));
+		map.put(new Text("salary"), new Text("$8.65"));
+		map.put(new Text("email"), new Text("alex@example.com"));
+		map.put(new Text("desc"), new Text(
+				"Other contact with macaw, subsequent encounter"));
+		WritableCoder<MapWritable> coder = WritableCoder.of(MapWritable.class);
+		CoderUtils.clone(coder, map);
+		CoderProperties.coderDecodeEncodeEqual(coder, map);
+	}
 
-  @Test
-  public void testDefaultCoderFromCodeRegistry() {
-    TypeDescriptor<Long> td = new TypeDescriptor<Long>() {
-      private static final long serialVersionUID = 1L;
-    };
-    Configuration conf = loadTestConfiguration();
-    Pipeline pipeline = TestPipeline.create();
-    Read<Text, String> read = HadoopInputFormatIO.<Text, String>read().withConfiguration(conf);
-    Coder<Long> coder = read.getDefaultCoder(td, pipeline.getCoderRegistry());
-    assertEquals(coder.getClass(), VarLongCoder.class);
-  }
+	@Test
+	public void testDefaultCoderFromCodeRegistry() {
+		TypeDescriptor<Long> td = new TypeDescriptor<Long>() {
+			private static final long serialVersionUID = 1L;
+		};
+		Configuration conf = loadTestConfiguration();
+		Pipeline pipeline = TestPipeline.create();
+		Read<Text, String> read = HadoopInputFormatIO.<Text, String> read()
+				.withConfiguration(conf);
+		Coder<Long> coder = read.getDefaultCoder(td,
+				pipeline.getCoderRegistry());
+		assertEquals(coder.getClass(), VarLongCoder.class);
+	}
 
-  @Test
-  public void testWritableCoder() {
-    TypeDescriptor<MapWritable> td = new TypeDescriptor<MapWritable>() {
-      private static final long serialVersionUID = 1L;
-    };
-    Configuration conf = loadTestConfiguration();
-    DirectOptions directRunnerOptions = PipelineOptionsFactory.as(DirectOptions.class);
-    Pipeline pipeline = Pipeline.create(directRunnerOptions);
-    Read<Text, String> read = HadoopInputFormatIO.<Text, String>read().withConfiguration(conf);
-    Coder<MapWritable> coder = read.getDefaultCoder(td, pipeline.getCoderRegistry());
-    assertEquals(coder.getClass(), WritableCoder.class);
-  }
+	@Test
+	public void testWritableCoder() {
+		TypeDescriptor<MapWritable> td = new TypeDescriptor<MapWritable>() {
+			private static final long serialVersionUID = 1L;
+		};
+		Configuration conf = loadTestConfiguration();
+		DirectOptions directRunnerOptions = PipelineOptionsFactory
+				.as(DirectOptions.class);
+		Pipeline pipeline = Pipeline.create(directRunnerOptions);
+		Read<Text, String> read = HadoopInputFormatIO.<Text, String> read()
+				.withConfiguration(conf);
+		Coder<MapWritable> coder = read.getDefaultCoder(td,
+				pipeline.getCoderRegistry());
+		assertEquals(coder.getClass(), WritableCoder.class);
+	}
 
-  @Test(expected = IllegalStateException.class)
-  public void testNonRegisteredCustomCoder() {
-    TypeDescriptor<Row> td = new TypeDescriptor<Row>() {
-      private static final long serialVersionUID = 1L;
-    };
-    Configuration conf = loadTestConfiguration();
-    DirectOptions directRunnerOptions = PipelineOptionsFactory.as(DirectOptions.class);
-    Pipeline pipeline = Pipeline.create(directRunnerOptions);
-    Read<Text, String> read = HadoopInputFormatIO.<Text, String>read().withConfiguration(conf);
-    read.getDefaultCoder(td, pipeline.getCoderRegistry());
-  }
+	@Test(expected = IllegalStateException.class)
+	public void testNonRegisteredCustomCoder() {
+		TypeDescriptor<Row> td = new TypeDescriptor<Row>() {
+			private static final long serialVersionUID = 1L;
+		};
+		Configuration conf = loadTestConfiguration();
+		DirectOptions directRunnerOptions = PipelineOptionsFactory
+				.as(DirectOptions.class);
+		Pipeline pipeline = Pipeline.create(directRunnerOptions);
+		Read<Text, String> read = HadoopInputFormatIO.<Text, String> read()
+				.withConfiguration(conf);
+		read.getDefaultCoder(td, pipeline.getCoderRegistry());
+	}
 
-  private Configuration loadTestConfiguration() {
-    Configuration conf = new Configuration();
-    conf.set(ConfigurationOptions.ES_NODES, "10.51.234.135:9200");
-    conf.set("es.resource", "/my_data/logs");
-    conf.setClass("mapreduce.job.inputformat.class",org.elasticsearch.hadoop.mr.EsInputFormat.class,
-        InputFormat.class);
-    conf.setClass("key.class", Text.class, Object.class);
-    conf.setClass("value.class", MapWritable.class, Object.class);
-    return conf;
-  }
+	private Configuration loadTestConfiguration() {
+		Configuration conf = new Configuration();
+		conf.set(ConfigurationOptions.ES_NODES, "10.51.234.135:9200");
+		conf.set("es.resource", "/my_data/logs");
+		conf.setClass(HadoopInputFormatIOContants.INPUTFORMAT_CLASSNAME,
+				org.elasticsearch.hadoop.mr.EsInputFormat.class,
+				InputFormat.class);
+		conf.setClass(HadoopInputFormatIOContants.KEY_CLASS, Text.class,
+				Object.class);
+		conf.setClass(HadoopInputFormatIOContants.VALUE_CLASS,
+				MapWritable.class, Object.class);
+		return conf;
+	}
 }
