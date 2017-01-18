@@ -17,12 +17,11 @@
  */
 package org.apache.beam.sdk.options;
 
-import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Strings.isNullOrEmpty;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.google.auth.Credentials;
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Strings;
 import com.google.common.io.Files;
 import java.io.File;
 import java.io.IOException;
@@ -34,6 +33,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.util.CredentialFactory;
+import org.apache.beam.sdk.util.DefaultBucket;
 import org.apache.beam.sdk.util.GcpCredentialFactory;
 import org.apache.beam.sdk.util.InstanceBuilder;
 import org.apache.beam.sdk.util.PathValidator;
@@ -60,6 +60,17 @@ public interface GcpOptions extends GoogleApiDebugOptions, PipelineOptions {
   @Default.InstanceFactory(DefaultProjectFactory.class)
   String getProject();
   void setProject(String value);
+
+  /**
+   * GCP <a href="https://developers.google.com/compute/docs/zones"
+   * >availability zone</a> for operations.
+   *
+   * <p>Default is set on a per-service basis.
+   */
+  @Description("GCP availability zone for running GCP operations. "
+      + "Default is up to the individual service.")
+  String getZone();
+  void setZone(String value);
 
   /**
    * The class of the credential factory that should be created and used to create
@@ -197,15 +208,18 @@ public interface GcpOptions extends GoogleApiDebugOptions, PipelineOptions {
     @Nullable
     public String create(PipelineOptions options) {
       String tempLocation = options.getTempLocation();
-      checkArgument(!Strings.isNullOrEmpty(options.getTempLocation()),
-          "Error constructing default value for gcpTempLocation: tempLocation is not set");
-      try {
-        PathValidator validator = options.as(GcsOptions.class).getPathValidator();
-        validator.validateOutputFilePrefixSupported(tempLocation);
-      } catch (Exception e) {
-        throw new IllegalArgumentException(String.format(
-            "Error constructing default value for gcpTempLocation: tempLocation is not"
-                + " a valid GCS path, %s. ", tempLocation), e);
+      if (isNullOrEmpty(tempLocation)) {
+        tempLocation = DefaultBucket.tryCreateDefaultBucket(options);
+        options.setTempLocation(tempLocation);
+      } else {
+        try {
+          PathValidator validator = options.as(GcsOptions.class).getPathValidator();
+          validator.validateOutputFilePrefixSupported(tempLocation);
+        } catch (Exception e) {
+          throw new IllegalArgumentException(String.format(
+              "Error constructing default value for gcpTempLocation: tempLocation is not"
+              + " a valid GCS path, %s. ", tempLocation), e);
+        }
       }
       return tempLocation;
     }

@@ -76,7 +76,7 @@ public class GcpProjectUtil {
    * Returns the project number or throws an exception if the project does not
    * exist or has other access exceptions.
    */
-  long getProjectNumber(String projectId) throws IOException {
+  public long getProjectNumber(String projectId) throws IOException {
     return getProjectNumber(
       projectId,
       BACKOFF_FACTORY.backoff(),

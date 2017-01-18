@@ -451,7 +451,9 @@ public class GcsUtil {
   void createBucket(String projectId, Bucket bucket, BackOff backoff, Sleeper sleeper)
         throws IOException {
     Storage.Buckets.Insert insertBucket =
-      storageClient.buckets().insert(projectId, bucket);
+        storageClient.buckets().insert(projectId, bucket);
+    insertBucket.setPredefinedAcl("projectPrivate");
+    insertBucket.setPredefinedDefaultObjectAcl("projectPrivate");
 
     try {
       ResilientOperation.retry(
