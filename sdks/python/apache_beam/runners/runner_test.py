@@ -161,6 +161,7 @@ class RunnerTest(unittest.TestCase):
     (p | 'create' >> ptransform.Create([1, 2, 3, 4, 5])
      | 'do' >> beam.ParDo(MyDoFn()))
     result = p.run()
+    result.wait_until_finish()
     metrics = result.metrics().query()
     namespace = '{}.{}'.format(MyDoFn.__module__,
                                MyDoFn.__name__)

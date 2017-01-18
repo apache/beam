@@ -97,6 +97,7 @@ def run(argv=None):
 
   # Actually run the pipeline (all operations above are deferred).
   result = p.run()
+  result.wait_until_finish()
   empty_line_values = result.aggregated_values(empty_line_aggregator)
   logging.info('number of empty lines: %d', sum(empty_line_values.values()))
   word_length_values = result.aggregated_values(average_word_size_aggregator)

@@ -287,7 +287,7 @@ class PValueCache(object):
 
 
 class PipelineState(object):
-  """State of the Pipeline, as returned by PipelineResult.current_state().
+  """State of the Pipeline, as returned by PipelineResult.state.
 
   This is meant to be the union of all the states any runner can put a
   pipeline in.  Currently, it represents the values of the dataflow
@@ -310,9 +310,38 @@ class PipelineResult(object):
   def __init__(self, state):
     self._state = state
 
-  def current_state(self):
-    """Return the current state of running the pipeline."""
+  @property
+  def state(self):
+    """Return the current state of the pipeline execution."""
     return self._state
+
+  def wait_until_finish(self, duration=None):
+    """Waits until the pipeline finishes and returns the final status.
+
+    Args:
+      duration: The time to wait (in milliseconds) for job to finish. If it is
+        set to None, it will wait indefinitely until the job is finished.
+
+    Raises:
+      IOError: If there is a persistent problem getting job information.
+      NotImplementedError: If the runner does not support this operation.
+
+    Returns:
+      The final state of the pipeline, or None on timeout.
+    """
+    raise NotImplementedError
+
+  def cancel(self):
+    """Cancels the pipeline execution.
+
+    Raises:
+      IOError: If there is a persistent problem getting job information.
+      NotImplementedError: If the runner does not support this operation.
+
+    Returns:
+      The final state of the pipeline.
+    """
+    raise NotImplementedError
 
   # pylint: disable=unused-argument
   def aggregated_values(self, aggregator_or_name):

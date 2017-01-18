@@ -443,7 +443,7 @@ class PTransform(WithTypeHints, HasDisplayData):
       # Get a reference to the runners internal cache, otherwise runner may
       # clean it after run.
       cache = p.runner.cache
-      p.run()
+      p.run().wait_until_finish()
       return _MaterializePValues(cache).visit(result)
 
   def _extract_input_pvalues(self, pvalueish):

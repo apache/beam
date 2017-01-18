@@ -20,7 +20,6 @@
 import glob
 import logging
 import os
-import sys
 import tempfile
 import unittest
 import uuid
@@ -35,6 +34,7 @@ from apache_beam.utils.pipeline_options import TypeOptions
 from apache_beam.examples.snippets import snippets
 
 # pylint: disable=expression-not-assigned
+from apache_beam.test_pipeline import TestPipeline
 
 
 class ParDoTest(unittest.TestCase):
@@ -110,7 +110,7 @@ class ParDoTest(unittest.TestCase):
     self.assertEqual({1, 2, 4}, set(result))
 
   def test_pardo_side_input(self):
-    p = beam.Pipeline('DirectRunner')
+    p = TestPipeline()
     words = p | 'start' >> beam.Create(['a', 'bb', 'ccc', 'dddd'])
 
     # [START model_pardo_side_input]
@@ -228,7 +228,7 @@ class ParDoTest(unittest.TestCase):
 class TypeHintsTest(unittest.TestCase):
 
   def test_bad_types(self):
-    p = beam.Pipeline('DirectRunner', argv=sys.argv)
+    p = TestPipeline()
     evens = None  # pylint: disable=unused-variable
 
     # [START type_hints_missing_define_numbers]
@@ -290,7 +290,7 @@ class TypeHintsTest(unittest.TestCase):
 
   def test_runtime_checks_off(self):
     # pylint: disable=expression-not-assigned
-    p = beam.Pipeline('DirectRunner', argv=sys.argv)
+    p = TestPipeline()
     # [START type_hints_runtime_off]
     p | beam.Create(['a']) | beam.Map(lambda x: 3).with_output_types(str)
     p.run()
@@ -298,7 +298,7 @@ class TypeHintsTest(unittest.TestCase):
 
   def test_runtime_checks_on(self):
     # pylint: disable=expression-not-assigned
-    p = beam.Pipeline('DirectRunner', argv=sys.argv)
+    p = TestPipeline()
     with self.assertRaises(typehints.TypeCheckError):
       # [START type_hints_runtime_on]
       p.options.view_as(TypeOptions).runtime_type_check = True
@@ -307,7 +307,7 @@ class TypeHintsTest(unittest.TestCase):
       # [END type_hints_runtime_on]
 
   def test_deterministic_key(self):
-    p = beam.Pipeline('DirectRunner')
+    p = TestPipeline()
     lines = (p | beam.Create(
         ['banana,fruit,3', 'kiwi,fruit,2', 'kiwi,fruit,2', 'zucchini,veg,3']))
 

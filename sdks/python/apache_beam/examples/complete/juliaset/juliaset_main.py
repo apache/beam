@@ -38,7 +38,7 @@ an example:
 python juliaset_main.py \
   --job_name juliaset-$USER \
   --project YOUR-PROJECT \
-  --runner BlockingDataflowRunner \
+  --runner DataflowRunner \
   --setup_file ./setup.py \
   --staging_location gs://YOUR-BUCKET/juliaset/staging \
   --temp_location gs://YOUR-BUCKET/juliaset/temp \

@@ -25,14 +25,16 @@ from apache_beam.utils.pipeline_options import TestOptions
 class TestDataflowRunner(DataflowRunner):
 
   def __init__(self):
-    super(TestDataflowRunner, self).__init__(blocking=True)
+    super(TestDataflowRunner, self).__init__()
 
   def run(self, pipeline):
     """Execute test pipeline and verify test matcher"""
     self.result = super(TestDataflowRunner, self).run(pipeline)
+    self.result.wait_until_finish()
 
     options = pipeline.options.view_as(TestOptions)
     if options.on_success_matcher:
       from hamcrest import assert_that as hc_assert_that
       hc_assert_that(self.result, pickler.loads(options.on_success_matcher))
+
     return self.result
