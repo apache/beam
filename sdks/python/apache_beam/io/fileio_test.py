@@ -762,7 +762,7 @@ class TestNativeTextFileSink(unittest.TestCase):
 
   def test_write_native(self):
     pipeline = TestPipeline()
-    pcoll = pipeline | beam.core.Create('Create', self.lines)
+    pcoll = pipeline | 'Create' >> beam.core.Create(self.lines)
     pcoll | 'Write' >> beam.Write(fileio.NativeTextFileSink(self.path))  # pylint: disable=expression-not-assigned
     pipeline.run()
 
@@ -775,7 +775,7 @@ class TestNativeTextFileSink(unittest.TestCase):
 
   def test_write_native_auto_compression(self):
     pipeline = TestPipeline()
-    pcoll = pipeline | beam.core.Create('Create', self.lines)
+    pcoll = pipeline | 'Create' >> beam.core.Create(self.lines)
     pcoll | 'Write' >> beam.Write(  # pylint: disable=expression-not-assigned
         fileio.NativeTextFileSink(
             self.path, file_name_suffix='.gz'))
@@ -790,7 +790,7 @@ class TestNativeTextFileSink(unittest.TestCase):
 
   def test_write_native_auto_compression_unsharded(self):
     pipeline = TestPipeline()
-    pcoll = pipeline | beam.core.Create('Create', self.lines)
+    pcoll = pipeline | 'Create' >> beam.core.Create(self.lines)
     pcoll | 'Write' >> beam.Write(  # pylint: disable=expression-not-assigned
         fileio.NativeTextFileSink(
             self.path + '.gz', shard_name_template=''))

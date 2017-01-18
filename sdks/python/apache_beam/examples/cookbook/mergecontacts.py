@@ -75,11 +75,12 @@ def run(argv=None, assert_results=None):
   def read_kv_textfile(label, textfile):
     return (p
             | 'read_%s' % label >> ReadFromText(textfile)
-            | beam.Map('backslash_%s' % label,
-                       lambda x: re.sub(r'\\', r'\\\\', x))
-            | beam.Map('escape_quotes_%s' % label,
-                       lambda x: re.sub(r'"', r'\"', x))
-            | beam.Map('split_%s' % label, lambda x: re.split(r'\t+', x, 1)))
+            | 'backslash_%s' % label >> beam.Map(
+                lambda x: re.sub(r'\\', r'\\\\', x))
+            | 'escape_quotes_%s' % label >> beam.Map(
+                lambda x: re.sub(r'"', r'\"', x))
+            | 'split_%s' % label >> beam.Map(
+                lambda x: re.split(r'\t+', x, 1)))
 
   # Read input databases.
   email = read_kv_textfile('email', known_args.input_email)

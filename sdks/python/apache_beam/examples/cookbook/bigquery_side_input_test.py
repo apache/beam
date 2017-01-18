@@ -31,10 +31,8 @@ class BigQuerySideInputTest(unittest.TestCase):
     p = TestPipeline()
 
     group_ids_pcoll = p | 'create_group_ids' >> beam.Create(['A', 'B', 'C'])
-    corpus_pcoll = p | beam.Create('create_corpus',
-                                   [{'f': 'corpus1'},
-                                    {'f': 'corpus2'},
-                                    {'f': 'corpus3'}])
+    corpus_pcoll = p | 'create_corpus' >> beam.Create(
+        [{'f': 'corpus1'}, {'f': 'corpus2'}, {'f': 'corpus3'}])
     words_pcoll = p | 'create_words' >> beam.Create([{'f': 'word1'},
                                                      {'f': 'word2'},
                                                      {'f': 'word3'}])

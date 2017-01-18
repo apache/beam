@@ -205,8 +205,8 @@ class RunnerTest(unittest.TestCase):
                      '--temp_location=/dev/null',
                      '--no_auth=True'
                  ]))
-    rows = p | beam.io.Read('read',
-                            beam.io.BigQuerySource('dataset.faketable'))
+    rows = p | 'read' >> beam.io.Read(
+        beam.io.BigQuerySource('dataset.faketable'))
     with self.assertRaises(ValueError,
                            msg=('Coder for the GroupByKey operation'
                                 '"GroupByKey" is not a key-value coder: '

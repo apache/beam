@@ -53,8 +53,8 @@ def filter_cold_days(input_data, month_filter):
   projection_fields = ['year', 'month', 'day', 'mean_temp']
   fields_of_interest = (
       input_data
-      | beam.Map('projected',
-                 lambda row: {f: row[f] for f in projection_fields}))
+      | 'projected' >> beam.Map(
+          lambda row: {f: row[f] for f in projection_fields}))
 
   # Compute the global mean temperature.
   global_mean = AsSingleton(

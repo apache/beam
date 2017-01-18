@@ -562,9 +562,9 @@ class PTransformTest(unittest.TestCase):
 @beam.ptransform_fn
 def SamplePTransform(pcoll):
   """Sample transform using the @ptransform_fn decorator."""
-  map_transform = beam.Map('ToPairs', lambda v: (v, None))
-  combine_transform = beam.CombinePerKey('Group', lambda vs: None)
-  keys_transform = beam.Keys('RemoveDuplicates')
+  map_transform = 'ToPairs' >> beam.Map(lambda v: (v, None))
+  combine_transform = 'Group' >> beam.CombinePerKey(lambda vs: None)
+  keys_transform = 'RemoveDuplicates' >> beam.Keys()
   return pcoll | map_transform | combine_transform | keys_transform
 
 
@@ -575,15 +575,15 @@ class PTransformLabelsTest(unittest.TestCase):
     pardo = None
 
     def expand(self, pcoll):
-      self.pardo = beam.FlatMap('*do*', lambda x: [x + 1])
+      self.pardo = '*do*' >> beam.FlatMap(lambda x: [x + 1])
       return pcoll | self.pardo
 
   def test_chained_ptransforms(self):
     """Tests that chaining gets proper nesting."""
     pipeline = TestPipeline()
-    map1 = beam.Map('map1', lambda x: (x, 1))
-    gbk = beam.GroupByKey('gbk')
-    map2 = beam.Map('map2', lambda (x, ones): (x, sum(ones)))
+    map1 = 'map1' >> beam.Map(lambda x: (x, 1))
+    gbk = 'gbk' >> beam.GroupByKey()
+    map2 = 'map2' >> beam.Map(lambda (x, ones): (x, sum(ones)))
     t = (map1 | gbk | map2)
     result = pipeline | 'start' >> beam.Create(['a', 'a', 'b']) | t
     self.assertTrue('map1|gbk|map2/map1' in pipeline.applied_labels)
@@ -636,7 +636,7 @@ class PTransformLabelsTest(unittest.TestCase):
     vals = [1, 2, 3, 4, 5, 6, 7]
     pipeline = TestPipeline()
     pcoll = pipeline | 'start' >> beam.Create(vals)
-    combine = beam.CombineGlobally('*sum*', sum)
+    combine = '*sum*' >> beam.CombineGlobally(sum)
     result = pcoll | combine
     self.assertTrue('*sum*' in pipeline.applied_labels)
     assert_that(result, equal_to([sum(vals)]))

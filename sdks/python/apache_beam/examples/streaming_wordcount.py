@@ -52,9 +52,9 @@ def run(argv=None):
 
   # Capitalize the characters in each line.
   transformed = (lines
-                 | (beam.FlatMap('split',
-                                 lambda x: re.findall(r'[A-Za-z\']+', x))
-                    .with_output_types(unicode))
+                 | 'split' >> (
+                     beam.FlatMap(lambda x: re.findall(r'[A-Za-z\']+', x))
+                     .with_output_types(unicode))
                  | 'pair_with_one' >> beam.Map(lambda x: (x, 1))
                  | beam.WindowInto(window.FixedWindows(15, 0))
                  | 'group' >> beam.GroupByKey()

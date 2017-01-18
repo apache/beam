@@ -43,7 +43,7 @@ def read_documents(pipeline, uris):
     pcolls.append(
         pipeline
         | 'read: %s' % uri >> ReadFromText(uri)
-        | beam.Map('withkey: %s' % uri, lambda v, uri: (uri, v), uri))
+        | 'withkey: %s' % uri >> beam.Map(lambda v, uri: (uri, v), uri))
   return pcolls | 'flatten read pcolls' >> beam.Flatten()
 
 
@@ -101,8 +101,8 @@ class TfIdf(beam.PTransform):
     # for a join by the URI key.
     uri_to_word_and_count = (
         uri_and_word_to_count
-        | beam.Map('shift keys',
-                   lambda ((uri, word), count): (uri, (word, count))))
+        | 'shift keys' >> beam.Map(
+            lambda ((uri, word), count): (uri, (word, count))))
 
     # Perform a CoGroupByKey (a sort of pre-join) on the prepared
     # uri_to_word_total and uri_to_word_and_count tagged by 'word totals' and
@@ -149,9 +149,9 @@ class TfIdf(beam.PTransform):
     # DoFns in this way.
     word_to_df = (
         word_to_doc_count
-        | beam.Map('compute doc frequencies',
-                   lambda (word, count), total: (word, float(count) / total),
-                   AsSingleton(total_documents)))
+        | 'compute doc frequencies' >> beam.Map(
+            lambda (word, count), total: (word, float(count) / total),
+            AsSingleton(total_documents)))
 
     # Join the term frequency and document frequency collections,
     # each keyed on the word.
