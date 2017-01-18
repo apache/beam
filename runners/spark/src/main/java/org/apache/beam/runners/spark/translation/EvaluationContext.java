@@ -90,10 +90,8 @@ public class EvaluationContext {
   }
 
   public <T extends PValue> T getOnlyInput(PTransform<T, ?> transform) {
-    checkArgument(currentTransform != null && currentTransform.getTransform() == transform,
-        "can only be called with current transform");
     @SuppressWarnings("unchecked")
-    T input = (T) Iterables.getOnlyElement(currentTransform.getInputs()).getValue();
+    T input = (T) Iterables.getOnlyElement(getInput(transform)).getValue();
     return input;
   }
 
@@ -104,10 +102,8 @@ public class EvaluationContext {
   }
 
   public <T extends PValue> T getOnlyOutput(PTransform<?, T> transform) {
-    checkArgument(currentTransform != null && currentTransform.getTransform() == transform,
-        "can only be called with current transform");
     @SuppressWarnings("unchecked")
-    T output = (T) Iterables.getOnlyElement(currentTransform.getOutputs()).getValue();
+    T output = (T) Iterables.getOnlyElement(getOutput(transform)).getValue();
     return output;
   }
 
