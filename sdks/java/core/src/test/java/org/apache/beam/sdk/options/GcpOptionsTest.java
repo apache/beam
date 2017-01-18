@@ -109,9 +109,9 @@ public class GcpOptionsTest {
   @Test
   public void testEmptyGcpTempLocation() throws Exception {
     GcpOptions options = PipelineOptionsFactory.as(GcpOptions.class);
+    options.setProject("");
     thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage(
-        "Error constructing default value for gcpTempLocation: tempLocation is not set");
+    thrown.expectMessage("--project is a required option");
     options.getGcpTempLocation();
   }
 

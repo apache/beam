@@ -183,9 +183,9 @@ public class DataflowPipelineOptionsTest {
   @Test
   public void testDefaultStagingLocationUnset() {
     DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
+    options.setProject("");
     thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage("Error constructing default value for stagingLocation: "
-        + "failed to retrieve gcpTempLocation.");
+    thrown.expectMessage("Error constructing default value for stagingLocation");
     options.getStagingLocation();
   }
 }
