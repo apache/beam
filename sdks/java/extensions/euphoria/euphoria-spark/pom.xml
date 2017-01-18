@@ -23,6 +23,18 @@
     <dependency>
       <groupId>cz.seznam.euphoria</groupId>
       <artifactId>euphoria-hadoop</artifactId>
+      <exclusions>
+        <!--
+           we have kryo provided by spark itself; the kryo version
+           provided by spark is actually a different one, but appears
+           to be compatible with the functionality that euphoria-hadoop
+           requires.
+        -->
+        <exclusion>
+          <groupId>com.esotericsoftware.kryo</groupId>
+          <artifactId>kryo</artifactId>
+        </exclusion>
+      </exclusions>
     </dependency>
 
     <!-- Spark dependencies -->
@@ -40,6 +52,7 @@
       <version>${project.version}</version>
       <scope>test</scope>
     </dependency>
+
     <dependency>
       <groupId>junit</groupId>
       <artifactId>junit</artifactId>
