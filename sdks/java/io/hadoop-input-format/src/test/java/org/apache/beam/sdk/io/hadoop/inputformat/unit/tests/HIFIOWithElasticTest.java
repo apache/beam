@@ -77,6 +77,7 @@ public class HIFIOWithElasticTest implements Serializable {
 	private static final String ELASTIC_TYPE_NAME = "employee";
 	private static final String ELASTIC_RESOURCE = "/" + ELASTIC_INDEX_NAME
 			+ "/" + ELASTIC_TYPE_NAME;
+    private static final int SIZE = 1000;
 
 	@BeforeClass
 	public static void startServer() throws NodeValidationException,
@@ -96,7 +97,7 @@ public class HIFIOWithElasticTest implements Serializable {
 				.<Text, MapWritable> read().withConfiguration(conf));
 		PCollection<Long> count = esData.apply(Count
 				.<KV<Text, MapWritable>> globally());
-		PAssert.thatSingleton(count).isEqualTo((long) 10);
+		PAssert.thatSingleton(count).isEqualTo((long) SIZE);
 
 		p.run().waitUntilFinish();
 	}
@@ -150,7 +151,7 @@ public class HIFIOWithElasticTest implements Serializable {
 		private static final String DEFAULT_PATH = "target/ESData";
 
 		public static void startElasticEmbeddedServer()
-				throws UnknownHostException, NodeValidationException {
+				throws UnknownHostException, NodeValidationException, InterruptedException {
 
 			Settings settings = Settings.builder().put("node.data", TRUE)
 					.put("network.host", ELASTIC_IN_MEM_HOSTNAME)
@@ -167,11 +168,11 @@ public class HIFIOWithElasticTest implements Serializable {
 					+ "and populated data on elastic in memory server..");
 		}
 
-		private static void prepareElasticIndex() {
+		private static void prepareElasticIndex() throws InterruptedException {
 			CreateIndexRequest indexRequest = new CreateIndexRequest(
 					ELASTIC_INDEX_NAME);
 			node.client().admin().indices().create(indexRequest).actionGet();
-			for (int i = 0; i < 10; i++) {
+			for (int i = 0; i < SIZE; i++) {
 				node.client()
 						.prepareIndex(ELASTIC_INDEX_NAME, ELASTIC_TYPE_NAME,
 								String.valueOf(i))
@@ -179,6 +180,7 @@ public class HIFIOWithElasticTest implements Serializable {
 								populateElasticData("xyz2260" + i, "John Foo",
 										new Date(), new String[] { "java" },
 										"Software engineer")).execute();
+				Thread.sleep(50);
 			}
 			GetResponse response = node.client()
 					.prepareGet(ELASTIC_INDEX_NAME, ELASTIC_TYPE_NAME, "1")
