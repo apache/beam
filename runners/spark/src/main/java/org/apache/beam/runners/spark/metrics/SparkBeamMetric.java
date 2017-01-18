@@ -26,7 +26,6 @@ import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.metrics.MetricQueryResults;
 import org.apache.beam.sdk.metrics.MetricResult;
 import org.apache.beam.sdk.metrics.MetricsFilter;
-import org.apache.spark.Accumulator;
 
 
 /**
@@ -35,10 +34,7 @@ import org.apache.spark.Accumulator;
 class SparkBeamMetric implements Metric {
   private static final String ILLEGAL_CHARACTERS = "[^A-Za-z0-9\\._-]";
 
-  private final Accumulator<SparkMetricsContainer> metricsAccum =
-      SparkMetricsContainer.getAccumulator(null);
-
-  private final SparkMetricResults metricResults = new SparkMetricResults(metricsAccum);
+  private final SparkMetricResults metricResults = new SparkMetricResults();
 
   Map<String, ?> renderAll() {
     Map<String, Object> metrics = new HashMap<>();

@@ -41,8 +41,6 @@ import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.metrics.MetricUpdates;
 import org.apache.beam.sdk.metrics.MetricUpdates.MetricUpdate;
 import org.apache.beam.sdk.metrics.MetricsContainer;
-import org.apache.spark.Accumulator;
-import org.apache.spark.api.java.JavaSparkContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -56,12 +54,6 @@ public class SparkMetricsContainer implements Serializable {
   private transient volatile LoadingCache<String, MetricsContainer> metricsContainers;
 
   private final Map<MetricKey, MetricAggregator<?>> metrics = new HashMap<>();
-
-  SparkMetricsContainer() {}
-
-  public static Accumulator<SparkMetricsContainer> getAccumulator(JavaSparkContext jsc) {
-    return MetricsAccumulator.getInstance(jsc);
-  }
 
   public MetricsContainer getContainer(String stepName) {
     if (metricsContainers == null) {
@@ -80,10 +72,10 @@ public class SparkMetricsContainer implements Serializable {
     }
   }
 
-  Collection<CounterAggregator> getCounters() {
+  static Collection<CounterAggregator> getCounters() {
     return
         FluentIterable
-            .from(metrics.values())
+            .from(getInstance().metrics.values())
             .filter(IS_COUNTER)
             .transform(TO_COUNTER)
             .toList();
@@ -106,10 +98,10 @@ public class SparkMetricsContainer implements Serializable {
         }
       };
 
-  Collection<DistributionAggregator> getDistributions() {
+  static Collection<DistributionAggregator> getDistributions() {
     return
         FluentIterable
-            .from(metrics.values())
+            .from(getInstance().metrics.values())
             .filter(IS_DISTRIBUTION)
             .transform(TO_DISTRIBUTION)
             .toList();
@@ -132,10 +124,11 @@ public class SparkMetricsContainer implements Serializable {
       };
 
   SparkMetricsContainer merge(SparkMetricsContainer other) {
-    return
-        new SparkMetricsContainer()
-            .updated(this.getAggregators())
-            .updated(other.getAggregators());
+    return this.updated(other.getAggregators());
+  }
+
+  private static SparkMetricsContainer getInstance() {
+    return MetricsAccumulator.getInstance().value();
   }
 
   private Collection<MetricAggregator<?>> getAggregators() {
@@ -143,6 +136,10 @@ public class SparkMetricsContainer implements Serializable {
   }
 
   private void writeObject(ObjectOutputStream out) throws IOException {
+    // Since MetricsContainer instances are not serializable, materialize a serializable map of
+    // MetricsAggregators relating to the same metrics. This is done here, when Spark serializes
+    // the SparkMetricsContainer accumulator before sending results back to the driver at a point in
+    // time where all the metrics updates have already been made to the MetricsContainers.
     materialize();
     out.defaultWriteObject();
   }

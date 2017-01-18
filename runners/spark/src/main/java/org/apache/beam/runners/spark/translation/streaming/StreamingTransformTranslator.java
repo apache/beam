@@ -30,6 +30,7 @@ import org.apache.beam.runners.spark.aggregators.SparkAggregators;
 import org.apache.beam.runners.spark.io.ConsoleIO;
 import org.apache.beam.runners.spark.io.CreateStream;
 import org.apache.beam.runners.spark.io.SparkUnboundedSource;
+import org.apache.beam.runners.spark.metrics.MetricsAccumulator;
 import org.apache.beam.runners.spark.metrics.SparkMetricsContainer;
 import org.apache.beam.runners.spark.translation.BoundedDataset;
 import org.apache.beam.runners.spark.translation.Dataset;
@@ -396,7 +397,7 @@ final class StreamingTransformTranslator {
             final Accumulator<NamedAggregators> aggAccum =
                 SparkAggregators.getNamedAggregators(jsc);
             final Accumulator<SparkMetricsContainer> metricsAccum =
-                SparkMetricsContainer.getAccumulator(jsc);
+                MetricsAccumulator.getOrCreateInstance(jsc);
             final Map<TupleTag<?>, KV<WindowingStrategy<?, ?>, SideInputBroadcast<?>>> sideInputs =
                 TranslationUtils.getSideInputs(transform.getSideInputs(),
                     jsc, pviews);
