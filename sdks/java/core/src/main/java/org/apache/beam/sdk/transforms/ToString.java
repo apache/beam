@@ -37,25 +37,25 @@ import org.apache.beam.sdk.values.PCollection;
 public final class ToString {
 
   /**
-   * Returns a {@code PTransform<PCollection<T>, PCollection<String>>} which transforms each
+   * Returns a {@code PTransform<PCollection, PCollection<String>>} which transforms each
    * element of the input {@link PCollection} to a {@link String} using the
    * {@link Object#toString} method.
    */
-  public static <T> PTransform<PCollection<T>, PCollection<String>> element() {
-    return new Default<>();
+  public static PTransform<PCollection<?>, PCollection<String>> element() {
+    return new Default();
   }
 
   private ToString() {
   }
 
   /**
-   * A {@link PTransform} that converts a {@code PCollection<T>} to a {@code PCollection<String>}
+   * A {@link PTransform} that converts a {@code PCollection} to a {@code PCollection<String>}
    * using the {@link  Object#toString} method.
    */
-  private static final class Default<T> extends PTransform<PCollection<T>, PCollection<String>> {
+  private static final class Default extends PTransform<PCollection<?>, PCollection<String>> {
     @Override
-    public PCollection<String> expand(PCollection<T> input) {
-      return input.apply(MapElements.via(new ToStringFunction<T>()));
+    public PCollection<String> expand(PCollection<?> input) {
+      return input.apply(MapElements.via(new ToStringFunction<>()));
     }
 
     private static class ToStringFunction<T> extends SimpleFunction<T, String> {
