@@ -18,7 +18,6 @@
 """Unit tests for coders that must be consistent across all beam SDKs.
 """
 
-import collections
 import json
 import os.path
 import sys
@@ -26,7 +25,6 @@ import unittest
 
 import yaml
 
-import apache_beam as beam
 from apache_beam import coders
 from apache_beam.coders import coder_impl
 
@@ -34,17 +32,17 @@ from apache_beam.coders import coder_impl
 class StandardCodersTest(unittest.TestCase):
 
   _urn_to_coder_class = {
-    'beam:coders:bytes:0.1': coders.BytesCoder,
-    'beam:coders:varint:0.1': coders.VarIntCoder,
-    'beam:coders:kv:0.1': lambda k, v: coders.TupleCoder((k, v))
+      'beam:coders:bytes:0.1': coders.BytesCoder,
+      'beam:coders:varint:0.1': coders.VarIntCoder,
+      'beam:coders:kv:0.1': lambda k, v: coders.TupleCoder((k, v))
   }
 
   _urn_to_json_value_parser = {
-    'beam:coders:bytes:0.1': lambda x: x,
-    'beam:coders:varint:0.1': lambda x: x,
-    'beam:coders:kv:0.1':
-        lambda x, key_parser, value_parser: (key_parser(x['key']),
-                                             value_parser(x['value']))
+      'beam:coders:bytes:0.1': lambda x: x,
+      'beam:coders:varint:0.1': lambda x: x,
+      'beam:coders:kv:0.1':
+          lambda x, key_parser, value_parser: (key_parser(x['key']),
+                                               value_parser(x['value']))
   }
 
   # We must prepend an underscore to this name so that the open-source unittest
