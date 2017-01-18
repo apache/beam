@@ -15,7 +15,7 @@
 # limitations under the License.
 #
 
-"""Unit tests for coders that must be consistent across all beam SDKs.
+"""Unit tests for coders that must be consistent across all Beam SDKs.
 """
 
 import json
