@@ -38,16 +38,12 @@ import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.ScheduledFuture;
 import javax.annotation.Nullable;
-import org.apache.beam.runners.core.ExecutionContext;
-import org.apache.beam.runners.core.GroupAlsoByWindowViaWindowSetDoFn;
-import org.apache.beam.runners.core.KeyedWorkItem;
-import org.apache.beam.runners.core.KeyedWorkItems;
-import org.apache.beam.runners.core.SystemReduceFn;
+
+import org.apache.beam.runners.core.*;
 import org.apache.beam.runners.flink.translation.wrappers.DataInputViewWrapper;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.TimeDomain;
 import org.apache.beam.sdk.util.TimerInternals;
@@ -91,6 +87,7 @@ public class WindowDoFnOperator<K, InputT, OutputT>
   private transient Map<Long, ScheduledFuture<?>> processingTimeTimerFutures;
 
   private transient FlinkStateInternals<K> stateInternals;
+  private FlinkTimerInternals timerInternals;
 
   private final SystemReduceFn<K, InputT, ?, OutputT, BoundedWindow> systemReduceFn;
 
@@ -106,7 +103,7 @@ public class WindowDoFnOperator<K, InputT, OutputT>
       PipelineOptions options,
       Coder<K> keyCoder) {
     super(
-        (OldDoFn<KeyedWorkItem<K, InputT>, KV<K, OutputT>>) null,
+        null,
         inputType,
         mainOutputTag,
         sideOutputTags,
@@ -124,7 +121,7 @@ public class WindowDoFnOperator<K, InputT, OutputT>
   }
 
   @Override
-  protected OldDoFn<KeyedWorkItem<K, InputT>, KV<K, OutputT>> getOldDoFn() {
+  protected DoFn<KeyedWorkItem<K, InputT>, KV<K, OutputT>> getDoFn() {
     StateInternalsFactory<K> stateInternalsFactory = new StateInternalsFactory<K>() {
       @Override
       public StateInternals<K> stateInternalsForKey(K key) {
@@ -138,10 +135,11 @@ public class WindowDoFnOperator<K, InputT, OutputT>
     // has the window type as generic parameter while WindowingStrategy is almost always
     // untyped.
     @SuppressWarnings("unchecked")
-    OldDoFn<KeyedWorkItem<K, InputT>, KV<K, OutputT>> oldDoFn =
-        GroupAlsoByWindowViaWindowSetDoFn.create(
-            windowingStrategy, stateInternalsFactory, (SystemReduceFn) systemReduceFn);
-    return oldDoFn;
+    DoFn<KeyedWorkItem<K, InputT>, KV<K, OutputT>> doFn =
+        GroupAlsoByWindowViaWindowSetNewDoFn.create(
+            windowingStrategy, stateInternalsFactory, timerInternals, sideInputReader,
+                (SystemReduceFn) systemReduceFn, outputManager, mainOutputTag);
+    return doFn;
   }
 
 
@@ -183,6 +181,7 @@ public class WindowDoFnOperator<K, InputT, OutputT>
     processingTimeTimerFutures = new HashMap<>();
 
     stateInternals = new FlinkStateInternals<>(getStateBackend(), keyCoder);
+    timerInternals = new FlinkTimerInternals();
 
     // call super at the end because this will call getDoFn() which requires stateInternals
     // to be set
@@ -448,75 +447,79 @@ public class WindowDoFnOperator<K, InputT, OutputT>
 
     @Override
     public TimerInternals timerInternals() {
-      return new TimerInternals() {
-        @Override
-        public void setTimer(
-            StateNamespace namespace, String timerId, Instant target, TimeDomain timeDomain) {
-          throw new UnsupportedOperationException("Setting a timer by ID is not yet supported.");
-        }
-
-        @Deprecated
-        @Override
-        public void setTimer(TimerData timerKey) {
-          if (timerKey.getDomain().equals(TimeDomain.EVENT_TIME)) {
-            registerEventTimeTimer(timerKey);
-          } else if (timerKey.getDomain().equals(TimeDomain.PROCESSING_TIME)) {
-            registerProcessingTimeTimer(timerKey);
-          } else {
-            throw new UnsupportedOperationException(
-                "Unsupported time domain: " + timerKey.getDomain());
-          }
-        }
-
-        @Override
-        public void deleteTimer(StateNamespace namespace, String timerId, TimeDomain timeDomain) {
-          throw new UnsupportedOperationException(
-              "Canceling of a timer by ID is not yet supported.");
-        }
-
-        @Deprecated
-        @Override
-        public void deleteTimer(StateNamespace namespace, String timerId) {
-          throw new UnsupportedOperationException(
-              "Canceling of a timer by ID is not yet supported.");
-        }
-
-        @Deprecated
-        @Override
-        public void deleteTimer(TimerData timerKey) {
-          if (timerKey.getDomain().equals(TimeDomain.EVENT_TIME)) {
-            deleteEventTimeTimer(timerKey);
-          } else if (timerKey.getDomain().equals(TimeDomain.PROCESSING_TIME)) {
-            deleteProcessingTimeTimer(timerKey);
-          } else {
-            throw new UnsupportedOperationException(
-                "Unsupported time domain: " + timerKey.getDomain());
-          }
-        }
-
-        @Override
-        public Instant currentProcessingTime() {
-          return new Instant(getCurrentProcessingTime());
-        }
-
-        @Nullable
-        @Override
-        public Instant currentSynchronizedProcessingTime() {
-          return new Instant(getCurrentProcessingTime());
-        }
-
-        @Override
-        public Instant currentInputWatermarkTime() {
-          return new Instant(Math.min(currentInputWatermark, getPushbackWatermarkHold()));
-        }
-
-        @Nullable
-        @Override
-        public Instant currentOutputWatermarkTime() {
-          return new Instant(currentOutputWatermark);
-        }
-      };
+      return timerInternals;
     }
+  }
+
+  private class FlinkTimerInternals implements TimerInternals {
+
+    @Override
+    public void setTimer(
+            StateNamespace namespace, String timerId, Instant target, TimeDomain timeDomain) {
+      throw new UnsupportedOperationException("Setting a timer by ID is not yet supported.");
+    }
+
+    @Deprecated
+    @Override
+    public void setTimer(TimerData timerKey) {
+      if (timerKey.getDomain().equals(TimeDomain.EVENT_TIME)) {
+        registerEventTimeTimer(timerKey);
+      } else if (timerKey.getDomain().equals(TimeDomain.PROCESSING_TIME)) {
+        registerProcessingTimeTimer(timerKey);
+      } else {
+        throw new UnsupportedOperationException(
+                "Unsupported time domain: " + timerKey.getDomain());
+      }
+    }
+
+    @Override
+    public void deleteTimer(StateNamespace namespace, String timerId, TimeDomain timeDomain) {
+      throw new UnsupportedOperationException(
+              "Canceling of a timer by ID is not yet supported.");
+    }
+
+    @Deprecated
+    @Override
+    public void deleteTimer(StateNamespace namespace, String timerId) {
+      throw new UnsupportedOperationException(
+              "Canceling of a timer by ID is not yet supported.");
+    }
+
+    @Deprecated
+    @Override
+    public void deleteTimer(TimerData timerKey) {
+      if (timerKey.getDomain().equals(TimeDomain.EVENT_TIME)) {
+        deleteEventTimeTimer(timerKey);
+      } else if (timerKey.getDomain().equals(TimeDomain.PROCESSING_TIME)) {
+        deleteProcessingTimeTimer(timerKey);
+      } else {
+        throw new UnsupportedOperationException(
+                "Unsupported time domain: " + timerKey.getDomain());
+      }
+    }
+
+    @Override
+    public Instant currentProcessingTime() {
+      return new Instant(getCurrentProcessingTime());
+    }
+
+    @Nullable
+    @Override
+    public Instant currentSynchronizedProcessingTime() {
+      return new Instant(getCurrentProcessingTime());
+    }
+
+    @Override
+    public Instant currentInputWatermarkTime() {
+      return new Instant(Math.min(currentInputWatermark, getPushbackWatermarkHold()));
+    }
+
+    @Nullable
+    @Override
+    public Instant currentOutputWatermarkTime() {
+      return new Instant(currentOutputWatermark);
+    }
+
   }
 
 }
