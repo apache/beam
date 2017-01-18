@@ -2,8 +2,10 @@ package cz.seznam.euphoria.flink;
 
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.dataset.windowing.Batch;
+import cz.seznam.euphoria.core.client.dataset.windowing.TimeInterval;
 import cz.seznam.euphoria.core.client.dataset.windowing.WindowedElement;
 import cz.seznam.euphoria.core.client.flow.Flow;
+import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.guava.shaded.com.google.common.collect.Sets;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.slf4j.Logger;
@@ -42,8 +44,6 @@ public class ExecutionEnvironment {
     if (mode == Mode.BATCH) {
       batchEnv = local ? org.apache.flink.api.java.ExecutionEnvironment.createLocalEnvironment() :
               org.apache.flink.api.java.ExecutionEnvironment.getExecutionEnvironment();
-      // add type passed through
-      toRegister.add(WindowedElement.class);
       toRegister.forEach(batchEnv::registerType);
     } else {
       streamEnv = local ? StreamExecutionEnvironment.createLocalEnvironment() :
@@ -102,9 +102,13 @@ public class ExecutionEnvironment {
 
   private Set<Class<?>> getClassesToRegister(Set<Class<?>> registeredClasses) {
     HashSet<Class<?>> ret = Sets.newHashSet(registeredClasses);
+
+    // register all types of used windows
     ret.add(Batch.BatchWindow.class);
+    ret.add(TimeInterval.class);
+
+    ret.add(Pair.class);
     ret.add(WindowedElement.class);
-    ret.add(StreamExecutionEnvironment.class);
     return ret;
   }
 }

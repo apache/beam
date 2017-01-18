@@ -1,10 +1,8 @@
 
 package cz.seznam.euphoria.flink.batch;
 
-import cz.seznam.euphoria.core.client.operator.Operator;
 import cz.seznam.euphoria.core.client.operator.state.ListStorage;
 import cz.seznam.euphoria.core.client.operator.state.ListStorageDescriptor;
-import cz.seznam.euphoria.core.client.operator.state.State;
 import cz.seznam.euphoria.core.client.operator.state.ValueStorage;
 import cz.seznam.euphoria.core.client.operator.state.ValueStorageDescriptor;
 import java.util.ArrayList;
@@ -12,14 +10,11 @@ import java.util.Arrays;
 import java.util.List;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.shaded.com.google.common.collect.Lists;
-import org.junit.After;
 
 import org.junit.Before;
 import org.junit.Test;
 
 import static org.junit.Assert.*;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
 /**
  * Test suite for {@code BatchStateStorageProvider}.
