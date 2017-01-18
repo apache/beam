@@ -385,6 +385,7 @@ class GcsIO(object):
     return file_sizes
 
 
+# TODO: Consider using cStringIO instead of buffers and data_lists when reading.
 class GcsBufferedReader(object):
   """A class for reading Google Cloud Storage files."""
 
@@ -398,7 +399,6 @@ class GcsBufferedReader(object):
     self.bucket, self.name = parse_gcs_path(path)
     self.mode = mode
     self.buffer_size = buffer_size
-    self.mode = mode
 
     # Get object state.
     get_request = (storage.StorageObjectsGetRequest(
@@ -627,6 +627,8 @@ class GcsBufferedReader(object):
     return False
 
 
+# TODO: Consider using cStringIO instead of buffers and data_lists when reading
+# and writing.
 class GcsBufferedWriter(object):
   """A class for writing Google Cloud Storage files."""
 
