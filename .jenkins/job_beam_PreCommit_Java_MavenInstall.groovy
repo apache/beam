@@ -38,5 +38,5 @@ mavenJob('beam_PreCommit_Java_MavenInstall') {
   common_job_properties.setPreCommit(delegate, 'Jenkins: Maven clean install')
 
   // Maven goals for this job.
-  goals('-B -e -Prelease,include-runners,jenkins-precommit,direct-runner,dataflow-runner,spark-runner,flink-runner,apex-runner coveralls:report -DrepoToken=$COVERALLS_REPO_TOKEN -DpullRequest=$ghprbPullId help:effective-settings clean install')
+  goals('-B -e -Prelease,include-runners,jenkins-precommit,direct-runner,dataflow-runner,spark-runner,flink-runner,apex-runner -DrepoToken=$COVERALLS_REPO_TOKEN -DpullRequest=$ghprbPullId help:effective-settings clean install coveralls:report')
 }
