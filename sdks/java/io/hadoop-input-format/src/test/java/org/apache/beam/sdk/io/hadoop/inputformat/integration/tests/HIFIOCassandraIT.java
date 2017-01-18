@@ -40,7 +40,7 @@ import org.slf4j.LoggerFactory;
 import com.datastax.driver.core.Row;
 
 /**
- * Runs integration test to validate HadoopInputFromatIO for an Cassandra instance on GCP.
+ * Runs integration test to validate HadoopInputFromatIO for a Cassandra instance on GCP.
  *
  * You need to pass Cassandra server IP and port in beamTestPipelineOptions
  *

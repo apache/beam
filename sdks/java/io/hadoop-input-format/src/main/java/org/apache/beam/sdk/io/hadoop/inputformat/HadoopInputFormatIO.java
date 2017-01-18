@@ -233,16 +233,16 @@ import com.google.common.collect.Lists;
  * };
  * </pre>
  * 
- * <h3>Read data from ElasticSearch using HadoopInputFormatIO transform</h3>
+ * <h3>Read data from Elasticsearch using HadoopInputFormatIO transform</h3>
  * <p>
- * To read data from ElasticSearch, EsInputFormat can be used which needs following properties to be
+ * To read data from Elasticsearch, EsInputFormat can be used which needs following properties to be
  * set.
  * <p>
  * Create ElasticSearch Hadoop configuration as follows:
  * 
  * <pre>
  * Configuration elasticSearchConf = new Configuration();
- *   elasticSearchConf.set("es.nodes", ElasticSearchHostIp);
+ *   elasticSearchConf.set("es.nodes", ElasticsearchHostIp);
  *   elasticSearchConf.set("es.port", "9200");
  *   elasticSearchConf.set("es.resource","ElasticIndexName/ElasticTypeName");
  *   elasticSearchConf.setClass("key.class" ,{@link org.apache.hadoop.io.Text.class}, Object.class);
@@ -590,7 +590,7 @@ public class HadoopInputFormatIO {
 
 
     /**
-     * This is helper function to compute splits. This method will also calculates size of the data
+     * This is helper function to compute splits. This method will also calculate size of the data
      * being read. Note : This method is called exactly once, the splits are retrieved and cached
      * for further use by splitIntoBundles() and getEstimatesSizeBytes().
      */
@@ -717,8 +717,7 @@ public class HadoopInputFormatIO {
        */
       public KV<K, V> nextPair() throws IOException, InterruptedException {
         // Transform key if required.
-        K key =
-            transformKeyOrValue(currentReader.getCurrentKey(), keyTranslationFunction, keyCoder);
+        K key = transformKeyOrValue(currentReader.getCurrentKey(), keyTranslationFunction, keyCoder);
         // Transform value if required.
         V value = transformKeyOrValue(currentReader.getCurrentValue(), valueTranslationFunction,
             valueCoder);
@@ -747,16 +746,12 @@ public class HadoopInputFormatIO {
        * RecordReader as Beam needs immutable objects.
        */
       private <T1 extends Object> T1 clone(T1 input, Coder<T1> coder)
-          throws IOException, InterruptedException, CoderException {
+          throws IOException, InterruptedException, CoderException,ClassCastException {
         // If the input object is not of known immutable type, clone the object.
-        try {
           if (!isKnownImmutable(input)) {
             input = CoderUtils.clone(coder, input);
           }
-        } catch (ClassCastException e) {
-          // Throws exception if wrong InputFormat key/value class set in configuration.
-          throw e;
-        }
+        
         return input;
       }
 
