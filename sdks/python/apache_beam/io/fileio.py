@@ -716,6 +716,7 @@ class _CompressedFile(object):
       self._read_buffer.seek(self._read_position)
       data = self._read_buffer.read()
       self._read_position = 0
+      self._read_buffer.seek(0)
       self._read_buffer.truncate(0)
       self._read_buffer.write(data)
 
