@@ -19,10 +19,12 @@
       <groupId>cz.seznam.euphoria</groupId>
       <artifactId>guava-shaded</artifactId>
     </dependency>
+
     <dependency>
       <groupId>cz.seznam.euphoria</groupId>
       <artifactId>euphoria-core</artifactId>
     </dependency>
+
     <dependency>
       <groupId>commons-io</groupId>
       <artifactId>commons-io</artifactId>
@@ -35,12 +37,14 @@
       <version>${flink.version}</version>
       <scope>provided</scope>
     </dependency>
+
     <dependency>
       <groupId>org.apache.flink</groupId>
       <artifactId>flink-java</artifactId>
       <version>${flink.version}</version>
       <scope>provided</scope>
     </dependency>
+
     <dependency>
       <groupId>org.apache.flink</groupId>
       <artifactId>flink-clients_2.10</artifactId>
