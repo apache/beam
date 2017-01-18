@@ -75,11 +75,11 @@ public class HIFIOCassandraIT implements Serializable {
 	/**
 	 * This test reads data from the Cassandra instance and verifies if data is
 	 * read successfully.
-	 * 
+	 *
 	 * @throws Exception
 	 */
 	@Test
-	public void testHIFReadForCassandra() throws Exception {
+	public void testHIFReadForCassandra() {
 		Pipeline pipeline = TestPipeline.create(options);
 		SimpleFunction<Row, String> myValueTranslate = new SimpleFunction<Row, String>() {
 			private static final long serialVersionUID = 1L;
@@ -102,11 +102,11 @@ public class HIFIOCassandraIT implements Serializable {
 	/**
 	 * This test reads data from the Cassandra instance based on query and
 	 * verifies if data is read successfully.
-	 * 
+	 *
 	 * @throws Exception
 	 */
 	@Test
-	public void testHIFReadForCassandraQuery() throws Exception {
+	public void testHIFReadForCassandraQuery() {
 		Pipeline pipeline = TestPipeline.create(options);
 		conf.set(
 				"cassandra.input.cql",
@@ -134,7 +134,7 @@ public class HIFIOCassandraIT implements Serializable {
 	 * Returns configuration of CqlInutFormat. Mandatory parameters required
 	 * apart from inputformat class name, key class, value class are thrift
 	 * port, thrift address, partitioner class, keyspace and columnfamily name
-	 * 
+	 *
 	 */
 	public static Configuration getConfiguration(HIFTestOptions options) {
 		Configuration conf = new Configuration();
