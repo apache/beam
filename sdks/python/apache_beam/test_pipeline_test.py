@@ -89,7 +89,8 @@ class TestPipelineTest(unittest.TestCase):
   def test_append_verifier_in_extra_opt(self):
     extra_opt = {'matcher': SimpleMatcher()}
     opt_list = TestPipeline().get_full_options_as_args(**extra_opt)
-    matcher = pickler.loads(opt_list[0].split('=')[1])
+    _, value = opt_list[0].split('=', 1)
+    matcher = pickler.loads(value)
     self.assertTrue(isinstance(matcher, BaseMatcher))
     hc_assert_that(None, matcher)
 
