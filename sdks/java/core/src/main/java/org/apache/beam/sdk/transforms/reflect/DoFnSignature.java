@@ -116,6 +116,11 @@ public abstract class DoFnSignature {
     return stateDeclarations().size() > 0;
   }
 
+  /** Whether the {@link DoFn} described by this signature uses timers. */
+  public boolean usesTimers() {
+    return timerDeclarations().size() > 0;
+  }
+
   static Builder builder() {
     return new AutoValue_DoFnSignature.Builder();
   }
