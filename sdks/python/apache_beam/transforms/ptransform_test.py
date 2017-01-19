@@ -752,7 +752,7 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
        | 'T' >> beam.Create([1, 2, 3]).with_output_types(int)
        | 'Upper' >> beam.ParDo(ToUpperCaseWithPrefix(), 'hello'))
 
-    self.assertEqual("Type hint violation for 'upper': "
+    self.assertEqual("Type hint violation for 'Upper': "
                      "requires <type 'str'> but got <type 'int'> for element",
                      e.exception.message)
 
@@ -787,7 +787,7 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
        | 'Add' >> beam.ParDo(AddWithNum(), 5))
       self.p.run()
 
-    self.assertEqual("Type hint violation for 'add': "
+    self.assertEqual("Type hint violation for 'Add': "
                      "requires <type 'int'> but got <type 'str'> for element",
                      e.exception.message)
 

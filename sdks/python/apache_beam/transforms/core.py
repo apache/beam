@@ -334,7 +334,12 @@ class CallableWrapperDoFn(NewDoFn):
       raise TypeError('Expected a callable object instead of: %r' % fn)
 
     self._fn = fn
-    self.process = fn
+    if isinstance(fn, (
+        types.BuiltinFunctionType, types.MethodType, types.FunctionType)):
+      self.process = fn
+    else:
+      # For cases such as set / list where fn is callable but not a function
+      self.process = lambda e: fn(e)
 
     super(CallableWrapperDoFn, self).__init__()
 
