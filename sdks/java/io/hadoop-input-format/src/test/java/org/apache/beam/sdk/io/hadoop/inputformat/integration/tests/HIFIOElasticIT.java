@@ -76,7 +76,7 @@ public class HIFIOElasticIT implements Serializable {
   @Test
   public void testHifIOWithElastic() {
     Pipeline pipeline = TestPipeline.create(options);
-    Configuration conf=getConfiguration(options);
+    Configuration conf = getConfiguration(options);
     PCollection<KV<Text, MapWritable>> esData =
         pipeline.apply(HadoopInputFormatIO.<Text, MapWritable>read().withConfiguration(conf));
     PCollection<Long> count = esData.apply(Count.<KV<Text, MapWritable>>globally());
@@ -91,9 +91,9 @@ public class HIFIOElasticIT implements Serializable {
   @Test
   public void testHifIOWithElasticQuery() {
     Pipeline pipeline = TestPipeline.create(options);
-    Configuration conf=getConfiguration(options);
+    Configuration conf = getConfiguration(options);
     String query =
-        "{" + "  \"query\": {"
+          "{" + "  \"query\": {"
               + "  \"match\" : {"
               + "    \"Item_Code\" : {"
               + "      \"query\" : \"86345\","
