@@ -54,6 +54,7 @@ func Execute(ctx context.Context, p *beam.Pipeline) error {
 		switch edge.Op {
 		case graph.Source, graph.ParDo:
 			dofn := edge.DoFn
+			data := edge.Data
 
 			// There is no need to shim output in the direct runner, because we don't
 			// have different requirements than what the DoFn returns. We do need to
@@ -63,7 +64,7 @@ func Execute(ctx context.Context, p *beam.Pipeline) error {
 			wg.Add(1)
 			go func() {
 				defer wg.Done()
-				call(ctx, dofn, in, out)
+				call(ctx, dofn, data, in, out)
 			}()
 
 		case graph.GBK:
@@ -83,18 +84,32 @@ func Execute(ctx context.Context, p *beam.Pipeline) error {
 	return nil
 }
 
-func call(ctx context.Context, userfn *graph.UserFn, in, out []reflect.Value) {
+func call(ctx context.Context, userfn *graph.UserFn, data interface{}, in, out []reflect.Value) {
 	defer closeout(out)
 
-	// TODO: mixin context and options
-
 	// log.Printf("Call enter: %v", userfn)
+
+	var userCtx reflect.Value
+	ctxType, hasCtx := userfn.Context()
+	if hasCtx {
+		userCtx = reflect.New(ctxType).Elem()
+
+		if f, ok := graph.FindTaggedField(ctxType, graph.DataTag); ok {
+			userCtx.FieldByIndex(f.Index).Set(reflect.ValueOf(data))
+		}
+		// TODO(herohde): other static context, such as context.Context
+	}
 
 	switch {
 	case !userfn.HasDirectInput() && !userfn.HasDirectOutput():
 		// (1) chan only
 
-		args := append(in, out...)
+		var args []reflect.Value
+		if hasCtx {
+			args = append(args, userCtx)
+		}
+		args = append(args, in...)
+		args = append(args, out...)
 
 		ret := userfn.Fn.Call(args)
 		if index, ok := userfn.HasError(); ok && !ret[index].IsNil() {
@@ -115,7 +130,11 @@ func call(ctx context.Context, userfn *graph.UserFn, in, out []reflect.Value) {
 				break
 			}
 
-			args := []reflect.Value{keyFn(val), valueFn(val)} // shim "values", too?
+			var args []reflect.Value
+			if hasCtx {
+				args = append(args, userCtx)
+			}
+			args = append(args, keyFn(val), valueFn(val)) // shim "values", too?
 			args = append(args, rest...)
 
 			ret := userfn.Fn.Call(args)

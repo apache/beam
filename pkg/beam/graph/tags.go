@@ -9,6 +9,8 @@ const (
 	KeyTag    string = "key"
 	ValueTag  string = "value"
 	ValuesTag string = "values"
+
+	DataTag string = "data"
 )
 
 // FindTaggedField returns the field tagged with any of the given values, if
