@@ -5,7 +5,7 @@
     this work for additional information regarding copyright ownership.
     The ASF licenses this file to You under the Apache License, Version 2.0
     (the "License"); you may not use this file except in compliance with
-    the License.  You may obtain a copy of the License at
+    the License.  You may obtain a copy of the License atsrtyt
 
        http://www.apache.org/licenses/LICENSE-2.0
 
@@ -835,15 +835,11 @@
               <artifactId>checkstyle</artifactId>
               <version>6.19</version>
             </dependency>
-            <dependency>
-              <groupId>org.apache.beam</groupId>
-              <artifactId>beam-sdks-java-build-tools</artifactId>
-              <version>${project.version}</version>
-            </dependency>
           </dependencies>
           <configuration>
-            <configLocation>beam/checkstyle.xml</configLocation>
-            <suppressionsLocation>beam/suppressions.xml</suppressionsLocation>
+            <!-- beam.rootdir set by scjijava:set-rootdir -->
+            <configLocation>${beam.rootdir}/sdks/java/build-tools/src/main/resources/beam/checkstyle.xml</configLocation>
+            <suppressionsLocation>${beam.rootdir}/sdks/java/build-tools/src/main/resources/beam/suppressions.xml</suppressionsLocation>
             <consoleOutput>true</consoleOutput>
             <failOnViolation>true</failOnViolation>
             <includeResources>false</includeResources>
@@ -1209,6 +1205,28 @@
     </pluginManagement>
 
     <plugins>
+      <plugin>
+        <groupId>org.scijava</groupId>
+        <artifactId>scijava-maven-plugin</artifactId>
+        <version>0.1.0</version>
+        <executions>
+          <execution>
+            <id>set-rootdir</id>
+            <phase>validate</phase>
+            <goals>
+              <goal>set-rootdir</goal>
+            </goals>
+            <configuration>
+              <rootdirPropertyName>beam.rootdir</rootdirPropertyName>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
+        <!-- Configuration all sitting in pluginManagement. -->
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-checkstyle-plugin</artifactId>
+      </plugin>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-dependency-plugin</artifactId>
