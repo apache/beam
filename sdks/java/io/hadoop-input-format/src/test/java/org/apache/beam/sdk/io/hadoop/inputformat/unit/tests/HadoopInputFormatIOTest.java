@@ -39,6 +39,7 @@ import org.apache.beam.sdk.io.hadoop.inputformat.unit.tests.inputs.BadEmptySplit
 import org.apache.beam.sdk.io.hadoop.inputformat.unit.tests.inputs.BadNoRecordsInputFormat;
 import org.apache.beam.sdk.io.hadoop.inputformat.unit.tests.inputs.BadNullCreateReaderInputFormat;
 import org.apache.beam.sdk.io.hadoop.inputformat.unit.tests.inputs.BadNullSplitsInputFormat;
+import org.apache.beam.sdk.io.hadoop.inputformat.unit.tests.inputs.ConfigurableEmployeeInputFormat;
 import org.apache.beam.sdk.io.hadoop.inputformat.unit.tests.inputs.Employee;
 import org.apache.beam.sdk.io.hadoop.inputformat.unit.tests.inputs.NewObjectsEmployeeInputFormat;
 import org.apache.beam.sdk.io.hadoop.inputformat.unit.tests.inputs.ReuseObjectsEmployeeInputFormat;
@@ -453,7 +454,7 @@ public class HadoopInputFormatIOTest {
       assertEquals(false, reader.start());
     }
   }
-
+  
   /**
    * This test validates fractions consumed while reading data.
    */
@@ -518,7 +519,7 @@ public class HadoopInputFormatIOTest {
    * source object.
    */
   @Test
-  public void testGetCurrentSourceFunc() throws Exception {
+  public void testGetCurrentSourceFunction() throws Exception {
     HadoopInputFormatBoundedSource<String, String> parentHIFSource =
         new HadoopInputFormatBoundedSource<String, String>(serConf, StringUtf8Coder.of(),
             StringUtf8Coder.of(), myKeyTranslate, myValueTranslate, null);
@@ -627,7 +628,28 @@ public class HadoopInputFormatIOTest {
     List<KV<Text, Employee>> referenceRecords = UnitTestUtils.getEmployeeData();
     assertThat(bundleRecords, containsInAnyOrder(referenceRecords.toArray()));
   }
-
+  
+  /**
+   * Test reading if InputFormat implements Configurable.
+   */
+  @Test
+  public void testReadingWithConfigurableInputFormat() throws Exception {
+    SerializableConfiguration serConf =
+        loadTestConfiguration(ConfigurableEmployeeInputFormat.class, Text.class, Employee.class);
+    HadoopInputFormatBoundedSource<Text, Employee> parentHIFSource =
+        new HadoopInputFormatBoundedSource<Text, Employee>(serConf, WritableCoder.of(Text.class),
+            AvroCoder.of(Employee.class));
+    List<BoundedSource<KV<Text, Employee>>> boundedSourceList =
+        parentHIFSource.splitIntoBundles(0, p.getOptions());
+    List<KV<Text, Employee>> bundleRecords = new ArrayList<>();
+    for (BoundedSource<KV<Text, Employee>> source : boundedSourceList) {
+      List<KV<Text, Employee>> elems = SourceTestUtils.readFromSource(source, p.getOptions());
+      bundleRecords.addAll(elems);
+    }
+    List<KV<Text, Employee>> referenceRecords = UnitTestUtils.getEmployeeData();
+    assertThat(bundleRecords, containsInAnyOrder(referenceRecords.toArray()));
+  }
+  
   /**
    * This test validates records emitted in PCollection are immutable if InputFormat's recordReader
    * returns different objects (i.e. different locations in memory).
@@ -653,6 +675,8 @@ public class HadoopInputFormatIOTest {
   private static SerializableConfiguration loadTestConfiguration(Class<?> inputFormatClassName,
       Class<?> keyClass, Class<?> valueClass) {
     Configuration conf = new Configuration();
+    /*conf.set(HadoopInputFormatIOContants.INPUTFORMAT_CLASSNAME, DBInputFormat.class.getName()
+       );*/
     conf.setClass(HadoopInputFormatIOContants.INPUTFORMAT_CLASSNAME, inputFormatClassName,
         InputFormat.class);
     conf.setClass(HadoopInputFormatIOContants.KEY_CLASS, keyClass, Object.class);

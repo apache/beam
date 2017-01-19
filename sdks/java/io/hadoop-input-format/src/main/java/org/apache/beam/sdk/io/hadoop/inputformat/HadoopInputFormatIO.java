@@ -516,6 +516,7 @@ public class HadoopInputFormatIO {
 		protected final SerializableSplit inputSplit;
 		private transient List<SerializableSplit> inputSplits;
 		private long boundedSourceEstimatedSize = 0;
+		
 
 		public HadoopInputFormatBoundedSource(SerializableConfiguration conf, Coder<K> keyCoder,
 				Coder<V> valueCoder) {
@@ -600,6 +601,9 @@ public class HadoopInputFormatIO {
 		InterruptedException, ClassNotFoundException {
 			Job job = Job.getInstance(conf.getHadoopConfiguration());
 			InputFormat<?, ?> inputFormatObj= job.getInputFormatClass().newInstance();
+			/**
+			 * Sets configuration if provided InputFormat implements Configurable.
+			 */
 			if (Configurable.class.isAssignableFrom(inputFormatObj.getClass())) {
 				((Configurable) inputFormatObj).setConf(conf.getHadoopConfiguration());
 			}
@@ -674,6 +678,9 @@ public class HadoopInputFormatIO {
 							source.getConfiguration().getHadoopConfiguration(), new TaskAttemptID());
 					Job job = Job.getInstance(source.getConfiguration().getHadoopConfiguration());
 					InputFormat<?, ?> inputFormatObj= job.getInputFormatClass().newInstance();
+		            /**
+		             * Sets configuration if provided InputFormat implements Configurable.
+		             */
 					if (Configurable.class.isAssignableFrom(inputFormatObj.getClass())) {
 						((Configurable) inputFormatObj).setConf(source.getConfiguration().getHadoopConfiguration());
 					}
