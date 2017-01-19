@@ -49,9 +49,8 @@ to avoid excessive reading:
   side_table = pipeline | 'not_big' >> beam.io.Read(beam.io.BigQuerySource()
   results = (
       main_table
-      | beam.Map('process data',
-               lambda element, side_input: ...,
-               AsList(side_table)))
+      | 'process data' >> beam.Map(
+          lambda element, side_input: ..., AsList(side_table)))
 
 There is no difference in how main and side inputs are read. What makes the
 side_table a 'side input' is the AsList wrapper used when passing the table

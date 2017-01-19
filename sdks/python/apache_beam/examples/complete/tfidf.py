@@ -42,9 +42,9 @@ def read_documents(pipeline, uris):
   for uri in uris:
     pcolls.append(
         pipeline
-        | 'read: %s' % uri >> ReadFromText(uri)
-        | beam.Map('withkey: %s' % uri, lambda v, uri: (uri, v), uri))
-  return pcolls | 'flatten read pcolls' >> beam.Flatten()
+        | 'Read: %s' % uri >> ReadFromText(uri)
+        | 'WithKey: %s' % uri >> beam.Map(lambda v, uri: (uri, v), uri))
+  return pcolls | 'FlattenReadPColls' >> beam.Flatten()
 
 
 class TfIdf(beam.PTransform):
@@ -61,9 +61,9 @@ class TfIdf(beam.PTransform):
     # PCollection to use as side input.
     total_documents = (
         uri_to_content
-        | 'get uris' >> beam.Keys()
-        | 'get unique uris' >> beam.RemoveDuplicates()
-        | ' count uris' >> beam.combiners.Count.Globally())
+        | 'GetUris 1' >> beam.Keys()
+        | 'GetUniqueUris' >> beam.RemoveDuplicates()
+        | 'CountUris' >> beam.combiners.Count.Globally())
 
     # Create a collection of pairs mapping a URI to each of the words
     # in the document associated with that that URI.
@@ -73,36 +73,36 @@ class TfIdf(beam.PTransform):
 
     uri_to_words = (
         uri_to_content
-        | 'split words' >> beam.FlatMap(split_into_words))
+        | 'SplitWords' >> beam.FlatMap(split_into_words))
 
     # Compute a mapping from each word to the total number of documents
     # in which it appears.
     word_to_doc_count = (
         uri_to_words
-        | 'get unique words per doc' >> beam.RemoveDuplicates()
-        | 'get words' >> beam.Values()
-        | 'count docs per word' >> beam.combiners.Count.PerElement())
+        | 'GetUniqueWordsPerDoc' >> beam.RemoveDuplicates()
+        | 'GetWords' >> beam.Values()
+        | 'CountDocsPerWord' >> beam.combiners.Count.PerElement())
 
     # Compute a mapping from each URI to the total number of words in the
     # document associated with that URI.
     uri_to_word_total = (
         uri_to_words
-        | ' get uris' >> beam.Keys()
-        | 'count words in doc' >> beam.combiners.Count.PerElement())
+        | 'GetUris 2' >> beam.Keys()
+        | 'CountWordsInDoc' >> beam.combiners.Count.PerElement())
 
     # Count, for each (URI, word) pair, the number of occurrences of that word
     # in the document associated with the URI.
     uri_and_word_to_count = (
         uri_to_words
-        | 'count word-doc pairs' >> beam.combiners.Count.PerElement())
+        | 'CountWord-DocPairs' >> beam.combiners.Count.PerElement())
 
     # Adjust the above collection to a mapping from (URI, word) pairs to counts
     # into an isomorphic mapping from URI to (word, count) pairs, to prepare
     # for a join by the URI key.
     uri_to_word_and_count = (
         uri_and_word_to_count
-        | beam.Map('shift keys',
-                   lambda ((uri, word), count): (uri, (word, count))))
+        | 'ShiftKeys' >> beam.Map(
+            lambda ((uri, word), count): (uri, (word, count))))
 
     # Perform a CoGroupByKey (a sort of pre-join) on the prepared
     # uri_to_word_total and uri_to_word_and_count tagged by 'word totals' and
@@ -118,7 +118,7 @@ class TfIdf(beam.PTransform):
     #                         ... ]}
     uri_to_word_and_count_and_total = (
         {'word totals': uri_to_word_total, 'word counts': uri_to_word_and_count}
-        | 'cogroup by uri' >> beam.CoGroupByKey())
+        | 'CoGroupByUri' >> beam.CoGroupByKey())
 
     # Compute a mapping from each word to a (URI, term frequency) pair for each
     # URI. A word's term frequency for a document is simply the number of times
@@ -134,7 +134,7 @@ class TfIdf(beam.PTransform):
 
     word_to_uri_and_tf = (
         uri_to_word_and_count_and_total
-        | 'compute term frequencies' >> beam.FlatMap(compute_term_frequency))
+        | 'ComputeTermFrequencies' >> beam.FlatMap(compute_term_frequency))
 
     # Compute a mapping from each word to its document frequency.
     # A word's document frequency in a corpus is the number of
@@ -149,15 +149,15 @@ class TfIdf(beam.PTransform):
     # DoFns in this way.
     word_to_df = (
         word_to_doc_count
-        | beam.Map('compute doc frequencies',
-                   lambda (word, count), total: (word, float(count) / total),
-                   AsSingleton(total_documents)))
+        | 'ComputeDocFrequencies' >> beam.Map(
+            lambda (word, count), total: (word, float(count) / total),
+            AsSingleton(total_documents)))
 
     # Join the term frequency and document frequency collections,
     # each keyed on the word.
     word_to_uri_and_tf_and_df = (
         {'tf': word_to_uri_and_tf, 'df': word_to_df}
-        | 'cogroup words by tf-df' >> beam.CoGroupByKey())
+        | 'CoGroupWordsByTf-df' >> beam.CoGroupByKey())
 
     # Compute a mapping from each word to a (URI, TF-IDF) score for each URI.
     # There are a variety of definitions of TF-IDF
@@ -172,7 +172,7 @@ class TfIdf(beam.PTransform):
 
     word_to_uri_and_tfidf = (
         word_to_uri_and_tf_and_df
-        | 'compute tf-idf' >> beam.FlatMap(compute_tf_idf))
+        | 'ComputeTf-idf' >> beam.FlatMap(compute_tf_idf))
 
     return word_to_uri_and_tfidf
 

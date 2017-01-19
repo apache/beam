@@ -53,21 +53,21 @@ def filter_cold_days(input_data, month_filter):
   projection_fields = ['year', 'month', 'day', 'mean_temp']
   fields_of_interest = (
       input_data
-      | beam.Map('projected',
-                 lambda row: {f: row[f] for f in projection_fields}))
+      | 'Projected' >> beam.Map(
+          lambda row: {f: row[f] for f in projection_fields}))
 
   # Compute the global mean temperature.
   global_mean = AsSingleton(
       fields_of_interest
-      | 'extract mean' >> beam.Map(lambda row: row['mean_temp'])
-      | 'global mean' >> beam.combiners.Mean.Globally())
+      | 'ExtractMean' >> beam.Map(lambda row: row['mean_temp'])
+      | 'GlobalMean' >> beam.combiners.Mean.Globally())
 
   # Filter to the rows representing days in the month of interest
   # in which the mean daily temperature is below the global mean.
   return (
       fields_of_interest
-      | 'desired month' >> beam.Filter(lambda row: row['month'] == month_filter)
-      | 'below mean' >> beam.Filter(
+      | 'DesiredMonth' >> beam.Filter(lambda row: row['month'] == month_filter)
+      | 'BelowMean' >> beam.Filter(
           lambda row, mean: row['mean_temp'] < mean, global_mean))
 
 
@@ -92,7 +92,7 @@ def run(argv=None):
 
   # pylint: disable=expression-not-assigned
   (filter_cold_days(input_data, known_args.month_filter)
-   | 'save to BQ' >> beam.io.Write(beam.io.BigQuerySink(
+   | 'SaveToBQ' >> beam.io.Write(beam.io.BigQuerySink(
        known_args.output,
        schema='year:INTEGER,month:INTEGER,day:INTEGER,mean_temp:FLOAT',
        create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,

@@ -778,9 +778,8 @@ def model_custom_sink(simplekv, KVs, final_table_name_no_ptransform,
   kvs = p | beam.core.Create(
       'CreateKVs', KVs)
 
-  kvs | beam.io.Write('WriteToSimpleKV',
-                      SimpleKVSink('http://url_to_simple_kv/',
-                                   final_table_name))
+  kvs | 'WriteToSimpleKV' >> beam.io.Write(
+      SimpleKVSink('http://url_to_simple_kv/', final_table_name))
   # [END model_custom_sink_use_new_sink]
 
   p.run().wait_until_finish()

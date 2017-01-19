@@ -80,8 +80,8 @@ class ComputeSessions(beam.PTransform):
 
   def expand(self, pcoll):
     return (pcoll
-            | beam.WindowInto('ComputeSessionsWindow',
-                              window.Sessions(gap_size=ONE_HOUR_IN_SECONDS))
+            | 'ComputeSessionsWindow' >> beam.WindowInto(
+                window.Sessions(gap_size=ONE_HOUR_IN_SECONDS))
             | combiners.Count.PerElement())
 
 
@@ -93,11 +93,9 @@ class TopPerMonth(beam.PTransform):
 
   def expand(self, pcoll):
     return (pcoll
-            | beam.WindowInto('TopPerMonthWindow',
-                              window.FixedWindows(
-                                  size=THIRTY_DAYS_IN_SECONDS))
-            | combiners.core.CombineGlobally(
-                'Top',
+            | 'TopPerMonthWindow' >> beam.WindowInto(
+                window.FixedWindows(size=THIRTY_DAYS_IN_SECONDS))
+            | 'Top' >> combiners.core.CombineGlobally(
                 combiners.TopCombineFn(
                     10, lambda first, second: first[1] < second[1]))
             .without_defaults())
@@ -131,8 +129,8 @@ class ComputeTopSessions(beam.PTransform):
 
   def expand(self, pcoll):
     return (pcoll
-            | beam.ParDo('ExtractUserAndTimestamp',
-                         ExtractUserAndTimestampDoFn())
+            | 'ExtractUserAndTimestamp' >> beam.ParDo(
+                ExtractUserAndTimestampDoFn())
             | beam.Filter(lambda x: (abs(hash(x)) <=
                                      MAX_TIMESTAMP * self.sampling_threshold))
             | ComputeSessions()

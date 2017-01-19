@@ -524,7 +524,7 @@ class TextSinkTest(unittest.TestCase):
 
   def test_write_dataflow(self):
     pipeline = TestPipeline()
-    pcoll = pipeline | beam.core.Create('Create', self.lines)
+    pcoll = pipeline | beam.core.Create(self.lines)
     pcoll | 'Write' >> WriteToText(self.path)  # pylint: disable=expression-not-assigned
     pipeline.run()
 
@@ -537,7 +537,7 @@ class TextSinkTest(unittest.TestCase):
 
   def test_write_dataflow_auto_compression(self):
     pipeline = TestPipeline()
-    pcoll = pipeline | beam.core.Create('Create', self.lines)
+    pcoll = pipeline | beam.core.Create(self.lines)
     pcoll | 'Write' >> WriteToText(self.path, file_name_suffix='.gz')  # pylint: disable=expression-not-assigned
     pipeline.run()
 
@@ -550,7 +550,7 @@ class TextSinkTest(unittest.TestCase):
 
   def test_write_dataflow_auto_compression_unsharded(self):
     pipeline = TestPipeline()
-    pcoll = pipeline | beam.core.Create('Create', self.lines)
+    pcoll = pipeline | beam.core.Create(self.lines)
     pcoll | 'Write' >> WriteToText(self.path + '.gz', shard_name_template='')  # pylint: disable=expression-not-assigned
     pipeline.run()
 
