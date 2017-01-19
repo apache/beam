@@ -22,6 +22,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import org.apache.beam.sdk.io.hadoop.inputformat.HadoopInputFormatIO;
@@ -29,6 +30,9 @@ import org.apache.beam.sdk.io.hadoop.inputformat.HadoopInputFormatIOContants;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Count;
+import org.apache.beam.sdk.transforms.MapElements;
+import org.apache.beam.sdk.transforms.SimpleFunction;
+import org.apache.beam.sdk.transforms.Values;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.commons.io.FileUtils;
@@ -50,6 +54,7 @@ import org.elasticsearch.transport.Netty4Plugin;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.FixMethodOrder;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -59,206 +64,215 @@ import org.slf4j.LoggerFactory;
 
 /**
  *
- * Tests to validate HadoopInputFormatIO for embedded Elastic instance.
+ * Tests to validate HadoopInputFormatIO for embedded Elasticsearch instance.
  *
  */
 @RunWith(JUnit4.class)
 @FixMethodOrder(MethodSorters.JVM)
 public class HIFIOWithElasticTest implements Serializable {
 
-	private static final long serialVersionUID = 1L;
-	private static final Logger LOGGER = LoggerFactory
-			.getLogger(HIFIOWithElasticTest.class);
-	private static final String ELASTIC_IN_MEM_HOSTNAME = "127.0.0.1";
-	private static final String ELASTIC_IN_MEM_PORT = "9200";
-	private static final String ELASTIC_INTERNAL_VERSION = "5.x";
-	private static final String TRUE = "true";
-	private static final String ELASTIC_INDEX_NAME = "xyz";
-	private static final String ELASTIC_TYPE_NAME = "employee";
-	private static final String ELASTIC_RESOURCE = "/" + ELASTIC_INDEX_NAME
-			+ "/" + ELASTIC_TYPE_NAME;
-    private static final int SIZE = 1000;
+  private static final long serialVersionUID = 1L;
+  private static final Logger LOGGER = LoggerFactory.getLogger(HIFIOWithElasticTest.class);
+  private static final String ELASTIC_IN_MEM_HOSTNAME = "127.0.0.1";
+  private static final String ELASTIC_IN_MEM_PORT = "9200";
+  private static final String ELASTIC_INTERNAL_VERSION = "5.x";
+  private static final String TRUE = "true";
+  private static final String ELASTIC_INDEX_NAME = "xyz";
+  private static final String ELASTIC_TYPE_NAME = "employee";
+  private static final String ELASTIC_RESOURCE = "/" + ELASTIC_INDEX_NAME + "/" + ELASTIC_TYPE_NAME;
+  private static final int SIZE = 10;
+  private static final String ELASTIC_TYPE_ID_PREFIX = "xyz22600";
 
-	@BeforeClass
-	public static void startServer() throws NodeValidationException,
-			InterruptedException, IOException {
-		ElasticEmbeddedServer.startElasticEmbeddedServer();
-	}
+  @Rule
+  public final transient TestPipeline pipeline = TestPipeline.create();
 
-	/**
-	 * Test to read data from embedded Elasticsearch instance and verify whether data
-	 * is read successfully.
-	 */
-	@Test
-	public void testHifIOWithElastic() {
-		TestPipeline p = TestPipeline.create();
-		Configuration conf = getConfiguration();
-		PCollection<KV<Text, MapWritable>> esData = p.apply(HadoopInputFormatIO
-				.<Text, MapWritable> read().withConfiguration(conf));
-		PCollection<Long> count = esData.apply(Count
-				.<KV<Text, MapWritable>> globally());
-		PAssert.thatSingleton(count).isEqualTo((long) SIZE);
+  @BeforeClass
+  public static void startServer() throws NodeValidationException, InterruptedException,
+      IOException {
+    ElasticEmbeddedServer.startElasticEmbeddedServer();
+  }
 
-		p.run().waitUntilFinish();
-	}
+  /**
+   * Test to read data from embedded Elasticsearch instance and verify whether data is read
+   * successfully.
+   */
+  @Test
+  public void testHifIOWithElastic() {
+    Configuration conf = getConfiguration();
 
-	/**
-	 * Test to read data from embedded Elasticsearch instance based on query and
-	 * verify whether data is read successfully.
-	 */
-	@Test
-	public void testHifIOWithElasticQuery() {
-		TestPipeline p = TestPipeline.create();
-		Configuration conf = getConfiguration();
-		String query = "{\n" + "  \"query\": {\n" + "  \"match\" : {\n"
-				+ "    \"empid\" : {\n" + "      \"query\" : \"xyz22602\",\n"
-				+ "      \"type\" : \"boolean\"\n" + "    }\n" + "  }\n"
-				+ "  }\n" + "}";
-		conf.set(ConfigurationOptions.ES_QUERY, query);
-		PCollection<KV<Text, MapWritable>> esData = p.apply(HadoopInputFormatIO
-				.<Text, MapWritable> read().withConfiguration(conf));
-		PCollection<Long> count = esData.apply(Count
-				.<KV<Text, MapWritable>> globally());
-		PAssert.thatSingleton(count).isEqualTo((long) 1);
+    PCollection<KV<Text, MapWritable>> esData =
+        pipeline.apply(HadoopInputFormatIO.<Text, MapWritable>read().withConfiguration(conf));
+    PCollection<Long> count = esData.apply(Count.<KV<Text, MapWritable>>globally());
+    PAssert.thatSingleton(count).isEqualTo((long) SIZE);
+    PCollection<MapWritable> values = esData.apply(Values.<MapWritable>create());
 
-		p.run().waitUntilFinish();
-	}
+    MapElements<MapWritable, String> transformFunc =
+        MapElements.<MapWritable, String>via(new SimpleFunction<MapWritable, String>() {
+          @Override
+          public String apply(MapWritable mapw) {
+            Text text = (Text) mapw.get(new Text("empid"));
+            return text != null ? text.toString() : "";
+          }
+        });
 
-	public static Map<String, Object> populateElasticData(String empid,
-			String name, Date joiningDate, String[] skills, String designation) {
-		Map<String, Object> data = new HashMap<String, Object>();
-		data.put("empid", empid);
-		data.put("name", name);
-		data.put("joiningDate", joiningDate);
-		data.put("skills", skills);
-		data.put("designation", designation);
-		return data;
-	}
+    PCollection<String> textValues = values.apply(transformFunc);
+    List<String> expectedResults = new ArrayList<>();
+    for (int cnt = 0; cnt < SIZE; cnt++) {
+      expectedResults.add(ELASTIC_TYPE_ID_PREFIX + cnt);
+    }
+    PAssert.that(textValues).containsInAnyOrder(expectedResults);
+    pipeline.run().waitUntilFinish();
+  }
 
-	@AfterClass
-	public static void shutdownServer() throws IOException {
-		ElasticEmbeddedServer.shutdown();
-	}
+  /**
+   * Test to read data from embedded Elasticsearch instance based on query and verify whether data
+   * is read successfully.
+   */
+  @Test
+  public void testHifIOWithElasticQuery() {
+    Configuration conf = getConfiguration();
+    String fieldValue = ELASTIC_TYPE_ID_PREFIX + "2";
+    String query =
+        "{\n"
+            + "  \"query\": {\n"
+            + "  \"match\" : {\n"
+            + "    \"empid\" : {\n"
+            + "      \"query\" : \"" + fieldValue + "" + "\",\n"
+            + "      \"type\" : \"boolean\"\n"
+            + "    }\n"
+            + "  }\n"
+            + "  }\n"
+            + "}";
+    conf.set(ConfigurationOptions.ES_QUERY, query);
+    PCollection<KV<Text, MapWritable>> esData =
+        pipeline.apply(HadoopInputFormatIO.<Text, MapWritable>read().withConfiguration(conf));
+    PCollection<Long> count = esData.apply(Count.<KV<Text, MapWritable>>globally());
+    PAssert.thatSingleton(count).isEqualTo((long) 1);
 
-	/**
-	 * Class for in memory Elasticsearch server
-	 *
-	 */
-	static class ElasticEmbeddedServer implements Serializable {
+    pipeline.run().waitUntilFinish();
+  }
 
-		private static final long serialVersionUID = 1L;
-		private static Node node;
-		private static final String DEFAULT_PATH = "target/ESData";
+  public static Map<String, Object> populateElasticData(String empid, String name,
+      Date joiningDate, String[] skills, String designation) {
+    Map<String, Object> data = new HashMap<String, Object>();
+    data.put("empid", empid);
+    data.put("name", name);
+    data.put("joiningDate", joiningDate);
+    data.put("skills", skills);
+    data.put("designation", designation);
+    return data;
+  }
 
-		public static void startElasticEmbeddedServer()
-				throws UnknownHostException, NodeValidationException, InterruptedException {
+  @AfterClass
+  public static void shutdownServer() throws IOException {
+    ElasticEmbeddedServer.shutdown();
+  }
 
-			Settings settings = Settings.builder().put("node.data", TRUE)
-					.put("network.host", ELASTIC_IN_MEM_HOSTNAME)
-					.put("http.port", ELASTIC_IN_MEM_PORT)
-					.put("path.data", DEFAULT_PATH)
-					.put("path.home", DEFAULT_PATH)
-					.put("transport.type", "local").put("http.enabled", TRUE)
-					.put("node.ingest", TRUE).build();
-			node = new PluginNode(settings);
-			node.start();
-			LOGGER.info("Elastic im memory server started..");
-			prepareElasticIndex();
-			LOGGER.info("Prepared index " + ELASTIC_INDEX_NAME
-					+ "and populated data on elastic in memory server..");
-		}
+  /**
+   * Class for in memory Elasticsearch server
+   *
+   */
+  static class ElasticEmbeddedServer implements Serializable {
 
-		private static void prepareElasticIndex() throws InterruptedException {
-			CreateIndexRequest indexRequest = new CreateIndexRequest(
-					ELASTIC_INDEX_NAME);
-			node.client().admin().indices().create(indexRequest).actionGet();
-			for (int i = 0; i < SIZE; i++) {
-				node.client()
-						.prepareIndex(ELASTIC_INDEX_NAME, ELASTIC_TYPE_NAME,
-								String.valueOf(i))
-						.setSource(
-								populateElasticData("xyz2260" + i, "John Foo",
-										new Date(), new String[] { "java" },
-										"Software engineer")).execute();
-				Thread.sleep(100);
-			}
-			GetResponse response = node.client()
-					.prepareGet(ELASTIC_INDEX_NAME, ELASTIC_TYPE_NAME, "1")
-					.execute().actionGet();
+    private static final long serialVersionUID = 1L;
+    private static Node node;
+    private static final String DEFAULT_PATH = "target/ESData";
 
-		}
+    public static void startElasticEmbeddedServer() throws UnknownHostException,
+        NodeValidationException, InterruptedException {
 
-		public Client getClient() throws UnknownHostException {
-			return node.client();
-		}
+      Settings settings =
+          Settings.builder().put("node.data", TRUE).put("network.host", ELASTIC_IN_MEM_HOSTNAME)
+              .put("http.port", ELASTIC_IN_MEM_PORT).put("path.data", DEFAULT_PATH)
+              .put("path.home", DEFAULT_PATH).put("transport.type", "local")
+              .put("http.enabled", TRUE).put("node.ingest", TRUE).build();
+      node = new PluginNode(settings);
+      node.start();
+      LOGGER.info("Elastic im memory server started..");
+      prepareElasticIndex();
+      LOGGER.info("Prepared index " + ELASTIC_INDEX_NAME
+          + "and populated data on elastic in memory server..");
+    }
 
-		public static void shutdown() throws IOException {
-			DeleteIndexRequest indexRequest = new DeleteIndexRequest(
-					ELASTIC_INDEX_NAME);
-			node.client().admin().indices().delete(indexRequest).actionGet();
-			LOGGER.info("Deleted index " + ELASTIC_INDEX_NAME
-					+ " from elastic in memory server");
-			node.close();
-			LOGGER.info("Closed elastic in memory server node.");
-			deleteElasticDataDirectory();
-		}
+    private static void prepareElasticIndex() throws InterruptedException {
+      CreateIndexRequest indexRequest = new CreateIndexRequest(ELASTIC_INDEX_NAME);
+      node.client().admin().indices().create(indexRequest).actionGet();
+      for (int i = 0; i < SIZE; i++) {
+        node.client()
+            .prepareIndex(ELASTIC_INDEX_NAME, ELASTIC_TYPE_NAME, String.valueOf(i))
+            .setSource(
+                populateElasticData(ELASTIC_TYPE_ID_PREFIX + i, "John Foo", new Date(),
+                    new String[] {"java"}, "Software engineer")).execute();
+        Thread.sleep(100);
+      }
+      GetResponse response =
+          node.client().prepareGet(ELASTIC_INDEX_NAME, ELASTIC_TYPE_NAME, "1").execute()
+              .actionGet();
 
-		private static void deleteElasticDataDirectory() {
-			try {
-				FileUtils.deleteDirectory(new File(DEFAULT_PATH));
-			} catch (IOException e) {
-				throw new RuntimeException(
-						"Exception: Could not delete elastic data directory", e);
-			}
-		}
+    }
 
-	}
+    public Client getClient() throws UnknownHostException {
+      return node.client();
+    }
 
-	/**
-	 *
-	 * Class created for handling "http.enabled" property as "true" for Elasticsearch node.
-	 *
-	 */
-	static class PluginNode extends Node implements Serializable {
+    public static void shutdown() throws IOException {
+      DeleteIndexRequest indexRequest = new DeleteIndexRequest(ELASTIC_INDEX_NAME);
+      node.client().admin().indices().delete(indexRequest).actionGet();
+      LOGGER.info("Deleted index " + ELASTIC_INDEX_NAME + " from elastic in memory server");
+      node.close();
+      LOGGER.info("Closed elastic in memory server node.");
+      deleteElasticDataDirectory();
+    }
 
-		private static final long serialVersionUID = 1L;
-		static Collection<Class<? extends Plugin>> list = new ArrayList<Class<? extends Plugin>>();
-		static {
-			list.add(Netty4Plugin.class);
-		}
+    private static void deleteElasticDataDirectory() {
+      try {
+        FileUtils.deleteDirectory(new File(DEFAULT_PATH));
+      } catch (IOException e) {
+        throw new RuntimeException("Exception: Could not delete elastic data directory", e);
+      }
+    }
 
-		public PluginNode(final Settings settings) {
-			super(InternalSettingsPreparer.prepareEnvironment(settings, null),
-					list);
+  }
 
-		}
-	}
+  /**
+   *
+   * Class created for handling "http.enabled" property as "true" for Elasticsearch node.
+   *
+   */
+  static class PluginNode extends Node implements Serializable {
 
-	/**
-	 * Set the Elasticsearch configuration parameters in the Hadoop
-	 * configuration object. Configuration object should have InputFormat class,
-	 * key class and value class to be set Mandatory fields for ESInputFormat to
-	 * be set are es.resource, es.nodes, es.port, es.internal.es.version
-	 */
-	public Configuration getConfiguration() {
-		Configuration conf = new Configuration();
+    private static final long serialVersionUID = 1L;
+    static Collection<Class<? extends Plugin>> list = new ArrayList<Class<? extends Plugin>>();
+    static {
+      list.add(Netty4Plugin.class);
+    }
 
-		conf.set(ConfigurationOptions.ES_NODES, ELASTIC_IN_MEM_HOSTNAME);
-		conf.set(ConfigurationOptions.ES_PORT,
-				String.format("%s", ELASTIC_IN_MEM_PORT));
-		conf.set(ConfigurationOptions.ES_RESOURCE, ELASTIC_RESOURCE);
-		conf.set("es.internal.es.version", ELASTIC_INTERNAL_VERSION);
-		conf.set(ConfigurationOptions.ES_NODES_DISCOVERY, TRUE);
-		conf.set(ConfigurationOptions.ES_INDEX_AUTO_CREATE, TRUE);
-		conf.setClass(HadoopInputFormatIOContants.INPUTFORMAT_CLASSNAME,
-				org.elasticsearch.hadoop.mr.EsInputFormat.class,
-				InputFormat.class);
-		conf.setClass(HadoopInputFormatIOContants.KEY_CLASS, Text.class,
-				Object.class);
-		conf.setClass(HadoopInputFormatIOContants.VALUE_CLASS,
-				MapWritable.class, Object.class);
-		conf.setClass("mapred.mapoutput.value.class", MapWritable.class,
-				Object.class);
-		return conf;
-	}
+    public PluginNode(final Settings settings) {
+      super(InternalSettingsPreparer.prepareEnvironment(settings, null), list);
+
+    }
+  }
+
+  /**
+   * Set the Elasticsearch configuration parameters in the Hadoop configuration object.
+   * Configuration object should have InputFormat class, key class and value class to be set
+   * Mandatory fields for ESInputFormat to be set are es.resource, es.nodes, es.port,
+   * es.internal.es.version
+   */
+  public Configuration getConfiguration() {
+    Configuration conf = new Configuration();
+
+    conf.set(ConfigurationOptions.ES_NODES, ELASTIC_IN_MEM_HOSTNAME);
+    conf.set(ConfigurationOptions.ES_PORT, String.format("%s", ELASTIC_IN_MEM_PORT));
+    conf.set(ConfigurationOptions.ES_RESOURCE, ELASTIC_RESOURCE);
+    conf.set("es.internal.es.version", ELASTIC_INTERNAL_VERSION);
+    conf.set(ConfigurationOptions.ES_NODES_DISCOVERY, TRUE);
+    conf.set(ConfigurationOptions.ES_INDEX_AUTO_CREATE, TRUE);
+    conf.setClass(HadoopInputFormatIOContants.INPUTFORMAT_CLASSNAME,
+        org.elasticsearch.hadoop.mr.EsInputFormat.class, InputFormat.class);
+    conf.setClass(HadoopInputFormatIOContants.KEY_CLASS, Text.class, Object.class);
+    conf.setClass(HadoopInputFormatIOContants.VALUE_CLASS, MapWritable.class, Object.class);
+    conf.setClass("mapred.mapoutput.value.class", MapWritable.class, Object.class);
+    return conf;
+  }
 }
