@@ -18,13 +18,9 @@
 
 package org.apache.beam.runners.spark.metrics;
 
-import com.google.common.base.Function;
-import com.google.common.base.Predicate;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
-import com.google.common.collect.FluentIterable;
-import com.google.common.collect.Iterables;
 import java.io.IOException;
 import java.io.ObjectOutputStream;
 import java.io.Serializable;
@@ -32,12 +28,8 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
-import org.apache.beam.runners.spark.metrics.MetricAggregator.CounterAggregator;
-import org.apache.beam.runners.spark.metrics.MetricAggregator.DistributionAggregator;
-import org.apache.beam.runners.spark.metrics.MetricAggregator.SparkDistributionData;
 import org.apache.beam.sdk.metrics.DistributionData;
 import org.apache.beam.sdk.metrics.MetricKey;
-import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.metrics.MetricUpdates;
 import org.apache.beam.sdk.metrics.MetricUpdates.MetricUpdate;
 import org.apache.beam.sdk.metrics.MetricsContainer;
@@ -53,7 +45,8 @@ public class SparkMetricsContainer implements Serializable {
 
   private transient volatile LoadingCache<String, MetricsContainer> metricsContainers;
 
-  private final Map<MetricKey, MetricAggregator<?>> metrics = new HashMap<>();
+  private final Map<MetricKey, MetricUpdate<Long>> counters = new HashMap<>();
+  private final Map<MetricKey, MetricUpdate<DistributionData>> distributions = new HashMap<>();
 
   public MetricsContainer getContainer(String stepName) {
     if (metricsContainers == null) {
@@ -72,67 +65,22 @@ public class SparkMetricsContainer implements Serializable {
     }
   }
 
-  static Collection<CounterAggregator> getCounters() {
-    return
-        FluentIterable
-            .from(getInstance().metrics.values())
-            .filter(IS_COUNTER)
-            .transform(TO_COUNTER)
-            .toList();
+  static Collection<MetricUpdate<Long>> getCounters() {
+    return getInstance().counters.values();
   }
 
-  private static final Predicate<MetricAggregator<?>> IS_COUNTER =
-      new Predicate<MetricAggregator<?>>() {
-        @Override
-        public boolean apply(MetricAggregator<?> input) {
-          return (input instanceof CounterAggregator);
-        }
-      };
-
-  private static final Function<MetricAggregator<?>, CounterAggregator> TO_COUNTER =
-      new Function<MetricAggregator<?>,
-          CounterAggregator>() {
-        @Override
-        public CounterAggregator apply(MetricAggregator<?> metricAggregator) {
-          return (CounterAggregator) metricAggregator;
-        }
-      };
-
-  static Collection<DistributionAggregator> getDistributions() {
-    return
-        FluentIterable
-            .from(getInstance().metrics.values())
-            .filter(IS_DISTRIBUTION)
-            .transform(TO_DISTRIBUTION)
-            .toList();
+  static Collection<MetricUpdate<DistributionData>> getDistributions() {
+    return getInstance().distributions.values();
   }
 
-  private static final Predicate<MetricAggregator<?>> IS_DISTRIBUTION =
-      new Predicate<MetricAggregator<?>>() {
-        @Override
-        public boolean apply(MetricAggregator<?> input) {
-          return (input instanceof DistributionAggregator);
-        }
-      };
-
-  private static final Function<MetricAggregator<?>, DistributionAggregator> TO_DISTRIBUTION =
-      new Function<MetricAggregator<?>, DistributionAggregator>() {
-        @Override
-        public DistributionAggregator apply(MetricAggregator<?> metricAggregator) {
-          return (DistributionAggregator) metricAggregator;
-        }
-      };
-
-  SparkMetricsContainer merge(SparkMetricsContainer other) {
-    return this.updated(other.getAggregators());
+  SparkMetricsContainer update(SparkMetricsContainer other) {
+    this.updateCounters(other.counters.values());
+    this.updateDistributions(other.distributions.values());
+    return this;
   }
 
   private static SparkMetricsContainer getInstance() {
     return MetricsAccumulator.getInstance().value();
-  }
-
-  private Collection<MetricAggregator<?>> getAggregators() {
-    return metrics.values();
   }
 
   private void writeObject(ObjectOutputStream out) throws IOException {
@@ -148,44 +96,28 @@ public class SparkMetricsContainer implements Serializable {
     if (metricsContainers != null) {
       for (MetricsContainer container : metricsContainers.asMap().values()) {
         MetricUpdates cumulative = container.getCumulative();
-        updated(Iterables.transform(cumulative.counterUpdates(), TO_COUNTER_AGGREGATOR));
-        updated(Iterables.transform(cumulative.distributionUpdates(), TO_DISTRIBUTION_AGGREGATOR));
+        this.updateCounters(cumulative.counterUpdates());
+        this.updateDistributions(cumulative.distributionUpdates());
       }
     }
   }
 
-  private static final Function<MetricUpdate<Long>, MetricAggregator<?>>
-      TO_COUNTER_AGGREGATOR = new Function<MetricUpdate<Long>, MetricAggregator<?>>() {
-    @SuppressWarnings("ConstantConditions")
-    @Override
-    public CounterAggregator
-    apply(MetricUpdate<Long> update) {
-      return update != null ? new CounterAggregator(new SparkMetricKey(update.getKey()),
-          update.getUpdate()) : null;
-    }
-  };
-
-  private static final Function<MetricUpdate<DistributionData>, MetricAggregator<?>>
-      TO_DISTRIBUTION_AGGREGATOR =
-      new Function<MetricUpdate<DistributionData>, MetricAggregator<?>>() {
-        @SuppressWarnings("ConstantConditions")
-        @Override
-        public DistributionAggregator
-        apply(MetricUpdate<DistributionData> update) {
-          return update != null ? new DistributionAggregator(new SparkMetricKey(update.getKey()),
-              new SparkDistributionData(update.getUpdate())) : null;
-        }
-      };
-
-  private SparkMetricsContainer updated(Iterable<MetricAggregator<?>> updates) {
-    for (MetricAggregator<?> update : updates) {
+  private void updateCounters(Iterable<MetricUpdate<Long>> updates) {
+    for (MetricUpdate<Long> update : updates) {
       MetricKey key = update.getKey();
-      MetricAggregator<?> current = metrics.get(key);
-      Object updateValue = update.getValue();
-      metrics.put(new SparkMetricKey(key),
-          current != null ? MetricAggregator.updated(current, updateValue) : update);
+      MetricUpdate<Long> current = counters.get(key);
+      counters.put(key, current != null
+          ? MetricUpdate.create(key, current.getUpdate() + update.getUpdate()) : update);
     }
-    return this;
+  }
+
+  private void updateDistributions(Iterable<MetricUpdate<DistributionData>> updates) {
+    for (MetricUpdate<DistributionData> update : updates) {
+      MetricKey key = update.getKey();
+      MetricUpdate<DistributionData> current = distributions.get(key);
+      distributions.put(key, current != null
+          ? MetricUpdate.create(key, current.getUpdate().combine(update.getUpdate())) : update);
+    }
   }
 
   private static class MetricsContainerCacheLoader extends CacheLoader<String, MetricsContainer> {
@@ -196,97 +128,10 @@ public class SparkMetricsContainer implements Serializable {
     }
   }
 
-  private static class SparkMetricKey extends MetricKey implements Serializable {
-    private final String stepName;
-    private final MetricName metricName;
-
-    SparkMetricKey(MetricKey original) {
-      this.stepName = original.stepName();
-      MetricName metricName = original.metricName();
-      this.metricName = new SparkMetricName(metricName.namespace(), metricName.name());
-    }
-
-    @Override
-    public String stepName() {
-      return stepName;
-    }
-
-    @Override
-    public MetricName metricName() {
-      return metricName;
-    }
-
-    @Override
-    public boolean equals(Object o) {
-      if (o == this) {
-        return true;
-      }
-      if (o instanceof MetricKey) {
-        MetricKey that = (MetricKey) o;
-        return (this.stepName.equals(that.stepName()))
-            && (this.metricName.equals(that.metricName()));
-      }
-      return false;
-    }
-
-    @Override
-    public int hashCode() {
-      int h = 1;
-      h *= 1000003;
-      h ^= stepName.hashCode();
-      h *= 1000003;
-      h ^= metricName.hashCode();
-      return h;
-    }
-  }
-
-  private static class SparkMetricName extends MetricName implements Serializable {
-    private final String namespace;
-    private final String name;
-
-    SparkMetricName(String namespace, String name) {
-      this.namespace = namespace;
-      this.name = name;
-    }
-
-    @Override
-    public String namespace() {
-      return namespace;
-    }
-
-    @Override
-    public String name() {
-      return name;
-    }
-
-    @Override
-    public boolean equals(Object o) {
-      if (o == this) {
-        return true;
-      }
-      if (o instanceof MetricName) {
-        MetricName that = (MetricName) o;
-        return (this.namespace.equals(that.namespace()))
-            && (this.name.equals(that.name()));
-      }
-      return false;
-    }
-
-    @Override
-    public int hashCode() {
-      int h = 1;
-      h *= 1000003;
-      h ^= namespace.hashCode();
-      h *= 1000003;
-      h ^= name.hashCode();
-      return h;
-    }
-  }
-
   @Override
   public String toString() {
     StringBuilder sb = new StringBuilder();
-    for (Map.Entry<String, ?> metric :  new SparkBeamMetric().renderAll().entrySet()) {
+    for (Map.Entry<String, ?> metric : new SparkBeamMetric().renderAll().entrySet()) {
       sb.append(metric.getKey()).append(": ").append(metric.getValue()).append(" ");
     }
     return sb.toString();
