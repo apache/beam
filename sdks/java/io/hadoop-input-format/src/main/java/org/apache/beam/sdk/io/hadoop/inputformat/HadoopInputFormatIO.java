@@ -435,7 +435,9 @@ public class HadoopInputFormatIO {
     private Coder<K> keyCoder;
     private Coder<V> valueCoder;
 
-    /** Sets the key and value coder based on the key class and value class. */
+    /**
+     *  Sets the key and value coder based on the key class and value class. 
+     */
     protected void getKeyAndValueCoder(PBegin input) {
       CoderRegistry coderRegistry = input.getPipeline().getCoderRegistry();
       keyCoder = getDefaultCoder(getKeyClass(), coderRegistry);
@@ -755,7 +757,7 @@ public class HadoopInputFormatIO {
       }
 
       /**
-       * Return the serialized output by cloning. Given input is transformed with the given
+       * Returns the serialized output by cloning. Given input is transformed with the provided
        * SimpleFunction.
        */
       private <T1 extends Object> T1 transformKeyOrValue(T input,
