@@ -44,7 +44,7 @@ public class BadNullSplitsInputFormat extends InputFormat<Text, Employee> {
   @Override
   public List<InputSplit> getSplits(JobContext arg0) throws IOException, InterruptedException {
     return null; // Bad Input Format to return null for getSplits().
-  }
+    }
 
   public class NullInputSplitsInputSplit extends InputSplit implements Writable {
 

@@ -180,7 +180,7 @@ public class HIFIOWithElasticTest implements Serializable {
 								populateElasticData("xyz2260" + i, "John Foo",
 										new Date(), new String[] { "java" },
 										"Software engineer")).execute();
-				Thread.sleep(50);
+				Thread.sleep(100);
 			}
 			GetResponse response = node.client()
 					.prepareGet(ELASTIC_INDEX_NAME, ELASTIC_TYPE_NAME, "1")

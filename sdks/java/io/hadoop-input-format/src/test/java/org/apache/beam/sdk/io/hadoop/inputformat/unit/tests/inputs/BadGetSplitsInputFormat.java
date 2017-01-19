@@ -29,33 +29,28 @@ import org.apache.hadoop.mapreduce.RecordReader;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
 
 /**
- * <p>
- * This is a bad InputFormat.
- * <p>
- * This is test input to validate if HadoopInputFormatIO stops reading if createRecordReader returns
- * null.
+ * Bad InputFormat returns list of InputSplits containing null values.
  */
-public class BadNullCreateReaderInputFormat extends InputFormat<Text, Employee> {
+public class BadGetSplitsInputFormat extends InputFormat<Text, Employee> {
 
-  public BadNullCreateReaderInputFormat() {}
+  public BadGetSplitsInputFormat() {}
 
   @Override
   public RecordReader<Text, Employee> createRecordReader(InputSplit split,
       TaskAttemptContext context) throws IOException, InterruptedException {
-    return null;
+    return new BadGetSplitsRecordReader();
   }
 
   @Override
-  public List<InputSplit> getSplits(JobContext jobContext)
-      throws IOException, InterruptedException {
+  public List<InputSplit> getSplits(JobContext context) throws IOException, InterruptedException {
+    // InputSplit list having null value.
     List<InputSplit> inputSplitList = new ArrayList<InputSplit>();
-    inputSplitList.add(new BadNullCreateReaderInputSplit());
+    inputSplitList.add(new BadGetSplitsInputSplit());
+    inputSplitList.add(null);
     return inputSplitList;
   }
 
-  public class BadNullCreateReaderInputSplit extends InputSplit implements Writable {
-
-    public BadNullCreateReaderInputSplit() {}
+  public class BadGetSplitsInputSplit extends InputSplit implements Writable {
 
     @Override
     public void readFields(DataInput in) throws IOException {}
@@ -73,7 +68,8 @@ public class BadNullCreateReaderInputFormat extends InputFormat<Text, Employee> 
       return null;
     }
   }
-  public class BadNullCreateReaderRecordReader extends RecordReader<Text, Employee> {
+
+  public class BadGetSplitsRecordReader extends RecordReader<Text, Employee> {
 
     @Override
     public void close() throws IOException {}
@@ -101,6 +97,5 @@ public class BadNullCreateReaderInputFormat extends InputFormat<Text, Employee> 
     public boolean nextKeyValue() throws IOException, InterruptedException {
       return false;
     }
-
   }
 }

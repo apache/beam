@@ -38,7 +38,7 @@ public class BadEmptySplitsInputFormat extends InputFormat<Text, Employee> {
   @Override
   public RecordReader<Text, Employee> createRecordReader(InputSplit split,
       TaskAttemptContext context) throws IOException, InterruptedException {
-    return new EmptyInputSplitsRecordReader();
+    return null;
   }
 
 
@@ -48,7 +48,7 @@ public class BadEmptySplitsInputFormat extends InputFormat<Text, Employee> {
     return new ArrayList<InputSplit>();
   }
 
-  public class EmptyInputSplitsInputSplit extends InputSplit implements Writable {
+  public class BadEmptySplitsInputSplit extends InputSplit implements Writable {
 
     @Override
     public void readFields(DataInput in) throws IOException {}
@@ -68,7 +68,7 @@ public class BadEmptySplitsInputFormat extends InputFormat<Text, Employee> {
 
   }
 
-  class EmptyInputSplitsRecordReader extends RecordReader<Text, Employee> {
+  class BadEmptySplitsRecordReader extends RecordReader<Text, Employee> {
 
     @Override
     public void close() throws IOException {}

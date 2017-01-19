@@ -39,20 +39,20 @@ public class BadNoRecordsInputFormat extends InputFormat<Text, Employee> {
   @Override
   public RecordReader<Text, Employee> createRecordReader(InputSplit split,
       TaskAttemptContext context) throws IOException, InterruptedException {
-    return new BadRecordReaderNoRecordsRecordReader();
+    return new BadNoRecordsRecordReader();
   }
 
   @Override
   public List<InputSplit> getSplits(JobContext arg0) throws IOException, InterruptedException {
     List<InputSplit> inputSplitList = new ArrayList<InputSplit>();
-    InputSplit inputSplit = new BadRecordReaderNoRecordsInputSplit();
+    InputSplit inputSplit = new BadNoRecordsInputSplit();
     inputSplitList.add(inputSplit);
     return inputSplitList;
   }
 
-  public class BadRecordReaderNoRecordsInputSplit extends InputSplit implements Writable {
+  public class BadNoRecordsInputSplit extends InputSplit implements Writable {
 
-    public BadRecordReaderNoRecordsInputSplit() {}
+    public BadNoRecordsInputSplit() {}
 
     @Override
     public void readFields(DataInput in) throws IOException {}
@@ -71,7 +71,7 @@ public class BadNoRecordsInputFormat extends InputFormat<Text, Employee> {
     }
   }
 
-  class BadRecordReaderNoRecordsRecordReader extends RecordReader<Text, Employee> {
+  class BadNoRecordsRecordReader extends RecordReader<Text, Employee> {
 
     @Override
     public void close() throws IOException {}

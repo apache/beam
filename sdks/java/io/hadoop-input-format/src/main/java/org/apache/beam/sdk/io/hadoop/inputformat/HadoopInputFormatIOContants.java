@@ -34,10 +34,10 @@ public class HadoopInputFormatIOContants {
 	public static final String WRONG_KEY_TRANSLATIONFUNC_ERROR_MSG = "Key translation's input type is not same as hadoop InputFormat : %s key class : %s";
 	public static final String WRONG_VALUE_TRANSLATIONFUNC_ERROR_MSG = "Value translation's input type is not same as hadoop InputFormat :  %s value class : %s";
 	public static final String CANNOT_FIND_CODER_ERROR_MSG = "Cannot find coder for %s  : ";
-	public static final String COMPUTESPLITS_NULL_SPLITS_ERROR_MSG = "Error in computing splits, getSplits() returns null.";
+	public static final String COMPUTESPLITS_NULL_GETSPLITS_ERROR_MSG = "Error in computing splits, getSplits() returns null.";
+    public static final String COMPUTESPLITS_NULL_SPLIT_ERROR_MSG = "Error in computing splits, split is null in InputSplits list populated by getSplits() : ";
 	public static final String COMPUTESPLITS_EMPTY_SPLITS_ERROR_MSG = "Error in computing splits, getSplits() returns a empty list";
 	public static final String CREATEREADER_UNSPLIT_SOURCE_ERROR_MSG = "Cannot create reader as source is not split yet.";
-	public static final String CREATEREADER_NULL_SPLIT_ERROR_MSG = "Cannot read data as split is null.";
 	public static final String NULL_CREATE_RECORDREADER_ERROR_MSG = "null RecordReader object returned by %s";
 	public static final String GETFRACTIONSCONSUMED_ERROR_MSG = "Error in computing the fractions consumed as RecordReader.getProgress() throws an exception : ";
 	public static final String SERIALIZABLE_SPLIT_WRITABLE_ERROR_MSG = "Split is not of type Writable: %s";

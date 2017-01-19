@@ -42,20 +42,20 @@ public class BadCreateReaderInputFormat extends InputFormat<Text, Employee> {
   @Override
   public RecordReader<Text, Employee> createRecordReader(InputSplit split,
       TaskAttemptContext context) throws IOException, InterruptedException {
-    return new BadCreateRecordRecordReader();
+    return new BadCreateReaderRecordReader();
   }
 
   @Override
   public List<InputSplit> getSplits(JobContext jobContext)
       throws IOException, InterruptedException {
     List<InputSplit> inputSplitList = new ArrayList<InputSplit>();
-    inputSplitList.add(new BadCreateRecordReaderInputSplit());
+    inputSplitList.add(new BadCreateReaderInputSplit());
     return inputSplitList;
   }
 
-  public class BadCreateRecordReaderInputSplit extends InputSplit implements Writable {
+  public class BadCreateReaderInputSplit extends InputSplit implements Writable {
    
-    public BadCreateRecordReaderInputSplit() {}
+    public BadCreateReaderInputSplit() {}
 
     @Override
     public void readFields(DataInput in) throws IOException {}
@@ -73,9 +73,9 @@ public class BadCreateReaderInputFormat extends InputFormat<Text, Employee> {
       return null;
     }
   }
-  public class BadCreateRecordRecordReader extends RecordReader<Text, Employee> {
+  public class BadCreateReaderRecordReader extends RecordReader<Text, Employee> {
 
-    public BadCreateRecordRecordReader() throws IOException {
+    public BadCreateReaderRecordReader() throws IOException {
       throw new IOException(
           "Exception in creating RecordReader in BadCreateRecordReaderInputFormat.");
     }
