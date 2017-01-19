@@ -8,7 +8,13 @@
   <version>0.5.0-SNAPSHOT</version>
   <packaging>pom</packaging>
 
-  <name>${project.artifactId}-${project.version}</name>
+  <licenses>
+    <license>
+      <name>The Apache Software License, Version 2.0</name>
+      <url>http://www.apache.org/licenses/LICENSE-2.0.txt</url>
+      <distribution>repo</distribution>
+    </license>
+  </licenses>
 
   <scm>
     <connection>scm:git:git@gitlab.kancelar.seznam.cz:euphoria/euphoria.git</connection>
@@ -254,6 +260,12 @@
             <autoVersionSubmodules>true</autoVersionSubmodules>
           </configuration>
         </plugin>
+
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-remote-resources-plugin</artifactId>
+          <version>1.5</version>
+        </plugin>
       </plugins>
     </pluginManagement>
 
@@ -337,6 +349,24 @@
           <runOrder>hourly</runOrder>
           <argLine>-Xmx512m</argLine>
         </configuration>
+      </plugin>
+
+      <!-- produce license resources artifacts/jars -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-remote-resources-plugin</artifactId>
+        <executions>
+          <execution>
+            <goals>
+              <goal>process</goal>
+            </goals>
+            <configuration>
+              <resourceBundles>
+                <resourceBundle>org.apache:apache-jar-resource-bundle:1.4</resourceBundle>
+              </resourceBundles>
+            </configuration>
+          </execution>
+        </executions>
       </plugin>
 
     </plugins>
