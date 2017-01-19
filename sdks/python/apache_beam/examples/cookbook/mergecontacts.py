@@ -74,12 +74,12 @@ def run(argv=None, assert_results=None):
   # quotes/backslashes, and convert it a PCollection of (key, value) pairs.
   def read_kv_textfile(label, textfile):
     return (p
-            | 'read_%s' % label >> ReadFromText(textfile)
-            | 'backslash_%s' % label >> beam.Map(
+            | 'Read: %s' % label >> ReadFromText(textfile)
+            | 'Backslash: %s' % label >> beam.Map(
                 lambda x: re.sub(r'\\', r'\\\\', x))
-            | 'escape_quotes_%s' % label >> beam.Map(
+            | 'EscapeQuotes: %s' % label >> beam.Map(
                 lambda x: re.sub(r'"', r'\"', x))
-            | 'split_%s' % label >> beam.Map(
+            | 'Split: %s' % label >> beam.Map(
                 lambda x: re.split(r'\t+', x, 1)))
 
   # Read input databases.
@@ -107,13 +107,13 @@ def run(argv=None, assert_results=None):
   nomads = grouped | beam.Filter(    # People without addresses.
       lambda (name, (email, phone, snailmail)): not next(iter(snailmail), None))
 
-  num_luddites = luddites | 'luddites' >> beam.combiners.Count.Globally()
-  num_writers = writers | 'writers' >> beam.combiners.Count.Globally()
-  num_nomads = nomads | 'nomads' >> beam.combiners.Count.Globally()
+  num_luddites = luddites | 'Luddites' >> beam.combiners.Count.Globally()
+  num_writers = writers | 'Writers' >> beam.combiners.Count.Globally()
+  num_nomads = nomads | 'Nomads' >> beam.combiners.Count.Globally()
 
   # Write tab-delimited output.
   # pylint: disable=expression-not-assigned
-  tsv_lines | 'write_tsv' >> WriteToText(known_args.output_tsv)
+  tsv_lines | 'WriteTsv' >> WriteToText(known_args.output_tsv)
 
   # TODO(silviuc): Move the assert_results logic to the unit test.
   if assert_results is not None:

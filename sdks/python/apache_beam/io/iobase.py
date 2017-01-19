@@ -727,7 +727,7 @@ class Write(ptransform.PTransform):
     from apache_beam.runners.dataflow.native_io import iobase as dataflow_io
     if isinstance(self.sink, dataflow_io.NativeSink):
       # A native sink
-      return pcoll | 'native_write' >> dataflow_io._NativeWrite(self.sink)
+      return pcoll | 'NativeWrite' >> dataflow_io._NativeWrite(self.sink)
     elif isinstance(self.sink, Sink):
       # A custom sink
       return pcoll | WriteImpl(self.sink)
@@ -748,7 +748,7 @@ class WriteImpl(ptransform.PTransform):
 
   def expand(self, pcoll):
     do_once = pcoll.pipeline | 'DoOnce' >> core.Create([None])
-    init_result_coll = do_once | 'initialize_write' >> core.Map(
+    init_result_coll = do_once | 'InitializeWrite' >> core.Map(
         lambda _, sink: sink.initialize_write(), self.sink)
     if getattr(self.sink, 'num_shards', 0):
       min_shards = self.sink.num_shards
@@ -759,20 +759,20 @@ class WriteImpl(ptransform.PTransform):
       write_result_coll = (keyed_pcoll
                            | core.WindowInto(window.GlobalWindows())
                            | core.GroupByKey()
-                           | 'write_bundles' >> core.Map(
+                           | 'WriteBundles' >> core.Map(
                                _write_keyed_bundle, self.sink,
                                AsSingleton(init_result_coll)))
     else:
       min_shards = 1
       write_result_coll = (pcoll
-                           | 'write_bundles' >>
+                           | 'WriteBundles' >>
                            core.ParDo(
                                _WriteBundleDoFn(), self.sink,
                                AsSingleton(init_result_coll))
-                           | 'pair' >> core.Map(lambda x: (None, x))
+                           | 'Pair' >> core.Map(lambda x: (None, x))
                            | core.WindowInto(window.GlobalWindows())
                            | core.GroupByKey()
-                           | 'extract' >> core.FlatMap(lambda x: x[1]))
+                           | 'Extract' >> core.FlatMap(lambda x: x[1]))
     return do_once | core.FlatMap(
         'finalize_write',
         _finalize_write,

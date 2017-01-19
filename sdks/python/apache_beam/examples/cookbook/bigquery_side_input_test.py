@@ -30,14 +30,13 @@ class BigQuerySideInputTest(unittest.TestCase):
   def test_create_groups(self):
     p = TestPipeline()
 
-    group_ids_pcoll = p | 'create_group_ids' >> beam.Create(['A', 'B', 'C'])
-    corpus_pcoll = p | 'create_corpus' >> beam.Create(
+    group_ids_pcoll = p | 'CreateGroupIds' >> beam.Create(['A', 'B', 'C'])
+    corpus_pcoll = p | 'CreateCorpus' >> beam.Create(
         [{'f': 'corpus1'}, {'f': 'corpus2'}, {'f': 'corpus3'}])
-    words_pcoll = p | 'create_words' >> beam.Create([{'f': 'word1'},
-                                                     {'f': 'word2'},
-                                                     {'f': 'word3'}])
-    ignore_corpus_pcoll = p | 'create_ignore_corpus' >> beam.Create(['corpus1'])
-    ignore_word_pcoll = p | 'create_ignore_word' >> beam.Create(['word1'])
+    words_pcoll = p | 'CreateWords' >> beam.Create(
+        [{'f': 'word1'}, {'f': 'word2'}, {'f': 'word3'}])
+    ignore_corpus_pcoll = p | 'CreateIgnoreCorpus' >> beam.Create(['corpus1'])
+    ignore_word_pcoll = p | 'CreateIgnoreWord' >> beam.Create(['word1'])
 
     groups = bigquery_side_input.create_groups(group_ids_pcoll, corpus_pcoll,
                                                words_pcoll, ignore_corpus_pcoll,
