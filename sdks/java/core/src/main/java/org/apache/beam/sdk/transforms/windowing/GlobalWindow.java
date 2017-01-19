@@ -17,6 +17,9 @@
  */
 package org.apache.beam.sdk.transforms.windowing;
 
+import static com.google.common.base.Preconditions.checkState;
+
+import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import org.apache.beam.sdk.coders.AtomicCoder;
@@ -54,12 +57,33 @@ public class GlobalWindow extends BoundedWindow {
    */
   public static class Coder extends AtomicCoder<GlobalWindow> {
     public static final Coder INSTANCE = new Coder();
+    private static final char DUMMY_BYTE = 'G';
 
     @Override
-    public void encode(GlobalWindow window, OutputStream outStream, Context context) {}
+    public void encode(GlobalWindow window, OutputStream outStream, Context context)
+        throws IOException {
+      if (context.isWholeStream) {
+        // If the context is the remainder of the stream then writing zero bytes may make things
+        // fragile; for example an API that interprets zero bytes sent as data not being ready
+        // yet.
+        //
+        // If the context is inside another structure, we presume that structure puts adequate
+        // frame information that it will be nonempty.
+        outStream.write(DUMMY_BYTE);
+      }
+    }
 
     @Override
-    public GlobalWindow decode(InputStream inStream, Context context) {
+    public GlobalWindow decode(InputStream inStream, Context context) throws IOException {
+      if (context.isWholeStream) {
+        // If the context is the remainder of the stream, then we will have written a dummy byte
+        // that should be skipped
+        checkState(
+            inStream.skip(1) == 1,
+            "Expected to skip '%s' when decoding with %s in outer context",
+            DUMMY_BYTE,
+            getClass().getName());
+      }
       return GlobalWindow.INSTANCE;
     }
 
