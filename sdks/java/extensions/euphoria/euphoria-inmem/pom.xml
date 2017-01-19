@@ -12,7 +12,6 @@
 
   <artifactId>euphoria-inmem</artifactId>
   <packaging>jar</packaging>
-  <name>${project.artifactId}-${project.version}</name>
 
   <dependencies>
     <dependency>

@@ -17,7 +17,6 @@
 
   <artifactId>euphoria-kafka_${kafka.major}</artifactId>
   <packaging>jar</packaging>
-  <name>${project.artifactId}-${project.version}</name>
 
   <dependencies>
     <dependency>
