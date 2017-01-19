@@ -27,12 +27,12 @@ import org.apache.spark.AccumulatorParam;
 class MetricsAccumulatorParam implements AccumulatorParam<SparkMetricsContainer> {
   @Override
   public SparkMetricsContainer addAccumulator(SparkMetricsContainer c1, SparkMetricsContainer c2) {
-    return c1.merge(c2);
+    return c1.update(c2);
   }
 
   @Override
   public SparkMetricsContainer addInPlace(SparkMetricsContainer c1, SparkMetricsContainer c2) {
-    return c1.merge(c2);
+    return c1.update(c2);
   }
 
   @Override

@@ -23,8 +23,7 @@ import com.google.common.base.Objects;
 import com.google.common.base.Predicate;
 import com.google.common.collect.FluentIterable;
 import java.util.Set;
-import org.apache.beam.runners.spark.metrics.MetricAggregator.CounterAggregator;
-import org.apache.beam.runners.spark.metrics.MetricAggregator.DistributionAggregator;
+import org.apache.beam.sdk.metrics.DistributionData;
 import org.apache.beam.sdk.metrics.DistributionResult;
 import org.apache.beam.sdk.metrics.MetricKey;
 import org.apache.beam.sdk.metrics.MetricName;
@@ -32,6 +31,7 @@ import org.apache.beam.sdk.metrics.MetricNameFilter;
 import org.apache.beam.sdk.metrics.MetricQueryResults;
 import org.apache.beam.sdk.metrics.MetricResult;
 import org.apache.beam.sdk.metrics.MetricResults;
+import org.apache.beam.sdk.metrics.MetricUpdates.MetricUpdate;
 import org.apache.beam.sdk.metrics.MetricsFilter;
 
 
@@ -72,10 +72,10 @@ public class SparkMetricResults extends MetricResults {
               .toList();
     }
 
-    private Predicate<MetricAggregator<?>> matchesFilter(final MetricsFilter filter) {
-      return new Predicate<MetricAggregator<?>>() {
+    private Predicate<MetricUpdate<?>> matchesFilter(final MetricsFilter filter) {
+      return new Predicate<MetricUpdate<?>>() {
         @Override
-        public boolean apply(MetricAggregator<?> metricResult) {
+        public boolean apply(MetricUpdate<?> metricResult) {
           return matches(filter, metricResult.getKey());
         }
       };
@@ -116,32 +116,30 @@ public class SparkMetricResults extends MetricResults {
     }
   }
 
-  private static final Function<DistributionAggregator, MetricResult<DistributionResult>>
+  private static final Function<MetricUpdate<DistributionData>, MetricResult<DistributionResult>>
       TO_DISTRIBUTION_RESULT =
-      new Function<DistributionAggregator, MetricResult<DistributionResult>>() {
+      new Function<MetricUpdate<DistributionData>, MetricResult<DistributionResult>>() {
         @Override
-        public MetricResult<DistributionResult>
-        apply(DistributionAggregator metricResult) {
+        public MetricResult<DistributionResult> apply(MetricUpdate<DistributionData> metricResult) {
           if (metricResult != null) {
             MetricKey key = metricResult.getKey();
             return new SparkMetricResult<>(key.metricName(), key.stepName(),
-                metricResult.getValue().extractResult());
+                metricResult.getUpdate().extractResult());
           } else {
             return null;
           }
         }
       };
 
-  private static final Function<CounterAggregator, MetricResult<Long>>
+  private static final Function<MetricUpdate<Long>, MetricResult<Long>>
       TO_COUNTER_RESULT =
-      new Function<CounterAggregator, MetricResult<Long>>() {
+      new Function<MetricUpdate<Long>, MetricResult<Long>>() {
         @Override
-        public MetricResult<Long>
-        apply(CounterAggregator metricResult) {
+        public MetricResult<Long> apply(MetricUpdate<Long> metricResult) {
           if (metricResult != null) {
             MetricKey key = metricResult.getKey();
             return new SparkMetricResult<>(key.metricName(), key.stepName(),
-                metricResult.getValue());
+                metricResult.getUpdate());
           } else {
             return null;
           }
