@@ -748,8 +748,8 @@ class WriteImpl(ptransform.PTransform):
 
   def expand(self, pcoll):
     do_once = pcoll.pipeline | 'DoOnce' >> core.Create([None])
-    init_result_coll = do_once | core.Map(
-        'initialize_write', lambda _, sink: sink.initialize_write(), self.sink)
+    init_result_coll = do_once | 'initialize_write' >> core.Map(
+        lambda _, sink: sink.initialize_write(), self.sink)
     if getattr(self.sink, 'num_shards', 0):
       min_shards = self.sink.num_shards
       if min_shards == 1:
@@ -759,18 +759,20 @@ class WriteImpl(ptransform.PTransform):
       write_result_coll = (keyed_pcoll
                            | core.WindowInto(window.GlobalWindows())
                            | core.GroupByKey()
-                           | core.Map('write_bundles',
-                                      _write_keyed_bundle, self.sink,
-                                      AsSingleton(init_result_coll)))
+                           | 'write_bundles' >> core.Map(
+                               _write_keyed_bundle, self.sink,
+                               AsSingleton(init_result_coll)))
     else:
       min_shards = 1
-      write_result_coll = (pcoll | core.ParDo('write_bundles',
-                                              _WriteBundleDoFn(), self.sink,
-                                              AsSingleton(init_result_coll))
-                           | core.Map('pair', lambda x: (None, x))
+      write_result_coll = (pcoll
+                           | 'write_bundles' >>
+                           core.ParDo(
+                               _WriteBundleDoFn(), self.sink,
+                               AsSingleton(init_result_coll))
+                           | 'pair' >> core.Map(lambda x: (None, x))
                            | core.WindowInto(window.GlobalWindows())
                            | core.GroupByKey()
-                           | core.FlatMap('extract', lambda x: x[1]))
+                           | 'extract' >> core.FlatMap(lambda x: x[1]))
     return do_once | core.FlatMap(
         'finalize_write',
         _finalize_write,
