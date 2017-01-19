@@ -68,9 +68,18 @@ public class JAXBCoder<T> extends AtomicCoder<T> {
   public void encode(T value, OutputStream outStream, Context context)
       throws CoderException, IOException {
     try {
-      JAXBContext jaxbContext = getContext();
-      // TODO: Consider caching in a ThreadLocal if this impacts performance
-      Marshaller jaxbMarshaller = jaxbContext.createMarshaller();
+      ThreadLocal<Marshaller> jaxbMarshaller = new ThreadLocal<Marshaller>() {
+        @Override
+        protected Marshaller initialValue() {
+          try {
+            JAXBContext jaxbContext = getContext();
+            return jaxbContext.createMarshaller();
+          } catch (JAXBException e) {
+            throw new RuntimeException("Error when creating marshaller from JAXB Context.", e);
+          }
+        }
+      };
+
       if (!context.isWholeStream) {
         try {
           long size = getEncodedElementByteSize(value, Context.OUTER);
@@ -83,7 +92,7 @@ public class JAXBCoder<T> extends AtomicCoder<T> {
         }
       }
 
-      jaxbMarshaller.marshal(value, new CloseIgnoringOutputStream(outStream));
+      jaxbMarshaller.get().marshal(value, new CloseIgnoringOutputStream(outStream));
     } catch (JAXBException e) {
       throw new CoderException(e);
     }
@@ -92,9 +101,17 @@ public class JAXBCoder<T> extends AtomicCoder<T> {
   @Override
   public T decode(InputStream inStream, Context context) throws CoderException, IOException {
     try {
-      JAXBContext jaxbContext = getContext();
-      // TODO: Consider caching in a ThreadLocal if this impacts performance
-      Unmarshaller jaxbUnmarshaller = jaxbContext.createUnmarshaller();
+      ThreadLocal<Unmarshaller> jaxbUnmarshaller = new ThreadLocal<Unmarshaller>() {
+        @Override
+        protected Unmarshaller initialValue() {
+          try {
+            JAXBContext jaxbContext = getContext();
+            return jaxbContext.createUnmarshaller();
+          } catch (Exception e) {
+            throw new RuntimeException("Error when creating unmarshaller from JAXB Context.", e);
+          }
+        }
+      };
 
       InputStream stream = inStream;
       if (!context.isWholeStream) {
@@ -102,7 +119,7 @@ public class JAXBCoder<T> extends AtomicCoder<T> {
         stream = ByteStreams.limit(inStream, limit);
       }
       @SuppressWarnings("unchecked")
-      T obj = (T) jaxbUnmarshaller.unmarshal(new CloseIgnoringInputStream(stream));
+      T obj = (T) jaxbUnmarshaller.get().unmarshal(new CloseIgnoringInputStream(stream));
       return obj;
     } catch (JAXBException e) {
       throw new CoderException(e);
