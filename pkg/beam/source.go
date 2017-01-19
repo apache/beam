@@ -11,7 +11,7 @@ import (
 // TODO(herohde): how do a source cut bundles? Or does it even do that?
 
 // Source inserts a Source transform.
-func Source(p *Pipeline, dofn interface{}) (PCollection, error) {
+func Source(p *Pipeline, dofn interface{}, opts ...Option) (PCollection, error) {
 	fn, err := graph.ReflectFn(dofn)
 	if err != nil {
 		return PCollection{}, err
@@ -43,10 +43,11 @@ func Source(p *Pipeline, dofn interface{}) (PCollection, error) {
 	edge.Op = graph.Source
 	edge.DoFn = fn
 	edge.Output = []*graph.Outbound{{To: n}}
+	applyOpts(opts, edge)
 
 	return PCollection{n}, nil
 }
 
-func Sink(p *Pipeline, dofn interface{}, col PCollection, side ...PCollection) error {
+func Sink(p *Pipeline, dofn interface{}, col PCollection, side ...Option) error {
 	return ParDo0(p, dofn, col, side...)
 }

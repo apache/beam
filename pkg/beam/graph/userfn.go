@@ -72,7 +72,7 @@ func (u *UserFn) HasError() (int, bool) {
 }
 
 // TODO(herohde): perhaps separate "Context" (runtime) and "Options" (pipeline
-// construction time)?
+// construction time)? [no - hard to recognize the difference without wrappers.]
 
 func (u *UserFn) Context() (reflect.Type, bool) {
 	for _, p := range u.Param {
@@ -158,7 +158,10 @@ func ReflectFn(dofn interface{}) (*UserFn, error) {
 				return nil, fmt.Errorf("Channels cannot be bidirectional: %v", t)
 			}
 
-			// case reflect.Ptr, reflect.Struct: TBD to detect Contexts
+		case reflect.Struct:
+			if _, ok := FindTaggedField(t, DataTag /* ... */); ok {
+				kind = FnContext
+			}
 		}
 		if !IsValidDataType(t) {
 			return nil, fmt.Errorf("Parameter %v for %v has unsupported type: %v", i, name, t)

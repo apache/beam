@@ -9,17 +9,20 @@ import (
 	"path/filepath"
 )
 
-// TODO(herohde): solve immediate values problem and actually implement. The below
-// is cheating, because we use a closure to capture the filename.
+// TODO(herohde): require that options are top-level? Allow multiple named options?
 
-func Read(p *beam.Pipeline, filename string) (beam.PCollection, error) {
-	return beam.Source(p, func(out chan<- string) error {
-		return readFn(filename, out)
-	})
+type Context struct {
+	Filename string `beam:"data"`
 }
 
-func readFn(filename string, out chan<- string) error {
-	file, err := os.Open(filename)
+func Read(p *beam.Pipeline, filename string) (beam.PCollection, error) {
+	return beam.Source(p, readFn, beam.Data{filename})
+}
+
+func readFn(ctx Context, out chan<- string) error {
+	log.Printf("Reading from %v", ctx.Filename)
+
+	file, err := os.Open(ctx.Filename)
 	if err != nil {
 		return err
 	}
@@ -33,13 +36,11 @@ func readFn(filename string, out chan<- string) error {
 }
 
 func Write(p *beam.Pipeline, filename string, col beam.PCollection) error {
-	return beam.Sink(p, func(in <-chan string) error {
-		return writeFn(filename, in)
-	}, col)
+	return beam.Sink(p, writeFn, col, beam.Data{filename})
 }
 
-func writeFn(filename string, lines <-chan string) error {
-	fd, err := ioutil.TempFile(filepath.Dir(filename), filepath.Base(filename))
+func writeFn(ctx Context, lines <-chan string) error {
+	fd, err := ioutil.TempFile(filepath.Dir(ctx.Filename), filepath.Base(ctx.Filename))
 	if err != nil {
 		return err
 	}

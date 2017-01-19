@@ -144,6 +144,7 @@ type MultiEdge struct {
 	// TODO(herohde): need immediate values, such as filenames for source.
 	// Also figure out how to bind in context values in general.
 	// Ctx *Context
+	Data interface{}
 
 	Input  []*Inbound
 	Output []*Outbound
