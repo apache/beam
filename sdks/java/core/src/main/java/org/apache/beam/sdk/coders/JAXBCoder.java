@@ -30,6 +30,7 @@ import javax.xml.bind.JAXBException;
 import javax.xml.bind.Marshaller;
 import javax.xml.bind.Unmarshaller;
 import org.apache.beam.sdk.util.CloudObject;
+import org.apache.beam.sdk.util.EmptyOnDeserializationThreadLocal;
 import org.apache.beam.sdk.util.Structs;
 import org.apache.beam.sdk.util.VarInt;
 import org.apache.beam.sdk.values.TypeDescriptor;
@@ -68,7 +69,8 @@ public class JAXBCoder<T> extends AtomicCoder<T> {
   public void encode(T value, OutputStream outStream, Context context)
       throws CoderException, IOException {
     try {
-      ThreadLocal<Marshaller> jaxbMarshaller = new ThreadLocal<Marshaller>() {
+      final EmptyOnDeserializationThreadLocal<Marshaller> jaxbMarshaller =
+              new EmptyOnDeserializationThreadLocal<Marshaller>() {
         @Override
         protected Marshaller initialValue() {
           try {
@@ -101,7 +103,8 @@ public class JAXBCoder<T> extends AtomicCoder<T> {
   @Override
   public T decode(InputStream inStream, Context context) throws CoderException, IOException {
     try {
-      ThreadLocal<Unmarshaller> jaxbUnmarshaller = new ThreadLocal<Unmarshaller>() {
+      final EmptyOnDeserializationThreadLocal<Unmarshaller> jaxbUnmarshaller =
+              new EmptyOnDeserializationThreadLocal<Unmarshaller>() {
         @Override
         protected Unmarshaller initialValue() {
           try {
