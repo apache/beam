@@ -943,7 +943,7 @@ public class DataflowPipelineTranslator {
                 DoFnInfo.forFn(
                     fn, windowingStrategy, sideInputs, inputCoder, mainOutput, outputMap))));
 
-    if (signature.isStateful()) {
+    if (signature.usesState()) {
       stepContext.addInput(PropertyNames.USES_KEYED_STATE, "true");
     }
   }
