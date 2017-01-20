@@ -1,13 +1,15 @@
-
 package cz.seznam.euphoria.core.client.graph;
 
-import cz.seznam.euphoria.guava.shaded.com.google.common.collect.Iterables;
+import com.google.common.collect.Iterables;
+import org.junit.Test;
+
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.stream.Collectors;
-import org.junit.Test;
-import static org.junit.Assert.*;
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 /**
  * DAG test suite.

@@ -14,10 +14,6 @@
   <packaging>jar</packaging>
 
   <dependencies>
-    <dependency>
-      <groupId>cz.seznam.euphoria</groupId>
-      <artifactId>guava-shaded</artifactId>
-    </dependency>
 
     <dependency>
       <groupId>cz.seznam.euphoria</groupId>
@@ -27,6 +23,11 @@
     <dependency>
       <groupId>commons-io</groupId>
       <artifactId>commons-io</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>com.google.guava</groupId>
+      <artifactId>guava</artifactId>
     </dependency>
 
     <!-- Flink dependencies -->
