@@ -190,7 +190,8 @@ public class LeaderBoard extends HourlyTeamScore {
     // Read game events from Pub/Sub using custom timestamps, which are extracted from the pubsub
     // data elements, and parse the data.
     PCollection<GameActionInfo> gameEvents = pipeline
-        .apply(PubsubIO.Read.timestampLabel(TIMESTAMP_ATTRIBUTE).topic(options.getTopic()))
+        .apply(PubsubIO.<String>read()
+            .timestampLabel(TIMESTAMP_ATTRIBUTE).topic(options.getTopic()))
         .apply("ParseGameEvent", ParDo.of(new ParseEventFn()));
 
     gameEvents.apply("CalculateTeamScores",

@@ -252,7 +252,8 @@ public class GameStats extends LeaderBoard {
 
     // Read Events from Pub/Sub using custom timestamps
     PCollection<GameActionInfo> rawEvents = pipeline
-        .apply(PubsubIO.Read.timestampLabel(TIMESTAMP_ATTRIBUTE).topic(options.getTopic()))
+        .apply(PubsubIO.<String>read()
+            .timestampLabel(TIMESTAMP_ATTRIBUTE).topic(options.getTopic()))
         .apply("ParseGameEvent", ParDo.of(new ParseEventFn()));
 
     // Extract username/score pairs from the event stream
