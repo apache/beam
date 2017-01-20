@@ -953,6 +953,7 @@
           <configuration>
             <reportFile>${project.build.directory}/${project.build.finalName}.rat</reportFile>
             <excludeSubProjects>false</excludeSubProjects>
+            <consoleOutput>true</consoleOutput>
             <useDefaultExcludes>true</useDefaultExcludes>
             <excludes>
               <!-- Keep exclude sync with .gitignore -->
