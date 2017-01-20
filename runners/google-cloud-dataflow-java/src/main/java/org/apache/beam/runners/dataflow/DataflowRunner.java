@@ -21,6 +21,8 @@ import static com.google.common.base.MoreObjects.firstNonNull;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.base.Strings.isNullOrEmpty;
+import static org.apache.beam.sdk.util.SerializableUtils.serializeToByteArray;
+import static org.apache.beam.sdk.util.StringUtils.byteArrayToJsonString;
 import static org.apache.beam.sdk.util.WindowedValue.valueInEmptyWindows;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
@@ -99,6 +101,7 @@ import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.coders.StandardCoder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
+import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.FileBasedSink;
 import org.apache.beam.sdk.io.PubsubIO;
@@ -2149,6 +2152,12 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
       if (overriddenTransform.getIdLabel() != null) {
         stepContext.addInput(PropertyNames.PUBSUB_ID_LABEL, overriddenTransform.getIdLabel());
       }
+      if (overriddenTransform.getWithAttributesParseFn() != null) {
+        stepContext.addInput(
+            PropertyNames.PUBSUB_SERIALIZED_ATTRIBUTES_FN,
+            byteArrayToJsonString(
+                serializeToByteArray(overriddenTransform.getWithAttributesParseFn())));
+      }
       stepContext.addOutput(context.getOutput(transform));
     }
   }
@@ -2218,8 +2227,17 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
       if (overriddenTransform.getIdLabel() != null) {
         stepContext.addInput(PropertyNames.PUBSUB_ID_LABEL, overriddenTransform.getIdLabel());
       }
-      stepContext.addEncodingInput(
-          WindowedValue.getValueOnlyCoder(overriddenTransform.getElementCoder()));
+      if (overriddenTransform.getFormatFn() != null) {
+        stepContext.addInput(
+            PropertyNames.PUBSUB_SERIALIZED_ATTRIBUTES_FN,
+            byteArrayToJsonString(serializeToByteArray(overriddenTransform.getFormatFn())));
+        // No coder is needed in this case since the formatFn formats directly into a byte[],
+        // however the Dataflow backend require a coder to be set.
+        stepContext.addEncodingInput(WindowedValue.getValueOnlyCoder(VoidCoder.of()));
+      } else if (overriddenTransform.getElementCoder() != null) {
+        stepContext.addEncodingInput(WindowedValue.getValueOnlyCoder(
+            overriddenTransform.getElementCoder()));
+      }
       stepContext.addInput(PropertyNames.PARALLEL_INPUT, context.getInput(transform));
     }
   }
