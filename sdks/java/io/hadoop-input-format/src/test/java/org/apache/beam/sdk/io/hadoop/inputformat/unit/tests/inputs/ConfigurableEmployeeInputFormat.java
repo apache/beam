@@ -36,7 +36,7 @@ import org.apache.hadoop.mapreduce.TaskAttemptContext;
  * This is a InputFormat for reading employee data which is available in the form of
  * {@code List<KV>} as {@linkplain ConfigurableEmployeeRecordReader#employeeDataList
  * employeeDataList}. {@linkplain ConfigurableEmployeeRecordReader#employeeDataList
- * employeeDataList} is populated using {@linkplain UnitTestUtils#populateEmployeeData()}.
+ * employeeDataList} is populated using {@linkplain TestEmployeeDataSet#populateEmployeeData()}.
  * <p>
  * This is input to test reading using HadoopInputFormatIO if InputFormat implements Configurable.
  * Known InputFormats which implements Configurable are DBInputFormat, TableInputFormat etc.
@@ -160,7 +160,7 @@ public class ConfigurableEmployeeInputFormat extends InputFormat<Text, Employee>
       this.split = (ConfigurableEmployeeInputSplit) split;
       employeeListIndex = this.split.getStartIndex() - 1;
       recordsRead = 0;
-      employeeDataList = UnitTestUtils.populateEmployeeData();
+      employeeDataList = TestEmployeeDataSet.populateEmployeeData();
       currentValue = new Employee(null, null);
     }
 

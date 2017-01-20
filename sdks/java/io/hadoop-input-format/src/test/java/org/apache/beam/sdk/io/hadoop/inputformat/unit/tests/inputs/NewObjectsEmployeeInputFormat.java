@@ -36,11 +36,11 @@ import org.apache.hadoop.mapreduce.TaskAttemptContext;
  * the form of {@code List<KV>} as
  * {@linkplain NewObjectsEmployeeRecordReader#employeeDataList employeeDataList}. {@linkplain NewObjectsEmployeeRecordReader#employeeDataList
  * employeeDataList} is populated using
- * {@linkplain UnitTestUtils#populateEmployeeData()}.
+ * {@linkplain TestEmployeeDataSet#populateEmployeeData()}.
  * <p>
  * {@linkplain NewObjectsEmployeeInputFormat} splits data into
- * {@value UnitTestUtils#NUMBER_OF_SPLITS} splits, each split having
- * {@value UnitTestUtils#NUMBER_OF_RECORDS_IN_EACH_SPLIT} records each.
+ * {@value TestEmployeeDataSet#NUMBER_OF_SPLITS} splits, each split having
+ * {@value TestEmployeeDataSet#NUMBER_OF_RECORDS_IN_EACH_SPLIT} records each.
  * {@linkplain NewObjectsEmployeeInputFormat} reads data from
  * {@linkplain NewObjectsEmployeeRecordReader#employeeDataList employeeDataList}
  * and produces a key (employee id) of type Text and value of type
@@ -67,16 +67,16 @@ public class NewObjectsEmployeeInputFormat extends InputFormat<Text, Employee> {
 	public List<InputSplit> getSplits(JobContext arg0) throws IOException,
 			InterruptedException {
 		List<InputSplit> inputSplitList = new ArrayList<InputSplit>();
-		for (int i = 1; i <= UnitTestUtils.NUMBER_OF_SPLITS; i++) {
+		for (int i = 1; i <= TestEmployeeDataSet.NUMBER_OF_SPLITS; i++) {
 			InputSplit inputSplitObj = new NewObjectsEmployeeInputSplit(
-					((i - 1) * UnitTestUtils.NUMBER_OF_RECORDS_IN_EACH_SPLIT),
-					(i * UnitTestUtils.NUMBER_OF_RECORDS_IN_EACH_SPLIT - 1));
+					((i - 1) * TestEmployeeDataSet.NUMBER_OF_RECORDS_IN_EACH_SPLIT),
+					(i * TestEmployeeDataSet.NUMBER_OF_RECORDS_IN_EACH_SPLIT - 1));
 			inputSplitList.add(inputSplitObj);
 		}
 		return inputSplitList;
 	}
 
-	public class NewObjectsEmployeeInputSplit extends InputSplit implements
+	public static class NewObjectsEmployeeInputSplit extends InputSplit implements
 			Writable {
 		// Start and end map index of each split of employeeData.
 		private long startIndex;
@@ -163,7 +163,7 @@ public class NewObjectsEmployeeInputFormat extends InputFormat<Text, Employee> {
 			this.split = (NewObjectsEmployeeInputSplit) split;
 			employeeListIndex = this.split.getStartIndex() - 1;
 			recordsRead = 0;
-			employeeDataList = UnitTestUtils.populateEmployeeData();
+			employeeDataList = TestEmployeeDataSet.populateEmployeeData();
 			currentValue = new Employee(null, null);
 		}
 
