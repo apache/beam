@@ -686,6 +686,10 @@ public class PubsubIO {
           throw new IllegalStateException("Can't set both the topic and the subscription for "
               + "a PubsubIO.Read transform");
         }
+        if (coder == null)  {
+          throw new IllegalStateException("PubsubIO.Read requires that a coder be set using "
+              + "the withCoder method.");
+        }
 
         boolean boundedOutput = getMaxNumRecords() > 0 || getMaxReadTime() != null;
 
