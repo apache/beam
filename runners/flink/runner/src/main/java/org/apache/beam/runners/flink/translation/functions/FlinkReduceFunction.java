@@ -26,8 +26,8 @@ import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import org.apache.beam.runners.core.PerKeyCombineFnRunner;
-import org.apache.beam.runners.core.PerKeyCombineFnRunners;
+import org.apache.beam.runners.flink.OldPerKeyCombineFnRunner;
+import org.apache.beam.runners.flink.OldPerKeyCombineFnRunners;
 import org.apache.beam.runners.flink.translation.utils.SerializedPipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.CombineFnBase;
@@ -101,8 +101,8 @@ public class FlinkReduceFunction<K, AccumT, OutputT, W extends BoundedWindow>
             sideInputs, out
         );
 
-    PerKeyCombineFnRunner<K, ?, AccumT, OutputT> combineFnRunner =
-        PerKeyCombineFnRunners.create(combineFn);
+    OldPerKeyCombineFnRunner<K, ?, AccumT, OutputT> combineFnRunner =
+        OldPerKeyCombineFnRunners.create(combineFn);
 
     @SuppressWarnings("unchecked")
     OutputTimeFn<? super BoundedWindow> outputTimeFn =

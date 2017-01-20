@@ -379,6 +379,51 @@ public class BigQueryIO {
     }
   }
 
+  @VisibleForTesting
+  static class BeamJobUuidToBigQueryJobUuid
+      implements SerializableFunction<String, String> {
+    @Override
+    public String apply(String from) {
+      return "beam_job_" + from;
+    }
+  }
+
+  @VisibleForTesting
+  static class CreatePerBeamJobUuid
+      implements SerializableFunction<String, String> {
+    private final String stepUuid;
+
+    private CreatePerBeamJobUuid(String stepUuid) {
+      this.stepUuid = stepUuid;
+    }
+
+    @Override
+    public String apply(String jobUuid) {
+      return stepUuid + "_" + jobUuid.replaceAll("-", "");
+    }
+  }
+
+  @VisibleForTesting
+  static class CreateJsonTableRefFromUuid
+      implements SerializableFunction<String, TableReference> {
+    private final String executingProject;
+
+    private CreateJsonTableRefFromUuid(String executingProject) {
+      this.executingProject = executingProject;
+    }
+
+    @Override
+    public TableReference apply(String jobUuid) {
+      String queryTempDatasetId = "temp_dataset_" + jobUuid;
+      String queryTempTableId = "temp_table_" + jobUuid;
+      TableReference queryTempTableRef = new TableReference()
+          .setProjectId(executingProject)
+          .setDatasetId(queryTempDatasetId)
+          .setTableId(queryTempTableId);
+      return queryTempTableRef;
+    }
+  }
+
   @Nullable
   private static ValueProvider<String> displayTable(
       @Nullable ValueProvider<TableReference> table) {
@@ -470,6 +515,9 @@ public class BigQueryIO {
       @Nullable final Boolean flattenResults;
       @Nullable final Boolean useLegacySql;
       @Nullable BigQueryServices bigQueryServices;
+
+      @VisibleForTesting @Nullable String stepUuid;
+      @VisibleForTesting @Nullable ValueProvider<String> jobUuid;
 
       private static final String QUERY_VALIDATION_FAILURE_ERROR =
           "Validation of query \"%1$s\" failed. If the query depends on an earlier stage of the"
@@ -667,10 +715,12 @@ public class BigQueryIO {
 
       @Override
       public PCollection<TableRow> expand(PBegin input) {
-        String uuid = randomUUIDString();
-        final String jobIdToken = "beam_job_" + uuid;
-
+        stepUuid = randomUUIDString();
         BigQueryOptions bqOptions = input.getPipeline().getOptions().as(BigQueryOptions.class);
+        jobUuid = NestedValueProvider.of(
+           StaticValueProvider.of(bqOptions.getJobName()), new CreatePerBeamJobUuid(stepUuid));
+        final ValueProvider<String> jobIdToken = NestedValueProvider.of(
+            jobUuid, new BeamJobUuidToBigQueryJobUuid());
 
         BoundedSource<TableRow> source;
         final BigQueryServices bqServices = getBigQueryServices();
@@ -679,7 +729,7 @@ public class BigQueryIO {
         String tempLocation = bqOptions.getTempLocation();
         try {
           IOChannelFactory factory = IOChannelUtils.getFactory(tempLocation);
-          extractDestinationDir = factory.resolve(tempLocation, uuid);
+          extractDestinationDir = factory.resolve(tempLocation, stepUuid);
         } catch (IOException e) {
           throw new RuntimeException(
               String.format("Failed to resolve extract destination directory in %s", tempLocation));
@@ -687,18 +737,9 @@ public class BigQueryIO {
 
         final String executingProject = bqOptions.getProject();
         if (query != null && (!query.isAccessible() || !Strings.isNullOrEmpty(query.get()))) {
-          String queryTempDatasetId = "temp_dataset_" + uuid;
-          String queryTempTableId = "temp_table_" + uuid;
-
-          TableReference queryTempTableRef = new TableReference()
-              .setProjectId(executingProject)
-              .setDatasetId(queryTempDatasetId)
-              .setTableId(queryTempTableId);
-          String jsonTableRef = toJsonString(queryTempTableRef);
-
           source = BigQueryQuerySource.create(
               jobIdToken, query, NestedValueProvider.of(
-                  StaticValueProvider.of(jsonTableRef), new JsonTableRefToTableRef()),
+                jobUuid, new CreateJsonTableRefFromUuid(executingProject)),
               flattenResults, useLegacySql, extractDestinationDir, bqServices);
         } else {
           ValueProvider<TableReference> inputTable = getTableWithDefaultProject(bqOptions);
@@ -913,7 +954,7 @@ public class BigQueryIO {
   static class BigQueryTableSource extends BigQuerySourceBase {
 
     static BigQueryTableSource create(
-        String jobIdToken,
+        ValueProvider<String> jobIdToken,
         ValueProvider<TableReference> table,
         String extractDestinationDir,
         BigQueryServices bqServices,
@@ -926,7 +967,7 @@ public class BigQueryIO {
     private final AtomicReference<Long> tableSizeBytes;
 
     private BigQueryTableSource(
-        String jobIdToken,
+        ValueProvider<String> jobIdToken,
         ValueProvider<TableReference> table,
         String extractDestinationDir,
         BigQueryServices bqServices,
@@ -982,7 +1023,7 @@ public class BigQueryIO {
   static class BigQueryQuerySource extends BigQuerySourceBase {
 
     static BigQueryQuerySource create(
-        String jobIdToken,
+        ValueProvider<String> jobIdToken,
         ValueProvider<String> query,
         ValueProvider<TableReference> queryTempTableRef,
         Boolean flattenResults,
@@ -1006,7 +1047,7 @@ public class BigQueryIO {
     private transient AtomicReference<JobStatistics> dryRunJobStats;
 
     private BigQueryQuerySource(
-        String jobIdToken,
+        ValueProvider<String> jobIdToken,
         ValueProvider<String> query,
         ValueProvider<TableReference> queryTempTableRef,
         Boolean flattenResults,
@@ -1063,7 +1104,7 @@ public class BigQueryIO {
           "Dataset for BigQuery query job temporary table");
 
       // 3. Execute the query.
-      String queryJobId = jobIdToken + "-query";
+      String queryJobId = jobIdToken.get() + "-query";
       executeQuery(
           executingProject.get(),
           queryJobId,
@@ -1161,13 +1202,13 @@ public class BigQueryIO {
     // The initial backoff for verifying temp files.
     private static final Duration INITIAL_FILES_VERIFY_BACKOFF = Duration.standardSeconds(1);
 
-    protected final String jobIdToken;
+    protected final ValueProvider<String> jobIdToken;
     protected final String extractDestinationDir;
     protected final BigQueryServices bqServices;
     protected final ValueProvider<String> executingProject;
 
     private BigQuerySourceBase(
-        String jobIdToken,
+        ValueProvider<String> jobIdToken,
         String extractDestinationDir,
         BigQueryServices bqServices,
         ValueProvider<String> executingProject) {
@@ -1396,8 +1437,8 @@ public class BigQueryIO {
     }
   }
 
-  private static String getExtractJobId(String jobIdToken) {
-    return jobIdToken + "-extract";
+  private static String getExtractJobId(ValueProvider<String> jobIdToken) {
+    return jobIdToken.get() + "-extract";
   }
 
   private static String getExtractDestinationUri(String extractDestinationDir) {
@@ -1643,6 +1684,9 @@ public class BigQueryIO {
       final boolean validate;
 
       @Nullable private BigQueryServices bigQueryServices;
+
+      @VisibleForTesting @Nullable String stepUuid;
+      @VisibleForTesting @Nullable ValueProvider<String> jobUuid;
 
       private static class TranslateTableSpecFunction implements
           SerializableFunction<BoundedWindow, TableReference> {
@@ -1924,14 +1968,19 @@ public class BigQueryIO {
 
         ValueProvider<TableReference> table = getTableWithDefaultProject(options);
 
-        String jobIdToken = "beam_job_" + randomUUIDString();
+        stepUuid = randomUUIDString();
+        jobUuid = NestedValueProvider.of(
+           StaticValueProvider.of(options.getJobName()), new CreatePerBeamJobUuid(stepUuid));
+        ValueProvider<String> jobIdToken = NestedValueProvider.of(
+            jobUuid, new BeamJobUuidToBigQueryJobUuid());
+
         String tempLocation = options.getTempLocation();
         String tempFilePrefix;
         try {
           IOChannelFactory factory = IOChannelUtils.getFactory(tempLocation);
           tempFilePrefix = factory.resolve(
                   factory.resolve(tempLocation, "BigQueryWriteTemp"),
-                  jobIdToken);
+                  stepUuid);
         } catch (IOException e) {
           throw new RuntimeException(
               String.format("Failed to resolve BigQuery temp location in %s", tempLocation),
@@ -2248,7 +2297,7 @@ public class BigQueryIO {
     static class WriteTables extends DoFn<KV<Long, Iterable<List<String>>>, String> {
       private final boolean singlePartition;
       private final BigQueryServices bqServices;
-      private final String jobIdToken;
+      private final ValueProvider<String> jobIdToken;
       private final String tempFilePrefix;
       private final ValueProvider<String> jsonTableRef;
       private final ValueProvider<String> jsonSchema;
@@ -2258,7 +2307,7 @@ public class BigQueryIO {
       public WriteTables(
           boolean singlePartition,
           BigQueryServices bqServices,
-          String jobIdToken,
+          ValueProvider<String> jobIdToken,
           String tempFilePrefix,
           ValueProvider<String> jsonTableRef,
           ValueProvider<String> jsonSchema,
@@ -2277,7 +2326,7 @@ public class BigQueryIO {
       @ProcessElement
       public void processElement(ProcessContext c) throws Exception {
         List<String> partition = Lists.newArrayList(c.element().getValue()).get(0);
-        String jobIdPrefix = String.format(jobIdToken + "_%05d", c.element().getKey());
+        String jobIdPrefix = String.format(jobIdToken.get() + "_%05d", c.element().getKey());
         TableReference ref = fromJsonString(jsonTableRef.get(), TableReference.class);
         if (!singlePartition) {
           ref.setTableId(jobIdPrefix);
@@ -2383,7 +2432,7 @@ public class BigQueryIO {
      */
     static class WriteRename extends DoFn<String, Void> {
       private final BigQueryServices bqServices;
-      private final String jobIdToken;
+      private final ValueProvider<String> jobIdToken;
       private final ValueProvider<String> jsonTableRef;
       private final WriteDisposition writeDisposition;
       private final CreateDisposition createDisposition;
@@ -2391,7 +2440,7 @@ public class BigQueryIO {
 
       public WriteRename(
           BigQueryServices bqServices,
-          String jobIdToken,
+          ValueProvider<String> jobIdToken,
           ValueProvider<String> jsonTableRef,
           WriteDisposition writeDisposition,
           CreateDisposition createDisposition,
@@ -2419,7 +2468,7 @@ public class BigQueryIO {
         }
         copy(
             bqServices.getJobService(c.getPipelineOptions().as(BigQueryOptions.class)),
-            jobIdToken,
+            jobIdToken.get(),
             fromJsonString(jsonTableRef.get(), TableReference.class),
             tempTables,
             writeDisposition,

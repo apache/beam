@@ -77,6 +77,9 @@ class common_job_properties {
       environmentVariables {
         env('SPARK_LOCAL_IP', '127.0.0.1')
       }
+      credentialsBinding {
+        string("COVERALLS_REPO_TOKEN", "beam-coveralls-token")
+      }
     }
   }
 
