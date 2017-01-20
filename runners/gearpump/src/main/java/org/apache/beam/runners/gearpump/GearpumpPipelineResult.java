@@ -67,7 +67,13 @@ public class GearpumpPipelineResult implements PipelineResult {
     do {
       try {
         Thread.sleep(defaultWaitInterval.getMillis());
-      } catch (InterruptedException e) {
+      } catch (Exception e) {
+        if (e instanceof InterruptedException) {
+          Thread.currentThread().interrupt();
+        }
+        if (e instanceof RuntimeException) {
+          throw (RuntimeException) e;
+        }
         throw new RuntimeException(e);
       }
     } while (State.RUNNING == getGearpumpState()
