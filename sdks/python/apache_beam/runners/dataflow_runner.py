@@ -704,6 +704,10 @@ class DataflowPipelineResult(PipelineResult):
       thread.start()
       while thread.isAlive():
         time.sleep(5.0)
+      if self.state != PipelineState.DONE:
+        logging.error(
+            'Dataflow pipeline failed. State: %s, Error:\n%s',
+            self.state, getattr(self._runner, 'last_error_msg', None))
     return self.state
 
   def __str__(self):
@@ -714,11 +718,3 @@ class DataflowPipelineResult(PipelineResult):
 
   def __repr__(self):
     return '<%s %s at %s>' % (self.__class__.__name__, self._job, hex(id(self)))
-
-
-class DataflowRuntimeException(Exception):
-  """Indicates an error has occurred in running this pipeline."""
-
-  def __init__(self, msg, result):
-    super(DataflowRuntimeException, self).__init__(msg)
-    self.result = result
