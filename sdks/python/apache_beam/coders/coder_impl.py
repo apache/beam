@@ -37,6 +37,9 @@ try:
   from stream import OutputStream as create_OutputStream
   from stream import ByteCountingOutputStream
   from stream import get_varint_size
+  globals()['create_InputStream'] = create_InputStream
+  globals()['create_OutputStream'] = create_OutputStream
+  globals()['ByteCountingOutputStream'] = ByteCountingOutputStream
 except ImportError:
   from slow_stream import InputStream as create_InputStream
   from slow_stream import OutputStream as create_OutputStream

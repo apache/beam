@@ -102,6 +102,7 @@ class StandardCodersTest(unittest.TestCase):
       print "FIXING", len(cls.to_fix), "TESTS"
       doc_sep = '\n---\n'
       docs = open(STANDARD_CODERS_YAML).read().split(doc_sep)
+
       def quote(s):
         return json.dumps(s.decode('latin1')).replace(r'\u0000', r'\0')
       for (doc_ix, expected_encoded), actual_encoded in cls.to_fix.items():
@@ -121,6 +122,7 @@ def encode_nested(coder, value, nested=True):
   out = coder_impl.create_OutputStream()
   coder.get_impl().encode_to_stream(value, out, nested)
   return out.get()
+
 
 def decode_nested(coder, encoded, nested=True):
   return coder.get_impl().decode_from_stream(
