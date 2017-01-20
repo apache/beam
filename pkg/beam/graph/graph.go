@@ -111,6 +111,7 @@ const (
 	GBK
 	Source
 	Sink
+	Flatten
 )
 
 type Inbound struct {
