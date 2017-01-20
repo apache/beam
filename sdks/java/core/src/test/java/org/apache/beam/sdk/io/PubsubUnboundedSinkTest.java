@@ -76,7 +76,7 @@ public class PubsubUnboundedSinkTest implements Serializable {
   }
 
   @Rule
-  public TestPipeline p = TestPipeline.create();
+  public transient TestPipeline p = TestPipeline.create();
 
   @Test
   public void saneCoder() throws Exception {
