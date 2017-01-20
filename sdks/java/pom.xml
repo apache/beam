@@ -40,7 +40,6 @@
     <module>io</module>
     <module>maven-archetypes</module>
     <module>extensions</module>
-    <module>harness</module>
   </modules>
 
   <profiles>
@@ -50,6 +49,7 @@
         <jdk>[1.8,)</jdk>
       </activation>
       <modules>
+        <module>harness</module>
         <module>java8tests</module>
       </modules>
     </profile>

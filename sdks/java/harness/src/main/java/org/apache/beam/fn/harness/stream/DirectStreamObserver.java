@@ -45,7 +45,7 @@ public final class DirectStreamObserver<T> implements StreamObserver<T> {
   }
 
   @Override
-  public final void onNext(T value) {
+  public void onNext(T value) {
     int phase = phaser.getPhase();
     if (!outboundObserver.isReady()) {
       phaser.awaitAdvance(phase);
@@ -56,14 +56,14 @@ public final class DirectStreamObserver<T> implements StreamObserver<T> {
   }
 
   @Override
-  public final void onError(Throwable t) {
+  public void onError(Throwable t) {
     synchronized (outboundObserver) {
       outboundObserver.onError(t);
     }
   }
 
   @Override
-  public final void onCompleted() {
+  public void onCompleted() {
     synchronized (outboundObserver) {
       outboundObserver.onCompleted();
     }

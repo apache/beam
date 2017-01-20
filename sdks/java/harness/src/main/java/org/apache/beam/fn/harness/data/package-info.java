@@ -16,8 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.beam.fn.harness.fn;
-
-/** A {@link ThrowingConsumer} that can be closed. */
-public interface CloseableThrowingConsumer<T> extends AutoCloseable, ThrowingConsumer<T> {
-}
+/**
+ * Data service client and logical stream multiplexing.
+ */
+package org.apache.beam.fn.harness.data;

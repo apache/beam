@@ -42,7 +42,7 @@ public interface BeamFnDataClient {
    *
    * <p>The consumer is not required to be thread safe.
    */
-  public <T> CompletableFuture<Void> forInboundConsumer(
+  <T> CompletableFuture<Void> forInboundConsumer(
       BeamFnApi.ApiServiceDescriptor apiServiceDescriptor,
       KV<Long, BeamFnApi.Target> inputLocation,
       Coder<WindowedValue<T>> coder,
@@ -57,7 +57,7 @@ public interface BeamFnDataClient {
    *
    * <p>The returned closeable consumer is not thread safe.
    */
-  public <T> CloseableThrowingConsumer<WindowedValue<T>> forOutboundConsumer(
+  <T> CloseableThrowingConsumer<WindowedValue<T>> forOutboundConsumer(
       BeamFnApi.ApiServiceDescriptor apiServiceDescriptor,
       KV<Long, BeamFnApi.Target> outputLocation,
       Coder<WindowedValue<T>> coder);

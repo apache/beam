@@ -35,7 +35,7 @@ import org.apache.beam.fn.v1.BeamFnApi;
 import org.apache.beam.sdk.values.KV;
 import org.junit.Test;
 
-/** Tests for {@link BeamFnDataGrpcMultiplexer} */
+/** Tests for {@link BeamFnDataGrpcMultiplexer}. */
 public class BeamFnDataGrpcMultiplexerTest {
   private static final BeamFnApi.ApiServiceDescriptor DESCRIPTOR =
       BeamFnApi.ApiServiceDescriptor.newBuilder().setUrl("test").build();

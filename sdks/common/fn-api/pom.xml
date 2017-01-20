@@ -35,8 +35,6 @@
   <properties>
     <!-- Override version from parent pom.xml -->
     <protobuf.version>3.1.0</protobuf.version>
-    <!-- Skip checkstyle on generated code -->
-    <checkstyle.skip>true</checkstyle.skip>
   </properties>
 
   <build>
@@ -59,6 +57,24 @@
     </resources>
 
     <plugins>
+      <!-- Skip the checkstyle plugin on generated code -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-checkstyle-plugin</artifactId>
+        <configuration>
+          <skip>true</skip>
+        </configuration>
+      </plugin>
+
+      <!-- Skip the findbugs plugin on generated code -->
+      <plugin>
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>findbugs-maven-plugin</artifactId>
+        <configuration>
+          <skip>true</skip>
+        </configuration>
+      </plugin>
+
       <plugin>
         <groupId>org.xolstice.maven.plugins</groupId>
         <artifactId>protobuf-maven-plugin</artifactId>

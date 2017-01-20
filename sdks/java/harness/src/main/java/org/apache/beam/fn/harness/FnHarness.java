@@ -40,7 +40,7 @@ import org.slf4j.LoggerFactory;
 /**
  * Main entry point into the Beam SDK Fn Harness for Java.
  *
- * This entry point expects the following environment variables:
+ * <p>This entry point expects the following environment variables:
  * <ul>
  *   <li>LOGGING_API_SERVICE_DESCRIPTOR: A
  *   {@link org.apache.beam.fn.v1.BeamFnApi.ApiServiceDescriptor} encoded as text

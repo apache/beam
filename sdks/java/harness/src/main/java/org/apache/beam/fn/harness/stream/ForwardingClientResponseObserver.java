@@ -42,22 +42,22 @@ final class ForwardingClientResponseObserver<ReqT, RespT>
   }
 
   @Override
-  public final void onNext(ReqT value) {
+  public void onNext(ReqT value) {
     inboundObserver.onNext(value);
   }
 
   @Override
-  public final void onError(Throwable t) {
+  public void onError(Throwable t) {
     inboundObserver.onError(t);
   }
 
   @Override
-  public final void onCompleted() {
+  public void onCompleted() {
     inboundObserver.onCompleted();
   }
 
   @Override
-  public final void beforeStart(ClientCallStreamObserver<RespT> stream) {
+  public void beforeStart(ClientCallStreamObserver<RespT> stream) {
     stream.setOnReadyHandler(onReadyHandler);
   }
 }

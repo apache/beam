@@ -99,7 +99,7 @@ public class BeamFnLoggingClient implements AutoCloseable {
   private final StreamObserver<BeamFnApi.LogEntry.List> outboundObserver;
   private final LogControlObserver inboundObserver;
   private final LogRecordHandler logRecordHandler;
-  private final CompletableFuture<Void> inboundObserverCompletion;
+  private final CompletableFuture<Object> inboundObserverCompletion;
 
   public BeamFnLoggingClient(
       PipelineOptions options,

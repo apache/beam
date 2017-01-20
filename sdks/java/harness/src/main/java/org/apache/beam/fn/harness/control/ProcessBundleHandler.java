@@ -258,7 +258,7 @@ public class ProcessBundleHandler {
       serializedFn = functionSpec.getData().unpack(BytesValue.class).getValue();
     } catch (InvalidProtocolBufferException e) {
       throw new IllegalArgumentException(
-          String.format("Unable to unwrap DoFn %s", functionSpec, e));
+          String.format("Unable to unwrap DoFn %s", functionSpec), e);
     }
     DoFnInfo<?, ?> doFnInfo =
         (DoFnInfo<?, ?>)
