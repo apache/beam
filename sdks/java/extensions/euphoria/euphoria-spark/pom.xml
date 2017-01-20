@@ -20,6 +20,11 @@
     </dependency>
 
     <dependency>
+      <groupId>com.google.guava</groupId>
+      <artifactId>guava</artifactId>
+    </dependency>
+
+    <dependency>
       <groupId>cz.seznam.euphoria</groupId>
       <artifactId>euphoria-hadoop</artifactId>
       <exclusions>

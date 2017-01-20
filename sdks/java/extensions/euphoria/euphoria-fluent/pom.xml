@@ -16,10 +16,6 @@
   <dependencies>
     <dependency>
       <groupId>cz.seznam.euphoria</groupId>
-      <artifactId>guava-shaded</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>cz.seznam.euphoria</groupId>
       <artifactId>euphoria-core</artifactId>
     </dependency>
 

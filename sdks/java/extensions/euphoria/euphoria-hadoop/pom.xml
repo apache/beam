@@ -15,13 +15,13 @@
   <dependencies>
 
     <dependency>
-      <groupId>cz.seznam.euphoria</groupId>
-      <artifactId>guava-shaded</artifactId>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>euphoria-core</artifactId>
     </dependency>
 
     <dependency>
-      <groupId>${project.groupId}</groupId>
-      <artifactId>euphoria-core</artifactId>
+      <groupId>com.google.guava</groupId>
+      <artifactId>guava</artifactId>
     </dependency>
 
     <dependency>

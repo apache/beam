@@ -1,9 +1,9 @@
 package cz.seznam.euphoria.inmem;
 
-import cz.seznam.euphoria.guava.shaded.com.google.common.collect.ArrayListMultimap;
-import cz.seznam.euphoria.guava.shaded.com.google.common.collect.Multimap;
-import cz.seznam.euphoria.guava.shaded.com.google.common.collect.Multimaps;
-import cz.seznam.euphoria.guava.shaded.com.google.common.util.concurrent.ThreadFactoryBuilder;
+import com.google.common.collect.ArrayListMultimap;
+import com.google.common.collect.Multimap;
+import com.google.common.collect.Multimaps;
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

@@ -1,10 +1,9 @@
 package cz.seznam.euphoria.spark;
 
+import com.google.common.collect.AbstractIterator;
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import cz.seznam.euphoria.core.client.dataset.windowing.WindowedElement;
 import cz.seznam.euphoria.core.client.io.Context;
-import cz.seznam.euphoria.core.client.util.Pair;
-import cz.seznam.euphoria.guava.shaded.com.google.common.collect.AbstractIterator;
-import cz.seznam.euphoria.guava.shaded.com.google.common.util.concurrent.ThreadFactoryBuilder;
 
 import java.util.Iterator;
 import java.util.concurrent.ExecutorService;

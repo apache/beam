@@ -1,10 +1,10 @@
 package cz.seznam.euphoria.flink;
 
+import com.google.common.collect.Iterables;
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.graph.DAG;
 import cz.seznam.euphoria.core.client.graph.Node;
 import cz.seznam.euphoria.core.client.operator.SingleInputOperator;
-import cz.seznam.euphoria.guava.shaded.com.google.common.collect.Iterables;
 import org.apache.flink.streaming.api.datastream.DataStream;
 
 import java.util.ArrayList;

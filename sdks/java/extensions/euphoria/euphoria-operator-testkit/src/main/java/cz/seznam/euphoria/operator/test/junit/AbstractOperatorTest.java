@@ -1,5 +1,6 @@
 package cz.seznam.euphoria.operator.test.junit;
 
+import com.google.common.base.Preconditions;
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.io.DataSource;
@@ -7,7 +8,6 @@ import cz.seznam.euphoria.core.client.io.ListDataSink;
 import cz.seznam.euphoria.core.client.io.ListDataSource;
 import cz.seznam.euphoria.core.executor.Executor;
 import cz.seznam.euphoria.core.util.Settings;
-import cz.seznam.euphoria.guava.shaded.com.google.common.base.Preconditions;
 import cz.seznam.euphoria.operator.test.junit.Processing.Type;
 
 import java.io.Serializable;

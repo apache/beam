@@ -1,5 +1,6 @@
 package cz.seznam.euphoria.flink.streaming;
 
+import com.google.common.collect.Iterables;
 import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.functional.StateFactory;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
@@ -12,7 +13,6 @@ import cz.seznam.euphoria.flink.functions.PartitionerWrapper;
 import cz.seznam.euphoria.flink.streaming.windowing.FlinkWindow;
 import cz.seznam.euphoria.flink.streaming.windowing.MultiWindowedElement;
 import cz.seznam.euphoria.flink.streaming.windowing.WindowProperties;
-import cz.seznam.euphoria.guava.shaded.com.google.common.collect.Iterables;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.WindowedStream;

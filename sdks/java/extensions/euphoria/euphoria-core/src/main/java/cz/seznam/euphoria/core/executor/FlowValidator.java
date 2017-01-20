@@ -1,5 +1,6 @@
 package cz.seznam.euphoria.core.executor;
 
+import com.google.common.base.Preconditions;
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.dataset.windowing.Batch;
 import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
@@ -11,7 +12,6 @@ import cz.seznam.euphoria.core.client.operator.Operator;
 import cz.seznam.euphoria.core.client.operator.WindowWiseOperator;
 import cz.seznam.euphoria.core.client.operator.WindowingRequiredException;
 import cz.seznam.euphoria.core.client.util.Pair;
-import cz.seznam.euphoria.guava.shaded.com.google.common.base.Preconditions;
 
 import java.util.HashMap;
 import java.util.List;
@@ -60,7 +60,7 @@ class FlowValidator {
         .filter(node -> node.get() instanceof Join)
         .collect(Collectors.toList());
     for (Node<Operator<?, ?>> join : joins) {
-      checkJoinWindowing((Node) join);
+      checkJoinWindowing(join);
     }
   }
 

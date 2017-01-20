@@ -17,8 +17,8 @@
 
   <dependencies>
     <dependency>
-      <groupId>cz.seznam.euphoria</groupId>
-      <artifactId>guava-shaded</artifactId>
+      <groupId>com.google.guava</groupId>
+      <artifactId>guava</artifactId>
     </dependency>
 
     <dependency>
