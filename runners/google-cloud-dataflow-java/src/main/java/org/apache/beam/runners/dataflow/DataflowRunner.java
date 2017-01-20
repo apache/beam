@@ -336,8 +336,8 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
       builder.put(Window.Bound.class, AssignWindows.class);
       // In streaming mode must use either the custom Pubsub unbounded source/sink or
       // defer to Windmill's built-in implementation.
-      builder.put(PubsubIO.Read.Bound.PubsubBoundedReader.class, UnsupportedIO.class);
-      builder.put(PubsubIO.Write.Bound.PubsubBoundedWriter.class, UnsupportedIO.class);
+      builder.put(PubsubIO.Read.PubsubBoundedReader.class, UnsupportedIO.class);
+      builder.put(PubsubIO.Write.PubsubBoundedWriter.class, UnsupportedIO.class);
       if (options.getExperiments() == null
           || !options.getExperiments().contains("enable_custom_pubsub_source")) {
         builder.put(PubsubUnboundedSource.class, StreamingPubsubIORead.class);
@@ -2738,7 +2738,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
      */
     @SuppressWarnings("unused") // used via reflection in DataflowRunner#apply()
     public UnsupportedIO(DataflowRunner runner,
-                         PubsubIO.Read.Bound<?>.PubsubBoundedReader doFn) {
+                         PubsubIO.Read<?>.PubsubBoundedReader doFn) {
       this.doFn = doFn;
     }
 
@@ -2747,7 +2747,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
      */
     @SuppressWarnings("unused") // used via reflection in DataflowRunner#apply()
     public UnsupportedIO(DataflowRunner runner,
-                         PubsubIO.Write.Bound<?>.PubsubBoundedWriter doFn) {
+                         PubsubIO.Write<?>.PubsubBoundedWriter doFn) {
       this.doFn = doFn;
     }
 

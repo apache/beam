@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io;
 
+import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
 
 import com.google.common.base.Strings;
@@ -29,7 +30,6 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.options.PubsubOptions;
 import org.apache.beam.sdk.options.ValueProvider;
@@ -75,9 +75,6 @@ public class PubsubIO {
 
   /** Factory for creating pubsub client to manage transport. */
   private static final PubsubClient.PubsubClientFactory FACTORY = PubsubJsonClient.FACTORY;
-
-  /** The default {@link Coder} used to translate to/from Cloud Pub/Sub messages. */
-  public static final Coder<String> DEFAULT_PUBSUB_CODER = StringUtf8Coder.of();
 
   /**
    * Project IDs must contain 6-63 lowercase letters, digits, or dashes.
@@ -178,7 +175,9 @@ public class PubsubIO {
     /**
      * Returns the given attribute value. If not such attribute exists, returns null.
      */
+    @Nullable
     public String getAttribute(String attribute) {
+      checkNotNull(attribute, "attribute");
       return attributes.get(attribute);
     }
 
@@ -454,6 +453,14 @@ public class PubsubIO {
     }
   }
 
+  public static <T> Read<T> read() {
+    return new Read<>();
+  }
+
+  public static <T> Write<T> write() {
+    return new Write<>();
+  }
+
   /**
    * A {@link PTransform} that continuously reads from a Cloud Pub/Sub stream and
    * returns a {@link PCollection} of {@link String Strings} containing the items from
@@ -461,150 +468,10 @@ public class PubsubIO {
    *
    * <p>When running with a {@link PipelineRunner} that only supports bounded
    * {@link PCollection PCollections}, only a bounded portion of the input Pub/Sub stream
-   * can be processed. As such, either {@link Bound#maxNumRecords(int)} or
-   * {@link Bound#maxReadTime(Duration)} must be set.
+   * can be processed. As such, either {@link Read#maxNumRecords(int)} or
+   * {@link Read#maxReadTime(Duration)} must be set.
    */
-  public static class Read {
-
-    /**
-     * Creates and returns a transform for reading from a Cloud Pub/Sub topic. Mutually exclusive
-     * with {@link #subscription(String)}.
-     *
-     * <p>See {@link PubsubIO.PubsubTopic#fromPath(String)} for more details on the format
-     * of the {@code topic} string.
-     *
-     * <p>The Beam runner will start reading data published on this topic from the time the pipeline
-     * is started. Any data published on the topic before the pipeline is started will not be read
-     * by the runner.
-     */
-    public static Bound<String> topic(String topic) {
-      return new Bound<>(DEFAULT_PUBSUB_CODER).topic(StaticValueProvider.of(topic));
-    }
-
-    /**
-     * Like {@code topic()} but with a {@link ValueProvider}.
-     */
-    public static Bound<String> topic(ValueProvider<String> topic) {
-      return new Bound<>(DEFAULT_PUBSUB_CODER).topic(topic);
-    }
-
-    /**
-     * Creates and returns a transform for reading from a specific Cloud Pub/Sub subscription.
-     * Mutually exclusive with {@link #topic(String)}.
-     *
-     * <p>See {@link PubsubIO.PubsubSubscription#fromPath(String)} for more details on the format
-     * of the {@code subscription} string.
-     */
-    public static Bound<String> subscription(String subscription) {
-      return new Bound<>(DEFAULT_PUBSUB_CODER).subscription(StaticValueProvider.of(subscription));
-    }
-
-    /**
-     * Like {@code topic()} but with a {@link ValueProvider}.
-     */
-    public static Bound<String> subscription(ValueProvider<String> subscription) {
-      return new Bound<>(DEFAULT_PUBSUB_CODER).subscription(subscription);
-    }
-
-    /**
-     * Creates and returns a transform reading from Cloud Pub/Sub where record timestamps are
-     * expected to be provided as Pub/Sub message attributes. The {@code timestampLabel}
-     * parameter specifies the name of the attribute that contains the timestamp.
-     *
-     * <p>The timestamp value is expected to be represented in the attribute as either:
-     *
-     * <ul>
-     * <li>a numerical value representing the number of milliseconds since the Unix epoch. For
-     * example, if using the Joda time classes, {@link Instant#getMillis()} returns the correct
-     * value for this attribute.
-     * <li>a String in RFC 3339 format. For example, {@code 2015-10-29T23:41:41.123Z}. The
-     * sub-second component of the timestamp is optional, and digits beyond the first three
-     * (i.e., time units smaller than milliseconds) will be ignored.
-     * </ul>
-     *
-     * <p>If {@code timestampLabel} is not provided, the system will generate record timestamps
-     * the first time it sees each record. All windowing will be done relative to these timestamps.
-     *
-     * <p>By default, windows are emitted based on an estimate of when this source is likely
-     * done producing data for a given timestamp (referred to as the Watermark; see
-     * {@link AfterWatermark} for more details). Any late data will be handled by the trigger
-     * specified with the windowing strategy &ndash; by default it will be output immediately.
-     *
-     * <p>Note that the system can guarantee that no late data will ever be seen when it assigns
-     * timestamps by arrival time (i.e. {@code timestampLabel} is not provided).
-     *
-     * @see <a href="https://www.ietf.org/rfc/rfc3339.txt">RFC 3339</a>
-     */
-    public static Bound<String> timestampLabel(String timestampLabel) {
-      return new Bound<>(DEFAULT_PUBSUB_CODER).timestampLabel(timestampLabel);
-    }
-
-    /**
-     * Creates and returns a transform for reading from Cloud Pub/Sub where unique record
-     * identifiers are expected to be provided as Pub/Sub message attributes. The {@code idLabel}
-     * parameter specifies the attribute name. The value of the attribute can be any string
-     * that uniquely identifies this record.
-     *
-     * <p>Pub/Sub cannot guarantee that no duplicate data will be delivered on the Pub/Sub stream.
-     * If {@code idLabel} is not provided, Beam cannot guarantee that no duplicate data will
-     * be delivered, and deduplication of the stream will be strictly best effort.
-     */
-    public static Bound<String> idLabel(String idLabel) {
-      return new Bound<>(DEFAULT_PUBSUB_CODER).idLabel(idLabel);
-    }
-
-    /**
-     * Creates and returns a transform for reading from Cloud Pub/Sub that uses the given
-     * {@link Coder} to decode Pub/Sub messages into a value of type {@code T}.
-     *
-     * <p>By default, uses {@link StringUtf8Coder}, which just
-     * returns the text lines as Java strings.
-     *
-     * @param <T> the type of the decoded elements, and the elements
-     * of the resulting PCollection.
-     */
-    public static <T> Bound<T> withCoder(Coder<T> coder) {
-      return new Bound<>(coder);
-    }
-
-    /**
-     * Causes the source to return a PubsubMessage that includes Pubsub attributes.
-     * The user must supply a parsing function to transform the PubsubMessage into an output type.
-     * A Coder for the output type T must be registered or set on the output via
-     * {@link PCollection#setCoder(Coder)}.
-     */
-    public <T> Bound<T> withAttributes(SimpleFunction<PubsubMessage, T> parseFn) {
-      return new Bound<T>(null).withAttributes(parseFn);
-    }
-
-    /**
-     * Creates and returns a transform for reading from Cloud Pub/Sub with a maximum number of
-     * records that will be read. The transform produces a <i>bounded</i> {@link PCollection}.
-     *
-     * <p>Either this option or {@link #maxReadTime(Duration)} must be set in order to create a
-     * bounded source.
-     */
-    public static Bound<String> maxNumRecords(int maxNumRecords) {
-      return new Bound<>(DEFAULT_PUBSUB_CODER).maxNumRecords(maxNumRecords);
-    }
-
-    /**
-     * Creates and returns a transform for reading from Cloud Pub/Sub with a maximum number of
-     * duration during which records will be read.  The transform produces a <i>bounded</i>
-     * {@link PCollection}.
-     *
-     * <p>Either this option or {@link #maxNumRecords(int)} must be set in order to create a bounded
-     * source.
-     */
-    public static Bound<String> maxReadTime(Duration maxReadTime) {
-      return new Bound<>(DEFAULT_PUBSUB_CODER).maxReadTime(maxReadTime);
-    }
-
-    /**
-     * A {@link PTransform} that reads from a Cloud Pub/Sub source and returns
-     * a unbounded {@link PCollection} containing the items from the stream.
-     */
-    public static class Bound<T> extends PTransform<PBegin, PCollection<T>> {
+   public static class Read<T> extends PTransform<PBegin, PCollection<T>> {
       /** The Cloud Pub/Sub topic to read from. */
       @Nullable private final ValueProvider<PubsubTopic> topic;
 
@@ -629,11 +496,11 @@ public class PubsubIO {
       /** User function for parsing PubsubMessage object. */
       SimpleFunction<PubsubMessage, T> parseFn;
 
-      private Bound(Coder<T> coder) {
-        this(null, null, null, null, coder, null, 0, null, null);
+      private Read() {
+        this(null, null, null, null, null, null, 0, null, null);
       }
 
-      private Bound(String name, ValueProvider<PubsubSubscription> subscription,
+      private Read(String name, ValueProvider<PubsubSubscription> subscription,
           ValueProvider<PubsubTopic> topic, String timestampLabel, Coder<T> coder,
           String idLabel, int maxNumRecords, Duration maxReadTime,
           SimpleFunction<PubsubMessage, T> parseFn) {
@@ -648,100 +515,125 @@ public class PubsubIO {
         this.parseFn = parseFn;
       }
 
-      /**
-       * Returns a transform that's like this one but reading from the
-       * given subscription.
-       *
-       * <p>See {@link PubsubIO.PubsubSubscription#fromPath(String)} for more details on the format
-       * of the {@code subscription} string.
-       *
-       * <p>Multiple readers reading from the same subscription will each receive
-       * some arbitrary portion of the data.  Most likely, separate readers should
-       * use their own subscriptions.
-       *
-       * <p>Does not modify this object.
-       */
-      public Bound<T> subscription(String subscription) {
+    /**
+     * Returns a transform that's like this one but reading from the
+     * given subscription.
+     *
+     * <p>See {@link PubsubIO.PubsubSubscription#fromPath(String)} for more details on the format
+     * of the {@code subscription} string.
+     *
+     * <p>Multiple readers reading from the same subscription will each receive
+     * some arbitrary portion of the data.  Most likely, separate readers should
+     * use their own subscriptions.
+     *
+     * <p>Does not modify this object.
+     */
+      public Read<T> subscription(String subscription) {
         return subscription(StaticValueProvider.of(subscription));
       }
 
       /**
        * Like {@code subscription()} but with a {@link ValueProvider}.
        */
-      public Bound<T> subscription(ValueProvider<String> subscription) {
+      public Read<T> subscription(ValueProvider<String> subscription) {
         if (subscription.isAccessible()) {
           // Validate.
           PubsubSubscription.fromPath(subscription.get());
         }
-        return new Bound<>(name,
+        return new Read<>(name,
             NestedValueProvider.of(subscription, new SubscriptionTranslator()),
             topic, timestampLabel, coder, idLabel, maxNumRecords, maxReadTime, parseFn);
       }
 
-      /**
-       * Returns a transform that's like this one but that reads from the specified topic.
-       *
-       * <p>See {@link PubsubIO.PubsubTopic#fromPath(String)} for more details on the
-       * format of the {@code topic} string.
-       *
-       * <p>Does not modify this object.
-       */
-      public Bound<T> topic(String topic) {
+    /**
+     * Creates and returns a transform for reading from a Cloud Pub/Sub topic. Mutually exclusive
+     * with {@link #subscription(String)}.
+     *
+     * <p>See {@link PubsubIO.PubsubTopic#fromPath(String)} for more details on the format
+     * of the {@code topic} string.
+     *
+     * <p>The Beam runner will start reading data published on this topic from the time the pipeline
+     * is started. Any data published on the topic before the pipeline is started will not be read
+     * by the runner.
+     */
+      public Read<T> topic(String topic) {
         return topic(StaticValueProvider.of(topic));
       }
 
       /**
        * Like {@code topic()} but with a {@link ValueProvider}.
        */
-      public Bound<T> topic(ValueProvider<String> topic) {
+      public Read<T> topic(ValueProvider<String> topic) {
         if (topic.isAccessible()) {
           // Validate.
-          PubsubTopic.fromPath(topic.get());
+            PubsubTopic.fromPath(topic.get());
         }
-        return new Bound<>(name, subscription,
+        return new Read<>(name, subscription,
             NestedValueProvider.of(topic, new TopicTranslator()),
             timestampLabel, coder, idLabel, maxNumRecords, maxReadTime, parseFn);
       }
 
       /**
-       * Returns a transform that's like this one but that reads message timestamps
-       * from the given message attribute. See {@link PubsubIO.Read#timestampLabel(String)} for
-       * more details on the format of the timestamp attribute.
+       * Creates and returns a transform reading from Cloud Pub/Sub where record timestamps are
+       * expected to be provided as Pub/Sub message attributes. The {@code timestampLabel}
+       * parameter specifies the name of the attribute that contains the timestamp.
        *
-       * <p>Does not modify this object.
+       * <p>The timestamp value is expected to be represented in the attribute as either:
+       *
+       * <ul>
+       * <li>a numerical value representing the number of milliseconds since the Unix epoch. For
+       * example, if using the Joda time classes, {@link Instant#getMillis()} returns the correct
+       * value for this attribute.
+       * <li>a String in RFC 3339 format. For example, {@code 2015-10-29T23:41:41.123Z}. The
+       * sub-second component of the timestamp is optional, and digits beyond the first three
+       * (i.e., time units smaller than milliseconds) will be ignored.
+       * </ul>
+       *
+       * <p>If {@code timestampLabel} is not provided, the system will generate record timestamps
+       * the first time it sees each record. All windowing will be done relative to these timestamps.
+       *
+       * <p>By default, windows are emitted based on an estimate of when this source is likely
+       * done producing data for a given timestamp (referred to as the Watermark; see
+       * {@link AfterWatermark} for more details). Any late data will be handled by the trigger
+       * specified with the windowing strategy &ndash; by default it will be output immediately.
+       *
+       * <p>Note that the system can guarantee that no late data will ever be seen when it assigns
+       * timestamps by arrival time (i.e. {@code timestampLabel} is not provided).
+       *
+       * @see <a href="https://www.ietf.org/rfc/rfc3339.txt">RFC 3339</a>
        */
-      public Bound<T> timestampLabel(String timestampLabel) {
-        return new Bound<>(
+      public Read<T> timestampLabel(String timestampLabel) {
+        return new Read<>(
             name, subscription, topic, timestampLabel, coder, idLabel, maxNumRecords, maxReadTime,
             parseFn);
       }
 
-      /**
-       * Returns a transform that's like this one but that reads unique message IDs
-       * from the given message attribute. See {@link PubsubIO.Read#idLabel(String)} for more
-       * details on the format of the ID attribute.
-       *
-       * <p>Does not modify this object.
-       */
-      public Bound<T> idLabel(String idLabel) {
-        return new Bound<>(
+     /**
+      * Creates and returns a transform for reading from Cloud Pub/Sub where unique record
+      * identifiers are expected to be provided as Pub/Sub message attributes. The {@code idLabel}
+      * parameter specifies the attribute name. The value of the attribute can be any string
+      * that uniquely identifies this record.
+      *
+      * <p>Pub/Sub cannot guarantee that no duplicate data will be delivered on the Pub/Sub stream.
+      * If {@code idLabel} is not provided, Beam cannot guarantee that no duplicate data will
+      * be delivered, and deduplication of the stream will be strictly best effort.
+      */
+      public Read<T> idLabel(String idLabel) {
+        return new Read<>(
             name, subscription, topic, timestampLabel, coder, idLabel, maxNumRecords, maxReadTime,
             parseFn);
       }
 
       /**
        * Returns a transform that's like this one but that uses the given
-       * {@link Coder} to decode each record into a value of type {@code X}.
+       * {@link Coder} to decode each record into a value of type {@code T}.
        *
        * <p>Does not modify this object.
-       *
-       * @param <X> the type of the decoded elements, and the
-       * elements of the resulting PCollection.
        */
-      public <X> Bound<X> withCoder(Coder<X> coder) {
-        return new Bound<>(
+      public Read<T> withCoder(Coder<T> coder) {
+        return new Read<>(
             name, subscription, topic, timestampLabel, coder, idLabel, maxNumRecords, maxReadTime,
-            null);
+            parseFn);
       }
 
       /**
@@ -750,30 +642,35 @@ public class PubsubIO {
        * A Coder for the output type T must be registered or set on the output via
        * {@link PCollection#setCoder(Coder)}.
        */
-      public <T> Bound<T> withAttributes(SimpleFunction<PubsubMessage, T> parseFn) {
-        return new Bound<T>(
-            name, subscription, topic, timestampLabel, null, idLabel,
+      public Read<T> withAttributes(SimpleFunction<PubsubMessage, T> parseFn) {
+        return new Read<T>(
+            name, subscription, topic, timestampLabel, coder, idLabel,
             maxNumRecords, maxReadTime, parseFn);
       }
 
-      /**
-       * Returns a transform that's like this one but will only read up to the specified
-       * maximum number of records from Cloud Pub/Sub. The transform produces a <i>bounded</i>
-       * {@link PCollection}. See {@link PubsubIO.Read#maxNumRecords(int)} for more details.
-       */
-      public Bound<T> maxNumRecords(int maxNumRecords) {
-        return new Bound<>(
+     /**
+      * Creates and returns a transform for reading from Cloud Pub/Sub with a maximum number of
+      * records that will be read. The transform produces a <i>bounded</i> {@link PCollection}.
+      *
+      * <p>Either this option or {@link #maxReadTime(Duration)} must be set in order to create a
+      * bounded source.
+      */
+      public Read<T> maxNumRecords(int maxNumRecords) {
+        return new Read<>(
             name, subscription, topic, timestampLabel, coder, idLabel, maxNumRecords, maxReadTime,
             parseFn);
       }
 
-      /**
-       * Returns a transform that's like this one but will only read during the specified
-       * duration from Cloud Pub/Sub. The transform produces a <i>bounded</i> {@link PCollection}.
-       * See {@link PubsubIO.Read#maxReadTime(Duration)} for more details.
-       */
-      public Bound<T> maxReadTime(Duration maxReadTime) {
-        return new Bound<>(
+     /**
+      * Creates and returns a transform for reading from Cloud Pub/Sub with a maximum number of
+      * duration during which records will be read.  The transform produces a <i>bounded</i>
+      * {@link PCollection}.
+      *
+      * <p>Either this option or {@link #maxNumRecords(int)} must be set in order to create a
+      * bounded source.
+      */
+      public Read<T> maxReadTime(Duration maxReadTime) {
+        return new Read<>(
             name, subscription, topic, timestampLabel, coder, idLabel, maxNumRecords, maxReadTime,
             parseFn);
       }
@@ -978,14 +875,10 @@ public class PubsubIO {
 
         @Override
         public void populateDisplayData(DisplayData.Builder builder) {
-          builder.delegate(Bound.this);
+          builder.delegate(Read.this);
         }
       }
     }
-
-    /** Disallow construction of utility class. */
-    private Read() {}
-  }
 
 
   /////////////////////////////////////////////////////////////////////////////
@@ -993,27 +886,54 @@ public class PubsubIO {
   /** Disallow construction of utility class. */
   private PubsubIO() {}
 
+
   /**
-   * A {@link PTransform} that continuously writes a
-   * {@link PCollection} of {@link String Strings} to a Cloud Pub/Sub stream.
+   * A {@link PTransform} that writes an unbounded {@link PCollection} of {@link String Strings}
+   * to a Cloud Pub/Sub stream.
    */
-  // TODO: Support non-String encodings.
-  public static class Write {
+  public static class Write<T> extends PTransform<PCollection<T>, PDone> {
+    /** The Cloud Pub/Sub topic to publish to. */
+    @Nullable private final ValueProvider<PubsubTopic> topic;
+    /** The name of the message attribute to publish message timestamps in. */
+    @Nullable private final String timestampLabel;
+    /** The name of the message attribute to publish unique message IDs in. */
+    @Nullable private final String idLabel;
+    /** The input type Coder. */
+    private final Coder<T> coder;
+    /** The format function for input PubsubMessage objects. */
+    SimpleFunction<T, PubsubMessage> formatFn;
+
+    private Write() {
+      this(null, null, null, null, null, null);
+    }
+
+    private Write(
+        String name, ValueProvider<PubsubTopic> topic, String timestampLabel,
+        String idLabel, Coder<T> coder, SimpleFunction<T, PubsubMessage> formatFn) {
+      super(name);
+      this.topic = topic;
+      this.timestampLabel = timestampLabel;
+      this.idLabel = idLabel;
+      this.coder = coder;
+      this.formatFn = formatFn;
+    }
+
     /**
      * Creates a transform that publishes to the specified topic.
      *
      * <p>See {@link PubsubIO.PubsubTopic#fromPath(String)} for more details on the format of the
      * {@code topic} string.
      */
-    public static Bound<String> topic(String topic) {
-      return new Bound<>(DEFAULT_PUBSUB_CODER).topic(StaticValueProvider.of(topic));
+    public Write<T> topic(String topic) {
+      return topic(StaticValueProvider.of(topic));
     }
 
     /**
      * Like {@code topic()} but with a {@link ValueProvider}.
      */
-    public static Bound<String> topic(ValueProvider<String> topic) {
-      return new Bound<>(DEFAULT_PUBSUB_CODER).topic(topic);
+    public Write<T> topic(ValueProvider<String> topic) {
+      return new Write<>(name, NestedValueProvider.of(topic, new TopicTranslator()),
+          timestampLabel, idLabel, coder, formatFn);
     }
 
     /**
@@ -1026,8 +946,8 @@ public class PubsubIO {
      * {@link PubsubIO.Read#timestampLabel(String)} can be used to ensure the other source reads
      * these timestamps from the appropriate attribute.
      */
-    public static Bound<String> timestampLabel(String timestampLabel) {
-      return new Bound<>(DEFAULT_PUBSUB_CODER).timestampLabel(timestampLabel);
+    public Write<T> timestampLabel(String timestampLabel) {
+      return new Write<>(name, topic, timestampLabel, idLabel, coder, formatFn);
     }
 
     /**
@@ -1039,256 +959,172 @@ public class PubsubIO {
      * {@link PubsubIO.Read#idLabel(String)} can be used to ensure that* the other source reads
      * these unique identifiers from the appropriate attribute.
      */
-    public static Bound<String> idLabel(String idLabel) {
-      return new Bound<>(DEFAULT_PUBSUB_CODER).idLabel(idLabel);
+    public Write<T> idLabel(String idLabel) {
+      return new Write<>(name, topic, timestampLabel, idLabel, coder, formatFn);
     }
 
     /**
-     * Creates a transform that  uses the given {@link Coder} to encode each of the
-     * elements of the input collection into an output message.
+     * Returns a new transform that's like this one
+     * but that uses the given {@link Coder} to encode each of
+     * the elements of the input {@link PCollection} into an
+     * output record.
      *
-     * <p>By default, uses {@link StringUtf8Coder}, which writes input Java strings directly as
-     * records.
-     *
-     * @param <T> the type of the elements of the input PCollection
+     * <p>Does not modify this object.
      */
-    public static <T> Bound<T> withCoder(Coder<T> coder) {
-      return new Bound<>(coder);
+    public Write<T> withCoder(Coder<T> coder) {
+      return new Write<>(name, topic, timestampLabel, idLabel, coder, formatFn);
     }
 
     /**
      * Used to write a PubSub message together with PubSub attributes. The user-supplied format
      * function translates the input type T to a PubsubMessage object, which is used by the sink
-     * to publish a message to PubSub with payload and attributes set separately.
+     * to separately set the PubSub message's payload and attributes.
      */
-    public static <T> Bound<T> withAttributes(SimpleFunction<T, PubsubMessage> formatFn) {
-        return new Bound<T>(null).withAttributes(formatFn);
+    public Write<T> withAttributes(SimpleFunction<T, PubsubMessage> formatFn) {
+        return new Write<T>(name, topic, timestampLabel, idLabel, coder, formatFn);
+    }
+
+    @Override
+    public PDone expand(PCollection<T> input) {
+      if (topic == null) {
+        throw new IllegalStateException("need to set the topic of a PubsubIO.Write transform");
       }
+      switch (input.isBounded()) {
+        case BOUNDED:
+          input.apply(ParDo.of(new PubsubBoundedWriter()));
+          return PDone.in(input.getPipeline());
+        case UNBOUNDED:
+          return input.apply(new PubsubUnboundedSink<T>(
+              FACTORY,
+              NestedValueProvider.of(topic, new TopicPathTranslator()),
+              coder,
+              timestampLabel,
+              idLabel,
+              formatFn,
+              100 /* numShards */));
+      }
+      throw new RuntimeException(); // cases are exhaustive.
+    }
+
+    @Override
+    public void populateDisplayData(DisplayData.Builder builder) {
+      super.populateDisplayData(builder);
+      populateCommonDisplayData(builder, timestampLabel, idLabel, topic);
+    }
+
+    @Override
+    protected Coder<Void> getDefaultOutputCoder() {
+      return VoidCoder.of();
+    }
 
     /**
-     * A {@link PTransform} that writes an unbounded {@link PCollection} of {@link String Strings}
-     * to a Cloud Pub/Sub stream.
+     * Returns the PubSub topic.
      */
-    public static class Bound<T> extends PTransform<PCollection<T>, PDone> {
-      /** The Cloud Pub/Sub topic to publish to. */
-      @Nullable private final ValueProvider<PubsubTopic> topic;
-      /** The name of the message attribute to publish message timestamps in. */
-      @Nullable private final String timestampLabel;
-      /** The name of the message attribute to publish unique message IDs in. */
-      @Nullable private final String idLabel;
-      /** The input type Coder. */
-      private final Coder<T> coder;
-      /** The format function for input PubsubMessage objects. */
-      SimpleFunction<T, PubsubMessage> formatFn;
+    public PubsubTopic getTopic() {
+      return topic.get();
+    }
 
-      private Bound(Coder<T> coder) {
-        this(null, null, null, null, coder, null);
+    /**
+     * Returns the topic @link{ValueProvider}
+     */
+    public ValueProvider<PubsubTopic> getTopicProvider() {
+      return topic;
+    }
+
+    /**
+     * Returns the timestamp label.
+     */
+    public String getTimestampLabel() {
+      return timestampLabel;
+    }
+
+    /**
+     * Returns the id label.
+     */
+    public String getIdLabel() {
+      return idLabel;
+    }
+
+    /**
+     * Returns the output coder.
+     */
+    public Coder<T> getCoder() {
+      return coder;
+    }
+
+    /**
+     * Returns the formatting function used if publishing attributes.
+     */
+    public SimpleFunction<T, PubsubMessage> getFormatFn() {
+        return formatFn;
+    }
+
+    /**
+     * Writer to Pubsub which batches messages from bounded collections.
+     *
+     * <p>NOTE: This is not the implementation used when running on the Google Cloud Dataflow
+     * service in streaming mode.
+     *
+     * <p>Public so can be suppressed by runners.
+     */
+    public class PubsubBoundedWriter extends DoFn<T, Void> {
+      private static final int MAX_PUBLISH_BATCH_SIZE = 100;
+      private transient List<OutgoingMessage> output;
+      private transient PubsubClient pubsubClient;
+
+      @StartBundle
+      public void startBundle(Context c) throws IOException {
+        this.output = new ArrayList<>();
+        // NOTE: idLabel is ignored.
+        this.pubsubClient =
+            FACTORY.newClient(timestampLabel, null,
+                              c.getPipelineOptions().as(PubsubOptions.class));
       }
 
-      private Bound(
-          String name, ValueProvider<PubsubTopic> topic, String timestampLabel,
-          String idLabel, Coder<T> coder, SimpleFunction<T, PubsubMessage> formatFn) {
-        super(name);
-        this.topic = topic;
-        this.timestampLabel = timestampLabel;
-        this.idLabel = idLabel;
-        this.coder = coder;
-        this.formatFn = formatFn;
-      }
-
-      /**
-       * Returns a new transform that's like this one but that writes to the specified
-       * topic.
-       *
-       * <p>See {@link PubsubIO.PubsubTopic#fromPath(String)} for more details on the format of the
-       * {@code topic} string.
-       *
-       * <p>Does not modify this object.
-       */
-      public Bound<T> topic(String topic) {
-        return topic(StaticValueProvider.of(topic));
-      }
-
-      /**
-       * Like {@code topic()} but with a {@link ValueProvider}.
-       */
-      public Bound<T> topic(ValueProvider<String> topic) {
-        return new Bound<>(name, NestedValueProvider.of(topic, new TopicTranslator()),
-            timestampLabel, idLabel, coder, formatFn);
-      }
-
-      /**
-       * Returns a new transform that's like this one but that publishes record timestamps
-       * to a message attribute with the specified name. See
-       * {@link PubsubIO.Write#timestampLabel(String)} for more details.
-       *
-       * <p>Does not modify this object.
-       */
-      public Bound<T> timestampLabel(String timestampLabel) {
-        return new Bound<>(name, topic, timestampLabel, idLabel, coder, formatFn);
-      }
-
-      /**
-       * Returns a new transform that's like this one but that publishes unique record IDs
-       * to a message attribute with the specified name. See {@link PubsubIO.Write#idLabel(String)}
-       * for more details.
-       *
-       * <p>Does not modify this object.
-       */
-      public Bound<T> idLabel(String idLabel) {
-        return new Bound<>(name, topic, timestampLabel, idLabel, coder, formatFn);
-      }
-
-      /**
-       * Returns a new transform that's like this one
-       * but that uses the given {@link Coder} to encode each of
-       * the elements of the input {@link PCollection} into an
-       * output record.
-       *
-       * <p>Does not modify this object.
-       *
-       * @param <X> the type of the elements of the input {@link PCollection}
-       */
-      public <X> Bound<X> withCoder(Coder<X> coder) {
-        return new Bound<>(name, topic, timestampLabel, idLabel, coder, null);
-      }
-
-      /**
-       * Used to write a PubSub message together with PubSub attributes. The user-supplied format
-       * function translates the input type T to a PubsubMessage object, which is used by the sink
-       * to separately set the PubSub message's payload and attributes.
-       */
-      public <T> Bound<T> withAttributes(SimpleFunction<T, PubsubMessage> formatFn) {
-          return new Bound<T>(name, topic, timestampLabel, idLabel, null, formatFn);
-      }
-
-      @Override
-      public PDone expand(PCollection<T> input) {
-        if (topic == null) {
-          throw new IllegalStateException("need to set the topic of a PubsubIO.Write transform");
+      @ProcessElement
+      public void processElement(ProcessContext c) throws IOException {
+        byte[] payload = null;
+        Map<String, String> attributes = null;
+        if (formatFn != null) {
+          PubsubMessage message = formatFn.apply(c.element());
+          payload = message.getMessage();
+          attributes = message.getAttributeMap();
+        } else {
+          payload = CoderUtils.encodeToByteArray(getCoder(), c.element());
         }
-        switch (input.isBounded()) {
-          case BOUNDED:
-            input.apply(ParDo.of(new PubsubBoundedWriter()));
-            return PDone.in(input.getPipeline());
-          case UNBOUNDED:
-            return input.apply(new PubsubUnboundedSink<T>(
-                FACTORY,
-                NestedValueProvider.of(topic, new TopicPathTranslator()),
-                coder,
-                timestampLabel,
-                idLabel,
-                formatFn,
-                100 /* numShards */));
+        // NOTE: The record id is always null.
+        OutgoingMessage message =
+            new OutgoingMessage(payload, attributes, c.timestamp().getMillis(), null);
+        output.add(message);
+
+        if (output.size() >= MAX_PUBLISH_BATCH_SIZE) {
+          publish();
         }
-        throw new RuntimeException(); // cases are exhaustive.
+      }
+
+      @FinishBundle
+      public void finishBundle(Context c) throws IOException {
+        if (!output.isEmpty()) {
+          publish();
+        }
+        output = null;
+        pubsubClient.close();
+        pubsubClient = null;
+      }
+
+      private void publish() throws IOException {
+        int n = pubsubClient.publish(
+            PubsubClient.topicPathFromName(getTopic().project, getTopic().topic),
+            output);
+        checkState(n == output.size());
+        output.clear();
       }
 
       @Override
       public void populateDisplayData(DisplayData.Builder builder) {
         super.populateDisplayData(builder);
-        populateCommonDisplayData(builder, timestampLabel, idLabel, topic);
-      }
-
-      @Override
-      protected Coder<Void> getDefaultOutputCoder() {
-        return VoidCoder.of();
-      }
-
-      public PubsubTopic getTopic() {
-        return topic.get();
-      }
-
-      public ValueProvider<PubsubTopic> getTopicProvider() {
-        return topic;
-      }
-
-      public String getTimestampLabel() {
-        return timestampLabel;
-      }
-
-      public String getIdLabel() {
-        return idLabel;
-      }
-
-      public Coder<T> getCoder() {
-        return coder;
-      }
-
-      public SimpleFunction<T, PubsubMessage> getFormatFn() {
-          return formatFn;
-      }
-
-      /**
-       * Writer to Pubsub which batches messages from bounded collections.
-       *
-       * <p>NOTE: This is not the implementation used when running on the Google Cloud Dataflow
-       * service in streaming mode.
-       *
-       * <p>Public so can be suppressed by runners.
-       */
-      public class PubsubBoundedWriter extends DoFn<T, Void> {
-        private static final int MAX_PUBLISH_BATCH_SIZE = 100;
-        private transient List<OutgoingMessage> output;
-        private transient PubsubClient pubsubClient;
-
-        @StartBundle
-        public void startBundle(Context c) throws IOException {
-          this.output = new ArrayList<>();
-          // NOTE: idLabel is ignored.
-          this.pubsubClient =
-              FACTORY.newClient(timestampLabel, null,
-                                c.getPipelineOptions().as(PubsubOptions.class));
-        }
-
-        @ProcessElement
-        public void processElement(ProcessContext c) throws IOException {
-          byte[] payload = null;
-          Map<String, String> attributes = null;
-          if (formatFn != null) {
-            PubsubMessage message = formatFn.apply(c.element());
-            payload = message.getMessage();
-            attributes = message.getAttributeMap();
-          } else {
-            payload = CoderUtils.encodeToByteArray(getCoder(), c.element());
-          }
-          // NOTE: The record id is always null.
-          OutgoingMessage message =
-              new OutgoingMessage(payload, attributes, c.timestamp().getMillis(), null);
-          output.add(message);
-
-          if (output.size() >= MAX_PUBLISH_BATCH_SIZE) {
-            publish();
-          }
-        }
-
-        @FinishBundle
-        public void finishBundle(Context c) throws IOException {
-          if (!output.isEmpty()) {
-            publish();
-          }
-          output = null;
-          pubsubClient.close();
-          pubsubClient = null;
-        }
-
-        private void publish() throws IOException {
-          int n = pubsubClient.publish(
-              PubsubClient.topicPathFromName(getTopic().project, getTopic().topic),
-              output);
-          checkState(n == output.size());
-          output.clear();
-        }
-
-        @Override
-        public void populateDisplayData(DisplayData.Builder builder) {
-          super.populateDisplayData(builder);
-          builder.delegate(Bound.this);
-        }
+        builder.delegate(Write.this);
       }
     }
-
-    /** Disallow construction of utility class. */
-    private Write() {}
   }
 }
