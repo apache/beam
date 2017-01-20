@@ -25,9 +25,9 @@ import (
 func Execute(ctx context.Context, p *beam.Pipeline) error {
 	edges, nodes := p.FakeBuild()
 
-	for _, edge := range edges {
-		log.Printf("%v", edge)
-	}
+	//	for _, edge := range edges {
+	//		log.Printf("%v", edge)
+	//	}
 
 	// (1) create channels for each node. Note that GBK results is chan { K, chan V }.
 
