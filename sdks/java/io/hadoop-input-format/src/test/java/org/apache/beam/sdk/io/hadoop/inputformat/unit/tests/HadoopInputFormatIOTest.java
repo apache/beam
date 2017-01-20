@@ -26,6 +26,7 @@ import java.util.List;
 import java.util.Map.Entry;
 
 import org.apache.beam.sdk.coders.AvroCoder;
+import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.BoundedSource.BoundedReader;
@@ -44,7 +45,7 @@ import org.apache.beam.sdk.io.hadoop.inputformat.unit.tests.inputs.ConfigurableE
 import org.apache.beam.sdk.io.hadoop.inputformat.unit.tests.inputs.Employee;
 import org.apache.beam.sdk.io.hadoop.inputformat.unit.tests.inputs.NewObjectsEmployeeInputFormat;
 import org.apache.beam.sdk.io.hadoop.inputformat.unit.tests.inputs.ReuseObjectsEmployeeInputFormat;
-import org.apache.beam.sdk.io.hadoop.inputformat.unit.tests.inputs.UnitTestUtils;
+import org.apache.beam.sdk.io.hadoop.inputformat.unit.tests.inputs.TestEmployeeDataSet;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.SourceTestUtils;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -79,20 +80,18 @@ public class HadoopInputFormatIOTest {
   private PBegin input = PBegin.in(p);
 
   @BeforeClass
-  public static void setUp() {
+  public static void setUp() throws IOException, InterruptedException {
     serConf = loadTestConfiguration(
-                  NewObjectsEmployeeInputFormat.class, 
-                  Text.class, 
+                  NewObjectsEmployeeInputFormat.class,
+                  Text.class,
                   Employee.class);
     myKeyTranslate = new SimpleFunction<Text, String>() {
-      private static final long serialVersionUID = 1L;
       @Override
       public String apply(Text input) {
         return input.toString();
       }
     };
     myValueTranslate = new SimpleFunction<Employee, String>() {
-      private static final long serialVersionUID = 1L;
       @Override
       public String apply(Employee input) {
         return input.getEmpName() + "_" + input.getEmpAddress();
@@ -114,6 +113,12 @@ public class HadoopInputFormatIOTest {
     assertEquals(myKeyTranslate.getOutputTypeDescriptor(), read.getKeyClass());
   }
 
+  /**
+   * This test validates {@link HadoopInputFormatIO.Read Read} builds correctly in different order
+   * of with configuration/key translation/value translation. This test also validates output
+   * PCollection key/value classes are set correctly even if Hadoop configuration is set after
+   * setting key/value translation.
+   */
   @Test
   public void testReadBuildsCorrectlyInDifferentOrder() {
     HadoopInputFormatIO.Read<String, String> read =
@@ -129,13 +134,38 @@ public class HadoopInputFormatIOTest {
     assertEquals(myValueTranslate.getOutputTypeDescriptor(), read.getValueClass());
   }
 
+  /**
+   * This test validates {@link HadoopInputFormatIO.Read Read} object creation if
+   * {@link HadoopInputFormatIO.Read#withConfiguration() withConfiguration()} is called more that
+   * one time.
+   */
+  @Test
+  public void testReadBuildsCorrectlyIfWithConfigurationIsCalledMoreThanOneTime() {
+    SerializableConfiguration diffConf =
+        loadTestConfiguration(BadNullCreateReaderInputFormat.class, Employee.class, Text.class);
+    HadoopInputFormatIO.Read<String, String> read = HadoopInputFormatIO.<String, String>read()
+        .withConfiguration(serConf.getHadoopConfiguration())
+        .withKeyTranslation(myKeyTranslate)
+        .withConfiguration(diffConf.getHadoopConfiguration());
+    assertEquals(diffConf.getHadoopConfiguration(),
+        read.getConfiguration().getHadoopConfiguration());
+    assertEquals(myKeyTranslate, read.getKeyTranslationFunction());
+    assertEquals(null, read.getValueTranslationFunction());
+    assertEquals(myKeyTranslate.getOutputTypeDescriptor(), read.getKeyClass());
+    assertEquals(diffConf.getHadoopConfiguration()
+        .getClass(HadoopInputFormatIOContants.VALUE_CLASS, Object.class), read.getValueClass().getRawType());
+  }
+
+  /**
+   * This test validates functionality of {@link HadoopInputFormatIO.Read#populateDisplayData()
+   * populateDisplayData()}.
+   */
   @Test
   public void testReadDisplayData() {
     HadoopInputFormatIO.Read<String, String> read = HadoopInputFormatIO.<String, String>read()
         .withConfiguration(serConf.getHadoopConfiguration())
         .withKeyTranslation(myKeyTranslate)
         .withValueTranslation(myValueTranslate);
-    read.validate(input);
     DisplayData displayData = DisplayData.from(read);
     Iterator<Entry<String, String>> propertyElement = serConf.getHadoopConfiguration().iterator();
     while (propertyElement.hasNext()) {
@@ -143,14 +173,15 @@ public class HadoopInputFormatIOTest {
       assertThat(displayData, hasDisplayItem(element.getKey(), element.getValue()));
     }
     assertThat(displayData,
-        hasDisplayItem("KeyTranslationSimpleFunction", myKeyTranslate.toString()));
+        hasDisplayItem("KeyTranslation", myKeyTranslate.toString()));
     assertThat(displayData,
-        hasDisplayItem("ValueTranslationSimpleFunction", myValueTranslate.toString()));
+        hasDisplayItem("ValueTranslation", myValueTranslate.toString()));
   }
 
   /**
-   * This test validates Read transform object creation fails with null configuration.
-   * withConfiguration() method checks configuration is null and throws exception if it is null.
+   * This test validates {@link HadoopInputFormatIO.Read Read} transform object creation fails with
+   * null configuration. {@link HadoopInputFormatIO.Read#withConfiguration() withConfiguration()}
+   * method checks configuration is null and throws exception if it is null.
    */
   @Test
   public void testReadObjectCreationFailsIfConfigurationIsNull() {
@@ -161,13 +192,13 @@ public class HadoopInputFormatIOTest {
   }
 
   /**
-   * This test validates Read transform object creation with only configuration.
+   * This test validates {@link HadoopInputFormatIO.Read Read} transform object creation with only
+   * configuration.
    */
   @Test
   public void testReadObjectCreationWithConfiguration() {
     HadoopInputFormatIO.Read<Text, Employee> read = HadoopInputFormatIO.<Text, Employee>read()
         .withConfiguration(serConf.getHadoopConfiguration());
-    read.validate(input);
     assertEquals(serConf.getHadoopConfiguration(),
         read.getConfiguration().getHadoopConfiguration());
     assertEquals(null, read.getKeyTranslationFunction());
@@ -180,9 +211,10 @@ public class HadoopInputFormatIOTest {
   }
 
   /**
-   * This test validates Read transform object creation fails with configuration and null key
-   * translation. withKeyTranslation() checks keyTranslation is null and throws exception if it null
-   * value is passed.
+   * This test validates {@link HadoopInputFormatIO.Read Read} transform object creation fails with
+   * configuration and null key translation. {@link HadoopInputFormatIO.Read#withKeyTranslation()
+   * withKeyTranslation()} checks keyTranslation is null and throws exception if it null value is
+   * passed.
    */
   @Test
   public void testReadObjectCreationFailsIfKeyTranslationFunctionIsNull() {
@@ -194,14 +226,14 @@ public class HadoopInputFormatIOTest {
   }
 
   /**
-   * This test validates Read transform object creation with configuration and key translation.
+   * This test validates {@link HadoopInputFormatIO.Read Read} transform object creation with
+   * configuration and key translation.
    */
   @Test
   public void testReadObjectCreationWithConfigurationKeyTranslation() {
     HadoopInputFormatIO.Read<String, Employee> read = HadoopInputFormatIO.<String, Employee>read()
         .withConfiguration(serConf.getHadoopConfiguration())
         .withKeyTranslation(myKeyTranslate);
-    read.validate(input);
     assertEquals(serConf.getHadoopConfiguration(),
         read.getConfiguration().getHadoopConfiguration());
     assertEquals(myKeyTranslate, read.getKeyTranslationFunction());
@@ -213,9 +245,10 @@ public class HadoopInputFormatIOTest {
   }
 
   /**
-   * This test validates Read transform object creation fails with configuration and null value
-   * translation. withValueTranslation() checks valueTranslation is null and throws exception if
-   * null value is passed.
+   * This test validates {@link HadoopInputFormatIO.Read Read} transform object creation fails with
+   * configuration and null value translation.
+   * {@link HadoopInputFormatIO.Read#withValueTranslation() withValueTranslation()} checks
+   * valueTranslation is null and throws exception if null value is passed.
    */
   @Test
   public void testReadObjectCreationFailsIfValueTranslationFunctionIsNull() {
@@ -227,14 +260,13 @@ public class HadoopInputFormatIOTest {
   }
 
   /**
-   * This test validates Read transform object creation with configuration and value translation.
+   * This test validates {@link HadoopInputFormatIO.Read Read} transform object creation with configuration and value translation.
    */
   @Test
   public void testReadObjectCreationWithConfigurationValueTranslation() {
     HadoopInputFormatIO.Read<Text, String> read = HadoopInputFormatIO.<Text, String>read()
         .withConfiguration(serConf.getHadoopConfiguration())
         .withValueTranslation(myValueTranslate);
-    read.validate(input);
     assertEquals(serConf.getHadoopConfiguration(),
         read.getConfiguration().getHadoopConfiguration());
     assertEquals(null, read.getKeyTranslationFunction());
@@ -246,7 +278,7 @@ public class HadoopInputFormatIOTest {
   }
 
   /**
-   * This test validates Read transform object creation with configuration , key translation and
+   * This test validates {@link HadoopInputFormatIO.Read Read} transform object creation with configuration, key translation and
    * value translation.
    */
   @Test
@@ -255,7 +287,6 @@ public class HadoopInputFormatIOTest {
         .withConfiguration(serConf.getHadoopConfiguration())
         .withKeyTranslation(myKeyTranslate)
         .withValueTranslation(myValueTranslate);
-    read.validate(input);
     assertEquals(serConf.getHadoopConfiguration(),
         read.getConfiguration().getHadoopConfiguration());
     assertEquals(myKeyTranslate, read.getKeyTranslationFunction());
@@ -267,8 +298,9 @@ public class HadoopInputFormatIOTest {
   }
 
   /**
-   * This test validates functionality of Read.validate() function when Read transform is created
-   * without calling withConfiguration().
+   * This test validates functionality of {@link HadoopInputFormatIO.Read#validate()
+   * Read.validate()} function when Read transform is created without calling
+   * {@link HadoopInputFormatIO.Read#withConfiguration() withConfiguration()}.
    */
   @Test
   public void testReadValidationFailsMissingConfiguration() {
@@ -279,8 +311,9 @@ public class HadoopInputFormatIOTest {
   }
 
   /**
-   * This test validates functionality of withConfiguration() function when Hadoop InputFormat class
-   * is not provided by the user in configuration.
+   * This test validates functionality of {@link HadoopInputFormatIO.Read#withConfiguration()
+   * withConfiguration()} function when Hadoop InputFormat class is not provided by the user in
+   * configuration.
    */
   @Test
   public void testReadValidationFailsMissingInputFormatInConf() {
@@ -294,8 +327,8 @@ public class HadoopInputFormatIOTest {
   }
 
   /**
-   * This test validates functionality of withConfiguration() function when key class is not
-   * provided by the user in configuration.
+   * This test validates functionality of {@link HadoopInputFormatIO.Read#withConfiguration()
+   * withConfiguration()} function when key class is not provided by the user in configuration.
    */
   @Test
   public void testReadValidationFailsMissingKeyClassInConf() {
@@ -310,8 +343,8 @@ public class HadoopInputFormatIOTest {
   }
 
   /**
-   * This test validates functionality of withConfiguration() function when value class is not
-   * provided by the user in configuration.
+   * This test validates functionality of {@link HadoopInputFormatIO.Read#withConfiguration()
+   * withConfiguration()} function when value class is not provided by the user in configuration.
    */
   @Test
   public void testReadValidationFailsMissingValueClassInConf() {
@@ -326,15 +359,15 @@ public class HadoopInputFormatIOTest {
   }
 
   /**
-   * This test validates functionality of Read.validate() function when myKeyTranslate's (simple
-   * function provided by user for key translation) input type is not same as Hadoop InputFormat's
-   * keyClass(Which is property set in configuration as "key.class").
+   * This test validates functionality of {@link HadoopInputFormatIO.Read#validate()
+   * Read.validate()} function when myKeyTranslate's (simple function provided by user for key
+   * translation) input type is not same as Hadoop InputFormat's keyClass(Which is property set in
+   * configuration as "key.class").
    */
   @Test
   public void testReadValidationFailsWithWrongInputTypeKeyTranslationFunction() {
     SimpleFunction<LongWritable, String> myKeyTranslateWithWrongInputType =
         new SimpleFunction<LongWritable, String>() {
-          private static final long serialVersionUID = 1L;
           @Override
           public String apply(LongWritable input) {
             return input.toString();
@@ -355,7 +388,7 @@ public class HadoopInputFormatIOTest {
   }
 
   /**
-   * This test validates functionality of Read.validate() function when myValueTranslate's (simple
+   * This test validates functionality of {@link HadoopInputFormatIO.Read#validate() Read.validate()} function when myValueTranslate's (simple
    * function provided by user for value translation) input type is not same as Hadoop InputFormat's
    * valueClass(Which is property set in configuration as "value.class").
    */
@@ -363,7 +396,6 @@ public class HadoopInputFormatIOTest {
   public void testReadValidationFailsWithWrongInputTypeValueTranslationFunction() {
     SimpleFunction<LongWritable, String> myValueTranslateWithWrongInputType =
         new SimpleFunction<LongWritable, String>() {
-          private static final long serialVersionUID = 1L;
           @Override
           public String apply(LongWritable input) {
             return input.toString();
@@ -387,30 +419,21 @@ public class HadoopInputFormatIOTest {
   public void testReadingData() throws Exception {
     HadoopInputFormatIO.Read<Text, Employee> read = HadoopInputFormatIO.<Text, Employee>read()
         .withConfiguration(serConf.getHadoopConfiguration());
-    List<KV<Text, Employee>> expected = UnitTestUtils.getEmployeeData();
+    List<KV<Text, Employee>> expected = TestEmployeeDataSet.getEmployeeData();
     PCollection<KV<Text, Employee>> actual = p.apply("ReadTest", read);
     PAssert.that(actual).containsInAnyOrder(expected);
     p.run();
   }
 
   /**
-   * This test validates behavior of HadoopInputFormatSource if RecordReader object creation fails
-   * in start() method.
+   * This test validates behavior of {@link HadoopInputFormatBoundedSource} if RecordReader object creation fails
+   * in {@link HadoopInputFormatBoundedSource.HadoopInputFormatReader#start() start()} method.
    */
   @Test
   public void testReadersStartIfCreateRecordReaderFails() throws Exception {
-    SerializableConfiguration serConf = 
-      loadTestConfiguration(
-            BadCreateReaderInputFormat.class, 
-            Text.class, 
-            Employee.class);
-    HadoopInputFormatBoundedSource<Text, Employee> parentHIFSource =
-        new HadoopInputFormatBoundedSource<Text, Employee>(serConf, 
-            WritableCoder.of(Text.class),
-            AvroCoder.of(Employee.class));
     List<BoundedSource<KV<Text, Employee>>> boundedSourceList =
-        (List<BoundedSource<KV<Text, Employee>>>) parentHIFSource.splitIntoBundles(0,
-            p.getOptions());
+        getBoundedSourceList(BadCreateReaderInputFormat.class, Text.class, Employee.class,
+            WritableCoder.of(Text.class), AvroCoder.of(Employee.class));
     for (BoundedSource<KV<Text, Employee>> source : boundedSourceList) {
       BoundedReader<KV<Text, Employee>> reader = source.createReader(p.getOptions());
       thrown.expect(Exception.class);
@@ -421,24 +444,17 @@ public class HadoopInputFormatIOTest {
   }
 
   /**
-   * This test validates behavior of HadoopInputFormatSource if createRecordReader() of InputFormat
-   * returns null.
+   * This test validates behavior of HadoopInputFormatSource if
+   * {@link InputFormat#createRecordReader() createRecordReader()} of InputFormat returns null.
    */
   @Test
   public void testReadersStartWithNullCreateRecordReader() throws Exception {
-    SerializableConfiguration serConf =
-      loadTestConfiguration(
-          BadNullCreateReaderInputFormat.class, 
-          Text.class, 
-          Employee.class);
-    HadoopInputFormatBoundedSource<Text, Employee> parentHIFSource =
-        new HadoopInputFormatBoundedSource<Text, Employee>(
-            serConf, 
-            WritableCoder.of(Text.class),
-            AvroCoder.of(Employee.class));
-    List<BoundedSource<KV<Text, Employee>>> boundedSourceList = 
-        (List<BoundedSource<KV<Text, Employee>>>) parentHIFSource
-              .splitIntoBundles(0, p.getOptions());
+    List<BoundedSource<KV<Text, Employee>>> boundedSourceList = getBoundedSourceList(
+        BadNullCreateReaderInputFormat.class,
+        Text.class,
+        Employee.class,
+        WritableCoder.of(Text.class),
+        AvroCoder.of(Employee.class));
     for (BoundedSource<KV<Text, Employee>> source : boundedSourceList) {
       BoundedReader<KV<Text, Employee>> reader = source.createReader(p.getOptions());
       thrown.expect(IOException.class);
@@ -450,24 +466,19 @@ public class HadoopInputFormatIOTest {
   }
 
   /**
-   * This test validates behavior of createReader() and start() methods if InputFormat's getSplits()
-   * returns InputSplitList having having no records.
+   * This test validates behavior of {@link HadoopInputFormatBoundedSource#createReader()
+   * createReader()} and {@link HadoopInputFormatBoundedSource.HadoopInputFormatReader#start()
+   * start()} methods if InputFormat's {@link InputFormat#getSplits() getSplits()} returns
+   * InputSplitList having having no records.
    */
   @Test
   public void testReadersCreateReaderAndStartWithZeroRecords() throws Exception {
-    SerializableConfiguration serConf = 
-     loadTestConfiguration(
+    List<BoundedSource<KV<Text, Employee>>> boundedSourceList = getBoundedSourceList(
         BadNoRecordsInputFormat.class,
-        java.lang.String.class, 
-        java.lang.String.class);
-    HadoopInputFormatBoundedSource<Text, Employee> parentHIFSource =
-        new HadoopInputFormatBoundedSource<Text, Employee>(
-            serConf, 
-            WritableCoder.of(Text.class),
-            AvroCoder.of(Employee.class));
-    List<BoundedSource<KV<Text, Employee>>> boundedSourceList =
-        (List<BoundedSource<KV<Text, Employee>>>) parentHIFSource
-              .splitIntoBundles(0, p.getOptions());
+        Text.class,
+        Employee.class,
+        WritableCoder.of(Text.class),
+        AvroCoder.of(Employee.class));
     for (BoundedSource<KV<Text, Employee>> source : boundedSourceList) {
       BoundedReader<KV<Text, Employee>> reader = source.createReader(p.getOptions());
       assertEquals(false, reader.start());
@@ -479,35 +490,36 @@ public class HadoopInputFormatIOTest {
    */
   @Test
   public void testReadersGetFractionConsumed() throws Exception {
-    List<KV<Text, Employee>> referenceRecords = UnitTestUtils.getEmployeeData();
-    HadoopInputFormatBoundedSource<Text, Employee> parentHIFSource =
-        new HadoopInputFormatBoundedSource<Text, Employee>(
-            serConf, 
+    List<KV<Text, Employee>> referenceRecords = TestEmployeeDataSet.getEmployeeData();
+    HadoopInputFormatBoundedSource<Text, Employee> hifSource = getTestHIFSource(
+            NewObjectsEmployeeInputFormat.class,
+            Text.class,
+            Employee.class,
             WritableCoder.of(Text.class),
             AvroCoder.of(Employee.class));
-    long estimatedSize = parentHIFSource.getEstimatedSizeBytes(p.getOptions());
+    long estimatedSize = hifSource.getEstimatedSizeBytes(p.getOptions());
     assertEquals(referenceRecords.size(), estimatedSize);
-    List<BoundedSource<KV<Text, Employee>>> boundedSourceList =
-        (List<BoundedSource<KV<Text, Employee>>>) parentHIFSource
+    List<BoundedSource<KV<Text, Employee>>> boundedSourceList = hifSource
             .splitIntoBundles(0, p.getOptions());
-    assertEquals(UnitTestUtils.NUMBER_OF_SPLITS, boundedSourceList.size());
+    assertEquals(TestEmployeeDataSet.NUMBER_OF_SPLITS, boundedSourceList.size());
     List<KV<Text, Employee>> bundleRecords = new ArrayList<>();
     for (BoundedSource<KV<Text, Employee>> source : boundedSourceList) {
       List<KV<Text, Employee>> elements = new ArrayList<KV<Text, Employee>>();
       BoundedReader<KV<Text, Employee>> reader = source.createReader(p.getOptions());
-      assertEquals(new Double((float) 0), reader.getFractionConsumed());
-      int recordsRead = 0;
+      float recordsRead = 0;
+      assertEquals(Double.valueOf(0), reader.getFractionConsumed());
       boolean start = reader.start();
       assertEquals(true, start);
       if (start) {
         elements.add(reader.getCurrent());
-        assertEquals(new Double((float) ++recordsRead / UnitTestUtils.NUMBER_OF_RECORDS_IN_EACH_SPLIT),
+        assertEquals(Double.valueOf(++recordsRead / TestEmployeeDataSet.NUMBER_OF_RECORDS_IN_EACH_SPLIT),
             reader.getFractionConsumed());
         boolean advance = reader.advance();
         assertEquals(true, advance);
         while (advance) {
           elements.add(reader.getCurrent());
-          assertEquals(new Double((float) ++recordsRead / UnitTestUtils.NUMBER_OF_RECORDS_IN_EACH_SPLIT),
+          assertEquals(
+              Double.valueOf(++recordsRead / TestEmployeeDataSet.NUMBER_OF_RECORDS_IN_EACH_SPLIT),
               reader.getFractionConsumed());
           advance = reader.advance();
         }
@@ -519,18 +531,18 @@ public class HadoopInputFormatIOTest {
   }
 
   /**
-   * This test validates that Reader and its parent source reads the same records.
+   * This test validates that reader and its parent source reads the same records.
    */
   @Test
   public void testReaderAndParentSourceReadsSameData() throws Exception {
     HadoopInputFormatBoundedSource<String, String> parentHIFSource =
         new HadoopInputFormatBoundedSource<String, String>(
-            serConf, 
+            serConf,
             StringUtf8Coder.of(),
-            StringUtf8Coder.of(), 
-            myKeyTranslate, 
-            myValueTranslate, 
-            null);
+            StringUtf8Coder.of(),
+            myKeyTranslate,
+            myValueTranslate,
+            null); // Initially split is null as source is not split.
     List<BoundedSource<KV<String, String>>> boundedSourceList =
         (List<BoundedSource<KV<String, String>>>) parentHIFSource
         .splitIntoBundles(0, p.getOptions());
@@ -541,19 +553,20 @@ public class HadoopInputFormatIOTest {
   }
 
   /**
-   * This test verifies that the method HadoopInputFormatReader.getCurrentSource() returns correct
-   * source object.
+   * This test verifies that the method
+   * {@link HadoopInputFormatBoundedSource.HadoopInputFormatReader#getCurrentSource()
+   * getCurrentSource()} returns correct source object.
    */
   @Test
   public void testGetCurrentSourceFunction() throws Exception {
     HadoopInputFormatBoundedSource<String, String> parentHIFSource =
         new HadoopInputFormatBoundedSource<String, String>(
-            serConf, 
+            serConf,
             StringUtf8Coder.of(),
-            StringUtf8Coder.of(), 
-            myKeyTranslate, 
-            myValueTranslate, 
-            null);
+            StringUtf8Coder.of(),
+            myKeyTranslate,
+            myValueTranslate,
+            null); // Initially split is null as source is not split.
     List<BoundedSource<KV<String, String>>> boundedSourceList =
         (List<BoundedSource<KV<String, String>>>) parentHIFSource
         .splitIntoBundles(0, p.getOptions());
@@ -564,39 +577,39 @@ public class HadoopInputFormatIOTest {
     }
   }
 
+
   /**
-   * This test validates behavior of HadoopInputFormatSource.createReader() method when
-   * HadoopInputFormatSource.splitIntoBundles() is not called.
+   * This test validates behavior of {@link HadoopInputFormatBoundedSource#createReader()
+   * createReader()} method when {@link HadoopInputFormatBoundedSource#splitIntoBundles()
+   * splitIntoBundles()} is not called.
    */
   @Test
   public void testCreateReaderIfSplitIntoBundlesNotCalled() throws Exception {
     HadoopInputFormatBoundedSource<String, String> parentHIFSource =
         new HadoopInputFormatBoundedSource<String, String>(
-            serConf, 
+            serConf,
             StringUtf8Coder.of(),
-            StringUtf8Coder.of(), 
-            myKeyTranslate, 
-            myValueTranslate, 
-            null);
+            StringUtf8Coder.of(),
+            myKeyTranslate,
+            myValueTranslate,
+            null); // Initially split is null as source is not split.
     thrown.expect(IOException.class);
     thrown.expectMessage(HadoopInputFormatIOContants.CREATEREADER_UNSPLIT_SOURCE_ERROR_MSG);
     parentHIFSource.createReader(p.getOptions());
   }
 
   /**
-   * This test validates behavior of getEstimatedSizeBytes() and splitIntoBundles() when Hadoop
-   * InputFormat's getSplits() returns empty list.
+   * This test validates behavior of {@link HadoopInputFormatBoundedSource#getEstimatedSizeBytes()
+   * getEstimatedSizeBytes()} and {@link HadoopInputFormatBoundedSource#splitIntoBundles()
+   * splitIntoBundles()} when Hadoop InputFormat's {@link InputFormat#getSplits() getSplits()}
+   * returns empty list.
    */
   @Test
   public void testSplitIntoBundlesIfGetSplitsReturnsEmptyList() throws Exception {
-    SerializableConfiguration serConf =
-        loadTestConfiguration(
-            BadEmptySplitsInputFormat.class, 
-            Text.class, 
-            Employee.class);
-    HadoopInputFormatBoundedSource<Text, Employee> parentHIFSource =
-        new HadoopInputFormatBoundedSource<Text, Employee>(
-            serConf, 
+    HadoopInputFormatBoundedSource<Text, Employee> parentHIFSource = getTestHIFSource(
+            BadEmptySplitsInputFormat.class,
+            Text.class,
+            Employee.class,
             WritableCoder.of(Text.class),
             AvroCoder.of(Employee.class));
     thrown.expect(IOException.class);
@@ -608,19 +621,17 @@ public class HadoopInputFormatIOTest {
   }
 
   /**
-   * This test validates behavior of getEstimatedSizeBytes() and splitIntoBundles() when Hadoop
-   * InputFormat's getSplits() returns NULL value.
+   * This test validates behavior of {@link HadoopInputFormatBoundedSource#getEstimatedSizeBytes()
+   * getEstimatedSizeBytes()} and {@link HadoopInputFormatBoundedSource#splitIntoBundles()
+   * splitIntoBundles()} when Hadoop InputFormat's {@link InputFormat#getSplits() getSplits()}
+   * returns NULL value.
    */
   @Test
   public void testSplitIntoBundlesIfGetSplitsReturnsNullValue() throws Exception {
-    SerializableConfiguration serConf =
-        loadTestConfiguration(
+    HadoopInputFormatBoundedSource<Text, Employee> parentHIFSource = getTestHIFSource(
             BadNullSplitsInputFormat.class,
-            java.lang.String.class, 
-            java.lang.String.class);
-    HadoopInputFormatBoundedSource<Text, Employee> parentHIFSource =
-        new HadoopInputFormatBoundedSource<Text, Employee>(
-            serConf, 
+            Text.class,
+            Employee.class,
             WritableCoder.of(Text.class),
             AvroCoder.of(Employee.class));
     thrown.expect(IOException.class);
@@ -633,46 +644,39 @@ public class HadoopInputFormatIOTest {
   }
 
   /**
-   * This test validates behavior of getEstimatedSizeBytes() and splitIntoBundles() if Hadoop
-   * InputFormat's getSplits() returns InputSplit list having some null values.
+   * This test validates behavior of {@link HadoopInputFormatBoundedSource#getEstimatedSizeBytes()
+   * getEstimatedSizeBytes()} and {@link HadoopInputFormatBoundedSource#splitIntoBundles()
+   * splitIntoBundles()} if Hadoop InputFormat's {@link InputFormat#getSplits() getSplits()} returns
+   * InputSplit list having some null values.
    */
   @Test
   public void testSplitIntoBundlesIfGetSplitsReturnsListHavingNullValues() throws Exception {
-    SerializableConfiguration serConf =
-        loadTestConfiguration(
-            BadGetSplitsInputFormat.class, 
-            Text.class, 
-            Employee.class);
-    HadoopInputFormatBoundedSource<Text, Employee> parentHIFSource =
-        new HadoopInputFormatBoundedSource<Text, Employee>(
-            serConf, 
+    HadoopInputFormatBoundedSource<Text, Employee> hifSource = getTestHIFSource(
+            BadGetSplitsInputFormat.class,
+            Text.class,
+            Employee.class,
             WritableCoder.of(Text.class),
             AvroCoder.of(Employee.class));
     thrown.expect(IOException.class);
     thrown.expectMessage(HadoopInputFormatIOContants.COMPUTESPLITS_NULL_SPLIT_ERROR_MSG);
-    parentHIFSource.getEstimatedSizeBytes(p.getOptions());
+    hifSource.getEstimatedSizeBytes(p.getOptions());
     thrown.expect(IOException.class);
     thrown.expectMessage(HadoopInputFormatIOContants.COMPUTESPLITS_NULL_SPLIT_ERROR_MSG);
-    parentHIFSource.splitIntoBundles(0, p.getOptions());
+    hifSource.splitIntoBundles(0, p.getOptions());
   }
+
   /**
-   * This test validates functionality of HadoopInputFormatIO if user sets wrong key class and value
-   * class.
+   * This test validates functionality of {@link HadoopInputFormatIO} if user sets wrong key class
+   * and value class.
    */
   @Test
   public void testHIFSourceIfUserSetsWrongKeyOrValueClass() throws Exception {
-    SerializableConfiguration serConf = 
-        loadTestConfiguration(
+    List<BoundedSource<KV<String, String>>> boundedSourceList = getBoundedSourceList(
             NewObjectsEmployeeInputFormat.class,
-            java.lang.String.class, 
-            java.lang.String.class);
-    HadoopInputFormatBoundedSource<String, String> parentHIFSource =
-        new HadoopInputFormatBoundedSource<String, String>(
-            serConf, 
+            String.class,
+            String.class,
             StringUtf8Coder.of(),
             StringUtf8Coder.of());
-    List<BoundedSource<KV<String, String>>> boundedSourceList = parentHIFSource
-        .splitIntoBundles(0, p.getOptions());
     List<KV<String, String>> bundleRecords = new ArrayList<>();
     for (BoundedSource<KV<String, String>> source : boundedSourceList) {
       thrown.expect(ClassCastException.class);
@@ -687,90 +691,106 @@ public class HadoopInputFormatIOTest {
    */
   @Test
   public void testImmutablityOfOutputOfReadIfRecordReaderObjectsAreMutable() throws Exception {
-    SerializableConfiguration serConf =
-        loadTestConfiguration(
-            ReuseObjectsEmployeeInputFormat.class, 
-            Text.class, 
-            Employee.class);
-    HadoopInputFormatBoundedSource<Text, Employee> parentHIFSource =
-        new HadoopInputFormatBoundedSource<Text, Employee>(
-            serConf, 
-            WritableCoder.of(Text.class),
-            AvroCoder.of(Employee.class));
-    List<BoundedSource<KV<Text, Employee>>> boundedSourceList = parentHIFSource
-            .splitIntoBundles(0, p.getOptions());
-    List<KV<Text, Employee>> bundleRecords = new ArrayList<>();
+    List<BoundedSource<KV<Text, Employee>>> boundedSourceList = getBoundedSourceList(
+                ReuseObjectsEmployeeInputFormat.class,
+                Text.class,
+                Employee.class,
+                WritableCoder.of(Text.class),
+                AvroCoder.of(Employee.class));
+            List<KV<Text, Employee>> bundleRecords = new ArrayList<>();
     for (BoundedSource<KV<Text, Employee>> source : boundedSourceList) {
       List<KV<Text, Employee>> elems = SourceTestUtils.readFromSource(source, p.getOptions());
       bundleRecords.addAll(elems);
     }
-    List<KV<Text, Employee>> referenceRecords = UnitTestUtils.getEmployeeData();
+    List<KV<Text, Employee>> referenceRecords = TestEmployeeDataSet.getEmployeeData();
     assertThat(bundleRecords, containsInAnyOrder(referenceRecords.toArray()));
   }
 
   /**
-   * Test reading if InputFormat implements Configurable.
+   * Test reading if InputFormat implements {@link org.apache.hadoop.conf.Configurable
+   * Configurable}.
    */
   @Test
   public void testReadingWithConfigurableInputFormat() throws Exception {
-    SerializableConfiguration serConf =
-        loadTestConfiguration(
-            ConfigurableEmployeeInputFormat.class, 
-            Text.class, 
-            Employee.class);
-    HadoopInputFormatBoundedSource<Text, Employee> parentHIFSource =
-        new HadoopInputFormatBoundedSource<Text, Employee>(
-            serConf, 
-            WritableCoder.of(Text.class),
-            AvroCoder.of(Employee.class));
-    List<BoundedSource<KV<Text, Employee>>> boundedSourceList = parentHIFSource
-            .splitIntoBundles(0, p.getOptions());
+    List<BoundedSource<KV<Text, Employee>>> boundedSourceList = getBoundedSourceList(
+        ConfigurableEmployeeInputFormat.class,
+        Text.class,
+        Employee.class,
+        WritableCoder.of(Text.class),
+        AvroCoder.of(Employee.class));
     List<KV<Text, Employee>> bundleRecords = new ArrayList<>();
     for (BoundedSource<KV<Text, Employee>> source : boundedSourceList) {
       List<KV<Text, Employee>> elems = SourceTestUtils.readFromSource(source, p.getOptions());
       bundleRecords.addAll(elems);
     }
-    List<KV<Text, Employee>> referenceRecords = UnitTestUtils.getEmployeeData();
+    List<KV<Text, Employee>> referenceRecords = TestEmployeeDataSet.getEmployeeData();
     assertThat(bundleRecords, containsInAnyOrder(referenceRecords.toArray()));
   }
 
   /**
-   * This test validates records emitted in PCollection are immutable if InputFormat's recordReader
-   * returns different objects (i.e. different locations in memory).
+   * This test validates records emitted in PCollection are immutable if InputFormat's
+   * {@link org.apache.hadoop.mapreduce.RecordReader RecordReader} returns different objects (i.e.
+   * different locations in memory).
    */
   @Test
   public void testImmutablityOfOutputOfReadIfRecordReaderObjectsAreImmutable() throws Exception {
-    SerializableConfiguration serConf =
-        loadTestConfiguration(
-            NewObjectsEmployeeInputFormat.class, 
-            Text.class, 
-            Employee.class);
-    HadoopInputFormatBoundedSource<Text, Employee> parentHIFSource =
-        new HadoopInputFormatBoundedSource<Text, Employee>(
-            serConf, 
-            WritableCoder.of(Text.class),
-            AvroCoder.of(Employee.class));
-    List<BoundedSource<KV<Text, Employee>>> boundedSourceList = parentHIFSource
-            .splitIntoBundles(0, p.getOptions());
+   List<BoundedSource<KV<Text, Employee>>> boundedSourceList = getBoundedSourceList(
+       NewObjectsEmployeeInputFormat.class,
+       Text.class,
+       Employee.class,
+       WritableCoder.of(Text.class),
+       AvroCoder.of(Employee.class));
     List<KV<Text, Employee>> bundleRecords = new ArrayList<>();
     for (BoundedSource<KV<Text, Employee>> source : boundedSourceList) {
       List<KV<Text, Employee>> elems = SourceTestUtils.readFromSource(source, p.getOptions());
       bundleRecords.addAll(elems);
     }
-    List<KV<Text, Employee>> referenceRecords = UnitTestUtils.getEmployeeData();
+    List<KV<Text, Employee>> referenceRecords = TestEmployeeDataSet.getEmployeeData();
     assertThat(bundleRecords, containsInAnyOrder(referenceRecords.toArray()));
   }
 
   private static SerializableConfiguration loadTestConfiguration(
       Class<?> inputFormatClassName,
-      Class<?> keyClass, 
+      Class<?> keyClass,
       Class<?> valueClass) {
     Configuration conf = new Configuration();
-    conf.setClass(HadoopInputFormatIOContants.INPUTFORMAT_CLASSNAME, 
+    conf.setClass(HadoopInputFormatIOContants.INPUTFORMAT_CLASSNAME,
         inputFormatClassName,
         InputFormat.class);
     conf.setClass(HadoopInputFormatIOContants.KEY_CLASS, keyClass, Object.class);
     conf.setClass(HadoopInputFormatIOContants.VALUE_CLASS, valueClass, Object.class);
     return new SerializableConfiguration(conf);
+  }
+
+  private <K,V> HadoopInputFormatBoundedSource<K,V> getTestHIFSource(
+      Class<?> inputFormatClass,
+      Class<K> inputFormatKeyClass,
+      Class<V> inputFormatValueClass,
+      Coder<K> keyCoder,
+      Coder<V> valueCoder){
+    SerializableConfiguration serConf =
+        loadTestConfiguration(
+            inputFormatClass,
+            inputFormatKeyClass,
+            inputFormatValueClass);
+    return new HadoopInputFormatBoundedSource<K,V>(
+            serConf,
+            keyCoder,
+            valueCoder);
+  }
+
+  private <K,V> List<BoundedSource<KV<K, V>>> getBoundedSourceList(
+      Class<?> inputFormatClass,
+      Class<K> inputFormatKeyClass,
+      Class<V> inputFormatValueClass,
+      Coder<K> keyCoder,
+      Coder<V> valueCoder) throws Exception{
+    HadoopInputFormatBoundedSource<K,V> boundedSource = getTestHIFSource(
+        inputFormatClass,
+        inputFormatKeyClass,
+        inputFormatValueClass,
+        keyCoder,
+        valueCoder);
+    return boundedSource.splitIntoBundles(0, p.getOptions());
   }
 }

@@ -35,10 +35,10 @@ import org.apache.hadoop.mapreduce.TaskAttemptContext;
  * This is a valid InputFormat for reading employee data which is available in the form of
  * {@code List<KV>} as {@linkplain ReuseObjectsEmployeeRecordReader#employeeDataList employeeDataList}.
  * {@linkplain ReuseObjectsEmployeeRecordReader#employeeDataList employeeDataList} is populated using
- * {@linkplain UnitTestUtils#populateEmployeeDataNew()}.
+ * {@linkplain TestEmployeeDataSet#populateEmployeeDataNew()}.
  * <p>
- * {@linkplain ReuseObjectsEmployeeInputFormat} splits data into {@value UnitTestUtils#NUMBER_OF_SPLITS}
- * splits, each split having {@value UnitTestUtils#NUMBER_OF_RECORDS_IN_EACH_SPLIT} records each.
+ * {@linkplain ReuseObjectsEmployeeInputFormat} splits data into {@value TestEmployeeDataSet#NUMBER_OF_SPLITS}
+ * splits, each split having {@value TestEmployeeDataSet#NUMBER_OF_RECORDS_IN_EACH_SPLIT} records each.
  * {@linkplain ReuseObjectsEmployeeInputFormat} reads data from
  * {@linkplain ReuseObjectsEmployeeRecordReader#employeeDataList employeeDataList} and produces a key (employee id) of
  * type Text and value of type {@linkplain Employee Employee}.
@@ -60,10 +60,10 @@ public class ReuseObjectsEmployeeInputFormat extends InputFormat<Text, Employee>
   @Override
   public List<InputSplit> getSplits(JobContext arg0) throws IOException, InterruptedException {
     List<InputSplit> inputSplitList = new ArrayList<InputSplit>();
-    for (int i = 1; i <= UnitTestUtils.NUMBER_OF_SPLITS; i++) {
+    for (int i = 1; i <= TestEmployeeDataSet.NUMBER_OF_SPLITS; i++) {
       InputSplit inputSplitObj =
-          new ReuseEmployeeInputSplit(((i - 1) * UnitTestUtils.NUMBER_OF_RECORDS_IN_EACH_SPLIT),
-              (i * UnitTestUtils.NUMBER_OF_RECORDS_IN_EACH_SPLIT - 1));
+          new ReuseEmployeeInputSplit(((i - 1) * TestEmployeeDataSet.NUMBER_OF_RECORDS_IN_EACH_SPLIT),
+              (i * TestEmployeeDataSet.NUMBER_OF_RECORDS_IN_EACH_SPLIT - 1));
       inputSplitList.add(inputSplitObj);
     }
     return inputSplitList;
@@ -149,7 +149,7 @@ public class ReuseObjectsEmployeeInputFormat extends InputFormat<Text, Employee>
       this.split = (ReuseEmployeeInputSplit) split;
       employeeListIndex = this.split.getStartIndex() - 1;
       recordsRead = 0;
-      employeeDataList = UnitTestUtils.populateEmployeeData();
+      employeeDataList = TestEmployeeDataSet.populateEmployeeData();
     }
 
     @Override

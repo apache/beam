@@ -9,7 +9,7 @@ import org.apache.hadoop.io.Text;
 import com.google.common.base.Function;
 import com.google.common.collect.Lists;
 
-public class UnitTestUtils {
+public class TestEmployeeDataSet {
   /**
    * Test Utils used in {@link NewObjectsEmployeeInputFormat} and {@link ReuseObjectsEmployeeInputFormat}
    * for computing splits.
