@@ -40,7 +40,7 @@ public class NameUtils {
   }
 
   private static final String[] STANDARD_NAME_SUFFIXES =
-      new String[]{"OldDoFn", "DoFn", "CombineFn", "Fn"};
+      new String[]{"DoFn", "CombineFn", "Fn"};
 
   /**
    * Pattern to match a non-anonymous inner class.
