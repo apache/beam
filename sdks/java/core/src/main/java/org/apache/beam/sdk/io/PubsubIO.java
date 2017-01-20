@@ -468,8 +468,8 @@ public class PubsubIO {
    *
    * <p>When running with a {@link PipelineRunner} that only supports bounded
    * {@link PCollection PCollections}, only a bounded portion of the input Pub/Sub stream
-   * can be processed. As such, either {@link PubsubIO#Read#maxNumRecords(int)} or
-   * {@link PubsubIO#Read#maxReadTime(Duration)} must be set.
+   * can be processed. As such, either {@link PubsubIO.Read#maxNumRecords(int)} or
+   * {@link PubsubIO.Read#maxReadTime(Duration)} must be set.
    */
    public static class Read<T> extends PTransform<PBegin, PCollection<T>> {
       /** The Cloud Pub/Sub topic to read from. */
@@ -515,19 +515,19 @@ public class PubsubIO {
         this.parseFn = parseFn;
       }
 
-    /**
-     * Returns a transform that's like this one but reading from the
-     * given subscription.
-     *
-     * <p>See {@link PubsubIO.PubsubSubscription#fromPath(String)} for more details on the format
-     * of the {@code subscription} string.
-     *
-     * <p>Multiple readers reading from the same subscription will each receive
-     * some arbitrary portion of the data.  Most likely, separate readers should
-     * use their own subscriptions.
-     *
-     * <p>Does not modify this object.
-     */
+      /**
+       * Returns a transform that's like this one but reading from the
+       * given subscription.
+       *
+       * <p>See {@link PubsubIO.PubsubSubscription#fromPath(String)} for more details on the format
+       * of the {@code subscription} string.
+       *
+       * <p>Multiple readers reading from the same subscription will each receive
+       * some arbitrary portion of the data.  Most likely, separate readers should
+       * use their own subscriptions.
+       *
+       * <p>Does not modify this object.
+       */
       public Read<T> subscription(String subscription) {
         return subscription(StaticValueProvider.of(subscription));
       }
@@ -545,17 +545,17 @@ public class PubsubIO {
             topic, timestampLabel, coder, idLabel, maxNumRecords, maxReadTime, parseFn);
       }
 
-    /**
-     * Creates and returns a transform for reading from a Cloud Pub/Sub topic. Mutually exclusive
-     * with {@link #subscription(String)}.
-     *
-     * <p>See {@link PubsubIO.PubsubTopic#fromPath(String)} for more details on the format
-     * of the {@code topic} string.
-     *
-     * <p>The Beam runner will start reading data published on this topic from the time the pipeline
-     * is started. Any data published on the topic before the pipeline is started will not be read
-     * by the runner.
-     */
+      /**
+       * Creates and returns a transform for reading from a Cloud Pub/Sub topic. Mutually exclusive
+       * with {@link #subscription(String)}.
+       *
+       * <p>See {@link PubsubIO.PubsubTopic#fromPath(String)} for more details on the format
+       * of the {@code topic} string.
+       *
+       * <p>The Beam runner will start reading data published on this topic from the time the
+       * pipeline is started. Any data published on the topic before the pipeline is started will
+       * not be read by the runner.
+       */
       public Read<T> topic(String topic) {
         return topic(StaticValueProvider.of(topic));
       }
