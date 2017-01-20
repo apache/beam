@@ -468,8 +468,8 @@ public class PubsubIO {
    *
    * <p>When running with a {@link PipelineRunner} that only supports bounded
    * {@link PCollection PCollections}, only a bounded portion of the input Pub/Sub stream
-   * can be processed. As such, either {@link Read#maxNumRecords(int)} or
-   * {@link Read#maxReadTime(Duration)} must be set.
+   * can be processed. As such, either {@link #Read#maxNumRecords(int)} or
+   * {@link #Read#maxReadTime(Duration)} must be set.
    */
    public static class Read<T> extends PTransform<PBegin, PCollection<T>> {
       /** The Cloud Pub/Sub topic to read from. */
@@ -1057,7 +1057,7 @@ public class PubsubIO {
     }
 
     /**
-     * Returns the {@linkValueProvider} for the topic being read from.
+     * Returns the {@link ValueProvider} for the topic being read from.
      */
     public ValueProvider<PubsubTopic> getTopicProvider() {
       return topic;
