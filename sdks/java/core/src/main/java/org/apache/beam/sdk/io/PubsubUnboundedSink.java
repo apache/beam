@@ -434,29 +434,47 @@ public class PubsubUnboundedSink<T> extends PTransform<PCollection<T>, PDone> {
          formatFn, RecordIdMethod.RANDOM);
   }
 
+  /**
+   * Get the topic being written to.
+   */
   public TopicPath getTopic() {
     return topic.get();
   }
 
+  /**
+   * Get the {@link ValueProvider} for the topic being written to.
+   */
   public ValueProvider<TopicPath> getTopicProvider() {
     return topic;
   }
 
+  /**
+   * Get the timestamp label.
+   */
   @Nullable
   public String getTimestampLabel() {
     return timestampLabel;
   }
 
+  /**
+   * Get the id label.
+   */
   @Nullable
   public String getIdLabel() {
     return idLabel;
   }
 
+  /**
+   * Get the format function used for PubSub attributes.
+   */
   @Nullable
   public SimpleFunction<T, PubsubIO.PubsubMessage> getFormatFn() {
     return formatFn;
   }
 
+  /**
+   * Get the Coder used to encode output elements.
+   */
   public Coder<T> getElementCoder() {
     return elementCoder;
   }

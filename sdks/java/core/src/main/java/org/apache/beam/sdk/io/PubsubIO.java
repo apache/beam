@@ -733,42 +733,73 @@ public class PubsubIO {
         return coder;
       }
 
+     /**
+      * Get the topic being read from.
+      */
       public PubsubTopic getTopic() {
         return topic == null ? null : topic.get();
       }
 
+     /**
+      * Get the {@link ValueProvider} for the topic being read from.
+      */
       public ValueProvider<PubsubTopic> getTopicProvider() {
         return topic;
       }
 
+     /**
+      * Get the subscription being read from.
+      */
       public PubsubSubscription getSubscription() {
         return subscription == null ? null : subscription.get();
       }
 
+     /**
+      * Get the {@link ValueProvider} for the subscription being read from.
+      */
       public ValueProvider<PubsubSubscription> getSubscriptionProvider() {
         return subscription;
       }
 
+     /**
+      * Get the timestamp label.
+      */
       public String getTimestampLabel() {
         return timestampLabel;
       }
 
-      public Coder<T> getCoder() {
-        return coder;
-      }
-
+     /**
+      * Get the id label.
+      */
       public String getIdLabel() {
         return idLabel;
       }
 
+
+     /**
+      * Get the {@link Coder} used for the transform's output.
+      */
+      public Coder<T> getCoder() {
+      return coder;
+    }
+
+     /**
+      * Get the maximum number of records to read.
+      */
       public int getMaxNumRecords() {
         return maxNumRecords;
       }
 
+     /**
+      * Get the maximum read time.
+      */
       public Duration getMaxReadTime() {
         return maxReadTime;
       }
 
+      /**
+       * Get the parse function used for PubSub attributes.
+       */
       public SimpleFunction<PubsubMessage, T> getPubSubMessageParseFn() {
           return parseFn;
         }

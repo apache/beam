@@ -1321,45 +1321,72 @@ public class PubsubUnboundedSource<T> extends PTransform<PBegin, PCollection<T>>
         parseFn);
   }
 
+  /**
+   * Get the coder used for elements.
+   */
   public Coder<T> getElementCoder() {
     return elementCoder;
   }
 
+  /**
+   * Get the project path.
+   */
   @Nullable
   public ProjectPath getProject() {
     return project == null ? null : project.get();
   }
 
+  /**
+   * Get the topic being read from.
+   */
   @Nullable
   public TopicPath getTopic() {
     return topic == null ? null : topic.get();
   }
 
+  /**
+   * Get the {@link ValueProvider} for the topic being read from.
+   */
   @Nullable
   public ValueProvider<TopicPath> getTopicProvider() {
     return topic;
   }
 
+  /**
+   * Get the subscription being read from.
+   */
   @Nullable
   public SubscriptionPath getSubscription() {
     return subscription == null ? null : subscription.get();
   }
 
+  /**
+   * Get the {@link ValueProvider} for the subscription being read from.
+   */
   @Nullable
   public ValueProvider<SubscriptionPath> getSubscriptionProvider() {
     return subscription;
   }
 
+  /**
+   * Get the timestamp label.
+   */
   @Nullable
   public String getTimestampLabel() {
     return timestampLabel;
   }
 
+  /**
+   * Get the id label.
+   */
   @Nullable
   public String getIdLabel() {
     return idLabel;
   }
 
+  /**
+   * Get the parsing function for PubSub attributes.
+   */
   @Nullable
   public SimpleFunction<PubsubIO.PubsubMessage, T> getWithAttributesParseFn() {
     return parseFn;
