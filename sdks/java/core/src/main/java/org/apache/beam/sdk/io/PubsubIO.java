@@ -590,7 +590,8 @@ public class PubsubIO {
        * </ul>
        *
        * <p>If {@code timestampLabel} is not provided, the system will generate record timestamps
-       * the first time it sees each record. All windowing will be done relative to these timestamps.
+       * the first time it sees each record. All windowing will be done relative to these
+       * timestamps.
        *
        * <p>By default, windows are emitted based on an estimate of when this source is likely
        * done producing data for a given timestamp (referred to as the Watermark; see
@@ -1049,14 +1050,14 @@ public class PubsubIO {
     }
 
     /**
-     * Returns the PubSub topic.
+     * Returns the PubSub topic being read from.
      */
     public PubsubTopic getTopic() {
       return topic.get();
     }
 
     /**
-     * Returns the topic @link{ValueProvider}
+     * Returns the {@linkValueProvider} for the topic being read from.
      */
     public ValueProvider<PubsubTopic> getTopicProvider() {
       return topic;
