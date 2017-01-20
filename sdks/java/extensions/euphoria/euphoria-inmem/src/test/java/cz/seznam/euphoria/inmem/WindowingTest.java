@@ -1,5 +1,6 @@
 package cz.seznam.euphoria.inmem;
 
+import com.google.common.collect.Sets;
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.dataset.Partitioner;
 import cz.seznam.euphoria.core.client.dataset.windowing.Count;
@@ -18,7 +19,6 @@ import cz.seznam.euphoria.core.client.operator.ReduceWindow;
 import cz.seznam.euphoria.core.client.operator.Repartition;
 import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.core.client.util.Sums;
-import cz.seznam.euphoria.guava.shaded.com.google.common.collect.Sets;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -32,9 +32,7 @@ import java.util.stream.Collectors;
 
 import static cz.seznam.euphoria.inmem.Util.sorted;
 import static java.util.Arrays.asList;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.*;
 
 public class WindowingTest {
 

@@ -7,13 +7,12 @@ import cz.seznam.euphoria.core.client.io.DataSource;
 import cz.seznam.euphoria.core.client.io.IORegistry;
 import cz.seznam.euphoria.core.client.operator.Operator;
 import cz.seznam.euphoria.core.util.Settings;
-import cz.seznam.euphoria.guava.shaded.com.google.common.io.ByteStreams;
-import cz.seznam.euphoria.guava.shaded.com.google.common.io.CountingOutputStream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.ObjectOutputStream;
+import java.io.OutputStream;
 import java.io.Serializable;
 import java.net.URI;
 import java.util.ArrayList;
@@ -100,7 +99,7 @@ public class Flow implements Serializable {
   /**
    * Adds a new operator to the flow.
    *
-   * @param operator the operator (e.g. {@link Group})
+   * @param operator the operator
    *
    * @return instance of the operator
    */
@@ -142,15 +141,30 @@ public class Flow implements Serializable {
     return operator;
   }
 
+  // ~ counts the number of bytes written through the
+  // stream while discarding the data to be written
+  static class CountingOutputStream extends OutputStream {
+    long count;
+
+    @Override
+    public void write(int b) throws IOException {
+      count++;
+    }
+
+    @Override
+    public void write(byte[] b, int off, int len) throws IOException {
+      count += len;
+    }
+  }
+
   private void validateSerializable(Operator o) {
     try {
-      final CountingOutputStream outCounter =
-          new CountingOutputStream(ByteStreams.nullOutputStream());
+      final CountingOutputStream outCounter = new CountingOutputStream();
       try (ObjectOutputStream out = new ObjectOutputStream(outCounter)) {
         out.writeObject(o);
       }
       LOG.debug("Serialized operator {} ({}) into {} bytes",
-              new Object[] {o.toString(), o.getClass(), outCounter.getCount()});
+              new Object[] {o.toString(), o.getClass(), outCounter.count});
     } catch (IOException e) {
       throw new IllegalStateException("Operator " + o + " not serializable!", e);
     }
