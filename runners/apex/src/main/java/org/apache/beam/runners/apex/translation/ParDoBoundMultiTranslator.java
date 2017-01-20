@@ -105,12 +105,12 @@ class ParDoBoundMultiTranslator<InputT, OutputT>
           output.getValue(),
           output.getValue().getClass().getSimpleName());
       PCollection<?> pc = (PCollection<?>) output.getValue();
-      if (output.getTag () == transform.getMainOutputTag()) {
+      if (output.getTag().equals(transform.getMainOutputTag())) {
         ports.put(pc, operator.output);
       } else {
         int portIndex = 0;
         for (TupleTag<?> tag : transform.getSideOutputTags().getAll()) {
-          if (tag == output.getTag()) {
+          if (tag.equals(output.getTag())) {
             ports.put(pc, operator.sideOutputPorts[portIndex]);
             break;
           }
