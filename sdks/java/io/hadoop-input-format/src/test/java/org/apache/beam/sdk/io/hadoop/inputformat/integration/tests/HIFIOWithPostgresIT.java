@@ -9,6 +9,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 
 import org.apache.beam.sdk.io.hadoop.inputformat.HadoopInputFormatIO;
+import org.apache.beam.sdk.io.hadoop.inputformat.HadoopInputFormatIOContants;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Count;
@@ -18,6 +19,7 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.io.Writable;
+import org.apache.hadoop.mapred.lib.db.DBInputFormat.NullDBWritable;
 import org.apache.hadoop.mapreduce.InputFormat;
 import org.apache.hadoop.mapreduce.lib.db.DBWritable;
 import org.junit.FixMethodOrder;
@@ -41,15 +43,6 @@ import org.junit.runners.MethodSorters;
 @FixMethodOrder(MethodSorters.JVM)
 public class HIFIOWithPostgresIT implements Serializable {
 
-	/*
-	 * private static final long serialVersionUID = 1L; private static final
-	 * String DRIVER_CLASS_PROPERTY = "org.postgresql.Driver"; private static
-	 * final String URL_PROPERTY =
-	 * "jdbc:postgresql://104.197.246.66:5432/postgres"; private static final
-	 * String USERNAME_PROPERTY = "postgres"; private static final String
-	 * PASSWORD_PROPERTY = "euthS3M1"; private static final String
-	 * INPUT_TABLE_NAME_PROPERTY = "mytable";
-	 */
 	private static final String DRIVER_CLASS_PROPERTY = "org.postgresql.Driver";
 	private static final String URL_PROPERTY = "jdbc:postgresql://localhost:5432/beamdb";
 	private static final String USERNAME_PROPERTY = "postgres";
@@ -63,7 +56,6 @@ public class HIFIOWithPostgresIT implements Serializable {
 			IllegalAccessException, ClassNotFoundException,
 			InterruptedException {
 		Configuration conf = getConfiguration();
-
 		PCollection<KV<Text, IntWritable>> postgresData = p
 				.apply(HadoopInputFormatIO.<Text, IntWritable> read()
 						.withConfiguration(conf));
@@ -71,10 +63,14 @@ public class HIFIOWithPostgresIT implements Serializable {
 				postgresData.apply("Count",
 						Count.<KV<Text, IntWritable>> globally()))
 				.isEqualTo(3L);
-
+		//TODO add test for checking the contents
 		p.run();
 	}
-
+	
+	/**
+	 * Method to set Postgres specific configuration- driver class, jdbc url, 
+	 * username, password, and table name
+	 */
 	private Configuration getConfiguration() {
 		Configuration conf = new Configuration();
 		conf.set("mapreduce.jdbc.driver.class", DRIVER_CLASS_PROPERTY);
@@ -84,16 +80,13 @@ public class HIFIOWithPostgresIT implements Serializable {
 		conf.set("mapreduce.jdbc.input.table.name", INPUT_TABLE_NAME_PROPERTY);
 		conf.set("mapreduce.jdbc.input.query", "SELECT * FROM "
 				+ INPUT_TABLE_NAME_PROPERTY);
-		// conf.set("mapreduce.jdbc.input.count.query",
-		// "SELECT count(*) FROM mytable");
-		conf.setClass("mapreduce.job.inputformat.class",
+		conf.setClass(HadoopInputFormatIOContants.INPUTFORMAT_CLASSNAME,
 				org.apache.hadoop.mapreduce.lib.db.DBInputFormat.class,
 				InputFormat.class);
-		conf.setClass("key.class", org.apache.hadoop.io.LongWritable.class,
+		conf.setClass(HadoopInputFormatIOContants.KEY_CLASS, org.apache.hadoop.io.LongWritable.class,
 				Object.class);
-		conf.setClass("value.class", DBInputWritable.class, Object.class);
+		conf.setClass(HadoopInputFormatIOContants.VALUE_CLASS, NullDBWritable.class, Object.class);
 		return conf;
 	}
 
 }
-
