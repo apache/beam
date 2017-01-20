@@ -230,6 +230,10 @@ public class DoFnOperator<InputT, FnOutputT, OutputT>
       }
     };
 
+    doFnInvoker = DoFnInvokers.invokerFor(doFn);
+
+    doFnInvoker.invokeSetup();
+
     DoFnRunner<InputT, FnOutputT> doFnRunner = DoFnRunners.simpleRunner(
         serializedOptions.getPipelineOptions(),
             doFn,
@@ -244,9 +248,6 @@ public class DoFnOperator<InputT, FnOutputT, OutputT>
     pushbackDoFnRunner =
         PushbackSideInputDoFnRunner.create(doFnRunner, sideInputs, sideInputHandler);
 
-    doFnInvoker = DoFnInvokers.invokerFor(doFn);
-
-    doFnInvoker.invokeSetup();
   }
 
   @Override

@@ -38,8 +38,11 @@ import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.ScheduledFuture;
 import javax.annotation.Nullable;
-
-import org.apache.beam.runners.core.*;
+import org.apache.beam.runners.core.ExecutionContext;
+import org.apache.beam.runners.core.GroupAlsoByWindowViaWindowSetNewDoFn;
+import org.apache.beam.runners.core.KeyedWorkItem;
+import org.apache.beam.runners.core.KeyedWorkItems;
+import org.apache.beam.runners.core.SystemReduceFn;
 import org.apache.beam.runners.flink.translation.wrappers.DataInputViewWrapper;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -52,6 +55,7 @@ import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.util.state.StateInternals;
 import org.apache.beam.sdk.util.state.StateInternalsFactory;
 import org.apache.beam.sdk.util.state.StateNamespace;
+import org.apache.beam.sdk.util.state.TimerInternalsFactory;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
@@ -87,7 +91,7 @@ public class WindowDoFnOperator<K, InputT, OutputT>
   private transient Map<Long, ScheduledFuture<?>> processingTimeTimerFutures;
 
   private transient FlinkStateInternals<K> stateInternals;
-  private FlinkTimerInternals timerInternals;
+  private transient FlinkTimerInternals timerInternals;
 
   private final SystemReduceFn<K, InputT, ?, OutputT, BoundedWindow> systemReduceFn;
 
@@ -130,6 +134,13 @@ public class WindowDoFnOperator<K, InputT, OutputT>
         return stateInternals;
       }
     };
+    TimerInternalsFactory<K> timerInternalsFactory = new TimerInternalsFactory<K>() {
+      @Override
+      public TimerInternals timerInternalsForKey(K key) {
+        //this will implicitly be keyed like the StateInternalsFactory
+        return timerInternals;
+      }
+    };
 
     // we have to do the unchecked cast because GroupAlsoByWindowViaWindowSetDoFn.create
     // has the window type as generic parameter while WindowingStrategy is almost always
@@ -137,7 +148,7 @@ public class WindowDoFnOperator<K, InputT, OutputT>
     @SuppressWarnings("unchecked")
     DoFn<KeyedWorkItem<K, InputT>, KV<K, OutputT>> doFn =
         GroupAlsoByWindowViaWindowSetNewDoFn.create(
-            windowingStrategy, stateInternalsFactory, timerInternals, sideInputReader,
+            windowingStrategy, stateInternalsFactory, timerInternalsFactory, sideInputReader,
                 (SystemReduceFn) systemReduceFn, outputManager, mainOutputTag);
     return doFn;
   }
