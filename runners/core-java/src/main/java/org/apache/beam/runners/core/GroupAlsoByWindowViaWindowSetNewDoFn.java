@@ -1,3 +1,20 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package org.apache.beam.runners.core;
 
 import org.apache.beam.runners.core.triggers.ExecutableTriggerStateMachine;
@@ -14,6 +31,7 @@ import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowingStrategy;
 import org.apache.beam.sdk.util.state.StateInternals;
 import org.apache.beam.sdk.util.state.StateInternalsFactory;
+import org.apache.beam.sdk.util.state.TimerInternalsFactory;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TupleTag;
 import org.joda.time.Instant;
@@ -30,13 +48,13 @@ public class GroupAlsoByWindowViaWindowSetNewDoFn<
       DoFn<KeyedWorkItem<K, InputT>, KV<K, OutputT>> create(
           WindowingStrategy<?, W> strategy,
           StateInternalsFactory<K> stateInternalsFactory,
-          TimerInternals timerInternals,
+          TimerInternalsFactory<K> timerInternalsFactory,
           SideInputReader sideInputReader,
           SystemReduceFn<K, InputT, ?, OutputT, W> reduceFn,
           DoFnRunners.OutputManager outputManager,
           TupleTag<KV<K, OutputT>> mainTag) {
     return new GroupAlsoByWindowViaWindowSetNewDoFn<>(
-            strategy, stateInternalsFactory, timerInternals, sideInputReader,
+            strategy, stateInternalsFactory, timerInternalsFactory, sideInputReader,
             reduceFn, outputManager, mainTag);
   }
 
@@ -48,7 +66,7 @@ public class GroupAlsoByWindowViaWindowSetNewDoFn<
   private final WindowingStrategy<Object, W> windowingStrategy;
   private final StateInternalsFactory<K> stateInternalsFactory;
   private SystemReduceFn<K, InputT, ?, OutputT, W> reduceFn;
-  private TimerInternals timerInternals;
+  private TimerInternalsFactory<K> timerInternalsFactory;
   private SideInputReader sideInputReader;
   private DoFnRunners.OutputManager outputManager;
   private TupleTag<KV<K, OutputT>> mainTag;
@@ -56,12 +74,12 @@ public class GroupAlsoByWindowViaWindowSetNewDoFn<
   public GroupAlsoByWindowViaWindowSetNewDoFn(
           WindowingStrategy<?, W> windowingStrategy,
           StateInternalsFactory<K> stateInternalsFactory,
-          TimerInternals timerInternals,
+          TimerInternalsFactory<K> timerInternalsFactory,
           SideInputReader sideInputReader,
           SystemReduceFn<K, InputT, ?, OutputT, W> reduceFn,
           DoFnRunners.OutputManager outputManager,
           TupleTag<KV<K, OutputT>> mainTag) {
-    this.timerInternals = timerInternals;
+    this.timerInternalsFactory = timerInternalsFactory;
     this.sideInputReader = sideInputReader;
     this.outputManager = outputManager;
     this.mainTag = mainTag;
@@ -103,6 +121,7 @@ public class GroupAlsoByWindowViaWindowSetNewDoFn<
 
     K key = keyedWorkItem.key();
     StateInternals<K> stateInternals = stateInternalsFactory.stateInternalsForKey(key);
+    TimerInternals timerInternals = timerInternalsFactory.timerInternalsForKey(key);
 
     ReduceFnRunner<K, InputT, OutputT, W> reduceFnRunner =
             new ReduceFnRunner<>(
