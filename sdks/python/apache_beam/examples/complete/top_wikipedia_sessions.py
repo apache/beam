@@ -104,20 +104,18 @@ class TopPerMonth(beam.PTransform):
 class SessionsToStringsDoFn(beam.NewDoFn):
   """Adds the session information to be part of the key."""
 
-  def process(self, element, windows=beam.NewDoFn.WindowsParam):
-    yield (element[0] + ' : ' +
-           ', '.join([str(w) for w in windows]), element[1])
+  def process(self, element, w=beam.NewDoFn.WindowParam):
+    yield (element[0] + ' : ' + str(w), element[1])
 
 
 class FormatOutputDoFn(beam.NewDoFn):
   """Formats a string containing the user, count, and session."""
 
-  def process(self, element, windows=beam.NewDoFn.WindowsParam):
+  def process(self, element, w=beam.NewDoFn.WindowParam):
     for kv in element:
       session = kv[0]
       count = kv[1]
-      yield (session + ' : ' + str(count) + ' : '
-             + ', '.join([str(w) for w in windows]))
+      yield session + ' : ' + str(count) + ' : ' + str(w)
 
 
 class ComputeTopSessions(beam.PTransform):

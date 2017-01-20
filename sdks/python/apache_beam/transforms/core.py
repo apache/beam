@@ -136,7 +136,7 @@ class NewDoFn(WithTypeHints, HasDisplayData):
   ContextParam = 'ContextParam'
   SideInputParam = 'SideInputParam'
   TimestampParam = 'TimestampParam'
-  WindowsParam = 'WindowsParam'
+  WindowParam = 'WindowParam'
 
   @staticmethod
   def from_callable(fn):
@@ -1146,7 +1146,7 @@ class GroupByKey(PTransform):
 
   class ReifyWindows(NewDoFn):
 
-    def process(self, element, windows=NewDoFn.WindowsParam,
+    def process(self, element, w=NewDoFn.WindowParam,
                 timestamp=NewDoFn.TimestampParam):
       try:
         k, v = element
@@ -1154,7 +1154,7 @@ class GroupByKey(PTransform):
         raise TypeCheckError('Input to GroupByKey must be a PCollection with '
                              'elements compatible with KV[A, B]')
 
-      return [(k, window.WindowedValue(v, timestamp, windows))]
+      return [(k, window.WindowedValue(v, timestamp, [w]))]
 
     def infer_output_type(self, input_type):
       key_type, value_type = trivial_inference.key_value_types(input_type)
@@ -1341,13 +1341,12 @@ class WindowInto(ParDo):
     def __init__(self, windowing):
       self.windowing = windowing
 
-    def process(self, element, windows=NewDoFn.WindowsParam,
-                timestamp=NewDoFn.TimestampParam):
-      context = WindowFn.AssignContext(timestamp,
+    def process(self, element, context=NewDoFn.ContextParam):
+      context = WindowFn.AssignContext(context.timestamp,
                                        element=element,
-                                       existing_windows=windows)
+                                       existing_windows=context.windows)
       new_windows = self.windowing.windowfn.assign(context)
-      yield WindowedValue(context.element, context.timestamp, new_windows)
+      yield WindowedValue(element, context.timestamp, new_windows)
 
   def __init__(self, *args, **kwargs):
     """Initializes a WindowInto transform.

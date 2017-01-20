@@ -102,6 +102,9 @@ class DoFnRunner(Receiver):
                           if isinstance(side_input, sideinputs.SideInputMap)
                           else {global_window: side_input}
                           for side_input in side_inputs]
+      self.has_windowed_side_inputs = not all(
+          isinstance(si, dict) or si.is_globally_windowed()
+          for si in self.side_inputs)
 
       self.args = args if args else []
       self.kwargs = kwargs if kwargs else {}
@@ -114,7 +117,6 @@ class DoFnRunner(Receiver):
         self.dofn = fn
         self.dofn_process = fn.process
       else:
-        global_window = window.GlobalWindow()
         # TODO(robertwb): Remove when all runners pass side input maps.
         side_inputs = [side_input
                        if isinstance(side_input, sideinputs.SideInputMap)
@@ -171,18 +173,17 @@ class DoFnRunner(Receiver):
     self_in_args = int(self.dofn.is_process_bounded())
 
     # Call for the process function for each window if has windowed side inputs
-    # otherwise we can optimize the runner by calling process for entire window
-    # set in one go.
-    if all(isinstance(si, dict) or si.is_globally_windowed()
-           for si in self.side_inputs):
-      windows = [(window.GlobalWindow(), element.windows)]
+    # or if the process accesses the window parameter. We can just call it once
+    # otherwise as none of the arguments are changing
+    if self.has_windowed_side_inputs or core.NewDoFn.WindowParam in defaults:
+      windows = element.windows
     else:
-      windows = [(w, (w,)) for w in element.windows]
+      windows = [window.GlobalWindow()]
 
-    for side_input_window, window_set in windows:
+    for w in windows:
       args, kwargs = util.insert_values_in_args(
           self.args, self.kwargs,
-          [s[side_input_window] for s in self.side_inputs])
+          [s[w] for s in self.side_inputs])
 
       # If there are more arguments than the default then the first argument
       # should be the element and the rest should be picked from the side
@@ -204,8 +205,8 @@ class DoFnRunner(Receiver):
           final_args.append(element.value)
         elif d == core.NewDoFn.ContextParam:
           final_args.append(self.context)
-        elif d == core.NewDoFn.WindowsParam:
-          final_args.append(window_set)
+        elif d == core.NewDoFn.WindowParam:
+          final_args.append(w)
         elif d == core.NewDoFn.SideInputParam:
           final_args.append(args.next())
         elif d == core.NewDoFn.TimestampParam:

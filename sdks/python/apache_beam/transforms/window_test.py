@@ -48,10 +48,9 @@ sort_values = Map(lambda (k, vs): (k, sorted(vs)))
 
 
 class ReifyWindowsFn(core.NewDoFn):
-  def process(self, element, windows=core.NewDoFn.WindowsParam):
+  def process(self, element, w=core.NewDoFn.WindowParam):
     key, values = element
-    for w in windows:
-      yield "%s @ %s" % (key, w), values
+    yield "%s @ %s" % (key, w), values
 reify_windows = core.ParDo(ReifyWindowsFn())
 
 
