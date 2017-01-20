@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.beam.sdk.io.hadoop.inputformat.coders;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
@@ -24,10 +25,12 @@ import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.lang.reflect.InvocationTargetException;
 import java.util.List;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.StandardCoder;
+import org.apache.beam.sdk.util.CloudObject;
 import org.apache.hadoop.io.NullWritable;
 import org.apache.hadoop.io.Writable;
 
@@ -50,8 +53,15 @@ public class WritableCoder<T extends Writable> extends StandardCoder<T> {
   /**
    * Returns a {@code WritableCoder} instance for the provided element class.
    * @param <T> the element type
+   * @param clazz the element class
+   * @return a {@code WritableCoder} instance for the provided element class
    */
   public static <T extends Writable> WritableCoder<T> of(Class<T> clazz) {
+    if (clazz.equals(NullWritable.class)) {
+      @SuppressWarnings("unchecked")
+      WritableCoder<T> result = (WritableCoder<T>) NullWritableCoder.of();
+      return result;
+    }
     return new WritableCoder<>(clazz);
   }
 
@@ -78,19 +88,16 @@ public class WritableCoder<T extends Writable> extends StandardCoder<T> {
     value.write(new DataOutputStream(outStream));
   }
 
-  @SuppressWarnings("unchecked")
   @Override
   public T decode(InputStream inStream, Context context) throws IOException {
     try {
-      if (type == NullWritable.class) {
-        // NullWritable has no default constructor
-        return (T) NullWritable.get();
-      }
-      T t = type.newInstance();
+      T t = type.getConstructor().newInstance();
       t.readFields(new DataInputStream(inStream));
       return t;
-    } catch (InstantiationException | IllegalAccessException e) {
+    } catch (NoSuchMethodException | InstantiationException | IllegalAccessException e) {
       throw new CoderException("unable to deserialize record", e);
+    } catch (InvocationTargetException ite) {
+      throw new CoderException("unable to deserialize record", ite.getCause());
     }
   }
 
@@ -100,8 +107,16 @@ public class WritableCoder<T extends Writable> extends StandardCoder<T> {
   }
 
   @Override
-  public void verifyDeterministic() throws NonDeterministicException {
+  protected CloudObject initializeCloudObject() {
+    CloudObject result = CloudObject.forClass(getClass());
+    result.put("type", type.getName());
+    return result;
+  }
+
+  @Override
+  public void verifyDeterministic() throws Coder.NonDeterministicException {
     throw new NonDeterministicException(this,
         "Hadoop Writable may be non-deterministic.");
   }
+
 }

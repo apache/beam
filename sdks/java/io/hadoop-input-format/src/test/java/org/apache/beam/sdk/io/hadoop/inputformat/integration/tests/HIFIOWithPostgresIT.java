@@ -33,13 +33,18 @@ import org.junit.runners.MethodSorters;
 @FixMethodOrder(MethodSorters.JVM)
 public class HIFIOWithPostgresIT implements Serializable {
 	
-	private static final long serialVersionUID = 1L;
+	/*private static final long serialVersionUID = 1L;
 	private static final String DRIVER_CLASS_PROPERTY = "org.postgresql.Driver";
 	private static final String URL_PROPERTY = "jdbc:postgresql://104.197.246.66:5432/postgres";
 	private static final String USERNAME_PROPERTY = "postgres";
 	private static final String PASSWORD_PROPERTY = "euthS3M1";
 	private static final String INPUT_TABLE_NAME_PROPERTY = "mytable";
-
+*/
+	private static final String DRIVER_CLASS_PROPERTY = "org.postgresql.Driver";
+	private static final String URL_PROPERTY = "jdbc:postgresql://localhost:5432/beamdb";
+	private static final String USERNAME_PROPERTY = "postgres";
+	private static final String PASSWORD_PROPERTY = "pslpvtltd";
+	private static final String INPUT_TABLE_NAME_PROPERTY = "beamtable";
 	@Rule
 	public final TestPipeline p = TestPipeline.create();
 
@@ -55,7 +60,7 @@ public class HIFIOWithPostgresIT implements Serializable {
 		PAssert.thatSingleton(
 				postgresData.apply("Count",
 						Count.<KV<Text, IntWritable>> globally()))
-				.isEqualTo(4L);
+				.isEqualTo(3L);
 
 		p.run();
 	}
@@ -67,9 +72,9 @@ public class HIFIOWithPostgresIT implements Serializable {
 		conf.set("mapreduce.jdbc.username", USERNAME_PROPERTY);
 		conf.set("mapreduce.jdbc.password", PASSWORD_PROPERTY);
 		conf.set("mapreduce.jdbc.input.table.name", INPUT_TABLE_NAME_PROPERTY);
-		conf.set("mapreduce.jdbc.input.query", "SELECT * FROM mytable");
-		conf.set("mapreduce.jdbc.input.count.query",
-				"SELECT count(*) FROM mytable");
+		conf.set("mapreduce.jdbc.input.query", "SELECT * FROM "+INPUT_TABLE_NAME_PROPERTY);
+	//	conf.set("mapreduce.jdbc.input.count.query",
+		//		"SELECT count(*) FROM mytable");
 		conf.setClass("mapreduce.job.inputformat.class",
 				org.apache.hadoop.mapreduce.lib.db.DBInputFormat.class,
 				InputFormat.class);
