@@ -1,7 +1,6 @@
-
 package cz.seznam.euphoria.core.executor;
 
-import cz.seznam.euphoria.guava.shaded.com.google.common.collect.Sets;
+import com.google.common.collect.Sets;
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.dataset.windowing.Time;
 import cz.seznam.euphoria.core.client.flow.Flow;
@@ -21,6 +20,9 @@ import cz.seznam.euphoria.core.client.operator.Union;
 import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.core.executor.FlowUnfolder.InputOperator;
 import cz.seznam.euphoria.core.util.Settings;
+import org.junit.Before;
+import org.junit.Test;
+
 import java.net.URI;
 import java.time.Duration;
 import java.util.Arrays;
@@ -28,11 +30,8 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
-import org.junit.Before;
-import org.junit.Test;
+
+import static org.junit.Assert.*;
 
 /**
  * {@code FlowUnfolder} test suite.

@@ -1,5 +1,7 @@
 package cz.seznam.euphoria.flink.streaming;
 
+import com.google.common.collect.Iterables;
+import com.google.common.collect.Iterators;
 import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
 import cz.seznam.euphoria.core.client.operator.ReduceByKey;
@@ -10,8 +12,6 @@ import cz.seznam.euphoria.flink.functions.PartitionerWrapper;
 import cz.seznam.euphoria.flink.streaming.windowing.FlinkWindow;
 import cz.seznam.euphoria.flink.streaming.windowing.MultiWindowedElement;
 import cz.seznam.euphoria.flink.streaming.windowing.MultiWindowedElementWindowFunction;
-import cz.seznam.euphoria.guava.shaded.com.google.common.collect.Iterables;
-import cz.seznam.euphoria.guava.shaded.com.google.common.collect.Iterators;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;

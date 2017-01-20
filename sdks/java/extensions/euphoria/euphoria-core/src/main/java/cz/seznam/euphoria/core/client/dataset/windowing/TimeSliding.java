@@ -1,11 +1,10 @@
-
 package cz.seznam.euphoria.core.client.dataset.windowing;
 
+import com.google.common.base.Preconditions;
+import com.google.common.collect.Sets;
 import cz.seznam.euphoria.core.client.io.Context;
 import cz.seznam.euphoria.core.client.triggers.TimeTrigger;
 import cz.seznam.euphoria.core.client.triggers.Trigger;
-import cz.seznam.euphoria.guava.shaded.com.google.common.base.Preconditions;
-import cz.seznam.euphoria.guava.shaded.com.google.common.collect.Sets;
 
 import java.time.Duration;
 import java.util.Set;
