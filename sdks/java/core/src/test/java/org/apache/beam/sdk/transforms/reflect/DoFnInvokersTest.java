@@ -25,7 +25,6 @@ import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertThat;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Matchers.same;
-import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -41,7 +40,6 @@ import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFn.ProcessContinuation;
-import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvoker.FakeArgumentProvider;
 import org.apache.beam.sdk.transforms.reflect.testhelper.DoFnInvokersTestHelper;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
@@ -52,7 +50,6 @@ import org.apache.beam.sdk.util.Timer;
 import org.apache.beam.sdk.util.TimerSpec;
 import org.apache.beam.sdk.util.TimerSpecs;
 import org.apache.beam.sdk.util.UserCodeException;
-import org.apache.beam.sdk.util.WindowingInternals;
 import org.apache.beam.sdk.util.state.StateSpec;
 import org.apache.beam.sdk.util.state.StateSpecs;
 import org.apache.beam.sdk.util.state.ValueState;
@@ -78,10 +75,7 @@ public class DoFnInvokersTest {
   @Mock private IntervalWindow mockWindow;
   @Mock private DoFn.InputProvider<String> mockInputProvider;
   @Mock private DoFn.OutputReceiver<String> mockOutputReceiver;
-  @Mock private WindowingInternals<String, String> mockWindowingInternals;
   @Mock private DoFnInvoker.ArgumentProvider<String, String> mockArgumentProvider;
-
-  @Mock private OldDoFn<String, String> mockOldDoFn;
 
   @Before
   public void setUp() {
@@ -89,7 +83,6 @@ public class DoFnInvokersTest {
     when(mockArgumentProvider.window()).thenReturn(mockWindow);
     when(mockArgumentProvider.inputProvider()).thenReturn(mockInputProvider);
     when(mockArgumentProvider.outputReceiver()).thenReturn(mockOutputReceiver);
-    when(mockArgumentProvider.windowingInternals()).thenReturn(mockWindowingInternals);
     when(mockArgumentProvider.processContext(Matchers.<DoFn>any())).thenReturn(mockProcessContext);
   }
 
@@ -737,40 +730,5 @@ public class DoFnInvokersTest {
     DoFnInvoker<String, String> invoker = DoFnInvokers.invokerFor(fn);
     invoker.invokeOnTimer(timerId, mockArgumentProvider);
     assertThat(fn.window, equalTo(testWindow));
-  }
-
-  private class OldDoFnIdentity extends OldDoFn<String, String> {
-    public void processElement(ProcessContext c) {}
-  }
-
-  @Test
-  public void testOldDoFnProcessElement() throws Exception {
-    new DoFnInvokers.OldDoFnInvoker<>(mockOldDoFn)
-        .invokeProcessElement(mockArgumentProvider);
-    verify(mockOldDoFn).processElement(any(OldDoFn.ProcessContext.class));
-  }
-
-  @Test
-  public void testOldDoFnStartBundle() throws Exception {
-    new DoFnInvokers.OldDoFnInvoker<>(mockOldDoFn).invokeStartBundle(mockProcessContext);
-    verify(mockOldDoFn).startBundle(any(OldDoFn.Context.class));
-  }
-
-  @Test
-  public void testOldDoFnFinishBundle() throws Exception {
-    new DoFnInvokers.OldDoFnInvoker<>(mockOldDoFn).invokeFinishBundle(mockProcessContext);
-    verify(mockOldDoFn).finishBundle(any(OldDoFn.Context.class));
-  }
-
-  @Test
-  public void testOldDoFnSetup() throws Exception {
-    new DoFnInvokers.OldDoFnInvoker<>(mockOldDoFn).invokeSetup();
-    verify(mockOldDoFn).setup();
-  }
-
-  @Test
-  public void testOldDoFnTeardown() throws Exception {
-    new DoFnInvokers.OldDoFnInvoker<>(mockOldDoFn).invokeTeardown();
-    verify(mockOldDoFn).teardown();
   }
 }

@@ -15,27 +15,27 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.core;
+package org.apache.beam.runners.flink;
 
-import com.google.common.collect.Iterables;
-import java.util.Collection;
+import org.apache.beam.runners.core.PerKeyCombineFnRunner;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.Combine.KeyedCombineFn;
 import org.apache.beam.sdk.transforms.CombineFnBase.PerKeyCombineFn;
+import org.apache.beam.sdk.transforms.CombineWithContext;
 import org.apache.beam.sdk.transforms.CombineWithContext.KeyedCombineFnWithContext;
-import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.util.CombineContextFactory;
-import org.apache.beam.sdk.util.SideInputReader;
+import org.apache.beam.sdk.transforms.OldDoFn;
+import org.apache.beam.sdk.values.PCollectionView;
 
 /**
- * Static utility methods that provide {@link PerKeyCombineFnRunner} implementations
+ * Static utility methods that provide {@link OldPerKeyCombineFnRunner} implementations
  * for different keyed combine functions.
  */
-public class PerKeyCombineFnRunners {
+@Deprecated
+public class OldPerKeyCombineFnRunners {
   /**
    * Returns a {@link PerKeyCombineFnRunner} from a {@link PerKeyCombineFn}.
    */
-  public static <K, InputT, AccumT, OutputT> PerKeyCombineFnRunner<K, InputT, AccumT, OutputT>
+  public static <K, InputT, AccumT, OutputT> OldPerKeyCombineFnRunner<K, InputT, AccumT, OutputT>
   create(PerKeyCombineFn<K, InputT, AccumT, OutputT> perKeyCombineFn) {
     if (perKeyCombineFn instanceof KeyedCombineFnWithContext) {
       return new KeyedCombineFnWithContextRunner<>(
@@ -49,13 +49,29 @@ public class PerKeyCombineFnRunners {
     }
   }
 
+  /** Returns a {@code Combine.Context} that wraps a {@code OldDoFn.ProcessContext}. */
+  private static CombineWithContext.Context createFromProcessContext(
+      final OldDoFn<?, ?>.ProcessContext c) {
+    return new CombineWithContext.Context() {
+      @Override
+      public PipelineOptions getPipelineOptions() {
+        return c.getPipelineOptions();
+      }
+
+      @Override
+      public <T> T sideInput(PCollectionView<T> view) {
+        return c.sideInput(view);
+      }
+    };
+  }
+
   /**
    * An implementation of {@link PerKeyCombineFnRunner} with {@link KeyedCombineFn}.
    *
    * <p>It forwards functions calls to the {@link KeyedCombineFn}.
    */
   private static class KeyedCombineFnRunner<K, InputT, AccumT, OutputT>
-      implements PerKeyCombineFnRunner<K, InputT, AccumT, OutputT> {
+      implements OldPerKeyCombineFnRunner<K, InputT, AccumT, OutputT> {
     private final KeyedCombineFn<K, InputT, AccumT, OutputT> keyedCombineFn;
 
     private KeyedCombineFnRunner(
@@ -64,38 +80,30 @@ public class PerKeyCombineFnRunners {
     }
 
     @Override
-    public String toString() {
-      return keyedCombineFn.toString();
-    }
-
-    @Override
-    public AccumT createAccumulator(K key, PipelineOptions options,
-        SideInputReader sideInputReader, Collection<? extends BoundedWindow> windows) {
+    public AccumT createAccumulator(K key, OldDoFn<?, ?>.ProcessContext c) {
       return keyedCombineFn.createAccumulator(key);
     }
 
     @Override
-    public AccumT addInput(K key, AccumT accumulator, InputT input, PipelineOptions options,
-        SideInputReader sideInputReader, Collection<? extends BoundedWindow> windows) {
+    public AccumT addInput(
+        K key, AccumT accumulator, InputT input, OldDoFn<?, ?>.ProcessContext c) {
       return keyedCombineFn.addInput(key, accumulator, input);
     }
 
     @Override
-    public AccumT mergeAccumulators(K key, Iterable<AccumT> accumulators, PipelineOptions options,
-        SideInputReader sideInputReader, Collection<? extends BoundedWindow> windows) {
+    public AccumT mergeAccumulators(
+        K key, Iterable<AccumT> accumulators, OldDoFn<?, ?>.ProcessContext c) {
       return keyedCombineFn.mergeAccumulators(key, accumulators);
     }
 
     @Override
-    public OutputT extractOutput(K key, AccumT accumulator, PipelineOptions options,
-        SideInputReader sideInputReader, Collection<? extends BoundedWindow> windows) {
+    public OutputT extractOutput(K key, AccumT accumulator, OldDoFn<?, ?>.ProcessContext c) {
       return keyedCombineFn.extractOutput(key, accumulator);
     }
 
     @Override
-    public AccumT compact(K key, AccumT accumulator, PipelineOptions options,
-        SideInputReader sideInputReader, Collection<? extends BoundedWindow> windows) {
-      return keyedCombineFn.compact(key, accumulator);
+    public String toString() {
+      return keyedCombineFn.toString();
     }
   }
 
@@ -105,7 +113,7 @@ public class PerKeyCombineFnRunners {
    * <p>It forwards functions calls to the {@link KeyedCombineFnWithContext}.
    */
   private static class KeyedCombineFnWithContextRunner<K, InputT, AccumT, OutputT>
-      implements PerKeyCombineFnRunner<K, InputT, AccumT, OutputT> {
+      implements OldPerKeyCombineFnRunner<K, InputT, AccumT, OutputT> {
     private final KeyedCombineFnWithContext<K, InputT, AccumT, OutputT> keyedCombineFnWithContext;
 
     private KeyedCombineFnWithContextRunner(
@@ -114,48 +122,34 @@ public class PerKeyCombineFnRunners {
     }
 
     @Override
+    public AccumT createAccumulator(K key, OldDoFn<?, ?>.ProcessContext c) {
+      return keyedCombineFnWithContext.createAccumulator(key,
+          createFromProcessContext(c));
+    }
+
+    @Override
+    public AccumT addInput(
+        K key, AccumT accumulator, InputT value, OldDoFn<?, ?>.ProcessContext c) {
+      return keyedCombineFnWithContext.addInput(key, accumulator, value,
+          createFromProcessContext(c));
+    }
+
+    @Override
+    public AccumT mergeAccumulators(
+        K key, Iterable<AccumT> accumulators, OldDoFn<?, ?>.ProcessContext c) {
+      return keyedCombineFnWithContext.mergeAccumulators(
+          key, accumulators, createFromProcessContext(c));
+    }
+
+    @Override
+    public OutputT extractOutput(K key, AccumT accumulator, OldDoFn<?, ?>.ProcessContext c) {
+      return keyedCombineFnWithContext.extractOutput(key, accumulator,
+          createFromProcessContext(c));
+    }
+
+    @Override
     public String toString() {
       return keyedCombineFnWithContext.toString();
-    }
-
-    @Override
-    public AccumT createAccumulator(K key, PipelineOptions options, SideInputReader sideInputReader,
-        Collection<? extends BoundedWindow> windows) {
-      return keyedCombineFnWithContext.createAccumulator(key,
-        CombineContextFactory.createFromComponents(
-          options, sideInputReader, Iterables.getOnlyElement(windows)));
-    }
-
-    @Override
-    public AccumT addInput(K key, AccumT accumulator, InputT input, PipelineOptions options,
-        SideInputReader sideInputReader, Collection<? extends BoundedWindow> windows) {
-      return keyedCombineFnWithContext.addInput(key, accumulator, input,
-        CombineContextFactory.createFromComponents(
-          options, sideInputReader, Iterables.getOnlyElement(windows)));
-    }
-
-    @Override
-    public AccumT mergeAccumulators(K key, Iterable<AccumT> accumulators, PipelineOptions options,
-        SideInputReader sideInputReader, Collection<? extends BoundedWindow> windows) {
-      return keyedCombineFnWithContext.mergeAccumulators(key, accumulators,
-        CombineContextFactory.createFromComponents(
-          options, sideInputReader, Iterables.getOnlyElement(windows)));
-    }
-
-    @Override
-    public OutputT extractOutput(K key, AccumT accumulator, PipelineOptions options,
-        SideInputReader sideInputReader, Collection<? extends BoundedWindow> windows) {
-      return keyedCombineFnWithContext.extractOutput(key, accumulator,
-        CombineContextFactory.createFromComponents(
-          options, sideInputReader, Iterables.getOnlyElement(windows)));
-    }
-
-    @Override
-    public AccumT compact(K key, AccumT accumulator, PipelineOptions options,
-        SideInputReader sideInputReader, Collection<? extends BoundedWindow> windows) {
-      return keyedCombineFnWithContext.compact(key, accumulator,
-        CombineContextFactory.createFromComponents(
-          options, sideInputReader, Iterables.getOnlyElement(windows)));
     }
   }
 }
