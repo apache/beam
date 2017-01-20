@@ -81,8 +81,6 @@ public class HIFIOWithCassandraTest implements Serializable {
 		Pipeline p = TestPipeline.create();
 		Configuration conf = getConfiguration();
 		SimpleFunction<Row, String> myValueTranslate = new SimpleFunction<Row, String>() {
-			private static final long serialVersionUID = 1L;
-
 			@Override
 			public String apply(Row input) {
 				return input.getString("person_name");
@@ -104,7 +102,7 @@ public class HIFIOWithCassandraTest implements Serializable {
 	/**
 	 * Test to read data from embedded Cassandra instance based on query and
 	 * verify whether data is read successfully.
-	 * 
+	 *
 	 * @throws Exception
 	 */
 	@Test
@@ -115,8 +113,6 @@ public class HIFIOWithCassandraTest implements Serializable {
 				"cassandra.input.cql",
 				"select * from hif_keyspace.person where token(person_id) > ? and token(person_id) <= ? and person_name='David Bar' allow filtering");
 		SimpleFunction<Row, String> myValueTranslate = new SimpleFunction<Row, String>() {
-			private static final long serialVersionUID = 1L;
-
 			@Override
 			public String apply(Row input) {
 				return input.getString("person_name");
@@ -177,7 +173,7 @@ public class HIFIOWithCassandraTest implements Serializable {
 	 * Returns configuration of CqlInutFormat. Mandatory parameters required
 	 * apart from inputformat class name, key class, value class are thrift
 	 * port, thrift address, partitioner class, keyspace and columnfamily name
-	 * 
+	 *
 	 */
 	public Configuration getConfiguration() {
 		Configuration conf = new Configuration();

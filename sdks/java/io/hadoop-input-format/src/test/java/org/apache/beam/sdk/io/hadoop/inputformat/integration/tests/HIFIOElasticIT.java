@@ -15,6 +15,8 @@
 package org.apache.beam.sdk.io.hadoop.inputformat.integration.tests;
 
 import java.io.Serializable;
+import java.util.ArrayList;
+import java.util.List;
 
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.hadoop.inputformat.HadoopInputFormatIO;
@@ -24,6 +26,9 @@ import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Count;
+import org.apache.beam.sdk.transforms.MapElements;
+import org.apache.beam.sdk.transforms.SimpleFunction;
+import org.apache.beam.sdk.transforms.Values;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.hadoop.conf.Configuration;
@@ -46,8 +51,8 @@ import org.slf4j.LoggerFactory;
  * You need to pass Elasticsearch server IP and port in beamTestPipelineOptions
  *
  * <p>
- * You can run just this test by doing the following:
- * mvn test-compile compile failsafe:integration-test -D beamTestPipelineOptions='[ "--serverIp=1.2.3.4",
+ * You can run just this test by doing the following: mvn test-compile compile
+ * failsafe:integration-test -D beamTestPipelineOptions='[ "--serverIp=1.2.3.4",
  * "--serverPort=<port>" ]'
  *
  */
@@ -62,6 +67,7 @@ public class HIFIOElasticIT implements Serializable {
   private static final String ELASTIC_TYPE_NAME = "test_type";
   private static final String ELASTIC_RESOURCE = "/" + ELASTIC_INDEX_NAME + "/" + ELASTIC_TYPE_NAME;
   private static HIFTestOptions options;
+  private static final int SIZE = 1000;
 
   @BeforeClass
   public static void setUp() {
@@ -71,7 +77,8 @@ public class HIFIOElasticIT implements Serializable {
   }
 
   /**
-   * This test reads data from the Elasticsearch instance and verifies whether data is read successfully.
+   * This test reads data from the Elasticsearch instance and verifies whether data is read
+   * successfully.
    */
   @Test
   public void testHifIOWithElastic() {
@@ -81,27 +88,44 @@ public class HIFIOElasticIT implements Serializable {
         pipeline.apply(HadoopInputFormatIO.<Text, MapWritable>read().withConfiguration(conf));
     PCollection<Long> count = esData.apply(Count.<KV<Text, MapWritable>>globally());
     PAssert.thatSingleton(count).isEqualTo((long) 1000);
+
+    PCollection<MapWritable> values = esData.apply(Values.<MapWritable>create());
+    MapElements<MapWritable, String> transformFunc =
+        MapElements.<MapWritable, String>via(new SimpleFunction<MapWritable, String>() {
+          @Override
+          public String apply(MapWritable mapw) {
+            Text text = (Text) mapw.get(new Text("City"));
+            return text != null ? text.toString() : "";
+          }
+        });
+
+    PCollection<String> textValues = values.apply(transformFunc);
+    List<String> expectedResults = new ArrayList<>();
+    for (int cnt = 0; cnt < SIZE; cnt++) {
+      expectedResults.add("text2");
+    }
+    PAssert.that(textValues).containsInAnyOrder(expectedResults);
     pipeline.run().waitUntilFinish();
   }
 
   /**
-   * This test reads data from the Elasticsearch instance based on a query and verifies if data is read
-   * successfully.
+   * This test reads data from the Elasticsearch instance based on a query and verifies if data is
+   * read successfully.
    */
   @Test
   public void testHifIOWithElasticQuery() {
     Pipeline pipeline = TestPipeline.create(options);
     Configuration conf = getConfiguration(options);
     String query =
-          "{" + "  \"query\": {"
-              + "  \"match\" : {"
-              + "    \"Item_Code\" : {"
-              + "      \"query\" : \"86345\","
-              + "      \"type\" : \"boolean\""
-              + "    }"
-              + "  }"
-              + "  }"
-              + "}";
+        "{" + "  \"query\": {"
+            + "  \"match\" : {"
+            + "    \"Item_Code\" : {"
+            + "      \"query\" : \"86345\","
+            + "      \"type\" : \"boolean\""
+            + "    }"
+            + "  }"
+            + "  }"
+            + "}";
     conf.set(ConfigurationOptions.ES_QUERY, query);
     PCollection<KV<Text, MapWritable>> esData =
         pipeline.apply(HadoopInputFormatIO.<Text, MapWritable>read().withConfiguration(conf));
@@ -110,12 +134,12 @@ public class HIFIOElasticIT implements Serializable {
     pipeline.run().waitUntilFinish();
   }
 
- /**
-	 * Set the Elasticsearch configuration parameters in the Hadoop
-	 * configuration object. Configuration object should have InputFormat class,
-	 * key class and value class to be set Mandatory fields for ESInputFormat to
-	 * be set are es.resource, es.nodes, es.port, es.internal.es.version
-	 */
+  /**
+   * Set the Elasticsearch configuration parameters in the Hadoop configuration object.
+   * Configuration object should have InputFormat class, key class and value class to be set
+   * Mandatory fields for ESInputFormat to be set are es.resource, es.nodes, es.port,
+   * es.internal.es.version
+   */
   public static Configuration getConfiguration(HIFTestOptions options) {
     Configuration conf = new Configuration();
     conf.set(ConfigurationOptions.ES_NODES, options.getServerIp());
