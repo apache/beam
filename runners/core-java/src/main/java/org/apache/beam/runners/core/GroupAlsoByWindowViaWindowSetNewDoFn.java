@@ -17,6 +17,8 @@
  */
 package org.apache.beam.runners.core;
 
+import java.util.Collection;
+import org.apache.beam.runners.core.DoFnRunner.ReduceFnExecutor;
 import org.apache.beam.runners.core.triggers.ExecutableTriggerStateMachine;
 import org.apache.beam.runners.core.triggers.TriggerStateMachines;
 import org.apache.beam.sdk.transforms.Aggregator;
@@ -25,6 +27,7 @@ import org.apache.beam.sdk.transforms.OldDoFn;
 import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
+import org.apache.beam.sdk.util.SystemDoFnInternal;
 import org.apache.beam.sdk.util.SideInputReader;
 import org.apache.beam.sdk.util.TimerInternals;
 import org.apache.beam.sdk.util.WindowedValue;
@@ -36,11 +39,14 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TupleTag;
 import org.joda.time.Instant;
 
-import java.util.Collection;
-
+/**
+ * A general {@link GroupAlsoByWindowsDoFn}. This delegates all of the logic to the
+ * {@link ReduceFnRunner}.
+ */
+@SystemDoFnInternal
 public class GroupAlsoByWindowViaWindowSetNewDoFn<
         K, InputT, OutputT, W extends BoundedWindow, RinT extends KeyedWorkItem<K, InputT>>
-        extends DoFn<RinT, KV<K, OutputT>> implements DoFnRunner.ReduceFnExecutor<K, InputT, OutputT, W> {
+    extends DoFn<RinT, KV<K, OutputT>> implements ReduceFnExecutor<K, InputT, OutputT, W> {
 
   private static final long serialVersionUID = 1L;
 
@@ -59,10 +65,10 @@ public class GroupAlsoByWindowViaWindowSetNewDoFn<
   }
 
   protected final Aggregator<Long, Long> droppedDueToClosedWindow =
-          createAggregator(
-                  GroupAlsoByWindowsDoFn.DROPPED_DUE_TO_CLOSED_WINDOW_COUNTER, Sum.ofLongs());
+      createAggregator(
+          GroupAlsoByWindowsDoFn.DROPPED_DUE_TO_CLOSED_WINDOW_COUNTER, Sum.ofLongs());
   protected final Aggregator<Long, Long> droppedDueToLateness =
-          createAggregator(GroupAlsoByWindowsDoFn.DROPPED_DUE_TO_LATENESS_COUNTER, Sum.ofLongs());
+      createAggregator(GroupAlsoByWindowsDoFn.DROPPED_DUE_TO_LATENESS_COUNTER, Sum.ofLongs());
   private final WindowingStrategy<Object, W> windowingStrategy;
   private final StateInternalsFactory<K> stateInternalsFactory;
   private SystemReduceFn<K, InputT, ?, OutputT, W> reduceFn;
@@ -124,18 +130,18 @@ public class GroupAlsoByWindowViaWindowSetNewDoFn<
     TimerInternals timerInternals = timerInternalsFactory.timerInternalsForKey(key);
 
     ReduceFnRunner<K, InputT, OutputT, W> reduceFnRunner =
-            new ReduceFnRunner<>(
-                    key,
-                    windowingStrategy,
-                    ExecutableTriggerStateMachine.create(
-                            TriggerStateMachines.stateMachineForTrigger(windowingStrategy.getTrigger())),
-                    stateInternals,
-                    timerInternals,
-                    outputWindowedValue(),
-                    sideInputReader,
-                    droppedDueToClosedWindow,
-                    reduceFn,
-                    c.getPipelineOptions());
+        new ReduceFnRunner<>(
+            key,
+            windowingStrategy,
+            ExecutableTriggerStateMachine.create(
+                TriggerStateMachines.stateMachineForTrigger(windowingStrategy.getTrigger())),
+            stateInternals,
+            timerInternals,
+            outputWindowedValue(),
+            sideInputReader,
+            droppedDueToClosedWindow,
+            reduceFn,
+            c.getPipelineOptions());
 
     reduceFnRunner.processElements(keyedWorkItem.elementsIterable());
     reduceFnRunner.onTimers(keyedWorkItem.timersIterable());
