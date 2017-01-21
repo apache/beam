@@ -467,7 +467,7 @@ def get_sdk_name_and_version():
   # TODO(ccy): Make this check cleaner.
   container_version = get_required_container_version()
   if container_version == 'beamhead':
-    return ('Apache Beam SDK for Python', beam_version.__version__)
+    return ('Apache Beam SDK for Python', beam_version.get_version())
   else:
     return ('Google Cloud Dataflow SDK for Python', container_version)
 

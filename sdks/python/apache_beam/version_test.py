@@ -14,37 +14,20 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+"""Unit tests for the version module."""
 
-"""Apache Beam SDK version information and utilities."""
-
-
-import re
-
-# Do not use directly, use get_version() instead.
-__version__ = None
+import unittest
+from apache_beam import version as beam_version
 
 
-def get_version():
-  global __version__
-  if not __version__:
-    __version__ = get_version_from_pom()
-  return __version__
+class Version(unittest.TestCase):
 
-
-def get_version_from_pom():
-  """Reads the actual version from pom.xml file."""
-  with open('./pom.xml', 'r') as f:
-    pom = f.read()
-    regex = (r'.*<parent>\s*'
-             r'<groupId>[a-z\.]+</groupId>\s*'
-             r'<artifactId>[a-z\-]+</artifactId>\s*'
-             r'<version>([0-9a-zA-Z\.\-]+)</version>.*')
-    pattern = re.compile(str(regex))
-    search = pattern.search(pom)
-    version = search.group(1)
-    version = version.replace("-incubating-SNAPSHOT", ".dev+incubating")
-    return version
+  def test_version(self):
+    # Test that version is processed from the external file and cached.
+    self.assertIsNone(beam_version.__version__)
+    self.assertIsNotNone(beam_version.get_version())
+    self.assertEqual(beam_version.get_version(), beam_version.__version__)
 
 
 if __name__ == '__main__':
-  get_version()
+  unittest.main()
