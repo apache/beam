@@ -78,7 +78,7 @@ class DataflowRunner(PipelineRunner):
     return 's%s' % self._unique_step_id
 
   @staticmethod
-  def poll_for_job_completion(runner, job_id):
+  def poll_for_job_completion(runner, result):
     """Polls for the specified job to finish running (successfully or not)."""
     last_message_time = None
     last_message_id = None
@@ -101,6 +101,7 @@ class DataflowRunner(PipelineRunner):
       else:
         return 0
 
+    job_id = result.job_id()
     while True:
       response = runner.dataflow_client.get_job(job_id)
       # If get() is called very soon after Create() the response may not contain
@@ -151,6 +152,7 @@ class DataflowRunner(PipelineRunner):
         if not page_token:
           break
 
+    result._job = response
     runner.last_error_msg = last_error_msg
 
   def run(self, pipeline):
@@ -694,7 +696,7 @@ class DataflowPipelineResult(PipelineResult):
 
       thread = threading.Thread(
           target=DataflowRunner.poll_for_job_completion,
-          args=(self._runner, self.job_id()))
+          args=(self._runner, self))
 
       # Mark the thread as a daemon thread so a keyboard interrupt on the main
       # thread will terminate everything. This is also the reason we will not
