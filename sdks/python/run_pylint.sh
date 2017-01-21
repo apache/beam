@@ -29,6 +29,12 @@ BASE_BRANCH=python-sdk
 set -e
 set -o pipefail
 
+# This script runs pylint on changed files only and uses git for that purpose.
+# Skip this step if git is not available or this is not a valid git repository.
+(command -v git && git remote) || {
+  echo "Not running pylint. Not in a git repository."; exit 0; 
+}
+
 # Retrieve base branch for comparison. Travis does not fetch it by default.
 git remote set-branches --add origin $BASE_BRANCH
 git fetch
