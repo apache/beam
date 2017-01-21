@@ -151,7 +151,6 @@ class DataflowRunner(PipelineRunner):
         if not page_token:
           break
 
-    runner.result = DataflowPipelineResult(response, runner)
     runner.last_error_msg = last_error_msg
 
   def run(self, pipeline):
@@ -704,6 +703,12 @@ class DataflowPipelineResult(PipelineResult):
       thread.start()
       while thread.isAlive():
         time.sleep(5.0)
+      if self.state != PipelineState.DONE:
+        # TODO(BEAM-1290): Consider converting this to an error log based on the
+        # resolution of the issue.
+        raise DataflowRuntimeException(
+            'Dataflow pipeline failed. State: %s, Error:\n%s' %
+            (self.state, getattr(self._runner, 'last_error_msg', None)), self)
     return self.state
 
   def __str__(self):
