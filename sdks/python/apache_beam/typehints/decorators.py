@@ -263,7 +263,7 @@ def getcallargs_forhints(func, *typeargs, **typekwargs):
     for k, var in enumerate(reversed(argspec.args)):
       if k >= len(argspec.defaults):
         break
-      if callargs.get(var, None) is argspec.defaults[-k]:
+      if callargs.get(var, None) is argspec.defaults[-k-1]:
         callargs[var] = typehints.Any
   # Patch up varargs and keywords
   if argspec.varargs:
