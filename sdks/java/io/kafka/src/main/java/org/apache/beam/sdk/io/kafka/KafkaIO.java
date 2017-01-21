@@ -1058,7 +1058,11 @@ public class KafkaIO {
           long offset = offsetConsumer.position(p.topicPartition);
           p.setLatestOffset(offset);
         } catch (Exception e) {
-          LOG.warn("{}: exception while fetching latest offsets. ignored.",  this, e);
+          if (closed.get()) {
+            break;
+          }
+          LOG.warn("{}: exception while fetching latest offset for partition {}. will be retried.",
+                   this, p.topicPartition, e);
           p.setLatestOffset(UNINITIALIZED_OFFSET); // reset
         }
 
