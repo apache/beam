@@ -109,6 +109,7 @@ class DoFnProcessContext(DoFnContext):
       self.timestamp = windowed_value.timestamp
       self.windows = windowed_value.windows
 
+  # TODO(sourabhbajaj): Move as we're trying to deprecate the use of context
   def aggregate_to(self, aggregator, input_value):
     """Provide a new input value for the aggregator.
 
@@ -119,6 +120,112 @@ class DoFnProcessContext(DoFnContext):
     self.state.counter_for(aggregator).update(input_value)
 
 
+class NewDoFn(WithTypeHints, HasDisplayData):
+  """A function object used by a transform with custom processing.
+
+  The ParDo transform is such a transform. The ParDo.apply
+  method will take an object of type DoFn and apply it to all elements of a
+  PCollection object.
+
+  In order to have concrete DoFn objects one has to subclass from DoFn and
+  define the desired behavior (start_bundle/finish_bundle and process) or wrap a
+  callable object using the CallableWrapperDoFn class.
+  """
+
+  ElementParam = 'ElementParam'
+  ContextParam = 'ContextParam'
+  SideInputParam = 'SideInputParam'
+  TimestampParam = 'TimestampParam'
+  WindowParam = 'WindowParam'
+
+  @staticmethod
+  def from_callable(fn):
+    return CallableWrapperDoFn(fn)
+
+  def default_label(self):
+    return self.__class__.__name__
+
+  def process(self, element, *args, **kwargs):
+    """Called for each element of a pipeline. The default arguments are needed
+    for the DoFnRunner to be able to pass the parameters correctly.
+
+    Args:
+      element: The element to be processed
+      context: a DoFnProcessContext object containing. See the
+        DoFnProcessContext documentation for details.
+      *args: side inputs
+      **kwargs: keyword side inputs
+    """
+    raise NotImplementedError
+
+  def start_bundle(self):
+    """Called before a bundle of elements is processed on a worker.
+
+    Elements to be processed are split into bundles and distributed
+    to workers. Before a worker calls process() on the first element
+    of its bundle, it calls this method.
+    """
+    pass
+
+  def finish_bundle(self):
+    """Called after a bundle of elements is processed on a worker.
+    """
+    pass
+
+  def get_function_arguments(self, func):
+    """Return the function arguments based on the name provided. If they have
+    a _inspect_function attached to the class then use that otherwise default
+    to the python inspect library.
+    """
+    func_name = '_inspect_%s' % func
+    if hasattr(self, func_name):
+      f = getattr(self, func_name)
+      return f()
+    else:
+      f = getattr(self, func)
+      return inspect.getargspec(f)
+
+  # TODO(sourabhbajaj): Do we want to remove the responsiblity of these from
+  # the DoFn or maybe the runner
+  def infer_output_type(self, input_type):
+    # TODO(robertwb): Side inputs types.
+    # TODO(robertwb): Assert compatibility with input type hint?
+    return self._strip_output_annotations(
+        trivial_inference.infer_return_type(self.process, [input_type]))
+
+  def _strip_output_annotations(self, type_hint):
+    annotations = (window.TimestampedValue, window.WindowedValue,
+                   pvalue.SideOutputValue)
+    # TODO(robertwb): These should be parameterized types that the
+    # type inferencer understands.
+    if (type_hint in annotations
+        or trivial_inference.element_type(type_hint) in annotations):
+      return Any
+    else:
+      return type_hint
+
+  def process_argspec_fn(self):
+    """Returns the Python callable that will eventually be invoked.
+
+    This should ideally be the user-level function that is called with
+    the main and (if any) side inputs, and is used to relate the type
+    hint parameters with the input parameters (e.g., by argument name).
+    """
+    return self.process
+
+  def is_process_bounded(self):
+    """Checks if an object is a bound method on an instance."""
+    if not isinstance(self.process, types.MethodType):
+      return False # Not a method
+    if self.process.im_self is None:
+      return False # Method is not bound
+    if issubclass(self.process.im_class, type) or \
+        self.process.im_class is types.ClassType:
+      return False # Method is a classmethod
+    return True
+
+
+# TODO(Sourabh): Remove after migration to NewDoFn
 class DoFn(WithTypeHints, HasDisplayData):
   """A function object used by a transform with custom processing.
 
@@ -577,7 +684,7 @@ class ParDo(PTransformWithSideInputs):
   def __init__(self, fn_or_label, *args, **kwargs):
     super(ParDo, self).__init__(fn_or_label, *args, **kwargs)
 
-    if not isinstance(self.fn, DoFn):
+    if not isinstance(self.fn, (DoFn, NewDoFn)):
       raise TypeError('ParDo must be called with a DoFn instance.')
 
   def default_type_hints(self):
@@ -588,7 +695,9 @@ class ParDo(PTransformWithSideInputs):
         self.fn.infer_output_type(input_type))
 
   def make_fn(self, fn):
-    return fn if isinstance(fn, DoFn) else CallableWrapperDoFn(fn)
+    if isinstance(fn, (DoFn, NewDoFn)):
+      return fn
+    return CallableWrapperDoFn(fn)
 
   def process_argspec_fn(self):
     return self.fn.process_argspec_fn()
