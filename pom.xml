@@ -1208,6 +1208,24 @@
             </execution>
           </executions>
         </plugin>
+
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-clean-plugin</artifactId>
+          <version>3.0.0</version>
+          <configuration>
+            <filesets>
+              <fileset>
+                <directory>.</directory>
+                <includes>
+                  <include>**/*.pyc</include>
+                  <include>apache_beam_sdk.egg-info/</include>
+                </includes>
+                <followSymlinks>false</followSymlinks>
+              </fileset>
+            </filesets>
+          </configuration>
+        </plugin>
       </plugins>
     </pluginManagement>
 
