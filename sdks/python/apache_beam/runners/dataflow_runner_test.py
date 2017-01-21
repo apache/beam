@@ -47,12 +47,11 @@ class DataflowRunnerTest(unittest.TestCase):
         self.dataflow_client.list_messages = mock.MagicMock(
             return_value=([], None))
 
-    with self.assertRaises(DataflowRuntimeException) as e:
+    with self.assertRaisesRegexp(
+        DataflowRuntimeException, 'Dataflow pipeline failed. State: FAILED'):
       failed_runner = MockDataflowRunner(values_enum.JOB_STATE_FAILED)
       failed_result = DataflowPipelineResult(failed_runner.job, failed_runner)
       failed_result.wait_until_finish()
-    self.assertTrue(
-        'Dataflow pipeline failed. State: FAILED' in e.exception.message)
 
     succeeded_runner = MockDataflowRunner(values_enum.JOB_STATE_DONE)
     succeeded_result = DataflowPipelineResult(
