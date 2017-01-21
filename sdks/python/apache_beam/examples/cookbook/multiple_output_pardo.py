@@ -60,7 +60,7 @@ from apache_beam.utils.pipeline_options import PipelineOptions
 from apache_beam.utils.pipeline_options import SetupOptions
 
 
-class SplitLinesToWordsFn(beam.DoFn):
+class SplitLinesToWordsFn(beam.NewDoFn):
   """A transform to split a line of text into individual words.
 
   This transform will have 3 outputs:
@@ -73,7 +73,7 @@ class SplitLinesToWordsFn(beam.DoFn):
   SIDE_OUTPUT_TAG_SHORT_WORDS = 'tag_short_words'
   SIDE_OUTPUT_TAG_CHARACTER_COUNT = 'tag_character_count'
 
-  def process(self, context):
+  def process(self, element):
     """Receives a single element (a line) and produces words and side outputs.
 
     Important things to note here:
@@ -94,9 +94,9 @@ class SplitLinesToWordsFn(beam.DoFn):
     # yield a count (integer) to the SIDE_OUTPUT_TAG_CHARACTER_COUNT tagged
     # collection.
     yield pvalue.SideOutputValue(self.SIDE_OUTPUT_TAG_CHARACTER_COUNT,
-                                 len(context.element))
+                                 len(element))
 
-    words = re.findall(r'[A-Za-z\']+', context.element)
+    words = re.findall(r'[A-Za-z\']+', element)
     for word in words:
       if len(word) <= 3:
         # yield word as a side output to the SIDE_OUTPUT_TAG_SHORT_WORDS tagged

@@ -59,10 +59,10 @@ class AggregatorTest(unittest.TestCase):
     aggregators = [Aggregator('%s_%s' % (f.__name__, t.__name__), f, t)
                    for f, t, _ in counter_types]
 
-    class UpdateAggregators(beam.DoFn):
-      def process(self, context):
+    class UpdateAggregators(beam.NewDoFn):
+      def process(self, element, context=beam.NewDoFn.ContextParam):
         for a in aggregators:
-          context.aggregate_to(a, context.element)
+          context.aggregate_to(a, element)
 
     p = TestPipeline()
     p | beam.Create([0, 1, 2, 3]) | beam.ParDo(UpdateAggregators())  # pylint: disable=expression-not-assigned

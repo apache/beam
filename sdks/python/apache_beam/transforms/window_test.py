@@ -47,11 +47,10 @@ def context(element, timestamp, windows):
 sort_values = Map(lambda (k, vs): (k, sorted(vs)))
 
 
-class ReifyWindowsFn(core.DoFn):
-  def process(self, context):
-    key, values = context.element
-    for window in context.windows:
-      yield "%s @ %s" % (key, window), values
+class ReifyWindowsFn(core.NewDoFn):
+  def process(self, element, w=core.NewDoFn.WindowParam):
+    key, values = element
+    yield "%s @ %s" % (key, w), values
 reify_windows = core.ParDo(ReifyWindowsFn())
 
 

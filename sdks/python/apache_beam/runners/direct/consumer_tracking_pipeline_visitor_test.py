@@ -29,7 +29,7 @@ from apache_beam.runners.direct import DirectRunner
 from apache_beam.runners.direct.consumer_tracking_pipeline_visitor import ConsumerTrackingPipelineVisitor
 from apache_beam.transforms import CoGroupByKey
 from apache_beam.transforms import Create
-from apache_beam.transforms import DoFn
+from apache_beam.transforms import NewDoFn
 from apache_beam.transforms import FlatMap
 from apache_beam.transforms import Flatten
 from apache_beam.transforms import ParDo
@@ -74,18 +74,18 @@ class ConsumerTrackingPipelineVisitorTest(unittest.TestCase):
 
   def test_side_inputs(self):
 
-    class SplitNumbersFn(DoFn):
+    class SplitNumbersFn(NewDoFn):
 
-      def process(self, context):
-        if context.element < 0:
-          yield pvalue.SideOutputValue('tag_negative', context.element)
+      def process(self, element):
+        if element < 0:
+          yield pvalue.SideOutputValue('tag_negative', element)
         else:
-          yield context.element
+          yield element
 
-    class ProcessNumbersFn(DoFn):
+    class ProcessNumbersFn(NewDoFn):
 
-      def process(self, context, negatives):
-        yield context.element
+      def process(self, element, negatives):
+        yield element
 
     root_create = Create('create', [[-1, 2, 3]])
 

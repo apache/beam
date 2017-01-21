@@ -71,6 +71,7 @@ from google.datastore.v1 import query_pb2
 from googledatastore import helper as datastore_helper, PropertyFilter
 
 import apache_beam as beam
+from apache_beam import NewDoFn
 from apache_beam.io import ReadFromText
 from apache_beam.io.datastore.v1.datastoreio import ReadFromDatastore
 from apache_beam.io.datastore.v1.datastoreio import WriteToDatastore
@@ -84,10 +85,10 @@ average_word_size_aggregator = beam.Aggregator('averageWordLength',
                                                float)
 
 
-class WordExtractingDoFn(beam.DoFn):
+class WordExtractingDoFn(NewDoFn):
   """Parse each line of input text into words."""
 
-  def process(self, context):
+  def process(self, element, context=NewDoFn.ContextParam):
     """Returns an iterator over words in contents of Cloud Datastore entity.
     The element is a line of text.  If the line is blank, note that, too.
     Args:
@@ -95,7 +96,7 @@ class WordExtractingDoFn(beam.DoFn):
     Returns:
       The processed element.
     """
-    content_value = context.element.properties.get('content', None)
+    content_value = element.properties.get('content', None)
     text_line = ''
     if content_value:
       text_line = content_value.string_value

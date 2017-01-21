@@ -36,10 +36,10 @@ average_word_size_aggregator = beam.Aggregator('averageWordLength',
                                                float)
 
 
-class WordExtractingDoFn(beam.DoFn):
+class WordExtractingDoFn(beam.NewDoFn):
   """Parse each line of input text into words."""
 
-  def process(self, context):
+  def process(self, element, context=beam.NewDoFn.ContextParam):
     """Returns an iterator over the words of this element.
 
     The element is a line of text.  If the line is blank, note that, too.
@@ -50,7 +50,7 @@ class WordExtractingDoFn(beam.DoFn):
     Returns:
       The processed element.
     """
-    text_line = context.element.strip()
+    text_line = element.strip()
     if not text_line:
       context.aggregate_to(empty_line_aggregator, 1)
     words = re.findall(r'[A-Za-z\']+', text_line)

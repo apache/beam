@@ -32,7 +32,7 @@ from apache_beam.pvalue import EmptySideInput
 from apache_beam.pvalue import SideOutputValue
 from apache_beam.test_pipeline import TestPipeline
 from apache_beam.transforms import Create
-from apache_beam.transforms import DoFn
+from apache_beam.transforms import NewDoFn
 from apache_beam.transforms import FlatMap
 from apache_beam.transforms import GroupByKey
 from apache_beam.transforms import Map
@@ -109,11 +109,11 @@ class DataflowTest(unittest.TestCase):
 
   @attr('ValidatesRunner')
   def test_par_do_with_do_fn_object(self):
-    class SomeDoFn(DoFn):
+    class SomeDoFn(NewDoFn):
       """A custom DoFn for a FlatMap transform."""
 
-      def process(self, context, prefix, suffix):
-        return ['%s-%s-%s' % (prefix, context.element, suffix)]
+      def process(self, element, prefix, suffix):
+        return ['%s-%s-%s' % (prefix, element, suffix)]
 
     pipeline = TestPipeline()
     words_list = ['aa', 'bb', 'cc']
@@ -127,15 +127,15 @@ class DataflowTest(unittest.TestCase):
 
   @attr('ValidatesRunner')
   def test_par_do_with_multiple_outputs_and_using_yield(self):
-    class SomeDoFn(DoFn):
+    class SomeDoFn(NewDoFn):
       """A custom DoFn using yield."""
 
-      def process(self, context):
-        yield context.element
-        if context.element % 2 == 0:
-          yield SideOutputValue('even', context.element)
+      def process(self, element):
+        yield element
+        if element % 2 == 0:
+          yield SideOutputValue('even', element)
         else:
-          yield SideOutputValue('odd', context.element)
+          yield SideOutputValue('odd', element)
 
     pipeline = TestPipeline()
     nums = pipeline | 'Some Numbers' >> Create([1, 2, 3, 4])

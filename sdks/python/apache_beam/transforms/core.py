@@ -109,6 +109,7 @@ class DoFnProcessContext(DoFnContext):
       self.timestamp = windowed_value.timestamp
       self.windows = windowed_value.windows
 
+  # TODO(sourabhbajaj): Move as we're trying to deprecate the use of context
   def aggregate_to(self, aggregator, input_value):
     """Provide a new input value for the aggregator.
 
@@ -119,6 +120,112 @@ class DoFnProcessContext(DoFnContext):
     self.state.counter_for(aggregator).update(input_value)
 
 
+class NewDoFn(WithTypeHints, HasDisplayData):
+  """A function object used by a transform with custom processing.
+
+  The ParDo transform is such a transform. The ParDo.apply
+  method will take an object of type DoFn and apply it to all elements of a
+  PCollection object.
+
+  In order to have concrete DoFn objects one has to subclass from DoFn and
+  define the desired behavior (start_bundle/finish_bundle and process) or wrap a
+  callable object using the CallableWrapperDoFn class.
+  """
+
+  ElementParam = 'ElementParam'
+  ContextParam = 'ContextParam'
+  SideInputParam = 'SideInputParam'
+  TimestampParam = 'TimestampParam'
+  WindowParam = 'WindowParam'
+
+  @staticmethod
+  def from_callable(fn):
+    return CallableWrapperDoFn(fn)
+
+  def default_label(self):
+    return self.__class__.__name__
+
+  def process(self, element, *args, **kwargs):
+    """Called for each element of a pipeline. The default arguments are needed
+    for the DoFnRunner to be able to pass the parameters correctly.
+
+    Args:
+      element: The element to be processed
+      context: a DoFnProcessContext object containing. See the
+        DoFnProcessContext documentation for details.
+      *args: side inputs
+      **kwargs: keyword side inputs
+    """
+    raise NotImplementedError
+
+  def start_bundle(self):
+    """Called before a bundle of elements is processed on a worker.
+
+    Elements to be processed are split into bundles and distributed
+    to workers. Before a worker calls process() on the first element
+    of its bundle, it calls this method.
+    """
+    pass
+
+  def finish_bundle(self):
+    """Called after a bundle of elements is processed on a worker.
+    """
+    pass
+
+  def get_function_arguments(self, func):
+    """Return the function arguments based on the name provided. If they have
+    a _inspect_function attached to the class then use that otherwise default
+    to the python inspect library.
+    """
+    func_name = '_inspect_%s' % func
+    if hasattr(self, func_name):
+      f = getattr(self, func_name)
+      return f()
+    else:
+      f = getattr(self, func)
+      return inspect.getargspec(f)
+
+  # TODO(sourabhbajaj): Do we want to remove the responsiblity of these from
+  # the DoFn or maybe the runner
+  def infer_output_type(self, input_type):
+    # TODO(robertwb): Side inputs types.
+    # TODO(robertwb): Assert compatibility with input type hint?
+    return self._strip_output_annotations(
+        trivial_inference.infer_return_type(self.process, [input_type]))
+
+  def _strip_output_annotations(self, type_hint):
+    annotations = (window.TimestampedValue, window.WindowedValue,
+                   pvalue.SideOutputValue)
+    # TODO(robertwb): These should be parameterized types that the
+    # type inferencer understands.
+    if (type_hint in annotations
+        or trivial_inference.element_type(type_hint) in annotations):
+      return Any
+    else:
+      return type_hint
+
+  def process_argspec_fn(self):
+    """Returns the Python callable that will eventually be invoked.
+
+    This should ideally be the user-level function that is called with
+    the main and (if any) side inputs, and is used to relate the type
+    hint parameters with the input parameters (e.g., by argument name).
+    """
+    return self.process
+
+  def is_process_bounded(self):
+    """Checks if an object is a bound method on an instance."""
+    if not isinstance(self.process, types.MethodType):
+      return False # Not a method
+    if self.process.im_self is None:
+      return False # Method is not bound
+    if issubclass(self.process.im_class, type) or \
+        self.process.im_class is types.ClassType:
+      return False # Method is a classmethod
+    return True
+
+
+# TODO(Sourabh): Remove after migration to NewDoFn
 class DoFn(WithTypeHints, HasDisplayData):
   """A function object used by a transform with custom processing.
 
@@ -207,7 +314,7 @@ def _fn_takes_side_inputs(fn):
   return len(argspec.args) > 1 + is_bound or argspec.varargs or argspec.keywords
 
 
-class CallableWrapperDoFn(DoFn):
+class CallableWrapperDoFn(NewDoFn):
   """A DoFn (function) object wrapping a callable object.
 
   The purpose of this class is to conveniently wrap simple functions and use
@@ -227,11 +334,12 @@ class CallableWrapperDoFn(DoFn):
       raise TypeError('Expected a callable object instead of: %r' % fn)
 
     self._fn = fn
-    if _fn_takes_side_inputs(fn):
-      self.process = lambda context, *args, **kwargs: fn(
-          context.element, *args, **kwargs)
+    if isinstance(fn, (
+        types.BuiltinFunctionType, types.MethodType, types.FunctionType)):
+      self.process = fn
     else:
-      self.process = lambda context: fn(context.element)
+      # For cases such as set / list where fn is callable but not a function
+      self.process = lambda e: fn(e)
 
     super(CallableWrapperDoFn, self).__init__()
 
@@ -577,7 +685,7 @@ class ParDo(PTransformWithSideInputs):
   def __init__(self, fn_or_label, *args, **kwargs):
     super(ParDo, self).__init__(fn_or_label, *args, **kwargs)
 
-    if not isinstance(self.fn, DoFn):
+    if not isinstance(self.fn, (DoFn, NewDoFn)):
       raise TypeError('ParDo must be called with a DoFn instance.')
 
   def default_type_hints(self):
@@ -588,7 +696,9 @@ class ParDo(PTransformWithSideInputs):
         self.fn.infer_output_type(input_type))
 
   def make_fn(self, fn):
-    return fn if isinstance(fn, DoFn) else CallableWrapperDoFn(fn)
+    if isinstance(fn, (DoFn, NewDoFn)):
+      return fn
+    return CallableWrapperDoFn(fn)
 
   def process_argspec_fn(self):
     return self.fn.process_argspec_fn()
@@ -968,7 +1078,7 @@ class CombineValues(PTransformWithSideInputs):
         *args, **kwargs)
 
 
-class CombineValuesDoFn(DoFn):
+class CombineValuesDoFn(NewDoFn):
   """DoFn for performing per-key Combine transforms."""
 
   def __init__(self, input_pcoll_type, combinefn, runtime_type_check):
@@ -976,7 +1086,7 @@ class CombineValuesDoFn(DoFn):
     self.combinefn = combinefn
     self.runtime_type_check = runtime_type_check
 
-  def process(self, p_context, *args, **kwargs):
+  def process(self, element, *args, **kwargs):
     # Expected elements input to this DoFn are 2-tuples of the form
     # (key, iter), with iter an iterable of all the values associated with key
     # in the input PCollection.
@@ -985,11 +1095,11 @@ class CombineValuesDoFn(DoFn):
       # breaking it up so that output type violations manifest as TypeCheck
       # errors rather than type errors.
       return [
-          (p_context.element[0],
-           self.combinefn.apply(p_context.element[1], *args, **kwargs))]
+          (element[0],
+           self.combinefn.apply(element[1], *args, **kwargs))]
     else:
       # Add the elements into three accumulators (for testing of merge).
-      elements = p_context.element[1]
+      elements = element[1]
       accumulators = []
       for k in range(3):
         if len(elements) <= k:
@@ -1003,7 +1113,7 @@ class CombineValuesDoFn(DoFn):
       accumulator = self.combinefn.merge_accumulators(
           accumulators, *args, **kwargs)
       # Convert accumulator to the final result.
-      return [(p_context.element[0],
+      return [(element[0],
                self.combinefn.extract_output(accumulator, *args, **kwargs))]
 
   def default_type_hints(self):
@@ -1034,22 +1144,23 @@ class GroupByKey(PTransform):
   The implementation here is used only when run on the local direct runner.
   """
 
-  class ReifyWindows(DoFn):
+  class ReifyWindows(NewDoFn):
 
-    def process(self, context):
+    def process(self, element, w=NewDoFn.WindowParam,
+                timestamp=NewDoFn.TimestampParam):
       try:
-        k, v = context.element
+        k, v = element
       except TypeError:
         raise TypeCheckError('Input to GroupByKey must be a PCollection with '
                              'elements compatible with KV[A, B]')
 
-      return [(k, window.WindowedValue(v, context.timestamp, context.windows))]
+      return [(k, window.WindowedValue(v, timestamp, [w]))]
 
     def infer_output_type(self, input_type):
       key_type, value_type = trivial_inference.key_value_types(input_type)
       return Iterable[KV[key_type, typehints.WindowedValue[value_type]]]
 
-  class GroupAlsoByWindow(DoFn):
+  class GroupAlsoByWindow(NewDoFn):
     # TODO(robertwb): Support combiner lifting.
 
     def __init__(self, windowing):
@@ -1062,7 +1173,7 @@ class GroupByKey(PTransform):
       value_type = windowed_value_iter_type.inner_type.inner_type
       return Iterable[KV[key_type, Iterable[value_type]]]
 
-    def start_bundle(self, context):
+    def start_bundle(self):
       # pylint: disable=wrong-import-order, wrong-import-position
       from apache_beam.transforms.trigger import InMemoryUnmergedState
       from apache_beam.transforms.trigger import create_trigger_driver
@@ -1070,8 +1181,8 @@ class GroupByKey(PTransform):
       self.driver = create_trigger_driver(self.windowing, True)
       self.state_type = InMemoryUnmergedState
 
-    def process(self, context):
-      k, vs = context.element
+    def process(self, element):
+      k, vs = element
       state = self.state_type()
       # TODO(robertwb): Conditionally process in smaller chunks.
       for wvalue in self.driver.process_elements(state, vs, MIN_TIMESTAMP):
@@ -1154,10 +1265,11 @@ class Partition(PTransformWithSideInputs):
   representing each of n partitions, in order.
   """
 
-  class ApplyPartitionFnFn(DoFn):
+  class ApplyPartitionFnFn(NewDoFn):
     """A DoFn that applies a PartitionFn."""
 
-    def process(self, context, partitionfn, n, *args, **kwargs):
+    def process(self, element, partitionfn, n, context=NewDoFn.ContextParam,
+                *args, **kwargs):
       partition = partitionfn.partition_for(context, n, *args, **kwargs)
       if not 0 <= partition < n:
         raise ValueError(
@@ -1165,7 +1277,7 @@ class Partition(PTransformWithSideInputs):
             '%d not in [0, %d)' % (partition, n))
       # Each input is directed into the side output that corresponds to the
       # selected partition.
-      yield pvalue.SideOutputValue(str(partition), context.element)
+      yield pvalue.SideOutputValue(str(partition), element)
 
   def make_fn(self, fn):
     return fn if isinstance(fn, PartitionFn) else CallableWrapperPartitionFn(fn)
@@ -1223,18 +1335,18 @@ class WindowInto(ParDo):
   determined by the windowing function.
   """
 
-  class WindowIntoFn(DoFn):
+  class WindowIntoFn(NewDoFn):
     """A DoFn that applies a WindowInto operation."""
 
     def __init__(self, windowing):
       self.windowing = windowing
 
-    def process(self, context):
+    def process(self, element, context=NewDoFn.ContextParam):
       context = WindowFn.AssignContext(context.timestamp,
-                                       element=context.element,
+                                       element=element,
                                        existing_windows=context.windows)
       new_windows = self.windowing.windowfn.assign(context)
-      yield WindowedValue(context.element, context.timestamp, new_windows)
+      yield WindowedValue(element, context.timestamp, new_windows)
 
   def __init__(self, *args, **kwargs):
     """Initializes a WindowInto transform.
