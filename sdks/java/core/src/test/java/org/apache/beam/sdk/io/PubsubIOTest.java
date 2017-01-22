@@ -25,6 +25,8 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThat;
 
 import java.util.Set;
+
+import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.testing.RunnableOnService;
 import org.apache.beam.sdk.transforms.display.DisplayData;
@@ -48,19 +50,20 @@ public class PubsubIOTest {
   @Test
   public void testPubsubIOGetName() {
     assertEquals("PubsubIO.Read",
-        PubsubIO.Read.topic("projects/myproject/topics/mytopic").getName());
+        PubsubIO.<String>read().topic("projects/myproject/topics/mytopic").getName());
     assertEquals("PubsubIO.Write",
-        PubsubIO.Write.topic("projects/myproject/topics/mytopic").getName());
+        PubsubIO.<String>write().topic("projects/myproject/topics/mytopic").getName());
   }
 
   @Test
   public void testTopicValidationSuccess() throws Exception {
-    PubsubIO.Read.topic("projects/my-project/topics/abc");
-    PubsubIO.Read.topic("projects/my-project/topics/ABC");
-    PubsubIO.Read.topic("projects/my-project/topics/AbC-DeF");
-    PubsubIO.Read.topic("projects/my-project/topics/AbC-1234");
-    PubsubIO.Read.topic("projects/my-project/topics/AbC-1234-_.~%+-_.~%+-_.~%+-abc");
-    PubsubIO.Read.topic(new StringBuilder().append("projects/my-project/topics/A-really-long-one-")
+    PubsubIO.<String>read().topic("projects/my-project/topics/abc");
+    PubsubIO.<String>read().topic("projects/my-project/topics/ABC");
+    PubsubIO.<String>read().topic("projects/my-project/topics/AbC-DeF");
+    PubsubIO.<String>read().topic("projects/my-project/topics/AbC-1234");
+    PubsubIO.<String>read().topic("projects/my-project/topics/AbC-1234-_.~%+-_.~%+-_.~%+-abc");
+    PubsubIO.<String>read().topic(new StringBuilder()
+        .append("projects/my-project/topics/A-really-long-one-")
         .append("111111111111111111111111111111111111111111111111111111111111111111111111111111111")
         .append("111111111111111111111111111111111111111111111111111111111111111111111111111111111")
         .append("11111111111111111111111111111111111111111111111111111111111111111111111111")
@@ -70,13 +73,14 @@ public class PubsubIOTest {
   @Test
   public void testTopicValidationBadCharacter() throws Exception {
     thrown.expect(IllegalArgumentException.class);
-    PubsubIO.Read.topic("projects/my-project/topics/abc-*-abc");
+    PubsubIO.<String>read().topic("projects/my-project/topics/abc-*-abc");
   }
 
   @Test
   public void testTopicValidationTooLong() throws Exception {
     thrown.expect(IllegalArgumentException.class);
-    PubsubIO.Read.topic(new StringBuilder().append("projects/my-project/topics/A-really-long-one-")
+    PubsubIO.<String>read().topic(new StringBuilder().append
+        ("projects/my-project/topics/A-really-long-one-")
         .append("111111111111111111111111111111111111111111111111111111111111111111111111111111111")
         .append("111111111111111111111111111111111111111111111111111111111111111111111111111111111")
         .append("1111111111111111111111111111111111111111111111111111111111111111111111111111")
@@ -88,7 +92,7 @@ public class PubsubIOTest {
     String topic = "projects/project/topics/topic";
     String subscription = "projects/project/subscriptions/subscription";
     Duration maxReadTime = Duration.standardMinutes(5);
-    PubsubIO.Read.Bound<String> read = PubsubIO.Read
+    PubsubIO.Read<String> read = PubsubIO.<String>read()
         .topic(StaticValueProvider.of(topic))
         .subscription(StaticValueProvider.of(subscription))
         .timestampLabel("myTimestamp")
@@ -109,7 +113,7 @@ public class PubsubIOTest {
   @Test
   public void testNullTopic() {
     String subscription = "projects/project/subscriptions/subscription";
-    PubsubIO.Read.Bound<String> read = PubsubIO.Read
+    PubsubIO.Read<String> read = PubsubIO.<String>read()
         .subscription(StaticValueProvider.of(subscription));
     assertNull(read.getTopic());
     assertNotNull(read.getSubscription());
@@ -119,7 +123,7 @@ public class PubsubIOTest {
   @Test
   public void testNullSubscription() {
     String topic = "projects/project/topics/topic";
-    PubsubIO.Read.Bound<String> read = PubsubIO.Read
+    PubsubIO.Read<String> read = PubsubIO.<String>read()
         .topic(StaticValueProvider.of(topic));
     assertNotNull(read.getTopic());
     assertNull(read.getSubscription());
@@ -130,9 +134,10 @@ public class PubsubIOTest {
   @Category(RunnableOnService.class)
   public void testPrimitiveReadDisplayData() {
     DisplayDataEvaluator evaluator = DisplayDataEvaluator.create();
-    PubsubIO.Read.Bound<String> read =
-        PubsubIO.Read.subscription("projects/project/subscriptions/subscription")
-            .maxNumRecords(1);
+    PubsubIO.Read<String> read =
+        PubsubIO.<String>read().subscription("projects/project/subscriptions/subscription")
+            .maxNumRecords(1)
+            .withCoder(StringUtf8Coder.of());
 
     Set<DisplayData> displayData = evaluator.displayDataForPrimitiveSourceTransforms(read);
     assertThat("PubsubIO.Read should include the subscription in its primitive display data",
@@ -142,7 +147,7 @@ public class PubsubIOTest {
   @Test
   public void testWriteDisplayData() {
     String topic = "projects/project/topics/topic";
-    PubsubIO.Write.Bound<?> write = PubsubIO.Write
+    PubsubIO.Write<?> write = PubsubIO.<String>write()
         .topic(topic)
         .timestampLabel("myTimestamp")
         .idLabel("myId");
@@ -158,7 +163,7 @@ public class PubsubIOTest {
   @Category(RunnableOnService.class)
   public void testPrimitiveWriteDisplayData() {
     DisplayDataEvaluator evaluator = DisplayDataEvaluator.create();
-    PubsubIO.Write.Bound<?> write = PubsubIO.Write.topic("projects/project/topics/topic");
+    PubsubIO.Write<?> write = PubsubIO.<String>write().topic("projects/project/topics/topic");
 
     Set<DisplayData> displayData = evaluator.displayDataForPrimitiveTransforms(write);
     assertThat("PubsubIO.Write should include the topic in its primitive display data",

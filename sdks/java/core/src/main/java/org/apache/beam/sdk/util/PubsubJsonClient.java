@@ -138,6 +138,8 @@ public class PubsubJsonClient extends PubsubClient {
       Map<String, String> attributes = pubsubMessage.getAttributes();
       if ((timestampLabel != null || idLabel != null) && attributes == null) {
         attributes = new TreeMap<>();
+      }
+      if (attributes != null) {
         pubsubMessage.setAttributes(attributes);
       }
 
@@ -201,7 +203,7 @@ public class PubsubJsonClient extends PubsubClient {
         recordId = pubsubMessage.getMessageId();
       }
 
-      incomingMessages.add(new IncomingMessage(elementBytes, timestampMsSinceEpoch,
+      incomingMessages.add(new IncomingMessage(elementBytes, attributes, timestampMsSinceEpoch,
                                                requestTimeMsSinceEpoch, ackId, recordId));
     }
 
