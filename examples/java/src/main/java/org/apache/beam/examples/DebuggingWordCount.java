@@ -97,7 +97,7 @@ public class DebuggingWordCount {
     private final Aggregator<Long, Long> matchedWords =
         createAggregator("matchedWords", Sum.ofLongs());
     private final Aggregator<Long, Long> unmatchedWords =
-        createAggregator("umatchedWords", Sum.ofLongs());
+        createAggregator("unmatchedWords", Sum.ofLongs());
 
     @ProcessElement
     public void processElement(ProcessContext c) {
