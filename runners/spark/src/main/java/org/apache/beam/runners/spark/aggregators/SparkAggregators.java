@@ -66,10 +66,25 @@ public class SparkAggregators {
    *
    * @param jsc a Spark context to be used in order to retrieve the name
    * {@link NamedAggregators} instance
-   * @return a {@link NamedAggregators} instance
    */
   public static Accumulator<NamedAggregators> getNamedAggregators(JavaSparkContext jsc) {
-    return AccumulatorSingleton.getInstance(jsc);
+    return getOrCreateNamedAggregators(jsc, false, "");
+  }
+
+  /**
+   * Retrieves or creates the {@link NamedAggregators} instance using the provided Spark context.
+   *
+   * @param jsc a Spark context to be used in order to retrieve the name
+   * {@link NamedAggregators} instance
+   * @param isStreaming is streaming pipeline
+   * @param checkpointDir checkpoint dir
+   * @return a {@link NamedAggregators} instance
+   */
+  public static Accumulator<NamedAggregators> getOrCreateNamedAggregators(
+      JavaSparkContext jsc,
+      boolean isStreaming,
+      String checkpointDir) {
+    return AccumulatorSingleton.getInstance(jsc, isStreaming, checkpointDir);
   }
 
   /**

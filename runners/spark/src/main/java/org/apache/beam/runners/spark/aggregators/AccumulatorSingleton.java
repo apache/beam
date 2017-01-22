@@ -19,35 +19,114 @@
 package org.apache.beam.runners.spark.aggregators;
 
 import com.google.common.annotations.VisibleForTesting;
+import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
+import org.apache.hadoop.fs.FSDataInputStream;
+import org.apache.hadoop.fs.FSDataOutputStream;
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
 import org.apache.spark.Accumulator;
 import org.apache.spark.api.java.JavaSparkContext;
+import org.apache.spark.streaming.api.java.JavaStreamingListener;
+import org.apache.spark.streaming.api.java.JavaStreamingListenerBatchCompleted;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 
 /**
  * For resilience, {@link Accumulator}s are required to be wrapped in a Singleton.
  * @see <a href="https://spark.apache.org/docs/1.6.3/streaming-programming-guide.html#accumulators-and-broadcast-variables">accumulators</a>
  */
-class AccumulatorSingleton {
+public class AccumulatorSingleton {
+  private static final Logger LOG = LoggerFactory.getLogger(AccumulatorSingleton.class);
 
-  private static volatile Accumulator<NamedAggregators> instance = null;
+  private static final String ACCUMULATOR_CHECKPOINT_FILE = "beam_aggregators";
 
-  static Accumulator<NamedAggregators> getInstance(JavaSparkContext jsc) {
+  private static volatile Accumulator<NamedAggregators> instance;
+  private static volatile FileSystem fileSystem;
+  private static volatile Path checkpointPath;
+  private static volatile Path tempCheckpointPath;
+  private static volatile Path backupCheckpointPath;
+
+  static Accumulator<NamedAggregators> getInstance(
+      JavaSparkContext jsc,
+      boolean isStreaming,
+      String checkpointDir) {
     if (instance == null) {
       synchronized (AccumulatorSingleton.class) {
         if (instance == null) {
-          //TODO: currently when recovering from checkpoint, Spark does not recover the
-          // last known Accumulator value. The SparkRunner should be able to persist and recover
-          // the NamedAggregators in order to recover Aggregators as well.
           instance = jsc.sc().accumulator(new NamedAggregators(), new AggAccumParam());
+          if (isStreaming) {
+            recoverValueFromCheckpoint(jsc, checkpointDir);
+          }
         }
       }
     }
     return instance;
   }
 
+  private static void recoverValueFromCheckpoint(JavaSparkContext jsc, String checkpointDir) {
+    FSDataInputStream is = null;
+    try {
+      checkpointPath = new Path(checkpointDir, ACCUMULATOR_CHECKPOINT_FILE);
+      tempCheckpointPath = checkpointPath.suffix(".tmp");
+      backupCheckpointPath = checkpointPath.suffix(".bak");
+      fileSystem = checkpointPath.getFileSystem(jsc.hadoopConfiguration());
+      if (fileSystem.exists(checkpointPath)) {
+        is = fileSystem.open(checkpointPath);
+      } else if (fileSystem.exists(backupCheckpointPath)) {
+        is = fileSystem.open(backupCheckpointPath);
+      }
+      if (is != null) {
+        ObjectInputStream objectInputStream = new ObjectInputStream(is);
+        NamedAggregators recoveredValue =
+            (NamedAggregators) objectInputStream.readObject();
+        objectInputStream.close();
+        LOG.info("Recovered accumulators from checkpoint: " + recoveredValue);
+        instance.setValue(recoveredValue);
+      } else {
+        LOG.info("No accumulator checkpoint found.");
+      }
+    } catch (Exception e) {
+      throw new RuntimeException("Failure while reading accumulator checkpoint.", e);
+    }
+  }
+
+  private static void checkpoint() throws IOException {
+    if (checkpointPath != null) {
+      if (fileSystem.exists(checkpointPath)) {
+        if (fileSystem.exists(backupCheckpointPath)) {
+          fileSystem.delete(backupCheckpointPath, false);
+        }
+        fileSystem.rename(checkpointPath, backupCheckpointPath);
+      }
+      FSDataOutputStream os = fileSystem.create(tempCheckpointPath, true);
+      ObjectOutputStream oos = new ObjectOutputStream(os);
+      oos.writeObject(instance.value());
+      oos.close();
+      fileSystem.rename(tempCheckpointPath, checkpointPath);
+    }
+  }
+
   @VisibleForTesting
   static void clear() {
     synchronized (AccumulatorSingleton.class) {
       instance = null;
+    }
+  }
+
+  /**
+   * Spark Listener which checkpoints {@link NamedAggregators} values for fault-tolerance.
+   */
+  public static class AccumulatorCheckpointingSparkListener extends JavaStreamingListener {
+    @Override
+    public void onBatchCompleted(JavaStreamingListenerBatchCompleted batchCompleted) {
+      try {
+        checkpoint();
+      } catch (IOException e) {
+        LOG.error("Failed to checkpoint accumulator singleton.", e);
+      }
     }
   }
 }

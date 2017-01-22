@@ -24,6 +24,7 @@ import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import org.apache.beam.runners.spark.aggregators.AccumulatorSingleton;
 import org.apache.beam.runners.spark.aggregators.NamedAggregators;
 import org.apache.beam.runners.spark.aggregators.SparkAggregators;
 import org.apache.beam.runners.spark.aggregators.metrics.AggregatorMetricSource;
@@ -54,6 +55,7 @@ import org.apache.spark.SparkEnv$;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.metrics.MetricsSystem;
 import org.apache.spark.streaming.api.java.JavaStreamingContext;
+import org.apache.spark.streaming.api.java.JavaStreamingListenerWrapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -130,7 +132,8 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
   }
 
   private void registerMetrics(final SparkPipelineOptions opts, final JavaSparkContext jsc) {
-    final Accumulator<NamedAggregators> accum = SparkAggregators.getNamedAggregators(jsc);
+    final Accumulator<NamedAggregators> accum = SparkAggregators.getOrCreateNamedAggregators(jsc,
+        opts.isStreaming(), opts.getCheckpointDir());
     final NamedAggregators initialValue = accum.value();
 
     if (opts.getEnableSparkMetricSinks()) {
@@ -158,6 +161,11 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
           new SparkRunnerStreamingContextFactory(pipeline, mOptions);
       final JavaStreamingContext jssc =
           JavaStreamingContext.getOrCreate(mOptions.getCheckpointDir(), contextFactory);
+
+      // Checkpoint aggregator values
+      jssc.addStreamingListener(
+          new JavaStreamingListenerWrapper(
+              new AccumulatorSingleton.AccumulatorCheckpointingSparkListener()));
 
       startPipeline = executorService.submit(new Runnable() {
 
